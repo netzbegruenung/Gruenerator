@@ -1,38 +1,32 @@
 import { normalizeProviderName } from '../../services/ai/providers.js';
 
-import * as litellm from './litellmAdapter.js';
-import * as mistral from './mistralAdapter.js';
-import * as regolo from './regoloAdapter.js';
+import { execute, type ExecuteDeps } from './execute.js';
 
 import type { ProviderName } from '../../services/ai/providers.js';
 import type { AIRequestData, AIWorkerResult } from '../types.js';
 
-interface ProviderModule {
-  execute(requestId: string, data: AIRequestData): Promise<AIWorkerResult>;
-}
-
-const adapters: Record<string, ProviderModule> = { mistral, litellm, regolo };
+// Must list EVERY ProviderName. This is an array, not a Record, so the compiler
+// does not check it — a missing member is not an error but a silent downgrade:
+// `normalizeProviderName` sends the unknown name to 'mistral', i.e. the most
+// expensive model, behind nothing but a console.warn.
+const KNOWN: readonly ProviderName[] = ['mistral', 'litellm', 'regolo', 'greenpt', 'scaleway'];
 
 async function executeProvider(
   providerName: ProviderName | string,
   requestId: string,
-  data: AIRequestData
+  data: AIRequestData,
+  deps?: ExecuteDeps
 ): Promise<AIWorkerResult> {
-  let adapter = adapters[providerName];
-  if (!adapter) {
-    // Legacy/retired provider names (e.g. 'ionos' from stale clients or
-    // persisted playground selections) degrade to a live provider instead
-    // of failing the request.
-    const normalized = normalizeProviderName(String(providerName));
+  let provider = providerName as ProviderName;
+  if (!KNOWN.includes(provider)) {
+    // Retired provider names (e.g. 'ionos' from a stale client or a persisted
+    // playground selection) degrade to a live lane instead of failing the turn.
+    provider = normalizeProviderName(String(providerName));
     console.warn(
-      `[providers ${requestId}] Unknown provider "${providerName}", falling back to "${normalized}"`
+      `[providers ${requestId}] Unknown provider "${providerName}", falling back to "${provider}"`
     );
-    adapter = adapters[normalized];
   }
-  if (!adapter || typeof adapter.execute !== 'function') {
-    throw new Error(`Unknown provider: ${providerName}`);
-  }
-  return adapter.execute(requestId, data);
+  return execute(provider, requestId, data, deps);
 }
 
-export { mistral, litellm, regolo, adapters, executeProvider };
+export { execute, executeProvider, KNOWN as KNOWN_PROVIDERS };

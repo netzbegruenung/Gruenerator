@@ -13,7 +13,8 @@ import { useNavigate } from 'react-router-dom';
 
 import apiClient from '../../../components/utils/apiClient';
 import { getPublicAppOrigin, resolveApiAssetUrl } from '../../../utils/platform';
-import { type RecentItem, useRecentActivity } from '../hooks/useRecentActivity';
+import { REELS_QUERY_KEY, useReels, type ReelItem } from '../hooks/useContent';
+import { RECENT_ACTIVITY_KEY } from '../hooks/useRecentActivity';
 
 const ReelCard = memo(
   ({
@@ -22,25 +23,20 @@ const ReelCard = memo(
     onShare,
     onClick,
   }: {
-    item: RecentItem;
-    onDelete: (item: RecentItem) => void;
-    onShare: (item: RecentItem) => void;
-    onClick: (item: RecentItem) => void;
+    item: ReelItem;
+    onDelete: (item: ReelItem) => void;
+    onShare: (item: ReelItem) => void;
+    onClick: (item: ReelItem) => void;
   }) => {
-    const videoId = item.href.includes('project=') ? item.href.split('project=')[1] : item.id;
-
     return (
       <VideoCard
-        src={resolveApiAssetUrl(`/api/subtitler/projects/${videoId}/video`)}
-        poster={resolveApiAssetUrl(item.thumbnailUrl)}
+        src={resolveApiAssetUrl(`/api/subtitler/projects/${item.id}/video`)}
+        poster={resolveApiAssetUrl(item.thumbnailUrl ?? undefined)}
         title={item.title || 'Reel'}
-        duration={item.duration}
+        duration={item.duration ?? undefined}
         onClick={() => onClick(item)}
         overlay={
-          <div
-            className="absolute top-1 right-1 max-sm:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="absolute top-1 right-1 max-sm:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
             <CardActionsMenu
               onShare={() => onShare(item)}
               onDelete={() => onDelete(item)}
@@ -63,26 +59,30 @@ const ReelsSection: React.FC = memo(() => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data: allItems = [], isLoading } = useRecentActivity();
+  // Asks for reels instead of filtering them out of a mixed feed. The old call
+  // took the merged recent-activity list and kept the videos in it — so an
+  // account whose newest items are all documents saw no reels at all.
+  const { reels, isLoading, failed } = useReels();
 
-  const reels = allItems.filter((item) => item.type === 'video').slice(0, 5);
+  const invalidate = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: REELS_QUERY_KEY });
+    // Other workplace sections still read the merged feed.
+    void queryClient.invalidateQueries({ queryKey: RECENT_ACTIVITY_KEY });
+  }, [queryClient]);
 
   const handleDelete = useCallback(
-    (item: RecentItem) => {
+    (item: ReelItem) => {
       if (!window.confirm('Video wirklich löschen?')) return;
-      if (!item.deleteEndpoint) return;
       const endpoint = item.deleteEndpoint.replace(/^\/api/, '');
       // Must `.catch()` — bare `.then()` lets rejections escape to
       // `window.onunhandledrejection`, which then routes through Sentry
       // as a pagey-looking "unhandled promise rejection". 401s here are
-      // expected when a cached recent-activity entry references a reel
-      // the current session no longer owns (post-profile-deletion replay
-      // being the most common trigger).
+      // expected when a cached entry references a reel the current session no
+      // longer owns (post-profile-deletion replay being the most common
+      // trigger).
       void apiClient
         .delete(endpoint)
-        .then(() => {
-          void queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
-        })
+        .then(invalidate)
         .catch((err: unknown) => {
           const status =
             typeof err === 'object' && err !== null && 'response' in err
@@ -92,22 +92,25 @@ const ReelsSection: React.FC = memo(() => {
           if (status === 401 || status === 403 || status === 404) {
             // Entry is stale — drop it from the list so the user isn't
             // stuck clicking a ghost.
-            void queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
+            invalidate();
           }
         });
     },
-    [queryClient]
+    [invalidate]
   );
 
-  const handleShare = useCallback((item: RecentItem) => {
+  const handleShare = useCallback((item: ReelItem) => {
     void navigator.clipboard.writeText(`${getPublicAppOrigin()}${item.href}`);
   }, []);
 
-  const handleClick = useCallback((item: RecentItem) => navigate(item.href), [navigate]);
+  const handleClick = useCallback((item: ReelItem) => navigate(item.href), [navigate]);
 
   const handleCreate = useCallback(() => navigate('/studio/video'), [navigate]);
 
-  if (!isLoading && reels.length === 0) return null;
+  // `failed` and "none yet" used to be the same thing: the server turned every
+  // read error into an empty list. Now a failure keeps the section on screen
+  // and says so, instead of quietly pretending the user has no reels.
+  if (!isLoading && reels.length === 0 && !failed) return null;
 
   return (
     <section className="mb-xl">
@@ -121,6 +124,10 @@ const ReelsSection: React.FC = memo(() => {
             </div>
           ))}
         </CardGrid>
+      ) : failed ? (
+        <p className="text-sm text-grey-500 dark:text-grey-400">
+          Deine Reels konnten gerade nicht geladen werden. Versuch es später noch einmal.
+        </p>
       ) : (
         <CardGrid columns="5">
           {reels.map((item) => (

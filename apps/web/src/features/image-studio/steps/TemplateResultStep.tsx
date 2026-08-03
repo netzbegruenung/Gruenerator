@@ -508,6 +508,9 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
   );
 
   useEffect(() => {
+    // Re-triggers the "new image" flash animation each time the source changes;
+    // paired with the timer below, so the effect owns the timing.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsNewImage(true);
     const timer = setTimeout(() => setIsNewImage(false), 1000);
     return () => clearTimeout(timer);
@@ -613,7 +616,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
   if (supportsCanvas && isCanvasMode) {
     return (
       <motion.div
-        className="flex flex-col items-center w-full p-0 min-h-[calc(100vh-60px)]"
+        className="flex flex-col items-center w-full p-0 min-h-[calc(100dvh-60px)]"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}

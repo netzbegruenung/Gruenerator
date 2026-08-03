@@ -16,6 +16,8 @@ interface ExportState {
   progress: number;
   videoUri: string | null;
   error: string | null;
+  /** Correlates the message with the backend log line, for support. */
+  errorId: string | null;
 }
 
 const initialState: ExportState = {
@@ -23,6 +25,7 @@ const initialState: ExportState = {
   progress: 0,
   videoUri: null,
   error: null,
+  errorId: null,
 };
 
 export function useSubtitleExport(saveChanges: () => Promise<boolean>) {
@@ -145,7 +148,13 @@ export function useSubtitleExport(saveChanges: () => Promise<boolean>) {
             try {
               const videoUri = await reelApi.downloadExportedVideo(exportToken);
               if (isMountedRef.current) {
-                setState({ status: 'complete', progress: 100, videoUri, error: null });
+                setState({
+                  status: 'complete',
+                  progress: 100,
+                  videoUri,
+                  error: null,
+                  errorId: null,
+                });
                 void Notifications.scheduleNotificationAsync({
                   content: {
                     title: 'Export fertig',
@@ -160,7 +169,8 @@ export function useSubtitleExport(saveChanges: () => Promise<boolean>) {
                   status: 'error',
                   progress: 0,
                   videoUri: null,
-                  error: 'Download fehlgeschlagen',
+                  error: 'Der Download ist fehlgeschlagen.',
+                  errorId: null,
                 });
               }
             }
@@ -174,7 +184,8 @@ export function useSubtitleExport(saveChanges: () => Promise<boolean>) {
                 status: 'error',
                 progress: 0,
                 videoUri: null,
-                error: progressData.error || 'Export fehlgeschlagen',
+                error: progressData.error || 'Der Export ist fehlgeschlagen.',
+                errorId: progressData.errorId ?? null,
               });
             }
           }
@@ -191,7 +202,8 @@ export function useSubtitleExport(saveChanges: () => Promise<boolean>) {
           status: 'error',
           progress: 0,
           videoUri: null,
-          error: err instanceof Error ? err.message : 'Export fehlgeschlagen',
+          error: err instanceof Error ? err.message : 'Der Export ist fehlgeschlagen.',
+          errorId: null,
         });
       }
     }

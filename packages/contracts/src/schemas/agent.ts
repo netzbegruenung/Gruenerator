@@ -62,7 +62,7 @@ export const agentFrontmatterSchema = z.object({
   tags: z.array(z.string()),
   model: z.string().min(1),
   defaultModel: z.string().min(1).optional(),
-  provider: z.enum(['mistral', 'anthropic', 'litellm', 'regolo']),
+  provider: z.enum(['mistral', 'anthropic', 'litellm', 'regolo', 'greenpt']),
   params: agentParamsSchema,
   openingMessage: z.string(),
   welcomeQuestion: z.string().optional(),
@@ -79,6 +79,13 @@ export const agentFrontmatterSchema = z.object({
   webOnly: z.boolean().optional(),
   defaultNotebookIds: z.array(z.string()).optional(),
   autoRoutingHint: z.enum(['creative', 'precise', 'research']).optional(),
+  /**
+   * Fire the example search on every content-creation turn, without waiting for
+   * the user to ask. Was inferred from a `/Nutze IMMER/i` match against the
+   * agent's systemRole — which stopped being visible to this repo when the
+   * personas moved to the private sidecar, and was never testable prose anyway.
+   */
+  alwaysSearchesExamples: z.boolean().optional(),
   skillMentions: z.array(z.string()).optional(),
   iconKey: z.string().min(1).optional(),
   pinnedToSidebar: z.boolean().optional(),

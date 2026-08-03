@@ -393,27 +393,23 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       type: 'image',
       x: (state: DreizeilenFullState, layout: GenericLayoutResult) => {
         const sunflower = layout.sunflower as
-          | { x?: number; y?: number; width?: number; height?: number }
-          | undefined;
+          { x?: number; y?: number; width?: number; height?: number } | undefined;
         return state.sunflowerPos?.x ?? sunflower?.x ?? CANVAS_WIDTH - 150;
       },
       y: (state: DreizeilenFullState, layout: GenericLayoutResult) => {
         const sunflower = layout.sunflower as
-          | { x?: number; y?: number; width?: number; height?: number }
-          | undefined;
+          { x?: number; y?: number; width?: number; height?: number } | undefined;
         return state.sunflowerPos?.y ?? sunflower?.y ?? CANVAS_HEIGHT - 150;
       },
       order: 1,
       width: (state: DreizeilenFullState, layout: GenericLayoutResult) => {
         const sunflower = layout.sunflower as
-          | { x?: number; y?: number; width?: number; height?: number }
-          | undefined;
+          { x?: number; y?: number; width?: number; height?: number } | undefined;
         return state.sunflowerSize?.w ?? sunflower?.width ?? SUNFLOWER_CONFIG.defaultSize;
       },
       height: (state: DreizeilenFullState, layout: GenericLayoutResult) => {
         const sunflower = layout.sunflower as
-          | { x?: number; y?: number; width?: number; height?: number }
-          | undefined;
+          { x?: number; y?: number; width?: number; height?: number } | undefined;
         return state.sunflowerSize?.h ?? sunflower?.height ?? SUNFLOWER_CONFIG.defaultSize;
       },
       src: SUNFLOWER_CONFIG.src,
@@ -827,8 +823,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
         const id = `text-${Date.now()}`;
         const layout = calculateLayout(getState());
         const colorScheme = (layout._meta as Record<string, unknown>)?.colorScheme as
-          | { fontColor?: string }
-          | undefined;
+          { fontColor?: string } | undefined;
 
         const newText = {
           id,
@@ -859,8 +854,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
         const id = `text-${Date.now()}`;
         const layout = calculateLayout(getState());
         const colorScheme = (layout._meta as Record<string, unknown>)?.colorScheme as
-          | { fontColor?: string }
-          | undefined;
+          { fontColor?: string } | undefined;
 
         const newText = {
           id,
@@ -891,8 +885,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
         const id = `text-${Date.now()}`;
         const layout = calculateLayout(getState());
         const colorScheme = (layout._meta as Record<string, unknown>)?.colorScheme as
-          | { fontColor?: string }
-          | undefined;
+          { fontColor?: string } | undefined;
 
         const newText = {
           id,

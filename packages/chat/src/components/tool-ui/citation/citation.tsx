@@ -1,12 +1,15 @@
 'use client';
 
-import * as React from 'react';
-import type { LucideIcon } from 'lucide-react';
 import { FileText, Globe, Code2, Newspaper, Database, File, ExternalLink } from 'lucide-react';
-import { cn, Popover, PopoverContent, PopoverTrigger } from './_adapter';
+import * as React from 'react';
 
 import { openSafeNavigationHref, sanitizeHref } from '../shared/media';
+
+import { cn, Popover, PopoverContent, PopoverTrigger } from './_adapter';
+import { SourceGlyph } from './SourceGlyph';
+
 import type { SerializableCitation, CitationType, CitationVariant } from './schema';
+import type { LucideIcon } from 'lucide-react';
 
 const FALLBACK_LOCALE = 'en-US';
 
@@ -114,6 +117,10 @@ export function Citation(props: CitationProps) {
     }
   };
 
+  // `favicon` is still honoured for a caller that supplies one, but nothing in
+  // this app does any more: the monogram tells two web sources apart without
+  // the third-party request a favicon URL implies. Non-web types keep their
+  // own icon — a document is better identified as a document than by a letter.
   const iconElement = favicon ? (
     <img
       src={favicon}
@@ -123,6 +130,8 @@ export function Citation(props: CitationProps) {
       height={14}
       className="bg-muted size-3.5 shrink-0 rounded object-cover"
     />
+  ) : domain && type === 'webpage' ? (
+    <SourceGlyph domain={domain} size={14} />
   ) : (
     <TypeIcon className="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
   );
@@ -190,6 +199,7 @@ export function Citation(props: CitationProps) {
       data-tool-ui-id={id}
       data-slot="citation"
     >
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- role/tabIndex/onKeyDown are already applied below (conditional on sanitizedHref), eslint just can't resolve the ternary statically. */}
       <div
         className={cn(
           'group @container relative isolate flex w-full min-w-0 flex-col overflow-hidden rounded-xl',

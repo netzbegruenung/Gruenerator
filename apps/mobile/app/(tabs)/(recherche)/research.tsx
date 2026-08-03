@@ -15,7 +15,15 @@ import {
   Modal,
 } from 'react-native';
 
-import { colors, spacing, typography, borderRadius, lightTheme, darkTheme } from '../../../theme';
+import {
+  colors,
+  spacing,
+  typography,
+  borderRadius,
+  lightTheme,
+  darkTheme,
+  BODY_FONT,
+} from '../../../theme';
 
 import type { Theme } from '../../../theme/colors';
 
@@ -177,6 +185,7 @@ function FilterChip({
           borderColor: active ? colors.primary[600] : theme.border,
         },
       ]}
+      accessibilityRole="button"
     >
       {icon && (
         <Ionicons name={icon} size={14} color={active ? colors.white : theme.textSecondary} />
@@ -226,7 +235,12 @@ function CollectionPicker({
         <View style={[styles.modalContent, { backgroundColor: theme.background }]}>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, { color: theme.text }]}>Sammlungen</Text>
-            <Pressable onPress={onDismiss} hitSlop={8}>
+            <Pressable
+              onPress={onDismiss}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Schließen"
+            >
               <Ionicons name="close" size={24} color={theme.text} />
             </Pressable>
           </View>
@@ -234,6 +248,9 @@ function CollectionPicker({
           <Pressable
             onPress={() => setLocalSelected([])}
             style={[styles.allToggle, { borderColor: theme.border }]}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: allSelected }}
+            accessibilityLabel="Alle Sammlungen"
           >
             <Ionicons
               name={allSelected ? 'checkbox' : 'square-outline'}
@@ -256,6 +273,9 @@ function CollectionPicker({
                       key={c.id}
                       onPress={() => toggleCollection(c.id)}
                       style={styles.collectionRow}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: isSelected }}
+                      accessibilityLabel={c.name}
                     >
                       <Ionicons
                         name={isSelected ? 'checkbox' : 'square-outline'}
@@ -273,6 +293,7 @@ function CollectionPicker({
           <Pressable
             onPress={() => onApply(localSelected)}
             style={[styles.applyButton, { backgroundColor: colors.primary[600] }]}
+            accessibilityRole="button"
           >
             <Text style={styles.applyButtonText}>
               {localSelected.length === 0
@@ -334,7 +355,12 @@ function KeywordFiltersModal({
         <View style={[styles.modalContent, { backgroundColor: theme.background }]}>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, { color: theme.text }]}>Filter</Text>
-            <Pressable onPress={onDismiss} hitSlop={8}>
+            <Pressable
+              onPress={onDismiss}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Schließen"
+            >
               <Ionicons name="close" size={24} color={theme.text} />
             </Pressable>
           </View>
@@ -366,6 +392,9 @@ function KeywordFiltersModal({
                               borderColor: isActive ? colors.primary[600] : theme.border,
                             },
                           ]}
+                          accessibilityRole="checkbox"
+                          accessibilityState={{ checked: isActive }}
+                          accessibilityLabel={v.value}
                         >
                           <Text
                             style={[
@@ -396,6 +425,7 @@ function KeywordFiltersModal({
           <Pressable
             onPress={() => onApply(local)}
             style={[styles.applyButton, { backgroundColor: colors.primary[600] }]}
+            accessibilityRole="button"
           >
             <Text style={styles.applyButtonText}>
               {activeCount > 0 ? `${activeCount} Filter anwenden` : 'Ohne Filter suchen'}
@@ -436,8 +466,16 @@ function DateRangeModal({
 
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onDismiss}>
-      <Pressable style={styles.modalOverlay} onPress={onDismiss}>
-        <Pressable style={[styles.dateModal, { backgroundColor: theme.background }]}>
+      <Pressable
+        style={styles.modalOverlay}
+        onPress={onDismiss}
+        accessibilityRole="button"
+        accessibilityLabel="Schließen"
+      >
+        <Pressable
+          style={[styles.dateModal, { backgroundColor: theme.background }]}
+          accessibilityRole="none"
+        >
           <Text style={[styles.modalTitle, { color: theme.text }]}>Zeitraum</Text>
 
           <View style={styles.dateRow}>
@@ -449,6 +487,7 @@ function DateRangeModal({
               value={from}
               onChangeText={setFrom}
               keyboardType="numbers-and-punctuation"
+              accessibilityLabel="Startdatum, Format JJJJ-MM-TT"
             />
           </View>
 
@@ -461,6 +500,7 @@ function DateRangeModal({
               value={to}
               onChangeText={setTo}
               keyboardType="numbers-and-punctuation"
+              accessibilityLabel="Enddatum, Format JJJJ-MM-TT"
             />
           </View>
 
@@ -468,6 +508,7 @@ function DateRangeModal({
             <Pressable
               onPress={() => onApply('', '')}
               style={[styles.dateClearButton, { borderColor: theme.border }]}
+              accessibilityRole="button"
             >
               <Text style={[styles.dateClearText, { color: theme.textSecondary }]}>
                 Zurücksetzen
@@ -476,6 +517,7 @@ function DateRangeModal({
             <Pressable
               onPress={() => onApply(from, to)}
               style={[styles.dateApplyButton, { backgroundColor: colors.primary[600] }]}
+              accessibilityRole="button"
             >
               <Text style={styles.applyButtonText}>Anwenden</Text>
             </Pressable>
@@ -680,9 +722,15 @@ export default function ResearchScreen() {
             onSubmitEditing={handleSearch}
             returnKeyType="search"
             autoCorrect={false}
+            accessibilityLabel="Dokumente durchsuchen"
           />
           {query.length > 0 && (
-            <Pressable onPress={() => setQuery('')} hitSlop={8}>
+            <Pressable
+              onPress={() => setQuery('')}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Suche zurücksetzen"
+            >
               <Ionicons name="close-circle" size={20} color={theme.textSecondary} />
             </Pressable>
           )}
@@ -690,6 +738,8 @@ export default function ResearchScreen() {
             onPress={handleSearch}
             style={[styles.searchButton, { backgroundColor: colors.primary[600] }]}
             disabled={query.trim().length < 2}
+            accessibilityRole="button"
+            accessibilityLabel="Suche starten"
           >
             <Ionicons name="arrow-forward" size={18} color={colors.white} />
           </Pressable>
@@ -769,6 +819,7 @@ export default function ResearchScreen() {
                       borderColor: theme.border,
                     },
                   ]}
+                  accessibilityRole="button"
                 >
                   <Text style={[styles.exampleChipText, { color: theme.text }]}>
                     {eq.icon} {eq.text}
@@ -815,6 +866,8 @@ export default function ResearchScreen() {
               },
             ]}
             disabled={!result.source_url}
+            accessibilityRole="button"
+            accessibilityLabel={result.title}
           >
             <View style={styles.resultHeader}>
               <Text style={[styles.resultTitle, { color: theme.text }]} numberOfLines={2}>
@@ -969,6 +1022,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   filterChipText: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     fontWeight: '500',
   },
@@ -1041,6 +1095,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.small,
   },
   scoreText: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -1058,6 +1113,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.small,
   },
   collectionText: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
     fontWeight: '500',
   },
@@ -1072,6 +1128,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xxsmall,
   },
   linkText: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     flex: 1,
   },
@@ -1103,6 +1160,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.medium,
   },
   modalTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 18,
     fontWeight: '700',
   },
@@ -1115,6 +1173,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   allToggleText: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '600',
   },
@@ -1125,6 +1184,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.medium,
   },
   groupLabel: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '600',
     textTransform: 'uppercase',
@@ -1138,6 +1198,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   collectionName: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
     flex: 1,
   },
@@ -1150,6 +1211,7 @@ const styles = StyleSheet.create({
   },
   applyButtonText: {
     color: colors.white,
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '600',
   },
@@ -1165,6 +1227,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.medium,
   },
   filterSectionTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
     marginBottom: spacing.xsmall,
@@ -1184,9 +1247,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   filterValueText: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
   },
   filterValueCount: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
   },
   dateModal: {
@@ -1199,6 +1264,7 @@ const styles = StyleSheet.create({
     gap: spacing.xxsmall,
   },
   dateLabel: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     fontWeight: '500',
   },
@@ -1207,6 +1273,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.medium,
     paddingHorizontal: spacing.small,
     paddingVertical: spacing.small,
+    fontFamily: BODY_FONT,
     fontSize: 15,
   },
   dateActions: {
@@ -1221,6 +1288,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dateClearText: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '500',
   },

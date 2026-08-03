@@ -1,10 +1,4 @@
-import type {
-  ConfirmActionType,
-  DocumentCreatedEvent,
-  SocialPostPayload,
-  BundestagPayload,
-  BahnPayload,
-} from '@gruenerator/contracts';
+import type { AdditionalSource } from '../components/message-parts/SearchResultsSection';
 import type {
   ChatProgress,
   Citation,
@@ -13,11 +7,17 @@ import type {
   ChartData,
   ComputeData,
   SearchResult,
+  SearchImage,
   StreamMetadata,
 } from '../hooks/useChatGraphStream';
-import type { ActiveArtifact } from '../stores/artifactLiveStore';
 import type { Citation as RawCitation, Source, LinkConfig } from '../runtime/NotebookModelAdapter';
-import type { AdditionalSource } from '../components/message-parts/SearchResultsSection';
+import type { ActiveArtifact } from '../stores/artifactLiveStore';
+import type {
+  ConfirmActionType,
+  DocumentCreatedEvent,
+  SocialPostPayload,
+  BahnPayload,
+} from '@gruenerator/contracts';
 
 // Wire enum lives in @gruenerator/contracts (chatStreamEvents); the
 // confirm_action event's optionals are normalized to this required UI shape
@@ -64,6 +64,13 @@ export type ChatMessageMetadata = {
   agentMention?: string;
   // Regular chat specific
   searchResults?: SearchResult[];
+  /**
+   * Image hits from the web search, rendered as named links by
+   * `SearchImagesSection`. Separate from `searchResults` because an image carries
+   * no text: as a search result it would become a numbered source with an empty
+   * snippet.
+   */
+  searchImages?: SearchImage[];
   generatedImage?: GeneratedImage;
   sharepicData?: SharepicData;
   /** Text half of the EXPERIMENTAL combined social post (SocialPostCard). */
@@ -71,7 +78,6 @@ export type ChatMessageMetadata = {
   chartData?: ChartData;
   artifactData?: ActiveArtifact;
   computeData?: ComputeData;
-  bundestagData?: BundestagPayload;
   bahnData?: BahnPayload;
   streamMetadata?: StreamMetadata;
   threadId?: string;
@@ -80,6 +86,9 @@ export type ChatMessageMetadata = {
   createdDocument?: DocumentCreatedData;
   reelProcessing?: ReelProcessingData;
   reelPicker?: ReelPickerData;
+  /** Turn was interrupted mid-stream (row still status='streaming' on reload);
+   *  the partial text renders normally plus a subtle marker. */
+  interrupted?: boolean;
   // Notebook specific
   rawCitations?: RawCitation[];
   sources?: Source[];

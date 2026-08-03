@@ -1,0 +1,164 @@
+name: Barrierefreiheit
+
+# Eigener Workflow statt eines Jobs in ci.yml: die Lane braucht einen
+# Playwright-Browser, ein laufendes Backend und mehrere Minuten. In ci.yml
+# gehaengt wuerde sie jeden PR verlangsamen, auch die, die nichts am Frontend
+# aendern. Deshalb Pfad-gefiltert.
+#
+# Zielstandard und Abarbeitungsplan: docs/barrierefreiheit-audit-plan.md
+
+on:
+  pull_request:
+    branches: [master, main]
+    paths:
+      - 'apps/web/**'
+      - 'packages/ui/**'
+      - 'packages/chat/**'
+      - 'packages/sites/**'
+      - 'packages/sites-design/**'
+      - '.github/workflows/a11y.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+
+jobs:
+  lint:
+    # Das statische Gitter. Braucht weder Browser noch Backend und ist deshalb
+    # in Sekunden fertig — es meldet die Haelfte der Regressionen, bevor der
+    # teure Job ueberhaupt anlaeuft.
+    name: a11y-Lint (jsx-a11y / react-native-a11y)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      # `--max-warnings` bewusst NICHT gesetzt: die Warnungen sind der
+      # Arbeitsvorrat aus Welle 3/4, kein Regressionssignal. Rot wird der Job
+      # nur bei den scharf gestellten Regeln.
+      - name: ESLint (Web)
+        run: pnpm --filter @gruenerator/web exec eslint src
+
+      - name: ESLint (Mobile)
+        run: pnpm --filter @gruenerator/mobile exec eslint .
+
+  axe:
+    name: axe-core (WCAG 2.2 AA)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Nur Chromium: die geprueften Regeln sind Eigenschaften des DOM und der
+      # berechneten Styles, nicht der Engine. Drei Browser wuerden dieselben
+      # Befunde dreimal melden.
+      - name: Playwright-Browser
+        run: pnpm --filter @gruenerator/web exec playwright install --with-deps chromium
+
+      - name: Build shared packages
+        run: pnpm build:shared
+
+      - name: a11y-Lane
+        working-directory: apps/web
+        env:
+          # Der einzige Schalter, den die Lane braucht. Vite reicht VITE_-Vars
+          # aus process.env an den Client durch; dort liefert useAuth.ts auf
+          # einem localhost-Host eine synthetische Sitzung, ohne das Backend zu
+          # fragen. Deshalb kein Secret und keine Service-Container mehr — die
+          # Datenpfade beantwortet apiFixtures.ts im Browser.
+          VITE_E2E_AUTH_BYPASS: 'true'
+          PLAYWRIGHT_JSON_OUTPUT_NAME: a11y-results.json
+        run: pnpm exec playwright test a11y.spec.ts a11y-structure.spec.ts --reporter=github,html,json
+
+      # Der Grund fuer diesen Schritt: am 02.08.2026 meldete dieser Job vier
+      # Minuten lang "pass" und hatte 22 von 22 Pruefungen uebersprungen. Das
+      # Uebersprungensein steht nur im Log, der Haken davor ist gruen — ein
+      # Check namens "axe-core (WCAG 2.2 AA)", der nichts geprueft hat, ist
+      # schlimmer als kein Check, weil er wie eine Zusage aussieht.
+      #
+      # Die Ursache ist seit 08/2026 behoben: die Suite haing an einem
+      # Backend-Test (`isDevBypassHonored` gegen localhost:3001), obwohl der
+      # Bypass rein clientseitig ist. In CI lief dort nie etwas, also skippte
+      # sie dort immer.
+      #
+      # Der Schritt bleibt trotzdem — er ist der Riegel dagegen, dass es
+      # unbemerkt wieder passiert. Er faerbt den Job nicht rot: rot waere eine
+      # Aussage ueber den PR, und der kann nichts dafuer.
+      - name: Ausgefuehrte Pruefungen zaehlen
+        if: always()
+        working-directory: apps/web
+        run: |
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const pfad = "a11y-results.json";
+            if (!fs.existsSync(pfad)) {
+              console.log("::warning title=a11y-Lane::Kein Testbericht — der Lauf ist vor der ersten Pruefung abgebrochen.");
+              process.exit(0);
+            }
+            const bericht = JSON.parse(fs.readFileSync(pfad, "utf8"));
+            const zaehler = { passed: 0, failed: 0, skipped: 0, timedOut: 0, interrupted: 0 };
+            const gehe = (eintrag) => {
+              for (const spec of eintrag.specs ?? []) {
+                for (const test of spec.tests ?? []) {
+                  const status = test.results?.at(-1)?.status ?? "skipped";
+                  zaehler[status] = (zaehler[status] ?? 0) + 1;
+                }
+              }
+              for (const kind of eintrag.suites ?? []) gehe(kind);
+            };
+            for (const suite of bericht.suites ?? []) gehe(suite);
+
+            const gelaufen = zaehler.passed + zaehler.failed + zaehler.timedOut;
+            const zeile = `axe-Lane: ${gelaufen} ausgefuehrt, ${zaehler.skipped} uebersprungen (bestanden ${zaehler.passed}, durchgefallen ${zaehler.failed}).`;
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY ?? "/dev/null", `### Barrierefreiheit\n\n${zeile}\n`);
+
+            if (gelaufen === 0) {
+              console.log(`::warning title=a11y-Lane hat NICHTS geprueft::${zeile} Ursache ist fast immer, dass VITE_E2E_AUTH_BYPASS den Dev-Server nicht erreicht hat — dann skippt die Suite bewusst. Dieser gruene Haken ist KEIN Barrierefreiheits-Signal.`);
+            } else if (zaehler.skipped > 0) {
+              console.log(`::warning title=a11y-Lane teilweise uebersprungen::${zeile}`);
+            }
+            console.log(zeile);
+          '
+
+      - name: Bericht hochladen
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: a11y-report
+          path: |
+            apps/web/playwright-report/
+            apps/web/a11y-results.json
+          retention-days: 14

@@ -174,6 +174,7 @@ const SidebarMenuItem = memo(
 
     return (
       <li>
+        {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- Link ist auf 'a' gemappt, jsx-a11y prüft dabei nur href statt to; echte, tastaturzugängliche Navigation ist bereits vorhanden */}
         <Link
           to={item.path}
           className={linkCls(false)}
@@ -240,7 +241,10 @@ const SidebarSection = memo(
           className="flex items-center justify-between w-full py-sm px-sm border-none bg-transparent cursor-pointer text-foreground font-[Raleway,PT_Sans,Arial,sans-serif] text-[0.7rem] font-bold text-left uppercase tracking-[0.08em] rounded-sm transition-colors whitespace-nowrap overflow-hidden hover:bg-hover-alt"
           onClick={onToggle}
           aria-expanded={isOpen}
-          aria-controls={`sidebar-section-${sectionKey}`}
+          // Only reference the list while it's mounted — AnimatePresence unmounts
+          // it when collapsed, so a static aria-controls would dangle (invalid
+          // idref) in the closed state.
+          aria-controls={isOpen ? `sidebar-section-${sectionKey}` : undefined}
         >
           <span
             className={cn(

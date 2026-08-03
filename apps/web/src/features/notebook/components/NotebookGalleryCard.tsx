@@ -1,5 +1,5 @@
 import { cn } from '@gruenerator/ui';
-import { memo, type KeyboardEvent, type ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 import { FiFolder, FiLayers } from 'react-icons/fi';
 
 import type { IconType } from 'react-icons';
@@ -67,25 +67,19 @@ const NotebookGalleryCard = memo(
       className
     );
 
-    const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        onActivate();
-      }
-    };
-
     // Cover tiles are just the branded 1:1 image (its title is baked in) — no
     // footer; the menu floats over the image. Icon tiles keep the title/meta footer.
     if (coverImage) {
       return (
-        <div
-          role="button"
-          tabIndex={0}
-          aria-label={title}
-          onClick={onActivate}
-          onKeyDown={handleKeyDown}
-          className={rootClass}
-        >
+        <div className={rootClass}>
+          {/* One stretched-button tab stop activates the card; the menu/action
+              controls (z-10) stay reachable as their own siblings. */}
+          <button
+            type="button"
+            aria-label={title}
+            onClick={onActivate}
+            className="absolute inset-0 z-0 rounded-[inherit] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-600"
+          />
           <div className="aspect-square overflow-hidden bg-grey-50 dark:bg-grey-800/40">
             <img
               src={coverImage}
@@ -96,13 +90,15 @@ const NotebookGalleryCard = memo(
             />
           </div>
           {(action || menu) && (
-            <div className="absolute right-2 top-2 flex items-center gap-1">
+            <div className="absolute right-2 top-2 z-10 flex items-center gap-1">
               {action && (
+                // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- fängt nur den Klick/Tastendruck ab, damit er nicht die Karte aktiviert
                 <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
                   {action}
                 </div>
               )}
               {menu && (
+                // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- fängt nur den Klick/Tastendruck ab, damit er nicht die Karte aktiviert
                 <div
                   className="rounded-full bg-white/85 opacity-0 backdrop-blur-sm transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 max-sm:opacity-100 dark:bg-black/50"
                   onClick={(e) => e.stopPropagation()}
@@ -118,13 +114,7 @@ const NotebookGalleryCard = memo(
     }
 
     return (
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={onActivate}
-        onKeyDown={handleKeyDown}
-        className={rootClass}
-      >
+      <div className={rootClass}>
         <div className="flex aspect-[5/4] items-center justify-center bg-grey-50 dark:bg-grey-800/40">
           <Icon className="size-9 text-grey-400 dark:text-grey-500" />
         </div>
@@ -132,7 +122,16 @@ const NotebookGalleryCard = memo(
         <div className="flex items-start gap-2 border-t border-grey-100 px-3 py-2.5 dark:border-grey-700/60">
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
             <h3 className="m-0 min-w-0 truncate text-sm font-medium text-foreground-heading">
-              {title}
+              {/* Stretched title button: whole card is one tab stop; the footer
+                  action/menu stay their own controls above the overlay. */}
+              <button
+                type="button"
+                onClick={onActivate}
+                title={title}
+                className="block w-full truncate text-left outline-none after:absolute after:inset-0 after:content-[''] after:rounded-[inherit] focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-primary-600"
+              >
+                {title}
+              </button>
             </h3>
             {meta && (
               <p className="m-0 flex min-w-0 items-center gap-1 truncate text-xs text-grey-500 dark:text-grey-400">
@@ -142,8 +141,9 @@ const NotebookGalleryCard = memo(
             )}
           </div>
           {action && (
+            // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- fängt nur den Klick/Tastendruck ab, damit er nicht die Karte aktiviert
             <div
-              className="-mr-1 shrink-0"
+              className="relative z-10 -mr-1 shrink-0"
               onClick={(e) => e.stopPropagation()}
               onKeyDown={(e) => e.stopPropagation()}
             >
@@ -151,8 +151,9 @@ const NotebookGalleryCard = memo(
             </div>
           )}
           {menu && (
+            // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- fängt nur den Klick/Tastendruck ab, damit er nicht die Karte aktiviert
             <div
-              className="-mr-1 shrink-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 max-sm:opacity-100"
+              className="relative z-10 -mr-1 shrink-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 max-sm:opacity-100"
               onClick={(e) => e.stopPropagation()}
               onKeyDown={(e) => e.stopPropagation()}
             >

@@ -34,7 +34,7 @@ export default function ReisekostenPage() {
 
       <Stepper step={step} onStep={setStep} />
 
-      <main className="flex flex-col gap-lg">
+      <div className="flex flex-col gap-lg">
         {step === 0 && <ReiseStep state={state} setReise={setReise} />}
         {step === 1 && <PersonStep state={state} setStammdaten={setStammdaten} />}
         {step === 2 && (
@@ -75,7 +75,7 @@ export default function ReisekostenPage() {
             </Button>
           )}
         </div>
-      </main>
+      </div>
     </div>
   );
 }

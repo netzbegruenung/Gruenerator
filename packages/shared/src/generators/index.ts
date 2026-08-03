@@ -32,7 +32,6 @@ export type {
   AntragRequestType,
   UniversalTextType,
   AccessibilityMode,
-  TextImproverAction,
   GeneratorFeatures,
   Attachment,
   BaseGeneratorRequest,
@@ -42,7 +41,6 @@ export type {
   AltTextRequest,
   AltTextResponse,
   LeichteSpracheRequest,
-  TextImproverRequest,
   GeneratorResponse,
   GeneratorResult,
   GeneratorError,
@@ -55,17 +53,13 @@ export {
   SOCIAL_PLATFORMS,
   SOCIAL_PLATFORMS_MOBILE,
   ANTRAG_TYPES,
-  UNIVERSAL_TEXT_TYPES,
   ACCESSIBILITY_MODES,
-  TEXT_IMPROVER_ACTIONS,
   GENERATOR_TITLES,
   FORM_PLACEHOLDERS,
   VALIDATION_MESSAGES,
   type PlatformOption,
   type AntragTypeOption,
-  type TextTypeOption,
   type AccessibilityModeOption,
-  type TextImproverActionOption,
 } from './constants.js';
 
 // Utilities
@@ -79,7 +73,6 @@ export {
   validateUniversalRequest,
   validateAltTextRequest,
   validateLeichteSpracheRequest,
-  validateTextImproverRequest,
   isNonEmpty,
   getFirstError,
 } from './utils/index.js';

@@ -4,6 +4,27 @@
  */
 
 /* ============================================
+   FONTS — Raleway for headings, self-hosted
+   (same files as the app, no external requests)
+   ============================================ */
+
+@font-face {
+  font-family: 'Raleway';
+  src: url('/fonts/Raleway-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Raleway';
+  src: url('/fonts/Raleway-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ============================================
    DESIGN TOKENS
    ============================================ */
 
@@ -28,7 +49,7 @@
   --secondary-300: #A0BBB0;
   --secondary-400: #85A899;
   --secondary-500: #6A9583;
-  --secondary-600: #5F8575;
+  --secondary-600: #587C6D;
   --secondary-700: #445F54;
   --secondary-800: #31453C;
   --secondary-900: #1E2A25;
@@ -59,6 +80,7 @@
 
   /* Typography & Spacing */
   --ifm-font-family-base: 'Open Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --ifm-heading-font-family: 'Raleway', ui-sans-serif, system-ui, -apple-system, sans-serif;
   --ifm-line-height-base: 1.75;
   --ifm-code-font-size: 95%;
   --ifm-global-radius: 0.5rem;

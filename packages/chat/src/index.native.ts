@@ -65,6 +65,7 @@ export {
   type SearchIntent,
   type GeneratedImage,
   type ChatProgress,
+  type MemoryContextInfo,
   type Citation,
   type SearchResult,
   type StreamMetadata,
@@ -113,6 +114,7 @@ export {
   COMPOSER_MODES,
   COMPOSER_TOOLS,
   SEARCH_DEPTHS,
+  showsSearchDepth,
   type ComposerModeDef,
   type ComposerIconKey,
   type ComposerToolDef,
@@ -121,21 +123,72 @@ export {
   type SearchDepthIconKey,
 } from './lib/composerControls';
 
+// Notebook retrieval depth — shared registry for the notebook page's tier control
+export {
+  NOTEBOOK_DEPTHS,
+  DEFAULT_NOTEBOOK_DEPTH,
+  notebookDepthDef,
+  type NotebookDepthDef,
+  type NotebookDepthIconKey,
+} from './lib/notebookDepth';
+
 export { useDocumentChatStore } from './stores/documentChatStore';
 export { useSkillFavoritesStore } from './stores/skillFavoritesStore';
+
+// Live head of the combined social post's text half. The shared SSE parser
+// already writes here on `social_post_complete` / `social_post_updated`, so a
+// card rendering only its own message payload would go stale the moment the
+// user asks the chat to shorten the post.
+export { useSocialPostLiveStore, type ActiveSocialPost } from './stores/socialPostLiveStore';
 
 // Mention detection & insertion (shared logic for web + mobile)
 export {
   detectMention,
-  getFilteredFunctions,
-  getFilteredSkills,
-  getFilteredForMode,
+  getFilteredMentionables,
   type MentionDetectionResult,
 } from './lib/mentionDetection';
 export { computeMentionInsertion, type MentionInsertionResult } from './lib/mentionInsertion';
 
 // File mention data hook
 export { useFileMentionData } from './hooks/useFileMentionData';
+
+// Group-level thread sharing. RN-safe: react-query plus `notify`, which imports
+// sonner dynamically and falls back to the console line in hosts that do not
+// ship it (mobile).
+export { useThreadSharing } from './hooks/useThreadSharing';
+
+// Data sources for the typed-mention pickers (Nextcloud share links, connected
+// accounts, Canva). RN-safe: react-query over the configured chat fetch.
+export {
+  useUserShareLinksQuery,
+  useWolkeBrowseQuery,
+  useConnectProvidersQuery,
+  useConnectBrowseQuery,
+  useCanvaDesignsQuery,
+  type ChatShareLink,
+  type ChatWolkeFile,
+  type ChatConnectProvider,
+  type ChatConnectFile,
+  type ChatCanvaDesign,
+} from './hooks/useMentionablesQuery';
+export {
+  type WolkeFileToken,
+  type ConnectFileToken,
+  type CanvaDesignToken,
+} from './lib/mentionables';
+
+// Typed-mention attachments (Wolke / Connect / web page) and the Canva draft
+// insertion. Shared so the recognition triple the backend keys on cannot drift
+// between platforms — see lib/mentionAttachments.ts.
+export {
+  buildWolkeAttachment,
+  buildConnectAttachment,
+  buildWebpageAttachment,
+  canvaDesignsMarkdown,
+  appendToDraft,
+  type MentionAttachment,
+} from './lib/mentionAttachments';
+export { joinWolkePath, wolkeParentPath, isWolkeRoot } from './lib/wolkePath';
 
 // useMessageTTS excluded — imports @gruenerator/voice (web-only)
 
@@ -150,8 +203,38 @@ export { useFetchFullText, type FetchFullTextFn } from './context/CitationContex
 // SSE Parsing
 export { parseSSELine, type SSECurrentEvent, type SSEParseResult } from './lib/sseParser';
 
+// Narration view-logic + label pacing (shared web + mobile)
+export { selectNarration, type PartLike } from './lib/narrationView';
+export { usePacedLabel } from './hooks/usePacedLabel';
+
+// The streaming status line's two decisions — which element, which sentence.
+// Shared verbatim with web's StreamingStatusLine/ProgressTracker; the platforms
+// used to hand-sync these rules by comment, and drifted.
+export {
+  selectStatusLabel,
+  selectStatusLineView,
+  type StatusLabel,
+  type StatusLineView,
+} from './lib/statusLineView';
+
+// Contiguous tool-call runs. Web gets the boundaries from assistant-ui's
+// ToolGroup slot; @assistant-ui/react-native has none, so mobile derives them
+// here and both then feed the same computeToolGroupView.
+export { selectToolRun, type ToolRunView } from './lib/toolRunGrouping';
+export { type ToolGroupView, type ToolGroupMode } from './lib/narrationView';
+
+// Which tool calls live in the shimmering status line instead of drawing a card.
+export {
+  isSearchProgressTool,
+  selectHasVisibleToolCard,
+  selectReasoningText,
+  selectSearchSources,
+  selectSearchStatusLabel,
+  type StatusPartLike,
+} from './lib/toolStatusLine';
+
 // URL Utilities
-export { extractDomain, getFaviconUrl, getHostname, faviconFromHostname } from './lib/urlUtils';
+export { domainHue, domainInitial, extractDomain, getHostname } from './lib/urlUtils';
 
 // Tool-result parsing & metadata (platform-agnostic; web + mobile share these)
 export {
@@ -247,11 +330,14 @@ export {
   resolveMentionable,
   filterMentionables,
   agentMentionables,
+  mentionableKey,
   notebookMentionables,
   documentMentionables,
   getAllMentionables,
   getAgentMentionables,
+  setMentionInstance,
   setMentionLocale,
+  getMentionLocale,
   setCustomAgents,
   getCustomAgentMentionables,
   customAgentToMentionable,
@@ -261,6 +347,9 @@ export {
   setDocMentionables,
   getDocMentionables,
   toolMentionables,
+  visibleToolMentionables,
+  visibleNotebookMentionables,
+  getMcpServerMentionables,
   filterMentionablesByCategory,
   type Mentionable,
   type MentionableType,
@@ -269,6 +358,17 @@ export {
   type BoardMentionable,
   type DocMentionable,
 } from './lib/mentionables';
+export {
+  slugifyMention,
+  syncBoards,
+  syncCustomAgents,
+  syncDocs,
+  syncMcpServers,
+  syncSheets,
+  syncTextforms,
+  syncUserNotebooks,
+  type MentionableFetch,
+} from './lib/mentionableSync';
 export { INTENT_TO_TOOL, DEEP_TOOL_MAP } from './lib/toolMappings';
 
 // Thread History Adapter (shared between drawer + provider on mobile)
@@ -285,6 +385,8 @@ export {
 export { extractContent } from './adapters/messageConversion';
 export {
   registerDocumentSlug,
+  buildDocumentMentionAttachment,
+  buildCollabDocAttachment,
   resolveDocumentSlug,
   clearDocumentSlugs,
   documentToSlug,
@@ -312,3 +414,11 @@ export {
   type ProcessedFile,
   type FileSummary,
 } from './lib/fileUtils';
+
+// Composer plus-menu assembly — shared by web's PlusMenu and mobile's ComposerActionSheet
+export {
+  quickSkillMentionables,
+  functionMentionables,
+  connectorMentionables,
+  connectorId,
+} from './lib/plusMenu';

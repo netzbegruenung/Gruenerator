@@ -1,10 +1,13 @@
 'use client';
 
-import type { ChatApiClient } from '../context/ChatContext';
 import { isUnauthorizedError } from '@gruenerator/shared/api';
-import type { RemoteThreadListAdapter } from '@assistant-ui/react';
 import { createAssistantStream } from 'assistant-stream';
+
+import { notifyWarning } from '../lib/notify';
 import { useAgentStore } from '../stores/chatStore';
+
+import type { ChatApiClient } from '../context/ChatContext';
+import type { RemoteThreadListAdapter } from '@assistant-ui/react';
 
 interface ApiThread {
   id: string;
@@ -63,6 +66,17 @@ export function resolveThreadBySlugSuffix(suffix: string): string | null {
 
 export function getThreadAgentId(remoteId: string): string | null {
   return threadAgentCache.get(remoteId) ?? null;
+}
+
+// Whether the most recent list() call failed (network/5xx/401) rather than
+// genuinely resolving to "no such thread". assistant-ui's core swallows
+// getLoadThreadsPromise() rejections internally (logs + resolves with the
+// list unchanged), so callers like ChatThreadRouting can't tell a transient
+// fetch failure apart from a real empty result unless we track it ourselves.
+let lastListFetchFailed = false;
+
+export function didLastThreadListFetchFail(): boolean {
+  return lastListFetchFailed;
 }
 
 function cacheThreadSlug(remoteId: string, suffix: string | null | undefined): void {
@@ -199,6 +213,7 @@ export function createGrueneratorThreadListAdapter(
 
         const all = [...apiEntries, ...externalEntries].sort((a, b) => b._updatedAt - a._updatedAt);
 
+        lastListFetchFailed = false;
         return {
           threads: all.map(({ _updatedAt, ...rest }) => rest),
         };
@@ -206,8 +221,15 @@ export function createGrueneratorThreadListAdapter(
         // Don't mask a dead session as an empty sidebar — let it propagate so
         // onUnauthorized's teardown wins. Keep the empty-list fallback for real
         // failures (offline, 5xx) so the sidebar degrades gracefully there.
+        lastListFetchFailed = true;
         if (isUnauthorizedError(error)) throw error;
         console.warn('[ThreadList] Failed to fetch threads:', error);
+        // An empty sidebar is indistinguishable from "you have no chats", so
+        // say which one it is before falling back.
+        notifyWarning(
+          'Chatliste konnte nicht geladen werden',
+          'Deine Chats sind nicht verloren — lade die Seite neu.'
+        );
         return { threads: [] };
       }
     },

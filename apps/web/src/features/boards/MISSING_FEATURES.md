@@ -73,23 +73,23 @@ Die **8 großen Karten-Lücken** sind in diesem Branch bereits umgesetzt (Multip
 
 ## 🟡 Mittel wichtig
 
-| #   | Feature                                   | Quelle | Notiz / Umsetzungsskizze                                                                                                         |
+| # | Feature | Quelle | Notiz / Umsetzungsskizze |
 | --- | ----------------------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| 1   | **Zeiterfassung / Stopwatch**             | planka | Start/Pause-Timer pro Karte (`{ startedAt, total }`), Chip im Preview. Yjs-Zelle `field-stopwatch` + Toggle im Panel.            |
-| 2   | **Karten-Nummer / Public-ID mit Prefix**  | kan    | Auto-inkrementierende Ticket-Nr. (`PROJ-123`), Prefix pro Board. Counter im Yjs-Doc oder relational; Anzeige in Preview + Panel. |
-| 3   | ~~**Subtask-Assignee**~~ ✅ umgesetzt     | planka | Checklisten-Item an Member zuweisen — `ChecklistItem.assignee` + MemberPicker je Item (PR `feat/board-subtask-assignee`).        |
-| 4   | **Subtask → Karten-Link (Dependency)**    | planka | `ChecklistItem.linkedCardId`; Klick navigiert zur Karte.                                                                         |
-| 5   | **Checkliste „auf Vorderseite zeigen"**   | planka | `ChecklistGroup.showOnFront` / erledigte ausblenden; Preview rendert Items.                                                      |
-| 6   | **Custom-Field-Gruppen**                  | planka | Custom Fields in benannte Sektionen bündeln (`fieldGroups` im Board-Schema).                                                     |
-| 7   | **Custom Field „auf Vorderseite zeigen"** | planka | `showOnFrontOfCard` pro Feld; Preview rendert ausgewählte Felder.                                                                |
-| 8   | **Karten-Typ (project/story)**            | planka | `row.type` mit unterschiedlichem Icon/Layout im Panel.                                                                           |
-| 9   | **Due-Date-Completion separat**           | planka | Fälligkeit als „erledigt" markieren, unabhängig vom Status (`row.dueCompleted`).                                                 |
-| 10  | **Web-Link-Anhang**                       | planka | Externe URL als Anhang (Favicon/Titel). Anhang-Tabelle um `type: 'file'                                                          | 'link'`+`url`erweitern; UI im bestehenden`CardAttachments`. |
-| 11  | **Karte auf anderes Board verschieben**   | planka | Transfer inkl. Daten-Migration (Labels per Name matchen, relationale Tails kopieren/umhängen).                                   |
-| 12  | **„Karte schließen" (Closed-State)**      | planka | Boolean-Flag `row.closed` (separat von Archiv); Filter/Badge.                                                                    |
-| 13  | **Copy/Cut/Paste von Karten**             | planka | Clipboard-Store; Paste nutzt vorhandenes `duplicateRow`/`addRow`.                                                                |
-| 14  | **Karten-Link teilen**                    | kan    | Direktlink `/boards/:id?card=:cardId` in ⋯-Menü kopieren.                                                                        |
-| 15  | **E-Mail bei @-Mention**                  | kan    | Mention im Kommentar → `createNotification` ist da; E-Mail-Kanal für `board_user_mentioned` in Preferences aktivieren/prüfen.    |
+| 1 | **Zeiterfassung / Stopwatch** | planka | Start/Pause-Timer pro Karte (`{ startedAt, total }`), Chip im Preview. Yjs-Zelle `field-stopwatch` + Toggle im Panel. |
+| 2 | **Karten-Nummer / Public-ID mit Prefix** | kan | Auto-inkrementierende Ticket-Nr. (`PROJ-123`), Prefix pro Board. Counter im Yjs-Doc oder relational; Anzeige in Preview + Panel. |
+| 3 | ~~**Subtask-Assignee**~~ ✅ umgesetzt | planka | Checklisten-Item an Member zuweisen — `ChecklistItem.assignee` + MemberPicker je Item (PR `feat/board-subtask-assignee`). |
+| 4 | **Subtask → Karten-Link (Dependency)** | planka | `ChecklistItem.linkedCardId`; Klick navigiert zur Karte. |
+| 5 | **Checkliste „auf Vorderseite zeigen"** | planka | `ChecklistGroup.showOnFront` / erledigte ausblenden; Preview rendert Items. |
+| 6 | **Custom-Field-Gruppen** | planka | Custom Fields in benannte Sektionen bündeln (`fieldGroups` im Board-Schema). |
+| 7 | **Custom Field „auf Vorderseite zeigen"** | planka | `showOnFrontOfCard` pro Feld; Preview rendert ausgewählte Felder. |
+| 8 | **Karten-Typ (project/story)** | planka | `row.type` mit unterschiedlichem Icon/Layout im Panel. |
+| 9 | **Due-Date-Completion separat** | planka | Fälligkeit als „erledigt" markieren, unabhängig vom Status (`row.dueCompleted`). |
+| 10 | **Web-Link-Anhang** | planka | Externe URL als Anhang (Favicon/Titel). Anhang-Tabelle um `type: 'file'                                                          | 'link'`+`url`erweitern; UI im bestehenden`CardAttachments`. |
+| 11 | **Karte auf anderes Board verschieben** | planka | Transfer inkl. Daten-Migration (Labels per Name matchen, relationale Tails kopieren/umhängen). |
+| 12 | **„Karte schließen" (Closed-State)** | planka | Boolean-Flag `row.closed` (separat von Archiv); Filter/Badge. |
+| 13 | **Copy/Cut/Paste von Karten** | planka | Clipboard-Store; Paste nutzt vorhandenes `duplicateRow`/`addRow`. |
+| 14 | **Karten-Link teilen** | kan | Direktlink `/boards/:id?card=:cardId` in ⋯-Menü kopieren. |
+| 15 | **E-Mail bei @-Mention** | kan | Mention im Kommentar → `createNotification` ist da; E-Mail-Kanal für `board_user_mentioned` in Preferences aktivieren/prüfen. |
 
 ---
 

@@ -1,0 +1,268 @@
+{
+  "intents": [
+    "abgeordnetenwatch",
+    "agentic",
+    "artifact",
+    "bundestag",
+    "chart",
+    "chat_history",
+    "compare",
+    "compute",
+    "create_pdf",
+    "create_presentation",
+    "create_recurring_task",
+    "create_sheet",
+    "direct",
+    "edit_current_board",
+    "edit_current_doc",
+    "examples",
+    "greeting",
+    "hilfe",
+    "image",
+    "image_edit",
+    "mcp",
+    "modify_board",
+    "modify_doc",
+    "pressemitteilung_examples",
+    "produktion",
+    "research",
+    "save_as_doc",
+    "scrape_url",
+    "search",
+    "share_doc",
+    "sharepic",
+    "social_post",
+    "summary",
+    "umfragen",
+    "web"
+  ],
+  "experimentalIntents": [
+    "create_recurring_task",
+    "mcp",
+    "social_post",
+    "umfragen"
+  ],
+  "mentionables": {
+    "abgeordnetenwatch": {
+      "title": "Abgeordnetenwatch",
+      "description": "Abstimmungen & Nebentätigkeiten von Abgeordneten",
+      "mention": "@abgeordnetenwatch",
+      "audience": "de-DE"
+    },
+    "board-erstellen": {
+      "title": "Board erstellen",
+      "description": "Erstellt ein Board aus dem Chatverlauf",
+      "mention": "@board-erstellen"
+    },
+    "bundestag": {
+      "title": "Bundestag",
+      "description": "Drucksachen, Reden & Gesetzgebung aus dem Bundestag",
+      "mention": "@bundestag",
+      "audience": "de-DE"
+    },
+    "canva-trigger": {
+      "title": "Canva",
+      "description": "Eigene Canva-Designs einfügen",
+      "mention": "@canva"
+    },
+    "chart": {
+      "title": "Diagramm",
+      "description": "Zahlen als Diagramm darstellen",
+      "mention": "@diagramm"
+    },
+    "chat_history": {
+      "title": "Chatverlauf",
+      "description": "Frühere Chats nach Inhalten durchsuchen",
+      "mention": "@verlauf"
+    },
+    "compute": {
+      "title": "Rechnen",
+      "description": "Berechnungen und Datenauswertung mit Python",
+      "mention": "@rechnen"
+    },
+    "connect-trigger": {
+      "title": "Verbundene Accounts",
+      "description": "Dateien aus verbundenen Diensten einfügen",
+      "mention": "@connect"
+    },
+    "deepresearch": {
+      "title": "Tiefenrecherche",
+      "description": "Ausführliches Dossier mit Quellen — 1× pro Tag",
+      "mention": "@deepresearch"
+    },
+    "docs-picker-trigger": {
+      "title": "Dokument einfügen",
+      "description": "Dokumente, Dateien & Notizbuch-Inhalte als Kontext hinzufügen",
+      "mention": "@docs"
+    },
+    "dokument-erstellen": {
+      "title": "Dokument erstellen",
+      "description": "Erstellt ein Dokument aus dem Chatverlauf",
+      "mention": "@dokument-erstellen"
+    },
+    "examples": {
+      "title": "Beispiele",
+      "description": "Echte Social-Media-Posts als Vorlage und Inspiration",
+      "mention": "@beispiele"
+    },
+    "hilfe": {
+      "title": "Hilfe & Anleitungen",
+      "description": "Anleitungen zum Grünerator aus der Doku",
+      "mention": "@doku"
+    },
+    "image": {
+      "title": "Bildgenerierung",
+      "description": "Bild mit KI generieren (Flux)",
+      "mention": "@bildgenerieren"
+    },
+    "image_edit": {
+      "title": "Stadt begrünen",
+      "description": "Stadtbild mit Grün transformieren",
+      "mention": "@stadtbegruenen"
+    },
+    "image_edit_universal": {
+      "title": "Bild bearbeiten",
+      "description": "Angehängtes Bild frei bearbeiten (z.B. \"jünger machen\", \"mehr Grün\")",
+      "mention": "@bildbearbeiten"
+    },
+    "pdf-erstellen": {
+      "title": "PDF erstellen",
+      "description": "Erstellt ein barrierefreies PDF (PDF/UA-1) — Dokument, Brief mit Briefkopf oder ausfüllbares Formular",
+      "mention": "@pdf-erstellen"
+    },
+    "praesentation-erstellen": {
+      "title": "Präsentation erstellen",
+      "description": "Erstellt eine Präsentation (Foliensatz) aus dem Chatverlauf",
+      "mention": "@praesentation-erstellen"
+    },
+    "pressemitteilung_examples": {
+      "title": "Pressemitteilungen",
+      "description": "Echte PMs der Landesverbände als Vorlage",
+      "mention": "@pressemitteilungen"
+    },
+    "research": {
+      "title": "Recherche",
+      "description": "Web & Quellen – automatische Suchtiefe",
+      "mention": "@recherche"
+    },
+    "search": {
+      "title": "Dokumente",
+      "description": "Parteiprogramme & Beschlüsse durchsuchen",
+      "mention": "@dokumente"
+    },
+    "sharepic": {
+      "title": "Sharepic",
+      "description": "Sharepic-Varianten erstellen und per Chat bearbeiten (Text, Bild, Farben, Position)",
+      "mention": "@sharepic"
+    },
+    "sheet-erstellen": {
+      "title": "Tabelle erstellen",
+      "description": "Erstellt eine Tabelle (Spreadsheet) aus dem Chatverlauf",
+      "mention": "@tabelle-erstellen"
+    },
+    "social_post": {
+      "title": "Social Post",
+      "description": "Post-Text mit passendem Sharepic in einem Zug",
+      "mention": "@social"
+    },
+    "summary": {
+      "title": "Zusammenfassung",
+      "description": "Dokument(e) zusammenfassen",
+      "mention": "@zusammenfassung"
+    },
+    "umfragen": {
+      "title": "Umfragen",
+      "description": "Meinungsumfragen & Sonntagsfrage durchsuchen",
+      "mention": "@umfragen"
+    },
+    "vorlagen-trigger": {
+      "title": "Vorlagen",
+      "description": "Passende Vorlagen per Vektorsuche einfügen",
+      "mention": "@vorlagen"
+    },
+    "webpage-trigger": {
+      "title": "Webseite",
+      "description": "Inhalt einer Webseite per URL anhängen",
+      "mention": "@web"
+    },
+    "wolke-trigger": {
+      "title": "Wolke",
+      "description": "Eigene Wolke-Dateien einfügen",
+      "mention": "@wolke"
+    }
+  },
+  "userTools": {
+    "examples": {
+      "label": "Social-Media-Beispiele",
+      "description": "Findet passende Beispiel-Posts aus dem Grünerator-Fundus."
+    },
+    "image": {
+      "label": "Bildgenerierung",
+      "description": "Erstellt Bilder aus einer Beschreibung."
+    },
+    "image_edit": {
+      "label": "Bildbearbeitung",
+      "description": "Bearbeitet ein vorhandenes Bild nach Anweisung."
+    },
+    "meinungsbild": {
+      "label": "Umfragen",
+      "description": "Ruft aktuelle Umfragewerte ab."
+    },
+    "pdf_form": {
+      "label": "Formulare ausfüllen",
+      "description": "Liest die Felder eines angehängten PDF-Formulars und füllt sie aus; die fertige Datei steht zum Download bereit."
+    },
+    "scrape": {
+      "label": "Webseiten lesen",
+      "description": "Liest den Inhalt einer angegebenen URL aus."
+    },
+    "search": {
+      "label": "Grünerator-Wissen",
+      "description": "Durchsucht die Grünerator-Wissensdatenbank (Programme, Beschlüsse, Kommunalwiki)."
+    },
+    "search_threads": {
+      "label": "Frühere Chats",
+      "description": "Durchsucht frühere Unterhaltungen — im aktuellen Projekt oder über alle Chats hinweg."
+    },
+    "user_content": {
+      "label": "Eigene Inhalte",
+      "description": "Durchsucht die eigenen gespeicherten Texte und Dokumente."
+    },
+    "vision": {
+      "label": "Bildanalyse",
+      "description": "Beschreibt und analysiert hochgeladene Bilder."
+    },
+    "web": {
+      "label": "Recherche",
+      "description": "Sucht im Web und führt bei Bedarf eine tiefere Mehrquellen-Recherche mit Quellenangaben durch. Die Suchtiefe wird automatisch gewählt."
+    }
+  },
+  "systemSources": {
+    "bahn": {
+      "name": "Deutsche Bahn",
+      "capability": "Deutsche Bahn: Bahnhöfe suchen, Abfahrts-/Ankunftspläne (Soll + Störungen) und Bahnhofsausstattung abfragen.",
+      "env": "SYSTEM_MCP_DB_URL"
+    },
+    "gesetze": {
+      "name": "Gesetze",
+      "capability": "Gesetze: deutsches Bundesrecht im Volltext durchsuchen, einzelne Normen abrufen und Zitate gegen den Bestand prüfen.",
+      "env": "SYSTEM_MCP_LAW_URL"
+    },
+    "hotel": {
+      "name": "trivago",
+      "capability": "Hotels: Unterkünfte per trivago suchen und Preise vergleichen.",
+      "env": "SYSTEM_MCP_TRIVAGO_URL"
+    },
+    "news": {
+      "name": "tagesschau",
+      "capability": "Nachrichten: aktuelle tagesschau-Meldungen (gesamt, nach Ressort oder Bundesland) und Artikelsuche.",
+      "env": "SYSTEM_MCP_ARD_URL"
+    },
+    "wetter": {
+      "name": "Wetter (DWD)",
+      "capability": "Wetter: Vorhersagen (Open-Meteo/DWD ICON), aktuelles Wetter, Luftqualität und historische Wetterdaten — Orte zuerst per geocoding auflösen.",
+      "env": "SYSTEM_MCP_WEATHER_URL"
+    }
+  },
+  "systemIntentSources": {}
+}

@@ -24,8 +24,10 @@ import multer from 'multer';
 
 import { createCorsOptions } from './config/cors.js';
 import { env } from './config/env.js';
+import { CURRENT_INSTANCE } from './config/instance.js';
 import { getServerConfig } from './config/serverConfig.js';
 import { Sentry } from './lib/sentry.js';
+import { requireAuth } from './middleware/authMiddleware.js';
 import { shouldSkipBodyParser } from './middleware/bodyParserConfig.js';
 import { createCacheMiddleware } from './middleware/cacheMiddleware.js';
 import { setupRoutes } from './routes.js';
@@ -38,6 +40,7 @@ import { startNotificationCleanup } from './services/notifications/notificationC
 import { startRecurringTaskWorker } from './services/recurringTasks/recurringTaskWorker.js';
 import { startCleanupScheduler as startExportCleanup } from './services/subtitler/exportCleanupService.js';
 import { tusServer, handleBinaryUpload } from './services/subtitler/tusService.js';
+import { shutdownLangfuseTelemetry } from './services/telemetry/langfuseTelemetry.js';
 import { getCorsOrigins, PRIMARY_DOMAIN } from './utils/domainUtils.js';
 import { createLogger } from './utils/logger.js';
 import redisClient, { ensureConnected, checkRedisHealth } from './utils/redis/client.js';
@@ -202,7 +205,9 @@ async function startWorker(): Promise<void> {
   // The Bearer-authenticated MCP endpoint is origin-agnostic: browser MCP
   // clients send Origins outside the allowlist and must still reach the
   // 401/WWW-Authenticate challenge instead of dying in the strict validator.
-  const mcpCors = cors({ origin: true, exposedHeaders: ['WWW-Authenticate', 'Mcp-Session-Id'] });
+  // Mcp-Session-Id is not exposed: we run stateless and never issue one, and
+  // spec 2026-07-28 removes the header outright.
+  const mcpCors = cors({ origin: true, exposedHeaders: ['WWW-Authenticate'] });
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (req.path.startsWith('/api/mcp-server')) {
       mcpCors(req, res, next);
@@ -311,14 +316,6 @@ async function startWorker(): Promise<void> {
     void tusServer.handle(req, res);
   });
 
-  const audioUploadPath = '/api/audio/upload';
-  app.all(audioUploadPath, (req: Request, res: Response) => {
-    void tusServer.handle(req, res);
-  });
-  app.all(audioUploadPath + '/*splat', (req: Request, res: Response) => {
-    void tusServer.handle(req, res);
-  });
-
   // Plain binary upload for non-TUS clients (mobile uses expo-file-system's
   // native uploader). Registered here — before compression and the body
   // parsers — so `req` stays the raw byte stream and writes straight to disk.
@@ -337,6 +334,26 @@ async function startWorker(): Promise<void> {
   app.post('/api/subtitler/upload-binary', uploadBinaryLimiter, (req: Request, res: Response) => {
     void handleBinaryUpload(req, res);
   });
+
+  // Audio uploads for the Transkription feature. Unlike the subtitler TUS path
+  // above, this one is behind requireAuth: its only client is a logged-in page,
+  // and an open endpoint that writes up to 500 MB per upload straight to disk is
+  // a standing invitation. requireAuth reads req.headers only (cookie or bearer),
+  // so it works here even though the body parsers run later; the CORS middleware
+  // registered further up already answers OPTIONS preflights itself, so TUS's
+  // non-POST verbs are not blocked by it.
+  const audioUploadPath = '/api/audio/upload';
+  app.all(audioUploadPath, uploadBinaryLimiter, requireAuth, (req: Request, res: Response) => {
+    void tusServer.handle(req, res);
+  });
+  app.all(
+    audioUploadPath + '/*splat',
+    uploadBinaryLimiter,
+    requireAuth,
+    (req: Request, res: Response) => {
+      void tusServer.handle(req, res);
+    }
+  );
 
   // Compression middleware
   app.use(
@@ -489,13 +506,14 @@ async function startWorker(): Promise<void> {
     );
   }
 
-  // Logging middleware (only for errors)
+  // Failing requests only. The POST-to-/api/ exemption that used to sit here
+  // hid every error on exactly the routes that matter most — an OAuth token
+  // exchange answering `invalid_grant` left no trace at all, and neither did
+  // the no-op stream this used to write to.
   app.use(
     morgan('combined', {
-      skip: function (req: Request, res: Response) {
-        return (req.url.includes('/api/') && req.method === 'POST') || res.statusCode < 400;
-      },
-      stream: { write: (_message: string) => {} },
+      skip: (_req: Request, res: Response) => res.statusCode < 400,
+      stream: { write: (message: string) => log.warn(message.trim()) },
     })
   );
 
@@ -716,6 +734,8 @@ async function startWorker(): Promise<void> {
     res.status(statusCode).json({
       success: false,
       error: 'Ein Serverfehler ist aufgetreten',
+
+      // eslint-disable-next-line gruenerator/no-raw-error-to-client -- dev-only branch; prod gets `errorMessage`
       message: isDev ? err.message : errorMessage,
       stack: isDev ? err.stack : undefined,
       errorId: `${Date.now()}-${Math.floor(Math.random() * 1000)}`,
@@ -744,7 +764,9 @@ async function startWorker(): Promise<void> {
 
   // Worker shutdown handler
   const shutdownHandler = createWorkerShutdownHandler({
-    resources: [aiService, redisClient].filter(Boolean),
+    resources: [aiService, redisClient, { shutdown: () => shutdownLangfuseTelemetry() }].filter(
+      Boolean
+    ),
     server,
     logger: log,
   });
@@ -752,7 +774,9 @@ async function startWorker(): Promise<void> {
 
   // Start server
   server.listen(config.port, config.host, () => {
-    log.info(`Worker ${process.pid} listening on http://${config.host}:${config.port}`);
+    log.info(
+      `Worker ${process.pid} listening on http://${config.host}:${config.port} (instance: ${CURRENT_INSTANCE})`
+    );
 
     // Warm the research filter cache in the background (non-blocking)
     import('./routes/research/researchController.js')

@@ -397,7 +397,7 @@ describe('aiController – POST /api/docs/ai', () => {
       expect(opts.system).toContain('You are a document editor.');
       expect(opts.system).toContain('VALID SHAPES');
       expect(opts.toolChoice).toBe('auto');
-      expect(opts.maxOutputTokens).toBe(32768);
+      expect(opts.maxOutputTokens).toBeUndefined();
       expect(opts.temperature).toBe(0.3);
     });
 
@@ -507,8 +507,8 @@ describe('aiController – POST /api/docs/ai', () => {
 
       await handleAiRequest(req, res);
 
-      const { onFinish } = mockStreamText.mock.calls[0][0];
-      onFinish({
+      const { onEnd } = mockStreamText.mock.calls[0][0];
+      onEnd({
         finishReason: 'tool-calls',
         toolCalls: [{ toolName: 'applyDocumentOperations', input: { operations: [] } }],
         text: '',
@@ -529,8 +529,8 @@ describe('aiController – POST /api/docs/ai', () => {
 
       await handleAiRequest(req, res);
 
-      const { onFinish } = mockStreamText.mock.calls[0][0];
-      onFinish({
+      const { onEnd } = mockStreamText.mock.calls[0][0];
+      onEnd({
         finishReason: 'tool-calls',
         toolCalls: [
           { toolName: 'applyDocumentOperations', input: { operations: [{ type: 'update' }] } },
@@ -555,8 +555,8 @@ describe('aiController – POST /api/docs/ai', () => {
 
       await handleAiRequest(req, res);
 
-      const { onFinish } = mockStreamText.mock.calls[0][0];
-      onFinish({
+      const { onEnd } = mockStreamText.mock.calls[0][0];
+      onEnd({
         finishReason: 'stop',
         toolCalls: [],
         text: 'I made it bold!',
@@ -578,8 +578,8 @@ describe('aiController – POST /api/docs/ai', () => {
 
       await handleAiRequest(req, res);
 
-      const { onFinish } = mockStreamText.mock.calls[0][0];
-      onFinish({
+      const { onEnd } = mockStreamText.mock.calls[0][0];
+      onEnd({
         finishReason: 'tool-calls',
         toolCalls: [{ toolName: 'applyDocumentOperations', input: {} }],
         text: '',
@@ -600,9 +600,9 @@ describe('aiController – POST /api/docs/ai', () => {
 
       await handleAiRequest(req, res);
 
-      const { onFinish } = mockStreamText.mock.calls[0][0];
+      const { onEnd } = mockStreamText.mock.calls[0][0];
       mockLogInfo.mockClear();
-      onFinish({
+      onEnd({
         finishReason: 'stop',
         toolCalls: [],
         text: '',
@@ -686,7 +686,7 @@ describe('aiController – POST /api/docs/ai', () => {
 
       await handleAiRequest(req, res);
 
-      const { onFinish } = mockStreamText.mock.calls[0][0];
+      const { onEnd } = mockStreamText.mock.calls[0][0];
       const simulatedToolCalls = [
         {
           toolName: 'applyDocumentOperations',
@@ -702,7 +702,7 @@ describe('aiController – POST /api/docs/ai', () => {
         },
       ];
 
-      onFinish({
+      onEnd({
         finishReason: 'tool-calls',
         toolCalls: simulatedToolCalls,
         text: '',
@@ -724,7 +724,7 @@ describe('aiController – POST /api/docs/ai', () => {
 
       await handleAiRequest(req, res);
 
-      const { onFinish } = mockStreamText.mock.calls[0][0];
+      const { onEnd } = mockStreamText.mock.calls[0][0];
       const validToolCalls = [
         {
           toolName: 'applyDocumentOperations',
@@ -738,7 +738,7 @@ describe('aiController – POST /api/docs/ai', () => {
         },
       ];
 
-      onFinish({
+      onEnd({
         finishReason: 'tool-calls',
         toolCalls: validToolCalls,
         text: '',

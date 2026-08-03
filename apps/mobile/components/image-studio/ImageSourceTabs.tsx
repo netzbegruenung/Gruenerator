@@ -40,6 +40,8 @@ export function ImageSourceTabs({ activeTab, onTabChange }: ImageSourceTabsProps
           <Pressable
             key={tab.key}
             onPress={() => onTabChange(tab.key)}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: isActive }}
             style={[
               styles.tab,
               isActive

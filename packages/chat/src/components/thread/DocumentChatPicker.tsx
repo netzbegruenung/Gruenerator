@@ -1,7 +1,5 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { Check } from 'lucide-react';
 import {
   Badge,
   Command,
@@ -13,7 +11,11 @@ import {
   ScrollArea,
   Skeleton,
 } from '@gruenerator/ui';
+import { Check } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+
 import { useCombinedContentQuery } from '../../hooks/useFileMentionData';
+
 import type { UserDocumentItem, UserTextItem } from '../../lib/documentMentionables';
 
 interface DocumentChatPickerProps {
@@ -30,6 +32,7 @@ export function DocumentChatPicker({ visible, onConfirm, onDismiss }: DocumentCh
 
   useEffect(() => {
     if (visible) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resets selection when the picker opens (visibility transition), not a render-derived value
       setSelectedIds(new Set());
     }
   }, [visible]);
@@ -65,6 +68,7 @@ export function DocumentChatPicker({ visible, onConfirm, onDismiss }: DocumentCh
   if (!visible) return null;
 
   return (
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- Escape-only capture; Command/CommandList below manage their own keyboard navigation.
     <div
       className="absolute z-50 w-80 rounded-xl border border-border bg-background shadow-lg"
       style={{ bottom: '100%', left: 0, marginBottom: '0.5rem' }}

@@ -1,0 +1,79 @@
+/* Global visual-accessibility guards.
+ *
+ * Every block exists twice: once for the OS preference (media query) and once
+ * for the explicit user setting from Einstellungen → Allgemein, which App.tsx
+ * mirrors onto <html> as data-reduce-motion / data-reduce-transparency. The
+ * setting can only ADD reduction on top of the OS preference, never disable it.
+ *
+ * Motion: durations collapse to 0.01ms instead of `animation: none` so that
+ * one-shot entrance animations with fill-mode: forwards (workplace sunrise,
+ * login hero) jump to their settled end state instead of never applying it.
+ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+:root[data-reduce-motion='true'] *,
+:root[data-reduce-motion='true'] *::before,
+:root[data-reduce-motion='true'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Transparency/blur: backdrop-filter is purely decorative everywhere in the
+   app (overlays carry their own background colour), so dropping it is safe. */
+@media (prefers-reduced-transparency: reduce) {
+  *,
+  *::before,
+  *::after {
+    backdrop-filter: none !important;
+  }
+}
+
+:root[data-reduce-transparency='true'] *,
+:root[data-reduce-transparency='true'] *::before,
+:root[data-reduce-transparency='true'] *::after {
+  backdrop-filter: none !important;
+}
+
+/* Windows High Contrast / forced-colors: the browser replaces our palette but
+   keeps background-images, so the decorative gradient washes would float over
+   forced backgrounds. Strip them; text and controls follow the system colours. */
+@media (forced-colors: active) {
+  .workplace-chat-sunrise,
+  .sp-sunrise,
+  .lp-sunrise-card {
+    background-image: none !important;
+    animation: none !important;
+  }
+}
+
+/* Base keyboard-focus ring for everything interactive. Lives in the legacy
+   layer, so any component with its own focus-visible treatment (Tailwind
+   focus-visible: utilities, form-inputs.css) still wins the cascade.
+ *
+ * Gated on the input modality that focusModality.ts writes to <html>, not on
+ * :focus-visible alone: the CSS spec makes text entry an exception, so an
+ * <input>, a <textarea> and a contenteditable match :focus-visible on a plain
+ * mouse click as well. Without the gate the ring framed every field someone
+ * clicked into — the whole document surface, in the case of the editor. */
+:root[data-focus-modality='keyboard'] :focus-visible {
+  outline: 2px solid var(--primary-500, #008939);
+  outline-offset: 2px;
+}
+
+/* The document editor keeps the caret as its indicator either way. Ringing a
+   full-page writing surface reads as an error state, not as focus. */
+:root[data-focus-modality='keyboard'] [contenteditable]:focus-visible {
+  outline: none;
+}

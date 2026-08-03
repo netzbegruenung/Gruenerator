@@ -1,0 +1,589 @@
+{
+  "documents": {
+    "subtypes": [
+      "blank",
+      "docs",
+      "antrag",
+      "pressemitteilung",
+      "protokoll",
+      "notizen",
+      "redaktionsplan",
+      "checkliste",
+      "einladung",
+      "tabelle",
+      "boards",
+      "canvas",
+      "sheets",
+      "presentations"
+    ],
+    "typeLabels": {
+      "board": "Board",
+      "doc": "Dokument",
+      "pres": "Präsentation",
+      "sharepic": "Sharepic",
+      "sheet": "Tabelle"
+    },
+    "sharing": {
+      "modes": [
+        "private",
+        "authenticated",
+        "public"
+      ],
+      "permissions": [
+        "editor",
+        "viewer"
+      ]
+    }
+  },
+  "sheets": {
+    "operations": [
+      {
+        "id": "set_range_values",
+        "fields": [
+          {
+            "name": "range",
+            "optional": false,
+            "doc": "A1 notation, e.g. \"A1:C3\"."
+          },
+          {
+            "name": "values",
+            "optional": false
+          },
+          {
+            "name": "asText",
+            "optional": true,
+            "doc": "Force every written cell to TEXT identity (Univer CellValueType.FORCE_STRING)."
+          },
+          {
+            "name": "sheet",
+            "optional": true,
+            "doc": "Target sheet name; active sheet when omitted."
+          }
+        ]
+      },
+      {
+        "id": "set_number_format",
+        "fields": [
+          {
+            "name": "range",
+            "optional": false,
+            "doc": "A1 notation, e.g. \"B2:B20\"."
+          },
+          {
+            "name": "pattern",
+            "optional": false,
+            "doc": "Excel/Univer number-format pattern applied to the range (display only — never changes the stored logical value)."
+          },
+          {
+            "name": "sheet",
+            "optional": true
+          }
+        ]
+      },
+      {
+        "id": "set_formula",
+        "fields": [
+          {
+            "name": "cell",
+            "optional": false,
+            "doc": "Single cell in A1 notation, e.g. \"D2\"."
+          },
+          {
+            "name": "formula",
+            "optional": false,
+            "doc": "Formula string starting with '=', e.g. \"=SUM(A1:A10)\"."
+          },
+          {
+            "name": "sheet",
+            "optional": true
+          }
+        ]
+      },
+      {
+        "id": "format_range",
+        "fields": [
+          {
+            "name": "range",
+            "optional": false
+          },
+          {
+            "name": "bold",
+            "optional": true
+          },
+          {
+            "name": "background",
+            "optional": true,
+            "doc": "CSS color, e.g. \"#e8f5e9\"."
+          },
+          {
+            "name": "fontColor",
+            "optional": true
+          },
+          {
+            "name": "sheet",
+            "optional": true
+          }
+        ]
+      },
+      {
+        "id": "add_sheet",
+        "fields": [
+          {
+            "name": "name",
+            "optional": false
+          }
+        ]
+      },
+      {
+        "id": "clear_range",
+        "fields": [
+          {
+            "name": "range",
+            "optional": false
+          },
+          {
+            "name": "sheet",
+            "optional": true
+          }
+        ]
+      },
+      {
+        "id": "add_chart",
+        "fields": [
+          {
+            "name": "range",
+            "optional": false,
+            "doc": "A1 data range including header row and label column, e.g. \"A1:D5\" where row 1 = series headers and column A = category labels."
+          },
+          {
+            "name": "chartType",
+            "optional": false
+          },
+          {
+            "name": "title",
+            "optional": true
+          },
+          {
+            "name": "sheet",
+            "optional": true
+          }
+        ],
+        "disabled": true,
+        "disabledReason": "Diagramme sind vorübergehend deaktiviert."
+      },
+      {
+        "id": "insert_rows",
+        "fields": [
+          {
+            "name": "at",
+            "optional": false,
+            "doc": "1-based row number; `count` new rows are inserted BEFORE it (existing rows shift down). \"unter Zeile 5 einfügen\" → at = 6."
+          },
+          {
+            "name": "count",
+            "optional": false
+          },
+          {
+            "name": "sheet",
+            "optional": true
+          }
+        ]
+      },
+      {
+        "id": "delete_rows",
+        "fields": [
+          {
+            "name": "at",
+            "optional": false,
+            "doc": "1-based row number of the first row to delete."
+          },
+          {
+            "name": "count",
+            "optional": false
+          },
+          {
+            "name": "sheet",
+            "optional": true
+          }
+        ]
+      },
+      {
+        "id": "insert_columns",
+        "fields": [
+          {
+            "name": "at",
+            "optional": false,
+            "doc": "Column letter; `count` new columns are inserted BEFORE it."
+          },
+          {
+            "name": "count",
+            "optional": false
+          },
+          {
+            "name": "sheet",
+            "optional": true
+          }
+        ]
+      },
+      {
+        "id": "delete_columns",
+        "fields": [
+          {
+            "name": "at",
+            "optional": false,
+            "doc": "Column letter of the first column to delete."
+          },
+          {
+            "name": "count",
+            "optional": false
+          },
+          {
+            "name": "sheet",
+            "optional": true
+          }
+        ]
+      },
+      {
+        "id": "merge_cells",
+        "fields": [
+          {
+            "name": "range",
+            "optional": false,
+            "doc": "A1 range merged into one cell (top-left value kept)."
+          },
+          {
+            "name": "sheet",
+            "optional": true
+          }
+        ]
+      },
+      {
+        "id": "unmerge_cells",
+        "fields": [
+          {
+            "name": "range",
+            "optional": false
+          },
+          {
+            "name": "sheet",
+            "optional": true
+          }
+        ]
+      },
+      {
+        "id": "add_conditional_format",
+        "fields": [
+          {
+            "name": "range",
+            "optional": false,
+            "doc": "A1 range the rule applies to, e.g. \"B2:B20\"."
+          },
+          {
+            "name": "rule",
+            "optional": false
+          },
+          {
+            "name": "sheet",
+            "optional": true
+          }
+        ],
+        "variants": [
+          "cell_number",
+          "text_contains"
+        ]
+      },
+      {
+        "id": "set_data_validation",
+        "fields": [
+          {
+            "name": "range",
+            "optional": false,
+            "doc": "A1 range the validation applies to, e.g. \"C2:C50\"."
+          },
+          {
+            "name": "rule",
+            "optional": false
+          },
+          {
+            "name": "sheet",
+            "optional": true
+          }
+        ],
+        "variants": [
+          "list",
+          "checkbox",
+          "number",
+          "date"
+        ]
+      },
+      {
+        "id": "sort_range",
+        "fields": [
+          {
+            "name": "range",
+            "optional": false,
+            "doc": "A1 range to sort, header row included, e.g. \"A1:D20\"."
+          },
+          {
+            "name": "column",
+            "optional": false,
+            "doc": "Column letter to sort by (must lie inside `range`), e.g. \"B\"."
+          },
+          {
+            "name": "ascending",
+            "optional": false,
+            "doc": "true = ascending (A→Z / 0→9), false = descending."
+          },
+          {
+            "name": "sheet",
+            "optional": true
+          }
+        ]
+      },
+      {
+        "id": "create_filter",
+        "fields": [
+          {
+            "name": "range",
+            "optional": false,
+            "doc": "A1 range to enable an auto-filter on, header row included, e.g. \"A1:E30\"."
+          },
+          {
+            "name": "sheet",
+            "optional": true
+          }
+        ]
+      },
+      {
+        "id": "add_table",
+        "fields": [
+          {
+            "name": "range",
+            "optional": false,
+            "doc": "A1 range to turn into a formatted table, header row included, e.g. \"A1:E30\"."
+          },
+          {
+            "name": "name",
+            "optional": true,
+            "doc": "Display name; auto-generated when omitted."
+          },
+          {
+            "name": "sheet",
+            "optional": true
+          }
+        ]
+      }
+    ],
+    "maxOperations": 50,
+    "import": {
+      "formats": [
+        ".csv",
+        ".xls",
+        ".xlsx"
+      ],
+      "maxSizeMB": 25
+    }
+  },
+  "presentations": {
+    "operations": [
+      {
+        "id": "add_slide",
+        "fields": [
+          {
+            "name": "layout",
+            "optional": false
+          },
+          {
+            "name": "title",
+            "optional": false
+          },
+          {
+            "name": "body",
+            "optional": false,
+            "doc": "Markdown body."
+          },
+          {
+            "name": "notes",
+            "optional": true
+          },
+          {
+            "name": "at",
+            "optional": true,
+            "doc": "1-based insert position; appended to the end when omitted."
+          },
+          {
+            "name": "fontSize",
+            "optional": true,
+            "doc": "Font-size preset; omitted or 'auto' creates the slide on auto-fit."
+          }
+        ]
+      },
+      {
+        "id": "update_slide",
+        "fields": [
+          {
+            "name": "slide",
+            "optional": false,
+            "doc": "1-based slide number."
+          },
+          {
+            "name": "title",
+            "optional": true
+          },
+          {
+            "name": "body",
+            "optional": true
+          },
+          {
+            "name": "notes",
+            "optional": true
+          },
+          {
+            "name": "layout",
+            "optional": true
+          },
+          {
+            "name": "background",
+            "optional": true,
+            "doc": "CSS color, image/video URL, or `linear-gradient(...)`."
+          },
+          {
+            "name": "transition",
+            "optional": true
+          },
+          {
+            "name": "fragments",
+            "optional": true
+          },
+          {
+            "name": "autoAnimate",
+            "optional": true
+          },
+          {
+            "name": "hidden",
+            "optional": true
+          },
+          {
+            "name": "codeLanguage",
+            "optional": true
+          },
+          {
+            "name": "variant",
+            "optional": true,
+            "doc": "Design variant within the layout (0–2); see slideSchema.variant."
+          },
+          {
+            "name": "fontSize",
+            "optional": true,
+            "doc": "Font-size preset. 'auto' resets the slide to auto-fit — an explicit literal because null means \"no change\" under patch semantics."
+          }
+        ]
+      },
+      {
+        "id": "delete_slide",
+        "fields": [
+          {
+            "name": "slide",
+            "optional": false
+          }
+        ]
+      },
+      {
+        "id": "move_slide",
+        "fields": [
+          {
+            "name": "from",
+            "optional": false,
+            "doc": "1-based source position."
+          },
+          {
+            "name": "to",
+            "optional": false,
+            "doc": "1-based target position."
+          }
+        ]
+      },
+      {
+        "id": "set_deck_option",
+        "fields": [
+          {
+            "name": "defaultTransition",
+            "optional": true
+          },
+          {
+            "name": "autoSlide",
+            "optional": true,
+            "doc": "Advance automatically after N ms (kiosk mode); 0/null disables."
+          },
+          {
+            "name": "loop",
+            "optional": true
+          },
+          {
+            "name": "slideNumber",
+            "optional": true,
+            "doc": "Show reveal slide numbers."
+          },
+          {
+            "name": "accentColor",
+            "optional": true,
+            "doc": "Deck brand accent colour (CSS color); drives titles, markers, bars."
+          }
+        ]
+      }
+    ],
+    "maxOperations": 40,
+    "slideLayouts": [
+      "title",
+      "content",
+      "split",
+      "quote",
+      "image",
+      "code"
+    ],
+    "slideTransitions": [
+      "none",
+      "fade",
+      "slide",
+      "convex",
+      "concave",
+      "zoom"
+    ]
+  },
+  "boards": {
+    "presets": {
+      "deep_research": {
+        "label": "Tiefenrecherche",
+        "description": "Mehrquellige, zitierte Recherche."
+      },
+      "doc_search": {
+        "label": "Dokumentensuche",
+        "description": "Parteiprogramme & Beschlüsse durchsuchen."
+      },
+      "summarize": {
+        "label": "Zusammenfassung",
+        "description": "Karteninhalt prägnant zusammenfassen."
+      },
+      "web_research": {
+        "label": "Webrecherche",
+        "description": "Aktuelle Infos aus dem Web zum Karten-Thema."
+      }
+    },
+    "flowSources": [
+      "card",
+      "scrape_url",
+      "apify_social"
+    ],
+    "flowTasks": [
+      "preset",
+      "custom"
+    ],
+    "flowOutputs": [
+      "comment",
+      "document",
+      "sheet",
+      "presentation",
+      "email"
+    ]
+  }
+}

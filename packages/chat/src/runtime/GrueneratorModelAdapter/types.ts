@@ -1,11 +1,15 @@
-import type { ChatModelRunResult } from '@assistant-ui/react';
 import type {
   GeneratedImage,
   ChatProgress,
   Citation,
   SearchResult,
+  SearchImage,
   StreamMetadata,
+  SharepicData,
+  ChartData,
+  ComputeData,
 } from '../../hooks/useChatGraphStream';
+import type { ActiveArtifact } from '../../stores/artifactLiveStore';
 import type { ToolKey, ThreadMode, SearchMode } from '../../stores/chatStore';
 import type {
   ConfirmActionData,
@@ -13,18 +17,25 @@ import type {
   ReelPickerData,
   ReelProcessingData,
 } from '../../types/messageMetadata';
+import type { ChatModelRunResult } from '@assistant-ui/react';
+import type { BahnPayload, NotebookDepth } from '@gruenerator/contracts';
 
 export type GrueneratorMessageMetadata = {
   progress?: ChatProgress;
   searchResults?: SearchResult[];
+  /**
+   * Image hits from the web search, rendered as named links. Its own field rather
+   * than entries in `searchResults`, because an image carries no text: as a search
+   * result it would become a numbered source with an empty snippet.
+   */
+  searchImages?: SearchImage[];
   citations?: Citation[];
   generatedImage?: GeneratedImage;
-  sharepicData?: import('../../hooks/useChatGraphStream').SharepicData;
-  chartData?: import('../../hooks/useChatGraphStream').ChartData;
-  artifactData?: import('../../stores/artifactLiveStore').ActiveArtifact;
-  computeData?: import('../../hooks/useChatGraphStream').ComputeData;
-  bundestagData?: import('@gruenerator/contracts').BundestagPayload;
-  bahnData?: import('@gruenerator/contracts').BahnPayload;
+  sharepicData?: SharepicData;
+  chartData?: ChartData;
+  artifactData?: ActiveArtifact;
+  computeData?: ComputeData;
+  bahnData?: BahnPayload;
   streamMetadata?: StreamMetadata;
   threadId?: string;
   followUpSuggestions?: string[];
@@ -47,8 +58,14 @@ export interface GrueneratorAdapterConfig {
    *  request scopes retrieval to. Set by the host app, which owns the
    *  notebook→collection map; absent → fall back to `selectedNotebookId`. */
   selectedNotebookCollectionIds?: string[];
-  /** Notebook RAG depth; defaults to 'fast' (still returns citations). */
-  notebookMode?: 'fast' | 'deep';
+  /**
+   * Keyword facets to scope notebook retrieval by, keyed by filter field (the
+   * shape `/research/filters` returns and `/notebook/stream` accepts). Web's
+   * notebook page passes the same map through `NotebookAdapterConfig.filters`.
+   */
+  notebookFilters?: Record<string, string[]>;
+  /** Notebook retrieval depth; defaults to `DEFAULT_NOTEBOOK_DEPTH`. */
+  notebookMode?: NotebookDepth;
   threadMode?: ThreadMode;
   searchMode?: SearchMode;
   customSystemPrompt?: string | null;
@@ -57,6 +74,11 @@ export interface GrueneratorAdapterConfig {
   /** Mention key of the active /skill (e.g. 'instagram'). Server appends the
    *  skill's `skillSystemPrompt` to the agent's systemRole when set. */
   activeSkillMention?: string | null;
+  /** Pinned MCP connector — while set, the adapter injects its durable
+   *  `@[Label](mcp:id)` token into every sent message and forces `mcp:<id>`,
+   *  holding the tool scope across follow-ups. Web-only for now; null on other
+   *  surfaces (e.g. the editor). */
+  pinnedConnector?: { id: string; label: string } | null;
 }
 
 export interface GrueneratorAdapterCallbacks {
@@ -71,6 +93,19 @@ export interface ToolCallPart {
   argsText: string;
   args: Record<string, string | number | boolean | null>;
   result?: unknown;
+  /** MCP-Apps widget metadata (system MCP tools only). When present with a
+   *  `ui://` resourceUri, assistant-ui's `mcpApp` renderer mounts the widget
+   *  iframe instead of the normal tool card (see GrueneratorChatRuntime). */
+  mcp?: { app?: { resourceUri: string; mimeType?: string } };
+  /** Run grouping for the collapsed tool summary row: the `toolCallId` of the
+   *  first card in a contiguous card run (cards separated by text segments
+   *  form separate runs). Consumed by assistant-ui's PartsGrouped rendering;
+   *  absent on messages predating the interleaving rollout. */
+  parentId?: string;
+  /** Planner announcement sentence(s) that preceded this tool call (split-gather
+   *  mode). Rendered as muted text above the card and persisted with the turn;
+   *  the durable form of the live `gather_narration` status line. */
+  narration?: string;
 }
 
 export interface SourcePart {
@@ -86,6 +121,10 @@ export interface StreamOutcome {
   interrupted: boolean;
   lastResult?: ChatModelRunResult;
   indexedDocumentIds: string[];
+  /** Whether the backend's terminal event (`done`/`completion`) arrived. False
+   *  means the stream just closed — the rendered answer is incomplete even
+   *  though it looks finished, so the adapter marks the turn failed. */
+  completed?: boolean;
   /** A client_tool interrupt the ModelAdapter must auto-execute (clientTools
    *  registry) and resume with — set instead of `interrupted`, which is
    *  reserved for manual human-in-the-loop interrupts (ask_human). threadId is

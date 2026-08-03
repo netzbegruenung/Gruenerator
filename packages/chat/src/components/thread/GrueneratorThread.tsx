@@ -1,26 +1,29 @@
 'use client';
 
-import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import {
   AuiIf,
   ThreadPrimitive,
   SelectionToolbarPrimitive,
   useVoiceControls,
 } from '@assistant-ui/react';
-import { VoiceOrb } from '../assistant-ui/voice';
 import { useAuiState } from '@assistant-ui/store';
-import { QuoteIcon } from 'lucide-react';
 import { useCollaborators, PresenceAvatars, TypingIndicator } from '@gruenerator/collab';
-import { WelcomeScreen } from './WelcomeScreen';
-import { CompactionIndicator } from './CompactionIndicator';
-import { UserMessage } from './UserMessage';
-import { AssistantMessage } from './AssistantMessage';
-import { GrueneratorComposer } from './GrueneratorComposer';
-import { AutoMessageSender } from './AutoMessageSender';
-import { InlineAttachmentNotice } from './InlineAttachmentNotice';
-import { ChatDensityContext, type ChatDensity } from './chatDensityContext';
+import { QuoteIcon } from 'lucide-react';
+import { useEffect, useMemo, useRef, type ReactNode } from 'react';
+
 import { useChatCollaborationContext } from '../../context/ChatCollaborationContext';
 import { useActiveAgentMeta } from '../../lib/useActiveAgentMeta';
+import { cn } from '../../lib/utils';
+import { VoiceOrb } from '../assistant-ui/voice';
+
+import { AssistantMessage } from './AssistantMessage';
+import { AutoMessageSender } from './AutoMessageSender';
+import { ChatDensityContext, type ChatDensity } from './chatDensityContext';
+import { CompactionIndicator } from './CompactionIndicator';
+import { GrueneratorComposer } from './GrueneratorComposer';
+import { InlineAttachmentNotice } from './InlineAttachmentNotice';
+import { UserMessage } from './UserMessage';
+import { WelcomeScreen } from './WelcomeScreen';
 
 interface GrueneratorThreadProps {
   onNavigate?: (path: string) => void;
@@ -37,6 +40,22 @@ interface GrueneratorThreadProps {
     sendAdornment?: ReactNode;
   };
   requireProfileHydration?: boolean;
+  /**
+   * Extra classes on the thread's root. The one surface a consumer can dress:
+   * the root carries `bg-background`, so a page that wants its own ground under
+   * the conversation — web's `chat-thread-glow` band under the composer — has to
+   * paint it here rather than on an ancestor, which the root would cover.
+   */
+  className?: string;
+  /**
+   * Which composer the thread wears — `card` (input above its own toolbar row)
+   * or `pill` (one capsule). Defaults to `card`, which is what every consumer
+   * had before this prop existed.
+   *
+   * The choice belongs to the consumer, not to this component: the browser and
+   * the desktop shell render the same thread and want different answers.
+   */
+  composerVariant?: 'card' | 'pill';
   /**
    * User's locale (`'de-DE'` or `'de-AT'`). Plumbed into `useActiveAgentMeta`
    * so the welcome screen (greeting, opening questions, party-name
@@ -85,6 +104,8 @@ export function GrueneratorThread({
   showModelPicker,
   composerSlots,
   requireProfileHydration,
+  className,
+  composerVariant = 'card',
   userLocale,
 }: GrueneratorThreadProps = {}) {
   const isRunning = useAuiState((s) => s.thread.isRunning);
@@ -96,7 +117,9 @@ export function GrueneratorThread({
 
   return (
     <ChatDensityContext.Provider value={density}>
-      <ThreadPrimitive.Root className="relative flex h-full min-h-0 flex-col bg-background">
+      <ThreadPrimitive.Root
+        className={cn('relative flex h-full min-h-0 flex-col bg-background', className)}
+      >
         <AutoMessageSender />
 
         {collaborators.length > 0 && (
@@ -150,6 +173,7 @@ export function GrueneratorThread({
         </SelectionToolbarPrimitive.Root>
 
         <GrueneratorComposer
+          variant={composerVariant}
           isRunning={isRunning}
           onNavigate={onNavigate}
           firstName={firstName}

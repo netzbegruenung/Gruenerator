@@ -148,7 +148,9 @@ export function buildPendingAction(opts: {
     case 'summary':
     case 'chart':
     case 'share_doc':
+    case 'produktion':
     case 'direct':
+    case 'greeting':
     case 'edit_current_doc':
       // edit_current_doc auto-applies via the docs editor's BlockNote AI
       // extension (triggered by the controller's `trigger_doc_edit` SSE
@@ -190,7 +192,10 @@ export async function emitConfirmAction(opts: {
     userId,
     fullText,
     searchQuery: classifiedState.searchQuery,
-    docMentionIds: rawDocMentionIds,
+    // Prefer the raw @-mention ids from the request; fall back to the classifier-
+    // injected target (Tier-2.7 follow-up edit on the thread's last created doc,
+    // where the id comes from lastToolContext, not a re-mention).
+    docMentionIds: rawDocMentionIds?.length ? rawDocMentionIds : classifiedState.docMentionIds,
     boardIds: rawBoardIds,
     documentSubtype: classifiedState.documentSubtype || null,
   });

@@ -76,14 +76,14 @@ export function AgentPreview({
         </div>
       ) : (
         <div className="flex flex-1 items-center justify-center p-lg text-center text-sm text-foreground-muted">
-          Um eine Vorschau anzuzeigen, gib deinem Agenten erst einen Namen.
+          Um eine Vorschau anzuzeigen, gib deinem Grünerator-Agenten erst einen Namen.
         </div>
       )}
 
       {/* Decorative, non-functional composer — mirrors the Gemini preview pane. */}
       <div className="border-t border-grey-200 p-sm dark:border-grey-700">
         <div className="flex items-center gap-sm rounded-lg border border-grey-200 bg-background px-md py-sm text-sm text-foreground-muted dark:border-grey-700 dark:bg-grey-800">
-          <span className="flex-1">Agent fragen…</span>
+          <span className="flex-1">Grünerator-Agent fragen…</span>
           <PiPaperPlaneRight size={18} aria-hidden />
         </div>
       </div>

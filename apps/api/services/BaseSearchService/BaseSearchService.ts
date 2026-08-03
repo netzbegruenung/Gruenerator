@@ -6,7 +6,12 @@
  */
 
 import { vectorConfig } from '../../config/vectorConfig.js';
-import { SearchError, DatabaseError, createErrorHandler } from '../../utils/errors/index.js';
+import {
+  SearchError,
+  DatabaseError,
+  createErrorHandler,
+  toUserFacingMessage,
+} from '../../utils/errors/index.js';
 import { createCache } from '../../utils/redis/index.js';
 import {
   InputValidator,
@@ -82,10 +87,7 @@ export class BaseSearchService {
 
     // Initialize error handler
     const logLevel = (options.logLevel || loggingConfig.level || 'error') as
-      | 'error'
-      | 'warn'
-      | 'info'
-      | 'debug';
+      'error' | 'warn' | 'info' | 'debug';
     this.errorHandler = createErrorHandler(this.serviceName, {
       enableTelemetry: options.enableTelemetry !== false && loggingConfig.enableTelemetry,
       logLevel,
@@ -981,12 +983,12 @@ export class BaseSearchService {
     if (error instanceof SearchError) {
       return {
         success: false,
-        error: error.message,
+        error: toUserFacingMessage(error),
         code: (error as SearchError & { code?: string }).code,
         results: [],
         query: query.trim(),
         searchType: 'error',
-        message: error.message,
+        message: toUserFacingMessage(error),
       };
     }
 

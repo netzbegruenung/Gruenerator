@@ -137,10 +137,12 @@ describe('searchChatHistory', () => {
     expect(results[0].snippet.length).toBeLessThan(longContent.length);
   });
 
-  it('gracefully handles DB errors', async () => {
+  it('propagates DB errors instead of reporting an empty result', async () => {
+    // Swallowing this returned HTTP 200 with zero hits, so a database outage
+    // was indistinguishable from "you have no matching chats". The controller
+    // maps the throw to a 500 the client can tell apart.
     mockQuery.mockRejectedValueOnce(new Error('DB down'));
-    const results = await searchChatHistory('user-1', 'test');
-    expect(results).toEqual([]);
+    await expect(searchChatHistory('user-1', 'test')).rejects.toThrow('DB down');
   });
 });
 

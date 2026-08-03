@@ -11,6 +11,9 @@ export * from './filters/index.js';
 // German query text normalization (normalizeQuery, tokenizeQuery, …)
 export * from './text/index.js';
 
+// Stable citation keys for search hits (buildSourceRef, canonicalizeSourceUrl)
+export * from './refs/index.js';
+
 // Vector/hybrid search infrastructure (namespaced — shares type names like
 // QdrantFilter with ./filters, so keep it behind `vector.`)
 export * as vector from './vector/index.js';

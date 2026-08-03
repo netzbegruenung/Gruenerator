@@ -693,6 +693,17 @@ export class LandesverbandScraper extends BaseScraper {
       sources = getSourcesByLandesverband(landesverband);
     }
 
+    // An explicit LV filter that matches nothing is a configuration fault, not
+    // an empty workload: either the code is wrong, or — the case that actually
+    // happened — the running build predates the config that introduced it.
+    // Saarland sat in the hourly matrix for ten days after `saarland-lv` was
+    // merged, matched zero sources on the deployed backend, and reported
+    // "stored 0, errors 0" every hour. That reads as success, so no email ever
+    // went out. Flagged here rather than in the caller so both the CLI and the
+    // internal sync route inherit it. Checked BEFORE the dormant/disabled
+    // filtering below, which zeroes sources out for legitimate reasons.
+    const lvFilterMatchedNothing = Boolean(landesverband) && sources.length === 0;
+
     // Skip sources for a Landesverband whose notebook is turned off
     // (`enabled: false`) — derived from the same single switch, so no separate
     // `dormant` flag is needed to stop scheduled scraping. Direct
@@ -737,11 +748,24 @@ export class LandesverbandScraper extends BaseScraper {
       stored: 0,
       updated: 0,
       skipped: 0,
-      errors: 0,
+      // Counted as a hard error so the caller's "did anything happen?" gate
+      // (`stored + updated + errors > 0`) fires and someone actually gets told.
+      errors: lvFilterMatchedNothing ? 1 : 0,
       totalVectors: 0,
       bySource: {},
       duration: 0,
     };
+
+    if (lvFilterMatchedNothing) {
+      const known = [...new Set(LANDESVERBAENDE_CONFIG.sources.map((s) => s.shortName))]
+        .sort()
+        .join(', ');
+      console.error(
+        `[Landesverband] No source configured for landesverband="${landesverband}". ` +
+          `Known codes in this build: ${known}. ` +
+          `If the code is right, this build predates the config that added it — redeploy.`
+      );
+    }
 
     const LV_CONCURRENCY = 4;
     this.log(`Concurrency: ${LV_CONCURRENCY} states in parallel`);

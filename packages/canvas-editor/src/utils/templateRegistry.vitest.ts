@@ -11,8 +11,14 @@ import { TEMPLATE_REGISTRY } from './templateRegistry';
 describe('template registry ↔ multiPage contract', () => {
   const ids = Object.keys(TEMPLATE_REGISTRY) as Array<keyof typeof TEMPLATE_REGISTRY>;
 
-  it.each(ids)('config %s declares multiPage.enabled', async (id) => {
-    const config = await loadCanvasConfig(id);
-    expect(config.multiPage?.enabled).toBe(true);
-  });
+  // The first loadCanvasConfig pays the one-time cost of importing the whole
+  // config module graph, which can exceed the 5s default on cold CI runners.
+  it.each(ids)(
+    'config %s declares multiPage.enabled',
+    async (id) => {
+      const config = await loadCanvasConfig(id);
+      expect(config.multiPage?.enabled).toBe(true);
+    },
+    30000
+  );
 });

@@ -33,6 +33,27 @@ ios/
 # Vendored pyodide runtime assets
 apps/web/public/pyodide/
 
+# Generated docs manifests — owned by documentation/scripts/generate-*.mjs, whose
+# --check compares byte-for-byte. Prettier collapses short arrays and would make
+# the sync check fail against its own generator.
+documentation/src/generated/
+
+# Export-Testkorpus: absichtlich unsauberer Eingabetext (nicht balancierte Tags,
+# Whitespace-only, ungerade Tabellen). Prettier würde genau die Eigenheiten
+# glattziehen, auf die diese Fixtures den Konverter prüfen sollen.
+apps/api/services/pdf/__fixtures__/export-content/
+
 # Misc
 *.lock
 *.log
+
+# Generated docs index — emitted by documentation/scripts/generate-docs-index.mjs
+# and byte-compared by `docs:index --check`. Reformatting it would make that
+# check fail until the next regenerate, so the two must not fight.
+apps/api/services/docs/docsIndex.generated.ts
+
+# Playwright-ARIA-Snapshots — geschrieben von `playwright test
+# --update-snapshots` in Playwrights eigenem YAML-Stil und von
+# `toMatchAriaSnapshot` verglichen. Dieselbe Lage wie oben: formatiert Prettier
+# sie, laufen sie beim nächsten Snapshot-Update wieder auseinander.
+apps/web/tests/e2e/**/*-snapshots/

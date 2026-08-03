@@ -46,6 +46,9 @@ const Timeline: React.FC<TimelineProps> = ({
     return active ? active.id : null;
   }, [segments, currentTime]);
 
+  // Genau ein Segment ist tabbar; die Pfeiltasten reichen den Tabstopp weiter.
+  const rovingSegmentId = selectedSegmentId ?? activeSegmentId ?? segments[0]?.id ?? null;
+
   useEffect(() => {
     const isMobile = window.innerWidth <= 768;
     if (!isMobile && activeSegmentId !== null && segmentRefs.current[activeSegmentId]) {
@@ -130,23 +133,31 @@ const Timeline: React.FC<TimelineProps> = ({
     [onSegmentClick, onSeek]
   );
 
+  // Roving Tabindex: Pfeiltasten wechseln das Segment, Tab bleibt Tab. Früher
+  // fing diese Funktion Tab ab — damit kam man per Tastatur nicht mehr aus der
+  // Liste heraus (WCAG 2.1.2, Level A).
   const handleSegmentKeyDown = useCallback(
     (e: React.KeyboardEvent, currentSegmentId: number) => {
-      if (e.key === 'Tab') {
+      const STEP: Record<string, number> = {
+        ArrowRight: 1,
+        ArrowDown: 1,
+        ArrowLeft: -1,
+        ArrowUp: -1,
+      };
+      const step = STEP[e.key];
+      if (step !== undefined || e.key === 'Home' || e.key === 'End') {
         e.preventDefault();
         const currentIndex = segments.findIndex((s: SubtitleSegment) => s.id === currentSegmentId);
-        let targetIndex: number;
-        if (e.shiftKey) {
-          targetIndex = currentIndex > 0 ? currentIndex - 1 : segments.length - 1;
-        } else {
-          targetIndex = currentIndex < segments.length - 1 ? currentIndex + 1 : 0;
-        }
+        const targetIndex =
+          e.key === 'Home'
+            ? 0
+            : e.key === 'End'
+              ? segments.length - 1
+              : (currentIndex + step + segments.length) % segments.length;
         const targetSegment = segments[targetIndex];
         onSegmentClick(targetSegment.id);
         onSeek(targetSegment.startTime);
-        if (segmentRefs.current[targetSegment.id]) {
-          segmentRefs.current[targetSegment.id].focus();
-        }
+        segmentRefs.current[targetSegment.id]?.focus();
       }
       if (e.key === 'Enter') {
         e.preventDefault();
@@ -160,29 +171,17 @@ const Timeline: React.FC<TimelineProps> = ({
     setEditingSegmentId(null);
   }, []);
 
-  const handleInputKeyDown = useCallback(
-    (e: React.KeyboardEvent, currentSegmentId: number) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        setEditingSegmentId(null);
-      }
-      if (e.key === 'Escape') {
-        setEditingSegmentId(null);
-      }
-      if (e.key === 'Tab') {
-        e.preventDefault();
-        const currentIndex = segments.findIndex((s: SubtitleSegment) => s.id === currentSegmentId);
-        if (e.shiftKey) {
-          const prevIndex = currentIndex > 0 ? currentIndex - 1 : segments.length - 1;
-          setEditingSegmentId(segments[prevIndex].id);
-        } else {
-          const nextIndex = currentIndex < segments.length - 1 ? currentIndex + 1 : 0;
-          setEditingSegmentId(segments[nextIndex].id);
-        }
-      }
-    },
-    [segments]
-  );
+  const handleInputKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      setEditingSegmentId(null);
+    }
+    if (e.key === 'Escape') {
+      setEditingSegmentId(null);
+    }
+    // Tab wird hier bewusst NICHT abgefangen: onBlur beendet die Bearbeitung,
+    // und der Fokus verlässt die Liste wie überall sonst.
+  }, []);
 
   if (duration <= 0) {
     return (
@@ -194,11 +193,17 @@ const Timeline: React.FC<TimelineProps> = ({
 
   return (
     <div className="flex w-full flex-col gap-xs rounded-lg border border-grey-200 bg-background p-sm dark:border-grey-700">
-      <div className="grid max-h-[350px] grid-cols-3 gap-3 overflow-y-auto p-sm max-md:max-h-[250px] max-md:grid-cols-1 max-md:gap-2">
+      <div
+        role="listbox"
+        aria-label="Untertitel-Segmente"
+        aria-orientation="horizontal"
+        className="grid max-h-[350px] grid-cols-3 gap-3 overflow-y-auto p-sm max-md:max-h-[250px] max-md:grid-cols-1 max-md:gap-2"
+      >
         {segments.map((segment: SubtitleSegment) => {
           const isActive = activeSegmentId === segment.id;
           const isSelected = selectedSegmentId === segment.id;
           const isEditing = editingSegmentId === segment.id;
+          const isRoving = rovingSegmentId === segment.id;
           return (
             <div
               key={segment.id}
@@ -215,7 +220,9 @@ const Timeline: React.FC<TimelineProps> = ({
                 isSelected && 'outline-2 outline-primary-500 outline-offset-2',
                 isEditing && 'border-primary-500 p-0'
               )}
-              tabIndex={0}
+              role="option"
+              aria-selected={isSelected}
+              tabIndex={isRoving ? 0 : -1}
               onClick={(e: React.MouseEvent) => handleSegmentClick(e, segment)}
               onKeyDown={(e: React.KeyboardEvent) =>
                 !isEditing && handleSegmentKeyDown(e, segment.id)
@@ -237,7 +244,7 @@ const Timeline: React.FC<TimelineProps> = ({
                     onTextChange(segment.id, e.target.value)
                   }
                   onBlur={handleInputBlur}
-                  onKeyDown={(e: React.KeyboardEvent) => handleInputKeyDown(e, segment.id)}
+                  onKeyDown={handleInputKeyDown}
                   onClick={(e: React.MouseEvent) => e.stopPropagation()}
                 />
               ) : (

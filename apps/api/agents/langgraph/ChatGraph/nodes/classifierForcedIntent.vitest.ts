@@ -268,31 +268,31 @@ describe('Tier 1 — edit_current_doc (currentDocument + edit verb)', () => {
 // ── TIER 2: Context intents (resource presence, no mutation keywords) ────
 
 describe('Tier 2 — context intents (resource presence only)', () => {
-  it('board without mutation keywords → direct', async () => {
+  it('board without mutation keywords → produktion', async () => {
     const state = buildState({
       userMessage: 'was steht auf dem board?',
       boardIds: ['board-123'],
     });
     const result = await classifierNode(state);
-    expect(result.intent).toBe('direct');
+    expect(result.intent).toBe('produktion');
   });
 
-  it('doc without mutation keywords → direct', async () => {
+  it('doc without mutation keywords → produktion', async () => {
     const state = buildState({
       userMessage: 'worum geht es in dem Dokument?',
       docMentionIds: ['doc-123'],
     });
     const result = await classifierNode(state);
-    expect(result.intent).toBe('direct');
+    expect(result.intent).toBe('produktion');
   });
 
-  it('image attachment without other context → direct', async () => {
+  it('image attachment without other context → produktion', async () => {
     const state = buildState({
       userMessage: 'was zeigt dieses Bild?',
       imageAttachments: [{ url: 'data:image/png;base64,...', mimeType: 'image/png' }],
     });
     const result = await classifierNode(state);
-    expect(result.intent).toBe('direct');
+    expect(result.intent).toBe('produktion');
   });
 
   it('file attachment + summary request → summary', async () => {
@@ -304,13 +304,13 @@ describe('Tier 2 — context intents (resource presence only)', () => {
     expect(result.intent).toBe('summary');
   });
 
-  it('file attachment without summary keywords → direct', async () => {
+  it('file attachment without summary keywords → produktion', async () => {
     const state = buildState({
       userMessage: 'was steht in der Datei?',
       attachmentContext: 'Inhalt der hochgeladenen Datei...',
     });
     const result = await classifierNode(state);
-    expect(result.intent).toBe('direct');
+    expect(result.intent).toBe('produktion');
   });
 });
 
@@ -327,7 +327,7 @@ describe('Edge cases — multiple resource types combined', () => {
     expect(result.intent).toBe('modify_board');
   });
 
-  it('board + image + NO mutation keyword → direct (image tier 2 wins)', async () => {
+  it('board + image + NO mutation keyword → produktion (image tier 2 wins)', async () => {
     const state = buildState({
       userMessage: 'was zeigt dieses Bild im Kontext des Boards?',
       boardIds: ['board-123'],
@@ -335,7 +335,7 @@ describe('Edge cases — multiple resource types combined', () => {
     });
     const result = await classifierNode(state);
     // No mutation keyword → tier 1 skipped → tier 2: image check fires first
-    expect(result.intent).toBe('direct');
+    expect(result.intent).toBe('produktion');
   });
 
   it('board + doc + mutation keyword → modify_board (first tier 1 match)', async () => {
@@ -358,14 +358,14 @@ describe('Edge cases — multiple resource types combined', () => {
     expect(result.intent).toBe('modify_doc');
   });
 
-  it('doc + image + NO mutation keyword → direct (image tier 2)', async () => {
+  it('doc + image + NO mutation keyword → produktion (image tier 2)', async () => {
     const state = buildState({
       userMessage: 'vergleiche das Bild mit dem Dokument',
       docMentionIds: ['doc-123'],
       imageAttachments: [{ url: 'data:image/png;base64,...', mimeType: 'image/png' }],
     });
     const result = await classifierNode(state);
-    expect(result.intent).toBe('direct');
+    expect(result.intent).toBe('produktion');
   });
 
   it('board + attachment + mutation keyword → modify_board (tier 1 wins over attachment)', async () => {
@@ -378,14 +378,14 @@ describe('Edge cases — multiple resource types combined', () => {
     expect(result.intent).toBe('modify_board');
   });
 
-  it('board + attachment + NO mutation keyword → direct (attachment tier 2)', async () => {
+  it('board + attachment + NO mutation keyword → produktion (attachment tier 2)', async () => {
     const state = buildState({
       userMessage: 'was sagt die Datei zum Board?',
       boardIds: ['board-123'],
       attachmentContext: 'OCR-extracted content...',
     });
     const result = await classifierNode(state);
-    expect(result.intent).toBe('direct');
+    expect(result.intent).toBe('produktion');
   });
 
   it('board + doc + image + mutation → modify_board (tier 1, board first)', async () => {
@@ -449,13 +449,13 @@ describe('Tier 2 — image_edit (edit verb + image signal)', () => {
     expect(result.intent).toBe('image_edit');
   });
 
-  it('image attached + plain question (no edit verb) → direct (vision Q&A preserved)', async () => {
+  it('image attached + plain question (no edit verb) → produktion (vision Q&A preserved)', async () => {
     const state = buildState({
       userMessage: 'was siehst du auf diesem Bild?',
       imageAttachments: [{ url: 'data:image/png;base64,...', mimeType: 'image/png' }],
     });
     const result = await classifierNode(state);
-    expect(result.intent).toBe('direct');
+    expect(result.intent).toBe('produktion');
   });
 
   it('"bearbeite den Text" without image attachment or noun → NOT image_edit', async () => {
@@ -489,5 +489,174 @@ describe('Summary intent interactions', () => {
     });
     const result = await classifierNode(state);
     expect(result.intent).toBe('summary');
+  });
+});
+
+describe('Tier 2.7 — follow-up on the thread last artifact (lastToolContext)', () => {
+  it('document context + "Kürze die Begründung" → modify_doc targeting the ref', async () => {
+    const state = buildState({
+      userMessage: 'Kürze die Begründung auf die Hälfte',
+      lastToolContext: { kind: 'document', ref: 'doc-created-1' },
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('modify_doc');
+    expect(result.docMentionIds).toContain('doc-created-1');
+  });
+
+  it('document context + a plain question → NOT modify_doc (meta/question guard)', async () => {
+    const state = buildState({
+      userMessage: 'Worum ging es in dem Dokument nochmal?',
+      lastToolContext: { kind: 'document', ref: 'doc-created-1' },
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).not.toBe('modify_doc');
+  });
+
+  it('an OPEN document wins over lastToolContext (edit_current_doc)', async () => {
+    const state = buildState({
+      userMessage: 'kürze die Begründung',
+      currentDocument: STUB_CURRENT_DOC,
+      lastToolContext: { kind: 'document', ref: 'doc-created-1' },
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('edit_current_doc');
+  });
+
+  it('an explicit @-mention wins over lastToolContext', async () => {
+    const state = buildState({
+      userMessage: 'kürze den Text',
+      docMentionIds: ['doc-mentioned-9'],
+      lastToolContext: { kind: 'document', ref: 'doc-created-1' },
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('modify_doc');
+  });
+
+  it('image context + "Nochmal, aber abends mit warmem Licht" → image_edit', async () => {
+    const state = buildState({
+      userMessage: 'Nochmal, aber abends mit warmem Licht',
+      lastToolContext: { kind: 'image' },
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('image_edit');
+  });
+
+  it('image context + "mach es blauer" → image_edit', async () => {
+    const state = buildState({
+      userMessage: 'mach es blauer',
+      lastToolContext: { kind: 'image' },
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('image_edit');
+  });
+
+  it('image context + "Erklär nochmal, warum du diese Farben gewählt hast" → NOT image_edit', async () => {
+    const state = buildState({
+      userMessage: 'Erklär nochmal, warum du diese Farben gewählt hast',
+      lastToolContext: { kind: 'image' },
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).not.toBe('image_edit');
+  });
+
+  it('no lastToolContext + "Nochmal, aber abends" → NOT image_edit (gate needs context)', async () => {
+    const state = buildState({ userMessage: 'Nochmal, aber abends mit warmem Licht' });
+    const result = await classifierNode(state);
+    expect(result.intent).not.toBe('image_edit');
+  });
+
+  // ── mcp branch: re-scope a vague follow-up to the thread's last connector ──
+  it('mcp context + anaphoric "zeig mir das nochmal" → mcp targeting the scope', async () => {
+    const state = buildState({
+      userMessage: 'zeig mir das nochmal',
+      lastToolContext: { kind: 'mcp', ref: 'server-tally-1', label: 'Tally' },
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('mcp');
+    expect(result.mcpServerScope).toBe('server-tally-1');
+  });
+
+  it('mcp context + a NEW knowledge question with article "das" → NOT mcp', async () => {
+    const state = buildState({
+      userMessage: 'erkläre mir das Grundeinkommen',
+      lastToolContext: { kind: 'mcp', ref: 'server-tally-1', label: 'Tally' },
+    });
+    const result = await classifierNode(state);
+    // "das" is an article here, not anaphora — must not hijack to the connector.
+    expect(result.intent).not.toBe('mcp');
+  });
+
+  it('mcp context + action verb "erstelle noch eins" → mcp', async () => {
+    const state = buildState({
+      userMessage: 'erstelle noch eins',
+      lastToolContext: { kind: 'mcp', ref: 'server-tally-1', label: 'Tally' },
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('mcp');
+    expect(result.mcpServerScope).toBe('server-tally-1');
+  });
+
+  it('mcp context + "versuchs nochmal über mcp" → mcp', async () => {
+    const state = buildState({
+      userMessage: 'versuchs nochmal über mcp',
+      lastToolContext: { kind: 'mcp', ref: 'server-tally-1', label: 'Tally' },
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('mcp');
+  });
+
+  it('mcp context + "erstelle ein Sharepic dazu" → NOT mcp (own-artifact wins)', async () => {
+    const state = buildState({
+      userMessage: 'erstelle ein Sharepic dazu',
+      lastToolContext: { kind: 'mcp', ref: 'server-tally-1', label: 'Tally' },
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).not.toBe('mcp');
+  });
+
+  it('mcp context + verb-less imperative "denk dir ein muster aus" → mcp', async () => {
+    const state = buildState({
+      userMessage: 'denk dir ein muster kontaktformular aus',
+      lastToolContext: { kind: 'mcp', ref: 'server-tally-1', label: 'Tally' },
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('mcp');
+    expect(result.mcpServerScope).toBe('server-tally-1');
+  });
+
+  it('mcp context + "los, erstellen" → mcp', async () => {
+    const state = buildState({
+      userMessage: 'los, erstellen',
+      lastToolContext: { kind: 'mcp', ref: 'server-tally-1', label: 'Tally' },
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('mcp');
+  });
+
+  it('mcp context + clause-final anaphora "wo ist das?" → mcp', async () => {
+    const state = buildState({
+      userMessage: 'wo ist das?',
+      lastToolContext: { kind: 'mcp', ref: 'server-tally-1', label: 'Tally' },
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('mcp');
+  });
+
+  it('mcp context + first-person comment "ich finde die Idee gut" → NOT mcp', async () => {
+    const state = buildState({
+      userMessage: 'ich finde die Idee gut',
+      lastToolContext: { kind: 'mcp', ref: 'server-tally-1', label: 'Tally' },
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).not.toBe('mcp');
+  });
+
+  it('mcp context + pure ack "danke!" → NOT mcp', async () => {
+    const state = buildState({
+      userMessage: 'danke!',
+      lastToolContext: { kind: 'mcp', ref: 'server-tally-1', label: 'Tally' },
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).not.toBe('mcp');
   });
 });

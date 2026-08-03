@@ -6,7 +6,7 @@
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
 
-import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../../theme';
+import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../../theme';
 
 export interface IncrementControlProps {
   label?: string;
@@ -70,6 +70,9 @@ export function IncrementControl({
           },
           isDisabled && styles.disabled,
         ]}
+        accessibilityRole="button"
+        accessibilityLabel={direction === -1 ? 'Wert verringern' : 'Wert erhöhen'}
+        accessibilityState={{ disabled: isDisabled }}
       >
         <Ionicons
           name={icon}
@@ -115,10 +118,12 @@ const styles = StyleSheet.create({
     gap: spacing.small,
   },
   label: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
   },
   description: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
   },
   controls: {
@@ -145,6 +150,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   valueText: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '500',
     fontVariant: ['tabular-nums'],

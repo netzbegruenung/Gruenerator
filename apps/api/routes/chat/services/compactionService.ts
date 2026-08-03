@@ -7,55 +7,20 @@
  */
 
 import { sanitizeMentionTokens } from '@gruenerator/shared/utils';
-import { generateText, type ModelMessage } from 'ai';
+import { generateText } from 'ai';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { upsertThreadRecallPoint } from '../../../services/chat/threadRecallEmbeddingService.js';
 import { createLogger } from '../../../utils/logger.js';
 import { getIntermediateModel } from '../agents/providers.js';
 
+import { getKeepRecent, KEEP_RECENT, SUMMARY_MAX_TOKENS } from './compactionConfig.js';
+
 const log = createLogger('CompactionService');
 
-// Configuration constants (defaults for 128K+ context models)
-export const COMPACTION_THRESHOLD = 50;
-export const COMPACTION_TOKEN_THRESHOLD = 24000;
-export const KEEP_RECENT = 20;
-export const RE_COMPACTION_THRESHOLD = 50;
-export const SUMMARY_MAX_TOKENS = 800;
-
-/**
- * Model-aware message count limit (lobe-chat pattern).
- * Returns how many recent messages to keep based on context window size.
- * Smaller models need fewer messages to leave room for system prompt + response.
- */
-export function getKeepRecent(contextWindowTokens?: number): number {
-  if (!contextWindowTokens) return KEEP_RECENT;
-  if (contextWindowTokens < 16000) return 6;
-  if (contextWindowTokens < 32000) return 10;
-  if (contextWindowTokens < 64000) return 15;
-  return KEEP_RECENT;
-}
-
-/**
- * Model-aware compaction threshold.
- * Returns when to trigger compaction based on context window size.
- */
-export function getCompactionThreshold(contextWindowTokens?: number): number {
-  if (!contextWindowTokens) return COMPACTION_THRESHOLD;
-  if (contextWindowTokens < 16000) return 15;
-  if (contextWindowTokens < 32000) return 25;
-  if (contextWindowTokens < 64000) return 35;
-  return COMPACTION_THRESHOLD;
-}
-
-/**
- * Model-aware token threshold for compaction.
- */
-export function getCompactionTokenThreshold(contextWindowTokens?: number): number {
-  if (!contextWindowTokens) return COMPACTION_TOKEN_THRESHOLD;
-  // Use ~40% of context window as token threshold
-  return Math.min(Math.floor(contextWindowTokens * 0.4), COMPACTION_TOKEN_THRESHOLD);
-}
+// Thresholds live in compactionConfig.ts (leaf module, env-overridable for
+// the long-thread eval harness); re-exported here for existing importers.
+export * from './compactionConfig.js';
 
 export interface CompactionState {
   summary: string | null;
@@ -68,30 +33,6 @@ export interface Message {
   role: 'user' | 'assistant' | 'system' | 'tool';
   content: string | null;
   created_at: Date;
-}
-
-/**
- * Check if a thread needs compaction based on message count or estimated token usage.
- * Token-based threshold catches conversations with few but very large messages
- * (e.g., pasted articles) that would otherwise lose context before hitting the message count.
- * When contextWindowTokens is provided, uses model-aware thresholds.
- */
-export function needsCompaction(
-  messageCount: number,
-  existingSummary: string | null,
-  estimatedTokens?: number,
-  contextWindowTokens?: number
-): boolean {
-  const threshold = getCompactionThreshold(contextWindowTokens);
-  const tokenThreshold = getCompactionTokenThreshold(contextWindowTokens);
-
-  if (estimatedTokens && estimatedTokens >= tokenThreshold && !existingSummary) {
-    return true;
-  }
-  if (!existingSummary) {
-    return messageCount >= threshold;
-  }
-  return messageCount >= threshold + RE_COMPACTION_THRESHOLD;
 }
 
 /**
@@ -151,11 +92,14 @@ export async function saveCompactionState(
 }
 
 /**
- * Format messages for summarization prompt
+ * Format messages for summarization prompt.
+ * Exported for the long-thread L0 vitest (tool-row labeling is load-bearing).
  */
-function formatMessagesForSummary(messages: Message[]): string {
+export function formatMessagesForSummary(messages: Message[]): string {
+  // Tool rows are raw JSON observations, not conversation — including them
+  // would summarize tool dumps as assistant speech.
   return messages
-    .filter((m) => m.content && m.role !== 'system')
+    .filter((m) => m.content && m.role !== 'system' && m.role !== 'tool')
     .map((m) => {
       const role = m.role === 'user' ? 'Benutzer' : 'Assistent';
       // Persisted content carries durable mention tokens — the summarizer (and
@@ -201,7 +145,7 @@ Halte die Zusammenfassung kompakt aber informativ (max. 400 Wörter). Schreibe i
 
   try {
     const result = await generateText({
-      model: getIntermediateModel(),
+      model: getIntermediateModel('heavy'),
       system: systemPrompt,
       prompt: formattedMessages,
       maxOutputTokens: SUMMARY_MAX_TOKENS,
@@ -231,12 +175,12 @@ Halte die Zusammenfassung kompakt aber informativ (max. 400 Wörter). Schreibe i
  * This prepends the compaction summary to the system message and returns
  * only recent messages, reducing context window usage for long conversations.
  */
-export function prepareMessagesWithCompaction(
-  messages: ModelMessage[],
+export function prepareMessagesWithCompaction<T extends { role: string }>(
+  messages: T[],
   compactionState: CompactionState,
   baseSystemMessage: string,
   contextWindowTokens?: number
-): { messages: ModelMessage[]; systemMessage: string } {
+): { messages: T[]; systemMessage: string } {
   if (!compactionState.summary) {
     return {
       messages,
@@ -279,7 +223,7 @@ export async function getMessageCount(threadId: string): Promise<number> {
   const postgres = getPostgresInstance();
 
   const result = await postgres.query(
-    `SELECT COUNT(*) as count FROM chat_messages WHERE thread_id = $1`,
+    `SELECT COUNT(*) as count FROM chat_messages WHERE thread_id = $1 AND status = 'complete'`,
     [threadId]
   );
 
@@ -287,7 +231,9 @@ export async function getMessageCount(threadId: string): Promise<number> {
 }
 
 /**
- * Get all messages for a thread (for compaction)
+ * Get all messages for a thread (for compaction).
+ * Only completed rows: the in-flight streaming placeholder and interrupted
+ * partial turns must not leak into compaction summaries.
  */
 export async function getThreadMessages(threadId: string): Promise<Message[]> {
   const postgres = getPostgresInstance();
@@ -295,7 +241,7 @@ export async function getThreadMessages(threadId: string): Promise<Message[]> {
   const result = await postgres.query(
     `SELECT id, role, content, created_at
      FROM chat_messages
-     WHERE thread_id = $1
+     WHERE thread_id = $1 AND status = 'complete'
      ORDER BY created_at ASC`,
     [threadId]
   );

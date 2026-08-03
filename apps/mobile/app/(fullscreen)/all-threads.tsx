@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useRecentThreads, type RecentThread } from '../../hooks/useRecentThreads';
 import { getMobileChatApiClient } from '../../services/chatConfig';
-import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
+import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 import { routeWithParams } from '../../types/routes';
 
 function formatTimeAgo(dateString: string): string {
@@ -67,6 +67,9 @@ export default function AllThreadsScreen() {
         }
         onLongPress={() => handleDelete(item.id, item.title || 'Neue Unterhaltung')}
         activeOpacity={0.6}
+        accessibilityRole="button"
+        accessibilityLabel={item.title || 'Neue Unterhaltung'}
+        accessibilityHint="Lange drücken zum Löschen"
       >
         <View
           style={[
@@ -97,7 +100,12 @@ export default function AllThreadsScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Zurück"
+        >
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]}>Unterhaltungen</Text>
@@ -106,6 +114,8 @@ export default function AllThreadsScreen() {
             router.push(routeWithParams('/(focused)/chat-conversation', { threadId: 'new' }))
           }
           hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Neue Unterhaltung starten"
         >
           <Ionicons name="add" size={24} color={colors.primary[600]} />
         </TouchableOpacity>
@@ -146,7 +156,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.medium,
     paddingVertical: spacing.small,
   },
-  headerTitle: { fontSize: 18, fontWeight: '700' },
+  headerTitle: { fontFamily: BODY_FONT, fontSize: 18, fontWeight: '700' },
   item: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -163,9 +173,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   content: { flex: 1, gap: 2 },
-  title: { fontSize: 15, fontWeight: '500' },
-  preview: { fontSize: 13 },
-  time: { fontSize: 12 },
+  title: { fontFamily: BODY_FONT, fontSize: 15, fontWeight: '500' },
+  preview: { fontFamily: BODY_FONT, fontSize: 13 },
+  time: { fontFamily: BODY_FONT, fontSize: 12 },
   empty: { paddingTop: 80, alignItems: 'center', gap: spacing.small },
-  emptyText: { fontSize: 15 },
+  emptyText: { fontFamily: BODY_FONT, fontSize: 15 },
 });

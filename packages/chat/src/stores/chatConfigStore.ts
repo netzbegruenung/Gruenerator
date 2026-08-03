@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import type { SharepicVariant } from '../hooks/useChatGraphStream';
 import type { ClientPlatform, CurrentBoard, EditorOperationsEvent } from '@gruenerator/contracts';
 
 /** A raw file handed to the in-browser Python interpreter (Pyodide worker). */
@@ -64,8 +65,11 @@ export interface ChatConfig {
     threads?: string;
     summarize?: string;
     exportMessage?: string;
+    exportPdf?: string;
     exportToDocs?: string;
     chatConfirm?: string;
+    feedback?: string;
+    mcpApps?: string;
   };
   /** Base URL for the Docs app. Auto-detected from hostname if not set. */
   docsBaseUrl?: string;
@@ -75,11 +79,17 @@ export interface ChatConfig {
     title?: string,
     existingDocId?: string
   ) => Promise<string | void>;
+  /**
+   * Exports a message as a PDF carrying the user's Absender — the letterhead
+   * document and the DIN 5008 letter, which the same dialog decides between.
+   * Injected rather than built into the chat package: choosing the Absender
+   * needs the saved letterheads and the export dialog, both of which live in
+   * the host app. Omit it and the menu entry is not offered — that is how
+   * mobile hides a flow it has no dialog for.
+   */
+  onExportPdfLetterhead?: (content: string, title?: string) => Promise<void>;
   /** Opens a single sharepic variant in the canvas editor for editing. */
-  onEditSharepic?: (
-    variant: import('../hooks/useChatGraphStream').SharepicVariant,
-    opts?: { threadId: string | null }
-  ) => void;
+  onEditSharepic?: (variant: SharepicVariant, opts?: { threadId: string | null }) => void;
   /** Renders a sharepic to a base64 PNG using the canvas editor. */
   renderSharepic?: (
     canvasType: string,
@@ -163,8 +173,12 @@ export interface ResolvedEndpoints {
   threads: string;
   summarize: string;
   exportMessage: string;
+  exportPdf: string;
   exportToDocs: string;
   chatConfirm: string;
+  feedback: string;
+  /** MCP-Apps widget bridge base (read-resource / tools/call / resources/*). */
+  mcpApps: string;
 }
 
 interface ResolvedChatConfig {
@@ -255,10 +269,8 @@ interface ChatConfigStore extends ResolvedChatConfig {
     title?: string,
     existingDocId?: string
   ) => Promise<string | void>;
-  onEditSharepic?: (
-    variant: import('../hooks/useChatGraphStream').SharepicVariant,
-    opts?: { threadId: string | null }
-  ) => void;
+  onExportPdfLetterhead?: ChatConfig['onExportPdfLetterhead'];
+  onEditSharepic?: (variant: SharepicVariant, opts?: { threadId: string | null }) => void;
   renderSharepic?: (
     canvasType: string,
     initialProps: Record<string, unknown>
@@ -328,8 +340,11 @@ const DEFAULT_ENDPOINTS: ResolvedEndpoints = {
   threads: '/api/chat-service/threads',
   summarize: '/api/chat-service/summarize',
   exportMessage: '/api/exports/chat-message',
+  exportPdf: '/api/exports/pdf',
   exportToDocs: '/api/docs/from-export',
   chatConfirm: '/api/chat-service/confirm',
+  feedback: '/api/chat-service/feedback',
+  mcpApps: '/api/mcp-apps',
 };
 
 function resolveDocsUrl(configured?: string): string {
@@ -340,11 +355,13 @@ function resolveDocsUrl(configured?: string): string {
     return `${window.location.protocol}//localhost:3002`;
   }
   // Desktop (Tauri) webview: hostname is `localhost` under origin
-  // `tauri://localhost`, so `docs.${hostname}` is wrong — use the public docs host.
+  // `tauri://localhost`, so `doku.${hostname}` is wrong — use the public docs host.
   if ('__TAURI__' in window) {
-    return 'https://docs.gruenerator.eu';
+    return 'https://doku.gruenerator.eu';
   }
-  return `${window.location.protocol}//docs.${hostname}`;
+  // `doku.`, not `docs.`: the `docs.` host 301s to the main app, which serves
+  // the SPA shell for `/docs/*` — deep links render the app, not the page.
+  return `${window.location.protocol}//doku.${hostname}`;
 }
 
 function defaultFetch(url: string, options?: RequestInit): Promise<Response> {
@@ -376,6 +393,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
   endpoints: DEFAULT_ENDPOINTS,
   docsBaseUrl: undefined,
   onEditInDocs: undefined,
+  onExportPdfLetterhead: undefined,
   wolkeConnectUrl: undefined,
   contextProviders: new Map(),
   documentEditHandlers: new Map(),
@@ -390,6 +408,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       endpoints: { ...DEFAULT_ENDPOINTS, ...config?.endpoints },
       docsBaseUrl: config?.docsBaseUrl,
       onEditInDocs: config?.onEditInDocs,
+      onExportPdfLetterhead: config?.onExportPdfLetterhead,
       onEditSharepic: config?.onEditSharepic,
       renderSharepic: config?.renderSharepic,
       runPython: config?.runPython,

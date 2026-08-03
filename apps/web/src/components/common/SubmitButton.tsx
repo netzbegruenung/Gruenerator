@@ -42,29 +42,33 @@ const SubmitButton = ({
   iconOnly = false,
   disabled,
   isStreaming = false,
-  streamingMessage,
   onAbort,
 }: SubmitButtonProps): JSX.Element => {
   const [internalSuccess, setInternalSuccess] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
+  // Enter the success flash the moment `success` flips true — derived during
+  // render (prev-value guard) rather than in an effect, so no setState-in-effect.
+  const [prevSuccess, setPrevSuccess] = useState(success);
+  if (success !== prevSuccess) {
+    setPrevSuccess(success);
     if (success && !internalSuccess) {
       setInternalSuccess(true);
     }
+  }
 
-    if (internalSuccess) {
-      timerRef.current = setTimeout(() => {
-        setInternalSuccess(false);
-      }, 3000);
-    }
-
+  // The 3s auto-dismiss is a genuine timer, so it stays in an effect.
+  useEffect(() => {
+    if (!internalSuccess) return;
+    timerRef.current = setTimeout(() => {
+      setInternalSuccess(false);
+    }, 3000);
     return () => {
       if (timerRef.current) {
         clearTimeout(timerRef.current);
       }
     };
-  }, [success, internalSuccess]);
+  }, [internalSuccess]);
 
   const handleClick = (event: React.MouseEvent) => {
     if (isStreaming && onAbort) {
@@ -126,7 +130,7 @@ const SubmitButton = ({
       )}
       aria-busy={loading || isStreaming}
       aria-label={isStreamingActive ? 'Abbrechen' : ariaLabel || text}
-      disabled={loading && !isStreaming}
+      disabled={disabled || (loading && !isStreaming)}
     >
       {isStreamingActive ? (
         <>

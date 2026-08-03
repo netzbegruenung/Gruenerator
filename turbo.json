@@ -5,11 +5,16 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**", ".next/**", "build/**"]
     },
-    "typecheck": {},
-    "lint": {},
+    "typecheck": {
+      "dependsOn": ["^typecheck"],
+      "outputs": ["**/*.tsbuildinfo"]
+    },
+    "lint": {
+      "dependsOn": ["^typecheck"]
+    },
     "lint:fix": {},
     "test": {
-      "dependsOn": ["build"]
+      "dependsOn": ["^build"]
     },
     "dev": {
       "cache": false,

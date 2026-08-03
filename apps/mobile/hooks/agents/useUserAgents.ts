@@ -7,13 +7,19 @@ import { useQuery } from '@tanstack/react-query';
 // stays web-only — so the mutation hooks are intentionally omitted.
 const KEY = ['user-agents'] as const;
 
-export function useUserAgents() {
+/**
+ * `enabled` exists for the chat screen: it only needs this list to name a user's
+ * own Grünerator in the header, and a chat opened with a system agent — or with
+ * none — should not fire the request at all.
+ */
+export function useUserAgents(enabled = true) {
   return useQuery({
     queryKey: KEY,
+    enabled,
     queryFn: async (): Promise<Agent[]> => {
       const res = await getContractsClient().userAgents.list();
       if (res.status === 200) return res.body.agents;
-      throw new Error('Agent*innen konnten nicht geladen werden.');
+      throw new Error('Deine Grüneratoren konnten nicht geladen werden.');
     },
   });
 }

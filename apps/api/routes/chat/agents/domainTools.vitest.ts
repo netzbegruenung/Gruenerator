@@ -99,33 +99,32 @@ describe('makeSummaryTool', () => {
 describe('makeBundestagTool', () => {
   beforeEach(() => searchNode.mockReset());
 
-  it('emits the bundestag event, registers sources, and returns the payload verbatim', async () => {
-    const payload = { kind: 'topic', notes: ['Treffer'], metadata: { query: 'Klima' } };
+  it('registers results with a raised snippet cap and returns the lean sources shape', async () => {
+    const longExcerpt = `Rede zur Klimapolitik. ${'x'.repeat(500)} ENDE`;
     searchNode.mockResolvedValue({
-      bundestagResult: payload,
       searchResults: [
         {
           source: 'bundestag',
           url: 'https://dip.bundestag.de/x',
-          title: 'Drucksache',
-          content: 'Text zur Klimapolitik.',
+          title: 'Drucksache 21/50 · Antrag',
+          content: longExcerpt,
         },
       ],
     });
-    const events: SseEvent[] = [];
     const sourceRegistry = createSourceRegistry();
-    const out = await exec(
+    const out = (await exec(
       makeBundestagTool({
-        sse: fakeSse(events),
         state: { ...baseState, intent: 'bundestag' } as ChatGraphState,
         sourceRegistry,
       }),
       { query: 'Klima' }
-    );
-    expect(out).toBe(payload);
-    expect(events).toHaveLength(1);
-    expect(events[0].type).toBe('bundestag');
-    expect((events[0].payload as { bundestag: unknown }).bundestag).toBe(payload);
+    )) as { resultCount?: number; sources?: string };
+    expect(out.resultCount).toBe(1);
+    // The 700-char registration cap keeps the full ~530-char excerpt intact
+    // (the default 320 would cut it before "ENDE").
+    expect(out.sources).toContain('ENDE');
+    expect(out.sources).toContain('[1] Drucksache 21/50 · Antrag');
+    expect(sourceRegistry.renderAll()).toContain('ENDE');
     expect(sourceRegistry.size).toBe(1);
     // searchNode was routed with the bundestag intent + the model's query.
     expect(searchNode).toHaveBeenCalledWith(
@@ -133,22 +132,39 @@ describe('makeBundestagTool', () => {
     );
   });
 
-  it('returns a note (no event) when there is no structured payload (e.g. de-AT decline)', async () => {
+  it('registers the de-AT decline note as a citable source', async () => {
     searchNode.mockResolvedValue({
-      bundestagResult: null,
-      searchResults: [{ source: 'bundestag', url: '', title: '', content: 'Nur für Deutschland.' }],
+      searchResults: [
+        {
+          source: 'bundestag',
+          url: '',
+          title: 'Nur für Deutschland verfügbar',
+          content: 'Nur für Deutschland.',
+        },
+      ],
     });
-    const events: SseEvent[] = [];
     const out = (await exec(
       makeBundestagTool({
-        sse: fakeSse(events),
         state: { ...baseState, intent: 'bundestag' } as ChatGraphState,
         sourceRegistry: createSourceRegistry(),
       }),
       { query: 'x' }
-    )) as { note?: string };
-    expect(out.note).toBe('Nur für Deutschland.');
-    expect(events).toHaveLength(0);
+    )) as { resultCount?: number; sources?: string };
+    expect(out.resultCount).toBe(1);
+    expect(out.sources).toContain('Nur für Deutschland.');
+  });
+
+  it('returns an error shape when the search comes back empty', async () => {
+    searchNode.mockResolvedValue({ searchResults: [] });
+    const out = (await exec(
+      makeBundestagTool({
+        state: { ...baseState, intent: 'bundestag' } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      { query: 'x' }
+    )) as { resultCount?: number; error?: string };
+    expect(out.resultCount).toBe(0);
+    expect(out.error).toBeTruthy();
   });
 });
 
@@ -542,5 +558,145 @@ describe('makeCreateBoardTool (compound board fat tool)', () => {
     const out = (await exec(makeTool(state), { prompt: 'a' })) as { error: string };
     expect(out.error).toMatch(/nicht möglich/);
     expect(runBoardGeneration).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The artifact generator is a separate model call: it sees the brief the
+ * planner typed, and nothing else. Whatever the thread agreed on is invisible
+ * to it unless we thread it through.
+ *
+ * QA, 28.07.2026: three heat-protection measures were fixed in the chat, then
+ * "mach ein PDF draus" produced a dossier that kept one and replaced the other
+ * two with generic measures the generator knew on its own. It was not a
+ * hallucination — nobody had shown it the list. The single-pass create turns
+ * got this transcript in #2136; these tests pin the loop's half.
+ */
+describe('artifact briefs carry the conversation', () => {
+  beforeEach(() => {
+    runDocGeneration.mockReset();
+    runBoardGeneration.mockReset();
+  });
+
+  const THREE_MEASURES =
+    'Maßnahme 1: Cooling Zones. Maßnahme 2: Öffnung kühler Orte. Maßnahme 3: klimatisierter ÖPNV.';
+
+  const stateWith = (messages: unknown[], over: Partial<ChatGraphState> = {}): ChatGraphState =>
+    ({
+      ...baseState,
+      agentConfig: { userId: 'u1' },
+      aiWorkerPool: {},
+      createdDocument: null,
+      createdBoard: null,
+      messages,
+      ...over,
+    }) as unknown as ChatGraphState;
+
+  it('hands the generator what the thread agreed on, not just the planner’s retyped order', async () => {
+    runDocGeneration.mockResolvedValue({
+      documentId: 'd1',
+      title: 'Dossier',
+      subtype: 'documents' as const,
+      url: '/office/d1',
+    });
+    const state = stateWith([
+      { role: 'user', content: 'Recherchiere drei Hitzeschutzmaßnahmen.' },
+      { role: 'assistant', content: THREE_MEASURES },
+      { role: 'user', content: 'Mach ein PDF draus' },
+    ]);
+
+    await exec(
+      makeCreateDocTool({
+        kind: 'document',
+        sse: fakeSse([]) as Parameters<typeof makeCreateDocTool>[0]['sse'],
+        state,
+        req: {} as Parameters<typeof makeCreateDocTool>[0]['req'],
+      }),
+      { prompt: 'Dossier zum Hitzeschutz' }
+    );
+
+    const brief = (runDocGeneration.mock.calls[0]?.[0] as { userContent: string }).userContent;
+    expect(brief).toContain('Cooling Zones');
+    expect(brief).toContain('klimatisierter ÖPNV');
+    // The planner's order must still be the instruction, so it comes LAST.
+    expect(brief.indexOf('AUFTRAG:')).toBeGreaterThan(brief.indexOf('Cooling Zones'));
+  });
+
+  it('keeps the sources block alongside the transcript', async () => {
+    runDocGeneration.mockResolvedValue({
+      documentId: 'd2',
+      title: 'T',
+      subtype: 'sheets' as const,
+      url: '/office/d2',
+    });
+    const registry = createSourceRegistry();
+    registry.register([
+      { title: 'Hitzeaktionsplan', url: 'https://example.at/hap', content: 'Cooling Zones …' },
+    ]);
+    const state = stateWith([
+      { role: 'user', content: 'Was steht im Hitzeaktionsplan?' },
+      { role: 'assistant', content: THREE_MEASURES },
+      { role: 'user', content: 'Als Tabelle bitte' },
+    ]);
+
+    await exec(
+      makeCreateDocTool({
+        kind: 'sheet',
+        sse: fakeSse([]) as Parameters<typeof makeCreateDocTool>[0]['sse'],
+        state,
+        req: {} as Parameters<typeof makeCreateDocTool>[0]['req'],
+        sourceRegistry: registry,
+      }),
+      { prompt: 'Vergleichstabelle' }
+    );
+
+    const brief = (runDocGeneration.mock.calls[0]?.[0] as { userContent: string }).userContent;
+    expect(brief).toContain('Cooling Zones');
+    expect(brief).toContain('https://example.at/hap');
+  });
+
+  it('leaves a first-turn brief untouched', async () => {
+    // Nothing was agreed yet, so there is no background to prepend — the brief
+    // must stay exactly what the planner asked for.
+    runDocGeneration.mockResolvedValue({
+      documentId: 'd3',
+      title: 'T',
+      subtype: 'documents' as const,
+      url: '/office/d3',
+    });
+    const state = stateWith([{ role: 'user', content: 'Schreib ein Konzept zu Tempo 30' }]);
+
+    await exec(
+      makeCreateDocTool({
+        kind: 'document',
+        sse: fakeSse([]) as Parameters<typeof makeCreateDocTool>[0]['sse'],
+        state,
+        req: {} as Parameters<typeof makeCreateDocTool>[0]['req'],
+      }),
+      { prompt: 'Konzept Tempo 30' }
+    );
+
+    const brief = (runDocGeneration.mock.calls[0]?.[0] as { userContent: string }).userContent;
+    expect(brief).toBe('Konzept Tempo 30');
+  });
+
+  it('briefs the board generator the same way', async () => {
+    runBoardGeneration.mockResolvedValue({ boardId: 'b1', structure: {} });
+    const state = stateWith([
+      { role: 'user', content: 'Welche Schritte braucht die Kampagne?' },
+      { role: 'assistant', content: THREE_MEASURES },
+      { role: 'user', content: 'Mach ein Board draus' },
+    ]);
+
+    await exec(
+      makeCreateBoardTool({
+        state,
+        req: {} as Parameters<typeof makeCreateBoardTool>[0]['req'],
+      }),
+      { prompt: 'Board zur Kampagne' }
+    );
+
+    const brief = (runBoardGeneration.mock.calls[0]?.[0] as { userContent: string }).userContent;
+    expect(brief).toContain('Cooling Zones');
   });
 });

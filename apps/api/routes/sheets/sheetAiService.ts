@@ -27,7 +27,9 @@ const log = createLogger('SheetAI');
 const SHEET_AI_PROVIDER = 'mistral';
 const SHEET_AI_MODEL = 'mistral-medium-2604';
 
-const SHEET_TOOL_STRICT_PROMPT = `You translate a user's request into spreadsheet operations by calling the tool applySheetOperations.
+/** Exportiert nur, damit der Konsistenz-Wächter den FERTIGEN Prompt lesen kann
+ *  statt seiner Bausteine — siehe `sheetAiService.vitest.ts`. */
+export const SHEET_TOOL_STRICT_PROMPT = `You translate a user's request into spreadsheet operations by calling the tool applySheetOperations.
 
 You MUST respond ONLY by calling applySheetOperations with { "operations": [ ... ] }.
 
@@ -52,10 +54,6 @@ Permitted operation types (each object needs a "type" field):
 - { "type": "delete_columns", "at": "C", "count": 1, "sheet"?: "Name" }
 - { "type": "merge_cells", "range": "A1:C1", "sheet"?: "Name" }   // e.g. a title row; keeps the top-left value
 - { "type": "unmerge_cells", "range": "A1:C1", "sheet"?: "Name" }
-- { "type": "add_chart", "range": "A1:D5", "chartType": "bar", "title"?: "Umsatz", "sheet"?: "Name" }
-    // chartType: bar|line|area|pie|donut. "range" MUST include the header row and
-    // the label column: row 1 = series names, column A = category labels, the rest
-    // = numbers. pie/donut use only the first numeric series.
 - { "type": "sort_range", "range": "A1:D20", "column": "B", "ascending": true, "sheet"?: "Name" }
     // sorts the rows of "range" by the values in "column" (a letter INSIDE range).
     // Include the header row in "range"; it is kept in place.
@@ -168,7 +166,6 @@ export async function generateSheetOperations(opts: {
       }),
     },
     toolChoice: 'required',
-    maxOutputTokens: 8000,
     maxRetries: 1,
     temperature: 0.2,
   });

@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react';
 
-export type AgentProvider = 'mistral' | 'anthropic' | 'litellm' | 'regolo';
+export type AgentProvider = 'mistral' | 'anthropic' | 'litellm' | 'regolo' | 'greenpt';
 
 export type SkillIcon = ComponentType<{ className?: string }>;
 
@@ -149,6 +149,8 @@ export interface Agent {
    * creator); `'research'` is reserved for a future bucket.
    */
   autoRoutingHint?: 'creative' | 'precise' | 'research';
+  /** Fire the example search on every content-creation turn. See the frontmatter schema. */
+  alwaysSearchesExamples?: boolean;
   /**
    * System skill `mention` strings (e.g. `'presse'`, `'antrag'`) surfaced as
    * clickable quick-starts on this agent's chat landing. Each resolves via
@@ -229,7 +231,12 @@ export interface Skill {
   skillCategory?: SkillCategory;
   promptTemplate?: string;
   isSystemDefault?: boolean;
-  skillSystemPrompt?: string;
   /** Locale visibility, same semantics as `AgentAudience` on agents. Undefined ≈ `'all'`. */
   audience?: AgentAudience;
+  // NOTE: there is deliberately no `skillSystemPrompt` here. A skill's prompt
+  // body is party-internal and lives outside this repo; the API loads it at
+  // runtime (apps/api/services/skills/internalPrompts.ts) and serves it to
+  // authenticated clients. This type is bundled into web and mobile, so a field
+  // here would publish every prompt — .gitignore cannot help once codegen has
+  // read it. Keep the shape metadata-only.
 }

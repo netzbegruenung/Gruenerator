@@ -1,7 +1,12 @@
-import { useFetchFullText } from '@gruenerator/chat';
+import {
+  DEFAULT_NOTEBOOK_DEPTH,
+  NOTEBOOK_DEPTHS,
+  notebookDepthDef,
+  useFetchFullText,
+} from '@gruenerator/chat';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,14 +16,11 @@ import {
   Pressable,
   ActivityIndicator,
   Keyboard,
+  useColorScheme,
 } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  interpolateColor,
-} from 'react-native-reanimated';
+import { useShallow } from 'zustand/shallow';
 
+import { getResearchCollectionIds } from '../../config/notebooksConfig';
 import { useNotebookFilters } from '../../hooks/notebook/useNotebookFilters';
 import {
   useNotebookResearch,
@@ -26,11 +28,14 @@ import {
   type SearchMode,
   type SortOption,
 } from '../../hooks/notebook/useNotebookResearch';
-import { colors, spacing, typography, borderRadius } from '../../theme';
+import { useNotebookFilterStore } from '../../stores/notebookFilterStore';
+import { usePreferencesStore } from '../../stores/preferencesStore';
+import { colors, spacing, typography, borderRadius, BODY_FONT } from '../../theme';
+import { getSurfaceFab } from '../../theme/toolTheme';
 import { routeWithParams } from '../../types/routes';
 import { CitationDetailSheet } from '../chat/CitationDetailSheet';
 import { BottomSheet } from '../common/BottomSheet';
-import { ComposerCard } from '../common/ComposerCard';
+import { Composer } from '../common/Composer';
 import { Fab } from '../common/Fab';
 
 import { NotebookOverview } from './NotebookOverview';
@@ -60,6 +65,15 @@ const SORT_LABELS: Record<SortOption, string> = {
   date_asc: 'Älteste',
 };
 const MODE_CYCLE: SearchMode[] = ['hybrid', 'vector', 'text'];
+
+/** Readable names for the aggregate notebook's `*-system` collections. */
+const COLLECTION_LABELS: Record<string, string> = {
+  'grundsatz-system': 'Grundsatzprogramm',
+  'bundestagsfraktion-system': 'Bundestagsfraktion',
+  'gruene-de-system': 'gruene.de',
+  'kommunalwiki-system': 'KommunalWiki',
+  'gruenblog-system': 'Grünblog',
+};
 const SORT_CYCLE: SortOption[] = ['relevance', 'date_desc', 'date_asc'];
 
 const KEYWORD_FILTER_LABELS: Record<string, string> = {
@@ -91,11 +105,17 @@ function OptionChip({
   active,
   onPress,
   theme,
+  accent,
+  onAccent,
 }: {
   label: string;
   active: boolean;
   onPress: () => void;
   theme: Theme;
+  /** Fill of the selected state — the notebook magenta, not the app green. */
+  accent: string;
+  /** Readable colour on top of `accent`. */
+  onAccent: string;
 }) {
   return (
     <Pressable
@@ -103,12 +123,14 @@ function OptionChip({
       style={[
         styles.optionChip,
         {
-          backgroundColor: active ? colors.primary[600] : theme.surface,
-          borderColor: active ? colors.primary[600] : theme.border,
+          backgroundColor: active ? accent : theme.surface,
+          borderColor: active ? accent : theme.border,
         },
       ]}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: active }}
     >
-      <Text style={[styles.optionChipText, { color: active ? colors.white : theme.text }]}>
+      <Text style={[styles.optionChipText, { color: active ? onAccent : theme.text }]}>
         {label}
       </Text>
     </Pressable>
@@ -119,7 +141,6 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<SearchMode>('hybrid');
   const [sortBy, setSortBy] = useState<SortOption>('relevance');
-  const [keywordFilters, setKeywordFilters] = useState<Record<string, string[]>>({});
   const [selected, setSelected] = useState<ResearchResult | null>(null);
   const [filtersSheetVisible, setFiltersSheetVisible] = useState(false);
   // Chat is the default input (a composer that hands off to the chat screen, like
@@ -128,6 +149,32 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
 
   const router = useRouter();
   const fetchFullText = useFetchFullText();
+  // Facets and sources live in a store, not in this component: asking hands the
+  // question to another screen, and the chat runtime builds the request body from
+  // outside the panel.
+  const { keywordFilters, collectionIds } = useNotebookFilterStore(
+    useShallow((st) => ({
+      keywordFilters: st.keywordFilters,
+      collectionIds: st.collectionIds,
+    }))
+  );
+  const setNotebook = useNotebookFilterStore((st) => st.setNotebook);
+  const toggleValue = useNotebookFilterStore((st) => st.toggleValue);
+  const toggleCollection = useNotebookFilterStore((st) => st.toggleCollection);
+  const resetStoreFilters = useNotebookFilterStore((st) => st.reset);
+  // The depth is a persisted preference, not a per-notebook filter.
+  const depth = usePreferencesStore((st) => st.notebookDepth);
+  const setDepth = usePreferencesStore((st) => st.setNotebookDepth);
+  const availableCollections = getResearchCollectionIds(notebookId);
+
+  useEffect(() => {
+    setNotebook(notebookId);
+  }, [notebookId, setNotebook]);
+  const fabTone = getSurfaceFab('wissen', useColorScheme() === 'dark');
+  // Selected chips, badges and the send button carry the notebook's own hue; the
+  // pastel side of the pair doubles as the readable colour on top of it.
+  const accent = fabTone.icon;
+  const onAccent = fabTone.background;
 
   const handleChatSend = useCallback(
     (text: string) => {
@@ -142,24 +189,11 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
     [router, notebookId]
   );
 
-  // Animated green wash + white text when switching to manuelle Recherche, so the
-  // mode change reads instantly.
-  const onGreen = inputMode === 'recherche';
-  const greenProgress = useSharedValue(0);
+  // Both modes sit on the notebook's pink gradient (web parity) — the green wash
+  // that used to mark manuelle Recherche fought that background.
   const toggleMode = useCallback(() => {
-    setInputMode((m) => {
-      const next = m === 'chat' ? 'recherche' : 'chat';
-      greenProgress.value = withTiming(next === 'recherche' ? 1 : 0, { duration: 320 });
-      return next;
-    });
-  }, [greenProgress]);
-  const overlayStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(
-      greenProgress.value,
-      [0, 1],
-      ['rgba(49, 96, 73, 0)', colors.primary[600]]
-    ),
-  }));
+    setInputMode((m) => (m === 'chat' ? 'recherche' : 'chat'));
+  }, []);
   const { search, results, metadata, isLoading, hasSearched, error } = useNotebookResearch(
     notebookId,
     kind
@@ -172,7 +206,11 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
   // One number across mode, sort, and keyword facets — the single Filter control
   // shows this so the whole search configuration lives behind one element.
   const activeCount =
-    (mode !== 'hybrid' ? 1 : 0) + (sortBy !== 'relevance' ? 1 : 0) + keywordFilterCount;
+    (mode !== 'hybrid' ? 1 : 0) +
+    (sortBy !== 'relevance' ? 1 : 0) +
+    (depth !== DEFAULT_NOTEBOOK_DEPTH ? 1 : 0) +
+    (collectionIds ? 1 : 0) +
+    keywordFilterCount;
 
   const runSearch = useCallback(
     (overrides?: {
@@ -193,33 +231,19 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
     [query, mode, sortBy, keywordFilters, search]
   );
 
-  const toggleFilterValue = (field: string, value: string) => {
-    setKeywordFilters((prev) => {
-      const current = prev[field] ?? [];
-      const updated = current.includes(value)
-        ? current.filter((v) => v !== value)
-        : [...current, value];
-      if (updated.length === 0) {
-        const { [field]: _drop, ...rest } = prev;
-        return rest;
-      }
-      return { ...prev, [field]: updated };
-    });
-  };
-
   const resetFilters = () => {
     setMode('hybrid');
     setSortBy('relevance');
-    setKeywordFilters({});
+    resetStoreFilters();
+    // Counted in `activeCount`, so "Zurücksetzen" has to clear it too — even
+    // though it outlives the sheet as a preference.
+    void setDepth(DEFAULT_NOTEBOOK_DEPTH);
   };
 
   const canSearch = query.trim().length >= 2;
 
   return (
     <View style={styles.container}>
-      {/* Animated green wash behind everything for manuelle Recherche mode. */}
-      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, overlayStyle]} />
-
       {/* One scroll for the whole tab — greeting, composer and results all scroll
           together, like the home screen (no fixed top section). */}
       <ScrollView
@@ -231,15 +255,8 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
         {/* Greeting always on top. */}
         {notebookTitle && (
           <View style={styles.hero}>
-            <Text style={[styles.heroTitle, { color: onGreen ? colors.white : theme.text }]}>
-              {notebookTitle}
-            </Text>
-            <Text
-              style={[
-                styles.heroSubtitle,
-                { color: onGreen ? 'rgba(255,255,255,0.75)' : theme.textSecondary },
-              ]}
-            >
+            <Text style={[styles.heroTitle, { color: theme.text }]}>{notebookTitle}</Text>
+            <Text style={[styles.heroSubtitle, { color: theme.textSecondary }]}>
               Was möchtest du wissen?
             </Text>
           </View>
@@ -249,9 +266,13 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
             screen) by default, manuelle Recherche (inline search) via the FAB. */}
         {inputMode === 'chat' ? (
           <View style={styles.chatComposer}>
-            <ComposerCard
+            <Composer
+              variant="bar"
               placeholder={`Frag ${notebookTitle ?? 'dieses Notebook'}…`}
-              onSend={handleChatSend}
+              onSubmit={handleChatSend}
+              // Same sheet as manuelle Recherche — depth, sources and categories
+              // shape the KI answer too, so it has to be reachable from here.
+              onSettings={() => setFiltersSheetVisible(true)}
             />
           </View>
         ) : (
@@ -262,39 +283,41 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
               style={[styles.composerInput, { color: theme.text }]}
               placeholder="In diesem Notebook recherchieren…"
               placeholderTextColor={theme.textSecondary}
+              accessibilityLabel="In diesem Notebook recherchieren"
               value={query}
               onChangeText={setQuery}
               onSubmitEditing={() => runSearch()}
               returnKeyType="search"
               autoCorrect={false}
-              multiline
             />
             <View style={styles.composerToolbar}>
               <Pressable
                 onPress={() => setFiltersSheetVisible(true)}
                 style={styles.iconButton}
                 hitSlop={6}
+                accessibilityRole="button"
+                accessibilityLabel="Filter und Sortierung öffnen"
               >
                 <Ionicons
                   name="options-outline"
                   size={22}
-                  color={activeCount > 0 ? colors.primary[600] : theme.textSecondary}
+                  color={activeCount > 0 ? accent : theme.textSecondary}
                 />
                 {activeCount > 0 && (
-                  <View style={[styles.filterBadge, { backgroundColor: colors.primary[600] }]}>
+                  <View style={[styles.filterBadge, { backgroundColor: accent }]}>
                     <Text style={styles.filterBadgeText}>{activeCount}</Text>
                   </View>
                 )}
               </Pressable>
               <Pressable
                 onPress={() => runSearch()}
-                style={[
-                  styles.sendButton,
-                  { backgroundColor: canSearch ? colors.primary[600] : theme.border },
-                ]}
+                style={[styles.sendButton, { backgroundColor: canSearch ? accent : theme.border }]}
                 disabled={!canSearch}
+                accessibilityRole="button"
+                accessibilityLabel="Suchen"
+                accessibilityState={{ disabled: !canSearch }}
               >
-                <Ionicons name="arrow-forward" size={20} color={colors.white} />
+                <Ionicons name="arrow-forward" size={20} color={onAccent} />
               </Pressable>
             </View>
           </View>
@@ -305,7 +328,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
             <>
               {isLoading && (
                 <View style={styles.centerState}>
-                  <ActivityIndicator size="large" color={theme.textGreen} />
+                  <ActivityIndicator size="large" color={accent} />
                   <Text style={[styles.stateText, { color: theme.textSecondary }]}>
                     Suche läuft…
                   </Text>
@@ -345,7 +368,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
               )}
             </>
           ) : kind === 'system' ? (
-            <NotebookOverview notebookId={notebookId} kind={kind} theme={theme} onGreen={onGreen} />
+            <NotebookOverview notebookId={notebookId} kind={kind} theme={theme} />
           ) : null}
         </View>
       </ScrollView>
@@ -355,8 +378,8 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
         icon={inputMode === 'chat' ? 'search' : 'chatbubbles'}
         onPress={toggleMode}
         accessibilityLabel={inputMode === 'chat' ? 'Manuelle Recherche' : 'KI-Chat'}
-        style={[styles.fab, onGreen ? { backgroundColor: colors.white } : null]}
-        color={onGreen ? colors.primary[600] : colors.white}
+        style={[styles.fab, { backgroundColor: fabTone.background }]}
+        color={fabTone.icon}
       />
 
       <BottomSheet
@@ -367,15 +390,69 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
         <View style={styles.sheetHeader}>
           <Text style={[styles.sheetTitle, { color: theme.text }]}>Filter & Sortierung</Text>
           {activeCount > 0 && (
-            <Pressable onPress={resetFilters} hitSlop={8} style={styles.resetButton}>
-              <Text style={[styles.resetText, { color: theme.textGreen }]}>Zurücksetzen</Text>
+            <Pressable
+              onPress={resetFilters}
+              hitSlop={8}
+              style={styles.resetButton}
+              accessibilityRole="button"
+            >
+              <Text style={[styles.resetText, { color: accent }]}>Zurücksetzen</Text>
             </Pressable>
           )}
-          <Pressable onPress={() => setFiltersSheetVisible(false)} hitSlop={8}>
+          <Pressable
+            onPress={() => setFiltersSheetVisible(false)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Filter schließen"
+          >
             <Ionicons name="close" size={24} color={theme.text} />
           </Pressable>
         </View>
         <ScrollView style={styles.sheetScroll}>
+          {/* KI-side setting: the same three tiers web shows on the notebook
+              page. The Suchmodus/Sortierung below only shape the manual research
+              query. */}
+          <View style={styles.filterSection}>
+            <Text style={[styles.filterSectionTitle, { color: theme.text }]}>Suchtiefe</Text>
+            <View style={styles.filterValues}>
+              {NOTEBOOK_DEPTHS.map((d) => (
+                <OptionChip
+                  key={d.depth}
+                  label={d.label}
+                  active={depth === d.depth}
+                  onPress={() => void setDepth(d.depth)}
+                  theme={theme}
+                  accent={accent}
+                  onAccent={onAccent}
+                />
+              ))}
+            </View>
+            {/* "Ultra" says nothing on its own — the chips are one word each. */}
+            <Text style={[styles.filterSectionHint, { color: theme.textSecondary }]}>
+              {notebookDepthDef(depth).description}
+            </Text>
+          </View>
+
+          {/* Only an aggregate notebook has something to pick from. */}
+          {availableCollections.length > 1 && (
+            <View style={styles.filterSection}>
+              <Text style={[styles.filterSectionTitle, { color: theme.text }]}>Quellen</Text>
+              <View style={styles.filterValues}>
+                {availableCollections.map((id) => (
+                  <OptionChip
+                    key={id}
+                    label={COLLECTION_LABELS[id] ?? id.replace(/-system$/, '')}
+                    active={(collectionIds ?? availableCollections).includes(id)}
+                    onPress={() => toggleCollection(id, availableCollections)}
+                    theme={theme}
+                    accent={accent}
+                    onAccent={onAccent}
+                  />
+                ))}
+              </View>
+            </View>
+          )}
+
           <View style={styles.filterSection}>
             <Text style={[styles.filterSectionTitle, { color: theme.text }]}>Suchmodus</Text>
             <View style={styles.filterValues}>
@@ -386,6 +463,8 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
                   active={mode === m}
                   onPress={() => setMode(m)}
                   theme={theme}
+                  accent={accent}
+                  onAccent={onAccent}
                 />
               ))}
             </View>
@@ -401,6 +480,8 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
                   active={sortBy === s}
                   onPress={() => setSortBy(s)}
                   theme={theme}
+                  accent={accent}
+                  onAccent={onAccent}
                 />
               ))}
             </View>
@@ -417,17 +498,19 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
                   return (
                     <Pressable
                       key={v.value}
-                      onPress={() => toggleFilterValue(field.field, v.value)}
+                      onPress={() => toggleValue(field.field, v.value)}
                       style={[
                         styles.valueChip,
                         {
-                          backgroundColor: isActive ? colors.primary[600] : theme.surface,
-                          borderColor: isActive ? colors.primary[600] : theme.border,
+                          backgroundColor: isActive ? accent : theme.surface,
+                          borderColor: isActive ? accent : theme.border,
                         },
                       ]}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: isActive }}
                     >
                       <Text
-                        style={[styles.valueText, { color: isActive ? colors.white : theme.text }]}
+                        style={[styles.valueText, { color: isActive ? onAccent : theme.text }]}
                         numberOfLines={1}
                       >
                         {v.value}
@@ -435,7 +518,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
                       <Text
                         style={[
                           styles.valueCount,
-                          { color: isActive ? colors.primary[200] : theme.textSecondary },
+                          { color: isActive ? onAccent : theme.textSecondary },
                         ]}
                       >
                         {v.count}
@@ -452,9 +535,10 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
             setFiltersSheetVisible(false);
             runSearch();
           }}
-          style={[styles.applyButton, { backgroundColor: colors.primary[600] }]}
+          style={[styles.applyButton, { backgroundColor: accent }]}
+          accessibilityRole="button"
         >
-          <Text style={styles.applyButtonText}>
+          <Text style={[styles.applyButtonText, { color: onAccent }]}>
             {activeCount > 0 ? `${activeCount} aktiv · Anwenden` : 'Anwenden'}
           </Text>
         </Pressable>
@@ -495,29 +579,30 @@ const styles = StyleSheet.create({
     fontSize: 26,
     marginTop: 2,
   },
+  // One narrow row, like web's notebook composer — the tall multiline card ate a
+  // third of the screen before a single result was on it.
   composer: {
-    borderRadius: borderRadius.large,
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 56,
+    borderRadius: 28,
     borderWidth: 1,
-    paddingHorizontal: spacing.medium,
-    paddingTop: spacing.medium,
-    paddingBottom: spacing.small,
+    paddingLeft: spacing.medium,
+    paddingRight: spacing.xsmall,
     marginHorizontal: spacing.medium,
     marginTop: spacing.medium,
-    gap: spacing.small,
+    gap: spacing.xsmall,
   },
   composerInput: {
     ...typography.body,
+    flex: 1,
     fontSize: 16,
-    minHeight: 52,
-    maxHeight: 120,
-    textAlignVertical: 'top',
     padding: 0,
   },
   composerToolbar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: spacing.small,
+    gap: spacing.xxsmall,
   },
   iconButton: {
     width: 40,
@@ -545,6 +630,7 @@ const styles = StyleSheet.create({
   },
   filterBadgeText: {
     color: colors.white,
+    fontFamily: BODY_FONT,
     fontSize: 10,
     fontWeight: '700',
   },
@@ -597,6 +683,7 @@ const styles = StyleSheet.create({
   },
   sheetTitle: {
     flex: 1,
+    fontFamily: BODY_FONT,
     fontSize: 18,
     fontWeight: '700',
   },
@@ -604,6 +691,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xsmall,
   },
   resetText: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     fontWeight: '600',
   },
@@ -614,6 +702,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.medium,
   },
   filterSectionTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
     marginBottom: spacing.xsmall,
@@ -623,6 +712,11 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.xsmall,
   },
+  filterSectionHint: {
+    fontFamily: BODY_FONT,
+    fontSize: 12,
+    marginTop: spacing.xxsmall,
+  },
   optionChip: {
     paddingHorizontal: spacing.medium,
     paddingVertical: spacing.xsmall,
@@ -630,6 +724,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   optionChipText: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     fontWeight: '500',
   },
@@ -643,9 +738,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   valueText: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
   },
   valueCount: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
   },
   applyButton: {
@@ -655,7 +752,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   applyButtonText: {
-    color: colors.white,
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '600',
   },

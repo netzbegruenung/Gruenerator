@@ -1,5 +1,5 @@
-import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
+import { type NotebookDepth, type SearchMode } from '@gruenerator/contracts';
+import { isApiErrorWithStatus } from '@gruenerator/shared/api';
 import {
   TEXT_MODELS,
   TEXT_MODEL_BY_ID,
@@ -7,13 +7,20 @@ import {
   type TextModelOption,
   type TextProvider,
 } from '@gruenerator/shared/models';
+import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
+
+import { DEFAULT_NOTEBOOK_DEPTH } from '../lib/notebookDepth';
+import { notifyError, notifyWarning } from '../lib/notify';
 import { AUTO_MODEL_ID, type AutoModelId, type SelectedModel } from '../lib/resolveAutoModel';
+
 import { useArtifactLiveStore } from './artifactLiveStore';
+import { useComputeExportStore } from './computeExportStore';
+import { useLastComputeStore } from './lastComputeStore';
+import { usePythonFileStore } from './pythonFileStore';
 import { useReelLiveStore } from './reelLiveStore';
 import { useSharepicLiveStore } from './sharepicLiveStore';
-import { useLastComputeStore } from './lastComputeStore';
-import { useComputeExportStore } from './computeExportStore';
-import { usePythonFileStore } from './pythonFileStore';
+
 import type { ChatApiClient } from '../context/ChatContext';
 
 export const MODEL_OPTIONS = TEXT_MODELS;
@@ -52,7 +59,19 @@ interface TriggerCompactionResponse {
 export type ToolKey = 'search' | 'web' | 'examples' | 'pressemitteilung_examples' | 'research';
 
 export type ThreadMode = 'chat' | 'notebook' | 'search' | 'eigener';
-export type SearchMode = 'web' | 'deep';
+// Search depth is a wire value: it goes straight into the /api/search-graph/stream
+// body, where the contract validates it against `searchModeSchema`. Re-exported
+// from the contract so web, mobile and the API share one definition instead of
+// three copies that can drift.
+export { type SearchMode };
+
+/** A pinned MCP connector: while set, the composer auto-injects its durable
+ *  `@[Label](mcp:id)` token into every sent message so the tool scope is held
+ *  explicitly across follow-ups. Session-scoped — never persisted. */
+export interface PinnedConnector {
+  id: string;
+  label: string;
+}
 
 export interface ProviderOption {
   id: Provider;
@@ -99,6 +118,12 @@ interface AgentState {
   chatViewMode: 'overview' | 'thread';
   threadMode: ThreadMode;
   searchMode: SearchMode;
+  /**
+   * Notebook retrieval depth. A preference, not a filter: it says how much work
+   * an answer is worth to you, which does not change per notebook, so unlike the
+   * source/category filters it is persisted and survives a reload.
+   */
+  notebookDepth: NotebookDepth;
   customSystemPrompt: string | null;
   customRoleName: string | null;
   customEnabledTools: Record<string, boolean> | null;
@@ -106,11 +131,15 @@ interface AgentState {
    *  when a skill mention is inserted; cleared on agent change / new thread.
    *  Sent to backend so it appends only the relevant skill's prompt fragment. */
   activeSkillMention: string | null;
+  /** Pinned MCP connector (session-scoped, not persisted). Set from the
+   *  composer's "Konnektoren" menu; cleared on new thread / new chat. */
+  pinnedConnector: PinnedConnector | null;
   /** Transient (not persisted): set by restoreSelectedAgent so the
    *  AgentSwitchListener skips its new-thread reset for agent changes that
    *  come from a thread deep link rather than a user-initiated switch. */
   suppressAgentSwitchReset: boolean;
   setActiveSkillMention: (mention: string | null) => void;
+  setPinnedConnector: (connector: PinnedConnector | null) => void;
   setSelectedAgent: (agentId: string | null) => void;
   restoreSelectedAgent: (agentId: string | null) => void;
   setSelectedProvider: (provider: Provider) => void;
@@ -126,6 +155,7 @@ interface AgentState {
   setChatViewMode: (mode: 'overview' | 'thread') => void;
   setThreadMode: (mode: ThreadMode) => void;
   setSearchMode: (mode: SearchMode) => void;
+  setNotebookDepth: (depth: NotebookDepth) => void;
   setCompactionState: (state: CompactionState) => void;
   loadCompactionState: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
   triggerCompaction: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
@@ -142,7 +172,7 @@ interface AgentState {
    *  every new-chat surface (workplace composer, /chat overview, ChatPage). */
   resetChatContext: () => void;
   loadThreadSettings: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
-  saveThreadSettings: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
+  saveThreadSettings: (threadId: string, apiClient: ChatApiClient) => Promise<boolean>;
 }
 
 const DEFAULT_ENABLED_TOOLS: Record<ToolKey, boolean> = {
@@ -179,26 +209,33 @@ export const useAgentStore = create<AgentState>()(
       chatViewMode: 'overview' as const,
       threadMode: 'chat' as ThreadMode,
       searchMode: 'web' as SearchMode,
+      notebookDepth: DEFAULT_NOTEBOOK_DEPTH,
       customSystemPrompt: null,
       customRoleName: null,
       customEnabledTools: null,
       activeSkillMention: null,
+      pinnedConnector: null,
       suppressAgentSwitchReset: false,
 
       setActiveSkillMention: (mention) => set({ activeSkillMention: mention }),
 
-      setSelectedAgent: (agentId) => set({ selectedAgentId: agentId, activeSkillMention: null }),
+      setPinnedConnector: (connector) => set({ pinnedConnector: connector }),
+
+      setSelectedAgent: (agentId) =>
+        set({ selectedAgentId: agentId, activeSkillMention: null, pinnedConnector: null }),
 
       restoreSelectedAgent: (agentId) =>
         set({
           selectedAgentId: agentId,
           activeSkillMention: null,
+          pinnedConnector: null,
           suppressAgentSwitchReset: true,
         }),
 
       resetThreadContext: () =>
         set({
           activeSkillMention: null,
+          pinnedConnector: null,
           customSystemPrompt: null,
           customRoleName: null,
           customEnabledTools: null,
@@ -209,6 +246,7 @@ export const useAgentStore = create<AgentState>()(
         set({
           selectedAgentId: null,
           activeSkillMention: null,
+          pinnedConnector: null,
           customSystemPrompt: null,
           customRoleName: null,
           customEnabledTools: null,
@@ -238,6 +276,7 @@ export const useAgentStore = create<AgentState>()(
           messageCount: 0,
           needsCompaction: false,
           activeSkillMention: null,
+          pinnedConnector: null,
         });
         // The Sharepic-Modus (docked artifact panel) is thread-scoped: a
         // variant from the old thread must not stay pinned — nor be sent as
@@ -302,6 +341,8 @@ export const useAgentStore = create<AgentState>()(
       setThreadMode: (mode) => set({ threadMode: mode }),
 
       setSearchMode: (mode) => set({ searchMode: mode }),
+
+      setNotebookDepth: (depth) => set({ notebookDepth: depth }),
 
       setCompactionState: (state) => set({ compactionState: state }),
 
@@ -371,8 +412,19 @@ export const useAgentStore = create<AgentState>()(
             customSystemPrompt: response.customSystemPrompt ?? null,
             customEnabledTools: response.customEnabledTools ?? null,
           });
-        } catch {
-          // Thread may not exist yet
+        } catch (error) {
+          // 404 is the normal "thread has no settings row yet" case and falls
+          // through to the mode reset below. Anything else means we do not KNOW
+          // the settings — resetting on that assumption silently kicked the user
+          // out of their custom agent because a request happened to fail.
+          if (!isApiErrorWithStatus(error, 404)) {
+            console.warn('[chatStore] Thread settings could not be loaded:', error);
+            notifyWarning(
+              'Chat-Einstellungen konnten nicht geladen werden',
+              'Die zuletzt bekannten Einstellungen bleiben aktiv.'
+            );
+            return;
+          }
         }
         const state = useAgentStore.getState();
         if (
@@ -394,8 +446,16 @@ export const useAgentStore = create<AgentState>()(
               customEnabledTools: state.customEnabledTools,
             }
           );
+          return true;
         } catch (error) {
+          // The UI shows the new values either way, so a silent failure meant
+          // the user believed their prompt was saved until it vanished on reload.
           console.error('Failed to save thread settings:', error);
+          notifyError(
+            'Einstellungen konnten nicht gespeichert werden',
+            'Bitte versuche es noch einmal.'
+          );
+          return false;
         }
       },
     }),
@@ -414,7 +474,7 @@ export const useAgentStore = create<AgentState>()(
           removeItem: (key: string) => mem.delete(key),
         };
       }),
-      version: 14,
+      version: 15,
       migrate: (persisted: unknown, version: number) => {
         const state = persisted as Record<string, unknown>;
         if (version === 0) {
@@ -515,6 +575,11 @@ export const useAgentStore = create<AgentState>()(
           delete state.selectedModel;
           delete state.selectedProvider;
         }
+        if (version < 15) {
+          // The notebook depth used to be component state that reset on every
+          // mount, so there is nothing to carry over — only a floor to set.
+          state.notebookDepth = DEFAULT_NOTEBOOK_DEPTH;
+        }
         return state;
       },
       partialize: (state) => ({
@@ -526,6 +591,7 @@ export const useAgentStore = create<AgentState>()(
         currentThreadId: state.currentThreadId,
         selectedNotebookId: state.selectedNotebookId,
         searchMode: state.searchMode,
+        notebookDepth: state.notebookDepth,
         // Survive a reload that happens between text generation and the first
         // user message (no thread exists yet, so server-side persistence
         // hasn't kicked in). Cleared once the backend confirms thread_created.

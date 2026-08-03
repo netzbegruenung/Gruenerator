@@ -5,14 +5,17 @@
  * research brief for complex research queries. This prevents long conversation
  * history from diluting search intent.
  *
- * Only activates for complexity=complex AND intent=research.
+ * Only activates for complexity=complex OR moderate, AND intent=research.
  * All other queries pass through unchanged.
  */
 
 import { createLogger } from '../../../../utils/logger.js';
-import { INTERMEDIATE_MODEL } from '../llmConfig.js';
+import { intermediateLane } from '../llmConfig.js';
 
 import type { ChatGraphState } from '../types.js';
+
+/** @see services/ai/intermediateLanes.ts */
+const LANE = intermediateLane('standard');
 
 const log = createLogger('ChatGraph:BriefGenerator');
 
@@ -83,11 +86,11 @@ Erstelle einen klaren, fokussierten Recherche-Auftrag.`;
     const response = await aiWorkerPool.processRequest(
       {
         type: 'chat_research_brief',
-        provider: INTERMEDIATE_MODEL.provider,
+        provider: LANE.provider,
         systemPrompt: BRIEF_PROMPT,
         messages: [{ role: 'user', content: userMessage }],
         options: {
-          model: INTERMEDIATE_MODEL.model,
+          model: LANE.model,
           max_tokens: 200,
           temperature: 0.2,
         },

@@ -3,6 +3,7 @@ import {
   type CategoryFilterConfig,
   type SourceFilterConfig,
 } from '@gruenerator/chat';
+import { type NotebookDepth } from '@gruenerator/contracts';
 import { cn } from '@gruenerator/ui';
 import { useMemo, useState, type ReactNode } from 'react';
 import { HiOutlineChartBar, HiOutlineClock, HiOutlineSparkles } from 'react-icons/hi2';
@@ -33,8 +34,8 @@ interface NotebookStartpageProps {
   exampleQuestions?: ExampleQuestion[];
   composerSourceFilters?: SourceFilterConfig;
   composerCategoryFilters?: CategoryFilterConfig;
-  mode: 'fast' | 'deep';
-  onModeChange: (mode: 'fast' | 'deep') => void;
+  mode: NotebookDepth;
+  onModeChange: (mode: NotebookDepth) => void;
   recentCollectionIds: string[];
   showRecentSourceLabel?: boolean;
   showStats?: boolean;
@@ -75,7 +76,7 @@ type BrowseTab = 'zuletzt' | 'agenten' | 'stats';
 // `notebookTheme` module; re-exported here for existing importers.
 export { NOTEBOOK_MAGENTA_BG };
 
-const HERO_FILL = 'relative flex min-h-[calc(100vh-11rem)] flex-col';
+const HERO_FILL = 'relative flex min-h-[calc(100dvh-11rem)] flex-col';
 
 const SEG_CONTAINER = cn(
   'inline-flex gap-0.5 rounded-full p-1',

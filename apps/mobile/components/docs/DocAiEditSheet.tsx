@@ -10,7 +10,7 @@ import {
   useColorScheme,
 } from 'react-native';
 
-import { lightTheme, darkTheme, colors, spacing, borderRadius } from '../../theme';
+import { lightTheme, darkTheme, colors, spacing, borderRadius, BODY_FONT } from '../../theme';
 import { BottomSheet } from '../common/BottomSheet';
 
 // Quick edit actions that prefill the prompt for the current selection. German
@@ -61,6 +61,7 @@ export function DocAiEditSheet({ visible, onClose, onSubmit, isLoading }: Props)
           <Pressable
             key={p.label}
             onPress={() => setPrompt(p.text)}
+            accessibilityRole="button"
             style={[styles.chip, { borderColor: theme.border, backgroundColor: theme.surface }]}
           >
             <Text style={[styles.chipText, { color: theme.text }]}>{p.label}</Text>
@@ -72,6 +73,7 @@ export function DocAiEditSheet({ visible, onClose, onSubmit, isLoading }: Props)
         <TextInput
           value={prompt}
           onChangeText={setPrompt}
+          accessibilityLabel="Bearbeitungsanweisung"
           placeholder="z.B. Förmlicher formulieren…"
           placeholderTextColor={theme.textSecondary}
           style={[styles.input, { color: theme.text, borderColor: theme.border }]}
@@ -82,6 +84,9 @@ export function DocAiEditSheet({ visible, onClose, onSubmit, isLoading }: Props)
         <Pressable
           onPress={submit}
           disabled={!canSubmit}
+          accessibilityRole="button"
+          accessibilityLabel="Bearbeitung starten"
+          accessibilityState={{ disabled: !canSubmit }}
           style={[
             styles.send,
             { backgroundColor: colors.secondary[600], opacity: canSubmit ? 1 : 0.4 },
@@ -100,12 +105,14 @@ export function DocAiEditSheet({ visible, onClose, onSubmit, isLoading }: Props)
 
 const styles = StyleSheet.create({
   title: {
+    fontFamily: BODY_FONT,
     fontSize: 20,
     fontWeight: '700',
     paddingHorizontal: 20,
     paddingBottom: spacing.xxsmall,
   },
   subtitle: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     paddingHorizontal: 20,
     paddingBottom: spacing.small,
@@ -122,6 +129,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   chipText: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     fontWeight: '500',
   },
@@ -140,6 +148,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xsmall,
     borderRadius: borderRadius.medium,
     borderWidth: 1,
+    fontFamily: BODY_FONT,
     fontSize: 15,
   },
   send: {
@@ -151,6 +160,7 @@ const styles = StyleSheet.create({
   },
   sendText: {
     color: colors.white,
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '600',
   },

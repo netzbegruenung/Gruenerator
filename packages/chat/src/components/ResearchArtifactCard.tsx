@@ -14,10 +14,8 @@ import { memo, useMemo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-import { useChatConfigStore } from '../stores/chatConfigStore';
 import { makeCitationComponents } from '../lib/citationMarkdownComponents';
 import { escapeCitationMarkers } from '../lib/citationProcessing';
-import { cn } from '../lib/utils';
 import {
   getString,
   getArray,
@@ -27,6 +25,8 @@ import {
   researchCitationToSerializable,
   type ResearchCitation,
 } from '../lib/toolResults';
+import { cn } from '../lib/utils';
+import { useChatConfigStore } from '../stores/chatConfigStore';
 
 import { CitationList } from './tool-ui/citation';
 
@@ -51,6 +51,13 @@ const CONFIDENCE_COLORS = {
   low: 'text-status-red',
 } as const;
 
+/**
+ * @deprecated Renders the old dossier shape (`researchMeta.answer`). No path has
+ * produced `researchMeta` since 2026-07-30 — dossiers now ship as message text.
+ * Keep: pre-2026-07-30 turns have their dossier ONLY here (the assistant message
+ * was just two framing sentences); deleting this hides those dossiers until
+ * `researchMeta.answer` is backfilled into message content.
+ */
 export const ResearchArtifactCard = memo(function ResearchArtifactCard({
   query,
   result,
@@ -62,7 +69,10 @@ export const ResearchArtifactCard = memo(function ResearchArtifactCard({
   const [exportError, setExportError] = useState<string | null>(null);
 
   const answer = getString(result, 'answer');
-  const citations = (getArray(result, 'citations') as Citation[] | null) ?? [];
+  const citations = useMemo(
+    () => (getArray(result, 'citations') as Citation[] | null) ?? [],
+    [result]
+  );
   const confidence = getString(result, 'confidence');
 
   const headings = useMemo(() => extractHeadings(answer ?? ''), [answer]);

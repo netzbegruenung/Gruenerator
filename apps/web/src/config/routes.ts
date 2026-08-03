@@ -1,9 +1,11 @@
+import { isChannelVisibleIn, type InstanceChannel } from '@gruenerator/shared/instances';
 import { lazy, type ComponentType, type LazyExoticComponent, type FC, createElement } from 'react';
 import { Navigate, useLocation, useParams } from 'react-router-dom';
 
 import { isDesktopApp } from '../utils/platform';
 
 import { SHOW_AGENT_CREATOR } from './featureFlags';
+import { CURRENT_INSTANCE } from './instance';
 
 /**
  * Route configuration interface
@@ -20,7 +22,8 @@ export interface RouteConfig {
   // startpage, legal pages, login UI, public shares. New routes are
   // auth-required unless this flag is explicitly set.
   public?: boolean;
-  devOnly?: boolean;
+  /** Maturity gate — omitted means `stable`. See config/instance.ts. */
+  channel?: InstanceChannel;
 }
 
 /**
@@ -44,6 +47,15 @@ const LegacyNotebookIdRedirectComponent: FC<Record<string, unknown>> = () => {
 };
 const LegacyNotebookIdRedirect = lazy(() =>
   Promise.resolve({ default: LegacyNotebookIdRedirectComponent })
+);
+
+// Redirect legacy /gruppen/:idOrSlug → /projekte/:idOrSlug preserving the param.
+const LegacyGruppenIdRedirectComponent: FC<Record<string, unknown>> = () => {
+  const { idOrSlug } = useParams();
+  return createElement(Navigate, { to: `/projekte/${idOrSlug ?? ''}`, replace: true });
+};
+const LegacyGruppenIdRedirect = lazy(() =>
+  Promise.resolve({ default: LegacyGruppenIdRedirectComponent })
 );
 
 // Redirect singular /agent/:slug → canonical plural /agents/:slug
@@ -201,7 +213,7 @@ const TranskriptionPage = lazy(() => import('../features/transkription/Transkrip
 const TransferPage = lazy(() => import('../features/transfer/TransferPage'));
 const RecurringTasksPage = lazy(() => import('../features/recurring-tasks/RecurringTasksPage'));
 const WorkplacePage = lazy(() => import('../features/workplace/WorkplacePage'));
-const GruppenPage = lazy(() => import('../features/groups/pages/GruppenPage'));
+const ProjektePage = lazy(() => import('../features/groups/pages/ProjektePage'));
 const OfficeSuiteLandingPage = lazy(() => import('../features/docs/OfficeSuiteLandingPage'));
 // The per-type office overviews are consolidated into the /office hub; keep the
 // old paths as redirects so pinned favourites and search results still resolve.
@@ -323,8 +335,15 @@ const standardRoutes: RouteConfig[] = [
     path: '/skills',
     component: lazy(() => Promise.resolve({ default: createRedirect('/agentura') })),
   },
-  { path: '/gruppen', component: GruppenPage, layoutMode: 'sidebarOnly' },
-  { path: '/gruppen/:idOrSlug', component: GruppenPage },
+  { path: '/projekte', component: ProjektePage, layoutMode: 'sidebarOnly' },
+  { path: '/projekte/:idOrSlug', component: ProjektePage },
+  // Legacy /gruppen* → /projekte* (Spaces/Gruppen renamed to Projekte). Keep
+  // redirects so pinned favourites and shared links still resolve.
+  {
+    path: '/gruppen',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/projekte') })),
+  },
+  { path: '/gruppen/:idOrSlug', component: LegacyGruppenIdRedirect },
   { path: '/gruen-o-mat', component: GruenOMatDemoPage },
   // ResearchPage removed; /notebooks is the canonical entry point. Keep route as redirect for old links.
   {
@@ -384,7 +403,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/admin', component: AdminDashboardPage },
   { path: '/admin/gruene-api', component: GrueneApiTestPage },
   { path: '/playground', component: PlaygroundPage },
-  { path: '/icon-test', component: IconAnimationTestPage, devOnly: true },
+  { path: '/icon-test', component: IconAnimationTestPage, channel: 'internal' },
   { path: '/vorlagen', component: GrueneratorenBundle.VorlagenListe },
   { path: '/vorlagen/meine', component: MeineVorlagenPage },
   {
@@ -514,7 +533,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/reel/studio', component: SubStudioPage },
   { path: '/scanner', component: GrueneratorenBundle.Scanner },
   { path: '/zeichenzaehler', component: ZeichenzaehlerPage },
-  { path: '/transfer', component: GrueneratorenBundle.Transfer, devOnly: true },
+  { path: '/transfer', component: GrueneratorenBundle.Transfer, channel: 'internal' },
   { path: '/transkription', component: GrueneratorenBundle.Transkription },
   {
     path: '/subtitler/share/:shareToken',
@@ -583,12 +602,12 @@ const standardRoutes: RouteConfig[] = [
   // Media Library Route
   { path: '/media-library', component: MediaLibraryPage },
   // Legacy /image-studio/* redirects to /studio/* (dev-only — target is sharepics)
-  { path: '/image-studio', component: ImageStudioRedirect, devOnly: true },
-  { path: '/image-studio/:category', component: ImageStudioCategoryRedirect, devOnly: true },
+  { path: '/image-studio', component: ImageStudioRedirect, channel: 'internal' },
+  { path: '/image-studio/:category', component: ImageStudioCategoryRedirect, channel: 'internal' },
   {
     path: '/image-studio/:category/:type',
     component: ImageStudioCategoryTypeRedirect,
-    devOnly: true,
+    channel: 'internal',
   },
   // Bild-Editor is the unified KI create/edit surface; /imagine is deprecated.
   { path: '/bild-editor', component: BildEditorV2Page, layoutMode: 'sidebarOnly' },
@@ -647,11 +666,11 @@ standardRoutes.push({
   layoutMode: 'noChrome',
 });
 
-// Flat list of all enabled routes. Auth is enforced at mount time by
-// `RequireAuth`, not by bucketing routes here. A route opts out of the
+// Flat list of the routes this instance serves. Auth is enforced at mount time
+// by `RequireAuth`, not by bucketing routes here. A route opts out of the
 // auth gate by setting `public: true`.
-export const routes: RouteConfig[] = standardRoutes.filter(
-  (r) => !r.devOnly || import.meta.env.DEV
+export const routes: RouteConfig[] = standardRoutes.filter((r) =>
+  isChannelVisibleIn(r.channel, CURRENT_INSTANCE)
 );
 
 export default routes;

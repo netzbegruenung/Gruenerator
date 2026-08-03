@@ -23,7 +23,7 @@ import {
 } from 'react-native';
 
 import { secureStorage } from '../../services/storage';
-import { colors, spacing, lightTheme, darkTheme } from '../../theme';
+import { colors, spacing, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 
 interface ProjectListProps {
   onSelectProject: (project: Project) => void;
@@ -143,6 +143,7 @@ export function ProjectList({
           onPress={() => onSelectProject(item)}
           onLongPress={() => showProjectOptions(item)}
           activeOpacity={0.7}
+          accessibilityRole="button"
         >
           <View style={styles.thumbnailContainer}>
             {thumbnailUrl && authToken ? (
@@ -182,6 +183,8 @@ export function ProjectList({
             style={styles.moreButton}
             onPress={() => showProjectOptions(item)}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+            accessibilityLabel="Weitere Optionen anzeigen"
           >
             <Ionicons name="ellipsis-vertical" size={18} color={theme.textSecondary} />
           </TouchableOpacity>
@@ -217,6 +220,7 @@ export function ProjectList({
       <TouchableOpacity
         style={[styles.newButton, { backgroundColor: colors.primary[600] }]}
         onPress={onNewReel}
+        accessibilityRole="button"
       >
         <Ionicons name="add" size={20} color="#fff" />
         <Text style={styles.newButtonText}>Neues Reel</Text>
@@ -245,6 +249,7 @@ export function ProjectList({
             clearError();
             void fetchProjects();
           }}
+          accessibilityRole="button"
         >
           <Text style={styles.retryButtonText}>Erneut versuchen</Text>
         </TouchableOpacity>
@@ -287,6 +292,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.medium,
   },
   headerTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 24,
     fontWeight: '700',
   },
@@ -300,6 +306,7 @@ const styles = StyleSheet.create({
   },
   newButtonText: {
     color: '#fff',
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -348,6 +355,7 @@ const styles = StyleSheet.create({
   },
   durationText: {
     color: '#fff',
+    fontFamily: BODY_FONT,
     fontSize: 10,
     fontWeight: '600',
   },
@@ -357,6 +365,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.medium,
   },
   projectTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -366,6 +375,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   projectDate: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
   },
   moreButton: {
@@ -379,15 +389,18 @@ const styles = StyleSheet.create({
     gap: spacing.medium,
   },
   emptyTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 20,
     fontWeight: '600',
     textAlign: 'center',
   },
   emptySubtitle: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     textAlign: 'center',
   },
   footerText: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     textAlign: 'center',
     paddingVertical: spacing.medium,
@@ -400,6 +413,7 @@ const styles = StyleSheet.create({
     gap: spacing.medium,
   },
   errorText: {
+    fontFamily: BODY_FONT,
     fontSize: 16,
     textAlign: 'center',
   },
@@ -410,6 +424,7 @@ const styles = StyleSheet.create({
   },
   retryButtonText: {
     color: '#fff',
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
   },

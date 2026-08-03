@@ -7,7 +7,7 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
 
-import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../../theme';
+import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../../theme';
 import { Slider } from '../../common/editor-toolbar';
 
 import { PresetButtonRow, type PresetOption } from './PresetButtonRow';
@@ -58,6 +58,9 @@ export function SliderWithPresets({
           },
           disabled && styles.disabled,
         ]}
+        accessibilityRole="button"
+        accessibilityLabel="Feineinstellung"
+        accessibilityState={{ expanded: showSlider, disabled }}
       >
         <Ionicons
           name="settings-outline"
@@ -108,6 +111,7 @@ const styles = StyleSheet.create({
     gap: spacing.small,
   },
   label: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -131,6 +135,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   valueText: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '500',
     fontVariant: ['tabular-nums'],

@@ -27,3 +27,28 @@ export function isUnauthorizedError(err: unknown): boolean {
   const e = err as { name?: unknown; status?: unknown };
   return e.name === 'UnauthorizedError' || e.status === 401;
 }
+
+/**
+ * A failed HTTP response that kept its status.
+ *
+ * Without the status, callers cannot tell "this thread is gone" (404 — clear
+ * the local reference) from "the server is having a moment" (5xx — keep the
+ * reference and retry). Collapsing both into an empty result made a transient
+ * outage look like deleted data.
+ */
+export class ApiError extends Error {
+  readonly status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
+/**
+ * Duck-typed status check — same dual-realm caveat as `isUnauthorizedError`.
+ */
+export function isApiErrorWithStatus(err: unknown, status: number): boolean {
+  if (err == null || typeof err !== 'object') return false;
+  return (err as { status?: unknown }).status === status;
+}

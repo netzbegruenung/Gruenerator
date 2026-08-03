@@ -2,9 +2,22 @@
  * Linkup Service
  *
  * Thin client around the Linkup agentic-search API (https://docs.linkup.so).
- * Two modes mapped 1:1 to our two intents:
- *   - webSearch  → depth=standard, outputType=searchResults  (replaces SearXNG)
- *   - deepResearch → depth=deep, outputType=sourcedAnswer    (replaces our orchestrator)
+ * Two orthogonal knobs — depth (fast|standard|deep) and outputType:
+ *   - webSearch    → outputType=searchResults, depth per call. The chat's only
+ *                    retrieval door; WE write the answer and own the [N].
+ *   - deepResearch → depth=deep, outputType=sourcedAnswer. LINKUP writes the
+ *                    answer. Used by the Monitor's daily briefing pipeline, no
+ *                    longer by the chat — a chat answer the model didn't write
+ *                    cannot be cited against our own source registry.
+ *
+ * Which tier picks which depth is NOT decided here — see `searchDepth.ts`.
+ *
+ * Deliberately not using Linkup's own AI-SDK package (`linkup-ai-sdk`): it is a
+ * tool wrapper for the AI-SDK path only, while most of our searches come from the
+ * classifier path, which calls no tool — we would end up with two ways to reach
+ * Linkup, and the second one would bypass `recordOperation` below, our only
+ * per-search cost accounting. The option NAMES here mirror that package's
+ * signature so a later switch stays mechanical.
  *
  * Gated by env.LINKUP_API_KEY presence — getLinkupService() returns null when
  * the key is unset, leaving existing code paths intact.
@@ -12,10 +25,25 @@
 
 import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
+import { recordOperation } from '../usage/UsageTrackingService.js';
 
-import { withRetry } from './searchRetryStrategy.js';
+import { withRetry, CircuitBreaker } from './searchRetryStrategy.js';
 
 const log = createLogger('Linkup');
+
+/**
+ * Breaker for the Linkup API. Two consecutive failures open it for five minutes —
+ * the same thresholds as `searxngCircuit`, because the failure it guards against
+ * is the same one: a provider that is down for everyone, retried per query.
+ *
+ * Deliberately NOT gated on the response status: a 429 and a 503 both mean "stop
+ * asking for a while", and we pay per search either way.
+ */
+const linkupCircuit = new CircuitBreaker({
+  failureThreshold: 2,
+  resetTimeMs: 5 * 60 * 1000,
+  label: 'Linkup',
+});
 
 const LINKUP_API_BASE = 'https://api.linkup.so/v1';
 const LINKUP_TIMEOUT_MS = 60_000;
@@ -31,7 +59,23 @@ export interface LinkupSearchResult {
   name: string;
   url: string;
   content: string;
+  /**
+   * `'text'` | `'image'`. Image entries carry `name` + `url` and an EMPTY
+   * `content`, so this discriminates two shapes inside one array. Left as a
+   * widened `string` on purpose: an unknown future type must still reach the
+   * caller as a text hit rather than fail validation.
+   */
   type?: string;
+  /**
+   * Publication date, when Linkup knows one. ISO-ish string, not guaranteed
+   * parseable — the mapper treats it as a hint, not a fact.
+   *
+   * The field was in the API all along and we never read it, so `publishedDate`
+   * was hard-coded `null` for every web hit and the recency ranking
+   * (`recencyBoost` / `resolveSourceDate`) silently scored nothing at all on the
+   * one source type where freshness matters most.
+   */
+  date?: string;
 }
 
 export interface LinkupSearchResultsResponse {
@@ -45,25 +89,97 @@ export interface LinkupSourcedAnswerResponse {
 
 export type LinkupLocale = 'de' | 'at' | 'eu';
 
+/**
+ * Linkup's three engine depths (docs: Search best practices → Choosing depth):
+ *
+ *   fast     — <1s, keyword-only, NO LLM. The query reaches the index verbatim;
+ *              instructions inside it are read as search terms.
+ *   standard — 1–3s, one iteration of agentic search. Interprets the query, can
+ *              fan out into parallel sub-searches, can scrape one URL from it.
+ *   deep     — 5–30s, multi-iteration search-and-scrape chaining with
+ *              evaluation. For work whose later steps depend on earlier ones.
+ *
+ * An earlier version of this type claimed there were only two and that "there is
+ * no third depth to reach for". There is, and it is the cheap one.
+ */
+export type LinkupDepth = 'fast' | 'standard' | 'deep';
+
+/**
+ * Linkup's own recommendation for buying breadth without buying depth: on
+ * `standard` the agent fans out into parallel sub-searches when the query asks
+ * it to. It goes into the query string rather than a parameter because that is
+ * how the API takes it — the query carries both what to retrieve and how.
+ *
+ * Never appended on `fast`: that depth has no LLM and would dutifully search for
+ * the words "führe", "mehrere", "Suchen".
+ */
+const ADJACENT_SEARCHES_INSTRUCTION =
+  'Führe mehrere Suchen mit angrenzenden Stichwörtern durch, um das Thema breit abzudecken.';
+
 export class LinkupService {
   constructor(private readonly apiKey: string) {}
 
-  /** standard depth, searchResults output — drop-in for SearXNG. */
+  /**
+   * searchResults output at any engine depth — the chat's single retrieval door.
+   *
+   * We keep `searchResults` (never `sourcedAnswer`) here on purpose: our model
+   * writes the answer, so every [N] resolves against our own source registry.
+   */
   async webSearch(params: {
     query: string;
+    depth?: LinkupDepth;
     maxResults?: number;
+    /**
+     * Restrict the search to these domains, or keep them out of it. Bare hosts
+     * ("zeit.de"), no scheme. Applied by the engine BEFORE we pay for the
+     * results — which is the whole point: our old low-value-domain list threw
+     * hits away after the call, so we were paying for results we discarded.
+     * (LobeChat and Open WebUI both filter after the call too; LobeChat's
+     * adapters even declare these very parameters and never fill them.)
+     */
+    includeDomains?: readonly string[];
+    excludeDomains?: readonly string[];
+    /** ISO date (YYYY-MM-DD). Index-side time window. */
     fromDate?: string;
+    toDate?: string;
+    /** Ask the agent to fan out across adjacent keywords within this one call. */
+    adjacentSearches?: boolean;
+    /**
+     * Include image hits. They arrive INSIDE `results`, marked `type: 'image'`
+     * and carrying no `content` — callers must split on `type` before mapping,
+     * or content-less entries end up as numbered sources (see
+     * `partitionLinkupResults`). Off unless asked for: a factual question would
+     * otherwise pay for images nobody looks at.
+     */
+    includeImages?: boolean;
   }): Promise<LinkupSearchResultsResponse> {
+    const depth = params.depth ?? 'standard';
+    // Guard rather than trust the caller: `fast` has no LLM, so an instruction
+    // appended here would become search terms. `resolveSearchPlan` already makes
+    // the combination unrepresentable; this keeps a hand-rolled call honest too.
+    const query =
+      params.adjacentSearches && depth !== 'fast'
+        ? `${params.query}\n${ADJACENT_SEARCHES_INSTRUCTION}`
+        : params.query;
     return this.call<LinkupSearchResultsResponse>('/search', {
-      q: params.query,
-      depth: 'standard',
+      q: query,
+      depth,
       outputType: 'searchResults',
       ...(params.maxResults ? { maxResults: params.maxResults } : {}),
+      // Empty arrays are omitted, not sent: `includeDomains: []` reads to the API
+      // as "restrict to nothing at all", which would return zero results for a
+      // caller that merely had no preference.
+      ...(params.includeDomains?.length ? { includeDomains: [...params.includeDomains] } : {}),
+      ...(params.excludeDomains?.length ? { excludeDomains: [...params.excludeDomains] } : {}),
       ...(params.fromDate ? { fromDate: params.fromDate } : {}),
+      ...(params.toDate ? { toDate: params.toDate } : {}),
+      ...(params.includeImages ? { includeImages: true } : {}),
     });
   }
 
-  /** deep depth, sourcedAnswer output — replaces the research orchestrator. */
+  /** deep depth, sourcedAnswer output — Linkup writes the report itself.
+   *  Monitor pipeline only (HotTopicPipeline); the chat routes through
+   *  `webSearch` at every tier so citations stay ours. */
   async deepResearch(params: {
     question: string;
     locale?: LinkupLocale;
@@ -78,6 +194,32 @@ export class LinkupService {
 
   private async call<T>(path: string, body: Record<string, unknown>): Promise<T> {
     const url = `${LINKUP_API_BASE}${path}`;
+    // A Linkup outage used to cost 2 attempts × 60s PER QUERY, and every query in
+    // the turn paid it again — a dead provider turned a 3s answer into minutes of
+    // waiting before the fallback ran. The breaker makes the second query fail
+    // instantly so the caller reaches its SearXNG/empty path while the user is
+    // still watching. Same instance shape as `searxngCircuit`.
+    if (linkupCircuit.isOpen()) {
+      throw new Error('Linkup circuit open — provider considered unavailable');
+    }
+    // One logical search per call — withRetry retries inside, so this counts
+    // user-visible researches rather than HTTP attempts.
+    recordOperation({
+      unit: 'searches',
+      provider: 'linkup',
+      model: typeof body.depth === 'string' ? body.depth : 'standard',
+    });
+    try {
+      const result = await this.request<T>(url, body);
+      linkupCircuit.recordSuccess();
+      return result;
+    } catch (error) {
+      linkupCircuit.recordFailure();
+      throw error;
+    }
+  }
+
+  private async request<T>(url: string, body: Record<string, unknown>): Promise<T> {
     return withRetry(
       async () => {
         const controller = new AbortController();

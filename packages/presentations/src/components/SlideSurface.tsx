@@ -1,10 +1,16 @@
-import { PRESENTATION_DEFAULT_ACCENT, type Slide } from '@gruenerator/contracts';
+import {
+  getPresentationBrandTheme,
+  PRESENTATION_FONT_SIZE_SCALE,
+  type Slide,
+} from '@gruenerator/contracts';
 import { type ComponentProps, type CSSProperties } from 'react';
 import Markdown from 'react-markdown';
 import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import { type Doc as YDoc } from 'yjs';
+
+import { useAutoFitScale } from '../lib/useAutoFitScale.js';
 
 import { InlineEditable } from './InlineEditable.js';
 import { SlideBodyEditor } from './SlideBodyEditor.js';
@@ -15,6 +21,10 @@ export interface SlideSurfaceProps {
   slide: Slide;
   /** Deck brand accent colour (drives default backgrounds, markers, bars). */
   accent?: string | null;
+  /** Country CI ('de-DE' | 'de-AT'); anything else renders the de-DE theme. */
+  brand?: string | null;
+  /** Render the party logo on title-layout slides (deck option, default on). */
+  showLogo?: boolean;
   /** Inline-edit the title/body (editor canvas). */
   editable?: boolean;
   /** The deck Y.Doc — required for WYSIWYG body editing (editor canvas only). */
@@ -22,6 +32,14 @@ export interface SlideSurfaceProps {
   onChange?: (patch: Partial<Slide>) => void;
   /** Present mode: apply per-item `fragment` classes when the slide opts in. */
   presenting?: boolean;
+  /**
+   * Touch editing. When set, the surface renders read-only and a tap on the
+   * title/body asks the parent to open a focus editor instead. The canvas is
+   * scaled to ~0.35 on a phone, and `contentEditable` inside a CSS transform has
+   * unusable carets and selection handles on iOS Safari — so on touch we never
+   * edit in place.
+   */
+  onRequestEdit?: (field: 'title' | 'body') => void;
 }
 
 const LAYOUT_CLASS: Record<Slide['layout'], string> = {
@@ -88,12 +106,18 @@ function resolveBackground(slide: Slide, accent: string): { style: CSSProperties
 export function SlideSurface({
   slide,
   accent,
+  brand,
+  showLogo,
   editable,
   ydoc,
   onChange,
   presenting,
+  onRequestEdit,
 }: SlideSurfaceProps) {
-  const deckAccent = accent?.trim() || PRESENTATION_DEFAULT_ACCENT;
+  const touchEdit = !!editable && !!onRequestEdit;
+  const inlineEdit = !!editable && !touchEdit;
+  const theme = getPresentationBrandTheme(brand);
+  const deckAccent = accent?.trim() || theme.defaultAccent;
   const variant = slide.variant ?? 0;
   const layoutClass = LAYOUT_CLASS[slide.layout];
   const fragmentClass = presenting && slide.fragments ? 'fragment' : undefined;
@@ -111,27 +135,96 @@ export function SlideSurface({
   const isCode = slide.layout === 'code';
   const isTitle = slide.layout === 'title';
 
+  // Explicit preset scale, or auto-fit ("Auto"). Code slides are excluded from
+  // auto-fit: their body is its own scroll container, so the surface never
+  // overflows and a fit pass would be a no-op anyway.
+  const presetScale = slide.fontSize ? PRESENTATION_FONT_SIZE_SCALE[slide.fontSize] : null;
+  const { ref: surfaceRef, scale: autoScale } = useAutoFitScale(
+    presetScale == null && !isCode,
+    `${slide.layout}|${variant}|${theme.brand}|${slide.title}|${slide.body}`
+  );
+  const fontScale = presetScale ?? autoScale;
+
+  // Variant 1 (Geteilt) puts the accent side panel bottom-right where the logo
+  // sits, so the logo needs its on-dark variant even on a light surface.
+  const logoOnDark = dark || (isTitle && variant === 1);
+
   return (
     <div
-      className={`gruene-slide ${layoutClass} variant-${variant}${dark ? ' is-dark' : ''}`}
-      style={{ ...bgStyle, '--deck-accent': deckAccent } as CSSProperties}
+      ref={surfaceRef}
+      className={`gruene-slide ${layoutClass} variant-${variant}${dark ? ' is-dark' : ''}${
+        theme.brand === 'de-AT' ? ' brand-at' : ''
+      }`}
+      style={
+        { ...bgStyle, '--deck-accent': deckAccent, '--gs-font-scale': fontScale } as CSSProperties
+      }
     >
       {/* Title-variant decoration: Sand (v2) top bar, Geteilt (v1) side panel. */}
       {isTitle && variant === 2 && <span className="gruene-slide__bar" aria-hidden="true" />}
 
-      {editable ? (
+      {isTitle && showLogo !== false && (
+        <img
+          className="gruene-slide__logo"
+          src={logoOnDark ? theme.logo.dark.webPath : theme.logo.light.webPath}
+          style={{ height: theme.logo.heightPx }}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+        />
+      )}
+
+      {inlineEdit ? (
         <InlineEditable
           className="gruene-slide__input gruene-slide__title"
           value={slide.title}
           placeholder="Folientitel"
           onChange={(title) => onChange?.({ title })}
         />
+      ) : touchEdit ? (
+        <h2
+          className="gruene-slide__title gruene-slide__tappable"
+          role="button"
+          tabIndex={0}
+          onClick={() => onRequestEdit('title')}
+          aria-label="Folientitel bearbeiten"
+        >
+          {slide.title.trim() !== '' ? slide.title : 'Folientitel'}
+        </h2>
       ) : (
         slide.title.trim() !== '' && <h2 className="gruene-slide__title">{slide.title}</h2>
       )}
 
-      {isCode ? (
-        editable ? (
+      {touchEdit ? (
+        <div
+          className={`${isCode ? 'gruene-slide__body' : 'gruene-slide__body'} gruene-slide__tappable`}
+          role="button"
+          tabIndex={0}
+          onClick={() => onRequestEdit('body')}
+          aria-label="Folieninhalt bearbeiten"
+        >
+          {slide.body.trim() === '' ? (
+            <p className="gruene-slide__placeholder">Tippen, um Inhalt hinzuzufügen</p>
+          ) : isCode ? (
+            <pre>
+              <code
+                {...(slide.codeLanguage ? { 'data-language': slide.codeLanguage } : {})}
+                className={slide.codeLanguage ? `language-${slide.codeLanguage}` : undefined}
+              >
+                {slide.body}
+              </code>
+            </pre>
+          ) : (
+            <Markdown
+              remarkPlugins={[remarkGfm, remarkMath]}
+              rehypePlugins={[rehypeKatex]}
+              components={mdComponents}
+            >
+              {slide.body}
+            </Markdown>
+          )}
+        </div>
+      ) : isCode ? (
+        inlineEdit ? (
           <textarea
             className="gruene-slide__input gruene-slide__code"
             value={slide.body}
@@ -149,9 +242,9 @@ export function SlideSurface({
             </code>
           </pre>
         )
-      ) : editable && ydoc ? (
+      ) : inlineEdit && ydoc ? (
         <SlideBodyEditor key={slide.id} ydoc={ydoc} slideId={slide.id} />
-      ) : editable ? (
+      ) : inlineEdit ? (
         <textarea
           className="gruene-slide__input gruene-slide__body"
           value={slide.body}

@@ -1,10 +1,10 @@
 /**
- * Tests for Mistral OCR 3 integration
+ * Tests for Mistral OCR 4 integration
  *
  * Verifies:
  * - Correct document type selection (image vs document URL)
  * - SDK-typed request construction (camelCase, tableFormat)
- * - Response parsing with OCR 3 typed fields (usageInfo.pagesProcessed)
+ * - Response parsing with OCR 4 typed fields (usageInfo.pagesProcessed)
  * - Error handling
  *
  * Run with: pnpm --filter @gruenerator/api test
@@ -43,7 +43,7 @@ const makeOcrResponse = (overrides: Record<string, unknown> = {}) => ({
     { markdown: '# Page 1\nSome content', index: 0, images: [], dimensions: null },
     { markdown: '## Page 2\nMore content', index: 1, images: [], dimensions: null },
   ],
-  model: 'mistral-ocr-latest',
+  model: 'mistral-ocr-4-0',
   usageInfo: { pagesProcessed: 2, docSizeBytes: 1024 },
   ...overrides,
 });
@@ -60,7 +60,7 @@ describe('extractTextWithMistralOCR', () => {
 
     expect(mockProcess).toHaveBeenCalledOnce();
     const req = mockProcess.mock.calls[0][0];
-    expect(req.model).toBe('mistral-ocr-latest');
+    expect(req.model).toBe('mistral-ocr-4-0');
     expect(req.document.type).toBe('document_url');
     expect(req.document.documentUrl).toMatch(/^data:application\/pdf;base64,/);
     expect(req.tableFormat).toBe('html');
@@ -130,7 +130,7 @@ describe('extractTextWithMistralOCR', () => {
     expect(result.confidence).toBe(0.95);
     expect(result.stats?.pages).toBe(2);
     expect(result.stats?.successfulPages).toBe(2);
-    expect(result.stats?.method).toBe('mistral-ocr-latest');
+    expect(result.stats?.method).toBe('mistral-ocr-4-0');
   });
 
   it('filters out empty pages', async () => {
@@ -156,7 +156,7 @@ describe('extractTextWithMistralOCR', () => {
   it('throws when no pages returned', async () => {
     mockProcess.mockResolvedValue({
       pages: [],
-      model: 'mistral-ocr-latest',
+      model: 'mistral-ocr-4-0',
       usageInfo: { pagesProcessed: 0, docSizeBytes: 0 },
     });
 

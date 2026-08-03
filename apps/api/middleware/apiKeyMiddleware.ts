@@ -33,13 +33,16 @@ export function hashApiKey(plaintext: string): string {
 export function extractBearer(req: Request): string | null {
   const auth = req.headers.authorization;
   if (typeof auth !== 'string') return null;
-  const match = /^Bearer\s+(.+)$/i.exec(auth.trim());
-  return match ? match[1].trim() : null;
+  // Sliced, not matched: `/^Bearer\s+(.+)$/` lets `\s+` and `.+` split the same
+  // whitespace run two ways, which is quadratic on an attacker-supplied header
+  // (CodeQL js/polynomial-redos).
+  const trimmed = auth.trim();
+  if (!/^Bearer\s/i.test(trimmed)) return null;
+  return trimmed.slice('Bearer'.length).trim() || null;
 }
 
 export type VerifyApiKeyResult =
-  | { ok: true; ctx: ApiKeyContext }
-  | { ok: false; reason: 'invalid' | 'revoked' | 'expired' };
+  { ok: true; ctx: ApiKeyContext } | { ok: false; reason: 'invalid' | 'revoked' | 'expired' };
 
 /** Throws on DB failure. Shared by `requireApiKey` and routes/mcp-server. */
 export async function verifyApiKey(plaintext: string): Promise<VerifyApiKeyResult> {
@@ -111,7 +114,17 @@ export function assertLandesverbandAllowed(
   ctx: ApiKeyContext,
   requested: string
 ): { ok: true } | { ok: false; reason: string } {
-  const allowed = ctx.scopes.landesverbaende;
+  return assertLandesverbandScope(ctx.scopes.landesverbaende, requested);
+}
+
+/**
+ * Dieselbe Prüfung ohne `ApiKeyContext` — der MCP-Server baut seinen eigenen
+ * Auth-Kontext und hat nur die Liste, nicht die Express-Form drumherum.
+ */
+export function assertLandesverbandScope(
+  allowed: string[] | '*' | undefined,
+  requested: string
+): { ok: true } | { ok: false; reason: string } {
   if (allowed === '*') return { ok: true };
   if (!allowed || allowed.length === 0) {
     return { ok: false, reason: 'API key has no Landesverband scope assigned' };

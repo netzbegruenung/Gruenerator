@@ -5,14 +5,16 @@
  * Delegates to the shared notebookStreamCore for SSE streaming logic.
  */
 
+import { notebookDepthSchema } from '@gruenerator/contracts';
 import { z } from 'zod';
 
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
+import { withRetry } from '../../services/search/searchRetryStrategy.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { handleNotebookStream } from './notebookStreamCore.js';
-import { createSSEStream } from './services/sseHelpers.js';
+import { createSSEStream, sendChatWarning } from './services/sseHelpers.js';
 import {
   getUser,
   createThread,
@@ -30,7 +32,7 @@ const notebookStreamRequestSchema = z.object({
   filters: z.record(z.unknown()).optional(),
   provider: z.string().optional(),
   model: z.string().optional(),
-  mode: z.enum(['fast', 'deep']).optional(),
+  mode: notebookDepthSchema.optional(),
   documentIds: z.array(z.string()).optional(),
   threadId: z.string().nullable().optional(),
 });
@@ -99,16 +101,33 @@ router.post(
         threadId = thread.id;
         sse.send('thread_created', { threadId });
       } catch (err) {
+        // No thread → nothing in this conversation gets persisted. Say so
+        // instead of letting the user believe it was saved.
         log.error('Failed to create notebook thread:', err);
+        threadId = null;
+        sendChatWarning(
+          sse,
+          'persist_failed',
+          'Der Chat-Verlauf konnte nicht angelegt werden — diese Unterhaltung wird nicht gespeichert.'
+        );
       }
     }
 
-    // Persist user message in parallel with streaming (fire-and-forget)
+    // Persist user message in parallel with streaming. A failure here breaks
+    // thread ordering (assistant row without its user row), so it is retried
+    // and reported rather than swallowed.
+    let userMessageOk = true;
     const userMessagePromise =
       threadId && userText
-        ? createMessage(threadId, 'user', userText, undefined, user.id).catch((err) =>
-            log.error('Failed to persist user message:', err)
-          )
+        ? withRetry(() => createMessage(threadId!, 'user', userText, undefined, user.id), {
+            maxRetries: 1,
+            delayMs: 300,
+            isRecoverable: () => true,
+            label: 'notebook:persistUserMessage',
+          }).catch((err) => {
+            log.error('Failed to persist user message:', err);
+            userMessageOk = false;
+          })
         : null;
 
     const result = await handleNotebookStream({
@@ -125,6 +144,10 @@ router.post(
       userId: user.id,
       allowUserCollections: true,
       sse,
+      // Keep the stream open past the answer so the persistence step below can
+      // still report a failure — sendChatWarning no-ops once the stream ended,
+      // which made that warning unreachable on this path.
+      closeStream: false,
     });
 
     // Persist assistant message and update thread timestamp in parallel
@@ -132,24 +155,38 @@ router.post(
       // Ensure user message is persisted before assistant message for ordering
       if (userMessagePromise) await userMessagePromise;
       try {
-        await Promise.all([
-          createMessage(
-            threadId,
-            'assistant',
-            result.answer,
-            {
-              type: 'notebook',
-              citations: result.citations,
-              sources: result.sources,
-            },
-            user.id
-          ),
-          touchThread(threadId),
-        ]);
+        await withRetry(
+          () =>
+            Promise.all([
+              createMessage(
+                threadId!,
+                'assistant',
+                result.answer,
+                {
+                  type: 'notebook',
+                  citations: result.citations,
+                  sources: result.sources,
+                },
+                user.id
+              ),
+              touchThread(threadId!),
+            ]),
+          {
+            maxRetries: 1,
+            delayMs: 300,
+            isRecoverable: () => true,
+            label: 'notebook:persistAssistantMessage',
+          }
+        );
       } catch (err) {
         log.error('Failed to persist assistant message:', err);
+        userMessageOk = false;
       }
+      if (!userMessageOk) sendChatWarning(sse, 'persist_failed');
     }
+
+    // The controller owns the close now (closeStream: false above).
+    sse.end();
   }
 );
 

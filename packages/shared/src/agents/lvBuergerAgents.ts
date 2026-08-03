@@ -4,7 +4,7 @@ import type { Agent } from './types.js';
 
 // ─── Per-LV "Bürger*innenanfragen"-Agents ───
 // Schwester-Generator zu LV_PR_AGENTS, aber für Bürger*innen-Service statt
-// Pressearbeit: Der Agent recherchiert (search_documents + web_search → die
+// Pressearbeit: Der Agent recherchiert (gruenerator_search + web_search → die
 // Treffer erscheinen als Recherche-Karten im Chat) und formuliert eine
 // versandfertige Antwort-E-Mail (Anrede → Dank → Antwort → weiterführende
 // Links). Wiederverwendet die bestehenden LV-Notebooks via defaultNotebookIds.
@@ -58,7 +58,7 @@ function buildLvBuergerSystemRole(spec: (typeof LV_BUERGER_SPECS)[number]): stri
 **REGIONALE SCHWERPUNKTE ${spec.title.toUpperCase()}:** ${spec.themes}. Verankere die Antwort in den Positionen des Landesverbands — vermeide generische Bundes-Rhetorik.${localeNote}
 
 **ARBEITSWEISE (PFLICHT — immer zuerst recherchieren):**
-Schritt 1: \`search_documents\` — die Suche ist automatisch auf ${spec.title} gefiltert. Suche nach Beschlüssen, Programmen und Positionen des Landesverbands zum Anliegen.
+Schritt 1: \`gruenerator_search\` — die Suche ist automatisch auf ${spec.title} gefiltert. Suche nach Beschlüssen, Programmen und Positionen des Landesverbands zum Anliegen.
 Schritt 2: \`web_search\` für aktuelle Fakten, Zahlen und tagesaktuellen Kontext.
 Schritt 3: Schreibe die Antwort-E-Mail. Die recherchierten Quellen werden dem*der Nutzer*in als Karten oberhalb deiner Antwort angezeigt — fasse sie in der E-Mail zusammen, erfinde aber nichts dazu.
 
@@ -90,7 +90,7 @@ export const LV_BUERGER_AGENTS: Agent[] = LV_BUERGER_SPECS.map((spec) => {
     model: 'mistral-large-latest',
     defaultModel: 'mistral-large-latest',
     provider: 'mistral',
-    params: { max_tokens: 3000, temperature: 0.4 },
+    params: { max_tokens: 8000, temperature: 0.4 },
     openingMessage: `Hallo! Ich beantworte Bürger*innenanfragen für die Grünen ${spec.title}.\n\nFüge die eingegangene E-Mail oder das Anliegen ein — ich recherchiere die Positionen des Landesverbands und formuliere eine versandfertige Antwort-E-Mail mit weiterführenden Links.`,
     welcomeQuestion: `Welche Anfrage soll ${spec.title} beantworten?`,
     openingQuestions: buildLvBuergerOpeningQuestions(spec),

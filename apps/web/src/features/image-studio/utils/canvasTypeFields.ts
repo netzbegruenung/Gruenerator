@@ -31,6 +31,9 @@ export type CanvasFormField =
   | 'body'
   | 'headline'
   | 'accent'
+  | 'introline'
+  | 'text'
+  | 'subline'
   | 'subtext'
   | 'label'
   | 'eventTitle'
@@ -88,10 +91,7 @@ export const CANVAS_TYPE_FIELDS = {
   [IMAGE_STUDIO_TYPES.FREEFORM]: {
     fields: [],
   },
-  // Österreich (de-AT) variants
-  [IMAGE_STUDIO_TYPES.INFO_AT]: {
-    fields: ['headline', 'accent', 'body'],
-  },
+  // Österreich (de-AT) variants — kein Info-Sujet, das gibt es nur für de-DE
   [IMAGE_STUDIO_TYPES.ZITAT_AT]: {
     fields: ['quote', 'name'],
     image: { key: 'imageSrc', source: 'upload', required: true },
@@ -101,6 +101,13 @@ export const CANVAS_TYPE_FIELDS = {
   },
   [IMAGE_STUDIO_TYPES.DREIZEILEN_AT]: {
     fields: ['line1', 'accent', 'line3'],
+  },
+  [IMAGE_STUDIO_TYPES.DREIZEILEN_OVERLAY_AT]: {
+    fields: ['line1', 'accent', 'line3', 'subline'],
+    image: { key: 'currentImageSrc', source: 'upload', required: false },
+  },
+  [IMAGE_STUDIO_TYPES.INFO_AT]: {
+    fields: ['introline', 'text', 'accent'],
   },
   [IMAGE_STUDIO_TYPES.FREEFORM_AT]: {
     fields: [],

@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     sharepic BOOLEAN DEFAULT FALSE,
     anweisungen BOOLEAN DEFAULT FALSE,
     chat_color TEXT,
+    chat_background TEXT,
     content_management BOOLEAN DEFAULT FALSE,
     labor_enabled BOOLEAN DEFAULT FALSE,
     sites BOOLEAN DEFAULT FALSE,
@@ -87,11 +88,16 @@ CREATE TABLE IF NOT EXISTS profiles (
     wordpress_enabled BOOLEAN DEFAULT FALSE,
     canva_connection JSONB DEFAULT NULL,
     document_mode TEXT DEFAULT 'manual',
+    default_startpage TEXT NOT NULL DEFAULT 'chat' CHECK (default_startpage IN ('chat', 'arbeiten')),
     user_defaults JSONB DEFAULT '{}',
     docs BOOLEAN DEFAULT FALSE,
     boards BOOLEAN DEFAULT FALSE,
     bundestag_api_enabled BOOLEAN DEFAULT FALSE,
-    memory_enabled BOOLEAN DEFAULT FALSE
+    memory_enabled BOOLEAN DEFAULT FALSE,
+    feedback_button TEXT NOT NULL DEFAULT 'text' CHECK (feedback_button IN ('text', 'icon', 'off')),
+    reduce_motion BOOLEAN NOT NULL DEFAULT FALSE,
+    reduce_transparency BOOLEAN NOT NULL DEFAULT FALSE,
+    show_skip_link BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS sites_enabled BOOLEAN DEFAULT TRUE;
@@ -101,6 +107,10 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS docs BOOLEAN DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS boards BOOLEAN DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS bundestag_api_enabled BOOLEAN DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS memory_enabled BOOLEAN DEFAULT FALSE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS feedback_button TEXT NOT NULL DEFAULT 'text' CHECK (feedback_button IN ('text', 'icon', 'off'));
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS reduce_motion BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS reduce_transparency BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS show_skip_link BOOLEAN NOT NULL DEFAULT TRUE;
 
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -630,6 +640,15 @@ CREATE TABLE IF NOT EXISTS shared_media (
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS is_library_item BOOLEAN DEFAULT TRUE;
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS alt_text TEXT;
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS upload_source TEXT DEFAULT 'upload';
+-- Which product made this image — the Studio gallery splits Sharepics from
+-- KI-Bilder on it. Server-set, unlike the client-supplied `image_type`.
+-- NOT NULL on purpose: a NULL would be indistinguishable from "backend too old
+-- to have the column", which is how the read side decides to fall back.
+-- The same definition is repeated in
+-- migrations/20260727_shared_media_content_origin.sql for databases that already
+-- have the table — this line only reaches a freshly created one.
+ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS content_origin TEXT NOT NULL DEFAULT 'unknown'
+    CHECK (content_origin IN ('ki', 'sharepic', 'upload', 'unknown'));
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS original_filename TEXT;
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS is_template BOOLEAN DEFAULT FALSE;
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS template_visibility TEXT DEFAULT 'private'
@@ -1083,6 +1102,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     content TEXT,
     tool_calls JSONB,
     tool_results JSONB,
+    status VARCHAR(20) NOT NULL DEFAULT 'complete',
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -1096,6 +1116,8 @@ CREATE INDEX IF NOT EXISTS idx_chat_threads_permissions ON chat_threads USING gi
 CREATE INDEX IF NOT EXISTS idx_chat_messages_thread_id ON chat_messages(thread_id);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_thread_created ON chat_messages(thread_id, created_at);
+-- Feedback endpoint: resolve a Langfuse trace id back to the turn that produced it.
+CREATE INDEX IF NOT EXISTS idx_chat_messages_trace_id ON chat_messages ((tool_results ->> 'traceId')) WHERE tool_results ->> 'traceId' IS NOT NULL;
 
 -- Chat thread attachments for persistent document context across messages
 CREATE TABLE IF NOT EXISTS chat_thread_attachments (

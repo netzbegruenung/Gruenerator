@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { View, Text, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
 
-import { colors, spacing, borderRadius } from '../../theme';
+import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
 import { documentIdFromUrl } from '../../utils/actionUrl';
 
 import type { Theme } from '../../theme/colors';
@@ -69,6 +69,8 @@ export function ConfirmActionCard({ action, theme }: { action: ConfirmActionData
         onPress={openResult}
         disabled={!canOpen}
         style={[styles.badge, { backgroundColor: theme.surface, borderColor: theme.border }]}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: !canOpen }}
       >
         <Ionicons name="checkmark" size={14} color={colors.primary[600]} />
         <Text style={[styles.badgeText, { color: theme.text }]}>{action.title}</Text>
@@ -106,6 +108,7 @@ export function ConfirmActionCard({ action, theme }: { action: ConfirmActionData
             setErrorMessage(null);
           }}
           style={[styles.cancelButton, { borderColor: theme.border }]}
+          accessibilityRole="button"
         >
           <Text style={[styles.cancelLabel, { color: theme.text }]}>Erneut versuchen</Text>
         </Pressable>
@@ -142,6 +145,8 @@ export function ConfirmActionCard({ action, theme }: { action: ConfirmActionData
           onPress={() => void handleConfirm(true)}
           disabled={status === 'loading'}
           style={[styles.confirmButton, { backgroundColor: colors.primary[600] }]}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: status === 'loading' }}
         >
           {status === 'loading' ? (
             <ActivityIndicator size="small" color={colors.white} />
@@ -154,6 +159,8 @@ export function ConfirmActionCard({ action, theme }: { action: ConfirmActionData
           onPress={() => void handleConfirm(false)}
           disabled={status === 'loading'}
           style={[styles.cancelButton, { borderColor: theme.border }]}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: status === 'loading' }}
         >
           <Text style={[styles.cancelLabel, { color: theme.text }]}>{action.cancelLabel}</Text>
         </Pressable>
@@ -179,12 +186,11 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   title: {
-    fontSize: 14,
+    ...chatType.chatTitle,
     fontWeight: '600',
   },
   description: {
-    fontSize: 12,
-    lineHeight: 17,
+    ...chatType.chatSecondary,
   },
   metaRow: {
     flexDirection: 'row',
@@ -193,7 +199,7 @@ const styles = StyleSheet.create({
     marginLeft: spacing.large,
   },
   metaItem: {
-    fontSize: 12,
+    ...chatType.chatMeta,
   },
   buttons: {
     flexDirection: 'row',
@@ -209,8 +215,9 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
   },
   confirmLabel: {
+    ...chatType.chatSecondary,
     color: colors.white,
-    fontSize: 13,
+    fontFamily: BODY_FONT,
     fontWeight: '600',
   },
   cancelButton: {
@@ -221,7 +228,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   cancelLabel: {
-    fontSize: 13,
+    ...chatType.chatSecondary,
   },
   badge: {
     flexDirection: 'row',
@@ -235,14 +242,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   badgeText: {
-    fontSize: 13,
+    ...chatType.chatSecondary,
     fontWeight: '600',
   },
   badgeLink: {
-    fontSize: 13,
+    ...chatType.chatSecondary,
     fontWeight: '600',
   },
   errorText: {
-    fontSize: 13,
+    ...chatType.chatSecondary,
   },
 });

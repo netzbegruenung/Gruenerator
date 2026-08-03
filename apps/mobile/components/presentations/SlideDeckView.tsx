@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { StyleSheet, Text, View, useColorScheme } from 'react-native';
 import PagerView from 'react-native-pager-view';
 
-import { darkTheme, lightTheme } from '../../theme';
+import { darkTheme, lightTheme, BODY_FONT } from '../../theme';
 
 import { SlideView } from './SlideView';
 
@@ -12,7 +12,17 @@ import { SlideView } from './SlideView';
  * page counter. Present-mode navigation is trivial natively since reveal.js only
  * paged/transitioned on the web — the slide markup itself is what SlideView ports.
  */
-export function SlideDeckView({ slides, accent }: { slides: Slide[]; accent?: string | null }) {
+export function SlideDeckView({
+  slides,
+  accent,
+  brand,
+  showLogo,
+}: {
+  slides: Slide[];
+  accent?: string | null;
+  brand?: string | null;
+  showLogo?: boolean;
+}) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const [page, setPage] = useState(0);
@@ -38,7 +48,7 @@ export function SlideDeckView({ slides, accent }: { slides: Slide[]; accent?: st
       >
         {visible.map((slide) => (
           <View key={slide.id} style={styles.page}>
-            <SlideView slide={slide} accent={accent} />
+            <SlideView slide={slide} accent={accent} brand={brand} showLogo={showLogo} />
           </View>
         ))}
       </PagerView>
@@ -69,6 +79,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   counterText: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     fontWeight: '600',
   },
@@ -79,6 +90,7 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   emptyText: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
   },
 });

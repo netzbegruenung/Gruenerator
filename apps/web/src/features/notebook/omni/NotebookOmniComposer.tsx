@@ -95,9 +95,9 @@ function OptionRow({
         <div className="truncate text-sm font-medium text-[#22382E] dark:text-foreground">
           {title}
         </div>
-        <div className="truncate text-xs text-[#9AA8A1]">{subtitle}</div>
+        <div className="truncate text-xs text-muted-brand">{subtitle}</div>
       </div>
-      {showEnterHint && <FiCornerDownLeft size={14} className="flex-none text-[#9AA8A1]" />}
+      {showEnterHint && <FiCornerDownLeft size={14} className="flex-none text-muted-brand" />}
     </div>
   );
 }
@@ -112,7 +112,8 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const composerRuntime = useComposerRuntime();
-  const isAustrian = useAuthStore((s) => s.locale === 'de-AT');
+  const locale = useAuthStore((s) => s.locale);
+  const isAustrian = locale === 'de-AT';
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -133,7 +134,7 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
     []
   );
 
-  const systemTargets = useMemo(() => buildSystemTargets(), []);
+  const systemTargets = useMemo(() => buildSystemTargets(locale), [locale]);
 
   // Own notebooks join the lexicon by name. The gallery below fetches the same
   // query, so this is served from the React Query cache.
@@ -320,7 +321,7 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
                 isMobile ? OMNI_EXAMPLES_SHORT : isAustrian ? OMNI_EXAMPLES_AT : OMNI_EXAMPLES_DE
               }
               loop
-              className="pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 truncate text-base text-[#9AA8A1]"
+              className="pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 truncate text-base text-muted-brand"
               typeSpeed={45}
               deleteSpeed={20}
               pauseDelay={1400}
@@ -341,7 +342,7 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
             }}
             onKeyDown={onKeyDown}
             aria-label="Notebooks fragen oder durchsuchen"
-            className="w-full min-w-0 border-0 bg-transparent py-[9px] text-base text-[#22382E] outline-none placeholder:text-[#9AA8A1] dark:text-foreground"
+            className="w-full min-w-0 border-0 bg-transparent py-[9px] text-base text-[#22382E] outline-none placeholder:text-muted-brand dark:text-foreground"
           />
         </div>
 
@@ -379,6 +380,7 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
       </div>
 
       {showDropdown && (
+        // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- onMouseDown only preserves focus for the click below; the options themselves are real buttons
         <div
           className="absolute left-0 right-0 top-full z-20 mt-2 max-h-[360px] overflow-y-auto overflow-x-hidden rounded-2xl border border-[#E1E9E4] bg-white p-1.5 shadow-[0_20px_50px_rgba(31,63,51,.18)] dark:border-grey-700 dark:bg-grey-800"
           onMouseDown={(e) => {

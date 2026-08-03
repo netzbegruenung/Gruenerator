@@ -34,7 +34,7 @@ export interface AgentConfig {
   tags: string[];
   model: string;
   defaultModel?: string | undefined;
-  provider: 'mistral' | 'anthropic' | 'litellm' | 'regolo';
+  provider: 'mistral' | 'anthropic' | 'litellm' | 'regolo' | 'greenpt';
   params: {
     max_tokens: number;
     temperature: number;
@@ -54,6 +54,8 @@ export interface AgentConfig {
   toolRestrictions?: ToolRestrictions | undefined;
   /** Whitelist of tool registry keys this agent can use. undefined = all tools. */
   enabledTools?: string[] | undefined;
+  /** Fire the example search on every content-creation turn (classifierNode). */
+  alwaysSearchesExamples?: boolean | undefined;
   /** Few-shot examples injected into the system prompt to guide output quality */
   fewShotExamples?: FewShotExample[] | undefined;
   /** Runtime-only: set by controller, not by agent YAML files */

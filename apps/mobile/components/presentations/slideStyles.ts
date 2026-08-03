@@ -1,4 +1,4 @@
-import { PRESENTATION_DEFAULT_ACCENT, type Slide } from '@gruenerator/contracts';
+import { getPresentationBrandTheme, type Slide } from '@gruenerator/contracts';
 
 /**
  * Slide background + text-tone logic ported from the web SlideSurface
@@ -39,9 +39,10 @@ export interface ResolvedSlideBackground {
 
 export function resolveSlideBackground(
   slide: Slide,
-  accentInput?: string | null
+  accentInput?: string | null,
+  brand?: string | null
 ): ResolvedSlideBackground {
-  const accent = accentInput?.trim() || PRESENTATION_DEFAULT_ACCENT;
+  const accent = slideAccent(accentInput, brand);
   const bg = slide.background?.trim() || defaultBg(slide.layout, slide.variant ?? 0, accent);
 
   if (/^(https?:|data:|\/)/.test(bg)) {
@@ -53,6 +54,6 @@ export function resolveSlideBackground(
   return { backgroundColor: bg, dark: isDarkColor(bg) };
 }
 
-export function slideAccent(accentInput?: string | null): string {
-  return accentInput?.trim() || PRESENTATION_DEFAULT_ACCENT;
+export function slideAccent(accentInput?: string | null, brand?: string | null): string {
+  return accentInput?.trim() || getPresentationBrandTheme(brand).defaultAccent;
 }

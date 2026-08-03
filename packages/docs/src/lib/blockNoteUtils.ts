@@ -10,10 +10,11 @@ export function isMac(): boolean {
   return typeof navigator !== 'undefined' && navigator.platform.toLowerCase().includes('mac');
 }
 
-export async function blocksToHTML(editor: BlockNoteEditor): Promise<string> {
+/** `blocks` defaults to the whole document; pass a subset to serialise only
+ *  part of it (the letter export drops the blocks it lifted into DIN fields). */
+export async function blocksToHTML(editor: BlockNoteEditor, blocks?: Block[]): Promise<string> {
   try {
-    const blocks = editor.document;
-    const html = await editor.blocksToHTMLLossy(blocks);
+    const html = await editor.blocksToHTMLLossy(blocks ?? editor.document);
     return html;
   } catch (error) {
     console.error('[blocksToHTML] Error converting blocks:', error);

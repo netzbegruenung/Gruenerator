@@ -44,6 +44,8 @@ import { MarketCard } from './components/MarketCard';
 import { RecurringTaskCard } from './components/RecurringTaskCard';
 import {
   AGENTURA_CATEGORIES,
+  AGENTURA_CATEGORY_ICONS,
+  AGENTURA_EMPTY_ICONS,
   DEFAULT_CATEGORY,
   SKILL_CATEGORY_ICONS,
   SKILL_CATEGORY_LABELS,
@@ -194,9 +196,7 @@ function AgenturaPage() {
   const allSkills = useMemo(
     () =>
       agentsList.filter(
-        (s) =>
-          Boolean(s.skillSystemPrompt) &&
-          (s.audience === undefined || s.audience === 'all' || s.audience === userLocale)
+        (s) => s.audience === undefined || s.audience === 'all' || s.audience === userLocale
       ),
     [userLocale]
   );
@@ -484,7 +484,7 @@ function AgenturaPage() {
   const navItems: AisleNavItem[] = visibleCategories.map((c) => ({
     key: c.key,
     label: c.label,
-    icon: c.icon,
+    icon: AGENTURA_CATEGORY_ICONS[c.key],
     count: countFor(c.key),
   }));
 
@@ -518,7 +518,7 @@ function AgenturaPage() {
 
   const EmptyIcon = searching
     ? PiMagnifyingGlass
-    : (activeCategory?.emptyIcon ?? PiMagnifyingGlass);
+    : (AGENTURA_EMPTY_ICONS[activeCat] ?? PiMagnifyingGlass);
   const emptyText = searching
     ? 'Keine Treffer für deine Suche. Versuch ein anderes Stichwort.'
     : (activeCategory?.emptyText ?? 'Hier ist gerade nichts vorhanden.');
@@ -535,7 +535,7 @@ function AgenturaPage() {
           </h1>
         </div>
         <p className="mt-sm max-w-[560px] text-sm text-foreground-muted">
-          Dein Markt für Grüneratoren und Skills — wähle links eine Kategorie oder such direkt im
+          Dein Markt für Grüneratoren und Rezepte — wähle links eine Kategorie oder such direkt im
           Markt.
         </p>
       </header>
@@ -553,8 +553,8 @@ function AgenturaPage() {
           />
         </div>
         <Select value={sort} onValueChange={(v) => updateParam('sort', v, 'empfohlen')}>
-          <SelectTrigger className="h-11 w-auto gap-xs sm:min-w-[10rem]">
-            <PiArrowsDownUp className="h-4 w-4 text-foreground-muted" />
+          <SelectTrigger aria-label="Sortierung" className="h-11 w-auto gap-xs sm:min-w-[10rem]">
+            <PiArrowsDownUp aria-hidden="true" className="h-4 w-4 text-foreground-muted" />
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

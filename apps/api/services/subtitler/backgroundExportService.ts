@@ -7,6 +7,9 @@
 import fs from 'fs';
 import path from 'path';
 
+import { toJobErrorStatus } from '@gruenerator/contracts';
+
+import { toJobError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
@@ -243,16 +246,14 @@ export async function processVideoExportInBackground(
           })
           .on('error', async (err: Error) => {
             exportFinished = true;
-            log.error(`FFmpeg error: ${err.message}`);
+            const jobError = toJobError(err, {
+              scope: 'background-export',
+              meta: { exportToken, uploadId },
+            });
             redisClient
-              .set(
-                `export:${exportToken}`,
-                JSON.stringify({
-                  status: 'error',
-                  error: err.message || 'FFmpeg processing failed',
-                }),
-                { EX: 60 * 60 }
-              )
+              .set(`export:${exportToken}`, JSON.stringify(toJobErrorStatus(jobError)), {
+                EX: 60 * 60,
+              })
               .catch((redisErr: Error) =>
                 log.warn(`Redis error storage failed: ${redisErr.message}`)
               );
@@ -335,21 +336,15 @@ export async function processVideoExportInBackground(
       });
     }, `export-${exportToken}`);
   } catch (error: unknown) {
-    log.error(
-      `Background processing failed for ${exportToken}: ${error instanceof Error ? error.message : String(error)}`
-    );
+    const jobError = toJobError(error, {
+      scope: 'background-export',
+      meta: { exportToken, uploadId, phase: 'setup' },
+    });
 
     try {
-      await redisClient.set(
-        `export:${exportToken}`,
-        JSON.stringify({
-          status: 'error',
-          error:
-            (error instanceof Error ? error.message : String(error)) ||
-            'Background processing failed',
-        }),
-        { EX: 60 * 60 }
-      );
+      await redisClient.set(`export:${exportToken}`, JSON.stringify(toJobErrorStatus(jobError)), {
+        EX: 60 * 60,
+      });
     } catch (redisError: unknown) {
       log.warn(
         `Redis error storage failed: ${redisError instanceof Error ? redisError.message : String(redisError)}`

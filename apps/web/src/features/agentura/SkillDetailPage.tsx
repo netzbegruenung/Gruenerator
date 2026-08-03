@@ -13,6 +13,7 @@ import {
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { SkillCard } from './components/cards';
+import { useSkillPrompt } from './hooks/useSkillPrompt';
 import { findSkillByMention, relatedSkills } from './lib/lookups';
 
 import { Markdown } from '@/components/common/Markdown';
@@ -28,20 +29,21 @@ function SkillDetailPage() {
   const toggleFavorite = useSkillFavoritesStore((s) => s.toggleFavorite);
 
   const skill = findSkillByMention(mention);
+  // The recipe text is not in the bundle — it is party-internal and comes from
+  // the API, for signed-in users only. See hooks/useSkillPrompt.ts.
+  const { data: skillPrompt } = useSkillPrompt(skill?.mention);
 
   const related = useMemo(() => {
     if (!skill) return [];
     const pool = agentsList.filter(
-      (s) =>
-        Boolean(s.skillSystemPrompt) &&
-        (s.audience === undefined || s.audience === 'all' || s.audience === userLocale)
+      (s) => s.audience === undefined || s.audience === 'all' || s.audience === userLocale
     );
     return relatedSkills(skill, pool);
   }, [skill, userLocale]);
 
   if (!skill) {
     return (
-      <PageContainer maxWidth="lg" title="Skill nicht gefunden">
+      <PageContainer maxWidth="lg" title="Rezept nicht gefunden">
         <div className="text-center">
           <Button asChild variant="brand">
             <Link to="/agentura">Zurück zur Agentura</Link>
@@ -76,7 +78,7 @@ function SkillDetailPage() {
           <div className="min-w-0">
             <div className="flex items-center gap-sm">
               <h1 className="m-0 text-2xl font-semibold text-foreground-heading">{skill.title}</h1>
-              <Badge variant="outline">Skill</Badge>
+              <Badge variant="outline">Rezept</Badge>
             </div>
             <div className="mt-sm flex flex-wrap gap-xs">
               {skill.skillCategory && (
@@ -113,7 +115,7 @@ function SkillDetailPage() {
       <Tabs defaultValue="skill">
         <TabsList className="mb-lg">
           <TabsTrigger value="skill">Anleitung</TabsTrigger>
-          {related.length > 0 && <TabsTrigger value="related">Verwandte Skills</TabsTrigger>}
+          {related.length > 0 && <TabsTrigger value="related">Verwandte Rezepte</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="skill">
@@ -127,7 +129,7 @@ function SkillDetailPage() {
               </div>
             )}
             <Markdown fallback={<p>{skill.description}</p>}>
-              {skill.skillSystemPrompt ?? skill.description}
+              {skillPrompt ?? skill.description}
             </Markdown>
           </div>
         </TabsContent>

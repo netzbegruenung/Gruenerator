@@ -4,12 +4,14 @@
  * notebook controller and the public Gruen-O-Mat controller.
  */
 
+import { type NotebookDepth } from '@gruenerator/contracts';
 import { type ModelMessage } from 'ai';
 
 import {
   buildConcisePromptGrundsatz,
   buildConcisePromptGeneral,
 } from '../../agents/langgraph/prompts.js';
+import { getNotebookDepthProfile } from '../../config/notebookDepthProfiles.js';
 import {
   SYSTEM_COLLECTIONS,
   getSystemCollectionConfig,
@@ -22,6 +24,14 @@ import {
   validateAndInjectCitations,
   groupSourcesByCollection,
 } from '../../services/search/index.js';
+import { expandQuery } from '../../services/search/QueryExpansionService.js';
+import {
+  BOTH_LANES_FAILED,
+  buildAiTelemetry,
+  withLangfuseTrace,
+} from '../../services/telemetry/langfuseTelemetry.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
+import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 import { containsPromptLeakage } from '../gruenomat/topicGuard.js';
 
@@ -52,7 +62,7 @@ export interface NotebookStreamOptions {
   filters?: Record<string, unknown>;
   provider?: string;
   model?: string;
-  mode?: 'fast' | 'deep';
+  mode?: NotebookDepth;
   userId?: string;
   allowUserCollections?: boolean;
   systemPromptOverride?: string;
@@ -97,7 +107,11 @@ export async function handleNotebookStream(
     documentIds,
   } = options;
 
-  const isFast = mode === 'fast';
+  // An omitted mode has always meant the thorough tier here (`isFast` was
+  // `mode === 'fast'`), so it keeps meaning that. The UI's default is a
+  // separate question and belongs to the UI.
+  const depth: NotebookDepth = mode ?? 'deep';
+  const profile = getNotebookDepthProfile(depth);
 
   // SSE headers (skip if already flushed by controller for thread_created)
   if (!res.headersSent) {
@@ -139,6 +153,24 @@ export async function handleNotebookStream(
 
     sse.send('search_start', { message: 'Suche in Dokumenten...' });
 
+    // Tiers above one variant search several formulations of the question and
+    // union the hits. expandQuery degrades to zero alternatives on failure, so
+    // the worst case is the single-query behaviour of the tiers below.
+    let queries = [question];
+    if (profile.queryVariants > 1) {
+      const expanded = await expandQuery(question, getAIWorkerPool(req));
+      queries = [expanded.primary, ...expanded.alternatives].slice(0, profile.queryVariants);
+      if (queries.length > 1) {
+        sse.send('progress_step', {
+          stepId: 'notebook-query-expansion',
+          toolName: 'notebook_search',
+          title: `Suche mit ${queries.length} Formulierungen...`,
+          status: 'in_progress',
+          args: { queries },
+        });
+      }
+    }
+
     let searchContext: SearchContext | null;
     try {
       searchContext = await notebookQAService.getSearchContext({
@@ -147,6 +179,8 @@ export async function handleNotebookStream(
         collectionIds,
         userId: userId || 'anonymous',
         requestFilters: filters,
+        depth,
+        queries,
         getCollectionFn: async (id: string) => {
           const systemConfig = getSystemCollectionConfig(id);
           if (systemConfig) return null;
@@ -167,7 +201,7 @@ export async function handleNotebookStream(
       log.error('Search context error:', error);
       log.debug(`⏱ Search context failed: ${Date.now() - t0}ms`);
       sse.send('error', {
-        error: error instanceof Error ? error.message : PROGRESS_MESSAGES.searchDegraded,
+        error: toUserFacingMessage(error, PROGRESS_MESSAGES.searchDegraded),
         code: 'search_degraded',
         retryable: true,
       });
@@ -187,28 +221,45 @@ export async function handleNotebookStream(
       resultCount: searchContext?.sortedResults.length ?? 0,
     });
 
-    // Fast mode: rerank results to reduce context size
-    if (isFast && searchContext) {
+    // Rerank in EVERY tier.
+    //
+    // This used to be gated on `isFast`, which left "Tiefenrecherche" — the
+    // path that retrieves the MOST candidates — as the only one without a
+    // cross-encoder. That is inverse to what the UI promises: the mode
+    // advertised as the thorough one was handing the model the raw
+    // hybrid-search order.
+    //
+    // The tiers differ in HOW MUCH survives, not in WHETHER it is ranked.
+    // rerankNotebookResults degrades openly — with Regolo unconfigured it
+    // returns the original order rather than throwing — so a bigger window
+    // cannot make a tier fail where a smaller one used to work.
+    if (searchContext) {
       const reranked = await rerankNotebookResults({
         results: searchContext.sortedResults,
         referencesMap: searchContext.referencesMap,
         question,
-        limit: 10,
+        limit: profile.rerankOutput,
+        inputLimit: profile.rerankInput,
       });
       searchContext.sortedResults = reranked.results;
       searchContext.referencesMap = reranked.referencesMap;
       searchContext.contextSummary = reranked.contextSummary;
 
       log.debug(
-        `⏱ Rerank: ${reranked.rerankTimeMs}ms, ${searchContext.sortedResults.length} results kept`
+        `⏱ Rerank (${depth}): ${reranked.rerankTimeMs}ms, ${searchContext.sortedResults.length} results kept`
       );
 
-      const isSystemCollection =
-        searchContext.effectiveCollectionIds?.some((id) => !!getSystemCollectionConfig(id)) ??
-        false;
-      searchContext.systemPrompt = isSystemCollection
-        ? buildConcisePromptGrundsatz(searchContext.collectionName || 'Grüne Dokumente').system
-        : buildConcisePromptGeneral(searchContext.collectionName || 'Ihre Dokumente').system;
+      // The concise prompt exists to shrink the answer to match a shrunken
+      // context. The thorough tiers are asked for a thorough answer and keep
+      // the prompt getSearchContext chose.
+      if (profile.conciseAnswer) {
+        const isSystemCollection =
+          searchContext.effectiveCollectionIds?.some((id) => !!getSystemCollectionConfig(id)) ??
+          false;
+        searchContext.systemPrompt = isSystemCollection
+          ? buildConcisePromptGrundsatz(searchContext.collectionName || 'Grüne Dokumente').system
+          : buildConcisePromptGeneral(searchContext.collectionName || 'Ihre Dokumente').system;
+      }
     }
 
     // Apply custom system prompt if provided (e.g. Gruen-O-Mat persona)
@@ -265,7 +316,11 @@ export async function handleNotebookStream(
     // Determine AI provider and model (same resolution as chat — handles model ID → real name)
     const defaultAgentConfig = { provider: DEFAULT_PROVIDER, model: DEFAULT_MODEL };
     const notebookRequestId = `notebook_${Date.now()}`;
-    const primaryResolution = await resolveModel(defaultAgentConfig, model, notebookRequestId);
+    // No classifier on this surface — `auto` is pinned to the precise lane
+    // (see resolveAutoSelection); the web client also pre-resolves it locally.
+    const primaryResolution = await resolveModel(defaultAgentConfig, model, notebookRequestId, {
+      surface: 'notebook',
+    });
 
     if (!isProviderConfigured(primaryResolution.provider)) {
       // If we acquired the Verdigado slot but can't actually use the resolution,
@@ -297,29 +352,50 @@ export async function handleNotebookStream(
     log.debug(`⏱ Model setup: ${t2 - t1}ms`);
 
     // Generous ceilings: reasoning models spend a large share on the <think>
-    // block before visible content, so both modes get ample headroom.
-    const baseMaxOutput = isFast ? 20000 : 40000;
+    // block before visible content, so every tier gets ample headroom.
+    const baseMaxOutput = profile.maxOutputTokens;
 
     sse.send('response_start', { message: 'Generiere Antwort...' });
 
     let fullText: string | null;
     try {
-      fullText = await streamWithFallback({
-        primary: primaryResolution,
-        sse,
-        logPrefix: '[Notebook]',
-        buildStream: async (resolution) => {
-          return streamForResolution({
-            resolution,
-            messages: aiMessages,
-            maxTokens: baseMaxOutput,
-            temperature: 0.2,
-            sse,
-            signal: abortController.signal,
-            logPrefix: '[Notebook]',
-          });
+      const notebookTelemetry = buildAiTelemetry('notebook-chat.respond');
+      // Wrap in a trace so propagateAttributes sets trace-level user/session —
+      // AI SDK telemetry carries no metadata of its own, so without this
+      // notebook traces would show empty User/Session.
+      fullText = await withLangfuseTrace(
+        {
+          name: 'notebook-turn',
+          ...(userId && { userId }),
+          ...(collectionId && { sessionId: collectionId }),
         },
-      });
+        async (trace) => {
+          const text = await streamWithFallback({
+            primary: primaryResolution,
+            sse,
+            logPrefix: '[Notebook]',
+            buildStream: async (resolution) => {
+              return streamForResolution({
+                resolution,
+                messages: aiMessages,
+                maxTokens: baseMaxOutput,
+                temperature: 0.2,
+                sse,
+                signal: abortController.signal,
+                logPrefix: '[Notebook]',
+                ...(notebookTelemetry && { telemetry: notebookTelemetry }),
+              });
+            },
+          });
+          // Both lanes dead → null, not a throw; the span has to say so itself.
+          trace.update(
+            text === null
+              ? { input: userContent, level: 'ERROR', statusMessage: BOTH_LANES_FAILED }
+              : { input: userContent, output: text }
+          );
+          return text;
+        }
+      );
     } finally {
       if (primaryResolution.releaseSlot) {
         await primaryResolution.releaseSlot();
@@ -353,7 +429,10 @@ export async function handleNotebookStream(
         metadata: { totalResults: searchContext.sortedResults.length, leakageDetected: true },
       });
       if (options.closeStream !== false) sse.end();
-      return null;
+      // Return the fallback instead of null: the controller only persists when
+      // a result comes back, so returning null left the user's message in the
+      // thread without any assistant reply after reload.
+      return { answer: fallback, citations: [], sources: [], question };
     }
 
     const { renumberedDraft, newReferencesMap } = renumberCitationsInOrder(
@@ -398,12 +477,14 @@ export async function handleNotebookStream(
         effectiveCollectionIds: searchContext.effectiveCollectionIds,
         totalResults: searchContext.sortedResults.length,
         citationsCount: citations.length,
+        depth,
+        queryCount: queries.length,
       },
     });
 
     const t6 = Date.now();
     log.debug(
-      `⏱ Total: ${t6 - t0}ms [${isFast ? 'fast' : 'deep'}] (search=${t1 - t0}, setup=${t2 - t1}, stream=${t4 - t2}, cite=${t5 - t4})`
+      `⏱ Total: ${t6 - t0}ms [${depth}] (search=${t1 - t0}, setup=${t2 - t1}, stream=${t4 - t2}, cite=${t5 - t4})`
     );
     if (options.closeStream !== false) sse.end();
 

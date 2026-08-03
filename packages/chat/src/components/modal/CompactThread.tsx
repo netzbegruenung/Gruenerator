@@ -4,8 +4,8 @@ import { ArrowUp, Square } from 'lucide-react';
 import { memo, useMemo, type ReactNode } from 'react';
 
 import { CitationProvider } from '../../context/CitationContext';
-import { cn } from '../../lib/utils';
 import { resolveCitations } from '../../lib/citationUtils';
+import { cn } from '../../lib/utils';
 import { MarkdownContent } from '../MarkdownContent';
 import { ProgressIndicator } from '../message-parts/ProgressIndicator';
 import { SearchResultsSection, type AdditionalSource } from '../message-parts/SearchResultsSection';
@@ -31,10 +31,9 @@ const ModalUserMessage = memo(function ModalUserMessage() {
 
 interface ModalAssistantMessageProps {
   assistantIcon: ReactNode;
-  agentColor: string;
 }
 
-function ModalAssistantMessageInner({ assistantIcon, agentColor }: ModalAssistantMessageProps) {
+function ModalAssistantMessageInner({ assistantIcon }: ModalAssistantMessageProps) {
   const message = useMessage();
   const meta = message.metadata?.custom as NotebookMessageMetadata | undefined;
   const isRunning = message.status?.type === 'running';
@@ -61,7 +60,7 @@ function ModalAssistantMessageInner({ assistantIcon, agentColor }: ModalAssistan
         {isRunning &&
           !text &&
           (progress?.stage === 'searching' || progress?.stage === 'generating' ? (
-            <ProgressIndicator progress={progress} agentColor={agentColor} />
+            <ProgressIndicator progress={progress} />
           ) : (
             <TypingIndicator />
           ))}
@@ -131,8 +130,6 @@ export interface CompactThreadProps {
   assistantIcon: ReactNode;
   /** Placeholder text for the composer input. */
   composerPlaceholder?: string;
-  /** Color used for in-progress indicators (CSS color string). */
-  agentColor?: string;
   /** Extra controls rendered in the composer just before the send/cancel button. */
   composerExtras?: ReactNode;
   className?: string;
@@ -142,16 +139,15 @@ export function CompactThread({
   welcome,
   assistantIcon,
   composerPlaceholder = 'Stell deine Frage...',
-  agentColor = '#316049',
   composerExtras,
   className,
 }: CompactThreadProps) {
   const ModalAssistantMessage = useMemo(
     () =>
       memo(function BoundModalAssistantMessage() {
-        return <ModalAssistantMessageInner assistantIcon={assistantIcon} agentColor={agentColor} />;
+        return <ModalAssistantMessageInner assistantIcon={assistantIcon} />;
       }),
-    [assistantIcon, agentColor]
+    [assistantIcon]
   );
 
   return (

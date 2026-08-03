@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
 import { bahnPayloadSchema } from './bahn.js';
-import { bundestagPayloadSchema } from './bundestag.js';
 import { canvasTemplateTypeSchema } from './canvasTemplateDescriptors.js';
+import { notebookCitationSchema } from './notebook.js';
 import { socialPostPayloadSchema } from './socialPost.js';
 
 /**
@@ -42,6 +42,64 @@ export const chatErrorCodeSchema = z.enum([
 ]);
 export type ChatErrorCode = z.infer<typeof chatErrorCodeSchema>;
 
+/**
+ * Machine-readable cause of a NON-FATAL degradation — travels on the SSE
+ * `warning` event. Codes are monitoring/telemetry vocabulary, never user
+ * vocabulary: wherever the turn still has a model available, the degradation
+ * is explained by the answer itself (see `degradationNotes` in the API); the
+ * warning only carries the machine signal plus a curated German fallback.
+ *
+ * To add a code: (1) add it here, (2) add its spec to CHAT_WARNINGS in
+ * apps/api/routes/chat/services/sseHelpers.ts (the compiler enforces the pair
+ * via `satisfies Record<ChatWarningCode, …>`), (3) decide whether the frontend
+ * should toast it or stay silent because the answer already explains it.
+ *
+ * Like `chatErrorCodeSchema`, the wire schema below keeps `code` as a plain
+ * string so an OLDER client never drops a warning it doesn't know yet.
+ */
+export const chatWarningCodeSchema = z.enum([
+  // Pre-existing codes (kept as-is — emitted before the taxonomy was introduced)
+  'search_degraded',
+  'wolke_refs_dropped',
+  'wolke_check_failed',
+  'doc_creation_failed',
+  // Persistence
+  'persist_failed',
+  // Artefact creation
+  'board_creation_failed',
+  'task_creation_failed',
+  'sheet_creation_failed',
+  'presentation_creation_failed',
+  'sharepic_failed',
+  'generation_failed',
+  'edit_failed',
+  // Retrieval / sources
+  'source_unavailable',
+  'rerank_degraded',
+  'research_plan_failed',
+  // `@deepresearch` was asked for but not served: the daily quota is spent or the
+  // call failed. Distinct from `research_plan_failed` — the turn did NOT degrade
+  // in quality accidentally, it was capped on purpose, and the message names the
+  // reset time. Always carries a `messageOverride`.
+  'deep_research_quota_spent',
+  'classifier_degraded',
+  'summary_partial',
+  'recall_degraded',
+  'connect_reauth_required',
+  'mention_context_failed',
+  'extraction_failed',
+  'mcp_unreachable',
+  // A connected MCP server changed its tool DEFINITIONS since the user approved
+  // them, so its tools were withheld this turn (rug pull). Distinct from
+  // `mcp_unreachable`: the server answered fine, we declined to trust it.
+  'mcp_tools_drifted',
+  // Compute
+  'compute_failed',
+  // Provider / privacy
+  'privacy_mode_degraded',
+]);
+export type ChatWarningCode = z.infer<typeof chatWarningCodeSchema>;
+
 /** Wire payload of the SSE `error` event (see chatErrorCodeSchema for `code`). */
 export const chatErrorEventPayloadSchema = z
   .object({
@@ -78,6 +136,9 @@ export const searchIntentSchema = z.enum([
   'hotel',
   // Wahlumfragen (Sonntagsfrage via PolitPro + Meinungsbild) — native domain tool.
   'umfragen',
+  // Grünerator-Bedienung: Anleitungen aus der Doku (doku.gruenerator.eu) —
+  // native domain tool over a generated, in-process index.
+  'hilfe',
   'wetter',
   'news',
   'image',
@@ -96,11 +157,27 @@ export const searchIntentSchema = z.enum([
   'share_doc',
   'create_sheet',
   'create_presentation',
+  // Finished, downloadable CI-styled PDF (optionally with Grünen letterhead).
+  'create_pdf',
   // EXPERIMENTAL: set up a recurring "Wiederkehrende Aufgabe" (agent runs on a schedule).
   'create_recurring_task',
   'chat_history',
   'mcp',
+  // Writing whose substance the user already supplied: pasted material, an
+  // attachment, an open document, an edit of existing text, or pure wordcraft
+  // with nothing to look up. The narrow half of what `direct` used to mean.
+  'produktion',
+  // DEPRECATED as a classifier verdict since 2026-07-31 — the residual moved to
+  // `agentic` and the supplied-substance half to `produktion`. Still emitted by
+  // the parser's garbage fallback and by the heuristic's internal hint, and
+  // still READ everywhere: persisted `metadata.intent` and shipped mobile
+  // binaries speak it. Do not remove.
   'direct',
+  // Pure greeting / thanks / small-talk, decided by a deterministic gate before
+  // any LLM runs. Split out of `direct` so the residual and the greeting stop
+  // sharing one name: a greeting can never carry sources, never enter the tool
+  // loop and never needs reasoning, while a `direct` turn may do all three.
+  'greeting',
   // Loop demotion: low-confidence toolable turns skip the LLM classifier and
   // let the agentic loop's model pick the tools itself.
   'agentic',
@@ -138,6 +215,37 @@ export const searchResultPayloadSchema = z.object({
   relevance: z.number().optional(),
 });
 export type SearchResultPayload = z.infer<typeof searchResultPayloadSchema>;
+
+/**
+ * An image hit from the web search. Its own payload, never an entry in
+ * `searchResultPayloadSchema`: there is no `content`, so a shared shape would put
+ * a content-less item into the source list and produce a numbered citation with
+ * an empty snippet.
+ *
+ * `url` is a LINK TARGET, never an `<img src>`. Pointing an image tag at it would
+ * make the reader's browser fetch a file from an arbitrary third-party host — the
+ * exact pattern removed from the citation glyphs, where a favicon request reported
+ * the user's IP and the page they were about to open to Google. Thumbnails exist,
+ * but they go through `proxyUrl` below, which is what made them displayable at all.
+ */
+export const searchImagePayloadSchema = z.object({
+  title: z.string(),
+  /** The image on its source host. Always present; this is what the link opens. */
+  url: z.string(),
+  domain: z.string(),
+  /**
+   * Same-origin path that serves the image through our backend, so displaying it
+   * costs the reader no request to `domain`. Signed and short-lived — see
+   * `imageProxySignature.ts`.
+   *
+   * Optional on purpose: with no signing secret configured the backend omits it,
+   * and the client MUST then fall back to rendering a plain link. A client that
+   * assumes this field would put the third-party request back exactly where the
+   * proxy was built to remove it.
+   */
+  proxyUrl: z.string().optional(),
+});
+export type SearchImagePayload = z.infer<typeof searchImagePayloadSchema>;
 
 /**
  * Union of every style either side can produce: the generator emits
@@ -306,6 +414,19 @@ export type ComputePayload = z.infer<typeof computePayloadSchema>;
 
 const flexibleRecord = z.record(z.string(), z.unknown());
 
+/** MCP-Apps widget pointer carried on `tool_step_result.result.uiResource` for
+ *  SYSTEM MCP tools only. The HTML is fetched on demand via `/api/mcp-apps`
+ *  (not inlined here); the client mounts it in a sandboxed iframe. */
+export const uiResourceSchema = z
+  .object({
+    serverKey: z.string(),
+    toolName: z.string(),
+    uri: z.string(),
+    structuredContent: flexibleRecord.optional(),
+  })
+  .passthrough();
+export type UiResource = z.infer<typeof uiResourceSchema>;
+
 /** sharepic_updated wire payload — canvasType pinned to the canonical enum so
  *  a junk template type can never enter the live store / studio handoff. */
 export const sharepicUpdatedEventSchema = z
@@ -351,11 +472,57 @@ export type ReelUpdatedEvent = z.infer<typeof reelUpdatedEventSchema>;
  * `completion`, tool results) — those pin only optional fields, so the gate
  * can drop a *malformed* event but never a *richer* one.
  */
+/**
+ * A citation on the `done` event — the ChatGraph/agentic-loop shape
+ * (`apps/api/agents/langgraph/ChatGraph/types.ts`, `Citation`). Distinct from
+ * the notebook flow's `notebookCitationSchema`, which travels on `completion`
+ * and keys its sources as `index: string` with snake_case document fields.
+ * Both were `z.array(z.unknown())` here, which is how two divergent shapes for
+ * the same concept could grow without a single type error.
+ *
+ * TOTAL BY CONSTRUCTION — every field either has a `.catch()` fallback or is
+ * optional, so validation cannot fail. That is not laziness, it is required:
+ * the parser DROPS an event whose schema fails, and dropping `done` costs the
+ * terminal event, which the client then reports as a failed turn. `done` is
+ * also emitted through `sendRaw` in several places (agent graphs, recall loop)
+ * that bypass the typed emitter entirely. So this schema documents and derives
+ * the shape; it must never be the reason an answer is thrown away.
+ */
+const chatCitationBase = z.object({
+  id: z.number().catch(0),
+  title: z.string().catch(''),
+  url: z.string().catch(''),
+  snippet: z.string().catch(''),
+  source: z.string().catch(''),
+  citedText: z.string().optional(),
+  collectionName: z.string().optional(),
+  domain: z.string().optional(),
+  relevance: z.number().optional(),
+  contentType: z.string().optional(),
+  documentId: z.string().optional(),
+  chunkIndex: z.number().optional(),
+  similarityScore: z.number().optional(),
+  collectionId: z.string().optional(),
+  /** Set on fan-out per-document retrieval, so the UI can group source cards
+   *  by the document they answer for. */
+  documentSourceId: z.string().optional(),
+});
+
+export const chatCitationSchema = chatCitationBase.passthrough();
+/** The type the chat UI consumes — derived, never hand-written alongside. */
+export type ChatCitation = z.infer<typeof chatCitationBase>;
+
 export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
   thread_created: z.object({ threadId: z.string() }).passthrough(),
   intent: z
     .object({
-      intent: searchIntentSchema,
+      // `.catch` instead of a bare enum: the gate DROPS any event it rejects,
+      // so a backend that emits an intent the client's bundle predates would
+      // lose the whole progress transition — not just the unknown name. Every
+      // shipped mobile binary is such a client the moment an intent is added.
+      // `direct` is the safe degradation: it maps to the neutral "generating"
+      // stage and has no INTENT_TO_TOOL entry, so no ghost tool card appears.
+      intent: searchIntentSchema.catch('direct'),
       message: z.string(),
       reasoning: z.string().optional(),
       searchQuery: z.string().optional(),
@@ -374,6 +541,8 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
       message: z.string(),
       resultCount: z.number(),
       results: z.array(searchResultPayloadSchema.passthrough()).optional(),
+      /** Image hits, separate from `results` — see `searchImagePayloadSchema`. */
+      images: z.array(searchImagePayloadSchema.passthrough()).optional(),
       researchMeta: z.unknown().optional(),
       examplesResult: z
         .object({
@@ -383,6 +552,21 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
         .passthrough()
         .optional(),
     })
+    .passthrough(),
+  /**
+   * Image hits from a search inside the agentic loop.
+   *
+   * Its own event rather than `search_complete.images`: the loop never sends a
+   * `search_complete` (it streams `tool_step_*` cards instead), and that event
+   * also drives the progress stage — borrowing it would move the status line on
+   * every image batch. Carries the FULL list for the turn each time, so the
+   * client replaces rather than merges.
+   *
+   * A client that predates this event ignores it (unknown names pass the gate
+   * untouched) and simply shows no images — the same state as today.
+   */
+  search_images: z
+    .object({ images: z.array(searchImagePayloadSchema.passthrough()) })
     .passthrough(),
   summary_start: z.object({ message: z.string() }).passthrough(),
   summary_complete: z.object({ message: z.string() }).passthrough(),
@@ -397,7 +581,6 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
   chart_data: z.object({ chart: chartPayloadSchema.passthrough().optional() }).passthrough(),
   artifact: z.object({ artifact: artifactPayloadSchema.passthrough().optional() }).passthrough(),
   compute: z.object({ compute: computePayloadSchema.passthrough().optional() }).passthrough(),
-  bundestag: z.object({ bundestag: bundestagPayloadSchema.passthrough().optional() }).passthrough(),
   bahn: z.object({ bahn: bahnPayloadSchema.passthrough().optional() }).passthrough(),
   // variants stay unknown[] here: per-item validation (sharepicVariantSchema)
   // happens in coerceSharepicVariants so ONE malformed variant drops alone
@@ -409,6 +592,11 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
       canvasType: z.string().optional(),
       initialProps: flexibleRecord.optional(),
       error: z.string().optional(),
+      /** No variants because the model DECLINED on content grounds, not because
+       *  generation failed; `message` carries the German reason. Deliberately
+       *  distinct from `error` — a decline is the safety rules working, and
+       *  reporting it as a failure invites the user to simply retry. */
+      declined: z.boolean().optional(),
     })
     .passthrough(),
   sharepic_minted: z.object({ variantId: z.string(), canvasId: z.string() }).passthrough(),
@@ -446,6 +634,10 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
       // serverName labels a connector/MCP tool. Both optional + additive.
       title: z.string().optional(),
       serverName: z.string().optional(),
+      // Planner announcement sentence(s) streamed before this tool call started
+      // (split-gather mode only). Persisted on the tool-call part and rendered
+      // as muted text above the card — the durable form of gather_narration.
+      narration: z.string().optional(),
     })
     .passthrough(),
   tool_step_result: z
@@ -478,6 +670,10 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
     .passthrough(),
   text_delta: z.object({ text: z.string() }).passthrough(),
   reasoning_delta: z.object({ text: z.string() }).passthrough(),
+  // Split-gather narration: one trimmed sentence per event (backend chunker),
+  // only between tool steps of the gather phase, never after response_start.
+  // Rendered as the live status line (custom.progress), never as a message part.
+  gather_narration: z.object({ text: z.string() }).passthrough(),
   fallback: z
     .object({
       from: z.object({ id: z.string(), name: z.string() }).passthrough(),
@@ -499,7 +695,7 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
   done: z
     .object({
       threadId: z.string().nullish(),
-      citations: z.array(z.unknown()).optional(),
+      citations: z.array(chatCitationSchema).optional(),
       generatedImage: z.unknown().optional(),
       metadata: flexibleRecord.optional(),
       interrupted: z.boolean().optional(),
@@ -521,8 +717,28 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
     .object({
       text: z.string().optional(),
       answer: z.string().optional(),
-      citations: z.array(z.unknown()).optional(),
+      // `completion` carries BOTH shapes, depending on who emits it: the
+      // notebook stream sends `notebookCitationSchema`, while the citation
+      // clamp on the chat paths (agenticRespondService, chatGraphContractRouter)
+      // sends chat citations. Pinning either one alone would drop the event —
+      // and with it the clamped text — for the other half of the emitters.
+      // Notebook first: it is the discriminating one (`index` is required),
+      // and the chat schema is total, so it would otherwise swallow everything.
+      citations: z
+        .array(z.union([notebookCitationSchema.passthrough(), chatCitationSchema]))
+        .optional(),
     })
     .passthrough(),
   error: chatErrorEventPayloadSchema,
 };
+
+/**
+ * Intent → tool name used to live in TWO hand-maintained copies here and in
+ * `packages/chat`. The intersection was pulled into this file first; it now
+ * lives in the intent registry (`@gruenerator/shared/chat-intents`), which owns
+ * the whole per-intent description and derives BOTH maps — so the client's
+ * live card and the server's persisted one cannot disagree.
+ *
+ * Nothing intent-shaped belongs here any more: this file owns the wire enum
+ * (`searchIntentSchema` above), and the registry is keyed by it.
+ */

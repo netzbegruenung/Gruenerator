@@ -6,8 +6,10 @@ import {
   LITELLM_DEFAULT_BASE_URL,
   MISTRAL_API_URL,
   REGOLO_BASE_URL,
+  GREENPT_BASE_URL,
   isProviderConfigured,
 } from './providers.js';
+import { scalewayBaseUrl } from './scalewayEndpoint.js';
 
 const log = createLogger('modelDiscovery');
 
@@ -39,14 +41,24 @@ const MODEL_METADATA: Record<string, { name: string; reasoning: boolean; vision:
   'mistral-small-latest': { name: 'Mistral Small', reasoning: false, vision: false },
   'mistral-small-2503': { name: 'Mistral Small (Vision)', reasoning: false, vision: true },
   'gemma4-31b': { name: 'Gemma 4 31B', reasoning: true, vision: true },
+  // Scaleway's Gemma 4, MoE with 4B active parameters — the `heavy` stage.
+  // `reasoning: true` is the honest flag (it thinks by DEFAULT), which is
+  // exactly why its client forces `reasoning_effort: 'none'`; see
+  // scalewayThinkingFetch.ts. Vision per Scaleway's model card, recorded for
+  // the same reason as verdigado-think: without it isVisionCapable says false
+  // and the vision override would hijack image requests off this lane.
+  'gemma-4-26b-a4b-it': { name: 'Gemma 4 26B-A4B', reasoning: true, vision: true },
   // Verdigado/LiteLLM serves Gemma 4 under the 'verdigado-think' alias
-  // (resolves server-side to gemma4:31b-ctx128k); the legacy bare alias
-  // 'gemma' (gemma4:26b-ctx16k) is kept during rollout. Without these
-  // entries, isVisionCapable would return false and the vision-override
-  // would hijack every image request on the gemma-4 overflow lane to
-  // Regolo, defeating alternation.
+  // (resolves server-side to gemma4:31b-ctx128k). Without this entry,
+  // isVisionCapable would return false and the vision-override would hijack
+  // every image request on the gemma-4 overflow lane to Regolo, defeating
+  // alternation.
   'verdigado-think': { name: 'Gemma 4', reasoning: true, vision: true },
-  gemma: { name: 'Gemma 4', reasoning: true, vision: true },
+  // The bare 'gemma' alias resolves to gemma4:26b-ctx16k — a smaller model
+  // with an eighth of the context. It is EXCLUDE_IDS'd out of discovery so
+  // nobody can pick it, but the metadata stays so anyone whose stored model
+  // choice still names it keeps sane reasoning/vision flags.
+  gemma: { name: 'Gemma 4 (26B, veraltet)', reasoning: true, vision: true },
   'mistral-medium-latest': { name: 'Mistral Medium', reasoning: false, vision: false },
   'pixtral-large-latest': { name: 'Pixtral Large', reasoning: false, vision: true },
   'gpt-oss-120b': { name: 'GPT-OSS 120B', reasoning: true, vision: false },
@@ -75,20 +87,41 @@ const EXCLUDE_PATTERNS = [
   /codestral-mamba/i,
 ];
 
+/**
+ * Exact model IDs to hide from discovery. Unlike EXCLUDE_PATTERNS these must
+ * match the whole ID — a /gemma/i pattern would also swallow the Regolo
+ * 'gemma4-31b' we do want.
+ *
+ * 'gemma' is the verdigado proxy's legacy alias for gemma4:26b-ctx16k. Grünerator
+ * asks for Gemma via 'verdigado-think' (gemma4:31b-ctx128k) everywhere, so the
+ * bare alias only offers a strictly worse model: 26B instead of 31B and 16k
+ * instead of 128k context. The proxy still advertises it on /v1/models, hence
+ * the filter here rather than a change on the proxy, which serves other clients.
+ */
+const EXCLUDE_IDS = new Set(['gemma']);
+
 const CATEGORY_NAMES: Record<ProviderName, string> = {
   mistral: 'Mistral',
   litellm: 'LiteLLM',
   regolo: 'Regolo',
+  greenpt: 'GreenPT',
+  scaleway: 'Scaleway',
 };
 
-const CAT_ORDER: Record<string, number> = { Mistral: 0, Regolo: 1, LiteLLM: 2 };
+const CAT_ORDER: Record<string, number> = {
+  Mistral: 0,
+  Regolo: 1,
+  LiteLLM: 2,
+  GreenPT: 3,
+  Scaleway: 4,
+};
 
 let cachedModels: PlaygroundModel[] | null = null;
 let cacheTimestamp = 0;
 let fetchInProgress: Promise<PlaygroundModel[]> | null = null;
 
 function isExcludedModel(modelId: string): boolean {
-  return EXCLUDE_PATTERNS.some((p) => p.test(modelId));
+  return EXCLUDE_IDS.has(modelId) || EXCLUDE_PATTERNS.some((p) => p.test(modelId));
 }
 
 function deriveDisplayName(modelId: string): string {
@@ -175,9 +208,17 @@ const PROVIDER_ENDPOINTS: Record<
     },
     getApiKey: () => env.LITELLM_API_KEY ?? null,
   },
+  greenpt: {
+    url: () => `${GREENPT_BASE_URL}/models`,
+    getApiKey: () => env.GREENPT_API_KEY ?? null,
+  },
   regolo: {
     url: () => `${REGOLO_BASE_URL}/models`,
     getApiKey: () => env.REGOLO_API_KEY ?? null,
+  },
+  scaleway: {
+    url: () => `${scalewayBaseUrl()}/models`,
+    getApiKey: () => env.SCALEWAY_API_KEY ?? null,
   },
 };
 
@@ -200,6 +241,10 @@ const FALLBACK_MODELS: PlaygroundModel[] = ['mistral-medium-2604', 'mistral-smal
   );
 
 async function discoverModels(): Promise<PlaygroundModel[]> {
+  // `greenpt` and `scaleway` are deliberately absent, not forgotten: this list
+  // feeds the Playground's model picker, and both are backend-only lanes
+  // (scaleway serves the `heavy` intermediate stage). They keep their
+  // PROVIDER_ENDPOINTS entry so adding them here is a one-word change.
   const providers: ProviderName[] = ['mistral', 'litellm', 'regolo'];
   const results = await Promise.allSettled(
     providers.filter((p) => isProviderConfigured(p)).map((p) => fetchModelsForProvider(p))

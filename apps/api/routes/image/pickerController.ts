@@ -12,6 +12,7 @@ import { z } from 'zod';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import ImageSelectionService from '../../services/image/ImageSelectionService.js';
 import { enhanceWithAttribution } from '../../services/image/index.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { safeFetch } from '../../utils/validation/urlSecurity.js';
 
@@ -136,7 +137,7 @@ router.post(
         success: false,
         error: 'Internal server error during image selection',
         code: 'SELECTION_ERROR',
-        message: err.message,
+        message: toUserFacingMessage(err),
       });
     }
   }
@@ -304,7 +305,7 @@ router.get(
         success: false,
         error: 'Failed to get stock image catalog',
         code: 'STOCK_CATALOG_ERROR',
-        message: err.message,
+        message: toUserFacingMessage(err),
       });
     }
   }

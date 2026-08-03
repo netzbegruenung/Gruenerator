@@ -12,13 +12,11 @@ export type CanvasElementType = 'text' | 'image' | 'rect' | 'circle' | 'group' |
 
 /** Position that can be static or derived from state - now type-safe! */
 export type PositionValue<TState = Record<string, unknown>> =
-  | number
-  | ((state: TState, layout: LayoutResult) => number);
+  number | ((state: TState, layout: LayoutResult) => number);
 
 /** Fill color that can be static or derived from state */
 export type FillValue<TState = Record<string, unknown>> =
-  | string
-  | ((state: TState, layout: LayoutResult) => string);
+  string | ((state: TState, layout: LayoutResult) => string);
 
 /** Source value that can be static or derived from state */
 export type SourceValue<TState = Record<string, unknown>> = string | ((state: TState) => string);
@@ -165,6 +163,13 @@ export interface RectElementConfig<
   width: PositionValue<TState>;
   height: PositionValue<TState>;
   fill: FillValue<TState>;
+  /**
+   * Optionaler linearer Verlauf, Punkte relativ zur linken oberen Ecke des
+   * Rechtecks. Ist er gesetzt, gewinnt er in Konva gegen `fill`.
+   */
+  fillLinearGradientStartPoint?: { x: number; y: number };
+  fillLinearGradientEndPoint?: { x: number; y: number };
+  fillLinearGradientColorStops?: Array<number | string>;
   listening?: boolean;
   /** Corner radius for rounded rectangles. Single number for uniform radius, or array of 4 for per-corner [topLeft, topRight, bottomRight, bottomLeft] */
   cornerRadius?: PositionValue<TState> | number[];
@@ -314,10 +319,11 @@ export type CanvasConfigId =
   | 'freeform'
   | 'profilbild'
   // Österreich (de-AT) variants
-  | 'info-at'
   | 'zitat-at'
   | 'zitat-pure-at'
   | 'dreizeilen-at'
+  | 'dreizeilen-overlay-at'
+  | 'info-at'
   | 'freeform-at';
 
 /** A page in a heterogeneous multi-page document */

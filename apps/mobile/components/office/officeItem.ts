@@ -16,8 +16,12 @@ export interface OfficeItem {
   title: string;
   updatedAt: string;
   kind: OfficeKind;
-  /** BlockNote content for the doc grid preview (docs only). */
-  content?: string;
+  /**
+   * Truncated document HTML for the grid preview (docs only) — the list
+   * endpoint's `content_excerpt`, never the full body. Enough for the two lines
+   * a card shows; anything that needs the real document fetches it by id.
+   */
+  preview?: string;
   /** Server-rendered image for the canvas grid preview (canvas only). */
   thumbnailUrl?: string;
 }

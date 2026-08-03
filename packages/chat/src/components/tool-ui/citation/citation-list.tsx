@@ -1,12 +1,16 @@
 'use client';
 
-import * as React from 'react';
-import type { LucideIcon } from 'lucide-react';
 import { FileText, Globe, Code2, Newspaper, Database, File, ExternalLink } from 'lucide-react';
+import * as React from 'react';
+
+import { openSafeNavigationHref, resolveSafeNavigationHref } from '../shared/media';
+
 import { cn, Popover, PopoverContent, PopoverTrigger } from './_adapter';
 import { Citation } from './citation';
+import { SourceGlyph } from './SourceGlyph';
+
 import type { SerializableCitation, CitationType, CitationVariant } from './schema';
-import { openSafeNavigationHref, resolveSafeNavigationHref } from '../shared/media';
+import type { LucideIcon } from 'lucide-react';
 
 const TYPE_ICONS: Record<CitationType, LucideIcon> = {
   webpage: Globe,
@@ -261,6 +265,8 @@ function OverflowItem({ citation, onClick }: OverflowItemProps) {
           height={16}
           className="bg-muted size-4 shrink-0 rounded object-cover"
         />
+      ) : citation.domain && (citation.type ?? 'webpage') === 'webpage' ? (
+        <SourceGlyph domain={citation.domain} size={16} />
       ) : (
         <TypeIcon className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
       )}
@@ -300,6 +306,7 @@ function StackedCitations({ id, citations, className, onNavigate }: StackedCitat
   };
 
   return (
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- onBlur only closes the popover once focus leaves this wrapper; the actual control is the button below.
     <div ref={containerRef} onBlur={handleBlur} className="inline-flex">
       <Popover open={open}>
         <PopoverTrigger asChild>
@@ -345,6 +352,8 @@ function StackedCitations({ id, citations, className, onNavigate }: StackedCitat
                         height={18}
                         className="size-4.5 rounded-full object-cover"
                       />
+                    ) : citation.domain && (citation.type ?? 'webpage') === 'webpage' ? (
+                      <SourceGlyph domain={citation.domain} size={18} rounded="rounded-full" />
                     ) : (
                       <TypeIcon className="text-muted-foreground size-3" aria-hidden="true" />
                     )}

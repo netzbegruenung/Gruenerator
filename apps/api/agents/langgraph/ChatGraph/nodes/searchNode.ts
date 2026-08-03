@@ -6,16 +6,19 @@
  */
 
 import { dipSearchUrl, btpProtokollPdfUrl as btpPdfUrl } from '@gruenerator/contracts';
+import { isIntentAllowedForLocale, intentDeclineNote } from '@gruenerator/shared/chat-intents';
 
+import { NOTEBOOK_GATE } from '../../../../config/notebookCollectionMap.js';
 import { vectorConfig } from '../../../../config/vectorConfig.js';
 import {
   executeDirectSearch,
   // executeDirectPersonSearch, // DISABLED: Person search not production ready
   executeDirectExamplesSearch,
   executeDirectWebSearch,
-  executeResearch,
 } from '../../../../routes/chat/agents/directSearch.js';
 import { resolveExamplesLvScope } from '../../../../routes/chat/agents/lvScope.js';
+import { relevanceLabelToScore } from '../../../../routes/chat/agents/searchFormatting.js';
+import { resolveReferentialQuery } from '../../../../routes/chat/services/referentialTopic.js';
 import { getEnrichedPoliticianService } from '../../../../services/abgeordnetenwatch/index.js';
 import { type AwEnrichedResult } from '../../../../services/abgeordnetenwatch/types.js';
 import { getBundestagEnrichedService } from '../../../../services/bundestag/BundestagEnrichedService.js';
@@ -29,21 +32,28 @@ import {
   type ExampleKind,
 } from '../../../../services/examples/exampleSearchService.js';
 import {
+  crawlAndDistill,
   selectAndCrawlTopUrls,
   type CrawlableResult,
 } from '../../../../services/search/CrawlingService.js';
+import { LOW_VALUE_DOMAINS } from '../../../../services/search/domainFilters.js';
 import { expandQuery } from '../../../../services/search/QueryExpansionService.js';
 import { DEFAULT_RELEVANCE } from '../../../../services/search/rerankPipeline.js';
+import {
+  resolveSearchTier,
+  resolveTier,
+  type SearchTier,
+} from '../../../../services/search/searchDepth.js';
 import { createLogger } from '../../../../utils/logger.js';
-import { type AIWorkerPool } from '../../../../workers/types.js';
 import {
   SOURCE_PREFIX,
   type ChatGraphState,
   type DocumentSource,
   type SearchResult,
   type Citation,
-  type ResearchToolResult,
   type ExamplesToolResult,
+  type SearchErrorEntry,
+  type WebImageResult,
 } from '../types.js';
 
 import {
@@ -71,6 +81,25 @@ export {
 };
 
 const log = createLogger('ChatGraph:Search');
+
+/**
+ * How many candidates a fan-in hands downstream, BEFORE reranking.
+ *
+ * This used to be 8 — below the reranker's own input budget
+ * (RERANK_INPUT_LIMIT = 16, or 20 when notebook-scoped), so the cross-encoder
+ * could only reorder what the weaker retrieval score had already picked. Its
+ * entire value is promoting a result that scored low on the cheap metric, which
+ * a pre-cut of 8 makes impossible. Sized above the largest rerank input so the
+ * reranker is the thing that decides, not the fan-in.
+ */
+const FANIN_CANDIDATE_LIMIT = 24;
+
+/**
+ * Char budget per page for a user-pasted URL. Generous, because the user named
+ * this page: the alternative to a big budget is answering "fass das zusammen"
+ * from the headline.
+ */
+const SCRAPE_URL_TARGET_CHARS = 12_000;
 
 // ── Abgeordnetenwatch → SearchResult mapping ──────────────────────────────────
 const AW_VOTE_LABELS: Record<string, string> = {
@@ -193,8 +222,9 @@ function buildAbgeordnetenwatchResults(enriched: AwEnrichedResult): SearchResult
 }
 
 // ── Bundestag (DIP) → SearchResult mapping ────────────────────────────────────
-// dipSearchUrl / btpPdfUrl link helpers are shared with the BundestagCard via
-// @gruenerator/contracts (imported at the top of this file).
+// dipSearchUrl / btpPdfUrl link helpers live in @gruenerator/contracts
+// (imported at the top of this file). Titles double as citation labels
+// ("Drucksache 21/123 · Antrag") in the standard sources footer.
 function btDrucksacheResult(d: BtDrucksache, relevance: number): SearchResult {
   const content =
     [d.titel, d.datum, d.urheber.length > 0 ? `Urheber: ${d.urheber.join(', ')}` : null]
@@ -225,7 +255,16 @@ function btSpeechResult(s: BtSpeech, title: string, relevance: number): SearchRe
  * respond node. Everything here is already trimmed by the client — this only
  * formats German prose and assigns relevance; no raw DIP shapes leak through.
  */
-function buildBundestagResults(enriched: BtEnrichedResult): SearchResult[] {
+/**
+ * `standalone` controls the two explanatory entries at the end.
+ *
+ * When DIP is the whole turn (`bundestag` intent), a note or an explicit "found
+ * nothing" IS the answer and must reach the model — otherwise it invents one.
+ * When DIP is only one source among several, those same entries are noise: they
+ * carry no parliamentary content, compete for the rerank input budget, and can
+ * be cited as a source. There the caller wants substance or nothing.
+ */
+function buildBundestagResults(enriched: BtEnrichedResult, standalone = true): SearchResult[] {
   const results: SearchResult[] = [];
 
   if (enriched.kind === 'person' && enriched.person) {
@@ -308,6 +347,8 @@ function buildBundestagResults(enriched: BtEnrichedResult): SearchResult[] {
     });
   }
 
+  if (!standalone) return results;
+
   if (enriched.notes.length > 0) {
     results.push({
       source: 'bundestag',
@@ -328,6 +369,27 @@ function buildBundestagResults(enriched: BtEnrichedResult): SearchResult[] {
   }
 
   return results;
+}
+
+/**
+ * Last stop before Qdrant for the collection lists nobody asked for.
+ *
+ * Qdrant is shared across instances — there is one `QDRANT_URL` — so hiding a
+ * notebook in the frontend registry alone would leave the chat happily citing
+ * its sources. This is where that is prevented for the *implicit* branches of
+ * the selection chain below.
+ *
+ * Deliberately NOT applied to the three explicit branches:
+ *   - `notebookCollectionIds` — the turn named the notebook (`@berlin`), which
+ *     is precisely the case a hidden notebook stays reachable for.
+ *   - the agent's `allowedCollections` / `defaultCollection` — picking an agent
+ *     whose entire purpose is one Landesverband is asking as clearly as a
+ *     mention does. Such an agent is already gone from the inventory on an
+ *     instance that hides it; filtering its collections here would leave it
+ *     selectable but silently answerless, which is worse than either tier.
+ */
+function dropCollectionsHiddenByInstance(collectionIds: readonly string[]): string[] {
+  return NOTEBOOK_GATE.dropHiddenCollections(collectionIds);
 }
 
 /**
@@ -355,7 +417,7 @@ export function getSupplementaryCollectionsForLocale(locale: string | undefined)
 export interface DocumentSearchParallelResult {
   results: SearchResult[];
   searchedCollections: string[];
-  errors: { source: string; message: string }[];
+  errors: SearchErrorEntry[];
 }
 
 export async function executeDocumentSearchParallel(
@@ -378,10 +440,12 @@ export async function executeDocumentSearchParallel(
     const dc = agentConfig.toolRestrictions.defaultCollection;
     collectionsToSearch = [dc, ...getSupplementaryCollectionsForLocale(userLocale)];
   } else if (defaultNotebookCollectionIds && defaultNotebookCollectionIds.length > 0) {
-    collectionsToSearch = defaultNotebookCollectionIds;
+    collectionsToSearch = dropCollectionsHiddenByInstance(defaultNotebookCollectionIds);
     log.info(`[Search] Using default notebook collections: ${collectionsToSearch.join(', ')}`);
   } else {
-    collectionsToSearch = getDefaultCollectionsForLocale(userLocale);
+    collectionsToSearch = dropCollectionsHiddenByInstance(
+      getDefaultCollectionsForLocale(userLocale)
+    );
     log.info(`[Search] Using locale-based collections: ${collectionsToSearch.join(', ')}`);
   }
   const uniqueCollections = [...new Set(collectionsToSearch)];
@@ -391,7 +455,7 @@ export async function executeDocumentSearchParallel(
   // (the collection's defaultFilter already handles this)
   const searchFilters = filters || undefined;
 
-  const collectedErrors: { source: string; message: string }[] = [];
+  const collectedErrors: SearchErrorEntry[] = [];
   const searchPromises = uniqueCollections.flatMap((collection) =>
     queries.map((sq) => {
       const params: Parameters<typeof executeDirectSearch>[0] = {
@@ -418,6 +482,17 @@ export async function executeDocumentSearchParallel(
 
   for (const searchResult of searchResults) {
     if (!searchResult?.results) continue;
+    // The search service does NOT throw on a backend failure — it resolves with
+    // `{ error: true, results: [] }`. The .catch above therefore never fires,
+    // and an empty array is truthy, so a Qdrant outage used to slip through
+    // here as "no hits" with no error recorded anywhere.
+    if (searchResult.error) {
+      collectedErrors.push({
+        source: `documents:${searchResult.collection}`,
+        message: searchResult.message ?? 'Suche fehlgeschlagen',
+      });
+      continue;
+    }
     for (const r of searchResult.results) {
       if (r.url && seenUrls.has(r.url)) continue;
       if (r.url) seenUrls.add(r.url);
@@ -427,7 +502,7 @@ export async function executeDocumentSearchParallel(
         title: deriveCitationTitle(r.source, r.url, searchResult.collection),
         content: r.excerpt || '',
         url: r.url || undefined,
-        relevance: r.relevance === 'Sehr hoch' ? 0.9 : r.relevance === 'Hoch' ? 0.7 : 0.5,
+        relevance: relevanceLabelToScore(r.relevance),
         contentType: r.contentType || undefined,
         documentId: r.documentId,
         chunkIndex: r.chunkIndex,
@@ -438,61 +513,113 @@ export async function executeDocumentSearchParallel(
   }
 
   allResults.sort((a, b) => (b.relevance || 0) - (a.relevance || 0));
-  // Only surface errors when the source produced zero usable results.
-  // Partial failures (some collections OK, some failed) are already logged as warns.
-  const errors = allResults.length === 0 ? collectedErrors : [];
+  // Report a collection only when EVERY one of its queries failed — that
+  // corpus contributed nothing and the answer is missing it entirely.
+  // Previously all partial failures were dropped as soon as any other
+  // collection returned something, so an answer built on a quarter of the
+  // corpus looked complete. Per-query failures within a still-working
+  // collection stay warns: the corpus was reached, one phrasing missed.
+  const failuresPerCollection = new Map<string, number>();
+  for (const err of collectedErrors) {
+    failuresPerCollection.set(err.source, (failuresPerCollection.get(err.source) ?? 0) + 1);
+  }
+  const errors =
+    allResults.length === 0
+      ? collectedErrors
+      : collectedErrors.filter(
+          (err) => (failuresPerCollection.get(err.source) ?? 0) >= queries.length
+        );
   return {
-    results: allResults.slice(0, 8),
+    results: allResults.slice(0, FANIN_CANDIDATE_LIMIT),
     searchedCollections: uniqueCollections,
     errors,
   };
 }
 
 /**
- * Execute web search with query expansion and crawling (extracted from case 'web').
+ * The ONE web retrieval path in this node — used by the single-source `web`/
+ * `research` case, by the multi-source fan-in, by the empty-documents fallback
+ * and by SearchGraph's executor.
+ *
+ * It used to be two functions. `executeWebSearchParallel` (multi-source, empty-doc
+ * fallback, SearchGraph) hard-coded `maxResults: 5` and passed no tier at all,
+ * while `case 'web'` honoured the tier — so a comparison question, which is
+ * exactly what routes to multi-source, ended up shallower than a plain one.
+ *
+ * Query expansion is gone. It bought breadth by paying for 2–3 calls; Linkup
+ * offers the same fan-out inside one call (`adjacentSearches` on the upper
+ * tiers), and on the deep tier the engine iterates by itself anyway. The
+ * behavioural replacement for "one phrasing missed" is a prompt rule telling the
+ * loop to reformulate ONCE after a weak result — a decision made with the
+ * results in hand instead of variants bought blind.
  */
 export interface WebSearchParallelResult {
   results: SearchResult[];
-  errors: { source: string; message: string }[];
+  errors: SearchErrorEntry[];
+  /** Image hits — only ever populated when the caller passed `includeImages`. */
+  images: WebImageResult[];
 }
 
-export async function executeWebSearchParallel(
-  query: string,
-  aiWorkerPool: AIWorkerPool
-): Promise<WebSearchParallelResult> {
-  const collectedErrors: { source: string; message: string }[] = [];
-  let allWebQueries = [query];
-  try {
-    const expanded = await expandQuery(query, aiWorkerPool);
-    if (expanded.alternatives.length > 0) {
-      allWebQueries = [query, ...expanded.alternatives];
-      log.info(`[Search] Expanded web query into ${allWebQueries.length} variants`);
-    }
-  } catch (err: unknown) {
-    log.warn(
-      `[Search] Query expansion failed, using original: ${err instanceof Error ? err.message : String(err)}`
-    );
-  }
+export interface ExecuteWebSearchOptions {
+  tier?: SearchTier;
+  /** Crawl this many top results for full page content. 0 / omitted = no crawl. */
+  crawlTopUrls?: number;
+  crawlTimeoutMs?: number;
+  /**
+   * Site scope the user named this turn ("such auf zeit.de"). One turn only, never
+   * sticky — a scope that silently keeps applying to later questions is worse than
+   * none, because the user cannot see why results went missing.
+   */
+  includeDomains?: readonly string[];
+  /** ISO window (YYYY-MM-DD), from the classifier's `filters.date_from/date_to`. */
+  fromDate?: string;
+  toDate?: string;
+  /**
+   * Ask for image hits too. Deliberately NOT part of the shared `webScope` object:
+   * only the single-source `web`/`research` path collects the images, so setting it
+   * on the fan-in or the empty-document fallback would pay for hits their callers
+   * throw away — the very mistake the pre-call domain filtering fixed.
+   */
+  includeImages?: boolean;
+}
 
-  const webPromises = allWebQueries.map((q) =>
-    executeDirectWebSearch({
-      query: q,
-      searchType: 'general',
-      maxResults: 5,
-    }).catch((err: unknown) => {
-      const msg = err instanceof Error ? err.message : String(err);
-      log.warn(`[Search] Web search failed for variant "${q}": ${msg}`);
-      collectedErrors.push({ source: 'web', message: msg });
-      return null;
-    })
-  );
-  const webResults = await Promise.all(webPromises);
+export async function executeWebSearch(
+  query: string,
+  options: ExecuteWebSearchOptions = {}
+): Promise<WebSearchParallelResult> {
+  const collectedErrors: SearchErrorEntry[] = [];
+
+  const webResult = await executeDirectWebSearch({
+    query,
+    searchType: 'general',
+    ...(options.tier ? { tier: options.tier } : {}),
+    ...(options.includeDomains?.length ? { includeDomains: options.includeDomains } : {}),
+    ...(options.fromDate ? { fromDate: options.fromDate } : {}),
+    ...(options.toDate ? { toDate: options.toDate } : {}),
+    ...(options.includeImages ? { includeImages: true } : {}),
+    // The default block list now rides along on every classifier-path search, so
+    // the domains we used to throw away AFTER paying are never fetched. Dropped
+    // automatically when an include scope is set (see executeDirectWebSearch):
+    // "search zeit.de but not amazon.de" is a scope nobody asked for.
+    excludeDomains: LOW_VALUE_DOMAINS,
+  }).catch((err: unknown) => {
+    const msg = err instanceof Error ? err.message : String(err);
+    log.warn(`[Search] Web search failed for "${query}": ${msg}`);
+    collectedErrors.push({ source: 'web', message: msg });
+    return null;
+  });
 
   const seenWebUrls = new Set<string>();
-  const allWebResults: SearchResult[] = [];
+  let allWebResults: SearchResult[] = [];
 
-  for (const webResult of webResults) {
-    if (!webResult?.results) continue;
+  // A backend failure resolves rather than throws, so the .catch above never
+  // fires for it — an outage would otherwise read as "the web has nothing".
+  if (webResult?.error) {
+    collectedErrors.push({
+      source: 'web',
+      message: webResult.message ?? 'Websuche fehlgeschlagen',
+    });
+  } else if (webResult?.results) {
     for (const r of webResult.results) {
       if (r.url && seenWebUrls.has(r.url)) continue;
       if (r.url) seenWebUrls.add(r.url);
@@ -507,9 +634,39 @@ export async function executeWebSearchParallel(
   }
 
   allWebResults.sort((a, b) => (b.relevance || 0) - (a.relevance || 0));
-  // Only surface when zero usable results — partial variant failures are normal.
+  allWebResults = allWebResults.slice(0, FANIN_CANDIDATE_LIMIT);
+
+  if (options.crawlTopUrls && allWebResults.length > 0) {
+    try {
+      const crawled = await selectAndCrawlTopUrls(
+        allWebResults.filter((r) => r.url) as CrawlableResult[],
+        query,
+        { maxUrls: options.crawlTopUrls, timeout: options.crawlTimeoutMs ?? 3000 }
+      );
+      allWebResults = crawled.map((r) => ({
+        ...r,
+        content: r.fullContent || r.content || '',
+        source: (r.source as string) || 'web',
+        title: r.title || '',
+      }));
+      const crawledCount = crawled.filter((r) => r.crawled).length;
+      if (crawledCount > 0) {
+        log.info(`[Search] Crawled ${crawledCount} web results for full content`);
+      }
+    } catch (err: unknown) {
+      log.warn(
+        `[Search] Crawling failed, using snippets: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
+  }
+
+  // Only surface when nothing usable came back — a partial failure that still
+  // produced results is a warn, not a user-facing degradation.
   const errors = allWebResults.length === 0 ? collectedErrors : [];
-  return { results: allWebResults.slice(0, 8), errors };
+  // Images bypass the dedup, rerank, crawl and cap above entirely: none of it
+  // applies to a link with no text, and running them through the result pipeline
+  // is precisely how they would end up as content-less citations.
+  return { results: allWebResults, errors, images: webResult?.images ?? [] };
 }
 
 /**
@@ -521,7 +678,7 @@ export async function executeWebSearchParallel(
  * don't dominate over high-quality docs before the cross-encoder runs.
  */
 export function normalizeScore(r: SearchResult): number {
-  const { webScoreCeiling } = vectorConfig.get('rerank');
+  const { webScoreCeiling, dipScoreCeiling } = vectorConfig.get('rerank');
 
   if (r.similarityScore != null && r.source.startsWith(SOURCE_PREFIX.GRUENERATOR)) {
     return Math.min(1.0, r.similarityScore * 1.05);
@@ -534,6 +691,19 @@ export function normalizeScore(r: SearchResult): number {
   if (r.source === SOURCE_PREFIX.WEB) {
     const raw = r.relevance ?? DEFAULT_RELEVANCE;
     return Math.min(webScoreCeiling, raw * webScoreCeiling);
+  }
+
+  // DIP results carry no similarity at all: `buildBundestagResults` assigns
+  // relevance by POSITION (1 for the person/document header, 0.9 − 0.02·i for
+  // speeches, …). Those numbers say "first in its list", not "close to the
+  // query", so on the shared [0,1] scale they outrank genuinely similar
+  // collection chunks — the same way raw web rank-decay would without the
+  // ceiling above. Compress them into the same band so the cross-encoder, not
+  // the list order, decides. Falls through to the generic branch for every
+  // other source, unchanged.
+  if (r.source === SOURCE_PREFIX.BUNDESTAG) {
+    const raw = r.relevance ?? DEFAULT_RELEVANCE;
+    return Math.min(dipScoreCeiling, raw * dipScoreCeiling);
   }
 
   return r.relevance ?? DEFAULT_RELEVANCE;
@@ -576,7 +746,7 @@ export function mergeSearchResults(...resultSets: SearchResult[][]): SearchResul
 export interface MultiDocFanoutResult {
   perSourceResults: Record<string, SearchResult[]>;
   searchedCollections: string[];
-  errors: { source: string; message: string }[];
+  errors: SearchErrorEntry[];
 }
 
 export async function executeMultiDocFanout(
@@ -585,7 +755,7 @@ export async function executeMultiDocFanout(
   agentConfig: AgentConfig
 ): Promise<MultiDocFanoutResult> {
   const perSourceLimit = Math.max(3, Math.floor(12 / sources.length));
-  const errors: { source: string; message: string }[] = [];
+  const errors: SearchErrorEntry[] = [];
   const collections = new Set<string>();
 
   const documentSearchService = (
@@ -631,8 +801,14 @@ export async function executeMultiDocFanout(
           log.warn(`[Search] Skipping wolke source ${src.id}: no userId on agentConfig`);
           return [src.id, []];
         }
-        const results = await retrieveWolkeFile(src, perSourceLimit, agentConfig.userId);
-        return [src.id, results];
+        const wolkeResult = await retrieveWolkeFile(src, perSourceLimit, agentConfig.userId);
+        if (wolkeResult.error) {
+          errors.push({
+            source: `${SOURCE_PREFIX.WOLKE}${src.id}`,
+            message: wolkeResult.error.message,
+          });
+        }
+        return [src.id, wolkeResult.results];
       }
 
       if (src.kind === 'connect') {
@@ -641,8 +817,18 @@ export async function executeMultiDocFanout(
           log.warn(`[Search] Skipping connect source ${src.id}: no userId on agentConfig`);
           return [src.id, []];
         }
-        const results = await retrieveConnectFile(src, perSourceLimit, agentConfig.userId);
-        return [src.id, results];
+        const connectResult = await retrieveConnectFile(src, perSourceLimit, agentConfig.userId);
+        if (connectResult.error) {
+          errors.push({
+            source: `${SOURCE_PREFIX.CONNECT}${src.id}`,
+            message: connectResult.error.message,
+            // Expired OAuth grant: the user can fix this one, so it must stay
+            // distinguishable all the way to the emitter (which picks
+            // connect_reauth_required over the generic source_unavailable).
+            ...(connectResult.error.reauth === true && { reauth: true }),
+          });
+        }
+        return [src.id, connectResult.results];
       }
 
       if (src.kind === 'notebook' && src.collectionIds && src.collectionIds.length > 0) {
@@ -668,7 +854,7 @@ export async function executeMultiDocFanout(
               title: deriveCitationTitle(r.source, r.url, response.collection),
               content: r.excerpt || '',
               url: r.url || undefined,
-              relevance: r.relevance === 'Sehr hoch' ? 0.9 : r.relevance === 'Hoch' ? 0.7 : 0.5,
+              relevance: relevanceLabelToScore(r.relevance),
               contentType: r.contentType || undefined,
               documentId: r.documentId,
               chunkIndex: r.chunkIndex,
@@ -711,11 +897,55 @@ export async function executeMultiDocFanout(
  */
 export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
   const startTime = Date.now();
-  const { intent, searchQuery, agentConfig } = state;
+  const { intent, agentConfig } = state;
+
+  // A referential ask carries no subject of its own. Taken verbatim it BECAME
+  // the query — "Ja, bitte recherchiere das jetzt im Web" produced a deep
+  // research run about "Die Grünen in Österreich" instead of the renewables
+  // question from the turn before, and still shipped with "Hohe Konfidenz, 20
+  // Quellen". Resolved once here so every search-class intent benefits, not
+  // only the forced path in the router.
+  const referential = resolveReferentialQuery(state.searchQuery ?? '', state.messages ?? []);
+  const searchQuery = referential.query;
+  if (referential.inherited) {
+    log.info(
+      `[Search] Referential query resolved to the prior turn's topic: "${searchQuery.slice(0, 60)}"`
+    );
+  }
 
   const detectedFilters = state.detectedFilters || null;
   if (detectedFilters) {
     log.info(`[Search] Applying metadata filters: ${JSON.stringify(detectedFilters)}`);
+  }
+
+  // Resolved ONCE for every path that touches the web in this node — the single
+  // `web`/`research` case, the multi-source fan-in and the empty-documents
+  // fallback. They used to disagree: only the first honoured the tier, so the
+  // comparison questions that route to multi-source got the shallowest search.
+  const webTier = resolveSearchTier({
+    intent,
+    explicitDeep: state.explicitDeepRequest ?? false,
+  });
+
+  /**
+   * Scope for every web call in this node, resolved once alongside the tier.
+   *
+   * The dates come from `filters.date_from`/`date_to`, which the classifier has
+   * been emitting all along — they only ever reached the Qdrant filter, so "seit
+   * Januar" narrowed the document search and did nothing at all to the web search.
+   * The site scope is deterministic (`extractDomainScope`), so it needs no prompt
+   * budget and no model call.
+   *
+   * Spread into the options objects below rather than merged per call site: the
+   * three web paths in this node have drifted apart once already.
+   */
+  const webScope = {
+    ...(state.webSiteScope?.include.length ? { includeDomains: state.webSiteScope.include } : {}),
+    ...(detectedFilters?.date_from ? { fromDate: detectedFilters.date_from } : {}),
+    ...(detectedFilters?.date_to ? { toDate: detectedFilters.date_to } : {}),
+  } satisfies Partial<ExecuteWebSearchOptions>;
+  if (Object.keys(webScope).length > 0) {
+    log.info(`[Search] Web scope: ${JSON.stringify(webScope)}`);
   }
 
   const displayQuery = searchQuery || state.researchBrief || '(no query)';
@@ -736,9 +966,13 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
     let results: SearchResult[] = [];
     let citations: Citation[] = [];
     let searchedCollections: string[] = [];
-    let researchMeta: ResearchToolResult | null = null;
     let examplesResult: ExamplesToolResult | null = null;
-    let bundestagResult: BtEnrichedResult | null = null;
+    let webImageResults: WebImageResult[] = [];
+    // Backend failures on the single-source paths. The multi-source paths have
+    // collected these all along; here they were only logged, so a Qdrant or
+    // SearXNG outage reached the user as "0 Treffer" — and the model then
+    // confidently said there is nothing on the topic.
+    const singleSourceErrors: SearchErrorEntry[] = [];
 
     const searchSources = state.searchSources || [];
     const documentSources = state.documentSources || [];
@@ -796,7 +1030,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       type SourceResult = {
         results: SearchResult[];
         collections: string[];
-        errors: { source: string; message: string }[];
+        errors: SearchErrorEntry[];
       };
       const sourcePromises: Promise<SourceResult>[] = [];
 
@@ -828,9 +1062,34 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         );
       }
 
+      // DIP alongside the party collections. de-AT is excluded for the same
+      // reason as the `bundestag` intent below: the DIP covers Bundestag and
+      // Bundesrat only, so for an Austrian account this source can contribute
+      // nothing and would just spend a turn's latency budget.
+      if (searchSources.includes('bundestag') && state.userLocale !== 'de-AT') {
+        sourcePromises.push(
+          getBundestagEnrichedService()
+            .search(query)
+            .then((enriched) => ({
+              results: buildBundestagResults(enriched, false),
+              collections: ['bundestag'],
+              errors: [] as SearchErrorEntry[],
+            }))
+            .catch((err) => {
+              const msg = err instanceof Error ? err.message : String(err);
+              log.error(`[Search] Bundestag search failed in multi-source: ${msg}`);
+              return {
+                results: [],
+                collections: [],
+                errors: [{ source: 'bundestag', message: msg }],
+              };
+            })
+        );
+      }
+
       if (searchSources.includes('web')) {
         sourcePromises.push(
-          executeWebSearchParallel(query, state.aiWorkerPool)
+          executeWebSearch(query, { tier: webTier, ...webScope })
             .then((r) => ({ results: r.results, collections: ['web'], errors: r.errors }))
             .catch((err) => {
               const msg = err instanceof Error ? err.message : String(err);
@@ -879,9 +1138,28 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       }
 
       const sourceResults = await Promise.all(sourcePromises);
-      const allResults = sourceResults.map((s) => s.results);
       searchedCollections = sourceResults.flatMap((s) => s.collections);
       const aggregatedErrors = sourceResults.flatMap((s) => s.errors);
+
+      // Give every source that returned something a share of the merge window
+      // BEFORE the global sort, the way SearchGraph's executor does it.
+      //
+      // Without this the document side can occupy the window on its own: it asks
+      // for 3 hits per collection, so the four default DE collections yield 12 —
+      // and with subQueries, 24, already past `mergeOverfetch`. Since collection
+      // hits carry real similarity (~0.78–0.88 normalized) and DIP's positional
+      // relevance is capped below that by design, a global sort would then drop
+      // every DIP result — after the MCP round trip had already been paid for.
+      // The cross-encoder can only arbitrate between sources it actually sees.
+      const { mergeOverfetch } = vectorConfig.get('rerank');
+      const nonEmpty = sourceResults.filter((s) => s.results.length > 0);
+      const perSourceCap = Math.max(4, Math.floor(mergeOverfetch / Math.max(1, nonEmpty.length)));
+      const allResults = sourceResults.map((s) => s.results.slice(0, perSourceCap));
+      if (nonEmpty.length > 1) {
+        log.info(
+          `[Search] Merge window: ${perSourceCap}/source over ${nonEmpty.length} sources (${sourceResults.map((s) => s.results.length).join('+')} found)`
+        );
+      }
 
       results = mergeSearchResults(...allResults);
 
@@ -934,67 +1212,6 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
     // is present — the multi-doc fan-out above is its real path.
     const effectiveIntent = intent === 'compare' ? 'search' : intent;
     switch (effectiveIntent) {
-      case 'research': {
-        // Dynamic research depth based on query complexity
-        const complexity = state.complexity || 'moderate';
-        const depthConfig = {
-          simple: { depth: 'quick' as const, maxSources: 4 },
-          moderate: { depth: 'quick' as const, maxSources: 6 },
-          complex: { depth: 'thorough' as const, maxSources: 10 },
-        };
-        const { depth, maxSources } = depthConfig[complexity];
-
-        // Pass the user's actual short query to the search planner.
-        // The brief is for orienting the synthesis LLM, not for SearXNG —
-        // a 460-char paragraph as a search string returns near-random hits.
-        const question = searchQuery || state.researchBrief || '';
-        log.info(
-          `[Search] Research depth: ${depth}, maxSources: ${maxSources} (complexity: ${complexity}, brief: ${!!state.researchBrief})`
-        );
-
-        const researchResult = await executeResearch({
-          question,
-          brief: state.researchBrief,
-          depth,
-          maxSources,
-          complexity,
-          userLocale: state.userLocale,
-          aiWorkerPool: state.aiWorkerPool,
-          ...(state.onResearchProgress && { onProgress: state.onResearchProgress }),
-        });
-
-        // Convert research citations to SearchResult format
-        results =
-          researchResult.citations?.map((c, i) => ({
-            source: 'research',
-            title: c.title,
-            content: c.snippet || '',
-            url: c.url,
-            relevance: 1 - i * 0.1,
-          })) || [];
-
-        // Build enriched citations from results
-        citations = buildCitations(results);
-
-        // Capture full metadata for the persisted tool-call payload.
-        // The synthesized `answer` is consumed directly by respondNode via
-        // `state.researchMeta` (wrapper-mode prompt), so we no longer
-        // need to unshift it into `results` as a fake `research_synthesis`
-        // chunk — that workaround caused drift when small response models
-        // treated it as one source among many and contradicted the artifact.
-        researchMeta = {
-          answer: researchResult.answer,
-          citations,
-          confidence: researchResult.confidence,
-          searchSteps: researchResult.searchSteps,
-          followUpQuestions: researchResult.followUpQuestions,
-        };
-        log.info(
-          `[Search] researchMeta captured (answer_len=${researchResult.answer?.length ?? 0}, confidence=${researchResult.confidence}, citations=${citations.length}, follow_ups=${researchResult.followUpQuestions.length})`
-        );
-        break;
-      }
-
       case 'search': {
         // Document chat: search within multi-selected user documents
         if (state.documentChatIds && state.documentChatIds.length > 0) {
@@ -1029,9 +1246,9 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
             }
             searchedCollections.push('documentchat');
           } catch (err: unknown) {
-            log.warn(
-              `[Search] Document-chat search failed: ${err instanceof Error ? err.message : String(err)}`
-            );
+            const msg = err instanceof Error ? err.message : String(err);
+            log.warn(`[Search] Document-chat search failed: ${msg}`);
+            singleSourceErrors.push({ source: 'documents:documentchat', message: msg });
           }
           break;
         }
@@ -1090,9 +1307,9 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
             }
             searchedCollections.push(fromUserNotebook ? 'user-notebook' : 'user-documents');
           } catch (err: unknown) {
-            log.warn(
-              `[Search] Document-scoped search failed: ${err instanceof Error ? err.message : String(err)}`
-            );
+            const msg = err instanceof Error ? err.message : String(err);
+            log.warn(`[Search] Document-scoped search failed: ${msg}`);
+            singleSourceErrors.push({ source: 'documents:scoped', message: msg });
           }
           break;
         }
@@ -1112,12 +1329,14 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
           state.defaultNotebookCollectionIds &&
           state.defaultNotebookCollectionIds.length > 0
         ) {
-          collectionsToSearch = state.defaultNotebookCollectionIds;
+          collectionsToSearch = dropCollectionsHiddenByInstance(state.defaultNotebookCollectionIds);
           log.info(
             `[Search] Using default notebook collections: ${collectionsToSearch.join(', ')}`
           );
         } else {
-          collectionsToSearch = getDefaultCollectionsForLocale(state.userLocale);
+          collectionsToSearch = dropCollectionsHiddenByInstance(
+            getDefaultCollectionsForLocale(state.userLocale)
+          );
           log.info(`[Search] Using locale-based collections: ${collectionsToSearch.join(', ')}`);
         }
         // Deduplicate in case of overlap
@@ -1164,9 +1383,9 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
               params.filters = detectedFilters;
             }
             return executeDirectSearch(params).catch((err: unknown) => {
-              log.warn(
-                `[Search] Collection ${collection} failed for query "${sq}": ${err instanceof Error ? err.message : String(err)}`
-              );
+              const msg = err instanceof Error ? err.message : String(err);
+              log.warn(`[Search] Collection ${collection} failed for query "${sq}": ${msg}`);
+              singleSourceErrors.push({ source: `documents:${collection}`, message: msg });
               return null;
             });
           })
@@ -1180,6 +1399,14 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
 
         for (const searchResult of searchResults) {
           if (!searchResult?.results) continue;
+          // Resolved-not-thrown failure (see executeDocumentSearchParallel).
+          if (searchResult.error) {
+            singleSourceErrors.push({
+              source: `documents:${searchResult.collection}`,
+              message: searchResult.message ?? 'Suche fehlgeschlagen',
+            });
+            continue;
+          }
           for (const r of searchResult.results) {
             // Deduplicate by URL
             if (r.url && seenUrls.has(r.url)) continue;
@@ -1190,7 +1417,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
               title: deriveCitationTitle(r.source, r.url, searchResult.collection),
               content: r.excerpt || '',
               url: r.url || undefined,
-              relevance: r.relevance === 'Sehr hoch' ? 0.9 : r.relevance === 'Hoch' ? 0.7 : 0.5,
+              relevance: relevanceLabelToScore(r.relevance),
               contentType: r.contentType || undefined,
               documentId: r.documentId,
               chunkIndex: r.chunkIndex,
@@ -1209,6 +1436,26 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
 
         // Track which collections were searched for observability
         searchedCollections = uniqueCollections;
+
+        // Empty internal search → go to the web, same rule the loop path got
+        // (loopGuards.emptyResultFallback). This path could not follow it:
+        // `search` is an exclusive, one-time intent choice, so a turn that
+        // found nothing internally answered from the model's memory — ungrounded
+        // and, to the reader, indistinguishable from a researched answer.
+        //
+        // NOT for a notebook-scoped turn: "search MY documents" is an explicit
+        // scope, and silently widening it to the open web would answer a
+        // different question than the one asked. There, empty means empty.
+        if (results.length === 0 && !isNotebookScoped && query.length > 0) {
+          log.info('[Search] internal collections returned nothing — falling back to the web');
+          const webFallback = await executeWebSearch(query, { tier: webTier, ...webScope });
+          if (webFallback.results.length > 0) {
+            results = webFallback.results;
+            citations = buildCitations(results);
+            searchedCollections = [...uniqueCollections, 'web'];
+          }
+          singleSourceErrors.push(...webFallback.errors);
+        }
         break;
       }
 
@@ -1242,7 +1489,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       //       title: r.source || r.title,
       //       content: r.excerpt || '',
       //       url: r.url || undefined,
-      //       relevance: r.relevance === 'Sehr hoch' ? 0.9 : r.relevance === 'Hoch' ? 0.7 : 0.5,
+      //       relevance: relevanceLabelToScore(r.relevance),
       //     })) || []
       //   );
       //
@@ -1255,13 +1502,12 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         // the Abgeordnetenwatch API. DE-only source: for AT users (reachable
         // here only via a forced @abgeordnetenwatch mention, since the classifier
         // downgrades AT) return a graceful decline instead of empty data.
-        if (state.userLocale === 'de-AT') {
+        if (!isIntentAllowedForLocale('abgeordnetenwatch', state.userLocale)) {
           results = [
             {
               source: 'abgeordnetenwatch',
               title: 'Nur für Deutschland verfügbar',
-              content:
-                'Abgeordnetenwatch erfasst nur deutsche Parlamente (Bundestag/Landtage). Für den österreichischen Nationalrat liegen hier keine Daten vor.',
+              content: intentDeclineNote('abgeordnetenwatch') ?? '',
               relevance: 1,
             },
           ];
@@ -1282,13 +1528,12 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         // via the Bundestag MCP / DIP. DE-only source: for AT users (reachable
         // here only via a forced @bundestag mention, since the classifier
         // downgrades AT) return a graceful decline instead of empty data.
-        if (state.userLocale === 'de-AT') {
+        if (!isIntentAllowedForLocale('bundestag', state.userLocale)) {
           results = [
             {
               source: 'bundestag',
               title: 'Nur für Deutschland verfügbar',
-              content:
-                'Das DIP erfasst nur den Deutschen Bundestag und Bundesrat. Für den österreichischen Nationalrat liegen hier keine Daten vor.',
+              content: intentDeclineNote('bundestag') ?? '',
               relevance: 1,
             },
           ];
@@ -1296,9 +1541,6 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
           break;
         }
         const enriched = await getBundestagEnrichedService().search(searchQuery || '');
-        // Stash the structured result for the dedicated BundestagCard; the flat
-        // `results` below stay for text grounding + inline citations.
-        bundestagResult = enriched;
         results = buildBundestagResults(enriched);
         log.info(
           `[Search] Bundestag (${enriched.kind}): ${results.length} results in ${Date.now() - startTime}ms`
@@ -1307,87 +1549,32 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         break;
       }
 
+      // `research` is no longer a separate engine — it is this path at a deeper
+      // tier. It used to call executeResearch, which handed the whole question
+      // to Linkup `depth=deep, outputType=sourcedAnswer`: LINKUP wrote the
+      // answer, we rendered it in a card, and the model only framed it in two
+      // sentences. Retrieval and answer-writing are separated again, so every
+      // [N] in a research answer is now backed by our own source registry.
+      case 'research':
       case 'web': {
-        // Web search with query expansion and content crawling
-        const query = truncateQuery(searchQuery || '');
+        // The brief is a fallback only: it orients the synthesis LLM, but a
+        // 460-char paragraph as a search string returns near-random hits.
+        const query = truncateQuery(searchQuery || state.researchBrief || '');
+        state.onResearchProgress?.(resolveTier(webTier).progress);
 
-        // A2: Expand query for broader coverage (web and research intents)
-        let allWebQueries = [query];
-        try {
-          const expanded = await expandQuery(query, state.aiWorkerPool);
-          if (expanded.alternatives.length > 0) {
-            allWebQueries = [query, ...expanded.alternatives];
-            log.info(`[Search] Expanded web query into ${allWebQueries.length} variants`);
-          }
-        } catch (err: unknown) {
-          log.warn(
-            `[Search] Query expansion failed, using original: ${err instanceof Error ? err.message : String(err)}`
-          );
-        }
-
-        // Search all query variants in parallel
-        const webPromises = allWebQueries.map((q) =>
-          executeDirectWebSearch({
-            query: q,
-            searchType: 'general',
-            maxResults: 5,
-          }).catch((err: unknown) => {
-            log.warn(
-              `[Search] Web search failed for variant "${q}": ${err instanceof Error ? err.message : String(err)}`
-            );
-            return null;
-          })
-        );
-        const webResults = await Promise.all(webPromises);
-
-        // Merge and deduplicate by URL
-        const seenWebUrls = new Set<string>();
-        const allWebResults: SearchResult[] = [];
-
-        for (const webResult of webResults) {
-          if (!webResult?.results) continue;
-          for (const r of webResult.results) {
-            if (r.url && seenWebUrls.has(r.url)) continue;
-            if (r.url) seenWebUrls.add(r.url);
-            allWebResults.push({
-              source: 'web',
-              title: r.title,
-              content: r.snippet || '',
-              url: r.url,
-              relevance: 1 - (r.rank - 1) * 0.15,
-            });
-          }
-        }
-
-        // Sort by relevance and limit
-        allWebResults.sort((a, b) => (b.relevance || 0) - (a.relevance || 0));
-        results = allWebResults.slice(0, 8);
-
-        // A1: Crawl top 2 web results for full content
-        try {
-          const crawled = await selectAndCrawlTopUrls(
-            results.filter((r) => r.url) as CrawlableResult[],
-            query,
-            {
-              maxUrls: 2,
-              timeout: 3000,
-            }
-          );
-          results = crawled.map((r) => ({
-            ...r,
-            content: r.fullContent || r.content || '',
-            source: (r.source as string) || 'web',
-            title: r.title || '',
-          }));
-          const crawledCount = crawled.filter((r) => r.crawled).length;
-          if (crawledCount > 0) {
-            log.info(`[Search] Crawled ${crawledCount} web results for full content`);
-          }
-        } catch (err: unknown) {
-          log.warn(
-            `[Search] Crawling failed, using snippets: ${err instanceof Error ? err.message : String(err)}`
-          );
-        }
+        const web = await executeWebSearch(query, {
+          tier: webTier,
+          ...webScope,
+          // A1: full page content for the top hits — snippets alone leave the
+          // writing model with too little on a multi-aspect question.
+          crawlTopUrls: 2,
+          // The ONLY path that asks for images: it is also the only one that
+          // carries them out (see `ExecuteWebSearchOptions.includeImages`).
+          ...(state.webWantsImages ? { includeImages: true } : {}),
+        });
+        results = web.results;
+        singleSourceErrors.push(...web.errors);
+        webImageResults = web.images;
 
         citations = buildCitations(results);
         break;
@@ -1410,15 +1597,22 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
           relevance: 1 - idx * 0.1,
         }));
         try {
-          const crawled = await selectAndCrawlTopUrls(seeds, searchQuery || '', {
+          // `faithful`: the "query" on this path is often a writing instruction
+          // ("fass das zusammen", "schreib einen Post dazu"), not a retrieval
+          // query. Scoring passages against it would drop the parts of the page
+          // the user actually pointed at.
+          const crawled = await crawlAndDistill(seeds, searchQuery || '', {
             maxUrls: 3,
             timeout: 8000,
+            mode: 'faithful',
+            targetChars: SCRAPE_URL_TARGET_CHARS,
+            aiWorkerPool: state.aiWorkerPool,
           });
           results = crawled
-            .filter((r) => r.crawled && (r.fullContent || r.content))
+            .filter((r) => r.crawled && (r.content || r.fullContent))
             .map((r) => ({
               ...r,
-              content: r.fullContent || r.content || '',
+              content: r.content || r.fullContent || '',
               source: 'web',
               title: r.title || r.url || '',
             }));
@@ -1530,23 +1724,54 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         break;
       }
 
+      // ── Handled elsewhere; searchNode does nothing for them ──
+      //
+      // This arm and `default` below behave identically — both fall through
+      // without searching. The difference is diagnostic, and that IS the point:
+      // `default` logs "Unexpected intent", which is supposed to mean "nobody
+      // considered this intent here". Seventeen intents were missing from the
+      // list, so the warning fired on every ordinary create_sheet, create_pdf
+      // and mcp turn and had stopped carrying information.
       case 'image':
       case 'image_edit':
       case 'sharepic':
       case 'summary':
       case 'chart':
+      case 'compute':
+      case 'artifact':
+      case 'produktion':
+      case 'direct':
+      case 'greeting':
+        break;
+      // Artefact + editor intents: the content comes from the generation
+      // services, not from retrieval here.
       case 'save_as_doc':
       case 'modify_doc':
       case 'modify_board':
       case 'share_doc':
       case 'edit_current_doc':
+      case 'edit_current_board':
+      case 'create_sheet':
+      case 'create_presentation':
+      case 'create_pdf':
       case 'create_recurring_task':
-      case 'direct':
-        // These intents are handled by other graph nodes; no search needed.
+        break;
+      // Connector / native-tool intents: the MCP client does the retrieval.
+      // `bahn`/`reise`/`hotel`/`wetter`/`news` stood here too. They are managed
+      // connectors now and are never produced as an intent, so they cannot
+      // reach this switch — the `default` warning below is free to fire on them
+      // again if something ever does produce one.
+      case 'umfragen':
+      case 'hilfe':
+      case 'mcp':
+      case 'chat_history':
+        break;
+      // Loop demotion — the agentic loop picks and runs its own tools.
+      case 'agentic':
         break;
 
       default:
-        // Should not reach here due to graph routing
+        // A real signal again: an intent nobody routed through here.
         log.warn(`[Search] Unexpected intent: ${intent}`);
         break;
     }
@@ -1559,10 +1784,15 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       citations: citations.length > 0 ? citations : buildCitations(results),
       searchCount: 1,
       searchTimeMs,
-      researchMeta,
       examplesResult,
-      bundestagResult,
       ...(searchedCollections.length > 0 && { searchedCollections }),
+      ...(webImageResults.length > 0 && { webImageResults }),
+      // Only when the turn ends up with nothing: a backend failure that still
+      // left usable results is a warn, not a user-facing degradation. With
+      // zero results the distinction is exactly what the user needs — "there
+      // is nothing on this" versus "the search never ran".
+      ...(results.length === 0 &&
+        singleSourceErrors.length > 0 && { searchErrors: singleSourceErrors }),
     };
   } catch (error: unknown) {
     const errMsg = error instanceof Error ? error.message : String(error);

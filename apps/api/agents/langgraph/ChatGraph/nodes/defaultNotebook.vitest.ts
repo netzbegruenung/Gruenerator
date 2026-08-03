@@ -2,7 +2,7 @@
  * Tests for the Persistent Default Notebook Selection feature.
  *
  * Covers:
- * 1. Pure functions: resolveNotebookCollections, isKnownNotebook, getDefaultCollectionsForLocale
+ * 1. Pure functions: resolveNotebookCollections, isNotebookResolvable, getDefaultCollectionsForLocale
  * 2. searchNode() with mocked services — verifies the 5-level collection priority chain
  * 3. Default behavior equivalence (gruenerator-notebook ≡ de-DE locale fallback)
  */
@@ -44,9 +44,12 @@ vi.mock('../../../../utils/logger.js', () => ({
 
 // ─── Import modules under test (after mocks) ────────────────────────────
 
+import { isNotebookOfferedIn } from '@gruenerator/shared/notebooks';
+
+import { CURRENT_INSTANCE } from '../../../../config/instance.js';
 import {
   resolveNotebookCollections,
-  isKnownNotebook,
+  isNotebookResolvable,
   isDisabledNotebook,
   NOTEBOOK_COLLECTION_MAP,
 } from '../../../../config/notebookCollectionMap.js';
@@ -180,22 +183,27 @@ describe('resolveNotebookCollections', () => {
   });
 });
 
-// ─── isKnownNotebook ────────────────────────────────────────────────────
+// ─── notebook gate ──────────────────────────────────────────────────────
+// The two tiers themselves are covered in `config/notebookCollectionMap.vitest.ts`;
+// this only pins the routing behaviour the node tests below depend on.
 
-describe('isKnownNotebook', () => {
-  it('returns true for all known notebook IDs', () => {
-    // DISABLED_NOTEBOOK_IDS entries stay in the map for admin tooling but
-    // isKnownNotebook returns false for them by design — filter them out.
+describe('isNotebookResolvable', () => {
+  it('returns true for all known notebook IDs this instance carries', () => {
+    // Two exclusions: DISABLED_NOTEBOOK_IDS entries stay in the map for admin
+    // tooling but never route, and a notebook on a channel this instance does
+    // not serve (`boell-stiftung-notebook` is `internal`) is not its content —
+    // the backend now agrees with the gallery, which has always hidden it.
     for (const id of Object.keys(NOTEBOOK_COLLECTION_MAP)) {
       if (isDisabledNotebook(id)) continue;
-      expect(isKnownNotebook(id)).toBe(true);
+      if (!isNotebookOfferedIn(id, CURRENT_INSTANCE)) continue;
+      expect(isNotebookResolvable(id)).toBe(true);
     }
   });
 
   it('returns false for unknown notebook IDs', () => {
-    expect(isKnownNotebook('nonexistent-notebook')).toBe(false);
-    expect(isKnownNotebook('')).toBe(false);
-    expect(isKnownNotebook('deutschland')).toBe(false);
+    expect(isNotebookResolvable('nonexistent-notebook')).toBe(false);
+    expect(isNotebookResolvable('')).toBe(false);
+    expect(isNotebookResolvable('deutschland')).toBe(false);
   });
 });
 
@@ -576,12 +584,18 @@ describe('searchNode – web intent', () => {
     expect(mockExecuteDirectWebSearch).toHaveBeenCalled();
   });
 
-  it('expands query for web search', async () => {
+  /**
+   * One search decision = ONE paid call. The web path used to expand the query
+   * into 2–3 variants and search them all in parallel, which bought breadth by
+   * paying for it several times over — Linkup delivers the same fan-out inside a
+   * single `standard` call (`adjacentSearches` on the upper tiers). Document
+   * expansion stays: Qdrant is our own index and costs nothing per query.
+   */
+  it('runs exactly one web search — no query expansion on the web path', async () => {
     await searchNode(makeState({ intent: 'web' }));
 
-    expect(mockExpandQuery).toHaveBeenCalledWith('Klimapolitik', null);
-    // Original + expanded variant = 2 web searches
-    expect(mockExecuteDirectWebSearch).toHaveBeenCalledTimes(2);
+    expect(mockExpandQuery).not.toHaveBeenCalled();
+    expect(mockExecuteDirectWebSearch).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -657,7 +671,9 @@ describe('buildCitations', () => {
     expect(citations[1].url).toBe('https://hamburg.de/1');
   });
 
-  it('limits to 8 citations', () => {
+  // See citations.vitest.ts: the cap is now the loop's gathering budget (20),
+  // so a 12-document notebook answer keeps all 12 instead of losing four.
+  it('keeps all 12 notebook sources (cap is 20, was 8)', () => {
     const results: SearchResult[] = Array.from({ length: 12 }, (_, i) => ({
       source: 'gruenerator:deutschland',
       title: `Result ${i}`,
@@ -667,6 +683,6 @@ describe('buildCitations', () => {
     }));
 
     const citations = buildCitations(results);
-    expect(citations).toHaveLength(8);
+    expect(citations).toHaveLength(12);
   });
 });

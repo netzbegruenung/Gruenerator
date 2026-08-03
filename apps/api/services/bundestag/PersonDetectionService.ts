@@ -4,7 +4,7 @@
  * Uses pattern matching, cached MP list, and DIP API validation
  */
 
-import { getBundestagMCPClient } from './BundestagMCPClient.js';
+import { getBundestagMCPClient, CURRENT_WAHLPERIODE } from './BundestagMCPClient.js';
 
 import type { Person, PersonDetectionResult, PersonPattern, CacheStats } from './types.js';
 
@@ -356,9 +356,16 @@ export class PersonDetectionService {
     try {
       console.log('[PersonDetection] Refreshing MP cache...');
 
+      // `fraktion` used to be advertised but silently ignored — every call came
+      // back as the same unfiltered set across all parties. The MCP now filters
+      // on `person.fraktion` itself and pages through DIP until the limit is
+      // met, so this request really does narrow to the 83 Green MdB of the
+      // current Wahlperiode. `_isGrueneFraktion` below is therefore no longer
+      // load-bearing; it stays as a cheap guard because a silent regression
+      // here would repopulate the cache with MPs of other parties.
       const result = await this.mcpClient.searchPersonen({
-        fraktion: 'GRÜNE',
-        wahlperiode: 20,
+        fraktion: 'BÜNDNIS 90/DIE GRÜNEN',
+        wahlperiode: CURRENT_WAHLPERIODE,
         limit: 100,
       });
 

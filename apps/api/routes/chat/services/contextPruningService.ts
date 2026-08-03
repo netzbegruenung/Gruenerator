@@ -21,7 +21,7 @@ import {
   getMessageCount,
   getThreadMessages,
 } from './compactionService.js';
-import { toTokenCounterMessage, CONTEXT_CONFIG } from './messageHelpers.js';
+import { toTokenCounterMessage, getPruningBudget } from './messageHelpers.js';
 
 import type { ModelMessage } from 'ai';
 
@@ -30,7 +30,15 @@ const log = createLogger('ContextPruning');
 // In-memory guards to prevent re-triggering compaction on every message after threshold
 const compactionInProgress = new Set<string>();
 const lastCompactionTime = new Map<string, number>();
-const COMPACTION_COOLDOWN_MS = 60_000; // 1 minute
+// Env-overridable outside production so the long-thread eval harness can
+// trigger back-to-back compactions without waiting out the cooldown.
+const COMPACTION_COOLDOWN_MS = (() => {
+  if (process.env.NODE_ENV !== 'production') {
+    const n = Number.parseInt(process.env.CHAT_COMPACTION_COOLDOWN_MS ?? '', 10);
+    if (Number.isInteger(n) && n >= 0) return n;
+  }
+  return 60_000; // 1 minute
+})();
 
 export interface PruningResult {
   prunedMessages: ModelMessage[];
@@ -40,13 +48,16 @@ export interface PruningResult {
 /**
  * Prune conversation messages to fit within token budget and apply compaction if available.
  */
-export function pruneMessages(validMessages: ModelMessage[]): ModelMessage[] {
+export function pruneMessages(
+  validMessages: ModelMessage[],
+  contextWindowTokens?: number
+): ModelMessage[] {
   const messagesForTokenCount = validMessages.map(toTokenCounterMessage);
   const preStats = getTokenStats(messagesForTokenCount);
 
   const prunedMessages = trimMessagesToTokenLimit(
     messagesForTokenCount,
-    CONTEXT_CONFIG.MAX_CONTEXT_TOKENS
+    getPruningBudget(contextWindowTokens)
   );
 
   const keepCount = prunedMessages.filter((m) => m.role !== 'system').length;
@@ -65,13 +76,17 @@ export function pruneMessages(validMessages: ModelMessage[]): ModelMessage[] {
 /**
  * Apply compaction summary to system message for long threads.
  * Also triggers background compaction if needed.
+ *
+ * Returns the messages alongside the system message: once a summary exists it
+ * replaces the turns it covers, so the caller must send the returned (shorter)
+ * list. Passing the summary on top of the full history would only add tokens.
  */
-export async function applyCompaction(
+export async function applyCompaction<T extends { role: string; content: string | unknown[] }>(
   threadId: string,
-  prunedValidMessages: Array<{ role: string; content: string | unknown[] }>,
+  prunedValidMessages: T[],
   systemMessage: string,
   contextWindowTokens?: number
-): Promise<string> {
+): Promise<{ systemMessage: string; messages: T[] }> {
   try {
     const messageCount = await getMessageCount(threadId);
     const compactionState = await getCompactionState(threadId);
@@ -104,23 +119,23 @@ export async function applyCompaction(
     }
 
     if (compactionState.summary) {
-      const messagesForTokenCount = (prunedValidMessages as ModelMessage[]).map(
-        toTokenCounterMessage
-      );
+      // Slice the ORIGINAL messages, not the flattened TokenCounter copies —
+      // those drop images and tool parts and must never reach the model.
       const compacted = prepareMessagesWithCompaction(
-        messagesForTokenCount,
+        prunedValidMessages,
         compactionState,
         systemMessage,
         contextWindowTokens
       );
       log.info(
-        `[Context] Applied compaction summary (${compactionState.summary.length} chars) to system message`
+        `[Context] Applied compaction summary (${compactionState.summary.length} chars); ` +
+          `${prunedValidMessages.length} → ${compacted.messages.length} messages`
       );
-      return compacted.systemMessage;
+      return { systemMessage: compacted.systemMessage, messages: compacted.messages };
     }
   } catch (compactionError) {
     log.warn('[Context] Failed to apply compaction, using pruned messages:', compactionError);
   }
 
-  return systemMessage;
+  return { systemMessage, messages: prunedValidMessages };
 }

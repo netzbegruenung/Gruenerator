@@ -34,8 +34,7 @@ export interface RawMandate {
   politician?: { label?: string } | null;
   parliament_period?: RawRef | null;
   fraction_membership?:
-    | { fraction?: { label?: string } | null; valid_until?: string | null }[]
-    | null;
+    { fraction?: { label?: string } | null; valid_until?: string | null }[] | null;
 }
 export interface RawSidejob {
   id: number;

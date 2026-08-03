@@ -5,19 +5,29 @@ import {
   isCanvasTemplateType,
   chatStreamEventSchemas,
   type ChatErrorEventPayload,
+  type SocialPostPayload,
+  type BahnPayload,
+  type SharepicUpdatedEvent,
 } from '@gruenerator/contracts';
 
 import { coerceSharepicVariants } from '../../hooks/useChatGraphStream';
-import { ChatStreamError } from '../streamErrorMessage';
-import { parseSSELine } from '../../lib/sseParser';
-import { INTENT_TO_TOOL, DEEP_TOOL_MAP, formatNamespacedToolLabel } from '../../lib/toolMappings';
+import { notifyError, notifyWarning } from '../../lib/notify';
 import { pickStageLabels } from '../../lib/progressLabels';
+import { parseSSELine } from '../../lib/sseParser';
+import {
+  ARTIFACT_STAGE_INTENTS,
+  ARTIFACT_TOOL_NAMES,
+  INTENT_TO_TOOL,
+  DEEP_TOOL_MAP,
+  formatNamespacedToolLabel,
+} from '../../lib/toolMappings';
+import { useArtifactLiveStore, type ActiveArtifact } from '../../stores/artifactLiveStore';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useAgentStore } from '../../stores/chatStore';
-import { useArtifactLiveStore, type ActiveArtifact } from '../../stores/artifactLiveStore';
 import { useReelLiveStore } from '../../stores/reelLiveStore';
 import { useSharepicLiveStore } from '../../stores/sharepicLiveStore';
 import { useSocialPostLiveStore } from '../../stores/socialPostLiveStore';
+import { ChatStreamError } from '../streamErrorMessage';
 
 import type {
   GrueneratorAdapterCallbacks,
@@ -26,7 +36,6 @@ import type {
   SourcePart,
   StreamOutcome,
 } from './types';
-import type { ChatModelRunResult } from '@assistant-ui/react';
 import type {
   ProgressStage,
   SearchIntent,
@@ -35,10 +44,12 @@ import type {
   Citation,
   FallbackInfo,
   SearchResult,
+  SearchImage,
   StreamMetadata,
   ProgressStep,
   ChartData,
   ComputeData,
+  SharepicData,
 } from '../../hooks/useChatGraphStream';
 import type {
   ConfirmActionData,
@@ -46,6 +57,24 @@ import type {
   ReelPickerData,
   ReelProcessingData,
 } from '../../types/messageMetadata';
+import type { ChatModelRunResult } from '@assistant-ui/react';
+
+/**
+ * Verdicts under which nothing is looked up — the progress bar goes straight to
+ * "generating". `direct` is kept for threads and older backends that still send
+ * it; `agentic` is absent because the loop DOES retrieve.
+ *
+ * `compute` belongs here for the same reason and was missing: computeNode runs
+ * a plan through the arithmetic engine and touches no retrieval at all. Falling
+ * through to the default put "Durchsuche …" over a turn that searched nothing —
+ * reported twice as the product looking things up it had been told not to.
+ */
+const NO_RETRIEVAL_STAGE_INTENTS: ReadonlySet<string> = new Set([
+  'produktion',
+  'direct',
+  'greeting',
+  'compute',
+]);
 
 /** Display titles for agentic sharepic-loop steps (tool_step_start events). */
 const TOOL_STEP_TITLES: Record<string, string> = {
@@ -72,7 +101,14 @@ export async function* parseSSEStream(
   const decoder = new TextDecoder();
   let buffer = '';
   const currentEvent = { type: '' };
-  let accumulatedText = '';
+  // Stufe 2 (Interleaving): text and tool cards live in ONE ordered list so
+  // prose and cards render in true event order — text→card→text — instead of
+  // "all cards, then one text block". `allToolCalls`/`activeToolCall`/
+  // `toolStepsById` below are kept as bookkeeping for the legacy result-stamping
+  // paths and mirrored into `orderedContent` via orderPushCard/orderReplaceCard.
+  type TextSegment = { type: 'text'; text: string };
+  const orderedContent: Array<TextSegment | ToolCallPart> = [];
+  let currentTextSegment: TextSegment | null = null;
   let accumulatedReasoning = '';
   // Themed progress labels — picked once per turn, stable for the whole stream.
   const stageLabels = pickStageLabels();
@@ -122,15 +158,15 @@ export async function* parseSSEStream(
   }
 
   let receivedSearchResults: SearchResult[] = [];
+  let receivedSearchImages: SearchImage[] = [];
   let receivedCitations: Citation[] = [];
   let receivedImage: GeneratedImage | null = null;
-  let receivedSharepicData: import('../../hooks/useChatGraphStream').SharepicData | null = null;
-  let receivedSocialPostData: import('@gruenerator/contracts').SocialPostPayload | null = null;
+  let receivedSharepicData: SharepicData | null = null;
+  let receivedSocialPostData: SocialPostPayload | null = null;
   let receivedChartData: ChartData | null = null;
   let receivedArtifactData: ActiveArtifact | null = null;
   let receivedComputeData: ComputeData | null = null;
-  let receivedBundestagData: import('@gruenerator/contracts').BundestagPayload | null = null;
-  let receivedBahnData: import('@gruenerator/contracts').BahnPayload | null = null;
+  let receivedBahnData: BahnPayload | null = null;
   let receivedFollowUpSuggestions: string[] = [];
   let receivedMetadata: StreamMetadata | null = null;
   let receivedConfirmAction: ConfirmActionData | null = null;
@@ -145,13 +181,59 @@ export async function* parseSSEStream(
   // step is pushed on `tool_step_start` and updated in place on
   // `tool_step_result`.
   const toolStepsById = new Map<string, ToolCallPart>();
+  // Split-gather narration sentences seen since the last tool card was pushed.
+  // Surfaced live as `progress.pendingNarration` (paced status line) and, when
+  // the server omits `narration` on tool_step_start (older API), drained here to
+  // stamp the card client-side — same ordering rule as the server path, so an
+  // old server + new client still gets live narration (just not on reload).
+  let pendingNarration: string[] = [];
   let interruptPending = false;
   // client_tool interrupt (auto-executed by the ModelAdapter): unlike a
   // clarification it must NOT flip the message to requires-action — the same
   // run() continues with the executed result via the resume endpoint.
   let clientToolPending = false;
+  // Whether the backend sent a terminal event. A stream that ends without one
+  // is a failure, not a short answer (see the tail of this function).
+  let sawTerminalEvent = false;
+  let consecutiveParseErrors = 0;
   let lastYieldTime = 0;
   const YIELD_INTERVAL = 50; // ms — max 20 yields/sec, matches NotebookModelAdapter
+  const MAX_CONSECUTIVE_PARSE_ERRORS = 5;
+
+  // Push a NEW card into orderedContent (event order) and break the text run.
+  // parentId run-grouping (for Stufe 3's collapsed summary row): a card that
+  // directly follows another card shares its parentId (same contiguous run); a
+  // card at the start or right after a text segment begins a new run whose
+  // parentId is its own toolCallId.
+  function orderPushCard(card: ToolCallPart): void {
+    const prev = orderedContent[orderedContent.length - 1];
+    card.parentId = prev && prev.type === 'tool-call' ? prev.parentId : card.toolCallId;
+    orderedContent.push(card);
+    currentTextSegment = null;
+  }
+
+  // Replace a card in place (matched by toolCallId) so a result-stamped rebuild
+  // lands at its original position; the spread at each call site carries parentId
+  // forward. No-op if the card was never ordered (defensive).
+  function orderReplaceCard(card: ToolCallPart): void {
+    const idx = orderedContent.findIndex(
+      (el) => el.type === 'tool-call' && el.toolCallId === card.toolCallId
+    );
+    if (idx >= 0) orderedContent[idx] = card;
+  }
+
+  function appendText(delta: string): void {
+    if (currentTextSegment) {
+      currentTextSegment.text += delta;
+    } else {
+      currentTextSegment = { type: 'text', text: delta };
+      orderedContent.push(currentTextSegment);
+    }
+  }
+
+  // Legacy carryOver cards (client-tool resume) never interleave with text_delta
+  // — seed them up front so they precede any streamed prose (cards-first, as before).
+  for (const tc of allToolCalls) orderPushCard(tc);
 
   function buildResult(): ChatModelRunResult {
     const content: Array<
@@ -161,19 +243,25 @@ export async function* parseSSEStream(
       | SourcePart
     > = [];
 
-    const groupId = activeToolCall ? activeToolCall.toolCallId : allToolCalls[0]?.toolCallId;
-
     if (accumulatedReasoning) {
       content.push({ type: 'reasoning' as const, text: accumulatedReasoning });
     }
 
-    for (const tc of allToolCalls) {
-      content.push(tc);
-    }
-    if (activeToolCall && !allToolCalls.includes(activeToolCall)) {
-      content.push(activeToolCall);
+    // Ordered text segments + tool cards in true event order. Normalize
+    // [cite:N] → [N] PER text segment before emitting, so CitationMarkdownText's
+    // placeholder-badge layer (citationProcessing.ts:25) renders inline-reserved
+    // boxes during streaming and the SearchGraph "[cite:N]" markers never appear
+    // as plain text.
+    for (const el of orderedContent) {
+      if (el.type === 'text') {
+        content.push({ type: 'text' as const, text: el.text.replace(/\[cite:(\d+)\]/g, '[$1]') });
+      } else {
+        content.push(el);
+      }
     }
 
+    const firstCard = orderedContent.find((el): el is ToolCallPart => el.type === 'tool-call');
+    const groupId = activeToolCall ? activeToolCall.toolCallId : firstCard?.toolCallId;
     for (const citation of receivedCitations) {
       if (citation.url) {
         content.push({
@@ -187,19 +275,20 @@ export async function* parseSSEStream(
       }
     }
 
-    // Normalize [cite:N] → [N] before emitting, so CitationMarkdownText's
-    // placeholder-badge layer (citationProcessing.ts:25) renders inline-reserved
-    // boxes during streaming. Mirrors NotebookModelAdapter's buildResult and
-    // prevents the SearchGraph "[cite:N]" markers from appearing as plain text.
-    content.push({
-      type: 'text' as const,
-      text: accumulatedText.replace(/\[cite:(\d+)\]/g, '[$1]'),
-    });
+    // assistant-ui expects a trailing text part. When the last ordered element
+    // is a card (or nothing has streamed yet), append an empty text tail so the
+    // message always ends on text — matching the pre-interleaving behaviour,
+    // which emitted exactly one (possibly empty) text part at the end.
+    const last = orderedContent[orderedContent.length - 1];
+    if (!last || last.type !== 'text') {
+      content.push({ type: 'text' as const, text: '' });
+    }
 
     const custom: GrueneratorMessageMetadata = {
       progress: { ...currentProgress, steps: [...progressSteps] },
     };
     if (receivedSearchResults.length > 0) custom.searchResults = receivedSearchResults;
+    if (receivedSearchImages.length > 0) custom.searchImages = receivedSearchImages;
     if (receivedCitations.length > 0) custom.citations = receivedCitations;
     if (receivedImage) custom.generatedImage = receivedImage;
     if (receivedSharepicData) custom.sharepicData = receivedSharepicData;
@@ -207,7 +296,6 @@ export async function* parseSSEStream(
     if (receivedChartData) custom.chartData = receivedChartData;
     if (receivedArtifactData) custom.artifactData = receivedArtifactData;
     if (receivedComputeData) custom.computeData = receivedComputeData;
-    if (receivedBundestagData) custom.bundestagData = receivedBundestagData;
     if (receivedBahnData) custom.bahnData = receivedBahnData;
     if (receivedMetadata) custom.streamMetadata = receivedMetadata;
     if (receivedFollowUpSuggestions.length > 0)
@@ -223,13 +311,20 @@ export async function* parseSSEStream(
 
     const isInterrupted = interruptPending && currentProgress.stage === 'complete';
 
-    return {
+    const result: ChatModelRunResult = {
       content,
       metadata: { custom },
       ...(isInterrupted
         ? { status: { type: 'requires-action' as const, reason: 'tool-calls' as const } }
         : {}),
     };
+    // Record every result, not just the final one. assistant-ui merges a
+    // yielded `content` by REPLACING the message content (initialContent is
+    // frozen at roundtrip start), so a caller that has to report a mid-stream
+    // failure must re-yield everything accumulated so far — and on a network
+    // drop the end of this function is never reached.
+    outcome.lastResult = result;
+    return result;
   }
 
   // Feed chunks: stream from reader, or single chunk from full text fallback
@@ -254,7 +349,24 @@ export async function* parseSSEStream(
     buffer = lines.pop() || '';
 
     for (const line of lines) {
-      const { event, data: rawData } = parseSSELine(line, currentEvent);
+      const { event, data: rawData, parseError } = parseSSELine(line, currentEvent);
+      if (parseError) {
+        // A few unparseable frames can be tolerated; a run of them means the
+        // stream is corrupt and the user must not be shown a partial answer
+        // as if it were complete.
+        if (++consecutiveParseErrors >= MAX_CONSECUTIVE_PARSE_ERRORS) {
+          throw new ChatStreamError('Die Antwort des Servers war beschädigt.', {
+            code: 'stream_interrupted',
+            retryable: true,
+          });
+        }
+        continue;
+      }
+      // Reset only on a line that actually carried a parsed event. SSE framing
+      // puts an `event:` line and a blank line between any two `data:` lines,
+      // so resetting on every non-error line made the counter unreachable —
+      // it never got past 1.
+      if (event && rawData) consecutiveParseErrors = 0;
       if (!event || !rawData) continue;
 
       // Contract gate: every known event is validated against its wire
@@ -272,6 +384,18 @@ export async function* parseSSEStream(
             gate.error.issues[0],
             rawData
           );
+          // An `error` event must NEVER be dropped: schema drift on the fatal
+          // event would silently swallow the very failure it reports. Salvage
+          // whatever string the payload has, else fall back to generic copy.
+          if (event === 'error') {
+            const raw = rawData as { error?: unknown };
+            throw new ChatStreamError(
+              typeof raw?.error === 'string' && raw.error.trim()
+                ? raw.error
+                : 'Es ist ein Fehler aufgetreten. Bitte versuche es erneut.',
+              { code: 'internal' }
+            );
+          }
           continue;
         }
         data = gate.data;
@@ -300,7 +424,8 @@ export async function* parseSSEStream(
               agentic?: boolean;
             };
           let stage: ProgressStage = 'searching';
-          if (intent === 'direct' || intent === 'artifact') stage = 'generating';
+          if (NO_RETRIEVAL_STAGE_INTENTS.has(intent) || intent === 'artifact') stage = 'generating';
+          else if (ARTIFACT_STAGE_INTENTS.has(intent)) stage = 'generating_artifact';
           else if (intent === 'image' || intent === 'sharepic' || intent === 'social_post')
             stage = 'generating_image';
           else if (intent === 'summary') stage = 'summarizing';
@@ -329,13 +454,15 @@ export async function* parseSSEStream(
                       : src === 'documents'
                         ? 'gruenerator_search'
                         : toolName;
-                  allToolCalls.push({
+                  const card: ToolCallPart = {
                     type: 'tool-call',
                     toolCallId: `tc_${Date.now()}_${i}_${src || 'default'}`,
                     toolName: effToolName,
                     args: { query: queries[i] },
                     argsText: JSON.stringify({ query: queries[i] }),
-                  });
+                  };
+                  allToolCalls.push(card);
+                  orderPushCard(card);
                 }
               }
               activeToolCall = null;
@@ -351,6 +478,7 @@ export async function* parseSSEStream(
                 args: toolArgs,
                 argsText: JSON.stringify(toolArgs),
               };
+              orderPushCard(activeToolCall);
             }
           }
           yield buildResult();
@@ -366,14 +494,19 @@ export async function* parseSSEStream(
         }
 
         case 'search_complete': {
-          const { message, resultCount, results, researchMeta, examplesResult } = data as {
+          const { message, resultCount, results, images, researchMeta, examplesResult } = data as {
             message: string;
             resultCount: number;
             results?: SearchResult[];
+            images?: SearchImage[];
             researchMeta?: unknown;
             examplesResult?: { press?: unknown[]; social?: unknown[]; message?: string };
           };
           if (results) receivedSearchResults = results;
+          // Deliberately NOT merged into `receivedSearchResults`: those feed the
+          // tool card's result data and the source list, and an image carries no
+          // text to cite. They travel as their own metadata field instead.
+          if (images?.length) receivedSearchImages = images;
           // Update searching step label with result count
           const searchStep = progressSteps.find((s) => s.stage === 'searching');
           if (searchStep) {
@@ -395,6 +528,13 @@ export async function* parseSSEStream(
           // - gruenerator_examples_search → { examples: social[], results }
           // - everything else → { results }
           const resultForTool = (toolName: string) => {
+            /**
+             * @deprecated `researchMeta` is the legacy dossier shape — no path emits
+             * it since 2026-07-30, dossiers ship as message text now. Pre-2026-07-30
+             * turns still carry their dossier ONLY in this field (the assistant
+             * message itself was just two framing sentences); keep until a backfill
+             * moves `researchMeta.answer` into message content.
+             */
             if (toolName === 'research' && researchMeta != null) {
               return researchMeta as Record<string, unknown>;
             }
@@ -413,14 +553,30 @@ export async function* parseSSEStream(
                 ...allToolCalls[i],
                 result: resultForTool(allToolCalls[i].toolName),
               };
+              orderReplaceCard(allToolCalls[i]);
             }
           }
           if (activeToolCall) {
             activeToolCall = Object.assign({}, activeToolCall, {
               result: resultForTool(activeToolCall.toolName),
             });
+            orderReplaceCard(activeToolCall);
           }
           yield buildResult();
+          break;
+        }
+
+        // The loop's channel for image hits. Deliberately touches NOTHING but the
+        // image list: unlike `search_complete` it must not move the progress
+        // stage, because it arrives mid-loop while the model is still working.
+        // The payload is the full list for the turn, so replacing is correct —
+        // a second search's event supersedes the first.
+        case 'search_images': {
+          const { images } = data as { images: SearchImage[] };
+          if (images.length > 0) {
+            receivedSearchImages = images;
+            yield buildResult();
+          }
           break;
         }
 
@@ -497,17 +653,8 @@ export async function* parseSSEStream(
           break;
         }
 
-        case 'bundestag': {
-          const { bundestag } = data as {
-            bundestag?: import('@gruenerator/contracts').BundestagPayload;
-          };
-          if (bundestag) receivedBundestagData = bundestag;
-          yield buildResult();
-          break;
-        }
-
         case 'bahn': {
-          const { bahn } = data as { bahn?: import('@gruenerator/contracts').BahnPayload };
+          const { bahn } = data as { bahn?: BahnPayload };
           if (bahn) receivedBahnData = bahn;
           yield buildResult();
           break;
@@ -558,7 +705,7 @@ export async function* parseSSEStream(
         case 'social_post_complete': {
           const payload = data as {
             message: string;
-            post?: import('@gruenerator/contracts').SocialPostPayload;
+            post?: SocialPostPayload;
             error?: string;
           };
           if (!payload.error && payload.post) {
@@ -575,7 +722,7 @@ export async function* parseSSEStream(
         case 'social_post_updated': {
           const payload = data as {
             postId: string;
-            post: import('@gruenerator/contracts').SocialPostPayload;
+            post: SocialPostPayload;
             summary: string;
           };
           useSocialPostLiveStore.getState().upsertEntry(payload.post);
@@ -585,6 +732,7 @@ export async function* parseSSEStream(
         case 'social_post_edit_error': {
           const { error } = data as { postId?: string; error: string };
           console.warn('[GrueneratorModelAdapter] social_post_edit_error:', error);
+          notifyError('Post konnte nicht bearbeitet werden', error);
           break;
         }
 
@@ -597,7 +745,7 @@ export async function* parseSSEStream(
         case 'sharepic_updated': {
           // Validated by the contract gate above — canvasType is guaranteed
           // canonical, so junk template types can never enter the live store.
-          const payload = data as import('@gruenerator/contracts').SharepicUpdatedEvent;
+          const payload = data as SharepicUpdatedEvent;
           useSharepicLiveStore.getState().upsertEntry(payload.variantId, {
             canvasId: payload.canvasId,
             canvasType: payload.canvasType,
@@ -613,6 +761,7 @@ export async function* parseSSEStream(
         case 'sharepic_edit_error': {
           const { error } = data as { variantId?: string; error: string };
           console.warn('[GrueneratorModelAdapter] sharepic_edit_error:', error);
+          notifyError('Sharepic konnte nicht bearbeitet werden', error);
           break;
         }
 
@@ -653,6 +802,7 @@ export async function* parseSSEStream(
         case 'reel_edit_error': {
           const { error } = data as { projectId?: string; error: string };
           console.warn('[GrueneratorModelAdapter] reel_edit_error:', error);
+          notifyError('Untertitel konnten nicht bearbeitet werden', error);
           break;
         }
 
@@ -666,13 +816,21 @@ export async function* parseSSEStream(
             args,
             title: serverTitle,
             serverName,
+            narration: serverNarration,
           } = data as {
             stepId: string;
             toolName: string;
             args?: Record<string, unknown>;
             title?: string;
             serverName?: string;
+            narration?: string;
           };
+          // Associate narration with this card: prefer the server-stamped value
+          // (also survives reload); else drain the client buffer (old server).
+          const cardNarration =
+            serverNarration ??
+            (pendingNarration.length > 0 ? pendingNarration.join(' ') : undefined);
+          pendingNarration = [];
           // Prefer a server-provided title; else the legacy mcpToolNode
           // `mcp_tool` server/tool label; else the sharepic-specific map; else a
           // generic label derived from the (possibly MCP-namespaced) name.
@@ -692,13 +850,24 @@ export async function* parseSSEStream(
               toolName,
               args: toolArgs as Record<string, string | number | boolean | null>,
               argsText: JSON.stringify(toolArgs),
+              ...(cardNarration ? { narration: cardNarration } : {}),
             };
             // Push immediately so a parallel sibling's start doesn't orphan this
-            // card; the result updates it in place.
+            // card; the result updates it in place. orderPushCard breaks the
+            // current text run so a preceding text_delta stays a separate segment.
             toolStepsById.set(stepId, toolCall);
             allToolCalls.push(toolCall);
+            orderPushCard(toolCall);
           }
-          currentProgress = { stage: 'searching', message: title };
+          // Narration now lives on the card; clear the transient status line.
+          // A generation tool gets its own stage — see ARTIFACT_TOOL_NAMES. The
+          // step is also transitioned so the tracker stops showing the previous
+          // stage as still running while a 90s generation goes on beneath it.
+          const toolStage: ProgressStage = ARTIFACT_TOOL_NAMES.has(toolName)
+            ? 'generating_artifact'
+            : 'searching';
+          if (toolStage !== currentProgress.stage) transitionStep(toolStage);
+          currentProgress = { stage: toolStage, message: title, pendingNarration: [] };
           yield buildResult();
           break;
         }
@@ -718,13 +887,38 @@ export async function* parseSSEStream(
             // not just an ok/summary status. ok/summary are folded in for the
             // generic status chip. Replace by identity so memoized consumers
             // re-render.
+            // A system MCP tool may ship an MCP-Apps widget: lift its `ui://`
+            // pointer onto `mcp.app` so assistant-ui's mcpApp renderer mounts
+            // the sandboxed widget iframe in place of the normal tool card.
+            const uiResource = (result as { uiResource?: { uri?: unknown; mimeType?: unknown } })
+              ?.uiResource;
+            const widgetUri =
+              uiResource && typeof uiResource.uri === 'string' && uiResource.uri.startsWith('ui://')
+                ? uiResource.uri
+                : null;
             const updated: ToolCallPart = {
               ...pending,
               result: { ...(result ?? {}), ok, ...(summary ? { summary } : {}) },
+              ...(widgetUri
+                ? {
+                    mcp: {
+                      app: {
+                        resourceUri: widgetUri,
+                        ...(typeof uiResource?.mimeType === 'string'
+                          ? { mimeType: uiResource.mimeType }
+                          : {}),
+                      },
+                    },
+                  }
+                : {}),
             };
             toolStepsById.set(stepId, updated);
             const idx = allToolCalls.indexOf(pending);
             if (idx >= 0) allToolCalls[idx] = updated;
+            // The step object is REPLACED (not mutated) here, so mirror the swap
+            // into orderedContent by toolCallId — otherwise the card would keep
+            // its pre-result state on screen.
+            orderReplaceCard(updated);
           }
           currentProgress = {
             stage: 'generating',
@@ -787,11 +981,13 @@ export async function* parseSSEStream(
                 args: toolArgs as Record<string, string | number | boolean | null>,
                 argsText: JSON.stringify(toolArgs),
               };
+              orderPushCard(activeToolCall);
             }
             currentProgress = { stage: 'searching', message: title };
           } else if (status === 'completed') {
             if (activeToolCall?.toolCallId === stepId) {
               activeToolCall = { ...activeToolCall, result: result || {} };
+              orderReplaceCard(activeToolCall);
               allToolCalls.push(activeToolCall);
               activeToolCall = null;
             }
@@ -823,9 +1019,34 @@ export async function* parseSSEStream(
           break;
         }
 
+        case 'gather_narration': {
+          // Live narration during the tool phase. Accumulated (not overwritten)
+          // into pendingNarration so nothing is lost between tool starts; the
+          // consumer paces the display (min-visible time), and the whole run
+          // lands on the next tool card as durable `narration`. `message` is
+          // still set so Mobile's simple status field and non-agentic paths
+          // keep a value.
+          const narration = (data as { text: string }).text;
+          pendingNarration = [...pendingNarration, narration];
+          currentProgress = { ...currentProgress, message: narration, pendingNarration };
+          const now = performance.now();
+          if (now - lastYieldTime >= YIELD_INTERVAL) {
+            lastYieldTime = now;
+            yield buildResult();
+          }
+          break;
+        }
+
         case 'text_delta': {
           const delta = (data as { text: string }).text;
-          accumulatedText += delta;
+          appendText(delta);
+          // Synthesis has started: any trailing narration after the last tool
+          // call (never associated with a card) is now stale — drop it so the
+          // status line doesn't linger behind the streaming answer.
+          if (pendingNarration.length > 0) {
+            pendingNarration = [];
+            currentProgress = { ...currentProgress, pendingNarration: [] };
+          }
           const now = performance.now();
           if (now - lastYieldTime >= YIELD_INTERVAL) {
             lastYieldTime = now;
@@ -854,19 +1075,13 @@ export async function* parseSSEStream(
         }
 
         case 'warning': {
-          // Non-fatal degradation the user should know about (model fell back to
-          // default, Wolke refs dropped, …). Carries a ready-made German message.
-          // Surface as a toast; fall back to console where sonner isn't installed
-          // (e.g. mobile host), mirroring dictationErrorHandler.
+          // Non-fatal degradation carrying a ready-made German message.
+          // Note: where the turn still has a model, the answer itself explains
+          // the degradation — this toast is the fallback for the paths where
+          // no answer can carry it (persistence, notebook streams).
           const { code, message } = data as { code: string; message: string };
           console.warn(`[GrueneratorModelAdapter] warning (${code}): ${message}`);
-          if (message) {
-            void import('sonner')
-              .then(({ toast }) => toast.warning(message))
-              .catch(() => {
-                // sonner not installed in host app — console-only above is enough.
-              });
-          }
+          if (message) notifyWarning(message);
           break;
         }
 
@@ -892,6 +1107,7 @@ export async function* parseSSEStream(
         }
 
         case 'done': {
+          sawTerminalEvent = true;
           const {
             citations: cit,
             generatedImage: img,
@@ -940,6 +1156,7 @@ export async function* parseSSEStream(
           const parsed = triggerDocEditSchema.safeParse(data);
           if (!parsed.success) {
             console.warn('[ChatAdapter] trigger_doc_edit payload failed validation', parsed.error);
+            notifyError('Dokument konnte nicht bearbeitet werden', 'Die Anweisung war ungültig.');
             break;
           }
           const payload = parsed.data;
@@ -951,11 +1168,19 @@ export async function* parseSSEStream(
               await handler(payload);
             } catch (err) {
               console.warn('[ChatAdapter] documentEditHandler threw', err);
+              notifyError(
+                'Dokument konnte nicht bearbeitet werden',
+                'Die Änderung konnte nicht angewendet werden.'
+              );
             }
           } else {
             console.warn(
               '[ChatAdapter] trigger_doc_edit received but no handler registered for doc',
               payload.targetDocumentId
+            );
+            notifyWarning(
+              'Dokument nicht verbunden',
+              'Öffne die Datei, damit Änderungen angewendet werden können.'
             );
           }
           break;
@@ -973,6 +1198,7 @@ export async function* parseSSEStream(
               '[ChatAdapter] trigger_board_action payload failed validation',
               parsed.error
             );
+            notifyError('Board konnte nicht bearbeitet werden', 'Die Anweisung war ungültig.');
             break;
           }
           const payload = parsed.data;
@@ -984,11 +1210,19 @@ export async function* parseSSEStream(
               await handler(payload);
             } catch (err) {
               console.warn('[ChatAdapter] boardActionHandler threw', err);
+              notifyError(
+                'Board konnte nicht bearbeitet werden',
+                'Die Änderung konnte nicht angewendet werden.'
+              );
             }
           } else {
             console.warn(
               '[ChatAdapter] trigger_board_action received but no handler registered for board',
               payload.targetBoardId
+            );
+            notifyWarning(
+              'Board nicht verbunden',
+              'Öffne die Datei, damit Änderungen angewendet werden können.'
             );
           }
           break;
@@ -1003,6 +1237,10 @@ export async function* parseSSEStream(
           const parsed = editorOperationsEventSchema.safeParse(data);
           if (!parsed.success) {
             console.warn('[ChatAdapter] editor_operations payload failed validation', parsed.error);
+            notifyError(
+              'Editor-Inhalt konnte nicht bearbeitet werden',
+              'Die Anweisung war ungültig.'
+            );
             break;
           }
           const payload = parsed.data;
@@ -1012,11 +1250,19 @@ export async function* parseSSEStream(
               await handler(payload);
             } catch (err) {
               console.warn('[ChatAdapter] editorOpsHandler threw', err);
+              notifyError(
+                'Editor-Inhalt konnte nicht bearbeitet werden',
+                'Die Änderung konnte nicht angewendet werden.'
+              );
             }
           } else {
             console.warn(
               '[ChatAdapter] editor_operations received but no handler registered for target',
               payload.targetId
+            );
+            notifyWarning(
+              'Editor-Inhalt nicht verbunden',
+              'Öffne die Datei, damit Änderungen angewendet werden können.'
             );
           }
           break;
@@ -1043,6 +1289,7 @@ export async function* parseSSEStream(
               },
             };
             allToolCalls.push(sourcesToolCall);
+            orderPushCard(sourcesToolCall);
           }
           transitionStep('generating', 'Generierung');
           break;
@@ -1065,38 +1312,63 @@ export async function* parseSSEStream(
 
         // ── Notebook mode events ──
         case 'completion': {
+          sawTerminalEvent = true;
+          // `completion` carries EITHER shape (see the union in the wire
+          // schema): notebook citations key their source as `index: string`
+          // with snake_case document fields, while the citation clamp on the
+          // chat paths re-sends the chat shape it already had. Mapping every
+          // payload as notebook — the previous behaviour — turned a clamped
+          // chat turn's citations into `id: NaN` with empty titles until the
+          // trailing `done` event happened to overwrite them again.
+          type NotebookWireCitation = {
+            index: string;
+            cited_text?: string;
+            document_title?: string;
+            document_id?: string;
+            source_url?: string | null;
+            similarity_score?: number;
+            chunk_index?: number;
+            collection_id?: string;
+            collection_name?: string;
+          };
           const completionData = data as {
             text?: string;
-            citations?: Array<{
-              index: string;
-              cited_text?: string;
-              document_title?: string;
-              document_id?: string;
-              source_url?: string | null;
-              similarity_score?: number;
-              chunk_index?: number;
-              collection_id?: string;
-              collection_name?: string;
-            }>;
+            citations?: Array<NotebookWireCitation | Citation>;
           };
+          const isNotebookCitation = (
+            c: NotebookWireCitation | Citation
+          ): c is NotebookWireCitation => typeof (c as NotebookWireCitation).index === 'string';
           if (completionData.text) {
-            // Normalize [cite:N] markers to [N]
-            accumulatedText = completionData.text.replace(/\[cite:(\d+)\]/g, '[$1]');
+            // Flatten fallback: `completion` replaces the whole answer (e.g.
+            // after a citation clamp), so we have ONE final text with no per-tool
+            // offsets. Drop every streamed text segment and append a single
+            // trailing one; cards keep their positions in orderedContent.
+            // buildResult re-normalizes [cite:N] → [N] on emit.
+            for (let i = orderedContent.length - 1; i >= 0; i--) {
+              if (orderedContent[i].type === 'text') orderedContent.splice(i, 1);
+            }
+            const finalSeg: TextSegment = { type: 'text', text: completionData.text };
+            orderedContent.push(finalSeg);
+            currentTextSegment = finalSeg;
           }
           if (completionData.citations) {
-            receivedCitations = completionData.citations.map((c) => ({
-              id: parseInt(c.index, 10),
-              title: c.document_title ?? '',
-              url: c.source_url ?? '',
-              snippet: c.cited_text ?? '',
-              citedText: c.cited_text,
-              source: c.collection_name ?? '',
-              collectionName: c.collection_name,
-              documentId: c.document_id,
-              chunkIndex: c.chunk_index,
-              similarityScore: c.similarity_score,
-              collectionId: c.collection_id,
-            }));
+            receivedCitations = completionData.citations.map((c) =>
+              isNotebookCitation(c)
+                ? {
+                    id: parseInt(c.index, 10),
+                    title: c.document_title ?? '',
+                    url: c.source_url ?? '',
+                    snippet: c.cited_text ?? '',
+                    citedText: c.cited_text,
+                    source: c.collection_name ?? '',
+                    collectionName: c.collection_name,
+                    documentId: c.document_id,
+                    chunkIndex: c.chunk_index,
+                    similarityScore: c.similarity_score,
+                    collectionId: c.collection_id,
+                  }
+                : c
+            );
           }
           transitionStep('complete');
           currentProgress = { stage: 'complete', message: '' };
@@ -1108,8 +1380,34 @@ export async function* parseSSEStream(
           transitionStep('error');
           throw new ChatStreamError(payload.error ?? 'Es ist ein Fehler aufgetreten.', payload);
         }
+        default:
+          // Unknown event names pass through untouched (forward compatibility).
+          break;
       }
     }
+  }
+
+  // Client half of the truncation cross-check. The server runs the identical
+  // test on the text it generated (`looksCutOff`, apps/api/.../outputSanity.ts)
+  // and logs its own char count as `chars=N`. Comparing the two numbers is what
+  // localises a "the answer just stops" report without a repro:
+  //   same count   → the model stopped early (check finishReason in the backend)
+  //   fewer here   → the tail was lost between server and screen
+  // Only warns on the suspicious shape, so a normal turn stays quiet.
+  const assembled = orderedContent
+    .filter((el): el is TextSegment => el.type === 'text')
+    .map((el) => el.text)
+    .join('');
+  // Mirrors TRUNCATION_MIN_WORDS on the server: under five words, "ends on a
+  // letter" is the shape of a demanded one-liner ("KEINE DATEN") as often as of
+  // a severed sentence, and warning on both is how the real cut got read as
+  // noise.
+  const tail = assembled.trimEnd();
+  if (tail.split(/\s+/).filter(Boolean).length >= 5 && /[\p{L}\p{N}]$/u.test(tail)) {
+    console.warn(
+      `[GrueneratorModelAdapter] answer ends mid-sentence after ${assembled.length} chars ` +
+        `(compare the backend's "chars=" line) — tail: ${JSON.stringify(assembled.slice(-60))}`
+    );
   }
 
   const finalResult = buildResult();
@@ -1117,6 +1415,10 @@ export async function* parseSSEStream(
   yield finalResult;
 
   outcome.interrupted = interruptPending;
+  // Report whether the backend actually finished. Without this a stream that
+  // simply closed (proxy timeout, worker recycle) was indistinguishable from a
+  // completed turn — the adapter now marks those failed instead.
+  outcome.completed = sawTerminalEvent || interruptPending || clientToolPending;
 
   if (receivedMetadata && !interruptPending && !clientToolPending) {
     callbacks.onComplete?.(receivedMetadata);

@@ -18,12 +18,17 @@
  * The wrapper never changes a tool's `inputSchema`/`description`; it only
  * decorates `execute`.
  */
+import { recordDecision } from '../../../../utils/decisionJournal.js';
+import { createLogger } from '../../../../utils/logger.js';
+
 import { truncateResultForModel } from './truncate.js';
+import { readMcpResult, type PersistedStep } from './types.js';
 
 import type { ToolLoopGuards } from './loopGuards.js';
-import type { PersistedStep } from './types.js';
 import type { SSEWriter } from '../sseHelpers.js';
 import type { ToolSet } from 'ai';
+
+const log = createLogger('agenticTools');
 
 export interface WrapToolsContext {
   sse: SSEWriter;
@@ -32,10 +37,24 @@ export interface WrapToolsContext {
   recordStep: (step: PersistedStep) => void;
   /** Per tool-call execution timeout (ms). */
   perCallTimeoutMs: number;
+  /** Per-tool overrides for tools whose honest runtime exceeds the generic
+   *  budget — see TOOL_TIMEOUT_OVERRIDES_MS. */
+  perCallTimeoutOverridesMs?: Record<string, number>;
   /** Optional display title for the tool card (else the tool name is shown). */
   titleFor?: (toolName: string) => string | undefined;
   /** Optional MCP/connector server label for the tool card. */
   serverNameFor?: (toolName: string) => string | undefined;
+  /** Character index into the final answer text at the moment a tool call
+   *  STARTS — persisted as `PersistedStep.textOffset` so thread reload can
+   *  interleave text segments and tool cards in the live order. Returns `null`
+   *  when offsets must NOT be recorded (split mode: text stays empty during
+   *  gather, so every offset would be a meaningless 0). */
+  getTextOffset?: () => number | null;
+  /** Drains the planner narration buffered since the previous tool call and
+   *  returns it (or `null` if none). Called once at each tool START, so the
+   *  announcement sentence(s) are associated with the tool they preceded.
+   *  Split mode only; unified mode narration flows through the answer text. */
+  takeNarration?: () => string | null;
   /** Safety-net cap on the serialized model-facing result. Default 6000. */
   maxResultChars?: number;
 }
@@ -66,6 +85,18 @@ function asRecord(value: unknown): Record<string, unknown> {
     : { value };
 }
 
+/** For a connector (MCP) tool, describe what its result ACTUALLY carried — a
+ *  bare "ok" hid whether the service returned data or an empty string, which is
+ *  the single fact needed to tell "no entries" apart from a broken relay/synth
+ *  when a later answer claims "kein Zugriff / keine Einträge". */
+function describeMcpContent(output: unknown): string {
+  const view = readMcpResult(asRecord(output));
+  if (!view.ok) return 'Fehler';
+  if (view.content.trim() === '') return 'LEER (0 Zeichen zurückgegeben)';
+  const preview = view.content.slice(0, 140).replace(/\s+/g, ' ');
+  return `${view.content.length} Zeichen: "${preview}${view.content.length > 140 ? '…' : ''}"`;
+}
+
 class ToolTimeoutError extends Error {
   constructor(ms: number) {
     super(`Zeitüberschreitung nach ${ms}ms`);
@@ -73,9 +104,35 @@ class ToolTimeoutError extends Error {
   }
 }
 
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+/**
+ * Hand-rolled on purpose — do NOT replace this with the AI SDK's
+ * `timeout: { toolMs }` (checked against ai@7.0.37, `dist/index.js` ~:2918).
+ *
+ * `toolMs` is COOPERATIVE, not enforcing: the SDK turns it into
+ * `AbortSignal.timeout(ms)`, merges it into the tool's `options.abortSignal`
+ * and then plainly awaits the tool. There is no timer racing the await. A tool
+ * that never reads the signal runs unbounded.
+ *
+ * Not one of our tools reads it — none of the `execute` implementations in
+ * `agents/searchTools.ts` / `domainTools.ts` / the other catalogs even declares
+ * the second `options` parameter. Switching would therefore be a silent no-op
+ * that removes the only hard bound on a hung tool call.
+ *
+ * The enforcement also has to live INSIDE this wrapper, not around it: the
+ * rejection is caught below and turned into `{ error }`, which is what makes a
+ * timeout count as a tool failure (`noteFailure` → MAX_FAILURES_PER_TOOL),
+ * persist via `recordStep`, and close the tool card via `sendResult`. An
+ * abort from outside would skip all three and leave the card spinning.
+ *
+ * `onTimeout` is what makes the abandonment visible to the tool — see the
+ * `abandoned` controller at the call site.
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number, onTimeout?: () => void): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new ToolTimeoutError(ms)), ms);
+    const timer = setTimeout(() => {
+      onTimeout?.();
+      reject(new ToolTimeoutError(ms));
+    }, ms);
     promise.then(
       (v) => {
         clearTimeout(timer);
@@ -89,7 +146,10 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   });
 }
 
-type ExecuteFn = (input: unknown, options: { toolCallId: string }) => Promise<unknown>;
+type ExecuteFn = (
+  input: unknown,
+  options: { toolCallId: string; abortSignal?: AbortSignal }
+) => Promise<unknown>;
 
 export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet {
   const maxResultChars = ctx.maxResultChars ?? 6000;
@@ -105,13 +165,18 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
     const title = ctx.titleFor?.(toolName);
     const serverName = ctx.serverNameFor?.(toolName);
 
-    const sendStart = (stepId: string, args: Record<string, unknown>): void => {
+    const sendStart = (
+      stepId: string,
+      args: Record<string, unknown>,
+      narration?: string | null
+    ): void => {
       ctx.sse.send('tool_step_start', {
         stepId,
         toolName,
         args,
         ...(title ? { title } : {}),
         ...(serverName ? { serverName } : {}),
+        ...(narration ? { narration } : {}),
       });
     };
     const sendResult = (stepId: string, ok: boolean, result: unknown): void => {
@@ -133,36 +198,100 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
       const server = ctx.serverNameFor?.(toolName);
       const serverMeta = server ? { serverName: server } : {};
 
-      // checkDuplicate is the only guard that mutates state (registers the
-      // call key). If an earlier guard trips it isn't called, so a blocked
-      // call doesn't register — harmless: failure/total caps stay tripped for
-      // the turn and maxSteps bounds any spin.
-      const guardError =
+      // Guard order is load-bearing. Concurrency runs FIRST because it is a
+      // DEFERRAL — this very call is expected back in a later step, so it must
+      // leave no trace that would then block it, while `checkDuplicate` at the
+      // end of the chain registers the call key on its way through.
+      //
+      // checkDuplicate is in fact the only guard that mutates state. If an
+      // earlier one trips it isn't called, so a blocked call doesn't register —
+      // harmless: failure/total caps stay tripped for the turn and maxSteps
+      // bounds any spin.
+      const block =
+        ctx.guards.checkSearchConcurrency(toolName) ??
         ctx.guards.checkFailureCap(toolName) ??
         ctx.guards.checkTotalFailureBudget() ??
         ctx.guards.checkSearchBudget(toolName) ??
-        ctx.guards.checkInternalFirst(toolName) ??
-        ctx.guards.checkDuplicate(toolName, input);
-      if (guardError) {
-        const result = { error: guardError };
-        sendStart(stepId, args);
-        sendResult(stepId, false, result);
-        ctx.recordStep({ toolCallId: stepId, toolName, args, result, ...serverMeta });
-        return result;
+        // Connector tools (server != null) skip the search-tuned near-dup
+        // heuristic: structured args collide falsely and corrective retries
+        // after a validation error would be wrongly blocked as "too similar".
+        ctx.guards.checkDuplicate(toolName, input, { skipNearDuplicate: !!server });
+      if (block) {
+        // No `sendStart`/`sendResult`/`recordStep`, for ANY guard: the tool did
+        // not run, so a card claiming it did — captioned with steering text
+        // meant for the planner ("Formuliere eine WIRKLICH ANDERE Suche …") — is
+        // a false statement about the turn. It also skips `noteCall`, so a blocked
+        // call costs neither a search-budget slot nor a failure. The narration
+        // buffer stays undrained on purpose: the announcement belongs to
+        // whichever call actually runs next.
+        const verb = block.kind === 'defer' ? 'zurückgestellt' : 'blockiert';
+        log.info(`[Tool] ${toolName} ${verb} (${block.guard}) — ${block.modelMessage}`);
+        recordDecision('loop.tool_guard', block.guard, {
+          because: block.kind,
+          inputs: { toolName },
+        });
+        return { error: block.modelMessage };
       }
 
+      // Captured at tool START (before execution) — the semantics of textOffset.
+      const textOffset = ctx.getTextOffset?.();
+      // Drained once at START: the planner sentence(s) that announced this call.
+      // Parallel siblings in one model step share the announcement, so only the
+      // first sendStart gets it — the rest drain empty. Split mode only.
+      const narration = ctx.takeNarration?.() ?? null;
+
       ctx.guards.noteCall(toolName);
-      sendStart(stepId, args);
+      sendStart(stepId, args, narration);
 
       let output: unknown;
+      // A timed-out call is ABANDONED, not cancelled: `withTimeout` stops
+      // waiting, the tool itself runs on. For a retrieval tool that is merely
+      // wasteful; for a GENERATION tool it produces a second reality. Live on
+      // 02.08.2026 a `create_pdf` written off after 20s finished 45s later, wrote
+      // its document and pushed a `document_created` card into a turn whose model
+      // had been told twice that the call failed — and whose answer then claimed
+      // success it could not know about. This signal is how a tool can tell; the
+      // generation tools check it immediately before they commit anything.
+      const abandoned = new AbortController();
       try {
-        output = await withTimeout(Promise.resolve(original(input, options)), ctx.perCallTimeoutMs);
+        const timeoutMs = ctx.perCallTimeoutOverridesMs?.[toolName] ?? ctx.perCallTimeoutMs;
+        output = await withTimeout(
+          Promise.resolve(original(input, { ...options, abortSignal: abandoned.signal })),
+          timeoutMs,
+          () => abandoned.abort()
+        );
       } catch (err) {
         output = { error: err instanceof Error ? err.message : String(err) };
       }
 
+      ctx.guards.noteCompletion(toolName);
       const ok = !isErrorResult(output);
       if (!ok) ctx.guards.noteFailure(toolName);
+
+      // Per-tool backend visibility: every tool outcome (internal OR MCP) is
+      // now logged, so a failing connector call (e.g. Tally "no workspace")
+      // shows up in the server logs instead of vanishing into the single
+      // end-of-turn `steps=N` line. Failures log at WARN with the error text.
+      const outcomeDetail = summarize(output) ?? (ok ? 'ok' : 'Fehler');
+      const serverTag = server ? ` server="${server}"` : '';
+      if (ok) {
+        // Connector tools log their real content size + preview (not just "ok"),
+        // so an empty-but-successful call is unmistakable in the backend.
+        const detail = server ? describeMcpContent(output) : outcomeDetail;
+        log.info(`[Tool] ${toolName}${serverTag} ok — ${detail}`);
+      } else {
+        log.warn(`[Tool] ${toolName}${serverTag} FEHLER — ${outcomeDetail}`);
+        // MCP/connector failures also get a first-class, user-facing error
+        // event (the generic tool card only carries ok:false); internal tools
+        // keep their own error channels.
+        if (server) {
+          ctx.sse.send('mcp_tool_error', {
+            toolName,
+            serverName: server,
+            error: outcomeDetail,
+          });
+        }
+      }
 
       ctx.recordStep({
         toolCallId: stepId,
@@ -170,6 +299,8 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
         args,
         result: asRecord(output),
         ...serverMeta,
+        ...(textOffset != null && { textOffset }),
+        ...(narration ? { narration } : {}),
       });
       sendResult(stepId, ok, output);
 

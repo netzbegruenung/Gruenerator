@@ -22,9 +22,9 @@ export function startCanvasTour(): void {
     {
       element: SEL.tabs,
       popover: {
-        title: 'Werkzeuge links',
+        title: 'Die Werkzeugleiste',
         description:
-          'Text, Elemente, Hintergrund und Uploads — hier fügst du alles hinzu, was dein Sharepic braucht.',
+          'Text, Elemente, Tools und Uploads — hier fügst du alles hinzu, was dein Sharepic braucht. Den Hintergrund bearbeitest du direkt auf der Fläche.',
         side: 'right',
       },
     },

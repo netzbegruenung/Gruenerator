@@ -17,7 +17,15 @@ import { Button } from '../../components/common/Button';
 import { shareFile } from '../../services/share';
 import { getCachedShareFile } from '../../services/sharedMediaCache';
 import { secureStorage } from '../../services/storage';
-import { colors, spacing, borderRadius, typography, lightTheme, darkTheme } from '../../theme';
+import {
+  colors,
+  spacing,
+  borderRadius,
+  typography,
+  lightTheme,
+  darkTheme,
+  BODY_FONT,
+} from '../../theme';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/api';
 
@@ -176,7 +184,12 @@ export default function PushedContentScreen() {
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={handleClose} style={styles.closeButton}>
+        <Pressable
+          onPress={handleClose}
+          style={styles.closeButton}
+          accessibilityRole="button"
+          accessibilityLabel="Schließen"
+        >
           <Ionicons name="close" size={28} color={theme.text} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>
@@ -229,6 +242,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xlarge,
   },
   loadingText: {
+    fontFamily: BODY_FONT,
     fontSize: 16,
     marginTop: spacing.small,
   },
@@ -237,6 +251,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   subtitle: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     textAlign: 'center',
     marginBottom: spacing.medium,
@@ -257,6 +272,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     flex: 1,
+    fontFamily: BODY_FONT,
     fontSize: 17,
     fontWeight: '600',
     textAlign: 'center',

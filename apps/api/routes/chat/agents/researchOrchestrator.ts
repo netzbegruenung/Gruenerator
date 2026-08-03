@@ -21,7 +21,12 @@ import { type AIWorkerPool } from '../../../workers/types.js';
 
 import { executeDirectSearch, executeDirectWebSearch } from './directSearchExecutors.js';
 import { getIntermediateModel } from './providers.js';
-import { truncateText, deduplicateByUrl, extractDomain } from './searchFormatting.js';
+import {
+  truncateText,
+  deduplicateByUrl,
+  extractDomain,
+  relevanceLabelToScore,
+} from './searchFormatting.js';
 
 export type ResearchLocale = 'de' | 'at' | 'eu';
 export type ReportShape = 'biographical' | 'comparative' | 'positional' | 'event' | 'general';
@@ -156,7 +161,7 @@ async function planResearchDeep(
   defaultLocale: ResearchLocale,
   brief?: string | null
 ): Promise<DeepPlan | null> {
-  const aiModel = getIntermediateModel();
+  const aiModel = getIntermediateModel('heavy');
   const briefLine = brief ? `\nKontext-Briefing: ${brief}` : '';
 
   try {
@@ -203,16 +208,115 @@ Gib NUR JSON zurück, das dem Schema entspricht.`,
 export function localeToSearchScope(locale: ResearchLocale): {
   qdrantCollection: string;
   webLanguage: string;
+  docDomain: string;
 } {
   switch (locale) {
     case 'at':
-      return { qdrantCollection: 'oesterreich', webLanguage: 'de-AT' };
+      return {
+        qdrantCollection: 'oesterreich',
+        webLanguage: 'de-AT',
+        docDomain: 'gruene.at',
+      };
     case 'eu':
-      return { qdrantCollection: 'deutschland', webLanguage: 'de-DE' };
+      return { qdrantCollection: 'deutschland', webLanguage: 'de-DE', docDomain: 'gruene.de' };
     case 'de':
     default:
-      return { qdrantCollection: 'deutschland', webLanguage: 'de-DE' };
+      return { qdrantCollection: 'deutschland', webLanguage: 'de-DE', docDomain: 'gruene.de' };
   }
+}
+
+type WebSearchHit = Awaited<ReturnType<typeof executeDirectWebSearch>>['results'][number];
+type DocSearchHit = Awaited<ReturnType<typeof executeDirectSearch>>['results'][number];
+
+/**
+ * Rank decay is deliberately steeper here (0.1) than in searchNode (0.15):
+ * this value is the FINAL sort key feeding applyMMR and the maxSources cut,
+ * whereas searchNode's feeds normalizeScore before a cross-encoder rerank.
+ * Do not unify the two — it retunes research source selection.
+ */
+function toWebSource(result: WebSearchHit, id: number): CollectedSource {
+  return {
+    id,
+    title: result.title,
+    url: result.url,
+    domain: result.domain,
+    snippet: result.snippet,
+    relevance: 1 - (result.rank - 1) * 0.1,
+    sourceType: 'web',
+  };
+}
+
+function toDocSource(result: DocSearchHit, id: number, domain: string): CollectedSource {
+  return {
+    id,
+    title: result.source,
+    url: result.url || '',
+    domain,
+    snippet: result.excerpt,
+    // Lossy: executeDirectSearch also ships the raw `score`, which this path
+    // discards. See the note in searchNode's normalizeScore.
+    relevance: relevanceLabelToScore(result.relevance),
+    sourceType: 'document',
+  };
+}
+
+/**
+ * Shared tail of both research paths: strip citations the sources don't
+ * support, fall back to template synthesis when most of them were invented,
+ * then project the sources into citations.
+ */
+function finalizeResearchResult(params: {
+  question: string;
+  answer: string;
+  confidence: ResearchResult['confidence'];
+  limitedSources: CollectedSource[];
+  strategy: string;
+  searchSteps: ResearchResult['searchSteps'];
+  logPrefix: string;
+  /** Template synthesis produces no citations to validate. */
+  validateGrounding: boolean;
+}): ResearchResult {
+  const { question, limitedSources, strategy, searchSteps, logPrefix } = params;
+  let { answer, confidence } = params;
+
+  if (params.validateGrounding && answer) {
+    const groundingResult = validateCitations(
+      answer,
+      limitedSources.map((s) => ({ id: s.id, content: s.snippet }))
+    );
+
+    if (groundingResult.ungroundedCitations.length > 0) {
+      log.warn(
+        `${logPrefix} ${groundingResult.ungroundedCitations.length} ungrounded citations removed: [${groundingResult.ungroundedCitations.join(', ')}]`
+      );
+      answer = stripUngroundedCitations(answer, groundingResult.ungroundedCitations);
+
+      if (groundingResult.confidence < 0.5 && groundingResult.totalCitations > 2) {
+        log.warn(`${logPrefix} >50% citations ungrounded, falling back to template synthesis`);
+        const fallback = synthesizeAnswer(question, limitedSources, strategy);
+        answer = fallback.answer;
+        confidence = fallback.confidence;
+      }
+    }
+  }
+
+  const citations: ResearchCitation[] = limitedSources.map((s) => ({
+    id: s.id,
+    title: s.title,
+    url: s.url,
+    domain: s.domain,
+    snippet: truncateText(s.snippet, 150),
+  }));
+
+  log.info(`${logPrefix} Complete: ${citations.length} citations, confidence: ${confidence}`);
+
+  return {
+    answer,
+    citations,
+    followUpQuestions: generateFollowUpQuestions(question, limitedSources),
+    searchSteps,
+    confidence,
+  };
 }
 
 /**
@@ -221,8 +325,11 @@ export function localeToSearchScope(locale: ResearchLocale): {
  * ResearchResult shape so the frontend ResearchArtifactCard works unchanged.
  *
  * Notes:
- * - confidence is set to 'high': Linkup deep is exhaustive by design (up to
- *   10 retrieval iterations with cross-pass context).
+ * - confidence is DERIVED (see below). It used to be hardcoded 'high' on the
+ *   grounds that Linkup deep is exhaustive by design — but exhaustive research
+ *   into the WRONG question is not high confidence, and the label is not
+ *   cosmetic: respondNode injects it into the system prompt and forbids the
+ *   model to say it found nothing.
  * - searchSteps is synthesized as a single entry so the toolCall chip's
  *   expand panel still has something to show.
  * - followUpQuestions is empty: Linkup doesn't return them; the UI handles
@@ -232,6 +339,8 @@ async function executeResearchViaLinkup(args: {
   linkup: NonNullable<ReturnType<typeof getLinkupService>>;
   question: string;
   locale: ResearchLocale;
+  /** The question was inherited from an earlier turn, not stated by the user. */
+  queryInherited?: boolean;
   onProgress?: (message: string) => void;
 }): Promise<ResearchResult> {
   const { linkup, question, locale, onProgress } = args;
@@ -264,8 +373,34 @@ async function executeResearchViaLinkup(args: {
         resultsCount: citations.length,
       },
     ],
-    confidence: 'high',
+    confidence: linkupConfidence({
+      sources: citations.length,
+      domains: new Set(citations.map((c) => c.domain)).size,
+      answerLength: res.answer.trim().length,
+      queryInherited: args.queryInherited === true,
+    }),
   };
+}
+
+/**
+ * Confidence from what the run actually produced, instead of a constant.
+ *
+ * An inherited query caps at 'medium': the subject was inferred from the
+ * conversation, so even a perfect retrieval may have researched the wrong
+ * thing — which is exactly the failure that made this label misleading.
+ */
+export function linkupConfidence(signals: {
+  sources: number;
+  domains: number;
+  answerLength: number;
+  queryInherited: boolean;
+}): 'high' | 'medium' | 'low' {
+  const { sources, domains, answerLength, queryInherited } = signals;
+  if (sources === 0 || answerLength < 80) return 'low';
+  if (queryInherited) return sources >= 3 && domains >= 2 ? 'medium' : 'low';
+  if (sources >= 8 && domains >= 4) return 'high';
+  if (sources >= 3 && domains >= 2) return 'medium';
+  return 'low';
 }
 
 /**
@@ -280,7 +415,7 @@ async function executeDeepSearches(
   const sources: CollectedSource[] = [];
   const searchSteps: ResearchResult['searchSteps'] = [];
   let sourceId = startSourceId;
-  const { qdrantCollection, webLanguage } = localeToSearchScope(plan.locale);
+  const { qdrantCollection, webLanguage, docDomain } = localeToSearchScope(plan.locale);
 
   // Fan out all sub-questions in parallel — each may target web, qdrant, or both.
   const tasks = plan.subQuestions.flatMap((sq) => {
@@ -333,15 +468,7 @@ async function executeDeepSearches(
       const web = data as Awaited<ReturnType<typeof executeDirectWebSearch>>;
       searchSteps.push({ tool: 'web_search', query, resultsCount: web.resultsCount });
       for (const result of web.results) {
-        sources.push({
-          id: sourceId++,
-          title: result.title,
-          url: result.url,
-          domain: result.domain,
-          snippet: result.snippet,
-          relevance: 1 - (result.rank - 1) * 0.1,
-          sourceType: 'web',
-        });
+        sources.push(toWebSource(result, sourceId++));
       }
     } else {
       const doc = data as Awaited<ReturnType<typeof executeDirectSearch>>;
@@ -351,16 +478,7 @@ async function executeDeepSearches(
         resultsCount: doc.resultsCount,
       });
       for (const result of doc.results) {
-        sources.push({
-          id: sourceId++,
-          title: result.source,
-          url: result.url || '',
-          domain: plan.locale === 'at' ? 'gruene.at' : 'gruene.de',
-          snippet: result.excerpt,
-          relevance:
-            result.relevance === 'Sehr hoch' ? 0.9 : result.relevance === 'Hoch' ? 0.7 : 0.5,
-          sourceType: 'document',
-        });
+        sources.push(toDocSource(result, sourceId++, docDomain));
       }
     }
   }
@@ -385,7 +503,7 @@ async function assessCoverage(
 ): Promise<{ score: number; weakAspects: string[] }> {
   if (sources.length <= 1) return { score: 1, weakAspects: [] };
 
-  const aiModel = getIntermediateModel();
+  const aiModel = getIntermediateModel('standard');
   const summary = sources
     .slice(0, 8)
     .map((s, i) => `[${i + 1}] ${s.title}: ${truncateText(s.snippet, 150)}`)
@@ -422,11 +540,13 @@ Wenn lückenhaft: nenne 1–3 schwach abgedeckte Aspekte als kurze Suchphrasen (
  */
 async function executeSearches(
   plan: SearchPlan,
+  locale: ResearchLocale,
   aiWorkerPool?: AIWorkerPool
 ): Promise<{ sources: CollectedSource[]; searchSteps: ResearchResult['searchSteps'] }> {
   const sources: CollectedSource[] = [];
   const searchSteps: ResearchResult['searchSteps'] = [];
   let sourceId = 1;
+  const { qdrantCollection, webLanguage, docDomain } = localeToSearchScope(locale);
 
   for (const query of plan.queries) {
     try {
@@ -447,6 +567,7 @@ async function executeSearches(
                 query: q,
                 searchType: 'general',
                 maxResults: 5,
+                language: webLanguage,
               }).catch((err: unknown) => {
                 log.warn(
                   `[Research] Web search failed for variant "${q}": ${err instanceof Error ? err.message : String(err)}`
@@ -465,15 +586,7 @@ async function executeSearches(
               resultsCount: webResults.resultsCount,
             });
             for (const result of webResults.results) {
-              sources.push({
-                id: sourceId++,
-                title: result.title,
-                url: result.url,
-                domain: result.domain,
-                snippet: result.snippet,
-                relevance: 1 - (result.rank - 1) * 0.1,
-                sourceType: 'web',
-              });
+              sources.push(toWebSource(result, sourceId++));
             }
           }
           break;
@@ -482,7 +595,7 @@ async function executeSearches(
         case 'gruenerator_search': {
           const docResults = await executeDirectSearch({
             query: query.query,
-            collection: 'deutschland',
+            collection: qdrantCollection,
             limit: 5,
           });
           searchSteps.push({
@@ -491,16 +604,7 @@ async function executeSearches(
             resultsCount: docResults.resultsCount,
           });
           for (const result of docResults.results) {
-            sources.push({
-              id: sourceId++,
-              title: result.source,
-              url: result.url || '',
-              domain: 'gruene.de',
-              snippet: result.excerpt,
-              relevance:
-                result.relevance === 'Sehr hoch' ? 0.9 : result.relevance === 'Hoch' ? 0.7 : 0.5,
-              sourceType: 'document',
-            });
+            sources.push(toDocSource(result, sourceId++, docDomain));
           }
           break;
         }
@@ -658,7 +762,7 @@ async function synthesizeAnswerWithLLM(
     };
   }
 
-  const aiModel = getIntermediateModel();
+  const aiModel = getIntermediateModel('heavy');
 
   // Structured-report templates: only used when a deep planner emitted a reportShape.
   // Single-shot research keeps the original short-answer behavior.
@@ -776,6 +880,8 @@ async function synthesizeWithFallback(
 export async function executeResearch(params: {
   question: string;
   brief?: string | null;
+  /** The question was inherited from an earlier turn — caps confidence. */
+  queryInherited?: boolean;
   aiWorkerPool?: AIWorkerPool;
   depth?: 'quick' | 'thorough';
   maxSources?: number;
@@ -787,6 +893,7 @@ export async function executeResearch(params: {
   const {
     question,
     brief,
+    queryInherited,
     aiWorkerPool,
     depth = 'quick',
     maxSources = 8,
@@ -832,6 +939,7 @@ export async function executeResearch(params: {
       linkup,
       question: question.trim(),
       locale: defaultLocale,
+      queryInherited: queryInherited === true,
       ...(onProgress ? { onProgress } : {}),
     });
   }
@@ -893,7 +1001,7 @@ export async function executeResearch(params: {
   );
 
   // Phase 2: Execute searches
-  const { sources, searchSteps } = await executeSearches(plan, aiWorkerPool);
+  const { sources, searchSteps } = await executeSearches(plan, defaultLocale, aiWorkerPool);
   log.info(`[Research] Collected ${sources.length} sources from ${searchSteps.length} searches`);
 
   // B3: Apply MMR diversity to sources before synthesis
@@ -909,7 +1017,7 @@ export async function executeResearch(params: {
   // Phase 3: Synthesize answer
   const limitedSources = diverseSources.slice(0, maxSources);
   log.info(`[Research] Synthesizing with ${useLLMSynthesis ? 'LLM (mistral-small)' : 'template'}`);
-  let { answer, confidence } = await synthesizeWithFallback(
+  const { answer, confidence } = await synthesizeWithFallback(
     question,
     limitedSources,
     plan.synthesisStrategy,
@@ -917,50 +1025,16 @@ export async function executeResearch(params: {
     brief
   );
 
-  // B4: Validate citation grounding
-  if (useLLMSynthesis && answer) {
-    const groundingResult = validateCitations(
-      answer,
-      limitedSources.map((s) => ({ id: s.id, content: s.snippet }))
-    );
-
-    if (groundingResult.ungroundedCitations.length > 0) {
-      log.warn(
-        `[Research] ${groundingResult.ungroundedCitations.length} ungrounded citations removed: [${groundingResult.ungroundedCitations.join(', ')}]`
-      );
-      answer = stripUngroundedCitations(answer, groundingResult.ungroundedCitations);
-
-      // If >50% ungrounded, fall back to template synthesis
-      if (groundingResult.confidence < 0.5 && groundingResult.totalCitations > 2) {
-        log.warn('[Research] >50% citations ungrounded, falling back to template synthesis');
-        const fallback = synthesizeAnswer(question, limitedSources, plan.synthesisStrategy);
-        answer = fallback.answer;
-        confidence = fallback.confidence;
-      }
-    }
-  }
-
-  // Generate follow-up questions
-  const followUpQuestions = generateFollowUpQuestions(question, limitedSources);
-
-  // Build citations list
-  const citations: ResearchCitation[] = limitedSources.map((s) => ({
-    id: s.id,
-    title: s.title,
-    url: s.url,
-    domain: s.domain,
-    snippet: truncateText(s.snippet, 150),
-  }));
-
-  log.info(`[Research] Complete: ${citations.length} citations, confidence: ${confidence}`);
-
-  return {
+  return finalizeResearchResult({
+    question,
     answer,
-    citations,
-    followUpQuestions,
-    searchSteps,
     confidence,
-  };
+    limitedSources,
+    strategy: plan.synthesisStrategy,
+    searchSteps,
+    logPrefix: '[Research]',
+    validateGrounding: useLLMSynthesis,
+  });
 }
 
 /**
@@ -1054,7 +1128,7 @@ async function executeDeepResearch(args: {
     plan.reportShape === 'positional' || plan.reportShape === 'comparative'
       ? 'policy_overview'
       : 'factual_synthesis';
-  let { answer, confidence } = await synthesizeWithFallback(
+  const { answer, confidence } = await synthesizeWithFallback(
     question,
     limitedSources,
     strategy,
@@ -1063,42 +1137,15 @@ async function executeDeepResearch(args: {
     plan.reportShape
   );
 
-  // Citation grounding (same as single-shot path).
-  if (answer) {
-    const groundingResult = validateCitations(
-      answer,
-      limitedSources.map((s) => ({ id: s.id, content: s.snippet }))
-    );
-    if (groundingResult.ungroundedCitations.length > 0) {
-      log.warn(
-        `[Research/Deep] ${groundingResult.ungroundedCitations.length} ungrounded citations removed`
-      );
-      answer = stripUngroundedCitations(answer, groundingResult.ungroundedCitations);
-      if (groundingResult.confidence < 0.5 && groundingResult.totalCitations > 2) {
-        log.warn('[Research/Deep] >50% citations ungrounded, falling back to template');
-        const fallback = synthesizeAnswer(question, limitedSources, strategy);
-        answer = fallback.answer;
-        confidence = fallback.confidence;
-      }
-    }
-  }
-
-  const followUpQuestions = generateFollowUpQuestions(question, limitedSources);
-  const citations: ResearchCitation[] = limitedSources.map((s) => ({
-    id: s.id,
-    title: s.title,
-    url: s.url,
-    domain: s.domain,
-    snippet: truncateText(s.snippet, 150),
-  }));
-
-  log.info(`[Research/Deep] Complete: ${citations.length} citations, confidence: ${confidence}`);
-
-  return {
+  return finalizeResearchResult({
+    question,
     answer,
-    citations,
-    followUpQuestions,
-    searchSteps: allSearchSteps,
     confidence,
-  };
+    limitedSources,
+    strategy,
+    searchSteps: allSearchSteps,
+    logPrefix: '[Research/Deep]',
+    // The deep path is always LLM-synthesized.
+    validateGrounding: true,
+  });
 }

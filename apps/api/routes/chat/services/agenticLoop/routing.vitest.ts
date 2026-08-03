@@ -10,6 +10,9 @@ import {
   resolveEditorSurfaceKind,
   decideEditToolLoop,
   type EditToolLoopInput,
+  needsThreadGrounding,
+  rewritesSuppliedText,
+  looksLikeUnsourcedWritingOrder,
 } from './routing.js';
 
 describe('looksLikeToolableQuestion', () => {
@@ -43,6 +46,13 @@ describe('looksLikeToolableQuestion', () => {
     expect(looksLikeToolableQuestion(q)).toBe(true);
   });
 
+  it('strips a greeting prefix so a real question behind it still routes', () => {
+    expect(looksLikeToolableQuestion('Hallo! Wie hat die CDU zur Frauenquote abgestimmt?')).toBe(
+      true
+    );
+    expect(looksLikeToolableQuestion('Moin, gibt es aktuelle Zahlen zum Radverkehr?')).toBe(true);
+  });
+
   const fastPath: [string, string][] = [
     ['greeting', 'Hallo!'],
     ['short who', 'Wer bist du?'],
@@ -73,6 +83,11 @@ describe('decideRunAgentic', () => {
     'bundestag',
     'abgeordnetenwatch',
     'image',
+    // Mirrors AGENTIC_INTENT_IDS (agenticRespondService), which routing.ts is
+    // deliberately import-free of. `agentic` belongs here: since the split it
+    // is the classifier's residual, so it must own the loop outright rather
+    // than depend on one of the phrasing rescues below.
+    'agentic',
   ]);
   const base = {
     loopEnabled: true,
@@ -82,15 +97,54 @@ describe('decideRunAgentic', () => {
     forcedTool: false,
     isMcpTurn: false,
     isCompound: false,
+    hasSelectedNotebook: false,
     secondaryIntent: null as string | null,
     compoundGeneration: false,
     hasImageAttachments: false,
+    isPdfFillRequest: false,
+    hasManagedSources: false,
   };
   const decide = (o: Partial<typeof base>) => decideRunAgentic({ ...base, ...o });
 
   it('runs the loop for a whitelisted intent', () => {
     expect(decide({ intent: 'search' })).toBe(true);
     expect(decide({ intent: 'bundestag' })).toBe(true);
+  });
+
+  // The five system-MCP intents used to be in `agenticIntents`, and that is what
+  // guaranteed these turns a loop. They are managed connectors now, so the
+  // guarantee has to come from the trigger instead.
+  it('runs the loop for a connector turn that no other rescue reaches', () => {
+    // `hasOwnMaterial` is what isolates the mechanism: a turn WITHOUT own
+    // material is already rescued by `!selfContained`, so it would pass with or
+    // without the connector signal and prove nothing. WITH material — a long
+    // paste, an attachment, an open document — that rescue is off, and
+    // "Wetter Köln morgen" fails every shape `looksLikeToolableQuestion` knows.
+    const withMaterial = { intent: 'direct', hasOwnMaterial: true };
+    expect(decide({ ...withMaterial, lastUserText: 'Wetter Köln morgen' })).toBe(false);
+    expect(
+      decide({ ...withMaterial, lastUserText: 'Wetter Köln morgen', hasManagedSources: true })
+    ).toBe(true);
+    expect(decide({ ...withMaterial, lastUserText: '§ 823 BGB', hasManagedSources: true })).toBe(
+      true
+    );
+  });
+
+  it('runs the loop for a connector turn under a verdict in neither set', () => {
+    // `scrape_url` is not in `agenticIntents` and not a NO_TOOL_VERDICT, so
+    // nothing else would open the gate for it.
+    expect(decide({ intent: 'scrape_url', lastUserText: 'Zug nach Nürnberg' })).toBe(false);
+    expect(
+      decide({ intent: 'scrape_url', lastUserText: 'Zug nach Nürnberg', hasManagedSources: true })
+    ).toBe(true);
+  });
+
+  it('still respects the single-pass kill-switches for a connector turn', () => {
+    // A named connector opens `inLoopSet`; it does not override the guards that
+    // exist because the loop cannot serve those turns at all.
+    expect(decide({ hasManagedSources: true, isCompound: true })).toBe(false);
+    expect(decide({ hasManagedSources: true, hasImageAttachments: true })).toBe(false);
+    expect(decide({ hasManagedSources: true, forcedTool: true })).toBe(false);
   });
 
   it('rescues a factual question mislabelled `direct`', () => {
@@ -101,6 +155,46 @@ describe('decideRunAgentic', () => {
 
   it('keeps a greeting mislabelled `direct` on the fast path', () => {
     expect(decide({ intent: 'direct', lastUserText: 'Hallo, wer bist du?' })).toBe(false);
+  });
+
+  it('rescues a factual question mislabelled `produktion`', () => {
+    // The rescue follows the verdict, not the name: `produktion` inherited
+    // `direct`'s supplied-substance half, so it inherited the failure mode too.
+    expect(
+      decide({ intent: 'produktion', lastUserText: 'Wie hat Robert Habeck abgestimmt?' })
+    ).toBe(true);
+    expect(
+      decide({
+        intent: 'produktion',
+        lastUserText: 'Schreib eine Pressemitteilung zur Verkehrswende',
+      })
+    ).toBe(true);
+  });
+
+  it('`agentic` needs no rescue — it is in the loop set outright', () => {
+    // The residual since the split. If this ever needed a phrasing rescue, the
+    // residual would be doing `direct`'s old job again.
+    expect(decide({ intent: 'agentic', lastUserText: 'Irgendwas völlig Unklares' })).toBe(true);
+  });
+
+  it('`greeting` is excluded structurally, not by phrasing', () => {
+    // All three `direct` rescues key on the intent being `direct`. A greeting
+    // now carries its own intent, so no phrasing and no classifier
+    // self-contradiction can pull it into the loop — the previous test relied
+    // on looksLikeToolableQuestion rejecting the wording, which is a weaker
+    // guarantee than the intent simply not matching.
+    expect(decide({ intent: 'greeting', lastUserText: 'Wie hat Robert Habeck abgestimmt?' })).toBe(
+      false
+    );
+    expect(
+      decide({
+        intent: 'greeting',
+        lastUserText: 'Schreib eine Pressemitteilung zur Verkehrswende',
+      })
+    ).toBe(false);
+    expect(
+      decide({ intent: 'greeting', lastUserText: 'Hallo', classifierContradictedResearch: true })
+    ).toBe(false);
   });
 
   it('never loops a generation intent (fixed UX contract)', () => {
@@ -120,8 +214,135 @@ describe('decideRunAgentic', () => {
     expect(decide({ hasImageAttachments: true })).toBe(false);
   });
 
+  it('keeps a turn with a chosen notebook single-pass — on EVERY agent', () => {
+    // `searchNode` is the only place that retrieves notebook content; no loop
+    // tool can address a notebook (`gruenerator_search` takes `collection` from
+    // a closed ALL_COLLECTIONS enum). `isCompound` held back only the named
+    // agents, so on the universal one the chosen notebook was silently answered
+    // around — the classifier even sets `gatherSources: ['notebook-search']`
+    // there and nobody reads it.
+    expect(decide({ hasSelectedNotebook: true })).toBe(false);
+    expect(decide({ intent: 'agentic', hasSelectedNotebook: true })).toBe(false);
+    expect(
+      decide({
+        intent: 'direct',
+        lastUserText: 'Was steht dazu im Notizbuch?',
+        hasSelectedNotebook: true,
+      })
+    ).toBe(false);
+  });
+
+  it('still lets an MCP turn with a notebook into the loop', () => {
+    // The same exception `forcedTool` gets: nothing in the isMcpTurn set has a
+    // single-pass executor, so holding it back would leave the turn with nobody
+    // to run it. An unsearched notebook beats a turn that does nothing.
+    expect(decide({ intent: 'mcp', isMcpTurn: true, hasSelectedNotebook: true })).toBe(true);
+  });
+
   it('respects the flag', () => {
     expect(decide({ loopEnabled: false })).toBe(false);
+  });
+
+  it('lets a PDF fill ask into the loop, though it is no "toolable question"', () => {
+    const fill = { intent: 'direct', lastUserText: 'Füll mir bitte das Formular aus' };
+    // Since the default inversion this imperative loops WITHOUT the PDF signal
+    // too: it is not a question, not a rewrite, not creative form, and carries
+    // no material — so nothing shows it can be answered as it stands. The
+    // control side of this pair therefore had to move; `isPdfFillRequest`
+    // still matters because it survives every kill-switch check below and,
+    // upstream, is what mounts the PDF tools at all.
+    expect(decide(fill)).toBe(true);
+    expect(decide({ ...fill, isPdfFillRequest: true })).toBe(true);
+    // The control that still proves the flag does something: WITH own material
+    // the turn is self-contained and stays single-pass unless the PDF signal
+    // says otherwise.
+    expect(decide({ ...fill, hasOwnMaterial: true })).toBe(false);
+    expect(decide({ ...fill, hasOwnMaterial: true, isPdfFillRequest: true })).toBe(true);
+    // Kill-switches still win — the PDF tools are not worth a broken contract.
+    expect(decide({ ...fill, isPdfFillRequest: true, loopEnabled: false })).toBe(false);
+    expect(decide({ ...fill, isPdfFillRequest: true, forcedTool: true })).toBe(false);
+    expect(decide({ ...fill, isPdfFillRequest: true, hasImageAttachments: true })).toBe(false);
+  });
+
+  it('rescues a research turn the classifier contradicted itself about (B7)', () => {
+    // A statement, not a question: no question mark, no interrogative, so the
+    // `direct` rescue by phrasing cannot see it. The classifier CAN — it
+    // answered needsResearch=true and then labelled the turn `direct` anyway,
+    // which is how an invented answer reached the user with zero searches.
+    const statement = {
+      intent: 'direct',
+      lastUserText: 'Erklär mir die aktuellen Vorwürfe gegen die Partei',
+    };
+    // The default inversion now catches this shape without the flag — which was
+    // the point of inverting: the rescue only ever fired when the LLM tier had
+    // ALSO answered needsResearch=true, so every turn that short-circuited
+    // earlier reached the user unrescued. The flag is kept because it is a
+    // second, independent reason to loop, and it is the only one that survives
+    // a turn the phrasing rules read as self-contained.
+    expect(decide(statement)).toBe(true);
+    expect(decide({ ...statement, classifierContradictedResearch: true })).toBe(true);
+    // Creative form is the exemption the inversion must not swallow — and the
+    // contradiction flag still overrides it.
+    const poem = { intent: 'direct', lastUserText: 'Schreib ein Gedicht über den Herbst' };
+    expect(decide(poem)).toBe(false);
+    expect(decide({ ...poem, classifierContradictedResearch: true })).toBe(true);
+
+    // Kill-switches still win, exactly as for the PDF rescue above.
+    expect(decide({ ...statement, classifierContradictedResearch: true, loopEnabled: false })).toBe(
+      false
+    );
+    expect(decide({ ...statement, classifierContradictedResearch: true, forcedTool: true })).toBe(
+      false
+    );
+    expect(
+      decide({ ...statement, classifierContradictedResearch: true, hasImageAttachments: true })
+    ).toBe(false);
+  });
+
+  it('a writing order enters the loop unless the user supplied the substance', () => {
+    // This pin was inverted deliberately. It used to read "leaves a creative
+    // direct turn alone" and asserted `false` for exactly this input — the rule
+    // "Erstelle/Schreib X = IMMER direct", which also lives in the classifier
+    // prompt. A speech about climate policy is a text ABOUT the world, and
+    // writing it from the model's parametric memory is how "schreibe ein
+    // Dossier über Robert" came back asserting a resigned MP was still in
+    // office. The discriminator is not creative-vs-factual, it is whether the
+    // material to write FROM is in the turn.
+    const order = { intent: 'direct', lastUserText: 'Schreib eine Rede über den Klimaschutz' };
+    expect(decide(order)).toBe(true);
+    expect(decide({ ...order, hasOwnMaterial: true })).toBe(false);
+
+    // Kill-switches still win, exactly as for the other two `direct` rescues.
+    expect(decide({ ...order, loopEnabled: false })).toBe(false);
+    expect(decide({ ...order, forcedTool: true })).toBe(false);
+    expect(decide({ ...order, hasImageAttachments: true })).toBe(false);
+  });
+
+  it('pure creative FORM stays single-pass, supplied or not', () => {
+    // "Substance" is not a meaningful category for a poem or a slogan: there is
+    // nothing to look up, so the loop's latency would buy nothing. This is the
+    // one carve-out in the rule above, and it is the same exemption the
+    // grounding gate applies (a poem must never grow [N] footnotes).
+    for (const lastUserText of [
+      'Schreib mir ein Gedicht über den Frühling',
+      'Erstelle einen Slogan zur Verkehrswende',
+      'Formulier ein Motto für unseren Parteitag',
+      'Schreib einen Glückwunsch zum 60. Geburtstag',
+    ]) {
+      expect(decide({ intent: 'direct', lastUserText }), lastUserText).toBe(false);
+    }
+  });
+
+  it('a rewrite of existing text stays single-pass', () => {
+    // A rewrite is grounded in what it rewrites — the substance is already in
+    // the thread even though nothing was pasted THIS turn.
+    for (const lastUserText of [
+      'Mach das kürzer',
+      'Formulier den folgenden Text freundlicher',
+      'Überarbeite diesen Abschnitt',
+    ]) {
+      expect(decide({ intent: 'direct', lastUserText }), lastUserText).toBe(false);
+    }
   });
 
   it('enters the loop regardless of the selected model (planner does the tools)', () => {
@@ -162,6 +383,7 @@ describe('decideRunAgentic — battle-test prompts', () => {
     forcedTool: false,
     isMcpTurn: false,
     isCompound: false,
+    hasSelectedNotebook: false,
     secondaryIntent: null as string | null,
     compoundGeneration: false,
     hasImageAttachments: false,
@@ -317,8 +539,6 @@ describe('looksLikeCompoundGeneration', () => {
       'recherchiere + sharepic',
       'Recherchiere die aktuelle Position der Grünen zum Tempolimit und mach ein Sharepic dazu',
     ],
-    ['zahlen + grafik', 'Such aktuelle Zahlen zur Windkraft und erstell daraus eine Grafik'],
-    ['fakten + kachel', 'Ich brauche eine Kachel mit Fakten zur Kindergrundsicherung'],
     ['position + sharepic', 'Was ist unsere Position zur Mietpreisbremse? Mach ein Sharepic draus'],
     [
       'statistik + sharepic',
@@ -333,6 +553,12 @@ describe('looksLikeCompoundGeneration', () => {
     ['zahlen + folien', 'Such aktuelle Zahlen zur Windkraft und mach Folien daraus'],
     ['position + tabelle', 'Vergleiche die Positionen zum Tempolimit in einer Tabelle'],
     ['fakten + sheet', 'Ich brauche ein Sheet mit den Fakten zur Kindergrundsicherung'],
+    // The research signal used to require the VERB stem `recherchier`, so these
+    // follow-ups fell through to the single-pass generator with no sources at
+    // all and produced placeholder documents ("Beispielautor*in", example.com).
+    ['recherche as a NOUN + pdf', 'erstelle nun ein pdf mit originalquellen aus der recherche'],
+    ['quellen + pdf', 'Mach mir daraus ein PDF mit den Quellen'],
+    ['belege + tabelle', 'Erstelle eine Tabelle mit Belegen zum Radverkehr'],
   ];
   it.each(compound)('routes compound research+generation into the loop: %s', (_l, q) => {
     expect(looksLikeCompoundGeneration(q)).toBe(true);
@@ -340,6 +566,11 @@ describe('looksLikeCompoundGeneration', () => {
 
   const singlePass: [string, string][] = [
     ['topic-only sharepic', 'Mach mir ein Sharepic zu Solarenergie'],
+    // "Grafik"/"Kachel" are no longer sharepic nouns: they mean a chart or a
+    // tile at least as often, and this pair was the door through which
+    // "recherchiere X und mach eine Grafik" forced a sharepic nobody asked for.
+    ['zahlen + grafik', 'Such aktuelle Zahlen zur Windkraft und erstell daraus eine Grafik'],
+    ['fakten + kachel', 'Ich brauche eine Kachel mit Fakten zur Kindergrundsicherung'],
     ['platform-only', 'Sharepic für Instagram bitte'],
     ['quote sharepic', 'Erstell ein Zitat-Sharepic: Wir kämpfen für Klimaschutz'],
     ['style tweak', 'Mach das Sharepic bitte in Gelb'],
@@ -354,11 +585,13 @@ describe('looksLikeCompoundGeneration', () => {
     expect(looksLikeCompoundGeneration(q)).toBe(false);
   });
 
-  it('injection: a generation noun inside quoted search text still counts as compound (routing is safe either way)', () => {
-    // Worst case is benign: the loop runs search + sharepic — no privileged path.
+  it('injection: a sharepic noun inside quoted search text is a SEARCH STRING, not an ask', () => {
+    // The quoted words are what to look for, not what to build. Under the
+    // explicit-word rule this must not license a sharepic — which is also why
+    // hasExplicitSharepicWord strips quoted spans before testing.
     expect(
       looksLikeCompoundGeneration('Suche nach "Sharepic Vorlagen" und fasse die Fakten zusammen')
-    ).toBe(true);
+    ).toBe(false);
   });
 });
 
@@ -375,6 +608,9 @@ describe('compoundGenerationKind', () => {
     ).toBe('presentation');
     expect(compoundGenerationKind('create_sheet', 'Such Zahlen und mach eine Tabelle')).toBe(
       'sheet'
+    );
+    expect(compoundGenerationKind('create_pdf', 'Recherchiere X und mach ein PDF daraus')).toBe(
+      'pdf'
     );
   });
 
@@ -395,21 +631,90 @@ describe('compoundGenerationKind', () => {
       'presentation'
     );
     expect(compoundGenerationKind('direct', 'Such Fakten und mach ein Sharepic')).toBe('sharepic');
+    // pdf wins over the generic document noun: "PDF-Dokument" names both.
+    expect(
+      compoundGenerationKind('agentic', 'Recherchiere X und erstelle ein PDF-Dokument dazu')
+    ).toBe('pdf');
+    expect(
+      compoundGenerationKind(
+        'agentic',
+        'Such die Fakten und mach einen Brief mit Briefkopf als PDF'
+      )
+    ).toBe('pdf');
+    expect(
+      compoundGenerationKind('agentic', 'Recherchiere die Regeln und bau ein Anmeldeformular')
+    ).toBe('pdf');
   });
 
-  it('returns null without a research signal (pure generation stays single-pass)', () => {
-    expect(compoundGenerationKind('agentic', 'Mach mir eine Tabelle für die Mitgliederliste')).toBe(
-      null
-    );
+  it('returns null for a NAMED generation intent without a research signal', () => {
+    // These keep their single-pass dispatcher: null means "the dispatcher builds
+    // it", which is the correct and faster route.
     expect(compoundGenerationKind('create_sheet', 'Erstelle eine Tabelle zu Solarenergie')).toBe(
       null
     );
     expect(compoundGenerationKind('sharepic', 'Mach ein Sharepic zu Solarenergie')).toBe(null);
   });
 
+  // The mirror of the case above, and deliberately the OPPOSITE answer. A
+  // demoted turn has no dispatcher behind it: null would mean the loop runs with
+  // no generation tool mounted, and the model then reports it cannot build the
+  // artifact — which is exactly what "das bitte schön als PDF erstellen"
+  // received while create_pdf sat unmounted.
+  it('mounts the tool on a DEMOTED turn even without a research signal', () => {
+    expect(compoundGenerationKind('agentic', 'Mach mir eine Tabelle für die Mitgliederliste')).toBe(
+      'sheet'
+    );
+    expect(compoundGenerationKind('agentic', 'gut, danke. das bitte schön als PDF erstellen')).toBe(
+      'pdf'
+    );
+    expect(compoundGenerationKind('agentic', 'kannst du daraus eine Präsentation machen')).toBe(
+      'presentation'
+    );
+    // `produktion` sits on this branch too, and is the likeliest verdict for the
+    // live failure: a writing order whose substance is already in the thread is
+    // exactly what the research gate could never license.
+    expect(
+      compoundGenerationKind('produktion', 'gut, danke. das bitte schön als PDF erstellen')
+    ).toBe('pdf');
+    expect(compoundGenerationKind('produktion', 'mach mir daraus eine Tabelle')).toBe('sheet');
+  });
+
   it('returns null for a non-generation turn even with a research signal', () => {
     expect(compoundGenerationKind('search', 'Recherchiere die Position zum Tempolimit')).toBe(null);
     expect(compoundGenerationKind('agentic', 'Wie hat die Fraktion abgestimmt?')).toBe(null);
+  });
+
+  // A creation VERB pointing at the noun is what licenses the demoted branch —
+  // the kind does not merely mount the tool, forceCompoundGeneration guarantees
+  // the artifact, so a bare mention must not spawn one.
+  // The router's negative-action gate keys on the INTENT, so a kind recovered
+  // from the text would otherwise slip under it — and the kind does not merely
+  // mount the tool, forceCompoundGeneration guarantees the artifact.
+  it('returns null when a demoted turn FORBIDS the artifact', () => {
+    expect(
+      compoundGenerationKind('agentic', 'Halte die Ergebnisse fest, aber erstelle kein Dokument.')
+    ).toBe(null);
+    expect(
+      compoundGenerationKind('agentic', 'Rechne das durch, aber erstelle keine Tabelle.')
+    ).toBe(null);
+    expect(compoundGenerationKind('agentic', 'Formuliere den Text, aber kein PDF erstellen.')).toBe(
+      null
+    );
+    // Per-noun, not per-turn: the forbidden sibling must not block the ask.
+    expect(
+      compoundGenerationKind('agentic', 'Erstelle eine Präsentation, aber keine Tabelle dazu')
+    ).toBe('presentation');
+  });
+
+  it('returns null when a demoted turn only MENTIONS an artifact', () => {
+    expect(compoundGenerationKind('agentic', 'Was steht im PDF auf Seite 3?')).toBe(null);
+    expect(compoundGenerationKind('agentic', 'In der Tabelle stehen die Werte von 2024')).toBe(
+      null
+    );
+    expect(compoundGenerationKind('direct', 'Das Sharepic von gestern war richtig gut')).toBe(null);
+    expect(
+      compoundGenerationKind('agentic', 'Was steht in der Präsentation, die ich erstellt habe?')
+    ).toBe(null);
   });
 
   it('prefers the most specific artifact when the text names several', () => {
@@ -502,6 +807,7 @@ describe('decideEditToolLoop', () => {
     hasEditTarget: true,
     forcedTool: false,
     isCompound: false,
+    hasSelectedNotebook: false,
     hasImageAttachments: false,
     secondaryIntent: null,
   };
@@ -538,11 +844,146 @@ describe('decideEditToolLoop', () => {
   it('honours the same kill-switches as decideRunAgentic', () => {
     expect(decideEditToolLoop({ ...base, forcedTool: true })).toBe(false);
     expect(decideEditToolLoop({ ...base, isCompound: true })).toBe(false);
+    expect(decideEditToolLoop({ ...base, hasSelectedNotebook: true })).toBe(false);
     expect(decideEditToolLoop({ ...base, hasImageAttachments: true })).toBe(false);
     expect(decideEditToolLoop({ ...base, secondaryIntent: 'image' })).toBe(false);
   });
 
   it('rejects a null surface', () => {
     expect(decideEditToolLoop({ ...base, surfaceKind: null })).toBe(false);
+  });
+});
+
+/**
+ * "Mehr dazu bitte" after a sourced research answer used to classify `direct`,
+ * and a `direct` turn carries no sources at all — so the model rewrote its own
+ * previous answer from that answer's prose. Ungrounded, uncitable, and
+ * indistinguishable from research to the reader.
+ */
+describe('looksLikeUnsourcedWritingOrder', () => {
+  const unsourced = (raw: string, hasOwnMaterial = false) =>
+    looksLikeUnsourcedWritingOrder(raw, { hasOwnMaterial });
+
+  it('catches the live failure', () => {
+    // The reported turn, verbatim. It classified `direct`, ran no tool, was
+    // handed none of the 19 sources its own thread held, and answered from
+    // parametric memory — asserting a resigned MP was still in office and
+    // inventing a book title, two turns after the thread had researched the
+    // opposite.
+    expect(
+      unsourced('schreibe ein vollständiges dossier über robert, ca. 1000 zeichen mindestens')
+    ).toBe(true);
+  });
+
+  it('a text sort alone is enough — the order need not carry a verb', () => {
+    expect(unsourced('Ein Steckbrief zu Annalena Baerbock, bitte')).toBe(true);
+    expect(unsourced('Pressemitteilung zur Wärmewende')).toBe(true);
+  });
+
+  it('supplied material takes it back off the loop', () => {
+    const order = 'Schreib eine Pressemitteilung zur Wärmewende';
+    expect(unsourced(order)).toBe(true);
+    expect(unsourced(order, true)).toBe(false);
+  });
+
+  it('is not a writing order at all → false, so callers can OR it in safely', () => {
+    for (const q of ['Wie hat die Fraktion abgestimmt?', 'Danke!', 'Hallo, wer bist du?']) {
+      expect(unsourced(q), q).toBe(false);
+    }
+  });
+
+  it('a forbidden artifact is not an order — the verb belongs to the prohibition', () => {
+    // Reading "erstelle" here as a writing order sent the turn into the loop and
+    // past the router's persistent-action gate, which only sees artifact
+    // intents. The gate exists for exactly this sentence.
+    expect(unsourced('Halte die Ergebnisse fest, aber erstelle diesmal kein Dokument.')).toBe(
+      false
+    );
+    expect(unsourced('Fasse das zusammen, schreib aber keine Pressemitteilung')).toBe(false);
+    // The contrastive conjunction still binds the negation to what FOLLOWS it:
+    // the dossier is ordered, only the document is refused.
+    expect(unsourced('Erstelle ein Dossier zur Windkraft, aber kein Dokument')).toBe(true);
+  });
+
+  it('pure creative form and rewrites are exempt', () => {
+    for (const q of [
+      'Schreib mir ein Gedicht über den Frühling',
+      'Erstelle einen Slogan zur Verkehrswende',
+      'Formulier den folgenden Text freundlicher',
+      'Mach das kürzer',
+    ]) {
+      expect(unsourced(q), q).toBe(false);
+    }
+  });
+});
+
+describe('needsThreadGrounding', () => {
+  it('grounds by default — the gate is negative now', () => {
+    expect(needsThreadGrounding('Mehr dazu bitte')).toBe(true);
+    expect(needsThreadGrounding('Wie hat die Fraktion abgestimmt?')).toBe(true);
+    // The class the old positive gate missed: no question word, no anaphor.
+    expect(
+      needsThreadGrounding('schreibe ein vollständiges dossier über robert, ca. 1000 zeichen')
+    ).toBe(true);
+    expect(needsThreadGrounding('Danke!')).toBe(false);
+  });
+
+  it('leaves the fast-path turns alone', () => {
+    // A poem must never grow [N] footnotes, and a rewrite is already grounded in
+    // the text it rewrites — handing it unrelated research invites new claims
+    // into a shortening job.
+    for (const q of [
+      'Schreib mir ein Gedicht über den Frühling',
+      'Mach das kürzer',
+      'Nochmal auf Englisch',
+    ]) {
+      expect(needsThreadGrounding(q), q).toBe(false);
+    }
+  });
+
+  it('a bare "nochmal" is not enough to skip grounding', () => {
+    // The regenerate exemption is bound to a format target, because "erklär mir
+    // das nochmal" is a continuation that must stay grounded.
+    expect(needsThreadGrounding('Erklär mir das nochmal')).toBe(true);
+    expect(needsThreadGrounding('Prüfe das nochmal im Web')).toBe(true);
+  });
+});
+
+describe('rewritesSuppliedText', () => {
+  /**
+   * Das Prädikat, das BEIDE Quellen-Pfade fragen.
+   *
+   * Vorher fragte es nur der Einzelpfad (`carryThreadSourcesIfNeeded`); der Loop
+   * seedete ungetort. Über den 196-Turn-Korpus gemessen sind das genau zwei
+   * Turns, bei denen der Loop fremde Recherche unter einen Kürzungsauftrag legte
+   * — beide unten als Fall gepinnt. Der Kommentar, der die Enttorung begründete,
+   * beschrieb den Fehler in der anderen Richtung und hat ihn dabei umgedreht,
+   * statt ihn aufzulösen.
+   */
+  const measuredLoopCases = [
+    // sharepic-polite-edit-still-edits#1
+    'Kannst du die Überschrift kürzer machen?',
+    // paste-rede-praesentation-noun#0
+    'Kürze diesen Redeentwurf auf zwei Minuten:\n\nLiebe Freundinnen und Freunde,',
+  ];
+
+  it.each(measuredLoopCases)('hält Recherche von einem Kürzungsauftrag fern: %s', (text) => {
+    expect(rewritesSuppliedText(text)).toBe(true);
+  });
+
+  it('lässt echte Folgefragen durch', () => {
+    for (const q of ['Mehr dazu bitte', 'Und was sagt die SPD dazu?', 'Erklär mir das nochmal']) {
+      expect(rewritesSuppliedText(q), q).toBe(false);
+    }
+  });
+
+  it('deckt genau die Klauseln, die beide Pfade teilen — nicht die Chitchat-Klausel', () => {
+    // `needsThreadGrounding` lehnt zusätzlich Chitchat ab, und dessen
+    // CHITCHAT_RE verschluckt über `^hilfe` eine echte Retrieval-Frage
+    // (Korpus: adv-hier-greeting-trap-2). Diese Klausel bewusst NICHT im Loop —
+    // sie hätte zwei Fehler gegen einen dritten getauscht.
+    const trap = 'Hilfe bei der Formulierung brauche ich nicht, aber: Was fordern die Grünen?';
+    expect(needsThreadGrounding(trap)).toBe(false);
+    expect(rewritesSuppliedText(trap)).toBe(false);
   });
 });

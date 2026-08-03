@@ -1,13 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
-  getSourcesForIntent,
+  getManagedConnectorById,
+  getManagedConnectors,
   getSystemMcpSources,
-  isSystemIntentAvailable,
+  isManagedKey,
+  isSourceGermanOnly,
+  managedConnectorId,
+  parseManagedConnectorId,
   toSystemConnectionConfig,
 } from './systemMcpServers.js';
 
 const sourceByKey = (key: string) => getSystemMcpSources().find((s) => s.key === key) ?? null;
+const managedKeys = (locale?: string | null) => getManagedConnectors(locale).map((c) => c.key);
 
 const ENV_KEYS = [
   'SYSTEM_MCP_DB_URL',
@@ -18,6 +23,8 @@ const ENV_KEYS = [
   'SYSTEM_MCP_ARD_TOKEN',
   'SYSTEM_MCP_TRIVAGO_URL',
   'SYSTEM_MCP_TRIVAGO_TOKEN',
+  'SYSTEM_MCP_LAW_URL',
+  'SYSTEM_MCP_LAW_TOKEN',
 ];
 
 const saved: Record<string, string | undefined> = {};
@@ -36,50 +43,25 @@ afterEach(() => {
   }
 });
 
+const allConfigured = () => {
+  process.env.SYSTEM_MCP_DB_URL = 'https://db.example.org/mcp';
+  process.env.SYSTEM_MCP_WEATHER_URL = 'https://meteo.example.org/mcp';
+  process.env.SYSTEM_MCP_ARD_URL = 'https://ard.example.org/mcp';
+  process.env.SYSTEM_MCP_TRIVAGO_URL = 'https://trivago.example.org/mcp';
+  process.env.SYSTEM_MCP_LAW_URL = 'https://law.example.org/mcp';
+};
+
 describe('getSystemMcpSources (env matrix)', () => {
   it('returns nothing when no env URLs are set (feature off)', () => {
     expect(getSystemMcpSources()).toEqual([]);
-    expect(isSystemIntentAvailable('bahn')).toBe(false);
-    expect(isSystemIntentAvailable('wetter')).toBe(false);
-    expect(isSystemIntentAvailable('news')).toBe(false);
+    expect(getManagedConnectors()).toEqual([]);
   });
 
   it('activates exactly the sources whose URL env is set', () => {
     process.env.SYSTEM_MCP_DB_URL = 'https://db.example.org/mcp';
     process.env.SYSTEM_MCP_ARD_URL = 'https://ard.example.org/mcp';
-    const keys = getSystemMcpSources().map((s) => s.key);
-    expect(keys).toEqual(['bahn', 'news']);
-    expect(isSystemIntentAvailable('bahn')).toBe(true);
-    expect(isSystemIntentAvailable('wetter')).toBe(false);
-    expect(isSystemIntentAvailable('news')).toBe(true);
-  });
-
-  it('reise umbrella mounts bahn + hotel + wetter (configured subset)', () => {
-    process.env.SYSTEM_MCP_DB_URL = 'https://db.example.org/mcp';
-    process.env.SYSTEM_MCP_TRIVAGO_URL = 'https://trivago.example.org/mcp';
-    // wetter NOT configured → reise mounts only the configured pair.
-    expect(getSourcesForIntent('reise').map((s) => s.key)).toEqual(['bahn', 'hotel']);
-    expect(isSystemIntentAvailable('reise')).toBe(true);
-
-    process.env.SYSTEM_MCP_WEATHER_URL = 'https://meteo.example.org/mcp';
-    expect(getSourcesForIntent('reise').map((s) => s.key)).toEqual(['bahn', 'hotel', 'wetter']);
-    // single-source intents stay single-source.
-    expect(getSourcesForIntent('bahn').map((s) => s.key)).toEqual(['bahn']);
-    expect(getSourcesForIntent('hotel').map((s) => s.key)).toEqual(['hotel']);
-    expect(getSourcesForIntent('wetter').map((s) => s.key)).toEqual(['wetter']);
-  });
-
-  it('reise stays available while ANY of its sources is configured', () => {
-    process.env.SYSTEM_MCP_TRIVAGO_URL = 'https://trivago.example.org/mcp';
-    expect(isSystemIntentAvailable('reise')).toBe(true);
-    expect(isSystemIntentAvailable('bahn')).toBe(false);
-  });
-
-  it('non-system intents are never "available"', () => {
-    process.env.SYSTEM_MCP_DB_URL = 'https://db.example.org/mcp';
-    expect(isSystemIntentAvailable('search')).toBe(false);
-    expect(isSystemIntentAvailable('mcp')).toBe(false);
-    expect(isSystemIntentAvailable('bundestag')).toBe(false);
+    expect(getSystemMcpSources().map((s) => s.key)).toEqual(['bahn', 'news']);
+    expect(managedKeys()).toEqual(['bahn', 'news']);
   });
 
   it('token env switches auth to shared bearer', () => {
@@ -94,23 +76,113 @@ describe('getSystemMcpSources (env matrix)', () => {
     expect(withToken?.token).toBe('secret');
   });
 
-  it('connection config carries a stable system id and the env URL', () => {
-    process.env.SYSTEM_MCP_DB_URL = 'https://db.example.org/mcp';
-    const source = sourceByKey('bahn');
-    expect(source).not.toBeNull();
-    const config = toSystemConnectionConfig(source!);
-    expect(config.id).toBe('system-bahn');
-    expect(config.url).toBe('https://db.example.org/mcp');
-    expect(config.name).toBe('Deutsche Bahn');
-  });
-
-  it('every source ships capability + promptHint copy', () => {
-    process.env.SYSTEM_MCP_DB_URL = 'https://db.example.org/mcp';
-    process.env.SYSTEM_MCP_WEATHER_URL = 'https://meteo.example.org/mcp';
-    process.env.SYSTEM_MCP_ARD_URL = 'https://ard.example.org/mcp';
+  it('every source ships capability + promptHint copy and a connector card', () => {
+    allConfigured();
     for (const s of getSystemMcpSources()) {
       expect(s.capability.length).toBeGreaterThan(10);
       expect(s.promptHint.length).toBeGreaterThan(10);
+      expect(s.connector.title.length).toBeGreaterThan(1);
+      expect(s.connector.description.length).toBeGreaterThan(10);
+      expect(s.connector.category.length).toBeGreaterThan(1);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Managed connectors — the only door these sources have. `getSourcesForIntent`
+// and `isSystemIntentAvailable` are gone with the intents they answered for.
+// ---------------------------------------------------------------------------
+
+describe('managed connectors', () => {
+  it('offers every configured source, in MANAGED_KEYS order', () => {
+    allConfigured();
+    expect(managedKeys()).toEqual(['bahn', 'hotel', 'wetter', 'news', 'gesetze']);
+    for (const key of ['bahn', 'hotel', 'wetter', 'news', 'gesetze'] as const) {
+      expect(isManagedKey(key)).toBe(true);
+    }
+  });
+
+  it('offers nothing while the URL env is unset', () => {
+    expect(getManagedConnectors()).toEqual([]);
+    expect(getManagedConnectorById('system-gesetze')).toBeNull();
+  });
+
+  it('resolves one connector by its synthetic id', () => {
+    allConfigured();
+    const gesetze = getManagedConnectorById('system-gesetze');
+    expect(gesetze?.key).toBe('gesetze');
+    expect(gesetze?.connector.title).toBe('Gesetze');
+    expect(getManagedConnectorById('system-nichtsda')).toBeNull();
+  });
+
+  it('round-trips the synthetic id and rejects a user UUID', () => {
+    expect(managedConnectorId('gesetze')).toBe('system-gesetze');
+    expect(parseManagedConnectorId('system-gesetze')).toBe('gesetze');
+    // A user's own server id must never be mistaken for a managed one.
+    expect(parseManagedConnectorId('3f2a9c14-0b7d-4e51-8a6f-2c9e1d7b4a08')).toBeNull();
+    expect(parseManagedConnectorId('system-nichtsda')).toBeNull();
+    expect(parseManagedConnectorId('')).toBeNull();
+  });
+
+  it('keeps the tool-name prefix mcpCatalog derives valid and distinct', () => {
+    // mcpCatalog builds `m${id.replace(/-/g,'').slice(0,8)}__<tool>` and the
+    // provider tool-name regex is ^[a-zA-Z0-9_-]{1,64}$ — a `:` separator here
+    // would produce names every provider rejects.
+    const prefixes = (['bahn', 'hotel', 'wetter', 'news', 'gesetze'] as const).map((k) =>
+      managedConnectorId(k).replace(/-/g, '').slice(0, 8)
+    );
+    for (const p of prefixes) expect(p).toMatch(/^[a-zA-Z0-9_-]+$/);
+    expect(new Set(prefixes).size).toBe(prefixes.length);
+  });
+
+  it('marks the connection config as managed so no row write is attempted', () => {
+    process.env.SYSTEM_MCP_LAW_URL = 'https://law.example.org/mcp';
+    process.env.SYSTEM_MCP_LAW_TOKEN = 'secret';
+    const config = toSystemConnectionConfig(sourceByKey('gesetze')!);
+    expect(config.managed).toBe(true);
+    expect(config.id).toBe('system-gesetze');
+    expect(config.authType).toBe('bearer');
+  });
+
+  it('caps the two big catalogs with an allowlist', () => {
+    // Managed connectors mount whenever their vocabulary appears, so their tool
+    // schemas ride along on ordinary turns. Open-Meteo ships 17 tools with large
+    // per-vendor enums and german-law 8; both are capped. bahn/news/hotel are
+    // small enough to mount whole.
+    allConfigured();
+    expect(sourceByKey('wetter')?.toolAllowlist).toHaveLength(5);
+    expect(sourceByKey('gesetze')?.toolAllowlist).toHaveLength(4);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Audience. A source is dropped when its data does not cover the user's
+// country — per SOURCE, which is now the only grain there is.
+// ---------------------------------------------------------------------------
+
+describe('audience', () => {
+  it('keeps every connector for a German user', () => {
+    allConfigured();
+    expect(managedKeys('de-DE')).toEqual(['bahn', 'hotel', 'wetter', 'news', 'gesetze']);
+  });
+
+  it('drops only the German-only connectors for an Austrian user', () => {
+    allConfigured();
+    expect(managedKeys('de-AT')).toEqual(['hotel', 'wetter']);
+  });
+
+  it('keeps the full set when no locale is given', () => {
+    // The explicit-mention path passes no locale on purpose: somebody who types
+    // `@bahn` asked for that server, whatever country they are in.
+    allConfigured();
+    expect(managedKeys()).toHaveLength(5);
+  });
+
+  it('answers the German-only question per source', () => {
+    expect(isSourceGermanOnly('bahn')).toBe(true);
+    expect(isSourceGermanOnly('news')).toBe(true);
+    expect(isSourceGermanOnly('gesetze')).toBe(true);
+    expect(isSourceGermanOnly('wetter')).toBe(false);
+    expect(isSourceGermanOnly('hotel')).toBe(false);
   });
 });

@@ -102,10 +102,10 @@ Stil: journalistischer Nachrichtenstil, sachlich-objektiv, aktive Sprache, keine
 
 ## ARBEITSWEISE
 
-Schritt 1: Recherchiere mit search_documents nach Grünen Positionen — besonders aus ${spec.title}.
+Schritt 1: Recherchiere mit gruenerator_search nach Grünen Positionen — besonders aus ${spec.title}.
 Schritt 2: Nutze web_search für aktuelle Fakten und regionalen Kontext.
 Schritt 3a: Für Pressemitteilungen nutze IMMER \`gruenerator_pressemitteilung_examples\` — Beispiele werden automatisch auf ${spec.title} gefiltert. Mimik Tonalität, Lead-Struktur, Zitat-Setzung und Hintergrund-Framing der gefundenen LV-PMs.
-Schritt 3b: Für Social Media nutze IMMER search_examples für plattformgerechte Vorlagen.
+Schritt 3b: Für Social Media nutze IMMER gruenerator_examples_search für plattformgerechte Vorlagen.
 Schritt 4: Erstelle den Inhalt regional verankert und plattformgerecht.
 Schritt 5: Prüfe mit self_review: regionaler Bezug? Tonalität? Zeichenlimit? W-Fragen?
 Schritt 6: Überarbeite bei Score unter 4.`;
@@ -124,7 +124,7 @@ export const LV_PR_AGENTS: Agent[] = LV_PR_SPECS.map((spec) => ({
   model: 'mistral-large-latest',
   defaultModel: 'mistral-large-latest',
   provider: 'mistral',
-  params: { max_tokens: 3000, temperature: 0.6 },
+  params: { max_tokens: 8000, temperature: 0.6 },
   openingMessage: `Hallo! Ich bin dein*e Kommunikationsmanager*in für die Grünen ${spec.title}.\n\nIch erstelle:\n- **Pressemitteilungen** (im Stil der ${spec.title}er LV-PMs)\n- **Social-Media-Posts** (Instagram, Facebook, Twitter, LinkedIn)\n- **Reels/TikTok-Skripte**\n\nWorum geht's? Beschreib das Thema und die Plattform.`,
   welcomeQuestion: `Was soll ${spec.title} sagen?`,
   openingQuestions: buildLvPrOpeningQuestions(spec),

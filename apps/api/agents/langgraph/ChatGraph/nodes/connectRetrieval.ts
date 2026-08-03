@@ -8,8 +8,9 @@
  * can quote.
  *
  * No DB writes, no Qdrant indexing — purely inline-at-send-time. Stale tokens,
- * revoked connections, or unsupported files yield an empty result set so the
- * rest of the turn still succeeds. Mirrors wolkeRetrieval.ts (Nextcloud).
+ * revoked connections, or unsupported files yield an empty result set plus an
+ * `error` so the rest of the turn still succeeds while the failure stays
+ * visible. Mirrors wolkeRetrieval.ts (Nextcloud).
  */
 
 import * as atlassianClient from '../../../../services/api-clients/atlassianClient.js';
@@ -20,38 +21,11 @@ import { extractTextFromFile } from '../../../../services/document-services/Docu
 import { createLogger } from '../../../../utils/logger.js';
 import { SOURCE_PREFIX, type DocumentSource, type SearchResult } from '../types.js';
 
+import { chunkText, mimeTypeFromName } from './retrievalChunking.js';
+
 import type { NangoProviderKey } from '../../../../config/nango.js';
 
 const log = createLogger('ConnectRetrieval');
-
-const CHUNK_SIZE = 1500;
-const CHUNK_OVERLAP = 100;
-
-function chunkText(text: string, perSourceLimit: number): string[] {
-  const cleaned = text.trim();
-  if (!cleaned) return [];
-  if (cleaned.length <= CHUNK_SIZE) return [cleaned];
-  const chunks: string[] = [];
-  let pos = 0;
-  const stride = CHUNK_SIZE - CHUNK_OVERLAP;
-  while (pos < cleaned.length && chunks.length < perSourceLimit) {
-    chunks.push(cleaned.slice(pos, pos + CHUNK_SIZE));
-    pos += stride;
-  }
-  return chunks;
-}
-
-function mimeTypeFromName(name: string, fallback?: string | null): string {
-  if (fallback) return fallback;
-  const lower = name.toLowerCase();
-  if (lower.endsWith('.pdf')) return 'application/pdf';
-  if (lower.endsWith('.docx'))
-    return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-  if (lower.endsWith('.pptx'))
-    return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-  if (lower.endsWith('.txt') || lower.endsWith('.md')) return 'text/plain';
-  return 'application/octet-stream';
-}
 
 /** Strip HTML tags + collapse whitespace for Confluence storage/view bodies. */
 function htmlToText(html: string): string {
@@ -134,12 +108,27 @@ async function acquireText(
   }
 }
 
+/**
+ * Retrieval outcome. `error` is set whenever the file could not be read, so the
+ * fan-out can record a failure instead of silently treating an empty result set
+ * as "the file had nothing to say". `reauth` marks the case the user has to act
+ * on: the connection/token could not be resolved (expired OAuth grant).
+ */
+export interface ConnectRetrievalResult {
+  results: SearchResult[];
+  error?: { message: string; reauth?: boolean };
+}
+
+function errMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
 export async function retrieveConnectFile(
   src: DocumentSource,
   perSourceLimit: number,
   userId: string
-): Promise<SearchResult[]> {
-  if (src.kind !== 'connect' || !src.connect) return [];
+): Promise<ConnectRetrievalResult> {
+  if (src.kind !== 'connect' || !src.connect) return { results: [] };
   const { provider, fileId, name, mimeType } = src.connect;
 
   let accessToken: string;
@@ -148,7 +137,13 @@ export async function retrieveConnectFile(
     accessToken = connection.accessToken;
   } catch (err) {
     log.warn(`[Connect] Connection lookup failed for ${provider} (${name})`, err);
-    return [];
+    return {
+      results: [],
+      error: {
+        message: `Verbindung zu ${provider} nicht abrufbar: ${errMessage(err)}`,
+        reauth: true,
+      },
+    };
   }
 
   let text: string | null;
@@ -156,18 +151,28 @@ export async function retrieveConnectFile(
     text = await acquireText(provider as NangoProviderKey, accessToken, fileId, name, mimeType);
   } catch (err) {
     log.warn(`[Connect] content retrieval skipped for ${name} (${provider})`, err);
-    return [];
+    return {
+      results: [],
+      error: { message: `Abruf von "${name}" (${provider}) fehlgeschlagen: ${errMessage(err)}` },
+    };
   }
 
-  if (!text) return [];
+  if (!text) {
+    return {
+      results: [],
+      error: { message: `Kein lesbarer Inhalt in "${name}" (${provider})` },
+    };
+  }
 
   const chunks = chunkText(text, perSourceLimit);
-  return chunks.map<SearchResult>((content, idx) => ({
-    source: `${SOURCE_PREFIX.CONNECT}${provider}:${fileId}`,
-    title: name,
-    content,
-    relevance: 0.7,
-    documentSourceId: src.id,
-    chunkIndex: idx,
-  }));
+  return {
+    results: chunks.map<SearchResult>((content, idx) => ({
+      source: `${SOURCE_PREFIX.CONNECT}${provider}:${fileId}`,
+      title: name,
+      content,
+      relevance: 0.7,
+      documentSourceId: src.id,
+      chunkIndex: idx,
+    })),
+  };
 }

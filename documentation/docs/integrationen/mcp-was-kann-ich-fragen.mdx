@@ -1,0 +1,270 @@
+---
+sidebar_position: 2
+---
+
+import { CollectionTable, Fact } from '@site/src/components/Reference';
+
+# Was kann ich den MCP-Server fragen?
+
+Du hast den [Grünerator mit deinem KI-Chat verbunden](./ki-chat-einrichten) — aber was kannst du damit eigentlich alles machen? Hier erfährst du, welche Fähigkeiten dir zur Verfügung stehen und wie du sie am besten nutzt.
+
+:::info[Kurz erklärt]
+Der Grünerator MCP-Server gibt deinem KI-Assistenten Zugriff auf grüne Parteiprogramme, Beschlüsse, Analysen und Social-Media-Beispiele — und auf deine eigenen Grünerator-Inhalte. Du kannst darin suchen, Inhalte filtern und fertige Texte in verschiedenen Formaten erstellen lassen.
+:::
+
+:::note[Was dein Assistent sehen darf, entscheidest du]
+Beim Verbinden stimmst du einzelnen Bereichen zu — Suche, eigene Inhalte lesen,
+eigene Inhalte anlegen, Projekte, Medien. **Werkzeuge, denen du nicht zugestimmt
+hast, tauchen gar nicht erst in der Liste auf**; dein Assistent kann sie also
+weder benutzen noch versehentlich vorschlagen.
+:::
+
+---
+
+## Suche in grünen Dokumenten
+
+Die Kernfunktion des MCP-Servers ist die **semantische Suche** über grüne Parteiprogramme und politische Inhalte. Du kannst einfach Fragen stellen oder nach Themen suchen — die KI versteht auch Zusammenhänge, nicht nur exakte Stichwörter.
+
+### Beispiele für Suchanfragen
+
+> _„Was steht im Grundsatzprogramm zum Klimaschutz?"_
+>
+> _„Welche Position haben die Grünen zur Verkehrswende?"_
+>
+> _„Finde Passagen zur Bildungspolitik im Regierungsprogramm 2025"_
+>
+> _„Was sagen die österreichischen Grünen zu Migration?"_
+
+### Welche Sammlungen gibt es?
+
+Der Server durchsucht verschiedene Dokumentensammlungen — <Fact name="nationwideCount" /> überregionale Sammlungen und <Fact name="lvCount" /> Landesverbände:
+
+<CollectionTable kind="nationwide" />
+
+Beispielfragen: _„Was steht im Grundsatzprogramm zu X?"_ · _„Bundestags-Position zu X"_ · _„Wie macht man X in der Kommune?"_ · _„Wie hat Abgeordnete\*r X bei Y abgestimmt?"_
+
+### Landesverbände
+
+Zusätzlich kannst du gezielt in **Dokumenten einzelner Landesverbände** suchen. Diese werden bei einer normalen Landessuche nicht automatisch mitdurchsucht — du musst den Landesverband explizit nennen.
+
+<CollectionTable kind="landesverbaende" />
+
+Beispielfragen: _„Was sagen die Grünen Hamburg zum Thema Verkehr?"_ · _„Wahlprogramm der Grünen Schleswig-Holstein zu Bildung"_ · _„Grüne Bayern Position zur Wirtschaft"_
+
+:::tip[Mehrere Sammlungen vergleichen]
+Du kannst auch nach demselben Thema in verschiedenen Sammlungen suchen lassen, z.B.: _„Vergleiche die Position von Deutschland und Österreich zum Thema Mobilität."_ Die KI sucht dann automatisch in beiden Sammlungen.
+:::
+
+### Suchmodi
+
+Die Suche funktioniert in drei Modi — du musst den Modus normalerweise nicht angeben, denn der Standardmodus (Hybrid) liefert die besten Ergebnisse:
+
+| Modus                 | Wann sinnvoll?                       | Beispiel                                       |
+| --------------------- | ------------------------------------ | ---------------------------------------------- |
+| **Hybrid** (Standard) | Für fast alle Anfragen               | _„Was sagen die Grünen zu Klimaschutz?"_       |
+| **Text**              | Exakte Begriffe, Paragraphen, Zahlen | _„Finde §20a GG"_, _„Regierungsprogramm 2025"_ |
+| **Semantisch**        | Abstrakte Konzepte, Argumente        | _„Argumente für die Verkehrswende"_            |
+
+---
+
+## Ergebnisse filtern
+
+Du kannst die Suchergebnisse nach Kategorien einschränken. Sag der KI einfach, wonach du filtern möchtest:
+
+> _„Zeig mir nur Praxishilfen im KommunalWiki zum Thema Haushalt"_
+>
+> _„Europa-Analysen der Böll-Stiftung"_
+>
+> _„Nur Fachtexte der Bundestagsfraktion zur Energiewende"_
+
+### Verfügbare Filter je Sammlung
+
+| Sammlung                                     | Filterbar nach                                                     |
+| -------------------------------------------- | ------------------------------------------------------------------ |
+| **Alle**                                     | Themenbereich (primary_category)                                   |
+| **KommunalWiki**                             | + Inhaltstyp (z.B. Praxishilfe, Artikel), Unterkategorien          |
+| **Böll-Stiftung**                            | + Inhaltstyp, Unterkategorien, Region (z.B. Europa, Asien, Nahost) |
+| **Bundestagsfraktion, gruene.de, gruene.at** | + Land (DE/AT)                                                     |
+| **Landesverbände**                           | + Inhaltstyp (Typ), Themenbereich (Kategorie)                      |
+
+:::info[Filter-Werte nicht raten]
+Die KI fragt automatisch die verfügbaren Filterwerte ab, bevor sie filtert. Du musst dir also keine exakten Werte merken — beschreib einfach, was du suchst.
+:::
+
+---
+
+## Social-Media-Beispiele finden
+
+Brauchst du Inspiration für deinen nächsten Post? Der Server hat eine Sammlung erfolgreicher Social-Media-Beiträge der Grünen:
+
+> _„Zeig mir Instagram-Posts zum Thema Klimaschutz"_
+>
+> _„Erfolgreiche Facebook-Beiträge aus Österreich"_
+>
+> _„Social-Media-Beispiele zur Bildungspolitik"_
+
+Du kannst nach **Plattform** (Instagram, Facebook) und **Land** (Deutschland, Österreich) filtern.
+
+---
+
+## Spezialisierte Assistenten (Prompts)
+
+Das Herzstück für die Inhaltserstellung: Der MCP-Server bietet **über 30 spezialisierte KI-Assistenten**, die jeweils für eine bestimmte Textform optimiert sind. Jeder Assistent kennt den richtigen Ton, die passende Struktur und die formalen Anforderungen. Die wichtigsten stellen wir hier vor.
+
+:::tip[Wie nutze ich die Assistenten?]
+In Claude kannst du Prompts direkt über die Prompt-Auswahl aktivieren. In anderen Clients beschreibe einfach, was du brauchst — die KI wählt den passenden Assistenten automatisch.
+:::
+
+### Universeller Textassistent
+
+Für alle Textformen, die nicht in eine spezielle Kategorie fallen.
+
+**Kann erstellen:** Blogbeiträge, Newsletter, Flyer-Texte, Grußworte, Einladungen, Website-Inhalte, offene Briefe, Stellungnahmen und mehr.
+
+> _„Schreibe einen Newsletter-Text zu unserer Klimaschutz-Initiative"_
+>
+> _„Erstelle eine Einladung zur Mitgliederversammlung am 15. März"_
+>
+> _„Verfasse einen Blogbeitrag über die Verkehrswende in unserer Stadt"_
+
+---
+
+### Öffentlichkeitsarbeit & Social Media
+
+Erstellt plattformgerechte Inhalte für Presse und soziale Medien.
+
+| Plattform            | Format                                      | Länge              |
+| -------------------- | ------------------------------------------- | ------------------ |
+| **Pressemitteilung** | Journalistisch mit Lead-Absatz und W-Fragen | ca. 2.000 Zeichen  |
+| **Instagram**        | Visuell ansprechend mit Hashtags            | max. 600 Zeichen   |
+| **Facebook**         | Locker, Community-fokussiert                | 300–700 Zeichen    |
+| **Twitter / X**      | Prägnant und direkt                         | max. 280 Zeichen   |
+| **LinkedIn**         | Professionell, analytisch                   | max. 600 Zeichen   |
+| **Reel / TikTok**    | 3-Akt-Skript (Hook → Main → CTA)            | max. 1.500 Zeichen |
+
+**Aktionsideen** gehören trotz thematischer Nähe nicht in diese Tabelle: Sie sind ein Rezept des universellen Textassistenten, keine Plattform-Variante der Öffentlichkeitsarbeit. Frag einfach direkt danach.
+
+> _„Schreibe eine Pressemitteilung zum neuen Radverkehrskonzept"_
+>
+> _„Erstelle einen Instagram-Post zur Verkehrswende"_
+>
+> _„Schreibe ein Reel-Skript über bezahlbares Wohnen"_
+
+---
+
+### Kommunalpolitik (Anträge & Anfragen)
+
+Der Kommunalpolitik-Assistent erstellt formal korrekte kommunalpolitische Dokumente und berät bei der Gremienarbeit — in drei Modi: **Entwurf** (Dokumente schreiben), **Diskussion/Beratung** und **Bewertung** (z. B. Feedback zu Haushalten).
+
+**Kann erstellen:**
+
+- **Anträge** — Beschlussvorschläge für kommunale Gremien
+- **Kleine Anfragen** — Faktensammlung, präzise Fragen an die Verwaltung
+- **Große Anfragen** — Themen auf die Tagesordnung setzen, Debatte anstoßen
+- **Haushaltsanträge, Resolutionen und Redebeiträge**
+
+> _„Erstelle einen Antrag für mehr Straßenbäume in der Innenstadt"_
+>
+> _„Schreibe eine Kleine Anfrage zum Stand der Radwegeplanung"_
+>
+> _„Formuliere eine Große Anfrage zur Wohnungspolitik"_
+
+---
+
+### Reden
+
+Schreibt politische Reden mit Struktur, Rhetorik und Redehinweisen.
+
+**Enthält immer:**
+
+- 2–3 Einstiegsideen für die Eröffnung
+- 2–3 Kernargumente
+- 2–3 Ideen für einen starken Schluss
+- Rednerhinweise (Pausen, Betonung)
+
+> _„Schreibe eine 5-Minuten-Rede für die Klimademo"_
+>
+> _„Rede zur Eröffnung unseres Sommerfests"_
+>
+> _„Begrüßungsrede für den Kreisparteitag"_
+
+---
+
+### Bürger\*innenanfragen
+
+Beantwortet Bürger\*innenanfragen professionell und verständlich.
+
+**Struktur:** Respektvolle Begrüßung → Zusammenfassung der Anfrage → Sachliche Antwort mit Grüner Position → Weiterführende Infos → Freundlicher Abschluss.
+
+> _„Antworte auf: Warum seid ihr gegen den Ausbau der B-Straße?"_
+>
+> _„Bürger\*innenanfrage: Was tun die Grünen gegen steigende Mieten?"_
+>
+> _„Antwort auf Beschwerde über fehlende Parkplätze"_
+
+---
+
+### Wahlprogramm
+
+Erstellt strukturierte Wahlprogramm-Kapitel mit konkreten Forderungen.
+
+**Struktur:** Einleitung → 3–4 Unterkapitel mit beschreibenden Überschriften → jeweils 2–3 Absätze mit konkreten Forderungen.
+
+> _„Kapitel zum Thema Klimaschutz für unser Kommunalwahlprogramm"_
+>
+> _„Abschnitt zu Bildung und Betreuung"_
+>
+> _„Wahlprogramm-Kapitel zur Verkehrswende"_
+
+---
+
+### Weitere Assistenten
+
+Darüber hinaus gibt es u. a. Assistenten für **Sharepics**, **Leichte Sprache**, **Dokumente, Tabellen, Präsentationen und Boards**, für **Bundestag** und **Abgeordnetenwatch** (Parlamentsrecherche) sowie **Landesverbands-Varianten** der Pressemitteilungs- und Bürger\*innenanfragen-Assistenten (z. B. Berlin, Hamburg, Bayern, Österreich) — sie schreiben im Stil und mit dem Wissen des jeweiligen Landesverbands.
+
+---
+
+## Deine eigenen Inhalte
+
+Weil die Verbindung an deinem Konto hängt, erreicht dein Assistent auch das, was
+im Grünerator dir gehört: **Dokumente, Tabellen und Präsentationen**, **Boards
+und Aufgaben**, **Notizbücher**, **Projekte** und **Medien** — je nachdem, wozu
+du beim Verbinden zugestimmt hast.
+
+> _„Liste meine Notizbücher auf"_
+>
+> _„Was steht in meinem Wahlkampf-Notizbuch zur Verkehrswende?"_
+>
+> _„Welche Aufgaben sind bei mir noch offen?"_
+>
+> _„Leg mir ein Dokument mit einer Rede zum Thema X an"_
+
+Beim Notizbuch bekommst du eine **belegte Antwort samt Quellenliste** zurück.
+Die Suche im Parteikorpus liefert dagegen die gefundenen Textstellen und **keine
+fertig formulierte Antwort** — die schreibt dein KI-Assistent selbst daraus. Das
+ist der Unterschied zum Grünerator-Chat, der die Synthese übernimmt.
+
+:::tip[Nichts passiert ungefragt]
+Aktionen, die etwas löschen oder nach außen sichtbar machen, fragen immer zuerst
+nach. Erst nach deinem Ja werden sie ausgeführt.
+:::
+
+### Für Landesverbände
+
+Partner-Zugänge mit einem freigeschalteten Landesverband bekommen zusätzlich die
+Werkzeuge `notebooks_list`, `notebooks_search` und `notebooks_get_filters` — der
+Zugriff auf den Quellenbestand des jeweiligen Landesverbands.
+
+---
+
+## Tipps für bessere Ergebnisse
+
+1. **Sei spezifisch:** _„Klimaschutz im Grundsatzprogramm"_ liefert bessere Ergebnisse als nur _„Klimaschutz"_.
+
+2. **Nenne die Sammlung:** Wenn du weißt, wo du suchen willst, sag es: _„Suche im KommunalWiki nach Haushaltsfragen"_.
+
+3. **Nutze die Assistenten:** Für Texterstellung sind die spezialisierten Prompts deutlich besser als eine generische Anfrage.
+
+4. **Filtere gezielt:** _„Nur Praxishilfen"_ oder _„nur Europa-Analysen"_ schränkt die Ergebnisse sinnvoll ein.
+
+5. **Keine Ergebnisse?** Versuche es mit einfacheren Stichwörtern, einem anderen Suchmodus oder einer anderen Sammlung.

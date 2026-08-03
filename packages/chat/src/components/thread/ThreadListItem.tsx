@@ -1,6 +1,5 @@
 'use client';
 
-import { type MouseEvent, useCallback, useState, useSyncExternalStore } from 'react';
 import {
   ThreadListItemPrimitive,
   ThreadListItemMorePrimitive,
@@ -18,16 +17,19 @@ import {
   Tag,
   Users,
 } from 'lucide-react';
-import { cn } from '../../lib/utils';
-import { useAgentStore } from '../../stores/chatStore';
-import useChatPinsStore, { useIsChatPinned } from '../../stores/useChatPinsStore';
+import { type MouseEvent, useCallback, useState, useSyncExternalStore } from 'react';
+
 import { useExternalThread } from '../../context/ExternalThreadContext';
+import { cn } from '../../lib/utils';
 import {
   getThreadType,
   getNotebookCollectionId,
   getThreadTags,
   subscribeThreadTags,
 } from '../../runtime/GrueneratorThreadListAdapter';
+import { useAgentStore } from '../../stores/chatStore';
+import useChatPinsStore, { useIsChatPinned } from '../../stores/useChatPinsStore';
+
 import { EditTagsDialog } from './EditTagsDialog';
 import { MoveToSpaceDialog } from './MoveToSpaceDialog';
 import { ShareThreadDialog } from './ShareThreadDialog';
@@ -148,7 +150,7 @@ export function GrueneratorThreadListItem() {
 
         <ThreadListItemMorePrimitive.Root>
           <ThreadListItemMorePrimitive.Trigger
-            className="flex h-6 w-6 items-center justify-center rounded opacity-0 transition-opacity hover:bg-primary/10 group-hover:opacity-100"
+            className="flex h-6 w-6 items-center justify-center rounded opacity-0 transition-opacity hover:bg-primary/10 group-hover:opacity-100 pointer-coarse:opacity-100"
             aria-label="Mehr Optionen"
           >
             <MoreVertical className="h-3.5 w-3.5" />
@@ -177,7 +179,7 @@ export function GrueneratorThreadListItem() {
               className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground"
             >
               <Users className="h-3.5 w-3.5" />
-              Zu Space hinzufügen
+              Zu Projekt hinzufügen
             </ThreadListItemMorePrimitive.Item>
             <ThreadListItemMorePrimitive.Item
               onClick={() => setShareOpen(true)}
@@ -268,7 +270,7 @@ export function GrueneratorArchivedThreadListItem() {
 
       <ThreadListItemMorePrimitive.Root>
         <ThreadListItemMorePrimitive.Trigger
-          className="flex h-6 w-6 items-center justify-center rounded opacity-0 transition-opacity hover:bg-primary/10 group-hover:opacity-100"
+          className="flex h-6 w-6 items-center justify-center rounded opacity-0 transition-opacity hover:bg-primary/10 group-hover:opacity-100 pointer-coarse:opacity-100"
           aria-label="Mehr Optionen"
         >
           <MoreVertical className="h-3.5 w-3.5" />

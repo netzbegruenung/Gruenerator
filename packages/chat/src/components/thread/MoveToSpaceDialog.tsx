@@ -1,8 +1,8 @@
 'use client';
 
-import { memo, useEffect, useState } from 'react';
-import { Dialog as DialogPrimitive } from 'radix-ui';
 import { Users, FolderPlus, X } from 'lucide-react';
+import { Dialog as DialogPrimitive } from 'radix-ui';
+import { memo, useEffect, useState } from 'react';
 
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 
@@ -33,20 +33,26 @@ export const MoveToSpaceDialog = memo(function MoveToSpaceDialog({
   // New Spaces created from a chat default to personal (solo organizing); the
   // user can opt into a team Space.
   const [newIsTeam, setNewIsTeam] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setLoading(true);
+    setErrorMsg(null);
     fetchFn('/api/chat-service/threads/user-groups')
       .then((res) => (res.ok ? res.json() : []))
       .then((data: Space[]) => setSpaces(Array.isArray(data) ? data : []))
-      .catch(() => setSpaces([]))
+      .catch(() => {
+        setSpaces([]);
+        setErrorMsg('Projekte konnten nicht geladen werden.');
+      })
       .finally(() => setLoading(false));
   }, [open, fetchFn]);
 
   const file = async (groupId: string | null) => {
     if (!threadId) return;
     setSaving(true);
+    setErrorMsg(null);
     try {
       const res = await fetchFn('/api/chat-service/threads', {
         method: 'PATCH',
@@ -55,6 +61,7 @@ export const MoveToSpaceDialog = memo(function MoveToSpaceDialog({
       });
       if (!res.ok) {
         console.error('[MoveToSpace] PATCH rejected:', res.status);
+        setErrorMsg('Chat konnte nicht verschoben werden.');
         return;
       }
       // Let the web Space page / sidebar refresh their filed-chats lists.
@@ -66,6 +73,7 @@ export const MoveToSpaceDialog = memo(function MoveToSpaceDialog({
       onOpenChange(false);
     } catch (err) {
       console.error('[MoveToSpace] PATCH failed:', err);
+      setErrorMsg('Chat konnte nicht verschoben werden. Bitte prüfe deine Verbindung.');
     } finally {
       setSaving(false);
     }
@@ -75,6 +83,7 @@ export const MoveToSpaceDialog = memo(function MoveToSpaceDialog({
     const name = newName.trim();
     if (!name) return;
     setSaving(true);
+    setErrorMsg(null);
     try {
       const res = await fetchFn('/api/auth/groups', {
         method: 'POST',
@@ -83,6 +92,7 @@ export const MoveToSpaceDialog = memo(function MoveToSpaceDialog({
       });
       if (!res.ok) {
         console.error('[MoveToSpace] create rejected:', res.status);
+        setErrorMsg('Projekt konnte nicht angelegt werden.');
         setSaving(false);
         return;
       }
@@ -93,6 +103,7 @@ export const MoveToSpaceDialog = memo(function MoveToSpaceDialog({
       else setSaving(false);
     } catch (err) {
       console.error('[MoveToSpace] create failed:', err);
+      setErrorMsg('Projekt konnte nicht angelegt werden. Bitte prüfe deine Verbindung.');
       setSaving(false);
     }
   };
@@ -101,12 +112,12 @@ export const MoveToSpaceDialog = memo(function MoveToSpaceDialog({
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/40" />
-        <DialogPrimitive.Content className="fixed inset-0 z-50 m-auto h-fit w-full max-w-[24rem] rounded-xl border border-grey-200 dark:border-grey-700 bg-background-pure p-6 shadow-xl">
+        <DialogPrimitive.Content className="fixed inset-0 z-50 m-auto h-fit max-h-[calc(100dvh-2rem)] w-full max-w-[24rem] overflow-y-auto rounded-xl border border-grey-200 dark:border-grey-700 bg-background-pure p-6 shadow-xl">
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5 text-primary-600" />
               <DialogPrimitive.Title className="text-lg font-semibold text-foreground">
-                Zu Space hinzufügen
+                Zu Projekt hinzufügen
               </DialogPrimitive.Title>
             </div>
             <DialogPrimitive.Close className="cursor-pointer rounded-md border-none bg-transparent p-1 text-grey-400 hover:bg-grey-100 hover:text-foreground dark:hover:bg-grey-800">
@@ -114,10 +125,12 @@ export const MoveToSpaceDialog = memo(function MoveToSpaceDialog({
             </DialogPrimitive.Close>
           </div>
 
+          {errorMsg && <p className="mb-3 text-sm text-red-700 dark:text-red-400">{errorMsg}</p>}
+
           <div className="mb-3 flex max-h-64 flex-col gap-0.5 overflow-y-auto">
             {loading && <span className="px-1 text-sm text-grey-400">Wird geladen…</span>}
             {!loading && spaces.length === 0 && (
-              <span className="px-1 text-sm text-grey-400">Noch keine Spaces.</span>
+              <span className="px-1 text-sm text-grey-400">Noch keine Projekte.</span>
             )}
             {spaces.map((s) => (
               <button
@@ -141,7 +154,7 @@ export const MoveToSpaceDialog = memo(function MoveToSpaceDialog({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') void createAndFile();
                 }}
-                placeholder="Neuen Space erstellen…"
+                placeholder="Neues Projekt erstellen…"
                 className="min-w-0 flex-1 rounded-lg border border-grey-200 bg-transparent px-2 py-1.5 text-sm text-foreground placeholder:text-grey-400 focus:border-primary-500/50 focus:outline-none dark:border-grey-700"
               />
               <button
@@ -159,13 +172,13 @@ export const MoveToSpaceDialog = memo(function MoveToSpaceDialog({
                 onChange={(e) => setNewIsTeam(e.target.checked)}
                 className="h-3 w-3"
               />
-              Als Gruppen-Space (mit Team)
+              Als Gruppe (mit Team)
             </label>
           </div>
 
           <p className="mt-3 text-xs text-grey-400">
-            Ein Chat hat einen Heim-Space. Über „Teilen" kannst du ihn zusätzlich mit weiteren
-            Spaces teilen.
+            Ein Chat hat ein Heim-Projekt. Über „Teilen" kannst du ihn zusätzlich mit weiteren
+            Projekten teilen.
           </p>
 
           <div className="mt-4 flex justify-between">
@@ -174,7 +187,7 @@ export const MoveToSpaceDialog = memo(function MoveToSpaceDialog({
               disabled={saving || !threadId}
               className="rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-grey-100 disabled:opacity-50 dark:hover:bg-grey-800"
             >
-              Aus Space entfernen
+              Aus Projekt entfernen
             </button>
             <button
               onClick={() => onOpenChange(false)}

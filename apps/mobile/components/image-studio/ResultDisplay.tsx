@@ -51,7 +51,7 @@ export function ResultDisplay({
   const [showShareModal, setShowShareModal] = useState(false);
 
   // Auto-save to gallery database
-  const { status: autoSaveStatus, shareToken } = useImageAutoSave();
+  const { status: autoSaveStatus, shareToken, contentOrigin, imageType } = useImageAutoSave();
 
   const handleSave = async () => {
     if (!generatedImage) return;
@@ -93,7 +93,7 @@ export function ResultDisplay({
             Erneut versuchen
           </Button>
         )}
-        <Pressable onPress={onBack} style={styles.backLink}>
+        <Pressable onPress={onBack} accessibilityRole="button" style={styles.backLink}>
           <Text style={[styles.backLinkText, { color: colors.primary[600] }]}>
             Zurück bearbeiten
           </Text>
@@ -106,7 +106,7 @@ export function ResultDisplay({
     return (
       <View style={[styles.container, styles.centered]}>
         <Text style={[styles.emptyText, { color: theme.textSecondary }]}>Kein Bild generiert</Text>
-        <Pressable onPress={onBack} style={styles.backLink}>
+        <Pressable onPress={onBack} accessibilityRole="button" style={styles.backLink}>
           <Text style={[styles.backLinkText, { color: colors.primary[600] }]}>Zurück</Text>
         </Pressable>
       </View>
@@ -146,6 +146,9 @@ export function ResultDisplay({
         <Pressable
           onPress={handleSave}
           disabled={saving}
+          accessibilityRole="button"
+          accessibilityLabel={saved ? 'Bild gespeichert' : 'Bild speichern'}
+          accessibilityState={{ disabled: saving }}
           style={({ pressed }) => [
             styles.iconButton,
             {
@@ -167,6 +170,8 @@ export function ResultDisplay({
 
         <Pressable
           onPress={handleShare}
+          accessibilityRole="button"
+          accessibilityLabel="Bild teilen"
           style={({ pressed }) => [
             styles.iconButton,
             { backgroundColor: theme.surface, opacity: pressed ? 0.7 : 1 },
@@ -178,6 +183,8 @@ export function ResultDisplay({
         {autoSaveStatus === 'saved' && shareToken && (
           <Pressable
             onPress={() => router.push('/(tabs)/(tools)/image-studio/gallery')}
+            accessibilityRole="button"
+            accessibilityLabel="Galerie öffnen"
             style={({ pressed }) => [
               styles.iconButton,
               { backgroundColor: theme.surface, opacity: pressed ? 0.7 : 1 },
@@ -189,6 +196,8 @@ export function ResultDisplay({
 
         <Pressable
           onPress={onNewGeneration}
+          accessibilityRole="button"
+          accessibilityLabel="Neues Bild erstellen"
           style={({ pressed }) => [
             styles.iconButton,
             { backgroundColor: theme.surface, opacity: pressed ? 0.7 : 1 },
@@ -203,6 +212,8 @@ export function ResultDisplay({
         onClose={() => setShowShareModal(false)}
         imageBase64={generatedImage}
         shareToken={shareToken}
+        contentOrigin={contentOrigin}
+        imageType={imageType}
       />
     </ScrollView>
   );

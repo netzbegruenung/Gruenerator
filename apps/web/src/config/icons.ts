@@ -86,13 +86,7 @@ export type IconType = ComponentType<IconBaseProps>;
  * Icon category types
  */
 export type IconCategory =
-  | 'platforms'
-  | 'textTypes'
-  | 'navigation'
-  | 'actions'
-  | 'ui'
-  | 'accessibility'
-  | 'campaigns';
+  'platforms' | 'textTypes' | 'navigation' | 'actions' | 'ui' | 'accessibility' | 'campaigns';
 
 /**
  * Platform icon names
@@ -148,7 +142,7 @@ export type NavigationIconName =
   | 'boards'
   | 'sheets'
   | 'presentations'
-  | 'gruppen'
+  | 'projekte'
   | 'notebooks'
   | 'research'
   | 'desk'
@@ -268,7 +262,7 @@ export const ICONS: IconRegistry = {
     boards: PiSquaresFour,
     sheets: PiTable,
     presentations: PiPresentation,
-    gruppen: HiUserGroup,
+    projekte: HiUserGroup,
     notebooks: FaBook,
     research: PiBrain,
     desk: PiDesktop,

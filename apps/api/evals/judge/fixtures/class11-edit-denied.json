@@ -1,0 +1,37 @@
+[
+  {
+    "id": "fixture-class11-edit-denied",
+    "category": "fixture",
+    "prompt": "Ändere die Akzentfarbe der Präsentation auf Dunkelgrün",
+    "latencyMs": 9000,
+    "intent": "edit_current_doc",
+    "agentic": true,
+    "toolNames": ["edit_document"],
+    "error": null,
+    "assertions": [],
+    "passed": true,
+    "turns": [
+      {
+        "turnIndex": 0,
+        "prompt": "Ändere die Akzentfarbe der Präsentation auf Dunkelgrün",
+        "latencyMs": 9000,
+        "intent": "edit_current_doc",
+        "agentic": true,
+        "toolCalls": [
+          { "toolName": "edit_document", "ok": true, "summary": "2 Ops: Akzentfarbe geändert" }
+        ],
+        "threadId": "00000000-0000-0000-0000-000000000002",
+        "warnings": [],
+        "interrupts": [],
+        "artifactIds": [],
+        "editorOps": true,
+        "sharepicUpdated": false,
+        "citations": [],
+        "fullText": "Ich konnte die Akzentfarbe der Präsentation leider nicht ändern. Bitte passe die Farbe manuell über das Design-Menü an.",
+        "assertions": [],
+        "passed": true,
+        "judge": ["narration_consistency"]
+      }
+    ]
+  }
+]

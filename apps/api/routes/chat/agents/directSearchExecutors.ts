@@ -6,6 +6,8 @@
  * DocumentSearchService infrastructure.
  */
 
+import { decodeHtmlEntities } from '@gruenerator/shared/utils';
+
 import { COLLECTION_MAP } from '../../../config/collectionMap.js';
 import { trailingSlugKey } from '../../../config/landesverbaendeConfig.js';
 import {
@@ -16,8 +18,16 @@ import {
 } from '../../../config/systemCollectionsConfig.js';
 import { DocumentSearchService } from '../../../services/document-services/index.js';
 import { searchExamples } from '../../../services/examples/exampleSearchService.js';
+import {
+  getGreenPTSearchService,
+  GREENPT_MAX_RESULTS,
+} from '../../../services/search/GreenPTSearchService.js';
 import { withRetry } from '../../../services/search/index.js';
-import { getLinkupService } from '../../../services/search/LinkupService.js';
+import {
+  getLinkupService,
+  type LinkupSearchResult,
+} from '../../../services/search/LinkupService.js';
+import { resolveSearchPlan, type SearchTier } from '../../../services/search/searchDepth.js';
 import { searxngService } from '../../../services/search/SearxngService.js';
 import { createLogger } from '../../../utils/logger.js';
 
@@ -31,6 +41,14 @@ import type {
 } from '../../../services/search/types.js';
 
 const log = createLogger('DirectSearch');
+
+/**
+ * Cap on image hits carried out of a single search. Capped independently of
+ * `maxResults` because images are a side panel, not sources: eight named links
+ * fill the list without pushing the text results the answer is written from out
+ * of the tier's budget.
+ */
+const MAX_IMAGE_HITS = 8;
 
 export interface DirectSearchResult {
   collection: string;
@@ -86,9 +104,35 @@ export interface DirectPressemitteilungExamplesResult {
   message?: string;
 }
 
+/**
+ * An image hit from the web search. Carries no `snippet`, because Linkup's image
+ * entries carry no `content` — that absence is the whole reason these must not
+ * travel with the text results.
+ */
+interface WebImageHit {
+  title: string;
+  url: string;
+  domain: string;
+}
+
 export interface DirectWebSearchResult {
   query: string;
   searchType: string;
+  /**
+   * The tier that was actually SPENT, after `resolveSearchTier` clamped the
+   * model's request against what the user consented to.
+   *
+   * Reported because no caller can reconstruct it: the `tiefe` argument on the
+   * tool call is a request in both directions, and the loop's post-processing
+   * (`toolCatalog`, which crawls only on `tiefenrecherche`) has to key off what
+   * was spent — keying off the argument would put the expensive path one
+   * hallucinated token away.
+   *
+   * Optional so the integration harness and other hand-built stubs stay valid.
+   * Every return of `executeDirectWebSearch` sets it, and absence is read as
+   * "not the deep tier" — the fail-safe direction.
+   */
+  tier?: SearchTier;
   resultsCount: number;
   results: Array<{
     rank: number;
@@ -98,6 +142,12 @@ export interface DirectWebSearchResult {
     domain: string;
     publishedDate?: string | null;
   }>;
+  /**
+   * Image hits, kept strictly apart from `results`. Only ever non-empty when the
+   * caller asked for images (`includeImages`) — see the split in
+   * `executeDirectWebSearch` for why they may never be mixed in.
+   */
+  images?: WebImageHit[];
   suggestions?: string[];
   error?: boolean;
   message?: string;
@@ -143,11 +193,27 @@ export async function executeDirectSearch(params: {
    * Only applied to collections targeting `landesverbaende_documents`.
    */
   agentLandesverband?: readonly string[] | string;
+  /**
+   * Retrieval strategy. Defaults to `hybrid`, which is what every caller wanted
+   * before this was settable; `text` is keyword-only (exact wording, names,
+   * quotes), `vector` purely semantic.
+   */
+  searchMode?: 'hybrid' | 'vector' | 'text';
+  /** Set false to bypass the service-level result cache for a fresh read. */
+  useCache?: boolean;
 }): Promise<DirectSearchResult> {
-  const { query, collection = 'deutschland', limit = 5, filters, agentLandesverband } = params;
+  const {
+    query,
+    collection = 'deutschland',
+    limit = 5,
+    filters,
+    agentLandesverband,
+    searchMode = 'hybrid',
+    useCache,
+  } = params;
 
   log.info(
-    `[Direct Search] query="${query}" collection="${collection}" limit=${limit}${filters ? ` filters=${JSON.stringify(filters)}` : ''}${agentLandesverband ? ` lv=${JSON.stringify(agentLandesverband)}` : ''}`
+    `[Direct Search] query="${query}" collection="${collection}" limit=${limit} mode=${searchMode}${filters ? ` filters=${JSON.stringify(filters)}` : ''}${agentLandesverband ? ` lv=${JSON.stringify(agentLandesverband)}` : ''}`
   );
 
   const mapping = COLLECTION_MAP[collection];
@@ -194,7 +260,7 @@ export async function executeDirectSearch(params: {
       userId: undefined,
       options: {
         limit: Math.min(limit * 2, 30),
-        mode: 'hybrid',
+        mode: searchMode,
         vectorWeight: searchParams.vectorWeight,
         textWeight: searchParams.textWeight,
         threshold: searchParams.threshold,
@@ -202,6 +268,7 @@ export async function executeDirectSearch(params: {
         recallLimit: searchParams.recallLimit,
         qualityMin: searchParams.qualityMin,
         additionalFilter,
+        ...(useCache === undefined ? {} : { useCache }),
       },
     });
 
@@ -226,7 +293,7 @@ export async function executeDirectSearch(params: {
             userId: undefined,
             options: {
               limit: Math.min(limit * 2, 30),
-              mode: 'hybrid',
+              mode: searchMode,
               vectorWeight: searchParams.vectorWeight,
               textWeight: searchParams.textWeight,
               threshold: searchParams.threshold,
@@ -245,12 +312,32 @@ export async function executeDirectSearch(params: {
         }
       }
 
-      if (!response.success || !response.results || response.results.length === 0) {
+      // A backend failure is NOT "nothing found": conflating them made the tool
+      // card render green and the model tell the user there is no such content,
+      // when in fact the search never ran. `error: true` is what wrapTools'
+      // isErrorResult reads, so the card turns red and the model sees a failure
+      // it can be honest about.
+      if (!response.success) {
+        log.warn(
+          `[Direct Search] Search failed for "${query}" in ${collection}: ${response.error ?? 'unknown error'}`
+        );
+        return {
+          collection,
+          query,
+          searchMode,
+          resultsCount: 0,
+          results: [],
+          error: true,
+          message: 'Die Dokumentsuche ist momentan gestört — es konnte nicht gesucht werden.',
+        };
+      }
+
+      if (!response.results || response.results.length === 0) {
         log.info(`[Direct Search] No results found for query: "${query}" in ${collection}`);
         return {
           collection,
           query,
-          searchMode: 'hybrid',
+          searchMode,
           resultsCount: 0,
           results: [],
           message: 'Keine Ergebnisse gefunden.',
@@ -286,7 +373,7 @@ export async function executeDirectSearch(params: {
     return {
       collection,
       query,
-      searchMode: 'hybrid',
+      searchMode,
       resultsCount: formattedResults.length,
       results: formattedResults,
     };
@@ -296,7 +383,7 @@ export async function executeDirectSearch(params: {
     return {
       collection,
       query,
-      searchMode: 'hybrid',
+      searchMode,
       resultsCount: 0,
       results: [],
       error: true,
@@ -316,17 +403,21 @@ export async function executeDirectExamplesSearch(params: {
   query: string;
   platform?: string;
   country?: 'DE' | 'AT';
+  /** Reaches the search itself. Without it the service caps at its own default
+   *  of 10 and a caller asking for more silently gets fewer. */
+  limit?: number;
   /** Override target collection — see `SearchExamplesParams.examplesCollection`. */
   collection?: string;
   lvScope?: string | readonly string[];
 }): Promise<DirectExamplesResult> {
-  const { query, platform, country, collection, lvScope } = params;
+  const { query, platform, country, limit, collection, lvScope } = params;
 
   const result = await searchExamples({
     query,
     kinds: ['social'],
     ...(platform && { platform }),
     ...(country && { country }),
+    ...(limit !== undefined && { limit }),
     ...(collection && { examplesCollection: collection }),
     ...(lvScope !== undefined && { lvScope }),
   });
@@ -349,12 +440,18 @@ export async function executeDirectExamplesSearch(params: {
     };
   }
 
+  // `url` and `relevance` come from UnifiedExample and were dropped here, so a
+  // consumer could neither link a post nor weigh it — the MCP tool's source ref
+  // fell back to the bare id. Social posts often carry no permalink, hence the
+  // conditional spread.
   const examples = items.map((e) => ({
     id: e.id,
     platform: e.platform ?? platform ?? 'unknown',
     content: e.body,
     ...(e.author && { author: e.author }),
     ...(e.publishedAt && { date: e.publishedAt }),
+    ...(e.url && { url: e.url }),
+    relevance: e.relevance,
   }));
 
   return { resultsCount: examples.length, examples };
@@ -415,49 +512,249 @@ export async function executeDirectPressemitteilungExamples(params: {
 }
 
 /**
- * Execute a web search using SearXNG.
- * Provides access to current web content for queries about recent events or
- * topics not covered in the document collections.
+ * The chat's single web-retrieval door, at one of three tiers.
+ *
+ * `tier` replaces the old split between this function and `executeResearch`:
+ * "recherchiere" no longer routes to a different engine, it routes here with a
+ * deeper setting. `maxResults` stays an independent override for callers that
+ * want a specific count (news widgets, compound turns); the tier only supplies
+ * the default.
+ *
+ * Every caller goes through `resolveSearchPlan`, so the engine depth, the result
+ * count and the adjacent-keyword instruction are decided in ONE place — the
+ * multi-source path used to hard-code `maxResults: 5` and pass no tier at all,
+ * which quietly made comparison turns the shallowest ones in the product.
+ *
+ * Falls back to SearXNG when LINKUP_API_KEY is unset — SearXNG has no depth
+ * concept, so every tier degrades to one flat search there. That is a
+ * dev/self-host path; production has the key.
  */
 export async function executeDirectWebSearch(params: {
   query: string;
   searchType?: 'general' | 'news';
+  tier?: SearchTier;
   maxResults?: number;
   timeRange?: string;
   language?: string;
+  /**
+   * Site scope, applied by the engine before we pay. `include` narrows the search
+   * to these hosts ("such auf zeit.de"); `exclude` keeps them out and carries the
+   * low-value default list. Bare hosts, no scheme.
+   */
+  includeDomains?: readonly string[];
+  excludeDomains?: readonly string[];
+  /** Explicit ISO window (YYYY-MM-DD). Wins over `timeRange`, which is a preset. */
+  fromDate?: string;
+  toDate?: string;
+  /**
+   * Ask the engine for image hits alongside the text ones. Never a default: on a
+   * factual question the images are paid for and then looked at by nobody, and
+   * they arrive mixed into the same result array (see the split below).
+   */
+  includeImages?: boolean;
 }): Promise<DirectWebSearchResult> {
-  const { query, searchType = 'general', maxResults = 5, timeRange, language = 'de-DE' } = params;
+  const { query, searchType = 'general', tier, timeRange, language = 'de-DE' } = params;
+  const plan = resolveSearchPlan({
+    ...(tier ? { tier } : {}),
+    query,
+    ...(params.maxResults != null ? { maxResults: params.maxResults } : {}),
+  });
+  const maxResults = plan.maxResults;
 
+  // An include scope and the default block list are not the same kind of
+  // statement: naming sites is a positive instruction, so the block list must not
+  // ride along and silently subtract from it. (Linkup applies both if both are
+  // sent, and "search zeit.de but not amazon.de" is a scope nobody asked for.)
+  const includeDomains = params.includeDomains ?? [];
+  const excludeDomains = includeDomains.length > 0 ? [] : (params.excludeDomains ?? []);
+
+  // `searchType: 'news'` was a documented parameter that did nothing at all on
+  // the Linkup path — the branch below only ever used it for SearXNG's category.
+  // A news search is a recency constraint, so that is what it now buys.
+  const NEWS_WINDOW_DAYS = 30;
+  const fromDate =
+    params.fromDate ??
+    (timeRange ? timeRangeToFromDate(timeRange) : undefined) ??
+    (searchType === 'news' ? daysAgoIso(NEWS_WINDOW_DAYS) : undefined);
+  // The deeper tiers exist to give the writing model more to work with; a
+  // 300-char snippet would cap that no matter how many sources came back.
+  //
+  // Linkup returns the longer text either way — the old flat 300 threw it away
+  // and left `gruendlich` (the DEFAULT tier) writing its answer from 10 x 300 =
+  // 3000 chars total. Scaled by result count so a wide search stays inside the
+  // registry's SOURCE_BLOCK_CHARS budget instead of triggering its shared
+  // shrink. Always <= SNIPPET_CHARS (1500), the registry's per-line cap.
+  //
+  // Load-bearing precondition: `truncateResultForModel` must exempt the
+  // `sources` field (see agenticLoop/truncate.ts). Without that exemption the
+  // block crosses the 6000-char ceiling and the model gets 750 chars for ALL
+  // sources combined — strictly worse than the 300 this replaces.
+  const snippetChars = plan.depth === 'deep' ? 1500 : plan.maxResults >= 10 ? 900 : 1200;
+  const includeImages = params.includeImages === true;
+  /**
+   * Extra headroom on `maxResults` when images are requested.
+   *
+   * Image entries arrive INSIDE the same `results` array as the text hits, and
+   * Linkup's reference does not say whether they count toward `maxResults` — it
+   * only promises "the number of results will always be ≤ maxResults". If they do
+   * count, then asking for images silently costs the answer its sources: with
+   * `maxResults: 5` and three images returned, the model gets two text hits and
+   * the tier's promise quietly breaks.
+   *
+   * So the images are asked for ON TOP rather than hoped about. This is free:
+   * Linkup prices a search by `depth` × `outputType` only ($0.005 standard /
+   * $0.05 deep for searchResults, +$0.001 for sourcedAnswer) — `maxResults` is
+   * not a pricing dimension. And it is harmless under either reading of the docs:
+   * if images do NOT count, we merely receive a few more text hits and slice back
+   * down to `maxResults` below.
+   *
+   * An earlier comment here asserted that images "cannot eat into maxResults".
+   * That was true only of OUR OWN capping below; it said nothing about what the
+   * engine returns, which is where the loss would actually happen.
+   */
+  const requestedResults = includeImages ? maxResults + MAX_IMAGE_HITS : maxResults;
+
+  // One line carrying the COMPLETE commissioned search. Without it there was no
+  // way to tell from the logs what a turn actually asked the engine for — which
+  // is how `searchType: 'news'` survived for months as a no-op on this path.
   log.info(
-    `[Direct Web Search] query="${query}" type="${searchType}" max=${maxResults} lang=${language}`
+    `[Direct Web Search] query="${query}" type="${searchType}" tier=${plan.tier} depth=${plan.depth}${plan.fastReason ? `(${plan.fastReason})` : ''} max=${maxResults} adjacent=${plan.adjacentSearches} lang=${language}${
+      includeDomains.length > 0 ? ` include=[${includeDomains.join(',')}]` : ''
+    }${excludeDomains.length > 0 ? ` exclude=${excludeDomains.length}` : ''}${
+      fromDate ? ` from=${fromDate}` : ''
+    }${params.toDate ? ` to=${params.toDate}` : ''}${timeRange ? ` timeRange=${timeRange}` : ''}${
+      includeImages ? ` images=on(+${MAX_IMAGE_HITS} headroom)` : ''
+    }`
   );
 
   try {
+    // ── Cheap lane: GreenPT for simple lookups, Linkup for everything else ──
+    //
+    // Only searches that ask for nothing GreenPT cannot do are eligible. The
+    // endpoint has NO date field on its results (keys are exactly url, title,
+    // description, position, favicon), no image hits, no exclude list, and a
+    // hard ceiling of 10 — so a time window, a news window, images or a deeper
+    // tier all have to stay on Linkup rather than be silently dropped.
+    //
+    // Domain scope is excluded even though `site:` was observed to work
+    // (10/10 on-domain): GreenPT's own docs say operators are STRIPPED before
+    // searching, so that behaviour is undocumented and free to vanish. When it
+    // does, the search would not fail — it would quietly return unscoped
+    // results for "such auf zeit.de", which is the failure we would never see.
+    //
+    // Unknown parameters are accepted and ignored rather than rejected (a
+    // made-up parameter returned byte-identical results to `fromDate` and
+    // `freshness`), so none of these constraints can be probed at runtime —
+    // they have to be gated here.
+    const greenptEligible =
+      includeDomains.length === 0 &&
+      excludeDomains.length === 0 &&
+      !fromDate &&
+      !params.toDate &&
+      !timeRange &&
+      searchType !== 'news' &&
+      !includeImages &&
+      plan.depth !== 'deep' &&
+      maxResults <= GREENPT_MAX_RESULTS;
+
+    const greenpt = greenptEligible ? getGreenPTSearchService() : null;
+    if (greenpt) {
+      try {
+        const hits = await greenpt.webSearch({ query, maxResults, language });
+        const formatted = hits.slice(0, maxResults).map((r, i) => ({
+          rank: i + 1,
+          title: decodeHtmlEntities(r.title) || 'Unbekannt',
+          url: r.url,
+          snippet: truncateText(decodeHtmlEntities(r.description ?? ''), snippetChars),
+          domain: extractDomain(r.url),
+          // GreenPT carries no date at all, so recency ranking scores nothing
+          // for these hits. Null rather than invented: `resolveSourceDate`
+          // treats an unparseable value as a real signal.
+          publishedDate: null,
+        }));
+        log.info(`[Direct Web Search] GreenPT returned ${formatted.length} results for "${query}"`);
+        return {
+          query,
+          searchType,
+          tier: plan.tier,
+          resultsCount: formatted.length,
+          results: formatted,
+        };
+      } catch (err: unknown) {
+        // Every GreenPT failure — including an EMPTY result set, which is how
+        // its throttle manifests (HTTP 200, no error) — falls through to Linkup
+        // rather than surfacing. An empty list passed to the caller would read
+        // as "the web has nothing on this" and the model would answer
+        // ungrounded with nothing in the logs to explain it.
+        log.info(
+          `[Direct Web Search] GreenPT unavailable (${err instanceof Error ? err.message : String(err)}) — falling back to Linkup`
+        );
+      }
+    }
+
     const linkup = getLinkupService();
     if (linkup) {
-      log.info(`[Direct Web Search] Routing via Linkup (standard) for "${query}"`);
-      const fromDate = timeRange ? timeRangeToFromDate(timeRange) : undefined;
-      const linkupRes = await linkup.webSearch({
-        query,
-        maxResults: Math.min(maxResults, 10),
-        ...(fromDate ? { fromDate } : {}),
-      });
-      const linkupFormatted = linkupRes.results.slice(0, maxResults).map((r, i) => ({
+      const search = (depth: typeof plan.depth) =>
+        linkup.webSearch({
+          query,
+          depth,
+          maxResults: requestedResults,
+          adjacentSearches: plan.adjacentSearches,
+          ...(includeDomains.length > 0 ? { includeDomains } : {}),
+          ...(excludeDomains.length > 0 ? { excludeDomains } : {}),
+          ...(fromDate ? { fromDate } : {}),
+          ...(params.toDate ? { toDate: params.toDate } : {}),
+          ...(includeImages ? { includeImages: true } : {}),
+        });
+      // `fast` is flagged beta in Linkup's docs, so it is the one depth that could
+      // be rejected for an account without anything else being wrong. A keyword
+      // lookup must not fail over an optimisation: fall back to the depth we know
+      // works, once, and say so in the log.
+      const linkupRes = await (plan.depth === 'fast'
+        ? search('fast').catch((err: unknown) => {
+            log.warn(
+              `[Direct Web Search] fast depth rejected (${err instanceof Error ? err.message : String(err)}) — retrying at standard`
+            );
+            return search('standard');
+          })
+        : search(plan.depth));
+      // Linkup mixes image entries into the SAME array as the text ones, and an
+      // image entry has `name` + `url` but NO `content`. The `type` field has
+      // existed on the result shape all along and nothing read it, so every entry
+      // was mapped as a text result — which was harmless only for as long as no
+      // caller asked for images. The moment one does, an unsplit mapping puts
+      // content-less entries into the source registry, where they become numbered
+      // citations backing a claim with an empty snippet. Splitting first is
+      // therefore not cleanup, it is the precondition for `includeImages`.
+      const { text: textEntries, images: imageEntries } = partitionLinkupResults(linkupRes.results);
+      const linkupFormatted = textEntries.slice(0, maxResults).map((r, i) => ({
         rank: i + 1,
-        title: r.name || 'Unbekannt',
+        // Linkup returns raw HTML-entity-encoded titles/snippets (e.g. "&Ouml;sterreich").
+        title: decodeHtmlEntities(r.name) || 'Unbekannt',
         url: r.url,
-        snippet: truncateText(r.content || '', 300),
+        snippet: truncateText(decodeHtmlEntities(r.content), snippetChars),
         domain: extractDomain(r.url),
-        publishedDate: null as string | null,
+        // Was hard-coded `null`, so `recencyBoost`/`resolveSourceDate` scored
+        // nothing for web hits — the one source type where freshness matters
+        // most. Normalised rather than passed through: a value the ranking
+        // cannot parse is worse than none, because it looks like data.
+        publishedDate: normalizePublishedDate(r.date),
+      }));
+      const linkupImages = imageEntries.slice(0, MAX_IMAGE_HITS).map((r) => ({
+        title: decodeHtmlEntities(r.name) || extractDomain(r.url) || 'Bild',
+        url: r.url,
+        domain: extractDomain(r.url),
       }));
       log.info(
-        `[Direct Web Search] Linkup returned ${linkupFormatted.length} results for "${query}"`
+        `[Direct Web Search] Linkup returned ${linkupFormatted.length} results${linkupImages.length > 0 ? ` + ${linkupImages.length} images` : ''} for "${query}"`
       );
       return {
         query,
         searchType,
+        tier: plan.tier,
         resultsCount: linkupFormatted.length,
         results: linkupFormatted,
+        ...(linkupImages.length > 0 ? { images: linkupImages } : {}),
       };
     }
 
@@ -475,11 +772,27 @@ export async function executeDirectWebSearch(params: {
       { maxRetries: 1, delayMs: 500, label: 'DirectWebSearch' }
     );
 
-    if (!searchResults.success || !searchResults.results || searchResults.results.length === 0) {
+    // Same split as the document search above: a SearXNG outage must not read
+    // as "the web has nothing on this".
+    if (!searchResults.success) {
+      log.warn(`[Direct Web Search] Search failed for "${query}"`);
+      return {
+        query,
+        searchType,
+        tier: plan.tier,
+        resultsCount: 0,
+        results: [],
+        error: true,
+        message: 'Die Websuche ist momentan gestört — es konnte nicht gesucht werden.',
+      };
+    }
+
+    if (!searchResults.results || searchResults.results.length === 0) {
       log.info(`[Direct Web Search] No results found for: "${query}"`);
       return {
         query,
         searchType,
+        tier: plan.tier,
         resultsCount: 0,
         results: [],
         message: 'Keine Websuche-Ergebnisse gefunden.',
@@ -502,6 +815,7 @@ export async function executeDirectWebSearch(params: {
     return {
       query,
       searchType,
+      tier: plan.tier,
       resultsCount: formattedResults.length,
       results: formattedResults,
       suggestions: searchResults.suggestions?.slice(0, 3),
@@ -512,6 +826,7 @@ export async function executeDirectWebSearch(params: {
     return {
       query,
       searchType,
+      tier: plan.tier,
       resultsCount: 0,
       results: [],
       error: true,
@@ -524,6 +839,58 @@ export async function executeDirectWebSearch(params: {
  * Map a SearXNG-style `time_range` ("day"|"week"|"month"|"year") to a Linkup
  * `fromDate` (YYYY-MM-DD). Unknown values yield no constraint.
  */
+/** ISO date (YYYY-MM-DD) `days` in the past. */
+function daysAgoIso(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Linkup's `date` field as something the recency ranking can use, or `null`.
+ *
+ * Returning `null` for anything unparseable is deliberate: a bogus date is worse
+ * than a missing one, because the ranking would treat it as a real signal and
+ * boost or bury a source on the strength of a string nobody validated. Future
+ * dates are rejected for the same reason — a page dated next year is metadata
+ * noise, not a fresh source.
+ */
+/**
+ * Split Linkup's single result array into text hits and image hits.
+ *
+ * Classification is by exclusion, not by allow-list: anything NOT marked
+ * `type: 'image'` counts as text. Linkup documents `text` and `image`, and a
+ * hypothetical third type would still carry `content` — mapping it as text keeps
+ * the source, while an allow-list would silently drop it. An entry claiming to be
+ * an image but carrying no usable URL is dropped from both lists: a link is the
+ * only thing we do with it.
+ */
+export function partitionLinkupResults(results: readonly LinkupSearchResult[]): {
+  text: LinkupSearchResult[];
+  images: LinkupSearchResult[];
+} {
+  const text: LinkupSearchResult[] = [];
+  const images: LinkupSearchResult[] = [];
+  for (const r of results) {
+    if (r.type === 'image') {
+      if (r.url && r.url.trim().length > 0) images.push(r);
+      continue;
+    }
+    text.push(r);
+  }
+  return { text, images };
+}
+
+export function normalizePublishedDate(raw: string | undefined): string | null {
+  if (!raw || raw.trim().length === 0) return null;
+  const parsed = new Date(raw);
+  const time = parsed.getTime();
+  if (Number.isNaN(time)) return null;
+  // One day of slack for timezone skew rather than an exact comparison.
+  if (time > Date.now() + 24 * 60 * 60 * 1000) return null;
+  return parsed.toISOString();
+}
+
 function timeRangeToFromDate(timeRange: string): string | undefined {
   const days: Record<string, number> = { day: 1, week: 7, month: 30, year: 365 };
   const offset = days[timeRange.toLowerCase()];

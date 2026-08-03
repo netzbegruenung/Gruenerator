@@ -8,6 +8,7 @@
     "noImplicitReturns": false,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": false,
+    "incremental": true,
 
     "paths": {
       "@gruenerator/shared": ["../../packages/shared/src/index.ts"],
@@ -32,9 +33,11 @@
     "types/**/*.ts",
     "types/**/*.d.ts",
     "config/**/*.ts",
+    "test/**/*.ts",
     ".expo/types/**/*.ts",
     "expo-env.d.ts",
-    "eslint.config.js"
+    "eslint.config.js",
+    "vitest.config.ts"
   ],
   "exclude": ["**/node_modules/**"]
 }

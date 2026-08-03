@@ -43,6 +43,7 @@ import {
   DOCS_ONLY_SUBTYPES,
   DOCS_SUBTYPES,
   GRANTED_BY_SHARE_LINK,
+  docListColumns,
   docsAccessWhere,
 } from './constants.js';
 import { checkDocumentAccess, autoGrantSharePermission } from './documentAccess.js';
@@ -683,15 +684,25 @@ export const docsContractRouter = s.router(docsContract, {
           type: 'doc_generation',
           systemPrompt: DOCUMENT_GENERATION_PROMPT,
           messages: [{ role: 'user', content: description.trim() }],
-          options: { temperature: 0.7, max_tokens: 4000 },
+          options: { temperature: 0.7 },
         },
         args.req
       );
 
       const generated =
-        aiResult.success && aiResult.content
-          ? parseDocumentResponse(aiResult.content)
-          : { title: 'Neues Dokument', subtype: 'blank', content: '' };
+        aiResult.success && aiResult.content ? parseDocumentResponse(aiResult.content) : null;
+      // Empty content is the parser's failure signal — creating the document
+      // anyway produced a blank artifact reported as a success (201).
+      if (!generated || !generated.content) {
+        log.warn('[docsContract.generateDocument] Model returned no parseable content');
+        return {
+          status: 500 as const,
+          body: {
+            error: 'Failed to generate document',
+            details: 'Das Modell lieferte keinen verwertbaren Dokumentinhalt.',
+          },
+        };
+      }
 
       const document = await createDocumentWithContent(
         generated.title,
@@ -721,9 +732,11 @@ export const docsContractRouter = s.router(docsContract, {
       const params: unknown[] = [userId, userId, DOCS_ONLY_SUBTYPES];
       const limitClause = limit ? `LIMIT $${params.push(limit)}` : '';
 
+      const docColumns = docListColumns(args.query.preview === 'true');
+
       const result = (await db.query(
         `SELECT
-          cd.*,
+          ${docColumns},
           p.display_name as creator_name,
           le.display_name as last_editor_name,
           CASE

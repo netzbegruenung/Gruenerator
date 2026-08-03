@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
 import { X, Star, Search } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { PiSparkle } from 'react-icons/pi';
+
 import { agentsList, SKILL_CATEGORY_LABELS, type SkillCategory } from '../../lib/agents';
 import {
   agentToMentionable,
@@ -52,20 +53,35 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
     }));
   }, [filtered]);
 
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   return (
+    // Verdunkelung schließt per Klick; Escape schließt ebenfalls (Effekt oben)
+    // und ein echter Schließen-Knopf steht darunter — die Fläche selbst wird
+    // bewusst kein zweites Bedienelement.
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40"
       onClick={onClose}
     >
+      {/* Fängt nur die Weitergabe an den Schließen-Handler ab, keine Bedienung. */}
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
       <div
         className="mx-4 flex max-h-[80vh] w-full max-w-[28rem] flex-col rounded-2xl border border-border bg-background shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div>
-            <h2 className="text-lg font-semibold text-foreground">Skill-Bibliothek</h2>
+            <h2 className="text-lg font-semibold text-foreground">Rezept-Bibliothek</h2>
             <p className="mt-0.5 text-xs text-foreground-muted">
               Skills starten mit{' '}
               <kbd className="rounded bg-grey-100 px-1 py-0.5 font-mono text-[10px] dark:bg-grey-800">
@@ -94,7 +110,7 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Skills durchsuchen..."
+              placeholder="Rezepte durchsuchen…"
               className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-foreground-muted"
               autoFocus
             />

@@ -1,12 +1,15 @@
 'use client';
 
-import { memo, useState } from 'react';
-import { Popover as PopoverPrimitive } from 'radix-ui';
 import { FileText } from 'lucide-react';
-import type { Citation } from '../../hooks/useChatGraphStream';
-import { cn } from '../../lib/utils';
-import { getCollectionStyle } from '../../lib/collectionStyles';
+import { Popover as PopoverPrimitive } from 'radix-ui';
+import { memo, useState } from 'react';
+
 import { useCitationPanel } from '../../context/CitationPanelContext';
+import { getCollectionStyle } from '../../lib/collectionStyles';
+import { cn } from '../../lib/utils';
+import { SourceGlyph } from '../tool-ui/citation/SourceGlyph';
+
+import type { Citation } from '../../hooks/useChatGraphStream';
 
 interface CitationBadgeProps {
   citationId: number;
@@ -60,16 +63,7 @@ export const CitationBadge = memo(function CitationBadge({
               <div className="flex items-start gap-2">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
-                    {citation.domain && (
-                      <img
-                        src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(citation.domain)}&sz=16`}
-                        alt=""
-                        width={16}
-                        height={16}
-                        className="flex-shrink-0"
-                        loading="lazy"
-                      />
-                    )}
+                    {citation.domain && <SourceGlyph domain={citation.domain} size={16} />}
                     {citation.url ? (
                       <a
                         href={citation.url}

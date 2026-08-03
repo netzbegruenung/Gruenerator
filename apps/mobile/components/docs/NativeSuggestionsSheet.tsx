@@ -14,7 +14,7 @@ import {
   type DocSuggestionItem,
   type SuggestionKind,
 } from '../../stores/docsEditorBridgeStore';
-import { lightTheme, darkTheme, colors } from '../../theme';
+import { lightTheme, darkTheme, colors, BODY_FONT } from '../../theme';
 import { BottomSheet } from '../common/BottomSheet';
 
 interface Props {
@@ -85,7 +85,12 @@ export function NativeSuggestionsSheet({ visible, onClose, canEdit }: Props) {
   return (
     <BottomSheet visible={visible} onClose={onClose}>
       <View style={styles.titleRow}>
-        <TouchableOpacity onPress={onClose} hitSlop={8}>
+        <TouchableOpacity
+          onPress={onClose}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Zurück"
+        >
           <Ionicons name="arrow-back" size={22} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.title, { color: theme.text }]}>Änderungen</Text>
@@ -98,6 +103,7 @@ export function NativeSuggestionsSheet({ visible, onClose, canEdit }: Props) {
             style={[styles.bulkBtn, { borderColor: isDark ? colors.grey[700] : colors.grey[300] }]}
             onPress={() => confirmAll('accept')}
             activeOpacity={0.6}
+            accessibilityRole="button"
           >
             <Ionicons name="checkmark" size={16} color={colors.primary[600]} />
             <Text style={[styles.bulkBtnText, { color: colors.primary[600] }]}>Alle annehmen</Text>
@@ -106,6 +112,7 @@ export function NativeSuggestionsSheet({ visible, onClose, canEdit }: Props) {
             style={[styles.bulkBtn, { borderColor: isDark ? colors.grey[700] : colors.grey[300] }]}
             onPress={() => confirmAll('reject')}
             activeOpacity={0.6}
+            accessibilityRole="button"
           >
             <Ionicons name="close" size={16} color={theme.textSecondary} />
             <Text style={[styles.bulkBtnText, { color: theme.text }]}>Alle ablehnen</Text>
@@ -129,6 +136,7 @@ export function NativeSuggestionsSheet({ visible, onClose, canEdit }: Props) {
                   style={styles.rowMain}
                   onPress={() => jumpTo(s)}
                   activeOpacity={0.6}
+                  accessibilityRole="button"
                 >
                   <View
                     style={[
@@ -165,6 +173,7 @@ export function NativeSuggestionsSheet({ visible, onClose, canEdit }: Props) {
                       onPress={() => dispatchAction({ type: 'accept-suggestion', id: s.id })}
                       hitSlop={6}
                       style={styles.actionBtn}
+                      accessibilityRole="button"
                     >
                       <Text style={[styles.actionText, { color: colors.primary[600] }]}>
                         Annehmen
@@ -174,6 +183,7 @@ export function NativeSuggestionsSheet({ visible, onClose, canEdit }: Props) {
                       onPress={() => dispatchAction({ type: 'reject-suggestion', id: s.id })}
                       hitSlop={6}
                       style={styles.actionBtn}
+                      accessibilityRole="button"
                     >
                       <Text style={[styles.actionText, { color: theme.textSecondary }]}>
                         Ablehnen
@@ -195,6 +205,7 @@ export function NativeSuggestionsSheet({ visible, onClose, canEdit }: Props) {
             onClose();
           }}
           activeOpacity={0.6}
+          accessibilityRole="button"
         >
           <Ionicons name="git-compare-outline" size={18} color={theme.textSecondary} />
           <Text style={[styles.endBtnText, { color: theme.textSecondary }]}>
@@ -214,7 +225,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 12,
   },
-  title: { fontSize: 18, fontWeight: '700', flex: 1, textAlign: 'center' },
+  title: { fontFamily: BODY_FONT, fontSize: 18, fontWeight: '700', flex: 1, textAlign: 'center' },
 
   bulkRow: {
     flexDirection: 'row',
@@ -232,10 +243,10 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
   },
-  bulkBtnText: { fontSize: 13, fontWeight: '600' },
+  bulkBtnText: { fontFamily: BODY_FONT, fontSize: 13, fontWeight: '600' },
 
   emptyContainer: { padding: 40, alignItems: 'center' },
-  emptyText: { fontSize: 14 },
+  emptyText: { fontFamily: BODY_FONT, fontSize: 14 },
 
   list: { paddingHorizontal: 12, maxHeight: 400 },
   row: { paddingHorizontal: 8, paddingVertical: 10 },
@@ -250,13 +261,13 @@ const styles = StyleSheet.create({
   },
   rowContent: { flex: 1, minWidth: 0 },
   rowTitleLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  rowTitle: { fontSize: 14, fontWeight: '600' },
+  rowTitle: { fontFamily: BODY_FONT, fontSize: 14, fontWeight: '600' },
   authorDot: { width: 8, height: 8, borderRadius: 4 },
-  rowExcerpt: { fontSize: 12, marginTop: 1 },
-  rowSub: { fontSize: 11, marginTop: 1 },
+  rowExcerpt: { fontFamily: BODY_FONT, fontSize: 12, marginTop: 1 },
+  rowSub: { fontFamily: BODY_FONT, fontSize: 11, marginTop: 1 },
   rowActions: { flexDirection: 'row', gap: 16, paddingLeft: 38, marginTop: 6 },
   actionBtn: { paddingVertical: 2 },
-  actionText: { fontSize: 13, fontWeight: '600' },
+  actionText: { fontFamily: BODY_FONT, fontSize: 13, fontWeight: '600' },
 
   endBtn: {
     flexDirection: 'row',
@@ -267,5 +278,5 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingVertical: 12,
   },
-  endBtnText: { fontSize: 13, fontWeight: '500' },
+  endBtnText: { fontFamily: BODY_FONT, fontSize: 13, fontWeight: '500' },
 });

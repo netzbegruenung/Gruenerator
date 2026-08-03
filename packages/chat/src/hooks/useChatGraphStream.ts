@@ -5,25 +5,38 @@
  * Uses ChatAdapter for platform-agnostic API communication.
  */
 
-import { useState, useCallback, useRef } from 'react';
-import { parseSSELine } from '../lib/sseParser';
-import { useChatConfigStore } from '../stores/chatConfigStore';
 import { sharepicVariantSchema } from '@gruenerator/contracts';
+import { useState, useCallback, useRef } from 'react';
+
+import { parseSSELine } from '../lib/sseParser';
+import { ARTIFACT_STAGE_INTENTS } from '../lib/toolMappings';
+import { useChatConfigStore } from '../stores/chatConfigStore';
+
+import type { ProcessedFile } from '../lib/fileUtils';
 import type {
+  ChatCitation,
   GeneratedImagePayload,
   SearchResultPayload,
+  SearchImagePayload,
   ChartPayload,
   ArtifactPayload,
   ComputePayload,
   SearchIntent,
   SharepicVariant,
 } from '@gruenerator/contracts';
-import type { ProcessedFile } from '../lib/fileUtils';
 
 export type ProgressStage =
   | 'idle'
   | 'classifying'
   | 'searching'
+  // Ein Artefakt entsteht (PDF, Präsentation, Tabelle, Dokument, Board). Eigene
+  // Stufe, weil sie die längste ist: die Erzeugung ist ein zweiter,
+  // strukturierter Modellaufruf über einen langen Auftrag. Ohne sie fielen genau
+  // diese Turns auf `searching` zurück, und die Zeile sagte drei Minuten lang
+  // „Durchsuche …" — live am 02.08.2026 auch in einem Turn, in dem gar keine
+  // Suchwerkzeuge montiert waren, weil die Person neue Recherche ausgeschlossen
+  // hatte. Die Anzeige behauptete damit einen Regelbruch, den es nicht gab.
+  | 'generating_artifact'
   | 'summarizing'
   | 'generating_image'
   | 'generating'
@@ -116,27 +129,31 @@ export interface ChatProgress {
   reasoning?: string;
   steps?: ProgressStep[];
   memoryContext?: MemoryContextInfo;
+  /** Live split-gather narration sentences awaiting a tool card to land on.
+   *  Rendered as the paced status line until the next `tool_step_start`
+   *  associates them with a card. Cleared when synthesis text starts. */
+  pendingNarration?: string[];
 }
 
-export interface Citation {
-  id: number;
-  title: string;
-  url: string;
-  snippet: string;
-  citedText?: string;
-  source: string;
-  collectionName?: string;
-  domain?: string;
-  relevance?: number;
-  contentType?: string;
-  documentId?: string;
-  chunkIndex?: number;
-  similarityScore?: number;
-  collectionId?: string;
-}
+/**
+ * Derived from the wire schema, not written alongside it. The hand-kept twin
+ * this replaces had silently fallen behind by one field (`documentSourceId`,
+ * which carries the per-document fan-out grouping for multi-document chats) —
+ * the exact drift a duplicated shape invites.
+ */
+export type Citation = ChatCitation;
 
 // Wire shape shared with apps/api sseHelpers via @gruenerator/contracts.
 export type SearchResult = SearchResultPayload;
+
+/**
+ * An image hit from the web search.
+ *
+ * Shown as a thumbnail ONLY via `proxyUrl` (same-origin, signed, short-lived);
+ * with no proxy handle it stays the named link it used to be. Never rendered
+ * from `url` — see `SearchImagesSection`.
+ */
+export type SearchImage = SearchImagePayload;
 
 export interface StreamMetadata {
   intent: SearchIntent;
@@ -144,6 +161,8 @@ export interface StreamMetadata {
   totalTimeMs: number;
   classificationTimeMs?: number;
   searchTimeMs?: number;
+  /** Langfuse trace id for this turn — target for thumbs up/down feedback scoring. */
+  traceId?: string;
 }
 
 export interface ChatMessage {
@@ -294,8 +313,12 @@ export function useChatGraphStream(
         });
 
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || `HTTP error ${response.status}`);
+          const errorData: unknown = await response.json().catch(() => ({}));
+          const errorMessage =
+            errorData && typeof errorData === 'object' && 'error' in errorData
+              ? String((errorData as { error?: unknown }).error)
+              : undefined;
+          throw new Error(errorMessage || `HTTP error ${response.status}`);
         }
 
         const reader = response.body?.getReader();
@@ -305,7 +328,7 @@ export function useChatGraphStream(
 
         const decoder = new TextDecoder();
         let buffer = '';
-        let currentEvent = { type: '' };
+        const currentEvent = { type: '' };
         let accumulatedText = '';
         let receivedCitations: Citation[] = [];
         let receivedSearchResults: SearchResult[] = [];
@@ -366,8 +389,10 @@ export function useChatGraphStream(
                   reasoning?: string;
                 };
                 let stage: ProgressStage = 'searching';
-                if (intent === 'direct') {
+                if (intent === 'produktion' || intent === 'direct' || intent === 'greeting') {
                   stage = 'generating';
+                } else if (ARTIFACT_STAGE_INTENTS.has(intent)) {
+                  stage = 'generating_artifact';
                 } else if (intent === 'image' || intent === 'image_edit') {
                   stage = 'generating_image';
                 } else if (intent === 'summary') {
@@ -519,6 +544,9 @@ export function useChatGraphStream(
                 const { error } = data as { error: string };
                 throw new Error(error);
               }
+
+              default:
+                break;
             }
           }
         }

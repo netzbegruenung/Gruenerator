@@ -28,6 +28,8 @@ import {
   groupSuccessResponseSchema,
   groupVisibilityResponseSchema,
   groupVorlagenResponseSchema,
+  inviteToGroupBodySchema,
+  inviteToGroupResponseSchema,
   joinByTokenBodySchema,
   joinGroupResponseSchema,
   joinRequestsResponseSchema,
@@ -284,6 +286,21 @@ export const groupsContract = c.router({
       500: groupErrorResponseSchema,
     },
     summary: 'Join a group via token',
+  },
+
+  invite: {
+    method: 'POST',
+    path: '/api/auth/groups/:groupId/invite',
+    pathParams: z.object({ groupId: z.string() }),
+    body: inviteToGroupBodySchema,
+    responses: {
+      200: inviteToGroupResponseSchema,
+      401: groupErrorResponseSchema,
+      403: groupErrorResponseSchema,
+      404: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'Invite people to a group by email',
   },
 
   leaveGroup: {

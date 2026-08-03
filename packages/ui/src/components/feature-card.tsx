@@ -1,9 +1,14 @@
 import type { ReactNode } from 'react';
 
 import { cn } from '../lib/cn';
+import { InteractiveCard } from './interactive-card';
 
 export interface FeatureCardProps {
   onClick: () => void;
+  /**
+   * @deprecated InteractiveCard owns activation via Enter/Space natively;
+   * this is kept only so existing callers that still pass it type-check.
+   */
   onKeyDown?: (e: React.KeyboardEvent) => void;
   label: string;
   description?: string;
@@ -19,6 +24,7 @@ export interface FeatureCardProps {
   disabled?: boolean;
   badge?: ReactNode;
   variant?: 'default' | 'gradient-dark';
+  /** @deprecated InteractiveCard manages its own single tab stop. */
   tabIndex?: number;
   className?: string;
   children?: ReactNode;
@@ -26,7 +32,6 @@ export interface FeatureCardProps {
 
 export function FeatureCard({
   onClick,
-  onKeyDown,
   label,
   description,
   image,
@@ -35,27 +40,21 @@ export function FeatureCard({
   disabled = false,
   badge,
   variant = 'default',
-  tabIndex = 0,
   className,
   children,
 }: FeatureCardProps) {
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (onKeyDown) {
-      onKeyDown(e);
-    } else if (e.key === 'Enter') {
-      onClick();
-    }
-  };
-
   const isGradientDark = variant === 'gradient-dark';
 
   if (image || backgroundColor) {
     const isWebp = image?.endsWith('.webp') ?? false;
 
     return (
-      <div
+      <InteractiveCard
+        label={label}
+        onActivate={onClick}
+        disabled={disabled}
         className={cn(
-          'group relative overflow-hidden rounded-2xl aspect-square p-0 border-none shadow-none',
+          'group overflow-hidden rounded-2xl aspect-square p-0 border-none shadow-none',
           // ::after — primary gradient overlay
           'after:content-[""] after:absolute after:inset-0 after:rounded-2xl after:pointer-events-none after:transition-all after:duration-300',
           isGradientDark
@@ -68,13 +67,9 @@ export function FeatureCard({
           !disabled && 'cursor-pointer',
           className
         )}
-        onClick={disabled ? undefined : onClick}
-        role="button"
-        tabIndex={disabled ? -1 : tabIndex}
-        onKeyDown={disabled ? undefined : handleKeyDown}
         style={!image && backgroundColor ? { backgroundColor } : undefined}
       >
-        {badge}
+        {badge != null && <span className="pointer-events-none">{badge}</span>}
         {image ? (
           isWebp && imageFallback ? (
             <picture className="block w-full h-full">
@@ -101,7 +96,7 @@ export function FeatureCard({
         ) : null}
         <div
           className={cn(
-            'absolute z-[1] flex flex-col',
+            'pointer-events-none absolute z-[1] flex flex-col',
             isGradientDark
               ? 'top-1/2 left-0 right-0 -translate-y-1/2 items-center px-4'
               : 'top-0 left-0 right-0 p-6 gap-2 max-[768px]:p-4'
@@ -129,14 +124,17 @@ export function FeatureCard({
           )}
         </div>
         {children}
-      </div>
+      </InteractiveCard>
     );
   }
 
   return (
-    <div
+    <InteractiveCard
+      label={label}
+      onActivate={onClick}
+      disabled={disabled}
       className={cn(
-        'bg-background-alt rounded-xl p-8 text-center transition-all duration-300 cursor-pointer relative overflow-hidden',
+        'bg-background-alt rounded-xl p-8 text-center transition-all duration-300 cursor-pointer overflow-hidden',
         'border-2 border-transparent shadow-sm',
         'hover:-translate-y-1 hover:shadow-xl hover:border-primary-600',
         'active:-translate-y-0.5 active:shadow-lg',
@@ -144,12 +142,8 @@ export function FeatureCard({
         disabled && 'opacity-60 cursor-not-allowed hover:translate-y-0',
         className
       )}
-      onClick={disabled ? undefined : onClick}
-      role="button"
-      tabIndex={disabled ? -1 : tabIndex}
-      onKeyDown={disabled ? undefined : handleKeyDown}
     >
-      {badge}
+      {badge != null && <span className="pointer-events-none">{badge}</span>}
       {children || (
         <>
           <div className="text-5xl mb-4" />
@@ -159,6 +153,6 @@ export function FeatureCard({
           )}
         </>
       )}
-    </div>
+    </InteractiveCard>
   );
 }

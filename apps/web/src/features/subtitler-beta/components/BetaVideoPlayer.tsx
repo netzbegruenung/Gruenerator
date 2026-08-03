@@ -281,7 +281,7 @@ export const BetaVideoPlayer = forwardRef<BetaVideoPlayerRef, BetaVideoPlayerPro
         videoRef.current.currentTime = targetTime;
         setLocalCurrentTime(targetTime);
       },
-      [previewMode, keptSegments]
+      [previewMode, keptSegments, duration]
     );
 
     // Vor-/Zurückspulen
@@ -556,6 +556,8 @@ export const BetaVideoPlayer = forwardRef<BetaVideoPlayerRef, BetaVideoPlayerPro
             e.preventDefault();
             toggleFullscreen();
             break;
+          default:
+            break;
         }
       };
 
@@ -626,6 +628,21 @@ export const BetaVideoPlayer = forwardRef<BetaVideoPlayerRef, BetaVideoPlayerPro
                   isDragging && 'cursor-grabbing'
                 )}
                 onMouseDown={handleProgressMouseDown}
+                role="slider"
+                tabIndex={0}
+                aria-label="Video-Fortschritt"
+                aria-valuemin={0}
+                aria-valuemax={previewMode ? newTimelineDuration : duration}
+                aria-valuenow={previewMode ? newTimelineTime : localCurrentTime}
+                onKeyDown={(e) => {
+                  if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    skip(e.shiftKey ? -10 : -5);
+                  } else if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    skip(e.shiftKey ? 10 : 5);
+                  }
+                }}
               >
                 {/* Hintergrund-Fortschrittsbalken */}
                 <div

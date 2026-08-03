@@ -1,8 +1,10 @@
 /**
  * Intent Execution Service
  *
- * Handles board creation, document creation, share_doc intent,
- * and the search/image/summary pipeline execution.
+ * The turn handlers that are NOT plain artifact creation: recurring tasks,
+ * share_doc, sharepic/social-post generation and the search/image/summary
+ * pipeline. Artifact-creating turns live in createTurn.ts (choreography) and
+ * artifactKinds.ts (per-kind data); the thin handlers below only name them.
  */
 
 import { createRecurringTaskBodySchema, type ScheduleRecurrence } from '@gruenerator/contracts';
@@ -18,24 +20,50 @@ import {
   computeNode,
   buildCitations,
 } from '../../../agents/langgraph/ChatGraph/index.js';
-import { isSourceAvailabilityError } from '../../../agents/langgraph/ChatGraph/types.js';
+import { hasExplicitSharepicWord } from '../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
+import { partitionSearchErrors } from '../../../agents/langgraph/ChatGraph/types.js';
 import { env } from '../../../config/env.js';
 import { type ExpressRequest as SharepicExpressRequest } from '../../../services/chat/sharepicGenerationService.js';
 import { createRecurringTask } from '../../../services/recurringTasks/recurringTasksRepository.js';
+import { resolveSearchTier, resolveTier } from '../../../services/search/searchDepth.js';
+import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
+import { needsThreadGrounding } from './agenticLoop/routing.js';
+import { renderSourceLines, withResearchedSources } from './agenticLoop/sourceRegistry.js';
+import { resolveSharepicAuthorName } from './artifactGeneration.js';
+import {
+  BOARD_SPEC,
+  makeDocumentSpec,
+  PDF_SPEC,
+  PRESENTATION_SPEC,
+  SHEET_SPEC,
+} from './artifactKinds.js';
 import { CONFIRM_ACTION_CONFIG } from './confirmActionService.js';
+import {
+  buildCreateTurnContext,
+  runCreateTurn,
+  SHAREPIC_CONTEXT_CHARS,
+  type CreateTurnOpts,
+} from './createTurn.js';
+import { failCreation, rememberArtifact } from './createTurnHelpers.js';
+import { runDeepResearchTurn } from './deepResearchTurn.js';
 import { extractTextContent } from './messageHelpers.js';
 import {
   recallPastChats,
   recallOfficeDocuments,
+  recallReels,
   rerankRecall,
   getThreadRecallContext,
   formatPastChatsBlock,
   formatOfficeDocsBlock,
+  formatReelsBlock,
   getSpaceRecallScope,
 } from './pastChatRecallService.js';
 import { pendingActionStore } from './pendingActionStore.js';
+import { resolveReferentialTopic } from './referentialTopic.js';
+import { looksLikeRefusal } from './refusalDetection.js';
+import { withImageProxy } from './searchImagePayload.js';
 import {
   detectPreferredVariant,
   generateSharepicVariants,
@@ -43,13 +71,22 @@ import {
   type SharepicVariant,
 } from './sharepicVariantHelpers.js';
 import { generateSliderDeckVariant } from './sliderDeckService.js';
-import { PROGRESS_MESSAGES, sendSearchDegradedWarning } from './sseHelpers.js';
-import { createMessage, touchThread } from './threadPersistenceService.js';
+import {
+  createDeferredSSE,
+  PROGRESS_MESSAGES,
+  sendChatWarning,
+  sendSearchDegradedWarning,
+} from './sseHelpers.js';
+import {
+  createMessage,
+  getKeptResearchForRetry,
+  getRecentThreadSources,
+  touchThread,
+} from './threadPersistenceService.js';
 
-import type { SSEWriter, SearchResultPayload } from './sseHelpers.js';
+import type { SSEEmitter, SSEWriter, SearchResultPayload } from './sseHelpers.js';
 import type {
   ChatGraphState,
-  CreatedDocument,
   GeneratedImageResult,
   ImageAttachment,
   PendingAction,
@@ -62,446 +99,106 @@ import type { Request } from 'express';
 
 const log = createLogger('ChatGraphController');
 
-/**
- * Handle @board-erstellen forced tool.
- * Returns true if the board was created (caller should return early).
- */
-export async function handleBoardCreation(opts: {
-  sse: SSEWriter;
-  classifiedState: ChatGraphState;
-  lastUserMessage: ModelMessage | undefined;
-  aiWorkerPool: ChatGraphState['aiWorkerPool'];
-  req: Express.Request;
-  actualThreadId?: string;
-  userId: string;
-}): Promise<boolean> {
-  const { sse, classifiedState, lastUserMessage, aiWorkerPool, req, actualThreadId, userId } = opts;
+/** Human label for a `<kind>:<id>` source key, for user- and model-facing copy. */
+const SOURCE_KIND_LABELS: Record<string, string> = {
+  wolke: 'Wolke-Datei',
+  connect: 'verbundene Datei',
+  doc_mention: 'verlinktes Dokument',
+  notebook: 'Notizbuch',
+};
 
-  sse.send('response_start', { message: 'Erstelle Board...' });
-
-  try {
-    const {
-      BOARD_GENERATION_PROMPT,
-      createBoardDocument,
-      parseBoardStructure,
-      postProcessBoardStructure,
-    } = await import('../../../services/boards/BoardService.js');
-
-    const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
-
-    const boardGenResult = await aiWorkerPool.processRequest(
-      {
-        type: 'board_generation',
-        systemPrompt: BOARD_GENERATION_PROMPT,
-        messages: [{ role: 'user', content: lastUserText }],
-        options: { temperature: 0.7, max_tokens: 2000 },
-      },
-      req as Express.Request & { user?: { id?: string }; sessionID?: string }
-    );
-
-    const boardStructure =
-      boardGenResult.success && boardGenResult.content
-        ? parseBoardStructure(boardGenResult.content)
-        : null;
-
-    if (boardStructure) {
-      const { id: newBoardId, title: boardTitle } = await createBoardDocument(
-        boardStructure.title || 'Neues Board',
-        userId
-      );
-
-      const columnNames = boardStructure.statusOptions
-        .map((c: { name: string }) => c.name)
-        .join(', ');
-      const cardCount = boardStructure.rows.length;
-
-      const responseText =
-        `Board **"${boardTitle}"** wurde erstellt!\n\n` +
-        `**Spalten:** ${columnNames}\n` +
-        `**Karten:** ${cardCount} Aufgaben\n\n` +
-        `[Board öffnen](/boards/${newBoardId})`;
-
-      for (let i = 0; i < responseText.length; i += 20) {
-        sse.send('text_delta', { text: responseText.slice(i, i + 20) });
-      }
-
-      const totalTimeMs = Date.now() - classifiedState.startTime;
-      sse.sendRaw('done', {
-        threadId: actualThreadId,
-        citations: [],
-        boardId: newBoardId,
-        boardGeneratedStructure: postProcessBoardStructure(boardStructure, userId),
-        metadata: {
-          intent: 'direct',
-          searchCount: 0,
-          totalTimeMs,
-          classificationTimeMs: classifiedState.classificationTimeMs,
-          searchTimeMs: 0,
-        },
-      });
-
-      if (actualThreadId) {
-        await createMessage(actualThreadId, 'assistant', responseText);
-        await touchThread(actualThreadId);
-      }
-
-      log.info(`[ChatGraph] Board created: "${boardTitle}" (${newBoardId})`);
-      sse.end();
-      return true;
-    }
-  } catch (boardErr) {
-    log.error(
-      `[ChatGraph] Board creation failed: ${boardErr instanceof Error ? boardErr.message : String(boardErr)}`
-    );
-  }
-
-  return false;
+function labelForSource(source: string): string {
+  const kind = source.split(':')[0] ?? '';
+  return SOURCE_KIND_LABELS[kind] ?? 'Quelle';
 }
 
 /**
- * Loop-safe document generation core (presentation / sheet / text doc). Pure
- * generation: runs the AI worker pool, parses the structure and creates the
- * collaborative document — NO SSE, NO persistence, NO stream ownership. Shared
- * by the turn-owning handlers (which wrap it with
- * response_start/done/createMessage) AND the compound loop fat tools (which emit
- * `document_created` + hand the card back to the model). Returns null when the
- * model produced no parseable structure — the caller decides whether to fall
- * through or report an error.
+ * Report sources the user explicitly attached that could not be read.
+ *
+ * Feeds BOTH channels from one fact: the warning is the telemetry signal, the
+ * degradation note makes the answer itself say which source is missing —
+ * otherwise the model quietly answers as though the file had never existed.
  */
-export async function runDocGeneration(opts: {
-  kind: 'presentation' | 'sheet' | 'document';
-  userContent: string;
-  aiWorkerPool: ChatGraphState['aiWorkerPool'];
-  req: Express.Request;
-  userId: string;
-  /** Invoked ONCE, after the model produced a parseable structure but BEFORE
-   *  the DB write. The turn-owning handlers use it to open the stream at the
-   *  original commit point (`response_start`) so a create failure still surfaces
-   *  the in-stream error rather than falling through; the loop fat tool omits
-   *  it (the loop owns the stream). */
-  onCommit?: () => void;
-}): Promise<CreatedDocument | null> {
-  const { kind, userContent, aiWorkerPool, req, userId, onCommit } = opts;
-  const reqWithUser = req as Express.Request & { user?: { id?: string }; sessionID?: string };
-
-  if (kind === 'presentation') {
-    const {
-      PRESENTATION_GENERATION_PROMPT,
-      parsePresentationStructure,
-      createPresentationDocument,
-    } = await import('../../../services/presentations/PresentationGenerationService.js');
-    const genResult = await aiWorkerPool.processRequest(
-      {
-        type: 'doc_generation',
-        systemPrompt: PRESENTATION_GENERATION_PROMPT,
-        messages: [{ role: 'user', content: userContent }],
-        options: { temperature: 0.4, max_tokens: 4000 },
-      },
-      reqWithUser
+export function reportUnavailableSources(
+  sse: SSEWriter,
+  state: ChatGraphState,
+  sources: string[],
+  needsReauth = false
+): void {
+  const labels = [...new Set(sources.map(labelForSource))].join(', ');
+  // An expired connection is the one case the user can fix, so it gets its own
+  // code and an actionable message instead of "try again later".
+  if (needsReauth) {
+    sendChatWarning(
+      sse,
+      'connect_reauth_required',
+      `${labels}: Die Verbindung ist abgelaufen — bitte in den Einstellungen neu verbinden.`
     );
-    const structure =
-      genResult.success && genResult.content ? parsePresentationStructure(genResult.content) : null;
-    if (!structure) {
-      log.warn('[ChatGraph] Presentation generation returned no parseable structure');
-      return null;
-    }
-    onCommit?.();
-    const doc = await createPresentationDocument(structure, userId);
-    return {
-      documentId: doc.id,
-      title: doc.title,
-      subtype: 'presentations',
-      url: `/office/${doc.id}`,
-    };
-  }
-
-  if (kind === 'sheet') {
-    const { SHEET_GENERATION_PROMPT, parseSheetStructure, createSheetDocument } =
-      await import('../../../services/sheets/SheetGenerationService.js');
-    const genResult = await aiWorkerPool.processRequest(
-      {
-        type: 'doc_generation',
-        systemPrompt: SHEET_GENERATION_PROMPT,
-        messages: [{ role: 'user', content: userContent }],
-        options: { temperature: 0.4, max_tokens: 4000 },
-      },
-      reqWithUser
+  } else {
+    sendChatWarning(
+      sse,
+      'source_unavailable',
+      `${labels} konnte nicht gelesen werden — die Antwort entstand ohne diese Quelle.`
     );
-    const structure =
-      genResult.success && genResult.content ? parseSheetStructure(genResult.content) : null;
-    if (!structure) {
-      log.warn('[ChatGraph] Sheet generation returned no parseable structure');
-      return null;
-    }
-    onCommit?.();
-    const doc = await createSheetDocument(structure, userId);
-    return { documentId: doc.id, title: doc.title, subtype: 'sheets', url: `/office/${doc.id}` };
   }
-
-  // kind === 'document' — a free-form text document (DocGenerationService picks
-  // the subtype). Unlike the turn-owning generateAndCreateDocument, the loop
-  // core returns null on a generation failure instead of writing a blank doc:
-  // an empty doc from a researched compound turn is worse than a tool error the
-  // model can explain.
-  const { DOCUMENT_GENERATION_PROMPT, parseDocumentResponse, createDocumentWithContent } =
-    await import('../../../services/docs/DocGenerationService.js');
-  const genResult = await aiWorkerPool.processRequest(
+  state.degradationNotes = [
+    ...(state.degradationNotes ?? []),
     {
-      type: 'doc_generation',
-      systemPrompt: DOCUMENT_GENERATION_PROMPT,
-      messages: [{ role: 'user', content: userContent }],
-      options: { temperature: 0.7, max_tokens: 4000 },
+      code: needsReauth ? 'connect_reauth_required' : 'source_unavailable',
+      modelHint: needsReauth
+        ? `Die Verbindung zu dieser Quelle ist abgelaufen: ${labels}. Sag das ehrlich und weise darauf hin, dass sie in den Einstellungen neu verbunden werden muss.`
+        : `Diese vom Nutzer angegebene(n) Quelle(n) konnten NICHT gelesen werden: ${labels}. Sag das ehrlich und tu nicht so, als hättest du ihren Inhalt gesehen.`,
     },
-    reqWithUser
-  );
-  const parsed =
-    genResult.success && genResult.content ? parseDocumentResponse(genResult.content) : null;
-  if (!parsed || !parsed.content) {
-    log.warn('[ChatGraph] Document generation returned no parseable content');
-    return null;
-  }
-  onCommit?.();
-  const doc = await createDocumentWithContent(parsed.title, parsed.content, parsed.subtype, userId);
-  return {
-    documentId: doc.id,
-    title: parsed.title,
-    subtype: parsed.subtype,
-    url: `/office/${doc.id}`,
-  };
+  ];
 }
 
-export interface CreatedBoard {
-  boardId: string;
-  title: string;
-  /** Post-processed board structure — carried in the loop's `done` event so the
-   *  boards UI renders it live (boards have no `document_created`/card path). */
-  boardGeneratedStructure: unknown;
+// The generation cores moved to artifactGeneration.ts (so the per-kind table
+// can use them without an import cycle). Re-exported here because the loop's
+// fat tools, the MCP server factory and the board agent flow all import them
+// from this module — and because they are the seam both chat paths share.
+export {
+  pdfKindFromText,
+  runBoardGeneration,
+  runDocGeneration,
+  runPdfGeneration,
+} from './artifactGeneration.js';
+
+/**
+ * @board-erstellen. Unlike the others the topic is derived here: the board
+ * branch predates the router-side resolution and still receives the raw
+ * message.
+ */
+export async function handleBoardCreation(
+  opts: Omit<CreateTurnOpts, 'userContent'> & { lastUserMessage: ModelMessage | undefined }
+): Promise<boolean> {
+  const lastUserText = opts.lastUserMessage ? extractTextContent(opts.lastUserMessage.content) : '';
+  // A referential follow-up ("mach ein Board davon") names no subject; the
+  // classifier resolved one against the history, with the heuristic as fallback
+  // for turns that never reached the LLM.
+  const userContent =
+    opts.classifiedState.creationTopic ||
+    resolveReferentialTopic(lastUserText, opts.classifiedState.messages ?? []).text;
+  return runCreateTurn(BOARD_SPEC, { ...opts, userContent });
 }
 
 /**
- * Loop-safe board generation core, extracted from `handleBoardCreation`. Pure:
- * generates + creates the board row, returns the descriptor (incl. the
- * post-processed structure the UI needs). NO SSE/stream ownership. Returns null
- * when the model produced no parseable board structure.
+ * create_sheet / @sheet-erstellen. Shape and SSE contract live in
+ * runCreateTurn + SHEET_SPEC; this keeps the call-site name stable.
  */
-export async function runBoardGeneration(opts: {
-  userContent: string;
-  aiWorkerPool: ChatGraphState['aiWorkerPool'];
-  req: Express.Request;
-  userId: string;
-}): Promise<CreatedBoard | null> {
-  const { userContent, aiWorkerPool, req, userId } = opts;
-  const {
-    BOARD_GENERATION_PROMPT,
-    createBoardDocument,
-    parseBoardStructure,
-    postProcessBoardStructure,
-  } = await import('../../../services/boards/BoardService.js');
-
-  const genResult = await aiWorkerPool.processRequest(
-    {
-      type: 'board_generation',
-      systemPrompt: BOARD_GENERATION_PROMPT,
-      messages: [{ role: 'user', content: userContent }],
-      options: { temperature: 0.7, max_tokens: 2000 },
-    },
-    req as Express.Request & { user?: { id?: string }; sessionID?: string }
-  );
-  const structure =
-    genResult.success && genResult.content ? parseBoardStructure(genResult.content) : null;
-  if (!structure) {
-    log.warn('[ChatGraph] Board generation returned no parseable structure');
-    return null;
-  }
-  const { id, title } = await createBoardDocument(structure.title || 'Neues Board', userId);
-  return {
-    boardId: id,
-    title,
-    boardGeneratedStructure: postProcessBoardStructure(structure, userId),
-  };
+export async function handleSheetCreation(opts: CreateTurnOpts): Promise<boolean> {
+  return runCreateTurn(SHEET_SPEC, opts);
 }
 
-/**
- * Handle the create_sheet intent / @sheet-erstellen forced tool: generate a
- * structured spreadsheet, create the collaborative_documents row (subtype
- * 'sheets') and seed its Y.Doc. Mirrors generateAndCreateDocument — the
- * created sheet streams through the same `document_created` SSE event and
- * metadata, so the existing chat card and thread-reload rehydration work
- * unchanged (they navigate via the carried `url`).
- * Returns true if the sheet was created (caller should return early).
- */
-export async function handleSheetCreation(opts: {
-  sse: SSEWriter;
-  classifiedState: ChatGraphState;
-  aiWorkerPool: ChatGraphState['aiWorkerPool'];
-  req: Express.Request;
-  actualThreadId?: string;
-  userId: string;
-  userContent: string;
-}): Promise<boolean> {
-  const { sse, classifiedState, aiWorkerPool, req, actualThreadId, userId, userContent } = opts;
-
-  let streamOpened = false;
-  try {
-    const created = await runDocGeneration({
-      kind: 'sheet',
-      userContent,
-      aiWorkerPool,
-      req,
-      userId,
-      // Open the stream at the original commit point (after a parseable
-      // structure, before the DB write) so a create failure surfaces the
-      // in-stream error via the catch instead of falling through.
-      onCommit: () => {
-        sse.send('response_start', { message: 'Erstelle Tabelle...' });
-        streamOpened = true;
-      },
-    });
-    if (!created) {
-      // Nothing streamed yet — return false so the caller falls through to the
-      // normal respond pipeline cleanly (no dangling response_start).
-      return false;
-    }
-
-    const responseText = `Tabelle **"${created.title}"** wurde erstellt.`;
-    for (let i = 0; i < responseText.length; i += 20) {
-      sse.send('text_delta', { text: responseText.slice(i, i + 20) });
-    }
-
-    sse.send('document_created', created);
-
-    log.info(`[ChatGraph] Sheet created: "${created.title}" (${created.documentId})`);
-
-    const totalTimeMs = Date.now() - classifiedState.startTime;
-    sse.sendRaw('done', {
-      threadId: actualThreadId,
-      citations: [],
-      documentId: created.documentId,
-      metadata: {
-        intent: 'create_sheet',
-        searchCount: 0,
-        totalTimeMs,
-        classificationTimeMs: classifiedState.classificationTimeMs,
-        searchTimeMs: 0,
-      },
-    });
-
-    if (actualThreadId) {
-      await createMessage(actualThreadId, 'assistant', responseText, {
-        intent: 'create_sheet',
-        createdDocument: created,
-      });
-      await touchThread(actualThreadId);
-    }
-
-    sse.end();
-    return true;
-  } catch (sheetErr) {
-    log.error(
-      `[ChatGraph] Sheet creation failed: ${sheetErr instanceof Error ? sheetErr.message : String(sheetErr)}`
-    );
-    if (streamOpened) {
-      // The stream is already open; don't fall through (that would double the
-      // response). Close it with a short error message instead.
-      const msg = 'Die Tabelle konnte nicht erstellt werden.';
-      sse.send('text_delta', { text: msg });
-      sse.sendRaw('done', {
-        threadId: actualThreadId,
-        citations: [],
-        metadata: { intent: 'create_sheet' },
-      });
-      sse.end();
-      return true;
-    }
-    return false;
-  }
+/** create_presentation / @praesentation-erstellen. */
+export async function handlePresentationCreation(opts: CreateTurnOpts): Promise<boolean> {
+  return runCreateTurn(PRESENTATION_SPEC, opts);
 }
 
-export async function handlePresentationCreation(opts: {
-  sse: SSEWriter;
-  classifiedState: ChatGraphState;
-  aiWorkerPool: ChatGraphState['aiWorkerPool'];
-  req: Express.Request;
-  actualThreadId?: string;
-  userId: string;
-  userContent: string;
-}): Promise<boolean> {
-  const { sse, classifiedState, aiWorkerPool, req, actualThreadId, userId, userContent } = opts;
-
-  let streamOpened = false;
-  try {
-    const created = await runDocGeneration({
-      kind: 'presentation',
-      userContent,
-      aiWorkerPool,
-      req,
-      userId,
-      // Open the stream at the original commit point (after a parseable
-      // structure, before the DB write) so a create failure surfaces the
-      // in-stream error via the catch instead of falling through.
-      onCommit: () => {
-        sse.send('response_start', { message: 'Erstelle Präsentation...' });
-        streamOpened = true;
-      },
-    });
-    if (!created) {
-      // Nothing streamed yet — return false so the caller falls through to the
-      // normal respond pipeline cleanly (no dangling response_start).
-      return false;
-    }
-
-    const responseText = `Präsentation **"${created.title}"** wurde erstellt.`;
-    for (let i = 0; i < responseText.length; i += 20) {
-      sse.send('text_delta', { text: responseText.slice(i, i + 20) });
-    }
-
-    sse.send('document_created', created);
-
-    log.info(`[ChatGraph] Presentation created: "${created.title}" (${created.documentId})`);
-
-    const totalTimeMs = Date.now() - classifiedState.startTime;
-    sse.sendRaw('done', {
-      threadId: actualThreadId,
-      citations: [],
-      documentId: created.documentId,
-      metadata: {
-        intent: 'create_presentation',
-        searchCount: 0,
-        totalTimeMs,
-        classificationTimeMs: classifiedState.classificationTimeMs,
-        searchTimeMs: 0,
-      },
-    });
-
-    if (actualThreadId) {
-      await createMessage(actualThreadId, 'assistant', responseText, {
-        intent: 'create_presentation',
-        createdDocument: created,
-      });
-      await touchThread(actualThreadId);
-    }
-
-    sse.end();
-    return true;
-  } catch (presentationErr) {
-    log.error(
-      `[ChatGraph] Presentation creation failed: ${presentationErr instanceof Error ? presentationErr.message : String(presentationErr)}`
-    );
-    if (streamOpened) {
-      // The stream is already open; don't fall through (that would double the
-      // response). Close it with a short error message instead.
-      const msg = 'Die Präsentation konnte nicht erstellt werden.';
-      sse.send('text_delta', { text: msg });
-      sse.sendRaw('done', {
-        threadId: actualThreadId,
-        citations: [],
-        metadata: { intent: 'create_presentation' },
-      });
-      sse.end();
-      return true;
-    }
-    return false;
-  }
+/** create_pdf / @pdf-erstellen — produces a finished, downloadable file. */
+export async function handlePdfCreation(
+  opts: CreateTurnOpts & { userLocale: 'de-DE' | 'de-AT' }
+): Promise<boolean> {
+  return runCreateTurn(PDF_SPEC, opts);
 }
 
 // ── EXPERIMENTAL: create_recurring_task ────────────────────────────────────────
@@ -520,6 +217,15 @@ const DELIVERY_LABELS_DE: Record<string, string> = {
   summary: 'als Zusammenfassung (Benachrichtigung/E-Mail)',
   thread: 'als neuer Chat',
 };
+
+/**
+ * Templated, like every other create failure (see failCreation): the previous
+ * fall-through handed the turn to the generic responder, which typically
+ * CONFIRMED the recurring task — while no row had been written.
+ */
+const RECURRING_TASK_FAILURE_TEXT =
+  'Ich konnte die wiederkehrende Aufgabe nicht einrichten. Sie wurde **nicht** gespeichert — ' +
+  'bitte formuliere sie noch einmal, zum Beispiel: „Erinnere mich jeden Montag um 9 Uhr an den Wochenbericht."';
 
 const RECURRING_EXTRACTION_PROMPT = `Du extrahierst aus einer Nutzeranfrage die Konfiguration für eine WIEDERKEHRENDE Aufgabe und gibst NUR ein JSON-Objekt zurück (keine Erklärung, kein Markdown).
 
@@ -587,11 +293,21 @@ export async function handleRecurringTaskCreation(opts: {
         type: 'doc_generation',
         systemPrompt: RECURRING_EXTRACTION_PROMPT,
         messages: [{ role: 'user', content: userContent }],
-        options: { temperature: 0.2, max_tokens: 800 },
+        options: { temperature: 0.2 },
       },
       req as Express.Request & { user?: { id?: string }; sessionID?: string }
     );
-    if (!genResult.success || !genResult.content) return false;
+    if (!genResult.success || !genResult.content) {
+      log.warn(
+        `[ChatGraph] Recurring task extraction produced nothing: ${genResult.error ?? 'no content'}`
+      );
+      return failCreation(
+        sse,
+        actualThreadId,
+        'create_recurring_task',
+        RECURRING_TASK_FAILURE_TEXT
+      );
+    }
 
     const parsed = parseExtractedJson(genResult.content) as Record<string, unknown>;
     const candidate = {
@@ -607,15 +323,29 @@ export async function handleRecurringTaskCreation(opts: {
     const validated = createRecurringTaskBodySchema.safeParse(candidate);
     if (!validated.success) {
       log.warn(`[ChatGraph] Recurring task extraction invalid: ${validated.error.message}`);
-      return false;
+      return failCreation(
+        sse,
+        actualThreadId,
+        'create_recurring_task',
+        RECURRING_TASK_FAILURE_TEXT
+      );
     }
 
     const task = await createRecurringTask(userId, validated.data);
 
     sse.send('response_start', { message: 'Richte wiederkehrende Aufgabe ein...' });
+    // `toLocaleString` ohne `timeZone` nimmt die Zeitzone des SERVERS, und der
+    // Container läuft in UTC. Gemessen: „um 09:00 Uhr" korrekt angelegt, in
+    // derselben Nachricht als „Nächste Ausführung: 07:00" gemeldet — die Aufgabe
+    // war richtig, die Bestätigung log. Wien und Berlin teilen sich CET/CEST,
+    // die Wahl ändert also nur den Namen, nicht die Stunde; sie steht hier
+    // trotzdem am Locale, weil eine österreichische Nutzerin keine deutsche
+    // Zeitzone genannt bekommen soll, wenn das Feld einmal sichtbar wird.
+    const displayZone = opts.userLocale === 'de-AT' ? 'Europe/Vienna' : 'Europe/Berlin';
     const nextRun = new Date(task.nextRunAt).toLocaleString('de-DE', {
       dateStyle: 'medium',
       timeStyle: 'short',
+      timeZone: displayZone,
     });
     const responseText =
       `Wiederkehrende Aufgabe **„${task.title}"** eingerichtet — läuft ${describeRecurrence(task.recurrence)}, ` +
@@ -645,20 +375,34 @@ export async function handleRecurringTaskCreation(opts: {
       await touchThread(actualThreadId);
     }
 
-    log.info(`[ChatGraph] Recurring task created: "${task.title}" (${task.id})`);
+    // Takt und nächster Lauf gehören in die Zeile: das ist die einzige Aktion im
+    // Chat, die OHNE Bestätigungsschritt persistiert, und bis hierher stand im
+    // Log nur, DASS etwas angelegt wurde — nicht, mit welchem Zeitplan. Bei
+    // einer Beschwerde („die Erinnerung kommt zur falschen Zeit") war damit
+    // nicht nachvollziehbar, ob die Extraktion oder der Scheduler danebenlag.
+    log.info(
+      `[ChatGraph] Recurring task created: "${task.title}" (${task.id}) — ` +
+        `${describeRecurrence(task.recurrence)}, next=${new Date(task.nextRunAt).toISOString()}`
+    );
     sse.end();
     return true;
   } catch (err) {
     log.error(
       `[ChatGraph] Recurring task creation failed: ${err instanceof Error ? err.message : String(err)}`
     );
-    return false;
+    return failCreation(sse, actualThreadId, 'create_recurring_task', RECURRING_TASK_FAILURE_TEXT);
   }
 }
 
 /**
- * Generate a document using AI and create it.
- * Returns true if the document was created successfully.
+ * Document creation, in two genuinely different modes.
+ *
+ * The default mode OWNS the turn and is an ordinary entry in the artifact
+ * table. `skipTerminate` (save_as_doc) does NOT: it writes the card and text
+ * into a stream its caller already opened and will close, so it deliberately
+ * emits no `done`, persists no message and returns false on failure to let the
+ * caller decide. Keeping the fork explicit at the top beats the previous
+ * version, where `if (!skipTerminate)` was threaded through 167 lines.
  */
 export async function generateAndCreateDocument(opts: {
   sse: SSEWriter;
@@ -673,113 +417,46 @@ export async function generateAndCreateDocument(opts: {
   intent: string;
   skipTerminate?: boolean;
 }): Promise<boolean> {
-  const {
-    sse,
-    classifiedState,
-    aiWorkerPool,
-    req,
-    actualThreadId,
-    userId,
-    userContent,
-    subtypeOverride,
-    conversationContext,
-    intent,
-    skipTerminate,
-  } = opts;
+  const spec = makeDocumentSpec({
+    intent: opts.intent,
+    subtypeOverride: opts.subtypeOverride ?? null,
+    ...(opts.conversationContext != null && { conversationContext: opts.conversationContext }),
+  });
+  if (!opts.skipTerminate) return runCreateTurn(spec, opts);
+  return contributeDocumentToOpenTurn(spec, opts);
+}
 
-  if (!skipTerminate) {
-    sse.send('response_start', { message: 'Erstelle Dokument...' });
-  }
-
+/**
+ * save_as_doc: contribute a document to a turn somebody else owns.
+ *
+ * Emits the same text + card as the owning path so the chat looks identical,
+ * remembers the artifact (this path never reaches persistAssistantResponse's
+ * deriveToolContext, so without it the follow-up edit gate has no target), and
+ * then stops — no `done`, no message, no `sse.end()`.
+ */
+async function contributeDocumentToOpenTurn(
+  spec: ReturnType<typeof makeDocumentSpec>,
+  opts: CreateTurnOpts
+): Promise<boolean> {
+  const { sse, aiWorkerPool, req, userId, userContent, actualThreadId } = opts;
   try {
-    const { DOCUMENT_GENERATION_PROMPT, parseDocumentResponse, createDocumentWithContent } =
-      await import('../../../services/docs/DocGenerationService.js');
+    const doc = await spec.generate({ aiWorkerPool, req, userId, userContent }, () => {});
+    if (!doc) return false;
 
-    const subtypeHint = subtypeOverride ? `\nVerwende subtype: "${subtypeOverride}".` : '';
-
-    const userMessage = conversationContext
-      ? `Konversationskontext:\n${conversationContext}\n\nAktuelle Anfrage: ${userContent}`
-      : userContent;
-
-    const docGenResult = await aiWorkerPool.processRequest(
-      {
-        type: 'doc_generation',
-        systemPrompt: DOCUMENT_GENERATION_PROMPT + subtypeHint,
-        messages: [{ role: 'user', content: userMessage }],
-        options: { temperature: 0.7, max_tokens: 4000 },
-      },
-      req as Express.Request & { user?: { id?: string }; sessionID?: string }
-    );
-
-    const generated =
-      docGenResult.success && docGenResult.content
-        ? parseDocumentResponse(docGenResult.content)
-        : { title: 'Neues Dokument', subtype: 'blank', content: '' };
-
-    const docSubtype = subtypeOverride || generated.subtype;
-    const newDoc = await createDocumentWithContent(
-      generated.title,
-      generated.content,
-      docSubtype,
-      userId
-    );
-
-    const newDocId = newDoc.id;
-    const docTitle = generated.title;
-
-    const responseText = `Dokument **"${docTitle}"** wurde erstellt.`;
-
+    const responseText = spec.successText(doc);
     for (let i = 0; i < responseText.length; i += 20) {
       sse.send('text_delta', { text: responseText.slice(i, i + 20) });
     }
+    sse.send('document_created', doc);
+    log.info(`[ChatGraph] Document created (${spec.intent}): "${doc.title}" (${doc.documentId})`);
 
-    sse.send('document_created', {
-      documentId: newDocId,
-      title: docTitle,
-      subtype: docSubtype,
-      url: `/office/${newDocId}`,
-    });
-
-    log.info(`[ChatGraph] Document created (${intent}): "${docTitle}" (${newDocId})`);
-
-    if (!skipTerminate) {
-      const totalTimeMs = Date.now() - classifiedState.startTime;
-      sse.sendRaw('done', {
-        threadId: actualThreadId,
-        citations: [],
-        documentId: newDocId,
-        metadata: {
-          intent,
-          searchCount: 0,
-          totalTimeMs,
-          classificationTimeMs: classifiedState.classificationTimeMs,
-          searchTimeMs: 0,
-        },
-      });
-
-      if (actualThreadId) {
-        // Persist the created-document descriptor so the DocumentCreatedCard
-        // rehydrates on thread reload. Without this the card is streamed live
-        // via `document_created` but the reloaded message is bare text.
-        await createMessage(actualThreadId, 'assistant', responseText, {
-          intent,
-          createdDocument: {
-            documentId: newDocId,
-            title: docTitle,
-            subtype: docSubtype,
-            url: `/office/${newDocId}`,
-          },
-        });
-        await touchThread(actualThreadId);
-      }
-
-      sse.end();
-    }
-
+    const contextKind =
+      typeof spec.contextKind === 'function' ? spec.contextKind(doc) : spec.contextKind;
+    await rememberArtifact(actualThreadId, contextKind, doc.documentId, doc.title);
     return true;
-  } catch (docErr) {
+  } catch (err) {
     log.error(
-      `[ChatGraph] Document creation failed (${intent}): ${docErr instanceof Error ? docErr.message : String(docErr)}`
+      `[ChatGraph] Document creation failed (${spec.intent}): ${err instanceof Error ? err.message : String(err)}`
     );
     return false;
   }
@@ -940,45 +617,82 @@ export async function handleShareDoc(opts: {
 }
 
 /**
- * Execute the search/image/summary pipeline for each intent.
- */
-/**
- * Resolve the author name for quote sharepics from the user's profile.
- * Returns an empty string when no userId or display name is available — the
- * quote then renders without an author line instead of failing.
- */
-async function resolveSharepicAuthorName(userId?: string): Promise<string> {
-  if (!userId) return '';
-  try {
-    const { getProfileService } = await import('../../../services/user/ProfileService.js');
-    const profile = await getProfileService().getProfileById(userId);
-    return profile?.display_name?.trim() || '';
-  } catch (err) {
-    log.warn(`[ChatGraph] Could not resolve sharepic author name: ${err}`);
-    return '';
-  }
-}
-
-/**
  * Sharepic-variant generation shared by the `sharepic` intent and the
  * sharepic half of the EXPERIMENTAL `social_post` intent. Emits its own
  * `sharepic_complete` (including error payloads) and returns the variants
  * ([] on failure) so callers never have to duplicate the SSE handling.
  */
+/**
+ * The material a sharepic is built from: the thread transcript plus whatever
+ * research the thread already carries.
+ *
+ * This is the same briefing `runCreateTurn` gives documents, sheets and
+ * presentations — the sharepic lane never went through it, so `{{details}}` in
+ * every sharepic template stayed empty on fresh generations and the model had
+ * to invent the substance behind a three-word topic.
+ *
+ * Never throws: a sharepic without background is the old behaviour, a 500 is
+ * not.
+ */
+async function buildSharepicBackground(
+  state: ChatGraphState,
+  threadId: string | null
+): Promise<string | null> {
+  const transcript = buildCreateTurnContext(state.messages ?? [], SHAREPIC_CONTEXT_CHARS);
+  let background = transcript.trim();
+  if (threadId) {
+    try {
+      const carried = await getRecentThreadSources(threadId, 6);
+      if (carried.length > 0) {
+        background = withResearchedSources(background, renderSourceLines(carried));
+      }
+    } catch (err) {
+      log.warn(`[Sharepic] source briefing skipped: ${err instanceof Error ? err.message : err}`);
+    }
+  }
+  return background || null;
+}
+
 export async function runSharepicGeneration(opts: {
   state: ChatGraphState;
   sse: SSEWriter;
   req?: Request | undefined;
   threadId?: string | null;
   sharepicRefinement?: { instruction: string; prior: PriorSharepic };
+  /**
+   * Receives `sharepic_complete` instead of the live stream. The social_post
+   * branch passes a buffer so the graphic can still be revoked if the text half
+   * turns out to be a refusal (fabricated-quote gate).
+   */
+  emitTo?: SSEEmitter;
 }): Promise<SharepicVariant[]> {
   const { state, sse } = opts;
+  const emit = opts.emitTo ?? sse;
   try {
     const lastMsg = state.messages?.[state.messages.length - 1];
     const rawText = lastMsg ? extractTextContent(lastMsg.content) : '';
     const messageText = rawText.replace(/@sharepic\b/gi, '').trim();
     const refinement = opts.sharepicRefinement;
     const preferredVariant = refinement ? null : detectPreferredVariant(messageText);
+    // WHAT it is about. A follow-up like "jetzt noch ein normales sharepic"
+    // names no subject, so the classifier resolves one against the history —
+    // it already runs on exactly these vague turns with the conversation in
+    // context. `resolveReferentialTopic` is the fallback for turns that never
+    // reached the LLM (heuristic classification, forced tools). Variant
+    // preference is still read from the CURRENT message above.
+    const resolvedTopic = refinement
+      ? { text: messageText, inherited: false }
+      : state.creationTopic
+        ? { text: state.creationTopic, inherited: true }
+        : resolveReferentialTopic(messageText, state.messages ?? []);
+    const topicText = resolvedTopic.text;
+
+    // WHAT it is built FROM. Same thread transcript + carried research the
+    // document/sheet/presentation generators get from runCreateTurn; a sharepic
+    // condenses far harder, hence the smaller window.
+    const background = refinement
+      ? null
+      : await buildSharepicBackground(state, opts.threadId ?? null);
 
     // Quote sharepics are attributed to the person creating them — default the
     // author to the user's profile display name. Empty when no profile name
@@ -986,7 +700,8 @@ export async function runSharepicGeneration(opts: {
     const authorName = await resolveSharepicAuthorName(state.agentConfig?.userId);
 
     log.info(
-      `[ChatGraph] Sharepic topic: "${messageText.slice(0, 100)}", ` +
+      `[ChatGraph] Sharepic topic: "${topicText.slice(0, 100)}"${resolvedTopic.inherited ? ` (resolved from context, message was "${messageText.slice(0, 60)}")` : ''}, ` +
+        `background: ${background ? `${background.length} chars` : 'none'}, ` +
         `${refinement ? `refinement: "${refinement.instruction}" (${refinement.prior.canvasType})` : `preferredVariant: ${preferredVariant ?? 'all'}`}, ` +
         `author: ${authorName || '(none)'}`
     );
@@ -995,48 +710,127 @@ export async function runSharepicGeneration(opts: {
     // Slider = multi-page deck, a different artifact: ONE deck variant,
     // minted at generation time (studio open/editing need the pages).
     let variants: SharepicVariant[];
+    let declinedReason: string | null = null;
     if (preferredVariant === 'slider') {
       const userId = state.agentConfig?.userId;
       if (!userId) throw new Error('User required for slider deck creation');
       variants = [
         await generateSliderDeckVariant({
           req: opts.req,
-          text: messageText,
+          text: topicText,
           threadId: opts.threadId ?? null,
           userId,
         }),
       ];
     } else {
-      variants = await generateSharepicVariants({
+      const generated = await generateSharepicVariants({
         req: opts.req as SharepicExpressRequest,
-        text: messageText,
+        text: topicText,
         ...(refinement ? { refinement } : preferredVariant ? { preferredVariant } : {}),
+        ...(background && { background }),
         ...(authorName && { authorName }),
         ...(state.userLocale && { userLocale: state.userLocale }),
       });
+      variants = generated.variants;
+      declinedReason = generated.declinedReason;
     }
 
     if (variants.length === 0) {
-      sse.send('sharepic_complete', {
+      // A policy decline is not an outage. The combined social_post path already
+      // says so ("dabei entstünde ein erfundenes Zitat…"); the pure sharepic
+      // path used to report the model's correct refusal as a technical failure,
+      // which invites the user to simply try again.
+      if (declinedReason) {
+        log.info(`[ChatGraph] Sharepic declined on policy grounds — ${declinedReason}`);
+        emit.send('sharepic_complete', {
+          message: `Dieses Sharepic kann ich nicht erstellen: ${declinedReason}`,
+          variants: [],
+          declined: true,
+        });
+        return [];
+      }
+      emit.send('sharepic_complete', {
         message: 'Sharepic-Erstellung fehlgeschlagen',
         variants: [],
         error: 'All variant generations failed',
       });
       return [];
     }
-    sse.send('sharepic_complete', {
+    emit.send('sharepic_complete', {
       message: `${variants.length} Sharepic-Varianten erstellt`,
       variants,
     });
     return variants;
   } catch (error) {
     log.error('[ChatGraph] Sharepic variant generation failed:', error);
-    sse.send('sharepic_complete', {
+    emit.send('sharepic_complete', {
       message: 'Sharepic-Erstellung fehlgeschlagen',
       variants: [],
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: toUserFacingMessage(error, 'Unknown error'),
     });
     return [];
+  }
+}
+
+/**
+ * Ground a vague continuation on the research this thread already paid for.
+ *
+ * A `direct` turn skips the whole retrieval block in executeIntentPipeline, so
+ * "Mehr dazu bitte" after a sourced answer arrived with NO sources — and the
+ * model regenerated from its own previous prose: ungrounded, uncitable, and to
+ * the reader indistinguishable from research. Same helper and same reasoning
+ * the agentic loop (agenticRespondService) and the artifact-creating turns
+ * (createTurn) already use.
+ *
+ * Called AFTER the intent loop, never as a branch inside it: a `direct` turn
+ * with a secondaryIntent runs two iterations, and a branch would carry sources
+ * on the first only to have the real search overwrite them on the second.
+ *
+ * Self-limiting: a thread with no prior research returns [] and this is a
+ * no-op, so the extra query only ever buys something on turns that were about
+ * those sources. Never throws — an ungrounded answer beats a 500.
+ *
+ * Note the carried sources are re-persisted as THIS turn's searchResults, which
+ * extends how far back getRecentThreadSources reaches in a long continuation
+ * thread. That is a memory horizon, not a correctness bug, but it is why the
+ * predicate demands an anaphor: topical continuity is the licence.
+ */
+/**
+ * Which verdicts may inherit the thread's earlier research.
+ *
+ * `produktion` is the one that matters now: the classifier prompt sends a
+ * reference to THIS running conversation there ("vorhin", "deine letzte
+ * Antwort"), which is exactly the "Mehr dazu bitte" shape this carry was built
+ * for. `direct` stays because the parser and the heuristic can still produce
+ * it. `greeting` is absent on purpose — a greeting has nothing to ground — and
+ * so is `agentic`, which does its own retrieval inside the loop and would
+ * otherwise start every turn with a stale source block.
+ */
+const CARRY_ELIGIBLE_INTENTS: ReadonlySet<string> = new Set(['produktion', 'direct']);
+
+export async function carryThreadSourcesIfNeeded(
+  state: ChatGraphState,
+  threadId: string | null
+): Promise<ChatGraphState> {
+  if (!CARRY_ELIGIBLE_INTENTS.has(state.intent) || state.searchResults.length > 0 || !threadId)
+    return state;
+  const lastUser = [...state.messages].reverse().find((m) => m.role === 'user');
+  if (!needsThreadGrounding(lastUser ? extractTextContent(lastUser.content) : '')) return state;
+  try {
+    // 6, not the default 10: a continuation asks for depth on a known topic,
+    // not a fresh dossier.
+    const carried = await getRecentThreadSources(threadId, 6);
+    if (carried.length === 0) return state;
+    log.info(`[Direct] grounded on ${carried.length} prior source(s) from this thread`);
+    return {
+      ...state,
+      searchResults: carried,
+      citations: buildCitations(carried),
+      sourcesCarriedFromThread: true,
+    };
+  } catch (err) {
+    log.warn(`[Direct] source carry skipped: ${err instanceof Error ? err.message : err}`);
+    return state;
   }
 }
 
@@ -1057,6 +851,12 @@ export async function executeIntentPipeline(opts: {
   sharepicVariants: SharepicVariant[];
   /** Text half of the EXPERIMENTAL social_post intent; null otherwise. */
   socialPost: SocialPostPayload | null;
+  /** The text model refused: no post, no sharepic, and no success copy. */
+  socialPostRefused: boolean;
+  /** Whether that refusal is backed by a POLICY decline (the sharepic half
+   *  declined too) rather than only by the text half failing. Drives which
+   *  explanation the turn's answer gives — see the gate for the reasoning. */
+  socialPostRefusalIsPolicy: boolean;
 }> {
   const { classifiedState, sse, forcedTool, enabledTools, imageAttachments } = opts;
 
@@ -1064,6 +864,8 @@ export async function executeIntentPipeline(opts: {
   let generatedImage: GeneratedImageResult | null = null;
   let sharepicVariants: SharepicVariant[] = [];
   let socialPost: SocialPostPayload | null = null;
+  let socialPostRefused = false;
+  let socialPostRefusalIsPolicy = false;
 
   // Build ordered list of intents to execute (primary first, then secondary).
   // social_post handles pasted URLs inline BEFORE text generation — a
@@ -1145,23 +947,42 @@ export async function executeIntentPipeline(opts: {
         ...(opts.sharepicRefinement && { sharepicRefinement: opts.sharepicRefinement }),
       });
     } else if (currentIntent === 'social_post') {
-      // EXPERIMENTAL combined post: sharepic variants + platform text run in
-      // parallel; each half emits its SSE event as soon as it resolves (text
-      // usually lands first, so the card shows it while thumbnails render).
-      // Agents with sharepic disabled degrade to text-only; a failed text
-      // half degrades to plain sharepic behavior (the error payload on
-      // social_post_complete tells the card).
-      const sharepicEnabled = forcedTool || enabledTools?.['sharepic'] !== false;
+      // A post is TEXT ONLY unless the user named a sharepic ("Post mit
+      // Sharepic"). Producing a branded graphic for every "schreib einen
+      // Insta-Post zu X" was the largest source of sharepics nobody asked for.
+      // When a sharepic IS wanted, both halves run in parallel and each emits
+      // its SSE event as soon as it resolves (text usually lands first, so the
+      // card shows it while thumbnails render).
+      //
+      // Read from finalState.messages, not from the router's
+      // lastUserTextNoMentions: the resume path appends the answered
+      // clarification as a NEW user message (resumePipeline), so the original
+      // "mit Sharepic" wording is still the last user turn there and that path
+      // needs no separate handling.
+      const sharepicToolAllowed = forcedTool || enabledTools?.['sharepic'] !== false;
+      const lastUserMsg = [...finalState.messages].reverse().find((m) => m.role === 'user');
+      const wantsSharepic =
+        sharepicToolAllowed &&
+        hasExplicitSharepicWord(lastUserMsg ? extractTextContent(lastUserMsg.content) : '');
       sse.send('image_start', {
-        message: sharepicEnabled ? 'Texte und gestalte deinen Post...' : 'Texte deinen Post...',
+        message: wantsSharepic ? 'Texte und gestalte deinen Post...' : 'Texte deinen Post...',
       });
 
-      const sharepicHalf: Promise<SharepicVariant[]> = sharepicEnabled
+      // The sharepic half streams `sharepic_complete` itself, so its output is
+      // buffered until the text half is known: a graphic must never ship when
+      // the text model refused the request (live: an invented Kickl quote with
+      // an invented ORF source rendered in party design while the text said
+      // "I'm sorry, but I can't help with that"). Buffering keeps both halves
+      // parallel — the gate costs no latency, only revocability.
+      const sharepicBuffer = createDeferredSSE();
+      const postBuffer = createDeferredSSE();
+      const sharepicHalf: Promise<SharepicVariant[]> = wantsSharepic
         ? runSharepicGeneration({
             state: finalState,
             sse,
             req: opts.req,
             threadId: opts.threadId ?? null,
+            emitTo: sharepicBuffer,
           })
         : Promise.resolve([]);
 
@@ -1214,7 +1035,7 @@ export async function executeIntentPipeline(opts: {
           urlContext,
           ...(opts.req && { req: opts.req }),
         });
-        sse.send('social_post_complete', {
+        postBuffer.send('social_post_complete', {
           message: `${post.platform === 'generic' ? 'Social-Media' : post.platform}-Post erstellt`,
           post,
         });
@@ -1223,16 +1044,74 @@ export async function executeIntentPipeline(opts: {
 
       const [variantsSettled, textSettled] = await Promise.allSettled([sharepicHalf, textHalf]);
 
+      // The gate: a refusal from the text model invalidates the whole turn, not
+      // just its own half. Both buffers are dropped so no graphic, no download
+      // button and no success copy survive the refusal.
+      const refusedText =
+        textSettled.status === 'fulfilled' && looksLikeRefusal(textSettled.value.post.text);
+      // WHY the text model declined is not something `looksLikeRefusal` can
+      // tell us — it only sees that it declined. The sharepic half ran the SAME
+      // request through its own ABLEHNUNG channel, so its outcome is the one
+      // piece of evidence available: both halves declining is a policy problem,
+      // while a text-only decline beside working variants is usually a broken
+      // task (live: an unresolvable "Jetzt eine Version davon auf Englisch."
+      // made the composer answer "ich kann keinen Post erstellen …", which was
+      // then shown to the user as a refusal about FABRICATED QUOTES — a reason
+      // that had nothing to do with the request).
+      //
+      // The gate itself does NOT change: both halves are discarded either way,
+      // because a text refusal beside a rendered sharepic is exactly the
+      // disinformation case this was built for. Only the explanation adapts to
+      // what is actually known.
+      //
+      // No sharepic half ⇒ no second opinion on the same request ⇒ no evidence
+      // that this was a policy decision. `wantsSharepic` is load-bearing here:
+      // without it a text-only post would report EVERY refusal as a fabricated
+      // quote, which is precisely the false accusation described above.
+      const sharepicAlsoDeclined =
+        wantsSharepic &&
+        (variantsSettled.status !== 'fulfilled' || variantsSettled.value.length === 0);
+      if (refusedText) {
+        log.warn(
+          `[ChatGraph] social_post: text model refused — discarding sharepic variants and post ` +
+            `(sharepicAlsoDeclined=${sharepicAlsoDeclined})`
+        );
+        sharepicBuffer.discard();
+        postBuffer.discard();
+        socialPostRefused = true;
+        socialPostRefusalIsPolicy = sharepicAlsoDeclined;
+        sse.send('social_post_complete', {
+          message: sharepicAlsoDeclined ? 'Anfrage abgelehnt' : 'Post nicht erstellt',
+          error: sharepicAlsoDeclined
+            ? 'Diese Anfrage kann ich nicht umsetzen — dabei entstünde ein erfundenes Zitat oder eine irreführende Aussage im Namen der Partei.'
+            : 'Daraus konnte ich keinen Post erzeugen. Sag mir bitte konkret, worum es gehen soll — oder worauf du dich beziehst.',
+        });
+      } else {
+        sharepicBuffer.flush(sse);
+        postBuffer.flush(sse);
+      }
+
       if (variantsSettled.status === 'fulfilled') {
-        sharepicVariants = variantsSettled.value;
+        sharepicVariants = refusedText ? [] : variantsSettled.value;
+      } else if (!refusedText) {
+        // Mirror the text half below: without this the sharepic simply never
+        // arrived and the turn reported success with only the post text.
+        log.error('[ChatGraph] social_post sharepic generation failed:', variantsSettled.reason);
+        sse.send('sharepic_complete', {
+          message: 'Sharepic konnte nicht erstellt werden',
+          variants: [],
+          error: 'Das Sharepic konnte nicht erstellt werden — der Text steht trotzdem bereit.',
+        });
       }
       if (textSettled.status === 'fulfilled') {
-        socialPost = textSettled.value.post;
+        // A refusal is not a post: leaving it on state would persist it as one
+        // and make the router's confirmation line promise a post that isn't there.
+        socialPost = refusedText ? null : textSettled.value.post;
         // Keep the examples retrieval on state so persistence/citations work
         // like the examples flow.
         finalState = {
           ...textSettled.value.state,
-          socialPostResult: socialPost,
+          ...(socialPost && { socialPostResult: socialPost }),
         } as ChatGraphState;
       } else {
         log.error('[ChatGraph] social_post text generation failed:', textSettled.reason);
@@ -1270,7 +1149,8 @@ export async function executeIntentPipeline(opts: {
       }
     } else if (currentIntent === 'chat_history') {
       // Recall the user's own past work — chat threads (deep-reading the top
-      // match) plus office documents (docs/presentations/sheets). Runs its own
+      // match), office documents (docs/presentations/sheets) and reels
+      // (subtitled videos, matched on their spoken transcript). Runs its own
       // retrieval (not searchNode, which targets party documents/web).
       const userId = finalState.agentConfig.userId;
       if (userId) {
@@ -1285,22 +1165,43 @@ export async function executeIntentPipeline(opts: {
         const dateFrom = finalState.detectedFilters?.date_from;
         const dateTo = finalState.detectedFilters?.date_to;
         // Space scope: restrict recall to the current Space's chats + roster.
+        // null ist hier der definierte Normalfall — ein Thread ohne Space
+        // liefert ihn ohnehin.
         const spaceScope = opts.threadId
-          ? await getSpaceRecallScope(opts.threadId, userId).catch(() => null)
+          ? // swallow-ok: scheitert die Einengung, sucht der Recall ungescopet weiter statt den Turn abzubrechen
+            await getSpaceRecallScope(opts.threadId, userId).catch(() => null)
           : null;
-        const [rawChats, rawOfficeDocs] = await Promise.all([
+        const [rawChats, rawOfficeDocs, rawReels] = await Promise.all([
           recallPastChats(userId, query, {
             limit: 5,
             ...(opts.threadId != null && { excludeThreadId: opts.threadId }),
-            ...(dateFrom && { startDate: new Date(dateFrom) }),
-            ...(dateTo && { endDate: new Date(dateTo) }),
+            ...(dateFrom && { startDate: new Date(`${dateFrom}T00:00:00.000Z`) }),
+            // Das Fenster ist INKLUSIV erzeugt (`parseRelativeDateRange`), die
+            // SQL-Klausel ist `created_at <= $n`, und `new Date('2026-07-30')`
+            // ist Mitternacht. Beides zusammen machte aus jedem Ein-Tages-Fenster
+            // („gestern") einen einzigen Zeitpunkt: nur eine Nachricht, die
+            // exakt um 00:00:00 UTC geschrieben wurde, konnte noch treffen — und
+            // „letzte Woche" verlor den ganzen Sonntag. Genau die „0 Treffer →
+            // keine Quellen gefunden"-Antwort, gegen die diese Stufe gebaut ist.
+            ...(dateTo && { endDate: new Date(`${dateTo}T23:59:59.999Z`) }),
             ...(spaceScope && { threadIds: spaceScope.threadIds }),
           }),
+          // BEKANNTE LÜCKE: das Datumsfenster geht nur an den Chat-Recall.
+          // `searchOfficeContent`/`searchReels` nehmen keine Datumsparameter, ein
+          // Durchreichen wäre also eine Änderung an beiden Suchdiensten und ihrem
+          // SQL — eigener Schnitt. Folge heute: „meine Dokumente vom letzten
+          // Monat" filtert die CHATS auf den Monat, die Dokumente und Reels aber
+          // nicht. Das untertreibt nie (es fehlt kein Treffer), es übertreibt.
           recallOfficeDocuments(userId, query, 5),
+          recallReels(userId, query, 5),
         ]);
         // Cross-source rerank so the most relevant few survive across chats +
-        // office content, rather than 5 of each.
-        const { chats: hits, officeDocs } = await rerankRecall(query, rawChats, rawOfficeDocs, 6);
+        // office content + reels, rather than 5 of each.
+        const {
+          chats: hits,
+          officeDocs,
+          reels,
+        } = await rerankRecall(query, rawChats, rawOfficeDocs, 6, rawReels);
 
         const deepRead = hits[0] ? await getThreadRecallContext(hits[0].threadId, userId) : null;
 
@@ -1317,12 +1218,19 @@ export async function executeIntentPipeline(opts: {
             content: d.snippet || d.kind,
             url: d.url,
           })),
+          ...reels.map((r) => ({
+            source: 'reel',
+            title: r.title,
+            content: r.snippet || 'Reel',
+            url: r.url,
+          })),
         ];
 
         const contextBlocks = [
           spaceScope?.rosterBlock ?? '',
           hits.length ? formatPastChatsBlock(hits, deepRead) : '',
           formatOfficeDocsBlock(officeDocs),
+          formatReelsBlock(reels),
         ].filter(Boolean);
         finalState = {
           ...finalState,
@@ -1343,7 +1251,9 @@ export async function executeIntentPipeline(opts: {
         });
       }
     } else if (
+      currentIntent !== 'produktion' &&
       currentIntent !== 'direct' &&
+      currentIntent !== 'greeting' &&
       currentIntent !== 'save_as_doc' &&
       currentIntent !== 'modify_doc' &&
       currentIntent !== 'modify_board'
@@ -1351,8 +1261,63 @@ export async function executeIntentPipeline(opts: {
       const toolEnabled = forcedTool || enabledTools?.[currentIntent] !== false;
       if (toolEnabled) {
         let searchInputState = finalState;
+
+        // @deepresearch: Linkup writes the dossier, so this path replaces BOTH
+        // halves of the turn — retrieval and synthesis. It must therefore skip
+        // everything below, not just the search node: reranking reorders
+        // `searchResults`, and Linkup's [N] point at the original order.
+        //
+        // `null` means "not served" (quota spent, no key, failed call) and falls
+        // through to the ordinary research path with the warning already sent.
+        if (searchInputState.deepResearchRequested === true) {
+          const dossier = await runDeepResearchTurn({ state: searchInputState, sse });
+          if (dossier) {
+            finalState = { ...searchInputState, ...dossier } as ChatGraphState;
+            sse.send('search_complete', {
+              message: PROGRESS_MESSAGES.searchComplete(finalState.searchResults?.length ?? 0),
+              resultCount: finalState.searchResults?.length ?? 0,
+              results: (finalState.searchResults ?? []).slice(0, 10).map((r) => {
+                const result: SearchResultPayload = {
+                  source: r.source,
+                  title: r.title,
+                  content: r.content,
+                };
+                if (r.url != null) result.url = r.url;
+                return result;
+              }),
+            });
+            continue;
+          }
+        }
+
+        // A retry of a research turn whose GENERATION failed: the sources are
+        // already on the thread. Re-running Linkup costs ~17s and a paid call
+        // to answer the identical question a second time (observed live, 36s
+        // after the sources had been persisted). Checked before the brief
+        // generator so the whole retrieval half is skipped, not just the search.
+        const reused =
+          currentIntent === 'research' && finalState.threadId
+            ? // swallow-ok: reine Ersparnis — scheitert sie, läuft die Recherche normal durch, teurer aber richtig
+              await getKeptResearchForRetry(
+                finalState.threadId,
+                finalState.searchQuery ?? ''
+              ).catch(() => null)
+            : null;
+        if (reused) {
+          log.info(
+            `[Research] Reusing ${reused.searchResults.length} source(s) kept from the failed attempt — skipping the repeat Linkup run`
+          );
+          searchInputState = {
+            ...finalState,
+            searchResults: reused.searchResults,
+            citations: buildCitations(reused.searchResults),
+          } as ChatGraphState;
+        }
+
         const willGenerateBrief =
-          ['complex', 'moderate'].includes(finalState.complexity) && currentIntent === 'research';
+          !reused &&
+          ['complex', 'moderate'].includes(finalState.complexity) &&
+          currentIntent === 'research';
         const briefStepId = willGenerateBrief ? `brief_${Date.now()}` : null;
         if (willGenerateBrief && briefStepId) {
           // brief generator is a silent LLM call (~1–3s); ping so the UI doesn't
@@ -1365,6 +1330,12 @@ export async function executeIntentPipeline(opts: {
           });
           const briefResult = await briefGeneratorNode(finalState);
           searchInputState = { ...finalState, ...briefResult } as ChatGraphState;
+          // The flag was set all along but only read by runChatGraph, which has
+          // no callers — so a deep-research turn silently degraded to a flat
+          // search while the progress copy still promised deep research.
+          if (searchInputState.briefGenerationFailed) {
+            sendChatWarning(sse, 'research_plan_failed');
+          }
           sse.send('progress_step', {
             stepId: briefStepId,
             toolName: 'brief',
@@ -1373,23 +1344,43 @@ export async function executeIntentPipeline(opts: {
           });
         }
 
-        const isDeepResearch = currentIntent === 'research';
-        sse.send('search_start', {
-          message: isDeepResearch
-            ? 'Tiefgehende Recherche läuft (mehrere Quellen, dauert ca. 15–20s)…'
-            : PROGRESS_MESSAGES.searchStart,
-          ...(finalState.subQueries?.length && { subQueries: finalState.subQueries }),
+        // The progress line now follows the TIER, not the intent: "recherchiere"
+        // no longer means a different engine, so promising "dauert 15–20s" on
+        // every such turn would be a lie about a search that takes two.
+        const searchTier = resolveSearchTier({
+          intent: currentIntent,
+          explicitDeep: searchInputState.explicitDeepRequest ?? false,
         });
-
-        if (isDeepResearch) {
-          searchInputState = {
-            ...searchInputState,
-            onResearchProgress: (message: string) => {
-              sse.send('search_start', { message });
-            },
-          } as ChatGraphState;
+        if (!reused) {
+          const baseProgress =
+            searchTier === 'standard'
+              ? PROGRESS_MESSAGES.searchStart
+              : resolveTier(searchTier).progress;
+          // A site scope must be VISIBLE. It was extracted heuristically from the
+          // user's wording, so a wrong read has to be recognisable as such —
+          // otherwise the user sees results missing and has no way to tell that
+          // the search was narrowed at all. Named in the progress line rather than
+          // a new event field, because that line is already rendered everywhere.
+          const scopeDomains = searchInputState.webSiteScope?.include ?? [];
+          sse.send('search_start', {
+            message:
+              scopeDomains.length > 0
+                ? `${baseProgress.replace(/[…\s]+$/, '')} — nur auf ${scopeDomains.join(', ')}…`
+                : baseProgress,
+            ...(finalState.subQueries?.length && { subQueries: finalState.subQueries }),
+          });
+          if (searchTier !== 'standard') {
+            searchInputState = {
+              ...searchInputState,
+              onResearchProgress: (message: string) => {
+                sse.send('search_start', { message });
+              },
+            } as ChatGraphState;
+          }
         }
-        const searchResult = await searchNode(searchInputState);
+        // Reused sources ARE the search result — running the node would issue the
+        // very Linkup call this branch exists to avoid.
+        const searchResult = reused ? {} : await searchNode(searchInputState);
         finalState = { ...searchInputState, ...searchResult } as ChatGraphState;
 
         if (finalState.searchResults?.length > 2) {
@@ -1405,6 +1396,9 @@ export async function executeIntentPipeline(opts: {
           if (finalState.searchResults.length > 0) {
             finalState.citations = buildCitations(finalState.searchResults);
           }
+          // Same dead-flag story as briefGenerationFailed: without reranking the
+          // model grounds on input order, so the top sources may be the weakest.
+          if (finalState.rerankFailed) sendChatWarning(sse, 'rerank_degraded');
           sse.send('progress_step', {
             stepId: rerankStepId,
             toolName: 'rerank',
@@ -1428,8 +1422,18 @@ export async function executeIntentPipeline(opts: {
         // Degraded search (Qdrant/web source unreachable) must be
         // distinguishable from a genuine zero-hit — both for the user
         // (warning toast + status copy) and for monitoring.
-        const searchDegraded = finalState.searchErrors?.some(isSourceAvailabilityError) ?? false;
+        const {
+          coreDegraded: searchDegraded,
+          unavailableSources,
+          needsReauth,
+        } = partitionSearchErrors(finalState.searchErrors);
         if (searchDegraded) sendSearchDegradedWarning(sse, resultCount);
+        // A file the user explicitly attached or @-mentioned that could not be
+        // read. These were collected but filtered away by the availability
+        // predicate, so the answer simply omitted the source without a word.
+        if (unavailableSources.length > 0) {
+          reportUnavailableSources(sse, finalState, unavailableSources, needsReauth);
+        }
         sse.send('search_complete', {
           message:
             searchDegraded && resultCount === 0
@@ -1437,23 +1441,29 @@ export async function executeIntentPipeline(opts: {
               : PROGRESS_MESSAGES.searchComplete(resultCount),
           resultCount,
           results: payloadResults,
-          ...(currentIntent === 'research' && finalState.researchMeta
-            ? { researchMeta: finalState.researchMeta }
+          // Only present on a turn that explicitly asked for images. Travels
+          // beside `results`, never inside it — an image has no text, so as a
+          // source it would be a numbered citation with an empty snippet.
+          ...(finalState.webImageResults?.length
+            ? { images: finalState.webImageResults.map(withImageProxy) }
             : {}),
           ...((currentIntent === 'examples' || currentIntent === 'pressemitteilung_examples') &&
           finalState.examplesResult
             ? { examplesResult: finalState.examplesResult }
             : {}),
         });
-
-        // Dedicated Bundestag card: the structured DIP result rides alongside
-        // the flat search_complete results (which stay for grounding/citations).
-        if (currentIntent === 'bundestag' && finalState.bundestagResult) {
-          sse.send('bundestag', { bundestag: finalState.bundestagResult });
-        }
       }
     }
   }
 
-  return { finalState, generatedImage, sharepicVariants, socialPost };
+  finalState = await carryThreadSourcesIfNeeded(finalState, opts.threadId ?? null);
+
+  return {
+    finalState,
+    generatedImage,
+    sharepicVariants,
+    socialPost,
+    socialPostRefused,
+    socialPostRefusalIsPolicy,
+  };
 }

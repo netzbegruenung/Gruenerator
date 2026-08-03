@@ -1,7 +1,7 @@
 'use client';
 
-import { CalendarDays, TrainFront } from 'lucide-react';
 import { type BahnPayload, type BahnEntry } from '@gruenerator/contracts';
+import { CalendarDays, TrainFront } from 'lucide-react';
 
 /**
  * Dedicated card for the `bahn` intent — a condensed Deutsche-Bahn departure
@@ -63,7 +63,7 @@ export function BahnCard({ data }: { data: BahnPayload }) {
 
   return (
     <div
-      className="my-2 w-full rounded-lg border border-border bg-background p-3"
+      className="my-5 w-full rounded-xl border border-border bg-background px-4 py-3"
       role="group"
       aria-label={`Deutsche Bahn: Abfahrten ${data.station}`}
     >

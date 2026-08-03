@@ -80,7 +80,7 @@ const DocumentPreviewModal = ({
       onClick={onClose}
     >
       <motion.div
-        className="bg-background rounded-2xl shadow-xl max-w-[800px] max-h-[90vh] w-full flex flex-col overflow-hidden max-md:mx-sm max-md:max-h-[calc(100vh-var(--spacing-md))]"
+        className="bg-background rounded-2xl shadow-xl max-w-[800px] max-h-[90vh] w-full flex flex-col overflow-hidden max-md:mx-sm max-md:max-h-[calc(100dvh-var(--spacing-md))]"
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}

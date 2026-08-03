@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+
 import { MentionFloatingPanel } from './MentionFloatingPanel';
 
 interface WebMentionPopoverProps {
@@ -28,6 +29,7 @@ export function WebMentionPopover({ visible, onSelect, onDismiss }: WebMentionPo
   const [value, setValue] = useState('');
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- clears the input on close (visibility transition), not a render-derived value
     if (!visible) setValue('');
   }, [visible]);
 
@@ -47,6 +49,7 @@ export function WebMentionPopover({ visible, onSelect, onDismiss }: WebMentionPo
       role="dialog"
       ariaLabel="Webseite anhängen"
     >
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- Escape-only capture inside the already-labeled dialog panel above, not new interactive semantics. */}
       <div
         className="flex flex-col gap-3 p-3"
         onKeyDown={(e) => {

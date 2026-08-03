@@ -2,23 +2,35 @@ import { type Slide } from '@gruenerator/contracts';
 import {
   closestCenter,
   DndContext,
+  DragOverlay,
   type DragEndEvent,
+  type DragStartEvent,
   KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
 import {
   SortableContext,
+  horizontalListSortingStrategy,
+  rectSortingStrategy,
   sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useEffect, useRef, useState } from 'react';
 import { FiChevronDown, FiChevronUp, FiMoreVertical, FiPlus, FiTrash2 } from 'react-icons/fi';
 
 import { ScaledSlide } from './ScaledSlide.js';
 import { SlideSurface } from './SlideSurface.js';
+
+/**
+ * `vertical` is the desktop rail, `horizontal` the mobile filmstrip under the
+ * canvas, `grid` the full-screen mobile slide overview.
+ */
+export type ThumbnailOrientation = 'vertical' | 'horizontal' | 'grid';
 
 export interface SlideThumbnailListProps {
   slides: Slide[];
@@ -26,6 +38,13 @@ export interface SlideThumbnailListProps {
   editable: boolean;
   /** Deck brand accent, forwarded to each thumbnail's SlideSurface. */
   accent?: string | null;
+  /** Country CI + logo toggle, forwarded to each thumbnail's SlideSurface. */
+  brand?: string | null;
+  showLogo?: boolean;
+  orientation?: ThumbnailOrientation;
+  /** Primary pointer is a finger: show and enlarge the card controls, and make
+   * the whole card draggable rather than the pinpoint grip icon. */
+  touch?: boolean;
   onSelect: (index: number) => void;
   onAdd: () => void;
   onDelete: (index: number) => void;
@@ -38,7 +57,11 @@ interface SortableSlideCardProps {
   active: boolean;
   editable: boolean;
   accent?: string | null;
+  brand?: string | null;
+  showLogo?: boolean;
   slideCount: number;
+  orientation: ThumbnailOrientation;
+  touch: boolean;
   onSelect: (index: number) => void;
   onDelete: (index: number) => void;
   onMove: (from: number, to: number) => void;
@@ -50,7 +73,11 @@ function SortableSlideCard({
   active,
   editable,
   accent,
+  brand,
+  showLogo,
   slideCount,
+  orientation,
+  touch,
   onSelect,
   onDelete,
   onMove,
@@ -67,13 +94,43 @@ function SortableSlideCard({
     opacity: isDragging ? 0.6 : undefined,
   };
 
+  // With a finger the grip icon would be far below a 44px target, so the whole
+  // card becomes the drag handle instead: the TouchSensor's 200ms delay keeps a
+  // plain tap working as "select". Also applies to the vertical rail — a tablet
+  // is wide enough for the rail and still has no cursor to aim the grip with.
+  const dragWholeCard = editable && (touch || orientation !== 'vertical');
+
+  // A 12px icon in 2px of padding is a cursor-only target. With a finger the
+  // card controls grow; 36px rather than the full 44 so they still fit three
+  // abreast on a 190px rail card — dragging the card itself is the primary
+  // reorder gesture on touch, these are the fallback.
+  const controlClass = touch ? 'flex h-9 w-9 items-center justify-center' : 'p-0.5';
+
+  // Keep the selected slide visible when the filmstrip is longer than the
+  // screen and selection changed from elsewhere (swipe, nav arrows, delete).
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!active || orientation !== 'horizontal') return;
+    cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  }, [active, orientation]);
+
   return (
-    <div ref={setNodeRef} style={style} className="group relative">
+    <div
+      ref={(node) => {
+        setNodeRef(node);
+        cardRef.current = node;
+      }}
+      style={style}
+      className={`group relative ${orientation === 'horizontal' ? 'w-[132px] flex-none snap-start' : ''}`}
+    >
       <button
         type="button"
         onClick={() => onSelect(index)}
         aria-label={`Folie ${index + 1}`}
-        className={`block w-full overflow-hidden rounded-[10px] bg-white dark:bg-grey-800 text-left transition-transform hover:-translate-y-px ${
+        aria-current={active ? 'true' : undefined}
+        {...(dragWholeCard ? attributes : {})}
+        {...(dragWholeCard ? listeners : {})}
+        className={`block w-full touch-none overflow-hidden rounded-[10px] bg-white dark:bg-grey-800 text-left transition-transform hover:-translate-y-px ${
           active
             ? 'shadow-[0_0_0_2.5px_var(--primary-600,#316049),0_4px_12px_rgba(27,42,34,0.12)]'
             : 'shadow-[0_1px_4px_rgba(27,42,34,0.08)]'
@@ -81,7 +138,7 @@ function SortableSlideCard({
       >
         <div className="pointer-events-none">
           <ScaledSlide>
-            <SlideSurface slide={slide} accent={accent} />
+            <SlideSurface slide={slide} accent={accent} brand={brand} showLogo={showLogo} />
           </ScaledSlide>
         </div>
         <div className="flex items-center gap-2 px-2.5 py-[7px]">
@@ -100,25 +157,35 @@ function SortableSlideCard({
         </div>
       </button>
 
-      {editable && (
-        <div className="absolute right-1.5 top-1.5 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-          <button
-            type="button"
-            {...attributes}
-            {...listeners}
-            className="cursor-grab touch-none rounded bg-white/95 p-0.5 text-grey-700 shadow-sm hover:bg-white active:cursor-grabbing dark:bg-grey-800/90 dark:text-grey-200"
-            aria-label="Folie ziehen zum Umsortieren"
-            title="Ziehen zum Umsortieren"
-          >
-            <FiMoreVertical size={12} />
-          </button>
+      {/* The filmstrip card is too small to host controls — reordering and
+          deleting happen in the grid overview instead. */}
+      {editable && orientation !== 'horizontal' && (
+        <div
+          className={`absolute right-1.5 top-1.5 flex gap-0.5 transition-opacity ${
+            orientation === 'grid' || touch
+              ? 'opacity-100'
+              : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
+          }`}
+        >
+          {orientation === 'vertical' && !dragWholeCard && (
+            <button
+              type="button"
+              {...attributes}
+              {...listeners}
+              className={`cursor-grab touch-none rounded bg-white/95 text-grey-700 shadow-sm hover:bg-white active:cursor-grabbing dark:bg-grey-800/90 dark:text-grey-200 ${controlClass}`}
+              aria-label="Folie ziehen zum Umsortieren"
+              title="Ziehen zum Umsortieren"
+            >
+              <FiMoreVertical size={12} />
+            </button>
+          )}
           <button
             type="button"
             onClick={() => onMove(index, index - 1)}
             disabled={index === 0}
-            className="rounded bg-white/95 p-0.5 text-grey-700 shadow-sm hover:bg-white disabled:opacity-40 dark:bg-grey-800/90 dark:text-grey-200"
-            aria-label="Nach oben"
-            title="Nach oben"
+            className={`rounded bg-white/95 text-grey-700 shadow-sm hover:bg-white disabled:opacity-40 dark:bg-grey-800/90 dark:text-grey-200 ${controlClass}`}
+            aria-label="Nach vorne"
+            title="Nach vorne"
           >
             <FiChevronUp size={12} />
           </button>
@@ -126,9 +193,9 @@ function SortableSlideCard({
             type="button"
             onClick={() => onMove(index, index + 1)}
             disabled={index === slideCount - 1}
-            className="rounded bg-white/95 p-0.5 text-grey-700 shadow-sm hover:bg-white disabled:opacity-40 dark:bg-grey-800/90 dark:text-grey-200"
-            aria-label="Nach unten"
-            title="Nach unten"
+            className={`rounded bg-white/95 text-grey-700 shadow-sm hover:bg-white disabled:opacity-40 dark:bg-grey-800/90 dark:text-grey-200 ${controlClass}`}
+            aria-label="Nach hinten"
+            title="Nach hinten"
           >
             <FiChevronDown size={12} />
           </button>
@@ -136,7 +203,7 @@ function SortableSlideCard({
             type="button"
             onClick={() => onDelete(index)}
             disabled={slideCount <= 1}
-            className="rounded bg-white/95 p-0.5 text-red-600 shadow-sm hover:bg-white disabled:opacity-40 dark:bg-grey-800/90"
+            className={`rounded bg-white/95 text-red-600 shadow-sm hover:bg-white disabled:opacity-40 dark:bg-grey-800/90 ${controlClass}`}
             aria-label="Folie löschen"
             title="Folie löschen"
           >
@@ -148,31 +215,53 @@ function SortableSlideCard({
   );
 }
 
+const CONTAINER_CLASS: Record<ThumbnailOrientation, string> = {
+  vertical:
+    'flex h-full w-[190px] min-w-[190px] flex-col gap-3 overflow-y-auto border-r border-[#E2E8E4] dark:border-grey-700 bg-[#EFF3F0] dark:bg-grey-900 p-[14px]',
+  horizontal:
+    'flex w-full flex-none snap-x snap-mandatory items-start gap-2.5 overflow-x-auto border-t border-[#E2E8E4] dark:border-grey-700 bg-[#EFF3F0] dark:bg-grey-900 px-3 py-2.5',
+  grid: 'grid grid-cols-2 gap-3 pb-4 sm:grid-cols-3',
+};
+
+const SORTING_STRATEGY = {
+  vertical: verticalListSortingStrategy,
+  horizontal: horizontalListSortingStrategy,
+  grid: rectSortingStrategy,
+} as const;
+
 /**
- * Left rail: a card per slide (real slide markup scaled down as a preview, plus
- * a number badge + label row) with select / drag-reorder / move / delete controls,
- * and a dashed "Neue Folie" button. Matches the Präsentations-Editor design.
+ * Slide navigator. Renders as the desktop left rail, a horizontal filmstrip on
+ * a phone, or a full-screen grid — the layout differs but selection, reordering
+ * and deletion all route through the same callbacks.
  *
- * Reordering: drag a card by its grip handle (dnd-kit sortable) or use the
- * up/down chevrons; both route through onMove(from, to). The chevrons stay as a
- * keyboard/click fallback.
+ * Reordering: drag a card (grip handle on desktop, long-press anywhere on
+ * touch) or use the chevrons, which stay as the keyboard/click fallback.
  */
 export function SlideThumbnailList({
   slides,
   activeIndex,
   editable,
   accent,
+  brand,
+  showLogo,
+  orientation = 'vertical',
+  touch = false,
   onSelect,
   onAdd,
   onDelete,
   onMove,
 }: SlideThumbnailListProps) {
+  const [draggingId, setDraggingId] = useState<string | null>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    // Long-press to drag: a plain tap still selects, and a quick vertical drag
+    // still scrolls the filmstrip/grid.
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
   const handleDragEnd = (event: DragEndEvent) => {
+    setDraggingId(null);
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     const from = slides.findIndex((s) => s.id === active.id);
@@ -181,13 +270,18 @@ export function SlideThumbnailList({
     onMove(from, to);
   };
 
+  const draggingSlide = draggingId ? slides.find((s) => s.id === draggingId) : null;
+
   return (
-    <div
-      data-tour="presentations-slides"
-      className="flex h-full w-[190px] min-w-[190px] flex-col gap-3 overflow-y-auto border-r border-[#E2E8E4] dark:border-grey-700 bg-[#EFF3F0] dark:bg-grey-900 p-[14px]"
-    >
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={slides.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+    <div data-tour="presentations-slides" className={CONTAINER_CLASS[orientation]}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={(e: DragStartEvent) => setDraggingId(String(e.active.id))}
+        onDragCancel={() => setDraggingId(null)}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext items={slides.map((s) => s.id)} strategy={SORTING_STRATEGY[orientation]}>
           {slides.map((slide, index) => (
             <SortableSlideCard
               key={slide.id}
@@ -196,22 +290,51 @@ export function SlideThumbnailList({
               active={index === activeIndex}
               editable={editable}
               accent={accent}
+              brand={brand}
+              showLogo={showLogo}
               slideCount={slides.length}
+              orientation={orientation}
+              touch={touch}
               onSelect={onSelect}
               onDelete={onDelete}
               onMove={onMove}
             />
           ))}
         </SortableContext>
+
+        {/* Without an overlay the dragged card is clipped by the scroll
+            container in the filmstrip and grid layouts. */}
+        <DragOverlay>
+          {draggingSlide ? (
+            <div className="w-[132px] overflow-hidden rounded-[10px] bg-white shadow-lg dark:bg-grey-800">
+              <ScaledSlide>
+                <SlideSurface
+                  slide={draggingSlide}
+                  accent={accent}
+                  brand={brand}
+                  showLogo={showLogo}
+                />
+              </ScaledSlide>
+            </div>
+          ) : null}
+        </DragOverlay>
       </DndContext>
 
       {editable && (
         <button
           type="button"
           onClick={onAdd}
-          className="flex items-center justify-center gap-[7px] rounded-[10px] border-[1.5px] border-dashed border-[#B9C7BE] py-2.5 text-[13px] font-bold text-primary-500 hover:border-primary-500 hover:bg-[#E4EBE7] dark:hover:bg-grey-800"
+          className={`flex items-center justify-center gap-[7px] rounded-[10px] border-[1.5px] border-dashed border-[#B9C7BE] text-[13px] font-bold text-primary-500 hover:border-primary-500 hover:bg-[#E4EBE7] dark:hover:bg-grey-800 ${
+            orientation === 'horizontal'
+              ? 'h-[92px] w-[64px] flex-none flex-col'
+              : orientation === 'grid'
+                ? 'min-h-[92px] w-full'
+                : 'w-full py-2.5'
+          }`}
+          aria-label="Neue Folie"
         >
-          <FiPlus size={13} strokeWidth={2.5} /> Neue Folie
+          <FiPlus size={orientation === 'horizontal' ? 18 : 13} strokeWidth={2.5} />
+          {orientation !== 'horizontal' && 'Neue Folie'}
         </button>
       )}
     </div>

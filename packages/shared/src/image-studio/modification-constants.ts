@@ -264,7 +264,6 @@ export function getDefaultModificationParams(
   type: string
 ): DreizeilenModificationParams | ZitatModificationParams | VeranstaltungModificationParams | null {
   // `type` is a plain string (open set); the default case below handles the rest.
-  // eslint-disable-next-line @typescript-eslint/switch-exhaustiveness-check
   switch (type) {
     case 'dreizeilen':
       return {

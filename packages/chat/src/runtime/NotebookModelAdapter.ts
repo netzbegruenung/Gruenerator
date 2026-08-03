@@ -1,19 +1,27 @@
-import type {
-  ChatModelAdapter,
-  ChatModelRunOptions,
-  ChatModelRunResult,
-} from '@assistant-ui/react';
-import type { NotebookCitation, NotebookSource } from '@gruenerator/contracts';
 import {
   type ChatProgress,
   type Citation as ChatCitation,
   type FallbackInfo,
 } from '../hooks/useChatGraphStream';
-import { parseSSELine } from '../lib/sseParser';
+import { notifyWarning } from '../lib/notify';
 import { AUTO_MODEL_ID, resolveAutoModel } from '../lib/resolveAutoModel';
-import { useAgentStore } from '../stores/chatStore';
+import { parseSSELine } from '../lib/sseParser';
 import { useChatConfigStore } from '../stores/chatConfigStore';
-import { ChatStreamError, streamErrorMessage } from './streamErrorMessage';
+import { useAgentStore } from '../stores/chatStore';
+
+import {
+  ChatStreamError,
+  errorStatus,
+  streamErrorMessage,
+  STREAM_INTERRUPTED_MESSAGE,
+} from './streamErrorMessage';
+
+import type {
+  ChatModelAdapter,
+  ChatModelRunOptions,
+  ChatModelRunResult,
+} from '@assistant-ui/react';
+import type { NotebookCitation, NotebookDepth, NotebookSource } from '@gruenerator/contracts';
 
 function normalizeCiteMarkers(text: string): string {
   return text.replace(/\[cite:(\d+)\]/g, '[$1]');
@@ -54,7 +62,7 @@ export interface NotebookAdapterConfig {
    * captured at the moment of submission). Merged on top of `extraParams`.
    */
   getExtraParams?: () => Record<string, unknown> | undefined;
-  mode?: 'fast' | 'deep';
+  mode?: NotebookDepth;
   endpoint?: string;
   documentIds?: string[];
   threadId?: string | null;
@@ -154,12 +162,20 @@ export function createNotebookModelAdapter(
           sharepicImage = (await config.sharepicContext.captureImage?.()) ?? null;
         } catch (err) {
           console.warn('[Notebook] Sharepic image capture failed:', err);
+          notifyWarning(
+            'Sharepic konnte nicht mitgeschickt werden',
+            'Die Antwort entsteht ohne das aktuelle Bild.'
+          );
         }
         try {
           const t = config.sharepicContext.getText?.();
           if (t && t.trim().length > 0) sharepicText = t;
         } catch (err) {
           console.warn('[Notebook] Sharepic getText failed:', err);
+          notifyWarning(
+            'Sharepic konnte nicht mitgeschickt werden',
+            'Die Antwort entsteht ohne das aktuelle Bild.'
+          );
         }
       }
       const sharepicSystemPrompt = config.sharepicContext?.systemPrompt;
@@ -317,6 +333,26 @@ export function createNotebookModelAdapter(
                 break;
               }
 
+              case 'progress_step': {
+                // An internal stage of the notebook pipeline — today only the
+                // query expansion the Ultra tier runs before searching. Drives
+                // the status line and nothing else: it must not touch tool
+                // cards (see the chat adapter's case for why that matters).
+                // Without this the event fell into `default:` and Ultra sat
+                // silent through a search three times as long as Klein's.
+                const { title } = data as {
+                  stepId: string;
+                  toolName: string;
+                  title: string;
+                  status: 'in_progress' | 'completed';
+                };
+                if (title) {
+                  currentProgress = { ...currentProgress, stage: 'searching', message: title };
+                  yield buildResult();
+                }
+                break;
+              }
+
               case 'response_start': {
                 const { message } = data as { message: string };
                 console.debug(`[Notebook] ⏱ Model ready: ${Math.round(performance.now() - c0)}ms`);
@@ -364,6 +400,15 @@ export function createNotebookModelAdapter(
                 console.warn(
                   `[Notebook] Model fallback: ${info.from.id} → ${info.to.id} (${info.reason})`
                 );
+                break;
+              }
+
+              case 'warning': {
+                // Non-fatal degradation the backend wants the user to know
+                // about. Without this case the event fell into `default:` and
+                // was dropped on every notebook surface.
+                const { message } = data as { code: string; message: string };
+                if (message) notifyWarning(message);
                 break;
               }
 
@@ -482,6 +527,13 @@ export function createNotebookModelAdapter(
         callbacks.onComplete?.(metadata);
         console.debug('[Notebook] ⏱ onComplete callback: %.1fms', performance.now() - tCb0);
         console.debug(`[Notebook] ⏱ Total: ${Math.round(performance.now() - c0)}ms`);
+      } else if (accumulatedText && streamErrorEncountered) {
+        // Partial answer + a stream error: the text must NOT be presented as
+        // finished. Keep it (it is still worth reading), append the
+        // interruption notice, and mark the turn failed so the retry
+        // affordance appears.
+        accumulatedText += `\n\n⚠️ **${STREAM_INTERRUPTED_MESSAGE}**`;
+        yield { ...buildResult(), status: errorStatus(streamErrorEncountered) };
       } else if (accumulatedText) {
         yield buildResult();
       } else if (streamErrorEncountered) {
@@ -490,6 +542,7 @@ export function createNotebookModelAdapter(
         // "keine passende Antwort" fallback.
         yield {
           content: [{ type: 'text' as const, text: streamErrorMessage(streamErrorEncountered) }],
+          status: errorStatus(streamErrorEncountered),
         };
       } else {
         accumulatedText =

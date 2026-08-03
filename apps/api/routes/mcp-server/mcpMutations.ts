@@ -15,6 +15,7 @@ import {
   joinGroupByToken,
 } from '../../services/groups/groupMutations.js';
 import { findGroups } from '../../services/groups/groupQueries.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { hasWriteAccess } from '../chat/confirmController.js';
 
 import { absolutizeUrl } from './chatToolBridge.js';
@@ -28,9 +29,7 @@ async function findLiveDocument(id: string): Promise<{ title: string; created_by
 }
 
 type ToolResult =
-  | { ok: true; note: string }
-  | { needsConfirmation: true; note: string }
-  | { error: string };
+  { ok: true; note: string } | { needsConfirmation: true; note: string } | { error: string };
 
 export async function addCardDirect(
   userId: string,
@@ -148,6 +147,6 @@ export async function shareDocToGroupMcp(
     });
     return { ok: true, note: result.message };
   } catch (err) {
-    return { error: err instanceof Error ? err.message : 'Teilen fehlgeschlagen.' };
+    return { error: toUserFacingMessage(err, 'Teilen fehlgeschlagen.') };
   }
 }

@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 
 import { useNotifications, type AppNotification } from '../../hooks/useNotifications';
-import { colors, spacing, lightTheme, darkTheme } from '../../theme';
+import { colors, spacing, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 import { actionUrlToRoute } from '../../utils/actionUrl';
 
 const TYPE_ICONS: Record<string, IoniconsIconName> = {
@@ -96,6 +96,7 @@ export function NotificationList({ onNavigate }: Props) {
             },
           ]}
           onPress={() => handlePress(item)}
+          accessibilityRole="button"
         >
           <View
             style={[
@@ -135,14 +136,21 @@ export function NotificationList({ onNavigate }: Props) {
 
   const hasUnread = notifications.some((n) => !n.is_read);
 
+  // Nothing to report means nothing to show. A heading over the words "Keine
+  // Benachrichtigungen" is two lines spent saying there is no news, in a menu
+  // whose job is to be short. The separator belongs to this block, so dropping
+  // out takes it along instead of leaving a double rule behind.
+  if (notifications.length === 0) return null;
+
   return (
     <View style={styles.container}>
+      <View style={[styles.separator, { backgroundColor: theme.border }]} />
       <View style={styles.sectionHeader}>
         <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
           Benachrichtigungen
         </Text>
         {hasUnread && (
-          <Pressable onPress={markAllAsRead} hitSlop={8}>
+          <Pressable onPress={markAllAsRead} hitSlop={8} accessibilityRole="button">
             <Text style={[styles.readAll, { color: colors.primary[600] }]}>Alle gelesen</Text>
           </Pressable>
         )}
@@ -151,12 +159,6 @@ export function NotificationList({ onNavigate }: Props) {
       {isLoading && notifications.length === 0 ? (
         <View style={styles.centered}>
           <ActivityIndicator size="small" color={colors.primary[600]} />
-        </View>
-      ) : notifications.length === 0 ? (
-        <View style={styles.centered}>
-          <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
-            Keine Benachrichtigungen
-          </Text>
         </View>
       ) : (
         <FlatList
@@ -185,6 +187,11 @@ const styles = StyleSheet.create({
   container: {
     flexShrink: 1,
   },
+  separator: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: spacing.medium,
+    marginVertical: spacing.xxsmall,
+  },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -194,12 +201,14 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxsmall,
   },
   sectionTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   readAll: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -208,6 +217,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyText: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
   },
   item: {
@@ -227,9 +237,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   itemContent: { flex: 1, gap: 2 },
-  itemTitle: { fontSize: 13, fontWeight: '600' },
-  itemBody: { fontSize: 12, lineHeight: 17 },
-  itemTime: { fontSize: 10, marginTop: 2 },
+  itemTitle: { fontFamily: BODY_FONT, fontSize: 13, fontWeight: '600' },
+  itemBody: { fontFamily: BODY_FONT, fontSize: 12, lineHeight: 17 },
+  itemTime: { fontFamily: BODY_FONT, fontSize: 10, marginTop: 2 },
   dismissBtn: { paddingTop: 4 },
   footer: { paddingVertical: spacing.medium, alignItems: 'center' },
 });

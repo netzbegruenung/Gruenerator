@@ -11,10 +11,14 @@ import { fileURLToPath } from 'url';
 import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 import { type AIWorkerPool } from '../../workers/types.js';
+import { type Locale } from '../localization/types.js';
+import { GREENPT_STT_MODEL } from '../transcription/greenptListen.js';
+import { chooseProvider, type TranscriptionProvider } from '../transcription/providerPolicy.js';
+import { recordOperation } from '../usage/UsageTrackingService.js';
 
 import { startBackgroundCompression } from './backgroundCompressionService.js';
+import { transcribeWithGreenPT } from './greenptTranscriptionService.js';
 import { generateManualSubtitles } from './manualSubtitleGeneratorService.js';
-import { transcribeWithRegolo } from './regoloTranscriptionService.js';
 import { extractAudio } from './videoUploadService.js';
 import { transcribeWithVoxtral } from './voxtralTranscriptionService.js';
 
@@ -28,41 +32,67 @@ interface TranscriptionResult {
   words?: Array<{ word: string; start: number; end: number }>;
 }
 
+/** What each provider needs and how it is billed, so the loop below stays flat. */
+const RUNNERS: Record<
+  TranscriptionProvider,
+  {
+    apiKey: () => string | undefined;
+    usage: { provider: string; model: string };
+    run: (
+      audioPath: string,
+      requestWordTimestamps: boolean,
+      uploadId: string | null,
+      locale: Locale
+    ) => Promise<TranscriptionResult>;
+  }
+> = {
+  voxtral: {
+    apiKey: () => env.MISTRAL_API_KEY,
+    usage: { provider: 'mistral', model: 'voxtral' },
+    run: transcribeWithVoxtral,
+  },
+  greenpt: {
+    apiKey: () => env.GREENPT_API_KEY,
+    usage: { provider: 'greenpt', model: GREENPT_STT_MODEL },
+    run: transcribeWithGreenPT,
+  },
+};
+
 /**
- * Provider chain: regolo faster-whisper (default) → voxtral (fallback)
- * Override with TRANSCRIPTION_PROVIDER env var: regolo | voxtral
+ * Picks a provider via the shared policy, then works down its chain, skipping
+ * providers whose key is unset and retrying the next one on error.
  */
 async function transcribeWithProvider(
   audioPath: string,
   requestWordTimestamps: boolean = false,
-  uploadId: string | null = null
+  uploadId: string | null = null,
+  locale: Locale = 'de-DE'
 ): Promise<TranscriptionResult> {
-  const provider = env.TRANSCRIPTION_PROVIDER || 'regolo';
+  const { provider, reason, chain } = chooseProvider({
+    override: env.TRANSCRIPTION_PROVIDER,
+  });
 
-  if (provider === 'regolo' && env.REGOLO_API_KEY) {
-    log.debug('Using Regolo (faster-whisper) for transcription');
+  // One line per transcription — the only place the provider decision is
+  // observable, and infrequent enough not to be noise.
+  log.info(`provider=${provider} (${reason}) chain=${chain.join('→')} locale=${locale}`);
+
+  for (const attempt of chain) {
+    const runner = RUNNERS[attempt];
+    if (!runner.apiKey()) continue;
+
     try {
-      return await transcribeWithRegolo(audioPath, requestWordTimestamps, uploadId);
+      const result = await runner.run(audioPath, requestWordTimestamps, uploadId, locale);
+      recordOperation({ unit: 'transcriptions', ...runner.usage });
+      return result;
     } catch (error: unknown) {
       log.warn(
-        `Regolo transcription failed: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
-  }
-
-  if ((provider === 'voxtral' || provider === 'regolo') && env.MISTRAL_API_KEY) {
-    log.debug('Using Voxtral for transcription');
-    try {
-      return await transcribeWithVoxtral(audioPath, requestWordTimestamps, uploadId);
-    } catch (error: unknown) {
-      log.warn(
-        `Voxtral transcription failed: ${error instanceof Error ? error.message : String(error)}`
+        `${attempt} transcription failed: ${error instanceof Error ? error.message : String(error)}`
       );
     }
   }
 
   throw new Error(
-    'No transcription provider configured. Set REGOLO_API_KEY (faster-whisper) or MISTRAL_API_KEY (Voxtral).'
+    'No transcription provider configured. Set MISTRAL_API_KEY (Voxtral) or GREENPT_API_KEY (green-s-pro).'
   );
 }
 
@@ -70,7 +100,7 @@ async function transcribeVideo(
   videoPath: string,
   subtitlePreference: string = 'manual',
   aiWorkerPool?: AIWorkerPool,
-  _language: string = 'de'
+  locale: Locale = 'de-DE'
 ): Promise<string> {
   try {
     log.debug(`Transkription Start - Modus: ${subtitlePreference}`);
@@ -91,40 +121,24 @@ async function transcribeVideo(
       );
     }
 
-    let finalTranscription: string | null = null;
+    // Transcription is mode-agnostic: word timestamps are always requested, and
+    // `subtitlePreference` ('manual' | 'word') only changes how assSubtitleService
+    // lays the segments out later. The old if/else ran identical bodies and its
+    // else-branch logged "Unknown mode" for 'word' — a contract-valid value.
+    const transcriptionResult = await transcribeWithProvider(audioPath, true, uploadId, locale);
 
-    if (subtitlePreference === 'manual') {
-      const transcriptionResult = await transcribeWithProvider(audioPath, true, uploadId);
-
-      if (!transcriptionResult || typeof transcriptionResult.text !== 'string') {
-        throw new Error('Invalid transcription data received from provider');
-      }
-
-      log.debug(
-        `Provider Wörter: ${transcriptionResult.words?.length || 0}, Text: ${transcriptionResult.text.length} chars`
-      );
-
-      finalTranscription = await generateManualSubtitles(
-        transcriptionResult.text,
-        transcriptionResult.words || []
-      );
-    } else {
-      log.warn(`Unknown mode '${subtitlePreference}', using manual mode as fallback`);
-      const transcriptionResult = await transcribeWithProvider(audioPath, true, uploadId);
-
-      if (!transcriptionResult || typeof transcriptionResult.text !== 'string') {
-        throw new Error('Invalid transcription data received from provider');
-      }
-
-      log.debug(
-        `Provider Wörter: ${transcriptionResult.words?.length || 0}, Text: ${transcriptionResult.text.length} chars`
-      );
-
-      finalTranscription = await generateManualSubtitles(
-        transcriptionResult.text,
-        transcriptionResult.words || []
-      );
+    if (!transcriptionResult || typeof transcriptionResult.text !== 'string') {
+      throw new Error('Invalid transcription data received from provider');
     }
+
+    log.debug(
+      `Provider Wörter: ${transcriptionResult.words?.length || 0}, Text: ${transcriptionResult.text.length} chars`
+    );
+
+    const finalTranscription = await generateManualSubtitles(
+      transcriptionResult.text,
+      transcriptionResult.words || []
+    );
 
     try {
       await fs.unlink(audioPath);

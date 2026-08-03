@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useState } from 'react';
-import { AccessibilityInfo, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useEffect } from 'react';
+import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Animated, {
   Easing,
   interpolate,
@@ -10,21 +10,10 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { type BevPalette } from './palette';
+import { useReduceMotion } from '../../../hooks/useAccessibilityPreferences';
+import { BODY_FONT } from '../../../theme';
 
-function useReduceMotion(): boolean {
-  const [reduce, setReduce] = useState(false);
-  useEffect(() => {
-    let mounted = true;
-    void AccessibilityInfo.isReduceMotionEnabled().then((v) => mounted && setReduce(v));
-    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduce);
-    return () => {
-      mounted = false;
-      sub.remove();
-    };
-  }, []);
-  return reduce;
-}
+import { type BevPalette } from './palette';
 
 /**
  * The two stacked backdrop layers from the web page: a static warm radial
@@ -171,6 +160,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   loadingText: {
+    fontFamily: BODY_FONT,
     fontSize: 16,
     fontWeight: '700',
     color: '#fff',

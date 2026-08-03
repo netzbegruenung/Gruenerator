@@ -115,7 +115,7 @@ const FEATURES: FeatureData[] = [
     ),
   },
   {
-    icon: { category: 'navigation', name: 'notebook' },
+    icon: { category: 'navigation', name: 'notebooks' },
     title: 'Recherchiere in Grünen Quellen',
     description:
       'Stelle Fragen an Grundsatzprogramme, Bundestagsanträge und Kommunalwiki. Das Notebook liefert Antworten mit Quellenangaben.',
@@ -174,8 +174,10 @@ const Home = () => {
     contentRef.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
   };
 
+  // PageLayout setzt das einzige <main id="main-content"> — Ziel des Sprung-Links.
+  // Ein zweites hier wäre eine doppelte Landmark.
   return (
-    <main id="main-content">
+    <div>
       <StartpageHero onScrollToContent={scrollToContent} />
 
       <div className="sp-content" ref={contentRef}>
@@ -246,7 +248,7 @@ const Home = () => {
 
         <Footer />
       </div>
-    </main>
+    </div>
   );
 };
 

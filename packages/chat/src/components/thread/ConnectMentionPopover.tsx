@@ -1,12 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+
 import {
   useConnectProvidersQuery,
   useConnectBrowseQuery,
   type ChatConnectFile,
 } from '../../hooks/useMentionablesQuery';
 import { type ConnectFileToken } from '../../lib/mentionables';
+
 import { MentionFloatingPanel } from './MentionFloatingPanel';
 
 interface ConnectMentionPopoverProps {
@@ -36,6 +38,7 @@ export function ConnectMentionPopover({
 
   useEffect(() => {
     if (!visible) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resets panel state on close (visibility transition), not a render-derived value
       setSelection(new Map());
       setActiveProvider(null);
       setFolderId(null);
@@ -94,6 +97,7 @@ export function ConnectMentionPopover({
       role="dialog"
       ariaLabel="Dateien aus verbundenen Accounts auswählen"
     >
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- Escape-only capture inside the already-labeled dialog panel above, not new interactive semantics. */}
       <div
         className="flex min-h-0 flex-1 flex-col"
         onKeyDown={(e) => {

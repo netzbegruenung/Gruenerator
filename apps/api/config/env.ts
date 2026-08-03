@@ -33,18 +33,57 @@ const envSchema = z.object({
 
   // ── Session / Auth core ────────────────────────────────────────────────
   SESSION_SECRET: z.string().optional(),
+  /**
+   * Signing key for search-image proxy handles. Optional: falls back to
+   * SESSION_SECRET, and with neither set the proxy stays off and search images
+   * remain plain links. Set it separately only to rotate proxy handles without
+   * invalidating every session.
+   */
+  SEARCH_IMAGE_PROXY_SECRET: z.string().optional(),
   ADMIN_TOKEN: z.string().optional(),
   // Comma-separated emails elevated to is_admin = true at session-parse time.
   // Runtime override — no DB write. Empty/unset → no overrides.
   ADMIN_EMAILS: z.string().optional(),
   ALLOW_DEV_AUTH_BYPASS: boolFlag(false),
   DEV_AUTH_BYPASS_TOKEN: z.string().optional(),
+  /**
+   * Directory the chat decision journal is written to, one JSON file per turn
+   * (utils/decisionLog.ts). Lets the live eval lane render the same decision
+   * map the simulated lane produces, without putting decision ids on the wire.
+   *
+   * Honoured ONLY when NODE_ENV === 'development': elsewhere the middleware is
+   * never constructed, so a stray value is inert rather than dangerous. Unset
+   * (the default) means no journal is bound anywhere and every `recordDecision`
+   * stays the no-op it is in production.
+   */
+  CHAT_DECISION_LOG_DIR: z.string().optional(),
+
+  /**
+   * Root of the party-internal content checkout, holding `skills/<mention>.md`
+   * (recipe prompts) and `agents/<identifier>.md` (system-agent personas).
+   * Deliberately outside the public repo: `packages/shared` ships only the
+   * frontmatter, so the prompt text reaches neither git nor the web/mobile
+   * bundle. Salt rolls the directory onto the server; see
+   * services/skills/internalPrompts.ts and CLAUDE-deployment.md.
+   *
+   * Unset falls back to the gitignored `.external/gruenerator-intern` checkout
+   * used in development. A missing directory is a no-op, not a crash: recipes
+   * run on the agent's base systemRole, agents on a generic substitute.
+   */
+  INTERN_CONTENT_DIR: z.string().optional(),
 
   // ── URLs & domains ─────────────────────────────────────────────────────
   BASE_URL: z.string().optional(),
   AUTH_BASE_URL: z.string().optional(),
   WEB_BASE_URL: z.string().optional(),
   PRIMARY_DOMAIN: z.string().default('gruenerator.eu'),
+  /**
+   * Which instance this deployment serves — see `@gruenerator/shared/instances`.
+   * Unset means `production`, so an existing deployment behaves exactly as it
+   * did before instances existed. An unknown value falls back to that default
+   * too rather than failing the boot: a typo must not take the API down.
+   */
+  INSTANCE_ID: z.string().optional(),
 
   // External: Abgeordnetenwatch API (public, no key). Override only for testing.
   ABGEORDNETENWATCH_BASE_URL: z.string().default('https://www.abgeordnetenwatch.de/api/v2'),
@@ -91,16 +130,39 @@ const envSchema = z.object({
 
   // ── AI providers ───────────────────────────────────────────────────────
   MISTRAL_API_KEY: z.string().optional(),
+  // Regional inference: 'eu' pins every request to api.eu.mistral.ai, so
+  // inference happens in EU/EFTA data centres and the payload never leaves the
+  // region. Costs 1.1× list price. Three surfaces do NOT exist regionally and
+  // stay on the global endpoint regardless (see providerInstances.ts):
+  // /v1/files, /v1/conversations (Agents) and /v1/audio/voices.
+  MISTRAL_REGION: z.enum(['eu', 'global']).default('eu'),
   LITELLM_API_KEY: z.string().optional(),
   LITELLM_BASE_URL: z.string().optional(),
   REGOLO_API_KEY: z.string().optional(),
   REGOLO_DEFAULT_MODEL: z.string().optional(),
+  // GreenPT — OpenAI-compatible, https://api.greenpt.ai/v1
+  GREENPT_API_KEY: z.string().optional(),
+  GREENPT_DEFAULT_MODEL: z.string().optional(),
+  // Scaleway Generative APIs (Paris) — OpenAI-compatible. NOT a selectable
+  // lane: it is the upstream that serves Mistral Medium 3.5, with the Mistral
+  // API itself as the fallback. See services/ai/providerInstances.ts.
+  // The base URL embeds the Scaleway project id, so it is configuration, not a
+  // constant — a second project (staging, another org) needs no code change.
+  SCALEWAY_API_KEY: z.string().optional(),
+  SCALEWAY_BASE_URL: z.string().optional(),
   BFL_API_KEY: z.string().optional(),
 
   // ── Web Search Providers ───────────────────────────────────────────────
   // Linkup (https://docs.linkup.so) — when set, replaces SearXNG for @web
   // and replaces the deep-research orchestrator for @recherche.
   LINKUP_API_KEY: z.string().optional(),
+  // Route SIMPLE web searches (no domain scope, no time window, no images,
+  // ≤10 results) to GreenPT's link search first, with Linkup as the fallback.
+  // A separate flag rather than a key check on purpose: GREENPT_API_KEY is
+  // already set in production for chat and transcription, so gating on the key
+  // alone would swap the chat's search engine without anyone deciding to.
+  // The throttle it has to contain is documented in GreenPTSearchService.ts.
+  GREENPT_SEARCH_ENABLED: boolFlag(false),
 
   // ── Image / Flux ───────────────────────────────────────────────────────
   FLUX_BACKEND: z.string().optional(),
@@ -110,12 +172,29 @@ const envSchema = z.object({
   UNSPLASH_ACCESS_KEY: z.string().optional(),
 
   // ── Voice / Transcription ──────────────────────────────────────────────
-  TRANSCRIPTION_PROVIDER: z.string().optional(),
+  // 'auto' applies the duration rule (services/transcription/providerPolicy);
+  // naming a provider pins every request to it. An enum because as a free
+  // string a typo silently matched neither branch of the old provider chain.
+  // 'regolo' is still ACCEPTED but no longer selectable: it left the
+  // transcription chain, and an env var is externally frozen — a deployment
+  // that still pins it must degrade to the normal rules, not fail to boot.
+  TRANSCRIPTION_PROVIDER: z
+    .enum(['auto', 'voxtral', 'greenpt', 'regolo'])
+    .default('auto')
+    .transform((provider) => (provider === 'regolo' ? ('auto' as const) : provider)),
   VOXTRAL_DEFAULT_VOICE_ID: z.string().optional(),
   VISION_DEFAULT_MODEL: z.string().optional(),
 
   // ── Monitoring / External services ────────────────────────────────────
   SENTRY_DSN: z.string().optional(),
+  // Langfuse LLM observability (self-hosted). Tracing is a no-op unless all
+  // three are set. .trim() defends against trailing newlines in pasted secrets.
+  LANGFUSE_PUBLIC_KEY: z.string().trim().optional(),
+  LANGFUSE_SECRET_KEY: z.string().trim().optional(),
+  LANGFUSE_BASE_URL: z.string().trim().optional(),
+  // Optional deploy identifier (image tag / commit sha) stamped onto traces.
+  // Not part of the kill-switch triple — absence just leaves traces unversioned.
+  LANGFUSE_RELEASE: z.string().trim().optional(),
   APIFY_TOKEN: z.string().optional(),
   EVENT_REGISTRY_API_KEY: z.string().optional(),
   POLITPRO_API_KEY: z.string().optional(),
@@ -176,10 +255,6 @@ const envSchema = z.object({
   CRAWLER_MODE: z.string().optional(),
   CONTENT_SYNC_EMAIL: z.string().trim().optional(),
   TEST_EMAIL_TO: z.string().trim().optional(),
-  // Kill-switch: when true, the ChatGraph respond node skips injecting the
-  // monthly corpus-insight overlay into PR agents (instant revert to the static
-  // systemRole without a deploy rollback). See services/agents/prAgentInsightService.ts.
-  PR_AGENT_INSIGHTS_DISABLED: boolFlag(false),
   BACKUP_DIR: z.string().optional(),
   STATS_OUTPUT_PATH: z.string().optional(),
   SYNC_SUMMARY_PATH: z.string().optional(),
@@ -336,6 +411,7 @@ const envSchema = z.object({
   RERANK_MMR_KEEP_TOP: numStr(2),
   RERANK_MERGE_OVERFETCH: numStr(16),
   RERANK_WEB_SCORE_CEILING: z.coerce.number().default(0.8),
+  RERANK_DIP_SCORE_CEILING: z.coerce.number().default(0.8),
 });
 
 // ---------------------------------------------------------------------------

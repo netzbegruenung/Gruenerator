@@ -1,4 +1,5 @@
 import {
+  isPresentationBrand,
   PRESENTATION_META_KEYS,
   PRESENTATION_SCHEMA_VERSION,
   type Slide,
@@ -29,8 +30,13 @@ export interface DeckOptions {
   autoSlide: number | null;
   loop: boolean;
   slideNumber: boolean;
-  /** Deck brand accent colour; null → the default (#316049). */
+  /** Deck brand accent colour; null → the brand default. */
   accentColor: string | null;
+  /** Country CI ('de-DE' | 'de-AT'); null → renders with the de-DE theme.
+   * Written once via ensureBrand, never through setDeckOption. */
+  brand: string | null;
+  /** Render the party logo on title-layout slides. */
+  showLogo: boolean;
 }
 
 export interface UseSlidesResult {
@@ -43,6 +49,9 @@ export interface UseSlidesResult {
   setDeckOption: (patch: Partial<DeckOptions>) => void;
   /** Seed the deck with `initial` slides once (guarded by the `seeded` flag). */
   seedIfNeeded: (initial: Slide[]) => void;
+  /** Write the country brand once from the given profile locale (no-op for
+   * invalid/missing locales — guests must not backfill — or when set). */
+  ensureBrand: (locale: string | null | undefined) => void;
   undo: () => void;
   redo: () => void;
   canUndo: boolean;
@@ -97,6 +106,8 @@ export function useSlides(ydoc: Y.Doc): UseSlidesResult {
       loop: false,
       slideNumber: false,
       accentColor: null,
+      brand: null,
+      showLogo: true,
     },
   });
   const getDeckOptions = useCallback((): DeckOptions => {
@@ -110,6 +121,8 @@ export function useSlides(ydoc: Y.Doc): UseSlidesResult {
           loop: Boolean(meta.get(PRESENTATION_META_KEYS.loop) ?? false),
           slideNumber: Boolean(meta.get(PRESENTATION_META_KEYS.slideNumber) ?? false),
           accentColor: (meta.get(PRESENTATION_META_KEYS.accentColor) as string | null) ?? null,
+          brand: (meta.get(PRESENTATION_META_KEYS.brand) as string | null) ?? null,
+          showLogo: Boolean(meta.get(PRESENTATION_META_KEYS.showLogo) ?? true),
         },
       };
     }
@@ -203,7 +216,21 @@ export function useSlides(ydoc: Y.Doc): UseSlidesResult {
           meta.set(PRESENTATION_META_KEYS.slideNumber, patch.slideNumber);
         if (patch.accentColor !== undefined)
           meta.set(PRESENTATION_META_KEYS.accentColor, patch.accentColor);
+        if (patch.showLogo !== undefined) meta.set(PRESENTATION_META_KEYS.showLogo, patch.showLogo);
       }, PRESENTATION_LOCAL_ORIGIN);
+    },
+    [ydoc, meta]
+  );
+
+  const ensureBrand = useCallback(
+    (locale: string | null | undefined) => {
+      if (!isPresentationBrand(locale)) return;
+      if (meta.get(PRESENTATION_META_KEYS.brand) != null) return;
+      ydoc.transact(() => {
+        // Re-check inside the transaction (concurrent editors race once, LWW).
+        if (meta.get(PRESENTATION_META_KEYS.brand) != null) return;
+        meta.set(PRESENTATION_META_KEYS.brand, locale);
+      }, PRESENTATION_SEED_ORIGIN);
     },
     [ydoc, meta]
   );
@@ -258,6 +285,7 @@ export function useSlides(ydoc: Y.Doc): UseSlidesResult {
     moveSlide,
     setDeckOption,
     seedIfNeeded,
+    ensureBrand,
     undo,
     redo,
     canUndo: undoState.canUndo,

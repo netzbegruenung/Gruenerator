@@ -27,7 +27,7 @@ export default function JoinGroupScreen() {
   // If the user is already a member, route straight to the group detail.
   useEffect(() => {
     if (verify.data?.alreadyMember && verify.data.group.id) {
-      router.replace(`/(focused)/gruppen/${verify.data.group.id}`);
+      router.replace(`/(focused)/projekte/${verify.data.group.id}`);
     }
   }, [verify.data, router]);
 
@@ -36,9 +36,9 @@ export default function JoinGroupScreen() {
     joinGroup.mutate(token, {
       onSuccess: (result) => {
         if (result.group?.id) {
-          router.replace(`/(focused)/gruppen/${result.group.id}`);
+          router.replace(`/(focused)/projekte/${result.group.id}`);
         } else {
-          router.replace('/(focused)/gruppen');
+          router.replace('/(focused)/projekte');
         }
       },
       onError: (err) => {
@@ -71,11 +71,12 @@ export default function JoinGroupScreen() {
                 : 'Der Link ist nicht mehr gültig.'}
             </Text>
             <Pressable
-              onPress={() => router.replace('/(focused)/gruppen')}
+              onPress={() => router.replace('/(focused)/projekte')}
               style={({ pressed }) => [
                 styles.primaryButton,
                 { backgroundColor: pressed ? colors.primary[700] : colors.primary[600] },
               ]}
+              accessibilityRole="button"
             >
               <Text style={styles.primaryButtonText}>Zu meinen Gruppen</Text>
             </Pressable>
@@ -99,6 +100,7 @@ export default function JoinGroupScreen() {
                   opacity: joinGroup.isPending ? 0.6 : 1,
                 },
               ]}
+              accessibilityRole="button"
             >
               <Text style={styles.primaryButtonText}>
                 {joinGroup.isPending ? 'Wird beigetreten...' : 'Beitreten'}
@@ -107,9 +109,10 @@ export default function JoinGroupScreen() {
             <Pressable
               onPress={() => {
                 if (router.canGoBack()) router.back();
-                else router.replace('/(focused)/gruppen');
+                else router.replace('/(focused)/projekte');
               }}
               hitSlop={10}
+              accessibilityRole="button"
             >
               <Text style={[styles.text, { color: theme.textSecondary }]}>Abbrechen</Text>
             </Pressable>

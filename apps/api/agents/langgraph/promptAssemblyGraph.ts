@@ -8,6 +8,7 @@
  * - Message assembly for Claude API
  */
 
+import { env } from '../../config/env.js';
 import { localizePlaceholders } from '../../services/localization/index.js';
 
 import type {
@@ -25,7 +26,7 @@ import type {
   Locale,
   Platform,
 } from './types/promptAssembly.js';
-import type { ClaudeMessage } from '../../services/attachments/types.js';
+import type { ClaudeContentBlock, ClaudeMessage } from '../../services/attachments/types.js';
 import type { contentExamplesService as ContentExamplesServiceInstance } from '../../services/contentExamplesService.js';
 
 // ============================================================================
@@ -284,8 +285,14 @@ function assemblePromptGraph(state: PromptAssemblyState): PromptAssemblyResult {
   const docBlocks = buildDocumentBlocks(state.documents as DocumentBlock[]);
   if (docBlocks && docBlocks.length > 0) {
     console.log(`📋 [PromptAssembly] Added ${docBlocks.length} document blocks`);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-    messages.push({ role: 'user', content: docBlocks as any });
+    // Zwei Vokabulare für dieselbe Drahtform: `MessageContent` ist ein loser
+    // Sack (vier `type`-Werte, alle Felder optional), `ClaudeContentBlock` eine
+    // diskriminierte Union. Die Umwandlung ist eine echte Typgrenze, also steht
+    // hier eine benannte Zusicherung statt `any` — `any` hätte zusätzlich
+    // no-unsafe-assignment ausgelöst, wogegen der alte no-explicit-any-Disable
+    // nicht half (genau daran ist der Lint in CI gescheitert, während er lokal
+    // durchlief).
+    messages.push({ role: 'user', content: docBlocks as unknown as ClaudeContentBlock[] });
   }
 
   // Only include examples for Facebook and Instagram platforms
@@ -342,25 +349,40 @@ async function uploadDocAndGetUrl(doc: DocumentBlock): Promise<string | null> {
       const mediaType = src.media_type || 'application/pdf';
       console.log(`📋 [Upload] Processing ${fileName} (${mediaType})`);
 
-      // Build payload using Node Buffer and OCR purpose
-      const buffer = Buffer.from(src.data, 'base64');
-      const uploadPayload = { file: { fileName, content: buffer }, purpose: 'ocr' };
+      // The Files API is not served by regional endpoints (404 on
+      // api.eu.mistral.ai). Skipping it there keeps the document inside the
+      // region — the data URL below is what OcrService already uses.
+      if (env.MISTRAL_REGION === 'global') {
+        try {
+          // Build payload using Node Buffer and OCR purpose
+          const buffer = Buffer.from(src.data, 'base64');
+          const uploadPayload = { file: { fileName, content: buffer }, purpose: 'ocr' };
 
-      console.log('📋 [Upload] Uploading to Mistral Files API...');
-      let res;
-      if (mistralClient.files?.upload) res = await mistralClient.files.upload(uploadPayload);
-      else if (mistralClient.files?.create) res = await mistralClient.files.create(uploadPayload);
-      else if (mistralClient.files?.add) res = await mistralClient.files.add(uploadPayload);
+          console.log('📋 [Upload] Uploading to Mistral Files API...');
+          let res;
+          if (mistralClient.files?.upload) res = await mistralClient.files.upload(uploadPayload);
+          else if (mistralClient.files?.create)
+            res = await mistralClient.files.create(uploadPayload);
+          else if (mistralClient.files?.add) res = await mistralClient.files.add(uploadPayload);
 
-      const fileId = res?.id || res?.file?.id || res?.data?.id;
-      if (fileId && mistralClient.files?.getSignedUrl) {
-        console.log(`📋 [Upload] Getting signed URL for file ID: ${fileId}`);
-        const signed = await mistralClient.files.getSignedUrl({ fileId });
-        if (signed?.url) {
-          console.log('📋 [Upload] Successfully got signed URL');
-          return signed.url;
+          const fileId = res?.id || res?.file?.id || res?.data?.id;
+          if (fileId && mistralClient.files?.getSignedUrl) {
+            console.log(`📋 [Upload] Getting signed URL for file ID: ${fileId}`);
+            const signed = await mistralClient.files.getSignedUrl({ fileId });
+            if (signed?.url) {
+              console.log('📋 [Upload] Successfully got signed URL');
+              return signed.url;
+            }
+          }
+        } catch (uploadError) {
+          // Swallowed on purpose: the data URL below is a complete substitute,
+          // and before this try existed an upload failure aborted the whole
+          // function and returned null instead of reaching it.
+          const msg = uploadError instanceof Error ? uploadError.message : 'Unknown error';
+          console.log(`📋 [Upload] Files API failed (${msg}), using data URL`);
         }
       }
+
       // Fallback to data URL
       console.log('📋 [Upload] Falling back to data URL');
       return `data:${mediaType};base64,${src.data}`;
@@ -696,8 +718,15 @@ async function assemblePromptGraphAsync(
 
   if (effectiveDocuments.length > 0) {
     console.log(`📋 [PromptAssemblyAsync] Adding ${effectiveDocuments.length} effective documents`);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-    messages.push({ role: 'user', content: buildDocumentBlocks(effectiveDocuments) as any });
+    // Siehe oben. Zusätzlich das `?? []`: `buildDocumentBlocks` gibt `null`
+    // zurück, wenn die Liste leer ist. Der Guard darüber schliesst das aus, aber
+    // `as any` hätte ein `content: null` auch dann durchgelassen, wenn sich das
+    // ändert — die benannte Zusicherung würde es nur verstecken statt beheben.
+    const effectiveBlocks = buildDocumentBlocks(effectiveDocuments) ?? [];
+    messages.push({
+      role: 'user',
+      content: effectiveBlocks as unknown as ClaudeContentBlock[],
+    });
   }
 
   const tools = Array.isArray(enrichedState.tools) ? [...enrichedState.tools] : [];

@@ -1,52 +1,19 @@
-import type { ProviderErrorInfo } from '../services/providers/providerErrors.js';
+/**
+ * The request/response envelope of the in-process AI service
+ * (`services/ai/aiService.ts`).
+ *
+ * The name still says "worker" for historical reasons: this used to travel over
+ * `postMessage` to a `worker_threads` pool. That pool was replaced by an
+ * in-process service and its message protocol, instance bookkeeping and config
+ * interfaces are gone — what is left here is the payload shape the ~66 call
+ * sites and the provider adapters actually share.
+ */
+
 import type {
   ProviderName,
   ProviderOptions,
   RequestMetadata,
 } from '../services/providers/types.js';
-import type { Worker } from 'worker_threads';
-
-// ========================================
-// Worker Message Protocol Types
-// ========================================
-
-export interface WorkerRequestMessage {
-  type: 'request';
-  requestId: string;
-  data: AIRequestData;
-}
-
-export interface WorkerResponseMessage {
-  type: 'response';
-  requestId: string;
-  data: AIWorkerResult;
-}
-
-export interface WorkerErrorMessage {
-  type: 'error';
-  requestId: string;
-  error: string;
-  /** Classification survives the postMessage boundary; the pool rebuilds an AiProviderError from it. */
-  errorInfo?: ProviderErrorInfo;
-}
-
-export interface WorkerProgressMessage {
-  type: 'progress';
-  requestId: string;
-  progress: number;
-}
-
-export type WorkerMessage =
-  | WorkerRequestMessage
-  | WorkerResponseMessage
-  | WorkerErrorMessage
-  | WorkerProgressMessage;
-
-export type WorkerIncomingMessage = WorkerRequestMessage;
-export type WorkerOutgoingMessage =
-  | WorkerResponseMessage
-  | WorkerErrorMessage
-  | WorkerProgressMessage;
 
 // ========================================
 // AI Request/Response Types
@@ -159,96 +126,14 @@ export interface AIWorkerResult {
 }
 
 // ========================================
-// Worker Pool Types
+// Service Interface
 // ========================================
 
-export interface WorkerInstance {
-  instance: Worker;
-  pendingRequests: Set<string>;
-  status: 'ready' | 'busy' | 'error';
-}
-
-export interface PendingRequest {
-  resolve: (value: AIWorkerResult) => void;
-  reject: (reason: Error) => void;
-  timeout: ReturnType<typeof setTimeout>;
-  workerIndex: number;
-  startTime: number;
-}
-
-export interface WorkerPoolStats {
-  activeWorkers: number;
-  queueLength: number;
-  totalProcessed: number;
-}
-
-// ========================================
-// Worker Configuration Types
-// ========================================
-
-export interface RateLimitConfig {
-  maxRequests: number;
-  timeWindow: number;
-  maxConcurrent: number;
-}
-
-export interface RetryConfig {
-  maxRetries: number;
-  baseDelay: number;
-  maxDelay: number;
-  retryableErrors: string[];
-  useBackupOnFail: boolean;
-  backupRetryCount: number;
-}
-
-export interface MessagingConfig {
-  progressUpdates: boolean;
-  internalTimeout: number;
-  validateResponses: boolean;
-  debugLogging: boolean;
-}
-
-export interface DebugConfig {
-  enabled: boolean;
-  verbose: boolean;
-  delayResponseMs: number;
-}
-
-export interface WorkerConfig {
-  workersPerNode: number;
-  requestTimeout: number;
-  rateLimit: RateLimitConfig;
-  retry: RetryConfig;
-  messaging: MessagingConfig;
-  debug: DebugConfig;
-}
-
-export interface LoggingConfig {
-  level: string;
-  aiRequests: boolean;
-  performance: boolean;
-  fullResponses: boolean;
-}
-
-export interface WorkerConfigRoot {
-  worker: WorkerConfig;
-  logging: LoggingConfig;
-}
-
-// ========================================
-// Provider Adapter Types
-// ========================================
-
-export interface ProviderAdapter {
-  execute(requestId: string, data: AIRequestData): Promise<AIWorkerResult>;
-}
-
-export type ProviderAdapters = Record<ProviderName, ProviderAdapter>;
-
-// ========================================
-// Express Integration Types (re-export for convenience)
-// ========================================
-
+/**
+ * The contract every consumer types against — `app.locals.aiWorkerPool` and the
+ * ~15 test fakes. Import it from HERE, never from an implementation module
+ * (see CLAUDE-routing.md).
+ */
 export interface AIWorkerPool {
   processRequest(data: AIRequestData, req?: unknown): Promise<AIWorkerResult>;
   shutdown(): Promise<void | PromiseSettledResult<number>[]>;

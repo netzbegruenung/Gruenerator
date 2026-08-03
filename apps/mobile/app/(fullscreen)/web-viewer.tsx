@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 
 import { secureStorage } from '../../services/storage';
-import { colors, lightTheme, darkTheme } from '../../theme';
+import { colors, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 
 const WEB_BASE = 'https://gruenerator.eu';
 
@@ -57,7 +57,13 @@ export default function WebViewerScreen() {
       <View
         style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: theme.border }]}
       >
-        <Pressable onPress={handleClose} hitSlop={12} style={styles.closeButton}>
+        <Pressable
+          onPress={handleClose}
+          hitSlop={12}
+          style={styles.closeButton}
+          accessibilityRole="button"
+          accessibilityLabel="Schließen"
+        >
           <Ionicons name="close" size={24} color={theme.text} />
         </Pressable>
         <Text style={[styles.title, { color: theme.text }]} numberOfLines={1}>
@@ -111,7 +117,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: { fontSize: 16, fontWeight: '600' },
+  title: { fontFamily: BODY_FONT, fontSize: 16, fontWeight: '600' },
   webview: { flex: 1 },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   loadingOverlay: {

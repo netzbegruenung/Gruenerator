@@ -11,17 +11,14 @@ import {
   type SharepicEditResponse,
   type SharepicTemplateDescriptor,
 } from '@gruenerator/contracts';
-import { jsonSchema } from 'ai';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 
-import { createLogger } from '../../../utils/logger.js';
+import { CONTENT_INTEGRITY_EDIT_RULES } from '../../../services/contentPolicy.js';
 
-import type { AIWorkerPool, AIWorkerResult, Tool } from '../../../workers/types.js';
+import { runToolForcedEdit } from './toolForcedEdit.js';
 
-const log = createLogger('sharepicEditLlm');
+import type { AIWorkerPool } from '../../../workers/types.js';
 
 export const SHAREPIC_EDIT_TOOL_NAME = 'apply_sharepic_edit';
-const MAX_ATTEMPTS = 2;
 
 export interface RunSharepicEditArgs {
   instruction: string;
@@ -34,8 +31,7 @@ export interface RunSharepicEditArgs {
 }
 
 export type RunSharepicEditResult =
-  | { ok: true; edit: SharepicEditResponse }
-  | { ok: false; error: string };
+  { ok: true; edit: SharepicEditResponse } | { ok: false; error: string };
 
 /** Compact German description of the current sharepic content for prompts. */
 export function buildSnapshotLines(snapshot: CanvasAiSnapshot): string[] {
@@ -146,7 +142,7 @@ export function buildSliderDeckOperationCatalog(descriptor: SharepicTemplateDesc
   ];
 }
 
-function buildSystemPrompt(
+export function buildSystemPrompt(
   descriptor: SharepicTemplateDescriptor,
   snapshot: CanvasAiSnapshot,
   recentEditSummaries: string[]
@@ -179,100 +175,34 @@ function buildSystemPrompt(
   lines.push(
     '- "summary": Kurzlabel der Änderung auf Deutsch, max. 120 Zeichen (z.B. "Zeile 2 gekürzt").'
   );
-  lines.push('- "reply": 1–2 freundliche Sätze Bestätigung für den Chat.');
+  lines.push(
+    '- "reply": 1–2 freundliche Sätze Bestätigung für den Chat. Beschreibe die Änderung so, wie sie verlangt wurde ("die Schrift größer gemacht", "den Text gekürzt"). Nenne KEINE konkreten Zahlenwerte (Pixel, Prozent, Koordinaten, Hex-Farben), die nicht ausdrücklich verlangt wurden — auch wenn deine Operationen intern einen Wert setzen. Erfinde niemals eine präzise Angabe wie "auf 80px", um die Bestätigung konkreter klingen zu lassen.'
+  );
   lines.push('');
   lines.push('Ändere NUR, was verlangt wurde. Nutze nur die gelisteten Felder, IDs und Werte.');
+  // The editor had no content rule at all. SHAREPIC_SAFETY_RULES guards the
+  // model that WRITES a sharepic's text, so a request for a fabricated quote is
+  // declined at creation — but the very same card could then be EDITED into
+  // exactly that attribution, because this prompt never mentioned it. Stated as
+  // a constraint on the operations, not as a prose decline: this call is
+  // tool-forced and has no channel to refuse in except `reply`.
+  lines.push('');
+  lines.push(CONTENT_INTEGRITY_EDIT_RULES);
 
   return lines.join('\n');
-}
-
-function extractToolCall(result: AIWorkerResult): Record<string, unknown> | null {
-  if (result.tool_calls) {
-    const match = result.tool_calls.find((c) => c.name === SHAREPIC_EDIT_TOOL_NAME);
-    if (match) return match.input;
-  }
-  if (result.raw_content_blocks) {
-    for (const block of result.raw_content_blocks) {
-      if (block.type === 'tool_use' && block.name === SHAREPIC_EDIT_TOOL_NAME && block.input) {
-        return block.input;
-      }
-    }
-  }
-  return null;
 }
 
 export async function runSharepicEdit(args: RunSharepicEditArgs): Promise<RunSharepicEditResult> {
   const { instruction, descriptor, snapshot, recentEditSummaries, aiWorkerPool, req } = args;
 
-  const systemPrompt = buildSystemPrompt(descriptor, snapshot, recentEditSummaries);
-  const userMessage =
-    `Setze JETZT diese Änderung mit dem Tool ${SHAREPIC_EDIT_TOOL_NAME} um:\n\n${instruction}\n\n` +
-    'Antworte ausschließlich über den Tool-Aufruf — keinen Begleittext.';
-
-  // Same jsonSchema() wrapping as runCanvasSuggest — the AI SDK's asSchema
-  // helper rejects raw JSON-Schema objects.
-  const rawSchema = zodToJsonSchema(sharepicEditResponseSchema, {
-    target: 'jsonSchema7',
-    $refStrategy: 'none',
-  });
-  const tool: Tool = {
-    name: SHAREPIC_EDIT_TOOL_NAME,
+  return runToolForcedEdit({
+    toolName: SHAREPIC_EDIT_TOOL_NAME,
     description: 'Wendet eine Änderung auf das aktuelle Sharepic an.',
-    input_schema: jsonSchema(
-      rawSchema as Parameters<typeof jsonSchema>[0]
-    ) as unknown as Tool['input_schema'],
-  };
-
-  let lastError = '';
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    try {
-      const result = await aiWorkerPool.processRequest(
-        {
-          type: 'canvas_ai_suggest',
-          systemPrompt,
-          messages: [{ role: 'user', content: userMessage }],
-          options: {
-            tools: [tool],
-            tool_choice: 'required',
-            temperature: 0.2,
-          },
-        },
-        req
-      );
-
-      if (!result.success) {
-        lastError = result.error || 'AI request failed';
-        log.warn(`[sharepic_edit] attempt ${attempt} provider error: ${lastError}`);
-        continue;
-      }
-
-      const toolInput = extractToolCall(result);
-      if (!toolInput) {
-        lastError = 'No tool call in response';
-        log.warn(
-          `[sharepic_edit] attempt ${attempt}: no tool call (stop_reason=${result.stop_reason ?? 'unknown'})`
-        );
-        continue;
-      }
-
-      const parsed = sharepicEditResponseSchema.safeParse(toolInput);
-      if (!parsed.success) {
-        lastError = `Schema mismatch: ${parsed.error.issues
-          .slice(0, 3)
-          .map((i) => `${i.path.join('.')}: ${i.message}`)
-          .join('; ')}`;
-        log.warn(
-          `[sharepic_edit] attempt ${attempt}: ${lastError}\n  raw: ${JSON.stringify(toolInput).slice(0, 600)}`
-        );
-        continue;
-      }
-
-      return { ok: true, edit: parsed.data };
-    } catch (e) {
-      lastError = e instanceof Error ? e.message : String(e);
-      log.error(`[sharepic_edit] attempt ${attempt} threw: ${lastError}`);
-    }
-  }
-
-  return { ok: false, error: lastError || 'unknown error' };
+    schema: sharepicEditResponseSchema,
+    systemPrompt: buildSystemPrompt(descriptor, snapshot, recentEditSummaries),
+    instruction,
+    logPrefix: '[sharepic_edit]',
+    aiWorkerPool,
+    ...(req !== undefined && { req }),
+  });
 }

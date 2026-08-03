@@ -9,7 +9,11 @@
  * Mirrors sheets/sheetAiService.ts (plan-then-apply, plain JSON, no streaming).
  */
 
-import { presentationOperationSchema, type PresentationOperation } from '@gruenerator/contracts';
+import {
+  getPresentationBrandTheme,
+  presentationOperationSchema,
+  type PresentationOperation,
+} from '@gruenerator/contracts';
 import { generateText, tool } from 'ai';
 import { z } from 'zod';
 
@@ -25,28 +29,33 @@ const log = createLogger('PresentationAI');
 const PRESENTATION_AI_PROVIDER = 'mistral';
 const PRESENTATION_AI_MODEL = 'mistral-medium-2604';
 
-const PRESENTATION_TOOL_STRICT_PROMPT = `Du übersetzt die Anfrage einer Person in Präsentations-Operationen, indem du das Tool applyPresentationOperations aufrufst.
+const buildStrictPrompt = (brand?: string | null): string => {
+  const theme = getPresentationBrandTheme(brand);
+  const palette = theme.aiPalette.join(', ');
+  return `Du übersetzt die Anfrage einer Person in Präsentations-Operationen, indem du das Tool applyPresentationOperations aufrufst.
 
 Du MUSST NUR mit einem Aufruf von applyPresentationOperations mit { "operations": [ ... ] } antworten.
 
 Der AKTUELLE FOLIEN-ZUSTAND unten nummeriert die Folien fortlaufend (Folie 1, Folie 2, …). Adressiere Folien IMMER über diese 1-basierte Nummer.
 
 Erlaubte Operationstypen (jedes Objekt braucht ein "type"-Feld):
-- { "type": "add_slide", "layout": "title|content|split|quote|image|code", "title": "…", "body": "Markdown …", "notes"?: "…", "at"?: 3 }
+- { "type": "add_slide", "layout": "title|content|split|quote|image|code", "title": "…", "body": "Markdown …", "notes"?: "…", "at"?: 3, "fontSize"?: "l" }
     // Fügt eine neue Folie hinzu. "at" ist die 1-basierte Einfügeposition; ohne "at" wird ans Ende angehängt.
     // "body" ist Markdown — nutze "- " für Aufzählungen. Halte Folien knapp (Stichpunkte, kein Fließtext).
-- { "type": "update_slide", "slide": 2, "title"?: "…", "body"?: "…", "notes"?: "…", "layout"?: "content", "variant"?: 0, "transition"?: "fade", "fragments"?: true, "autoAnimate"?: true, "hidden"?: false, "background"?: "#316049", "codeLanguage"?: "typescript" }
+- { "type": "update_slide", "slide": 2, "title"?: "…", "body"?: "…", "notes"?: "…", "layout"?: "content", "variant"?: 0, "fontSize"?: "l", "transition"?: "fade", "fragments"?: true, "autoAnimate"?: true, "hidden"?: false, "background"?: "#316049", "codeLanguage"?: "typescript" }
     // Ändert NUR die angegebenen Felder von Folie "slide". Weggelassene Felder bleiben unverändert.
     // "variant": Design-Variante innerhalb des Layouts (0–2). title: 0 Klassisch / 1 Geteilt / 2 Sand;
     //   content: 0 Liste / 1 Karten / 2 Nummeriert; quote: 0 Grün / 1 Sand; image: 0 Groß / 1 Geteilt.
     // "background": CSS-Farbe (#316049), Bild-URL oder "linear-gradient(...)".
     // "fragments": Aufzählungspunkte schrittweise einblenden. "autoAnimate": Elemente zur nächsten Folie morphen.
     // "hidden": Folie in der Präsentation überspringen (nicht löschen). "codeLanguage": nur für layout "code".
+    // "fontSize": Schriftgröße der Folie: "auto" (Standard: automatisch einpassen) | "xs" | "s" | "m" | "l" | "xl".
+    //   Bei Wünschen wie "Text größer/kleiner" nutzen; "auto" setzt auf automatische Anpassung zurück.
 - { "type": "delete_slide", "slide": 4 }
 - { "type": "move_slide", "from": 5, "to": 2 }
-- { "type": "set_deck_option", "defaultTransition"?: "none|fade|slide|convex|concave|zoom", "autoSlide"?: 0, "loop"?: false, "slideNumber"?: false, "accentColor"?: "#316049" }
+- { "type": "set_deck_option", "defaultTransition"?: "none|fade|slide|convex|concave|zoom", "autoSlide"?: 0, "loop"?: false, "slideNumber"?: false, "accentColor"?: "${theme.defaultAccent}" }
     // "autoSlide": automatischer Folienwechsel nach N Millisekunden (0 = aus). "loop": Endlosschleife. "slideNumber": Foliennummern zeigen.
-    // "accentColor": Marken-Akzentfarbe der gesamten Präsentation (Grün-Töne: #316049, #005538, #52907A).
+    // "accentColor": Marken-Akzentfarbe der gesamten Präsentation (Grün-Töne: ${palette}).
 
 REGELN:
 - Layouts: "title" = Titelfolie (Deckblatt), "content" = Titel + Aufzählung, "split" = zweispaltig, "quote" = Zitat, "image" = Bildfolie, "code" = Quellcode (body = Code, codeLanguage setzen).
@@ -58,6 +67,7 @@ REGELN:
 
 BEISPIEL — die Person sagt "Füge am Ende eine Folie mit den drei wichtigsten Argumenten hinzu":
 { "operations": [ { "type": "add_slide", "layout": "content", "title": "Die drei wichtigsten Argumente", "body": "- Argument 1\\n- Argument 2\\n- Argument 3" } ] }`;
+};
 
 /**
  * Plan presentation operations for a user request. Returns a validated
@@ -68,8 +78,10 @@ export async function generatePresentationOperations(opts: {
   userPrompt: string;
   presentationContext: string;
   referenceContent?: string | null;
+  /** Deck country brand — steers the accent palette offered to the planner. */
+  brand?: string | null;
 }): Promise<PresentationOperation[]> {
-  const { userPrompt, presentationContext, referenceContent } = opts;
+  const { userPrompt, presentationContext, referenceContent, brand } = opts;
 
   if (!isProviderConfigured(PRESENTATION_AI_PROVIDER)) {
     throw new Error(
@@ -83,7 +95,7 @@ export async function generatePresentationOperations(opts: {
     ? `\n\nRECHERCHIERTE QUELLEN (Faktenbasis für die Bearbeitung — übernimm konkrete Zahlen, Namen und Fakten WÖRTLICH aus diesen Quellen; erfinde keine Beispielwerte):\n<recherchierte_quellen>\n${referenceContent.trim().slice(0, 8000)}\n</recherchierte_quellen>`
     : '';
 
-  const system = `${PRESENTATION_TOOL_STRICT_PROMPT}\n\nAKTUELLER FOLIEN-ZUSTAND:\n${presentationContext.slice(0, 24_000)}${referenceSection}`;
+  const system = `${buildStrictPrompt(brand)}\n\nAKTUELLER FOLIEN-ZUSTAND:\n${presentationContext.slice(0, 24_000)}${referenceSection}`;
 
   const result = await generateText({
     model,
@@ -101,7 +113,6 @@ export async function generatePresentationOperations(opts: {
       }),
     },
     toolChoice: 'required',
-    maxOutputTokens: 8000,
     maxRetries: 1,
     temperature: 0.2,
   });

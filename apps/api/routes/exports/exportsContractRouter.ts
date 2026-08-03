@@ -21,11 +21,14 @@ import { Readable } from 'stream';
 import { exportsContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { extractLocaleFromRequest } from '../../services/localization/index.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { setContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { generateDocxBuffer, sanitizeDocxFilename } from './docxController.js';
+import { resolveLetterheadOptions } from './letterheadSender.js';
 import { generatePdfBuffer, sanitizePdfFilename } from './pdfController.js';
 
 import type { Application } from 'express';
@@ -61,16 +64,61 @@ export const exportsContractRouter = s.router(exportsContract, {
         body: {
           success: false as const,
           message: 'DOCX export failed',
-          error: error.message,
+          error: toUserFacingMessage(error),
         },
       };
     }
   },
 
-  generatePdf: async ({ body, res }) => {
+  generatePdf: async ({ body, req, res }) => {
     try {
-      const { content, title } = body;
-      const buffer = await generatePdfBuffer(content, title);
+      const { content, title, layout, letter, letterheadId, letterhead } = body;
+      // AT gets its own corporate design (fonts, colours, logo), so the
+      // locale has to reach the renderer. The auth middleware has already
+      // overlaid req.user.locale from the DB-backed cache.
+      const locale = extractLocaleFromRequest(
+        req as Parameters<typeof extractLocaleFromRequest>[0]
+      );
+
+      // Resolved from the caller's OWN profile — the body carries no sender, so
+      // nobody can print a foreign organisation onto Grünen paper. `req.user`
+      // is undefined in the contract tests (they mount without auth); the
+      // resolver returns null there instead of throwing.
+      const wantsSender = layout === 'letterhead' || layout === 'letter';
+      // Nicht nur der Absender: am selben Briefkopf hängen Versandweg,
+      // Rücksendeangabe, Falzmarken und das eigene Briefpapier.
+      const letterheadOptions = wantsSender
+        ? await resolveLetterheadOptions((req as { user?: { id?: string } }).user?.id, {
+            letterheadId,
+            inline: letterhead,
+          })
+        : null;
+      const sender = letterheadOptions?.sender ?? null;
+
+      if (wantsSender && !sender) {
+        // An honest error beats a file that is byte-identical to the plain
+        // export — the same reasoning as the dropped-glyph guard next door.
+        return {
+          status: 400 as const,
+          body: {
+            success: false as const,
+            message:
+              'Für den Briefkopf sind keine Absenderangaben vorhanden. Lege einen Briefkopf in den Einstellungen an oder gib die Angaben beim Export ein.',
+          },
+        };
+      }
+
+      const buffer = await generatePdfBuffer(content, title, locale, {
+        ...(layout && { layout }),
+        sender,
+        ...(letter && { letter }),
+        ...(letterheadOptions && {
+          dispatchMode: letterheadOptions.dispatchMode,
+          returnLine: letterheadOptions.returnLine,
+          foldMarks: letterheadOptions.foldMarks,
+          stationery: letterheadOptions.stationery,
+        }),
+      });
       const filename = `${sanitizePdfFilename(title || 'Dokument')}.pdf`;
 
       res.setHeader('Content-Type', 'application/pdf');
@@ -88,7 +136,7 @@ export const exportsContractRouter = s.router(exportsContract, {
         body: {
           success: false as const,
           message: 'PDF export failed',
-          error: error.message,
+          error: toUserFacingMessage(error),
         },
       };
     }
@@ -99,6 +147,10 @@ export const exportsContractRouter = s.router(exportsContract, {
  * Mount the ts-rest contract router onto an Express app instance.
  * Call this from routes.ts BEFORE the legacy `/api/exports` router so
  * ts-rest matches its own routes first; unmatched paths fall through.
+ *
+ * `createExpressEndpoints` registers directly on `app`, so any prefix
+ * middleware (`requireAuth`, rate limiting) must already be mounted on
+ * `/api/exports` when this runs — otherwise these routes bypass it.
  */
 export function mountExportsContractRouter(app: Application): void {
   createExpressEndpoints(exportsContract, exportsContractRouter, app, {

@@ -8,7 +8,7 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
 
-import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../../theme';
+import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../../theme';
 import {
   BalkenOffsetControl,
   BalkenGruppeControl,
@@ -36,6 +36,9 @@ export function AdvancedSection({ showCredit = true, disabled = false }: Advance
         style={[styles.header, { borderColor: theme.border }]}
         onPress={toggleExpanded}
         disabled={disabled}
+        accessibilityRole="button"
+        accessibilityLabel="Erweiterte Einstellungen"
+        accessibilityState={{ expanded: isExpanded, disabled }}
       >
         <View style={styles.headerContent}>
           <Ionicons name="settings-outline" size={18} color={theme.text} />
@@ -91,6 +94,7 @@ const styles = StyleSheet.create({
     gap: spacing.small,
   },
   sectionTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 16,
     fontWeight: '600',
   },

@@ -101,7 +101,7 @@ export async function compilePersona(
       }))
     );
 
-    const model = getIntermediateModel();
+    const model = getIntermediateModel('heavy');
     const result = await generateText({
       model,
       system: PERSONA_SYSTEM_PROMPT,

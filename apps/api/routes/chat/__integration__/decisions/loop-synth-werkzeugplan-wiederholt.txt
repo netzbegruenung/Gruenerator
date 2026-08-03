@@ -1,0 +1,15 @@
+# loop-synth-werkzeugplan-wiederholt — synth-verdict
+# Simulated decision map. Regenerate with SIM_UPDATE=1.
+# A green diff proves the BRANCHES ran as scripted. It proves nothing
+# about what a real model would have done.
+
+## turn 0: "Was ist die Position der Gruenen zur Windkraft?"
+router.run_agentic               = loop                           forcedTool=false gateOpen=true hasImageAttachments=false hasManagedSources=false hasOwnMaterial=false hasSelectedNotebook=false inLoopSet=true intent=agentic isCompound=false isMcpTurn=false isPdfFillRequest=false loopEnabled=true secondaryAllowed=true selfContained=false unsourcedWriting=false
+router.intent_override           = (not reached)
+router.persistent_action_gate    = (not reached)
+classifier.tier                  = tier3.5_loop_demotion          confidence=0.82 demotable=true effectiveConfidence=0.82 heuristicIntent=search selfContained=false
+respond.answer_format            = research_expanded              complexity=moderate intent=agentic retrievalExpected=true sourceCount=0 synthesisMode=none
+loop.tool_guard                  = (none)
+loop.synth_verdict               = tool_plan_retried              textLength=58
+-- wire --
+intent=agentic agentic=true tools=[] warnings=[] interrupts=0 confirmActions=[] documentCreated=false sharepicGenerated=false answerChars=135

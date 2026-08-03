@@ -1,26 +1,41 @@
 /**
- * Authenticated MCP endpoint (POST /api/mcp-server; public URL
- * mcp.gruenerator.eu/v2 via nginx). NOT routes/mcp/ — that is the user-managed
- * OUTBOUND client registry; here Grünerator is the MCP SERVER for external
- * clients, authenticated via OAuth (Better Auth `mcp` plugin) or API key.
+ * Der Grünerator-MCP (POST /api/mcp-server; öffentlich mcp.gruenerator.eu über
+ * nginx, mit /v2 und /mcp als dauerhaften Aliassen). NOT routes/mcp/ — that is
+ * the user-managed OUTBOUND client registry; here Grünerator is the MCP SERVER
+ * for external clients, authenticated via OAuth (Better Auth `mcp` plugin) or
+ * API key. Anonymen Zugang gibt es nicht: ohne Token 401 mit
+ * `WWW-Authenticate`, aus dem ein OAuth-fähiger Client selbst weiterfindet.
  *
  * Stateless streamable HTTP JSON, fresh McpServer per POST — claude.ai/ChatGPT
  * don't carry an mcp-session-id, and per-user/per-scope registration needs it.
  */
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { type Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
+import { ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 
 import { env } from '../../config/env.js';
 import { MCP_RESOURCE_URL } from '../../config/mcpServer.js';
 import { Sentry } from '../../lib/sentry.js';
+import {
+  API_KEY_DEFAULT_RATE_LIMIT,
+  consumeApiKeyRateLimit,
+} from '../../middleware/apiKeyRateLimitMiddleware.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { resolveMcpAuth } from './mcpAuth.js';
 import { buildAuthenticatedMcpServer } from './serverFactory.js';
 
 const log = createLogger('McpServer');
+
+// Spec 2026-07-28 partitions the JSON-RPC server-error range: -32000..-32019
+// stays implementation-defined, -32020..-32099 is reserved for the spec. Both
+// codes below sit in the implementation-defined window. (Was -32029.)
+// Rationale in CLAUDE-mcp.md; standard codes come from the SDK's ErrorCode.
+const JSONRPC_UNAUTHORIZED = -32000;
+const JSONRPC_METHOD_NOT_ALLOWED = -32000;
+const JSONRPC_RATE_LIMITED = -32003;
 
 const resourceUrl = new URL(MCP_RESOURCE_URL);
 const PROTECTED_RESOURCE_METADATA_URL = `${resourceUrl.origin}/.well-known/oauth-protected-resource${
@@ -40,7 +55,7 @@ const limiter =
         keyGenerator: (req: Request) => (req.ip ? ipKeyGenerator(req.ip) : 'anonymous'),
         message: {
           jsonrpc: '2.0',
-          error: { code: -32029, message: 'Zu viele Anfragen – bitte kurz warten.' },
+          error: { code: JSONRPC_RATE_LIMITED, message: 'Zu viele Anfragen – bitte kurz warten.' },
           id: null,
         },
       });
@@ -52,7 +67,7 @@ function unauthorized(res: Response): void {
     .set('Access-Control-Expose-Headers', 'WWW-Authenticate')
     .json({
       jsonrpc: '2.0',
-      error: { code: -32000, message: 'Unauthorized: Authentication required' },
+      error: { code: JSONRPC_UNAUTHORIZED, message: 'Unauthorized: Authentication required' },
       id: null,
     });
 }
@@ -69,6 +84,31 @@ router.post('/', async (req, res) => {
     return;
   }
 
+  // Das Kontingent des Schlüssels gilt an beiden Türen — die IP-Begrenzung oben
+  // schützt vor Rateversuchen, nicht vor einem Partner, der sein vereinbartes
+  // Kontingent überzieht, indem er statt der REST-Route den MCP-Weg nimmt.
+  if (authCtx.apiKey) {
+    const verdict = await consumeApiKeyRateLimit(
+      authCtx.apiKey.id,
+      'mcp',
+      authCtx.apiKey.rateLimitPerMinute ?? API_KEY_DEFAULT_RATE_LIMIT
+    );
+    if (!verdict.ok) {
+      res
+        .status(429)
+        .set('Retry-After', String(verdict.retryAfterSeconds))
+        .json({
+          jsonrpc: '2.0',
+          error: {
+            code: JSONRPC_RATE_LIMITED,
+            message: `Kontingent erschöpft (${verdict.limit}/min) – bitte kurz warten.`,
+          },
+          id: null,
+        });
+      return;
+    }
+  }
+
   // aiWorkerPool's privacy counter reads only req.user.id — no need for a
   // full profile load per call (the augmentation types req.user as UserProfile).
   const reqWithUser = req as unknown as { user?: { id: string } };
@@ -78,6 +118,7 @@ router.post('/', async (req, res) => {
     const server = buildAuthenticatedMcpServer({
       userId: authCtx.userId,
       scopes: authCtx.scopes,
+      ...(authCtx.apiKey ? { apiKey: authCtx.apiKey } : {}),
       req,
     });
     // No sessionIdGenerator → stateless mode (exactOptionalPropertyTypes
@@ -97,7 +138,7 @@ router.post('/', async (req, res) => {
     if (!res.headersSent) {
       res.status(500).json({
         jsonrpc: '2.0',
-        error: { code: -32603, message: 'Interner Serverfehler' },
+        error: { code: ErrorCode.InternalError, message: 'Interner Serverfehler' },
         id: null,
       });
     }
@@ -108,7 +149,10 @@ router.post('/', async (req, res) => {
 const methodNotAllowed = (_req: Request, res: Response): void => {
   res.status(405).json({
     jsonrpc: '2.0',
-    error: { code: -32000, message: 'Method not allowed (stateless JSON mode)' },
+    error: {
+      code: JSONRPC_METHOD_NOT_ALLOWED,
+      message: 'Method not allowed (stateless JSON mode)',
+    },
     id: null,
   });
 };

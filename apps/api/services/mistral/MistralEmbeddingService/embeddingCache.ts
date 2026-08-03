@@ -7,6 +7,7 @@
 
 import crypto from 'crypto';
 
+import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { parseJSON } from '../../../utils/parseJSON.js';
 
 import type { CacheStats, RedisClient } from './types.js';
@@ -157,7 +158,7 @@ class EmbeddingCache {
     } catch (error) {
       const err = error as Error;
       console.error('[EmbeddingCache] Error getting stats:', error);
-      return { enabled: false, keys: 0, error: err.message };
+      return { enabled: false, keys: 0, error: toUserFacingMessage(err) };
     }
   }
 

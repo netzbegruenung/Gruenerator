@@ -5,7 +5,7 @@
 
 import { View, Text, Pressable, StyleSheet, useColorScheme, type ViewStyle } from 'react-native';
 
-import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../../theme';
+import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../../theme';
 
 export interface PresetOption<T> {
   label: string;
@@ -52,6 +52,8 @@ export function PresetButtonRow<T>({
               buttonStyle,
               disabled && styles.disabled,
             ]}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: isActive, disabled }}
           >
             <Text style={[styles.buttonText, { color: isActive ? colors.white : theme.text }]}>
               {option.label}
@@ -78,6 +80,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   buttonText: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
   },

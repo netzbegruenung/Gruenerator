@@ -3,7 +3,7 @@
  * Handles routing between Mistral, LiteLLM, and other providers
  */
 
-import { INTERMEDIATE_MODEL } from '../ai/providers.js';
+import { intermediateLane } from '../ai/intermediateLanes.js';
 
 import type {
   ProviderName,
@@ -12,6 +12,9 @@ import type {
   RequestMetadata,
   ProviderResult,
 } from './types.js';
+
+/** @see services/ai/intermediateLanes.ts */
+const LANE = intermediateLane('standard');
 
 /**
  * Check if a model name is compatible with LiteLLM
@@ -76,6 +79,97 @@ interface SelectProviderParams {
 }
 
 /**
+ * Erstellung läuft nicht auf einem Modell, sondern auf ZWEI — getrennt danach,
+ * was das Modell können muss.
+ *
+ * Beide Mengen lagen vorher auf dem Basis-Default litellm/verdigado-pro
+ * (GPT-OSS 120B), und für beide ist das falsch, aber aus verschiedenen
+ * Gründen:
+ *
+ *  - STRUCTURE_TYPES treiben das Modell durch einen ERZWUNGENEN TOOL-CALL
+ *    (generateStructured), und GPT-OSS macht keinen. Ein PDF ist in Produktion
+ *    zweimal mit `stop_reason=stop` und Prosa statt Tool-Call gescheitert; der
+ *    Repo sperrt dieses Modell bereits als Synth-Lane wegen "verified
+ *    tool-call fail" (AVOID_AS_SYNTH, routes/chat/agents/autoPolicy.ts).
+ *    → Mistral Medium 3.5, dasselbe Modell, das sheetAiService dafür pinnt.
+ *
+ *  - TEXT_TYPES liefern FERTIGE TEXTE an Nutzer*innen. Da zählt nur, wer das
+ *    beste Deutsch schreibt, und das ist Gemma 4 — deshalb sitzt es schon im
+ *    Synth-Slot des Chat-Loops (LOOP_SYNTH_PRIMARY) und in der Gemma-Lane der
+ *    Auto-Policy.
+ *    → regolo/gemma4-31b.
+ *
+ * Bei den Anträgen ersetzt das einen bewussten GPT-OSS-Pin mit der Notiz
+ * "reasoning handled via reasoningEffort". Auf DIESEM Pfad galt sie nie: der
+ * Worker-Pfad (workers/providers/execute.ts) reicht überhaupt keine
+ * Reasoning-Option durch. Im Streaming-Pfad
+ * (agents/langgraph/streamingProcessor.ts) gilt sie — der nutzt diese Tabelle
+ * und setzt die providerspezifische Option passend zum gewählten Provider.
+ *
+ * Ein Aufrufer darf weiterhin sein eigenes Modell benennen (`options.model`).
+ */
+const STRUCTURE_TYPES: ReadonlySet<string> = new Set([
+  // Artefakte über erzwungene Tool-Calls
+  'doc_generation', // PDF, Präsentation, Sheet, Dokument, Aufgabenlisten
+  'board_generation',
+  'canvas_ai_suggest', // Canvas-Vorschläge + Sharepic-/Social-Edits
+  'website', // Kandidat*innen-Seiten: langes strukturiertes JSON
+  // Sharepics — Slogans und Zitatzeilen, keine Fließtexte. Bleiben auf
+  // Mistral: dass es hier "noticeably better German slogans/quotes" liefert,
+  // war ein gemessener Befund, kein Default.
+  'sharepic_dreizeilen',
+  'sharepic_zitat',
+  'sharepic_zitat_pure',
+  'sharepic_headline',
+  'sharepic_info',
+  'sharepic_veranstaltung',
+  'sharepic_simple',
+  'sharepic_slider',
+]);
+
+/**
+ * Fertige Texte. Die Liste folgt REASONING_BY_TYPE in
+ * agents/langgraph/streamingProcessor.ts — das ist die bestehende Stelle, an
+ * der der Repo erklärt, was ein Text-Grünerator ist.
+ */
+const TEXT_TYPES: ReadonlySet<string> = new Set([
+  // Anträge und Anfragen
+  'antrag',
+  'antrag_simple',
+  'kleine_anfrage',
+  'grosse_anfrage',
+  // Texte-Grüneratoren (/api/texte/*)
+  'universal',
+  'leichte_sprache',
+  'custom_prompt',
+  'protokoll',
+  'rede',
+  'wahlprogramm',
+  'buergeranfragen',
+  // Social
+  'social',
+  'social_post_generation',
+  'social_post_edit',
+  'subtitler_social',
+]);
+
+/** `mistral-medium-2604` === "Mistral Medium 3.5" (services/ai/modelDiscovery.ts). */
+const STRUCTURE_MODEL = 'mistral-medium-2604';
+
+/**
+ * Gemma 4 lives on Regolo. Naming it explicitly is not optional: the Regolo
+ * DEFAULT is `qwen3.5-122b`, and qwen is excluded by policy (AVOID_AS_SYNTH).
+ *
+ * The chat lane now agrees. `gemma-litellm` used to resolve to the slow
+ * `verdigado-think` host, which is why this constant had to spell out the
+ * Regolo pair; it points at these same weights on Regolo now (see
+ * GEMMA_4_REGOLO in routes/chat/agents/providers.ts). The two paths no longer
+ * disagree about where Gemma 4 runs.
+ */
+const TEXT_PROVIDER = 'regolo';
+const TEXT_MODEL = 'gemma4-31b';
+
+/**
  * Select provider and model given request context and environment
  * Handles type-based routing and environment overrides
  */
@@ -85,9 +179,12 @@ export function selectProviderAndModel({
   metadata = {},
   env = process.env,
 }: SelectProviderParams): ProviderResult {
-  // Base defaults — GPT-OSS 120B via LiteLLM as primary model
-  let provider: ProviderName = (options.provider as ProviderName) || 'litellm';
-  let model: ModelName = options.model || 'verdigado-pro';
+  // Base defaults — Mistral Medium 3.5 since the 2026-07-31 GPT-OSS wind-down.
+  // Must stay in step with the `default` lane in services/ai/lanes.ts: the
+  // parity test in lanes.vitest.ts asserts both tables answer an unrouted type
+  // identically, and this is the half that used to say GPT-OSS.
+  let provider: ProviderName = (options.provider as ProviderName) || 'mistral';
+  let model: ModelName = options.model || STRUCTURE_MODEL;
 
   // Type-based defaults
   // Notebook enrichment - fast model
@@ -110,15 +207,23 @@ export function selectProviderAndModel({
     provider = 'mistral';
     model = options.model || 'mistral-medium-2604';
   }
-  // Legislative documents — GPT-OSS (reasoning handled via reasoningEffort)
-  else if (
-    type === 'antrag_simple' ||
-    type === 'antrag' ||
-    type === 'kleine_anfrage' ||
-    type === 'grosse_anfrage'
-  ) {
-    provider = 'litellm';
-    model = options.model || 'verdigado-pro';
+  // Strukturierte Erstellung — Mistral Medium 3.5. Siehe STRUCTURE_TYPES.
+  //
+  // Historie, die sonst verloren geht: `website` steht hier, weil die Route
+  // ein Top-Level `provider: 'mistral'` setzte — das wählt nur den ADAPTER,
+  // das Modell kam weiter aus dieser Tabelle. Ohne Eintrag war es der
+  // litellm-Default `verdigado-pro`, also reichte jede Anfrage der
+  // Mistral-API einen verdigado-Alias, kassierte einen Fehler und wurde von
+  // der Fallback-Kette gerettet — ein garantiert scheiternder Roundtrip pro
+  // Request, unsichtbar hinter dem Fallback.
+  else if (STRUCTURE_TYPES.has(type)) {
+    provider = 'mistral';
+    model = options.model || STRUCTURE_MODEL;
+  }
+  // Fertige Texte — Gemma 4. Siehe TEXT_TYPES.
+  else if (TEXT_TYPES.has(type)) {
+    provider = TEXT_PROVIDER;
+    model = options.model || TEXT_MODEL;
   }
   // Fast helper tasks — Intermediate model (Regolo)
   else if (
@@ -128,23 +233,8 @@ export function selectProviderAndModel({
     type === 'gruenerator_ask' ||
     type === 'gruenerator_ask_grundsatz'
   ) {
-    provider = INTERMEDIATE_MODEL.provider;
-    model = options.model || INTERMEDIATE_MODEL.model;
-  }
-  // Sharepic types — short creative text. Mistral Medium 3.5 (mistral-medium-2604,
-  // newest) produces noticeably better German slogans/quotes than GPT-OSS here.
-  else if (
-    type === 'sharepic_dreizeilen' ||
-    type === 'sharepic_zitat' ||
-    type === 'sharepic_zitat_pure' ||
-    type === 'sharepic_headline' ||
-    type === 'sharepic_info' ||
-    type === 'sharepic_veranstaltung' ||
-    type === 'sharepic_simple' ||
-    type === 'sharepic_slider'
-  ) {
-    provider = 'mistral';
-    model = options.model || 'mistral-medium-2604';
+    provider = LANE.provider;
+    model = options.model || LANE.model;
   }
 
   // Respect explicit provider at top-level if present (routes may set data.provider)

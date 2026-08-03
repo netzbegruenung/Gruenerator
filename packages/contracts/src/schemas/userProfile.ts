@@ -7,13 +7,58 @@ import { z } from 'zod';
 
 // ── Request body schemas (moved from controller) ────────────────────────────
 
+/**
+ * Closed set of default start pages — which Workplace surface the sidebar
+ * "start" icon (and the root/login redirect) opens.
+ *   'chat'     → /workplace           (Chat tab)
+ *   'arbeiten' → /workplace/arbeiten  (Arbeiten tab)
+ */
+export const startPageSchema = z.enum(['chat', 'arbeiten']);
+export type StartPage = z.infer<typeof startPageSchema>;
+
+/**
+ * Closed set of feedback-launcher appearances — how the floating feedback
+ * button renders, or whether it renders at all.
+ *   'text' → pill with the label „Feedback" (default)
+ *   'icon' → compact icon-only button
+ *   'off'  → hidden entirely
+ */
+export const feedbackButtonSchema = z.enum(['text', 'icon', 'off']);
+export type FeedbackButtonMode = z.infer<typeof feedbackButtonSchema>;
+
+/**
+ * Absender for the PDF letterhead.
+ *
+ * Free text, and the address is multi-line: senderLines() splits it on '\n',
+ * and real Gliederung addresses ("c/o Kreisgeschäftsstelle", "Stiege 2/Top 5")
+ * do not fit a street/zip/city triple. Capped at 3 lines so the renderer's
+ * 5-line clamp (organization + name + address) never has to truncate.
+ *
+ * Always `.optional()`, never `.default()` — a default would make the field
+ * required in the inferred UserProfile, and therefore in DEV_BYPASS_USER and
+ * buildE2EBypassAuthData.
+ */
+export const senderOrganizationSchema = z.string().max(120);
+export const senderAddressSchema = z
+  .string()
+  .max(300)
+  .refine((v) => v.split('\n').length <= 3, 'höchstens 3 Zeilen');
+
 export const profileUpdateBodySchema = z.object({
   display_name: z.string().optional(),
   username: z.string().optional(),
   avatar_robot_id: z.number().int().min(ROBOT_ID_MIN).max(ROBOT_ID_MAX).optional(),
   email: z.string().optional(),
   custom_prompt: z.string().optional(),
+  default_startpage: startPageSchema.optional(),
+  feedback_button: feedbackButtonSchema.optional(),
+  reduce_motion: z.boolean().optional(),
+  reduce_transparency: z.boolean().optional(),
+  show_skip_link: z.boolean().optional(),
 });
+
+/** The exact set of profile columns a client may write. */
+export type ProfileUpdateBody = z.infer<typeof profileUpdateBodySchema>;
 
 export const avatarUpdateBodySchema = z.object({
   avatar_robot_id: z.number().int().min(ROBOT_ID_MIN).max(ROBOT_ID_MAX),
@@ -26,6 +71,38 @@ export const betaFeatureToggleBodySchema = z.object({
 
 export const messageColorUpdateBodySchema = z.object({
   color: z.string().min(1),
+});
+
+/**
+ * Closed set of chat-start backgrounds. The values are preset *keys*, not raw
+ * colours — the actual gradients live in the frontend CSS
+ * (`apps/web/src/features/workplace/workplace-sunrise.css`), so a redesign
+ * never needs a data migration. `sunrise` was the historical default; `mesh` is
+ * the current one.
+ *
+ * Adding a key is the only safe direction here. A shipped mobile binary parses
+ * this enum from the profile it fetches, so a key it has never heard of has to
+ * degrade rather than fail — `resolveChatBackground` in
+ * `@gruenerator/shared/settings` does that by falling back to the default. That
+ * is also why no key is ever removed: rows in the database still carry it.
+ */
+export const chatBackgroundSchema = z.enum([
+  'mesh',
+  'nebel',
+  'kern',
+  'dunst',
+  'sunrise',
+  'tanne',
+  'himmel',
+  'sand',
+  'magenta',
+  'regenbogen',
+  'neutral',
+]);
+export type ChatBackground = z.infer<typeof chatBackgroundSchema>;
+
+export const chatBackgroundUpdateBodySchema = z.object({
+  background: chatBackgroundSchema,
 });
 
 /** Closed set of supported locales — the single vocabulary for DE/AT audience. */
@@ -86,9 +163,17 @@ export const userProfileSchema = z.object({
   // session object without inline fallbacks.
   avatar_robot_id: z.number().default(1),
   chat_color: z.string().optional(),
+  // Absent means "never chosen" — consumers fall back to the `sunrise` preset.
+  chat_background: chatBackgroundSchema.optional(),
   beta_features: z.record(z.boolean()).default({}),
   user_defaults: z.record(z.record(z.unknown())).default({}),
   locale: localeSchema.optional(),
+  // Default mirrors the `additionalFields` config in apps/api/config/betterAuth.ts.
+  default_startpage: startPageSchema.default('chat'),
+  feedback_button: feedbackButtonSchema.default('text'),
+  reduce_motion: z.boolean().default(false),
+  reduce_transparency: z.boolean().default(false),
+  show_skip_link: z.boolean().default(true),
   is_admin: z.boolean().optional(),
   groups_enabled: z.boolean().default(false),
   custom_generators: z.boolean().default(false),
@@ -157,6 +242,12 @@ export const updateBetaFeaturesResponseSchema = z.object({
 export const updateMessageColorResponseSchema = z.object({
   success: z.literal(true),
   messageColor: z.string(),
+  message: z.string(),
+});
+
+export const updateChatBackgroundResponseSchema = z.object({
+  success: z.literal(true),
+  chatBackground: chatBackgroundSchema,
   message: z.string(),
 });
 

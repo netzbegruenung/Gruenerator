@@ -1,6 +1,6 @@
 import { useMediaLibrary, useMediaUpload, useMediaPicker } from '@gruenerator/shared/media-library';
 import { Button } from '@gruenerator/ui';
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   FaImage,
   FaVideo,
@@ -84,16 +84,17 @@ const MediaCard: React.FC<MediaCardProps> = ({
     setShowDeleteConfirm(false);
   };
 
-  return (
-    <div
-      className={cn(
-        'relative bg-background border border-grey-200 dark:border-grey-700 rounded-lg overflow-hidden transition-all duration-200 cursor-pointer group',
-        'hover:border-primary-600 hover:shadow-[0_2px_8px_rgba(0,0,0,0.1)]',
-        isSelected && 'border-primary-600 shadow-[0_0_0_2px_var(--primary-600)]',
-        isDeleting && 'opacity-50 pointer-events-none'
-      )}
-      onClick={() => selectionMode && onSelect?.(item)}
-    >
+  const cardClassName = cn(
+    'relative bg-background border border-grey-200 dark:border-grey-700 rounded-lg overflow-hidden transition-all duration-200 cursor-pointer group',
+    'hover:border-primary-600 hover:shadow-[0_2px_8px_rgba(0,0,0,0.1)]',
+    isSelected && 'border-primary-600 shadow-[0_0_0_2px_var(--primary-600)]',
+    isDeleting && 'opacity-50 pointer-events-none'
+  );
+
+  // Only rendered in selection mode, so there is no nested-button conflict
+  // with the edit/delete controls below (those only render outside it).
+  const cardBody = (
+    <>
       <div className="relative aspect-video bg-grey-100 dark:bg-grey-800 overflow-hidden">
         {item.mediaType === 'video' ? (
           <video
@@ -134,7 +135,7 @@ const MediaCard: React.FC<MediaCardProps> = ({
       </div>
 
       {!selectionMode && (
-        <div className="absolute top-sm right-sm flex gap-xs opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        <div className="absolute top-sm right-sm flex gap-xs opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100 transition-opacity duration-200">
           {showDeleteConfirm ? (
             <div className="flex gap-xs">
               <button
@@ -171,8 +172,31 @@ const MediaCard: React.FC<MediaCardProps> = ({
           )}
         </div>
       )}
-    </div>
+    </>
   );
+
+  if (selectionMode) {
+    return (
+      <div
+        className={cardClassName}
+        onClick={() => onSelect?.(item)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onSelect?.(item);
+          }
+        }}
+        role="button"
+        tabIndex={0}
+        aria-pressed={isSelected}
+        aria-label={item.title || 'Medium auswählen'}
+      >
+        {cardBody}
+      </div>
+    );
+  }
+
+  return <div className={cardClassName}>{cardBody}</div>;
 };
 
 interface EditModalProps {
@@ -186,6 +210,14 @@ const EditModal: React.FC<EditModalProps> = ({ item, onSave, onClose }) => {
   const [altText, setAltText] = useState(item.altText || '');
   const [isSaving, setIsSaving] = useState(false);
 
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [onClose]);
+
   const handleSave = async () => {
     setIsSaving(true);
     await onSave(item.id, { title, altText });
@@ -194,10 +226,12 @@ const EditModal: React.FC<EditModalProps> = ({ item, onSave, onClose }) => {
   };
 
   return (
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events -- Hintergrund schließt per Klick, Escape schließt bereits (siehe useEffect oben)
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000] p-lg"
       onClick={onClose}
     >
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events -- fängt nur den Klick ab, damit er nicht den Hintergrund schließt */}
       <div
         className="bg-background rounded-xl max-w-[500px] w-full max-h-[90vh] overflow-y-auto p-lg"
         onClick={(e) => e.stopPropagation()}
@@ -373,10 +407,12 @@ const MediaLibraryPage: React.FC = () => {
             className="flex-1 px-md py-sm border border-grey-200 dark:border-grey-700 border-r-0 rounded-l-lg bg-background text-foreground"
           />
           <button
+            type="button"
             onClick={handleSearch}
+            aria-label="Mediathek durchsuchen"
             className="px-md py-sm border border-grey-200 dark:border-grey-700 rounded-r-lg bg-background text-foreground cursor-pointer hover:bg-primary-600 hover:text-white hover:border-primary-600"
           >
-            <FaSearch />
+            <FaSearch aria-hidden="true" />
           </button>
         </div>
 
@@ -412,6 +448,7 @@ const MediaLibraryPage: React.FC = () => {
         </div>
       )}
 
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- Drag&Drop-Zusatz, die "Hochladen"-Datei-Eingabe oben bleibt die tastaturbediente Alternative */}
       <div
         className={cn(
           'grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-md relative min-h-[200px] max-md:grid-cols-[repeat(auto-fill,minmax(150px,1fr))]',

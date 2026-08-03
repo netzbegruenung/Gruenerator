@@ -46,7 +46,10 @@ const GroupLinksSection = memo(
                 className="group flex items-center gap-sm rounded-md border border-grey-200 dark:border-grey-700 bg-background p-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:border-grey-300 dark:hover:border-grey-600 no-underline"
               >
                 <div className="flex items-center justify-center size-9 rounded-md bg-primary-50 dark:bg-primary-950/20 shrink-0">
-                  <IconComponent className="size-5 text-primary-600 dark:text-primary-400" />
+                  <IconComponent
+                    aria-hidden
+                    className="size-5 text-primary-600 dark:text-primary-400"
+                  />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-foreground truncate m-0">{link.title}</p>
@@ -55,7 +58,7 @@ const GroupLinksSection = memo(
                   )}
                 </div>
                 {isAdmin && (
-                  <div className="flex items-center gap-xxs shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <div className="flex items-center gap-xxs shrink-0 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100 transition-opacity duration-300">
                     <button
                       type="button"
                       onClick={(e) => {

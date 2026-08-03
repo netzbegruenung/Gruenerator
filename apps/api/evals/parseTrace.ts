@@ -4,6 +4,23 @@
  */
 import { type ChatTrace, type SseEvent, type TracedToolCall } from './types.js';
 
+/** Keys that identify an artifact in creation/edit event payloads. */
+const ID_KEYS = ['id', 'documentId', 'docId', 'canvasId', 'variantId', 'targetId', 'imageId'];
+
+function collectIds(data: Record<string, unknown>, into: string[]): void {
+  for (const key of ID_KEYS) {
+    const v = data[key];
+    if (typeof v === 'string' && v) into.push(v);
+  }
+  if (Array.isArray(data.variants)) {
+    for (const variant of data.variants) {
+      if (variant && typeof variant === 'object') {
+        collectIds(variant as Record<string, unknown>, into);
+      }
+    }
+  }
+}
+
 /** Parse a raw SSE body (`event: x\ndata: {...}\n\n` frames) into events. */
 export function parseSseEvents(raw: string): SseEvent[] {
   const events: SseEvent[] = [];
@@ -45,6 +62,17 @@ export function buildTrace(events: SseEvent[], latencyMs: number): ChatTrace {
     fullText: '',
     latencyMs,
     error: null,
+    threadId: null,
+    interrupts: [],
+    artifactIds: [],
+    referencedIds: [],
+    warnings: [],
+    editorOps: false,
+    sharepicUpdated: false,
+    sharepicVariants: [],
+    generatedText: [],
+    confirmActions: [],
+    documentCreated: false,
   };
 
   const stepsById = new Map<string, TracedToolCall>();
@@ -76,19 +104,102 @@ export function buildTrace(events: SseEvent[], latencyMs: number): ChatTrace {
         }
         break;
       }
+      case 'thread_created': {
+        if (typeof data.threadId === 'string') trace.threadId = data.threadId;
+        break;
+      }
+      case 'interrupt': {
+        trace.interrupts.push({
+          interruptType: String(data.interruptType ?? 'unknown'),
+          ...(typeof data.question === 'string' ? { question: data.question } : {}),
+        });
+        if (trace.threadId == null && typeof data.threadId === 'string') {
+          trace.threadId = data.threadId;
+        }
+        break;
+      }
+      case 'warning': {
+        trace.warnings.push(String(data.code ?? data.message ?? 'unknown'));
+        break;
+      }
+      case 'document_created': {
+        collectIds(data, trace.artifactIds);
+        trace.documentCreated = true;
+        break;
+      }
+      case 'confirm_action': {
+        if (typeof data.type === 'string') trace.confirmActions.push(data.type);
+        // A modify_doc / modify_board card is a HITL edit of a PRIOR artifact —
+        // no auto-applied editor_operations/sharepic_updated event fires, so the
+        // target id (a metadata row) is the only signal that this turn edits the
+        // earlier doc/board. Capture it so editsPreviousArtifact can verify it.
+        if (data.type === 'modify_doc' || data.type === 'modify_board') {
+          const meta = Array.isArray(data.metadata) ? data.metadata : [];
+          for (const row of meta) {
+            const value = (row as Record<string, unknown>)?.value;
+            if (typeof value === 'string' && value) trace.referencedIds.push(value);
+          }
+        }
+        break;
+      }
+      case 'sharepic_updated': {
+        trace.sharepicUpdated = true;
+        collectIds(data, trace.referencedIds);
+        break;
+      }
+      case 'editor_operations': {
+        trace.editorOps = true;
+        collectIds(data, trace.referencedIds);
+        break;
+      }
       case 'sharepic_complete': {
         // A real generation carries variants and no error.
         if (!data.error && Array.isArray(data.variants) && data.variants.length > 0) {
           trace.sharepicGenerated = true;
+          collectIds(data, trace.artifactIds);
+          for (const v of data.variants) {
+            if (v && typeof v === 'object') {
+              trace.sharepicVariants.push(v as Record<string, unknown>);
+            }
+          }
+        }
+        break;
+      }
+      // The post text travels in its own event, NOT in the answer stream: on a
+      // social_post turn `fullText` is only the wrapper ("Hier ist dein Post.").
+      // Without this case every content assertion and the content_policy judge
+      // were reading the wrapper and never the post — a safety scenario asking
+      // for a defamatory post reported "answered" with no way to see what was
+      // answered. Measured on the safety lane, 2 of 5 runs.
+      case 'social_post_complete': {
+        const post = data.post;
+        if (!data.error && post && typeof post === 'object') {
+          const text = (post as Record<string, unknown>).text;
+          if (typeof text === 'string' && text.length > 0) trace.generatedText.push(text);
         }
         break;
       }
       case 'image_complete': {
-        if (!data.error) trace.imageGenerated = true;
+        if (!data.error) {
+          trace.imageGenerated = true;
+          collectIds(data, trace.artifactIds);
+        }
         break;
       }
       case 'text_delta': {
         if (typeof data.text === 'string') trace.fullText += data.text;
+        break;
+      }
+      case 'completion': {
+        // The canonical, citation-corrected final answer (notebook + agentic
+        // citation-clamp path). Replaces the streamed deltas — same as the
+        // frontend — so assertions see the corrected text, not the raw stream.
+        const corrected = typeof data.text === 'string' ? data.text : data.answer;
+        if (typeof corrected === 'string') trace.fullText = corrected;
+        if (Array.isArray(data.citations)) {
+          trace.citations = data.citations;
+          trace.sources = data.citations.length;
+        }
         break;
       }
       case 'done': {

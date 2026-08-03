@@ -3,7 +3,7 @@ import { Component, type ReactNode } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 
 import { useTheme } from '../../hooks/useTheme';
-import { colors, spacing, borderRadius, typography } from '../../theme';
+import { colors, spacing, borderRadius, typography, BODY_FONT } from '../../theme';
 
 interface Props {
   children: ReactNode;
@@ -27,7 +27,7 @@ function ErrorFallback({ error, onRetry }: { error: Error | null; onRetry: () =>
       <Text style={[styles.message, { color: theme.textSecondary }]}>
         {error?.message || 'Ein unerwarteter Fehler ist aufgetreten.'}
       </Text>
-      <Pressable style={styles.retryButton} onPress={onRetry}>
+      <Pressable style={styles.retryButton} onPress={onRetry} accessibilityRole="button">
         <Ionicons name="refresh" size={20} color={colors.white} />
         <Text style={styles.retryText}>Erneut versuchen</Text>
       </Pressable>
@@ -92,6 +92,7 @@ const styles = StyleSheet.create({
   },
   retryText: {
     color: colors.white,
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '500',
   },
