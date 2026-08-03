@@ -9,17 +9,14 @@ import { useAuthStore } from '@/stores/authStore';
 import { axe, renderWithProviders, screen } from '@/test-utils';
 
 /**
- * Die Frage hier ist, WER zur Wahl steht: Während der Einrichtung nur der
- * Dreier, danach die ganze Truppe. Der Rest des Bereichs (Profil, Wolke,
- * Speichern) ist gemockt — er entscheidet über diese Frage nichts mit.
+ * Die Frage hier ist, WER zur Wahl steht: Im Einrichtungsschritt nur der
+ * Dreier, im Bereich selbst die ganze Truppe. Der Rest des Bereichs (Profil,
+ * Wolke, Speichern) ist gemockt — er entscheidet über diese Frage nichts mit.
  */
 
-const onboarding = { isActive: true, complete: vi.fn(), restart: vi.fn() };
 const updateAvatar = vi.fn<(id: number) => Promise<unknown>>().mockResolvedValue({});
 let shareLinks: unknown[] = [];
 let avatarRobotId: number | null = 1;
-
-vi.mock('../useOnboarding', () => ({ useOnboarding: () => onboarding }));
 
 vi.mock('@/features/auth/hooks/useProfileData', () => ({
   QUERY_KEYS: { profile: (id: string) => ['profileData', id] },
@@ -47,7 +44,6 @@ vi.mock('@gruenerator/ui', async (importOriginal) => ({
 }));
 
 beforeEach(() => {
-  onboarding.isActive = true;
   shareLinks = [];
   avatarRobotId = 1;
   updateAvatar.mockClear();
@@ -55,8 +51,8 @@ beforeEach(() => {
 });
 
 describe('FriendsTab', () => {
-  it('offers only the three starters while the setup is running', () => {
-    renderWithProviders(<FriendsTab />);
+  it('offers only the three starters in the setup step', () => {
+    renderWithProviders(<FriendsTab starterOnly />);
 
     expect(screen.getAllByRole('button')).toHaveLength(3);
     for (const name of ['Feuri', 'Robosam', 'Schildi']) {
@@ -64,8 +60,7 @@ describe('FriendsTab', () => {
     }
   });
 
-  it('opens up the whole cast once the setup is done', () => {
-    onboarding.isActive = false;
+  it('offers the whole cast in the settings section', () => {
     renderWithProviders(<FriendsTab />);
 
     expect(screen.getAllByRole('button')).toHaveLength(GRUENERATOR_FRIENDS.length);
@@ -88,7 +83,6 @@ describe('FriendsTab', () => {
   });
 
   it('keeps Wolki locked until the Wolke is connected', () => {
-    onboarding.isActive = false;
     renderWithProviders(<FriendsTab />);
 
     expect(
