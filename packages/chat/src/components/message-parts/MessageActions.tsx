@@ -227,7 +227,7 @@ export const MessageActions = memo(function MessageActions({
   };
 
   return (
-    <div className={`${isCompact ? 'mt-2' : 'mt-4'} flex items-center gap-1`}>
+    <div className={`${isCompact ? 'mt-2' : 'mt-4'} flex flex-wrap items-center gap-1`}>
       <button
         onClick={handleCopy}
         className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground"
