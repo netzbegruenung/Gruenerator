@@ -175,7 +175,8 @@ Professional subtitle generation for videos:
 │  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐  │
 │  │  Express 5   │  │   Cluster    │  │   AI Worker Pool   │  │
 │  │   Server     │──│   Workers    │──│ Mistral │ LiteLLM  │  │
-│  └──────────────┘  └──────────────┘  │ Regolo  │ BFL Flux │  │
+│  │              │  │              │  │ Regolo  │ GreenPT  │  │
+│  └──────────────┘  └──────────────┘  │      Scaleway      │  │
 │                                      └────────────────────┘  │
 │  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐  │
 │  │  ChatGraph   │  │  Keycloak    │  │    PostgreSQL      │  │
@@ -206,7 +207,7 @@ Professional subtitle generation for videos:
 
 ## Monorepo Structure
 
-This is a **pnpm + Turborepo** monorepo: 6 apps, 16 packages, and 5 services.
+This is a **pnpm + Turborepo** monorepo: 6 apps, 16 packages, and 3 services.
 
 ### Apps
 
@@ -247,7 +248,6 @@ This is a **pnpm + Turborepo** monorepo: 6 apps, 16 packages, and 5 services.
 | `services/hocuspocus` | Real-time collaboration server (Yjs)                |
 | `services/nlp`        | Python NLP enrichment for notebook content          |
 | `services/nango`      | Self-hosted OAuth broker for third-party connectors |
-| `services/iconify`    | Self-hosted icon API                                |
 
 User documentation lives in `documentation/` (Docusaurus, deployed to [doku.gruenerator.eu](https://doku.gruenerator.eu/)).
 

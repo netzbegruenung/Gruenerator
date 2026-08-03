@@ -13,7 +13,9 @@ export function useTourAutostart(id: TourId, enabled: boolean, start: () => void
 
   useEffect(() => {
     if (!enabled || isTourDone(id)) return;
-    if (window.innerWidth < 768) return;
+    // Komplement von Tailwinds `md:`, plus eine Höhengrenze — das quer
+    // gehaltene Telefon ist breit genug und hat trotzdem keinen Platz.
+    if (window.matchMedia('(width < 48rem), (height < 34rem)').matches) return;
 
     const timer = setTimeout(() => startRef.current(), 1200);
     return () => clearTimeout(timer);
