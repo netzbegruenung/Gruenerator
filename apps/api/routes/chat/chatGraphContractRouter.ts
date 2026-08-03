@@ -2127,6 +2127,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           // anything changes, push the corrected text via `completion` so the
           // frontend replaces the streamed deltas (same channel as the notebook flow).
           const sanity = stripFabricatedSystemClaims(fullText, [
+            // The user's own message grounds a filename too — see the parameter
+            // doc. Without it, "fass Internetkonzept.pdf zusammen" had its
+            // answer deleted and replaced with a denial of file access.
+            finalState.lastUserTextNoMentions ?? '',
             finalState.attachmentContext ?? '',
             finalState.currentDocument?.title ?? '',
             ...finalState.searchResults.map((r) => `${r.title ?? ''} ${r.content ?? ''}`),

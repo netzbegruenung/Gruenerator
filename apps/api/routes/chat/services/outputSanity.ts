@@ -16,9 +16,16 @@
  * A filename whose stem carries system/access semantics. Ordinary attachments
  * ("Antrag_Radweg.pdf", "Protokoll.docx") do not match — only names that assert
  * privileged internals.
+ *
+ * `intern(?!et)` and `hack(?!athon)`: both markers are the PREFIX of an
+ * everyday German word, and this guard does not warn — it deletes the whole
+ * paragraph and replaces it with "Ich habe keinen Zugriff auf interne Dateien".
+ * "Internetkonzept.pdf" and "Hackathon_Doku.pdf" are ordinary party documents.
+ * `admin` keeps no exception on purpose: "Administrator…" is the very semantics
+ * the guard is looking for.
  */
 const SYSTEMY_FILENAME_RE =
-  /\b[\w-]*(?:internal|intern|admin|secure|override|sysconfig|credential|passwor[dt]|secret|token|zugriff|access|backdoor|hack)[\w-]*\.(?:pdf|log|txt|json|env|csv|ya?ml|ini|conf|docx?|xlsx?)\b/gi;
+  /\b[\w-]*(?:internal|intern(?!et)|admin|secure|override|sysconfig|credential|passwor[dt]|secret|token|zugriff|access|backdoor|hack(?!athon))[\w-]*\.(?:pdf|log|txt|json|env|csv|ya?ml|ini|conf|docx?|xlsx?)\b/gi;
 
 export interface OutputSanityResult {
   /** The answer, with any offending paragraph replaced. */
@@ -36,8 +43,11 @@ function normalize(value: string): string {
  *
  * @param text          the generated answer
  * @param groundedText  everything the model legitimately saw this turn (source
- *                      snippets, attachment text, document titles). A filename
- *                      present here is real and must survive.
+ *                      snippets, attachment text, document titles, AND the
+ *                      user's own message). A filename present here is real and
+ *                      must survive — a name the user typed themselves cannot
+ *                      be one the model invented, and echoing it back is the
+ *                      normal way to answer "was steht in X?".
  */
 export function stripFabricatedSystemClaims(
   text: string,
