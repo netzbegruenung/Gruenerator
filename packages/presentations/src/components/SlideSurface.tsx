@@ -123,14 +123,21 @@ export function SlideSurface({
   const fragmentClass = presenting && slide.fragments ? 'fragment' : undefined;
   const { style: bgStyle, dark } = resolveBackground(slide, deckAccent);
 
-  const mdComponents: ComponentProps<typeof Markdown>['components'] = presenting
-    ? {
-        ...(fragmentClass
-          ? { li: ({ children }) => <li className={fragmentClass}>{children}</li> }
-          : {}),
-        img: ({ node: _node, ...props }) => <img {...props} data-preview-image="" />,
-      }
-    : undefined;
+  // `th` always carries a scope: a markdown table renders header cells with no
+  // column/row relation of their own, which leaves a screen reader announcing
+  // bare values. Applied outside present mode too — the read-only viewer and
+  // the print/PDF path render through here as well.
+  const mdComponents: ComponentProps<typeof Markdown>['components'] = {
+    th: ({ node: _node, ...props }) => <th scope="col" {...props} />,
+    ...(presenting
+      ? {
+          ...(fragmentClass
+            ? { li: ({ children }) => <li className={fragmentClass}>{children}</li> }
+            : {}),
+          img: ({ node: _node, ...props }) => <img {...props} data-preview-image="" />,
+        }
+      : {}),
+  };
 
   const isCode = slide.layout === 'code';
   const isTitle = slide.layout === 'title';
