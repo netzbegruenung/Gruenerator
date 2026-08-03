@@ -12,6 +12,7 @@
 import { createLogger } from '../../utils/logger.js';
 import { urlCrawlerService } from '../scrapers/implementations/UrlCrawler/index.js';
 
+import { getLinkupService } from './LinkupService.js';
 import { distillPassages } from './PassageDistiller.js';
 
 import type { DistilledChunk, DistillMode } from './PassageDistiller.js';
@@ -37,6 +38,73 @@ export interface CrawledResult extends CrawlableResult {
 export interface CrawlOptions {
   maxUrls: number;
   timeout: number;
+}
+
+/**
+ * How many failed URLs per batch may be retried through Linkup.
+ *
+ * Each recovery is a PAID search. Two is enough for the case this exists for —
+ * one blocked page and one served in a format our fetch crawler mis-reads — and
+ * low enough that a batch where every crawl fails (a network outage, a wedged
+ * container) cannot turn into a bill.
+ */
+const MAX_LINKUP_RECOVERIES = 2;
+
+/** Host + path, so `?prefLang=de` or a trailing slash does not fail the match. */
+function urlIdentity(raw: string): string | null {
+  try {
+    const u = new URL(raw);
+    return `${u.host}${u.pathname.replace(/\/+$/, '')}`.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Last resort for a URL OUR crawler could not read.
+ *
+ * Deliberately not a general path: Linkup is billed per search, and the crawler
+ * handles the overwhelming majority of pages for free. This runs only after a
+ * concrete failure — the 403 that consilium.europa.eu returned on 03.08.2026,
+ * or the EUR-Lex response that yielded zero words — and only for the first
+ * {@link MAX_LINKUP_RECOVERIES} of them.
+ *
+ * `depth: 'standard'` is the documented tier that can scrape one URL out of the
+ * query (see LinkupDepth); `fast` has no LLM and would search for the URL's
+ * words, `deep` would chain searches we are not asking for.
+ *
+ * The returned hit must BE the requested page — same host and path. Accepting a
+ * neighbouring hit would silently answer from a different document while the
+ * citation still pointed at this one.
+ */
+async function recoverViaLinkup(url: string): Promise<string | null> {
+  const wanted = urlIdentity(url);
+  if (!wanted) return null;
+  const linkup = getLinkupService();
+  if (!linkup) return null;
+
+  try {
+    const { results } = await linkup.webSearch({
+      query: url,
+      depth: 'standard',
+      maxResults: 3,
+      includeDomains: [new URL(url).host],
+    });
+    const hit = results.find((r) => urlIdentity(r.url) === wanted && r.content?.trim());
+    if (!hit) {
+      log.info(`[Crawl] Linkup had no content for ${url}`);
+      return null;
+    }
+    log.info(`[Crawl] Recovered via Linkup: ${url} (${hit.content.length} chars)`);
+    return hit.content;
+  } catch (error) {
+    // Never fatal: this is already the fallback of a fallback. The circuit
+    // breaker inside LinkupService keeps a dead provider from costing time.
+    log.warn(
+      `[Crawl] Linkup recovery failed for ${url}: ${error instanceof Error ? error.message : error}`
+    );
+    return null;
+  }
 }
 
 /**
@@ -101,7 +169,30 @@ export async function selectAndCrawlTopUrls<T extends CrawlableResult>(
     }
   });
 
-  const crawlResults = await Promise.all(crawlPromises);
+  const crawlResults: Array<{
+    url: string;
+    fullContent?: string;
+    crawled: boolean;
+    crawlError?: string;
+  }> = await Promise.all(crawlPromises);
+
+  // Paid recovery pass — sequential and budgeted, so the cost is bounded by
+  // MAX_LINKUP_RECOVERIES no matter how many crawls failed. Runs after the free
+  // attempts, never instead of them.
+  const failures = crawlResults.filter((r) => !r.crawled).slice(0, MAX_LINKUP_RECOVERIES);
+  const skipped = crawlResults.filter((r) => !r.crawled).length - failures.length;
+  if (skipped > 0) {
+    log.info(`[Crawl] ${skipped} further failure(s) not retried via Linkup (budget)`);
+  }
+  for (const failure of failures) {
+    const recovered = await recoverViaLinkup(failure.url);
+    if (recovered) {
+      failure.fullContent = recovered;
+      failure.crawled = true;
+      delete failure.crawlError;
+    }
+  }
+
   const crawlMap = new Map(crawlResults.map((r) => [r.url, r]));
 
   const successCount = crawlResults.filter((r) => r.crawled).length;

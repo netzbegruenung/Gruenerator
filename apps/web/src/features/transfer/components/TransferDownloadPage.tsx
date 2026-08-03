@@ -118,7 +118,7 @@ export default function TransferDownloadPage({ shareToken, shareData }: Transfer
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background-alt p-lg max-md:items-start max-md:p-md">
+    <div className="flex min-h-dvh items-center justify-center bg-background-alt p-lg max-md:items-start max-md:p-md">
       <div className="w-full max-w-[480px] overflow-hidden rounded-xl border border-grey-200 bg-background shadow-lg dark:border-grey-700">
         <div className="flex flex-col items-center gap-sm border-b border-grey-200 px-lg py-xl text-center dark:border-grey-700">
           <p className="m-0 text-sm text-grey-400">

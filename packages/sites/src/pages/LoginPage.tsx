@@ -26,7 +26,7 @@ export const LoginPage = () => {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        minHeight: '100vh',
+        minHeight: '100dvh',
         backgroundColor: 'var(--background-color)',
         padding: '2rem',
       }}
