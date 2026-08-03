@@ -96,13 +96,6 @@ describe('OnboardingTab', () => {
     expect(complete).toHaveBeenCalledTimes(1);
   });
 
-  it('completes straight away on "Alles überspringen"', async () => {
-    await userEvent
-      .setup()
-      .click(render(<OnboardingTab />).getByRole('button', { name: 'Alles überspringen' }));
-    expect(complete).toHaveBeenCalledTimes(1);
-  });
-
   it('has no axe violations', async () => {
     const { container } = render(<OnboardingTab />);
     expect(await axe(container)).toHaveNoViolations();

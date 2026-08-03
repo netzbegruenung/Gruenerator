@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveSettingsTab, visibleSettingsNav } from './SettingsDialog';
+import { closeCompletesOnboarding, resolveSettingsTab, visibleSettingsNav } from './SettingsDialog';
 
 /**
  * Welcher Bereich beim Öffnen offen ist, hängt an drei Zuständen, die sich nur
@@ -40,5 +40,19 @@ describe('resolveSettingsTab', () => {
 
   it('öffnet die Einrichtung auch dann, wenn der Store einen anderen Bereich hält', () => {
     expect(resolveSettingsTab('nutzung', false, true)).toBe('onboarding');
+  });
+});
+
+describe('closeCompletesOnboarding', () => {
+  it('verbucht das Wegklicken aus der Einrichtung als Abschluss', () => {
+    expect(closeCompletesOnboarding(true, 'onboarding')).toBe(true);
+  });
+
+  it('zählt das Schließen aus einem anderen Bereich nicht', () => {
+    expect(closeCompletesOnboarding(true, 'allgemein')).toBe(false);
+  });
+
+  it('rührt eine bereits erledigte Einrichtung nicht an', () => {
+    expect(closeCompletesOnboarding(false, 'onboarding')).toBe(false);
   });
 });
