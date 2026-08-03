@@ -14,7 +14,13 @@ import { coerceSharepicVariants } from '../../hooks/useChatGraphStream';
 import { notifyError, notifyWarning } from '../../lib/notify';
 import { pickStageLabels } from '../../lib/progressLabels';
 import { parseSSELine } from '../../lib/sseParser';
-import { INTENT_TO_TOOL, DEEP_TOOL_MAP, formatNamespacedToolLabel } from '../../lib/toolMappings';
+import {
+  ARTIFACT_STAGE_INTENTS,
+  ARTIFACT_TOOL_NAMES,
+  INTENT_TO_TOOL,
+  DEEP_TOOL_MAP,
+  formatNamespacedToolLabel,
+} from '../../lib/toolMappings';
 import { useArtifactLiveStore, type ActiveArtifact } from '../../stores/artifactLiveStore';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useAgentStore } from '../../stores/chatStore';
@@ -413,6 +419,7 @@ export async function* parseSSEStream(
             };
           let stage: ProgressStage = 'searching';
           if (NO_RETRIEVAL_STAGE_INTENTS.has(intent) || intent === 'artifact') stage = 'generating';
+          else if (ARTIFACT_STAGE_INTENTS.has(intent)) stage = 'generating_artifact';
           else if (intent === 'image' || intent === 'sharepic' || intent === 'social_post')
             stage = 'generating_image';
           else if (intent === 'summary') stage = 'summarizing';
@@ -847,7 +854,14 @@ export async function* parseSSEStream(
             orderPushCard(toolCall);
           }
           // Narration now lives on the card; clear the transient status line.
-          currentProgress = { stage: 'searching', message: title, pendingNarration: [] };
+          // A generation tool gets its own stage — see ARTIFACT_TOOL_NAMES. The
+          // step is also transitioned so the tracker stops showing the previous
+          // stage as still running while a 90s generation goes on beneath it.
+          const toolStage: ProgressStage = ARTIFACT_TOOL_NAMES.has(toolName)
+            ? 'generating_artifact'
+            : 'searching';
+          if (toolStage !== currentProgress.stage) transitionStep(toolStage);
+          currentProgress = { stage: toolStage, message: title, pendingNarration: [] };
           yield buildResult();
           break;
         }

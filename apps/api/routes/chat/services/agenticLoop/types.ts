@@ -121,10 +121,26 @@ export const DEFAULT_LOOP_BUDGET: LoopBudget = {
  * cap. Under load that cap kills a legitimate research call, and the turn sees
  * it merely as "tool failed", so the answer silently loses its sources.
  *
- * Raised for this tool ALONE, not globally: the generic 20s is what keeps a
+ * Raised for these tools ALONE, not globally: the generic 20s is what keeps a
  * hung backend from eating the whole turn, and `maxSteps` × 30s would exceed
  * the wall clock. The wall clock stays the outer bound either way.
+ *
+ * The generation tools are the second class, and for them 20s was never
+ * reachable: each is a separate structured LLM call over a long brief, with a
+ * bounded repair attempt behind it. Live on 02.08.2026 `create_pdf` and
+ * `create_presentation` timed out on EVERY attempt — after which the failure cap
+ * tripped, the loop force-started a THIRD generation, and the abandoned second
+ * one quietly finished and wrote its document anyway. The user waited 190s for a
+ * turn that reported failure and produced an artifact by accident.
+ *
+ * 90s is the honest ceiling for one generate + one repair; a generation tool is
+ * idempotent per turn (`state.createdDocument`), so this cannot stack.
  */
 export const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   research: 30_000,
+  create_pdf: 90_000,
+  create_presentation: 90_000,
+  create_document: 90_000,
+  create_sheet: 90_000,
+  create_board: 90_000,
 };
