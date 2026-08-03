@@ -51,7 +51,8 @@ export type StructTag =
   | 'Caption'
   | 'BlockQuote'
   | 'Form'
-  | 'Figure';
+  | 'Figure'
+  | 'Link';
 
 interface StructKid {
   kind: 'elem' | 'mc' | 'obj';
@@ -215,6 +216,31 @@ export class PdfTagger {
    * it on the widget alone leaves the group unnamed.
    */
   attachWidget(page: PDFPage, annotRef: PDFRef, accessibleName: string, fieldDict?: PDFDict): void {
+    const annot = this.registerAnnotation(page, annotRef);
+    if (annot && accessibleName) {
+      annot.set(PDFName.of('TU'), PDFHexString.fromText(accessibleName));
+      if (fieldDict) fieldDict.set(PDFName.of('TU'), PDFHexString.fromText(accessibleName));
+    } else {
+      this.fieldsWithoutLabel += 1;
+    }
+  }
+
+  /**
+   * Eine Verknüpfungs-Annotation an das aktuelle Strukturelement hängen.
+   *
+   * PDF/UA 7.18.5 verlangt für einen Link genau diese Gestalt: ein
+   * /Link-Element, dessen Kinder der markierte Text UND ein OBJR auf die
+   * Annotation sind. Ohne das OBJR kennt ein Screenreader den sichtbaren Text,
+   * aber nicht das Ziel — und ohne /Contents kündigt er die Annotation
+   * überhaupt nicht an (7.18.1).
+   */
+  attachAnnotation(page: PDFPage, annotRef: PDFRef, alt: string): void {
+    const annot = this.registerAnnotation(page, annotRef);
+    if (annot && alt) annot.set(PDFName.of('Contents'), PDFHexString.fromText(alt));
+  }
+
+  /** Gemeinsamer Teil: Kind im Baum, Eintrag im Parent-Tree, /StructParent. */
+  private registerAnnotation(page: PDFPage, annotRef: PDFRef): PDFDict | undefined {
     const node = this.current;
     node.kids.push({ kind: 'obj', page, ref: annotRef });
     if (!node.page) node.page = page;
@@ -224,14 +250,8 @@ export class PdfTagger {
     this.annotEntries.push({ key, ref: node.ref });
 
     const annot = this.doc.context.lookup(annotRef, PDFDict);
-    if (annot && accessibleName) {
-      annot.set(PDFName.of('StructParent'), PDFNumber.of(key));
-      annot.set(PDFName.of('TU'), PDFHexString.fromText(accessibleName));
-      if (fieldDict) fieldDict.set(PDFName.of('TU'), PDFHexString.fromText(accessibleName));
-    } else {
-      if (annot) annot.set(PDFName.of('StructParent'), PDFNumber.of(key));
-      this.fieldsWithoutLabel += 1;
-    }
+    if (annot) annot.set(PDFName.of('StructParent'), PDFNumber.of(key));
+    return annot;
   }
 
   /**

@@ -470,6 +470,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
       { title: 'Wahlprogramm 2026', detail: '6 Kapitel' },
       { title: 'Pressemitteilungen', detail: 'Aktuelle Positionen' },
       { title: 'Beschlüsse', detail: 'Parteitagsbeschlüsse' },
+      { title: 'Wahlprüfsteine', detail: 'Antworten an Verbände' },
     ],
     externalUrl: 'https://gruene.berlin',
     persistMessages: true,

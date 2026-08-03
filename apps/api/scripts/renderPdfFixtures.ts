@@ -31,6 +31,17 @@ const document: PdfDocumentSpec = {
     { type: 'keyvalue', entries: [{ label: 'Beschlussdatum', value: '12.02.2026' }] },
     { type: 'note', title: 'Hinweis', text: 'Die Kosten sind Schätzungen.' },
     { type: 'quote', text: 'Sichere Radwege sind Daseinsvorsorge.', source: 'Verkehrsausschuss' },
+    {
+      // Der Link ist der Teil, den veraPDF am genauesten prüft: /Link-Element,
+      // OBJR auf die Annotation, /Contents und /F 4 müssen alle da sein.
+      type: 'sources',
+      entries: [
+        {
+          label: 'Nationaler Radverkehrsplan 3.0',
+          value: 'https://bmdv.bund.de/DE/Themen/Mobilitaet/Radverkehr/radverkehr.html',
+        },
+      ],
+    },
     { type: 'divider' },
     { type: 'signature', labels: ['Ort, Datum', 'Unterschrift'] },
   ],
