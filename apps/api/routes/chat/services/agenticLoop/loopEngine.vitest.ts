@@ -328,9 +328,9 @@ describe('looksLikeToolPlanLeak', () => {
   // carry no German function word, which is exactly what the deleted rule
   // punished.
   it('keeps a short answer whose format the user prescribed', () => {
-    expect(looksLikeToolPlanLeak('ALT=45000 €; NEU=49500 €; DIFFERENZ=4500 €', ['web_search'])).toBe(
-      false
-    );
+    expect(
+      looksLikeToolPlanLeak('ALT=45000 €; NEU=49500 €; DIFFERENZ=4500 €', ['web_search'])
+    ).toBe(false);
     expect(
       looksLikeToolPlanLeak('ZUSTAND=ORIGINAL; STANDORTE=75|80; SATZ=600EUR', ['web_search'])
     ).toBe(false);
