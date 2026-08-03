@@ -69,7 +69,7 @@ export const VERDIGADO_INPUT_LIMIT = 40_000;
 type ReasoningRule = ReasoningSetting | Record<Complexity, ReasoningSetting>;
 
 /** Keys into AVAILABLE_MODELS (providers.ts). Not the user-facing catalog. */
-export type AutoLaneId = 'mistral-small-4' | 'gemma-litellm' | 'mistral-medium-3.5' | 'litellm';
+export type AutoLaneId = 'gemma-4-26b' | 'gemma-litellm' | 'mistral-medium-3.5' | 'litellm';
 
 interface AutoEntry {
   modelId: AutoLaneId;
@@ -83,23 +83,30 @@ const graded = (
 ): Record<Complexity, ReasoningSetting> => ({ simple, moderate, complex });
 
 /**
- * Lane A — Mistral Small 4 (regolo). Short, structured, latency-critical turns
- * where the prose share is small or the work is delegated anyway.
+ * Lane A — Gemma 4 26B (Scaleway, GreenPT on failover). Short, structured,
+ * latency-critical turns where the prose share is small or the work is
+ * delegated anyway.
  *
- * Reasoning stays OFF across this whole lane, measured rather than assumed
- * (live probe, "Zug 9:40 + 95 min"):
- *   - thinking works and is correct, but costs ~1.6–2k characters of reasoning
- *     on a trivial question — expensive for the lane we picked FOR speed;
- *   - `effort: 'low'` barely moves it (1629 vs 2013 chars unset), because Small
- *     4 has no native effort dial — only gpt-oss does;
- *   - at a 400-token budget the reasoning consumed the entire allowance and the
- *     answer came back EMPTY.
- * The model stays registered in REGOLO_REASONING_MODELS so the ceiling can be
- * lifted here if the quality eval argues for it, without a silent no-op.
+ * It was Mistral Small 4 until 03.08.2026. Both lanes narrate material that is
+ * already in context, so the deciding argument is which one writes better
+ * German — and that is the Gemma family, which is why Lane B has been on it all
+ * along. Keeping the two writers in ONE family also means the only thing that
+ * changes between an A-turn and a B-turn is the size, not the voice.
+ *
+ * Reasoning stays OFF across this whole lane, and on this host that is enforced
+ * rather than requested: `scalewayThinkingFetch` pins `reasoning_effort:'none'`
+ * on every request. The rule itself predates the move and was measured on Small
+ * 4 (live probe, "Zug 9:40 + 95 min"): thinking was correct but cost ~1.6–2k
+ * characters on a trivial question, `effort:'low'` barely moved it, and at a
+ * 400-token budget the reasoning ate the whole allowance and the answer came
+ * back EMPTY. The same failure shape is documented for Gemma 4 on GreenPT — see
+ * GEMMA_4_GREENPT in providers.ts — which is why that host is the failover and
+ * not the primary.
  */
-const SMALL: AutoLaneId = 'mistral-small-4';
-/** Lane B — Gemma 4. Prose over sources; this is what the loop's writer slot
- *  already does today, so these intents stay behaviourally close to master. */
+const SMALL: AutoLaneId = 'gemma-4-26b';
+/** Lane B — Gemma 4 31B (Regolo). Prose over sources; this is what the loop's
+ *  writer slot already does today, so these intents stay behaviourally close to
+ *  master. Same family as Lane A, one size up. */
 const GEMMA: AutoLaneId = 'gemma-litellm';
 /** Lane C — Mistral Medium 3.5. Only where the model calls tools ITSELF and
  *  the unified loop should kick in. */
@@ -143,14 +150,19 @@ type ExemptIntent = (typeof AUTO_POLICY_EXEMPT)[number];
  * means.
  */
 export const POLICY: Record<Exclude<SearchIntent, ExemptIntent>, AutoEntry> = {
-  // ── Lane A: Small 4 ──
+  // ── Lane A: Gemma 4 26B ──
   // Synth summarises tool output; the planner makes the MCP calls.
   mcp: { modelId: SMALL, reasoning: 'off' },
-  // summarizeNode already runs on this model — same tier.
+  // summarizeNode runs on the `heavy` intermediate stage — same tier.
   summary: { modelId: SMALL, reasoning: 'off' },
   chat_history: { modelId: SMALL, reasoning: 'off' },
   // Narration over an artefact that is already IN CONTEXT (numbers, chart data,
-  // scraped text). Measured good on Small 4 — correct arithmetic, clean German.
+  // scraped text). The premise is load-bearing: this lane REPEATS figures, it
+  // does not produce them. A turn on 02.08.2026 broke it — one figure had been
+  // computed, five were narrated — and Small 4 filled the gap with arithmetic of
+  // its own, marking `42.000 + 84.000 = 120.000` as correct. The fix is upstream
+  // (computeArithmeticBatch checks every claim, and the answer rule forbids
+  // ruling on anything outside the checked block), not a bigger writer here.
   compute: { modelId: SMALL, reasoning: 'off' },
   chart: { modelId: SMALL, reasoning: 'off' },
   scrape_url: { modelId: SMALL, reasoning: 'off' },
