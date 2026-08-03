@@ -1,0 +1,133 @@
+{
+  "renderer": "routes/exports/pdfController.ts#generatePdfBuffer",
+  "generatedAt": "2026-07-24T18:15:29.955Z",
+  "note": "Gemessen gegen den ABGELÖSTEN Renderer, vor dem Umbau. Achtung beim Vergleich: diese Zahlen entstanden mit der damaligen, schwächeren Metrik (dedupliziert, ein Orakel). Die heutige Metrik zählt Häufigkeiten und vereinigt zwei Orakel, ist also strenger — der neue Renderer erreicht 0 unter der schärferen Messung, der alte diese Werte unter der laxeren. Die Aussage 'nicht schlechter' gilt damit erst recht.",
+  "fixtures": {
+    "markdown-basic": {
+      "words": 74,
+      "missing": 0,
+      "missingSample": [],
+      "pages": 1,
+      "crashed": false,
+      "error": null
+    },
+    "markdown-table": {
+      "words": 46,
+      "missing": 31,
+      "missingSample": [
+        "Maßnahme",
+        "Bereich",
+        "Kosten",
+        "2027",
+        "2028",
+        "Radschnellweg",
+        "Nord",
+        "Verkehr",
+        "1.200.000",
+        "800.000"
+      ],
+      "pages": 1,
+      "crashed": false,
+      "error": null
+    },
+    "markdown-nested-list": {
+      "words": 31,
+      "missing": 3,
+      "missingSample": ["Energie", "Soziales", "Vergabe"],
+      "pages": 1,
+      "crashed": false,
+      "error": null
+    },
+    "html-blocknote": {
+      "words": 52,
+      "missing": 18,
+      "missingSample": [
+        "Quartier",
+        "Status",
+        "Nordstadt",
+        "820",
+        "Südstadt",
+        "1.140",
+        "in",
+        "Arbeit",
+        "Weststadt",
+        "440"
+      ],
+      "pages": 1,
+      "crashed": false,
+      "error": null
+    },
+    "html-messy": {
+      "words": 43,
+      "missing": 18,
+      "missingSample": [
+        "Ergebnis",
+        "angenommen",
+        "vertagt",
+        "Ein",
+        "Sternchen",
+        "im",
+        "Text",
+        "5",
+        "15",
+        "und"
+      ],
+      "pages": 1,
+      "crashed": false,
+      "error": null
+    },
+    "edge-empty": {
+      "words": 0,
+      "missing": 0,
+      "missingSample": [],
+      "pages": 1,
+      "crashed": false,
+      "error": null
+    },
+    "edge-long-word": {
+      "words": 16,
+      "missing": 1,
+      "missingSample": [
+        "Donaudampfschifffahrtsgesellschaftskapitaenswitwedampfschifffahrtsgesellschaftskapitaenswitwedampfschifffahrtsgesellschaftskapitaenswitwedampfschifffahrtsgesellschaftskapitaenswitwedampfschifffahrtsgesellschaftskapitaenswitwedampfschifffahrtsgesellschaftskapitaenswitwenversammlung"
+      ],
+      "pages": 1,
+      "crashed": false,
+      "error": null
+    },
+    "edge-umlaute-emoji": {
+      "words": 41,
+      "missing": 0,
+      "missingSample": [],
+      "pages": 1,
+      "crashed": false,
+      "error": null
+    },
+    "edge-huge": {
+      "words": 150,
+      "missing": 84,
+      "missingSample": [
+        "Position",
+        "Bereich",
+        "Betrag",
+        "1234",
+        "EUR",
+        "2468",
+        "3702",
+        "4936",
+        "6170",
+        "7404"
+      ],
+      "pages": 9,
+      "crashed": false,
+      "error": null
+    },
+    "edge-code-quote": {
+      "words": 35,
+      "missing": 0,
+      "missingSample": [],
+      "pages": 1,
+      "crashed": false,
+      "error": null
+    }
+  }
+}

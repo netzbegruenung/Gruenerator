@@ -22,7 +22,7 @@ export const PTSANS_BOLD_PATH: string = path.resolve(
 // Österreich (de-AT) fonts — Gotham Narrow + Vollkorn (CI 2026)
 export const GOTHAM_ULTRA_PATH: string = path.resolve(
   __dirname,
-  '../../../public/fonts/GothamNarrow-Ultra.otf'
+  '../../../public/fonts/GothamNarrow-Ultra.ttf'
 );
 export const GOTHAM_BOOK_PATH: string = path.resolve(
   __dirname,

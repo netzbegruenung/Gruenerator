@@ -17,16 +17,21 @@ import {
   validatePickedDocument,
   uploadDocumentToChat,
 } from '../../services/documentPicker';
-import { colors, spacing, borderRadius } from '../../theme';
+import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
 import { BottomSheet } from '../common/BottomSheet';
 
 import type { Theme } from '../../theme/colors';
-import type { DocumentSearchResult, NotebookCollectionItem } from '@gruenerator/chat';
+import type {
+  DocumentMention,
+  DocumentSearchResult,
+  NotebookCollectionItem,
+} from '@gruenerator/chat';
 
 interface DocumentBrowserSheetProps {
   visible: boolean;
   theme: Theme;
-  onSelect: (slug: string) => void;
+  /** The whole reference, not a slug: the caller attaches it by its real id. */
+  onSelect: (doc: DocumentMention) => void;
   onDismiss: () => void;
 }
 
@@ -82,15 +87,18 @@ export function DocumentBrowserSheet({
       collectionName?: string
     ) => {
       const slug = documentToSlug(doc.title);
-      registerDocumentSlug(slug, {
+      const mention: DocumentMention = {
         documentId: doc.id,
         documentTitle: doc.title,
         collectionId: collectionId ?? '',
         collectionName: collectionName ?? '',
         slug,
-        sourceType: (doc.sourceType as 'notebook' | 'document' | 'text') ?? 'document',
-      });
-      onSelect(slug);
+        sourceType: (doc.sourceType as DocumentMention['sourceType']) ?? 'document',
+      };
+      // Still registered: the slug map backs mention previews and the re-parse of
+      // text that older clients persisted. It is no longer the transport.
+      registerDocumentSlug(slug, mention);
+      onSelect(mention);
     },
     [onSelect]
   );
@@ -130,6 +138,7 @@ export function DocumentBrowserSheet({
             }}
             style={styles.backButton}
             hitSlop={8}
+            accessibilityRole="button"
           >
             <Ionicons name="chevron-back" size={22} color={theme.text} />
             <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>
@@ -139,7 +148,12 @@ export function DocumentBrowserSheet({
         ) : (
           <Text style={[styles.headerTitle, { color: theme.text }]}>Dokumente</Text>
         )}
-        <Pressable onPress={onDismiss} hitSlop={8}>
+        <Pressable
+          onPress={onDismiss}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Schließen"
+        >
           <Ionicons name="close" size={22} color={theme.textSecondary} />
         </Pressable>
       </View>
@@ -154,6 +168,7 @@ export function DocumentBrowserSheet({
             value={searchQuery}
             onChangeText={handleSearch}
             autoFocus
+            accessibilityLabel="Dokumente durchsuchen"
           />
           {searching && <ActivityIndicator size="small" color={theme.textGreen} />}
         </View>
@@ -245,6 +260,7 @@ function RootLevel({
             styles.uploadButton,
             { backgroundColor: pressed ? colors.primary[700] : colors.primary[600] },
           ]}
+          accessibilityRole="button"
         >
           <Ionicons name="cloud-upload-outline" size={20} color={colors.white} />
           <Text style={styles.uploadButtonText}>Datei hochladen</Text>
@@ -269,6 +285,7 @@ function RootLevel({
                 borderBottomColor: theme.border,
               },
             ]}
+            accessibilityRole="button"
           >
             <Ionicons name="cloud-upload-outline" size={20} color={theme.textGreen} />
             <Text style={[styles.uploadRowText, { color: theme.textGreen }]}>Datei hochladen</Text>
@@ -287,6 +304,7 @@ function RootLevel({
                     { backgroundColor: pressed ? theme.surface : 'transparent' },
                   ]}
                   onPress={() => onSelectCollection(c)}
+                  accessibilityRole="button"
                 >
                   <Ionicons name="folder-outline" size={20} color={theme.textGreen} />
                   <View style={styles.rowText}>
@@ -385,6 +403,7 @@ function DocRow({
         { backgroundColor: pressed ? theme.surface : 'transparent' },
       ]}
       onPress={onPress}
+      accessibilityRole="button"
     >
       <Ionicons name="document-text-outline" size={18} color={theme.textSecondary} />
       <View style={styles.rowText}>
@@ -417,6 +436,7 @@ const styles = StyleSheet.create({
     gap: spacing.xxsmall,
   },
   headerTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 17,
     fontWeight: '600',
     flex: 1,
@@ -432,8 +452,9 @@ const styles = StyleSheet.create({
     gap: spacing.xsmall,
   },
   searchInput: {
+    ...chatType.chatTitle,
     flex: 1,
-    fontSize: 15,
+    fontFamily: BODY_FONT,
     paddingVertical: spacing.xxsmall,
   },
   loading: {
@@ -441,7 +462,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sectionHeader: {
-    fontSize: 12,
+    ...chatType.chatMeta,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -461,19 +482,20 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   rowTitle: {
-    fontSize: 15,
+    ...chatType.chatTitle,
     fontWeight: '500',
   },
   rowSubtitle: {
-    fontSize: 13,
+    ...chatType.chatLabel,
   },
   badge: {
-    fontSize: 13,
+    ...chatType.chatLabel,
   },
   emptyText: {
+    ...chatType.chatSecondary,
     textAlign: 'center',
     paddingVertical: spacing.xlarge,
-    fontSize: 14,
+    fontFamily: BODY_FONT,
   },
   emptyState: {
     alignItems: 'center',
@@ -482,12 +504,13 @@ const styles = StyleSheet.create({
     gap: spacing.small,
   },
   emptyTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 16,
     fontWeight: '600',
     marginTop: spacing.small,
   },
   emptySubtitle: {
-    fontSize: 14,
+    ...chatType.chatSecondary,
     textAlign: 'center',
     maxWidth: 260,
   },
@@ -501,7 +524,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.small,
   },
   uploadButtonText: {
-    fontSize: 15,
+    ...chatType.chatTitle,
     fontWeight: '600',
     color: colors.white,
   },
@@ -514,11 +537,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   uploadRowText: {
-    fontSize: 15,
+    ...chatType.chatTitle,
     fontWeight: '500',
   },
   loadingLabel: {
-    fontSize: 14,
+    ...chatType.chatSecondary,
     marginTop: spacing.small,
   },
 });

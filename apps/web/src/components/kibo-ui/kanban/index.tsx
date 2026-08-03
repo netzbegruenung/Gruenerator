@@ -84,6 +84,17 @@ type KanbanColumnHandle = {
 
 const KanbanColumnHandleContext = createContext<KanbanColumnHandle>(null);
 
+const DragGrip = () => (
+  <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+    <circle cx="6" cy="4" r="1.3" />
+    <circle cx="10" cy="4" r="1.3" />
+    <circle cx="6" cy="8" r="1.3" />
+    <circle cx="10" cy="8" r="1.3" />
+    <circle cx="6" cy="12" r="1.3" />
+    <circle cx="10" cy="12" r="1.3" />
+  </svg>
+);
+
 export const KanbanColumnDragHandle = ({ className }: { className?: string }) => {
   const handle = useContext(KanbanColumnHandleContext);
   if (!handle) return null;
@@ -98,14 +109,7 @@ export const KanbanColumnDragHandle = ({ className }: { className?: string }) =>
       {...handle.attributes}
       {...handle.listeners}
     >
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-        <circle cx="6" cy="4" r="1.3" />
-        <circle cx="10" cy="4" r="1.3" />
-        <circle cx="6" cy="8" r="1.3" />
-        <circle cx="10" cy="8" r="1.3" />
-        <circle cx="6" cy="12" r="1.3" />
-        <circle cx="10" cy="12" r="1.3" />
-      </svg>
+      <DragGrip />
     </button>
   );
 };
@@ -168,6 +172,9 @@ const KanbanCardInner = <T extends KanbanItemProps = KanbanItemProps>({
 }: KanbanCardProps<T>) => {
   const { attributes, listeners, setNodeRef, transition, transform, isDragging } = useSortable({
     id,
+    // dnd-kits Vorgabe ist das englische „sortable"; der Screenreader liest es
+    // mitten in einer deutschen Oberfläche vor.
+    attributes: { roleDescription: 'Aufgabenkarte' },
   });
   const { activeCardId } = useContext(KanbanContext) as KanbanContextProps;
 
@@ -176,16 +183,40 @@ const KanbanCardInner = <T extends KanbanItemProps = KanbanItemProps>({
     [transition, transform]
   );
 
+  // dnd-kit legt `role="button"` und `tabIndex={0}` in `attributes`. Auf dem
+  // Sortier-Wrapper macht das die Karte selbst zum Bedienelement — und damit
+  // jede Karte zu einem Bedienelement, das ein weiteres enthält (axe
+  // `nested-interactive`, WCAG 4.1.2). Am Wrapper ist das nicht reparierbar:
+  // sein Enter/Space ist von dnd-kits KeyboardSensor fürs Aufnehmen belegt.
+  //
+  // Deshalb dieselbe Aufteilung, die die Spalten schon benutzen: der Wrapper
+  // behält nur die ZEIGER-Listener (Maus- und Touch-Ziehen der ganzen Karte
+  // bleibt also unverändert), `attributes` und die Tastaturbedienung wandern
+  // auf einen echten `<button>` als Ziehgriff.
+  const pointerListeners = useMemo(
+    () => Object.fromEntries(Object.entries(listeners ?? {}).filter(([e]) => e !== 'onKeyDown')),
+    [listeners]
+  );
+
   return (
     <>
-      <div style={style} {...listeners} {...attributes} ref={setNodeRef}>
+      <div style={style} {...pointerListeners} ref={setNodeRef}>
         <div
           className={cn(
-            'cursor-grab rounded-[6px] bg-background-pure dark:bg-[#282828] border border-grey-200 dark:border-[#333] shadow-[0_1px_3px_rgba(0,0,0,0.04)] dark:shadow-none transition-shadow hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)] dark:hover:shadow-none',
+            'group/kanban-card relative cursor-grab rounded-[6px] bg-background-pure dark:bg-[#282828] border border-grey-200 dark:border-[#333] shadow-[0_1px_3px_rgba(0,0,0,0.04)] dark:shadow-none transition-shadow hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)] dark:hover:shadow-none',
             isDragging && 'pointer-events-none cursor-grabbing opacity-30',
             className
           )}
         >
+          <button
+            type="button"
+            aria-label={`Karte „${name}" verschieben`}
+            className="absolute right-0.5 top-0.5 z-20 cursor-grab touch-none rounded border-none bg-transparent p-0.5 text-grey-400 opacity-0 transition-opacity hover:bg-grey-200 hover:text-foreground focus-visible:opacity-100 group-hover/kanban-card:opacity-100 dark:hover:bg-grey-800"
+            {...attributes}
+            {...listeners}
+          >
+            <DragGrip />
+          </button>
           {children ?? <p className="m-0 font-medium text-sm">{name}</p>}
         </div>
       </div>
@@ -222,7 +253,7 @@ export const KanbanCards = <T extends KanbanItemProps = KanbanItemProps>({
   ...props
 }: KanbanCardsProps<T>) => {
   const { cardsByColumn } = useContext(KanbanContext) as KanbanContextProps<T>;
-  const columnCards = cardsByColumn.get(props.id) || [];
+  const columnCards = useMemo(() => cardsByColumn.get(props.id) || [], [cardsByColumn, props.id]);
   const items = useMemo(() => columnCards.map((item) => item.id), [columnCards]);
 
   return (

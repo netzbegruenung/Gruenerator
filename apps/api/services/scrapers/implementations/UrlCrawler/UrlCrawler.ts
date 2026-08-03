@@ -13,6 +13,27 @@ import { UrlValidator } from './validators/UrlValidator.js';
 
 import type { CrawlerConfig, CrawlOptions, CrawlResult, PreviewResult } from './types.js';
 
+/**
+ * Why NOT `toUserFacingMessage` here.
+ *
+ * That classifier is the MEDIA-JOB taxonomy: its patterns speak about the
+ * person's own session and their own uploaded file. Applied to a foreign web
+ * server it says the wrong thing about the wrong party — on 03.08.2026 an HTTP
+ * 403 from consilium.europa.eu was logged as
+ *
+ *   [Crawl] Failed: …: Dir fehlt die Berechtigung für diese Aktion.
+ *                      Bitte melde dich neu an.
+ *
+ * which blames the reader for a block by the publisher, and sends anyone
+ * debugging it towards auth. A crawl failure is a fact about a remote page, so
+ * the remote reason is what gets reported — trimmed, never reinterpreted.
+ */
+function crawlErrorMessage(error: unknown, fallback: string): string {
+  const raw = (error instanceof Error ? error.message : String(error ?? '')).trim();
+  if (!raw || raw === '[object Object]' || raw === 'undefined' || raw === 'null') return fallback;
+  return raw.length > 200 ? `${raw.slice(0, 200)}…` : raw;
+}
+
 export class UrlCrawler {
   private config: CrawlerConfig;
   private contentExtractor: ContentExtractor;
@@ -33,6 +54,11 @@ export class UrlCrawler {
     this.contentExtractor = new ContentExtractor();
     this.crawleeCrawler = new CrawleeCrawler(this.config);
     this.fetchCrawler = new FetchCrawler(this.config);
+
+    // Which path crawls actually take is otherwise only visible per URL, buried
+    // between the crawl logs. Crawlee was broken for three days without anyone
+    // reading that; the mode belongs in the boot output.
+    console.log(`[UrlCrawler] Crawler-Modus: ${this.config.crawlerMode}`);
   }
 
   /**
@@ -141,10 +167,13 @@ export class UrlCrawler {
         },
       };
     } catch (error) {
-      console.error(`[UrlCrawler] Crawl failed for ${url}:`, error);
+      // `url` is an argument, not part of the format string: interpolated, a
+      // pasted URL containing `%s`/`%d` would consume `error` and swallow the
+      // actual failure reason (CodeQL js/tainted-format-string).
+      console.error('[UrlCrawler] Crawl failed for %s:', url, error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to crawl URL',
+        error: crawlErrorMessage(error, 'Failed to crawl URL'),
       };
     }
   }
@@ -206,7 +235,7 @@ export class UrlCrawler {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to preview URL',
+        error: crawlErrorMessage(error, 'Failed to preview URL'),
       };
     }
   }

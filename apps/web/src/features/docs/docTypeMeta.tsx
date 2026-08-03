@@ -1,131 +1,21 @@
-import { type FC, type SVGProps } from 'react';
-
 /**
- * The Office content kinds and their brand accents, shared by the docs
- * homepage composer badge and the Vorlagen modal cards. Colors are fixed to the
- * Claude "Grünerator Office" design and read on their tinted chip background in
- * both themes, so they are intentionally not theme-swapped.
- * `sharepic` routes into the image-studio canvas flow instead of a document.
+ * The type registry itself moved to `@gruenerator/shared/docs` — the chat's
+ * "Dokument erstellt" card renders the same kinds and may not carry a second
+ * colour/label table. Re-exported here so the docs feature keeps its familiar
+ * import; what stays below is the composer's own prompt heuristics, which are
+ * web-only.
  */
-export type DocKind = 'doc' | 'board' | 'sheet' | 'pres' | 'sharepic';
+export {
+  ARTIFACT_TYPE_META,
+  DOC_TYPE_META,
+  subtypeToArtifactKind,
+  subtypeToKind,
+  type ArtifactKind,
+  type DocKind,
+  type DocTypeMeta,
+} from '@gruenerator/shared/docs';
 
-type IconComp = FC<SVGProps<SVGSVGElement>>;
-
-const DocIcon: IconComp = (props) => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={1.9}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    {...props}
-  >
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-    <path d="M14 2v6h6" />
-  </svg>
-);
-
-const BoardIcon: IconComp = (props) => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={1.9}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    {...props}
-  >
-    <rect x="3" y="3" width="6" height="18" rx="1" />
-    <rect x="10" y="3" width="6" height="12" rx="1" />
-    <rect x="17" y="3" width="4" height="7" rx="1" />
-  </svg>
-);
-
-const SheetIcon: IconComp = (props) => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={1.9}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    {...props}
-  >
-    <rect x="3" y="3" width="18" height="18" rx="2" />
-    <path d="M3 9h18M3 15h18M9 3v18" />
-  </svg>
-);
-
-const PresIcon: IconComp = (props) => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={1.9}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    {...props}
-  >
-    <path d="M2 3h20" />
-    <path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3" />
-    <path d="m7 21 5-5 5 5" />
-  </svg>
-);
-
-export interface DocTypeMeta {
-  kind: DocKind;
-  label: string;
-  color: string;
-  bg: string;
-  Icon: IconComp;
-}
-
-const SharepicIcon: IconComp = (props) => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={1.9}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    {...props}
-  >
-    <rect width="18" height="18" x="3" y="3" rx="2" />
-    <circle cx="9" cy="9" r="2" />
-    <path d="m21 15-3.09-3.09a2 2 0 0 0-2.82 0L6 21" />
-  </svg>
-);
-
-export const DOC_TYPE_META: Record<DocKind, DocTypeMeta> = {
-  doc: { kind: 'doc', label: 'Dokument', color: '#4C8A6E', bg: '#E7F1EA', Icon: DocIcon },
-  board: { kind: 'board', label: 'Board', color: '#C0863B', bg: '#F8F0E1', Icon: BoardIcon },
-  sheet: { kind: 'sheet', label: 'Tabelle', color: '#3F82A6', bg: '#E6F0F5', Icon: SheetIcon },
-  pres: { kind: 'pres', label: 'Präsentation', color: '#7E5AA8', bg: '#EFE8F6', Icon: PresIcon },
-  sharepic: {
-    kind: 'sharepic',
-    label: 'Sharepic',
-    color: '#C25C7B',
-    bg: '#F8E9EF',
-    Icon: SharepicIcon,
-  },
-};
-
-/** collaborative_documents subtype → homepage kind. */
-export function subtypeToKind(subtype: string | null | undefined): DocKind {
-  switch (subtype) {
-    // Legacy HTML tables ('tabelle') read as spreadsheets — group with Sheets.
-    case 'sheets':
-    case 'tabelle':
-      return 'sheet';
-    case 'presentations':
-      return 'pres';
-    case 'boards':
-      return 'board';
-    default:
-      return 'doc';
-  }
-}
+import { type DocKind } from '@gruenerator/shared/docs';
 
 // Keyword buckets ported verbatim from the design's `detect()` — the regex/keyword
 // classifier that turns a free-text create prompt into a target content kind.

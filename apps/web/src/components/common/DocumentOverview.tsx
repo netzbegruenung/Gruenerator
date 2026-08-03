@@ -316,11 +316,17 @@ const DocumentOverview = ({
     if (!sortBy || !searchState) return;
 
     if (remoteSearchEnabled && searchState.hasQuery && sortBy !== 'similarity_score') {
+      // Reaction to search activation; guarded on current sortBy so it is a
+      // one-shot switch, not a render-derived value.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSortBy('similarity_score');
     } else if (remoteSearchEnabled && !searchState.hasQuery && sortBy === 'similarity_score') {
       // Switch back to default sort when search is cleared
       setSortBy(sortOptions[0]?.value || 'updated_at');
     }
+    // searchState is a fresh useSearchState() object each render; only its
+    // primitive hasQuery drives this effect, so the whole object stays out.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [remoteSearchEnabled, searchState?.hasQuery, sortBy, sortOptions]);
 
   // Handle item deletion
@@ -440,6 +446,9 @@ const DocumentOverview = ({
   // infinite loop (React #185). Bail out to the previous reference when nothing
   // is selected or no selected id was actually pruned.
   useEffect(() => {
+    // Idempotent functional prune (bails to prev reference when unchanged), so
+    // this setState reconciles selection against item changes without looping.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedItemIds((prev) => {
       if (prev.size === 0) return prev;
       const activeItems =
@@ -650,29 +659,32 @@ const DocumentOverview = ({
             </div>
           ) : (
             <div className="flex-1 min-w-0">
-              <h4
-                className={cn(
-                  'm-0 text-foreground-heading text-base font-semibold leading-tight cursor-pointer transition-colors duration-200 overflow-hidden text-ellipsis whitespace-nowrap max-w-full hover:text-primary-600',
-                  onUpdateTitle && 'hover:text-primary-600',
-                  'select-none hover:underline'
-                )}
-                onClick={(e: React.MouseEvent) => {
-                  e.stopPropagation();
-                  if (onUpdateTitle && e.detail === 2) {
-                    // Double-click for edit
-                    handleTitleEdit(item);
-                  } else if (e.detail === 1) {
-                    // Single-click for preview
-                    if (isDocument && item.status === 'completed') {
-                      void handleEnhancedPreview(item);
-                    } else {
-                      handleViewItem(item);
+              <h4 className="m-0 min-w-0 max-w-full">
+                <button
+                  type="button"
+                  className={cn(
+                    'm-0 w-full max-w-full truncate border-none bg-transparent p-0 text-left text-base font-semibold leading-tight text-foreground-heading cursor-pointer transition-colors duration-200 hover:text-primary-600',
+                    onUpdateTitle && 'hover:text-primary-600',
+                    'select-none hover:underline'
+                  )}
+                  onClick={(e: React.MouseEvent) => {
+                    e.stopPropagation();
+                    if (onUpdateTitle && e.detail === 2) {
+                      // Double-click for edit
+                      handleTitleEdit(item);
+                    } else if (e.detail !== 2) {
+                      // Single click or keyboard activation (detail 0) for preview
+                      if (isDocument && item.status === 'completed') {
+                        void handleEnhancedPreview(item);
+                      } else {
+                        handleViewItem(item);
+                      }
                     }
-                  }
-                }}
-                title={`${itemTitle} (Klicken zum Öffnen${onUpdateTitle ? ', Doppelklick zum Bearbeiten' : ''})`}
-              >
-                {itemTitle}
+                  }}
+                  title={`${itemTitle} (Klicken zum Öffnen${onUpdateTitle ? ', Doppelklick zum Bearbeiten' : ''})`}
+                >
+                  {itemTitle}
+                </button>
               </h4>
             </div>
           )}
@@ -691,6 +703,7 @@ const DocumentOverview = ({
         {/* Preview Image for Templates */}
         {(item.preview_image_url || item.thumbnail_url) && (
           <div className="my-sm rounded-md overflow-hidden bg-grey-50 dark:bg-grey-800">
+            {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- onError ist ein technischer Ladefehler-Fallback, keine Bedienung */}
             <img
               src={item.preview_image_url || item.thumbnail_url}
               alt={`Vorschau von ${itemTitle}`}

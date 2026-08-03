@@ -42,8 +42,11 @@ import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 // CONSTANTS
 // ============================================================================
 
+// Instagram-Hochformat 4:5 wie alle übrigen Sharepic-Sujets. Freeform war als
+// einziges Gestaltungs-Sujet quadratisch geblieben und fiel damit aus der Reihe;
+// `profilbild` bleibt bewusst 1:1, weil ein Profilbild quadratisch ist.
 const CANVAS_WIDTH = 1080;
-const CANVAS_HEIGHT = 1080;
+const CANVAS_HEIGHT = 1350;
 
 // ============================================================================
 // STATE TYPE

@@ -2,7 +2,9 @@ import { Suspense, lazy } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import ErrorBoundary from '../../components/ErrorBoundary';
+import { useAuthStore } from '../../stores/authStore';
 
+import { resolveChatBackground } from './chatBackgrounds';
 import WorkplaceChatTab from './tabs/WorkplaceChatTab';
 import WorkplaceTabs, { workplaceTabFromPathname } from './WorkplaceTabs';
 
@@ -20,22 +22,32 @@ const WORKPLACE_GREEN_BG = cn(
   'dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#12241A_0%,#101812_55%,#0C120D_100%)]'
 );
 
-// Per-tab page tints from the design. Chat gets the warm radial glow behind the
-// centered hero (light + dark handled in workplace-sunrise.css); Arbeiten a faint
-// green radial.
+// Per-tab page tints from the design. Chat gets the radial glow behind the
+// centered hero — hue picked by the user in /profile/aussehen, light + dark
+// handled in workplace-sunrise.css; Arbeiten a faint green radial.
 const TAB_BACKGROUND: Record<string, string> = {
-  chat: 'workplace-chat-sunrise',
   arbeiten: WORKPLACE_GREEN_BG,
 };
 
 const WorkplacePage = () => {
   const { pathname } = useLocation();
   const tab = workplaceTabFromPathname(pathname);
+  const chatBackground = useAuthStore((s) => s.user?.chat_background);
+
+  const chatBackgroundClass = cn(
+    'workplace-chat-sunrise',
+    resolveChatBackground(chatBackground).className
+  );
 
   return (
     <ErrorBoundary>
       <WorkplaceTabs active={tab} />
-      <div className={cn('flex h-full min-h-0 flex-col', TAB_BACKGROUND[tab])}>
+      <div
+        className={cn(
+          'flex h-full min-h-0 flex-col',
+          tab === 'chat' ? chatBackgroundClass : TAB_BACKGROUND[tab]
+        )}
+      >
         {tab === 'chat' ? (
           // Minimal chat hero, vertically centered in the viewport (design:
           // the chat panel is a flex column with justify-center).

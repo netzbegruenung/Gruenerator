@@ -19,7 +19,15 @@ import {
 
 import { ContentDisplay } from '../../../components/content';
 import { pickDocumentForScanner, uploadDocumentToScanner } from '../../../services/documentPicker';
-import { colors, spacing, typography, borderRadius, lightTheme, darkTheme } from '../../../theme';
+import {
+  colors,
+  spacing,
+  typography,
+  borderRadius,
+  lightTheme,
+  darkTheme,
+  BODY_FONT,
+} from '../../../theme';
 
 const COMPONENT_NAME = 'scanner-mobile';
 
@@ -168,7 +176,7 @@ export default function ScannerScreen() {
       try {
         const apiClient = getGlobalApiClient();
         const response = await apiClient.post<{ result?: string; text?: string }>(
-          '/claude_text_adjustment',
+          '/texte/adjustment',
           {
             originalText: extractedText,
             modification: TRANSFORM_PROMPTS[presetId],
@@ -233,6 +241,7 @@ export default function ScannerScreen() {
                 styles.pickButton,
                 { backgroundColor: pressed ? colors.primary[700] : colors.primary[600] },
               ]}
+              accessibilityRole="button"
             >
               <Ionicons name="document" size={24} color={colors.white} />
               <View style={styles.pickButtonTextContainer}>
@@ -251,6 +260,7 @@ export default function ScannerScreen() {
                   backgroundColor: pressed ? colors.primary[50] : 'transparent',
                 },
               ]}
+              accessibilityRole="button"
             >
               <Ionicons name="camera" size={24} color={colors.primary[600]} />
               <View style={styles.pickButtonTextContainer}>
@@ -271,6 +281,7 @@ export default function ScannerScreen() {
                   backgroundColor: pressed ? colors.primary[50] : 'transparent',
                 },
               ]}
+              accessibilityRole="button"
             >
               <Ionicons name="images" size={24} color={colors.primary[600]} />
               <View style={styles.pickButtonTextContainer}>
@@ -322,6 +333,8 @@ export default function ScannerScreen() {
               styles.previewCard,
               { backgroundColor: pressed ? theme.border : theme.surface },
             ]}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: previewExpanded }}
           >
             <View style={styles.previewHeader}>
               <Text style={[styles.previewLabel, { color: theme.textSecondary }]}>
@@ -358,6 +371,7 @@ export default function ScannerScreen() {
                     borderColor: theme.border,
                   },
                 ]}
+                accessibilityRole="button"
               >
                 <Ionicons name={preset.icon} size={20} color={colors.primary[600]} />
                 <Text style={[styles.transformButtonText, { color: theme.text }]}>
@@ -367,7 +381,7 @@ export default function ScannerScreen() {
             ))}
           </View>
 
-          <Pressable onPress={reset} style={styles.resetButton}>
+          <Pressable onPress={reset} style={styles.resetButton} accessibilityRole="button">
             <Ionicons name="arrow-back" size={18} color={theme.textSecondary} />
             <Text style={[styles.resetButtonText, { color: theme.textSecondary }]}>
               Anderes Dokument wählen
@@ -454,11 +468,13 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   pickButtonDesc: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     color: 'rgba(255,255,255,0.8)',
     marginTop: 2,
   },
   pickHint: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     textAlign: 'center',
   },
@@ -489,6 +505,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   fileDetails: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     marginTop: 2,
   },
@@ -503,6 +520,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   previewLabel: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '600',
     textTransform: 'uppercase',
@@ -513,6 +531,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   charCount: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     textAlign: 'right',
   },
@@ -543,6 +562,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.small,
   },
   resetButtonText: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
   },
 });

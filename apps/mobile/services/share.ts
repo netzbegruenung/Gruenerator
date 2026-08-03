@@ -69,6 +69,50 @@ export async function shareBase64Image(base64: string, dialogTitle = 'Bild teile
   }
 }
 
+/** Extension → mime, for sharing a compute export (a filled form, a CSV). iOS
+ *  picks the target app from the type, so a wrong one lands the file nowhere. */
+const MIME_BY_EXTENSION: Record<string, string> = {
+  pdf: 'application/pdf',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  xls: 'application/vnd.ms-excel',
+  csv: 'text/csv',
+  json: 'application/json',
+  txt: 'text/plain',
+  md: 'text/markdown',
+  png: 'image/png',
+};
+
+export function mimeFromFileName(name: string): string {
+  const ext = name.split('.').pop()?.toLowerCase() ?? '';
+  return MIME_BY_EXTENSION[ext] ?? 'application/octet-stream';
+}
+
+/**
+ * Share arbitrary bytes as a named file. The NAME matters: compute assets are
+ * served from uuid URLs, so the extension only exists in the metadata — writing
+ * the uuid instead would produce a file no app knows how to open.
+ */
+export async function shareBytesAsFile(
+  bytes: Uint8Array,
+  fileName: string,
+  dialogTitle = 'Datei teilen'
+): Promise<void> {
+  const file = new File(Paths.cache, fileName);
+  file.write(bytes);
+  try {
+    await shareFile(file.uri, { mimeType: mimeFromFileName(fileName), dialogTitle });
+  } finally {
+    file.delete();
+  }
+}
+
+export function base64ToBytes(base64: string): Uint8Array {
+  const binary = atob(base64.replace(/^data:[^;]+;base64,/, ''));
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
 export async function shareUrl(url: string, title?: string, message?: string): Promise<boolean> {
   try {
     const shareContent =

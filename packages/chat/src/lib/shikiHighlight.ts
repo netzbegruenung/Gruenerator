@@ -50,8 +50,8 @@ function getHighlighter(): Promise<HighlighterCore> {
 /**
  * Highlight `code` to an HTML string with dual light/dark themes. `defaultColor:
  * false` emits CSS variables (--shiki-light / --shiki-dark) instead of inline
- * colors, so the `.dark` class can swap them (see chat.css). Unknown languages
- * fall back to plain text.
+ * colors, so the `[data-theme='dark']` selector can swap them (see chat.css).
+ * Unknown languages fall back to plain text.
  */
 export async function highlightCode(code: string, lang: string): Promise<string> {
   const hl = await getHighlighter();

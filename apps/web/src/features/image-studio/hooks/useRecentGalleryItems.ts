@@ -1,3 +1,4 @@
+import { type ContentOrigin } from '@gruenerator/shared/media-library';
 import { useState, useCallback, useEffect } from 'react';
 
 import apiClient from '../../../components/utils/apiClient';
@@ -15,6 +16,11 @@ export interface RecentGalleryItem {
   title: string;
   thumbnailPath?: string;
   imageType?: string;
+  /**
+   * Server-set provenance; decides the Sharepics/Imagine split. Absent against a
+   * backend older than the column, and then the legacy classification applies.
+   */
+  contentOrigin?: ContentOrigin;
   createdAt: string;
   imageMetadata?: RecentGalleryItemMetadata;
 }
@@ -33,7 +39,10 @@ interface UseRecentGalleryItemsReturn {
   lastFetch: number | null;
 }
 
-const CACHE_KEY = 'recentGalleryItems_v2';
+// v3: items carry `contentOrigin` now. A cached v2 entry would classify from the
+// legacy `imageType` for up to the cache timeout, which is exactly the wrong
+// answer this change exists to fix — so the old entries are abandoned, not reused.
+const CACHE_KEY = 'recentGalleryItems_v3';
 
 export const useRecentGalleryItems = (
   options: UseRecentGalleryItemsOptions = {}
@@ -92,6 +101,7 @@ export const useRecentGalleryItems = (
               title: share.title as string,
               thumbnailPath: share.thumbnailPath as string | undefined,
               imageType: share.imageType as string | undefined,
+              contentOrigin: share.contentOrigin as ContentOrigin | undefined,
               createdAt: share.createdAt as string,
               imageMetadata: share.imageMetadata as RecentGalleryItemMetadata | undefined,
             })
@@ -133,6 +143,7 @@ export const useRecentGalleryItems = (
   // remounts from interleaving out-of-order responses.
   useEffect(() => {
     const controller = new AbortController();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data-fetch on mount; the async fetcher sets loading/error state, not a synchronous derive
     void fetchRecentItems(controller.signal);
     return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps

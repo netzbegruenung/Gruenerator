@@ -72,6 +72,9 @@ const ImageUploadStep: React.FC<ImageUploadStepProps> = ({
   useEffect(() => {
     if (uploadedImage) {
       if (typeof uploadedImage === 'string') {
+        // Sibling blob branch needs this effect for object-URL lifecycle;
+        // keep the string sync here rather than splitting the effect.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setPreviewUrl(uploadedImage);
         return;
       }
@@ -251,12 +254,18 @@ const ImageUploadStep: React.FC<ImageUploadStepProps> = ({
 
   const renderImagePreview = (altText: string, showAttribution = false) => (
     <div className="relative w-full max-w-[500px] mx-auto">
-      <img
-        src={previewUrl!}
-        alt={altText}
-        className="w-full rounded-lg object-contain max-h-[50vh] cursor-pointer"
+      <button
+        type="button"
+        className="block w-full border-none bg-transparent p-0"
         onClick={handleUploadClick}
-      />
+        aria-label="Anderes Bild auswählen"
+      >
+        <img
+          src={previewUrl!}
+          alt={altText}
+          className="w-full rounded-lg object-contain max-h-[50vh] cursor-pointer"
+        />
+      </button>
       <button
         type="button"
         className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/60 text-white border-none cursor-pointer flex items-center justify-center hover:bg-black/80 transition-colors"
@@ -299,6 +308,7 @@ const ImageUploadStep: React.FC<ImageUploadStepProps> = ({
         </TabsList>
 
         <TabsContent value="upload">
+          {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- drag-tracking wrapper only; the Label+file input below is the actual keyboard-accessible control */}
           <div
             className={cn(
               'w-full min-h-[200px] mt-md',

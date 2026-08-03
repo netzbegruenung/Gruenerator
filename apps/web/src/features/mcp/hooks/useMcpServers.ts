@@ -19,12 +19,15 @@ const mcpKeys = {
   registry: (search: string) => ['mcp-servers', 'registry', search] as const,
 };
 
+/** Shared by the hook and the Konnektoren tab's preload. */
+export const mcpServersQuery = {
+  queryKey: mcpKeys.list(),
+  queryFn: fetchMcpServers,
+  staleTime: 30_000,
+};
+
 export function useMcpServers() {
-  return useQuery<McpServerSummary[]>({
-    queryKey: mcpKeys.list(),
-    queryFn: fetchMcpServers,
-    staleTime: 30_000,
-  });
+  return useQuery<McpServerSummary[]>(mcpServersQuery);
 }
 
 export function useCreateMcpServer() {

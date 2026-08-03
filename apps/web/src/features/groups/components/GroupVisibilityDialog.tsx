@@ -62,7 +62,9 @@ const GroupVisibilityDialog = memo(
         {
           onSuccess: () => {
             onSuccessMessage(
-              isPublic ? 'Space ist jetzt öffentlich sichtbar.' : 'Space ist nicht mehr öffentlich.'
+              isPublic
+                ? 'Gruppe ist jetzt öffentlich sichtbar.'
+                : 'Gruppe ist nicht mehr öffentlich.'
             );
             onClose();
           },
@@ -77,7 +79,7 @@ const GroupVisibilityDialog = memo(
           <DialogHeader>
             <DialogTitle>Öffentliche Sichtbarkeit</DialogTitle>
             <DialogDescription>
-              Öffentliche Spaces erscheinen für andere unter „Öffentliche Spaces". Nutzer*innen
+              Öffentliche Gruppen erscheinen für andere unter „Öffentliche Gruppen". Nutzer*innen
               können eine Beitrittsanfrage stellen, die du als Admin bestätigen musst.
             </DialogDescription>
           </DialogHeader>
@@ -105,7 +107,7 @@ const GroupVisibilityDialog = memo(
                 </SelectContent>
               </Select>
               <p className="text-xs text-grey-500">
-                Steuert, wem die Space angezeigt wird – passend zum Land der Nutzer*innen.
+                Steuert, wem die Gruppe angezeigt wird – passend zum Land der Nutzer*innen.
               </p>
             </div>
           </div>

@@ -9,7 +9,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 
-import { darkTheme, lightTheme } from '../../theme';
+import { darkTheme, lightTheme, BODY_FONT } from '../../theme';
 
 /**
  * Read-only canvas (sharepic) view: the server-rendered thumbnail image, pinch/
@@ -84,10 +84,12 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   emptyTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 17,
     fontWeight: '600',
   },
   emptyText: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
@@ -100,6 +102,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   pageBadgeText: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '600',
   },

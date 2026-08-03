@@ -7,18 +7,22 @@ import {
   normalizeProviderName,
   getModel,
 } from '../../../services/ai/providers.js';
-import { determineProviderFromModel } from '../../../services/providers/providerSelector.js';
 import { isProviderAvailable } from '../../../services/providers/providerFallback.js';
-import { adapters, executeProvider } from '../index.js';
+import { determineProviderFromModel } from '../../../services/providers/providerSelector.js';
+import { isExcludedTextModel, regoloTextDefault } from '../../../services/ai/textModelPolicy.js';
+import { executeProvider, KNOWN_PROVIDERS } from '../index.js';
 
 describe('Regolo provider — unit tests', () => {
-  it('adapters record includes regolo with execute function', () => {
-    expect(adapters['regolo']).toBeDefined();
-    expect(typeof adapters['regolo'].execute).toBe('function');
+  it('regolo is a known provider', () => {
+    expect(KNOWN_PROVIDERS).toContain('regolo');
   });
 
-  it('getDefaultModel returns expected default', () => {
-    expect(getDefaultModel('regolo')).toBe(process.env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b');
+  // Der Default folgt NICHT mehr blind der Env-Variablen: ein gesperrtes
+  // Text-/Chatmodell wird verworfen (services/ai/textModelPolicy.ts). Genau
+  // dieser Default speist die Fallback-Kette, siehe providerFallback.ts.
+  it('getDefaultModel returns the policy-approved default', () => {
+    expect(getDefaultModel('regolo')).toBe(regoloTextDefault());
+    expect(isExcludedTextModel(getDefaultModel('regolo'))).toBe(false);
   });
 
   it('getProviderDisplayName returns Regolo AI', () => {
@@ -55,19 +59,25 @@ describe('Regolo provider — unit tests', () => {
   });
 });
 
-describe.skipIf(!process.env.REGOLO_API_KEY)(
-  'Regolo provider — integration tests (requires REGOLO_API_KEY)',
+// Live tests make real, billable Regolo calls (and are subject to model
+// availability changes on their side). They must NOT run in the default
+// `pnpm test` just because a key happens to be in the local .env — opt in with
+// RUN_LIVE_PROVIDER_TESTS=1 so the unit suite stays deterministic and offline.
+const RUN_LIVE = !!process.env.REGOLO_API_KEY && !!process.env.RUN_LIVE_PROVIDER_TESTS;
+
+describe.skipIf(!RUN_LIVE)(
+  'Regolo provider — integration tests (RUN_LIVE_PROVIDER_TESTS=1 + REGOLO_API_KEY)',
   () => {
     beforeAll(() => {
       expect(process.env.REGOLO_API_KEY).toBeTruthy();
     });
 
-    it('chat completion with qwen3.5-122b (reasoning model, needs more tokens)', async () => {
-      const result = await executeProvider('regolo', 'test-regolo-qwen', {
+    it('chat completion with gemma4-31b (named model, no auto-default)', async () => {
+      const result = await executeProvider('regolo', 'test-regolo-gemma', {
         messages: [{ role: 'user', content: 'Sag einfach nur "Hallo"' }],
         systemPrompt: 'Du antwortest immer kurz und prägnant. Maximal ein Wort.',
         type: 'chat',
-        options: { max_tokens: 512, model: 'qwen3.5-122b' },
+        options: { max_tokens: 512, model: 'gemma4-31b' },
         metadata: {},
       });
 
@@ -118,19 +128,8 @@ describe.skipIf(!process.env.REGOLO_API_KEY)(
       expect(result.content).toBeTruthy();
       expect(result.metadata?.provider).toBe('regolo');
     }, 30000);
-
-    it('chat completion with mistral-small3.2', async () => {
-      const result = await executeProvider('regolo', 'test-regolo-mistral32', {
-        messages: [{ role: 'user', content: 'Sag einfach nur "Hallo"' }],
-        systemPrompt: 'Du antwortest immer kurz und prägnant.',
-        type: 'chat',
-        options: { max_tokens: 50, model: 'mistral-small3.2' },
-        metadata: {},
-      });
-
-      expect(result.success).toBe(true);
-      expect(result.content).toBeTruthy();
-      expect(result.metadata?.provider).toBe('regolo');
-    }, 30000);
+    // NOTE: the former `mistral-small3.2` case was removed — Regolo no longer
+    // serves that model id (the API returns "Invalid model name"). Mistral-on-
+    // Regolo is covered by the `mistral-small-4-119b` case above.
   }
 );

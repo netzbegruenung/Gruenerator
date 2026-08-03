@@ -30,7 +30,7 @@ import { useSubtitleEditor } from '../../hooks/useSubtitleEditor';
 import { useSubtitleExport } from '../../hooks/useSubtitleExport';
 import { secureStorage } from '../../services/storage';
 import { useSubtitleEditorStore } from '../../stores/subtitleEditorStore';
-import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
+import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 import { DraggableSplitView } from '../common/DraggableSplitView';
 import { CategoryBar, InlineBar } from '../common/editor-toolbar';
 
@@ -293,6 +293,7 @@ export function SubtitleEditorScreen({
             progress={exportHook.progress}
             videoUri={exportHook.videoUri}
             error={exportHook.error}
+            errorId={exportHook.errorId}
             onBackToEditor={handleBackToEditor}
             onGoHome={handleGoHome}
           />
@@ -378,6 +379,7 @@ export function SubtitleEditorScreen({
                 <Pressable
                   style={[styles.shareChip, { backgroundColor: theme.background }]}
                   onPress={() => setShowShareModal(true)}
+                  accessibilityRole="button"
                 >
                   <Ionicons name="share-outline" size={20} color={colors.primary[600]} />
                   <Text style={[styles.shareChipText, { color: theme.text }]}>Teilen</Text>
@@ -393,12 +395,19 @@ export function SubtitleEditorScreen({
         animationType="fade"
         onRequestClose={() => setShowShareModal(false)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setShowShareModal(false)}>
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowShareModal(false)}
+          accessibilityRole="button"
+          accessibilityLabel="Menü schließen"
+        >
           <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
             <Pressable
               style={[styles.modalOption, { borderBottomColor: theme.border }]}
               onPress={handleShareSave}
               disabled={isSaving}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: isSaving }}
             >
               {isSaving ? (
                 <ActivityIndicator size="small" color={colors.primary[600]} />
@@ -416,6 +425,8 @@ export function SubtitleEditorScreen({
               style={styles.modalOption}
               onPress={handleShareExport}
               disabled={isSaving || exportHook.status !== 'idle'}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: isSaving || exportHook.status !== 'idle' }}
             >
               <Ionicons name="download-outline" size={24} color={colors.primary[600]} />
               <View style={styles.modalOptionText}>
@@ -442,6 +453,7 @@ const styles = StyleSheet.create({
     gap: spacing.medium,
   },
   loadingText: {
+    fontFamily: BODY_FONT,
     fontSize: 16,
     fontWeight: '500',
   },
@@ -455,6 +467,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: colors.error[500],
+    fontFamily: BODY_FONT,
     fontSize: 13,
     flex: 1,
   },
@@ -476,6 +489,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   timelineTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '600',
   },
@@ -486,6 +500,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.small,
   },
   unsavedBadgeText: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
     fontWeight: '600',
     color: colors.white,
@@ -499,6 +514,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
   },
   shareChipText: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '500',
   },
@@ -527,10 +543,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   modalOptionTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 16,
     fontWeight: '600',
   },
   modalOptionDesc: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     marginTop: 2,
   },

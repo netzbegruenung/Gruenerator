@@ -5,6 +5,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  cn,
 } from '@gruenerator/ui';
 import { memo } from 'react';
 import { FiEdit2, FiMoreVertical, FiShare2, FiTrash2 } from 'react-icons/fi';
@@ -14,6 +15,7 @@ interface CardActionMenuProps {
   onRename: (e: React.MouseEvent) => void;
   onDelete: (e: React.MouseEvent) => void;
   onShare?: (e: React.MouseEvent) => void;
+  className?: string;
 }
 
 export const CardActionMenu = memo(function CardActionMenu({
@@ -21,6 +23,7 @@ export const CardActionMenu = memo(function CardActionMenu({
   onRename,
   onDelete,
   onShare,
+  className,
 }: CardActionMenuProps) {
   return (
     <DropdownMenu>
@@ -28,7 +31,12 @@ export const CardActionMenu = memo(function CardActionMenu({
         <Button
           variant="ghost"
           size="icon-xs"
-          className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100 max-sm:opacity-100"
+          // icon-xs is a 24px box — fine beside a mouse, too small for a finger.
+          // Grow the hit area on touch only, so dense desktop cards are unchanged.
+          className={cn(
+            'shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 data-[state=open]:opacity-100 max-sm:size-11 max-sm:opacity-100',
+            className
+          )}
           onClick={(e: React.MouseEvent) => e.stopPropagation()}
           aria-label={ariaLabel}
         >

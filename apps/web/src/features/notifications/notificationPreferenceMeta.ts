@@ -2,8 +2,9 @@
  * Per-RAW-type metadata for the notification preferences UI.
  *
  * Unlike NOTIFICATION_TYPES (notificationConfig.ts), which merges several raw
- * types into a single bell/toggle, this map lists every one of the 18 raw
- * notification types individually. The expert ("Erweiterte Einstellungen")
+ * types into a single bell/toggle, this map lists every raw notification type
+ * individually (currently 30 — the count is enforced by the Record type, not by
+ * this comment). The expert ("Erweiterte Einstellungen")
  * table needs per-raw-type rows because the importance tiers split merged
  * subtypes (e.g. board_user_mentioned is critical, board_comment_added is not),
  * so a merged toggle would misrepresent the per-channel state.

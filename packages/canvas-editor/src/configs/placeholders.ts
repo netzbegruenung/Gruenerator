@@ -22,6 +22,8 @@ export const PLACEHOLDER_TEXT = {
   line1: 'Erste Zeile',
   line2: 'Zweite Zeile',
   line3: 'Dritte Zeile',
+  // AT: die gelbe kursive Betonungszeile liegt unter `accent`, nicht `line2`
+  accent: 'Betonung',
 
   // Veranstaltung template
   eventTitle: 'VERANSTALTUNG',

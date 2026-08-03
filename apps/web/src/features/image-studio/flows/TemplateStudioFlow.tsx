@@ -103,6 +103,8 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
 
   useEffect(() => {
     if (currentStep !== FORM_STEPS.CANVAS_EDIT) return;
+    // runMint is async; any setState happens after an await, not synchronously.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void runMint();
   }, [currentStep, runMint]);
 

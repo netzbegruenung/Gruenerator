@@ -2,6 +2,7 @@ import express, { type Router, type Response } from 'express';
 
 import { getMem0Instance, normalizeCategory } from '../../services/mem0/index.js';
 import { invalidatePersona } from '../../services/mem0/personaService.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { setContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -61,9 +62,10 @@ router.get(
     } catch (error) {
       const err = error as Error;
       log.error('[mem0 GET /user/:userId] Error:', err);
-      res
-        .status(500)
-        .json({ success: false, message: err.message || 'Fehler beim Laden der Erinnerungen.' });
+      res.status(500).json({
+        success: false,
+        message: toUserFacingMessage(err) || 'Fehler beim Laden der Erinnerungen.',
+      });
     }
   }
 );
@@ -100,9 +102,10 @@ router.post('/add-text', async (req: AuthRequest, res: Response): Promise<void> 
   } catch (error) {
     const err = error as Error;
     log.error('[mem0 POST /add-text] Error:', err);
-    res
-      .status(500)
-      .json({ success: false, message: err.message || 'Fehler beim Speichern der Erinnerung.' });
+    res.status(500).json({
+      success: false,
+      message: toUserFacingMessage(err) || 'Fehler beim Speichern der Erinnerung.',
+    });
   }
 });
 
@@ -141,9 +144,10 @@ router.put(
     } catch (error) {
       const err = error as Error;
       log.error('[mem0 PUT /:memoryId] Error:', err);
-      res
-        .status(500)
-        .json({ success: false, message: err.message || 'Fehler beim Aktualisieren.' });
+      res.status(500).json({
+        success: false,
+        message: toUserFacingMessage(err) || 'Fehler beim Aktualisieren.',
+      });
     }
   }
 );
@@ -186,7 +190,9 @@ router.post('/search', async (req: AuthRequest, res: Response): Promise<void> =>
   } catch (error) {
     const err = error as Error;
     log.error('[mem0 POST /search] Error:', err);
-    res.status(500).json({ success: false, message: err.message || 'Fehler bei der Suche.' });
+    res
+      .status(500)
+      .json({ success: false, message: toUserFacingMessage(err) || 'Fehler bei der Suche.' });
   }
 });
 
@@ -217,9 +223,10 @@ router.delete(
     } catch (error) {
       const err = error as Error;
       log.error('[mem0 DELETE /:memoryId] Error:', err);
-      res
-        .status(500)
-        .json({ success: false, message: err.message || 'Fehler beim Löschen der Erinnerung.' });
+      res.status(500).json({
+        success: false,
+        message: toUserFacingMessage(err) || 'Fehler beim Löschen der Erinnerung.',
+      });
     }
   }
 );
@@ -267,7 +274,9 @@ router.get(
     } catch (error) {
       const err = error as Error;
       log.error('[mem0 GET /user/:userId/export] Error:', err);
-      res.status(500).json({ success: false, message: err.message || 'Fehler beim Export.' });
+      res
+        .status(500)
+        .json({ success: false, message: toUserFacingMessage(err) || 'Fehler beim Export.' });
     }
   }
 );
@@ -307,7 +316,7 @@ router.delete(
       log.error('[mem0 DELETE /user/:userId/all] Error:', err);
       res.status(500).json({
         success: false,
-        message: err.message || 'Fehler beim Löschen aller Erinnerungen.',
+        message: toUserFacingMessage(err) || 'Fehler beim Löschen aller Erinnerungen.',
       });
     }
   }

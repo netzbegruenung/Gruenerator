@@ -21,7 +21,9 @@ import {
   exportsContract,
   recentValuesContract,
   recentActivityContract,
+  contentContract,
   itemUsageContract,
+  userUsageContract,
   searchContract,
   globalSearchContract,
   researchContract,
@@ -39,10 +41,14 @@ import {
   notebookContract,
   notebookCollectionsContract,
   wolkePendingContract,
+  notebookWordpressContract,
+  userWebsitesContract,
+  letterheadsContract,
   notebookSharingContract,
   transferContract,
   notificationsContract,
   emailContract,
+  feedbackContract,
   modelPreferencesContract,
   imageModelPreferenceContract,
   mcpServersContract,
@@ -52,6 +58,8 @@ import {
   templateInteractionsContract,
   userAgentsContract,
   userAgentsSharingContract,
+  skillPromptContract,
+  userTextFormsContract,
   recurringTasksContract,
   docsContract,
   documentsContract,
@@ -180,7 +188,9 @@ const _threadsClient = () => initClient(threadsContract, CLIENT_OPTS);
 const _exportsClient = () => initClient(exportsContract, CLIENT_OPTS);
 const _recentValuesClient = () => initClient(recentValuesContract, CLIENT_OPTS);
 const _recentActivityClient = () => initClient(recentActivityContract, CLIENT_OPTS);
+const _contentClient = () => initClient(contentContract, CLIENT_OPTS);
 const _itemUsageClient = () => initClient(itemUsageContract, CLIENT_OPTS);
+const _userUsageClient = () => initClient(userUsageContract, CLIENT_OPTS);
 const _searchClient = () => initClient(searchContract, CLIENT_OPTS);
 const _globalSearchClient = () => initClient(globalSearchContract, CLIENT_OPTS);
 const _researchClient = () => initClient(researchContract, CLIENT_OPTS);
@@ -198,10 +208,14 @@ const _publicBoardsClient = () => initClient(publicBoardsContract, CLIENT_OPTS);
 const _notebookClient = () => initClient(notebookContract, CLIENT_OPTS);
 const _notebookCollectionsClient = () => initClient(notebookCollectionsContract, CLIENT_OPTS);
 const _wolkePendingClient = () => initClient(wolkePendingContract, CLIENT_OPTS);
+const _notebookWordpressClient = () => initClient(notebookWordpressContract, CLIENT_OPTS);
+const _userWebsitesClient = () => initClient(userWebsitesContract, CLIENT_OPTS);
+const _letterheadsClient = () => initClient(letterheadsContract, CLIENT_OPTS);
 const _notebookSharingClient = () => initClient(notebookSharingContract, CLIENT_OPTS);
 const _transferClient = () => initClient(transferContract, CLIENT_OPTS);
 const _notificationsClient = () => initClient(notificationsContract, CLIENT_OPTS);
 const _emailClient = () => initClient(emailContract, CLIENT_OPTS);
+const _feedbackClient = () => initClient(feedbackContract, CLIENT_OPTS);
 const _modelPreferencesClient = () => initClient(modelPreferencesContract, CLIENT_OPTS);
 const _imageModelPreferenceClient = () => initClient(imageModelPreferenceContract, CLIENT_OPTS);
 const _mcpServersClient = () => initClient(mcpServersContract, CLIENT_OPTS);
@@ -211,6 +225,8 @@ const _userTemplatesClient = () => initClient(userTemplatesContract, CLIENT_OPTS
 const _templateInteractionsClient = () => initClient(templateInteractionsContract, CLIENT_OPTS);
 const _userAgentsClient = () => initClient(userAgentsContract, CLIENT_OPTS);
 const _userAgentsSharingClient = () => initClient(userAgentsSharingContract, CLIENT_OPTS);
+const _skillPromptClient = () => initClient(skillPromptContract, CLIENT_OPTS);
+const _userTextFormsClient = () => initClient(userTextFormsContract, CLIENT_OPTS);
 const _recurringTasksClient = () => initClient(recurringTasksContract, CLIENT_OPTS);
 const _docsClient = () => initClient(docsContract, CLIENT_OPTS);
 const _documentsClient = () => initClient(documentsContract, CLIENT_OPTS);
@@ -231,7 +247,9 @@ export interface ContractsClient {
   exports: ReturnType<typeof _exportsClient>;
   recentValues: ReturnType<typeof _recentValuesClient>;
   recentActivity: ReturnType<typeof _recentActivityClient>;
+  content: ReturnType<typeof _contentClient>;
   itemUsage: ReturnType<typeof _itemUsageClient>;
+  userUsage: ReturnType<typeof _userUsageClient>;
   search: ReturnType<typeof _searchClient>;
   globalSearch: ReturnType<typeof _globalSearchClient>;
   research: ReturnType<typeof _researchClient>;
@@ -249,10 +267,14 @@ export interface ContractsClient {
   notebook: ReturnType<typeof _notebookClient>;
   notebookCollections: ReturnType<typeof _notebookCollectionsClient>;
   wolkePending: ReturnType<typeof _wolkePendingClient>;
+  notebookWordpress: ReturnType<typeof _notebookWordpressClient>;
+  userWebsites: ReturnType<typeof _userWebsitesClient>;
+  letterheads: ReturnType<typeof _letterheadsClient>;
   notebookSharing: ReturnType<typeof _notebookSharingClient>;
   transfer: ReturnType<typeof _transferClient>;
   notifications: ReturnType<typeof _notificationsClient>;
   email: ReturnType<typeof _emailClient>;
+  feedback: ReturnType<typeof _feedbackClient>;
   modelPreferences: ReturnType<typeof _modelPreferencesClient>;
   imageModelPreference: ReturnType<typeof _imageModelPreferenceClient>;
   mcpServers: ReturnType<typeof _mcpServersClient>;
@@ -262,6 +284,8 @@ export interface ContractsClient {
   templateInteractions: ReturnType<typeof _templateInteractionsClient>;
   userAgents: ReturnType<typeof _userAgentsClient>;
   userAgentsSharing: ReturnType<typeof _userAgentsSharingClient>;
+  skillPrompt: ReturnType<typeof _skillPromptClient>;
+  userTextForms: ReturnType<typeof _userTextFormsClient>;
   recurringTasks: ReturnType<typeof _recurringTasksClient>;
   docs: ReturnType<typeof _docsClient>;
   documents: ReturnType<typeof _documentsClient>;
@@ -299,7 +323,9 @@ export function getContractsClient(): ContractsClient {
     exports: _exportsClient(),
     recentValues: _recentValuesClient(),
     recentActivity: _recentActivityClient(),
+    content: _contentClient(),
     itemUsage: _itemUsageClient(),
+    userUsage: _userUsageClient(),
     search: _searchClient(),
     globalSearch: _globalSearchClient(),
     research: _researchClient(),
@@ -317,10 +343,14 @@ export function getContractsClient(): ContractsClient {
     notebook: _notebookClient(),
     notebookCollections: _notebookCollectionsClient(),
     wolkePending: _wolkePendingClient(),
+    notebookWordpress: _notebookWordpressClient(),
+    userWebsites: _userWebsitesClient(),
+    letterheads: _letterheadsClient(),
     notebookSharing: _notebookSharingClient(),
     transfer: _transferClient(),
     notifications: _notificationsClient(),
     email: _emailClient(),
+    feedback: _feedbackClient(),
     modelPreferences: _modelPreferencesClient(),
     imageModelPreference: _imageModelPreferenceClient(),
     mcpServers: _mcpServersClient(),
@@ -330,6 +360,8 @@ export function getContractsClient(): ContractsClient {
     templateInteractions: _templateInteractionsClient(),
     userAgents: _userAgentsClient(),
     userAgentsSharing: _userAgentsSharingClient(),
+    skillPrompt: _skillPromptClient(),
+    userTextForms: _userTextFormsClient(),
     recurringTasks: _recurringTasksClient(),
     docs: _docsClient(),
     documents: _documentsClient(),

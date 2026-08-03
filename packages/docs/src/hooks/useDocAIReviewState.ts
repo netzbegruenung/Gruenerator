@@ -1,5 +1,5 @@
 import { useCallback, useSyncExternalStore } from 'react';
-import { ForkYDocExtension } from '@blocknote/core/extensions';
+import { ForkYDocExtension } from '@blocknote/core/yjs';
 
 import { getDocAIMenuStore } from '../lib/aiExtension';
 import { isDocAIInvocationInFlight, subscribeDocAIInFlight } from '../lib/invokeDocumentAI';

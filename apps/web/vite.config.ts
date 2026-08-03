@@ -110,6 +110,15 @@ export default defineConfig(({ command }) => ({
     alias: {
       '@': path.resolve(__dirname, 'src'),
       '~': path.resolve(__dirname, './'),
+      // The notebook cover images sit at packages/shared/**assets**/, NOT under
+      // src/ — they are shipped files, not compiled sources, and Metro resolves
+      // them through the package's `"./assets/*"` export. Web bypasses that
+      // export map via the bare alias below, which would rewrite them to
+      // packages/shared/**src**/assets/… and fail the build with
+      //   "ENOENT: … packages/shared/src/assets/notebook-covers/hessen.webp".
+      // Listed before the bare alias, per the ordering rule spelled out for the
+      // contracts subpath further down.
+      '@gruenerator/shared/assets': path.resolve(__dirname, '../../packages/shared/assets'),
       '@gruenerator/shared': path.resolve(__dirname, '../../packages/shared/src'),
       '@gruenerator/chat': path.resolve(__dirname, '../../packages/chat/src'),
       '@gruenerator/voice': path.resolve(__dirname, '../../packages/voice/src'),
@@ -222,7 +231,14 @@ export default defineConfig(({ command }) => ({
   build: {
     // Use compatible targets for native WebViews (Chrome=Edge WebView2, Safari=WKWebView)
     target: isNativeBuild ? ['chrome105', 'safari15'] : ['es2022', 'safari15'],
-    sourcemap: 'hidden',
+    // `'hidden'` still EMITS the .map files — it only drops the
+    // `//# sourceMappingURL=` comment, so `<chunk>.js.map` stayed fetchable by
+    // guessing the URL and served the whole frontend source (reported
+    // 30.07.2026). Nothing consumes them: Sentry is wired at runtime
+    // (@sentry/react) but no upload step (@sentry/vite-plugin / sentry-cli)
+    // ever existed. Opt back in via VITE_SOURCEMAP=1 for a local perf/debug
+    // build — and only together with an upload+delete step if it ever ships.
+    sourcemap: process.env.VITE_SOURCEMAP === '1' ? 'hidden' : false,
     // CSS IS code-split per chunk. Combined with the natural JS splitting below
     // (only `vendor-react` is forced), each lazy route's CSS rides with its own
     // async chunk — the homepage eager-links ONLY the global `index.css`, not

@@ -89,7 +89,7 @@ const GroupLinkDialog = ({ isOpen, onClose, onSave, isSaving, link }: GroupLinkD
               id="link-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="z.B. Signal-Space"
+              placeholder="z.B. Signal-Gruppe"
               maxLength={100}
               autoFocus
             />
@@ -125,8 +125,17 @@ const GroupLinkDialog = ({ isOpen, onClose, onSave, isSaving, link }: GroupLinkD
           </div>
 
           <div className="flex flex-col gap-xs">
-            <Label>Icon</Label>
-            <div className="grid grid-cols-6 gap-xs">
+            <span
+              id="group-link-icon-label"
+              className="flex items-center gap-2 text-sm leading-none font-medium select-none"
+            >
+              Icon
+            </span>
+            <div
+              className="grid grid-cols-6 gap-xs"
+              role="group"
+              aria-labelledby="group-link-icon-label"
+            >
               {LINK_ICONS.map((entry) => {
                 const isSelected = icon === entry.key;
                 const IconComponent = entry.icon;

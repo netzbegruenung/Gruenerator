@@ -13,6 +13,7 @@ import {
   markdownForExport,
   isMarkdownContent,
 } from '../../services/markdown/index.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('markdown');
@@ -65,7 +66,7 @@ router.post(
       return res.status(500).json({
         success: false,
         message: 'Failed to convert markdown to HTML',
-        error: err.message,
+        error: toUserFacingMessage(err),
       });
     }
   }
@@ -102,7 +103,7 @@ router.post(
       return res.status(500).json({
         success: false,
         message: 'Failed to convert markdown to plain text',
-        error: err.message,
+        error: toUserFacingMessage(err),
       });
     }
   }
@@ -139,7 +140,7 @@ router.post(
       return res.status(500).json({
         success: false,
         message: 'Failed to format markdown for export',
-        error: err.message,
+        error: toUserFacingMessage(err),
       });
     }
   }
@@ -175,7 +176,7 @@ router.post(
       return res.status(500).json({
         success: false,
         message: 'Failed to check markdown content',
-        error: err.message,
+        error: toUserFacingMessage(err),
       });
     }
   }

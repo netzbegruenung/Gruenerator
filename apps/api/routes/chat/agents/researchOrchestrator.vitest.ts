@@ -24,6 +24,21 @@ vi.mock('./directSearchExecutors.js', () => ({
   executeDirectWebSearch: mockExecuteDirectWebSearch,
 }));
 
+// Linkup deep-research short-circuits the whole orchestrator when
+// LINKUP_API_KEY is present (it is, in local .env). These tests exercise the
+// planner/fan-out path, so force getLinkupService → null to keep them hermetic
+// (otherwise executeResearch makes a real ~14s Linkup call and skips the fan-out).
+vi.mock('../../../services/search/LinkupService.js', () => ({
+  getLinkupService: vi.fn(() => null),
+}));
+
+// Same reasoning for the cheap lane: left live it would make a real GreenPT
+// call whenever a developer has GREENPT_SEARCH_ENABLED set.
+vi.mock('../../../services/search/GreenPTSearchService.js', () => ({
+  getGreenPTSearchService: vi.fn(() => null),
+  GREENPT_MAX_RESULTS: 10,
+}));
+
 vi.mock('../../../utils/logger.js', () => ({
   createLogger: () => ({
     info: vi.fn(),
@@ -49,7 +64,7 @@ vi.mock('../../../services/search/QueryExpansionService.js', () => ({
 
 // ─── Import after mocks ──────────────────────────────────────
 
-const { executeResearch, localeToSearchScope, DeepPlanSchema } =
+const { executeResearch, localeToSearchScope, DeepPlanSchema, linkupConfidence } =
   await import('./researchOrchestrator.js');
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -99,24 +114,27 @@ beforeEach(() => {
 // ─── Tests ───────────────────────────────────────────────────
 
 describe('localeToSearchScope', () => {
-  it('maps de → deutschland / de-DE', () => {
+  it('maps de → deutschland / de-DE / gruene.de', () => {
     expect(localeToSearchScope('de')).toEqual({
       qdrantCollection: 'deutschland',
       webLanguage: 'de-DE',
+      docDomain: 'gruene.de',
     });
   });
 
-  it('maps at → oesterreich / de-AT', () => {
+  it('maps at → oesterreich / de-AT / gruene.at', () => {
     expect(localeToSearchScope('at')).toEqual({
       qdrantCollection: 'oesterreich',
       webLanguage: 'de-AT',
+      docDomain: 'gruene.at',
     });
   });
 
-  it('maps eu → deutschland / de-DE (default fallback)', () => {
+  it('maps eu → deutschland / de-DE / gruene.de (default fallback)', () => {
     expect(localeToSearchScope('eu')).toEqual({
       qdrantCollection: 'deutschland',
       webLanguage: 'de-DE',
+      docDomain: 'gruene.de',
     });
   });
 });
@@ -242,6 +260,46 @@ describe('executeResearch — onProgress callback', () => {
 
     const messages = onProgress.mock.calls.map((c) => c[0] as string);
     expect(messages.some((m) => m.includes('Vertiefe Recherche zu: konkrete-aspect'))).toBe(true);
+  });
+});
+
+describe('executeResearch — locale reaches the single-shot path', () => {
+  // Regression: the single-shot path hardcoded collection 'deutschland' and
+  // domain 'gruene.de', so a de-AT user searching without the deep planner got
+  // the German corpus. Only the deep path went through localeToSearchScope.
+  it('searches the Austrian collection for de-AT', async () => {
+    const result = await executeResearch({
+      question: 'position zur bodenversiegelung',
+      complexity: 'moderate',
+      useLLMSynthesis: false,
+      userLocale: 'de-AT',
+    });
+
+    const docCalls = mockExecuteDirectSearch.mock.calls.map((c) => c[0]);
+    expect(docCalls.length).toBeGreaterThan(0);
+    for (const call of docCalls) {
+      expect(call.collection).toBe('oesterreich');
+    }
+    for (const call of mockExecuteDirectWebSearch.mock.calls.map((c) => c[0])) {
+      expect(call.language).toBe('de-AT');
+    }
+    const docCitations = result.citations.filter((c) => c.domain !== 'example.com');
+    expect(docCitations.length).toBeGreaterThan(0);
+    for (const citation of docCitations) {
+      expect(citation.domain).toBe('gruene.at');
+    }
+  });
+
+  it('still searches the German collection for de-DE', async () => {
+    await executeResearch({
+      question: 'position zur bodenversiegelung',
+      complexity: 'moderate',
+      useLLMSynthesis: false,
+      userLocale: 'de-DE',
+    });
+    for (const call of mockExecuteDirectSearch.mock.calls.map((c) => c[0])) {
+      expect(call.collection).toBe('deutschland');
+    }
   });
 });
 
@@ -452,5 +510,33 @@ describe('executeResearch — deep path (complex)', () => {
       prompt: string;
     };
     expect(plannerCall.prompt).toContain('Default-Land: at');
+  });
+});
+
+describe('linkupConfidence', () => {
+  const base = { sources: 12, domains: 6, answerLength: 800, queryInherited: false };
+
+  it('reports high only for a broad, multi-domain run on the user own question', () => {
+    expect(linkupConfidence(base)).toBe('high');
+  });
+
+  it('caps an inherited query at medium — exhaustive research into the WRONG question is not high confidence', () => {
+    // The live failure: "Ja, bitte recherchiere das jetzt im Web" produced 20
+    // sources about the wrong topic and still shipped "Hohe Konfidenz".
+    expect(linkupConfidence({ ...base, queryInherited: true })).toBe('medium');
+  });
+
+  it('drops to low when nothing came back', () => {
+    expect(linkupConfidence({ ...base, sources: 0 })).toBe('low');
+    expect(linkupConfidence({ ...base, answerLength: 20 })).toBe('low');
+  });
+
+  it('drops to medium for a thin single-domain run', () => {
+    expect(linkupConfidence({ ...base, sources: 4, domains: 2 })).toBe('medium');
+    expect(linkupConfidence({ ...base, sources: 4, domains: 1 })).toBe('low');
+  });
+
+  it('an inherited query with a thin run is low, not medium', () => {
+    expect(linkupConfidence({ ...base, sources: 2, domains: 1, queryInherited: true })).toBe('low');
   });
 });

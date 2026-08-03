@@ -8,6 +8,8 @@ import {
 } from '@gruenerator/contracts';
 import { apiRequest } from '@gruenerator/shared/api';
 
+import { DEV_BOARDS, DEV_CANVASES, DEV_FIXTURES_ENABLED } from '../devFixtures';
+
 /**
  * Read-only Office data for the mobile viewers. Boards and canvas are NOT in
  * the /docs list (DOCS_ONLY_SUBTYPES excludes them), so the Office tab fetches
@@ -17,10 +19,12 @@ import { apiRequest } from '@gruenerator/shared/api';
  */
 export const officeApi = {
   fetchBoards(): Promise<BoardDocument[]> {
+    if (DEV_FIXTURES_ENABLED) return Promise.resolve(DEV_BOARDS);
     return apiRequest<BoardDocument[]>('get', '/boards').then((r) => r ?? []);
   },
 
   fetchCanvases(): Promise<CanvasListItem[]> {
+    if (DEV_FIXTURES_ENABLED) return Promise.resolve(DEV_CANVASES);
     return apiRequest<CanvasListItem[]>('get', '/canvas').then((r) => r ?? []);
   },
 

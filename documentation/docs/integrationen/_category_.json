@@ -1,8 +1,8 @@
 {
   "label": "Integrationen",
-  "position": 6,
+  "position": 7,
   "link": {
     "type": "generated-index",
-    "description": "Den Grünerator mit anderen KI-Tools und Plattformen verbinden."
+    "description": "Den Grünerator mit anderen Diensten verbinden — in beide Richtungen."
   }
 }

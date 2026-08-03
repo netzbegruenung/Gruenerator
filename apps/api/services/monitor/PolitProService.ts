@@ -725,33 +725,92 @@ export async function getPolitProHistory(
 }
 
 export const POLITPRO_PARLIAMENTS = [
-  { id: 'deutschland', name: 'Deutschland' },
-  { id: 'oesterreich', name: 'Österreich' },
-  { id: 'burgenland', name: 'Burgenland' },
-  { id: 'kaernten', name: 'Kärnten' },
-  { id: 'niederoesterreich', name: 'Niederösterreich' },
-  { id: 'oberoesterreich', name: 'Oberösterreich' },
-  { id: 'salzburg', name: 'Salzburg' },
-  { id: 'steiermark', name: 'Steiermark' },
-  { id: 'tirol', name: 'Tirol' },
-  { id: 'vorarlberg', name: 'Vorarlberg' },
-  { id: 'wien', name: 'Wien' },
-  { id: 'baden-wuerttemberg', name: 'Baden-Württemberg' },
-  { id: 'bayern', name: 'Bayern' },
-  { id: 'berlin', name: 'Berlin' },
-  { id: 'brandenburg', name: 'Brandenburg' },
-  { id: 'bremen', name: 'Bremen' },
-  { id: 'hamburg', name: 'Hamburg' },
-  { id: 'hessen', name: 'Hessen' },
-  { id: 'mecklenburg-vorpommern', name: 'Mecklenburg-Vorpommern' },
-  { id: 'niedersachsen', name: 'Niedersachsen' },
-  { id: 'nordrhein-westfalen', name: 'Nordrhein-Westfalen' },
-  { id: 'rheinland-pfalz', name: 'Rheinland-Pfalz' },
-  { id: 'saarland', name: 'Saarland' },
-  { id: 'sachsen', name: 'Sachsen' },
-  { id: 'sachsen-anhalt', name: 'Sachsen-Anhalt' },
-  { id: 'schleswig-holstein', name: 'Schleswig-Holstein' },
-  { id: 'thueringen', name: 'Thüringen' },
-] as const;
+  { id: 'deutschland', name: 'Deutschland', country: 'DE' },
+  { id: 'oesterreich', name: 'Österreich', country: 'AT' },
+  { id: 'burgenland', name: 'Burgenland', country: 'AT' },
+  { id: 'kaernten', name: 'Kärnten', country: 'AT' },
+  { id: 'niederoesterreich', name: 'Niederösterreich', country: 'AT' },
+  { id: 'oberoesterreich', name: 'Oberösterreich', country: 'AT' },
+  { id: 'salzburg', name: 'Salzburg', country: 'AT' },
+  { id: 'steiermark', name: 'Steiermark', country: 'AT' },
+  { id: 'tirol', name: 'Tirol', country: 'AT' },
+  { id: 'vorarlberg', name: 'Vorarlberg', country: 'AT' },
+  { id: 'wien', name: 'Wien', country: 'AT' },
+  { id: 'baden-wuerttemberg', name: 'Baden-Württemberg', country: 'DE' },
+  { id: 'bayern', name: 'Bayern', country: 'DE' },
+  { id: 'berlin', name: 'Berlin', country: 'DE' },
+  { id: 'brandenburg', name: 'Brandenburg', country: 'DE' },
+  { id: 'bremen', name: 'Bremen', country: 'DE' },
+  { id: 'hamburg', name: 'Hamburg', country: 'DE' },
+  { id: 'hessen', name: 'Hessen', country: 'DE' },
+  { id: 'mecklenburg-vorpommern', name: 'Mecklenburg-Vorpommern', country: 'DE' },
+  { id: 'niedersachsen', name: 'Niedersachsen', country: 'DE' },
+  { id: 'nordrhein-westfalen', name: 'Nordrhein-Westfalen', country: 'DE' },
+  { id: 'rheinland-pfalz', name: 'Rheinland-Pfalz', country: 'DE' },
+  { id: 'saarland', name: 'Saarland', country: 'DE' },
+  { id: 'sachsen', name: 'Sachsen', country: 'DE' },
+  { id: 'sachsen-anhalt', name: 'Sachsen-Anhalt', country: 'DE' },
+  { id: 'schleswig-holstein', name: 'Schleswig-Holstein', country: 'DE' },
+  { id: 'thueringen', name: 'Thüringen', country: 'DE' },
+] as const satisfies readonly { id: string; name: string; country: 'DE' | 'AT' }[];
+
+export type PolitProCountry = (typeof POLITPRO_PARLIAMENTS)[number]['country'];
 
 const VALID_PARLIAMENT_IDS: Set<string> = new Set(POLITPRO_PARLIAMENTS.map((p) => p.id));
+
+/**
+ * The NATIONAL parliament for a country — what a poll question that names no
+ * region should answer with. Austria used to fall through to `deutschland`
+ * here, so an Austrian user asking "Wie stehen die Grünen in Umfragen?" got the
+ * Bundestag Sonntagsfrage, explicitly labelled "Deutschland (Bundestag)".
+ */
+export function nationalParliament(country: PolitProCountry): { id: string; scope: string } {
+  return country === 'AT'
+    ? { id: 'oesterreich', scope: 'Österreich (Nationalrat)' }
+    : { id: 'deutschland', scope: 'Deutschland (Bundestag)' };
+}
+
+/** Umlaut/case folding so "Kärnten", "kaernten" and "KÄRNTEN" all match. */
+function foldRegion(value: string): string {
+  return value
+    .toLowerCase()
+    .replaceAll('ä', 'ae')
+    .replaceAll('ö', 'oe')
+    .replaceAll('ü', 'ue')
+    .replaceAll('ß', 'ss')
+    .replace(/[^a-z]/g, '');
+}
+
+/**
+ * Resolve a user-named region to a PolitPro parliament WITHIN one country.
+ * Scoping by country is what keeps a query from crossing the border silently —
+ * the two name lists happen not to collide today, but nothing enforces that,
+ * and the national entries ("Deutschland"/"Österreich") must never resolve for
+ * the other side.
+ */
+export function resolveParliamentByName(
+  region: string,
+  country: PolitProCountry
+): { id: string; name: string } | null {
+  const needle = foldRegion(region);
+  if (!needle) return null;
+  const candidates = POLITPRO_PARLIAMENTS.filter((p) => p.country === country);
+  const exact = candidates.find((p) => foldRegion(p.name) === needle || p.id === needle);
+  if (exact) return { id: exact.id, name: exact.name };
+  // Substring match so "Wie stehen die Grünen in Wien?" resolves without the
+  // caller having to extract the bare region name first. The length floor keeps
+  // very short names from matching inside unrelated words.
+  //
+  // LONGEST name first, and that is load-bearing: "oesterreich" is a substring
+  // of "oberoesterreich" and "niederoesterreich", and the national entry comes
+  // first in the registry. In registry order, "Umfragen in Oberösterreich"
+  // therefore resolved to the NATIONALRAT — the wrong scope, answered
+  // confidently, which is the exact failure this whole area exists to remove.
+  const partial = [...candidates]
+    .sort((a, b) => foldRegion(b.name).length - foldRegion(a.name).length)
+    .find((p) => {
+      const folded = foldRegion(p.name);
+      return folded.length >= 4 && needle.includes(folded);
+    });
+  return partial ? { id: partial.id, name: partial.name } : null;
+}

@@ -19,11 +19,14 @@ import type { Tool } from 'ai';
 const noopRegistry: SourceRegistry = {
   register: () => '',
   seedCarried: () => {},
+  note: () => {},
   getResults: () => [],
   renderAll: () => '',
   renderReference: () => '',
   getCitations: () => [],
   size: 0,
+  carriedSize: 0,
+  freshSize: 0,
 };
 
 // No personal-data tool reaches an sse call without a threadId; this only
@@ -162,7 +165,10 @@ export function registerAiTool(
     name,
     {
       ...(opts.title ? { title: opts.title } : {}),
-      description: opts.description ?? aiTool.description ?? name,
+      description:
+        opts.description ??
+        (typeof aiTool.description === 'string' ? aiTool.description : undefined) ??
+        name,
       inputSchema: shape,
       annotations: {
         readOnlyHint: opts.readOnly ?? false,
@@ -177,7 +183,11 @@ export function registerAiTool(
         const override = action ? opts.overrides?.[action] : undefined;
         raw = override
           ? await override(args)
-          : await aiTool.execute!(args, { toolCallId: `mcp-${name}`, messages: [] });
+          : await aiTool.execute!(args, {
+              toolCallId: `mcp-${name}`,
+              messages: [],
+              context: undefined,
+            });
       } catch (err) {
         // Never leak raw driver/service errors (e.g. Postgres uuid-cast noise
         // from hallucinated ids) to external MCP clients.

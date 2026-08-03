@@ -65,11 +65,14 @@ export const BoardInlineHeader = memo(function BoardInlineHeader({
       <div className={`flex items-center gap-sm ${compact ? '' : 'order-2 sm:order-1'}`}>
         <button
           onClick={() => navigate('/workplace')}
-          className="flex items-center text-grey-500 hover:text-foreground transition-colors bg-transparent border-none cursor-pointer p-1 rounded-md hover:bg-grey-100 dark:hover:bg-[#2a2a2a]"
+          className="flex items-center text-grey-500 hover:text-foreground transition-colors bg-transparent border-none cursor-pointer p-1 max-sm:p-[14px] rounded-md hover:bg-grey-100 dark:hover:bg-[#2a2a2a]"
           aria-label="Zurück zur Board-Liste"
         >
           <FiArrowLeft size={compact ? 16 : 18} />
         </button>
+        {/* eslint-disable-next-line jsx-a11y/heading-has-content -- `as="h1"` wird
+            über polymorphicPropName als Überschrift erkannt, der Text kommt aber
+            über `title`, nicht über children. */}
         <EditableTitle
           as="h1"
           title={title}
@@ -91,7 +94,7 @@ export const BoardInlineHeader = memo(function BoardInlineHeader({
           onClick={() => toggleFavourite(boardId)}
           aria-label={isFavourite ? 'Aus Favoriten entfernen' : 'Zu Favoriten'}
           title={isFavourite ? 'Aus Favoriten entfernen' : 'Zu Favoriten'}
-          className="flex items-center justify-center w-7 h-7 rounded-md hover:bg-grey-100 dark:hover:bg-[#2a2a2a] bg-transparent border-none cursor-pointer transition-colors"
+          className="flex items-center justify-center w-7 h-7 max-sm:w-11 max-sm:h-11 rounded-md hover:bg-grey-100 dark:hover:bg-[#2a2a2a] bg-transparent border-none cursor-pointer transition-colors"
         >
           {isFavourite ? (
             <PiStarFill size={16} className="text-primary-600" />

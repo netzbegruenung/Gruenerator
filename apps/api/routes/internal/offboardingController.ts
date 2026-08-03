@@ -2,6 +2,7 @@ import { Router, type Request, type Response, type NextFunction } from 'express'
 
 import { env } from '../../config/env.js';
 import { OffboardingService } from '../../services/admin/index.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('offboarding');
@@ -59,7 +60,7 @@ router.post('/run', requireAdmin, async (req: AdminRequest, res: Response): Prom
     if (!res.headersSent) {
       res.status(500).json({
         error: 'Configuration error',
-        message: err.message,
+        message: toUserFacingMessage(err),
       });
     }
   }
@@ -86,7 +87,7 @@ router.post('/run-sync', requireAdmin, async (req: AdminRequest, res: Response):
 
     res.status(500).json({
       success: false,
-      error: err.message,
+      error: toUserFacingMessage(err),
     });
   }
 });
@@ -108,7 +109,9 @@ router.get('/status', requireAdmin, async (req: AdminRequest, res: Response): Pr
     OffboardingService.validateConfig();
   } catch (error) {
     const err = error as Error;
-    res.status(500).json({ status: 'error', message: err.message, apiReachable: false, config });
+    res
+      .status(500)
+      .json({ status: 'error', message: toUserFacingMessage(err), apiReachable: false, config });
     return;
   }
 
@@ -166,7 +169,6 @@ router.post('/dry-run', requireAdmin, async (req: AdminRequest, res: Response): 
 
     let count = 0;
 
-    // eslint-disable-next-line @typescript-eslint/await-thenable -- fetchOffboardingUsers is an async generator (async-iterable)
     for await (const user of service.fetchOffboardingUsers()) {
       if (count >= limit) break;
 
@@ -201,7 +203,7 @@ router.post('/dry-run', requireAdmin, async (req: AdminRequest, res: Response): 
     const err = error as Error;
     res.status(500).json({
       error: 'Dry run failed',
-      message: err.message,
+      message: toUserFacingMessage(err),
     });
   }
 });

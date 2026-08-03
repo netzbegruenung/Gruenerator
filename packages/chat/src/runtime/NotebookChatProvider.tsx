@@ -1,6 +1,5 @@
 'use client';
 
-import { type ReactNode, useMemo, useCallback, useRef } from 'react';
 import {
   AuiProvider,
   AssistantRuntimeProvider,
@@ -8,9 +7,13 @@ import {
   useLocalRuntime,
   type ThreadMessageLike,
 } from '@assistant-ui/react';
+import { type NotebookDepth } from '@gruenerator/contracts';
 import { VoxtralDictationAdapter } from '@gruenerator/voice';
-import { handleDictationError } from '../lib/dictationErrorHandler';
+import { type ReactNode, useMemo, useCallback, useRef } from 'react';
+
 import { MarkdownStreamingProvider } from '../context/MarkdownStreamingContext';
+import { handleDictationError } from '../lib/dictationErrorHandler';
+
 import { GrueneratorAttachmentAdapter } from './GrueneratorAttachmentAdapter';
 import {
   createNotebookModelAdapter,
@@ -46,7 +49,7 @@ export interface NotebookChatProviderProps {
   initialMessages?: readonly ThreadMessageLike[];
   onComplete?: (metadata: NotebookMessageMetadata) => void;
   onThreadCreated?: (threadId: string) => void;
-  mode?: 'fast' | 'deep';
+  mode?: NotebookDepth;
   endpoint?: string;
   documentIds?: string[];
   threadId?: string | null;

@@ -338,6 +338,21 @@ export const useUpdateGroupSettings = (groupId: string | null) => {
   };
 };
 
+// Invite people to a group by email (each address gets the join link). Not in
+// the shared package — web-only for now.
+export const useInviteToGroup = () => {
+  return useMutation({
+    mutationFn: async (input: { groupId: string; emails: string[] }) => {
+      const res = await getContractsClient().groups.invite({
+        params: { groupId: input.groupId },
+        body: { emails: input.emails },
+      });
+      if (res.status !== 200) throw new Error(errMessage(res.body));
+      return res.body;
+    },
+  });
+};
+
 export const useGroupAvatar = (groupId: string | null) => {
   const uploadMutation = useUploadGroupAvatar(groupId ?? '');
   const deleteMutation = useDeleteGroupAvatar(groupId ?? '');

@@ -1,3 +1,4 @@
+import { InteractiveCard } from '@gruenerator/ui';
 import { ArrowRight, Image as ImageIcon, Sparkles, Video, type LucideIcon } from 'lucide-react';
 
 import { SHOW_SHAREPIC_STUDIO } from '../../../config/featureFlags';
@@ -84,18 +85,11 @@ export function QuickStartTiles({ items, className }: { items: QuickStart[]; cla
       )}
     >
       {items.map(({ key, icon: Icon, title, description, onClick }) => (
-        <div
+        <InteractiveCard
           key={key}
-          role="button"
-          tabIndex={0}
-          onClick={onClick}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              onClick();
-            }
-          }}
-          className="group flex cursor-pointer flex-col gap-3 rounded-xl border border-grey-200 bg-background p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-grey-300 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 motion-reduce:transition-none motion-reduce:hover:translate-y-0 dark:border-grey-700 dark:hover:border-grey-600"
+          label={title}
+          onActivate={onClick}
+          className="group flex cursor-pointer flex-col gap-3 rounded-xl border border-grey-200 bg-background p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-grey-300 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:translate-y-0 dark:border-grey-700 dark:hover:border-grey-600"
         >
           <div className="flex size-11 items-center justify-center rounded-lg bg-primary-100 text-primary-600 transition-colors group-hover:bg-primary-200 dark:bg-primary-900/40 dark:text-primary-200">
             <Icon className="size-5" />
@@ -107,7 +101,7 @@ export function QuickStartTiles({ items, className }: { items: QuickStart[]; cla
             </div>
             <p className="mt-1 text-sm leading-relaxed text-foreground opacity-70">{description}</p>
           </div>
-        </div>
+        </InteractiveCard>
       ))}
     </div>
   );

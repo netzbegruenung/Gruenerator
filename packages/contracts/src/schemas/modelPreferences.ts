@@ -6,7 +6,22 @@
  */
 import { z } from 'zod';
 
-export const modelIdSchema = z.enum(['mistral-medium-3.5', 'litellm', 'gemma-litellm']);
+/**
+ * F0: die Werte stehen in `profiles.user_defaults.models` und in bereits
+ * ausgelieferten Mobile-Bundles. Die Größen-Lanes kamen additiv dazu; die drei
+ * Vendor-IDs bleiben gültig und werden serverseitig auf ihre Lane abgebildet
+ * (`resolveTextModelId` in @gruenerator/core/models).
+ */
+export const modelIdSchema = z.enum([
+  'gruenerator-small',
+  'gruenerator-medium',
+  'gruenerator-ultra',
+  'greenpt',
+  // Veraltet — nur noch entgegengenommen, nicht mehr angeboten.
+  'mistral-medium-3.5',
+  'litellm',
+  'gemma-litellm',
+]);
 
 export const modelPreferenceSchema = z.object({
   enabled: z.boolean(),

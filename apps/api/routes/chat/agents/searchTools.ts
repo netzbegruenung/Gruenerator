@@ -2,14 +2,14 @@
  * Shared AI-SDK search/research tools for grounded generation.
  *
  * Shared between the chat handler and the async board agent so both author
- * with the same grounded tool set. The chat handler runs these as a router
- * (toolChoice:'required') and needs the `direct_response` escape hatch;
- * document authoring runs them on-demand (toolChoice:'auto') and omits it —
- * hence the `includeDirectResponse` option.
+ * with the same grounded tool set. Both run them on-demand
+ * (`toolChoice: 'auto'`) — a turn that needs no tool simply answers.
  */
 import { tool, type ToolSet } from 'ai';
 import { z } from 'zod';
 
+import { normalizeDomainList } from '../../../services/search/domainFilters.js';
+import { resolveSearchTier, SEARCH_TIERS } from '../../../services/search/searchDepth.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import {
@@ -17,7 +17,6 @@ import {
   executeDirectExamplesSearch,
   executeDirectPressemitteilungExamples,
   executeDirectWebSearch,
-  executeResearch,
 } from './directSearch.js';
 import { resolveExamplesLvScope } from './lvScope.js';
 
@@ -36,20 +35,135 @@ export const ALL_COLLECTIONS = [
   'boell-stiftung',
 ] as const;
 
+/** Austria is a first-class audience, not a toggle on a German default. */
+const LOCALE_DEFAULT_COLLECTION: Record<string, string> = {
+  'de-AT': 'oesterreich',
+  'de-DE': 'deutschland',
+};
+
 export interface CreateSearchToolsOptions {
   /**
-   * Add the router-style `direct_response` escape hatch. The chat handler needs
-   * it (it forces a tool call via toolChoice:'required'); document authoring runs
-   * tools on-demand and leaves it out.
+   * Whose collections to search when the model names none. Without it every
+   * turn defaulted to `deutschland` — an AT user asking about Austria searched
+   * the German corpus and got 0 hits (observed live). An explicit
+   * `toolRestrictions.defaultCollection` still wins: that is a deliberate
+   * per-agent decision, this is only the fallback.
    */
-  includeDirectResponse?: boolean;
+  userLocale?: string | null;
   /**
    * When set, restrict the returned search tools to the agent's user-selected
    * capabilities (USER_SELECTABLE_TOOLS keys: `search` → gruenerator_search,
-   * `examples` → examples/pressemitteilung, `web`/`research` → web_search/research).
+   * `examples` → examples/pressemitteilung, `web`/`research` → web_search).
    * Undefined leaves the full set (chat + board defaults unchanged).
    */
   enabledToolKeys?: readonly string[];
+  /**
+   * Did the user ask for a thorough research in so many words? Only then may a
+   * `tiefe: 'tiefenrecherche'` tool call actually reach Linkup's deep engine;
+   * otherwise it is clamped one step down. The tier the model names is a REQUEST,
+   * not authority — "nutze sie sparsam" in a tool description is documentation,
+   * not enforcement, and a paid engine setting needs enforcement.
+   */
+  explicitDeepRequest?: boolean;
+  /**
+   * Does this turn get image hits? The CLASSIFIER decides, not the planner —
+   * either because the user asked for pictures in so many words, or because it
+   * judged the subject to be something you can look at (`bilder` in its JSON).
+   *
+   * The model has no argument for this any more. It used to (`bilder: true`), and
+   * that made an explicit image request depend on the planner remembering a flag
+   * one node after the question had already been answered. Briefly it was
+   * unconditional instead, which put stock photos under every question about a
+   * paragraph of law.
+   */
+  wantsImages?: boolean;
+  /**
+   * The user's own last message, mention tokens removed. Same role as
+   * `explicitDeepRequest`: it is what a narrowing tool argument is checked
+   * against. Only `seiten` uses it today — the model invents domains, and an
+   * invented site scope is invisible in the answer (see `namedByUser`). Callers
+   * without a user turn (board agent, document authoring) leave it unset and the
+   * check is skipped.
+   */
+  userText?: string | null;
+}
+
+/**
+ * Did the user actually name this site?
+ *
+ * A model-supplied `seiten` is a REQUEST like the tier is, and it is the most
+ * damaging one to get wrong: it silently reduces "the web" to three hosts, and
+ * the answer looks perfectly normal afterwards. Observed live on "recherchiere
+ * im netz: wer war Marilyn Monroe" — the planner sent
+ * `seiten: ["wikipedia.de","spiegel.de","faz.net"]`, which the user had not
+ * mentioned, and every source came back from Spiegel and FAZ.
+ *
+ * Matched on the bare host or on its registrable label, because people write
+ * "auf zeit.de", "bei der Zeit" and "Zeit Online" for the same wish. Label
+ * matching is word-bounded so "orf" does not match inside another word.
+ *
+ * Naming an INSTITUTION counts as naming its sites — see `INSTITUTION_HOSTS`.
+ */
+export function namedByUser(host: string, userText: string): boolean {
+  const haystack = userText.toLowerCase();
+  const needle = host.toLowerCase();
+  if (haystack.includes(needle)) return true;
+  const label = needle.split('.')[0];
+  if (label != null && label.length >= 3) {
+    const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (new RegExp(`\\b${escaped}\\b`).test(haystack)) return true;
+  }
+  return institutionNamed(needle, haystack);
+}
+
+/**
+ * Institutions people name instead of hosts, and the hosts that ARE them.
+ *
+ * "Nutze ausschließlich Primärquellen von EU-Kommission, Rat der EU und
+ * Europäischem Parlament" contains no hostname, so the check above dropped
+ * exactly the scope the planner had got right — three times in one live turn on
+ * 02.08.2026 (`site scope dropped (not named by the user): ec.europa.eu,
+ * eur-lex.europa.eu, europa.eu`). The search then ran the open web and the
+ * answer was built from euractiv and a blog, under an instruction that had said
+ * primary sources only. That is the opposite failure to the invented scope this
+ * guard was built for, and it is the worse one: the user's own narrowing was
+ * silently discarded.
+ *
+ * Deliberately not a general "which body owns this domain?" resolver. Every
+ * entry is an institution whose OWN publications are the primary source people
+ * ask for, and the mapping only ever widens what the user demonstrably named —
+ * the planner still cannot invent a scope out of nothing.
+ *
+ * Additive by design: an institution that turns up in a real request gets a
+ * line here. A missing entry costs a dropped scope (today's behaviour), never a
+ * wrong one.
+ */
+const INSTITUTION_HOSTS: ReadonlyArray<{ hosts: readonly string[]; phrases: readonly RegExp[] }> = [
+  {
+    hosts: ['ec.europa.eu', 'europa.eu', 'eur-lex.europa.eu'],
+    phrases: [/\beu[- ]kommission\b/u, /\beurop(?:ä|ae)ische\w*\s+kommission\b/u],
+  },
+  {
+    hosts: ['consilium.europa.eu', 'europa.eu'],
+    phrases: [/\brat der eu\b/u, /\beu[- ]rat\b/u, /\beurop(?:ä|ae)ische\w*\s+rat\b/u],
+  },
+  {
+    hosts: ['europarl.europa.eu', 'europa.eu'],
+    phrases: [/\beu[- ]parlament\b/u, /\beurop(?:ä|ae)ische\w*\s+parlament\b/u],
+  },
+  { hosts: ['eur-lex.europa.eu'], phrases: [/\bamtsblatt der eu\b/u] },
+  // Only where the common German name shares no word with the domain label —
+  // "Bundestag", "Umweltbundesamt" and the like are already matched by the
+  // label rule above, and a second entry for them would be dead code.
+  { hosts: ['destatis.de'], phrases: [/\bstatistische[sn]? bundesamt\b/u] },
+  { hosts: ['parlament.gv.at'], phrases: [/\bnationalrat(?:s|es)?\b/u] },
+];
+
+/** Did the user name an institution that owns this host? */
+function institutionNamed(host: string, haystack: string): boolean {
+  return INSTITUTION_HOSTS.some(
+    (entry) => entry.hosts.includes(host) && entry.phrases.some((p) => p.test(haystack))
+  );
 }
 
 /**
@@ -70,8 +184,22 @@ export function createSearchTools(
     ? restrictions.allowedCollections
     : ALL_COLLECTIONS;
 
-  const defaultCollection = restrictions?.defaultCollection || allowedCollections[0];
-  const examplesCountry = restrictions?.examplesCountry;
+  const localeDefault = options.userLocale
+    ? LOCALE_DEFAULT_COLLECTION[options.userLocale]
+    : undefined;
+  const defaultCollection =
+    restrictions?.defaultCollection ||
+    (localeDefault && allowedCollections.includes(localeDefault)
+      ? localeDefault
+      : allowedCollections[0]);
+  // Same locale fallback the deterministic search node applies (searchNode's
+  // examples branch): an explicit per-agent `examplesCountry` wins, otherwise an
+  // AT user grounds in Austrian examples. Without this an AT user on a generic
+  // agent got German social/press posts as style templates on the loop path
+  // while the single-pass path got it right — `gruene_at_documents` exists.
+  // Callers that pass no locale (e.g. the board agent) keep `undefined`.
+  const examplesCountry =
+    restrictions?.examplesCountry ?? (options.userLocale === 'de-AT' ? 'AT' : undefined);
   // Landesverband scope for example searches — derived from the agent so an LV
   // agent only grounds in its own LV's social/press examples. Without this the
   // press tool pulls PMs from all LVs and mimics the wrong one (e.g. a
@@ -184,13 +312,24 @@ NICHT FÜR: Social-Media-Posts (nutze gruenerator_examples_search), allgemeine R
   });
 
   tools.web_search = tool({
-    description: `Suche im Internet nach aktuellen Informationen und Nachrichten.
+    description: `Suche im Internet nach aktuellen Informationen, Fakten und Nachrichten — in drei Stufen.
 
 NUTZE WENN:
 - Aktuelle Ereignisse oder Nachrichten gefragt
 - Informationen außerhalb der Grünen-Dokumentation
 - Allgemeine Fakten aus dem Web
 - Externe Quellen benötigt
+- Der Benutzer "recherchiere", "finde heraus" oder "belege für" sagt → höhere Stufe
+
+WÄHLE DIE STUFE NACH AUFWAND, NICHT NACH WORTLAUT:
+- gruendlich: DER NORMALFALL, lass tiefe einfach weg. 10 Quellen.
+- tiefenrecherche: nur wenn der Benutzer ausdrücklich eine gründliche Recherche verlangt hat. Dauert 15–30 Sekunden.
+
+EINE SUCHE ZUR ZEIT: Starte eine Suche, lies das Ergebnis, und suche erst dann weiter, wenn wirklich etwas fehlt. Höchstens zwei Suchen gleichzeitig. War ein Ergebnis schwach, formuliere die Anfrage EINMAL anders (notfalls englisch) — schicke keine Varianten auf Vorrat los.
+
+SCOPE GEHÖRT IN DIE PARAMETER, NICHT IN DIE ANFRAGE: Nennt der Benutzer Seiten ("such auf zeit.de und orf.at"), setze seiten; nennt er einen Zeitraum ("seit Januar", "letzte Woche"), setze zeitraum. Schreibe beides NICHT in query — dort werden es bloß Suchwörter, und die Suchmaschine filtert nichts.
+
+BILDER: Ob eine Suche Bild-Treffer mitliefert, ist vorher entschieden — du hast dafür kein Argument. Kommen welche, sieht der Benutzer sie über deiner Antwort. Es ist Recherchematerial zum Anschauen, KEIN verwendbares Bildmaterial: verwende es nie für Sharepics oder Social-Posts, und behaupte nicht, es sei frei nutzbar. Will der Benutzer ein NEUES Bild erstellt haben, ist die Websuche das falsche Tool.
 
 NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
     inputSchema: z.object({
@@ -199,13 +338,100 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
         .enum(['general', 'news'])
         .optional()
         .default('general')
-        .describe('Suchtyp: general (allgemein) oder news (Nachrichten)'),
-      maxResults: z.number().optional().default(5).describe('Maximale Anzahl Ergebnisse (1-10)'),
+        // F0: persisted in tool-call arguments, so the name stays. Its function
+        // moved to `zeitraum` — on the Linkup path it only ever set a SearXNG
+        // category, i.e. nothing at all. It now buys a 30-day window.
+        .describe('Suchtyp: general (allgemein) oder news (nur die letzten 30 Tage)'),
+      // Default `gruendlich`, not `standard`. Both use Linkup's SAME engine depth
+      // and the SAME single paid call — `gruendlich` only raises maxResults 5→10
+      // and asks for the adjacent-keyword fan-out inside that call. Measured on
+      // three queries: 1978ms → 2986ms, i.e. one second for twice the material.
+      // `standard` as the default meant an open question ("wer war X") was
+      // answered from five snippets, which is not enough for a complete answer
+      // and read to users as the product being thin.
+      // The enum keeps all three tiers even though only two are offered above:
+      // `standard` is F0 — it sits in persisted tool-call arguments that later
+      // turns replay, so dropping it from the schema would fail validation on
+      // stored calls. `resolveSearchTier` raises it back to `gruendlich`.
+      tiefe: z
+        .enum(SEARCH_TIERS)
+        .optional()
+        .default('gruendlich')
+        .describe(
+          'Rechercheaufwand: gruendlich (Normalfall, 10 Quellen) oder tiefenrecherche (nur auf ausdrücklichen Wunsch, langsam)'
+        ),
+      zeitraum: z
+        .enum(['anytime', 'day', 'week', 'month', 'year'])
+        .optional()
+        .describe(
+          'Nur Treffer aus diesem Zeitfenster. Setze es, wenn der Benutzer einen Zeitbezug nennt — nicht vorsorglich, ein zu enges Fenster liefert nichts.'
+        ),
+      seiten: z
+        .array(z.string())
+        .optional()
+        .describe(
+          'Nur auf diesen Domains suchen, z.B. ["zeit.de","orf.at"] — reine Hostnamen ohne https://. Nur wenn der Benutzer Seiten genannt hat.'
+        ),
+      seitenAusschliessen: z
+        .array(z.string())
+        .optional()
+        .describe('Diese Domains überspringen, z.B. ["reddit.com"]. Reine Hostnamen.'),
+      // No `bilder`: the classifier decides (see `wantsImages` in the options).
+      // As a tool argument it made an explicit image request depend on the
+      // planner remembering a flag — one node after the classifier had already
+      // read the question and answered exactly that.
+      // No `maxResults`: the tier owns the source count. Offered to the model it
+      // became a second, unlabelled way to under-buy — measured live, a
+      // `tiefe: gruendlich` call arrived with `maxResults: 5` and undid the tier.
+      // Unknown keys are stripped by the schema, so a replayed stored call that
+      // still carries one is simply ignored rather than rejected.
     }),
-    execute: async ({ query, searchType, maxResults }) => {
+    execute: async ({ query, searchType, tiefe, zeitraum, seiten, seitenAusschliessen }) => {
       try {
-        const results = await executeDirectWebSearch({ query, searchType, maxResults });
-        return results;
+        // The model's tier is a request in both directions; `resolveSearchTier`
+        // clamps it up to the normal case and down to what the user actually
+        // consented to. Without this the deep engine is one hallucinated
+        // argument away, and a five-snippet answer one skipped instruction away.
+        const tier = resolveSearchTier({
+          intent: 'web',
+          requestedTier: tiefe,
+          explicitDeep: options.explicitDeepRequest ?? false,
+        });
+        if (tier !== tiefe) {
+          log.info(`[Tools] web_search tier clamped: ${tiefe} → ${tier}`);
+        }
+        // Hostnames are normalised here rather than trusted: the model reliably
+        // writes "https://zeit.de/" or "www.zeit.de" when the user did, and the
+        // API wants a bare host. A scheme left in place matches nothing, and the
+        // failure looks like "the site had no results".
+        const normalizedSites = normalizeDomainList(seiten);
+        // Same rule as the tier: the model may pass a site scope on, it may not
+        // invent one. An exclusion is left alone — it widens the loss to one
+        // host, where an invented inclusion throws the rest of the web away.
+        const userText = options.userText;
+        const includeDomains =
+          userText != null && userText.length > 0
+            ? normalizedSites.filter((host) => namedByUser(host, userText))
+            : normalizedSites;
+        const invented = normalizedSites.filter((host) => !includeDomains.includes(host));
+        if (invented.length > 0) {
+          log.info(
+            `[Tools] web_search site scope dropped (not named by the user): ${invented.join(', ')}`
+          );
+        }
+        const excludeDomains = normalizeDomainList(seitenAusschliessen);
+        return await executeDirectWebSearch({
+          query,
+          searchType,
+          tier,
+          ...(zeitraum && zeitraum !== 'anytime' ? { timeRange: zeitraum } : {}),
+          ...(includeDomains.length > 0 ? { includeDomains } : {}),
+          ...(excludeDomains.length > 0 ? { excludeDomains } : {}),
+          // The classifier's verdict, passed through — see `wantsImages`. The
+          // `maxResults` headroom keeps the images from eating the text hits, and
+          // the client shows three of them, so the proxy serves three files.
+          ...(options.wantsImages === true ? { includeImages: true } : {}),
+        });
       } catch (error) {
         log.error('Direct web search error:', error);
         return { error: 'Websuche fehlgeschlagen', results: [], resultsCount: 0, query };
@@ -213,82 +439,20 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
     },
   });
 
-  // Research tool: Perplexity-style structured research with planning, multi-source search, and synthesis
-  tools.research = tool({
-    description: `Strukturierte Recherche mit Planung, Suche und Synthese.
+  // The separate `research` tool is gone: it was a second door into a different
+  // engine (Linkup depth=deep + sourcedAnswer, i.e. LINKUP wrote the answer)
+  // reachable by the word "recherchiere" alone, and it exposed a `depth` choice
+  // that `executeResearch` discarded before Linkup ever saw it. Recherche is now
+  // the upper two tiers of `web_search`, so the answer — and every [N] in it —
+  // stays ours. `executeResearch` itself lives on for the Monitor's daily
+  // briefing (HotTopicPipeline), which genuinely wants a ready-made report.
 
-NUTZE WENN:
-- Der Benutzer "recherchiere", "suche nach", "finde heraus" sagt
-- Komplexe Fragen mit mehreren Aspekten
-- Vergleiche verschiedener Quellen gewünscht
-- Themen die Kontext aus mehreren Bereichen brauchen
-- Explizite Recherche-Anfragen ("nutze das recherche tool")
-
-Das Tool plant automatisch, sucht in relevanten Quellen, und synthetisiert mit Inline-Zitaten [1], [2].
-
-NICHT FÜR: Einfache Begrüßungen, Dankeschöns, kreative Aufgaben ohne Faktenbedarf`,
-    inputSchema: z.object({
-      question: z.string().describe('Die Frage oder das Thema für die Recherche'),
-      depth: z
-        .enum(['quick', 'thorough'])
-        .optional()
-        .default('quick')
-        .describe(
-          'Recherchetiefe: quick (schnell, 1-2 Quellen) oder thorough (gründlich, mehr Quellen)'
-        ),
-    }),
-    execute: async ({ question, depth }) => {
-      try {
-        log.info(
-          `[Research Tool] Starting research: "${question.slice(0, 50)}..." (depth: ${depth})`
-        );
-        const result = await executeResearch({
-          question,
-          depth,
-          maxSources: depth === 'thorough' ? 10 : 6,
-        });
-        log.info(
-          `[Research Tool] Complete: ${result.citations.length} citations, confidence: ${result.confidence}`
-        );
-        return result;
-      } catch (error) {
-        log.error('Research tool error:', error);
-        return {
-          answer: 'Die Recherche konnte leider nicht durchgeführt werden.',
-          citations: [],
-          followUpQuestions: [],
-          searchSteps: [],
-          confidence: 'low' as const,
-          error: 'Recherche fehlgeschlagen',
-        };
-      }
-    },
-  });
-
-  // Direct response tool: router escape hatch for non-search cases (chat handler only)
-  if (options.includeDirectResponse) {
-    tools.direct_response = tool({
-      description: `Antworte direkt ohne externe Suche.
-
-NUTZE DIESES TOOL WENN:
-- Begrüßungen/Verabschiedungen ("Hallo", "Danke", "Tschüss")
-- Allgemeine Konversation ohne Informationsbedarf
-- Kreative Aufgaben mit bereits gegebenen Infos (z.B. Instagram-Posts, Texte schreiben)
-- Klarstellende Nachfragen
-- Der Benutzer explizit KEINE Suche möchte
-- Einfache Folgefragen zu bereits besprochenen Themen
-
-NICHT NUTZEN wenn Fakten, aktuelle Infos oder Belege gefragt sind.`,
-      inputSchema: z.object({
-        content: z.string().describe('Die vollständige Antwort an den Benutzer'),
-        reason: z.string().optional().describe('Optional: Warum keine Suche nötig war'),
-      }),
-      execute: async ({ content, reason }) => {
-        log.debug(`[Direct Response] Content length: ${content?.length}, Reason: ${reason}`);
-        return { type: 'direct', content, reason };
-      },
-    });
-  }
+  // `direct_response` used to be mounted here behind an `includeDirectResponse`
+  // flag: a router escape hatch from the days of `toolChoice: 'required'`, where
+  // a turn that needed no search still had to call SOMETHING. The loop uses
+  // `toolChoice: 'auto'` and simply answers without a tool call, so neither of
+  // the two callers of this factory (`toolCatalog.ts`, the board agent) ever set
+  // the flag — the tool and its 400-character description were unreachable.
 
   // Optional per-agent gating: recurring agents honor their picker selection.
   // Undefined → keep everything (board/chat behavior unchanged).
@@ -299,9 +463,11 @@ NICHT NUTZEN wenn Fakten, aktuelle Infos oder Belege gefragt sind.`,
       delete tools.gruenerator_examples_search;
       delete tools.gruenerator_pressemitteilung_examples;
     }
+    // `research` is still accepted as a key: it is persisted in agent configs
+    // (F0), and an agent that was given "Recherche" must keep its web access
+    // now that recherche IS the web tool at a deeper tier.
     if (!keys.has('web') && !keys.has('research')) {
       delete tools.web_search;
-      delete tools.research;
     }
   }
 

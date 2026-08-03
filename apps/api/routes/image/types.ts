@@ -11,7 +11,7 @@ import type {
   ImageGenerationResult,
 } from '../../services/counters/types.js';
 import type { ImageCatalogEntry } from '../../services/image/types.js';
-import type AIWorkerPool from '../../workers/aiWorkerPool.js';
+import type { AIWorkerPool } from '../../workers/types.js';
 import type { ParamsDictionary } from 'express-serve-static-core';
 
 // ============================================================================

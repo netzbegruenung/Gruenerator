@@ -3,10 +3,12 @@ import { type JSX, useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { useInstantAuth } from '../../../hooks/useAuth';
+import { useAuthStore } from '../../../stores/authStore';
 import { getIntendedRedirect, isMobileAppContext } from '../../../utils/authRedirect';
 import { cn } from '../../../utils/cn';
 import { openDesktopLogin, type AuthSource } from '../../../utils/desktopAuth';
 import { isDesktopApp } from '../../../utils/platform';
+import { startPagePath } from '../../../utils/startpage';
 import { SESSION_EXPIRED_FLAG } from '../storageKeys';
 
 import './login-page-sunrise.css';
@@ -59,7 +61,14 @@ const LoginPage = ({
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const { loading, isAuthenticated, setLoginIntent } = useInstantAuth();
 
-  const intendedRedirect = mode === 'required' ? location.pathname : getIntendedRedirect(location);
+  // Once the profile is loaded (e.g. an already-authenticated user hitting the
+  // login page, or right after sign-in), fall back to their preferred start
+  // page instead of the hardcoded Workplace Chat tab.
+  const startPage = useAuthStore((s) => s.user?.default_startpage);
+  const intendedRedirect =
+    mode === 'required'
+      ? location.pathname
+      : getIntendedRedirect(location, startPagePath(startPage));
 
   const isMobileApp = isMobileAppContext(location);
 
@@ -188,6 +197,7 @@ const LoginPage = ({
   if (mode === 'required') {
     return (
       <div className="fixed inset-0 z-[9999] flex items-center justify-center p-lg animate-in fade-in duration-200 max-[480px]:p-md">
+        {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- Overlay schließt per Klick; Tastatur nutzt Escape (siehe useEffect oben) */}
         <div className="absolute inset-0 bg-black/60" onClick={handleClose} />
         <div
           className={cn(
@@ -233,11 +243,11 @@ const LoginPage = ({
               )}
 
               <div className="hidden lg:block mt-lg text-center lg:text-left border-t border-grey-200 dark:border-grey-700 pt-md">
-                <p className="m-0 text-foreground opacity-80 text-[0.85rem] leading-normal lg:text-[0.9rem]">
+                <p className="m-0 text-muted-foreground text-[0.85rem] leading-normal lg:text-[0.9rem]">
                   Mit der Anmeldung stimmst du unseren{' '}
                   <Link
                     to="/datenschutz"
-                    className="text-primary-500 no-underline font-medium transition-colors duration-200 hover:text-primary-600 hover:underline"
+                    className="text-primary-600 dark:text-primary-400 no-underline font-medium transition-colors duration-200 hover:text-primary-700 dark:hover:text-primary-300 hover:underline"
                   >
                     Nutzungsbedingungen und der Datenschutzerklärung
                   </Link>{' '}
@@ -252,11 +262,11 @@ const LoginPage = ({
           </div>
 
           <div className="block lg:hidden mt-lg text-center border-t border-grey-200 dark:border-grey-700 pt-md">
-            <p className="m-0 text-foreground opacity-80 text-[0.85rem] leading-normal">
+            <p className="m-0 text-muted-foreground text-[0.85rem] leading-normal">
               Mit der Anmeldung stimmst du unseren{' '}
               <Link
                 to="/datenschutz"
-                className="text-primary-500 no-underline font-medium transition-colors duration-200 hover:text-primary-600 hover:underline"
+                className="text-primary-600 dark:text-primary-400 no-underline font-medium transition-colors duration-200 hover:text-primary-700 dark:hover:text-primary-300 hover:underline"
               >
                 Nutzungsbedingungen und der Datenschutzerklärung
               </Link>{' '}
@@ -297,11 +307,11 @@ const LoginPage = ({
           )}
 
           <div className="hidden lg:block mt-lg text-center lg:text-left border-t border-grey-200 dark:border-grey-700 pt-md">
-            <p className="m-0 text-foreground opacity-80 text-[0.85rem] leading-normal lg:text-[0.9rem]">
+            <p className="m-0 text-muted-foreground text-[0.85rem] leading-normal lg:text-[0.9rem]">
               Mit der Anmeldung stimmst du unseren{' '}
               <Link
                 to="/datenschutz"
-                className="text-primary-500 no-underline font-medium transition-colors duration-200 hover:text-primary-600 hover:underline"
+                className="text-primary-600 dark:text-primary-400 no-underline font-medium transition-colors duration-200 hover:text-primary-700 dark:hover:text-primary-300 hover:underline"
               >
                 Nutzungsbedingungen und der Datenschutzerklärung
               </Link>{' '}
@@ -316,11 +326,11 @@ const LoginPage = ({
       </div>
 
       <div className="block lg:hidden mt-lg text-center border-t border-grey-200 dark:border-grey-700 pt-md">
-        <p className="m-0 text-foreground opacity-80 text-[0.85rem] leading-normal">
+        <p className="m-0 text-muted-foreground text-[0.85rem] leading-normal">
           Mit der Anmeldung stimmst du unseren{' '}
           <Link
             to="/datenschutz"
-            className="text-primary-500 no-underline font-medium transition-colors duration-200 hover:text-primary-600 hover:underline"
+            className="text-primary-600 dark:text-primary-400 no-underline font-medium transition-colors duration-200 hover:text-primary-700 dark:hover:text-primary-300 hover:underline"
           >
             Nutzungsbedingungen und der Datenschutzerklärung
           </Link>{' '}

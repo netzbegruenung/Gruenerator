@@ -23,7 +23,7 @@ export function startDocsTour(): void {
       popover: {
         title: 'Alles Wichtige oben',
         description:
-          'Titel umbenennen, Rückgängig/Wiederholen — und hinter dem Menü rechts: Teilen, Versionsverlauf und Export (Word, PDF, ODT).',
+          'Titel umbenennen, Rückgängig/Wiederholen — und hinter dem Menü rechts: Teilen, Versionshistorie und Export (Word, PDF, ODT).',
         side: 'bottom',
       },
     },
@@ -41,7 +41,7 @@ export function startDocsTour(): void {
       popover: {
         title: 'Mit dem Dokument arbeiten',
         description:
-          'Stell Fragen zum Text oder beschreib eine Änderung („Kürze die Einleitung") — der Assistent bearbeitet das Dokument direkt.',
+          'Stell Fragen zum Text oder beschreib eine Änderung („Kürze die Einleitung") — der Assistent schreibt sie direkt ins Dokument, du übernimmst oder verwirfst sie anschließend.',
         side: 'left',
       },
     },

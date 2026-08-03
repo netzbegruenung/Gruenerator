@@ -3,7 +3,7 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useMemo, useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 
-import { colors, spacing, borderRadius } from '../../../theme';
+import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../../theme';
 
 import { toolIonicon } from './toolIcons';
 
@@ -31,6 +31,8 @@ export function ExampleResultsCard({ part, theme }: { part: ToolCallPart; theme:
       <Pressable
         onPress={() => count > 0 && setExpanded((x) => !x)}
         style={[styles.pill, { backgroundColor: theme.surface, borderColor: theme.border }]}
+        accessibilityRole="button"
+        accessibilityState={{ expanded, disabled: count === 0 }}
       >
         <Ionicons name={toolIonicon(meta.iconKey)} size={14} color={colors.secondary[600]} />
         <Text style={[styles.label, { color: theme.text }]}>{meta.label}</Text>
@@ -89,15 +91,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   label: {
-    fontSize: 13,
+    ...chatType.chatSecondary,
     fontWeight: '600',
   },
   query: {
+    ...chatType.chatMeta,
     flexShrink: 1,
-    fontSize: 12,
+    fontFamily: BODY_FONT,
   },
   count: {
-    fontSize: 12,
+    ...chatType.chatMeta,
     fontWeight: '700',
   },
   results: {
@@ -111,12 +114,11 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   platform: {
-    fontSize: 10,
+    ...chatType.chatMicro,
     fontWeight: '700',
     textTransform: 'uppercase',
   },
   content: {
-    fontSize: 12,
-    lineHeight: 17,
+    ...chatType.chatSecondary,
   },
 });

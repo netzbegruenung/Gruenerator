@@ -48,8 +48,21 @@ export interface UrlValidationOptions {
   skipDnsCheck?: boolean;
 }
 
-function isPrivateIP(ip: string): boolean {
-  return PRIVATE_IP_RANGES.some((range) => range.test(ip));
+/**
+ * True when `ip` is an address we must never open a socket to.
+ *
+ * Exported because the search-image proxy resolves names itself and pins the
+ * connection to the address it checked — check and connect have to share one
+ * range list, and a second copy would drift away from this one.
+ *
+ * IPv4-mapped IPv6 (`::ffff:169.254.169.254`) is normalised to dotted-quad
+ * first: every range below is written for that notation, so without the
+ * normalisation an AAAA record could carry a link-local address past all of
+ * them.
+ */
+export function isPrivateAddress(ip: string): boolean {
+  const mapped = /^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/i.exec(ip);
+  return PRIVATE_IP_RANGES.some((range) => range.test(mapped?.[1] ?? ip));
 }
 
 function isBlockedHostname(hostname: string): boolean {
@@ -99,14 +112,14 @@ export async function validateUrlForFetch(
   }
 
   const ipMatch = hostname.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/);
-  if (ipMatch && !allowPrivateIPs && isPrivateIP(hostname)) {
+  if (ipMatch && !allowPrivateIPs && isPrivateAddress(hostname)) {
     return { isValid: false, error: 'Private IP addresses are not allowed' };
   }
 
   if (!skipDnsCheck && !ipMatch && !allowPrivateIPs) {
     try {
       const { address } = await dnsLookup(hostname);
-      if (isPrivateIP(address)) {
+      if (isPrivateAddress(address)) {
         return { isValid: false, error: 'Host resolves to private IP address' };
       }
     } catch {
@@ -158,7 +171,7 @@ export function validateUrlSync(
   }
 
   const ipMatch = hostname.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/);
-  if (ipMatch && !allowPrivateIPs && isPrivateIP(hostname)) {
+  if (ipMatch && !allowPrivateIPs && isPrivateAddress(hostname)) {
     return { isValid: false, error: 'Private IP addresses are not allowed' };
   }
 

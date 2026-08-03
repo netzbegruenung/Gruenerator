@@ -15,12 +15,20 @@ import type { ProgressStage } from '../hooks/useChatGraphStream';
 /** The stages that actually show a progress label (terminal stages don't). */
 type LabelledStage = Extract<
   ProgressStage,
-  'classifying' | 'searching' | 'summarizing' | 'generating_image' | 'generating'
+  | 'classifying'
+  | 'searching'
+  | 'generating_artifact'
+  | 'summarizing'
+  | 'generating_image'
+  | 'generating'
 >;
 
 export const STAGE_LABEL_POOLS: Record<LabelledStage, readonly string[]> = {
   classifying: ['Sortiere …', 'Stricke …', 'Überlege …', 'Verstehe …'],
   searching: ['Durchsuche …', 'Stöbere …', 'Wälze …', 'Blättere …'],
+  // Calm register on purpose: this is the longest stage of all (a full
+  // structured generation, up to 90s), and a cheeky label wears out fast.
+  generating_artifact: ['Baue …', 'Setze …', 'Gestalte …', 'Lege an …'],
   summarizing: ['Verdichte …', 'Bündele …', 'Fasse zusammen …'],
   generating_image: ['Male …', 'Zeichne …', 'Pinsele …', 'Mische …'],
   generating: ['Formuliere …', 'Schreibe …', 'Feile …', 'Tippe …'],

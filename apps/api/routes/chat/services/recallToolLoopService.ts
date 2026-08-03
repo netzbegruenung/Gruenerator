@@ -10,25 +10,17 @@
  * `stopWhen`, per-turn guards, compact tool results, SSE tool-step events. When
  * the flag is off the router uses the deterministic chat_history branch instead.
  */
-import { streamText, tool, stepCountIs, type ModelMessage } from 'ai';
+import { streamText, tool, isStepCount, type ModelMessage } from 'ai';
 import { z } from 'zod';
 
 import { extractKeyParagraphs } from '../../../agents/langgraph/WebSearchGraph/utilities/contentExtractor.js';
-import { loadBoardState, formatBoardAsContext } from '../../../services/boards/BoardService.js';
 import { countTokens } from '../../../services/counters/TokenCounter.js';
-import {
-  loadPresentationState,
-  formatPresentationAsContext,
-} from '../../../services/presentations/PresentationGenerationService.js';
-import {
-  loadSheetState,
-  formatSheetAsContext,
-} from '../../../services/sheets/SheetGenerationService.js';
 import { createLogger } from '../../../utils/logger.js';
-import { loadDocumentProse } from '../../docs/docProseReader.js';
 import { getModel } from '../agents/providers.js';
 
+import { readArtifactContent } from './artifactReader.js';
 import { probeThreadSizes, probeOfficeSizes } from './contentSizeService.js';
+import { finishEditTurn } from './editTurnCompletion.js';
 import {
   recallPastChats,
   recallOfficeDocuments,
@@ -36,7 +28,6 @@ import {
   getThreadRecallContext,
 } from './pastChatRecallService.js';
 import { createLoopGuards } from './sharepicAgenticGuards.js';
-import { createMessage, touchThread } from './threadPersistenceService.js';
 
 import type { SSEWriter } from './sseHelpers.js';
 
@@ -197,32 +188,24 @@ export async function handleRecallToolLoop(args: HandleRecallLoopArgs): Promise<
           maxTokens: z.number().int().min(200).max(4000).optional(),
         }),
         execute: async ({ id, type, maxTokens }, { toolCallId }) => {
-          const guardError =
+          const block =
             guards.checkFailureCap('read_user_content') ??
             guards.checkDuplicate('read_user_content', { id, type });
-          if (guardError) return { error: guardError };
+          if (block) return { error: block.modelMessage };
 
           const budgetChars = Math.max(
             1_000,
             Math.min((maxTokens ?? DEFAULT_READ_TOKENS) * 4, MAX_READ_CHARS)
           );
 
-          let raw: string | null = null;
-          if (type === 'chat') {
-            const ctx = await getThreadRecallContext(id, userId, { maxChars: budgetChars });
-            raw = ctx?.transcript ?? null;
-          } else if (type === 'board') {
-            const b = await loadBoardState(id, userId);
-            raw = b ? formatBoardAsContext(b) : null;
-          } else if (type === 'sheet') {
-            const s = await loadSheetState(id, userId);
-            raw = s ? formatSheetAsContext(s) : null;
-          } else if (type === 'presentation') {
-            const p = await loadPresentationState(id, userId);
-            raw = p ? formatPresentationAsContext(p) : null;
-          } else {
-            raw = await loadDocumentProse(id, userId);
-          }
+          // A thread is not an artifact and keeps its own reader; everything
+          // else goes through the shared one, so this lane and the agentic
+          // loop's `read_artifact` cannot drift apart on what "readable" means.
+          const raw =
+            type === 'chat'
+              ? ((await getThreadRecallContext(id, userId, { maxChars: budgetChars }))
+                  ?.transcript ?? null)
+              : await readArtifactContent({ id, kind: type, userId });
 
           if (raw == null || raw.trim().length === 0) {
             guards.noteFailure('read_user_content');
@@ -249,13 +232,13 @@ export async function handleRecallToolLoop(args: HandleRecallLoopArgs): Promise<
       system: buildSystemPrompt(),
       messages,
       tools,
-      stopWhen: stepCountIs(MAX_STEPS),
+      stopWhen: isStepCount(MAX_STEPS),
       temperature: 0.2,
       maxOutputTokens: 900,
       abortSignal: AbortSignal.timeout(TURN_TIMEOUT_MS),
     });
 
-    const iterator = result.fullStream[Symbol.asyncIterator]();
+    const iterator = result.stream[Symbol.asyncIterator]();
     while (true) {
       const next = await iterator.next();
       if (next.done) break;
@@ -318,27 +301,18 @@ async function endTurn(
   text: string
 ): Promise<void> {
   const { sse, threadId, startTime, classificationTimeMs } = args;
-  sse.sendRaw('done', {
+  await finishEditTurn({
+    sse,
     threadId,
-    citations: [],
-    metadata: {
-      intent: 'chat_history',
-      searchCount: steps.filter((s) => s.toolName === 'search_user_content').length,
-      totalTimeMs: Date.now() - startTime,
-      ...(classificationTimeMs != null && { classificationTimeMs }),
-      searchTimeMs: 0,
-    },
+    text,
+    intent: 'chat_history',
+    persistLabel: 'recallLoop:persist',
+    logPrefix: '[RecallLoop]',
+    startTime,
+    ...(classificationTimeMs != null && { classificationTimeMs }),
+    searchCount: steps.filter((s) => s.toolName === 'search_user_content').length,
+    toolCalls: steps as unknown as Record<string, unknown>[],
+    // The loop already streamed response_start/text_delta as tokens arrived.
+    streamed: true,
   });
-  if (threadId) {
-    try {
-      await createMessage(threadId, 'assistant', text, {
-        intent: 'chat_history',
-        ...(steps.length > 0 ? { toolCalls: steps as unknown as Record<string, unknown>[] } : {}),
-      });
-      await touchThread(threadId);
-    } catch (err) {
-      log.error('[RecallLoop] Failed to persist message:', err);
-    }
-  }
-  sse.end();
 }

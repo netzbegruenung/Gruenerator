@@ -161,13 +161,13 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const quoteSubmit = useApiSubmit('zitat_claude');
-  const dreizeilenSubmit = useApiSubmit('dreizeilen_claude');
-  const infoSubmit = useApiSubmit('info_claude');
-  const zitatPureSubmit = useApiSubmit('zitat_pure_claude');
-  const veranstaltungSubmit = useApiSubmit('veranstaltung_claude');
-  const simpleSubmit = useApiSubmit('simple_claude');
-  const sliderSubmit = useApiSubmit('slider_claude');
+  const quoteSubmit = useApiSubmit('/sharepic/text/zitat');
+  const dreizeilenSubmit = useApiSubmit('/sharepic/text/dreizeilen');
+  const infoSubmit = useApiSubmit('/sharepic/text/info');
+  const zitatPureSubmit = useApiSubmit('/sharepic/text/zitat_pure');
+  const veranstaltungSubmit = useApiSubmit('/sharepic/text/veranstaltung');
+  const simpleSubmit = useApiSubmit('/sharepic/text/simple');
+  const sliderSubmit = useApiSubmit('/sharepic/text/slider');
 
   const generateText = useCallback(
     async (type: string, formData: TextFormData): Promise<TextGenerationResult | null> => {

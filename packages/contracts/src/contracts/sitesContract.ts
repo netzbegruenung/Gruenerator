@@ -6,7 +6,7 @@
  *
  * Deliberately NOT contracted (still on the legacy axios paths):
  * - POST /api/sites/generate-from-flyer (multipart upload)
- * - POST /api/claude_website (AI generation)
+ * - POST /api/texte/website (AI generation)
  * - GET  /api/sites/public/:subdomain (no typed UI consumer)
  * - GET  /api/sites/themes
  *

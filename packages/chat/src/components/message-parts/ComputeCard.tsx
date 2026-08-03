@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { Calculator, Download, FileDown } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 import { downloadBase64, downloadBlob, mimeFromFilename } from '../../lib/downloadBlob';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
@@ -102,7 +102,7 @@ export function ComputeCard({ data }: { data: ComputeData }) {
 
   return (
     <div
-      className="my-2 w-full rounded-lg border border-border bg-background p-3"
+      className="my-5 w-full rounded-xl border border-border bg-background px-4 py-3"
       role="group"
       aria-label={`Berechnung: ${data.operation}`}
     >
@@ -112,7 +112,7 @@ export function ComputeCard({ data }: { data: ComputeData }) {
         </span>
         <span className="text-sm font-medium text-foreground">{data.operation}</span>
         <span className="ml-auto text-[11px] uppercase tracking-wide text-foreground-muted">
-          exakt berechnet
+          berechnet
         </span>
       </div>
       {/* Server-stored figures (URL, small metadata) — the normal path. */}

@@ -2,6 +2,20 @@
  * Canvas-suggest LLM call — extracted from `aiSuggestRoute.ts` so the
  * same retry/validation/filtering logic powers both the synchronous
  * route and the streaming chat-edit controller.
+ *
+ * This was the third hand-rolled copy of the forced-tool-call pattern
+ * (alongside sharepicEditLlm and the artifact generators). It now runs on
+ * `generateStructured`, which owns that pattern — with one behavioural gain:
+ * the second attempt used to be a blind retry that re-sent the identical
+ * prompt, so a model that omitted a required field had no reason to do
+ * anything different. `generateStructured` feeds the invalid payload and the
+ * concrete validation error back at temperature 0 instead.
+ *
+ * Operation filtering lives in the `validate` callback rather than after the
+ * call. That placement is load-bearing: a suggestion set whose operations are
+ * all unsupported by this canvas is useless, and as a validation error it now
+ * drives a repair turn that names the supported kinds — previously it silently
+ * returned an empty list.
  */
 import {
   canvasAiSuggestResponseSchema,
@@ -10,10 +24,9 @@ import {
   type CanvasAiSnapshot,
   type CanvasAiSuggestion,
 } from '@gruenerator/contracts';
-import { jsonSchema } from 'ai';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 
-import { createLogger } from '../../../utils/logger.js';
+import { generateStructured } from '../../../services/ai/generateStructured.js';
 
 import {
   buildCanvasSuggestSystemPrompt,
@@ -23,9 +36,7 @@ import {
   type CanvasSuggestContextHints,
 } from './buildCanvasSuggestPrompt.js';
 
-import type { AIWorkerPool, AIWorkerResult, Tool } from '../../../workers/types.js';
-
-const log = createLogger('canvasAiSuggest');
+import type { AIWorkerPool } from '../../../workers/types.js';
 
 export interface RunCanvasSuggestArgs {
   prompt: string;
@@ -40,108 +51,58 @@ export interface RunCanvasSuggestArgs {
 }
 
 export type RunCanvasSuggestResult =
-  | { ok: true; suggestions: CanvasAiSuggestion[] }
-  | { ok: false; error: string };
-
-const MAX_ATTEMPTS = 2;
+  { ok: true; suggestions: CanvasAiSuggestion[] } | { ok: false; error: string };
 
 export async function runCanvasSuggest(
   args: RunCanvasSuggestArgs
 ): Promise<RunCanvasSuggestResult> {
   const { prompt, snapshot, capabilities, contextHints, aiWorkerPool, req, logTag } = args;
-  const tag = logTag ?? 'canvas_ai_suggest';
 
-  const systemPrompt = buildCanvasSuggestSystemPrompt(snapshot, capabilities, contextHints);
-  const userMessage = buildCanvasSuggestUserMessage(prompt);
-
-  // zod-to-json-schema returns a plain JSON Schema 7 object. The Vercel
-  // AI SDK's `asSchema` helper expects a Zod schema OR a `Schema` object
-  // wrapped via `jsonSchema()` — passing the raw JSON Schema causes
-  // `TypeError: schema is not a function` at the adapter boundary.
   const rawSchema = zodToJsonSchema(canvasAiSuggestResponseSchema, {
     target: 'jsonSchema7',
     $refStrategy: 'none',
-  });
-  const wrappedSchema = jsonSchema(rawSchema as Parameters<typeof jsonSchema>[0]);
+  }) as Record<string, unknown>;
 
-  const tool: Tool = {
-    name: TOOL_NAME,
-    description:
+  const supported = capabilities.supportedOperations;
+
+  const result = await generateStructured<CanvasAiSuggestion[]>({
+    aiWorkerPool,
+    ...(req !== undefined && { req }),
+    type: 'canvas_ai_suggest',
+    systemPrompt: buildCanvasSuggestSystemPrompt(snapshot, capabilities, contextHints),
+    userContent: buildCanvasSuggestUserMessage(prompt),
+    toolName: TOOL_NAME,
+    toolDescription:
       'Reicht 3 bis 5 konkrete Vorschläge zur Verbesserung des aktuellen Sharepic-Entwurfs ein.',
-    input_schema: wrappedSchema as unknown as Tool['input_schema'],
-  };
-
-  let attempt = 0;
-  let lastError = '';
-
-  while (attempt < MAX_ATTEMPTS) {
-    attempt++;
-    try {
-      const result = await aiWorkerPool.processRequest(
-        {
-          type: 'canvas_ai_suggest',
-          systemPrompt,
-          messages: [{ role: 'user', content: userMessage }],
-          options: {
-            tools: [tool],
-            tool_choice: 'required',
-            temperature: 0.3,
-          },
-        },
-        req
-      );
-
-      if (!result.success) {
-        lastError = result.error || 'AI request failed';
-        log.warn(`[${tag}] attempt ${attempt} provider error: ${lastError}`);
-        continue;
-      }
-
-      const toolInput = extractToolCall(result);
-      if (!toolInput) {
-        lastError = 'No tool call in response';
-        const contentPreview = (result.content ?? '').slice(0, 400);
-        log.warn(
-          `[${tag}] attempt ${attempt}: no tool call (stop_reason=${result.stop_reason ?? 'unknown'}) content="${contentPreview}"`
-        );
-        continue;
-      }
-
-      const parsed = canvasAiSuggestResponseSchema.safeParse(toolInput);
+    schema: rawSchema,
+    temperature: 0.3,
+    label: logTag ?? 'canvas_ai_suggest',
+    validate: (input) => {
+      const parsed = canvasAiSuggestResponseSchema.safeParse(input);
       if (!parsed.success) {
-        lastError = `Schema mismatch: ${parsed.error.issues
-          .slice(0, 3)
-          .map((i) => `${i.path.join('.')}: ${i.message}`)
-          .join('; ')}`;
-        const rawPreview = JSON.stringify(toolInput).slice(0, 800);
-        log.warn(`[${tag}] attempt ${attempt}: ${lastError}\n  raw payload: ${rawPreview}`);
-        continue;
+        return {
+          ok: false,
+          error: `Schema mismatch: ${parsed.error.issues
+            .slice(0, 3)
+            .map((i) => `${i.path.join('.')}: ${i.message}`)
+            .join('; ')}`,
+        };
       }
 
-      const filtered = filterSuggestions(parsed.data.suggestions, capabilities.supportedOperations);
-      return { ok: true, suggestions: filtered };
-    } catch (e) {
-      lastError = e instanceof Error ? e.message : String(e);
-      log.error(`[${tag}] attempt ${attempt} threw: ${lastError}`);
-    }
-  }
-
-  return { ok: false, error: lastError || 'unknown error' };
-}
-
-function extractToolCall(result: AIWorkerResult): Record<string, unknown> | null {
-  if (result.tool_calls) {
-    const match = result.tool_calls.find((c) => c.name === TOOL_NAME);
-    if (match) return match.input;
-  }
-  if (result.raw_content_blocks) {
-    for (const block of result.raw_content_blocks) {
-      if (block.type === 'tool_use' && block.name === TOOL_NAME && block.input) {
-        return block.input;
+      const filtered = filterSuggestions(parsed.data.suggestions, supported);
+      if (filtered.length === 0) {
+        return {
+          ok: false,
+          error:
+            'Keiner der Vorschläge enthält eine unterstützte Operation. ' +
+            `Erlaubt sind ausschließlich: ${supported.join(', ')}.`,
+        };
       }
-    }
-  }
-  return null;
+      return { ok: true, value: filtered };
+    },
+  });
+
+  return result.ok ? { ok: true, suggestions: result.data } : { ok: false, error: result.error };
 }
 
 function isSupported(op: CanvasAiOperation, supported: ReadonlyArray<string>): boolean {

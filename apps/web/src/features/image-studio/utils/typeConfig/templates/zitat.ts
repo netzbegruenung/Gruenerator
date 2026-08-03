@@ -23,7 +23,7 @@ export const zitatTypeConfig: TemplateTypeConfig = {
   inputBeforeImage: true,
   parallelPreload: true,
   endpoints: {
-    text: '/zitat_claude',
+    text: '/sharepic/text/zitat',
     canvas: '/zitat_canvas',
   },
   formComponent: 'ZitatForm',

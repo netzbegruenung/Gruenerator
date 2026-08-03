@@ -56,6 +56,16 @@ export {
 } from './routes.js';
 
 // ============================================================================
+// USER-FACING MESSAGES (async jobs + response bodies)
+// ============================================================================
+export {
+  toJobError,
+  toUserFacingMessage,
+  classifyUserFacingError,
+  GENERIC_ERROR_MESSAGE,
+} from './userFacing.js';
+
+// ============================================================================
 // CONSTANTS
 // ============================================================================
 export { ERROR_TYPES } from './constants.js';

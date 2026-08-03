@@ -1062,6 +1062,23 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           disableOffPathFilter: true,
         },
         {
+          // Kandidat*innen für die Landtagswahl: Landesliste + Wahlkreislisten
+          // (Saarbrücken, Neunkirchen, Saarlouis). Both are inline HTML tables of
+          // name + Listenplatz inside .entry-content — no PDFs, no <time>, so the
+          // age filter is a no-op (published_at stays null) and the pages are
+          // re-fetched on the normal 3-day recheck as further Wahlkreise nominate.
+          // No recentSkip: two cheap HTML fetches, and list changes should land
+          // in the hourly run rather than waiting for the nightly crawl.
+          type: 'blog',
+          path: '/',
+          listSelector: 'article a[href], h2 a, h3 a',
+          staticUrls: [
+            'https://gruene-saar.de/landesliste/',
+            'https://gruene-saar.de/wahlkreislisten/',
+          ],
+          disableOffPathFilter: true,
+        },
+        {
           // Public Nextcloud "Wolke" share (documents/Wahlprüfsteine). etag-deduped
           // + recentSkip so it only runs in the nightly full crawl, not hourly.
           // NOTE: verify folder contents via NextcloudApiClient.listFolder on first

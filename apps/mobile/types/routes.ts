@@ -12,9 +12,9 @@ export type AppRoute =
   // Tab routes
   | '/'
   | '/start'
-  | '/profile'
   // Arbeiten (merged Docs + Tools) tab
   | '/(tabs)/(arbeiten)'
+  | '/(tabs)/(studio)'
   // Tools routes
   | '/(tabs)/(tools)'
   | '/(tabs)/(tools)/reel'
@@ -27,12 +27,13 @@ export type AppRoute =
   | '/(tabs)/(recherche)/research'
   // Auth routes
   | '/(auth)/login'
+  | '/(auth)/onboarding'
   | '/auth/callback'
   // Focused routes
   | '/(focused)/chat-conversation'
   | '/(focused)/notebook-detail'
   | '/(focused)/agents'
-  | '/(focused)/gruppen'
+  | '/(focused)/projekte'
   | '/(focused)/bild-editor'
   | '/(focused)/image-studio-create/image'
   | '/(focused)/image-studio-create/style'

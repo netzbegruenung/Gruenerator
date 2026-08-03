@@ -120,6 +120,8 @@ export default function GalleryScreen() {
           <Pressable
             style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
             onPress={() => void handleShare(item)}
+            accessibilityRole="button"
+            accessibilityLabel={item.title || 'Sharepic'}
           >
             <SharedMediaImage
               shareToken={item.shareToken}
@@ -139,10 +141,20 @@ export default function GalleryScreen() {
             </View>
           </Pressable>
           <View style={styles.itemActions}>
-            <Pressable style={styles.actionButton} onPress={() => handleShare(item)}>
+            <Pressable
+              style={styles.actionButton}
+              onPress={() => handleShare(item)}
+              accessibilityRole="button"
+              accessibilityLabel="Teilen"
+            >
               <Ionicons name="share-outline" size={18} color={colors.primary[600]} />
             </Pressable>
-            <Pressable style={styles.actionButton} onPress={() => handleDelete(item)}>
+            <Pressable
+              style={styles.actionButton}
+              onPress={() => handleDelete(item)}
+              accessibilityRole="button"
+              accessibilityLabel="Löschen"
+            >
               <Ionicons name="trash-outline" size={18} color={colors.error[500]} />
             </Pressable>
           </View>
@@ -180,7 +192,11 @@ export default function GalleryScreen() {
         <Ionicons name="images-outline" size={64} color={theme.textSecondary} />
         <Text style={[styles.emptyTitle, { color: theme.text }]}>{emptyContent.title}</Text>
         <Text style={[styles.emptyText, { color: theme.textSecondary }]}>{emptyContent.text}</Text>
-        <Pressable style={styles.createButton} onPress={() => router.back()}>
+        <Pressable
+          style={styles.createButton}
+          onPress={() => router.back()}
+          accessibilityRole="button"
+        >
           <Ionicons name="add-circle-outline" size={20} color={colors.primary[600]} />
           <Text style={styles.createButtonText}>Sharepic erstellen</Text>
         </Pressable>
@@ -200,7 +216,12 @@ export default function GalleryScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
+        <Pressable
+          onPress={() => router.back()}
+          style={styles.backButton}
+          accessibilityRole="button"
+          accessibilityLabel="Zurück"
+        >
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: theme.text }]}>Meine Sharepics</Text>
@@ -211,6 +232,8 @@ export default function GalleryScreen() {
         <Pressable
           style={[styles.filterTab, filter === 'all' && styles.filterTabActive]}
           onPress={() => setFilter('all')}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: filter === 'all' }}
         >
           <Text style={[styles.filterTabText, filter === 'all' && styles.filterTabTextActive]}>
             Alle
@@ -219,6 +242,8 @@ export default function GalleryScreen() {
         <Pressable
           style={[styles.filterTab, filter === 'uploaded' && styles.filterTabActive]}
           onPress={() => setFilter('uploaded')}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: filter === 'uploaded' }}
         >
           <Text style={[styles.filterTabText, filter === 'uploaded' && styles.filterTabTextActive]}>
             Hochgeladen
@@ -227,6 +252,8 @@ export default function GalleryScreen() {
         <Pressable
           style={[styles.filterTab, filter === 'created' && styles.filterTabActive]}
           onPress={() => setFilter('created')}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: filter === 'created' }}
         >
           <Text style={[styles.filterTabText, filter === 'created' && styles.filterTabTextActive]}>
             Erstellt

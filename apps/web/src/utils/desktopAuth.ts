@@ -46,10 +46,7 @@ function toAbsoluteUrl(url: string): string {
 }
 
 export type AuthSource =
-  | 'gruenerator-login'
-  | 'gruenes-netz-login'
-  | 'netzbegruenung-login'
-  | 'gruene-oesterreich-login';
+  'gruenerator-login' | 'gruenes-netz-login' | 'netzbegruenung-login' | 'gruene-oesterreich-login';
 
 export interface DesktopUser {
   id: string;

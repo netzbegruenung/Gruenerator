@@ -46,6 +46,12 @@ export interface SharedMediaRow {
   // the api type doesn't depend on the cross-package literal-union, which resolves
   // as an `error` type under apps/api's type-aware ESLint (no-unsafe-assignment).
   upload_source: string;
+  /**
+   * Which product made this image (Sharepic / KI / upload). Server-set, closed
+   * set enforced by a CHECK constraint. Typed as string for the same reason as
+   * `upload_source` above.
+   */
+  content_origin: string;
   original_filename: string | null;
   created_at: Date;
   updated_at: Date;
@@ -108,6 +114,11 @@ export interface CreateImageShareParams {
   imageBase64: string;
   title?: string | undefined;
   imageType?: string | undefined;
+  /**
+   * Which product made this image. Absent for clients that predate the field —
+   * the service then derives it (`deriveContentOrigin`).
+   */
+  contentOrigin?: 'ki' | 'sharepic' | undefined;
   metadata?: Record<string, unknown> | undefined;
   originalImage?: string | null | undefined;
   status?: 'ready' | 'draft' | undefined;

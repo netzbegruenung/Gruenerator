@@ -108,7 +108,7 @@ export const sheetsContractRouter = s.router(sheetsContract, {
           type: 'doc_generation',
           systemPrompt: SHEET_GENERATION_PROMPT,
           messages: [{ role: 'user', content: description }],
-          options: { temperature: 0.4, max_tokens: 4000 },
+          options: { temperature: 0.4 },
         },
         args.req
       );

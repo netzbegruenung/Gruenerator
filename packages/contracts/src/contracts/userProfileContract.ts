@@ -7,6 +7,7 @@
  *   GET    /api/auth/profile/beta-features
  *   PATCH  /api/auth/profile/beta-features
  *   PATCH  /api/auth/profile/message-color
+ *   PATCH  /api/auth/profile/chat-background
  *   PUT    /api/auth/locale
  *   GET    /api/auth/profile/user-defaults
  *   PATCH  /api/auth/profile/user-defaults
@@ -22,6 +23,7 @@ import {
   avatarUpdateBodySchema,
   betaFeatureToggleBodySchema,
   messageColorUpdateBodySchema,
+  chatBackgroundUpdateBodySchema,
   localeUpdateBodySchema,
   userDefaultUpdateBodySchema,
   deleteAccountBodySchema,
@@ -31,6 +33,7 @@ import {
   getBetaFeaturesResponseSchema,
   updateBetaFeaturesResponseSchema,
   updateMessageColorResponseSchema,
+  updateChatBackgroundResponseSchema,
   updateLocaleResponseSchema,
   getUserDefaultsResponseSchema,
   updateUserDefaultsResponseSchema,
@@ -132,6 +135,22 @@ export const userProfileContract = c.router(
         500: userProfileErrorResponseSchema,
       },
       summary: 'Update chat message color',
+    },
+
+    /**
+     * PATCH /api/profile/chat-background
+     * Update the background preset of the chat start tab.
+     */
+    updateChatBackground: {
+      method: 'PATCH',
+      path: '/api/auth/profile/chat-background',
+      body: chatBackgroundUpdateBodySchema,
+      responses: {
+        200: updateChatBackgroundResponseSchema,
+        400: userProfileErrorResponseSchema,
+        500: userProfileErrorResponseSchema,
+      },
+      summary: 'Update chat start background preset',
     },
 
     /**

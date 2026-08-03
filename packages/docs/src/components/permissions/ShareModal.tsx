@@ -70,14 +70,16 @@ export const ShareModal = ({ documentId, documentTitle, onClose }: ShareModalPro
       onClick={onClose}
     >
       <div
-        className="flex max-h-[80vh] w-[480px] max-w-[90%] flex-col overflow-hidden rounded-lg bg-background shadow-lg dark:border dark:border-grey-700"
+        // dvh, not vh: with vh the modal height jumps whenever the iOS address
+        // bar collapses.
+        className="flex max-h-[80dvh] w-[480px] max-w-[90%] flex-col overflow-hidden rounded-lg bg-background shadow-lg dark:border dark:border-grey-700"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-grey-200 p-6 dark:border-grey-700">
           <span className="text-lg font-semibold">Dokument teilen</span>
           <button
             onClick={onClose}
-            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded border-none bg-transparent p-0 text-lg text-foreground hover:bg-black/5 dark:hover:bg-white/10"
+            className="flex h-8 w-8 max-sm:h-11 max-sm:w-11 cursor-pointer items-center justify-center rounded border-none bg-transparent p-0 text-lg text-foreground hover:bg-black/5 dark:hover:bg-white/10"
           >
             ×
           </button>

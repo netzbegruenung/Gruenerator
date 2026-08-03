@@ -5,6 +5,7 @@ import { getPostgresInstance } from '../../database/services/PostgresService/Pos
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import NextcloudApiClient from '../../services/api-clients/nextcloudApiClient.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { NextcloudShareManager } from '../../utils/integrations/nextcloud/index.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -73,7 +74,7 @@ router.get('/status', async (req: Request, res: Response): Promise<void> => {
     log.error('[NextcloudApi] Error getting Nextcloud status', { error: err.message });
     res.status(500).json({
       error: 'Failed to get Nextcloud status',
-      message: err.message,
+      message: toUserFacingMessage(err),
     });
   }
 });
@@ -103,7 +104,7 @@ router.get('/share-links', async (req: Request, res: Response): Promise<void> =>
     log.error('[NextcloudApi] Error getting share links', { error: err.message });
     res.status(500).json({
       error: 'Failed to get share links',
-      message: err.message,
+      message: toUserFacingMessage(err),
     });
   }
 });
@@ -134,7 +135,7 @@ router.get('/share-links/shared-with-me', async (req: Request, res: Response): P
     log.error('[NextcloudApi] Error listing shared-with-me links', { error: err.message });
     res.status(500).json({
       error: 'Failed to list shared share links',
-      message: err.message,
+      message: toUserFacingMessage(err),
     });
   }
 });
@@ -178,7 +179,7 @@ router.get(
       log.error('[NextcloudApi] Error listing groups for share link', { error: err.message });
       res.status(500).json({
         error: 'Failed to list groups for share link',
-        message: err.message,
+        message: toUserFacingMessage(err),
       });
     }
   }
@@ -256,14 +257,14 @@ router.post(
       if (err.message.includes('already saved')) {
         res.status(409).json({
           error: 'Share link already exists',
-          message: err.message,
+          message: toUserFacingMessage(err),
         });
         return;
       }
 
       res.status(500).json({
         error: 'Failed to save share link',
-        message: err.message,
+        message: toUserFacingMessage(err),
       });
     }
   }
@@ -302,14 +303,14 @@ router.delete(
       if (err.message.includes('not found') || err.message.includes('no permission')) {
         res.status(404).json({
           error: 'Share link not found',
-          message: err.message,
+          message: toUserFacingMessage(err),
         });
         return;
       }
 
       res.status(500).json({
         error: 'Failed to delete share link',
-        message: err.message,
+        message: toUserFacingMessage(err),
       });
     }
   }
@@ -357,7 +358,7 @@ router.post(
       log.error('[NextcloudApi] Error testing connection', { error: err.message });
       res.status(500).json({
         success: false,
-        message: err.message,
+        message: toUserFacingMessage(err),
       });
     }
   }
@@ -407,7 +408,7 @@ router.get(
       log.error('[NextcloudApi] Error browsing folder', { error: err.message });
       res.status(500).json({
         error: 'Failed to browse folder',
-        message: err.message,
+        message: toUserFacingMessage(err),
       });
     }
   }
@@ -516,7 +517,7 @@ router.post(
       if (err.message.includes('not found')) {
         res.status(404).json({
           success: false,
-          message: err.message,
+          message: toUserFacingMessage(err),
         });
         return;
       }
@@ -524,14 +525,14 @@ router.post(
       if (err.message.includes('Authentication failed') || err.message.includes('forbidden')) {
         res.status(403).json({
           success: false,
-          message: err.message,
+          message: toUserFacingMessage(err),
         });
         return;
       }
 
       res.status(500).json({
         success: false,
-        message: err.message,
+        message: toUserFacingMessage(err),
       });
     }
   }
@@ -605,7 +606,7 @@ router.post(
       if (err.message.includes('not found')) {
         res.status(404).json({
           success: false,
-          message: err.message,
+          message: toUserFacingMessage(err),
         });
         return;
       }
@@ -613,14 +614,14 @@ router.post(
       if (err.message.includes('Authentication failed') || err.message.includes('forbidden')) {
         res.status(403).json({
           success: false,
-          message: err.message,
+          message: toUserFacingMessage(err),
         });
         return;
       }
 
       res.status(500).json({
         success: false,
-        message: err.message,
+        message: toUserFacingMessage(err),
       });
     }
   }
@@ -665,7 +666,7 @@ router.get(
       log.error('[NextcloudApi] Error getting share info', { error: err.message });
       res.status(500).json({
         error: 'Failed to get share information',
-        message: err.message,
+        message: toUserFacingMessage(err),
       });
     }
   }
@@ -719,14 +720,14 @@ router.put(
       if (err.message.includes('not found') || err.message.includes('no permission')) {
         res.status(404).json({
           error: 'Share link not found',
-          message: err.message,
+          message: toUserFacingMessage(err),
         });
         return;
       }
 
       res.status(500).json({
         error: 'Failed to update share link',
-        message: err.message,
+        message: toUserFacingMessage(err),
       });
     }
   }
@@ -758,7 +759,7 @@ router.get('/debug/database-state', async (req: Request, res: Response): Promise
     log.error('[NextcloudApi] Error checking database state', { error: err.message });
     res.status(500).json({
       error: 'Failed to check database state',
-      message: err.message,
+      message: toUserFacingMessage(err),
     });
   }
 });

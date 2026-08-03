@@ -4,7 +4,7 @@
 export type TourId = 'workplace' | 'docs' | 'sheets' | 'presentations' | 'canvas' | 'studio';
 
 const TOUR_KEYS: Record<TourId, string> = {
-  workplace: 'gruenerator-workplace-tour-v1',
+  workplace: 'gruenerator-workplace-tour-v2',
   docs: 'gruenerator-tour-docs-v1',
   sheets: 'gruenerator-tour-sheets-v1',
   presentations: 'gruenerator-tour-presentations-v1',

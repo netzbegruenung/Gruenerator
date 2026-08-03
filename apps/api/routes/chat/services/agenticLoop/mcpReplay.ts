@@ -19,12 +19,48 @@
  * after execution), so — unlike OpenWebUI's separate call/result items — orphans
  * are impossible here; every replayed call has its result.
  */
+import { applyContextCap } from '../../../../utils/contextCap.js';
+
 import { type PersistedStep } from './types.js';
 
 import type { ModelMessage } from 'ai';
 
 const DEFAULT_MAX_STEPS = 6;
 const RESULT_PREVIEW_CHARS = 500;
+/**
+ * Search-family results are the thread's research memory, so they get a far
+ * larger replay budget than the 500-char preview that suits an action result.
+ * A 5-hit block is ~2–3k chars (title + URL + a 320-char snippet each); at 500
+ * the follow-up turn saw roughly one and a half sources and the conversation
+ * felt amnesiac ("welche Kennzahlen gab es nochmal?" → generic answer).
+ * The upstream snippet caps already bound this: ≤10 results × ~700 chars.
+ */
+const SOURCE_RESULT_CHARS = 4000;
+
+/**
+ * A result whose payload is REFERENCE TEXT rather than an action confirmation.
+ *
+ * `sources` was the only field here, and the omission had the exact symptom the
+ * comment above describes. `product_knowledge` answers "was kannst du?" with a
+ * `knowledge` block and registers no sources, so on 03.08.2026 its replay was
+ * capped at 500 of 3.876 characters — 87 % dropped — and the next turn answered
+ * about the product from an eighth of what it had just been told.
+ */
+function carriesReferenceText(result: Record<string, unknown>): boolean {
+  return ['sources', 'knowledge'].some(
+    (key) => typeof result[key] === 'string' && (result[key] as string).trim().length > 0
+  );
+}
+
+// A prior search tool-result embeds its OWN numbered "[1] … [2] …" source block.
+// Replayed verbatim into this turn's context, those numbers collide with this
+// turn's registry namespace — the synth grounds a claim against turn-1's [N]
+// while the chips resolve to turn-2's sources (observed live: SPD/Tempolimit
+// claims citing Geschäftsordnung excerpts). Neutralize replayed markers so only
+// the current turn owns the [N] namespace.
+function stripReplayCitationMarkers(s: string): string {
+  return s.replace(/\[(\d+(?:\s*,\s*\d+)*)\]/g, '');
+}
 
 function shortValue(result: Record<string, unknown>): string {
   let s: string;
@@ -34,7 +70,10 @@ function shortValue(result: Record<string, unknown>): string {
     return '[nicht serialisierbar]';
   }
   if (!s) return '';
-  return s.length > RESULT_PREVIEW_CHARS ? `${s.slice(0, RESULT_PREVIEW_CHARS)}…` : s;
+  s = stripReplayCitationMarkers(s);
+  const reference = carriesReferenceText(result);
+  const cap = reference ? SOURCE_RESULT_CHARS : RESULT_PREVIEW_CHARS;
+  return applyContextCap(s, cap, reference ? 'mcpReplay:sources' : 'mcpReplay:result');
 }
 
 /**

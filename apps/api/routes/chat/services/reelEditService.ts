@@ -39,16 +39,18 @@ import {
   getFilePathFromUploadId,
   getOriginalFilename,
 } from '../../../services/subtitler/tusService.js';
+import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
+import { finishEditTurn } from './editTurnCompletion.js';
 import { APP_REDIRECT_TEXTS } from './platformGating.js';
 import { hasStrongReelNoun } from './reelEditHeuristics.js';
 import { runReelEdit } from './reelEditLlm.js';
 import { applyReelOps, validateReelOps } from './reelEditOps.js';
-import { createMessage, touchThread } from './threadPersistenceService.js';
 
 import type { SSEWriter } from './sseHelpers.js';
 import type { ClientPlatform } from '../../../agents/langgraph/ChatGraph/types.js';
+import type { Locale } from '../../../services/localization/types.js';
 import type { AIWorkerPool } from '../../../workers/types.js';
 import type { ReelPickerProject } from '@gruenerator/contracts';
 
@@ -101,7 +103,7 @@ export interface HandleReelEditArgs {
   instruction: string;
   currentReel: { projectId: string } | null;
   reelUpload: { uploadId: string; filename: string } | null;
-  userLocale: string;
+  userLocale: Locale;
   clientPlatform: ClientPlatform;
   aiWorkerPool: AIWorkerPool;
   startTime: number;
@@ -114,32 +116,17 @@ async function finishWithText(
   text: string,
   toolCalls?: Record<string, unknown>[]
 ): Promise<void> {
-  const { sse, threadId } = args;
-  sse.send('response_start', { message: 'Antwort wird erstellt...' });
-  sse.send('text_delta', { text });
-  sse.sendRaw('done', {
-    threadId,
-    citations: [],
-    metadata: {
-      intent: 'reel_edit',
-      searchCount: 0,
-      totalTimeMs: Date.now() - args.startTime,
-      ...(args.classificationTimeMs != null && {
-        classificationTimeMs: args.classificationTimeMs,
-      }),
-      searchTimeMs: 0,
-    },
+  await finishEditTurn({
+    sse: args.sse,
+    threadId: args.threadId,
+    text,
+    intent: 'reel_edit',
+    persistLabel: 'reelEdit:persist',
+    logPrefix: '[ReelEdit]',
+    startTime: args.startTime,
+    ...(args.classificationTimeMs != null && { classificationTimeMs: args.classificationTimeMs }),
+    ...(toolCalls ? { toolCalls } : {}),
   });
-  try {
-    await createMessage(threadId, 'assistant', text, {
-      intent: 'reel_edit',
-      ...(toolCalls ? { toolCalls } : {}),
-    });
-    await touchThread(threadId);
-  } catch (err) {
-    log.error('[ReelEdit] Failed to persist message:', err);
-  }
-  sse.end();
 }
 
 interface ThreadReelRow {
@@ -475,7 +462,7 @@ export async function handleReelEdit(args: HandleReelEditArgs): Promise<boolean>
     log.error('[ReelEdit] Turn failed:', error);
     if (!sse.isEnded()) {
       sse.send('reel_edit_error', {
-        error: error instanceof Error ? error.message : 'Unbekannter Fehler',
+        error: toUserFacingMessage(error, 'Unbekannter Fehler'),
       });
       await finishWithText(
         args,

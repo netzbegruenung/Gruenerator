@@ -1,7 +1,8 @@
 'use client';
 
-import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { useMessage } from '@assistant-ui/react';
+import { createContext, useContext, useMemo, type ReactNode } from 'react';
+
 import type { ChatMessageMetadata } from '../types/messageMetadata';
 
 export interface ExtraAction {

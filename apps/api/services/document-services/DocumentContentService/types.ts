@@ -22,10 +22,7 @@ export interface DocumentContentResult {
   filename: string | null;
   vector_count: number;
   content_type:
-    | 'vector_search'
-    | 'full_text_from_vectors'
-    | 'intelligent_excerpt_from_vectors'
-    | 'no_content';
+    'vector_search' | 'full_text_from_vectors' | 'intelligent_excerpt_from_vectors' | 'no_content';
   content: string;
   similarity_score: number | null;
   search_info: string;

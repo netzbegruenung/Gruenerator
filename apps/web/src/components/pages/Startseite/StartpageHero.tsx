@@ -4,7 +4,7 @@ import {
   getRememberedProvider,
   rememberProvider,
   signInWithProvider,
-  type CountryProviderId,
+  LOGIN_PROVIDERS,
   type LoginProviderId,
 } from '@gruenerator/shared/auth';
 import { memo, useCallback, useState } from 'react';
@@ -13,20 +13,10 @@ import './startpage-hero.css';
 
 const HEADLINE = 'KI, die die Welt nicht brennen sehen will.';
 
-const COUNTRY_LABEL: Record<CountryProviderId, string> = {
-  'gruenes-netz': 'Deutschland',
-  'gruene-oesterreich': 'Österreich',
-};
-
-const otherCountry = (id: CountryProviderId): CountryProviderId =>
-  id === 'gruenes-netz' ? 'gruene-oesterreich' : 'gruenes-netz';
-
 interface HeroInit {
-  /** Country provider pre-selected from a remembered choice, else the browser language. */
-  detected: CountryProviderId;
-  /** Surface the Netzbegrünung button (special link, or a returning nb user). */
-  showNetz: boolean;
-  /** Open the login state straight away (only the ?login=netzbegruenung deep link). */
+  /** Provider the Login button goes to: a remembered choice, else the browser language. */
+  primary: LoginProviderId;
+  /** Expand the provider list on load (only the ?login=<id> deep link). */
   openOnLoad: boolean;
 }
 
@@ -34,13 +24,11 @@ interface HeroInit {
 // resolve it in a lazy initializer instead of an effect.
 const resolveInit = (): HeroInit => {
   const special = new URLSearchParams(window.location.search).get('login');
-  const remembered = getRememberedProvider();
-  const detected: CountryProviderId =
-    remembered === 'gruenes-netz' || remembered === 'gruene-oesterreich'
-      ? remembered
-      : detectCountryProviderId();
-  const showNetz = special === 'netzbegruenung' || remembered === 'netzbegruenung';
-  return { detected, showNetz, openOnLoad: special === 'netzbegruenung' };
+  const deepLinked = LOGIN_PROVIDERS.some((p) => p.id === special)
+    ? (special as LoginProviderId)
+    : null;
+  const primary = deepLinked ?? getRememberedProvider() ?? detectCountryProviderId();
+  return { primary, openOnLoad: deepLinked !== null };
 };
 
 const LockIcon = () => (
@@ -78,10 +66,8 @@ interface StartpageHeroProps {
 }
 
 const StartpageHero = memo(({ onScrollToContent }: StartpageHeroProps) => {
-  // Netzbegrünung is hidden by default; surfaced only via the special link
-  // (?login=netzbegruenung) or for a returning user who chose it before.
-  const [{ detected, showNetz, openOnLoad }] = useState(resolveInit);
-  const [loginOpen, setLoginOpen] = useState(openOnLoad);
+  const [{ primary, openOnLoad }] = useState(resolveInit);
+  const [providersOpen, setProvidersOpen] = useState(openOnLoad);
 
   const startLogin = useCallback((id: LoginProviderId) => {
     const provider = getProviderById(id);
@@ -92,14 +78,13 @@ const StartpageHero = memo(({ onScrollToContent }: StartpageHeroProps) => {
     });
   }, []);
 
-  const other = otherCountry(detected);
+  const primaryProvider = getProviderById(primary);
 
   return (
     <>
       <div className="sp-sunrise" aria-hidden="true" />
-      <div className={`sp-sunrise-warm${loginOpen ? ' is-on' : ''}`} aria-hidden="true" />
 
-      <section className={`sp-hero${loginOpen ? ' is-login' : ''}`}>
+      <section className="sp-hero">
         <div className="sp-topbar">
           <img
             src="/images/gruenerator_logo_gruen.svg"
@@ -117,68 +102,68 @@ const StartpageHero = memo(({ onScrollToContent }: StartpageHeroProps) => {
         <h1 className="sr-only">Grünerator – die Grüne KI, exklusiv für Grüne Mitglieder</h1>
 
         <p className="sp-headline" aria-hidden="true">
-          {loginOpen ? `Loggst du dich aus ${COUNTRY_LABEL[detected]} ein?` : HEADLINE}
+          {HEADLINE}
         </p>
 
-        {loginOpen ? (
-          <div className="sp-cta">
-            <div className="sp-providers">
-              {showNetz ? (
-                <button
-                  type="button"
-                  className="sp-provider"
-                  onClick={() => startLogin('netzbegruenung')}
-                >
-                  <LockIcon /> Netzbegrünung Login
-                </button>
-              ) : (
-                <>
+        <div className="sp-cta">
+          <div className="sp-cta-row">
+            <button
+              type="button"
+              className="sp-login"
+              onClick={() => startLogin(primary)}
+              aria-label={primaryProvider ? `Anmelden mit ${primaryProvider.title}` : 'Anmelden'}
+            >
+              <LockIcon /> Login
+            </button>
+            <button type="button" className="sp-more" onClick={onScrollToContent}>
+              Mehr erfahren
+            </button>
+          </div>
+
+          <p className="sp-hint">Exklusiv für Grüne Mitglieder.</p>
+
+          <button
+            type="button"
+            className="sp-provider-toggle"
+            onClick={() => setProvidersOpen((open) => !open)}
+            aria-expanded={providersOpen}
+          >
+            {providersOpen ? 'Anbieter ausblenden' : 'Anderer Anbieter'}
+          </button>
+
+          {providersOpen && (
+            <ul className="sp-provider-list">
+              {LOGIN_PROVIDERS.map((provider) => (
+                <li key={provider.id}>
                   <button
                     type="button"
                     className="sp-provider"
-                    onClick={() => startLogin(detected)}
+                    aria-current={provider.id === primary ? 'true' : undefined}
+                    onClick={() => startLogin(provider.id)}
                   >
-                    Ja, {COUNTRY_LABEL[detected]}
+                    {provider.logoPath ? (
+                      <img src={provider.logoPath} alt="" className="sp-provider-logo" />
+                    ) : (
+                      <span className="sp-provider-logo" aria-hidden="true">
+                        🌱
+                      </span>
+                    )}
+                    {provider.title}
                   </button>
-                  <button type="button" className="sp-provider" onClick={() => startLogin(other)}>
-                    Nein, {COUNTRY_LABEL[other]}
-                  </button>
-                </>
-              )}
-            </div>
-            <button type="button" className="sp-back" onClick={() => setLoginOpen(false)}>
-              Zurück
-            </button>
-          </div>
-        ) : (
-          <div className="sp-cta">
-            <div className="sp-cta-row">
-              <button
-                type="button"
-                className="sp-login"
-                onClick={() => setLoginOpen(true)}
-                aria-label="Anmelden"
-              >
-                <LockIcon /> Login
-              </button>
-              <button type="button" className="sp-more" onClick={onScrollToContent}>
-                Mehr erfahren
-              </button>
-            </div>
-            <p className="sp-hint">Exklusiv für Grüne Mitglieder.</p>
-          </div>
-        )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
 
-        {!loginOpen && (
-          <button
-            type="button"
-            className="sp-cue"
-            onClick={onScrollToContent}
-            aria-label="Mehr erfahren"
-          >
-            <ChevronIcon />
-          </button>
-        )}
+        <button
+          type="button"
+          className="sp-cue"
+          onClick={onScrollToContent}
+          aria-label="Mehr erfahren"
+        >
+          <ChevronIcon />
+        </button>
       </section>
     </>
   );

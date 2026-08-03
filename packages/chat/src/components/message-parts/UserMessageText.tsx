@@ -1,8 +1,8 @@
 'use client';
 
-import { memo, type ReactNode } from 'react';
 import { useMessagePartText } from '@assistant-ui/react';
 import { parseMentionTokens } from '@gruenerator/shared/utils';
+import { memo, type ReactNode } from 'react';
 
 /**
  * Text part for user messages: renders durable mention tokens

@@ -1,8 +1,5 @@
 export type LoginProviderId =
-  | 'gruenes-netz'
-  | 'gruene-oesterreich'
-  | 'netzbegruenung'
-  | 'gruenerator';
+  'gruenes-netz' | 'gruene-oesterreich' | 'netzbegruenung' | 'gruenerator';
 
 export interface LoginProvider {
   id: LoginProviderId;

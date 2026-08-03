@@ -57,6 +57,7 @@ export {
   COMPOSER_MODES,
   COMPOSER_TOOLS,
   SEARCH_DEPTHS,
+  showsSearchDepth,
   type ComposerModeDef,
   type ComposerIconKey,
   type ComposerToolDef,
@@ -64,6 +65,15 @@ export {
   type SearchDepthDef,
   type SearchDepthIconKey,
 } from './lib/composerControls';
+
+// Notebook retrieval depth — shared registry for the notebook page's tier control
+export {
+  NOTEBOOK_DEPTHS,
+  DEFAULT_NOTEBOOK_DEPTH,
+  notebookDepthDef,
+  type NotebookDepthDef,
+  type NotebookDepthIconKey,
+} from './lib/notebookDepth';
 
 // Context & API Client
 export {
@@ -165,7 +175,6 @@ export { GrueneratorComposer } from './components/thread/GrueneratorComposer';
 export { type ComposerPreset } from './components/thread/PlusMenu';
 export { FileMentionPopover } from './components/thread/FileMentionPopover';
 export { DocumentChatPicker } from './components/thread/DocumentChatPicker';
-export { SkillPopover } from './components/thread/SkillPopover';
 export { SkillLibraryModal } from './components/skills/SkillLibraryModal';
 export { useSkillFavoritesStore } from './stores/skillFavoritesStore';
 export { PlusMenu } from './components/thread/PlusMenu';
@@ -179,11 +188,6 @@ export {
 
 // Message Part Components
 export { ProgressIndicator } from './components/message-parts/ProgressIndicator';
-export {
-  ProgressDisplayContext,
-  useProgressDisplay,
-  type ProgressDisplay,
-} from './components/message-parts/progressDisplayContext';
 export { ProgressTracker } from './components/tool-ui/progress-tracker/ProgressTracker';
 export { TypingIndicator } from './components/message-parts/TypingIndicator';
 export {
@@ -195,6 +199,7 @@ export { CitationBadge } from './components/message-parts/CitationPopover';
 export { Citation as CitationCard } from './components/tool-ui/citation/ProjectCitation';
 export { GeneratedImageDisplay } from './components/message-parts/GeneratedImageDisplay';
 export { MessageActions } from './components/message-parts/MessageActions';
+export { MessageSourcesButton } from './components/message-parts/MessageSourcesButton';
 export { MessageTTSButton } from './components/message-parts/MessageTTSButton';
 export { useMessageTTS, type TTSState } from './hooks/useMessageTTS';
 
@@ -293,15 +298,26 @@ export { setThreadListSlot, useThreadListSlot } from './stores/threadListSlotSto
 // Mention detection & insertion (shared logic for web + mobile)
 export {
   detectMention,
-  getFilteredFunctions,
-  getFilteredSkills,
-  getFilteredForMode,
+  getFilteredMentionables,
   type MentionDetectionResult,
 } from './lib/mentionDetection';
 export { computeMentionInsertion, type MentionInsertionResult } from './lib/mentionInsertion';
 
 // File mention data hook
 export { useFileMentionData } from './hooks/useFileMentionData';
+
+// Typed-mention attachments (Wolke / Connect / web page) and the Canva draft
+// insertion. Shared so the recognition triple the backend keys on cannot drift
+// between platforms — see lib/mentionAttachments.ts.
+export {
+  buildWolkeAttachment,
+  buildConnectAttachment,
+  buildWebpageAttachment,
+  canvaDesignsMarkdown,
+  appendToDraft,
+  type MentionAttachment,
+} from './lib/mentionAttachments';
+export { joinWolkePath, wolkeParentPath, isWolkeRoot } from './lib/wolkePath';
 
 // Citation Utils
 export { mapRawCitationsToChat, resolveCitations } from './lib/citationUtils';
@@ -310,7 +326,7 @@ export { mapRawCitationsToChat, resolveCitations } from './lib/citationUtils';
 export { parseSSELine, type SSECurrentEvent, type SSEParseResult } from './lib/sseParser';
 
 // URL Utilities
-export { extractDomain, getFaviconUrl, getHostname, faviconFromHostname } from './lib/urlUtils';
+export { domainHue, domainInitial, extractDomain, getHostname } from './lib/urlUtils';
 
 // Lib
 export { cn } from './lib/utils';
@@ -337,11 +353,14 @@ export {
   resolveMentionable,
   filterMentionables,
   agentMentionables,
+  mentionableKey,
   notebookMentionables,
   documentMentionables,
   getAllMentionables,
   getAgentMentionables,
+  setMentionInstance,
   setMentionLocale,
+  getMentionLocale,
   setCustomAgents,
   getCustomAgentMentionables,
   customAgentToMentionable,
@@ -351,6 +370,8 @@ export {
   setDocMentionables,
   getDocMentionables,
   toolMentionables,
+  visibleToolMentionables,
+  visibleNotebookMentionables,
   filterMentionablesByCategory,
   type Mentionable,
   type MentionableType,
@@ -359,7 +380,28 @@ export {
   type BoardMentionable,
   type DocMentionable,
 } from './lib/mentionables';
+export {
+  slugifyMention,
+  syncBoards,
+  syncCustomAgents,
+  syncDocs,
+  syncMcpServers,
+  syncSheets,
+  syncTextforms,
+  syncUserNotebooks,
+  type MentionableFetch,
+} from './lib/mentionableSync';
 export { INTENT_TO_TOOL, DEEP_TOOL_MAP } from './lib/toolMappings';
+
+// Which tool calls live in the shimmering status line instead of drawing a card.
+export {
+  isSearchProgressTool,
+  selectHasVisibleToolCard,
+  selectReasoningText,
+  selectSearchSources,
+  selectSearchStatusLabel,
+  type StatusPartLike,
+} from './lib/toolStatusLine';
 
 // Tool-result parsing & metadata (platform-agnostic; kept in sync with index.native.ts)
 export {
@@ -426,6 +468,8 @@ export {
 } from './lib/toolRegistry';
 export {
   registerDocumentSlug,
+  buildDocumentMentionAttachment,
+  buildCollabDocAttachment,
   resolveDocumentSlug,
   clearDocumentSlugs,
   documentToSlug,
@@ -470,3 +514,11 @@ export { ModalThread, type ModalThreadProps } from './components/gruen-o-mat/Mod
 // Icons
 export { ChatIcon } from './components/icons/ChatIcon';
 export { default as GrueneratorHomeIconLoading } from './components/icons/GrueneratorHomeIconLoading';
+
+// Composer plus-menu assembly — shared by web's PlusMenu and mobile's ComposerActionSheet
+export {
+  quickSkillMentionables,
+  functionMentionables,
+  connectorMentionables,
+  connectorId,
+} from './lib/plusMenu';

@@ -17,7 +17,7 @@ import {
   buildSliderDeckSnapshotLines,
   getSharepicTemplateDescriptor,
 } from '@gruenerator/contracts';
-import { streamText, tool, stepCountIs, type ModelMessage } from 'ai';
+import { streamText, tool, isStepCount, type ModelMessage } from 'ai';
 import { z } from 'zod';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
@@ -33,9 +33,11 @@ import {
   insertCanvasVersion,
   listCanvasVersions,
 } from '../../../services/canvas/canvasVersionRepository.js';
+import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 import { getModel } from '../agents/providers.js';
 
+import { finishEditTurn } from './editTurnCompletion.js';
 import {
   applyOpsInputSchema,
   applySliderOpsInputSchema,
@@ -54,7 +56,6 @@ import {
   resolveTarget,
   type HandleSharepicEditArgs,
 } from './sharepicEditService.js';
-import { createMessage, touchThread } from './threadPersistenceService.js';
 
 const log = createLogger('SharepicAgentic');
 
@@ -255,10 +256,10 @@ export async function handleSharepicAgenticEdit(args: HandleSharepicEditArgs): P
           'Wendet 1–8 Operationen auf das Sharepic an (Texte, Schriftgrößen, Farben, Elemente, Hintergrundbild-Suche). Operationen werden validiert; abgelehnte kommen mit Begründung zurück.',
         inputSchema: applyOpsInputSchema,
         execute: async (input, { toolCallId }) => {
-          const guardError =
+          const block =
             guards.checkFailureCap('apply_sharepic_ops') ??
             guards.checkDuplicate('apply_sharepic_ops', input);
-          if (guardError) return { error: guardError };
+          if (block) return { error: block.modelMessage };
 
           const outcome = await applySharepicOpsToCanvas({
             canvasId,
@@ -317,10 +318,10 @@ export async function handleSharepicAgenticEdit(args: HandleSharepicEditArgs): P
           'Stellt eine frühere Version des Sharepics wieder her (als neue Version, nichts geht verloren). Nur auf ausdrücklichen Nutzer*innen-Wunsch.',
         inputSchema: restoreInputSchema,
         execute: async (input, { toolCallId }) => {
-          const guardError =
+          const block =
             guards.checkFailureCap('restore_version') ??
             guards.checkDuplicate('restore_version', input);
-          if (guardError) return { error: guardError };
+          if (block) return { error: block.modelMessage };
 
           const snapshot = await getCanvasVersion(canvasId, input.version);
           if (!snapshot) {
@@ -385,10 +386,10 @@ export async function handleSharepicAgenticEdit(args: HandleSharepicEditArgs): P
           'Wendet 1–6 Deck-Operationen auf das Karussell an (Folien-Texte/-Schriftgrößen ändern, Farbschema deck-weit wechseln, Folien hinzufügen/entfernen). Operationen werden validiert; abgelehnte kommen mit Begründung zurück.',
         inputSchema: applySliderOpsInputSchema,
         execute: async (input, { toolCallId }) => {
-          const guardError =
+          const block =
             guards.checkFailureCap('apply_slider_ops') ??
             guards.checkDuplicate('apply_slider_ops', input);
-          if (guardError) return { error: guardError };
+          if (block) return { error: block.modelMessage };
 
           const outcome = await applySliderOpsToDeck({
             canvasId,
@@ -442,10 +443,10 @@ export async function handleSharepicAgenticEdit(args: HandleSharepicEditArgs): P
           'Stellt eine frühere Version des Karussells wieder her (als neue Version, nichts geht verloren). Nur auf ausdrücklichen Nutzer*innen-Wunsch.',
         inputSchema: restoreInputSchema,
         execute: async (input, { toolCallId }) => {
-          const guardError =
+          const block =
             guards.checkFailureCap('restore_version') ??
             guards.checkDuplicate('restore_version', input);
-          if (guardError) return { error: guardError };
+          if (block) return { error: block.modelMessage };
 
           const snapshot = await getCanvasVersion(canvasId, input.version);
           const restoredPages = snapshot ? (snapshot.state as { pages?: unknown }).pages : null;
@@ -512,7 +513,7 @@ export async function handleSharepicAgenticEdit(args: HandleSharepicEditArgs): P
       system,
       messages,
       tools,
-      stopWhen: stepCountIs(MAX_STEPS),
+      stopWhen: isStepCount(MAX_STEPS),
       temperature: 0.2,
       maxOutputTokens: 800,
       abortSignal: AbortSignal.timeout(TURN_TIMEOUT_MS),
@@ -521,7 +522,7 @@ export async function handleSharepicAgenticEdit(args: HandleSharepicEditArgs): P
     // Manual iteration — fullStream is a ReadableStream whose async-iterator
     // protocol the lint type info doesn't see (same pattern as
     // responseStreamingService).
-    const iterator = result.fullStream[Symbol.asyncIterator]();
+    const iterator = result.stream[Symbol.asyncIterator]();
     while (true) {
       const next = await iterator.next();
       if (next.done) break;
@@ -576,7 +577,7 @@ export async function handleSharepicAgenticEdit(args: HandleSharepicEditArgs): P
     log.error('[Agentic] Turn failed:', error);
     if (!sse.isEnded()) {
       sse.send('sharepic_edit_error', {
-        error: error instanceof Error ? error.message : 'Unbekannter Fehler',
+        error: toUserFacingMessage(error, 'Unbekannter Fehler'),
       });
       await endTurn(
         args,
@@ -595,32 +596,16 @@ async function endTurn(
   text: string,
   opts?: { streamed?: boolean }
 ): Promise<void> {
-  const { sse, threadId } = args;
-  if (!opts?.streamed) {
-    sse.send('response_start', { message: 'Antwort wird erstellt...' });
-    sse.send('text_delta', { text });
-  }
-  sse.sendRaw('done', {
-    threadId,
-    citations: [],
-    metadata: {
-      intent: 'sharepic_edit',
-      searchCount: 0,
-      totalTimeMs: Date.now() - args.startTime,
-      ...(args.classificationTimeMs != null && {
-        classificationTimeMs: args.classificationTimeMs,
-      }),
-      searchTimeMs: 0,
-    },
+  await finishEditTurn({
+    sse: args.sse,
+    threadId: args.threadId,
+    text,
+    intent: 'sharepic_edit',
+    persistLabel: 'sharepicAgentic:persist',
+    logPrefix: '[Agentic]',
+    startTime: args.startTime,
+    ...(args.classificationTimeMs != null && { classificationTimeMs: args.classificationTimeMs }),
+    toolCalls: steps as unknown as Record<string, unknown>[],
+    streamed: opts?.streamed === true,
   });
-  try {
-    await createMessage(threadId, 'assistant', text, {
-      intent: 'sharepic_edit',
-      ...(steps.length > 0 ? { toolCalls: steps as unknown as Record<string, unknown>[] } : {}),
-    });
-    await touchThread(threadId);
-  } catch (err) {
-    log.error('[Agentic] Failed to persist message:', err);
-  }
-  sse.end();
 }

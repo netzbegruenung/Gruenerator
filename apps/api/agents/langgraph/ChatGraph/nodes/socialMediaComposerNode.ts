@@ -1,22 +1,22 @@
 /**
- * Social-Media Composer Node
+ * Social-media prompt construction.
  *
- * Sibling of pressemitteilungComposerNode. Replaces respondNode for
- * `intent === 'examples'`. Builds a social-media-specific system prompt
- * grounded on full Insta captions / FB posts retrieved by searchNode and
- * picks a platform-specific craft rubric when state.platform is set.
+ * Builds a social-media-specific system prompt grounded on full Insta captions
+ * / FB posts retrieved by searchNode, and picks a platform-specific craft
+ * rubric when `state.platform` is set.
  *
- * Writes the prompt to `state.responseText`. Same controller-level streaming
- * pipeline as respondNode and the press composer; the controller's Gemma 4
- * model override applies to this intent too.
+ * The file also held a `socialMediaComposerNode` that wrapped
+ * `buildSocialMediaSystemPrompt` for the compiled ChatGraph. That graph had no
+ * callers and is gone, so the node went with it — but the two prompt helpers
+ * below are very much live: `socialPostService` uses
+ * `buildSocialMediaSystemPrompt`, `socialPostEditService` uses
+ * `rubricForPlatform`.
  */
 
-import { createLogger } from '../../../../utils/logger.js';
+import { CONTENT_INTEGRITY_RULES } from '../../../../services/contentPolicy.js';
 import { formatGermanDate } from '../../../../utils/stringUtils.js';
 
 import type { ChatGraphState, SocialExampleItem, SocialTextPlatform } from '../types.js';
-
-const log = createLogger('SocialMediaComposer');
 
 const INSTAGRAM_RUBRIC = `## INSTAGRAM-HANDWERK
 
@@ -140,40 +140,8 @@ ${rubricForPlatform(platform)}${examplesBlock}
 
 ## SCHREIBAUFTRAG
 
-Verfasse jetzt einen Social-Media-Post zum unten erfragten Thema. Befolge das Handwerk und mimik die Vorlagen. Kein einleitender Meta-Text ("Hier ist dein Post..."), kein abschließender Kommentar — nur der fertige Post inklusive Hashtags. Erfinde keine Fakten oder Zitate.`;
-}
+Verfasse jetzt einen Social-Media-Post zum unten erfragten Thema. Befolge das Handwerk und mimik die Vorlagen. Kein einleitender Meta-Text ("Hier ist dein Post..."), kein abschließender Kommentar — nur der fertige Post inklusive Hashtags.
+${CONTENT_INTEGRITY_RULES}
 
-/**
- * Social-composition node. Sibling of respondNode and pressemitteilungComposer.
- * Pure prompt-builder; the controller still owns model resolution +
- * streamAndAccumulate.
- */
-export async function socialMediaComposerNode(
-  state: ChatGraphState
-): Promise<Partial<ChatGraphState>> {
-  const startTime = Date.now();
-  const exampleCount = state.examplesResult?.social?.length ?? 0;
-  const platformLabel = state.platform ?? 'auto';
-  log.info(
-    `[Composer] Building social prompt (platform=${platformLabel}, ${exampleCount} social examples available)`
-  );
-
-  try {
-    const systemMessage = buildSocialMediaSystemPrompt(state);
-    const responseTimeMs = Date.now() - startTime;
-    log.info(`[Composer] Prompt prepared in ${responseTimeMs}ms (${systemMessage.length} chars)`);
-    return {
-      responseText: systemMessage,
-      streamingStarted: false,
-      responseTimeMs,
-    };
-  } catch (error) {
-    const errMsg = error instanceof Error ? error.message : String(error);
-    log.error('[Composer] Error:', errMsg);
-    return {
-      responseText: '',
-      responseTimeMs: Date.now() - startTime,
-      error: `Social prompt building failed: ${errMsg}`,
-    };
-  }
+Antworte ausschließlich auf Deutsch — auch dann, wenn du die Anfrage ablehnst. Kannst oder willst du den Post nicht schreiben (etwa weil ein Zitat erfunden werden müsste), dann schreibe NUR einen deutschen Satz, der die Ablehnung begründet, und keinen Post-Entwurf.`;
 }

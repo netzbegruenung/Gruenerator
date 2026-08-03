@@ -9,6 +9,9 @@ export {
   containsNormalized,
 } from './textNormalization.js';
 
+// Stable citation keys for search hits (shared by both MCP servers)
+export { buildSourceRef, canonicalizeSourceUrl, type SourceRefInput } from './sourceRefs.js';
+
 // String distance and similarity utilities
 export {
   levenshteinDistance,
@@ -22,6 +25,9 @@ export { cn } from './cn.js';
 
 // HTML tag stripping with entity decoding
 export { stripHtmlTags } from './stripHtmlTags.js';
+
+// HTML entity decoding (named incl. umlauts, decimal, hex) — no tag stripping
+export { decodeHtmlEntities } from './decodeHtmlEntities.js';
 
 // HTML entity escaping for safe markup embedding
 export { escapeHtml } from './escapeHtml.js';
@@ -48,7 +54,7 @@ export type { UsageStat, UsageMap } from './usageRanking.js';
 export { mcpBrandColor } from './mcpBrand.js';
 
 // Time-of-day + locale-aware greeting (web Workplace + mobile Chat home)
-export { getGreeting, isPrideMonth } from './greeting.js';
+export { getGreeting, isPrideMonth, type GreetingOptions } from './greeting.js';
 
 // Natural-language notebook/research query parser (region/date/topic)
 export { parseNotebookQuery } from './notebookQuery.js';

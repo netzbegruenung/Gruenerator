@@ -578,14 +578,14 @@ export function EditPage() {
           </div>
         </aside>
 
-        <main className="flex-1 flex flex-col overflow-hidden min-h-[40vh] lg:min-h-0">
+        <div className="flex-1 flex flex-col overflow-hidden min-h-[40vh] lg:min-h-0">
           <div className="py-md px-lg bg-background-pure border-b border-grey-200 dark:border-grey-700">
             <h3 className="m-0 text-base text-grey-600 dark:text-grey-400">Vorschau</h3>
           </div>
           <div className="flex-1 overflow-y-auto bg-background-pure">
             <CandidatePage candidate={previewCandidateData} />
           </div>
-        </main>
+        </div>
       </div>
 
       <LoadingOverlay

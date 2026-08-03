@@ -34,6 +34,8 @@ vi.mock('./messageHelpers.js', () => ({
 
 vi.mock('./sseHelpers.js', () => ({
   PROGRESS_MESSAGES: { streamInterrupted: 'stream interrupted' },
+  // Real timers would keep pinging under the fake clock these tests drive.
+  startResponseHeartbeat: () => () => {},
 }));
 
 vi.mock('../../../utils/logger.js', () => ({
@@ -67,19 +69,58 @@ function makeSse() {
 
 type SseWriterArg = ReturnType<typeof makeSse>;
 
-/** fullStream that emits the given parts, then completes. */
+/** stream that emits the given parts, then completes. */
 function streamOf(parts: Array<Record<string, unknown>>) {
   return {
-    fullStream: (async function* () {
+    stream: (async function* () {
       for (const part of parts) yield part;
     })(),
   };
 }
 
-/** fullStream whose first part never arrives (hung upstream). */
+/** stream whose first part never arrives (hung upstream). */
 function hungStream() {
   return {
-    fullStream: (async function* () {
+    stream: (async function* () {
+      await new Promise(() => {});
+      yield { type: 'text-delta', text: 'unreachable' };
+    })(),
+  };
+}
+
+/**
+ * A model that THINKS out loud past the deadline before answering: reasoning
+ * deltas every 15s for 45s, then the answer. Healthy, just slow — the shape
+ * that used to be killed at 20s on both lanes in a row.
+ */
+function slowThinkerThenAnswer() {
+  return {
+    stream: (async function* () {
+      for (let i = 0; i < 3; i++) {
+        await new Promise((r) => setTimeout(r, 15_000));
+        yield { type: 'reasoning-delta', text: `denkt ${i}` };
+      }
+      yield { type: 'text-delta', text: 'Die Antwort.' };
+    })(),
+  };
+}
+
+/** Emits reasoning once, then goes silent forever — genuinely hung. */
+function reasoningThenSilence() {
+  return {
+    stream: (async function* () {
+      yield { type: 'reasoning-delta', text: 'denkt' };
+      await new Promise(() => {});
+      yield { type: 'text-delta', text: 'unreachable' };
+    })(),
+  };
+}
+
+/** Emits a first token (clears the first-token deadline) then hangs in Phase 2. */
+function firstTokenThenHang() {
+  return {
+    stream: (async function* () {
+      yield { type: 'text-delta', text: 'Anfang ' };
       await new Promise(() => {});
       yield { type: 'text-delta', text: 'unreachable' };
     })(),
@@ -97,7 +138,11 @@ function makeResolution(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function runStream(resolution: ReturnType<typeof makeResolution>, sse: SseWriterArg) {
+function runStream(
+  resolution: ReturnType<typeof makeResolution>,
+  sse: SseWriterArg,
+  salvage?: () => string | null
+) {
   return streamWithFallback({
     primary: resolution as Parameters<typeof streamWithFallback>[0]['primary'],
     buildStream: (r) =>
@@ -109,6 +154,7 @@ function runStream(resolution: ReturnType<typeof makeResolution>, sse: SseWriter
         sse: sse as never,
       }),
     sse: sse as never,
+    ...(salvage && { salvage }),
   });
 }
 
@@ -207,6 +253,81 @@ describe('streamWithFallback', () => {
     expect((fallback!.data as { reason: string }).reason).toBe('first_token_timeout');
   });
 
+  it('lets a model that thinks past the deadline finish — reasoning is proof of life', async () => {
+    // The live failure this closes: a research turn on verdigado-think died at
+    // exactly 20s, fell back to regolo/gemma4-31b (also a reasoning lane, same
+    // reasoning=medium) and died at exactly 20s again. The fallback could not
+    // help, because a fixed one-shot deadline kills every long thinking phase.
+    vi.useFakeTimers();
+    mockStreamText.mockReturnValue(slowThinkerThenAnswer());
+    const sse = makeSse();
+    const resultPromise = runStream(
+      makeResolution({ sibling: { provider: 'mistral', model: 'mistral-medium-2604' } }),
+      sse
+    );
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(await resultPromise).toBe('Die Antwort.');
+    // No fallback: the primary was alive the whole time and answered.
+    expect(sse.events.some((e) => e.event === 'fallback')).toBe(false);
+    expect(sse.events.filter((e) => e.event === 'reasoning_delta')).toHaveLength(3);
+  });
+
+  it('still falls back when the model goes silent AFTER reasoning', async () => {
+    // Rearm, don't disarm: one reasoning token used to buy immunity for the
+    // rest of the turn, leaving only the 180s wall clock to catch a hang.
+    vi.useFakeTimers();
+    mockStreamText
+      .mockReturnValueOnce(reasoningThenSilence())
+      .mockReturnValueOnce(streamOf([{ type: 'text-delta', text: 'vom Sibling' }]));
+    const sse = makeSse();
+    const resultPromise = runStream(
+      makeResolution({ sibling: { provider: 'mistral', model: 'mistral-medium-2604' } }),
+      sse
+    );
+    await vi.advanceTimersByTimeAsync(25_000);
+
+    expect(await resultPromise).toBe('vom Sibling');
+    expect(sse.events.some((e) => e.event === 'fallback')).toBe(true);
+  });
+
+  it('ships the salvaged answer instead of an error when BOTH lanes are dead', async () => {
+    // Live failure: a research turn retrieved 20 citations and a 1351-char
+    // synthesis, then both lanes hit first_token_timeout writing the two
+    // sentences of framing — and the finished, paid-for answer was discarded.
+    vi.useFakeTimers();
+    mockStreamText.mockReturnValue(hungStream());
+    const sse = makeSse();
+    const resultPromise = runStream(
+      makeResolution({ sibling: { provider: 'mistral', model: 'mistral-medium-2604' } }),
+      sse,
+      () => 'Der Anteil erneuerbarer Energien lag 2024 bei 87 Prozent.'
+    );
+    await vi.advanceTimersByTimeAsync(60_000);
+    const result = await resultPromise;
+
+    expect(result).toBe('Der Anteil erneuerbarer Energien lag 2024 bei 87 Prozent.');
+    expect(textDeltas(sse)).toEqual(['Der Anteil erneuerbarer Energien lag 2024 bei 87 Prozent.']);
+    // Exactly one representation: the answer. No error banner beside it.
+    expect(sse.events.some((e) => e.event === 'error')).toBe(false);
+    expect(sse.isEnded()).toBe(false);
+  });
+
+  it('still errors when there is nothing to salvage', async () => {
+    vi.useFakeTimers();
+    mockStreamText.mockReturnValue(hungStream());
+    const sse = makeSse();
+    const resultPromise = runStream(
+      makeResolution({ sibling: { provider: 'mistral', model: 'mistral-medium-2604' } }),
+      sse,
+      () => null
+    );
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(await resultPromise).toBeNull();
+    expect(sse.events.some((e) => e.event === 'error')).toBe(true);
+  });
+
   it('does not time out before the provider-specific deadline (litellm 30s)', async () => {
     vi.useFakeTimers();
     mockStreamText
@@ -226,6 +347,21 @@ describe('streamWithFallback', () => {
     await vi.advanceTimersByTimeAsync(5_000);
     await resultPromise;
     expect(sse.events.some((e) => e.event === 'fallback')).toBe(true);
+  });
+
+  it('caps Phase 2 with a turn wall-clock (never cleared) so a slow drain cannot run forever', async () => {
+    vi.useFakeTimers();
+    // First token arrives → first-token deadline is cleared; then Phase 2 hangs.
+    mockStreamText.mockReturnValue(firstTokenThenHang());
+    const sse = makeSse();
+    void runStream(makeResolution(), sse);
+    // let the generator yield its first token and clear the deadline
+    await vi.advanceTimersByTimeAsync(0);
+    const composed = (mockStreamText.mock.calls[0][0] as { abortSignal: AbortSignal }).abortSignal;
+    expect(composed.aborted).toBe(false);
+    // Advance past the 180s single-pass wall-clock — the un-cleared ceiling fires.
+    await vi.advanceTimersByTimeAsync(180_000);
+    expect(composed.aborted).toBe(true);
   });
 
   it('falls back when the primary completes without any content', async () => {

@@ -12,6 +12,7 @@ import {
   lightTheme,
   darkTheme,
   type Theme,
+  BODY_FONT,
 } from '../../theme';
 
 interface GroupContentSectionProps {
@@ -128,7 +129,11 @@ export const GroupContentSection = memo(function GroupContentSection({
     return (
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>Inhalte</Text>
-        <Pressable onPress={() => void refetch()} style={styles.errorRow}>
+        <Pressable
+          onPress={() => void refetch()}
+          style={styles.errorRow}
+          accessibilityRole="button"
+        >
           <Ionicons name="alert-circle-outline" size={18} color={colors.semantic.error} />
           <Text style={[styles.errorText, { color: colors.semantic.error }]}>
             Inhalte konnten nicht geladen werden. Erneut versuchen.
@@ -199,6 +204,7 @@ function ContentRow({
           borderColor: theme.cardBorder,
         },
       ]}
+      accessibilityRole="button"
     >
       <View style={[styles.iconWrapper, { backgroundColor: colors.primary[600] + '18' }]}>
         <Ionicons name={icon} size={20} color={colors.primary[600]} />
@@ -224,6 +230,7 @@ const styles = StyleSheet.create({
   container: { gap: spacing.large },
   section: { gap: spacing.xsmall },
   sectionTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
     fontWeight: '600',
     textTransform: 'uppercase',
@@ -247,7 +254,7 @@ const styles = StyleSheet.create({
   },
   rowBody: { flex: 1, gap: 2 },
   rowTitle: { ...typography.body, fontWeight: '600' },
-  rowSubtitle: { fontSize: 12 },
+  rowSubtitle: { fontFamily: BODY_FONT, fontSize: 12 },
   loadingRow: {
     flexDirection: 'row',
     alignItems: 'center',

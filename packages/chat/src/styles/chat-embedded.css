@@ -28,6 +28,8 @@
   --color-surface-hover: rgba(255,255,255,0.1);
   --color-hover-overlay: rgba(255,255,255,0.05);
   --color-user-bubble: rgba(255,255,255,0.1);
+  --color-code-block-bg: #111827;
+  --color-code-block-fg: #e5e7eb;
   --color-code-inline-bg: #1f2937;
   --color-error-bg: rgba(153,27,27,0.2);
   --color-badge-platform: #A0BBB0;
@@ -453,6 +455,45 @@
     animation: none;
     color: var(--color-foreground-muted);
     -webkit-text-fill-color: var(--color-foreground-muted);
+  }
+}
+
+/* Status-line pacing (crossfade in, graceful fade out) + persistent tool
+   narration — mirrors chat.css so embedded surfaces match. */
+@keyframes status-line-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes status-line-out {
+  from { opacity: 1; transform: none; }
+  to   { opacity: 0; transform: translateY(-4px); }
+}
+
+.status-line-swap {
+  animation: status-line-in 0.2s ease-out;
+}
+
+.status-line-exit {
+  animation: status-line-out 0.25s ease-in forwards;
+}
+
+.tool-narration {
+  color: var(--color-foreground-muted);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  margin: 0.25rem 0 0.125rem;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-line-swap,
+  .status-line-exit {
+    animation: none;
   }
 }
 

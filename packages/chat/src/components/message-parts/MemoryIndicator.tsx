@@ -1,5 +1,6 @@
-import { memo, useState } from 'react';
 import { Brain } from 'lucide-react';
+import { memo, useState } from 'react';
+
 import type { MemoryContextInfo } from '../../hooks/useChatGraphStream';
 
 // Kept inline because packages/chat cannot import from apps/api.

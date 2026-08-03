@@ -1,3 +1,4 @@
+import { type ProtokollTyp } from '@gruenerator/contracts';
 import { generateText } from 'ai';
 
 import { createLogger } from '../../utils/logger.js';
@@ -5,11 +6,39 @@ import { getModel, isProviderConfigured } from '../ai/providers.js';
 
 const log = createLogger('protokoll');
 
-type ProtokollTyp = 'Sitzungsprotokoll' | 'Ergebnisprotokoll' | 'Verlaufsprotokoll';
-
 interface ProtokollRequest {
   inputText: string;
   protokollTyp: ProtokollTyp;
+}
+
+/**
+ * How much transcript the todo extraction sees.
+ *
+ * The cut is real and has to stay for now — but it used to be silent, which is
+ * the dangerous part: a two-hour meeting produced a task list covering its
+ * first fifteen minutes and looked exactly like a complete one. Callers now get
+ * the numbers back so the UI can say what was left out.
+ */
+const TODO_INPUT_LIMIT = 8000;
+
+export interface TodoListResult {
+  content: string;
+  truncated: boolean;
+  coveredChars: number;
+  totalChars: number;
+}
+
+/**
+ * Speaker names are spoken when people greet each other and sign off, so the
+ * opening and closing stretches carry nearly all the evidence. Sampling both
+ * ends keeps a long transcript inside the context window without losing the
+ * part that actually answers the question.
+ */
+const SPEAKER_SAMPLE_CHARS = 6000;
+
+function sampleForSpeakerIdentification(text: string): string {
+  if (text.length <= SPEAKER_SAMPLE_CHARS * 2) return text;
+  return `${text.slice(0, SPEAKER_SAMPLE_CHARS)}\n\n[… gekürzt …]\n\n${text.slice(-SPEAKER_SAMPLE_CHARS)}`;
 }
 
 const SYSTEM_PROMPT = `Du bist ein erfahrener Protokollführer für politische Gremien, Vereine und Organisationen. Du erstellst präzise, gut strukturierte Sitzungsprotokolle aus Transkriptionen.
@@ -63,25 +92,41 @@ Antworte NUR mit einem JSON-Objekt, das Speaker-IDs auf Namen abbildet. Wenn du 
 
 Beispiel-Antwort:
 {"speaker_0": "Markus Lanz", "speaker_1": "Eva Dunz", "speaker_2": "Roderich Kiesewetter"}`,
-    prompt: `Identifiziere die Sprecher*innen in dieser Transkription:\n\n${diarizedText}\n\nSpeaker-IDs: ${speakerIds.join(', ')}\n\nAntwort als JSON:`,
+    prompt: `Identifiziere die Sprecher*innen in dieser Transkription:\n\n${sampleForSpeakerIdentification(diarizedText)}\n\nSpeaker-IDs: ${speakerIds.join(', ')}\n\nAntwort als JSON:`,
     temperature: 0.1,
     maxOutputTokens: 500,
   });
 
+  // A failure here degrades to `Sprecher*in N` labels rather than breaking the
+  // transcript, so it stays non-fatal — but it is logged loudly enough to tell
+  // "no names found" apart from "the model returned something unusable".
+  const jsonMatch = result.text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    log.warn(
+      '[Protokoll] Speaker identification returned no JSON object:',
+      result.text.slice(0, 200)
+    );
+    return {};
+  }
   try {
-    const jsonMatch = result.text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return {};
     const mapping = JSON.parse(jsonMatch[0]) as Record<string, string>;
     log.debug('[Protokoll] Speaker mapping:', mapping);
     return mapping;
   } catch {
-    log.warn('[Protokoll] Failed to parse speaker mapping:', result.text);
+    log.warn('[Protokoll] Failed to parse speaker mapping:', result.text.slice(0, 200));
     return {};
   }
 }
 
-export async function extractTodoList(inputText: string, title?: string): Promise<string> {
+export async function extractTodoList(inputText: string, title?: string): Promise<TodoListResult> {
+  const covered = inputText.slice(0, TODO_INPUT_LIMIT);
+  const truncated = inputText.length > TODO_INPUT_LIMIT;
   log.debug('[Protokoll] Extracting todo list', `(${inputText.length} chars input)`);
+  if (truncated) {
+    log.warn(
+      `[Protokoll] Todo extraction input cut from ${inputText.length} to ${TODO_INPUT_LIMIT} chars`
+    );
+  }
 
   const result = await generateText({
     model: getProtokollModel(),
@@ -102,13 +147,17 @@ Regeln:
 - Gruppiere nach Thema/Kategorie wenn sinnvoll
 - Füge Verantwortliche in Klammern hinzu wenn erkennbar, z.B. "Budget prüfen (Herr Müller)"
 - Keine bereits erledigten Aufgaben als checked markieren — alle sind offen`,
-    prompt: `Extrahiere alle Aufgaben und Action Items aus folgendem Text:\n\n<text>\n${inputText.slice(0, 8000)}\n</text>\n\n${title ? `Titel: ${title}` : ''}`,
+    prompt: `Extrahiere alle Aufgaben und Action Items aus folgendem Text:\n\n<text>\n${covered}\n</text>\n\n${title ? `Titel: ${title}` : ''}`,
     temperature: 0.2,
-    maxOutputTokens: 4000,
   });
 
   log.debug('[Protokoll] Todo list extracted', result.usage?.totalTokens, 'tokens');
-  return result.text;
+  return {
+    content: result.text,
+    truncated,
+    coveredChars: covered.length,
+    totalChars: inputText.length,
+  };
 }
 
 export async function generateProtokoll({
@@ -122,7 +171,6 @@ export async function generateProtokoll({
     system: SYSTEM_PROMPT,
     prompt: `Erstelle ein ${protokollTyp} aus folgender Transkription:\n\n<transkription>\n${inputText}\n</transkription>\n\nBitte erstelle ein professionelles, gut strukturiertes Protokoll.`,
     temperature: 0.3,
-    maxOutputTokens: 8000,
   });
 
   log.debug('[Protokoll] Generated', result.usage?.totalTokens, 'tokens');

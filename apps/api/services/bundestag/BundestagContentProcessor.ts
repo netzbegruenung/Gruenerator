@@ -251,19 +251,17 @@ class BundestagContentProcessor {
       });
 
       if (Array.isArray(chunks) && chunks.length > 0) {
-        return chunks.map(
-          (chunk, index: number): TextChunk => ({
-            text: chunk.text,
+        return chunks.map((chunk, index: number): TextChunk => ({
+          text: chunk.text,
+          chunk_index: index,
+          token_count: chunk.tokens || estimateTokens(chunk.text),
+          metadata: {
+            ...metadata,
+            ...chunk.metadata,
             chunk_index: index,
-            token_count: chunk.tokens || estimateTokens(chunk.text),
-            metadata: {
-              ...metadata,
-              ...chunk.metadata,
-              chunk_index: index,
-              total_chunks: chunks.length,
-            },
-          })
-        );
+            total_chunks: chunks.length,
+          },
+        }));
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -278,18 +276,16 @@ class BundestagContentProcessor {
       });
 
       if (Array.isArray(chunks) && chunks.length > 0) {
-        return chunks.map(
-          (chunk, index: number): TextChunk => ({
-            text: chunk.text,
+        return chunks.map((chunk, index: number): TextChunk => ({
+          text: chunk.text,
+          chunk_index: index,
+          token_count: chunk.tokens || estimateTokens(chunk.text),
+          metadata: {
+            ...metadata,
             chunk_index: index,
-            token_count: chunk.tokens || estimateTokens(chunk.text),
-            metadata: {
-              ...metadata,
-              chunk_index: index,
-              total_chunks: chunks.length,
-            },
-          })
-        );
+            total_chunks: chunks.length,
+          },
+        }));
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';

@@ -3,7 +3,7 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useCallback } from 'react';
 import { View, Text, Pressable, StyleSheet, Linking } from 'react-native';
 
-import { colors, spacing, borderRadius } from '../../../theme';
+import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../../theme';
 
 import type { Theme } from '../../../theme/colors';
 
@@ -31,6 +31,7 @@ export function ScrapeUrlCard({ part, theme }: { part: ToolCallPart; theme: Them
         styles.card,
         { backgroundColor: pressed ? theme.surface : theme.card, borderColor: theme.cardBorder },
       ]}
+      accessibilityRole="link"
     >
       <View style={styles.header}>
         <Ionicons name="open-outline" size={14} color={colors.secondary[700]} />
@@ -64,12 +65,12 @@ const styles = StyleSheet.create({
     gap: spacing.xxsmall,
   },
   domain: {
+    ...chatType.chatSecondary,
     flexShrink: 1,
-    fontSize: 13,
+    fontFamily: BODY_FONT,
     fontWeight: '600',
   },
   snippet: {
-    fontSize: 12,
-    lineHeight: 17,
+    ...chatType.chatSecondary,
   },
 });

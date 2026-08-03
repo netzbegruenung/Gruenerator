@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 
-import { colors, spacing, borderRadius } from '../../../theme';
+import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../../theme';
 
 import { ToolCitationList } from './ToolCitationList';
 import { toolIonicon } from './toolIcons';
@@ -43,6 +43,8 @@ export function KeyValueCard({
       <Pressable
         onPress={() => hasContent && setExpanded((x) => !x)}
         style={[styles.pill, { backgroundColor: theme.surface, borderColor: theme.border }]}
+        accessibilityRole="button"
+        accessibilityState={{ expanded, disabled: !hasContent }}
       >
         <Ionicons name={toolIonicon(meta.iconKey)} size={14} color={colors.primary[500]} />
         <Text style={[styles.label, { color: theme.text }]}>{meta.label}</Text>
@@ -102,12 +104,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   label: {
-    fontSize: 13,
+    ...chatType.chatSecondary,
     fontWeight: '600',
   },
   query: {
+    ...chatType.chatMeta,
     flexShrink: 1,
-    fontSize: 12,
+    fontFamily: BODY_FONT,
   },
   details: {
     marginTop: spacing.xsmall,
@@ -122,19 +125,19 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.medium,
   },
   markdown: {
-    fontSize: 13,
-    lineHeight: 18,
+    ...chatType.chatSecondary,
   },
   row: {
     flexDirection: 'row',
     gap: spacing.xsmall,
   },
   rowLabel: {
-    fontSize: 12,
+    ...chatType.chatMeta,
     minWidth: 90,
   },
   rowValue: {
+    ...chatType.chatMeta,
     flex: 1,
-    fontSize: 12,
+    fontFamily: BODY_FONT,
   },
 });

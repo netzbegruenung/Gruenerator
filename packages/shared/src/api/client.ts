@@ -5,6 +5,8 @@ import axios, {
   type InternalAxiosRequestConfig,
 } from 'axios';
 
+import { getApiLocale } from './locale.js';
+
 import type { ApiConfig } from '../types/auth.js';
 
 export type AuthMode = 'cookie' | 'bearer';
@@ -46,8 +48,10 @@ export function createApiClient(options: CreateApiClientOptions): AxiosInstance 
     },
   });
 
-  // Request interceptor - add auth token for bearer mode
+  // Request interceptor - locale header + auth token for bearer mode
   client.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
+    // Read per request, not at construction: the locale becomes known at login.
+    config.headers['X-User-Locale'] = getApiLocale();
     if (authMode === 'bearer' && getAuthToken) {
       const token = await getAuthToken();
       if (token) {
@@ -99,8 +103,7 @@ export function createApiClient(options: CreateApiClientOptions): AxiosInstance 
         };
         // onUnauthorized is `(info?) => void | Promise<boolean>`; awaiting the
         // optional Promise variant is intentional (we act on the refreshed
-        // result). The `void` member of the union makes await-thenable flag it.
-        // eslint-disable-next-line @typescript-eslint/await-thenable
+        // result).
         const refreshed = await onUnauthorized(info);
         if (refreshed) {
           if (authMode === 'bearer' && getAuthToken) {

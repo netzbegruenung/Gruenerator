@@ -1,4 +1,5 @@
 import { memo } from 'react';
+
 import type { SkillIcon } from '@gruenerator/shared/agents';
 
 interface SkillBadgeProps {

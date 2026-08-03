@@ -11,7 +11,7 @@ import type { GeneratorResponse, GeneratorResult } from '../types.js';
  * Handles multiple response formats from the backend:
  * - Direct string response
  * - { content: string, metadata?: object } format
- * - { social: { content: string } } format (claude_social endpoint)
+ * - { social: { content: string } } format (/texte/social)
  * - Nested { data: { content: string } } format
  * - Axios wrapper { data: ... } format
  *
@@ -45,7 +45,7 @@ export function parseGeneratorResponse(response: unknown): GeneratorResult {
       };
     }
 
-    // Alt-Text format { altText, metadata } from claude_alttext endpoint
+    // Alt-Text format { altText, metadata } from /texte/alttext
     if (typeof obj.altText === 'string') {
       return {
         success: true,
@@ -56,7 +56,7 @@ export function parseGeneratorResponse(response: unknown): GeneratorResult {
       };
     }
 
-    // Social format { social: { content } } from claude_social endpoint
+    // Social format { social: { content } } from /texte/social
     if (obj.social && typeof obj.social === 'object') {
       const social = obj.social as Record<string, unknown>;
       if (typeof social.content === 'string') {

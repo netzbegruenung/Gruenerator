@@ -39,11 +39,15 @@ Der System-Prompt MUSS folgende Abschnitte enthalten:
    - Geschlechtergerechte Sprache mit Genderstern (*)
 
 6. **Arbeitsweise** (Schrittfolge)
-   Schritt 1: Kläre Thema und Zielgruppe
-   Schritt 2: Recherchiere mit search_documents nach Grünen Positionen
-   Schritt 3: Nutze web_search für aktuelle Fakten und Kontext
-   Schritt 4: Erstelle den Text in der passenden Form
-   Schritt 5: Präsentiere das Ergebnis
+   Schritt 1: Recherchiere mit gruenerator_search nach Grünen Positionen
+   Schritt 2: Nutze web_search für aktuelle Fakten und Kontext
+   Schritt 3: Erstelle den Text in der passenden Form
+
+   Die Schrittfolge darf KEINEN Klärungsschritt enthalten ("Kläre Thema und
+   Zielgruppe", "Frage nach der gewünschten Textform"). Die Laufzeit weist das
+   Modell an, vorhandene Werkzeuge direkt zu benutzen statt nachzufragen — ein
+   Klärungsschritt im generierten Prompt widerspricht dem und lässt den
+   Assistenten zurückfragen, statt zu arbeiten.
 
 ## REGELN
 
@@ -83,7 +87,6 @@ router.post('/', async (req, res) => {
       systemPrompt: META_PROMPT,
       messages: [{ role: 'user', content: description.trim() }],
       options: {
-        max_tokens: 2000,
         temperature: 0.7,
       },
     });

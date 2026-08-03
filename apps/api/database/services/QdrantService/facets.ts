@@ -23,6 +23,8 @@ export interface DateRange {
 export interface UrlRecord {
   source_url: string;
   content_hash: string | null;
+  /** Only populated when the caller asks for `published_at` in `payloadFields`. */
+  published_at?: string | null;
 }
 
 export interface DeleteResult {
@@ -239,6 +241,9 @@ export async function getAllUrls(
             urlMap.set(url, {
               source_url: url,
               content_hash: (payload.content_hash as string | undefined) || null,
+              ...(payloadFields.includes('published_at') && {
+                published_at: (payload.published_at as string | undefined) ?? null,
+              }),
             });
           }
         }

@@ -12,6 +12,7 @@ import {
 } from 'react-icons/fa';
 
 import CopyButton from '../../../components/common/CopyButton';
+import JobErrorNotice from '../../../components/common/JobErrorNotice';
 import { Markdown } from '../../../components/common/Markdown';
 import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import Spinner from '../../../components/common/Spinner';
@@ -101,6 +102,10 @@ const VideoSuccessScreen: React.FC<VideoSuccessScreenProps> = ({
     status: exportStatus,
     progress: exportProgress,
     error: exportError,
+    errorCode: exportErrorCode,
+    retryable: exportRetryable,
+    errorId: exportErrorId,
+    retryExport,
     subscribe,
   } = exportStore;
 
@@ -119,6 +124,9 @@ const VideoSuccessScreen: React.FC<VideoSuccessScreenProps> = ({
       }, 300);
       return () => clearTimeout(timer);
     } else {
+      // Reaction to the loading/export status changing — the hide side is a timed
+      // 300ms fade (setTimeout above), so this show/hide gate must stay an effect.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShowSpinner(true);
     }
   }, [isLoading, exportStatus]);
@@ -201,7 +209,14 @@ const VideoSuccessScreen: React.FC<VideoSuccessScreenProps> = ({
               <h2 className="text-xl font-semibold text-foreground-heading">
                 Export fehlgeschlagen
               </h2>
-              <p className="text-foreground">{exportError}</p>
+              <JobErrorNotice
+                className="w-full max-w-md"
+                message={exportError}
+                code={exportErrorCode}
+                retryable={exportRetryable}
+                errorId={exportErrorId}
+                onRetry={() => void retryExport()}
+              />
             </>
           ) : (
             <div

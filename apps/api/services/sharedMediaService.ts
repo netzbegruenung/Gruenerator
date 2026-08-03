@@ -10,6 +10,8 @@ import sharp from 'sharp';
 import { type PostgresService, getPostgresInstance } from '../database/services/PostgresService.js';
 import { likeContainsPattern } from '../utils/sqlLike.js';
 
+import { deriveContentOrigin } from './sharedMediaOrigin.js';
+
 import type {
   SharedMediaRow,
   CreateVideoShareParams,
@@ -395,10 +397,14 @@ class SharedMediaService {
       imageBase64,
       title,
       imageType,
+      contentOrigin,
       metadata = {},
       originalImage = null,
       status = 'ready',
     } = params;
+    // Declared by callers that know their own flow; derived only for clients too
+    // old to send it (mobile updates by OTA and can lag a deploy).
+    const origin = contentOrigin ?? deriveContentOrigin(imageType, metadata);
     const shareToken = this.generateShareToken();
     const shareDir = getSafeShareDir(shareToken);
 
@@ -475,8 +481,8 @@ class SharedMediaService {
       const query = `
                 INSERT INTO shared_media
                 (user_id, share_token, media_type, title, file_path, file_name, thumbnail_path,
-                 file_size, mime_type, image_type, image_metadata, status)
-                VALUES ($1, $2, 'image', $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                 file_size, mime_type, image_type, image_metadata, status, content_origin)
+                VALUES ($1, $2, 'image', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
                 RETURNING id, share_token, created_at
             `;
 
@@ -496,6 +502,7 @@ class SharedMediaService {
         imageType || null,
         JSON.stringify(enrichedMetadata),
         status,
+        origin,
       ]);
 
       // Fire-and-forget: responsive variants + BlurHash, then merge into the row.
@@ -671,7 +678,8 @@ class SharedMediaService {
     try {
       let query = `
                 SELECT id, share_token, media_type, title, thumbnail_path, file_size,
-                       duration, image_type, image_metadata, status, download_count, created_at
+                       duration, image_type, image_metadata, status, download_count, created_at,
+                       content_origin
                 FROM shared_media
                 WHERE user_id = $1
                   AND (upload_source IS NULL OR upload_source != ALL($2))
@@ -874,7 +882,7 @@ class SharedMediaService {
                 SELECT id, share_token, media_type, title, thumbnail_path, file_size,
                        mime_type, duration, image_type, image_metadata, status,
                        download_count, view_count, created_at, alt_text, upload_source,
-                       original_filename
+                       original_filename, content_origin
                 FROM shared_media
                 WHERE user_id = $1
                   AND status = 'ready'
@@ -933,7 +941,7 @@ class SharedMediaService {
                 SELECT id, share_token, media_type, title, file_path, file_name,
                        thumbnail_path, file_size, mime_type, duration, image_type,
                        image_metadata, status, download_count, view_count, created_at,
-                       alt_text, upload_source, original_filename
+                       alt_text, upload_source, original_filename, content_origin
                 FROM shared_media
                 WHERE id = $1 AND user_id = $2
             `;
@@ -1047,12 +1055,18 @@ class SharedMediaService {
         uploadSource
       );
 
+      // Everything arriving here is a source image, not a finished creation —
+      // including the canvas editor's background/asset uploads. `ai_generated` is
+      // the one source that would say otherwise; no caller assigns it today, but
+      // handling it means a future one gets the right bucket for free.
+      const contentOrigin = uploadSource === 'ai_generated' ? 'ki' : 'upload';
+
       const query = `
                 INSERT INTO shared_media
                 (user_id, share_token, media_type, title, file_path, file_name, thumbnail_path,
                  file_size, mime_type, status, is_library_item, alt_text, upload_source, original_filename,
-                 image_metadata)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ready', $10, $11, $12, $13, $14)
+                 image_metadata, content_origin)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ready', $10, $11, $12, $13, $14, $15)
                 RETURNING id, share_token, created_at
             `;
 
@@ -1075,6 +1089,7 @@ class SharedMediaService {
         uploadSource,
         originalFilename,
         imageInfo ? JSON.stringify(imageInfo) : null,
+        contentOrigin,
       ]);
 
       if (isImage) {
@@ -1287,7 +1302,8 @@ class SharedMediaService {
     try {
       // 1. Fetch template
       const templateQuery = `
-                SELECT id, user_id, media_type, image_type, image_metadata, template_visibility, template_creator_name
+                SELECT id, user_id, media_type, image_type, image_metadata, content_origin,
+                       template_visibility, template_creator_name
                 FROM shared_media
                 WHERE share_token = $1 AND is_template = TRUE
             `;
@@ -1297,6 +1313,7 @@ class SharedMediaService {
         media_type: string;
         image_type: string | null;
         image_metadata: Record<string, unknown>;
+        content_origin: string;
         template_visibility: string;
         template_creator_name: string | null;
       }>(templateQuery, [shareToken]);
@@ -1319,8 +1336,9 @@ class SharedMediaService {
       const newShareToken = this.generateShareToken();
       const insertQuery = `
                 INSERT INTO shared_media
-                (user_id, share_token, media_type, image_type, image_metadata, is_template, original_template_id, status)
-                VALUES ($1, $2, $3, $4, $5, FALSE, $6, 'processing')
+                (user_id, share_token, media_type, image_type, image_metadata, is_template,
+                 original_template_id, status, content_origin)
+                VALUES ($1, $2, $3, $4, $5, FALSE, $6, 'processing', $7)
                 RETURNING id, share_token, created_at
             `;
 
@@ -1335,6 +1353,8 @@ class SharedMediaService {
         template.image_type,
         JSON.stringify(clonedMetadata),
         template.id,
+        // A clone is the same kind of artifact as what it was cloned from.
+        template.content_origin,
       ]);
 
       // 5. Increment template use count

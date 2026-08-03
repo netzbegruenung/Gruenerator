@@ -21,7 +21,15 @@ import Markdown from 'react-native-markdown-display';
 
 import { copyToClipboard } from '../../services/share';
 import { useSubtitleEditorStore } from '../../stores/subtitleEditorStore';
-import { colors, spacing, borderRadius, typography, lightTheme, darkTheme } from '../../theme';
+import {
+  colors,
+  spacing,
+  borderRadius,
+  typography,
+  lightTheme,
+  darkTheme,
+  BODY_FONT,
+} from '../../theme';
 import { Button } from '../common/Button';
 
 import type { ExportStatus } from '../../hooks/useSubtitleExport';
@@ -31,6 +39,7 @@ interface ExportScreenProps {
   progress: number;
   videoUri: string | null;
   error: string | null;
+  errorId?: string | null;
   onBackToEditor: () => void;
   onGoHome: () => void;
 }
@@ -62,6 +71,8 @@ function IconButton({
         pressed && styles.iconButtonPressed,
         (disabled || loading) && styles.iconButtonDisabled,
       ]}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: disabled || loading }}
     >
       <View style={[styles.iconButtonCircle, active && styles.iconButtonCircleActive]}>
         {loading ? (
@@ -82,6 +93,7 @@ export function ExportScreen({
   progress,
   videoUri,
   error,
+  errorId,
   onBackToEditor,
   onGoHome,
 }: ExportScreenProps) {
@@ -95,7 +107,7 @@ export function ExportScreen({
 
   const mdStyles = useMemo(
     () => ({
-      body: { color: theme.text, fontSize: 14, lineHeight: 20 },
+      body: { color: theme.text, fontFamily: BODY_FONT, fontSize: 14, lineHeight: 20 },
       paragraph: { marginTop: 0, marginBottom: 6 },
       strong: { fontWeight: '700' as const },
       bullet_list: { marginVertical: 4 },
@@ -218,6 +230,7 @@ export function ExportScreen({
         <Ionicons name="alert-circle" size={48} color={colors.error[500]} />
         <Text style={[styles.progressTitle, { color: theme.text }]}>Export fehlgeschlagen</Text>
         <Text style={styles.errorText}>{error}</Text>
+        {errorId ? <Text style={styles.errorIdText}>Fehler-ID: {errorId}</Text> : null}
         <Button onPress={onBackToEditor} variant="outline">
           Zurück zum Editor
         </Button>
@@ -250,7 +263,12 @@ export function ExportScreen({
           nativeControls={false}
         />
 
-        <Pressable style={styles.playOverlay} onPress={togglePlayback}>
+        <Pressable
+          style={styles.playOverlay}
+          onPress={togglePlayback}
+          accessibilityRole="button"
+          accessibilityLabel={isPlaying ? 'Wiedergabe pausieren' : 'Wiedergabe starten'}
+        >
           {!isPlaying && (
             <View style={styles.playButton}>
               <Ionicons name="play" size={32} color={colors.white} />
@@ -259,7 +277,12 @@ export function ExportScreen({
         </Pressable>
 
         <View style={styles.videoControls}>
-          <Pressable style={styles.controlButton} onPress={togglePlayback}>
+          <Pressable
+            style={styles.controlButton}
+            onPress={togglePlayback}
+            accessibilityRole="button"
+            accessibilityLabel={isPlaying ? 'Wiedergabe pausieren' : 'Wiedergabe starten'}
+          >
             <Ionicons name={isPlaying ? 'pause' : 'play'} size={24} color={colors.white} />
           </Pressable>
         </View>
@@ -296,7 +319,13 @@ export function ExportScreen({
         >
           <View style={styles.socialTextHeader}>
             <Text style={[styles.socialTextTitle, { color: theme.text }]}>Dein Beitragstext</Text>
-            <Pressable onPress={handleCopySocialText} style={styles.copyButton} hitSlop={8}>
+            <Pressable
+              onPress={handleCopySocialText}
+              style={styles.copyButton}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Beitragstext kopieren"
+            >
               <Ionicons
                 name={isCopied ? 'checkmark' : 'copy-outline'}
                 size={20}
@@ -330,6 +359,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xlarge,
   },
   progressTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 17,
     fontWeight: '600',
     textAlign: 'center',
@@ -352,9 +382,17 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   progressPercent: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
   },
+  errorIdText: {
+    fontSize: 12,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    color: colors.grey[500],
+    marginBottom: 8,
+  },
   errorText: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     color: colors.error[500],
     textAlign: 'center',
@@ -471,6 +509,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.small,
   },
   socialTextTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
   },

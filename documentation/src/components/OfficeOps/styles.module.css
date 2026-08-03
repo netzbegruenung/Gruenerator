@@ -1,0 +1,87 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.operation {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 1.1rem 1.15rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 12px;
+  background: var(--ifm-background-surface-color);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.operation:hover {
+  border-color: var(--ifm-color-primary);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.operationTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ifm-heading-color);
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.badge {
+  font-size: 0.76rem;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  background: var(--ifm-color-emphasis-100);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  color: var(--ifm-color-emphasis-800);
+  white-space: nowrap;
+}
+
+.description {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--ifm-color-emphasis-800);
+}
+
+.examples {
+  margin: 0.2rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.92rem;
+}
+
+.examples li {
+  margin-bottom: 0.3rem;
+  color: var(--ifm-color-emphasis-900);
+}
+
+.disabledCard {
+  opacity: 0.72;
+  border-style: dashed;
+}
+
+.disabledCard:hover {
+  border-color: var(--ifm-color-emphasis-300);
+  box-shadow: none;
+}
+
+.disabledBadge {
+  align-self: flex-start;
+  background: #fff4d6;
+  border-color: #e6c65c;
+  color: #6b4e00;
+}
+
+[data-theme='dark'] .disabledBadge {
+  background: #3a2f10;
+  border-color: #7a6420;
+  color: #f0d98a;
+}

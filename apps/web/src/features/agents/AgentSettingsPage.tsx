@@ -21,7 +21,7 @@ function AgentSettingsPage() {
   const { data: agent, isLoading } = useUserAgent(identifier);
   const { data: recurringTasks = [], isLoading: tasksLoading } = useRecurringTasks();
 
-  useDocumentTitle(agent ? `${agent.title} bearbeiten` : 'Agent bearbeiten');
+  useDocumentTitle(agent ? `${agent.title} bearbeiten` : 'Grünerator-Agent bearbeiten');
 
   // Only the agent gates the editor render — the recurring-task lookup must not
   // block editing a plain agent.
@@ -35,7 +35,7 @@ function AgentSettingsPage() {
   if (!agent) {
     return (
       <PageContainer maxWidth="md">
-        <p>Agent nicht gefunden.</p>
+        <p>Grünerator-Agent nicht gefunden.</p>
       </PageContainer>
     );
   }

@@ -1,7 +1,10 @@
-/* One-shot "sunrise" for the chat-tab warm radial glow. The gradient is the
+/* One-shot "sunrise" for the chat-tab radial glow. The gradient is the
    permanent resting state (initial-values below match the design); only the
    entrance animation runs once and settles into it (animation-fill-mode: forwards).
-   Registered @property values are what makes the gradient stops interpolable. */
+   Registered @property values are what makes the gradient stops interpolable.
+
+   The tint is a variable so the user-chosen preset only swaps two values
+   (--wp-bg-base / --wp-bg-tint) — the geometry and the animation stay shared. */
 
 @property --wp-sunrise-y {
   syntax: '<percentage>';
@@ -16,14 +19,384 @@
 }
 
 .workplace-chat-sunrise {
-  background-color: #fefcf5;
+  /* Defaults = the `sunrise` preset; the modifier classes below override them. */
+  --wp-bg-base: #fefcf5;
+  --wp-bg-tint: 233 214 150;
+  /* Dunkelmodus fällt auf die Theme-Fläche durch. Nur die Nebel-Familie setzt
+     hier einen eigenen Grund — ihr Schleier verlangt einen, siehe dort. */
+  --wp-bg-base-dark: transparent;
+  /* Composer accent: same hue family as the wash, but deep enough to carry
+     white text. The wash itself never can — at 1.5:1–2.5:1 against white it
+     is a background tone, not a surface for a label. See --wp-accent below. */
+  --wp-accent: #8a6d0b;
+  --wp-accent-hover: #765d09;
+
+  /* Der Composer steht auf getöntem Grund und braucht deshalb keinen Rahmen —
+     die Füllung allein trennt ihn von der Fläche. Wie in der App, die es genauso
+     macht (ComposerShell: „No border, no shadow"). Als Variable, damit dieselbe
+     Komponente an den Stellen ohne eigenen Grund (/suche, Notebook) ihren Rahmen
+     behält; die Variable wird dort nie gesetzt und fällt auf das Token zurück.
+     Der Schatten bleibt: er trägt im Web zusätzlich den Fokus-Zustand. */
+  --chat-composer-border: transparent;
+
+  background-color: var(--wp-bg-base);
   background-image: radial-gradient(
     88% 58% at 50% var(--wp-sunrise-y),
-    rgb(233 214 150 / calc(0.5 * var(--wp-sunrise-glow))) 0%,
-    rgb(233 214 150 / calc(0.18 * var(--wp-sunrise-glow))) 40%,
+    rgb(var(--wp-bg-tint) / calc(0.5 * var(--wp-sunrise-glow))) 0%,
+    rgb(var(--wp-bg-tint) / calc(0.18 * var(--wp-sunrise-glow))) 40%,
     rgb(255 255 255 / 0) 74%
   );
   animation: workplace-sunrise 2.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* ── Presets ──────────────────────────────────────────────────────────────
+   Keys match `chatBackgroundSchema` in @gruenerator/contracts. `sunrise` needs
+   no class — it is the base above. */
+
+.workplace-chat-bg--tanne {
+  --wp-bg-base: #f5faf7;
+  --wp-bg-tint: 122 176 143;
+  --wp-accent: #2f7d4f;
+  --wp-accent-hover: #286b43;
+}
+
+.workplace-chat-bg--himmel {
+  --wp-bg-base: #f5f9fd;
+  --wp-bg-tint: 137 186 231;
+  --wp-accent: #1667b8;
+  --wp-accent-hover: #12589e;
+}
+
+.workplace-chat-bg--sand {
+  --wp-bg-base: #fbf8f3;
+  --wp-bg-tint: 214 190 158;
+  --wp-accent: #8f6534;
+  --wp-accent-hover: #7a562c;
+}
+
+.workplace-chat-bg--magenta {
+  --wp-bg-base: #fdf5f9;
+  --wp-bg-tint: 228 152 190;
+  --wp-accent: #c2185b;
+  --wp-accent-hover: #a6144e;
+}
+
+/* ── Nebel-Familie ────────────────────────────────────────────────────────
+   Die drei Fassungen aus dem Entwurf (3a/3b/3c, dunkel 4a/4b/4c), 1:1 in ihren
+   Zahlen. Sie teilen sich vier Farben — Pfirsich, Gelb, Grün, Flieder — und
+   unterscheiden sich nur darin, wie viel Fläche der weiße Schleier freigibt.
+
+   Der Schleier ist die erste Schicht und liegt damit OBEN; die Farbwolken
+   stehen dahinter. Genau das stellt den Composer frei: die Farbe wird nicht
+   schwächer, sie wird überdeckt. Die Reihenfolge ist deshalb load-bearing.
+
+   Nur die Wolken tragen --wp-sunrise-glow, der Schleier nicht. So klart der
+   Nebel beim Eintritt auf, statt dass die ganze Fläche aufblendet.
+   --wp-sunrise-y bleibt außen vor: die Zentren sind gesetzt, ein Anheben
+   verzöge sie.
+
+   Akzent: eine Stufe dunkler als das #52907a des Entwurfs — Begründung an
+   `accent` in packages/shared/src/settings/chatBackgrounds.ts. */
+
+.workplace-chat-bg--nebel {
+  --wp-bg-base: #fdfbf7;
+  --wp-accent: #3f7161;
+  --wp-accent-hover: #34604f;
+  background-image:
+    radial-gradient(
+      90% 130% at 50% 50%,
+      rgb(255 255 255 / 0.82) 0%,
+      rgb(255 255 255 / 0.45) 38%,
+      rgb(255 255 255 / 0.08) 68%,
+      rgb(255 255 255 / 0) 88%
+    ),
+    radial-gradient(
+      70% 130% at 6% 24%,
+      rgb(248 214 207 / calc(0.6 * var(--wp-sunrise-glow))) 0%,
+      rgb(248 214 207 / 0) 70%
+    ),
+    radial-gradient(
+      60% 110% at 42% 96%,
+      rgb(244 239 199 / calc(0.5 * var(--wp-sunrise-glow))) 0%,
+      rgb(244 239 199 / 0) 68%
+    ),
+    radial-gradient(
+      52% 110% at 74% 58%,
+      rgb(206 230 219 / calc(0.55 * var(--wp-sunrise-glow))) 0%,
+      rgb(206 230 219 / 0) 70%
+    ),
+    radial-gradient(
+      46% 100% at 100% 34%,
+      rgb(220 218 244 / calc(0.5 * var(--wp-sunrise-glow))) 0%,
+      rgb(220 218 244 / 0) 66%
+    ),
+    radial-gradient(80% 46% at 40% -6%, rgb(253 248 240 / 1) 0%, rgb(253 248 240 / 0) 64%);
+}
+
+/* Zentren außerhalb 0..1 (at 0% 14%, at 2% 100%) sind Koordinaten, keine
+   geklammerten Positionen — die Ellipse liegt bewusst halb neben der Fläche. */
+.workplace-chat-bg--kern {
+  --wp-bg-base: #fdfcf9;
+  --wp-accent: #3f7161;
+  --wp-accent-hover: #34604f;
+  background-image:
+    radial-gradient(
+      78% 120% at 50% 50%,
+      rgb(255 255 255 / 0.97) 0%,
+      rgb(255 255 255 / 0.82) 40%,
+      rgb(255 255 255 / 0.2) 72%,
+      rgb(255 255 255 / 0) 90%
+    ),
+    radial-gradient(
+      56% 120% at 0% 14%,
+      rgb(247 206 198 / calc(0.8 * var(--wp-sunrise-glow))) 0%,
+      rgb(247 206 198 / 0) 64%
+    ),
+    radial-gradient(
+      46% 110% at 100% 26%,
+      rgb(220 218 246 / calc(0.75 * var(--wp-sunrise-glow))) 0%,
+      rgb(220 218 246 / 0) 62%
+    ),
+    radial-gradient(
+      50% 110% at 100% 92%,
+      rgb(199 228 216 / calc(0.8 * var(--wp-sunrise-glow))) 0%,
+      rgb(199 228 216 / 0) 62%
+    ),
+    radial-gradient(
+      52% 100% at 2% 100%,
+      rgb(243 238 190 / calc(0.7 * var(--wp-sunrise-glow))) 0%,
+      rgb(243 238 190 / 0) 62%
+    );
+}
+
+.workplace-chat-bg--dunst {
+  --wp-bg-base: #fdfcfa;
+  --wp-accent: #3f7161;
+  --wp-accent-hover: #34604f;
+  background-image:
+    radial-gradient(
+      100% 76% at 50% 16%,
+      rgb(255 255 255 / 0.95) 0%,
+      rgb(255 255 255 / 0.6) 46%,
+      rgb(255 255 255 / 0) 82%
+    ),
+    radial-gradient(
+      50% 80% at 12% 104%,
+      rgb(248 210 202 / calc(0.75 * var(--wp-sunrise-glow))) 0%,
+      rgb(248 210 202 / 0) 68%
+    ),
+    radial-gradient(
+      58% 76% at 52% 112%,
+      rgb(244 238 192 / calc(0.7 * var(--wp-sunrise-glow))) 0%,
+      rgb(244 238 192 / 0) 66%
+    ),
+    radial-gradient(
+      50% 80% at 92% 100%,
+      rgb(203 229 217 / calc(0.7 * var(--wp-sunrise-glow))) 0%,
+      rgb(203 229 217 / 0) 66%
+    ),
+    radial-gradient(
+      44% 70% at 100% 76%,
+      rgb(219 217 245 / calc(0.6 * var(--wp-sunrise-glow))) 0%,
+      rgb(219 217 245 / 0) 62%
+    ),
+    radial-gradient(90% 40% at 46% -8%, rgb(253 249 242 / 1) 0%, rgb(253 249 242 / 0) 58%);
+}
+
+/* Regenbogen kann die Eintint-Fläche der Basisklasse ebenfalls nicht tragen:
+   es fächert fünf Pastelltöne über die x-Achse. Anders als die Nebel-Familie
+   reicht jede Schicht --wp-sunrise-y durch, die Eintrittsbewegung hebt sie
+   also mit an. */
+.workplace-chat-bg--regenbogen {
+  --wp-bg-base: #fdfaf7;
+  --wp-accent: #3f7161;
+  --wp-accent-hover: #34604f;
+  background-image:
+    radial-gradient(
+      44% 56% at 10% var(--wp-sunrise-y),
+      rgb(240 130 145 / calc(0.34 * var(--wp-sunrise-glow))) 0%,
+      rgb(240 130 145 / 0) 70%
+    ),
+    radial-gradient(
+      44% 56% at 30% var(--wp-sunrise-y),
+      rgb(243 195 110 / calc(0.34 * var(--wp-sunrise-glow))) 0%,
+      rgb(243 195 110 / 0) 70%
+    ),
+    radial-gradient(
+      44% 56% at 50% var(--wp-sunrise-y),
+      rgb(146 205 141 / calc(0.34 * var(--wp-sunrise-glow))) 0%,
+      rgb(146 205 141 / 0) 70%
+    ),
+    radial-gradient(
+      44% 56% at 70% var(--wp-sunrise-y),
+      rgb(126 176 230 / calc(0.34 * var(--wp-sunrise-glow))) 0%,
+      rgb(126 176 230 / 0) 70%
+    ),
+    radial-gradient(
+      44% 56% at 90% var(--wp-sunrise-y),
+      rgb(179 141 219 / calc(0.34 * var(--wp-sunrise-glow))) 0%,
+      rgb(179 141 219 / 0) 70%
+    );
+}
+
+/* Neutral opts out entirely so the page falls through to the theme background.
+   With no hue there is nothing to derive an accent from, so it keeps the brand
+   green — the `--wp-accent` fallback in .workplace-chat-accent handles that. */
+.workplace-chat-bg--neutral {
+  background-color: transparent;
+  background-image: none;
+  animation: none;
+  --wp-accent: initial;
+  --wp-accent-hover: initial;
+  /* Ohne Tönung ist der Rahmen die einzige Trennung: der Composer ist weiß, die
+     Seite auch. Neutral bekommt ihn deshalb zurück. Gleiche Spezifität wie die
+     Basisklasse, steht dahinter — dieselbe Mechanik wie beim Akzent oben. */
+  --chat-composer-border: var(--color-border);
+}
+
+/* Re-point the primary token inside the composer instead of overriding the
+   `bg-primary` utility by name: Tailwind's generated class names are not a
+   contract, the token is. Every primary accent in the composer (send button,
+   its hover, the active voice button, the quote block) follows the preset.
+   Scoped to the workplace hero — the same composer at /suche, im Notebook und
+   in der Chat-Runtime stays brand green. Falls back to the brand tokens when a
+   preset defines no accent (neutral). */
+.workplace-chat-accent {
+  /* Rückfall auf --color-primary-val statt direkt auf die Rampenstufe, damit
+     der Hero ohne Preset dieselbe themeabhängige Stufe erbt wie der Rest. */
+  --color-primary: var(--wp-accent, var(--color-primary-val));
+  --color-primary-600: var(--wp-accent-hover, var(--primary-600));
+
+  /* Der „Entdecke den neuen Grünerator"-Knopf direkt unter dem Composer ist ein
+     weiches Pill — heller Grund, mittlerer Rahmen, dunkle Schrift — und greift
+     damit auf Primärstufen zu, die die beiden Zeilen oben nicht umbiegen. Er
+     blieb deshalb markengrün, während der Senden-Button eine Handbreit darüber
+     die Preset-Farbe trug.
+     Ein Preset liefert nur EINE Farbe; die Stufen werden daraus gemischt. Die
+     Prozente sind nach Wirkung gewählt, nicht aus der Marken-Palette
+     abgeleitet — die ist von Hand gestuft und keine Weiß-Rampe. */
+  --wp-accent-base: var(--wp-accent, var(--primary-500));
+  --color-primary-50: color-mix(in srgb, var(--wp-accent-base) 8%, white);
+  --color-primary-100: color-mix(in srgb, var(--wp-accent-base) 16%, white);
+  --color-primary-300: color-mix(in srgb, var(--wp-accent-base) 34%, white);
+  --color-primary-400: color-mix(in srgb, var(--wp-accent-base) 50%, white);
+  /* Die Akzente sind gegen WEISS auf Kontrast geprüft (siehe oben), nicht gegen
+     ihren eigenen Grund. Unverändert als Schrift auf der 8%igen Füllung
+     scheitert Sunrise bei 4,43:1 — und im Hover, wo die Füllung auf 16% geht,
+     erst recht. Eine Spur Schwarz holt den schlechtesten Fall auf 5,07:1 in
+     Ruhe und 4,56:1 im Hover; alle anderen Presets liegen darüber. */
+  --color-primary-700: color-mix(in srgb, var(--wp-accent-base) 92%, black);
+}
+
+/* Dunkelmodus mischt gegen Schwarz statt gegen Weiß — sonst leuchten Grund und
+   Rahmen aus der dunklen Fläche heraus. primary-400 muss mit, weil der
+   Hover-Rahmen des Knopfes ohne dark:-Variante auskommt und die helle
+   Licht-Mischung sonst auch nachts greifen würde. */
+[data-theme='dark'] .workplace-chat-accent {
+  --color-primary-900: color-mix(in srgb, var(--wp-accent-base) 30%, black);
+  --color-primary-700: color-mix(in srgb, var(--wp-accent-base) 62%, black);
+  --color-primary-400: color-mix(in srgb, var(--wp-accent-base) 80%, black);
+  --color-primary-200: color-mix(in srgb, var(--wp-accent-base) 45%, white);
+}
+
+/* Neutral hat keine Farbe, aus der sich etwas ableiten ließe, also zurück auf
+   die echten Marken-Stufen. Eine Mischung aus primary-500 träfe sie nicht:
+   primary-300 ist #8ac9b0, 34 % Weiß-Mischung ergäbe #c8dbd4.
+   Muss nach der Dark-Regel stehen — gleiche Spezifität, die spätere gewinnt. */
+.workplace-chat-bg--neutral .workplace-chat-accent {
+  --color-primary-50: var(--primary-50);
+  --color-primary-100: var(--primary-100);
+  --color-primary-200: var(--primary-200);
+  --color-primary-300: var(--primary-300);
+  --color-primary-400: var(--primary-400);
+  --color-primary-700: var(--primary-700);
+  --color-primary-900: var(--primary-900);
+}
+
+/* ── Das Band unter dem Composer ──────────────────────────────────────────
+   Was das Gesprächsfenster trägt, statt einer Fläche über den ganzen Schirm.
+   Der Startbildschirm behält seinen vollen Verlauf; hinter einer Wand aus
+   Nachrichten kostet Farbe Lesbarkeit, die er nie zahlen muss. Dieselbe
+   Aufteilung wie in der App (COMPOSER_GLOW, apps/mobile/theme/chatBackgrounds.ts).
+
+   Es sind Dunsts vier Farben, aber nicht Dunst: drei Dinge machen daraus ein
+   Band statt eines beschnittenen Hintergrunds —
+
+   - **Keine Grundfarbe.** Ein Grund würde das Rechteck des Bandes zeichnen.
+     Ohne ihn tönen die Wolken nur, was ohnehin da ist, und das Band hat keine
+     eigene Kante, nur die Abblendung seiner Wolken. Deshalb `background-image`
+     auf einem Element, dessen `background-color` schon steht, und nicht die
+     Kurzschreibweise.
+   - **Jede Wolke auf oder unter der Unterkante**, damit es dort am hellsten
+     ist, wo der Composer sitzt.
+   - **Jede Abblendung endet vor dem oberen Rand** (bei 70–72 % des Radius),
+     sonst läse sich die Oberkante als Naht.
+
+   Kein `background-size`, das eine 300px-Kachel an den Fuß legt: die Wolken
+   säßen dann in einem Kasten, dessen Oberkante sie nicht mehr erreichen dürfen,
+   und beim ersten Nachjustieren an einem Radius steht dort eine Linie. Gemessen
+   — die erste Fassung hatte sie links sichtbar. Stattdessen läuft der Verlauf
+   über die volle Höhe und die Zentren hängen an der Unterkante
+   (`calc(100% ± px)`); dann ist die Ausdehnung nach oben allein eine Frage der
+   Abblendung und kann gar nicht abgeschnitten werden.
+
+   Die Radien stehen in Pixeln und die Zentren relativ zur Mitte, nicht in
+   Prozent wie beim Vollbild-Dunst: die Fläche dort ist etwa 1,4:1, dieses Band
+   deutlich breiter. Prozentradien zögen dieselben Wolken zu waagerechten
+   Schlieren auseinander und die Zentren an die Bildschirmränder. In Pixeln
+   bleiben die Farbseen um den Composer stehen, egal wie breit das Fenster ist —
+   das ist die Beziehung, die auf dem Handy den Ausschlag gibt. Bezugsbreite ist
+   die Spalte des Composers (max-w-3xl, 768px); Mobiles Verhältnisse darauf
+   umgerechnet, die Höhe von 260dp auf 300px.
+
+   Die Deckkräfte liegen rund ein Viertel über Mobiles 0,34–0,42 — der einzige
+   Wert, der nicht umgerechnet ist. Dieselbe Tönung über 1400 statt 390 Pixel
+   und aus Armlänge statt aus 30cm gesehen kam am Bildschirm als Weiß an.
+
+   Ausgelassen wird es bei `neutral` — dort setzt ChatPage die Klasse gar nicht
+   erst — und im Dunkeln, siehe unten. */
+.chat-thread-glow {
+  background-image:
+    radial-gradient(
+      576px 240px at calc(50% - 307px) calc(100% - 6px),
+      rgb(248 210 202 / 0.52) 0%,
+      rgb(248 210 202 / 0) 72%
+    ),
+    radial-gradient(
+      615px 255px at calc(50% + 15px) calc(100% + 42px),
+      rgb(244 238 192 / 0.46) 0%,
+      rgb(244 238 192 / 0) 70%
+    ),
+    radial-gradient(
+      538px 240px at calc(50% + 338px) 100%,
+      rgb(203 229 217 / 0.5) 0%,
+      rgb(203 229 217 / 0) 72%
+    ),
+    radial-gradient(
+      538px 255px at calc(50% + 292px) calc(100% + 36px),
+      rgb(219 217 245 / 0.44) 0%,
+      rgb(219 217 245 / 0) 70%
+    );
+  /* Der Composer steht auf dem Band und braucht deshalb keinen Rahmen —
+     Begründung an `--chat-composer-border` in .workplace-chat-sunrise. */
+  --chat-composer-border: transparent;
+}
+
+/* Im Dunkeln kein Band — wie in der App (`hideInDark`). Damit ist die Füllung
+   des Composers dort wieder das Einzige, was ihn trägt; `dark:bg-surface` hebt
+   sich um 5 % Weiß von der Seite ab, was für sich zu wenig ist. Also auch der
+   Rahmen zurück. */
+[data-theme='dark'] .chat-thread-glow {
+  background-image: none;
+  --chat-composer-border: var(--color-border);
+}
+
+/* Vorschau-Kacheln in den Einstellungen: dieselben Klassen, nur ohne den
+   Eintritt. Zehn Flächen, die beim Öffnen des Bereichs gleichzeitig aufgehen,
+   lesen sich als Flackern — und ausgewählt wird ohnehin der Ruhezustand.
+   Gleiche Spezifität wie .workplace-chat-sunrise, steht deshalb dahinter. */
+.workplace-chat-preview {
+  animation: none;
 }
 
 @keyframes workplace-sunrise {
@@ -39,17 +412,100 @@
 
 /* Dark mode is toggled via [data-theme="dark"] (see @custom-variant in the
    theme CSS), not a .dark class — a plain `.dark` selector never matches here.
-   Keep a faint warm glow over the theme background so the chat hero still reads
-   as a designed surface in dark mode. */
+   Keep a faint glow of the chosen tint over the theme background so the chat
+   hero still reads as a designed surface in dark mode. */
 [data-theme='dark'] .workplace-chat-sunrise {
-  background-color: transparent;
+  background-color: var(--wp-bg-base-dark);
   background-image: radial-gradient(
     88% 58% at 50% 52%,
-    rgb(233 214 150 / 0.1) 0%,
-    rgb(233 214 150 / 0.035) 42%,
+    rgb(var(--wp-bg-tint) / 0.1) 0%,
+    rgb(var(--wp-bg-tint) / 0.035) 42%,
     rgb(0 0 0 / 0) 74%
   );
   animation: none;
+  /* Rahmen zurück, aus demselben Grund wie beim Band: die dunklen Fassungen
+     tragen zwar Farbe, aber `dark:bg-surface` ist nur 5 % Weiß über der Seite,
+     und die Presets, die keine eigene dunkle Fläche haben, tönen bei 0,1. Das
+     hält den Composer nicht. */
+  --chat-composer-border: var(--color-border);
+}
+
+[data-theme='dark'] .workplace-chat-bg--neutral {
+  background-image: none;
+}
+
+/* Runde 4 aus dem Entwurf: dieselben vier Nebel, dunkel. Der Schleier ist kein
+   Weiß mehr, sondern tiefes Oliv-Schwarz auf hoher Deckkraft — er überdeckt die
+   Farbe genauso, nur nach unten. Die Wolken sind eigene, gesättigtere Töne, weil
+   Pastell auf Dunkel verschwindet.
+
+   Diese drei sind die einzigen Presets mit eigenem --wp-bg-base-dark. Die
+   Theme-Fläche durchfallen zu lassen wäre naheliegend, hält aber nur in der
+   Mitte: dort deckt der Schleier bei 0,94–0,99 ohnehin fast alles. Am Rand
+   läuft er auf 0 aus, und dann steht nicht das Oliv-Schwarz des Entwurfs da,
+   sondern --grey-950 (#262626) mit einer Farbwolke darüber — sichtbar heller
+   und grauer. Die Klasse trägt im Hellen ebenso ihren eigenen Grund; dass sie
+   sich damit vom Rand der Seite absetzt, ist im Entwurf so vorgesehen.
+
+   Keine glow-Faktoren: die Dunkel-Regel schaltet die Animation ab.
+
+   Muss nach der generischen Dunkel-Regel oben stehen — gleiche Spezifität. */
+[data-theme='dark'] .workplace-chat-bg--nebel {
+  --wp-bg-base-dark: #14170f;
+  background-image:
+    radial-gradient(
+      88% 128% at 50% 50%,
+      rgb(20 23 17 / 0.94) 0%,
+      rgb(20 23 17 / 0.66) 40%,
+      rgb(20 23 17 / 0.14) 70%,
+      rgb(20 23 17 / 0) 90%
+    ),
+    radial-gradient(70% 130% at 6% 24%, rgb(214 132 118 / 0.3) 0%, rgb(214 132 118 / 0) 70%),
+    radial-gradient(60% 110% at 42% 96%, rgb(206 196 112 / 0.24) 0%, rgb(206 196 112 / 0) 68%),
+    radial-gradient(52% 110% at 74% 58%, rgb(110 186 157 / 0.3) 0%, rgb(110 186 157 / 0) 70%),
+    radial-gradient(46% 100% at 100% 34%, rgb(139 131 206 / 0.28) 0%, rgb(139 131 206 / 0) 66%);
+}
+
+[data-theme='dark'] .workplace-chat-bg--kern {
+  --wp-bg-base-dark: #16190f;
+  background-image:
+    radial-gradient(
+      76% 118% at 50% 50%,
+      rgb(22 25 15 / 0.99) 0%,
+      rgb(22 25 15 / 0.9) 42%,
+      rgb(22 25 15 / 0.28) 74%,
+      rgb(22 25 15 / 0) 92%
+    ),
+    radial-gradient(56% 120% at 0% 14%, rgb(219 134 120 / 0.42) 0%, rgb(219 134 120 / 0) 64%),
+    radial-gradient(46% 110% at 100% 26%, rgb(142 134 212 / 0.4) 0%, rgb(142 134 212 / 0) 62%),
+    radial-gradient(50% 110% at 100% 92%, rgb(104 184 154 / 0.42) 0%, rgb(104 184 154 / 0) 62%),
+    radial-gradient(52% 100% at 2% 100%, rgb(206 196 108 / 0.34) 0%, rgb(206 196 108 / 0) 62%);
+}
+
+[data-theme='dark'] .workplace-chat-bg--dunst {
+  --wp-bg-base-dark: #14170f;
+  background-image:
+    radial-gradient(
+      100% 74% at 50% 14%,
+      rgb(19 22 15 / 0.97) 0%,
+      rgb(19 22 15 / 0.72) 48%,
+      rgb(19 22 15 / 0) 84%
+    ),
+    radial-gradient(50% 80% at 12% 104%, rgb(216 133 119 / 0.4) 0%, rgb(216 133 119 / 0) 68%),
+    radial-gradient(58% 76% at 52% 112%, rgb(204 194 108 / 0.34) 0%, rgb(204 194 108 / 0) 66%),
+    radial-gradient(50% 80% at 92% 100%, rgb(104 184 154 / 0.38) 0%, rgb(104 184 154 / 0) 66%),
+    radial-gradient(44% 70% at 100% 76%, rgb(140 132 210 / 0.3) 0%, rgb(140 132 210 / 0) 62%);
+}
+
+/* Same fan of glows, dimmed to the dark-mode level of the one-tint presets.
+   Must come after the generic dark rule above (equal specificity). */
+[data-theme='dark'] .workplace-chat-bg--regenbogen {
+  background-image:
+    radial-gradient(44% 56% at 10% 52%, rgb(240 130 145 / 0.09) 0%, rgb(240 130 145 / 0) 70%),
+    radial-gradient(44% 56% at 30% 52%, rgb(243 195 110 / 0.09) 0%, rgb(243 195 110 / 0) 70%),
+    radial-gradient(44% 56% at 50% 52%, rgb(146 205 141 / 0.09) 0%, rgb(146 205 141 / 0) 70%),
+    radial-gradient(44% 56% at 70% 52%, rgb(126 176 230 / 0.09) 0%, rgb(126 176 230 / 0) 70%),
+    radial-gradient(44% 56% at 90% 52%, rgb(179 141 219 / 0.09) 0%, rgb(179 141 219 / 0) 70%);
 }
 
 @media (prefers-reduced-motion: reduce) {

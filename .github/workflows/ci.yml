@@ -5,27 +5,137 @@ on:
     branches: [master, main]
   pull_request:
     branches: [master, main]
+  # Required for the merge queue: GitHub builds each queued PR on a temporary
+  # `gh-readonly-queue/*` branch and fires `merge_group`. Without this trigger
+  # the required checks never report on the queue and it hangs forever.
+  merge_group:
+  # Von Hand auslösbar, damit der volle Lauf ohne offenen PR auf den Runner
+  # geht statt lokal zu laufen: `gh workflow run ci.yml --ref <branch>`.
+  # typecheck/lint/format/test lokal zu wiederholen kostet ~6 GB RAM — hier
+  # laufen sie ohnehin bei jedem PR.
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+# On PR branches, superseding a run is what you want — only the tip matters.
+# On master it is not: every push there is the post-merge verification of one
+# merge, and cancelling it means that merge is never verified. Merging several
+# PRs in a row used to cancel all but the last run, so a break could land
+# unnoticed (it did — see #1988, where 6 of 7 master runs were cancelled and
+# only the last one caught a red format:check).
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
+# The Turborepo remote cache belongs in EVERY job that runs a turbo task, not
+# just `build`. typecheck and lint are the two most expensive things this
+# workflow does (261s and 242s of a 613s job) and both were running stone cold
+# on every single run because these two variables were scoped to the build job
+# alone. On a PR that touches one package, the other 22 typecheck tasks and 12
+# lint tasks are cache hits.
+#
+# Fork PRs get empty strings here; turbo then silently runs without a remote
+# cache instead of failing.
+env:
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
 
 jobs:
-  quality:
-    name: Quality Checks
+  # Bare-node guards: no pnpm store restore (27s), no install (20s). They cost
+  # about a second each and are the cheapest possible signal, so they get their
+  # own job and nothing waits on them — a failure here shows up red next to the
+  # slower jobs rather than gating them.
+  guards:
+    name: Guards
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Singleton dependency versions
+        run: node scripts/check-singleton-versions.mjs
+
+      # Dependabot cannot edit pnpm.overrides, so a bump of an overridden
+      # package lands the new version in the lockfile's overrides block only.
+      # `pnpm install --frozen-lockfile` then dies with
+      # ERR_PNPM_LOCKFILE_CONFIG_MISMATCH, which reads like a corrupt lockfile
+      # instead of the one-line manifest edit it is (#2097, #2098). Runs before
+      # install, on bare node, so the failure names the real cause.
+      - name: pnpm.overrides in sync with the lockfile
+        run: node scripts/sync-pnpm-overrides.mjs --check
+
+      # Kein `@gruenerator/*`-Name ist auf npm registriert. Ein interner
+      # Dependency-Spec, der nicht `workspace:` sagt, wandert damit zur
+      # öffentlichen Registry — genau die Lücke, die ein Angreifer besetzen
+      # kann (Dependency Confusion, gemeldet 30.07.2026).
+      - name: Workspace packages private and workspace-resolved
+        run: node scripts/check-workspace-packages.mjs
+
+      # Tours target elements via [data-tour="..."] selectors; a refactor that
+      # renames or drops the attribute breaks the tour silently (waitForElement
+      # times out, the step never shows). Keep selectors and JSX anchors 1:1.
+      - name: Tour anchors in sync
+        run: node scripts/check-tour-anchors.mjs
+
+      # A swallowed error in the chat stack is invisible: the turn looks
+      # successful and the artefact/answer is silently missing. Ratchet against
+      # a baseline — the count may fall, never rise.
+      - name: No new silent error swallows
+        run: node scripts/check-silent-swallows.mjs
+
+      # This repo is public. Party-internal content (skill prompt bodies, corpus
+      # dumps) must stay out of it — and .gitignore alone does not do that for
+      # files git already tracks. A push here is irreversible in practice.
+      - name: No internal content exposed
+        run: node scripts/check-internal-content.mjs
+
+      # `**/*.vitest.ts` is excluded from apps/api/tsconfig.json, so a
+      # `Record<SomeUnion, X>` written in a test is decoration — tsc never
+      # checks it. Such a map has to live in production code or be looped over
+      # the enum at runtime.
+      - name: No unenforced exhaustive maps in tests
+        run: node scripts/check-unenforced-exhaustive-maps.mjs
+
+      # Decision-point ids in DECISION_POINTS (apps/api/utils/decisionJournal.ts)
+      # land in committed decision-map snapshots, which makes them F1 —
+      # internally frozen (see CLAUDE.md). Catch drift before tsc even runs:
+      # unknown ids, time-shaped inputs keys (they'd turn every diff into
+      # noise), registry points with no call site, and recordDecision() calls
+      # made from test files.
+      - name: Decision journal registry in sync
+        run: node scripts/check-decision-journal.mjs
+
+      # A test file named `.test.ts` instead of `.vitest.ts` is invisible to
+      # every vitest config's `include` glob — it never runs, in CI or
+      # locally, no matter what its own header comment claims.
+      - name: No orphaned test files
+        run: node scripts/check-orphan-tests.mjs
+
+      # A package copied by a Dockerfile but missing from that image's
+      # paths-filter means a change to it builds nothing: the workflow runs
+      # (`packages/**` is in the trigger), every job is skipped, and the merged
+      # change never ships. Nothing turns red — so this does.
+      - name: Image build filters cover their Dockerfiles
+        run: node scripts/check-image-build-filters.mjs
+
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'pnpm'
@@ -33,28 +143,98 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
+      # Ein Override ERSETZT den Bereich, den ein Paket selbst deklariert, und
+      # pnpm prueft nicht nach, ob die erzwungene Version ihn noch erfuellt —
+      # bei regulaeren dependencies warnt es dafuer auch nicht. So hielt das
+      # Override @assistant-ui/core auf 0.2.21, waehrend der mitgezogene
+      # @assistant-ui/react 0.14.29 schon ^0.2.23 brauchte: master war rot, aber
+      # erst im Bundler (MISSING_EXPORT fileMatchesAccept). Der Check braucht
+      # node_modules und haengt deshalb an diesem Job statt an `guards`.
+      - name: Overrides erfuellen die deklarierten Bereiche
+        run: node scripts/check-override-ranges.mjs
+
       - name: TypeScript type check
         run: pnpm typecheck
 
-      - name: ESLint
-        run: pnpm lint
-
-      - name: Prettier format check
-        run: pnpm format:check
-
-  test:
-    name: Tests
+  lint:
+    name: ESLint
     runs-on: ubuntu-latest
-    needs: quality
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: ESLint
+        run: pnpm lint
+
+  format:
+    name: Format & Generated
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Prettier format check
+        run: pnpm format:check
+
+      # Generated artifacts that drift silently when their source changes on a
+      # DIFFERENT branch. docs-build.yml already checks these, but it is
+      # path-filtered — so a PR that does not touch documentation/ skips it and
+      # can still merge stale. As an always-on required check these catch the
+      # cross-branch drift that broke master repeatedly (docs index, UiLabel
+      # manifest, settings catalog).
+      - name: Generated artifacts in sync
+        run: |
+          pnpm --filter @gruenerator/documentation labels:check
+          pnpm --filter @gruenerator/documentation settings:check
+          pnpm --filter @gruenerator/documentation docs:index:check
+          # Same class as the three above: the committed chat-capabilities
+          # manifest vs. what the generator reads out of the code. This is NOT
+          # the capabilities AUDIT (undocumented capability → GitHub issue,
+          # deliberately non-blocking in docs-capabilities.yml) — it is the
+          # staleness check, which existed in package.json but had no caller.
+          pnpm --filter @gruenerator/documentation capabilities:check
+
+  # No `needs:` on test/build. Gating them behind the quality job bought
+  # nothing — Actions minutes are free on a public repo, wall-clock is the
+  # scarce resource, and the gate was costing it dearly: on run 30631684791 the
+  # tests sat in the queue for 721s and Build web for 1260s, almost all of it
+  # waiting for a job whose failure they do not depend on.
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'pnpm'
@@ -64,25 +244,23 @@ jobs:
 
       - name: Run tests
         run: pnpm test
-        continue-on-error: true
 
   build:
     name: Build ${{ matrix.app }}
     runs-on: ubuntu-latest
-    needs: quality
     strategy:
       fail-fast: false
       matrix:
-        app: [web, api, docs, sites]
+        app: [web, api, docs, wordpress]
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'pnpm'
@@ -91,7 +269,4 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts --filter @gruenerator/${{ matrix.app }}...
 
       - name: Build ${{ matrix.app }}
-        env:
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: pnpm turbo run build --filter=@gruenerator/${{ matrix.app }}

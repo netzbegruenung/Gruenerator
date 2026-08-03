@@ -3,16 +3,44 @@
  *
  * Pattern-matching "fast path" for intent classification.
  * High-confidence patterns skip the LLM call entirely.
+ *
+ * Die Entscheidung selbst steht als TABELLE am Ende der Datei
+ * (`HEURISTIC_RULES`), nicht als `if`-Kaskade: die Reihenfolge der Einträge ist
+ * die Präzedenz, und der Negations-/Meta-Wächter ist ein Feld, das der Läufer
+ * anwendet, statt einer Zeile, die eine Regel vergessen kann. Der obere Teil der
+ * Datei sind die Muster und Hilfsprädikate, die die Regeln benutzen — viele
+ * davon werden auch anderswo im Klassifikator gebraucht und sind deshalb
+ * exportiert.
  */
 
 import { findBestMatch } from '@gruenerator/shared/utils';
 
+import { escapeRegExp } from '../../../../services/BaseSearchService/textUtils.js';
 import { createLogger } from '../../../../utils/logger.js';
 
-import { CLASSIFIER_CONTEXT_MESSAGES, CLASSIFIER_CONTEXT_MAX_CHARS } from './classifierPrompt.js';
+import {
+  analyzeMessage,
+  runRules,
+  NOUN_TRIGGER_MAX_LENGTH,
+  type AnalyzedMessage,
+  type ClassifierRule,
+} from './analyzedMessage.js';
+import { CLASSIFIER_CONTEXT_MESSAGES, CLASSIFIER_CONTEXT_MAX_CHARS } from './classifierSignals.js';
+import {
+  creationOrderPattern,
+  dictatesInlineTableColumns,
+  hasExplicitSharepicWord,
+  isNegatedArtifactRequest,
+  negatedOrMeta,
+  stripQuotedSpans,
+} from './fastPathGuards.js';
 
 import type { SearchIntent, SocialTextPlatform, ClassificationResult } from '../types.js';
 import type { ModelMessage } from 'ai';
+
+// Generation intents reachable via the fuzzy keyword fallback (only `image`,
+// via 'grafik'/'illustration'); negated/meta artifact words must not match them.
+const GENERATION_FUZZY_INTENTS = new Set<SearchIntent>(['image']);
 
 const log = createLogger('ChatGraph:Classifier');
 
@@ -21,30 +49,40 @@ const log = createLogger('ChatGraph:Classifier');
 // escape hatches and platform detection can't drift between tiers.
 
 /**
- * "nur den Text" / "ohne Sharepic" / "nur der Wortlaut" — user wants the caption
- * only. Compound "-text" nouns ("Posttext", "Beitragstext", "Social-Media-Text")
- * and `wortlaut`/`bildunterschrift` are unambiguously text-only, so they escape
- * even without a "nur"; a bare "Text" stays combined (it often means the post's
- * text, not text-instead-of-graphic) and needs a "nur"/"reine" qualifier.
+ * A combined ask names BOTH a sharepic and a post noun ("Post mit Sharepic").
+ * Such a turn belongs to `social_post`, which now carries the sharepic half
+ * itself — the sharepic-only fast path must stand down for it.
  */
-export const SOCIAL_TEXT_ONLY_PATTERN =
-  /\b(nur|bloß|bloss|lediglich|reine[rn]?)\s+(den\s+|einen\s+|die\s+)?(post-?|caption-?)?(text|wortlaut|caption)\b|\b(post|beitrag|social[-\s]?media|caption)s{0,2}[-\s]?text\b|\b(wortlaut|bildunterschrift)\b|\bohne\s+(sharepic|grafik|bild)\b/i;
-
-/** "nur ein Sharepic" / "ohne Text" — user wants the graphic only. */
-export const SHAREPIC_ONLY_PATTERN =
-  /\bnur\s+(ein\s+)?(sharepic|spruchbild|zitatbild|grafik)\b|\bohne\s+(post-?|caption-?)?text\b/i;
-
-/** Explicit sharepic wording keeps routing to the shipped sharepic-only flow. */
-export const SHAREPIC_NOUN_PATTERN =
-  /\b(share[\s-]?pics?|sharepics?|spruchbild\w*|zitatbild\w*)\b/i;
+export const POST_NOUN_PATTERN = /\b(post(ing)?|beitrag|tweet|caption)\b/i;
 
 /**
- * "Post MIT Sharepic" / "inkl. Sharepic" is the explicit combined ask — the
- * sharepic noun here is inclusion, not exclusion, so it must NOT act as a
- * sharepic-only escape.
+ * "Grafik"/"Kachel" name three different products in this app: a branded
+ * sharepic template, a free AI image, and a data chart. Each costs a
+ * generation, so guessing is wrong about two thirds of the time.
  */
-export const SHAREPIC_INCLUSION_PATTERN =
-  /\b(mit|inkl\w*\.?|und|plus|samt)\s+(dazu\s+)?(ein(em)?\s+)?(passende[mn]?\s+)?(share[\s-]?pics?|sharepics?|spruchbild\w*|zitatbild\w*|grafik)\b/i;
+const AMBIGUOUS_GRAPHIC_NOUN = /\b(grafik(en)?|kachel(n)?)\b/i;
+
+/** Words that already say WHICH kind is meant — no question needed. */
+const GRAPHIC_KIND_DISAMBIGUATOR =
+  /\b(diagramm\w*|chart|graph|torte|balken|kreis|kurve|statistik\w*|daten|zahlen|werte|male|mal\s|zeichne\w*|illustrier\w*|foto\w*|bild\w*|logo|karte|infografik\w*)\b/i;
+
+/** Only a CREATION ask needs disambiguating; a question about graphics does not. */
+const GRAPHIC_CREATE_VERB =
+  /\b(erstell|generier|mach|bau|entwirf|entwerf|brauch|erzeug|gestalte?|hätte?\s+gern|will|möchte)\w*/i;
+
+/**
+ * True when the user asked for a "Grafik"/"Kachel" without saying which of the
+ * three kinds they mean. Naming a sharepic, a chart type, or a drawing verb
+ * answers the question already, so those keep their existing routes.
+ */
+export function isAmbiguousGraphicRequest(text: string): boolean {
+  const t = stripQuotedSpans(text ?? '');
+  if (!AMBIGUOUS_GRAPHIC_NOUN.test(t)) return false;
+  if (hasExplicitSharepicWord(t)) return false;
+  if (GRAPHIC_KIND_DISAMBIGUATOR.test(t)) return false;
+  if (!GRAPHIC_CREATE_VERB.test(t)) return false;
+  return !negatedOrMeta(t, AMBIGUOUS_GRAPHIC_NOUN);
+}
 
 const INSTAGRAM_PLATFORM_PATTERN = /\b(instagram|insta|reels?|story)\b/i;
 const FACEBOOK_PLATFORM_PATTERN = /\b(facebook|fb|fb-?post|fb-?beitrag)\b/i;
@@ -77,12 +115,12 @@ export const SOCIAL_BARE_NOUN_PATTERN =
 export const SOCIAL_META_QUESTION_PATTERN = /^\s*(wie|was|wer|warum|wieso|welche|wann|wo)\b/i;
 
 /**
- * Above this length the message likely carries pasted reference material
- * (Beschluss, Doku-Seite). Nouns inside a paste ("Sharepics", "Instagram")
- * describe content, they are not the user's ask — noun-triggered fast paths
- * stand down so the LLM tier can separate instruction from material.
+ * Die Paste-Schwelle wohnt jetzt bei der Analyse-Vorstufe, die sie auswertet
+ * (`analyzedMessage.ts`). Hier bleibt sie exportiert, weil `classifierNode` sie
+ * seit jeher von dieser Datei bezieht — und weil „lang genug, um sein eigenes
+ * Thema mitzubringen" im ganzen Klassifikator EINE Zahl bleiben muss.
  */
-export const NOUN_TRIGGER_MAX_LENGTH = 500;
+export { NOUN_TRIGGER_MAX_LENGTH };
 
 // Hoisted 'g' copy for matchAll (which clones internally, so sharing is safe).
 const SOCIAL_CREATE_VERB_PATTERN_G = new RegExp(SOCIAL_CREATE_VERB_PATTERN.source, 'gi');
@@ -108,21 +146,6 @@ export function nounNearCreateVerb(text: string, nounPattern: RegExp, window = 1
 const SOCIAL_TRIGGER_NOUN_PATTERN = /\b(social\s*media|post|tweet|instagram)\b/i;
 
 /**
- * Escape hatches for a message that would otherwise route to `social_post`:
- * "nur Text" keeps today's examples-grounded text flow, "nur Sharepic" /
- * exclusionary sharepic wording keeps the shipped sharepic-only flow.
- * Inclusion phrasing ("Post mit Sharepic") stays combined — it is the most
- * explicit combined ask there is.
- */
-export function resolveSocialPostEscape(text: string): 'examples' | 'sharepic' | null {
-  if (SOCIAL_TEXT_ONLY_PATTERN.test(text)) return 'examples';
-  if (SHAREPIC_ONLY_PATTERN.test(text)) return 'sharepic';
-  if (SHAREPIC_INCLUSION_PATTERN.test(text)) return null;
-  if (SHAREPIC_NOUN_PATTERN.test(text)) return 'sharepic';
-  return null;
-}
-
-/**
  * Keywords for fuzzy matching in heuristic fallback.
  * Maps intents to their trigger keywords.
  */
@@ -130,11 +153,16 @@ export const INTENT_KEYWORDS: Record<
   Exclude<
     SearchIntent,
     | 'direct'
+    // Decided by GREETING_PREFIX_PATTERN, not by keyword scoring.
+    | 'greeting'
+    // Decided by the creative-task branches, not by keyword scoring.
+    | 'produktion'
     | 'image_edit'
     | 'sharepic'
     | 'save_as_doc'
     | 'create_sheet'
     | 'create_presentation'
+    | 'create_pdf'
     // create_recurring_task is LLM-classified (needs a schedule); no keyword heuristic.
     | 'create_recurring_task'
     | 'modify_doc'
@@ -158,15 +186,23 @@ export const INTENT_KEYWORDS: Record<
     // mcp (EXPERIMENTAL) is gated via the @mcp mention + conservative LLM prose,
     // never keyword-classified (would misfire on generic "tool"/"server" words).
     | 'mcp'
-    // System MCP intents (EXPERIMENTAL) are LLM-classified only — bare keywords
-    // like "bahn"/"wetter"/"news" would hijack policy queries (Bahnreform,
-    // Klimapolitik, Nachrichten über X).
+    // Retired. These were excluded as "LLM-classified only, because bare
+    // keywords like bahn/wetter/news would hijack policy queries (Bahnreform,
+    // Klimapolitik)". They are not classified at all now — as managed connectors
+    // they are selected by vocabulary in the router (`managedSourceTrigger`),
+    // which carries exactly that policy-vs-data boundary in its word endings.
+    // The exclusion stays: this Record is total over the union, and a retired
+    // intent has no keywords to give it.
     | 'bahn'
     | 'reise'
     | 'hotel'
     | 'wetter'
     | 'news'
     | 'umfragen'
+    // hilfe is detected by the dedicated instructional-question gate
+    // (looksLikeDocsHelpQuestion, classifier Tier 2.9). Bare keywords like
+    // "hilfe"/"anleitung" would hijack content queries ("hilf mir bei ...").
+    | 'hilfe'
   >,
   string[]
 > = {
@@ -217,6 +253,31 @@ const IMAGE_EDIT_VERB_PATTERN =
 const IMAGE_NOUN_PATTERN =
   /(?:^|\W)(bild|bilds|foto|fotos|image|images|picture|pictures|photo|photos)(?:$|\W)/i;
 
+// Bare image-generation nouns, for the negation/meta guard on the image fast path
+// and for IMAGE_CREATE_PATTERN below — one list, two readers.
+const IMAGE_GEN_NOUN_SRC = 'bild|grafik|illustration|foto|image|poster';
+const IMAGE_GEN_NOUN_PATTERN = new RegExp(`\\b(?:${IMAGE_GEN_NOUN_SRC})\\b`, 'i');
+
+// Regenerate-the-last-image phrasings that carry no edit verb/noun ("nochmal,
+// aber abends", "neue Version", "mach es wärmer"). Used ONLY with an image
+// lastToolContext so it can't hijack unrelated turns.
+const IMAGE_REGEN_PATTERN =
+  /(?:^|\W)(nochmal[s]?|noch ?(?:ein(?:e?s)?|mal)\b|neue[srn]?\s+(?:version|variante)|neu\s+(?:generier|erstell)\w*|anders(?![a-zäöüß])|stattdessen|andere[srn]?\s+(?:stil|farbe|version|variante|hintergrund)|mach\s+(?:es|das|ihn|sie)\s+\w+er\b|(?:lieber|besser)\s+(?:mit|ohne|als)\b)/i;
+
+// "nochmal" can also mean repeat-the-ANSWER — explain/repeat verbs keep the
+// prose path. Question-initial messages ("Was war nochmal der Prompt?") too.
+const ANSWER_REPEAT_PATTERN =
+  /(?:^|\W)(erkl(?:ä|ae)r|erz(?:ä|ae)hl|beschreib|wiederhol|begr(?:ü|ue)nd|zusammenfass|fass\b|antwort|sag\s+(?:mir|es|das)|warum|wieso|weshalb)/i;
+
+/**
+ * True when a follow-up asks to regenerate the last image (not edit it, not
+ * repeat the answer). Caller must gate on an image lastToolContext.
+ */
+export function isImageRegenRequest(text: string): boolean {
+  if (/^\s*(was|wie|wer|warum|wieso|welche|wann|wo)\b/i.test(text)) return false;
+  return IMAGE_REGEN_PATTERN.test(text) && !ANSWER_REPEAT_PATTERN.test(text);
+}
+
 /**
  * True when the user's text contains an image-edit verb (e.g. "bearbeite",
  * "ändere", "mach mehr Bäume rein").
@@ -231,6 +292,151 @@ export function hasImageEditVerb(text: string): boolean {
  */
 export function mentionsImageNoun(text: string): boolean {
   return IMAGE_NOUN_PATTERN.test(text);
+}
+
+// ─── Folgeauftrag auf ein erzeugtes Bild ────────────────────────────────
+//
+// Die beiden Prädikate oben decken zusammen genau zwei Formen ab: das
+// ausdrückliche Bearbeiten-Verb ("bearbeite das Foto") und das Neu-Würfeln
+// ("nochmal, aber abends"). Die häufigste Form fehlte — die vergleichende
+// Anweisung mit benanntem Bildteil: „Mach den Hintergrund dunkler", „Entferne
+// das Logo", „Das Motiv etwas kleiner". Solange die LLM-Stufe darunter lag,
+// fing sie diese Turns auf; ohne sie fielen alle sechs gemessenen Formulierungen
+// ins Residual und wurden mit Prosa beantwortet, obwohl ein Bild zum Bearbeiten
+// dalag. Derselbe Bauform-Fehler wie beim Sharepic-Folgeauftrag, nur eine
+// Artefaktart weiter.
+//
+// Eigenes Vokabular statt Mitbenutzung von `sharepicEditHeuristics`: dessen
+// Nomen beschreiben eine Vorlage (zeile, balken, karussell, folie), nicht ein
+// Foto, und die Bildteile hier (licht, himmel, gesicht, stil) kennt es nicht.
+// Die Geschwister-Module (`socialPostEditHeuristics`, `reelEditHeuristics`)
+// halten es genauso — ein Vokabular pro Artefaktart.
+//
+// `(?<!\p{L})` statt `\b`, weil JS-`\b` nur ASCII kennt: vor „ä" gibt es keine
+// Wortgrenze, `\bändere` matcht nie.
+//
+// Die Hinzufüge-Verben (`setz`, `füg`, `ergänz`, `pack`) stehen mit drin, weil
+// ihr Fehlen beim Sharepic schon einmal einen ganzen Turn gekostet hat: etwas zu
+// einem vorhandenen Artefakt hinzuzufügen ist eine Bearbeitung, das Muster
+// konnte nur ÄNDERN und ENTFERNEN.
+const IMAGE_EDIT_INSTRUCTION_VERB_PATTERN =
+  /(?<!\p{L})(mach|änder|aender|entfern|ersetz|tausch|verschieb|vergrößer|vergroesser|verklein|größer|groesser|kleiner|heller|dunkler|wärmer|waermer|kälter|kaelter|schärfer|schaerfer|weniger|mehr|ohne|statt|setz|füg|fueg|ergänz|ergaenz|pack)/iu;
+
+// Bildteile, die eine Anweisung benennen kann. BEWUSST getrennt von
+// `IMAGE_NOUN_PATTERN`: das gattet Tier 1, wo ein blosses „Text"/„Hintergrund"
+// ohne jedes Bild `image_edit` erzwingen würde. Hier hat der Aufrufer bereits
+// festgestellt, dass das letzte Artefakt des Threads ein Bild IST — das Nomen
+// muss nur noch sagen, WAS sich ändert.
+//
+// `plakat`/`poster` stehen mit dabei, weil sie hier dasselbe benennen wie
+// `bild`/`motiv`: das ganze Artefakt. „Mach das Plakat heller" fiel ohne sie ins
+// Residual. `poster` traf vorher nur durch Zufall — `IMAGE_REGEN_PATTERN` sucht
+// „mach das …er", und „Poster" endet auf -er. Ein Wort, das die Prüfung nur
+// wegen seiner letzten zwei Buchstaben besteht, ist nicht abgedeckt.
+const IMAGE_ELEMENT_NOUN_PATTERN =
+  /(?<!\p{L})(bild|foto|motiv|plakat|poster|hintergrund|vordergrund|text|schrift|logo|farb|licht|beleuchtung|himmel|person|gesicht|detail|stil|ausschnitt|perspektive)/iu;
+
+// „Mach mir ein neues Bild" ist kein Folgeauftrag, sondern ein neuer Auftrag —
+// Verb und Nomen sind dieselben. Unterschieden wird am unbestimmten Artikel,
+// dieselbe Idiomatik wie in `sharepicEditHeuristics.NEW_ARTIFACT_PATTERN`.
+// Höchstens ein Adjektiv dazwischen, sonst verschluckt der Wächter echte
+// Bearbeitungen („setz eine Sonnenblume ins Bild").
+const NEW_IMAGE_REQUEST_PATTERN =
+  /(?<!\p{L})(?:ein(?:e|en|em)?|neue[srn]?)(?:\s+neue[srn]?)?\s+(?:bild|foto|grafik|illustration|poster)(?!\p{L})/iu;
+
+// Wer um einen Vorschlag bittet, erteilt keinen Auftrag — „Mach mal einen
+// Vorschlag, wie der Hintergrund besser wirken könnte" trägt Verb und Bildteil
+// wie eine Bearbeitung und meint das Gegenteil: eine Antwort in Prosa. Ohne
+// diesen Wächter lädt der Router das letzte Bild nach und schickt es an FLUX,
+// der Nutzer bekommt ein verändertes Bild statt einer Meinung.
+//
+// Die Frageform-Wächter darunter reichen dafür nicht: diese Bitten fangen mit
+// einem Imperativ an ("Mach mal …", "Gib mir …"), nicht mit einem Fragewort.
+const ADVICE_REQUEST_PATTERN =
+  /(?<!\p{L})(vorschlag|vorschl(?:ä|ae)ge|idee|ideen|tipp|tipps|empfehlung|ratschlag|meinung|feedback|findest du|h(?:ä|ae)ltst du|meinst du|(?:k(?:ö|oe)nnte|kann)\s+man)/iu;
+
+/**
+ * True when a follow-up reads like an instruction to change the image that was
+ * just generated. Only meaningful with an image `lastToolContext` — the caller
+ * checks that, which is why a bare element noun is allowed to carry the turn.
+ */
+export function isImageEditInstruction(text: string): boolean {
+  if (NEW_IMAGE_REQUEST_PATTERN.test(text)) return false;
+  if (ANSWER_REPEAT_PATTERN.test(text)) return false;
+  if (ADVICE_REQUEST_PATTERN.test(text)) return false;
+  if (/^\s*(was|wie|wer|warum|wieso|welche|wann|wo)(?!\p{L})/iu.test(text)) return false;
+  return IMAGE_EDIT_INSTRUCTION_VERB_PATTERN.test(text) && IMAGE_ELEMENT_NOUN_PATTERN.test(text);
+}
+
+// Verbs that ask to SEE something that already exists, as opposed to having it
+// made. Kept separate from SEARCH_LOOKUP_VERB_PATTERN below: that one gates a
+// scope restriction and may under-fire safely, while this one decides whether we
+// pay for image hits, so it lists the showing verbs ("zeig", "hast du") that a
+// search-verb pattern has no reason to know about.
+const IMAGE_LOOKUP_VERB_PATTERN =
+  /\b(?:zeig\w*|find\w*|such\w*|schick\w*|gib\s+mir|hast\s+du|gibt\s+es|gibts|existier\w*|recherchier\w*|google\w*)\b/i;
+
+// Verbs that ask for a NEW image. Their presence vetoes the lookup reading even
+// when a showing verb is also there ("such ein Motiv und erstell daraus ein
+// Bild") — buying stock links for a generation request is the expensive mistake,
+// and the image intent already owns that turn.
+const IMAGE_CREATE_VERB_PATTERN =
+  /\b(?:erstell\w*|generier\w*|erzeug\w*|zeichne\w*|male\w*|mal\s|illustrier\w*|entwirf\w*|entwerf\w*|bau\w*)\b/i;
+
+// "Bilder von der Demo" as a whole message: a bare noun phrase with no verb at
+// all is still unambiguously a request to see them. Anchored at the start so it
+// cannot match the noun buried in prose ("… erklärt das Bild von der Demo").
+const BARE_IMAGE_REQUEST_PATTERN =
+  /^\s*(?:bitte\s+)?(?:bilder|fotos|photos|images|pictures|aufnahmen)\b/i;
+
+// Image nouns INCLUDING their German plurals, for the lookup gate below.
+//
+// Deliberately not `IMAGE_NOUN_PATTERN`/`IMAGE_GEN_NOUN_PATTERN`: both of those
+// stop at "bild" and "foto" and reject "Bilder"/"Fotos", because their alternation
+// is followed by a boundary assertion and "bild" inside "bilder" has none. Those
+// two patterns gate the image-EDIT and image-GENERATION paths, where the singular
+// is what people write ("bearbeite das Foto"), so widening them would change
+// routing that has nothing to do with this feature. Here the plural is the
+// dominant phrasing — nobody asks for "ein Bild von der Demo" when they mean
+// several — so the gate needs its own pattern, and using the SAME one for the
+// presence check and the negation check is what keeps those two from drifting
+// apart (a noun the gate accepts but the negation guard cannot see is a hole).
+const IMAGE_LOOKUP_NOUN_PATTERN =
+  /\b(?:bild(?:er)?|foto(?:s)?|photo(?:s)?|image(?:s)?|picture(?:s)?|aufnahme(?:n)?)\b/i;
+
+/**
+ * True when the user wants to SEE existing images from the web, not to have one
+ * generated — the only signal that may switch `includeImages` on.
+ *
+ * This distinction is the whole reason the function exists. "Erstell ein Bild von
+ * einem Windrad" and "zeig mir Bilder von Windrädern" share every noun and differ
+ * only in the verb, yet they route to entirely different subsystems: one to image
+ * generation, the other to the web search. Getting it wrong in the expensive
+ * direction means paying for stock links on a generation turn; getting it wrong in
+ * the cheap direction means the user sees no images and asks again.
+ *
+ * Deliberately narrow. Images are never a default (a factual question would pay
+ * for pictures nobody looks at), so an under-firing heuristic costs one clarifying
+ * turn while an over-firing one costs money on every turn that happens to mention
+ * a photo. The `bilder: true` tool argument is the escape hatch for the phrasings
+ * this misses — in the loop, the model can say what it wants directly.
+ */
+export function wantsImageResults(text: string): boolean {
+  if (!IMAGE_LOOKUP_NOUN_PATTERN.test(text)) return false;
+  // "ohne Bilder" / "keine Fotos" — a refusal must never be read as a request.
+  // Fed the SAME pattern as the gate above: with the singular-only pattern this
+  // guard was a no-op on exactly the phrasings the gate accepts, so "zeig mir
+  // keine Fotos" passed straight through it.
+  //
+  // Only the NEGATION half, not `negatedOrMeta`. The meta-question half stands
+  // every artifact fast path down when the message opens with a question word,
+  // because "Was macht ein gutes Sharepic aus?" must not build a sharepic. For a
+  // LOOKUP that reasoning inverts: "gibt es Fotos von dem Protest?" is the
+  // request, and `gibt es` is literally one of the openings that pattern rejects.
+  if (isNegatedArtifactRequest(text, IMAGE_LOOKUP_NOUN_PATTERN)) return false;
+  if (IMAGE_CREATE_VERB_PATTERN.test(text)) return false;
+  if (hasImageEditVerb(text)) return false;
+  return IMAGE_LOOKUP_VERB_PATTERN.test(text) || BARE_IMAGE_REQUEST_PATTERN.test(text);
 }
 
 // Document mutation verbs — used by classifierNode to route `edit_current_doc`
@@ -346,6 +552,238 @@ export function extractUrls(text: string): string[] {
   return [...seen];
 }
 
+/** Domains to include/exclude when the caller wires them into Linkup's
+ *  `includeDomains`/`excludeDomains`. Both keys are always present, possibly empty. */
+export interface DomainScope {
+  include: string[];
+  exclude: string[];
+}
+
+// A "bare" domain — no scheme, unlike URL_PATTERN above. Requires a
+// letters-only TLD (2-6 chars): this is what keeps IP-ish text ("192.168")
+// and version numbers ("3.14") out for free, since their last segment is
+// digits, not letters — no separate numeric check needed.
+const BARE_DOMAIN_PATTERN = /\b(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,6}\b/gi;
+
+// TLD-shaped strings that are actually file extensions ("bericht.pdf",
+// "index.ts"), not domains. Checked against the matched TLD segment only.
+const NON_DOMAIN_EXTENSIONS = new Set([
+  'pdf',
+  'csv',
+  'doc',
+  'docx',
+  'xls',
+  'xlsx',
+  'ppt',
+  'pptx',
+  'txt',
+  'md',
+  'rtf',
+  'jpg',
+  'jpeg',
+  'png',
+  'gif',
+  'svg',
+  'webp',
+  'bmp',
+  'ico',
+  'mp3',
+  'mp4',
+  'mov',
+  'avi',
+  'wav',
+  'ogg',
+  'webm',
+  'zip',
+  'rar',
+  'tar',
+  'gz',
+  '7z',
+  'js',
+  'jsx',
+  'ts',
+  'tsx',
+  'py',
+  'rb',
+  'go',
+  'rs',
+  'java',
+  'c',
+  'cpp',
+  'h',
+  'php',
+  'sh',
+  'json',
+  'xml',
+  'yml',
+  'yaml',
+  'css',
+  'scss',
+  'html',
+  'htm',
+  'exe',
+  'dll',
+  'log',
+  'ini',
+  'cfg',
+  'conf',
+  'bak',
+  'tmp',
+]);
+
+// Only messages that actually ask to search/look something up may use a
+// preposition to scope that search. Without this gate, "die Zeit hat AUF
+// zeit.de berichtet" would read the "auf" in front of "zeit.de" as an
+// include marker even though nothing here is a search request — the
+// sentence has no search verb anywhere, which is exactly what this pattern
+// tests for. It is intentionally coarse (message-wide, not clause-local):
+// this file's heuristics are pattern proxies, not a parser, and a coarse
+// gate that occasionally under-fires is the safer failure mode per rule 4
+// below (nothing detected beats a wrongly narrowed search).
+const SEARCH_LOOKUP_VERB_PATTERN =
+  /\b(?:such\w*|durchsuch\w*|recherchier\w*|informier\w*|nachschau\w*|nachschlag\w*|google\w*)\b|\b(?:schau|guck)\w*\s+nach\b/i;
+
+// Include-marker prepositions (rule 3). "nur auf"/"nur bei" are listed
+// separately from "auf"/"bei" only so a shared-end tie against an exclude
+// phrase resolves by length, not because their polarity differs.
+const INCLUDE_MARKER_PATTERNS: readonly RegExp[] = [
+  /\bausschlie(?:ss|ß)lich\b/gi,
+  /\bnur\s+auf\b/gi,
+  /\bnur\s+bei\b/gi,
+  /\bauf\b/gi,
+  /\bbei\b/gi,
+  /\bin\b/gi,
+  /\bvia\b/gi,
+  /\bvon\b/gi, // ambiguous alone; SEARCH_LOOKUP_VERB_PATTERN above is the guard against it firing on plain prose.
+];
+
+// Exclude-marker prepositions (rule 3). Each of "nicht von"/"nicht auf"/
+// "abgesehen von" fully contains an include marker ("von"/"auf") ending at
+// the same position — the tie-break in findMarkerHits (longest match wins
+// on an end-index tie) is what makes the exclude phrase win there.
+const EXCLUDE_MARKER_PATTERNS: readonly RegExp[] = [
+  /\bnicht\s+von\b/gi,
+  /\bnicht\s+auf\b/gi,
+  /\babgesehen\s+von\b/gi,
+  /\bohne\b/gi,
+  /\b(?:ausser|außer)\b/gi,
+  /\bkeine[nrs]?\b/gi,
+];
+
+// How far back (in characters) a marker may sit before the domain it scopes.
+// Generous enough for "nur auf der Webseite von" plus a couple of filler
+// words, capped so it can't reach past the previous domain match.
+const MARKER_WINDOW_CHARS = 60;
+
+interface MarkerHit {
+  end: number;
+  length: number;
+  polarity: 'include' | 'exclude';
+}
+
+/** All include/exclude marker matches inside `window`, for picking the closest one. */
+function findMarkerHits(window: string): MarkerHit[] {
+  const hits: MarkerHit[] = [];
+  for (const pattern of INCLUDE_MARKER_PATTERNS) {
+    for (const m of window.matchAll(pattern)) {
+      hits.push({ end: (m.index ?? 0) + m[0].length, length: m[0].length, polarity: 'include' });
+    }
+  }
+  for (const pattern of EXCLUDE_MARKER_PATTERNS) {
+    for (const m of window.matchAll(pattern)) {
+      hits.push({ end: (m.index ?? 0) + m[0].length, length: m[0].length, polarity: 'exclude' });
+    }
+  }
+  return hits;
+}
+
+/** True when the gap between two domains is only "und"/"oder"/"sowie"/commas —
+ *  an enumeration continuation, not a new clause that needs its own marker. */
+function isConnectorOnly(window: string): boolean {
+  const stripped = window.replace(/[,;]/g, ' ').trim().toLowerCase();
+  return stripped === '' || /^(?:und|oder|sowie)$/.test(stripped);
+}
+
+/**
+ * Detect a domain search scope from free text ("such auf zeit.de und
+ * spiegel.de nach X" → include zeit.de + spiegel.de), for wiring into
+ * Linkup's `includeDomains`/`excludeDomains`.
+ *
+ * Two deliberate exclusions, each with its own failure-mode reasoning:
+ *
+ * - **Rule 2 (URL collision):** a domain that also appears as a full URL in
+ *   the same message is dropped from the scope entirely. A full URL is a
+ *   "read/scrape this specific page" instruction (→ `scrape_url`); a bare
+ *   domain is a "restrict search to this site" instruction. The two are
+ *   different actions on the same string, so on collision the more specific
+ *   one (the URL) wins and the domain does not also narrow the search.
+ *
+ * - **Rule 4 (no marker → nothing):** a domain with no recognisable
+ *   preposition/marker in front of it, or no search-verb anywhere in the
+ *   message (see SEARCH_LOOKUP_VERB_PATTERN), yields neither include nor
+ *   exclude for that domain. "Die Zeit hat auf zeit.de berichtet, was
+ *   hältst du davon?" must not silently scope every later search in this
+ *   turn to zeit.de — a scope that persists on a false read is worse than
+ *   no scope at all, so ambiguous cases are dropped rather than guessed.
+ *
+ * On a same-domain conflict (mentioned once as include, once as exclude)
+ * exclude wins: an exclusion is the more specific signal, and under-scoping
+ * a search is the safer wrong answer than over-scoping it.
+ */
+export function extractDomainScope(text: string): DomainScope {
+  const empty: DomainScope = { include: [], exclude: [] };
+  if (!text) return empty;
+  if (!SEARCH_LOOKUP_VERB_PATTERN.test(text)) return empty;
+
+  const fullUrlHosts = new Set<string>();
+  for (const url of extractUrls(text)) {
+    try {
+      const hostname = new URL(url).hostname.toLowerCase().replace(/^www\./, '');
+      if (hostname) fullUrlHosts.add(hostname);
+    } catch {
+      // extractUrls already anchors on https?://, so this should be rare —
+      // skip rather than let a malformed URL abort extraction.
+    }
+  }
+
+  const candidates: Array<{ normalized: string; start: number; end: number }> = [];
+  for (const m of text.matchAll(BARE_DOMAIN_PATTERN)) {
+    const raw = m[0];
+    const start = m.index ?? 0;
+    const tld = raw.slice(raw.lastIndexOf('.') + 1).toLowerCase();
+    if (NON_DOMAIN_EXTENSIONS.has(tld)) continue;
+    const normalized = raw.toLowerCase().replace(/^www\./, '');
+    if (fullUrlHosts.has(normalized)) continue;
+    candidates.push({ normalized, start, end: start + raw.length });
+  }
+
+  const tagged: Array<{ domain: string; polarity: 'include' | 'exclude' }> = [];
+  let prevEnd = 0;
+  let prevPolarity: 'include' | 'exclude' | null = null;
+  for (const { normalized, start, end } of candidates) {
+    const windowStart = Math.max(prevEnd, start - MARKER_WINDOW_CHARS, 0);
+    const windowText = text.slice(windowStart, start);
+    const hits = findMarkerHits(windowText);
+    let polarity: 'include' | 'exclude' | null = null;
+    if (hits.length > 0) {
+      hits.sort((a, b) => b.end - a.end || b.length - a.length);
+      polarity = hits[0].polarity;
+    } else if (prevPolarity && isConnectorOnly(windowText)) {
+      polarity = prevPolarity;
+    }
+    if (polarity) tagged.push({ domain: normalized, polarity });
+    prevPolarity = polarity;
+    prevEnd = end;
+  }
+
+  const exclude = new Set(tagged.filter((t) => t.polarity === 'exclude').map((t) => t.domain));
+  const include = new Set(
+    tagged.filter((t) => t.polarity === 'include' && !exclude.has(t.domain)).map((t) => t.domain)
+  );
+
+  return { include: [...include], exclude: [...exclude] };
+}
+
 /**
  * Format prior conversation messages as context for the classifier LLM.
  * Returns null for single-message conversations (no context needed).
@@ -402,6 +840,42 @@ export function looksMultiTopic(query: string): boolean {
 // boundary is `(?![a-zäöüß0-9])`, not `\b` — JS \b is ASCII-only, so `fuß\b`
 // before a space can never match. Module scope: new RegExp compiles per
 // call, unlike regex literals.
+// Finished PDFs, incl. letterhead and fillable forms. The nouns are deliberately
+// qualified ("als PDF", "ein PDF", "PDF-Dokument") rather than a bare "pdf": a
+// bare noun plus a nearby creation verb also describes work ON an existing file
+// ("erstell eine Zusammenfassung des PDFs").
+const PDF_CREATE_PATTERN = creationOrderPattern(
+  'als\\s+pdf|ein\\s+pdf|pdf[\\s-]?(?:dokument|datei|formular|vorlage)|briefkopf' +
+    '|offiziell[a-zäöü]*\\s+(?:brief|schreiben|anschreiben)' +
+    '|(?:ausfüllbar|ausfuellbar)[a-zäöü]*\\s+(?:formular|vorlage|dokument)' +
+    '|formular\\s+zum\\s+ausfüllen|fragebogen|anmeldebogen|antragsformular|anmeldeformular',
+  { extraVerbs: 'schreib', forward: 60 }
+);
+
+const PRESENTATION_NOUN_SRC = 'präsentation|foliensatz|folien|slides?|pitch[\\s-]?deck';
+const PRESENTATION_CREATE_PATTERN = creationOrderPattern(PRESENTATION_NOUN_SRC);
+
+const SHEET_NOUN_SRC = 'tabelle|spreadsheet|sheets?|kalkulation(?:stabelle)?';
+const SHEET_CREATE_PATTERN = creationOrderPattern(SHEET_NOUN_SRC, { extraVerbs: 'leg' });
+
+// Images replace the core verb list instead of extending it: `mach`, `bau` and
+// `gestalte` are how an image EDIT is phrased ("Mach das Foto heller"), and the
+// edit path — which owns those turns via lastToolContext — sits behind this one.
+const IMAGE_CREATE_PATTERN = creationOrderPattern(IMAGE_GEN_NOUN_SRC, {
+  verbs: 'erstell|erzeug|generier|entwirf|visualisier|zeichne|male|illustrier',
+  forward: 20,
+});
+
+// "erstell mir das als Dokument" / "das als Notiz anlegen". The noun stays
+// qualified by "als" for the same reason as the PDF one: a bare "Dokument" near
+// a creation verb is usually a reference to material the turn works FROM
+// ("erstell eine Zusammenfassung des Dokuments"), not the artifact to produce.
+// The save-verb branches below cover "speicher das als Dokument" separately.
+const DOC_CREATE_AS_PATTERN = creationOrderPattern(
+  'als\\s+(?:neues\\s+)?(?:dokument|protokoll|notiz|checkliste)',
+  { extraVerbs: 'schreib|leg|anleg', forward: 60 }
+);
+
 const UNIT_ALTERNATION =
   '(?:mm|cm|m|km|zoll|inch(?:es)?|ft|feet|fu(?:ß|ss)|yd|mi|miles?|meilen?|meter|kilometer|mg|g|kg|t|gramm|kilogramm|lbs?|pfund|oz|s|min|h|std|sekunden?|minuten?|stunden?|tage?|kb|mb|gb|tb|°?[cf]|grad|celsius|fahrenheit|kelvin)';
 const UNIT_CONVERT_PATTERN = new RegExp(
@@ -427,10 +901,56 @@ export interface HeuristicResult extends ClassificationResult {
 }
 
 /**
+ * Consumes the share trigger plus any article and the filler word "Gruppe", so
+ * what remains starts at the group name itself. Deliberately does NOT eat the
+ * `AG`/`KV`/`OV` prefix — that is part of the name ("AG Umwelt"), even though
+ * the intent-detection pattern above uses it as a trigger token.
+ */
+const SHARE_TARGET_TRIGGER =
+  /\b(?:teil[e]?\s+(?:das\s+)?(?:mit|an)|share\s+mit|freigeben\s+f(?:ü|ue)r|send[e]?\s+an)\s+(?:der|die|das|den|dem|meiner|meinem|unserer|unserem)?\s*(?:gruppe\s+)?/i;
+
+/** Trailing clause that is no longer part of the name ("… und gib ihnen Rechte"). */
+const SHARE_TARGET_TAIL = /\s+(?:und|sowie|damit|zum|als|mit)\b.*$/i;
+
+/**
+ * Pull the group name out of a share request.
+ *
+ * The LLM tier gets `targetGroupName` from the prompt, but this heuristic fires
+ * at 0.88 and skips the LLM entirely — without this the name was dropped and
+ * handleShareDoc asked "mit welcher Gruppe?" while the group sat in the very
+ * sentence that triggered the intent.
+ *
+ * Extraction only has to be close: the consumer fuzzy-matches against the
+ * user's own group list (`findBestMatch(..., 0.5)`), and an unmatched name
+ * still lists the available groups rather than failing blindly.
+ */
+export function extractShareTargetGroup(text: string): string | null {
+  const trigger = SHARE_TARGET_TRIGGER.exec(text);
+  if (!trigger) return null;
+  const name = text
+    .slice(trigger.index + trigger[0].length)
+    .split(/[,;.!?\n]/)[0]
+    .replace(SHARE_TARGET_TAIL, '')
+    .trim();
+  return name.length >= 2 && name.length <= 60 ? name : null;
+}
+
+/**
  * Confidence threshold for skipping LLM.
  * Above this value, we trust heuristics and save an LLM call.
  */
 export const HEURISTIC_CONFIDENCE_THRESHOLD = 0.85;
+
+// Leading greeting/thanks token(s) — strippable prefix. The trailing separator
+// class eats punctuation/whitespace/commas so "Hallo! ", "Danke dir, " are
+// consumed. `+` allows stacked greetings ("Hi, guten Morgen!").
+const GREETING_PREFIX_PATTERN =
+  /^\s*(?:(?:hallo|hi|hey|servus|moin|guten(?:\s+(?:morgen|tag|abend))?|danke(?:\s+(?:dir|euch|sch(?:ö|oe)n|sehr))?|vielen\s+dank)\b[\s,.!:;–—-]*)+/i;
+
+// Remainders after a greeting that are still pure small-talk (assistant-directed,
+// no real task) — these keep the greeting@0.95 fast path.
+const SMALLTALK_REMAINDER_PATTERN =
+  /^(wie geht(?:'?s|\s+es)?(?:\s+(?:dir|euch|ihnen))?\s*\??|wer bist du\s*\??|was kannst du(?:\s+alles)?\s*\??|kannst du (?:mir\s+)?(?:bitte\s+)?helfen\s*\??|alles (?:klar|gut)\s*[!?.]*|(?:das\s+)?passt(?:\s+so)?\s*[!.]*|(?:sehr\s+)?(?:gut|super|toll|perfekt|klasse)(?:\s+gemacht)?\s*[!.]*)$/i;
 
 const CONTENT_TYPE_PATTERNS: Array<{ pattern: RegExp; type: string }> = [
   { pattern: /\b(pressemitteilung|pressemeldung|pm)\b/i, type: 'pressemitteilung' },
@@ -490,368 +1010,608 @@ export function isTabularComputeQuestion(text: string): boolean {
   return wordStart.test(text) || nounStem.test(text);
 }
 
-export function heuristicClassify(
-  userContent: string,
-  opts?: { hasTabularAttachment?: boolean }
-): HeuristicResult {
-  const q = userContent.toLowerCase();
+// Words that contain a fill verb but mean something else. Checked before the
+// verb patterns because both split forms below would otherwise match
+// "Füllwörter aus dem Text entfernen" (füll… + …aus).
+const FILL_FALSE_FRIENDS = /(f(?:ü|ue)llw(?:ö|oe)rt|f(?:ü|ue)llmaterial|f(?:ü|ue)lltext)/i;
 
-  // Long messages likely embed pasted reference material — keyword-triggered
-  // fast paths below defer to the LLM instead of firing on words inside the
-  // paste ("Das Diagramm zeigt…", "Protokoll erstellen", "Sharepics", …).
-  // Deliberately NOT applied to compute: counting words/chars of a pasted
-  // text is compute's primary use case.
-  const isLongPaste = userContent.length > NOUN_TRIGGER_MAX_LENGTH;
+// Closed fill verbs. Word-start bound (JS \b is ASCII-only) so 'erfüllen',
+// 'auffüllen', 'Betrag', 'Beitrag', 'Antrag' and 'Auftrag' never match.
+const FILL_VERB =
+  /(?:^|[^a-zäöüß])(ausf(?:ü|ue)ll|auszuf(?:ü|ue)ll|ausgef(?:ü|ue)llt|bef(?:ü|ue)ll|eintrag|einzutragen|eingetragen|einsetz|einzusetzen|(?:ü|ue)bertrag(?:e|en|)\b|erg(?:ä|ae)nz|vervollst(?:ä|ae)ndig)/i;
 
-  // High confidence (0.95): Greetings and thanks at start of message.
-  // \b is required: without it "Hier unser Protokoll …" matches ^hi.
-  if (/^(hallo|hi|hey|guten|servus|moin|danke|vielen dank)\b/i.test(q.trim())) {
-    return {
-      intent: 'direct',
-      searchQuery: null,
-      reasoning: 'Greeting detected',
-      confidence: 0.95,
-    };
+// "schreib die Werte in die Tabelle" — a write ask that names its target. The
+// target noun is required: "schreib einen Text über die Tabelle" is prose.
+const FILL_WRITE_INTO =
+  /(?:^|[^a-zäöüß])schreib\w*\b[\s\S]{0,60}?\bin\s+(?:die|das|der|den)\s+(tabelle|spalte|zelle|vorlage|formular|liste|felder?)\b/i;
+
+// Split verb forms: "füll das Formular aus", "trag die Werte ein", "setz die
+// Zahlen ein". The particle must follow within a short window so a fill verb
+// early in a long paste can't pair with an unrelated 'aus' much later.
+const FILL_SPLIT =
+  /(?:^|[^a-zäöüß])(f(?:ü|ue)ll\w*|trag\w*|setz\w*)\b[\s\S]{0,60}?(?:^|[^a-zäöüß])(aus|ein)\b/i;
+
+/**
+ * "Fill this in for me" over an attached spreadsheet — the write counterpart to
+ * `isTabularComputeQuestion`. Shared by the classifier fast path AND the
+ * contract router's run_python gate, which picks the openpyxl codegen mode from
+ * it. Checked BEFORE the aggregation heuristic so "trag die Summe ein" writes
+ * the value into the sheet instead of only reporting it.
+ */
+export function isSheetFillRequest(text: string): boolean {
+  if (FILL_FALSE_FRIENDS.test(text)) return false;
+  // Visualization requests keep their own intents even when phrased as "trag
+  // die Werte in ein Diagramm ein".
+  if (/(diagramm|\bchart|\bgraph|visualisier|sharepic|spruchbild|zitatbild)/i.test(text)) {
+    return false;
   }
+  return FILL_VERB.test(text) || FILL_SPLIT.test(text) || FILL_WRITE_INTO.test(text);
+}
 
-  // High confidence (0.92): Aggregation/calculation question about an attached
-  // spreadsheet. Routes to `compute` so the pipeline generates pandas code and
-  // executes it client-side (run_python interrupt) instead of the model
-  // answering from prose. Gated on hasTabularAttachment so plain-text chats
-  // never match.
-  if (opts?.hasTabularAttachment && isTabularComputeQuestion(q)) {
-    return {
+// ── Muster der Regeln unten ─────────────────────────────────────────────────
+// Vorher lagen diese als lokale `const` IM Funktionsrumpf und wurden bei jedem
+// Aufruf neu kompiliert (ein Regex-Literal im Modulraum wird einmal gebaut, im
+// Funktionsraum pro Aufruf). Auf Modulebene ist das erledigt — und sie sind
+// benannt, statt anonym in einer `if`-Bedingung zu stehen.
+
+/** Foliensatz-Nomen. Eine Quelle für die Deck-Regel UND deren Ausschluss in create_pdf. */
+const PRESENTATION_NOUN_PATTERN = new RegExp(`\\b(?:${PRESENTATION_NOUN_SRC})\\b`, 'i');
+const DECK_NOUN_PATTERN = PRESENTATION_NOUN_PATTERN;
+const SHEET_NOUN_PATTERN = new RegExp(`\\b(?:${SHEET_NOUN_SRC})\\b`, 'i');
+
+const SAVE_IMPERATIVE_PATTERN =
+  /\b(speicher|abspeicher|sicher|exportier|ableg|festhalt|merk)[etns]*\b/i;
+const SAVE_AS_BARE_PATTERN = /\bals\s+(neues\s+)?(dokument|protokoll|notiz|checkliste)\b/i;
+const DOC_WITH_VERB_PATTERN =
+  /\b(dokument|protokoll|notiz|checkliste)\s+(erstellen|speichern|anlegen|abspeichern|exportieren)\b/i;
+const MACH_DARAUS_PATTERN =
+  /\bmach[etn]*\b.{0,15}\b(dokument|protokoll|notiz|checkliste)\s+daraus\b/i;
+const DOC_ARTIFACT_NOUN_PATTERN = /\b(dokument|protokoll|notiz|checkliste)\b/i;
+
+const SHARE_DOC_TRIGGER_PATTERN =
+  /\b(teil[e]?\s+(das\s+)?(mit|an)\s+|share\s+mit|freigeben\s+für|send[e]?\s+an\s+(gruppe|ag\s|kv\s|ov\s))/i;
+
+const SUMMARY_KEYWORDS_PATTERN =
+  /\b(fass[e]?\s+(?:\S[^.!?\n]{0,60}?\s+)?zusammen\b|zusammenfass|zusammenfassung|kurzfassung|überblick\s+erstell)/i;
+
+const CHART_TYPE_NOUN_PATTERN =
+  /\b(diagramm|balkendiagramm|kreisdiagramm|liniendiagramm|tortendiagramm|chart|graph)\b/i;
+const CHART_CREATE_IMPERATIVE_PATTERN =
+  /\b(erstell|generier|mach|bau|baue|visualisier|zeig|zeichn|erzeug|stell)[etn]*\b/i;
+const DATA_VISUALIZE_PATTERN = /\bvisualisier.{0,15}(daten|statistik|chart|werte|zahlen)\b/i;
+
+const ARTIFACT_NOUN_PATTERN =
+  /\b(html|svg|webseite|website|landingpage|landing-page|mockup|prototyp|vektorgrafik)\b/i;
+const ARTIFACT_CREATE_IMPERATIVE_PATTERN =
+  /\b(erstell|generier|mach|bau|baue|erzeug|schreib|gestalt|entwirf|entwickl)[etn]*\b/i;
+
+const COUNT_PATTERN =
+  /\b(z(?:ä|ae)hl\w*|anzahl|wie\s+viele?|wie\s+lang)\b[\s\S]*\b(zeichen|buchstaben|w(?:ö|oe)rter|worte|wortanzahl|zeilen|vokale|silben|absätze|abs(?:ä|ae)tze)\b/i;
+const PURE_EXPR_PATTERN = /^(?=[\s\S]*[+\-*/%^×÷])[\s\d().,+\-*/%^×÷]+[=?]?$/;
+// `[nt]?` and not `\w*`: "rechnest"/"berechnest" is how a message talks ABOUT
+// calculating rather than ordering it, and „Stelle eine Rückfrage, bevor du
+// rechnest" was classified `compute` on 03.08.2026 — the node then logged
+// `operation=unsupported produced no result` after 1,6 s.
+//
+// The percent branch is the counterpart: „erhöhe das Schulungsbudget pro
+// Standort um 10 %" IS deterministic arithmetic and reached no compute rule at
+// all, so the turn went to the loop instead of the arithmetic engine.
+const MATH_PATTERN =
+  /(\d+\s*%\s*(von|of)\s*\d+)|\b(rechne|berechne)[nt]?\b|\bwie\s?viel\s+(ist|sind|macht)\b|\bwas\s+(ist|sind|ergibt)\s+\d|\b(erh(?:ö|oe)h|reduzier|senk|k(?:ü|ue)rz|steiger|verringer)\w*\b[^.!?\n]{0,60}?\bum\s+\d+(?:[.,]\d+)?\s*(%|prozent)/i;
+const DATE_MATH_PATTERN = /\b(wie\s+viele?\s+tage|tage\s+(bis|zwischen)|datum\s+in\s+\d)/i;
+
+const EXPLICIT_WEB_SEARCH_PATTERN =
+  /\b(such|suche|durchsuche|finde?)\s*(im|das|den|die|in)?\s*(netz|internet|web|online)\b/i;
+const RESEARCH_NOUN_PATTERN = /\b(recherchiere|recherche|recherchier)\b/i;
+
+const QUESTION_WORD_PATTERN =
+  /\b(was|wie|welche[rsnm]?|wo|wann|warum|gibt\s+es|haben\s+die|sagen\s+die)\b/i;
+const PARTY_TOPIC_PATTERN =
+  /\b(grüne|partei|programm|position|wahlprogramm|beschluss|antrag|grundsatzprogramm)\b/i;
+const CURRENT_EVENTS_PATTERN = /\b(aktuell|heute|gestern|news|nachricht|kürzlich)\b/i;
+const PERSON_QUERY_PATTERN = /\bwer (ist|war|sind)\b/i;
+
+const EXAMPLE_NOUN_PATTERN = /\b(beispiel|vorlage)\b/i;
+const EXAMPLES_ACTION_VERB_PATTERN = /\b(zeig|such|find|erstell|schreib|mach|generier)[etn]*/i;
+
+const CREATIVE_VERB_PATTERN = /\b(schreib|erstell|formulier|verfass)[etn]*/i;
+const RESEARCH_HINT_PATTERN = /\b(recherch|such|find|info)\b/i;
+
+/** Ein Schreibauftrag, der nicht zugleich nach Nachschlagen verlangt. */
+function isCreativeTask(lower: string): boolean {
+  return CREATIVE_VERB_PATTERN.test(lower) && !RESEARCH_HINT_PATTERN.test(lower);
+}
+
+const FACT_BASED_CONTENT_PATTERN =
+  /\b(pressemitteilung|pressemeldung|pm|artikel|beitrag|blogpost|rede|ansprache|statement|argumentation|argumente|faktencheck|analyse|bericht|report)\b/i;
+const TOPIC_MARKER_PATTERN = /(?:^|\s)(über|zu|zum|zur|bezüglich|betreffend|thema)(?:\s|$)/i;
+
+/**
+ * Der Tippfehler-Fänger: ein Wort, das einem Intent-Stichwort ähnlich genug
+ * sieht. Absichtlich die LETZTE Regel und weit unter der Schwelle — sie rät.
+ *
+ * Ein verneintes oder gefragtes Artefakt-Wort („keine Grafik", „was ist eine
+ * Grafik?") darf nicht auf seinen Generierungs-Intent fuzzy-matchen; deshalb
+ * läuft für diese Intents der Wächter über die Stichwortliste selbst.
+ */
+function fuzzyHit(m: AnalyzedMessage): SearchIntent | null {
+  for (const word of m.lower.split(/\s+/).filter((w) => w.length >= 4)) {
+    const fuzzyIntent = fuzzyMatchIntent(word);
+    if (!fuzzyIntent) continue;
+    if (GENERATION_FUZZY_INTENTS.has(fuzzyIntent)) {
+      const kw = INTENT_KEYWORDS[fuzzyIntent as keyof typeof INTENT_KEYWORDS] ?? [];
+      if (kw.length > 0) {
+        const nounRe = new RegExp(`\\b(?:${kw.map(escapeRegExp).join('|')})`, 'i');
+        if (negatedOrMeta(m.stripped, nounRe)) continue;
+      }
+    }
+    return fuzzyIntent;
+  }
+  return null;
+}
+
+/**
+ * Die Regeln der Heuristik, in Präzedenzreihenfolge.
+ *
+ * Vorher waren das ~25 geordnete `if`-Zweige über 470 Zeilen, und ihre
+ * Reihenfolge — also die halbe Logik — stand ausschliesslich in Kommentaren
+ * („Checked BEFORE save_as_doc", „Placed AFTER chart"). Als Liste ist die
+ * Präzedenz sichtbar, und der Negations-/Meta-Wächter ist ein FELD statt einer
+ * Zeile, die eine Regel vergessen kann (siehe `analyzedMessage.ts`).
+ *
+ * Die Muster selbst sind unverändert übernommen. Wer hier etwas ändert, ändert
+ * Verhalten; wer eine Regel verschiebt, ändert Präzedenz. Beides sieht die
+ * Dispositions-Zählung (`apps/api/evals/`).
+ *
+ * Welche Sicht eine Regel liest, ist Absicht und kein Zufall: `stripped` für
+ * alles Nomen-Getriebene (Zitate sind fremde Rede), `lower` dort, wo die
+ * bisherige Regel es so tat, `raw` nur, wo die Original-Grossschreibung zählt
+ * (der Gruppenname in `share_doc` wird dem Nutzer zurückgezeigt).
+ */
+const HEURISTIC_RULES: ReadonlyArray<ClassifierRule<HeuristicResult>> = [
+  // "Füll mir das aus" über einer angehängten Tabelle. VOR der Aggregation, damit
+  // "trag die Summe ein" den Wert schreibt statt ihn nur zu berichten.
+  {
+    id: 'compute.sheet_fill',
+    longPaste: 'allow',
+    requiresTabularAttachment: true,
+    guard: 'none',
+    match: (m) => isSheetFillRequest(m.lower),
+    result: (m) => ({
       intent: 'compute',
-      searchQuery: userContent,
+      searchQuery: m.raw,
+      reasoning: 'Fill request with attached spreadsheet',
+      confidence: 0.92,
+    }),
+  },
+  // Aggregationsfrage über einer angehängten Tabelle → pandas-Code im
+  // run_python-Interrupt statt einer Antwort aus der Prosa.
+  {
+    id: 'compute.tabular',
+    longPaste: 'allow',
+    requiresTabularAttachment: true,
+    guard: 'none',
+    match: (m) => isTabularComputeQuestion(m.lower),
+    result: (m) => ({
+      intent: 'compute',
+      searchQuery: m.raw,
       reasoning: 'Tabular aggregation question with attached spreadsheet',
       confidence: 0.92,
-    };
-  }
-
-  // High confidence (0.93): Sharepic requests — a branded social graphic, NOT a
-  // free-form AI image. Checked BEFORE the generic image heuristic below, which
-  // would otherwise swallow "sharepic" into the AI-image path. Matches the noun
-  // anywhere ("mach mir ein zitat sharepic", "sharepic über X") plus the German
-  // spelling variants ("spruchbild", "zitatbild"). The specific variant
-  // (zitat/dreizeilen/info) is resolved later in the execution path from the same
-  // text — here we only need to route to the sharepic intent.
-  // "Post MIT Sharepic" is a combined ask — let the social_post rule below
-  // take it instead of the sharepic-only fast path. Long-paste messages fall
-  // through entirely: "Sharepics" inside pasted material (a docs page, a
-  // Beschluss) describes content, and even verb proximity is no signal there
-  // ("… hilft beim Erstellen … Alt-Texte für Sharepics"). The LLM prompt
-  // knows the sharepic intent, so genuine long sharepic asks still route.
-  const sharepicIsInclusion =
-    SHAREPIC_INCLUSION_PATTERN.test(q) && /\b(post(ing)?|beitrag|tweet|caption)\b/i.test(q);
-  if (SHAREPIC_NOUN_PATTERN.test(q) && !sharepicIsInclusion && !isLongPaste) {
-    return {
+    }),
+  },
+  // Sharepic — eine gebrandete Vorlage mit Text, KEIN freies KI-Bild. Vor der
+  // Bildregel, die es sonst schluckt. "Post MIT Sharepic" ist ein kombinierter
+  // Auftrag und gehört der social_post-Regel, die die Sharepic-Hälfte selbst
+  // trägt. Eigener Wächter: `hasExplicitSharepicWord` prüft Zitat, Negation und
+  // Meta-Frage bereits selbst (und satzweise, nicht über die ganze Nachricht).
+  {
+    id: 'sharepic',
+    longPaste: 'skip',
+    guard: 'none',
+    match: (m) => hasExplicitSharepicWord(m.stripped) && !POST_NOUN_PATTERN.test(m.stripped),
+    result: () => ({
       intent: 'sharepic',
       searchQuery: null,
       reasoning: 'Sharepic request detected',
       confidence: 0.93,
-    };
-  }
-
-  // High confidence (0.92): Image generation requests - very explicit patterns
-  const imageKeywords =
-    /\b(erstell|generier|visualisier|zeichne|male|illustrier).{0,20}(bild|grafik|illustration|foto|image|poster)\b/i;
-  const imageKeywordsAlt =
-    /\b(bild|grafik|illustration|foto|poster).{0,20}(erstell|generier|erzeug|mach)\b/i;
-  if (!isLongPaste && (imageKeywords.test(q) || imageKeywordsAlt.test(q))) {
-    return {
+    }),
+  },
+  // Freies KI-Bild. Das Fenster zwischen Verb und Nomen kann eine Verneinung
+  // verschlucken ("erstell daraus bitte KEINE Grafik") — deshalb der Wächter.
+  {
+    id: 'image',
+    longPaste: 'skip',
+    guard: 'negatedOrMeta',
+    guardNoun: IMAGE_GEN_NOUN_PATTERN,
+    match: (m) => IMAGE_CREATE_PATTERN.test(m.stripped),
+    result: () => ({
       intent: 'image',
       searchQuery: null,
       reasoning: 'Image generation request detected',
       confidence: 0.92,
-    };
-  }
-
-  // High confidence (0.90): Save as document requests.
-  // Bare "als Dokument/Protokoll/Notiz/Checkliste" must be paired with an explicit
-  // save imperative — otherwise prose mentions like "Pressemitteilung über das Dokument"
-  // or "gilt als Protokoll" would falsely trigger document creation.
-  const saveImperative = /\b(speicher|abspeicher|sicher|exportier|ableg|festhalt|merk)[etns]*\b/i;
-  const saveAsBarePattern = /\bals\s+(neues\s+)?(dokument|protokoll|notiz|checkliste)\b/i;
-  const docWithVerbPattern =
-    /\b(dokument|protokoll|notiz|checkliste)\s+(erstellen|speichern|anlegen|abspeichern|exportieren)\b/i;
-  const machDarausPattern =
-    /\bmach[etn]*\b.{0,15}\b(dokument|protokoll|notiz|checkliste)\s+daraus\b/i;
-
-  if (
-    !isLongPaste &&
-    ((saveAsBarePattern.test(q) && saveImperative.test(q)) ||
-      docWithVerbPattern.test(q) ||
-      machDarausPattern.test(q))
-  ) {
-    return {
+    }),
+  },
+  // Fertiges PDF inkl. Briefkopf und ausfüllbarer Formulare. VOR save_as_doc,
+  // damit "mach ein PDF-Dokument daraus" nicht von machDaraus gestohlen wird.
+  // Deck-Nomen ausgenommen: "Präsentation als PDF" baut weiterhin einen Foliensatz.
+  {
+    id: 'create_pdf',
+    longPaste: 'skip',
+    guard: 'none',
+    match: (m) => PDF_CREATE_PATTERN.test(m.lower) && !DECK_NOUN_PATTERN.test(m.lower),
+    result: () => ({
+      intent: 'create_pdf',
+      searchQuery: null,
+      reasoning: 'PDF creation request detected',
+      confidence: 0.9,
+    }),
+  },
+  // Antwort als Dokument sichern. Das blosse "als Dokument" braucht einen
+  // Speicher-Imperativ, sonst lösen Prosa-Erwähnungen aus ("gilt als Protokoll").
+  {
+    id: 'save_as_doc',
+    longPaste: 'skip',
+    guard: 'negatedOrMeta',
+    guardNoun: DOC_ARTIFACT_NOUN_PATTERN,
+    match: (m) =>
+      (SAVE_AS_BARE_PATTERN.test(m.stripped) && SAVE_IMPERATIVE_PATTERN.test(m.stripped)) ||
+      DOC_CREATE_AS_PATTERN.test(m.stripped) ||
+      DOC_WITH_VERB_PATTERN.test(m.stripped) ||
+      MACH_DARAUS_PATTERN.test(m.stripped),
+    result: () => ({
       intent: 'save_as_doc',
       searchQuery: null,
       reasoning: 'Save as document request detected',
       confidence: 0.9,
-    };
-  }
-
-  // High confidence (0.9): Presentation-deck creation. create_presentation lives
-  // only in the LLM prompt, and the intermediate classifier model is unreliable
-  // on this newer intent — so an explicit "erstelle eine Präsentation über X"
-  // was falling back to a prose slide outline instead of building a deck.
-  // Fast-path the unambiguous phrasing (creation verb + deck noun).
-  const presentationCreatePattern =
-    /\b(erstell|mach|generier|bau|entwirf|erzeug)[a-zäöü]*\b.{0,40}\b(präsentation|foliensatz|folien|slides?|pitch[\s-]?deck)\b/i;
-  if (!isLongPaste && presentationCreatePattern.test(q)) {
-    return {
+    }),
+  },
+  // Foliensatz. Das Zwischenmodell ist bei diesem jüngeren Intent unzuverlässig,
+  // deshalb bekommt die eindeutige Formulierung einen eigenen schnellen Weg.
+  {
+    id: 'create_presentation',
+    longPaste: 'skip',
+    guard: 'negatedOrMeta',
+    guardNoun: PRESENTATION_NOUN_PATTERN,
+    match: (m) => PRESENTATION_CREATE_PATTERN.test(m.stripped),
+    result: () => ({
       intent: 'create_presentation',
       searchQuery: null,
       reasoning: 'Presentation creation request detected',
       confidence: 0.9,
-    };
-  }
-
-  // High confidence (0.88): Share document with group
-  if (
-    !isLongPaste &&
-    /\b(teil[e]?\s+(das\s+)?(mit|an)\s+|share\s+mit|freigeben\s+für|send[e]?\s+an\s+(gruppe|ag\s|kv\s|ov\s))/i.test(
-      q
-    )
-  ) {
-    return {
-      intent: 'share_doc',
-      searchQuery: null,
-      reasoning: 'Share document request detected',
-      confidence: 0.88,
-    };
-  }
-
-  // High confidence (0.85): Summary requests — unambiguous patterns
-  const summaryKeywords =
-    /\b(fass[e]?\s+(das\s+|die\s+|den\s+)?zusammen|zusammenfass|zusammenfassung|kurzfassung|überblick\s+erstell)/i;
-  if (!isLongPaste && summaryKeywords.test(q)) {
-    return {
+    }),
+  },
+  // Dokument mit einer Gruppe teilen. Der Gruppenname kommt aus `raw`: er wird
+  // dem Nutzer in handleShareDoc zurückgezeigt, also zählt die Grossschreibung.
+  {
+    id: 'share_doc',
+    longPaste: 'skip',
+    guard: 'none',
+    match: (m) => SHARE_DOC_TRIGGER_PATTERN.test(m.lower),
+    result: (m) => {
+      const targetGroupName = extractShareTargetGroup(m.raw);
+      return {
+        intent: 'share_doc',
+        searchQuery: null,
+        reasoning: 'Share document request detected',
+        confidence: 0.88,
+        ...(targetGroupName != null && { targetGroupName }),
+      };
+    },
+  },
+  // Zusammenfassung. Der `fass … zusammen`-Zweig lässt ein begrenztes Objekt
+  // zwischen trennbarem Verb und Partikel zu; ohne ihn ging die Formulierung an
+  // das temperatur-0,1-Modell und wurde dort zur Lotterie.
+  {
+    id: 'summary',
+    longPaste: 'skip',
+    guard: 'negatedOrMeta',
+    guardNoun: SUMMARY_KEYWORDS_PATTERN,
+    match: (m) => SUMMARY_KEYWORDS_PATTERN.test(m.stripped),
+    result: () => ({
       intent: 'summary',
       searchQuery: null,
       reasoning: 'Summary keywords detected',
       confidence: 0.85,
-    };
-  }
-
-  // High confidence (0.88): Chart/data visualization requests.
-  // Bare chart-type nouns must be paired with a creation imperative — otherwise
-  // prose mentions like "Im Diagramm sehen wir..." or "Erkläre mir das Chart" trigger.
-  const chartTypeNoun =
-    /\b(diagramm|balkendiagramm|kreisdiagramm|liniendiagramm|tortendiagramm|chart|graph)\b/i;
-  const chartCreateImperative =
-    /\b(erstell|generier|mach|bau|baue|visualisier|zeig|zeichn|erzeug|stell)[etn]*\b/i;
-  const dataVisualizePattern = /\bvisualisier.{0,15}(daten|statistik|chart|werte|zahlen)\b/i;
-
-  if (
-    !isLongPaste &&
-    ((chartTypeNoun.test(q) && chartCreateImperative.test(q)) || dataVisualizePattern.test(q))
-  ) {
-    return {
+    }),
+  },
+  // Datenvisualisierung. Blosse Diagramm-Nomen brauchen einen Erstell-Imperativ,
+  // sonst lösen "Im Diagramm sehen wir…" und "Erkläre mir das Chart" aus.
+  {
+    id: 'chart',
+    longPaste: 'skip',
+    guard: 'negatedOrMeta',
+    guardNoun: CHART_TYPE_NOUN_PATTERN,
+    match: (m) =>
+      (CHART_TYPE_NOUN_PATTERN.test(m.stripped) &&
+        CHART_CREATE_IMPERATIVE_PATTERN.test(m.stripped)) ||
+      DATA_VISUALIZE_PATTERN.test(m.stripped),
+    result: (m) => ({
       intent: 'chart',
-      searchQuery: userContent,
+      searchQuery: m.raw,
       reasoning: 'Chart/visualization request detected',
       confidence: 0.88,
-    };
-  }
-
-  // High confidence (0.85): Generic HTML/SVG artifact requests. Must pair an
-  // artifact noun with a creation imperative so prose ("erklär mir HTML")
-  // doesn't trigger. Placed after chart so diagram requests stay charts.
-  const artifactNoun =
-    /\b(html|svg|webseite|website|landingpage|landing-page|mockup|prototyp|vektorgrafik)\b/i;
-  const artifactCreateImperative =
-    /\b(erstell|generier|mach|bau|baue|erzeug|schreib|gestalt|entwirf|entwickl)[etn]*\b/i;
-  if (!isLongPaste && artifactNoun.test(q) && artifactCreateImperative.test(q)) {
-    return {
+    }),
+  },
+  // Eigenständige rechnende Tabelle. NACH chart ("erstell ein Diagramm aus der
+  // Tabelle" bleibt chart) und VOR compute ("berechne die Tabelle" bleibt
+  // compute — keines dieser Erstell-Verben ist ein Rechen-Verb).
+  {
+    id: 'create_sheet',
+    longPaste: 'skip',
+    guard: 'negatedOrMeta',
+    guardNoun: SHEET_NOUN_PATTERN,
+    // Columns spelled out with pipes mean the table is wanted IN the answer —
+    // see `dictatesInlineTableColumns`.
+    match: (m) => SHEET_CREATE_PATTERN.test(m.stripped) && !dictatesInlineTableColumns(m.stripped),
+    result: () => ({
+      intent: 'create_sheet',
+      searchQuery: null,
+      reasoning: 'Spreadsheet creation request detected',
+      confidence: 0.9,
+    }),
+  },
+  // Darstellbares HTML/SVG. Nomen plus Erstell-Imperativ, damit Prosa ("erklär
+  // mir HTML") nicht auslöst. Nach chart, damit Diagramme Diagramme bleiben.
+  {
+    id: 'artifact',
+    longPaste: 'skip',
+    guard: 'negatedOrMeta',
+    guardNoun: ARTIFACT_NOUN_PATTERN,
+    match: (m) =>
+      ARTIFACT_NOUN_PATTERN.test(m.stripped) && ARTIFACT_CREATE_IMPERATIVE_PATTERN.test(m.stripped),
+    result: (m) => ({
       intent: 'artifact',
-      searchQuery: userContent,
+      searchQuery: m.raw,
       reasoning: 'Generic HTML/SVG artifact request detected',
       confidence: 0.85,
-    };
-  }
-
-  // High confidence (0.90): Deterministic calculation / counting. Narrow on
-  // purpose — each sub-pattern names a concrete compute operation so ordinary
-  // prose ("erklär mir Prozentrechnung") and factual questions don't misfire.
-  // Placed after chart/artifact so "Diagramm mit Zahlen" stays a chart.
-  const countPattern =
-    /\b(z(?:ä|ae)hl\w*|anzahl|wie\s+viele?|wie\s+lang)\b[\s\S]*\b(zeichen|buchstaben|w(?:ö|oe)rter|worte|wortanzahl|zeilen|vokale|silben|absätze|abs(?:ä|ae)tze)\b/i;
-  const pureExpr = /^(?=[\s\S]*[+\-*/%^×÷])[\s\d().,+\-*/%^×÷]+[=?]?$/;
-  const mathPattern =
-    /(\d+\s*%\s*(von|of)\s*\d+)|\b(rechne|berechne|wie\s?viel\s+(ist|sind|macht)|was\s+(ist|sind|ergibt)\s+\d)/i;
-  const dateMath = /\b(wie\s+viele?\s+tage|tage\s+(bis|zwischen)|datum\s+in\s+\d)/i;
-  if (
-    countPattern.test(userContent) ||
-    pureExpr.test(userContent.trim()) ||
-    mathPattern.test(q) ||
-    isUnitConversion(q) ||
-    dateMath.test(q)
-  ) {
-    return {
+    }),
+  },
+  // Deterministisches Rechnen und Zählen. Absichtlich eng: jedes Teilmuster
+  // benennt eine konkrete Operation, damit Prosa ("erklär mir Prozentrechnung")
+  // nicht auslöst. `longPaste: 'allow'` ist der Kern der Regel — die Zeichen
+  // eines eingefügten Textes zu zählen IST ihr Hauptzweck.
+  {
+    id: 'compute',
+    longPaste: 'allow',
+    guard: 'none',
+    match: (m) =>
+      COUNT_PATTERN.test(m.raw) ||
+      PURE_EXPR_PATTERN.test(m.raw.trim()) ||
+      MATH_PATTERN.test(m.lower) ||
+      isUnitConversion(m.lower) ||
+      DATE_MATH_PATTERN.test(m.lower),
+    result: (m) => ({
       intent: 'compute',
-      searchQuery: userContent,
+      searchQuery: m.raw,
       reasoning: 'Deterministic computation/counting request detected',
       confidence: 0.9,
-    };
-  }
-
-  // High confidence (0.90): Explicit web search request
-  const explicitWebSearch =
-    /\b(such|suche|durchsuche|finde?)\s*(im|das|den|die|in)?\s*(netz|internet|web|online)\b/i;
-  if (!isLongPaste && explicitWebSearch.test(q)) {
-    return {
+    }),
+  },
+  // Ausdrückliche Websuche. Nur der Meta-Wächter: "Wie suche ich im Netz?" ist
+  // eine Frage darüber, aber eine Verneinung gibt es hier praktisch nicht.
+  {
+    id: 'web.explicit',
+    longPaste: 'skip',
+    guard: 'meta',
+    guardNoun: EXPLICIT_WEB_SEARCH_PATTERN,
+    match: (m) => EXPLICIT_WEB_SEARCH_PATTERN.test(m.stripped),
+    result: (m) => ({
       intent: 'web',
-      searchQuery: userContent,
+      searchQuery: m.raw,
       reasoning: 'Explicit web search request',
       confidence: 0.9,
-    };
-  }
-
-  // High confidence (0.88): Explicit research request
-  if (!isLongPaste && /\b(recherchiere|recherche|recherchier)\b/.test(q)) {
-    return {
+    }),
+  },
+  // Ausdrückliche Recherche.
+  {
+    id: 'research.explicit',
+    longPaste: 'skip',
+    guard: 'meta',
+    guardNoun: RESEARCH_NOUN_PATTERN,
+    match: (m) => RESEARCH_NOUN_PATTERN.test(m.stripped),
+    result: (m) => ({
       intent: 'research',
-      searchQuery: userContent,
+      searchQuery: m.raw,
       reasoning: 'Explicit research request',
       confidence: 0.88,
-    };
-  }
-
-  // Medium-high confidence (0.82): Explicit question about party positions
-  // Only triggers search when user asks a QUESTION — party keywords alone never trigger search
-  if (
-    /\b(was|wie|welche[rsnm]?|wo|wann|warum|gibt\s+es|haben\s+die|sagen\s+die)\b/i.test(q) &&
-    /\b(grüne|partei|programm|position|wahlprogramm|beschluss|antrag|grundsatzprogramm)\b/i.test(q)
-  ) {
-    return {
+    }),
+  },
+  // Frage nach Parteipositionen. Nur bei einer FRAGE — Parteistichworte allein
+  // lösen nie eine Suche aus.
+  {
+    id: 'search.party_position',
+    longPaste: 'allow',
+    guard: 'none',
+    match: (m) => QUESTION_WORD_PATTERN.test(m.lower) && PARTY_TOPIC_PATTERN.test(m.lower),
+    result: (m) => ({
       intent: 'search',
-      searchQuery: userContent,
+      searchQuery: m.raw,
       reasoning: 'Question about party positions detected',
       confidence: 0.82,
-    };
-  }
-
-  // Medium confidence (0.80): Web/news searches - could be ambiguous
-  if (/\b(aktuell|heute|gestern|news|nachricht|kürzlich)\b/i.test(q)) {
-    return {
+    }),
+  },
+  // Aktuelles Geschehen.
+  {
+    id: 'web.current_events',
+    longPaste: 'allow',
+    guard: 'none',
+    match: (m) => CURRENT_EVENTS_PATTERN.test(m.lower),
+    result: (m) => ({
       intent: 'web',
-      searchQuery: userContent,
+      searchQuery: m.raw,
       reasoning: 'Current events query',
       confidence: 0.8,
-    };
-  }
-
-  // Medium confidence (0.78): "Wer ist" queries - route to web search
-  if (/\bwer (ist|war|sind)\b/i.test(q)) {
-    return {
+    }),
+  },
+  // "Wer ist …" — Personenfragen an die Websuche.
+  {
+    id: 'web.person',
+    longPaste: 'allow',
+    guard: 'none',
+    match: (m) => PERSON_QUERY_PATTERN.test(m.lower),
+    result: (m) => ({
       intent: 'web',
-      searchQuery: userContent,
+      searchQuery: m.raw,
       reasoning: 'Person query routed to web search',
       confidence: 0.78,
-    };
-  }
-
-  // Medium confidence (0.80): social media requests. Creation verbs route to
-  // the EXPERIMENTAL combined post (text + sharepic) unless an escape hatch
-  // ("nur Text", "nur Sharepic") applies; browse verbs ("zeig mir Beispiele")
-  // keep the examples flow. Meta-questions never create. Verb and noun must
-  // sit close together — "schreibe eine Produktvorstellung … [Paste erwähnt
-  // Instagram]" is not a post ask.
-  if (
-    !isLongPaste &&
-    nounNearCreateVerb(q, SOCIAL_TRIGGER_NOUN_PATTERN) &&
-    !/\b(beispiel|vorlage)\b/i.test(q) &&
-    !SOCIAL_META_QUESTION_PATTERN.test(q)
-  ) {
-    const escape = resolveSocialPostEscape(q);
-    return {
-      intent: escape ?? 'social_post',
-      searchQuery: userContent,
-      reasoning: escape
-        ? `Social media creation with "${escape}" escape hatch`
-        : 'Social media post creation (combined text + sharepic)',
+    }),
+  },
+  // Social-Media-Post ERSTELLEN (nur Text, solange kein Sharepic genannt ist).
+  // Verb und Nomen müssen nah beieinander stehen — "schreibe eine
+  // Produktvorstellung … [Paste erwähnt Instagram]" ist kein Post-Auftrag.
+  // Browse-Verben gehören der examples-Regel darunter.
+  {
+    id: 'social_post',
+    longPaste: 'skip',
+    guard: 'negatedOrMeta',
+    guardNoun: SOCIAL_TRIGGER_NOUN_PATTERN,
+    match: (m) =>
+      nounNearCreateVerb(m.stripped, SOCIAL_TRIGGER_NOUN_PATTERN) &&
+      !EXAMPLE_NOUN_PATTERN.test(m.stripped),
+    result: (m) => ({
+      intent: 'social_post',
+      searchQuery: m.raw,
+      reasoning: 'Social media post creation',
       confidence: 0.8,
-    };
-  }
-
-  // Medium confidence (0.80): Examples/social media — platform keyword + any action verb
-  if (
-    !isLongPaste &&
-    (/\b(beispiel|vorlage)\b/i.test(q) || SOCIAL_TRIGGER_NOUN_PATTERN.test(q)) &&
-    /\b(zeig|such|find|erstell|schreib|mach|generier)[etn]*/i.test(q)
-  ) {
-    return {
+    }),
+  },
+  // Vorlagen/Beispiele ANSEHEN — Plattform-Stichwort plus irgendein Aktionsverb.
+  {
+    id: 'examples',
+    longPaste: 'skip',
+    guard: 'none',
+    match: (m) =>
+      (EXAMPLE_NOUN_PATTERN.test(m.lower) || SOCIAL_TRIGGER_NOUN_PATTERN.test(m.lower)) &&
+      EXAMPLES_ACTION_VERB_PATTERN.test(m.lower),
+    result: (m) => ({
       intent: 'examples',
-      searchQuery: userContent,
+      searchQuery: m.raw,
       reasoning: 'Social media examples query',
       confidence: 0.8,
-    };
-  }
-
-  // Medium-high confidence (0.82): Creative tasks with substantial user-provided context
-  // When user pastes long content (>500 chars) with a creative verb, it's self-contained
-  const isCreativeTask =
-    /\b(schreib|erstell|formulier|verfass)[etn]*/i.test(q) &&
-    !/\b(recherch|such|find|info)\b/i.test(q);
-
-  if (isCreativeTask && isLongPaste) {
-    return {
-      intent: 'direct',
+    }),
+  },
+  // Schreibauftrag MIT mitgeliefertem Material. `longPaste: 'require'` ist hier
+  // die Regel selbst: derselbe Satz ohne Paste ist ein anderer Fall (darunter),
+  // weil dann die Substanz fehlt.
+  {
+    id: 'produktion.with_material',
+    longPaste: 'require',
+    guard: 'none',
+    match: (m) => isCreativeTask(m.lower),
+    result: (m) => ({
+      intent: 'produktion',
       searchQuery: null,
       reasoning: 'Creative task with substantial user-provided context',
-      contentType: detectContentType(q),
+      contentType: detectContentType(m.lower),
       confidence: 0.82,
-    };
-  }
-
-  // Medium confidence (0.75): Creative tasks without explicit research need
-  if (isCreativeTask) {
-    return {
-      intent: 'direct',
+    }),
+  },
+  // Derselbe Auftrag ohne Material. Bleibt unter der Schwelle und ist damit nur
+  // ein Hinweis: Tier 3.5 demotiert genau diese Form in den Loop, wo ein Planer
+  // suchen kann, statt sie aus dem Gedächtnis des Modells zu schreiben.
+  {
+    id: 'produktion.no_material',
+    longPaste: 'allow',
+    guard: 'none',
+    match: (m) => isCreativeTask(m.lower),
+    result: (m) => ({
+      intent: 'produktion',
       searchQuery: null,
       reasoning: 'Creative task without research need',
-      contentType: detectContentType(q),
+      contentType: detectContentType(m.lower),
       confidence: 0.75,
-    };
-  }
-
-  // Medium confidence (0.68): Fact-based content types with topic markers → direct (not research)
-  // Content type is useful metadata but does NOT imply research is needed.
-  // Users on this platform typically provide their own content and want AI to write/format it.
-  const factBasedContent =
-    /\b(pressemitteilung|pressemeldung|pm|artikel|beitrag|blogpost|rede|ansprache|statement|argumentation|argumente|faktencheck|analyse|bericht|report)\b/i;
-  const hasTopicMarker = /(?:^|\s)(über|zu|zum|zur|bezüglich|betreffend|thema)(?:\s|$)/i;
-
-  if (factBasedContent.test(q) && hasTopicMarker.test(q)) {
-    return {
-      intent: 'direct',
+    }),
+  },
+  // Sachtext-Gattung plus Themenmarker. Ein Text ÜBER die Welt, dessen Substanz
+  // nie mitgeliefert wurde, lässt sich nicht wahrheitsgemäss aus dem Gedächtnis
+  // des Modells schreiben — deshalb bleibt der Wert unter der Schwelle und
+  // Tier 3.5 gibt den Turn an den Loop.
+  {
+    id: 'produktion.fact_based',
+    longPaste: 'allow',
+    guard: 'none',
+    match: (m) => FACT_BASED_CONTENT_PATTERN.test(m.lower) && TOPIC_MARKER_PATTERN.test(m.lower),
+    result: (m) => ({
+      intent: 'produktion',
       searchQuery: null,
       reasoning: 'Fact-based content type detected (creative task, not research)',
-      contentType: detectContentType(q),
+      contentType: detectContentType(m.lower),
       confidence: 0.68,
-    };
-  }
-
-  // Low confidence (0.65): Fuzzy matching for typos - inherently uncertain
-  const words = q.split(/\s+/).filter((w) => w.length >= 4);
-  for (const word of words) {
-    const fuzzyIntent = fuzzyMatchIntent(word);
-    if (fuzzyIntent) {
+    }),
+  },
+  // Tippfehler-Fänger, ganz zum Schluss und ohne Anspruch auf Sicherheit.
+  {
+    id: 'fuzzy_keyword',
+    longPaste: 'allow',
+    guard: 'none',
+    match: (m) => fuzzyHit(m) !== null,
+    result: (m) => {
+      const intent = fuzzyHit(m) as SearchIntent;
       return {
-        intent: fuzzyIntent,
-        searchQuery: fuzzyIntent === 'image' ? null : userContent,
-        reasoning: `Fuzzy matched "${word}" to ${fuzzyIntent}`,
+        intent,
+        searchQuery: intent === 'image' ? null : m.raw,
+        reasoning: `Fuzzy matched to ${intent}`,
         confidence: 0.65,
       };
+    },
+  },
+];
+
+/** Der Rest: nichts hat gegriffen. Siehe Kommentar an `heuristicClassify`. */
+const RESIDUAL_RESULT: HeuristicResult = {
+  intent: 'direct',
+  searchQuery: null,
+  reasoning: 'No clear search intent detected',
+  confidence: 0.5,
+};
+
+export function heuristicClassify(
+  userContent: string,
+  opts?: { hasTabularAttachment?: boolean }
+): HeuristicResult {
+  // Der Gruss ist Ablaufsteuerung, keine Regel: er entscheidet nicht nur über
+  // sich selbst, sondern kann den Rest der Nachricht ERNEUT zur Klassifikation
+  // schicken. Eine Tabelle, deren Einträge sich gegenseitig aufrufen, wäre keine
+  // Tabelle mehr — deshalb steht er davor.
+  //
+  // Ein Gruss-PRÄFIX darf keinen echten Auftrag verschlucken ("Hallo! Wie hat
+  // die CDU abgestimmt?"): abschneiden und den Rest klassifizieren.
+  const trimmed = userContent.toLowerCase().trim();
+  const greet = GREETING_PREFIX_PATTERN.exec(trimmed);
+  if (greet) {
+    const rest = trimmed.slice(greet[0].length).trim();
+    const restWords = rest ? rest.split(/\s+/).filter(Boolean).length : 0;
+    if (
+      rest.length === 0 ||
+      SMALLTALK_REMAINDER_PATTERN.test(rest) ||
+      (restWords <= 3 && !rest.includes('?'))
+    ) {
+      return {
+        intent: 'greeting',
+        searchQuery: null,
+        reasoning: 'Greeting detected',
+        confidence: 0.95,
+      };
     }
+    // Die Präfixlänge ist gross-/kleinschreibungsstabil, also gilt derselbe
+    // Versatz im Originaltext. Das `+` im Präfix frisst alle führenden Grüsse,
+    // deshalb terminiert die Rekursion.
+    return heuristicClassify(userContent.trim().slice(greet[0].length).trim(), opts);
   }
 
-  // Low confidence (0.50): Default to direct for unclear queries - needs LLM
-  return {
-    intent: 'direct',
-    searchQuery: null,
-    reasoning: 'No clear search intent detected',
-    confidence: 0.5,
-  };
+  const analyzed = analyzeMessage(userContent, opts);
+  const hit = runRules(HEURISTIC_RULES, analyzed);
+  if (hit) {
+    log.debug(`[Heuristik] Regel "${hit.rule.id}" → ${hit.result.intent}`);
+    return hit.result;
+  }
+
+  // Nichts hat gegriffen. Bleibt `direct` — dieses Verdikt erreicht nie die
+  // Leitung (0,50 liegt weit unter HEURISTIC_CONFIDENCE_THRESHOLD), es speist
+  // nur Tier 3.5 und wird dann von der LLM-Stufe überschrieben. `produktion`
+  // hiesse zu behaupten, der Nutzer habe Substanz mitgeliefert, die wir nie
+  // erkannt haben; `agentic` würde Tier 3.5 blind machen und das ganze unklare
+  // Band zurück an den 27k-Prompt geben. Der Residualwert, den der NUTZER sieht,
+  // wandert eine Ebene höher, in Regel 12 des Prompts.
+  return RESIDUAL_RESULT;
 }

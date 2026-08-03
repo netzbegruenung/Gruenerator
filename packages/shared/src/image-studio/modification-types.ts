@@ -78,9 +78,7 @@ export interface VeranstaltungModificationParams {
 
 /** Union type for all modification parameters */
 export type ModificationParams =
-  | DreizeilenModificationParams
-  | ZitatModificationParams
-  | VeranstaltungModificationParams;
+  DreizeilenModificationParams | ZitatModificationParams | VeranstaltungModificationParams;
 
 // ============================================================================
 // CONTROL CONFIGURATION

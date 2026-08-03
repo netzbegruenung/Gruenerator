@@ -1,15 +1,20 @@
+import {
+  type TranscribeResponse,
+  type TranscribeStreamEvent,
+  type TranscriptionSegment,
+  type VoiceErrorResponse,
+} from '@gruenerator/contracts';
 import { useCallback, useRef, useState } from 'react';
 import * as tus from 'tus-js-client';
 
 import apiClient from '../../../components/utils/apiClient';
+import { getDesktopToken } from '../../../utils/desktopAuth';
+import { isDesktopApp } from '../../../utils/platform';
 import { platformFetch } from '../../../utils/platformFetch';
 
-export interface TranscriptionSegment {
-  start: number;
-  end: number;
-  text: string;
-  speakerId?: string | null;
-}
+// Re-exported so feature code keeps a local import path while the shape stays
+// owned by the contract schema.
+export type { TranscriptionSegment };
 
 export interface TranscriptionState {
   status: 'idle' | 'uploading' | 'extracting' | 'transcribing' | 'done' | 'error';
@@ -26,35 +31,6 @@ export interface TranscriptionOptions {
   timestamps: boolean;
   language: string;
   privacyMode?: boolean;
-}
-
-// === SSE MESSAGE TYPES ===
-type SSEMessage =
-  | { type: 'extraction_start' }
-  | { type: 'extraction_progress'; percent: number; timemark: string }
-  | { type: 'extraction_complete' }
-  | { type: 'transcription_start' }
-  | { type: 'text.delta'; text: string }
-  | {
-      type: 'done';
-      text: string;
-      segments?: TranscriptionSegment[];
-      hasTimestamps?: boolean;
-      speakerMap?: Record<string, string>;
-    }
-  | { type: 'error'; text?: string };
-
-interface TranscriptionApiResponse {
-  success: boolean;
-  error?: string;
-  text?: string;
-  segments?: TranscriptionSegment[];
-  hasTimestamps?: boolean;
-  speakerMap?: Record<string, string>;
-}
-
-interface TranscriptionErrorResponse {
-  error?: string;
 }
 
 const INITIAL_STATE: TranscriptionState = {
@@ -77,16 +53,22 @@ interface SSECallbacks {
   onDelta: (text: string) => void;
   onDone: (data: {
     text: string;
-    segments?: TranscriptionSegment[];
-    hasTimestamps?: boolean;
-    speakerMap?: Record<string, string>;
+    segments?: TranscriptionSegment[] | null;
+    hasTimestamps?: boolean | null;
+    speakerMap?: Record<string, string> | null;
   }) => void;
 }
 
-async function parseSSEStream(response: Response, callbacks: SSECallbacks) {
+/**
+ * Returns whether a `done` event actually arrived. The caller needs to know:
+ * a stream that ends without one (backend crash, proxy timeout, dropped
+ * connection) is a failure, not an empty success.
+ */
+async function parseSSEStream(response: Response, callbacks: SSECallbacks): Promise<boolean> {
   const reader = response.body!.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let sawDone = false;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -101,54 +83,78 @@ async function parseSSEStream(response: Response, callbacks: SSECallbacks) {
       const dataLine = event.split('\n').find((l) => l.startsWith('data: '));
       if (!dataLine) continue;
 
+      // Only the JSON.parse is guarded: one malformed frame should be skipped,
+      // not turned into a total failure of an otherwise healthy stream.
+      let data: TranscribeStreamEvent;
       try {
-        const data = JSON.parse(dataLine.slice(6)) as SSEMessage;
-        switch (data.type) {
-          case 'extraction_start':
-            callbacks.onExtractionStart();
-            break;
-          case 'extraction_progress':
-            callbacks.onExtractionProgress(data.percent ?? 0, data.timemark ?? '');
-            break;
-          case 'extraction_complete':
-            callbacks.onExtractionComplete();
-            break;
-          case 'transcription_start':
-            callbacks.onTranscriptionStart();
-            break;
-          case 'text.delta':
-            callbacks.onDelta(data.text);
-            break;
-          case 'done':
-            callbacks.onDone({
-              text: data.text ?? '',
-              segments: data.segments,
-              hasTimestamps: data.hasTimestamps,
-              speakerMap: data.speakerMap,
-            });
-            break;
-          case 'error':
-            throw new Error(data.text ?? 'Streaming-Fehler');
-        }
-      } catch (err) {
-        if (err instanceof Error && err.message !== 'Streaming-Fehler') throw err;
-        if (err instanceof Error) throw err;
+        data = JSON.parse(dataLine.slice(6)) as TranscribeStreamEvent;
+      } catch {
+        continue;
+      }
+
+      switch (data.type) {
+        case 'extraction_start':
+          callbacks.onExtractionStart();
+          break;
+        case 'extraction_progress':
+          callbacks.onExtractionProgress(data.percent ?? 0, data.timemark ?? '');
+          break;
+        case 'extraction_complete':
+          callbacks.onExtractionComplete();
+          break;
+        case 'transcription_start':
+          callbacks.onTranscriptionStart();
+          break;
+        case 'text.delta':
+          callbacks.onDelta(data.text);
+          break;
+        case 'done':
+          sawDone = true;
+          callbacks.onDone({
+            text: data.text ?? '',
+            segments: data.segments,
+            hasTimestamps: data.hasTimestamps,
+            speakerMap: data.speakerMap,
+          });
+          break;
+        case 'error':
+          throw new Error(data.text ?? 'Streaming-Fehler');
       }
     }
   }
+
+  return sawDone;
 }
 
-function tusUpload(
+/**
+ * `/api/audio/upload` is behind requireAuth, so the TUS request has to carry a
+ * credential like every other API call: the session cookie on web, and the
+ * stored bearer token in the desktop shell, whose `tauri://localhost` origin
+ * has no cookie to send. Mirrors what `platformFetch` does for plain fetches.
+ */
+async function tusUpload(
   file: File,
   onProgress: (percent: number) => void,
   signal: AbortSignal
 ): Promise<string> {
+  const isDesktop = isDesktopApp();
+  const token = isDesktop ? await getDesktopToken() : null;
+
   return new Promise((resolve, reject) => {
     const upload = new tus.Upload(file, {
       endpoint: TUS_UPLOAD_ENDPOINT,
       retryDelays: [0, 3000, 5000, 10000, 20000],
       chunkSize: 5 * 1024 * 1024,
       metadata: { filename: file.name, filetype: file.type },
+      ...(token != null && { headers: { Authorization: `Bearer ${token}` } }),
+      // tus-js-client has no `withCredentials` option; the documented way to
+      // send cookies is to reach the underlying XHR. Bearer auth is
+      // cross-origin on desktop, so there are no cookies to send there.
+      onBeforeRequest: (req) => {
+        if (isDesktop) return;
+        const xhr = req.getUnderlyingObject() as XMLHttpRequest | undefined;
+        if (xhr) xhr.withCredentials = true;
+      },
       onError: (err) => reject(err),
       onProgress: (bytesUploaded, bytesTotal) => {
         onProgress(Math.round((bytesUploaded / bytesTotal) * 100));
@@ -211,13 +217,13 @@ export function useTranscription() {
           });
 
           if (!response.ok) {
-            const err = (await response.json().catch(() => ({}))) as TranscriptionErrorResponse;
+            const err = (await response.json().catch(() => ({}))) as Partial<VoiceErrorResponse>;
             throw new Error(err.error ?? `HTTP ${response.status}`);
           }
 
           let fullText = '';
 
-          await parseSSEStream(response, {
+          const sawDone = await parseSSEStream(response, {
             onExtractionStart: () => {
               setState((s) => ({ ...s, status: 'extracting', progress: 0 }));
             },
@@ -248,10 +254,14 @@ export function useTranscription() {
             },
           });
 
-          setState((s) => (s.status !== 'done' ? { ...s, status: 'done' } : s));
+          // Without this guard a stream that ended early was reported as a
+          // successful, empty transcription: the full result UI over no text.
+          if (!sawDone) {
+            throw new Error('Verbindung abgebrochen — bitte erneut versuchen');
+          }
           return fullText;
         } else {
-          const response = await apiClient.post<TranscriptionApiResponse>(
+          const response = await apiClient.post<TranscribeResponse>(
             '/voice/transcribe-upload',
             {
               uploadId,
@@ -298,5 +308,14 @@ export function useTranscription() {
     setState(INITIAL_STATE);
   }, []);
 
-  return { state, transcribe, reset };
+  /** Put a previously persisted result back on screen without re-transcribing. */
+  const restore = useCallback(
+    (value: Pick<TranscriptionState, 'text' | 'segments' | 'hasTimestamps' | 'speakerMap'>) => {
+      abortRef.current?.abort();
+      setState({ ...INITIAL_STATE, ...value, status: 'done', progress: 100 });
+    },
+    []
+  );
+
+  return { state, transcribe, reset, restore };
 }

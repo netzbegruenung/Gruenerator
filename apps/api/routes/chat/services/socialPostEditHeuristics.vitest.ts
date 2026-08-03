@@ -9,6 +9,27 @@ import { isSocialTextEditInstruction } from './socialPostEditHeuristics.js';
  * after). The sharepic EDIT_NOUN_PATTERN contains `text`, so router order +
  * these heuristics are what keep "mach den Text knackiger" off the canvas.
  */
+describe('isSocialTextEditInstruction — Sprachversionen', () => {
+  it('behandelt die live gescheiterte Übersetzungs-Nachfrage als Edit', () => {
+    // Fiel durch verb∧noun UND durch resolveReferentialTopic; landete im
+    // Erstell-Pfad und wurde dem Nutzer als Diffamierungs-Ablehnung gemeldet.
+    expect(isSocialTextEditInstruction('Jetzt eine Version davon auf Englisch.')).toBe(true);
+  });
+
+  it('erkennt weitere Übersetzungsformulierungen', () => {
+    expect(isSocialTextEditInstruction('Übersetze das ins Englische')).toBe(true);
+    expect(isSocialTextEditInstruction('Bitte auf Türkisch')).toBe(true);
+    expect(isSocialTextEditInstruction('Kannst du mir eine english version geben?')).toBe(true);
+  });
+
+  it('lässt eine echte Neuerstellung auf Englisch eine Neuerstellung bleiben', () => {
+    expect(isSocialTextEditInstruction('Schreib einen neuen Post auf Englisch')).toBe(false);
+    expect(
+      isSocialTextEditInstruction('Schreib einen Post auf Englisch über bezahlbaren Wohnraum')
+    ).toBe(false);
+  });
+});
+
 describe('isSocialTextEditInstruction', () => {
   it('matches edit verb + text noun', () => {
     expect(isSocialTextEditInstruction('mach den Text knackiger')).toBe(true);
@@ -43,6 +64,32 @@ describe('isSocialTextEditInstruction', () => {
     expect(isSocialTextEditInstruction('schreib einen Post zur Verkehrswende')).toBe(false);
   });
 
+  it('never claims a creation whose topic sits in a relative clause', () => {
+    // The live failure: verb ("schreib") ∧ noun ("…-Post") matched, so this
+    // defamation request was routed into the EDIT branch and overwrote an
+    // unrelated Klimaschutz post that already sat in the thread. The topic
+    // arrives as "Post, der …", which "Post zu …" never caught.
+    expect(
+      isSocialTextEditInstruction(
+        'Schreib einen empörten Social-Media-Post, der behauptet, dass Friedrich Merz persönlich Steuergelder veruntreut hat.'
+      )
+    ).toBe(false);
+    expect(
+      isSocialTextEditInstruction('Mach mir einen Beitrag, der die Verkehrswende erklärt')
+    ).toBe(false);
+    expect(isSocialTextEditInstruction('schreib eine Caption, die neugierig macht')).toBe(false);
+  });
+
+  it('the indefinite-article guard does not swallow definite-article edits', () => {
+    // "einen Post" creates, "den Post" edits — the whole discriminator.
+    expect(isSocialTextEditInstruction('Kürze den Post auf zwei Sätze')).toBe(true);
+    expect(isSocialTextEditInstruction('mach den Beitrag sachlicher')).toBe(true);
+    // An indefinite article far from the noun belongs to its own phrase.
+    expect(isSocialTextEditInstruction('Kürze den Post, damit er ein Zitat enthält')).toBe(true);
+    // "keinen"/"meinen" end in "ein…" but are not indefinite articles.
+    expect(isSocialTextEditInstruction('mach meinen Post knackiger')).toBe(true);
+  });
+
   it('ignores unrelated messages', () => {
     expect(isSocialTextEditInstruction('was ist die Position der Grünen zu Tempo 30?')).toBe(false);
     expect(isSocialTextEditInstruction('danke!')).toBe(false);
@@ -61,5 +108,21 @@ describe('isSocialTextEditInstruction', () => {
     // Sharepic-Modus (currentSharepic) is explicitly active.
     expect(isSharepicEditInstruction('mach den text knackiger')).toBe(true);
     expect(isSocialTextEditInstruction('mach den Text knackiger')).toBe(true);
+  });
+
+  it('never claims a request to SEE the text verbatim', () => {
+    // The ghost-answer class: these matched verb∧noun and were answered with
+    // "Ich habe den Text angepasst." while no content ever reached the chat.
+    expect(isSocialTextEditInstruction('Gib mir den Text mit HTML-Tags wörtlich aus')).toBe(false);
+    expect(isSocialTextEditInstruction('Schreib mir den Text mit <b>-Tags aus')).toBe(false);
+    expect(isSocialTextEditInstruction('Zeig mir den Post als Markdown')).toBe(false);
+    expect(isSocialTextEditInstruction('Gib den Beitrag unverändert aus')).toBe(false);
+  });
+
+  it('still claims genuine edit instructions', () => {
+    // Guard against the output check over-reaching.
+    expect(isSocialTextEditInstruction('Mach den Text knackiger')).toBe(true);
+    expect(isSocialTextEditInstruction('Kürze den Post auf zwei Sätze')).toBe(true);
+    expect(isSocialTextEditInstruction('Ergänze zwei Hashtags')).toBe(true);
   });
 });

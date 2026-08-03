@@ -267,6 +267,49 @@ ${PRIMARY_URL}`;
   return { html: baseLayout(content), text };
 }
 
+// ----- Group invite template -----
+
+export interface GroupInviteTemplateParams {
+  /** The group ("Gruppe") the recipient is being invited to. */
+  groupName: string;
+  /** Display name of the person sending the invite. */
+  inviterName: string;
+  /** Absolute join link (/join-group/<token>). */
+  joinUrl: string;
+}
+
+export function renderGroupInviteTemplate(params: GroupInviteTemplateParams): {
+  html: string;
+  text: string;
+} {
+  const { groupName, inviterName, joinUrl } = params;
+
+  const content = `
+    <h1 style="margin:0 0 16px 0;font-size:20px;color:#333333;">Einladung zur Gruppe „${escapeHtml(groupName)}"</h1>
+    <p style="margin:0 0 16px 0;font-size:15px;color:#555555;line-height:1.6;">
+      <strong>${escapeHtml(inviterName)}</strong> hat dich eingeladen, der Gruppe
+      <strong>${escapeHtml(groupName)}</strong> in Grünerator beizutreten.
+    </p>
+    <p style="margin:0 0 24px 0;font-size:15px;color:#555555;line-height:1.6;">
+      In einer Gruppe teilt ihr Chats, Anweisungen und Wissen an einem gemeinsamen Ort —
+      ideal für die Zusammenarbeit im Team.
+    </p>
+    ${renderCtaBlock(joinUrl, 'Gruppe beitreten')}`;
+
+  const text = `Einladung zur Gruppe „${groupName}"
+
+${inviterName} hat dich eingeladen, der Gruppe "${groupName}" in Grünerator beizutreten.
+In einer Gruppe teilt ihr Chats, Anweisungen und Wissen an einem gemeinsamen Ort.
+
+Gruppe beitreten: ${joinUrl}
+
+--
+${BRAND.name} — KI-Werkzeuge für Grüne
+${PRIMARY_URL}`;
+
+  return { html: baseLayout(content), text };
+}
+
 // ----- Rich board notification template -----
 
 export interface BoardNotificationTemplateParams {

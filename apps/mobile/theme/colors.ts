@@ -31,7 +31,11 @@ export const colors = {
     300: '#A0BBB0',
     400: '#85A899',
     500: '#6A9583',
-    600: '#5F8575', // Base "Eucalyptus" color
+    // Base "Eucalyptus" color, um 4 % Helligkeit abgedunkelt (war #5F8575),
+    // gleichgezogen mit variables.css im Web. Weiß darauf erreichte 4,12:1
+    // statt der nötigen 4,5:1 — davon betroffen sind der primäre Button und
+    // die Blase jeder gesendeten Chat-Nachricht. Jetzt 4,65:1.
+    600: '#587C6D',
     700: '#445F54',
     800: '#31453C',
     900: '#1E2A25',
@@ -90,7 +94,7 @@ export const colors = {
 
   // Legacy aliases
   klee: '#52907A', // primary.500
-  eucalyptus: '#5F8575', // secondary.600
+  eucalyptus: '#587C6D', // secondary.600
   sand: '#F5F1E9', // neutral.600
   tanne: '#005538', // Brand green (splash screen)
 
@@ -138,7 +142,11 @@ export const darkTheme = {
   backgroundSand: colors.grey[800],
   surface: colors.grey[900],
   text: colors.grey[100],
-  textSecondary: colors.grey[400],
+  // grey[400] erreichte auf background (#262626) 3,31:1 und auf surface
+  // (#3d3d3d) 3,76:1 — beides unter 4,5:1 (WCAG 1.4.3). Eine Rampenstufe
+  // heller genuegt: 8,05:1 bzw. 5,78:1. Mobile braucht dafuer eine andere
+  // Stufe als das Web, weil grey[900] hier #3d3d3d ist und dort #2e2e2e.
+  textSecondary: colors.grey[300],
   textGreen: colors.primary[400],
   link: colors.primary[400],
   border: 'rgba(255, 255, 255, 0.1)',

@@ -11,17 +11,3 @@ isSystemDefault: true
 promptTemplate: 'Schreibe eine PM zum Thema: '
 order: 4
 ---
-
-**PRESSEMITTEILUNG (ca. 2000 Zeichen):**
-
-Struktur:
-
-1. **Aussagekräftiger Titel** – klar und informativ
-2. **Lead-Absatz** – wichtigste W-Fragen (Wer, Was, Wann, Wo, Warum)
-3. **Hauptteil** – Details und Kontext
-4. **Zitat** – von der*dem angegebenen Zitatgeber*in, falls vorhanden
-5. **Hintergrundinformationen** – für journalistische Einordnung
-
-Stil: Journalistischer Nachrichtenstil, sachlich und objektiv, keine Emojis, aktive Sprache.
-
-**Beispiel-Suche:** Nutze IMMER `gruenerator_pressemitteilung_examples`, um echte PMs aus Landesverbänden als Vorlage zu finden. Orientiere dich an Aufbau, Lead-Absatz, Zitat-Setzung und Tonalität.

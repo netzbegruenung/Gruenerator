@@ -6,19 +6,17 @@
 // runtime lives in GrueneratorChatRuntime.tsx and is loaded lazily.
 
 import { type ThreadMessageLike } from '@assistant-ui/react';
-import {
-  socialPostPayloadSchema,
-  bundestagPayloadSchema,
-  bahnPayloadSchema,
-} from '@gruenerator/contracts';
-import { INTENT_TO_TOOL } from '../lib/toolMappings';
+import { socialPostPayloadSchema, bahnPayloadSchema } from '@gruenerator/contracts';
+
 import {
   coerceSharepicVariants,
   type ComputeData,
   type GeneratedImage,
   type Citation,
+  type SearchImage,
   type SearchResult,
 } from '../hooks/useChatGraphStream';
+import { INTENT_TO_TOOL } from '../lib/toolMappings';
 import { type DocumentCreatedData } from '../types/messageMetadata';
 
 interface PersistedToolCall {
@@ -26,6 +24,15 @@ interface PersistedToolCall {
   toolName: string;
   args: Record<string, unknown>;
   result?: unknown;
+  /** Character index into the final answer text at this tool call's start —
+   *  present only for unified-mode turns. When at least one tool call carries a
+   *  numeric offset, reload interleaves text segments and cards in live order;
+   *  absent (legacy / split turns) keeps the cards-first layout. */
+  textOffset?: number;
+  /** Planner announcement sentence(s) that preceded this tool call (split mode).
+   *  Rendered as muted text above the card on reload — the durable counterpart
+   *  of the live gather_narration status line. Absent on pre-rollout turns. */
+  narration?: string;
 }
 
 export interface LoadedMessage {
@@ -35,8 +42,12 @@ export interface LoadedMessage {
   metadata?: {
     intent?: string;
     searchCount?: number;
+    traceId?: string;
     citations?: Citation[];
     searchResults?: SearchResult[];
+    /** Web-search image hits. The proxy handle on each is minted at LOAD time by
+     *  the backend, not stored — see `messagesController`. */
+    searchImages?: SearchImage[];
     generatedImage?: GeneratedImage;
     createdDocument?: DocumentCreatedData;
     computeData?: ComputeData;
@@ -45,7 +56,25 @@ export interface LoadedMessage {
     senderId?: string;
     senderName?: string | null;
     roleName?: string;
+    /** Stamped by messagesController when the row is still status='streaming'
+     *  after request end — i.e. the turn was interrupted (crash/abort). */
+    interrupted?: boolean;
   };
+}
+
+/**
+ * `[cite:N]` → `[N]`, the reload half of a normalisation both live paths
+ * already perform on arrival (`parseSSEStream.ts`, `NotebookModelAdapter.ts`).
+ *
+ * The notebook flow persists its answer with the `[cite:N]` tokens still in the
+ * text (`notebookStreamController` stores `result.answer` verbatim), so without
+ * this every reloaded notebook thread rendered its markers as literal
+ * `[cite:5]` prose — the badge layer only ever matched `[N]`. Same visible
+ * defect as a stray bracket beside a real badge, just triggered by reloading
+ * instead of by marker syntax.
+ */
+function normalizeCitationMarkers(text: string): string {
+  return text.replace(/\[cite:(\d+)\]/g, '[$1]');
 }
 
 function extractContent(content: unknown): string {
@@ -55,20 +84,26 @@ function extractContent(content: unknown): string {
     try {
       const parts = JSON.parse(content);
       if (Array.isArray(parts)) {
-        return parts
-          .filter(
-            (p: unknown): p is { type: string; text: string } =>
-              p !== null && typeof p === 'object' && 'type' in p && p.type === 'text' && 'text' in p
-          )
-          .map((p) => p.text)
-          .join('');
+        return normalizeCitationMarkers(
+          parts
+            .filter(
+              (p: unknown): p is { type: string; text: string } =>
+                p !== null &&
+                typeof p === 'object' &&
+                'type' in p &&
+                p.type === 'text' &&
+                'text' in p
+            )
+            .map((p) => p.text)
+            .join('')
+        );
       }
     } catch {
       // Not valid JSON, return as-is
     }
   }
 
-  return content;
+  return normalizeCitationMarkers(content);
 }
 
 /**
@@ -89,11 +124,13 @@ function extractContent(content: unknown): string {
  */
 export const PASSTHROUGH_METADATA_FIELDS = [
   'citations',
+  'searchImages',
   'generatedImage',
   'createdDocument',
   'computeData',
   'agentId',
   'roleName',
+  'interrupted',
 ] as const;
 
 /**
@@ -139,14 +176,6 @@ function buildCustomMetadata(metadata: LoadedMessage['metadata']): Record<string
     if (parsedPost.success) custom.socialPostData = parsedPost.data;
   }
 
-  // Tool-derived: Bundestag/DIP card. The persisted `bundestag` tool result is
-  // the same BundestagPayload the live stream sends — validate it identically.
-  const bundestagCall = metadata.toolCalls?.find((tc) => tc.toolName === 'bundestag');
-  if (bundestagCall?.result) {
-    const parsedBt = bundestagPayloadSchema.safeParse(bundestagCall.result);
-    if (parsedBt.success) custom.bundestagData = parsedBt.data;
-  }
-
   // Tool-derived: Deutsche-Bahn departure board. The condensed timetable a
   // `bahn__*` loop step returned as its result IS the BahnPayload the live
   // `bahn` SSE event carried. The LAST step that PARSES wins (freshest board) —
@@ -174,67 +203,137 @@ function buildCustomMetadata(metadata: LoadedMessage['metadata']): Record<string
   if (reelProcessingCall?.result) custom.reelProcessing = reelProcessingCall.result;
   const reelPickerProjects = (
     metadata.toolCalls?.find((tc) => tc.toolName === 'reel_picker')?.result as
-      | { projects?: unknown }
-      | undefined
+      { projects?: unknown } | undefined
   )?.projects;
   if (Array.isArray(reelPickerProjects) && reelPickerProjects.length > 0) {
     custom.reelPicker = { projects: reelPickerProjects };
   }
 
-  // Derived: drives the message-action affordances (copy/regenerate context).
-  if (metadata.intent) {
-    custom.streamMetadata = { intent: metadata.intent, searchCount: metadata.searchCount ?? 0 };
+  // Derived: drives the message-action affordances (copy/regenerate context)
+  // and the thumbs feedback button (traceId), so it must survive reload.
+  if (metadata.intent || metadata.traceId) {
+    custom.streamMetadata = {
+      intent: metadata.intent ?? 'direct',
+      searchCount: metadata.searchCount ?? 0,
+      ...(metadata.traceId && { traceId: metadata.traceId }),
+    };
   }
 
   return custom;
 }
 
 export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMessageLike[] {
-  return messages.map((m) => {
-    const textContent = extractContent(m.content);
+  return messages
+    .filter(
+      // An interrupted turn that never received a delta (crash before first
+      // token) has nothing to show — dropping it beats an empty bubble. Rows
+      // with partial text or tool cards render normally plus the marker.
+      (m) =>
+        !(
+          m.role === 'assistant' &&
+          m.metadata?.interrupted &&
+          !extractContent(m.content) &&
+          !m.metadata?.toolCalls?.length
+        )
+    )
+    .map((m) => {
+      const textContent = extractContent(m.content);
 
-    type ToolCallLike = {
-      readonly type: 'tool-call';
-      readonly toolCallId: string;
-      readonly toolName: string;
-      readonly args: Record<string, string>;
-      readonly result?: unknown;
-    };
+      type ToolCallLike = {
+        readonly type: 'tool-call';
+        readonly toolCallId: string;
+        readonly toolName: string;
+        readonly args: Record<string, string>;
+        readonly result?: unknown;
+        readonly parentId?: string;
+        readonly narration?: string;
+      };
 
-    const contentParts: Array<{ type: 'text'; text: string } | ToolCallLike> = [];
+      const contentParts: Array<{ type: 'text'; text: string } | ToolCallLike> = [];
 
-    if (m.metadata?.toolCalls) {
-      for (const tc of m.metadata.toolCalls) {
-        contentParts.push({
-          type: 'tool-call' as const,
-          toolCallId: tc.toolCallId || `tc_${m.id}`,
-          toolName: tc.toolName,
-          args: { query: String((tc.args as Record<string, unknown>)?.query ?? '') },
-          result: tc.result,
-        });
+      const cardFor = (tc: PersistedToolCall, parentId: string): ToolCallLike => ({
+        type: 'tool-call' as const,
+        toolCallId: tc.toolCallId || `tc_${m.id}`,
+        toolName: tc.toolName,
+        args: { query: String((tc.args as Record<string, unknown>)?.query ?? '') },
+        result: tc.result,
+        parentId,
+        ...(tc.narration ? { narration: tc.narration } : {}),
+      });
+
+      const toolCalls = m.metadata?.toolCalls;
+      const hasOffsets = toolCalls?.some((tc) => typeof tc.textOffset === 'number') ?? false;
+
+      if (toolCalls && hasOffsets) {
+        // Interleaved reload (Stufe 2): mirror the live buildResult layout by
+        // slicing the answer text at each tool call's recorded offset. Sort by
+        // offset (stable on ties via original index) and stamp parentId run-groups
+        // — two cards belong to the same run when no non-empty text lies between
+        // their offsets. A trailing text part is always appended (even empty), to
+        // match the live tail behaviour.
+        const sorted = toolCalls
+          .map((tc, i) => ({ tc, i }))
+          .sort((a, b) => (a.tc.textOffset ?? 0) - (b.tc.textOffset ?? 0) || a.i - b.i)
+          .map((x) => x.tc);
+
+        let cursor = 0;
+        let runParentId: string | null = null;
+        let prevWasCard = false;
+        for (const tc of sorted) {
+          const offset = Math.max(cursor, Math.min(tc.textOffset ?? cursor, textContent.length));
+          const slice = textContent.slice(cursor, offset);
+          if (slice.length > 0) {
+            contentParts.push({ type: 'text' as const, text: slice });
+            prevWasCard = false;
+          }
+          const toolCallId = tc.toolCallId || `tc_${m.id}`;
+          const parentId: string = prevWasCard && runParentId ? runParentId : toolCallId;
+          runParentId = parentId;
+          contentParts.push(cardFor(tc, parentId));
+          prevWasCard = true;
+          cursor = offset;
+        }
+        contentParts.push({ type: 'text' as const, text: textContent.slice(cursor) });
+      } else {
+        // Legacy / split turns: cards first, then the full text — unchanged.
+        if (toolCalls) {
+          for (const tc of toolCalls) {
+            contentParts.push({
+              type: 'tool-call' as const,
+              toolCallId: tc.toolCallId || `tc_${m.id}`,
+              toolName: tc.toolName,
+              args: { query: String((tc.args as Record<string, unknown>)?.query ?? '') },
+              result: tc.result,
+              ...(tc.narration ? { narration: tc.narration } : {}),
+            });
+          }
+        } else if (
+          m.role === 'assistant' &&
+          m.metadata?.intent &&
+          m.metadata.searchResults?.length
+        ) {
+          const toolName = INTENT_TO_TOOL[m.metadata.intent];
+          if (toolName) {
+            contentParts.push({
+              type: 'tool-call' as const,
+              toolCallId: `tc_legacy_${m.id}`,
+              toolName,
+              args: { query: '' },
+              result: { results: m.metadata.searchResults },
+            });
+          }
+        }
+
+        contentParts.push({ type: 'text' as const, text: textContent });
       }
-    } else if (m.role === 'assistant' && m.metadata?.intent && m.metadata.searchResults?.length) {
-      const toolName = INTENT_TO_TOOL[m.metadata.intent];
-      if (toolName) {
-        contentParts.push({
-          type: 'tool-call' as const,
-          toolCallId: `tc_legacy_${m.id}`,
-          toolName,
-          args: { query: '' },
-          result: { results: m.metadata.searchResults },
-        });
-      }
-    }
 
-    contentParts.push({ type: 'text' as const, text: textContent });
+      const custom = buildCustomMetadata(m.metadata);
 
-    const custom = buildCustomMetadata(m.metadata);
-
-    return {
-      role: m.role as 'user' | 'assistant',
-      content: contentParts,
-      id: m.id,
-      metadata: Object.keys(custom).length > 0 ? { custom } : undefined,
-    };
-  });
+      return {
+        role: m.role as 'user' | 'assistant',
+        content: contentParts,
+        id: m.id,
+        metadata: Object.keys(custom).length > 0 ? { custom } : undefined,
+      };
+    });
 }

@@ -5,7 +5,7 @@ import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
 
 import { initializeApiClient } from '../../services/api';
 import { configureAuthStore, handleAuthCallback } from '../../services/auth';
-import { colors } from '../../theme';
+import { colors, BODY_FONT } from '../../theme';
 
 export default function AuthCallback() {
   const { code } = useLocalSearchParams<{ code: string }>();
@@ -49,6 +49,7 @@ const styles = StyleSheet.create({
   text: {
     color: colors.white,
     marginTop: 16,
+    fontFamily: BODY_FONT,
     fontSize: 16,
   },
 });

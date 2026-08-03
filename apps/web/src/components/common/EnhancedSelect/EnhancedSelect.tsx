@@ -203,7 +203,7 @@ const EnhancedSelect = forwardRef<EnhancedSelectRef, EnhancedSelectProps>(
           <span className="enhanced-selected-option">{option.selectedLabel || option.label}</span>
         );
       },
-      [customFormatOptionLabel, enableTags, enableIcons, enableSubtitles, tagVariants, iconConfig]
+      [customFormatOptionLabel, enableIcons, iconConfig]
     );
 
     // Custom Placeholder to show icon if provided

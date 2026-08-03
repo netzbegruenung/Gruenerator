@@ -1,10 +1,10 @@
-import { useCallback, useRef, useState } from 'react';
 import {
   useTTSStream,
   useAudioPlayback,
   splitSentences,
   type VoiceAgentConfig,
 } from '@gruenerator/voice';
+import { useCallback, useRef, useState } from 'react';
 
 export type TTSState = 'idle' | 'loading' | 'playing';
 

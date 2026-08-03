@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { ISO_DATE_RE, isoToExcelSerial } from './applySheetOperations.js';
+import { ISO_DATE_RE, isoToExcelSerial } from './dateSerial.js';
 
 describe('isoToExcelSerial', () => {
   it('converts ISO dates to the correct Excel serial (the model must not guess these)', () => {

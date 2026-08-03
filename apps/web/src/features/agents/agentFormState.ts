@@ -8,10 +8,10 @@ import { TEXT_MODEL_BY_ID } from '@gruenerator/shared/models';
 export type Locale = 'de-DE' | 'de-AT';
 
 /** Agent avatars are always the brand "Eucalyptus" green (secondary-600). */
-export const AGENT_BACKGROUND_COLOR = '#5F8575';
+export const AGENT_BACKGROUND_COLOR = '#587C6D';
 
 /** Default model for new agents — the chat composer's allrounder pick. */
-const DEFAULT_AGENT_MODEL = TEXT_MODEL_BY_ID['mistral-medium-3.5'];
+const DEFAULT_AGENT_MODEL = TEXT_MODEL_BY_ID['gruenerator-ultra'];
 
 export interface FormState {
   identifier: string;
@@ -33,7 +33,7 @@ export interface FormState {
   defaultNotebookIds: string[];
   tags: string;
   model: string;
-  provider: 'mistral' | 'anthropic' | 'litellm' | 'regolo';
+  provider: 'mistral' | 'anthropic' | 'litellm' | 'regolo' | 'greenpt';
   maxTokens: number;
   temperature: number;
 }

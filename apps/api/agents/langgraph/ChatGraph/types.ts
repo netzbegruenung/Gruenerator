@@ -12,8 +12,9 @@
 
 import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
-import type { BtEnrichedResult } from '../../../services/bundestag/types.js';
+import type { SystemMcpKey } from '../../../services/mcp/systemMcpServers.js';
 import type { AIWorkerPool } from '../../../workers/types.js';
+import type { ForbiddableArtifact } from './nodes/fastPathGuards.js';
 import type {
   WolkeFileRef,
   ConnectFileRef,
@@ -30,14 +31,21 @@ import type {
 import type { ModelMessage } from 'ai';
 
 export type { WolkeFileRef, ConnectFileRef, CurrentBoard, SocialPostPayload };
-export type { BtEnrichedResult };
 
 /**
- * Search source backends that can be queried in parallel.
- * When multiple sources are specified, the search node runs them concurrently
- * and merges/deduplicates the results before reranking.
+ * Retrieval backends the classifier can request for one turn. When several are
+ * named, the search node runs them concurrently, caps each source's share of
+ * the merge window, and merges/deduplicates before reranking.
+ *
+ * `bundestag` is also a `SearchIntent`; the two are not redundant. The intent is
+ * the exclusive "this turn is DIP research" route, this is the "DIP alongside
+ * the party collections" route — the pairing a question like "was sagen wir zur
+ * Wärmewende und was lief dazu im Bundestag" needs, which no single intent could
+ * serve. Not a wire enum (`chatStreamEvents` types it `z.array(z.string())`), so
+ * adding a member is additive.
  */
-export type SearchSource = 'documents' | 'web' | 'examples' | 'chat_history' | 'wolke' | 'connect';
+export type SearchSource =
+  'documents' | 'web' | 'examples' | 'chat_history' | 'wolke' | 'connect' | 'bundestag';
 
 /**
  * Supported user locales for locale-aware collection routing.
@@ -138,8 +146,11 @@ export interface ThreadToolContext {
     | 'presentation'
     | 'sheet'
     | 'document'
+    | 'pdf'
     | 'board';
-  /** Kind-specific reference (mcp: serverId, created docs: documentId). */
+  /** Kind-specific reference (mcp: serverId, created docs: documentId, pdf: the
+   *  stored `<uuid>.pdf` asset FILE NAME — deliberately not a collaborative-
+   *  document UUID, which is why 'pdf' must never reach a doc-edit gate). */
   ref?: string | null;
   /** Human-readable label for prompt injection (e.g. the MCP server name). */
   label?: string | null;
@@ -151,6 +162,7 @@ export interface ThreadToolContext {
  */
 export const SOURCE_PREFIX = {
   GRUENERATOR: 'gruenerator:',
+  BUNDESTAG: 'bundestag',
   WEB: 'web',
   EXAMPLES: 'examples',
   RESEARCH: 'research',
@@ -162,6 +174,18 @@ export const SOURCE_PREFIX = {
 } as const;
 
 /**
+ * One retrieval failure. `reauth` marks the subset the user can actually fix
+ * (an expired OAuth connection) — that needs a different message than "try
+ * again later", so it must survive the trip to the emitter rather than being
+ * folded into the message text.
+ */
+export interface SearchErrorEntry {
+  source: string;
+  message: string;
+  reauth?: boolean;
+}
+
+/**
  * True when a searchErrors entry means a search backend was unreachable
  * (Qdrant collection, web search, whole-search catch) — as opposed to soft
  * LLM-stage failures (briefGenerator/qualityGate/rerank) that also append to
@@ -170,6 +194,71 @@ export const SOURCE_PREFIX = {
 export function isSourceAvailabilityError(entry: { source: string }): boolean {
   return (
     entry.source === 'web' || entry.source === 'search' || entry.source.startsWith('documents:')
+  );
+}
+
+/**
+ * Prefixes used for per-source failures in the multi-doc fan-out — a file the
+ * user explicitly attached or @-mentioned that could not be read.
+ *
+ * Deliberately NOT folded into isSourceAvailabilityError: that one drives the
+ * generic "die Quellensuche ist gestört" copy, while these name a specific
+ * source and belong in a message that says WHICH one was missing. They were
+ * collected all along and then filtered out by that predicate, so nobody ever
+ * heard about them.
+ */
+const UNAVAILABLE_SOURCE_PREFIXES = ['wolke:', 'connect:', 'doc_mention:', 'notebook:'] as const;
+
+export function isNamedSourceUnavailable(entry: { source: string }): boolean {
+  return UNAVAILABLE_SOURCE_PREFIXES.some((p) => entry.source.startsWith(p));
+}
+
+/**
+ * Split search failures into the kinds that need different wording:
+ * `coreDegraded` — the search backends themselves were unreachable;
+ * `unavailableSources` — specific attached/mentioned files could not be read;
+ * `needsReauth` — of those, the ones the user can fix by reconnecting.
+ */
+export function partitionSearchErrors(errors: SearchErrorEntry[] | undefined): {
+  coreDegraded: boolean;
+  unavailableSources: string[];
+  needsReauth: boolean;
+} {
+  if (!errors || errors.length === 0) {
+    return { coreDegraded: false, unavailableSources: [], needsReauth: false };
+  }
+  const named = errors.filter(isNamedSourceUnavailable);
+  return {
+    coreDegraded: errors.some(isSourceAvailabilityError),
+    unavailableSources: [...new Set(named.map((e) => e.source))],
+    needsReauth: named.some((e) => e.reauth === true),
+  };
+}
+
+/**
+ * One degradation the answer must disclose.
+ *
+ * `code` doubles as the SSE warning code (telemetry); `modelHint` is the
+ * sentence handed to the model. Keeping both on one object is what stops the
+ * two channels from drifting — the user hears about exactly what was logged.
+ */
+export interface DegradationNote {
+  code: string;
+  modelHint: string;
+}
+
+/**
+ * Render the notes as a system-prompt block. Returns '' when nothing degraded,
+ * so callers can append unconditionally.
+ */
+export function renderDegradationNotes(notes: DegradationNote[] | undefined): string {
+  if (!notes || notes.length === 0) return '';
+  const lines = notes.map((n) => `- ${n.modelHint}`).join('\n');
+  return (
+    `\n\n## HINWEIS: EINGESCHRÄNKTER TURN\n\n` +
+    `Folgendes hat in diesem Durchgang NICHT funktioniert:\n${lines}\n\n` +
+    `Sag der*dem Nutzer*in in deiner Antwort transparent, was nicht geklappt hat. ` +
+    `Behaupte NICHT, etwas sei erledigt, das fehlgeschlagen ist, und erfinde keine Ergebnisse.`
   );
 }
 
@@ -188,6 +277,26 @@ export interface SearchResult {
   similarityScore?: number | undefined;
   collectionId?: string | undefined;
   [key: string]: unknown;
+}
+
+/**
+ * An image hit from the web search: a NAMED LINK, deliberately not a picture.
+ *
+ * There is no `snippet`/`content` because the engine gives none, and no thumbnail
+ * because rendering one would make the user's browser request a file from an
+ * arbitrary third-party host — exactly the pattern removed from the citation
+ * glyphs, where a favicon fetch reported the user's IP and the source they were
+ * about to read to Google. A backend proxy would change that calculus; until one
+ * exists, these stay links.
+ *
+ * Kept out of `SearchResult` on purpose: no text means no citation, and a
+ * separate type is what keeps a web image from being mistaken for usable image
+ * material in the sharepic/social path.
+ */
+export interface WebImageResult {
+  title: string;
+  url: string;
+  domain: string;
 }
 
 /**
@@ -369,6 +478,11 @@ export interface ChatGraphInput {
    * pandas interpreter (`df`) instead of doing arithmetic in its head.
    */
   hasTabularAttachment?: boolean | undefined;
+  /** THIS turn's fillable-PDF attachments (name + base64), for the PDF form
+   *  tools. Needed separately from `threadAttachments`, which carries no bytes
+   *  and is only written after the turn completes — on the very first turn
+   *  ("here is my form, fill it in") the DB has nothing yet. */
+  pdfFormAttachments?: Array<{ name: string; data: string }> | undefined;
   /**
    * True when the requesting client declared the run_python client tool
    * (clientTools includes 'run_python') — i.e. it can execute the pandas code
@@ -433,6 +547,46 @@ export interface ChatGraphInput {
  * Streaming is handled by the controller via @ai-sdk/langchain adapter.
  */
 export interface ChatGraphState {
+  /**
+   * The search query was inherited from a prior turn because this turn's ask was
+   * referential ("recherchiere das jetzt im Web"). Caps the research confidence:
+   * an inherited subject is an inference, not the user's literal question.
+   */
+  searchQueryInherited?: boolean | undefined;
+
+  /**
+   * The material of this turn (pasted text, attachment, open document) contains
+   * instruction-shaped markers. Set by the classifier, consumed by the answer
+   * prompts to warn the model BEFORE it acts — the classifier already noticed
+   * such payloads and simply passed them on.
+   */
+  injectionSuspected?: boolean | undefined;
+
+  /**
+   * This `agentic` turn reached the loop via Tier-3.5 demotion of a RETRIEVAL
+   * heuristic (web/search/examples/bundestag/…), not because the user asked
+   * for open-ended work. The loop requires a first tool call on such turns —
+   * without it the planner answered "Da ich in diesem Turn keine aktuellen
+   * Recherche-Ergebnisse habe …" to a plain factual question it was supposed
+   * to look up.
+   */
+  loopDemotedFromRetrieval?: boolean | undefined;
+
+  /**
+   * The LLM classifier itself said this turn needs research (`needsResearch:
+   * true`) and then picked `direct` anyway. Its own reasoning gave the game
+   * away live: „ist eine Web-Recherche (web) notwendig, um die aktuellen
+   * Vorwürfe zu identifizieren" — followed by `intent: direct`, zero searches,
+   * and an answer that invented the facts.
+   *
+   * Same consequence as {@link loopDemotedFromRetrieval} (a recognised
+   * retrieval need that produces no tool call), different source: that one
+   * comes from the Tier-3.5 heuristic demotion, this one from the model
+   * contradicting itself. Kept as a separate field so the log tells you WHICH
+   * of the two happened.
+   */
+  classifierContradictedResearch?: boolean | undefined;
+
   // Input (immutable after initialization)
   messages: ModelMessage[];
   threadId: string | null;
@@ -444,10 +598,32 @@ export interface ChatGraphState {
   clientPlatform: ClientPlatform;
   /** Tool family the thread's last substantive turn used (see ThreadToolContext). */
   lastToolContext?: ThreadToolContext | null;
+  /**
+   * The thread's recent artifacts, newest first — what {@link lastToolContext}
+   * would be if it were a list instead of a single slot. `last_tool_context` is
+   * OVERWRITTEN by every substantive turn, so a thread that produced a document
+   * and then a sharepic has forgotten the document, and "kürze die Begründung"
+   * has no deterministic door back to it. Built from message metadata by
+   * `listThreadArtifacts`; empty when the thread produced none.
+   */
+  threadArtifacts?: ThreadToolContext[];
   /** Last user text with mention tokens fully REMOVED — for regex heuristics
    *  that would false-positive on labels ("Bild generieren"). The messages on
    *  state carry the label form ("@Label") instead. */
   lastUserTextNoMentions?: string;
+  /**
+   * The artefact family this turn asked for AND forbade in the same breath —
+   * set by the router's persistent-action gate when it demotes the intent.
+   *
+   * The demotion itself was silent in both directions, and that is what made it
+   * dangerous. The model kept the ASK ("mach eine Präsentation") and lost the
+   * TOOL, with nothing in the prompt saying why, so it helped the only way left
+   * to it: on 02.08.2026 it wrote a base64 `data:`-block into the chat and told
+   * the user to save it as `.pptx` (252 bytes, no ZIP central directory), then
+   * — asked to fix that — invented `/office/7f9a3c2b-…`, which 404'd. The user
+   * meanwhile saw a broken feature rather than an honoured instruction.
+   */
+  forbiddenArtifactAction?: ForbiddableArtifact | null;
 
   // Optional progress sink. Set by the controller for tools that produce
   // multi-phase progress (deep research). Pure callback — graph stays
@@ -459,6 +635,8 @@ export interface ChatGraphState {
   imageAttachments: ImageAttachment[];
   threadAttachments: ThreadAttachment[];
   hasTabularAttachment: boolean;
+  /** See the input-side field: this turn's fillable PDFs, name + base64. */
+  pdfFormAttachments: Array<{ name: string; data: string }>;
   clientCanRunPython: boolean;
 
   // Notebook scoping (from @notebook mentions)
@@ -563,8 +741,98 @@ export interface ChatGraphState {
   contentType: string | null;
   documentSubtype: string | null;
   targetGroupName: string | null;
+  /**
+   * What a create_* turn should be ABOUT, resolved by the classifier against the
+   * conversation history.
+   *
+   * Single-pass generators (sharepic, image, pdf, sheet, presentation) read only
+   * the last user message, so "jetzt noch ein normales sharepic" produced an
+   * artifact about the instruction. The classifier already runs on exactly these
+   * vague follow-ups with the history in context (`isVagueFollowup` in
+   * classifierNode) — this is that call answering the question instead of the
+   * subtractive word-list heuristic in referentialTopic.ts, which stays as the
+   * fallback for when no LLM classification happened.
+   */
+  creationTopic: string | null;
   hasTemporal: boolean;
   complexity: 'simple' | 'moderate' | 'complex';
+
+  /**
+   * The user asked for a thorough/deep research in so many words — the ONLY route
+   * to Linkup's expensive `deep` engine depth (`tiefenrecherche`).
+   *
+   * Set deterministically in the classifier's post-pass (`isExplicitDeepRequest`),
+   * not by the LLM: it gates a paid setting, so it has to be inspectable and
+   * testable without a model in the loop. Deliberately NOT derived from
+   * `complexity` — that used to buy the deep tier, and since `detectComplexity`
+   * returns `complex` for any "vergleich"/"ausführlich" in the text, the most
+   * expensive engine setting had become the default for ordinary questions.
+   */
+  explicitDeepRequest: boolean;
+
+  /**
+   * The user typed `@deepresearch`. The ONLY route from the chat to Linkup's
+   * `sourcedAnswer` endpoint, where LINKUP writes the dossier — a synthesis
+   * surcharge on top of the already-expensive deep engine, hence one per day.
+   *
+   * Not a classifier output and not derivable from the wording: an intent a model
+   * inferred cannot be a spending authorisation. Set in the router from the
+   * mention token, checked against the quota in `intentExecutionService`.
+   * Optional so existing state initialisations stay valid — absent means "not
+   * requested", which is the safe reading.
+   */
+  deepResearchRequested?: boolean;
+
+  /**
+   * Linkup's finished dossier, set only when the gated `@deepresearch` path ran.
+   *
+   * Present means the answer is ALREADY WRITTEN and must be served verbatim: the
+   * router streams it as the assistant message and skips synthesis entirely.
+   * Running a model over it would paraphrase a text we already paid for, cost a
+   * second LLM pass, and break the [N]↔source-order coupling this path relies on.
+   */
+  deepResearchAnswer?: string | null;
+
+  /**
+   * Domains the user named for THIS turn ("such auf zeit.de und orf.at"), from the
+   * deterministic `extractDomainScope` heuristic — no classifier field, no prompt
+   * budget.
+   *
+   * Deliberately not sticky. A scope that quietly keeps applying to later questions
+   * is worse than none: the user sees results going missing with no way to tell
+   * why. It is also visible in the tool card, so a wrong extraction is correctable
+   * rather than mysterious.
+   *
+   * Collides with `detectedUrls` by design and loses to it: a bare domain is a
+   * search restriction, a full URL with a path is a read instruction (`scrape_url`).
+   */
+  webSiteScope?: { include: string[]; exclude: string[] } | null;
+
+  /**
+   * The user asked to SEE images from the web this turn ("zeig mir Bilder von der
+   * Demo"), from the deterministic `wantsImageResults` heuristic.
+   *
+   * Never a default. Image hits cost the same call but are useful on a vanishing
+   * minority of turns, so a factual question must not quietly pay for pictures
+   * nobody looks at. The flag has to be EARNED by an explicit ask — either this
+   * heuristic or the loop's `bilder: true` argument.
+   *
+   * Distinct from the `image` intent, which GENERATES a picture. Same nouns,
+   * different verb, different subsystem.
+   */
+  webWantsImages?: boolean;
+
+  /**
+   * Image hits from this turn's web search — named links, never rendered as
+   * `<img>` (see `WebImageResult`).
+   *
+   * Deliberately its own field rather than entries in `searchResults`: an image
+   * carries no text, so a source registry entry for it would be a numbered
+   * citation with an empty snippet. Keeping the lists apart is also what stops
+   * these from reaching the sharepic/social path, where a web image would be
+   * treated as usable material rather than as research context.
+   */
+  webImageResults?: WebImageResult[];
 
   // Platform hint for the `examples` / `social_post` intents. Set by the
   // classifier when the user prompt names a platform; null otherwise. Consumed
@@ -577,6 +845,14 @@ export interface ChatGraphState {
   needsClarification: boolean;
   clarificationQuestion: string | null;
   clarificationOptions: string[] | null;
+  /**
+   * Which question was asked, when the ANSWER has to be routed rather than
+   * merely used as a search topic. `graphic_kind` means "Sharepic, KI-Bild or
+   * Diagramm?" — the answer names an artifact, so the resume must re-classify
+   * the combined text instead of taking the generic ask_human path (which
+   * rewrites `direct`/`image` to `search`).
+   */
+  clarificationKind?: 'graphic_kind' | undefined;
 
   // Metadata filters extracted by classifier (for Qdrant filtering)
   detectedFilters: SubcategoryFilters | null;
@@ -587,25 +863,24 @@ export interface ChatGraphState {
   searchCount: number;
   maxSearches: number;
 
+  /**
+   * The sources on this turn were REHYDRATED from earlier turns of this thread
+   * (getRecentThreadSources) — nothing was searched now. Discriminates the one
+   * case where a `direct` turn may cite [N] at all, and swaps the "claim no
+   * research" honesty note for the carried-source variant. Without it the
+   * prompt would hand the model a source block and a citation instruction next
+   * to an order not to mention any sources.
+   */
+  sourcesCarriedFromThread?: boolean;
+
   // Research brief (compressed research intent for complex queries)
   researchBrief: string | null;
-
-  // Full research metadata (set by search node when intent === 'research').
-  // Persisted into the `research` tool-call result so the UI can render
-  // confidence, search steps, and follow-up questions.
-  researchMeta: ResearchToolResult | null;
 
   // Rich examples result, kind-segmented (set by search node for examples /
   // pressemitteilung_examples intents). Persisted into the matching tool-call
   // `result.examples` so PressemitteilungExamplesCard can render title/body/lv
   // /url; the generic ToolCallUI also reads `examples`.
   examplesResult: ExamplesToolResult | null;
-
-  // Structured Bundestag/DIP result (set by search node for the `bundestag`
-  // intent). Emitted as its own `bundestag` SSE event and persisted into the
-  // `bundestag` tool-call result so BundestagCard can render Drucksachen,
-  // Verfahrensstand, Reden and PDF links on stream + reload.
-  bundestagResult: BtEnrichedResult | null;
 
   // Quality gate (iterative search)
   qualityScore: number;
@@ -617,9 +892,22 @@ export interface ChatGraphState {
   // failures (briefGenerator, qualityGate, rerank) also append here but say
   // nothing about source availability — filter with isSourceAvailabilityError
   // before telling anyone the sources were down.
-  searchErrors: { source: string; message: string }[];
+  searchErrors: SearchErrorEntry[];
   briefGenerationFailed: boolean;
   rerankFailed: boolean;
+  /** LLM classification failed and the heuristic took over — same turn, worse
+   *  routing (no multi-source search, no metadata filters). */
+  classifierDegraded?: boolean;
+
+  /**
+   * Degradations the ANSWER must own up to.
+   *
+   * A warning event is telemetry; it does not stop the model from confidently
+   * presenting a degraded turn as a complete one. These notes are rendered into
+   * the system prompt so the reply itself says what was missing — the same
+   * mechanism the unreachable-sources block uses, generalised.
+   */
+  degradationNotes: DegradationNote[];
 
   // Image generation
   imagePrompt: string | null;
@@ -635,7 +923,8 @@ export interface ChatGraphState {
   // Which generation fat tool to mount — derived from intent OR (for a demoted
   // `agentic` turn) the text noun, so "mach mir eine Tabelle draus" still mounts
   // create_sheet even though the intent is `agentic`, not `create_sheet`.
-  compoundGenerationKind?: 'sharepic' | 'presentation' | 'sheet' | 'document' | 'board' | null;
+  compoundGenerationKind?:
+    'sharepic' | 'presentation' | 'sheet' | 'document' | 'board' | 'pdf' | null;
   // Compound "research + edit the OPEN doc/board" (editor sidebars): runs the
   // research loop, then emits trigger_doc_edit/trigger_board_action with the
   // gathered sources as reference material. Synth writes only a short confirm.
@@ -667,6 +956,17 @@ export interface ChatGraphState {
   // hint. Null = run over all enabled servers.
   mcpServerScope?: string | null | undefined;
 
+  // The first-party MANAGED connectors this turn mounts (`bahn`, `wetter`,
+  // `gesetze`, …). Set by the vocabulary trigger in the router, or by an
+  // explicit `@gesetze`-style mention. Empty/absent = mount none.
+  //
+  // A LIST, not one value, which is the whole reason these stopped being
+  // intents: "Zug nach Hamburg und ein Hotel" needs two, and an intent can only
+  // ever be one — the `reise` umbrella existed to work around exactly that.
+  // Non-empty also OPENS the loop (see decideRunAgentic); the intent used to
+  // guarantee that, and without it a telegram-style ask stays single-pass.
+  managedSourceKeys?: SystemMcpKey[] | undefined;
+
   // Deterministic computation (set by computeNode; null when nothing computable)
   computedResult: ComputeData | null;
   computedResultTimeMs: number;
@@ -681,6 +981,10 @@ export interface ChatGraphState {
    *  handler can regenerate with the failure in context. */
   pandasComputeRetries?: number | undefined;
   pandasLastCode?: string | undefined;
+  /** Which codegen prompt produced `pandasLastCode` — survives the Redis
+   *  round-trip so a correction round regenerates openpyxl fill code for a fill
+   *  request instead of silently falling back to pandas analysis code. */
+  pandasComputeMode?: 'analyze' | 'fill' | undefined;
   /** Successful result stashed before a verifier-triggered correction round —
    *  if the "corrected" code then fails, the turn falls back to this instead
    *  of ending with no computation at all. */
@@ -757,12 +1061,33 @@ export interface ClassificationResult {
   filters?: SubcategoryFilters | null | undefined;
   reasoning: string;
   contentType?: string | null | undefined;
+  /**
+   * The classifier's own verdict on whether facts have to be looked up. Was
+   * requested from the model, logged once and then dropped on the floor for the
+   * field's entire lifetime — see `classifierContradictedResearch` in
+   * ChatGraphState for what that cost.
+   */
+  needsResearch?: boolean | undefined;
+  /**
+   * Would pictures belong beside this answer? The classifier's judgement — it is
+   * the node that already reads what the turn is about, and a regex cannot tell
+   * "wer war Marilyn Monroe" (a person: yes) from "wie berechne ich die
+   * Grunderwerbsteuer" (a procedure: no).
+   *
+   * Absent whenever no LLM classification ran, which is every tier that
+   * short-circuits earlier. That is why the deterministic "the user asked for
+   * photos" check stays beside it instead of being replaced by it.
+   */
+  wantsImages?: boolean | undefined;
   needsClarification?: boolean | undefined;
   clarificationQuestion?: string | undefined;
   clarificationOptions?: string[] | undefined;
+  clarificationKind?: 'graphic_kind' | undefined;
   gatherSources?: GatherSource[] | undefined;
   documentSubtype?: string | null | undefined;
   targetGroupName?: string | null | undefined;
+  /** See ChatGraphState.creationTopic. Null whenever no LLM classification ran. */
+  creationTopic?: string | null | undefined;
 }
 
 /**

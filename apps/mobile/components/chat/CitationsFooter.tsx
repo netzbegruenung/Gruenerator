@@ -2,7 +2,7 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useState, useCallback } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 
-import { spacing, borderRadius } from '../../theme';
+import { spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
 
 import { CitationDetailSheet } from './CitationDetailSheet';
 
@@ -33,7 +33,13 @@ export function CitationsFooter({ citations, theme, fetchFullText, onSelect }: P
   return (
     <View style={[styles.container, { borderTopColor: theme.border }]}>
       {/* Collapsed trigger */}
-      <Pressable style={styles.trigger} onPress={() => setIsOpen(!isOpen)} hitSlop={8}>
+      <Pressable
+        style={styles.trigger}
+        onPress={() => setIsOpen(!isOpen)}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: isOpen }}
+      >
         <Ionicons name="attach-outline" size={14} color={theme.textSecondary} />
         <Text style={[styles.triggerText, { color: theme.textSecondary }]}>
           {citations.length} Quellen
@@ -54,6 +60,7 @@ export function CitationsFooter({ citations, theme, fetchFullText, onSelect }: P
               { backgroundColor: theme.background, opacity: pressed ? 0.7 : 1 },
             ]}
             onPress={() => handlePress(citation)}
+            accessibilityRole="button"
           >
             <View style={styles.itemContent}>
               <Text style={[styles.number, { color: theme.textSecondary }]}>
@@ -90,7 +97,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xxsmall,
   },
   triggerText: {
-    fontSize: 12,
+    ...chatType.chatLabel,
     fontWeight: '600',
   },
   item: {
@@ -105,12 +112,13 @@ const styles = StyleSheet.create({
     gap: spacing.xxsmall,
   },
   number: {
-    fontSize: 11,
+    ...chatType.chatMeta,
     fontWeight: '600',
   },
   title: {
+    ...chatType.chatLabel,
     flex: 1,
-    fontSize: 12,
+    fontFamily: BODY_FONT,
     fontWeight: '500',
   },
 });

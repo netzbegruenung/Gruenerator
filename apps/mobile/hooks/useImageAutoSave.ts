@@ -3,6 +3,7 @@
  * Auto-saves generated images to the gallery with metadata for later editing
  */
 
+import { type DeclarableContentOrigin } from '@gruenerator/shared/media-library/contentOrigin';
 import { useShareStore } from '@gruenerator/shared/share';
 import { useEffect, useCallback } from 'react';
 
@@ -13,6 +14,14 @@ interface AutoSaveResult {
   status: 'idle' | 'saving' | 'saved' | 'error';
   shareToken: string | null;
   retry: () => void;
+  /**
+   * Which flow produced the image currently in the store. Exposed so the share
+   * modal can label the row it creates the same way this hook labels its own —
+   * both write a `shared_media` row for the same picture.
+   */
+  contentOrigin: DeclarableContentOrigin;
+  /** The `image_type` this hook wrote, so a second row agrees on the editor. */
+  imageType: string;
 }
 
 /**
@@ -77,6 +86,9 @@ export function useImageAutoSave(): AutoSaveResult {
 
   const { createImageShare } = useShareStore();
 
+  const contentOrigin: DeclarableContentOrigin = kiType ? 'ki' : 'sharepic';
+  const imageType = kiType || type || 'sharepic';
+
   const performAutoSave = useCallback(async () => {
     // Skip if no image to save
     if (!generatedImage) return;
@@ -100,7 +112,11 @@ export function useImageAutoSave(): AutoSaveResult {
       const share = await createImageShare({
         imageData: generatedImage,
         title,
-        imageType: kiType || type || 'sharepic',
+        imageType,
+        // The store already knows which flow produced this. Declaring it stops
+        // the server from having to re-derive the answer from `imageType`, which
+        // falls back to the literal 'sharepic' even for KI output.
+        contentOrigin,
         metadata,
         originalImage: uploadedImageBase64 || undefined,
       });
@@ -125,6 +141,8 @@ export function useImageAutoSave(): AutoSaveResult {
     lastAutoSavedImageSrc,
     type,
     kiType,
+    contentOrigin,
+    imageType,
     uploadedImageBase64,
     createImageShare,
     setAutoSaveStatus,
@@ -145,6 +163,8 @@ export function useImageAutoSave(): AutoSaveResult {
     status: autoSaveStatus,
     shareToken: autoSavedShareToken,
     retry: performAutoSave,
+    contentOrigin,
+    imageType,
   };
 }
 

@@ -1,5 +1,7 @@
+import { DEFAULT_INSTANCE_ID } from '@gruenerator/shared/instances';
 import {
   NOTEBOOK_REGISTRY,
+  isNotebookOfferedIn,
   type NotebookCategory,
   type NotebookId,
 } from '@gruenerator/shared/notebooks';
@@ -66,11 +68,17 @@ const NOTEBOOK_IONICONS = {
 } satisfies Record<NotebookId, IoniconsIconName>;
 
 /**
- * Mobile gallery notebooks, derived from the shared registry. Excludes dev-only and
- * disabled (`enabled: false`) notebooks, then resolves the Ionicons name by id.
+ * Mobile gallery notebooks, derived from the shared registry, then resolved to
+ * an Ionicons name by id.
+ *
+ * Pinned to `DEFAULT_INSTANCE_ID`: the app ships as ONE binary against whatever
+ * backend it is configured for, so it has no build-time instance of its own.
+ * Until it learns its instance from the API (see docs/instanz-filterung-plan.md),
+ * production's conservative selection is the right default — and it is exactly
+ * what the previous `!nb.devOnly && nb.enabled !== false` filter produced.
  */
-export const MOBILE_SYSTEM_NOTEBOOKS: MobileNotebookEntry[] = NOTEBOOK_REGISTRY.filter(
-  (nb) => !nb.devOnly && nb.enabled !== false
+export const MOBILE_SYSTEM_NOTEBOOKS: MobileNotebookEntry[] = NOTEBOOK_REGISTRY.filter((nb) =>
+  isNotebookOfferedIn(nb.id, DEFAULT_INSTANCE_ID)
 )
   .map((nb) => ({
     id: nb.id,
@@ -83,7 +91,18 @@ export const MOBILE_SYSTEM_NOTEBOOKS: MobileNotebookEntry[] = NOTEBOOK_REGISTRY.
   }))
   .sort((a, b) => a.order - b.order);
 
-export const HIDDEN_NOTEBOOK_IDS = ['gruenerator-notebook', 'gruenblog-notebook'];
+/**
+ * Kept out of the gallery — mirrors HIDDEN_NOTEBOOK_IDS in apps/web's
+ * NotebooksIndexPage. They stay resolvable (chat mentions, existing links), they
+ * just get no tile.
+ */
+export const HIDDEN_NOTEBOOK_IDS = [
+  'gruenerator-notebook',
+  'gruenblog-notebook',
+  'boell-stiftung-notebook',
+  // Vorerst ausgeblendet — Kachel wieder einblenden = diese Zeile entfernen.
+  'abgeordnetenwatch-notebook',
+];
 
 /**
  * Maps each gallery notebook to the `*-system` collection id(s) the research backend

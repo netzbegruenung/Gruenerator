@@ -3,7 +3,8 @@
  *
  * Scrapes Grüne Saarland content from gruene-saar.de (WordPress):
  *   saarland-lv: Pressemitteilungen (WP REST API cat 7), Artikel (topic-category
- *   union), Parteitags-Beschlüsse & Dokumente (PDF archives), Vielfalt page.
+ *   union), Parteitags-Beschlüsse & Dokumente (PDF archives), Vielfalt page,
+ *   Landtagswahl-Kandidat*innen (Landesliste + Wahlkreislisten).
  *
  * Flags:
  *   --source <id>  → Run only a specific source (e.g., saarland-lv)

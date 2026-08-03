@@ -1,9 +1,32 @@
-export type TextProvider = 'mistral' | 'litellm' | 'regolo';
+export type TextProvider = 'mistral' | 'litellm' | 'regolo' | 'greenpt';
 export type ImageBackend = 'hosted' | 'regolo';
 
 export type Provider = TextProvider;
 
-export type TextModelId = 'mistral-medium-3.5' | 'litellm' | 'gemma-litellm';
+/**
+ * Die auswählbaren Text-Lanes.
+ *
+ * Benannte Größen statt Vendormodellen — dieselben Kennungen, die der
+ * OpenAI-kompatible Endpunkt (`GATEWAY_LANES` in
+ * `apps/api/services/ai/modelGateway.ts`) den Erweiterungen anbietet, damit
+ * Web, Mobile und die Add-ins dieselbe Auswahl zeigen. Der Name ist geteilt,
+ * das Backend dahinter nicht: hier hängt die Lane an `AVAILABLE_MODELS` im
+ * Chat-Stack (Verdigado-Overflow, Fallback-Ketten, Reasoning), dort direkt an
+ * einem Scaleway-Upstream. Genau dafür ist ein Lane-Name da — er lässt sich je
+ * Oberfläche umhängen, ein Vendormodell im Bundle nicht.
+ */
+export type TextModelId =
+  'gruenerator-small' | 'gruenerator-medium' | 'gruenerator-ultra' | 'greenpt';
+
+/**
+ * Die Vendor-IDs, unter denen dieselben Lanes vorher liefen.
+ *
+ * F0: sie stehen in gespeicherten Modell-Einstellungen
+ * (`profiles.user_defaults.models`) und in bereits ausgelieferten
+ * Mobile-Bundles. Sie werden deshalb tolerant weitergelesen
+ * (`resolveTextModelId`), aber nicht mehr angeboten.
+ */
+export type LegacyTextModelId = 'mistral-medium-3.5' | 'litellm' | 'gemma-litellm';
 
 export type ImageModelId = 'flux-klein' | 'flux-pro' | 'flux-max' | 'regolo-image';
 
@@ -61,21 +84,29 @@ export type ModelOption = TextModelOption | ImageModelOption;
 export const MODEL_OPTIONS: ModelOption[] = [
   {
     modality: 'text',
-    id: 'gemma-litellm',
-    name: '🌳 Gemma 4',
-    shortName: 'Gemma',
-    description: 'Am besten für Kreativtexte',
-    model: 'verdigado-think',
+    id: 'gruenerator-small',
+    name: 'Klein',
+    description: 'Am schnellsten, für kurze Aufgaben',
+    model: 'verdigado-pro',
     provider: 'litellm',
     icon: 'zap',
     region: 'self-hosted',
   },
   {
     modality: 'text',
-    id: 'mistral-medium-3.5',
-    name: '⭐ Mistral',
-    shortName: 'Mistral',
-    description: 'Bester Allrounder',
+    id: 'gruenerator-medium',
+    name: 'Mittel',
+    description: 'Gute Mischung aus Tempo und Qualität',
+    model: 'gemma4-31b',
+    provider: 'regolo',
+    icon: 'server',
+    region: 'self-hosted',
+  },
+  {
+    modality: 'text',
+    id: 'gruenerator-ultra',
+    name: 'Ultra',
+    description: 'Beste Qualität, für Recherche und lange Aufgaben',
     model: 'mistral-medium-2604',
     provider: 'mistral',
     icon: 'sparkles',
@@ -83,14 +114,15 @@ export const MODEL_OPTIONS: ModelOption[] = [
   },
   {
     modality: 'text',
-    id: 'litellm',
-    name: '🌳 GPT-OSS',
-    shortName: 'GPT-OSS',
-    description: 'Schnellstes Modell',
-    model: 'verdigado-pro',
-    provider: 'litellm',
+    id: 'greenpt',
+    name: 'GreenPT',
+    description: 'Klimaneutral, EU-gehostet',
+    model: 'mistral-medium-3.5-128b',
+    provider: 'greenpt',
     icon: 'server',
-    region: 'self-hosted',
+    region: 'eu',
+    // Lane is wired up end-to-end but not switched on for users yet.
+    offByDefault: true,
   },
   {
     modality: 'image',
@@ -209,6 +241,27 @@ export const DEFAULT_IMAGE_MODEL_ID: ImageModelId = 'flux-pro';
 
 export function isModelEnabledByDefault(id: TextModelId): boolean {
   return !TEXT_MODEL_BY_ID[id]?.offByDefault;
+}
+
+/**
+ * Wohin eine abgelegte Vendor-ID heute zeigt. Die Zuordnung ist die Lane, die
+ * dasselbe Modell fährt — `AVAILABLE_MODELS` im Chat-Stack löst die alten IDs
+ * auf dieselben Konfigurationen auf.
+ */
+export const LEGACY_TEXT_MODEL_ALIASES: Readonly<Record<LegacyTextModelId, TextModelId>> = {
+  litellm: 'gruenerator-small',
+  'gemma-litellm': 'gruenerator-medium',
+  'mistral-medium-3.5': 'gruenerator-ultra',
+};
+
+/**
+ * Eine beliebige gespeicherte Modell-Kennung auf eine aktuelle Lane bringen.
+ * `null` für alles Unbekannte, damit ein Aufrufer den Unterschied zwischen
+ * „veraltet" und „gibt es nicht" sieht.
+ */
+export function resolveTextModelId(raw: string): TextModelId | null {
+  if (Object.prototype.hasOwnProperty.call(TEXT_MODEL_BY_ID, raw)) return raw as TextModelId;
+  return LEGACY_TEXT_MODEL_ALIASES[raw as LegacyTextModelId] ?? null;
 }
 
 export const REGION_LABELS: Record<ModelRegion, string> = {

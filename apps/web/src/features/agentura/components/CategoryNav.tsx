@@ -40,7 +40,7 @@ export function CategoryNav({ items, activeKey, onSelect }: CategoryNavProps) {
               onClick={() => onSelect(key)}
               className={`flex shrink-0 items-center gap-sm rounded-full border px-sm py-1.5 text-sm transition-colors lg:w-full lg:rounded-md lg:border-0 lg:px-sm lg:py-1.5 ${
                 active
-                  ? 'border-secondary-600/30 bg-secondary-600/10 text-primary-700 dark:text-primary-300 lg:bg-hover-alt'
+                  ? 'border-secondary-600/30 bg-secondary-600/10 text-primary-700 dark:text-primary-200 lg:bg-hover-alt'
                   : 'border-grey-200 text-foreground-muted hover:bg-hover-alt hover:text-foreground dark:border-grey-700 lg:border-0'
               }`}
             >

@@ -20,6 +20,7 @@ import { z } from 'zod';
 import authMiddleware from '../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { ocrService } from '../../services/OcrService/index.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('scanner');
@@ -132,7 +133,7 @@ router.post(
       if (error.message.includes('Ungültiger Dateityp')) {
         res.status(400).json({
           success: false,
-          error: error.message,
+          error: toUserFacingMessage(error),
         });
         return;
       }

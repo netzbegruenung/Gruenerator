@@ -20,20 +20,31 @@
  *     path; a slow LLM call here delays *every* response in the docs panel.
  *   - Fail-safe: any error/timeout returns `null`, which the caller treats
  *     as "fall through to chat". Never blocks the user.
- *   - Uses the same `INTERMEDIATE_MODEL` (regolo + mistral-small-4-119b) that
+ *   - Uses the `standard` intermediate stage (services/ai/intermediateLanes.ts) that
  *     the existing Tier-4 LLM classification uses. Inherits the worker
  *     pool's provider-fallback infrastructure rather than adding new
  *     resilience surface.
  */
 
 import { createLogger } from '../../../../utils/logger.js';
-import { INTERMEDIATE_MODEL } from '../llmConfig.js';
+import { intermediateLane } from '../llmConfig.js';
 
 import type { AIWorkerPool } from '../../../../workers/types.js';
 
+/** @see services/ai/intermediateLanes.ts */
+const LANE = intermediateLane('standard');
+
 const log = createLogger('ChatGraph:DocsTiebreak');
 
-const TIEBREAK_TIMEOUT_MS = 800;
+/**
+ * 1500 ms statt 900. Gemessen antwortet der Auflöser in ~310 ms; blieb der
+ * Primär-Provider aber einmal leer, kostete allein die Fallback-Kette 906 ms und
+ * riss damit ein 900-ms-Budget — der Auflöser lieferte still `null`, und der
+ * Turn zahlte den 27k-Prompt. Ein Zeitbudget, das keinen einzigen Fallback-
+ * Sprung verträgt, macht den Auflöser von der Tagesform eines Anbieters
+ * abhängig; die zusätzliche knappe Sekunde ist gegen die Alternative billig.
+ */
+const TIEBREAK_TIMEOUT_MS = 1500;
 
 const TIEBREAK_PROMPT = `Du bist ein Klassifizierer im Dokument-Editor von Grünerator. Der/die Nutzer*in arbeitet aktiv an einem Dokument und der KI-Bearbeitungsmodus ist eingeschaltet.
 
@@ -75,12 +86,12 @@ export async function classifyDocsIntentTiebreak({
       aiWorkerPool.processRequest(
         {
           type: 'chat_intent_classification',
-          provider: INTERMEDIATE_MODEL.provider,
+          provider: LANE.provider,
           systemPrompt: TIEBREAK_PROMPT,
           messages: [{ role: 'user', content: userMessage }],
           options: {
-            model: INTERMEDIATE_MODEL.model,
-            max_tokens: 8,
+            model: LANE.model,
+            max_tokens: 16,
             temperature: 0,
           },
         },

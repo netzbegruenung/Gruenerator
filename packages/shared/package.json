@@ -15,6 +15,7 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./assets/*": "./assets/*",
     "./reisekosten": {
       "development": "./src/reisekosten/index.ts",
       "types": "./src/reisekosten/index.ts",
@@ -50,6 +51,12 @@
       "types": "./src/utils/index.ts",
       "import": "./dist/utils/index.js",
       "default": "./dist/utils/index.js"
+    },
+    "./docs": {
+      "development": "./src/docs/index.ts",
+      "types": "./src/docs/index.ts",
+      "import": "./dist/docs/index.js",
+      "default": "./dist/docs/index.js"
     },
     "./generators": {
       "development": "./src/generators/index.ts",
@@ -99,6 +106,12 @@
       "import": "./dist/roles/index.js",
       "default": "./dist/roles/index.js"
     },
+    "./settings": {
+      "development": "./src/settings/index.ts",
+      "types": "./src/settings/index.ts",
+      "import": "./dist/settings/index.js",
+      "default": "./dist/settings/index.js"
+    },
     "./sharepic": {
       "development": "./src/sharepic/index.ts",
       "types": "./src/sharepic/index.ts",
@@ -128,6 +141,12 @@
       "types": "./src/media-library/constants.ts",
       "import": "./dist/media-library/constants.js",
       "default": "./dist/media-library/constants.js"
+    },
+    "./media-library/contentOrigin": {
+      "development": "./src/media-library/contentOrigin.ts",
+      "types": "./src/media-library/contentOrigin.ts",
+      "import": "./dist/media-library/contentOrigin.js",
+      "default": "./dist/media-library/contentOrigin.js"
     },
     "./components/EditorTopBar": {
       "development": "./src/components/EditorTopBar/index.ts",
@@ -165,6 +184,18 @@
       "import": "./dist/notebooks/index.js",
       "default": "./dist/notebooks/index.js"
     },
+    "./instances": {
+      "development": "./src/instances/index.ts",
+      "types": "./src/instances/index.ts",
+      "import": "./dist/instances/index.js",
+      "default": "./dist/instances/index.js"
+    },
+    "./chat-intents": {
+      "development": "./src/chat-intents/index.ts",
+      "types": "./src/chat-intents/index.ts",
+      "import": "./dist/chat-intents/index.js",
+      "default": "./dist/chat-intents/index.js"
+    },
     "./chat": {
       "development": "./src/chat/index.ts",
       "types": "./src/chat/index.ts",
@@ -192,7 +223,6 @@
     "watch:skills": "cross-env NODE_OPTIONS=--conditions=development tsx scripts/build-skills.ts --watch",
     "build:agents": "cross-env NODE_OPTIONS=--conditions=development tsx scripts/build-agents.ts",
     "watch:agents": "cross-env NODE_OPTIONS=--conditions=development tsx scripts/build-agents.ts --watch",
-    "generate:mcp-agents": "cross-env NODE_OPTIONS=--conditions=development tsx scripts/generate-mcp-agents.ts && pnpm exec prettier --write ../../services/mcp/src/prompts/agents.generated.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -213,13 +243,13 @@
   },
   "devDependencies": {
     "@gruenerator/eslint-config": "workspace:*",
-    "@tanstack/react-query": "^5.101.2",
-    "@types/react": "19.2.14",
+    "@tanstack/react-query": "^5.101.4",
+    "@types/react": "19.2.17",
     "chokidar": "^5.0.0",
     "cross-env": "^10.1.0",
     "eslint": "^9.39.5",
     "gray-matter": "^4.0.3",
-    "tsx": "^4.23.0",
+    "tsx": "^4.23.1",
     "typescript": "^6.0.3"
   },
   "peerDependencies": {

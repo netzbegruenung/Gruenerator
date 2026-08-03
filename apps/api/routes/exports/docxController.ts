@@ -8,14 +8,17 @@ import { z } from 'zod';
 
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { PRIMARY_DOMAIN } from '../../utils/domainUtils.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { setContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
 import { sanitizeFilename as sanitizeFilenameCentral } from '../../utils/validation/index.js';
 
-import { parseCitationMarkers, createSourcesSection } from './citationParser.js';
+import { createSourcesSection } from './citationParser.js';
 import { parseFormattedContent } from './contentParser.js';
+import { buildNumberingConfig, renderBlocks, BODY_FONT, HEADING_FONT } from './docxRenderer.js';
 
 import type { Citation, ExportResponse } from './types.js';
+import type * as Docx from 'docx';
 
 const log = createLogger('exportDocx');
 
@@ -53,123 +56,28 @@ export async function generateDocxBuffer(
   title: string | undefined,
   citations: Citation[] | undefined
 ): Promise<Buffer> {
-  const formattedParagraphs = parseFormattedContent(content);
+  const blocks = parseFormattedContent(content);
   const hasCitations = citations && Array.isArray(citations) && citations.length > 0;
 
   const docx = await import('docx');
   const { Document, Paragraph, TextRun, HeadingLevel, AlignmentType, Packer } = docx;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const children: any[] = [];
+  const children: Docx.FileChild[] = [];
   const docTitle = title || 'Dokument';
 
   children.push(
     new Paragraph({
-      children: [new TextRun({ text: docTitle, bold: true, size: 32, font: 'GrueneTypeNeue' })],
+      children: [new TextRun({ text: docTitle, bold: true, size: 32, font: HEADING_FONT })],
       heading: HeadingLevel.TITLE,
       alignment: AlignmentType.CENTER,
       spacing: { after: 400 },
     })
   );
 
-  for (const paragraph of formattedParagraphs) {
-    if (!paragraph.segments || paragraph.segments.length === 0) continue;
-
-    const fullText = paragraph.segments.map((seg) => seg.text).join('');
-
-    if (paragraph.isHeader) {
-      const textRuns = paragraph.segments.map(
-        (segment) =>
-          new TextRun({
-            text: segment.text,
-            bold: true,
-            italics: segment.italic,
-            size: paragraph.headerLevel === 1 ? 28 : paragraph.headerLevel === 2 ? 26 : 24,
-            font: 'GrueneTypeNeue',
-          })
-      );
-
-      const headingLevel =
-        paragraph.headerLevel === 1
-          ? HeadingLevel.HEADING_1
-          : paragraph.headerLevel === 2
-            ? HeadingLevel.HEADING_2
-            : HeadingLevel.HEADING_3;
-
-      children.push(
-        new Paragraph({
-          children: textRuns,
-          heading: headingLevel,
-          spacing: { before: 300, after: 200 },
-        })
-      );
-    } else {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const textRuns: any[] = [];
-
-      for (const segment of paragraph.segments) {
-        if (hasCitations && segment.text.includes('[cite:')) {
-          const citationSegments = parseCitationMarkers(segment.text);
-
-          for (const citeSeg of citationSegments) {
-            if (citeSeg.isCitation) {
-              textRuns.push(
-                new TextRun({
-                  text: citeSeg.text,
-                  superScript: true,
-                  size: 16,
-                  color: '0066cc',
-                  font: 'PT Sans',
-                })
-              );
-            } else {
-              textRuns.push(
-                new TextRun({
-                  text: citeSeg.text,
-                  bold: segment.bold,
-                  italics: segment.italic,
-                  size: 22,
-                  font: 'PT Sans',
-                })
-              );
-            }
-          }
-        } else {
-          textRuns.push(
-            new TextRun({
-              text: segment.text,
-              bold: segment.bold,
-              italics: segment.italic,
-              size: 22,
-              font: 'PT Sans',
-            })
-          );
-        }
-      }
-
-      const isList = fullText.startsWith('•') || /^\d+\./.test(fullText);
-
-      const paragraphOptions: {
-        children: typeof textRuns;
-        spacing: { after: number };
-        alignment?: (typeof AlignmentType)[keyof typeof AlignmentType];
-        indent?: { left: number };
-      } = {
-        children: textRuns,
-        spacing: { after: isList ? 100 : 200 },
-      };
-      if (!isList) {
-        paragraphOptions.alignment = AlignmentType.JUSTIFIED;
-      }
-      if (isList) {
-        paragraphOptions.indent = { left: 360 };
-      }
-      children.push(new Paragraph(paragraphOptions));
-    }
-  }
+  children.push(...renderBlocks(docx, blocks, { withCitations: Boolean(hasCitations) }));
 
   if (hasCitations && citations) {
-    children.push(...createSourcesSection(docx, citations));
+    children.push(...(createSourcesSection(docx, citations) as Docx.FileChild[]));
   }
 
   children.push(
@@ -180,7 +88,7 @@ export async function generateDocxBuffer(
           size: 18,
           italics: true,
           color: '666666',
-          font: 'PT Sans',
+          font: BODY_FONT,
         }),
         new TextRun({
           text: PRIMARY_DOMAIN,
@@ -188,7 +96,7 @@ export async function generateDocxBuffer(
           italics: true,
           color: '0066cc',
           style: 'Hyperlink',
-          font: 'PT Sans',
+          font: BODY_FONT,
         }),
       ],
       alignment: AlignmentType.CENTER,
@@ -198,6 +106,7 @@ export async function generateDocxBuffer(
 
   const doc = new Document({
     sections: [{ properties: {}, children }],
+    numbering: buildNumberingConfig(docx),
     title: docTitle,
     creator: 'Grünerator',
     description: 'Generated document from Grünerator',
@@ -234,7 +143,7 @@ router.post(
       return res.status(500).json({
         success: false,
         message: 'DOCX export failed',
-        error: error.message,
+        error: toUserFacingMessage(error),
       });
     }
   }

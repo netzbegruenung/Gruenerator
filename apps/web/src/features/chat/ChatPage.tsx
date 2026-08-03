@@ -4,6 +4,7 @@ import {
   GrueneratorThread,
   ReelArtifactPanel,
   SharepicArtifactPanel,
+  setMentionInstance,
   setMentionLocale,
   useAgentStore,
   useChatRuntimeReady,
@@ -15,16 +16,23 @@ import {
   resolveAgentSlug,
   resolveSkillMention,
 } from '@gruenerator/shared/agents';
+import { getContractsClient } from '@gruenerator/shared/api';
 import { useCallback, useEffect, useRef } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
 import { useDocumentTitle } from '@/components/hooks/useDocumentTitle';
+import { CURRENT_INSTANCE } from '@/config/instance';
 import { useUserAgents } from '@/features/agents/api';
 import ChatHero from '@/features/chat/ChatHero';
 import { LandesverbandHub } from '@/features/chat/LandesverbandHub';
+import { resolveChatBackground } from '@/features/workplace/chatBackgrounds';
 import { useFirstName } from '@/hooks/useFirstName';
 import { useAuthStore } from '@/stores/authStore';
+import { cn } from '@/utils/cn';
+import { isDesktopApp } from '@/utils/platform';
+
+import '@/features/workplace/workplace-sunrise.css';
 
 /**
  * AT users get this notebook when their selected agent doesn't pin its own.
@@ -34,6 +42,26 @@ import { useAuthStore } from '@/stores/authStore';
  * (no auto-switch when the agent has no preference).
  */
 const AT_DEFAULT_NOTEBOOK_ID = 'oesterreich-notebook';
+
+// Instance-filter the @-mention notebook picker. Set at module scope rather than
+// in an effect: unlike the locale, the instance is fixed for the lifetime of the
+// bundle, and the picker may be read before this component ever mounts.
+setMentionInstance(CURRENT_INSTANCE);
+
+/**
+ * The in-thread composer: the slim pill in the browser, the taller card in the
+ * desktop shell.
+ *
+ * The two run the same bundle, so this is not a build-time difference — but it
+ * is a fixed one per install, which is why it is read once at module scope
+ * rather than per render.
+ *
+ * The pill is the same shape the new-chat hero already wears, so sending a
+ * first message no longer swaps the composer under the cursor. The desktop app
+ * keeps the card: it is a window someone leaves open, and the toolbar row that
+ * the card gives its own line stays legible there.
+ */
+const COMPOSER_VARIANT = isDesktopApp() ? 'card' : 'pill';
 
 function ChatPage() {
   const [searchParams] = useSearchParams();
@@ -50,6 +78,12 @@ function ChatPage() {
   const currentThreadTitle = useAgentStore((s) => s.currentThreadTitle);
   const firstName = useFirstName();
   const userLocale = useAuthStore((s) => s.locale) ?? 'de-DE';
+  // The background the user picked in /profile/aussehen. The hero below wears
+  // it in full; the thread wears only the band derived from it. Resolved here
+  // rather than in ChatHero because both branches need the answer — and because
+  // the hero used to hardcode `sunrise`, which meant a pick made on /workplace
+  // did not show on /chat.
+  const chatBackground = resolveChatBackground(useAuthStore((s) => s.user?.chat_background));
   const { data: userAgents } = useUserAgents();
   // Bridge the user-agents query into the chat package so its welcome screen
   // and message avatars can resolve a user agent's title/icon by identifier.
@@ -156,6 +190,44 @@ function ChatPage() {
     }
   }, [agentParam, modeParam, threadSlug, userLocale, userAgents]);
 
+  // "Neuer Chat in diesem Projekt" arrives as /chat?projekt=<groupId>. File the
+  // freshly created thread into that Projekt, reusing the same thread-groupId
+  // PATCH as MoveToSpaceDialog. Guards against mis-filing:
+  //  - baseline: never file the thread that was already active when armed.
+  //  - live `projektParam`: only file while the intent is still in the URL.
+  //    Navigating to an EXISTING chat drops ?projekt= first (the URL becomes
+  //    /chat/<slug>), so an unrelated chat opened next is never captured; a
+  //    freshly created thread updates currentThreadId while ?projekt= is still
+  //    present (canonicalization to the pretty slug happens a tick later).
+  const currentThreadId = useAgentStore((s) => s.currentThreadId);
+  const projektParam = searchParams.get('projekt');
+  const projektBaselineThreadRef = useRef<string | null>(null);
+  const projektFiledThreadRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!projektParam) return;
+    projektBaselineThreadRef.current = useAgentStore.getState().currentThreadId;
+  }, [projektParam]);
+  useEffect(() => {
+    if (!projektParam || !currentThreadId) return;
+    if (currentThreadId === projektBaselineThreadRef.current) return;
+    if (projektFiledThreadRef.current === currentThreadId) return;
+    projektFiledThreadRef.current = currentThreadId;
+    void getContractsClient()
+      .threads.update({ body: { threadId: currentThreadId, groupId: projektParam } })
+      .then((res) => {
+        if (res.status === 200) {
+          try {
+            window.dispatchEvent(new CustomEvent('gruenerator:space-threads-changed'));
+          } catch {
+            // no window (SSR) — ignore
+          }
+        }
+      })
+      .catch(() => {
+        // Filing is best-effort; the chat itself already exists.
+      });
+  }, [currentThreadId, projektParam]);
+
   const handleNavigate = useCallback((path: string) => navigate(path), [navigate]);
 
   const isAgentsPath = location.pathname.startsWith('/agents/');
@@ -191,13 +263,21 @@ function ChatPage() {
           onOpenNotebookThread={handleNavigate}
         />
       )}
-      <main className="flex min-h-0 flex-1 flex-col pt-4 md:pt-0">
+      <div className="flex min-h-0 flex-1 flex-col pt-4 md:pt-0">
         {hub ? (
           <LandesverbandHub hub={hub} onNavigate={handleNavigate} userLocale={userLocale} />
         ) : effectiveViewMode === 'overview' ? (
-          // New-chat empty state in the Workplace chat-tab design: sunrise
+          // New-chat empty state in the Workplace chat-tab design: the chosen
           // background, vertically centered greeting + pill composer.
-          <div className="workplace-chat-sunrise flex min-h-0 flex-1 flex-col justify-center overflow-y-auto pb-[6vh]">
+          // `workplace-chat-accent` re-points the primary token so the send
+          // button follows the preset, exactly as on the Workplace chat tab.
+          <div
+            className={cn(
+              'workplace-chat-sunrise workplace-chat-accent',
+              chatBackground.className,
+              'flex min-h-0 flex-1 flex-col justify-center overflow-y-auto pb-[6vh]'
+            )}
+          >
             <ChatHero />
           </div>
         ) : (
@@ -205,10 +285,16 @@ function ChatPage() {
             onNavigate={handleNavigate}
             firstName={firstName}
             requireProfileHydration
+            // `neutral` promises "kein Verlauf — nur der Seitenhintergrund", so
+            // it gets no band either. Every other preset does: the band is the
+            // same one regardless of which was picked, because it is the
+            // composer's light and not the page's colour.
+            {...(chatBackground.key === 'neutral' ? {} : { className: 'chat-thread-glow' })}
+            composerVariant={COMPOSER_VARIANT}
             userLocale={userLocale}
           />
         )}
-      </main>
+      </div>
       {!hub && effectiveViewMode === 'thread' && (
         // Sharepic-Modus: pins the active sharepic as a docked artifact while
         // the user iterates via chat. Below xl the inline card stays the only

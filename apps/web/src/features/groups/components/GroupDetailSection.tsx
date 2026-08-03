@@ -172,10 +172,9 @@ const GroupDetailSection = memo(
       onErrorMessage('');
       deleteGroup(groupId, {
         onSuccess: () => navigate('/'),
-        onError: (error: Error) =>
-          onErrorMessage(`Fehler beim Löschen der Space: ${error.message}`),
+        onError: (error: Error) => onErrorMessage(`Fehler beim Löschen: ${error.message}`),
       });
-    }, [groupId, data?.isAdmin, deleteGroup, navigate, onErrorMessage]);
+    }, [groupId, data?.isAdmin, deleteGroup, navigate, onErrorMessage, onSuccessMessage]);
 
     const startEditingName = useCallback(() => {
       if (data?.isAdmin) {
@@ -197,11 +196,11 @@ const GroupDetailSection = memo(
       updateGroupName(groupId, editedGroupName.trim(), {
         onSuccess: () => {
           setIsEditingName(false);
-          onSuccessMessage('Space-Name erfolgreich geändert!');
+          onSuccessMessage('Name erfolgreich geändert!');
           void refetchGroupData();
         },
         onError: (error: Error) => {
-          onErrorMessage('Fehler beim Ändern des Space-Namens: ' + error.message);
+          onErrorMessage('Fehler beim Ändern des Namens: ' + error.message);
           setEditedGroupName(data?.groupInfo?.name || '');
         },
       });
@@ -239,11 +238,11 @@ const GroupDetailSection = memo(
         {
           onSuccess: () => {
             setIsEditingDescription(false);
-            onSuccessMessage('Space-Beschreibung erfolgreich geändert!');
+            onSuccessMessage('Beschreibung erfolgreich geändert!');
             void refetchGroupData();
           },
           onError: (error: Error) => {
-            onErrorMessage('Fehler beim Ändern der Space-Beschreibung: ' + error.message);
+            onErrorMessage('Fehler beim Ändern der Beschreibung: ' + error.message);
             setEditedGroupDescription(data?.groupInfo?.description || '');
           },
         }
@@ -305,7 +304,7 @@ const GroupDetailSection = memo(
           sharedContent={sharedContent}
           isLoadingSharedContent={isLoadingGroupContent}
           onUnshareContent={(contentId, contentType) => {
-            if (window.confirm('Inhalt aus der Space entfernen?')) {
+            if (window.confirm('Inhalt aus der Gruppe entfernen?')) {
               unshareContent.mutate({ contentId, contentType });
             }
           }}

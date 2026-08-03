@@ -30,6 +30,20 @@ export function formatRelevance(score: number): string {
 }
 
 /**
+ * Lossy inverse of {@link formatRelevance}: the five buckets collapse to three,
+ * so Mittel/Niedrig/Gering all come back as 0.5.
+ *
+ * Prefer the raw `score` that executeDirectSearch ships alongside the label —
+ * searchNode does exactly that in `normalizeScore`. This exists for the paths
+ * that only kept the label.
+ */
+export function relevanceLabelToScore(label: string | null | undefined): number {
+  if (label === 'Sehr hoch') return 0.9;
+  if (label === 'Hoch') return 0.7;
+  return 0.5;
+}
+
+/**
  * Truncate text to a maximum length, adding ellipsis if needed.
  */
 export function truncateText(text: string, maxLength: number): string {

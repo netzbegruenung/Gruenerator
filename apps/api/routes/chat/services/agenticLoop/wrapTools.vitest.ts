@@ -90,6 +90,96 @@ describe('wrapToolsForLoop', () => {
     expect(out.error).toMatch(/Zeitüberschreitung/);
   });
 
+  it('tells the abandoned tool that it was written off', async () => {
+    // A timeout stops the WAIT, not the tool. For a generation tool that meant a
+    // document still got written and a card still got pushed, into a turn whose
+    // model had already been told the call failed (live, 02.08.2026). The signal
+    // is how a tool can tell; the generation tools check it before committing.
+    const { ctx } = makeCtx({ perCallTimeoutMs: 20 });
+    let seen: AbortSignal | undefined;
+    const tools = wrapToolsForLoop(
+      {
+        hang: {
+          execute: (_i: unknown, o: { abortSignal?: AbortSignal }) => {
+            seen = o.abortSignal;
+            return new Promise(() => {});
+          },
+        },
+      } as unknown as ToolSet,
+      ctx
+    );
+    await run(tools, 'hang', {});
+    expect(seen?.aborted).toBe(true);
+  });
+
+  it('leaves the signal untouched when the tool returns in time', async () => {
+    const { ctx } = makeCtx({ perCallTimeoutMs: 200 });
+    let seen: AbortSignal | undefined;
+    const tools = wrapToolsForLoop(
+      {
+        quick: {
+          execute: async (_i: unknown, o: { abortSignal?: AbortSignal }) => {
+            seen = o.abortSignal;
+            return { ok: true };
+          },
+        },
+      } as unknown as ToolSet,
+      ctx
+    );
+    await run(tools, 'quick', {});
+    expect(seen?.aborted).toBe(false);
+  });
+
+  it('a timeout counts as a tool failure, closes the card and persists the step', async () => {
+    // This is what keeps the hand-rolled `withTimeout` in place. The AI SDK's
+    // `timeout.toolMs` aborts from OUTSIDE the wrapper — it merely merges an
+    // AbortSignal into the tool's options and then awaits — so swapping to it
+    // would skip all three effects below: the failure would never be counted,
+    // the step never recorded, and the tool card would spin forever. Whoever
+    // attempts that swap should see this go red.
+    const { ctx, events, steps } = makeCtx({ perCallTimeoutMs: 20 });
+    const tools = wrapToolsForLoop(
+      { hang: { execute: () => new Promise(() => {}) } } as unknown as ToolSet,
+      ctx
+    );
+
+    // Distinct args on purpose: identical ones would be stopped by the
+    // duplicate guard, which never reaches the timeout at all.
+    await run(tools, 'hang', { q: 'a' });
+    await run(tools, 'hang', { q: 'b' }, 'call_2');
+
+    // Two failures = the per-tool cap, so a third call would be short-circuited.
+    expect(ctx.guards.checkFailureCap('hang')).not.toBeNull();
+    expect(steps).toHaveLength(2);
+    const results = events.filter((e) => e.event === 'tool_step_result');
+    expect(results).toHaveLength(2);
+    expect(results[0].data).toMatchObject({ ok: false });
+  });
+
+  it('gives a named tool its own, longer budget', async () => {
+    // Deep research measured 16.5s live against the generic 20s cap — 3.5s of
+    // headroom, so under load the cap killed a legitimate call and the turn
+    // saw only "tool failed". The override buys that call its honest runtime
+    // without loosening the cap that protects every other tool.
+    const { ctx } = makeCtx({
+      perCallTimeoutMs: 20,
+      perCallTimeoutOverridesMs: { research: 400 },
+    });
+    const tools = wrapToolsForLoop(
+      {
+        research: { execute: () => new Promise((r) => setTimeout(() => r('tief'), 60)) },
+        web_search: { execute: () => new Promise((r) => setTimeout(() => r('flach'), 60)) },
+      } as unknown as ToolSet,
+      ctx
+    );
+
+    // Same 60ms of work: the override survives it, the generic budget does not.
+    expect(await run(tools, 'research', {})).toBe('tief');
+    expect((await run(tools, 'web_search', {})) as { error: string }).toMatchObject({
+      error: expect.stringMatching(/Zeitüberschreitung/) as unknown as string,
+    });
+  });
+
   it('short-circuits when the per-tool failure cap is already reached', async () => {
     const { ctx, steps } = makeCtx();
     ctx.guards.noteFailure('search');
@@ -100,11 +190,17 @@ describe('wrapToolsForLoop', () => {
     const out = (await run(tools, 'search', { query: 'x' })) as { error: string };
     expect(out.error).toBeTruthy();
     expect(execute).not.toHaveBeenCalled();
-    // The blocked call is still recorded as a step so the UI reflects it.
-    expect(steps).toHaveLength(1);
+    // The tool never ran, so there is nothing to show or persist.
+    expect(steps).toHaveLength(0);
   });
 
-  it('search-budget-blocked call emits card + step but never executes or counts', async () => {
+  /**
+   * The guard messages are STEERING TEXT for the planner, not status reports. A
+   * card would tell the user the assistant searched and failed, about a call
+   * that never left the wrapper — live: a "Websuche" card captioned "Nutze
+   * zuerst gruenerator_search (interne Dokumente)".
+   */
+  it('search-budget-blocked call is silent: no card, no step, no counter change', async () => {
     const { ctx, events, steps } = makeCtx({
       guards: createToolLoopGuards({
         searchToolNames: new Set(['web_search']),
@@ -120,42 +216,53 @@ describe('wrapToolsForLoop', () => {
     const out = (await run(tools, 'web_search', { query: 'b' }, 'call_2')) as { error: string };
     expect(out.error).toMatch(/bereits ausführlich gesucht/);
     expect(execute).toHaveBeenCalledTimes(1); // second call never executed
-    expect(events.filter((e) => e.event === 'tool_step_start')).toHaveLength(2);
-    expect(steps).toHaveLength(2);
+    expect(events.filter((e) => e.event === 'tool_step_start')).toHaveLength(1);
+    expect(steps).toHaveLength(1);
     // The blocked call didn't advance the budget counter further (still capped, not negative).
     expect(ctx.guards.checkSearchBudget('web_search')).not.toBeNull();
   });
 
-  it('internal-first blocks web_search until gruenerator_search executed', async () => {
-    const { ctx } = makeCtx({
+  /**
+   * The regression the internal-first gate caused: "wer war marilyn monroe?"
+   * has no party documents behind it, the gate refused the web anyway, and the
+   * turn was answered from model memory — wrong film title, zero sources.
+   */
+  it('runs web_search straight away — no internal search required first', async () => {
+    const { ctx, events, steps } = makeCtx({
       guards: createToolLoopGuards({
-        internalFirst: {
-          requiredTool: 'gruenerator_search',
-          gatedTools: new Set(['web_search']),
-          exempt: false,
-        },
+        internalFallback: { requiredTool: 'gruenerator_search', fallbackTool: 'web_search' },
+        searchToolNames: new Set(['web_search', 'gruenerator_search']),
       }),
     });
-    const webExecute = vi.fn(async () => ({ results: [] }));
-    const internalExecute = vi.fn(async () => ({ results: [] }));
+    const execute = vi.fn(async () => ({ results: [{ title: 'Marilyn Monroe' }] }));
+    const tools = wrapToolsForLoop({ web_search: { execute } } as unknown as ToolSet, ctx);
+
+    const out = (await run(tools, 'web_search', { query: 'wer war marilyn monroe' })) as {
+      results: unknown[];
+    };
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(out.results).toHaveLength(1);
+    expect(events.map((e) => e.event)).toEqual(['tool_step_start', 'tool_step_result']);
+    expect(steps).toHaveLength(1);
+  });
+
+  it('forces the web after an internal search that found nothing', async () => {
+    const { ctx } = makeCtx({
+      guards: createToolLoopGuards({
+        internalFallback: { requiredTool: 'gruenerator_search', fallbackTool: 'web_search' },
+        getSourceCount: () => 0,
+      }),
+    });
     const tools = wrapToolsForLoop(
       {
-        web_search: { execute: webExecute },
-        gruenerator_search: { execute: internalExecute },
+        gruenerator_search: { execute: async () => ({ results: [] }) },
       } as unknown as ToolSet,
       ctx
     );
 
-    const blocked = (await run(tools, 'web_search', { query: 'x' })) as { error: string };
-    expect(blocked.error).toMatch(/zuerst gruenerator_search/);
-    expect(webExecute).not.toHaveBeenCalled();
-
-    await run(tools, 'gruenerator_search', { query: 'x' }, 'call_2');
-    const allowed = (await run(tools, 'web_search', { query: 'x' }, 'call_3')) as {
-      results: unknown[];
-    };
-    expect(allowed.results).toEqual([]);
-    expect(webExecute).toHaveBeenCalledTimes(1);
+    expect(ctx.guards.emptyResultFallback()).toBeNull();
+    await run(tools, 'gruenerator_search', { query: 'x' });
+    expect(ctx.guards.emptyResultFallback()).toBe('web_search');
   });
 
   it('truncates the model-facing payload but records the full result', async () => {
@@ -244,6 +351,119 @@ describe('wrapToolsForLoop', () => {
     expect(execute).not.toHaveBeenCalled();
   });
 
+  it('stamps textOffset on the recorded step when getTextOffset is set', async () => {
+    const { ctx, steps } = makeCtx({ getTextOffset: () => 42 });
+    const tools = wrapToolsForLoop(
+      { search: { execute: async () => ({ results: [] }) } } as unknown as ToolSet,
+      ctx
+    );
+    await run(tools, 'search', { query: 'x' });
+    expect(steps[0].textOffset).toBe(42);
+  });
+
+  it('omits textOffset when getTextOffset is absent', async () => {
+    const { ctx, steps } = makeCtx();
+    const tools = wrapToolsForLoop(
+      { search: { execute: async () => ({ results: [] }) } } as unknown as ToolSet,
+      ctx
+    );
+    await run(tools, 'search', { query: 'x' });
+    expect('textOffset' in steps[0]).toBe(false);
+  });
+
+  it('omits textOffset when getTextOffset returns null (split mode)', async () => {
+    const { ctx, steps } = makeCtx({ getTextOffset: () => null });
+    const tools = wrapToolsForLoop(
+      { search: { execute: async () => ({ results: [] }) } } as unknown as ToolSet,
+      ctx
+    );
+    await run(tools, 'search', { query: 'x' });
+    expect('textOffset' in steps[0]).toBe(false);
+  });
+
+  it('stamps textOffset=0 (falsy but valid) on the recorded step', async () => {
+    const { ctx, steps } = makeCtx({ getTextOffset: () => 0 });
+    const tools = wrapToolsForLoop(
+      { search: { execute: async () => ({ results: [] }) } } as unknown as ToolSet,
+      ctx
+    );
+    await run(tools, 'search', { query: 'x' });
+    expect(steps[0].textOffset).toBe(0);
+  });
+
+  it('drains takeNarration at start and stamps it on the card + recorded step', async () => {
+    const { ctx, events, steps } = makeCtx({ takeNarration: () => 'Ich suche jetzt danach.' });
+    const tools = wrapToolsForLoop(
+      { search: { execute: async () => ({ results: [] }) } } as unknown as ToolSet,
+      ctx
+    );
+    await run(tools, 'search', { query: 'x' });
+    const start = events.find((e) => e.event === 'tool_step_start');
+    expect(start?.data).toMatchObject({ narration: 'Ich suche jetzt danach.' });
+    expect(steps[0].narration).toBe('Ich suche jetzt danach.');
+  });
+
+  it('omits narration when takeNarration returns null (no announcement buffered)', async () => {
+    const { ctx, events, steps } = makeCtx({ takeNarration: () => null });
+    const tools = wrapToolsForLoop(
+      { search: { execute: async () => ({ results: [] }) } } as unknown as ToolSet,
+      ctx
+    );
+    await run(tools, 'search', { query: 'x' });
+    const start = events.find((e) => e.event === 'tool_step_start');
+    expect('narration' in (start?.data ?? {})).toBe(false);
+    expect('narration' in steps[0]).toBe(false);
+  });
+
+  it('drains the narration buffer once — parallel siblings after it get none', async () => {
+    let drained = false;
+    const takeNarration = () => {
+      if (drained) return null;
+      drained = true;
+      return 'Ankündigung für beide Aufrufe.';
+    };
+    const { ctx, steps } = makeCtx({ takeNarration });
+    const tools = wrapToolsForLoop(
+      { search: { execute: async () => ({ results: [] }) } } as unknown as ToolSet,
+      ctx
+    );
+    await run(tools, 'search', { query: 'a' }, 'call_a');
+    await run(tools, 'search', { query: 'b' }, 'call_b');
+    expect(steps[0].narration).toBe('Ankündigung für beide Aufrufe.');
+    expect('narration' in steps[1]).toBe(false);
+  });
+
+  /**
+   * A blocked call must not consume the announcement: the planner said "Ich
+   * schaue kurz nach" once, and the call that actually runs is the one it
+   * announced. Draining it into a step nobody ever sees loses the sentence.
+   */
+  it('leaves the narration buffer undrained on a guard-blocked call', async () => {
+    let drains = 0;
+    const { ctx, steps } = makeCtx({
+      takeNarration: () => {
+        drains += 1;
+        return 'Kurz geprüft.';
+      },
+    });
+    ctx.guards.noteFailure('search');
+    ctx.guards.noteFailure('search'); // at cap
+    const tools = wrapToolsForLoop(
+      {
+        search: { execute: async () => ({ results: [] }) },
+        other: { execute: async () => ({ results: [] }) },
+      } as unknown as ToolSet,
+      ctx
+    );
+    await run(tools, 'search', { query: 'x' });
+    expect(drains).toBe(0);
+    expect(steps).toHaveLength(0);
+
+    // The next call that really runs gets the announcement.
+    await run(tools, 'other', { query: 'x' }, 'call_2');
+    expect(steps[0].narration).toBe('Kurz geprüft.');
+  });
+
   it('passes title/serverName onto the start card', async () => {
     const { ctx, events } = makeCtx({
       titleFor: () => 'Suche Notion…',
@@ -255,5 +475,45 @@ describe('wrapToolsForLoop', () => {
     );
     await run(tools, 's0__search', {});
     expect(events[0].data).toMatchObject({ title: 'Suche Notion…', serverName: 'Notion' });
+  });
+  /**
+   * A deferred search is postponed, not failed: no tool card, no persisted step,
+   * no failure counted. A red "Fehler" card for a search that will run in the next
+   * step is a false statement about the turn, and the model is expected to repeat
+   * the identical call — which the duplicate guard would block if the deferral had
+   * registered anything.
+   */
+  it('defers a third concurrent search silently — no card, no step, no failure', async () => {
+    const { ctx, events, steps } = makeCtx({
+      guards: createToolLoopGuards({ searchToolNames: new Set(['web_search']) }),
+    });
+    const tools = wrapToolsForLoop(
+      { web_search: { execute: async () => ({ results: [] }) } } as unknown as ToolSet,
+      ctx
+    );
+    // Two in flight, neither completed.
+    ctx.guards.noteCall('web_search');
+    ctx.guards.noteCall('web_search');
+
+    const out = (await run(tools, 'web_search', { query: 'x' })) as { error?: string };
+    expect(out.error).toMatch(/Warte auf das Ergebnis/);
+    expect(events).toHaveLength(0);
+    expect(steps).toHaveLength(0);
+    // Not a failure: the per-tool cap must stay untouched.
+    expect(ctx.guards.checkFailureCap('web_search')).toBeNull();
+  });
+
+  it('still runs a search when a slot is free', async () => {
+    const { ctx, events } = makeCtx({
+      guards: createToolLoopGuards({ searchToolNames: new Set(['web_search']) }),
+    });
+    const tools = wrapToolsForLoop(
+      { web_search: { execute: async () => ({ results: [{ t: 1 }] }) } } as unknown as ToolSet,
+      ctx
+    );
+    ctx.guards.noteCall('web_search');
+    const out = (await run(tools, 'web_search', { query: 'x' })) as { results?: unknown[] };
+    expect(out.results).toHaveLength(1);
+    expect(events.map((e) => e.event)).toEqual(['tool_step_start', 'tool_step_result']);
   });
 });

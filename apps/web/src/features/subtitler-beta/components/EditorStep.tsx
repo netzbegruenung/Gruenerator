@@ -58,6 +58,7 @@ export function EditorStep({ projectId }: EditorStepProps) {
 
   // Load project data
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resets the loading flag when starting the async project fetch (re-runs on projectId change); remaining setState calls are in the async .then
     setLoading(true);
     getContractsClient()
       .subtitler.getProject({ params: { projectId } })

@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@gruenerator/ui';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import {
   Trash2,
   Plus,
@@ -24,12 +24,26 @@ import {
 } from 'lucide-react';
 import React, { memo, useState, useMemo } from 'react';
 
+import { SettingsCardsSkeleton } from '../components/SettingsSkeleton';
+
 import {
   profileApiService,
   type Memory,
   type MemoryCategory,
 } from '@/features/auth/services/profileApiService';
 import { useAuthStore } from '@/stores/authStore';
+
+const memoriesQueryKey = (userId: string | undefined) => ['memories', userId];
+
+export const prefetch = (queryClient: QueryClient) => {
+  const userId = useAuthStore.getState().user?.id;
+  if (!userId) return;
+  void queryClient.prefetchQuery({
+    queryKey: memoriesQueryKey(userId),
+    queryFn: () => profileApiService.getMemories(userId),
+    staleTime: 5 * 60 * 1000,
+  });
+};
 
 // Kept inline because apps/web cannot import from apps/api.
 // Matches CATEGORY_LABELS in apps/api/services/mem0/categories.ts.
@@ -78,7 +92,7 @@ export default memo(function MemoriesSection() {
   const userId = user?.id;
   const queryClient = useQueryClient();
 
-  const queryKey = ['memories', userId];
+  const queryKey = memoriesQueryKey(userId);
 
   const {
     data: memories = [],
@@ -325,14 +339,7 @@ export default memo(function MemoriesSection() {
       )}
 
       {isLoading ? (
-        <div className="space-y-sm">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="animate-pulse rounded-lg bg-background-alt p-md">
-              <div className="h-4 w-3/4 rounded bg-grey-200 dark:bg-grey-700" />
-              <div className="mt-sm h-3 w-1/4 rounded bg-grey-200 dark:bg-grey-700" />
-            </div>
-          ))}
-        </div>
+        <SettingsCardsSkeleton cards={4} />
       ) : filteredMemories.length === 0 ? (
         <p className="text-sm text-grey-400">
           {memories.length === 0

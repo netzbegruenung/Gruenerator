@@ -24,7 +24,15 @@ import Markdown from 'react-native-markdown-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { secureStorage } from '../../services/storage';
-import { colors, typography, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
+import {
+  colors,
+  typography,
+  spacing,
+  borderRadius,
+  lightTheme,
+  darkTheme,
+  BODY_FONT,
+} from '../../theme';
 import { routeWithParams } from '../../types/routes';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/api';
@@ -132,23 +140,27 @@ export function ContentDisplay({ componentName, onNewGeneration }: ContentDispla
   const markdownStyles = StyleSheet.create({
     body: {
       color: theme.text,
+      fontFamily: BODY_FONT,
       fontSize: 16,
       lineHeight: 24,
     },
     heading1: {
       color: theme.text,
+      fontFamily: BODY_FONT,
       fontSize: 24,
       fontWeight: '700',
       marginBottom: spacing.small,
     },
     heading2: {
       color: theme.text,
+      fontFamily: BODY_FONT,
       fontSize: 20,
       fontWeight: '600',
       marginBottom: spacing.xsmall,
     },
     heading3: {
       color: theme.text,
+      fontFamily: BODY_FONT,
       fontSize: 18,
       fontWeight: '600',
       marginBottom: spacing.xsmall,
@@ -223,7 +235,12 @@ export function ContentDisplay({ componentName, onNewGeneration }: ContentDispla
 
       {Platform.OS === 'ios' && isLiquidGlassAvailable() ? (
         <GlassView style={[styles.fab, { bottom: insets.bottom + 16 }]}>
-          <Pressable onPress={openMenu} style={styles.fabPressable}>
+          <Pressable
+            onPress={openMenu}
+            style={styles.fabPressable}
+            accessibilityRole="button"
+            accessibilityLabel="Bearbeitungsmenü öffnen"
+          >
             <Ionicons name="pencil" size={24} color={colors.primary[600]} />
           </Pressable>
         </GlassView>
@@ -241,7 +258,12 @@ export function ContentDisplay({ componentName, onNewGeneration }: ContentDispla
             },
           ]}
         >
-          <Pressable onPress={openMenu} style={styles.fabPressable}>
+          <Pressable
+            onPress={openMenu}
+            style={styles.fabPressable}
+            accessibilityRole="button"
+            accessibilityLabel="Bearbeitungsmenü öffnen"
+          >
             <Ionicons name="pencil" size={24} color={colors.primary[600]} />
           </Pressable>
         </BlurView>
@@ -253,7 +275,11 @@ export function ContentDisplay({ componentName, onNewGeneration }: ContentDispla
         animationType="fade"
         onRequestClose={() => setMenuVisible(false)}
       >
-        <TouchableWithoutFeedback onPress={() => setMenuVisible(false)}>
+        <TouchableWithoutFeedback
+          onPress={() => setMenuVisible(false)}
+          accessibilityRole="button"
+          accessibilityLabel="Menü schließen"
+        >
           <View style={styles.menuOverlay}>
             <View
               style={[
@@ -268,6 +294,7 @@ export function ContentDisplay({ componentName, onNewGeneration }: ContentDispla
                   styles.menuItemPrimary,
                   { backgroundColor: pressed ? colors.primary[700] : colors.primary[600] },
                 ]}
+                accessibilityRole="button"
               >
                 <Ionicons name="chatbubbles-outline" size={18} color={colors.white} />
                 <Text style={[styles.menuItemText, { color: colors.white, fontWeight: '500' }]}>
@@ -280,6 +307,7 @@ export function ContentDisplay({ componentName, onNewGeneration }: ContentDispla
                   styles.menuItem,
                   { backgroundColor: pressed ? theme.surface : 'transparent' },
                 ]}
+                accessibilityRole="button"
               >
                 <Ionicons
                   name={copied ? 'checkmark' : 'copy-outline'}
@@ -294,6 +322,7 @@ export function ContentDisplay({ componentName, onNewGeneration }: ContentDispla
                   styles.menuItem,
                   { backgroundColor: pressed ? theme.surface : 'transparent' },
                 ]}
+                accessibilityRole="button"
               >
                 <Ionicons name="share-outline" size={18} color={theme.text} />
                 <Text style={[styles.menuItemText, { color: theme.text }]}>Teilen</Text>
@@ -304,6 +333,7 @@ export function ContentDisplay({ componentName, onNewGeneration }: ContentDispla
                   styles.menuItem,
                   { backgroundColor: pressed ? theme.surface : 'transparent' },
                 ]}
+                accessibilityRole="button"
               >
                 <Ionicons name="document-outline" size={18} color={theme.text} />
                 <Text style={[styles.menuItemText, { color: theme.text }]}>Als Word speichern</Text>
@@ -321,6 +351,7 @@ export function ContentDisplay({ componentName, onNewGeneration }: ContentDispla
                     styles.menuItem,
                     { backgroundColor: pressed ? theme.surface : 'transparent' },
                   ]}
+                  accessibilityRole="button"
                 >
                   <Ionicons name="arrow-undo" size={18} color={theme.text} />
                   <Text style={[styles.menuItemText, { color: theme.text }]}>Rückgängig</Text>
@@ -336,6 +367,7 @@ export function ContentDisplay({ componentName, onNewGeneration }: ContentDispla
                     styles.menuItem,
                     { backgroundColor: pressed ? theme.surface : 'transparent' },
                   ]}
+                  accessibilityRole="button"
                 >
                   <Ionicons name="arrow-redo" size={18} color={theme.text} />
                   <Text style={[styles.menuItemText, { color: theme.text }]}>Wiederholen</Text>
@@ -351,6 +383,7 @@ export function ContentDisplay({ componentName, onNewGeneration }: ContentDispla
                   styles.menuItem,
                   { backgroundColor: pressed ? theme.surface : 'transparent' },
                 ]}
+                accessibilityRole="button"
               >
                 <Ionicons name="refresh-outline" size={18} color={theme.text} />
                 <Text style={[styles.menuItemText, { color: theme.text }]}>Neu grünerieren</Text>
@@ -439,6 +472,7 @@ const styles = StyleSheet.create({
     marginVertical: spacing.xxsmall,
   },
   menuItemText: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
   },
   menuDivider: {

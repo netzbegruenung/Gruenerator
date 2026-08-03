@@ -1,6 +1,5 @@
 'use client';
 
-import { useMemo } from 'react';
 import {
   ChartContainer,
   ChartTooltip,
@@ -9,6 +8,7 @@ import {
   ChartLegendContent,
   type ChartConfig,
 } from '@gruenerator/ui';
+import { useMemo } from 'react';
 import {
   Area,
   AreaChart,

@@ -1,9 +1,49 @@
 import { createLogger } from '../../utils/logger.js';
 import mistralClient from '../../workers/mistralClient.js';
+import { normalizeContextBias } from '../transcription/transcriptionBias.js';
 
 const log = createLogger('mistralVoice');
 
 type TimestampGranularity = 'segment';
+
+/**
+ * The request fields Voxtral is picky about, in the one place that talks to it.
+ *
+ * Both rules were found by running a real 45-minute recording through the
+ * protokoll path (2026-07-31) and are enforced here rather than in the two
+ * route handlers, because a rule restated in two places is a rule that drifts
+ * — which is exactly how the first of them got in.
+ *
+ *  - DIARIZATION IMPLIES SEGMENT TIMESTAMPS. The routers treat `diarize` and
+ *    `timestamps` as independent flags, so `diarize=true, timestamps=false` —
+ *    a perfectly ordinary "who said what, I don't need timings" request — sent
+ *    an empty granularity list and Voxtral answered HTTP 422: "When diarize is
+ *    set to True and streaming is disabled, the timestamp granularity must be
+ *    set to ['segment'], got []". That killed speaker identification outright:
+ *    the fallback then handed a 45-minute file to Regolo, which gave up after
+ *    five minutes, and `identifySpeakers` received no `[speaker_N]` marker at
+ *    all.
+ *  - CONTEXT BIAS IS SINGLE WORDS. See normalizeContextBias. Callers may pass
+ *    their own vocabulary, so normalizing only inside `buildContextBias` would
+ *    leave the API-supplied path still able to trigger the 400.
+ */
+function voxtralRequestFields(options: TranscriptionOptions): {
+  language: string | undefined;
+  timestampGranularities: TimestampGranularity[] | undefined;
+  diarize: boolean | undefined;
+  contextBias: string[] | undefined;
+} {
+  const { language, timestamp_granularities, diarize, contextBias } = options;
+  const granularities = diarize ? (['segment'] as TimestampGranularity[]) : timestamp_granularities;
+  const bias = contextBias?.length ? normalizeContextBias(contextBias) : undefined;
+
+  return {
+    language: language || undefined,
+    timestampGranularities: granularities?.length ? granularities : undefined,
+    diarize: diarize || undefined,
+    contextBias: bias?.length ? bias : undefined,
+  };
+}
 
 /**
  * Voxtral model variants:
@@ -52,12 +92,12 @@ class MistralVoiceService {
     options: TranscriptionOptions = {}
   ): Promise<TranscriptionResult> {
     try {
-      const { language, timestamp_granularities, diarize, contextBias } = options;
+      const fields = voxtralRequestFields(options);
 
       log.debug('[Mistral Voice] Starting transcription with options:', {
-        language,
-        timestamp_granularities,
-        diarize,
+        language: fields.language,
+        timestamp_granularities: fields.timestampGranularities,
+        diarize: fields.diarize,
         filename,
       });
 
@@ -67,10 +107,7 @@ class MistralVoiceService {
           fileName: filename,
           content: audioBuffer,
         },
-        language: language || undefined,
-        timestampGranularities: timestamp_granularities || undefined,
-        diarize: diarize || undefined,
-        contextBias: contextBias || undefined,
+        ...fields,
       });
 
       const resp = transcriptionResponse as MistralTranscriptionResponse;
@@ -107,18 +144,13 @@ class MistralVoiceService {
     options: TranscriptionOptions = {}
   ): Promise<TranscriptionResult> {
     try {
-      const { language, timestamp_granularities, diarize, contextBias } = options;
-
       log.debug('[Mistral Voice] Starting URL transcription for:', audioUrl);
 
       // Use Voxtral's native fileUrl support — avoids downloading the file ourselves
       const transcriptionResponse = await mistralClient.audio.transcriptions.complete({
         model: VOXTRAL_TRANSCRIBE_MODEL,
         fileUrl: audioUrl,
-        language: language || undefined,
-        timestampGranularities: timestamp_granularities || undefined,
-        diarize: diarize || undefined,
-        contextBias: contextBias || undefined,
+        ...voxtralRequestFields(options),
       });
 
       log.debug('[Mistral Voice] URL transcription response received:', transcriptionResponse);
@@ -282,7 +314,6 @@ class MistralVoiceService {
 
       const chunks: string[] = [];
 
-      // eslint-disable-next-line @typescript-eslint/await-thenable -- Mistral SDK event stream is async-iterable; the rule mis-types it
       for await (const event of stream) {
         const eventData = event as Record<string, unknown>;
         const eventType = eventData.type as string | undefined;

@@ -44,8 +44,8 @@ import {
   getOriginalFilename,
   scheduleImmediateCleanup,
 } from '../../services/subtitler/tusService.js';
-import { getProfileService } from '../../services/user/index.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
@@ -90,7 +90,7 @@ async function cleanupUpload(uploadId: string | undefined) {
     void scheduleImmediateCleanup(uploadId, 'manual cleanup');
     return { status: 200 as const, body: { success: true } };
   } catch (e: unknown) {
-    return { status: 500 as const, body: { error: e instanceof Error ? e.message : String(e) } };
+    return { status: 500 as const, body: { error: toUserFacingMessage(e) } };
   }
 }
 
@@ -118,7 +118,7 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
     } catch (e: unknown) {
       return {
         status: 400 as const,
-        body: { error: e instanceof Error ? e.message : String(e) },
+        body: { error: toUserFacingMessage(e) },
       };
     }
   },
@@ -165,7 +165,7 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
     } catch (e: unknown) {
       return {
         status: 500 as const,
-        body: { error: e instanceof Error ? e.message : String(e) },
+        body: { error: toUserFacingMessage(e) },
       };
     }
   },
@@ -176,7 +176,7 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
     } catch (e: unknown) {
       return {
         status: 500 as const,
-        body: { error: e instanceof Error ? e.message : String(e) },
+        body: { error: toUserFacingMessage(e) },
       };
     }
   },
@@ -232,7 +232,7 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
     } catch (e: unknown) {
       return {
         status: 500 as const,
-        body: { error: e instanceof Error ? e.message : String(e) },
+        body: { error: toUserFacingMessage(e) },
       };
     }
   },
@@ -255,7 +255,7 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
     } catch (e: unknown) {
       return {
         status: 500 as const,
-        body: { error: e instanceof Error ? e.message : String(e) },
+        body: { error: toUserFacingMessage(e) },
       };
     }
   },
@@ -265,24 +265,17 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
   postProcessAuto: async (args) => {
     const { uploadId, maxResolution = null } = args.body;
     const userId = getUserId(args.req) ?? args.body.userId ?? null;
-    // Resolve locale from the persisted profile (DB) — the source of truth — not
-    // from req.user, which Better Auth serves from a 300s session-cookie cache
-    // that lags the DB after a locale change (and an SSO re-login may not rotate
-    // it at all). That stale cache served AT users the German subtitle style.
-    // Auto-processing is heavy + infrequent, so one profile read is negligible.
-    const bodyLocale = args.body.locale;
-    const sessionLocale = extractLocaleFromRequest(args.req);
-    let locale: string = sessionLocale;
-    let source = 'session';
-    if (userId) {
-      const profile = await getProfileService().getProfileById(userId);
-      if (profile?.locale === 'de-AT' || profile?.locale === 'de-DE') {
-        locale = profile.locale;
-        source = 'db';
-      }
-    }
+    // requireAuth runs on this prefix (see routes.ts), so req.user exists and
+    // tryResolveUser has already overlaid req.user.locale with the fresh,
+    // Redis-cached DB locale (services/localization/localeCache). That makes
+    // extractLocaleFromRequest return the persisted profile value rather than
+    // falling through to the browser-derived X-User-Locale header — the
+    // fall-through that served AT users the German subtitle style.
+    // `source` is logged because that fall-through was invisible for months.
+    const locale = extractLocaleFromRequest(args.req);
+    const source = (args.req as { user?: { locale?: string } }).user?.locale ? 'profile' : 'header';
     log.info(
-      `[process-auto] uploadId=${uploadId} bodyLocale=${bodyLocale ?? 'none'} sessionLocale=${sessionLocale} → resolved=${locale} (${source}) userId=${userId ?? 'none'}`
+      `[process-auto] uploadId=${uploadId} → locale=${locale} (${source}) userId=${userId ?? 'none'}`
     );
     try {
       const videoPath = getFilePathFromUploadId(uploadId);
@@ -302,7 +295,7 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
     } catch (e: unknown) {
       return {
         status: 500 as const,
-        body: { error: e instanceof Error ? e.message : String(e) },
+        body: { error: toUserFacingMessage(e) },
       };
     }
   },
@@ -322,7 +315,7 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
     } catch (e: unknown) {
       return {
         status: 500 as const,
-        body: { error: e instanceof Error ? e.message : String(e) },
+        body: { error: toUserFacingMessage(e) },
       };
     }
   },
@@ -355,7 +348,7 @@ Erstelle einen Instagram Reel Beitragstext, der:
         type: 'subtitler_social',
         systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],
-        options: { max_tokens: 1000, temperature: 0.7 },
+        options: { temperature: 0.7 },
       });
 
       if (!result.success) {

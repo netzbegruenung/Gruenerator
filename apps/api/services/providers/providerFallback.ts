@@ -3,7 +3,7 @@
  * Provides automatic failover across configured LLM providers
  */
 
-import { env } from '../../config/env.js';
+import { getDefaultModel, isProviderConfigured } from '../ai/providers.js';
 
 import type {
   ProviderName,
@@ -14,57 +14,54 @@ import type {
 } from './types.js';
 
 /**
- * Check if a provider is available based on environment configuration
+ * Whether a provider can be tried at all.
+ *
+ * Delegates rather than re-deriving from env: this file used to carry its own
+ * copy that knew three of the four providers, so anything the copy had not
+ * heard of reported "not configured" and was skipped — and a fifth provider
+ * would inherit that silence. There is one availability rule; this is it.
  */
 export function isProviderAvailable(provider: ProviderName): boolean {
-  switch (provider) {
-    case 'litellm':
-      return !!env.LITELLM_API_KEY;
-    case 'mistral':
-      return !!env.MISTRAL_API_KEY;
-    case 'regolo':
-      return !!env.REGOLO_API_KEY;
-    default:
-      return false;
-  }
+  return isProviderConfigured(provider);
 }
 
 /**
- * Get the appropriate model for a fallback provider
+ * The model to retry a failed request with on `provider`.
+ *
+ * Same delegation, same reason: two hand-maintained switches here (one general,
+ * one for sharepics) listed the same three providers with the same three models
+ * and differed only in an unreachable `default` branch. `getDefaultModel` knows
+ * all four.
  */
 export function getFallbackModelForProvider(provider: ProviderName): ModelName {
-  switch (provider) {
-    case 'litellm':
-      return 'verdigado-pro';
-    case 'mistral':
-      return 'mistral-medium-2604';
-    case 'regolo':
-      return env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b';
-    default:
-      return 'verdigado-pro';
-  }
-}
-
-/**
- * Get the appropriate model for sharepic fallback
- */
-export function getSharepicFallbackModel(provider: ProviderName): ModelName {
-  switch (provider) {
-    case 'mistral':
-      return 'mistral-medium-2604';
-    case 'litellm':
-      return 'verdigado-pro';
-    case 'regolo':
-      return env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b';
-    default:
-      return 'mistral-medium-2604';
-  }
+  return getDefaultModel(provider);
 }
 
 /**
  * Sharepic-specific fallback chain: Mistral (Magistral) → LiteLLM → Regolo
  */
 export const SHAREPIC_FALLBACK_CHAIN: ProviderName[] = ['mistral', 'litellm', 'regolo'];
+
+/**
+ * The error thrown once every provider in a chain has failed.
+ *
+ * `cause` is the point: the last provider error is the one carrying the status
+ * code, and the classifier at the `aiService` boundary walks the cause chain to
+ * find it. Interpolating it into the message — as this used to — turned a
+ * structured `APICallError` (429, 503, …) into prose, so a rate limit reached
+ * the client as a generic `internal` error with no retry hint.
+ */
+function aggregateFailure(
+  label: string,
+  attempted: ProviderName[],
+  lastError: Error | undefined
+): Error {
+  const msg = lastError?.message || 'Unknown error';
+  return new Error(
+    `All ${label} providers failed (tried: ${attempted.join(', ')}). Last error: ${msg}`,
+    lastError ? { cause: lastError } : undefined
+  );
+}
 
 /**
  * Try fallback providers in order, using a caller-supplied executor.
@@ -130,10 +127,7 @@ export async function tryFallbackProviders(
     );
   }
 
-  const msg = lastError?.message || 'Unknown error';
-  throw new Error(
-    `All fallback providers failed (tried: ${attemptedProviders.join(', ')}). Last error: ${msg}`
-  );
+  throw aggregateFailure('fallback', attemptedProviders, lastError);
 }
 
 /**
@@ -163,7 +157,7 @@ export async function trySharepicFallbackProviders(
         options: {
           ...(data.options || {}),
           provider,
-          model: getSharepicFallbackModel(provider),
+          model: getFallbackModelForProvider(provider),
         },
       };
       const result = await execForProvider(provider, fallbackData);
@@ -187,8 +181,5 @@ export async function trySharepicFallbackProviders(
     throw new Error('No sharepic fallback providers are configured');
   }
 
-  const msg = lastError?.message || 'Unknown error';
-  throw new Error(
-    `All sharepic fallback providers failed (tried: ${attemptedProviders.join(', ')}). Last error: ${msg}`
-  );
+  throw aggregateFailure('sharepic fallback', attemptedProviders, lastError);
 }

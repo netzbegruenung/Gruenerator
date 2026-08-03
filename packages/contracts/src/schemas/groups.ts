@@ -232,6 +232,23 @@ export const joinByTokenBodySchema = z.object({
 });
 export type JoinByTokenBody = z.infer<typeof joinByTokenBodySchema>;
 
+/** Invite people to a group by email — each address gets the join link. */
+export const inviteToGroupBodySchema = z.object({
+  emails: z
+    .array(z.string().email('Ungültige E-Mail-Adresse.'))
+    .min(1, 'Mindestens eine E-Mail-Adresse ist erforderlich.')
+    .max(50, 'Maximal 50 Einladungen auf einmal.'),
+});
+export type InviteToGroupBody = z.infer<typeof inviteToGroupBodySchema>;
+
+export const inviteToGroupResponseSchema = z.object({
+  success: z.literal(true),
+  sent: z.number(),
+  // Addresses whose email could not be sent (e.g. SMTP unconfigured).
+  failed: z.array(z.string()),
+});
+export type InviteToGroupResponse = z.infer<typeof inviteToGroupResponseSchema>;
+
 export const memberRoleBodySchema = z.object({
   role: groupRoleSchema,
 });

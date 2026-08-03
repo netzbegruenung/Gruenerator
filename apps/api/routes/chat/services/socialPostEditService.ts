@@ -14,16 +14,31 @@ import { SOCIAL_PLATFORM_INFO, type SocialPostToolResult } from '@gruenerator/co
 
 import { rubricForPlatform } from '../../../agents/langgraph/ChatGraph/nodes/socialMediaComposerNode.js';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
+import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
+import { finishEditTurn } from './editTurnCompletion.js';
+import { looksLikeRefusal } from './refusalDetection.js';
 import { parseSocialPostText } from './socialPostService.js';
-import { createMessage, touchThread } from './threadPersistenceService.js';
 
 import type { SSEWriter } from './sseHelpers.js';
 import type { AIWorkerPool } from '../../../workers/types.js';
 import type { Request } from 'express';
 
 const log = createLogger('SocialPostEdit');
+
+/**
+ * Shown when the edit model declines the instruction. Says WHY and states that
+ * the existing post survived — the decline is the system working, and the user
+ * needs to know their artifact is intact.
+ *
+ * Deliberately does NOT invite a rephrasing: the requests that land here are
+ * fabricated claims about real people, and "magst du das anders formulieren?"
+ * coaches the retry of something we just refused.
+ */
+export const SOCIAL_EDIT_REFUSAL_TEXT =
+  'Diese Änderung setze ich nicht um — sie widerspricht den inhaltlichen Regeln des Grünerators, ' +
+  'etwa erfundene Behauptungen über real existierende Personen. Dein bestehender Post bleibt unverändert.';
 
 export { isSocialTextEditInstruction } from './socialPostEditHeuristics.js';
 
@@ -71,8 +86,7 @@ export async function findSocialPost(
     // A text-edit turn re-targets its post explicitly (one-level recursion).
     const editedPostId = (
       meta?.toolCalls?.find((tc) => tc?.toolName === 'social_post_edit')?.result as
-        | { postId?: string }
-        | undefined
+        { postId?: string } | undefined
     )?.postId;
     if (editedPostId) return findSocialPost(threadId, editedPostId);
     // Newer sharepic-only artifact shadows older posts (see doc comment).
@@ -137,32 +151,17 @@ async function finishWithText(
   text: string,
   toolCalls?: Record<string, unknown>[]
 ): Promise<void> {
-  const { sse, threadId } = args;
-  sse.send('response_start', { message: 'Antwort wird erstellt...' });
-  sse.send('text_delta', { text });
-  sse.sendRaw('done', {
-    threadId,
-    citations: [],
-    metadata: {
-      intent: 'social_post_edit',
-      searchCount: 0,
-      totalTimeMs: Date.now() - args.startTime,
-      ...(args.classificationTimeMs != null && {
-        classificationTimeMs: args.classificationTimeMs,
-      }),
-      searchTimeMs: 0,
-    },
+  await finishEditTurn({
+    sse: args.sse,
+    threadId: args.threadId,
+    text,
+    intent: 'social_post_edit',
+    persistLabel: 'socialPostEdit:persist',
+    logPrefix: '[SocialPostEdit]',
+    startTime: args.startTime,
+    ...(args.classificationTimeMs != null && { classificationTimeMs: args.classificationTimeMs }),
+    ...(toolCalls ? { toolCalls } : {}),
   });
-  try {
-    await createMessage(threadId, 'assistant', text, {
-      intent: 'social_post_edit',
-      ...(toolCalls ? { toolCalls } : {}),
-    });
-    await touchThread(threadId);
-  } catch (err) {
-    log.error('[SocialPostEdit] Failed to persist message:', err);
-  }
-  sse.end();
 }
 
 /**
@@ -207,7 +206,7 @@ Ziel: ~${info.recommendedChars} Zeichen. Hartes Maximum: ${info.maxChars} Zeiche
         type: 'social_post_edit',
         systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],
-        options: { temperature: 0.5, max_tokens: 1200 },
+        options: { temperature: 0.5 },
       },
       req as (Request & { user?: { id?: string }; sessionID?: string }) | null
     );
@@ -225,6 +224,21 @@ Ziel: ~${info.recommendedChars} Zeichen. Hartes Maximum: ${info.maxChars} Zeiche
     }
 
     const parsed = parseSocialPostText(result.content);
+
+    // A decline is not an edit. Without this the refusal string itself was
+    // persisted as the new version — "I'm sorry, but I can't help with that."
+    // replaced a perfectly good post, and the chat still reported success.
+    // Checked on the raw content too: a refusal ending in a stray hashtag
+    // would otherwise reach the gate already stripped.
+    if (looksLikeRefusal(result.content) || looksLikeRefusal(parsed.text)) {
+      log.info(
+        `[SocialPostEdit] ${post.postId} — model declined the instruction; ` +
+          `post left at v${post.version ?? 1}, no version written`
+      );
+      await finishWithText(args, SOCIAL_EDIT_REFUSAL_TEXT);
+      return true;
+    }
+
     const newVersion = (post.version ?? 1) + 1;
     const summary = instruction.length > 120 ? `${instruction.slice(0, 117)}…` : instruction;
     const head = {
@@ -267,7 +281,7 @@ Ziel: ~${info.recommendedChars} Zeichen. Hartes Maximum: ${info.maxChars} Zeiche
     log.error('[SocialPostEdit] Edit turn failed:', error);
     if (!sse.isEnded()) {
       sse.send('social_post_edit_error', {
-        error: error instanceof Error ? error.message : 'Unbekannter Fehler',
+        error: toUserFacingMessage(error, 'Unbekannter Fehler'),
       });
       await finishWithText(
         args,

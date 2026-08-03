@@ -1,4 +1,11 @@
-import { type ApiErrorBody } from '@gruenerator/contracts';
+import {
+  type ApiErrorBody,
+  type HeightPreference,
+  type JobErrorCode,
+  type StylePreference,
+  type SubtitlePreference,
+  type SupportedLocale,
+} from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import axios from 'axios';
 import { create } from 'zustand';
@@ -37,10 +44,14 @@ interface Subtitle {
 interface ExportParams {
   subtitles?: Subtitle[];
   uploadId?: string;
-  subtitlePreference?: string;
-  stylePreference?: string;
-  heightPreference?: string;
-  locale?: string;
+  // Closed sets, same reasoning as `locale` below — as plain strings these
+  // silently accepted anything and handed it to the export endpoint.
+  subtitlePreference?: SubtitlePreference;
+  stylePreference?: StylePreference;
+  heightPreference?: HeightPreference;
+  // Closed set — mirrors the contract's localeSchema. As a plain string this
+  // silently accepted anything and handed it to the export endpoint.
+  locale?: SupportedLocale;
   maxResolution?: number | null;
   projectId?: string | null;
   userId?: string | null;
@@ -63,6 +74,10 @@ interface SubtitlerExportStoreState {
   exportToken: string | null;
   projectId: string | null;
   error: string | null;
+  /** Structured failure taxonomy from the backend job status. */
+  errorCode: JobErrorCode | null;
+  retryable: boolean | null;
+  errorId: string | null;
   timeRemaining: number | null;
 
   // Internal polling state
@@ -109,6 +124,9 @@ const initialState: Pick<
   | 'exportToken'
   | 'projectId'
   | 'error'
+  | 'errorCode'
+  | 'retryable'
+  | 'errorId'
   | 'timeRemaining'
   | 'pollingInterval'
   | 'pollingStartTime'
@@ -123,6 +141,9 @@ const initialState: Pick<
   exportToken: null,
   projectId: null,
   error: null,
+  errorCode: null,
+  retryable: null,
+  errorId: null,
   timeRemaining: null,
 
   // Internal polling state
@@ -269,7 +290,10 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
         } else if (progressData.status === 'error') {
           set({
             status: EXPORT_STATUS.ERROR,
-            error: progressData.error ?? 'Export failed',
+            error: progressData.error ?? 'Der Export ist fehlgeschlagen.',
+            errorCode: progressData.errorCode ?? null,
+            retryable: progressData.retryable ?? null,
+            errorId: progressData.errorId ?? null,
           });
           get().stopPolling();
         }
@@ -289,7 +313,11 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
           console.error('[SubtitlerExportStore] Max retries reached, stopping polling');
           set({
             status: EXPORT_STATUS.ERROR,
-            error: 'Connection lost during export. Please try again.',
+            error:
+              'Die Verbindung zum Export ist abgerissen. Der Export läuft möglicherweise weiter — bitte lade die Seite neu.',
+            errorCode: null,
+            retryable: true,
+            errorId: null,
           });
           get().stopPolling();
         }
@@ -504,7 +532,10 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
     console.error('[SubtitlerExportStore] Setting error:', error);
     set({
       status: EXPORT_STATUS.ERROR,
-      error: typeof error === 'string' ? error : error.message || 'An error occurred',
+      error: typeof error === 'string' ? error : error.message || 'Es ist ein Fehler aufgetreten.',
+      errorCode: null,
+      retryable: true,
+      errorId: null,
     });
     get().stopPolling();
   },

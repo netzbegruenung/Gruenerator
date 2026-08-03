@@ -33,6 +33,7 @@
     "src/**/*",
     "vite.config.ts",
     "vitest.config.ts",
+    "vitest.setup.ts",
     "tests/**/*",
     "playwright.config.ts",
     "playwright.smoke.config.ts"

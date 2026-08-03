@@ -1,10 +1,26 @@
+import coverBayern from '@gruenerator/shared/assets/notebook-covers/bayern.webp';
+import coverBerlin from '@gruenerator/shared/assets/notebook-covers/berlin.webp';
+import coverBrandenburg from '@gruenerator/shared/assets/notebook-covers/brandenburg.webp';
+import coverBundestagsfraktion from '@gruenerator/shared/assets/notebook-covers/bundestagsfraktion.webp';
+import coverBundesverband from '@gruenerator/shared/assets/notebook-covers/bundesverband.webp';
+import coverHessen from '@gruenerator/shared/assets/notebook-covers/hessen.webp';
+import coverKommunalwiki from '@gruenerator/shared/assets/notebook-covers/kommunalwiki.webp';
+import coverMecklenburgVorpommern from '@gruenerator/shared/assets/notebook-covers/mecklenburg-vorpommern.webp';
+import coverSaarland from '@gruenerator/shared/assets/notebook-covers/saarland.webp';
+import coverSachsenAnhalt from '@gruenerator/shared/assets/notebook-covers/sachsen-anhalt.webp';
+import coverThueringen from '@gruenerator/shared/assets/notebook-covers/thueringen.webp';
 import { NOTEBOOK_ICONS } from '@gruenerator/shared/notebook-icons';
 import {
   NOTEBOOK_REGISTRY,
+  isNotebookOfferedIn,
+  isNotebookResolvableIn,
+  type NotebookAudience,
   type NotebookCategory,
   type NotebookDefinition,
   type NotebookId,
 } from '@gruenerator/shared/notebooks';
+
+import { CURRENT_INSTANCE } from '../../../config/instance';
 
 import type { SystemAgentId } from '@gruenerator/shared/agents';
 import type { IconType } from 'react-icons';
@@ -22,6 +38,7 @@ export interface NotebookConfigEntry {
   icon: IconType;
   order: number;
   category: NotebookCategory;
+  audience: NotebookAudience;
   /**
    * Branded 1:1 cover shown in the gallery tile (public path). Absent notebooks
    * fall back to the ghost-icon preview.
@@ -71,21 +88,23 @@ const NOTEBOOK_PATHS = {
 } satisfies Record<NotebookId, string>;
 
 /**
- * Branded notebook covers (in `apps/web/public/notebook-covers/`, optimized webp).
- * Partial by design — notebooks without an entry keep the ghost-icon tile.
+ * Branded notebook covers, optimized webp. The files live in
+ * `packages/shared/assets/notebook-covers/` so web and mobile share one copy —
+ * Vite turns these imports into hashed URLs, Metro into bundled image modules.
+ * Partial by design: notebooks without an entry keep the ghost-icon tile.
  */
 const NOTEBOOK_COVERS: Partial<Record<NotebookId, string>> = {
-  'gruene-notebook': '/notebook-covers/bundesverband.webp',
-  'bundestagsfraktion-notebook': '/notebook-covers/bundestagsfraktion.webp',
-  'thueringen-notebook': '/notebook-covers/thueringen.webp',
-  'berlin-notebook': '/notebook-covers/berlin.webp',
-  'mecklenburg-vorpommern-notebook': '/notebook-covers/mecklenburg-vorpommern.webp',
-  'brandenburg-notebook': '/notebook-covers/brandenburg.webp',
-  'bayern-notebook': '/notebook-covers/bayern.webp',
-  'sachsen-anhalt-notebook': '/notebook-covers/sachsen-anhalt.webp',
-  'hessen-notebook': '/notebook-covers/hessen.webp',
-  'saarland-notebook': '/notebook-covers/saarland.webp',
-  'kommunalwiki-notebook': '/notebook-covers/kommunalwiki.webp',
+  'gruene-notebook': coverBundesverband,
+  'bundestagsfraktion-notebook': coverBundestagsfraktion,
+  'thueringen-notebook': coverThueringen,
+  'berlin-notebook': coverBerlin,
+  'mecklenburg-vorpommern-notebook': coverMecklenburgVorpommern,
+  'brandenburg-notebook': coverBrandenburg,
+  'bayern-notebook': coverBayern,
+  'sachsen-anhalt-notebook': coverSachsenAnhalt,
+  'hessen-notebook': coverHessen,
+  'saarland-notebook': coverSaarland,
+  'kommunalwiki-notebook': coverKommunalwiki,
 };
 
 const toEntry = (nb: NotebookDefinition): NotebookConfigEntry => ({
@@ -98,35 +117,67 @@ const toEntry = (nb: NotebookDefinition): NotebookConfigEntry => ({
   icon: NOTEBOOK_ICONS[nb.id],
   order: nb.order,
   category: nb.category,
+  audience: nb.audience,
   ...(NOTEBOOK_COVERS[nb.id] ? { coverImage: NOTEBOOK_COVERS[nb.id] } : {}),
   ...(nb.enabled === false ? { enabled: false } : {}),
   ...(nb.defaultAgent ? { defaultAgent: nb.defaultAgent as SystemAgentId } : {}),
 });
 
 /**
- * Derived from the shared notebook registry (`@gruenerator/shared/notebooks`) so the web
- * gallery, mobile gallery, and chat mention picker stay in sync. `devOnly` notebooks are
- * included only in dev builds, matching the previous DEV_ONLY_NOTEBOOKS behaviour.
+ * Every registered notebook, unfiltered — the resolution list.
+ *
+ * Route lookups read from here (via `getNotebookById` / `getNotebookByPath`)
+ * because an instance that merely *hides* a notebook must not break a link
+ * shared from another instance. Nothing renders a listing off this array; that
+ * is what {@link SYSTEM_NOTEBOOKS} is for.
  */
-export const SYSTEM_NOTEBOOKS: NotebookConfigEntry[] = NOTEBOOK_REGISTRY.filter(
-  (nb) => import.meta.env.DEV || !nb.devOnly
-).map(toEntry);
+const ALL_SYSTEM_NOTEBOOKS: NotebookConfigEntry[] = NOTEBOOK_REGISTRY.map(toEntry);
+
+/**
+ * Derived from the shared notebook registry (`@gruenerator/shared/notebooks`) so the web
+ * gallery, mobile gallery, and chat mention picker stay in sync. Notebooks this instance
+ * does not offer — by channel or by its content policy — are dropped here, the single
+ * point every gallery view below inherits from.
+ */
+export const SYSTEM_NOTEBOOKS: NotebookConfigEntry[] = ALL_SYSTEM_NOTEBOOKS.filter((nb) =>
+  isNotebookOfferedIn(nb.id, CURRENT_INSTANCE)
+);
 
 const isNotebookEnabled = (nb: NotebookConfigEntry): boolean => nb.enabled !== false;
 
 export const getOrderedNotebooks = (): NotebookConfigEntry[] =>
   SYSTEM_NOTEBOOKS.filter(isNotebookEnabled).sort((a, b) => a.order - b.order);
 
+/**
+ * Direct-link resolution: `hidden` still resolves, `blocked` does not. Mirrors
+ * the backend gate in `apps/api/config/notebookCollectionMap.ts`, which lets an
+ * explicitly mentioned notebook through on the same terms.
+ */
 export const getNotebookById = (id: string): NotebookConfigEntry | undefined =>
-  SYSTEM_NOTEBOOKS.find((nb) => nb.id === id);
+  ALL_SYSTEM_NOTEBOOKS.find(
+    (nb) => nb.id === id && isNotebookResolvableIn(nb.id, CURRENT_INSTANCE)
+  );
 
 export const getNotebookByPath = (path: string): NotebookConfigEntry | undefined =>
-  SYSTEM_NOTEBOOKS.find((nb) => nb.path === path);
+  ALL_SYSTEM_NOTEBOOKS.find(
+    (nb) => nb.path === path && isNotebookResolvableIn(nb.id, CURRENT_INSTANCE)
+  );
 
 export const getNotebooksByCategory = (category: NotebookCategory): NotebookConfigEntry[] =>
   SYSTEM_NOTEBOOKS.filter((nb) => isNotebookEnabled(nb) && nb.category === category).sort(
     (a, b) => a.order - b.order
   );
+
+/**
+ * Audience gate mirroring `getNotebooksForAudience` in the shared registry:
+ * a notebook is visible when tagged for the viewer's locale or for `all`.
+ * Category-based grouping (`landesebene`, `oesterreich`, …) decides *where* a
+ * notebook renders; this decides *whether* it renders for the viewer at all.
+ */
+export const isNotebookVisibleForLocale = (
+  nb: NotebookConfigEntry,
+  locale: Exclude<NotebookAudience, 'all'>
+): boolean => nb.audience === 'all' || nb.audience === locale;
 
 export const getGermanNotebooks = (): NotebookConfigEntry[] =>
   SYSTEM_NOTEBOOKS.filter(

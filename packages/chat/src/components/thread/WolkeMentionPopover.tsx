@@ -1,13 +1,16 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+
 import {
   useUserShareLinksQuery,
   useWolkeBrowseQuery,
   type ChatWolkeFile,
 } from '../../hooks/useMentionablesQuery';
-import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { type WolkeFileToken } from '../../lib/mentionables';
+import { joinWolkePath, wolkeParentPath } from '../../lib/wolkePath';
+import { useChatConfigStore } from '../../stores/chatConfigStore';
+
 import { MentionFloatingPanel } from './MentionFloatingPanel';
 
 interface WolkeMentionPopoverProps {
@@ -22,17 +25,11 @@ interface SelectedFile {
   name: string;
 }
 
-function joinPath(parent: string, name: string): string {
-  if (!parent || parent === '/') return `/${name}`;
-  return `${parent.replace(/\/$/, '')}/${name}`;
-}
-
-function parentOf(p: string): string {
-  if (!p || p === '/') return '';
-  const trimmed = p.replace(/\/$/, '');
-  const idx = trimmed.lastIndexOf('/');
-  return idx <= 0 ? '' : trimmed.slice(0, idx);
-}
+// Shared with mobile's picker: both navigate the same tree, and a disagreement
+// about what the parent of the root is traps the user in a folder they cannot
+// leave. See lib/wolkePath.ts.
+const joinPath = joinWolkePath;
+const parentOf = wolkeParentPath;
 
 export function WolkeMentionPopover({ visible, onSelect, onDismiss }: WolkeMentionPopoverProps) {
   const wolkeConnectUrl = useChatConfigStore((s) => s.wolkeConnectUrl);
@@ -46,12 +43,14 @@ export function WolkeMentionPopover({ visible, onSelect, onDismiss }: WolkeMenti
   useEffect(() => {
     if (!visible) return;
     if (!activeShareId && shareLinks && shareLinks.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- defaults to the first share once the async query resolves post-mount
       setActiveShareId(shareLinks[0].id);
     }
   }, [visible, shareLinks, activeShareId]);
 
   useEffect(() => {
     if (!visible) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resets panel state on close (visibility transition), not a render-derived value
       setSelection(new Map());
       setFolderPath('');
       setFilter('');
@@ -100,6 +99,7 @@ export function WolkeMentionPopover({ visible, onSelect, onDismiss }: WolkeMenti
       role="dialog"
       ariaLabel="Wolke-Dateien auswählen"
     >
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- Escape-only capture inside the already-labeled dialog panel above, not new interactive semantics. */}
       <div
         className="flex min-h-0 flex-1 flex-col"
         onKeyDown={(e) => {

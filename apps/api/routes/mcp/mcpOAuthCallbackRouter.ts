@@ -59,8 +59,16 @@ async function handleCallback(req: Request, res: Response): Promise<void> {
   const code = typeof req.query.code === 'string' ? req.query.code : '';
   const state = typeof req.query.state === 'string' ? req.query.state : '';
   const oauthError = typeof req.query.error === 'string' ? req.query.error : '';
+  // RFC 9207 authorization-response issuer; validated in handleCallback.
+  const iss = typeof req.query.iss === 'string' ? req.query.iss : undefined;
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  // The authorization code rides in the query string — RFC 6749 §4.1.2 has no
+  // other channel for it. What we can stop is it travelling on from here: no
+  // Referer to anything this page touches, and no copy in any cache
+  // (CodeQL js/sensitive-get-query).
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Cache-Control', 'no-store');
 
   if (oauthError) {
     res.send(renderResultPage({ success: false, error: oauthError }));
@@ -71,7 +79,7 @@ async function handleCallback(req: Request, res: Response): Promise<void> {
     return;
   }
   try {
-    const { serverId } = await McpOAuthService.handleCallback(code, state);
+    const { serverId } = await McpOAuthService.handleCallback(code, state, iss);
     res.send(renderResultPage({ success: true, serverId }));
   } catch (error) {
     log.warn('MCP OAuth callback failed', {

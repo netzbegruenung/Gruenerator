@@ -6,7 +6,7 @@
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
 
-import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../../theme';
+import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../../theme';
 
 export type Offset2D = [number, number];
 
@@ -25,6 +25,13 @@ export interface CrossControlProps {
 }
 
 type Direction = 'up' | 'down' | 'left' | 'right';
+
+const DIRECTION_LABELS: Record<Direction, string> = {
+  up: 'Nach oben verschieben',
+  down: 'Nach unten verschieben',
+  left: 'Nach links verschieben',
+  right: 'Nach rechts verschieben',
+};
 
 export function CrossControl({
   title,
@@ -89,6 +96,9 @@ export function CrossControl({
           },
           isDisabled && styles.disabled,
         ]}
+        accessibilityRole="button"
+        accessibilityLabel={DIRECTION_LABELS[direction]}
+        accessibilityState={{ disabled: isDisabled }}
       >
         <Ionicons
           name={icon}
@@ -136,10 +146,12 @@ const styles = StyleSheet.create({
     gap: spacing.small,
   },
   title: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
   },
   description: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
   },
   crossGrid: {
@@ -174,6 +186,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   centerText: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '500',
     fontVariant: ['tabular-nums'],

@@ -77,6 +77,45 @@ export interface SheetStructure {
   }>;
 }
 
+/**
+ * Schema for the forced tool call. Loose on purpose: `parseSheetStructure`
+ * remains the gate, and it NORMALIZES (casts, caps, drops malformed rows)
+ * instead of rejecting — a strict wire schema would turn repairable output into
+ * a hard failure. What this buys is completeness: the model stops omitting
+ * `columns` or nesting rows wrongly, so fewer half-tables reach the parser.
+ */
+export const SHEET_TOOL_SCHEMA: Record<string, unknown> = {
+  type: 'object',
+  required: ['title', 'sheets'],
+  additionalProperties: true,
+  properties: {
+    title: { type: 'string', description: 'Titel der Tabelle' },
+    sheets: {
+      type: 'array',
+      minItems: 1,
+      items: {
+        type: 'object',
+        required: ['name', 'columns', 'rows'],
+        additionalProperties: true,
+        properties: {
+          name: { type: 'string', description: 'Name des Tabellenblatts' },
+          columns: {
+            type: 'array',
+            minItems: 1,
+            items: { type: 'string' },
+            description: 'Spaltenüberschriften (Zeile 1)',
+          },
+          rows: {
+            type: 'array',
+            description: 'Datenzeilen; je Zeile ein Array in Spaltenreihenfolge',
+            items: { type: 'array', items: {} },
+          },
+        },
+      },
+    },
+  },
+};
+
 /** Parse the model's JSON (with a fenced-block fallback, like boards/docs). */
 export function parseSheetStructure(content: string): SheetStructure | null {
   const tryParse = (raw: string): SheetStructure | null => {

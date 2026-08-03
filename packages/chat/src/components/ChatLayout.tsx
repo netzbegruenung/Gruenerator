@@ -1,10 +1,12 @@
 'use client';
 
+import { TooltipProvider } from '@gruenerator/ui';
 import { useState } from 'react';
+
+import { GrueneratorChatProvider } from '../runtime/GrueneratorChatProvider';
+
 import { ChatSidebar } from './ChatSidebar';
 import { GrueneratorThread } from './thread/GrueneratorThread';
-import { GrueneratorChatProvider } from '../runtime/GrueneratorChatProvider';
-import { TooltipProvider } from '@gruenerator/ui';
 
 interface ChatLayoutProps {
   userId?: string;
@@ -27,9 +29,9 @@ export function ChatLayout({ userId, firstName, onLogout, onNavigate }: ChatLayo
             onLogout={onLogout}
             onNavigate={onNavigate}
           />
-          <main className="flex flex-1 flex-col overflow-hidden">
+          <div className="flex flex-1 flex-col overflow-hidden">
             <GrueneratorThread onNavigate={onNavigate} firstName={firstName} />
-          </main>
+          </div>
         </div>
       </TooltipProvider>
     </GrueneratorChatProvider>

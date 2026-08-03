@@ -260,6 +260,10 @@ export const useCanvasAutoSave = (
             imageData: imageSrc,
             title,
             imageType: refs.canvasType,
+            // `canvasType` is a canvas template id, a different namespace from
+            // the legacy `image_type` names the classifier knows — so without
+            // this the export landed in neither bucket.
+            contentOrigin: 'sharepic',
             metadata,
             originalImage: originalImageBase64,
             status: 'draft',

@@ -3,7 +3,9 @@
  * Barrel export for clean imports
  */
 
-export { searchGraph, runSearchGraph, initializeSearchState } from './SearchGraph.js';
+// No compiled graph is exported: the mounted router runs the nodes one by one
+// so it can stream SSE between them. The compiled `searchGraph` had zero callers.
+export { initializeSearchState } from './SearchGraph.js';
 
 export type {
   SearchGraphState,
@@ -16,7 +18,6 @@ export type {
 
 // Node exports (for controller to run nodes individually with SSE)
 export { queryPlannerNode } from './nodes/queryPlannerNode.js';
-export { queryOptimizerNode } from './nodes/queryOptimizerNode.js';
 export { searchExecutorNode } from './nodes/searchExecutorNode.js';
 export { intelligentCrawlNode } from './nodes/intelligentCrawlNode.js';
 export { deepResearchNode, setResearchProgressCallback } from './nodes/deepResearchNode.js';

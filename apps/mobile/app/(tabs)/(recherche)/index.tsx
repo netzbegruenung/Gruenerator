@@ -6,28 +6,32 @@ import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, useColorScheme, Pressable, Alert } from 'react-native';
+import { GestureDetector } from 'react-native-gesture-handler';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BottomComposerBar } from '../../../components/common/BottomComposerBar';
 import { NotebookGradientBackground } from '../../../components/common/NotebookGradientBackground';
 import { ScreenScaffold } from '../../../components/navigation/ScreenScaffold';
 import { CommunityNotebooksSection } from '../../../components/notebook/CommunityNotebooksSection';
-import { NotebookCard, notebookGridStyles } from '../../../components/notebook/NotebookCard';
+import { NotebookCard, useNotebookGrid } from '../../../components/notebook/NotebookCard';
 import { NotebookCreator } from '../../../components/notebook/NotebookCreator';
 import { NotebookSection } from '../../../components/notebook/NotebookSection';
-import { NotebooksHero } from '../../../components/notebook/NotebooksHero';
 import {
   getMobileNotebooksByCategory,
   getVisibleNotebooks,
   type MobileNotebookEntry,
 } from '../../../config/notebooksConfig';
 import { useNotebookSharing } from '../../../hooks/notebook/useNotebookSharing';
-import { useIsTablet } from '../../../hooks/useIsTablet';
+import { useContentColumn } from '../../../hooks/useLayout';
 import {
   useNotebookCollections,
   type MobileNotebookCollection,
 } from '../../../hooks/useNotebookCollections';
+import { useTabNavigationSwipe } from '../../../hooks/useTabSwipe';
 import { useFavoritesStore } from '../../../stores/favoritesStore';
 import { colors, spacing, typography, borderRadius, lightTheme, darkTheme } from '../../../theme';
+import { FLOATING_TAB_BAR_HEIGHT } from '../../../theme/layout';
+import { getSurfaceFab } from '../../../theme/toolTheme';
 import { routeWithParams } from '../../../types/routes';
 
 /** "12 Dokumente · Beschreibung" line for a user's own notebook card. */
@@ -40,12 +44,20 @@ export default function NotebooksScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
-  const isTablet = useIsTablet();
+  const notebookGrid = useNotebookGrid();
+  const gridColumn = useContentColumn('grid');
+  const insets = useSafeAreaInsets();
+  const fabTone = getSurfaceFab('wissen', colorScheme === 'dark');
   const [creatorVisible, setCreatorVisible] = useState(false);
+  // The ask-all-sources composer is opt-in: the gallery is what the tab is for,
+  // and a permanently pinned bar ate a sixth of the screen for it.
+  const [askVisible, setAskVisible] = useState(false);
   const { user } = useAuth();
   const locale: 'de-DE' | 'de-AT' = user?.locale === 'de-AT' ? 'de-AT' : 'de-DE';
   const { collections, isLoading, processingIds, createCollection, deleteCollection } =
     useNotebookCollections();
+  // Last tab: swiping right walks back to Studio, swiping left does nothing.
+  const swipe = useTabNavigationSwipe('/(tabs)/(recherche)');
   const { showActionSheetWithOptions } = useActionSheet();
   const { listGroups, shareToGroup, getShareUrl } = useNotebookSharing();
   const { favouriteIds, load: loadFavourites, toggle: toggleFavourite } = useFavoritesStore();
@@ -53,6 +65,14 @@ export default function NotebooksScreen() {
   useEffect(() => {
     void loadFavourites();
   }, [loadFavourites]);
+
+  // Hoisted out of the five section props below: an inline arrow there is a new
+  // function on every render, which would defeat the tiles' `memo` and re-render
+  // all 19 covers whenever anything on this screen changed.
+  const handleToggleFavourite = useCallback(
+    (nb: MobileNotebookEntry) => toggleFavourite(nb.id),
+    [toggleFavourite]
+  );
 
   const bundesebene = useMemo(() => getMobileNotebooksByCategory('bundesebene', locale), [locale]);
   const landesebene = useMemo(() => getMobileNotebooksByCategory('landesebene', locale), [locale]);
@@ -181,104 +201,131 @@ export default function NotebooksScreen() {
   );
 
   return (
-    <ScreenScaffold title="Notebooks" backdrop={<NotebookGradientBackground />}>
-      <View style={styles.container}>
-        <ScrollView
-          style={styles.container}
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View>
-            <NotebooksHero />
+    <ScreenScaffold title="Wissen" backdrop={<NotebookGradientBackground />}>
+      <GestureDetector gesture={swipe}>
+        <View style={styles.container}>
+          <ScrollView
+            style={styles.container}
+            contentContainerStyle={[gridColumn, styles.scrollContent]}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View>
+              <NotebookSection
+                title="Favoriten"
+                notebooks={favouriteNotebooks}
+                onNotebookPress={handleNotebookPress}
+                onNotebookLongPress={handleToggleFavourite}
+              />
+              <NotebookSection
+                title="Bundesebene"
+                notebooks={bundesebene}
+                onNotebookPress={handleNotebookPress}
+                onNotebookLongPress={handleToggleFavourite}
+              />
+              <NotebookSection
+                title="Landesebene"
+                notebooks={landesebene}
+                onNotebookPress={handleNotebookPress}
+                onNotebookLongPress={handleToggleFavourite}
+              />
+              <NotebookSection
+                title="Weitere"
+                notebooks={weitere}
+                onNotebookPress={handleNotebookPress}
+                onNotebookLongPress={handleToggleFavourite}
+              />
+              <NotebookSection
+                title="Österreich"
+                notebooks={oesterreich}
+                onNotebookPress={handleNotebookPress}
+                onNotebookLongPress={handleToggleFavourite}
+              />
 
-            <NotebookSection
-              title="Favoriten"
-              notebooks={favouriteNotebooks}
-              onNotebookPress={handleNotebookPress}
-              onNotebookLongPress={(nb) => toggleFavourite(nb.id)}
-            />
-            <NotebookSection
-              title="Bundesebene"
-              notebooks={bundesebene}
-              onNotebookPress={handleNotebookPress}
-              onNotebookLongPress={(nb) => toggleFavourite(nb.id)}
-            />
-            <NotebookSection
-              title="Landesebene"
-              notebooks={landesebene}
-              onNotebookPress={handleNotebookPress}
-              onNotebookLongPress={(nb) => toggleFavourite(nb.id)}
-            />
-            <NotebookSection
-              title="Weitere"
-              notebooks={weitere}
-              onNotebookPress={handleNotebookPress}
-              onNotebookLongPress={(nb) => toggleFavourite(nb.id)}
-            />
-            <NotebookSection
-              title="Österreich"
-              notebooks={oesterreich}
-              onNotebookPress={handleNotebookPress}
-              onNotebookLongPress={(nb) => toggleFavourite(nb.id)}
-            />
-
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { color: theme.text }]}>Meine Notebooks</Text>
-                <Pressable
-                  onPress={() => setCreatorVisible(true)}
-                  style={[styles.addButton, { backgroundColor: colors.primary[600] + '15' }]}
-                  hitSlop={8}
-                >
-                  <Ionicons name="add" size={20} color={colors.primary[600]} />
-                </Pressable>
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={[styles.sectionTitle, { color: theme.text }]}>Meine Notebooks</Text>
+                  <Pressable
+                    onPress={() => setCreatorVisible(true)}
+                    style={[styles.addButton, { backgroundColor: colors.primary[600] + '15' }]}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Notebook erstellen"
+                  >
+                    <Ionicons name="add" size={20} color={colors.primary[600]} />
+                  </Pressable>
+                </View>
+                {isLoading ? (
+                  <View style={styles.loadingPlaceholder}>
+                    {[0, 1, 2].map((i) => (
+                      <View
+                        key={i}
+                        style={[
+                          styles.skeletonCard,
+                          { backgroundColor: theme.surface, borderColor: theme.cardBorder },
+                        ]}
+                      />
+                    ))}
+                  </View>
+                ) : collections.length === 0 ? (
+                  <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+                    Noch keine eigenen Notebooks.
+                  </Text>
+                ) : (
+                  <View style={notebookGrid.container}>
+                    {collections.map((c) => (
+                      <NotebookCard
+                        key={c.id}
+                        icon="book"
+                        title={c.name}
+                        subtitle={collectionSubtitle(c)}
+                        onPress={() => handleCollectionPress(c.id, c.name)}
+                        onLongPress={() => handleCollectionActions(c)}
+                        isProcessing={processingIds.has(c.id)}
+                        style={notebookGrid.item}
+                      />
+                    ))}
+                  </View>
+                )}
               </View>
-              {isLoading ? (
-                <View style={styles.loadingPlaceholder}>
-                  {[0, 1, 2].map((i) => (
-                    <View
-                      key={i}
-                      style={[
-                        styles.skeletonCard,
-                        { backgroundColor: theme.surface, borderColor: theme.cardBorder },
-                      ]}
-                    />
-                  ))}
-                </View>
-              ) : collections.length === 0 ? (
-                <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
-                  Noch keine eigenen Notebooks.
-                </Text>
-              ) : (
-                <View style={isTablet ? notebookGridStyles.grid : undefined}>
-                  {collections.map((c) => (
-                    <NotebookCard
-                      key={c.id}
-                      icon="book"
-                      title={c.name}
-                      subtitle={collectionSubtitle(c)}
-                      onPress={() => handleCollectionPress(c.id, c.name)}
-                      onLongPress={() => handleCollectionActions(c)}
-                      isProcessing={processingIds.has(c.id)}
-                      style={isTablet ? notebookGridStyles.item : undefined}
-                    />
-                  ))}
-                </View>
-              )}
+
+              <CommunityNotebooksSection enabled={!!user} onOpen={handleCollectionPress} />
             </View>
 
-            <CommunityNotebooksSection enabled={!!user} onOpen={handleCollectionPress} />
-          </View>
+            <NotebookCreator
+              visible={creatorVisible}
+              onClose={() => setCreatorVisible(false)}
+              createCollection={createCollection}
+            />
+          </ScrollView>
 
-          <NotebookCreator
-            visible={creatorVisible}
-            onClose={() => setCreatorVisible(false)}
-            createCollection={createCollection}
-          />
-        </ScrollView>
-
-        <BottomComposerBar placeholder="Frage an alle Quellen…" onSend={handleHeroSend} />
-      </View>
+          {askVisible ? (
+            <BottomComposerBar
+              placeholder="Frage an alle Quellen…"
+              onSend={handleHeroSend}
+              autoFocus
+              onDismissEmpty={() => setAskVisible(false)}
+              onClose={() => setAskVisible(false)}
+            />
+          ) : (
+            <Pressable
+              onPress={() => setAskVisible(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Frage an alle Quellen stellen"
+              style={({ pressed }) => [
+                styles.fab,
+                {
+                  backgroundColor: fabTone.background,
+                  bottom: insets.bottom + FLOATING_TAB_BAR_HEIGHT + spacing.small,
+                  opacity: pressed ? 0.9 : 1,
+                  transform: [{ scale: pressed ? 0.96 : 1 }],
+                },
+              ]}
+            >
+              <Ionicons name="search" size={24} color={fabTone.icon} />
+            </Pressable>
+          )}
+        </View>
+      </GestureDetector>
     </ScreenScaffold>
   );
 }
@@ -287,8 +334,26 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  fab: {
+    position: 'absolute',
+    right: spacing.medium,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  // Horizontal margin comes from the content column; only the vertical rhythm
+  // is this screen's own.
   scrollContent: {
-    padding: spacing.medium,
+    // The hero above the first section is gone, so the sections carry the top
+    // spacing themselves — without this the first heading sits on the header.
+    paddingTop: spacing.small,
     paddingBottom: spacing.xxlarge,
   },
   section: {

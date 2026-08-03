@@ -3,7 +3,7 @@
  * Provides real web search capabilities using Mistral's web search agent
  */
 
-import mistralClient from '../../../workers/mistralClient.js';
+import { mistralGlobalClient } from '../../../workers/mistralClient.js';
 
 import { getAgentConfig } from './agentConfig.js';
 import { extractSearchResults } from './resultExtraction.js';
@@ -11,11 +11,18 @@ import { extractSearchResults } from './resultExtraction.js';
 import type { SearchResults, AgentType } from './types.js';
 
 export class MistralWebSearchService {
-  private client: typeof mistralClient | null;
+  private client: typeof mistralGlobalClient | null;
   private agents: Map<string, string> | null;
 
+  /**
+   * Deliberately the GLOBAL client: this service drives Mistral's Agents API
+   * (`beta.agents` / `beta.conversations`), which regional endpoints do not
+   * serve — api.eu.mistral.ai answers 404 on /v1/conversations. Search queries
+   * therefore leave the EU region on this path; SearxngNode falls back to
+   * SearXNG when it fails.
+   */
   constructor() {
-    this.client = mistralClient;
+    this.client = mistralGlobalClient;
     this.agents = null;
   }
 

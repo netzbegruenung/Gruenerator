@@ -7,6 +7,7 @@ import multer from 'multer';
 import sharp from 'sharp';
 
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
+import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 import { fromParam, type GroupId } from '../../../utils/types/branded.js';
 
@@ -102,7 +103,7 @@ router.post(
       const error = err as Error;
       log.error(`Group avatar upload error: ${error.message}`);
       if (error.message.includes('Mitglied') || error.message.includes('Admin')) {
-        res.status(403).json({ success: false, error: error.message });
+        res.status(403).json({ success: false, error: toUserFacingMessage(error) });
         return;
       }
       res.status(500).json({ success: false, error: 'Fehler beim Hochladen des Gruppenbildes' });
@@ -149,7 +150,7 @@ router.get(
       const error = err as Error;
       log.error(`Group avatar serve error: ${error.message}`);
       if (error.message.includes('Mitglied')) {
-        res.status(403).json({ success: false, error: error.message });
+        res.status(403).json({ success: false, error: toUserFacingMessage(error) });
         return;
       }
       res.status(500).json({ success: false, error: 'Fehler beim Laden des Gruppenbildes' });
@@ -197,7 +198,7 @@ router.delete(
       const error = err as Error;
       log.error(`Group avatar delete error: ${error.message}`);
       if (error.message.includes('Mitglied') || error.message.includes('Admin')) {
-        res.status(403).json({ success: false, error: error.message });
+        res.status(403).json({ success: false, error: toUserFacingMessage(error) });
         return;
       }
       res.status(500).json({ success: false, error: 'Fehler beim Löschen des Gruppenbildes' });

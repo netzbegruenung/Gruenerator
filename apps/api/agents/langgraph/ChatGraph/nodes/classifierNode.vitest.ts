@@ -3,22 +3,22 @@ import { describe, it, expect } from 'vitest';
 import {
   extractUrls,
   isTabularComputeQuestion,
+  isSheetFillRequest,
   detectSocialPlatform,
-  resolveSocialPostEscape,
   nounNearCreateVerb,
   NOUN_TRIGGER_MAX_LENGTH,
+  extractShareTargetGroup,
 } from './classifierHeuristics.js';
 import {
   extractSearchTopic,
-  parseClassifierResponse,
   detectSearchSources,
   detectComplexity,
   heuristicClassify,
-  extractFilters,
   heuristicExtractFilters,
   looksMultiTopic,
   HEURISTIC_CONFIDENCE_THRESHOLD,
 } from './classifierNode.js';
+import { CHAT_HISTORY_DIRECT, CHAT_HISTORY_KEYWORDS } from './classifierSignals.js';
 
 // ─── extractSearchTopic ───────────────────────────────────────────────────
 
@@ -95,75 +95,37 @@ describe('extractUrls', () => {
   });
 });
 
-// ─── parseClassifierResponse (typo correction guard) ──────────────────────
+// ─── extractShareTargetGroup ──────────────────────────────────────────────
 
-describe('parseClassifierResponse – typo correction guard', () => {
-  it('falls back to original when LLM "corrects" proper nouns', () => {
-    const llmResponse = JSON.stringify({
-      intent: 'search',
-      searchQuery: 'Grüne Partei Klimaschutz',
-      optimizedSearchQuery: 'Grüne Partei Klimaschutz',
-      typoAnalysis: { original: 'Grüne Partai Klimaschutz', corrected: 'Grüne Partei Klimaschutz' },
-      reasoning: 'search',
-    });
-    const result = parseClassifierResponse(llmResponse, 'Grüne Partai Klimaschutz');
-    // The word "Partai" should still be found or the guard should allow it since most words match
-    expect(result.intent).toBe('search');
-    expect(result.searchQuery).toBeTruthy();
+describe('extractShareTargetGroup', () => {
+  // The share heuristic fires at 0.88 and skips the LLM, so without this the
+  // group name was dropped and handleShareDoc asked "mit welcher Gruppe?"
+  // while the group sat in the triggering sentence.
+  it.each([
+    ['Teile das mit der AG Umwelt', 'AG Umwelt'],
+    ['Teile das mit der AG Umwelt und gib ihnen Bearbeitungsrechte', 'AG Umwelt'],
+    ['teile das mit AG Umwelt', 'AG Umwelt'],
+    ['Share mit KV München', 'KV München'],
+    ['Sende an Gruppe Grüne Jugend', 'Grüne Jugend'],
+    ['Sende an OV Nord', 'OV Nord'],
+    ['Teile das mit der Gruppe Klimateam, bitte nur lesen', 'Klimateam'],
+    ['Freigeben für unserer AG Verkehr', 'AG Verkehr'],
+  ])('%s → %s', (input, expected) => {
+    expect(extractShareTargetGroup(input)).toBe(expected);
   });
 
-  it('triggers guard when >40% words lost', () => {
-    const llmResponse = JSON.stringify({
-      intent: 'search',
-      searchQuery: 'Klimapolitik',
-      optimizedSearchQuery: 'Klimapolitik',
-      typoAnalysis: { original: 'Grüne Partei Situation Bonn', corrected: 'Klimapolitik' },
-      reasoning: 'search',
-    });
-    // Original: "Was sagt Müller in Tübingen über Windkraft" — LLM replaces everything
-    const result = parseClassifierResponse(
-      llmResponse,
-      'Was sagt Müller in Tübingen über Windkraft'
-    );
-    expect(result.intent).toBe('search');
-    // Guard should have replaced with extractSearchTopic fallback
-    expect(result.searchQuery).not.toBe('Klimapolitik');
+  it('returns null when no share trigger is present', () => {
+    expect(extractShareTargetGroup('Schreib eine Pressemitteilung')).toBeNull();
   });
 
-  it('does not trigger guard when all words preserved', () => {
-    const llmResponse = JSON.stringify({
-      intent: 'search',
-      searchQuery: 'Klimapolitik der Grünen',
-      optimizedSearchQuery: 'Klimapolitik Grüne',
-      typoAnalysis: null,
-      reasoning: 'search',
-    });
-    const result = parseClassifierResponse(llmResponse, 'Klimapolitik der Grünen');
-    expect(result.searchQuery).toBe('Klimapolitik Grüne');
+  it('returns null when nothing follows the trigger', () => {
+    expect(extractShareTargetGroup('Teile das mit')).toBeNull();
   });
 
-  it('does not trigger guard on genuine optimization (removing task verbs)', () => {
-    const llmResponse = JSON.stringify({
-      intent: 'research',
-      searchQuery: 'Schreib eine PM über Energiewende',
-      optimizedSearchQuery: 'Energiewende',
-      typoAnalysis: null,
-      reasoning: 'research',
-    });
-    const result = parseClassifierResponse(llmResponse, 'Schreib eine PM über Energiewende');
-    expect(result.searchQuery).toBe('Energiewende');
-  });
-
-  it('handles single-word query with empty typoAnalysis', () => {
-    const llmResponse = JSON.stringify({
-      intent: 'search',
-      searchQuery: 'Klimaschutz',
-      optimizedSearchQuery: 'Klimaschutz',
-      typoAnalysis: null,
-      reasoning: 'search',
-    });
-    const result = parseClassifierResponse(llmResponse, 'Klimaschutz');
-    expect(result.searchQuery).toBe('Klimaschutz');
+  it('carries the group name through the heuristic verdict', () => {
+    const result = heuristicClassify('Teile das mit der AG Umwelt und gib ihnen Rechte');
+    expect(result?.intent).toBe('share_doc');
+    expect(result?.targetGroupName).toBe('AG Umwelt');
   });
 });
 
@@ -197,6 +159,54 @@ describe('detectSearchSources', () => {
   it('returns empty for direct intent even with keywords', () => {
     expect(detectSearchSources('Hallo, wie geht es den Grünen aktuell?', 'direct')).toEqual([]);
   });
+
+  it('pairs collections with DIP when a parliamentary process is named', () => {
+    expect(
+      detectSearchSources(
+        'Was ist unsere grüne Position zur Wärmewende und was wurde dazu im Bundestag debattiert?',
+        'search'
+      )
+    ).toEqual(['documents', 'bundestag']);
+    expect(
+      detectSearchSources('Grüne Haltung zur Kindergrundsicherung und der Gesetzentwurf', 'search')
+    ).toEqual(['documents', 'bundestag']);
+  });
+
+  it('matches declined forms, not just the nominative', () => {
+    // German inflection: a `\b`-anchored keyword matched "Gesetzentwurf" and
+    // silently missed "des Gesetzentwurfs" — found by the live probe, not here,
+    // because the test above happened to use the nominative too.
+    for (const q of [
+      'Grüne Haltung zur Kindergrundsicherung und der Stand des Gesetzentwurfs',
+      'Grüne Anträge und die Gesetzentwürfe dazu',
+      'Grüne Position und die Drucksachen dazu',
+      'Grüne Kritik und die Plenardebatten darüber',
+    ]) {
+      expect(detectSearchSources(q, 'search')).toEqual(['documents', 'bundestag']);
+    }
+  });
+
+  it('does NOT pair DIP for the bare word Bundestag', () => {
+    // A question about positions, not about the parliamentary record — pairing
+    // it would spend a second retrieval round on documents nobody asked for.
+    expect(
+      detectSearchSources('Was sagen die Grünen im Bundestag zum Klimaschutz?', 'search')
+    ).toEqual([]);
+  });
+
+  it('does NOT pair DIP for our own bundestagsfraktion collection', () => {
+    expect(
+      detectSearchSources('Position der Bundestagsfraktion zum Klimaschutz', 'search')
+    ).toEqual([]);
+  });
+
+  it('prefers DIP over web when both a process and temporal wording appear', () => {
+    // Both branches match; the parliamentary one is checked first because the
+    // named Drucksache is the more specific request.
+    expect(detectSearchSources('Aktuelle grüne Anträge und die Drucksache dazu', 'search')).toEqual(
+      ['documents', 'bundestag']
+    );
+  });
 });
 
 // ─── detectComplexity ────────────────────────────────────────────────────
@@ -210,8 +220,34 @@ describe('detectComplexity', () => {
     expect(detectComplexity('Hallo, wie geht es dir heute?')).toBe('simple');
   });
 
-  it('returns simple for "Was ist X"', () => {
-    expect(detectComplexity('Was ist Klimaschutz?')).toBe('simple');
+  // CHANGED, deliberately: this used to assert `simple`, which capped the answer
+  // at 1-2 paragraphs. An open question about a concept or a person is short to
+  // ask and long to answer — the two are close to inverted, and treating the
+  // question's length as the answer's scope is what produced two-sentence
+  // biographies. See detectComplexity's doc comment.
+  it('returns moderate for an OPEN lookup, however short', () => {
+    expect(detectComplexity('Was ist Klimaschutz?')).toBe('moderate');
+    expect(detectComplexity('wer war marilyn monroe')).toBe('moderate');
+    expect(detectComplexity('Wer ist Robert Habeck?')).toBe('moderate');
+    expect(detectComplexity('Erkläre Föderalismus')).toBe('moderate');
+  });
+
+  it('keeps CLOSED lookups simple — a place or a date is one fact', () => {
+    expect(detectComplexity('Wo ist der Bundestag?')).toBe('simple');
+    expect(detectComplexity('Wann ist die nächste Wahl?')).toBe('simple');
+  });
+
+  it('catches umlaut-free detail requests', () => {
+    // Users type without umlauts routinely; `ausfuehrlich` used to miss the
+    // pattern, so an explicit request for depth was silently downgraded.
+    expect(detectComplexity('Wer war Marilyn Monroe? Bitte ausfuehrlich.')).toBe('complex');
+    expect(detectComplexity('Erklaere das gruendlich')).toBe('complex');
+  });
+
+  it('lets an explicit detail request outrank the open-lookup rule', () => {
+    // Ordering guard: the complex checks run before the shape checks, so
+    // "Wer ist X? Bitte ausführlich" must not stop at moderate.
+    expect(detectComplexity('Wer ist Robert Habeck? Bitte ausführlich.')).toBe('complex');
   });
 
   it('returns complex for comparison keywords', () => {
@@ -240,7 +276,7 @@ describe('detectComplexity', () => {
 describe('heuristicClassify', () => {
   it('detects greetings with high confidence', () => {
     const result = heuristicClassify('Hallo, wie geht es?');
-    expect(result.intent).toBe('direct');
+    expect(result.intent).toBe('greeting');
     expect(result.confidence).toBeGreaterThanOrEqual(0.9);
   });
 
@@ -260,6 +296,94 @@ describe('heuristicClassify', () => {
   it('does NOT route prose mentions of a presentation to create_presentation', () => {
     const result = heuristicClassify('Worum ging es in der Präsentation von gestern?');
     expect(result.intent).not.toBe('create_presentation');
+  });
+
+  it('fast-paths explicit PDF/letterhead requests to create_pdf', () => {
+    for (const q of [
+      'Erstelle mir einen offiziellen Brief an den Stadtrat als PDF mit Briefkopf',
+      'Mach ein PDF daraus',
+      'Erstelle ein PDF-Dokument über unsere Forderungen',
+      'Schreib ein Anschreiben als PDF an den Kreisvorstand',
+    ]) {
+      const result = heuristicClassify(q);
+      expect(result.intent).toBe('create_pdf');
+      expect(result.confidence).toBeGreaterThanOrEqual(0.9);
+    }
+  });
+
+  it('fast-paths fillable-form requests to create_pdf', () => {
+    for (const q of [
+      'Erstelle ein Anmeldeformular für die Mitgliederversammlung',
+      'Bau mir ein ausfüllbares Formular für Mitgliedsanträge',
+      'Mach einen Fragebogen für die Mitgliederbefragung',
+      'Erstelle ein Antragsformular für Zuschüsse',
+    ]) {
+      const result = heuristicClassify(q);
+      expect(result.intent).toBe('create_pdf');
+    }
+  });
+
+  it('does NOT treat filling an ATTACHED form as a create_pdf request', () => {
+    // The fill path (pdf_form / compute) owns these — there is no creation verb.
+    expect(heuristicClassify('Füll das Formular für mich aus').intent).not.toBe('create_pdf');
+    expect(heuristicClassify('Kannst du das Antragsformular ausfüllen?').intent).not.toBe(
+      'create_pdf'
+    );
+  });
+
+  // Verb-final phrasing — the word order every artifact fast path used to be
+  // blind to. Live failure: "das bitte schön als PDF erstellen" scored `direct`,
+  // got demoted to the agentic loop with no PDF tool mounted, and was answered
+  // with "ich habe keine technische Funktion, um PDFs zu erstellen".
+  it('fast-paths creation orders with the verb at the END of the clause', () => {
+    expect(heuristicClassify('gut, danke. das bitte schön als PDF erstellen').intent).toBe(
+      'create_pdf'
+    );
+    expect(heuristicClassify('Kannst du das als PDF erstellen?').intent).toBe('create_pdf');
+    expect(heuristicClassify('die Folien bitte neu bauen').intent).toBe('create_presentation');
+    expect(heuristicClassify('das als Tabelle machen bitte').intent).toBe('create_sheet');
+    expect(heuristicClassify('ein Poster dazu erstellen').intent).toBe('image');
+    expect(heuristicClassify('das bitte als Notiz anlegen').intent).toBe('save_as_doc');
+  });
+
+  // The mirror: in verb-final position only an infinitive/imperative is an
+  // order. A participle there is narration about something that already exists,
+  // and reading it as an order would spawn an artifact nobody asked for.
+  it('does NOT read a participle after the noun as a creation order', () => {
+    expect(
+      heuristicClassify('Was steht in der Präsentation, die ich erstellt habe?').intent
+    ).not.toBe('create_presentation');
+    expect(heuristicClassify('Die Tabelle, die du gestern gebaut hast, war gut').intent).not.toBe(
+      'create_sheet'
+    );
+    expect(heuristicClassify('Das PDF, das ich gestern erstellt habe, war gut').intent).not.toBe(
+      'create_pdf'
+    );
+  });
+
+  // The image fast path's "alternate" word order forgot the inflection suffix
+  // (`(erstell|generier|erzeug|mach)\b`), so it only ever matched the
+  // non-sentence "Bild mach" — never "Bild erstellen".
+  it('fast-paths noun-first image asks', () => {
+    expect(heuristicClassify('ein Bild generieren von einer Solaranlage').intent).toBe('image');
+    expect(heuristicClassify('eine Illustration dazu erstellen').intent).toBe('image');
+  });
+
+  // `mach` is NOT an image creation verb: it is how an edit is phrased, and the
+  // edit path sits behind this fast path. Widening the shared verb core to
+  // images once turned "Mach das Foto heller" into a fresh generation.
+  it('leaves image EDIT phrasings to the edit path', () => {
+    expect(heuristicClassify('Mach das Foto heller').intent).not.toBe('image');
+  });
+
+  it('does NOT route PDF attachment reads or deck-as-PDF asks to create_pdf', () => {
+    // Attachment read: no creation verb targeting a PDF.
+    expect(heuristicClassify('Fass das PDF zusammen').intent).not.toBe('create_pdf');
+    expect(heuristicClassify('Was steht im PDF auf Seite 3?').intent).not.toBe('create_pdf');
+    // Deck noun wins: a Präsentation "als PDF" still builds a deck.
+    expect(heuristicClassify('Erstelle eine Präsentation zu Windkraft als PDF').intent).toBe(
+      'create_presentation'
+    );
   });
 
   it('routes tabular aggregation questions to compute when a spreadsheet is attached', () => {
@@ -292,6 +416,59 @@ describe('heuristicClassify', () => {
     expect(isTabularComputeQuestion('wie hoch ist der gewinn')).toBe(true);
     expect(isTabularComputeQuestion('was ist das produkt mit dem höchsten wert?')).toBe(true);
     expect(isTabularComputeQuestion('worum geht es in dieser datei?')).toBe(false);
+  });
+
+  it('isSheetFillRequest matches fill asks in their common German phrasings', () => {
+    expect(isSheetFillRequest('füll mir bitte die vorlage aus')).toBe(true);
+    expect(isSheetFillRequest('kannst du das formular ausfüllen?')).toBe(true);
+    expect(isSheetFillRequest('trag die daten in die tabelle ein')).toBe(true);
+    expect(isSheetFillRequest('bitte die werte eintragen')).toBe(true);
+    expect(isSheetFillRequest('setz die zahlen ein')).toBe(true);
+    expect(isSheetFillRequest('ergänze die fehlenden angaben')).toBe(true);
+    expect(isSheetFillRequest('übertrage die werte aus dem angebot')).toBe(true);
+    expect(isSheetFillRequest('bitte die tabelle vervollständigen')).toBe(true);
+    expect(isSheetFillRequest('schreib die werte in die tabelle')).toBe(true);
+    expect(isSheetFillRequest('trag bitte meinen namen und meine adresse ein')).toBe(true);
+    expect(isSheetFillRequest('das muss noch ausgefüllt werden')).toBe(true);
+  });
+
+  it('isSheetFillRequest stays conservative — a miss is cheaper than a false fire', () => {
+    // Writing prose ABOUT a table is not filling it in.
+    expect(isSheetFillRequest('schreib einen text über die tabelle')).toBe(false);
+    expect(isSheetFillRequest('schreib mir eine zusammenfassung')).toBe(false);
+    // Accepted misses: too generic to claim without risking real false fires.
+    // They fall back to the normal answer path, which is harmless.
+    expect(isSheetFillRequest('mach die vorlage fertig')).toBe(false);
+  });
+
+  it('isSheetFillRequest ignores look-alikes that are not fill asks', () => {
+    // 'füll' inside a compound noun that means the opposite of filling a form.
+    expect(isSheetFillRequest('entferne die füllwörter aus dem text')).toBe(false);
+    // Word-start binding: erfüllen/auffüllen and the -trag nouns must not match.
+    expect(isSheetFillRequest('erfüllt die tabelle die anforderungen?')).toBe(false);
+    expect(isSheetFillRequest('wie hoch ist der betrag im vertrag?')).toBe(false);
+    expect(isSheetFillRequest('was steht im antrag?')).toBe(false);
+    expect(isSheetFillRequest('worum geht es in dieser datei?')).toBe(false);
+    // Visualization keeps its own intent even when phrased as "eintragen".
+    expect(isSheetFillRequest('trag die werte in ein diagramm ein')).toBe(false);
+  });
+
+  it('routes a fill ask with a spreadsheet to compute, ahead of the aggregation rule', () => {
+    // "trag die summe ein" matches BOTH heuristics — filling must win, so the
+    // router picks openpyxl codegen instead of a read-only aggregation.
+    expect(isSheetFillRequest('trag die summe unten ein')).toBe(true);
+    const result = heuristicClassify('trag die summe unten ein', {
+      hasTabularAttachment: true,
+    });
+    expect(result.intent).toBe('compute');
+    expect(result.reasoning).toBe('Fill request with attached spreadsheet');
+  });
+
+  it('does not route a fill ask to compute without a spreadsheet attached', () => {
+    const result = heuristicClassify('füll mir bitte die vorlage aus', {
+      hasTabularAttachment: false,
+    });
+    expect(result.intent).not.toBe('compute');
   });
 
   it('isTabularComputeQuestion binds verbs to word starts (erzähl must not match zähl)', () => {
@@ -357,18 +534,20 @@ describe('heuristicClassify', () => {
     expect(result.confidence).toBeGreaterThanOrEqual(0.75);
   });
 
-  it('classifies creative content tasks as direct (user provides their own facts)', () => {
-    // Fact-based content types (Pressemitteilung, Artikel, Rede, ...) are treated as
-    // creative writing tasks — users on this platform typically provide the facts
-    // themselves and want the AI to write/format. Research is not implied.
+  it('scores a fact-based content type as produktion — below the accept threshold', () => {
+    // 0.68: deliberately a HINT, not a verdict. "Pressemitteilung über X" names
+    // a topic, not substance, so Tier 3.5 demotes it to `agentic` unless the
+    // turn carries material of its own. The name changed with the split; the
+    // score, and therefore the behaviour, did not.
     const result = heuristicClassify('Schreibe eine Pressemitteilung über den Kohleausstieg');
-    expect(result.intent).toBe('direct');
+    expect(result.intent).toBe('produktion');
     expect(result.confidence).toBeGreaterThanOrEqual(0.7);
+    expect(result.confidence).toBeLessThan(HEURISTIC_CONFIDENCE_THRESHOLD);
   });
 
   it('detects creative tasks without research need', () => {
     const result = heuristicClassify('Schreibe mir einen lustigen Slogan');
-    expect(result.intent).toBe('direct');
+    expect(result.intent).toBe('produktion');
     expect(result.confidence).toBeGreaterThanOrEqual(0.7);
   });
 
@@ -384,41 +563,13 @@ describe('heuristicClassify', () => {
   });
 });
 
-// ─── extractFilters ─────────────────────────────────────────────────────
-
-describe('extractFilters', () => {
-  it('maps Hamburg landesverband alias', () => {
-    const result = extractFilters({ landesverband: 'hamburg' });
-    expect(result).toEqual({ region: 'HH' });
-  });
-
-  it('maps Thüringen to both TH and TH-F', () => {
-    const result = extractFilters({ landesverband: 'thüringen' });
-    expect(result).toEqual({ region: ['TH', 'TH-F'] });
-  });
-
-  it('passes through valid date_from/date_to', () => {
-    const result = extractFilters({ date_from: '2024-01-01', date_to: '2024-12-31' });
-    expect(result).toEqual({ date_from: '2024-01-01', date_to: '2024-12-31' });
-  });
-
-  it('rejects invalid date format', () => {
-    const result = extractFilters({ date_from: 'January 2024' });
-    expect(result).toBeNull();
-  });
-
-  it('extracts content_type', () => {
-    const result = extractFilters({ content_type: 'presse' });
-    expect(result).toEqual({ content_type: 'presse' });
-  });
-
-  it('returns null for empty/null filters', () => {
-    expect(extractFilters(null)).toBeNull();
-    expect(extractFilters({})).toBeNull();
-  });
-});
-
 // ─── heuristicExtractFilters ────────────────────────────────────────────
+//
+// Der `extractFilters`-Block darüber ist mit seiner Funktion weg: er las das
+// `filters`-Objekt der LLM-Stufe ein, die seit der Löschung niemand mehr fragt.
+// Die Datums-Prüfung, die er nebenbei mitgetestet hat, sitzt jetzt in
+// `relativeDates.ts` und wird dort geprüft — sie war hier ohnehin nur eine
+// Validierung fremd gelieferter ISO-Strings, keine Erkennung.
 
 describe('heuristicExtractFilters', () => {
   it('detects Pressemitteilung content type', () => {
@@ -580,8 +731,6 @@ describe('heuristicClassify: doc/board action intents', () => {
   });
 });
 
-// ─── parseClassifierResponse: new intents are valid ─────────────────────
-
 describe('heuristicClassify: social_post intent (EXPERIMENTAL combined post)', () => {
   it('routes creation requests to social_post', () => {
     // 0.8 sits below HEURISTIC_CONFIDENCE_THRESHOLD by design: the primary
@@ -602,19 +751,51 @@ describe('heuristicClassify: social_post intent (EXPERIMENTAL combined post)', (
     expect(result.intent).toBe('examples');
   });
 
-  it('"nur Text" escape hatch keeps the text-only flow', () => {
+  // The "nur Text" / "ohne Text" escape hatches are gone with the combined
+  // post: text-only IS what social_post produces now, so there is nothing left
+  // to escape from, and "ohne Text" no longer buys a sharepic — only the word
+  // does.
+  it('"nur den Text" needs no escape hatch any more — social_post IS the text', () => {
     const result = heuristicClassify('Schreib mir nur den Text für einen Insta-Post zu Tempo 30');
-    expect(result.intent).toBe('examples');
+    expect(result.intent).toBe('social_post');
   });
 
-  it('"ohne Text" escape hatch keeps the sharepic-only flow', () => {
+  it('"ohne Text" no longer conjures a sharepic', () => {
     const result = heuristicClassify('Erstelle einen Instagram-Post ohne Text zu Tempo 30');
-    expect(result.intent).toBe('sharepic');
+    expect(result.intent).toBe('social_post');
   });
 
   it('explicit sharepic wording keeps the shipped sharepic flow (0.93 rule wins)', () => {
     const result = heuristicClassify('Erstelle ein Sharepic für Instagram zu Tempo 30');
     expect(result.intent).toBe('sharepic');
+  });
+
+  // ── The explicit-word rule (product decision, not a heuristic detail) ──
+  // A sharepic is only produced when the user said so. These four cases are the
+  // rule itself; if one of them flips, the rule is broken.
+  it('a plain post ask does NOT become a sharepic', () => {
+    expect(heuristicClassify('Schreib einen Instagram-Post zu Tempo 30').intent).toBe(
+      'social_post'
+    );
+  });
+
+  it('naming a sharepic in a post ask keeps social_post (which carries the half)', () => {
+    expect(heuristicClassify('Schreib einen Instagram-Post mit Sharepic zu Tempo 30').intent).toBe(
+      'social_post'
+    );
+  });
+
+  it('"Grafik" and "Kachel" are not sharepic words', () => {
+    // They mean a chart or a tile at least as often. Routing them to the
+    // sharepic generator was the biggest source of unrequested sharepics.
+    expect(heuristicClassify('Erstelle eine Grafik zur Windkraft').intent).not.toBe('sharepic');
+    expect(heuristicClassify('Mach mir eine Kachel zur Kindergrundsicherung').intent).not.toBe(
+      'sharepic'
+    );
+  });
+
+  it('"Dreizeiler" is a sharepic word', () => {
+    expect(heuristicClassify('Mach mir einen Dreizeiler zum Radverkehr').intent).toBe('sharepic');
   });
 
   it('"Post MIT Sharepic" is the explicit combined ask — stays social_post', () => {
@@ -738,6 +919,23 @@ describe('heuristicClassify: pasted material must not hijack other fast paths', 
     expect(result.confidence).toBeGreaterThanOrEqual(HEURISTIC_CONFIDENCE_THRESHOLD);
   });
 
+  // Both directions of the same live miss on 03.08.2026: the turn that WAS
+  // arithmetic missed compute and went to the loop, the turn that only talked
+  // about calculating hit it and produced `operation=unsupported`.
+  it('reads a percentage change as arithmetic', () => {
+    expect(
+      heuristicClassify('Erhöhe das Schulungsbudget pro Standort um 10 % und nenne die Differenz')
+        .intent
+    ).toBe('compute');
+  });
+
+  it('does not read "bevor du rechnest" as an order to calculate', () => {
+    expect(
+      heuristicClassify('Stelle genau eine notwendige Rückfrage, bevor du rechnest.').intent
+    ).not.toBe('compute');
+    expect(heuristicClassify('Berechne die Summe der drei Posten').intent).toBe('compute');
+  });
+
   it('"teile das mit …" inside a long paste does not fast-path to share_doc', () => {
     const result = heuristicClassify(
       `Fasse das zusammen: Bitte teile das mit euren Ortsverbänden und meldet euch bei Fragen. ${filler}`
@@ -765,9 +963,9 @@ describe('heuristicClassify: greeting rule needs a word boundary', () => {
   });
 
   it('real greetings keep the fast path', () => {
-    expect(heuristicClassify('Hallo, wie geht es dir?').intent).toBe('direct');
-    expect(heuristicClassify('Hi! Kannst du mir helfen?').intent).toBe('direct');
-    expect(heuristicClassify('Danke dir, das passt so!').intent).toBe('direct');
+    expect(heuristicClassify('Hallo, wie geht es dir?').intent).toBe('greeting');
+    expect(heuristicClassify('Hi! Kannst du mir helfen?').intent).toBe('greeting');
+    expect(heuristicClassify('Danke dir, das passt so!').intent).toBe('greeting');
   });
 });
 
@@ -851,123 +1049,133 @@ describe('detectSocialPlatform', () => {
   });
 });
 
-describe('resolveSocialPostEscape', () => {
-  it('routes "nur Text" to examples', () => {
-    expect(resolveSocialPostEscape('nur den text bitte')).toBe('examples');
-    expect(resolveSocialPostEscape('post ohne sharepic')).toBe('examples');
+// ─── fast-path hardening (negation / meta-question / quote / greeting) ─────
+describe('heuristicClassify – fast-path hardening', () => {
+  const below = (r: { confidence: number }) => r.confidence < HEURISTIC_CONFIDENCE_THRESHOLD;
+
+  it('does not route a negated Sharepic ask to sharepic', () => {
+    const r = heuristicClassify('Ich will KEIN Sharepic, nur den reinen Text zur Wahlkampagne');
+    expect(r.intent).not.toBe('sharepic');
+  });
+  it('does not route a Sharepic meta-question to sharepic', () => {
+    const r = heuristicClassify('Was macht ein gutes Sharepic aus?');
+    expect(r.intent).not.toBe('sharepic');
+    expect(below(r)).toBe(true);
+  });
+  it('does not route a quoted Sharepic mention to sharepic', () => {
+    const r = heuristicClassify(
+      'Mein Kollege meinte: „Erstell doch einfach ein Sharepic dazu" — was hältst du davon?'
+    );
+    expect(r.intent).not.toBe('sharepic');
+  });
+  it('does not route a negated Grafik ask to image (window-swallowed negation)', () => {
+    const r = heuristicClassify('Mach daraus bitte KEINE Grafik, beschreib es nur in Worten');
+    expect(r.intent).not.toBe('image');
+  });
+  it('greeting prefix does not swallow a substantive question', () => {
+    const r = heuristicClassify('Hallo! Wie hat die CDU zur Frauenquote abgestimmt?');
+    expect(r.reasoning).not.toBe('Greeting detected');
+    expect(below(r)).toBe(true);
+  });
+  it('routes an explicit table-creation ask to create_sheet', () => {
+    const r = heuristicClassify('Erstell mir eine Tabelle mit den Infostand-Terminen');
+    expect(r.intent).toBe('create_sheet');
+    expect(r.confidence).toBeGreaterThanOrEqual(0.9);
+  });
+  it('routes a separable-verb summary ask deterministically to summary', () => {
+    const r = heuristicClassify('Fass die wichtigsten Argumente aus der Debatte zusammen');
+    expect(r.intent).toBe('summary');
+    expect(r.confidence).toBeGreaterThanOrEqual(0.85);
   });
 
-  it('routes "nur Sharepic" / "ohne Text" to sharepic', () => {
-    expect(resolveSocialPostEscape('nur ein sharepic')).toBe('sharepic');
-    expect(resolveSocialPostEscape('bitte ohne text')).toBe('sharepic');
+  // must-not-regress: legitimate generation asks still fast-path
+  it('keeps plain generation asks on their fast paths', () => {
+    expect(heuristicClassify('Erstelle ein Sharepic zur Verkehrswende').intent).toBe('sharepic');
+    expect(heuristicClassify('Erstelle ein Bild von einem grünen Baum').intent).toBe('image');
+    expect(heuristicClassify('Erstelle ein Diagramm über die Wahlergebnisse').intent).toBe('chart');
+    expect(heuristicClassify('Zeige mir ein Balkendiagramm der Umfragewerte').intent).toBe('chart');
+    expect(heuristicClassify('Erstelle eine Präsentation über kommunale Wärmeplanung').intent).toBe(
+      'create_presentation'
+    );
+    expect(
+      heuristicClassify('Hallo, erstell mir bitte ein Sharepic zur Verkehrswende').intent
+    ).toBe('sharepic');
   });
-
-  it('returns null for plain creation requests', () => {
-    expect(resolveSocialPostEscape('instagram-post zu tempo 30')).toBe(null);
+  it('keeps pure greetings and small-talk as greeting@0.95', () => {
+    for (const q of [
+      'Hallo, wie geht es dir?',
+      'Hi! Kannst du mir helfen?',
+      'Danke dir, das passt so!',
+    ]) {
+      const r = heuristicClassify(q);
+      expect(r.intent).toBe('greeting');
+      expect(r.reasoning).toBe('Greeting detected');
+    }
   });
-
-  it('inclusion phrasing ("mit Sharepic") is NOT an escape — combined flow', () => {
-    expect(resolveSocialPostEscape('insta-post mit sharepic zu tempo 30')).toBe(null);
-    expect(resolveSocialPostEscape('post mit einem passenden sharepic')).toBe(null);
-    expect(resolveSocialPostEscape('tweet inklusive spruchbild')).toBe(null);
+  it('keeps chart over "aus der Tabelle" and compute over "berechne die Tabelle"', () => {
+    expect(heuristicClassify('erstell ein Diagramm aus der Tabelle').intent).toBe('chart');
+    expect(
+      heuristicClassify('berechne die Summe in der Tabelle', { hasTabularAttachment: true }).intent
+    ).toBe('compute');
   });
-
-  it('unambiguous text-only nouns escape to examples without a "nur"', () => {
-    expect(resolveSocialPostEscape('gib mir den wortlaut für insta')).toBe('examples');
-    expect(resolveSocialPostEscape('post als bildunterschrift')).toBe('examples');
-    expect(resolveSocialPostEscape('reiner text bitte')).toBe('examples');
+  it('does not create a sheet when negated', () => {
+    expect(heuristicClassify('Mach daraus bitte keine Tabelle').intent).not.toBe('create_sheet');
   });
-
-  it('compound "-text" nouns (Posttext, Beitragstext, Social-Media-Text) escape to examples', () => {
-    expect(resolveSocialPostEscape('schreib mir den posttext zu tempo 30')).toBe('examples');
-    expect(resolveSocialPostEscape('beitragstext für facebook')).toBe('examples');
-    expect(resolveSocialPostEscape('beitragsstext zur verkehrswende')).toBe('examples');
-    expect(resolveSocialPostEscape('social-media-text über x')).toBe('examples');
-    expect(resolveSocialPostEscape('post-text bitte')).toBe('examples');
-  });
-
-  it('a bare "Text" stays combined (needs a "nur"/"reine" qualifier)', () => {
-    expect(resolveSocialPostEscape('schreib einen text für einen insta-post')).toBe(null);
-  });
-
-  it('exclusionary sharepic wording still escapes despite inclusion words elsewhere', () => {
-    expect(resolveSocialPostEscape('nur ein sharepic mit sonnenblume')).toBe('sharepic');
+  it('keeps a table whose columns are written out with pipes in the answer', () => {
+    // Live 03.08.2026: this produced a spreadsheet card, so the nine rows the
+    // person asked to READ never appeared in the chat.
+    expect(
+      heuristicClassify(
+        'Erstelle eine Tabelle mit genau neun Zeilen: Nr. | PASS/FAIL | kürzester konkreter Grund'
+      ).intent
+    ).not.toBe('create_sheet');
+    expect(
+      heuristicClassify(
+        'Gib zuerst eine Tabelle mit den Spalten Thema | Aussage A | Aussage B | Status'
+      ).intent
+    ).not.toBe('create_sheet');
+    // Unchanged without pipes: still a spreadsheet ask.
+    expect(heuristicClassify('Erstell mir eine Tabelle mit den Infostand-Terminen').intent).toBe(
+      'create_sheet'
+    );
   });
 });
 
-describe('parseClassifierResponse: new intent values', () => {
-  it('accepts social_post intent from LLM', () => {
-    const json = JSON.stringify({
-      intent: 'social_post',
-      searchQuery: 'Tempo 30',
-      optimizedSearchQuery: 'Tempo 30 Verkehrswende',
-      reasoning: 'Combined post request',
-      contentType: null,
-      needsResearch: false,
-      needsClarification: false,
-    });
-    const result = parseClassifierResponse(json, 'Schreib einen Instagram-Post zu Tempo 30');
-    expect(result).not.toBeNull();
-    expect(result!.intent).toBe('social_post');
+// ─── chat_history: reel recall ────────────────────────────────────────────
+
+describe('CHAT_HISTORY_KEYWORDS: reels', () => {
+  it.each([
+    'Such mein Reel zum Thema Windkraft',
+    'In welchem Video habe ich über Mieten gesprochen?',
+    'Welches Reel passt zu Klimageld?',
+    'Zeig mir meine Reels',
+    'Das Video über Radwege — schreib mir eine Caption dazu',
+  ])('matches reel recall phrasing: %s', (text) => {
+    expect(CHAT_HISTORY_KEYWORDS.test(text)).toBe(true);
   });
 
-  it('accepts chart intent from LLM', () => {
-    const json = JSON.stringify({
-      intent: 'chart',
-      searchQuery: 'Wahlergebnisse als Balkendiagramm',
-      optimizedSearchQuery: null,
-      reasoning: 'Chart request',
-      contentType: null,
-      needsResearch: false,
-      needsClarification: false,
-    });
-    const result = parseClassifierResponse(json, 'Erstelle ein Balkendiagramm');
-    expect(result).not.toBeNull();
-    expect(result!.intent).toBe('chart');
+  it.each([
+    'Erstelle ein Reel aus diesem Video',
+    'Mach die Untertitel größer',
+    'Wie funktioniert der Reel-Grünerator?',
+    'Was fordern die Grünen zur Videoüberwachung?',
+  ])('does not hijack non-recall phrasing: %s', (text) => {
+    expect(CHAT_HISTORY_KEYWORDS.test(text)).toBe(false);
   });
 
-  it('accepts save_as_doc intent from LLM', () => {
-    const json = JSON.stringify({
-      intent: 'save_as_doc',
-      searchQuery: null,
-      optimizedSearchQuery: null,
-      reasoning: 'User wants to save as document',
-      contentType: null,
-      needsResearch: false,
-      needsClarification: false,
-    });
-    const result = parseClassifierResponse(json, 'Speichere das als Dokument');
-    expect(result).not.toBeNull();
-    expect(result!.intent).toBe('save_as_doc');
+  // Die beiden Fälle darunter prüften eine VERTEIDIGENDE Nachbesserung: der
+  // Parser der LLM-Stufe hob ein `direct` auf `chat_history`, wenn der Text
+  // erkennbar auf eigene Inhalte zeigte. Parser und Stufe sind weg, und die
+  // Aufgabe liegt jetzt eine Ebene früher — bei `CHAT_HISTORY_DIRECT`, dem
+  // Präzisionsmuster hinter der Direktroute (Tier 3.4). Dieselbe Aussage, an
+  // der Stelle geprüft, an der sie heute entschieden wird.
+  it('claims a reel search outright', () => {
+    expect(
+      CHAT_HISTORY_DIRECT.test('Such mein Reel zum Thema Windkraft und schreib eine Caption')
+    ).toBe(true);
   });
 
-  it('accepts modify_doc intent from LLM', () => {
-    const json = JSON.stringify({
-      intent: 'modify_doc',
-      searchQuery: null,
-      optimizedSearchQuery: null,
-      reasoning: 'User wants to edit mentioned document',
-      contentType: null,
-      needsResearch: false,
-      needsClarification: false,
-    });
-    const result = parseClassifierResponse(json, 'Ändere den zweiten Absatz');
-    expect(result).not.toBeNull();
-    expect(result!.intent).toBe('modify_doc');
-  });
-
-  it('accepts modify_board intent from LLM', () => {
-    const json = JSON.stringify({
-      intent: 'modify_board',
-      searchQuery: null,
-      optimizedSearchQuery: null,
-      reasoning: 'User wants to add tasks to board',
-      contentType: null,
-      needsResearch: false,
-      needsClarification: false,
-    });
-    const result = parseClassifierResponse(json, 'Füge neue Aufgaben zum Board hinzu');
-    expect(result).not.toBeNull();
-    expect(result!.intent).toBe('modify_board');
+  it('leaves reel creation alone', () => {
+    expect(CHAT_HISTORY_DIRECT.test('Erstelle ein Reel aus diesem Video')).toBe(false);
   });
 });

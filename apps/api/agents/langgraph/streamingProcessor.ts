@@ -8,7 +8,7 @@
 
 import { streamText } from 'ai';
 
-import { createSSEStream } from '../../routes/chat/services/sseHelpers.js';
+import { createSSEStream, sseInternalError } from '../../routes/chat/services/sseHelpers.js';
 import { getModel, type ProviderName } from '../../services/ai/providers.js';
 import {
   localizePromptObject,
@@ -268,6 +268,38 @@ export async function processGraphRequestStreaming(
     };
     const reasoningEffort =
       (requestData.reasoningEffort as string | undefined) || REASONING_BY_TYPE[routeType];
+
+    /**
+     * `providerOptions` is namespaced BY PROVIDER: the SDK hands a model only
+     * the entry whose key matches its own provider id. A hardcoded `openai`
+     * block was therefore correct only as long as every one of these lanes ran
+     * on LiteLLM — the moment a lane moves, the option is dropped in silence:
+     * no error, no reasoning, nothing in the logs to notice.
+     *
+     * Per provider:
+     *  - litellm (GPT-OSS) has the native four-step dial → pass it through;
+     *  - mistral is BINARY. `@ai-sdk/mistral` validates against
+     *    `'high' | 'none'` and throws a ZodError on 'low'/'medium', so the
+     *    scale collapses exactly as `mistralReasoningOption` collapses it in
+     *    routes/chat/services/responseStreamingService.ts;
+     *  - regolo takes NO reasoning option at all. Its provider id is 'regolo'
+     *    (createOpenAI({name:'regolo'})), so an `openai` block would not reach
+     *    it anyway, and its fetch wrapper pins `enable_thinking: false` on
+     *    every request (services/ai/regoloThinkingFetch.ts). Sending one would
+     *    be a lie in the code about what the lane does.
+     */
+    let reasoningProviderOptions: Record<string, Record<string, string>> | undefined;
+    if (reasoningEffort) {
+      if (effectiveProvider === 'litellm') {
+        reasoningProviderOptions = { openai: { reasoningEffort } };
+      } else if (
+        effectiveProvider === 'mistral' &&
+        (reasoningEffort === 'high' || reasoningEffort === 'medium')
+      ) {
+        reasoningProviderOptions = { mistral: { reasoningEffort: 'high' } };
+      }
+    }
+
     log.debug(
       `[streaming] Using provider=${effectiveProvider}, model=${effectiveModel}${reasoningEffort ? `, reasoningEffort=${reasoningEffort}` : ''}`
     );
@@ -295,8 +327,16 @@ export async function processGraphRequestStreaming(
       });
     }
 
-    // Create the language model and stream
-    const model = getModel(effectiveProvider, effectiveModel);
+    // Create the language model and stream.
+    //
+    // `needsReasoning` pins the lane to the Mistral API whenever a `mistral`
+    // reasoning block was built above: the Scaleway upstream that otherwise
+    // serves Medium 3.5 speaks @ai-sdk/openai and never receives that
+    // namespace, which is precisely the silent drop the comment above warns
+    // about. See routeMistralModel in services/ai/providerInstances.ts.
+    const model = getModel(effectiveProvider, effectiveModel, {
+      needsReasoning: reasoningProviderOptions?.mistral !== undefined,
+    });
 
     const result = streamText({
       model,
@@ -309,13 +349,7 @@ export async function processGraphRequestStreaming(
           : 16384,
       temperature: aiOptions.temperature ?? 0.7,
       abortSignal: abortController.signal,
-      ...(reasoningEffort
-        ? {
-            providerOptions: {
-              openai: { reasoningEffort },
-            },
-          }
-        : {}),
+      ...(reasoningProviderOptions ? { providerOptions: reasoningProviderOptions } : {}),
     });
 
     let fullText = '';
@@ -328,7 +362,7 @@ export async function processGraphRequestStreaming(
     }, 8000);
 
     try {
-      for await (const part of result.fullStream) {
+      for await (const part of result.stream) {
         if (abortController.signal.aborted) break;
 
         switch (part.type) {
@@ -483,9 +517,13 @@ export async function processGraphRequestStreaming(
       success: false,
     });
 
-    if (!res.headersSent) {
-      sse.sendRaw('error', { error: errorMessage });
-    }
+    // NOT guarded on `res.headersSent`: SSE headers are flushed the moment the
+    // stream opens, so that check is always true here and used to swallow every
+    // mid-stream failure — the generation stopped mid-sentence and the client
+    // saw a stream that just closed. `sseInternalError` guards on `isEnded()`
+    // instead (the only state that actually makes an emit impossible) and
+    // classifies provider failures (rate limit → retryable) on the way out.
+    sseInternalError(sse, error);
     sse.end();
   }
 }

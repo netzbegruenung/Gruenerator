@@ -3,12 +3,17 @@ import fs from 'fs/promises';
 import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
 
+import { errorText, isRefusalError } from '../../routes/chat/services/refusalDetection.js';
+import dreizeilenOverlayAtCanvasRouter from '../../routes/sharepic/sharepic_canvas/at/dreizeilen_overlay_at_canvas.js';
+import infoAtCanvasRouter from '../../routes/sharepic/sharepic_canvas/at/info_at_canvas.js';
+import zitatAtCanvasRouter from '../../routes/sharepic/sharepic_canvas/at/zitat_at_canvas.js';
+import zitatPureAtCanvasRouter from '../../routes/sharepic/sharepic_canvas/at/zitat_pure_at_canvas.js';
 import campaignCanvasRouter from '../../routes/sharepic/sharepic_canvas/campaign_canvas.js';
 import dreizeilenCanvasRouter from '../../routes/sharepic/sharepic_canvas/dreizeilen_canvas.js';
 import infoCanvasRouter from '../../routes/sharepic/sharepic_canvas/info_canvas.js';
 import zitatCanvasRouter from '../../routes/sharepic/sharepic_canvas/zitat_canvas.js';
 import zitatPureCanvasRouter from '../../routes/sharepic/sharepic_canvas/zitat_pure_canvas.js';
-import { handleClaudeRequest as sharepicClaudeHandler } from '../../routes/sharepic/sharepic_claude/index.js';
+import { handleSharepicTextRequest as sharepicTextHandler } from '../../routes/sharepic/sharepic_text/index.js';
 import {
   getFirstImageAttachment,
   convertToBuffer,
@@ -32,6 +37,21 @@ import type { Request, Router } from 'express';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const log = createLogger('sharepicGenerat');
+
+/**
+ * A generation that failed vs. one the model DECLINED.
+ *
+ * A refusal used to land as ERROR with a full stack trace, so the safety rules
+ * doing their job looked identical to an outage in monitoring — and the stack
+ * pointed at the generator, which is never the actionable part of a decline.
+ */
+function logGenerationFailure(what: string, error: unknown): void {
+  if (isRefusalError(error)) {
+    log.info(`[SharepicGeneration] ${what} declined — ${errorText(error)}`);
+    return;
+  }
+  log.error(`[SharepicGeneration] Error in ${what}:`, error);
+}
 
 const CAMPAIGNS_ROOT = path.resolve(__dirname, '../../config/campaigns');
 const SAFE_CAMPAIGN_ID_REGEX = /^[A-Za-z0-9_-]+$/;
@@ -97,6 +117,13 @@ interface SharepicResult {
       body?: string;
       quote?: string;
       name?: string;
+      // Österreich-Info: Introline / Infotext / gelbe Schlusszeile statt
+      // Header / Subheader / Body. Eigene Felder, weil das AT-Sujet anders
+      // aufgebaut ist. `text` bleibt wie bei allen Typen die Zusammenfassung
+      // aller Zeilen, deshalb heisst der Infotext hier `infoText`.
+      introline?: string;
+      infoText?: string;
+      accent?: string;
       mainSlogan?: MainSlogan;
       alternatives?: unknown[];
       textData?: TextData;
@@ -308,13 +335,13 @@ const createMockResponse = (
   return res;
 };
 
-const callSharepicClaude = async (
+const callSharepicText = async (
   expressReq: ExpressRequest,
   type: string,
   body: RequestBody
 ): Promise<Record<string, unknown>> => {
-  if (typeof sharepicClaudeHandler !== 'function') {
-    throw new Error('Sharepic Claude handler unavailable');
+  if (typeof sharepicTextHandler !== 'function') {
+    throw new Error('Sharepic text handler unavailable');
   }
 
   const mockReq = {
@@ -331,9 +358,8 @@ const callSharepicClaude = async (
   return new Promise<CanvasResult>((resolve, reject) => {
     const res = createMockResponse(resolve, reject);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument -- bridge between mock request and typed handler params
-    const maybePromise = sharepicClaudeHandler(mockReq as any, res as any, type as any) as
-      | Promise<unknown>
-      | undefined;
+    const maybePromise = sharepicTextHandler(mockReq as any, res as any, type as any) as
+      Promise<unknown> | undefined;
 
     if (maybePromise != null && typeof maybePromise.then === 'function') {
       void maybePromise.catch(reject);
@@ -391,11 +417,101 @@ const buildInfoCanvasPayload = ({
   };
 };
 
+/**
+ * Welcher Canvas serverseitig rendert — die einzige Stelle, an der die Locale
+ * über das Sujet entscheidet.
+ *
+ * Alle AT-Routen nehmen dieselben Bodies wie ihre deutschen Gegenstücke: die
+ * Zitat-Sujets `{ quote, name }`, das Overlay `mainSlogan` (es liest `line2` als
+ * Alias für die gelbe Mittelzeile und `subline` als Ergänzung). Deshalb genügt
+ * hier der Tausch des Routers.
+ *
+ * Vorher rannten alle drei AT-Pfade durch den deutschen Canvas. In der
+ * Variantenliste des Chats fällt das nicht auf — die Karten rendern
+ * clientseitig über StandaloneCanvas und werfen `sharepic.image` weg. Auf den
+ * übrigen Aufrufwegen von `generateSharepicForChat` (routes.ts, PRAgent,
+ * DefaultSharepicService) ist es genau das Bild, das ausgeliefert wird.
+ */
+const CANVAS_ROUTERS = {
+  dreizeilen: { de: dreizeilenCanvasRouter, at: dreizeilenOverlayAtCanvasRouter },
+  zitat: { de: zitatCanvasRouter, at: zitatAtCanvasRouter },
+  zitat_pure: { de: zitatPureCanvasRouter, at: zitatPureAtCanvasRouter },
+} as const;
+
+const canvasRouterFor = (sujet: keyof typeof CANVAS_ROUTERS, requestBody: RequestBody): Router => {
+  const paar = CANVAS_ROUTERS[sujet];
+  return requestBody.userLocale === 'de-AT' ? paar.at : paar.de;
+};
+
+/**
+ * Info-Sujet für Österreich: Introline, Infotext und gelbe Schlusszeile.
+ *
+ * Eigener Zweig statt eines Router-Tauschs, weil `mainInfo` hier andere
+ * Schlüssel trägt — der Textpfad wählt über die `<type>_at`-Konvention die
+ * Feldliste `introline/text/akzent`. Gegen die deutsche Destrukturierung
+ * gelesen wären alle drei `undefined` gewesen und der Canvas hätte ein leeres
+ * Bild bekommen.
+ */
+const generateInfoAtSharepic = async (
+  expressReq: ExpressRequest,
+  requestBody: RequestBody
+): Promise<SharepicResult> => {
+  const textResponse = await callSharepicText(expressReq, 'info', requestBody);
+
+  if (!textResponse?.success) {
+    throw new Error((textResponse?.error as string) || 'Info Sharepic generation failed');
+  }
+
+  const mainInfo = textResponse.mainInfo as {
+    introline?: string;
+    text?: string;
+    accent?: string;
+  };
+  const alternatives = (textResponse.alternatives as unknown[]) || [];
+  const { introline, text, accent } = mainInfo;
+
+  const { payload: canvasPayload } = await callCanvasRoute(infoAtCanvasRouter, {
+    ...(introline && { introline }),
+    text: text ?? '',
+    ...(accent && { accent }),
+  });
+
+  if (!canvasPayload?.image) {
+    throw new Error('Info canvas (AT) did not return an image');
+  }
+
+  return {
+    success: true,
+    agent: 'info',
+    content: {
+      metadata: {
+        sharepicType: 'info',
+      },
+      sharepic: {
+        image: canvasPayload.image,
+        type: 'info',
+        text: `${introline || ''}\n${text || ''}\n${accent || ''}`.trim(),
+        ...(introline && { introline }),
+        ...(text && { infoText: text }),
+        ...(accent && { accent }),
+        alternatives,
+      },
+      sharepicTitle: 'Sharepic Vorschau',
+      sharepicDownloadText: 'Sharepic herunterladen',
+      sharepicDownloadFilename: `sharepic-info-${Date.now()}.png`,
+    },
+  };
+};
+
 const generateInfoSharepic = async (
   expressReq: ExpressRequest,
   requestBody: RequestBody
 ): Promise<SharepicResult> => {
-  const textResponse = await callSharepicClaude(expressReq, 'info', requestBody);
+  if (requestBody.userLocale === 'de-AT') {
+    return generateInfoAtSharepic(expressReq, requestBody);
+  }
+
+  const textResponse = await callSharepicText(expressReq, 'info', requestBody);
 
   if (!textResponse?.success) {
     throw new Error((textResponse?.error as string) || 'Info Sharepic generation failed');
@@ -445,7 +561,7 @@ const generateZitatPureSharepic = async (
   expressReq: ExpressRequest,
   requestBody: RequestBody
 ): Promise<SharepicResult> => {
-  const textResponse = await callSharepicClaude(expressReq, 'zitat_pure', {
+  const textResponse = await callSharepicText(expressReq, 'zitat_pure', {
     ...requestBody,
     preserveName:
       requestBody.preserveName !== undefined ? requestBody.preserveName : !!requestBody.name,
@@ -462,7 +578,10 @@ const generateZitatPureSharepic = async (
       ? requestBody.name
       : (textResponse.name as string) || '';
 
-  const { payload: canvasPayload } = await callCanvasRoute(zitatPureCanvasRouter, { quote, name });
+  const { payload: canvasPayload } = await callCanvasRoute(
+    canvasRouterFor('zitat_pure', requestBody),
+    { quote, name }
+  );
 
   if (!canvasPayload?.image) {
     throw new Error('Zitat Pure canvas did not return an image');
@@ -495,7 +614,7 @@ const _generateDreizeilenSharepic = async (
   expressReq: ExpressRequest,
   requestBody: RequestBody
 ): Promise<SharepicResult> => {
-  const textResponse = await callSharepicClaude(expressReq, 'dreizeilen', requestBody);
+  const textResponse = await callSharepicText(expressReq, 'dreizeilen', requestBody);
 
   if (!textResponse?.success) {
     throw new Error((textResponse?.error as string) || 'Dreizeilen Sharepic generation failed');
@@ -506,7 +625,7 @@ const _generateDreizeilenSharepic = async (
   log.debug('[SharepicGeneration] Dreizeilen mainSlogan received:', JSON.stringify(mainSlogan));
 
   const { payload: canvasPayload } = await callCanvasRoute(
-    dreizeilenCanvasRouter,
+    canvasRouterFor('dreizeilen', requestBody),
     mainSlogan as Record<string, unknown>
   );
 
@@ -566,7 +685,7 @@ const generateZitatWithImageSharepic = async (
 
   let tempFile: TempFile | null = null;
   try {
-    const textResponse = await callSharepicClaude(expressReq, 'zitat_pure', {
+    const textResponse = await callSharepicText(expressReq, 'zitat_pure', {
       ...requestBody,
       preserveName: true,
     });
@@ -586,7 +705,7 @@ const generateZitatWithImageSharepic = async (
     };
 
     const { payload: canvasPayload } = await callCanvasRoute(
-      zitatCanvasRouter,
+      canvasRouterFor('zitat', requestBody),
       mockReq.body,
       mockReq.file
     );
@@ -653,7 +772,7 @@ const generateDreizeilenWithImageSharepic = async (
   validateImageAttachment(imageAttachment);
 
   try {
-    const textResponse = await callSharepicClaude(expressReq, 'dreizeilen', requestBody);
+    const textResponse = await callSharepicText(expressReq, 'dreizeilen', requestBody);
     if (!textResponse?.success) {
       throw new Error((textResponse?.error as string) || 'Dreizeilen text generation failed');
     }
@@ -669,7 +788,7 @@ const generateDreizeilenWithImageSharepic = async (
     };
 
     const { payload: canvasPayload } = await callCanvasRoute(
-      dreizeilenCanvasRouter,
+      canvasRouterFor('dreizeilen', requestBody),
       mockReq.body as Record<string, unknown>,
       mockReq.file as { buffer: Buffer; mimetype: string; originalname: string }
     );
@@ -698,7 +817,7 @@ const generateDreizeilenWithImageSharepic = async (
       },
     };
   } catch (error) {
-    log.error('[SharepicGeneration] Error in dreizeilen with image:', error);
+    logGenerationFailure('dreizeilen with image', error);
     throw error;
   }
 };
@@ -720,7 +839,7 @@ const generateDreizeilenWithAIImageSharepic = async (
   }
 
   try {
-    const textResponse = await callSharepicClaude(expressReq, 'dreizeilen', requestBody);
+    const textResponse = await callSharepicText(expressReq, 'dreizeilen', requestBody);
 
     if (!textResponse?.success) {
       throw new Error((textResponse?.error as string) || 'Dreizeilen text generation failed');
@@ -746,7 +865,7 @@ const generateDreizeilenWithAIImageSharepic = async (
     };
 
     const { payload: canvasPayload } = await callCanvasRoute(
-      dreizeilenCanvasRouter,
+      canvasRouterFor('dreizeilen', requestBody),
       mockReq.body as Record<string, unknown>,
       mockReq.file as { buffer: Buffer; mimetype: string; originalname: string }
     );
@@ -781,7 +900,7 @@ const generateDreizeilenWithAIImageSharepic = async (
       },
     };
   } catch (error) {
-    log.error('[SharepicGeneration] Error in dreizeilen with AI image:', error);
+    logGenerationFailure('dreizeilen with AI image', error);
     throw error;
   } finally {
     if (sharepicImageManager && sharepicRequestId) {
@@ -862,7 +981,7 @@ const generateCampaignSharepic = async (
   } else {
     log.debug(`[Campaign] Using handler-based parsing for baseType: ${baseType}`);
 
-    textResponse = await callSharepicClaude(expressReq, baseType, {
+    textResponse = await callSharepicText(expressReq, baseType, {
       ...requestBody,
       _campaignPrompt: campaignConfig.prompt,
     } as RequestBody);

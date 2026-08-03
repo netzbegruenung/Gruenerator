@@ -20,9 +20,9 @@ import type { ComponentType } from 'react';
 
 export interface FeatureHit {
   /**
-   * Unique across the whole index. Ids alone collide: `docs` names both the
-   * menu entry (/docs) and the favourites entry (/workplace), and both match
-   * a query like "do".
+   * Unique across the whole index. Ids alone can collide across the sources
+   * (catalog, nav, favourites), so the path is part of the key — same id AND
+   * same path means the same destination and dedupes.
    */
   key: string;
   title: string;
@@ -78,7 +78,7 @@ export function buildFeatureIndex({
     });
   };
 
-  for (const tool of getToolCatalog(import.meta.env.DEV)) {
+  for (const tool of getToolCatalog()) {
     push(tool);
   }
 

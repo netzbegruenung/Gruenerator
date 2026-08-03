@@ -2,7 +2,7 @@
 
 import { composerToolbarButtonClass, useChatDensity } from '@gruenerator/chat';
 import { Pencil, PencilOff } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 const STORAGE_PREFIX = 'gruenerator.docs.ai-edit.';
 
@@ -23,9 +23,13 @@ export function useDocAiEditEnabled(documentId: string): {
 } {
   const [enabled, setEnabled] = useState<boolean>(() => readInitial(documentId));
 
-  useEffect(() => {
+  // Re-read persisted state when the document changes, during render (no effect
+  // round-trip) so the toggle never flashes the previous doc's value.
+  const [prevDocumentId, setPrevDocumentId] = useState(documentId);
+  if (prevDocumentId !== documentId) {
+    setPrevDocumentId(documentId);
     setEnabled(readInitial(documentId));
-  }, [documentId]);
+  }
 
   const toggle = useCallback(() => {
     setEnabled((prev) => {

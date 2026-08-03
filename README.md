@@ -7,13 +7,13 @@
 
 [![Node.js](https://img.shields.io/badge/Node.js-22+-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
-[![Expo](https://img.shields.io/badge/Expo-55-000020?style=flat-square&logo=expo&logoColor=white)](https://expo.dev/)
+[![Expo](https://img.shields.io/badge/Expo-57-000020?style=flat-square&logo=expo&logoColor=white)](https://expo.dev/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Mistral AI](https://img.shields.io/badge/Mistral-AI-FF7000?style=flat-square&logo=mistral&logoColor=white)](https://mistral.ai/)
 [![License](https://img.shields.io/badge/license-Proprietary-blue?style=flat-square)](LICENSE.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](CONTRIBUTING.md)
 
-[Live Demo](https://gruenerator.de) · [Documentation](https://doku.gruenerator.de/) · [Report Bug](https://github.com/netzbegruenung/Gruenerator/issues) · [Request Feature](https://github.com/netzbegruenung/Gruenerator/issues)
+[Live Demo](https://gruenerator.de) · [Documentation](https://doku.gruenerator.eu/) · [Report Bug](https://github.com/netzbegruenung/Gruenerator/issues) · [Request Feature](https://github.com/netzbegruenung/Gruenerator/issues)
 
 </div>
 
@@ -28,6 +28,7 @@
 - [Getting Started](#getting-started)
 - [Configuration](#configuration)
 - [Usage](#usage)
+- [Documentation](#documentation)
 - [Roadmap](#roadmap)
 - [Contributing](#contributing)
 - [License](#license)
@@ -49,32 +50,34 @@ Political organizations need to create compelling, consistent content across mul
 
 Grünerator is built on **100% European infrastructure** with a commitment to digital sovereignty:
 
-| Principle                 | Implementation                                                    |
-| ------------------------- | ----------------------------------------------------------------- |
-| **100% EU Hosting**       | All servers located exclusively in the European Union             |
-| **European AI Providers** | Default: Mistral AI (France), Images: Black Forest Labs (Germany) |
-| **Privacy Mode**          | Self-hosted by netzbegrünung e.V. on German servers               |
-| **75% EU Target**         | Minimum 75% of spending with European companies                   |
+| Principle                 | Implementation                                                                               |
+| ------------------------- | -------------------------------------------------------------------------------------------- |
+| **100% EU Hosting**       | All servers located exclusively in the European Union                                        |
+| **European AI Providers** | Mistral AI (France), verdigado & Regolo (EU-hosted open models), Black Forest Labs (Germany) |
+| **Self-hosted AI**        | Green-powered inference hosted by netzbegrünung e.V. and EU partners                         |
+| **75% EU Target**         | Minimum 75% of spending with European companies                                              |
 
 ### Key Features
 
-| Feature              | Description                                                                                    |
-| -------------------- | ---------------------------------------------------------------------------------------------- |
-| **AI Modes**         | Kreativ (Mistral), Reasoning (Magistral), Ultra (Claude via EU Bedrock), Self-hosted (LiteLLM) |
-| **LangGraph Agents** | 7+ specialized AI agents for chat, web research, social content, press releases, and more      |
-| **Web Search**       | Real-time integration of facts, statistics, and political developments                         |
-| **Notebook Q&A**     | RAG-powered knowledge base over party documents with cross-collection search                   |
-| **Canvas Studio**    | Advanced image editor for social media graphics with AI-assisted content                       |
-| **Privacy Mode**     | Maximum data protection — self-hosted AI on German servers                                     |
-| **Knowledge Base**   | Custom instructions and organizational knowledge for tailored outputs                          |
-| **EU Compliance**    | GDPR-focused design with transparency guidelines                                               |
+| Feature              | Description                                                                                     |
+| -------------------- | ----------------------------------------------------------------------------------------------- |
+| **Agentic AI Chat**  | Tool-using chat that searches the web, queries knowledge bases, and creates documents on demand |
+| **Grüneratoren**     | Specialized generators for press releases, motions, social posts, speeches, and more            |
+| **Office Suite**     | Collaborative Docs, Sheets, Presentations, and Boards with built-in AI editing                  |
+| **Notebook Q&A**     | RAG-powered knowledge bases over party documents, websites, PDFs, and WordPress sources         |
+| **Canvas Studio**    | Image editor for social media graphics with party branding (DE + AT corporate design)           |
+| **Video Subtitler**  | AI transcription and styled subtitle export for social video                                    |
+| **MCP Integrations** | Own MCP server plus user-managed MCP connectors with OAuth                                      |
+| **Accessible PDFs**  | Tagged, barrier-free PDF generation straight from chat                                          |
+| **Austrian Support** | de-AT is a first-class locale with Austrian Green party content and branding                    |
+| **EU Compliance**    | GDPR-focused design with transparency guidelines                                                |
 
 ### Built With
 
 <p>
   <img src="https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React"/>
-  <img src="https://img.shields.io/badge/Vite-7-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite"/>
-  <img src="https://img.shields.io/badge/Expo-55-000020?style=for-the-badge&logo=expo&logoColor=white" alt="Expo"/>
+  <img src="https://img.shields.io/badge/Vite-8-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite"/>
+  <img src="https://img.shields.io/badge/Expo-57-000020?style=for-the-badge&logo=expo&logoColor=white" alt="Expo"/>
   <img src="https://img.shields.io/badge/Tauri-2-FFC131?style=for-the-badge&logo=tauri&logoColor=black" alt="Tauri"/>
   <img src="https://img.shields.io/badge/Node.js-22+-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js"/>
   <img src="https://img.shields.io/badge/Express-5-000000?style=for-the-badge&logo=express&logoColor=white" alt="Express"/>
@@ -90,57 +93,72 @@ Grünerator is built on **100% European infrastructure** with a commitment to di
 
 ## Features
 
-### Text Generation
+### AI Chat & Grüneratoren
 
-Generate professional political content with AI assistance:
+An agentic chat that goes beyond text generation:
 
-- Press releases and statements
-- Social media posts (optimized per platform)
-- Policy documents and motions
-- Accessible language translations
+- Tool-using agent loop: web search, knowledge-base retrieval, document creation in one conversation
+- Creates presentations, spreadsheets, sharepics, and accessible (tagged) PDFs directly from chat
+- Specialized **Grüneratoren** for press releases, motions (Anträge), social media posts, speeches, and accessible-language rewrites
+- Chat folders, thread search/recall, shareable thread URLs, and recurring scheduled tasks
+- Product self-knowledge: the chat can answer questions about Grünerator itself from the documentation
+
+### Office Suite
+
+Four collaborative editors sharing one document model:
+
+- **Docs** — rich-text editor with real-time collaboration (Tiptap + Yjs)
+- **Sheets** — spreadsheet editor (Univer) with AI-driven operations and .xlsx/.csv import
+- **Presentations** — slide editor with party branding (DE + AT corporate design)
+- **Boards** — task boards with AI-created cards
+- A unified AI editor assistant works across all four surfaces
+
+### Knowledge (Notebooks)
+
+RAG-powered knowledge bases:
+
+- Sources: uploaded files, websites, PDFs, and WordPress sites
+- Cross-collection semantic search with reranking (Qdrant)
+- Landesverband-specific notebooks with automated content sync
+- Natural-language filtering and citation-backed answers
 
 ### Canvas / Image Studio
 
 Create and edit branded social media graphics:
 
-- Full canvas editor with layers, text, and shapes
-- AI-assisted content generation
-- Quote cards and infographics
-- Campaign visuals with consistent party branding
-- Multiple export formats
+- Full canvas editor with layers, text, shapes, and multi-page documents
+- AI-assisted content and image generation
+- Quote cards, infographics, and campaign visuals with consistent party branding (DE and AT corporate design)
+- Asset library with illustrations, icons, and templates
 
 ### Video Subtitler
 
 Professional subtitle generation for videos:
 
-- AI-powered transcription
-- Multiple styling options
+- AI-powered transcription (EU-hosted providers)
+- Multiple styling options and burned-in subtitle export
 - Instagram/TikTok optimized formats
-- HD+ resolution support
+- Background processing with hardware-accelerated export
 
-### Real-time Collaboration
+### Integrations
 
-Hocuspocus-powered collaborative editing:
-
-- Multi-user document editing
-- Conflict-free synchronization
-- Persistent document storage
+- **MCP Server** — Model Context Protocol server, served in-process by the API ([mcp.gruenerator.eu](https://mcp.gruenerator.eu)). Search across Green party programs DE/AT plus the signed-in user's own documents, boards, notebooks and groups; OAuth 2.1 login required.
+- **User-managed MCP connectors** — connect third-party MCP servers to the chat, with OAuth support
+- **System search sources** — Deutsche Bahn, weather, and news available as chat tools
+- **Grüne Wolke** — Nextcloud integration for file storage and sharing
+- **WordPress Plugin** — candidate sites for Green party WordPress installations
 
 ### Additional Features
 
-- **Native Mobile App** — Expo 55 / React Native app with full feature support
+- **Native Mobile App** — Expo / React Native app with full feature support
 - **Desktop App** — Tauri 2 desktop application for Windows, macOS, and Linux
-- **Docs Editor** — Collaborative document editor with real-time sync
-- **Sites Builder** — Embedded candidate-site builder at `/sites` (web), powered by `packages/sites`
-- **Grün-O-Mat** — Political compass / decision-making tool
-- **MCP Server** — Model Context Protocol server for AI integrations ([mcp.gruenerator.eu](https://mcp.gruenerator.eu))
-- **Notebook Q&A** — RAG-powered knowledge base with Landesverband-specific content
-- **Austrian Support** — Full de-AT locale with Austrian Green party content
-- **WordPress Plugin** — Integration for Green party WordPress sites
-- **Grüne Wolke** — Nextcloud integration for file sharing
-- **Custom Instructions** — Personalized AI guidelines
-- **Multi-domain Support** — .de, .at, .eu domains
-- **PWA Support** — Install as native app on mobile devices
+- **Sites Builder** — embedded candidate-site builder at `/sites`, powered by `packages/sites`
+- **Grün-O-Mat** — political compass / decision-making tool
+- **Monitor** — experimental media/topic monitoring
+- **Real-time Collaboration** — Hocuspocus/Yjs-powered multi-user editing across the office suite
+- **Custom Instructions** — personalized AI guidelines and organizational knowledge
+- **Multi-domain Support** — .de, .at, .eu domains with locale-aware content
+- **PWA Support** — install as native app on mobile devices
 
 ---
 
@@ -148,77 +166,90 @@ Hocuspocus-powered collaborative editing:
 
 ```
 ┌────────────────────────── CLIENTS ───────────────────────────┐
-│  Web (React 19 + Vite 7)       │  Mobile (Expo 55 / RN)     │
+│  Web (React 19 + Vite)         │  Mobile (Expo / RN)         │
 │  Desktop (Tauri 2)             │  WordPress Plugin           │
 └───────────────────────────┬──────────────────────────────────┘
-                            │ REST API + SSE
+                            │ REST API (ts-rest) + SSE
 ┌───────────────────────────▼──────────────────────────────────┐
-│                         BACKEND                               │
+│                         BACKEND                              │
 │  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐  │
 │  │  Express 5   │  │   Cluster    │  │   AI Worker Pool   │  │
-│  │   Server     │──│   Workers    │──│ Mistral │ Claude   │  │
-│  └──────────────┘  └──────────────┘  │ Flux    │ LiteLLM  │  │
+│  │   Server     │──│   Workers    │──│ Mistral │ LiteLLM  │  │
+│  └──────────────┘  └──────────────┘  │ Regolo  │ BFL Flux │  │
 │                                      └────────────────────┘  │
 │  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐  │
-│  │  LangGraph   │  │  Keycloak    │  │    PostgreSQL      │  │
-│  │  Agents (7+) │  │  OIDC SSO    │  │    Database        │  │
+│  │  ChatGraph   │  │  Keycloak    │  │    PostgreSQL      │  │
+│  │  Agent Loop  │  │  OIDC SSO    │  │    Database        │  │
 │  └──────────────┘  └──────────────┘  └────────────────────┘  │
-│  ┌──────────────┐  ┌──────────────┐                          │
-│  │    Redis     │  │   Qdrant     │                          │
-│  │  Cache/PubSub│  │   Vectors    │                          │
-│  └──────────────┘  └──────────────┘                          │
+│  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐  │
+│  │    Redis     │  │   Qdrant     │  │     MCP Server     │  │
+│  │  Cache/PubSub│  │   Vectors    │  │ mcp.gruenerator.eu │  │
+│  └──────────────┘  └──────────────┘  └────────────────────┘  │
 └──────────────────────────────────────────────────────────────┘
-         │                                    │
-┌────────▼─────────┐              ┌───────────▼────────┐
-│   Hocuspocus     │              │    MCP Server      │
-│   (Realtime)     │              │ mcp.gruenerator.eu │
-└──────────────────┘              └────────────────────┘
+         │
+┌────────▼─────────┐
+│   Hocuspocus     │
+│ (Yjs Realtime)   │
+└──────────────────┘
 ```
 
 ### Key Patterns
 
-- **Cluster-based Workers** — Express servers scaled across CPU cores
-- **LangGraph Agent Pipeline** — Classify, search, rerank, respond with specialized AI agents
+- **Cluster-based Workers** — Express servers scaled across CPU cores, AI calls via a dedicated worker pool
+- **Agentic Chat Pipeline** — ChatGraph (classify → search → respond) with a tool-executing agent loop
 - **RAG Pipeline** — Qdrant vector search with cross-collection dedup and reranking
-- **Feature-Sliced Design** — Modular frontend architecture with 26 feature modules
-- **Multi-Source SSO** — Keycloak with identity brokering (SAML/OIDC)
+- **Typed API Contracts** — ts-rest contracts + Zod schemas in `packages/contracts` as the single source of truth
+- **Feature-Sliced Design** — modular frontend architecture with ~50 feature modules
+- **Multi-Source SSO** — Keycloak with identity brokering (SAML/OIDC) across .de/.at/.eu
 
 ---
 
 ## Monorepo Structure
 
-This is a **pnpm + Turborepo** monorepo with 10 apps, 7 packages, and 4 services.
+This is a **pnpm + Turborepo** monorepo: 6 apps, 16 packages, and 5 services.
 
 ### Apps
 
 | Workspace          | Description                          |
 | ------------------ | ------------------------------------ |
-| `apps/web`         | React 19 + Vite 7 frontend           |
-| `apps/api`         | Express 5 backend + LangGraph agents |
-| `apps/mobile`      | Expo 55 / React Native mobile app    |
+| `apps/web`         | React 19 + Vite frontend             |
+| `apps/api`         | Express 5 backend + ChatGraph agents |
+| `apps/mobile`      | Expo / React Native mobile app       |
 | `apps/desktop`     | Tauri 2 desktop wrapper              |
 | `apps/gruen-o-mat` | Political compass tool               |
-| `apps/wordpress`   | WordPress plugin                     |
+| `apps/wordpress`   | WordPress plugin for candidate sites |
 
 ### Packages
 
-| Workspace                | Description                                   |
-| ------------------------ | --------------------------------------------- |
-| `packages/chat`          | Shared chat UI, runtime adapters, stores      |
-| `packages/shared`        | Shared stores, hooks, API clients, components |
-| `packages/canvas-editor` | Image/canvas editor library                   |
-| `packages/docs`          | Document types, Tiptap utilities              |
-| `packages/sites`         | Embedded candidate site builder               |
-| `packages/sites-design`  | Site builder design tokens + components       |
-| `packages/voice`         | Voice synthesis utilities                     |
+| Workspace                | Description                                              |
+| ------------------------ | -------------------------------------------------------- |
+| `packages/chat`          | Shared chat UI, runtime adapters, composer configs       |
+| `packages/shared`        | Shared stores, hooks, API clients, components            |
+| `packages/contracts`     | ts-rest API contracts + Zod schemas (typed API boundary) |
+| `packages/canvas-editor` | Config-driven react-konva image/canvas editor            |
+| `packages/docs`          | Collaborative rich-text document editor (Tiptap)         |
+| `packages/sheets`        | Spreadsheet editor (Univer) with AI operations           |
+| `packages/presentations` | Presentation editor with party branding                  |
+| `packages/collab`        | Shared Yjs collaboration components and hooks            |
+| `packages/sites`         | Embedded candidate site builder                          |
+| `packages/sites-design`  | Site builder design tokens + presentational components   |
+| `packages/wolke`         | Grüne Wolke (Nextcloud) integration                      |
+| `packages/voice`         | Voice input/synthesis utilities                          |
+| `packages/query`         | Shared search/retrieval logic (text + vector)            |
+| `packages/core`          | AI model catalog and shared core primitives              |
+| `packages/ui`            | Shared UI component library                              |
+| `packages/eslint-config` | Shared ESLint flat config                                |
 
 ### Services
 
-| Workspace             | Description                                                                      |
-| --------------------- | -------------------------------------------------------------------------------- |
-| `services/mcp`        | Model Context Protocol server ([mcp.gruenerator.eu](https://mcp.gruenerator.eu)) |
-| `services/hocuspocus` | Real-time collaboration server                                                   |
-| `services/remotion`   | Video rendering                                                                  |
+| Workspace             | Description                                         |
+| --------------------- | --------------------------------------------------- |
+| `services/hocuspocus` | Real-time collaboration server (Yjs)                |
+| `services/nlp`        | Python NLP enrichment for notebook content          |
+| `services/nango`      | Self-hosted OAuth broker for third-party connectors |
+| `services/iconify`    | Self-hosted icon API                                |
+
+User documentation lives in `documentation/` (Docusaurus, deployed to [doku.gruenerator.eu](https://doku.gruenerator.eu/)).
 
 ---
 
@@ -265,6 +296,8 @@ This is a **pnpm + Turborepo** monorepo with 10 apps, 7 packages, and 4 services
    psql -d gruenerator -f apps/api/database/postgres/schema.sql
    ```
 
+   Migrations in `apps/api/database/postgres/migrations/` run automatically on backend startup.
+
 5. **Start development servers**
 
    ```bash
@@ -286,11 +319,11 @@ This is a **pnpm + Turborepo** monorepo with 10 apps, 7 packages, and 4 services
 ### Backend Environment Variables
 
 ```bash
-# AI APIs
-MISTRAL_API_KEY=...                    # Primary AI provider
-AWS_ACCESS_KEY_ID=...                  # For Ultra mode (Claude via Bedrock)
-AWS_SECRET_ACCESS_KEY=...
-LITELLM_API_KEY=...                    # Self-hosted fallback
+# AI APIs (EU providers)
+MISTRAL_API_KEY=...                    # Primary AI provider (France)
+LITELLM_API_KEY=...                    # EU-hosted open models via LiteLLM (verdigado)
+REGOLO_API_KEY=...                    # EU-hosted open models via Regolo (Italy)
+BFL_API_KEY=...                        # Image generation (Black Forest Labs, Germany)
 
 # Keycloak Authentication
 KEYCLOAK_BASE_URL=https://auth.example.com
@@ -311,6 +344,8 @@ QDRANT_URL=http://localhost:6333
 BASE_URL=http://localhost:3001
 AUTH_BASE_URL=http://localhost:3000
 ```
+
+See `.env.example` for the full list.
 
 ### Frontend Environment Variables
 
@@ -356,7 +391,7 @@ A native mobile app is available via Expo (`apps/mobile`). The web app can also 
 
 ## Documentation
 
-User-facing documentation is maintained in the `/documentation` directory using Docusaurus.
+User-facing documentation is maintained in the `documentation/` directory using Docusaurus and deployed to [doku.gruenerator.eu](https://doku.gruenerator.eu/).
 
 ### Development
 
@@ -370,27 +405,41 @@ pnpm run build:documentation   # Build documentation site
 ```
 documentation/
 ├── docs/           # Main documentation pages
-│   ├── Grundlagen/        # Basics and guides
-│   ├── Profil/            # Profile and cloud features
-│   ├── gruenerieren/      # Content generation features
-│   ├── llm-basics/        # AI/LLM fundamentals
+│   ├── grundlagen/        # Basics and guides
+│   ├── konto/             # Profile and cloud features
+│   ├── chat/              # Content generation features
+│   ├── grueneratoren/     # Specialized generators
+│   ├── wissen/            # Notebooks and knowledge sources
+│   ├── office/            # Docs, boards, sheets, presentations
+│   ├── integrationen/     # MCP and third-party connectors
+│   ├── experimente/       # Monitor and other experimental features
+│   ├── archiv/            # Newsletter and Signal message archive
 │   └── ueber-den-gruenerator/  # About Grünerator
 ├── blog/           # News and updates
 ├── src/            # Custom pages and components
 └── static/         # Images and assets
 ```
 
+### Keeping Docs (and this README) Fresh
+
+A weekly CI workflow (`docs-freshness.yml`) runs a read-only AI audit that checks every documentation article — and this README — against the current source code, and files an issue when claims have drifted. PRs that touch related source get the same audit via `docs-freshness-pr.yml`.
+
 ---
 
 ## Roadmap
 
-- [x] Core text generation
+- [x] Core text generation & Grüneratoren
+- [x] Agentic AI chat with tool loop
 - [x] Sharepic / Canvas image studio
 - [x] Video subtitler
+- [x] Office suite (Docs, Sheets, Presentations, Boards)
 - [x] Real-time collaboration
-- [x] Multi-domain support (.de, .at, .eu)
+- [x] Notebooks / RAG knowledge bases
+- [x] Multi-domain support (.de, .at, .eu) with first-class Austrian locale
 - [x] Native mobile apps (Expo)
 - [x] API for third-party integrations (MCP server, WordPress plugin)
+- [x] User-managed MCP connectors (OAuth)
+- [x] Accessible (tagged) PDF generation
 - [ ] Plugin system
 - [ ] Multi-language interface (EN, FR)
 
@@ -426,7 +475,7 @@ Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTIN
 
 ## Acknowledgments
 
-- [Netzbegrünung e.V.](https://netzbegruenung.de/) — Technical support, hosting, and Privacy Mode infrastructure
+- [Netzbegrünung e.V.](https://netzbegruenung.de/) — Technical support, hosting, and self-hosted AI infrastructure
 - [Mistral AI](https://mistral.ai/) — Primary AI provider (France)
 - [Black Forest Labs](https://blackforestlabs.ai/) — Image generation (Germany)
 - All contributors and supporters of European digital sovereignty
@@ -437,7 +486,7 @@ Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTIN
 
 - **Email**: [info@moritz-waechter.de](mailto:info@moritz-waechter.de)
 - **Issues**: [GitHub Issue Tracker](https://github.com/netzbegruenung/Gruenerator/issues)
-- **Documentation**: [doku.gruenerator.de](https://doku.gruenerator.de/)
+- **Documentation**: [doku.gruenerator.eu](https://doku.gruenerator.eu/)
 
 ---
 

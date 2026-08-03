@@ -253,9 +253,7 @@ export const documentsContractRouter = s.router(documentsContract, {
             : null;
 
         const rawProgress = meta.processing_progress as
-          | { stage?: string; current?: number; total?: number }
-          | null
-          | undefined;
+          { stage?: string; current?: number; total?: number } | null | undefined;
         const progress =
           rawProgress &&
           typeof rawProgress.stage === 'string' &&
@@ -272,11 +270,7 @@ export const documentsContractRouter = s.router(documentsContract, {
         return {
           id: r.id,
           status: (allowedStatuses.has(r.status) ? r.status : 'pending') as
-            | 'pending'
-            | 'uploaded'
-            | 'processing'
-            | 'completed'
-            | 'failed',
+            'pending' | 'uploaded' | 'processing' | 'completed' | 'failed',
           stage,
           progress,
         };

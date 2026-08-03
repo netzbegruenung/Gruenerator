@@ -1,6 +1,5 @@
 'use client';
 
-import { memo, useRef, useState, useCallback, useEffect } from 'react';
 import {
   AuiIf,
   ComposerPrimitive,
@@ -9,42 +8,94 @@ import {
   useVoiceState,
 } from '@assistant-ui/react';
 import { useAuiState } from '@assistant-ui/store';
-import { ArrowUp, Mic, Square, X } from 'lucide-react';
-import { RiVoiceAiFill } from 'react-icons/ri';
+import { mcpBrandColor } from '@gruenerator/shared/utils';
 import { cn, useIsMobile } from '@gruenerator/ui';
-import { useScopedAgentId } from '../../lib/useScopedAgentState';
-import { useAgentStore, type ThreadMode } from '../../stores/chatStore';
-import { SearchDepthToggle } from '../SearchDepthToggle';
-import { getSystemAgent } from '@gruenerator/shared/agents';
-import { ComposerAttachments } from '../assistant-ui/attachment';
-import { MentionPopover } from './MentionPopover';
-import { SkillPopover } from './SkillPopover';
-import { detectMention } from '../../lib/mentionDetection';
-import { getFilteredForMode } from '../../lib/mentionDetection';
+import { ArrowUp, Mic, Plug, Square, X } from 'lucide-react';
+import { memo, useRef, useState, useCallback, useEffect } from 'react';
+import { type IconType } from 'react-icons';
+import { RiVoiceAiFill } from 'react-icons/ri';
+import {
+  SiGithub,
+  SiNotion,
+  SiGoogledrive,
+  SiHubspot,
+  SiBrevo,
+  SiZapier,
+  SiTodoist,
+  SiMiro,
+  SiStatista,
+  SiGooglemaps,
+  SiTrivago,
+  SiJira,
+  SiConfluence,
+} from 'react-icons/si';
+
+import { useMentionablesQuery } from '../../hooks/useMentionablesQuery';
+import { handleAttachmentAddError } from '../../lib/attachmentErrorHandler';
+import { getCaretCoords } from '../../lib/caretPosition';
+import { showsSearchDepth } from '../../lib/composerControls';
+import {
+  registerDocumentSlug,
+  buildDocumentMentionAttachment,
+  buildCollabDocAttachment,
+  type DocumentMention,
+  type CollabDocSelection,
+} from '../../lib/documentMentionables';
+import {
+  type Mentionable,
+  type WolkeFileToken,
+  type ConnectFileToken,
+  type CanvaDesignToken,
+  type VorlageToken,
+} from '../../lib/mentionables';
+import {
+  appendToDraft,
+  buildConnectAttachment,
+  buildWebpageAttachment,
+  buildWolkeAttachment,
+  canvaDesignsMarkdown,
+} from '../../lib/mentionAttachments';
+import { getFilteredMentionables, detectMention } from '../../lib/mentionDetection';
 import { computeMentionInsertion } from '../../lib/mentionInsertion';
-import { FileMentionPopover } from './FileMentionPopover';
-import { WolkeMentionPopover } from './WolkeMentionPopover';
-import { ConnectMentionPopover } from './ConnectMentionPopover';
+import { useScopedAgentId } from '../../lib/useScopedAgentState';
+import { useAgentStore } from '../../stores/chatStore';
+import { useUserProfileStore } from '../../stores/userProfileStore';
+import { ComposerAttachments } from '../assistant-ui/attachment';
+import { SearchDepthToggle } from '../SearchDepthToggle';
+
 import { CanvaMentionPopover } from './CanvaMentionPopover';
+import { useChatDensity } from './chatDensityContext';
+import { ConnectMentionPopover } from './ConnectMentionPopover';
+import { FileMentionPopover } from './FileMentionPopover';
+import { MentionPopover } from './MentionPopover';
+import { ModelPicker } from './ModelPicker';
+import { PlusMenu, type ComposerPreset } from './PlusMenu';
 import { VorlagenMentionPopover } from './VorlagenMentionPopover';
 import { WebMentionPopover } from './WebMentionPopover';
-import type { CollabDocSelection } from '../../lib/documentMentionables';
-import type {
-  WolkeFileToken,
-  ConnectFileToken,
-  CanvaDesignToken,
-  VorlageToken,
-} from '../../lib/mentionables';
-import { PlusMenu, type ComposerPreset } from './PlusMenu';
-import { ModelPicker } from './ModelPicker';
-import { getCaretCoords } from '../../lib/caretPosition';
-import { registerDocumentSlug } from '../../lib/documentMentionables';
-import { useMentionablesQuery } from '../../hooks/useMentionablesQuery';
-import { useChatDensity } from './chatDensityContext';
-import type { Mentionable } from '../../lib/mentionables';
-import type { DocumentMention } from '../../lib/documentMentionables';
-import { useUserProfileStore } from '../../stores/userProfileStore';
-import { handleAttachmentAddError } from '../../lib/attachmentErrorHandler';
+import { WolkeMentionPopover } from './WolkeMentionPopover';
+
+// Real vendor logo for the pinned-connector chip, keyword-matched on the
+// connector name/host (mirrors apps/web McpSection). No match → generic Plug.
+const CONNECTOR_BRAND_ICONS: ReadonlyArray<readonly [RegExp, IconType]> = [
+  [/github/i, SiGithub],
+  [/notion/i, SiNotion],
+  [/google\s*drive|drive\.google/i, SiGoogledrive],
+  [/google\s*maps|mapstools|maps\.google/i, SiGooglemaps],
+  [/hubspot/i, SiHubspot],
+  [/brevo/i, SiBrevo],
+  [/zapier/i, SiZapier],
+  [/todoist/i, SiTodoist],
+  [/miro/i, SiMiro],
+  [/statista/i, SiStatista],
+  [/trivago/i, SiTrivago],
+  [/jira/i, SiJira],
+  [/confluence/i, SiConfluence],
+];
+
+function connectorBrandIcon(label: string): IconType | null {
+  for (const [re, Icon] of CONNECTOR_BRAND_ICONS) if (re.test(label)) return Icon;
+  return null;
+}
 
 interface GrueneratorComposerProps {
   isRunning?: boolean;
@@ -61,7 +112,6 @@ interface GrueneratorComposerProps {
   /** Forwarded to ModelPicker for surfaces without a ChatSurfaceProvider
    * (e.g. NotebookChatProvider) so auto-mode resolves to the surface's
    * implicit thread mode. */
-  modelPickerThreadModeOverride?: ThreadMode;
   insideAgent?: boolean;
   /** Surface-specific prompt presets, shown as a "Vorlagen" submenu in the
    * plus menu (e.g. the workplace example prompts). */
@@ -96,9 +146,10 @@ const ROUND_BTN_BASE =
 const roundBtnSize = (isCompact: boolean) => (isCompact ? 'm-1.5 h-7 w-7' : 'm-2 h-8 w-8');
 
 function SearchDepthToggleSlot() {
+  // The rule lives in `showsSearchDepth` (shared with mobile), not here — see
+  // the note there on why the control is search-route only.
   const selectedAgentId = useScopedAgentId();
-  const agent = selectedAgentId ? getSystemAgent(selectedAgentId) : null;
-  if (agent?.routeTo !== 'search') return null;
+  if (!showsSearchDepth(selectedAgentId)) return null;
   return <SearchDepthToggle />;
 }
 
@@ -215,7 +266,7 @@ function ComposerButtons({
 
 interface MentionState {
   visible: boolean;
-  mode: 'functions' | 'skills' | 'datei' | 'wolke' | 'connect' | 'canva' | 'vorlagen' | 'web';
+  mode: 'functions' | 'datei' | 'wolke' | 'connect' | 'canva' | 'vorlagen' | 'web';
   query: string;
   selectedIndex: number;
   anchorRect: { x: number; y: number } | null;
@@ -243,7 +294,6 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   showPlusMenu = true,
   showToolToggles = true,
   showModelPicker = true,
-  modelPickerThreadModeOverride,
   insideAgent = false,
   presets,
   variant = 'card',
@@ -255,6 +305,8 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   const isMobile = useIsMobile();
   const effectivePlaceholder = placeholder ?? (isMobile ? 'Schreibe...' : 'Nachricht schreiben...');
   const isMistral = useAgentStore((s) => s.selectedProvider === 'mistral');
+  const pinnedConnector = useAgentStore((s) => s.pinnedConnector);
+  const setPinnedConnector = useAgentStore((s) => s.setPinnedConnector);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const uploadRef = useRef<HTMLButtonElement>(null);
   const [mention, setMention] = useState<MentionState>(INITIAL_MENTION_STATE);
@@ -416,27 +468,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     (doc: DocumentMention) => {
       registerDocumentSlug(doc.slug, doc);
 
-      void composerRuntime.addAttachment({
-        id: `gruenerator-datei-${doc.documentId}`,
-        type: 'document',
-        name: doc.documentTitle,
-        contentType: `application/x-gruenerator-datei-${doc.sourceType}`,
-        content: [
-          {
-            type: 'data',
-            name: 'gruenerator-mention',
-            data: {
-              kind: 'document',
-              documentId: doc.documentId,
-              documentTitle: doc.documentTitle,
-              collectionId: doc.collectionId,
-              collectionName: doc.collectionName,
-              slug: doc.slug,
-              sourceType: doc.sourceType,
-            },
-          },
-        ],
-      });
+      void composerRuntime.addAttachment(buildDocumentMentionAttachment(doc));
 
       stripTriggerText();
       dismissPopover();
@@ -447,19 +479,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
 
   const handleCollabDocSelect = useCallback(
     (doc: CollabDocSelection) => {
-      void composerRuntime.addAttachment({
-        id: `gruenerator-collab-${doc.id}`,
-        type: 'document',
-        name: doc.title,
-        contentType: 'application/x-gruenerator-collab-doc',
-        content: [
-          {
-            type: 'data',
-            name: 'gruenerator-mention',
-            data: { kind: 'collab', id: doc.id, slug: doc.slug, title: doc.title },
-          },
-        ],
-      });
+      void composerRuntime.addAttachment(buildCollabDocAttachment(doc));
 
       stripTriggerText();
       dismissPopover();
@@ -472,24 +492,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     (files: WolkeFileToken[]) => {
       if (files.length === 0) return;
       for (const f of files) {
-        void composerRuntime.addAttachment({
-          id: `gruenerator-wolke-${f.shareLinkId}:${f.path}`,
-          type: 'document',
-          name: f.name,
-          contentType: 'application/x-gruenerator-wolke',
-          content: [
-            {
-              type: 'data',
-              name: 'gruenerator-mention',
-              data: {
-                kind: 'wolke',
-                shareLinkId: f.shareLinkId,
-                path: f.path,
-                name: f.name,
-              },
-            },
-          ],
-        });
+        void composerRuntime.addAttachment(buildWolkeAttachment(f));
       }
       dismissPopover();
       requestAnimationFrame(() => textareaRef.current?.focus());
@@ -501,25 +504,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     (files: ConnectFileToken[]) => {
       if (files.length === 0) return;
       for (const f of files) {
-        void composerRuntime.addAttachment({
-          id: `gruenerator-connect-${f.provider}:${f.fileId}`,
-          type: 'document',
-          name: f.name,
-          contentType: 'application/x-gruenerator-connect',
-          content: [
-            {
-              type: 'data',
-              name: 'gruenerator-mention',
-              data: {
-                kind: 'connect',
-                provider: f.provider,
-                fileId: f.fileId,
-                name: f.name,
-                ...(f.mimeType ? { mimeType: f.mimeType } : {}),
-              },
-            },
-          ],
-        });
+        void composerRuntime.addAttachment(buildConnectAttachment(f));
       }
       dismissPopover();
       requestAnimationFrame(() => textareaRef.current?.focus());
@@ -529,26 +514,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
 
   const handleWebSelect = useCallback(
     (url: string) => {
-      const hostname = (() => {
-        try {
-          return new URL(url).hostname;
-        } catch {
-          return url;
-        }
-      })();
-      void composerRuntime.addAttachment({
-        id: `gruenerator-webpage-${url}`,
-        type: 'document',
-        name: hostname,
-        contentType: 'application/x-gruenerator-webpage',
-        content: [
-          {
-            type: 'data',
-            name: 'gruenerator-mention',
-            data: { kind: 'webpage', url, name: hostname },
-          },
-        ],
-      });
+      void composerRuntime.addAttachment(buildWebpageAttachment(url));
       dismissPopover();
       requestAnimationFrame(() => textareaRef.current?.focus());
     },
@@ -560,10 +526,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
       if (designs.length === 0) return;
       // Insert each chosen design as a markdown link — a direct, durable
       // reference (view URLs are valid 30 days) the user/agent can act on.
-      const links = designs.map((d) => `[🎨 ${d.title}](${d.viewUrl})`).join(' ');
-      const currentText = composerRuntime.getState().text;
-      const needsSpace = currentText.length > 0 && !currentText.endsWith(' ');
-      const newText = `${currentText}${needsSpace ? ' ' : ''}${links} `;
+      const newText = appendToDraft(composerRuntime.getState().text, canvaDesignsMarkdown(designs));
       composerRuntime.setText(newText);
       dismissPopover();
       requestAnimationFrame(() => {
@@ -623,7 +586,9 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
         const coords = getCaretCoords(textarea, detected.mentionStart);
         setMention({
           visible: true,
-          mode: detected.mode,
+          // Reset to the combined list: the state may still hold a picker mode
+          // (datei/wolke/…) from a previous, now-edited-away mention.
+          mode: 'functions',
           query: detected.query,
           selectedIndex: 0,
           anchorRect: coords,
@@ -663,7 +628,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
         return;
       }
 
-      const filtered = getFilteredForMode(mention.mode, mention.query);
+      const filtered = getFilteredMentionables(mention.query);
       if (filtered.length === 0) return;
 
       switch (e.key) {
@@ -689,6 +654,8 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
         case 'Escape':
           e.preventDefault();
           dismissPopover();
+          break;
+        default:
           break;
       }
     },
@@ -745,13 +712,31 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     />
   ) : null;
 
-  const modelPickerNode = showModelPicker ? (
-    <ModelPicker
-      {...(modelPickerThreadModeOverride && {
-        threadModeOverride: modelPickerThreadModeOverride,
-      })}
-    />
+  // Sticky connector chip (web-only for now): a compact INLINE pill at the start
+  // of the input line (ChatGPT-style), with the connector's real brand logo and
+  // a neutral surface. The × unpins. Rendered inside the input row below.
+  const pinnedConnectorBrand = pinnedConnector ? mcpBrandColor(pinnedConnector.label) : '';
+  const PinnedConnectorIcon = pinnedConnector
+    ? (connectorBrandIcon(pinnedConnector.label) ?? Plug)
+    : Plug;
+  const pinnedConnectorChip = pinnedConnector ? (
+    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-black/[0.05] py-1 pl-2 pr-1.5 text-[13px] font-medium dark:bg-white/10">
+      <PinnedConnectorIcon className="h-3.5 w-3.5" style={{ color: pinnedConnectorBrand }} />
+      <span className="max-w-40 truncate" style={{ color: pinnedConnectorBrand }}>
+        {pinnedConnector.label}
+      </span>
+      <button
+        type="button"
+        aria-label={`${pinnedConnector.label} lösen`}
+        onClick={() => setPinnedConnector(null)}
+        className="flex h-4 w-4 items-center justify-center rounded-full text-foreground-muted hover:bg-black/10 dark:hover:bg-white/10"
+      >
+        <X className="h-3 w-3" />
+      </button>
+    </span>
   ) : null;
+
+  const modelPickerNode = showModelPicker ? <ModelPicker /> : null;
 
   const composerInput = (
     <ComposerPrimitive.Input
@@ -777,13 +762,63 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
       <ComposerPrimitive.Root
         className={cn(
           'composer-root relative mx-auto flex w-full max-w-3xl flex-col border bg-white transition-shadow dark:bg-surface',
+          // The keyboard-focus indicator. The composer had none: the textarea
+          // carries an unconditional `outline-none` (see below), and the app's
+          // global `:focus-visible` ring lives in the `legacy` layer, which
+          // Tailwind's `utilities` layer outranks. What was left was a shadow
+          // stepping up one size — a blur difference, not a contrast one, so it
+          // could not meet the 3:1 that WCAG 1.4.11 asks of a focus indicator.
+          //
+          // `outline`, not a ring: `box-shadow` is dropped entirely under
+          // `forced-colors: active` (Windows-Kontrastmodus), where this surface
+          // already loses its tint. An outline survives — the system recolours
+          // it and keeps drawing it — so the one property covers both cases and
+          // needs no `@media` companion.
+          //
+          // `has-[textarea:focus]` rather than `focus-within`: the toolbar
+          // buttons inside carry their own ring from the global rule, and
+          // outlining the whole capsule while tabbing through them would read as
+          // noise. What a person means by "the composer has focus" is the text
+          // field.
+          //
+          // `kbd:` in front of it, because :focus was never the whole story: the
+          // CSS spec exempts text entry from the mouse-click rule, so a textarea
+          // matches :focus AND :focus-visible when clicked into. Swapping one for
+          // the other changes nothing here — only the input modality does. See
+          // focusModality.ts.
+          //
+          // Two colours because no single one clears 3:1 on both grounds. Light:
+          // primary-600 (#316049) at 7.2:1 on white and 6.3:1 on the glow band's
+          // strongest tint. Dark: primary-300 (#8AC9B0) at 8.0:1 on the page and
+          // 7.0:1 on the composer's own fill. The app's usual ring colour,
+          // primary-500, drops to ~3.2:1 against the band — it was chosen for
+          // plain surfaces, not for a tinted one.
+          'kbd:has-[textarea:focus]:outline-2 kbd:has-[textarea:focus]:outline-offset-2',
+          'kbd:has-[textarea:focus]:outline-primary-600 dark:kbd:has-[textarea:focus]:outline-primary-300',
           // Design v2: the pill keeps its resting border/shadow on focus.
+          //
+          // 1.875rem is half the composer's resting one-row height, so the shape
+          // is a true pill while it's one row — but stays a rounded rect once an
+          // attachment tile or extra text rows make it taller. `rounded-full`
+          // would keep tracking half the GROWN height (86px at one image tile)
+          // and sweep the corner arc straight across the tile.
           isPill
-            ? 'rounded-full shadow-md focus-within:shadow-lg dark:shadow-sm'
+            ? 'rounded-[1.875rem] shadow-md focus-within:shadow-lg dark:shadow-sm'
             : 'rounded-3xl shadow-lg focus-within:border-primary/30 focus-within:shadow-xl dark:shadow-sm dark:focus-within:shadow-md',
           // The Mistral brand border reads as a focus ring on the slim pill —
           // card layout only.
-          isMistral && !isPill ? 'border-[#003399]' : 'border-border'
+          //
+          // Otherwise the border colour comes from a variable, not from the
+          // token directly: a surface that supplies its own tinted ground under
+          // the composer (the chat backgrounds, the thread's glow band) sets
+          // `--chat-composer-border: transparent` and the fill alone separates
+          // it — which is how the app draws it. Surfaces that set nothing (the
+          // notebook composer, /suche) fall back to the token and keep their
+          // border, so this stays a per-surface decision rather than a prop
+          // threaded through four call sites.
+          isMistral && !isPill
+            ? 'border-[#003399]'
+            : 'border-[color:var(--chat-composer-border,var(--color-border))]'
         )}
       >
         <ComposerPrimitive.Quote
@@ -798,7 +833,9 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
           </ComposerPrimitive.QuoteDismiss>
         </ComposerPrimitive.Quote>
 
-        <ComposerAttachments />
+        {/* Inset mirrors the input's horizontal padding per variant, so the
+            tile's left edge lines up with the first character of the draft. */}
+        <ComposerAttachments className={isPill ? 'mx-3.5' : isCompact ? 'mx-3' : 'mx-5'} />
 
         {slots?.aboveInput}
 
@@ -841,15 +878,6 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
               onSelect={handleWebSelect}
               onDismiss={dismissPopover}
             />
-          ) : mention.mode === 'skills' ? (
-            <SkillPopover
-              query={mention.query}
-              visible={mention.visible}
-              onSelect={handleSelect}
-              onDismiss={dismissPopover}
-              selectedIndex={mention.selectedIndex}
-              anchorRect={mention.anchorRect}
-            />
           ) : (
             <MentionPopover
               query={mention.query}
@@ -866,6 +894,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
             {hiddenUploadButton}
             {plusMenuNode}
             {slots?.leading}
+            {pinnedConnectorChip}
             {composerInput}
             {showToolToggles && <SearchDepthToggleSlot />}
             {toolbarExtra}
@@ -881,10 +910,11 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
             {composerInput}
 
             <div className="flex items-center justify-between px-2 pb-1">
-              <div className="flex items-center gap-0.5">
+              <div className="flex items-center gap-1">
                 {hiddenUploadButton}
                 {plusMenuNode}
                 {slots?.leading}
+                {pinnedConnectorChip}
                 {showToolToggles && <SearchDepthToggleSlot />}
                 {toolbarExtra}
               </div>

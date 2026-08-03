@@ -48,7 +48,7 @@ export const SHAREPIC_TYPES: readonly SharepicTypeOption[] = [
 export const SHAREPIC_ENDPOINT = '/generate-sharepic';
 
 /** API endpoint for default (3 auto) sharepics generation */
-export const DEFAULT_SHAREPICS_ENDPOINT = '/default_claude';
+export const DEFAULT_SHAREPICS_ENDPOINT = '/sharepic/text/default';
 
 /** Map frontend type IDs to backend type identifiers */
 export const SHAREPIC_TYPE_MAP: Record<SharepicType, string> = {

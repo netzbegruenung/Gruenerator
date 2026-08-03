@@ -77,7 +77,7 @@ function TemplateCard({ entry }: { entry: Entry }) {
         </span>
       )}
       <div className="text-sm font-bold text-[#22382E] dark:text-foreground">{entry.title}</div>
-      <div className="mt-[3px] text-xs leading-snug text-[#9AA8A1]">{entry.description}</div>
+      <div className="mt-[3px] text-xs leading-snug text-muted-brand">{entry.description}</div>
     </button>
   );
 }
@@ -114,7 +114,7 @@ function BlankCard({ kind, onSelect }: { kind: DocKind; onSelect: () => void }) 
         </svg>
       </span>
       <div className="text-sm font-bold text-[#22382E] dark:text-foreground">{label}</div>
-      <div className="mt-[3px] text-xs leading-snug text-[#9AA8A1]">Ohne Vorlage beginnen</div>
+      <div className="mt-[3px] text-xs leading-snug text-muted-brand">Ohne Vorlage beginnen</div>
     </button>
   );
 }
@@ -233,6 +233,7 @@ export default function TemplateGalleryModal({
       : byKind[tab];
 
   return (
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events -- click-outside-to-close convenience; Escape (handled above) is the keyboard equivalent
     <div
       className="fixed inset-0 z-50 flex items-start justify-center bg-[rgba(24,40,33,.34)] px-6 py-16 backdrop-blur-[4px]"
       onClick={(e) => {
@@ -250,7 +251,7 @@ export default function TemplateGalleryModal({
             <h2 className="text-[19px] font-extrabold tracking-[-.01em] text-[#22382E] dark:text-foreground">
               Vorlage wählen
             </h2>
-            <div className="mt-0.5 text-[13px] text-[#9AA8A1]">
+            <div className="mt-0.5 text-[13px] text-muted-brand">
               Starte mit einer fertigen Struktur — oder ganz leer.
             </div>
           </div>
@@ -258,7 +259,7 @@ export default function TemplateGalleryModal({
             type="button"
             onClick={onClose}
             aria-label="Schließen"
-            className="ml-auto flex h-9 w-9 items-center justify-center rounded-full bg-[#F1F4F1] text-[#5C6B63] transition-colors hover:bg-[#E4EAE5] dark:bg-grey-700 dark:text-grey-300 dark:hover:bg-grey-600"
+            className="ml-auto flex h-9 w-9 max-sm:h-11 max-sm:w-11 items-center justify-center rounded-full bg-[#F1F4F1] text-[#5C6B63] transition-colors hover:bg-[#E4EAE5] dark:bg-grey-700 dark:text-grey-300 dark:hover:bg-grey-600"
           >
             <svg
               viewBox="0 0 24 24"
@@ -282,7 +283,7 @@ export default function TemplateGalleryModal({
               type="button"
               onClick={() => setTab(t.key)}
               className={cn(
-                'rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors',
+                'rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors max-sm:min-h-11 max-sm:px-4',
                 tab === t.key
                   ? 'bg-[#E7F1EA] text-[#2C6149] dark:bg-secondary-900/40 dark:text-secondary-200'
                   : 'text-[#5C6B63] hover:bg-[#F2F6F3] dark:text-grey-300 dark:hover:bg-grey-800'

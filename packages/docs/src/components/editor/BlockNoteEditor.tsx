@@ -27,7 +27,8 @@ import {
   getFormattingToolbarItems,
   ThreadsSidebar,
 } from '@blocknote/react';
-import { filterSuggestionItems, ForkYDocExtension } from '@blocknote/core/extensions';
+import { filterSuggestionItems } from '@blocknote/core/extensions';
+import { ForkYDocExtension, withCollaboration } from '@blocknote/core/yjs';
 import { BlockNoteView, ShadCNDefaultComponents } from '@blocknote/shadcn';
 import {
   AIExtension,
@@ -41,7 +42,7 @@ import { DefaultChatTransport } from 'ai';
 import '@blocknote/core/fonts/inter.css';
 import '@blocknote/shadcn/style.css';
 import '@blocknote/xl-ai/style.css';
-import * as TooltipPrimitive from '@radix-ui/react-tooltip';
+import { Tooltip as TooltipPrimitive } from 'radix-ui';
 import * as Y from 'yjs';
 import { HocuspocusProvider } from '@hocuspocus/provider';
 
@@ -278,6 +279,10 @@ const BlockNoteEditorInner = ({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const exts: any[] = [
       AIExtension({
+        // @blocknote/xl-ai pins ai@6 (its dep range is ^6); this package is on
+        // ai@7. The transport wire protocol is identical across both — only the
+        // TS ChatTransport identity differs. Cross-version boundary cast (`as any`
+        // below) because the two ai versions' ChatTransport types are unrelated.
         transport: new DefaultChatTransport({
           api: aiApiUrl,
           credentials: 'include',
@@ -288,7 +293,8 @@ const BlockNoteEditorInner = ({
           // the API via the native proxy (CORS/auth). On web this is platformFetch
           // — identical to the default — so web behavior is unchanged.
           fetch: (input, init) => adapter.fetch(String(input), init),
-        }),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        }) as any,
         // Markdown format avoids xl-ai's HTML rebase-tool throw on docs that
         // contain inline color/background spans — those don't round-trip
         // through blocksToHTMLLossy/tryParseHTMLToBlocks but they DO round-trip
@@ -360,24 +366,31 @@ const BlockNoteEditorInner = ({
     provider,
   ]);
 
-  const editor = useCreateBlockNote(
-    {
-      schema,
-      tables: {
-        splitCells: true,
-        cellBackgroundColor: true,
-        cellTextColor: true,
-        headers: true,
-      },
-      dictionary: {
-        ...de,
-        ai: aiDe,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any,
-      extensions,
-      collaboration: collaborationOptions,
-      domAttributes: EDITOR_DOM_ATTRIBUTES,
+  const baseEditorOptions = {
+    schema,
+    tables: {
+      splitCells: true,
+      cellBackgroundColor: true,
+      cellTextColor: true,
+      headers: true,
     },
+    dictionary: {
+      ...de,
+      ai: aiDe,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any,
+    extensions,
+    domAttributes: EDITOR_DOM_ATTRIBUTES,
+  };
+
+  const editor = useCreateBlockNote(
+    // BlockNote 0.52 decoupled Yjs from the core editor options: collaboration is
+    // no longer a plain option but has to be folded in via `withCollaboration`,
+    // which registers the Yjs extensions. Surfaces without a provider (read-only
+    // renders) create the editor without it.
+    collaborationOptions
+      ? withCollaboration({ ...baseEditorOptions, collaboration: collaborationOptions })
+      : baseEditorOptions,
     // `extensions` is frozen into the editor at creation — anything inside it
     // that can change identity at runtime must appear here, or the live editor
     // keeps the stale instance. threadStore carries the comments auth role

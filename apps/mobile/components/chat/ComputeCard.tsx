@@ -1,8 +1,11 @@
+import { useChatConfigStore } from '@gruenerator/chat';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
-import { View, Text, StyleSheet } from 'react-native';
+import { useCallback, useState } from 'react';
+import { View, Text, StyleSheet, Pressable, Alert, ActivityIndicator } from 'react-native';
 
-import { colors, spacing, borderRadius } from '../../theme';
+import { base64ToBytes, shareBytesAsFile } from '../../services/share';
+import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
 
 import type { Theme } from '../../theme/colors';
 import type { ComputeData } from '@gruenerator/chat';
@@ -11,10 +14,67 @@ import type { ComputeData } from '@gruenerator/chat';
  * Inline card for a deterministic calculation (compute intent) — native
  * counterpart of web's ComputeCard. The numbers were computed in plain JS on
  * the server (or via run_python on a capable client), not guessed by the
- * model; the card makes that provenance visible. File exports (`data.files`)
- * are web-only downloads and intentionally not rendered here.
+ * model; the card makes that provenance visible.
+ *
+ * File exports (a filled form, a CSV) are offered through the native share
+ * sheet — the app has no download folder concept, so "share" IS the download.
+ * `fileAssets` are server-stored and behind an authenticated endpoint, so they
+ * go through the configured chat fetch (Bearer on mobile), exactly like web's
+ * ComputeCard; `files` carry their bytes inline.
  */
 export function ComputeCard({ data, theme }: { data: ComputeData; theme: Theme }) {
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const shareAsset = useCallback(async (name: string, url: string) => {
+    setBusy(name);
+    try {
+      const { fetch: configFetch } = useChatConfigStore.getState();
+      const response = await configFetch(url, { method: 'GET' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const buffer = await response.arrayBuffer();
+      await shareBytesAsFile(new Uint8Array(buffer), name);
+    } catch (error) {
+      console.error('[ComputeCard] asset share failed:', error);
+      Alert.alert('Fehler', 'Die Datei konnte nicht geladen werden.');
+    } finally {
+      setBusy(null);
+    }
+  }, []);
+
+  const shareInline = useCallback(async (name: string, b64: string) => {
+    setBusy(name);
+    try {
+      await shareBytesAsFile(base64ToBytes(b64), name);
+    } catch (error) {
+      console.error('[ComputeCard] file share failed:', error);
+      Alert.alert('Fehler', 'Die Datei konnte nicht geteilt werden.');
+    } finally {
+      setBusy(null);
+    }
+  }, []);
+
+  const fileChip = (name: string, onPress: () => void) => (
+    <Pressable
+      key={name}
+      onPress={onPress}
+      disabled={busy != null}
+      accessibilityRole="button"
+      accessibilityLabel={`${name} teilen`}
+      style={[styles.chip, { borderColor: theme.border }]}
+    >
+      {busy === name ? (
+        <ActivityIndicator size="small" color={colors.primary[500]} />
+      ) : (
+        <Ionicons name="document-outline" size={14} color={colors.primary[500]} />
+      )}
+      <Text style={[styles.chipLabel, { color: theme.text }]} numberOfLines={1}>
+        {name}
+      </Text>
+    </Pressable>
+  );
+
+  const hasFiles = (data.fileAssets?.length ?? 0) > 0 || (data.files?.length ?? 0) > 0;
+
   return (
     <View
       style={[styles.card, { backgroundColor: theme.background, borderColor: theme.border }]}
@@ -27,7 +87,7 @@ export function ComputeCard({ data, theme }: { data: ComputeData; theme: Theme }
         <Text style={[styles.operation, { color: theme.text }]} numberOfLines={1}>
           {data.operation}
         </Text>
-        <Text style={[styles.caption, { color: theme.textSecondary }]}>EXAKT BERECHNET</Text>
+        <Text style={[styles.caption, { color: theme.textSecondary }]}>BERECHNET</Text>
       </View>
       {data.figures?.map((figure, index) => (
         <Image
@@ -40,6 +100,16 @@ export function ComputeCard({ data, theme }: { data: ComputeData; theme: Theme }
           accessibilityLabel={`Diagramm ${index + 1}`}
         />
       ))}
+      {hasFiles && (
+        <View style={styles.chipRow}>
+          {data.fileAssets?.map((file) =>
+            fileChip(file.name, () => void shareAsset(file.name, file.url))
+          )}
+          {data.files?.map((file) =>
+            fileChip(file.name, () => void shareInline(file.name, file.b64))
+          )}
+        </View>
+      )}
       <View>
         {data.entries.map((entry, index) =>
           // Collapsed tabular output (pivot tables, df prints) lands as one
@@ -94,13 +164,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   operation: {
+    ...chatType.chatTitle,
     flexShrink: 1,
-    fontSize: 14,
+    fontFamily: BODY_FONT,
     fontWeight: '600',
   },
   caption: {
+    ...chatType.chatMicro,
     marginLeft: 'auto',
-    fontSize: 10,
+    fontFamily: BODY_FONT,
     letterSpacing: 0.8,
   },
   figure: {
@@ -109,6 +181,27 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: borderRadius.small,
     marginBottom: spacing.xsmall,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xsmall,
+    marginBottom: spacing.xsmall,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxsmall,
+    maxWidth: '100%',
+    borderWidth: 1,
+    borderRadius: borderRadius.full,
+    paddingVertical: spacing.xxsmall,
+    paddingHorizontal: spacing.small,
+  },
+  chipLabel: {
+    ...chatType.chatMeta,
+    flexShrink: 1,
+    fontFamily: BODY_FONT,
   },
   row: {
     flexDirection: 'row',
@@ -125,19 +218,19 @@ const styles = StyleSheet.create({
     borderTopColor: 'transparent',
   },
   rowLabel: {
-    fontSize: 12,
+    ...chatType.chatMeta,
   },
   rowLabelInline: {
     flexShrink: 1,
   },
   rowValue: {
-    fontSize: 14,
+    ...chatType.chatTitle,
     fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
   blockValue: {
+    ...chatType.chatMeta,
     marginTop: 2,
-    fontSize: 12,
     fontFamily: 'monospace',
   },
 });

@@ -85,6 +85,7 @@ function NotebookEditorPageInner({ mode }: NotebookEditorPageProps) {
         custom_prompt: collection.custom_prompt,
         wolkeFolders: data.wolkeFolders,
         linkedDocs: data.linkedDocs,
+        wordpressSites: data.wordpressSites,
       });
 
       toast.success(`Notebook „${data.name}" gespeichert`);
@@ -108,6 +109,7 @@ function NotebookEditorPageInner({ mode }: NotebookEditorPageProps) {
         labels: data.labels,
         wolkeFolders: data.wolkeFolders,
         linkedDocs: data.linkedDocs,
+        wordpressSites: data.wordpressSites,
       });
       toast.success(`Notebook „${data.name}" erstellt`);
       const slug = created.slug_suffix

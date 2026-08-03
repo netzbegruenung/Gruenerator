@@ -1,17 +1,19 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
 import { useAui } from '@assistant-ui/react';
 import { buildChatThreadSlug, extractSlugSuffix } from '@gruenerator/shared/utils';
+import { useEffect, useRef } from 'react';
+
 import { getDefaultAgent } from '../lib/agents';
-import { useAgentStore } from '../stores/chatStore';
 import {
+  didLastThreadListFetchFail,
   getNotebookCollectionId,
   getThreadAgentId,
   getThreadSlugSuffix,
   getThreadType,
   resolveThreadBySlugSuffix,
 } from '../runtime/GrueneratorThreadListAdapter';
+import { useAgentStore } from '../stores/chatStore';
 
 export interface ChatThreadRoutingProps {
   /** Current `:threadSlug` URL param (null on plain /chat). */
@@ -37,9 +39,9 @@ export function ChatThreadRouting({
   const aui = useAui();
   const suffix = threadSlug ? extractSlugSuffix(threadSlug) : null;
   // Suffix whose thread actually became active. Guards the "thread gone"
-  // signal below against the boot race: on a cold /chat/<slug> load the
-  // MainThreadSyncEffect nulls currentThreadId (main is a fresh draft) while
-  // the deep-link resolution is still awaiting the thread list.
+  // signal below against the boot race: assistant-ui's initial local thread
+  // item is a fresh draft, so history.load() nulls currentThreadId once on
+  // boot before the deep-link resolution below has switched to the real thread.
   const activatedSuffixRef = useRef<string | null>(null);
 
   // URL → thread: deep link, reload, browser back/forward.
@@ -56,7 +58,16 @@ export function ChatThreadRouting({
       try {
         await aui.threads().getLoadThreadsPromise();
         if (cancelled) return;
-        const remoteId = resolveThreadBySlugSuffix(suffix);
+        let remoteId = resolveThreadBySlugSuffix(suffix);
+        if (!remoteId && didLastThreadListFetchFail()) {
+          // The initial list load failed (network blip, cold backend, etc.) —
+          // assistant-ui swallows that failure internally and just leaves the
+          // list empty, so an empty result here doesn't mean the thread is
+          // actually gone. Retry once with a fresh fetch before giving up.
+          await aui.threads().reload();
+          if (cancelled) return;
+          remoteId = resolveThreadBySlugSuffix(suffix);
+        }
         if (!remoteId) {
           onThreadGone();
           return;
@@ -79,7 +90,7 @@ export function ChatThreadRouting({
           store.restoreSelectedAgent(targetAgent);
         }
         store.setChatViewMode('thread');
-        await aui.threads().switchToThread(remoteId);
+        aui.threads().switchToThread(remoteId);
         if (!cancelled) activatedSuffixRef.current = suffix;
       } catch (err) {
         console.warn('[ChatThreadRouting] Failed to open thread from URL:', err);
@@ -100,7 +111,17 @@ export function ChatThreadRouting({
       // Thread went away (deleted / switched to a fresh draft) while its URL
       // is showing. Only fire once the slug actually resolved — during a cold
       // deep-link load currentThreadId is legitimately null.
-      if (threadSlug && suffix && activatedSuffixRef.current === suffix) onThreadGone();
+      if (threadSlug && suffix && activatedSuffixRef.current === suffix) {
+        // currentThreadId can null out for reasons other than genuine
+        // deletion (e.g. an unrelated reset of assistant-ui's "main" thread
+        // slot). Re-resolve before concluding the thread is actually gone.
+        const remoteId = resolveThreadBySlugSuffix(suffix);
+        if (remoteId) {
+          void aui.threads().switchToThread(remoteId);
+          return;
+        }
+        onThreadGone();
+      }
       return;
     }
     // Overview showing (e.g. "Neuer Chat" clicked while the old thread is

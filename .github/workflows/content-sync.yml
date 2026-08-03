@@ -93,9 +93,9 @@ jobs:
         lv: ${{ fromJSON(needs.setup.outputs.lv_matrix) }}
       fail-fast: false
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'pnpm'
@@ -172,9 +172,9 @@ jobs:
         source: ${{ fromJSON(needs.setup.outputs.source_matrix) }}
       fail-fast: false
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'pnpm'
@@ -230,9 +230,9 @@ jobs:
     if: always() && (needs.setup.outputs.lv_matrix != '[]' || needs.setup.outputs.source_matrix != '[]')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'pnpm'
@@ -357,7 +357,7 @@ jobs:
         run: |
           curl -sfS -H "x-admin-token: $ADMIN_TOKEN" \
             "$CONTENT_SYNC_API_URL/api/internal/content-sync/stats" \
-            | jq -r '.markdown' > documentation/docs/ueber-den-gruenerator/inhaltsdatenbank.md
+            | jq -r '.markdown' > documentation/docs/wissen/inhaltsdatenbank.md
         env:
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
           CONTENT_SYNC_API_URL: ${{ vars.NOTEBOOK_API_URL || 'https://gruenerator.eu' }}
@@ -370,7 +370,7 @@ jobs:
           title: 'docs: update content stats'
           body: 'Automated content stats update from Content Sync workflow.'
           branch: automated/content-stats-update
-          add-paths: documentation/docs/ueber-den-gruenerator/inhaltsdatenbank.md
+          add-paths: documentation/docs/wissen/inhaltsdatenbank.md
           delete-branch: true
           labels: automated
 
@@ -382,9 +382,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'pnpm'
@@ -469,7 +469,7 @@ jobs:
         run: |
           curl -sfS -H "x-admin-token: $ADMIN_TOKEN" \
             "$CONTENT_SYNC_API_URL/api/internal/content-sync/stats" \
-            | jq -r '.markdown' > documentation/docs/ueber-den-gruenerator/inhaltsdatenbank.md
+            | jq -r '.markdown' > documentation/docs/wissen/inhaltsdatenbank.md
         env:
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
           CONTENT_SYNC_API_URL: ${{ vars.NOTEBOOK_API_URL || 'https://gruenerator.eu' }}
@@ -482,7 +482,7 @@ jobs:
           title: 'docs: update content stats'
           body: 'Automated content stats update from Content Sync workflow.'
           branch: automated/content-stats-update
-          add-paths: documentation/docs/ueber-den-gruenerator/inhaltsdatenbank.md
+          add-paths: documentation/docs/wissen/inhaltsdatenbank.md
           delete-branch: true
           labels: automated
 

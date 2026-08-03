@@ -346,6 +346,9 @@ function PlaygroundPage() {
     if (selectedPrompt || prompts.length === 0) return;
     const initial = prompts.find((p) => p.id === 'free') ?? prompts[0];
     if (initial) {
+      // Initialize the default selection once prompts finish loading; guarded by
+      // the early return on selectedPrompt so it runs once and settles.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedPrompt(initial);
       setFields(Object.fromEntries(initial.fields.map((f) => [f, ''])));
     }

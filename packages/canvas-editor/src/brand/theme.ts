@@ -113,7 +113,9 @@ export const BRAND_THEMES: Record<BrandLocale, BrandTheme> = {
     fonts: {
       headline: 'GothamNarrow-Ultra',
       body: 'GothamNarrow-Book',
-      quoteShort: 'GothamNarrow-Bold',
+      // Zitate tragen denselben Display-Schnitt wie Headlines und Untertitel —
+      // Bold fiel als einziges AT-Sujet aus der Reihe.
+      quoteShort: 'GothamNarrow-Ultra',
       quoteEmphasis: 'Vollkorn',
     },
     lineHeightFactor: 0.9,
@@ -121,7 +123,8 @@ export const BRAND_THEMES: Record<BrandLocale, BrandTheme> = {
       src: SYSTEM_ASSETS.logoAt.weiss.src,
       label: SYSTEM_ASSETS.logoAt.weiss.label,
     },
-    quoteMark: { src: SYSTEM_ASSETS.quote.white.src },
+    // Anders als in Deutschland steht das Anführungszeichen in Gelb.
+    quoteMark: { src: SYSTEM_ASSETS.quote.gelb.src },
   },
 };
 

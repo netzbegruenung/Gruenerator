@@ -20,7 +20,7 @@ interface AgentStartScreenProps {
 const EXAMPLE_PROMPTS: AIPromptInputExample[] = [
   {
     label: '📰 Pressestelle',
-    text: 'Ein Agent für Pressemitteilungen meines Kreisverbands. Freundlicher, professioneller Ton, soll auch im Web recherchieren können.',
+    text: 'Ein Grünerator-Agent für Pressemitteilungen meines Kreisverbands. Freundlicher, professioneller Ton, soll auch im Web recherchieren können.',
   },
   {
     label: '🚲 Recherche-Bot',
@@ -28,7 +28,7 @@ const EXAMPLE_PROMPTS: AIPromptInputExample[] = [
   },
   {
     label: '📣 Social Media',
-    text: 'Ein Agent für kurze Social-Media-Posts zu Klimaschutz im Alltag, der nach der Zielgruppe fragt.',
+    text: 'Ein Grünerator-Agent für kurze Social-Media-Posts zu Klimaschutz im Alltag, der nach der Zielgruppe fragt.',
   },
 ];
 
@@ -49,7 +49,7 @@ function AgentStartScreen({
   return (
     <PageContainer
       maxWidth="md"
-      title="Was für einen Agent möchtest du bauen?"
+      title="Was für einen Grünerator-Agenten möchtest du bauen?"
       subtitle="Beschreibe Zweck, Ton und Fähigkeiten — daraus entsteht ein Entwurf, den du vor dem Anlegen noch anpassen kannst."
     >
       <ExperimentalAgentBanner className="mx-auto mb-md max-w-3xl" />
@@ -59,7 +59,7 @@ function AgentStartScreen({
           value={aiDescription}
           onChange={onDescriptionChange}
           onSubmit={onGenerateWithAI}
-          placeholder="Beschreibe deinen neuen Agent..."
+          placeholder="Beschreibe deinen neuen Grünerator-Agenten..."
           isLoading={isLoading}
           error={error}
           examples={EXAMPLE_PROMPTS}
@@ -74,7 +74,7 @@ function AgentStartScreen({
 
       {agents.length > 0 && (
         <section className="mx-auto mt-xl w-full max-w-3xl">
-          <SectionHeader title="Meine Agenten" />
+          <SectionHeader title="Meine Grüneratoren" />
           <div className="grid grid-cols-1 gap-md sm:grid-cols-2">
             {agents.map((agent) => (
               <AgentCard key={agent.identifier} agent={agent} />

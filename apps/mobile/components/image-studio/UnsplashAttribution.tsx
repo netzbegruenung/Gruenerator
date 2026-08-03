@@ -1,6 +1,6 @@
 import { Pressable, Text, StyleSheet, View, Linking } from 'react-native';
 
-import { spacing, typography } from '../../theme';
+import { spacing, typography, BODY_FONT } from '../../theme';
 
 import type { StockImageAttribution } from '@gruenerator/shared/image-studio';
 
@@ -18,7 +18,7 @@ export function UnsplashAttribution({ attribution, compact = false }: UnsplashAt
 
   if (compact) {
     return (
-      <Pressable onPress={handlePress} style={styles.compactContainer}>
+      <Pressable onPress={handlePress} accessibilityRole="link" style={styles.compactContainer}>
         <Text style={styles.compactText} numberOfLines={1}>
           {attribution.photographer}
         </Text>
@@ -27,7 +27,7 @@ export function UnsplashAttribution({ attribution, compact = false }: UnsplashAt
   }
 
   return (
-    <Pressable onPress={handlePress} style={styles.container}>
+    <Pressable onPress={handlePress} accessibilityRole="link" style={styles.container}>
       <Text style={styles.text}>
         Foto von <Text style={styles.bold}>{attribution.photographer}</Text> auf Unsplash
       </Text>
@@ -63,6 +63,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xxsmall,
   },
   compactText: {
+    fontFamily: BODY_FONT,
     fontSize: 9,
     color: '#ffffff',
     textAlign: 'center',

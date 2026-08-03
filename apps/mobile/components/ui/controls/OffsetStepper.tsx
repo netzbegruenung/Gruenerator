@@ -6,7 +6,7 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
 
-import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../../theme';
+import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../../theme';
 
 interface OffsetStepperProps {
   value: number;
@@ -57,6 +57,9 @@ export function OffsetStepper({
             },
             (disabled || isAtMin) && styles.buttonDisabled,
           ]}
+          accessibilityRole="button"
+          accessibilityLabel="Wert verringern"
+          accessibilityState={{ disabled: disabled || isAtMin }}
         >
           <Ionicons
             name="chevron-back"
@@ -80,6 +83,9 @@ export function OffsetStepper({
             },
             (disabled || isAtMax) && styles.buttonDisabled,
           ]}
+          accessibilityRole="button"
+          accessibilityLabel="Wert erhöhen"
+          accessibilityState={{ disabled: disabled || isAtMax }}
         >
           <Ionicons
             name="chevron-forward"
@@ -99,6 +105,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   label: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '500',
     flex: 1,
@@ -127,6 +134,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   valueText: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     fontWeight: '500',
     fontVariant: ['tabular-nums'],

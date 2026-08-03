@@ -16,12 +16,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@hocuspocus/provider": "^4.3.0",
+    "@hocuspocus/provider": "^4.4.0",
     "y-indexeddb": "^9.0.12",
     "yjs": "^13.6.31"
   },
   "devDependencies": {
-    "@types/react": "19.2.14",
+    "@types/react": "19.2.17",
     "typescript": "^6.0.3"
   },
   "peerDependencies": {

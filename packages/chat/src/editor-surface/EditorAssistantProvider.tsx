@@ -13,7 +13,7 @@ import {
   useLocalRuntime,
   type AssistantRuntime,
 } from '@assistant-ui/react';
-import { getSystemAgent } from '@gruenerator/shared/agents';
+import { ApiError } from '@gruenerator/shared/api';
 import { loadedThreadMessagesSchema } from '@gruenerator/shared/chat';
 import { useQuery } from '@tanstack/react-query';
 import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react';
@@ -150,7 +150,10 @@ function EditorAssistantReadyHost({
     queryKey: ['chat-thread-messages', threadId],
     queryFn: async () => {
       const res = await fetchFn(`${endpoints.messages}?threadId=${threadId}`);
-      if (!res.ok) return [];
+      // Throw instead of returning []: an empty array is cached as a valid
+      // result, so a 500 rendered the editor sidebar as an empty chat for
+      // 30 seconds. A throw gives TanStack its retry and an error state.
+      if (!res.ok) throw new ApiError(res.status, 'Nachrichten konnten nicht geladen werden');
       const parsed = loadedThreadMessagesSchema.parse(await res.json());
       return convertToThreadMessageLike(parsed as Parameters<typeof convertToThreadMessageLike>[0]);
     },
@@ -188,19 +191,13 @@ function EditorAssistantReadyHost({
   const getConfig = useMemo<() => GrueneratorAdapterConfig>(
     () => () => {
       const surface = surfaceStore.getState();
-      const resolvedModelId =
-        surface.selectedModel === AUTO_MODEL_ID
-          ? resolveAutoModel({
-              threadMode: surface.threadMode,
-              agent: surface.selectedAgentId
-                ? (getSystemAgent(surface.selectedAgentId) ?? null)
-                : null,
-            })
-          : (surface.selectedModel ?? '');
+      // `auto` goes through untouched — the server resolves it after the
+      // classifier, so an edit turn lands on the tool lane and a question about
+      // the open document does not. See apps/api/.../agents/autoPolicy.ts.
       const tools = adapter.getTools(aiEditEnabledRef.current);
       return {
         agentId: surface.selectedAgentId ?? adapter.agentId,
-        modelId: resolvedModelId,
+        modelId: surface.selectedModel ?? '',
         enabledTools: tools.enabledTools,
         customEnabledTools: tools.customEnabledTools,
         threadId: threadIdRef.current,
@@ -209,6 +206,8 @@ function EditorAssistantReadyHost({
         selectedNotebookId: surface.selectedNotebookId,
         customSystemPrompt: surface.customSystemPrompt,
         customRoleName: surface.customRoleName,
+        // Sticky connector is a main-chat feature; editor surfaces never pin.
+        pinnedConnector: null,
       };
     },
     [surfaceStore, adapter]

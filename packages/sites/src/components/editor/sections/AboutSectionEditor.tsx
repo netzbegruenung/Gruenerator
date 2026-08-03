@@ -62,8 +62,11 @@ export function AboutSectionEditor({ data, onChange }: AboutSectionEditorProps) 
           isFieldHighlighted('content') && 'animate-[field-highlight_1s_ease]'
         )}
       >
-        <label className="block text-sm font-medium text-foreground mb-1.5">Inhalt</label>
+        <label htmlFor="about-content" className="block text-sm font-medium text-foreground mb-1.5">
+          Inhalt
+        </label>
         <RichTextEditor
+          id="about-content"
           value={data.content}
           onChange={(doc) => updateField('content', doc)}
           onFocus={() => handleFieldFocus('about', 'content')}

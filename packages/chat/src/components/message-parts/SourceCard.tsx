@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useCallback } from 'react';
-import type { SourceMessagePartProps } from '@assistant-ui/react';
 import { ExternalLink, ChevronRight, FileText, Loader2 } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { useState, useCallback } from 'react';
+
 import { useCitationContext } from '../../context/CitationContext';
 import { getCollectionStyle } from '../../lib/collectionStyles';
+import { cn } from '../../lib/utils';
+
+import type { SourceMessagePartProps } from '@assistant-ui/react';
 
 const MAX_FULL_TEXT_DISPLAY = 50_000;
 

@@ -24,10 +24,16 @@ const aiCalls: Array<{
   messagesCount: number;
 }> = [];
 
+interface MockAiRequest {
+  type: string;
+  options?: { max_tokens?: number };
+  systemPrompt?: string;
+  messages?: unknown[];
+}
+
 // Mock AI worker that returns predictable content
 const mockAiWorkerPool = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  processRequest: async (data: any, _req: any) => {
+  processRequest: async (data: MockAiRequest, _req: unknown) => {
     const call = {
       callIndex: aiCalls.length + 1,
       type: data.type,
@@ -49,13 +55,12 @@ const mockAiWorkerPool = {
   },
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockReq: any = {
+const mockReq = {
   app: { locals: { aiWorkerPool: mockAiWorkerPool } },
   user: { id: 'test-user' },
   headers: { 'accept-language': 'de-DE' },
   get: (h: string) => (h === 'accept-language' ? 'de-DE' : null),
-};
+} as unknown as SocialAgentState['req'];
 
 // Pre-crafted enrichedState to bypass enrichRequest + examples fetching
 const mockEnrichedState: EnrichedState = {
@@ -86,8 +91,7 @@ const mockEnrichedState: EnrichedState = {
     webSearchResults: [],
     vectorSearchResults: [],
   },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-} as any;
+} as unknown as EnrichedState;
 
 function buildTestState(overrides: Partial<SocialAgentState> = {}): SocialAgentState {
   return {
@@ -163,8 +167,7 @@ async function runTests() {
         source: 'Grundsatzprogramm',
         content: 'Klimaschutz-Passage',
         metadata: { collection: 'grundsatz_documents' },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any,
+      } as unknown as SocialAgentState['arguments'][number],
     ],
   });
   const formatResult = await formatNode(formatState);

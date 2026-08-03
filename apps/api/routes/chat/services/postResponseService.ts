@@ -9,16 +9,21 @@
  * - Save conversation to mem0 memory
  */
 
+import { intentToolNames } from '@gruenerator/shared/chat-intents';
+
+import { renumberAnswerCitations } from '../../../agents/langgraph/ChatGraph/nodes/citationUtils.js';
 import { upsertThreadRecallPoint } from '../../../services/chat/threadRecallEmbeddingService.js';
 import { generateThreadTags } from '../../../services/chat/threadTagService.js';
 import { generateThreadTitle } from '../../../services/chat/threadTitleService.js';
 import { shouldExtractMemories } from '../../../services/mem0/gatekeeperService.js';
 import { getMem0Instance } from '../../../services/mem0/index.js';
 import { maybeRecompilePersona } from '../../../services/mem0/personaService.js';
+import { withRetry } from '../../../services/search/searchRetryStrategy.js';
 import { createLogger } from '../../../utils/logger.js';
 import { reportBackgroundError } from '../../../utils/reportBackgroundError.js';
 import { type AIWorkerPool } from '../../../workers/types.js';
 
+import { MAX_SOURCES } from './agenticLoop/loopGuards.js';
 import {
   embedThreadAttachmentForRag,
   RAG_ATTACHMENT_THRESHOLD_CHARS,
@@ -26,7 +31,12 @@ import {
 } from './attachmentPersistenceService.js';
 import { isTabularAttachment } from './attachmentProcessingService.js';
 import { extractTextContent } from './messageHelpers.js';
-import { createMessage, setThreadToolContext, touchThread } from './threadPersistenceService.js';
+import {
+  createMessage,
+  finalizeAssistantMessage,
+  setThreadToolContext,
+  touchThread,
+} from './threadPersistenceService.js';
 
 import type { PersistedStep } from './agenticLoop/types.js';
 import type { ProcessedAttachmentMeta } from './attachmentProcessingService.js';
@@ -40,31 +50,41 @@ import type {
   SearchSource,
   ThreadToolContext,
 } from '../../../agents/langgraph/ChatGraph/types.js';
-import type {
-  SocialPostPayload,
-  SocialPostToolResult,
-  BundestagPayload,
-} from '@gruenerator/contracts';
+import type { SocialPostPayload, SocialPostToolResult } from '@gruenerator/contracts';
 import type { ModelMessage } from 'ai';
 
 const log = createLogger('PostResponse');
 
-export const INTENT_TO_TOOL: Record<string, string> = {
-  search: 'gruenerator_search',
-  web: 'web_search',
-  research: 'research',
-  examples: 'gruenerator_examples_search',
-  pressemitteilung_examples: 'gruenerator_pressemitteilung_examples',
-  image: 'image_generate',
-  image_edit: 'image_edit',
-  sharepic: 'sharepic',
-  // EXPERIMENTAL combined post: persisted as TWO tool calls (sharepic +
-  // social_post) — see buildToolCalls.
-  social_post: 'social_post',
-  scrape_url: 'scrape_url',
-  bundestag: 'bundestag',
-  chat_history: 'search_chat_history',
-};
+/**
+ * What each intent PERSISTS as a tool call, so a reloaded thread rehydrates
+ * with the same card it streamed. Derived from the intent registry, which the
+ * client's live map (`packages/chat/src/lib/toolMappings.ts`) also derives
+ * from — the two cannot drift any more.
+ *
+ * This map is a superset of the client's on purpose: artefact intents
+ * (`image`, `sharepic`, `social_post`, …) persist a tool call, but the live
+ * client renders them from their own SSE events (`sharepic_complete`,
+ * `image_complete`, …) and has no use for the mapping. The registry expresses
+ * that as a `persistTool` without a `uiTool`.
+ */
+export const INTENT_TO_TOOL: Record<string, string> = intentToolNames().persist;
+
+/**
+ * Strips the transient crawl payload before a result goes into the database.
+ *
+ * A crawled web result carries the SAME full page text under both `content` and
+ * `fullContent` (searchNode spreads the crawler's object, then overwrites
+ * `content` with it). Two crawled pages are ~160k chars of JSON per turn in
+ * `chat_messages.tool_results`, and `getRecentThreadSources` reads all of it
+ * back on the next turn — while its own docstring promises the content is
+ * "already snippet-sized at persist time". `fullContent` has no reader after
+ * the search stage, so nothing downstream loses anything.
+ */
+function forPersistence(r: SearchResult): SearchResult {
+  if (!('fullContent' in r)) return r;
+  const { fullContent: _dropped, ...rest } = r as SearchResult & { fullContent?: unknown };
+  return rest as SearchResult;
+}
 
 /**
  * Result payload shape for non-research tool calls (search, web, examples).
@@ -100,8 +120,7 @@ type ToolCallResult =
   | ImageToolCallResult
   | SharepicToolCallResult
   | ScrapeToolCallResult
-  | SocialPostToolResult
-  | BundestagPayload;
+  | SocialPostToolResult;
 
 interface PersistedToolCall {
   toolCallId: string;
@@ -124,9 +143,6 @@ function buildToolCallResult(
   generatedImage: GeneratedImageResult | null,
   sharepicVariants: SharepicVariant[]
 ): ToolCallResult {
-  if (toolName === 'research' && finalState.researchMeta) {
-    return finalState.researchMeta;
-  }
   if ((toolName === 'image_generate' || toolName === 'image_edit') && generatedImage) {
     return {
       url: generatedImage.url,
@@ -138,9 +154,6 @@ function buildToolCallResult(
   }
   if (toolName === 'sharepic') {
     return { variants: sharepicVariants };
-  }
-  if (toolName === 'bundestag' && finalState.bundestagResult) {
-    return finalState.bundestagResult;
   }
   const base: SearchToolCallResult = {
     results: finalState.searchResults?.slice(0, 10) || [],
@@ -283,6 +296,13 @@ export interface PersistParams {
    *  as-is (they already carry the per-tool result shapes the UI cards read),
    *  replacing the intent-fabricated tool calls. */
   agenticSteps?: PersistedStep[];
+  /** Langfuse trace id for this turn; persisted so the thumbs feedback button
+   *  still targets the right trace after a reload. */
+  traceId?: string;
+  /** Placeholder assistant row minted before streaming (WP-B). When present the
+   *  final content+metadata are written by flipping THIS row to 'complete'
+   *  instead of inserting a new one. Null/omitted → insert as before. */
+  pendingMessageId?: string | null;
 }
 
 /**
@@ -303,11 +323,17 @@ function deriveToolContext(p: {
   if (p.sharepicVariants.length > 0) return { kind: 'sharepic' };
   if (p.createdDocument) {
     const sub = p.createdDocument.subtype;
+    // 'pdf' must be matched BEFORE the 'document' default. Without it a created
+    // PDF was stored as {kind:'document', ref:'<uuid>.pdf'}, and the classifier's
+    // Tier-2.7 doc-edit gate then emitted modify_doc carrying an asset FILE NAME
+    // where a collaborative-document UUID was expected.
     const kind = sub.startsWith('presentation')
       ? 'presentation'
       : sub.startsWith('sheet')
         ? 'sheet'
-        : 'document';
+        : sub.startsWith('pdf')
+          ? 'pdf'
+          : 'document';
     return { kind, ref: p.createdDocument.documentId, label: p.createdDocument.title };
   }
   const mcpStep = p.agenticSteps?.find((s) => s.serverName);
@@ -328,7 +354,32 @@ function deriveToolContext(p: {
 /**
  * Persist the assistant response and handle all post-response side effects.
  */
-export async function persistAssistantResponse(params: PersistParams): Promise<void> {
+/**
+ * Outcome of a persistence attempt. `ok: false` means the user's turn is NOT
+ * in the database — the caller must tell the user (the answer looked fine
+ * live, but it is gone on reload).
+ */
+export interface PersistOutcome {
+  ok: boolean;
+}
+
+/**
+ * Retry a message write once. DB writes fail transiently (connection reset,
+ * failover, brief pool exhaustion) far more often than they fail permanently,
+ * and the cost of a duplicate attempt is far lower than losing the turn.
+ * `isRecoverable: () => true` because Postgres errors don't carry the
+ * HTTP-ish markers `isRecoverableError` classifies on.
+ */
+async function withMessageWriteRetry<T>(fn: () => Promise<T>, label: string): Promise<T> {
+  return withRetry(fn, {
+    maxRetries: 1,
+    delayMs: 300,
+    isRecoverable: () => true,
+    label: `persist:${label}`,
+  });
+}
+
+export async function persistAssistantResponse(params: PersistParams): Promise<PersistOutcome> {
   const {
     threadId,
     userId,
@@ -347,13 +398,24 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
     memoryEnabled,
     agentId,
     agenticSteps,
+    traceId,
+    pendingMessageId,
   } = params;
 
   if (
     !threadId ||
     (!fullText && !generatedImage && sharepicVariants.length === 0 && !createdDocument)
   )
-    return;
+    return { ok: true };
+
+  // Gapless citation numbers on the persisted turn. The prompt hands the model
+  // 1..N and it cites a subset, so the stored text and chips kept whatever holes
+  // the answer left (observed: 1, 2, 4 against four sources). The notebook path
+  // has done this since #2137; this is the web path's half.
+  const { text: persistedText, citations: persistedCitations } = renumberAnswerCitations(
+    fullText,
+    finalState.citations ?? []
+  );
 
   try {
     // Agentic loop: persist the real executed steps (already in the
@@ -369,14 +431,23 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
             sharepicVariants,
             socialPost ?? null
           );
-    await createMessage(threadId, 'assistant', fullText || null, {
+    const metadata: Record<string, unknown> = {
       intent: finalState.intent,
       searchCount: finalState.searchCount,
+      // Persisted so the thumbs feedback button survives a reload (it targets
+      // this trace id).
+      ...(traceId && { traceId }),
       // Only stamp a real agent — the universal default carries no badge, so
       // reload matches the live stream (which sets agentInfo only for agents).
       ...(agentId && agentId !== 'gruenerator-universal' ? { agentId } : {}),
-      citations: finalState.citations,
-      searchResults: finalState.searchResults?.slice(0, 10) || [],
+      citations: persistedCitations,
+      searchResults: finalState.searchResults?.slice(0, MAX_SOURCES).map(forPersistence) || [],
+      // Image hits, so a reloaded turn still shows what it found. Stored BARE —
+      // the `proxyUrl` handle is deliberately NOT persisted: it is a signed 24h
+      // capability and a database row outlives it. The load path mints a fresh
+      // one (messagesController), which also keeps the "signed at the moment of
+      // handing out" rule true on reload.
+      ...(finalState.webImageResults?.length ? { searchImages: finalState.webImageResults } : {}),
       generatedImage: generatedImage
         ? {
             url: generatedImage.url,
@@ -397,7 +468,29 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
       ...(finalState.computedResult != null &&
         finalState.computedResultFresh && { computeData: finalState.computedResult }),
       toolCalls,
-    });
+    };
+
+    if (pendingMessageId) {
+      // Finalize the placeholder row minted before streaming. A miss means the
+      // row is gone (e.g. a regenerate from another tab deleted it) — do NOT
+      // re-insert (that would resurrect a turn the user discarded); just warn
+      // and skip all post-persist side effects for this turn.
+      const matched = await withMessageWriteRetry(
+        () => finalizeAssistantMessage(pendingMessageId, persistedText || null, metadata),
+        'finalizeAssistantMessage'
+      );
+      if (!matched) {
+        log.warn(
+          `[ChatGraph] Pending assistant row ${pendingMessageId} vanished before finalize — response discarded (thread ${threadId})`
+        );
+        return { ok: true };
+      }
+    } else {
+      await withMessageWriteRetry(
+        () => createMessage(threadId, 'assistant', persistedText || null, metadata),
+        'createMessage'
+      );
+    }
 
     if (toolCalls) {
       log.debug(
@@ -459,7 +552,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
 
     log.info(`[ChatGraph] Message persisted for thread ${threadId}`);
 
-    await saveThreadAttachmentsFromMeta(threadId, userId, processedMeta);
+    const attachmentsOk = await saveThreadAttachmentsFromMeta(threadId, userId, processedMeta);
 
     const mem0 = getMem0Instance();
     if (mem0 && lastUserMessage && fullText && memoryEnabled) {
@@ -499,8 +592,14 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
           reportBackgroundError(memError, { job: 'chat-memory-save', requestId, userId });
         });
     }
+
+    return { ok: attachmentsOk };
   } catch (error) {
+    // The turn is NOT in the database. Report it so the caller can tell the
+    // user before the stream closes — a silently lost turn looks perfect live
+    // and is gone on reload.
     log.error('[ChatGraph] Error persisting message:', error);
+    return { ok: false };
   }
 }
 
@@ -516,22 +615,28 @@ async function saveThreadAttachmentsFromMeta(
   threadId: string,
   userId: string,
   processedMeta: ProcessedAttachmentMeta[]
-): Promise<void> {
-  if (processedMeta.length === 0) return;
+): Promise<boolean> {
+  if (processedMeta.length === 0) return true;
+  let saved = 0;
   for (const meta of processedMeta) {
     try {
-      const attachmentId = await saveThreadAttachment({
-        threadId,
-        messageId: null,
-        userId,
-        name: meta.name,
-        mimeType: meta.mimeType,
-        sizeBytes: meta.sizeBytes,
-        isImage: meta.isImage,
-        extractedText: meta.extractedText,
-        ...(meta.imageData != null && { imageData: meta.imageData }),
-        ...(meta.fileData != null && { fileData: meta.fileData }),
-      });
+      const attachmentId = await withMessageWriteRetry(
+        () =>
+          saveThreadAttachment({
+            threadId,
+            messageId: null,
+            userId,
+            name: meta.name,
+            mimeType: meta.mimeType,
+            sizeBytes: meta.sizeBytes,
+            isImage: meta.isImage,
+            extractedText: meta.extractedText,
+            ...(meta.imageData != null && { imageData: meta.imageData }),
+            ...(meta.fileData != null && { fileData: meta.fileData }),
+          }),
+        `saveThreadAttachment:${meta.name}`
+      );
+      saved++;
 
       // Large prose documents (not images, not tabular) get chunked+embedded
       // in the background so follow-up turns retrieve them via RAG instead of
@@ -556,7 +661,10 @@ async function saveThreadAttachmentsFromMeta(
       log.error(`[ChatGraph] Failed to save attachment ${meta.name}:`, attachError);
     }
   }
-  log.info(`[ChatGraph] Saved ${processedMeta.length} attachments for thread ${threadId}`);
+  // Count successes, not inputs: the old log claimed "Saved N" even when every
+  // single attachment had failed.
+  log.info(`[ChatGraph] Saved ${saved}/${processedMeta.length} attachments for thread ${threadId}`);
+  return saved === processedMeta.length;
 }
 
 /**
@@ -576,10 +684,37 @@ export async function persistResumedResponse(params: {
   sharepicVariants?: SharepicVariant[];
   /** Text half of a resumed social_post turn. */
   socialPost?: SocialPostPayload | null;
-}): Promise<void> {
-  const { threadId, fullText, finalState, classifiedState, userId, processedMeta } = params;
+  /** Langfuse trace id — persisted so the thumbs feedback button survives reload. */
+  traceId?: string;
+  /** Artifact created on the resumed turn. Without it the DocumentCreatedCard
+   *  vanishes on reload and the thread's tool context stays stale — the resume
+   *  path used to drop it while the normal path persisted it. */
+  createdDocument?: CreatedDocument | null;
+  /** Placeholder assistant row minted before the resumed stream (WP-B). When
+   *  present the final content+metadata flip THIS row to 'complete' instead of
+   *  inserting a new one; a vanished row is NOT re-inserted (the turn was
+   *  discarded), matching persistAssistantResponse. Null/omitted → insert. */
+  pendingMessageId?: string | null;
+}): Promise<PersistOutcome> {
+  const {
+    threadId,
+    fullText,
+    finalState,
+    classifiedState,
+    userId,
+    processedMeta,
+    traceId,
+    pendingMessageId,
+  } = params;
 
-  if (!threadId || !fullText) return;
+  if (!threadId || !fullText) return { ok: true };
+
+  // Same gapless numbering as the non-resumed path — both write
+  // `metadata.citations`, so wiring only one would reintroduce the drift.
+  const { text: persistedText, citations: persistedCitations } = renumberAnswerCitations(
+    fullText,
+    finalState.citations ?? []
+  );
 
   try {
     const toolCalls = buildToolCalls(
@@ -589,25 +724,69 @@ export async function persistResumedResponse(params: {
       params.sharepicVariants ?? [],
       params.socialPost ?? null
     );
-    await createMessage(threadId, 'assistant', fullText, {
+    const metadata: Record<string, unknown> = {
       intent: finalState.intent,
       searchCount: finalState.searchCount,
-      citations: finalState.citations,
-      searchResults: finalState.searchResults?.slice(0, 10) || [],
+      ...(traceId && { traceId }),
+      citations: persistedCitations,
+      searchResults: finalState.searchResults?.slice(0, MAX_SOURCES).map(forPersistence) || [],
       resumed: true,
+      // Same shape the non-resumed path persists, so the document card
+      // rehydrates identically on reload.
+      ...(params.createdDocument && { createdDocument: params.createdDocument }),
       // run_python result incl. figures/files — persists the Berechnung card
       // across reloads. Fresh-gated: a forwarded last-turn result must not
       // stamp a stale card onto an unrelated resumed message.
       ...(finalState.computedResult != null &&
         finalState.computedResultFresh && { computeData: finalState.computedResult }),
       toolCalls,
-    });
+    };
+
+    if (pendingMessageId) {
+      // Finalize the placeholder minted before streaming. A miss means the row
+      // is gone (e.g. a regenerate from another tab deleted it) — do NOT
+      // re-insert; just warn and skip the post-persist side effects.
+      const matched = await withMessageWriteRetry(
+        () => finalizeAssistantMessage(pendingMessageId, persistedText, metadata),
+        'finalizeAssistantMessage:resume'
+      );
+      if (!matched) {
+        log.warn(
+          `[ChatGraph:Resume] Pending assistant row ${pendingMessageId} vanished before finalize — response discarded (thread ${threadId})`
+        );
+        return { ok: true };
+      }
+    } else {
+      await withMessageWriteRetry(
+        () => createMessage(threadId, 'assistant', persistedText, metadata),
+        'createMessage:resume'
+      );
+    }
     await touchThread(threadId);
+
+    // Same sticky pointer the non-resumed path writes — without it a resumed
+    // artifact turn leaves the next turn's classifier looking at a stale one.
+    const toolContext = deriveToolContext({
+      finalState,
+      classifiedState,
+      generatedImage: null,
+      sharepicVariants: params.sharepicVariants ?? [],
+      createdDocument: params.createdDocument ?? null,
+    });
+    if (toolContext) {
+      void setThreadToolContext(threadId, toolContext).catch((err) =>
+        log.warn('[ChatGraph:Resume] Failed to persist thread tool context:', err)
+      );
+    }
+
+    let attachmentsOk = true;
     if (userId && processedMeta?.length) {
-      await saveThreadAttachmentsFromMeta(threadId, userId, processedMeta);
+      attachmentsOk = await saveThreadAttachmentsFromMeta(threadId, userId, processedMeta);
     }
     log.info(`[ChatGraph:Resume] Message persisted for thread ${threadId}`);
+    return { ok: attachmentsOk };
   } catch (error) {
     log.error('[ChatGraph:Resume] Error persisting message:', error);
+    return { ok: false };
   }
 }

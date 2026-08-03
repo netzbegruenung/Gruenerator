@@ -5,3 +5,4 @@
 
 export { default as searchController } from './searchController.js';
 export { default as webSearchController } from './webSearchController.js';
+export { default as searchImageProxyRouter } from './searchImageProxyRouter.js';

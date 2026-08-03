@@ -12,7 +12,7 @@ import { parseGeneratorResponse } from '../utils/responseParser.js';
 import type { GeneratorResult, GeneratorError, BaseGeneratorRequest } from '../types.js';
 
 export interface UseTextGenerationOptions {
-  /** API endpoint path (e.g., '/claude_social') */
+  /** API endpoint path (e.g., '/texte/social') */
   endpoint: string;
   /** Callback when generation succeeds */
   onSuccess?: (result: GeneratorResult) => void;

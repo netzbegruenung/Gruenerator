@@ -52,7 +52,7 @@ export function MermaidDiagram({ code }: { code: string }) {
     return (
       <div
         className="flex justify-center overflow-x-auto p-4"
-        // eslint-disable-next-line react/no-danger
+
         dangerouslySetInnerHTML={{ __html: svg }}
       />
     );

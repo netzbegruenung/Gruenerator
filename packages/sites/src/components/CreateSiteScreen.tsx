@@ -88,19 +88,24 @@ export function CreateSiteScreen({
     <div className="relative flex min-h-full items-center justify-center px-md py-xl lg:px-xl">
       {/* Step indicator */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2.5 z-10">
-        {Array.from({ length: totalSteps }, (_, i) => (
-          <div
-            key={i}
-            className={cn(
-              'h-1.5 rounded-full transition-all duration-300',
-              step === i ? 'w-10 bg-primary-600' : 'w-3 bg-primary-200',
-              i < step && !isProcessing && 'cursor-pointer hover:bg-primary-300'
-            )}
-            onClick={() => i < step && !isProcessing && setStep(i)}
-            role={i < step ? 'button' : undefined}
-            aria-label={`Schritt ${i + 1}`}
-          />
-        ))}
+        {Array.from({ length: totalSteps }, (_, i) => {
+          const dotClassName = cn(
+            'h-1.5 rounded-full transition-all duration-300',
+            step === i ? 'w-10 bg-primary-600' : 'w-3 bg-primary-200'
+          );
+          return i < step ? (
+            <button
+              key={i}
+              type="button"
+              onClick={() => setStep(i)}
+              disabled={isProcessing}
+              className={cn(dotClassName, 'border-none p-0 cursor-pointer hover:bg-primary-300')}
+              aria-label={`Zu Schritt ${i + 1} zurückgehen`}
+            />
+          ) : (
+            <span key={i} className={dotClassName} aria-label={`Schritt ${i + 1}`} />
+          );
+        })}
       </div>
 
       {/* Step 0: Address — the welcoming opening */}
@@ -253,29 +258,34 @@ export function CreateSiteScreen({
                   </button>
                 </div>
               ) : (
-                <div
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setIsDragging(true);
-                  }}
-                  onDragLeave={() => setIsDragging(false)}
-                  onDrop={handleDrop}
-                  onClick={() => !isProcessing && fileInputRef.current?.click()}
-                  className={cn(
-                    'flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-10 cursor-pointer transition-all',
-                    isDragging
-                      ? 'border-primary-500 bg-primary-50/50'
-                      : 'border-grey-300 dark:border-grey-700 hover:border-primary-400 hover:bg-primary-50/30'
-                  )}
-                >
-                  <FiUpload className="size-6 text-grey-400 dark:text-grey-500" />
-                  <p className="text-sm text-grey-600 dark:text-grey-400 text-center">
-                    <span className="font-medium text-primary-600 dark:text-primary-400">
-                      Flyer hochladen
-                    </span>{' '}
-                    oder hierher ziehen
-                  </p>
-                  <p className="text-xs text-grey-400 dark:text-grey-500">PDF, max. 20 MB</p>
+                <>
+                  <button
+                    type="button"
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setIsDragging(true);
+                    }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={handleDrop}
+                    onClick={() => !isProcessing && fileInputRef.current?.click()}
+                    className={cn(
+                      'flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed bg-transparent p-10 cursor-pointer transition-all',
+                      isDragging
+                        ? 'border-primary-500 bg-primary-50/50'
+                        : 'border-grey-300 dark:border-grey-700 hover:border-primary-400 hover:bg-primary-50/30'
+                    )}
+                  >
+                    <FiUpload className="size-6 text-grey-400 dark:text-grey-500" />
+                    <span className="text-sm text-grey-600 dark:text-grey-400 text-center">
+                      <span className="font-medium text-primary-600 dark:text-primary-400">
+                        Flyer hochladen
+                      </span>{' '}
+                      oder hierher ziehen
+                    </span>
+                    <span className="text-xs text-grey-400 dark:text-grey-500">
+                      PDF, max. 20 MB
+                    </span>
+                  </button>
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -287,7 +297,7 @@ export function CreateSiteScreen({
                     }}
                     disabled={isProcessing}
                   />
-                </div>
+                </>
               )}
             </div>
           )}

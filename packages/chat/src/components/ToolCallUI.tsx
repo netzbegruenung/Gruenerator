@@ -15,6 +15,7 @@ import { Fragment, useState, memo, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { CitationList } from './tool-ui/citation';
+import { ShimmerText } from './message-parts/ShimmerText';
 import { LinkPreview } from './tool-ui/link-preview';
 import { PressemitteilungExamplesCard } from './PressemitteilungExamplesCard';
 import { makeCitationComponents } from '../lib/citationMarkdownComponents';
@@ -32,6 +33,7 @@ import {
   CONFIDENCE_LABELS,
   type ToolIconKey,
 } from '../lib/toolResults';
+
 import type {
   ExampleSnippet,
   ImageResultVM,
@@ -129,7 +131,11 @@ export const ToolCallUI = memo(function ToolCallUI({
         ) : (
           <Icon className={`h-3.5 w-3.5 ${config.color}`} />
         )}
-        <span className="font-medium text-foreground">{config.label}</span>
+        {isLoading ? (
+          <ShimmerText className="font-medium">{config.label}</ShimmerText>
+        ) : (
+          <span className="font-medium text-foreground">{config.label}</span>
+        )}
         {query && (
           <span className="text-foreground-muted max-w-[120px] sm:max-w-[200px] truncate">
             &bdquo;{query}&ldquo;

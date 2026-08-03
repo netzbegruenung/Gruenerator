@@ -114,8 +114,14 @@ export function docKindToCitableKind(kind: DocumentSourceKind): CitableSourceKin
   }
 }
 
-/** Hard cap mirroring the previous `buildCitations` 8-source ceiling. */
-const MAX_SOURCES = 8;
+/**
+ * Cap on distinct sources reaching the prompt. Follows the loop's own gathering
+ * budget (`loopGuards.MAX_SOURCES`) rather than the historical `buildCitations`
+ * ceiling of 8 — that one was applied AFTER the notebook path had deliberately
+ * widened its slice to 12, so four retrieved documents were dropped again on
+ * the way to the prompt.
+ */
+export const MAX_SOURCES = 20;
 
 /**
  * Group chunked search results into one entry per logical source. Both

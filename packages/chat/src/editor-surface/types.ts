@@ -1,7 +1,6 @@
-import type { AssistantRuntime } from '@assistant-ui/react';
-
-import type { ChatRequestContextProvider } from '../stores/chatConfigStore';
 import type { GrueneratorAdapterConfig } from '../runtime/GrueneratorModelAdapter';
+import type { ChatRequestContextProvider } from '../stores/chatConfigStore';
+import type { AssistantRuntime } from '@assistant-ui/react';
 
 /** The five embedded editor surfaces that host an agentic chat sidebar. */
 export type EditorSurfaceKind = 'docs' | 'presentation' | 'sheet' | 'board' | 'canvas';

@@ -18,7 +18,7 @@ import { createLogger } from '../../utils/logger.js';
 
 import type { User } from '../../types/auth.js';
 
-const log = createLogger('claude_social');
+const log = createLogger('texte/social');
 const router: Router = createAuthenticatedRouter();
 
 const strategySchema = z
@@ -37,7 +37,7 @@ const productionSchema = z.object({
 type ProductionBody = z.infer<typeof productionSchema>;
 
 const routeHandler = async (req: Request, res: Response): Promise<void> => {
-  log.debug('[claude_social] Request received via promptProcessor');
+  log.debug('[texte/social] Request received via promptProcessor');
   if (req.query.stream === 'true' || req.headers.accept === 'text/event-stream') {
     return processGraphRequestStreaming('social', req, res);
   }
@@ -52,13 +52,13 @@ router.post('/', routeHandler);
  */
 router.post('/agent', async (req: Request, res: Response): Promise<void> => {
   try {
-    log.debug('[claude_social/agent] Agent mode request received');
+    log.debug('[texte/social/agent] Agent mode request received');
     if (req.query.stream === 'true' || req.headers.accept === 'text/event-stream') {
       return processAgentModeStreaming(req, res);
     }
     await processAgentModeRequest(req, res);
   } catch (error) {
-    log.error('[claude_social/agent] Error:', error);
+    log.error('[texte/social/agent] Error:', error);
     res.status(500).json({
       success: false,
       error: 'Interner Serverfehler',
@@ -75,10 +75,10 @@ router.post(
   validateBody(strategySchema),
   async (req: TypedRequest<StrategyBody>, res: Response): Promise<void> => {
     try {
-      log.debug('[claude_social/strategy] Strategy generation requested');
+      log.debug('[texte/social/strategy] Strategy generation requested');
       await processStrategyGeneration(req.body, req, res);
     } catch (error) {
-      log.error('[claude_social/strategy] Error:', error);
+      log.error('[texte/social/strategy] Error:', error);
       res.status(500).json({
         success: false,
         error: 'Interner Serverfehler',
@@ -99,7 +99,7 @@ router.post(
 
     try {
       log.debug(
-        '[claude_social/production] Production generation requested for workflow:',
+        '[texte/social/production] Production generation requested for workflow:',
         workflow_id
       );
 
@@ -115,7 +115,7 @@ router.post(
         res
       );
     } catch (error) {
-      log.error('[claude_social/production] Error:', error);
+      log.error('[texte/social/production] Error:', error);
       res.status(500).json({
         success: false,
         error: 'Interner Serverfehler',
@@ -148,7 +148,7 @@ router.get('/workflow/:id', async (req: Request<{ id: string }>, res: Response):
       workflow,
     });
   } catch (error) {
-    log.error('[claude_social/workflow] Error:', error);
+    log.error('[texte/social/workflow] Error:', error);
     res.status(500).json({
       success: false,
       error: 'Interner Serverfehler',

@@ -10,6 +10,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { BODY_FONT } from '../../theme';
+
 // Native analog of web's `.shimmer-text` (packages/chat ShimmerText). Web uses a
 // `background-clip: text` gradient that animates `background-position`; React
 // Native can't clip a gradient to glyphs, so we mask an animated LinearGradient
@@ -35,7 +37,10 @@ export function ShimmerText({
   fontSize = 14,
   style,
 }: ShimmerTextProps) {
-  const [width, setWidth] = useState(0);
+  const [measured, setMeasured] = useState<{ text: string; width: number }>({
+    text: '',
+    width: 0,
+  });
   const progress = useSharedValue(0);
 
   useEffect(() => {
@@ -45,19 +50,34 @@ export function ShimmerText({
     );
   }, [progress]);
 
+  // The measurement belongs to the sentence it was taken for: the mask is a
+  // fixed-width MaskedView, so a width carried over from an earlier label clips
+  // every longer one after it — and status labels are swapped in place
+  // ("Sortiere …" → "Durchsuche das Grundsatzprogramm"), which is the whole
+  // point of the line. Stored WITH its text and invalidated by comparison, the
+  // React-recommended alternative to resetting state from an effect.
+  const width = measured.text === children ? measured.width : 0;
+
   const gradientStyle = useAnimatedStyle(() => ({
     // Sweep the 2×-wide gradient from fully left of the text to fully right.
     transform: [{ translateX: -width + progress.value * (2 * width) }],
   }));
 
-  const textStyle: TextStyle = { fontSize, lineHeight: fontSize * 1.4, ...style };
+  // BODY_FONT first, so a caller that passes only a size still gets PT Sans —
+  // `style` spreads last and can still override face and leading.
+  const textStyle: TextStyle = {
+    fontFamily: BODY_FONT,
+    fontSize,
+    lineHeight: fontSize * 1.4,
+    ...style,
+  };
 
   // Before layout is measured, render plain muted text so there's no flash.
   if (width === 0) {
     return (
       <Text
         style={[textStyle, { color: mutedColor }]}
-        onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
+        onLayout={(e) => setMeasured({ text: children, width: e.nativeEvent.layout.width })}
       >
         {children}
       </Text>

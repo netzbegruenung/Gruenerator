@@ -7,7 +7,7 @@ import {
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View, useColorScheme } from 'react-native';
 
-import { darkTheme, lightTheme } from '../../theme';
+import { darkTheme, lightTheme, BODY_FONT } from '../../theme';
 
 import { BoardCardView } from './BoardCardView';
 import { FIELD_IDS } from './boardCells';
@@ -123,10 +123,12 @@ const styles = StyleSheet.create({
   },
   columnName: {
     flex: 1,
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '700',
   },
   columnCount: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     fontWeight: '600',
   },
@@ -140,6 +142,7 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   emptyText: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
   },
 });

@@ -5,6 +5,7 @@ import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js'
 import {
   makeBoardsTasksTool,
   makeDocumentsTool,
+  makeReadArtifactTool,
   makeFindContentTool,
   makeGroupsTool,
   makeMediaTool,
@@ -30,12 +31,15 @@ const emitToolConfirmAction = vi.fn();
 const dbQuery = vi.fn();
 const getUserProjects = vi.fn();
 const deleteProject = vi.fn();
+const searchReels = vi.fn().mockResolvedValue([]);
+const getReelTranscript = vi.fn().mockResolvedValue(null);
 const getUserShares = vi.fn();
 const deleteShare = vi.fn();
 const nbGetUserCollections = vi.fn();
 const nbGetCollection = vi.fn();
 const nbUpdate = vi.fn();
 const nbDelete = vi.fn();
+const readArtifactContent = vi.fn();
 
 vi.mock('../../docs/docsSearch.js', () => ({
   searchOfficeContent: (...a: unknown[]) => searchOfficeContent(...a),
@@ -87,6 +91,14 @@ vi.mock('../../../services/subtitler/ProjectService.js', () => ({
     deleteProject: (...a: unknown[]) => deleteProject(...a),
   }),
 }));
+vi.mock('../../../services/subtitler/reelSearch.js', () => ({
+  searchReels: (...a: unknown[]) => searchReels(...a),
+  getReelTranscript: (...a: unknown[]) => getReelTranscript(...a),
+  reelUrl: (id: string) => `/studio/video?project=${id}`,
+}));
+vi.mock('../services/artifactReader.js', () => ({
+  readArtifactContent: (...a: unknown[]) => readArtifactContent(...a),
+}));
 vi.mock('../../../database/services/NotebookQdrantHelper.js', () => ({
   NotebookQdrantHelper: class {
     getUserNotebookCollections = (...a: unknown[]) => nbGetUserCollections(...a);
@@ -122,6 +134,10 @@ function exec(tool: unknown, input: unknown) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // clearAllMocks keeps implementations, so the reel mocks have to be put back
+  // to "no reels" or a search test leaks its hits into every later assertion.
+  searchReels.mockResolvedValue([]);
+  getReelTranscript.mockResolvedValue(null);
 });
 
 // --- find_content ------------------------------------------------------------
@@ -153,6 +169,34 @@ describe('find_content', () => {
     expect(searchOfficeContent).toHaveBeenCalledWith('u1', 'klima', { limit: 5 });
     expect(out.resultCount).toBe(1);
     expect(out.results[0]).toMatchObject({ title: 'Klimaplan', url: '/office/d1' });
+  });
+
+  it('search also surfaces matching reels alongside office content', async () => {
+    searchOfficeContent.mockResolvedValue([
+      { id: 'd1', title: 'Klimaplan', document_subtype: 'docs', content: 'Auszug' },
+    ]);
+    searchReels.mockResolvedValue([
+      {
+        id: 'p9',
+        title: 'Klima-Reel',
+        snippet: '[00:00.0–00:02.5] Klimageld jetzt.',
+        matchedTranscript: true,
+        url: '/studio/video?project=p9',
+        status: 'exported',
+        hasThumbnail: true,
+        lastEditedAt: '2026-04-01T10:00:00Z',
+      },
+    ]);
+    const out = (await exec(makeFindContentTool(ctx('u1')), {
+      action: 'search',
+      query: 'klima',
+      limit: 5,
+    })) as { results: Array<{ title: string; url: string; type?: string }>; resultCount: number };
+
+    expect(searchReels).toHaveBeenCalledWith('u1', 'klima', 5);
+    expect(out.resultCount).toBe(2);
+    expect(out.results.map((r) => r.type)).toContain('Reel');
+    expect(out.results.find((r) => r.type === 'Reel')?.url).toBe('/studio/video?project=p9');
   });
 
   it('recent maps the activity feed', async () => {
@@ -520,6 +564,95 @@ describe('media', () => {
     });
     expect(deleteProject).toHaveBeenCalledWith('u1', 'p1');
   });
+
+  const reelHit = {
+    id: 'p9',
+    title: 'Windkraft-Reel',
+    snippet: '[00:00.0–00:02.5] Heute reden wir über Windkraft.',
+    matchedTranscript: true,
+    url: '/studio/video?project=p9',
+    status: 'exported',
+    hasThumbnail: true,
+    lastEditedAt: '2026-04-01T10:00:00Z',
+  };
+
+  it('search finds reels by spoken content and hands back a transcript ref', async () => {
+    searchReels.mockResolvedValue([reelHit]);
+    const out = (await exec(makeMediaTool(ctx('u1')), {
+      action: 'search',
+      type: 'all',
+      query: 'Windkraft',
+      confirm: false,
+      limit: 15,
+    })) as {
+      resultCount: number;
+      results: Array<{ ref?: string; snippet?: string }>;
+      note?: string;
+    };
+
+    expect(searchReels).toHaveBeenCalledWith('u1', 'Windkraft', 10);
+    expect(out.resultCount).toBe(1);
+    expect(out.results[0].ref).toBe('reel:p9');
+    expect(out.results[0].snippet).toContain('Heute reden wir über Windkraft.');
+    expect(out.note).toContain('transcript');
+  });
+
+  it('search rejects a blank query', async () => {
+    const out = (await exec(makeMediaTool(ctx('u1')), {
+      action: 'search',
+      type: 'all',
+      query: '  ',
+      confirm: false,
+      limit: 15,
+    })) as { error?: string };
+    expect(out.error).toContain('query');
+    expect(searchReels).not.toHaveBeenCalled();
+  });
+
+  it('transcript returns the spoken content and grounds it for the synthesizer', async () => {
+    getReelTranscript.mockResolvedValue({
+      title: 'Windkraft-Reel',
+      transcript: '[00:00.0–00:02.5] Heute reden wir über Windkraft.',
+      segmentCount: 1,
+    });
+    const registry = createSourceRegistry();
+    const out = (await exec(makeMediaTool(ctx('u1', [], registry)), {
+      action: 'transcript',
+      type: 'all',
+      ref: 'reel:p9',
+      confirm: false,
+      limit: 15,
+    })) as { title: string; transcript: string; segmentCount: number };
+
+    expect(getReelTranscript).toHaveBeenCalledWith('u1', 'p9');
+    expect(out.segmentCount).toBe(1);
+    expect(out.transcript).toContain('Heute reden wir über Windkraft.');
+    // Split mode: the synthesizer sees only rendered sources, so the transcript
+    // must be in the registry, not just the tool return value.
+    expect(registry.renderAll()).toContain('Heute reden wir über Windkraft.');
+  });
+
+  it('transcript refuses a non-reel ref and reports a missing reel', async () => {
+    const bad = (await exec(makeMediaTool(ctx('u1')), {
+      action: 'transcript',
+      type: 'all',
+      ref: 'sharepic:tok',
+      confirm: false,
+      limit: 15,
+    })) as { error?: string };
+    expect(bad.error).toContain('Reels');
+    expect(getReelTranscript).not.toHaveBeenCalled();
+
+    getReelTranscript.mockResolvedValue(null);
+    const missing = (await exec(makeMediaTool(ctx('u1')), {
+      action: 'transcript',
+      type: 'all',
+      ref: 'reel:p9',
+      confirm: false,
+      limit: 15,
+    })) as { error?: string };
+    expect(missing.error).toContain('nicht gefunden');
+  });
 });
 
 // --- notebooks ---------------------------------------------------------------
@@ -561,5 +694,134 @@ describe('notebooks', () => {
     })) as { needsConfirmation?: boolean };
     expect(out.needsConfirmation).toBe(true);
     expect(nbDelete).not.toHaveBeenCalled();
+  });
+});
+
+// --- read_artifact -----------------------------------------------------------
+
+/**
+ * Before this tool existed the loop could LIST artifacts and never open one:
+ * `documents` action="get" returns `{title, url, type}`. On 03.08.2026 that gap
+ * turned "vergleiche das PDF und die Präsentation" into a fabricated answer —
+ * which slide had been fixed, that the source matrix was complete.
+ */
+function artifactState(
+  userId: string,
+  artifacts: Array<{ kind: string; ref: string | null; label?: string | null }>
+): PersonalToolCtx {
+  const base = ctx(userId);
+  return {
+    ...base,
+    state: {
+      agentConfig: { userId },
+      threadArtifacts: artifacts,
+    } as unknown as ChatGraphState,
+  };
+}
+
+describe('read_artifact', () => {
+  it('no session → error', async () => {
+    const out = (await exec(makeReadArtifactTool(ctx(null)), {
+      kind: 'presentation',
+    })) as { error?: string };
+    expect(out.error).toContain('Nutzer-Sitzung');
+  });
+
+  it('reads by explicit id and grounds the content for the split synth', async () => {
+    readArtifactContent.mockResolvedValueOnce('Folie 1: Ausgangslage\nFolie 2: Ziel');
+    const registry = createSourceRegistry();
+    const c = { ...ctx('u1'), sourceRegistry: registry };
+
+    const out = (await exec(makeReadArtifactTool(c), { kind: 'presentation', id: 'deck-1' })) as {
+      content: string;
+    };
+
+    expect(out.content).toContain('Folie 2: Ziel');
+    expect(readArtifactContent).toHaveBeenCalledWith({
+      id: 'deck-1',
+      kind: 'presentation',
+      userId: 'u1',
+    });
+    // Split mode's writer sees nothing but the rendered sources.
+    expect(registry.renderAll()).toContain('Folie 2: Ziel');
+  });
+
+  it('resolves the artifact of THIS conversation when no id is given', async () => {
+    // The inventory names artifacts by noun and title only — the model has no
+    // id to pass, so it must be able to leave it out.
+    readArtifactContent.mockResolvedValueOnce('Folientext');
+    const c = artifactState('u1', [
+      { kind: 'presentation', ref: 'deck-42', label: 'Klimaziel 2040' },
+    ]);
+
+    await exec(makeReadArtifactTool(c), { kind: 'presentation' });
+
+    expect(readArtifactContent).toHaveBeenCalledWith({
+      id: 'deck-42',
+      kind: 'presentation',
+      userId: 'u1',
+    });
+  });
+
+  it('reads a PDF by its asset FILE NAME, not a document uuid', async () => {
+    // The asymmetry that produced both a 22P02 and a "nicht gefunden": a PDF's
+    // ref is `uuid.pdf`, every other kind's is a collaborative-document UUID.
+    readArtifactContent.mockResolvedValueOnce('EU-Klimaziel 2040 — 90 Prozent');
+    const c = artifactState('u1', [
+      { kind: 'pdf', ref: '3f1c9d20-4b7e-4a11-9c8d-5e2a7b6f0d43.pdf', label: 'Klimaziel' },
+    ]);
+
+    await exec(makeReadArtifactTool(c), { kind: 'pdf' });
+
+    expect(readArtifactContent).toHaveBeenCalledWith({
+      id: '3f1c9d20-4b7e-4a11-9c8d-5e2a7b6f0d43.pdf',
+      kind: 'pdf',
+      userId: 'u1',
+    });
+  });
+
+  it('asks instead of guessing between two artifacts of the same kind', async () => {
+    const c = artifactState('u1', [
+      { kind: 'presentation', ref: 'deck-1', label: 'Erste' },
+      { kind: 'presentation', ref: 'deck-2', label: 'Zweite' },
+    ]);
+
+    const out = (await exec(makeReadArtifactTool(c), { kind: 'presentation' })) as {
+      needsChoice?: boolean;
+      candidates?: Array<{ id: string }>;
+    };
+
+    expect(out.needsChoice).toBe(true);
+    expect(out.candidates?.map((x) => x.id)).toEqual(['deck-1', 'deck-2']);
+    expect(readArtifactContent).not.toHaveBeenCalled();
+  });
+
+  it('says so when the conversation has no artifact of that kind', async () => {
+    const c = artifactState('u1', [{ kind: 'sheet', ref: 'sheet-1', label: 'Budget' }]);
+    const out = (await exec(makeReadArtifactTool(c), { kind: 'presentation' })) as {
+      error?: string;
+    };
+    expect(out.error).toContain('Präsentation');
+    expect(readArtifactContent).not.toHaveBeenCalled();
+  });
+
+  it('reports an unreadable artifact as an error rather than empty content', async () => {
+    readArtifactContent.mockResolvedValueOnce(null);
+    const out = (await exec(makeReadArtifactTool(ctx('u1')), {
+      kind: 'pdf',
+      id: 'weg.pdf',
+    })) as { error?: string };
+    expect(out.error).toMatch(/nicht gefunden|kein Zugriff/);
+  });
+
+  it('caps a huge artifact and says that it did', async () => {
+    readArtifactContent.mockResolvedValueOnce('x'.repeat(20_000));
+    const out = (await exec(makeReadArtifactTool(ctx('u1')), {
+      kind: 'doc',
+      id: 'd1',
+    })) as { content: string; truncated: boolean };
+    expect(out.truncated).toBe(true);
+    expect(out.content.length).toBeLessThan(20_000);
+    expect(out.content).toContain('[gekürzt]');
   });
 });

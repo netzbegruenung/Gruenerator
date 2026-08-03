@@ -1,6 +1,5 @@
 'use client';
 
-import { Filter } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -12,6 +11,8 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
 } from '@gruenerator/ui';
+import { Filter } from 'lucide-react';
+
 import { cn, composerToolbarButtonClass } from '../../lib/utils';
 
 export interface CategoryFilterField {

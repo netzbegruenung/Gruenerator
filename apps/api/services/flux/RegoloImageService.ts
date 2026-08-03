@@ -8,6 +8,8 @@
 import fs from 'fs';
 import path from 'path';
 
+import { recordOperation } from '../usage/UsageTrackingService.js';
+
 import type {
   GenerateFromPromptOptions,
   GenerateResult,
@@ -67,6 +69,7 @@ class RegoloImageService {
     const size = snapToSupportedSize(options.width, options.height);
 
     console.log(`[RegoloImageService] Generating image: ${prompt.substring(0, 80)}...`);
+    recordOperation({ unit: 'images', provider: 'regolo', model: DEFAULT_MODEL });
 
     const response = await fetch(`${REGOLO_BASE_URL}/images/generations`, {
       method: 'POST',

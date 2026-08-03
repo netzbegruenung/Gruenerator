@@ -100,6 +100,9 @@ const NotebookEditorDocsSection = ({
   // Reset to page 1 whenever the filter result changes — keeps the user from
   // landing on an empty late page after typing a query.
   useEffect(() => {
+    // Reaction to the filter inputs changing (query/list size), not a
+    // render-derived value.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCurrentPage(1);
   }, [searchQuery, availableDocs.length]);
 

@@ -1,0 +1,75 @@
+# Editing a sent message replaces the turn instead of appending a second one.
+#
+# This is the only layer that can prove it. The signal that tells the backend to
+# truncate (`signalEditResubmit`, unit-tested in
+# components/chat/message/threadRunSignals.test.ts) is written on the client and
+# consumed by the model adapter — whether the persisted thread actually ends up
+# with one turn instead of two is only observable after a round trip.
+#
+# Needs a reachable backend, same as chat-send: set EXPO_PUBLIC_API_URL at the
+# test environment. Gated on GRUENERATOR_E2E_BACKEND in CI.
+appId: de.gruenerator.app
+---
+# No clearState — see the note in chat-send.yaml.
+- launchApp:
+    stopApp: true
+- runFlow: _dev-client-preamble.yaml
+
+- extendedWaitUntil:
+    visible: 'Chat'
+    timeout: 60000
+
+# --- a first turn to edit --------------------------------------------------
+- tapOn:
+    id: 'chat-composer-input'
+- inputText: 'Nenne mir drei Punkte zum Klimaschutz.'
+- tapOn:
+    id: 'chat-composer-send'
+
+- assertVisible: 'Nenne mir drei Punkte zum Klimaschutz.'
+
+# Wait for the answer to finish: the composer's send button coming back is the
+# thread's own idle signal, and the edit button only appears once the row is
+# no longer streaming.
+- extendedWaitUntil:
+    visible:
+      id: 'chat-composer-send'
+    timeout: 60000
+
+# --- edit it ---------------------------------------------------------------
+# Long press, not tap: the pencil button is gone and holding the bubble is the
+# only way in. A tap here would just do nothing and the assert below would fail
+# on a timeout rather than on the thing under test.
+- longPressOn:
+    id: 'chat-message-edit'
+
+- assertVisible:
+    id: 'chat-edit-input'
+
+- tapOn:
+    id: 'chat-edit-input'
+- eraseText
+- inputText: 'Nenne mir drei Punkte zur Verkehrswende.'
+- tapOn:
+    id: 'chat-edit-send'
+
+# The edit surface closes and the bubble shows the new text.
+- assertNotVisible:
+    id: 'chat-edit-input'
+- assertVisible: 'Nenne mir drei Punkte zur Verkehrswende.'
+
+# The superseded version is gone from view — it lives on the other branch, which
+# is what the branch picker is for.
+- assertNotVisible: 'Nenne mir drei Punkte zum Klimaschutz.'
+
+- extendedWaitUntil:
+    visible:
+      id: 'chat-composer-send'
+    timeout: 60000
+# NOT asserted here: that the *persisted* thread also holds one turn instead of
+# two. That needs leaving the thread and re-entering it, and the drawer has no
+# testID to address yet. What the flow above proves is the client half — the
+# edit surface, the fork, and that the superseded text leaves the view. The
+# backend half is covered by the signal's unit test plus the adapter's own
+# consumption; the persisted round trip stays a gap, deliberately named rather
+# than faked with an unverified selector.

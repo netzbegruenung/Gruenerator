@@ -62,6 +62,7 @@ import type { MobileSubsectionBridgeValue } from '../../sidebar/MobileSubsection
 import type { SidebarTabId } from '../../sidebar/types';
 
 import { cn } from '../../utils/cn';
+import { ensureFontsReady } from '../../utils/ensureFontsReady';
 
 // Hoisted static JSX elements (Rule 6.3: avoids re-creation every render)
 const sidebarLoadingFallback = (
@@ -520,9 +521,12 @@ function CanvasEditorInner({
   }, [collabYdoc]);
 
   const handleDownload = useCallback(
-    (format: 'png' | 'jpeg' | 'webp' = 'png', pixelRatio = 2, transparent = false) => {
+    async (format: 'png' | 'jpeg' | 'webp' = 'png', pixelRatio = 2, transparent = false) => {
       const ref = canvasRefsRef.current[currentPageIndex];
       if (!ref?.current) return;
+      // Fonts load via font-display:swap; capture before they settle bakes in
+      // the fallback face (see ensureFontsReady). Gate the sync toDataURL path.
+      await ensureFontsReady();
       const dataUrl = ref.current.toDataURL({
         format,
         pixelRatio,

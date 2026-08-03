@@ -32,7 +32,11 @@ router.post('/:id/export/pptx', async (req: AuthenticatedRequest, res: Response)
       res.status(404).json({ error: 'Präsentation nicht gefunden' });
       return;
     }
-    const buffer = await exportPresentationToPptx(state.slides, state.title, state.accentColor);
+    const buffer = await exportPresentationToPptx(state.slides, state.title, state.accentColor, {
+      // Legacy decks without a stamped brand export in the requester's CI.
+      brand: state.brand ?? req.user?.locale ?? null,
+      showLogo: state.showLogo,
+    });
     res.setHeader(
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.presentationml.presentation'

@@ -47,7 +47,16 @@ const PYPI_WHEELS = [
 
 // Core files loadPyodide() fetches from indexURL at runtime (the JS loader
 // itself is bundled into the worker from the npm package, so it's not copied).
-const CORE_FILES = ['pyodide.asm.js', 'pyodide.asm.wasm', 'python_stdlib.zip', 'pyodide-lock.json'];
+// The emscripten glue was `pyodide.asm.js` up to 0.29 and is `pyodide.asm.mjs`
+// from 314 on, so match whichever the installed package actually ships instead
+// of hardcoding one — a wrong name fails late, at copy time, with a bare ENOENT.
+const CORE_FILES = [
+  'pyodide.asm.js',
+  'pyodide.asm.mjs',
+  'pyodide.asm.wasm',
+  'python_stdlib.zip',
+  'pyodide-lock.json',
+];
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -65,8 +74,19 @@ async function main() {
   await mkdir(outDir, { recursive: true });
 
   // 1. core assets
+  let copiedCore = 0;
   for (const f of CORE_FILES) {
-    await copyFile(path.join(pyodideDir, f), path.join(outDir, f));
+    const src = path.join(pyodideDir, f);
+    if (!(await exists(src))) continue;
+    await copyFile(src, path.join(outDir, f));
+    copiedCore++;
+  }
+  // Guard against a future rename silently producing an empty runtime: the
+  // wasm, the stdlib, the lock and exactly one asm glue file must be there.
+  if (copiedCore < 4) {
+    throw new Error(
+      `[pyodide] only ${copiedCore} core files found in ${pyodideDir} — the package layout changed, update CORE_FILES`
+    );
   }
 
   // 2. transitive closure of PACKAGES — collect wheel file_names during BFS.

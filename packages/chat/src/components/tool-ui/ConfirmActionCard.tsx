@@ -1,4 +1,3 @@
-import { useState, memo } from 'react';
 import {
   FileText,
   Pencil,
@@ -11,8 +10,11 @@ import {
   ArrowRight,
   Loader2,
 } from 'lucide-react';
-import type { ConfirmActionData, ConfirmActionType } from '../../types/messageMetadata';
+import { useState, memo } from 'react';
+
 import { confirmChatAction } from '../../lib/confirmAction';
+
+import type { ConfirmActionData, ConfirmActionType } from '../../types/messageMetadata';
 
 type CardStatus = 'idle' | 'loading' | 'confirmed' | 'rejected' | 'error' | 'expired';
 
@@ -98,7 +100,7 @@ export const ConfirmActionCard = memo(function ConfirmActionCard({
 
   if (status === 'error') {
     return (
-      <div className="my-3 rounded-lg border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/30 p-3">
+      <div className="my-5 rounded-xl border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/30 px-4 py-3">
         <p className="text-sm text-red-700 dark:text-red-400 mb-2">{errorMessage}</p>
         <button
           onClick={() => {
@@ -114,7 +116,7 @@ export const ConfirmActionCard = memo(function ConfirmActionCard({
   }
 
   return (
-    <div className="my-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
+    <div className="my-5 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
       <div className="flex items-start gap-2 mb-2">
         <Icon className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
         <div>

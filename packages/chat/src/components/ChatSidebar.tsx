@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
-import { cn } from '../lib/utils';
 import { Sun, Moon, LogOut, MoreVertical } from 'lucide-react';
-import { useTheme } from './ThemeProvider';
+import { useState } from 'react';
+
+import { cn } from '../lib/utils';
+
 import { ChatThreadList } from './ChatThreadList';
+import { useTheme } from './ThemeProvider';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -19,7 +21,13 @@ export function ChatSidebar({ isOpen, onToggle, userId, onLogout, onNavigate }: 
 
   return (
     <>
-      {isOpen && <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={onToggle} />}
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          onClick={onToggle}
+          aria-hidden="true"
+        />
+      )}
 
       <aside
         className={cn(
@@ -73,7 +81,11 @@ function SidebarFooter({ theme, onThemeToggle, onLogout }: SidebarFooterProps) {
 
           {menuOpen && (
             <>
-              <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setMenuOpen(false)}
+                aria-hidden="true"
+              />
               <div className="menu-dropdown-content">
                 <button
                   onClick={() => {

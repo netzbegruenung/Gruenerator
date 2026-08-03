@@ -1,16 +1,21 @@
 /**
  * Info AT Full Canvas Configuration (Österreich / de-AT)
  *
- * Headline-Sujet auf dunkelgrüner Fläche (CI 2026): weiße Gotham-Headline,
- * gelbe Vollkorn-Betonungszeile, weiße Subline, weißes Ein-Balken-Logo.
+ * Farbfläche, Logo rechts oben, darunter mittig eine kleine Introline
+ * (Gotham Book, weiß), der Infotext (Gotham Ultra, weiß) und eine gelbe
+ * Vollkorn-Schlusszeile.
  *
- * Built on createColorTwoTextCanvas (headline + body) plus a third editable
- * accent text zone (textKey 'accent' auto-persists via passthroughStateKeys /
- * on-canvas textKey writeback).
+ * Eigene Geometrie über INFO_AT_CONFIG — mit der deutschen Info-Vorlage
+ * (Header / Subheader / Body, linksbündig, Sonnenblume) hat das Sujet außer
+ * dem Namen nichts gemeinsam.
+ *
+ * Gebaut auf createColorTwoTextCanvas: primary ist der Infotext, secondary die
+ * Introline; `accent` fährt über passthroughStateKeys mit und bekommt unten
+ * einen eigenen Setter.
  */
 
 import { getBrandTheme } from '../brand/theme';
-import { HEADLINE_AT_CONFIG, calculateHeadlineAtLayout } from '../utils/headlineAtLayout';
+import { INFO_AT_CONFIG, calculateInfoAtLayout } from '../utils/infoAtLayout';
 
 import {
   createAiCapabilities,
@@ -22,168 +27,184 @@ import {
   type ColorTwoTextActions,
   type ColorTwoTextState,
 } from './factory';
+import { getPlaceholder } from './placeholders';
 
-import type { ImageElementConfig, LayoutResult, TextElementConfig } from './types';
+import type {
+  FullCanvasConfig,
+  ImageElementConfig,
+  LayoutResult,
+  TextElementConfig,
+} from './types';
 
 const AT = getBrandTheme('de-AT');
-const H = HEADLINE_AT_CONFIG;
-const CENTER_X = H.margin.x;
-// Info headline is centred, so the logo sits bottom-centre (matches info_at_canvas).
-const LOGO_CENTER_X = (H.canvas.width - H.logo.width) / 2;
+const I = INFO_AT_CONFIG;
 
-type InfoAtState = ColorTwoTextState<'headline' | 'body'>;
+type InfoAtState = ColorTwoTextState<'text' | 'introline'>;
 
 const calculateLayout = (state: InfoAtState): LayoutResult => {
-  const headline = state.headline || '';
-  const accent = (state.accent as string) || '';
-  const body = state.body || '';
-
-  const [hZone, aZone, bZone] = calculateHeadlineAtLayout([
-    {
-      text: headline,
-      fontSize: H.headline.fontSize,
-      fontFamily: H.headline.fontFamily,
-      fontStyle: H.headline.fontStyle,
-    },
-    {
-      text: accent,
-      fontSize: H.accent.fontSize,
-      fontFamily: H.accent.fontFamily,
-      fontStyle: H.accent.fontStyle,
-    },
-    {
-      text: body,
-      fontSize: H.body.fontSize,
-      fontFamily: H.body.fontFamily,
-      fontStyle: H.body.fontStyle,
-    },
-  ]);
+  const l = calculateInfoAtLayout(
+    state.introline || '',
+    state.text || '',
+    (state.accent as string) || ''
+  );
+  const [intro, text, accent] = l.zones;
 
   return {
-    'headline-text': {
-      x: CENTER_X,
-      y: hZone.y,
-      width: H.maxWidth,
-      fontSize: state.customPrimaryFontSize ?? hZone.fontSize,
+    'introline-text': {
+      x: I.margin,
+      y: intro.y,
+      width: I.maxWidth,
+      fontSize: state.customSecondaryFontSize ?? intro.fontSize,
     },
-    'accent-text': {
-      x: CENTER_X,
-      y: aZone.y,
-      width: H.maxWidth,
-      fontSize: aZone.fontSize,
+    'text-text': {
+      x: I.margin,
+      y: text.y,
+      width: I.maxWidth,
+      fontSize: state.customPrimaryFontSize ?? text.fontSize,
     },
-    'body-text': {
-      x: CENTER_X,
-      y: bZone.y,
-      width: H.maxWidth,
-      fontSize: state.customSecondaryFontSize ?? bZone.fontSize,
-    },
-    logo: {
-      x: LOGO_CENTER_X,
-      y: H.logo.y,
-      width: H.logo.width,
-      height: H.logo.height,
-    },
+    'accent-text': { x: I.margin, y: accent.y, width: I.maxWidth, fontSize: accent.fontSize },
     _meta: { fontColor: AT.colors.textOnDark } as Record<string, unknown>,
   };
 };
 
-const headlineElement = createPrimaryText<InfoAtState>({
-  id: 'headline-text',
-  textKey: 'headline',
+const logoElement: ImageElementConfig<InfoAtState> = {
+  id: 'logo',
+  type: 'image',
+  x: I.canvas.width - I.logo.margin - I.logo.width,
+  y: I.logo.margin,
+  order: 1,
+  width: I.logo.width,
+  height: I.logo.height,
+  src: I.logo.src,
+  draggable: true,
+};
+
+const introlineElement = createSecondaryText<InfoAtState>({
+  id: 'introline-text',
+  textKey: 'introline',
   order: 2,
-  width: H.maxWidth,
-  fontFamily: H.headline.fontFamily,
-  fontStyle: H.headline.fontStyle,
-  lineHeight: H.lineHeightRatio,
+  width: I.maxWidth,
+  fontFamily: I.introline.fontFamily,
+  fontStyle: I.introline.fontStyle,
+  lineHeight: I.introline.lineHeightRatio,
   align: 'center',
-  defaultColor: AT.colors.textOnDark,
-  layoutFallback: { x: CENTER_X, y: H.margin.top, fontSize: H.headline.fontSize },
+  defaultColor: I.introline.color,
+  layoutFallback: { x: I.margin, y: 420, fontSize: I.introline.fontSize },
 });
 
-// Third (accent) zone — gelbe Vollkorn-Betonung. Edited on-canvas; textKey
-// 'accent' persists through passthroughStateKeys.
+const textElement = createPrimaryText<InfoAtState>({
+  id: 'text-text',
+  textKey: 'text',
+  order: 3,
+  width: I.maxWidth,
+  fontFamily: I.text.fontFamily,
+  fontStyle: I.text.fontStyle,
+  lineHeight: I.text.lineHeightRatio,
+  align: 'center',
+  defaultColor: I.text.color,
+  layoutFallback: { x: I.margin, y: 480, fontSize: I.text.fontSize },
+});
+
 const accentElement: TextElementConfig<InfoAtState> = {
   id: 'accent-text',
   type: 'text',
-  x: fromLayout('accent-text', 'x', CENTER_X),
-  y: fromLayout('accent-text', 'y', 400),
-  order: 3,
+  x: fromLayout('accent-text', 'x', I.margin),
+  y: fromLayout('accent-text', 'y', 900),
+  order: 4,
   textKey: 'accent',
-  width: H.maxWidth,
-  fontSize: fromLayout('accent-text', 'fontSize', H.accent.fontSize),
-  fontFamily: `${H.accent.fontFamily}, Georgia, serif`,
-  fontStyle: H.accent.fontStyle,
+  width: I.maxWidth,
+  fontSize: fromLayout('accent-text', 'fontSize', I.text.fontSize),
+  fontFamily: `${I.accent.fontFamily}, Georgia, serif`,
+  fontStyle: I.accent.fontStyle,
   align: 'center',
-  lineHeight: H.lineHeightRatio,
+  lineHeight: I.accent.lineHeightRatio,
   wrap: 'word',
   padding: 0,
   editable: true,
   draggable: true,
-  fill: AT.colors.accent,
-};
-
-const bodyElement = createSecondaryText<InfoAtState>({
-  id: 'body-text',
-  textKey: 'body',
-  order: 4,
-  width: H.maxWidth,
-  fontFamily: H.body.fontFamily,
-  fontStyle: H.body.fontStyle,
-  lineHeight: 1.2,
-  align: 'center',
-  defaultColor: AT.colors.textOnDark,
-  layoutFallback: { x: CENTER_X, y: 700, fontSize: H.body.fontSize },
-});
-
-const logoElement: ImageElementConfig<InfoAtState> = {
-  id: 'logo',
-  type: 'image',
-  x: fromLayout('logo', 'x', LOGO_CENTER_X),
-  y: fromLayout('logo', 'y', H.logo.y),
-  order: 5,
-  width: H.logo.width,
-  height: H.logo.height,
-  src: H.logo.src,
-  draggable: true,
+  fill: I.accent.color,
 };
 
 const baseInfoAtConfig = createColorTwoTextCanvas({
   id: 'info-at',
-  canvas: { width: H.canvas.width, height: H.canvas.height },
-  primaryField: { key: 'headline', label: 'Headline' },
-  secondaryField: { key: 'body', label: 'Subline' },
+  canvas: { width: I.canvas.width, height: I.canvas.height },
+  primaryField: { key: 'text', label: 'Infotext' },
+  secondaryField: { key: 'introline', label: 'Introline' },
   backgroundColors: AT.backgroundColors,
   defaultBackgroundColor: AT.defaultBackgroundColor,
   textColorMap: AT.textColorMap,
   calculateLayout,
   passthroughStateKeys: ['accent'],
-  elements: [headlineElement, accentElement, bodyElement, logoElement],
+  elements: [logoElement, introlineElement, textElement, accentElement],
   features: { icons: true, shapes: true, illustrations: true },
-  getCanvasText: (state) => {
-    const headline = state.headline || '';
-    const accent = (state.accent as string) || '';
-    const body = state.body || '';
-    return [headline, accent, body].filter(Boolean).join('\n');
-  },
+  getCanvasText: (state) =>
+    [state.introline || '', state.text || '', (state.accent as string) || '']
+      .filter(Boolean)
+      .join('\n'),
 });
 
-const infoAtAiCapabilities = createAiCapabilities<InfoAtState, ColorTwoTextActions>({
+/**
+ * Die Faktory kennt zwei Textfelder; dieses Sujet hat drei. Ohne eigenen Setter
+ * wäre die gelbe Schlusszeile weder aus der Seitenleiste noch für die KI
+ * erreichbar — derselbe Fall wie beim Overlay-Dreizeiler.
+ */
+export interface InfoAtFullActions extends ColorTwoTextActions {
+  setAccent: (val: string) => void;
+}
+
+const infoAtConfig: FullCanvasConfig<InfoAtState, InfoAtFullActions> = {
+  ...baseInfoAtConfig,
+  multiPage: {
+    enabled: true,
+    maxPages: baseInfoAtConfig.multiPage?.maxPages ?? 10,
+    heterogeneous: true,
+    defaultNewPageState: {
+      ...baseInfoAtConfig.multiPage?.defaultNewPageState,
+      accent: getPlaceholder('accent'),
+    } as Partial<InfoAtState>,
+  },
+  createActions: (getState, setState, saveToHistory, debouncedSaveToHistory, callbacks) => ({
+    ...baseInfoAtConfig.createActions(
+      getState,
+      setState,
+      saveToHistory,
+      debouncedSaveToHistory,
+      callbacks
+    ),
+    setAccent: (val: string) => {
+      setState({ accent: val } as Partial<InfoAtState>);
+      callbacks.onAccentChange?.(val);
+      debouncedSaveToHistory(getState());
+    },
+  }),
+};
+
+const infoAtAiCapabilities = createAiCapabilities<InfoAtState, InfoAtFullActions>({
   id: 'info-at',
   errorLabel: 'Info (AT)',
   fields: [
     {
-      field: 'headline',
-      label: 'Headline',
-      read: (s) => s.headline || '',
+      field: 'introline',
+      label: 'Introline',
+      read: (s) => s.introline || '',
+      setter: (a) => a.setSecondary,
+    },
+    {
+      field: 'text',
+      label: 'Infotext',
+      read: (s) => s.text || '',
       setter: (a) => a.setPrimary,
     },
-    { field: 'body', label: 'Subline', read: (s) => s.body || '', setter: (a) => a.setSecondary },
+    {
+      field: 'accent',
+      label: 'Schlusszeile (gelb)',
+      read: (s) => (s.accent as string) || '',
+      setter: (a) => a.setAccent,
+    },
   ],
   background: { read: (s) => s.backgroundColor as `#${string}` },
 });
 
-export const infoAtFullConfig = wrapWithAi(baseInfoAtConfig, 'info-at', infoAtAiCapabilities);
+export const infoAtFullConfig = wrapWithAi(infoAtConfig, 'info-at', infoAtAiCapabilities);
 
 export type InfoAtFullState = InfoAtState;
-export type { ColorTwoTextActions as InfoAtFullActions } from './factory';

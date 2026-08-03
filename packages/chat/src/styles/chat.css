@@ -34,12 +34,12 @@
   --color-secondary-300: #A0BBB0;
   --color-secondary-400: #85A899;
   --color-secondary-500: #6A9583;
-  --color-secondary-600: #5F8575;
+  --color-secondary-600: #587C6D;
   --color-secondary-700: #445F54;
   --color-secondary-800: #31453C;
   --color-secondary-900: #1E2A25;
   --color-secondary-950: #0B0F0D;
-  --color-secondary: #5F8575;
+  --color-secondary: #587C6D;
 
   /* Background Colors */
   --color-background: #ffffff;
@@ -78,9 +78,9 @@
   --color-hover-overlay: rgba(0,0,0,0.05);
   --color-user-bubble: var(--color-primary-50);
 
-  /* Code Blocks */
-  --color-code-block-bg: #111827;
-  --color-code-block-fg: #e5e7eb;
+  /* Code Blocks — matches Shiki's github-light background (see shikiHighlight.ts) */
+  --color-code-block-bg: #f6f8fa;
+  --color-code-block-fg: #24292e;
   --color-code-inline-bg: #f3f4f6;
 
   /* Error */
@@ -88,8 +88,8 @@
   --color-error-bg: #fef2f2;
 
   /* Badge Colors */
-  --color-badge-platform: #5F8575;
-  --color-badge-platform-bg: rgba(95,133,117,0.1);
+  --color-badge-platform: #587C6D;
+  --color-badge-platform-bg: rgba(88,124,109,0.1);
   --color-badge-citation: #445F54;
   --color-badge-citation-bg: rgba(68,95,84,0.1);
   --color-badge-citation-hover: rgba(68,95,84,0.15);
@@ -109,8 +109,8 @@
   --color-tool-documents-bg: rgba(82,144,122,0.1);
   --color-tool-web: #6BAA91;
   --color-tool-web-bg: rgba(107,170,145,0.1);
-  --color-tool-examples: #5F8575;
-  --color-tool-examples-bg: rgba(95,133,117,0.1);
+  --color-tool-examples: #587C6D;
+  --color-tool-examples-bg: rgba(88,124,109,0.1);
 
   /* Section / Toggle */
   --color-section-border: #e5e7eb;
@@ -119,8 +119,8 @@
   /* Collection Badge Colors */
   --color-collection-grundsatzprogramm: #52907A;
   --color-collection-grundsatzprogramm-bg: rgba(82, 144, 122, 0.1);
-  --color-collection-bundestagsfraktion: #5F8575;
-  --color-collection-bundestagsfraktion-bg: rgba(95, 133, 117, 0.1);
+  --color-collection-bundestagsfraktion: #587C6D;
+  --color-collection-bundestagsfraktion-bg: rgba(88, 124, 109, 0.1);
   --color-collection-bundestag: #64748B;
   --color-collection-bundestag-bg: rgba(100, 116, 139, 0.1);
   --color-collection-gruene-de: #52907A;
@@ -133,7 +133,7 @@
   --color-collection-research-bg: rgba(68, 95, 84, 0.1);
   --color-collection-landesverband: #52907A;
   --color-collection-landesverband-bg: rgba(82, 144, 122, 0.1);
-  --color-collection-boell: #5F8575;
+  --color-collection-boell: #587C6D;
   --color-collection-boell-bg: rgba(95, 133, 117, 0.1);
   --color-collection-examples: #6BAA91;
   --color-collection-examples-bg: rgba(107, 170, 145, 0.1);
@@ -190,7 +190,9 @@
   --color-hover-overlay: rgba(255,255,255,0.05);
   --color-user-bubble: rgba(255,255,255,0.1);
 
-  /* Code Blocks (block bg/fg stay the same in dark) */
+  /* Code Blocks — dark-mode override (light-mode value lives in @theme above) */
+  --color-code-block-bg: #111827;
+  --color-code-block-fg: #e5e7eb;
   --color-code-inline-bg: #1f2937;
 
   /* Error */
@@ -582,6 +584,48 @@
     animation: none;
     color: var(--color-foreground-muted);
     -webkit-text-fill-color: var(--color-foreground-muted);
+  }
+}
+
+/* Status-line pacing: each new (paced) label fades+slides in via a key change,
+   and the whole line fades out gracefully instead of vanishing on unmount. */
+@keyframes status-line-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes status-line-out {
+  from { opacity: 1; transform: none; }
+  to   { opacity: 0; transform: translateY(-4px); }
+}
+
+.status-line-swap {
+  animation: status-line-in 0.2s ease-out;
+}
+
+.status-line-exit {
+  animation: status-line-out 0.25s ease-in forwards;
+}
+
+/* Persistent planner narration rendered above a tool card (ChatGPT-style
+   between-tool prose). Muted, clamped to two lines so long German sentences
+   don't dominate the card. */
+.tool-narration {
+  color: var(--color-foreground-muted);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  margin: 0.25rem 0 0.125rem;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-line-swap,
+  .status-line-exit {
+    animation: none;
   }
 }
 

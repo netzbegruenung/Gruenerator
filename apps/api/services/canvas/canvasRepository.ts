@@ -195,9 +195,7 @@ export async function searchCanvases(
 }
 
 type GetResult =
-  | { kind: 'ok'; canvas: CanvasDocument }
-  | { kind: 'not_found' }
-  | { kind: 'forbidden' };
+  { kind: 'ok'; canvas: CanvasDocument } | { kind: 'not_found' } | { kind: 'forbidden' };
 
 export async function getCanvas(id: string, userId: string): Promise<GetResult> {
   const rows = (await db.query(
@@ -428,9 +426,7 @@ export async function deleteCanvas(id: string, userId: string): Promise<Mutation
 // ── Resize (duplicate-with-format) ───────────────────────────────────────────
 
 type ResizeResult =
-  | { kind: 'ok'; newCanvasId: string }
-  | { kind: 'not_found' }
-  | { kind: 'forbidden' };
+  { kind: 'ok'; newCanvasId: string } | { kind: 'not_found' } | { kind: 'forbidden' };
 
 type CanvasResizeSourceRow = Pick<CollabRow, 'id' | 'title' | 'created_by'> &
   Pick<SidecarRow, 'template_type' | 'base_template_id' | 'page_count' | 'initial_state'>;

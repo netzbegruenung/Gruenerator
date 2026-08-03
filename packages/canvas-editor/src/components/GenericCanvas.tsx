@@ -42,6 +42,7 @@ import { alignElementX, alignElementY } from '../utils/alignment';
 import { calculateAttributionOverlay } from '../utils/attributionOverlay';
 import { buildCanvasItems, buildSortedRenderList } from '../utils/canvasLayerManager';
 import { captureStageImage } from '../utils/captureStage';
+import { ensureFontsReady } from '../utils/ensureFontsReady';
 import { getOptimalContainerWidth } from '../utils/viewport';
 
 import { CanvasRenderLayer } from './CanvasRenderLayer';
@@ -249,12 +250,30 @@ function GenericCanvasWithRef<
     }
   }, [state, callbacks]);
 
+  // Every family the template actually paints. Derived from the elements rather
+  // than read from `config.fonts.primary` alone: a Konva paint is not a DOM font
+  // usage, so a family nobody preloads is still unloaded at first paint and the
+  // fallback face gets baked into the canvas. Templates whose layout is pure
+  // arithmetic (zitat) never re-render afterwards, so it stays baked in.
+  const canvasFontFamilies = useMemo(() => {
+    const families = new Set<string>();
+    if (config.fonts?.primary) families.add(config.fonts.primary);
+    for (const element of config.elements) {
+      if (element.type !== 'text') continue;
+      // Element families carry a ', Arial, sans-serif' fallback stack — only the
+      // first entry is a webfont we can wait for.
+      const family = element.fontFamily.split(',')[0]?.trim();
+      if (family) families.add(family);
+    }
+    return Array.from(families);
+  }, [config]);
+
   // Font loading - non-blocking! Renders immediately with fallback, swaps to custom font when ready
   const { isFontAvailable } = useFontLoader(
-    config.fonts?.requireFontLoad !== false && config.fonts
+    config.fonts?.requireFontLoad !== false && canvasFontFamilies.length > 0
       ? {
-          fontFamily: config.fonts.primary,
-          fontSize: config.fonts.fontSize,
+          fontFamily: canvasFontFamilies,
+          fontSize: config.fonts?.fontSize ?? 60,
           maxAttempts: 30,
           pollInterval: 50,
         }
@@ -526,6 +545,41 @@ function GenericCanvasWithRef<
     );
   }, [isExporting, state, config.canvas.width, config.canvas.height]);
 
+  /**
+   * Konva berechnet den Zeilenumbruch eines Text-Knotens EINMAL, beim Setzen
+   * seiner Eigenschaften, und legt ihn in `textArr` ab. Ist die Webschrift zu
+   * diesem Zeitpunkt noch nicht geladen, misst es gegen die Ersatzschrift und
+   * behaelt diesen Umbruch, auch wenn die echte Schrift eintrifft: Das Bild
+   * wird dann in der richtigen Schrift mit den falschen Bruechen gezeichnet.
+   * Im Realtest lief „aus Erneuerbaren." so auf drei Zeilen, mit dem Punkt
+   * allein auf der letzten — die Ersatzschrift Georgia ist breiter als
+   * Vollkorn und drueckte ihn ueber das Satzmass.
+   *
+   * `layout` wird an `isFontAvailable` zwar neu berechnet, das rettet aber nur
+   * die Faelle, in denen sich dabei eine Eigenschaft aendert. Bleibt der
+   * Schriftgrad gleich, sieht React identische Props und Konva rechnet nichts
+   * neu. Der Text wird deshalb zweimal gesetzt: Konvas Setter steigt bei
+   * unveraendertem Wert frueh aus, ein einzelnes Setzen waere wirkungslos.
+   *
+   * Nur beim Umschlagen von `isFontAvailable`, nicht bei jeder Neuberechnung
+   * des Layouts: danach misst Konva ohnehin gegen die richtige Schrift, und
+   * ein Zuruecksetzen bei jeder Textaenderung wuerde der laufenden Bearbeitung
+   * in die Quere kommen.
+   */
+  useEffect(() => {
+    if (!isFontAvailable) return;
+    const stage = stageRef.current?.getStage();
+    if (!stage) return;
+    for (const node of stage.find('Text')) {
+      const textNode = node as unknown as { text: (value?: string) => string };
+      const value = textNode.text();
+      if (!value) continue;
+      textNode.text('');
+      textNode.text(value);
+    }
+    stage.batchDraw();
+  }, [isFontAvailable]);
+
   const handleAlign = useCallback(
     (direction: AlignmentDirection) => {
       const selectedElement = store.getState().selectedElement;
@@ -564,7 +618,10 @@ function GenericCanvasWithRef<
       },
       // Transformer hiding replaces the old deselect + 50ms-rerender hack:
       // the user's selection survives a capture.
-      captureCanvas: async () => captureStageImage(stageRef.current),
+      captureCanvas: async () => {
+        await ensureFontsReady();
+        return captureStageImage(stageRef.current);
+      },
       captureCanvasForAi: async () =>
         captureStageImage(stageRef.current, { format: 'jpeg', pixelRatio: 1, quality: 0.85 }),
       undo,

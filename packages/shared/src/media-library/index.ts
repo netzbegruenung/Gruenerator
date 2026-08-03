@@ -52,6 +52,14 @@ export {
   mediaApi,
 } from './api/index.js';
 
+// Provenance — which product made an image (Sharepic vs KI-Bild)
+export {
+  classifyLegacyImageType,
+  isKiImage,
+  type ContentOrigin,
+  type DeclarableContentOrigin,
+} from './contentOrigin.js';
+
 // Responsive thumbnail URL builder
 export {
   buildSharedMediaSrcSet,

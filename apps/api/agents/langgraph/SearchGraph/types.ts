@@ -26,6 +26,7 @@ import type {
   CrawlMetadata,
   SearchOptions,
 } from '../WebSearchGraph/types.js';
+import type { SearchMode } from '@gruenerator/contracts';
 import type { ModelMessage } from 'ai';
 
 // Re-export shared types
@@ -35,8 +36,12 @@ export type { SearchSource, UserLocale, ChatSearchResult, ChatCitation };
  * Search mode determines the pipeline depth.
  * - 'web': Hybrid document + web search with AI summary
  * - 'deep': Full research pipeline (plan → crawl → enrich → dossier)
+ *
+ * Defined by `searchModeSchema` in the contracts package — the same schema that
+ * validates the value on the /api/search-graph/stream request body — so the
+ * closed set lives in one place for API, web and mobile.
  */
-export type SearchMode = 'web' | 'deep';
+export type { SearchMode };
 
 /**
  * Query type classification for search strategy selection.

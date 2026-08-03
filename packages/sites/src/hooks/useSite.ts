@@ -125,7 +125,7 @@ export function useSite() {
       description: string;
       email?: string;
     }): Promise<{ transformed: GeneratedSiteData; raw: AiGeneratedContent }> => {
-      const response = await apiClient.post<{ json: AiGeneratedContent }>('/claude_website', data);
+      const response = await apiClient.post<{ json: AiGeneratedContent }>('/texte/website', data);
       const raw: AiGeneratedContent = response.data.json;
       return { transformed: transformAiResponse(raw), raw };
     },

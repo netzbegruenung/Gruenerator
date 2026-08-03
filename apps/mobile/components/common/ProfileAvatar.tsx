@@ -7,7 +7,7 @@ import { Image } from 'expo-image';
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
-import { colors } from '../../theme';
+import { colors, BODY_FONT } from '../../theme';
 
 interface ProfileAvatarProps {
   avatarRobotId?: string | number;
@@ -91,6 +91,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   initialsText: {
+    fontFamily: BODY_FONT,
     fontWeight: '600',
   },
 });

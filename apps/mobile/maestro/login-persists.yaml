@@ -1,0 +1,38 @@
+# The session survives a full app restart.
+#
+# Regression guard for `83a96bd76 persist login across restarts; harden session
+# restore`. The failure mode was subtle: the app looked logged in until it was
+# killed and relaunched, at which point session restore dropped the user back at
+# the login screen.
+#
+# Note this asserts the *restore* path, not the Keycloak round-trip — the dev
+# bypass stands in for the identity provider. Run without
+# EXPO_PUBLIC_DEV_AUTH_BYPASS to confirm the flow really passes through the gate
+# rather than around it: it must then fail at the first assertion.
+appId: de.gruenerator.app
+---
+# No clearState: these run against a local DEBUG build, where clearing state
+# also wipes the dev-launcher's saved Metro URL and the app relaunches into the
+# launcher instead of itself. The release APK EAS builds has no launcher, so
+# boot-to-login can and does clear state.
+- launchApp:
+    stopApp: true
+- runFlow: _dev-client-preamble.yaml
+
+# Wait rather than assert: a debug build pulls the bundle from Metro on first
+# launch (~10s), and the splash only hands over once fonts and the rehydrated
+# onboarding flag both settle.
+- extendedWaitUntil:
+    visible: 'Chat'
+    timeout: 60000
+- assertNotVisible:
+    id: 'login-open'
+
+# Kill and relaunch WITHOUT clearing state — the stored session must survive.
+- stopApp
+- launchApp:
+    clearState: false
+
+- assertVisible: 'Chat'
+- assertNotVisible:
+    id: 'login-open'

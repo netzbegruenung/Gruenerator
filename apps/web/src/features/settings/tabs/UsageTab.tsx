@@ -1,0 +1,421 @@
+/**
+ * "Nutzung" — what this account has consumed.
+ *
+ * Shows real numbers rather than an abstract quota: requests and tokens per
+ * day, broken down by tool and by model, plus the non-token operations
+ * (generated images, transcriptions, web researches). The daily chart is plain
+ * CSS bars — a charting library would be a lot of bundle for ten numbers.
+ */
+import { type UsageFeature, type UsageFootprintDto } from '@gruenerator/contracts';
+import { type QueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+
+import { getDocsUrl } from '../../../utils/docsUrl';
+import { SettingsStatsSkeleton } from '../components/SettingsSkeleton';
+import { usageStatsQuery, useUsageStats } from '../hooks/useUsageStats';
+
+/** The range the tab opens on — also the one worth prefetching. */
+const DEFAULT_DAYS = 30;
+
+export const prefetch = (queryClient: QueryClient) => {
+  void queryClient.prefetchQuery(usageStatsQuery(DEFAULT_DAYS));
+};
+
+const RANGES = [
+  { days: 7, label: '7 Tage' },
+  { days: 30, label: '30 Tage' },
+  { days: 90, label: '90 Tage' },
+] as const;
+
+const FEATURE_LABELS: Record<UsageFeature, string> = {
+  chat: 'Chat',
+  docs: 'Dokumente',
+  sheets: 'Tabellen',
+  presentations: 'Präsentationen',
+  boards: 'Boards',
+  sharepic: 'Sharepics & Bilder',
+  subtitler: 'Untertitel',
+  search: 'Suche & Recherche',
+  monitor: 'Monitor',
+  sites: 'Websites',
+  texte: 'Texte',
+  notebook: 'Notebooks',
+  other: 'Sonstiges',
+};
+
+const UNIT_LABELS: Record<string, string> = {
+  tokens: 'Tokens',
+  images: 'Bilder',
+  transcriptions: 'Transkriptionen',
+  searches: 'Recherchen',
+};
+
+const numberFormat = new Intl.NumberFormat('de-DE');
+
+function formatCount(value: number): string {
+  return numberFormat.format(value);
+}
+
+/** Long token counts get an abbreviated form so the tiles stay readable. */
+function formatTokens(value: number): string {
+  if (value >= 1_000_000) return `${numberFormat.format(Math.round(value / 100_000) / 10)} Mio.`;
+  if (value >= 10_000) return `${numberFormat.format(Math.round(value / 1000))} Tsd.`;
+  return numberFormat.format(value);
+}
+
+const oneDecimal = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 1 });
+const twoDecimals = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 });
+
+/** Footprints span four orders of magnitude between a trial and a heavy month. */
+function formatGrams(grams: number): string {
+  if (grams >= 1000) return `${twoDecimals.format(grams / 1000)} kg`;
+  if (grams >= 1) return `${oneDecimal.format(grams)} g`;
+  return `${numberFormat.format(Math.round(grams * 1000))} mg`;
+}
+
+function formatEnergy(wh: number): string {
+  if (wh >= 1000) return `${twoDecimals.format(wh / 1000)} kWh`;
+  return `${oneDecimal.format(wh)} Wh`;
+}
+
+/**
+ * Average CO2 of the German car fleet, g/km (UBA). Only ever used to make an
+ * abstract milligram figure imaginable — never as a claim of its own.
+ */
+const CAR_G_PER_KM = 150;
+
+function carComparison(grams: number): string {
+  const metres = (grams / CAR_G_PER_KM) * 1000;
+  if (metres >= 1000) return `${oneDecimal.format(metres / 1000)} km Autofahrt`;
+  return `${numberFormat.format(Math.round(metres))} m Autofahrt`;
+}
+
+function formatDay(day: string): string {
+  const date = new Date(`${day}T00:00:00Z`);
+  return Number.isNaN(date.getTime())
+    ? day
+    : date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+}
+
+function StatTile({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <div className="flex flex-col gap-1 rounded-xl border border-grey-200 bg-background p-md dark:border-grey-700">
+      <span className="text-xs text-grey-500">{label}</span>
+      <span className="text-xl font-semibold text-foreground-heading">{value}</span>
+      {hint && <span className="text-xs text-grey-500">{hint}</span>}
+    </div>
+  );
+}
+
+/**
+ * "What if you had used ChatGPT instead."
+ *
+ * Deliberately reports both directions. On CO2 the European lanes win by a
+ * factor of roughly 2-5, but on raw electricity our default Mistral Medium
+ * needs MORE than GPT-4o reportedly does — the advantage comes from the French
+ * grid, not from our engineering. A block that showed only the flattering half
+ * would be the exact kind of claim this whole feature exists to avoid.
+ */
+function ReferenceComparison({ footprint }: { footprint: UsageFootprintDto }) {
+  // Text only on both sides. The reference costs the same TOKENS on GPT-4o and
+  // has no image half at all, so comparing it against a total that includes
+  // Flux would invent a saving out of an accounting mismatch.
+  const textEmissions = footprint.emissions_g - footprint.image_emissions_g;
+  const textEnergy = footprint.energy_wh - footprint.image_energy_wh;
+  const co2Factor = textEmissions > 0 ? footprint.reference_emissions_g / textEmissions : 0;
+  const energyFactor = textEnergy > 0 ? footprint.reference_energy_wh / textEnergy : 0;
+  if (co2Factor <= 0) return null;
+
+  return (
+    <section className="flex flex-col gap-sm rounded-xl border border-grey-200 p-md dark:border-grey-700">
+      <h3 className="m-0 text-sm font-semibold text-foreground-heading">
+        Was dieselbe Arbeit mit ChatGPT gekostet hätte
+      </h3>
+      <div className="grid grid-cols-2 gap-sm">
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-grey-500">CO₂</span>
+          <span className="text-lg font-semibold text-foreground-heading">
+            ≈ {formatGrams(footprint.reference_emissions_g)}
+          </span>
+          <span className="text-xs text-grey-500">
+            statt {formatGrams(textEmissions)} — {oneDecimal.format(co2Factor)}× so viel
+          </span>
+        </div>
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-grey-500">Energie</span>
+          <span className="text-lg font-semibold text-foreground-heading">
+            ≈ {formatEnergy(footprint.reference_energy_wh)}
+          </span>
+          <span className="text-xs text-grey-500">
+            statt {formatEnergy(textEnergy)} —{' '}
+            {energyFactor >= 1
+              ? `${oneDecimal.format(energyFactor)}× so viel`
+              : `${oneDecimal.format(1 / energyFactor)}× weniger als bei uns`}
+          </span>
+        </div>
+      </div>
+      <p className="m-0 text-xs leading-relaxed text-grey-500">
+        Geschätzt nach Jegham et al. (2025) für GPT-4o — die einzige veröffentlichte Rechnung mit
+        derselben Systemgrenze wie unserer: nur Betriebsstrom, kein Training, keine
+        Hardware-Herstellung. Nur Text: für erzeugte Bilder gibt es keine vergleichbar sauber
+        abgegrenzte OpenAI-Zahl, deshalb bleiben sie hier außen vor.{' '}
+        {energyFactor < 1
+          ? 'Beim Strom liegen wir hier hinten; unser CO₂-Vorteil kommt vom französischen Netz, nicht von sparsamerer Technik. '
+          : ''}
+        Die GPT-4o-Zahl ist selbst nur eine Schätzung — OpenAI veröffentlicht nichts, sie wurde aus
+        Antwortzeiten und GPU-Datenblättern erschlossen.
+      </p>
+    </section>
+  );
+}
+
+/**
+ * The number above is part measurement, part extrapolation, and covers only the
+ * text models. Saying so is not optional garnish — an unqualified CO2 figure on
+ * a Green party's tool is exactly the kind of claim that gets checked.
+ */
+function FootprintNote({ footprint }: { footprint: UsageFootprintDto }) {
+  const measuredPct = Math.round(footprint.measured_share * 100);
+  const boundedPct = Math.round(footprint.bounded_share * 100);
+  const coveredPct = Math.round(footprint.covered_share * 100);
+  return (
+    <p className="m-0 rounded-xl border border-grey-200 p-md text-xs leading-relaxed text-grey-500 dark:border-grey-700">
+      {measuredPct > 0
+        ? `${formatCount(measuredPct)} % dieser Zahl sind Messwerte, die unser Anbieter GreenPT mitliefert. Der Rest ist `
+        : 'Die Zahl ist '}
+      aus deinen Token-Zahlen hochgerechnet — mit Energiewerten, die an genau denselben Modellen
+      gemessen wurden.{' '}
+      {boundedPct > 0 && (
+        <>
+          Für {formatCount(boundedPct)} % gibt es kein messbares Gegenstück; dort rechnen wir
+          bewusst mit der <strong>Obergrenze</strong> der gemessenen Spanne, damit die Zahl eher zu
+          hoch als zu niedrig ausfällt.{' '}
+        </>
+      )}
+      {coveredPct < 100 && (
+        <>Erfasst sind {formatCount(coveredPct)} % der erzeugten Tokens im Zeitraum. </>
+      )}
+      Erzeugte Tokens bestimmen den Verbrauch, gesendete kosten 100- bis 760-mal weniger.{' '}
+      {footprint.image_emissions_g > 0 && (
+        <>
+          Erzeugte Bilder sind mit veröffentlichten Messungen an denselben Diffusionsmodellen
+          angesetzt (Iyengar et al., 2025) — dort ist der Aufschlag für Rechenzentrumstechnik unsere
+          eigene, bewusst großzügige Annahme.{' '}
+        </>
+      )}
+      Transkription und Web-Recherche fehlen, weil dafür keine Messwerte vorliegen.{' '}
+      <a
+        href={`${getDocsUrl()}/docs/ueber-den-gruenerator/nachhaltigkeit`}
+        target="_blank"
+        rel="noreferrer"
+        className="underline hover:text-foreground"
+      >
+        Wie wir rechnen
+      </a>
+    </p>
+  );
+}
+
+export default function UsageTab() {
+  const [days, setDays] = useState<number>(DEFAULT_DAYS);
+  const { data, isPending, isError } = useUsageStats(days);
+
+  if (isPending) return <SettingsStatsSkeleton />;
+
+  if (isError || !data) {
+    return (
+      <p className="m-0 text-sm text-grey-500">
+        Die Nutzungsdaten konnten nicht geladen werden. Bitte versuche es später erneut.
+      </p>
+    );
+  }
+
+  const { totals, footprint, daily, byFeature, byModel } = data;
+  const maxDayTokens = daily.reduce((max, d) => Math.max(max, d.input_tokens + d.output_tokens), 0);
+  const hasAnything = totals.requests > 0 || totals.images > 0 || totals.transcriptions > 0;
+
+  return (
+    <div className="flex flex-col gap-lg">
+      <div className="flex flex-wrap items-center justify-between gap-sm">
+        <p className="m-0 text-sm text-grey-500">
+          Dein Verbrauch über die letzten {days} Tage. Die Zahlen aktualisieren sich wenige Sekunden
+          nach einer Anfrage.
+        </p>
+        <div className="flex shrink-0 gap-1 rounded-lg border border-grey-200 p-1 dark:border-grey-700">
+          {RANGES.map((range) => (
+            <button
+              key={range.days}
+              type="button"
+              onClick={() => setDays(range.days)}
+              className={`rounded-md px-2 py-1 text-xs transition-colors ${
+                days === range.days
+                  ? 'bg-background-alt font-semibold text-foreground'
+                  : 'text-grey-500 hover:text-foreground'
+              }`}
+            >
+              {range.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {!hasAnything ? (
+        <p className="m-0 rounded-xl border border-dashed border-grey-300 p-lg text-sm text-grey-500 dark:border-grey-700">
+          In diesem Zeitraum wurde noch nichts verbraucht.
+        </p>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-sm md:grid-cols-3">
+            <StatTile label="KI-Anfragen" value={formatCount(totals.requests)} />
+            <StatTile
+              label="Tokens gesamt"
+              value={formatTokens(totals.total_tokens)}
+              hint={`${formatTokens(totals.input_tokens)} rein · ${formatTokens(totals.output_tokens)} raus`}
+            />
+            <StatTile label="Bilder" value={formatCount(totals.images)} />
+            <StatTile label="Transkriptionen" value={formatCount(totals.transcriptions)} />
+            <StatTile label="Web-Recherchen" value={formatCount(totals.searches)} />
+            {footprint.emissions_g > 0 && (
+              <StatTile
+                label="CO₂ deiner KI-Nutzung"
+                value={`≈ ${formatGrams(footprint.emissions_g)}`}
+                hint={
+                  // A single generated image outweighs several hundred chat
+                  // turns, so where the number comes from matters more than the
+                  // number: without the split people optimise the wrong thing.
+                  footprint.image_emissions_g > 0
+                    ? `davon ${formatGrams(footprint.image_emissions_g)} aus Bildern · so viel wie ${carComparison(footprint.emissions_g)}`
+                    : `${formatEnergy(footprint.energy_wh)} · so viel wie ${carComparison(footprint.emissions_g)}`
+                }
+              />
+            )}
+          </div>
+
+          {footprint.emissions_g > 0 && (
+            <>
+              <ReferenceComparison footprint={footprint} />
+              <FootprintNote footprint={footprint} />
+            </>
+          )}
+
+          <section className="flex flex-col gap-sm">
+            <h3 className="m-0 text-sm font-semibold text-foreground-heading">Tokens pro Tag</h3>
+            {maxDayTokens === 0 ? (
+              <p className="m-0 text-sm text-grey-500">Keine Token-Nutzung im Zeitraum.</p>
+            ) : (
+              <div className="flex h-40 items-end gap-[2px] overflow-x-auto rounded-xl border border-grey-200 p-sm dark:border-grey-700">
+                {daily.map((entry) => {
+                  const total = entry.input_tokens + entry.output_tokens;
+                  const heightPct = Math.max(2, Math.round((total / maxDayTokens) * 100));
+                  const outputPct = total > 0 ? Math.round((entry.output_tokens / total) * 100) : 0;
+                  return (
+                    <div
+                      key={entry.day}
+                      className="flex min-w-[6px] flex-1 flex-col justify-end"
+                      style={{ height: '100%' }}
+                      title={`${formatDay(entry.day)}: ${formatCount(total)} Tokens (${formatCount(entry.requests)} Anfragen)`}
+                    >
+                      <div
+                        className="flex w-full flex-col justify-end overflow-hidden rounded-sm bg-primary/30"
+                        style={{ height: `${heightPct}%` }}
+                      >
+                        <div className="w-full bg-primary" style={{ height: `${outputPct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <p className="m-0 text-xs text-grey-500">
+              Dunkel = erzeugte Tokens, hell = gesendete Tokens.
+            </p>
+          </section>
+
+          <section className="flex flex-col gap-sm">
+            <h3 className="m-0 text-sm font-semibold text-foreground-heading">Nach Bereich</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[28rem] text-sm">
+                <thead>
+                  <tr className="border-b border-grey-200 text-left text-xs text-grey-500 dark:border-grey-700">
+                    <th className="py-1 font-normal">Bereich</th>
+                    <th className="py-1 text-right font-normal">Anfragen</th>
+                    <th className="py-1 text-right font-normal">Tokens</th>
+                    <th className="py-1 text-right font-normal">Sonstiges</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {byFeature.map((entry) => {
+                    const extras = [
+                      entry.images ? `${formatCount(entry.images)} Bilder` : null,
+                      entry.transcriptions
+                        ? `${formatCount(entry.transcriptions)} Transkriptionen`
+                        : null,
+                      entry.searches ? `${formatCount(entry.searches)} Recherchen` : null,
+                    ].filter(Boolean);
+                    return (
+                      <tr
+                        key={entry.feature}
+                        className="border-b border-grey-100 last:border-0 dark:border-grey-800"
+                      >
+                        <td className="py-1.5">{FEATURE_LABELS[entry.feature] ?? entry.feature}</td>
+                        <td className="py-1.5 text-right tabular-nums">
+                          {formatCount(entry.requests)}
+                        </td>
+                        <td className="py-1.5 text-right tabular-nums">
+                          {formatCount(entry.total_tokens)}
+                        </td>
+                        <td className="py-1.5 text-right text-xs text-grey-500">
+                          {extras.length ? extras.join(' · ') : '—'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section className="flex flex-col gap-sm">
+            <h3 className="m-0 text-sm font-semibold text-foreground-heading">Nach Modell</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[28rem] text-sm">
+                <thead>
+                  <tr className="border-b border-grey-200 text-left text-xs text-grey-500 dark:border-grey-700">
+                    <th className="py-1 font-normal">Modell</th>
+                    <th className="py-1 font-normal">Anbieter</th>
+                    <th className="py-1 text-right font-normal">Anfragen</th>
+                    <th className="py-1 text-right font-normal">Menge</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {byModel.map((entry) => (
+                    <tr
+                      key={`${entry.provider}|${entry.model}|${entry.unit}`}
+                      className="border-b border-grey-100 last:border-0 dark:border-grey-800"
+                    >
+                      <td className="py-1.5">{entry.model}</td>
+                      <td className="py-1.5 text-grey-500">{entry.provider}</td>
+                      <td className="py-1.5 text-right tabular-nums">
+                        {formatCount(entry.unit === 'tokens' ? entry.requests : entry.ops)}
+                      </td>
+                      <td className="py-1.5 text-right tabular-nums">
+                        {entry.unit === 'tokens'
+                          ? `${formatCount(entry.total_tokens)} Tokens`
+                          : `${formatCount(entry.ops)} ${UNIT_LABELS[entry.unit] ?? entry.unit}`}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </>
+      )}
+
+      <p className="m-0 text-xs text-grey-500">
+        Erfasst werden Anfragen an KI-Modelle sowie erzeugte Bilder, Transkriptionen und
+        Web-Recherchen. Automatische Hintergrundprozesse zählen nicht mit.
+      </p>
+    </div>
+  );
+}

@@ -10,7 +10,7 @@
 import { type SerializableCitation } from '../components/tool-ui/citation/schema';
 
 import { formatNamespacedToolLabel } from './toolMappings';
-import { extractDomain, faviconFromHostname, getHostname } from './urlUtils';
+import { extractDomain, getHostname } from './urlUtils';
 
 import type {
   ExampleSnippet,
@@ -105,9 +105,11 @@ export interface ToolMeta {
 const TOOL_METADATA: Record<string, ToolMeta> = {
   search_sources: { label: 'Quellen', iconKey: 'search' },
   gruenerator_search: { label: 'Dokumente', iconKey: 'search' },
+  gruenerator_docs_search: { label: 'Anleitungen', iconKey: 'book' },
   gruenerator_person_search: { label: 'Person', iconKey: 'user' },
   gruenerator_examples_search: { label: 'Beispiele', iconKey: 'image' },
   web_search: { label: 'Websuche', iconKey: 'globe' },
+  bundestag: { label: 'Bundestag (DIP)', iconKey: 'book' },
   research: { label: 'Deep Research', iconKey: 'book' },
   generate_image: { label: 'Bild', iconKey: 'sparkles' },
   scrape_url: { label: 'URL', iconKey: 'external-link' },
@@ -128,6 +130,8 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
   groups: { label: 'Gruppen', iconKey: 'user' },
   media: { label: 'Medien', iconKey: 'image' },
   notebooks: { label: 'Notizbücher', iconKey: 'book' },
+  read_pdf_form: { label: 'Formularfelder', iconKey: 'file' },
+  fill_pdf_form: { label: 'Formular ausfüllen', iconKey: 'file' },
 };
 
 export function getToolMeta(toolName: string): ToolMeta {
@@ -166,7 +170,6 @@ export function toSerializableCitation(
       getString(item, 'excerpt') ||
       undefined,
     domain,
-    favicon: domain ? faviconFromHostname(domain) : undefined,
     type: typeHint,
   };
 }
@@ -252,7 +255,6 @@ export function researchCitationToSerializable(c: ResearchCitation): Serializabl
     href: c.url,
     ...(c.snippet ? { snippet: c.snippet } : {}),
     ...(domain ? { domain } : {}),
-    ...(domain ? { favicon: faviconFromHostname(domain) } : {}),
   };
 }
 
@@ -261,8 +263,17 @@ export function extractHeadings(markdown: string): string[] {
   if (!markdown) return [];
   const out: string[] = [];
   for (const line of markdown.split('\n')) {
-    const m = line.match(/^##\s+(.+?)\s*$/);
-    if (m) out.push(m[1].trim());
+    // Sliced rather than matched: `/^##\s+(.+?)\s*$/` lets `\s+`, `.+?` and
+    // `\s*` split the same whitespace run several ways, which is quadratic in
+    // the line length (CodeQL js/polynomial-redos).
+    //
+    // Deliberately equivalent down to the corner cases, including the odd one:
+    // `##` plus two or more blanks still yields an empty heading, because the
+    // old `.+?` could consume a blank. `###` and `##x` still do not match (the
+    // character after `##` has to be whitespace) and neither does `## ` (the
+    // old `.+?` needed a character of its own).
+    if (!line.startsWith('##') || line.length < 4 || !/^\s/.test(line.charAt(2))) continue;
+    out.push(line.slice(2).trim());
     if (out.length >= 6) break;
   }
   return out;
@@ -405,4 +416,4 @@ export function formatGermanDate(iso: string | null | undefined): string | null 
 }
 
 // Re-export so callers needing raw URL helpers don't reach past this module.
-export { extractDomain, getHostname, faviconFromHostname };
+export { extractDomain, getHostname };

@@ -3,9 +3,10 @@
 import { memo, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+
 import { useCitations } from '../context/CitationContext';
-import { escapeCitationMarkers } from '../lib/citationProcessing';
 import { makeCitationComponents } from '../lib/citationMarkdownComponents';
+import { escapeCitationMarkers } from '../lib/citationProcessing';
 
 const remarkPlugins = [remarkGfm];
 

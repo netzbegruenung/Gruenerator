@@ -8,6 +8,7 @@
  */
 
 import { getLinkupService } from '../../../../services/search/LinkupService.js';
+import { toUserFacingMessage } from '../../../../utils/errors/index.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { buildCitations } from '../../ChatGraph/nodes/searchNode.js';
 import { aggregatorNode } from '../../WebSearchGraph/nodes/AggregatorNode.js';
@@ -78,7 +79,7 @@ async function searchViaLinkup(state: WebSearchState): Promise<Partial<WebSearch
           success: false,
           provider: 'linkup',
           results: [],
-          error: err instanceof Error ? err.message : String(err),
+          error: toUserFacingMessage(err),
         };
       }
     })
@@ -299,8 +300,10 @@ export async function deepResearchNodeLegacy(
 }
 
 /**
- * Deep research via Linkup's `/search?depth=deep` API. Returns a synthesized
- * answer plus cited sources in one call — replaces our planner → searxng →
+ * Deep research via Linkup's `webSearch` at `depth: 'deep'` — same search
+ * depth as `deepResearch`, but `outputType: 'searchResults'` instead of
+ * `sourcedAnswer`, so we get the same sources without paying for (and
+ * discarding) an LLM-written answer. Replaces our planner → searxng →
  * crawler → enricher → aggregator chain (now `deepResearchNodeLegacy`).
  *
  * Grundsatz (party-document) search runs in parallel against our internal
@@ -326,15 +329,18 @@ export async function deepResearchNode(
 
   log.info(`[DeepResearch] Starting Linkup deep research: "${state.searchQuery.substring(0, 80)}"`);
 
-  const linkupLocale: 'de' | 'at' = state.userLocale === 'de-AT' ? 'at' : 'de';
   const webState = toWebSearchState(state);
 
   emitProgress('searching', 'Linkup recherchiert das Web...');
   emitProgress('grundsatz', 'Durchsuche Parteiprogramme...');
 
   const [linkupResult, grundsatzResult] = await Promise.all([
+    // `depth: 'deep'` keeps the search itself unchanged; `webSearch` (searchResults
+    // output) replaces `deepResearch` (sourcedAnswer output) so we stop paying for
+    // an LLM-written answer we never read — only `res.sources`/`res.results` below
+    // ever left this function.
     linkup
-      .deepResearch({ question: state.searchQuery, locale: linkupLocale })
+      .webSearch({ query: state.searchQuery, depth: 'deep', maxResults: 20 })
       .catch((err: unknown) => {
         log.warn(`[DeepResearch] Linkup failed: ${errorMessage(err)}`);
         return null;
@@ -357,13 +363,13 @@ export async function deepResearchNode(
   const seenUrls = new Set<string>();
   const searchResults: ChatSearchResult[] = [];
 
-  for (const src of linkupResult.sources) {
+  for (const src of linkupResult.results) {
     if (!src.url || seenUrls.has(src.url)) continue;
     seenUrls.add(src.url);
     searchResults.push({
       source: 'deep-research',
       title: src.name || 'Unbekannt',
-      content: src.snippet || '',
+      content: src.content || '',
       url: src.url,
       relevance: 0.85,
     });
@@ -390,9 +396,7 @@ export async function deepResearchNode(
   const citations = buildCitations(trimmed);
 
   const searchTimeMs = Date.now() - start;
-  log.info(
-    `[DeepResearch] Linkup complete: ${trimmed.length} sources, answer=${linkupResult.answer.length} chars in ${searchTimeMs}ms`
-  );
+  log.info(`[DeepResearch] Linkup complete: ${trimmed.length} sources in ${searchTimeMs}ms`);
 
   return {
     searchResults: trimmed,

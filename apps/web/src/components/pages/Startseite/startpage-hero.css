@@ -1,8 +1,7 @@
-/* Full-screen "sunrise" hero for the public start page.
-   Theme-aware via the app's [data-theme] tokens (variables.css). The resting
-   backdrop is a soft green radial; opening the login crossfades it to warm
-   yellow. Both layers are fixed (Home renders in the noChrome layout, so there
-   is no transform ancestor and position:fixed behaves). */
+/* Full-screen backdrop for the public start page.
+   Theme-aware via the app's [data-theme] tokens (variables.css). The layer is
+   fixed (Home renders in the noChrome layout, so there is no transform ancestor
+   and position:fixed behaves). */
 
 @property --sp-sunrise-y {
   syntax: '<percentage>';
@@ -15,10 +14,23 @@
   initial-value: 1;
 }
 
-/* ── Backdrop: warm chat-tab glow at rest, yellow while the login is open ──
-   Geometry, color, strength and the entrance are copied 1:1 from the
-   workplace chat-tab sunrise (.workplace-chat-sunrise in
-   workplace-sunrise.css) — only the custom-property names differ. */
+/* ── Backdrop: Regenbogen ──
+   The same five glows the chat start wears as `regenbogen`
+   (.workplace-chat-bg--regenbogen in workplace-sunrise.css). Copied rather than
+   shared, which is what this file already did with the backdrops before it: the
+   two surfaces have different entrances (Home fades the whole layer in) and are
+   free to drift. Change one on purpose, not by accident — but do look at the
+   other.
+
+   Five pastels fanned across the x-axis at equal strength. Each layer reaches
+   0 at 70 % of its radius, so the fan is a band at --sp-sunrise-y rather than a
+   full-bleed wash — the headline and the two buttons sit in it, on colour that
+   nowhere exceeds 0.34 alpha.
+
+   Every layer threads --sp-sunrise-y and --sp-sunrise-glow, so the entrance
+   lifts the band and fades it up together. That is what the Nebel-Familie could
+   not do — its cloud centres are placed and lifting them drags them out of the
+   frame — and why the y-shift is back. */
 .sp-sunrise {
   position: fixed;
   inset: 0;
@@ -26,46 +38,49 @@
   pointer-events: none;
   --sp-sunrise-opacity: 1;
   opacity: var(--sp-sunrise-opacity);
-  background-color: #fefcf5;
-  background-image: radial-gradient(
-    88% 58% at 50% var(--sp-sunrise-y),
-    rgb(233 214 150 / calc(0.5 * var(--sp-sunrise-glow))) 0%,
-    rgb(233 214 150 / calc(0.18 * var(--sp-sunrise-glow))) 40%,
-    rgb(255 255 255 / 0) 74%
-  );
+  background-color: #fdfaf7;
+  background-image:
+    radial-gradient(
+      44% 56% at 10% var(--sp-sunrise-y),
+      rgb(240 130 145 / calc(0.34 * var(--sp-sunrise-glow))) 0%,
+      rgb(240 130 145 / 0) 70%
+    ),
+    radial-gradient(
+      44% 56% at 30% var(--sp-sunrise-y),
+      rgb(243 195 110 / calc(0.34 * var(--sp-sunrise-glow))) 0%,
+      rgb(243 195 110 / 0) 70%
+    ),
+    radial-gradient(
+      44% 56% at 50% var(--sp-sunrise-y),
+      rgb(146 205 141 / calc(0.34 * var(--sp-sunrise-glow))) 0%,
+      rgb(146 205 141 / 0) 70%
+    ),
+    radial-gradient(
+      44% 56% at 70% var(--sp-sunrise-y),
+      rgb(126 176 230 / calc(0.34 * var(--sp-sunrise-glow))) 0%,
+      rgb(126 176 230 / 0) 70%
+    ),
+    radial-gradient(
+      44% 56% at 90% var(--sp-sunrise-y),
+      rgb(179 141 219 / calc(0.34 * var(--sp-sunrise-glow))) 0%,
+      rgb(179 141 219 / 0) 70%
+    );
   animation: sp-sunrise-in 2.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
+
+/* Dark: the same fan, dimmed to 0.09 — the level the one-tint presets sit at
+   after dark. Falls through to the theme background rather than setting its own
+   ground: there is no veil here that needs a specific colour under it, and the
+   glows are light laid over the page. */
 [data-theme='dark'] .sp-sunrise {
   background-color: transparent;
-  background-image: radial-gradient(
-    88% 58% at 50% 52%,
-    rgb(233 214 150 / 0.1) 0%,
-    rgb(233 214 150 / 0.035) 42%,
-    rgb(0 0 0 / 0) 74%
-  );
+  background-image:
+    radial-gradient(44% 56% at 10% 52%, rgb(240 130 145 / 0.09) 0%, rgb(240 130 145 / 0) 70%),
+    radial-gradient(44% 56% at 30% 52%, rgb(243 195 110 / 0.09) 0%, rgb(243 195 110 / 0) 70%),
+    radial-gradient(44% 56% at 50% 52%, rgb(146 205 141 / 0.09) 0%, rgb(146 205 141 / 0) 70%),
+    radial-gradient(44% 56% at 70% 52%, rgb(126 176 230 / 0.09) 0%, rgb(126 176 230 / 0) 70%),
+    radial-gradient(44% 56% at 90% 52%, rgb(179 141 219 / 0.09) 0%, rgb(179 141 219 / 0) 70%);
   animation: none;
-}
-
-.sp-sunrise-warm {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  opacity: 0;
-  background: radial-gradient(
-    130% 95% at 50% 50%,
-    #ffe14d 0%,
-    #ffe98f 14%,
-    rgba(255, 236, 0, 0.22) 55%,
-    transparent 78%
-  );
-  transition: opacity 1.2s ease;
-}
-.sp-sunrise-warm.is-on {
-  opacity: 1;
-}
-[data-theme='dark'] .sp-sunrise-warm.is-on {
-  opacity: 0.4;
 }
 
 @keyframes sp-sunrise-in {
@@ -151,8 +166,7 @@
   align-items: center;
   gap: 14px;
 }
-.sp-cta-row,
-.sp-providers {
+.sp-cta-row {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -232,26 +246,73 @@
   outline-offset: 4px;
 }
 
-/* Ghost "Zurück" under the provider buttons */
-.sp-back {
+/* Ghost toggle under the CTA: Login goes straight to the detected provider, this
+   opens the full list for everyone whose provider we guessed wrong. */
+.sp-provider-toggle {
+  margin-top: -6px;
   font-family: 'PT Sans', Arial, sans-serif;
   font-weight: 700;
-  font-size: 0.92rem;
+  font-size: 0.85rem;
   color: var(--font-color);
-  opacity: 0.66;
+  opacity: 0.6;
   background: transparent;
   border: none;
   padding: 4px 8px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
   cursor: pointer;
   transition: opacity 0.2s ease;
 }
-.sp-back:hover {
+.sp-provider-toggle:hover {
   opacity: 1;
 }
-.sp-back:focus-visible {
+.sp-provider-toggle:focus-visible {
   outline: 2px solid var(--font-color-h);
   outline-offset: 3px;
   border-radius: 8px;
+}
+
+.sp-provider-list {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  width: 100%;
+  max-width: 380px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  animation: sp-provider-list-in 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.sp-provider-list .sp-provider {
+  width: 100%;
+  justify-content: flex-start;
+  font-size: 0.95rem;
+  padding: 12px 22px;
+  text-align: left;
+}
+.sp-provider[aria-current='true'] {
+  outline: 2px solid var(--primary-500, #008939);
+  outline-offset: 2px;
+}
+.sp-provider-logo {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  object-fit: contain;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+@keyframes sp-provider-list-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .sp-hint {
@@ -342,7 +403,7 @@
   /* Stack the CTA full-width; the outlined "Mehr erfahren" drops out on phone
      (the bottom chevron already handles scroll-to-content). */
   .sp-cta-row,
-  .sp-providers {
+  .sp-provider-list {
     flex-direction: column;
     align-items: stretch;
     gap: 12px;
@@ -380,8 +441,8 @@
     --sp-sunrise-glow: 1;
     opacity: var(--sp-sunrise-opacity);
   }
-  .sp-sunrise-warm {
-    transition: none;
+  .sp-provider-list {
+    animation: none;
   }
   .sp-cue-chev {
     animation: none;

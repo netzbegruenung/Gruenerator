@@ -1,8 +1,31 @@
+/**
+ * LITERAL MIRROR of config/toolRegistry.ts — edit tools THERE first.
+ *
+ * The docs generators (documentation/scripts/generate-ui-labels.mjs and
+ * generate-tool-catalog.mjs) AST-parse this file and require plain array
+ * literals, so these values cannot be derived at runtime. The mirror is kept in
+ * lockstep with the registry twice over: `satisfies` pins every id to a
+ * registry id, and toolRegistry.vitest.ts asserts each array deep-equals its
+ * registry-derived counterpart.
+ */
+import { isChannelVisibleIn, type InstanceChannel } from '@gruenerator/shared/instances';
 import { RiSpyLine } from 'react-icons/ri';
 
 import { getIcon } from './icons';
+import { CURRENT_INSTANCE } from './instance';
 
 import type { IconType } from './icons';
+import type { OfficeCreateKind, OfficeSuiteActionId, ToolId } from './toolRegistry';
+
+export { type OfficeCreateKind } from './toolRegistry';
+
+type RegisteredTile = WorkplaceToolItem & { id: ToolId };
+type RegisteredMenuItem = WorkplaceToolMenuItem & { id: ToolId };
+type RegisteredMenu = Omit<WorkplaceToolMenu, 'items'> & {
+  id: ToolId;
+  items: RegisteredMenuItem[];
+};
+type RegisteredSuiteTool = OfficeSuiteTool & { id: OfficeSuiteActionId };
 
 export interface WorkplaceToolItem {
   id: string;
@@ -13,7 +36,7 @@ export interface WorkplaceToolItem {
   /** External URL (rendered as a new-tab anchor). Mutually exclusive with `path`. */
   href?: string;
   icon: IconType;
-  devOnly?: boolean;
+  channel?: InstanceChannel;
 }
 
 /** A single entry inside a dropdown tool card. Rendered as a tool-card row. */
@@ -63,11 +86,7 @@ export const OFFICE_TOOLS: WorkplaceToolItem[] = [
     path: '/wissen',
     icon: getIcon('navigation', 'notebooks')!,
   },
-];
-
-/** What an office-suite tile does when clicked: create a blank resource, or open
- * the template gallery. */
-export type OfficeCreateKind = 'doc' | 'board' | 'sheet' | 'pres' | 'gallery';
+] satisfies RegisteredTile[];
 
 /** An action tile on the /office landing page. Unlike WorkplaceToolItem these
  * don't navigate to a page — they create an empty resource (or open the template
@@ -120,7 +139,7 @@ export const OFFICE_SUITE_TOOLS: OfficeSuiteTool[] = [
     icon: getIcon('navigation', 'presentations')!,
     create: 'pres',
   },
-];
+] satisfies RegisteredSuiteTool[];
 
 // Tools surfaced on the /studio (Bilder & Videos) landing page. KI-Bilder now
 // lives in the unified Bild-Editor; Reels moved here from the Arbeiten tab.
@@ -153,7 +172,7 @@ export const CANVAS_TOOLS: WorkplaceToolItem[] = [
     path: '/studio/video',
     icon: getIcon('navigation', 'reel')!,
   },
-];
+] satisfies RegisteredTile[];
 
 const NEWSLETTER_URL =
   'https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW';
@@ -165,18 +184,18 @@ export const WORKPLACE_TOOLS: WorkplaceToolItem[] = [
   {
     id: 'agents',
     title: 'Agentura',
-    description: 'Grüneratoren & Skills',
+    description: 'Grüneratoren & Rezepte',
     path: '/agentura',
     icon: RiSpyLine,
   },
   {
-    id: 'spaces',
-    title: 'Spaces',
+    id: 'projekte',
+    title: 'Projekte',
     description: 'Chats & Inhalte bündeln',
-    path: '/gruppen',
-    icon: getIcon('navigation', 'gruppen')!,
+    path: '/projekte',
+    icon: getIcon('navigation', 'projekte')!,
   },
-];
+] satisfies RegisteredTile[];
 
 // Single "Weitere" dropdown tile (Verbinden merged in) — the utility tools plus
 // the connect options under one roof. Rendered as a tile in the Office strip.
@@ -224,10 +243,10 @@ export const TOOL_MENUS: WorkplaceToolMenu[] = [
       },
     ],
   },
-];
+] satisfies RegisteredMenu[];
 
 export function filterWorkplaceTools(tools: WorkplaceToolItem[]): WorkplaceToolItem[] {
-  return tools.filter((tool) => !tool.devOnly || import.meta.env.DEV);
+  return tools.filter((tool) => isChannelVisibleIn(tool.channel, CURRENT_INSTANCE));
 }
 
 /** A tool can be pinned to the sidebar only if it has an internal route. */

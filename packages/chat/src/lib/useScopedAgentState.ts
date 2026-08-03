@@ -1,9 +1,11 @@
 'use client';
 
 import { createStore, useStore } from 'zustand';
-import type { SelectedModel } from './resolveAutoModel';
+
 import { useChatSurfaceContext, type ChatSurfaceState } from '../context/ChatSurfaceContext';
 import { useAgentStore, type SearchMode, type ThreadMode } from '../stores/chatStore';
+
+import type { SelectedModel } from './resolveAutoModel';
 
 const FALLBACK = createStore<ChatSurfaceState>(() => ({
   selectedAgentId: null,

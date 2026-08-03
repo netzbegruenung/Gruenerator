@@ -1,7 +1,10 @@
-import { type ReactNode } from 'react';
 import { unstable_memoizeMarkdownComponents as memoizeMarkdownComponents } from '@assistant-ui/react-markdown';
-import { processChildren } from './citationProcessing';
+import { type ReactNode } from 'react';
+
 import { ChatCodeBlock } from '../components/message-parts/ChatCodeBlock';
+
+import { processChildren } from './citationProcessing';
+
 import type { Citation } from '../hooks/useChatGraphStream';
 
 export function makeCitationComponents(citationMap: Map<number, Citation>) {

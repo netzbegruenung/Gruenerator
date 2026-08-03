@@ -20,6 +20,11 @@ import {
   buildFastModePrompt,
 } from '../../agents/langgraph/prompts.js';
 import {
+  applyDepthProfile,
+  getNotebookDepthProfile,
+  type NotebookDepthProfile,
+} from '../../config/notebookDepthProfiles.js';
+import {
   SYSTEM_COLLECTIONS,
   getSystemCollectionConfig,
   buildSystemCollectionObject,
@@ -475,6 +480,8 @@ export class NotebookQAService {
     collectionIds,
     userId,
     requestFilters,
+    depth,
+    queries,
     getCollectionFn,
     getDocumentIdsFn,
   }: GetSearchContextParams): Promise<SearchContext | null> {
@@ -493,16 +500,30 @@ export class NotebookQAService {
       collectionIds
     );
 
+    const profile = getNotebookDepthProfile(depth ?? 'deep');
+    const effectiveQueries = (queries?.length ? queries : [trimmedQuestion]).slice(
+      0,
+      profile.queryVariants
+    );
+
     const isMulti = !!collectionIds && collectionIds.length > 0;
 
     if (isMulti) {
-      return this._getMultiCollectionSearchContext(trimmedQuestion, collectionIds!, requestFilters);
+      return this._getMultiCollectionSearchContext(
+        trimmedQuestion,
+        collectionIds!,
+        requestFilters,
+        profile,
+        effectiveQueries
+      );
     } else if (collectionId) {
       return this._getSingleCollectionSearchContext(
         trimmedQuestion,
         collectionId,
         userId,
         requestFilters,
+        profile,
+        effectiveQueries,
         getCollectionFn,
         getDocumentIdsFn
       );
@@ -517,7 +538,9 @@ export class NotebookQAService {
   private async _getMultiCollectionSearchContext(
     question: string,
     collectionIds: string[],
-    requestFilters?: RequestFilters
+    requestFilters: RequestFilters | undefined,
+    profile: NotebookDepthProfile,
+    queries: string[]
   ): Promise<SearchContext | null> {
     // Detect document scope and subcategory filters from natural language
     const detectedScope = queryIntentService.detectDocumentScope(question);
@@ -540,14 +563,16 @@ export class NotebookQAService {
       ...requestFilters,
     };
 
-    // Search all collections in parallel
-    const searchPromises = effectiveCollectionIds.map((cId) => {
+    // Search every collection × every query formulation in parallel
+    const searchPromises = effectiveCollectionIds.flatMap((cId) => {
       const filtersForCollection = this._extractCollectionFilters(
         cId,
         effectiveFilters,
         effectiveCollectionIds
       );
-      return this._searchCollection(cId, question, documentScope, filtersForCollection);
+      return queries.map((q) =>
+        this._searchCollection(cId, q, documentScope, filtersForCollection, profile)
+      );
     });
 
     const searchResultsArrays = await Promise.all(searchPromises);
@@ -555,7 +580,10 @@ export class NotebookQAService {
 
     // Deduplicate and filter
     const dedupedResults = deduplicateResults(allResults, true);
-    const sortedResults = filterAndSortResults(dedupedResults, { threshold: 0.35, limit: 40 });
+    const sortedResults = filterAndSortResults(dedupedResults, {
+      threshold: profile.threshold,
+      limit: profile.sortLimit.multi,
+    });
 
     if (sortedResults.length === 0) {
       return null;
@@ -583,8 +611,10 @@ export class NotebookQAService {
   private async _getSingleCollectionSearchContext(
     question: string,
     collectionId: string,
-    userId?: string,
-    requestFilters?: RequestFilters,
+    userId: string | undefined,
+    requestFilters: RequestFilters | undefined,
+    profile: NotebookDepthProfile,
+    queries: string[],
     getCollectionFn?: (id: string) => Promise<{ name: string; user_id: string | null } | null>,
     getDocumentIdsFn?: (id: string) => Promise<string[]>
   ): Promise<SearchContext | null> {
@@ -643,7 +673,7 @@ export class NotebookQAService {
     };
 
     // Search
-    const searchParams = getSearchParams(collectionId);
+    const searchParams = applyDepthProfile(getSearchParams(collectionId), profile);
     const subcategoryFilter = buildSubcategoryFilter(effectiveFilters as SubcategoryFilters);
     const additionalFilter = isSystem
       ? applyDefaultFilter(collectionId, subcategoryFilter)
@@ -655,18 +685,24 @@ export class NotebookQAService {
       );
     }
 
-    const searchResults = await this._performSearch({
-      query: question,
-      searchCollection: isSystem ? systemConfig.qdrantCollection : 'documents',
-      userId: isSystem ? null : (userId ?? null),
-      documentIds: isSystem ? undefined : documentIds,
-      titleFilter:
-        isSystem && collectionId === 'grundsatz-system'
-          ? documentScope.documentTitleFilter
-          : undefined,
-      additionalFilter,
-      searchParams,
-    });
+    const searchResults = (
+      await Promise.all(
+        queries.map((q) =>
+          this._performSearch({
+            query: q,
+            searchCollection: isSystem ? systemConfig.qdrantCollection : 'documents',
+            userId: isSystem ? null : (userId ?? null),
+            documentIds: isSystem ? undefined : documentIds,
+            titleFilter:
+              isSystem && collectionId === 'grundsatz-system'
+                ? documentScope.documentTitleFilter
+                : undefined,
+            additionalFilter,
+            searchParams,
+          })
+        )
+      )
+    ).flat();
 
     const singleCollectionName = systemConfig?.name || collection?.name || collectionId;
     const expanded = expandResultsToChunks(searchResults, collectionId, singleCollectionName);
@@ -676,8 +712,8 @@ export class NotebookQAService {
 
     const deduped = deduplicateResults(postFiltered, false);
     const sortedResults = filterAndSortResults(deduped, {
-      threshold: 0.35,
-      limit: 30,
+      threshold: profile.threshold,
+      limit: profile.sortLimit.single,
       allowCreatedAt: !isSystem,
     });
 
@@ -741,7 +777,8 @@ export class NotebookQAService {
     collectionId: string,
     question: string,
     documentScope: DocumentScope,
-    filters: RequestFilters
+    filters: RequestFilters,
+    profile?: NotebookDepthProfile
   ): Promise<ExpandedChunkResult[]> {
     const config = SYSTEM_COLLECTIONS[collectionId];
     if (!config) {
@@ -749,7 +786,7 @@ export class NotebookQAService {
       return [];
     }
 
-    const searchParams = getSearchParams(collectionId);
+    const searchParams = applyDepthProfile(getSearchParams(collectionId), profile);
     const titleFilter =
       collectionId === 'grundsatz-system' ? documentScope.documentTitleFilter : undefined;
     const subcategoryFilter = buildSubcategoryFilter(filters as SubcategoryFilters);
@@ -922,7 +959,7 @@ export class NotebookQAService {
       type: 'qa_draft',
       messages: [{ role: 'user', content: userPrompt }],
       systemPrompt,
-      options: { max_tokens: 40000, temperature: 0.2, top_p: 0.8 },
+      options: { temperature: 0.2, top_p: 0.8 },
     });
 
     return (
@@ -965,7 +1002,7 @@ export class NotebookQAService {
       type: 'qa_draft_fast',
       messages: [{ role: 'user', content: userPrompt }],
       systemPrompt,
-      options: { max_tokens: 20000, temperature: 0.3, top_p: 0.9 },
+      options: { temperature: 0.3, top_p: 0.9 },
     });
 
     return (
@@ -1197,7 +1234,7 @@ export class NotebookQAService {
       type: 'qa_draft',
       messages: [{ role: 'user', content: userPrompt }],
       systemPrompt,
-      options: { max_tokens: 16000, temperature: 0.3, top_p: 0.9 },
+      options: { temperature: 0.3, top_p: 0.9 },
     });
 
     return (

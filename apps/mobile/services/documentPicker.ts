@@ -95,13 +95,16 @@ async function imageAssetToPickedDocument(
     format: ImageManipulator.SaveFormat.JPEG,
   });
   const baseName = (asset.fileName || `foto-${Date.now()}`).replace(/\.[^.]+$/, '');
+  // The size of the CONVERTED file, not the asset's: `manipulateAsync` carries
+  // no byte size, and falling back to `asset.fileSize` (undefined for camera
+  // captures on Android) used to yield 0 — which passes the size check by
+  // accident. `info.size` is the JPEG actually being attached.
+  const info = new ExpoFile(jpeg.uri);
   return {
     uri: jpeg.uri,
     name: `${baseName}.jpg`,
     mimeType: 'image/jpeg',
-    // manipulateAsync results don't carry a byte size; 0 skips the size check,
-    // which is acceptable (compressed JPEGs are well under MAX_FILE_SIZE).
-    size: asset.fileSize || 0,
+    size: info.size ?? asset.fileSize ?? 0,
   };
 }
 
@@ -143,7 +146,10 @@ export async function takePhoto(): Promise<PickedDocument | null> {
  * Shows an Alert on failure and returns false.
  */
 export function validatePickedDocument(doc: PickedDocument): boolean {
-  if (!isSupportedFileType(doc.mimeType)) {
+  // The filename matters: `isSupportedFileType` accepts 25 text/code extensions
+  // whose MIME type arrives as octet-stream or empty. Passing only the MIME type
+  // rejected every `.md`, `.ts` or `.yml` the web composer accepts.
+  if (!isSupportedFileType(doc.mimeType, doc.name)) {
     Alert.alert('Nicht unterstützt', `Dateityp "${doc.mimeType}" wird nicht unterstützt.`);
     return false;
   }

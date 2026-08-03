@@ -1,38 +1,49 @@
 'use client';
 
-import { memo, useMemo } from 'react';
 import { MessagePrimitive, useMessage } from '@assistant-ui/react';
 import { type SkillIcon } from '@gruenerator/shared/agents';
+import { memo, useCallback, useMemo, useState } from 'react';
+
+import { CitationProvider, useFetchFullText } from '../../context/CitationContext';
 import { agentsList, getDefaultAgent } from '../../lib/agents';
+import { resolveCitations } from '../../lib/citationUtils';
 import { phosphorAgentIcon } from '../../lib/phosphorAgentIcon';
+import {
+  selectReasoningText,
+  selectSearchSources,
+  selectSearchStatusLabel,
+  type StatusPartLike,
+} from '../../lib/toolStatusLine';
 import { useUserAgentsRegistry } from '../../stores/userAgentsRegistry';
+import { HiddenReasoning, HiddenReasoningGroup } from '../assistant-ui/reasoning';
 import { GrueneratorHomeIconLoading } from '../icons';
-import { CitationMarkdownText } from '../message-parts/CitationMarkdownText';
-import { MessageStreamingProvider } from '../message-parts/messageStreamingContext';
-import { Reasoning, ReasoningGroup } from '../assistant-ui/reasoning';
-import { ProgressIndicator } from '../message-parts/ProgressIndicator';
-import { useProgressDisplay } from '../message-parts/progressDisplayContext';
-import { ProgressTracker } from '../tool-ui/progress-tracker/ProgressTracker';
-import { SkillBadge } from '../message-parts/SkillBadge';
-import { TypingIndicator } from '../message-parts/TypingIndicator';
 import { ArtifactCard } from '../message-parts/ArtifactCard';
-import { ComputeCard } from '../message-parts/ComputeCard';
-import { BundestagCard } from '../message-parts/BundestagCard';
 import { BahnCard } from '../message-parts/BahnCard';
 import { ChatChart } from '../message-parts/ChatChart';
+import { CitationMarkdownText } from '../message-parts/CitationMarkdownText';
+import { ComputeCard } from '../message-parts/ComputeCard';
 import { GeneratedImageDisplay } from '../message-parts/GeneratedImageDisplay';
-import { SharepicVariantStack } from '../message-parts/SharepicVariantStack';
-import { SocialPostCard } from '../message-parts/SocialPostCard';
 import { MemoryIndicator } from '../message-parts/MemoryIndicator';
 import { MessageActions } from '../message-parts/MessageActions';
+import { MessageErrorBanner } from '../message-parts/MessageErrorBanner';
+import { MessageStreamingProvider } from '../message-parts/messageStreamingContext';
+import { ProgressIndicator } from '../message-parts/ProgressIndicator';
+import { SearchImagesSection } from '../message-parts/SearchImagesSection';
 import { SearchResultsSection, type AdditionalSource } from '../message-parts/SearchResultsSection';
-import { CitationProvider, useFetchFullText } from '../../context/CitationContext';
-import { resolveCitations } from '../../lib/citationUtils';
+import { SharepicVariantStack } from '../message-parts/SharepicVariantStack';
+import { SkillBadge } from '../message-parts/SkillBadge';
+import { SocialPostCard } from '../message-parts/SocialPostCard';
+import { StreamingStatusLine } from '../message-parts/StreamingStatusLine';
+import { ToolCallGroup } from '../message-parts/ToolCallGroup';
+import { TypingIndicator } from '../message-parts/TypingIndicator';
 import { ConfirmActionCard } from '../tool-ui/ConfirmActionCard';
 import { DocumentCreatedCard } from '../tool-ui/DocumentCreatedCard';
+import { ProgressTracker } from '../tool-ui/progress-tracker/ProgressTracker';
 import { ReelPickerCard } from '../tool-ui/ReelPickerCard';
 import { ReelProcessingCard } from '../tool-ui/ReelProcessingCard';
+
 import { useChatDensity } from './chatDensityContext';
+
 import type { ChatMessageMetadata } from '../../types/messageMetadata';
 
 function AssistantMessageTextPart() {
@@ -55,12 +66,18 @@ function AssistantMessageTextPart() {
   );
 }
 
-const partComponents = { Text: AssistantMessageTextPart, Reasoning, ReasoningGroup };
+// Reasoning renders NOTHING in document order: the thinking hangs under the
+// status line's chevron instead (StatusLineDetails), and retires with it.
+const partComponents = {
+  Text: AssistantMessageTextPart,
+  Reasoning: HiddenReasoning,
+  ReasoningGroup: HiddenReasoningGroup,
+  ToolGroup: ToolCallGroup,
+};
 
 export const AssistantMessage = memo(function AssistantMessage() {
   const message = useMessage();
   const density = useChatDensity();
-  const progressDisplay = useProgressDisplay();
   const isCompact = density === 'compact';
   const custom = message.metadata?.custom as ChatMessageMetadata | undefined;
   const userAgents = useUserAgentsRegistry((s) => s.userAgents);
@@ -121,13 +138,25 @@ export const AssistantMessage = memo(function AssistantMessage() {
     .join('');
 
   const isStreaming = message.status?.type === 'running';
-  const hasToolCall = message.content.some((p) => p.type === 'tool-call');
+
+  // Everything the status line needs, read off the same parts it lives on.
+  // Retrieval steps and reasoning draw no block of their own: the running search
+  // IS the label, the thinking and the hits hang under its chevron, and
+  // `hasOwnDetail` retires the lot the moment the answer text starts.
+  const statusParts = message.content as ReadonlyArray<StatusPartLike>;
+  const hasOwnDetail =
+    message.content.some((p) => p.type === 'tool-call') ||
+    message.content.some((p) => p.type === 'reasoning');
+  const toolStatus = selectSearchStatusLabel(statusParts);
+  const reasoningText = selectReasoningText(statusParts);
+  const statusSources = useMemo(() => selectSearchSources(statusParts), [statusParts]);
 
   const citations = useMemo(
     () => resolveCitations(custom as Record<string, unknown> | undefined),
     [custom]
   );
   const additionalSources = custom?.additionalSources as AdditionalSource[] | undefined;
+  const searchImages = custom?.searchImages;
 
   const actionsMetadata = useMemo(() => {
     if (!custom) return undefined;
@@ -140,15 +169,31 @@ export const AssistantMessage = memo(function AssistantMessage() {
     };
   }, [custom]);
 
-  // The dedicated BundestagCard already renders the DIP hits — drop their
-  // generic source cards to avoid double-rendering. Inline citations (in the
-  // text via CitationProvider) stay untouched.
-  const sourceCardCitations = useMemo(
-    () => (custom?.bundestagData ? citations.filter((c) => c.source !== 'bundestag') : citations),
-    [citations, custom?.bundestagData]
-  );
+  const showSearchResults = !isStreaming && citations.length > 0;
 
-  const showSearchResults = !isStreaming && sourceCardCitations.length > 0;
+  /**
+   * Images render on their own, NOT inside the sources disclosure.
+   *
+   * They used to live in there, and that made them unreachable in the very case
+   * they exist for: an image search registers no text sources, so `citations` is
+   * empty — and with empty citations the action row's "Quellen" trigger renders
+   * nothing at all, while the section itself was in controlled mode and had no
+   * trigger of its own. The images were in the DOM and behind no button.
+   *
+   * Putting them under the answer is also the honest place for them: a source
+   * backs a claim and belongs behind a disclosure, but these ARE the answer —
+   * they only ever arrive when the user asked to see pictures.
+   */
+  const showSearchImages = !isStreaming && (searchImages?.length ?? 0) > 0;
+
+  // Owned here, not in SearchResultsSection: the trigger sits in the action row
+  // and the list below it, so neither of the two can hold the state alone.
+  const [sourcesOpen, setSourcesOpen] = useState(false);
+  const toggleSources = useCallback(() => setSourcesOpen((v) => !v), []);
+
+  // A text-less turn (image only) renders no action row, so the trigger has
+  // nowhere to live — the list falls back to carrying its own.
+  const showActions = !isStreaming && textContent.length > 0;
 
   return (
     <MessagePrimitive.Root
@@ -187,57 +232,15 @@ export const AssistantMessage = memo(function AssistantMessage() {
           />
         )}
 
-        {isStreaming &&
-          !hasToolCall &&
-          (() => {
-            const stage = custom?.progress?.stage;
-            const hasConcreteProgress =
-              stage === 'searching' || stage === 'generating' || stage === 'generating_image';
-
-            if (hasConcreteProgress) {
-              const agentColor = messageAgent?.backgroundColor || '#316049';
-              if (custom!.progress!.steps) {
-                return (
-                  <ProgressTracker
-                    steps={custom!.progress!.steps}
-                    agentColor={agentColor}
-                    totalTimeMs={custom?.streamMetadata?.totalTimeMs}
-                  />
-                );
-              }
-              return (
-                <ProgressIndicator
-                  progress={custom!.progress!}
-                  agentColor={agentColor}
-                  variant={progressDisplay}
-                />
-              );
-            }
-
-            if (!textContent) {
-              return <TypingIndicator />;
-            }
-
-            return null;
-          })()}
-
-        {isStreaming &&
-          hasToolCall &&
-          !textContent &&
-          (custom?.progress?.stage === 'generating' || custom?.progress?.stage === 'searching') &&
-          (custom?.progress?.steps ? (
-            <ProgressTracker
-              steps={custom.progress.steps}
-              agentColor={messageAgent?.backgroundColor || '#316049'}
-              totalTimeMs={custom?.streamMetadata?.totalTimeMs}
-            />
-          ) : (
-            <ProgressIndicator
-              progress={custom.progress}
-              agentColor={messageAgent?.backgroundColor || '#316049'}
-              variant={progressDisplay}
-            />
-          ))}
+        <StreamingStatusLine
+          isStreaming={isStreaming}
+          hasOwnDetail={hasOwnDetail}
+          textContent={textContent}
+          custom={custom}
+          toolStatus={toolStatus}
+          reasoningText={reasoningText}
+          sources={statusSources}
+        />
 
         {custom?.socialPostData && (
           <SocialPostCard
@@ -250,15 +253,25 @@ export const AssistantMessage = memo(function AssistantMessage() {
         )}
         {custom?.generatedImage && <GeneratedImageDisplay image={custom.generatedImage} />}
 
+        {/* Above the answer, not under it: on a turn that found pictures they are
+            the first thing the reader looks at, and a gallery that follows a
+            1000-word text is a gallery nobody scrolls to. */}
+        {showSearchImages && searchImages && <SearchImagesSection images={searchImages} />}
+
         <CitationProvider citations={citations} fetchFullText={fetchFullText}>
           <MessagePrimitive.Parts components={partComponents} />
         </CitationProvider>
+
+        <MessageErrorBanner />
+
+        {custom?.interrupted && (
+          <p className="text-xs text-foreground-muted italic">Antwort wurde unterbrochen</p>
+        )}
 
         {!isStreaming && custom?.chartData && <ChatChart data={custom.chartData} />}
 
         {!isStreaming && custom?.artifactData && <ArtifactCard artifact={custom.artifactData} />}
         {!isStreaming && custom?.computeData && <ComputeCard data={custom.computeData} />}
-        {!isStreaming && custom?.bundestagData && <BundestagCard data={custom.bundestagData} />}
         {!isStreaming && custom?.bahnData && <BahnCard data={custom.bahnData} />}
 
         {!isStreaming && custom?.confirmAction && (
@@ -275,15 +288,23 @@ export const AssistantMessage = memo(function AssistantMessage() {
 
         {!isStreaming && custom?.reelPicker && <ReelPickerCard data={custom.reelPicker} />}
 
-        {showSearchResults && (
-          <SearchResultsSection
-            citations={sourceCardCitations}
-            additionalSources={additionalSources}
+        {showActions && (
+          <MessageActions
+            content={textContent}
+            metadata={actionsMetadata}
+            showFeedback={custom?.streamMetadata?.traceId != null}
+            {...(showSearchResults
+              ? { sources: citations, sourcesOpen, onToggleSources: toggleSources }
+              : {})}
           />
         )}
 
-        {!isStreaming && textContent && (
-          <MessageActions content={textContent} metadata={actionsMetadata} />
+        {showSearchResults && (
+          <SearchResultsSection
+            citations={citations}
+            additionalSources={additionalSources}
+            {...(showActions ? { open: sourcesOpen, onOpenChange: setSourcesOpen } : {})}
+          />
         )}
 
         {!isStreaming && custom?.progress?.memoryContext && (

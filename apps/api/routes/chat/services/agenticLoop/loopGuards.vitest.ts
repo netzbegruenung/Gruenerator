@@ -6,6 +6,7 @@ import {
   MAX_TOTAL_FAILURES,
   MAX_SEARCH_CALLS,
   MAX_SOURCES,
+  type GuardVerdict,
 } from './loopGuards.js';
 
 describe('createToolLoopGuards — duplicate detection', () => {
@@ -41,7 +42,7 @@ describe('createToolLoopGuards — duplicate detection', () => {
     const guards = createToolLoopGuards();
     guards.checkDuplicate('search', { query: 'Kindergrundsicherung Position' });
     const error = guards.checkDuplicate('search', { query: 'Position Kindergrundsicherung' });
-    expect(error).toContain('Kindergrundsicherung Position');
+    expect(error?.modelMessage).toContain('Kindergrundsicherung Position');
   });
 
   it('turn scope: same query on a DIFFERENT tool is allowed', () => {
@@ -117,7 +118,7 @@ describe('createToolLoopGuards — duplicate detection', () => {
     guards.checkDuplicate('search', { query: 'klima' });
     guards.checkDuplicate('search', { query: 'klima' });
     const error = guards.checkDuplicate('search', { query: 'klima' });
-    expect(error?.match(/klima/g)).toHaveLength(1);
+    expect(error?.modelMessage.match(/klima/g)).toHaveLength(1);
   });
 
   it('tool names are namespaced: "a" with query "b c" ≠ "a b" with query "c"', () => {
@@ -152,11 +153,39 @@ describe('createToolLoopGuards — near-duplicate (Jaccard)', () => {
     ).not.toBeNull();
   });
 
+  it('skipNearDuplicate (MCP connectors) allows a "too similar" retry but still blocks exact repeats', () => {
+    const guards = createToolLoopGuards();
+    // A connector call, then a corrective retry that shares ≥0.6 tokens (would
+    // be near-dup-blocked for a search tool) — allowed for connectors.
+    expect(
+      guards.checkDuplicate(
+        'mb2__search_appointments',
+        { subject: 'Protokoll Juli' },
+        { skipNearDuplicate: true }
+      )
+    ).toBeNull();
+    expect(
+      guards.checkDuplicate(
+        'mb2__search_appointments',
+        { subject: 'Protokoll' },
+        { skipNearDuplicate: true }
+      )
+    ).toBeNull();
+    // Exact-normalized repeat is STILL blocked (prevents identical failure loops).
+    expect(
+      guards.checkDuplicate(
+        'mb2__search_appointments',
+        { subject: 'Protokoll' },
+        { skipNearDuplicate: true }
+      )
+    ).not.toBeNull();
+  });
+
   it('the Q5 regression: 4 Atomkraft variants collapse, other topics stay free', () => {
     const guards = createToolLoopGuards({
       searchToolNames: new Set(['gruenerator_search']),
     });
-    const search = (q: string): string | null =>
+    const search = (q: string): GuardVerdict =>
       guards.checkSearchBudget('gruenerator_search') ??
       guards.checkDuplicate('gruenerator_search', { query: q }) ??
       (guards.noteCall('gruenerator_search'), null);
@@ -342,47 +371,153 @@ describe('createToolLoopGuards — search budget', () => {
   });
 });
 
-describe('createToolLoopGuards — internal-first', () => {
-  const policy = {
-    requiredTool: 'gruenerator_search',
-    gatedTools: new Set(['web_search', 'scrape_url']),
-    exempt: false,
-  };
+/**
+ * The web is not gated behind the internal document search. What is left is a
+ * one-way fallback: being ALLOWED to search the web was never enough —
+ * permission the planner was free to ignore, and did. The same question was
+ * researched properly in one session and answered ungrounded in the next,
+ * decided by nothing but sampling.
+ */
+describe('createToolLoopGuards — internal fallback', () => {
+  const policy = { requiredTool: 'gruenerator_search', fallbackTool: 'web_search' };
 
-  it('blocks web/scrape before the internal search ran, unblocks when internal came up SHORT', () => {
-    let sources = 0;
-    const guards = createToolLoopGuards({ internalFirst: policy, getSourceCount: () => sources });
-    expect(guards.checkInternalFirst('web_search')).not.toBeNull();
-    expect(guards.checkInternalFirst('scrape_url')).not.toBeNull();
+  it('forces the web only after the internal search COMPLETED with nothing', () => {
+    const guards = createToolLoopGuards({ internalFallback: policy, getSourceCount: () => 0 });
+    // Never called — nothing to fall back FROM.
+    expect(guards.emptyResultFallback()).toBeNull();
     guards.noteCall('gruenerator_search');
-    sources = 1; // internal ran but yielded little → web is allowed as a fallback
-    expect(guards.checkInternalFirst('web_search')).toBeNull();
-    expect(guards.checkInternalFirst('scrape_url')).toBeNull();
+    // In flight: the result may still land. Forcing here would race.
+    expect(guards.emptyResultFallback()).toBeNull();
+    guards.noteCompletion('gruenerator_search');
+    expect(guards.emptyResultFallback()).toBe('web_search');
   });
 
-  it('prefer-internal: once internal yields enough sources, web/scrape are refused', () => {
+  it('stays quiet when the internal search actually found something', () => {
     let sources = 0;
-    const guards = createToolLoopGuards({ internalFirst: policy, getSourceCount: () => sources });
+    const guards = createToolLoopGuards({
+      internalFallback: policy,
+      getSourceCount: () => sources,
+    });
     guards.noteCall('gruenerator_search');
-    sources = 5; // enough internal evidence → do not web-search on top
-    expect(guards.checkInternalFirst('web_search')).not.toBeNull();
-    // Also blocks a model-invented scrape URL (Q2 gruene.de/positionen/atomkraft 404).
-    expect(guards.checkInternalFirst('scrape_url')).not.toBeNull();
+    guards.noteCompletion('gruenerator_search');
+    sources = 1;
+    expect(guards.emptyResultFallback()).toBeNull();
   });
 
-  it('never blocks non-gated tools', () => {
-    const guards = createToolLoopGuards({ internalFirst: policy });
-    expect(guards.checkInternalFirst('gruenerator_search')).toBeNull();
-    expect(guards.checkInternalFirst('bundestag')).toBeNull();
-  });
-
-  it('exempt bypasses the policy entirely', () => {
-    const guards = createToolLoopGuards({ internalFirst: { ...policy, exempt: true } });
-    expect(guards.checkInternalFirst('web_search')).toBeNull();
+  it('does not force a second time once the web has run', () => {
+    const guards = createToolLoopGuards({ internalFallback: policy, getSourceCount: () => 0 });
+    guards.noteCall('gruenerator_search');
+    guards.noteCompletion('gruenerator_search');
+    expect(guards.emptyResultFallback()).toBe('web_search');
+    guards.noteCall('web_search');
+    // Otherwise an empty web search would be forced over and over until the
+    // step budget ran out.
+    expect(guards.emptyResultFallback()).toBeNull();
   });
 
   it('is inert without a policy', () => {
+    const guards = createToolLoopGuards({ getSourceCount: () => 0 });
+    guards.noteCall('gruenerator_search');
+    guards.noteCompletion('gruenerator_search');
+    expect(guards.emptyResultFallback()).toBeNull();
+  });
+
+  /**
+   * The regression this whole change is about: a general-knowledge question
+   * ("wer war marilyn monroe?") must reach the web without an internal party-
+   * document search in front of it. Nothing in the guards may refuse it.
+   */
+  it('never refuses web_search or scrape_url', () => {
+    const guards = createToolLoopGuards({
+      internalFallback: policy,
+      searchToolNames: new Set(['web_search', 'gruenerator_search', 'scrape_url']),
+      getSourceCount: () => 9,
+    });
+    expect(guards.checkSearchBudget('web_search')).toBeNull();
+    expect(guards.checkSearchConcurrency('web_search')).toBeNull();
+    expect(guards.checkDuplicate('web_search', { query: 'wer war marilyn monroe' })).toBeNull();
+    expect(guards.checkSearchConcurrency('scrape_url')).toBeNull();
+    expect(guards.checkDuplicate('scrape_url', { url: 'https://de.wikipedia.org/x' })).toBeNull();
+  });
+});
+
+/**
+ * Searches must build on each other. The AI SDK runs every tool call of one model
+ * step concurrently, so a model that emits four searches gets four paid calls and
+ * no chance to reconsider between them — the fourth query was written before the
+ * first result existed. Two may overlap (a comparison's halves); the surplus is
+ * deferred until something completes.
+ */
+describe('checkSearchConcurrency', () => {
+  const searchTools = new Set(['web_search', 'gruenerator_search']);
+  const make = (max?: number) =>
+    createToolLoopGuards({
+      searchToolNames: searchTools,
+      ...(max != null ? { maxConcurrentSearches: max } : {}),
+    });
+
+  it('lets two searches run at once and defers the third', () => {
+    const guards = make();
+    expect(guards.checkSearchConcurrency('web_search')).toBeNull();
+    guards.noteCall('web_search');
+    expect(guards.checkSearchConcurrency('gruenerator_search')).toBeNull();
+    guards.noteCall('gruenerator_search');
+    expect(guards.checkSearchConcurrency('web_search')?.modelMessage).toMatch(
+      /Warte auf das Ergebnis/
+    );
+  });
+
+  it('frees a slot as soon as one call completes', () => {
+    const guards = make();
+    guards.noteCall('web_search');
+    guards.noteCall('web_search');
+    expect(guards.checkSearchConcurrency('web_search')).not.toBeNull();
+    guards.noteCompletion('web_search');
+    expect(guards.checkSearchConcurrency('web_search')).toBeNull();
+  });
+
+  it('counts the whole search family, not one tool at a time', () => {
+    const guards = make();
+    guards.noteCall('web_search');
+    guards.noteCall('gruenerator_search');
+    // A third search under a DIFFERENT name is still a third paid call.
+    expect(guards.checkSearchConcurrency('web_search')).not.toBeNull();
+  });
+
+  it('never touches non-search tools', () => {
+    const guards = make();
+    guards.noteCall('web_search');
+    guards.noteCall('gruenerator_search');
+    expect(guards.checkSearchConcurrency('create_sheet')).toBeNull();
+    expect(guards.checkSearchConcurrency('summarize')).toBeNull();
+  });
+
+  /**
+   * The deferral must leave no trace, because the model is expected to repeat the
+   * very same call once a slot frees up. If the deferred call had registered its
+   * duplicate key, the retry would come back as "diese Suche lief schon".
+   */
+  it('is checked before the duplicate guard, so a deferred call may be retried verbatim', () => {
+    const guards = make();
+    guards.noteCall('web_search');
+    guards.noteCall('web_search');
+    expect(guards.checkSearchConcurrency('web_search')).not.toBeNull();
+    // Nothing registered → the identical call passes the duplicate guard later.
+    guards.noteCompletion('web_search');
+    guards.noteCompletion('web_search');
+    expect(guards.checkDuplicate('web_search', { query: 'Tempolimit' })).toBeNull();
+  });
+
+  it('honours a configured ceiling', () => {
+    const guards = make(1);
+    guards.noteCall('web_search');
+    expect(guards.checkSearchConcurrency('web_search')?.modelMessage).toMatch(/bereits 1 Suche\b/);
+  });
+
+  it('is inert when no search family was configured', () => {
     const guards = createToolLoopGuards();
-    expect(guards.checkInternalFirst('web_search')).toBeNull();
+    guards.noteCall('web_search');
+    guards.noteCall('web_search');
+    expect(guards.checkSearchConcurrency('web_search')).toBeNull();
   });
 });

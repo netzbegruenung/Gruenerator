@@ -205,6 +205,7 @@ export function useBildEditorMobile() {
         imageData: dataUrl,
         title: (forPrompt || 'KI-Bild').slice(0, 100),
         imageType: SHARE_IMAGE_TYPE[kind],
+        contentOrigin: 'ki',
         status: 'ready',
         metadata: { prompt: forPrompt, source: 'bild-editor' },
       })

@@ -52,7 +52,8 @@ export const AddCardButton = memo(function AddCardButton({ onAdd }: AddCardButto
             }
           }}
           placeholder="Kartentitel..."
-          className="flex-1 min-w-0 rounded-md border border-grey-300 bg-background px-xs py-1 text-sm outline-none focus:border-primary-500 dark:border-grey-600"
+          // 16px below sm, else iOS Safari zooms the board on focus.
+          className="flex-1 min-w-0 rounded-md border border-grey-300 bg-background px-xs py-1 max-sm:py-2.5 text-sm max-sm:text-base outline-none focus:border-primary-500 dark:border-grey-600"
         />
         <button
           type="button"
@@ -62,7 +63,7 @@ export const AddCardButton = memo(function AddCardButton({ onAdd }: AddCardButto
           onClick={() => commit(true)}
           disabled={!value.trim()}
           aria-label="Karte hinzufügen"
-          className="flex items-center justify-center shrink-0 w-7 h-7 rounded-md border-none bg-primary-500 text-white cursor-pointer transition-colors hover:bg-primary-600 disabled:opacity-40 disabled:cursor-default"
+          className="flex items-center justify-center shrink-0 w-7 h-7 max-sm:w-11 max-sm:h-11 rounded-md border-none bg-primary-500 text-white cursor-pointer transition-colors hover:bg-primary-600 disabled:opacity-40 disabled:cursor-default"
         >
           <FiArrowUp size={15} />
         </button>

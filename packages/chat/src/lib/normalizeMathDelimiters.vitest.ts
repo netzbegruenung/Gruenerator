@@ -5,8 +5,8 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { normalizeMathDelimiters, normalizeUnicodeMath } from './normalizeMathDelimiters';
 import { escapeCitationMarkers } from './citationProcessing';
+import { normalizeMathDelimiters, normalizeUnicodeMath } from './normalizeMathDelimiters';
 
 describe('normalizeMathDelimiters', () => {
   it('converts inline \\( … \\) to $ … $', () => {

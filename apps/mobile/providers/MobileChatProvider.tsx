@@ -5,10 +5,10 @@ import {
   convertToThreadMessageLike,
   transformMessageLike,
 } from '@gruenerator/chat';
-import { type ReactNode, useEffect, useMemo, useRef } from 'react';
+import { type ReactNode, useEffect, useMemo } from 'react';
 
 import { useMobileChatRuntime } from '../hooks/useMobileChatRuntime';
-import { configureMobileChat, getMobileChatApiClient } from '../services/chatConfig';
+import { getMobileChatApiClient } from '../services/chatConfig';
 
 interface MobileChatProviderProps {
   children: ReactNode;
@@ -32,12 +32,6 @@ function ThreadSetup({ threadId }: { threadId?: string | null }) {
 }
 
 export function MobileChatProvider({ children, threadId }: MobileChatProviderProps) {
-  const configuredRef = useRef<boolean>(null);
-  if (configuredRef.current == null) {
-    configureMobileChat();
-    configuredRef.current = true;
-  }
-
   const historyAdapter = useMemo(() => {
     if (!threadId || threadId === 'new') return undefined;
     const apiClient = getMobileChatApiClient();

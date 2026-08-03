@@ -16,7 +16,7 @@ import { z } from 'zod';
 // ── Closed sets ──────────────────────────────────────────────────────────────
 
 /** Matches `AgentProvider` in @gruenerator/shared/agents. */
-export const agentProviderSchema = z.enum(['mistral', 'anthropic', 'litellm', 'regolo']);
+export const agentProviderSchema = z.enum(['mistral', 'anthropic', 'litellm', 'regolo', 'greenpt']);
 
 // ── Shared shapes ──────────────────────────────────────────────────────────────
 

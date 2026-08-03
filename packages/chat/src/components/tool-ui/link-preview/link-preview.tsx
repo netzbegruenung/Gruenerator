@@ -1,14 +1,15 @@
 'use client';
 
-import { Globe } from 'lucide-react';
-import { cn } from './_adapter';
-
+import { SourceGlyph } from '../citation/SourceGlyph';
 import {
   RATIO_CLASS_MAP,
   getFitClass,
   openSafeNavigationHref,
   sanitizeHref,
 } from '../shared/media';
+
+import { cn } from './_adapter';
+
 import type { SerializableLinkPreview } from './schema';
 
 const FALLBACK_LOCALE = 'en-US';
@@ -60,6 +61,7 @@ export function LinkPreview(props: LinkPreviewProps) {
       data-tool-ui-id={id}
       data-slot="link-preview"
     >
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- role/tabIndex/onKeyDown are already applied below (conditional on sanitizedHref), eslint just can't resolve the ternary statically. */}
       <div
         className={cn(
           'group @container relative isolate flex w-full min-w-0 flex-col overflow-hidden rounded-xl',
@@ -116,9 +118,10 @@ export function LinkPreview(props: LinkPreviewProps) {
                     decoding="async"
                   />
                 ) : (
-                  <div className="border-border/60 bg-muted flex size-4 shrink-0 items-center justify-center rounded-full border">
-                    <Globe className="h-2.5 w-2.5" aria-hidden="true" />
-                  </div>
+                  // Nothing in the app supplies `favicon` any more — see
+                  // urlUtils. The monogram keeps two previews distinguishable
+                  // where a row of identical globes would not.
+                  <SourceGlyph domain={domain} size={16} rounded="rounded-full" />
                 )}
                 <span>{domain}</span>
               </div>

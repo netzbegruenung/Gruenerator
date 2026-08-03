@@ -23,6 +23,7 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 import ImageSelectionService from '../../services/image/ImageSelectionService.js';
 import { enhanceWithAttribution } from '../../services/image/index.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 import { safeFetch } from '../../utils/validation/urlSecurity.js';
@@ -107,7 +108,7 @@ export const imagePickerContractRouter = s.router(imagePickerContract, {
           success: false,
           error: 'Internal server error during image selection',
           code: 'SELECTION_ERROR',
-          message: err.message,
+          message: toUserFacingMessage(err),
         },
       };
     }
@@ -251,7 +252,7 @@ export const imagePickerContractRouter = s.router(imagePickerContract, {
           success: false,
           error: 'Failed to get stock image catalog',
           code: 'STOCK_CATALOG_ERROR',
-          message: err.message,
+          message: toUserFacingMessage(err),
         },
       };
     }

@@ -1,10 +1,11 @@
+import { DEFAULT_NOTEBOOK_DEPTH } from '../../lib/notebookDepth';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useLastComputeStore } from '../../stores/lastComputeStore';
 import { getAvailableClientTools } from '../clientTools';
 
 import type { GrueneratorAdapterConfig } from './types';
-import type { ThreadMode } from '../../stores/chatStore';
 import type { parseAllMentions } from '../../lib/mentionParser';
+import type { ThreadMode } from '../../stores/chatStore';
 import type { CurrentBoard } from '@gruenerator/contracts';
 
 export type FormattedMessagePart =
@@ -179,12 +180,18 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     // notebook→collection map into `selectedNotebookCollectionIds`; fall back to
     // the raw notebook id as a single collection (covers user-notebook UUIDs).
     const collectionIds = config.selectedNotebookCollectionIds;
+    const notebookFilters = config.notebookFilters;
     return {
       messages: formattedMessages,
       ...(collectionIds && collectionIds.length > 0
         ? { collectionIds }
         : { collectionId: config.selectedNotebookId || 'gruenerator-notebook' }),
-      mode: config.notebookMode || 'fast',
+      // Omitted when empty: `filters: {}` would still travel the wire and read as
+      // a deliberate (empty) scope downstream.
+      ...(notebookFilters && Object.keys(notebookFilters).length > 0
+        ? { filters: notebookFilters }
+        : {}),
+      mode: config.notebookMode || DEFAULT_NOTEBOOK_DEPTH,
       threadId: config.threadId,
     };
   }

@@ -223,7 +223,7 @@ export const threadsContractRouter = s.router(threadsContract, {
         try {
           await getPostgresAndCheckMembership(groupId, userId);
         } catch {
-          return { status: 403 as const, body: { error: 'Kein Zugriff auf diesen Space.' } };
+          return { status: 403 as const, body: { error: 'Kein Zugriff auf dieses Projekt.' } };
         }
       }
 

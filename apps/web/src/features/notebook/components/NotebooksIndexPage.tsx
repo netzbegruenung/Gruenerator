@@ -1,4 +1,7 @@
 import { getContractsClient } from '@gruenerator/shared/api';
+import coverEigene from '@gruenerator/shared/assets/notebook-covers/eigene.webp';
+import coverLaenderverbaende from '@gruenerator/shared/assets/notebook-covers/landesverbaende.webp';
+import coverNeu from '@gruenerator/shared/assets/notebook-covers/notebook-neu.webp';
 import { buildNotebookSlug } from '@gruenerator/shared/utils';
 import {
   DropdownMenu,
@@ -41,6 +44,7 @@ import {
   getAustrianNotebooks,
   getNotebookById,
   getNotebooksByCategory,
+  isNotebookVisibleForLocale,
   type NotebookConfigEntry,
 } from '../config/notebooksConfig';
 import { usePublicNotebookCollections } from '../hooks/usePublicNotebookCollections';
@@ -75,11 +79,12 @@ const HIDDEN_NOTEBOOK_IDS = [
   'abgeordnetenwatch-notebook',
 ];
 
-// Branded Cover für die aufklappbaren Sammel-Kategorien. Die webp-Dateien
-// liegen (wie die übrigen Notebook-Cover) unter apps/web/public/notebook-covers/.
-const LAENDER_COVER = '/notebook-covers/landesverbaende.webp';
-const EIGENE_COVER = '/notebook-covers/eigene.webp';
-const NEU_COVER = '/notebook-covers/notebook-neu.webp';
+// Branded Cover für die aufklappbaren Sammel-Kategorien. Die webp-Dateien liegen
+// (wie die übrigen Notebook-Cover) unter packages/shared/assets/notebook-covers/,
+// damit Web und Mobile dieselbe Datei nutzen.
+const LAENDER_COVER = coverLaenderverbaende;
+const EIGENE_COVER = coverEigene;
+const NEU_COVER = coverNeu;
 
 const NotebookCard = memo(({ notebook }: { notebook: NotebookConfigEntry }) => {
   const navigate = useNavigate();
@@ -377,7 +382,10 @@ function useWissenTileIntel(locale: 'de' | 'at') {
 
   return useCallback(
     (id: string): string | null => {
-      if (id === 'monitor-themen') return snapshot?.topics[0]?.topArticles[0]?.title ?? null;
+      // Durchgängig optional: `snapshot?.topics[0]` warf eine TypeError, sobald
+      // der Snapshot da war, `topics` aber fehlte — die ganze Wissen-Seite fiel
+      // dann in die Fehlergrenze. Aufgefallen an der Lane mit leerem Datenstand.
+      if (id === 'monitor-themen') return snapshot?.topics?.[0]?.topArticles?.[0]?.title ?? null;
       if (id === 'monitor-umfragen') {
         const g = pickGrueneValue(polls?.average);
         return g != null
@@ -444,19 +452,26 @@ function NotebooksIndexFooter() {
 
   const allNotebooks = useMemo(
     () =>
-      isAustrian
+      (isAustrian
         ? getAustrianNotebooks()
         : [
             ...getNotebooksByCategory('bundesebene'),
             ...getNotebooksByCategory('landesebene'),
             ...getNotebooksByCategory('weitere'),
-          ],
-    [isAustrian]
+          ]
+      ).filter((nb) => isNotebookVisibleForLocale(nb, locale)),
+    [isAustrian, locale]
   );
 
   // Erste Reihe: Direkt-Notebooks + aufklappbare Sammel-Kategorien. Für AT ist
-  // es nur das eine Österreich-Notebook (+ Eigene, falls vorhanden).
-  const laenderNotebooks = useMemo(() => getNotebooksByCategory('landesebene'), []);
+  // es nur das eine Österreich-Notebook (+ Eigene, falls vorhanden) — deshalb
+  // muss auch die Landesverbände-Kachel audience-gefiltert sein, sonst sehen
+  // AT-User die deutschen LV-Notebooks.
+  const laenderNotebooks = useMemo(
+    () =>
+      getNotebooksByCategory('landesebene').filter((nb) => isNotebookVisibleForLocale(nb, locale)),
+    [locale]
+  );
   const directBefore = useMemo(
     () =>
       isAustrian
@@ -612,7 +627,7 @@ function NotebooksIndexFooter() {
 
   return (
     <>
-      <section className="mt-xl" data-tour="wissen-notebooks">
+      <section className="mt-xl">
         <SectionHeader
           title="Notebooks"
           searchQuery={search}

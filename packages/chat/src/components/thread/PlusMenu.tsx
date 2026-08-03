@@ -1,20 +1,5 @@
 'use client';
 
-import { memo, useState } from 'react';
-import {
-  BookOpen,
-  ExternalLink,
-  FileSearch,
-  LayoutTemplate,
-  Library,
-  MessageSquare,
-  Paperclip,
-  PlusIcon,
-  Settings,
-  Upload,
-  Wand2,
-  Zap,
-} from 'lucide-react';
 import {
   DropdownMenuSub,
   DropdownMenuSubTrigger,
@@ -25,17 +10,31 @@ import {
   ResponsiveMenuSection,
   ResponsiveMenuItem,
 } from '@gruenerator/ui';
-import { composerToolbarButtonClass } from '../../lib/utils';
-import { useChatDensity } from './chatDensityContext';
-import { useSkillFavoritesStore } from '../../stores/skillFavoritesStore';
-import { useUserProfileStore } from '../../stores/userProfileStore';
 import {
-  getAgentMentionables,
-  getCustomAgentMentionables,
-  toolMentionables,
+  BookOpen,
+  Check,
+  ExternalLink,
+  FileSearch,
+  LayoutTemplate,
+  Library,
+  MessageSquare,
+  Paperclip,
+  Plug,
+  PlusIcon,
+  Settings,
+  Upload,
+  Wand2,
+  Zap,
+} from 'lucide-react';
+import { memo, useState } from 'react';
+
+import {
+  visibleToolMentionables,
+  visibleNotebookMentionables,
   notebookMentionables,
   type Mentionable,
 } from '../../lib/mentionables';
+import { connectorId, connectorMentionables, quickSkillMentionables } from '../../lib/plusMenu';
 import {
   useScopedThreadMode,
   useScopedSelectedNotebookId,
@@ -45,7 +44,13 @@ import {
   useScopedSetCustomSystemPrompt,
   useScopedSetCustomRoleName,
 } from '../../lib/useScopedAgentState';
+import { composerToolbarButtonClass } from '../../lib/utils';
+import { useAgentStore } from '../../stores/chatStore';
+import { useSkillFavoritesStore } from '../../stores/skillFavoritesStore';
+import { useUserProfileStore } from '../../stores/userProfileStore';
 import { SkillLibraryModal } from '../skills/SkillLibraryModal';
+
+import { useChatDensity } from './chatDensityContext';
 
 export interface ComposerPreset {
   key: string;
@@ -87,12 +92,24 @@ export const PlusMenu = memo(function PlusMenu({
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const isCompact = useChatDensity() === 'compact';
-  const customAgents = getCustomAgentMentionables();
   const favorites = useSkillFavoritesStore((s) => s.favorites);
-  const quickSkills = getAgentMentionables().filter(
-    (a) => a.isSystemDefault || favorites.includes(a.mention.toLowerCase())
-  );
-  const allQuickSkills = [...quickSkills, ...customAgents];
+  // Own agents and learned recipes were reachable only via typeahead before.
+  const allQuickSkills = quickSkillMentionables(favorites);
+
+  const mcpConnectors = connectorMentionables();
+  const pinnedConnector = useAgentStore((s) => s.pinnedConnector);
+  const setPinnedConnector = useAgentStore((s) => s.setPinnedConnector);
+
+  // Pin (not one-off insert) a connector so its MCP scope holds across
+  // follow-ups; selecting the pinned one again unpins.
+  const togglePinnedConnector = (connector: Mentionable) => {
+    const id = connectorId(connector);
+    if (pinnedConnector?.id === id) {
+      setPinnedConnector(null);
+      return;
+    }
+    setPinnedConnector({ id, label: connector.title });
+  };
 
   const threadMode = useScopedThreadMode();
   const selectedNotebookId = useScopedSelectedNotebookId();
@@ -222,7 +239,7 @@ export const PlusMenu = memo(function PlusMenu({
       <DropdownMenuSub>
         <DropdownMenuSubTrigger>
           <Wand2 className="h-3.5 w-3.5" />
-          Skills
+          Rezepte
         </DropdownMenuSubTrigger>
         <DropdownMenuSubContent className="max-h-[24rem] overflow-y-auto">
           {allQuickSkills.map((skill) => {
@@ -237,12 +254,12 @@ export const PlusMenu = memo(function PlusMenu({
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => setLibraryOpen(true)}>
             <Library className="h-3.5 w-3.5" />
-            Alle Skills durchsuchen...
+            Alle Rezepte durchsuchen…
           </DropdownMenuItem>
           {onOpenSkillsPage && (
             <DropdownMenuItem onClick={onOpenSkillsPage}>
               <ExternalLink className="h-3.5 w-3.5" />
-              Zur Skill-Bibliothek
+              Zur Rezept-Bibliothek
             </DropdownMenuItem>
           )}
         </DropdownMenuSubContent>
@@ -274,7 +291,7 @@ export const PlusMenu = memo(function PlusMenu({
           </span>
         </DropdownMenuSubTrigger>
         <DropdownMenuSubContent className="max-h-[24rem] overflow-y-auto">
-          {notebookMentionables.map((notebook) => {
+          {visibleNotebookMentionables().map((notebook) => {
             const NbIcon = notebook.icon ?? BookOpen;
             const isActive =
               showModes && threadMode === 'notebook' && selectedNotebookId === notebook.identifier;
@@ -298,7 +315,7 @@ export const PlusMenu = memo(function PlusMenu({
           Funktionen
         </DropdownMenuSubTrigger>
         <DropdownMenuSubContent>
-          {toolMentionables.map((tool) => {
+          {visibleToolMentionables().map((tool) => {
             const Icon = tool.icon;
             return (
               <DropdownMenuItem key={tool.identifier} onClick={() => onInsertMention(tool)}>
@@ -309,6 +326,33 @@ export const PlusMenu = memo(function PlusMenu({
           })}
         </DropdownMenuSubContent>
       </DropdownMenuSub>
+
+      {mcpConnectors.length > 0 && (
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger className={pinnedConnector ? activeClass : ''}>
+            <Plug className="h-3.5 w-3.5" />
+            <span className="flex-1 truncate">
+              {pinnedConnector ? pinnedConnector.label : 'Konnektoren'}
+            </span>
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="max-h-[24rem] overflow-y-auto">
+            {mcpConnectors.map((connector) => {
+              const isActive = pinnedConnector?.id === connectorId(connector);
+              return (
+                <DropdownMenuItem
+                  key={connector.identifier}
+                  onClick={() => togglePinnedConnector(connector)}
+                  className={isActive ? activeClass : ''}
+                >
+                  <Plug className="h-3.5 w-3.5" />
+                  <span className="flex-1 truncate">{connector.title}</span>
+                  {isActive && <Check className="h-3.5 w-3.5" />}
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+      )}
 
       <DropdownMenuSub>
         <DropdownMenuSubTrigger>
@@ -391,7 +435,7 @@ export const PlusMenu = memo(function PlusMenu({
         </ResponsiveMenuItem>
       </ResponsiveMenuSection>
 
-      <ResponsiveMenuSection title="Skills">
+      <ResponsiveMenuSection title="Rezepte">
         {allQuickSkills.map((skill) => {
           const Icon = skill.icon;
           return (
@@ -441,7 +485,7 @@ export const PlusMenu = memo(function PlusMenu({
       )}
 
       <ResponsiveMenuSection title="Notebooks">
-        {notebookMentionables.map((notebook) => {
+        {visibleNotebookMentionables().map((notebook) => {
           const NbIcon = notebook.icon ?? BookOpen;
           return (
             <ResponsiveMenuItem
@@ -459,7 +503,7 @@ export const PlusMenu = memo(function PlusMenu({
       </ResponsiveMenuSection>
 
       <ResponsiveMenuSection title="Funktionen">
-        {toolMentionables.map((tool) => {
+        {visibleToolMentionables().map((tool) => {
           const Icon = tool.icon;
           return (
             <ResponsiveMenuItem
@@ -472,6 +516,21 @@ export const PlusMenu = memo(function PlusMenu({
           );
         })}
       </ResponsiveMenuSection>
+
+      {mcpConnectors.length > 0 && (
+        <ResponsiveMenuSection title="Konnektoren">
+          {mcpConnectors.map((connector) => (
+            <ResponsiveMenuItem
+              key={connector.identifier}
+              icon={<Plug />}
+              active={pinnedConnector?.id === connectorId(connector)}
+              onClick={() => handleMobileAction(() => togglePinnedConnector(connector))}
+            >
+              {connector.title}
+            </ResponsiveMenuItem>
+          ))}
+        </ResponsiveMenuSection>
+      )}
 
       {includeModes && insideAgent && onNavigate && (
         <ResponsiveMenuSection title="Profil">

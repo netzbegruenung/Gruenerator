@@ -15,7 +15,7 @@ export function startSheetsTour(): void {
       popover: {
         title: 'Deine Tabelle',
         description:
-          'Rechnet wie gewohnt: Formeln, Formatierung, mehrere Blätter. Alles wird automatisch gespeichert und live mit deinem Team geteilt.',
+          'Rechnet wie gewohnt: Formeln, Formatierung, mehrere Blätter — Rückgängig/Wiederholen liegt links in der Werkzeugleiste. Alles wird automatisch gespeichert und live mit deinem Team geteilt.',
       },
     },
     {
@@ -23,7 +23,7 @@ export function startSheetsTour(): void {
       popover: {
         title: 'Alles Wichtige oben',
         description:
-          'Titel umbenennen, Rückgängig/Wiederholen und Teilen findest du in der Leiste.',
+          'Titel umbenennen, Teilen und weitere Aktionen wie den Excel-Export findest du in der Leiste.',
         side: 'bottom',
       },
     },

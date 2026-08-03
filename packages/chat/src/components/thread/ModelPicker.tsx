@@ -1,52 +1,31 @@
 'use client';
 
-import { memo, useEffect, useMemo, useState } from 'react';
+import { isModelEnabledByDefault } from '@gruenerator/shared/models';
 import {
+  Badge,
   cn,
   DropdownMenuItem,
   ResponsiveMenu,
   ResponsiveMenuSection,
   ResponsiveMenuItem,
 } from '@gruenerator/ui';
-import { isModelEnabledByDefault, TEXT_MODEL_BY_ID } from '@gruenerator/shared/models';
-import { getSystemAgent } from '@gruenerator/shared/agents';
+import { memo, useEffect, useMemo, useState } from 'react';
 
-import { composerToolbarButtonClass } from '../../lib/utils';
-import { useChatDensity } from './chatDensityContext';
-import { MODEL_OPTIONS, type ThreadMode } from '../../stores/chatStore';
-import {
-  useScopedAgentId,
-  useScopedSelectedModel,
-  useScopedSetSelectedModel,
-  useScopedThreadMode,
-} from '../../lib/useScopedAgentState';
 import { useModelPreferencesContext } from '../../context/ModelPreferencesContext';
-import {
-  AUTO_MODEL_ID,
-  AUTO_MODEL_OPTION,
-  resolveAutoModel,
-  type SelectedModel,
-} from '../../lib/resolveAutoModel';
+import { AUTO_MODEL_ID, AUTO_MODEL_OPTION, type SelectedModel } from '../../lib/resolveAutoModel';
+import { useScopedSelectedModel, useScopedSetSelectedModel } from '../../lib/useScopedAgentState';
+import { composerToolbarButtonClass } from '../../lib/utils';
+import { MODEL_OPTIONS } from '../../stores/chatStore';
+
+import { useChatDensity } from './chatDensityContext';
 
 // Shared definition (see resolveAutoModel) — aliased to keep call sites terse.
 const AUTO_OPTION = AUTO_MODEL_OPTION;
 
-interface ModelPickerProps {
-  /** When the picker is mounted on a non-/chat surface that lacks a
-   * ChatSurfaceProvider (e.g. NotebookChatProvider), pass the implicit
-   * thread mode here so `resolveAutoModel` picks the right default. */
-  threadModeOverride?: ThreadMode;
-}
-
-export const ModelPicker = memo(function ModelPicker({
-  threadModeOverride,
-}: ModelPickerProps = {}) {
+export const ModelPicker = memo(function ModelPicker() {
   const [menuOpen, setMenuOpen] = useState(false);
   const selectedModel = useScopedSelectedModel();
   const setSelectedModel = useScopedSetSelectedModel();
-  const selectedAgentId = useScopedAgentId();
-  const scopedThreadMode = useScopedThreadMode();
-  const threadMode = threadModeOverride ?? scopedThreadMode;
   const { enabledModelIds } = useModelPreferencesContext();
   const isCompact = useChatDensity() === 'compact';
 
@@ -57,68 +36,71 @@ export const ModelPicker = memo(function ModelPicker({
     return MODEL_OPTIONS.filter((m) => isModelEnabledByDefault(m.id));
   }, [enabledModelIds]);
 
-  const resolvedAuto = useMemo(() => {
-    const agent = selectedAgentId ? (getSystemAgent(selectedAgentId) ?? null) : null;
-    return TEXT_MODEL_BY_ID[resolveAutoModel({ threadMode, agent })];
-  }, [selectedAgentId, threadMode]);
-
+  const isAuto = selectedModel === AUTO_MODEL_ID;
   const fallback = visibleCatalogModels[0] ?? MODEL_OPTIONS[0];
-  const current =
-    selectedModel === AUTO_MODEL_ID
-      ? AUTO_OPTION
-      : (visibleCatalogModels.find((m) => m.id === selectedModel) ?? fallback);
+  const current = isAuto
+    ? AUTO_OPTION
+    : (visibleCatalogModels.find((m) => m.id === selectedModel) ?? fallback);
 
   useEffect(() => {
     if (!visibleCatalogModels.length) return;
-    if (selectedModel === AUTO_MODEL_ID) return;
+    if (isAuto) return;
     if (!visibleCatalogModels.some((m) => m.id === selectedModel)) {
       setSelectedModel(visibleCatalogModels[0].id);
     }
-  }, [visibleCatalogModels, selectedModel, setSelectedModel]);
+  }, [visibleCatalogModels, selectedModel, setSelectedModel, isAuto]);
 
   const handleSelect = (id: SelectedModel) => {
     setSelectedModel(id);
     setMenuOpen(false);
   };
 
+  const activeClass = 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400';
+
+  /**
+   * The auto entry is the default and the one we want people on, so it is
+   * marked "Empfohlen". It deliberately does NOT preview a concrete model:
+   * the choice is made on the server once the classifier knows what the turn
+   * is about, so any name shown here would be a guess made before the request.
+   */
+  const autoRow = (
+    <>
+      <span className="flex items-center gap-1.5">
+        <span className="text-sm font-medium leading-tight">{AUTO_OPTION.name}</span>
+        <Badge variant="secondary" className="px-1.5 py-0 text-[10px] leading-4 font-medium">
+          {AUTO_OPTION.recommendedLabel}
+        </Badge>
+      </span>
+      <span className="text-muted-foreground text-xs leading-tight">{AUTO_OPTION.description}</span>
+    </>
+  );
+
   const desktopContent = (
     <>
       <DropdownMenuItem
         key={AUTO_OPTION.id}
         onSelect={() => setSelectedModel(AUTO_OPTION.id)}
-        className={cn(
-          'flex flex-col items-start gap-0.5 py-1.5',
-          selectedModel === AUTO_OPTION.id &&
-            'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400'
-        )}
+        className={cn('flex flex-col items-start gap-0.5 py-1.5', isAuto && activeClass)}
       >
-        <span className="text-sm font-medium leading-tight">{AUTO_OPTION.name}</span>
-        <span className="text-muted-foreground text-xs leading-tight">
-          {AUTO_OPTION.description}
-        </span>
-        <span className="text-muted-foreground text-xs leading-tight">→ {resolvedAuto.name}</span>
+        {autoRow}
       </DropdownMenuItem>
-      {visibleCatalogModels.map((model) => {
-        const isActive = selectedModel === model.id;
-        return (
-          <DropdownMenuItem
-            key={model.id}
-            onSelect={() => setSelectedModel(model.id)}
-            className={cn(
-              'flex flex-col items-start gap-0.5 py-1.5',
-              isActive &&
-                'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400'
-            )}
-          >
-            <span className="text-sm font-medium leading-tight">{model.name}</span>
-            {model.description && (
-              <span className="text-muted-foreground line-clamp-1 text-xs leading-tight">
-                {model.description}
-              </span>
-            )}
-          </DropdownMenuItem>
-        );
-      })}
+      {visibleCatalogModels.map((model) => (
+        <DropdownMenuItem
+          key={model.id}
+          onSelect={() => setSelectedModel(model.id)}
+          className={cn(
+            'flex flex-col items-start gap-0.5 py-1.5',
+            selectedModel === model.id && activeClass
+          )}
+        >
+          <span className="text-sm font-medium leading-tight">{model.name}</span>
+          {model.description && (
+            <span className="text-muted-foreground line-clamp-1 text-xs leading-tight">
+              {model.description}
+            </span>
+          )}
+        </DropdownMenuItem>
+      ))}
     </>
   );
 
@@ -126,12 +108,16 @@ export const ModelPicker = memo(function ModelPicker({
     <ResponsiveMenuSection title="Modell">
       <ResponsiveMenuItem
         key={AUTO_OPTION.id}
-        active={selectedModel === AUTO_OPTION.id}
+        active={isAuto}
         onClick={() => handleSelect(AUTO_OPTION.id)}
       >
-        <span className="block font-medium">{AUTO_OPTION.name}</span>
+        <span className="flex items-center gap-1.5">
+          <span className="font-medium">{AUTO_OPTION.name}</span>
+          <Badge variant="secondary" className="px-1.5 py-0 text-[10px] leading-4 font-medium">
+            {AUTO_OPTION.recommendedLabel}
+          </Badge>
+        </span>
         <span className="text-muted-foreground block text-xs">{AUTO_OPTION.description}</span>
-        <span className="text-muted-foreground block text-xs">→ {resolvedAuto.name}</span>
       </ResponsiveMenuItem>
       {visibleCatalogModels.map((model) => (
         <ResponsiveMenuItem
@@ -150,22 +136,14 @@ export const ModelPicker = memo(function ModelPicker({
 
   const currentShortName = ('shortName' in current && current.shortName) || current.name;
 
-  // The resolved model is only shown inside the opened menu — the trigger
-  // stays a terse "Auto" so it doesn't squeeze the composer input.
-  const triggerLabel =
-    selectedModel === AUTO_MODEL_ID ? (
-      <span>Auto</span>
-    ) : (
-      <span>
-        <span className="max-sm:hidden">{current.name}</span>
-        <span className="sm:hidden">{currentShortName}</span>
-      </span>
-    );
-
-  const ariaLabel =
-    selectedModel === AUTO_MODEL_ID
-      ? `Modell wählen – Automatisch (${resolvedAuto.name})`
-      : 'Modell wählen';
+  const triggerLabel = isAuto ? (
+    <span>Auto</span>
+  ) : (
+    <span>
+      <span className="max-sm:hidden">{current.name}</span>
+      <span className="sm:hidden">{currentShortName}</span>
+    </span>
+  );
 
   return (
     <ResponsiveMenu
@@ -178,7 +156,7 @@ export const ModelPicker = memo(function ModelPicker({
         <button
           type="button"
           className={composerToolbarButtonClass(isCompact)}
-          aria-label={ariaLabel}
+          aria-label={isAuto ? 'Modell wählen – Automatisch (empfohlen)' : 'Modell wählen'}
         >
           {triggerLabel}
         </button>

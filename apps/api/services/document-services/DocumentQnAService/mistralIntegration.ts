@@ -66,7 +66,6 @@ export async function askMistralAboutDocuments(
   const response = await mistral.chat.complete({
     model: 'mistral-small-latest',
     messages: [{ role: 'user', content: messageContent }],
-    max_tokens: 800,
     temperature: 0.2,
     top_p: 0.85,
   });

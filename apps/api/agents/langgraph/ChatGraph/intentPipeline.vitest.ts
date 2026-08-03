@@ -12,6 +12,7 @@
  * Run with: pnpm --filter @gruenerator/api test
  */
 
+import { searchIntentSchema } from '@gruenerator/contracts';
 import { describe, it, expect } from 'vitest';
 
 import {
@@ -36,47 +37,19 @@ import type {
 
 /**
  * All SearchIntent values that must be supported across the stack.
- * If you add a new intent, add it here — and the tests will tell you
- * what else needs updating.
+ *
+ * Read from the Zod enum, NOT hand-written. This is the file whose job is to
+ * catch an intent nobody wired up — and it used to keep its own copy of the
+ * list, so an intent added to `searchIntentSchema` and nowhere else was
+ * invisible to every test here. Exactly the duplication these tests exist to
+ * find, one level up.
+ *
+ * The usual backstop does not apply either: `apps/api/tsconfig.json` excludes
+ * `**` + `/*.vitest.ts`, so the `Record<SearchIntent, …>` maps below are never
+ * seen by `pnpm typecheck`. The runtime loop over this array is the only
+ * enforcement there is, which makes where it comes from load-bearing.
  */
-const ALL_INTENTS: SearchIntent[] = [
-  'research',
-  'compare',
-  'search',
-  'web',
-  'scrape_url',
-  'examples',
-  'pressemitteilung_examples',
-  'abgeordnetenwatch',
-  'bundestag',
-  'bahn',
-  'reise',
-  'hotel',
-  'wetter',
-  'news',
-  'umfragen',
-  'image',
-  'image_edit',
-  'sharepic',
-  'social_post',
-  'summary',
-  'chart',
-  'artifact',
-  'compute',
-  'save_as_doc',
-  'create_sheet',
-  'create_presentation',
-  'create_recurring_task',
-  'modify_doc',
-  'edit_current_doc',
-  'edit_current_board',
-  'modify_board',
-  'share_doc',
-  'chat_history',
-  'mcp',
-  'direct',
-  'agentic',
-];
+const ALL_INTENTS: SearchIntent[] = [...searchIntentSchema.options];
 
 /**
  * All ImageStyle values that must be supported.
@@ -312,7 +285,12 @@ describe('every SearchIntent has a handler path', () => {
     sharepic: 'handled via sharepic branch in controller (image generation variant)',
     social_post:
       'handled via social_post branch in executeIntentPipeline — parallel sharepic generation + examples-grounded text (EXPERIMENTAL combined post), fixed Stage-3 confirmation',
-    direct: 'falls through to response generation',
+    produktion:
+      'falls through to response generation — the substance is already in the message (pasted material, an attachment, an open document, existing text to rework, or pure wordcraft). May inherit the thread’s earlier sources via carryThreadSourcesIfNeeded',
+    direct:
+      'DEPRECATED as a verdict — still reachable through the heuristic hint and persisted metadata.intent; treated exactly like produktion everywhere it is read',
+    greeting:
+      'falls through to response generation like direct, but never carries thread sources, never cites and never enters the agentic loop — decided by GREETING_PREFIX_PATTERN before any LLM runs',
     research: 'handled via search branch (intent !== direct)',
     compare: 'handled via search branch — multi-document comparison, same path as research',
     search: 'handled via search branch (intent !== direct)',
@@ -331,6 +309,8 @@ describe('every SearchIntent has a handler path', () => {
       'EXPERIMENTAL system MCP source — forces the agentic loop; systemMcpCatalog mounts the trivago hotel-search tools; router degrades a killed loop turn to web',
     umfragen:
       'EXPERIMENTAL native domain tool — forces the agentic loop; toolCatalog mounts makeUmfragenTool (PolitPro Sonntagsfrage + Meinungsbild); router degrades a killed loop turn to web',
+    hilfe:
+      'native domain tool — forces the agentic loop (isMcpTurn in router, so an @doku-forced turn still enters it); toolCatalog mounts makeDocsSearchTool (in-process BM25 over the generated docs index) and respondNode injects the docs page map; router degrades a killed loop turn to web',
     wetter:
       'EXPERIMENTAL system MCP source — forces the agentic loop; systemMcpCatalog mounts the Open-Meteo/DWD tools; router degrades a killed loop turn to web',
     news: 'EXPERIMENTAL system MCP source — forces the agentic loop; systemMcpCatalog mounts the ARD/tagesschau tools (citations via sourceRegistry); router degrades a killed loop turn to web',
@@ -342,9 +322,11 @@ describe('every SearchIntent has a handler path', () => {
     scrape_url: 'handled via search branch — crawls pasted URL(s) as additional context',
     save_as_doc: 'routes to respond, then confirm_action SSE + pendingActionStore',
     create_sheet:
-      'handled via handleSheetCreation — generates a spreadsheet, seeds the Y.Doc, emits document_created SSE (subtype sheets)',
+      'handled via handleSheetCreation — generates a spreadsheet, seeds the Y.Doc, emits document_created SSE (subtype sheets); owns the turn on failure (templated error, never falls through)',
     create_presentation:
-      'handled via handlePresentationCreation — generates a reveal.js deck, seeds the Y.Doc, emits document_created SSE (subtype presentations)',
+      'handled via handlePresentationCreation — generates a reveal.js deck, seeds the Y.Doc, emits document_created SSE (subtype presentations); owns the turn on failure (templated error, never falls through)',
+    create_pdf:
+      'handled via handlePdfCreation — generates a tagged, CI-styled PDF (document/letter/form), verifies the finished bytes, stores it as a compute asset and emits document_created SSE (subtype pdf); owns the turn on failure (templated error, never falls through)',
     create_recurring_task:
       'handled via handleRecurringTaskCreation — parses the schedule, persists a recurring_tasks row, emits confirm SSE (flag-gated EXPERIMENTAL)',
     modify_doc: 'routes to respond, then confirm_action SSE + pendingActionStore',
@@ -369,6 +351,52 @@ describe('every SearchIntent has a handler path', () => {
       ).toBeDefined();
     });
   }
+});
+
+// ============================================================================
+// 7b. Create intents: failure policy (drift guard)
+// ============================================================================
+
+/**
+ * A create_* intent that degrades into the generic respond pipeline lets the
+ * responder invent workarounds ("copy it into the Office app and export as
+ * PDF") — that prose gets persisted and the next referential turn builds the
+ * artifact FROM it. So every create intent needs an EXPLICIT failure policy:
+ *
+ *  - 'typed'       → the handler owns the turn and reports a templated error
+ *  - 'fallthrough' → deliberately hands the turn back (documented reason)
+ *
+ * Behaviour is pinned in createIntentFailure.vitest.ts; this table exists so a
+ * NEW create intent cannot be added without choosing a policy.
+ */
+describe('every create intent declares a failure policy', () => {
+  const CREATE_INTENT_FAILURE_POLICY: Record<string, 'typed' | 'fallthrough'> = {
+    create_sheet: 'typed',
+    create_presentation: 'typed',
+    create_pdf: 'typed',
+    // EXPERIMENTAL + flag-gated: an unparseable schedule is a normal chat turn
+    // ("jeden zweiten Dienstag?"), not a failed artifact.
+    create_recurring_task: 'fallthrough',
+  };
+
+  const createIntents = ALL_INTENTS.filter((i) => i.startsWith('create_'));
+
+  it('covers every create_* intent in the SearchIntent union', () => {
+    for (const intent of createIntents) {
+      expect(
+        CREATE_INTENT_FAILURE_POLICY[intent],
+        `Create intent "${intent}" has no failure policy. Pick 'typed' (own the turn, report a templated error via failCreation) or 'fallthrough' (and document why the responder may take over).`
+      ).toBeDefined();
+    }
+  });
+
+  it('defaults to typed — fall-through must stay the rare, argued exception', () => {
+    const fallthrough = Object.entries(CREATE_INTENT_FAILURE_POLICY)
+      .filter(([, policy]) => policy === 'fallthrough')
+      .map(([intent]) => intent);
+
+    expect(fallthrough).toEqual(['create_recurring_task']);
+  });
 });
 
 // ============================================================================

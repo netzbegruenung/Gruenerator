@@ -166,18 +166,23 @@ export function OfficeTile({ tool, themeKey }: { tool: WorkplaceToolItem; themeK
   const favouritable = isFavouritableTool(tool);
   const styleKey = themeKey ?? tool.id;
   return (
-    <Link
-      to={tool.path ?? '/'}
-      className={`${OFFICE_TILE_BASE} ${getToolTheme(styleKey)?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'}`}
-    >
+    // The star sits beside the link (not nested inside it — a button inside an
+    // <a> is invalid and doubles the tab stop confusingly). `group` lives here so
+    // the star's hover-reveal still tracks the whole tile.
+    <div className="group relative">
+      <Link
+        to={tool.path ?? '/'}
+        className={`${OFFICE_TILE_BASE} ${getToolTheme(styleKey)?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'} outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-600`}
+      >
+        <OfficeTileInner
+          styleKey={styleKey}
+          Icon={tool.icon}
+          title={tool.title}
+          description={tool.description}
+        />
+      </Link>
       {favouritable && <FavouriteStar id={tool.id} size={16} className="absolute right-3 top-3" />}
-      <OfficeTileInner
-        styleKey={styleKey}
-        Icon={tool.icon}
-        title={tool.title}
-        description={tool.description}
-      />
-    </Link>
+    </div>
   );
 }
 
@@ -308,11 +313,11 @@ function FavoriteTile({ favorite }: { favorite: FavoriteItem }) {
 const byId = (id: string): WorkplaceToolItem | undefined =>
   WORKPLACE_TOOLS.find((t) => t.id === id);
 
-// Default order: Agentura first, then the office apps, then Spaces (after Wissen).
+// Default order: Agentura first, then the office apps, then Projekte (after Wissen).
 const OFFICE_ROW_TOOLS: WorkplaceToolItem[] = [
   byId('agents'),
   ...OFFICE_TOOLS,
-  byId('spaces'),
+  byId('projekte'),
 ].filter((t): t is WorkplaceToolItem => Boolean(t));
 
 // The Arbeiten tool row: colored creation tiles + the Weitere toggle tile, in one

@@ -42,6 +42,15 @@ describe('buildToolObservationReplay', () => {
     expect(call.toolName).toBe('gruenerator_search');
   });
 
+  it('never leaks a step narration into the replayed model messages', () => {
+    // Narration is a UI-only field; the model must not see the announcement
+    // prose as part of cross-turn tool observations.
+    const withNarration = mcpStep({ narration: 'Ich suche jetzt nach Klima-Beschlüssen.' });
+    const serialized = JSON.stringify(buildToolObservationReplay([withNarration], catalog));
+    expect(serialized).not.toContain('Ich suche jetzt');
+    expect(serialized).not.toContain('narration');
+  });
+
   it('replays a domain retrieval step (bundestag)', () => {
     const step = mcpStep({ serverName: undefined, toolName: 'bundestag', toolCallId: 'b1' });
     const msgs = buildToolObservationReplay([step], catalog);
@@ -77,5 +86,33 @@ describe('buildToolObservationReplay', () => {
     const out = (msgs[1].content as Array<{ output: { value: string } }>)[0].output.value;
     expect(out.length).toBeLessThan(600);
     expect(out.endsWith('…')).toBe(true);
+  });
+
+  it('strips embedded [N] citation markers so the current turn owns the namespace', () => {
+    // A replayed search result carries its own numbered source block.
+    const step = mcpStep({
+      toolName: 'gruenerator_search',
+      serverName: undefined,
+      result: { sources: '[1] Wahlprogramm — SPD stimmte zu [2] Rede von X' },
+    });
+    const msgs = buildToolObservationReplay([step], catalog);
+    const out = (msgs[1].content as Array<{ output: { value: string } }>)[0].output.value;
+    expect(out).not.toMatch(/\[\d+\]/);
+    // the surrounding text survives, only the markers are gone
+    expect(out).toContain('Wahlprogramm');
+  });
+  it('gives a knowledge result the same replay budget as a source block', () => {
+    // `product_knowledge` registers no sources, so it fell into the 500-char
+    // action preview: live on 03.08.2026 its replay was cut from 3.876 to 500
+    // characters, and the next turn described the product from an eighth of
+    // what it had just been told.
+    const step = mcpStep({
+      toolName: 'gruenerator_search',
+      serverName: undefined,
+      result: { knowledge: 'K'.repeat(3800) },
+    });
+    const msgs = buildToolObservationReplay([step], catalog);
+    const out = (msgs[1].content as Array<{ output: { value: string } }>)[0].output.value;
+    expect(out.length).toBeGreaterThan(3000);
   });
 });

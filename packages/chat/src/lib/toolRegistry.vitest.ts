@@ -27,6 +27,27 @@ describe('tool registry drift guard', () => {
     }
   });
 
+  /**
+   * INTENT_TO_TOOL is consulted ONLY on the non-agentic path
+   * (`agentic ? undefined : INTENT_TO_TOOL[intent]`, parseSSEStream), so an
+   * entry here is a promise that the SINGLE-PASS path actually ran that tool.
+   *
+   * `hilfe` broke that promise: the docs tool is mounted in the agentic loop's
+   * catalog only, while CHITCHAT_RE pins "hilfe" / "was kannst du" to
+   * single-pass, where respondNode injects a documentation page map into the
+   * prompt instead of retrieving anything. The card announced a search that
+   * never happened — and then "disappeared on reload", which is simply what
+   * correctly persisting nothing looks like.
+   */
+  it('maps no intent to a tool that exists only inside the agentic loop', () => {
+    const agenticOnlyTools = ['gruenerator_docs_search'];
+    for (const [intent, toolName] of Object.entries(INTENT_TO_TOOL)) {
+      expect(agenticOnlyTools, `${intent} → ${toolName} would be a ghost card`).not.toContain(
+        toolName
+      );
+    }
+  });
+
   it('every registry entry has a label and matching kind', () => {
     for (const name of UI_TOOL_NAMES.options) {
       const entry = TOOL_REGISTRY[name];

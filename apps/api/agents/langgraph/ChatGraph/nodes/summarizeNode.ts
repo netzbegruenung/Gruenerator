@@ -11,10 +11,13 @@
  */
 
 import { createLogger } from '../../../../utils/logger.js';
-import { INTERMEDIATE_MODEL } from '../llmConfig.js';
+import { intermediateLane } from '../llmConfig.js';
 
 import type { AIWorkerPool } from '../../../../workers/types.js';
 import type { ChatGraphState } from '../types.js';
+
+/** @see services/ai/intermediateLanes.ts */
+const LANE = intermediateLane('heavy');
 
 const log = createLogger('ChatGraph:Summarize');
 
@@ -34,6 +37,7 @@ Regeln:
 - Hebe wichtige Fakten, Zahlen und Positionen hervor
 - Behalte die Kernaussagen und den roten Faden bei
 - Max 1500 Zeichen für kurze Dokumente, max 3000 Zeichen für längere
+- Bewerte nichts, was das Dokument nicht selbst bewertet; gib Noten, Quoten und Zahlen neutral wieder
 - Auf Deutsch antworten
 - Antworte NUR mit der Zusammenfassung, ohne Einleitung wie "Hier ist die Zusammenfassung"`;
 
@@ -46,6 +50,7 @@ Regeln:
 - Entferne Redundanzen
 - Behalte alle wichtigen Fakten und Positionen bei
 - Max 3000 Zeichen
+- Bewerte nichts, was die Teilzusammenfassungen nicht selbst bewerten; gib Noten, Quoten und Zahlen neutral wieder
 - Auf Deutsch antworten
 - Antworte NUR mit der Zusammenfassung`;
 
@@ -69,7 +74,7 @@ async function singlePassSummarize(
   const response = await aiWorkerPool.processRequest(
     {
       type: 'chat_summarize',
-      provider: INTERMEDIATE_MODEL.provider,
+      provider: LANE.provider,
       systemPrompt: SINGLE_PASS_PROMPT,
       messages: [
         {
@@ -78,7 +83,7 @@ async function singlePassSummarize(
         },
       ],
       options: {
-        model: INTERMEDIATE_MODEL.model,
+        model: LANE.model,
         max_tokens: 1200,
         temperature: 0.2,
       },
@@ -126,7 +131,7 @@ async function mapReduceSummarize(
         const response = await aiWorkerPool.processRequest(
           {
             type: 'chat_summarize_map',
-            provider: INTERMEDIATE_MODEL.provider,
+            provider: LANE.provider,
             systemPrompt: MAP_PROMPT,
             messages: [
               {
@@ -135,7 +140,7 @@ async function mapReduceSummarize(
               },
             ],
             options: {
-              model: INTERMEDIATE_MODEL.model,
+              model: LANE.model,
               max_tokens: 400,
               temperature: 0.2,
             },
@@ -168,7 +173,7 @@ async function mapReduceSummarize(
   const response = await aiWorkerPool.processRequest(
     {
       type: 'chat_summarize_reduce',
-      provider: INTERMEDIATE_MODEL.provider,
+      provider: LANE.provider,
       systemPrompt: REDUCE_PROMPT,
       messages: [
         {
@@ -177,7 +182,7 @@ async function mapReduceSummarize(
         },
       ],
       options: {
-        model: INTERMEDIATE_MODEL.model,
+        model: LANE.model,
         max_tokens: 1200,
         temperature: 0.2,
       },
@@ -218,7 +223,7 @@ async function summarizeConversation(state: ChatGraphState): Promise<string> {
   const response = await aiWorkerPool.processRequest(
     {
       type: 'chat_summarize_conversation',
-      provider: INTERMEDIATE_MODEL.provider,
+      provider: LANE.provider,
       systemPrompt: CONVERSATION_SUMMARY_PROMPT,
       messages: [
         {
@@ -227,7 +232,7 @@ async function summarizeConversation(state: ChatGraphState): Promise<string> {
         },
       ],
       options: {
-        model: INTERMEDIATE_MODEL.model,
+        model: LANE.model,
         max_tokens: 800,
         temperature: 0.2,
       },
@@ -250,6 +255,11 @@ async function summarizeConversation(state: ChatGraphState): Promise<string> {
 export async function summarizeNode(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
   const startTime = Date.now();
   log.info('[Summarize] Starting document summarization');
+
+  // Set when the user pointed at documents and we could not read them. The
+  // conversation fallback below then summarises something ELSE than what was
+  // asked for — plausible-looking, wrong content — so the answer has to say so.
+  let docRetrievalFailed = false;
 
   try {
     const { aiWorkerPool } = state;
@@ -310,13 +320,15 @@ export async function summarizeNode(state: ChatGraphState): Promise<Partial<Chat
         }
 
         if (bulkResult.errors.length > 0) {
+          docRetrievalFailed = true;
           log.warn(
             `[Summarize] Qdrant retrieval errors: ${bulkResult.errors.map((e) => e.error).join(', ')}`
           );
         }
       } catch (error: unknown) {
+        docRetrievalFailed = true;
         log.warn(
-          `[Summarize] Document retrieval failed: ${error instanceof Error ? (error instanceof Error ? error.message : String(error)) : String(error)}`
+          `[Summarize] Document retrieval failed: ${error instanceof Error ? error.message : String(error)}`
         );
       }
     }
@@ -370,6 +382,28 @@ export async function summarizeNode(state: ChatGraphState): Promise<Partial<Chat
     log.info('[Summarize] No documents found, summarizing conversation');
     const summary = await summarizeConversation(state);
     const summaryTimeMs = Date.now() - startTime;
+
+    // Summarising the conversation when the user asked for a DOCUMENT is a
+    // content swap, not a degradation of degree — without this note the answer
+    // reads like a perfectly good summary of entirely the wrong thing.
+    if (docRetrievalFailed) {
+      return {
+        summaryContext: summary,
+        summaryTimeMs,
+        // APPEND, never replace: the live router merges node results with a
+        // plain spread (the append reducer only runs inside the compiled graph,
+        // which has no callers), so returning a bare array would drop an
+        // earlier note — e.g. the @-mention that failed to load in the same turn.
+        degradationNotes: [
+          ...(state.degradationNotes ?? []),
+          {
+            code: 'summary_partial',
+            modelHint:
+              'Das angefragte Dokument konnte NICHT geladen werden. Die folgende Zusammenfassung beschreibt nur den bisherigen Chatverlauf, nicht das Dokument. Sag das ausdrücklich am Anfang deiner Antwort.',
+          },
+        ],
+      };
+    }
 
     return { summaryContext: summary, summaryTimeMs };
   } catch (error: unknown) {

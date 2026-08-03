@@ -1,9 +1,10 @@
 'use client';
 
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
-import { ChevronDown, Sparkles } from 'lucide-react';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger, cn } from '@gruenerator/ui';
 import { useAuiState } from '@assistant-ui/react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger, cn } from '@gruenerator/ui';
+import { ChevronDown, Sparkles } from 'lucide-react';
+import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
+
 import type {
   ReasoningMessagePartComponent,
   ReasoningGroupComponent,
@@ -162,3 +163,16 @@ export const ReasoningGroup: ReasoningGroupComponent = ({ children, startIndex, 
     </ReasoningRoot>
   );
 };
+
+/**
+ * The chat thread's reasoning slots. They render nothing: on that surface the
+ * thinking hangs under the status line's chevron (`StatusLineDetails`), which
+ * reads the same reasoning parts and retires with the line once the answer text
+ * starts. The slots still have to EXIST — assistant-ui falls back to its own
+ * default renderer for an unset one, which would put the block back.
+ *
+ * `Reasoning`/`ReasoningGroup` above stay for surfaces that want the classic
+ * standalone "Grünerators Gedanken" block.
+ */
+export const HiddenReasoning: ReasoningMessagePartComponent = () => null;
+export const HiddenReasoningGroup: ReasoningGroupComponent = () => null;

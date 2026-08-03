@@ -12,6 +12,9 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  InteractiveCard,
+  cn,
+  interactiveCardControl,
 } from '@gruenerator/ui';
 import { memo, useState } from 'react';
 import { PiDotsThreeVertical, PiPencilSimple, PiTrash } from 'react-icons/pi';
@@ -39,16 +42,9 @@ const AgentCard = memo(({ agent }: AgentCardProps) => {
 
   return (
     <>
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={openChat}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            openChat();
-          }
-        }}
+      <InteractiveCard
+        label={agent.title}
+        onActivate={openChat}
         className="group flex cursor-pointer items-start gap-sm rounded-md border border-grey-200 bg-background p-md transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-grey-300 hover:shadow-md dark:border-grey-700 dark:hover:border-grey-600"
       >
         <AgentAvatar
@@ -66,8 +62,10 @@ const AgentCard = memo(({ agent }: AgentCardProps) => {
           </p>
         </div>
         <div
-          className="shrink-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100 max-sm:opacity-100"
-          onClick={(e) => e.stopPropagation()}
+          className={cn(
+            interactiveCardControl,
+            'shrink-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100 max-sm:opacity-100'
+          )}
         >
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -92,12 +90,12 @@ const AgentCard = memo(({ agent }: AgentCardProps) => {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-      </div>
+      </InteractiveCard>
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Agent löschen?</DialogTitle>
+            <DialogTitle>Grünerator-Agent löschen?</DialogTitle>
             <DialogDescription>
               „{agent.title}“ wird dauerhaft gelöscht. Das kann nicht rückgängig gemacht werden.
             </DialogDescription>

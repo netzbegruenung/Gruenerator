@@ -1,0 +1,41 @@
+# The composer stays visible once the keyboard is up.
+#
+# Regression guard for `d025a2d04 lift bottom composer above keyboard on tab
+# screens`: the soft keyboard covered the input on the tab screens, so you could
+# not see what you were typing. Purely a layout/inset bug — invisible to any
+# renderer-level test, which has no keyboard and no safe area.
+appId: de.gruenerator.app
+---
+# No clearState: these run against a local DEBUG build, where clearing state
+# also wipes the dev-launcher's saved Metro URL and the app relaunches into the
+# launcher instead of itself. The release APK EAS builds has no launcher, so
+# boot-to-login can and does clear state.
+- launchApp:
+    stopApp: true
+- runFlow: _dev-client-preamble.yaml
+
+# Wait rather than assert: a debug build pulls the bundle from Metro on first
+# launch (~10s), and the splash only hands over once fonts and the rehydrated
+# onboarding flag both settle.
+- extendedWaitUntil:
+    visible: 'Chat'
+    timeout: 60000
+
+# `tab-composer-*` is the bottom-pinned BottomComposerBar on the tab screens —
+# the composer this flow is actually about. It used to tap `chat-composer-*`,
+# which is the in-thread chat composer and lives in a different layout, so the
+# inset bug it guards was never exercised.
+- tapOn:
+    id: 'tab-composer-input'
+
+# Typing raises the keyboard. The input must still be on screen afterwards, and
+# the send button — which only mounts once there is text — must be reachable.
+- inputText: 'Hallo'
+- assertVisible:
+    id: 'tab-composer-input'
+- assertVisible:
+    id: 'tab-composer-send'
+
+- hideKeyboard
+- assertVisible:
+    id: 'tab-composer-input'

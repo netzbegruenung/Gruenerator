@@ -57,7 +57,6 @@ Analysiere diese Kommunikation auf Risiken und bereite Counter-Speech vor.`;
       systemPrompt: promptResult.system,
       messages: promptResult.messages,
       options: {
-        max_tokens: 800,
         temperature: 0.6,
         top_p: 0.85,
       },

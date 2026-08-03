@@ -1,4 +1,3 @@
-import { useCallback } from 'react';
 import {
   Loader2,
   Pencil,
@@ -9,8 +8,10 @@ import {
   SquarePen,
   History,
 } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { useCallback } from 'react';
+
 import { useSharepicArtifact } from '../../hooks/useSharepicArtifact';
+import { cn } from '../../lib/utils';
 
 import type { SharepicVariant } from '../../hooks/useChatGraphStream';
 

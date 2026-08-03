@@ -31,6 +31,7 @@ import {
   type UserAgentPatch,
 } from '../../services/userAgents/userAgentsRepository.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -75,7 +76,7 @@ export const userAgentsContractRouter = s.router(userAgentsContract, {
     } catch (error) {
       const err = error as Error;
       log.error('[userAgentsContract.list] Error:', err);
-      return { status: 500 as const, body: { success: false, message: err.message } };
+      return { status: 500 as const, body: { success: false, message: toUserFacingMessage(err) } };
     }
   },
 
@@ -140,7 +141,7 @@ export const userAgentsContractRouter = s.router(userAgentsContract, {
           },
         };
       }
-      return { status: 500 as const, body: { success: false, message: err.message } };
+      return { status: 500 as const, body: { success: false, message: toUserFacingMessage(err) } };
     }
   },
 
@@ -224,7 +225,7 @@ export const userAgentsContractRouter = s.router(userAgentsContract, {
     } catch (error) {
       const err = error as Error;
       log.error('[userAgentsContract.get] Error:', err);
-      return { status: 500 as const, body: { success: false, message: err.message } };
+      return { status: 500 as const, body: { success: false, message: toUserFacingMessage(err) } };
     }
   },
 
@@ -279,7 +280,7 @@ export const userAgentsContractRouter = s.router(userAgentsContract, {
     } catch (error) {
       const err = error as Error;
       log.error('[userAgentsContract.update] Error:', err);
-      return { status: 500 as const, body: { success: false, message: err.message } };
+      return { status: 500 as const, body: { success: false, message: toUserFacingMessage(err) } };
     }
   },
 
@@ -297,7 +298,7 @@ export const userAgentsContractRouter = s.router(userAgentsContract, {
     } catch (error) {
       const err = error as Error;
       log.error('[userAgentsContract.remove] Error:', err);
-      return { status: 500 as const, body: { success: false, message: err.message } };
+      return { status: 500 as const, body: { success: false, message: toUserFacingMessage(err) } };
     }
   },
 });

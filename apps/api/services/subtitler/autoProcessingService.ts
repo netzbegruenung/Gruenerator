@@ -8,12 +8,14 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import { type AutoProgress, type SubtitleSegment } from '@gruenerator/contracts';
+import { type AutoProgress, type JobErrorCode, type SubtitleSegment } from '@gruenerator/contracts';
 import { v4 as uuidv4 } from 'uuid';
 
+import { toJobError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 import { reportBackgroundError } from '../../utils/reportBackgroundError.js';
+import { type Locale } from '../localization/types.js';
 import { getSharedMediaService } from '../sharedMediaService.js';
 
 import AssSubtitleService from './assSubtitleService.js';
@@ -24,9 +26,10 @@ import {
   type VideoMetadata,
 } from './ffmpegExportUtils.js';
 import { ffmpegPool } from './ffmpegPool.js';
-import { ffmpeg, ffprobe, normalizeRotation } from './ffmpegWrapper.js';
+import { ffmpeg } from './ffmpegWrapper.js';
 import { autoSaveProject } from './projectSavingService.js';
 import { transcribeVideo } from './transcriptionService.js';
+import { probeVideoMetadata } from './videoMetadata.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -65,6 +68,9 @@ interface ProgressData {
   stageProgress?: number;
   overallProgress?: number;
   error?: string | null;
+  errorCode?: JobErrorCode | null;
+  retryable?: boolean | null;
+  errorId?: string | null;
   outputPath?: string | null;
   duration?: number | null;
 }
@@ -78,7 +84,7 @@ interface TrimPoints {
 interface ProcessingOptions {
   stylePreference?: string;
   heightPreference?: string;
-  locale?: string;
+  locale?: Locale;
   maxResolution?: number | null;
   userId?: string;
   originalFilename?: string;
@@ -101,6 +107,9 @@ async function updateProgress(uploadId: string, progressData: ProgressData): Pro
     stageProgress: progressData.stageProgress || 0,
     overallProgress: progressData.overallProgress || 0,
     error: progressData.error || null,
+    errorCode: progressData.errorCode || null,
+    retryable: progressData.retryable ?? null,
+    errorId: progressData.errorId || null,
     outputPath: progressData.outputPath || null,
     duration: progressData.duration || null,
   };
@@ -122,44 +131,6 @@ function calculateOverallProgress(stageId: number, stageProgress: number): numbe
   }
 
   return Math.min(100, Math.round(accumulated));
-}
-
-function parseFrameRate(frameRateStr: string): number {
-  if (!frameRateStr) return 30;
-  const parts = frameRateStr.split('/');
-  if (parts.length === 2) {
-    const numerator = parseFloat(parts[0]);
-    const denominator = parseFloat(parts[1]);
-    if (denominator !== 0) {
-      return numerator / denominator;
-    }
-  }
-  const parsed = parseFloat(frameRateStr);
-  return isNaN(parsed) ? 30 : parsed;
-}
-
-async function getVideoMetadata(inputPath: string): Promise<VideoMetadata> {
-  const metadata = await ffprobe(inputPath);
-  const videoStream = metadata.streams.find((s) => s.codec_type === 'video');
-  const audioStream = metadata.streams.find((s) => s.codec_type === 'audio');
-
-  const rotationDegrees = videoStream ? normalizeRotation(videoStream) : 0;
-  const isVertical = rotationDegrees === 90 || rotationDegrees === 270;
-  const rawW = videoStream?.width || 1920;
-  const rawH = videoStream?.height || 1080;
-
-  return {
-    width: isVertical ? rawH : rawW,
-    height: isVertical ? rawW : rawH,
-    duration: parseFloat(metadata.format.duration || '0') || 0,
-    fps: parseFrameRate(videoStream?.r_frame_rate || '30/1'),
-    rotation: String(rotationDegrees),
-    originalFormat: {
-      ...(videoStream?.codec_name && { codec: videoStream.codec_name }),
-      ...(audioStream?.codec_name && { audioCodec: audioStream.codec_name }),
-      audioBitrate: audioStream?.bit_rate ? parseInt(audioStream.bit_rate) / 1000 : null,
-    },
-  };
 }
 
 const TARGET_RESOLUTION = 1080;
@@ -237,7 +208,7 @@ async function processVideoAutomatically(
       overallProgress: 0,
     });
 
-    let metadata = await getVideoMetadata(inputPath);
+    let metadata = await probeVideoMetadata(inputPath);
     const fileStats = await fs.stat(inputPath);
     log.debug(
       `Video metadata: ${metadata.width}x${metadata.height}, duration: ${metadata.duration}s, size: ${(fileStats.size / 1024 / 1024).toFixed(2)}MB`
@@ -302,7 +273,9 @@ async function processVideoAutomatically(
 
     try {
       const [transcriptionResult, scaledPath] = await Promise.all([
-        transcribeVideo(inputPath, 'manual', undefined, 'de'),
+        // The locale drives both the transcription vocabulary and, further
+        // down, the ASS style/font.
+        transcribeVideo(inputPath, 'manual', undefined, locale),
         needsPreScale
           ? preScaleVideo(inputPath, metadata, TARGET_RESOLUTION)
           : Promise.resolve(null),
@@ -314,16 +287,17 @@ async function processVideoAutomatically(
       if (scaledPath) {
         workingVideoPath = scaledPath;
         preScaledTempPath = scaledPath;
-        const newMetadata = await getVideoMetadata(workingVideoPath);
+        const newMetadata = await probeVideoMetadata(workingVideoPath);
         if (newMetadata) {
           metadata = newMetadata;
         }
         log.info(`Pre-scaled video ready: ${metadata.width}x${metadata.height}`);
       }
     } catch (transcriptionError: unknown) {
-      log.error(
-        `Transcription/scaling failed: ${transcriptionError instanceof Error ? transcriptionError.message : String(transcriptionError)}`
-      );
+      const jobError = toJobError(transcriptionError, {
+        scope: 'subtitler-auto-processing',
+        meta: { uploadId, phase: 'transcription' },
+      });
       if (preScaledTempPath) {
         await fs.unlink(preScaledTempPath).catch(() => {});
       }
@@ -331,7 +305,10 @@ async function processVideoAutomatically(
         status: 'error',
         stage: STAGES.SUBTITLES.id,
         stageName: STAGES.SUBTITLES.name,
-        error: 'Untertitel konnten nicht generiert werden. Bitte versuche es erneut.',
+        error: jobError.message,
+        errorCode: jobError.code,
+        retryable: jobError.retryable,
+        errorId: jobError.errorId,
       });
       throw transcriptionError;
     }
@@ -401,9 +378,10 @@ async function processVideoAutomatically(
       metadata,
     };
   } catch (error: unknown) {
-    log.error(
-      `Automatic processing failed: ${error instanceof Error ? error.message : String(error)}`
-    );
+    const jobError = toJobError(error, {
+      scope: 'subtitler-auto-processing',
+      meta: { uploadId },
+    });
 
     if (preScaledTempPath) {
       await fs.unlink(preScaledTempPath).catch(() => {});
@@ -411,8 +389,10 @@ async function processVideoAutomatically(
 
     await updateProgress(uploadId, {
       status: 'error',
-      error:
-        (error instanceof Error ? error.message : String(error)) || 'Verarbeitung fehlgeschlagen',
+      error: jobError.message,
+      errorCode: jobError.code,
+      retryable: jobError.retryable,
+      errorId: jobError.errorId,
     });
 
     throw error;
@@ -422,7 +402,7 @@ async function processVideoAutomatically(
 interface ExportOptions {
   stylePreference: string;
   heightPreference: string;
-  locale: string;
+  locale: Locale;
   maxResolution: number | null;
   autoProcessToken: string;
   uploadId: string;
@@ -676,7 +656,7 @@ interface StartAutoProcessingOptions {
   videoPath: string;
   originalFilename: string;
   userId?: string | null;
-  locale?: string;
+  locale?: Locale;
   maxResolution?: number | null;
   /**
    * Called after the result was auto-saved as a project, before the Redis

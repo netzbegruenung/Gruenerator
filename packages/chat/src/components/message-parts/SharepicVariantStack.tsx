@@ -1,5 +1,5 @@
-import { memo, useEffect, useState } from 'react';
 import { ImageOff, Loader2 } from 'lucide-react';
+import { memo, useEffect, useState } from 'react';
 
 import { sharepicLabel } from '../../hooks/useSharepicArtifact';
 import { useSharepicThumbnail } from '../../hooks/useSharepicThumbnail';
@@ -34,6 +34,7 @@ export function SharepicVariantStack({ data }: SharepicVariantStackProps) {
   // artifact while the user iterates.
   const activeIsOwn = activeVariantId != null && variants.some((v) => v.id === activeVariantId);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs the hero slot to an external store (sharepicLiveStore), which updates post-mount
     if (activeIsOwn) setSelectedId(activeVariantId);
   }, [activeIsOwn, activeVariantId]);
 

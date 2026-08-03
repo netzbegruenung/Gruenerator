@@ -11,8 +11,12 @@
 import { useState, useEffect } from 'react';
 
 export interface UseFontLoaderOptions {
-  /** Font family to load (e.g., 'ArvoGruen') */
-  fontFamily: string;
+  /**
+   * Font family (or families) to load, e.g. 'ArvoGruen'. A canvas paint is not
+   * a DOM font usage, so every family the template draws must be listed here —
+   * anything omitted stays unloaded at first paint and bakes in the fallback.
+   */
+  fontFamily: string | readonly string[];
   /** Font size for verification */
   fontSize: number;
   /** Maximum attempts for polling fallback */
@@ -48,6 +52,11 @@ export function useFontLoader(options: UseFontLoaderOptions | null): UseFontLoad
   const [fontLoaded] = useState(true);
   const [isFontAvailable, setIsFontAvailable] = useState(false);
 
+  // Stable dep: an inline `fontFamily` array would be a fresh identity each render.
+  const familyKey = Array.isArray(options?.fontFamily)
+    ? options.fontFamily.join('|')
+    : (options?.fontFamily ?? '');
+
   useEffect(() => {
     if (!options) {
       setIsFontAvailable(true);
@@ -55,10 +64,11 @@ export function useFontLoader(options: UseFontLoaderOptions | null): UseFontLoad
     }
 
     let cancelled = false;
-    const fontSpec = `${options.fontSize}px ${options.fontFamily}`;
+    const families = Array.isArray(options.fontFamily) ? options.fontFamily : [options.fontFamily];
+    const fontSpecs = families.map((family) => `${options.fontSize}px ${family}`);
 
-    // Check if font is already loaded (synchronous check)
-    if (document.fonts.check(fontSpec)) {
+    // Check if every font is already loaded (synchronous check)
+    if (fontSpecs.every((spec) => document.fonts.check(spec))) {
       setIsFontAvailable(true);
       return;
     }
@@ -67,7 +77,11 @@ export function useFontLoader(options: UseFontLoaderOptions | null): UseFontLoad
     const loadFont = async () => {
       try {
         // Modern approach: Use Font Loading API
-        await document.fonts.load(fontSpec, 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz');
+        await Promise.all(
+          fontSpecs.map((spec) =>
+            document.fonts.load(spec, 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz')
+          )
+        );
         await document.fonts.ready;
 
         if (!cancelled) {
@@ -84,7 +98,7 @@ export function useFontLoader(options: UseFontLoaderOptions | null): UseFontLoad
 
           attempts++;
 
-          if (document.fonts.check(fontSpec)) {
+          if (fontSpecs.every((spec) => document.fonts.check(spec))) {
             setIsFontAvailable(true);
           } else if (attempts < maxAttempts) {
             setTimeout(poll, pollInterval);
@@ -103,7 +117,8 @@ export function useFontLoader(options: UseFontLoaderOptions | null): UseFontLoad
     return () => {
       cancelled = true;
     };
-  }, [options?.fontFamily, options?.fontSize, options?.maxAttempts, options?.pollInterval]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- familyKey is the stable serialisation of options.fontFamily
+  }, [familyKey, options?.fontSize, options?.maxAttempts, options?.pollInterval]);
 
   return { fontLoaded, isFontAvailable };
 }

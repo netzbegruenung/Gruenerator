@@ -1,10 +1,5 @@
 export type VoiceAgentPhase =
-  | 'idle'
-  | 'ready'
-  | 'recording'
-  | 'transcribing'
-  | 'thinking'
-  | 'speaking';
+  'idle' | 'ready' | 'recording' | 'transcribing' | 'thinking' | 'speaking';
 
 export interface VoiceAgentState {
   phase: VoiceAgentPhase;

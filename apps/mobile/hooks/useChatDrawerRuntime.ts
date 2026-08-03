@@ -10,9 +10,7 @@ import {
   transformMessageLike,
 } from '@gruenerator/chat';
 import { isUnauthorizedError } from '@gruenerator/shared/api';
-import { useMemo, useRef } from 'react';
-
-import { configureMobileChat } from '../services/chatConfig';
+import { useMemo } from 'react';
 
 import { useMobileChatRuntime } from './useMobileChatRuntime';
 
@@ -42,12 +40,6 @@ function useDrawerRuntimeHook() {
 }
 
 export function useChatDrawerRuntime() {
-  const configuredRef = useRef(false);
-  if (!configuredRef.current) {
-    configureMobileChat();
-    configuredRef.current = true;
-  }
-
   const fetchFn = useChatConfigStore((s) => s.fetch);
   const onUnauthorized = useChatConfigStore((s) => s.onUnauthorized);
   const apiClient = useMemo(

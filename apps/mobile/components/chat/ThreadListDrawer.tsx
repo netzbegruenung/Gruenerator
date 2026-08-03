@@ -5,12 +5,6 @@ import {
   useAui,
   useAuiState,
 } from '@assistant-ui/react-native';
-import {
-  getPinnedAgents,
-  useAgentStore,
-  type Mentionable,
-  type PinnedAgent,
-} from '@gruenerator/chat';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
@@ -20,14 +14,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useDrawerStore } from '../../hooks/useDrawerStore';
 import { useTheme } from '../../hooks/useTheme';
+import { useSettingsSheetStore } from '../../stores/settingsSheetStore';
 import { useToolFavoritesStore } from '../../stores/toolFavoritesStore';
-import { colors, spacing, borderRadius } from '../../theme';
+import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
+import { DRAWER_MESH } from '../../theme/chatBackgrounds';
 import { route, routeWithParams, type AppRoute } from '../../types/routes';
 import { ProfileAvatar } from '../common';
-import { TOOLS, type ToolDef } from '../tools/toolsConfig';
+import { MeshSurface } from '../common/MeshSurface';
+import { MenuIcon } from '../icons/WebMirrorIcons';
+import { STUDIO_TOOLS, TOOLS, type ToolDef } from '../tools/toolsConfig';
 
-import { NewChatSheet } from './NewChatSheet';
-import { agentIcon } from './sidebarIcons';
+import { asThreadMenuId, buildThreadMenuActions } from './menuActions';
+import { MenuActionSheet } from './MenuActionSheet';
+import { ThreadRenameSheet } from './ThreadRenameSheet';
+import { ThreadShareSheet } from './ThreadShareSheet';
 
 import type { Theme } from '../../theme/colors';
 
@@ -41,15 +41,46 @@ interface Props {
 // no remoteId — which silently breaks tap-to-open and delete.
 const ThreadItemBody = memo(function ThreadItemBody({
   theme,
+  archived,
   onSelect,
+  onOpenSheet,
   isActive,
 }: {
   theme: Theme;
+  archived: boolean;
   onSelect: () => void;
+  /** Only the two entries that need a surface of their own. */
+  onOpenSheet: (kind: ThreadSheet) => void;
   isActive: boolean;
 }) {
   const aui = useAui();
   const router = useRouter();
+
+  const [actionsOpen, setActionsOpen] = useState(false);
+
+  // Archiving and deleting run right here rather than travelling up to a host:
+  // this component already sits inside the row's `ThreadListItemByIndexProvider`,
+  // so `aui.threadListItem()` is the right thread. Only renaming and sharing
+  // need a surface, and those are what `onOpenSheet` is for.
+  const handleMenuAction = useCallback(
+    (event: string) => {
+      const id = asThreadMenuId(event);
+      if (id === 'rename' || id === 'share') {
+        onOpenSheet(id);
+        return;
+      }
+      if (id === 'archive') aui.threadListItem().archive();
+      else if (id === 'unarchive') aui.threadListItem().unarchive();
+      else if (id === 'delete') {
+        const { title } = aui.threadListItem().getState();
+        Alert.alert('Unterhaltung löschen', `"${title || 'Neue Unterhaltung'}" wirklich löschen?`, [
+          { text: 'Abbrechen', style: 'cancel' },
+          { text: 'Löschen', style: 'destructive', onPress: () => aui.threadListItem().delete() },
+        ]);
+      }
+    },
+    [aui, onOpenSheet]
+  );
 
   const handlePress = useCallback(() => {
     const { remoteId } = aui.threadListItem().getState();
@@ -62,35 +93,82 @@ const ThreadItemBody = memo(function ThreadItemBody({
     onSelect();
   }, [aui, onSelect, router]);
 
-  const handleDelete = useCallback(() => {
-    const title = aui.threadListItem().getState().title;
-    Alert.alert('Unterhaltung löschen', `"${title || 'Neue Unterhaltung'}" wirklich löschen?`, [
-      { text: 'Abbrechen', style: 'cancel' },
-      {
-        text: 'Löschen',
-        style: 'destructive',
-        onPress: () => aui.threadListItem().delete(),
-      },
-    ]);
-  }, [aui]);
-
   return (
     <ThreadListItemPrimitive.Root style={styles.itemRoot}>
+      {/* Hold the row to act on it — there is no three-dot button beside the
+          title. The menu is our own sheet, not `MenuView`: wrapped around a row,
+          the native menu rendered to NOTHING on the device, so every
+          conversation disappeared from the list with no error in either log. The
+          entries still come from `buildThreadMenuActions`, so the assistant
+          menus and this one cannot drift apart. */}
       <Pressable
         onPress={handlePress}
-        onLongPress={handleDelete}
+        onLongPress={() => setActionsOpen(true)}
         delayLongPress={350}
         style={({ pressed }) => [
           styles.itemTrigger,
           { backgroundColor: pressed ? theme.surface : 'transparent' },
         ]}
+        accessibilityRole="button"
       >
         <Text style={[styles.itemTitle, { color: theme.text }]} numberOfLines={1}>
           <ThreadListItemPrimitive.Title fallback="Neue Unterhaltung" />
         </Text>
       </Pressable>
       {isActive && <View style={[styles.activeDot, { backgroundColor: colors.primary[500] }]} />}
+      <MenuActionSheet
+        visible={actionsOpen}
+        theme={theme}
+        heading={aui.threadListItem().getState().title}
+        actions={buildThreadMenuActions(archived)}
+        onSelect={handleMenuAction}
+        onClose={() => setActionsOpen(false)}
+      />
     </ThreadListItemPrimitive.Root>
+  );
+});
+
+/** The two menu entries that need a surface of their own. */
+type ThreadSheet = 'rename' | 'share';
+
+/** Which row a sheet is acting on, and which sheet it is. */
+interface SelectedThread {
+  index: number;
+  archived: boolean;
+  sheet: ThreadSheet;
+}
+
+/**
+ * Host for the two sheets the menu cannot hold itself. Sits inside a
+ * `ThreadListItemByIndexProvider` for the selected row, so `aui.threadListItem()`
+ * resolves to that thread — the same reason `ThreadItemBody` reads `aui` from
+ * inside the provider rather than above it. One host for the whole drawer
+ * instead of a sheet per row.
+ */
+const ThreadSheetHost = memo(function ThreadSheetHost({
+  theme,
+  sheet,
+  onClose,
+}: {
+  theme: Theme;
+  sheet: ThreadSheet;
+  onClose: () => void;
+}) {
+  const aui = useAui();
+  const state = aui.threadListItem().getState();
+
+  const rename = useCallback((title: string) => aui.threadListItem().rename(title), [aui]);
+
+  return sheet === 'rename' ? (
+    <ThreadRenameSheet
+      visible
+      theme={theme}
+      title={state.title}
+      onRename={rename}
+      onClose={onClose}
+    />
+  ) : (
+    <ThreadShareSheet visible threadId={state.remoteId ?? null} theme={theme} onClose={onClose} />
   );
 });
 
@@ -98,85 +176,123 @@ const ThreadItem = memo(function ThreadItem({
   index,
   theme,
   onSelect,
+  onOpenSheet,
   isActive,
+  archived = false,
 }: {
   index: number;
   theme: Theme;
   onSelect: () => void;
+  onOpenSheet: (selected: SelectedThread) => void;
   isActive: boolean;
+  archived?: boolean;
 }) {
+  const openSheet = useCallback(
+    (kind: ThreadSheet) => onOpenSheet({ index, archived, sheet: kind }),
+    [onOpenSheet, index, archived]
+  );
   return (
-    <ThreadListItemByIndexProvider index={index} archived={false}>
-      <ThreadItemBody theme={theme} onSelect={onSelect} isActive={isActive} />
+    <ThreadListItemByIndexProvider index={index} archived={archived}>
+      <ThreadItemBody
+        theme={theme}
+        archived={archived}
+        onSelect={onSelect}
+        onOpenSheet={openSheet}
+        isActive={isActive}
+      />
     </ThreadListItemByIndexProvider>
   );
 });
 
-function DrawerSections({
+/**
+ * The archived conversations, collapsed. `ThreadListPrimitive.Items` renders
+ * only the live list on React Native — unlike web's, it takes no `archived`
+ * prop — so this reads `threads.archivedThreadIds` directly and addresses each
+ * row by its index in that list.
+ *
+ * Without it, archiving would be a one-way door.
+ */
+const ArchivedSection = memo(function ArchivedSection({
   theme,
-  agents,
-  favouriteTools,
-  onSelectAgent,
-  onSelectTool,
-  onOpenSources,
+  onSelect,
+  onOpenSheet,
 }: {
   theme: Theme;
-  agents: PinnedAgent[];
-  favouriteTools: ToolDef[];
-  onSelectAgent: (agentId: string) => void;
+  onSelect: () => void;
+  onOpenSheet: (selected: SelectedThread) => void;
+}) {
+  const archivedIds = useAuiState((s) => s.threads.archivedThreadIds);
+  const [expanded, setExpanded] = useState(false);
+
+  if (archivedIds.length === 0) return null;
+
+  return (
+    <View style={styles.archiveSection}>
+      <Pressable
+        onPress={() => setExpanded((e) => !e)}
+        style={styles.archiveToggle}
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+      >
+        <Ionicons name="archive-outline" size={16} color={theme.textSecondary} />
+        <Text style={[styles.archiveLabel, { color: theme.textSecondary }]}>
+          Archiviert ({archivedIds.length})
+        </Text>
+        <Ionicons
+          name={expanded ? 'chevron-up' : 'chevron-down'}
+          size={14}
+          color={theme.textSecondary}
+        />
+      </Pressable>
+      {expanded
+        ? archivedIds.map((threadId, index) => (
+            <ThreadItem
+              key={threadId}
+              index={index}
+              archived
+              theme={theme}
+              onSelect={onSelect}
+              onOpenSheet={onOpenSheet}
+              isActive={false}
+            />
+          ))
+        : null}
+    </View>
+  );
+});
+
+// One flat tool list instead of the old Favoriten + Schnellstart pair: the drawer
+// now mirrors web's sidebar, which lists tools rather than pinned agents (those
+// live on the Grüneratoren tool's own screen). Starred tools sort to the top so
+// the star still does something here. No heading above them — the rows read as
+// the menu they are, and the saved line goes to the thread list.
+function DrawerSections({
+  theme,
+  tools,
+  onSelectTool,
+}: {
+  theme: Theme;
+  tools: ToolDef[];
   onSelectTool: (route: AppRoute) => void;
-  onOpenSources: () => void;
 }) {
   return (
     <View>
-      {favouriteTools.length > 0 && (
-        <>
-          <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Favoriten</Text>
-          {favouriteTools.map((tool) => (
-            <Pressable
-              key={tool.id}
-              onPress={() => onSelectTool(tool.route)}
-              style={({ pressed }) => [
-                styles.navRow,
-                { backgroundColor: pressed ? theme.surface : 'transparent' },
-              ]}
-            >
-              <Ionicons name={tool.icon} size={20} color={theme.text} />
-              <Text style={[styles.navLabel, { color: theme.text }]} numberOfLines={1}>
-                {tool.title}
-              </Text>
-            </Pressable>
-          ))}
-        </>
-      )}
-
-      <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Schnellstart</Text>
-      {agents.map((agent) => (
+      {tools.map((tool) => (
         <Pressable
-          key={agent.identifier}
-          onPress={() => onSelectAgent(agent.identifier)}
+          key={tool.id}
+          onPress={() => onSelectTool(tool.route)}
           style={({ pressed }) => [
             styles.navRow,
             { backgroundColor: pressed ? theme.surface : 'transparent' },
           ]}
+          accessibilityRole="button"
         >
-          <Ionicons name={agentIcon(agent.iconKey)} size={20} color={theme.text} />
+          <MenuIcon name={tool.icon} size={DRAWER_ICON} color={theme.text} />
           <Text style={[styles.navLabel, { color: theme.text }]} numberOfLines={1}>
-            {agent.title}
+            {tool.title}
           </Text>
         </Pressable>
       ))}
-      <Pressable
-        onPress={onOpenSources}
-        style={({ pressed }) => [
-          styles.navRow,
-          { backgroundColor: pressed ? theme.surface : 'transparent' },
-        ]}
-      >
-        <Ionicons name="ellipsis-horizontal" size={20} color={theme.text} />
-        <Text style={[styles.navLabel, { color: theme.text }]}>Mehr</Text>
-      </Pressable>
-
       <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Letzte</Text>
     </View>
   );
@@ -193,6 +309,7 @@ function EmptyThreads({ theme, onNewChat }: { theme: Theme; onNewChat: () => voi
       <Pressable
         onPress={onNewChat}
         style={({ pressed }) => [styles.emptyButton, { opacity: pressed ? 0.8 : 1 }]}
+        accessibilityRole="button"
       >
         <Ionicons name="create-outline" size={18} color={colors.white} />
         <Text style={styles.emptyButtonText}>Neue Unterhaltung</Text>
@@ -224,6 +341,7 @@ function ProfileFooter({
           backgroundColor: pressed ? theme.surface : 'transparent',
         },
       ]}
+      accessibilityRole="button"
     >
       <ProfileAvatar
         avatarRobotId={user?.avatar_robot_id}
@@ -244,19 +362,20 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
   const theme = themeProp ?? resolvedTheme;
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const [sheetVisible, setSheetVisible] = useState(false);
-  const { locale } = useAuth();
   const closeDrawer = useDrawerStore((s) => s.closeDrawer);
+  const openSettings = useSettingsSheetStore((s) => s.open);
   const activeThreadId = useAuiState((s) => s.threadListItem.id);
-  const pinnedAgents = useMemo(() => getPinnedAgents(locale), [locale]);
   const favouriteIds = useToolFavoritesStore((s) => s.favorites);
-  const favouriteTools = useMemo(
-    () =>
-      favouriteIds
-        .map((id) => TOOLS.find((t) => t.id === id))
-        .filter((t): t is ToolDef => t !== undefined),
-    [favouriteIds]
-  );
+  // Top-level tools, plus any favourited Studio sub-tool so starring one does not
+  // make it disappear from here. Starred entries sort to the top.
+  const tools = useMemo(() => {
+    const rank = (t: ToolDef) => {
+      const i = favouriteIds.indexOf(t.id);
+      return i === -1 ? favouriteIds.length : i;
+    };
+    const studioFavourites = STUDIO_TOOLS.filter((t) => favouriteIds.includes(t.id));
+    return [...TOOLS, ...studioFavourites].sort((a, b) => rank(a) - rank(b));
+  }, [favouriteIds]);
 
   const handleNavigate = useCallback(
     (path: AppRoute) => {
@@ -271,42 +390,15 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
   // the agent/notebook store writes. The drawer's own `aui` runtime is NOT the
   // focused conversation's runtime (MobileChatProvider creates its own), so
   // manipulating composer/threads here would target the wrong surface.
-  const openNewConversation = useCallback(
-    (params: { agentId?: string; notebookId?: string; initialComposerText?: string }) => {
-      setSheetVisible(false);
-      // Push before closing the drawer to avoid flashing the screen underneath
-      // (see handlePress).
-      router.push(routeWithParams('/(focused)/chat-conversation', { threadId: 'new', ...params }));
-      closeDrawer();
-    },
-    [closeDrawer, router]
-  );
-
   const handleNewChat = useCallback(() => {
-    openNewConversation({});
-  }, [openNewConversation]);
+    // Push before closing the drawer to avoid flashing the screen underneath
+    // (see handlePress).
+    router.push(routeWithParams('/(focused)/chat-conversation', { threadId: 'new' }));
+    closeDrawer();
+  }, [closeDrawer, router]);
 
-  const handleSelectNotebook = useCallback(
-    (notebookId: string) => {
-      openNewConversation({ notebookId });
-    },
-    [openNewConversation]
-  );
-
-  const handleSelectAgent = useCallback(
-    (agentId: string) => {
-      openNewConversation({ agentId });
-    },
-    [openNewConversation]
-  );
-
-  const handleInsertMention = useCallback(
-    (mentionable: Mentionable) => {
-      const trigger = mentionable.category === 'skill' ? '/' : '@';
-      openNewConversation({ initialComposerText: `${trigger}${mentionable.mention} ` });
-    },
-    [openNewConversation]
-  );
+  const [selected, setSelected] = useState<SelectedThread | null>(null);
+  const closeSheet = useCallback(() => setSelected(null), []);
 
   const renderItem = useCallback(
     ({ threadId, index }: { threadId: string; index: number }): ReactElement => (
@@ -314,6 +406,7 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
         index={index}
         theme={theme}
         onSelect={closeDrawer}
+        onOpenSheet={setSelected}
         isActive={threadId === activeThreadId}
       />
     ),
@@ -321,26 +414,49 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
   );
 
   const listHeader = useMemo(
-    () => (
-      <DrawerSections
-        theme={theme}
-        agents={pinnedAgents}
-        favouriteTools={favouriteTools}
-        onSelectAgent={handleSelectAgent}
-        onSelectTool={handleNavigate}
-        onOpenSources={() => setSheetVisible(true)}
-      />
-    ),
-    [theme, pinnedAgents, favouriteTools, handleSelectAgent, handleNavigate]
+    () => <DrawerSections theme={theme} tools={tools} onSelectTool={handleNavigate} />,
+    [theme, tools, handleNavigate]
+  );
+
+  const listFooter = useMemo(
+    () => <ArchivedSection theme={theme} onSelect={closeDrawer} onOpenSheet={setSelected} />,
+    [theme, closeDrawer]
   );
 
   return (
-    <ThreadListPrimitive.Root style={[styles.container, { backgroundColor: theme.background }]}>
+    <ThreadListPrimitive.Root style={styles.container}>
+      {/* Behind everything, not as the Root's backgroundColor: the mesh has to
+          paint its own base, and a fill underneath it would show through the
+          transparent parts of the clouds. That fill is also what dark mode
+          falls back to — there the mesh is dropped entirely (`hideInDark`) and
+          the drawer is a plain dark surface. */}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: theme.background }]} />
+      <MeshSurface mesh={DRAWER_MESH} id="drawer" hideInDark />
       <View style={[styles.header, { paddingTop: insets.top + spacing.small }]}>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>Grünerator</Text>
-        <ThreadListPrimitive.New style={styles.newButton}>
-          <Ionicons name="add-circle-outline" size={26} color={colors.primary[600]} />
-        </ThreadListPrimitive.New>
+        {/* The wordmark is the way home, the way it is on web. */}
+        <Pressable
+          onPress={() => handleNavigate('/start')}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Zur Startseite"
+          style={({ pressed }) => (pressed ? styles.pressed : null)}
+        >
+          <Text style={[styles.headerTitle, { color: theme.text }]}>Grünerator</Text>
+        </Pressable>
+        {/* Not ThreadListPrimitive.New: that calls switchToNewThread() on the
+            drawer's own ambient runtime, which is not the one the focused
+            conversation creates — so it changed nothing and never navigated.
+            Measured on device: the button was dead. Same path as the empty
+            state's button, which is the one that worked. */}
+        <Pressable
+          onPress={handleNewChat}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Neue Unterhaltung"
+          style={({ pressed }) => [styles.newButton, pressed && styles.pressed]}
+        >
+          <Ionicons name="add" size={26} color={colors.primary[600]} />
+        </Pressable>
       </View>
 
       <ThreadListPrimitive.Items
@@ -348,41 +464,59 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
         style={styles.list}
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={listHeader}
+        ListFooterComponent={listFooter}
         ListEmptyComponent={<EmptyThreads theme={theme} onNewChat={handleNewChat} />}
       />
+
+      {selected && (
+        <ThreadListItemByIndexProvider index={selected.index} archived={selected.archived}>
+          <ThreadSheetHost theme={theme} sheet={selected.sheet} onClose={closeSheet} />
+        </ThreadListItemByIndexProvider>
+      )}
 
       <ProfileFooter
         theme={theme}
         insetBottom={insets.bottom}
-        onPress={() => handleNavigate('/profile')}
-      />
-
-      <NewChatSheet
-        visible={sheetVisible}
-        onClose={() => setSheetVisible(false)}
-        onNewChat={handleNewChat}
-        onSelectNotebook={handleSelectNotebook}
-        onSelectAgent={handleSelectAgent}
-        onInsertMention={handleInsertMention}
-        onSeeAllAgents={() => handleNavigate('/(focused)/agents')}
+        onPress={() => {
+          closeDrawer();
+          openSettings();
+        }}
       />
     </ThreadListPrimitive.Root>
   );
 });
 
+/** The drawer's single text edge, measured from the panel's left border. */
+const DRAWER_EDGE = 20;
+
+/** One row height for both lists — navigation and conversations. */
+const ROW_HEIGHT = 52;
+
+/** Paired with the row text: a 20dp glyph read undersized beside 17pt. */
+const DRAWER_ICON = 22;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  // ── Drawer geometry ──────────────────────────────────────────────────────
+  // Two vertical edges, not four. Everything without an icon — the title, the
+  // "Letzte" label, the conversation rows — starts at DRAWER_EDGE; rows with an
+  // icon put their LABEL at DRAWER_EDGE + icon + gap, and the icon itself on the
+  // same edge as the text above it. Before this the four were 16, 20, 24 and 60,
+  // three of which were nobody's decision — they fell out of a container padding
+  // plus a row padding.
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.medium,
+    paddingLeft: DRAWER_EDGE,
+    paddingRight: spacing.small,
     paddingBottom: spacing.small,
   },
   headerTitle: {
-    fontSize: 20,
+    fontFamily: BODY_FONT,
+    fontSize: 24,
     fontWeight: '700',
   },
   newButton: {
@@ -391,24 +525,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  pressed: {
+    opacity: 0.6,
+  },
   navRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.small,
+    gap: spacing.medium,
     marginHorizontal: spacing.xsmall,
-    paddingHorizontal: spacing.small,
-    paddingVertical: spacing.small,
+    // 8 (list) + 8 (margin) + 4 = 20: the icon sits on the same edge as the text
+    // of every row without one.
+    paddingHorizontal: spacing.xxsmall,
+    minHeight: ROW_HEIGHT,
     borderRadius: borderRadius.medium,
   },
+  // chatBody, not chatTitle: in the drawer these rows ARE the content, not the
+  // heading of a card sitting inside it. At chatTitle's 15 they read as captions
+  // next to a 24pt wordmark in a 52dp row — the reference sits at ~17.
   navLabel: {
-    fontSize: 15,
+    ...chatType.chatBody,
     fontWeight: '500',
   },
   sectionLabel: {
-    fontSize: 13,
+    ...chatType.chatLabel,
     fontWeight: '700',
-    paddingHorizontal: spacing.medium,
-    marginTop: spacing.medium,
+    paddingHorizontal: spacing.small,
+    // The turn from navigation to content. At the old 16 it read as one more
+    // row gap instead of a change of subject.
+    marginTop: spacing.xlarge + spacing.xsmall,
     marginBottom: spacing.xsmall,
   },
   list: {
@@ -417,14 +561,37 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: spacing.xsmall,
   },
+  archiveSection: {
+    marginTop: spacing.small,
+  },
+  archiveToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xsmall,
+    paddingHorizontal: spacing.small,
+    paddingVertical: spacing.small,
+  },
+  archiveLabel: {
+    ...chatType.chatLabel,
+    flex: 1,
+    fontWeight: '700',
+  },
   itemRoot: {
     flexDirection: 'row',
     alignItems: 'center',
   },
+  // The menu wraps the row, so it is what has to claim the width — the
+  // Pressable's own flex:1 only spreads inside it.
+  itemMenu: {
+    flex: 1,
+  },
   itemTrigger: {
     flex: 1,
+    justifyContent: 'center',
     paddingHorizontal: spacing.small,
-    paddingVertical: 14,
+    // Same height as a nav row: the two lists used 45 and 49dp, which is not a
+    // distinction anybody can see — only one they can feel as unevenness.
+    minHeight: ROW_HEIGHT,
     borderRadius: borderRadius.medium,
   },
   activeDot: {
@@ -434,8 +601,9 @@ const styles = StyleSheet.create({
     marginRight: spacing.small,
   },
   itemTitle: {
+    ...chatType.chatBody,
     flex: 1,
-    fontSize: 15,
+    fontFamily: BODY_FONT,
   },
   empty: {
     alignItems: 'center',
@@ -444,12 +612,13 @@ const styles = StyleSheet.create({
     gap: spacing.small,
   },
   emptyTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 16,
     fontWeight: '600',
     marginTop: spacing.xsmall,
   },
   emptyText: {
-    fontSize: 14,
+    ...chatType.chatSecondary,
     textAlign: 'center',
   },
   emptyButton: {
@@ -463,7 +632,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary[600],
   },
   emptyButtonText: {
-    fontSize: 14,
+    ...chatType.chatSecondary,
     fontWeight: '600',
     color: colors.white,
   },
@@ -471,13 +640,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.small,
-    paddingHorizontal: spacing.medium,
+    paddingHorizontal: DRAWER_EDGE,
     paddingTop: spacing.small,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   footerName: {
+    ...chatType.chatTitle,
     flex: 1,
-    fontSize: 15,
+    fontFamily: BODY_FONT,
     fontWeight: '500',
   },
 });

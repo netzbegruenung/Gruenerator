@@ -1,8 +1,11 @@
 'use client';
 
+// `Image` umbenannt: unter diesem Namen hält jsx-a11y das Icon für ein <img>.
+import { Loader2, Image as ImageIcon, Download, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Loader2, Image, Download, X } from 'lucide-react';
+
 import { cn } from '../../lib/utils';
+
 import type { GeneratedImage } from '../../hooks/useChatGraphStream';
 
 interface GeneratedImageDisplayProps {
@@ -62,6 +65,7 @@ export function GeneratedImageDisplay({ image }: GeneratedImageDisplayProps) {
           className="block cursor-zoom-in"
           aria-label="Bild vergrößert anzeigen"
         >
+          {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- onLoad tracks image-decode completion, not a user interaction. */}
           <img
             src={imageSrc}
             alt="Generiertes Bild"
@@ -77,7 +81,7 @@ export function GeneratedImageDisplay({ image }: GeneratedImageDisplayProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-            <Image className="h-3 w-3" />
+            <ImageIcon className="h-3 w-3" aria-hidden="true" />
             {styleLabels[image.style]}
           </span>
           <span className="text-xs text-foreground-muted">
@@ -96,6 +100,7 @@ export function GeneratedImageDisplay({ image }: GeneratedImageDisplayProps) {
       </div>
 
       {isLightboxOpen && (
+        // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- backdrop dismiss; Escape already closes (effect above) and a real close button is rendered below, so the scrim itself is intentionally not a redundant control.
         <div
           className="fixed inset-0 z-50 flex cursor-zoom-out items-center justify-center bg-black/90 p-4"
           onClick={() => setIsLightboxOpen(false)}
@@ -114,6 +119,7 @@ export function GeneratedImageDisplay({ image }: GeneratedImageDisplayProps) {
           >
             <X className="h-5 w-5" />
           </button>
+          {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- only stops the click from bubbling to the backdrop's close handler, not a real interaction. */}
           <img
             src={imageSrc}
             alt="Generiertes Bild (vergrößert)"

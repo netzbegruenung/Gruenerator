@@ -1,13 +1,14 @@
 import { Button, FileCard, SectionHeader } from '@gruenerator/ui';
-import { HiCloud, HiDocumentText, HiOutlineDocument, HiUpload } from 'react-icons/hi';
+import { HiCloud, HiDocumentText, HiGlobeAlt, HiOutlineDocument, HiUpload } from 'react-icons/hi';
 
 import { cn } from '../../../../utils/cn';
-
 import NotebookEditorDocsSection from '../NotebookEditorDocsSection';
 import NotebookEditorWolkeSection from '../NotebookEditorWolkeSection';
+import NotebookEditorWordpressSection from '../NotebookEditorWordpressSection';
 
-import DocumentCard from './DocumentCard';
+import DocumentsPanel from './DocumentsPanel';
 import { ACCEPTED_EXTENSIONS, MAX_DOCUMENTS } from './shared';
+
 import type { NotebookEditorStateBundle } from './useNotebookEditorState';
 
 interface SourcesStepProps {
@@ -17,6 +18,9 @@ interface SourcesStepProps {
 export default function SourcesStep({ state }: SourcesStepProps) {
   const {
     uploadedDocuments,
+    documentCount,
+    documentsWithSource,
+    remainingSlots,
     stagedFiles,
     wolkeFolders,
     wolkePanelOpen,
@@ -27,8 +31,6 @@ export default function SourcesStep({ state }: SourcesStepProps) {
     uploadError,
     indexingDocIds,
     loading,
-    wolkeDocuments,
-    manualDocuments,
     fileInputRef,
     handleFileSelect,
     handleDrop,
@@ -36,9 +38,11 @@ export default function SourcesStep({ state }: SourcesStepProps) {
     handleDragOver,
     handleDragLeave,
     handleRemoveDocument,
+    handleRemoveDocuments,
     handleUnstageFile,
     handleCommitStagedUpload,
     handleWolkeDocsImported,
+    handleWordpressDocsImported,
     handleDocsImported,
     handleCancel,
     handleNext,
@@ -47,9 +51,14 @@ export default function SourcesStep({ state }: SourcesStepProps) {
     setLinkedDocs,
     docsPanelOpen,
     setDocsPanelOpen,
+    wordpressSites,
+    setWordpressSites,
+    wordpressPanelOpen,
+    setWordpressPanelOpen,
   } = state;
 
   return (
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- drag-tracking wrapper only; the button below is the keyboard-accessible control
     <div
       className="flex flex-col gap-lg"
       onDragEnter={handleDragEnter}
@@ -57,7 +66,7 @@ export default function SourcesStep({ state }: SourcesStepProps) {
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <div className="grid grid-cols-1 gap-md sm:grid-cols-2 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-md sm:grid-cols-2 md:grid-cols-4">
         <button
           type="button"
           onClick={() => !isUploading && fileInputRef.current?.click()}
@@ -83,7 +92,7 @@ export default function SourcesStep({ state }: SourcesStepProps) {
               <div>
                 <p className="m-0 text-base font-semibold text-foreground">Dateien hochladen</p>
                 <p className="mt-xs m-0 text-xs text-grey-500">
-                  PDF, DOCX, TXT, MD, ODT, RTF · bis zu {MAX_DOCUMENTS} Dateien
+                  PDF, DOCX, TXT, MD, ODT, RTF · {remainingSlots} von {MAX_DOCUMENTS} Plätzen frei
                 </p>
               </div>
             </>
@@ -127,6 +136,27 @@ export default function SourcesStep({ state }: SourcesStepProps) {
           <div>
             <p className="m-0 text-base font-semibold text-foreground">Aus Docs importieren</p>
             <p className="mt-xs m-0 text-xs text-grey-500">Eigene Docs als Quelle einbinden</p>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setWordpressPanelOpen(!wordpressPanelOpen)}
+          className={cn(
+            'group flex min-h-[180px] flex-col items-center justify-center gap-sm rounded-xl border-2 p-lg text-center transition-all',
+            wordpressPanelOpen
+              ? 'border-sky-500 bg-sky-50 dark:border-sky-600 dark:bg-sky-950/30'
+              : 'border-grey-200 hover:border-sky-400 hover:bg-background-alt dark:border-grey-700'
+          )}
+        >
+          <div className="flex items-center justify-center rounded-xl bg-sky-50 p-md text-sky-600 transition-colors group-hover:bg-sky-100 dark:bg-sky-950/40 dark:text-sky-400">
+            <HiGlobeAlt size={28} />
+          </div>
+          <div>
+            <p className="m-0 text-base font-semibold text-foreground">Von einer Website</p>
+            <p className="mt-xs m-0 text-xs text-grey-500">
+              Beiträge & Seiten einer WordPress-Website importieren
+            </p>
           </div>
         </button>
       </div>
@@ -180,7 +210,7 @@ export default function SourcesStep({ state }: SourcesStepProps) {
           <NotebookEditorWolkeSection
             folders={wolkeFolders}
             onFoldersChange={setWolkeFolders}
-            remainingSlots={MAX_DOCUMENTS - uploadedDocuments.length}
+            remainingSlots={remainingSlots}
             onDocsImported={handleWolkeDocsImported}
             disabled={loading || isUploading}
           />
@@ -192,8 +222,21 @@ export default function SourcesStep({ state }: SourcesStepProps) {
           <NotebookEditorDocsSection
             linkedDocs={linkedDocs}
             onLinkedDocsChange={setLinkedDocs}
-            remainingSlots={MAX_DOCUMENTS - uploadedDocuments.length}
+            remainingSlots={remainingSlots}
             onDocsImported={handleDocsImported}
+            onUploadedDocumentRemoved={handleRemoveDocument}
+            disabled={loading || isUploading}
+          />
+        </div>
+      )}
+
+      {wordpressPanelOpen && (
+        <div className="rounded-xl border border-grey-200 bg-background p-md dark:border-grey-800">
+          <NotebookEditorWordpressSection
+            sites={wordpressSites}
+            onSitesChange={setWordpressSites}
+            remainingSlots={remainingSlots}
+            onDocsImported={handleWordpressDocsImported}
             onUploadedDocumentRemoved={handleRemoveDocument}
             disabled={loading || isUploading}
           />
@@ -202,34 +245,15 @@ export default function SourcesStep({ state }: SourcesStepProps) {
 
       {uploadedDocuments.length > 0 && (
         <section className="space-y-md">
-          <SectionHeader
-            title="Hinzugefügte Dokumente"
-            actions={
-              <span className="text-sm text-grey-500">
-                {uploadedDocuments.length}/{MAX_DOCUMENTS}
-              </span>
-            }
+          <DocumentsPanel
+            documents={documentsWithSource}
+            documentCount={documentCount}
+            indexingDocIds={indexingDocIds}
+            loading={loading}
+            onRemove={handleRemoveDocument}
+            onRemoveMany={handleRemoveDocuments}
+            onAddClick={() => fileInputRef.current?.click()}
           />
-          <div className="grid grid-cols-1 gap-md sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-            {wolkeDocuments.map((doc) => (
-              <DocumentCard
-                key={doc.id}
-                doc={doc}
-                indexing={indexingDocIds.has(doc.id)}
-                loading={loading}
-                onRemove={handleRemoveDocument}
-              />
-            ))}
-            {manualDocuments.map((doc) => (
-              <DocumentCard
-                key={doc.id}
-                doc={doc}
-                indexing={indexingDocIds.has(doc.id)}
-                loading={loading}
-                onRemove={handleRemoveDocument}
-              />
-            ))}
-          </div>
         </section>
       )}
 

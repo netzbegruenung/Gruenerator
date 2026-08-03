@@ -8,7 +8,9 @@ const WorkplaceChatTab = () => {
     <div className="mx-auto w-full max-w-5xl px-4">
       <WorkplaceGreeting />
 
-      <div className="max-w-3xl mx-auto" data-tour="workplace-composer">
+      {/* workplace-chat-accent re-points the primary token to the chosen
+          background preset — see workplace-sunrise.css. */}
+      <div className="workplace-chat-accent max-w-3xl mx-auto" data-tour="workplace-composer">
         <CreatorSection />
       </div>
     </div>

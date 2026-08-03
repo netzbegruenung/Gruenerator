@@ -210,6 +210,7 @@ function SubtitlerBetaPageInner() {
     const projectId = searchParams.get('project');
     if (projectId && user?.id) {
       setSearchParams({}, { replace: true });
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- kicks off project load (sets loading flag) in response to searchParams/user change; async results land in loadProject's .then
       loadProject(projectId);
       return;
     }
@@ -290,7 +291,7 @@ function SubtitlerBetaPageInner() {
 
   if (loading) {
     return (
-      <div className="flex h-[calc(100vh-64px)] overflow-hidden">
+      <div className="flex h-[calc(100dvh-64px)] overflow-hidden">
         <div className="flex w-72 flex-shrink-0 flex-col gap-sm border-r border-grey-200 p-sm dark:border-grey-700 lg:w-80">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-16 w-full rounded-lg" />
@@ -327,7 +328,7 @@ function SubtitlerBetaPageInner() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-64px)] overflow-hidden">
+    <div className="flex h-[calc(100dvh-64px)] overflow-hidden">
       {/* Left Panel: Subtitle List */}
       <div className="flex w-72 flex-shrink-0 flex-col border-r border-grey-200 bg-background dark:border-grey-700 lg:w-80">
         <SubtitleList videoPlayerRef={videoPlayerRef} />

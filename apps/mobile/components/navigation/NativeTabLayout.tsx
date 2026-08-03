@@ -36,6 +36,21 @@ export function NativeTabLayout() {
         })}
         <NativeTabs.Trigger.Label>Arbeiten</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="(studio)">
+        {Platform.select({
+          ios: (
+            <NativeTabs.Trigger.Icon
+              sf={{ default: 'paintpalette', selected: 'paintpalette.fill' }}
+            />
+          ),
+          android: (
+            <NativeTabs.Trigger.Icon
+              src={<NativeTabs.Trigger.VectorIcon family={Ionicons} name="color-palette-outline" />}
+            />
+          ),
+        })}
+        <NativeTabs.Trigger.Label>Studio</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="(recherche)">
         {Platform.select({
           ios: <NativeTabs.Trigger.Icon sf={{ default: 'book', selected: 'book.fill' }} />,
@@ -48,9 +63,7 @@ export function NativeTabLayout() {
         <NativeTabs.Trigger.Label>Wissen</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="(chat)" hidden />
-      <NativeTabs.Trigger name="(office)" hidden />
       <NativeTabs.Trigger name="(tools)" hidden />
-      <NativeTabs.Trigger name="profile" hidden />
     </NativeTabs>
   );
 }

@@ -1,4 +1,9 @@
-import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
+import {
+  createApiClient,
+  getApiLocale,
+  setApiLocale,
+  setGlobalApiClient,
+} from '@gruenerator/shared/api';
 import { type AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 import axios from 'axios';
 
@@ -429,6 +434,12 @@ function detectBrowserLocale(): string {
   return 'de-DE';
 }
 
+// The browser is only the pre-login guess. Once the profile is known, authStore
+// calls setApiLocale and both clients pick it up per request — baking the guess
+// into axios.create froze it for the whole session, which is how AT users on a
+// German-language browser sent de-DE forever.
+setApiLocale(detectBrowserLocale());
+
 // `useCredentials` is declared above (next to the probe helper) because
 // the session probe needs it. Desktop app uses JWT tokens → false;
 // web app uses session cookies → true (cookies sent automatically).
@@ -438,7 +449,6 @@ const apiClient = axios.create({
   timeout: 900000,
   headers: {
     'Content-Type': 'application/json',
-    'X-User-Locale': detectBrowserLocale(),
   },
   withCredentials: useCredentials,
 });
@@ -446,6 +456,7 @@ const apiClient = axios.create({
 // Request interceptor for debugging and header setup
 apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig): Promise<InternalAxiosRequestConfig> => {
+    config.headers['X-User-Locale'] = getApiLocale();
     // Desktop app uses JWT token from localStorage
     if (isDesktopApp()) {
       const token = await getDesktopToken();

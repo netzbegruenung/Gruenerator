@@ -3,8 +3,6 @@
  * Manages tool validation, processing, and provider-specific formatting
  */
 
-import { MistralWebSearchService } from '../mistral/index.js';
-
 import type {
   AIProvider,
   ClaudeTool,
@@ -13,11 +11,7 @@ import type {
   ToolCall,
   ToolChoice,
   ToolPayload,
-  Message,
-  AIResponseWithTools,
-  WebSearchResult,
 } from './types.js';
-import type { SearchResults } from '../mistral/MistralWebSearchService/types.js';
 
 export class ToolHandler {
   /**
@@ -261,131 +255,6 @@ export class ToolHandler {
         return false;
       }) || null
     );
-  }
-
-  /**
-   * Continue conversation after tool_use response
-   * Handles tool execution and conversation continuation for web search
-   * @param aiWorkerPool - AI Worker Pool instance
-   * @param initialResult - Initial AI response with tool_use
-   * @param systemPrompt - System prompt for continuation
-   * @param messages - Conversation messages
-   * @param options - Request options
-   * @param req - Express request object
-   * @returns Final AI response with content
-   */
-  static async continueWithToolUse(
-    aiWorkerPool: {
-      processRequest(data: Record<string, unknown>, req?: unknown): Promise<AIResponseWithTools>;
-    },
-    initialResult: AIResponseWithTools,
-    systemPrompt: string,
-    messages: Message[],
-    options: Record<string, unknown>,
-    req: unknown
-  ): Promise<AIResponseWithTools> {
-    console.log(`[ToolHandler] Continuing conversation with tool_use response`);
-
-    if (!initialResult.tool_calls || initialResult.tool_calls.length === 0) {
-      throw new Error('No tool calls found in initial result');
-    }
-
-    // Clone messages array to avoid modifying original
-    const conversationMessages: Message[] = [...messages];
-
-    // Add the assistant's tool_use message
-    conversationMessages.push({
-      role: 'assistant',
-      content: initialResult.raw_content_blocks || [
-        ...(initialResult.content ? [{ type: 'text' as const, text: initialResult.content }] : []),
-        ...initialResult.tool_calls.map((toolCall) => ({
-          type: 'tool_use' as const,
-          id: toolCall.id,
-          name: toolCall.name,
-          input: toolCall.input,
-        })),
-      ],
-    });
-
-    // Process each tool call and add tool results
-    for (const toolCall of initialResult.tool_calls) {
-      console.log(`[ToolHandler] Processing tool call: ${toolCall.name}`, toolCall.input);
-
-      let toolResult: SearchResults | WebSearchResult;
-
-      if (toolCall.name === 'web_search') {
-        // Use Mistral Web Search Service for real search results
-        console.log(`[ToolHandler] Starting real web search for query: "${toolCall.input.query}"`);
-
-        const searchService = new MistralWebSearchService();
-        toolResult = await searchService.performWebSearch(toolCall.input.query as string);
-
-        console.log(`[ToolHandler] Web search completed: ${toolResult.resultCount} results found`);
-        console.log(`[ToolHandler] Search results:`, JSON.stringify(toolResult, null, 2));
-      } else {
-        // Handle other tools here in the future
-        toolResult = {
-          success: false,
-          error: `Tool ${toolCall.name} is not yet implemented`,
-        };
-        console.log(`[ToolHandler] Unknown tool: ${toolCall.name}`);
-      }
-
-      // Add tool result message
-      conversationMessages.push({
-        role: 'user',
-        content: [
-          {
-            type: 'tool_result',
-            tool_use_id: toolCall.id,
-            content: JSON.stringify(toolResult),
-          },
-        ],
-      });
-    }
-
-    // Continue conversation with updated messages
-    console.log(
-      `[ToolHandler] Continuing conversation with ${conversationMessages.length} messages`
-    );
-
-    const continuationPayload = {
-      systemPrompt,
-      messages: conversationMessages,
-      options: {
-        ...options,
-        // Remove tools from continuation to prevent infinite loop
-        tools: undefined,
-      },
-    };
-
-    // Get the request type from options or default to 'social'
-    const requestType = options.type || 'social';
-
-    // Continue conversation through AI Worker Pool
-    const finalResult = await aiWorkerPool.processRequest(
-      {
-        type: requestType,
-        ...continuationPayload,
-      },
-      req
-    );
-
-    console.log(`[ToolHandler] Tool continuation completed`);
-
-    if (!finalResult.success) {
-      throw new Error(finalResult.error || 'Failed to continue conversation after tool use');
-    }
-
-    // Return the final result with tool usage metadata
-    return {
-      ...finalResult,
-      metadata: {
-        ...finalResult.metadata,
-        toolsUsed: initialResult.tool_calls.map((tc) => tc.name),
-        continuationCompleted: true,
-      },
-    };
   }
 }
 

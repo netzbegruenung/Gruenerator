@@ -1,0 +1,77 @@
+name: Docs Chat Capabilities
+
+# Keeps documentation/docs/gruenerieren/was-kann-ich-fragen.mdx honest about what
+# the chat can do. The article's capability list is generated from the chat's own
+# registries (intent enum, mentionables, tool picker, system MCP sources); the
+# example questions per capability are hand-written.
+#
+# When a new capability appears in code without example questions — or a
+# documented one disappears — this reports it as ONE deduplicated GitHub issue
+# and closes it again once the gap is filled. Deliberately not a blocking PR
+# check: adding a chat intent should never break someone else's docs build.
+#
+# On PRs that touch the registries it additionally leaves one sticky comment, so
+# the author sees the gap while the change is still fresh.
+
+on:
+  push:
+    branches: [master]
+    # Kept in sync with the pull_request paths below by hand — GitHub Actions
+    # does not support YAML anchors.
+    paths:
+      - 'packages/contracts/src/schemas/chatStreamEvents.ts'
+      - 'packages/chat/src/lib/mentionables.ts'
+      - 'packages/shared/src/agents/userTools.ts'
+      - 'apps/api/services/mcp/systemMcpServers.ts'
+      - 'documentation/src/components/ChatCapabilities/**'
+      - 'documentation/src/generated/chat-capabilities.json'
+  pull_request:
+    paths:
+      - 'packages/contracts/src/schemas/chatStreamEvents.ts'
+      - 'packages/chat/src/lib/mentionables.ts'
+      - 'packages/shared/src/agents/userTools.ts'
+      - 'apps/api/services/mcp/systemMcpServers.ts'
+      - 'documentation/src/components/ChatCapabilities/**'
+      - 'documentation/src/generated/chat-capabilities.json'
+  schedule:
+    - cron: '30 5 * * 5' # Friday 05:30 UTC, just after the docs-freshness audit
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: docs-capabilities-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    name: Audit documented chat capabilities
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile --filter @gruenerator/documentation...
+
+      # On master and on the weekly run: file / update / close the issue.
+      - name: Audit and sync issue
+        if: github.event_name != 'pull_request'
+        run: pnpm --filter @gruenerator/documentation capabilities:audit -- --apply
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # On PRs: one sticky comment, never a failure.
+      - name: Audit and comment on PR
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: pnpm --filter @gruenerator/documentation capabilities:audit -- --pr-comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}

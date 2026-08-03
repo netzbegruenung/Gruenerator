@@ -23,6 +23,7 @@ import {
   BUNDESTAG_SOURCES,
   getMdBDetailUrls,
 } from './bundestagConfig.js';
+import { NOISE_SELECTOR, extractPublishedAt } from './bundestagMarkup.js';
 
 import type {
   BundestagSourceConfig,
@@ -79,8 +80,16 @@ export class BundestagScraper {
     }
 
     log.info(`Fetching existing URLs from Qdrant collection "${COLLECTION_NAME}"...`);
-    const existingUrlRecords = await getAllUrls(this.qdrant.client!, COLLECTION_NAME);
+    const existingUrlRecords = await getAllUrls(this.qdrant.client!, COLLECTION_NAME, [
+      'source_url',
+      'content_hash',
+      'chunk_index',
+      'published_at',
+    ]);
     const existingUrls = new Map(existingUrlRecords.map((r) => [r.source_url, r.content_hash]));
+    const existingDates = new Map(
+      existingUrlRecords.map((r) => [r.source_url, r.published_at ?? null])
+    );
     log.info(`Found ${existingUrls.size} existing URLs in collection`);
 
     for (const source of sources) {
@@ -110,8 +119,20 @@ export class BundestagScraper {
         for (const page of crawledPages) {
           try {
             const existingHash = existingUrls.get(page.source_url);
+            // The date is read from markup, not from `text`, so fixing its
+            // extraction leaves `content_hash` untouched — a pure hash check
+            // would skip all ~900 dateless articles forever and the backfill
+            // would never happen without the full rescrape we don't do.
+            // Re-index a page when the crawl now yields a date the index
+            // lacks; once written, the condition stops matching.
+            const needsDateBackfill = !!page.published_at && !existingDates.get(page.source_url);
 
-            if (!forceUpdate && existingHash && existingHash === page.content_hash) {
+            if (
+              !forceUpdate &&
+              !needsDateBackfill &&
+              existingHash &&
+              existingHash === page.content_hash
+            ) {
               sourceResult.skipped++;
               continue;
             }
@@ -351,8 +372,7 @@ export class BundestagScraper {
     const html = await res.text();
     const $ = cheerio.load(html);
 
-    // Remove nav, footer, scripts, styles
-    $('nav, footer, script, style, header, .cookie-banner, [role="banner"]').remove();
+    $(NOISE_SELECTOR).remove();
 
     // Try TYPO3 search markers first, fall back to <main> if too short
     const typo3Match = html.match(/<!--TYPO3SEARCH_begin-->([\s\S]*?)<!--TYPO3SEARCH_end-->/);
@@ -383,7 +403,7 @@ export class BundestagScraper {
       text,
       markdown: text,
       description: $('meta[name="description"]').attr('content') || '',
-      published_at: $('meta[property="article:published_time"]').attr('content') || null,
+      published_at: extractPublishedAt($),
       content_hash,
       indexed_at: new Date().toISOString(),
     };

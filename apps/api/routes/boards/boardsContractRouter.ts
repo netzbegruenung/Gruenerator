@@ -295,7 +295,7 @@ export const boardsContractRouter = s.router(boardsContract, {
           type: 'board_generation',
           systemPrompt: BOARD_GENERATION_PROMPT,
           messages: [{ role: 'user', content: description.trim() }],
-          options: { temperature: 0.7, max_tokens: 2000 },
+          options: { temperature: 0.7 },
         },
         args.req
       );

@@ -3,7 +3,7 @@ import express, { type Router, type Request, type Response } from 'express';
 import { createLogger } from '../../utils/logger.js';
 import { type AIWorkerPool } from '../../workers/types.js';
 
-const log = createLogger('claude_text_adj');
+const log = createLogger('texte/adjustment');
 const router: Router = express.Router();
 
 interface TextAdjustmentRequestBody {
@@ -41,7 +41,6 @@ Bitte schlage eine verbesserte Version des Abschnitts vor, die die gewünschten 
           },
         ],
         options: {
-          max_tokens: 1024,
           temperature: 0.5,
         },
       },

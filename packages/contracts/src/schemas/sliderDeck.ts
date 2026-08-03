@@ -17,8 +17,7 @@ export interface SliderDeckPage {
 }
 
 export type SliderDeckPageOp =
-  | { op: 'add'; index: number; page: SliderDeckPage }
-  | { op: 'remove'; pageId: string };
+  { op: 'add'; index: number; page: SliderDeckPage } | { op: 'remove'; pageId: string };
 
 export interface SliderDeckOpsResult {
   pagePatches: Array<{ pageId: string; patch: Record<string, unknown> }>;

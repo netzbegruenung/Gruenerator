@@ -19,6 +19,11 @@ import { promises as fsPromises } from 'node:fs';
 import nodePath from 'node:path';
 
 import { chatGraphContract } from '@gruenerator/contracts';
+import {
+  CHAT_INTENTS,
+  isIntentAllowedForLocale,
+  type ChatIntentId,
+} from '@gruenerator/shared/chat-intents';
 import { sanitizeMentionTokens } from '@gruenerator/shared/utils';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
@@ -27,13 +32,27 @@ import {
   pandasComputeNode,
   buildSystemMessage,
 } from '../../agents/langgraph/ChatGraph/index.js';
-import { isTabularComputeQuestion } from '../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
-import { isReasoningStreamModel } from '../../services/ai/regoloReasoningStream.js';
+import { knownArtifactRefs } from '../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
 import {
-  SYSTEM_TOOL_INTENTS,
-  isSystemIntentAvailable,
-} from '../../services/mcp/systemMcpServers.js';
+  isSheetFillRequest,
+  isTabularComputeQuestion,
+  NOUN_TRIGGER_MAX_LENGTH,
+} from '../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
+import {
+  ARTIFACT_NOUN_BY_KIND,
+  forbidsPersistentAction,
+  hasExplicitSharepicWord,
+  type ForbiddableArtifact,
+} from '../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
+import { detectManagedSources } from '../../agents/langgraph/ChatGraph/nodes/managedSourceTrigger.js';
+import { SYSTEM_TOOL_INTENTS } from '../../services/mcp/systemMcpServers.js';
+import {
+  BOTH_LANES_FAILED,
+  buildAiTelemetry,
+  withLangfuseTrace,
+} from '../../services/telemetry/langfuseTelemetry.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
+import { recordDecision } from '../../utils/decisionJournal.js';
 import { createLogger } from '../../utils/logger.js';
 import { withTimeout } from '../../utils/withTimeout.js';
 
@@ -42,6 +61,8 @@ import {
   isAgenticLoopEnabled,
   AGENTIC_INTENTS,
 } from './services/agenticLoop/agenticRespondService.js';
+import { stripOutOfRangeCitations } from './services/agenticLoop/citationStrip.js';
+import { MAX_SOURCES } from './services/agenticLoop/loopGuards.js';
 import {
   compoundGenerationKind,
   looksLikeCompoundEdit,
@@ -51,31 +72,46 @@ import {
   decideEditToolLoop,
 } from './services/agenticLoop/routing.js';
 import { type PersistedStep } from './services/agenticLoop/types.js';
+import {
+  ARTIFACT_CONFIRMATION_TEXTS,
+  buildPostWithSharepicsConfirmation,
+  buildSharepicConfirmation,
+  buildSharepicsWithoutPostConfirmation,
+} from './services/artifactConfirmations.js';
 import { extractArtifactFromResponse } from './services/artifactExtraction.js';
 import { injectImageAttachments } from './services/attachmentProcessingService.js';
 import { extractCompoundTopic } from './services/compoundTopicExtractor.js';
 import { extractChartFromResponse, emitConfirmAction } from './services/confirmActionService.js';
 import { pruneMessages, applyCompaction } from './services/contextPruningService.js';
+import { buildCreateTurnContext } from './services/createTurn.js';
 import {
   handleBoardCreation,
   handleSheetCreation,
   handlePresentationCreation,
+  handlePdfCreation,
   handleRecurringTaskCreation,
   generateAndCreateDocument,
   handleShareDoc,
   executeIntentPipeline,
 } from './services/intentExecutionService.js';
-import { extractTextContent } from './services/messageHelpers.js';
+import { estimateRequestTokens, extractTextContent } from './services/messageHelpers.js';
+import {
+  stripFabricatedArtifactDelivery,
+  stripFabricatedSystemClaims,
+} from './services/outputSanity.js';
 import {
   recallPastChats,
   recallOfficeDocuments,
+  recallReels,
   rerankRecall,
   formatPastChatsBlock,
   formatOfficeDocsBlock,
+  formatReelsBlock,
   getSpaceRecallScope,
 } from './services/pastChatRecallService.js';
+import { createPendingAssistantWriter } from './services/pendingAssistantWriter.js';
 import { pipelineStateStore } from './services/pipelineStateStore.js';
-import { APP_REDIRECT_TEXTS } from './services/platformGating.js';
+import { APP_REDIRECT_TEXTS, NO_SHAREPIC_TO_EDIT_TEXT } from './services/platformGating.js';
 import { persistAssistantResponse } from './services/postResponseService.js';
 import { handleRecallToolLoop, isChatRecallLoopEnabled } from './services/recallToolLoopService.js';
 import {
@@ -84,6 +120,7 @@ import {
   hasReelEditVerb,
   isReelEditInstruction,
 } from './services/reelEditService.js';
+import { resolveReferentialQuery, resolveReferentialTopic } from './services/referentialTopic.js';
 import {
   resolveModel,
   buildMessagesForAI,
@@ -96,7 +133,11 @@ import {
   isChatToolLoopEnabled,
 } from './services/sharepicAgenticService.js';
 import { hasSharepicEditVerb, isShortAffirmation } from './services/sharepicEditHeuristics.js';
-import { handleSharepicEdit, isSharepicEditInstruction } from './services/sharepicEditService.js';
+import {
+  handleSharepicEdit,
+  isSharepicEditInstruction,
+  threadHasSharepic,
+} from './services/sharepicEditService.js';
 import {
   getLastSharepicVariant,
   isSharepicRefinement,
@@ -112,11 +153,15 @@ import {
   getIntentMessage,
   PROGRESS_MESSAGES,
   sseInternalError,
+  sendChatWarning,
+  type SSEEventPayloads,
 } from './services/sseHelpers.js';
 import { buildStreamContext } from './services/streamContext.js';
 import {
   createMessage,
+  discardPendingAssistantIfEmpty,
   getLastGeneratedImageUrl,
+  persistSourcesOnFailure,
   touchThread,
 } from './services/threadPersistenceService.js';
 
@@ -125,6 +170,10 @@ import type { ModelMessage } from 'ai';
 import type { Application } from 'express';
 
 const log = createLogger('chatGraphContractRouter');
+
+/** Content of the row that keeps a failed turn's sources for the retry. */
+const RESEARCH_KEPT_ON_FAILURE_TEXT =
+  'Die Antwort konnte nicht erzeugt werden. Die recherchierten Quellen sind gespeichert — ein erneuter Versuch nutzt sie weiter.';
 
 /** Cap best-effort past-chat recall so it never delays the user-facing stream. */
 const EXTERNAL_CONTEXT_TIMEOUT_MS = 3_000;
@@ -179,6 +228,22 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
     const requestId = `req_${Date.now()}`;
     log.info('[chatGraphContract] stream handler entered, request_id=%s', requestId);
 
+    // Turn persistence (WP-B): the placeholder assistant row + its streaming
+    // writer. Declared in the handler scope (not inside the try) so the outer
+    // catch can run cleanupPending too. Assigned once the context is built.
+    let pendingId: string | null = null;
+    let pendingWriter: ReturnType<typeof createPendingAssistantWriter> | null = null;
+    // Must run on EVERY return path after the placeholder is created:
+    //  - discard=false before the main persist (stop the writer so its last
+    //    throttle write can't race the finalize UPDATE);
+    //  - discard=true on aborts/handler-takeovers/catch (drops the row only if
+    //    it stayed empty; a row with partial text survives as an aborted turn).
+    const cleanupPending = async (discard: boolean): Promise<void> => {
+      sse.setTextListener(undefined);
+      await pendingWriter?.stop().catch(() => {});
+      if (discard && pendingId) await discardPendingAssistantIfEmpty(pendingId).catch(() => {});
+    };
+
     try {
       const ctxResult = await buildStreamContext({ req, body: args.body, sse, requestId });
       if (ctxResult.done) {
@@ -205,7 +270,18 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         contextWindowTokens,
         mentionTokenFields,
         lastUserTextRaw,
+        pendingAssistantMessageId,
+        threadToolHistory,
       } = ctxResult.ctx;
+
+      // A placeholder assistant row was minted in buildStreamContext. Its writer
+      // accumulates the streamed reply so an aborted/crashed turn keeps whatever
+      // streamed. The SSE text listener is registered LATER — right before the
+      // main respond stage — so the many handler branches below (sharepic/reel/
+      // board/… which stream their own text_delta AND persist their own rows)
+      // never pollute the placeholder.
+      pendingId = pendingAssistantMessageId;
+      pendingWriter = pendingId ? createPendingAssistantWriter(pendingId) : null;
 
       const {
         agentId,
@@ -240,11 +316,109 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         ...(await classifierNode(initialState)),
       } as ChatGraphState;
       classifiedState.lastUserTextNoMentions = lastUserTextNoMentions;
+      // The heuristic fallback produces a materially worse turn (no
+      // multi-source search, no metadata filters) that used to look normal.
+      if (classifiedState.classifierDegraded) sendChatWarning(sse, 'classifier_degraded');
 
       let forcedTool: boolean = false;
+
+      /**
+       * Suspend the turn: tell the client what it must do, park everything the
+       * resume endpoint needs in Redis, then close cleanly.
+       *
+       * The 14-field requestContext has to stay in lockstep with what
+       * resumePipeline reads back out. Three hand-maintained copies of it
+       * guaranteed a new field would eventually land in only two.
+       *
+       * `threadId` is required, not optional: the store builds its Redis key by
+       * string concatenation, so a missing id used to write everything into the
+       * shared `pipeline_state:undefined` key — and emit an interrupt the client
+       * could never resume, dead-ending the turn.
+       */
+      const suspendTurn = async (
+        threadId: string,
+        interrupt: SSEEventPayloads['interrupt']
+      ): Promise<{ status: 200; body: undefined }> => {
+        sse.send('interrupt', interrupt);
+
+        await pipelineStateStore.store(threadId, {
+          classifiedState,
+          requestContext: {
+            userId,
+            agentId: agentId ?? 'gruenerator-universal',
+            enabledTools: enabledTools ?? {},
+            ...(modelId != null && { modelId }),
+            actualThreadId: threadId,
+            isNewThread,
+            processedMeta,
+            imageAttachments,
+            memoryContext,
+            memoryRetrieveTimeMs,
+            validMessages,
+            forcedTool,
+            ...(rawDocumentIds != null && { rawDocumentIds }),
+          },
+        });
+
+        sse.send('done', {
+          threadId,
+          citations: [],
+          interrupted: true,
+          metadata: {
+            intent: classifiedState.intent,
+            searchCount: 0,
+            totalTimeMs: Date.now() - initialState.startTime,
+            classificationTimeMs: classifiedState.classificationTimeMs,
+            searchTimeMs: 0,
+          },
+        });
+
+        // Interrupt turn — nothing streamed; drop the empty placeholder (the
+        // resume path persists its own message).
+        await cleanupPending(true);
+        sse.end();
+        return { status: 200 as const, body: undefined };
+      };
+
       log.info(
         `[ChatGraph] forcedTools received: ${JSON.stringify(forcedTools)}, classifier intent: ${classifiedState.intent}`
       );
+
+      /**
+       * End the turn with a fixed sentence — no model call. For the cases where
+       * the honest answer is known in advance (this surface can't do it; there
+       * is nothing here to edit), so paying a generation to phrase it would
+       * only add latency and a chance to phrase it wrongly.
+       */
+      const finishTurnWithFixedText = async (
+        text: string,
+        intent: NonNullable<ChatGraphState['intent']>
+      ): Promise<{ status: 200; body: undefined }> => {
+        sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
+        sse.send('text_delta', { text });
+        sse.send('done', {
+          threadId: actualThreadId ?? null,
+          citations: [],
+          metadata: {
+            intent,
+            searchCount: 0,
+            totalTimeMs: Date.now() - initialState.startTime,
+            classificationTimeMs: classifiedState.classificationTimeMs,
+            searchTimeMs: 0,
+          },
+        });
+        if (actualThreadId) {
+          try {
+            await createMessage(actualThreadId, 'assistant', text, { intent });
+            await touchThread(actualThreadId);
+          } catch (err) {
+            log.error('[ChatGraph] Failed to persist fixed-text turn:', err);
+          }
+        }
+        await cleanupPending(true);
+        sse.end();
+        return { status: 200 as const, body: undefined };
+      };
 
       // === Compound query detection ===
       const isCompound = notebookIds.length > 0 && !!agentId && agentId !== 'gruenerator-universal';
@@ -287,7 +461,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // resolved here. DE-only source: for de-AT users, ignore the force and keep
       // the classifier's (already downgraded) intent so we never fetch empty data.
       const abgeordnetenwatchForced = !!forcedTools?.includes('abgeordnetenwatch');
-      if (abgeordnetenwatchForced && initialState.userLocale !== 'de-AT') {
+      if (
+        abgeordnetenwatchForced &&
+        isIntentAllowedForLocale('abgeordnetenwatch', initialState.userLocale)
+      ) {
         classifiedState.intent = 'abgeordnetenwatch';
         forcedTool = true;
         // The classifier may have returned a non-search intent (e.g. 'direct')
@@ -305,7 +482,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // @bundestag hard-pins the DIP document/speech intent — same rules as
       // @abgeordnetenwatch above (not in TOOL_PRIORITY, DE-only source).
       const bundestagForced = !!forcedTools?.includes('bundestag');
-      if (bundestagForced && initialState.userLocale !== 'de-AT') {
+      if (bundestagForced && isIntentAllowedForLocale('bundestag', initialState.userLocale)) {
         classifiedState.intent = 'bundestag';
         forcedTool = true;
         if (
@@ -316,6 +493,45 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           if (userText) classifiedState.searchQuery = userText;
         }
         log.info('[ChatGraph] Intent forced to "bundestag" via @bundestag mention');
+      }
+
+      // @doku hard-pins the documentation intent. Not in TOOL_PRIORITY (that
+      // list is the search/image/sharepic family), so it is resolved here. Not
+      // locale-gated: the docs describe the product itself and apply to DE and
+      // AT alike. The searchQuery backfill matters more here than for the
+      // sources above — the docs tool searches the user's text verbatim, so an
+      // empty query would search nothing at all.
+      if (forcedTools?.includes('hilfe')) {
+        classifiedState.intent = 'hilfe';
+        forcedTool = true;
+        if (
+          (!classifiedState.searchQuery || !classifiedState.searchQuery.trim()) &&
+          lastUserMessage
+        ) {
+          const userText = lastUserTextNoMentions.trim();
+          if (userText) classifiedState.searchQuery = userText;
+        }
+        log.info('[ChatGraph] Intent forced to "hilfe" via @doku mention');
+      }
+
+      // @umfragen hard-pins the poll intent — same shape as @doku above, and for
+      // the same reason: without this branch the mention put `umfragen` into
+      // forcedTools and then fell through EVERY resolver (it is in neither
+      // TOOL_PRIORITY nor createRoutes nor a branch of its own), so the turn
+      // depended entirely on the classifier happening to pick `umfragen` by
+      // itself — the silent no-op the `hilfe` comment above warns about.
+      // Not locale-gated: PolitPro covers the Austrian parliaments too.
+      if (forcedTools?.includes('umfragen')) {
+        classifiedState.intent = 'umfragen';
+        forcedTool = true;
+        if (
+          (!classifiedState.searchQuery || !classifiedState.searchQuery.trim()) &&
+          lastUserMessage
+        ) {
+          const userText = lastUserTextNoMentions.trim();
+          if (userText) classifiedState.searchQuery = userText;
+        }
+        log.info('[ChatGraph] Intent forced to "umfragen" via @umfragen mention');
       }
 
       // A per-server mention (@notion/@brevo) arrives as `mcp:<serverId>` and
@@ -333,6 +549,77 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         log.info('[ChatGraph] Intent forced to "mcp" via mention', {
           scope: classifiedState.mcpServerScope ?? 'all',
         });
+      }
+
+      // Mentions whose forced tool IS the intent name and whose only extra need
+      // is a query backfill — the shape `hilfe` and `umfragen` spell out above.
+      // Kept as a table rather than seven more if-blocks; anything needing a
+      // locale gate, a scope or a style variant stays an explicit branch.
+      //
+      // The pipeline each one reaches differs (`examples` and
+      // `pressemitteilung_examples` run in the search node, the rest in the
+      // loop), but forcing the intent is the same act for all of them.
+      //
+      // `wetter` was in this table and carried an availability guard with it —
+      // a forced mention had to clear the same bar the classifier applied, or it
+      // bypassed the degrade. Both are gone: `@wetter` is now a connector
+      // mention (`mcp:system-wetter`), handled by the scoped-MCP branch above,
+      // and the availability question is answered at the mount.
+      const SIMPLE_FORCED_INTENTS = [
+        'examples',
+        'pressemitteilung_examples',
+        'chat_history',
+        'social_post',
+        'chart',
+        'compute',
+      ] as const satisfies readonly ChatIntentId[];
+      for (const candidate of SIMPLE_FORCED_INTENTS) {
+        if (!forcedTools?.includes(candidate)) continue;
+        if (!isIntentAllowedForLocale(candidate, initialState.userLocale)) continue;
+        classifiedState.intent = candidate;
+        forcedTool = true;
+        if (
+          (!classifiedState.searchQuery || !classifiedState.searchQuery.trim()) &&
+          lastUserMessage
+        ) {
+          const userText = lastUserTextNoMentions.trim();
+          if (userText) classifiedState.searchQuery = userText;
+        }
+        log.info(`[ChatGraph] Intent forced to "${candidate}" via @-mention`);
+        break;
+      }
+
+      // @deepresearch — a VARIANT of `research`, routed like one, but the only
+      // token that authorises Linkup's `sourcedAnswer` endpoint. It is not in
+      // TOOL_PRIORITY below (and must not be: it is not a competing tool), so the
+      // block after this one leaves the intent alone.
+      //
+      // `explicitDeepRequest` is set too: whichever way the turn ends up going —
+      // quota free or quota spent — asking for a dossier is by definition asking
+      // for depth, so the fallback lands on `tiefenrecherche` rather than being
+      // clamped back to `gruendlich`.
+      if (forcedTools?.includes('deepresearch')) {
+        classifiedState.intent = 'research';
+        classifiedState.deepResearchRequested = true;
+        classifiedState.explicitDeepRequest = true;
+        forcedTool = true;
+        if (
+          (!classifiedState.searchQuery || !classifiedState.searchQuery.trim()) &&
+          lastUserMessage
+        ) {
+          const userText = lastUserTextNoMentions.trim();
+          if (userText) {
+            // Same referential trap as the forced-search branch below: "recherchier
+            // das mal gründlich" taken verbatim becomes the research question, and
+            // Linkup answers about the sentence instead of the topic.
+            const resolved = resolveReferentialQuery(userText, classifiedState.messages ?? []);
+            classifiedState.searchQuery = resolved.query;
+            classifiedState.searchQueryInherited = resolved.inherited;
+          }
+        }
+        log.info(
+          `[ChatGraph] @deepresearch mention — intent forced to "research", deep-research path requested`
+        );
       }
 
       if (forcedTools && forcedTools.length > 0) {
@@ -384,9 +671,16 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           ) {
             const userText = lastUserTextNoMentions.trim();
             if (userText) {
-              classifiedState.searchQuery = userText;
+              // A referential ask ("Ja, bitte recherchiere das jetzt im Web")
+              // carries no subject: taken verbatim it BECAME the research query
+              // and Linkup answered about the sentence, not the topic.
+              const resolved = resolveReferentialQuery(userText, classifiedState.messages ?? []);
+              classifiedState.searchQuery = resolved.query;
+              classifiedState.searchQueryInherited = resolved.inherited;
               log.info(
-                `[ChatGraph] searchQuery populated from last user message for forced ${forced}: "${userText.slice(0, 60)}"`
+                `[ChatGraph] searchQuery populated from last user message for forced ${forced}${
+                  resolved.inherited ? ' (topic inherited from prior turn)' : ''
+                }: "${resolved.query.slice(0, 60)}"`
               );
             }
           }
@@ -460,7 +754,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             classificationTimeMs: classifiedState.classificationTimeMs,
           }),
         });
-        if (handled) return { status: 200 as const, body: undefined };
+        if (handled) {
+          await cleanupPending(true);
+          return { status: 200 as const, body: undefined };
+        }
       }
 
       // === Reel edit: chat subtitle editing of subtitler projects ===
@@ -497,7 +794,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               classificationTimeMs: classifiedState.classificationTimeMs,
             }),
           });
-          if (handled) return { status: 200 as const, body: undefined };
+          if (handled) {
+            await cleanupPending(true);
+            return { status: 200 as const, body: undefined };
+          }
         }
       }
 
@@ -522,32 +822,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         }
         if (classifiedState.intent === 'sharepic') {
           log.info('[ChatGraph] Sharepic intent on app — redirecting to web');
-          const redirectText = APP_REDIRECT_TEXTS.sharepic;
-          sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
-          sse.send('text_delta', { text: redirectText });
-          sse.send('done', {
-            threadId: actualThreadId ?? null,
-            citations: [],
-            metadata: {
-              intent: classifiedState.intent,
-              searchCount: 0,
-              totalTimeMs: Date.now() - initialState.startTime,
-              classificationTimeMs: classifiedState.classificationTimeMs,
-              searchTimeMs: 0,
-            },
-          });
-          if (actualThreadId) {
-            try {
-              await createMessage(actualThreadId, 'assistant', redirectText, {
-                intent: 'sharepic',
-              });
-              await touchThread(actualThreadId);
-            } catch (err) {
-              log.error('[ChatGraph] Failed to persist app sharepic redirect:', err);
-            }
-          }
-          sse.end();
-          return { status: 200 as const, body: undefined };
+          return await finishTurnWithFixedText(APP_REDIRECT_TEXTS.sharepic, 'sharepic');
         }
       }
 
@@ -596,6 +871,11 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       ) {
         const editText = lastUserTextNoMentions.trim();
         if (editText && isSocialTextEditInstruction(editText)) {
+          // Sibling of the sharepic-branch log below: the two edit branches are
+          // where a follow-up either lands correctly or is silently misread.
+          log.info(
+            `[ChatGraph] social post text-edit branch: ${JSON.stringify(editText.slice(0, 80))}`
+          );
           const handled = await handleSocialPostTextEdit({
             sse,
             req,
@@ -609,7 +889,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               classificationTimeMs: classifiedState.classificationTimeMs,
             }),
           });
-          if (handled) return { status: 200 as const, body: undefined };
+          if (handled) {
+            await cleanupPending(true);
+            return { status: 200 as const, body: undefined };
+          }
         }
       }
 
@@ -640,12 +923,38 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           rawCurrentSharepic != null &&
           !!editText &&
           (hasSharepicEditVerb(editText) || isShortAffirmation(editText));
-        if (
-          editText &&
-          (isSharepicEditInstruction(editText) ||
-            isSharepicRefinement(editText) ||
-            sharepicModeRelaxed)
-        ) {
+        const candidate = !editText
+          ? null
+          : isSharepicEditInstruction(editText)
+            ? 'edit-instruction'
+            : isSharepicRefinement(editText)
+              ? 'refinement'
+              : sharepicModeRelaxed
+                ? 'sharepic-mode-relaxed'
+                : null;
+        // EVERY lane must prove there is something to edit. `refinement` always
+        // did; `edit-instruction` never did, and that asymmetry was a hole, not
+        // a nuance: on a thread with no sharepic the handler declined, the turn
+        // fell through, and the pipeline then CREATED a sharepic about the edit
+        // instruction ("Mach den Text im Sharepic größer" became a sharepic
+        // whose topic was that sentence). One check, all three lanes.
+        // sharepicModeRelaxed keeps its own rawCurrentSharepic requirement —
+        // an explicitly activated sharepic is stronger evidence than "the
+        // thread has one somewhere".
+        const sharepicTrigger =
+          candidate && (rawCurrentSharepic != null || (await threadHasSharepic(actualThreadId)))
+            ? candidate
+            : null;
+        if (sharepicTrigger) {
+          // WHICH rule captured the turn, and on what text. This branch can end
+          // a turn early (e.g. the "Welche Variante soll ich bearbeiten?"
+          // clarification) without any other log line, so a message that was
+          // never meant as a sharepic edit vanished into it leaving no trace —
+          // a QA report of "my question was answered as an edit command" was
+          // not diagnosable from the backend at all.
+          log.info(
+            `[ChatGraph] sharepic edit branch via ${sharepicTrigger}: ${JSON.stringify(editText.slice(0, 80))}`
+          );
           // CHAT_TOOL_LOOP swaps the executor, not the routing: same entry
           // condition and fallthrough semantics, but the edit runs as a small
           // agentic tool loop instead of one structured call.
@@ -665,7 +974,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               classificationTimeMs: classifiedState.classificationTimeMs,
             }),
           });
-          if (handled) return { status: 200 as const, body: undefined };
+          if (handled) {
+            await cleanupPending(true);
+            return { status: 200 as const, body: undefined };
+          }
         }
       }
 
@@ -703,6 +1015,100 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         }
       }
 
+      // === Sharepic licence: the single gate for "may this turn make one?" ===
+      // A sharepic is legitimate in exactly two situations: the user named one,
+      // or the thread already has one to edit — and both edit lanes above have
+      // had their chance at the second. Enforcing it HERE, once, is what let the
+      // classifier lose five regexes: every door (Tier-3 heuristic, Tier-4 LLM,
+      // the malformed-JSON recovery in classifierParsing, secondaryIntent) ends
+      // up passing through this line, so none of them needs its own gate.
+      // Placed before compoundKind so an unlicensed turn cannot mount the fat
+      // tool either.
+      const sharepicLicensed =
+        forcedTool || // @sharepic mention — an explicit pick
+        initialState.agentConfig?.identifier === 'gruenerator-sharepic' ||
+        hasExplicitSharepicWord(lastUserTextNoMentions);
+
+      if (classifiedState.secondaryIntent === 'sharepic' && !sharepicLicensed) {
+        log.info('[ChatGraph] Dropping unlicensed sharepic secondaryIntent');
+        classifiedState.secondaryIntent = null;
+      }
+      if (classifiedState.intent === 'sharepic' && !sharepicLicensed) {
+        if (actualThreadId && (await threadHasSharepic(actualThreadId))) {
+          // Sharepic-shaped, and there IS one — but the edit lanes declined it
+          // (wrong template, ambiguous, not actually an edit). Answering
+          // normally beats minting a surprise second sharepic.
+          log.info('[ChatGraph] Unlicensed sharepic intent, thread has one → produktion');
+          // Decision key unchanged (F1): the journal cards are named after it.
+          recordDecision('router.intent_override', 'sharepic_unlicensed_to_direct', {
+            inputs: { intentBefore: 'sharepic', sharepicLicensed, threadHasSharepic: true },
+          });
+          classifiedState.intent = 'produktion';
+        } else {
+          log.info('[ChatGraph] Unlicensed sharepic intent, nothing to edit → fixed reply');
+          recordDecision('router.intent_override', 'sharepic_unlicensed_fixed_text', {
+            inputs: { intentBefore: 'sharepic', sharepicLicensed, threadHasSharepic: false },
+          });
+          return await finishTurnWithFixedText(NO_SHAREPIC_TO_EDIT_TEXT, 'sharepic');
+        }
+      }
+
+      // === Negative action constraints: one gate for "may this turn persist?" ===
+      // Same shape as the sharepic licence above, same reason: the artifact
+      // intents have many doors (Tier-2.7 lastToolContext, Tier-3 heuristics,
+      // the Tier-4 LLM, its malformed-JSON recovery, secondaryIntent) and only
+      // the Tier-3 ones ever checked for negation. Enforcing it here, once,
+      // means a door that forgets cannot leak. Demoting to `direct` (rather than
+      // a fixed reply) is deliberate: the user asked for an ANSWER and forbade
+      // the artifact — they should get the answer.
+      const forbiddenBy: Partial<Record<string, ForbiddableArtifact>> = {
+        save_as_doc: 'document',
+        modify_doc: 'document',
+        share_doc: 'document',
+        create_sheet: 'sheet',
+        create_presentation: 'presentation',
+        create_pdf: 'pdf',
+        modify_board: 'board',
+        image: 'image',
+      };
+      const secondaryFamily = forbiddenBy[classifiedState.secondaryIntent ?? ''];
+      if (
+        secondaryFamily &&
+        forbidsPersistentAction(lastUserTextNoMentions, ARTIFACT_NOUN_BY_KIND[secondaryFamily])
+      ) {
+        log.info(
+          `[ChatGraph] Turn forbids ${secondaryFamily} action → dropping secondaryIntent ${classifiedState.secondaryIntent}`
+        );
+        recordDecision('router.persistent_action_gate', 'dropped_secondary', {
+          inputs: { family: secondaryFamily, secondaryIntent: classifiedState.secondaryIntent },
+        });
+        classifiedState.secondaryIntent = null;
+      }
+      const primaryFamily = forbiddenBy[classifiedState.intent];
+      if (primaryFamily) {
+        const forbidden = forbidsPersistentAction(
+          lastUserTextNoMentions,
+          ARTIFACT_NOUN_BY_KIND[primaryFamily]
+        );
+        recordDecision(
+          'router.persistent_action_gate',
+          forbidden ? 'demoted_primary_to_produktion' : 'allowed',
+          { inputs: { family: primaryFamily, intent: classifiedState.intent } }
+        );
+        if (forbidden) {
+          log.info(
+            `[ChatGraph] Turn forbids ${primaryFamily} action → demoting intent ${classifiedState.intent} to produktion`
+          );
+          classifiedState.intent = 'produktion';
+          // Carry the REASON, not just the outcome. `produktion` is the prose
+          // lane, and the demoted turn lands there still carrying "mach eine
+          // Präsentation" — the tool gone, and nothing in the prompt saying
+          // why. That gap is what the model filled with a hand-written file
+          // (see `forbiddenArtifactAction` in ChatGraph/types.ts).
+          classifiedState.forbiddenArtifactAction = primaryFamily;
+        }
+      }
+
       sse.send('progress_step', {
         stepId: classifyStepId,
         toolName: 'classify',
@@ -717,16 +1123,39 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // For an `mcp` turn the forcedTool flag means "the user picked this
       // connector" (via @<server>), NOT "pin a deterministic single-pass tool" —
       // so it may still enter the loop, which mounts that server's MCP tools.
-      // System MCP intents (bahn/wetter/news) force the gate the same way: the
-      // legacy pipeline has no executor for them, the loop mounts their tools.
-      // `umfragen` is a native domain tool (PolitPro service) — always
-      // available, so it forces the gate unconditionally.
+      // `umfragen` (PolitPro) and `hilfe` (in-process docs index) are native
+      // domain tools — always available, so they force the gate unconditionally.
+      // `hilfe` MUST be here: @doku sets forcedTool, and without this escape
+      // decideRunAgentic would keep the turn single-pass, where
+      // `gruenerator_docs_search` does not exist — the mention would silently
+      // do nothing.
+      //
+      // The five system-MCP intents used to force the gate here too, via an
+      // availability check that also carried the locale. Both jobs moved into
+      // `managedSourceKeys` below: the trigger names the connectors, and
+      // `loadManagedMcpCatalog` applies the country filter and the per-user
+      // opt-out at the mount itself — one place instead of two that had to agree.
       const isMcpTurn =
         classifiedState.intent === 'mcp' ||
         classifiedState.intent === 'umfragen' ||
-        (classifiedState.intent != null && isSystemIntentAvailable(classifiedState.intent));
+        classifiedState.intent === 'hilfe';
       const isSystemToolIntent =
         classifiedState.intent != null && SYSTEM_TOOL_INTENTS.has(classifiedState.intent);
+      // First-party connectors this turn should mount. Vocabulary decides
+      // (`managedSourceTrigger`), not a verdict — and an explicit `@gesetze`-style
+      // mention already resolved to an `mcp:system-<key>` scope above, which the
+      // connector path handles on its own.
+      const managedSourceKeys = detectManagedSources(lastUserTextNoMentions);
+      if (managedSourceKeys.length > 0) {
+        classifiedState.managedSourceKeys = managedSourceKeys;
+        log.info(`[ChatGraph] Managed sources: ${managedSourceKeys.join(', ')}`);
+      }
+      // A chosen notebook keeps the turn single-pass, on EVERY agent — only
+      // `searchNode` retrieves notebook content, and no loop tool can address a
+      // notebook. `isCompound` above covers just the named-agent half of this
+      // and additionally drives topic extraction and a progress event, so the
+      // routing fact gets its own name. See AgenticDecisionInput.
+      const hasSelectedNotebook = notebookIds.length > 0;
       const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
       // Compound research+generation (Phase 3n): a generation ask (sharepic,
       // presentation, sheet, text doc, board) with an explicit research signal
@@ -771,6 +1200,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         !forcedTool &&
         isAgenticLoopEnabled() &&
         !isCompound &&
+        !hasSelectedNotebook &&
         imageAttachments.length === 0 &&
         isCompoundEdit;
       if (compoundEdit) classifiedState.compoundEdit = true;
@@ -795,6 +1225,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         hasEditTarget: editTarget != null,
         forcedTool: !!forcedTool,
         isCompound,
+        hasSelectedNotebook,
         hasImageAttachments: imageAttachments.length > 0,
         secondaryIntent: classifiedState.secondaryIntent ?? null,
       });
@@ -819,6 +1250,13 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         !rawCurrentBoard &&
         !forcedTool
       ) {
+        recordDecision('router.intent_override', 'modify_board_to_agentic', {
+          inputs: {
+            intentBefore: 'modify_board',
+            hasRawBoardIds: !!rawBoardIds && rawBoardIds.length > 0,
+            hasOpenBoard: !!rawCurrentBoard,
+          },
+        });
         classifiedState.intent = 'agentic';
       }
 
@@ -836,16 +1274,46 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           lastUserText,
           forcedTool: !!forcedTool,
           isMcpTurn,
+          hasManagedSources: managedSourceKeys.length > 0,
           isCompound,
+          hasSelectedNotebook,
           secondaryIntent: classifiedState.secondaryIntent ?? null,
           compoundGeneration,
           hasImageAttachments: imageAttachments.length > 0,
+          isPdfFillRequest:
+            ((classifiedState.pdfFormAttachments?.length ?? 0) > 0 ||
+              (classifiedState.threadAttachments ?? []).some(
+                (a) => a.mimeType === 'application/pdf'
+              )) &&
+            isSheetFillRequest(lastUserText),
+          classifierContradictedResearch: classifiedState.classifierContradictedResearch === true,
+          // Same question the classifier's Tier 3.5 asks, asked again here
+          // because a turn can reach this gate without having passed that tier
+          // (confident heuristic, LLM verdict, post-pass correction).
+          hasOwnMaterial:
+            lastUserText.length > NOUN_TRIGGER_MAX_LENGTH ||
+            !!classifiedState.attachmentContext ||
+            !!classifiedState.currentDocument ||
+            (classifiedState.docMentionIds ?? []).length > 0,
         });
 
       // A demoted turn that a kill-switch (compound, forced tool, ...) kept out
       // of the loop must not strand in executeIntentPipeline, which has no
       // 'agentic' branch — degrade to plain search.
+      //
+      // KEINE automatisierte Abdeckung mehr, und das ist eine Aussage über die
+      // Erreichbarkeit, nicht über den Aufwand: `agentic` entstand entweder bei
+      // Tier 3.5 (das mit ausgeschaltetem Loop gar nicht erst demotiert) oder als
+      // Auffangwert der LLM-Stufe (gelöscht). Innerhalb eines Requests können
+      // Klassifikator und Router den Schalter also nicht mehr verschieden sehen.
+      // Was bleibt, ist der WIEDERAUFNAHME-Pfad: ein gespeicherter `agentic`-
+      // Intent, der nach einem Deploy mit umgelegtem Schalter fortgesetzt wird.
+      // Die zugehörige Simulation ist in diesem PR gelöscht worden — sie endete
+      // nachweislich im Fehler-Fallback und belegte den Zweig nie.
       if (!runAgentic && classifiedState.intent === 'agentic') {
+        recordDecision('router.intent_override', 'agentic_to_search', {
+          inputs: { intentBefore: 'agentic', runAgentic },
+        });
         classifiedState.intent = 'search';
       }
       // Same insurance for system tool intents: their tools exist only in the
@@ -853,6 +1321,9 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // Backfill the query — these intents are NON_SEARCH, so the classifier
       // nulled searchQuery and the web branch would otherwise search ''.
       if (!runAgentic && isSystemToolIntent) {
+        recordDecision('router.intent_override', 'system_tool_to_web', {
+          inputs: { intentBefore: classifiedState.intent, runAgentic, isSystemToolIntent },
+        });
         classifiedState.intent = 'web';
         if (!classifiedState.searchQuery && lastUserText) {
           classifiedState.searchQuery = lastUserText;
@@ -897,7 +1368,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             '',
           startTime: Date.now(),
         });
-        if (handled) return { status: 200 as const, body: undefined };
+        if (handled) {
+          await cleanupPending(true);
+          return { status: 200 as const, body: undefined };
+        }
       }
 
       // === Chat history context enrichment ===
@@ -917,7 +1391,12 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // Space scope: when the thread is filed in a Space, recall is restricted to
       // that Space's chats and the model is told which threads it can search.
       const spaceScope = actualThreadId
-        ? await getSpaceRecallScope(actualThreadId, userId).catch(() => null)
+        ? await getSpaceRecallScope(actualThreadId, userId).catch((err: unknown) => {
+            // Was a bare noop — the Space roster silently vanished and recall
+            // widened to all chats without anyone noticing.
+            log.warn(`[ChatGraph] Space recall scope failed: ${err}`);
+            return null;
+          })
         : null;
 
       if (explicitRecall || proactiveRecall) {
@@ -928,39 +1407,48 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               ? (extractTextContent(lastUserMessage.content) as string).slice(0, 200)
               : '');
           if (recallQuery.trim()) {
-            // Fetch chats + office content, then cross-source rerank to the few
-            // most relevant — all inside the best-effort timeout.
+            // Fetch chats + office content + reels, then cross-source rerank to
+            // the few most relevant — all inside the best-effort timeout.
             const recalled = await withTimeout(
               (async () => {
-                const [chatResults, officeDocs] = await Promise.all([
+                const [chatResults, officeDocs, reels] = await Promise.all([
                   recallPastChats(userId, recallQuery, {
                     ...(actualThreadId != null && { excludeThreadId: actualThreadId }),
                     limit: 3,
                     ...(spaceScope && { threadIds: spaceScope.threadIds }),
                   }),
                   recallOfficeDocuments(userId, recallQuery, 3),
+                  recallReels(userId, recallQuery, 3),
                 ]);
-                return rerankRecall(recallQuery, chatResults, officeDocs, 4);
+                return rerankRecall(recallQuery, chatResults, officeDocs, 4, reels);
               })(),
               EXTERNAL_CONTEXT_TIMEOUT_MS,
               'past-work recall'
             ).catch(
-              () => ({ chats: [], officeDocs: [] }) as Awaited<ReturnType<typeof rerankRecall>>
+              () =>
+                ({ chats: [], officeDocs: [], reels: [] }) as Awaited<
+                  ReturnType<typeof rerankRecall>
+                >
             );
             const blocks = [
               spaceScope?.rosterBlock ?? '',
               recalled.chats.length > 0 ? formatPastChatsBlock(recalled.chats) : '',
               formatOfficeDocsBlock(recalled.officeDocs),
+              formatReelsBlock(recalled.reels),
             ].filter(Boolean);
             if (blocks.length > 0) {
               classifiedState.chatHistoryContext = blocks.join('\n\n');
               log.info(
-                `[ChatGraph] Injected recall: ${recalled.chats.length} chats, ${recalled.officeDocs.length} docs for "${recallQuery}" (${explicitRecall ? 'explicit' : 'proactive'})`
+                `[ChatGraph] Injected recall: ${recalled.chats.length} chats, ${recalled.officeDocs.length} docs, ${recalled.reels.length} reels for "${recallQuery}" (${explicitRecall ? 'explicit' : 'proactive'})`
               );
             }
           }
         } catch (err) {
+          // An EXPLICIT recall request ("was haben wir letzte Woche besprochen")
+          // that finds nothing because the search broke must not read as "there
+          // was nothing". Proactive recall is best-effort and stays quiet.
           log.warn(`[ChatGraph] Past-chat recall failed: ${err}`);
+          if (explicitRecall) sendChatWarning(sse, 'recall_degraded');
         }
       }
 
@@ -976,8 +1464,12 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       }
 
       // === HITL: Check if clarification is needed ===
+      // `actualThreadId` is part of the gate, not an assertion inside it: a
+      // clarification the client cannot resume is worse than no clarification,
+      // so a thread-less turn falls through to the normal pipeline instead.
       if (
         classifiedState.needsClarification &&
+        actualThreadId != null &&
         !forcedTool &&
         !isCompound &&
         !initialState.attachmentContext &&
@@ -998,48 +1490,14 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           },
         });
 
-        sse.send('interrupt', {
+        return suspendTurn(actualThreadId, {
           interruptType: 'clarification',
           question: classifiedState.clarificationQuestion!,
           ...(classifiedState.clarificationOptions != null && {
             options: classifiedState.clarificationOptions,
           }),
-          ...(actualThreadId != null && { threadId: actualThreadId }),
+          threadId: actualThreadId,
         });
-
-        await pipelineStateStore.store(actualThreadId!, {
-          classifiedState,
-          requestContext: {
-            userId,
-            agentId: agentId ?? 'gruenerator-universal',
-            enabledTools: enabledTools ?? {},
-            ...(modelId != null && { modelId }),
-            ...(actualThreadId != null && { actualThreadId }),
-            isNewThread,
-            processedMeta,
-            imageAttachments,
-            memoryContext,
-            memoryRetrieveTimeMs,
-            validMessages,
-            forcedTool,
-            ...(rawDocumentIds != null && { rawDocumentIds }),
-          },
-        });
-
-        sse.send('done', {
-          ...(actualThreadId != null && { threadId: actualThreadId }),
-          citations: [],
-          interrupted: true,
-          metadata: {
-            intent: classifiedState.intent,
-            searchCount: 0,
-            totalTimeMs: Date.now() - initialState.startTime,
-            classificationTimeMs: classifiedState.classificationTimeMs,
-            searchTimeMs: 0,
-          },
-        });
-        sse.end();
-        return { status: 200 as const, body: undefined };
       }
 
       // === Client-tool interrupt: run-then-answer spreadsheet compute ===
@@ -1053,7 +1511,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // The gate re-checks the raw question text (not just intent==='compute'):
       // on multi-turn threads the vague-follow-up confidence penalty pushes the
       // tabular heuristic below threshold and the LLM classifies follow-ups
-      // like "durchschnittlicher umsatz pro region?" as search/direct — which
+      // like "durchschnittlicher umsatz pro region?" as search/produktion — which
       // silently degraded them to the legacy prompt-guidance path. Guards:
       // only hijackable intents (explicit tool intents like chart/image/
       // sharepic/web keep their flow), no @-forced tools, and the matcher
@@ -1061,12 +1519,20 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // questions.
       const computeOverridableIntents = new Set([
         'compute',
+        'produktion',
         'direct',
         'search',
         'summary',
         'compare',
       ]);
+      // "Fill this in" takes precedence over the aggregation match: "trag die
+      // Summe ein" is both, and writing the value into the sheet is the
+      // stronger ask. Same interrupt, but codegen switches to openpyxl so the
+      // template's formatting and formulas survive.
+      const isSheetFill =
+        computeOverridableIntents.has(classifiedState.intent) && isSheetFillRequest(lastUserText);
       const isTabularCompute =
+        !isSheetFill &&
         computeOverridableIntents.has(classifiedState.intent) &&
         isTabularComputeQuestion(lastUserText);
       // Chart requests over an attached table compute their values FIRST —
@@ -1075,15 +1541,35 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // resumed respond step builds the chart JSON from BERECHNUNGSERGEBNIS.
       const isTabularChart = classifiedState.intent === 'chart';
       if (
-        (isTabularCompute || isTabularChart) &&
+        (isSheetFill || isTabularCompute || isTabularChart) &&
         classifiedState.hasTabularAttachment &&
         !forcedTools?.length &&
         args.body.clientTools?.includes('run_python') &&
         actualThreadId != null
       ) {
-        const { pythonCode } = await pandasComputeNode(classifiedState);
+        const { pythonCode, computeFailed } = await pandasComputeNode(
+          classifiedState,
+          isSheetFill ? { mode: 'fill' } : {}
+        );
+        // Codegen failed (as opposed to the model judging the question
+        // unrelated to the table, which is a legitimate silent skip). Without
+        // telling the model, it answers the numeric question from the truncated
+        // table text — the hallucination this node exists to prevent.
+        if (computeFailed) {
+          sendChatWarning(sse, 'compute_failed');
+          classifiedState.degradationNotes = [
+            ...(classifiedState.degradationNotes ?? []),
+            {
+              code: 'compute_failed',
+              modelHint:
+                'Die Berechnung auf der Tabelle ist fehlgeschlagen. Rechne NICHT selbst und nenne keine Zahlen aus der Tabelle — sag ehrlich, dass die Auswertung gerade nicht möglich war.',
+            },
+          ];
+        }
         if (pythonCode) {
-          log.info(`[ChatGraph] run_python interrupt (${pythonCode.length} chars pandas code)`);
+          log.info(
+            `[ChatGraph] run_python interrupt (${pythonCode.length} chars ${isSheetFill ? 'openpyxl fill' : 'pandas'} code)`
+          );
           if (!isTabularChart) {
             // The resumed respond step should use the compute-mode guidance
             // even when the classifier had picked a different intent — and the
@@ -1093,137 +1579,120 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             sse.send('intent', {
               intent: 'compute',
               message: getIntentMessage('compute'),
-              reasoning: 'Tabellen-Berechnung erkannt',
+              reasoning: isSheetFill ? 'Formular-Ausfüllen erkannt' : 'Tabellen-Berechnung erkannt',
             });
           }
           // Stashed for the error-correction round: if the client reports a
           // failed execution, the resume handler regenerates with this code +
           // the error message in context.
           classifiedState.pandasLastCode = pythonCode;
+          classifiedState.pandasComputeMode = isSheetFill ? 'fill' : 'analyze';
 
           const stepId = `run_python_${Date.now()}`;
           sse.sendRaw('thinking_step', {
             stepId,
             toolName: 'run_python',
-            title: 'Berechne mit pandas…',
+            title: isSheetFill ? 'Fülle Vorlage aus…' : 'Berechne mit pandas…',
             status: 'in_progress',
             args: { code: pythonCode },
           });
 
-          sse.send('interrupt', {
+          return suspendTurn(actualThreadId, {
             interruptType: 'client_tool',
             toolName: 'run_python',
             args: { code: pythonCode },
             threadId: actualThreadId,
           });
-
-          await pipelineStateStore.store(actualThreadId, {
-            classifiedState,
-            requestContext: {
-              userId,
-              agentId: agentId ?? 'gruenerator-universal',
-              enabledTools: enabledTools ?? {},
-              ...(modelId != null && { modelId }),
-              actualThreadId,
-              isNewThread,
-              processedMeta,
-              imageAttachments,
-              memoryContext,
-              memoryRetrieveTimeMs,
-              validMessages,
-              forcedTool,
-              ...(rawDocumentIds != null && { rawDocumentIds }),
-            },
-          });
-
-          sse.send('done', {
-            threadId: actualThreadId,
-            citations: [],
-            interrupted: true,
-            metadata: {
-              intent: classifiedState.intent,
-              searchCount: 0,
-              totalTimeMs: Date.now() - initialState.startTime,
-              classificationTimeMs: classifiedState.classificationTimeMs,
-              searchTimeMs: 0,
-            },
-          });
-          sse.end();
-          return { status: 200 as const, body: undefined };
         }
         // Codegen failed — continue with the normal pipeline (prompt guidance
         // still steers the model toward an auto-run code block).
       }
 
-      // === Handle @board-erstellen tool ===
-      if (forcedTools?.includes('board-erstellen')) {
-        const created = await handleBoardCreation({
-          sse,
-          classifiedState,
-          lastUserMessage,
-          aiWorkerPool,
-          req,
-          ...(actualThreadId != null && { actualThreadId }),
-          userId,
-        });
-        if (created) return { status: 200 as const, body: undefined };
-      }
+      // === Artifact-creating turns (@board/dokument/sheet/praesentation/pdf) ===
+      // Every branch had the same shape — gate on the forced tool or the
+      // classified intent, resolve the referential topic, call the handler,
+      // discard the placeholder row, return. Five copies of that is how the pdf
+      // branch ended up as the only one missing `await cleanupPending(true)`.
+      const createTurnBase = {
+        sse,
+        classifiedState,
+        aiWorkerPool,
+        req,
+        ...(actualThreadId != null && { actualThreadId }),
+        userId,
+      };
+      /** What the artifact is ABOUT. A referential follow-up ("mach eine
+       *  Tabelle dazu") names no subject, so the classifier resolves one against
+       *  the history; `resolveReferentialTopic` covers the turns that never
+       *  reached the LLM. The material to build FROM is separate and comes from
+       *  runCreateTurn's transcript + source briefing. */
+      const createTopic = (): string =>
+        classifiedState.creationTopic ||
+        resolveReferentialTopic(
+          lastUserMessage ? extractTextContent(lastUserMessage.content) : '',
+          classifiedState.messages ?? []
+        ).text;
 
-      // === Handle @dokument-erstellen tool ===
-      if (forcedTools?.includes('dokument-erstellen')) {
-        const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
-        const created = await generateAndCreateDocument({
-          sse,
-          classifiedState,
-          aiWorkerPool,
-          req,
-          ...(actualThreadId != null && { actualThreadId }),
-          userId,
-          userContent: lastUserText as string,
-          intent: 'direct',
-        });
-        if (created) return { status: 200 as const, body: undefined };
-      }
+      const createRoutes: Array<{
+        forcedTool: string;
+        /** Classifier intent that also triggers it (the @-tool-only branches
+         *  predate the create_* intents and have none). */
+        intent?: string;
+        /** Compound turns let the loop call the fat tool instead. */
+        skipOnAgentic: boolean;
+        run: () => Promise<boolean>;
+      }> = [
+        {
+          forcedTool: 'board-erstellen',
+          skipOnAgentic: false,
+          // Board still takes the raw message: it resolves the topic itself.
+          run: () => handleBoardCreation({ ...createTurnBase, lastUserMessage }),
+        },
+        {
+          forcedTool: 'dokument-erstellen',
+          skipOnAgentic: false,
+          run: () =>
+            generateAndCreateDocument({
+              ...createTurnBase,
+              userContent: createTopic(),
+              intent: 'produktion',
+            }),
+        },
+        {
+          forcedTool: 'sheet-erstellen',
+          intent: 'create_sheet',
+          skipOnAgentic: true,
+          run: () => handleSheetCreation({ ...createTurnBase, userContent: createTopic() }),
+        },
+        {
+          forcedTool: 'praesentation-erstellen',
+          intent: 'create_presentation',
+          skipOnAgentic: true,
+          run: () => handlePresentationCreation({ ...createTurnBase, userContent: createTopic() }),
+        },
+        {
+          forcedTool: 'pdf-erstellen',
+          intent: 'create_pdf',
+          skipOnAgentic: true,
+          run: () =>
+            handlePdfCreation({
+              ...createTurnBase,
+              userContent: createTopic(),
+              userLocale: classifiedState.userLocale === 'de-AT' ? 'de-AT' : 'de-DE',
+            }),
+        },
+      ];
 
-      // === Handle @sheet-erstellen tool / create_sheet intent ===
-      // Skipped on a compound turn (runAgentic): there the loop researches first
-      // and calls the create_sheet fat tool itself.
-      if (
-        !runAgentic &&
-        (forcedTools?.includes('sheet-erstellen') || classifiedState.intent === 'create_sheet')
-      ) {
-        const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
-        const created = await handleSheetCreation({
-          sse,
-          classifiedState,
-          aiWorkerPool,
-          req,
-          ...(actualThreadId != null && { actualThreadId }),
-          userId,
-          userContent: lastUserText as string,
-        });
-        if (created) return { status: 200 as const, body: undefined };
-      }
-
-      // === Handle @praesentation-erstellen tool / create_presentation intent ===
-      // Skipped on a compound turn (runAgentic): the loop researches first and
-      // calls the create_presentation fat tool itself.
-      if (
-        !runAgentic &&
-        (forcedTools?.includes('praesentation-erstellen') ||
-          classifiedState.intent === 'create_presentation')
-      ) {
-        const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
-        const created = await handlePresentationCreation({
-          sse,
-          classifiedState,
-          aiWorkerPool,
-          req,
-          ...(actualThreadId != null && { actualThreadId }),
-          userId,
-          userContent: lastUserText as string,
-        });
-        if (created) return { status: 200 as const, body: undefined };
+      for (const route of createRoutes) {
+        if (route.skipOnAgentic && runAgentic) continue;
+        const triggered =
+          forcedTools?.includes(route.forcedTool) === true ||
+          (route.intent != null && classifiedState.intent === route.intent);
+        if (!triggered) continue;
+        if (await route.run()) {
+          await cleanupPending(true);
+          return { status: 200 as const, body: undefined };
+        }
       }
 
       // === EXPERIMENTAL: create_recurring_task intent ===
@@ -1241,7 +1710,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           agentId: agentId ?? null,
           userLocale: classifiedState.userLocale === 'de-AT' ? 'de-AT' : 'de-DE',
         });
-        if (created) return { status: 200 as const, body: undefined };
+        if (created) {
+          await cleanupPending(true);
+          return { status: 200 as const, body: undefined };
+        }
       }
 
       // === Handle share_doc intent ===
@@ -1255,7 +1727,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           ...(rawDocMentionIds != null && { rawDocMentionIds }),
           ...(rawDocumentChatIds != null && { rawDocumentChatIds }),
         });
-        if (handled) return { status: 200 as const, body: undefined };
+        if (handled) {
+          await cleanupPending(true);
+          return { status: 200 as const, body: undefined };
+        }
       }
 
       // === HITL: Sharepic without a topic → ask before generating ===
@@ -1263,7 +1738,15 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // because a bare "@sharepic" / "zitat sharepic" has the intent but no subject.
       if (classifiedState.intent === 'sharepic' && actualThreadId && !sharepicRefinement) {
         const sharepicText = lastUserTextNoMentions;
-        if (isSharepicTopicMissing(sharepicText as string)) {
+        // Ask only when the THREAD has no subject either. "Jetzt noch ein
+        // normales sharepic" carries none of its own, but the turn before it
+        // does — and runSharepicGeneration resolves exactly that. Asking here
+        // would throw away a topic the pipeline already knows. Both resolution
+        // paths count, in the order the generator tries them.
+        const topicResolvable =
+          !!classifiedState.creationTopic ||
+          resolveReferentialTopic(sharepicText as string, classifiedState.messages ?? []).inherited;
+        if (isSharepicTopicMissing(sharepicText as string) && !topicResolvable) {
           log.info('[ChatGraph] Sharepic topic missing — asking user for the topic');
 
           const stepId = `clarify_${Date.now()}`;
@@ -1278,46 +1761,12 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             args: { question, options },
           });
 
-          sse.send('interrupt', {
+          return suspendTurn(actualThreadId, {
             interruptType: 'clarification',
             question,
             options,
             threadId: actualThreadId,
           });
-
-          await pipelineStateStore.store(actualThreadId, {
-            classifiedState,
-            requestContext: {
-              userId,
-              agentId: agentId ?? 'gruenerator-universal',
-              enabledTools: enabledTools ?? {},
-              ...(modelId != null && { modelId }),
-              actualThreadId,
-              isNewThread,
-              processedMeta,
-              imageAttachments,
-              memoryContext,
-              memoryRetrieveTimeMs,
-              validMessages,
-              forcedTool,
-              ...(rawDocumentIds != null && { rawDocumentIds }),
-            },
-          });
-
-          sse.send('done', {
-            threadId: actualThreadId,
-            citations: [],
-            interrupted: true,
-            metadata: {
-              intent: classifiedState.intent,
-              searchCount: 0,
-              totalTimeMs: Date.now() - initialState.startTime,
-              classificationTimeMs: classifiedState.classificationTimeMs,
-              searchTimeMs: 0,
-            },
-          });
-          sse.end();
-          return { status: 200 as const, body: undefined };
         }
       }
 
@@ -1327,6 +1776,8 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       let generatedImage: PipelineResult['generatedImage'];
       let sharepicVariants: PipelineResult['sharepicVariants'];
       let socialPost: PipelineResult['socialPost'];
+      let socialPostRefused: PipelineResult['socialPostRefused'] = false;
+      let socialPostRefusalIsPolicy: PipelineResult['socialPostRefusalIsPolicy'] = false;
       let fullText: string | null;
       let agenticSteps: PersistedStep[] | undefined;
       // Presentation/sheet created by a compound loop tool — lifted from the
@@ -1337,34 +1788,86 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // this is emitted in the `done` event (boardId + boardGeneratedStructure),
       // the way the single-pass @board-erstellen handler does.
       let createdBoard: ChatGraphState['createdBoard'] = null;
+      // Captured inside withLangfuseTrace so the final `done` event can hand the
+      // chat-turn trace id to the client for feedback scoring. undefined when
+      // Langfuse is disabled or this turn skips the respond LLM call.
+      let langfuseTraceId: string | undefined;
+
+      // From here on the reply streams into the placeholder row. Registering the
+      // listener only now keeps the earlier handler branches (which stream their
+      // own text and persist their own rows) out of the placeholder.
+      const activeWriter = pendingWriter;
+      if (activeWriter) {
+        sse.setTextListener((kind, text) => activeWriter.onText(kind, text));
+      }
+
+      /**
+       * Both answer-writing paths open the same `chat-turn` trace — the agentic
+       * loop and the single-pass respond call. `intent` is the only field that
+       * differs: the loop answers under the classifier's intent, the pipeline
+       * may have rewritten it by the time it reaches the respond model.
+       */
+      const buildTurnTrace = (intent: string) => ({
+        name: 'chat-turn',
+        ...(userId && { userId }),
+        ...(actualThreadId && { sessionId: actualThreadId }),
+        metadata: {
+          requestId,
+          intent,
+          ...(agentId && { agentId }),
+          ...(modelId && { modelId }),
+        },
+      });
 
       if (runAgentic) {
         // Agentic path: the model holds the search tools and loops until it can
         // answer, writing the reply in the same streamed turn. Stage 2's
         // pre-decided single search is skipped entirely.
-        const systemMessage = await buildSystemMessage(classifiedState);
+        // `retrievalExpected`: this prompt is written before the loop calls a
+        // single tool, so the citation count it would otherwise read is 0 on
+        // every agentic turn — not because the answer will be thin, but because
+        // the search has not happened yet.
+        const systemMessage = await buildSystemMessage(classifiedState, {
+          retrievalExpected: true,
+        });
         const prunedValidMessages = pruneMessages(
-          validMessages as Parameters<typeof pruneMessages>[0]
+          validMessages as Parameters<typeof pruneMessages>[0],
+          contextWindowTokens
         );
-        const finalSystemMessage = actualThreadId
+        const { systemMessage: finalSystemMessage, messages: contextMessages } = actualThreadId
           ? await applyCompaction(
               actualThreadId,
               prunedValidMessages,
               systemMessage,
               contextWindowTokens
             )
-          : systemMessage;
+          : { systemMessage, messages: prunedValidMessages };
 
-        const outcome = await streamAgenticResponse({
-          finalState: classifiedState,
-          systemMessage: finalSystemMessage,
-          messages: prunedValidMessages as ModelMessage[],
-          ...(modelId != null && { modelId }),
-          requestId,
-          sse,
-          req,
-          threadId: actualThreadId ?? null,
-        });
+        // The loop's gather/synth generations nest under this root span — they
+        // pass buildAiTelemetry() from inside loopEngine. Until this existed the
+        // most expensive turns in the product were the only untraced ones, and
+        // the client got no traceId, so their thumbs buttons never rendered.
+        const outcome = await withLangfuseTrace(
+          buildTurnTrace(classifiedState.intent ?? 'agentic'),
+          async (trace) => {
+            langfuseTraceId = trace.traceId;
+            const result = await streamAgenticResponse({
+              finalState: classifiedState,
+              systemMessage: finalSystemMessage,
+              messages: contextMessages as ModelMessage[],
+              ...(modelId != null && { modelId }),
+              requestId,
+              sse,
+              req,
+              threadId: actualThreadId ?? null,
+              // Dieselben Zeilen, die buildStreamContext schon gelesen hat.
+              // Null heisst nur „nicht vorgelesen" — der Loop liest dann selbst.
+              toolHistory: threadToolHistory,
+            });
+            trace.update({ input: lastUserText, output: result.fullText });
+            return result;
+          }
+        );
 
         finalState = classifiedState;
         finalState.citations = outcome.citations;
@@ -1388,18 +1891,23 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         agenticSteps = outcome.steps;
       } else {
         // === Stage 2: Search or Image Generation ===
-        ({ finalState, generatedImage, sharepicVariants, socialPost } = await executeIntentPipeline(
-          {
-            classifiedState,
-            sse,
-            forcedTool,
-            ...(enabledTools != null && { enabledTools }),
-            imageAttachments,
-            req,
-            threadId: actualThreadId ?? null,
-            ...(sharepicRefinement && { sharepicRefinement }),
-          }
-        ));
+        ({
+          finalState,
+          generatedImage,
+          sharepicVariants,
+          socialPost,
+          socialPostRefused,
+          socialPostRefusalIsPolicy,
+        } = await executeIntentPipeline({
+          classifiedState,
+          sse,
+          forcedTool,
+          ...(enabledTools != null && { enabledTools }),
+          imageAttachments,
+          req,
+          threadId: actualThreadId ?? null,
+          ...(sharepicRefinement && { sharepicRefinement }),
+        }));
 
         // === Stage 3: Response generation ===
         if (finalState.intent === 'social_post') {
@@ -1408,17 +1916,31 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           // Fixed confirmation like the sharepic branch — no extra LLM call.
           const hasText = socialPost != null;
           const n = sharepicVariants.length;
-          fullText =
-            hasText && n > 0
-              ? `Hier ist dein Post mit ${n} passenden Sharepic-${n === 1 ? 'Variante' : 'Varianten'}. ` +
-                `Sag mir, was ich am Text oder an der Grafik anpassen soll.`
-              : hasText
-                ? `Hier ist dein Post. Die Sharepic-Erstellung hat leider nicht geklappt — ` +
-                  `sag mir, was ich am Text anpassen soll, oder versuch es für die Grafik noch einmal.`
-                : n > 0
-                  ? `Ich habe dir ${n} Sharepic-${n === 1 ? 'Variante' : 'Varianten'} erstellt. ` +
-                    `Der Post-Text hat leider nicht geklappt — magst du es noch einmal versuchen?`
-                  : `Das hat leider nicht geklappt. Magst du es mit einem anderen Thema noch einmal versuchen?`;
+          fullText = socialPostRefused
+            ? // The text model refused, so both halves were discarded. Say so
+              // plainly — the old copy promised "dein Post mit N Varianten"
+              // because it only checked that SOME text came back.
+              //
+              // Only name the POLICY reason when the sharepic half declined on
+              // the same request; otherwise all we know is that no usable post
+              // came back, and asserting the fabricated-quote reason accused
+              // the user of something they never asked for (live: a plain
+              // request for an English version of their own post).
+              socialPostRefusalIsPolicy
+              ? ARTIFACT_CONFIRMATION_TEXTS.postRefusedPolicy
+              : ARTIFACT_CONFIRMATION_TEXTS.postRefusedGeneric
+            : hasText && n > 0
+              ? buildPostWithSharepicsConfirmation(n)
+              : // A post is text-only unless the user named a sharepic. Without
+                // this split, every ordinary post reported a FAILED sharepic
+                // that was never requested.
+                hasText && !sharepicLicensed
+                ? ARTIFACT_CONFIRMATION_TEXTS.postTextOnly
+                : hasText
+                  ? ARTIFACT_CONFIRMATION_TEXTS.postSharepicFailed
+                  : n > 0
+                    ? buildSharepicsWithoutPostConfirmation(n)
+                    : ARTIFACT_CONFIRMATION_TEXTS.genericFailed;
           sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
           sse.send('text_delta', { text: fullText });
         } else if (finalState.intent === 'sharepic') {
@@ -1430,14 +1952,32 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           const deckSlides = sharepicVariants[0]?.pages?.length;
           fullText =
             n > 0
-              ? deckSlides
-                ? `Ich habe dir ein Slider-Karussell mit ${deckSlides} Folien erstellt. ` +
-                  `Sag mir, was ich an einzelnen Folien anpassen soll, oder öffne es im Studio.`
-                : `Ich habe dir ${n} Sharepic-${n === 1 ? 'Variante' : 'Varianten'} erstellt. ` +
-                  `Wähle eine aus oder sag mir, was ich am Text oder Bild anpassen soll.`
-              : `Die Sharepic-Erstellung hat leider nicht geklappt. Magst du es mit einem ` +
-                `anderen Thema noch einmal versuchen?`;
+              ? buildSharepicConfirmation(n, deckSlides)
+              : ARTIFACT_CONFIRMATION_TEXTS.sharepicFailed;
           sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
+          sse.send('text_delta', { text: fullText });
+        } else if (finalState.deepResearchAnswer) {
+          // @deepresearch: the dossier is ALREADY WRITTEN (see deepResearchTurn.ts)
+          // and is served verbatim as the assistant message. No tool card, no
+          // artefact — the text lands in the transcript like any other answer, so
+          // a follow-up ("kürz mir den zweiten Abschnitt") can actually refer to
+          // it. That was impossible with the old research card, where the dossier
+          // lived only in a tool result the model never saw.
+          //
+          // Skipping the synthesis pass is the point, not an optimisation: a model
+          // run over a finished text paraphrases what we just paid for, costs a
+          // second LLM pass, and renumbers citations it has no way to verify.
+          //
+          // One delta rather than chunks: the whole text is already in hand, so
+          // splitting it would only fake a stream — and the smooth-streaming hook
+          // has a history of breaking on prefix boundaries.
+          fullText = finalState.deepResearchAnswer;
+          sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
+          //
+          // No `completion` follow-up: that event exists to REPLACE streamed text
+          // after a correction, and there is nothing to correct here — the
+          // out-of-range clamp already ran before the text left deepResearchTurn.
+          // `done` carries the citations, as on every other path.
           sse.send('text_delta', { text: fullText });
         } else {
           sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
@@ -1457,6 +1997,12 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             {
               hasImages: imageAttachments.length > 0,
               intent: finalState.intent,
+              agentId: finalState.agentConfig.identifier,
+              // Measured BEFORE pruning on purpose: the question is "does this
+              // turn need a bigger lane", and pruning is exactly the loss we
+              // want to avoid by answering it.
+              estimatedInputTokens: estimateRequestTokens(systemMessage, validMessages),
+              ...(finalState.complexity != null && { complexity: finalState.complexity }),
             }
           );
           if (resolution.unknownModelId) {
@@ -1466,21 +2012,32 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             });
           }
 
+          // contextWindowTokens was computed before the classifier ran, when
+          // `auto` had no concrete model yet (→ conservative 32k default). Now
+          // that the policy has picked a lane, use its real window so a
+          // long-context model isn't compacted as if it were a short one.
+          //
+          // This MUST be resolved before pruning, not just before compaction:
+          // pruneMessages physically drops the oldest turns, so running it on
+          // the stale 32k default trimmed a 128k lane to ~20k tokens and
+          // compaction then only ever saw the survivors.
+          const resolvedContextWindow = resolution.contextWindow ?? contextWindowTokens;
           const prunedValidMessages = pruneMessages(
-            validMessages as Parameters<typeof pruneMessages>[0]
+            validMessages as Parameters<typeof pruneMessages>[0],
+            resolvedContextWindow
           );
-          const finalSystemMessage = actualThreadId
+          const { systemMessage: finalSystemMessage, messages: contextMessages } = actualThreadId
             ? await applyCompaction(
                 actualThreadId,
                 prunedValidMessages,
                 systemMessage,
-                contextWindowTokens
+                resolvedContextWindow
               )
-            : systemMessage;
+            : { systemMessage, messages: prunedValidMessages };
 
           let messagesForAI = buildMessagesForAI(
             finalSystemMessage,
-            prunedValidMessages as Parameters<typeof buildMessagesForAI>[1]
+            contextMessages as Parameters<typeof buildMessagesForAI>[1]
           );
           // image_edit narrates from BILDVERGLEICH text descriptions; the raw image
           // would put bytes in front of a non-vision model (since we no longer
@@ -1494,38 +2051,120 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             );
           }
 
-          const baseMaxTokens = finalState.agentConfig.params.max_tokens;
+          // Context (requestId/intent/agentId/modelId) rides on the trace below —
+          // AI SDK 7 telemetry has no metadata field.
+          const respondTelemetry = buildAiTelemetry('chat-graph.respond');
 
           try {
-            fullText = await streamWithFallback({
-              primary: resolution,
-              sse,
-              logPrefix: '[ChatGraph]',
-              buildStream: async (r) => {
-                const isReasoning = isReasoningStreamModel(r.provider, r.modelName);
-                return streamForResolution({
-                  resolution: r,
-                  messages: messagesForAI as Parameters<typeof streamForResolution>[0]['messages'],
-                  maxTokens: isReasoning
-                    ? Math.max(baseMaxTokens, 16000)
-                    : Math.max(baseMaxTokens, 8000),
-                  temperature: finalState.agentConfig.params.temperature,
+            // One Langfuse trace per chat turn: the respond generation (and any
+            // sibling-fallback retry) nest under this `chat-turn` root span, and
+            // `traceId` is captured for the client feedback score.
+            fullText = await withLangfuseTrace(
+              buildTurnTrace(finalState.intent ?? 'unknown'),
+              async (trace) => {
+                langfuseTraceId = trace.traceId;
+                const text = await streamWithFallback({
+                  primary: resolution,
                   sse,
                   logPrefix: '[ChatGraph]',
+                  buildStream: async (r) =>
+                    // No output cap (OpenWebUI-style): the provider/model window is
+                    // the backstop; agentConfig.params.max_tokens is deliberately
+                    // ignored here so answers are never cut mid-sentence.
+                    streamForResolution({
+                      resolution: r,
+                      messages: messagesForAI as Parameters<
+                        typeof streamForResolution
+                      >[0]['messages'],
+                      temperature: finalState.agentConfig.params.temperature,
+                      sse,
+                      logPrefix: '[ChatGraph]',
+                      ...(respondTelemetry && { telemetry: respondTelemetry }),
+                    }),
                 });
-              },
-            });
+                // streamWithFallback swallows a dead primary AND a dead sibling
+                // into `null` instead of throwing, so without this the failed
+                // turn would sit in Langfuse as a successful one.
+                trace.update(
+                  text === null
+                    ? { input: lastUserText, level: 'ERROR', statusMessage: BOTH_LANES_FAILED }
+                    : { input: lastUserText, output: text }
+                );
+                return text;
+              }
+            );
           } finally {
             if (resolution.releaseSlot) await resolution.releaseSlot();
           }
 
-          if (fullText === null) return { status: 200 as const, body: undefined };
+          if (fullText === null) {
+            // Generation failed, but the retrieval that preceded it was real and
+            // expensive. Keep its sources on the thread so the retry rehydrates
+            // them instead of paying for the whole deep-research run again.
+            if (pendingId && (finalState.searchResults?.length ?? 0) > 0) {
+              const kept = await persistSourcesOnFailure(
+                pendingId,
+                RESEARCH_KEPT_ON_FAILURE_TEXT,
+                finalState.searchResults.slice(0, MAX_SOURCES),
+                finalState.searchQuery ?? undefined
+              ).catch(() => false);
+              if (kept) {
+                log.info(
+                  `[ChatGraph] Generation failed — kept ${finalState.searchResults.length} researched source(s) for the retry`
+                );
+                await cleanupPending(false);
+                return { status: 200 as const, body: undefined };
+              }
+            }
+            await cleanupPending(true);
+            return { status: 200 as const, body: undefined };
+          }
+
+          // The single-pass synth model cites numbers the registry can't back —
+          // out-of-range ("[5]" with 3 sources) or, worst, [N] placeholders when
+          // there are NO sources at all (observed on at-gruene-position). The
+          // agentic loop already clamps; this is its single-pass equivalent. When
+          // anything changes, push the corrected text via `completion` so the
+          // frontend replaces the streamed deltas (same channel as the notebook flow).
+          const sanity = stripFabricatedSystemClaims(fullText, [
+            // The user's own message grounds a filename too — see the parameter
+            // doc. Without it, "fass Internetkonzept.pdf zusammen" had its
+            // answer deleted and replaced with a denial of file access.
+            finalState.lastUserTextNoMentions ?? '',
+            finalState.attachmentContext ?? '',
+            finalState.currentDocument?.title ?? '',
+            ...finalState.searchResults.map((r) => `${r.title ?? ''} ${r.content ?? ''}`),
+          ]);
+          if (sanity.fabricated.length > 0) {
+            log.warn(
+              `[ChatGraph] Removed fabricated internal file claim(s): ${sanity.fabricated.join(', ')}`
+            );
+            fullText = sanity.text;
+          }
+          // A file the model typed out, or an artefact path it made up. This is
+          // the path that produced the base64 „.pptx" and the 404'ing
+          // /office/<uuid> on 02.08.2026 — single-pass, no artefact tool.
+          const delivery = stripFabricatedArtifactDelivery(fullText, knownArtifactRefs(finalState));
+          if (delivery.removed.length > 0) {
+            log.warn(
+              `[ChatGraph] Removed fabricated artefact delivery: ${delivery.removed.join(', ')}`
+            );
+            fullText = delivery.text;
+          }
+          const citeClamp = stripOutOfRangeCitations(fullText, finalState.citations.length);
+          if (citeClamp.changed || sanity.fabricated.length > 0 || delivery.removed.length > 0) {
+            fullText = citeClamp.text;
+            sse.send('completion', { text: fullText, citations: finalState.citations });
+          }
         }
       }
 
       // Narrow fullText for the extraction/persist stages: the agentic path
       // always yields text; the pipeline path already returned above on null.
-      if (fullText === null) return { status: 200 as const, body: undefined };
+      if (fullText === null) {
+        await cleanupPending(true);
+        return { status: 200 as const, body: undefined };
+      }
 
       // === Stage 3b: Extract chart data from response (if chart intent) ===
       if (finalState.intent === 'chart') {
@@ -1634,6 +2273,9 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       }
 
       // === Stage 4: Persist & complete ===
+      // Stop the placeholder writer BEFORE persist: its final throttle write
+      // must not race the finalize UPDATE (both write the same row).
+      await cleanupPending(false);
       // Kicked off here but awaited only after sse.end(): the client already
       // has the full response, so a slow Postgres write must not delay the
       // done event. persistAssistantResponse catches its own errors.
@@ -1655,6 +2297,8 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         memoryEnabled,
         ...(agentId != null && { agentId }),
         ...(agenticSteps != null && { agenticSteps }),
+        ...(langfuseTraceId != null && { traceId: langfuseTraceId }),
+        ...(pendingId != null && { pendingMessageId: pendingId }),
       });
 
       // === Stage 4b: Emit confirm_action for intents that need user approval ===
@@ -1677,10 +2321,17 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         classifiedState.secondaryIntent === 'save_as_doc';
       if (isSaveAsDoc && fullText) {
         const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+        // Same transcript builder the other create turns use, so "speicher das
+        // als Dokument" and "mach ein PDF draus" see the same thread. It used to
+        // be a hand-rolled `slice(-4)` here and nothing at all there. The answer
+        // being saved is generated in THIS turn and is not in `validMessages`
+        // yet, so it is appended.
         const conversationContext = [
-          ...validMessages.slice(-4).map((m) => `${m.role}: ${extractTextContent(m.content)}`),
+          buildCreateTurnContext(validMessages),
           `assistant: ${fullText.slice(0, 3000)}`,
-        ].join('\n');
+        ]
+          .filter((part) => part.trim())
+          .join('\n');
 
         await generateAndCreateDocument({
           sse,
@@ -1719,12 +2370,22 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           ...(finalState.imageTimeMs != null && { imageTimeMs: finalState.imageTimeMs }),
           ...(finalState.summaryTimeMs != null && { summaryTimeMs: finalState.summaryTimeMs }),
           ...(memoryRetrieveTimeMs > 0 && { memoryRetrieveTimeMs }),
+          ...(langfuseTraceId != null && { traceId: langfuseTraceId }),
         },
       });
 
       log.info(`[ChatGraph] Complete: ${fullText.length} chars in ${totalTimeMs}ms`);
+      // Await BEFORE ending the stream: the client keeps reading until the
+      // stream closes, so a warning emitted here still reaches it. Previously
+      // this ran after sse.end() and a failed persist had no way to be
+      // reported — the turn looked perfect live and was gone on reload.
+      const persistOutcome = await persistPromise;
+      if (!persistOutcome.ok) sendChatWarning(sse, 'persist_failed');
       sse.end();
-      await persistPromise;
+      // Safety net: if persist finalized (or skipped) but the placeholder is
+      // still an empty streaming row (e.g. persist bailed on its own guard),
+      // drop it so it can't read as an interrupted turn.
+      if (pendingId) await discardPendingAssistantIfEmpty(pendingId).catch(() => {});
       return { status: 200 as const, body: undefined };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -1737,6 +2398,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       if (errorStack) log.error(`[ChatGraph] Stack: ${errorStack}`);
       if (!(error instanceof Error))
         log.error(`[ChatGraph] Raw error: ${JSON.stringify(error)?.slice(0, 500)}`);
+      // Best-effort: stop the writer and drop the placeholder only if empty. A
+      // row that already streamed partial text stays 'streaming' → renders as an
+      // aborted turn; discard clears just the empty one.
+      await cleanupPending(true).catch(() => {});
       sseInternalError(sse, error);
       return { status: 200 as const, body: undefined };
     }

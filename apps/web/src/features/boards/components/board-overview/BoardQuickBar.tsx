@@ -51,7 +51,9 @@ export const BoardQuickBar = memo(function BoardQuickBar({
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder="Suchen…"
           aria-label="Karten durchsuchen"
-          className="h-7 pl-7 pr-7 text-xs"
+          // text-base below sm: anything under 16px makes iOS Safari zoom the
+          // page on focus, and this is the board's most-used input.
+          className="h-7 max-sm:h-11 pl-7 pr-7 text-xs max-sm:text-base"
         />
         {search && (
           <button

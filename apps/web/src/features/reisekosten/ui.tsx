@@ -150,15 +150,20 @@ export function Checkbox({
 export function Switch({
   checked,
   onChange,
+  ariaLabel,
 }: {
   checked: boolean;
   onChange: (v: boolean) => void;
+  // Required: a role="switch" button has no text content, so a wrapping <label>
+  // does not name it — without this the control is anonymous to screen readers.
+  ariaLabel: string;
 }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
+      aria-label={ariaLabel}
       onClick={() => onChange(!checked)}
       className={`relative inline-flex h-5 w-9 flex-none items-center rounded-full transition-colors ${
         checked ? 'bg-primary' : 'bg-grey-300 dark:bg-grey-600'

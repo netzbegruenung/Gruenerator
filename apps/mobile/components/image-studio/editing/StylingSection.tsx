@@ -5,7 +5,7 @@
 
 import { View, Text, StyleSheet, useColorScheme } from 'react-native';
 
-import { spacing, lightTheme, darkTheme } from '../../../theme';
+import { spacing, lightTheme, darkTheme, BODY_FONT } from '../../../theme';
 import { FontSizeControl, ColorSchemeSelector } from '../../image-modification';
 
 import type { EditSheetConfig } from '../../../config/editSheetConfig';
@@ -43,6 +43,7 @@ const styles = StyleSheet.create({
     gap: spacing.medium,
   },
   sectionTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 16,
     fontWeight: '700',
     marginBottom: spacing.xsmall,

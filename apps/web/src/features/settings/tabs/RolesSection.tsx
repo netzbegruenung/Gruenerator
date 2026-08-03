@@ -14,6 +14,7 @@ import {
   LOCAL_NAME_PLACEHOLDERS,
   needsAbgeordneteName,
   generateProfilePrompt,
+  mergeRoleBlock,
   searchMdBs,
 } from '@gruenerator/shared/roles';
 import {
@@ -28,12 +29,17 @@ import {
   SmartInput,
   type SmartInputOption,
 } from '@gruenerator/ui';
+import { useQueryClient } from '@tanstack/react-query';
 import { useState, useCallback, useEffect, useMemo, useRef, memo } from 'react';
 import { HiOutlineArrowLeft, HiOutlineTrash, HiPlus } from 'react-icons/hi2';
 
+import { QUERY_KEYS } from '../../../features/auth/hooks/useProfileData';
+import { profileApiService, type Profile } from '../../../features/auth/services/profileApiService';
 import { useAuthStore } from '../../../stores/authStore';
 import { platformFetch } from '../../../utils/platformFetch';
 import { useSetUserDefault, useUserDefault } from '../../user-defaults/userDefaultsQueries';
+
+import { readCustomPrompt } from './customPromptField';
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
@@ -110,6 +116,8 @@ type WizardStep = 'ebene' | 'bundesland' | 'gliederung' | 'rolle' | 'instruction
 export default function RolesSection() {
   const locale = useAuthStore((s) => s.locale);
   const isAustrian = locale === 'de-AT';
+  const userId = useAuthStore((s) => s.user?.id);
+  const queryClient = useQueryClient();
   const { value: serverRoles } = useUserDefault('profile', 'roles');
   const setRolesMutation = useSetUserDefault<'profile', 'roles'>();
 
@@ -148,7 +156,6 @@ export default function RolesSection() {
   const [wizAbgeordnete, setWizAbgeordnete] = useState('');
   const [wizInstructions, setWizInstructions] = useState('');
 
-  const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -243,7 +250,14 @@ export default function RolesSection() {
           key: 'roles',
           value: nextRoles,
         });
-        const prompt = generateProfilePrompt(nextRoles, isAustrian);
+        // `custom_prompt` is shared with the free-text "Anweisungen" field one
+        // section up in this very tab, so the role part gets spliced between
+        // markers rather than overwriting the column. Read the live value
+        // (cache first, network as fallback) — a snapshot taken at render time
+        // would drop instructions typed in the same sitting.
+        const cached = queryClient.getQueryData<Profile>(QUERY_KEYS.profile(userId));
+        const existing = readCustomPrompt(cached ?? (await profileApiService.getProfile()));
+        const prompt = mergeRoleBlock(existing, generateProfilePrompt(nextRoles, isAustrian));
         // Empty prompt clears the field: the backend converts '' -> null. The
         // contract body types custom_prompt as string, so send '' (not null).
         const res = await getContractsClient().userProfile.updateProfile({
@@ -252,13 +266,16 @@ export default function RolesSection() {
         if (res.status !== 200) {
           throw new Error(`Profil-Update fehlgeschlagen (HTTP ${res.status})`);
         }
+        queryClient.setQueryData<Profile>(QUERY_KEYS.profile(userId), (current) =>
+          current ? { ...current, custom_prompt: prompt } : current
+        );
         return { ok: true };
       } catch (error) {
         const detail = error instanceof Error ? error.message : 'Unbekannter Fehler';
         return { ok: false, detail };
       }
     },
-    [isAustrian, setRolesMutation]
+    [isAustrian, setRolesMutation, queryClient, userId]
   );
 
   const handleAddRole = useCallback(async () => {
@@ -324,7 +341,7 @@ export default function RolesSection() {
       setTimeout(() => setSuccessMessage(null), 3000);
     } else {
       setErrorMessage(
-        `Rolle wurde hinzugefügt, aber Speichern fehlgeschlagen: ${result.detail}. Bitte „Speichern" klicken.`
+        `Rolle wurde hinzugefügt, aber Speichern fehlgeschlagen: ${result.detail}. Bitte neu anlegen — nach dem Neuladen ist sie sonst weg.`
       );
     }
   }, [
@@ -357,21 +374,6 @@ export default function RolesSection() {
     },
     [roles, persistRoles]
   );
-
-  // ─── Save ─────────────────────────────────────────────────────────────────
-
-  const handleSave = useCallback(async () => {
-    setSaving(true);
-    setErrorMessage(null);
-    const result = await persistRoles(roles);
-    if (result.ok) {
-      setSuccessMessage('Profil gespeichert');
-      setTimeout(() => setSuccessMessage(null), 3000);
-    } else {
-      setErrorMessage(`Speichern fehlgeschlagen: ${result.detail}`);
-    }
-    setSaving(false);
-  }, [roles, persistRoles]);
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
@@ -611,12 +613,6 @@ export default function RolesSection() {
               )}
             </CardContent>
           </Card>
-
-          <div className="flex justify-end">
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? 'Speichert…' : 'Speichern'}
-            </Button>
-          </div>
         </>
       )}
     </div>

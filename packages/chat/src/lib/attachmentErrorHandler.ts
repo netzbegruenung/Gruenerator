@@ -1,5 +1,6 @@
-import type { AttachmentAddErrorEvent } from '@assistant-ui/core';
 import { useAttachmentNoticeStore } from '../stores/attachmentNoticeStore';
+
+import type { AttachmentAddErrorEvent } from '@assistant-ui/core';
 
 const FRIENDLY_ACCEPTED_SUMMARY =
   'PDF, Word, Excel, PowerPoint, Bilder (JPG, PNG, WebP), Text- und Code-Dateien';

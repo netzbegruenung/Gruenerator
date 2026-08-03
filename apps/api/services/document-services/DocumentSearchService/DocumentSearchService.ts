@@ -144,8 +144,7 @@ export class DocumentSearchService extends BaseSearchService {
     if (p && (p.userId || pFilters || pOptions)) {
       const query = InputValidator.validateSearchQuery(p.query);
       const searchCollection = (pFilters?.searchCollection || pOptions?.searchCollection) as
-        | string
-        | undefined;
+        string | undefined;
       const isSystemSearch =
         typeof searchCollection === 'string' && isSystemQdrantCollection(searchCollection);
       const userId =
@@ -161,8 +160,7 @@ export class DocumentSearchService extends BaseSearchService {
       const group_id = pFilters?.group_id as string | undefined;
       const titleFilter = (pFilters?.titleFilter || pOptions?.titleFilter) as string | undefined;
       const additionalFilter = (pFilters?.additionalFilter || pOptions?.additionalFilter) as
-        | QdrantFilter
-        | undefined;
+        QdrantFilter | undefined;
 
       const limit = InputValidator.validateNumber(pOptions?.limit || this.defaultLimit, 'limit', {
         min: 1,
@@ -174,15 +172,20 @@ export class DocumentSearchService extends BaseSearchService {
         allowNull: true,
       });
 
+      // `mode` and `recallLimit` have to survive: search() routes on the former,
+      // so dropping it downgraded every caller taking this branch to vector-only.
+      // The flat and legacy branches below always carried both.
       const validatedOptions = {
         limit: limit ?? this.defaultLimit,
         threshold: threshold ?? this.defaultThreshold,
         useCache: pOptions?.useCache !== false,
+        mode: pOptions?.mode as DocumentSearchParams['options']['mode'],
         vectorWeight: pOptions?.vectorWeight as number | undefined,
         textWeight: pOptions?.textWeight as number | undefined,
         useRRF: pOptions?.useRRF as boolean | undefined,
         rrfK: pOptions?.rrfK as number | undefined,
         qualityMin: typeof pOptions?.qualityMin === 'number' ? pOptions.qualityMin : undefined,
+        ...(typeof pOptions?.recallLimit === 'number' ? { recallLimit: pOptions.recallLimit } : {}),
       };
 
       return {

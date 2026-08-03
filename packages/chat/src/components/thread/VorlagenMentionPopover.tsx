@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { useVorlagenSearchQuery, type ChatVorlageTemplate } from '../../hooks/useMentionablesQuery';
 import { type VorlageToken } from '../../lib/mentionables';
+
 import { MentionFloatingPanel } from './MentionFloatingPanel';
 
 interface VorlagenMentionPopoverProps {
@@ -29,6 +30,7 @@ export function VorlagenMentionPopover({
 
   useEffect(() => {
     if (!visible) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resets panel state on close (visibility transition), not a render-derived value
       setSelection(new Map());
       setFilter('');
       setDebouncedFilter('');
@@ -70,6 +72,7 @@ export function VorlagenMentionPopover({
       role="dialog"
       ariaLabel="Vorlagen auswählen"
     >
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- Escape-only capture inside the already-labeled dialog panel above, not new interactive semantics. */}
       <div
         className="flex min-h-0 flex-1 flex-col"
         onKeyDown={(e) => {

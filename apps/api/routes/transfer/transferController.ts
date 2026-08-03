@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { transferService } from '../../services/transferService.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('transfer');
@@ -110,7 +111,7 @@ router.post('/upload', requireAuth, upload.single('file'), validateBody(uploadBo
     }
 
     if (err.message.includes('nicht gefunden') || err.message.includes('deaktiviert')) {
-      res.status(400).json({ error: err.message });
+      res.status(400).json({ error: toUserFacingMessage(err) });
       return;
     }
 

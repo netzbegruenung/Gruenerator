@@ -109,6 +109,8 @@ export const useTemplateResultAutoSave = (): void => {
           imageData: imageSrc,
           title,
           imageType: refs.typeConfig?.legacyType || refs.type || '',
+          // The template result step — a sharepic by construction.
+          contentOrigin: 'sharepic',
           metadata,
           ...(originalImage ? { originalImage } : {}),
         });

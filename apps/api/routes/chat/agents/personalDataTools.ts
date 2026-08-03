@@ -28,6 +28,12 @@ import { buildNotebookSlug, buildGroupSlug, buildChatThreadSlug } from '@gruener
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
+import { artifactsFromTurn } from '../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
+import {
+  ARTIFACT_NOUN_BY_KIND,
+  forbidsPersistentAction,
+  type ForbiddableArtifact,
+} from '../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import { NotebookQdrantHelper } from '../../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { updateCard } from '../../../services/boards/boardCardWriteService.js';
@@ -44,6 +50,8 @@ import {
   USER_VISIBLE_SHARE_STATUSES,
 } from '../../../services/sharedMediaService.js';
 import { getSubtitlerProjectService } from '../../../services/subtitler/ProjectService.js';
+import { getReelTranscript, reelUrl, searchReels } from '../../../services/subtitler/reelSearch.js';
+import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import {
   listUserDocuments,
   officeKindLabel,
@@ -53,7 +61,9 @@ import {
 } from '../../docs/docsSearch.js';
 import { aggregateRecentActivity } from '../../workplace/recentActivityController.js';
 import { hasWriteAccess } from '../confirmController.js';
+import { readArtifactContent, type ArtifactReadKind } from '../services/artifactReader.js';
 import { emitToolConfirmAction, newActionId } from '../services/confirmActionService.js';
+import { extractTextContent } from '../services/messageHelpers.js';
 import {
   recallPastChats,
   getThreadRecallContext,
@@ -64,6 +74,7 @@ import type {
   ChatGraphState,
   PendingAction,
   SearchResult,
+  ThreadToolContext,
 } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 import type { SSEWriter } from '../services/sseHelpers.js';
@@ -79,6 +90,33 @@ export interface PersonalToolCtx {
 }
 
 /**
+ * A turn that rules out persistent changes must not get one offered — not even
+ * behind a confirm card, and not by a tool.
+ *
+ * The classifier-level gate (chatGraphContractRouter) cannot reach this path:
+ * inside the agentic loop the MODEL picks the action. Observed live, it picked
+ * `add_card` on a turn whose entire instruction was "merke dir das und antworte
+ * mit „D2 gespeichert"" — and offered to add a Kanban task nobody mentioned.
+ *
+ * Returns an error the model can read, rather than a silent no-op: a swallowed
+ * refusal would leave it announcing a confirmation that was never emitted.
+ */
+function refuseForbiddenAction(
+  state: ChatGraphState,
+  family?: ForbiddableArtifact
+): { error: string } | null {
+  const lastUser = [...(state.messages ?? [])].reverse().find((m) => m.role === 'user');
+  const text = lastUser ? extractTextContent(lastUser.content) : '';
+  if (!forbidsPersistentAction(text, family ? ARTIFACT_NOUN_BY_KIND[family] : undefined)) {
+    return null;
+  }
+  return {
+    error:
+      'Diese Nachricht schließt Änderungen aus — es wurde nichts vorbereitet. Antworte nur im Chat.',
+  };
+}
+
+/**
  * Register grounding lines into the per-turn source registry. Critical for split
  * mode: the synthesizer model has no tools and reads ONLY the rendered sources,
  * so a tool that merely returns `{ results }` is invisible to it (observed live:
@@ -90,14 +128,12 @@ function ground(
 ): void {
   if (items.length === 0) return;
   reg.register(
-    items.map(
-      (i): SearchResult => ({
-        source: 'eigene-inhalte',
-        title: i.title,
-        content: i.content,
-        ...(i.url ? { url: i.url } : {}),
-      })
-    )
+    items.map((i): SearchResult => ({
+      source: 'eigene-inhalte',
+      title: i.title,
+      content: i.content,
+      ...(i.url ? { url: i.url } : {}),
+    }))
   );
 }
 
@@ -113,9 +149,17 @@ function groundRows(reg: SourceRegistry, rows: ResultRow[]): void {
   );
 }
 
-/** A single status/outcome line (write actions, confirmations). */
+/**
+ * A single status/outcome line (write actions, confirmations, empty results).
+ *
+ * Routed to `reg.note`, NOT `reg.register`: these lines exist so the split-mode
+ * synth can say what happened, and they are not retrieved material. Registering
+ * them as sources meant they were persisted as the turn's `searchResults` — a
+ * later "mach ein PDF draus" was then briefed with a Kanban confirmation as the
+ * only research in scope and built the whole document out of it.
+ */
 function groundNote(reg: SourceRegistry, title: string, content: string): void {
-  ground(reg, [{ title, content }]);
+  reg.note(title, content);
 }
 
 /** A clickable result row — the frontend registry lifts `{ title, url }` into a citation list. */
@@ -165,9 +209,9 @@ function notebookHelper(): NotebookQdrantHelper {
 export function makeFindContentTool(ctx: PersonalToolCtx): Tool {
   const { state, sourceRegistry } = ctx;
   return tool({
-    description: `Durchsucht die EIGENEN Inhalte der angemeldeten Person (Dokumente, Boards, Tabellen, Präsentationen, Notizbücher) oder listet die zuletzt bearbeiteten.
+    description: `Durchsucht die EIGENEN Inhalte der angemeldeten Person (Dokumente, Boards, Tabellen, Präsentationen, Notizbücher sowie Reels/untertitelte Videos) oder listet die zuletzt bearbeiteten. Reels werden dabei auch nach ihrem gesprochenen Untertitel-Inhalt durchsucht.
 
-NUTZE WENN nach eigenen Inhalten gefragt wird ("zeig mir meine Dokumente", "finde mein Klima-Board", "woran habe ich zuletzt gearbeitet"). Für Detailfragen zu EINEM Board/Dokument nutze 'documents' oder 'boards_tasks'.`,
+NUTZE WENN nach eigenen Inhalten gefragt wird ("zeig mir meine Dokumente", "finde mein Klima-Board", "woran habe ich zuletzt gearbeitet"). Für Detailfragen zu EINEM Board/Dokument nutze 'documents' oder 'boards_tasks'. Für das VOLLE Transkript eines Reels (z. B. um eine Caption zu schreiben) nutze 'media' mit action="transcript".`,
     inputSchema: z.object({
       action: z.enum(['search', 'recent']),
       query: z.string().optional().describe('Suchbegriff (nur bei action="search")'),
@@ -180,15 +224,21 @@ NUTZE WENN nach eigenen Inhalten gefragt wird ("zeig mir meine Dokumente", "find
       if (action === 'search') {
         const q = (query ?? '').trim();
         if (!q) return { error: 'Für die Suche wird ein Suchbegriff benötigt.' };
-        const hits = await searchOfficeContent(userId, q, { limit });
-        const results = hits.map((h) =>
-          makeRow(
-            h.title,
-            officeUrl(h.document_subtype, h.id),
-            officeKindLabel(h.document_subtype),
-            officeSnippet(h.document_subtype, h.content)
-          )
-        );
+        const [hits, reelHits] = await Promise.all([
+          searchOfficeContent(userId, q, { limit }),
+          searchReels(userId, q, Math.min(limit, 5)),
+        ]);
+        const results = [
+          ...hits.map((h) =>
+            makeRow(
+              h.title,
+              officeUrl(h.document_subtype, h.id),
+              officeKindLabel(h.document_subtype),
+              officeSnippet(h.document_subtype, h.content)
+            )
+          ),
+          ...reelHits.map((r) => makeRow(r.title, r.url, 'Reel', r.snippet, `reel:${r.id}`)),
+        ];
         groundRows(sourceRegistry, results);
         return { resultCount: results.length, results };
       }
@@ -226,7 +276,7 @@ export function makeSearchThreadsTool(ctx: PersonalToolCtx): Tool {
   return tool({
     description: `Durchsucht die FRÜHEREN CHATS der angemeldeten Person (nicht Dokumente — dafür 'find_content'). Findet, was in vergangenen Unterhaltungen besprochen wurde, per Stichwort + Bedeutung.
 
-NUTZE WENN nach früheren Gesprächen gefragt wird ("worüber haben wir letztens gesprochen", "such in diesem Space", "was hatten wir zu X besprochen").
+NUTZE WENN nach früheren Gesprächen gefragt wird ("worüber haben wir letztens gesprochen", "such in diesem Projekt", "was hatten wir zu X besprochen").
 - scope="space": nur die Chats des aktuellen Space durchsuchen (Standard, wenn der Chat in einem Space liegt).
 - scope="all": alle eigenen Chats durchsuchen.
 - action="read": den vollständigen Verlauf EINES Threads lesen (threadId aus einem Suchergebnis).`,
@@ -245,7 +295,11 @@ NUTZE WENN nach früheren Gesprächen gefragt wird ("worüber haben wir letztens
         if (!readThreadId) return { error: 'Zum Lesen wird eine threadId benötigt.' };
         const ctxData = await getThreadRecallContext(readThreadId, userId);
         if (!ctxData) return { error: 'Thread nicht gefunden oder kein Zugriff.' };
-        groundNote(sourceRegistry, ctxData.title || 'Früherer Chat', ctxData.transcript);
+        // Real retrieved material (a past conversation), not an outcome line —
+        // this one IS a source and stays citable.
+        ground(sourceRegistry, [
+          { title: ctxData.title || 'Früherer Chat', content: ctxData.transcript },
+        ]);
         return {
           title: ctxData.title,
           updatedAt: ctxData.updatedAt,
@@ -262,9 +316,11 @@ NUTZE WENN nach früheren Gesprächen gefragt wird ("worüber haben wir letztens
         const spaceId = await getCurrentSpaceId(threadId, userId);
         if (spaceId) {
           const siblings = await resolveSpaceThreadIds(spaceId, userId);
-          threadIds = siblings.map((s) => s.id);
+          // Only scope on a successful lookup — a failed one would restrict the
+          // search to zero threads and report "nothing found" for a full Space.
+          if (siblings.ok) threadIds = siblings.threads.map((s) => s.id);
         }
-        // No space → fall through to an unscoped (all-chats) recall.
+        // No space (or a failed lookup) → unscoped (all-chats) recall.
       }
 
       const hits = await recallPastChats(userId, q, {
@@ -391,6 +447,8 @@ NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umben
         : !id && state.createdDocument
           ? { id: state.createdDocument.documentId, title: state.createdDocument.title }
           : null;
+      const forbiddenShare = refuseForbiddenAction(state, 'document');
+      if (forbiddenShare) return forbiddenShare;
       if (!shareTarget) return { error: 'Dokument nicht gefunden oder kein Zugriff.' };
       if (!groupName?.trim()) return { error: 'share_to_group braucht groupName.' };
       if (!threadId) return { error: 'Teilen ist in diesem Kontext nicht möglich.' };
@@ -423,6 +481,136 @@ NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umben
       const note = `Bestätigung zum Teilen von „${shareTarget.title}" mit „${group.name}" angefordert.`;
       groundNote(sourceRegistry, 'Teilen', note);
       return { ok: true, note };
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// read_artifact — open an artifact and read what is actually IN it
+// ---------------------------------------------------------------------------
+
+/** Beyond this the excerpt is cut — one artifact must not eat the whole turn. */
+const ARTIFACT_READ_CHARS = 12_000;
+
+const READ_KIND_NOUN: Record<ArtifactReadKind, string> = {
+  doc: 'Dokument',
+  board: 'Board',
+  sheet: 'Tabelle',
+  presentation: 'Präsentation',
+  pdf: 'PDF',
+};
+
+/**
+ * Which inventory artifacts are readable, and as what.
+ *
+ * `null` for the kinds that carry no text to read back: an image and a sharepic
+ * are pixels, a connector call or a research step is not an artifact at all.
+ * Explicit rather than a default, so a new `ThreadToolContext['kind']` has to
+ * make the decision instead of silently becoming a document.
+ */
+const READ_KIND_FOR_ARTIFACT: Record<ThreadToolContext['kind'], ArtifactReadKind | null> = {
+  document: 'doc',
+  presentation: 'presentation',
+  sheet: 'sheet',
+  board: 'board',
+  pdf: 'pdf',
+  image: null,
+  sharepic: null,
+  mcp: null,
+  notebook: null,
+  bundestag: null,
+  abgeordnetenwatch: null,
+};
+
+/**
+ * Read an artifact's CONTENT.
+ *
+ * Nothing in the agentic loop could do this. `documents` action="get" returns
+ * `{title, url, type}` — a pointer, not the thing — and the only real reader,
+ * `read_user_content`, is mounted exclusively inside the recall loop. So
+ * "vergleiche das PDF und die Präsentation" was not a hard task but an
+ * impossible one, and on 03.08.2026 the model answered it from nothing:
+ * which slide had been fixed, that the matrix was complete. It had opened
+ * neither file.
+ *
+ * `id` is optional on purpose. The artifacts of THIS conversation are listed to
+ * the model by noun and title only (see artifactInventory) — it has no id to
+ * pass. Omitting it means "the one from this conversation", resolved against
+ * `threadArtifacts`; the same shape `documents` action="share_to_group" already
+ * uses. With several candidates the tool lists them rather than guessing.
+ */
+export function makeReadArtifactTool(ctx: PersonalToolCtx): Tool {
+  const { state, sourceRegistry } = ctx;
+  return tool({
+    description: `Öffnet ein eigenes Artefakt und liest seinen INHALT — Folientexte, Tabellenzellen, Dokumenttext, Board-Karten oder den Text eines erzeugten PDFs.
+
+NUTZE FÜR: "was steht in der Präsentation?", "vergleiche das PDF mit den Folien", "prüfe, ob Folie 5 stimmt", "fasse mein Dokument zusammen". Ohne diesen Aufruf kennst du den Inhalt NICHT — rate ihn niemals.
+
+Die "id" bekommst du aus 'find_content' oder 'documents' (action="list"). Geht es um ein Artefakt AUS DIESEM GESPRÄCH, lass "id" weg und gib nur "kind" an.`,
+    inputSchema: z.object({
+      kind: z
+        .enum(['doc', 'board', 'sheet', 'presentation', 'pdf'])
+        .describe('Art des Artefakts. Bei Unsicherheit: die Art aus dem Suchtreffer übernehmen.'),
+      id: z
+        .string()
+        .optional()
+        .describe(
+          'ID aus einem vorherigen Suchtreffer. Weglassen für das Artefakt aus diesem Gespräch.'
+        ),
+    }),
+    execute: async ({ kind, id }) => {
+      const userId = requireUserId(state);
+      if (!userId) return { error: NO_SESSION };
+      const noun = READ_KIND_NOUN[kind];
+
+      let targetId = id?.trim() ?? '';
+      let label: string | null = null;
+
+      if (!targetId) {
+        // `threadArtifacts` is loaded on every turn by streamContext; the
+        // fresh ones of THIS turn are carried on state as they are created.
+        const candidates = [...artifactsFromTurn(state), ...(state.threadArtifacts ?? [])].filter(
+          (a) => a.ref && READ_KIND_FOR_ARTIFACT[a.kind] === kind
+        );
+        const unique = [...new Map(candidates.map((a) => [a.ref!, a])).values()];
+        if (unique.length === 0) {
+          return {
+            error: `In diesem Gespräch gibt es kein Artefakt der Art „${noun}". Suche es mit 'find_content', oder nenne eine id.`,
+          };
+        }
+        if (unique.length > 1) {
+          // Guessing between two decks is how the wrong one gets "corrected".
+          return {
+            needsChoice: true,
+            note: `Es gibt mehrere ${noun}-Artefakte in diesem Gespräch. Rufe erneut mit der passenden id auf.`,
+            candidates: unique.map((a) => ({ id: a.ref, title: a.label ?? '(ohne Titel)' })),
+          };
+        }
+        targetId = unique[0]!.ref!;
+        label = unique[0]!.label ?? null;
+      }
+
+      let content: string | null;
+      try {
+        content = await readArtifactContent({ id: targetId, kind, userId });
+      } catch (error) {
+        return { error: toUserFacingMessage(error, `${noun} konnte nicht gelesen werden.`) };
+      }
+      if (!content?.trim()) {
+        return {
+          error: `${noun} nicht gefunden, kein Zugriff, oder es steht nichts darin.`,
+        };
+      }
+
+      const excerpt =
+        content.length > ARTIFACT_READ_CHARS
+          ? `${content.slice(0, ARTIFACT_READ_CHARS)}\n…[gekürzt]`
+          : content;
+      const title = label ?? `${noun}-Inhalt`;
+      // Grounding, not a note: this IS retrieved material, and in split mode the
+      // writer sees nothing but the rendered sources.
+      ground(sourceRegistry, [{ title, content: excerpt }]);
+      return { kind, title, content: excerpt, truncated: excerpt !== content };
     },
   });
 }
@@ -547,6 +735,8 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
       }
 
       if (action === 'add_card') {
+        const forbidden = refuseForbiddenAction(state, 'board');
+        if (forbidden) return forbidden;
         if (!boardId || !args.title?.trim())
           return { error: 'add_card braucht boardId und title.' };
         if (!threadId) return { error: 'Hinzufügen ist in diesem Kontext nicht möglich.' };
@@ -577,6 +767,10 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
       }
 
       // Direct card edits (edit_card/move_card/set_due/assign) — need write access.
+      // These write IMMEDIATELY (no confirm card), so the constraint check has to
+      // come first.
+      const forbiddenEdit = refuseForbiddenAction(state, 'board');
+      if (forbiddenEdit) return forbiddenEdit;
       if (!boardId || !cardId) return { error: `${action} braucht boardId und cardId.` };
       if (!(await hasWriteAccess(boardId, userId))) {
         return { error: 'Keine Berechtigung, dieses Board zu bearbeiten.' };
@@ -600,7 +794,7 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
         return { ok: true, note };
       } catch (err) {
         return {
-          error: err instanceof Error ? err.message : 'Karte konnte nicht bearbeitet werden.',
+          error: toUserFacingMessage(err, 'Karte konnte nicht bearbeitet werden.'),
         };
       }
     },
@@ -638,6 +832,10 @@ NUTZE FÜR: eigene Gruppen auflisten (list), eine Gruppe per Name finden (find),
         `/gruppen/${g.slug_suffix ? buildGroupSlug(g.name, g.slug_suffix) : g.id}`;
 
       if (action === 'create') {
+        // No artifact noun to bind to — only an action-level prohibition
+        // ("nichts speichern", "keine Aktion") can rule a group out.
+        const forbidden = refuseForbiddenAction(state);
+        if (forbidden) return forbidden;
         const groupName = name?.trim();
         if (!groupName) return { error: 'create braucht einen name.' };
         if (!threadId) return { error: 'Erstellen ist in diesem Kontext nicht möglich.' };
@@ -714,10 +912,17 @@ export function makeMediaTool(ctx: PersonalToolCtx): Tool {
   return tool({
     description: `Zugriff auf die EIGENEN Medien der Person: Reels (untertitelte Videos) und Sharepics (Social-Grafiken).
 
-NUTZE FÜR: eigene Medien auflisten (list, optional type="reel"|"sharepic"), löschen (delete mit ref aus der Liste + confirm=true nach Zustimmung).`,
+NUTZE FÜR:
+- auflisten (list, optional type="reel"|"sharepic")
+- Reels nach INHALT suchen (search mit query) — durchsucht Titel UND das gesprochene Untertitel-Transkript, z. B. "das Reel über Windkraft"
+- das volle Transkript eines Reels holen (transcript mit ref="reel:<id>") — nötig, bevor du eine Caption, einen Social-Post oder eine Zusammenfassung zum Video schreibst
+- löschen (delete mit ref aus der Liste + confirm=true nach Zustimmung)
+
+TYPISCHER ABLAUF für "such das Reel zu Thema X und schreib eine Caption": erst search, dann transcript für den besten Treffer, dann die Caption aus dem Transkript formulieren.`,
     inputSchema: z.object({
-      action: z.enum(['list', 'delete']),
+      action: z.enum(['list', 'search', 'transcript', 'delete']),
       type: z.enum(['all', 'reel', 'sharepic']).default('all'),
+      query: z.string().optional().describe('Suchbegriff (nur bei action="search")'),
       ref: z
         .string()
         .optional()
@@ -725,9 +930,57 @@ NUTZE FÜR: eigene Medien auflisten (list, optional type="reel"|"sharepic"), lö
       confirm: z.boolean().default(false),
       limit: z.number().int().min(1).max(30).default(15),
     }),
-    execute: async ({ action, type, ref, confirm, limit }) => {
+    execute: async ({ action, type, query, ref, confirm, limit }) => {
       const userId = requireUserId(state);
       if (!userId) return { error: NO_SESSION };
+
+      if (action === 'search') {
+        const q = (query ?? '').trim();
+        if (!q) return { error: 'search braucht query.' };
+        const hits = await searchReels(userId, q, Math.min(limit, 10));
+        const results = hits.map((h) =>
+          makeRow(
+            h.title,
+            h.url,
+            'Reel',
+            h.snippet || (h.matchedTranscript ? null : 'Titeltreffer'),
+            `reel:${h.id}`
+          )
+        );
+        groundRows(sourceRegistry, results);
+        return {
+          resultCount: results.length,
+          results,
+          ...(results.length > 0 && {
+            note: 'Für eine Caption/Zusammenfassung zuerst action="transcript" mit dem ref des passenden Reels aufrufen.',
+          }),
+        };
+      }
+
+      if (action === 'transcript') {
+        if (!ref) return { error: 'transcript braucht ref (z. B. "reel:<id>").' };
+        const [kind, handle] = ref.split(':', 2);
+        if (kind !== 'reel' || !handle) {
+          return { error: 'transcript gibt es nur für Reels (ref="reel:<id>").' };
+        }
+        const found = await getReelTranscript(userId, handle);
+        if (!found) {
+          return { error: 'Reel nicht gefunden, kein Zugriff, oder es hat keine Untertitel.' };
+        }
+        ground(sourceRegistry, [
+          {
+            title: found.title,
+            content: `Untertitel-Transkript des Reels „${found.title}" (gesprochener Videoinhalt):\n${found.transcript}`,
+            url: reelUrl(handle),
+          },
+        ]);
+        return {
+          title: found.title,
+          url: reelUrl(handle),
+          segmentCount: found.segmentCount,
+          transcript: found.transcript,
+        };
+      }
 
       if (action === 'list') {
         const results: ResultRow[] = [];

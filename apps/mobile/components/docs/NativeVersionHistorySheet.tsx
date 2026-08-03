@@ -17,7 +17,7 @@ import {
   type SnapshotPreview,
 } from '../../services/docs/docsVersionsApi';
 import { useDocsEditorBridgeStore } from '../../stores/docsEditorBridgeStore';
-import { lightTheme, darkTheme, colors } from '../../theme';
+import { lightTheme, darkTheme, colors, BODY_FONT } from '../../theme';
 import { BottomSheet } from '../common/BottomSheet';
 import { DocPreview } from '../common/DocPreview';
 
@@ -137,7 +137,12 @@ export function NativeVersionHistorySheet({ visible, onClose, documentId, canEdi
   return (
     <BottomSheet visible={visible} onClose={onClose}>
       <View style={styles.titleRow}>
-        <TouchableOpacity onPress={onClose} hitSlop={8}>
+        <TouchableOpacity
+          onPress={onClose}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Zurück"
+        >
           <Ionicons name="arrow-back" size={22} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.title, { color: theme.text }]}>Versionsverlauf</Text>
@@ -150,6 +155,8 @@ export function NativeVersionHistorySheet({ visible, onClose, documentId, canEdi
           onPress={handleSaveVersion}
           activeOpacity={0.6}
           disabled={saving}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: saving }}
         >
           {saving ? (
             <ActivityIndicator size="small" color={colors.primary[600]} />
@@ -181,6 +188,8 @@ export function NativeVersionHistorySheet({ visible, onClose, documentId, canEdi
                   onPress={() => handleRestore(preview.version)}
                   activeOpacity={0.8}
                   disabled={restoring}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: restoring }}
                 >
                   {restoring ? (
                     <ActivityIndicator size="small" color={colors.white} />
@@ -222,6 +231,8 @@ export function NativeVersionHistorySheet({ visible, onClose, documentId, canEdi
                 ]}
                 onPress={() => handleSelect(s.version)}
                 activeOpacity={0.6}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isSelected }}
               >
                 <Ionicons
                   name={s.is_auto_save ? 'time-outline' : 'bookmark'}
@@ -257,9 +268,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 12,
   },
-  title: { fontSize: 18, fontWeight: '700', flex: 1, textAlign: 'center' },
+  title: { fontFamily: BODY_FONT, fontSize: 18, fontWeight: '700', flex: 1, textAlign: 'center' },
   loadingContainer: { padding: 40, alignItems: 'center' },
-  emptyText: { fontSize: 14 },
+  emptyText: { fontFamily: BODY_FONT, fontSize: 14 },
 
   saveBtn: {
     flexDirection: 'row',
@@ -272,7 +283,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
   },
-  saveBtnText: { fontSize: 14, fontWeight: '600' },
+  saveBtnText: { fontFamily: BODY_FONT, fontSize: 14, fontWeight: '600' },
 
   previewSection: { paddingHorizontal: 20, paddingBottom: 12, gap: 10 },
   previewBox: {
@@ -289,7 +300,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 10,
   },
-  restoreBtnText: { fontSize: 14, fontWeight: '600', color: colors.white },
+  restoreBtnText: { fontFamily: BODY_FONT, fontSize: 14, fontWeight: '600', color: colors.white },
 
   list: { paddingHorizontal: 12, maxHeight: 360 },
   row: {
@@ -301,6 +312,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   rowContent: { flex: 1 },
-  rowTitle: { fontSize: 14, fontWeight: '500' },
-  rowSub: { fontSize: 11, marginTop: 2 },
+  rowTitle: { fontFamily: BODY_FONT, fontSize: 14, fontWeight: '500' },
+  rowSub: { fontFamily: BODY_FONT, fontSize: 11, marginTop: 2 },
 });

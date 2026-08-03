@@ -1,0 +1,40 @@
+# Sending a message clears the composer and the turn appears in the thread.
+#
+# Needs a reachable backend — set EXPO_PUBLIC_API_URL at the test environment.
+# Under the plain dev bypass (no backend) the request 401s and no assistant turn
+# arrives, so this flow is excluded from the default local run and gated on
+# GRUENERATOR_E2E_BACKEND in CI.
+appId: de.gruenerator.app
+---
+# No clearState: these run against a local DEBUG build, where clearing state
+# also wipes the dev-launcher's saved Metro URL and the app relaunches into the
+# launcher instead of itself. The release APK EAS builds has no launcher, so
+# boot-to-login can and does clear state.
+- launchApp:
+    stopApp: true
+- runFlow: _dev-client-preamble.yaml
+
+# Wait rather than assert: a debug build pulls the bundle from Metro on first
+# launch (~10s), and the splash only hands over once fonts and the rehydrated
+# onboarding flag both settle.
+- extendedWaitUntil:
+    visible: 'Chat'
+    timeout: 60000
+- tapOn:
+    id: 'chat-composer-input'
+- inputText: 'Was steht im Grundsatzprogramm zu Klimaschutz?'
+
+- tapOn:
+    id: 'chat-composer-send'
+
+# The composer empties immediately (optimistic), so the send button unmounts.
+- assertNotVisible:
+    id: 'chat-composer-send'
+
+# The user turn renders, then the assistant answers. 60s covers a cold model.
+- assertVisible: 'Was steht im Grundsatzprogramm zu Klimaschutz?'
+- extendedWaitUntil:
+    visible:
+      id: 'chat-composer-send'
+    timeout: 60000
+    optional: true

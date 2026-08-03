@@ -10,6 +10,7 @@ import { processGraphRequestStreaming } from '../../agents/langgraph/streamingPr
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { getPromptVectorService } from '../../services/prompts/index.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
@@ -123,7 +124,7 @@ router.get(
       log.error('[custom_prompt] Error fetching prompt:', err);
       res.status(500).json({
         success: false,
-        message: err.message || 'Fehler beim Laden des Prompts.',
+        message: toUserFacingMessage(err) || 'Fehler beim Laden des Prompts.',
       });
     }
   }
@@ -173,7 +174,7 @@ router.post('/search', async (req: Request, res: Response): Promise<void> => {
     log.error('[custom_prompt] Search error:', err);
     res.status(500).json({
       success: false,
-      message: err.message || 'Fehler bei der Suche.',
+      message: toUserFacingMessage(err) || 'Fehler bei der Suche.',
     });
   }
 });

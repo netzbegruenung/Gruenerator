@@ -1,0 +1,15 @@
+# gruss-bleibt-direct — routing
+# Simulated decision map. Regenerate with SIM_UPDATE=1.
+# A green diff proves the BRANCHES ran as scripted. It proves nothing
+# about what a real model would have done.
+
+## turn 0: "Hallo!"
+router.run_agentic               = single_pass                    forcedTool=false gateOpen=false hasImageAttachments=false hasManagedSources=false hasOwnMaterial=false hasSelectedNotebook=false inLoopSet=false intent=greeting isCompound=false isMcpTurn=false isPdfFillRequest=false loopEnabled=true secondaryAllowed=true selfContained=true unsourcedWriting=false
+router.intent_override           = (not reached)
+router.persistent_action_gate    = (not reached)
+classifier.tier                  = tier3_short_message            confidence=0.95 heuristicIntent=greeting
+respond.answer_format            = brief                          complexity=simple intent=greeting retrievalExpected=false sourceCount=0 synthesisMode=none
+loop.tool_guard                  = (none)
+loop.synth_verdict               = (not reached)
+-- wire --
+intent=greeting agentic=false tools=[] warnings=[] interrupts=0 confirmActions=[] documentCreated=false sharepicGenerated=false answerChars=24

@@ -5,7 +5,7 @@ import {
   useLastAddedDocuments,
   type RecentDocumentCard,
 } from '../../hooks/notebook/useLastAddedDocuments';
-import { spacing, borderRadius } from '../../theme';
+import { spacing, borderRadius, BODY_FONT } from '../../theme';
 import { formatRelativeDate } from '../../utils/date';
 
 import type { Theme } from '../../theme/colors';
@@ -35,6 +35,8 @@ function Card({
           borderColor: theme.cardBorder,
         },
       ]}
+      accessibilityRole={href ? 'link' : 'none'}
+      accessibilityState={{ disabled: !href }}
     >
       <View style={styles.meta}>
         {showSourceLabel && item.collectionName ? (
@@ -133,25 +135,30 @@ const styles = StyleSheet.create({
     gap: spacing.xsmall,
   },
   source: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '600',
     flexShrink: 1,
   },
   metaDot: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
   },
   date: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
   },
   linkIcon: {
     marginLeft: 'auto',
   },
   cardTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
     lineHeight: 19,
   },
   snippet: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     lineHeight: 18,
   },

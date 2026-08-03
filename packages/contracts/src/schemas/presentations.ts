@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { localeSchema } from './userProfile.js';
+
 /**
  * Presentations (reveal.js decks, collaborative_documents subtype
  * 'presentations'). A deck is an ordered list of slides; each slide has a
@@ -21,6 +23,16 @@ export type SlideLayout = z.infer<typeof slideLayoutSchema>;
 export const slideTransitionSchema = z.enum(['none', 'fade', 'slide', 'convex', 'concave', 'zoom']);
 
 export type SlideTransition = z.infer<typeof slideTransitionSchema>;
+
+/**
+ * Per-slide font-size preset. Absent/null = "Auto": the renderer shrinks the
+ * type scale step by step until the content fits the 960×540 surface
+ * (PowerPoint-style shrink-on-overflow). The px multiplier per preset lives in
+ * `PRESENTATION_FONT_SIZE_SCALE` (presentationsYdoc.ts).
+ */
+export const slideFontSizeSchema = z.enum(['xs', 's', 'm', 'l', 'xl']);
+
+export type SlideFontSize = z.infer<typeof slideFontSizeSchema>;
 
 /**
  * One slide. `body` is markdown (or source code for the `code` layout).
@@ -49,6 +61,8 @@ export const slideSchema = z.object({
    * 2 Nummeriert; quote → 0 Grün / 1 Sand; image → 0 Groß / 1 Geteilt.
    */
   variant: z.number().int().min(0).max(2).nullish(),
+  /** Font-size preset; null/absent = auto-fit (see slideFontSizeSchema). */
+  fontSize: slideFontSizeSchema.nullish(),
 });
 
 export type Slide = z.infer<typeof slideSchema>;
@@ -68,6 +82,8 @@ export const presentationOperationSchema = z.discriminatedUnion('type', [
     notes: z.string().nullish(),
     /** 1-based insert position; appended to the end when omitted. */
     at: z.number().int().positive().nullish(),
+    /** Font-size preset; omitted or 'auto' creates the slide on auto-fit. */
+    fontSize: z.enum(['auto', 'xs', 's', 'm', 'l', 'xl']).nullish(),
   }),
   z.object({
     type: z.literal('update_slide'),
@@ -86,6 +102,11 @@ export const presentationOperationSchema = z.discriminatedUnion('type', [
     codeLanguage: z.string().nullish(),
     /** Design variant within the layout (0–2); see slideSchema.variant. */
     variant: z.number().int().min(0).max(2).nullish(),
+    /**
+     * Font-size preset. 'auto' resets the slide to auto-fit — an explicit
+     * literal because null means "no change" under patch semantics.
+     */
+    fontSize: z.enum(['auto', 'xs', 's', 'm', 'l', 'xl']).nullish(),
   }),
   z.object({
     type: z.literal('delete_slide'),
@@ -125,6 +146,8 @@ export const presentationAiRequestBodySchema = z.object({
   userPrompt: z.string(),
   presentationContext: z.string(),
   referenceContent: z.string().nullish(),
+  /** Deck country brand — steers the accent palette the planner may pick. */
+  brand: localeSchema.nullish(),
 });
 
 export type PresentationAiRequestBody = z.infer<typeof presentationAiRequestBodySchema>;
@@ -170,6 +193,9 @@ export const presentationContentResponseSchema = z.object({
   title: z.string(),
   slides: z.array(slideSchema),
   accentColor: z.string().nullable(),
+  /** Country CI; legacy decks resolve to the requesting user's locale. */
+  brand: localeSchema.nullable(),
+  showLogo: z.boolean(),
 });
 
 export type PresentationContentResponse = z.infer<typeof presentationContentResponseSchema>;

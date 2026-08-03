@@ -66,7 +66,11 @@ export function registerFonts(): void {
 
   for (const font of fonts) {
     try {
-      GlobalFonts.registerFromPath(font.path, font.family);
+      // A missing/unreadable file returns falsy rather than throwing — without
+      // this check the family silently renders as the fallback face.
+      if (!GlobalFonts.registerFromPath(font.path, font.family)) {
+        log.error(`Schriftart ${font.name} nicht registriert (Datei fehlt?): ${font.path}`);
+      }
     } catch (err) {
       log.error(`Fehler beim Registrieren der ${font.name} Schriftart:`, err);
       throw err;

@@ -42,7 +42,7 @@ export function useUserAgents() {
     queryFn: async (): Promise<Agent[]> => {
       const res = await getContractsClient().userAgents.list();
       if (res.status === 200) return res.body.agents;
-      throw new Error('Agent*innen konnten nicht geladen werden.');
+      throw new Error('Grüneratoren konnten nicht geladen werden.');
     },
   });
 }
@@ -56,7 +56,7 @@ export function useUserAgent(identifier: string | undefined) {
       const res = await getContractsClient().userAgents.get({ params: { identifier } });
       if (res.status === 200) return res.body.agent;
       if (res.status === 404) return null;
-      throw new Error('Agent*in konnte nicht geladen werden.');
+      throw new Error('Grünerator-Agent konnte nicht geladen werden.');
     },
   });
 }
@@ -228,7 +228,7 @@ export function usePublicUserAgents() {
     queryFn: async (): Promise<Agent[]> => {
       const res = await getContractsClient().userAgentsSharing.listPublic();
       if (res.status === 200) return res.body.agents;
-      throw new Error('Öffentliche Agent*innen konnten nicht geladen werden.');
+      throw new Error('Öffentliche Grüneratoren konnten nicht geladen werden.');
     },
   });
 }

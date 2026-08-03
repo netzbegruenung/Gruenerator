@@ -18,7 +18,15 @@ import {
   type PickedDocument,
   type UploadedDocument,
 } from '../../services/documentPicker';
-import { colors, spacing, borderRadius, typography, lightTheme, darkTheme } from '../../theme';
+import {
+  colors,
+  spacing,
+  borderRadius,
+  typography,
+  lightTheme,
+  darkTheme,
+  BODY_FONT,
+} from '../../theme';
 import { BottomSheet } from '../common/BottomSheet';
 
 interface Props {
@@ -113,7 +121,12 @@ export function NotebookCreator({ visible, onClose, createCollection }: Props) {
     <BottomSheet visible={visible} onClose={handleClose} keyboardAvoiding maxHeight="80%">
       <View style={styles.header}>
         {step === 'metadata' ? (
-          <Pressable onPress={() => setStep('upload')} hitSlop={8}>
+          <Pressable
+            onPress={() => setStep('upload')}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Zurück"
+          >
             <Ionicons name="arrow-back" size={22} color={theme.text} />
           </Pressable>
         ) : (
@@ -122,7 +135,12 @@ export function NotebookCreator({ visible, onClose, createCollection }: Props) {
         <Text style={[styles.title, { color: theme.text }]}>
           {step === 'upload' ? 'Dokument hochladen' : 'Notebook erstellen'}
         </Text>
-        <Pressable onPress={handleClose} hitSlop={8}>
+        <Pressable
+          onPress={handleClose}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Dialog schließen"
+        >
           <Ionicons name="close" size={22} color={theme.textSecondary} />
         </Pressable>
       </View>
@@ -134,6 +152,7 @@ export function NotebookCreator({ visible, onClose, createCollection }: Props) {
               <Pressable
                 onPress={handlePickFile}
                 style={[styles.pickArea, { borderColor: theme.cardBorder }]}
+                accessibilityRole="button"
               >
                 <Ionicons name="cloud-upload-outline" size={40} color={colors.primary[600]} />
                 <Text style={[styles.pickText, { color: theme.text }]}>Datei auswählen</Text>
@@ -162,7 +181,12 @@ export function NotebookCreator({ visible, onClose, createCollection }: Props) {
                   ) : null}
                 </View>
                 {!uploading && (
-                  <Pressable onPress={handleRemoveFile} hitSlop={8}>
+                  <Pressable
+                    onPress={handleRemoveFile}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Datei entfernen"
+                  >
                     <Ionicons name="close-circle" size={22} color={theme.textSecondary} />
                   </Pressable>
                 )}
@@ -179,6 +203,8 @@ export function NotebookCreator({ visible, onClose, createCollection }: Props) {
                   opacity: uploadedDoc ? 1 : 0.5,
                 },
               ]}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !uploadedDoc }}
             >
               <Text
                 style={[
@@ -206,6 +232,7 @@ export function NotebookCreator({ visible, onClose, createCollection }: Props) {
               onChangeText={setName}
               placeholder="Name des Notebooks"
               placeholderTextColor={theme.textSecondary}
+              accessibilityLabel="Name des Notebooks"
               autoFocus
             />
 
@@ -226,6 +253,7 @@ export function NotebookCreator({ visible, onClose, createCollection }: Props) {
               onChangeText={setDescription}
               placeholder="Optionale Beschreibung"
               placeholderTextColor={theme.textSecondary}
+              accessibilityLabel="Beschreibung des Notebooks"
               multiline
               numberOfLines={3}
             />
@@ -241,6 +269,9 @@ export function NotebookCreator({ visible, onClose, createCollection }: Props) {
                   marginTop: spacing.medium,
                 },
               ]}
+              accessibilityRole="button"
+              accessibilityLabel={creating ? 'Wird erstellt' : 'Erstellen'}
+              accessibilityState={{ disabled: !canCreate, busy: creating }}
             >
               {creating ? (
                 <ActivityIndicator size="small" color={colors.white} />
@@ -299,6 +330,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   pickHint: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
   },
   filePreview: {
@@ -314,6 +346,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   fileName: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '500',
   },
@@ -323,6 +356,7 @@ const styles = StyleSheet.create({
     gap: spacing.xsmall,
   },
   statusText: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -334,10 +368,12 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   buttonText: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '600',
   },
   label: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
     marginBottom: spacing.xxsmall,
@@ -347,6 +383,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.medium,
     paddingHorizontal: spacing.small,
     paddingVertical: spacing.xsmall,
+    fontFamily: BODY_FONT,
     fontSize: 15,
   },
   multilineInput: {

@@ -37,10 +37,11 @@ import {
   listCanvasVersions,
 } from '../../../services/canvas/canvasVersionRepository.js';
 import imagePickerService from '../../../services/image/ImageSelectionService.js';
+import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
+import { finishEditTurn } from './editTurnCompletion.js';
 import { runSharepicEdit } from './sharepicEditLlm.js';
-import { createMessage, touchThread } from './threadPersistenceService.js';
 
 import type { SharepicVariant } from './sharepicVariantHelpers.js';
 import type { SSEWriter } from './sseHelpers.js';
@@ -235,6 +236,27 @@ export async function resolveTarget(
     initialProps: hit.variant.initialProps ?? {},
     messageId: hit.messageId,
   };
+}
+
+/**
+ * Does this thread hold ANY sharepic that could be edited?
+ *
+ * Deliberately the SAME evidence `resolveTarget` uses (canvas rows + the last 30
+ * assistant messages), so the router's precondition and the handler's target
+ * resolution can never disagree. They used to: the router asked
+ * `getLastSharepicVariant`, which reads only the single most recent assistant
+ * message, so one intervening reply made an existing sharepic invisible.
+ * 'ambiguous' counts as existing — several variants is still a target.
+ */
+export async function threadHasSharepic(threadId: string): Promise<boolean> {
+  try {
+    return (await resolveTarget(threadId, null)) !== null;
+  } catch {
+    // A DB blip must not be read as "no sharepic here" — that answer would
+    // license a fresh creation. Assume a target exists and let the handler,
+    // which resolves properly, decline.
+    return true;
+  }
 }
 
 /** Existing canvas bound to (thread, variant), or null. */
@@ -556,32 +578,17 @@ async function finishWithText(
   text: string,
   toolCalls?: Record<string, unknown>[]
 ): Promise<void> {
-  const { sse, threadId } = args;
-  sse.send('response_start', { message: 'Antwort wird erstellt...' });
-  sse.send('text_delta', { text });
-  sse.sendRaw('done', {
-    threadId,
-    citations: [],
-    metadata: {
-      intent: 'sharepic_edit',
-      searchCount: 0,
-      totalTimeMs: Date.now() - args.startTime,
-      ...(args.classificationTimeMs != null && {
-        classificationTimeMs: args.classificationTimeMs,
-      }),
-      searchTimeMs: 0,
-    },
+  await finishEditTurn({
+    sse: args.sse,
+    threadId: args.threadId,
+    text,
+    intent: 'sharepic_edit',
+    persistLabel: 'sharepicEdit:persist',
+    logPrefix: '[SharepicEdit]',
+    startTime: args.startTime,
+    ...(args.classificationTimeMs != null && { classificationTimeMs: args.classificationTimeMs }),
+    ...(toolCalls ? { toolCalls } : {}),
   });
-  try {
-    await createMessage(threadId, 'assistant', text, {
-      intent: 'sharepic_edit',
-      ...(toolCalls ? { toolCalls } : {}),
-    });
-    await touchThread(threadId);
-  } catch (err) {
-    log.error('[SharepicEdit] Failed to persist message:', err);
-  }
-  sse.end();
 }
 
 /**
@@ -704,7 +711,7 @@ export async function handleSharepicEdit(args: HandleSharepicEditArgs): Promise<
     log.error('[SharepicEdit] Edit turn failed:', error);
     if (!sse.isEnded()) {
       sse.send('sharepic_edit_error', {
-        error: error instanceof Error ? error.message : 'Unbekannter Fehler',
+        error: toUserFacingMessage(error, 'Unbekannter Fehler'),
       });
       await finishWithText(
         args,

@@ -5,7 +5,7 @@ import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
 import { useTheme } from '../../hooks/useTheme';
 import { secureStorage } from '../../services/storage';
-import { colors } from '../../theme';
+import { colors, BODY_FONT } from '../../theme';
 
 // Determine the web editor URL based on environment
 // In dev: Use local IP for Android, localhost for iOS
@@ -148,6 +148,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 16,
+    fontFamily: BODY_FONT,
     fontSize: 16,
   },
 });

@@ -1,5 +1,3 @@
-import type { SVGProps } from 'react';
-
 import {
   BAR_D,
   GEAR_BODY_D,
@@ -14,6 +12,8 @@ import {
   GHI_GEAR_CENTER,
   GHI_VIEWBOX,
 } from './grueneratorHomeIconGeometry';
+
+import type { SVGProps } from 'react';
 
 interface Props extends SVGProps<SVGSVGElement> {
   loading?: boolean;

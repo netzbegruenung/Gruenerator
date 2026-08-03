@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { Linking, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { darkTheme, lightTheme } from '../../theme';
+import { darkTheme, lightTheme, BODY_FONT } from '../../theme';
 
 /**
  * Shared header for the read-only Office viewers (sheet/slide/board/canvas):
@@ -102,6 +102,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   title: {
+    fontFamily: BODY_FONT,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -116,6 +117,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   badgeText: {
+    fontFamily: BODY_FONT,
     fontSize: 10,
     fontWeight: '600',
   },

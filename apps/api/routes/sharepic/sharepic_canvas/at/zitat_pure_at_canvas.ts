@@ -1,7 +1,10 @@
 /**
  * Zitat-Pur AT napi-canvas renderer (Österreich / de-AT).
- * Dunkelgrüne Fläche, zentriertes weißes Anführungszeichen + Zitat (Gotham),
- * gelber Name. Mirrors zitat_pure_at_full.config.tsx.
+ * Einfarbige Fläche, mittiges weißes Anführungszeichen, weißes Zitat in
+ * Gotham Narrow Ultra, gelber Name.
+ *
+ * Spiegelbild von zitat_pure_at_full.config.tsx / zitatPureAtLayout.ts —
+ * beide Dateien sind handverdrahtet und müssen zusammen geändert werden.
  */
 import { createCanvas, type Canvas, type SKRSContext2D as Ctx } from '@napi-rs/canvas';
 import { Router, type Request, type Response } from 'express';
@@ -14,7 +17,14 @@ import {
 import { isValidHexColor } from '../../../../services/sharepic/canvas/utils.js';
 import { createLogger } from '../../../../utils/logger.js';
 
-import { AT_BRAND, CANVAS, registerAtFonts, wrapText, loadAtQuoteWhite } from './atCanvasShared.js';
+import {
+  AT_BRAND,
+  CANVAS,
+  ZITAT_PURE,
+  registerAtFonts,
+  wrapText,
+  loadAtQuoteWhite,
+} from './atCanvasShared.js';
 
 const log = createLogger('zitat_pure_at_canv');
 const router: Router = Router();
@@ -26,64 +36,62 @@ interface Body {
   backgroundColor?: string;
 }
 
-// Geometry mirrors calculateZitatPureLayout (canvas-editor zitatPureLayout.ts),
-// the source of truth the konva editor renders from — so server ↔ Studio stay
-// pixel-close. Centred variant: quote mark, quote and name are all centre-aligned.
 async function render(quote: string, name: string, backgroundColor: string): Promise<Buffer> {
   registerAtFonts();
   const canvas: Canvas = createCanvas(CANVAS.width, CANVAS.height);
   const ctx: Ctx = canvas.getContext('2d');
   const cx = CANVAS.width / 2;
+  const Z = ZITAT_PURE;
 
   ctx.fillStyle = backgroundColor;
   ctx.fillRect(0, 0, CANVAS.width, CANVAS.height);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
 
-  const margin = 75;
-  const maxWidth = CANVAS.width - margin * 2; // 930
+  const measure = (size: number): string[] => {
+    ctx.font = `${size}px ${AT_BRAND.fonts.quoteShort}`;
+    return wrapText(ctx, quote, Z.maxWidth);
+  };
 
-  const quoteMarkSize = 100;
-  const gapMarkToText = 20;
-  const gapQuoteToName = 60;
-  const topBoundary = 120;
-  const availableHeight = CANVAS.height - 100 - topBoundary; // 1130
-
-  // Dynamic quote/name font sizes — mirror calculateDynamicFontSize: a quote of
-  // ≤5 lines is enlarged (and its name with it) up to the CI caps.
-  let quoteFontSize = 81;
-  let nameFontSize = 35;
-  ctx.font = `${quoteFontSize}px ${AT_BRAND.fonts.quoteShort}`;
-  let lines = wrapText(ctx, quote, maxWidth);
-  if (lines.length <= 5) {
-    quoteFontSize = Math.min(Math.round(quoteFontSize * 1.2), 97);
-    nameFontSize = Math.min(Math.round(nameFontSize * 1.2), 42);
-    ctx.font = `${quoteFontSize}px ${AT_BRAND.fonts.quoteShort}`;
-    lines = wrapText(ctx, quote, maxWidth);
+  // Autofit: kurze Zitate duerfen wachsen, lange muessen weichen. Die
+  // Zeilenzahl kommt aus measureText, nicht aus einer Zeichenbreiten-Schaetzung
+  // — bei Gotham Narrow Ultra liegt die um mehrere Zeilen daneben.
+  let fontSize = Z.baseFontSize;
+  let lines = measure(fontSize);
+  while (lines.length <= Z.growBelowLines && fontSize < Z.maxFontSize) {
+    const next = measure(fontSize + 4);
+    if (next.length > Z.growBelowLines) break;
+    fontSize += 4;
+    lines = next;
+  }
+  while (lines.length > Z.maxLines && fontSize > Z.minFontSize) {
+    fontSize -= 4;
+    lines = measure(fontSize);
   }
 
-  const lineHeight = quoteFontSize * 1.2;
-  const quoteTextHeight = lines.length * lineHeight;
-  const totalContentHeight =
-    quoteMarkSize + gapMarkToText + quoteTextHeight + gapQuoteToName + nameFontSize;
-  const contentStartY = topBoundary + (availableHeight - totalContentHeight) / 2;
-  const quoteMarkY = Math.max(topBoundary, contentStartY);
-  const quoteY = quoteMarkY + quoteMarkSize + gapMarkToText;
+  const lineHeight = Math.round(fontSize * Z.lineHeightRatio);
+  const nameFontSize = Math.round(fontSize * Z.nameFontSizeRatio);
+  const markSize = Math.round(fontSize * Z.markSizeRatio);
+  const nameGap = Math.round(fontSize * Z.nameGapRatio);
 
-  // Quote mark (white SVG, centred) — same asset the konva config draws.
+  const quoteHeight = lines.length * lineHeight;
+  const nameHeight = name ? nameGap + nameFontSize : 0;
+  const groupHeight = markSize + Z.markGapToText + quoteHeight + nameHeight;
+  const centred = Math.round(CANVAS.height * Z.groupCenterRatio - groupHeight / 2);
+  const groupTop = Math.max(Z.topBoundary, Math.min(centred, Z.bottomBoundary - groupHeight));
+  const quoteY = groupTop + markSize + Z.markGapToText;
+
   const mark = await loadAtQuoteWhite();
-  ctx.drawImage(mark, cx - quoteMarkSize / 2, quoteMarkY, quoteMarkSize, quoteMarkSize);
+  ctx.drawImage(mark, Math.round(cx - markSize / 2), groupTop, markSize, markSize);
 
-  // Quote (white Gotham, centred)
   ctx.fillStyle = AT_BRAND.textOnDark;
-  ctx.font = `${quoteFontSize}px ${AT_BRAND.fonts.quoteShort}`;
+  ctx.font = `${fontSize}px ${AT_BRAND.fonts.quoteShort}`;
   lines.forEach((line, i) => ctx.fillText(line, cx, quoteY + i * lineHeight));
 
-  // Name (yellow) — a clean gapQuoteToName below the quote block (authorY).
   if (name) {
     ctx.fillStyle = AT_BRAND.accent;
     ctx.font = `${nameFontSize}px ${AT_BRAND.fonts.body}`;
-    ctx.fillText(name, cx, quoteY + quoteTextHeight + gapQuoteToName);
+    ctx.fillText(name, cx, quoteY + quoteHeight + nameGap);
   }
 
   return canvas.toBuffer('image/png');
