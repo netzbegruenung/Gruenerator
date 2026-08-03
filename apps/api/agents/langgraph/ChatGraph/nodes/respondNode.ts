@@ -33,6 +33,7 @@ import { isSourceAvailabilityError, renderDegradationNotes } from '../types.js';
 
 import { type AnchorDescriptor, getActiveAnchors } from './anchorContext.js';
 import {
+  ARTIFACT_NOUN,
   artifactsFromTurn,
   buildArtifactInventory,
   renderArtifactInventory,
@@ -870,6 +871,22 @@ const GREETING_GUIDANCE =
 const DIRECT_HONESTY_NOTE =
   '\nWICHTIG: In diesem Turn wurde NICHTS recherchiert und KEIN Bild/Dokument/Sharepic erstellt. Behaupte daher keine Recherche, keine Quellen/[N]-Belege und kein soeben erzeugtes Bild oder Dokument. Beziehst du dich auf etwas aus einem früheren Turn, mach das explizit ("vorhin"); für neue sachliche Angaben sag ehrlich, dass du sie nachschlagen müsstest.';
 
+/**
+ * The no-file half of the same honesty, split out because it is needed on turns
+ * that DO have sources (see {@link CARRIED_SOURCES_NOTE}) and because "claim no
+ * document" and "do not hand-build one" are different bans: on 02.08.2026 the
+ * model obeyed the first and broke the second, writing a base64 `data:`-block
+ * into the chat with "als .pptx speichern" beside it — 252 bytes, a ZIP header
+ * and no central directory, so not a file at all. One turn later it answered
+ * with the bare path `/office/7f9a3c2b-…`, an id nothing had ever minted, which
+ * duly 404'd.
+ *
+ * The last sentence is the point. A ban alone leaves the user with a refusal
+ * and no door; the product HAS a door, and it is one sentence wide.
+ */
+const NO_HANDMADE_FILE_NOTE =
+  '\nDu kannst eine Datei nicht selbst in die Antwort schreiben. Gib deshalb NIEMALS einen `data:`-Block, Base64, einen Datei-Inhalt zum Selbst-Abspeichern oder einen ausgedachten Pfad/Link (`/office/…`, `/docs/…`) aus — nichts davon ergibt eine Datei, die sich öffnen lässt. Präsentationen, Dokumente, Tabellen und PDFs entstehen im Grünerator ausschließlich über die Erstellungsfunktion und erscheinen dann als Karte im Chat. Fehlt sie hier, sag das offen und biete an, sie anzulegen.';
+
 // Same turn-outcome honesty, minus the citation ban: on a carried-source turn
 // the sources ARE real, persisted and chip-backed, so [N] is not a lie — only
 // "I just researched this" would be. Shipping DIRECT_HONESTY_NOTE here would
@@ -878,6 +895,35 @@ const DIRECT_HONESTY_NOTE =
 // by inventing past the carried snippets.
 const CARRIED_SOURCES_NOTE =
   '\nWICHTIG: In diesem Turn wurde NICHTS NEU recherchiert und KEIN Bild/Dokument/Sharepic erstellt. Die Quellen unten stammen aus einer FRÜHEREN Recherche in diesem Gespräch — du darfst sie mit [N] belegen. Behaupte NICHT, gerade recherchiert zu haben ("ich habe recherchiert", "meine Recherche ergab"); sag stattdessen, dass sich die Angaben auf die Recherche von vorhin stützen. Brauchst du für eine sachliche Angabe etwas, das NICHT in diesen Quellen steht, sag ehrlich, dass du das neu nachschlagen müsstest.';
+
+/**
+ * When {@link NO_HANDMADE_FILE_NOTE} is worth its ~470 characters: the turn is
+ * TALKING about files. `direct`/`produktion` is the highest-traffic pair in the
+ * product, and a small-talk turn has never once hand-built a `.pptx`.
+ *
+ * Wider than {@link ARTIFACT_NOUN_BY_KIND} on purpose — the follow-up turn in
+ * the 02.08.2026 run said neither "Präsentation" nor "Folien", it said the
+ * BLOCK was not a valid file. The words that describe the failure belong in the
+ * gate as much as the words that describe the ask.
+ */
+const FILE_TALK_RE =
+  /\b(datei\w*|file|dokument\w*|pr[äa]sentation\w*|folien?|slides?|tabelle\w*|spreadsheet\w*|sheet\w*|pdfs?|board\w*|download\w*|herunterladen|base64|data:|pptx?|docx?|xlsx?|od[pst]|zip|artefakt\w*|anhang|anlage)\b/i;
+
+/**
+ * The one sentence the demoted turn was missing.
+ *
+ * The gate that demotes is right — the user DID forbid the action, and honouring
+ * it is the product's job. What was wrong is that nobody said so: the model was
+ * left holding an artefact order it could not fill, and the user was left with
+ * what looked like a broken feature. Naming the family (rather than a generic
+ * "kann ich nicht") is what makes the refusal readable as a decision.
+ */
+function getForbiddenActionNote(state: ChatGraphState): string {
+  const family = state.forbiddenArtifactAction;
+  if (!family) return '';
+  const noun = ARTIFACT_NOUN[family];
+  return `\nWICHTIG: Diese Nachricht verlangt „${noun}" und untersagt im selben Zug, so etwas anzulegen. Der Grünerator hält sich an das Verbot — in diesem Turn wurde KEIN Artefakt erstellt, und es wird auch keins erscheinen. Sag das in einem Satz, bevor du inhaltlich lieferst, und schreibe den Inhalt danach direkt in den Chat.`;
+}
 
 const SEARCH_GUIDANCE =
   '\nDu hast Recherche-Ergebnisse erhalten. Beantworte die Frage primär aus diesen Ergebnissen und zitiere sie inline.';
@@ -983,7 +1029,12 @@ export function getModeGuidance(state: ChatGraphState): string {
     case 'direct':
       return (
         DIRECT_GUIDANCE +
-        (state.sourcesCarriedFromThread ? CARRIED_SOURCES_NOTE : DIRECT_HONESTY_NOTE)
+        (state.sourcesCarriedFromThread ? CARRIED_SOURCES_NOTE : DIRECT_HONESTY_NOTE) +
+        (FILE_TALK_RE.test(state.lastUserTextNoMentions || lastUserText(state)) ||
+        state.forbiddenArtifactAction
+          ? NO_HANDMADE_FILE_NOTE
+          : '') +
+        getForbiddenActionNote(state)
       );
     case 'save_as_doc':
       return DIRECT_GUIDANCE + ARTEFACT_ACTION_GUIDANCE;
@@ -1384,9 +1435,20 @@ export async function buildSystemMessage(
       : '';
   if (docsPageMap) log.debug('[Respond] docs page map attached');
 
-  // Custom system prompt: replaces the entire agent prompt when set
+  // Custom system prompt: replaces the entire agent prompt when set.
+  //
+  // Auch dieser Zweig muss lokalisieren. Der Meta-Prompt in
+  // `promptGeneratorController` verlangt {{partyName}} wörtlich im erzeugten
+  // Rollen-Prompt und verspricht dort, er werde „automatisch lokalisiert" —
+  // eingelöst wurde das aber nur für `agentConfig.systemRole` weiter unten, und
+  // dieser Zweig kehrt vorher zurück. Jede per KI erzeugte Rolle schickte die
+  // geschweiften Klammern deshalb roh ans Modell.
   if (state.customSystemPrompt) {
-    return `${state.customSystemPrompt}
+    const customSystemPrompt = localizePlaceholders(
+      state.customSystemPrompt,
+      (state.userLocale as Locale) || 'de-DE'
+    );
+    return `${customSystemPrompt}
 Heutiges Datum: ${today}${localeContext}${platformContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${artifactInventory}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}${hasSources ? `\n${citationInstruction}` : ''}
 
 ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSuspected ? INJECTION_WARNING_NOTE : ''}`;

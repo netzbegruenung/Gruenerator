@@ -63,7 +63,7 @@ export const DECISION_POINTS = {
 
   /** "…aber erstelle kein Dokument." — the negative-action gate. */
   'router.persistent_action_gate': {
-    branches: ['allowed', 'dropped_secondary', 'demoted_primary_to_direct'],
+    branches: ['allowed', 'dropped_secondary', 'demoted_primary_to_produktion'],
   },
 
   /** Which classifier tier produced the verdict. */
@@ -139,7 +139,7 @@ export const DECISION_POINTS = {
   /** The loop silently replacing its own answer. The wire shows only the
    *  replacement, so a wrongly swapped answer looks exactly like a correct one. */
   'loop.synth_verdict': {
-    branches: ['accepted', 'refusal_swapped', 'degenerate_retried', 'retry_failed_empty'],
+    branches: ['accepted', 'refusal_swapped', 'tool_plan_retried', 'retry_failed_empty'],
   },
 } as const satisfies Record<string, { readonly branches: readonly string[] }>;
 

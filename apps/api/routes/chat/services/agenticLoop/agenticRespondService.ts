@@ -15,7 +15,10 @@
 import { type ChatIntentId, intentsWithDisposition } from '@gruenerator/shared/chat-intents';
 import { type ModelMessage } from 'ai';
 
-import { NO_ARTIFACT_URL_RULE } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
+import {
+  knownArtifactRefs,
+  NO_ARTIFACT_URL_RULE,
+} from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
 import { forbidsNewResearch } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import { applyContextCap } from '../../../../utils/contextCap.js';
 import { createLogger } from '../../../../utils/logger.js';
@@ -41,6 +44,7 @@ import {
   defersToSearchDespiteSources,
   deniesSearchAbilityDespiteSearching,
   looksCutOff,
+  stripFabricatedArtifactDelivery,
   stripFabricatedSystemClaims,
 } from '../outputSanity.js';
 import { resolveModel, type ResolvedModelTuple } from '../responseStreamingService.js';
@@ -422,13 +426,24 @@ export function buildArtifactNotes(
     state.compoundEdit === true
       ? 'HINWEIS: Die recherchierten Inhalte werden gerade in das GEÖFFNETE Dokument eingefügt. Schreibe NUR eine KURZE Bestätigung (1–2 Sätze), die das Thema nennt und sagt, dass es ins Dokument eingearbeitet wird — KEINE lange Ausformulierung (der Inhalt landet im Dokument, nicht im Chat).'
       : '',
-    // The edit tool already changed the open artefact this turn. Make the
-    // model confirm it in past tense — never write empty text (→ fallback)
-    // or claim it couldn't do it (both observed live: "keine Antwort
-    // gefunden" after 5 slides; "kann die Akzentfarbe nicht ändern" after
-    // set_deck_option succeeded).
+    // The edit tool PLANNED a change for the open artefact this turn and sent
+    // it to the client, which applies it in place (Univer / Yjs). Two failure
+    // modes to hold apart, and the prompt used to invite the second while
+    // fixing the first:
+    //
+    //  - The model writes nothing (→ fallback) or claims it cannot edit at all
+    //    — observed live as "keine Antwort gefunden" after 5 slides and "kann
+    //    die Akzentfarbe nicht ändern" after set_deck_option succeeded. Still
+    //    forbidden below.
+    //  - The model reports the change as SAVED. The server cannot know that:
+    //    `editor_operations` has no acknowledgement channel, so with the deck
+    //    not open in a client the ops go nowhere and only a toast appears. On
+    //    03.08.2026 the answer said "AKTUALISIERT" and the deck was unchanged
+    //    on reload. Ordering past tense here is what produced that sentence.
+    //
+    // Present tense is the honest form of what the server actually knows.
     state.editorEditsSummary
-      ? `HINWEIS: Die gewünschte Änderung wurde SOEBEN vorgenommen: ${state.editorEditsSummary}. Bestätige das dem*der Nutzer*in KURZ in Vergangenheitsform (1 Satz, z.B. „Erledigt — …"). Behaupte NIEMALS, du könntest die Änderung nicht vornehmen — sie ist bereits erfolgt.`
+      ? `HINWEIS: Die gewünschte Änderung ist geplant und wird gerade in die GEÖFFNETE Datei übernommen: ${state.editorEditsSummary}. Sag das dem*der Nutzer*in KURZ in der GEGENWART (1 Satz, z.B. „Die Folien werden gerade aktualisiert — …"). Behaupte NIEMALS, du könntest die Änderung nicht vornehmen — sie ist bereits ausgelöst. Behaupte aber ebenso NICHT, sie sei fertig GESPEICHERT: das Übernehmen geschieht in der geöffneten Datei.`
       : '',
     // Editor surface with the AI-edit toggle OFF: the edit tool is NOT
     // mounted, so any "I changed X" would be a false claim the client never
@@ -482,6 +497,41 @@ export function buildArtifactNotes(
 /** The connector's text payload, length-capped for the synth prompt. */
 function capMcpContent(content: string): string {
   return applyContextCap(content, MCP_CONTENT_CAP, 'agenticLoop:mcpContent');
+}
+
+/**
+ * Failures of the NATIVE tools — search, scrape, documents, boards, notebooks.
+ *
+ * `buildMcpOutcomeNote` below opens with `steps.filter(s => s.serverName)`, so
+ * it only ever spoke for connectors. Everything else the loop runs had no
+ * channel into the split synth at all: a SUCCESSFUL call reaches the writer
+ * through the source registry, but a FAILED one registers nothing, so where a
+ * tool error had been the writer saw plain silence — and filled it.
+ *
+ * Live on 03.08.2026: `documents` answered "Dokument nicht gefunden oder kein
+ * Zugriff" for the PDF and errored on the presentation, and the answer went on
+ * to report which slide had been corrected and that the source matrix was now
+ * complete. It had opened neither.
+ *
+ * Only failures are listed. Successes already carry their payload in the
+ * sources block; repeating it here would double it in the prompt.
+ */
+export function buildToolFailureNote(steps: PersistedStep[]): string {
+  const failed = steps
+    .filter((s) => !s.serverName)
+    .map((s) => ({ step: s, view: readMcpResult(s.result) }))
+    .filter(({ view }) => !view.ok);
+  if (failed.length === 0) return '';
+  const lines = failed.map(
+    ({ step, view }) => `- ${step.toolName}: FEHLGESCHLAGEN — ${String(view.error).slice(0, 200)}`
+  );
+  return (
+    `\n\nFEHLGESCHLAGENE WERKZEUGE IN DIESEM TURN:\n${lines.join('\n')}\n\n` +
+    'Diese Aufrufe haben KEIN Ergebnis geliefert. Sag ehrlich und konkret, was nicht geklappt hat. ' +
+    'Tu NICHT so, als hättest du die Inhalte trotzdem gesehen: keine Zusammenfassung, kein Vergleich, ' +
+    'kein Prüfergebnis und keine Bestätigung zu etwas, das nur über einen dieser Aufrufe zu erfahren ' +
+    'gewesen wäre. Erfinde keine IDs, Links, Dateinamen oder Inhalte als Ersatz.'
+  );
 }
 
 export function buildMcpOutcomeNote(steps: PersistedStep[]): string {
@@ -956,6 +1006,8 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
       // sources, so this is the ONLY channel the synth has for connector results.
       const mcpOutcome = buildMcpOutcomeNote(steps);
       const mcpRan = mcpOutcome.length > 0;
+      // Native tool failures — the other half of the same honesty channel.
+      const toolFailures = buildToolFailureNote(steps);
       // The "you researched NOTHING" note is a lie when a connector tool DID run
       // (it just doesn't register sources) — suppress it; mcpOutcome tells the
       // truth about what happened instead.
@@ -995,7 +1047,7 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
       // prepareStep — mirroring how `carriedNote` is injected for unified
       // BECAUSE split gets it here.
       return withInstructionHierarchy(
-        `${systemMessage}${mcpNote}${cite}${artifacts}${mcpOutcome}${capabilityNote}${honestyNote}${recipeRegistry.render()}\n\nAntworte auf Deutsch (Du-Form, Genderstern).`
+        `${systemMessage}${mcpNote}${cite}${artifacts}${mcpOutcome}${toolFailures}${capabilityNote}${honestyNote}${recipeRegistry.render()}\n\nAntworte auf Deutsch (Du-Form, Genderstern).`
       );
     };
 
@@ -1331,6 +1383,8 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
   // into the answer — they read as a leak. Checked against everything the model
   // legitimately saw, so real attachment names pass through.
   const sanity = stripFabricatedSystemClaims(text, [
+    // A name the user typed themselves is not one the model invented.
+    finalState.lastUserTextNoMentions ?? '',
     sourceRegistry.renderAll(),
     finalState.attachmentContext ?? '',
     finalState.currentDocument?.title ?? '',
@@ -1340,6 +1394,15 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
       `[Agentic] Removed fabricated internal file claim(s): ${sanity.fabricated.join(', ')}`
     );
     text = sanity.text;
+  }
+
+  // Same guarantee as the single-pass funnel: no typed-out file, no invented
+  // artefact path. The allowlist carries this turn's and the thread's real ids,
+  // so the `/boards/<id>` the board note ASKS the model to print survives.
+  const delivery = stripFabricatedArtifactDelivery(text, knownArtifactRefs(finalState));
+  if (delivery.removed.length > 0) {
+    log.warn(`[Agentic] Removed fabricated artefact delivery: ${delivery.removed.join(', ')}`);
+    text = delivery.text;
   }
 
   if (
@@ -1385,7 +1448,11 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
   // Per-turn tool-outcome breakdown so a silent connector failure is visible in
   // the summary line, not only in the per-tool [Tool] logs above.
   const mcpSteps = steps.filter((s) => s.serverName);
-  const failedSteps = mcpSteps.filter((s) => !readMcpResult(s.result).ok);
+  // ALL steps, not just connectors: this line used to filter on `serverName`
+  // first, so a turn in which `documents` and `scrape_url` both failed logged
+  // `steps=6 sources=26` and nothing else. The one place that could have shown
+  // the failure showed the same as a clean run.
+  const failedSteps = steps.filter((s) => !readMcpResult(s.result).ok);
   const failedTools =
     failedSteps.length > 0
       ? ` failedTools=[${failedSteps

@@ -156,7 +156,6 @@ export default function RolesSection() {
   const [wizAbgeordnete, setWizAbgeordnete] = useState('');
   const [wizInstructions, setWizInstructions] = useState('');
 
-  const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -342,7 +341,7 @@ export default function RolesSection() {
       setTimeout(() => setSuccessMessage(null), 3000);
     } else {
       setErrorMessage(
-        `Rolle wurde hinzugefügt, aber Speichern fehlgeschlagen: ${result.detail}. Bitte „Speichern" klicken.`
+        `Rolle wurde hinzugefügt, aber Speichern fehlgeschlagen: ${result.detail}. Bitte neu anlegen — nach dem Neuladen ist sie sonst weg.`
       );
     }
   }, [
@@ -375,21 +374,6 @@ export default function RolesSection() {
     },
     [roles, persistRoles]
   );
-
-  // ─── Save ─────────────────────────────────────────────────────────────────
-
-  const handleSave = useCallback(async () => {
-    setSaving(true);
-    setErrorMessage(null);
-    const result = await persistRoles(roles);
-    if (result.ok) {
-      setSuccessMessage('Profil gespeichert');
-      setTimeout(() => setSuccessMessage(null), 3000);
-    } else {
-      setErrorMessage(`Speichern fehlgeschlagen: ${result.detail}`);
-    }
-    setSaving(false);
-  }, [roles, persistRoles]);
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
@@ -629,12 +613,6 @@ export default function RolesSection() {
               )}
             </CardContent>
           </Card>
-
-          <div className="flex justify-end">
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? 'Speichert…' : 'Speichern'}
-            </Button>
-          </div>
         </>
       )}
     </div>

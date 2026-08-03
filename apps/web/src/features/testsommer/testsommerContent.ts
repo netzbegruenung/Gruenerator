@@ -10,7 +10,7 @@ export const TESTSOMMER_STYLES = `.ts-scope{
   --shadow-sm:0 2px 8px rgba(0,0,0,0.05);--shadow-md:0 4px 12px rgba(0,0,0,0.08);--shadow-lg:0 6px 16px rgba(0,0,0,0.12);--shadow-xl:0 8px 24px rgba(0,0,0,0.15);
   --accent:#0BA1DD;--accent-dark:#0987ba;--accent-50:#E8F6FD;--accent-100:#CBEBF9;--accent-200:#A6DDF4;
   font-family:'PT Sans', system-ui, -apple-system, sans-serif;
-  color:var(--grey-800); background:#ffffff; min-height:100vh; overflow-x:hidden; position:relative;
+  color:var(--grey-800); background:#ffffff; min-height:100dvh; overflow-x:hidden; position:relative;
 }
 .ts-scope *{box-sizing:border-box;}
 .ts-scope a{color:var(--accent);text-decoration:none;}

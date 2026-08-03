@@ -63,11 +63,17 @@ import type { ChatModelRunResult } from '@assistant-ui/react';
  * Verdicts under which nothing is looked up — the progress bar goes straight to
  * "generating". `direct` is kept for threads and older backends that still send
  * it; `agentic` is absent because the loop DOES retrieve.
+ *
+ * `compute` belongs here for the same reason and was missing: computeNode runs
+ * a plan through the arithmetic engine and touches no retrieval at all. Falling
+ * through to the default put "Durchsuche …" over a turn that searched nothing —
+ * reported twice as the product looking things up it had been told not to.
  */
 const NO_RETRIEVAL_STAGE_INTENTS: ReadonlySet<string> = new Set([
   'produktion',
   'direct',
   'greeting',
+  'compute',
 ]);
 
 /** Display titles for agentic sharepic-loop steps (tool_step_start events). */

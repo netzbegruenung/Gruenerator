@@ -215,6 +215,35 @@ describe('forbidsPersistentAction', () => {
     ).toBe(false);
   });
 
+  it('does not read a ban on the DELIVERY FORM as a ban on the artifact', () => {
+    // Live on 03.08.2026: this exact message demoted `create_presentation`, so
+    // the sentence written to prevent a hand-typed file removed the tool that
+    // writes a real one. "kein Base64" orders the presentation, it does not
+    // forbid it.
+    const t =
+      'Erstelle unmittelbar eine Präsentation mit genau vier Folien. Liefere ein echtes ' +
+      'Präsentationsartefakt zum Öffnen, kein Base64, kein data:-URI, keine erfundene ' +
+      'öffentliche URL und keine bloße Gliederung.';
+    expect(forbidsPersistentAction(t, ARTIFACT_NOUN_BY_KIND.presentation)).toBe(false);
+
+    for (const variant of [
+      'Mach eine Tabelle daraus, keinen Link und keinen Platzhalter',
+      'Gib mir das Dokument als Datei, nicht als URL',
+    ]) {
+      expect(forbidsPersistentAction(variant, ARTIFACT_NOUN_BY_KIND.sheet), variant).toBe(false);
+      expect(forbidsPersistentAction(variant, DOC), variant).toBe(false);
+    }
+  });
+
+  it('still catches the artifact ban standing next to a delivery-form ban', () => {
+    expect(
+      forbidsPersistentAction(
+        'Kein Base64 und bitte auch keine Präsentation',
+        ARTIFACT_NOUN_BY_KIND.presentation
+      )
+    ).toBe(true);
+  });
+
   it('survives empty and nullish input', () => {
     expect(forbidsPersistentAction('')).toBe(false);
     expect(forbidsPersistentAction(undefined as unknown as string, DOC)).toBe(false);
