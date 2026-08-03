@@ -824,7 +824,13 @@ Regeln:
 // supplementary breakdown, not a substitute for answering.
 function getComputeGuidance(state: ChatGraphState): string {
   if (state.computedResult) {
-    return '\nDer*die Nutzer*in hat eine Berechnung/Zählung angefordert. Das Ergebnis wurde bereits deterministisch per Programm berechnet (siehe BERECHNUNGSERGEBNIS unten); die Karte darüber ist eine ergänzende Anzeige, nicht deine Antwort. Beantworte die konkrete Frage direkt, hilfsbereit und konversationell in natürlicher Sprache und stütze dich dabei auf die berechneten Werte. Ordne die Zahlen ein oder fasse sie kurz zusammen (1–3 Sätze), wenn das der Frage hilft — du musst aber nicht jede Kennzahl wiederholen, die vollständige Aufschlüsselung steht in der Karte. Übernimm genannte Zahlen EXAKT und unverändert, rechne oder zähle NICHT selbst nach und erfinde keine abweichende Zahl. Verneine NICHT die Fähigkeit zu zählen/rechnen und bitte NIEMALS um das Ergebnis — es liegt bereits vor.';
+    // The "don't do your own arithmetic" rule alone was not enough, because it
+    // reads as being about the ONE figure that was computed. Live on 02.08.2026
+    // the responder obeyed it for `0.35 * 120000` and then wrote a comparison
+    // table beside it in which `42.000 + 84.000 = 120.000` and `74 − 62 = 8`
+    // were marked as correct — arithmetic nobody had computed. So the rule now
+    // names what may NOT be said about everything else: silence, not a verdict.
+    return '\nDer*die Nutzer*in hat eine Berechnung/Zählung angefordert. Das Ergebnis wurde bereits deterministisch per Programm berechnet (siehe BERECHNUNGSERGEBNIS unten); die Karte darüber ist eine ergänzende Anzeige, nicht deine Antwort. Beantworte die konkrete Frage direkt, hilfsbereit und konversationell in natürlicher Sprache und stütze dich dabei auf die berechneten Werte. Ordne die Zahlen ein oder fasse sie kurz zusammen (1–3 Sätze), wenn das der Frage hilft — du musst aber nicht jede Kennzahl wiederholen, die vollständige Aufschlüsselung steht in der Karte. Übernimm genannte Zahlen EXAKT und unverändert, rechne oder zähle NICHT selbst nach und erfinde keine abweichende Zahl. Verneine NICHT die Fähigkeit zu zählen/rechnen und bitte NIEMALS um das Ergebnis — es liegt bereits vor.\nDas BERECHNUNGSERGEBNIS ist die EINZIGE Rechnung, die geprüft ist. Bestätige oder verwirf KEINE weitere Zahl, Summe, Differenz oder Prozentangabe, die dort nicht steht — schreibe zu ihnen weder „stimmt" noch „korrekt" noch „Widerspruch". Wenn im Material noch nachrechenbare Angaben stehen, die nicht geprüft wurden, sag genau das in einem Satz.';
   }
   return '\nDer*die Nutzer*in hat eine Berechnung/Zählung angefordert, aber es konnte kein sicheres Ergebnis ermittelt werden. Erkläre in einem Satz, dass du die Berechnung nicht sicher durchführen konntest, und bitte um eine Präzisierung (z.B. den genauen Text oder Ausdruck). Erfinde niemals eine Zahl.';
 }
