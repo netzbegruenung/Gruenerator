@@ -314,7 +314,7 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/wissen/inhaltsdatenbank",
     "title": "Inhaltsdatenbank",
     "category": "Wissen",
-    "lead": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 33.504 Vektoren in der Datenbank gespeichert."
+    "lead": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 33.514 Vektoren in der Datenbank gespeichert."
   },
   {
     "url": "/docs/wissen/landesverbaende",
@@ -3099,7 +3099,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Landesverbände",
     "anchor": "#landesverbände",
     "category": "Wissen",
-    "text": "Die Landesverbände-Sammlung enthält 13.250 Vektoren aus 9 Quellen. Landesverband | Kürzel | Vektoren | ------------------------------- | ------ | ---------: | Mecklenburg-Vorpommern Fraktion | MV-F | 2.428 | Berlin Fraktion | BE-F | 2.253 | Brandenburg | BB | 2.161 | Berlin | BE | 1.834 | Mecklenburg-Vorpommern | MV | 1.412 | Sachsen-Anhalt Fraktion | LSA-F | 1.385 | Thüringen | TH | 771 | Bayern | BY | 722 | Sachsen-Anhalt | LSA | 284 | Gesamt | | 13.250 |"
+    "text": "Die Landesverbände-Sammlung enthält 13.247 Vektoren aus 9 Quellen. Landesverband | Kürzel | Vektoren | ------------------------------- | ------ | ---------: | Mecklenburg-Vorpommern Fraktion | MV-F | 2.428 | Berlin Fraktion | BE-F | 2.253 | Brandenburg | BB | 2.161 | Berlin | BE | 1.834 | Mecklenburg-Vorpommern | MV | 1.412 | Sachsen-Anhalt Fraktion | LSA-F | 1.385 | Thüringen | TH | 771 | Bayern | BY | 719 | Sachsen-Anhalt | LSA | 284 | Gesamt | | 13.247 |"
   },
   {
     "url": "/docs/wissen/inhaltsdatenbank",
@@ -3107,7 +3107,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Sammlungen",
     "anchor": "#sammlungen",
     "category": "Wissen",
-    "text": "Sammlung | Vektoren | -------------- | ---------: | Landesverbände | 19.665 | KommunalWiki | 6.773 | Bundestag | 3.304 | Böll-Stiftung | 2.209 | gruene.at | 1.007 | Grünblog | 546 | Gesamt | 33.504 |"
+    "text": "Sammlung | Vektoren | -------------- | ---------: | Landesverbände | 19.660 | KommunalWiki | 6.789 | Bundestag | 3.305 | Böll-Stiftung | 2.209 | gruene.at | 1.007 | Grünblog | 544 | Gesamt | 33.514 |"
   },
   {
     "url": "/docs/wissen/inhaltsdatenbank",
@@ -3115,7 +3115,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Übersicht",
     "anchor": "#übersicht",
     "category": "Wissen",
-    "text": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 33.504 Vektoren in der Datenbank gespeichert."
+    "text": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 33.514 Vektoren in der Datenbank gespeichert."
   },
   {
     "url": "/docs/wissen/landesverbaende",
