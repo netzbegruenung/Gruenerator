@@ -1,5 +1,5 @@
-import { useMessage, ComposerPrimitive, ThreadPrimitive } from '@assistant-ui/react';
-import { useAuiState } from '@assistant-ui/store';
+import { ComposerPrimitive, ThreadPrimitive } from '@assistant-ui/react';
+import { useAuiState, AuiIf } from '@assistant-ui/store';
 import { ArrowUp, Square } from 'lucide-react';
 import { memo, useMemo, type ReactNode } from 'react';
 
@@ -14,7 +14,7 @@ import { TypingIndicator } from '../message-parts/TypingIndicator';
 import type { NotebookMessageMetadata } from '../../runtime/NotebookModelAdapter';
 
 const ModalUserMessage = memo(function ModalUserMessage() {
-  const message = useMessage();
+  const message = useAuiState((s) => s.message);
   const text = message.content
     .filter((part): part is { type: 'text'; text: string } => part.type === 'text')
     .map((part) => part.text)
@@ -34,7 +34,7 @@ interface ModalAssistantMessageProps {
 }
 
 function ModalAssistantMessageInner({ assistantIcon }: ModalAssistantMessageProps) {
-  const message = useMessage();
+  const message = useAuiState((s) => s.message);
   const meta = message.metadata?.custom as NotebookMessageMetadata | undefined;
   const isRunning = message.status?.type === 'running';
 
@@ -154,7 +154,7 @@ export function CompactThread({
     <ThreadPrimitive.Root className={cn('flex flex-1 flex-col overflow-hidden', className)}>
       <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto scroll-smooth">
         <div className="flex-1 px-3 pb-2">
-          <ThreadPrimitive.Empty>{welcome}</ThreadPrimitive.Empty>
+          <AuiIf condition={(s) => s.thread.isEmpty}>{welcome}</AuiIf>
 
           <ThreadPrimitive.Messages
             components={{

@@ -1,14 +1,14 @@
 'use client';
 
-import { useAssistantRuntime, useComposerRuntime } from '@assistant-ui/react';
+import { useAui } from '@assistant-ui/react';
 import { useEffect, useRef } from 'react';
 
 import { notifyError } from '../../lib/notify';
 import { useAgentStore } from '../../stores/chatStore';
 
 export function AutoMessageSender() {
-  const assistantRuntime = useAssistantRuntime();
-  const composerRuntime = useComposerRuntime();
+  const aui = useAui();
+  const composerRuntime = aui.composer;
   const pendingMessage = useAgentStore((s) => s.pendingMessage);
   const setPendingMessage = useAgentStore((s) => s.setPendingMessage);
   const pendingDraft = useAgentStore((s) => s.pendingDraft);
@@ -19,8 +19,8 @@ export function AutoMessageSender() {
   useEffect(() => {
     if (!pendingInitialAssistantMessage || processingRef.current) return;
     processingRef.current = true;
-    void assistantRuntime.threads.switchToNewThread();
-  }, [pendingInitialAssistantMessage, assistantRuntime]);
+    void aui.threads.switchToNewThread();
+  }, [pendingInitialAssistantMessage, aui]);
 
   useEffect(() => {
     if (processingRef.current) return;
@@ -31,7 +31,7 @@ export function AutoMessageSender() {
     if (!text) return;
 
     processingRef.current = true;
-    void assistantRuntime.threads.switchToNewThread();
+    void aui.threads.switchToNewThread();
 
     const timer = setTimeout(() => {
       try {
@@ -60,14 +60,7 @@ export function AutoMessageSender() {
       clearTimeout(timer);
       processingRef.current = false;
     };
-  }, [
-    pendingMessage,
-    pendingDraft,
-    composerRuntime,
-    assistantRuntime,
-    setPendingMessage,
-    setPendingDraft,
-  ]);
+  }, [pendingMessage, pendingDraft, composerRuntime, aui, setPendingMessage, setPendingDraft]);
 
   return null;
 }
