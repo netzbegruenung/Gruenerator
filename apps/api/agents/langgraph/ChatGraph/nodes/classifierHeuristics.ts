@@ -28,6 +28,7 @@ import {
 import { CLASSIFIER_CONTEXT_MESSAGES, CLASSIFIER_CONTEXT_MAX_CHARS } from './classifierSignals.js';
 import {
   creationOrderPattern,
+  dictatesInlineTableColumns,
   hasExplicitSharepicWord,
   isNegatedArtifactRequest,
   negatedOrMeta,
@@ -1331,7 +1332,9 @@ const HEURISTIC_RULES: ReadonlyArray<ClassifierRule<HeuristicResult>> = [
     longPaste: 'skip',
     guard: 'negatedOrMeta',
     guardNoun: SHEET_NOUN_PATTERN,
-    match: (m) => SHEET_CREATE_PATTERN.test(m.stripped),
+    // Columns spelled out with pipes mean the table is wanted IN the answer —
+    // see `dictatesInlineTableColumns`.
+    match: (m) => SHEET_CREATE_PATTERN.test(m.stripped) && !dictatesInlineTableColumns(m.stripped),
     result: () => ({
       intent: 'create_sheet',
       searchQuery: null,

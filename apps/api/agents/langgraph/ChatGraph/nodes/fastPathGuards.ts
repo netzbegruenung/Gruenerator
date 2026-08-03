@@ -130,6 +130,26 @@ export function isNegatedArtifactRequest(text: string, nounPattern: RegExp): boo
   return false;
 }
 
+/**
+ * The message dictates the table's columns inline, pipe-separated: "Erstelle
+ * eine Tabelle mit genau neun Zeilen: Nr. | PASS/FAIL | kürzester konkreter
+ * Grund", "Gib eine Tabelle mit den Spalten Thema | Aussage A | Status".
+ *
+ * Someone who writes out a Markdown table header is describing what they want
+ * to READ in the answer, not a spreadsheet to open — and a sheet artifact costs
+ * them the answer they asked for, because the chat then says "Tabelle wurde
+ * erstellt" and shows a card. Observed twice: 02.08. (an unasked second table
+ * after a correction) and 03.08. (the self-check table).
+ *
+ * Two separators required, on one line: a single pipe is ordinary punctuation.
+ */
+const INLINE_TABLE_COLUMNS_RE = /^[^\n]*\S[ \t]*\|[ \t]*\S[^\n]*\|[^\n]*$/m;
+
+/** True when the turn spells out a pipe-separated table header inline. */
+export function dictatesInlineTableColumns(text: string): boolean {
+  return typeof text === 'string' && INLINE_TABLE_COLUMNS_RE.test(text);
+}
+
 // A question-word-initial message that mentions the artifact noun is a question
 // ABOUT the artifact ("Was macht ein gutes Sharepic aus?"), not a request to
 // create one. Generalizes SOCIAL_META_QUESTION_PATTERN (classifierHeuristics.ts).
