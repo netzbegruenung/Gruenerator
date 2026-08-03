@@ -44,9 +44,13 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile --filter @gruenerator/api...
 
+      # Kein continue-on-error mehr: es hat den Fehlercode des Skripts
+      # geschluckt und damit den einzigen Kanal, über den ein kaputter Lauf
+      # sichtbar geworden wäre. Das Skript wird nur noch rot, wenn die
+      # Anmeldung fehlt oder ausnahmslos jedes Audit gescheitert ist — ein
+      # einzelnes flakiges Dokument bleibt eine Warnung.
       - name: Run docs freshness check
         id: check
-        continue-on-error: true
         run: |
           ARGS=""
           # Scheduled runs apply issue changes; manual runs apply unless dry_run=true.
