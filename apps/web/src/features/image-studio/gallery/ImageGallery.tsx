@@ -422,7 +422,7 @@ const ImageGallery = () => {
 
   if (isLoading && imageShares.length === 0) {
     return (
-      <div className="mx-auto flex min-h-[calc(100vh-140px)] max-w-[var(--container-max-width)] flex-col p-lg min-[1400px]:max-w-[90vw] max-[768px]:min-h-[calc(100vh-100px)] max-[768px]:p-md">
+      <div className="mx-auto flex min-h-[calc(100dvh-140px)] max-w-[var(--container-max-width)] flex-col p-lg min-[1400px]:max-w-[90vw] max-[768px]:min-h-[calc(100dvh-100px)] max-[768px]:p-md">
         <div className="mb-lg flex items-center justify-between gap-md max-[768px]:mb-md max-[768px]:flex-col max-[768px]:items-stretch">
           <h1 className="m-0 text-2xl font-bold text-foreground-heading max-[768px]:text-xl">
             Meine Bilder
@@ -448,7 +448,7 @@ const ImageGallery = () => {
 
   if (error) {
     return (
-      <div className="mx-auto flex min-h-[calc(100vh-140px)] max-w-[var(--container-max-width)] flex-col p-lg min-[1400px]:max-w-[90vw] max-[768px]:min-h-[calc(100vh-100px)] max-[768px]:p-md">
+      <div className="mx-auto flex min-h-[calc(100dvh-140px)] max-w-[var(--container-max-width)] flex-col p-lg min-[1400px]:max-w-[90vw] max-[768px]:min-h-[calc(100dvh-100px)] max-[768px]:p-md">
         <div className="mb-lg flex items-center justify-between gap-md max-[768px]:mb-md max-[768px]:flex-col max-[768px]:items-stretch">
           <h1 className="m-0 text-2xl font-bold text-foreground-heading max-[768px]:text-xl">
             Meine Bilder
@@ -466,7 +466,7 @@ const ImageGallery = () => {
 
   if (imageShares.length === 0) {
     return (
-      <div className="mx-auto flex min-h-[calc(100vh-140px)] max-w-[var(--container-max-width)] flex-col p-lg min-[1400px]:max-w-[90vw] max-[768px]:min-h-[calc(100vh-100px)] max-[768px]:p-md">
+      <div className="mx-auto flex min-h-[calc(100dvh-140px)] max-w-[var(--container-max-width)] flex-col p-lg min-[1400px]:max-w-[90vw] max-[768px]:min-h-[calc(100dvh-100px)] max-[768px]:p-md">
         <div className="mb-lg flex items-center justify-between gap-md max-[768px]:mb-md max-[768px]:flex-col max-[768px]:items-stretch">
           <h1 className="m-0 text-2xl font-bold text-foreground-heading max-[768px]:text-xl">
             Meine Bilder
@@ -494,7 +494,7 @@ const ImageGallery = () => {
   }
 
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-140px)] max-w-[var(--container-max-width)] flex-col p-lg min-[1400px]:max-w-[90vw] max-[768px]:min-h-[calc(100vh-100px)] max-[768px]:p-md">
+    <div className="mx-auto flex min-h-[calc(100dvh-140px)] max-w-[var(--container-max-width)] flex-col p-lg min-[1400px]:max-w-[90vw] max-[768px]:min-h-[calc(100dvh-100px)] max-[768px]:p-md">
       <div className="mb-lg flex items-center justify-between gap-md max-[768px]:mb-md max-[768px]:flex-col max-[768px]:items-stretch">
         <h1 className="m-0 text-2xl font-bold text-foreground-heading max-[768px]:text-xl">
           Meine Bilder
