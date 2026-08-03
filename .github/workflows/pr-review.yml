@@ -91,7 +91,7 @@ jobs:
             (PLAUSIBLE, Stil, Vereinfachung, Effizienz, Testabdeckung) zählt zu
             `advisory` und blockiert nicht.
           claude_args: |
-            --model ${{ vars.PR_REVIEW_MODEL || 'claude-opus-5' }}
+            --model ${{ vars.PR_REVIEW_MODEL || 'claude-sonnet-5' }}
             --allowedTools "mcp__github_inline_comment__create_inline_comment,Read,Grep,Glob,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(git diff:*),Bash(git log:*)"
             --json-schema '{"type":"object","properties":{"overview":{"type":"string"},"confirmed_blocking":{"type":"integer"},"advisory":{"type":"integer"},"blocking_titles":{"type":"array","items":{"type":"string"}}},"required":["overview","confirmed_blocking","advisory","blocking_titles"]}'
 
