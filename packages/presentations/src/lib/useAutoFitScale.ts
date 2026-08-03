@@ -92,7 +92,11 @@ export function useAutoFitScale(
     if (!el || el.clientHeight === 0) return;
     const chosen = pickScale((s) => {
       el.style.setProperty('--gs-font-scale', String(s));
-      return el.scrollHeight <= el.clientHeight + 1;
+      // Both axes: text only ever overflows downwards, but a table column or an
+      // image with intrinsic dimensions overflows sideways, where the surface
+      // clips it without ever growing taller — a height-only probe reports that
+      // as "fits".
+      return el.scrollHeight <= el.clientHeight + 1 && el.scrollWidth <= el.clientWidth + 1;
     }, scaleRef.current);
     // The walk may have ended on a rejected probe — apply the winner.
     el.style.setProperty('--gs-font-scale', String(chosen));
