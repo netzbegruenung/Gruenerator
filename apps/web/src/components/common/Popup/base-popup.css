@@ -112,7 +112,7 @@
   flex: 1;
   min-height: 450px;
   height: 550px;
-  max-height: min(650px, calc(var(--app-height, 100vh) - 100px));
+  max-height: min(650px, calc(100dvh - 100px));
   overflow: hidden;
   background: linear-gradient(135deg, var(--neutral-50), var(--neutral-100));
   box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -238,7 +238,7 @@
   position: relative;
   min-height: 450px;
   height: 550px;
-  max-height: min(650px, calc(var(--app-height, 100vh) - 100px));
+  max-height: min(650px, calc(100dvh - 100px));
   overflow: hidden;
 }
 
@@ -683,10 +683,10 @@
   }
 
   .base-popup-modal {
-    width: 100vw;
-    height: 100vh;
-    max-width: 100vw;
-    max-height: 100vh;
+    width: 100%;
+    height: 100dvh;
+    max-width: 100%;
+    max-height: 100dvh;
     border-radius: 0;
     border: none;
     box-shadow: none;
@@ -713,20 +713,16 @@
   }
 
   .popup-slider-container {
-    height: 100vh;
-    height: var(--app-height, 100vh);
-    max-height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
     border-radius: 0;
     margin: 0;
   }
 
   .popup-single-container {
-    min-height: 100vh;
-    min-height: var(--app-height, 100vh);
-    height: 100vh;
-    height: var(--app-height, 100vh);
-    max-height: 100vh;
-    max-height: var(--app-height, 100vh);
+    min-height: 100dvh;
+    height: 100dvh;
+    max-height: 100dvh;
   }
 
   .popup-slider-dots {
@@ -906,7 +902,7 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    height: 100vh;
+    height: 100dvh;
     padding: calc(env(safe-area-inset-top, 20px) + 60px) 20px
              calc(env(safe-area-inset-bottom, 20px) + 80px) 20px;
   }

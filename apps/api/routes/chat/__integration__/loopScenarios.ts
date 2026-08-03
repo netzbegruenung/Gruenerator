@@ -20,7 +20,7 @@ import { type ScriptedResponse } from './harness/loopScript.js';
  * Same honesty rule as the sibling registry: `note` is required and states the
  * model assumption. Here the assumption is narrower and cheaper to hold, because
  * the scripted text is checked against the real predicates
- * (`looksLikeSynthRefusal`, `looksDegenerateSynth`) rather than against a guess
+ * (`looksLikeSynthRefusal`, `looksLikeToolPlanLeak`) rather than against a guess
  * about what a provider would emit.
  */
 
@@ -54,9 +54,9 @@ export interface LoopScenario {
 const ENGLISH_REFUSAL = "I'm sorry, I can't help with that request.";
 
 /**
- * Trips `looksDegenerateSynth`: under 200 chars, at least three words, no markup,
- * and no German function word. This is the shape the live failure had — the synth
- * model imitating the tool-call pattern instead of answering.
+ * Trips `looksLikeToolPlanLeak`: under 200 chars, at least three words, no markup,
+ * and an opening that announces an action. This is the shape the live failure had
+ * — the synth model imitating the tool-call pattern instead of answering.
  */
 const LEAKED_PLAN = 'Now I will perform another search to gather more evidence.';
 
@@ -88,17 +88,17 @@ export const LOOP_SCENARIOS: readonly LoopScenario[] = [
     mustDecide: [{ point: 'loop.synth_verdict', chose: 'refusal_swapped' }],
   },
   {
-    id: 'loop-synth-degeneriert-wiederholt',
+    id: 'loop-synth-werkzeugplan-wiederholt',
     category: 'synth-verdict',
-    note: 'Geleakter Plan statt Antwort — der live beobachtete Fall. Der zweite Versuch liefert Prosa, der Nutzer sieht die Degeneration nie, weil der Emitter den ersten Absatz zurueckhaelt.',
+    note: 'Geleakter Plan statt Antwort — der live beobachtete Fall. Der zweite Versuch liefert Prosa, der Nutzer sieht den geleakten Plan nie, weil der Emitter den ersten Absatz zurueckhaelt.',
     prompt: LOOP_PROMPT,
     streams: [{ text: '' }, { text: LEAKED_PLAN }, { text: GERMAN_ANSWER }],
-    mustDecide: [{ point: 'loop.synth_verdict', chose: 'degenerate_retried' }],
+    mustDecide: [{ point: 'loop.synth_verdict', chose: 'tool_plan_retried' }],
   },
   {
-    id: 'loop-synth-zweimal-degeneriert',
+    id: 'loop-synth-zweimal-werkzeugplan',
     category: 'synth-verdict',
-    note: 'Beide Versuche degeneriert. Der Loop gibt dann bewusst LEEREN Text zurueck, damit der ehrliche Keine-Antwort-Pfad des Aufrufers greift statt eine geleakte Planungszeile auszuliefern.',
+    note: 'Beide Versuche nur Plan. Der Loop gibt dann bewusst LEEREN Text zurueck, damit der ehrliche Keine-Antwort-Pfad des Aufrufers greift statt eine geleakte Planungszeile auszuliefern.',
     prompt: LOOP_PROMPT,
     streams: [{ text: '' }, { text: LEAKED_PLAN }, { text: LEAKED_PLAN }],
     mustDecide: [{ point: 'loop.synth_verdict', chose: 'retry_failed_empty' }],

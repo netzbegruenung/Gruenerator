@@ -380,6 +380,20 @@ export function buildAdapterResult(params: {
         }))
       : undefined;
 
+  // "The model called a tool" and "here is the call" disagreeing. Consumers see
+  // only the second half and report the first: on 02.08.2026 a sheet generation
+  // logged `Kein Tool-Aufruf und kein verwertbares JSON (stop_reason=tool_use)`
+  // and burned a full retry — 16 of the turn's 25 seconds — on a contradiction
+  // nothing recorded. Cheap to print, and it is the only place that still holds
+  // the provider's own view of the response.
+  if (result.finishReason === 'tool-calls' && !toolCalls) {
+    console.warn(
+      `[${provider}Adapter ${requestId}] finishReason=tool-calls but no tool call was returned ` +
+        `for type=${type}, model=${model}. text=${textContent?.length ?? 0} chars. ` +
+        `The caller will see this as "no tool call" and retry.`
+    );
+  }
+
   const rawContentBlocks: ContentBlock[] = [];
   if (textContent) rawContentBlocks.push({ type: 'text', text: textContent });
   for (const tc of toolCalls ?? []) {
