@@ -17,6 +17,7 @@ vi.mock('../../../database/services/PostgresService.js', () => ({
 }));
 
 const {
+  createMessage,
   createPendingAssistantMessage,
   updatePendingAssistantText,
   finalizeAssistantMessage,
@@ -32,6 +33,18 @@ const params = (): unknown[] => queryMock.mock.calls.at(-1)?.[1] as unknown[];
 beforeEach(() => {
   queryMock.mockReset();
   queryMock.mockResolvedValue([]);
+});
+
+describe('createMessage', () => {
+  it('returns the persisted message id for attachment linking', async () => {
+    queryMock.mockResolvedValueOnce([{ id: 'user-message-1' }]);
+
+    await expect(createMessage('thread-1', 'user', 'Hallo', undefined, 'user-1')).resolves.toBe(
+      'user-message-1'
+    );
+    expect(sql()).toContain('RETURNING id');
+    expect(params()).toEqual(['thread-1', 'user', 'Hallo', null, 'user-1']);
+  });
 });
 
 describe('createPendingAssistantMessage', () => {

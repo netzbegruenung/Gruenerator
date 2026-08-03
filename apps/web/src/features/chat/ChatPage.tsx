@@ -311,6 +311,7 @@ function ChatPage() {
             // composer's light and not the page's colour.
             {...(chatBackground.key === 'neutral' ? {} : { className: 'chat-thread-glow' })}
             composerVariant={COMPOSER_VARIANT}
+            enablePastedTextAttachments
             userLocale={userLocale}
           />
         )}

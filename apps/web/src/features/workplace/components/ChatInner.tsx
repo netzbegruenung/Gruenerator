@@ -95,6 +95,7 @@ const ChatInnerReady: React.FC = () => {
         firstName={firstName}
         presets={WORKPLACE_PRESETS}
         requireProfileHydration
+        enablePastedTextAttachments
       />
     </ThreadPrimitive.Root>
   );
