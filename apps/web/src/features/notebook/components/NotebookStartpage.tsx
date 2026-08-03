@@ -76,7 +76,7 @@ type BrowseTab = 'zuletzt' | 'agenten' | 'stats';
 // `notebookTheme` module; re-exported here for existing importers.
 export { NOTEBOOK_MAGENTA_BG };
 
-const HERO_FILL = 'relative flex min-h-[calc(100vh-11rem)] flex-col';
+const HERO_FILL = 'relative flex min-h-[calc(100dvh-11rem)] flex-col';
 
 const SEG_CONTAINER = cn(
   'inline-flex gap-0.5 rounded-full p-1',
