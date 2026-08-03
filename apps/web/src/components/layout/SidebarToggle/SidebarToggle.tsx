@@ -17,7 +17,7 @@ const SidebarToggle = memo(({ variant = 'default' }: SidebarToggleProps) => {
   return (
     <button
       className={cn(
-        'flex items-center justify-center w-10 h-10 p-0 border-none cursor-pointer rounded-sm transition-colors duration-150 hover:bg-hover-alt bg-transparent',
+        'flex items-center justify-center w-10 h-10 pointer-coarse:w-11 pointer-coarse:h-11 p-0 border-none cursor-pointer rounded-sm transition-colors duration-150 hover:bg-hover-alt bg-transparent',
         variant === 'default' &&
           'max-sm:bg-background/80 max-sm:backdrop-blur-sm max-sm:shadow-sm max-sm:rounded-lg'
       )}
