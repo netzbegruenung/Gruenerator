@@ -42,6 +42,9 @@ export interface SlideThumbnailListProps {
   brand?: string | null;
   showLogo?: boolean;
   orientation?: ThumbnailOrientation;
+  /** Primary pointer is a finger: show and enlarge the card controls, and make
+   * the whole card draggable rather than the pinpoint grip icon. */
+  touch?: boolean;
   onSelect: (index: number) => void;
   onAdd: () => void;
   onDelete: (index: number) => void;
@@ -58,6 +61,7 @@ interface SortableSlideCardProps {
   showLogo?: boolean;
   slideCount: number;
   orientation: ThumbnailOrientation;
+  touch: boolean;
   onSelect: (index: number) => void;
   onDelete: (index: number) => void;
   onMove: (from: number, to: number) => void;
@@ -73,6 +77,7 @@ function SortableSlideCard({
   showLogo,
   slideCount,
   orientation,
+  touch,
   onSelect,
   onDelete,
   onMove,
@@ -89,10 +94,17 @@ function SortableSlideCard({
     opacity: isDragging ? 0.6 : undefined,
   };
 
-  // In the touch layouts the grip icon would be far below a 44px target, so the
-  // whole card becomes the drag handle instead: the TouchSensor's 200ms delay
-  // keeps a plain tap working as "select".
-  const dragWholeCard = editable && orientation !== 'vertical';
+  // With a finger the grip icon would be far below a 44px target, so the whole
+  // card becomes the drag handle instead: the TouchSensor's 200ms delay keeps a
+  // plain tap working as "select". Also applies to the vertical rail — a tablet
+  // is wide enough for the rail and still has no cursor to aim the grip with.
+  const dragWholeCard = editable && (touch || orientation !== 'vertical');
+
+  // A 12px icon in 2px of padding is a cursor-only target. With a finger the
+  // card controls grow; 36px rather than the full 44 so they still fit three
+  // abreast on a 190px rail card — dragging the card itself is the primary
+  // reorder gesture on touch, these are the fallback.
+  const controlClass = touch ? 'flex h-9 w-9 items-center justify-center' : 'p-0.5';
 
   // Keep the selected slide visible when the filmstrip is longer than the
   // screen and selection changed from elsewhere (swipe, nav arrows, delete).
@@ -150,17 +162,17 @@ function SortableSlideCard({
       {editable && orientation !== 'horizontal' && (
         <div
           className={`absolute right-1.5 top-1.5 flex gap-0.5 transition-opacity ${
-            orientation === 'grid'
+            orientation === 'grid' || touch
               ? 'opacity-100'
-              : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 max-md:opacity-100'
+              : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
           }`}
         >
-          {orientation === 'vertical' && (
+          {orientation === 'vertical' && !dragWholeCard && (
             <button
               type="button"
               {...attributes}
               {...listeners}
-              className="cursor-grab touch-none rounded bg-white/95 p-0.5 text-grey-700 shadow-sm hover:bg-white active:cursor-grabbing dark:bg-grey-800/90 dark:text-grey-200 max-md:p-2"
+              className={`cursor-grab touch-none rounded bg-white/95 text-grey-700 shadow-sm hover:bg-white active:cursor-grabbing dark:bg-grey-800/90 dark:text-grey-200 ${controlClass}`}
               aria-label="Folie ziehen zum Umsortieren"
               title="Ziehen zum Umsortieren"
             >
@@ -171,7 +183,7 @@ function SortableSlideCard({
             type="button"
             onClick={() => onMove(index, index - 1)}
             disabled={index === 0}
-            className="rounded bg-white/95 p-0.5 text-grey-700 shadow-sm hover:bg-white disabled:opacity-40 dark:bg-grey-800/90 dark:text-grey-200 max-md:p-2"
+            className={`rounded bg-white/95 text-grey-700 shadow-sm hover:bg-white disabled:opacity-40 dark:bg-grey-800/90 dark:text-grey-200 ${controlClass}`}
             aria-label="Nach vorne"
             title="Nach vorne"
           >
@@ -181,7 +193,7 @@ function SortableSlideCard({
             type="button"
             onClick={() => onMove(index, index + 1)}
             disabled={index === slideCount - 1}
-            className="rounded bg-white/95 p-0.5 text-grey-700 shadow-sm hover:bg-white disabled:opacity-40 dark:bg-grey-800/90 dark:text-grey-200 max-md:p-2"
+            className={`rounded bg-white/95 text-grey-700 shadow-sm hover:bg-white disabled:opacity-40 dark:bg-grey-800/90 dark:text-grey-200 ${controlClass}`}
             aria-label="Nach hinten"
             title="Nach hinten"
           >
@@ -191,7 +203,7 @@ function SortableSlideCard({
             type="button"
             onClick={() => onDelete(index)}
             disabled={slideCount <= 1}
-            className="rounded bg-white/95 p-0.5 text-red-600 shadow-sm hover:bg-white disabled:opacity-40 dark:bg-grey-800/90 max-md:p-2"
+            className={`rounded bg-white/95 text-red-600 shadow-sm hover:bg-white disabled:opacity-40 dark:bg-grey-800/90 ${controlClass}`}
             aria-label="Folie löschen"
             title="Folie löschen"
           >
@@ -233,6 +245,7 @@ export function SlideThumbnailList({
   brand,
   showLogo,
   orientation = 'vertical',
+  touch = false,
   onSelect,
   onAdd,
   onDelete,
@@ -281,6 +294,7 @@ export function SlideThumbnailList({
               showLogo={showLogo}
               slideCount={slides.length}
               orientation={orientation}
+              touch={touch}
               onSelect={onSelect}
               onDelete={onDelete}
               onMove={onMove}
