@@ -25,7 +25,7 @@ import {
   type PresentationBrandTheme,
   type Slide,
 } from '@gruenerator/contracts';
-import { marked, type Token } from 'marked';
+import { marked, type Token, type Tokens } from 'marked';
 
 import { validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
 
@@ -89,6 +89,19 @@ const PILL_BG = 'EAF2EE';
 const PILL_BG_DARK_ALPHA = 84;
 
 const IMAGE_MAX_H = 380; // .layout-image .gruene-slide__body img max-height
+const BODY_IMAGE_MAX_H = 320; // .gruene-slide__body img max-height
+
+// Tables (.gruene-slide__body table/th/td).
+const TABLE_FS = 24;
+const TABLE_PAD_X = 14;
+const TABLE_PAD_Y = 10;
+const TABLE_GAP = 12; // table margin-bottom
+const TABLE_ZEBRA = 'F0F5F2'; // tbody tr:nth-child(even) td
+const TABLE_RULE = 'DDE0DE'; // td border-bottom over a white surface
+/** `rgba(255,255,255,.16)` / `.07` on a dark surface, as white + transparency. */
+const TABLE_HEAD_DARK_ALPHA = 84;
+const TABLE_ZEBRA_DARK_ALPHA = 93;
+const TABLE_RULE_DARK = '6E7E74';
 
 // ── Palette (brand-neutral values; country CI comes from PRESENTATION_BRANDS) ─
 const INK = '262A28';
@@ -225,12 +238,50 @@ async function measureBlocks(
         const h = lines * lineBox;
         total += (opts.variant === 2 ? Math.max(h, PILL_SIZE) : h) + ITEM_GAP;
       }
+    } else if (block.kind === 'table') {
+      total += (await measureTableRows(block.rows, ctx, opts.widthPx)).total + TABLE_GAP;
+    } else if (block.kind === 'image') {
+      // An image is not decoded here — `object-fit: contain` inside a box capped
+      // at the CSS max-height is what the browser shows, so the box height is
+      // the honest measurement either way.
+      total += BODY_IMAGE_MAX_H;
     } else {
       const lines = await countLines(block.para.runs, { ...wrap, maxWidthPx: opts.widthPx });
       total += lines * lineBox + (block.kind === 'para' ? PARA_GAP * opts.fontPx : 0);
     }
   }
   return total;
+}
+
+/**
+ * Row heights of a table, in slide px at scale 1. `table-layout: fixed` in the
+ * deck CSS means every column is the same width, so the wrap width per cell is
+ * a division and not a content measurement — and a row is as tall as its
+ * tallest cell.
+ */
+async function measureTableRows(
+  rows: TableRow[],
+  ctx: BrandCtx,
+  widthPx: number
+): Promise<{ colW: number; heights: number[]; total: number }> {
+  const columns = rows.reduce((max, row) => Math.max(max, row.cells.length), 0);
+  const colW = columns > 0 ? widthPx / columns : widthPx;
+  const textW = colW - TABLE_PAD_X * 2;
+  const heights: number[] = [];
+  for (const row of rows) {
+    let tallest = 1;
+    for (const cell of row.cells) {
+      const lines = await countLines(cell.runs, {
+        faces: ctx.faces,
+        fontPx: TABLE_FS,
+        maxWidthPx: textW,
+        ...(row.header ? { face: ctx.faces.heading, bold: true } : {}),
+      });
+      if (lines > tallest) tallest = lines;
+    }
+    heights.push(tallest * TABLE_FS * BODY_LH + TABLE_PAD_Y * 2);
+  }
+  return { colW, heights, total: heights.reduce((sum, h) => sum + h, 0) };
 }
 
 /** Row heights of the two-column card grid, in slide px at scale 1. */
@@ -547,7 +598,15 @@ interface Para {
 type Block =
   | { kind: 'list'; ordered: boolean; items: Para[] }
   | { kind: 'para'; para: Para }
-  | { kind: 'code'; para: Para };
+  | { kind: 'code'; para: Para }
+  | { kind: 'table'; rows: TableRow[] }
+  | { kind: 'image'; src: string; alt: string };
+
+/** One table row. `header` drives the accent fill and the heading face. */
+interface TableRow {
+  header: boolean;
+  cells: Para[];
+}
 
 /** How list markers are produced: by PowerPoint, or by shapes we draw ourselves. */
 type BulletStyle = 'dot' | 'number' | 'none';
@@ -613,21 +672,80 @@ function bodyToBlocks(
           ],
         },
       });
+    } else if (tok.type === 'table') {
+      const table = token as Tokens.Table;
+      const row = (cells: Tokens.TableCell[], header: boolean): TableRow => ({
+        header,
+        cells: cells.map((cell) => {
+          const runs: Run[] = [];
+          collectRuns(cell.tokens, header ? { bold: true } : {}, runs);
+          return para(runs, {});
+        }),
+      });
+      const rows: TableRow[] = [];
+      if (table.header.length) rows.push(row(table.header, true));
+      for (const r of table.rows) rows.push(row(r, false));
+      if (rows.length) blocks.push({ kind: 'table', rows });
     } else if (tok.type === 'paragraph') {
-      const runs: Run[] = [];
-      collectRuns(tok.tokens, {}, runs);
-      blocks.push({ kind: 'para', para: para(runs, { italic: opts.italic }) });
+      // Images are block-level on a slide, so a paragraph mixing prose and
+      // `![…](…)` becomes several blocks — mirroring `paragraphToPM` on the
+      // markdown→ProseMirror side, which is what produced this body.
+      let runs: Run[] = [];
+      const flush = () => {
+        if (!runs.length) return;
+        blocks.push({ kind: 'para', para: para(runs, { italic: opts.italic }) });
+        runs = [];
+      };
+      for (const inline of tok.tokens ?? []) {
+        if (inline.type === 'image') {
+          flush();
+          const image = inline as Tokens.Image;
+          if (image.href) blocks.push({ kind: 'image', src: image.href, alt: image.text ?? '' });
+        } else {
+          collectRuns([inline], {}, runs);
+        }
+      }
+      flush();
     }
   }
 
   return blocks;
 }
 
-/** Every paragraph in document order — the unit the split layout may cut on. */
+/** Whether a body needs shapes placed one below the other rather than one text box. */
+function needsStackedBody(blocks: Block[]): boolean {
+  return blocks.some((b) => b.kind === 'table' || b.kind === 'image');
+}
+
+/**
+ * Every paragraph in document order — the unit the split layout may cut on.
+ *
+ * Used by the layouts that put the whole body in ONE text box (title, quote),
+ * where a shape cannot be placed. A table degrades to one line per row rather
+ * than disappearing; an image has no text form and is left to the layouts that
+ * place shapes (see `addStackedBody`).
+ */
 function blocksToParagraphs(blocks: Block[]): PptxTextProps[][] {
-  return blocks.flatMap((block) =>
-    block.kind === 'list' ? block.items.map((i) => i.props) : [block.para.props]
-  );
+  return blocks.flatMap((block) => {
+    if (block.kind === 'list') return block.items.map((i) => i.props);
+    if (block.kind === 'image') return [];
+    if (block.kind === 'table') {
+      // `emitLine` terminates every paragraph with `breakLine`, so a row's cells
+      // have to be un-terminated first or each cell would land on its own line.
+      return block.rows.map((row) => {
+        const props: PptxTextProps[] = [];
+        row.cells.forEach((cell, i) => {
+          if (i > 0) props.push({ text: ' · ', options: { ...cell.props[0]?.options } });
+          for (const p of cell.props) props.push({ ...p, options: { ...p.options } });
+        });
+        for (const p of props) if (p.options) p.options.breakLine = false;
+        const last = props[props.length - 1];
+        if (last?.options) last.options.breakLine = true;
+        return props;
+      });
+    }
+    return [block.para.props];
+  });
 }
 
 /**
@@ -1027,6 +1145,182 @@ async function addNumberedList(
 }
 
 /** Content / split layouts: title top, bullet (or card / numbered / two-column) body. */
+/**
+ * Place a text box exactly as tall as its wrapped content and return the y
+ * below it. `gap` is the trailing rhythm (list item margin or paragraph
+ * margin); `padPx` is the inline padding the marker occupies.
+ */
+async function addFlowText(
+  slide: PptxSlide,
+  paras: Para[],
+  top: number,
+  gap: number,
+  padPx: number,
+  ctx: BrandCtx,
+  ts: TypeScale
+): Promise<number> {
+  const fontPx = BODY_FS * ts.fs;
+  let h = 0;
+  for (const para of paras) {
+    const lines = await countLines(para.runs, {
+      faces: ctx.faces,
+      fontPx,
+      maxWidthPx: CONTENT_W_PX - padPx,
+    });
+    h += lines * fontPx * BODY_LH + gap;
+  }
+  slide.addText(
+    paras.flatMap((p) => p.props),
+    {
+      x: MARGIN,
+      y: inch(top),
+      w: CONTENT_W,
+      h: inch(h),
+      fontSize: pt(fontPx),
+      valign: 'top',
+      lineSpacingMultiple: BODY_LH,
+    }
+  );
+  return top + h;
+}
+
+/**
+ * A real PowerPoint table, styled like `.gruene-slide__body table`: accent
+ * header row, zebra body rows, a hairline rule under each body row.
+ *
+ * The deck CSS sets `table-layout: fixed; width: 100%`, so the columns are
+ * equal and the table always spans the content width — only type and padding
+ * follow the type scale. `fit: 'shrink'` does not apply to a table, which is
+ * why the row heights come from the same measurement the auto-fit step used.
+ */
+async function addTableBlock(
+  slide: PptxSlide,
+  block: Extract<Block, { kind: 'table' }>,
+  top: number,
+  accentHex: string,
+  dark: boolean,
+  ctx: BrandCtx,
+  ts: TypeScale
+): Promise<number> {
+  const { heights, total } = await measureTableRows(block.rows, ctx, CONTENT_W_PX);
+  const columns = block.rows.reduce((max, row) => Math.max(max, row.cells.length), 0);
+  if (!columns) return top;
+
+  const headOffset = block.rows[0]?.header ? 1 : 0;
+  const rule = dark ? TABLE_RULE_DARK : TABLE_RULE;
+  const rows = block.rows.map((row, i) => {
+    const zebra = !row.header && (i - headOffset) % 2 === 1;
+    const fill = row.header
+      ? dark
+        ? { color: WHITE, transparency: TABLE_HEAD_DARK_ALPHA }
+        : { color: accentHex, transparency: 0 }
+      : zebra
+        ? dark
+          ? { color: WHITE, transparency: TABLE_ZEBRA_DARK_ALPHA }
+          : { color: TABLE_ZEBRA, transparency: 0 }
+        : undefined;
+    return Array.from({ length: columns }, (_, c) => {
+      const cell = row.cells[c];
+      // Cell runs must not break the line — pptxgenjs would add a paragraph.
+      const text = cell
+        ? cell.props.map((p) => ({ ...p, options: { ...p.options, breakLine: false } }))
+        : [{ text: '' }];
+      return {
+        text,
+        options: {
+          color: row.header ? WHITE : bodyColor(dark),
+          fontFace: row.header ? ctx.fontHead : ctx.fontBody,
+          fontSize: pt(TABLE_FS * ts.fs),
+          bold: row.header,
+          valign: 'top' as const,
+          margin: [
+            pt(TABLE_PAD_Y * ts.fs),
+            pt(TABLE_PAD_X * ts.fs),
+            pt(TABLE_PAD_Y * ts.fs),
+            pt(TABLE_PAD_X * ts.fs),
+          ] as [number, number, number, number],
+          ...(fill ? { fill } : {}),
+          border: row.header
+            ? ([{ type: 'none' }, { type: 'none' }, { type: 'none' }, { type: 'none' }] as const)
+            : ([
+                { type: 'none' },
+                { type: 'none' },
+                { pt: 0.75, color: rule },
+                { type: 'none' },
+              ] as const),
+        },
+      };
+    });
+  });
+
+  // Boundary cast: pptxgenjs types a cell's rich text as its own TextProps
+  // array, which our Para already holds — structurally identical, nominally not.
+  slide.addTable(rows as unknown as Parameters<PptxSlide['addTable']>[0], {
+    x: MARGIN,
+    y: inch(top),
+    w: CONTENT_W,
+    colW: Array.from({ length: columns }, () => CONTENT_W / columns),
+    rowH: heights.map((h) => inch(h * ts.fs)),
+    autoPage: false,
+  });
+  return top + total * ts.fs + TABLE_GAP * ts.fs;
+}
+
+/**
+ * A body image, fitted like `object-fit: contain` inside the CSS max-height box.
+ * The box is reserved whether or not the fetch succeeds, so a dead URL leaves a
+ * gap instead of pulling everything below it up out of place.
+ */
+async function addBodyImage(
+  slide: PptxSlide,
+  block: Extract<Block, { kind: 'image' }>,
+  top: number,
+  ts: TypeScale
+): Promise<number> {
+  const boxH = BODY_IMAGE_MAX_H * ts.fs;
+  const data = await fetchImageData(block.src);
+  if (data) {
+    const box = { x: MARGIN, y: inch(top), w: CONTENT_W, h: inch(boxH) };
+    const size = await imageSize(data);
+    const rect = size ? containRect(size.w, size.h, box) : box;
+    slide.addImage({ data, ...rect, ...(block.alt ? { altText: block.alt } : {}) });
+  }
+  return top + boxH;
+}
+
+/**
+ * Bodies whose blocks are placed one below the other instead of poured into a
+ * single text box. Needed by the content variants that draw their own markers,
+ * and by any body holding a table or an image — neither is text, so neither can
+ * live in a text box.
+ */
+async function addStackedBody(
+  slide: PptxSlide,
+  blocks: Block[],
+  variant: number,
+  accentHex: string,
+  dark: boolean,
+  ctx: BrandCtx,
+  ts: TypeScale
+): Promise<void> {
+  let y = ts.bodyTop;
+  for (const block of blocks) {
+    if (block.kind === 'list') {
+      if (variant === 1) y = await addCardGrid(slide, block.items, y, dark, ctx, ts);
+      else if (variant === 2)
+        y = await addNumberedList(slide, block.items, y, accentHex, dark, ctx, ts);
+      else
+        y = await addFlowText(slide, block.items, y, ITEM_GAP * ts.fs, BULLET_PAD * ts.fs, ctx, ts);
+    } else if (block.kind === 'table') {
+      y = await addTableBlock(slide, block, y, accentHex, dark, ctx, ts);
+    } else if (block.kind === 'image') {
+      y = await addBodyImage(slide, block, y, ts);
+    } else {
+      y = await addFlowText(slide, [block.para], y, PARA_GAP * BODY_FS * ts.fs, 0, ctx, ts);
+    }
+  }
+}
+
 async function addContentSlide(
   slide: PptxSlide,
   data: Slide,
@@ -1056,6 +1350,14 @@ async function addContentSlide(
   const bodyY = inch(ts.bodyTop);
   const bodyH = inch(ts.bodyH);
 
+  // A table or an image is a shape, not text, so it cannot be poured into a
+  // column or a single box — those bodies always stack. This also takes the
+  // split layout: two 4.25in columns are no place for a table anyway.
+  if (variant === 1 || variant === 2 || needsStackedBody(blocks)) {
+    await addStackedBody(slide, blocks, variant, accentHex, dark, ctx, ts);
+    return;
+  }
+
   if (split) {
     // Split on PARAGRAPH boundaries, never inside one.
     const paragraphs = blocksToParagraphs(blocks);
@@ -1083,38 +1385,6 @@ async function addContentSlide(
       lineSpacingMultiple: 1.15,
       ...(ts.shrink ? { fit: 'shrink' as const } : {}),
     });
-    return;
-  }
-
-  // Variants 1/2 restyle list items into shapes we place ourselves; anything
-  // that is not a list (and every other variant) stays one plain text box.
-  if (variant === 1 || variant === 2) {
-    let y = ts.bodyTop;
-    for (const block of blocks) {
-      if (block.kind === 'list') {
-        y =
-          variant === 1
-            ? await addCardGrid(slide, block.items, y, dark, ctx, ts)
-            : await addNumberedList(slide, block.items, y, accentHex, dark, ctx, ts);
-        continue;
-      }
-      const lines = await countLines(block.para.runs, {
-        faces: ctx.faces,
-        fontPx: BODY_FS * ts.fs,
-        maxWidthPx: CONTENT_W_PX,
-      });
-      const h = lines * BODY_FS * ts.fs * BODY_LH;
-      slide.addText(block.para.props, {
-        x: MARGIN,
-        y: inch(y),
-        w: CONTENT_W,
-        h: inch(h),
-        fontSize: pt(BODY_FS * ts.fs),
-        valign: 'top',
-        lineSpacingMultiple: BODY_LH,
-      });
-      y += h + PARA_GAP * BODY_FS * ts.fs;
-    }
     return;
   }
 
