@@ -1,5 +1,6 @@
 import {
   bodyFragmentKey,
+  formatSlideImageMarkdown,
   fragmentToMarkdown,
   markdownToPMJSON,
   pmJSONToMarkdown,
@@ -133,5 +134,23 @@ describe('an image survives the fragment', () => {
 
   it('keeps the URL, not just the alt text', () => {
     expect(roundTrip('![Logo](https://example.org/x.png)')).toContain('https://example.org/x.png');
+  });
+
+  // The touch editor writes this markdown by hand, so the escaping has to be
+  // the same function that reads it back.
+  it('escapes brackets in the alt text and parentheses in the URL', () => {
+    const md = formatSlideImageMarkdown({
+      src: 'https://example.org/a(1).png',
+      alt: 'Grafik [Q1]',
+    });
+    expect(md).toBe('![Grafik \\[Q1\\]](https://example.org/a\\(1\\).png)');
+
+    const doc = markdownToPMJSON(md);
+    const image = doc.content?.find((n) => n.type === 'image');
+    expect(image?.attrs).toMatchObject({
+      src: 'https://example.org/a(1).png',
+      alt: 'Grafik [Q1]',
+    });
+    expect(roundTrip(md)).toBe(md);
   });
 });

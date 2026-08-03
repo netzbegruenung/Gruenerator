@@ -412,6 +412,21 @@
   outline: none;
 }
 
+/* prosemirror-tables marks a cell selection with `.selectedCell` and nothing
+ * else — without a rule, dragging across cells looks like nothing happened, and
+ * the toolbar's row/column buttons act on an invisible target. `position` +
+ * `::after` because a background would fight the zebra striping. */
+.gruene-slide__body.ProseMirror .selectedCell {
+  position: relative;
+}
+.gruene-slide__body.ProseMirror .selectedCell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--deck-accent) 18%, transparent);
+  pointer-events: none;
+}
+
 /* Empty-state placeholder for the inline title (a truly-empty contentEditable). */
 .gruene-slide__title[contenteditable]:empty::before {
   content: attr(data-placeholder);
