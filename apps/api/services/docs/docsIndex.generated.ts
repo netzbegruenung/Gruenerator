@@ -2392,6 +2392,14 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/office/praesentationen",
     "pageTitle": "Präsentationen",
+    "heading": "Tabellen und Bilder",
+    "anchor": "#tabellen-und-bilder",
+    "category": "Office",
+    "text": "Über der Folie liegt eine Leiste mit Tabelle und Bild. Eine eingefügte Tabelle bearbeitest du direkt auf der Folie; sobald der Cursor in einer Zelle steht, erscheinen die Knöpfe für Zeilen, Spalten, Kopfzeile und Löschen. Halte sie schmal — mehr als vier Spalten passen auf einer Folie nicht mehr lesbar nebeneinander. Bilder holst du aus deiner Mediathek oder lädst sie direkt hoch. Der Alternativtext ist Pflicht: ohne ihn bleibt das Bild für Screenreader stumm, und in einer veröffentlichten Präsentation ist das ein Barriere-Fehler. Auf dem Handy findest du beide Knöpfe im Bearbeiten-Fenster unter dem Textfeld."
+  },
+  {
+    "url": "/docs/office/praesentationen",
+    "pageTitle": "Präsentationen",
     "heading": "Vortragen",
     "anchor": "#vortragen",
     "category": "Office",
