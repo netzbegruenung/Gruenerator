@@ -185,10 +185,13 @@ export async function computeNode(state: ChatGraphState): Promise<Partial<ChatGr
         messages: [{ role: 'user', content: userContent }],
         options: {
           model: LANE.model,
-          // 600 fitted a single expression. A consistency check lists every
-          // claim in the material, and a truncated plan is a SILENT loss — the
-          // JSON simply ends and the dropped rows look like rows that passed.
-          max_tokens: 1500,
+          // Kein `max_tokens`: seit der Plan eine Konsistenzprüfung tragen kann,
+          // hat er keine vorhersagbare Länge mehr — er listet jede
+          // nachrechenbare Angabe des Materials. Ein abgeschnittener Plan wäre
+          // ein STILLER Verlust: das JSON endet einfach, und die weggefallenen
+          // Zeilen sehen aus wie Zeilen, die stimmen. Provider und
+          // Kontextfenster sind der Backstop — dieselbe Regel wie auf allen
+          // Antwortpfaden (PR #2002).
           temperature: 0,
           response_format: { type: 'json_object' },
         },
