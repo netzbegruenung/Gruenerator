@@ -13,7 +13,7 @@
  */
 
 import { type chatGraphContract } from '@gruenerator/contracts';
-import { stripRoleMarkers } from '@gruenerator/shared/roles';
+import { stripRoleBlock } from '@gruenerator/shared/roles';
 import {
   hasMentionTokens,
   parseMentionTokens,
@@ -568,9 +568,10 @@ export async function buildStreamContext({
   }
 
   // === Read user profile instructions ===
-  // The column carries the role wizard's fence markers; they are storage, not
-  // instruction, and must not reach the model. See stripRoleMarkers.
-  const userInstructions = stripRoleMarkers(user.custom_prompt) || undefined;
+  // Nur der selbst geschriebene Teil. Was der Rollen-Wizard früher in dieselbe
+  // Spalte geschrieben hat — eine Liste aller verfügbaren Rollen — läuft nicht
+  // mehr in jeder Anfrage mit; die Rolle wirkt allein über den Rollen-Chat.
+  const userInstructions = stripRoleBlock(user.custom_prompt) || undefined;
 
   // === Resolve context window for model-aware budgets ===
   const contextWindowTokens = getContextWindow(modelId);
