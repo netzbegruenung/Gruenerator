@@ -5,7 +5,6 @@
  */
 
 import { env } from '../../../../config/env.js';
-import { toUserFacingMessage } from '../../../../utils/errors/index.js';
 
 import { CrawleeCrawler } from './crawlers/CrawleeCrawler.js';
 import { FetchCrawler } from './crawlers/FetchCrawler.js';
@@ -13,6 +12,27 @@ import { ContentExtractor } from './extractors/ContentExtractor.js';
 import { UrlValidator } from './validators/UrlValidator.js';
 
 import type { CrawlerConfig, CrawlOptions, CrawlResult, PreviewResult } from './types.js';
+
+/**
+ * Why NOT `toUserFacingMessage` here.
+ *
+ * That classifier is the MEDIA-JOB taxonomy: its patterns speak about the
+ * person's own session and their own uploaded file. Applied to a foreign web
+ * server it says the wrong thing about the wrong party — on 03.08.2026 an HTTP
+ * 403 from consilium.europa.eu was logged as
+ *
+ *   [Crawl] Failed: …: Dir fehlt die Berechtigung für diese Aktion.
+ *                      Bitte melde dich neu an.
+ *
+ * which blames the reader for a block by the publisher, and sends anyone
+ * debugging it towards auth. A crawl failure is a fact about a remote page, so
+ * the remote reason is what gets reported — trimmed, never reinterpreted.
+ */
+function crawlErrorMessage(error: unknown, fallback: string): string {
+  const raw = (error instanceof Error ? error.message : String(error ?? '')).trim();
+  if (!raw || raw === '[object Object]' || raw === 'undefined' || raw === 'null') return fallback;
+  return raw.length > 200 ? `${raw.slice(0, 200)}…` : raw;
+}
 
 export class UrlCrawler {
   private config: CrawlerConfig;
@@ -34,6 +54,11 @@ export class UrlCrawler {
     this.contentExtractor = new ContentExtractor();
     this.crawleeCrawler = new CrawleeCrawler(this.config);
     this.fetchCrawler = new FetchCrawler(this.config);
+
+    // Which path crawls actually take is otherwise only visible per URL, buried
+    // between the crawl logs. Crawlee was broken for three days without anyone
+    // reading that; the mode belongs in the boot output.
+    console.log(`[UrlCrawler] Crawler-Modus: ${this.config.crawlerMode}`);
   }
 
   /**
@@ -148,7 +173,7 @@ export class UrlCrawler {
       console.error('[UrlCrawler] Crawl failed for %s:', url, error);
       return {
         success: false,
-        error: toUserFacingMessage(error, 'Failed to crawl URL'),
+        error: crawlErrorMessage(error, 'Failed to crawl URL'),
       };
     }
   }
@@ -210,7 +235,7 @@ export class UrlCrawler {
     } catch (error) {
       return {
         success: false,
-        error: toUserFacingMessage(error, 'Failed to preview URL'),
+        error: crawlErrorMessage(error, 'Failed to preview URL'),
       };
     }
   }

@@ -58,7 +58,7 @@ const GroupLinksSection = memo(
                   )}
                 </div>
                 {isAdmin && (
-                  <div className="flex items-center gap-xxs shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <div className="flex items-center gap-xxs shrink-0 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100 transition-opacity duration-300">
                     <button
                       type="button"
                       onClick={(e) => {

@@ -8,6 +8,11 @@
  * greifen, also startet der Reparaturversuch und die Erstellung wird ein
  * zweites Mal bezahlt. Genau die Wartezeit, wegen der die Lane das Modell
  * gewechselt hat (ARTIFACT_MODEL in services/providers/providerSelector.ts).
+ *
+ * Ein fester Ersatzwert (12k) wurde verworfen: niemand kann vorab sagen, wie
+ * lang ein bestelltes Dokument ist, jede Zahl ist in eine der beiden Richtungen
+ * falsch. `null` sendet gar kein `max_tokens` und lässt die Modell-eigene
+ * Obergrenze gelten (siehe UNCAPPED_TYPES in ../config.ts).
  */
 import { describe, it, expect } from 'vitest';
 
@@ -15,11 +20,10 @@ import { determineMaxTokens } from '../config.js';
 
 describe('determineMaxTokens', () => {
   it('gives artifact generation room for a whole document', () => {
-    expect(determineMaxTokens({ type: 'doc_generation' })).toBeGreaterThan(4096);
+    expect(determineMaxTokens({ type: 'doc_generation' })).toBeNull();
   });
 
   it('leaves the other lanes on the default', () => {
-    expect(determineMaxTokens({ type: 'board_generation' })).toBe(4096);
     expect(determineMaxTokens({ type: 'sharepic_zitat' })).toBe(4096);
   });
 
