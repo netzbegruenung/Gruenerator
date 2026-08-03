@@ -3,9 +3,8 @@
  * Extracts text content from PDF documents using pdfjs-dist
  */
 
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
-
 import { safeFetch } from '../../../../../utils/validation/urlSecurity.js';
+import { extractPdfText } from '../../../../pdf/pdfText.js';
 
 import type { CrawlerConfig, PdfExtractionResult } from '../types.js';
 
@@ -48,7 +47,7 @@ export class PdfCrawler {
       const pdfBuffer = await response.arrayBuffer();
 
       // Extract text from PDF
-      const extractedText = await this.extractPdfText(pdfBuffer);
+      const extractedText = await extractPdfText(new Uint8Array(pdfBuffer));
 
       if (!extractedText || extractedText.trim().length === 0) {
         throw new Error('No text content extracted from PDF');
@@ -67,52 +66,6 @@ export class PdfCrawler {
       }
 
       throw error;
-    }
-  }
-
-  /**
-   * Extracts text content from PDF buffer using pdfjs-dist
-   */
-  private async extractPdfText(pdfBuffer: ArrayBuffer): Promise<string> {
-    try {
-      console.log('[PdfCrawler] Extracting text from PDF...');
-
-      // Load the PDF document
-      const loadingTask = pdfjsLib.getDocument({
-        data: new Uint8Array(pdfBuffer),
-        useSystemFonts: true,
-        standardFontDataUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.0.227/standard_fonts/',
-      });
-
-      const pdfDocument = await loadingTask.promise;
-      const numPages = pdfDocument.numPages;
-
-      console.log(`[PdfCrawler] PDF has ${numPages} pages`);
-
-      // Extract text from all pages
-      const textPromises: Promise<string>[] = [];
-      for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-        textPromises.push(
-          pdfDocument.getPage(pageNum).then(async (page) => {
-            const textContent = await page.getTextContent();
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access
-            const pageText = textContent.items.map((item: any) => item.str).join(' ');
-            return pageText;
-          })
-        );
-      }
-
-      const pagesText = await Promise.all(textPromises);
-      const fullText = pagesText.join('\n\n');
-
-      console.log(`[PdfCrawler] Extracted ${fullText.length} characters from PDF`);
-
-      return fullText;
-    } catch (error) {
-      console.error('[PdfCrawler] Error extracting PDF text:', error);
-      throw new Error(
-        `PDF text extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
     }
   }
 }

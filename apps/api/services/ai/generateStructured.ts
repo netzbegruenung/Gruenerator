@@ -204,6 +204,9 @@ export async function generateStructured<T>(
 
   let lastError = '';
   let lastRaw = '';
+  /** Best structure recovered from a CUT-OFF answer, used only if every
+   *  attempt was cut off (see the return at the bottom). */
+  let truncatedFallback: T | null = null;
 
   for (let attempt = 1; attempt <= attempts; attempt++) {
     const isRepair = attempt > 1 && lastError !== '';
@@ -254,11 +257,30 @@ export async function generateStructured<T>(
       const transport = toolInput ? 'tool call' : 'text';
       const candidates = toolInput ? [toolInput] : jsonCandidatesFromText(result.content ?? '');
 
+      // The provider ran out of output budget mid-structure. What comes back is
+      // a TORSO, and the lax parsers normalize rather than reject — they drop
+      // the malformed tail and hand back what parsed, which then ships as a
+      // deck missing its last slides or a document missing its second half.
+      // Live on 03.08.2026: 4096 tokens exhausted, "recovered from text",
+      // success reported. Treat it as a rejection so the repair turn happens.
+      const truncated = result.stop_reason === 'length';
+
       let rejection = '';
       let rejected = '';
       for (const candidate of candidates) {
         const validated = validate(candidate);
         if (validated.ok) {
+          if (truncated) {
+            // Keep it as a last resort — see the fallback return below. Half a
+            // document the user can finish beats no document at all, but only
+            // after the repair attempt had its chance.
+            if (!truncatedFallback) truncatedFallback = validated.value;
+            log.warn(
+              `[${label}] attempt ${attempt}: structure parsed but the answer was CUT OFF ` +
+                `(stop_reason=length) — retrying for a complete one`
+            );
+            break;
+          }
           if (!toolInput) {
             log.info(`[${label}] attempt ${attempt}: no tool call, recovered from text`);
           }
@@ -270,6 +292,16 @@ export async function generateStructured<T>(
           rejection = validated.error;
           rejected = JSON.stringify(candidate);
         }
+      }
+
+      if (truncated) {
+        // Echoing a cut-off draft back would make the model "correct" the cut
+        // (see MAX_ECHO_CHARS); naming the cause and asking for less is what
+        // actually fits inside the budget.
+        lastError =
+          'Die Ausgabe wurde abgeschnitten (Token-Limit erreicht) und war deshalb unvollständig';
+        lastRaw = '';
+        continue;
       }
 
       if (rejection) {
@@ -291,6 +323,15 @@ export async function generateStructured<T>(
       lastError = e instanceof Error ? e.message : String(e);
       log.error(`[${label}] attempt ${attempt} threw: ${lastError}`);
     }
+  }
+
+  // Every attempt was cut off, but one of them parsed. Ship it: half a document
+  // the person can finish beats none at all — the same call `createPdfDocument`
+  // already makes for its own repair round ("deliver the file and disclose the
+  // problem"). The WARN above is what makes it findable afterwards.
+  if (truncatedFallback) {
+    log.warn(`[${label}] all attempts were cut off — using the last complete-parsing torso`);
+    return { ok: true, data: truncatedFallback };
   }
 
   return { ok: false, error: lastError || 'unbekannter Fehler' };

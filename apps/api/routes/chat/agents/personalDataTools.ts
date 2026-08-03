@@ -28,6 +28,7 @@ import { buildNotebookSlug, buildGroupSlug, buildChatThreadSlug } from '@gruener
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
+import { artifactsFromTurn } from '../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
 import {
   ARTIFACT_NOUN_BY_KIND,
   forbidsPersistentAction,
@@ -60,6 +61,7 @@ import {
 } from '../../docs/docsSearch.js';
 import { aggregateRecentActivity } from '../../workplace/recentActivityController.js';
 import { hasWriteAccess } from '../confirmController.js';
+import { readArtifactContent, type ArtifactReadKind } from '../services/artifactReader.js';
 import { emitToolConfirmAction, newActionId } from '../services/confirmActionService.js';
 import { extractTextContent } from '../services/messageHelpers.js';
 import {
@@ -72,6 +74,7 @@ import type {
   ChatGraphState,
   PendingAction,
   SearchResult,
+  ThreadToolContext,
 } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 import type { SSEWriter } from '../services/sseHelpers.js';
@@ -478,6 +481,136 @@ NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umben
       const note = `Bestätigung zum Teilen von „${shareTarget.title}" mit „${group.name}" angefordert.`;
       groundNote(sourceRegistry, 'Teilen', note);
       return { ok: true, note };
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// read_artifact — open an artifact and read what is actually IN it
+// ---------------------------------------------------------------------------
+
+/** Beyond this the excerpt is cut — one artifact must not eat the whole turn. */
+const ARTIFACT_READ_CHARS = 12_000;
+
+const READ_KIND_NOUN: Record<ArtifactReadKind, string> = {
+  doc: 'Dokument',
+  board: 'Board',
+  sheet: 'Tabelle',
+  presentation: 'Präsentation',
+  pdf: 'PDF',
+};
+
+/**
+ * Which inventory artifacts are readable, and as what.
+ *
+ * `null` for the kinds that carry no text to read back: an image and a sharepic
+ * are pixels, a connector call or a research step is not an artifact at all.
+ * Explicit rather than a default, so a new `ThreadToolContext['kind']` has to
+ * make the decision instead of silently becoming a document.
+ */
+const READ_KIND_FOR_ARTIFACT: Record<ThreadToolContext['kind'], ArtifactReadKind | null> = {
+  document: 'doc',
+  presentation: 'presentation',
+  sheet: 'sheet',
+  board: 'board',
+  pdf: 'pdf',
+  image: null,
+  sharepic: null,
+  mcp: null,
+  notebook: null,
+  bundestag: null,
+  abgeordnetenwatch: null,
+};
+
+/**
+ * Read an artifact's CONTENT.
+ *
+ * Nothing in the agentic loop could do this. `documents` action="get" returns
+ * `{title, url, type}` — a pointer, not the thing — and the only real reader,
+ * `read_user_content`, is mounted exclusively inside the recall loop. So
+ * "vergleiche das PDF und die Präsentation" was not a hard task but an
+ * impossible one, and on 03.08.2026 the model answered it from nothing:
+ * which slide had been fixed, that the matrix was complete. It had opened
+ * neither file.
+ *
+ * `id` is optional on purpose. The artifacts of THIS conversation are listed to
+ * the model by noun and title only (see artifactInventory) — it has no id to
+ * pass. Omitting it means "the one from this conversation", resolved against
+ * `threadArtifacts`; the same shape `documents` action="share_to_group" already
+ * uses. With several candidates the tool lists them rather than guessing.
+ */
+export function makeReadArtifactTool(ctx: PersonalToolCtx): Tool {
+  const { state, sourceRegistry } = ctx;
+  return tool({
+    description: `Öffnet ein eigenes Artefakt und liest seinen INHALT — Folientexte, Tabellenzellen, Dokumenttext, Board-Karten oder den Text eines erzeugten PDFs.
+
+NUTZE FÜR: "was steht in der Präsentation?", "vergleiche das PDF mit den Folien", "prüfe, ob Folie 5 stimmt", "fasse mein Dokument zusammen". Ohne diesen Aufruf kennst du den Inhalt NICHT — rate ihn niemals.
+
+Die "id" bekommst du aus 'find_content' oder 'documents' (action="list"). Geht es um ein Artefakt AUS DIESEM GESPRÄCH, lass "id" weg und gib nur "kind" an.`,
+    inputSchema: z.object({
+      kind: z
+        .enum(['doc', 'board', 'sheet', 'presentation', 'pdf'])
+        .describe('Art des Artefakts. Bei Unsicherheit: die Art aus dem Suchtreffer übernehmen.'),
+      id: z
+        .string()
+        .optional()
+        .describe(
+          'ID aus einem vorherigen Suchtreffer. Weglassen für das Artefakt aus diesem Gespräch.'
+        ),
+    }),
+    execute: async ({ kind, id }) => {
+      const userId = requireUserId(state);
+      if (!userId) return { error: NO_SESSION };
+      const noun = READ_KIND_NOUN[kind];
+
+      let targetId = id?.trim() ?? '';
+      let label: string | null = null;
+
+      if (!targetId) {
+        // `threadArtifacts` is loaded on every turn by streamContext; the
+        // fresh ones of THIS turn are carried on state as they are created.
+        const candidates = [...artifactsFromTurn(state), ...(state.threadArtifacts ?? [])].filter(
+          (a) => a.ref && READ_KIND_FOR_ARTIFACT[a.kind] === kind
+        );
+        const unique = [...new Map(candidates.map((a) => [a.ref!, a])).values()];
+        if (unique.length === 0) {
+          return {
+            error: `In diesem Gespräch gibt es kein Artefakt der Art „${noun}". Suche es mit 'find_content', oder nenne eine id.`,
+          };
+        }
+        if (unique.length > 1) {
+          // Guessing between two decks is how the wrong one gets "corrected".
+          return {
+            needsChoice: true,
+            note: `Es gibt mehrere ${noun}-Artefakte in diesem Gespräch. Rufe erneut mit der passenden id auf.`,
+            candidates: unique.map((a) => ({ id: a.ref, title: a.label ?? '(ohne Titel)' })),
+          };
+        }
+        targetId = unique[0]!.ref!;
+        label = unique[0]!.label ?? null;
+      }
+
+      let content: string | null;
+      try {
+        content = await readArtifactContent({ id: targetId, kind, userId });
+      } catch (error) {
+        return { error: toUserFacingMessage(error, `${noun} konnte nicht gelesen werden.`) };
+      }
+      if (!content?.trim()) {
+        return {
+          error: `${noun} nicht gefunden, kein Zugriff, oder es steht nichts darin.`,
+        };
+      }
+
+      const excerpt =
+        content.length > ARTIFACT_READ_CHARS
+          ? `${content.slice(0, ARTIFACT_READ_CHARS)}\n…[gekürzt]`
+          : content;
+      const title = label ?? `${noun}-Inhalt`;
+      // Grounding, not a note: this IS retrieved material, and in split mode the
+      // writer sees nothing but the rendered sources.
+      ground(sourceRegistry, [{ title, content: excerpt }]);
+      return { kind, title, content: excerpt, truncated: excerpt !== content };
     },
   });
 }

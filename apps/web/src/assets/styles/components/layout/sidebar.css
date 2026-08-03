@@ -1,7 +1,7 @@
 /* App Layout - Sidebar with Icon Rail */
 .app-layout {
   display: flex;
-  min-height: 100vh;
+  min-height: 100dvh;
   --sidebar-collapsed-width: 56px;
   --sidebar-expanded-width: 260px;
 }
@@ -61,8 +61,11 @@
   --canvas-host-inset-left: 0px;
 }
 
-/* Mobile: content takes full width (Sheet handles backdrop/overlay) */
-@media (max-width: 768px) {
+/* Mobile: content takes full width (Sheet handles backdrop/overlay).
+   48rem ist exakt Tailwinds `md:`, an dem die Aside-Breite (md:w-14) hängt.
+   In px geschrieben driftet diese Regel bei abweichender Browser-Grundschrift
+   von `md:` ab. */
+@media (width < 48rem) {
   .app-content {
     margin-left: 0;
     --canvas-host-inset-left: 0px;
