@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { buildCreateTurnContext } from './createTurn.js';
+import { buildCreateTurnContext, withConversationContext } from './createTurn.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 
@@ -74,5 +74,33 @@ describe('buildCreateTurnContext', () => {
   it('survives an empty or single-message thread', () => {
     expect(buildCreateTurnContext([])).toBe('');
     expect(buildCreateTurnContext([msg('user', 'erstelle ein PDF über Radverkehr')])).toBe('');
+  });
+});
+
+describe('withConversationContext', () => {
+  const transcript = 'user: Rechne das aus\nassistant: Ich konnte dazu leider keine Antwort finden.';
+
+  it('frames the thread as background for an ordinary brief', () => {
+    const out = withConversationContext('Mach ein PDF daraus', transcript);
+    expect(out).toContain('BISHERIGES GESPRÄCH (Hintergrund');
+    expect(out).toContain('AUFTRAG:\nMach ein PDF daraus');
+  });
+
+  it('frames the thread as the SUBJECT when the brief audits earlier answers', () => {
+    // Live 03.08.2026: the transcript said the task had gone unanswered, and the
+    // check reported PASS with a freshly computed result attached — it graded
+    // the solvable task, not the answer that was given.
+    const out = withConversationContext(
+      'Prüfe deine Antworten auf Follow-up 1 bis 9 gegen die verlangten Formate',
+      transcript
+    );
+    expect(out).toContain('PRÜFGEGENSTAND');
+    expect(out).not.toContain('(Hintergrund');
+  });
+
+  it('leaves a bare brief alone when there is no thread', () => {
+    expect(withConversationContext('Prüfe deine bisherigen Angaben', '')).toBe(
+      'Prüfe deine bisherigen Angaben'
+    );
   });
 });
