@@ -303,11 +303,12 @@ function serializeList(list: PMNode, ordered: boolean, depth: number): string {
 }
 
 /**
- * `![alt](src)` with the two characters that would end the construct early
- * escaped: a `]` in the alt text closes the label, a `)` in the URL closes the
- * destination. Backslashes are escaped first — otherwise a value ending in
- * `\` would combine with the following escape and swallow the bracket it was
- * meant to protect, breaking out of the alt/src field into the rest of the
+ * `![alt](src "title")` with the characters that would end each construct
+ * early escaped: a `]` in the alt text closes the label, a `)` in the URL
+ * closes the destination, a `"` in the title closes the title attribute.
+ * Backslashes are escaped first in every field — otherwise a value ending in
+ * `\` would combine with the following escape and swallow the character it
+ * was meant to protect, breaking out of the field into the rest of the
  * markdown. Exported because the touch editor writes markdown by hand and has
  * to produce exactly what this reads back.
  */
@@ -318,7 +319,8 @@ export function formatSlideImageMarkdown(image: {
 }): string {
   const alt = (image.alt ?? '').replace(/\\/g, '\\\\').replace(/([[\]])/g, '\\$1');
   const src = image.src.replace(/\\/g, '\\\\').replace(/([()])/g, '\\$1');
-  return image.title ? `![${alt}](${src} "${image.title}")` : `![${alt}](${src})`;
+  const title = image.title?.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  return title ? `![${alt}](${src} "${title}")` : `![${alt}](${src})`;
 }
 
 function serializeImage(node: PMNode): string {
