@@ -214,19 +214,18 @@ export const AssistantMessage = memo(function AssistantMessage() {
         >
           <messageAgent.icon className={isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4'} aria-hidden />
         </div>
-      ) : isStreaming ? (
+      ) : (
+        // Stays mounted (rather than swapping to a placeholder) so the
+        // built-in bar/dot fade in GrueneratorHomeIconLoading keeps running,
+        // and fades its own opacity out once streaming ends — an unmount
+        // would cut that transition short and reserve the footprint anyway.
         <GrueneratorHomeIconLoading
-          loading
+          loading={isStreaming}
           width={isCompact ? 24 : 32}
           height={isCompact ? 24 : 32}
           className="flex-shrink-0"
-        />
-      ) : (
-        // Reserves the icon's footprint so the message text doesn't jump left
-        // the moment streaming finishes and the spinner disappears.
-        <div
-          className={isCompact ? 'h-6 w-6 flex-shrink-0' : 'h-8 w-8 flex-shrink-0'}
-          aria-hidden
+          style={{ opacity: isStreaming ? 1 : 0, transition: 'opacity 0.3s ease' }}
+          aria-hidden={!isStreaming}
         />
       )}
       <div className="min-w-0 flex-1">
