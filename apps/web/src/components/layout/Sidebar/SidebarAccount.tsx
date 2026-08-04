@@ -1,4 +1,4 @@
-import { GRUENERATOR_FRIENDS } from '@gruenerator/shared/avatar';
+import { getFriendName, shouldShowRobotAvatar } from '@gruenerator/shared/avatar';
 import {
   Badge,
   DropdownMenu,
@@ -97,7 +97,9 @@ const SidebarAccount = memo(function SidebarAccount({
 
   const displayName = profile?.display_name || '';
   const avatarRobotId = profile?.avatar_robot_id ?? null;
-  const friendName = GRUENERATOR_FRIENDS.find((f) => f.id === Number(avatarRobotId))?.name;
+  const friendName = shouldShowRobotAvatar(avatarRobotId)
+    ? getFriendName(avatarRobotId)
+    : undefined;
   // "Vorname + Friend" (z.B. "Moritz + Feuri") statt des vollen Namens. Bei
   // sehr langen Vornamen bricht das Label auf zwei Zeilen um (line-clamp-2
   // unten) statt einzeilig abzuschneiden.
