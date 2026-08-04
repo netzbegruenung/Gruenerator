@@ -207,6 +207,18 @@ export const LV_NOTEBOOK_BY_PR_AGENT_ID: ReadonlyMap<string, NotebookId> = new M
   LANDESVERBAENDE.map((lv) => [lv.prAgentId, lv.notebookId])
 );
 
+/** Splits a comma-separated `themes` string into individual topics, ignoring
+ *  commas inside parentheses (e.g. Hessen's "Naturschutz (Wald, Wasser)") and
+ *  stripping the parentheticals so the topics read cleanly inside a prompt.
+ *  Shared by the PR-, Bürger*innen- and Wahlprüfsteine-Agent specs, which all
+ *  derive their opening questions from the same `themes` field. */
+export function splitThemes(themes: string): string[] {
+  return themes
+    .split(/,\s*(?![^()]*\))/)
+    .map((t) => t.replace(/\s*\([^)]*\)/g, '').trim())
+    .filter(Boolean);
+}
+
 /** Per-Landesverband agents and skills share this identifier prefix family. */
 export function isLandesverbandIdentifier(identifier: string): boolean {
   return (

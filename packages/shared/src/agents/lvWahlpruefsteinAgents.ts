@@ -1,4 +1,4 @@
-import { LANDESVERBAENDE } from './landesverbaende.js';
+import { LANDESVERBAENDE, splitThemes } from './landesverbaende.js';
 
 import type { Agent } from './types.js';
 
@@ -22,16 +22,6 @@ export const LV_WPS_SPECS = LANDESVERBAENDE.map((lv) => ({
   themes: lv.themes,
   ...(lv.audience === 'de-AT' ? { audience: 'de-AT' as const } : {}),
 }));
-
-// Splits a comma-separated `themes` string into individual topics, ignoring
-// commas inside parentheses (e.g. Hessen's "Naturschutz (Wald, Wasser)") and
-// stripping the parentheticals so the topics read cleanly inside a prompt.
-function splitThemes(themes: string): string[] {
-  return themes
-    .split(/,\s*(?![^()]*\))/)
-    .map((t) => t.replace(/\s*\([^)]*\)/g, '').trim())
-    .filter(Boolean);
-}
 
 function buildLvWpsOpeningQuestions(spec: (typeof LV_WPS_SPECS)[number]): string[] {
   const topics = splitThemes(spec.themes);
