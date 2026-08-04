@@ -303,6 +303,8 @@ export interface PersistParams {
    *  final content+metadata are written by flipping THIS row to 'complete'
    *  instead of inserting a new one. Null/omitted → insert as before. */
   pendingMessageId?: string | null;
+  /** Current persisted user row; links this turn's attachments to its bubble. */
+  userMessageId?: string | null;
 }
 
 /**
@@ -400,6 +402,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
     agenticSteps,
     traceId,
     pendingMessageId,
+    userMessageId,
   } = params;
 
   if (
@@ -552,7 +555,12 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
 
     log.info(`[ChatGraph] Message persisted for thread ${threadId}`);
 
-    const attachmentsOk = await saveThreadAttachmentsFromMeta(threadId, userId, processedMeta);
+    const attachmentsOk = await saveThreadAttachmentsFromMeta(
+      threadId,
+      userId,
+      processedMeta,
+      userMessageId ?? null
+    );
 
     const mem0 = getMem0Instance();
     if (mem0 && lastUserMessage && fullText && memoryEnabled) {
@@ -614,7 +622,8 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
 async function saveThreadAttachmentsFromMeta(
   threadId: string,
   userId: string,
-  processedMeta: ProcessedAttachmentMeta[]
+  processedMeta: ProcessedAttachmentMeta[],
+  messageId: string | null
 ): Promise<boolean> {
   if (processedMeta.length === 0) return true;
   let saved = 0;
@@ -624,7 +633,7 @@ async function saveThreadAttachmentsFromMeta(
         () =>
           saveThreadAttachment({
             threadId,
-            messageId: null,
+            messageId,
             userId,
             name: meta.name,
             mimeType: meta.mimeType,
@@ -695,6 +704,7 @@ export async function persistResumedResponse(params: {
    *  inserting a new one; a vanished row is NOT re-inserted (the turn was
    *  discarded), matching persistAssistantResponse. Null/omitted → insert. */
   pendingMessageId?: string | null;
+  userMessageId?: string | null;
 }): Promise<PersistOutcome> {
   const {
     threadId,
@@ -705,6 +715,7 @@ export async function persistResumedResponse(params: {
     processedMeta,
     traceId,
     pendingMessageId,
+    userMessageId,
   } = params;
 
   if (!threadId || !fullText) return { ok: true };
@@ -781,7 +792,12 @@ export async function persistResumedResponse(params: {
 
     let attachmentsOk = true;
     if (userId && processedMeta?.length) {
-      attachmentsOk = await saveThreadAttachmentsFromMeta(threadId, userId, processedMeta);
+      attachmentsOk = await saveThreadAttachmentsFromMeta(
+        threadId,
+        userId,
+        processedMeta,
+        userMessageId ?? null
+      );
     }
     log.info(`[ChatGraph:Resume] Message persisted for thread ${threadId}`);
     return { ok: attachmentsOk };
