@@ -134,13 +134,34 @@ describe('current instances', () => {
     expect(INSTANCES.map((i) => i.id)).toEqual(['production', 'beta', 'bgst', 'local']);
   });
 
-  // Filling `hide`/`block` is blocked on the backend enforcing the same policy
-  // (docs/instanz-filterung-plan.md, AP4). Until then a hidden notebook would
-  // vanish from the gallery while the chat kept citing it.
-  it('carries no content policy yet, so every instance shows the full inventory', () => {
+  // Filling `hide.notebookCategories`/`notebookIds`/`block` is blocked on the
+  // backend enforcing the same policy (docs/instanz-filterung-plan.md, AP4) —
+  // a hidden notebook would otherwise vanish from the gallery while the chat
+  // kept citing it. `hide.toolIds` has no such backend counterpart (tools are
+  // a frontend-only registry, nothing for the chat to cite), so bgst curates
+  // its tool tiles already.
+  it('carries no notebook content policy yet, so every instance shows the full notebook inventory', () => {
     for (const instance of INSTANCES) {
-      expect(getInstance(instance.id).hide ?? {}).toEqual({});
+      const hide = getInstance(instance.id).hide;
+      expect(hide?.notebookCategories).toBeUndefined();
+      expect(hide?.notebookIds).toBeUndefined();
       expect(getInstance(instance.id).block ?? {}).toEqual({});
+    }
+  });
+
+  it('bgst hides the Reels and Vorlagen tools everywhere their id appears', () => {
+    expect(getInstance('bgst').hide?.toolIds).toEqual([
+      'canvas-vorlagen',
+      'reels-untertitel',
+      'vorlagen',
+      'tool-vorlagen',
+      'tool-reel',
+    ]);
+  });
+
+  it('production, beta and local carry no tool hide policy', () => {
+    for (const id of ['production', 'beta', 'local'] as const) {
+      expect(getInstance(id).hide?.toolIds).toBeUndefined();
     }
   });
 });
