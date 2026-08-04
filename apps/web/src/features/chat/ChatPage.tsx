@@ -301,7 +301,7 @@ function ChatPage() {
               'flex min-h-0 flex-1 flex-col justify-center overflow-y-auto pb-[6vh]'
             )}
           >
-            <ChatHero projectName={projektParam ? projektName : null} />
+            <ChatHero projectName={projektName} />
           </div>
         ) : (
           <GrueneratorThread
