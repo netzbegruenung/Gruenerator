@@ -15,6 +15,7 @@ import { renumberAnswerCitations } from '../../../agents/langgraph/ChatGraph/nod
 import { upsertThreadRecallPoint } from '../../../services/chat/threadRecallEmbeddingService.js';
 import { generateThreadTags } from '../../../services/chat/threadTagService.js';
 import { generateThreadTitle } from '../../../services/chat/threadTitleService.js';
+import { shouldAttemptExtractionThisTurn } from '../../../services/mem0/extractionThrottle.js';
 import { shouldExtractMemories } from '../../../services/mem0/gatekeeperService.js';
 import { getMem0Instance } from '../../../services/mem0/index.js';
 import { maybeRecompilePersona } from '../../../services/mem0/personaService.js';
@@ -566,35 +567,50 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
     if (mem0 && lastUserMessage && fullText && memoryEnabled) {
       const userText = extractTextContent(lastUserMessage.content);
 
-      // Gatekeeper: check if this conversation contains memorizable info
-      shouldExtractMemories(userText, fullText)
-        .then((decision) => {
-          if (!decision.shouldExtract) {
-            log.info(
-              `[${requestId}] Gatekeeper: skipping memory extraction (${decision.durationMs}ms)`
-            );
+      // Throttle first: mem0's extraction is purely additive (never merges),
+      // so running the gatekeeper/extraction on every turn is the main driver
+      // of unbounded memory growth. Only attempt extraction every Nth turn
+      // per thread — see extractionThrottle.ts.
+      shouldAttemptExtractionThisTurn(threadId)
+        .then((allowed) => {
+          if (!allowed) {
+            log.info(`[${requestId}] Mem0: skipping turn (extraction throttle)`);
             return;
           }
 
-          log.info(
-            `[${requestId}] Gatekeeper: extracting [${decision.categories.join(', ')}] (${decision.durationMs}ms)`
-          );
-
-          return mem0
-            .addMemories(
-              [
-                { role: 'user', content: userText },
-                { role: 'assistant', content: fullText },
-              ],
-              userId,
-              { threadId, categories: decision.categories }
-            )
-            .then(() => {
-              // Async persona recompilation (fire-and-forget)
-              maybeRecompilePersona(userId).catch((e) =>
-                log.warn(`[${requestId}] Persona recompilation failed:`, e)
+          // Gatekeeper: check if this conversation contains memorizable info
+          return shouldExtractMemories(userText, fullText, userId).then((decision) => {
+            if (!decision.shouldExtract) {
+              log.info(
+                `[${requestId}] Gatekeeper: skipping memory extraction (${decision.durationMs}ms)`
               );
-            });
+              return;
+            }
+
+            log.info(
+              `[${requestId}] Gatekeeper: extracting [${decision.categories.join(', ')}] (${decision.durationMs}ms)`
+            );
+
+            return mem0
+              .addMemories(
+                [
+                  { role: 'user', content: userText },
+                  { role: 'assistant', content: fullText },
+                ],
+                userId,
+                {
+                  threadId,
+                  categories: decision.categories,
+                  ...(decision.confidence ? { confidence: decision.confidence } : {}),
+                }
+              )
+              .then(() => {
+                // Async persona recompilation (fire-and-forget)
+                maybeRecompilePersona(userId).catch((e) =>
+                  log.warn(`[${requestId}] Persona recompilation failed:`, e)
+                );
+              });
+          });
         })
         .catch((memError) => {
           reportBackgroundError(memError, { job: 'chat-memory-save', requestId, userId });
