@@ -135,7 +135,7 @@ export function GrueneratorThread({
             className={
               isCompact
                 ? 'flex flex-grow flex-col gap-2 px-2 pt-3 pb-2'
-                : 'flex flex-grow flex-col gap-6 px-4 pt-8 pb-4'
+                : 'flex flex-grow flex-col gap-6 px-4 pt-8 pb-4 sm:px-6 lg:px-8'
             }
           >
             <AuiIf condition={(s) => s.thread.isEmpty}>

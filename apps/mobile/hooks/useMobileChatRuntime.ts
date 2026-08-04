@@ -28,6 +28,7 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
     searchMode,
     customSystemPrompt,
     customRoleName,
+    customRoleRef,
     customEnabledTools,
     pinnedConnector,
     activeSkillMention,
@@ -41,6 +42,7 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
       searchMode: s.searchMode,
       customSystemPrompt: s.customSystemPrompt,
       customRoleName: s.customRoleName,
+      customRoleRef: s.customRoleRef,
       customEnabledTools: s.customEnabledTools,
       pinnedConnector: s.pinnedConnector,
       activeSkillMention: s.activeSkillMention,
@@ -91,6 +93,7 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
       searchMode,
       customSystemPrompt,
       customRoleName,
+      customRoleRef,
       customEnabledTools,
       // Without this the "+" sheet's Konnektoren section is decoration: the
       // adapter injects the connector's mention token and its forcedTool from
@@ -111,6 +114,7 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
       searchMode,
       customSystemPrompt,
       customRoleName,
+      customRoleRef,
       customEnabledTools,
       pinnedConnector,
       activeSkillMention,
