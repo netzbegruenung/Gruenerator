@@ -65,10 +65,13 @@
 
     /* Dark-mode elevation scale — near-black chrome, progressively lighter
        floating surfaces (mirrors ChatGPT's sidebar #171717 → card convention).
-       Referenced by both dark blocks below so they stay in sync. */
+       Referenced by both dark blocks below so they stay in sync.
+       0 chrome (sidebar/header) · 1 page background · 2 raised inline surface
+       (tag chips, code blocks, button hover) · 3 floating surface (popover,
+       dropdown, card). */
     --dark-elevation-0: #171717;
     --dark-elevation-1: #1a1a1a;
-    --dark-elevation-2: #212121;
+    --dark-elevation-2: #242424;
     --dark-elevation-3: #2a2a2a;
     --dark-border-subtle: rgba(255, 255, 255, 0.10);
     --dark-hover-overlay: rgba(255, 255, 255, 0.06);
@@ -371,7 +374,7 @@
 [data-theme="dark"] {
     color-scheme: dark;
     --background-color: var(--dark-elevation-1);
-    --background-color-pure: var(--dark-elevation-2);
+    --background-color-pure: var(--dark-elevation-3);
     --background-color-alt: var(--dark-elevation-2);
     --background-color-sand: var(--dark-elevation-1);
     --hover-color-alt: var(--dark-hover-overlay);
@@ -543,7 +546,7 @@
     :root:not([data-theme="light"]) {
         color-scheme: dark;
         --background-color: var(--dark-elevation-1);
-        --background-color-pure: var(--dark-elevation-2);
+        --background-color-pure: var(--dark-elevation-3);
         --background-color-alt: var(--dark-elevation-2);
         --background-color-sand: var(--dark-elevation-1);
         --hover-color-alt: var(--dark-hover-overlay);
