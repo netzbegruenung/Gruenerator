@@ -15,12 +15,14 @@ const FALLBACK = createStore<ChatSurfaceState>(() => ({
   selectedNotebookId: 'gruenerator-notebook',
   customSystemPrompt: null,
   customRoleName: null,
+  customRoleRef: null,
   setSelectedAgent: () => {},
   setThreadMode: () => {},
   setSearchMode: () => {},
   setSelectedModel: () => {},
   setSelectedNotebook: () => {},
   setCustomSystemPrompt: () => {},
+  setCustomRoleRef: () => {},
   setCustomRoleName: () => {},
 }));
 
@@ -65,6 +67,11 @@ export function useScopedCustomSystemPrompt(): string | null {
 export function useScopedCustomRoleName(): string | null {
   const global = useAgentStore((s) => s.customRoleName);
   return useScopedField((s) => s.customRoleName, global);
+}
+
+export function useScopedCustomRoleRef(): { ebene: string; rolle: string } | null {
+  const global = useAgentStore((s) => s.customRoleRef);
+  return useScopedField((s) => s.customRoleRef, global);
 }
 
 // ─── writes ─────────────────────────────────────────────────────────────────
@@ -118,6 +125,15 @@ export function useScopedSetCustomRoleName(): (name: string | null) => void {
   return (name) => ctx.store.getState().setCustomRoleName(name);
 }
 
+export function useScopedSetCustomRoleRef(): (
+  ref: { ebene: string; rolle: string } | null
+) => void {
+  const ctx = useChatSurfaceContext();
+  const globalSet = useAgentStore((s) => s.setCustomRoleRef);
+  if (!ctx) return globalSet;
+  return (ref) => ctx.store.getState().setCustomRoleRef(ref);
+}
+
 // ─── snapshot reader (for callbacks, e.g. adapter getConfig) ────────────────
 //
 // Returns a function that reads the *current* surface state (or globals when no
@@ -134,6 +150,7 @@ export function getScopedSnapshot(surface: ChatSurfaceState | null): ChatSurface
     selectedNotebookId: g.selectedNotebookId,
     customSystemPrompt: g.customSystemPrompt,
     customRoleName: g.customRoleName,
+    customRoleRef: g.customRoleRef,
     setSelectedAgent: g.setSelectedAgent,
     setThreadMode: g.setThreadMode,
     setSearchMode: g.setSearchMode,
@@ -141,5 +158,6 @@ export function getScopedSnapshot(surface: ChatSurfaceState | null): ChatSurface
     setSelectedNotebook: g.setSelectedNotebook,
     setCustomSystemPrompt: g.setCustomSystemPrompt,
     setCustomRoleName: g.setCustomRoleName,
+    setCustomRoleRef: g.setCustomRoleRef,
   };
 }
