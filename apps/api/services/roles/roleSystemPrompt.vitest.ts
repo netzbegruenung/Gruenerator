@@ -113,6 +113,57 @@ describe('resolveRoleSystemPrompt', () => {
   });
 });
 
+describe('resolveCustomSystemPrompt', () => {
+  it('prefers the baustein for a catalogue role, ignoring the client-sent prompt', async () => {
+    writeBaustein('ortsverband', 'Ortsverband-Baustein.');
+    const { resolveCustomSystemPrompt } = await load();
+
+    const result = resolveCustomSystemPrompt(
+      { ebene: 'ortsverband', rolle: 'Mitarbeiter*in Ortsverband' },
+      'de-DE',
+      'client-generated prompt'
+    );
+
+    expect(result).toContain('Ortsverband-Baustein.');
+  });
+
+  it('falls back to the stored AI-generated prompt for a freely typed role', async () => {
+    const { resolveCustomSystemPrompt } = await load();
+
+    const result = resolveCustomSystemPrompt(
+      { ebene: 'bund', rolle: 'Hoftrompeter*in', systemPrompt: 'stored role prompt' },
+      'de-DE',
+      'client-generated prompt'
+    );
+
+    expect(result).toBe('stored role prompt');
+  });
+
+  it('falls back to the client-sent prompt when the role has none stored yet', async () => {
+    const { resolveCustomSystemPrompt } = await load();
+
+    const result = resolveCustomSystemPrompt(
+      { ebene: 'bund', rolle: 'Hoftrompeter*in' },
+      'de-DE',
+      'client-generated prompt'
+    );
+
+    expect(result).toBe('client-generated prompt');
+  });
+
+  it('returns undefined when neither a baustein nor any prompt is available', async () => {
+    const { resolveCustomSystemPrompt } = await load();
+
+    const result = resolveCustomSystemPrompt(
+      { ebene: 'bund', rolle: 'Hoftrompeter*in' },
+      'de-DE',
+      null
+    );
+
+    expect(result).toBeUndefined();
+  });
+});
+
 describe('findRole', () => {
   it('matches on level and label together', async () => {
     const { findRole } = await load();

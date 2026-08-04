@@ -34,7 +34,7 @@ import {
   formatMemoriesByCategory,
 } from '../../../services/mem0/index.js';
 import { getCachedPersona } from '../../../services/mem0/personaService.js';
-import { findRole, resolveRoleSystemPrompt } from '../../../services/roles/roleSystemPrompt.js';
+import { findRole, resolveCustomSystemPrompt } from '../../../services/roles/roleSystemPrompt.js';
 import { recordItemUsageSafe } from '../../../services/usage/ItemUsageService.js';
 import { getAIWorkerPool } from '../../../utils/getAIWorkerPool.js';
 import { NextcloudShareManager } from '../../../utils/integrations/nextcloud/shareManager.js';
@@ -597,14 +597,11 @@ export async function buildStreamContext({
           'gespeicherte Rolle — der Turn läuft mit dem Basis-Agenten.'
       );
     } else {
-      // Für Katalogrollen liefert das den Baustein. Für frei eingetippte Rollen
-      // gibt es keinen Baustein (roleBausteinKey → null) — dann bleibt der
-      // KI-generierte Prompt aus der gespeicherten Rolle bzw. dem Request maßgeblich.
-      customSystemPrompt =
-        resolveRoleSystemPrompt(role, user.locale ?? 'de-DE') ??
-        role.systemPrompt ??
-        rawCustomSystemPrompt ??
-        undefined;
+      customSystemPrompt = resolveCustomSystemPrompt(
+        role,
+        user.locale ?? 'de-DE',
+        rawCustomSystemPrompt
+      );
     }
   }
 
