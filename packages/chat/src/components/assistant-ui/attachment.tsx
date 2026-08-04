@@ -20,9 +20,24 @@ import {
   TooltipTrigger,
   cn,
 } from '@gruenerator/ui';
-import { XIcon, PlusIcon, FileText, FileSearch, Cloud, Plug, Globe } from 'lucide-react';
+import {
+  ClipboardPaste,
+  XIcon,
+  PlusIcon,
+  FileText,
+  FileSearch,
+  Cloud,
+  Plug,
+  Globe,
+} from 'lucide-react';
 import { type PropsWithChildren, useEffect, useState, type FC } from 'react';
 import { useShallow } from 'zustand/shallow';
+
+import {
+  isPastedTextAttachment,
+  PASTED_TEXT_PREVIEW_PART_NAME,
+  pastedTextPreview,
+} from '../../lib/pastedText';
 
 import { TooltipIconButton } from './tooltip-icon-button';
 
@@ -181,11 +196,122 @@ const GruenAttachmentChip: FC = () => {
   );
 };
 
+function decodeBase64Text(data: string): string {
+  try {
+    const binary = atob(data);
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    return new TextDecoder().decode(bytes);
+  } catch {
+    return '';
+  }
+}
+
+const usePastedTextContent = () => {
+  const { file, encodedText, truncated } = useAuiState(
+    useShallow((s): { file?: File; encodedText?: string; truncated?: boolean } => {
+      let attachmentText: string | undefined;
+      let isTruncated = false;
+      for (const part of s.attachment.content ?? []) {
+        if (part.type === 'file') {
+          attachmentText = part.data;
+          break;
+        }
+        if (part.type === 'data' && part.name === PASTED_TEXT_PREVIEW_PART_NAME) {
+          const data: unknown = part.data;
+          if (
+            data !== null &&
+            typeof data === 'object' &&
+            'text' in data &&
+            typeof data.text === 'string'
+          ) {
+            attachmentText = data.text;
+            if ('truncated' in data && typeof data.truncated === 'boolean') {
+              isTruncated = data.truncated;
+            }
+          }
+        }
+      }
+      return {
+        ...(s.attachment.file ? { file: s.attachment.file } : {}),
+        ...(attachmentText ? { encodedText: attachmentText } : {}),
+        ...(isTruncated ? { truncated: true } : {}),
+      };
+    })
+  );
+  const [text, setText] = useState('');
+
+  useEffect(() => {
+    let disposed = false;
+    if (file) {
+      void file.text().then((value) => {
+        if (!disposed) setText(value);
+      });
+    } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- attachment content changes outside React; this derives an async file payload for the preview.
+      setText(encodedText ? decodeBase64Text(encodedText) || encodedText : '');
+    }
+    return () => {
+      disposed = true;
+    };
+  }, [encodedText, file]);
+
+  return { text, truncated: truncated ?? false };
+};
+
+const PastedTextAttachment: FC = () => {
+  const aui = useAui();
+  const isComposer = aui.attachment.source === 'composer';
+  const { text, truncated } = usePastedTextContent();
+  const preview = text ? pastedTextPreview(text) : 'Text wird vorbereitet…';
+
+  return (
+    <AttachmentPrimitive.Root className="aui-pasted-text-attachment relative shrink-0">
+      <Dialog>
+        <DialogTrigger asChild>
+          <button
+            type="button"
+            className="flex h-32 w-56 flex-col rounded-2xl border border-foreground/15 bg-muted/65 p-3 text-left shadow-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            aria-label="Eingefügten Text vollständig anzeigen"
+          >
+            <p className="flex items-center gap-1.5 text-[11px] font-semibold tracking-wide text-foreground-muted">
+              <ClipboardPaste className="size-3.5" />
+              EINGEFÜGT
+            </p>
+            <p className="mt-2 line-clamp-4 whitespace-pre-wrap break-words text-xs leading-4 text-foreground-muted">
+              {preview}
+            </p>
+            {text && (
+              <p className="mt-auto text-[11px] text-foreground-muted">
+                {text.length.toLocaleString('de-DE')} Zeichen
+              </p>
+            )}
+          </button>
+        </DialogTrigger>
+        <DialogContent className="max-h-[80dvh] overflow-hidden sm:max-w-2xl">
+          <DialogTitle>Eingefügter Text</DialogTitle>
+          <pre className="max-h-[62dvh] overflow-auto whitespace-pre-wrap break-words rounded-lg bg-muted p-3 font-sans text-sm leading-6 text-foreground">
+            {text || 'Text wird vorbereitet…'}
+          </pre>
+          {truncated && (
+            <p className="text-xs text-foreground-muted">
+              Im Verlauf wird eine Vorschau des eingefügten Texts angezeigt.
+            </p>
+          )}
+        </DialogContent>
+      </Dialog>
+      {isComposer && <AttachmentRemove />}
+    </AttachmentPrimitive.Root>
+  );
+};
+
 const AttachmentUI: FC = () => {
   const aui = useAui();
   const isComposer = aui.attachment.source === 'composer';
 
   const isImage = useAuiState((s) => s.attachment.type === 'image');
+  const isPastedText = useAuiState((s) =>
+    isPastedTextAttachment(s.attachment.name, s.attachment.contentType)
+  );
   const isGruenMention = useAuiState((s) =>
     (s.attachment.contentType ?? '').startsWith('application/x-gruenerator-')
   );
@@ -204,6 +330,7 @@ const AttachmentUI: FC = () => {
   });
 
   if (isGruenMention) return <GruenAttachmentChip />;
+  if (isPastedText) return <PastedTextAttachment />;
 
   return (
     <Tooltip>

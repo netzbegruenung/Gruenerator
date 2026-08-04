@@ -68,25 +68,29 @@ export const chatMessages = pgTable('chat_messages', {
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
-export const chatThreadAttachments = pgTable('chat_thread_attachments', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  thread_id: uuid('thread_id'),
-  message_id: uuid('message_id'),
-  user_id: uuid('user_id').notNull(),
-  name: text('name').notNull(),
-  mime_type: text('mime_type').notNull(),
-  size_bytes: bigint('size_bytes', { mode: 'number' }).notNull(),
-  is_image: boolean('is_image').default(false),
-  extracted_text: text('extracted_text'),
-  summary: text('summary'),
-  // Raw file bytes (base64) for tabular attachments only — lets the in-browser
-  // pandas interpreter be rehydrated after a thread reload / on another device.
-  file_data: text('file_data'),
-  // Qdrant document id when a large prose doc was chunked+embedded — follow-up
-  // turns retrieve it via RAG instead of re-injecting its truncated full text.
-  document_id: uuid('document_id'),
-  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
-});
+export const chatThreadAttachments = pgTable(
+  'chat_thread_attachments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    thread_id: uuid('thread_id'),
+    message_id: uuid('message_id'),
+    user_id: uuid('user_id').notNull(),
+    name: text('name').notNull(),
+    mime_type: text('mime_type').notNull(),
+    size_bytes: bigint('size_bytes', { mode: 'number' }).notNull(),
+    is_image: boolean('is_image').default(false),
+    extracted_text: text('extracted_text'),
+    summary: text('summary'),
+    // Raw file bytes (base64) for tabular attachments only — lets the in-browser
+    // pandas interpreter be rehydrated after a thread reload / on another device.
+    file_data: text('file_data'),
+    // Qdrant document id when a large prose doc was chunked+embedded — follow-up
+    // turns retrieve it via RAG instead of re-injecting its truncated full text.
+    document_id: uuid('document_id'),
+    created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  },
+  (t) => [index('idx_thread_attachments_message_id').on(t.message_id)]
+);
 
 /**
  * Maps chat sharepic variants to their lazily-minted canvas documents.

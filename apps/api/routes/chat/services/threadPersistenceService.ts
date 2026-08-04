@@ -128,13 +128,15 @@ export async function createMessage(
   content: string | null,
   metadata?: Record<string, unknown>,
   userId?: string
-): Promise<void> {
+): Promise<string> {
   const postgres = getPostgresInstance();
-  await postgres.query(
+  const result = (await postgres.query(
     `INSERT INTO chat_messages (thread_id, role, content, tool_results, user_id)
-     VALUES ($1, $2, $3, $4, $5)`,
+     VALUES ($1, $2, $3, $4, $5)
+     RETURNING id`,
     [threadId, role, content, metadata ? JSON.stringify(metadata) : null, userId || null]
-  );
+  )) as { id: string }[];
+  return result[0]!.id;
 }
 
 /**
