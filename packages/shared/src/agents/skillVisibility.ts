@@ -12,9 +12,6 @@
  * can't address a single one (see mentionableKey's comment in
  * packages/chat/src/lib/mentionables.ts).
  */
-export function isAdminVisibleSkill(
-  mention: string,
-  hiddenMentions: readonly string[]
-): boolean {
+export function isAdminVisibleSkill(mention: string, hiddenMentions: readonly string[]): boolean {
   return !hiddenMentions.includes(mention.toLowerCase());
 }

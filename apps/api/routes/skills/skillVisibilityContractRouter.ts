@@ -30,11 +30,22 @@ async function checkIsAdmin(userId: string, email?: string): Promise<boolean> {
   if (isAdminByEmail(email)) return true;
   const postgres = getPostgresInstance();
   const profile = await postgres.queryOne(
-    'SELECT is_admin FROM profiles WHERE id = $1',
+    'SELECT is_admin, email FROM profiles WHERE id = $1',
     [userId],
     { table: 'profiles' }
   );
-  return Boolean(profile?.is_admin);
+  const allowed = Boolean(profile?.is_admin);
+  if (!allowed) {
+    log.warn(
+      '[skillVisibilityContract] admin check denied: session user_id=%s session_email=%s profile_found=%s profile_email=%s profile_is_admin=%s',
+      userId,
+      email ?? '(none)',
+      profile ? 'yes' : 'no',
+      profile?.email ?? '(null)',
+      profile?.is_admin
+    );
+  }
+  return allowed;
 }
 
 const FORBIDDEN = {

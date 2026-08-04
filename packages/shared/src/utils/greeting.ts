@@ -126,8 +126,11 @@ export function getGreeting(
   firstName: string | null,
   options: GreetingOptions = {}
 ): string {
-  const instanceGreeting = options.instanceId ? getInstance(options.instanceId).heroGreeting : undefined;
-  const template = instanceGreeting ?? pickTemplate(locale, new Date().getHours(), options.short === true);
+  const instanceGreeting = options.instanceId
+    ? getInstance(options.instanceId).heroGreeting
+    : undefined;
+  const template =
+    instanceGreeting ?? pickTemplate(locale, new Date().getHours(), options.short === true);
 
   if (template.includes('@Vorname')) {
     return template.replace('@Vorname', firstName ?? 'du');
