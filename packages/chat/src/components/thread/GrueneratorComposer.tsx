@@ -783,7 +783,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   );
 
   return (
-    <div className="px-4 pb-[max(0.25rem,env(safe-area-inset-bottom))] sm:pb-[max(1rem,env(safe-area-inset-bottom))]">
+    <div className="px-4 pb-[max(0.25rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-[max(1rem,env(safe-area-inset-bottom))] lg:px-8">
       <ComposerPrimitive.Root
         className={cn(
           'composer-root relative mx-auto flex w-full max-w-3xl flex-col border bg-white transition-shadow dark:bg-surface',
