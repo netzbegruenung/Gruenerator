@@ -30,7 +30,7 @@
     --secondary-500: #6A9583;
     /* Eukalyptus, um 4 % Helligkeit abgedunkelt (war #5F8575). Weiß darauf
        erreichte 4,12:1 und verfehlte damit 4,5:1 (WCAG 1.4.3) -- an dieser
-       einen Stufe hingen Brand-Button, Sprung-Link, die Legacy-Buttons und
+       einen Stufe hingen Brand-Button, die Legacy-Buttons und
        jedes bg-secondary-600. Jetzt 4,65:1. Als Textfarbe auf Weiß
        (51x text-secondary-600) gilt derselbe Sprung. */
     --secondary-600: #587C6D;  /* Base "Eucalyptus" color */
