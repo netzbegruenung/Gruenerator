@@ -1,5 +1,10 @@
-import { agentsList, useSkillFavoritesStore, type AgentListItem } from '@gruenerator/chat';
-import { SKILL_CATEGORY_LABELS } from '@gruenerator/shared/agents';
+import {
+  agentsList,
+  useHiddenSkillMentions,
+  useSkillFavoritesStore,
+  type AgentListItem,
+} from '@gruenerator/chat';
+import { SKILL_CATEGORY_LABELS, isAdminVisibleSkill } from '@gruenerator/shared/agents';
 import { Badge, Button, CardGrid, Tabs, TabsContent, TabsList, TabsTrigger } from '@gruenerator/ui';
 import { useMemo } from 'react';
 import {
@@ -32,14 +37,17 @@ function SkillDetailPage() {
   // The recipe text is not in the bundle — it is party-internal and comes from
   // the API, for signed-in users only. See hooks/useSkillPrompt.ts.
   const { data: skillPrompt } = useSkillPrompt(skill?.mention);
+  const hiddenSkillMentions = useHiddenSkillMentions();
 
   const related = useMemo(() => {
     if (!skill) return [];
     const pool = agentsList.filter(
-      (s) => s.audience === undefined || s.audience === 'all' || s.audience === userLocale
+      (s) =>
+        (s.audience === undefined || s.audience === 'all' || s.audience === userLocale) &&
+        isAdminVisibleSkill(s.mention, hiddenSkillMentions)
     );
     return relatedSkills(skill, pool);
-  }, [skill, userLocale]);
+  }, [skill, userLocale, hiddenSkillMentions]);
 
   if (!skill) {
     return (

@@ -1,3 +1,4 @@
+import { isAdminVisibleSkill } from '@gruenerator/shared/agents';
 import { allIntentMentions, forcedToolFor } from '@gruenerator/shared/chat-intents';
 import {
   PiFlask,
@@ -27,8 +28,8 @@ import {
   PiChartLine,
   PiCalculator,
 } from '@gruenerator/shared/icons';
-import { NOTEBOOK_ICONS } from '@gruenerator/shared/notebook-icons';
 import { DEFAULT_INSTANCE_ID, type InstanceId } from '@gruenerator/shared/instances';
+import { NOTEBOOK_ICONS } from '@gruenerator/shared/notebook-icons';
 import {
   NOTEBOOK_REGISTRY,
   isNotebookEnabled,
@@ -192,10 +193,22 @@ export function setMentionInstance(instanceId: InstanceId): void {
   mentionInstance = instanceId;
 }
 
-/** Agent/skill mentionables visible for the current locale (de-DE/de-AT/all). */
+// Rezept `mention`s an admin hid from discovery on this deployment
+// (admin_hidden_skills). Set by `useHiddenSkillMentions` — same pattern as
+// `mentionLocale`/`mentionInstance` above. Discovery only: `resolveMentionable`
+// stays unfiltered so an existing @mention/link keeps resolving.
+let hiddenSkillMentions: readonly string[] = [];
+
+export function setHiddenSkillMentions(mentions: readonly string[]): void {
+  hiddenSkillMentions = mentions;
+}
+
+/** Agent/skill mentionables visible for the current locale, minus admin-hidden Rezepte. */
 export function getAgentMentionables(): Mentionable[] {
   return agentMentionables.filter(
-    (m) => m.audience === undefined || m.audience === 'all' || m.audience === mentionLocale
+    (m) =>
+      (m.audience === undefined || m.audience === 'all' || m.audience === mentionLocale) &&
+      isAdminVisibleSkill(m.mention, hiddenSkillMentions)
   );
 }
 

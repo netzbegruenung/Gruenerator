@@ -10,10 +10,11 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 
 import { createChatApiClient } from '../context/ChatContext';
 import {
+  setHiddenSkillMentions,
   type Mentionable,
   type CustomAgentMentionable,
   type TextformMentionable,
@@ -400,6 +401,37 @@ export function useVorlagenSearchQuery(query: string, enabled = true) {
   });
 }
 
+// ── Admin-curated Rezepte visibility ──────────────────────────────────────────
+//
+// `mention`s an admin hid from discovery on this deployment
+// (admin_hidden_skills). Discovery-only: resolveSkillMention stays
+// unfiltered, so an existing @mention/link keeps resolving. Long staleTime
+// and an empty-array default — visibility rarely changes and a stale/failed
+// fetch must degrade to "show everything", never the reverse.
+//
+// Also mirrors the result into the module-level `setHiddenSkillMentions`
+// (mentionables.ts), same pattern as `setMentionInstance`: the picker's
+// synchronous filter functions (getAgentMentionables) can't read a query
+// result directly, so the hook pushes it into shared module state as a side
+// effect. Components that render a live catalog (Agentura, SkillLibraryModal,
+// PlusMenu) read the returned array directly instead.
+
+export function useHiddenSkillMentions(): readonly string[] {
+  const apiClient = useApiClient();
+  const { data } = useQuery<{ hiddenMentions: string[] }>({
+    queryKey: ['admin-hidden-skills'],
+    queryFn: () => apiClient.get<{ hiddenMentions: string[] }>('/api/skills/visibility'),
+    staleTime: 5 * 60_000,
+    retry: 1,
+  });
+  const hiddenMentions = data?.hiddenMentions ?? [];
+  useEffect(() => {
+    setHiddenSkillMentions(hiddenMentions);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- array identity changes every fetch; join() is the stable dependency
+  }, [hiddenMentions.join(',')]);
+  return hiddenMentions;
+}
+
 /**
  * Convenience hook that triggers all dynamic-mentionable queries — call from
  * the chat composer so dynamic mentionables are warm by the time @-popovers
@@ -413,6 +445,7 @@ export function useMentionablesQuery(): void {
   useSheetsQuery();
   useUserNotebooksQuery();
   useMcpServersQuery();
+  useHiddenSkillMentions();
 }
 
 /**

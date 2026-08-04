@@ -1,7 +1,13 @@
-import { agentsList, useSkillFavoritesStore, type AgentListItem } from '@gruenerator/chat';
+import {
+  agentsList,
+  useHiddenSkillMentions,
+  useSkillFavoritesStore,
+  type AgentListItem,
+} from '@gruenerator/chat';
 import {
   getAgentSlug,
   getVisibleSystemAgentsForLocale,
+  isAdminVisibleSkill,
   type Agent,
 } from '@gruenerator/shared/agents';
 import { sortByUsage, type UsageMap } from '@gruenerator/shared/utils';
@@ -192,13 +198,18 @@ function AgenturaPage() {
     return [...byIdentifier.values()];
   }, [sharedSystemAgents, sharedUserAgents]);
 
-  // All skills available to this locale (unfiltered by search).
+  const hiddenSkillMentions = useHiddenSkillMentions();
+
+  // All skills available to this locale (unfiltered by search), minus any an
+  // admin hid from discovery on this deployment.
   const allSkills = useMemo(
     () =>
       agentsList.filter(
-        (s) => s.audience === undefined || s.audience === 'all' || s.audience === userLocale
+        (s) =>
+          (s.audience === undefined || s.audience === 'all' || s.audience === userLocale) &&
+          isAdminVisibleSkill(s.mention, hiddenSkillMentions)
       ),
-    [userLocale]
+    [userLocale, hiddenSkillMentions]
   );
 
   // Public community agents ("Von der Basis"): owners still see their own listing,
