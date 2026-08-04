@@ -400,11 +400,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
 
       {/* Account block (authenticated) or login button */}
       {user ? (
-        <SidebarAccount
-          sidebarExpanded={sidebarExpanded}
-          openRef={accountMenuOpenRef}
-          onNavigate={handleLinkClick}
-        />
+        <SidebarAccount sidebarExpanded={sidebarExpanded} openRef={accountMenuOpenRef} />
       ) : (
         <div className="mt-auto px-2 py-2 shrink-0">
           <NavTooltip label="Anmelden" collapsed={!sidebarExpanded}>
