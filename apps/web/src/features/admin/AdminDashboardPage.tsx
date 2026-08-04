@@ -106,6 +106,9 @@ const AdminDashboardPage = () => {
           <p className="text-lg text-grey-500 dark:text-grey-400 m-0">
             Eingereichte Vorlagen prüfen und freigeben.
           </p>
+          <Link to="/admin/skills" className="text-sm text-primary-600 hover:underline">
+            Rezepte-Sichtbarkeit verwalten →
+          </Link>
         </div>
 
         <div className="grid grid-cols-3 gap-md mb-xl">
