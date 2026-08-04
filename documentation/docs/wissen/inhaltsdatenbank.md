@@ -6,41 +6,41 @@ description: Aktuelle Statistiken über die indexierten Inhalte im Grünerator
 
 # Inhaltsdatenbank
 
-> Zuletzt aktualisiert: **03.08.2026, 08:58**
+> Zuletzt aktualisiert: **04.08.2026, 22:22**
 
 ## Übersicht
 
 Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei.
-Insgesamt sind **33.514 Vektoren** in der Datenbank gespeichert.
+Insgesamt sind **33.540 Vektoren** in der Datenbank gespeichert.
 
 ## Sammlungen
 
 | Sammlung       |   Vektoren |
 | -------------- | ---------: |
-| Landesverbände |     19.660 |
+| Landesverbände |     19.680 |
 | KommunalWiki   |      6.789 |
 | Bundestag      |      3.305 |
 | Böll-Stiftung  |      2.209 |
 | gruene.at      |      1.007 |
-| Grünblog       |        544 |
-| **Gesamt**     | **33.514** |
+| Grünblog       |        550 |
+| **Gesamt**     | **33.540** |
 
 ## Landesverbände
 
-Die Landesverbände-Sammlung enthält **13.247 Vektoren** aus 9 Quellen.
+Die Landesverbände-Sammlung enthält **13.251 Vektoren** aus 9 Quellen.
 
 | Landesverband                   | Kürzel |   Vektoren |
 | ------------------------------- | ------ | ---------: |
 | Mecklenburg-Vorpommern Fraktion | MV-F   |      2.428 |
-| Berlin Fraktion                 | BE-F   |      2.253 |
+| Berlin Fraktion                 | BE-F   |      2.255 |
 | Brandenburg                     | BB     |      2.161 |
-| Berlin                          | BE     |      1.834 |
-| Mecklenburg-Vorpommern          | MV     |      1.412 |
+| Berlin                          | BE     |      1.831 |
+| Mecklenburg-Vorpommern          | MV     |      1.414 |
 | Sachsen-Anhalt Fraktion         | LSA-F  |      1.385 |
 | Thüringen                       | TH     |        771 |
-| Bayern                          | BY     |        719 |
-| Sachsen-Anhalt                  | LSA    |        284 |
-| **Gesamt**                      |        | **13.247** |
+| Bayern                          | BY     |        721 |
+| Sachsen-Anhalt                  | LSA    |        285 |
+| **Gesamt**                      |        | **13.251** |
 
 ## Aktualisierung
 
