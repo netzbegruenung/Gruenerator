@@ -403,6 +403,12 @@ const STRICT_JSON_RETRY_NOTE =
   'Re-do the audit and pay close attention to the JSON output rules: no backticks or code fences inside ' +
   'string values, no unescaped quotes, no literal newlines inside a string.';
 
+// Thrown only when the agent DID finish but its verdict didn't parse as JSON — the one
+// failure mode a same-doc retry can plausibly fix. Agent-level failures (max turns,
+// timeouts, ...) get their own plain Error so auditDoc can tell the two apart and skip
+// the pointless (and misleadingly-worded) retry for those.
+class JsonVerdictError extends Error {}
+
 // One query + verdict-extraction attempt. Throws on agent failure or unparseable JSON —
 // auditDoc decides whether to retry.
 async function runOneAudit(
@@ -450,7 +456,12 @@ async function runOneAudit(
   if (endedBadly) {
     throw new Error(`agent ended: ${endedBadly}`);
   }
-  return extractVerdict(finalText);
+  try {
+    return extractVerdict(finalText);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new JsonVerdictError(message);
+  }
 }
 
 async function auditDoc(docPath: string, model: string): Promise<DocResult> {
@@ -480,8 +491,12 @@ async function auditDoc(docPath: string, model: string): Promise<DocResult> {
   // A malformed-JSON verdict is a formatting slip, not a substantive failure — one retry
   // with a stricter reminder recovers most of them instead of silently dropping the doc
   // from the audit (see gruener-ci-schritt-beweist-nichts: a swallowed error reads as success).
+  // Only JsonVerdictError qualifies: agent-level failures (max turns, timeouts, ...) get
+  // no retry — the STRICT_JSON_RETRY_NOTE premise would be wrong for those, and a doc that
+  // can't finish in 40 turns won't finish in another 40 either.
   let lastErr: unknown;
-  for (let attempt = 0; attempt < 2; attempt++) {
+  let attempt = 0;
+  for (; attempt < 2; attempt++) {
     try {
       const verdict = await runOneAudit(docPath, content, model, attempt > 0);
       return {
@@ -493,6 +508,7 @@ async function auditDoc(docPath: string, model: string): Promise<DocResult> {
       };
     } catch (err) {
       lastErr = err;
+      if (!(err instanceof JsonVerdictError)) break;
     }
   }
 
@@ -505,7 +521,7 @@ async function auditDoc(docPath: string, model: string): Promise<DocResult> {
     status: 'error',
     upToDate: true,
     findings: [],
-    error: `${rawMessage} (after retry)`,
+    error: attempt > 0 ? `${rawMessage} (after retry)` : rawMessage,
     durationS: Math.round((Date.now() - start) / 1000),
   };
 }
