@@ -92,3 +92,23 @@ export function resolveRoleSystemPrompt(role: UserRole, locale: Locale): string 
 export function findRole(roles: UserRole[], ref: RoleRef): UserRole | null {
   return roles.find((r) => r.ebene === ref.ebene && r.rolle === ref.rolle) ?? null;
 }
+
+/**
+ * Der Systemprompt für eine aufgelöste Rolle, mit der richtigen Rangfolge.
+ *
+ * Katalogrollen bekommen den Baustein. Frei eingetippte Rollen haben keinen
+ * (`resolveRoleSystemPrompt` → null) — dort bleibt der KI-generierte Prompt
+ * maßgeblich: erst die gespeicherte Rolle (`role.systemPrompt`), sonst der
+ * mit dem Request geschickte Text (Bestandsdaten, die den Text noch
+ * mitschicken, oder ein Turn kurz nach dem Anlegen der Rolle, bevor sie
+ * gespeichert ist).
+ */
+export function resolveCustomSystemPrompt(
+  role: UserRole,
+  locale: Locale,
+  rawCustomSystemPrompt: string | null | undefined
+): string | undefined {
+  return (
+    resolveRoleSystemPrompt(role, locale) ?? role.systemPrompt ?? rawCustomSystemPrompt ?? undefined
+  );
+}
