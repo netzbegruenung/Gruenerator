@@ -74,6 +74,12 @@ describe('stripRoleBlock', () => {
     expect(stripRoleBlock(`${legacy}\n\nSchreibe knapp.`)).toBe('Schreibe knapp.');
   });
 
+  it('handles repeated legacy prefixes in linear passes', () => {
+    const repeatedPrefix = 'Du unterstützt eine*n Mitarbeiter*in von '.repeat(100);
+
+    expect(stripRoleBlock(`${repeatedPrefix}eigener Text`)).toContain('eigener Text');
+  });
+
   it('leaves hand-written text untouched apart from trimming', () => {
     expect(stripRoleBlock('  Schreibe knapp.  ')).toBe('Schreibe knapp.');
     expect(stripRoleBlock('Meine Rollen sind mir wichtig.')).toBe('Meine Rollen sind mir wichtig.');

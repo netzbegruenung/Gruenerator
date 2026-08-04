@@ -67,8 +67,31 @@ export const ROLE_BLOCK_END = '<!-- gruenerator:rollen:end -->';
  * merkmal für maschinengeschriebenen Text — Freitext der Person trifft es
  * nicht.
  */
-const LEGACY_ROLE_BLOCK_RE =
-  /Du unterstützt eine\*n Mitarbeiter\*in von [^\n]*mit folgenden Rollen:[\s\S]*?Berücksichtige die Zuständigkeiten und die Ebene bei Stil, Detailtiefe und Zielgruppe\./g;
+const LEGACY_ROLE_BLOCK_START = 'Du unterstützt eine*n Mitarbeiter*in von ';
+const LEGACY_ROLE_BLOCK_ROLES = 'mit folgenden Rollen:';
+const LEGACY_ROLE_BLOCK_END =
+  'Berücksichtige die Zuständigkeiten und die Ebene bei Stil, Detailtiefe und Zielgruppe.';
+
+function stripLegacyRoleBlocks(text: string): string {
+  let result = text;
+  let start = result.indexOf(LEGACY_ROLE_BLOCK_START);
+
+  while (start !== -1) {
+    const rolesStart = result.indexOf(
+      LEGACY_ROLE_BLOCK_ROLES,
+      start + LEGACY_ROLE_BLOCK_START.length
+    );
+    if (rolesStart === -1) break;
+
+    const end = result.indexOf(LEGACY_ROLE_BLOCK_END, rolesStart + LEGACY_ROLE_BLOCK_ROLES.length);
+    if (end === -1) break;
+
+    result = result.slice(0, start) + result.slice(end + LEGACY_ROLE_BLOCK_END.length);
+    start = result.indexOf(LEGACY_ROLE_BLOCK_START, start);
+  }
+
+  return result;
+}
 
 /**
  * Entfernt den gespeicherten Rollenblock samt Inhalt und lässt nur stehen, was
@@ -91,8 +114,7 @@ export function stripRoleBlock(prompt: string | null | undefined): string {
   }
 
   return (
-    text
-      .replace(LEGACY_ROLE_BLOCK_RE, '')
+    stripLegacyRoleBlocks(text)
       .split('\n')
       // Ein halb geschriebener Zaun (nur ein Marker) darf nicht als Text übrig
       // bleiben; der Inhalt daneben gehört der Person und bleibt stehen.
