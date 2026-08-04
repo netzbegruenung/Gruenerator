@@ -4,6 +4,7 @@ import { SYSTEM_AGENT_DEFINITIONS } from './definitions/index.generated.js';
 import { LV_HUBS } from './landesverbandHubs.js';
 import { LV_BUERGER_AGENTS, type LV_BUERGER_SPECS } from './lvBuergerAgents.js';
 import { LV_PR_AGENTS, type LV_PR_SPECS } from './lvPrAgents.js';
+import { LV_WPS_AGENTS, type LV_WPS_SPECS } from './lvWahlpruefsteinAgents.js';
 
 import type { Agent } from './types.js';
 
@@ -17,22 +18,25 @@ import type { Agent } from './types.js';
 //   lvPrAgents.ts     — generated per-LV "Öffentlichkeitsarbeit" agents (one
 //                       template fans out to N LVs, so they stay builders).
 //   lvBuergerAgents.ts — generated per-LV "Bürger*innenanfragen" agents.
+//   lvWahlpruefsteinAgents.ts — generated per-LV "Wahlprüfsteine" agents.
 // This file only assembles them into the registry and resolves identifiers.
 const RAW_SYSTEM_AGENTS: readonly Agent[] = [
   ...SYSTEM_AGENT_DEFINITIONS,
   ...LV_PR_AGENTS,
   ...LV_BUERGER_AGENTS,
+  ...LV_WPS_AGENTS,
 ];
 
-// A Landesverband's two specialist agents (PR + Bürger*innenanfragen) are owned by
-// its hub, which pins the LV notebook. When that notebook is turned off
-// (`enabled: false`), hide both agents from discovery — same single switch, no
+// A Landesverband's specialist agents (PR + Bürger*innenanfragen + Wahlprüfsteine)
+// are owned by its hub, which pins the LV notebook. When that notebook is turned
+// off (`enabled: false`), hide all of them from discovery — same single switch, no
 // per-agent flag. LV_HUBS (itself derived from the LV registry) is the
-// authoritative notebook→agents map, so we resolve both agent ids from it.
+// authoritative notebook→agents map, so we resolve the agent ids from it.
 const disabledLvAgentIds = new Set<string>(
   LV_HUBS.filter((hub) => getDisabledNotebookIds().has(hub.notebookId)).flatMap((hub) => [
     hub.prAgentId,
     hub.buergerAgentId,
+    hub.wahlpruefsteinAgentId,
   ])
 );
 
@@ -51,7 +55,8 @@ export const VISIBLE_SYSTEM_AGENTS: readonly Agent[] = SYSTEM_AGENTS.filter(
 type BaseSystemAgentId = (typeof SYSTEM_AGENT_DEFINITIONS)[number]['identifier'];
 type LvPrAgentId = `gruenerator-oeffentlichkeitsarbeit-${(typeof LV_PR_SPECS)[number]['lv']}`;
 type LvBuergerAgentId = `gruenerator-buergeranfragen-${(typeof LV_BUERGER_SPECS)[number]['lv']}`;
-export type SystemAgentId = BaseSystemAgentId | LvPrAgentId | LvBuergerAgentId;
+type LvWpsAgentId = `gruenerator-wahlpruefsteine-${(typeof LV_WPS_SPECS)[number]['lv']}`;
+export type SystemAgentId = BaseSystemAgentId | LvPrAgentId | LvBuergerAgentId | LvWpsAgentId;
 
 export const DEFAULT_SYSTEM_AGENT_ID = 'gruenerator-universal' satisfies SystemAgentId;
 
