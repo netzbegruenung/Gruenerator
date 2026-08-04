@@ -1,3 +1,5 @@
+import { splitThemes } from './landesverbaende.js';
+
 import type { Agent } from './types.js';
 
 // ─── Per-Landesverband PR agents ──────────────────────────────────────────
@@ -41,16 +43,6 @@ export const LV_PR_SPECS = [
   notebook: string;
   themes: string;
 }>;
-
-// Splits a comma-separated `themes` string into individual topics, ignoring
-// commas inside parentheses (e.g. "Energiewende (Windkraft Nord, Wasserstoff)")
-// and stripping the parentheticals so the topics read cleanly inside a prompt.
-function splitThemes(themes: string): string[] {
-  return themes
-    .split(/,\s*(?![^()]*\))/)
-    .map((t) => t.replace(/\s*\([^)]*\)/g, '').trim())
-    .filter(Boolean);
-}
 
 // Concrete, LV-specific example prompts for the welcome screen — derived from
 // the spec's own `themes` so every LV gets tailored Beispiel-Karten.
