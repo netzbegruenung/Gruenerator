@@ -7,7 +7,7 @@ import { type NotebookId } from '../notebooks/index.js';
  * (`lvBuergerAgents.ts`) and the notebook pin on the hand-tuned PR agents
  * (`definitions/gruenerator-oeffentlichkeitsarbeit-*.md`) all DERIVE from it.
  *
- * Why this exists: each LV's two specialist agents must appear on the LV
+ * Why this exists: each LV's specialist agents must appear on the LV
  * notebook page, which lists an agent only when its `defaultNotebookIds` include the notebookId
  * (`NotebookAgentsSection`). The Bürger agents always derived that pin from their
  * spec, but the hand-tuned PR agents typed it by hand — and 8 of them silently
@@ -33,8 +33,10 @@ export interface LandesverbandEntry {
   prAgentId: string;
   /** Identifier of the Bürger*innenanfragen agent. */
   buergerAgentId: string;
+  /** Identifier of the Wahlprüfsteine agent. */
+  wahlpruefsteinAgentId: string;
   /**
-   * Branded hub: `/agents/<slug>` opens a landing offering both agents. Absent
+   * Branded hub: `/agents/<slug>` opens a landing offering all three agents. Absent
    * when the LV has no hub yet (e.g. Schleswig-Holstein, notebook disabled).
    * `slug` is intentionally decoupled from `id` (MV's id is
    * `mecklenburg-vorpommern` but its shared link is `gruene-mv`).
@@ -54,6 +56,7 @@ export const LANDESVERBAENDE = [
     audience: 'de-DE',
     prAgentId: 'gruenerator-oeffentlichkeitsarbeit-berlin',
     buergerAgentId: 'gruenerator-buergeranfragen-berlin',
+    wahlpruefsteinAgentId: 'gruenerator-wahlpruefsteine-berlin',
     hub: { slug: 'gruene-berlin', name: 'Grüne Berlin' },
   },
   {
@@ -67,6 +70,7 @@ export const LANDESVERBAENDE = [
     audience: 'de-DE',
     prAgentId: 'gruenerator-oeffentlichkeitsarbeit-hamburg',
     buergerAgentId: 'gruenerator-buergeranfragen-hamburg',
+    wahlpruefsteinAgentId: 'gruenerator-wahlpruefsteine-hamburg',
     hub: { slug: 'gruene-hamburg', name: 'Grüne Hamburg' },
   },
   {
@@ -80,6 +84,7 @@ export const LANDESVERBAENDE = [
     audience: 'de-DE',
     prAgentId: 'gruenerator-oeffentlichkeitsarbeit-mecklenburg-vorpommern',
     buergerAgentId: 'gruenerator-buergeranfragen-mecklenburg-vorpommern',
+    wahlpruefsteinAgentId: 'gruenerator-wahlpruefsteine-mecklenburg-vorpommern',
     hub: { slug: 'gruene-mv', name: 'Grüne Mecklenburg-Vorpommern' },
   },
   {
@@ -93,6 +98,7 @@ export const LANDESVERBAENDE = [
     audience: 'de-DE',
     prAgentId: 'gruenerator-oeffentlichkeitsarbeit-thueringen',
     buergerAgentId: 'gruenerator-buergeranfragen-thueringen',
+    wahlpruefsteinAgentId: 'gruenerator-wahlpruefsteine-thueringen',
     hub: { slug: 'gruene-thueringen', name: 'Grüne Thüringen' },
   },
   {
@@ -106,6 +112,7 @@ export const LANDESVERBAENDE = [
     audience: 'de-DE',
     prAgentId: 'gruenerator-oeffentlichkeitsarbeit-brandenburg',
     buergerAgentId: 'gruenerator-buergeranfragen-brandenburg',
+    wahlpruefsteinAgentId: 'gruenerator-wahlpruefsteine-brandenburg',
     hub: { slug: 'gruene-brandenburg', name: 'Grüne Brandenburg' },
   },
   {
@@ -119,6 +126,7 @@ export const LANDESVERBAENDE = [
     audience: 'de-DE',
     prAgentId: 'gruenerator-oeffentlichkeitsarbeit-bayern',
     buergerAgentId: 'gruenerator-buergeranfragen-bayern',
+    wahlpruefsteinAgentId: 'gruenerator-wahlpruefsteine-bayern',
     hub: { slug: 'gruene-bayern', name: 'Grüne Bayern' },
   },
   {
@@ -132,6 +140,7 @@ export const LANDESVERBAENDE = [
     audience: 'de-DE',
     prAgentId: 'gruenerator-oeffentlichkeitsarbeit-sachsen-anhalt',
     buergerAgentId: 'gruenerator-buergeranfragen-sachsen-anhalt',
+    wahlpruefsteinAgentId: 'gruenerator-wahlpruefsteine-sachsen-anhalt',
     hub: { slug: 'gruene-sachsen-anhalt', name: 'Grüne Sachsen-Anhalt' },
   },
   {
@@ -145,6 +154,7 @@ export const LANDESVERBAENDE = [
     audience: 'de-DE',
     prAgentId: 'gruenerator-oeffentlichkeitsarbeit-hessen',
     buergerAgentId: 'gruenerator-buergeranfragen-hessen',
+    wahlpruefsteinAgentId: 'gruenerator-wahlpruefsteine-hessen',
     hub: { slug: 'gruene-hessen', name: 'Grüne Hessen' },
   },
   {
@@ -158,6 +168,7 @@ export const LANDESVERBAENDE = [
     audience: 'de-DE',
     prAgentId: 'gruenerator-oeffentlichkeitsarbeit-saarland',
     buergerAgentId: 'gruenerator-buergeranfragen-saarland',
+    wahlpruefsteinAgentId: 'gruenerator-wahlpruefsteine-saarland',
     hub: { slug: 'gruene-saarland', name: 'Grüne Saarland' },
   },
   {
@@ -171,6 +182,7 @@ export const LANDESVERBAENDE = [
     audience: 'de-DE',
     prAgentId: 'gruenerator-oeffentlichkeitsarbeit-schleswig-holstein',
     buergerAgentId: 'gruenerator-buergeranfragen-schleswig-holstein',
+    wahlpruefsteinAgentId: 'gruenerator-wahlpruefsteine-schleswig-holstein',
     // No hub: the SH notebook is currently disabled in the frontend.
   },
   {
@@ -184,6 +196,7 @@ export const LANDESVERBAENDE = [
     audience: 'de-AT',
     prAgentId: 'gruenerator-oeffentlichkeitsarbeit-at',
     buergerAgentId: 'gruenerator-buergeranfragen-oesterreich',
+    wahlpruefsteinAgentId: 'gruenerator-wahlpruefsteine-oesterreich',
     hub: { slug: 'gruene-oesterreich', name: 'Grüne Österreich' },
   },
 ] as const satisfies readonly LandesverbandEntry[];
@@ -194,17 +207,33 @@ export const LV_NOTEBOOK_BY_PR_AGENT_ID: ReadonlyMap<string, NotebookId> = new M
   LANDESVERBAENDE.map((lv) => [lv.prAgentId, lv.notebookId])
 );
 
+/** Splits a comma-separated `themes` string into individual topics, ignoring
+ *  commas inside parentheses (e.g. Hessen's "Naturschutz (Wald, Wasser)") and
+ *  stripping the parentheticals so the topics read cleanly inside a prompt.
+ *  Shared by the PR-, Bürger*innen- and Wahlprüfsteine-Agent specs, which all
+ *  derive their opening questions from the same `themes` field. */
+export function splitThemes(themes: string): string[] {
+  return themes
+    .split(/,\s*(?![^()]*\))/)
+    .map((t) => t.replace(/\s*\([^)]*\)/g, '').trim())
+    .filter(Boolean);
+}
+
 /** Per-Landesverband agents and skills share this identifier prefix family. */
 export function isLandesverbandIdentifier(identifier: string): boolean {
   return (
     identifier.startsWith('gruenerator-oeffentlichkeitsarbeit-') ||
-    identifier.startsWith('gruenerator-buergeranfragen-')
+    identifier.startsWith('gruenerator-buergeranfragen-') ||
+    identifier.startsWith('gruenerator-wahlpruefsteine-')
   );
 }
 
 /** The Landesverband slug from an LV identifier (e.g. `…-berlin` → `berlin`). */
 export function landesverbandRegion(identifier: string): string {
-  return identifier.replace(/^gruenerator-(oeffentlichkeitsarbeit|buergeranfragen)-/, '');
+  return identifier.replace(
+    /^gruenerator-(oeffentlichkeitsarbeit|buergeranfragen|wahlpruefsteine)-/,
+    ''
+  );
 }
 
 /** Title-case an LV region slug for display (`berlin` → `Berlin`). */
