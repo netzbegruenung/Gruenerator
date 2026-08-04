@@ -7,7 +7,6 @@ import { useAuthStore } from '@/stores/authStore';
 const AccessibilityTab = () => {
   const reduceMotion = useAuthStore((s) => s.user?.reduce_motion ?? false);
   const reduceTransparency = useAuthStore((s) => s.user?.reduce_transparency ?? false);
-  const showSkipLink = useAuthStore((s) => s.user?.show_skip_link ?? true);
   const updateA11yPreference = useAuthStore((s) => s.updateA11yPreference);
 
   return (
@@ -25,14 +24,6 @@ const AccessibilityTab = () => {
           checked={reduceTransparency}
           onCheckedChange={(checked) => void updateA11yPreference('reduce_transparency', checked)}
           aria-label="Transparenz und Unschärfe reduzieren"
-        />
-      </SettingsRow>
-
-      <SettingsRow id="barrierefreiheit.sprunglink">
-        <Switch
-          checked={showSkipLink}
-          onCheckedChange={(checked) => void updateA11yPreference('show_skip_link', checked)}
-          aria-label="Sprung-Link zum Inhalt anzeigen"
         />
       </SettingsRow>
     </div>
