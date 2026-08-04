@@ -29,6 +29,8 @@ export {
   type SystemAgentId,
 } from './system.js';
 
+export { isAdminVisibleSkill } from './skillVisibility.js';
+
 export { SKILLS, resolveSkillMention } from './skills/index.js';
 
 export {

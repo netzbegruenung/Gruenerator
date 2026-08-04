@@ -7,6 +7,7 @@
  * reshuffle on every render, switches to a rainbow Pride greeting in June, and to
  * the launch announcement for the week after a release cut-off.
  */
+import { getInstance, type InstanceId } from '../instances/index.js';
 
 function pickStable<T>(options: readonly T[], seed: number): T {
   return options[seed % options.length] as T;
@@ -111,6 +112,13 @@ export interface GreetingOptions {
    * and a sentence wraps to three lines; web's hero has the width for both.
    */
   short?: boolean;
+  /**
+   * When the resolved instance carries a `heroGreeting`, it replaces the
+   * DE/AT rotation outright — an instance with a fixed voice (e.g. `bgst`)
+   * skips Pride/launch-week/time-of-day entirely. Instances without one
+   * (production, beta, local) fall through to the normal rotation, a no-op.
+   */
+  instanceId?: InstanceId;
 }
 
 export function getGreeting(
@@ -118,7 +126,8 @@ export function getGreeting(
   firstName: string | null,
   options: GreetingOptions = {}
 ): string {
-  const template = pickTemplate(locale, new Date().getHours(), options.short === true);
+  const instanceGreeting = options.instanceId ? getInstance(options.instanceId).heroGreeting : undefined;
+  const template = instanceGreeting ?? pickTemplate(locale, new Date().getHours(), options.short === true);
 
   if (template.includes('@Vorname')) {
     return template.replace('@Vorname', firstName ?? 'du');

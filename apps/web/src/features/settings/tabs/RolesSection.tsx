@@ -1,5 +1,6 @@
 import { type UserRole } from '@gruenerator/chat';
 import { getContractsClient } from '@gruenerator/shared/api';
+import { getInstance } from '@gruenerator/shared/instances';
 import {
   type EbeneConfig,
   DE_EBENEN,
@@ -33,6 +34,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useState, useCallback, useEffect, useMemo, useRef, memo } from 'react';
 import { HiOutlineArrowLeft, HiOutlineTrash, HiPlus } from 'react-icons/hi2';
 
+import { CURRENT_INSTANCE } from '../../../config/instance';
 import { QUERY_KEYS } from '../../../features/auth/hooks/useProfileData';
 import { profileApiService, type Profile } from '../../../features/auth/services/profileApiService';
 import { useAuthStore } from '../../../stores/authStore';
@@ -163,18 +165,39 @@ export default function RolesSection() {
 
   // ─── Wizard handlers ─────────────────────────────────────────────────────
 
+  // Pre-selects the instance's suggested role (e.g. bgst's "Mitarbeiter*in
+  // Bundesgeschäftsstelle") the first time a user with no roles yet opens the
+  // wizard — only a suggestion, still changeable via the normal SelectCard
+  // flow. Guarded against the ebene/rolle pair matching the active locale's
+  // registry, so a stale instance config can never point at a non-existent
+  // role.
+  const instanceDefaultRole = getInstance(CURRENT_INSTANCE).defaultRole;
+
   const startAddRole = useCallback(() => {
     setAddingRole(true);
-    setWizardStep('ebene');
-    setWizEbene(null);
-    setWizBundesland(null);
     setWizBundeslandQuery('');
     setWizGliederung('');
-    setWizRolle(null);
     setWizCustomRolle('');
     setWizAbgeordnete('');
     setWizInstructions('');
-  }, []);
+
+    const suggestDefault =
+      roles.length === 0 &&
+      instanceDefaultRole !== undefined &&
+      (rollenMap[instanceDefaultRole.ebeneId] ?? []).includes(instanceDefaultRole.rolle);
+
+    if (suggestDefault) {
+      setWizEbene(instanceDefaultRole.ebeneId);
+      setWizBundesland(null);
+      setWizRolle(instanceDefaultRole.rolle);
+      setWizardStep(NEEDS_BUNDESLAND.has(instanceDefaultRole.ebeneId) ? 'bundesland' : 'rolle');
+    } else {
+      setWizardStep('ebene');
+      setWizEbene(null);
+      setWizBundesland(null);
+      setWizRolle(null);
+    }
+  }, [roles.length, instanceDefaultRole, rollenMap]);
 
   const cancelAddRole = useCallback(() => {
     setAddingRole(false);
