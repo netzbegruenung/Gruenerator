@@ -35,11 +35,11 @@ function InitialTurnSender({ message }: { message: string }) {
   useEffect(() => {
     void (async () => {
       for (const attachment of usePendingAttachmentStore.getState().drain()) {
-        await aui.composer().addAttachment(attachment);
+        await aui.composer.addAttachment(attachment);
       }
       if (message) {
-        aui.composer().setText(message);
-        aui.composer().send();
+        aui.composer.setText(message);
+        aui.composer.send();
       }
     })();
     // Only run once on mount
@@ -56,7 +56,7 @@ function ComposerPrefiller({ text }: { text: string }) {
 
   useEffect(() => {
     if (text) {
-      aui.composer().setText(text);
+      aui.composer.setText(text);
     }
     // Only run once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps

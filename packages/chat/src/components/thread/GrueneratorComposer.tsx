@@ -3,7 +3,8 @@
 import {
   AuiIf,
   ComposerPrimitive,
-  useComposerRuntime,
+  useAui,
+  useAuiEvent,
   useVoiceControls,
   useVoiceState,
 } from '@assistant-ui/react';
@@ -11,7 +12,7 @@ import { useAuiState } from '@assistant-ui/store';
 import { mcpBrandColor } from '@gruenerator/shared/utils';
 import { cn, useIsMobile } from '@gruenerator/ui';
 import { ArrowUp, Mic, Plug, Square, X } from 'lucide-react';
-import { memo, useRef, useState, useCallback, useEffect } from 'react';
+import { memo, useRef, useState, useCallback, type ClipboardEvent } from 'react';
 import { type IconType } from 'react-icons';
 import { RiVoiceAiFill } from 'react-icons/ri';
 import {
@@ -57,6 +58,10 @@ import {
 } from '../../lib/mentionAttachments';
 import { getFilteredMentionables, detectMention } from '../../lib/mentionDetection';
 import { computeMentionInsertion } from '../../lib/mentionInsertion';
+import {
+  PASTED_TEXT_ATTACHMENT_NAME,
+  shouldCreatePastedTextAttachment,
+} from '../../lib/pastedText';
 import { useScopedAgentId } from '../../lib/useScopedAgentState';
 import { useAgentStore } from '../../stores/chatStore';
 import { useUserProfileStore } from '../../stores/userProfileStore';
@@ -139,6 +144,9 @@ interface GrueneratorComposerProps {
    * mobile/desktop without a hydration bridge are unaffected.
    */
   requireProfileHydration?: boolean;
+  /** Turns substantial plain-text clipboard pastes into a compact reference card.
+   * Explicit opt-in keeps search and notebook surfaces on their existing request paths. */
+  enablePastedTextAttachments?: boolean;
 }
 
 const ROUND_BTN_BASE =
@@ -299,8 +307,9 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   variant = 'card',
   slots,
   requireProfileHydration = false,
+  enablePastedTextAttachments = false,
 }: GrueneratorComposerProps) {
-  const composerRuntime = useComposerRuntime();
+  const composerRuntime = useAui().composer;
   const isCompact = useChatDensity() === 'compact';
   const isMobile = useIsMobile();
   const effectivePlaceholder = placeholder ?? (isMobile ? 'Schreibe...' : 'Nachricht schreiben...');
@@ -318,12 +327,27 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   // AUI's file-input handler validates against the adapter's `accept` list and
   // throws a raw English error before our adapter's add() runs. Subscribe to
   // the structured event so the user sees a clean German toast instead.
-  useEffect(
-    () => composerRuntime.unstable_on('attachmentAddError', handleAttachmentAddError),
-    [composerRuntime]
-  );
+  useAuiEvent('composer.attachmentAddError', handleAttachmentAddError);
 
   const dismissPopover = useCallback(() => setMention(INITIAL_MENTION_STATE), []);
+
+  const handlePaste = useCallback(
+    (event: ClipboardEvent<HTMLTextAreaElement>) => {
+      if (!enablePastedTextAttachments) return;
+
+      const clipboard = event.clipboardData;
+      // Let assistant-ui retain its native file/image-paste behaviour.
+      if (clipboard.files.length > 0) return;
+
+      const text = clipboard.getData('text/plain');
+      if (!shouldCreatePastedTextAttachment(text)) return;
+
+      event.preventDefault();
+      const file = new File([text], PASTED_TEXT_ATTACHMENT_NAME, { type: 'text/plain' });
+      void composerRuntime.addAttachment(file);
+    },
+    [composerRuntime, enablePastedTextAttachments]
+  );
 
   const handleSelect = useCallback(
     (mentionable: Mentionable) => {
@@ -754,6 +778,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
       }
       onChange={showMentions ? handleChange : undefined}
       onKeyDown={showMentions ? handleKeyDown : undefined}
+      onPaste={handlePaste}
     />
   );
 

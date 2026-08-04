@@ -35,7 +35,6 @@ describe('selectProviderAndModel — provider and model agree', () => {
    */
   it('routes structured creation to Mistral Medium 3.5', () => {
     const structureTypes = [
-      'doc_generation',
       'board_generation',
       'canvas_ai_suggest',
       'website',
@@ -54,6 +53,38 @@ describe('selectProviderAndModel — provider and model agree', () => {
       expect(provider, type).toBe('mistral');
       expect(model, type).toBe('mistral-medium-2604');
     }
+  });
+
+  /**
+   * Artefakte (PDF, Präsentation, Sheet, Dokument) sind die eine Ausnahme in
+   * dieser Menge: gemessen ruft Mistral Medium 3.5 den erzwungenen Tool-Call
+   * hier NIE auf, schreibt das JSON als Prosa und läuft ins Token-Limit — mit
+   * größerem Budget schlechter statt besser (187 s bei 12k, 248 s bei 16k,
+   * beide in Wiederholung degeneriert). Gemma 4 auf GreenPT ruft das Tool sauber
+   * auf und terminiert.
+   *
+   * Das Modell muss BENANNT sein: GreenPTs eigener Default ist
+   * `mistral-medium-3.5-128b` (services/ai/providers.ts) — eine Lane, die auf
+   * den GreenPT-Default zurückfällt, landet also genau wieder bei dem Modell,
+   * das hier gerade abgewählt wurde, nur über einen anderen Adapter.
+   */
+  it('routes artifact generation to Gemma 4 on GreenPT, never to the GreenPT default', () => {
+    const { provider, model } = selectProviderAndModel({ type: 'doc_generation', env: {} });
+    expect(provider).toBe('greenpt');
+    expect(model).toBe('gemma4');
+  });
+
+  /**
+   * Ein Aufrufer darf sein eigenes Modell benennen — das gilt auf der
+   * Artefakt-Lane wie überall sonst.
+   */
+  it('lets an explicit model win on the artifact lane', () => {
+    const { model } = selectProviderAndModel({
+      type: 'doc_generation',
+      options: { model: 'mistral-medium-2604' },
+      env: {},
+    });
+    expect(model).toBe('mistral-medium-2604');
   });
 
   /**

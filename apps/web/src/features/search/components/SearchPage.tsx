@@ -7,12 +7,7 @@
  * threadMode='search' so the adapter routes to /api/search-graph/stream.
  */
 
-import {
-  ThreadPrimitive,
-  useAssistantRuntime,
-  useComposerRuntime,
-  useThread,
-} from '@assistant-ui/react';
+import { ThreadPrimitive, useAui, useAuiState } from '@assistant-ui/react';
 import {
   GrueneratorComposer,
   GrueneratorThread,
@@ -34,7 +29,7 @@ const SEARCH_EXAMPLES = [
 ];
 
 function SearchExampleSuggestions() {
-  const composerRuntime = useComposerRuntime();
+  const composerRuntime = useAui().composer;
 
   const handleClick = useCallback(
     (e: React.MouseEvent, text: string) => {
@@ -69,18 +64,18 @@ function SearchExampleSuggestions() {
  * Local version that uses a callback instead of the shared chatViewMode store.
  */
 function SwitchToThread({ onSwitch }: { onSwitch: () => void }) {
-  const thread = useThread();
+  const isRunning = useAuiState((s) => s.thread.isRunning);
   const hasNavigated = useRef(false);
 
   useEffect(() => {
-    if (thread.isRunning && !hasNavigated.current) {
+    if (isRunning && !hasNavigated.current) {
       hasNavigated.current = true;
       onSwitch();
     }
-    if (!thread.isRunning) {
+    if (!isRunning) {
       hasNavigated.current = false;
     }
-  }, [thread.isRunning, onSwitch]);
+  }, [isRunning, onSwitch]);
 
   return null;
 }
@@ -101,12 +96,12 @@ function SearchPageContent() {
   const navigate = useNavigate();
   const firstName = useFirstName();
   const [isThreadView, setIsThreadView] = useState(false);
-  const assistantRuntime = useAssistantRuntime();
+  const aui = useAui();
 
   useEffect(() => {
     useAgentStore.getState().setThreadMode('search');
-    void assistantRuntime.threads.switchToNewThread();
-  }, [assistantRuntime]);
+    void aui.threads.switchToNewThread();
+  }, [aui]);
 
   const handleSwitchToThread = useCallback(() => {
     setIsThreadView(true);
@@ -150,8 +145,7 @@ function SearchPageContent() {
  * Gates the runtime-using content until the lazy assistant-ui runtime is
  * mounted. On a cold direct load of /suche the Suspense fallback renders this
  * page without the provider; rendering a neutral shell until ready keeps
- * useAssistantRuntime()/useComposerRuntime() from crashing ("requires an
- * AuiProvider"). Mirrors the ChatPage guard.
+ * useAui() from crashing ("requires an AuiProvider"). Mirrors the ChatPage guard.
  */
 function SearchPage() {
   const runtimeReady = useChatRuntimeReady();

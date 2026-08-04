@@ -1,12 +1,12 @@
 'use client';
 
-import { useAssistantRuntime } from '@assistant-ui/react';
+import { useAui } from '@assistant-ui/react';
 import { useEffect, useRef } from 'react';
 
 import { useAgentStore } from '../stores/chatStore';
 
 export function AgentSwitchListener() {
-  const assistantRuntime = useAssistantRuntime();
+  const aui = useAui();
   const selectedAgentId = useAgentStore((s) => s.selectedAgentId);
   const prevRef = useRef<string | null | undefined>(undefined);
 
@@ -38,8 +38,8 @@ export function AgentSwitchListener() {
     const store = useAgentStore.getState();
     store.resetThreadContext();
     store.setCurrentThread(null);
-    void assistantRuntime.threads.switchToNewThread();
-  }, [selectedAgentId, assistantRuntime]);
+    void aui.threads.switchToNewThread();
+  }, [selectedAgentId, aui]);
 
   return null;
 }

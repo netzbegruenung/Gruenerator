@@ -255,9 +255,9 @@ export const NOTEBOOK_REGISTRY = [
     id: 'berlin-notebook',
     title: 'Berlin',
     description:
-      'Durchsuchbar sind Wahlprogramm 2026, Pressemitteilungen und Beschlüsse der Grünen Berlin.',
+      'Durchsuchbar sind Wahlprogramm 2026, Pressemitteilungen, Beschlüsse und Wahlprüfsteine der Grünen Berlin.',
     meta: 'Archiv',
-    tags: ['Berlin', 'Wahlprogramm', 'Beschlüsse', 'Presse'],
+    tags: ['Berlin', 'Wahlprogramm', 'Beschlüsse', 'Presse', 'Wahlprüfsteine'],
     order: 7,
     category: 'landesebene',
     audience: 'de-DE',
@@ -265,7 +265,7 @@ export const NOTEBOOK_REGISTRY = [
     mention: {
       alias: 'berlin',
       title: 'Grüne Berlin',
-      description: 'Wahlprogramm 2026, Pressemitteilungen und Beschlüsse Berlin',
+      description: 'Wahlprogramm 2026, Pressemitteilungen, Beschlüsse und Wahlprüfsteine Berlin',
       avatar: '🐻',
       backgroundColor: '#316049',
     },
