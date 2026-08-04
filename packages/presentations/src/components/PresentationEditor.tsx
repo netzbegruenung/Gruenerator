@@ -1,4 +1,5 @@
 import { type Slide } from '@gruenerator/contracts';
+import { type Editor } from '@tiptap/react';
 import { useEffect, useRef, useState } from 'react';
 import {
   FiChevronDown,
@@ -18,7 +19,9 @@ import { useSwipeNavigation } from '../lib/useSwipeNavigation.js';
 
 import { MobileSheet } from './MobileSheet.js';
 import { ScaledSlide } from './ScaledSlide.js';
+import { SlideBodyToolbar } from './SlideBodyToolbar.js';
 import { SlideDesignPanel } from './SlideDesignPanel.js';
+import { SlideImageDialog, type SlideImage } from './SlideImageDialog.js';
 import { SlideSurface } from './SlideSurface.js';
 import { SlideTextSheet } from './SlideTextSheet.js';
 import { SlideThumbnailList } from './SlideThumbnailList.js';
@@ -96,6 +99,11 @@ export function PresentationEditor({
   const touch = useIsCoarsePointer();
   const [gridOpen, setGridOpen] = useState(false);
   const [textField, setTextField] = useState<'title' | 'body' | null>(null);
+  // Non-null only while a slide renders the WYSIWYG body editor — which is
+  // exactly when the insert toolbar has something to act on (never on touch,
+  // never on a code slide).
+  const [bodyEditor, setBodyEditor] = useState<Editor | null>(null);
+  const [imageDialogOpen, setImageDialogOpen] = useState(false);
 
   // Captured once — the seed only applies on first open, so a changing prop
   // identity must not reseed.
@@ -229,6 +237,13 @@ export function PresentationEditor({
               </button>
             </div>
 
+            {editable && bodyEditor && (
+              <SlideBodyToolbar
+                editor={bodyEditor}
+                onRequestImage={() => setImageDialogOpen(true)}
+              />
+            )}
+
             {/* Slide — fills the leftover height, capped by the 16:9 ratio. */}
             <div
               className="flex w-full max-w-[1400px] min-h-[120px] flex-1 justify-center"
@@ -247,6 +262,7 @@ export function PresentationEditor({
                   ydoc={ydoc}
                   onChange={(patch) => updateSlide(activeIndex, patch)}
                   onRequestEdit={touch ? (field) => setTextField(field) : undefined}
+                  onBodyEditor={setBodyEditor}
                 />
               </ScaledSlide>
             </div>
@@ -358,6 +374,16 @@ export function PresentationEditor({
             }}
           />
         </MobileSheet>
+      )}
+
+      {imageDialogOpen && bodyEditor && (
+        <SlideImageDialog
+          onInsert={(image: SlideImage) => {
+            bodyEditor.chain().focus().setImage({ src: image.src, alt: image.alt }).run();
+            setImageDialogOpen(false);
+          }}
+          onClose={() => setImageDialogOpen(false)}
+        />
       )}
 
       {touch && textField && active && editable && (

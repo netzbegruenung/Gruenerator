@@ -236,7 +236,7 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/office/intro",
     "title": "Office: Dokumente, Tabellen, Folien und Boards",
     "category": "Office",
-    "lead": "Office ist der Ort für alles, was aus Text, Zahlen und Plänen besteht. Vier Arten von Dokumenten liegen dort nebeneinander: . Du findest sie über den Tab Arbeiten unter der Kachel ."
+    "lead": "Office ist der Ort für alles, was aus Text, Zahlen und Plänen besteht. Fünf Arten von Dokumenten liegen dort nebeneinander: . Du findest sie über den Tab Arbeiten unter der Kachel ."
   },
   {
     "url": "/docs/office/ki-im-editor",
@@ -947,7 +947,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "So stellst du eine gute Frage",
     "anchor": "#so-stellst-du-eine-gute-frage",
     "category": "Chat",
-    "text": "Einfach lostippen. Der Grünerator erkennt an deiner Formulierung selbst, ob er nachschlagen, recherchieren, rechnen oder etwas erstellen soll. „Was steht im Grundsatzprogramm zum Mietendeckel?\" reicht — du musst kein Werkzeug auswählen. Nenne das Ziel, nicht den Weg. Statt „such im Web und schreib dann einen Post\" genügt „Schreib einen Instagram-Post zum aktuellen Stand der Wärmewende\". Mehrschrittige Aufträge löst der Grünerator in einem Rutsch. Werde konkret, wenn es darauf ankommt. Ort, Zeitraum, Länge und Zielgruppe verbessern das Ergebnis spürbar: „Pressemitteilung, etwa 2.000 Zeichen, für die Lokalpresse in Kassel.\" Mit @ steuerst du gezielt. Eine Erwähnung legt fest, worauf sich die Antwort stützt — eine Quelle, ein Dokument, ein Board oder ein verbundener Dienst. Mit / wählst du einen Schreib-Skill. Nachfragen ist erwünscht. Antworten lassen sich im Gespräch weiterentwickeln: „kürzer\", „sachlicher\", „mach ein Sharepic daraus\". Der Grünerator behält den Zusammenhang. „Was kannst du?\" oder „Wie erstelle ich ein Sharepic?\" beantwortet der Chat direkt — er kennt seinen eigenen Funktionsumfang."
+    "text": "Einfach lostippen. Der Grünerator erkennt an deiner Formulierung selbst, ob er nachschlagen, recherchieren, rechnen oder etwas erstellen soll. „Was steht im Grundsatzprogramm zum Mietendeckel?\" reicht — du musst kein Werkzeug auswählen. Nenne das Ziel, nicht den Weg. Statt „such im Web und schreib dann einen Post\" genügt „Schreib einen Instagram-Post zum aktuellen Stand der Wärmewende\". Mehrschrittige Aufträge löst der Grünerator in einem Rutsch. Werde konkret, wenn es darauf ankommt. Ort, Zeitraum, Länge und Zielgruppe verbessern das Ergebnis spürbar: „Pressemitteilung, etwa 2.000 Zeichen, für die Lokalpresse in Kassel.\" Mit @ steuerst du gezielt — sowohl Quellen, Dokumente und verbundene Dienste als auch Schreib-Skills (die im Picker als Rezepte ganz oben erscheinen). Nachfragen ist erwünscht. Antworten lassen sich im Gespräch weiterentwickeln: „kürzer\", „sachlicher\", „mach ein Sharepic daraus\". Der Grünerator behält den Zusammenhang. „Was kannst du?\" oder „Wie erstelle ich ein Sharepic?\" beantwortet der Chat direkt — er kennt seinen eigenen Funktionsumfang."
   },
   {
     "url": "/docs/chat/was-kann-ich-fragen",
@@ -955,7 +955,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Was du fragen kannst",
     "anchor": "#was-du-fragen-kannst",
     "category": "Chat",
-    "text": "Anfordern musst du nichts davon — es genügt, die Frage zu stellen. Die Kennzeichnungen an den Karten bedeuten: @kürzel — für diese Fähigkeit gibt es zusätzlich eine Erwähnung, mit der du sie im Eingabefeld vorwählen kannst. Nur ein Teil der Fähigkeiten hat so ein Kürzel, und das ist Absicht: Erwähnungen gibt es dort, wo die Vorauswahl wirklich etwas ändert — bei Quellen, die man gezielt ansteuert, und bei Formaten, die man bewusst wählt. Alles Übrige erkennt der Grünerator zuverlässig an der Formulierung allein („Wie wird das Wetter am Samstag?\" braucht kein @wetter), deshalb gibt es dafür bewusst keine Abkürzung. experimentell — noch jung. Funktioniert, kann sich aber in Bedienung und Ergebnis noch ändern und ist nicht überall verfügbar. Verlass dich für etwas Wichtiges nicht blind darauf. Werkzeug: … — diese Fähigkeit lässt sich in eigenen Grüneratoren gezielt an- und abschalten. Zusatzquelle: … — dahinter steckt ein externer Dienst (Bahn, Wetterdienst, tagesschau, trivago), der pro Umgebung angebunden wird. Fehlt die Anbindung gerade, bleibt die Frage nicht unbeantwortet: der Grünerator weicht auf die Websuche aus — bei Zugverbindungen dann ohne Live-Daten."
+    "text": "Anfordern musst du nichts davon — es genügt, die Frage zu stellen. Die Kennzeichnungen an den Karten bedeuten: @kürzel — für diese Fähigkeit gibt es zusätzlich eine Erwähnung, mit der du sie im Eingabefeld vorwählen kannst. Nur ein Teil der Fähigkeiten hat so ein Kürzel, und das ist Absicht: Erwähnungen gibt es dort, wo die Vorauswahl wirklich etwas ändert — bei Quellen, die man gezielt ansteuert, und bei Formaten, die man bewusst wählt. Vieles erkennt der Grünerator auch ohne Erwähnung zuverlässig an der Formulierung allein. @wetter gibt es zusätzlich als Kürzel, sobald der Wetterdienst als Zusatzquelle verbunden ist — genau wie bei Bahn, tagesschau und trivago (siehe unten). experimentell — noch jung. Funktioniert, kann sich aber in Bedienung und Ergebnis noch ändern und ist nicht überall verfügbar. Verlass dich für etwas Wichtiges nicht blind darauf. Werkzeug: … — diese Fähigkeit lässt sich in eigenen Grüneratoren gezielt an- und abschalten. Zusatzquelle: … — dahinter steckt ein externer Dienst (Bahn, Wetterdienst, tagesschau, trivago), der pro Umgebung angebunden wird. Fehlt die Anbindung gerade, bleibt die Frage nicht unbeantwortet: der Grünerator weicht auf die Websuche aus —"
   },
   {
     "url": "/docs/chat/was-kann-ich-fragen",
@@ -979,7 +979,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Detailseiten",
     "anchor": "#detailseiten",
     "category": "Grüneratoren",
-    "text": "Jeder Grünerator und jedes Rezept hat eine eigene Detailseite — wie ein Produkt im Laden. Grüneratoren (/agentura/agent/...): Kopfbereich mit den Aktionen Im Chat öffnen, Favorit und Teilen. Übersicht — Beschreibung, Begrüßungsnachricht und eine Vorschau auf Beispiel-Antworten. Fähigkeiten — welche Werkzeuge der Grünerator-Agent nutzt, auf welches Wissen er zugreift und welches Sprachmodell dahintersteckt. Verwandte — ähnliche Grüneratoren, die zum Thema passen. Rezepte (/agentura/skill/...): Kopfbereich mit denselben Aktionen. Der vollständige Rezept-Text als Markdown — so siehst du genau, was das Rezept macht, bevor du es nutzt. Eine Vorlage und verwandte Rezepte."
+    "text": "Jeder Grünerator und jedes Rezept hat eine eigene Detailseite — wie ein Produkt im Laden. Grüneratoren (/agentura/agent/...): Kopfbereich mit den Aktionen Im Chat öffnen, Favorit und Teilen. Übersicht — Beschreibung des Grünerator-Agenten. Gesprächsbeginn — Begrüßungsnachricht und eine Vorschau auf Beispiel-Antworten. Fähigkeiten — welche Werkzeuge der Grünerator-Agent nutzt und auf welches Wissen er zugreift. Verwandte — ähnliche Grüneratoren, die zum Thema passen. Rezepte (/agentura/skill/...): Kopfbereich mit den Aktionen Im Chat verwenden, Favorit und Link kopieren. Der vollständige Rezept-Text als Markdown — so siehst du genau, was das Rezept macht, bevor du es nutzt. Eine Vorlage und verwandte Rezepte."
   },
   {
     "url": "/docs/grueneratoren/agentura",
@@ -1019,7 +1019,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schnell hinkommen",
     "anchor": "#schnell-hinkommen",
     "category": "Grüneratoren",
-    "text": "In der Seitenleiste liegt als eigener Eintrag. Ein Klick öffnet eine kurze Auswahl deiner Favoriten und der zuletzt genutzten Grüneratoren — von dort startest du direkt ein Gespräch, ohne den Umweg über den Marktplatz. Der Eintrag Alle ansehen führt in die Agentura."
+    "text": "In der Seitenleiste liegt als eigener Eintrag. Ein Klick öffnet eine kurze Auswahl deiner Favoriten und der zuletzt genutzten Grüneratoren — von dort startest du direkt ein Gespräch, ohne den Umweg über den Marktplatz. Der Eintrag Alle Grüneratoren & Verwaltung führt in die Agentura."
   },
   {
     "url": "/docs/grueneratoren/agentura",
@@ -1043,7 +1043,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 1: Den Creator öffnen",
     "anchor": "#schritt-1-den-creator-öffnen",
     "category": "Grüneratoren",
-    "text": "Öffne die Agentura, scrolle zum Abschnitt Meine Grüneratoren und klicke oben rechts auf Neuer Grünerator-Agent. Alternativ rufst du den Creator direkt unter /agents/new auf."
+    "text": "Öffne die Agentura, scrolle zum Abschnitt Meine Grüneratoren und klicke oben rechts auf Neuer Grünerator. Alternativ rufst du den Creator direkt unter /agents/new auf."
   },
   {
     "url": "/docs/grueneratoren/eigene-agentinnen-erstellen",
@@ -1059,7 +1059,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 3: Im Editor anpassen",
     "anchor": "#schritt-3-im-editor-anpassen",
     "category": "Grüneratoren",
-    "text": "Der Editor zeigt links das Formular und rechts eine Live-Vorschau. Die Felder sind in Tabs gegliedert: Grundlagen, Werkzeuge und Wissen (bei wiederkehrenden Aufgaben zusätzlich Zeitplan). Pflichtfelder (Tab Grundlagen): Name — der Anzeigename deines Agenten. Daneben wählst du über den Icon-Picker ein Symbol. Beschreibung — ein kurzer Satz, was der Agent macht. Anleitung — die eigentliche Anweisung an die KI (das „System-Prompt\"), z.B. beginnend mit „Du bist ein*e …\". Mindestens 10 Zeichen. Tab Werkzeuge — wähle per Checkbox, was dein Agent können soll. Standardmäßig sind Grünerator-Wissen und Recherche aktiv. Zur Auswahl stehen: Werkzeug | Funktion | -------------------------- | -------------------------------------------------------------------------------------------------- | Grünerator-Wissen | Durchsucht die Grünerator-Wissensdatenbank (Programme, Beschlüsse, Kommunalwiki). | Recherche | Sucht im Web — die Suchtiefe (schnelle Suche bis mehrstufige Recherche) passt sich automatisch an. | Social-Media-Beispiele | Findet passende Beispiel-Posts aus dem Grünerator-Fundus. | Bildgenerierung | Erstellt Bilder aus einer Beschreibung. | Bildbearbeitung | Bearbeitet ein vorhandenes Bild"
+    "text": "Der Editor zeigt links das Formular und rechts eine Live-Vorschau. Die Felder sind in Tabs gegliedert: Grundlagen, Werkzeuge und Wissen (bei wiederkehrenden Aufgaben zusätzlich Zeitplan). Pflichtfelder (Tab Grundlagen): Name — der Anzeigename deines Agenten. Daneben wählst du über den Icon-Picker ein Symbol. Beschreibung — ein kurzer Satz, was der Agent macht. Anleitung — die eigentliche Anweisung an die KI (das „System-Prompt\"), z.B. beginnend mit „Du bist ein*e …\". Mindestens 10 Zeichen. Tab Werkzeuge — wähle per Checkbox, was dein Agent können soll. Standardmäßig sind Grünerator-Wissen und Recherche aktiv. Zur Auswahl stehen: Werkzeug | Funktion | -------------------------- | ---------------------------------------------------------------------------------------------------------------- | Grünerator-Wissen | Durchsucht die Grünerator-Wissensdatenbank (Programme, Beschlüsse, Kommunalwiki). | Recherche | Sucht im Web — die Suchtiefe (schnelle Suche bis mehrstufige Recherche) passt sich automatisch an. | Social-Media-Beispiele | Findet passende Beispiel-Posts aus dem Grünerator-Fundus. | Bildgenerierung | Erstellt Bilder aus einer Beschreibung. | Bildbearbeitung | Bearbeitet ein vo"
   },
   {
     "url": "/docs/grueneratoren/eigene-agentinnen-erstellen",
@@ -2099,7 +2099,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 4: Link kopieren und verwenden",
     "anchor": "#schritt-4-link-kopieren-und-verwenden",
     "category": "Konto & Projekte",
-    "text": "Der öffentliche Link wurde erstellt! Im Grünerator führt dich unter Profil → Wolke ein Einrichtungs-Assistent Schritt für Schritt durch die Verbindung: Link einfügen, optional benennen — der Grünerator testet die Verbindung dann automatisch und zeigt dir bei Problemen konkrete Lösungshinweise. Der Link sollte etwa so aussehen: https://wolke.netzbegruenung.de/s/AbCdEfGhIj"
+    "text": "Der öffentliche Link wurde erstellt! Im Grünerator führt dich unter Einstellungen → Wolke (erreichbar über das Konto-Menü am unteren Rand der Seitenleiste) ein Einrichtungs-Assistent Schritt für Schritt durch die Verbindung: Link einfügen, optional benennen — der Grünerator testet die Verbindung dann automatisch und zeigt dir bei Problemen konkrete Lösungshinweise. Der Link sollte etwa so aussehen: https://wolke.netzbegruenung.de/s/AbCdEfGhIj"
   },
   {
     "url": "/docs/konto/gruene-wolke",
@@ -2155,7 +2155,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Mitglieder",
     "anchor": "#mitglieder",
     "category": "Konto & Projekte",
-    "text": "In einem Gruppen-Projekt gibt es zwei Rollen: Rolle | Was sie darf | ------------ | ------------------------------------------------------------------------- | Mitglied | Inhalte des Projekts sehen und mitarbeiten | Admin | zusätzlich Mitglieder verwalten und die Einstellungen des Projekts ändern | Du kannst Menschen per E-Mail einladen. Wer noch kein Konto hat, wird durch die Anmeldung geführt und landet danach direkt im Projekt. Ein Projekt kann außerdem auffindbar geschaltet werden. Dann können andere es finden und um Aufnahme bitten; die Anfrage geht an die Admins, die sie annehmen oder ablehnen. Ohne diese Einstellung ist ein Projekt nur über eine Einladung erreichbar."
+    "text": "In einer Gruppe gibt es zwei Rollen: Rolle | Was sie darf | ------------ | ------------------------------------------------------------------------- | Mitglied | Inhalte des Projekts sehen und mitarbeiten | Admin | zusätzlich Mitglieder verwalten und die Einstellungen des Projekts ändern | Du kannst Menschen per E-Mail einladen. Wer noch kein Konto hat, wird durch die Anmeldung geführt und landet danach direkt im Projekt. Ein Projekt kann außerdem öffentlich geschaltet werden. Dann können andere es finden und um Aufnahme bitten; die Anfrage geht an die Admins, die sie annehmen oder ablehnen. Ohne diese Einstellung ist ein Projekt nur über eine Einladung erreichbar."
   },
   {
     "url": "/docs/konto/projekte",
@@ -2171,7 +2171,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Zwei Arten von Projekten",
     "anchor": "#zwei-arten-von-projekten",
     "category": "Konto & Projekte",
-    "text": "Beim Anlegen entscheidest du dich für eine der beiden: Eigenes Projekt — nur für dich. Gedacht, um die eigene Arbeit zu sortieren: alles zur Haushaltsdebatte an einem Ort, getrennt von allem zur Verkehrspolitik. Es taucht bei niemand anderem auf und lässt sich auch nicht finden. Gruppen-Projekt — für die Zusammenarbeit. Andere können Mitglied werden, sehen die zugeordneten Inhalte und arbeiten mit. Die Wahl legt dich nicht endgültig fest, aber sie bestimmt, ob überhaupt jemand anders hineinschauen kann — überleg also kurz, bevor du etwas Vertrauliches in ein Gruppen-Projekt legst."
+    "text": "Beim Anlegen entscheidest du dich für eine der beiden: Projekt — nur für dich. Gedacht, um die eigene Arbeit zu sortieren: alles zur Haushaltsdebatte an einem Ort, getrennt von allem zur Verkehrspolitik. Es taucht bei niemand anderem auf und lässt sich auch nicht finden. Gruppe — für die Zusammenarbeit. Andere können Mitglied werden, sehen die zugeordneten Inhalte und arbeiten mit. Die Wahl legt dich nicht endgültig fest, aber sie bestimmt, ob überhaupt jemand anders hineinschauen kann — überleg also kurz, bevor du etwas Vertrauliches in eine Gruppe legst."
   },
   {
     "url": "/docs/office/boards",
@@ -2211,7 +2211,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Grünerator-Spalten",
     "anchor": "#grünerator-spalten",
     "category": "Office",
-    "text": "Eine Grünerator-Spalte ist eine Spalte, die selbst arbeitet. Du richtest sie einmal ein, und danach durchläuft jede Karte drei Schritte: Quelle → Aufgabe → Ergebnis. Quelle — woher der Inhalt kommt: aus der Karte selbst, von einer Webadresse oder aus einem Social-Media-Beitrag. Aufgabe — was damit geschehen soll. Entweder eine der fertigen Aufgaben (unten) oder eine eigene Anweisung. Ergebnis — was dabei herauskommt: ein Kommentar, ein Dokument, eine Tabelle, eine Präsentation oder eine E-Mail. Das Ganze lässt sich auch nach Zeitplan laufen lassen — etwa jeden Montagmorgen."
+    "text": "Eine Grünerator-Spalte ist eine Spalte, die selbst arbeitet. Du richtest sie einmal ein, und danach durchläuft jede Karte drei Schritte: Quelle → KI-Schritt → Ergebnis. Quelle — woher der Inhalt kommt: aus der Karte selbst, von einer Webadresse oder aus einem Social-Media-Beitrag. KI-Schritt — was damit geschehen soll. Entweder eine der fertigen Aufgaben (unten) oder eine eigene Anweisung. Ergebnis — was dabei herauskommt: ein Kommentar, ein Dokument, eine Tabelle, eine Präsentation oder eine E-Mail. Das Ganze lässt sich auch nach Zeitplan laufen lassen — etwa jeden Montagmorgen."
   },
   {
     "url": "/docs/office/boards",
@@ -2259,7 +2259,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Frühere Fassungen",
     "anchor": "#frühere-fassungen",
     "category": "Office",
-    "text": "Das Dokument merkt sich seinen Verlauf. Über die Versionsgeschichte siehst du frühere Stände und stellst sie bei Bedarf wieder her — nützlich, wenn beim gemeinsamen Überarbeiten ein Absatz verloren gegangen ist."
+    "text": "Das Dokument merkt sich seinen Verlauf. Über die Versionshistorie siehst du frühere Stände und stellst sie bei Bedarf wieder her — nützlich, wenn beim gemeinsamen Überarbeiten ein Absatz verloren gegangen ist."
   },
   {
     "url": "/docs/office/dokumente",
@@ -2275,7 +2275,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schreiben",
     "anchor": "#schreiben",
     "category": "Office",
-    "text": "Der Editor arbeitet mit Blöcken: Jeder Absatz, jede Überschrift, jede Liste ist ein eigener Baustein, den du per Anfasser verschieben kannst. Mit / mitten im Text öffnest du die Auswahl der Blocktypen — Überschrift, Liste, Zitat, Tabelle, Trennlinie."
+    "text": "Der Editor arbeitet mit Blöcken: Jeder Absatz, jede Überschrift, jede Liste ist ein eigener Baustein. Mit / mitten im Text öffnest du die Auswahl der Blocktypen — Überschrift, Liste, Zitat, Tabelle, Trennlinie."
   },
   {
     "url": "/docs/office/intro",
@@ -2283,7 +2283,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Office: Dokumente, Tabellen, Folien und Boards",
     "anchor": "",
     "category": "Office",
-    "text": "Office ist der Ort für alles, was aus Text, Zahlen und Plänen besteht. Vier Arten von Dokumenten liegen dort nebeneinander: . Du findest sie über den Tab Arbeiten unter der Kachel ."
+    "text": "Office ist der Ort für alles, was aus Text, Zahlen und Plänen besteht. Fünf Arten von Dokumenten liegen dort nebeneinander: . Du findest sie über den Tab Arbeiten unter der Kachel ."
   },
   {
     "url": "/docs/office/intro",
@@ -2299,7 +2299,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Auf dem Handy",
     "anchor": "#auf-dem-handy",
     "category": "Office",
-    "text": "Die Grünerator-App hat einen eigenen Office-Tab. Dokumente lassen sich dort lesen — Tabellen, Folien und Boards siehst du als Ansicht, nicht als Editor. Zum Bearbeiten öffnest du das Dokument im Browser. Der Präsentations-Editor ist inzwischen auch auf dem Handy bedienbar: Folienstreifen quer, Folien-Aktionen per Antippen statt per Mauszeiger, und der Text wird in einem eigenen Feld bearbeitet statt direkt auf der verkleinerten Folie. Für Tabellen bleibt der große Bildschirm die bessere Wahl."
+    "text": "Dokumente, Tabellen, Folien und Boards findest du in der Grünerator-App unter dem Tab Arbeiten. Dort lässt sich alles nur lesen — Tabellen, Folien und Boards siehst du als Ansicht, nicht als Editor. Zum Bearbeiten öffnest du das Dokument im Browser."
   },
   {
     "url": "/docs/office/intro",
@@ -2315,7 +2315,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Etwas Neues anlegen",
     "anchor": "#etwas-neues-anlegen",
     "category": "Office",
-    "text": "Auf der Office-Startseite liegen fünf Kacheln. Vier davon legen sofort etwas Leeres an und öffnen es — es gibt keinen Zwischenschritt, kein Formular: — ein Textdokument — eine Kalkulationstabelle — eine Foliensammlung — ein Kanban-Board Die fünfte, , öffnet stattdessen die Vorlagengalerie. Nimm sie, wenn du nicht bei null anfangen willst: Anträge, Pressemitteilungen und Protokolle bringen ihre Gliederung schon mit. Du musst nicht erst ein leeres Dokument anlegen. „Erstell mir eine Tabelle mit dem Haushaltsentwurf\" oder „Mach eine Präsentation zu unserem Wahlprogramm\" im Chat erzeugt das fertige Dokument direkt — inklusive Inhalt. Bearbeiten kannst du es danach wie jedes andere."
+    "text": "Auf der Office-Startseite liegen fünf Kacheln. Vier davon legen sofort etwas Leeres an und öffnen es — es gibt keinen Zwischenschritt, kein Formular: — ein Textdokument — eine Kalkulationstabelle — eine Foliensammlung — ein Kanban-Board Die erste, , öffnet stattdessen die Vorlagengalerie. Nimm sie, wenn du nicht bei null anfangen willst: Anträge, Pressemitteilungen und Protokolle bringen ihre Gliederung schon mit. Du musst nicht erst ein leeres Dokument anlegen. „Erstell mir eine Tabelle mit dem Haushaltsentwurf\" oder „Mach eine Präsentation zu unserem Wahlprogramm\" im Chat erzeugt das fertige Dokument direkt — inklusive Inhalt. Bearbeiten kannst du es danach wie jedes andere."
   },
   {
     "url": "/docs/office/intro",
@@ -2323,7 +2323,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Teilen",
     "anchor": "#teilen",
     "category": "Office",
-    "text": "Ein Dokument kennt Stufen von Sichtbarkeit: Sichtbarkeit | Wer kommt hinein | -------------- | ---------------------------------------------------------- | privat | nur du und ausdrücklich eingeladene Personen | angemeldet | alle, die im Grünerator angemeldet sind und den Link haben | öffentlich | alle mit dem Link, auch ohne Anmeldung | Unabhängig davon legst du fest, ob Eingeladene lesen oder bearbeiten dürfen. Beides lässt sich jederzeit ändern und zurücknehmen. Ein öffentlich geteiltes Dokument kann jede Person mit dem Link aufrufen — auch ohne Grünerator-Konto. Prüf vor dem Umschalten, ob im Dokument Namen, Adressen oder interne Absprachen stehen."
+    "text": "Ein Dokument kennt Stufen von Sichtbarkeit: Sichtbarkeit | Wer kommt hinein | ----------------- | ---------------------------------------------------------- | privat | nur du und ausdrücklich eingeladene Personen | Mit Anmeldung | alle, die im Grünerator angemeldet sind und den Link haben | öffentlich | alle mit dem Link, auch ohne Anmeldung | Unabhängig davon legst du fest, ob Eingeladene lesen oder bearbeiten dürfen. Beides lässt sich jederzeit ändern und zurücknehmen. Ein öffentlich geteiltes Dokument kann jede Person mit dem Link aufrufen — auch ohne Grünerator-Konto. Prüf vor dem Umschalten, ob im Dokument Namen, Adressen oder interne Absprachen stehen."
   },
   {
     "url": "/docs/office/ki-im-editor",
@@ -2355,7 +2355,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wie eine Änderung abläuft",
     "anchor": "#wie-eine-änderung-abläuft",
     "category": "Office",
-    "text": "Du schreibst einen Auftrag in normaler Sprache. Der Grünerator übersetzt ihn in konkrete Änderungen und wendet sie an. Für dich sieht das aus wie ein einziger Schritt, aber es lohnt zu wissen, was dabei passiert: Er sieht sich das Dokument an. Was gerade darin steht, ist die Grundlage — deshalb funktionieren Bezüge wie „die Spalte mit den Kosten\" oder „die Folie mit dem Zitat\". Er recherchiert, falls nötig. „Trag die aktuellen Umfragewerte ein\" heißt: erst nachsehen, dann eintragen. Er ändert das Dokument — direkt, ohne dass du etwas bestätigen musst. Änderungen des Grünerators sind keine Sonderform. Strg + Z (bzw. Cmd + Z ) nimmt sie zurück wie eine eigene Eingabe — und ein Auftrag, der mehrere Änderungen umfasst, wird als ein Schritt zurückgenommen, nicht Zelle für Zelle. Arbeitet ihr zu mehreren am selben Dokument, sehen die anderen die Änderungen live — wie bei deinen eigenen."
+    "text": "Du schreibst einen Auftrag in normaler Sprache. Der Grünerator übersetzt ihn in konkrete Änderungen und wendet sie an. Für dich sieht das aus wie ein einziger Schritt, aber es lohnt zu wissen, was dabei passiert: Er sieht sich das Dokument an. Was gerade darin steht, ist die Grundlage — deshalb funktionieren Bezüge wie „die Spalte mit den Kosten\" oder „die Folie mit dem Zitat\". Er recherchiert, falls nötig. „Trag die aktuellen Umfragewerte ein\" heißt: erst nachsehen, dann eintragen. Er ändert das Dokument — direkt, ohne dass du etwas bestätigen musst. Änderungen des Grünerators sind keine Sonderform. Strg + Z (bzw. Cmd + Z ) nimmt sie zurück wie eine eigene Eingabe. In Präsentationen wird ein Auftrag, der mehrere Änderungen umfasst, als ein Schritt zurückgenommen; in Tabellen gilt das derzeit noch für jede Änderung einzeln, dort brauchst du also mehrere Strg + Z . Arbeitet ihr zu mehreren am selben Dokument, sehen die anderen die Änderungen live — wie bei deinen eigenen."
   },
   {
     "url": "/docs/office/praesentationen",
@@ -2379,7 +2379,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Exportieren",
     "anchor": "#exportieren",
     "category": "Office",
-    "text": "Über Download in der Kopfzeile stehen zwei Formate zur Wahl: Als PDF — öffnet die Präsentation in einem neuen Tab in einer druckfertigen Ansicht und dann den Druckdialog. Wähle dort als Ziel „Als PDF speichern\"; Querformat und Hintergrundgrafiken sind bereits gesetzt. Du bekommst eine Seite pro Folie, im selben Design wie im Vortragsmodus. Als PowerPoint (.pptx) — erzeugt eine bearbeitbare Datei für PowerPoint und LibreOffice Impress: Texte, Aufzählungen, Farben, Logo und Sprechernotizen bleiben erhalten. Die Datei verweist auf die Grünen-Hausschriften, kann sie aber nicht mitliefern. Auf einem Rechner ohne diese Schriften ersetzt PowerPoint sie durch eine ähnliche — der Text bleibt vollständig, das Schriftbild weicht ab. Wenn das Aussehen zählt, nimm den PDF-Weg. Wer die Präsentation nur über einen Freigabe-Link geöffnet hat, kann sie als PDF exportieren, aber nicht als .pptx."
+    "text": "Über Download in der Kopfzeile stehen zwei Formate zur Wahl: Als PDF — öffnet die Präsentation in einem neuen Tab in einer druckfertigen Ansicht und dann den Druckdialog. Wähle dort als Ziel „Als PDF speichern\"; Hintergrundgrafiken sind bereits aktiviert, Querformat stellst du im Druckdialog selbst ein. Du bekommst eine Seite pro Folie, im selben Design wie im Vortragsmodus. Als PowerPoint (.pptx) — erzeugt eine bearbeitbare Datei für PowerPoint und LibreOffice Impress: Texte, Aufzählungen, Farben, Logo und Sprechernotizen bleiben erhalten. Die Datei verweist auf die Grünen-Hausschriften, kann sie aber nicht mitliefern. Auf einem Rechner ohne diese Schriften ersetzt PowerPoint sie durch eine ähnliche — der Text bleibt vollständig, das Schriftbild weicht ab. Wenn das Aussehen zählt, nimm den PDF-Weg. Wer die Präsentation nur über einen Freigabe-Link geöffnet hat, kann sie als PDF exportieren, aber nicht als .pptx."
   },
   {
     "url": "/docs/office/praesentationen",
@@ -2387,7 +2387,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Folien aufbauen",
     "anchor": "#folien-aufbauen",
     "category": "Office",
-    "text": "Jede Folie hat ein Layout, das bestimmt, wie Titel und Inhalt angeordnet sind — insgesamt gibt es davon, von der Titelfolie über zweispaltige Folien bis zum Zitat und zum Codebeispiel. Dazu kommen pro Folie: Notizen — dein Text zum Vortrag, für das Publikum unsichtbar Hintergrund — eine Farbe, ein Bild oder ein Verlauf Schriftgröße — normalerweise „Auto\": der Text verkleinert sich so weit, dass er auf die Folie passt, statt abgeschnitten zu werden. Wird es dir zu klein oder zu groß, legst du die Größe von XS bis XL selbst fest Schrittweises Einblenden — Aufzählungspunkte erscheinen nacheinander statt auf einmal Übergang — wie die Folie die vorherige ablöst Was für die ganze Präsentation gilt — Standardübergang, Akzentfarbe, Foliennummern, automatisches Weiterschalten — stellst du einmal zentral ein."
+    "text": "Jede Folie hat ein Layout, das bestimmt, wie Titel und Inhalt angeordnet sind — insgesamt gibt es davon, von der Titelfolie über zweispaltige Folien bis zum Zitat und zum Codebeispiel. Dazu kommen pro Folie: Sprechernotizen — dein Text zum Vortrag, für das Publikum unsichtbar Hintergrund — eine Farbe, ein Bild oder ein Verlauf Schriftgröße — normalerweise „Auto\": der Text verkleinert sich so weit, dass er auf die Folie passt, statt abgeschnitten zu werden. Wird es dir zu klein oder zu groß, legst du die Größe von XS bis XL selbst fest Schrittweise aufbauen — Aufzählungspunkte erscheinen nacheinander statt auf einmal Übergang — wie die Folie die vorherige ablöst Was für die ganze Präsentation gilt — Standardübergang, Akzentfarbe, Foliennummern, automatisches Weiterschalten — stellst du einmal zentral ein."
+  },
+  {
+    "url": "/docs/office/praesentationen",
+    "pageTitle": "Präsentationen",
+    "heading": "Tabellen und Bilder",
+    "anchor": "#tabellen-und-bilder",
+    "category": "Office",
+    "text": "Über der Folie liegt eine Leiste mit Tabelle und Bild. Eine eingefügte Tabelle bearbeitest du direkt auf der Folie; sobald der Cursor in einer Zelle steht, erscheinen die Knöpfe für Zeilen, Spalten, Kopfzeile und Löschen. Halte sie schmal — mehr als vier Spalten passen auf einer Folie nicht mehr lesbar nebeneinander. Bilder holst du aus deiner Mediathek oder lädst sie direkt hoch. Der Alternativtext ist Pflicht: ohne ihn bleibt das Bild für Screenreader stumm, und in einer veröffentlichten Präsentation ist das ein Barriere-Fehler. Auf dem Handy findest du beide Knöpfe im Bearbeiten-Fenster unter dem Textfeld."
   },
   {
     "url": "/docs/office/praesentationen",

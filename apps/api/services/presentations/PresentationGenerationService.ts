@@ -61,7 +61,8 @@ Regeln:
 - Die erste Folie hat layout "title" (Deckblatt)
 - Layouts: "title" = Titelfolie, "content" = Titel + Aufzählung, "split" = zweispaltig, "quote" = Zitat, "image" = Bildfolie
 - "body" ist Markdown — nutze "- " für Aufzählungen. Stichpunkte statt Fließtext
-- KEINE Markdown-Tabellen ("| … |"). Eine Folie kennt Absätze und Aufzählungen, keine Tabellen — schreibe eine Gegenüberstellung als Aufzählung ("- Quelle: Rat der EU — Datum: 05.03.2026")
+- Markdown-Tabellen ("| Spalte | Spalte |") sind erlaubt und der richtige Weg für eine Gegenüberstellung mit gleichartigen Feldern (Quelle/Datum, Jahr/Wert). Höchstens 4 Spalten, sonst passt sie nicht auf die Folie. Fließende Aussagen bleiben eine Aufzählung
+- KEINE Bild-URLs erfinden. Ein "![…](…)" nur mit einer URL, die im Auftrag steht — eine geratene Adresse landet als kaputtes Bild auf der Folie
 - "notes" sind optionale Sprechernotizen (können leer sein)
 - Schreibe jede Folie inhaltlich aus. NIEMALS Platzhalter wie "Kernpunkt 1", "Beispieltitel" oder "hier Inhalt einfügen" — wenn der Auftrag zu einem Punkt nichts hergibt, lass die Folie weg statt sie zu füllen
 - Enthält der Auftrag recherchierte Quellen (Zeilen der Form "[1] Titel <URL> — Auszug"), nutze deren Fakten und schließe mit einer Quellenfolie ab, die Titel und vollständige URL je Quelle nennt

@@ -57,6 +57,27 @@ Backend log prefixes to watch: `[ChatGraph:Classifier]`, `[PresentationAI]`,
 5. **Expected**: all edits persist (Hocuspocus stored the Y.Doc). Slide count and
    content match what you left.
 
+## 2b. Tables and images
+
+1. On a `content` slide, click into the body, then **Tabelle** in the toolbar
+   above the slide.
+2. **Expected**: a 3×2 table with a header row appears on the slide, styled in
+   the deck theme (accent header, zebra body rows). The toolbar grows a second
+   group: row/column insert + delete, header toggle, delete table.
+3. Type into cells; add a row and a column; drag across two cells.
+   **Expected**: the selection is tinted with the deck accent (`.selectedCell`),
+   and the slide auto-fit shrinks the text once the table outgrows the surface —
+   sideways as well as downwards.
+4. Click **Bild**. Pick a library image, or upload one.
+   **Expected**: the URL field fills in; the alt field prefills from the library
+   entry when it has one. **Einfügen** stays disabled until an alt text exists.
+5. Insert it. **Expected**: the image renders on the slide, capped in height.
+6. Reload. **Expected**: table and image are still there (they went through the
+   Y.Doc, not just the DOM).
+7. Repeat 1 and 4 on a phone (or with a coarse pointer emulated): the same two
+   buttons sit under the textarea in the edit sheet and write markdown.
+8. Export to PPTX (scenario 9) and to PDF (scenario 8) and check both survive.
+
 ## 3. Two-tab collaboration
 
 1. Open the same `/docs/<id>` in a second tab (or an incognito window via the

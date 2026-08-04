@@ -126,6 +126,23 @@ export function SlideView({
       color: textColor,
       borderRadius: 4,
     },
+    // Tables and images mirror gruene-deck.css. react-native-markdown-display
+    // ships the table/image rules; only the styling is ours, and every length
+    // follows `fs` so a table shrinks with the rest of the slide on auto-fit.
+    table: { borderWidth: 0, marginBottom: 12 * fs },
+    thead: { backgroundColor: deckAccent },
+    th: {
+      padding: 10 * fs,
+      color: '#ffffff',
+      fontWeight: '700' as const,
+      fontSize: 24 * fs,
+    },
+    tr: {
+      borderBottomWidth: 1,
+      borderColor: bg.dark ? 'rgba(255,255,255,0.2)' : 'rgba(38,42,40,0.14)',
+    },
+    td: { padding: 10 * fs, fontSize: 24 * fs, color: textColor },
+    image: { maxWidth: SLIDE_W, height: 320 * fs, resizeMode: 'contain' as const },
   };
 
   return (

@@ -17,6 +17,7 @@ import {
   resolveSkillMention,
 } from '@gruenerator/shared/agents';
 import { getContractsClient } from '@gruenerator/shared/api';
+import { useIsNarrowerThan } from '@gruenerator/ui';
 import { useCallback, useEffect, useRef } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
@@ -63,6 +64,21 @@ setMentionInstance(CURRENT_INSTANCE);
  */
 const COMPOSER_VARIANT = isDesktopApp() ? 'card' : 'pill';
 
+/**
+ * Ab welcher Breite ein Artefakt als angedockte Schiene neben dem Faden steht,
+ * statt ihn als Vollbild zu überdecken: die 24rem der Schiene plus 48rem, die
+ * dem Faden bleiben müssen.
+ *
+ * Gemessen wird die Chat-Spalte, nicht das Fenster. Dieselbe Oberfläche steckt
+ * als schmales Panel in den Editoren — dort ist ein 1440px breites Fenster kein
+ * Beleg dafür, dass 24rem übrig sind.
+ */
+const ARTIFACT_DOCK_MIN_WIDTH = 72 * 16;
+
+const ARTIFACT_PANEL_DOCKED =
+  'flex w-[24rem] shrink-0 flex-col overflow-hidden border-l border-border bg-background-alt';
+const ARTIFACT_PANEL_OVERLAY = 'fixed inset-0 z-[1010] flex flex-col bg-background-alt';
+
 function ChatPage() {
   const [searchParams] = useSearchParams();
   // `slug` comes from /agents/:slug, `threadSlug` from /chat/:threadSlug.
@@ -71,9 +87,13 @@ function ChatPage() {
   const location = useLocation();
   // False while the lazy assistant-ui runtime chunk is still loading (or in the
   // Suspense fallback on a cold direct load of /chat). Gating the runtime-using
-  // content below on it keeps useAssistantRuntime()/useComposerRuntime() from
-  // running outside the provider — the "requires an AuiProvider" prod crash.
+  // content below on it keeps useAui() from running outside the provider —
+  // the "requires an AuiProvider" prod crash.
   const runtimeReady = useChatRuntimeReady();
+  const shellRef = useRef<HTMLDivElement>(null);
+  const artifactPanelClass = useIsNarrowerThan(shellRef, ARTIFACT_DOCK_MIN_WIDTH)
+    ? ARTIFACT_PANEL_OVERLAY
+    : ARTIFACT_PANEL_DOCKED;
   const chatViewMode = useAgentStore((s) => s.chatViewMode);
   const currentThreadTitle = useAgentStore((s) => s.currentThreadTitle);
   const firstName = useFirstName();
@@ -254,7 +274,7 @@ function ChatPage() {
   }
 
   return (
-    <div className="flex min-h-0 h-full bg-background">
+    <div ref={shellRef} className="flex min-h-0 h-full bg-background">
       {!hub && (
         <ChatThreadRouting
           threadSlug={threadSlug ?? null}
@@ -291,27 +311,30 @@ function ChatPage() {
             // composer's light and not the page's colour.
             {...(chatBackground.key === 'neutral' ? {} : { className: 'chat-thread-glow' })}
             composerVariant={COMPOSER_VARIANT}
+            enablePastedTextAttachments
             userLocale={userLocale}
           />
         )}
       </div>
       {!hub && effectiveViewMode === 'thread' && (
         // Sharepic-Modus: pins the active sharepic as a docked artifact while
-        // the user iterates via chat. Below xl the inline card stays the only
-        // surface (the panel would crowd out the thread).
-        <SharepicArtifactPanel className="hidden w-[24rem] shrink-0 flex-col overflow-hidden border-l border-border bg-background-alt xl:flex" />
+        // the user iterates via chat. Too narrow to dock, it covers the thread
+        // instead — the inline card's only effect is opening this panel, so a
+        // panel that stays `display:none` makes the card a button that does
+        // nothing the user can see.
+        <SharepicArtifactPanel className={artifactPanelClass} />
       )}
       {!hub && effectiveViewMode === 'thread' && (
         // Reel-Modus: pins the reel video with a live subtitle overlay while
         // the user edits subtitle text via chat. Renders null unless a reel
         // is active, so it coexists with the sharepic panel.
-        <ReelArtifactPanel className="hidden w-[24rem] shrink-0 flex-col overflow-hidden border-l border-border bg-background-alt xl:flex" />
+        <ReelArtifactPanel className={artifactPanelClass} />
       )}
       {!hub && effectiveViewMode === 'thread' && (
         // Artefakt-Modus: pins a generated HTML/SVG artifact (sandboxed iframe)
         // while the user iterates via chat. Renders null unless an artifact is
         // active; opening one closes the sharepic/reel panel (single docked rail).
-        <ArtifactPanel className="hidden w-[24rem] shrink-0 flex-col overflow-hidden border-l border-border bg-background-alt xl:flex" />
+        <ArtifactPanel className={artifactPanelClass} />
       )}
     </div>
   );
