@@ -79,6 +79,14 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
 
   const locale = useAuthStore((state) => state.locale);
   const isAustrian = locale === 'de-AT';
+  // Workplace paints a wide, tinted gradient behind the (fixed, translucent)
+  // sidebar; a heavier blur radius blends that colour through instead of the
+  // sidebar reading as a flat panel cutting across it. Only the blur radius
+  // changes — opacity stays at the shared bg-background/70 value everywhere,
+  // since that's also the fallback contrast users get once
+  // prefers-reduced-transparency strips backdrop-filter (accessibility.css);
+  // lowering it here would lower that fallback's contrast too.
+  const isWorkplaceRoute = location.pathname.startsWith('/workplace');
 
   const newMenuOpenRef = useRef(false);
   const accountMenuOpenRef = useRef(false);
@@ -400,11 +408,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
 
       {/* Account block (authenticated) or login button */}
       {user ? (
-        <SidebarAccount
-          sidebarExpanded={sidebarExpanded}
-          openRef={accountMenuOpenRef}
-          onNavigate={handleLinkClick}
-        />
+        <SidebarAccount sidebarExpanded={sidebarExpanded} openRef={accountMenuOpenRef} />
       ) : (
         <div className="mt-auto px-2 py-2 shrink-0">
           <NavTooltip label="Anmelden" collapsed={!sidebarExpanded}>
@@ -476,8 +480,8 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
           className={cn(
             'sidebar fixed top-0 left-0 h-dvh z-[1001] flex flex-col overflow-hidden transition-[width] duration-200',
             // Desktop (non-Tauri) — frosted glass
-            !isDesktop &&
-              'md:w-14 bg-background/85 supports-[backdrop-filter]:bg-background/70 backdrop-blur-xl',
+            !isDesktop && 'md:w-14 bg-background/85 supports-[backdrop-filter]:bg-background/70',
+            !isDesktop && (isWorkplaceRoute ? 'backdrop-blur-2xl' : 'backdrop-blur-xl'),
             !isDesktop && sidebarExpanded && 'md:w-[260px]',
             // Tauri desktop mode — keep native bar background, no blur
             isDesktop &&
