@@ -167,7 +167,21 @@ export const chatStreamBodySchema = z.object({
       filename: z.string(),
     })
     .nullish(),
+  // Freier Systemprompt des „eigenen" Chats. Für Rollen aus dem Katalog steht
+  // hier NICHTS mehr: deren Auftrag ist parteiintern, liegt server-seitig und
+  // wird über `roleRef` aufgelöst. Das Feld bleibt für frei eingetippte Rollen
+  // (KI-erzeugt, beim Anlegen gespeichert) und für Bestandsdaten.
   customSystemPrompt: z.string().nullish(),
+  // Verweis auf eine gespeicherte Rolle der Person. Das Backend sucht sie in
+  // den User-Defaults und setzt den Systemprompt aus dem internen Baustein
+  // zusammen — Ebene UND Bezeichnung, weil dieselbe Bezeichnung auf mehreren
+  // Ebenen vorkommt.
+  roleRef: z
+    .object({
+      ebene: z.string(),
+      rolle: z.string(),
+    })
+    .nullish(),
   roleName: z.string().nullish(),
   // Seed for a brand-new thread: the generated text (Antrag, PM, Social) the
   // user came to chat about. Backend persists it as the first assistant
