@@ -63,6 +63,19 @@
        Hell 4,54:1, dunkel 5,99:1. */
     --grey-text-weak-val: #767676;
 
+    /* Dark-mode elevation scale — near-black chrome, progressively lighter
+       floating surfaces (mirrors ChatGPT's sidebar #171717 → card convention).
+       Referenced by both dark blocks below so they stay in sync.
+       0 chrome (sidebar/header) · 1 page background · 2 raised inline surface
+       (tag chips, code blocks, button hover) · 3 floating surface (popover,
+       dropdown, card). */
+    --dark-elevation-0: #171717;
+    --dark-elevation-1: #1a1a1a;
+    --dark-elevation-2: #242424;
+    --dark-elevation-3: #2a2a2a;
+    --dark-border-subtle: rgba(255, 255, 255, 0.10);
+    --dark-hover-overlay: rgba(255, 255, 255, 0.06);
+
     /* Neutral Color System ("Sand") - Backgrounds and subtle hover */
     --neutral-500: #f8f4ec;
     --neutral-600: #F5F1E9;  /* Base "Sand" color */
@@ -360,11 +373,11 @@
 
 [data-theme="dark"] {
     color-scheme: dark;
-    --background-color: var(--grey-950);
-    --background-color-pure: var(--grey-900);
-    --background-color-alt: var(--grey-800);
-    --background-color-sand: var(--grey-950);
-    --hover-color-alt: var(--grey-700);
+    --background-color: var(--dark-elevation-1);
+    --background-color-pure: var(--dark-elevation-3);
+    --background-color-alt: var(--dark-elevation-2);
+    --background-color-sand: var(--dark-elevation-1);
+    --hover-color-alt: var(--dark-hover-overlay);
     --font-color: var(--neutral-600);
     --font-color-h: var(--neutral-600);
     --font-color-h3: var(--neutral-600);
@@ -376,7 +389,7 @@
     --button-hover-color: var(--grey-700);
 
     /* Desktop app bar backgrounds */
-    --bar-background: var(--grey-900);
+    --bar-background: var(--dark-elevation-0);
 
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
@@ -392,7 +405,7 @@
     --font-color-secondary: var(--grey-text-weak-val);
     --font-color-muted: var(--grey-text-val);
     --border-color-disabled: var(--grey-600);
-    --border-color: var(--grey-700);
+    --border-color: var(--dark-border-subtle);
     --button-primary-color: var(--white);
 
     /* Canva-Layout Editor Surfaces — dark overrides (reused tokens inherit) */
@@ -436,7 +449,7 @@
     --color-surface-hover-val: rgba(255,255,255,0.1);
     --color-hover-overlay-val: rgba(255,255,255,0.05);
     --color-user-bubble-val: rgba(255,255,255,0.1);
-    --color-background-secondary-val: #242424;
+    --color-background-secondary-val: var(--dark-elevation-1);
 
     /* Text */
     --color-foreground-muted-val: #999999;
@@ -444,14 +457,14 @@
     --color-muted-brand-val: #9aa8a1;
 
     /* Borders */
-    --color-border-val: #374151;
+    --color-border-val: var(--dark-border-subtle);
 
     /* Card */
-    --color-card-val: #242424;
+    --color-card-val: var(--dark-elevation-3);
     --color-card-foreground-val: #e5e5e5;
 
     /* Popover (same as card) */
-    --color-popover-val: #242424;
+    --color-popover-val: var(--dark-elevation-3);
     --color-popover-foreground-val: #e5e5e5;
 
     /* Code Blocks — dark-mode override (light-mode value set above) */
@@ -532,11 +545,11 @@
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
         color-scheme: dark;
-        --background-color: var(--grey-950);
-        --background-color-pure: var(--grey-900);
-        --background-color-alt: var(--grey-800);
-        --background-color-sand: var(--secondary-700);
-        --hover-color-alt: var(--grey-700);
+        --background-color: var(--dark-elevation-1);
+        --background-color-pure: var(--dark-elevation-3);
+        --background-color-alt: var(--dark-elevation-2);
+        --background-color-sand: var(--dark-elevation-1);
+        --hover-color-alt: var(--dark-hover-overlay);
         --font-color: var(--neutral-600);
         --font-color-h: var(--neutral-600);
         --font-color-green: var(--neutral-600);
@@ -549,7 +562,7 @@
         --button-hover-color: var(--grey-700);
 
         /* Desktop app bar backgrounds */
-        --bar-background: var(--grey-900);
+        --bar-background: var(--dark-elevation-0);
 
         --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
         --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
@@ -565,7 +578,7 @@
         --font-color-secondary: var(--grey-text-weak-val);
         --font-color-muted: var(--grey-text-val);
         --border-color-disabled: var(--grey-600);
-        --border-color: var(--grey-700);
+        --border-color: var(--dark-border-subtle);
         --button-primary-color: var(--white);
 
         /* Canva-Layout Editor Surfaces — dark overrides (reused tokens inherit) */
@@ -602,14 +615,14 @@
         --color-surface-hover-val: rgba(255,255,255,0.1);
         --color-hover-overlay-val: rgba(255,255,255,0.05);
         --color-user-bubble-val: rgba(255,255,255,0.1);
-        --color-background-secondary-val: #242424;
+        --color-background-secondary-val: var(--dark-elevation-1);
         --color-foreground-muted-val: #999999;
         --color-muted-foreground-val: #999999;
         --color-muted-brand-val: #9aa8a1;
-        --color-border-val: #374151;
-        --color-card-val: #242424;
+        --color-border-val: var(--dark-border-subtle);
+        --color-card-val: var(--dark-elevation-3);
         --color-card-foreground-val: #e5e5e5;
-        --color-popover-val: #242424;
+        --color-popover-val: var(--dark-elevation-3);
         --color-popover-foreground-val: #e5e5e5;
         --color-code-block-bg-val: #111827;
         --color-code-block-fg-val: #e5e7eb;

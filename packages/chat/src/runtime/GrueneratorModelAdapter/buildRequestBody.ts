@@ -256,6 +256,7 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
       ...sharedChatBody,
       agentId: null,
       roleName: config.customRoleName || undefined,
+      roleRef: config.customRoleRef || undefined,
     };
   }
 

@@ -38,11 +38,13 @@ import { connectorId, connectorMentionables, quickSkillMentionables } from '../.
 import {
   useScopedThreadMode,
   useScopedSelectedNotebookId,
+  useScopedCustomRoleRef,
   useScopedCustomSystemPrompt,
   useScopedSetThreadMode,
   useScopedSetSelectedNotebook,
   useScopedSetCustomSystemPrompt,
   useScopedSetCustomRoleName,
+  useScopedSetCustomRoleRef,
 } from '../../lib/useScopedAgentState';
 import { composerToolbarButtonClass } from '../../lib/utils';
 import { useAgentStore } from '../../stores/chatStore';
@@ -118,10 +120,15 @@ export const PlusMenu = memo(function PlusMenu({
   const setSelectedNotebook = useScopedSetSelectedNotebook();
   const setCustomSystemPrompt = useScopedSetCustomSystemPrompt();
   const setCustomRoleName = useScopedSetCustomRoleName();
+  const setCustomRoleRef = useScopedSetCustomRoleRef();
+  const customRoleRef = useScopedCustomRoleRef();
   const roles = useUserProfileStore((s) => s.roles);
 
   const showModes = includeModes && !insideAgent;
-  const hasCustomPrompt = !!customSystemPrompt;
+  // Eine Katalogrolle bringt keinen Prompttext mit — ihr Auftrag ist
+  // parteiintern und wird server-seitig aufgelöst. „Eigener Chat" ist deshalb
+  // aktiv, sobald das eine ODER das andere gesetzt ist.
+  const hasCustomPrompt = !!customSystemPrompt || !!customRoleRef;
   const hasRoles = roles.length > 0;
 
   const activeNotebookLabel =
@@ -131,22 +138,28 @@ export const PlusMenu = memo(function PlusMenu({
       : null;
   const activeRoleName =
     threadMode === 'eigener' && hasRoles
-      ? roles.find((r) => r.systemPrompt === customSystemPrompt)?.rolle
+      ? (
+          roles.find((r) => r.ebene === customRoleRef?.ebene && r.rolle === customRoleRef?.rolle) ??
+          roles.find((r) => r.systemPrompt && r.systemPrompt === customSystemPrompt)
+        )?.rolle
       : null;
   const eigenerBadgeLabel = activeRoleName || (firstName ? `${firstName}s Chat` : 'Eigener');
 
   const selectChatMode = () => {
     setCustomRoleName(null);
+    setCustomRoleRef(null);
     setThreadMode('chat');
   };
 
   const selectRole = (roleIndex: number) => {
     const role = roles[roleIndex];
-    if (role?.systemPrompt) {
-      setCustomSystemPrompt(role.systemPrompt);
-      setCustomRoleName(role.rolle);
-      setThreadMode('eigener');
-    }
+    if (!role) return;
+    // Katalogrolle: nur die Referenz, der Auftrag kommt vom Server. Frei
+    // eingetippte Rollen tragen weiterhin ihren KI-erzeugten Text.
+    setCustomRoleRef({ ebene: role.ebene, rolle: role.rolle });
+    setCustomSystemPrompt(role.systemPrompt ?? null);
+    setCustomRoleName(role.rolle);
+    setThreadMode('eigener');
   };
 
   const selectEigener = () => {
@@ -198,7 +211,10 @@ export const PlusMenu = memo(function PlusMenu({
         <DropdownMenuSubContent className="max-h-[24rem] overflow-y-auto">
           {hasRoles ? (
             roles.map((role, i) => {
-              const isActive = threadMode === 'eigener' && role.systemPrompt === customSystemPrompt;
+              const isActive =
+                threadMode === 'eigener' &&
+                role.ebene === customRoleRef?.ebene &&
+                role.rolle === customRoleRef?.rolle;
               return (
                 <DropdownMenuItem
                   key={`role-${i}`}
@@ -396,7 +412,11 @@ export const PlusMenu = memo(function PlusMenu({
               <ResponsiveMenuItem
                 key={`role-${i}`}
                 icon={<Settings />}
-                active={threadMode === 'eigener' && role.systemPrompt === customSystemPrompt}
+                active={
+                  threadMode === 'eigener' &&
+                  role.ebene === customRoleRef?.ebene &&
+                  role.rolle === customRoleRef?.rolle
+                }
                 onClick={() => handleMobileAction(() => selectRole(i))}
               >
                 {role.rolle}
