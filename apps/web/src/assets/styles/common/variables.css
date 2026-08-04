@@ -370,10 +370,10 @@
 
 [data-theme="dark"] {
     color-scheme: dark;
-    --background-color: var(--dark-elevation-2);
-    --background-color-pure: var(--dark-elevation-1);
-    --background-color-alt: var(--dark-elevation-0);
-    --background-color-sand: var(--dark-elevation-0);
+    --background-color: var(--dark-elevation-1);
+    --background-color-pure: var(--dark-elevation-2);
+    --background-color-alt: var(--dark-elevation-2);
+    --background-color-sand: var(--dark-elevation-1);
     --hover-color-alt: var(--dark-hover-overlay);
     --font-color: var(--neutral-600);
     --font-color-h: var(--neutral-600);
@@ -542,10 +542,10 @@
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
         color-scheme: dark;
-        --background-color: var(--dark-elevation-2);
-        --background-color-pure: var(--dark-elevation-1);
-        --background-color-alt: var(--dark-elevation-0);
-        --background-color-sand: var(--dark-elevation-0);
+        --background-color: var(--dark-elevation-1);
+        --background-color-pure: var(--dark-elevation-2);
+        --background-color-alt: var(--dark-elevation-2);
+        --background-color-sand: var(--dark-elevation-1);
         --hover-color-alt: var(--dark-hover-overlay);
         --font-color: var(--neutral-600);
         --font-color-h: var(--neutral-600);
