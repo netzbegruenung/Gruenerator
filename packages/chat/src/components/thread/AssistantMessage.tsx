@@ -214,12 +214,19 @@ export const AssistantMessage = memo(function AssistantMessage() {
         >
           <messageAgent.icon className={isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4'} aria-hidden />
         </div>
-      ) : (
+      ) : isStreaming ? (
         <GrueneratorHomeIconLoading
-          loading={isStreaming}
+          loading
           width={isCompact ? 24 : 32}
           height={isCompact ? 24 : 32}
           className="flex-shrink-0"
+        />
+      ) : (
+        // Reserves the icon's footprint so the message text doesn't jump left
+        // the moment streaming finishes and the spinner disappears.
+        <div
+          className={isCompact ? 'h-6 w-6 flex-shrink-0' : 'h-8 w-8 flex-shrink-0'}
+          aria-hidden
         />
       )}
       <div className="min-w-0 flex-1">
