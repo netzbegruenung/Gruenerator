@@ -5,6 +5,7 @@ import {
   PASSTHROUGH_METADATA_FIELDS,
   type LoadedMessage,
 } from './threadMessageConversion';
+import { PASTED_TEXT_ATTACHMENT_NAME, PASTED_TEXT_PREVIEW_PART_NAME } from '../lib/pastedText';
 
 // Regression guard for the live⇄reload contract: rich content that renders live
 // (via SSE, onto `custom.*`) must be reconstructable from persisted metadata so a
@@ -52,6 +53,35 @@ const PASSTHROUGH_SAMPLES: Record<(typeof PASSTHROUGH_METADATA_FIELDS)[number], 
 };
 
 describe('convertToThreadMessageLike — reload reconstruction', () => {
+  it('rehydrates pasted text as a display-only attachment', () => {
+    const [message] = convertToThreadMessageLike([
+      {
+        id: 'm-paste',
+        role: 'user',
+        content: 'Bitte fasse das zusammen.',
+        attachments: [
+          {
+            id: 'a-paste',
+            name: PASTED_TEXT_ATTACHMENT_NAME,
+            contentType: 'text/plain',
+            preview: 'Erster Absatz aus dem eingefügten Text.',
+            truncated: false,
+          },
+        ],
+      },
+    ]);
+
+    const attachments = (
+      message as { attachments?: Array<{ content: Array<{ name?: string; data?: unknown }> }> }
+    ).attachments;
+    expect(attachments).toHaveLength(1);
+    expect(attachments?.[0]?.content[0]).toEqual({
+      type: 'data',
+      name: PASTED_TEXT_PREVIEW_PART_NAME,
+      data: { text: 'Erster Absatz aus dem eingefügten Text.', truncated: false },
+    });
+  });
+
   it.each(PASSTHROUGH_METADATA_FIELDS)(
     'rehydrates the "%s" passthrough field onto custom',
     (field) => {
