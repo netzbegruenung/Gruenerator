@@ -1,0 +1,126 @@
+/**
+ * ts-rest contract router for Rezepte (skill) visibility.
+ *
+ * `getVisibility` requires only authentication (applied at the `/api/skills`
+ * prefix in routes.ts, same as skillPromptContractRouter). `list`/`setHidden`
+ * additionally require an is_admin check, enforced per-handler like
+ * adminVorlagenContractRouter — requireAuth at the `/api/auth/admin/skills`
+ * prefix covers authentication only.
+ */
+import { skillVisibilityContract } from '@gruenerator/contracts';
+import { SKILLS } from '@gruenerator/shared/agents';
+import { createExpressEndpoints, initServer } from '@ts-rest/express';
+
+import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import {
+  getHiddenSkillMentions,
+  hideSkill,
+  unhideSkill,
+} from '../../services/skills/AdminHiddenSkillsService.js';
+import { isAdminByEmail } from '../../utils/adminEmails.js';
+import { logContractValidationError } from '../../utils/contractValidationLogger.js';
+import { getAuthedUser } from '../../utils/getAuthedUser.js';
+import { createLogger } from '../../utils/logger.js';
+
+import type { Application } from 'express';
+
+const log = createLogger('skillVisibilityContractRouter');
+
+async function checkIsAdmin(userId: string, email?: string): Promise<boolean> {
+  if (isAdminByEmail(email)) return true;
+  const postgres = getPostgresInstance();
+  const profile = await postgres.queryOne(
+    'SELECT is_admin, email FROM profiles WHERE id = $1',
+    [userId],
+    { table: 'profiles' }
+  );
+  const allowed = Boolean(profile?.is_admin);
+  if (!allowed) {
+    log.warn(
+      '[skillVisibilityContract] admin check denied: session user_id=%s session_email=%s profile_found=%s profile_email=%s profile_is_admin=%s',
+      userId,
+      email ?? '(none)',
+      profile ? 'yes' : 'no',
+      profile?.email ?? '(null)',
+      profile?.is_admin
+    );
+  }
+  return allowed;
+}
+
+const FORBIDDEN = {
+  status: 403 as const,
+  body: { success: false, message: 'Keine Admin-Berechtigung.' },
+};
+
+const s = initServer();
+
+export const skillVisibilityContractRouter = s.router(skillVisibilityContract, {
+  getVisibility: async () => {
+    try {
+      const hiddenMentions = await getHiddenSkillMentions();
+      return { status: 200 as const, body: { hiddenMentions } };
+    } catch (error) {
+      log.error('[skillVisibilityContract.getVisibility] Error:', error);
+      return {
+        status: 500 as const,
+        body: { success: false, message: 'Fehler beim Laden der Rezepte-Sichtbarkeit.' },
+      };
+    }
+  },
+
+  list: async (args) => {
+    try {
+      const authedUser = getAuthedUser(args.req);
+      if (!(await checkIsAdmin(authedUser.id, authedUser.email))) return FORBIDDEN;
+
+      const hiddenMentions = new Set(await getHiddenSkillMentions());
+      const data = SKILLS.map((skill) => ({
+        mention: skill.mention,
+        identifier: skill.identifier,
+        title: skill.title,
+        skillCategory: skill.skillCategory ?? null,
+        hidden: hiddenMentions.has(skill.mention),
+      }));
+
+      return { status: 200 as const, body: { success: true, data } };
+    } catch (error) {
+      log.error('[skillVisibilityContract.list] Error:', error);
+      return {
+        status: 500 as const,
+        body: { success: false, message: 'Fehler beim Laden der Rezepte.' },
+      };
+    }
+  },
+
+  setHidden: async (args) => {
+    try {
+      const authedUser = getAuthedUser(args.req);
+      if (!(await checkIsAdmin(authedUser.id, authedUser.email))) return FORBIDDEN;
+
+      const { mention } = args.params;
+      if (args.body.hidden) {
+        await hideSkill(mention, authedUser.id);
+      } else {
+        await unhideSkill(mention);
+      }
+
+      log.info(
+        `[skillVisibilityContract] ${mention} ${args.body.hidden ? 'hidden' : 'unhidden'} by ${authedUser.id}`
+      );
+      return { status: 200 as const, body: { success: true } };
+    } catch (error) {
+      log.error('[skillVisibilityContract.setHidden] Error:', error);
+      return {
+        status: 500 as const,
+        body: { success: false, message: 'Fehler beim Ändern der Rezept-Sichtbarkeit.' },
+      };
+    }
+  },
+});
+
+export function mountSkillVisibilityContractRouter(app: Application): void {
+  createExpressEndpoints(skillVisibilityContract, skillVisibilityContractRouter, app, {
+    requestValidationErrorHandler: logContractValidationError(log, 'skillVisibilityContract'),
+  });
+}

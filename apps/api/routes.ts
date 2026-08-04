@@ -14,7 +14,6 @@ import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
 import antraegeRouter from './routes/antraege/index.js';
 import { mountGroupsContractRouter } from './routes/auth/groups/groupsContract/index.js';
 import { mountImageModelPreferenceContractRouter } from './routes/auth/imageModelPreferenceContractRouter.js';
-import { mountSkillPromptContractRouter } from './routes/skills/skillPromptContractRouter.js';
 import authInitRouter from './routes/auth/initController.js';
 import { mountModelPreferencesContractRouter } from './routes/auth/modelPreferencesContractRouter.js';
 import { mountPromptsContractRouter } from './routes/auth/promptsContractRouter.js';
@@ -118,6 +117,8 @@ import {
 import { type SharepicRequest } from './routes/sharepic/sharepic_text/types.js';
 import { mountSheetsContractRouter } from './routes/sheets/sheetsContractRouter.js';
 import { mountSitesContractRouter } from './routes/sites/sitesContractRouter.js';
+import { mountSkillPromptContractRouter } from './routes/skills/skillPromptContractRouter.js';
+import { mountSkillVisibilityContractRouter } from './routes/skills/skillVisibilityContractRouter.js';
 import subtitlerRouter from './routes/subtitler/processingController.js';
 import subtitlerProjectRouter from './routes/subtitler/projectController.js';
 import subtitlerShareRouter from './routes/subtitler/shareController.js';
@@ -361,6 +362,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   // enforced per-handler via `checkIsAdmin` inside the contract).
   app.use('/api/auth/admin/vorlagen', requireAuth);
   mountAdminVorlagenContractRouter(app);
+  // Admin-curated Rezepte visibility — same requireAuth-at-prefix +
+  // per-handler is_admin check as admin Vorlagen above.
+  app.use('/api/auth/admin/skills', requireAuth);
   // ts-rest contract router for user templates (Vorlagen CRUD) — replaces the
   // legacy userTemplatesRouter. Mounts BEFORE authRouter so contract routes
   // match first. requireAuth is applied at the prefix because every route
@@ -836,6 +840,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   // public (it ships in the bundle), the prompt text behind it is not.
   app.use('/api/skills', requireAuth);
   mountSkillPromptContractRouter(app);
+  // Rezepte visibility: getVisibility under /api/skills (guarded above),
+  // list/setHidden under /api/auth/admin/skills (guarded near admin Vorlagen).
+  // Both prefixes are set up before this single mount call.
+  mountSkillVisibilityContractRouter(app);
   // Per-user external MCP server registry (EXPERIMENTAL). requireAuth at the
   // prefix — every route is user-scoped and handles user-entered credentials.
   app.use('/api/mcp/servers', requireAuth);
