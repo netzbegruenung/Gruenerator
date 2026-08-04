@@ -39,13 +39,32 @@ const WorkplacePage = () => {
     resolveChatBackground(chatBackground).className
   );
 
+  const backgroundClass = tab === 'chat' ? chatBackgroundClass : TAB_BACKGROUND[tab];
+
   return (
     <ErrorBoundary>
+      {/* Paints the full viewport instead of only the area right of the
+          sidebar. The sidebar is `position: fixed` and translucent, so it
+          used to float over flat theme background here while the gradient
+          started abruptly at its right edge — a hard seam that also moved
+          on hover-expand. Layering the paint behind everything lets the
+          sidebar's own blur blend it instead. */}
+      <div
+        aria-hidden="true"
+        className={cn('pointer-events-none fixed inset-0 -z-10', backgroundClass)}
+      />
       <WorkplaceTabs active={tab} />
       <div
         className={cn(
           'flex h-full min-h-0 flex-col',
-          tab === 'chat' ? chatBackgroundClass : TAB_BACKGROUND[tab]
+          // Kept (not dropped) for --wp-accent / --wp-accent-hover /
+          // --chat-composer-border, which the composer further down the tree
+          // reads via inheritance (workplace-chat-accent, chat-thread-glow).
+          // Its own paint is neutralized — the fixed layer above owns it now.
+          // animate-none! stops the (now invisible) entrance animation from
+          // running a second time in parallel with the fixed layer's.
+          backgroundClass,
+          'bg-transparent! bg-none! animate-none!'
         )}
       >
         {tab === 'chat' ? (
