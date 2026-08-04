@@ -15,7 +15,6 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { Bell, LogOut } from 'lucide-react';
 import { type MutableRefObject, type ReactNode, memo, useEffect, useState } from 'react';
-import { FaUsers } from 'react-icons/fa';
 import { FiServer, FiSliders } from 'react-icons/fi';
 import { HiCog } from 'react-icons/hi';
 
@@ -39,7 +38,6 @@ import { cn } from '@/utils/cn';
 interface SidebarAccountProps {
   sidebarExpanded: boolean;
   openRef: MutableRefObject<boolean>;
-  onNavigate: (path: string, title: string) => void;
 }
 
 // Defer past the dropdown's close so the closing menu and the opening dialog
@@ -57,7 +55,6 @@ const openSettingsDeferred = (tab?: SettingsTab) => {
 const SidebarAccount = memo(function SidebarAccount({
   sidebarExpanded,
   openRef,
-  onNavigate,
 }: SidebarAccountProps) {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
@@ -148,10 +145,6 @@ const SidebarAccount = memo(function SidebarAccount({
         </span>
       </DropdownMenuItem>
       <DropdownMenuSeparator />
-      <DropdownMenuItem onClick={() => onNavigate('/projekte', 'Projekte')}>
-        <FaUsers className="size-4" />
-        <span>Projekte</span>
-      </DropdownMenuItem>
       {/* Deep links to specific settings tabs; deferred so the closing dropdown
           and the opening dialog don't fight over the Radix body/focus lock. */}
       <DropdownMenuItem
