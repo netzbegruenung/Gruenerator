@@ -1,4 +1,4 @@
-import { SKILL_CATEGORY_LABELS, type SkillCategory } from '@gruenerator/shared/agents';
+import { SKILL_CATEGORY_LABELS } from '@gruenerator/shared/agents';
 import { Button, SectionHeader, Skeleton, Switch } from '@gruenerator/ui';
 import { useMemo } from 'react';
 import { FaLock } from 'react-icons/fa';
@@ -67,7 +67,7 @@ const AdminSkillsPage = () => {
           grouped.map(([category, categorySkills]) => (
             <section key={category} className="mb-xl">
               <SectionHeader
-                title={SKILL_CATEGORY_LABELS[category as SkillCategory] ?? category}
+                title={(SKILL_CATEGORY_LABELS as Record<string, string>)[category] ?? category}
               />
               <div className="flex flex-col gap-1">
                 {categorySkills.map((skill) => (
