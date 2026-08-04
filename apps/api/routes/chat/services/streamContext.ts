@@ -597,7 +597,14 @@ export async function buildStreamContext({
           'gespeicherte Rolle — der Turn läuft mit dem Basis-Agenten.'
       );
     } else {
-      customSystemPrompt = resolveRoleSystemPrompt(role, user.locale ?? 'de-DE') ?? undefined;
+      // Für Katalogrollen liefert das den Baustein. Für frei eingetippte Rollen
+      // gibt es keinen Baustein (roleBausteinKey → null) — dann bleibt der
+      // KI-generierte Prompt aus der gespeicherten Rolle bzw. dem Request maßgeblich.
+      customSystemPrompt =
+        resolveRoleSystemPrompt(role, user.locale ?? 'de-DE') ??
+        role.systemPrompt ??
+        rawCustomSystemPrompt ??
+        undefined;
     }
   }
 
