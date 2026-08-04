@@ -153,4 +153,14 @@ describe('an image survives the fragment', () => {
     });
     expect(roundTrip(md)).toBe(md);
   });
+
+  // A trailing backslash in alt/src must not merge with the following escape
+  // and swallow the bracket it was meant to protect (CodeQL js/incomplete-sanitization).
+  it('escapes a trailing backslash before escaping brackets/parens', () => {
+    const alt = formatSlideImageMarkdown({ src: 'https://e.org/a.png', alt: 'Endet mit \\' });
+    expect(alt).toBe('![Endet mit \\\\](https://e.org/a.png)');
+
+    const src = formatSlideImageMarkdown({ src: 'https://e.org/a\\(1).png', alt: 'x' });
+    expect(src).toBe('![x](https://e.org/a\\\\\\(1\\).png)');
+  });
 });
