@@ -24,7 +24,7 @@
  *   --pr-comment         Post ONE sticky PR comment (marker-keyed, edited in place)
  *                        instead of filing issues. Needs GITHUB_REPOSITORY + PR_NUMBER.
  *   --concurrency <n>    Max parallel doc audits (default: 2; each spawns a subprocess)
- *   --model <id>         Override the Claude model (default: claude-sonnet-4-6 or
+ *   --model <id>         Override the Claude model (default: claude-sonnet-5 or
  *                        DOCS_CHECK_MODEL)
  *
  * Env:
@@ -116,7 +116,7 @@ const AREA_HINTS: Record<string, string> = {
     'pnpm-workspace.yaml, package.json, turbo.json, .env.example, apps/api/workers/providers, apps/api/services/ai',
 };
 
-const DEFAULT_MODEL = process.env.DOCS_CHECK_MODEL || 'claude-sonnet-4-6';
+const DEFAULT_MODEL = process.env.DOCS_CHECK_MODEL || 'claude-sonnet-5';
 
 const ISSUE_LABEL = 'docs-freshness';
 const ISSUE_TITLE_PREFIX = 'Docs freshness: ';
@@ -303,6 +303,11 @@ Rules:
 - Every discrepancy MUST cite concrete code evidence as \`path/to/file.tsx:line\`.
 - Be efficient: target your searches; you do not need to read whole feature directories.
 
+JSON output rules — the verdict is parsed by a strict JSON parser, not read by a human:
+- Do NOT use markdown code spans (backticks) or nested triple-backtick fences inside any JSON string value (\`claim\`, \`docQuote\`, \`codeEvidence\`, \`suggestedFix\`). Write identifiers, commands and code snippets as plain text instead, e.g. codeEvidence: apps/foo.tsx:12 shows label 'Speichern', not codeEvidence: \`apps/foo.tsx:12\` shows \`Speichern\`.
+- Every double quote inside a string value MUST be escaped (\\").
+- Do not include literal newlines inside a string value — write the sentence on one line.
+
 When finished, output your verdict as a SINGLE fenced \`\`\`json code block and nothing after it, matching exactly this shape:
 {
   "upToDate": true,
@@ -393,6 +398,61 @@ function extractVerdict(text: string): Verdict {
   return VerdictSchema.parse(parsed);
 }
 
+const STRICT_JSON_RETRY_NOTE =
+  '\n\nIMPORTANT: your previous attempt at this audit produced invalid JSON and had to be discarded. ' +
+  'Re-do the audit and pay close attention to the JSON output rules: no backticks or code fences inside ' +
+  'string values, no unescaped quotes, no literal newlines inside a string.';
+
+// One query + verdict-extraction attempt. Throws on agent failure or unparseable JSON —
+// auditDoc decides whether to retry.
+async function runOneAudit(
+  docPath: string,
+  content: string,
+  model: string,
+  retry: boolean
+): Promise<Verdict> {
+  const prompt = buildUserPrompt(docPath, content) + (retry ? STRICT_JSON_RETRY_NOTE : '');
+  let finalText = '';
+  let endedBadly: string | null = null;
+
+  for await (const message of query({
+    prompt,
+    options: {
+      model,
+      cwd: REPO_ROOT,
+      systemPrompt: SYSTEM_PROMPT,
+      maxTurns: 40,
+      allowedTools: ['Read', 'Grep', 'Glob'],
+      disallowedTools: [
+        'Edit',
+        'MultiEdit',
+        'Write',
+        'NotebookEdit',
+        'Bash',
+        'WebFetch',
+        'WebSearch',
+        'Task',
+      ],
+      permissionMode: 'bypassPermissions',
+      allowDangerouslySkipPermissions: true,
+      settingSources: [],
+    },
+  })) {
+    if (message.type === 'result') {
+      if (message.subtype === 'success') {
+        finalText = message.result;
+      } else {
+        endedBadly = message.subtype;
+      }
+    }
+  }
+
+  if (endedBadly) {
+    throw new Error(`agent ended: ${endedBadly}`);
+  }
+  return extractVerdict(finalText);
+}
+
 async function auditDoc(docPath: string, model: string): Promise<DocResult> {
   const start = Date.now();
   const base: Pick<DocResult, 'docPath'> = { docPath };
@@ -417,75 +477,37 @@ async function auditDoc(docPath: string, model: string): Promise<DocResult> {
     };
   }
 
-  try {
-    let finalText = '';
-    let endedBadly: string | null = null;
-
-    for await (const message of query({
-      prompt: buildUserPrompt(docPath, content),
-      options: {
-        model,
-        cwd: REPO_ROOT,
-        systemPrompt: SYSTEM_PROMPT,
-        maxTurns: 40,
-        allowedTools: ['Read', 'Grep', 'Glob'],
-        disallowedTools: [
-          'Edit',
-          'MultiEdit',
-          'Write',
-          'NotebookEdit',
-          'Bash',
-          'WebFetch',
-          'WebSearch',
-          'Task',
-        ],
-        permissionMode: 'bypassPermissions',
-        allowDangerouslySkipPermissions: true,
-        settingSources: [],
-      },
-    })) {
-      if (message.type === 'result') {
-        if (message.subtype === 'success') {
-          finalText = message.result;
-        } else {
-          endedBadly = message.subtype;
-        }
-      }
-    }
-
-    if (endedBadly) {
+  // A malformed-JSON verdict is a formatting slip, not a substantive failure — one retry
+  // with a stricter reminder recovers most of them instead of silently dropping the doc
+  // from the audit (see gruener-ci-schritt-beweist-nichts: a swallowed error reads as success).
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const verdict = await runOneAudit(docPath, content, model, attempt > 0);
       return {
         ...base,
-        status: 'error',
-        upToDate: true,
-        findings: [],
-        error: `agent ended: ${endedBadly}`,
+        status: 'ok',
+        upToDate: verdict.upToDate && verdict.findings.length === 0,
+        findings: verdict.findings,
         durationS: Math.round((Date.now() - start) / 1000),
       };
+    } catch (err) {
+      lastErr = err;
     }
-
-    const verdict = extractVerdict(finalText);
-    return {
-      ...base,
-      status: 'ok',
-      upToDate: verdict.upToDate && verdict.findings.length === 0,
-      findings: verdict.findings,
-      durationS: Math.round((Date.now() - start) / 1000),
-    };
-  } catch (err) {
-    // Kept raw on purpose: this DocResult feeds the run summary and a
-    // maintainer-facing GitHub issue, never a user response. A smoothed-over
-    // message would make a failed audit undebuggable.
-    const rawMessage = err instanceof Error ? err.message : String(err);
-    return {
-      ...base,
-      status: 'error',
-      upToDate: true,
-      findings: [],
-      error: rawMessage,
-      durationS: Math.round((Date.now() - start) / 1000),
-    };
   }
+
+  // Kept raw on purpose: this DocResult feeds the run summary, the PR comment and a
+  // maintainer-facing GitHub issue, never a user response. A smoothed-over message would
+  // make a failed audit undebuggable.
+  const rawMessage = lastErr instanceof Error ? lastErr.message : String(lastErr);
+  return {
+    ...base,
+    status: 'error',
+    upToDate: true,
+    findings: [],
+    error: `${rawMessage} (after retry)`,
+    durationS: Math.round((Date.now() - start) / 1000),
+  };
 }
 
 // ── GitHub issues (gh CLI, no shell) ────────────────────────────────────────
@@ -624,9 +646,11 @@ const PR_COMMENT_MARKER = '<!-- docs-freshness-pr -->';
 
 function buildPrCommentBody(results: DocResult[], today: string): string {
   const stale = results.filter((r) => r.status === 'ok' && !r.upToDate);
+  const ok = results.filter((r) => r.status === 'ok' && r.upToDate);
+  const errored = results.filter((r) => r.status === 'error');
   const lines: string[] = [PR_COMMENT_MARKER, '', '## 📝 Docs-Freshness-Check', ''];
 
-  if (stale.length === 0) {
+  if (stale.length === 0 && errored.length === 0) {
     lines.push(
       `✅ Keine Abweichungen zwischen den betroffenen Doku-Artikeln und dieser Änderung gefunden ` +
         `(${results.length} Artikel geprüft).`
@@ -634,10 +658,16 @@ function buildPrCommentBody(results: DocResult[], today: string): string {
     return lines.join('\n');
   }
 
-  lines.push(
-    `⚠️ Diese Änderung betrifft **${stale.length}** Doku-Artikel, die evtl. veraltet sind. ` +
-      `Bitte prüfen und ggf. anpassen — dieser Kommentar **blockiert den Merge nicht**.`
-  );
+  if (stale.length > 0) {
+    lines.push(
+      `⚠️ Diese Änderung betrifft **${stale.length}** Doku-Artikel, die evtl. veraltet sind. ` +
+        `Bitte prüfen und ggf. anpassen — dieser Kommentar **blockiert den Merge nicht**.`
+    );
+  } else {
+    lines.push(
+      `✅ Keine Abweichungen in den erfolgreich geprüften Artikeln (${ok.length} von ${results.length}).`
+    );
+  }
   lines.push('');
   for (const r of stale) {
     lines.push(
@@ -655,6 +685,20 @@ function buildPrCommentBody(results: DocResult[], today: string): string {
     lines.push('</details>');
     lines.push('');
   }
+
+  if (errored.length > 0) {
+    lines.push(
+      `⚠️ **${errored.length}** Artikel konnte${errored.length === 1 ? '' : 'n'} nicht geprüft werden ` +
+        `(Agent-Fehler nach Retry, s. Workflow-Log) — für diese Artikel liegt **kein** Ergebnis vor, ` +
+        `weder ✅ noch ⚠️:`
+    );
+    lines.push('');
+    for (const r of errored) {
+      lines.push(`- \`${docSourcePath(r.docPath)}\`: ${r.error ?? 'unbekannter Fehler'}`);
+    }
+    lines.push('');
+  }
+
   lines.push('---');
   lines.push(
     `_KI-generiert von \`check-docs-freshness.ts\` am ${today}. Findings sind automatisch erzeugt — ` +
