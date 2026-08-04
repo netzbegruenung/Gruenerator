@@ -7,10 +7,14 @@ import '../workplace/workplace-sunrise.css';
 // The /chat empty state, mirroring the Workplace chat tab (greeting + pill
 // composer) — without the workplace tour button, whose driver.js steps target
 // elements that only exist on /workplace.
-const ChatHero = () => {
+interface ChatHeroProps {
+  projectName?: string | null;
+}
+
+const ChatHero = ({ projectName }: ChatHeroProps = {}) => {
   return (
     <div className="mx-auto w-full max-w-5xl px-4">
-      <WorkplaceGreeting />
+      <WorkplaceGreeting projectName={projectName} />
 
       <div className="max-w-3xl mx-auto">
         <ChatInner />
