@@ -46,6 +46,14 @@
     --grey-900: #3d3d3d;
     --grey-950: #262626;
 
+    /* Dark-mode elevation scale — mirrors apps/web's variables.css.
+       0 chrome · 1 page background · 2 raised inline surface · 3 floating surface. */
+    --dark-elevation-0: #171717;
+    --dark-elevation-1: #1a1a1a;
+    --dark-elevation-2: #242424;
+    --dark-elevation-3: #2a2a2a;
+    --dark-hover-overlay: rgba(255, 255, 255, 0.06);
+
     /* Lesegrau für Text — themeabhängig, weil ein fester Grauwert WCAG 1.4.3
        (4,5:1) nicht in beiden Modi erfüllen kann. Dark-Werte im
        [data-theme="dark"]-Block, Werte identisch mit apps/web. */
@@ -154,11 +162,11 @@
 }
 
 [data-theme="dark"] {
-    --background-color: var(--grey-950);
-    --background-color-pure: var(--grey-900);
-    --background-color-alt: var(--grey-800);
-    --background-color-sand: var(--grey-950);
-    --hover-color-alt: var(--grey-700);
+    --background-color: var(--dark-elevation-1);
+    --background-color-pure: var(--dark-elevation-3);
+    --background-color-alt: var(--dark-elevation-2);
+    --background-color-sand: var(--dark-elevation-1);
+    --hover-color-alt: var(--dark-hover-overlay);
     --font-color: var(--neutral-600);
     --font-color-h: var(--neutral-600);
     --link-color: var(--neutral-600);
