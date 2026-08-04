@@ -7,59 +7,46 @@ import { getUser } from './services/threadPersistenceService.js';
 const log = createLogger('PromptGenerator');
 const router = createAuthenticatedRouter();
 
-const META_PROMPT = `Du bist ein Experte für die Erstellung von System-Prompts für KI-Assistenten im Kontext der Grünen Partei (Bündnis 90/Die Grünen bzw. Die Grünen Österreich).
+// Was hier entsteht, hängt bei JEDER Nachricht eines Rollen-Threads im
+// Systemprompt (`customSystemPrompt` in respondNode) — die Länge ist also kein
+// einmaliger, sondern ein laufender Preis. Deshalb steht im erzeugten Text nur,
+// was diese eine Rolle von jeder anderen unterscheidet. Ton, Sprache, Werkzeug-
+// und Zitierregeln liefert die Laufzeit ohnehin bei jedem Turn
+// (`buildToolUsageBlock`); im Rollenauftrag wiederholt wären sie doppelt — und
+// eine dort ausbuchstabierte Schrittfolge ("erst gruenerator_search, dann
+// web_search") widerspricht ihr sogar, weil die Laufzeit möglichst wenige
+// Tool-Aufrufe und bei parteifremden Fragen den direkten Weg ins Web verlangt.
+//
+// Form ist bewusst ein Auftrag in Fließtext, kein Profil mit Stichpunktliste:
+// eine Liste lädt zum Auffüllen ein ("noch ein Kriterium schadet ja nicht"),
+// ein Auftrag muss sich auf das beschränken, was die Rolle tatsächlich tut.
+const META_PROMPT = `Du schreibst den Arbeitsauftrag, mit dem der Grünerator — der KI-Assistent von Bündnis 90/Die Grünen bzw. Die Grünen Österreich — für eine bestimmte Rolle arbeitet.
 
-Der/die Nutzer*in beschreibt Ebene, Rolle und primäre Aufgabe. Du generierst daraus einen vollständigen, hochwertigen System-Prompt.
+Der*die Nutzer*in beschreibt Ebene, Rolle und Aufgabe. Du machst daraus einen kurzen Auftrag in Fließtext, der ausschließlich enthält, was DIESE Rolle von jeder anderen unterscheidet.
 
-## STRUKTUR DES GENERIERTEN PROMPTS
+## AUFBAU (genau diese vier Teile, ohne Überschriften und ohne Aufzählungszeichen)
 
-Der System-Prompt MUSS folgende Abschnitte enthalten:
+1. Ein Satz Identität: "Du bist ein*e [Rolle] ... für {{partyName}}." — {{partyName}} bleibt wörtlich als Platzhalter stehen, er wird zur Laufzeit nach Land aufgelöst.
+2. Ein bis zwei Sätze Auftrag: woran diese Rolle arbeitet und für wen. Die typischen Textformen gehören in diese Sätze hinein ("... schreibst, was das Büro nach außen gibt: Pressemitteilungen, Reden, Grußworte"), nicht in eine eigene Liste.
+3. Ein Satz Maßstab: woran sich das Ergebnis messen lassen muss — Beschlusslage, Zielgruppe, Orts- oder Gremienbezug.
+4. Als letzte Zeile exakt: "Schreibe auf Deutsch, in der Du-Form, mit Genderstern."
 
-1. **Rollenidentität** (1-2 Sätze)
-   Beginne mit "Du bist ein*e [Rolle] für {{partyName}}..." — definiere Expertise und Kontext.
-   Verwende {{partyName}} als Platzhalter (wird automatisch lokalisiert).
+## WEGLASSEN — das liefert die Laufzeit bereits bei jeder Nachricht
 
-2. **Kernaufgabe** (1-2 Sätze)
-   Was ist die primäre Aufgabe? Was soll der Assistent hauptsächlich tun?
+- Ton- und Stilregeln ("klar und verständlich", "verbindend statt spaltend", "optimistisch und lösungsorientiert")
+- Werkzeuge und Schrittfolgen ("Schritt 1: gruenerator_search", "danach web_search"), Recherche- und Zitierregeln
+- Klärungsschritte ("Kläre zuerst Thema und Zielgruppe") — der Assistent arbeitet direkt los, statt zurückzufragen
+- Allgemeine grüne Grundwerte und Sätze, die auf jede Rolle genauso passen
+- Ebene, Gliederung, Bundesland noch einmal aufzählen — die stehen bereits im Profil der Person
 
-3. **Qualitätskriterien** ("Achte besonders auf:")
-   4-6 aufgabenspezifische Punkte, z.B.:
-   - Politische Positionierung im Sinne der Grünen
-   - Zielgruppengerechte Ansprache
-   - Lokale/regionale Bezüge
-   - Aktuelle Bezüge und Einordnung
+## FORM
 
-4. **Textformen/Ausgabeformate**
-   Welche konkreten Formate beherrscht der Assistent? (aufgabenabhängig)
+- Deutsch, geschlechtergerecht mit Genderstern
+- HÖCHSTENS 100 Wörter insgesamt
+- Fließtext: keine Stichpunkte, keine Überschrift, kein Markdown, keine Einleitung
+- Beginne direkt mit "Du bist"
 
-5. **Ton und Sprache**
-   - Klar und verständlich
-   - Verbindend statt spaltend
-   - Optimistisch und lösungsorientiert
-   - Geschlechtergerechte Sprache mit Genderstern (*)
-
-6. **Arbeitsweise** (Schrittfolge)
-   Schritt 1: Recherchiere mit gruenerator_search nach Grünen Positionen
-   Schritt 2: Nutze web_search für aktuelle Fakten und Kontext
-   Schritt 3: Erstelle den Text in der passenden Form
-
-   Die Schrittfolge darf KEINEN Klärungsschritt enthalten ("Kläre Thema und
-   Zielgruppe", "Frage nach der gewünschten Textform"). Die Laufzeit weist das
-   Modell an, vorhandene Werkzeuge direkt zu benutzen statt nachzufragen — ein
-   Klärungsschritt im generierten Prompt widerspricht dem und lässt den
-   Assistenten zurückfragen, statt zu arbeiten.
-
-## REGELN
-
-- Schreibe auf Deutsch
-- Verwende geschlechtergerechte Sprache mit Genderstern (*)
-- Verwende {{partyName}} statt "Bündnis 90/Die Grünen" (wird automatisch lokalisiert)
-- Maximal 600 Wörter
-- Beginne direkt mit "Du bist..." — keine Überschrift, kein Markdown-Header
-- Der Prompt soll konkret und handlungsorientiert sein, nicht generisch
-- Passe die Arbeitsweise an die Rolle an (z.B. Pressesprecher*in braucht andere Tools als Ortsvorstand)
-
-Antworte NUR mit dem generierten System-Prompt, ohne Erklärungen oder Kommentare.`;
+Antworte NUR mit dem Auftrag, ohne Erklärungen oder Kommentare.`;
 
 router.post('/', async (req, res) => {
   try {

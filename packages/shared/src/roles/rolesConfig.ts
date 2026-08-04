@@ -125,6 +125,99 @@ export const LOCAL_NAME_PLACEHOLDERS: Record<string, string> = {
   gemeinde: 'z.B. Innsbruck',
 };
 
+/**
+ * Schlüssel der Rollen-Bausteine. **Nur die IDs stehen hier** — der Prompttext
+ * jeder Rolle ist parteiintern und liegt im privaten Repo unter
+ * `rollen/<schlüssel>.md`, genau wie die Rezept-Bodies (siehe
+ * `apps/api/services/skills/internalPrompts.ts`). Dieses Paket landet im
+ * Web-Bundle und in jeder ausgelieferten Mobile-Binary; was hier steht, ist
+ * veröffentlicht.
+ *
+ * F1 — eingefroren: die Schlüssel sind Dateinamen im privaten Repo. Umbenennen
+ * heißt, dort mitzubenennen, sonst fällt die Rolle stumm auf den Basis-Agenten
+ * zurück.
+ */
+export const ROLE_BAUSTEIN_KEYS = [
+  'eu-abgeordnete',
+  'eu-abgeordnetenbuero',
+  'europagruppe',
+  'bundesgeschaeftsstelle',
+  'bundestagsfraktion',
+  'mdb-buero',
+  'landesgeschaeftsstelle',
+  'landtagsfraktion',
+  'mdl-buero',
+  'kreisverband',
+  'kreistagsfraktion',
+  'kreistagsmitglied',
+  'ortsverband',
+  'ratsfraktion',
+  'ratsmitglied',
+  'presse-social-media',
+  'at-bundespartei',
+  'at-gruener-klub',
+  'at-nr-abgeordnetenbuero',
+  'at-landesorganisation',
+  'at-landtagsklub',
+  'at-lt-abgeordnetenbuero',
+  'at-bezirksorganisation',
+  'at-bezirksraetin',
+  'at-gemeindegruppe',
+  'at-gemeinderaetin',
+] as const;
+
+export type RoleBausteinKey = (typeof ROLE_BAUSTEIN_KEYS)[number];
+
+/**
+ * Rollenbezeichnung → Baustein. Die Bezeichnung ist der Schlüssel, weil genau
+ * sie in den Nutzerdaten steht (`role.rolle`) — eine eigene ID daneben müsste
+ * für Bestandsrollen erst nachgetragen werden.
+ */
+const BAUSTEIN_BY_ROLLE: Record<string, RoleBausteinKey> = {
+  'EU-Abgeordnete*r': 'eu-abgeordnete',
+  'Mitarbeiter*in EU-Abgeordnete*r': 'eu-abgeordnetenbuero',
+  'Mitarbeiter*in Europagruppe': 'europagruppe',
+  'Mitarbeiter*in Bundesgeschäftsstelle': 'bundesgeschaeftsstelle',
+  'Mitarbeiter*in Bundestagsfraktion': 'bundestagsfraktion',
+  'Mitarbeiter*in MdB-Büro': 'mdb-buero',
+  'Mitarbeiter*in Landesgeschäftsstelle': 'landesgeschaeftsstelle',
+  'Mitarbeiter*in Landtagsfraktion': 'landtagsfraktion',
+  'Mitarbeiter*in MdL-Büro': 'mdl-buero',
+  'Mitarbeiter*in Kreisverband': 'kreisverband',
+  'Mitarbeiter*in Kreistagsfraktion': 'kreistagsfraktion',
+  'Mitarbeiter*in Ortsverband': 'ortsverband',
+  'Mitarbeiter*in Ratsfraktion': 'ratsfraktion',
+  'Presse & Social-Media': 'presse-social-media',
+  'Mitarbeiter*in Bundespartei': 'at-bundespartei',
+  'Mitarbeiter*in Grüner Klub (Nationalrat)': 'at-gruener-klub',
+  'Mitarbeiter*in NR-Abgeordnetenbüro': 'at-nr-abgeordnetenbuero',
+  'Mitarbeiter*in Landesorganisation': 'at-landesorganisation',
+  'Mitarbeiter*in Landtagsklub': 'at-landtagsklub',
+  'Mitarbeiter*in LT-Abgeordnetenbüro': 'at-lt-abgeordnetenbuero',
+  'Mitarbeiter*in Bezirksorganisation': 'at-bezirksorganisation',
+  'Bezirksrät*in': 'at-bezirksraetin',
+  'Mitarbeiter*in Gemeindegruppe': 'at-gemeindegruppe',
+  'Gemeinderät*in': 'at-gemeinderaetin',
+};
+
+/**
+ * Dieselbe Bezeichnung meint je nach Ebene ein anderes Gremium: „Ratsmitglied"
+ * sitzt im Kreisverband im Kreistag, im Ortsverband im Gemeinde- oder Stadtrat.
+ * Diese Fälle gehen vor der Bezeichnung allein.
+ */
+const BAUSTEIN_BY_EBENE_ROLLE: Record<string, RoleBausteinKey> = {
+  'kreisverband:Ratsmitglied': 'kreistagsmitglied',
+  'ortsverband:Ratsmitglied': 'ratsmitglied',
+};
+
+/**
+ * Der Baustein zu einer Rolle, oder `null` für frei eingetippte Rollen — die
+ * haben keinen Katalogeintrag und fallen auf die KI-Erzeugung zurück.
+ */
+export function roleBausteinKey(ebene: string, rolle: string): RoleBausteinKey | null {
+  return BAUSTEIN_BY_EBENE_ROLLE[`${ebene}:${rolle}`] ?? BAUSTEIN_BY_ROLLE[rolle] ?? null;
+}
+
 export function needsAbgeordneteName(rolle: string): boolean {
   const lower = rolle.toLowerCase();
   return (
