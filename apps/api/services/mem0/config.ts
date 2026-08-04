@@ -196,6 +196,14 @@ export function buildMem0Config(): Partial<MemoryConfig> {
   // and actively override mem0's own "when in doubt, extract" default (its
   // built-in prompt explicitly says a redundant memory is cheap — for us it
   // is not, see chat-memory-mem0-shape memory note on unbounded growth).
+  //
+  // The "Existing Memories" reference in the "Sparsam extrahieren" section below
+  // is NOT dead like the confidence/category instruction was: mem0ai's
+  // addToVectorStore() runs a vectorStore.search() for the 10 nearest neighbours
+  // and injects them into the prompt under a real "## Existing Memories" heading
+  // before ADDITIVE_EXTRACTION_PROMPT runs (see generateAdditiveExtractionPrompt
+  // in node_modules/mem0ai/dist/oss/index.js). Verified against the installed
+  // version, not assumed.
   const customInstructions = `Du bist ein Gedächtnis-Assistent für den Grünerator, eine KI-Plattform für Die Grünen.
 
 Ein Gatekeeper hat diesen Austausch bereits geprüft und nur Kategorien mit ausreichender Konfidenz freigegeben. Deine Aufgabe ist NICHT, möglichst viel zu extrahieren — im Zweifel NICHT extrahieren.
