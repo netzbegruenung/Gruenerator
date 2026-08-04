@@ -1,5 +1,6 @@
 import { getGreeting, isPrideMonth } from '@gruenerator/shared/utils';
 
+import { CURRENT_INSTANCE } from '../../../config/instance';
 import { useFirstName } from '../../../hooks/useFirstName';
 import { useAuthStore } from '../../../stores/authStore';
 
@@ -32,7 +33,7 @@ const WorkplaceGreeting = ({ projectName }: WorkplaceGreetingProps = {}) => {
             : undefined
         }
       >
-        {getGreeting(locale, firstName)}
+        {getGreeting(locale, firstName, { instanceId: CURRENT_INSTANCE })}
       </h1>
       {projectName && (
         <p className="text-sm text-muted-foreground">

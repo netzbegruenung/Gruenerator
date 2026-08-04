@@ -88,6 +88,19 @@ export interface InstanceDefinition {
    */
   defaultLocale?: 'de-DE' | 'de-AT';
   lockedLocale?: boolean;
+  /**
+   * Suggested "Deine Rollen" entry for a user who hasn't set any role yet.
+   * `ebeneId`/`rolle` must match an existing `DE_EBENEN`/`DE_ROLLEN` pair
+   * (`packages/shared/src/roles/rolesConfig.ts`) — this only pre-selects the
+   * wizard, it does not introduce a new role string. The user can still pick
+   * a different role; nothing is persisted until they do.
+   */
+  defaultRole?: { ebeneId: string; rolle: string };
+  /**
+   * Fixed hero greeting overriding the DE/AT rotation in
+   * `utils/greeting.ts`. Same `@Vorname` token as the rotation templates.
+   */
+  heroGreeting?: string;
 }
 
 export const INSTANCES = [
@@ -109,6 +122,8 @@ export const INSTANCES = [
     // production until the selection is decided. Filling this in requires the
     // backend to enforce the same policy first (see docs/instanz-filterung-plan.md,
     // AP4), otherwise the chat keeps citing sources from a hidden notebook.
+    defaultRole: { ebeneId: 'bund', rolle: 'Mitarbeiter*in Bundesgeschäftsstelle' },
+    heroGreeting: 'Willkommen, @Vorname — was steht heute für die Bundesgeschäftsstelle an?',
   },
   {
     id: 'local',
