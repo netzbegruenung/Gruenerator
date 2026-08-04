@@ -186,11 +186,29 @@ export function buildMem0Config(): Partial<MemoryConfig> {
   // Disable mem0ai's built-in PostHog telemetry to avoid HTTP/2 GOAWAY errors
   process.env.MEM0_TELEMETRY = 'false';
 
+  // NOTE: this extraction LLM's output schema (mem0ai's AdditiveExtractionSchema)
+  // has no category or confidence field per memory — asking it to "attach"
+  // either as metadata here is silently dropped by schema validation. Category
+  // and confidence are decided upstream by our own gatekeeper
+  // (gatekeeperService.ts) before this ever runs, and applied as call-level
+  // metadata in Mem0Service.addMemories(). This prompt's job is narrower:
+  // extract sparsely within the categories the gatekeeper already approved,
+  // and actively override mem0's own "when in doubt, extract" default (its
+  // built-in prompt explicitly says a redundant memory is cheap — for us it
+  // is not, see chat-memory-mem0-shape memory note on unbounded growth).
+  //
+  // The "Existing Memories" reference in the "Sparsam extrahieren" section below
+  // is NOT dead like the confidence/category instruction was: mem0ai's
+  // addToVectorStore() runs a vectorStore.search() for the 10 nearest neighbours
+  // and injects them into the prompt under a real "## Existing Memories" heading
+  // before ADDITIVE_EXTRACTION_PROMPT runs (see generateAdditiveExtractionPrompt
+  // in node_modules/mem0ai/dist/oss/index.js). Verified against the installed
+  // version, not assumed.
   const customInstructions = `Du bist ein Gedächtnis-Assistent für den Grünerator, eine KI-Plattform für Die Grünen.
 
-Extrahiere Erinnerungen und ordne sie einer der folgenden Kategorien zu:
+Ein Gatekeeper hat diesen Austausch bereits geprüft und nur Kategorien mit ausreichender Konfidenz freigegeben. Deine Aufgabe ist NICHT, möglichst viel zu extrahieren — im Zweifel NICHT extrahieren.
 
-## Kategorien
+## Kategorien (nur diese sind relevant)
 
 1. **identity** — Persönliche Fakten: Name, Wahlkreis, Kreisverband, politische Funktion, Parteiebene, Fachgebiete
    Beispiel: "Kreisverbandsvorstand in Freiburg" → identity
@@ -203,12 +221,11 @@ Extrahiere Erinnerungen und ordne sie einer der folgenden Kategorien zu:
 5. **preference** — Dauerhafte Präferenzen: Schreibstil, Tonalität, Formate, Zielgruppe, Sprachlevel
    Beispiel: "Bevorzugt kurze, direkte Formulierungen für Social Media" → preference
 
-## Konfidenz
+## Sparsam extrahieren
 
-Bewerte jede Erinnerung:
-- **high**: Explizite Aussage ("Ich bin...", "Ich bevorzuge immer...")
-- **medium**: Aus Gesprächsmuster abgeleitet
-- **low**: Einmalige Erwähnung, mehrdeutig
+- Wenn ein Fakt bereits (auch anders formuliert) unter "Existing Memories" steht: NICHT erneut extrahieren.
+- Nur dauerhaft relevante Fakten, keine einmaligen Details, die in einer Woche nutzlos sind.
+- Ein redundanter Eintrag ist für uns NICHT günstiger als ein fehlender — im Zweifel weglassen.
 
 Speichere NICHT:
 - Aufgaben-Anweisungen ("tweet kürzen", "schreibe eine Rede", "mach kürzer")
@@ -216,8 +233,7 @@ Speichere NICHT:
 - Gesprächs-Metadaten (Grüße, Danke, Feedback zum Tool)
 - Sensible persönliche Daten (Adresse, Telefonnummer, Passwörter)
 
-Antworte auf Deutsch. Formuliere Erinnerungen als kurze Fakten-Aussagen.
-Füge bei jeder Erinnerung die Kategorie und Konfidenz als Metadaten hinzu.`;
+Antworte auf Deutsch. Formuliere Erinnerungen als kurze Fakten-Aussagen (max. 1-2 Sätze).`;
 
   return {
     customInstructions,
