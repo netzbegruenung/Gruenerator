@@ -163,4 +163,16 @@ describe('an image survives the fragment', () => {
     const src = formatSlideImageMarkdown({ src: 'https://e.org/a\\(1).png', alt: 'x' });
     expect(src).toBe('![x](https://e.org/a\\\\\\(1\\).png)');
   });
+
+  // A `"` in the title would otherwise close the title attribute early and
+  // inject into the rest of the markdown line — same vulnerability class as
+  // the alt/src escaping above.
+  it('escapes quotes and a trailing backslash in the title', () => {
+    const md = formatSlideImageMarkdown({
+      src: 'https://e.org/a.png',
+      alt: 'x',
+      title: 'Sagt "Hallo" und endet mit \\',
+    });
+    expect(md).toBe('![x](https://e.org/a.png "Sagt \\"Hallo\\" und endet mit \\\\")');
+  });
 });
