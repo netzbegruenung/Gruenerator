@@ -126,6 +126,13 @@ interface AgentState {
   notebookDepth: NotebookDepth;
   customSystemPrompt: string | null;
   customRoleName: string | null;
+  /**
+   * Verweis auf die gewählte Rolle statt ihres Prompttextes. Der Auftrag zur
+   * Rolle ist parteiintern und liegt server-seitig — der Client kennt ihn nicht
+   * und schickt nur Ebene und Bezeichnung. `customSystemPrompt` bleibt für frei
+   * eingetippte Rollen, deren Prompt weiterhin per KI entsteht.
+   */
+  customRoleRef: { ebene: string; rolle: string } | null;
   customEnabledTools: Record<string, boolean> | null;
   /** Mention key of the active /skill (e.g. 'instagram'). Composer sets this
    *  when a skill mention is inserted; cleared on agent change / new thread.
@@ -162,6 +169,7 @@ interface AgentState {
   incrementMessageCount: () => void;
   setCustomSystemPrompt: (prompt: string | null) => void;
   setCustomRoleName: (name: string | null) => void;
+  setCustomRoleRef: (ref: { ebene: string; rolle: string } | null) => void;
   setCustomEnabledTools: (tools: Record<string, boolean> | null) => void;
   /** Clear per-thread chat context (skill mention, custom prompt/role/tools,
    *  thread mode) while keeping the selected agent. Used when switching agents
@@ -212,6 +220,7 @@ export const useAgentStore = create<AgentState>()(
       notebookDepth: DEFAULT_NOTEBOOK_DEPTH,
       customSystemPrompt: null,
       customRoleName: null,
+      customRoleRef: null,
       customEnabledTools: null,
       activeSkillMention: null,
       pinnedConnector: null,
@@ -238,6 +247,7 @@ export const useAgentStore = create<AgentState>()(
           pinnedConnector: null,
           customSystemPrompt: null,
           customRoleName: null,
+          customRoleRef: null,
           customEnabledTools: null,
           threadMode: 'chat',
         }),
@@ -249,6 +259,7 @@ export const useAgentStore = create<AgentState>()(
           pinnedConnector: null,
           customSystemPrompt: null,
           customRoleName: null,
+          customRoleRef: null,
           customEnabledTools: null,
           threadMode: 'chat',
         }),
@@ -400,6 +411,8 @@ export const useAgentStore = create<AgentState>()(
 
       setCustomRoleName: (name) => set({ customRoleName: name }),
 
+      setCustomRoleRef: (ref) => set({ customRoleRef: ref }),
+
       setCustomEnabledTools: (tools) => set({ customEnabledTools: tools }),
 
       loadThreadSettings: async (threadId: string, apiClient: ChatApiClient) => {
@@ -432,7 +445,7 @@ export const useAgentStore = create<AgentState>()(
           state.threadMode === 'eigener' &&
           !state.customSystemPrompt
         ) {
-          set({ threadMode: 'chat', customRoleName: null });
+          set({ threadMode: 'chat', customRoleName: null, customRoleRef: null });
         }
       },
 
