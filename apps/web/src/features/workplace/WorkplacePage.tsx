@@ -61,8 +61,10 @@ const WorkplacePage = () => {
           // --chat-composer-border, which the composer further down the tree
           // reads via inheritance (workplace-chat-accent, chat-thread-glow).
           // Its own paint is neutralized — the fixed layer above owns it now.
+          // animate-none! stops the (now invisible) entrance animation from
+          // running a second time in parallel with the fixed layer's.
           backgroundClass,
-          'bg-transparent! bg-none!'
+          'bg-transparent! bg-none! animate-none!'
         )}
       >
         {tab === 'chat' ? (
