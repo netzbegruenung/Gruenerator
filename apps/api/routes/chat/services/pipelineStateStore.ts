@@ -17,6 +17,7 @@ export interface StoredRequestContext {
   enabledTools: Record<string, boolean>;
   modelId?: string;
   actualThreadId?: string;
+  userMessageId?: string | null;
   isNewThread: boolean;
   processedMeta: ProcessedAttachmentMeta[];
   imageAttachments: ImageAttachment[];
