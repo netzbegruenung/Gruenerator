@@ -27,6 +27,7 @@ import { CURRENT_INSTANCE } from '@/config/instance';
 import { useUserAgents } from '@/features/agents/api';
 import ChatHero from '@/features/chat/ChatHero';
 import { LandesverbandHub } from '@/features/chat/LandesverbandHub';
+import { useGroupDetails } from '@/features/groups/hooks/useGroups';
 import { resolveChatBackground } from '@/features/workplace/chatBackgrounds';
 import { useFirstName } from '@/hooks/useFirstName';
 import { useAuthStore } from '@/stores/authStore';
@@ -221,6 +222,8 @@ function ChatPage() {
   //    present (canonicalization to the pretty slug happens a tick later).
   const currentThreadId = useAgentStore((s) => s.currentThreadId);
   const projektParam = searchParams.get('projekt');
+  const { data: projektDetails } = useGroupDetails(projektParam);
+  const projektName = projektDetails?.group.name ?? null;
   const projektBaselineThreadRef = useRef<string | null>(null);
   const projektFiledThreadRef = useRef<string | null>(null);
   useEffect(() => {
@@ -298,7 +301,7 @@ function ChatPage() {
               'flex min-h-0 flex-1 flex-col justify-center overflow-y-auto pb-[6vh]'
             )}
           >
-            <ChatHero />
+            <ChatHero projectName={projektParam ? projektName : null} />
           </div>
         ) : (
           <GrueneratorThread
