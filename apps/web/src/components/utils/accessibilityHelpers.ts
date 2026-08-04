@@ -115,9 +115,6 @@ export const setupEnhancedKeyboardNavigation = (
 
   const { onEscapeCancel = true } = options;
 
-  const existingSkipLinks = document.querySelectorAll('.skip-link');
-  existingSkipLinks.forEach((link) => link.remove());
-
   const handleKeyDown = (event: Event): void => {
     const keyEvent = event as KeyboardEvent;
 

@@ -14,6 +14,7 @@ export interface ChatSurfaceState {
   selectedNotebookId: string;
   customSystemPrompt: string | null;
   customRoleName: string | null;
+  customRoleRef: { ebene: string; rolle: string } | null;
 
   setSelectedAgent: (agentId: string | null) => void;
   setThreadMode: (mode: ThreadMode) => void;
@@ -22,6 +23,7 @@ export interface ChatSurfaceState {
   setSelectedNotebook: (id: string) => void;
   setCustomSystemPrompt: (prompt: string | null) => void;
   setCustomRoleName: (name: string | null) => void;
+  setCustomRoleRef: (ref: { ebene: string; rolle: string } | null) => void;
 }
 
 export type ChatSurfaceStore = StoreApi<ChatSurfaceState>;
@@ -44,6 +46,7 @@ export type ChatSurfaceDefaults = Partial<
     | 'selectedNotebookId'
     | 'customSystemPrompt'
     | 'customRoleName'
+    | 'customRoleRef'
   >
 >;
 
@@ -69,6 +72,7 @@ export function createChatSurfaceStore(defaults?: ChatSurfaceDefaults): ChatSurf
     selectedNotebookId: defaults?.selectedNotebookId ?? 'gruenerator-notebook',
     customSystemPrompt: defaults?.customSystemPrompt ?? null,
     customRoleName: defaults?.customRoleName ?? null,
+    customRoleRef: defaults?.customRoleRef ?? null,
 
     setSelectedAgent: (agentId) => set({ selectedAgentId: agentId }),
     setThreadMode: (mode) => set({ threadMode: mode }),
@@ -77,6 +81,7 @@ export function createChatSurfaceStore(defaults?: ChatSurfaceDefaults): ChatSurf
     setSelectedNotebook: (id) => set({ selectedNotebookId: id }),
     setCustomSystemPrompt: (prompt) => set({ customSystemPrompt: prompt }),
     setCustomRoleName: (name) => set({ customRoleName: name }),
+    setCustomRoleRef: (ref) => set({ customRoleRef: ref }),
   }));
 }
 
@@ -127,6 +132,7 @@ const FALLBACK_STORE: ChatSurfaceStore = createStore<ChatSurfaceState>(() => ({
   selectedNotebookId: 'gruenerator-notebook',
   customSystemPrompt: null,
   customRoleName: null,
+  customRoleRef: null,
   setSelectedAgent: () => {},
   setThreadMode: () => {},
   setSearchMode: () => {},
@@ -134,4 +140,5 @@ const FALLBACK_STORE: ChatSurfaceStore = createStore<ChatSurfaceState>(() => ({
   setSelectedNotebook: () => {},
   setCustomSystemPrompt: () => {},
   setCustomRoleName: () => {},
+  setCustomRoleRef: () => {},
 }));

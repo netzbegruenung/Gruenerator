@@ -1,11 +1,11 @@
-import { mergeRoleBlock } from '@gruenerator/shared/roles';
+import { stripRoleBlock } from '@gruenerator/shared/roles';
 import { Button, toast } from '@gruenerator/ui';
 import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 
 import { SettingsFormSkeleton } from '../components/SettingsSkeleton';
 
-import { extractRoleBlock, readCustomPrompt, stripRoleBlock } from './customPromptField';
+import { readCustomPrompt } from './customPromptField';
 import RolesSection from './RolesSection';
 
 import { QUERY_KEYS, useProfile } from '@/features/auth/hooks/useProfileData';
@@ -37,9 +37,10 @@ const CustomPromptSection = () => {
   const savedPromptRef = useRef('');
   const isInitialized = useRef(false);
 
-  // The textarea shows only the hand-written half. The role wizard owns the
-  // fenced block in the same column, so it is stripped for display and spliced
-  // back on save — otherwise saving here would delete every stored role prompt.
+  // Die Spalte gehört jetzt allein diesem Feld. Ein Rollenblock, den der
+  // Wizard früher hineingeschrieben hat, wird beim Anzeigen entfernt und beim
+  // nächsten Speichern damit auch aus der Spalte — er läuft ohnehin nicht mehr
+  // im Prompt mit.
   useEffect(() => {
     if (!profile || isInitialized.current) return;
     const initialPrompt = stripRoleBlock(readCustomPrompt(profile));
@@ -49,11 +50,8 @@ const CustomPromptSection = () => {
   }, [profile]);
 
   const saveMutation = useMutation({
-    mutationFn: async () => {
-      const roleBlock = extractRoleBlock(readCustomPrompt(profile));
-      const merged = mergeRoleBlock(customPrompt, roleBlock);
-      return profileApiService.updateProfile({ custom_prompt: merged || null });
-    },
+    mutationFn: async () =>
+      profileApiService.updateProfile({ custom_prompt: customPrompt.trim() || null }),
     onSuccess: (updatedProfile: Profile) => {
       if (user?.id) {
         queryClient.setQueryData(['profileData', user.id], (oldData: Profile | undefined) => ({

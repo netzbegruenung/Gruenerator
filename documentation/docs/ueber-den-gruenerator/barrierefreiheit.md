@@ -7,7 +7,7 @@ title: Barrierefreiheit
 
 Diese Seite sagt, wie barrierefrei der Grünerator heute ist — einschließlich der Stellen, an denen er es **noch nicht** ist. Eine geschönte Liste hilft niemandem: Wer auf eine Barriere stößt, die hier nicht steht, verliert Zeit mit der Frage, ob es an ihm liegt.
 
-**Stand: 2. August 2026.**
+**Stand: 4. August 2026.**
 
 ## Was wir anstreben
 
@@ -18,10 +18,9 @@ Zielstandard ist **WCAG 2.2, Konformitätsstufe AA**, im Rahmen der europäische
 Behoben und nachgemessen sind unter anderem:
 
 - **Die eingeklappte Hauptnavigation.** Sie war mit Screenreader unbenutzbar — die Beschriftungen der Knöpfe waren nicht nur unsichtbar, sondern vollständig aus der Vorlesereihenfolge entfernt. Das war mit Abstand die schwerste Barriere.
-- **Der Sprung-Link „Zum Inhalt springen"** ist jetzt für alle standardmäßig an. Vorher musste man ihn in den Einstellungen erst finden und einschalten — ein Hilfsmittel, das man suchen muss, ist keines.
 - **Die Tastaturfalle im Untertitel-Werkzeug.** Die Tabulatortaste kam aus der Segmentliste nicht mehr heraus. Jetzt wechseln die Pfeiltasten das Segment, und Tab bleibt Tab.
 - **Aufgabenkarten auf Boards** haben einen echten Ziehgriff, der per Tastatur bedienbar ist. Ziehen mit der Maus funktioniert weiter auf der ganzen Karte.
-- **Weißer Text auf den Markenfarben** erreichte den geforderten Kontrast nicht. Das betraf den Marken-Button, den Sprung-Link und alle Abzeichen in Eukalyptus-Grün.
+- **Weißer Text auf den Markenfarben** erreichte den geforderten Kontrast nicht. Das betraf den Marken-Button und alle Abzeichen in Eukalyptus-Grün.
 - **Graue Textstufen** erreichen jetzt in hellem wie dunklem Modus die geforderten 4,5:1.
 - **Rund 300 Bedienelemente der Mobil-App** hatten keinen vorlesbaren Namen — mit Screenreader hörte man nur „Schaltfläche", ohne zu erfahren, welche. Alle haben jetzt einen.
 
@@ -38,19 +37,16 @@ Behoben und nachgemessen sind unter anderem:
 
 Unter **Einstellungen → Barrierefreiheit**:
 
-| Einstellung                          | Wirkung                                            |
-| ------------------------------------ | -------------------------------------------------- |
-| Animationen reduzieren               | Bewegung und Übergänge werden abgeschaltet.        |
-| Transparenz und Unschärfe reduzieren | Durchscheinende Flächen werden deckend.            |
-| Sprung-Link zum Inhalt anzeigen      | Standardmäßig **an**. Ausschalten blendet ihn aus. |
+| Einstellung                          | Wirkung                                     |
+| ------------------------------------ | ------------------------------------------- |
+| Animationen reduzieren               | Bewegung und Übergänge werden abgeschaltet. |
+| Transparenz und Unschärfe reduzieren | Durchscheinende Flächen werden deckend.     |
 
 Hellen und dunklen Modus stellst du unter **Einstellungen → Darstellung** ein; der Grünerator folgt sonst der Einstellung deines Systems.
 
 ## Tastaturbedienung
 
 Der Grünerator ist mit der Tastatur bedienbar. Mit **Tab** wanderst du vorwärts durch die Bedienelemente, mit **Umschalt+Tab** zurück, **Enter** und **Leertaste** lösen aus, **Escape** schließt Dialoge.
-
-Der erste Tabulatorsprung auf jeder Seite trifft **„Zum Inhalt springen"** — damit überspringst du die Navigation.
 
 In Listen mit vielen gleichartigen Einträgen — etwa den Segmenten im Untertitel-Werkzeug — wechseln die **Pfeiltasten** innerhalb der Liste; Tab führt aus der Liste heraus.
 
