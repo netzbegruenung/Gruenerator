@@ -1,10 +1,11 @@
-import { agentsList, type AgentListItem } from '@gruenerator/chat';
+import { agentsList, useHiddenSkillMentions, type AgentListItem } from '@gruenerator/chat';
 import {
   SKILL_CATEGORY_LABELS,
   SKILL_CATEGORY_ORDER,
   agenturaCategoriesForPlatform,
   getSystemAgent,
   getVisibleSystemAgentsForLocale,
+  isAdminVisibleSkill,
   isAgentVisibleForPlatform,
   isLandesverbandIdentifier,
   landesverbandLabel,
@@ -92,17 +93,21 @@ export default function AgentsScreen() {
     return pool.slice(0, FEATURED_LIMIT);
   }, [generalSystemAgents]);
 
+  const hiddenSkillMentions = useHiddenSkillMentions();
+
   // Recipes ("Rezepte") whose owning agent is hidden on mobile would open a chat
   // with an agent this app cannot render, so they are filtered the same way the
-  // agents are.
+  // agents are. Also drops anything an admin hid from discovery on this
+  // deployment.
   const skills = useMemo(
     () =>
       agentsList.filter((s) => {
         if (s.audience !== undefined && s.audience !== 'all' && s.audience !== locale) return false;
+        if (!isAdminVisibleSkill(s.mention, hiddenSkillMentions)) return false;
         const owner = getSystemAgent(s.identifier);
         return !owner || isAgentVisibleForPlatform(owner, 'mobile');
       }),
-    [locale]
+    [locale, hiddenSkillMentions]
   );
   const lvSkills = useMemo(
     () => skills.filter((s) => isLandesverbandIdentifier(s.identifier)),
