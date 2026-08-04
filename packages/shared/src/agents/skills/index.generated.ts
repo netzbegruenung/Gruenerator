@@ -85,6 +85,17 @@ export const SKILLS = [
     promptTemplate: 'Entwickle Aktionsideen zu: ',
   },
   {
+    identifier: 'gruenerator-universal',
+    title: 'Wahlprüfsteine',
+    description: 'Fragenkataloge von Verbänden beantworten',
+    iconKey: 'PiListChecks',
+    avatar: '📋',
+    backgroundColor: '#316049',
+    mention: 'wahlpruefstein',
+    skillCategory: 'dokumente',
+    promptTemplate: 'Beantworte diesen Wahlprüfstein-Katalog: ',
+  },
+  {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-berlin',
     title: 'PM Berlin',
     description: 'Pressemitteilung im Stil Grüne Berlin',

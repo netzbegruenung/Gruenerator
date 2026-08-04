@@ -18,10 +18,10 @@ interface LandesverbandHubProps {
 
 /**
  * Landing for a Landesverband's branded link (`/agents/gruene-berlin`). The LV
- * runs two specialist agents — a creative Öffentlichkeitsarbeit agent and a
- * factual Bürger*innenanfragen agent — that stay separate so neither voice is
- * diluted. This hub offers both behind the one link the LV shares, then drops
- * into the chosen agent's chat via its derived slug.
+ * runs three specialist agents — a creative Öffentlichkeitsarbeit agent, a
+ * factual Bürger*innenanfragen agent and a Wahlprüfsteine agent — that stay
+ * separate so no voice is diluted. This hub offers all of them behind the one
+ * link the LV shares, then drops into the chosen agent's chat via its derived slug.
  */
 export function LandesverbandHub({ hub, onNavigate, userLocale }: LandesverbandHubProps) {
   const HubIcon = NOTEBOOK_ICONS[hub.notebookId];
@@ -31,6 +31,7 @@ export function LandesverbandHub({ hub, onNavigate, userLocale }: LandesverbandH
     [
       { agentId: hub.prAgentId, role: 'Öffentlichkeitsarbeit' },
       { agentId: hub.buergerAgentId, role: 'Bürger*innenservice' },
+      { agentId: hub.wahlpruefsteinAgentId, role: 'Wahlprüfsteine' },
     ] as const
   ).flatMap(({ agentId, role }) => {
     const agent = getSystemAgent(agentId);
@@ -48,7 +49,7 @@ export function LandesverbandHub({ hub, onNavigate, userLocale }: LandesverbandH
         <div className="min-w-0">
           <h1 className="text-xl font-semibold text-foreground">{hub.name}</h1>
           <p className="text-sm text-grey-500">
-            Wähle, womit du starten möchtest — beide Agents kennen die Inhalte des Landesverbands.
+            Wähle, womit du starten möchtest — alle Agents kennen die Inhalte des Landesverbands.
           </p>
         </div>
       </header>
