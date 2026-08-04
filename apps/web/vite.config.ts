@@ -176,6 +176,16 @@ export default defineConfig(({ command }) => ({
     // to TWO physical instances of the same version, so the React context set by
     // one is invisible to the other — "requires an AuiProvider" on /workplace
     // even though the provider is mounted above the consumer.
+    //
+    // Same class of bug for radix-ui: apps/web, packages/ui and packages/chat
+    // import the unified `radix-ui` meta-package, while @blocknote/shadcn (a
+    // transitive dep of @gruenerator/docs) imports the individual
+    // `@radix-ui/react-*` packages directly. `radix-ui` re-exports those same
+    // packages rather than bundling them, but Rolldown still treats the two
+    // import specifiers as separate module-graph entries and can link two
+    // physical copies — so a `<Tooltip.Root>` created via one copy is invisible
+    // to a `<Tooltip.Trigger>` rendered via the other ("`TooltipTrigger` must be
+    // used within `Tooltip`" crashing the docs editor's selection toolbar, #2385).
     dedupe: [
       'react',
       'react-dom',
@@ -185,6 +195,16 @@ export default defineConfig(({ command }) => ({
       '@assistant-ui/react',
       '@assistant-ui/tap',
       '@assistant-ui/core',
+      'radix-ui',
+      '@radix-ui/react-avatar',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-label',
+      '@radix-ui/react-popover',
+      '@radix-ui/react-select',
+      '@radix-ui/react-slot',
+      '@radix-ui/react-tabs',
+      '@radix-ui/react-toggle',
+      '@radix-ui/react-tooltip',
     ],
   },
   optimizeDeps: {
