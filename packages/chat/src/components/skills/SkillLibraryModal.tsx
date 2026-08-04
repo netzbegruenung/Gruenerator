@@ -1,9 +1,11 @@
 'use client';
 
+import { isAdminVisibleSkill } from '@gruenerator/shared/agents';
 import { X, Star, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { PiSparkle } from 'react-icons/pi';
 
+import { useHiddenSkillMentions } from '../../hooks/useMentionablesQuery';
 import { agentsList, SKILL_CATEGORY_LABELS, type SkillCategory } from '../../lib/agents';
 import {
   agentToMentionable,
@@ -24,8 +26,15 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
   const [search, setSearch] = useState('');
   const { favorites, toggleFavorite } = useSkillFavoritesStore();
   const customAgents = getCustomAgentMentionables();
+  const hiddenSkillMentions = useHiddenSkillMentions();
 
-  const allSkills = useMemo(() => agentsList.map(agentToMentionable), []);
+  const allSkills = useMemo(
+    () =>
+      agentsList
+        .map(agentToMentionable)
+        .filter((s) => isAdminVisibleSkill(s.mention, hiddenSkillMentions)),
+    [hiddenSkillMentions]
+  );
 
   const filtered = useMemo(() => {
     if (!search) return allSkills;
