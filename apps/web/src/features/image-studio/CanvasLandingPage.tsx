@@ -6,7 +6,7 @@ import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { SHOW_SHAREPIC_STUDIO } from '../../config/featureFlags';
 import { getToolGradient } from '../../config/toolTheme';
-import { CANVAS_TOOLS } from '../../config/workplaceToolsConfig';
+import { CANVAS_TOOLS, filterWorkplaceTools } from '../../config/workplaceToolsConfig';
 import { useFirstName } from '../../hooks/useFirstName';
 import { generateSharepicFromPrompt } from '../../services/sharepicPromptService';
 import { useAuthStore } from '../../stores/authStore';
@@ -59,6 +59,7 @@ const CanvasLandingContent = () => {
   // bildgenerator, so the composer only offers it for DE with the flag on.
   const sharepicEnabled = SHOW_SHAREPIC_STUDIO && locale !== 'de-AT';
   const [creating, setCreating] = useState(false);
+  const visibleCanvasTools = useMemo(() => filterWorkplaceTools(CANVAS_TOOLS), []);
 
   // Introduce the new Bilder & Videos surface once (like the editor tours).
   useTourAutostart('studio', true, () => {
@@ -144,9 +145,9 @@ const CanvasLandingContent = () => {
       <section className="mb-xl mt-xl" data-tour="studio-tools">
         <div
           className={OFFICE_SCROLL_ROW}
-          style={officeStripStyle(CANVAS_TOOLS.length, { maxTilePx: 200 })}
+          style={officeStripStyle(visibleCanvasTools.length, { maxTilePx: 200 })}
         >
-          {CANVAS_TOOLS.map((tool) => (
+          {visibleCanvasTools.map((tool) => (
             <div key={tool.id} className={OFFICE_SCROLL_ITEM}>
               <OfficeTile tool={tool} themeKey="canvas" />
             </div>
