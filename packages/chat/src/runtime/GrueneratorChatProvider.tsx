@@ -17,11 +17,30 @@ import { type ExternalThreadEntry } from './GrueneratorThreadListAdapter';
 // only once a logged-in user mounts a page. See GrueneratorChatRuntime.tsx.
 const importRuntime = () => import('./GrueneratorChatRuntime');
 
-const GrueneratorChatRuntimeProvider = lazy(() =>
-  importRuntime().then((m) => ({
-    default: m.GrueneratorChatRuntimeProvider,
-  }))
-);
+// WebKit (iOS Safari) occasionally resolves a dynamic import() to `undefined`
+// instead of rejecting, most often for a stale chunk URL left over from a
+// previous deploy (see apps/web/src/index.tsx's `vite:preloadError` reload —
+// that listener only fires on an actual rejection, not on this resolved-but-
+// empty case). One retry clears the transient case; if the module namespace
+// is still missing the export, reload once per URL, mirroring the
+// `vite:preloadError` recovery so a stale deploy self-heals instead of
+// crashing with "undefined is not an object (evaluating '...RuntimeProvider')".
+const loadRuntimeProvider = async () => {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const m = await importRuntime();
+    if (m?.GrueneratorChatRuntimeProvider) {
+      return { default: m.GrueneratorChatRuntimeProvider };
+    }
+  }
+  const reloadKey = 'gruenerator:chatRuntimeImportError:reloaded';
+  if (sessionStorage.getItem(reloadKey) !== window.location.href) {
+    sessionStorage.setItem(reloadKey, window.location.href);
+    window.location.reload();
+  }
+  throw new Error('Failed to load chat runtime module');
+};
+
+const GrueneratorChatRuntimeProvider = lazy(loadRuntimeProvider);
 
 /**
  * Warm the chat-runtime chunk ahead of first use. Call once a user is known to be
