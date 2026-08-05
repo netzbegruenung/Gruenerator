@@ -1,7 +1,8 @@
 /**
  * Zitat AT napi-canvas renderer (Österreich / de-AT).
- * Foto vollflächig, darüber ein dunkelgrüner Verlauf, darauf mittig das gelbe
- * Anführungszeichen, das weiße Zitat und der gelbe Name; Logo rechts oben.
+ * Foto vollflächig, darüber ein leichter grauer Verlauf, darauf mittig das
+ * gelbe Anführungszeichen, das weiße Zitat und der gelbe Name; Logo rechts
+ * oben.
  *
  * Spiegelbild von zitat_at_full.config.tsx / zitatAtLayout.ts — beide Dateien
  * sind handverdrahtet und müssen zusammen geändert werden.
@@ -44,7 +45,13 @@ async function render(imageBuffer: Buffer, quote: string, name: string): Promise
 
   drawCoverImage(ctx, await loadImage(imageBuffer));
 
-  // Kein Verlauf über dem Foto — die österreichische CI kennt keinen.
+  // Nur ein leichter grauer Schleier — die österreichische CI kennt keinen
+  // grünen oder schwarzen Verlauf.
+  const gradient = ctx.createLinearGradient(0, 0, 0, CANVAS.height);
+  gradient.addColorStop(0, `rgba(${ZITAT.gradient.color}, 0)`);
+  gradient.addColorStop(1, `rgba(${ZITAT.gradient.color}, ${ZITAT.gradient.bottomOpacity})`);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, CANVAS.width, CANVAS.height);
 
   const fontSize = ZITAT.baseFontSize;
   const lineHeight = Math.round(fontSize * ZITAT.lineHeightRatio);

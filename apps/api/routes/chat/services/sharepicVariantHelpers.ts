@@ -186,7 +186,6 @@ const VARIANT_LABEL_BY_CANVAS_TYPE: Partial<Record<CanvasTemplateType, string>> 
   'zitat-pure': 'Zitat',
   zitat: 'Zitat',
   info: 'Info',
-  'dreizeilen-at': 'Dreizeiler',
   'dreizeilen-overlay-at': 'Dreizeiler',
   'zitat-pure-at': 'Zitat',
   'zitat-at': 'Zitat',
@@ -200,7 +199,6 @@ const VARIANT_LABEL_BY_CANVAS_TYPE: Partial<Record<CanvasTemplateType, string>> 
  * das einzige AT-Template mit Foto und damit das einzige, das das Stockbild
  * verwertet, das der Generator ohnehin schon auswählt. Ohne es sähen alle drei
  * Vorschläge gleich aus — drei flächige Grün-Panels nebeneinander.
- * `dreizeilen-at` bleibt im Studio erreichbar.
  */
 const AT_CANVAS_TYPE: Partial<Record<CanvasTemplateType, CanvasTemplateType>> = {
   dreizeilen: 'dreizeilen-overlay-at',
@@ -282,19 +280,9 @@ function buildInitialPropsForType(
         accent: sharepic.accent ?? '',
       };
     }
-    // AT dreizeilen: line1 + accent (gelbe Mittelzeile) + line3
-    case 'dreizeilen-at': {
-      const slogan = sharepic.mainSlogan ?? {};
-      return {
-        line1: slogan.line1 ?? '',
-        accent: slogan.line2 ?? '',
-        line3: slogan.line3 ?? '',
-      };
-    }
-    // Wie dreizeilen-at, aber mit Foto hinter der Farbfläche — der Hintergrund
-    // wird also mitgegeben, anders als beim reinen Flächen-Sujet. Die Subline
-    // kommt aus dem AT-Prompt und darf leer sein; das Layout schliesst die
-    // Lücke dann selbst.
+    // AT dreizeilen: line1 + accent (gelbe Mittelzeile) + line3, mit Foto
+    // hinter der Farbfläche. Die Subline kommt aus dem AT-Prompt und darf
+    // leer sein; das Layout schliesst die Lücke dann selbst.
     case 'dreizeilen-overlay-at': {
       const slogan = sharepic.mainSlogan ?? {};
       return {
@@ -353,7 +341,6 @@ const CANVAS_TYPE_TO_GEN: Record<string, string> = {
   // result is re-localized to the -at canvasType via toVariant(userLocale).
   'zitat-pure-at': 'zitat_pure',
   'zitat-at': 'zitat_pure',
-  'dreizeilen-at': 'dreizeilen',
   'dreizeilen-overlay-at': 'dreizeilen',
   'info-at': 'info',
 };
@@ -443,9 +430,9 @@ function resolveVariantTypes(
  * Map a successful generation result to a frontend SharepicVariant.
  *
  * `forcedCanvasType` hält eine Verfeinerung auf ihrem Sujet. Ohne das liefe
- * jede Überarbeitung erneut durch AT_CANVAS_TYPE und ein im Studio erzeugter
- * `dreizeilen-at` würde beim „verlängern" zum Overlay-Sujet — der Nutzer hat
- * aber eine Änderung am Text verlangt, nicht am Layout.
+ * jede Überarbeitung erneut durch AT_CANVAS_TYPE und könnte auf ein anderes
+ * Sujet umspringen — der Nutzer hat aber eine Änderung am Text verlangt,
+ * nicht am Layout.
  */
 function toVariant(
   sharepic: SharepicResponseShape,
