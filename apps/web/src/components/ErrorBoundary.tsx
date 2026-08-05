@@ -56,6 +56,13 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
       error?.message?.includes('Unable to preload CSS') ||
       error?.message?.includes('Loading chunk') ||
       error?.message?.includes('Loading CSS chunk') ||
+      // React.lazy renders `payload._result.default` on a module that a Vite
+      // __vitePreload race resolved to `undefined` instead of rejecting (e.g. a
+      // page reload interrupting an in-flight chunk fetch) — same failure class
+      // as the messages above, just a different symptom. Browser wording varies.
+      error?.message?.includes('can\'t access property "default"') ||
+      error?.message?.includes('_result is undefined') ||
+      error?.message?.includes("Cannot read properties of undefined (reading 'default')") ||
       error?.name === 'ChunkLoadError'
     );
   }
