@@ -202,6 +202,12 @@ export const useCollaboration = ({
           idbProviderRef.current?.destroy();
           idbProviderRef.current = null;
           removeDocCache(documentId);
+          // A permission/deletion rejection is durable — the websocket layer
+          // otherwise retries forever with exponential backoff (capped at
+          // ~30s), reconnecting to a doc the user will never regain access to
+          // until they reload. Stop it; provider.connect() below never fires
+          // again for this effect instance.
+          provider.disconnect();
         }
         setState((prev) => ({ ...prev, authError: reason }));
       });

@@ -1,3 +1,4 @@
+import { getAuthErrorMessage } from '@gruenerator/collab';
 import { DocsProvider } from '@gruenerator/docs';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { ConfirmDialogProvider, Fab } from '@gruenerator/ui';
@@ -127,9 +128,17 @@ function BoardContent() {
     });
   }, [duplicateBoard, navigate]);
 
-  const { ydoc, provider, isConnected, isSynced } = useBoardCollaboration(id || '');
+  const { ydoc, provider, isConnected, isSynced, authError } = useBoardCollaboration(id || '');
   // Live comments: refetch a card's thread when the backend signals a change.
   useBoardCommentSignal(ydoc, id);
+
+  useEffect(() => {
+    if (!authError) return;
+    const message = getAuthErrorMessage(authError);
+    if (message) {
+      void import('sonner').then(({ toast }) => toast.error(message));
+    }
+  }, [authError]);
 
   if (isLoading) {
     return (
