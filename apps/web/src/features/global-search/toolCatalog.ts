@@ -10,7 +10,12 @@
  * ids to the registry and toolRegistry.vitest.ts asserts the entries deep-equal
  * the registry-derived catalog.
  */
-import { isChannelVisibleIn, type InstanceChannel } from '@gruenerator/shared/instances';
+import {
+  getInstance,
+  isChannelVisibleIn,
+  policyCoversTool,
+  type InstanceChannel,
+} from '@gruenerator/shared/instances';
 
 import { getIcon } from '../../config/icons';
 import { CURRENT_INSTANCE } from '../../config/instance';
@@ -205,5 +210,9 @@ export const CATALOG: ToolCatalogEntry[] = [
 ] satisfies RegisteredEntry[];
 
 export function getToolCatalog(): ToolCatalogEntry[] {
-  return CATALOG.filter((entry) => isChannelVisibleIn(entry.channel, CURRENT_INSTANCE));
+  const hidePolicy = getInstance(CURRENT_INSTANCE).hide;
+  return CATALOG.filter(
+    (entry) =>
+      isChannelVisibleIn(entry.channel, CURRENT_INSTANCE) && !policyCoversTool(hidePolicy, entry.id)
+  );
 }

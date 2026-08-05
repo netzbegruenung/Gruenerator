@@ -51,6 +51,14 @@ export type InstanceChannel = 'stable' | 'preview' | 'internal';
 export interface InstanceContentPolicy {
   notebookCategories?: readonly NotebookCategory[];
   notebookIds?: readonly NotebookId[];
+  /**
+   * Tool ids to hide from tiles/search/menus. `apps/web/src/config/toolRegistry.ts`
+   * is the canonical id space, but its two literal mirrors (workplaceToolsConfig's
+   * `OFFICE_SUITE_TOOLS`, toolCatalog's search entries) sometimes use a different
+   * id for the same tool (e.g. `canvas-vorlagen` vs. `vorlagen` vs. `tool-vorlagen`)
+   * — list every alias that should disappear, not just the canonical one.
+   */
+  toolIds?: readonly string[];
 }
 
 /**
@@ -118,12 +126,11 @@ export const INSTANCES = [
     id: 'bgst',
     hosts: ['bgst.gruenerator.eu'],
     channels: ['stable'],
-    // Deliberately carries no content policy yet — bgst behaves exactly like
-    // production until the selection is decided. Filling this in requires the
-    // backend to enforce the same policy first (see docs/instanz-filterung-plan.md,
-    // AP4), otherwise the chat keeps citing sources from a hidden notebook.
+    hide: {
+      toolIds: ['canvas-vorlagen', 'reels-untertitel', 'vorlagen', 'tool-vorlagen', 'tool-reel'],
+    },
     defaultRole: { ebeneId: 'bund', rolle: 'Mitarbeiter*in Bundesgeschäftsstelle' },
-    heroGreeting: 'Willkommen, @Vorname — was steht heute für die Bundesgeschäftsstelle an?',
+    heroGreeting: 'Willkommen zur Bgst-KI, @Vorname',
   },
   {
     id: 'local',
@@ -224,6 +231,14 @@ export function policyCoversNotebook(
   if (!policy) return false;
   if (policy.notebookIds?.some((id) => id === notebook.id)) return true;
   return policy.notebookCategories?.includes(notebook.category) ?? false;
+}
+
+/** Does `policy` cover this tool id? Shared by the hide and block tiers. */
+export function policyCoversTool(
+  policy: InstanceContentPolicy | null | undefined,
+  toolId: string
+): boolean {
+  return policy?.toolIds?.includes(toolId) ?? false;
 }
 
 /**
