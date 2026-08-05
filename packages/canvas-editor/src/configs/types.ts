@@ -321,7 +321,6 @@ export type CanvasConfigId =
   // Österreich (de-AT) variants
   | 'zitat-at'
   | 'zitat-pure-at'
-  | 'dreizeilen-at'
   | 'dreizeilen-overlay-at'
   | 'info-at'
   | 'freeform-at';
