@@ -1,6 +1,6 @@
 import { toast } from '@gruenerator/ui';
 
-import { getErrorMessage } from './errorMessages';
+import { defaultErrorMessage, getErrorMessage } from './errorMessages';
 
 import type { AxiosError } from 'axios';
 
@@ -97,7 +97,17 @@ export function toastApiError(error: unknown): void {
     return;
   }
 
-  const { title, message } = getErrorMessage(error);
+  const errorInfo = getErrorMessage(error);
+
+  // Unclassified errors have no specific title/message to show — "Unerwarteter
+  // Fehler" is not actionable and just makes the user anxious. Log it for
+  // debugging instead of toasting a vague warning.
+  if (errorInfo === defaultErrorMessage) {
+    console.error('Unclassified API error (no toast shown):', error);
+    return;
+  }
+
+  const { title, message } = errorInfo;
   const retryAfter = status === 429 ? readRetryAfterSeconds(error) : null;
 
   // Prefer the backend-provided human message over the static dictionary —
