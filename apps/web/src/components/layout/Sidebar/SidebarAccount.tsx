@@ -1,3 +1,4 @@
+import { getFriendName, shouldShowRobotAvatar } from '@gruenerator/shared/avatar';
 import {
   Badge,
   DropdownMenu,
@@ -31,6 +32,7 @@ import {
   loadSettingsShell,
   preloadSettingsTabOnHover,
 } from '../../../features/settings/settingsTabs';
+import { useFirstName } from '../../../hooks/useFirstName';
 import { useAuthStore } from '../../../stores/authStore';
 
 import { cn } from '@/utils/cn';
@@ -67,6 +69,7 @@ const SidebarAccount = memo(function SidebarAccount({
   const unreadCount = notifData?.pages.flat().length ?? 0;
   const unreadBadgeLabel = hasNextPage || unreadCount > 9 ? '9+' : String(unreadCount);
   const { data: profile } = useProfile(user?.id);
+  const firstName = useFirstName();
   const queryClient = useQueryClient();
   const [menuOpen, setMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -94,6 +97,17 @@ const SidebarAccount = memo(function SidebarAccount({
 
   const displayName = profile?.display_name || '';
   const avatarRobotId = profile?.avatar_robot_id ?? null;
+  const friendName = shouldShowRobotAvatar(avatarRobotId)
+    ? getFriendName(avatarRobotId)
+    : undefined;
+  // "Vorname + Friend" (z.B. "Moritz + Feuri") statt des vollen Namens. Bei
+  // sehr langen Vornamen bricht das Label auf zwei Zeilen um (line-clamp-2
+  // unten) statt einzeilig abzuschneiden.
+  const accountLabel = firstName
+    ? friendName
+      ? `${firstName} + ${friendName}`
+      : firstName
+    : displayName || 'Profil';
 
   const avatarEl = (
     <RobotAvatar
@@ -132,12 +146,12 @@ const SidebarAccount = memo(function SidebarAccount({
         onPointerEnter={() => warmSettingsTab('allgemein')}
         onFocus={() => warmSettingsTab('allgemein')}
         onPointerLeave={cancelSettingsHoverPreload}
-        className="items-center gap-2 py-2"
+        className="items-start gap-2 py-2"
       >
-        <span className="shrink-0">{avatarEl}</span>
+        <span className="mt-0.5 shrink-0">{avatarEl}</span>
         <span className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate text-sm font-semibold text-foreground-heading">
-            {displayName || 'Profil'}
+          <span className="line-clamp-2 break-words text-sm font-semibold text-foreground-heading">
+            {accountLabel}
           </span>
           {user.email && (
             <span className="truncate text-xs font-normal text-grey-500">{user.email}</span>
@@ -239,12 +253,12 @@ const SidebarAccount = memo(function SidebarAccount({
               type="button"
               onPointerEnter={warmSettingsShell}
               onFocus={warmSettingsShell}
-              className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-3 py-1 transition-colors hover:bg-hover-alt"
+              className="flex min-w-0 flex-1 items-start gap-2 rounded-md px-3 py-1 transition-colors hover:bg-hover-alt"
               aria-label="Konto-Menü öffnen"
             >
-              <span className="shrink-0">{avatarEl}</span>
-              <span className="truncate text-sm font-medium text-foreground-heading">
-                {displayName || 'Profil'}
+              <span className="mt-0.5 shrink-0">{avatarEl}</span>
+              <span className="line-clamp-2 break-words text-left text-sm font-medium text-foreground-heading">
+                {accountLabel}
               </span>
             </button>
           )}
@@ -269,7 +283,7 @@ const SidebarAccount = memo(function SidebarAccount({
                   </button>
                 </DropdownMenuTrigger>
               </TooltipTrigger>
-              <TooltipContent side="right">{displayName || 'Konto'}</TooltipContent>
+              <TooltipContent side="right">{accountLabel}</TooltipContent>
             </Tooltip>
             {actionsMenu}
           </DropdownMenu>
