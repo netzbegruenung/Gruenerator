@@ -1,4 +1,14 @@
-import { LoginProviders, type LoginProvider, type LoginProviderId } from '@gruenerator/shared/auth';
+import {
+  LoginProviders,
+  LOGIN_PROVIDERS,
+  detectCountryProviderId,
+  getProviderById,
+  getRememberedProvider,
+  rememberProvider,
+  signInWithProvider,
+  type LoginProvider,
+  type LoginProviderId,
+} from '@gruenerator/shared/auth';
 import { type JSX, useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
@@ -42,6 +52,21 @@ const getPageName = (pathname: string): string => {
   const mainPath = pathSegments[0];
   return PAGE_NAMES[mainPath] || 'Diese Seite';
 };
+
+const LockIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <rect x="3" y="11" width="18" height="11" rx="2" />
+    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+  </svg>
+);
 
 interface LoginPageProps {
   mode?: 'standalone' | 'required';
@@ -122,18 +147,48 @@ const LoginPage = ({
     }
   }, [mode, handleClose]);
 
-  const handleBeforeLogin = (_provider: LoginProvider) => {
+  const handleBeforeLogin = (provider: LoginProvider) => {
+    rememberProvider(provider.id);
     setIsAuthenticating(true);
     setLoginIntent();
   };
 
+  const desktopOnLogin = isDesktopApp()
+    ? (provider: LoginProvider) => {
+        // Desktop (Tauri): use the native source/deep-link flow, not the web
+        // Better-Auth cookie flow (its session never reaches the app).
+        void openDesktopLogin(provider.source as AuthSource).catch(() => {
+          setIsAuthenticating(false);
+        });
+      }
+    : undefined;
+
   // Netzbegrünung is no longer part of the default provider set; it stays
   // reachable only via the special link /login?provider=netzbegruenung, which
-  // re-adds it alongside the defaults.
-  const enabledProviders: LoginProviderId[] | undefined =
+  // re-adds it alongside the defaults. (The standalone screen below uses its
+  // own, newer provider-detection mechanism — see primaryProviderId.)
+  const requiredEnabledProviders: LoginProviderId[] | undefined =
     new URLSearchParams(location.search).get('provider') === 'netzbegruenung'
       ? ['gruenes-netz', 'gruene-oesterreich', 'netzbegruenung']
       : undefined;
+
+  // Same mechanism as the public start page (StartpageHero): a remembered or
+  // deep-linked provider wins, else the browser language guesses the country.
+  // Only one provider card is shown up front; "Anderer Anbieter" reveals the
+  // rest. Resolved once on mount — everything needed is available
+  // synchronously (CSR SPA).
+  const [{ primaryProviderId, providersInitiallyOpen }] = useState(() => {
+    const params = new URLSearchParams(location.search);
+    const loginParam = params.get('login');
+    const deepLinked = LOGIN_PROVIDERS.some((p) => p.id === loginParam)
+      ? (loginParam as LoginProviderId)
+      : params.get('provider') === 'netzbegruenung'
+        ? ('netzbegruenung' as LoginProviderId)
+        : null;
+    const primary = deepLinked ?? getRememberedProvider() ?? detectCountryProviderId();
+    return { primaryProviderId: primary, providersInitiallyOpen: deepLinked !== null };
+  });
+  const [providersOpen, setProvidersOpen] = useState(providersInitiallyOpen);
 
   const getHeaderContent = () => {
     if (mode === 'required') {
@@ -154,44 +209,113 @@ const LoginPage = ({
       );
     }
 
-    return (
-      <div className="text-center mb-lg lg:text-left lg:mb-xl">
-        <h1 className="gradient-title text-center text-[2rem] font-bold mb-sm md:text-[2.2rem] lg:text-left lg:text-[2.5rem] lg:mb-md">
-          {isMobileApp ? 'Willkommen!' : 'Willkommen zurück!'}
-        </h1>
-      </div>
-    );
+    return <h1 className="lp-headline">{isMobileApp ? 'Willkommen!' : 'Willkommen zurück!'}</h1>;
   };
 
-  const loginProviders = (
+  const authenticatingNotice = isAuthenticating && (
+    <div className="bg-background-alt border border-grey-200 dark:border-grey-700 rounded-sm p-md mb-md text-center">
+      <p className="m-0 text-foreground font-medium">
+        {isMobileApp ? 'Zurück zur App...' : 'Weiterleitung zum Login...'}
+      </p>
+    </div>
+  );
+
+  const requiredLoginProviders = (
     <>
       <LoginProviders
-        enabledProviders={enabledProviders}
+        enabledProviders={requiredEnabledProviders}
         redirectTo={intendedRedirect}
         apiBaseUrl={AUTH_BASE_URL}
         disabled={isAuthenticating}
         onBeforeLogin={handleBeforeLogin}
-        onLogin={
-          isDesktopApp()
-            ? (provider) => {
-                // Desktop (Tauri): use the native source/deep-link flow, not the
-                // web Better-Auth cookie flow (its session never reaches the app).
-                void openDesktopLogin(provider.source as AuthSource).catch(() => {
-                  setIsAuthenticating(false);
-                });
-              }
-            : undefined
-        }
+        onLogin={desktopOnLogin}
       />
+      {authenticatingNotice}
+    </>
+  );
+
+  // Standalone screen goes straight to the primary provider on one tap — same
+  // mechanism as StartpageHero's startLogin, not routed through <LoginProviders>
+  // (whose branded description cards are the required-mode / first-run-wizard
+  // look, not the minimal hero pill this screen now matches).
+  const startLogin = (id: LoginProviderId) => {
+    const provider = getProviderById(id);
+    if (!provider) return;
+    handleBeforeLogin(provider);
+    if (desktopOnLogin) {
+      desktopOnLogin(provider);
+    } else {
+      void signInWithProvider(provider, intendedRedirect, AUTH_BASE_URL).catch((err) => {
+        console.error('[LoginPage] Sign-in failed:', err);
+        setIsAuthenticating(false);
+      });
+    }
+  };
+
+  const primaryProvider = getProviderById(primaryProviderId);
+
+  const standaloneLoginCta = (
+    <div className="lp-cta">
+      <div className="lp-cta-row">
+        <button
+          type="button"
+          className="lp-login"
+          onClick={() => startLogin(primaryProviderId)}
+          disabled={isAuthenticating}
+          aria-label={primaryProvider ? `Anmelden mit ${primaryProvider.title}` : 'Anmelden'}
+        >
+          <LockIcon /> Anmelden
+        </button>
+      </div>
 
       {isAuthenticating && (
-        <div className="bg-background-alt border border-grey-200 dark:border-grey-700 rounded-sm p-md mb-md text-center">
-          <p className="m-0 text-foreground font-medium">
-            {isMobileApp ? 'Zurück zur App...' : 'Weiterleitung zum Login...'}
-          </p>
-        </div>
+        <p className="lp-hint">
+          {isMobileApp ? 'Zurück zur App...' : 'Weiterleitung zum Login...'}
+        </p>
       )}
-    </>
+
+      <p className="lp-hint">
+        Mit der Anmeldung stimmst du unseren{' '}
+        <Link to="/datenschutz" className="lp-hint-link">
+          Nutzungsbedingungen und der Datenschutzerklärung
+        </Link>{' '}
+        zu.
+      </p>
+
+      <button
+        type="button"
+        className="lp-provider-toggle"
+        onClick={() => setProvidersOpen((open) => !open)}
+        aria-expanded={providersOpen}
+      >
+        {providersOpen ? 'Anbieter ausblenden' : 'Anderer Anbieter'}
+      </button>
+
+      {providersOpen && (
+        <ul className="lp-provider-list">
+          {LOGIN_PROVIDERS.map((provider) => (
+            <li key={provider.id}>
+              <button
+                type="button"
+                className="lp-provider"
+                aria-current={provider.id === primaryProviderId ? 'true' : undefined}
+                onClick={() => startLogin(provider.id)}
+                disabled={isAuthenticating}
+              >
+                {provider.logoPath ? (
+                  <img src={provider.logoPath} alt="" className="lp-provider-logo" />
+                ) : (
+                  <span className="lp-provider-logo" aria-hidden="true">
+                    🌱
+                  </span>
+                )}
+                {provider.title}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 
   if (mode === 'required') {
@@ -257,7 +381,7 @@ const LoginPage = ({
             </div>
 
             <div className="lp-col w-full p-0 bg-transparent lg:flex-1 lg:pl-md lg:rounded-sm lg:p-xl">
-              {loginProviders}
+              {requiredLoginProviders}
             </div>
           </div>
 
@@ -278,66 +402,42 @@ const LoginPage = ({
     );
   }
 
+  // Same structure as the public start page's hero (StartpageHero): full-bleed
+  // backdrop, single centered column, logo top bar, one-tap primary CTA. This
+  // is what auto-logout / a dead session bounces users back to, so it should
+  // read as literally the same screen, not a card version of it.
   return (
-    <div
-      className={cn(
-        'lp-sunrise-card max-w-[450px] mx-auto p-lg px-md mt-[50px] mb-[50px]',
-        'rounded-md shadow-lg',
-        'max-[480px]:p-md max-[480px]:px-sm max-[480px]:max-w-full max-[480px]:shadow-none max-[480px]:rounded-none max-[480px]:mt-0',
-        'md:max-w-[600px] md:p-lg',
-        'lg:max-w-[900px] lg:p-xl'
-      )}
-    >
-      <div className="block lg:flex lg:gap-xl lg:items-start">
-        <div
-          className={cn(
-            'w-full p-0 border-none bg-transparent',
-            'lg:flex-[0_0_40%] lg:pr-xl lg:border-r lg:border-grey-200 lg:dark:border-grey-700',
-            'lg:bg-background lg:rounded-sm lg:p-xl lg:relative'
-          )}
-        >
-          {getHeaderContent()}
+    <>
+      <div className="lp-page-sunrise" aria-hidden="true" />
 
-          {sessionExpiredBanner}
+      <section className="lp-hero">
+        <div className="lp-topbar">
+          <img
+            src="/images/gruenerator_logo_gruen.svg"
+            alt="Grünerator"
+            className="lp-logo lp-logo-light"
+          />
+          <img
+            src="/images/gruenerator_logo_weiss.svg"
+            alt="Grünerator"
+            aria-hidden="true"
+            className="lp-logo lp-logo-dark"
+          />
+        </div>
 
-          {successMessage && (
-            <div className="bg-primary-50 dark:bg-primary-900/20 border-l-4 border-primary-500 p-md mb-md rounded-sm">
-              {successMessage}
-            </div>
-          )}
+        {getHeaderContent()}
 
-          <div className="hidden lg:block mt-lg text-center lg:text-left border-t border-grey-200 dark:border-grey-700 pt-md">
-            <p className="m-0 text-muted-foreground text-[0.85rem] leading-normal lg:text-[0.9rem]">
-              Mit der Anmeldung stimmst du unseren{' '}
-              <Link
-                to="/datenschutz"
-                className="text-primary-600 dark:text-primary-400 no-underline font-medium transition-colors duration-200 hover:text-primary-700 dark:hover:text-primary-300 hover:underline"
-              >
-                Nutzungsbedingungen und der Datenschutzerklärung
-              </Link>{' '}
-              zu.
-            </p>
+        {sessionExpiredBanner}
+
+        {successMessage && (
+          <div className="bg-primary-50 dark:bg-primary-900/20 border-l-4 border-primary-500 p-md mb-md rounded-sm max-w-[380px]">
+            {successMessage}
           </div>
-        </div>
+        )}
 
-        <div className="lp-col w-full p-0 bg-transparent lg:flex-1 lg:pl-md lg:rounded-sm lg:p-xl">
-          {loginProviders}
-        </div>
-      </div>
-
-      <div className="block lg:hidden mt-lg text-center border-t border-grey-200 dark:border-grey-700 pt-md">
-        <p className="m-0 text-muted-foreground text-[0.85rem] leading-normal">
-          Mit der Anmeldung stimmst du unseren{' '}
-          <Link
-            to="/datenschutz"
-            className="text-primary-600 dark:text-primary-400 no-underline font-medium transition-colors duration-200 hover:text-primary-700 dark:hover:text-primary-300 hover:underline"
-          >
-            Nutzungsbedingungen und der Datenschutzerklärung
-          </Link>{' '}
-          zu.
-        </p>
-      </div>
-    </div>
+        {standaloneLoginCta}
+      </section>
+    </>
   );
 };
 
