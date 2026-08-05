@@ -8,7 +8,12 @@
  * registry id, and toolRegistry.vitest.ts asserts each array deep-equals its
  * registry-derived counterpart.
  */
-import { isChannelVisibleIn, type InstanceChannel } from '@gruenerator/shared/instances';
+import {
+  getInstance,
+  isChannelVisibleIn,
+  policyCoversTool,
+  type InstanceChannel,
+} from '@gruenerator/shared/instances';
 import { RiSpyLine } from 'react-icons/ri';
 
 import { getIcon } from './icons';
@@ -245,8 +250,20 @@ export const TOOL_MENUS: WorkplaceToolMenu[] = [
   },
 ] satisfies RegisteredMenu[];
 
-export function filterWorkplaceTools(tools: WorkplaceToolItem[]): WorkplaceToolItem[] {
-  return tools.filter((tool) => isChannelVisibleIn(tool.channel, CURRENT_INSTANCE));
+/**
+ * Channel visibility (maturity) plus the instance's `hide.toolIds` (per-instance
+ * curation, e.g. bgst hiding Vorlagen/Reels) — both no-ops for instances that
+ * don't set them. Generic so it also covers `OFFICE_SUITE_TOOLS`, whose items
+ * share the `id` shape but aren't `WorkplaceToolItem`s.
+ */
+export function filterWorkplaceTools<T extends { id: string; channel?: InstanceChannel }>(
+  tools: T[]
+): T[] {
+  const hidePolicy = getInstance(CURRENT_INSTANCE).hide;
+  return tools.filter(
+    (tool) =>
+      isChannelVisibleIn(tool.channel, CURRENT_INSTANCE) && !policyCoversTool(hidePolicy, tool.id)
+  );
 }
 
 /** A tool can be pinned to the sidebar only if it has an internal route. */

@@ -78,4 +78,13 @@ describe('sidebar favourites registration', () => {
   it('does not register unknown tool ids', () => {
     expect(isFavouritableItem('external-fixture')).toBe(false);
   });
+
+  it('drops a stale pin once its instance hides the tool', () => {
+    const ids = ['canvas-vorlagen', 'reels-untertitel', 'agents'];
+    // production has no hide policy — a pin from before the tool was hidden
+    // elsewhere still resolves here.
+    expect(getFavouriteItemsById(ids, 'production').map((i) => i.id)).toEqual(ids);
+    // bgst hides both Studio tools; the still-known 'agents' pin survives.
+    expect(getFavouriteItemsById(ids, 'bgst').map((i) => i.id)).toEqual(['agents']);
+  });
 });
