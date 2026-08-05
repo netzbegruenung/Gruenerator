@@ -46,6 +46,23 @@
   backdrop-filter: none !important;
 }
 
+/* Exception to "purely decorative": on /workplace the collapsed 56px sidebar
+   rail drops to a low alpha (bg-background/20) so its background gradient
+   reads through instead of the narrow rail reading as a solid wall next to
+   it, and that low alpha depends on the blur above to stay legible over
+   whatever colour is behind it. Once blur is stripped, force it back to the
+   solid /85 fallback used everywhere else instead of leaving nav text
+   contrast riding on the low-alpha utility class. */
+@media (prefers-reduced-transparency: reduce) {
+  .sidebar {
+    background-color: color-mix(in oklab, var(--color-background) 85%, transparent) !important;
+  }
+}
+
+:root[data-reduce-transparency='true'] .sidebar {
+  background-color: color-mix(in oklab, var(--color-background) 85%, transparent) !important;
+}
+
 /* Windows High Contrast / forced-colors: the browser replaces our palette but
    keeps background-images, so the decorative gradient washes would float over
    forced backgrounds. Strip them; text and controls follow the system colours. */
