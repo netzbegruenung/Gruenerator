@@ -1,8 +1,9 @@
 /**
  * Zitat AT Full Canvas Configuration (Österreich / de-AT)
  *
- * Foto vollflächig, darüber ein dunkelgrüner Verlauf, darauf mittig das gelbe
- * Anführungszeichen, das weiße Zitat und der gelbe Name; Logo rechts oben.
+ * Foto vollflächig, darüber ein leichter grauer Verlauf, darauf mittig das
+ * gelbe Anführungszeichen, das weiße Zitat und der gelbe Name; Logo rechts
+ * oben.
  *
  * Eigene Geometrie über ZITAT_AT_CONFIG — die deutsche ZITAT_CONFIG setzt
  * linksbündig am Bildboden und trägt kein Logo, was mit der CI 2026 nicht
@@ -125,8 +126,11 @@ const baseZitatAtConfig = createImageTwoTextCanvas({
   calculateLayout,
   elements: [quoteMarkElement, quoteTextElement, nameTextElement, logoElement],
   features: { icons: true, shapes: true, illustrations: true },
-  // Kein `gradientOpacity`: über dem Foto liegt nichts. Anders als beim
-  // deutschen Zitat, das einen schwarzen Verlauf für den Textkontrast setzt.
+  // Anders als beim deutschen Zitat kein schwarzer Verlauf für Textkontrast,
+  // sondern nur ein leichter grauer Schleier — die österreichische CI kennt
+  // keinen grünen oder schwarzen Verlauf.
+  gradientOpacity: Z.gradient.bottomOpacity,
+  gradientColor: Z.gradient.color,
   getCanvasText: (state) => {
     const quote = state.quote || '';
     const name = state.name || '';

@@ -99,9 +99,6 @@ export const CANVAS_TYPE_FIELDS = {
   [IMAGE_STUDIO_TYPES.ZITAT_PURE_AT]: {
     fields: ['quote', 'name'],
   },
-  [IMAGE_STUDIO_TYPES.DREIZEILEN_AT]: {
-    fields: ['line1', 'accent', 'line3'],
-  },
   [IMAGE_STUDIO_TYPES.DREIZEILEN_OVERLAY_AT]: {
     fields: ['line1', 'accent', 'line3', 'subline'],
     image: { key: 'currentImageSrc', source: 'upload', required: false },

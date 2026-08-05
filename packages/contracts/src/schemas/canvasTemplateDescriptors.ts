@@ -43,7 +43,6 @@ export const CANVAS_TEMPLATE_TYPES = [
   // Österreich (de-AT) variants — kein Info-Sujet, das gibt es nur für de-DE
   'zitat-at',
   'zitat-pure-at',
-  'dreizeilen-at',
   'dreizeilen-overlay-at',
   'info-at',
   'freeform-at',
