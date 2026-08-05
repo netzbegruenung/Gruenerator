@@ -1,4 +1,12 @@
-import { LoginProviders, type LoginProvider, type LoginProviderId } from '@gruenerator/shared/auth';
+import {
+  LoginProviders,
+  LOGIN_PROVIDERS,
+  detectCountryProviderId,
+  getRememberedProvider,
+  rememberProvider,
+  type LoginProvider,
+  type LoginProviderId,
+} from '@gruenerator/shared/auth';
 import { type JSX, useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
@@ -122,18 +130,48 @@ const LoginPage = ({
     }
   }, [mode, handleClose]);
 
-  const handleBeforeLogin = (_provider: LoginProvider) => {
+  const handleBeforeLogin = (provider: LoginProvider) => {
+    rememberProvider(provider.id);
     setIsAuthenticating(true);
     setLoginIntent();
   };
 
+  const desktopOnLogin = isDesktopApp()
+    ? (provider: LoginProvider) => {
+        // Desktop (Tauri): use the native source/deep-link flow, not the web
+        // Better-Auth cookie flow (its session never reaches the app).
+        void openDesktopLogin(provider.source as AuthSource).catch(() => {
+          setIsAuthenticating(false);
+        });
+      }
+    : undefined;
+
   // Netzbegrünung is no longer part of the default provider set; it stays
   // reachable only via the special link /login?provider=netzbegruenung, which
-  // re-adds it alongside the defaults.
-  const enabledProviders: LoginProviderId[] | undefined =
+  // re-adds it alongside the defaults. (The standalone screen below uses its
+  // own, newer provider-detection mechanism — see primaryProviderId.)
+  const requiredEnabledProviders: LoginProviderId[] | undefined =
     new URLSearchParams(location.search).get('provider') === 'netzbegruenung'
       ? ['gruenes-netz', 'gruene-oesterreich', 'netzbegruenung']
       : undefined;
+
+  // Same mechanism as the public start page (StartpageHero): a remembered or
+  // deep-linked provider wins, else the browser language guesses the country.
+  // Only one provider card is shown up front; "Anderer Anbieter" reveals the
+  // rest. Resolved once on mount — everything needed is available
+  // synchronously (CSR SPA).
+  const [{ primaryProviderId, providersInitiallyOpen }] = useState(() => {
+    const params = new URLSearchParams(location.search);
+    const loginParam = params.get('login');
+    const deepLinked = LOGIN_PROVIDERS.some((p) => p.id === loginParam)
+      ? (loginParam as LoginProviderId)
+      : params.get('provider') === 'netzbegruenung'
+        ? ('netzbegruenung' as LoginProviderId)
+        : null;
+    const primary = deepLinked ?? getRememberedProvider() ?? detectCountryProviderId();
+    return { primaryProviderId: primary, providersInitiallyOpen: deepLinked !== null };
+  });
+  const [providersOpen, setProvidersOpen] = useState(providersInitiallyOpen);
 
   const getHeaderContent = () => {
     if (mode === 'required') {
@@ -163,34 +201,49 @@ const LoginPage = ({
     );
   };
 
-  const loginProviders = (
+  const authenticatingNotice = isAuthenticating && (
+    <div className="bg-background-alt border border-grey-200 dark:border-grey-700 rounded-sm p-md mb-md text-center">
+      <p className="m-0 text-foreground font-medium">
+        {isMobileApp ? 'Zurück zur App...' : 'Weiterleitung zum Login...'}
+      </p>
+    </div>
+  );
+
+  const requiredLoginProviders = (
     <>
       <LoginProviders
-        enabledProviders={enabledProviders}
+        enabledProviders={requiredEnabledProviders}
         redirectTo={intendedRedirect}
         apiBaseUrl={AUTH_BASE_URL}
         disabled={isAuthenticating}
         onBeforeLogin={handleBeforeLogin}
-        onLogin={
-          isDesktopApp()
-            ? (provider) => {
-                // Desktop (Tauri): use the native source/deep-link flow, not the
-                // web Better-Auth cookie flow (its session never reaches the app).
-                void openDesktopLogin(provider.source as AuthSource).catch(() => {
-                  setIsAuthenticating(false);
-                });
-              }
-            : undefined
-        }
+        onLogin={desktopOnLogin}
+      />
+      {authenticatingNotice}
+    </>
+  );
+
+  const standaloneLoginProviders = (
+    <>
+      <LoginProviders
+        enabledProviders={providersOpen ? LOGIN_PROVIDERS.map((p) => p.id) : [primaryProviderId]}
+        redirectTo={intendedRedirect}
+        apiBaseUrl={AUTH_BASE_URL}
+        disabled={isAuthenticating}
+        onBeforeLogin={handleBeforeLogin}
+        onLogin={desktopOnLogin}
       />
 
-      {isAuthenticating && (
-        <div className="bg-background-alt border border-grey-200 dark:border-grey-700 rounded-sm p-md mb-md text-center">
-          <p className="m-0 text-foreground font-medium">
-            {isMobileApp ? 'Zurück zur App...' : 'Weiterleitung zum Login...'}
-          </p>
-        </div>
-      )}
+      <button
+        type="button"
+        className="lp-provider-toggle"
+        onClick={() => setProvidersOpen((open) => !open)}
+        aria-expanded={providersOpen}
+      >
+        {providersOpen ? 'Anbieter ausblenden' : 'Anderer Anbieter'}
+      </button>
+
+      {authenticatingNotice}
     </>
   );
 
@@ -257,7 +310,7 @@ const LoginPage = ({
             </div>
 
             <div className="lp-col w-full p-0 bg-transparent lg:flex-1 lg:pl-md lg:rounded-sm lg:p-xl">
-              {loginProviders}
+              {requiredLoginProviders}
             </div>
           </div>
 
@@ -279,65 +332,67 @@ const LoginPage = ({
   }
 
   return (
-    <div
-      className={cn(
-        'lp-sunrise-card max-w-[450px] mx-auto p-lg px-md mt-[50px] mb-[50px]',
-        'rounded-md shadow-lg',
-        'max-[480px]:p-md max-[480px]:px-sm max-[480px]:max-w-full max-[480px]:shadow-none max-[480px]:rounded-none max-[480px]:mt-0',
-        'md:max-w-[600px] md:p-lg',
-        'lg:max-w-[900px] lg:p-xl'
-      )}
-    >
-      <div className="block lg:flex lg:gap-xl lg:items-start">
-        <div
-          className={cn(
-            'w-full p-0 border-none bg-transparent',
-            'lg:flex-[0_0_40%] lg:pr-xl lg:border-r lg:border-grey-200 lg:dark:border-grey-700',
-            'lg:bg-background lg:rounded-sm lg:p-xl lg:relative'
-          )}
-        >
-          {getHeaderContent()}
+    <>
+      <div className="lp-page-sunrise" aria-hidden="true" />
+      <div
+        className={cn(
+          'lp-sunrise-content max-w-[450px] mx-auto p-lg px-md mt-[50px] mb-[50px]',
+          'max-[480px]:p-md max-[480px]:px-sm max-[480px]:max-w-full max-[480px]:mt-0',
+          'md:max-w-[600px] md:p-lg',
+          'lg:max-w-[900px] lg:p-xl'
+        )}
+      >
+        <div className="block lg:flex lg:gap-xl lg:items-start">
+          <div
+            className={cn(
+              'w-full p-0 border-none bg-transparent',
+              'lg:flex-[0_0_40%] lg:pr-xl',
+              'lg:p-xl lg:relative'
+            )}
+          >
+            {getHeaderContent()}
 
-          {sessionExpiredBanner}
+            {sessionExpiredBanner}
 
-          {successMessage && (
-            <div className="bg-primary-50 dark:bg-primary-900/20 border-l-4 border-primary-500 p-md mb-md rounded-sm">
-              {successMessage}
+            {successMessage && (
+              <div className="bg-primary-50 dark:bg-primary-900/20 border-l-4 border-primary-500 p-md mb-md rounded-sm">
+                {successMessage}
+              </div>
+            )}
+
+            <div className="hidden lg:block mt-lg text-center lg:text-left">
+              <p className="m-0 text-muted-foreground text-[0.85rem] leading-normal lg:text-[0.9rem]">
+                Mit der Anmeldung stimmst du unseren{' '}
+                <Link
+                  to="/datenschutz"
+                  className="text-primary-600 dark:text-primary-400 no-underline font-medium transition-colors duration-200 hover:text-primary-700 dark:hover:text-primary-300 hover:underline"
+                >
+                  Nutzungsbedingungen und der Datenschutzerklärung
+                </Link>{' '}
+                zu.
+              </p>
             </div>
-          )}
+          </div>
 
-          <div className="hidden lg:block mt-lg text-center lg:text-left border-t border-grey-200 dark:border-grey-700 pt-md">
-            <p className="m-0 text-muted-foreground text-[0.85rem] leading-normal lg:text-[0.9rem]">
-              Mit der Anmeldung stimmst du unseren{' '}
-              <Link
-                to="/datenschutz"
-                className="text-primary-600 dark:text-primary-400 no-underline font-medium transition-colors duration-200 hover:text-primary-700 dark:hover:text-primary-300 hover:underline"
-              >
-                Nutzungsbedingungen und der Datenschutzerklärung
-              </Link>{' '}
-              zu.
-            </p>
+          <div className="w-full p-0 bg-transparent lg:flex-1 lg:pl-md lg:p-xl">
+            {standaloneLoginProviders}
           </div>
         </div>
 
-        <div className="lp-col w-full p-0 bg-transparent lg:flex-1 lg:pl-md lg:rounded-sm lg:p-xl">
-          {loginProviders}
+        <div className="block lg:hidden mt-lg text-center">
+          <p className="m-0 text-muted-foreground text-[0.85rem] leading-normal">
+            Mit der Anmeldung stimmst du unseren{' '}
+            <Link
+              to="/datenschutz"
+              className="text-primary-600 dark:text-primary-400 no-underline font-medium transition-colors duration-200 hover:text-primary-700 dark:hover:text-primary-300 hover:underline"
+            >
+              Nutzungsbedingungen und der Datenschutzerklärung
+            </Link>{' '}
+            zu.
+          </p>
         </div>
       </div>
-
-      <div className="block lg:hidden mt-lg text-center border-t border-grey-200 dark:border-grey-700 pt-md">
-        <p className="m-0 text-muted-foreground text-[0.85rem] leading-normal">
-          Mit der Anmeldung stimmst du unseren{' '}
-          <Link
-            to="/datenschutz"
-            className="text-primary-600 dark:text-primary-400 no-underline font-medium transition-colors duration-200 hover:text-primary-700 dark:hover:text-primary-300 hover:underline"
-          >
-            Nutzungsbedingungen und der Datenschutzerklärung
-          </Link>{' '}
-          zu.
-        </p>
-      </div>
-    </div>
+    </>
   );
 };
 
