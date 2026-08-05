@@ -192,24 +192,25 @@
 
 /* Ghost toggle under the CTA — same mechanism as the start page's
    .sp-provider-toggle: one primary provider up front, this reveals the rest
-   for anyone whose provider we guessed (or remembered) wrong. */
+   for anyone whose provider we guessed (or remembered) wrong. Muted via a
+   text-muted-foreground-equivalent token, not opacity — see the matching note
+   on .sp-provider-toggle in startpage-hero.css. */
 .lp-provider-toggle {
   margin-top: -6px;
   font-family: 'PT Sans', Arial, sans-serif;
   font-weight: 700;
   font-size: 0.85rem;
-  color: var(--font-color);
-  opacity: 0.6;
+  color: var(--color-muted-foreground);
   background: transparent;
   border: none;
   padding: 4px 8px;
   text-decoration: underline;
   text-underline-offset: 3px;
   cursor: pointer;
-  transition: opacity 0.2s ease;
+  transition: color 0.2s ease;
 }
 .lp-provider-toggle:hover {
-  opacity: 1;
+  color: var(--font-color);
 }
 .lp-provider-toggle:focus-visible {
   outline: 2px solid var(--font-color-h);
