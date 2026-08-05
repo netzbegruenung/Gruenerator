@@ -44,21 +44,10 @@ export const zitatPureAtTypeConfig: TemplateTypeConfig = {
   legacyType: 'ZitatPureAt',
 };
 
-export const dreizeilenAtTypeConfig: TemplateTypeConfig = {
-  ...baseAt,
-  id: IMAGE_STUDIO_TYPES.DREIZEILEN_AT,
-  label: '3 Zeilen',
-  description: 'Dreizeilige Headline mit Betonung',
-  icon: PiTextT,
-  previewImage: '/imagine/previews/dreizeilen-at-preview.webp',
-  endpoints: { canvas: '/dreizeilen_at_canvas' },
-  legacyType: 'DreizeilenAt',
-};
-
 export const dreizeilenOverlayAtTypeConfig: TemplateTypeConfig = {
   ...baseAt,
   id: IMAGE_STUDIO_TYPES.DREIZEILEN_OVERLAY_AT,
-  label: '3 Zeilen auf Bild',
+  label: '3 Zeilen',
   description: 'Dreizeilige Headline auf Farbfläche über einem Foto',
   icon: PiTextT,
   previewImage: '/imagine/previews/dreizeilen-overlay-at-preview.webp',
@@ -105,7 +94,6 @@ const emptyFieldConfig: TemplateFieldConfig = {
 
 export const zitatAtFieldConfig = emptyFieldConfig;
 export const zitatPureAtFieldConfig = emptyFieldConfig;
-export const dreizeilenAtFieldConfig = emptyFieldConfig;
 export const dreizeilenOverlayAtFieldConfig = emptyFieldConfig;
 export const infoAtFieldConfig = emptyFieldConfig;
 export const freeformAtFieldConfig = emptyFieldConfig;

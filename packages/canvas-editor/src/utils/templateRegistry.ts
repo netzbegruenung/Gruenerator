@@ -108,17 +108,9 @@ export const TEMPLATE_REGISTRY: Record<CanvasConfigId, TemplateInfo> = {
     category: 'sharepic',
     audience: 'de-AT',
   },
-  'dreizeilen-at': {
-    id: 'dreizeilen-at',
-    label: '3 Zeilen',
-    description: 'Dreizeilige Headline mit Betonung (Österreich)',
-    previewImage: '/imagine/previews/dreizeilen-at-preview.webp',
-    category: 'sharepic',
-    audience: 'de-AT',
-  },
   'dreizeilen-overlay-at': {
     id: 'dreizeilen-overlay-at',
-    label: '3 Zeilen auf Bild',
+    label: '3 Zeilen',
     description: 'Dreizeilige Headline auf Farbfläche über einem Foto (Österreich)',
     previewImage: '/imagine/previews/dreizeilen-overlay-at-preview.webp',
     category: 'sharepic',

@@ -100,8 +100,9 @@ describe('Sharepic-Varianten für de-AT', () => {
   });
 
   it('hält eine Verfeinerung auf ihrem Sujet', async () => {
-    // Ein im Studio erzeugter Flächen-Dreizeiler darf beim „kürzer" nicht zum
-    // Overlay werden — verlangt war eine Textänderung, kein Layoutwechsel.
+    // Ein im Studio erzeugtes Zitat-Pur darf beim „kürzer" nicht zum
+    // fotohinterlegten Zitat werden — verlangt war eine Textänderung, kein
+    // Layoutwechsel.
     const { variants } = await generateSharepicVariants({
       req,
       text: 'kürzer',
@@ -109,11 +110,11 @@ describe('Sharepic-Varianten für de-AT', () => {
       refinement: {
         instruction: 'kürzer',
         prior: {
-          canvasType: 'dreizeilen-at',
-          props: { line1: 'Jetzt', accent: 'handeln', line3: 'für morgen' },
+          canvasType: 'zitat-pure-at',
+          props: { quote: 'Ein Zitat', name: 'Wer' },
         },
       },
     });
-    expect(variants[0]?.canvasType).toBe('dreizeilen-at');
+    expect(variants[0]?.canvasType).toBe('zitat-pure-at');
   });
 });
