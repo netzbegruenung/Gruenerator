@@ -50,9 +50,26 @@ describe('chatStreamEventSchemas gate', () => {
   it('accepts every backend intent value on the intent event', () => {
     const schema = chatStreamEventSchemas['intent']!;
     for (const intent of searchIntentSchema.options) {
-      expect(schema.safeParse({ intent, message: 'Los...' }).success).toBe(true);
+      const parsed = schema.safeParse({ intent, message: 'Los...' });
+      expect(parsed.success).toBe(true);
+      if (parsed.success) expect((parsed.data as { intent: string }).intent).toBe(intent);
     }
-    expect(schema.safeParse({ intent: 'unknown_intent', message: 'x' }).success).toBe(false);
+  });
+
+  it('degrades an unknown intent to `direct` instead of dropping the event', () => {
+    // A rejected event is DROPPED whole by the parser, so a backend that emits
+    // an intent added after this bundle shipped would lose the entire progress
+    // transition — the exact position every deployed mobile binary is in the
+    // moment an intent is added. `direct` is the neutral degradation: it maps
+    // to the "generating" stage and has no INTENT_TO_TOOL entry, so no ghost
+    // tool card appears.
+    const schema = chatStreamEventSchemas['intent']!;
+    const parsed = schema.safeParse({ intent: 'intent_from_the_future', message: 'x' });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect((parsed.data as { intent: string }).intent).toBe('direct');
+      expect((parsed.data as { message: string }).message).toBe('x');
+    }
   });
 
   it('rejects text_delta without text but accepts extra fields', () => {

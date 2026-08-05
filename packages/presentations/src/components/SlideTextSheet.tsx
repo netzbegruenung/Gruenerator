@@ -1,7 +1,11 @@
 import { type Slide } from '@gruenerator/contracts';
+import { formatSlideImageMarkdown } from '@gruenerator/contracts/presentations-richtext';
 import { useEffect, useRef, useState } from 'react';
+import { FiImage } from 'react-icons/fi';
+import { TbTablePlus } from 'react-icons/tb';
 
 import { MobileSheet } from './MobileSheet.js';
+import { SlideImageDialog, type SlideImage } from './SlideImageDialog.js';
 
 export interface SlideTextSheetProps {
   slide: Slide;
@@ -27,6 +31,7 @@ const LABEL: Record<'title' | 'body', string> = {
 export function SlideTextSheet({ slide, field, onChange, onClose }: SlideTextSheetProps) {
   const initial = field === 'title' ? slide.title : slide.body;
   const [draft, setDraft] = useState(initial);
+  const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const ref = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -46,12 +51,19 @@ export function SlideTextSheet({ slide, field, onChange, onClose }: SlideTextShe
   };
 
   const isCode = field === 'body' && slide.layout === 'code';
+  const canInsert = field === 'body' && !isCode;
   const hint =
     field === 'title'
       ? 'Kurz und einprägsam – erscheint als Überschrift der Folie.'
       : isCode
         ? 'Quellcode – wird unformatiert dargestellt.'
-        : 'Markdown wird unterstützt: - für Listen, **fett**, $…$ für Formeln.';
+        : 'Markdown wird unterstützt: - für Listen, **fett**, $…$ für Formeln, | … | für Tabellen.';
+
+  // Appends as its own block: a table needs to start on a fresh line to parse,
+  // and an image between two sentences would end up inside the paragraph.
+  const appendBlock = (block: string) => {
+    setDraft((prev) => (prev.trimEnd() === '' ? block : `${prev.trimEnd()}\n\n${block}`));
+  };
 
   return (
     <MobileSheet title={LABEL[field]} onClose={finish}>
@@ -67,6 +79,26 @@ export function SlideTextSheet({ slide, field, onChange, onClose }: SlideTextShe
         } ${isCode ? 'font-mono' : ''}`}
         rows={field === 'title' ? 2 : 7}
       />
+      {canInsert && (
+        <div className="flex flex-wrap gap-2 pt-2.5">
+          <button
+            type="button"
+            onClick={() => appendBlock('| Spalte | Spalte |\n| --- | --- |\n|  |  |')}
+            className="flex h-10 items-center gap-2 rounded-full border border-[#D4DDD7] px-4 text-sm font-bold text-[#2F4238] dark:border-grey-600 dark:text-grey-200"
+          >
+            <TbTablePlus size={16} />
+            Tabelle
+          </button>
+          <button
+            type="button"
+            onClick={() => setImageDialogOpen(true)}
+            className="flex h-10 items-center gap-2 rounded-full border border-[#D4DDD7] px-4 text-sm font-bold text-[#2F4238] dark:border-grey-600 dark:text-grey-200"
+          >
+            <FiImage size={16} />
+            Bild
+          </button>
+        </div>
+      )}
       <p className="pt-2 text-xs text-[#6E7E74] dark:text-grey-400">{hint}</p>
       <button
         type="button"
@@ -75,6 +107,16 @@ export function SlideTextSheet({ slide, field, onChange, onClose }: SlideTextShe
       >
         Fertig
       </button>
+
+      {imageDialogOpen && (
+        <SlideImageDialog
+          onInsert={(image: SlideImage) => {
+            appendBlock(formatSlideImageMarkdown(image));
+            setImageDialogOpen(false);
+          }}
+          onClose={() => setImageDialogOpen(false)}
+        />
+      )}
     </MobileSheet>
   );
 }

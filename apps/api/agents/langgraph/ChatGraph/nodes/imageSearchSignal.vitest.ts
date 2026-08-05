@@ -13,6 +13,12 @@ import { wantsImageResults } from './classifierHeuristics.js';
  * the heuristic is deliberately narrow, and `bilder: true` as an explicit tool
  * argument is the escape hatch for phrasings this heuristic misses.
  *
+ * It is now only HALF the decision. The other half is the classifier's own
+ * `bilder` verdict on the subject, which is what makes "wer war Marilyn Monroe"
+ * show pictures without anyone having asked for them — a regex cannot separate a
+ * person from a tax calculation. This heuristic stays because it is the half that
+ * survives every tier that never reaches the model.
+ *
  * The plural cases are not decoration. The gate's first draft reused the
  * singular-only image-noun patterns that gate the edit and generation paths, and
  * neither of them matches "Bilder" or "Fotos" — the boundary assertion after
@@ -145,3 +151,18 @@ describe('wantsImageResults', () => {
     });
   });
 });
+
+/**
+ * Die zweite Hälfte dieser Entscheidung ist WEG, und das gehört benannt.
+ *
+ * Sie kam aus dem `bilder`-Feld der LLM-Stufe: das Urteil, ob ein SUBJEKT
+ * Bilder verdient — „wer war Marilyn Monroe" (eine Person, sehenswert) gegen
+ * „wie berechne ich die Grunderwerbsteuer" (ein Verfahren, Bilder wären
+ * Rauschen). Kein Regex leistet das, und es wurde nicht ersetzt: es war eine
+ * Annehmlichkeit zum Preis eines 27k-Zeichen-Aufrufs, den derselbe Turn sonst
+ * nicht gebraucht hätte.
+ *
+ * Es bleibt die Hälfte darüber — was der Nutzer selbst sagt. Die galt schon
+ * immer auf jeder Stufe, auch auf denen, die nie ein Modell gefragt haben, und
+ * ist damit die einzige, die nie eine Lotterie war.
+ */

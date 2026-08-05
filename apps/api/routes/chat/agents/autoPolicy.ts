@@ -21,7 +21,7 @@
  *   - sharepic → the answer text is a fixed template string in the router; the
  *     slogan comes from sharepicGenerationService. Auto has NO effect, so
  *     `sharepic` is intentionally absent from the table.
- *   - summary → summarizeNode already runs on INTERMEDIATE_MODEL (Small 4).
+ *   - summary → summarizeNode already runs on the `heavy` intermediate stage.
  *
  * ── Second-order effect ─────────────────────────────────────────────────────
  * `prefersUnifiedLoop` is true only for Mistral. Picking a Mistral lane
@@ -69,7 +69,7 @@ export const VERDIGADO_INPUT_LIMIT = 40_000;
 type ReasoningRule = ReasoningSetting | Record<Complexity, ReasoningSetting>;
 
 /** Keys into AVAILABLE_MODELS (providers.ts). Not the user-facing catalog. */
-export type AutoLaneId = 'mistral-small-4' | 'gemma-litellm' | 'mistral-medium-3.5' | 'litellm';
+export type AutoLaneId = 'gemma-4-26b' | 'gemma-litellm' | 'mistral-medium-3.5' | 'litellm';
 
 interface AutoEntry {
   modelId: AutoLaneId;
@@ -83,28 +83,47 @@ const graded = (
 ): Record<Complexity, ReasoningSetting> => ({ simple, moderate, complex });
 
 /**
- * Lane A — Mistral Small 4 (regolo). Short, structured, latency-critical turns
- * where the prose share is small or the work is delegated anyway.
+ * Lane A — Gemma 4 26B (Scaleway, GreenPT on failover). Short, structured,
+ * latency-critical turns where the prose share is small or the work is
+ * delegated anyway.
  *
- * Reasoning stays OFF across this whole lane, measured rather than assumed
- * (live probe, "Zug 9:40 + 95 min"):
- *   - thinking works and is correct, but costs ~1.6–2k characters of reasoning
- *     on a trivial question — expensive for the lane we picked FOR speed;
- *   - `effort: 'low'` barely moves it (1629 vs 2013 chars unset), because Small
- *     4 has no native effort dial — only gpt-oss does;
- *   - at a 400-token budget the reasoning consumed the entire allowance and the
- *     answer came back EMPTY.
- * The model stays registered in REGOLO_REASONING_MODELS so the ceiling can be
- * lifted here if the quality eval argues for it, without a silent no-op.
+ * It was Mistral Small 4 until 03.08.2026. Both lanes narrate material that is
+ * already in context, so the deciding argument is which one writes better
+ * German — and that is the Gemma family, which is why Lane B has been on it all
+ * along. Keeping the two writers in ONE family also means the only thing that
+ * changes between an A-turn and a B-turn is the size, not the voice.
+ *
+ * Reasoning stays OFF across this whole lane, and on this host that is enforced
+ * rather than requested: `scalewayThinkingFetch` pins `reasoning_effort:'none'`
+ * on every request. The rule itself predates the move and was measured on Small
+ * 4 (live probe, "Zug 9:40 + 95 min"): thinking was correct but cost ~1.6–2k
+ * characters on a trivial question, `effort:'low'` barely moved it, and at a
+ * 400-token budget the reasoning ate the whole allowance and the answer came
+ * back EMPTY. The same failure shape is documented for Gemma 4 on GreenPT — see
+ * GEMMA_4_GREENPT in providers.ts — which is why that host is the failover and
+ * not the primary.
  */
-const SMALL: AutoLaneId = 'mistral-small-4';
-/** Lane B — Gemma 4. Prose over sources; this is what the loop's writer slot
- *  already does today, so these intents stay behaviourally close to master. */
+const SMALL: AutoLaneId = 'gemma-4-26b';
+/** Lane B — Gemma 4 31B (Regolo). Prose over sources; this is what the loop's
+ *  writer slot already does today, so these intents stay behaviourally close to
+ *  master. Same family as Lane A, one size up. */
 const GEMMA: AutoLaneId = 'gemma-litellm';
 /** Lane C — Mistral Medium 3.5. Only where the model calls tools ITSELF and
  *  the unified loop should kick in. */
 const MEDIUM: AutoLaneId = 'mistral-medium-3.5';
-/** Lane D — GPT-OSS. The speed lane. */
+/**
+ * Lane D — GPT-OSS. The speed lane, and as of 2026-07-31 reserved for `direct`
+ * ALONE.
+ *
+ * GPT-OSS is being wound down as a general-purpose lane. It keeps `direct`
+ * because that turn is pure latency — no tools, no sources — and GPT-OSS is
+ * the fastest thing available (verdigado-pro 1.4s to first token, its Regolo
+ * overflow side 0.7s). Everywhere else it was picked for speed it is now
+ * matched by Gemma 4 on Regolo (4.0s end to end, measured 2026-07-31) without
+ * GPT-OSS's known weakness: it answers a forced tool call with prose, which is
+ * what put a production PDF generation on the floor — see the artefact note in
+ * services/ai/lanes.ts.
+ */
 const FAST: AutoLaneId = 'litellm';
 
 /**
@@ -120,15 +139,30 @@ const FAST: AutoLaneId = 'litellm';
 export const AUTO_POLICY_EXEMPT = ['sharepic'] as const satisfies readonly SearchIntent[];
 type ExemptIntent = (typeof AUTO_POLICY_EXEMPT)[number];
 
-const POLICY: Record<Exclude<SearchIntent, ExemptIntent>, AutoEntry> = {
-  // ── Lane A: Small 4 ──
+/**
+ * Exported for the drift guard in autoPolicy.vitest.ts.
+ *
+ * The type already forces completeness at compile time; the runtime guard used
+ * to re-check it by resolving an unknown intent and comparing the RESULT to
+ * each real intent's result. That only worked while DEFAULT_ENTRY's lane was
+ * unique — pointing the default at Gemma 4 made two legitimate Gemma intents
+ * look like silent fallthroughs. Checking the keys is what the guard actually
+ * means.
+ */
+export const POLICY: Record<Exclude<SearchIntent, ExemptIntent>, AutoEntry> = {
+  // ── Lane A: Gemma 4 26B ──
   // Synth summarises tool output; the planner makes the MCP calls.
   mcp: { modelId: SMALL, reasoning: 'off' },
-  // summarizeNode already runs on this model — same tier.
+  // summarizeNode runs on the `heavy` intermediate stage — same tier.
   summary: { modelId: SMALL, reasoning: 'off' },
   chat_history: { modelId: SMALL, reasoning: 'off' },
   // Narration over an artefact that is already IN CONTEXT (numbers, chart data,
-  // scraped text). Measured good on Small 4 — correct arithmetic, clean German.
+  // scraped text). The premise is load-bearing: this lane REPEATS figures, it
+  // does not produce them. A turn on 02.08.2026 broke it — one figure had been
+  // computed, five were narrated — and Small 4 filled the gap with arithmetic of
+  // its own, marking `42.000 + 84.000 = 120.000` as correct. The fix is upstream
+  // (computeArithmeticBatch checks every claim, and the answer rule forbids
+  // ruling on anything outside the checked block), not a bigger writer here.
   compute: { modelId: SMALL, reasoning: 'off' },
   chart: { modelId: SMALL, reasoning: 'off' },
   scrape_url: { modelId: SMALL, reasoning: 'off' },
@@ -142,7 +176,9 @@ const POLICY: Record<Exclude<SearchIntent, ExemptIntent>, AutoEntry> = {
   // above (planner fetches, synth summarises). Was silently taking the speed
   // lane via DEFAULT_ENTRY; kept on a lane of the same tier so this commit
   // fixes the omission without also changing what a hilfe turn costs.
-  hilfe: { modelId: FAST, reasoning: 'off' },
+  // Moved off GPT-OSS with the 2026-07-31 wind-down. Same tier as before —
+  // Gemma 4 on Regolo answers in 4.0s — so a hilfe turn does not get slower.
+  hilfe: { modelId: GEMMA, reasoning: 'off' },
   // `research_wrapper` lived here while a research turn only framed a
   // ready-made answer in two sentences — a Lane-A task. With the research/web
   // merge the model writes the whole answer from raw sources, so a research
@@ -202,19 +238,40 @@ const POLICY: Record<Exclude<SearchIntent, ExemptIntent>, AutoEntry> = {
   image_edit: { modelId: MEDIUM, reasoning: 'off' },
 
   // ── Lane D: GPT-OSS ──
+  // Same lane and grading as `direct`, whose supplied-substance half it took
+  // over: the substance is in the message, so the work is formulating, not
+  // reasoning — but a complex rewrite still earns `low`.
+  produktion: { modelId: FAST, reasoning: graded('off', 'off', 'low') },
   direct: { modelId: FAST, reasoning: graded('off', 'off', 'low') },
+  // Ungraded, unlike `direct`: a greeting has no complexity axis to grade on —
+  // the gate that produces it only fires when the message is a greeting and
+  // nothing else. Spending reasoning tokens on "Hallo" is pure latency.
+  greeting: { modelId: FAST, reasoning: 'off' },
 };
 
-/** Unknown/absent intent → the speed lane. */
-const DEFAULT_ENTRY: AutoEntry = { modelId: FAST, reasoning: graded('off', 'off', 'low') };
+/**
+ * Unknown/absent intent → Gemma 4.
+ *
+ * This was the GPT-OSS speed lane until the 2026-07-31 wind-down. A catch-all
+ * is exactly where GPT-OSS is most dangerous: an unlisted intent may well be
+ * one that forces a tool call, and GPT-OSS answers those with prose. Gemma 4 on
+ * Regolo costs no meaningful latency here (4.0s) and writes the better German.
+ */
+const DEFAULT_ENTRY: AutoEntry = { modelId: GEMMA, reasoning: graded('off', 'off', 'low') };
 
 /**
- * Intents with no inherent task shape — a greeting and a "just answer me" turn
- * look the same to the table. Only these may be overridden by an agent's
- * `autoRoutingHint`; a `create_sheet` turn stays on the tool lane no matter
- * which agent is active.
+ * Intents with no inherent task shape. Only these may be overridden by an
+ * agent's `autoRoutingHint`; a `create_sheet` turn stays on the tool lane no
+ * matter which agent is active. `greeting` is listed because it was part of
+ * `direct` when this set was written — an agent that pins a lane for voice
+ * consistency should keep getting it on "Hallo" too.
  */
-const HINT_OVERRIDABLE: ReadonlySet<string> = new Set(['direct', 'agentic']);
+const HINT_OVERRIDABLE: ReadonlySet<string> = new Set([
+  'produktion',
+  'direct',
+  'greeting',
+  'agentic',
+]);
 
 function gradeReasoning(rule: ReasoningRule, complexity: Complexity): ReasoningSetting {
   return typeof rule === 'string' ? rule : rule[complexity];
@@ -245,7 +302,7 @@ export interface AutoSelectionInput {
  * hint override (neutral intents only).
  */
 export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
-  const intent = input.intent ?? 'direct';
+  const intent = input.intent ?? 'produktion';
   const complexity = input.complexity ?? 'simple';
 
   if (input.surface === 'notebook') {

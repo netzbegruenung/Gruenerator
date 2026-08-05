@@ -135,7 +135,7 @@
 }
 
 .image-gallery.fullscreen-modal .image-gallery-image {
-  max-height: calc(100vh - 80px);
+  max-height: calc(100dvh - 80px);
   width: auto;
   margin: 0 auto;
 }

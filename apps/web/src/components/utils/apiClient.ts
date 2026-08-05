@@ -82,13 +82,77 @@ interface ProbeState {
 let probeInFlight: Promise<ProbeVerdict> | null = null;
 let lastProbe: ProbeState | null = null;
 
+// A 200-with-no-user probe result got treated as unconditionally definitive
+// even though it's the one shape that can ALSO mean "the auth backend had a
+// transient session-resolution glitch" (e.g. a write-then-read race right
+// after a profile update rewrites the Redis session snapshot). Every other
+// ambiguous signal in this file gets tolerance — indeterminate never logs
+// out, the circuit breaker needs 3 redirects — but this branch had none:
+// one flukey empty body was enough to tear down an active session.
+// A single confirming re-probe closes that gap without reopening the
+// original stale-cookie-cache bug `disableCookieCache=true` was added for.
+const DEAD_VERDICT_CONFIRM_DELAY_MS = 400;
+
+interface SessionProbeResult {
+  httpStatus: number | undefined;
+  hasUserInBody: boolean;
+  outcome: 'alive' | 'no-user' | 'unauthorized' | 'error';
+}
+
+/**
+ * Hit Better Auth's native session endpoint directly. Going through
+ * `apiClient` would re-enter the interceptor and infinite-loop; this raw
+ * axios call is a peer of `apiClient` so it doesn't share the interceptor
+ * chain.
+ *
+ * `disableCookieCache=true` forces a real store lookup: without it, Better
+ * Auth answers from the ≤60s signed `ba.session_data` snapshot, so a
+ * freshly-dead session reads as 'alive' and this whole machinery
+ * retry-loops instead of tearing down — the core of the half-logged-in bug.
+ */
+async function fetchSessionProbe(): Promise<SessionProbeResult> {
+  try {
+    const headers: Record<string, string> = {};
+    if (isDesktopApp()) {
+      // Desktop is bearer-mode (no cookie); without the token the probe
+      // always sees a null session and every 401 reads as 'dead'.
+      const token = await getDesktopToken();
+      if (token) headers.Authorization = `Bearer ${token}`;
+    }
+    const response = await axios.get(`${baseURL}/auth/v2/get-session`, {
+      params: { disableCookieCache: 'true' },
+      withCredentials: useCredentials,
+      headers,
+      timeout: 10_000,
+    });
+    const data = response.data as { user?: unknown } | null | undefined;
+    const hasUserInBody = data != null && data.user != null;
+    return {
+      httpStatus: response.status,
+      hasUserInBody,
+      outcome: hasUserInBody ? 'alive' : 'no-user',
+    };
+  } catch (probeError) {
+    const httpStatus = (probeError as AxiosError).response?.status;
+    return {
+      httpStatus,
+      hasUserInBody: false,
+      outcome: httpStatus === 401 || httpStatus === 403 ? 'unauthorized' : 'error',
+    };
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /**
  * Silently probe Better Auth's session endpoint to classify the 401 we
  * just saw. Coalesces concurrent probes: the first caller kicks off the
  * fetch, every other caller within the same tick awaits the same promise.
  * Caches the verdict for 5s to collapse 401 cascades across routes.
  */
-async function probeSessionVerdict(): Promise<ProbeVerdict> {
+export async function probeSessionVerdict(): Promise<ProbeVerdict> {
   // Return cached result if recent.
   const now = Date.now();
   if (lastProbe && now - lastProbe.timestamp < PROBE_CACHE_TTL_MS) {
@@ -111,51 +175,47 @@ async function probeSessionVerdict(): Promise<ProbeVerdict> {
   probeInFlight = (async (): Promise<ProbeVerdict> => {
     const startedAt = Date.now();
     let verdict: ProbeVerdict;
-    let httpStatus: number | undefined;
-    let hasUserInBody = false;
+    let first: SessionProbeResult | undefined;
+    let confirmed: SessionProbeResult | undefined;
     try {
-      // Hit Better Auth's native session endpoint directly. Going through
-      // `apiClient` would re-enter the interceptor and infinite-loop;
-      // this raw axios call is a peer of `apiClient` so it doesn't
-      // share the interceptor chain.
-      //
-      // `disableCookieCache=true` forces a real store lookup: without it,
-      // Better Auth answers from the ≤60s signed `ba.session_data` snapshot,
-      // so a freshly-dead session reads as 'alive' and this whole machinery
-      // retry-loops instead of tearing down — the core of the half-logged-in
-      // bug. The probe is rare (5s cache + coalescing), so the extra Redis/PG
-      // read is negligible.
-      const headers: Record<string, string> = {};
-      if (isDesktopApp()) {
-        // Desktop is bearer-mode (no cookie); without the token the probe
-        // always sees a null session and every 401 reads as 'dead'.
-        const token = await getDesktopToken();
-        if (token) headers.Authorization = `Bearer ${token}`;
+      first = await fetchSessionProbe();
+
+      if (first.outcome === 'alive') {
+        verdict = 'alive';
+      } else if (first.outcome === 'unauthorized') {
+        // A definitive 401/403 from the probe itself proves the session is
+        // dead — no ambiguity to confirm.
+        verdict = 'dead';
+      } else if (first.outcome === 'error') {
+        // Timeout, network error, or 5xx (e.g. auth_unavailable while Redis
+        // is down) is an infra signal, not a session signal.
+        verdict = 'indeterminate';
+      } else {
+        // '200 with no user' — the ambiguous case. Re-confirm once after a
+        // short delay before treating it as definitive death.
+        await sleep(DEAD_VERDICT_CONFIRM_DELAY_MS);
+        confirmed = await fetchSessionProbe();
+        if (confirmed.outcome === 'alive') {
+          verdict = 'alive';
+        } else if (confirmed.outcome === 'no-user' || confirmed.outcome === 'unauthorized') {
+          verdict = 'dead';
+        } else {
+          // Second attempt errored — never confirmed. Don't log out on an
+          // unconfirmed, possibly-transient signal.
+          verdict = 'indeterminate';
+        }
       }
-      const response = await axios.get(`${baseURL}/auth/v2/get-session`, {
-        params: { disableCookieCache: 'true' },
-        withCredentials: useCredentials,
-        headers,
-        timeout: 10_000,
-      });
-      httpStatus = response.status;
-      const data = response.data as { user?: unknown } | null | undefined;
-      hasUserInBody = data != null && data.user != null;
-      verdict = hasUserInBody ? 'alive' : 'dead';
-    } catch (probeError) {
-      // Only a definitive 401/403 from the probe proves the session is
-      // dead. Anything else (timeout, network error, 5xx) is an infra
-      // signal, not a session signal.
-      httpStatus = (probeError as AxiosError).response?.status;
-      verdict = httpStatus === 401 || httpStatus === 403 ? 'dead' : 'indeterminate';
     } finally {
       probeInFlight = null;
     }
+
     lastProbe = { timestamp: Date.now(), verdict };
     sessionDebug('probe.verdict', {
       verdict,
-      httpStatus,
-      hasUserInBody,
+      httpStatus: first?.httpStatus,
+      hasUserInBody: first?.hasUserInBody ?? false,
+      confirmOutcome: confirmed?.outcome,
+      confirmHttpStatus: confirmed?.httpStatus,
       durationMs: Date.now() - startedAt,
     });
     return verdict;

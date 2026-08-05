@@ -29,15 +29,15 @@ interface ToolThemePair {
 
 const TOOL_THEME: Record<string, ToolThemePair> = {
   agents: {
-    light: { tile: '#F5EFC9', icon: '#7C6A1E', title: '#5F5212', desc: '#84743C' },
+    light: { tile: '#F5EFC9', icon: '#7C6A1E', title: '#5F5212', desc: '#786A37' },
     dark: { tile: '#26220F', icon: '#CDBB72', title: '#E1D296', desc: '#AC9C68' },
   },
   projekte: {
-    light: { tile: '#DCE6F2', icon: '#2E4E7A', title: '#1E3A5E', desc: '#56708F' },
+    light: { tile: '#DCE6F2', icon: '#2E4E7A', title: '#1E3A5E', desc: '#4F6784' },
     dark: { tile: '#14202E', icon: '#7CA2CB', title: '#A2C0E4', desc: '#6E88AB' },
   },
   scanner: {
-    light: { tile: '#E6F0D6', icon: '#3E5A1E', title: '#31471A', desc: '#5E7440' },
+    light: { tile: '#E6F0D6', icon: '#3E5A1E', title: '#31471A', desc: '#5B703E' },
     dark: { tile: '#202B14', icon: '#A6C57C', title: '#C4DAA2', desc: '#8DA66E' },
   },
   vorlagen: {
@@ -49,7 +49,7 @@ const TOOL_THEME: Record<string, ToolThemePair> = {
     dark: { tile: '#1F1B2E', icon: '#A99ED1', title: '#C6BCE4', desc: '#8E86AB' },
   },
   reel: {
-    light: { tile: '#F5DEE6', icon: '#8A3E5C', title: '#6E2E48', desc: '#9E6A80' },
+    light: { tile: '#F5DEE6', icon: '#8A3E5C', title: '#6E2E48', desc: '#85576A' },
     dark: { tile: '#2B1620', icon: '#CB8AA6', title: '#E4B0C6', desc: '#AB7E94' },
   },
 };

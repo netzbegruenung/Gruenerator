@@ -3,7 +3,8 @@
 import {
   AuiIf,
   ComposerPrimitive,
-  useComposerRuntime,
+  useAui,
+  useAuiEvent,
   useVoiceControls,
   useVoiceState,
 } from '@assistant-ui/react';
@@ -11,7 +12,7 @@ import { useAuiState } from '@assistant-ui/store';
 import { mcpBrandColor } from '@gruenerator/shared/utils';
 import { cn, useIsMobile } from '@gruenerator/ui';
 import { ArrowUp, Mic, Plug, Square, X } from 'lucide-react';
-import { memo, useRef, useState, useCallback, useEffect } from 'react';
+import { memo, useRef, useState, useCallback, type ClipboardEvent } from 'react';
 import { type IconType } from 'react-icons';
 import { RiVoiceAiFill } from 'react-icons/ri';
 import {
@@ -57,6 +58,10 @@ import {
 } from '../../lib/mentionAttachments';
 import { getFilteredMentionables, detectMention } from '../../lib/mentionDetection';
 import { computeMentionInsertion } from '../../lib/mentionInsertion';
+import {
+  PASTED_TEXT_ATTACHMENT_NAME,
+  shouldCreatePastedTextAttachment,
+} from '../../lib/pastedText';
 import { useScopedAgentId } from '../../lib/useScopedAgentState';
 import { useAgentStore } from '../../stores/chatStore';
 import { useUserProfileStore } from '../../stores/userProfileStore';
@@ -139,6 +144,9 @@ interface GrueneratorComposerProps {
    * mobile/desktop without a hydration bridge are unaffected.
    */
   requireProfileHydration?: boolean;
+  /** Turns substantial plain-text clipboard pastes into a compact reference card.
+   * Explicit opt-in keeps search and notebook surfaces on their existing request paths. */
+  enablePastedTextAttachments?: boolean;
 }
 
 const ROUND_BTN_BASE =
@@ -299,8 +307,9 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   variant = 'card',
   slots,
   requireProfileHydration = false,
+  enablePastedTextAttachments = false,
 }: GrueneratorComposerProps) {
-  const composerRuntime = useComposerRuntime();
+  const composerRuntime = useAui().composer;
   const isCompact = useChatDensity() === 'compact';
   const isMobile = useIsMobile();
   const effectivePlaceholder = placeholder ?? (isMobile ? 'Schreibe...' : 'Nachricht schreiben...');
@@ -318,12 +327,27 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   // AUI's file-input handler validates against the adapter's `accept` list and
   // throws a raw English error before our adapter's add() runs. Subscribe to
   // the structured event so the user sees a clean German toast instead.
-  useEffect(
-    () => composerRuntime.unstable_on('attachmentAddError', handleAttachmentAddError),
-    [composerRuntime]
-  );
+  useAuiEvent('composer.attachmentAddError', handleAttachmentAddError);
 
   const dismissPopover = useCallback(() => setMention(INITIAL_MENTION_STATE), []);
+
+  const handlePaste = useCallback(
+    (event: ClipboardEvent<HTMLTextAreaElement>) => {
+      if (!enablePastedTextAttachments) return;
+
+      const clipboard = event.clipboardData;
+      // Let assistant-ui retain its native file/image-paste behaviour.
+      if (clipboard.files.length > 0) return;
+
+      const text = clipboard.getData('text/plain');
+      if (!shouldCreatePastedTextAttachment(text)) return;
+
+      event.preventDefault();
+      const file = new File([text], PASTED_TEXT_ATTACHMENT_NAME, { type: 'text/plain' });
+      void composerRuntime.addAttachment(file);
+    },
+    [composerRuntime, enablePastedTextAttachments]
+  );
 
   const handleSelect = useCallback(
     (mentionable: Mentionable) => {
@@ -754,21 +778,72 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
       }
       onChange={showMentions ? handleChange : undefined}
       onKeyDown={showMentions ? handleKeyDown : undefined}
+      onPaste={handlePaste}
     />
   );
 
   return (
-    <div className="px-4 pb-[max(0.25rem,env(safe-area-inset-bottom))] sm:pb-[max(1rem,env(safe-area-inset-bottom))]">
+    <div className="px-4 pb-[max(0.25rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-[max(1rem,env(safe-area-inset-bottom))] lg:px-8">
       <ComposerPrimitive.Root
         className={cn(
           'composer-root relative mx-auto flex w-full max-w-3xl flex-col border bg-white transition-shadow dark:bg-surface',
+          // The keyboard-focus indicator. The composer had none: the textarea
+          // carries an unconditional `outline-none` (see below), and the app's
+          // global `:focus-visible` ring lives in the `legacy` layer, which
+          // Tailwind's `utilities` layer outranks. What was left was a shadow
+          // stepping up one size — a blur difference, not a contrast one, so it
+          // could not meet the 3:1 that WCAG 1.4.11 asks of a focus indicator.
+          //
+          // `outline`, not a ring: `box-shadow` is dropped entirely under
+          // `forced-colors: active` (Windows-Kontrastmodus), where this surface
+          // already loses its tint. An outline survives — the system recolours
+          // it and keeps drawing it — so the one property covers both cases and
+          // needs no `@media` companion.
+          //
+          // `has-[textarea:focus]` rather than `focus-within`: the toolbar
+          // buttons inside carry their own ring from the global rule, and
+          // outlining the whole capsule while tabbing through them would read as
+          // noise. What a person means by "the composer has focus" is the text
+          // field.
+          //
+          // `kbd:` in front of it, because :focus was never the whole story: the
+          // CSS spec exempts text entry from the mouse-click rule, so a textarea
+          // matches :focus AND :focus-visible when clicked into. Swapping one for
+          // the other changes nothing here — only the input modality does. See
+          // focusModality.ts.
+          //
+          // Two colours because no single one clears 3:1 on both grounds. Light:
+          // primary-600 (#316049) at 7.2:1 on white and 6.3:1 on the glow band's
+          // strongest tint. Dark: primary-300 (#8AC9B0) at 8.0:1 on the page and
+          // 7.0:1 on the composer's own fill. The app's usual ring colour,
+          // primary-500, drops to ~3.2:1 against the band — it was chosen for
+          // plain surfaces, not for a tinted one.
+          'kbd:has-[textarea:focus]:outline-2 kbd:has-[textarea:focus]:outline-offset-2',
+          'kbd:has-[textarea:focus]:outline-primary-600 dark:kbd:has-[textarea:focus]:outline-primary-300',
           // Design v2: the pill keeps its resting border/shadow on focus.
+          //
+          // 1.875rem is half the composer's resting one-row height, so the shape
+          // is a true pill while it's one row — but stays a rounded rect once an
+          // attachment tile or extra text rows make it taller. `rounded-full`
+          // would keep tracking half the GROWN height (86px at one image tile)
+          // and sweep the corner arc straight across the tile.
           isPill
-            ? 'rounded-full shadow-md focus-within:shadow-lg dark:shadow-sm'
+            ? 'rounded-[1.875rem] shadow-md focus-within:shadow-lg dark:shadow-sm'
             : 'rounded-3xl shadow-lg focus-within:border-primary/30 focus-within:shadow-xl dark:shadow-sm dark:focus-within:shadow-md',
           // The Mistral brand border reads as a focus ring on the slim pill —
           // card layout only.
-          isMistral && !isPill ? 'border-[#003399]' : 'border-border'
+          //
+          // Otherwise the border colour comes from a variable, not from the
+          // token directly: a surface that supplies its own tinted ground under
+          // the composer (the chat backgrounds, the thread's glow band) sets
+          // `--chat-composer-border: transparent` and the fill alone separates
+          // it — which is how the app draws it. Surfaces that set nothing (the
+          // notebook composer, /suche) fall back to the token and keep their
+          // border, so this stays a per-surface decision rather than a prop
+          // threaded through four call sites.
+          isMistral && !isPill
+            ? 'border-[#003399]'
+            : 'border-[color:var(--chat-composer-border,var(--color-border))]'
         )}
       >
         <ComposerPrimitive.Quote
@@ -783,7 +858,9 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
           </ComposerPrimitive.QuoteDismiss>
         </ComposerPrimitive.Quote>
 
-        <ComposerAttachments />
+        {/* Inset mirrors the input's horizontal padding per variant, so the
+            tile's left edge lines up with the first character of the draft. */}
+        <ComposerAttachments className={isPill ? 'mx-3.5' : isCompact ? 'mx-3' : 'mx-5'} />
 
         {slots?.aboveInput}
 

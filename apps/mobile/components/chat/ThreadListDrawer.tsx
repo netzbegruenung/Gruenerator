@@ -36,7 +36,7 @@ interface Props {
 }
 
 // The body must read `aui` from *inside* ThreadListItemByIndexProvider so that
-// `aui.threadListItem()` resolves to this row's thread. Calling useAui() above the
+// `aui.threadListItem` resolves to this row's thread. Calling useAui() above the
 // provider (as the outer ThreadItem does) yields the ambient "new" thread instead —
 // no remoteId — which silently breaks tap-to-open and delete.
 const ThreadItemBody = memo(function ThreadItemBody({
@@ -60,7 +60,7 @@ const ThreadItemBody = memo(function ThreadItemBody({
 
   // Archiving and deleting run right here rather than travelling up to a host:
   // this component already sits inside the row's `ThreadListItemByIndexProvider`,
-  // so `aui.threadListItem()` is the right thread. Only renaming and sharing
+  // so `aui.threadListItem` is the right thread. Only renaming and sharing
   // need a surface, and those are what `onOpenSheet` is for.
   const handleMenuAction = useCallback(
     (event: string) => {
@@ -69,13 +69,13 @@ const ThreadItemBody = memo(function ThreadItemBody({
         onOpenSheet(id);
         return;
       }
-      if (id === 'archive') aui.threadListItem().archive();
-      else if (id === 'unarchive') aui.threadListItem().unarchive();
+      if (id === 'archive') aui.threadListItem.archive();
+      else if (id === 'unarchive') aui.threadListItem.unarchive();
       else if (id === 'delete') {
-        const { title } = aui.threadListItem().getState();
+        const { title } = aui.threadListItem.getState();
         Alert.alert('Unterhaltung löschen', `"${title || 'Neue Unterhaltung'}" wirklich löschen?`, [
           { text: 'Abbrechen', style: 'cancel' },
-          { text: 'Löschen', style: 'destructive', onPress: () => aui.threadListItem().delete() },
+          { text: 'Löschen', style: 'destructive', onPress: () => aui.threadListItem.delete() },
         ]);
       }
     },
@@ -83,7 +83,7 @@ const ThreadItemBody = memo(function ThreadItemBody({
   );
 
   const handlePress = useCallback(() => {
-    const { remoteId } = aui.threadListItem().getState();
+    const { remoteId } = aui.threadListItem.getState();
     // Push first, THEN close the drawer: the conversation mounts behind the open
     // drawer, so closing it reveals the conversation directly instead of briefly
     // flashing the screen underneath (looks like a double navigation otherwise).
@@ -109,6 +109,7 @@ const ThreadItemBody = memo(function ThreadItemBody({
           styles.itemTrigger,
           { backgroundColor: pressed ? theme.surface : 'transparent' },
         ]}
+        accessibilityRole="button"
       >
         <Text style={[styles.itemTitle, { color: theme.text }]} numberOfLines={1}>
           <ThreadListItemPrimitive.Title fallback="Neue Unterhaltung" />
@@ -118,7 +119,7 @@ const ThreadItemBody = memo(function ThreadItemBody({
       <MenuActionSheet
         visible={actionsOpen}
         theme={theme}
-        heading={aui.threadListItem().getState().title}
+        heading={aui.threadListItem.getState().title}
         actions={buildThreadMenuActions(archived)}
         onSelect={handleMenuAction}
         onClose={() => setActionsOpen(false)}
@@ -139,7 +140,7 @@ interface SelectedThread {
 
 /**
  * Host for the two sheets the menu cannot hold itself. Sits inside a
- * `ThreadListItemByIndexProvider` for the selected row, so `aui.threadListItem()`
+ * `ThreadListItemByIndexProvider` for the selected row, so `aui.threadListItem`
  * resolves to that thread — the same reason `ThreadItemBody` reads `aui` from
  * inside the provider rather than above it. One host for the whole drawer
  * instead of a sheet per row.
@@ -154,9 +155,9 @@ const ThreadSheetHost = memo(function ThreadSheetHost({
   onClose: () => void;
 }) {
   const aui = useAui();
-  const state = aui.threadListItem().getState();
+  const state = aui.threadListItem.getState();
 
-  const rename = useCallback((title: string) => aui.threadListItem().rename(title), [aui]);
+  const rename = useCallback((title: string) => aui.threadListItem.rename(title), [aui]);
 
   return sheet === 'rename' ? (
     <ThreadRenameSheet
@@ -284,6 +285,7 @@ function DrawerSections({
             styles.navRow,
             { backgroundColor: pressed ? theme.surface : 'transparent' },
           ]}
+          accessibilityRole="button"
         >
           <MenuIcon name={tool.icon} size={DRAWER_ICON} color={theme.text} />
           <Text style={[styles.navLabel, { color: theme.text }]} numberOfLines={1}>
@@ -307,6 +309,7 @@ function EmptyThreads({ theme, onNewChat }: { theme: Theme; onNewChat: () => voi
       <Pressable
         onPress={onNewChat}
         style={({ pressed }) => [styles.emptyButton, { opacity: pressed ? 0.8 : 1 }]}
+        accessibilityRole="button"
       >
         <Ionicons name="create-outline" size={18} color={colors.white} />
         <Text style={styles.emptyButtonText}>Neue Unterhaltung</Text>
@@ -338,6 +341,7 @@ function ProfileFooter({
           backgroundColor: pressed ? theme.surface : 'transparent',
         },
       ]}
+      accessibilityRole="button"
     >
       <ProfileAvatar
         avatarRobotId={user?.avatar_robot_id}

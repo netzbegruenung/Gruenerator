@@ -82,7 +82,7 @@ function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
       async load() {
         let remoteId: string | null;
         try {
-          const itemState = aui.threadListItem().getState();
+          const itemState = aui.threadListItem.getState();
           remoteId = itemState.status === 'new' ? null : (itemState.remoteId ?? null);
         } catch (err) {
           console.warn('[History] Thread entry not available (likely deleted):', err);
@@ -203,6 +203,7 @@ function useGrueneratorThreadRuntime() {
     searchMode,
     customSystemPrompt,
     customRoleName,
+    customRoleRef,
     customEnabledTools,
     activeSkillMention,
     pinnedConnector,
@@ -216,6 +217,7 @@ function useGrueneratorThreadRuntime() {
       searchMode: s.searchMode,
       customSystemPrompt: s.customSystemPrompt,
       customRoleName: s.customRoleName,
+      customRoleRef: s.customRoleRef,
       customEnabledTools: s.customEnabledTools,
       activeSkillMention: s.activeSkillMention,
       pinnedConnector: s.pinnedConnector,
@@ -241,6 +243,7 @@ function useGrueneratorThreadRuntime() {
       searchMode,
       customSystemPrompt,
       customRoleName,
+      customRoleRef,
       customEnabledTools,
       activeSkillMention,
       pinnedConnector,
@@ -254,6 +257,7 @@ function useGrueneratorThreadRuntime() {
     searchMode,
     customSystemPrompt,
     customRoleName,
+    customRoleRef,
     customEnabledTools,
     activeSkillMention,
     pinnedConnector,
@@ -272,7 +276,7 @@ function useGrueneratorThreadRuntime() {
   const onThreadCreated = useCallback((newThreadId: string) => {
     useAgentStore.getState().setCurrentThread(newThreadId);
     const state = useAgentStore.getState();
-    if (state.threadMode === 'eigener' && state.customSystemPrompt) {
+    if (state.threadMode === 'eigener' && (state.customSystemPrompt || state.customRoleRef)) {
       void state.saveThreadSettings(newThreadId, runtimeApiClientRef.current);
     }
   }, []);
@@ -393,10 +397,10 @@ function ThreadTitleEffect() {
   useEffect(() => {
     if (messageCount >= 2 && currentThreadId && titleTriggeredRef.current !== currentThreadId) {
       try {
-        const state = aui.threadListItem().getState();
+        const state = aui.threadListItem.getState();
         if (!state.title) {
           titleTriggeredRef.current = currentThreadId;
-          aui.threadListItem().generateTitle();
+          aui.threadListItem.generateTitle();
         }
       } catch (err: unknown) {
         console.warn('[TitleGen] Thread entry not available (likely deleted):', err);

@@ -4,6 +4,7 @@ import {
   GrueneratorThread,
   ReelArtifactPanel,
   SharepicArtifactPanel,
+  setMentionInstance,
   setMentionLocale,
   useAgentStore,
   useChatRuntimeReady,
@@ -16,16 +17,24 @@ import {
   resolveSkillMention,
 } from '@gruenerator/shared/agents';
 import { getContractsClient } from '@gruenerator/shared/api';
+import { useIsNarrowerThan } from '@gruenerator/ui';
 import { useCallback, useEffect, useRef } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
 import { useDocumentTitle } from '@/components/hooks/useDocumentTitle';
+import { CURRENT_INSTANCE } from '@/config/instance';
 import { useUserAgents } from '@/features/agents/api';
 import ChatHero from '@/features/chat/ChatHero';
 import { LandesverbandHub } from '@/features/chat/LandesverbandHub';
+import { useGroupDetails } from '@/features/groups/hooks/useGroups';
+import { resolveChatBackground } from '@/features/workplace/chatBackgrounds';
 import { useFirstName } from '@/hooks/useFirstName';
 import { useAuthStore } from '@/stores/authStore';
+import { cn } from '@/utils/cn';
+import { isDesktopApp } from '@/utils/platform';
+
+import '@/features/workplace/workplace-sunrise.css';
 
 /**
  * AT users get this notebook when their selected agent doesn't pin its own.
@@ -36,6 +45,41 @@ import { useAuthStore } from '@/stores/authStore';
  */
 const AT_DEFAULT_NOTEBOOK_ID = 'oesterreich-notebook';
 
+// Instance-filter the @-mention notebook picker. Set at module scope rather than
+// in an effect: unlike the locale, the instance is fixed for the lifetime of the
+// bundle, and the picker may be read before this component ever mounts.
+setMentionInstance(CURRENT_INSTANCE);
+
+/**
+ * The in-thread composer: the slim pill in the browser, the taller card in the
+ * desktop shell.
+ *
+ * The two run the same bundle, so this is not a build-time difference — but it
+ * is a fixed one per install, which is why it is read once at module scope
+ * rather than per render.
+ *
+ * The pill is the same shape the new-chat hero already wears, so sending a
+ * first message no longer swaps the composer under the cursor. The desktop app
+ * keeps the card: it is a window someone leaves open, and the toolbar row that
+ * the card gives its own line stays legible there.
+ */
+const COMPOSER_VARIANT = isDesktopApp() ? 'card' : 'pill';
+
+/**
+ * Ab welcher Breite ein Artefakt als angedockte Schiene neben dem Faden steht,
+ * statt ihn als Vollbild zu überdecken: die 24rem der Schiene plus 48rem, die
+ * dem Faden bleiben müssen.
+ *
+ * Gemessen wird die Chat-Spalte, nicht das Fenster. Dieselbe Oberfläche steckt
+ * als schmales Panel in den Editoren — dort ist ein 1440px breites Fenster kein
+ * Beleg dafür, dass 24rem übrig sind.
+ */
+const ARTIFACT_DOCK_MIN_WIDTH = 72 * 16;
+
+const ARTIFACT_PANEL_DOCKED =
+  'flex w-[24rem] shrink-0 flex-col overflow-hidden border-l border-border bg-background-alt';
+const ARTIFACT_PANEL_OVERLAY = 'fixed inset-0 z-[1010] flex flex-col bg-background-alt';
+
 function ChatPage() {
   const [searchParams] = useSearchParams();
   // `slug` comes from /agents/:slug, `threadSlug` from /chat/:threadSlug.
@@ -44,13 +88,23 @@ function ChatPage() {
   const location = useLocation();
   // False while the lazy assistant-ui runtime chunk is still loading (or in the
   // Suspense fallback on a cold direct load of /chat). Gating the runtime-using
-  // content below on it keeps useAssistantRuntime()/useComposerRuntime() from
-  // running outside the provider — the "requires an AuiProvider" prod crash.
+  // content below on it keeps useAui() from running outside the provider —
+  // the "requires an AuiProvider" prod crash.
   const runtimeReady = useChatRuntimeReady();
+  const shellRef = useRef<HTMLDivElement>(null);
+  const artifactPanelClass = useIsNarrowerThan(shellRef, ARTIFACT_DOCK_MIN_WIDTH)
+    ? ARTIFACT_PANEL_OVERLAY
+    : ARTIFACT_PANEL_DOCKED;
   const chatViewMode = useAgentStore((s) => s.chatViewMode);
   const currentThreadTitle = useAgentStore((s) => s.currentThreadTitle);
   const firstName = useFirstName();
   const userLocale = useAuthStore((s) => s.locale) ?? 'de-DE';
+  // The background the user picked in /profile/aussehen. The hero below wears
+  // it in full; the thread wears only the band derived from it. Resolved here
+  // rather than in ChatHero because both branches need the answer — and because
+  // the hero used to hardcode `sunrise`, which meant a pick made on /workplace
+  // did not show on /chat.
+  const chatBackground = resolveChatBackground(useAuthStore((s) => s.user?.chat_background));
   const { data: userAgents } = useUserAgents();
   // Bridge the user-agents query into the chat package so its welcome screen
   // and message avatars can resolve a user agent's title/icon by identifier.
@@ -168,6 +222,8 @@ function ChatPage() {
   //    present (canonicalization to the pretty slug happens a tick later).
   const currentThreadId = useAgentStore((s) => s.currentThreadId);
   const projektParam = searchParams.get('projekt');
+  const { data: projektDetails } = useGroupDetails(projektParam);
+  const projektName = projektDetails?.group.name ?? null;
   const projektBaselineThreadRef = useRef<string | null>(null);
   const projektFiledThreadRef = useRef<string | null>(null);
   useEffect(() => {
@@ -221,7 +277,7 @@ function ChatPage() {
   }
 
   return (
-    <div className="flex min-h-0 h-full bg-background">
+    <div ref={shellRef} className="flex min-h-0 h-full bg-background">
       {!hub && (
         <ChatThreadRouting
           threadSlug={threadSlug ?? null}
@@ -230,41 +286,58 @@ function ChatPage() {
           onOpenNotebookThread={handleNavigate}
         />
       )}
-      <main className="flex min-h-0 flex-1 flex-col pt-4 md:pt-0">
+      <div className="flex min-h-0 flex-1 flex-col pt-4 md:pt-0">
         {hub ? (
           <LandesverbandHub hub={hub} onNavigate={handleNavigate} userLocale={userLocale} />
         ) : effectiveViewMode === 'overview' ? (
-          // New-chat empty state in the Workplace chat-tab design: sunrise
+          // New-chat empty state in the Workplace chat-tab design: the chosen
           // background, vertically centered greeting + pill composer.
-          <div className="workplace-chat-sunrise flex min-h-0 flex-1 flex-col justify-center overflow-y-auto pb-[6vh]">
-            <ChatHero />
+          // `workplace-chat-accent` re-points the primary token so the send
+          // button follows the preset, exactly as on the Workplace chat tab.
+          <div
+            className={cn(
+              'workplace-chat-sunrise workplace-chat-accent',
+              chatBackground.className,
+              'flex min-h-0 flex-1 flex-col justify-center overflow-y-auto pb-[6vh]'
+            )}
+          >
+            <ChatHero projectName={projektName} />
           </div>
         ) : (
           <GrueneratorThread
             onNavigate={handleNavigate}
             firstName={firstName}
             requireProfileHydration
+            // `neutral` promises "kein Verlauf — nur der Seitenhintergrund", so
+            // it gets no band either. Every other preset does: the band is the
+            // same one regardless of which was picked, because it is the
+            // composer's light and not the page's colour.
+            {...(chatBackground.key === 'neutral' ? {} : { className: 'chat-thread-glow' })}
+            composerVariant={COMPOSER_VARIANT}
+            enablePastedTextAttachments
             userLocale={userLocale}
           />
         )}
-      </main>
+      </div>
       {!hub && effectiveViewMode === 'thread' && (
         // Sharepic-Modus: pins the active sharepic as a docked artifact while
-        // the user iterates via chat. Below xl the inline card stays the only
-        // surface (the panel would crowd out the thread).
-        <SharepicArtifactPanel className="hidden w-[24rem] shrink-0 flex-col overflow-hidden border-l border-border bg-background-alt xl:flex" />
+        // the user iterates via chat. Too narrow to dock, it covers the thread
+        // instead — the inline card's only effect is opening this panel, so a
+        // panel that stays `display:none` makes the card a button that does
+        // nothing the user can see.
+        <SharepicArtifactPanel className={artifactPanelClass} />
       )}
       {!hub && effectiveViewMode === 'thread' && (
         // Reel-Modus: pins the reel video with a live subtitle overlay while
         // the user edits subtitle text via chat. Renders null unless a reel
         // is active, so it coexists with the sharepic panel.
-        <ReelArtifactPanel className="hidden w-[24rem] shrink-0 flex-col overflow-hidden border-l border-border bg-background-alt xl:flex" />
+        <ReelArtifactPanel className={artifactPanelClass} />
       )}
       {!hub && effectiveViewMode === 'thread' && (
         // Artefakt-Modus: pins a generated HTML/SVG artifact (sandboxed iframe)
         // while the user iterates via chat. Renders null unless an artifact is
         // active; opening one closes the sharepic/reel panel (single docked rail).
-        <ArtifactPanel className="hidden w-[24rem] shrink-0 flex-col overflow-hidden border-l border-border bg-background-alt xl:flex" />
+        <ArtifactPanel className={artifactPanelClass} />
       )}
     </div>
   );

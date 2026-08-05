@@ -15,6 +15,7 @@ import { renumberAnswerCitations } from '../../../agents/langgraph/ChatGraph/nod
 import { upsertThreadRecallPoint } from '../../../services/chat/threadRecallEmbeddingService.js';
 import { generateThreadTags } from '../../../services/chat/threadTagService.js';
 import { generateThreadTitle } from '../../../services/chat/threadTitleService.js';
+import { shouldAttemptExtractionThisTurn } from '../../../services/mem0/extractionThrottle.js';
 import { shouldExtractMemories } from '../../../services/mem0/gatekeeperService.js';
 import { getMem0Instance } from '../../../services/mem0/index.js';
 import { maybeRecompilePersona } from '../../../services/mem0/personaService.js';
@@ -68,6 +69,23 @@ const log = createLogger('PostResponse');
  * that as a `persistTool` without a `uiTool`.
  */
 export const INTENT_TO_TOOL: Record<string, string> = intentToolNames().persist;
+
+/**
+ * Strips the transient crawl payload before a result goes into the database.
+ *
+ * A crawled web result carries the SAME full page text under both `content` and
+ * `fullContent` (searchNode spreads the crawler's object, then overwrites
+ * `content` with it). Two crawled pages are ~160k chars of JSON per turn in
+ * `chat_messages.tool_results`, and `getRecentThreadSources` reads all of it
+ * back on the next turn — while its own docstring promises the content is
+ * "already snippet-sized at persist time". `fullContent` has no reader after
+ * the search stage, so nothing downstream loses anything.
+ */
+function forPersistence(r: SearchResult): SearchResult {
+  if (!('fullContent' in r)) return r;
+  const { fullContent: _dropped, ...rest } = r as SearchResult & { fullContent?: unknown };
+  return rest as SearchResult;
+}
 
 /**
  * Result payload shape for non-research tool calls (search, web, examples).
@@ -286,6 +304,8 @@ export interface PersistParams {
    *  final content+metadata are written by flipping THIS row to 'complete'
    *  instead of inserting a new one. Null/omitted → insert as before. */
   pendingMessageId?: string | null;
+  /** Current persisted user row; links this turn's attachments to its bubble. */
+  userMessageId?: string | null;
 }
 
 /**
@@ -383,6 +403,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
     agenticSteps,
     traceId,
     pendingMessageId,
+    userMessageId,
   } = params;
 
   if (
@@ -424,7 +445,13 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
       // reload matches the live stream (which sets agentInfo only for agents).
       ...(agentId && agentId !== 'gruenerator-universal' ? { agentId } : {}),
       citations: persistedCitations,
-      searchResults: finalState.searchResults?.slice(0, MAX_SOURCES) || [],
+      searchResults: finalState.searchResults?.slice(0, MAX_SOURCES).map(forPersistence) || [],
+      // Image hits, so a reloaded turn still shows what it found. Stored BARE —
+      // the `proxyUrl` handle is deliberately NOT persisted: it is a signed 24h
+      // capability and a database row outlives it. The load path mints a fresh
+      // one (messagesController), which also keeps the "signed at the moment of
+      // handing out" rule true on reload.
+      ...(finalState.webImageResults?.length ? { searchImages: finalState.webImageResults } : {}),
       generatedImage: generatedImage
         ? {
             url: generatedImage.url,
@@ -529,41 +556,61 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
 
     log.info(`[ChatGraph] Message persisted for thread ${threadId}`);
 
-    const attachmentsOk = await saveThreadAttachmentsFromMeta(threadId, userId, processedMeta);
+    const attachmentsOk = await saveThreadAttachmentsFromMeta(
+      threadId,
+      userId,
+      processedMeta,
+      userMessageId ?? null
+    );
 
     const mem0 = getMem0Instance();
     if (mem0 && lastUserMessage && fullText && memoryEnabled) {
       const userText = extractTextContent(lastUserMessage.content);
 
-      // Gatekeeper: check if this conversation contains memorizable info
-      shouldExtractMemories(userText, fullText)
-        .then((decision) => {
-          if (!decision.shouldExtract) {
-            log.info(
-              `[${requestId}] Gatekeeper: skipping memory extraction (${decision.durationMs}ms)`
-            );
+      // Throttle first: mem0's extraction is purely additive (never merges),
+      // so running the gatekeeper/extraction on every turn is the main driver
+      // of unbounded memory growth. Only attempt extraction every Nth turn
+      // per thread — see extractionThrottle.ts.
+      shouldAttemptExtractionThisTurn(threadId)
+        .then((allowed) => {
+          if (!allowed) {
+            log.info(`[${requestId}] Mem0: skipping turn (extraction throttle)`);
             return;
           }
 
-          log.info(
-            `[${requestId}] Gatekeeper: extracting [${decision.categories.join(', ')}] (${decision.durationMs}ms)`
-          );
-
-          return mem0
-            .addMemories(
-              [
-                { role: 'user', content: userText },
-                { role: 'assistant', content: fullText },
-              ],
-              userId,
-              { threadId, categories: decision.categories }
-            )
-            .then(() => {
-              // Async persona recompilation (fire-and-forget)
-              maybeRecompilePersona(userId).catch((e) =>
-                log.warn(`[${requestId}] Persona recompilation failed:`, e)
+          // Gatekeeper: check if this conversation contains memorizable info
+          return shouldExtractMemories(userText, fullText, userId).then((decision) => {
+            if (!decision.shouldExtract) {
+              log.info(
+                `[${requestId}] Gatekeeper: skipping memory extraction (${decision.durationMs}ms)`
               );
-            });
+              return;
+            }
+
+            log.info(
+              `[${requestId}] Gatekeeper: extracting [${decision.categories.join(', ')}] (${decision.durationMs}ms)`
+            );
+
+            return mem0
+              .addMemories(
+                [
+                  { role: 'user', content: userText },
+                  { role: 'assistant', content: fullText },
+                ],
+                userId,
+                {
+                  threadId,
+                  categories: decision.categories,
+                  ...(decision.confidence ? { confidence: decision.confidence } : {}),
+                }
+              )
+              .then(() => {
+                // Async persona recompilation (fire-and-forget)
+                maybeRecompilePersona(userId).catch((e) =>
+                  log.warn(`[${requestId}] Persona recompilation failed:`, e)
+                );
+              });
+          });
         })
         .catch((memError) => {
           reportBackgroundError(memError, { job: 'chat-memory-save', requestId, userId });
@@ -591,7 +638,8 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
 async function saveThreadAttachmentsFromMeta(
   threadId: string,
   userId: string,
-  processedMeta: ProcessedAttachmentMeta[]
+  processedMeta: ProcessedAttachmentMeta[],
+  messageId: string | null
 ): Promise<boolean> {
   if (processedMeta.length === 0) return true;
   let saved = 0;
@@ -601,7 +649,7 @@ async function saveThreadAttachmentsFromMeta(
         () =>
           saveThreadAttachment({
             threadId,
-            messageId: null,
+            messageId,
             userId,
             name: meta.name,
             mimeType: meta.mimeType,
@@ -672,6 +720,7 @@ export async function persistResumedResponse(params: {
    *  inserting a new one; a vanished row is NOT re-inserted (the turn was
    *  discarded), matching persistAssistantResponse. Null/omitted → insert. */
   pendingMessageId?: string | null;
+  userMessageId?: string | null;
 }): Promise<PersistOutcome> {
   const {
     threadId,
@@ -682,6 +731,7 @@ export async function persistResumedResponse(params: {
     processedMeta,
     traceId,
     pendingMessageId,
+    userMessageId,
   } = params;
 
   if (!threadId || !fullText) return { ok: true };
@@ -706,7 +756,7 @@ export async function persistResumedResponse(params: {
       searchCount: finalState.searchCount,
       ...(traceId && { traceId }),
       citations: persistedCitations,
-      searchResults: finalState.searchResults?.slice(0, MAX_SOURCES) || [],
+      searchResults: finalState.searchResults?.slice(0, MAX_SOURCES).map(forPersistence) || [],
       resumed: true,
       // Same shape the non-resumed path persists, so the document card
       // rehydrates identically on reload.
@@ -758,7 +808,12 @@ export async function persistResumedResponse(params: {
 
     let attachmentsOk = true;
     if (userId && processedMeta?.length) {
-      attachmentsOk = await saveThreadAttachmentsFromMeta(threadId, userId, processedMeta);
+      attachmentsOk = await saveThreadAttachmentsFromMeta(
+        threadId,
+        userId,
+        processedMeta,
+        userMessageId ?? null
+      );
     }
     log.info(`[ChatGraph:Resume] Message persisted for thread ${threadId}`);
     return { ok: attachmentsOk };

@@ -12,11 +12,27 @@ import { env } from '../../config/env.js';
 import { createQdrantClient } from '../../database/services/QdrantService/connection.js';
 import { extractJsonObject, extractLastJsonObject } from '../../utils/jsonParser.js';
 import { createLogger } from '../../utils/logger.js';
-import { INTERMEDIATE_MODEL, REGOLO_BASE_URL } from '../ai/providers.js';
+import { REGOLO_BASE_URL } from '../ai/providers.js';
 import { regoloFetchWithThinkingDisabled } from '../ai/regoloThinkingFetch.js';
 import { MistralEmbeddingService } from '../mistral/MistralEmbeddingService/MistralEmbeddingService.js';
 
 import type { MemoryConfig } from 'mem0ai/oss';
+
+/**
+ * Explizit gepinnt — folgt NICHT mehr `intermediateLane('heavy')`.
+ *
+ * Der Adapter unten baut seinen Client aus `REGOLO_BASE_URL` + `REGOLO_API_KEY`
+ * und nahm bis 01.08.2026 nur den MODELLNAMEN aus der heavy-Stufe. Das hielt,
+ * solange heavy auf Regolo lag, und wurde in dem Moment falsch, in dem die
+ * Stufe nach Scaleway zog: mem0 hätte einen Scaleway-Modellnamen an Regolos
+ * Basis-URL geschickt. Die Stufe hatte diese Falle selbst dokumentiert.
+ *
+ * Ein Konsument, der Host UND Schlüssel fest verdrahtet, kann einer Lane nicht
+ * folgen — also folgt er ihr nicht mehr. Wer das Modell hier wechselt, wechselt
+ * es bewusst und prüft die JSON-Extraktion (der defensive Parser unten existiert,
+ * weil Reasoning-Modelle das JSON in Chain-of-Thought wickeln).
+ */
+const LANE = { provider: 'regolo' as const, model: 'gemma4-31b' };
 
 const log = createLogger('Mem0Config');
 
@@ -170,11 +186,29 @@ export function buildMem0Config(): Partial<MemoryConfig> {
   // Disable mem0ai's built-in PostHog telemetry to avoid HTTP/2 GOAWAY errors
   process.env.MEM0_TELEMETRY = 'false';
 
+  // NOTE: this extraction LLM's output schema (mem0ai's AdditiveExtractionSchema)
+  // has no category or confidence field per memory — asking it to "attach"
+  // either as metadata here is silently dropped by schema validation. Category
+  // and confidence are decided upstream by our own gatekeeper
+  // (gatekeeperService.ts) before this ever runs, and applied as call-level
+  // metadata in Mem0Service.addMemories(). This prompt's job is narrower:
+  // extract sparsely within the categories the gatekeeper already approved,
+  // and actively override mem0's own "when in doubt, extract" default (its
+  // built-in prompt explicitly says a redundant memory is cheap — for us it
+  // is not, see chat-memory-mem0-shape memory note on unbounded growth).
+  //
+  // The "Existing Memories" reference in the "Sparsam extrahieren" section below
+  // is NOT dead like the confidence/category instruction was: mem0ai's
+  // addToVectorStore() runs a vectorStore.search() for the 10 nearest neighbours
+  // and injects them into the prompt under a real "## Existing Memories" heading
+  // before ADDITIVE_EXTRACTION_PROMPT runs (see generateAdditiveExtractionPrompt
+  // in node_modules/mem0ai/dist/oss/index.js). Verified against the installed
+  // version, not assumed.
   const customInstructions = `Du bist ein Gedächtnis-Assistent für den Grünerator, eine KI-Plattform für Die Grünen.
 
-Extrahiere Erinnerungen und ordne sie einer der folgenden Kategorien zu:
+Ein Gatekeeper hat diesen Austausch bereits geprüft und nur Kategorien mit ausreichender Konfidenz freigegeben. Deine Aufgabe ist NICHT, möglichst viel zu extrahieren — im Zweifel NICHT extrahieren.
 
-## Kategorien
+## Kategorien (nur diese sind relevant)
 
 1. **identity** — Persönliche Fakten: Name, Wahlkreis, Kreisverband, politische Funktion, Parteiebene, Fachgebiete
    Beispiel: "Kreisverbandsvorstand in Freiburg" → identity
@@ -187,12 +221,11 @@ Extrahiere Erinnerungen und ordne sie einer der folgenden Kategorien zu:
 5. **preference** — Dauerhafte Präferenzen: Schreibstil, Tonalität, Formate, Zielgruppe, Sprachlevel
    Beispiel: "Bevorzugt kurze, direkte Formulierungen für Social Media" → preference
 
-## Konfidenz
+## Sparsam extrahieren
 
-Bewerte jede Erinnerung:
-- **high**: Explizite Aussage ("Ich bin...", "Ich bevorzuge immer...")
-- **medium**: Aus Gesprächsmuster abgeleitet
-- **low**: Einmalige Erwähnung, mehrdeutig
+- Wenn ein Fakt bereits (auch anders formuliert) unter "Existing Memories" steht: NICHT erneut extrahieren.
+- Nur dauerhaft relevante Fakten, keine einmaligen Details, die in einer Woche nutzlos sind.
+- Ein redundanter Eintrag ist für uns NICHT günstiger als ein fehlender — im Zweifel weglassen.
 
 Speichere NICHT:
 - Aufgaben-Anweisungen ("tweet kürzen", "schreibe eine Rede", "mach kürzer")
@@ -200,15 +233,14 @@ Speichere NICHT:
 - Gesprächs-Metadaten (Grüße, Danke, Feedback zum Tool)
 - Sensible persönliche Daten (Adresse, Telefonnummer, Passwörter)
 
-Antworte auf Deutsch. Formuliere Erinnerungen als kurze Fakten-Aussagen.
-Füge bei jeder Erinnerung die Kategorie und Konfidenz als Metadaten hinzu.`;
+Antworte auf Deutsch. Formuliere Erinnerungen als kurze Fakten-Aussagen (max. 1-2 Sätze).`;
 
   return {
     customInstructions,
 
     // LLM for memory extraction and synthesis.
     // Regolo's mistral-small (the same model the gatekeeper uses via
-    // INTERMEDIATE_MODEL) with thinking disabled — it returns clean JSON,
+    // the `heavy` stage) with thinking disabled — it returns clean JSON,
     // unlike gpt-oss:120b via Verdigado which emitted chain-of-thought preamble
     // and routinely failed the JSON parse, dropping all extracted memories.
     llm: {
@@ -217,7 +249,7 @@ Füge bei jeder Erinnerung die Kategorie und Konfidenz als Metadaten hinzu.`;
         model: new LiteLLMAdapter(
           REGOLO_BASE_URL,
           env.REGOLO_API_KEY || '',
-          INTERMEDIATE_MODEL.model,
+          LANE.model,
           regoloFetchWithThinkingDisabled
         ),
       },
@@ -257,7 +289,7 @@ export function validateMem0Environment(): string[] {
   const missing: string[] = [];
 
   // Gate on the keys mem0 actually uses: Regolo for the extraction LLM
-  // (buildMem0Config) and the gatekeeper (INTERMEDIATE_MODEL → regolo),
+  // (buildMem0Config) and the gatekeeper (`heavy` stage → regolo),
   // Mistral for embeddings, and Qdrant for the vector store. LiteLLM is NOT
   // part of the mem0 stack, so requiring LITELLM_API_KEY here previously made
   // the feature report "available" while every extraction LLM call failed

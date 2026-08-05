@@ -94,3 +94,34 @@ export const DEEP_TOOL_MAP: Record<string, string> = {
   save_memory: 'save_memory',
   search_user_content: 'search_user_content',
 };
+
+/**
+ * Verdicts whose work IS the artifact. Without them these turns fell through to
+ * the `searching` default and narrated "Durchsuche …" for the entire generation
+ * — three minutes on 02.08.2026, on a turn that had been explicitly forbidden to
+ * search. The status line thereby accused the product of ignoring an instruction
+ * it had in fact obeyed: the backend never mounted a search tool that turn.
+ */
+export const ARTIFACT_STAGE_INTENTS: ReadonlySet<string> = new Set([
+  'create_pdf',
+  'create_presentation',
+  'create_sheet',
+  'create_board',
+  'save_as_doc',
+]);
+
+/**
+ * The same idea on the tool side, and needed as well as the intent set rather
+ * than instead of it: a low-confidence turn is DEMOTED to `agentic` (which does
+ * retrieve, so its default stage is right at first) and only reveals itself as a
+ * generation turn when the loop's model reaches for the tool. That was the
+ * actual path of the 02.08.2026 PDF turn — heuristic `produktion@0.82`, demoted,
+ * then `create_pdf`.
+ */
+export const ARTIFACT_TOOL_NAMES: ReadonlySet<string> = new Set([
+  'create_pdf',
+  'create_presentation',
+  'create_sheet',
+  'create_document',
+  'create_board',
+]);

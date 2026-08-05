@@ -24,8 +24,52 @@ const QUOTED_SPAN_PATTERNS: readonly RegExp[] = [
   /‚[^‘’]{0,240}[‘’]/g, // German single ‚…'
 ];
 
-/** Replace quoted spans with a space so noun tests don't fire on reported speech. */
+/**
+ * Die ganze Nachricht IST das Zitat — Anführungszeichen ganz aussen, sonst
+ * nichts. Bewusst ohne Längenkappung (anders als QUOTED_SPAN_PATTERNS): die
+ * Länge entscheidet hier nichts, die Position tut es.
+ */
+const WHOLLY_QUOTED_PATTERNS: readonly RegExp[] = [
+  /^\s*„[\s\S]*["“”]\s*$/,
+  /^\s*»[\s\S]*«\s*$/,
+  /^\s*«[\s\S]*»\s*$/,
+  /^\s*"[\s\S]*"\s*$/,
+  /^\s*“[\s\S]*”\s*$/,
+];
+
+/**
+ * Replace quoted spans with a space so noun tests don't fire on reported speech.
+ *
+ * AUSSER die Anführungszeichen umschliessen die GANZE Nachricht. Dann ist sie
+ * keine fremde Rede, sondern der Auftrag selbst — nur mit Anführungszeichen
+ * eingefügt, wie es Nutzer ständig tun.
+ *
+ * Ohne diese Ausnahme war die Arbeitsteilung im Aufrufer asymmetrisch und damit
+ * gefährlich: die ERKENNER (`DOCUMENT_CREATE_RE` & Co. in
+ * `compoundGenerationKind`) lesen den rohen Text, die SCHUTZPRÜFUNGEN
+ * (`forbidsPersistentAction`, `hasExplicitSharepicWord`) den gestrippten. Eine
+ * eingeklammerte Nachricht wurde also als Auftrag ERKANNT, während ihre Guards
+ * ins Leere sahen. Zwei live beobachtete Folgen, beide aus derselben Zeile:
+ *
+ *  - „…, aber erstelle bitte kein Dokument daraus." → das Verbot unsichtbar,
+ *    `compoundGenerationKind` lieferte `document`, und die Garantie in
+ *    `forceCompoundGeneration` baute genau das verbotene Dokument.
+ *  - „… Mach mir daraus ein Sharepic." → das Wort unsichtbar, das Lizenz-Gate
+ *    verweigerte, und der Turn antwortete „In diesem Chat gibt es noch kein
+ *    Sharepic", statt die Frage zu beantworten.
+ *
+ * Tückisch war zusätzlich die Längenabhängigkeit: die Muster oben kappen bei 240
+ * Zeichen, eine kürzere eingeklammerte Nachricht wurde also geschluckt, eine
+ * längere nicht.
+ *
+ * Die Prüfung ist auf POSITION gestellt, nicht auf „wie viel bleibt übrig".
+ * Eine Restwort-Schwelle sah zunächst naheliegender aus, hätte aber echte
+ * fremde Rede mit kurzem Rahmen zerstört — `Titel "Grafik des Jahres" prüfen`
+ * und `Antworte auf: „…"` lassen beide nur zwei Wörter stehen und sind trotzdem
+ * genau das, wofür das Strippen existiert.
+ */
 export function stripQuotedSpans(text: string): string {
+  if (WHOLLY_QUOTED_PATTERNS.some((p) => p.test(text))) return text;
   let out = text;
   for (const p of QUOTED_SPAN_PATTERNS) out = out.replace(p, ' ');
   return out;
@@ -48,6 +92,25 @@ const NEGATOR_AFTER_RE =
   /^(?![^.!?\n]{0,30}?\b(?:aber|jedoch|sondern|allerdings|dafür|stattdessen)\b)[^.!?\n]{0,30}?\b(nicht|kein\w{0,2})\b/i;
 
 /**
+ * A prohibition whose object is the DELIVERY FORM rather than the artifact:
+ * "kein Base64", "kein data:-URI", "keine erfundene öffentliche URL", "keine
+ * bloße Gliederung". It says HOW the thing must not arrive and therefore ORDERS
+ * it — the opposite of standing the turn down.
+ *
+ * Live on 03.08.2026: „Liefere ein echtes Präsentationsartefakt zum Öffnen,
+ * kein Base64, kein data:-URI, keine erfundene öffentliche URL und keine bloße
+ * Gliederung." The window after „Präsentationsartefakt" reads „ zum Öffnen,
+ * kein Base64, kein" — so the gate demoted `create_presentation`, and the very
+ * sentence the user had added to prevent a hand-written file was what removed
+ * the tool that writes a real one.
+ *
+ * Stripped rather than looked-ahead for: the bans come in chains, and a bounded
+ * window can always end between two of them.
+ */
+const DELIVERY_FORM_BAN_RE =
+  /\b(?:kein\w{0,2}|nicht\s+als)\b(?:\s+\p{L}+){0,3}\s+(?:base-?64|data[:\-\s]{0,2}ur[il]s?|ur[il]s?|links?|gliederung\w*|rohtext\w*|platzhalter\w*|dummy\w*|attrappe\w*)\b/giu;
+
+/**
  * True when an occurrence of `nounPattern` is negated within a sentence-bounded
  * window. Per-noun-family: "statt eines Posts ein Sharepic" negates `post`, not
  * `sharepic`, so passing each branch its own noun yields correct routing.
@@ -57,13 +120,34 @@ export function isNegatedArtifactRequest(text: string, nounPattern: RegExp): boo
     nounPattern.source,
     nounPattern.flags.includes('g') ? nounPattern.flags : `${nounPattern.flags}g`
   );
-  for (const m of text.matchAll(g)) {
+  const scanned = text.replace(DELIVERY_FORM_BAN_RE, ' ');
+  for (const m of scanned.matchAll(g)) {
     const i = m.index ?? 0;
     const end = i + m[0].length;
-    if (NEGATOR_BEFORE_RE.test(text.slice(Math.max(0, i - 30), i))) return true;
-    if (NEGATOR_AFTER_RE.test(text.slice(end, end + 30))) return true;
+    if (NEGATOR_BEFORE_RE.test(scanned.slice(Math.max(0, i - 30), i))) return true;
+    if (NEGATOR_AFTER_RE.test(scanned.slice(end, end + 30))) return true;
   }
   return false;
+}
+
+/**
+ * The message dictates the table's columns inline, pipe-separated: "Erstelle
+ * eine Tabelle mit genau neun Zeilen: Nr. | PASS/FAIL | kürzester konkreter
+ * Grund", "Gib eine Tabelle mit den Spalten Thema | Aussage A | Status".
+ *
+ * Someone who writes out a Markdown table header is describing what they want
+ * to READ in the answer, not a spreadsheet to open — and a sheet artifact costs
+ * them the answer they asked for, because the chat then says "Tabelle wurde
+ * erstellt" and shows a card. Observed twice: 02.08. (an unasked second table
+ * after a correction) and 03.08. (the self-check table).
+ *
+ * Two separators required, on one line: a single pipe is ordinary punctuation.
+ */
+const INLINE_TABLE_COLUMNS_RE = /^[^\n]*\S[ \t]*\|[ \t]*\S[^\n]*\|[^\n]*$/m;
+
+/** True when the turn spells out a pipe-separated table header inline. */
+export function dictatesInlineTableColumns(text: string): boolean {
+  return typeof text === 'string' && INLINE_TABLE_COLUMNS_RE.test(text);
 }
 
 // A question-word-initial message that mentions the artifact noun is a question
@@ -197,6 +281,56 @@ export function forbidsNewResearch(text: string): boolean {
     if (!BAN_REVERSER_RE.test(t.slice(Math.max(0, i - 30), i))) return true;
   }
   return false;
+}
+
+/**
+ * A creation order in BOTH German word orders. Every artifact heuristic used to
+ * spell out only the verb-first one ("mach mir ein PDF daraus") and was blind to
+ * the verb-final one ("das bitte schön als PDF erstellen") — the subordinate and
+ * infinitive phrasings, which is how a good half of real asks are worded. The
+ * two that DID attempt the second order got it wrong in opposite ways: the image
+ * alternate forgot the inflection suffix (`(erstell|…)\b` matches "Bild mach",
+ * never "Bild erstellen"), and save_as_doc spelled its mirror out by hand for a
+ * hand-picked four verbs. One builder means a phrasing gap can no longer be
+ * closed for one artifact and stay open for the other five.
+ *
+ * The verb sets differ only where the product does: text products take
+ * `schreib`, sheets take "leg … an", images take the drawing verbs. Merging
+ * those too would widen each intent into its neighbours.
+ *
+ * Verb-final position is restricted to infinitive/imperative on purpose. That is
+ * what a REQUEST looks like at the end of a German clause ("… als PDF
+ * erstellen"); a participle in that slot is narration about something that
+ * already exists ("… die Präsentation, die ich erstellt habe"). Without the
+ * restriction the second word order would turn every mention of an existing
+ * artifact into an order to build a new one.
+ *
+ * Callers build their patterns at MODULE scope: new RegExp compiles per call,
+ * unlike a regex literal.
+ */
+export const CREATION_VERB_CORE = 'erstell|erzeug|generier|mach|bau|entwirf|entwerf|gestalte';
+
+/** Any core creation verb, any inflection, anywhere — "is this an order at all?" */
+export const CREATION_VERB_RE = new RegExp(`\\b(?:${CREATION_VERB_CORE})[a-zäöü]*\\b`, 'i');
+
+export function creationOrderPattern(
+  noun: string,
+  opts: { extraVerbs?: string; verbs?: string; forward?: number; backward?: number } = {}
+): RegExp {
+  // `verbs` REPLACES the core rather than extending it. One artifact needs that:
+  // for images `mach` is the EDIT verb ("Mach das Foto heller"), so inheriting it
+  // from the core would swallow every image_edit follow-up into generation.
+  const base = opts.verbs ?? CREATION_VERB_CORE;
+  const stem = opts.extraVerbs ? `${base}|${opts.extraVerbs}` : base;
+  const verbAnyForm = `(?:${stem})[a-zäöü]*`;
+  const verbFinalForm = `(?:${stem})(?:e|en|n|st)?`;
+  const forward = opts.forward ?? 40;
+  const backward = opts.backward ?? forward;
+  return new RegExp(
+    `\\b${verbAnyForm}\\b.{0,${forward}}\\b(?:${noun})\\b` +
+      `|\\b(?:${noun})\\b.{0,${backward}}\\b${verbFinalForm}\\b`,
+    'i'
+  );
 }
 
 /**

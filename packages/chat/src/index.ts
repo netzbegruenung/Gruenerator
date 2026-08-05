@@ -66,6 +66,15 @@ export {
   type SearchDepthIconKey,
 } from './lib/composerControls';
 
+// Notebook retrieval depth — shared registry for the notebook page's tier control
+export {
+  NOTEBOOK_DEPTHS,
+  DEFAULT_NOTEBOOK_DEPTH,
+  notebookDepthDef,
+  type NotebookDepthDef,
+  type NotebookDepthIconKey,
+} from './lib/notebookDepth';
+
 // Context & API Client
 export {
   chatFetch,
@@ -297,6 +306,13 @@ export { computeMentionInsertion, type MentionInsertionResult } from './lib/ment
 // File mention data hook
 export { useFileMentionData } from './hooks/useFileMentionData';
 
+// Admin-curated Rezepte visibility. Also mirrors into module state consumed
+// by getAgentMentionables (mentionParser picker) as a side effect — call it
+// once high in the tree (e.g. alongside useMentionablesQuery) and read the
+// returned array directly wherever a live Rezepte catalog is rendered
+// (Agentura, SkillLibraryModal, PlusMenu).
+export { useHiddenSkillMentions } from './hooks/useMentionablesQuery';
+
 // Typed-mention attachments (Wolke / Connect / web page) and the Canva draft
 // insertion. Shared so the recognition triple the backend keys on cannot drift
 // between platforms — see lib/mentionAttachments.ts.
@@ -349,8 +365,10 @@ export {
   documentMentionables,
   getAllMentionables,
   getAgentMentionables,
+  setMentionInstance,
   setMentionLocale,
   getMentionLocale,
+  setHiddenSkillMentions,
   setCustomAgents,
   getCustomAgentMentionables,
   customAgentToMentionable,

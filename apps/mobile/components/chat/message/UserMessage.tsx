@@ -33,6 +33,8 @@ function UserBubbleText({ text }: { text: string }) {
 /** Module-level so the memoized primitive sees a stable children reference. */
 const renderAttachment = () => <MessageAttachmentUI />;
 
+const userPartComponents = { Text: UserBubbleText };
+
 export const UserMessage = memo(function UserMessage() {
   const theme = useTheme();
   const aui = useAui();
@@ -40,13 +42,13 @@ export const UserMessage = memo(function UserMessage() {
 
   // Long-press the bubble to edit — there is no pencil beside it any more. This
   // is what `ActionBarPrimitive.Edit` did (`useActionBarEdit` is two lines:
-  // `aui.composer().beginEdit()`, disabled while already editing); inside a
-  // message scope `aui.composer()` is that message's edit composer, not the
+  // `aui.composer.beginEdit()`, disabled while already editing); inside a
+  // message scope `aui.composer` is that message's edit composer, not the
   // thread's. Same gesture as the thread rows in the drawer, so "hold to act on
   // this thing" means one thing across the app.
   const handleLongPress = useCallback(() => {
     if (isEditing) return;
-    aui.composer().beginEdit();
+    aui.composer.beginEdit();
   }, [aui, isEditing]);
 
   return (
@@ -64,7 +66,7 @@ export const UserMessage = memo(function UserMessage() {
         ]}
       >
         <MessagePrimitive.Attachments>{renderAttachment}</MessagePrimitive.Attachments>
-        <MessagePrimitive.Content renderText={({ part }) => <UserBubbleText text={part.text} />} />
+        <MessagePrimitive.Parts components={userPartComponents} />
       </Pressable>
       <View style={styles.actionBar}>
         <BranchPicker theme={theme} />

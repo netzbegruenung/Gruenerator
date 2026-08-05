@@ -782,6 +782,7 @@ export function PlannerKanban({
 
   return (
     <BoardAwarenessProvider value={remoteActivities}>
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- passive cursor-presence tracking, not a control */}
       <div
         ref={containerRef}
         className="relative z-10 flex-1 overflow-auto p-md sm:p-lg"

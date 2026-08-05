@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     feedback_button TEXT NOT NULL DEFAULT 'text' CHECK (feedback_button IN ('text', 'icon', 'off')),
     reduce_motion BOOLEAN NOT NULL DEFAULT FALSE,
     reduce_transparency BOOLEAN NOT NULL DEFAULT FALSE,
-    show_skip_link BOOLEAN NOT NULL DEFAULT FALSE
+    show_skip_link BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS sites_enabled BOOLEAN DEFAULT TRUE;
@@ -110,7 +110,7 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS memory_enabled BOOLEAN DEFAULT FAL
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS feedback_button TEXT NOT NULL DEFAULT 'text' CHECK (feedback_button IN ('text', 'icon', 'off'));
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS reduce_motion BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS reduce_transparency BOOLEAN NOT NULL DEFAULT FALSE;
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS show_skip_link BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS show_skip_link BOOLEAN NOT NULL DEFAULT TRUE;
 
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -1146,6 +1146,7 @@ CREATE TABLE IF NOT EXISTS chat_thread_attachments (
 CREATE INDEX IF NOT EXISTS idx_thread_attachments_thread ON chat_thread_attachments(thread_id);
 CREATE INDEX IF NOT EXISTS idx_thread_attachments_created ON chat_thread_attachments(thread_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_thread_attachments_user ON chat_thread_attachments(user_id);
+CREATE INDEX IF NOT EXISTS idx_thread_attachments_message_id ON chat_thread_attachments(message_id);
 
 -- Chat triggers
 CREATE TRIGGER update_chat_threads_updated_at

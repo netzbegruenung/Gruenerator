@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { createSearchTools } from './searchTools.js';
+import { createSearchTools, namedByUser } from './searchTools.js';
 
 import type { AgentConfig } from './types.js';
 
@@ -69,5 +69,49 @@ describe('createSearchTools — locale-aware default collection', () => {
     expect(defaultCollection(createSearchTools(AGENT, { userLocale: 'en-US' }))).toBe(
       'deutschland'
     );
+  });
+});
+
+/**
+ * The site scope the model passes on is a REQUEST, and `namedByUser` is what
+ * keeps it from becoming an invented narrowing. It also has to let the user's
+ * OWN narrowing through, which is where it failed live on 02.08.2026: "nutze
+ * ausschließlich Primärquellen von EU-Kommission, Rat der EU und Europäischem
+ * Parlament" names no hostname, so the correct scope was dropped three times and
+ * the answer came off the open web.
+ */
+describe('namedByUser — user narrowing vs. invented narrowing', () => {
+  const EU_ASK =
+    'Nutze ausschließlich Primärquellen von EU-Kommission, Rat der EU und Europäischem Parlament.';
+
+  it('lets an institution the user named authorise its own hosts', () => {
+    expect(namedByUser('ec.europa.eu', EU_ASK)).toBe(true);
+    expect(namedByUser('consilium.europa.eu', EU_ASK)).toBe(true);
+    expect(namedByUser('europarl.europa.eu', EU_ASK)).toBe(true);
+    expect(namedByUser('europa.eu', EU_ASK)).toBe(true);
+  });
+
+  it('still drops a host the user never named', () => {
+    // The failure this guard exists for: the planner narrowing "the web" to a
+    // handful of outlets nobody asked for.
+    expect(namedByUser('euractiv.com', EU_ASK)).toBe(false);
+    expect(namedByUser('spiegel.de', EU_ASK)).toBe(false);
+    expect(namedByUser('wikipedia.de', 'recherchiere im netz: wer war Marilyn Monroe')).toBe(false);
+  });
+
+  it('does not let one institution authorise another', () => {
+    expect(namedByUser('europarl.europa.eu', 'Nur Quellen der EU-Kommission bitte.')).toBe(false);
+    expect(namedByUser('consilium.europa.eu', 'Nur Quellen der EU-Kommission bitte.')).toBe(false);
+  });
+
+  it('keeps matching a bare host and its label', () => {
+    expect(namedByUser('zeit.de', 'schau mal auf zeit.de nach')).toBe(true);
+    expect(namedByUser('zeit.de', 'was schreibt die Zeit dazu?')).toBe(true);
+    expect(namedByUser('orf.at', 'gibt es dazu einen Vorfall im Betrieb?')).toBe(false);
+  });
+
+  it('reads the German names that share no word with their domain', () => {
+    expect(namedByUser('destatis.de', 'Zahlen vom Statistischen Bundesamt bitte')).toBe(true);
+    expect(namedByUser('parlament.gv.at', 'was sagt der Nationalrat dazu?')).toBe(true);
   });
 });

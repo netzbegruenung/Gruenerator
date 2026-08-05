@@ -70,6 +70,9 @@ export const BoardInlineHeader = memo(function BoardInlineHeader({
         >
           <FiArrowLeft size={compact ? 16 : 18} />
         </button>
+        {/* eslint-disable-next-line jsx-a11y/heading-has-content -- `as="h1"` wird
+            über polymorphicPropName als Überschrift erkannt, der Text kommt aber
+            über `title`, nicht über children. */}
         <EditableTitle
           as="h1"
           title={title}

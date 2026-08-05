@@ -70,7 +70,7 @@ const WorkplacePage = () => {
         {tab === 'chat' ? (
           // Minimal chat hero, vertically centered in the viewport (design:
           // the chat panel is a flex column with justify-center).
-          <div className="flex min-h-0 flex-1 flex-col justify-center overflow-y-auto pb-[6vh] pt-16">
+          <div className="flex min-h-0 flex-1 flex-col justify-center-safe overflow-y-auto pb-[6vh] pt-16">
             <WorkplaceChatTab />
           </div>
         ) : (

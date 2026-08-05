@@ -1,5 +1,10 @@
-import { agentsList, useSkillFavoritesStore, type AgentListItem } from '@gruenerator/chat';
-import { SKILL_CATEGORY_LABELS } from '@gruenerator/shared/agents';
+import {
+  agentsList,
+  useHiddenSkillMentions,
+  useSkillFavoritesStore,
+  type AgentListItem,
+} from '@gruenerator/chat';
+import { SKILL_CATEGORY_LABELS, isAdminVisibleSkill } from '@gruenerator/shared/agents';
 import { Badge, Button, CardGrid, Tabs, TabsContent, TabsList, TabsTrigger } from '@gruenerator/ui';
 import { useMemo } from 'react';
 import {
@@ -13,6 +18,7 @@ import {
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { SkillCard } from './components/cards';
+import { useSkillPrompt } from './hooks/useSkillPrompt';
 import { findSkillByMention, relatedSkills } from './lib/lookups';
 
 import { Markdown } from '@/components/common/Markdown';
@@ -28,16 +34,20 @@ function SkillDetailPage() {
   const toggleFavorite = useSkillFavoritesStore((s) => s.toggleFavorite);
 
   const skill = findSkillByMention(mention);
+  // The recipe text is not in the bundle — it is party-internal and comes from
+  // the API, for signed-in users only. See hooks/useSkillPrompt.ts.
+  const { data: skillPrompt } = useSkillPrompt(skill?.mention);
+  const hiddenSkillMentions = useHiddenSkillMentions();
 
   const related = useMemo(() => {
     if (!skill) return [];
     const pool = agentsList.filter(
       (s) =>
-        Boolean(s.skillSystemPrompt) &&
-        (s.audience === undefined || s.audience === 'all' || s.audience === userLocale)
+        (s.audience === undefined || s.audience === 'all' || s.audience === userLocale) &&
+        isAdminVisibleSkill(s.mention, hiddenSkillMentions)
     );
     return relatedSkills(skill, pool);
-  }, [skill, userLocale]);
+  }, [skill, userLocale, hiddenSkillMentions]);
 
   if (!skill) {
     return (
@@ -127,7 +137,7 @@ function SkillDetailPage() {
               </div>
             )}
             <Markdown fallback={<p>{skill.description}</p>}>
-              {skill.skillSystemPrompt ?? skill.description}
+              {skillPrompt ?? skill.description}
             </Markdown>
           </div>
         </TabsContent>

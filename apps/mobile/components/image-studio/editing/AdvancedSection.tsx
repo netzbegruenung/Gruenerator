@@ -36,6 +36,9 @@ export function AdvancedSection({ showCredit = true, disabled = false }: Advance
         style={[styles.header, { borderColor: theme.border }]}
         onPress={toggleExpanded}
         disabled={disabled}
+        accessibilityRole="button"
+        accessibilityLabel="Erweiterte Einstellungen"
+        accessibilityState={{ expanded: isExpanded, disabled }}
       >
         <View style={styles.headerContent}>
           <Ionicons name="settings-outline" size={18} color={theme.text} />

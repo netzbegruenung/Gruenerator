@@ -1,10 +1,11 @@
-import { agentsList, type AgentListItem } from '@gruenerator/chat';
+import { agentsList, useHiddenSkillMentions, type AgentListItem } from '@gruenerator/chat';
 import {
   SKILL_CATEGORY_LABELS,
   SKILL_CATEGORY_ORDER,
   agenturaCategoriesForPlatform,
   getSystemAgent,
   getVisibleSystemAgentsForLocale,
+  isAdminVisibleSkill,
   isAgentVisibleForPlatform,
   isLandesverbandIdentifier,
   landesverbandLabel,
@@ -92,18 +93,21 @@ export default function AgentsScreen() {
     return pool.slice(0, FEATURED_LIMIT);
   }, [generalSystemAgents]);
 
+  const hiddenSkillMentions = useHiddenSkillMentions();
+
   // Recipes ("Rezepte") whose owning agent is hidden on mobile would open a chat
   // with an agent this app cannot render, so they are filtered the same way the
-  // agents are.
+  // agents are. Also drops anything an admin hid from discovery on this
+  // deployment.
   const skills = useMemo(
     () =>
       agentsList.filter((s) => {
-        if (!s.skillSystemPrompt) return false;
         if (s.audience !== undefined && s.audience !== 'all' && s.audience !== locale) return false;
+        if (!isAdminVisibleSkill(s.mention, hiddenSkillMentions)) return false;
         const owner = getSystemAgent(s.identifier);
         return !owner || isAgentVisibleForPlatform(owner, 'mobile');
       }),
-    [locale]
+    [locale, hiddenSkillMentions]
   );
   const lvSkills = useMemo(
     () => skills.filter((s) => isLandesverbandIdentifier(s.identifier)),
@@ -315,9 +319,15 @@ export default function AgentsScreen() {
             style={[styles.searchInput, { color: theme.text }]}
             returnKeyType="search"
             autoCorrect={false}
+            accessibilityLabel="Grüneratoren und Rezepte durchsuchen"
           />
           {search.length > 0 && (
-            <Pressable onPress={() => setSearch('')} hitSlop={8}>
+            <Pressable
+              onPress={() => setSearch('')}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Suche zurücksetzen"
+            >
               <Ionicons name="close-circle" size={18} color={theme.textSecondary} />
             </Pressable>
           )}

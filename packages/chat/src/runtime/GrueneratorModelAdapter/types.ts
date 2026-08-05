@@ -18,7 +18,7 @@ import type {
   ReelProcessingData,
 } from '../../types/messageMetadata';
 import type { ChatModelRunResult } from '@assistant-ui/react';
-import type { BahnPayload } from '@gruenerator/contracts';
+import type { BahnPayload, NotebookDepth } from '@gruenerator/contracts';
 
 export type GrueneratorMessageMetadata = {
   progress?: ChatProgress;
@@ -64,12 +64,14 @@ export interface GrueneratorAdapterConfig {
    * notebook page passes the same map through `NotebookAdapterConfig.filters`.
    */
   notebookFilters?: Record<string, string[]>;
-  /** Notebook RAG depth; defaults to 'fast' (still returns citations). */
-  notebookMode?: 'fast' | 'deep';
+  /** Notebook retrieval depth; defaults to `DEFAULT_NOTEBOOK_DEPTH`. */
+  notebookMode?: NotebookDepth;
   threadMode?: ThreadMode;
   searchMode?: SearchMode;
   customSystemPrompt?: string | null;
   customRoleName?: string | null;
+  /** Verweis auf die gewählte Rolle; der Prompttext bleibt server-seitig. */
+  customRoleRef?: { ebene: string; rolle: string } | null;
   customEnabledTools?: Record<string, boolean> | null;
   /** Mention key of the active /skill (e.g. 'instagram'). Server appends the
    *  skill's `skillSystemPrompt` to the agent's systemRole when set. */

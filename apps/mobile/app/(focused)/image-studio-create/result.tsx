@@ -125,6 +125,8 @@ export default function ResultScreen() {
         style={[styles.closeButton, { top: insets.top + 8 }]}
         onPress={handleNewGeneration}
         hitSlop={12}
+        accessibilityRole="button"
+        accessibilityLabel="Bildergebnis schließen"
       >
         <Ionicons name="close" size={28} color={colors.white} />
       </Pressable>

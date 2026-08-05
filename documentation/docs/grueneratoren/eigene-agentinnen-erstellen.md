@@ -16,7 +16,7 @@ In der Mehrzahl heißen sie **Grüneratoren**. In der Einzahl sagen wir **Grüne
 
 ## Schritt 1: Den Creator öffnen
 
-Öffne die [Agentura](./agentura), scrolle zum Abschnitt **Meine Grüneratoren** und klicke oben rechts auf **Neuer Grünerator-Agent**. Alternativ rufst du den Creator direkt unter `/agents/new` auf.
+Öffne die [Agentura](./agentura), scrolle zum Abschnitt **Meine Grüneratoren** und klicke oben rechts auf **Neuer Grünerator**. Alternativ rufst du den Creator direkt unter `/agents/new` auf.
 
 ## Schritt 2: Agent beschreiben (empfohlen)
 
@@ -40,18 +40,19 @@ Der Editor zeigt links das Formular und rechts eine Live-**Vorschau**. Die Felde
 
 **Tab Werkzeuge** — wähle per Checkbox, was dein Agent können soll. Standardmäßig sind **Grünerator-Wissen** und **Recherche** aktiv. Zur Auswahl stehen:
 
-| Werkzeug                   | Funktion                                                                                           |
-| -------------------------- | -------------------------------------------------------------------------------------------------- |
-| **Grünerator-Wissen**      | Durchsucht die Grünerator-Wissensdatenbank (Programme, Beschlüsse, Kommunalwiki).                  |
-| **Recherche**              | Sucht im Web — die Suchtiefe (schnelle Suche bis mehrstufige Recherche) passt sich automatisch an. |
-| **Social-Media-Beispiele** | Findet passende Beispiel-Posts aus dem Grünerator-Fundus.                                          |
-| **Bildgenerierung**        | Erstellt Bilder aus einer Beschreibung.                                                            |
-| **Bildbearbeitung**        | Bearbeitet ein vorhandenes Bild nach Anweisung.                                                    |
-| **Bildanalyse**            | Beschreibt und analysiert hochgeladene Bilder.                                                     |
-| **Webseiten lesen**        | Liest den Inhalt einer angegebenen URL aus.                                                        |
-| **Umfragen**               | Ruft aktuelle Umfragewerte ab.                                                                     |
-| **Frühere Chats**          | Durchsucht deine früheren Unterhaltungen.                                                          |
-| **Eigene Inhalte**         | Durchsucht die eigenen gespeicherten Texte und Dokumente.                                          |
+| Werkzeug                   | Funktion                                                                                                         |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| **Grünerator-Wissen**      | Durchsucht die Grünerator-Wissensdatenbank (Programme, Beschlüsse, Kommunalwiki).                                |
+| **Recherche**              | Sucht im Web — die Suchtiefe (schnelle Suche bis mehrstufige Recherche) passt sich automatisch an.               |
+| **Social-Media-Beispiele** | Findet passende Beispiel-Posts aus dem Grünerator-Fundus.                                                        |
+| **Bildgenerierung**        | Erstellt Bilder aus einer Beschreibung.                                                                          |
+| **Bildbearbeitung**        | Bearbeitet ein vorhandenes Bild nach Anweisung.                                                                  |
+| **Bildanalyse**            | Beschreibt und analysiert hochgeladene Bilder.                                                                   |
+| **Webseiten lesen**        | Liest den Inhalt einer angegebenen URL aus.                                                                      |
+| **Umfragen**               | Ruft aktuelle Umfragewerte ab.                                                                                   |
+| **Frühere Chats**          | Durchsucht deine früheren Unterhaltungen.                                                                        |
+| **Eigene Inhalte**         | Durchsucht die eigenen gespeicherten Texte und Dokumente.                                                        |
+| **Formulare ausfüllen**    | Liest die Felder eines angehängten PDF-Formulars und füllt sie aus; die fertige Datei steht zum Download bereit. |
 
 Darunter im selben Tab:
 

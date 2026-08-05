@@ -57,7 +57,7 @@ export function CanvasEditorLayout({
   return (
     <div
       className={cn(
-        'canvas-editor-layout flex flex-col h-screen min-h-[500px] bg-[var(--editor-bg)]',
+        'canvas-editor-layout flex flex-col h-dvh min-h-[500px] bg-[var(--editor-bg)]',
         hasSidebar && 'max-canvas-mobile:pb-16',
         hideMobileChrome && 'pb-0 max-canvas-mobile:pb-0'
       )}
@@ -80,10 +80,10 @@ export function CanvasEditorLayout({
 
       <div
         className={cn(
-          'canvas-editor-layout__main relative flex flex-col justify-start items-center flex-1 min-h-0 overflow-hidden bg-[var(--editor-canvas-bg)] max-canvas-mobile:flex-1 max-canvas-mobile:p-0',
+          'canvas-editor-layout__main relative flex flex-col justify-start items-center flex-1 min-h-0 overflow-hidden bg-[var(--editor-canvas-bg)] transition-[margin-left] duration-200 max-canvas-mobile:flex-1 max-canvas-mobile:p-0',
           hasSidebar &&
             !externalSidebar &&
-            'ml-[var(--image-studio-tab-bar-width)] max-canvas-mobile:ml-0'
+            'ml-[calc(var(--image-studio-tab-bar-width)_+_var(--canvas-panel-width,0px))] max-canvas-mobile:ml-0'
         )}
       >
         {contextBar && (

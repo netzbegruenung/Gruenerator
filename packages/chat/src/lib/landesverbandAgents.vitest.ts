@@ -23,6 +23,15 @@ describe('LV registry agents stay pinned to their notebook', () => {
         expect(agent, `Bürger agent ${lv.buergerAgentId} must resolve`).toBeDefined();
         expect(agent?.defaultNotebookIds).toContain(lv.notebookId);
       });
+
+      it(`Wahlprüfsteine agent (${lv.wahlpruefsteinAgentId}) resolves and pins ${lv.notebookId}`, () => {
+        const agent = getSystemAgent(lv.wahlpruefsteinAgentId);
+        expect(
+          agent,
+          `Wahlprüfsteine agent ${lv.wahlpruefsteinAgentId} must resolve`
+        ).toBeDefined();
+        expect(agent?.defaultNotebookIds).toContain(lv.notebookId);
+      });
     });
   }
 });
@@ -35,6 +44,7 @@ describe('every hub derives from its registry entry', () => {
       expect(hub.notebookId).toBe(lv?.notebookId);
       expect(hub.prAgentId).toBe(lv?.prAgentId);
       expect(hub.buergerAgentId).toBe(lv?.buergerAgentId);
+      expect(hub.wahlpruefsteinAgentId).toBe(lv?.wahlpruefsteinAgentId);
     });
   }
 });

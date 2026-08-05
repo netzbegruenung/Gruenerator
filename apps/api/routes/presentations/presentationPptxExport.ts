@@ -19,14 +19,17 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import {
+  fitScaleForRatio,
   getPresentationBrandTheme,
   PRESENTATION_FONT_SIZE_SCALE,
   type PresentationBrandTheme,
   type Slide,
 } from '@gruenerator/contracts';
-import { marked, type Token } from 'marked';
+import { marked, type Token, type Tokens } from 'marked';
 
 import { validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
+
+import { countLines, deckFaces, type DeckFaces } from './slideTextMetrics.js';
 
 // pptxgenjs exposes its option interfaces as members of a `declare namespace`
 // merged with the default-exported class. Under NodeNext neither a static
@@ -48,9 +51,57 @@ const PX_PER_IN = 96;
 const inch = (px: number): number => px / PX_PER_IN;
 const pt = (px: number): number => px * 0.75;
 
+const SURFACE_H = 540; // .gruene-slide height
 const PAD_X = 72; // .gruene-slide padding-left/right
+const PAD_Y = 64; // .gruene-slide padding-top/bottom
 const MARGIN = inch(PAD_X);
 const CONTENT_W = inch(960 - PAD_X * 2); // 8.5in
+const CONTENT_W_PX = 960 - PAD_X * 2;
+
+// Type + rhythm from gruene-deck.css. Everything here is a slide-px value at
+// scale 1; `--gs-font-scale` multiplies them (frame geometry stays fixed).
+const COL_GAP = 20; // .gruene-slide gap
+const BODY_FS = 28; // .gruene-slide__body font-size
+const BODY_LH = 1.4; // .gruene-slide line-height
+const TITLE_FS = 44; // .gruene-slide__title
+const TITLE_FS_LARGE = 56; // .layout-title .gruene-slide__title
+const QUOTE_FS = 34; // .layout-quote .gruene-slide__body
+const BULLET_PAD = 26; // ul li padding-left
+const ITEM_GAP = 14; // ul li margin-bottom
+const PARA_GAP = 0.5; // p margin-bottom, in em
+const SPLIT_GAP = 48; // .layout-split column-gap
+
+// Content variant 1 "Karten": two-column card grid.
+const CARD_GAP = 16;
+const CARD_PAD_X = 20;
+const CARD_PAD_Y = 18;
+const CARD_RADIUS = 12; // border-radius is a literal px, never scaled
+const CARD_BG = 'F0F5F2';
+/** `rgba(255,255,255,.12)` as a pptxgenjs white fill + transparency percent. */
+const CARD_BG_DARK_ALPHA = 88;
+
+// Content variant 2 "Nummeriert": accent pills.
+const PILL_SIZE = 30;
+const PILL_PAD = 46; // li padding-left
+const PILL_FS = 16;
+const PILL_BG = 'EAF2EE';
+/** `rgba(255,255,255,.16)`. */
+const PILL_BG_DARK_ALPHA = 84;
+
+const IMAGE_MAX_H = 380; // .layout-image .gruene-slide__body img max-height
+const BODY_IMAGE_MAX_H = 320; // .gruene-slide__body img max-height
+
+// Tables (.gruene-slide__body table/th/td).
+const TABLE_FS = 24;
+const TABLE_PAD_X = 14;
+const TABLE_PAD_Y = 10;
+const TABLE_GAP = 12; // table margin-bottom
+const TABLE_ZEBRA = 'F0F5F2'; // tbody tr:nth-child(even) td
+const TABLE_RULE = 'DDE0DE'; // td border-bottom over a white surface
+/** `rgba(255,255,255,.16)` / `.07` on a dark surface, as white + transparency. */
+const TABLE_HEAD_DARK_ALPHA = 84;
+const TABLE_ZEBRA_DARK_ALPHA = 93;
+const TABLE_RULE_DARK = '6E7E74';
 
 // ── Palette (brand-neutral values; country CI comes from PRESENTATION_BRANDS) ─
 const INK = '262A28';
@@ -66,6 +117,8 @@ const FONT_MONO = 'JetBrains Mono';
 interface BrandCtx {
   fontHead: string;
   fontBody: string;
+  /** Quote-layout face; null uses `fontBody`. */
+  fontQuote: string | null;
   /** Hyperlink colour (brand accent), hex without #. */
   linkHex: string;
   /** Rule/bullet tint on dark surfaces, hex without #. */
@@ -74,6 +127,8 @@ interface BrandCtx {
   headingLine: number;
   /** Preloaded title-slide logo (per background darkness), or null. */
   logo: { light: string; dark: string; w: number; h: number } | null;
+  /** Local font aliases the measurement pass wraps text in. */
+  faces: DeckFaces;
 }
 
 const PUBLIC_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '../../public');
@@ -102,26 +157,227 @@ function buildBrandCtx(theme: PresentationBrandTheme, logo: BrandCtx['logo']): B
   return {
     fontHead: theme.pptxFonts.heading,
     fontBody: theme.pptxFonts.body,
+    fontQuote: theme.pptxFonts.quote,
     linkHex: toHex(theme.colors.accent) ?? '52907A',
     onDarkSoftHex: toHex(theme.colors.onDarkSoft) ?? 'A9D3BE',
     headingLine: theme.headingLineHeight,
     logo,
+    faces: deckFaces(theme.brand),
   };
 }
 
-/** Per-slide type scale, mirroring the CSS `--gs-font-scale`. `shrink` marks
- * auto-fit slides: they export at scale 1 with PowerPoint's own
- * shrink-on-overflow on the body boxes (applied by PowerPoint on first
- * edit/resize of the box — pptxgenjs cannot pre-compute the factor). */
+/**
+ * Per-slide type scale (the CSS `--gs-font-scale`) plus the geometry that
+ * depends on it. `shrink` still asks PowerPoint for shrink-on-overflow as a
+ * safety net — it is a no-op in LibreOffice/Keynote/Google Slides and only
+ * applies in PowerPoint once the box is edited, which is exactly why `fs` is
+ * now computed here instead of being left to the viewer.
+ */
 interface TypeScale {
   fs: number;
   shrink: boolean;
+  /** Top of the body box in slide px — below the title, as the flex column lays out. */
+  bodyTop: number;
+  /** Remaining height for the body box in slide px. */
+  bodyH: number;
 }
 
-function slideTypeScale(slide: Slide): TypeScale {
-  return slide.fontSize
-    ? { fs: PRESENTATION_FONT_SIZE_SCALE[slide.fontSize], shrink: false }
-    : { fs: 1, shrink: true };
+/** Title type size for a layout, in slide px at scale 1. */
+function titleFontPx(layout: Slide['layout']): number {
+  return layout === 'title' ? TITLE_FS_LARGE : TITLE_FS;
+}
+
+/** Inline size available to the title, in slide px (variant side panels narrow it). */
+function titleWidthPx(slide: Slide, variant: number): number {
+  if (slide.layout === 'title' && variant === 1) return 960 - 403 - PAD_X;
+  if (slide.layout === 'image' && variant === 1) return 326;
+  return CONTENT_W_PX;
+}
+
+/** Wrapped title height in slide px at scale 1, or 0 when there is no title. */
+async function measureTitle(slide: Slide, variant: number, ctx: BrandCtx): Promise<number> {
+  if (!slide.title.trim()) return 0;
+  const fontPx = titleFontPx(slide.layout);
+  const lines = await countLines([{ text: slide.title }], {
+    maxWidthPx: titleWidthPx(slide, variant),
+    fontPx,
+    faces: ctx.faces,
+    face: ctx.faces.heading,
+    bold: true,
+  });
+  return lines * fontPx * ctx.headingLine;
+}
+
+/**
+ * Natural height of a body's blocks in slide px at scale 1 — the same stack the
+ * browser produces, so the ratio below matches what `useAutoFitScale` measures.
+ */
+async function measureBlocks(
+  blocks: Block[],
+  ctx: BrandCtx,
+  opts: { widthPx: number; fontPx: number; face?: string | null; bold?: boolean; variant?: number }
+): Promise<number> {
+  const wrap = {
+    faces: ctx.faces,
+    fontPx: opts.fontPx,
+    ...(opts.face ? { face: opts.face } : {}),
+    ...(opts.bold ? { bold: opts.bold } : {}),
+  };
+  const lineBox = opts.fontPx * BODY_LH;
+  let total = 0;
+
+  for (const block of blocks) {
+    if (block.kind === 'list') {
+      if (opts.variant === 1) {
+        total += await measureCardGrid(block.items, ctx, opts.widthPx, opts.fontPx);
+        continue;
+      }
+      const pad = opts.variant === 2 ? PILL_PAD : BULLET_PAD;
+      for (const item of block.items) {
+        const lines = await countLines(item.runs, { ...wrap, maxWidthPx: opts.widthPx - pad });
+        const h = lines * lineBox;
+        total += (opts.variant === 2 ? Math.max(h, PILL_SIZE) : h) + ITEM_GAP;
+      }
+    } else if (block.kind === 'table') {
+      total += (await measureTableRows(block.rows, ctx, opts.widthPx)).total + TABLE_GAP;
+    } else if (block.kind === 'image') {
+      // An image is not decoded here — `object-fit: contain` inside a box capped
+      // at the CSS max-height is what the browser shows, so the box height is
+      // the honest measurement either way.
+      total += BODY_IMAGE_MAX_H;
+    } else {
+      const lines = await countLines(block.para.runs, { ...wrap, maxWidthPx: opts.widthPx });
+      total += lines * lineBox + (block.kind === 'para' ? PARA_GAP * opts.fontPx : 0);
+    }
+  }
+  return total;
+}
+
+/**
+ * Row heights of a table, in slide px at scale 1. `table-layout: fixed` in the
+ * deck CSS means every column is the same width, so the wrap width per cell is
+ * a division and not a content measurement — and a row is as tall as its
+ * tallest cell.
+ */
+async function measureTableRows(
+  rows: TableRow[],
+  ctx: BrandCtx,
+  widthPx: number
+): Promise<{ colW: number; heights: number[]; total: number }> {
+  const columns = rows.reduce((max, row) => Math.max(max, row.cells.length), 0);
+  const colW = columns > 0 ? widthPx / columns : widthPx;
+  const textW = colW - TABLE_PAD_X * 2;
+  const heights: number[] = [];
+  for (const row of rows) {
+    let tallest = 1;
+    for (const cell of row.cells) {
+      const lines = await countLines(cell.runs, {
+        faces: ctx.faces,
+        fontPx: TABLE_FS,
+        maxWidthPx: textW,
+        ...(row.header ? { face: ctx.faces.heading, bold: true } : {}),
+      });
+      if (lines > tallest) tallest = lines;
+    }
+    heights.push(tallest * TABLE_FS * BODY_LH + TABLE_PAD_Y * 2);
+  }
+  return { colW, heights, total: heights.reduce((sum, h) => sum + h, 0) };
+}
+
+/** Row heights of the two-column card grid, in slide px at scale 1. */
+async function measureCards(
+  items: Para[],
+  ctx: BrandCtx,
+  widthPx: number,
+  fontPx: number
+): Promise<{ colW: number; rows: number[] }> {
+  const colW = (widthPx - CARD_GAP) / 2;
+  const textW = colW - CARD_PAD_X * 2;
+  const heights: number[] = [];
+  for (const item of items) {
+    const lines = await countLines(item.runs, {
+      faces: ctx.faces,
+      fontPx,
+      maxWidthPx: textW,
+    });
+    heights.push(lines * fontPx * BODY_LH + CARD_PAD_Y * 2);
+  }
+  // CSS grid rows are as tall as their tallest item, and items stretch to fill.
+  const rows: number[] = [];
+  for (let i = 0; i < heights.length; i += 2) {
+    rows.push(Math.max(heights[i], heights[i + 1] ?? 0));
+  }
+  return { colW, rows };
+}
+
+async function measureCardGrid(
+  items: Para[],
+  ctx: BrandCtx,
+  widthPx: number,
+  fontPx: number
+): Promise<number> {
+  const { rows } = await measureCards(items, ctx, widthPx, fontPx);
+  return rows.reduce((sum, h) => sum + h, 0) + Math.max(0, rows.length - 1) * CARD_GAP;
+}
+
+/**
+ * Resolve a slide's type scale and body geometry.
+ *
+ * The screen lays the surface out as a flex column: 64px padding, the title at
+ * its natural wrapped height, a 20px gap, then the body. Both the title height
+ * and the gap scale with the type scale, so the body top is not a constant —
+ * it used to be pinned at 160px, which sat ~28px too low under a one-line DE
+ * title and a full 96px too low when a slide had no title at all.
+ *
+ * Auto-fit ("Auto" size) then works out like the browser's: every contributor
+ * to the column scales linearly, so one measurement at scale 1 gives the ratio
+ * and `fitScaleForRatio` picks the same ladder step `useAutoFitScale` would
+ * converge on by probing.
+ */
+async function slideTypeScale(slide: Slide, blocks: Block[], ctx: BrandCtx): Promise<TypeScale> {
+  const variant = slide.variant ?? 0;
+  const available = SURFACE_H - PAD_Y * 2;
+  const titleH1 = await measureTitle(slide, variant, ctx);
+  const gap1 = titleH1 > 0 ? COL_GAP : 0;
+
+  let fs: number;
+  let shrink: boolean;
+  if (slide.fontSize) {
+    fs = PRESENTATION_FONT_SIZE_SCALE[slide.fontSize];
+    shrink = false;
+  } else if (slide.layout === 'code') {
+    // Code slides are excluded from auto-fit on screen too (SlideSurface passes
+    // `presetScale == null && !isCode`): their body is its own scroll container,
+    // so the surface never overflows and a shrink would only misrepresent it.
+    fs = 1;
+    shrink = false;
+  } else {
+    const measured = await measureBlocks(blocks, ctx, {
+      widthPx: bodyWidthPx(slide, variant),
+      fontPx: slide.layout === 'quote' ? QUOTE_FS : BODY_FS,
+      ...(slide.layout === 'quote' && ctx.faces.quote ? { face: ctx.faces.quote, bold: true } : {}),
+      ...(slide.layout === 'content' ? { variant } : {}),
+    });
+    // `column-count: 2` balances the body over two columns, so only about half
+    // of it stacks vertically — measuring the whole run would shrink a split
+    // slide roughly twice as far as the screen does.
+    const bodyH1 = slide.layout === 'split' ? measured / 2 : measured;
+    const natural = titleH1 + gap1 + bodyH1;
+    // +1 mirrors the browser probe's `scrollHeight <= clientHeight + 1`.
+    fs = natural > 0 ? fitScaleForRatio((available + 1) / natural) : 1;
+    shrink = true;
+  }
+
+  const bodyTop = PAD_Y + fs * (titleH1 + gap1);
+  return { fs, shrink, bodyTop, bodyH: Math.max(0, SURFACE_H - bodyTop - PAD_Y) };
+}
+
+/** Inline size available to a slide's body, in slide px. */
+function bodyWidthPx(slide: Slide, variant: number): number {
+  if (slide.layout === 'split') return (CONTENT_W_PX - SPLIT_GAP) / 2;
+  if (slide.layout === 'quote') return variant === 0 ? CONTENT_W_PX - 34 : CONTENT_W_PX;
+  if (slide.layout === 'title' && variant === 1) return 960 - 403 - PAD_X;
+  return CONTENT_W_PX;
 }
 
 // ── Colour helpers ──────────────────────────────────────────────────────────
@@ -167,6 +423,38 @@ interface ResolvedBg {
   image: string | null;
   /** Whether the surface uses light (white) text. */
   dark: boolean;
+}
+
+/**
+ * Intrinsic size of a data: URL image.
+ *
+ * Needed because pptxgenjs never decodes images in Node: its `sizing.contain`
+ * fits against the w/h the caller declared, not the real ones, so it cannot
+ * correct an aspect ratio (and emits a negative <a:srcRect> letterbox that
+ * LibreOffice and Keynote render inconsistently). We compute the contain box
+ * ourselves instead.
+ */
+async function imageSize(dataUrl: string): Promise<{ w: number; h: number } | null> {
+  try {
+    const base64 = dataUrl.slice(dataUrl.indexOf(',') + 1);
+    const { default: sharp } = await import('sharp');
+    const meta = await sharp(Buffer.from(base64, 'base64')).metadata();
+    return meta.width && meta.height ? { w: meta.width, h: meta.height } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** CSS `object-fit: contain`: largest centred rect of `natW×natH` inside `box`. */
+function containRect(
+  natW: number,
+  natH: number,
+  box: { x: number; y: number; w: number; h: number }
+): { x: number; y: number; w: number; h: number } {
+  const scale = Math.min(box.w / natW, box.h / natH);
+  const w = natW * scale;
+  const h = natH * scale;
+  return { x: box.x + (box.w - w) / 2, y: box.y + (box.h - h) / 2, w, h };
 }
 
 /**
@@ -255,6 +543,18 @@ interface LineOpts {
   bullet?: PptxTextOptions['bullet'] | undefined;
   indentLevel?: number | undefined;
   italic?: boolean | undefined;
+  /** Overrides the brand body face (the quote layout uses its own). */
+  fontFace?: string | null | undefined;
+  bold?: boolean | undefined;
+}
+
+interface BodyOpts {
+  italic?: boolean;
+  /** List marker style; 'none' when a content variant draws its own. */
+  bullets?: BulletStyle;
+  /** Overrides the brand body face for every run (quote layout). */
+  fontFace?: string | null;
+  bold?: boolean;
 }
 
 /** Emit one paragraph (a run of text objects terminated by breakLine). */
@@ -269,10 +569,12 @@ function emitLine(
   effective.forEach((run, idx) => {
     const options: PptxTextOptions = {
       color: run.link ? ctx.linkHex : color,
-      fontFace: run.mono ? FONT_MONO : ctx.fontBody,
+      // Runs carry the face, so a box-level `fontFace` would never win — the
+      // override has to be threaded down to here.
+      fontFace: run.mono ? FONT_MONO : (lineOpts.fontFace ?? ctx.fontBody),
       breakLine: idx === effective.length - 1,
     };
-    if (run.bold) options.bold = true;
+    if (run.bold || lineOpts.bold) options.bold = true;
     if (run.italic || lineOpts.italic) options.italic = true;
     if (run.strike) options.strike = true;
     if (run.link) options.hyperlink = { url: run.link };
@@ -282,19 +584,57 @@ function emitLine(
   });
 }
 
+/** One paragraph: the styled spans (for measuring) plus the emitted pptx runs. */
+interface Para {
+  runs: Run[];
+  props: PptxTextProps[];
+}
+
 /**
- * Convert a slide's markdown body into pptxgenjs text runs. `italic` forces the
- * quote style; `accentBullets` picks numbered vs dot bullets for content
- * variants. Images are dropped (handled separately for image layouts).
+ * A body block, mirroring the markdown structure the deck CSS styles. Lists
+ * stay grouped because the content variants restyle `ul li` as a whole — cards
+ * (v1) and numbered pills (v2) need to address the items, not a flat run list.
  */
-function bodyToTextProps(
+type Block =
+  | { kind: 'list'; ordered: boolean; items: Para[] }
+  | { kind: 'para'; para: Para }
+  | { kind: 'code'; para: Para }
+  | { kind: 'table'; rows: TableRow[] }
+  | { kind: 'image'; src: string; alt: string };
+
+/** One table row. `header` drives the accent fill and the heading face. */
+interface TableRow {
+  header: boolean;
+  cells: Para[];
+}
+
+/** How list markers are produced: by PowerPoint, or by shapes we draw ourselves. */
+type BulletStyle = 'dot' | 'number' | 'none';
+
+/**
+ * Convert a slide's markdown body into blocks of pptxgenjs text runs, ONE ARRAY
+ * PER PARAGRAPH. `emitLine` pushes one run per span, not per paragraph, so a
+ * flat list cannot be cut safely: the two-column split used to slice it by
+ * index and could land `**Wichtig**` and ` und dringend` in different columns.
+ *
+ * `italic` forces the quote style; `bullets` picks the list marker ('none' when
+ * a variant draws its own); `fontFace`/`bold` override the brand body face (the
+ * AT quote uses Vollkorn, which ships only bold faces). Images are dropped —
+ * the image layout handles them separately.
+ */
+function bodyToBlocks(
   markdown: string,
   color: string,
   ctx: BrandCtx,
-  opts: { italic?: boolean; numbered?: boolean } = {}
-): PptxTextProps[] {
+  opts: BodyOpts = {}
+): Block[] {
   const tokens = marked.lexer(markdown);
-  const out: PptxTextProps[] = [];
+  const blocks: Block[] = [];
+  const para = (runs: Run[], lineOpts: LineOpts): Para => {
+    const props: PptxTextProps[] = [];
+    emitLine(props, runs, color, { ...lineOpts, fontFace: opts.fontFace, bold: opts.bold }, ctx);
+    return { runs, props };
+  };
 
   for (const token of tokens) {
     const tok = token as Token & {
@@ -304,43 +644,128 @@ function bodyToTextProps(
       text?: string;
     };
     if (tok.type === 'list' && tok.items) {
-      const ordered = tok.ordered || opts.numbered;
-      tok.items.forEach((item) => {
+      const ordered = tok.ordered || opts.bullets === 'number';
+      const marker: LineOpts['bullet'] =
+        opts.bullets === 'none' ? undefined : ordered ? { type: 'number' } : { code: '2022' };
+      const items = tok.items.map((item) => {
         const runs: Run[] = [];
         collectRuns(item.tokens, {}, runs);
-        emitLine(
-          out,
-          runs,
-          color,
-          {
-            bullet: ordered ? { type: 'number' } : { code: '2022' },
-            indentLevel: 0,
-            italic: opts.italic,
-          },
-          ctx
-        );
+        return para(runs, { bullet: marker, indentLevel: 0, italic: opts.italic });
       });
+      blocks.push({ kind: 'list', ordered, items });
     } else if (tok.type === 'blockquote') {
       const runs: Run[] = [];
       collectRuns(tok.tokens, {}, runs);
-      emitLine(out, runs, color, { italic: true }, ctx);
+      blocks.push({ kind: 'para', para: para(runs, { italic: true }) });
     } else if (tok.type === 'heading') {
       const runs: Run[] = [];
       collectRuns(tok.tokens, { bold: true }, runs);
-      emitLine(out, runs, color, { italic: opts.italic }, ctx);
+      blocks.push({ kind: 'para', para: para(runs, { italic: opts.italic }) });
     } else if (tok.type === 'code') {
-      out.push({
-        text: tok.text ?? '',
-        options: { color, fontFace: FONT_MONO, breakLine: true },
+      const runs: Run[] = [{ text: tok.text ?? '', mono: true }];
+      blocks.push({
+        kind: 'code',
+        para: {
+          runs,
+          props: [
+            { text: tok.text ?? '', options: { color, fontFace: FONT_MONO, breakLine: true } },
+          ],
+        },
       });
+    } else if (tok.type === 'table') {
+      const table = token as Tokens.Table;
+      const row = (cells: Tokens.TableCell[], header: boolean): TableRow => ({
+        header,
+        cells: cells.map((cell) => {
+          const runs: Run[] = [];
+          collectRuns(cell.tokens, header ? { bold: true } : {}, runs);
+          return para(runs, {});
+        }),
+      });
+      const rows: TableRow[] = [];
+      if (table.header.length) rows.push(row(table.header, true));
+      for (const r of table.rows) rows.push(row(r, false));
+      if (rows.length) blocks.push({ kind: 'table', rows });
     } else if (tok.type === 'paragraph') {
-      const runs: Run[] = [];
-      collectRuns(tok.tokens, {}, runs);
-      emitLine(out, runs, color, { italic: opts.italic }, ctx);
+      // Images are block-level on a slide, so a paragraph mixing prose and
+      // `![…](…)` becomes several blocks — mirroring `paragraphToPM` on the
+      // markdown→ProseMirror side, which is what produced this body.
+      let runs: Run[] = [];
+      const flush = () => {
+        if (!runs.length) return;
+        blocks.push({ kind: 'para', para: para(runs, { italic: opts.italic }) });
+        runs = [];
+      };
+      for (const inline of tok.tokens ?? []) {
+        if (inline.type === 'image') {
+          flush();
+          const image = inline as Tokens.Image;
+          if (image.href) blocks.push({ kind: 'image', src: image.href, alt: image.text ?? '' });
+        } else {
+          collectRuns([inline], {}, runs);
+        }
+      }
+      flush();
     }
   }
 
-  return out;
+  return blocks;
+}
+
+/** Whether a body needs shapes placed one below the other rather than one text box. */
+function needsStackedBody(blocks: Block[]): boolean {
+  return blocks.some((b) => b.kind === 'table' || b.kind === 'image');
+}
+
+/**
+ * Every paragraph in document order — the unit the split layout may cut on.
+ *
+ * Used by the layouts that put the whole body in ONE text box (title, quote),
+ * where a shape cannot be placed. A table degrades to one line per row rather
+ * than disappearing; an image has no text form and is left to the layouts that
+ * place shapes (see `addStackedBody`).
+ */
+function blocksToParagraphs(blocks: Block[]): PptxTextProps[][] {
+  return blocks.flatMap((block) => {
+    if (block.kind === 'list') return block.items.map((i) => i.props);
+    if (block.kind === 'image') return [];
+    if (block.kind === 'table') {
+      // `emitLine` terminates every paragraph with `breakLine`, so a row's cells
+      // have to be un-terminated first or each cell would land on its own line.
+      return block.rows.map((row) => {
+        const props: PptxTextProps[] = [];
+        row.cells.forEach((cell, i) => {
+          if (i > 0) props.push({ text: ' · ', options: { ...cell.props[0]?.options } });
+          for (const p of cell.props) props.push({ ...p, options: { ...p.options } });
+        });
+        for (const p of props) if (p.options) p.options.breakLine = false;
+        const last = props[props.length - 1];
+        if (last?.options) last.options.breakLine = true;
+        return props;
+      });
+    }
+    return [block.para.props];
+  });
+}
+
+/**
+ * Body parsing options for a slide. One place, because the measurement pass and
+ * the render pass must agree: measuring dot bullets and then drawing cards
+ * would place every card at the wrong height.
+ */
+function bodyOpts(data: Slide, variant: number, ctx: BrandCtx): BodyOpts {
+  if (data.layout === 'quote') {
+    // AT sets quotes in Vollkorn and forces weight 700 — the app ships only its
+    // Bold/BlackItalic faces, so a regular would be a synthesized fake.
+    return { italic: true, fontFace: ctx.fontQuote, bold: ctx.fontQuote !== null };
+  }
+  // `split` has no variant rules in the deck CSS — it is always plain bullets.
+  // Without this guard a split slide the AI planner marked `variant: 2`
+  // exported numbered while the screen showed dots.
+  if (data.layout !== 'content') return {};
+  // Variants 1 (cards) and 2 (pills) draw their own markers.
+  if (variant === 1 || variant === 2) return { bullets: 'none' };
+  return {};
 }
 
 /** First markdown image URL in a body, if any (for the image layout). */
@@ -364,11 +789,11 @@ function addTitleSlide(
   variant: number,
   accentHex: string,
   dark: boolean,
+  blocks: Block[],
   ctx: BrandCtx,
   ts: TypeScale
 ): void {
   const tColor = titleColor(dark, accentHex);
-  const bColor = bodyColor(dark);
 
   if (variant === 1) {
     slide.addShape('rect', {
@@ -400,7 +825,7 @@ function addTitleSlide(
       text: data.title,
       options: {
         fontFace: ctx.fontHead,
-        fontSize: pt(56 * ts.fs),
+        fontSize: pt(TITLE_FS_LARGE * ts.fs),
         bold: true,
         color: tColor,
         breakLine: true,
@@ -411,8 +836,8 @@ function addTitleSlide(
     });
   }
   if (data.body.trim()) {
-    for (const part of bodyToTextProps(data.body, bColor, ctx)) {
-      const size = part.options?.fontSize ?? pt(28 * ts.fs);
+    for (const part of blocksToParagraphs(blocks).flat()) {
+      const size = part.options?.fontSize ?? pt(BODY_FS * ts.fs);
       runs.push({ text: part.text ?? '', options: { ...part.options, fontSize: size } });
     }
   }
@@ -421,7 +846,7 @@ function addTitleSlide(
     x: MARGIN,
     y: variant === 2 ? inch(252) : 0,
     w: textW,
-    h: variant === 2 ? PAGE_H - inch(252) - inch(48) : PAGE_H,
+    h: variant === 2 ? PAGE_H - inch(252) - inch(PAD_Y) : PAGE_H,
     align,
     valign: variant === 0 ? 'middle' : variant === 1 ? 'middle' : 'top',
     lineSpacingMultiple: 1.15,
@@ -436,46 +861,55 @@ function addQuoteSlide(
   variant: number,
   accentHex: string,
   dark: boolean,
+  blocks: Block[],
   ctx: BrandCtx,
   ts: TypeScale
 ): void {
-  const bColor = bodyColor(dark);
   const ruleColor = dark ? ctx.onDarkSoftHex : accentHex;
 
   if (data.title.trim()) {
     slide.addText(data.title, {
       x: MARGIN,
-      y: inch(64),
+      y: inch(PAD_Y),
       w: CONTENT_W,
-      h: inch(80),
+      h: inch(ts.bodyTop - PAD_Y),
       fontFace: ctx.fontHead,
-      fontSize: pt(44 * ts.fs),
+      fontSize: pt(TITLE_FS * ts.fs),
       bold: true,
       lineSpacingMultiple: ctx.headingLine,
       color: titleColor(dark, accentHex),
       align: variant === 1 ? 'center' : 'left',
+      valign: 'top',
     });
   }
+
+  // The quote block is vertically centred (`justify-content: center`), so 180px
+  // is the right resting place for a one-line title — but the title box now
+  // grows with the measured text, and a three-line quote title would run
+  // straight through the body. Never start above the title's bottom edge.
+  const bodyY = Math.max(180, ts.bodyTop);
+  const bodyH = SURFACE_H - bodyY - PAD_Y;
 
   if (variant === 0) {
     slide.addShape('rect', {
       x: MARGIN,
-      y: inch(180),
+      y: inch(bodyY),
       w: inch(6),
-      h: inch(200),
+      h: inch(bodyH),
       fill: { color: ruleColor },
     });
   }
 
   const bodyX = variant === 0 ? inch(PAD_X + 34) : MARGIN;
-  slide.addText(bodyToTextProps(data.body, bColor, ctx, { italic: true }), {
+  const quoteRuns = blocksToParagraphs(blocks).flat();
+  slide.addText(quoteRuns.length ? quoteRuns : [{ text: '' }], {
     x: bodyX,
-    y: inch(180),
+    y: inch(bodyY),
     w: variant === 0 ? CONTENT_W - inch(34) : CONTENT_W,
-    h: inch(220),
+    h: inch(bodyH),
     valign: 'middle',
     align: variant === 1 ? 'center' : 'left',
-    fontSize: pt(34 * ts.fs),
+    fontSize: pt(QUOTE_FS * ts.fs),
     italic: true,
     lineSpacingMultiple: 1.2,
     ...(ts.shrink ? { fit: 'shrink' as const } : {}),
@@ -494,18 +928,19 @@ function addCodeSlide(
   if (data.title.trim()) {
     slide.addText(data.title, {
       x: MARGIN,
-      y: inch(64),
+      y: inch(PAD_Y),
       w: CONTENT_W,
-      h: inch(70),
+      h: inch(ts.bodyTop - PAD_Y),
       fontFace: ctx.fontHead,
-      fontSize: pt(44 * ts.fs),
+      fontSize: pt(TITLE_FS * ts.fs),
       bold: true,
       lineSpacingMultiple: ctx.headingLine,
       color: titleColor(dark, accentHex),
+      valign: 'top',
     });
   }
-  const panelY = inch(160);
-  const panelH = PAGE_H - panelY - inch(48);
+  const panelY = inch(ts.bodyTop);
+  const panelH = inch(ts.bodyH);
   slide.addShape('roundRect', {
     x: MARGIN,
     y: panelY,
@@ -540,7 +975,15 @@ async function addImageSlide(
 ): Promise<void> {
   const imgUrl = firstImageUrl(data.body);
   const imgData = imgUrl ? await fetchImageData(imgUrl) : null;
+  const natural = imgData ? await imageSize(imgData) : null;
   const tColor = titleColor(dark, accentHex);
+
+  /** Place the picture aspect-correct; fall back to filling the box. */
+  const placeImage = (box: { x: number; y: number; w: number; h: number }): void => {
+    if (!imgData) return;
+    const rect = natural ? containRect(natural.w, natural.h, box) : box;
+    slide.addImage({ data: imgData, ...rect });
+  };
 
   if (variant === 1) {
     if (data.title.trim()) {
@@ -554,81 +997,390 @@ async function addImageSlide(
         bold: true,
         color: tColor,
         valign: 'middle',
+        lineSpacingMultiple: ctx.headingLine,
       });
     }
-    if (imgData) {
-      slide.addImage({ data: imgData, x: inch(400), y: inch(64), w: inch(488), h: inch(412) });
-    }
+    const sideH = Math.min(SURFACE_H - PAD_Y * 2, IMAGE_MAX_H);
+    placeImage({
+      x: inch(400),
+      y: inch((SURFACE_H - sideH) / 2),
+      w: inch(488),
+      h: inch(sideH),
+    });
     return;
   }
 
   if (data.title.trim()) {
     slide.addText(data.title, {
       x: MARGIN,
-      y: inch(64),
+      y: inch(PAD_Y),
       w: CONTENT_W,
-      h: inch(80),
+      h: inch(ts.bodyTop - PAD_Y),
       fontFace: ctx.fontHead,
-      fontSize: pt(44 * ts.fs),
+      fontSize: pt(TITLE_FS * ts.fs),
       bold: true,
       lineSpacingMultiple: ctx.headingLine,
       color: tColor,
+      valign: 'top',
     });
   }
-  if (imgData) {
-    slide.addImage({ data: imgData, x: MARGIN, y: inch(160), w: CONTENT_W, h: inch(316) });
+  // The body box centres the picture, which `max-height: 380px` caps.
+  const boxH = Math.min(ts.bodyH, IMAGE_MAX_H);
+  placeImage({
+    x: MARGIN,
+    y: inch(ts.bodyTop + (ts.bodyH - boxH) / 2),
+    w: CONTENT_W,
+    h: inch(boxH),
+  });
+}
+
+/**
+ * Content variant 1 "Karten": the deck CSS turns the body `ul` into a
+ * two-column grid of rounded cards and hides the bullet. Each card is its own
+ * shape + text box, and grid rows are as tall as their tallest card.
+ */
+async function addCardGrid(
+  slide: PptxSlide,
+  items: Para[],
+  top: number,
+  dark: boolean,
+  ctx: BrandCtx,
+  ts: TypeScale
+): Promise<number> {
+  const { colW, rows } = await measureCards(items, ctx, CONTENT_W_PX, BODY_FS * ts.fs);
+  const fill = dark
+    ? { color: WHITE, transparency: CARD_BG_DARK_ALPHA }
+    : { color: CARD_BG, transparency: 0 };
+
+  let y = top;
+  rows.forEach((rowH, row) => {
+    for (let col = 0; col < 2; col += 1) {
+      const item = items[row * 2 + col];
+      if (!item) continue;
+      const x = PAD_X + col * (colW + CARD_GAP);
+      slide.addShape('roundRect', {
+        x: inch(x),
+        y: inch(y),
+        w: inch(colW),
+        h: inch(rowH),
+        rectRadius: inch(CARD_RADIUS),
+        fill,
+      });
+      slide.addText(item.props, {
+        x: inch(x + CARD_PAD_X),
+        y: inch(y + CARD_PAD_Y),
+        w: inch(colW - CARD_PAD_X * 2),
+        h: inch(rowH - CARD_PAD_Y * 2),
+        fontSize: pt(BODY_FS * ts.fs),
+        valign: 'top',
+        lineSpacingMultiple: BODY_LH,
+      });
+    }
+    y += rowH + (row < rows.length - 1 ? CARD_GAP : 0);
+  });
+  return y;
+}
+
+/**
+ * Content variant 2 "Nummeriert": a 30px accent pill carrying the index in the
+ * heading face, with the item text indented past it. PowerPoint's own numbering
+ * (what this used to emit) cannot be styled that way — wrong shape, wrong
+ * colour, wrong font.
+ */
+async function addNumberedList(
+  slide: PptxSlide,
+  items: Para[],
+  top: number,
+  accentHex: string,
+  dark: boolean,
+  ctx: BrandCtx,
+  ts: TypeScale
+): Promise<number> {
+  const fontPx = BODY_FS * ts.fs;
+  const pill = PILL_SIZE * ts.fs;
+  const pad = PILL_PAD * ts.fs;
+  const fill = dark
+    ? { color: WHITE, transparency: PILL_BG_DARK_ALPHA }
+    : { color: PILL_BG, transparency: 0 };
+
+  let y = top;
+  for (const [index, item] of items.entries()) {
+    const lines = await countLines(item.runs, {
+      faces: ctx.faces,
+      fontPx,
+      maxWidthPx: CONTENT_W_PX - pad,
+    });
+    const h = Math.max(lines * fontPx * BODY_LH, pill);
+    slide.addShape('ellipse', {
+      x: MARGIN,
+      y: inch(y),
+      w: inch(pill),
+      h: inch(pill),
+      fill,
+    });
+    slide.addText(String(index + 1), {
+      x: MARGIN,
+      y: inch(y),
+      w: inch(pill),
+      h: inch(pill),
+      align: 'center',
+      valign: 'middle',
+      fontFace: ctx.fontHead,
+      fontSize: pt(PILL_FS * ts.fs),
+      bold: true,
+      color: dark ? WHITE : accentHex,
+    });
+    slide.addText(item.props, {
+      x: inch(PAD_X + pad),
+      y: inch(y),
+      w: inch(CONTENT_W_PX - pad),
+      h: inch(h),
+      fontSize: pt(fontPx),
+      valign: 'middle',
+      lineSpacingMultiple: BODY_LH,
+    });
+    y += h + ITEM_GAP * ts.fs;
+  }
+  return y;
+}
+
+/** Content / split layouts: title top, bullet (or card / numbered / two-column) body. */
+/**
+ * Place a text box exactly as tall as its wrapped content and return the y
+ * below it. `gap` is the trailing rhythm (list item margin or paragraph
+ * margin); `padPx` is the inline padding the marker occupies.
+ */
+async function addFlowText(
+  slide: PptxSlide,
+  paras: Para[],
+  top: number,
+  gap: number,
+  padPx: number,
+  ctx: BrandCtx,
+  ts: TypeScale
+): Promise<number> {
+  const fontPx = BODY_FS * ts.fs;
+  let h = 0;
+  for (const para of paras) {
+    const lines = await countLines(para.runs, {
+      faces: ctx.faces,
+      fontPx,
+      maxWidthPx: CONTENT_W_PX - padPx,
+    });
+    h += lines * fontPx * BODY_LH + gap;
+  }
+  slide.addText(
+    paras.flatMap((p) => p.props),
+    {
+      x: MARGIN,
+      y: inch(top),
+      w: CONTENT_W,
+      h: inch(h),
+      fontSize: pt(fontPx),
+      valign: 'top',
+      lineSpacingMultiple: BODY_LH,
+    }
+  );
+  return top + h;
+}
+
+/**
+ * A real PowerPoint table, styled like `.gruene-slide__body table`: accent
+ * header row, zebra body rows, a hairline rule under each body row.
+ *
+ * The deck CSS sets `table-layout: fixed; width: 100%`, so the columns are
+ * equal and the table always spans the content width — only type and padding
+ * follow the type scale. `fit: 'shrink'` does not apply to a table, which is
+ * why the row heights come from the same measurement the auto-fit step used.
+ */
+async function addTableBlock(
+  slide: PptxSlide,
+  block: Extract<Block, { kind: 'table' }>,
+  top: number,
+  accentHex: string,
+  dark: boolean,
+  ctx: BrandCtx,
+  ts: TypeScale
+): Promise<number> {
+  const { heights, total } = await measureTableRows(block.rows, ctx, CONTENT_W_PX);
+  const columns = block.rows.reduce((max, row) => Math.max(max, row.cells.length), 0);
+  if (!columns) return top;
+
+  const headOffset = block.rows[0]?.header ? 1 : 0;
+  const rule = dark ? TABLE_RULE_DARK : TABLE_RULE;
+  const rows = block.rows.map((row, i) => {
+    const zebra = !row.header && (i - headOffset) % 2 === 1;
+    const fill = row.header
+      ? dark
+        ? { color: WHITE, transparency: TABLE_HEAD_DARK_ALPHA }
+        : { color: accentHex, transparency: 0 }
+      : zebra
+        ? dark
+          ? { color: WHITE, transparency: TABLE_ZEBRA_DARK_ALPHA }
+          : { color: TABLE_ZEBRA, transparency: 0 }
+        : undefined;
+    return Array.from({ length: columns }, (_, c) => {
+      const cell = row.cells[c];
+      // Cell runs must not break the line — pptxgenjs would add a paragraph.
+      const text = cell
+        ? cell.props.map((p) => ({ ...p, options: { ...p.options, breakLine: false } }))
+        : [{ text: '' }];
+      return {
+        text,
+        options: {
+          color: row.header ? WHITE : bodyColor(dark),
+          fontFace: row.header ? ctx.fontHead : ctx.fontBody,
+          fontSize: pt(TABLE_FS * ts.fs),
+          bold: row.header,
+          valign: 'top' as const,
+          margin: [
+            pt(TABLE_PAD_Y * ts.fs),
+            pt(TABLE_PAD_X * ts.fs),
+            pt(TABLE_PAD_Y * ts.fs),
+            pt(TABLE_PAD_X * ts.fs),
+          ] as [number, number, number, number],
+          ...(fill ? { fill } : {}),
+          border: row.header
+            ? ([{ type: 'none' }, { type: 'none' }, { type: 'none' }, { type: 'none' }] as const)
+            : ([
+                { type: 'none' },
+                { type: 'none' },
+                { pt: 0.75, color: rule },
+                { type: 'none' },
+              ] as const),
+        },
+      };
+    });
+  });
+
+  // Boundary cast: pptxgenjs types a cell's rich text as its own TextProps
+  // array, which our Para already holds — structurally identical, nominally not.
+  slide.addTable(rows as unknown as Parameters<PptxSlide['addTable']>[0], {
+    x: MARGIN,
+    y: inch(top),
+    w: CONTENT_W,
+    colW: Array.from({ length: columns }, () => CONTENT_W / columns),
+    rowH: heights.map((h) => inch(h * ts.fs)),
+    autoPage: false,
+  });
+  return top + total * ts.fs + TABLE_GAP * ts.fs;
+}
+
+/**
+ * A body image, fitted like `object-fit: contain` inside the CSS max-height box.
+ * The box is reserved whether or not the fetch succeeds, so a dead URL leaves a
+ * gap instead of pulling everything below it up out of place.
+ */
+async function addBodyImage(
+  slide: PptxSlide,
+  block: Extract<Block, { kind: 'image' }>,
+  top: number,
+  ts: TypeScale
+): Promise<number> {
+  const boxH = BODY_IMAGE_MAX_H * ts.fs;
+  const data = await fetchImageData(block.src);
+  if (data) {
+    const box = { x: MARGIN, y: inch(top), w: CONTENT_W, h: inch(boxH) };
+    const size = await imageSize(data);
+    const rect = size ? containRect(size.w, size.h, box) : box;
+    slide.addImage({ data, ...rect, ...(block.alt ? { altText: block.alt } : {}) });
+  }
+  return top + boxH;
+}
+
+/**
+ * Bodies whose blocks are placed one below the other instead of poured into a
+ * single text box. Needed by the content variants that draw their own markers,
+ * and by any body holding a table or an image — neither is text, so neither can
+ * live in a text box.
+ */
+async function addStackedBody(
+  slide: PptxSlide,
+  blocks: Block[],
+  variant: number,
+  accentHex: string,
+  dark: boolean,
+  ctx: BrandCtx,
+  ts: TypeScale
+): Promise<void> {
+  let y = ts.bodyTop;
+  for (const block of blocks) {
+    if (block.kind === 'list') {
+      if (variant === 1) y = await addCardGrid(slide, block.items, y, dark, ctx, ts);
+      else if (variant === 2)
+        y = await addNumberedList(slide, block.items, y, accentHex, dark, ctx, ts);
+      else
+        y = await addFlowText(slide, block.items, y, ITEM_GAP * ts.fs, BULLET_PAD * ts.fs, ctx, ts);
+    } else if (block.kind === 'table') {
+      y = await addTableBlock(slide, block, y, accentHex, dark, ctx, ts);
+    } else if (block.kind === 'image') {
+      y = await addBodyImage(slide, block, y, ts);
+    } else {
+      y = await addFlowText(slide, [block.para], y, PARA_GAP * BODY_FS * ts.fs, 0, ctx, ts);
+    }
   }
 }
 
-/** Content / split layouts: title top, bullet (or numbered / two-column) body. */
-function addContentSlide(
+async function addContentSlide(
   slide: PptxSlide,
   data: Slide,
   variant: number,
   accentHex: string,
   dark: boolean,
   split: boolean,
+  blocks: Block[],
   ctx: BrandCtx,
   ts: TypeScale
-): void {
-  const bColor = bodyColor(dark);
+): Promise<void> {
   if (data.title.trim()) {
     slide.addText(data.title, {
       x: MARGIN,
-      y: inch(64),
-      w: CONTENT_W,
-      h: inch(70),
+      y: inch(PAD_Y),
+      w: inch(titleWidthPx(data, variant)),
+      h: inch(ts.bodyTop - PAD_Y),
       fontFace: ctx.fontHead,
-      fontSize: pt(44 * ts.fs),
+      fontSize: pt(TITLE_FS * ts.fs),
       bold: true,
       lineSpacingMultiple: ctx.headingLine,
       color: titleColor(dark, accentHex),
+      valign: 'top',
     });
   }
 
-  const bodyY = inch(160);
-  const bodyH = PAGE_H - bodyY - inch(48);
-  const runs = bodyToTextProps(data.body, bColor, ctx, { numbered: variant === 2 });
+  const bodyY = inch(ts.bodyTop);
+  const bodyH = inch(ts.bodyH);
+
+  // A table or an image is a shape, not text, so it cannot be poured into a
+  // column or a single box — those bodies always stack. This also takes the
+  // split layout: two 4.25in columns are no place for a table anyway.
+  if (variant === 1 || variant === 2 || needsStackedBody(blocks)) {
+    await addStackedBody(slide, blocks, variant, accentHex, dark, ctx, ts);
+    return;
+  }
 
   if (split) {
-    const mid = Math.ceil(runs.length / 2);
-    const colW = (CONTENT_W - inch(48)) / 2;
-    slide.addText(runs.slice(0, mid), {
+    // Split on PARAGRAPH boundaries, never inside one.
+    const paragraphs = blocksToParagraphs(blocks);
+    const mid = Math.ceil(paragraphs.length / 2);
+    const left = paragraphs.slice(0, mid).flat();
+    const right = paragraphs.slice(mid).flat();
+    const colW = (CONTENT_W - inch(SPLIT_GAP)) / 2;
+    slide.addText(left.length ? left : [{ text: '' }], {
       x: MARGIN,
       y: bodyY,
       w: colW,
       h: bodyH,
-      fontSize: pt(28 * ts.fs),
+      fontSize: pt(BODY_FS * ts.fs),
       valign: 'top',
       lineSpacingMultiple: 1.15,
       ...(ts.shrink ? { fit: 'shrink' as const } : {}),
     });
-    slide.addText(runs.slice(mid).length ? runs.slice(mid) : [{ text: '' }], {
-      x: MARGIN + colW + inch(48),
+    slide.addText(right.length ? right : [{ text: '' }], {
+      x: MARGIN + colW + inch(SPLIT_GAP),
       y: bodyY,
       w: colW,
       h: bodyH,
-      fontSize: pt(28 * ts.fs),
+      fontSize: pt(BODY_FS * ts.fs),
       valign: 'top',
       lineSpacingMultiple: 1.15,
       ...(ts.shrink ? { fit: 'shrink' as const } : {}),
@@ -636,12 +1388,13 @@ function addContentSlide(
     return;
   }
 
+  const runs = blocksToParagraphs(blocks).flat();
   slide.addText(runs.length ? runs : [{ text: '' }], {
     x: MARGIN,
     y: bodyY,
     w: CONTENT_W,
     h: bodyH,
-    fontSize: pt(28 * ts.fs),
+    fontSize: pt(BODY_FS * ts.fs),
     valign: 'top',
     lineSpacingMultiple: 1.15,
     ...(ts.shrink ? { fit: 'shrink' as const } : {}),
@@ -658,17 +1411,19 @@ async function addSlide(
   const slide = pptx.addSlide();
   const accentHex = toHex(accent) ?? '316049';
   const variant = data.variant ?? 0;
-  const ts = slideTypeScale(data);
 
   const bg = await resolveBackground(data, accent);
   slide.background = bg.image ? { data: bg.image } : { color: bg.color ?? WHITE_HEX };
 
+  const blocks = bodyToBlocks(data.body, bodyColor(bg.dark), ctx, bodyOpts(data, variant, ctx));
+  const ts = await slideTypeScale(data, blocks, ctx);
+
   switch (data.layout) {
     case 'title':
-      addTitleSlide(slide, data, variant, accentHex, bg.dark, ctx, ts);
+      addTitleSlide(slide, data, variant, accentHex, bg.dark, blocks, ctx, ts);
       break;
     case 'quote':
-      addQuoteSlide(slide, data, variant, accentHex, bg.dark, ctx, ts);
+      addQuoteSlide(slide, data, variant, accentHex, bg.dark, blocks, ctx, ts);
       break;
     case 'code':
       addCodeSlide(slide, data, accentHex, bg.dark, ctx, ts);
@@ -677,11 +1432,11 @@ async function addSlide(
       await addImageSlide(slide, data, variant, accentHex, bg.dark, ctx, ts);
       break;
     case 'split':
-      addContentSlide(slide, data, variant, accentHex, bg.dark, true, ctx, ts);
+      await addContentSlide(slide, data, variant, accentHex, bg.dark, true, blocks, ctx, ts);
       break;
     case 'content':
     default:
-      addContentSlide(slide, data, variant, accentHex, bg.dark, false, ctx, ts);
+      await addContentSlide(slide, data, variant, accentHex, bg.dark, false, blocks, ctx, ts);
   }
 
   // Country logo, title slides only. Variant 1 (Geteilt) puts the accent side

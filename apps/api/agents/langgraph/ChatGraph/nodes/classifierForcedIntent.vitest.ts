@@ -268,31 +268,31 @@ describe('Tier 1 — edit_current_doc (currentDocument + edit verb)', () => {
 // ── TIER 2: Context intents (resource presence, no mutation keywords) ────
 
 describe('Tier 2 — context intents (resource presence only)', () => {
-  it('board without mutation keywords → direct', async () => {
+  it('board without mutation keywords → produktion', async () => {
     const state = buildState({
       userMessage: 'was steht auf dem board?',
       boardIds: ['board-123'],
     });
     const result = await classifierNode(state);
-    expect(result.intent).toBe('direct');
+    expect(result.intent).toBe('produktion');
   });
 
-  it('doc without mutation keywords → direct', async () => {
+  it('doc without mutation keywords → produktion', async () => {
     const state = buildState({
       userMessage: 'worum geht es in dem Dokument?',
       docMentionIds: ['doc-123'],
     });
     const result = await classifierNode(state);
-    expect(result.intent).toBe('direct');
+    expect(result.intent).toBe('produktion');
   });
 
-  it('image attachment without other context → direct', async () => {
+  it('image attachment without other context → produktion', async () => {
     const state = buildState({
       userMessage: 'was zeigt dieses Bild?',
       imageAttachments: [{ url: 'data:image/png;base64,...', mimeType: 'image/png' }],
     });
     const result = await classifierNode(state);
-    expect(result.intent).toBe('direct');
+    expect(result.intent).toBe('produktion');
   });
 
   it('file attachment + summary request → summary', async () => {
@@ -304,13 +304,13 @@ describe('Tier 2 — context intents (resource presence only)', () => {
     expect(result.intent).toBe('summary');
   });
 
-  it('file attachment without summary keywords → direct', async () => {
+  it('file attachment without summary keywords → produktion', async () => {
     const state = buildState({
       userMessage: 'was steht in der Datei?',
       attachmentContext: 'Inhalt der hochgeladenen Datei...',
     });
     const result = await classifierNode(state);
-    expect(result.intent).toBe('direct');
+    expect(result.intent).toBe('produktion');
   });
 });
 
@@ -327,7 +327,7 @@ describe('Edge cases — multiple resource types combined', () => {
     expect(result.intent).toBe('modify_board');
   });
 
-  it('board + image + NO mutation keyword → direct (image tier 2 wins)', async () => {
+  it('board + image + NO mutation keyword → produktion (image tier 2 wins)', async () => {
     const state = buildState({
       userMessage: 'was zeigt dieses Bild im Kontext des Boards?',
       boardIds: ['board-123'],
@@ -335,7 +335,7 @@ describe('Edge cases — multiple resource types combined', () => {
     });
     const result = await classifierNode(state);
     // No mutation keyword → tier 1 skipped → tier 2: image check fires first
-    expect(result.intent).toBe('direct');
+    expect(result.intent).toBe('produktion');
   });
 
   it('board + doc + mutation keyword → modify_board (first tier 1 match)', async () => {
@@ -358,14 +358,14 @@ describe('Edge cases — multiple resource types combined', () => {
     expect(result.intent).toBe('modify_doc');
   });
 
-  it('doc + image + NO mutation keyword → direct (image tier 2)', async () => {
+  it('doc + image + NO mutation keyword → produktion (image tier 2)', async () => {
     const state = buildState({
       userMessage: 'vergleiche das Bild mit dem Dokument',
       docMentionIds: ['doc-123'],
       imageAttachments: [{ url: 'data:image/png;base64,...', mimeType: 'image/png' }],
     });
     const result = await classifierNode(state);
-    expect(result.intent).toBe('direct');
+    expect(result.intent).toBe('produktion');
   });
 
   it('board + attachment + mutation keyword → modify_board (tier 1 wins over attachment)', async () => {
@@ -378,14 +378,14 @@ describe('Edge cases — multiple resource types combined', () => {
     expect(result.intent).toBe('modify_board');
   });
 
-  it('board + attachment + NO mutation keyword → direct (attachment tier 2)', async () => {
+  it('board + attachment + NO mutation keyword → produktion (attachment tier 2)', async () => {
     const state = buildState({
       userMessage: 'was sagt die Datei zum Board?',
       boardIds: ['board-123'],
       attachmentContext: 'OCR-extracted content...',
     });
     const result = await classifierNode(state);
-    expect(result.intent).toBe('direct');
+    expect(result.intent).toBe('produktion');
   });
 
   it('board + doc + image + mutation → modify_board (tier 1, board first)', async () => {
@@ -449,13 +449,13 @@ describe('Tier 2 — image_edit (edit verb + image signal)', () => {
     expect(result.intent).toBe('image_edit');
   });
 
-  it('image attached + plain question (no edit verb) → direct (vision Q&A preserved)', async () => {
+  it('image attached + plain question (no edit verb) → produktion (vision Q&A preserved)', async () => {
     const state = buildState({
       userMessage: 'was siehst du auf diesem Bild?',
       imageAttachments: [{ url: 'data:image/png;base64,...', mimeType: 'image/png' }],
     });
     const result = await classifierNode(state);
-    expect(result.intent).toBe('direct');
+    expect(result.intent).toBe('produktion');
   });
 
   it('"bearbeite den Text" without image attachment or noun → NOT image_edit', async () => {

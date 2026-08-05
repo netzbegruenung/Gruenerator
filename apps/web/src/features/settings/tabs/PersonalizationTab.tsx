@@ -1,9 +1,11 @@
+import { stripRoleBlock } from '@gruenerator/shared/roles';
 import { Button, toast } from '@gruenerator/ui';
 import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 
 import { SettingsFormSkeleton } from '../components/SettingsSkeleton';
 
+import { readCustomPrompt } from './customPromptField';
 import RolesSection from './RolesSection';
 
 import { QUERY_KEYS, useProfile } from '@/features/auth/hooks/useProfileData';
@@ -35,9 +37,13 @@ const CustomPromptSection = () => {
   const savedPromptRef = useRef('');
   const isInitialized = useRef(false);
 
+  // Die Spalte gehört jetzt allein diesem Feld. Ein Rollenblock, den der
+  // Wizard früher hineingeschrieben hat, wird beim Anzeigen entfernt und beim
+  // nächsten Speichern damit auch aus der Spalte — er läuft ohnehin nicht mehr
+  // im Prompt mit.
   useEffect(() => {
     if (!profile || isInitialized.current) return;
-    const initialPrompt = (profile as { custom_prompt?: string }).custom_prompt || '';
+    const initialPrompt = stripRoleBlock(readCustomPrompt(profile));
     setCustomPrompt(initialPrompt);
     savedPromptRef.current = initialPrompt;
     isInitialized.current = true;
@@ -45,7 +51,7 @@ const CustomPromptSection = () => {
 
   const saveMutation = useMutation({
     mutationFn: async () =>
-      profileApiService.updateProfile({ custom_prompt: customPrompt || null }),
+      profileApiService.updateProfile({ custom_prompt: customPrompt.trim() || null }),
     onSuccess: (updatedProfile: Profile) => {
       if (user?.id) {
         queryClient.setQueryData(['profileData', user.id], (oldData: Profile | undefined) => ({

@@ -115,7 +115,6 @@ function App() {
   const { login, setAuthState } = useAuthStore();
   const reduceMotion = useAuthStore((s) => s.user?.reduce_motion ?? false);
   const reduceTransparency = useAuthStore((s) => s.user?.reduce_transparency ?? false);
-  const showSkipLink = useAuthStore((s) => s.user?.show_skip_link ?? false);
 
   // Mirror the profile's a11y preferences onto <html>, next to data-theme from
   // useDarkMode — accessibility.css keys its global guards off these attributes.
@@ -182,11 +181,6 @@ function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        {showSkipLink && (
-          <a href="#main-content" className="skip-link">
-            Zum Inhalt springen
-          </a>
-        )}
         <UserProfileHydrationBridge />
         <Toaster richColors position="top-right" />
         <TooltipProvider>

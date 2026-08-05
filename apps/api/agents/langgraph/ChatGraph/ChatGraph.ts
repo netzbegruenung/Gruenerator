@@ -20,7 +20,7 @@
 import { resolveSkillMention } from '@gruenerator/shared/agents';
 
 import {
-  isKnownNotebook,
+  isNotebookImplicitlySearchable,
   isUserNotebookId,
   resolveNotebookCollections,
   resolveUserNotebookDocumentIds,
@@ -91,10 +91,14 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
   // arrive pre-resolved as `defaultNotebookDocumentIds` from streamContext).
   // System slugs → collections; user-UUID notebooks → ownership-checked doc IDs.
   // @notebook mentions (`notebookCollectionIds`) still hard-override these downstream.
+  // Both halves are *default* scoping: they widen every turn without the turn
+  // having asked, so they go through the implicit gate. A notebook this instance
+  // hides therefore never becomes an ambient source — only an explicit @mention
+  // (see `streamContext.ts`) can still reach it.
   const agentNotebookIds = agentConfig.defaultNotebookIds ?? [];
   const defaultNotebookSlugs = [
-    ...agentNotebookIds.filter(isKnownNotebook),
-    ...(input.defaultNotebookId && isKnownNotebook(input.defaultNotebookId)
+    ...agentNotebookIds.filter(isNotebookImplicitlySearchable),
+    ...(input.defaultNotebookId && isNotebookImplicitlySearchable(input.defaultNotebookId)
       ? [input.defaultNotebookId]
       : []),
   ];
@@ -199,7 +203,11 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     perSourceResults: {},
     synthesisMode: null,
 
-    // Classification (will be set by classifier node)
+    // Classification (will be set by classifier node).
+    // Stays `direct` and does NOT follow the residual to `agentic`: this is the
+    // value a turn carries if classification never ran at all, and the inert
+    // no-tool verdict is the right thing to fail into. `agentic` here would put
+    // an unclassified turn into the tool loop.
     intent: 'direct' as SearchIntent,
     secondaryIntent: null,
     searchSources: [],

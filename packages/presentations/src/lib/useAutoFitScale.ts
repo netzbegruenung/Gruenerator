@@ -35,6 +35,23 @@ export function pickScale(fits: (scale: number) => boolean, from: number): numbe
 }
 
 /**
+ * Broadcast on `window` to make every mounted surface re-measure now.
+ *
+ * Needed because none of the passive triggers below can fire in the PDF export:
+ * until reveal's PrintView has rebuilt the deck, every slide but the current one
+ * is `display: none` and measures 0, where `fit` bails. By then the contentKey
+ * layout effect has long run, `fonts.ready`/`loadingdone` are one-shot and may
+ * have resolved earlier, and the viewport-rooted IntersectionObserver never
+ * fires for slides in a print stack nobody scrolls. `.gruene-slide` is
+ * `overflow: hidden`, so the failure is silent — clipped text in the PDF.
+ *
+ * Listeners bind `fit` directly, NOT `schedule`: dispatch then runs the fit
+ * synchronously, so the caller can print immediately afterwards without an
+ * assumption about rAF ordering.
+ */
+export const SLIDE_REFIT_EVENT = 'gruenerator:slides-refit';
+
+/**
  * PowerPoint-style shrink-on-overflow for a fixed 960×540 slide surface.
  *
  * Measures the surface element itself (`scrollHeight` vs `clientHeight`) — the
@@ -75,7 +92,11 @@ export function useAutoFitScale(
     if (!el || el.clientHeight === 0) return;
     const chosen = pickScale((s) => {
       el.style.setProperty('--gs-font-scale', String(s));
-      return el.scrollHeight <= el.clientHeight + 1;
+      // Both axes: text only ever overflows downwards, but a table column or an
+      // image with intrinsic dimensions overflows sideways, where the surface
+      // clips it without ever growing taller — a height-only probe reports that
+      // as "fits".
+      return el.scrollHeight <= el.clientHeight + 1 && el.scrollWidth <= el.clientWidth + 1;
     }, scaleRef.current);
     // The walk may have ended on a rejected probe — apply the winner.
     el.style.setProperty('--gs-font-scale', String(chosen));
@@ -107,6 +128,7 @@ export function useAutoFitScale(
     document.fonts?.addEventListener('loadingdone', schedule);
     // <img> loads change body height; load doesn't bubble — capture phase.
     el?.addEventListener('load', schedule, true);
+    window.addEventListener(SLIDE_REFIT_EVENT, fit);
     const io =
       typeof IntersectionObserver !== 'undefined'
         ? new IntersectionObserver((entries) => {
@@ -119,9 +141,10 @@ export function useAutoFitScale(
       cancelAnimationFrame(rafRef.current);
       document.fonts?.removeEventListener('loadingdone', schedule);
       el?.removeEventListener('load', schedule, true);
+      window.removeEventListener(SLIDE_REFIT_EVENT, fit);
       io?.disconnect();
     };
-  }, [enabled, schedule]);
+  }, [enabled, schedule, fit]);
 
   return { ref, scale: enabled ? scale : 1 };
 }

@@ -11,7 +11,7 @@ import { flagEditResubmit } from './message/threadRunSignals';
  * The edit surface for a sent message, shown in place of the bubble while
  * `message.composer.isEditing` holds.
  *
- * Input and Cancel need no wiring: inside a message scope `aui.composer()`
+ * Input and Cancel need no wiring: inside a message scope `aui.composer`
  * resolves to that message's edit composer rather than the thread composer, so
  * they already act on the right one. Sending forks the conversation at this
  * message — the branch picker beside the edit button is what makes the previous
@@ -20,7 +20,7 @@ import { flagEditResubmit } from './message/threadRunSignals';
  * Send is the exception. It has to flag the run as an edit-resubmit *before*
  * handing over, and `ComposerPrimitive.Send` takes no `onPress`
  * (`Omit<PressableProps, "onPress">`) — so this calls the same
- * `aui.composer().send()` the primitive would, one step later. `canSend` is the
+ * `aui.composer.send()` the primitive would, one step later. `canSend` is the
  * primitive's own gate, kept so an empty edit still cannot be submitted.
  */
 export const MessageEditComposer = memo(function MessageEditComposer() {
@@ -31,7 +31,7 @@ export const MessageEditComposer = memo(function MessageEditComposer() {
 
   const handleSend = useCallback(() => {
     flagEditResubmit(messageId);
-    aui.composer().send();
+    aui.composer.send();
   }, [aui, messageId]);
 
   return (

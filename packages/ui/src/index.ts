@@ -3,6 +3,7 @@ export { RetroGrid } from './components/retro-grid';
 export { ImageComparisonSlider } from './components/ui/image-comparison-slider-horizontal';
 export { cn } from './lib/cn';
 export { useIsMobile } from './hooks/use-mobile';
+export { useIsNarrowerThan } from './hooks/use-container-width';
 export {
   ResponsiveMenu,
   ResponsiveMenuSection,
@@ -242,6 +243,7 @@ export {
 export { ProcessingState, type ProcessingStateProps } from './components/processing-state';
 export { PreviewImage, type PreviewImageProps } from './components/preview-image';
 export { FeatureCard, type FeatureCardProps } from './components/feature-card';
+export { InteractiveCard, interactiveCardControl } from './components/interactive-card';
 
 export {
   PillGroup,

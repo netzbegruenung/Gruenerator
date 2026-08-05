@@ -1,6 +1,6 @@
-import { ThreadPrimitive } from '@assistant-ui/react-native';
+import { ThreadPrimitive, AuiIf } from '@assistant-ui/react-native';
 import { useAuth } from '@gruenerator/shared/hooks';
-import { memo, useRef } from 'react';
+import { memo, useMemo, useRef } from 'react';
 import { View, Text, type TextInput, StyleSheet } from 'react-native';
 import {
   KeyboardAvoidingView,
@@ -9,6 +9,7 @@ import {
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useContentColumn } from '../../hooks/useLayout';
 import { useTheme } from '../../hooks/useTheme';
 import { spacing, BODY_FONT, typeScale } from '../../theme';
 import {
@@ -17,7 +18,7 @@ import {
   SCREEN_EDGE,
 } from '../../theme/layout';
 import { mobileGreeting } from '../../utils/greeting';
-import { Composer, composerEdgeStyle, type ComposerAccessory } from '../common/Composer';
+import { Composer, useComposerEdge, type ComposerAccessory } from '../common/Composer';
 
 import { CompactionIndicator } from './CompactionIndicator';
 import { MessageBubble } from './MessageBubble';
@@ -88,7 +89,7 @@ const EmptyState = memo(function EmptyState({
   );
 });
 
-const messagesContentStyle = { paddingTop: spacing.small };
+const messagesPadding = { paddingTop: spacing.small };
 
 /**
  * Module-level so the memoized row sees a stable reference — the primitive
@@ -125,6 +126,17 @@ export const AssistantThread = memo(function AssistantThread({
     paddingBottom: restingPad + (raisedPad - restingPad) * keyboard.progress.value,
   }));
 
+  // The list and the composer under it sit in the same reading column, so a
+  // bubble and the field it was typed in keep one shared edge. Uncapped, a
+  // bubble reached 836dp on an iPad — about 145 characters a line.
+  //
+  // Memoized because `ThreadPrimitive.Messages` re-renders every row when this
+  // identity changes; it used to be a module constant for exactly that reason,
+  // and now has to depend on the window instead.
+  const column = useContentColumn('reading');
+  const messagesContentStyle = useMemo(() => [column, messagesPadding], [column]);
+  const composerEdge = useComposerEdge();
+
   return (
     <KeyboardAvoidingView
       behavior="padding"
@@ -137,9 +149,9 @@ export const AssistantThread = memo(function AssistantThread({
           { backgroundColor: transparent ? 'transparent' : theme.background },
         ]}
       >
-        <ThreadPrimitive.Empty>
+        <AuiIf condition={(s) => s.thread.isEmpty}>
           <EmptyState theme={theme} welcome={welcome} />
-        </ThreadPrimitive.Empty>
+        </AuiIf>
         {/* Above the list rather than inside it, like web: the summary covers
             the whole thread, not one message. */}
         <CompactionIndicator theme={theme} />
@@ -161,7 +173,7 @@ export const AssistantThread = memo(function AssistantThread({
             showActionSheet
             theme={theme}
             style={[
-              composerEdgeStyle,
+              composerEdge,
               { backgroundColor: transparent ? 'transparent' : theme.background },
             ]}
             testIDPrefix="chat-composer"

@@ -5,6 +5,7 @@ import {
   PASSTHROUGH_METADATA_FIELDS,
   type LoadedMessage,
 } from './threadMessageConversion';
+import { PASTED_TEXT_ATTACHMENT_NAME, PASTED_TEXT_PREVIEW_PART_NAME } from '../lib/pastedText';
 
 // Regression guard for the live⇄reload contract: rich content that renders live
 // (via SSE, onto `custom.*`) must be reconstructable from persisted metadata so a
@@ -23,6 +24,16 @@ function customOf(metadata: LoadedMessage['metadata']): Record<string, unknown> 
 // field name so the `it.each` below cannot pass unless each key is handled.
 const PASSTHROUGH_SAMPLES: Record<(typeof PASSTHROUGH_METADATA_FIELDS)[number], unknown> = {
   citations: [{ id: 'c1', title: 'Quelle' }],
+  searchImages: [
+    {
+      title: 'Demo in Berlin',
+      url: 'https://example.test/demo.jpg',
+      domain: 'example.test',
+      // Present on the wire but never in the database — the backend mints it
+      // fresh on every load, so what reaches this converter already carries one.
+      proxyUrl: '/api/search-image?url=x&exp=1&sig=y',
+    },
+  ],
   generatedImage: { url: 'https://example.test/i.png', filename: 'i.png' },
   createdDocument: {
     documentId: 'doc_1',
@@ -42,6 +53,35 @@ const PASSTHROUGH_SAMPLES: Record<(typeof PASSTHROUGH_METADATA_FIELDS)[number], 
 };
 
 describe('convertToThreadMessageLike — reload reconstruction', () => {
+  it('rehydrates pasted text as a display-only attachment', () => {
+    const [message] = convertToThreadMessageLike([
+      {
+        id: 'm-paste',
+        role: 'user',
+        content: 'Bitte fasse das zusammen.',
+        attachments: [
+          {
+            id: 'a-paste',
+            name: PASTED_TEXT_ATTACHMENT_NAME,
+            contentType: 'text/plain',
+            preview: 'Erster Absatz aus dem eingefügten Text.',
+            truncated: false,
+          },
+        ],
+      },
+    ]);
+
+    const attachments = (
+      message as { attachments?: Array<{ content: Array<{ name?: string; data?: unknown }> }> }
+    ).attachments;
+    expect(attachments).toHaveLength(1);
+    expect(attachments?.[0]?.content[0]).toEqual({
+      type: 'data',
+      name: PASTED_TEXT_PREVIEW_PART_NAME,
+      data: { text: 'Erster Absatz aus dem eingefügten Text.', truncated: false },
+    });
+  });
+
   it.each(PASSTHROUGH_METADATA_FIELDS)(
     'rehydrates the "%s" passthrough field onto custom',
     (field) => {

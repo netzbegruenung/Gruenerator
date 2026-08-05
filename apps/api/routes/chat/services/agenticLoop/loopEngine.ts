@@ -6,7 +6,7 @@
  *  - `unified`: the selected model drives tools AND writes the answer in one
  *    streamed pass. Used only when the selection is a fast native tool-caller
  *    (Mistral) — fastest and highest-fidelity.
- *  - `split` (planner/executor): a fixed fast planner (INTERMEDIATE_MODEL) runs
+ *  - `split` (planner/executor): a fixed fast planner (`standard` stage) runs
  *    the ADAPTIVE tool loop and gathers evidence into the source registry, then
  *    the selected model writes the answer ONCE over those sources (no tools).
  *    Every tool call runs on the confirmed tool-caller, so loop tool-calling no
@@ -98,6 +98,11 @@ const GATHER_SUFFIX = [
   'ARBEITSPHASE (hier erledigst du die TOOL-Arbeit: Belege sammeln UND angeforderte Inhalte erstellen — die finale Textantwort schreibst du NICHT hier):',
   '- Für grüne Positionen, Programme und Beschlüsse ZUERST gruenerator_search (interne Dokumente). Nutze die Websuche NUR, wenn die internen Dokumente die Frage nicht abdecken oder es um tagesaktuelle Ereignisse/Zahlen geht — NICHT parallel oder auf Vorrat. Bei Fragen OHNE Parteibezug (Allgemeinwissen, Personen, Ereignisse, Zahlen) suchst du DIREKT im Web — gruenerator_search kennt ausschließlich Parteidokumente.',
   '- Verlass dich NICHT auf dein eigenes Wissen — belege mit Tools. Aber STOPPE, sobald die ersten 1–2 Treffer die Frage beantworten; sammle nicht auf Vorrat und wiederhole keine ähnlichen Suchen.',
+  // Live am 02.08.2026: eine Rückfrage zu einer eingefügten Fallstudie löste
+  // `web_search "Projekt GrünMobil Mobilitätsprojekt Pilotgebiet Budget"` aus —
+  // ein Name, den es nur in dieser Unterhaltung gab. Das Web kann dazu per
+  // Konstruktion nur Fremdes liefern, und genau das landete in der Antwort.
+  '- PRÜFE ZUERST das Material im Gespräch: eingefügter Text, Anhänge, ein geöffnetes Dokument, Quellen aus früheren Turns. Steht die Antwort dort, antworte DARAUS und suche NICHT. Suche nur nach Fakten, die dieses Material gar nicht enthalten KANN (tagesaktuelle Zahlen, externe Ereignisse). Nach einem Namen, den es nur in diesem Gespräch gibt — ein internes Projekt, ein zitierter Entwurf, eine erfundene Fallstudie — suchst du NIE.',
   '- scrape_url NUR für URLs, die tatsächlich in Suchergebnissen erscheinen — rate keine Adressen.',
   '- Wenn der*die Nutzer*in ausdrücklich eine ERSTELLUNG wünscht (z.B. ein Sharepic, Bild, eine Präsentation, Tabelle, ein Dokument oder ein Board), MUSST du das passende Erstellungs-Tool (z.B. sharepic / generate_image / create_presentation / create_sheet / create_document / create_board) in dieser Phase aufrufen — recherchiere zuerst die Fakten, dann rufe das Tool mit dem belegten, konkreten Auftrag auf. Verweigere die Erstellung NICHT.',
   '- Schreibe in dieser Phase KEINE finale Antwort und KEINE Zusammenfassung. Du darfst vor einem Tool-Aufruf in EINEM kurzen Satz ankündigen, was du als Nächstes tust (z.B. "Ich suche jetzt im Wahlprogramm nach Windkraft."). Sobald die Belege reichen und angeforderte Inhalte erstellt sind, beende die Tool-Aufrufe ohne weiteren Text.',
@@ -134,14 +139,27 @@ export function buildPrepareStep(
   /** Names a tool the NEXT step must call (see guards.emptyResultFallback), or
    *  null to leave the choice to the model. Consulted on every step but the
    *  first — step 0 has no tool result to react to yet. */
-  forcedTool: () => string | null = () => null
+  forcedTool: () => string | null = () => null,
+  /**
+   * Text appended to the system on EVERY step once it is non-empty — a GETTER,
+   * not a captured string, because it fills up mid-loop (`rezept_laden`
+   * registers during the run).
+   *
+   * Unified mode's only channel for the recipe body. Note the branch above:
+   * force-finish is the step where the model writes the answer WITHOUT tools,
+   * so a recipe missing there is lost exactly where it matters. It has to land
+   * in both branches, and in the plain `{}` one — hence the `system` override
+   * appearing where previously nothing was returned.
+   */
+  extraSystem: () => string = () => ''
 ): ({ stepNumber }: { stepNumber: number }) => {
   toolChoice?: 'none' | 'required' | { type: 'tool'; toolName: string };
   system?: string;
 } {
   return ({ stepNumber }) => {
+    const extra = extraSystem();
     if (stepNumber >= maxSteps - 1 || forceFinish()) {
-      return { toolChoice: 'none' as const, system: `${baseSystem}${finishSuffix}` };
+      return { toolChoice: 'none' as const, system: `${baseSystem}${extra}${finishSuffix}` };
     }
     // Explicit-scope MCP FOLLOW-UP: the small planner otherwise answers from
     // prose without ever calling the connector (observed: intent=mcp steps=0,
@@ -149,15 +167,19 @@ export function buildPrepareStep(
     // the first step so it actually hits the server. Gated off for the first
     // scope turn (clarification allowed) and meta questions by the caller.
     if (forceFirstToolCall && stepNumber === 0) {
-      return { toolChoice: 'required' as const };
+      return { toolChoice: 'required' as const, ...(extra && { system: `${baseSystem}${extra}` }) };
     }
     if (stepNumber > 0) {
       const toolName = forcedTool();
       // `required` would only guarantee SOME call — the model would happily
       // re-run the internal search that just came back empty. Name the tool.
-      if (toolName) return { toolChoice: { type: 'tool' as const, toolName } };
+      if (toolName)
+        return {
+          toolChoice: { type: 'tool' as const, toolName },
+          ...(extra && { system: `${baseSystem}${extra}` }),
+        };
     }
-    return {};
+    return extra ? { system: `${baseSystem}${extra}` } : {};
   };
 }
 
@@ -253,6 +275,12 @@ export interface LoopEngineParams {
   /** Builds the synthesizer system from the gathered numbered sources block. */
   buildSynthSystem: (sourcesBlock: string) => string;
   getSourcesBlock: () => string;
+  /**
+   * Recipe block for the TOOL phase, read fresh on every step because
+   * `rezept_laden` fills it mid-loop. Split mode's writer gets the same text
+   * through `buildSynthSystem` instead — the caller owns that side.
+   */
+  getRecipeBlock?: () => string;
   messages: ModelMessage[];
   /** Split mode only: the message list the SYNTH phase writes over. Defaults to
    *  `messages`. The caller passes the history WITHOUT the cross-turn tool
@@ -349,7 +377,8 @@ async function streamWithTools(
       p.maxSteps,
       p.forceFinish,
       p.forceFirstToolCall ?? false,
-      p.forcedToolForStep
+      p.forcedToolForStep,
+      p.getRecipeBlock
     ),
     experimental_repairToolCall: repairToolCall,
     ...phaseTelemetry('unified'),
@@ -380,7 +409,8 @@ async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
         p.maxSteps,
         p.forceFinish,
         p.forceFirstToolCall ?? false,
-        p.forcedToolForStep
+        p.forcedToolForStep,
+        p.getRecipeBlock
       ),
       experimental_repairToolCall: repairToolCall,
       ...phaseTelemetry('gather'),
@@ -410,18 +440,26 @@ async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
   }
 }
 
-/** Answers at or below this length are candidates for the degeneracy check, and
+/** Answers at or below this length are candidates for the tool-plan check, and
  *  the gate holds them back until the verdict is in. Above it the answer is real
  *  prose by definition and streams through unbuffered. */
-const DEGENERATE_MAX_CHARS = 200;
-
-// Any of these means real German prose — umlauts or the closed-class words no
-// German sentence avoids. Their ABSENCE in a short answer is the signal.
-const GERMAN_MARKER_RE =
-  /[äöüßÄÖÜ]|\b(der|die|das|dass|und|oder|ich|du|dir|wir|hier|nicht|kein\w*|ist|sind|war\w*|wurde\w*|habe?n?|hat|eine?[nmrs]?|dem|den|mit|von|auf|aus|bei|zum|zur|es|sich)\b/i;
+const SHORT_ANSWER_MAX_CHARS = 200;
 
 /** A fenced block, an HTML/XML tag, or a JSON object — content, not prose. */
 const MARKUP_OR_CODE_RE = /```|<\/?[a-z][\w-]*(?:\s[^>]*)?>|^\s*[[{]/i;
+
+/**
+ * The answer ANNOUNCES an action instead of being one — the second half of the
+ * leaked-plan shape, for the case where the plan names no mounted tool ("I will
+ * search for that now.").
+ *
+ * English only, and anchored to the opening. A German equivalent would have to
+ * read "Ich werde …", which is also how a perfectly good short answer starts
+ * ("Ich werde das kurz zusammenfassen."), and no bounded pattern separates the
+ * two.
+ */
+const PLAN_ANNOUNCEMENT_RE =
+  /^\s*(?:okay|ok|sure|alright|first|now)?[,:\s]*(?:let'?s\b|i'?ll\b|i\s+will\b|i\s+am\s+going\s+to\b|i\s+need\s+to\b|we'?ll\b|we\s+will\b|we\s+need\s+to\b)/i;
 
 /**
  * What the user reads when the synth DECLINED the request. Distinct from the
@@ -433,16 +471,21 @@ const MARKUP_OR_CODE_RE = /```|<\/?[a-z][\w-]*(?:\s[^>]*)?>|^\s*[[{]/i;
 export const SYNTH_REFUSAL_TEXT =
   'Diese Anfrage setze ich nicht um — sie widerspricht den inhaltlichen Regeln des Grünerators, etwa erfundene Zitate, erfundene Quellen oder ausgrenzende Aussagen. Für ein anderes Anliegen bin ich gern da.';
 
+/**
+ * The retry nudge. Says nothing about LENGTH on purpose: an output format the
+ * message prescribed ("Antworte in genau einer Zeile") must survive the retry,
+ * and a suffix demanding "die vollständige, ausformulierte Antwort" would leave
+ * the model no compliant move.
+ */
 export const SYNTH_RETRY_SYSTEM_SUFFIX =
-  '\n\nWICHTIG: Schreibe JETZT die vollständige, ausformulierte Antwort für die*den Nutzer*in — auf Deutsch. Du hast KEINE Tools und kannst keine aufrufen; kündige KEINE Tool-Aufrufe, Suchen oder Arbeitsschritte an, sondern nutze ausschließlich die oben gelieferten Quellen. Beginne direkt mit dem Inhalt.';
+  '\n\nWICHTIG: Schreibe JETZT die Antwort für die*den Nutzer*in — auf Deutsch und in dem Format, das die Nachricht verlangt. Du hast KEINE Tools und kannst keine aufrufen; kündige KEINE Tool-Aufrufe, Suchen oder Arbeitsschritte an, sondern nutze ausschließlich die oben gelieferten Quellen. Beginne direkt mit dem Inhalt.';
 
 /**
- * Whether the synth DECLINED rather than degenerated. Both look alike from the
- * outside — short, and (when the model falls back to English boilerplate) devoid
- * of German markers — but they need opposite handling: a degenerate answer is
- * retried, a refusal must be surfaced as a refusal and never retried.
+ * Whether the synth DECLINED rather than leaked its plan. Both look alike from
+ * the outside — short and English — but they need opposite handling: a leaked
+ * plan is retried, a refusal must be surfaced as a refusal and never retried.
  *
- * Bounded by {@link DEGENERATE_MAX_CHARS} for two reasons. Precision: a long
+ * Bounded by {@link SHORT_ANSWER_MAX_CHARS} for two reasons. Precision: a long
  * answer that merely contains a refusal-shaped clause is prose, not a decline.
  * And correctness: past that length the emitter gate has already opened and the
  * text is on the wire, so it can no longer be swapped for the German message.
@@ -453,38 +496,45 @@ export const SYNTH_RETRY_SYSTEM_SUFFIX =
  */
 export function looksLikeSynthRefusal(text: string): boolean {
   const trimmed = text.trim();
-  if (trimmed.length === 0 || trimmed.length > DEGENERATE_MAX_CHARS) return false;
+  if (trimmed.length === 0 || trimmed.length > SHORT_ANSWER_MAX_CHARS) return false;
   return isWholesaleRefusal(trimmed);
 }
 
 /**
- * Whether a synthesized answer is a degenerate non-answer rather than prose.
+ * Whether the synth leaked its TOOL PLAN instead of writing an answer.
  *
  * The live failure this catches: with the cross-turn tool replay in its context
  * but no tools mounted, the synth model imitated the tool-call pattern and the
- * ENTIRE answer was "Let's perform web_search." Short + names a mounted tool, or
- * short + not German at all. Long answers are never degenerate — a real answer
- * that happens to be brief ("Erledigt — die Spalte wurde ergänzt.") carries
- * German markers and passes.
+ * ENTIRE answer was "Let's perform web_search." Short, plus either a mounted
+ * tool's name or an opening that announces an action.
+ *
+ * It used to carry a third rule — short and carrying no German umlaut or
+ * function word — and that rule is deliberately gone. It was a LANGUAGE test
+ * doing duty as a quality test, and on 02.08.2026 it destroyed two correct
+ * answers in one QA run: "ALT=45000 €; NEU=49500 €; DIFFERENZ=4500 €" and
+ * "ZUSTAND=ORIGINAL; STANDORTE=75|80; SATZ=600EUR" — both exactly the format
+ * the message had prescribed, both replaced with "Ich konnte dazu leider keine
+ * passende Antwort finden". A guard against a made-up answer must never be able
+ * to withhold a real one, so it now only recognises the one shape it was built
+ * for.
  */
-export function looksDegenerateSynth(text: string, toolNames: readonly string[]): boolean {
+export function looksLikeToolPlanLeak(text: string, toolNames: readonly string[]): boolean {
   const trimmed = text.trim();
   // Empty is the caller's existing fallback case, not this one's.
-  if (trimmed.length === 0 || trimmed.length > DEGENERATE_MAX_CHARS) return false;
-  // Needs to read as a SENTENCE before we judge its language — a bare token
-  // ("Erledigt", "Ja") is a legitimate answer, not a leaked plan.
+  if (trimmed.length === 0 || trimmed.length > SHORT_ANSWER_MAX_CHARS) return false;
+  // Needs to read as a SENTENCE — a bare token ("Erledigt", "Ja") is a
+  // legitimate answer, not a leaked plan.
   if (trimmed.split(/\s+/).filter(Boolean).length < 3) return false;
-  // Markup and code are legitimately un-German. "Gib mir den Absatz mit
-  // HTML-Tags" answers with `<p>…</p>`, which carries no German function word
-  // and was silently discarded — the user got the generic fallback and no error.
+  // "Gib mir den Absatz mit HTML-Tags" answers with `<p>…</p>`, and a JSON
+  // answer may legitimately quote a tool name.
   if (MARKUP_OR_CODE_RE.test(trimmed)) return false;
   if (toolNames.some((name) => name.length > 3 && trimmed.includes(name))) return true;
-  return !GERMAN_MARKER_RE.test(trimmed);
+  return PLAN_ANNOUNCEMENT_RE.test(trimmed);
 }
 
 /**
- * Holds the first {@link DEGENERATE_MAX_CHARS} of the answer back so a degenerate
- * one can be discarded and retried before the client ever sees it. Once the
+ * Holds the first {@link SHORT_ANSWER_MAX_CHARS} of the answer back so a leaked
+ * plan can be discarded and retried before the client ever sees it. Once the
  * answer grows past the threshold the gate opens and every delta passes straight
  * through — so normal answers only pay a one-paragraph delay on first token, and
  * long answers stream as before.
@@ -520,7 +570,7 @@ function createGatedEmitter(
 }
 
 /** Split phase 2: the selected model writes the answer over the gathered
- *  sources — no tools. One retry when the first pass degenerates. */
+ *  sources — no tools. One retry when the first pass leaks its tool plan. */
 async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<{ text: string }> {
   // Synthesis runs WITHOUT tools, so it must not see the tool-call/tool-result
   // replay the gather phase needs — see `synthMessages`.
@@ -532,7 +582,7 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<{ text: 
     system: string,
     model: LanguageModel
   ): Promise<{ text: string; flush: () => void; discard: () => void }> => {
-    const gate = createGatedEmitter(p.onText, DEGENERATE_MAX_CHARS);
+    const gate = createGatedEmitter(p.onText, SHORT_ANSWER_MAX_CHARS);
     const idle = createIdleDeadline(
       SYNTH_IDLE_DEADLINE_MS,
       () => new SynthStallError(SYNTH_IDLE_DEADLINE_MS)
@@ -603,7 +653,7 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<{ text: 
     p.onText(SYNTH_REFUSAL_TEXT);
     return { text: SYNTH_REFUSAL_TEXT };
   }
-  if (!looksDegenerateSynth(first.text, toolNames)) {
+  if (!looksLikeToolPlanLeak(first.text, toolNames)) {
     recordDecision('loop.synth_verdict', 'accepted', {
       inputs: { textLength: first.text.length },
     });
@@ -612,15 +662,15 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<{ text: 
   }
 
   log.warn(
-    `[Engine] synth degenerated into a non-answer (${first.text.length} chars: ${JSON.stringify(
+    `[Engine] synth announced a tool plan instead of answering (${first.text.length} chars: ${JSON.stringify(
       first.text.trim().slice(0, 80)
     )}) — retrying once`
   );
-  recordDecision('loop.synth_verdict', 'degenerate_retried', {
+  recordDecision('loop.synth_verdict', 'tool_plan_retried', {
     inputs: { textLength: first.text.length },
   });
   const retry = await runPassWithFallback(`${baseSystem}${SYNTH_RETRY_SYSTEM_SUFFIX}`);
-  if (retry.text.trim().length === 0 || looksDegenerateSynth(retry.text, toolNames)) {
+  if (retry.text.trim().length === 0 || looksLikeToolPlanLeak(retry.text, toolNames)) {
     // Neither pass produced an answer — emit NEITHER (both are still buffered)
     // and return empty, so the caller's honest no-answer fallback fires instead
     // of a leaked tool-planning line.

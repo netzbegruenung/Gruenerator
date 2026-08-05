@@ -1,6 +1,10 @@
 {
   "tabs": [
     {
+      "value": "onboarding",
+      "label": "Onboarding"
+    },
+    {
       "value": "allgemein",
       "label": "Allgemein"
     },
@@ -103,15 +107,15 @@
       "title": "Leistungsmodus",
       "description": "Schaltet den Blur hinter der Tab-Leiste ab. Hilft auf älteren Geräten, gilt nur auf diesem"
     },
-    "barrierefreiheit.sprunglink": {
-      "tab": "barrierefreiheit",
-      "title": "Sprung-Link zum Inhalt",
-      "description": "Blendet ganz oben einen Link ein, der beim Tabben den Fokus direkt auf den Hauptinhalt setzt — standardmäßig aus"
-    },
     "allgemein.touren": {
       "tab": "allgemein",
       "title": "Einführungs-Touren zurücksetzen",
       "description": "Zeigt die Touren durch Workplace, Dokumente, Tabellen, Präsentationen und das Sharepic-Studio beim nächsten Öffnen wieder an."
+    },
+    "allgemein.onboarding": {
+      "tab": "allgemein",
+      "title": "Einrichtung erneut starten",
+      "description": "Holt den Bereich „Onboarding\" zurück und führt noch einmal durch Rolle, Friend und Hintergrund."
     },
     "friends.avatar": {
       "tab": "friends",

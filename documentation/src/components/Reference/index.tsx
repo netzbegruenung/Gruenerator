@@ -15,6 +15,12 @@ interface Connector {
   auth: string;
   description: string;
 }
+/** A first-party connector. No auth column — nobody connects these. */
+interface ManagedConnector {
+  title: string;
+  description: string;
+  category: string;
+}
 interface Manifest {
   uploads: {
     groups: Array<{ id: string; title: string; labels: string[] }>;
@@ -33,6 +39,7 @@ interface Manifest {
     examples: Collection[];
   };
   connectors: Record<string, Connector[]>;
+  managedConnectors: ManagedConnector[];
 }
 
 const manifest = manifestJson as Manifest;
@@ -128,6 +135,38 @@ export function ConnectorTable(): React.JSX.Element {
         </section>
       ))}
     </>
+  );
+}
+
+/**
+ * The connectors the Grünerator operates itself. Renders nothing when there are
+ * none — a deployment may have all of them switched off, and an empty table
+ * under a heading would read as a bug.
+ */
+export function ManagedConnectorTable(): React.JSX.Element | null {
+  const entries = manifest.managedConnectors;
+  if (entries.length === 0) return null;
+  return (
+    <table>
+      <thead>
+        <tr>
+          <th>Dienst</th>
+          <th>Wofür</th>
+          <th>Bereich</th>
+        </tr>
+      </thead>
+      <tbody>
+        {entries.map((entry) => (
+          <tr key={entry.title}>
+            <td>
+              <strong>{entry.title}</strong>
+            </td>
+            <td>{entry.description}</td>
+            <td>{entry.category}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
 

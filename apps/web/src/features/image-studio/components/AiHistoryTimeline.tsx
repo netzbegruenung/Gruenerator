@@ -19,14 +19,16 @@ export const AiHistoryTimeline: React.FC = () => {
       <div className="text-xs font-semibold text-grey-500 whitespace-nowrap mr-xs">History:</div>
       <div className="flex gap-xs flex-1 overflow-x-auto py-xxs">
         {aiEditorHistory.map((entry, index) => (
-          <div
+          <button
             key={entry.id}
+            type="button"
             className={cn(
-              'relative flex flex-col items-center gap-xxs cursor-pointer transition-transform duration-200 shrink-0 hover:scale-105',
+              'relative flex flex-col items-center gap-xxs cursor-pointer border-none bg-transparent p-0 transition-transform duration-200 shrink-0 hover:scale-105',
               index > aiEditorHistoryIndex && 'opacity-50'
             )}
             onClick={() => loadHistoryEntry(index)}
             title={`${entry.prompt.substring(0, 50)}${entry.prompt.length > 50 ? '...' : ''}`}
+            aria-label={`Version ${index + 1} laden: ${entry.prompt.substring(0, 50)}${entry.prompt.length > 50 ? '...' : ''}`}
           >
             <div
               className={cn(
@@ -61,7 +63,7 @@ export const AiHistoryTimeline: React.FC = () => {
                 </svg>
               </div>
             )}
-          </div>
+          </button>
         ))}
       </div>
     </div>

@@ -1,11 +1,18 @@
 import { getGreeting, isPrideMonth } from '@gruenerator/shared/utils';
 
+import { CURRENT_INSTANCE } from '../../../config/instance';
 import { useFirstName } from '../../../hooks/useFirstName';
 import { useAuthStore } from '../../../stores/authStore';
 
+interface WorkplaceGreetingProps {
+  // Name of the Projekt this new chat will be filed into (from `/chat?projekt=<groupId>`).
+  // When set, a subtitle makes the project scope visible on the empty state.
+  projectName?: string | null;
+}
+
 // Time/locale-aware greeting hero, shared by the Workplace chat tab and the
 // /chat empty state.
-const WorkplaceGreeting = () => {
+const WorkplaceGreeting = ({ projectName }: WorkplaceGreetingProps = {}) => {
   const firstName = useFirstName();
   const locale = useAuthStore((state) => state.locale);
 
@@ -26,8 +33,13 @@ const WorkplaceGreeting = () => {
             : undefined
         }
       >
-        {getGreeting(locale, firstName)}
+        {getGreeting(locale, firstName, { instanceId: CURRENT_INSTANCE })}
       </h1>
+      {projectName && (
+        <p className="text-sm text-muted-foreground">
+          Du chattest, evaluierst und prüfst im Projekt „{projectName}“
+        </p>
+      )}
     </div>
   );
 };

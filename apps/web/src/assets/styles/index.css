@@ -48,6 +48,33 @@
    only activate when the site theme is explicitly set to dark. */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
+/* `kbd:` — only while the last interaction was a key press. For focus styling
+   that must not answer a mouse click, which :focus-visible cannot express on
+   text fields (the spec exempts them). focusModality.ts writes the attribute;
+   accessibility.css gates the global ring on the same one. */
+@custom-variant kbd (&:where([data-focus-modality="keyboard"] *));
+
+/* Trefferfläche auf die 44px aus WCAG 2.2 „Target Size" bringen, ohne die
+   Optik anzufassen — ein unsichtbares Pseudo-Element deckt die fehlenden
+   Pixel ab, statt das Element selbst wachsen zu lassen. Nur auf
+   Zeigergeräten, wo die Größe überhaupt ein Problem ist.
+   Voraussetzung: kein Vorfahre mit `overflow: hidden`, und das Element
+   benutzt `::after` nicht schon selbst. */
+@utility touch-target {
+  @media (pointer: coarse) {
+    position: relative;
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 50%;
+      min-width: 44px;
+      min-height: 44px;
+      translate: -50% -50%;
+    }
+  }
+}
+
 /* ── Chat package component styles (merges into Tailwind's components layer) ── */
 @import "../../../../../packages/chat/src/styles/chat-embedded.css" layer(components);
 
@@ -181,8 +208,12 @@
   --color-grey-100: var(--grey-100);
   --color-grey-200: var(--grey-200);
   --color-grey-300: var(--grey-300);
-  --color-grey-400: var(--grey-400);
-  --color-grey-500: var(--grey-500);
+  /* text-grey-400 und -500 tragen den Sekundärtext — deshalb themeabhängig,
+     damit sie in beiden Modi 4,5:1 erreichen (siehe --grey-text-val und
+     --grey-text-weak-val in variables.css). Die Rampenstufen --grey-400/-500
+     bleiben unverändert und tragen weiter Ränder und Deaktiviert-Zustände. */
+  --color-grey-400: var(--grey-text-weak-val);
+  --color-grey-500: var(--grey-text-val);
   --color-grey-600: var(--grey-600);
   --color-grey-700: var(--grey-700);
   --color-grey-800: var(--grey-800);
@@ -296,11 +327,13 @@
 
   /* ── Chat package tokens (@gruenerator/chat) ── */
 
-  /* Primary/Secondary shortcuts (used as bg-primary, text-primary, etc.) */
-  --color-primary: var(--primary-500);
+  /* Primary/Secondary shortcuts (used as bg-primary, text-primary, etc.).
+     Themeabhängig über -val, weil ein fester Wert hier nicht beide
+     Darstellungsmodi bedienen kann — Begründung in variables.css. */
+  --color-primary: var(--color-primary-val);
   --color-primary-light: var(--color-primary-light-val);
   --color-primary-dark: var(--color-primary-dark-val);
-  --color-secondary: var(--secondary-500);
+  --color-secondary: var(--color-secondary-val);
 
   /* Surface & Layout */
   --color-surface: var(--color-surface-val);
@@ -314,6 +347,7 @@
   --color-foreground-muted: var(--color-foreground-muted-val);
   --color-foreground-dark: var(--color-foreground-dark-val);
   --color-muted-foreground: var(--color-muted-foreground-val);
+  --color-muted-brand: var(--color-muted-brand-val);
 
   /* Borders */
   --color-border: var(--color-border-val);
@@ -400,6 +434,11 @@
   /* Canvas Editor Layout */
   --image-studio-tab-bar-width: 76px;
   --mobile-tab-bar-height: 60px;
+  /* Desktop-rail width of the open SidebarPanel, in px. 0 when closed/mobile —
+     see SidebarPanel.tsx, which sets/clears this on document.documentElement.
+     Twin of the same line in packages/canvas-editor/src/styles/tailwind-input.css;
+     the two bundles compile separately, so both need it. */
+  --canvas-panel-width: 0px;
 
   /* Custom Breakpoints (xl: 1280px is Tailwind default) */
   --breakpoint-canvas-mobile: 900px;

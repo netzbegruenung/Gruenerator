@@ -1,11 +1,6 @@
 'use client';
 
-import {
-  MessagePrimitive,
-  useMessage,
-  useMessageQuote,
-  useMessageRuntime,
-} from '@assistant-ui/react';
+import { MessagePrimitive, useAui, useAuiState, useMessageQuote } from '@assistant-ui/react';
 import { Pencil } from 'lucide-react';
 import { useState } from 'react';
 
@@ -30,7 +25,7 @@ function QuoteBlock() {
 
 /** Inline editor for a user message — resubmits and re-runs the turn on save. */
 function UserMessageEditor({ initialText, onDone }: { initialText: string; onDone: () => void }) {
-  const runtime = useMessageRuntime();
+  const runtime = useAui().message;
   const [text, setText] = useState(initialText);
 
   const save = () => {
@@ -41,13 +36,13 @@ function UserMessageEditor({ initialText, onDone }: { initialText: string; onDon
     const threadId = useAgentStore.getState().currentThreadId;
     const messageId = runtime.getState().id;
     if (threadId) useChatConfigStore.getState().signalEditResubmit(threadId, messageId);
-    runtime.composer.setText(trimmed);
-    runtime.composer.send();
+    runtime.composer().setText(trimmed);
+    runtime.composer().send();
     onDone();
   };
 
   const cancel = () => {
-    runtime.composer.cancel();
+    runtime.composer().cancel();
     onDone();
   };
 
@@ -93,8 +88,8 @@ function UserMessageEditor({ initialText, onDone }: { initialText: string; onDon
 const userPartComponents = { Text: UserMessageText };
 
 export function UserMessage() {
-  const message = useMessage();
-  const runtime = useMessageRuntime();
+  const message = useAuiState((s) => s.message);
+  const runtime = useAui().message;
   const density = useChatDensity();
   const isCompact = density === 'compact';
   const [editing, setEditing] = useState(false);
@@ -107,7 +102,7 @@ export function UserMessage() {
   const roleName = custom?.roleName || storeRoleName;
 
   const beginEdit = () => {
-    runtime.composer.beginEdit();
+    runtime.composer().beginEdit();
     setEditing(true);
   };
 
@@ -154,7 +149,7 @@ export function UserMessage() {
                 <MessagePrimitive.Parts components={userPartComponents} />
               </div>
             </div>
-            <div className="mt-1 flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+            <div className="mt-1 flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100">
               <MessageBranchPicker />
               <button
                 type="button"

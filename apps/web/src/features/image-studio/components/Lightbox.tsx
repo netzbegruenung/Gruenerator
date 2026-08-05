@@ -21,6 +21,7 @@ export const Lightbox: React.FC<TemplateResultLightboxProps> = ({
         exit={{ opacity: 0 }}
         onClick={onClose}
       >
+        {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events -- only shields backdrop clicks from closing the lightbox, not an operable control itself */}
         <div
           className="relative max-w-[95vw] max-h-[95vh] flex flex-col items-center gap-md cursor-default"
           onClick={(e) => e.stopPropagation()}

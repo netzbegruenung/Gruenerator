@@ -40,6 +40,8 @@ interface ListRowProps {
   /** Replaces the icon badge outright — an avatar or an initials circle. */
   leading?: ReactNode;
   title: string;
+  /** Short label right of the title — "Empfohlen" on the Auto model row. */
+  titleBadge?: string;
   /** Current value or subtitle, shown under the title. */
   value?: string | null;
   /** How many lines the value may take. Agent blurbs need two. */
@@ -64,6 +66,7 @@ export function ListRow({
   icon,
   leading,
   title,
+  titleBadge,
   value,
   valueLines = 1,
   onPress,
@@ -105,7 +108,7 @@ export function ListRow({
         disabled && styles.disabled,
       ]}
       accessibilityRole="button"
-      accessibilityLabel={value ? `${title}, ${value}` : title}
+      accessibilityLabel={[title, titleBadge, value].filter(Boolean).join(', ')}
     >
       {leading ?? (
         <View style={[styles.badge, badge]}>
@@ -113,9 +116,20 @@ export function ListRow({
         </View>
       )}
       <View style={styles.text}>
-        <Text style={[styles.title, { color: tint }]} numberOfLines={1}>
-          {title}
-        </Text>
+        <View style={styles.titleLine}>
+          {/* shrink + numberOfLines on the title alone: a long title must give
+              way to the badge, not push it off the row. */}
+          <Text style={[styles.title, { color: tint }]} numberOfLines={1}>
+            {title}
+          </Text>
+          {titleBadge ? (
+            <View style={[styles.titleBadge, badge]}>
+              <Text style={[styles.titleBadgeText, { color: theme.textSecondary }]}>
+                {titleBadge}
+              </Text>
+            </View>
+          ) : null}
+        </View>
         {value ? (
           <Text style={[styles.value, { color: theme.textSecondary }]} numberOfLines={valueLines}>
             {value}
@@ -156,9 +170,25 @@ const styles = StyleSheet.create({
   text: {
     flex: 1,
   },
+  titleLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   title: {
     fontFamily: BODY_FONT,
     fontSize: 17,
+    flexShrink: 1,
+  },
+  titleBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: borderRadius.small,
+    borderCurve: 'continuous',
+  },
+  titleBadgeText: {
+    fontFamily: BODY_FONT,
+    fontSize: 11,
   },
   value: {
     // #2104 put the row's value on the chat scale and deliberately left the

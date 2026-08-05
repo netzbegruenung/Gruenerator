@@ -8,11 +8,36 @@ import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { ThreadId, UserId } from '../../utils/types/branded.js';
 
+import { withImageProxy } from './services/searchImagePayload.js';
 import { canAccessThread } from './services/threadAccessService.js';
 import { getUser } from './services/threadPersistenceService.js';
 
+import type { WebImageResult } from '../../agents/langgraph/ChatGraph/types.js';
+
 const log = createLogger('MessagesController');
 const router = createAuthenticatedRouter();
+
+/**
+ * Persisted image hits → render-ready payloads with a fresh proxy handle.
+ *
+ * Validates rather than casts: these rows were written by an older build in the
+ * general case, and an entry without a usable URL would render as a tile with
+ * `undefined` in its `src`.
+ */
+function rehydrateSearchImages(raw: unknown[]): unknown[] {
+  const images: WebImageResult[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== 'object') continue;
+    const { url, title, domain } = entry as Record<string, unknown>;
+    if (typeof url !== 'string' || url.trim().length === 0) continue;
+    images.push({
+      url,
+      title: typeof title === 'string' ? title : '',
+      domain: typeof domain === 'string' ? domain : '',
+    });
+  }
+  return images.map(withImageProxy);
+}
 
 router.get('/', async (req, res) => {
   try {
@@ -35,7 +60,23 @@ router.get('/', async (req, res) => {
 
     const messages = await postgres.query(
       `SELECT cm.id, cm.thread_id, cm.role, cm.content, cm.tool_calls, cm.tool_results, cm.user_id, cm.status, cm.created_at,
-              p.display_name as sender_name
+              p.display_name as sender_name,
+              COALESCE(
+                (
+                  SELECT json_agg(
+                    json_build_object(
+                      'id', cta.id,
+                      'name', cta.name,
+                      'contentType', cta.mime_type,
+                      'preview', LEFT(COALESCE(cta.extracted_text, ''), 2000),
+                      'truncated', CHAR_LENGTH(COALESCE(cta.extracted_text, '')) > 2000
+                    ) ORDER BY cta.created_at ASC
+                  )
+                  FROM chat_thread_attachments cta
+                  WHERE cta.message_id = cm.id
+                ),
+                '[]'::json
+              ) AS attachments
        FROM chat_messages cm
        LEFT JOIN profiles p ON cm.user_id = p.id
        WHERE cm.thread_id = $1
@@ -93,6 +134,31 @@ router.get('/', async (req, res) => {
       const parsedToolResults = parseJsonField(msg.tool_results, 'tool_results', msg.id);
       const parsedToolCalls = parseJsonField(msg.tool_calls, 'tool_calls', msg.id);
       const content = (msg.content as string) || '';
+      const parsedAttachments = parseJsonField(msg.attachments, 'attachments', msg.id);
+      const attachments = Array.isArray(parsedAttachments)
+        ? parsedAttachments.flatMap((attachment) => {
+            if (!attachment || typeof attachment !== 'object') return [];
+            const record = attachment as Record<string, unknown>;
+            if (
+              typeof record.id !== 'string' ||
+              typeof record.name !== 'string' ||
+              typeof record.contentType !== 'string' ||
+              typeof record.preview !== 'string' ||
+              typeof record.truncated !== 'boolean'
+            ) {
+              return [];
+            }
+            return [
+              {
+                id: record.id,
+                name: record.name,
+                contentType: record.contentType,
+                preview: record.preview,
+                truncated: record.truncated,
+              },
+            ];
+          })
+        : [];
 
       // Extract metadata from tool_results if it's an object (not array)
       // tool_results can be either:
@@ -105,6 +171,7 @@ router.get('/', async (req, res) => {
             traceId?: string;
             citations?: unknown[];
             searchResults?: unknown[];
+            searchImages?: unknown[];
             roleName?: string;
             generatedImage?: Record<string, unknown>;
             createdDocument?: Record<string, unknown>;
@@ -148,6 +215,16 @@ router.get('/', async (req, res) => {
               ? { computeData: meta.computeData as Record<string, unknown> }
               : {}),
             ...(typeof meta.agentId === 'string' && { agentId: meta.agentId }),
+            // Web-search image hits. Re-signed on every load rather than read
+            // back verbatim: the persisted rows carry no `proxyUrl` (a signed
+            // handle expires after 24h, the row does not), so the fresh handle
+            // is minted here — the same "sign at the moment of handing out"
+            // rule the live stream follows. With no signing secret configured
+            // `withImageProxy` returns the entry unchanged and the client falls
+            // back to plain links.
+            ...(Array.isArray(meta.searchImages)
+              ? { searchImages: rehydrateSearchImages(meta.searchImages) }
+              : {}),
           };
           if (Array.isArray(meta.toolCalls)) {
             embeddedToolCalls = meta.toolCalls as EmbeddedToolCall[];
@@ -217,6 +294,7 @@ router.get('/', async (req, res) => {
         createdAt: msg.created_at,
         parts: parts.length > 0 ? parts : undefined,
         toolInvocations,
+        ...(attachments.length > 0 ? { attachments } : {}),
         metadata: {
           ...metadata,
           ...(embeddedToolCalls ? { toolCalls: embeddedToolCalls } : {}),

@@ -3,7 +3,6 @@ import { describe, it, expect, vi } from 'vitest';
 import { buildSharepicConfirmation } from '../../../../routes/chat/services/artifactConfirmations.js';
 
 import { classifierNode } from './classifierNode.js';
-import { validateCreationTopic } from './classifierParsing.js';
 
 import type { ChatGraphState, SearchIntent } from '../types.js';
 
@@ -15,12 +14,16 @@ import type { ChatGraphState, SearchIntent } from '../types.js';
  * übermorgen" — the generator built the sharepic about the instruction, because
  * a single-pass generator only ever sees the last user message.
  *
- * The classifier is the one component that already reads the conversation on
- * exactly these turns (`isVagueFollowup` forces the LLM tier for a short
- * message in a thread), so it answers the question. These tests pin the
- * contract, not the model: the LLM tier is mocked, and what is asserted is that
- * a resolved topic survives parsing and reaches the state — plus the two ways a
- * model answer gets rejected.
+ * Die LLM-Stufe beantwortete das eine Zeit lang mit einem eigenen Feld
+ * (`creationTopic`), das nur sie füllen konnte — sie war die einzige Stufe, die
+ * den Verlauf las. Mit ihr ist das Feld weg: es ist heute auf JEDEM Pfad `null`.
+ *
+ * Ersatzlos ist das nicht, sondern die Rückkehr zu dem Weg, den alle anderen
+ * Stufen ohnehin schon nahmen: `createTopic()` im Router fällt auf
+ * `resolveReferentialTopic` zurück, das denselben Verlauf liest. Was hier
+ * geprüft wird, ist genau diese Grenze — dass die Stufe, die den Turn
+ * beansprucht, die ART entscheidet und das THEMA offen lässt, statt eins zu
+ * erfinden.
  */
 
 const STUB_AGENT_CONFIG = {
@@ -35,22 +38,19 @@ const STUB_AGENT_CONFIG = {
   isSystemDefault: true,
 };
 
-function makeWorkerPool(response: Record<string, unknown>) {
-  return {
-    processRequest: vi.fn(async () => ({ content: JSON.stringify(response) })),
-  };
+function makeWorkerPool() {
+  return { processRequest: vi.fn(async () => ({ content: 'keine' })) };
 }
 
 function buildState(
-  messages: Array<{ role: 'user' | 'assistant'; content: string }>,
-  llmResponse: Record<string, unknown>
+  messages: Array<{ role: 'user' | 'assistant'; content: string }>
 ): ChatGraphState {
   return {
     messages,
     threadId: 'thread-1',
     agentConfig: STUB_AGENT_CONFIG,
     enabledTools: { search: true, web: true, image: true },
-    aiWorkerPool: makeWorkerPool(llmResponse),
+    aiWorkerPool: makeWorkerPool(),
     userLocale: 'de-DE',
     attachmentContext: null,
     imageAttachments: [],
@@ -78,76 +78,23 @@ const SCREENSHOT_THREAD = [
 ];
 
 describe('classifierNode — creationTopic', () => {
-  it('reicht das aufgelöste Thema an den State durch', async () => {
-    const result = await classifierNode(
-      buildState(SCREENSHOT_THREAD, {
-        intent: 'sharepic',
-        searchQuery: null,
-        creationTopic: 'Klimaanlagen in Schulen als Hitzeschutz',
-        reasoning: 'Folgeauftrag ohne eigenes Thema — Thema aus dem Verlauf übernommen',
-      })
-    );
+  it('der Auflöser entscheidet die ART, aber liefert kein Thema', async () => {
+    // Der Verlauf aus dem Fehlerbericht trägt das Wort „sharepic", erreicht den
+    // Generierungs-Auflöser also — und wird dort entschieden. Der Auflöser hat
+    // einen GESCHLOSSENEN Antwortraum (welche Artefaktart, mehr nicht), kann
+    // also gar kein Thema liefern, und genau das ist hier die Zusicherung: die
+    // Stufe erfindet keins. Das Thema kommt aus `createTopic()` im Router, der
+    // auf `resolveReferentialTopic` über denselben Verlauf zurückfällt.
+    const state = buildState(SCREENSHOT_THREAD);
+    (state.aiWorkerPool as unknown as { processRequest: unknown }).processRequest = async (req: {
+      systemPrompt?: string;
+    }) =>
+      req.systemPrompt?.startsWith('Entscheide, ob diese Nachricht ein ARTEFAKT')
+        ? { content: 'sharepic' }
+        : { content: 'keine' };
+
+    const result = await classifierNode(state);
     expect(result.intent).toBe('sharepic');
-    expect(result.creationTopic).toBe('Klimaanlagen in Schulen als Hitzeschutz');
-  });
-
-  it('bleibt null, wenn das Modell keins liefert', async () => {
-    const result = await classifierNode(
-      buildState(SCREENSHOT_THREAD, {
-        intent: 'sharepic',
-        searchQuery: null,
-        creationTopic: null,
-        reasoning: 'Kein Thema erkennbar',
-      })
-    );
-    expect(result.creationTopic).toBeNull();
-  });
-});
-
-describe('validateCreationTopic', () => {
-  const message = 'jetzt noch ein normales sharepic';
-
-  it('nimmt ein aufgelöstes Thema an', () => {
-    expect(validateCreationTopic('Klimaanlagen in Schulen', 'sharepic', message)).toBe(
-      'Klimaanlagen in Schulen'
-    );
-  });
-
-  it('verwirft das zurückgespiegelte Kommando', () => {
-    // Das Modell hat nichts aufgelöst — die Anweisung als Thema IST der Bug.
-    expect(validateCreationTopic(message, 'sharepic', message)).toBeNull();
-    expect(
-      validateCreationTopic('  Jetzt   Noch Ein Normales Sharepic ', 'sharepic', message)
-    ).toBeNull();
-  });
-
-  it('verwirft ein Thema zu einem Intent, der nichts erstellt', () => {
-    expect(validateCreationTopic('Klimaanlagen', 'direct', message)).toBeNull();
-    expect(validateCreationTopic('Klimaanlagen', 'search', message)).toBeNull();
-  });
-
-  it('verwirft Leeres und Nicht-Strings', () => {
-    expect(validateCreationTopic('   ', 'sharepic', message)).toBeNull();
-    expect(validateCreationTopic(null, 'sharepic', message)).toBeNull();
-    expect(validateCreationTopic(undefined, 'sharepic', message)).toBeNull();
-  });
-
-  it('kappt Prosa statt sie durchzureichen', () => {
-    const prose = 'x'.repeat(500);
-    expect(validateCreationTopic(prose, 'sharepic', message)).toHaveLength(300);
-  });
-
-  it('gilt für alle Einzelpass-Erstellungsintents', () => {
-    for (const intent of [
-      'sharepic',
-      'image',
-      'create_pdf',
-      'create_sheet',
-      'create_presentation',
-      'save_as_doc',
-      'modify_board',
-    ]) {
-      expect(validateCreationTopic('Radwegeausbau', intent, message)).toBe('Radwegeausbau');
-    }
+    expect(result.creationTopic ?? null).toBeNull();
   });
 });

@@ -1,0 +1,105 @@
+# CLAUDE-deployment.md
+
+Deployment, Docker, and environment configuration.
+
+## Test Environment
+
+- **URL**: https://beta.gruenerator.eu
+- **Server**: gruenerator-test.netzbegruenung.verdigado.net
+- **Branch**: `test-branch`
+
+## Docker Images
+
+- **Workflow**: "Build and Push Docker Images" (`build-images.yml`)
+  - Triggers on push to `master` or `test-branch` (when app/service files change)
+  - Manual dispatch with `force_all: true` to rebuild everything
+  - Individual services: `build_web`, `build_api`, `build_docs`, `build_mcp`, `build_doku`
+  - Registry: `ghcr.io/netzbegruenung/gruenerator-{web,api,docs,mcp,doku}`
+
+### Adding a New Shared Package (Docker Checklist)
+
+Three files must be updated — **but only the first fails loudly**:
+
+1. **Every Dockerfile that transitively depends on it** — add `COPY packages/<name>/package.json` and `COPY packages/<name>`. Check deps: `pnpm --filter <app> list --depth 1 --json | grep @gruenerator`. Vergessen = roter Build.
+2. **`.github/workflows/build-images.yml`** — add `'packages/<name>/**'` to that image's `dorny/paths-filter`. Vergessen = **Stille**: eine Änderung an nur diesem Paket löst den Workflow aus (`packages/**` steht im Trigger), überspringt jeden Build-Job und wird nie ausgeliefert. Nichts wird rot. `scripts/check-image-build-filters.mjs` (Guards-Job) leitet die Soll-Liste aus den `COPY packages/…`-Zeilen der Dockerfiles ab und bricht ab, wenn ein Filter dahinter zurückbleibt.
+3. **`.gitignore`** — verify path not matched by broad pattern (e.g. `docs/` matches `*/docs/`; use `/docs/`).
+
+### `packages/shared` Runtime `.ts` Trap
+
+`packages/shared` exports raw `.ts` (no build in dev). Node.js cannot import `.ts` at runtime. Docker services not bundled by Vite have two options:
+
+1. **Inline** (preferred for small utils) — copy function into service. Avoids shared's transitive deps.
+2. **Build + rewrite** (heavy usage) — build shared in Docker, copy `dist/`, `sed`-rewrite exports `.ts` → `.js`. See `apps/api/Dockerfile`.
+
+## Deploying to Test
+
+1. Merge into `test-branch` (via PR from `master`)
+2. Build images run on push (filtered by changed paths) or manual: `gh workflow run "Build and Push Docker Images" --ref test-branch -f build_web=true` (or `-f force_all=true`)
+3. Image rollout to `gruenerator-test.netzbegruenung.verdigado.net` happens **out of band** — there is no `Deploy to Test Environment` workflow in this repo. The test server pulls fresh images via its own mechanism (Watchtower/poller). To force-redeploy: SSH in and `docker pull ghcr.io/netzbegruenung/gruenerator-web:test-branch && docker compose up -d --force-recreate <service>`.
+
+### Verifying a deploy landed
+
+Compare the asset hash in `https://beta.gruenerator.eu/index.html` against the local `pnpm --filter @gruenerator/web build` output (`apps/web/build/assets/js/`). If the served `<script src>` hash matches, the rollout is in.
+
+### Path filter gotcha
+
+A push that touches **only** `.github/**` or files outside the `web:` filter list in `build-images.yml` will be reported `success` with `build-web: skipped`. Silence ≠ deploy. To force a rebuild, dispatch the workflow with `-f build_web=true`.
+
+## Production
+
+Production deployment is owned outside this repo (no `deploy-prod.yml` here). Coordinate with infrastructure when promoting `master`.
+
+### Party-internal prompts (`INTERN_CONTENT_DIR`)
+
+This repo is public, and `packages/shared` is bundled into the web app and into every shipped mobile binary. So both prompt registries are split: `agents/skills/*.md` (recipes) and `agents/definitions/*.md` (system agents) carry **frontmatter only**, and the prompt text lives in the private repo **`netzbegruenung/gruenerator-intern`**:
+
+```
+skills/<mention>.md        e.g. presse.md — the skill's mention, not its filename
+agents/<identifier>.md     e.g. gruenerator-antrag.md
+```
+
+**Salt owns the rollout**: clone the private repo onto the server and point `INTERN_CONTENT_DIR` (API env) at its root. Unset falls back to `.external/gruenerator-intern` — a gitignored dev checkout, not a production path.
+
+Read at boot and cached, so a changed prompt needs an API restart. `apps/api/services/skills/internalPrompts.ts` is the loader; `respondNode` appends a recipe body as the `## AKTIVE PLATTFORM` block, `routes/chat/agents/agentLoader.ts` fills in each system agent's `systemRole`, and `GET /api/skills/:mention/prompt` (behind `requireAuth`) serves recipes to the Agentura detail view.
+
+**A missing directory does not crash the API — it quietly makes it worse.** Two different degradations:
+
+- **Recipes** fall back to the agent's base systemRole; output gets generic.
+- **Agents** get a generic substitute persona, because an empty `systemRole` makes `promptAssemblyGraph.buildSystemText` throw. One error line per agent.
+
+After a deploy, check the log for both counts:
+
+```
+[internalPrompts] Loaded 20 internal skills prompt(s) from …
+[internalPrompts] Loaded 25 internal agents prompt(s) from …
+```
+
+Nothing user-facing breaks if the rollout is missed, which is exactly why it needs looking at.
+
+The LV agents (`lvPrAgents.ts` / `lvBuergerAgents.ts`) keep their systemRole in code — one template fans out to N agents, and its content is generic craft guidance plus a regional topic list.
+
+Guards against putting the prompts back: `build-skills.ts` and `build-agents.ts` refuse to emit a body, and `scripts/check-internal-content.mjs` (CI, `pnpm check:internal`) fails on a body in a public skill or agent file, a `skillSystemPrompt` or non-empty `systemRole` in a generated file, or anything tracked under `.external/` or `documentation/docs/intern/`.
+
+### System MCP sources (bahn/reise/wetter/news chat intents)
+
+The Deutsche-Bahn / Open-Meteo / ARD-Tagesschau / trivago chat sources are env-gated: set `SYSTEM_MCP_DB_URL`, `SYSTEM_MCP_WEATHER_URL`, `SYSTEM_MCP_ARD_URL`, `SYSTEM_MCP_TRIVAGO_URL` (+ optional `…_TOKEN` for shared bearer auth) in the API's deploy env to activate them. The `reise` umbrella intent mounts bahn + hotel + wetter together. Unset URL = intent degrades gracefully (web/direct fallback). The first-party endpoints live only in deploy env — never commit them; users never see them (trivago's hosted URL is public: `https://mcp.trivago.com/mcp`).
+
+## Langfuse LLM observability (optional, env-gated)
+
+The API traces the chat flow to a self-hosted Langfuse when **all three** vars are set (in the API app's Coolify env); absence of any is a clean no-op, so unsetting them is the kill switch:
+
+- `LANGFUSE_PUBLIC_KEY` (`pk-lf-…`), `LANGFUSE_SECRET_KEY` (`sk-lf-…`) — from the Langfuse project settings.
+- `LANGFUSE_BASE_URL` — the instance URL (must be **HTTPS**; chat prompts/completions travel over it).
+- `LANGFUSE_RELEASE` — *optional* fourth var: image tag or commit sha, stamped onto every trace so a quality regression can be pinned to a deploy. Unset = traces stay unversioned, nothing else changes.
+
+Instrumentation goes through Langfuse's own AI SDK 7 integration (`@langfuse/vercel-ai-sdk`), not the generic `@ai-sdk/otel` one: it writes generations in the Langfuse shape (model, usage, cost) instead of raw `gen_ai.*` attributes, which is also what puts them within reach of the `mask` hook.
+
+**Tracing is opt-in per call.** An LLM call reaches Langfuse only if it passes the settings from `buildAiTelemetry()` — today `chat-graph.respond`, `chat-graph.resume`, `chat-graph.agentic.{unified,gather,synth}` and `notebook-chat.respond`. Everything else in the API (voice transcripts, receipt extraction, docs/boards/sheets/presentation generation, monitor, mem0) stays silent, which is what keeps the traced surface inside what the Datenschutzerklärung declares. Do **not** call `registerTelemetry()` — AI SDK 7 then treats telemetry as opt-out and every LLM call in the API ships its full input/output as an unnamed orphan trace. New call sites that should be traced must route through `buildAiTelemetry()` and sit inside a `withLangfuseTrace(...)`.
+
+One trace per chat turn (`chat-turn`), grouped by user + thread, with the user's question and the answer on the root span. Both answer-writing paths open it: the single-pass respond call and the agentic loop. Turns that only emit a fixed confirmation (sharepic, `social_post`) are **not** traced — their LLM work happens in the intent pipeline, which passes no telemetry, so a trace there would be an empty span. A turn whose primary and sibling lane both failed is marked `level: ERROR`; `streamWithFallback` reports that as `null` rather than throwing, so it has to be set by hand at every call site.
+
+Thumbs up/down in the chat UI post to `POST /api/chat-service/feedback`, which writes a **BOOLEAN** `user-thumbs` score onto the turn's trace. The buttons render only when the `done` event carried a `traceId`, i.e. only when Langfuse is actually on. The endpoint accepts only a 32-hex trace id that it can resolve back to one of the caller's own turns (`chat_messages.tool_results->>'traceId'`, indexed) — otherwise any logged-in user could score any trace. Set the project's **data retention to 30 days** in the Langfuse UI to match the Datenschutzerklärung. Init lives in `apps/api/instrument.ts` (runs in every cluster worker via `--import`); worker-thread LLM calls (classifier etc.) are not traced.
+
+## Docs Expo (Android APK)
+
+See `CLAUDE-expo.md` for build, install, and debug instructions.

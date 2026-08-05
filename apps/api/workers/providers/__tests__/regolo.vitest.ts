@@ -9,6 +9,7 @@ import {
 } from '../../../services/ai/providers.js';
 import { isProviderAvailable } from '../../../services/providers/providerFallback.js';
 import { determineProviderFromModel } from '../../../services/providers/providerSelector.js';
+import { isExcludedTextModel, regoloTextDefault } from '../../../services/ai/textModelPolicy.js';
 import { executeProvider, KNOWN_PROVIDERS } from '../index.js';
 
 describe('Regolo provider — unit tests', () => {
@@ -16,8 +17,12 @@ describe('Regolo provider — unit tests', () => {
     expect(KNOWN_PROVIDERS).toContain('regolo');
   });
 
-  it('getDefaultModel returns expected default', () => {
-    expect(getDefaultModel('regolo')).toBe(process.env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b');
+  // Der Default folgt NICHT mehr blind der Env-Variablen: ein gesperrtes
+  // Text-/Chatmodell wird verworfen (services/ai/textModelPolicy.ts). Genau
+  // dieser Default speist die Fallback-Kette, siehe providerFallback.ts.
+  it('getDefaultModel returns the policy-approved default', () => {
+    expect(getDefaultModel('regolo')).toBe(regoloTextDefault());
+    expect(isExcludedTextModel(getDefaultModel('regolo'))).toBe(false);
   });
 
   it('getProviderDisplayName returns Regolo AI', () => {
@@ -67,12 +72,12 @@ describe.skipIf(!RUN_LIVE)(
       expect(process.env.REGOLO_API_KEY).toBeTruthy();
     });
 
-    it('chat completion with qwen3.5-122b (reasoning model, needs more tokens)', async () => {
-      const result = await executeProvider('regolo', 'test-regolo-qwen', {
+    it('chat completion with gemma4-31b (named model, no auto-default)', async () => {
+      const result = await executeProvider('regolo', 'test-regolo-gemma', {
         messages: [{ role: 'user', content: 'Sag einfach nur "Hallo"' }],
         systemPrompt: 'Du antwortest immer kurz und prägnant. Maximal ein Wort.',
         type: 'chat',
-        options: { max_tokens: 512, model: 'qwen3.5-122b' },
+        options: { max_tokens: 512, model: 'gemma4-31b' },
         metadata: {},
       });
 

@@ -8,9 +8,16 @@
  * registry id, and toolRegistry.vitest.ts asserts each array deep-equals its
  * registry-derived counterpart.
  */
+import {
+  getInstance,
+  isChannelVisibleIn,
+  policyCoversTool,
+  type InstanceChannel,
+} from '@gruenerator/shared/instances';
 import { RiSpyLine } from 'react-icons/ri';
 
 import { getIcon } from './icons';
+import { CURRENT_INSTANCE } from './instance';
 
 import type { IconType } from './icons';
 import type { OfficeCreateKind, OfficeSuiteActionId, ToolId } from './toolRegistry';
@@ -34,7 +41,7 @@ export interface WorkplaceToolItem {
   /** External URL (rendered as a new-tab anchor). Mutually exclusive with `path`. */
   href?: string;
   icon: IconType;
-  devOnly?: boolean;
+  channel?: InstanceChannel;
 }
 
 /** A single entry inside a dropdown tool card. Rendered as a tool-card row. */
@@ -243,8 +250,20 @@ export const TOOL_MENUS: WorkplaceToolMenu[] = [
   },
 ] satisfies RegisteredMenu[];
 
-export function filterWorkplaceTools(tools: WorkplaceToolItem[]): WorkplaceToolItem[] {
-  return tools.filter((tool) => !tool.devOnly || import.meta.env.DEV);
+/**
+ * Channel visibility (maturity) plus the instance's `hide.toolIds` (per-instance
+ * curation, e.g. bgst hiding Vorlagen/Reels) — both no-ops for instances that
+ * don't set them. Generic so it also covers `OFFICE_SUITE_TOOLS`, whose items
+ * share the `id` shape but aren't `WorkplaceToolItem`s.
+ */
+export function filterWorkplaceTools<T extends { id: string; channel?: InstanceChannel }>(
+  tools: T[]
+): T[] {
+  const hidePolicy = getInstance(CURRENT_INSTANCE).hide;
+  return tools.filter(
+    (tool) =>
+      isChannelVisibleIn(tool.channel, CURRENT_INSTANCE) && !policyCoversTool(hidePolicy, tool.id)
+  );
 }
 
 /** A tool can be pinned to the sidebar only if it has an internal route. */

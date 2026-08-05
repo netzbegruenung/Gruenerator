@@ -5,7 +5,11 @@ import { execute, type ExecuteDeps } from './execute.js';
 import type { ProviderName } from '../../services/ai/providers.js';
 import type { AIRequestData, AIWorkerResult } from '../types.js';
 
-const KNOWN: readonly ProviderName[] = ['mistral', 'litellm', 'regolo', 'greenpt'];
+// Must list EVERY ProviderName. This is an array, not a Record, so the compiler
+// does not check it — a missing member is not an error but a silent downgrade:
+// `normalizeProviderName` sends the unknown name to 'mistral', i.e. the most
+// expensive model, behind nothing but a console.warn.
+const KNOWN: readonly ProviderName[] = ['mistral', 'litellm', 'regolo', 'greenpt', 'scaleway'];
 
 async function executeProvider(
   providerName: ProviderName | string,

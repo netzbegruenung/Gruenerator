@@ -11,7 +11,7 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Mistral AI](https://img.shields.io/badge/Mistral-AI-FF7000?style=flat-square&logo=mistral&logoColor=white)](https://mistral.ai/)
 [![License](https://img.shields.io/badge/license-Proprietary-blue?style=flat-square)](LICENSE.md)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](CONTRIBUTING.md)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](.github/CONTRIBUTING.md)
 
 [Live Demo](https://gruenerator.de) · [Documentation](https://doku.gruenerator.eu/) · [Report Bug](https://github.com/netzbegruenung/Gruenerator/issues) · [Request Feature](https://github.com/netzbegruenung/Gruenerator/issues)
 
@@ -142,7 +142,7 @@ Professional subtitle generation for videos:
 
 ### Integrations
 
-- **MCP Server** — Model Context Protocol server for searching Green party programs DE/AT ([mcp.gruenerator.eu](https://mcp.gruenerator.eu))
+- **MCP Server** — Model Context Protocol server, served in-process by the API ([mcp.gruenerator.eu](https://mcp.gruenerator.eu)). Search across Green party programs DE/AT plus the signed-in user's own documents, boards, notebooks and groups; OAuth 2.1 login required.
 - **User-managed MCP connectors** — connect third-party MCP servers to the chat, with OAuth support
 - **System search sources** — Deutsche Bahn, weather, and news available as chat tools
 - **Grüne Wolke** — Nextcloud integration for file storage and sharing
@@ -175,22 +175,23 @@ Professional subtitle generation for videos:
 │  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐  │
 │  │  Express 5   │  │   Cluster    │  │   AI Worker Pool   │  │
 │  │   Server     │──│   Workers    │──│ Mistral │ LiteLLM  │  │
-│  └──────────────┘  └──────────────┘  │ Regolo  │ BFL Flux │  │
+│  │              │  │              │  │ Regolo  │ GreenPT  │  │
+│  └──────────────┘  └──────────────┘  │      Scaleway      │  │
 │                                      └────────────────────┘  │
 │  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐  │
 │  │  ChatGraph   │  │  Keycloak    │  │    PostgreSQL      │  │
 │  │  Agent Loop  │  │  OIDC SSO    │  │    Database        │  │
 │  └──────────────┘  └──────────────┘  └────────────────────┘  │
-│  ┌──────────────┐  ┌──────────────┐                          │
-│  │    Redis     │  │   Qdrant     │                          │
-│  │  Cache/PubSub│  │   Vectors    │                          │
-│  └──────────────┘  └──────────────┘                          │
+│  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐  │
+│  │    Redis     │  │   Qdrant     │  │     MCP Server     │  │
+│  │  Cache/PubSub│  │   Vectors    │  │ mcp.gruenerator.eu │  │
+│  └──────────────┘  └──────────────┘  └────────────────────┘  │
 └──────────────────────────────────────────────────────────────┘
-         │                                    │
-┌────────▼─────────┐              ┌───────────▼────────┐
-│   Hocuspocus     │              │    MCP Server      │
-│ (Yjs Realtime)   │              │ mcp.gruenerator.eu │
-└──────────────────┘              └────────────────────┘
+         │
+┌────────▼─────────┐
+│   Hocuspocus     │
+│ (Yjs Realtime)   │
+└──────────────────┘
 ```
 
 ### Key Patterns
@@ -206,7 +207,7 @@ Professional subtitle generation for videos:
 
 ## Monorepo Structure
 
-This is a **pnpm + Turborepo** monorepo: 6 apps, 16 packages, and 5 services.
+This is a **pnpm + Turborepo** monorepo: 6 apps, 16 packages, and 3 services.
 
 ### Apps
 
@@ -242,13 +243,11 @@ This is a **pnpm + Turborepo** monorepo: 6 apps, 16 packages, and 5 services.
 
 ### Services
 
-| Workspace             | Description                                                                      |
-| --------------------- | -------------------------------------------------------------------------------- |
-| `services/mcp`        | Model Context Protocol server ([mcp.gruenerator.eu](https://mcp.gruenerator.eu)) |
-| `services/hocuspocus` | Real-time collaboration server (Yjs)                                             |
-| `services/nlp`        | Python NLP enrichment for notebook content                                       |
-| `services/nango`      | Self-hosted OAuth broker for third-party connectors                              |
-| `services/iconify`    | Self-hosted icon API                                                             |
+| Workspace             | Description                                         |
+| --------------------- | --------------------------------------------------- |
+| `services/hocuspocus` | Real-time collaboration server (Yjs)                |
+| `services/nlp`        | Python NLP enrichment for notebook content          |
+| `services/nango`      | Self-hosted OAuth broker for third-party connectors |
 
 User documentation lives in `documentation/` (Docusaurus, deployed to [doku.gruenerator.eu](https://doku.gruenerator.eu/)).
 
@@ -450,7 +449,7 @@ See the [CHANGELOG](CHANGELOG.md) for recent updates.
 
 ## Contributing
 
-Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md) for details.
+Contributions are welcome! Please read our [Contributing Guidelines](.github/CONTRIBUTING.md) for details.
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)

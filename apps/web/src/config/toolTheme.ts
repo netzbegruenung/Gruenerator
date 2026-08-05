@@ -32,7 +32,7 @@ export const TOOL_THEME = {
     tile: 'bg-[#F6EFD4] dark:bg-[#2B2612]',
     icon: 'text-[#6B5A12] dark:text-[#CBB86A]',
     title: 'text-[#4E4310] dark:text-[#E4D6A0]',
-    desc: 'text-[#7D6F35] dark:text-[#AB9C64]',
+    desc: 'text-[#786B33] dark:text-[#AB9C64]',
     gradient:
       'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#FBF6E4_0%,#FDFAF0_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#221E12_0%,#17140C_55%,#0F0D08_100%)]',
   },
@@ -40,7 +40,7 @@ export const TOOL_THEME = {
     tile: 'bg-[#E6F0D6] dark:bg-[#202B14]',
     icon: 'text-[#3E5A1E] dark:text-[#A6C57C]',
     title: 'text-[#31471A] dark:text-[#C4DAA2]',
-    desc: 'text-[#5E7440] dark:text-[#8DA66E]',
+    desc: 'text-[#5B703E] dark:text-[#8DA66E]',
     gradient:
       'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#F2F7E8_0%,#F9FBF2_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#1A2113_0%,#12170D_55%,#0D0F09_100%)]',
   },
@@ -56,7 +56,7 @@ export const TOOL_THEME = {
     tile: 'bg-[#F6E5D4] dark:bg-[#2B1D12]',
     icon: 'text-[#7A4A1F] dark:text-[#CB9A6A]',
     title: 'text-[#5E3915] dark:text-[#E4C0A0]',
-    desc: 'text-[#8A683F] dark:text-[#AB8864]',
+    desc: 'text-[#81613B] dark:text-[#AB8864]',
     gradient:
       'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#FBF0E6_0%,#FDF8F2_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#221A12_0%,#17120C_55%,#0F0C08_100%)]',
   },
@@ -90,7 +90,7 @@ export const TOOL_THEME = {
     tile: 'bg-[#F6E5D4] dark:bg-[#2B1D12]',
     icon: 'text-[#7A4A1F] dark:text-[#CB9A6A]',
     title: 'text-[#5E3915] dark:text-[#E4C0A0]',
-    desc: 'text-[#8A683F] dark:text-[#AB8864]',
+    desc: 'text-[#81613B] dark:text-[#AB8864]',
     gradient:
       'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#FBF0E6_0%,#FDF8F2_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#221A12_0%,#17120C_55%,#0F0C08_100%)]',
   },
@@ -98,7 +98,7 @@ export const TOOL_THEME = {
     tile: 'bg-[#F5DEE6] dark:bg-[#2B1620]',
     icon: 'text-[#8A3E5C] dark:text-[#CB8AA6]',
     title: 'text-[#6E2E48] dark:text-[#E4B0C6]',
-    desc: 'text-[#9E6A80] dark:text-[#AB7E94]',
+    desc: 'text-[#85576A] dark:text-[#AB7E94]',
     gradient:
       'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#FBEDF2_0%,#FDF7FA_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#22141A_0%,#170E12_55%,#0F090C_100%)]',
   },
@@ -108,7 +108,7 @@ export const TOOL_THEME = {
     tile: 'bg-[#F5EFC9] dark:bg-[#26220F]',
     icon: 'text-[#7C6A1E] dark:text-[#CDBB72]',
     title: 'text-[#5F5212] dark:text-[#E1D296]',
-    desc: 'text-[#84743C] dark:text-[#AC9C68]',
+    desc: 'text-[#786A37] dark:text-[#AC9C68]',
     gradient:
       'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#FBF7DF_0%,#FDFBF1_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#201D0E_0%,#16130A_55%,#0E0C07_100%)]',
   },
@@ -118,7 +118,7 @@ export const TOOL_THEME = {
     tile: 'bg-[#DCE6F2] dark:bg-[#14202E]',
     icon: 'text-[#2E4E7A] dark:text-[#7CA2CB]',
     title: 'text-[#1E3A5E] dark:text-[#A2C0E4]',
-    desc: 'text-[#56708F] dark:text-[#6E88AB]',
+    desc: 'text-[#4F6784] dark:text-[#6E88AB]',
     gradient:
       'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#ECF2F9_0%,#F6F9FC_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#131C26_0%,#0E1319_55%,#090D10_100%)]',
   },
@@ -137,7 +137,7 @@ export const TOOL_THEME = {
     tile: 'bg-[#F5DEE9] dark:bg-[#2B1620]',
     icon: 'text-[#993D68] dark:text-[#D69BB8]',
     title: 'text-[#7A2E52] dark:text-[#E9BCD2]',
-    desc: 'text-[#9E6A84] dark:text-[#B0829A]',
+    desc: 'text-[#85576E] dark:text-[#B0829A]',
     gradient:
       'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#FBEDF3_0%,#FDF7FA_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#22141A_0%,#170E12_55%,#0F090C_100%)]',
   },
@@ -158,7 +158,7 @@ export const TOOL_THEME = {
     tile: 'bg-[#DCEFE3] dark:bg-[#14271D]',
     icon: 'text-[#2E6B49] dark:text-[#8FC9A9]',
     title: 'text-[#1F4F35] dark:text-[#B5DEC6]',
-    desc: 'text-[#527B65] dark:text-[#7CA890]',
+    desc: 'text-[#486C59] dark:text-[#7CA890]',
     gradient:
       'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#E9F5EE_0%,#F5FBF7_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#142219_0%,#0F1812_55%,#0A0F0C_100%)]',
   },
