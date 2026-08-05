@@ -31,7 +31,7 @@ import { useNavigate } from 'react-router-dom';
 
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { SHOW_SHAREPIC_STUDIO } from '../../config/featureFlags';
-import { OFFICE_SUITE_TOOLS } from '../../config/workplaceToolsConfig';
+import { OFFICE_SUITE_TOOLS, filterWorkplaceTools } from '../../config/workplaceToolsConfig';
 import { useBoardsTyped } from '../../hooks/useBoardsTyped';
 import { useFirstName } from '../../hooks/useFirstName';
 import { generateSharepicFromPrompt } from '../../services/sharepicPromptService';
@@ -190,6 +190,8 @@ export function DocumentsContent({
   } | null>(null);
 
   const isLoading = docsLoading || boardsLoading;
+
+  const visibleOfficeSuiteTools = useMemo(() => filterWorkplaceTools(OFFICE_SUITE_TOOLS), []);
 
   const { personalItems, groupDocsByGroup, hasAnyItems } = useMemo(() => {
     const personal: UnifiedItem[] = [];
@@ -654,9 +656,9 @@ export function DocumentsContent({
         <section className="mb-xl mt-xl">
           <div
             className={OFFICE_SCROLL_ROW}
-            style={officeStripStyle(OFFICE_SUITE_TOOLS.length, { maxTilePx: 200 })}
+            style={officeStripStyle(visibleOfficeSuiteTools.length, { maxTilePx: 200 })}
           >
-            {OFFICE_SUITE_TOOLS.map((tool) => (
+            {visibleOfficeSuiteTools.map((tool) => (
               <div key={tool.id} className={OFFICE_SCROLL_ITEM}>
                 <OfficeActionTile
                   styleKey="office"
