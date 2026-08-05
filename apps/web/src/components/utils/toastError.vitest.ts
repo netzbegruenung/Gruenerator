@@ -5,9 +5,12 @@
  * Also locks in the `defaultErrorMessage` identity comparison this branching
  * depends on, so a future `errorMessages.ts` refactor (e.g. spreading instead
  * of returning the shared reference) fails a test instead of silently
- * reintroducing the bug.
+ * reintroducing the bug, and confirms unclassified errors reach Sentry —
+ * `console.error` alone isn't captured in production (no captureConsole
+ * integration in `index.tsx`).
  */
 import { toast } from '@gruenerator/ui';
+import * as Sentry from '@sentry/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { toastApiError } from './toastError';
@@ -16,21 +19,32 @@ vi.mock('@gruenerator/ui', () => ({
   toast: { error: vi.fn() },
 }));
 
+vi.mock('@sentry/react', () => ({
+  captureException: vi.fn(),
+}));
+
 const toastErrorMock = vi.mocked(toast.error);
+const captureExceptionMock = vi.mocked(Sentry.captureException);
 
 describe('toastApiError', () => {
   beforeEach(() => {
     toastErrorMock.mockClear();
+    captureExceptionMock.mockClear();
     vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
-  it('stays silent for an unclassified query error (default source)', () => {
-    toastApiError({ status: 422 });
+  it('stays silent for an unclassified query error (default source), but reports it to Sentry', () => {
+    const error = { status: 422 };
+    toastApiError(error);
 
     expect(toastErrorMock).not.toHaveBeenCalled();
     expect(console.error).toHaveBeenCalledWith(
       'Unclassified API error (no toast shown):',
       expect.anything()
+    );
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      error,
+      expect.objectContaining({ tags: { toastSource: 'query', toastSkipped: true } })
     );
   });
 
@@ -40,20 +54,26 @@ describe('toastApiError', () => {
     expect(toastErrorMock).not.toHaveBeenCalled();
   });
 
-  it('shows the calm fallback toast for an unclassified mutation error', () => {
-    toastApiError({ status: 422 }, { source: 'mutation' });
+  it('shows the calm fallback toast for an unclassified mutation error, and reports it to Sentry', () => {
+    const error = { status: 422 };
+    toastApiError(error, { source: 'mutation' });
 
     expect(toastErrorMock).toHaveBeenCalledTimes(1);
     expect(toastErrorMock).toHaveBeenCalledWith(
       'Aktion fehlgeschlagen',
       expect.objectContaining({ description: expect.stringContaining('nicht funktioniert') })
     );
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      error,
+      expect.objectContaining({ tags: { toastSource: 'mutation', toastSkipped: false } })
+    );
   });
 
-  it('still shows the specific toast for a classified status regardless of source', () => {
+  it('still shows the specific toast for a classified status regardless of source, without reporting to Sentry', () => {
     toastApiError({ status: 500 }, { source: 'query' });
 
     expect(toastErrorMock).toHaveBeenCalledTimes(1);
     expect(toastErrorMock).toHaveBeenCalledWith('KI-Dienst nicht verfügbar', expect.anything());
+    expect(captureExceptionMock).not.toHaveBeenCalled();
   });
 });
