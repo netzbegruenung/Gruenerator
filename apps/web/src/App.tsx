@@ -58,13 +58,13 @@ const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error, query) => {
       if (query.meta?.silent === true) return;
-      toastApiError(error);
+      toastApiError(error, { source: 'query' });
     },
   }),
   mutationCache: new MutationCache({
     onError: (error, _variables, _context, mutation) => {
       if (mutation.meta?.silent === true) return;
-      toastApiError(error);
+      toastApiError(error, { source: 'mutation' });
     },
   }),
   defaultOptions: {

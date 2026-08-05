@@ -1,6 +1,10 @@
 import { toast } from '@gruenerator/ui';
 
-import { defaultErrorMessage, getErrorMessage } from './errorMessages';
+import {
+  defaultErrorMessage,
+  getErrorMessage,
+  mutationFallbackErrorMessage,
+} from './errorMessages';
 
 import type { AxiosError } from 'axios';
 
@@ -70,12 +74,22 @@ function pickToastId(status: number | undefined): string {
   return TOAST_IDS.generic;
 }
 
+interface ToastApiErrorOptions {
+  /**
+   * 'query' (default) covers reads, including silent background refetches —
+   * an unclassified failure there is skipped (see below). 'mutation' covers
+   * user-initiated writes, which must always give feedback on failure.
+   */
+  source?: 'query' | 'mutation';
+}
+
 /**
  * Surface an API error as a user-visible toast, using the shared German
  * error-message dictionary. Multiple concurrent failures with the same
  * category collapse into a single toast via sonner's id-based dedup.
  */
-export function toastApiError(error: unknown): void {
+export function toastApiError(error: unknown, options: ToastApiErrorOptions = {}): void {
+  const { source = 'query' } = options;
   const status = resolveStatus(error);
 
   // 401 is handled by the auth-redirect layer (apiClient interceptor + AuthRoute).
@@ -97,14 +111,21 @@ export function toastApiError(error: unknown): void {
     return;
   }
 
-  const errorInfo = getErrorMessage(error);
+  let errorInfo = getErrorMessage(error);
 
-  // Unclassified errors have no specific title/message to show — "Unerwarteter
-  // Fehler" is not actionable and just makes the user anxious. Log it for
-  // debugging instead of toasting a vague warning.
   if (errorInfo === defaultErrorMessage) {
-    console.error('Unclassified API error (no toast shown):', error);
-    return;
+    if (source === 'query') {
+      // Unclassified errors have no specific title/message to show, and a
+      // background/read failure isn't something the user needs to act on —
+      // "Unerwarteter Fehler" is not actionable and just makes them anxious.
+      // Log it for debugging instead of toasting a vague warning.
+      console.error('Unclassified API error (no toast shown):', error);
+      return;
+    }
+    // Mutations are user-initiated (save/delete/etc.) — silence would read as
+    // success. Show a plain, non-alarming outcome instead of the scary default.
+    console.error('Unclassified mutation error:', error);
+    errorInfo = mutationFallbackErrorMessage;
   }
 
   const { title, message } = errorInfo;
