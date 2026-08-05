@@ -80,12 +80,13 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   const locale = useAuthStore((state) => state.locale);
   const isAustrian = locale === 'de-AT';
   // Workplace paints a wide, tinted gradient behind the (fixed, translucent)
-  // sidebar; a heavier blur radius blends that colour through instead of the
-  // sidebar reading as a flat panel cutting across it. Only the blur radius
-  // changes — opacity stays at the shared bg-background/70 value everywhere,
-  // since that's also the fallback contrast users get once
-  // prefers-reduced-transparency strips backdrop-filter (accessibility.css);
-  // lowering it here would lower that fallback's contrast too.
+  // sidebar. bg-background/70 alone still reads as a near-solid panel — at
+  // 70% opacity barely any of the gradient shows even with blur — so
+  // workplace drops to a much lower alpha for a real glass effect. That low
+  // alpha depends on the heavier blur to stay legible; accessibility.css
+  // forces the sidebar back to the solid 85% fallback whenever
+  // prefers-reduced-transparency strips backdrop-filter, so contrast never
+  // rides on this low value once the blur is gone.
   const isWorkplaceRoute = location.pathname.startsWith('/workplace');
 
   const newMenuOpenRef = useRef(false);
@@ -479,9 +480,22 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
           data-tour="app-sidebar"
           className={cn(
             'sidebar fixed top-0 left-0 h-dvh z-[1001] flex flex-col overflow-hidden transition-[width] duration-200',
-            // Desktop (non-Tauri) — frosted glass
-            !isDesktop && 'md:w-14 bg-background/85 supports-[backdrop-filter]:bg-background/70',
-            !isDesktop && (isWorkplaceRoute ? 'backdrop-blur-2xl' : 'backdrop-blur-xl'),
+            // Desktop (non-Tauri) — frosted glass. The 56px collapsed rail on
+            // workplace is narrow enough that bg-background/70 reads as a
+            // near-solid wall against the gradient next to it — it drops to a
+            // much lower alpha there. The hover-expanded 260px panel already
+            // blends fine at /70 (more surface for the gradient to bleed
+            // into), so it keeps the same value as every other route.
+            // accessibility.css re-solidifies the collapsed rail back to /85
+            // once blur is stripped (prefers-reduced-transparency / the a11y
+            // setting), so contrast never rides on the low alpha alone.
+            !isDesktop && 'md:w-14 bg-background/85',
+            !isDesktop &&
+              (isWorkplaceRoute && !sidebarExpanded
+                ? 'supports-[backdrop-filter]:bg-background/20 backdrop-blur-2xl'
+                : isWorkplaceRoute
+                  ? 'supports-[backdrop-filter]:bg-background/70 backdrop-blur-2xl'
+                  : 'supports-[backdrop-filter]:bg-background/70 backdrop-blur-xl'),
             !isDesktop && sidebarExpanded && 'md:w-[260px]',
             // Tauri desktop mode — keep native bar background, no blur
             isDesktop &&
