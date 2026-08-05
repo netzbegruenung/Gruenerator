@@ -36,19 +36,19 @@ Single workspace: `pnpm --filter @gruenerator/api test:auth`, `pnpm --filter @gr
 ### Monorepo Layout
 
 - **`apps/web`** — React 19 + Vite 7. Feature-sliced design, 26 modules in `src/features/`. Routes: `src/config/routes.ts`.
-- **`apps/api`** — Express 5, Node.js cluster mode. AI runs in-process via `services/ai/aiService.ts` (still reachable as `app.locals.aiWorkerPool` — the `worker_threads` pool it replaced is gone). Routes in `routes/`, logic in `services/`. See `CLAUDE-routing.md`.
+- **`apps/api`** — Express 5, Node.js cluster mode. AI runs in-process via `services/ai/aiService.ts` (still reachable as `app.locals.aiWorkerPool` — the `worker_threads` pool it replaced is gone). Routes in `routes/`, logic in `services/`. See `docs/CLAUDE-routing.md`.
   - **Chat: contract router is the only handler.** `routes/chat/chatGraphContractRouter.ts` (+ `agents/langgraph/ChatGraph/` nodes: classifier → search → respond) handles `/api/chat-service/*`; tools are executed by `routes/chat/services/intentExecutionService.ts` (calling services directly — there is no LangChain tool registry). **When debugging chat behavior (intent, tool calls, prompts), check the contract router & ChatGraph nodes first** — confirm via backend logs `[ChatGraph:Classifier]` / `[chatGraphContractRouter]`.
   - **Before restructuring anything in the chat stack, read `docs/chat-architecture-evaluation.md`.** It records what the architecture actually is (the compiled LangGraph graphs have zero callers — the routers hand-sequence the nodes), which duplicates are deliberate vs. drift, what the AI SDK v7 already provides that we hand-rolled, and why Deep Agents was evaluated and declined. Note `/docs/` is gitignored — edits there need `git add -f`.
 - **`apps/docs`** — **Deprecated** collaborative editor. New docs features → `apps/web/src/features/docs/` + `packages/docs/`.
 - **`apps/mobile`** — Expo 57 / React Native 0.86 with Expo Router.
 - **`apps/desktop`** — Tauri 2 wrapper around web frontend. **ALWAYS build the desktop app from `master`, never from a feature branch.** The build bundles the web frontend, but the running app talks to the *deployed production* backend (`gruenerator.eu`). A branch frontend ships calls to endpoints / response shapes prod doesn't have yet → they 404 and the app hangs on loading skeletons. Land desktop changes on `master` first (PR + deploy backend), then build.
-- **`packages/chat`** — Shared chat UI, runtime adapters (Assistant UI), stores, hooks. Consumed at `/chat`. Composer controls (modes/models) are defined once here and rendered per-platform — see `CLAUDE-chat.md`; never hardcode mode/model/tool lists in an app.
+- **`packages/chat`** — Shared chat UI, runtime adapters (Assistant UI), stores, hooks. Consumed at `/chat`. Composer controls (modes/models) are defined once here and rendered per-platform — see `docs/CLAUDE-chat.md`; never hardcode mode/model/tool lists in an app.
 - **`packages/shared`** — Shared stores (Zustand), hooks, API clients, feature modules. Components in `src/components/`.
 - **`packages/sites`** — Embedded candidate-site builder (Home / Login / Demo / Edit pages, editor components, stores). Consumed by `apps/web` at `/sites/*` via `apps/web/src/features/sites/`. No standalone shell; auth/apiClient injected via `<SitesProvider>`.
 - **`packages/sites-design`** — Design tokens + presentational components for the site builder (consumed by `packages/sites` and the public candidate sites).
 - **`packages/canvas-editor`** — Config-driven react-konva editor. Per-instance Zustand stores via `CanvasStoreProvider`. **Editor UI follows the "Canva-Layout in Grünerator-Grün" design — see `packages/canvas-editor/CLAUDE.md` (mandatory `--editor-*` token layer, no `dark:` utilities, tokens in 4 files).**
 - **`services/hocuspocus`** — Hocuspocus WebSocket server for Yjs collab. Zero cross-package deps (inline utils).
-- **`services/mcp`** — MCP server (`https://mcp.gruenerator.eu`). See `CLAUDE-mcp.md`.
+- **`services/mcp`** — MCP server (`https://mcp.gruenerator.eu`). See `docs/CLAUDE-mcp.md`.
 - **`services/comfyui`** — ComfyUI workflows for local GPU image gen.
 
 ### Page Layout Modes
@@ -83,7 +83,7 @@ Keycloak OIDC via Passport.js. Multiple IdPs (.de, .at, .eu). Sessions in Redis.
 
 ### AI Providers
 
-Mistral AI (primary, EU), self-hosted GPT-OSS/Gemma via LiteLLM/verdigado, Seeweb/Regolo AI (EU; also transcription via faster-whisper, with Mistral Voxtral as fallback), Scaleway (EU/Paris; liefert Mistral Medium 3.5 und Whisper), Flux/BFL (images). NOT used in production: Together AI (historical fine-tuning experiment only, see `CLAUDE-finetuning.md`), AssemblyAI, Gladia, Bedrock/Claude. No ultra/pro/privacy mode flags — model routing is type-based in `providerSelector.ts`; explicit model choice exists only in Playground, mobile chat, and agent configs.
+Mistral AI (primary, EU), self-hosted GPT-OSS/Gemma via LiteLLM/verdigado, Seeweb/Regolo AI (EU; also transcription via faster-whisper, with Mistral Voxtral as fallback), Scaleway (EU/Paris; liefert Mistral Medium 3.5 und Whisper), Flux/BFL (images). NOT used in production: Together AI (historical fine-tuning experiment only, see `docs/CLAUDE-finetuning.md`), AssemblyAI, Gladia, Bedrock/Claude. No ultra/pro/privacy mode flags — model routing is type-based in `providerSelector.ts`; explicit model choice exists only in Playground, mobile chat, and agent configs.
 
 **Scaleway ist ein Upstream, kein `ProviderName`.** Mistral Medium 3.5 läuft auf Scaleway, die Mistral-API ist der Fallback; die Weiche steht in `routeMistralModel` (`services/ai/providerInstances.ts`) — eine Ebene UNTER dem Lane-Namen. Grund: alles Policy-Relevante prüft `provider === 'mistral'` (`isAgenticToolCapable`, Kontextfenster, Fallback-Ketten), ein Geschwister-Provider hätte das fürs Hauptmodell still abgeschaltet. Deshalb brauchen die ~20 Aufrufer, die `mistral-medium-2604` hart benennen, keine Änderung. **Zwei Ausnahmen bleiben bewusst auf der Mistral-API:** Denk-Anfragen (`providerOptions.mistral` erreicht einen OpenAI-kompatiblen Client nie — stiller Verlust; roh erzwungen liefert Scaleway leeren `content`, weil das Reasoning gegen `max_tokens` zählt) und alles außer Medium (Pixtral, Small, Embeddings). Scaleways Whisper kann **nur Segment-**, keine Wort-Zeitstempel — `WORD_TIMESTAMP_CHAIN` in `services/transcription/providerPolicy.ts` hält es aus dem Untertitel-Pfad heraus, weil eine wortlose Antwort kein Fehler ist und die Fallback-Schleife sie sonst als Erfolg akzeptieren würde.
 
@@ -101,11 +101,11 @@ Mistral AI (primary, EU), self-hosted GPT-OSS/Gemma via LiteLLM/verdigado, Seewe
 
 ### Agent-Skills & versionsgenaue Doku
 
-**Bevor du Code gegen eine Library änderst (AI SDK, Tailwind v4, LangGraph, Drizzle, Zod, Qdrant, Expo, Tiptap, Better Auth, Linkup, …): erst die versionsgenaue Quelle lesen, nicht aus dem Gedächtnis schreiben.** Welche Skill bzw. welches `llms.txt` — und die Fallen dabei — stehen in `CLAUDE-agent-docs.md`. Ein Tool-Call ist billiger als ein Debug-Zyklus an einer umbenannten API.
+**Bevor du Code gegen eine Library änderst (AI SDK, Tailwind v4, LangGraph, Drizzle, Zod, Qdrant, Expo, Tiptap, Better Auth, Linkup, …): erst die versionsgenaue Quelle lesen, nicht aus dem Gedächtnis schreiben.** Welche Skill bzw. welches `llms.txt` — und die Fallen dabei — stehen in `docs/CLAUDE-agent-docs.md`. Ein Tool-Call ist billiger als ein Debug-Zyklus an einer umbenannten API.
 
 ### Expo Apps
 
-Expo-Skills sind als Plugin `expo@claude-plugins-official` installiert (user scope) — siehe *Agent-Skills & versionsgenaue Doku*. Use `npx expo install` (not `pnpm add`). See `CLAUDE-expo.md`. Always use `expo-image` (not RN `Image`) — RN can't render SVGs.
+Expo-Skills sind als Plugin `expo@claude-plugins-official` installiert (user scope) — siehe *Agent-Skills & versionsgenaue Doku*. Use `npx expo install` (not `pnpm add`). See `docs/CLAUDE-expo.md`. Always use `expo-image` (not RN `Image`) — RN can't render SVGs.
 
 **React version is decoupled between web and mobile — never use a single global override.** RN bundles `react-native-renderer` pinned to one EXACT React version; React's runtime check rejects any mismatch (symptoms: `Incompatible React versions`, then cascading `Maximum call stack size exceeded` / `Cannot read property 'ErrorBoundary' of undefined` / phantom "missing default export" route warnings). So:
 - `apps/mobile` pins `react`/`react-dom` to the **exact** version the Expo SDK ships. Bump it **only** via `npx expo install react react-dom` during an SDK upgrade — never independently. Dependabot ignores react/react-dom for `/apps/mobile` entirely (`.github/dependabot.yml`).
@@ -114,11 +114,11 @@ Expo-Skills sind als Plugin `expo@claude-plugins-official` installiert (user sco
 
 ### Styling & UI
 
-See `CLAUDE-styling.md` for Tailwind v4, theme/dark mode, CSS variables, shadcn/ui setup, docs app conventions.
+See `docs/CLAUDE-styling.md` for Tailwind v4, theme/dark mode, CSS variables, shadcn/ui setup, docs app conventions.
 
 ### Barrierefreiheit
 
-Zielstandard WCAG 2.2 AA im Rahmen von EN 301 549. **Vor Farb-, Karten-, Fokus- oder ARIA-Änderungen `CLAUDE-a11y.md` lesen** — dort stehen die Prüfmittel je Ebene, die Farbregeln (ein Token kann nicht `bg-` und `text-` in beiden Modi bedienen; `opacity` frisst den Kontrast von allem darin) und das Messrezept, ohne das jede Nachmessung zwanzigmal die Loginseite prüft und grün meldet. Öffentliche Selbstauskunft: `documentation/docs/ueber-den-gruenerator/barrierefreiheit.md` — bei behobenen oder neuen Mängeln dort das Stand-Datum und die Liste nachziehen.
+Zielstandard WCAG 2.2 AA im Rahmen von EN 301 549. **Vor Farb-, Karten-, Fokus- oder ARIA-Änderungen `docs/CLAUDE-a11y.md` lesen** — dort stehen die Prüfmittel je Ebene, die Farbregeln (ein Token kann nicht `bg-` und `text-` in beiden Modi bedienen; `opacity` frisst den Kontrast von allem darin) und das Messrezept, ohne das jede Nachmessung zwanzigmal die Loginseite prüft und grün meldet. Öffentliche Selbstauskunft: `documentation/docs/ueber-den-gruenerator/barrierefreiheit.md` — bei behobenen oder neuen Mängeln dort das Stand-Datum und die Liste nachziehen.
 
 ### State Management
 
@@ -183,7 +183,7 @@ Symptom of a missed pass: a frontend interface that duplicates a backend schema'
 
 ### Backend Routing & Typing
 
-See `CLAUDE-routing.md` for Express 5 route typing, `TypedRequest`/`AuthRequest`, AI worker pool access, locale-aware backend rules.
+See `docs/CLAUDE-routing.md` for Express 5 route typing, `TypedRequest`/`AuthRequest`, AI worker pool access, locale-aware backend rules.
 
 ### External API Clients & SSRF
 
@@ -221,8 +221,8 @@ Konsequenzen:
 
 ### Newsletter
 
-See `CLAUDE-newsletter.md`. Landesverband notebooks: see `CLAUDE-landesverband.md`.
+See `docs/CLAUDE-newsletter.md`. Landesverband notebooks: see `docs/CLAUDE-landesverband.md`.
 
 ## Deployment
 
-See `CLAUDE-deployment.md` for Docker images, test/prod environments, deploying steps, and shared package checklist.
+See `docs/CLAUDE-deployment.md` for Docker images, test/prod environments, deploying steps, and shared package checklist.
