@@ -60,8 +60,11 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
       // __vitePreload race resolved to `undefined` instead of rejecting (e.g. a
       // page reload interrupting an in-flight chunk fetch) — same failure class
       // as the messages above, just a different symptom. Browser wording varies.
-      error?.message?.includes('can\'t access property "default"') ||
-      error?.message?.includes('_result is undefined') ||
+      // Firefox phrasing: both substrings appear together in one message —
+      // require both so an unrelated error mentioning a `_result` field alone
+      // isn't misclassified as a recoverable chunk-load error.
+      (error?.message?.includes('can\'t access property "default"') &&
+        error?.message?.includes('_result is undefined')) ||
       error?.message?.includes("Cannot read properties of undefined (reading 'default')") ||
       error?.name === 'ChunkLoadError'
     );
