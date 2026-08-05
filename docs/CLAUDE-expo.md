@@ -2,7 +2,7 @@
 
 > Referenced from `CLAUDE.md`. Load Expo skills when working on `apps/mobile` or `apps/docs-expo`.
 >
-> **Testing `apps/mobile`: see [apps/mobile/CLAUDE-testing.md](apps/mobile/CLAUDE-testing.md).**
+> **Testing `apps/mobile`: see [apps/mobile/CLAUDE-testing.md](../apps/mobile/CLAUDE-testing.md).**
 > Three lanes (Vitest logic, jest-expo components, Maestro E2E) with the
 > version pins and config constraints that are not obvious from the outside.
 
