@@ -1,3 +1,4 @@
+import { getAuthErrorMessage } from '@gruenerator/collab';
 import { DocsProvider } from '@gruenerator/docs';
 import { lazy, Suspense, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -26,7 +27,7 @@ function PublicBoardContent() {
 
   const { data: board, isLoading, error } = usePublicBoard(id);
 
-  const { ydoc, provider, isSynced } = useBoardCollaboration(id || '');
+  const { ydoc, provider, isSynced, authError } = useBoardCollaboration(id || '');
 
   if (isLoading) {
     return (
@@ -48,6 +49,26 @@ function PublicBoardContent() {
             Board nicht verfügbar
           </h2>
           <p className="text-grey-500 mb-md">Dieses Board ist nicht öffentlich zugänglich.</p>
+          <button
+            onClick={() => navigate('/')}
+            className="px-4 py-2 text-sm font-medium rounded-lg bg-primary-600 text-white hover:bg-primary-700 border-none cursor-pointer transition-colors"
+          >
+            Zur Startseite
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (authError) {
+    return (
+      <div className="relative flex items-center justify-center h-dvh bg-background">
+        <DottedBackground />
+        <div className="z-10 text-center">
+          <h2 className="text-xl font-semibold text-foreground-heading mb-sm">{board.title}</h2>
+          <p className="text-grey-500 mb-md">
+            {getAuthErrorMessage(authError) || 'Dieses Board ist nicht mehr zugänglich.'}
+          </p>
           <button
             onClick={() => navigate('/')}
             className="px-4 py-2 text-sm font-medium rounded-lg bg-primary-600 text-white hover:bg-primary-700 border-none cursor-pointer transition-colors"
