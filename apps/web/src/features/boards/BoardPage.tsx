@@ -203,6 +203,7 @@ function BoardContent() {
         <BoardViewContent
           ydoc={ydoc}
           isSynced={isSynced}
+          isLocked={!!authError}
           provider={provider}
           generatedStructure={generatedStructure}
           currentUserId={String(user?.id || '')}
@@ -233,6 +234,7 @@ function BoardContent() {
 function BoardViewContent({
   ydoc,
   isSynced,
+  isLocked,
   provider,
   generatedStructure,
   currentUserId,
@@ -257,6 +259,7 @@ function BoardViewContent({
 }: {
   ydoc: Doc;
   isSynced: boolean;
+  isLocked: boolean;
   provider: HocuspocusProvider | null;
   generatedStructure: BoardInitialStructure | null;
   currentUserId: string;
@@ -279,7 +282,7 @@ function BoardViewContent({
   onDelete: () => void;
   onDuplicate: () => void;
 }) {
-  const boardState = useBoardState(ydoc, isSynced, generatedStructure);
+  const boardState = useBoardState(ydoc, isSynced, generatedStructure, isLocked);
   const [activeViewId, setActiveViewId] = useState('view-kanban-default');
   const [selectedRow, setSelectedRow] = useState<Row | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
