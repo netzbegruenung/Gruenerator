@@ -1,5 +1,8 @@
+import { getInstance, policyCoversTool } from '@gruenerator/shared/instances';
+
 import { SYSTEM_NOTEBOOKS } from '../features/notebook/config/notebooksConfig';
 
+import { CURRENT_INSTANCE } from './instance';
 import {
   favouriteToolItems,
   gridFavouriteItems,
@@ -47,8 +50,16 @@ const FAVOURITE_ITEMS_MAP = new Map(
   )
 );
 
-export const getFavouriteItemsById = (ids: string[]): FavouriteItemConfig[] =>
-  ids.map((id) => FAVOURITE_ITEMS_MAP.get(id)).filter(Boolean) as FavouriteItemConfig[];
+// A pin made before an instance hid its tool (e.g. bgst hiding Vorlagen/Reels
+// after a user already starred it) must stop resolving too — "hidden" means
+// gone from the sidebar as well, not just the tile grids.
+export const getFavouriteItemsById = (ids: string[]): FavouriteItemConfig[] => {
+  const hidePolicy = getInstance(CURRENT_INSTANCE).hide;
+  return ids
+    .map((id) => FAVOURITE_ITEMS_MAP.get(id))
+    .filter(Boolean)
+    .filter((item) => !policyCoversTool(hidePolicy, item!.id)) as FavouriteItemConfig[];
+};
 
 export const isFavouritableItem = (id: string): boolean => FAVOURITE_ITEMS_MAP.has(id);
 
