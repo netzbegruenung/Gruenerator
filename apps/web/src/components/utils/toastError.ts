@@ -1,6 +1,11 @@
 import { toast } from '@gruenerator/ui';
+import * as Sentry from '@sentry/react';
 
-import { getErrorMessage } from './errorMessages';
+import {
+  defaultErrorMessage,
+  getErrorMessage,
+  mutationFallbackErrorMessage,
+} from './errorMessages';
 
 import type { AxiosError } from 'axios';
 
@@ -70,12 +75,65 @@ function pickToastId(status: number | undefined): string {
   return TOAST_IDS.generic;
 }
 
+interface ToastApiErrorOptions {
+  /**
+   * 'query' (default) covers reads, including silent background refetches —
+   * an unclassified failure there is skipped (see below). 'mutation' covers
+   * user-initiated writes, which must always give feedback on failure.
+   */
+  source?: 'query' | 'mutation';
+}
+
+/**
+ * Cooldown between Sentry reports for the *same* unclassified error signature
+ * — polling queries (`useNotifications` @ 60s, `useMonitor` @ 5min) don't set
+ * `meta.silent`, so a persistently failing poll would otherwise fire a fresh
+ * captureException every cycle indefinitely. 10 minutes still surfaces a
+ * recurring issue quickly without spamming event volume.
+ */
+const SENTRY_REPORT_COOLDOWN_MS = 10 * 60 * 1000;
+const lastSentryReportAt = new Map<string, number>();
+
+/**
+ * Deliberately excludes the raw backend message: for validation-style errors
+ * it can carry per-request detail (the invalid value, a generated ID, …), so
+ * keying on it would mint a fresh, never-reused entry for nearly every
+ * request — defeating the throttle for exactly the errors most likely to
+ * repeat, and growing `lastSentryReportAt` unbounded. `errorCode`/`name` are
+ * the backend's own classification and stay stable across retries of the
+ * same failure.
+ */
+function sentryReportKey(error: unknown, status: number | undefined, source: string): string {
+  const e = error as (ApiErrorLike & { name?: string; errorCode?: string }) | undefined;
+  const stableIdentifier = e?.errorCode || e?.name || 'unknown';
+  return `${source}:${status ?? 'network'}:${stableIdentifier}`;
+}
+
+function shouldReportToSentry(key: string): boolean {
+  const now = Date.now();
+
+  // Evict expired entries on every call instead of on a timer — bounds map
+  // growth to "signatures seen in the last cooldown window" without needing
+  // a separate cleanup interval to manage.
+  for (const [existingKey, reportedAt] of lastSentryReportAt) {
+    if (now - reportedAt >= SENTRY_REPORT_COOLDOWN_MS) {
+      lastSentryReportAt.delete(existingKey);
+    }
+  }
+
+  const last = lastSentryReportAt.get(key);
+  if (last !== undefined && now - last < SENTRY_REPORT_COOLDOWN_MS) return false;
+  lastSentryReportAt.set(key, now);
+  return true;
+}
+
 /**
  * Surface an API error as a user-visible toast, using the shared German
  * error-message dictionary. Multiple concurrent failures with the same
  * category collapse into a single toast via sonner's id-based dedup.
  */
-export function toastApiError(error: unknown): void {
+export function toastApiError(error: unknown, options: ToastApiErrorOptions = {}): void {
+  const { source = 'query' } = options;
   const status = resolveStatus(error);
 
   // 401 is handled by the auth-redirect layer (apiClient interceptor + AuthRoute).
@@ -97,7 +155,36 @@ export function toastApiError(error: unknown): void {
     return;
   }
 
-  const { title, message } = getErrorMessage(error);
+  let errorInfo = getErrorMessage(error);
+
+  if (errorInfo === defaultErrorMessage) {
+    // console.error alone is invisible in production — no captureConsole
+    // integration is configured (see index.tsx's Sentry.init). Report it
+    // explicitly so an unclassified error is still debuggable via
+    // Sentry/GlitchTip even when we intentionally don't toast it. Throttled
+    // per signature so a persistently failing background poll doesn't spam
+    // Sentry once per refetch cycle.
+    const reportKey = sentryReportKey(error, status, source);
+    if (shouldReportToSentry(reportKey)) {
+      Sentry.captureException(error, {
+        tags: { toastSource: source, toastSkipped: source === 'query' },
+      });
+    }
+
+    if (source === 'query') {
+      // Unclassified errors have no specific title/message to show, and a
+      // background/read failure isn't something the user needs to act on —
+      // "Unerwarteter Fehler" is not actionable and just makes them anxious.
+      console.error('Unclassified API error (no toast shown):', error);
+      return;
+    }
+    // Mutations are user-initiated (save/delete/etc.) — silence would read as
+    // success. Show a plain, non-alarming outcome instead of the scary default.
+    console.error('Unclassified mutation error:', error);
+    errorInfo = mutationFallbackErrorMessage;
+  }
+
+  const { title, message } = errorInfo;
   const retryAfter = status === 429 ? readRetryAfterSeconds(error) : null;
 
   // Prefer the backend-provided human message over the static dictionary —

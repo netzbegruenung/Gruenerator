@@ -125,6 +125,24 @@ const errorMessages: Record<ErrorCode, ErrorMessageInfo> = {
 };
 
 /**
+ * Reference to the fallback entry — callers that only want to toast
+ * *specific* messages (e.g. `toastApiError`) compare against this to skip
+ * the unclassified case rather than surface a vague "Unerwarteter Fehler".
+ */
+export const defaultErrorMessage = errorMessages.default;
+
+/**
+ * Soft fallback for unclassified errors on user-initiated actions (mutations).
+ * Unlike `defaultErrorMessage`, this one IS shown — a save/delete/etc. the
+ * user just triggered must not fail silently — but worded as a plain outcome
+ * rather than an alarming "Unerwarteter Fehler".
+ */
+export const mutationFallbackErrorMessage: ErrorMessageInfo = {
+  title: 'Aktion fehlgeschlagen',
+  message: 'Das hat leider nicht funktioniert. Bitte versuchen Sie es erneut.',
+};
+
+/**
  * Type guard to check if error is AxiosError
  */
 function isAxiosError(error: unknown): error is AxiosError {
