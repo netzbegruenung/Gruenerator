@@ -1,10 +1,155 @@
-/* Sunrise treatment for the login card (standalone /login + the mode='required'
-   modal, incl. the desktop app). Shares the warm-radial language and floating
-   pill surfaces of the public start page (startpage-hero.css) so the login reads
-   as the same design. Scoped to .lp-sunrise-card so nothing else is affected. */
+/* Sunrise treatment for the login screen (standalone /login + the mode='required'
+   modal, incl. the desktop app). Reuses the exact full-bleed "Regenbogen" backdrop
+   from the public start page (startpage-hero.css .sp-sunrise) instead of a
+   card-local gradient corner, so a logged-out user sees the same background
+   whether they land on the marketing start page or get bounced back to /login
+   mid-session. Copied rather than shared — see startpage-hero.css's own note on
+   why the sunrise surfaces are free to drift on purpose. */
 
+@property --lp-sunrise-y {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 52%;
+}
+@property --lp-sunrise-glow {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 1;
+}
+
+/* Full-viewport backdrop, fixed behind the standalone /login content. Five
+   pastels fanned across the x-axis — identical recipe to .sp-sunrise. */
+.lp-page-sunrise {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: #fdfaf7;
+  background-image:
+    radial-gradient(
+      44% 56% at 10% var(--lp-sunrise-y),
+      rgb(240 130 145 / calc(0.34 * var(--lp-sunrise-glow))) 0%,
+      rgb(240 130 145 / 0) 70%
+    ),
+    radial-gradient(
+      44% 56% at 30% var(--lp-sunrise-y),
+      rgb(243 195 110 / calc(0.34 * var(--lp-sunrise-glow))) 0%,
+      rgb(243 195 110 / 0) 70%
+    ),
+    radial-gradient(
+      44% 56% at 50% var(--lp-sunrise-y),
+      rgb(146 205 141 / calc(0.34 * var(--lp-sunrise-glow))) 0%,
+      rgb(146 205 141 / 0) 70%
+    ),
+    radial-gradient(
+      44% 56% at 70% var(--lp-sunrise-y),
+      rgb(126 176 230 / calc(0.34 * var(--lp-sunrise-glow))) 0%,
+      rgb(126 176 230 / 0) 70%
+    ),
+    radial-gradient(
+      44% 56% at 90% var(--lp-sunrise-y),
+      rgb(179 141 219 / calc(0.34 * var(--lp-sunrise-glow))) 0%,
+      rgb(179 141 219 / 0) 70%
+    );
+  animation: lp-sunrise-in 2.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+[data-theme='dark'] .lp-page-sunrise {
+  background-color: var(--background-color);
+  background-image:
+    radial-gradient(44% 56% at 10% 52%, rgb(240 130 145 / 0.09) 0%, rgb(240 130 145 / 0) 70%),
+    radial-gradient(44% 56% at 30% 52%, rgb(243 195 110 / 0.09) 0%, rgb(243 195 110 / 0) 70%),
+    radial-gradient(44% 56% at 50% 52%, rgb(146 205 141 / 0.09) 0%, rgb(146 205 141 / 0) 70%),
+    radial-gradient(44% 56% at 70% 52%, rgb(126 176 230 / 0.09) 0%, rgb(126 176 230 / 0) 70%),
+    radial-gradient(44% 56% at 90% 52%, rgb(179 141 219 / 0.09) 0%, rgb(179 141 219 / 0) 70%);
+  animation: none;
+}
+
+@keyframes lp-sunrise-in {
+  from {
+    --lp-sunrise-y: 82%;
+    --lp-sunrise-glow: 0;
+  }
+  to {
+    --lp-sunrise-y: 52%;
+    --lp-sunrise-glow: 1;
+  }
+}
+
+/* Content floats directly on the backdrop — no card box, border, or shadow —
+   matching the start page's unboxed hero. */
+.lp-sunrise-content {
+  position: relative;
+  z-index: 1;
+}
+
+/* Provider buttons become floating rounded surfaces, matching .sp-provider. */
+.lp-sunrise-content .login-option {
+  border: none;
+  border-radius: 18px;
+  background: var(--background-color);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  transition:
+    transform 0.16s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.2s ease;
+}
+.lp-sunrise-content .login-option:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background: var(--background-color);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16);
+}
+.lp-sunrise-content .login-option:active:not(:disabled) {
+  transform: translateY(0);
+}
+[data-theme='dark'] .lp-sunrise-content .login-option {
+  background: var(--background-color-alt);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* Ghost toggle under the provider card — same mechanism as the start page's
+   .sp-provider-toggle: one primary provider up front, this reveals the rest
+   for anyone whose provider we guessed (or remembered) wrong. */
+.lp-provider-toggle {
+  display: inline-block;
+  margin-top: var(--spacing-small);
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--font-color);
+  opacity: 0.6;
+  background: transparent;
+  border: none;
+  padding: 4px 8px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+.lp-provider-toggle:hover {
+  opacity: 1;
+}
+.lp-provider-toggle:focus-visible {
+  outline: 2px solid var(--font-color-h);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-page-sunrise {
+    animation: none;
+    --lp-sunrise-y: 52%;
+    --lp-sunrise-glow: 1;
+  }
+  .lp-sunrise-content .login-option {
+    transition: box-shadow 0.2s ease;
+  }
+  .lp-sunrise-content .login-option:hover:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* ── required-mode modal: keeps its dark backdrop (it floats over whatever page
+   triggered it) but the card itself gets the same warm glow + pill buttons. ── */
 .lp-sunrise-card {
-  /* Warm sunrise glow rising from the top edge, over the base background. */
   background-color: #fefcf5;
   background-image: radial-gradient(
     120% 78% at 50% 0%,
@@ -22,15 +167,9 @@
     rgb(0 0 0 / 0) 74%
   );
 }
-
-/* Inner columns default to transparent so the glow shows through the whole
-   card; LoginPage otherwise paints them opaque (lg:bg-background) on wide
-   screens — which is exactly the desktop-app window. */
 .lp-sunrise-card .lp-col {
   background: transparent;
 }
-
-/* Provider buttons become floating rounded surfaces (echo of .sp-provider). */
 .lp-sunrise-card .login-option {
   border: none;
   border-radius: 18px;
