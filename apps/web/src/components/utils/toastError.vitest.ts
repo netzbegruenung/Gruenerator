@@ -76,4 +76,27 @@ describe('toastApiError', () => {
     expect(toastErrorMock).toHaveBeenCalledWith('KI-Dienst nicht verfügbar', expect.anything());
     expect(captureExceptionMock).not.toHaveBeenCalled();
   });
+
+  it('throttles repeated Sentry reports for the same unclassified error signature (e.g. a persistently failing poll)', () => {
+    // Distinct status (418) so this test's report-key never collides with
+    // another test's — the throttle map is module state, not reset per test.
+    const error = { status: 418 };
+    const nowSpy = vi.spyOn(Date, 'now');
+
+    nowSpy.mockReturnValue(1_000_000);
+    toastApiError(error, { source: 'query' });
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+
+    // Next poll tick, same failure, still well inside the cooldown window.
+    nowSpy.mockReturnValue(1_000_000 + 60_000);
+    toastApiError(error, { source: 'query' });
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+
+    // Cooldown elapsed — the recurring issue is reported again.
+    nowSpy.mockReturnValue(1_000_000 + 11 * 60 * 1000);
+    toastApiError(error, { source: 'query' });
+    expect(captureExceptionMock).toHaveBeenCalledTimes(2);
+
+    nowSpy.mockRestore();
+  });
 });

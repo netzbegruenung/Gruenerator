@@ -85,6 +85,32 @@ interface ToastApiErrorOptions {
 }
 
 /**
+ * Cooldown between Sentry reports for the *same* unclassified error signature
+ * — polling queries (`useNotifications` @ 60s, `useMonitor` @ 5min) don't set
+ * `meta.silent`, so a persistently failing poll would otherwise fire a fresh
+ * captureException every cycle indefinitely. 10 minutes still surfaces a
+ * recurring issue quickly without spamming event volume.
+ */
+const SENTRY_REPORT_COOLDOWN_MS = 10 * 60 * 1000;
+const lastSentryReportAt = new Map<string, number>();
+
+function sentryReportKey(error: unknown, status: number | undefined, source: string): string {
+  const message =
+    error instanceof Error
+      ? error.message
+      : String((error as { message?: unknown } | undefined)?.message ?? error);
+  return `${source}:${status ?? 'network'}:${message}`;
+}
+
+function shouldReportToSentry(key: string): boolean {
+  const now = Date.now();
+  const last = lastSentryReportAt.get(key);
+  if (last !== undefined && now - last < SENTRY_REPORT_COOLDOWN_MS) return false;
+  lastSentryReportAt.set(key, now);
+  return true;
+}
+
+/**
  * Surface an API error as a user-visible toast, using the shared German
  * error-message dictionary. Multiple concurrent failures with the same
  * category collapse into a single toast via sonner's id-based dedup.
@@ -118,10 +144,15 @@ export function toastApiError(error: unknown, options: ToastApiErrorOptions = {}
     // console.error alone is invisible in production — no captureConsole
     // integration is configured (see index.tsx's Sentry.init). Report it
     // explicitly so an unclassified error is still debuggable via
-    // Sentry/GlitchTip even when we intentionally don't toast it.
-    Sentry.captureException(error, {
-      tags: { toastSource: source, toastSkipped: source === 'query' },
-    });
+    // Sentry/GlitchTip even when we intentionally don't toast it. Throttled
+    // per signature so a persistently failing background poll doesn't spam
+    // Sentry once per refetch cycle.
+    const reportKey = sentryReportKey(error, status, source);
+    if (shouldReportToSentry(reportKey)) {
+      Sentry.captureException(error, {
+        tags: { toastSource: source, toastSkipped: source === 'query' },
+      });
+    }
 
     if (source === 'query') {
       // Unclassified errors have no specific title/message to show, and a
