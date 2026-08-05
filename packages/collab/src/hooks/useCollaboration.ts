@@ -15,6 +15,25 @@ export interface CollaborationConfig {
   getWebSocketPolyfill?: () => (new (...args: unknown[]) => WebSocket) | undefined;
 }
 
+// `services/hocuspocus/src/auth.ts` reasons that mean "infra hiccup, try
+// again" — a DB/session-store lookup itself failed, not a verdict about the
+// user's access. Every OTHER reason (deleted, denied, not publicly
+// accessible, no group access, expired session, ...) is a durable rejection:
+// retrying gains nothing until the user reloads or re-authenticates. Kept as
+// an allowlist of the transient cases (rather than enumerating every durable
+// string) so a reason this file doesn't yet know about still defaults to
+// durable instead of silently retrying forever.
+const TRANSIENT_AUTH_FAILURE_REASONS = [
+  'internal authentication error',
+  'failed to check public access',
+  'session verification failed',
+];
+
+function isDurableAuthFailure(reason: string): boolean {
+  const lower = reason.toLowerCase();
+  return !TRANSIENT_AUTH_FAILURE_REASONS.some((transient) => lower.includes(transient));
+}
+
 interface CollaborationState {
   ydoc: Y.Doc;
   provider: HocuspocusProvider | null;
@@ -202,11 +221,17 @@ export const useCollaboration = ({
           idbProviderRef.current?.destroy();
           idbProviderRef.current = null;
           removeDocCache(documentId);
-          // A permission/deletion rejection is durable — the websocket layer
-          // otherwise retries forever with exponential backoff (capped at
-          // ~30s), reconnecting to a doc the user will never regain access to
-          // until they reload. Stop it; provider.connect() below never fires
-          // again for this effect instance.
+        }
+        if (isDurableAuthFailure(reason)) {
+          // A durable rejection (deleted/denied/not-publicly-accessible/no
+          // group access/...) is one retrying can never resolve — the
+          // websocket layer otherwise retries forever with exponential
+          // backoff (capped at ~30s), reconnecting to a doc the user will
+          // never regain access to until they reload. Stop it;
+          // provider.connect() below never fires again for this effect
+          // instance. Allowlisting the TRANSIENT reasons (rather than
+          // enumerating every durable string) means an auth reason we don't
+          // yet special-case still gets treated as durable by default.
           provider.disconnect();
         }
         setState((prev) => ({ ...prev, authError: reason }));
