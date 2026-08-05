@@ -85,8 +85,8 @@ const QUOTE_GELB_PATH = path.resolve(__dirname, '../../../../public/quote-gelb.s
  * Zitat-sujet geometry — mirrors ZITAT_AT_CONFIG in canvas-editor.
  * Anders als in Deutschland: mittig gesetzt, gelbes Anführungszeichen, Logo
  * rechts oben, und der Block hängt nicht am Blattboden, sondern wird als
- * Gruppe um `groupCenterRatio` zentriert. Kein Verlauf über dem Foto — die
- * österreichische CI kennt keinen.
+ * Gruppe um `groupCenterRatio` zentriert. Nur ein leichter grauer Verlauf
+ * über dem Foto — die österreichische CI kennt keinen grünen oder schwarzen.
  */
 export const ZITAT = {
   margin: 130,
@@ -101,6 +101,7 @@ export const ZITAT = {
   nameFontSizeRatio: 0.6,
   nameGapRatio: 0.75,
   logo: { width: 150, margin: 70 },
+  gradient: { color: '229, 231, 233', bottomOpacity: 0.35 },
 } as const;
 
 /**
