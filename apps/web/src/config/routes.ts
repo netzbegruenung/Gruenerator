@@ -570,7 +570,17 @@ const standardRoutes: RouteConfig[] = [
   { path: '/nutzungsbedingungen', component: Nutzungsbedingungen, public: true },
   { path: '/ki-transparenz', component: KITransparenz, public: true },
   // Auth-Routen (only components still used after Authentic integration)
-  { path: '/login', component: LoginPage, public: true },
+  // noChrome so /login can be the same full-bleed hero as the start page —
+  // required-mode LoginPage (shown as an overlay on other routes) is
+  // unaffected, since it isn't reached via this path. Desktop keeps the
+  // default layout (same as every other in-app screen): noChrome skips
+  // PageLayout's isDesktop branch entirely, and DesktopTitlebar is the only
+  // source of the frameless Tauri window's drag region and minimize/maximize/
+  // close controls on Windows/Linux — /login is reachable from inside the
+  // desktop shell itself (sidebar "Anmelden" link, dead-session redirect).
+  isDesktopApp()
+    ? { path: '/login', component: LoginPage, public: true }
+    : { path: '/login', component: LoginPage, public: true, layoutMode: 'noChrome' as const },
   // OAuth consent for the MCP authorization server (authorize guarantees a session)
   { path: '/oauth/consent', component: OAuthConsentPage, layoutMode: 'noChrome' },
   { path: '/register', component: RegistrationPage, public: true },
