@@ -54,7 +54,10 @@ const queryClient = new QueryClient({
   // Global error surfacing: every failed query/mutation toasts via the shared
   // German error-message dictionary, unless the caller sets `meta: { silent: true }`.
   // Background prefetches with working fallbacks should opt out; user-initiated
-  // queries and all mutations should let the toast fire.
+  // queries and all mutations should let the toast fire — except unclassified
+  // query errors, which `toastApiError`'s `source: 'query'` skips regardless
+  // of `meta.silent` (nothing specific to show, and it's not a write the user
+  // is waiting on). Mutations always get feedback, see `mutationFallbackErrorMessage`.
   queryCache: new QueryCache({
     onError: (error, query) => {
       if (query.meta?.silent === true) return;
