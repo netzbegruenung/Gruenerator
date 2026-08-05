@@ -2,8 +2,10 @@ import {
   LoginProviders,
   LOGIN_PROVIDERS,
   detectCountryProviderId,
+  getProviderById,
   getRememberedProvider,
   rememberProvider,
+  signInWithProvider,
   type LoginProvider,
   type LoginProviderId,
 } from '@gruenerator/shared/auth';
@@ -50,6 +52,21 @@ const getPageName = (pathname: string): string => {
   const mainPath = pathSegments[0];
   return PAGE_NAMES[mainPath] || 'Diese Seite';
 };
+
+const LockIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <rect x="3" y="11" width="18" height="11" rx="2" />
+    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+  </svg>
+);
 
 interface LoginPageProps {
   mode?: 'standalone' | 'required';
@@ -192,13 +209,7 @@ const LoginPage = ({
       );
     }
 
-    return (
-      <div className="text-center mb-lg lg:text-left lg:mb-xl">
-        <h1 className="gradient-title text-center text-[2rem] font-bold mb-sm md:text-[2.2rem] lg:text-left lg:text-[2.5rem] lg:mb-md">
-          {isMobileApp ? 'Willkommen!' : 'Willkommen zurück!'}
-        </h1>
-      </div>
-    );
+    return <h1 className="lp-headline">{isMobileApp ? 'Willkommen!' : 'Willkommen zurück!'}</h1>;
   };
 
   const authenticatingNotice = isAuthenticating && (
@@ -223,16 +234,53 @@ const LoginPage = ({
     </>
   );
 
-  const standaloneLoginProviders = (
-    <>
-      <LoginProviders
-        enabledProviders={providersOpen ? LOGIN_PROVIDERS.map((p) => p.id) : [primaryProviderId]}
-        redirectTo={intendedRedirect}
-        apiBaseUrl={AUTH_BASE_URL}
-        disabled={isAuthenticating}
-        onBeforeLogin={handleBeforeLogin}
-        onLogin={desktopOnLogin}
-      />
+  // Standalone screen goes straight to the primary provider on one tap — same
+  // mechanism as StartpageHero's startLogin, not routed through <LoginProviders>
+  // (whose branded description cards are the required-mode / first-run-wizard
+  // look, not the minimal hero pill this screen now matches).
+  const startLogin = (id: LoginProviderId) => {
+    const provider = getProviderById(id);
+    if (!provider) return;
+    handleBeforeLogin(provider);
+    if (desktopOnLogin) {
+      desktopOnLogin(provider);
+    } else {
+      void signInWithProvider(provider, intendedRedirect, AUTH_BASE_URL).catch((err) => {
+        console.error('[LoginPage] Sign-in failed:', err);
+        setIsAuthenticating(false);
+      });
+    }
+  };
+
+  const primaryProvider = getProviderById(primaryProviderId);
+
+  const standaloneLoginCta = (
+    <div className="lp-cta">
+      <div className="lp-cta-row">
+        <button
+          type="button"
+          className="lp-login"
+          onClick={() => startLogin(primaryProviderId)}
+          disabled={isAuthenticating}
+          aria-label={primaryProvider ? `Anmelden mit ${primaryProvider.title}` : 'Anmelden'}
+        >
+          <LockIcon /> Anmelden
+        </button>
+      </div>
+
+      {isAuthenticating && (
+        <p className="lp-hint">
+          {isMobileApp ? 'Zurück zur App...' : 'Weiterleitung zum Login...'}
+        </p>
+      )}
+
+      <p className="lp-hint">
+        Mit der Anmeldung stimmst du unseren{' '}
+        <Link to="/datenschutz" className="lp-hint-link">
+          Nutzungsbedingungen und der Datenschutzerklärung
+        </Link>{' '}
+        zu.
+      </p>
 
       <button
         type="button"
@@ -243,8 +291,31 @@ const LoginPage = ({
         {providersOpen ? 'Anbieter ausblenden' : 'Anderer Anbieter'}
       </button>
 
-      {authenticatingNotice}
-    </>
+      {providersOpen && (
+        <ul className="lp-provider-list">
+          {LOGIN_PROVIDERS.map((provider) => (
+            <li key={provider.id}>
+              <button
+                type="button"
+                className="lp-provider"
+                aria-current={provider.id === primaryProviderId ? 'true' : undefined}
+                onClick={() => startLogin(provider.id)}
+                disabled={isAuthenticating}
+              >
+                {provider.logoPath ? (
+                  <img src={provider.logoPath} alt="" className="lp-provider-logo" />
+                ) : (
+                  <span className="lp-provider-logo" aria-hidden="true">
+                    🌱
+                  </span>
+                )}
+                {provider.title}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 
   if (mode === 'required') {
@@ -331,67 +402,41 @@ const LoginPage = ({
     );
   }
 
+  // Same structure as the public start page's hero (StartpageHero): full-bleed
+  // backdrop, single centered column, logo top bar, one-tap primary CTA. This
+  // is what auto-logout / a dead session bounces users back to, so it should
+  // read as literally the same screen, not a card version of it.
   return (
     <>
       <div className="lp-page-sunrise" aria-hidden="true" />
-      <div
-        className={cn(
-          'lp-sunrise-content max-w-[450px] mx-auto p-lg px-md mt-[50px] mb-[50px]',
-          'max-[480px]:p-md max-[480px]:px-sm max-[480px]:max-w-full max-[480px]:mt-0',
-          'md:max-w-[600px] md:p-lg',
-          'lg:max-w-[900px] lg:p-xl'
+
+      <section className="lp-hero">
+        <div className="lp-topbar">
+          <img
+            src="/images/gruenerator_logo_gruen.svg"
+            alt="Grünerator"
+            className="lp-logo lp-logo-light"
+          />
+          <img
+            src="/images/gruenerator_logo_weiss.svg"
+            alt="Grünerator"
+            aria-hidden="true"
+            className="lp-logo lp-logo-dark"
+          />
+        </div>
+
+        {getHeaderContent()}
+
+        {sessionExpiredBanner}
+
+        {successMessage && (
+          <div className="bg-primary-50 dark:bg-primary-900/20 border-l-4 border-primary-500 p-md mb-md rounded-sm max-w-[380px]">
+            {successMessage}
+          </div>
         )}
-      >
-        <div className="block lg:flex lg:gap-xl lg:items-start">
-          <div
-            className={cn(
-              'w-full p-0 border-none bg-transparent',
-              'lg:flex-[0_0_40%] lg:pr-xl',
-              'lg:p-xl lg:relative'
-            )}
-          >
-            {getHeaderContent()}
 
-            {sessionExpiredBanner}
-
-            {successMessage && (
-              <div className="bg-primary-50 dark:bg-primary-900/20 border-l-4 border-primary-500 p-md mb-md rounded-sm">
-                {successMessage}
-              </div>
-            )}
-
-            <div className="hidden lg:block mt-lg text-center lg:text-left">
-              <p className="m-0 text-muted-foreground text-[0.85rem] leading-normal lg:text-[0.9rem]">
-                Mit der Anmeldung stimmst du unseren{' '}
-                <Link
-                  to="/datenschutz"
-                  className="text-primary-600 dark:text-primary-400 no-underline font-medium transition-colors duration-200 hover:text-primary-700 dark:hover:text-primary-300 hover:underline"
-                >
-                  Nutzungsbedingungen und der Datenschutzerklärung
-                </Link>{' '}
-                zu.
-              </p>
-            </div>
-          </div>
-
-          <div className="w-full p-0 bg-transparent lg:flex-1 lg:pl-md lg:p-xl">
-            {standaloneLoginProviders}
-          </div>
-        </div>
-
-        <div className="block lg:hidden mt-lg text-center">
-          <p className="m-0 text-muted-foreground text-[0.85rem] leading-normal">
-            Mit der Anmeldung stimmst du unseren{' '}
-            <Link
-              to="/datenschutz"
-              className="text-primary-600 dark:text-primary-400 no-underline font-medium transition-colors duration-200 hover:text-primary-700 dark:hover:text-primary-300 hover:underline"
-            >
-              Nutzungsbedingungen und der Datenschutzerklärung
-            </Link>{' '}
-            zu.
-          </p>
-        </div>
-      </div>
+        {standaloneLoginCta}
+      </section>
     </>
   );
 };

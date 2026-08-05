@@ -1,10 +1,12 @@
 /* Sunrise treatment for the login screen (standalone /login + the mode='required'
-   modal, incl. the desktop app). Reuses the exact full-bleed "Regenbogen" backdrop
-   from the public start page (startpage-hero.css .sp-sunrise) instead of a
-   card-local gradient corner, so a logged-out user sees the same background
-   whether they land on the marketing start page or get bounced back to /login
-   mid-session. Copied rather than shared — see startpage-hero.css's own note on
-   why the sunrise surfaces are free to drift on purpose. */
+   modal, incl. the desktop app). The standalone screen is a structural copy of
+   the public start page's hero (startpage-hero.css / StartpageHero.tsx) — full-
+   bleed "Regenbogen" backdrop, single centered column, logo top bar, one-tap
+   primary provider — so a logged-out user sees the *same* screen whether they
+   land on the marketing start page or get bounced back to /login mid-session,
+   not a card-shaped cousin of it. Copied rather than shared — see
+   startpage-hero.css's own note on why the sunrise surfaces are free to drift
+   on purpose. */
 
 @property --lp-sunrise-y {
   syntax: '<percentage>';
@@ -17,8 +19,7 @@
   initial-value: 1;
 }
 
-/* Full-viewport backdrop, fixed behind the standalone /login content. Five
-   pastels fanned across the x-axis — identical recipe to .sp-sunrise. */
+/* ── Backdrop: identical recipe to .sp-sunrise ── */
 .lp-page-sunrise {
   position: fixed;
   inset: 0;
@@ -75,43 +76,126 @@
   }
 }
 
-/* Content floats directly on the backdrop — no card box, border, or shadow —
-   matching the start page's unboxed hero. */
-.lp-sunrise-content {
+/* ── Hero: single centred column, identical shape to .sp-hero ── */
+.lp-hero {
   position: relative;
   z-index: 1;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 56px 24px;
 }
 
-/* Provider buttons become floating rounded surfaces, matching .sp-provider. */
-.lp-sunrise-content .login-option {
+/* ── Top bar ── */
+.lp-topbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 32px;
+}
+.lp-logo {
+  height: 40px;
+  width: auto;
+  display: block;
+}
+.lp-logo-dark {
+  display: none;
+}
+[data-theme='dark'] .lp-logo-light {
+  display: none;
+}
+[data-theme='dark'] .lp-logo-dark {
+  display: block;
+}
+
+/* ── Headline — identical to .sp-headline ── */
+.lp-headline {
+  margin: 0 0 32px;
+  max-width: 22ch;
+  font-family: 'Raleway', 'PT Sans', Arial, sans-serif;
+  font-weight: 600;
+  font-size: clamp(2.2rem, 1.8rem + 1.8vw, 3rem);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+  color: var(--font-color-h);
+}
+
+/* ── Call to action ── */
+.lp-cta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+.lp-cta-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.lp-login,
+.lp-provider {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  font-family: 'PT Sans', Arial, sans-serif;
+  font-weight: 700;
+  font-size: 1.0625rem;
+  text-decoration: none;
+  color: #111111;
+  background: #ffffff;
   border: none;
-  border-radius: 18px;
-  background: var(--background-color);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  border-radius: 999px;
+  padding: 14px 34px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+  cursor: pointer;
   transition:
     transform 0.16s cubic-bezier(0.22, 1, 0.36, 1),
     box-shadow 0.2s ease;
 }
-.lp-sunrise-content .login-option:hover:not(:disabled) {
-  transform: translateY(-2px);
-  background: var(--background-color);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16);
+.lp-login svg,
+.lp-provider svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
 }
-.lp-sunrise-content .login-option:active:not(:disabled) {
+.lp-login:disabled,
+.lp-provider:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.lp-login:hover:not(:disabled),
+.lp-provider:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+}
+.lp-login:active:not(:disabled),
+.lp-provider:active:not(:disabled) {
   transform: translateY(0);
 }
-[data-theme='dark'] .lp-sunrise-content .login-option {
-  background: var(--background-color-alt);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+.lp-login:focus-visible,
+.lp-provider:focus-visible {
+  outline: 2px solid #111111;
+  outline-offset: 4px;
 }
 
-/* Ghost toggle under the provider card — same mechanism as the start page's
+/* Ghost toggle under the CTA — same mechanism as the start page's
    .sp-provider-toggle: one primary provider up front, this reveals the rest
    for anyone whose provider we guessed (or remembered) wrong. */
 .lp-provider-toggle {
-  display: inline-block;
-  margin-top: var(--spacing-small);
-  font-family: inherit;
+  margin-top: -6px;
+  font-family: 'PT Sans', Arial, sans-serif;
   font-weight: 700;
   font-size: 0.85rem;
   color: var(--font-color);
@@ -133,17 +217,107 @@
   border-radius: 8px;
 }
 
+.lp-provider-list {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  width: 100%;
+  max-width: 380px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  animation: lp-provider-list-in 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.lp-provider-list .lp-provider {
+  width: 100%;
+  justify-content: flex-start;
+  font-size: 0.95rem;
+  padding: 12px 22px;
+  text-align: left;
+}
+.lp-provider[aria-current='true'] {
+  outline: 2px solid var(--primary-500, #008939);
+  outline-offset: 2px;
+}
+.lp-provider-logo {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  object-fit: contain;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+@keyframes lp-provider-list-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.lp-hint {
+  margin: 0;
+  font-family: 'PT Sans', Arial, sans-serif;
+  font-size: 0.9rem;
+  color: var(--font-color);
+  opacity: 0.66;
+  letter-spacing: 0.01em;
+}
+.lp-hint-link {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ── Phone — identical breakpoint/behaviour to .sp-hero's ── */
+@media (max-width: 768px) {
+  .lp-hero {
+    padding: 72px 24px 88px;
+  }
+  .lp-topbar {
+    padding: 18px 20px;
+  }
+  .lp-logo {
+    height: 34px;
+  }
+  .lp-headline {
+    margin-bottom: 28px;
+    font-size: clamp(1.8rem, 6vw + 0.8rem, 2.2rem);
+    line-height: 1.18;
+    max-width: 16ch;
+  }
+  .lp-provider-list {
+    max-width: 320px;
+  }
+  .lp-login,
+  .lp-provider {
+    width: 100%;
+    min-height: 54px;
+  }
+  .lp-cta-row {
+    width: 100%;
+    max-width: 320px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .lp-page-sunrise {
     animation: none;
     --lp-sunrise-y: 52%;
     --lp-sunrise-glow: 1;
   }
-  .lp-sunrise-content .login-option {
-    transition: box-shadow 0.2s ease;
+  .lp-provider-list {
+    animation: none;
   }
-  .lp-sunrise-content .login-option:hover:not(:disabled) {
-    transform: none;
+  .lp-login,
+  .lp-provider {
+    transition: box-shadow 0.2s ease;
   }
 }
 
