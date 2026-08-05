@@ -1,4 +1,4 @@
-import { getInstance, policyCoversTool } from '@gruenerator/shared/instances';
+import { getInstance, policyCoversTool, type InstanceId } from '@gruenerator/shared/instances';
 
 import { SYSTEM_NOTEBOOKS } from '../features/notebook/config/notebooksConfig';
 
@@ -53,8 +53,15 @@ const FAVOURITE_ITEMS_MAP = new Map(
 // A pin made before an instance hid its tool (e.g. bgst hiding Vorlagen/Reels
 // after a user already starred it) must stop resolving too — "hidden" means
 // gone from the sidebar as well, not just the tile grids.
-export const getFavouriteItemsById = (ids: string[]): FavouriteItemConfig[] => {
-  const hidePolicy = getInstance(CURRENT_INSTANCE).hide;
+//
+// `instance` defaults to CURRENT_INSTANCE for every real call site; the param
+// exists so tests can exercise the bgst branch — CURRENT_INSTANCE itself always
+// resolves to 'production' in the vitest/node lane (no window/VITE_INSTANCE_ID).
+export const getFavouriteItemsById = (
+  ids: string[],
+  instance: InstanceId = CURRENT_INSTANCE
+): FavouriteItemConfig[] => {
+  const hidePolicy = getInstance(instance).hide;
   return ids
     .map((id) => FAVOURITE_ITEMS_MAP.get(id))
     .filter(Boolean)
