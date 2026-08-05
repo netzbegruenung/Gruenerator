@@ -21,16 +21,15 @@ const importRuntime = () => import('./GrueneratorChatRuntime');
 // instead of rejecting, most often for a stale chunk URL left over from a
 // previous deploy (see apps/web/src/index.tsx's `vite:preloadError` reload —
 // that listener only fires on an actual rejection, not on this resolved-but-
-// empty case). One retry clears the transient case; if the module namespace
-// is still missing the export, reload once per URL, mirroring the
-// `vite:preloadError` recovery so a stale deploy self-heals instead of
+// empty case). The browser memoizes import() per specifier, so re-calling
+// importRuntime() here would just return the same broken result — a retry
+// loop can't help. Reload once per URL instead, mirroring the
+// `vite:preloadError` recovery, so a stale deploy self-heals instead of
 // crashing with "undefined is not an object (evaluating '...RuntimeProvider')".
 const loadRuntimeProvider = async () => {
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    const m = await importRuntime();
-    if (m?.GrueneratorChatRuntimeProvider) {
-      return { default: m.GrueneratorChatRuntimeProvider };
-    }
+  const m = await importRuntime();
+  if (m?.GrueneratorChatRuntimeProvider) {
+    return { default: m.GrueneratorChatRuntimeProvider };
   }
   const reloadKey = 'gruenerator:chatRuntimeImportError:reloaded';
   if (sessionStorage.getItem(reloadKey) !== window.location.href) {
