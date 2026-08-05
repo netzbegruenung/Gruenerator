@@ -1,3 +1,4 @@
+import { getAuthErrorMessage } from '@gruenerator/collab';
 import { DocsProvider } from '@gruenerator/docs';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { ConfirmDialogProvider, Fab } from '@gruenerator/ui';
@@ -127,9 +128,17 @@ function BoardContent() {
     });
   }, [duplicateBoard, navigate]);
 
-  const { ydoc, provider, isConnected, isSynced } = useBoardCollaboration(id || '');
+  const { ydoc, provider, isConnected, isSynced, authError } = useBoardCollaboration(id || '');
   // Live comments: refetch a card's thread when the backend signals a change.
   useBoardCommentSignal(ydoc, id);
+
+  useEffect(() => {
+    if (!authError) return;
+    const message = getAuthErrorMessage(authError);
+    if (message) {
+      void import('sonner').then(({ toast }) => toast.error(message));
+    }
+  }, [authError]);
 
   if (isLoading) {
     return (
@@ -188,12 +197,18 @@ function BoardContent() {
             </div>
           }
         >
-          <LazyExcalidrawBoard ydoc={ydoc} provider={provider} isSynced={isSynced} />
+          <LazyExcalidrawBoard
+            ydoc={ydoc}
+            provider={provider}
+            isSynced={isSynced}
+            isLocked={!!authError}
+          />
         </Suspense>
       ) : (
         <BoardViewContent
           ydoc={ydoc}
           isSynced={isSynced}
+          isLocked={!!authError}
           provider={provider}
           generatedStructure={generatedStructure}
           currentUserId={String(user?.id || '')}
@@ -224,6 +239,7 @@ function BoardContent() {
 function BoardViewContent({
   ydoc,
   isSynced,
+  isLocked,
   provider,
   generatedStructure,
   currentUserId,
@@ -248,6 +264,7 @@ function BoardViewContent({
 }: {
   ydoc: Doc;
   isSynced: boolean;
+  isLocked: boolean;
   provider: HocuspocusProvider | null;
   generatedStructure: BoardInitialStructure | null;
   currentUserId: string;
@@ -270,7 +287,7 @@ function BoardViewContent({
   onDelete: () => void;
   onDuplicate: () => void;
 }) {
-  const boardState = useBoardState(ydoc, isSynced, generatedStructure);
+  const boardState = useBoardState(ydoc, isSynced, generatedStructure, isLocked);
   const [activeViewId, setActiveViewId] = useState('view-kanban-default');
   const [selectedRow, setSelectedRow] = useState<Row | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);

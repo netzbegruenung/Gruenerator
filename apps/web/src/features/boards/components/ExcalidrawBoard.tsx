@@ -28,6 +28,14 @@ interface ExcalidrawBoardProps {
   ydoc: Y.Doc;
   provider: HocuspocusProvider | null;
   isSynced: boolean;
+  /**
+   * Set once a durable collab authError disconnects the socket. Excalidraw's
+   * `viewModeEnabled` blocks edits at the UI layer — without it, local
+   * drawing still writes into `yElements` via `ExcalidrawBinding` even
+   * though the doc will never sync again, and those strokes vanish on
+   * reload. Mirrors the `isLocked` gate in useBoardState for the kanban path.
+   */
+  isLocked?: boolean;
 }
 
 const LIBRARY_STORAGE_KEY = 'excalidraw-user-library';
@@ -40,7 +48,12 @@ function loadUserLibraryItems(): LibraryItem[] {
   }
 }
 
-export function ExcalidrawBoard({ ydoc, provider, isSynced }: ExcalidrawBoardProps) {
+export function ExcalidrawBoard({
+  ydoc,
+  provider,
+  isSynced,
+  isLocked = false,
+}: ExcalidrawBoardProps) {
   const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
   const bindingRef = useRef<ExcalidrawBinding | null>(null);
   const theme = useDataTheme();
@@ -71,7 +84,7 @@ export function ExcalidrawBoard({ ydoc, provider, isSynced }: ExcalidrawBoardPro
   );
 
   useEffect(() => {
-    if (!api || !isSynced || !provider) return;
+    if (!api || !isSynced || !provider || isLocked) return;
 
     const yElements = ydoc.getArray('elements');
     const yAssets = ydoc.getMap('assets');
@@ -88,7 +101,7 @@ export function ExcalidrawBoard({ ydoc, provider, isSynced }: ExcalidrawBoardPro
       binding.destroy();
       bindingRef.current = null;
     };
-  }, [api, isSynced, provider, ydoc]);
+  }, [api, isSynced, provider, ydoc, isLocked]);
 
   return (
     <div className="flex-1 w-full h-full">
@@ -99,6 +112,7 @@ export function ExcalidrawBoard({ ydoc, provider, isSynced }: ExcalidrawBoardPro
         theme={theme}
         langCode="de-DE"
         onPointerUpdate={handlePointerUpdate}
+        viewModeEnabled={isLocked}
       />
     </div>
   );
