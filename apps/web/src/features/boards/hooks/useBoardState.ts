@@ -34,10 +34,19 @@ export interface BoardInitialStructure {
 export const useBoardState = (
   ydoc: Y.Doc,
   isSynced: boolean,
-  initialStructure?: BoardInitialStructure | null
+  initialStructure?: BoardInitialStructure | null,
+  isLocked = false
 ) => {
   const [state, setState] = useState<BoardState>({ fields: [], rows: [], views: [] });
   const initializedRef = useRef(false);
+  // Ref (not a callback dep) so a durable collab authError can gate every
+  // mutator below without changing their identity — memoized children
+  // (PlannerKanban, BoardTableView, ...) keep stable callback props. Synced
+  // via effect rather than during render (react-hooks/refs).
+  const isLockedRef = useRef(isLocked);
+  useEffect(() => {
+    isLockedRef.current = isLocked;
+  }, [isLocked]);
 
   const yFields = useMemo(() => ydoc.getArray<Field>('fields'), [ydoc]);
   const yRows = useMemo(() => ydoc.getArray<Row>('rows'), [ydoc]);
@@ -83,6 +92,7 @@ export const useBoardState = (
 
   const addRow = useCallback(
     (row: Row) => {
+      if (isLockedRef.current) return;
       ydoc.transact(() => {
         yRows.push([row]);
       });
@@ -92,6 +102,7 @@ export const useBoardState = (
 
   const updateRow = useCallback(
     (rowId: string, updates: Partial<Row>) => {
+      if (isLockedRef.current) return;
       ydoc.transact(() => {
         const rows = yRows.toJSON() as Row[];
         const index = rows.findIndex((r) => r.id === rowId);
@@ -106,6 +117,7 @@ export const useBoardState = (
 
   const updateRowCell = useCallback(
     (rowId: string, fieldId: string, value: CellValue) => {
+      if (isLockedRef.current) return;
       ydoc.transact(() => {
         const rows = yRows.toJSON() as Row[];
         const index = rows.findIndex((r) => r.id === rowId);
@@ -121,6 +133,7 @@ export const useBoardState = (
 
   const deleteRow = useCallback(
     (rowId: string) => {
+      if (isLockedRef.current) return;
       ydoc.transact(() => {
         const rows = yRows.toJSON() as Row[];
         const index = rows.findIndex((r) => r.id === rowId);
@@ -138,6 +151,7 @@ export const useBoardState = (
    */
   const duplicateRow = useCallback(
     (rowId: string, createdBy: string): string | null => {
+      if (isLockedRef.current) return null;
       let newId: string | null = null;
       ydoc.transact(() => {
         const rows = yRows.toJSON() as Row[];
@@ -179,6 +193,7 @@ export const useBoardState = (
    */
   const onDragReorder = useCallback(
     (newRows: Row[], groupByFieldId: string): RecurringSpawn[] => {
+      if (isLockedRef.current) return [];
       const spawned: RecurringSpawn[] = [];
 
       ydoc.transact(() => {
@@ -262,6 +277,7 @@ export const useBoardState = (
 
   const addField = useCallback(
     (field: Field) => {
+      if (isLockedRef.current) return;
       ydoc.transact(() => {
         yFields.push([field]);
       });
@@ -271,6 +287,7 @@ export const useBoardState = (
 
   const updateField = useCallback(
     (fieldId: string, updates: Partial<Field>) => {
+      if (isLockedRef.current) return;
       ydoc.transact(() => {
         const fields = yFields.toJSON() as Field[];
         const index = fields.findIndex((f) => f.id === fieldId);
@@ -285,6 +302,7 @@ export const useBoardState = (
 
   const removeField = useCallback(
     (fieldId: string) => {
+      if (isLockedRef.current) return;
       ydoc.transact(() => {
         const fields = yFields.toJSON() as Field[];
         const index = fields.findIndex((f) => f.id === fieldId);
@@ -298,6 +316,7 @@ export const useBoardState = (
 
   const addView = useCallback(
     (view: BoardView) => {
+      if (isLockedRef.current) return;
       ydoc.transact(() => {
         yViews.push([view]);
       });
@@ -307,6 +326,7 @@ export const useBoardState = (
 
   const updateView = useCallback(
     (viewId: string, updates: Partial<BoardView>) => {
+      if (isLockedRef.current) return;
       ydoc.transact(() => {
         const views = yViews.toJSON() as BoardView[];
         const index = views.findIndex((v) => v.id === viewId);
@@ -321,6 +341,7 @@ export const useBoardState = (
 
   const removeView = useCallback(
     (viewId: string) => {
+      if (isLockedRef.current) return;
       ydoc.transact(() => {
         const views = yViews.toJSON() as BoardView[];
         const index = views.findIndex((v) => v.id === viewId);
