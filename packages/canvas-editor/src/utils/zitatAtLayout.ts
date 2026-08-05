@@ -46,9 +46,15 @@ export const ZITAT_AT_CONFIG = {
     height: Math.round(150 * (1410 / 1239)),
     margin: 70,
   },
-  // Kein Verlauf über dem Foto — die österreichische CI kennt keinen, schon gar
-  // keinen grünen. Das Foto steht unbehandelt, die Bildauswahl trägt den
-  // Kontrast.
+  /**
+   * Nur ein leichter grauer Schleier über dem Foto — die österreichische CI
+   * kennt keinen grünen oder schwarzen Verlauf. Der Text trägt seinen
+   * Kontrast über die eigene Farbe (Weiß/Gelb), nicht über abgedunkeltes Foto.
+   */
+  gradient: {
+    color: '229, 231, 233',
+    bottomOpacity: 0.35,
+  },
 } as const;
 
 export interface ZitatAtLayoutResult {

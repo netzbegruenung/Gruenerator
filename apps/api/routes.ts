@@ -92,7 +92,6 @@ import { mountShareReadContractRouter } from './routes/share/shareReadContractRo
 import backgroundRemovalRoute from './routes/sharepic/backgroundRemoval.js';
 import editSessionRouter from './routes/sharepic/editSession.js';
 import promptRoute from './routes/sharepic/promptRoute.js';
-import dreizeilenAtCanvasRoute from './routes/sharepic/sharepic_canvas/at/dreizeilen_at_canvas.js';
 import dreizeilenOverlayAtCanvasRoute from './routes/sharepic/sharepic_canvas/at/dreizeilen_overlay_at_canvas.js';
 import infoAtCanvasRoute from './routes/sharepic/sharepic_canvas/at/info_at_canvas.js';
 import zitatAtCanvasRoute from './routes/sharepic/sharepic_canvas/at/zitat_at_canvas.js';
@@ -532,12 +531,6 @@ export async function setupRoutes(app: Application): Promise<void> {
     standardMutationLimiter,
     requireAuth,
     zitatPureAtCanvasRoute
-  );
-  app.use(
-    '/api/dreizeilen_at_canvas',
-    standardMutationLimiter,
-    requireAuth,
-    dreizeilenAtCanvasRoute
   );
   app.use(
     '/api/dreizeilen_overlay_at_canvas',
