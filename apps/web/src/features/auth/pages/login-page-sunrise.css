@@ -261,12 +261,13 @@
   }
 }
 
+/* Muted via a text-muted-foreground-equivalent token, not opacity — see the
+   matching note on .lp-provider-toggle above. */
 .lp-hint {
   margin: 0;
   font-family: 'PT Sans', Arial, sans-serif;
   font-size: 0.9rem;
-  color: var(--font-color);
-  opacity: 0.66;
+  color: var(--color-muted-foreground);
   letter-spacing: 0.01em;
 }
 .lp-hint-link {
