@@ -99,4 +99,20 @@ describe('toastApiError', () => {
 
     nowSpy.mockRestore();
   });
+
+  it('throttles together even when the raw backend message varies per request (validation-style errors)', () => {
+    // Distinct status (419) to keep this test's key isolated from others.
+    // Same status/source/errorCode but a different `message` each call — the
+    // throttle key must not include the raw message, or per-request detail
+    // (the invalid value, a generated ID, …) would defeat the dedup entirely.
+    const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
+
+    toastApiError({ status: 419, errorCode: 'VALIDATION', message: 'Feld "Titel" ist leer' });
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+
+    toastApiError({ status: 419, errorCode: 'VALIDATION', message: 'Feld "Datum" ist ungültig' });
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+
+    nowSpy.mockRestore();
+  });
 });

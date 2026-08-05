@@ -94,16 +94,33 @@ interface ToastApiErrorOptions {
 const SENTRY_REPORT_COOLDOWN_MS = 10 * 60 * 1000;
 const lastSentryReportAt = new Map<string, number>();
 
+/**
+ * Deliberately excludes the raw backend message: for validation-style errors
+ * it can carry per-request detail (the invalid value, a generated ID, …), so
+ * keying on it would mint a fresh, never-reused entry for nearly every
+ * request — defeating the throttle for exactly the errors most likely to
+ * repeat, and growing `lastSentryReportAt` unbounded. `errorCode`/`name` are
+ * the backend's own classification and stay stable across retries of the
+ * same failure.
+ */
 function sentryReportKey(error: unknown, status: number | undefined, source: string): string {
-  const message =
-    error instanceof Error
-      ? error.message
-      : String((error as { message?: unknown } | undefined)?.message ?? error);
-  return `${source}:${status ?? 'network'}:${message}`;
+  const e = error as (ApiErrorLike & { name?: string; errorCode?: string }) | undefined;
+  const stableIdentifier = e?.errorCode || e?.name || 'unknown';
+  return `${source}:${status ?? 'network'}:${stableIdentifier}`;
 }
 
 function shouldReportToSentry(key: string): boolean {
   const now = Date.now();
+
+  // Evict expired entries on every call instead of on a timer — bounds map
+  // growth to "signatures seen in the last cooldown window" without needing
+  // a separate cleanup interval to manage.
+  for (const [existingKey, reportedAt] of lastSentryReportAt) {
+    if (now - reportedAt >= SENTRY_REPORT_COOLDOWN_MS) {
+      lastSentryReportAt.delete(existingKey);
+    }
+  }
+
   const last = lastSentryReportAt.get(key);
   if (last !== undefined && now - last < SENTRY_REPORT_COOLDOWN_MS) return false;
   lastSentryReportAt.set(key, now);
