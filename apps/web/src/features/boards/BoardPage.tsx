@@ -197,7 +197,12 @@ function BoardContent() {
             </div>
           }
         >
-          <LazyExcalidrawBoard ydoc={ydoc} provider={provider} isSynced={isSynced} />
+          <LazyExcalidrawBoard
+            ydoc={ydoc}
+            provider={provider}
+            isSynced={isSynced}
+            isLocked={!!authError}
+          />
         </Suspense>
       ) : (
         <BoardViewContent
