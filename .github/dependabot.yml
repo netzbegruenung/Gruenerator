@@ -6,7 +6,7 @@
 #
 # Dependabot's npm ecosystem reads /package.json and follows the workspace
 # definition (pnpm-workspace.yaml: apps/*, packages/*, services/hocuspocus,
-# services/mcp, documentation). A `directory: '/'` entry therefore already
+# documentation). A `directory: '/'` entry therefore already
 # covers every workspace member. The 24 per-directory entries this file used to
 # carry were not additional coverage, they were DUPLICATE coverage:
 #
@@ -22,6 +22,38 @@
 #
 # The cargo entry stays separate — apps/desktop/src-tauri is a Cargo workspace,
 # not part of the pnpm one.
+#
+# -----------------------------------------------------------------------------
+# EVERY npm PR that bumps a package listed in root `pnpm.overrides` arrives
+# BROKEN — this is expected, and it is a two-command repair, not a bad bump.
+#
+# Dependabot has no notion of `pnpm.overrides`: it regenerates the lockfile
+# (whose `overrides:` block then carries the NEW version) but leaves the
+# `pnpm.overrides` entry in package.json on the OLD one. Every job then fails in
+# its first step with
+#
+#   ERR_PNPM_LOCKFILE_CONFIG_MISMATCH  Cannot proceed with the frozen
+#   installation. The current "overrides" configuration doesn't match the value
+#   found in the lockfile
+#
+# which looks like a corrupt lockfile and is not. It hit #2097
+# (@assistant-ui/react-markdown) and #2098 (jsdom); ~60 of the ~98 override
+# entries are direct dependencies, so it will keep happening.
+#
+# Repair, on the Dependabot branch:
+#
+#   pnpm overrides:fix && pnpm install --no-frozen-lockfile
+#   git commit -am 'chore(deps): sync pnpm.overrides with the lockfile'
+#
+# `pnpm overrides:check` (scripts/sync-pnpm-overrides.mjs) runs in CI before
+# install so the red step names this instead of the pnpm error.
+#
+# Do NOT "solve" it by adding the affected packages to `ignore:` below —
+# @assistant-ui/*, @tiptap/*, @blocknote/*, @tanstack/react-query and friends
+# are overridden precisely because they must stay singletons, and they are the
+# packages that most need updates. `ignore:` is for bumps we do not want at all
+# (see the entries there), not for bumps that need a manifest line.
+# -----------------------------------------------------------------------------
 
 version: 2
 

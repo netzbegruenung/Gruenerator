@@ -146,8 +146,10 @@ export function mistralReasoningOption(setting: ReasoningSetting): 'high' | null
  * Order: explicit user selection → auto policy (intent + complexity) → agent
  * default. The vision override runs last and beats all of them.
  *
- * Async because overflow lanes (gpt-oss, gemma-4) acquire a Redis slot before
- * choosing Verdigado vs Regolo. requestId tags the slot for correct release.
+ * Async because the gpt-oss overflow lane acquires a Redis slot before choosing
+ * Verdigado vs Regolo. requestId tags the slot for correct release. Gemma 4 is
+ * no longer such a lane: it is pinned to Regolo and takes no slot, see
+ * GEMMA_4_REGOLO in agents/providers.ts.
  */
 export async function resolveModel(
   agentConfig: { provider: string; model: string; defaultModel?: string | undefined },

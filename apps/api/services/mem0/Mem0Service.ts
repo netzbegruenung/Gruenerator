@@ -214,11 +214,14 @@ export class Mem0Service {
       const allMemories = (response?.results || []).map(toMem0Memory);
 
       // Filter by raw similarity score and sort by relevance.
-      // Note: the previous confidence-weighted multiplier was dead code —
-      // `metadata.confidence` is never persisted (mem0 OSS stores only the
-      // metadata passed to add(), and the write path passes none), so the
+      // Note: the previous confidence-weighted multiplier was dead code — at
+      // the time, `metadata.confidence` was never persisted, so the
       // multiplier was always 1.0. Removed to avoid the false impression that
-      // high-confidence facts are boosted.
+      // high-confidence facts are boosted. Since then the gatekeeper
+      // (gatekeeperService.ts) started passing `confidence` as call metadata
+      // into addMemories(), so it IS persisted and read back here now — no
+      // consumer re-derives a ranking boost from it, this filter/sort is by
+      // raw similarity score only.
       const memories = allMemories
         .filter((m) => (m.score ?? 1) >= MEMORY_SCORE_THRESHOLD)
         .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));

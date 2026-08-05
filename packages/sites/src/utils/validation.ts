@@ -12,9 +12,13 @@ export const validators = {
 
   email: (value: string): string | null => {
     if (!value) return null; // Optional field
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(value)) return 'Ungültige E-Mail-Adresse';
+    // Length first, so the pattern never sees an unbounded string. The domain
+    // labels also exclude '.', which is what makes the pattern unambiguous:
+    // with `[^\s@]+\.[^\s@]+` the engine can split the same run at every dot,
+    // which is quadratic in the input length (CodeQL js/polynomial-redos).
     if (value.length > 254) return 'E-Mail-Adresse zu lang';
+    const emailRegex = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/;
+    if (!emailRegex.test(value)) return 'Ungültige E-Mail-Adresse';
     return null;
   },
 

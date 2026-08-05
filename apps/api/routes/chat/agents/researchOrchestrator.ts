@@ -161,7 +161,7 @@ async function planResearchDeep(
   defaultLocale: ResearchLocale,
   brief?: string | null
 ): Promise<DeepPlan | null> {
-  const aiModel = getIntermediateModel();
+  const aiModel = getIntermediateModel('heavy');
   const briefLine = brief ? `\nKontext-Briefing: ${brief}` : '';
 
   try {
@@ -503,7 +503,7 @@ async function assessCoverage(
 ): Promise<{ score: number; weakAspects: string[] }> {
   if (sources.length <= 1) return { score: 1, weakAspects: [] };
 
-  const aiModel = getIntermediateModel();
+  const aiModel = getIntermediateModel('standard');
   const summary = sources
     .slice(0, 8)
     .map((s, i) => `[${i + 1}] ${s.title}: ${truncateText(s.snippet, 150)}`)
@@ -762,7 +762,7 @@ async function synthesizeAnswerWithLLM(
     };
   }
 
-  const aiModel = getIntermediateModel();
+  const aiModel = getIntermediateModel('heavy');
 
   // Structured-report templates: only used when a deep planner emitted a reportShape.
   // Single-shot research keeps the original short-answer behavior.

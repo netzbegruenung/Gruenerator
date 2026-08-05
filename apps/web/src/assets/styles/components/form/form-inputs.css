@@ -35,13 +35,16 @@
   box-shadow: none;
 }
 
-/* Enhanced focus ring for keyboard navigation */
-.user-is-tabbing .form-input:focus,
-.user-is-tabbing .form-textarea:focus,
-.user-is-tabbing .form-select:focus,
-.user-is-tabbing .form-checkbox:focus {
-  outline: 1px solid var(--interactive-accent-color);
-  outline-offset: 1px;
+/* Keyboard-only ring, same soft one as the shared Input/Textarea
+   (ring-[3px] ring-ring/50), so both generations of field look alike. Gated on
+   the modality attribute because :focus-visible alone also fires when someone
+   clicks into a text field — see focusModality.ts. */
+:root[data-focus-modality='keyboard'] .form-input:focus-visible,
+:root[data-focus-modality='keyboard'] .form-textarea:focus-visible,
+:root[data-focus-modality='keyboard'] .form-select:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px
+    color-mix(in oklab, var(--color-ring-val, var(--primary-500)) 50%, transparent);
 }
 
 /* ===== Error States ===== */
@@ -306,25 +309,6 @@
 }
 
 
-/* ===== Skip Link Styles ===== */
-.skip-link {
-  position: absolute;
-  top: -40px;
-  left: 6px;
-  background: var(--interactive-accent-color);
-  color: white;
-  padding: 8px 12px;
-  border-radius: 4px;
-  text-decoration: none;
-  font-weight: bold;
-  z-index: 9999;
-  transition: top 0.3s ease;
-}
-
-.skip-link:focus {
-  top: 6px;
-}
-
 /* ===== Accessibility Preference Classes ===== */
 .reduce-motion .form-input,
 .reduce-motion .form-textarea,
@@ -437,11 +421,6 @@
     background: ButtonFace;
   }
 
-  .skip-link {
-    background: Highlight;
-    color: HighlightText;
-    border: 2px solid ButtonText;
-  }
 }
 
 /* ===== Prefers High Contrast Support ===== */

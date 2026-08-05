@@ -186,6 +186,8 @@ export function SheetGridView({ workbook }: { workbook: WorkbookSnapshot | null 
               key={s.id}
               onPress={() => setActive(i)}
               style={[styles.tab, i === active && { backgroundColor: theme.surface }]}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: i === active }}
             >
               <Text
                 style={[styles.tabText, { color: i === active ? theme.text : theme.textSecondary }]}

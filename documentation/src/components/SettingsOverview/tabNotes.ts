@@ -21,6 +21,16 @@ export interface TabNote {
 
 export const TAB_NOTES: TabNote[] = [
   {
+    tab: 'onboarding',
+    intro:
+      'Die einmalige Einrichtung: drei Schritte, die den Grünerator auf dich einstellen — deine Rolle, dein Friend und der Hintergrund deiner Startseite. Der Bereich steht ganz oben, solange er offen ist, und verschwindet danach aus der Liste.',
+    extras: [
+      'Jeder Schritt lässt sich überspringen, einzeln oder alle auf einmal — übersprungen heißt: es bleibt beim Standard, nichts wird später nachgefragt.',
+      'Die drei Schritte zeigen dieselben Bereiche, die es auch einzeln gibt („Personalisierung", „Friends", „Hintergrund"). Was du hier einstellst, ist sofort gespeichert und dort später änderbar.',
+      'Zurückholen kannst du die Einrichtung jederzeit über **Allgemein → Einrichtung erneut starten**.',
+    ],
+  },
+  {
     tab: 'allgemein',
     intro:
       'Aussehen und Grundverhalten der Oberfläche — und ganz oben, wer du bist. Änderungen greifen sofort und gelten auf allen Geräten, an denen du angemeldet bist.',
@@ -48,7 +58,6 @@ export const TAB_NOTES: TabNote[] = [
       'Einstellungen, die die Oberfläche zugänglicher machen. Sie folgen zunächst den Vorgaben deines Betriebssystems und lassen sich hier gezielt übersteuern; Änderungen greifen sofort und gelten auf allen Geräten, an denen du angemeldet bist.',
     extras: [
       '**Animationen reduzieren** und **Transparenz reduzieren** schalten dekorative Bewegung bzw. durchscheinende Flächen und Unschärfe ab — hilfreich bei Reizempfindlichkeit oder auf schwächerer Hardware.',
-      '**Sprung-Link zum Inhalt** blendet ganz oben einen Link ein, mit dem du beim Tabben die Navigation überspringst und direkt zum Hauptinhalt springst. Standardmäßig aus.',
     ],
   },
   {
@@ -56,6 +65,7 @@ export const TAB_NOTES: TabNote[] = [
     intro:
       'Dein Profilbild: eine Galerie gezeichneter Grünerator-Figuren, aus der du deinen „Friend" wählst. Er erscheint überall dort, wo du auftauchst — in Chats, Projekten und Kommentaren.',
     extras: [
+      'Solange die Einrichtung läuft, stehen drei zur Wahl — Feuri, Robosam und Schildi. Die übrige Truppe kommt dazu, sobald du sie abgeschlossen hast.',
       'Ein Klick auf eine Figur übernimmt sie sofort; ein Foto-Upload ist nicht vorgesehen.',
       'Wolki ist zunächst gesperrt und wird freigeschaltet, sobald du deine Grüne Wolke verbunden hast.',
     ],

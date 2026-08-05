@@ -3,7 +3,7 @@
 import {
   ThreadListItemPrimitive,
   ThreadListItemMorePrimitive,
-  useThreadListItem,
+  useAuiState,
   useAui,
 } from '@assistant-ui/react';
 import {
@@ -40,7 +40,7 @@ function useSafeThreadAction(action: 'delete' | 'switchTo' | 'archive' | 'unarch
     (e: MouseEvent) => {
       e.preventDefault();
       Promise.resolve()
-        .then(() => aui.threadListItem()[action]())
+        .then(() => aui.threadListItem[action]())
         .catch((err) => {
           console.warn(`[ThreadList] ${action} failed (thread likely already removed):`, err);
         });
@@ -50,7 +50,7 @@ function useSafeThreadAction(action: 'delete' | 'switchTo' | 'archive' | 'unarch
 }
 
 function ExternalThreadItem() {
-  const { title, externalId } = useThreadListItem();
+  const { title, externalId } = useAuiState((s) => s.threadListItem);
   const ctx = useExternalThread();
   const isActive = ctx?.activePath != null && ctx.activePath === externalId;
 
@@ -79,7 +79,7 @@ function ExternalThreadItem() {
 }
 
 export function GrueneratorThreadListItem() {
-  const { externalId, remoteId } = useThreadListItem();
+  const { externalId, remoteId } = useAuiState((s) => s.threadListItem);
   const baseSwitchTo = useSafeThreadAction('switchTo');
   const handleArchive = useSafeThreadAction('archive');
   const handleDelete = useSafeThreadAction('delete');
@@ -150,7 +150,7 @@ export function GrueneratorThreadListItem() {
 
         <ThreadListItemMorePrimitive.Root>
           <ThreadListItemMorePrimitive.Trigger
-            className="flex h-6 w-6 items-center justify-center rounded opacity-0 transition-opacity hover:bg-primary/10 group-hover:opacity-100"
+            className="flex h-6 w-6 items-center justify-center rounded opacity-0 transition-opacity hover:bg-primary/10 group-hover:opacity-100 pointer-coarse:opacity-100"
             aria-label="Mehr Optionen"
           >
             <MoreVertical className="h-3.5 w-3.5" />
@@ -270,7 +270,7 @@ export function GrueneratorArchivedThreadListItem() {
 
       <ThreadListItemMorePrimitive.Root>
         <ThreadListItemMorePrimitive.Trigger
-          className="flex h-6 w-6 items-center justify-center rounded opacity-0 transition-opacity hover:bg-primary/10 group-hover:opacity-100"
+          className="flex h-6 w-6 items-center justify-center rounded opacity-0 transition-opacity hover:bg-primary/10 group-hover:opacity-100 pointer-coarse:opacity-100"
           aria-label="Mehr Optionen"
         >
           <MoreVertical className="h-3.5 w-3.5" />

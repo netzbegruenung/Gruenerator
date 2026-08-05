@@ -42,7 +42,7 @@ import type { Request } from 'express';
 
 /**
  * `summarize`: map-reduce digest of the turn's attached documents (or, absent
- * any, the conversation) via `summarizeNode` on INTERMEDIATE_MODEL. Emits
+ * any, the conversation) via `summarizeNode` on the `heavy` stage. Emits
  * `summary_start`/`summary_complete` so the progress indicator transitions
  * exactly as on the single-pass path; returns the digest for the loop model to
  * write the answer over. No citations.
@@ -472,7 +472,7 @@ NUTZE WENN der*die Nutzer*in ${label === 'Präsentation' ? 'eine Präsentation/F
           `Konkreter Auftrag für ${label === 'Dokument' ? 'das Dokument' : `die ${label}`} — Thema plus die recherchierten Fakten/Inhalte, die vorkommen sollen`
         ),
     }),
-    execute: async ({ prompt }) => {
+    execute: async ({ prompt }, options) => {
       // Idempotent per turn (mirror of sharepic/generate_image): generation is
       // expensive and the model can't see the rendered result, so it re-calls.
       if (state.createdDocument) {
@@ -491,6 +491,9 @@ NUTZE WENN der*die Nutzer*in ${label === 'Präsentation' ? 'eine Präsentation/F
         aiWorkerPool: state.aiWorkerPool,
         req,
         userId,
+        // The loop's per-call timeout abandons but does not cancel — without
+        // this the write happens anyway, into a turn that already gave up.
+        ...(options?.abortSignal && { abandoned: options.abortSignal }),
       });
       if (!created) {
         return { error: `${label}-Erstellung fehlgeschlagen.` };
@@ -565,7 +568,7 @@ WICHTIG — PRÜFEN STATT BEHAUPTEN: Das Tool öffnet das erzeugte PDF erneut un
         .optional()
         .describe('Empfänger-Adressblock (mehrzeilig) — nur bei einem Brief'),
     }),
-    execute: async ({ prompt, art, sender, recipient }) => {
+    execute: async ({ prompt, art, sender, recipient }, options) => {
       // Idempotent per turn (mirror of makeCreateDocTool).
       if (state.createdDocument) {
         return {
@@ -599,6 +602,8 @@ WICHTIG — PRÜFEN STATT BEHAUPTEN: Das Tool öffnet das erzeugte PDF erneut un
             : null,
           userLocale: state.userLocale === 'de-AT' ? 'de-AT' : 'de-DE',
         },
+        // See makeCreateDocTool — abandoned ≠ cancelled.
+        ...(options?.abortSignal && { abandoned: options.abortSignal }),
       });
       if (!result) {
         return { error: 'PDF-Erstellung fehlgeschlagen.' };
@@ -645,7 +650,7 @@ NUTZE WENN der*die Nutzer*in ein Board/Kanban zum Thema möchte. ${briefInstruct
         .min(1)
         .describe('Konkreter Auftrag für das Board — Thema plus die Aufgaben/Inhalte'),
     }),
-    execute: async ({ prompt }) => {
+    execute: async ({ prompt }, options) => {
       if (state.createdBoard) {
         return {
           ok: true,
@@ -661,6 +666,8 @@ NUTZE WENN der*die Nutzer*in ein Board/Kanban zum Thema möchte. ${briefInstruct
         aiWorkerPool: state.aiWorkerPool,
         req,
         userId,
+        // See makeCreateDocTool — abandoned ≠ cancelled.
+        ...(options?.abortSignal && { abandoned: options.abortSignal }),
       });
       if (!created) {
         return { error: 'Board-Erstellung fehlgeschlagen.' };

@@ -173,6 +173,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "Ein großes Sprachmodell, wie zum Beispiel ChatGPT , ist ein KI-Modell, das darauf trainiert ist, menschenähnlichen Text zu verstehen und zu erzeugen. Es ist im Kern eine hochentwickelte Anwendung von…"
   },
   {
+    "url": "/docs/integrationen/chrome-erweiterung",
+    "title": "Grünerator für Chrome",
+    "category": "Integrationen",
+    "lead": "Der Grünerator für Chrome ist eine Browser-Erweiterung, die Aufgaben auf Webseiten für dich erledigt: suchen, blättern, anklicken, Formulare ausfüllen, Inhalte heraussuchen. Du beschreibst in einem S…"
+  },
+  {
     "url": "/docs/integrationen/gruen-o-mat-einbetten",
     "title": "GrünOMat einbetten",
     "category": "Integrationen",
@@ -182,7 +188,7 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/integrationen/ki-chat-einrichten",
     "title": "Grünerator in ChatGPT & Co nutzen",
     "category": "Integrationen",
-    "lead": "Du kannst den Grünerator direkt in ChatGPT, Claude, Mistral Le Chat oder OpenWebUI verwenden — ohne gruenerator.eu öffnen zu müssen. Dein KI-Assistent kann dann grüne Parteiprogramme durchsuchen, Pos…"
+    "lead": "Du kannst den Grünerator direkt in ChatGPT, Claude, Mistral Le Chat oder OpenWebUI verwenden — ohne gruenerator.eu öffnen zu müssen. Dein KI-Assistent durchsucht dann grüne Parteiprogramme, findet Po…"
   },
   {
     "url": "/docs/integrationen/konnektoren",
@@ -230,7 +236,7 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/office/intro",
     "title": "Office: Dokumente, Tabellen, Folien und Boards",
     "category": "Office",
-    "lead": "Office ist der Ort für alles, was aus Text, Zahlen und Plänen besteht. Vier Arten von Dokumenten liegen dort nebeneinander: . Du findest sie über den Tab Arbeiten unter der Kachel ."
+    "lead": "Office ist der Ort für alles, was aus Text, Zahlen und Plänen besteht. Fünf Arten von Dokumenten liegen dort nebeneinander: . Du findest sie über den Tab Arbeiten unter der Kachel ."
   },
   {
     "url": "/docs/office/ki-im-editor",
@@ -249,6 +255,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "title": "Tabellen",
     "category": "Office",
     "lead": "Eine Grünerator-Tabelle ist eine vollwertige Kalkulationstabelle: Formeln, Filter, Sortierung, Auswahllisten, bedingte Formatierung. Du legst sie über auf der Office-Startseite an — oder du lässt sie…"
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/barrierefreiheit",
+    "title": "Barrierefreiheit",
+    "category": "Über den Grünerator",
+    "lead": "Diese Seite sagt, wie barrierefrei der Grünerator heute ist — einschließlich der Stellen, an denen er es noch nicht ist. Eine geschönte Liste hilft niemandem: Wer auf eine Barriere stößt, die hier ni…"
   },
   {
     "url": "/docs/ueber-den-gruenerator/gruenerator-pro-eu",
@@ -302,7 +314,7 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/wissen/inhaltsdatenbank",
     "title": "Inhaltsdatenbank",
     "category": "Wissen",
-    "lead": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 29.720 Vektoren in der Datenbank gespeichert."
+    "lead": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 33.540 Vektoren in der Datenbank gespeichert."
   },
   {
     "url": "/docs/wissen/landesverbaende",
@@ -871,7 +883,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Datenschutz",
     "anchor": "#datenschutz",
     "category": "Chat",
-    "text": "Alle verfügbaren Modelle erfüllen höchste Datenschutzstandards: Europäische Server: Deine Eingaben werden ausschließlich auf europäischen Servern verarbeitet – entweder bei Mistral AI (Frankreich) oder auf selbst gehosteten Servern. Kein KI-Training: Deine Eingaben werden nicht zum Training der KI verwendet. Open Source: Die selbst gehosteten Modelle (Gemma, GPT-OSS) sind vollständig quelloffen und transparent."
+    "text": "Alle verfügbaren Modelle erfüllen höchste Datenschutzstandards: Europäische Server: Deine Eingaben werden ausschließlich auf europäischen Servern verarbeitet – entweder bei Mistral AI (Frankreich) oder auf selbst gehosteten Servern. Kein KI-Training: Deine Eingaben werden nicht zum Training der KI verwendet. Open Source: Die selbst gehosteten Modelle hinter Klein und Mittel sind vollständig quelloffen und transparent."
   },
   {
     "url": "/docs/chat/ki-modelle",
@@ -879,7 +891,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Verfügbare Modelle",
     "anchor": "#verfügbare-modelle",
     "category": "Chat",
-    "text": "⭐ Mistral – Der beste Allrounder für die meisten Aufgaben. Läuft auf EU-Servern von Mistral AI (Frankreich). 🌳 Gemma 4 – Besonders gut für Kreativtexte. Open-Source-Modell, selbst gehostet auf europäischen Servern. 🌳 GPT-OSS – Das schnellste Modell. Vollständig quelloffen und selbst gehostet auf europäischen Servern – ideal, wenn du Wert auf maximale Datensouveränität legst. Für die Bildgenerierung kommen eigene Modelle zum Einsatz (u. a. Flux von Black Forest Labs, Deutschland). Auch hier gilt: Verarbeitung auf europäischen Servern."
+    "text": "Du wählst eine Größe, kein Herstellermodell – dieselben drei Stufen, die du auch in der Chrome-Erweiterung und im Excel-Add-in findest. Klein – Am schnellsten, für kurze Aufgaben. Vollständig quelloffen und selbst gehostet auf europäischen Servern. Mittel – Eine gute Mischung aus Tempo und Qualität, besonders für Kreativtexte. Open-Source-Modell auf europäischen Servern. Ultra – Die beste Qualität, für Recherche und lange Aufgaben. Läuft auf EU-Servern (Scaleway bzw. Mistral AI, Frankreich). Welches Modell hinter einer Stufe steckt, kann sich ändern, wenn ein besseres verfügbar wird – die Stufe bleibt. Welche Anbieter aktuell dahinterstehen, steht jederzeit in der Datenschutzerklärung. Für die Bildgenerierung kommen eigene Modelle zum Einsatz (u. a. Flux von Black Forest Labs, Deutschland). Auch hier gilt: Verarbeitung auf europäischen Servern."
   },
   {
     "url": "/docs/chat/social-media-post",
@@ -935,7 +947,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "So stellst du eine gute Frage",
     "anchor": "#so-stellst-du-eine-gute-frage",
     "category": "Chat",
-    "text": "Einfach lostippen. Der Grünerator erkennt an deiner Formulierung selbst, ob er nachschlagen, recherchieren, rechnen oder etwas erstellen soll. „Was steht im Grundsatzprogramm zum Mietendeckel?\" reicht — du musst kein Werkzeug auswählen. Nenne das Ziel, nicht den Weg. Statt „such im Web und schreib dann einen Post\" genügt „Schreib einen Instagram-Post zum aktuellen Stand der Wärmewende\". Mehrschrittige Aufträge löst der Grünerator in einem Rutsch. Werde konkret, wenn es darauf ankommt. Ort, Zeitraum, Länge und Zielgruppe verbessern das Ergebnis spürbar: „Pressemitteilung, etwa 2.000 Zeichen, für die Lokalpresse in Kassel.\" Mit @ steuerst du gezielt. Eine Erwähnung legt fest, worauf sich die Antwort stützt — eine Quelle, ein Dokument, ein Board oder ein verbundener Dienst. Mit / wählst du einen Schreib-Skill. Nachfragen ist erwünscht. Antworten lassen sich im Gespräch weiterentwickeln: „kürzer\", „sachlicher\", „mach ein Sharepic daraus\". Der Grünerator behält den Zusammenhang. „Was kannst du?\" oder „Wie erstelle ich ein Sharepic?\" beantwortet der Chat direkt — er kennt seinen eigenen Funktionsumfang."
+    "text": "Einfach lostippen. Der Grünerator erkennt an deiner Formulierung selbst, ob er nachschlagen, recherchieren, rechnen oder etwas erstellen soll. „Was steht im Grundsatzprogramm zum Mietendeckel?\" reicht — du musst kein Werkzeug auswählen. Nenne das Ziel, nicht den Weg. Statt „such im Web und schreib dann einen Post\" genügt „Schreib einen Instagram-Post zum aktuellen Stand der Wärmewende\". Mehrschrittige Aufträge löst der Grünerator in einem Rutsch. Werde konkret, wenn es darauf ankommt. Ort, Zeitraum, Länge und Zielgruppe verbessern das Ergebnis spürbar: „Pressemitteilung, etwa 2.000 Zeichen, für die Lokalpresse in Kassel.\" Mit @ steuerst du gezielt — sowohl Quellen, Dokumente und verbundene Dienste als auch Schreib-Skills (die im Picker als Rezepte ganz oben erscheinen). Nachfragen ist erwünscht. Antworten lassen sich im Gespräch weiterentwickeln: „kürzer\", „sachlicher\", „mach ein Sharepic daraus\". Der Grünerator behält den Zusammenhang. „Was kannst du?\" oder „Wie erstelle ich ein Sharepic?\" beantwortet der Chat direkt — er kennt seinen eigenen Funktionsumfang."
   },
   {
     "url": "/docs/chat/was-kann-ich-fragen",
@@ -943,7 +955,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Was du fragen kannst",
     "anchor": "#was-du-fragen-kannst",
     "category": "Chat",
-    "text": "Anfordern musst du nichts davon — es genügt, die Frage zu stellen. Die Kennzeichnungen an den Karten bedeuten: @kürzel — für diese Fähigkeit gibt es zusätzlich eine Erwähnung, mit der du sie im Eingabefeld vorwählen kannst. Nur ein Teil der Fähigkeiten hat so ein Kürzel, und das ist Absicht: Erwähnungen gibt es dort, wo die Vorauswahl wirklich etwas ändert — bei Quellen, die man gezielt ansteuert, und bei Formaten, die man bewusst wählt. Alles Übrige erkennt der Grünerator zuverlässig an der Formulierung allein („Wie wird das Wetter am Samstag?\" braucht kein @wetter), deshalb gibt es dafür bewusst keine Abkürzung. experimentell — noch jung. Funktioniert, kann sich aber in Bedienung und Ergebnis noch ändern und ist nicht überall verfügbar. Verlass dich für etwas Wichtiges nicht blind darauf. Werkzeug: … — diese Fähigkeit lässt sich in eigenen Grüneratoren gezielt an- und abschalten. Zusatzquelle: … — dahinter steckt ein externer Dienst (Bahn, Wetterdienst, tagesschau, trivago), der pro Umgebung angebunden wird. Fehlt die Anbindung gerade, bleibt die Frage nicht unbeantwortet: der Grünerator weicht auf die Websuche aus — bei Zugverbindungen dann ohne Live-Daten."
+    "text": "Anfordern musst du nichts davon — es genügt, die Frage zu stellen. Die Kennzeichnungen an den Karten bedeuten: @kürzel — für diese Fähigkeit gibt es zusätzlich eine Erwähnung, mit der du sie im Eingabefeld vorwählen kannst. Nur ein Teil der Fähigkeiten hat so ein Kürzel, und das ist Absicht: Erwähnungen gibt es dort, wo die Vorauswahl wirklich etwas ändert — bei Quellen, die man gezielt ansteuert, und bei Formaten, die man bewusst wählt. Vieles erkennt der Grünerator auch ohne Erwähnung zuverlässig an der Formulierung allein. @wetter gibt es zusätzlich als Kürzel, sobald der Wetterdienst als Zusatzquelle verbunden ist — genau wie bei Bahn, tagesschau und trivago (siehe unten). experimentell — noch jung. Funktioniert, kann sich aber in Bedienung und Ergebnis noch ändern und ist nicht überall verfügbar. Verlass dich für etwas Wichtiges nicht blind darauf. Werkzeug: … — diese Fähigkeit lässt sich in eigenen Grüneratoren gezielt an- und abschalten. Zusatzquelle: … — dahinter steckt ein externer Dienst (Bahn, Wetterdienst, tagesschau, trivago), der pro Umgebung angebunden wird. Fehlt die Anbindung gerade, bleibt die Frage nicht unbeantwortet: der Grünerator weicht auf die Websuche aus —"
   },
   {
     "url": "/docs/chat/was-kann-ich-fragen",
@@ -967,7 +979,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Detailseiten",
     "anchor": "#detailseiten",
     "category": "Grüneratoren",
-    "text": "Jeder Grünerator und jedes Rezept hat eine eigene Detailseite — wie ein Produkt im Laden. Grüneratoren (/agentura/agent/...): Kopfbereich mit den Aktionen Im Chat öffnen, Favorit und Teilen. Übersicht — Beschreibung, Begrüßungsnachricht und eine Vorschau auf Beispiel-Antworten. Fähigkeiten — welche Werkzeuge der Grünerator-Agent nutzt, auf welches Wissen er zugreift und welches Sprachmodell dahintersteckt. Verwandte — ähnliche Grüneratoren, die zum Thema passen. Rezepte (/agentura/skill/...): Kopfbereich mit denselben Aktionen. Der vollständige Rezept-Text als Markdown — so siehst du genau, was das Rezept macht, bevor du es nutzt. Eine Vorlage und verwandte Rezepte."
+    "text": "Jeder Grünerator und jedes Rezept hat eine eigene Detailseite — wie ein Produkt im Laden. Grüneratoren (/agentura/agent/...): Kopfbereich mit den Aktionen Im Chat öffnen, Favorit und Teilen. Übersicht — Beschreibung des Grünerator-Agenten. Gesprächsbeginn — Begrüßungsnachricht und eine Vorschau auf Beispiel-Antworten. Fähigkeiten — welche Werkzeuge der Grünerator-Agent nutzt und auf welches Wissen er zugreift. Verwandte — ähnliche Grüneratoren, die zum Thema passen. Rezepte (/agentura/skill/...): Kopfbereich mit den Aktionen Im Chat verwenden, Favorit und Link kopieren. Der vollständige Rezept-Text als Markdown — so siehst du genau, was das Rezept macht, bevor du es nutzt. Eine Vorlage und verwandte Rezepte."
   },
   {
     "url": "/docs/grueneratoren/agentura",
@@ -1007,7 +1019,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schnell hinkommen",
     "anchor": "#schnell-hinkommen",
     "category": "Grüneratoren",
-    "text": "In der Seitenleiste liegt als eigener Eintrag. Ein Klick öffnet eine kurze Auswahl deiner Favoriten und der zuletzt genutzten Grüneratoren — von dort startest du direkt ein Gespräch, ohne den Umweg über den Marktplatz. Der Eintrag Alle ansehen führt in die Agentura."
+    "text": "In der Seitenleiste liegt als eigener Eintrag. Ein Klick öffnet eine kurze Auswahl deiner Favoriten und der zuletzt genutzten Grüneratoren — von dort startest du direkt ein Gespräch, ohne den Umweg über den Marktplatz. Der Eintrag Alle Grüneratoren & Verwaltung führt in die Agentura."
   },
   {
     "url": "/docs/grueneratoren/agentura",
@@ -1031,7 +1043,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 1: Den Creator öffnen",
     "anchor": "#schritt-1-den-creator-öffnen",
     "category": "Grüneratoren",
-    "text": "Öffne die Agentura, scrolle zum Abschnitt Meine Grüneratoren und klicke oben rechts auf Neuer Grünerator-Agent. Alternativ rufst du den Creator direkt unter /agents/new auf."
+    "text": "Öffne die Agentura, scrolle zum Abschnitt Meine Grüneratoren und klicke oben rechts auf Neuer Grünerator. Alternativ rufst du den Creator direkt unter /agents/new auf."
   },
   {
     "url": "/docs/grueneratoren/eigene-agentinnen-erstellen",
@@ -1047,7 +1059,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 3: Im Editor anpassen",
     "anchor": "#schritt-3-im-editor-anpassen",
     "category": "Grüneratoren",
-    "text": "Der Editor zeigt links das Formular und rechts eine Live-Vorschau. Die Felder sind in Tabs gegliedert: Grundlagen, Werkzeuge und Wissen (bei wiederkehrenden Aufgaben zusätzlich Zeitplan). Pflichtfelder (Tab Grundlagen): Name — der Anzeigename deines Agenten. Daneben wählst du über den Icon-Picker ein Symbol. Beschreibung — ein kurzer Satz, was der Agent macht. Anleitung — die eigentliche Anweisung an die KI (das „System-Prompt\"), z.B. beginnend mit „Du bist ein*e …\". Mindestens 10 Zeichen. Tab Werkzeuge — wähle per Checkbox, was dein Agent können soll. Standardmäßig sind Grünerator-Wissen und Recherche aktiv. Zur Auswahl stehen: Werkzeug | Funktion | -------------------------- | -------------------------------------------------------------------------------------------------- | Grünerator-Wissen | Durchsucht die Grünerator-Wissensdatenbank (Programme, Beschlüsse, Kommunalwiki). | Recherche | Sucht im Web — die Suchtiefe (schnelle Suche bis mehrstufige Recherche) passt sich automatisch an. | Social-Media-Beispiele | Findet passende Beispiel-Posts aus dem Grünerator-Fundus. | Bildgenerierung | Erstellt Bilder aus einer Beschreibung. | Bildbearbeitung | Bearbeitet ein vorhandenes Bild"
+    "text": "Der Editor zeigt links das Formular und rechts eine Live-Vorschau. Die Felder sind in Tabs gegliedert: Grundlagen, Werkzeuge und Wissen (bei wiederkehrenden Aufgaben zusätzlich Zeitplan). Pflichtfelder (Tab Grundlagen): Name — der Anzeigename deines Agenten. Daneben wählst du über den Icon-Picker ein Symbol. Beschreibung — ein kurzer Satz, was der Agent macht. Anleitung — die eigentliche Anweisung an die KI (das „System-Prompt\"), z.B. beginnend mit „Du bist ein*e …\". Mindestens 10 Zeichen. Tab Werkzeuge — wähle per Checkbox, was dein Agent können soll. Standardmäßig sind Grünerator-Wissen und Recherche aktiv. Zur Auswahl stehen: Werkzeug | Funktion | -------------------------- | ---------------------------------------------------------------------------------------------------------------- | Grünerator-Wissen | Durchsucht die Grünerator-Wissensdatenbank (Programme, Beschlüsse, Kommunalwiki). | Recherche | Sucht im Web — die Suchtiefe (schnelle Suche bis mehrstufige Recherche) passt sich automatisch an. | Social-Media-Beispiele | Findet passende Beispiel-Posts aus dem Grünerator-Fundus. | Bildgenerierung | Erstellt Bilder aus einer Beschreibung. | Bildbearbeitung | Bearbeitet ein vo"
   },
   {
     "url": "/docs/grueneratoren/eigene-agentinnen-erstellen",
@@ -1530,6 +1542,134 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "text": "Nehmen wir an, wir stellen chatgpt diese Frage: „Wie können wir die Luftqualität in unserer Kommune nachhaltig verbessern?\" Wie würde ChatGPT diese Frage beantworten?"
   },
   {
+    "url": "/docs/integrationen/chrome-erweiterung",
+    "pageTitle": "Grünerator für Chrome",
+    "heading": "Grünerator für Chrome",
+    "anchor": "",
+    "category": "Integrationen",
+    "text": "Der Grünerator für Chrome ist eine Browser-Erweiterung, die Aufgaben auf Webseiten für dich erledigt: suchen, blättern, anklicken, Formulare ausfüllen, Inhalte heraussuchen. Du beschreibst in einem Seitenpanel, was passieren soll — die Erweiterung arbeitet im gerade geöffneten Tab, so als würdest du selbst klicken. Die Erweiterung ist noch nicht im Chrome Web Store und spricht derzeit mit beta.gruenerator.eu. Oberfläche und Verhalten können sich noch ändern."
+  },
+  {
+    "url": "/docs/integrationen/chrome-erweiterung",
+    "pageTitle": "Grünerator für Chrome",
+    "heading": "1. Installieren",
+    "anchor": "#1-installieren",
+    "category": "Integrationen",
+    "text": "Solange die Erweiterung nicht im Web Store steht, installierst du sie aus einem Ordner: ZIP-Datei herunterladen und entpacken. Der entpackte Ordner muss liegen bleiben — Chrome lädt die Erweiterung bei jedem Start von dort. In Chrome chrome://extensions öffnen. Oben rechts den Entwicklermodus einschalten. Auf Entpackte Erweiterung laden klicken und den entpackten Ordner auswählen. Im Puzzle-Symbol der Symbolleiste den Grünerator anpinnen — dann ist er einen Klick entfernt. Ein Klick auf das Grünerator-Symbol öffnet das Seitenpanel am rechten Bildschirmrand. Dort spielt sich alles Weitere ab. Chrome verlangt ihn für jede Erweiterung, die nicht aus dem Web Store kommt. Die Erweiterung bringt einen festen Schlüssel mit, deshalb bleibt ihre Kennung über Neuinstallationen hinweg gleich — die Anmeldung funktioniert auch in dieser Fassung."
+  },
+  {
+    "url": "/docs/integrationen/chrome-erweiterung",
+    "pageTitle": "Grünerator für Chrome",
+    "heading": "2. Anmelden",
+    "anchor": "#2-anmelden",
+    "category": "Integrationen",
+    "text": "Beim ersten Öffnen zeigt das Seitenpanel „Willkommen beim Grünerator für Chrome!\". Auf Mit Grünerator anmelden klicken. Chrome öffnet ein Anmeldefenster. Melde dich wie gewohnt an und bestätige den Zugriff. Das Fenster schließt sich von selbst, das Seitenpanel wechselt zur Eingabe. Es gibt nichts zu kopieren und einzufügen: Die Anmeldung läuft über denselben Weg wie „Mit Google anmelden\", und auf dem Gerät bleibt nur ein Zugriffstoken liegen — kein Passwort. Schließt du das Fenster vorzeitig, meldet die Erweiterung „Anmeldung abgebrochen\". Dann einfach noch einmal klicken."
+  },
+  {
+    "url": "/docs/integrationen/chrome-erweiterung",
+    "pageTitle": "Grünerator für Chrome",
+    "heading": "3. Die erste Aufgabe",
+    "anchor": "#3-die-erste-aufgabe",
+    "category": "Integrationen",
+    "text": "Unter dem Eingabefeld stehen drei fertige Vorlagen: Vorlage | Wozu | -------------------------------------------- | --------------------------------------------------------------------- | 📋 Anträge einer Sitzung sammeln | Titel, Antragsteller und Links von einer Sitzungsseite zusammentragen | 🗳️ Wahlprogramm nach einem Thema durchsuchen | Passende Abschnitte samt Textstelle heraussuchen | 📰 Pressespiegel bauen | Aktuelle Meldungen zu einem Thema mit Quelle, Datum und Link sammeln | Ein Klick lädt die Vorlage ins Eingabefeld — dort passt du sie an und schickst sie ab. Eigene Vorlagen legst du an, indem du im Verlauf eine Sitzung über Sitzung merken ablegst."
+  },
+  {
+    "url": "/docs/integrationen/chrome-erweiterung",
+    "pageTitle": "Grünerator für Chrome",
+    "heading": "Anhalten, weiterfragen, wiederholen",
+    "anchor": "#anhalten-weiterfragen-wiederholen",
+    "category": "Integrationen",
+    "text": "Anhalten stoppt eine laufende Aufgabe sofort. Ist eine Aufgabe fertig, kannst du einfach weiterschreiben — die Nachfrage läuft in derselben Sitzung weiter und kennt den bisherigen Verlauf. Über die Symbole oben im Panel startest du einen neuen Chat oder öffnest den Verlauf. Im Verlauf lässt sich jede Sitzung löschen oder als Vorlage merken."
+  },
+  {
+    "url": "/docs/integrationen/chrome-erweiterung",
+    "pageTitle": "Grünerator für Chrome",
+    "heading": "Aufgaben, die gut funktionieren",
+    "anchor": "#aufgaben-die-gut-funktionieren",
+    "category": "Integrationen",
+    "text": "Die Erweiterung arbeitet Schritt für Schritt. Aufgaben gelingen deshalb besser, wenn du drei Dinge nennst: Wo es losgeht — „Öffne gruene.de\" oder einfach die Seite vorher aufschlagen. Was zu tun ist — „Suche die Abschnitte zum Thema Verkehr\". Wie das Ergebnis aussehen soll — „Gib mir je Fundstelle Titel, Link und zwei Sätze Zusammenfassung\". Die Aufgabe startet immer im aktiven Tab. Steht dort noch die leere Startseite, muss der Agent erst dorthin navigieren — das kostet Schritte. Öffne die Seite vorher, wenn du sie kennst."
+  },
+  {
+    "url": "/docs/integrationen/chrome-erweiterung",
+    "pageTitle": "Grünerator für Chrome",
+    "heading": "Dateien mitgeben",
+    "anchor": "#dateien-mitgeben",
+    "category": "Integrationen",
+    "text": "Über die Büroklammer hängst du Textdateien an: .txt, .md, .markdown, .json, .csv, .log, .xml, .yaml, .yml. Pro Datei sind 1 MB möglich, mehrere Dateien gleichzeitig sind erlaubt. Andere Formate — etwa PDF oder DOCX — nimmt die Erweiterung nicht an; für die ist der Chat auf gruenerator.eu der richtige Ort."
+  },
+  {
+    "url": "/docs/integrationen/chrome-erweiterung",
+    "pageTitle": "Grünerator für Chrome",
+    "heading": "Einstellungen im Detail",
+    "anchor": "#einstellungen-im-detail",
+    "category": "Integrationen",
+    "text": "Der Reiter Allgemein steuert, wie ausdauernd und wie gründlich der Agent arbeitet: Einstellung | Voreinstellung | Bedeutung | ---------------------------- | -------------- | ----------------------------------------------------------------------------------- | Schritte je Aufgabe | 100 | Obergrenze, danach bricht die Aufgabe ab | Aktionen je Schritt | 5 | wie viel der Navigator in einem Zug erledigen darf | Fehlertoleranz | 3 | Fehler hintereinander, bevor abgebrochen wird | Bilderkennung | aus | das Modell sieht die Seite zusätzlich als Bild — bessere Ergebnisse, mehr Verbrauch | Elemente hervorheben | an | markiert Knöpfe, Links und Felder sichtbar auf der Seite | Neuplanung | 3 | nach wie vielen Schritten der Planner das Vorgehen überdenkt | Wartezeit nach dem Laden | 250 ms | Mindestpause, bevor eine frisch geladene Seite ausgewertet wird | Frühere Aufgaben wiederholen | aus | speichert die Schritte und spielt sie erneut ab (Versuchsbetrieb) | Schaltest du die Bilderkennung ein, wird Elemente hervorheben automatisch mit eingeschaltet — die Markierungen sind es, an denen sich das Modell im Bildschirmfoto orientiert."
+  },
+  {
+    "url": "/docs/integrationen/chrome-erweiterung",
+    "pageTitle": "Grünerator für Chrome",
+    "heading": "Firewall",
+    "anchor": "#firewall",
+    "category": "Integrationen",
+    "text": "Im Reiter Firewall legst du fest, welche Adressen der Agent überhaupt anfassen darf. Trage Domains ohne https:// ein, also example.com, localhost oder 127.0.0.1. Sind beide Listen leer, ist jede Adresse erlaubt. Die Sperrliste hat Vorrang: Passt eine Adresse auf einen Eintrag, ist sie blockiert. Ist die Erlaubnisliste leer, ist alles erlaubt, was nicht gesperrt ist. Steht dort etwas, sind nur noch passende Adressen erlaubt. Platzhalter () werden noch nicht unterstützt. Die Erlaubnisliste ist das schärfere Werkzeug: Ein einziger Eintrag sperrt das gesamte übrige Netz aus."
+  },
+  {
+    "url": "/docs/integrationen/chrome-erweiterung",
+    "pageTitle": "Grünerator für Chrome",
+    "heading": "Grenzen",
+    "anchor": "#grenzen",
+    "category": "Integrationen",
+    "text": "Der Agent ist ein Sprachmodell mit Fernbedienung, kein zuverlässiger Automat. Er verliest sich, klickt daneben und behauptet gelegentlich, etwas erledigt zu haben, das er nicht erledigt hat. Prüfe jedes Ergebnis, bevor du damit weiterarbeitest — besonders bei Zahlen, Zitaten und Links. Warum das so ist und woran man es erkennt, steht unter Risiken und Gefahren von LLMs."
+  },
+  {
+    "url": "/docs/integrationen/chrome-erweiterung",
+    "pageTitle": "Grünerator für Chrome",
+    "heading": "Modell wählen",
+    "anchor": "#modell-wählen",
+    "category": "Integrationen",
+    "text": "Unter Einstellungen → Modelle wählst du für Navigator und Planner getrennt eine Stufe: Stufe | Wofür | ---------- | ------------------------------------------------- | Klein | am schnellsten, für kurze und eindeutige Aufgaben | Mittel | die Voreinstellung — der gute Mittelweg | Ultra | für lange Aufgaben mit vielen Schritten | Welches Modell hinter einer Stufe läuft, entscheidet der Grünerator. Deine Auswahl bleibt gültig, auch wenn sich das ändert — du musst nichts nachziehen. Mehr dazu: KI-Modelle im Grünerator."
+  },
+  {
+    "url": "/docs/integrationen/chrome-erweiterung",
+    "pageTitle": "Grünerator für Chrome",
+    "heading": "Und jetzt?",
+    "anchor": "#und-jetzt",
+    "category": "Integrationen",
+    "text": "Der Grünerator lässt sich auch andersherum einbinden: in ChatGPT, Claude und Le Chat. Externe Dienste in den Chat holen: Konnektoren. Für alles, was kein Browser sein muss, ist der Chat auf gruenerator.eu der schnellere Weg."
+  },
+  {
+    "url": "/docs/integrationen/chrome-erweiterung",
+    "pageTitle": "Grünerator für Chrome",
+    "heading": "Was die Erweiterung sieht — und was nicht",
+    "anchor": "#was-die-erweiterung-sieht--und-was-nicht",
+    "category": "Integrationen",
+    "text": "Damit ein Modell entscheiden kann, was als Nächstes zu tun ist, geht der aktuelle Seitenzustand an den Grünerator: die Struktur der bedienbaren Elemente, sichtbarer Text und — nur bei eingeschalteter Bilderkennung — ein Bildschirmfoto. Das ist keine Nebenwirkung, sondern die Funktion: ohne Seiteninhalt gibt es nichts zu entscheiden. Auf dem Gerät bleiben dagegen: Chatverlauf, Vorlagen, Einstellungen und dein Zugriffstoken. Sie liegen im lokalen Speicher des Browsers und werden nicht synchronisiert. Die Erweiterung enthält keine Telemetrie — keine besuchten Domains, keine Aufgabendauern, keine anonyme Kennung. Und sie liest keine Zugangsdaten oder Cookies der besuchten Seiten aus."
+  },
+  {
+    "url": "/docs/integrationen/chrome-erweiterung",
+    "pageTitle": "Grünerator für Chrome",
+    "heading": "Was du brauchst",
+    "anchor": "#was-du-brauchst",
+    "category": "Integrationen",
+    "text": "Chrome oder Edge. Firefox und Safari werden nicht unterstützt. Ein Grünerator-Konto — dasselbe wie auf gruenerator.eu. Einen eigenen API-Schlüssel brauchst du nicht. Die Erweiterung spricht ausschließlich mit dem Grünerator; ein Feld für einen anderen Anbieter gibt es nicht."
+  },
+  {
+    "url": "/docs/integrationen/chrome-erweiterung",
+    "pageTitle": "Grünerator für Chrome",
+    "heading": "Wenn etwas klemmt",
+    "anchor": "#wenn-etwas-klemmt",
+    "category": "Integrationen",
+    "text": "Nach der Anmeldung steht immer noch der Willkommensbildschirm. Öffne Einstellungen → Modelle. Steht dort „Angemeldet\", ist alles in Ordnung — schließe das Seitenpanel und öffne es erneut. Steht dort ein Anmeldeknopf, hat die Anmeldung nicht durchgetragen; versuche es dort noch einmal. Auf der Seite passiert gar nichts. Auf chrome://-Seiten, im Web Store und in der Einstellungsoberfläche von Chrome darf keine Erweiterung arbeiten — das sperrt der Browser selbst. Prüfe außerdem die Firewall. Die Aufgabe bricht mit „maximale Schrittzahl erreicht\" ab. Entweder die Aufgabe ist zu groß — dann teile sie —, oder der Agent dreht sich im Kreis. Ein höherer Wert bei Schritte je Aufgabe hilft nur, wenn er sonst wirklich vorankommt. Der Agent klickt das Falsche. Schalte die Bilderkennung ein. Bei dicht gebauten Seiten hilft es, wenn das Modell die Anordnung sieht statt nur die Struktur. Der Agent bricht mehrfach hintereinander ab. Die Fehlertoleranz steht auf 3. Bei langsamen Seiten lohnt sich zusätzlich eine höhere Wartezeit nach dem Laden."
+  },
+  {
+    "url": "/docs/integrationen/chrome-erweiterung",
+    "pageTitle": "Grünerator für Chrome",
+    "heading": "Wie die Erweiterung arbeitet",
+    "anchor": "#wie-die-erweiterung-arbeitet",
+    "category": "Integrationen",
+    "text": "Hinter dem Seitenpanel stecken zwei Agenten — im Gesprächsverlauf erkennst du sie an ihren Namen: Navigator — führt aus. Er klickt, tippt, blättert, wechselt Tabs und liest die Seite. Er läuft in jedem Schritt. Planner — legt das Vorgehen fest und prüft den Fortschritt. Er läuft standardmäßig alle drei Schritte und immer dann, wenn der Navigator meldet, er sei fertig. Was der Navigator auf einer Seite tun kann: bei Google suchen, Adressen öffnen, zurückgehen, Elemente anklicken, Text eingeben, Tabs öffnen, wechseln und schließen, scrollen (auch gezielt zu einer Textstelle), Tastenkürzel senden, Auswahllisten lesen und auswählen, Gefundenes zwischenspeichern und warten. Er benutzt deinen Browser mit deinen Anmeldungen. Wo du eingeloggt bist, ist er es auch — und er handelt mit deinen Rechten. Lass ihn nicht unbeaufsichtigt auf Seiten laufen, auf denen etwas Verbindliches passieren kann (Bezahlvorgänge, Verwaltungsoberflächen, Mitgliederdaten)."
+  },
+  {
     "url": "/docs/integrationen/gruen-o-mat-einbetten",
     "pageTitle": "GrünOMat einbetten",
     "heading": "GrünOMat einbetten",
@@ -1591,7 +1731,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Grünerator in ChatGPT & Co nutzen",
     "anchor": "",
     "category": "Integrationen",
-    "text": "Du kannst den Grünerator direkt in ChatGPT, Claude, Mistral Le Chat oder OpenWebUI verwenden — ohne gruenerator.eu öffnen zu müssen. Dein KI-Assistent kann dann grüne Parteiprogramme durchsuchen, Positionen zu Themen finden und dir beim Schreiben politischer Texte helfen. MCP (Model Context Protocol) ist ein offener Standard, über den KI-Chatbots auf externe Datenquellen zugreifen können — hier sorgt es dafür, dass dein Chat-Assistent den Grünerator nutzen kann."
+    "text": "Du kannst den Grünerator direkt in ChatGPT, Claude, Mistral Le Chat oder OpenWebUI verwenden — ohne gruenerator.eu öffnen zu müssen. Dein KI-Assistent durchsucht dann grüne Parteiprogramme, findet Positionen zu Themen und greift auf deine eigenen Grünerator-Inhalte zu: Dokumente, Boards, Notizbücher, Projekte. MCP (Model Context Protocol) ist ein offener Standard, über den KI-Chatbots auf externe Datenquellen zugreifen können — hier sorgt es dafür, dass dein Chat-Assistent den Grünerator nutzen kann."
   },
   {
     "url": "/docs/integrationen/ki-chat-einrichten",
@@ -1599,7 +1739,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "ChatGPT",
     "anchor": "#chatgpt",
     "category": "Integrationen",
-    "text": "Öffne chatgpt.com und logge dich ein. Klicke oben rechts auf dein Profil → Settings. Wähle in der Sidebar Connectors. Aktiviere unter Advanced den Developer Mode, damit du eigene Verbindungen hinzufügen kannst. Klicke auf Create bzw. Add custom connector. Trage folgende Daten ein: Name: Grünerator URL: https://mcp.gruenerator.eu/mcp Auth: Keine (leer lassen) Speichern — der Grünerator steht nun in normalen Chats und in Deep Research als Datenquelle zur Verfügung. ---"
+    "text": "Öffne chatgpt.com und logge dich ein. Klicke oben rechts auf dein Profil → Settings. Wähle in der Sidebar Connectors. Aktiviere unter Advanced den Developer Mode, damit du eigene Verbindungen hinzufügen kannst. Klicke auf Create bzw. Add custom connector. Trage folgende Daten ein: Name: Grünerator URL: https://mcp.gruenerator.eu Authentication: OAuth — Client-ID und Client Secret leer lassen Speichern. ChatGPT leitet dich zur Grünerator-Anmeldung und anschließend auf die Zustimmungsseite. Fertig — der Grünerator steht nun in normalen Chats und in Deep Research als Datenquelle zur Verfügung. ---"
   },
   {
     "url": "/docs/integrationen/ki-chat-einrichten",
@@ -1607,7 +1747,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Claude",
     "anchor": "#claude",
     "category": "Integrationen",
-    "text": "Öffne claude.ai und logge dich ein. Klicke oben rechts auf dein Profil → Settings. Gehe in der linken Sidebar auf Integrations. Klicke auf Add integration. Trage folgende Daten ein: Name: Grünerator URL: https://mcp.gruenerator.eu/mcp Auth: Keine (leer lassen) Speichern — fertig! Claude nutzt den Grünerator nun automatisch, wenn es zu deiner Anfrage passt. Du kannst die Verbindung auch manuell im Chat aktivieren, indem du sie in der Tool-Auswahl anhakst. ---"
+    "text": "Öffne claude.ai und logge dich ein. Klicke oben rechts auf dein Profil → Settings. Gehe in der linken Sidebar auf Integrations. Klicke auf Add integration. Trage folgende Daten ein: Name: Grünerator URL: https://mcp.gruenerator.eu Speichern und auf Connect klicken — melde dich an und stimme zu. Fertig! Claude nutzt den Grünerator nun automatisch, wenn es zu deiner Anfrage passt. Du kannst die Verbindung auch manuell im Chat aktivieren, indem du sie in der Tool-Auswahl anhakst. ---"
   },
   {
     "url": "/docs/integrationen/ki-chat-einrichten",
@@ -1615,7 +1755,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Mistral Le Chat",
     "anchor": "#mistral-le-chat",
     "category": "Integrationen",
-    "text": "Öffne chat.mistral.ai und logge dich ein. Gehe in der linken Sidebar auf Connectors (oder über Profil → Settings → Connectors). Klicke auf Add Connector. Wähle den Tab Custom MCP Connector. Trage folgende Daten ein: Name: Grünerator URL: https://mcp.gruenerator.eu/mcp Auth: Keine (leer lassen) Speichern. Im Chat die Verbindung aktivieren: In der Seitenleiste unter Connectors den Grünerator anhaken, oder im Prompt /Grünerator eingeben, um ihn als Tool zu aktivieren. ---"
+    "text": "Öffne chat.mistral.ai und logge dich ein. Gehe in der linken Sidebar auf Connectors (oder über Profil → Settings → Connectors). Klicke auf Add Connector. Wähle den Tab Custom MCP Connector. Trage folgende Daten ein: Name: Grünerator URL: https://mcp.gruenerator.eu Auth: OAuth Speichern, anmelden, zustimmen. Im Chat die Verbindung aktivieren: In der Seitenleiste unter Connectors den Grünerator anhaken, oder im Prompt /Grünerator eingeben, um ihn als Tool zu aktivieren. ---"
   },
   {
     "url": "/docs/integrationen/ki-chat-einrichten",
@@ -1623,7 +1763,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "OpenWebUI (für Fortgeschrittene)",
     "anchor": "#openwebui-für-fortgeschrittene",
     "category": "Integrationen",
-    "text": "OpenWebUI ist eine selbst gehostete Chat-Oberfläche, die viele verschiedene KI-Modelle unterstützt. Ab Version 0.6 kann der Grünerator direkt eingebunden werden. Öffne die OpenWebUI-Einstellungen → Tools → MCP Servers. Füge einen neuen Server hinzu: Name: Grünerator URL: https://mcp.gruenerator.eu/mcp Speichern und im Chat als Tool aktivieren. ---"
+    "text": "OpenWebUI ist eine selbst gehostete Chat-Oberfläche, die viele verschiedene KI-Modelle unterstützt. Ab Version 0.6 kann der Grünerator direkt eingebunden werden. Öffne die OpenWebUI-Einstellungen → Tools → MCP Servers. Füge einen neuen Server hinzu: Name: Grünerator URL: https://mcp.gruenerator.eu Auth: OAuth Speichern, anmelden, zustimmen und im Chat als Tool aktivieren. ---"
   },
   {
     "url": "/docs/integrationen/ki-chat-einrichten",
@@ -1631,7 +1771,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Übersicht",
     "anchor": "#übersicht",
     "category": "Integrationen",
-    "text": "Plattform | Wo einrichten? | URL | Anmeldung nötig? | ------------------- | -------------------------------------- | -------------------------------- | ---------------- | ChatGPT | Settings → Connectors (Developer Mode) | https://mcp.gruenerator.eu/mcp | Nein | Claude | Settings → Integrations | https://mcp.gruenerator.eu/mcp | Nein | Mistral Le Chat | Settings → Connectors → Custom MCP | https://mcp.gruenerator.eu/mcp | Nein | OpenWebUI | Settings → Tools → MCP Servers | https://mcp.gruenerator.eu/mcp | Nein | ---"
+    "text": "Plattform | Wo einrichten? | URL | Anmeldung | ------------------- | -------------------------------------- | ---------------------------- | ------------------------- | ChatGPT | Settings → Connectors (Developer Mode) | https://mcp.gruenerator.eu | OAuth, Felder leer lassen | Claude | Settings → Integrations | https://mcp.gruenerator.eu | OAuth, läuft automatisch | Mistral Le Chat | Settings → Connectors → Custom MCP | https://mcp.gruenerator.eu | OAuth | OpenWebUI | Settings → Tools → MCP Servers | https://mcp.gruenerator.eu | OAuth | ---"
   },
   {
     "url": "/docs/integrationen/ki-chat-einrichten",
@@ -1647,7 +1787,23 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Was du dafür brauchst",
     "anchor": "#was-du-dafür-brauchst",
     "category": "Integrationen",
-    "text": "Ein Konto bei einem der unterstützten KI-Chats (ChatGPT, Claude, Mistral Le Chat oder OpenWebUI) ChatGPT: Ein Plan mit Connector-Unterstützung (Plus, Pro oder Team)"
+    "text": "Ein Grünerator-Konto — die Verbindung läuft über deine Anmeldung Ein Konto bei einem der unterstützten KI-Chats (ChatGPT, Claude, Mistral Le Chat oder OpenWebUI) ChatGPT: Ein Plan mit Connector-Unterstützung (Plus, Pro oder Team) https://mcp.gruenerator.eu Ältere Anleitungen nennen …/mcp oder …/v2 — beide funktionieren weiter und führen an dieselbe Stelle."
+  },
+  {
+    "url": "/docs/integrationen/ki-chat-einrichten",
+    "pageTitle": "Grünerator in ChatGPT & Co nutzen",
+    "heading": "Wenn es nicht klappt",
+    "anchor": "#wenn-es-nicht-klappt",
+    "category": "Integrationen",
+    "text": "„Unauthorized\" oder die Verbindung fragt nicht nach der Anmeldung. Entferne die Verbindung und lege sie neu an — manche Clients merken sich einen alten Stand. Die Verbindung stand schon einmal und ist plötzlich weg. Mit der Zusammenlegung der beiden früheren Server hat sich die Kennung geändert; einmal neu verbinden genügt. Es kommt nur „Keine Treffer\". Suche mit einzelnen Begriffen statt mit ganzen Sätzen — und nenne das Land, wenn es um Österreich geht. ---"
+  },
+  {
+    "url": "/docs/integrationen/ki-chat-einrichten",
+    "pageTitle": "Grünerator in ChatGPT & Co nutzen",
+    "heading": "Wie die Anmeldung abläuft",
+    "anchor": "#wie-die-anmeldung-abläuft",
+    "category": "Integrationen",
+    "text": "Beim ersten Verbinden schickt dich dein KI-Chat auf die Grünerator-Anmeldung. Danach siehst du eine Zustimmungsseite, auf der steht, worauf die Verbindung zugreifen darf — Suche, eigene Inhalte lesen, eigene Inhalte anlegen, Projekte, Medien. Erst nach deiner Zustimmung steht die Verbindung. Du gibst dabei kein Passwort an den KI-Chat weiter, und du kannst die Verbindung jederzeit im Grünerator wieder entziehen. Ein Zugangsschlüssel ist nicht nötig: Client-ID und Geheimnis bleiben leer — die Chat-Dienste melden sich selbst am Grünerator an."
   },
   {
     "url": "/docs/integrationen/konnektoren",
@@ -1700,6 +1856,14 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/integrationen/konnektoren",
     "pageTitle": "Konnektoren: Externe Dienste im Chat",
+    "heading": "Schon da: bereitgestellte Dienste",
+    "anchor": "#schon-da-bereitgestellte-dienste",
+    "category": "Integrationen",
+    "text": "Einige Dienste betreibt der Grünerator selbst. Sie stehen unter „Vom Grünerator bereitgestellt\" ganz oben in der Liste, sind ohne Einrichtung sofort nutzbar und brauchen weder Login noch Zugangsschlüssel: Du sprichst sie wie jeden anderen Konnektor per @-Mention an — etwa „Was steht in @gesetze zu § 823 BGB?\". Meistens brauchst du die Mention gar nicht: erkennt der Chat die passende Frage am Wortlaut, zieht er den Dienst von selbst heran. „Wann fahren heute Abend Züge von Kassel Richtung Berlin?\" — Abfahrten, Ankünfte und Störungen an einem Bahnhof. Keine Verbindungssuche mit Umstiegen oder Preisen. „Wie wird das Wetter am Samstag in Münster? Wir haben Infostand.\" — Vorhersage, aktuelles Wetter und Luftqualität. „Was sind heute die wichtigsten Nachrichten?\" — Meldungen der tagesschau, gesamt, nach Ressort oder Bundesland. „Such mir ein Hotel in Leipzig für den 12. bis 14. März.\" — Preisvergleich über trivago, Preise ohne Gewähr. „Was steht in § 823 BGB?\" — Normtext im Volltext, mit Prüfung, ob das Zitat existiert. Politische Fragen zu denselben Themen bleiben davon unberührt: „Was fordern die Grünen zur Bahnreform?\" ist eine Programmfrage und zieht keine Abfahrtstafel. Wenn du eine"
+  },
+  {
+    "url": "/docs/integrationen/konnektoren",
+    "pageTitle": "Konnektoren: Externe Dienste im Chat",
     "heading": "Verfügbare Konnektoren",
     "anchor": "#verfügbare-konnektoren",
     "category": "Integrationen",
@@ -1711,7 +1875,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Verwalten, pausieren, trennen",
     "anchor": "#verwalten-pausieren-trennen",
     "category": "Integrationen",
-    "text": "In der Sektion Verbunden siehst du alle deine Dienste mit Status (Verbunden / Pausiert / Nicht autorisiert). Dort kannst du jeden Konnektor: per Schalter pausieren (bleibt verbunden, wird im Chat aber nicht genutzt), testen (zeigt die verfügbaren Werkzeuge des Servers), oder löschen — gespeicherte Zugangsdaten werden dabei entfernt. Zugangsdaten (Tokens) werden verschlüsselt auf EU-Servern gespeichert und ausschließlich für deine eigenen Chat-Anfragen verwendet. Der Zugriff auf einen Dienst erfolgt immer mit deinem Konto und dessen Berechtigungen — andere Nutzer*innen sehen deine Verbindungen nicht."
+    "text": "In der Sektion Verbunden siehst du alle deine Dienste mit Status (Verbunden / Pausiert / Nicht autorisiert). Dort kannst du jeden Konnektor: per Schalter pausieren (bleibt verbunden, wird im Chat aber nicht genutzt), testen (zeigt die verfügbaren Werkzeuge des Servers), oder löschen — gespeicherte Zugangsdaten werden dabei entfernt. Die bereitgestellten Dienste stehen in einer eigenen Sektion darüber und zeigen Verfügbar bzw. Ausgeschaltet. Für sie gibt es Schalter und Test, aber kein Löschen. Zugangsdaten (Tokens) werden verschlüsselt auf EU-Servern gespeichert und ausschließlich für deine eigenen Chat-Anfragen verwendet. Der Zugriff auf einen Dienst erfolgt immer mit deinem Konto und dessen Berechtigungen — andere Nutzer*innen sehen deine Verbindungen nicht."
   },
   {
     "url": "/docs/integrationen/mcp-was-kann-ich-fragen",
@@ -1719,7 +1883,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Was kann ich den MCP-Server fragen?",
     "anchor": "",
     "category": "Integrationen",
-    "text": "Du hast den Grünerator mit deinem KI-Chat verbunden — aber was kannst du damit eigentlich alles machen? Hier erfährst du, welche Fähigkeiten dir zur Verfügung stehen und wie du sie am besten nutzt. Der Grünerator MCP-Server gibt deinem KI-Assistenten Zugriff auf grüne Parteiprogramme, Beschlüsse, Analysen und Social-Media-Beispiele. Du kannst darin suchen, Inhalte filtern und sogar fertige Texte in verschiedenen Formaten erstellen lassen. ---"
+    "text": "Du hast den Grünerator mit deinem KI-Chat verbunden — aber was kannst du damit eigentlich alles machen? Hier erfährst du, welche Fähigkeiten dir zur Verfügung stehen und wie du sie am besten nutzt. Der Grünerator MCP-Server gibt deinem KI-Assistenten Zugriff auf grüne Parteiprogramme, Beschlüsse, Analysen und Social-Media-Beispiele — und auf deine eigenen Grünerator-Inhalte. Du kannst darin suchen, Inhalte filtern und fertige Texte in verschiedenen Formaten erstellen lassen. Beim Verbinden stimmst du einzelnen Bereichen zu — Suche, eigene Inhalte lesen, eigene Inhalte anlegen, Projekte, Medien. Werkzeuge, denen du nicht zugestimmt hast, tauchen gar nicht erst in der Liste auf; dein Assistent kann sie also weder benutzen noch versehentlich vorschlagen. ---"
   },
   {
     "url": "/docs/integrationen/mcp-was-kann-ich-fragen",
@@ -1740,10 +1904,26 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/integrationen/mcp-was-kann-ich-fragen",
     "pageTitle": "Was kann ich den MCP-Server fragen?",
+    "heading": "Deine eigenen Inhalte",
+    "anchor": "#deine-eigenen-inhalte",
+    "category": "Integrationen",
+    "text": "Weil die Verbindung an deinem Konto hängt, erreicht dein Assistent auch das, was im Grünerator dir gehört: Dokumente, Tabellen und Präsentationen, Boards und Aufgaben, Notizbücher, Projekte und Medien — je nachdem, wozu du beim Verbinden zugestimmt hast. „Liste meine Notizbücher auf\" „Was steht in meinem Wahlkampf-Notizbuch zur Verkehrswende?\" „Welche Aufgaben sind bei mir noch offen?\" „Leg mir ein Dokument mit einer Rede zum Thema X an\" Beim Notizbuch bekommst du eine belegte Antwort samt Quellenliste zurück. Die Suche im Parteikorpus liefert dagegen die gefundenen Textstellen und keine fertig formulierte Antwort — die schreibt dein KI-Assistent selbst daraus. Das ist der Unterschied zum Grünerator-Chat, der die Synthese übernimmt. Aktionen, die etwas löschen oder nach außen sichtbar machen, fragen immer zuerst nach. Erst nach deinem Ja werden sie ausgeführt."
+  },
+  {
+    "url": "/docs/integrationen/mcp-was-kann-ich-fragen",
+    "pageTitle": "Was kann ich den MCP-Server fragen?",
     "heading": "Ergebnisse filtern",
     "anchor": "#ergebnisse-filtern",
     "category": "Integrationen",
     "text": "Du kannst die Suchergebnisse nach Kategorien einschränken. Sag der KI einfach, wonach du filtern möchtest: „Zeig mir nur Praxishilfen im KommunalWiki zum Thema Haushalt\" „Europa-Analysen der Böll-Stiftung\" „Nur Fachtexte der Bundestagsfraktion zur Energiewende\""
+  },
+  {
+    "url": "/docs/integrationen/mcp-was-kann-ich-fragen",
+    "pageTitle": "Was kann ich den MCP-Server fragen?",
+    "heading": "Für Landesverbände",
+    "anchor": "#für-landesverbände",
+    "category": "Integrationen",
+    "text": "Partner-Zugänge mit einem freigeschalteten Landesverband bekommen zusätzlich die Werkzeuge notebookslist, notebookssearch und notebooksgetfilters — der Zugriff auf den Quellenbestand des jeweiligen Landesverbands. ---"
   },
   {
     "url": "/docs/integrationen/mcp-was-kann-ich-fragen",
@@ -1760,14 +1940,6 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#landesverbände",
     "category": "Integrationen",
     "text": "Zusätzlich kannst du gezielt in Dokumenten einzelner Landesverbände suchen. Diese werden bei einer normalen Landessuche nicht automatisch mitdurchsucht — du musst den Landesverband explizit nennen. Beispielfragen: „Was sagen die Grünen Hamburg zum Thema Verkehr?\" · „Wahlprogramm der Grünen Schleswig-Holstein zu Bildung\" · „Grüne Bayern Position zur Wirtschaft\" Du kannst auch nach demselben Thema in verschiedenen Sammlungen suchen lassen, z.B.: „Vergleiche die Position von Deutschland und Österreich zum Thema Mobilität.\" Die KI sucht dann automatisch in beiden Sammlungen."
-  },
-  {
-    "url": "/docs/integrationen/mcp-was-kann-ich-fragen",
-    "pageTitle": "Was kann ich den MCP-Server fragen?",
-    "heading": "Notizbücher durchsuchen",
-    "anchor": "#notizbücher-durchsuchen",
-    "category": "Integrationen",
-    "text": "Wenn du dich beim MCP-Server mit deinem Grünerator-Konto anmeldest, stehen zusätzlich Notizbuch-Werkzeuge bereit: deine Notebooks auflisten, durchsuchen und ihre Filter abfragen. Ohne Anmeldung tauchen sie gar nicht erst in der Werkzeugliste auf. Die Suche liefert dabei die gefundenen Textstellen, keine fertig formulierte Antwort — die schreibt dein KI-Assistent selbst daraus. Das ist der Unterschied zum Grünerator-Chat, der die Synthese übernimmt. „Liste meine Notebooks auf\" „Was steht in meinem Wahlkampf-Notebook zur Verkehrswende?\" ---"
   },
   {
     "url": "/docs/integrationen/mcp-was-kann-ich-fragen",
@@ -1927,7 +2099,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 4: Link kopieren und verwenden",
     "anchor": "#schritt-4-link-kopieren-und-verwenden",
     "category": "Konto & Projekte",
-    "text": "Der öffentliche Link wurde erstellt! Im Grünerator führt dich unter Profil → Wolke ein Einrichtungs-Assistent Schritt für Schritt durch die Verbindung: Link einfügen, optional benennen — der Grünerator testet die Verbindung dann automatisch und zeigt dir bei Problemen konkrete Lösungshinweise. Der Link sollte etwa so aussehen: https://wolke.netzbegruenung.de/s/AbCdEfGhIj"
+    "text": "Der öffentliche Link wurde erstellt! Im Grünerator führt dich unter Einstellungen → Wolke (erreichbar über das Konto-Menü am unteren Rand der Seitenleiste) ein Einrichtungs-Assistent Schritt für Schritt durch die Verbindung: Link einfügen, optional benennen — der Grünerator testet die Verbindung dann automatisch und zeigt dir bei Problemen konkrete Lösungshinweise. Der Link sollte etwa so aussehen: https://wolke.netzbegruenung.de/s/AbCdEfGhIj"
   },
   {
     "url": "/docs/konto/gruene-wolke",
@@ -1983,7 +2155,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Mitglieder",
     "anchor": "#mitglieder",
     "category": "Konto & Projekte",
-    "text": "In einem Gruppen-Projekt gibt es zwei Rollen: Rolle | Was sie darf | ------------ | ------------------------------------------------------------------------- | Mitglied | Inhalte des Projekts sehen und mitarbeiten | Admin | zusätzlich Mitglieder verwalten und die Einstellungen des Projekts ändern | Du kannst Menschen per E-Mail einladen. Wer noch kein Konto hat, wird durch die Anmeldung geführt und landet danach direkt im Projekt. Ein Projekt kann außerdem auffindbar geschaltet werden. Dann können andere es finden und um Aufnahme bitten; die Anfrage geht an die Admins, die sie annehmen oder ablehnen. Ohne diese Einstellung ist ein Projekt nur über eine Einladung erreichbar."
+    "text": "In einer Gruppe gibt es zwei Rollen: Rolle | Was sie darf | ------------ | ------------------------------------------------------------------------- | Mitglied | Inhalte des Projekts sehen und mitarbeiten | Admin | zusätzlich Mitglieder verwalten und die Einstellungen des Projekts ändern | Du kannst Menschen per E-Mail einladen. Wer noch kein Konto hat, wird durch die Anmeldung geführt und landet danach direkt im Projekt. Ein Projekt kann außerdem öffentlich geschaltet werden. Dann können andere es finden und um Aufnahme bitten; die Anfrage geht an die Admins, die sie annehmen oder ablehnen. Ohne diese Einstellung ist ein Projekt nur über eine Einladung erreichbar."
   },
   {
     "url": "/docs/konto/projekte",
@@ -1999,7 +2171,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Zwei Arten von Projekten",
     "anchor": "#zwei-arten-von-projekten",
     "category": "Konto & Projekte",
-    "text": "Beim Anlegen entscheidest du dich für eine der beiden: Eigenes Projekt — nur für dich. Gedacht, um die eigene Arbeit zu sortieren: alles zur Haushaltsdebatte an einem Ort, getrennt von allem zur Verkehrspolitik. Es taucht bei niemand anderem auf und lässt sich auch nicht finden. Gruppen-Projekt — für die Zusammenarbeit. Andere können Mitglied werden, sehen die zugeordneten Inhalte und arbeiten mit. Die Wahl legt dich nicht endgültig fest, aber sie bestimmt, ob überhaupt jemand anders hineinschauen kann — überleg also kurz, bevor du etwas Vertrauliches in ein Gruppen-Projekt legst."
+    "text": "Beim Anlegen entscheidest du dich für eine der beiden: Projekt — nur für dich. Gedacht, um die eigene Arbeit zu sortieren: alles zur Haushaltsdebatte an einem Ort, getrennt von allem zur Verkehrspolitik. Es taucht bei niemand anderem auf und lässt sich auch nicht finden. Gruppe — für die Zusammenarbeit. Andere können Mitglied werden, sehen die zugeordneten Inhalte und arbeiten mit. Die Wahl legt dich nicht endgültig fest, aber sie bestimmt, ob überhaupt jemand anders hineinschauen kann — überleg also kurz, bevor du etwas Vertrauliches in eine Gruppe legst."
   },
   {
     "url": "/docs/office/boards",
@@ -2039,7 +2211,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Grünerator-Spalten",
     "anchor": "#grünerator-spalten",
     "category": "Office",
-    "text": "Eine Grünerator-Spalte ist eine Spalte, die selbst arbeitet. Du richtest sie einmal ein, und danach durchläuft jede Karte drei Schritte: Quelle → Aufgabe → Ergebnis. Quelle — woher der Inhalt kommt: aus der Karte selbst, von einer Webadresse oder aus einem Social-Media-Beitrag. Aufgabe — was damit geschehen soll. Entweder eine der fertigen Aufgaben (unten) oder eine eigene Anweisung. Ergebnis — was dabei herauskommt: ein Kommentar, ein Dokument, eine Tabelle, eine Präsentation oder eine E-Mail. Das Ganze lässt sich auch nach Zeitplan laufen lassen — etwa jeden Montagmorgen."
+    "text": "Eine Grünerator-Spalte ist eine Spalte, die selbst arbeitet. Du richtest sie einmal ein, und danach durchläuft jede Karte drei Schritte: Quelle → KI-Schritt → Ergebnis. Quelle — woher der Inhalt kommt: aus der Karte selbst, von einer Webadresse oder aus einem Social-Media-Beitrag. KI-Schritt — was damit geschehen soll. Entweder eine der fertigen Aufgaben (unten) oder eine eigene Anweisung. Ergebnis — was dabei herauskommt: ein Kommentar, ein Dokument, eine Tabelle, eine Präsentation oder eine E-Mail. Das Ganze lässt sich auch nach Zeitplan laufen lassen — etwa jeden Montagmorgen."
   },
   {
     "url": "/docs/office/boards",
@@ -2087,7 +2259,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Frühere Fassungen",
     "anchor": "#frühere-fassungen",
     "category": "Office",
-    "text": "Das Dokument merkt sich seinen Verlauf. Über die Versionsgeschichte siehst du frühere Stände und stellst sie bei Bedarf wieder her — nützlich, wenn beim gemeinsamen Überarbeiten ein Absatz verloren gegangen ist."
+    "text": "Das Dokument merkt sich seinen Verlauf. Über die Versionshistorie siehst du frühere Stände und stellst sie bei Bedarf wieder her — nützlich, wenn beim gemeinsamen Überarbeiten ein Absatz verloren gegangen ist."
   },
   {
     "url": "/docs/office/dokumente",
@@ -2103,7 +2275,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schreiben",
     "anchor": "#schreiben",
     "category": "Office",
-    "text": "Der Editor arbeitet mit Blöcken: Jeder Absatz, jede Überschrift, jede Liste ist ein eigener Baustein, den du per Anfasser verschieben kannst. Mit / mitten im Text öffnest du die Auswahl der Blocktypen — Überschrift, Liste, Zitat, Tabelle, Trennlinie."
+    "text": "Der Editor arbeitet mit Blöcken: Jeder Absatz, jede Überschrift, jede Liste ist ein eigener Baustein. Mit / mitten im Text öffnest du die Auswahl der Blocktypen — Überschrift, Liste, Zitat, Tabelle, Trennlinie."
   },
   {
     "url": "/docs/office/intro",
@@ -2111,7 +2283,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Office: Dokumente, Tabellen, Folien und Boards",
     "anchor": "",
     "category": "Office",
-    "text": "Office ist der Ort für alles, was aus Text, Zahlen und Plänen besteht. Vier Arten von Dokumenten liegen dort nebeneinander: . Du findest sie über den Tab Arbeiten unter der Kachel ."
+    "text": "Office ist der Ort für alles, was aus Text, Zahlen und Plänen besteht. Fünf Arten von Dokumenten liegen dort nebeneinander: . Du findest sie über den Tab Arbeiten unter der Kachel ."
   },
   {
     "url": "/docs/office/intro",
@@ -2127,7 +2299,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Auf dem Handy",
     "anchor": "#auf-dem-handy",
     "category": "Office",
-    "text": "Die Grünerator-App hat einen eigenen Office-Tab. Dokumente lassen sich dort lesen — Tabellen, Folien und Boards siehst du als Ansicht, nicht als Editor. Zum Bearbeiten öffnest du das Dokument im Browser. Der Präsentations-Editor ist inzwischen auch auf dem Handy bedienbar: Folienstreifen quer, Folien-Aktionen per Antippen statt per Mauszeiger, und der Text wird in einem eigenen Feld bearbeitet statt direkt auf der verkleinerten Folie. Für Tabellen bleibt der große Bildschirm die bessere Wahl."
+    "text": "Dokumente, Tabellen, Folien und Boards findest du in der Grünerator-App unter dem Tab Arbeiten. Dort lässt sich alles nur lesen — Tabellen, Folien und Boards siehst du als Ansicht, nicht als Editor. Zum Bearbeiten öffnest du das Dokument im Browser."
   },
   {
     "url": "/docs/office/intro",
@@ -2143,7 +2315,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Etwas Neues anlegen",
     "anchor": "#etwas-neues-anlegen",
     "category": "Office",
-    "text": "Auf der Office-Startseite liegen fünf Kacheln. Vier davon legen sofort etwas Leeres an und öffnen es — es gibt keinen Zwischenschritt, kein Formular: — ein Textdokument — eine Kalkulationstabelle — eine Foliensammlung — ein Kanban-Board Die fünfte, , öffnet stattdessen die Vorlagengalerie. Nimm sie, wenn du nicht bei null anfangen willst: Anträge, Pressemitteilungen und Protokolle bringen ihre Gliederung schon mit. Du musst nicht erst ein leeres Dokument anlegen. „Erstell mir eine Tabelle mit dem Haushaltsentwurf\" oder „Mach eine Präsentation zu unserem Wahlprogramm\" im Chat erzeugt das fertige Dokument direkt — inklusive Inhalt. Bearbeiten kannst du es danach wie jedes andere."
+    "text": "Auf der Office-Startseite liegen fünf Kacheln. Vier davon legen sofort etwas Leeres an und öffnen es — es gibt keinen Zwischenschritt, kein Formular: — ein Textdokument — eine Kalkulationstabelle — eine Foliensammlung — ein Kanban-Board Die erste, , öffnet stattdessen die Vorlagengalerie. Nimm sie, wenn du nicht bei null anfangen willst: Anträge, Pressemitteilungen und Protokolle bringen ihre Gliederung schon mit. Du musst nicht erst ein leeres Dokument anlegen. „Erstell mir eine Tabelle mit dem Haushaltsentwurf\" oder „Mach eine Präsentation zu unserem Wahlprogramm\" im Chat erzeugt das fertige Dokument direkt — inklusive Inhalt. Bearbeiten kannst du es danach wie jedes andere."
   },
   {
     "url": "/docs/office/intro",
@@ -2151,7 +2323,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Teilen",
     "anchor": "#teilen",
     "category": "Office",
-    "text": "Ein Dokument kennt Stufen von Sichtbarkeit: Sichtbarkeit | Wer kommt hinein | -------------- | ---------------------------------------------------------- | privat | nur du und ausdrücklich eingeladene Personen | angemeldet | alle, die im Grünerator angemeldet sind und den Link haben | öffentlich | alle mit dem Link, auch ohne Anmeldung | Unabhängig davon legst du fest, ob Eingeladene lesen oder bearbeiten dürfen. Beides lässt sich jederzeit ändern und zurücknehmen. Ein öffentlich geteiltes Dokument kann jede Person mit dem Link aufrufen — auch ohne Grünerator-Konto. Prüf vor dem Umschalten, ob im Dokument Namen, Adressen oder interne Absprachen stehen."
+    "text": "Ein Dokument kennt Stufen von Sichtbarkeit: Sichtbarkeit | Wer kommt hinein | ----------------- | ---------------------------------------------------------- | privat | nur du und ausdrücklich eingeladene Personen | Mit Anmeldung | alle, die im Grünerator angemeldet sind und den Link haben | öffentlich | alle mit dem Link, auch ohne Anmeldung | Unabhängig davon legst du fest, ob Eingeladene lesen oder bearbeiten dürfen. Beides lässt sich jederzeit ändern und zurücknehmen. Ein öffentlich geteiltes Dokument kann jede Person mit dem Link aufrufen — auch ohne Grünerator-Konto. Prüf vor dem Umschalten, ob im Dokument Namen, Adressen oder interne Absprachen stehen."
   },
   {
     "url": "/docs/office/ki-im-editor",
@@ -2183,7 +2355,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wie eine Änderung abläuft",
     "anchor": "#wie-eine-änderung-abläuft",
     "category": "Office",
-    "text": "Du schreibst einen Auftrag in normaler Sprache. Der Grünerator übersetzt ihn in konkrete Änderungen und wendet sie an. Für dich sieht das aus wie ein einziger Schritt, aber es lohnt zu wissen, was dabei passiert: Er sieht sich das Dokument an. Was gerade darin steht, ist die Grundlage — deshalb funktionieren Bezüge wie „die Spalte mit den Kosten\" oder „die Folie mit dem Zitat\". Er recherchiert, falls nötig. „Trag die aktuellen Umfragewerte ein\" heißt: erst nachsehen, dann eintragen. Er ändert das Dokument — direkt, ohne dass du etwas bestätigen musst. Änderungen des Grünerators sind keine Sonderform. Strg + Z (bzw. Cmd + Z ) nimmt sie zurück wie eine eigene Eingabe — und ein Auftrag, der mehrere Änderungen umfasst, wird als ein Schritt zurückgenommen, nicht Zelle für Zelle. Arbeitet ihr zu mehreren am selben Dokument, sehen die anderen die Änderungen live — wie bei deinen eigenen."
+    "text": "Du schreibst einen Auftrag in normaler Sprache. Der Grünerator übersetzt ihn in konkrete Änderungen und wendet sie an. Für dich sieht das aus wie ein einziger Schritt, aber es lohnt zu wissen, was dabei passiert: Er sieht sich das Dokument an. Was gerade darin steht, ist die Grundlage — deshalb funktionieren Bezüge wie „die Spalte mit den Kosten\" oder „die Folie mit dem Zitat\". Er recherchiert, falls nötig. „Trag die aktuellen Umfragewerte ein\" heißt: erst nachsehen, dann eintragen. Er ändert das Dokument — direkt, ohne dass du etwas bestätigen musst. Änderungen des Grünerators sind keine Sonderform. Strg + Z (bzw. Cmd + Z ) nimmt sie zurück wie eine eigene Eingabe. In Präsentationen wird ein Auftrag, der mehrere Änderungen umfasst, als ein Schritt zurückgenommen; in Tabellen gilt das derzeit noch für jede Änderung einzeln, dort brauchst du also mehrere Strg + Z . Arbeitet ihr zu mehreren am selben Dokument, sehen die anderen die Änderungen live — wie bei deinen eigenen."
   },
   {
     "url": "/docs/office/praesentationen",
@@ -2207,7 +2379,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Exportieren",
     "anchor": "#exportieren",
     "category": "Office",
-    "text": "Es gibt zwei Wege heraus: Als PDF — öffnet die Präsentation in einer druckfertigen Ansicht, aus der du über den Druckdialog ein PDF erzeugst. Das klappt immer und sieht aus wie im Vortragsmodus. Als PowerPoint (.pptx) — erzeugt eine Datei, die sich in PowerPoint und LibreOffice öffnen lässt. Der .pptx-Export braucht ein Zusatzprogramm auf dem Server. Fehlt es in der Umgebung, in der du arbeitest, bekommst du eine entsprechende Meldung statt einer Datei — nimm dann den PDF-Weg."
+    "text": "Über Download in der Kopfzeile stehen zwei Formate zur Wahl: Als PDF — öffnet die Präsentation in einem neuen Tab in einer druckfertigen Ansicht und dann den Druckdialog. Wähle dort als Ziel „Als PDF speichern\"; Hintergrundgrafiken sind bereits aktiviert, Querformat stellst du im Druckdialog selbst ein. Du bekommst eine Seite pro Folie, im selben Design wie im Vortragsmodus. Als PowerPoint (.pptx) — erzeugt eine bearbeitbare Datei für PowerPoint und LibreOffice Impress: Texte, Aufzählungen, Farben, Logo und Sprechernotizen bleiben erhalten. Die Datei verweist auf die Grünen-Hausschriften, kann sie aber nicht mitliefern. Auf einem Rechner ohne diese Schriften ersetzt PowerPoint sie durch eine ähnliche — der Text bleibt vollständig, das Schriftbild weicht ab. Wenn das Aussehen zählt, nimm den PDF-Weg. Wer die Präsentation nur über einen Freigabe-Link geöffnet hat, kann sie als PDF exportieren, aber nicht als .pptx."
   },
   {
     "url": "/docs/office/praesentationen",
@@ -2215,7 +2387,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Folien aufbauen",
     "anchor": "#folien-aufbauen",
     "category": "Office",
-    "text": "Jede Folie hat ein Layout, das bestimmt, wie Titel und Inhalt angeordnet sind — insgesamt gibt es davon, von der Titelfolie über zweispaltige Folien bis zum Zitat und zum Codebeispiel. Dazu kommen pro Folie: Notizen — dein Text zum Vortrag, für das Publikum unsichtbar Hintergrund — eine Farbe, ein Bild oder ein Verlauf Schriftgröße — normalerweise „Auto\": der Text verkleinert sich so weit, dass er auf die Folie passt, statt abgeschnitten zu werden. Wird es dir zu klein oder zu groß, legst du die Größe von XS bis XL selbst fest Schrittweises Einblenden — Aufzählungspunkte erscheinen nacheinander statt auf einmal Übergang — wie die Folie die vorherige ablöst Was für die ganze Präsentation gilt — Standardübergang, Akzentfarbe, Foliennummern, automatisches Weiterschalten — stellst du einmal zentral ein."
+    "text": "Jede Folie hat ein Layout, das bestimmt, wie Titel und Inhalt angeordnet sind — insgesamt gibt es davon, von der Titelfolie über zweispaltige Folien bis zum Zitat und zum Codebeispiel. Dazu kommen pro Folie: Sprechernotizen — dein Text zum Vortrag, für das Publikum unsichtbar Hintergrund — eine Farbe, ein Bild oder ein Verlauf Schriftgröße — normalerweise „Auto\": der Text verkleinert sich so weit, dass er auf die Folie passt, statt abgeschnitten zu werden. Wird es dir zu klein oder zu groß, legst du die Größe von XS bis XL selbst fest Schrittweise aufbauen — Aufzählungspunkte erscheinen nacheinander statt auf einmal Übergang — wie die Folie die vorherige ablöst Was für die ganze Präsentation gilt — Standardübergang, Akzentfarbe, Foliennummern, automatisches Weiterschalten — stellst du einmal zentral ein."
+  },
+  {
+    "url": "/docs/office/praesentationen",
+    "pageTitle": "Präsentationen",
+    "heading": "Tabellen und Bilder",
+    "anchor": "#tabellen-und-bilder",
+    "category": "Office",
+    "text": "Über der Folie liegt eine Leiste mit Tabelle und Bild. Eine eingefügte Tabelle bearbeitest du direkt auf der Folie; sobald der Cursor in einer Zelle steht, erscheinen die Knöpfe für Zeilen, Spalten, Kopfzeile und Löschen. Halte sie schmal — mehr als vier Spalten passen auf einer Folie nicht mehr lesbar nebeneinander. Bilder holst du aus deiner Mediathek oder lädst sie direkt hoch. Der Alternativtext ist Pflicht: ohne ihn bleibt das Bild für Screenreader stumm, und in einer veröffentlichten Präsentation ist das ein Barriere-Fehler. Auf dem Handy findest du beide Knöpfe im Bearbeiten-Fenster unter dem Textfeld."
   },
   {
     "url": "/docs/office/praesentationen",
@@ -2288,6 +2468,86 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#was-der-grünerator-in-der-tabelle-ändern-kann",
     "category": "Office",
     "text": "Schreib in der Chat-Seitenleiste, was passieren soll. Du musst keine Fachbegriffe treffen — die Beispielsätze unten zeigen die Formulierungen, die zuverlässig funktionieren. Pro Auftrag führt der Grünerator bis zu Änderungen aus; größere Umbauten teilst du besser auf. Änderungen des Grünerators landen im normalen Rückgängig-Verlauf. Ein Strg + Z (bzw. Cmd + Z ) nimmt sie zurück wie eine eigene Eingabe. Welche Änderungen möglich sind, stammt direkt aus dem Programmcode. Kommt eine neue Fähigkeit dazu, meldet sich die Doku-Prüfung automatisch, bis sie hier mit einem Beispielsatz beschrieben ist — und was abgeschaltet wurde, verschwindet von selbst aus der Liste."
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/barrierefreiheit",
+    "pageTitle": "Barrierefreiheit",
+    "heading": "Barrierefreiheit",
+    "anchor": "",
+    "category": "Über den Grünerator",
+    "text": "Diese Seite sagt, wie barrierefrei der Grünerator heute ist — einschließlich der Stellen, an denen er es noch nicht ist. Eine geschönte Liste hilft niemandem: Wer auf eine Barriere stößt, die hier nicht steht, verliert Zeit mit der Frage, ob es an ihm liegt. Stand: 4. August 2026."
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/barrierefreiheit",
+    "pageTitle": "Barrierefreiheit",
+    "heading": "Der aktuelle Stand: teilweise konform",
+    "anchor": "#der-aktuelle-stand-teilweise-konform",
+    "category": "Über den Grünerator",
+    "text": "Behoben und nachgemessen sind unter anderem: Die eingeklappte Hauptnavigation. Sie war mit Screenreader unbenutzbar — die Beschriftungen der Knöpfe waren nicht nur unsichtbar, sondern vollständig aus der Vorlesereihenfolge entfernt. Das war mit Abstand die schwerste Barriere. Die Tastaturfalle im Untertitel-Werkzeug. Die Tabulatortaste kam aus der Segmentliste nicht mehr heraus. Jetzt wechseln die Pfeiltasten das Segment, und Tab bleibt Tab. Aufgabenkarten auf Boards haben einen echten Ziehgriff, der per Tastatur bedienbar ist. Ziehen mit der Maus funktioniert weiter auf der ganzen Karte. Weißer Text auf den Markenfarben erreichte den geforderten Kontrast nicht. Das betraf den Marken-Button und alle Abzeichen in Eukalyptus-Grün. Graue Textstufen erreichen jetzt in hellem wie dunklem Modus die geforderten 4,5:1. Rund 300 Bedienelemente der Mobil-App hatten keinen vorlesbaren Namen — mit Screenreader hörte man nur „Schaltfläche\", ohne zu erfahren, welche. Alle haben jetzt einen."
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/barrierefreiheit",
+    "pageTitle": "Barrierefreiheit",
+    "heading": "Eine Barriere melden",
+    "anchor": "#eine-barriere-melden",
+    "category": "Über den Grünerator",
+    "text": "Wenn dir etwas begegnet, das dich blockiert — auch wenn es hier schon steht: 📧 info@moritz-waechter.de Hilfreich ist: welche Seite, was du tun wolltest, und womit du arbeitest (Browser, Screenreader, Vergrößerung). Wir antworten innerhalb von zwei Wochen. Wenn eine Barriere nicht schnell zu beheben ist, sagen wir, wie wir sie umgehen können, solange sie besteht."
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/barrierefreiheit",
+    "pageTitle": "Barrierefreiheit",
+    "heading": "Einstellungen, die du selbst setzen kannst",
+    "anchor": "#einstellungen-die-du-selbst-setzen-kannst",
+    "category": "Über den Grünerator",
+    "text": "Unter Einstellungen → Barrierefreiheit: Einstellung | Wirkung | ------------------------------------ | ------------------------------------------- | Animationen reduzieren | Bewegung und Übergänge werden abgeschaltet. | Transparenz und Unschärfe reduzieren | Durchscheinende Flächen werden deckend. | Hellen und dunklen Modus stellst du unter Einstellungen → Darstellung ein; der Grünerator folgt sonst der Einstellung deines Systems."
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/barrierefreiheit",
+    "pageTitle": "Barrierefreiheit",
+    "heading": "Rechtlicher Status dieser Seite",
+    "anchor": "#rechtlicher-status-dieser-seite",
+    "category": "Über den Grünerator",
+    "text": "Diese Seite ist eine freiwillige Selbstauskunft, keine Erklärung zur Barrierefreiheit im Rechtssinn. Ob der Grünerator unter das deutsche Barrierefreiheitsstärkungsgesetz (BFSG) oder das österreichische Barrierefreiheitsgesetz (BaFG) fällt, ist noch nicht abschließend geklärt. Sobald das feststeht, wird diese Seite entsprechend umgestellt — mit den Bestandteilen, die dann verbindlich dazugehören. Wir sagen das ausdrücklich, weil eine falsche Konformitätsaussage schlechter wäre als keine."
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/barrierefreiheit",
+    "pageTitle": "Barrierefreiheit",
+    "heading": "Screenreader",
+    "anchor": "#screenreader",
+    "category": "Über den Grünerator",
+    "text": "Wir haben die Oberfläche gegen ihren berechneten Accessibility-Tree geprüft, aber noch keinen vollständigen Durchlauf mit NVDA, JAWS oder VoiceOver gemacht. Automatische Prüfwerkzeuge finden erfahrungsgemäß nur 30 bis 40 Prozent der Barrieren; alles, was von Formulierung, Reihenfolge und Verständlichkeit abhängt, sehen sie nicht. Wir sagen deshalb ausdrücklich nicht zu, dass der Grünerator mit Screenreader gut bedienbar ist."
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/barrierefreiheit",
+    "pageTitle": "Barrierefreiheit",
+    "heading": "Tastaturbedienung",
+    "anchor": "#tastaturbedienung",
+    "category": "Über den Grünerator",
+    "text": "Der Grünerator ist mit der Tastatur bedienbar. Mit Tab wanderst du vorwärts durch die Bedienelemente, mit Umschalt+Tab zurück, Enter und Leertaste lösen aus, Escape schließt Dialoge. In Listen mit vielen gleichartigen Einträgen — etwa den Segmenten im Untertitel-Werkzeug — wechseln die Pfeiltasten innerhalb der Liste; Tab führt aus der Liste heraus."
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/barrierefreiheit",
+    "pageTitle": "Barrierefreiheit",
+    "heading": "Was noch nicht erfüllt ist",
+    "anchor": "#was-noch-nicht-erfüllt-ist",
+    "category": "Über den Grünerator",
+    "text": "Statusmeldungen werden kaum angesagt. Wenn eine Chat-Antwort beginnt oder endet, ein Werkzeug arbeitet, ein Upload fertig wird oder ein Formular einen Fehler meldet, erfährt ein Screenreader das in den meisten Fällen nicht. Das ist derzeit die größte offene Lücke. Videos haben keine Untertitelspur. Der Grünerator kann Untertitel erzeugen, verlangt sie aber bei eingebetteten Videos nicht. Einzelne Farbpaare liegen weiter unter dem geforderten Wert — bekannt ist ein Blau-auf-Blau-Paar im Bereich Projekte. Die Seitenstruktur ist uneinheitlich. Nicht jede Seite kennzeichnet ihren Hauptbereich und ihre Navigationsleisten so, dass ein Screenreader direkt dorthin springen kann. Die Mobil-App ist nicht auf einem Gerät geprüft. Die Namen der Bedienelemente sind gesetzt, aber Kontrast, Reihenfolge beim Durchtippen und die tatsächlichen Ansagen von VoiceOver und TalkBack sind ungeprüft. Nicht gemessen wurden bisher: die veröffentlichten Kandidat:innen-Seiten, die Desktop-App und diese Dokumentationsseite selbst."
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/barrierefreiheit",
+    "pageTitle": "Barrierefreiheit",
+    "heading": "Was wir anstreben",
+    "anchor": "#was-wir-anstreben",
+    "category": "Über den Grünerator",
+    "text": "Zielstandard ist WCAG 2.2, Konformitätsstufe AA, im Rahmen der europäischen Norm EN 301 549. Diese Norm haben wir gewählt, weil sie als einzige auch die Mobil-App abdeckt — WCAG allein gilt für Webseiten."
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/barrierefreiheit",
+    "pageTitle": "Barrierefreiheit",
+    "heading": "Wie geprüft wurde",
+    "anchor": "#wie-geprüft-wurde",
+    "category": "Über den Grünerator",
+    "text": "Selbstbewertung, kein externer Test. Konkret: axe-core über 20 Seiten der Web-Oberfläche, in hellem und dunklem Modus, zuletzt am 2. August 2026. ESLint-Regelsätze (jsx-a11y für das Web, react-native-a11y für die Mobil-App) laufen bei jeder Änderung mit. Komponententests mit axe an den Stellen, an denen ARIA von Hand gesetzt wird. Ein BITV-Test durch eine unabhängige Prüfstelle hat nicht stattgefunden."
   },
   {
     "url": "/docs/ueber-den-gruenerator/gruenerator-pro-eu",
@@ -2367,7 +2627,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Black Forest Labs (Freiburg) — Bilder aus der EU",
     "anchor": "#black-forest-labs-freiburg--bilder-aus-der-eu",
     "category": "Über den Grünerator",
-    "text": "Black Forest Labs aus Freiburg entwickelt die FLUX-Bildmodelle. Der Grünerator nutzt ausschließlich den EU-Endpunkt (api.eu.bfl.ai) mit flux-2-pro — die Bilderzeugung läuft damit im europäischen Strommix, der deutlich CO₂-ärmer ist als der US-amerikanische, wo die meisten Bild-KIs rechnen. Die genannten Zahlen sind Anbieterangaben (Stand Juli 2026). Und auch grüne KI verbraucht Ressourcen — Nachhaltigkeit heißt beim Grünerator nicht „kostenlos für die Umwelt\", sondern: bewusst kleine Modelle, bewusst grüne Anbieter, bewusst europäische Infrastruktur. Warum die Anbieter außerdem alle in Europa sitzen, liest du unter Grünerator Pro-EU."
+    "text": "Black Forest Labs aus Freiburg entwickelt die FLUX-Bildmodelle. Der Grünerator nutzt ausschließlich den EU-Endpunkt (api.eu.bfl.ai) mit flux-2-pro — die Bilderzeugung läuft damit im europäischen Strommix, der deutlich CO₂-ärmer ist als der US-amerikanische, wo die meisten Bild-KIs rechnen."
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Erzeugte Bilder",
+    "anchor": "#erzeugte-bilder",
+    "category": "Über den Grünerator",
+    "text": "Ein einzelnes Bild wiegt schwerer als alles andere in der Übersicht: Ein Sharepic mit Flux Pro entspricht rund 25 erzeugten Pressemitteilungen. Deshalb zeigt die Übersicht den Bildanteil getrennt an — eine Summe allein würde nahelegen, dass Chatten das Problem ist. Auch hier meldet kein Anbieter Messwerte, und GreenPT betreibt kein Bildmodell, mit dem wir kalibrieren könnten. Die Werte stammen aus einer veröffentlichten Messreihe: Iyengar et al. (2025) vermessen gängige Diffusionsmodelle auf einer A100 über das gesamte Raster aus Auflösung, Schritten, Rechengenauigkeit und Guidance. Genau das macht die Arbeit brauchbar — wir können die Zelle nehmen, die zu unserer Nutzung passt, statt eine Schlagzeile zu zitieren. Bei 1024×1024, 50 Schritten, fp16, mit CFG: Modell | Energie je Bild (nur GPU) | ----------------------------- | ------------------------- | Qwen-Image (läuft bei Regolo) | 3,58 Wh | FLUX.1 [dev] | 4,28 Wh | Zwei Korrekturen sind nötig, bevor man das übernehmen darf. Erstens misst die Arbeit ausschließlich die GPU und zieht deren Leerlauf ab. In einem echten Rechenzentrum zahlt man beides: den Leerlauf ohnehin, dazu CPU, Arbeitsspeicher, Netzwerk, Lüfter und Verluste im N"
   },
   {
     "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
@@ -2404,6 +2672,22 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
     "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Modelle ohne Messwert: Obergrenze statt Schätzung",
+    "anchor": "#modelle-ohne-messwert-obergrenze-statt-schätzung",
+    "category": "Über den Grünerator",
+    "text": "Für einige Lanes betreibt GreenPT kein Gegenstück — Mistral Small 4 (119 Mrd.), Qwen 3.5 (122 Mrd.) und Pixtral Large. Sie einfach wegzulassen wäre die bequemste Lösung und die falscheste: Bei realer Nutzung läuft ein Großteil des Volumens genau dort. Über die Modellgröße lässt sich das nicht schätzen — die Messreihe widerlegt den Zusammenhang direkt: GPT-OSS mit 120 Mrd. Parametern verbraucht je Token weniger als ein Sechstel von Mistral Medium mit 128 Mrd. Wir haben deshalb einen zweiten Weg geprüft: Antwortgeschwindigkeit als Energie-Proxy. Auf identischer Regolo-Hardware sollte ein Modell, das doppelt so lange für ein Token braucht, ungefähr doppelt so viel ziehen. Als Kontrolle haben wir den Proxy an zwei Modellen getestet, deren Energieverbrauch wir kennen: | Verhältnis GPT-OSS 120B zu Gemma 4 | --------------------------- | ---------------------------------- | laut Geschwindigkeits-Proxy | 0,43× | laut Messung | 1,12× | Der Proxy lag um 62 % daneben — und zwar in der schmeichelhaften Richtung. Geschwindigkeit sagt vor allem, über wie viele GPUs ein Modell verteilt ist, nicht wie viel es zieht. Die daraus abgeleiteten Zahlen haben wir verworfen. Was bleibt, ist die gemessene "
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Quellen",
+    "anchor": "#quellen",
+    "category": "Über den Grünerator",
+    "text": "Alle Zahlen dieser Seite sind nachprüfbar. Unsere Anbieter Scaleway Impact Report 2025 — Scope 1/2/3, PUE je Rechenzentrum, WUE Hetzner: Nachhaltigkeit — PUE 1,10–1,16, Wasserkraft seit 2008, EMAS DHH Group Sustainability Report 2024 — Seeweb (Regolo), Stromverbrauch und PUE GreenPT: Sustainability — Methode der CO₂-Berechnung, stündliche Netzdaten von Nodera GreenPT: Partner — Infrastruktur läuft bei Scaleway in Paris Regolo: Sustainable AI Mistral AI: Ökobilanz mit ADEME und Carbone 4 Strommix Umweltbundesamt: CO₂-Emissionen pro Kilowattstunde Strom — Deutschland, verbrauchsbasiert RTE: Bilan électrique — Frankreich Ember: Yearly Electricity Data — Italien und Ländervergleich Methode und Vergleichszahlen Jegham et al., „How Hungry is AI?\" (arXiv:2505.09598) — Grundlage des ChatGPT-Vergleichs Iyengar et al., „Energy Scaling Laws for Diffusion Models\" (arXiv:2511.17031) — Grundlage der Bildwerte; Tabelle 3 (FLUX.1) und Tabelle 6 (Qwen-Image) Scope3: Sustainable AI — Image Generation — unabhängige Gegenprobe für Bilder Uptime Institute Global Data Center Survey — weltweiter PUE-Durchschnitt 1,56 GHG Protocol Scope 2 Guidance — standortbasiert vs. marktbasiert Unsere eigene Messreihe"
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
     "heading": "Regolo (Seeweb, Italien) — 100 % erneuerbar",
     "anchor": "#regolo-seeweb-italien--100--erneuerbar",
     "category": "Über den Grünerator",
@@ -2416,6 +2700,62 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#sparsame-modelle-statt-größenwahn",
     "category": "Über den Grünerator",
     "text": "Die größten kommerziellen KI-Modelle brauchen für jede einzelne Antwort ein Vielfaches der Energie eines kompakten Modells. Der Grünerator setzt deshalb bewusst auf kleine und mittlere Modelle — vom 31-Milliarden-Parameter-Modell Gemma 4 bis zum mittelgroßen Mistral Medium. Das sind die Modelle, die tatsächlich im Einsatz sind: Aufgabe | Modell | Läuft bei | ------------------------------------ | -------------------------------------------------------------- | ---------------------------------------------- | Chat & Texte (Standard) | Mistral Medium 3.5 (mistral-medium-2604) | Mistral AI 🇫🇷 | Kreativtexte, Antworten schreiben | Gemma 4 — 31 Mrd. Parameter (gemma4-31b) | verdigado 🇩🇪 / Regolo 🇮🇹 | Schnelle Antworten | GPT-OSS 120B (gpt-oss-120b) | verdigado 🇩🇪 / Regolo 🇮🇹 | Anfragen einordnen, Zwischenschritte | Mistral Small 4 (mistral-small-4-119b) | Regolo 🇮🇹 | Werkzeuge planen und aufrufen | Mistral Small (mistral-small-latest) | Mistral AI 🇫🇷 | Bilder verstehen | Gemma 4 (gemma4-31b), Pixtral Large | Regolo 🇮🇹 / Mistral AI 🇫🇷 | Bilder erzeugen & bearbeiten | FLUX 2 Pro (flux-2-pro), Qwen-Image | Black Forest Labs 🇩🇪 (EU-Endpunkt) / Regolo 🇮🇹 | Untertitel & "
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Warum Ökostrom die Zahl nicht auf null bringt",
+    "anchor": "#warum-ökostrom-die-zahl-nicht-auf-null-bringt",
+    "category": "Über den Grünerator",
+    "text": "Alle drei Anbieter beziehen nach eigenen Angaben erneuerbare Energie — Seeweb ausschließlich, Hetzner seit 2008 Wasserkraft, Scaleway zu 100 %. Trotzdem steht in unserer Rechnung der jeweilige Netzmix. Das ist keine Nachlässigkeit, sondern der Punkt. Scaleway macht es selbst genau so. Der Impact Report weist den Ökostrom ausdrücklich als Guarantee of Origin aus, also als Herkunftsnachweise — und rechnet die Emissionen trotzdem standortbasiert. Ein Anbieter, der sich mit einem Federstrich auf nahe null hätte rechnen können, tut es nicht. Dem folgen wir. Bei Regolo kommt hinzu, dass es gar keine Zahl gäbe, die man einsetzen könnte: Der Nachhaltigkeitsbericht der DHH-Gruppe 2024 nennt für Seeweb zwar 7,3 GWh Stromverbrauch und null Prozent fossilen Anteil, hält aber fest, dass die Gruppengesellschaften ihre Treibhausgasemissionen derzeit nicht messen („the Group companies do not currently measure greenhouse gas emissions\"). Bei Hetzner ist es dasselbe Bild — die Nachhaltigkeitsseite nennt PUE und Wasserkraft, aber keine Scope-2-Bilanz. Wo Berichte konkret werden, rechnen wir es an: Seewebs PUE unter 1,20 und Hetzners 1,13 senken beide Werte gegenüber unserem Referenzwert. Sobald einer"
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Was dein eigener Verbrauch kostet",
+    "anchor": "#was-dein-eigener-verbrauch-kostet",
+    "category": "Über den Grünerator",
+    "text": "Unter Einstellungen → Nutzung siehst du Energie- und CO₂-Verbrauch deiner eigenen Anfragen. Diese Zahl ist teils gemessen, teils hochgerechnet — hier steht, wie sie zustande kommt."
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Was die ganze Plattform verbraucht",
+    "anchor": "#was-die-ganze-plattform-verbraucht",
+    "category": "Über den Grünerator",
+    "text": "Neben deinem eigenen Verbrauch veröffentlichen wir die Summe über alle Nutzer:innen. Drei Entscheidungen dahinter sind erklärungsbedürftig, weil sie die Zahlen kleiner oder unschärfer machen, als sie sein könnten. Es ist eine Spanne, keine Zahl. Wo ein Modell vermessen ist, fallen beide Enden zusammen. Wo wir nur eine Obergrenze haben, zeigt die Spanne das obere und das untere Ende derselben gemessenen Bandbreite. Ihre Breite ist damit ein direktes Maß dafür, wie viel wir noch nicht wissen — und sie wird schmaler, sobald eine Lane vermessen wird, nicht durch besseres Formulieren. Tage mit sehr wenigen Aktiven fallen ganz heraus. Unterschreitet ein Tag fünf verschiedene Nutzer:innen, wird er nicht nur aus dem Verlauf ausgeblendet, sondern auch aus allen Summen entfernt. Nur auszublenden würde nichts nützen: Wer zwei Zeiträume abfragt, die sich um einen Tag unterscheiden, könnte ihn durch Subtraktion zurückrechnen. Die Zahl der zurückgehaltenen Tage steht mit dabei, damit eine Lücke als Lücke erkennbar ist und nicht als Ruhetag. Die Konstanten stehen dabei. Zu jedem Anbieter veröffentlichen wir den angesetzten Netzmix und den PUE-Wert neben seinem Anteil. Ein Fußabdruck, den niemand "
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Was die Zahl nicht enthält",
+    "anchor": "#was-die-zahl-nicht-enthält",
+    "category": "Über den Grünerator",
+    "text": "Keine Herstellung, kein Training. Wir zählen den Strom der Anfrage selbst. Der CO₂-Rucksack aus GPU-Produktion und Modelltraining fehlt. Keine Transkription, keine Recherche. Dafür liefert kein Anbieter Messwerte. Bei GreenPT, das als einziges überhaupt misst, haben wir alle in Frage kommenden Endpunkte geprüft: Transkription (/v1/listen) und beide Suchendpunkte antworten ohne impact-Feld, und einen Endpunkt für den Konto-Gesamtverbrauch gibt es nicht. Gemessen wird dort ausschließlich Inferenz auf /v1/chat/completions und /v1/embeddings. Beide Schritte werden deshalb gezählt, aber nicht bewertet — die Übersicht weist sie getrennt aus, damit die Aktivität nicht so aussieht, als wäre sie kostenlos. Kein Grundverbrauch der eigenen Infrastruktur. Datenbanken, Cache, Vektorsuche und die API-Container laufen rund um die Uhr, unabhängig davon, ob jemand etwas erzeugt. Sie stecken in keiner dieser Zahlen. Wie groß der fehlende Teil ist, zeigt Scaleways eigene Bilanz besonders klar: Dem Betriebsstrom (Scope 2) mit 3.155 t CO₂e stehen 13.387 t allein für die Server gegenüber — die Hardware-Herstellung wiegt dort das 4,2-fache des Stroms, den sie verbraucht. Mistrals unabhängig geprüfte Ökob"
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Was dieselbe Arbeit mit ChatGPT gekostet hätte",
+    "anchor": "#was-dieselbe-arbeit-mit-chatgpt-gekostet-hätte",
+    "category": "Über den Grünerator",
+    "text": "Die Nutzungs-Übersicht stellt deinem Verbrauch eine Vergleichszahl gegenüber. Sie beruht auf Jegham et al. (2025) — der einzigen veröffentlichten Rechnung zu GPT-4o mit derselben Systemgrenze wie unserer: nur Betriebsstrom, kein Training, keine Hardware-Herstellung, PUE eingerechnet, standortbasierter Emissionsfaktor. Alles andere wäre ein Vergleich von Äpfeln mit Birnen. Für eine Kurzanfrage (100 Token rein, 300 raus) nennt die Arbeit 0,42 Wh und damit rund 147 mg CO₂e. Unsere Modelle in derselben Konfiguration: Modell und Standort | Energie | CO₂ | --------------------------- | ------- | ------ | Gemma 4 bei Regolo | 0,21 Wh | 56 mg | GPT-OSS 120B bei Regolo | 0,24 Wh | 66 mg | Gemma 4 bei verdigado | 0,20 Wh | 71 mg | Mistral Medium bei Scaleway | 1,37 Wh | 30 mg | GPT-4o (Jegham et al.) | 0,42 Wh | 147 mg | Daraus ergibt sich die Spanne, die die Übersicht zeigt: rund 2- bis 5-mal weniger CO₂ je vergleichbarer Anfrage. Der Vergleich gilt nur für Text. Für erzeugte Bilder gibt es keine OpenAI-Zahl mit vergleichbar sauber benannter Systemgrenze; eine Herstellerschätzung gegen eine grenzkorrigierte Messung zu stellen würde die Sorgfalt entwerten, um die es hier geht. Bilder bleiben"
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Wie wir Emissionen berechnen",
+    "anchor": "#wie-wir-emissionen-berechnen",
+    "category": "Über den Grünerator",
+    "text": "Emissionen sind Energie mal Kohlenstoffintensität des Stroms. Wir rechnen standortbasiert, also mit dem realen Strommix am jeweiligen Rechenzentrumsstandort — nicht mit unseren Ökostromverträgen. Das ist bewusst die strengere Variante, und wir folgen damit GreenPT selbst: Der Anbieter wirbt mit 100 % erneuerbarer Energie und rechnet seine Emissionen trotzdem nicht auf null, sondern nutzt stündliche Netzdaten je Standort. Ein Ökostromvertrag ändert nichts daran, welcher Strom im selben Moment physisch durch die Leitung fließt. Die grüne Beschaffung bleibt richtig und wirksam — sie ist nur kein Rabatt auf die Bilanz. Wir rechnen mit diesen Werten (Jahresmittel 2024, nur Verbrennungsemissionen): Standort | g CO₂/kWh | Quelle | ----------------------------------- | --------- | ------------------------------------------------ | Scaleway (Paris) | 24 | Scaleway Impact Report 2025, eigene Scope-2-Zahl | Frankreich (Mistral) | 22 | RTE, Bilan électrique 2024 | Italien (Regolo/Seeweb) | 270 | Ember, Yearly Electricity Data | Deutschland (verdigado auf Hetzner) | 363 | Umweltbundesamt | Bei Scaleway müssen wir nicht auf den Landesdurchschnitt ausweichen: Der Impact Report weist Scope 2 stand"
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Woher die Messwerte kommen",
+    "anchor": "#woher-die-messwerte-kommen",
+    "category": "Über den Grünerator",
+    "text": "Von unseren Anbietern liefert nur GreenPT die Umweltkosten einer Anfrage mit: Jede Antwort trägt ein impact-Objekt mit Energieverbrauch und Emissionen. Diese Werte übernehmen wir unverändert. Für alle anderen rechnen wir hoch — mit Werten, die an genau denselben Modellen gemessen wurden. GreenPT betreibt Gemma 4, GPT-OSS 120B und Mistral Medium 3.5 ebenfalls, also verrät eine Messung dort, was dasselbe Modell bei Regolo oder verdigado kostet. Gemessen am 31.07.2026 über 35 Läufe mit unterschiedlich langen Antworten: Modell | Energie je erzeugtem Token | typische Antwort (400 Token) | ----------------------------- | -------------------------- | ---------------------------- | Mistral Small 3.2 (24 Mrd.) | 0,70 mWh | 0,28 Wh | Gemma 4 (31 Mrd.) | 0,72 mWh | 0,29 Wh | GPT-OSS 120B | 0,81 mWh | 0,34 Wh | Mistral Medium 3.5 (128 Mrd.) | 4,52 mWh | 1,84 Wh | Qwen 3.5 (397 Mrd.) | 7,47 mWh | 3,08 Wh | Das ist die harte Zahl unter dem, was weiter oben über sparsame Modelle steht: Mistral Medium braucht das 6,3-fache von Gemma 4, das größte gemessene Modell das 10,3-fache. Genau deshalb schreibt bei uns ein kompaktes Modell die Antworten. Nebenbei zeigt die Messung, dass der Prompt fast nich"
   },
   {
     "url": "/docs/ueber-den-gruenerator/notebook",
@@ -2543,7 +2883,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wenn du etwas nicht findest",
     "anchor": "#wenn-du-etwas-nicht-findest",
     "category": "Über den Grünerator",
-    "text": "Such nach dem Namen. Die Suche im Grünerator kennt auch die gängigen Bezeichnungen — „Untertitel\" findet die Reels, „OCR\" den Scanner. Manches gibt es nur im Web. Einige Werkzeuge brauchen eine große Oberfläche. In der App siehst du die Inhalte dann, kannst sie aber nicht überall bearbeiten. Bei jedem Werkzeug oben steht, wo es läuft. Namen, Beschreibungen und Pfade stammen direkt aus dem Programmcode des Grünerators. Kommt ein Werkzeug dazu oder wird eines umbenannt, meldet sich die Doku-Prüfung automatisch, bis die Seite nachgezogen ist — sie kann also nicht stillschweigend veralten."
+    "text": "Such nach dem Namen. Die Suche im Grünerator kennt auch die gängigen Bezeichnungen — „Untertitel\" findet die Reels, „OCR\" den Scanner. Manches gibt es nur im Web. Einige Werkzeuge brauchen eine große Oberfläche. In der App siehst du die Inhalte dann, kannst sie aber nicht überall bearbeiten. Bei jedem Werkzeug oben steht, wo es läuft. Namen, Beschreibungen und Pfade stammen direkt aus dem Programmcode des Grünerators. Kommt ein Werkzeug dazu oder wird eines umbenannt, meldet sich die Doku-Prüfung automatisch, bis die Seite nachgezogen ist — sie kann also nicht stillschweigend veralten. Es gibt mehrere Grünerator-Instanzen — neben dem allgemeinen etwa eine Testumgebung und eine für die Bundesgeschäftsstelle. Einzelne Instanzen können abweichen: nicht jede bietet alle hier beschriebenen Werkzeuge, Notizbücher und Grüneratoren an. Was deine Instanz anbietet, siehst du immer in ihrer eigenen Oberfläche."
   },
   {
     "url": "/docs/webinare",
@@ -2767,7 +3107,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Landesverbände",
     "anchor": "#landesverbände",
     "category": "Wissen",
-    "text": "Die Landesverbände-Sammlung enthält 13.239 Vektoren aus 9 Quellen. Landesverband | Kürzel | Vektoren | ------------------------------- | ------ | ---------: | Mecklenburg-Vorpommern Fraktion | MV-F | 2.428 | Berlin Fraktion | BE-F | 2.253 | Brandenburg | BB | 2.153 | Berlin | BE | 1.834 | Mecklenburg-Vorpommern | MV | 1.412 | Sachsen-Anhalt Fraktion | LSA-F | 1.383 | Thüringen | TH | 770 | Bayern | BY | 722 | Sachsen-Anhalt | LSA | 284 | Gesamt | | 13.239 |"
+    "text": "Die Landesverbände-Sammlung enthält 13.251 Vektoren aus 9 Quellen. Landesverband | Kürzel | Vektoren | ------------------------------- | ------ | ---------: | Mecklenburg-Vorpommern Fraktion | MV-F | 2.428 | Berlin Fraktion | BE-F | 2.255 | Brandenburg | BB | 2.161 | Berlin | BE | 1.831 | Mecklenburg-Vorpommern | MV | 1.414 | Sachsen-Anhalt Fraktion | LSA-F | 1.385 | Thüringen | TH | 771 | Bayern | BY | 721 | Sachsen-Anhalt | LSA | 285 | Gesamt | | 13.251 |"
   },
   {
     "url": "/docs/wissen/inhaltsdatenbank",
@@ -2775,7 +3115,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Sammlungen",
     "anchor": "#sammlungen",
     "category": "Wissen",
-    "text": "Sammlung | Vektoren | -------------- | ---------: | Landesverbände | 19.651 | KommunalWiki | 6.744 | Bundestag | 3.290 | Böll-Stiftung | 35 | Gesamt | 29.720 |"
+    "text": "Sammlung | Vektoren | -------------- | ---------: | Landesverbände | 19.680 | KommunalWiki | 6.789 | Bundestag | 3.305 | Böll-Stiftung | 2.209 | gruene.at | 1.007 | Grünblog | 550 | Gesamt | 33.540 |"
   },
   {
     "url": "/docs/wissen/inhaltsdatenbank",
@@ -2783,7 +3123,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Übersicht",
     "anchor": "#übersicht",
     "category": "Wissen",
-    "text": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 29.720 Vektoren in der Datenbank gespeichert."
+    "text": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 33.540 Vektoren in der Datenbank gespeichert."
   },
   {
     "url": "/docs/wissen/landesverbaende",

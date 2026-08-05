@@ -132,3 +132,83 @@ describe('SearchImagesSection', () => {
     expect(container.querySelectorAll('li')).toHaveLength(2);
   });
 });
+
+/**
+ * The mosaic: three tiles open the answer, the rest sits behind a counter.
+ *
+ * Two properties matter beyond the layout. The counter tile is a BUTTON, not a
+ * link — nesting one in the other would make the click ambiguous. And the tiles
+ * behind it are not in the DOM until it is pressed, so a nine-hit turn costs the
+ * proxy three image fetches, not nine.
+ */
+describe('SearchImagesSection mosaic', () => {
+  const many = Array.from({ length: 9 }, (_, i) => ({
+    title: `Bild ${i}`,
+    url: `https://example.test/${i}.jpg`,
+    domain: 'example.test',
+    proxyUrl: `/api/search-image?url=${i}&exp=1&sig=s`,
+  }));
+
+  it('shows three tiles and holds the rest back', () => {
+    const { container } = render(<SearchImagesSection images={many} />);
+    expect(container.querySelectorAll('img')).toHaveLength(3);
+  });
+
+  it('counts the held-back hits on the last tile', () => {
+    const { getByRole } = render(<SearchImagesSection images={many} />);
+    // 9 total − 3 shown = 6 behind the counter.
+    expect(getByRole('button', { name: '6 weitere Bildquellen anzeigen' })).toBeTruthy();
+  });
+
+  it('reveals every hit when the counter is pressed', () => {
+    const { container, getByRole } = render(<SearchImagesSection images={many} />);
+    fireEvent.click(getByRole('button', { name: /weitere Bildquellen/ }));
+    expect(container.querySelectorAll('img')).toHaveLength(9);
+    // And each one is a link again — the counter has nothing left to open.
+    expect(container.querySelectorAll('a')).toHaveLength(9);
+    expect(container.querySelector('button')).toBeNull();
+  });
+
+  it('needs no counter when everything fits', () => {
+    const { container } = render(<SearchImagesSection images={many.slice(0, 3)} />);
+    expect(container.querySelectorAll('img')).toHaveLength(3);
+    expect(container.querySelector('button')).toBeNull();
+  });
+
+  it('still routes every revealed tile through the proxy', () => {
+    const { container, getByRole } = render(<SearchImagesSection images={many} />);
+    fireEvent.click(getByRole('button', { name: /weitere Bildquellen/ }));
+    for (const img of Array.from(container.querySelectorAll('img'))) {
+      expect(img.getAttribute('src') ?? '').toMatch(/^\/api\/search-image\?/);
+    }
+  });
+});
+
+/**
+ * The counter must survive its own picture failing.
+ *
+ * Every other tile degrades to a text link when the proxy cannot serve it. If the
+ * counter tile did that too, the only way into the remaining hits would leave with
+ * it — a set of nine would silently become a set of three. This is the same
+ * failure the section already had once, when the whole block lived inside the
+ * sources disclosure and an image-only turn had no trigger to open.
+ */
+describe('SearchImagesSection counter resilience', () => {
+  const many = Array.from({ length: 9 }, (_, i) => ({
+    title: `Bild ${i}`,
+    url: `https://example.test/${i}.jpg`,
+    domain: 'example.test',
+    proxyUrl: `/api/search-image?url=${i}&exp=1&sig=s`,
+  }));
+
+  it('keeps the counter when its own thumbnail fails', () => {
+    const { container, getByRole } = render(<SearchImagesSection images={many} />);
+    const tiles = Array.from(container.querySelectorAll('img'));
+    fireEvent.error(tiles[tiles.length - 1]!);
+
+    const button = getByRole('button', { name: '6 weitere Bildquellen anzeigen' });
+    expect(button).toBeTruthy();
+    fireEvent.click(button);
+    expect(container.querySelectorAll('img').length).toBeGreaterThan(3);
+  });
+});

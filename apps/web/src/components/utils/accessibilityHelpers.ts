@@ -105,21 +105,6 @@ export const addAriaLabelsToElements = (labelledElements: LabelledElement[]): vo
 };
 
 /**
- * Enhance focus visibility for keyboard users
- */
-export const enhanceFocusVisibility = (): void => {
-  document.body.addEventListener('keydown', (e: KeyboardEvent) => {
-    if (e.key === 'Tab') {
-      document.body.classList.add('user-is-tabbing');
-    }
-  });
-
-  document.body.addEventListener('mousedown', () => {
-    document.body.classList.remove('user-is-tabbing');
-  });
-};
-
-/**
  * Enhanced keyboard navigation with Enter and Escape support
  */
 export const setupEnhancedKeyboardNavigation = (
@@ -129,9 +114,6 @@ export const setupEnhancedKeyboardNavigation = (
   if (!formElement) return;
 
   const { onEscapeCancel = true } = options;
-
-  const existingSkipLinks = document.querySelectorAll('.skip-link');
-  existingSkipLinks.forEach((link) => link.remove());
 
   const handleKeyDown = (event: Event): void => {
     const keyEvent = event as KeyboardEvent;

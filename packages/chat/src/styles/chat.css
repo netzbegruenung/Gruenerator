@@ -34,12 +34,12 @@
   --color-secondary-300: #A0BBB0;
   --color-secondary-400: #85A899;
   --color-secondary-500: #6A9583;
-  --color-secondary-600: #5F8575;
+  --color-secondary-600: #587C6D;
   --color-secondary-700: #445F54;
   --color-secondary-800: #31453C;
   --color-secondary-900: #1E2A25;
   --color-secondary-950: #0B0F0D;
-  --color-secondary: #5F8575;
+  --color-secondary: #587C6D;
 
   /* Background Colors */
   --color-background: #ffffff;
@@ -88,8 +88,8 @@
   --color-error-bg: #fef2f2;
 
   /* Badge Colors */
-  --color-badge-platform: #5F8575;
-  --color-badge-platform-bg: rgba(95,133,117,0.1);
+  --color-badge-platform: #587C6D;
+  --color-badge-platform-bg: rgba(88,124,109,0.1);
   --color-badge-citation: #445F54;
   --color-badge-citation-bg: rgba(68,95,84,0.1);
   --color-badge-citation-hover: rgba(68,95,84,0.15);
@@ -109,8 +109,8 @@
   --color-tool-documents-bg: rgba(82,144,122,0.1);
   --color-tool-web: #6BAA91;
   --color-tool-web-bg: rgba(107,170,145,0.1);
-  --color-tool-examples: #5F8575;
-  --color-tool-examples-bg: rgba(95,133,117,0.1);
+  --color-tool-examples: #587C6D;
+  --color-tool-examples-bg: rgba(88,124,109,0.1);
 
   /* Section / Toggle */
   --color-section-border: #e5e7eb;
@@ -119,8 +119,8 @@
   /* Collection Badge Colors */
   --color-collection-grundsatzprogramm: #52907A;
   --color-collection-grundsatzprogramm-bg: rgba(82, 144, 122, 0.1);
-  --color-collection-bundestagsfraktion: #5F8575;
-  --color-collection-bundestagsfraktion-bg: rgba(95, 133, 117, 0.1);
+  --color-collection-bundestagsfraktion: #587C6D;
+  --color-collection-bundestagsfraktion-bg: rgba(88, 124, 109, 0.1);
   --color-collection-bundestag: #64748B;
   --color-collection-bundestag-bg: rgba(100, 116, 139, 0.1);
   --color-collection-gruene-de: #52907A;
@@ -133,7 +133,7 @@
   --color-collection-research-bg: rgba(68, 95, 84, 0.1);
   --color-collection-landesverband: #52907A;
   --color-collection-landesverband-bg: rgba(82, 144, 122, 0.1);
-  --color-collection-boell: #5F8575;
+  --color-collection-boell: #587C6D;
   --color-collection-boell-bg: rgba(95, 133, 117, 0.1);
   --color-collection-examples: #6BAA91;
   --color-collection-examples-bg: rgba(107, 170, 145, 0.1);

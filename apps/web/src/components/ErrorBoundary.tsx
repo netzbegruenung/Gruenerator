@@ -56,6 +56,16 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
       error?.message?.includes('Unable to preload CSS') ||
       error?.message?.includes('Loading chunk') ||
       error?.message?.includes('Loading CSS chunk') ||
+      // React.lazy renders `payload._result.default` on a module that a Vite
+      // __vitePreload race resolved to `undefined` instead of rejecting (e.g. a
+      // page reload interrupting an in-flight chunk fetch) — same failure class
+      // as the messages above, just a different symptom. Browser wording varies.
+      // Firefox phrasing: both substrings appear together in one message —
+      // require both so an unrelated error mentioning a `_result` field alone
+      // isn't misclassified as a recoverable chunk-load error.
+      (error?.message?.includes('can\'t access property "default"') &&
+        error?.message?.includes('_result is undefined')) ||
+      error?.message?.includes("Cannot read properties of undefined (reading 'default')") ||
       error?.name === 'ChunkLoadError'
     );
   }
@@ -179,7 +189,10 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
       const errorMessage = this.getErrorMessage();
 
       return (
-        <div className="p-lg border border-grey-200 dark:border-grey-700 rounded-xs bg-background-alt mx-auto my-lg max-w-[800px] text-center font-sans text-foreground">
+        <div
+          data-testid="error-boundary"
+          className="p-lg border border-grey-200 dark:border-grey-700 rounded-xs bg-background-alt mx-auto my-lg max-w-[800px] text-center font-sans text-foreground"
+        >
           <h1 className="text-foreground-heading text-[2em] mb-md">{errorMessage.title}</h1>
           <p className="mb-md leading-relaxed">{errorMessage.message}</p>
 

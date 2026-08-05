@@ -33,7 +33,7 @@
     "build:android:preview": "EAS_NO_VCS=1 eas build -p android --profile preview"
   },
   "dependencies": {
-    "@assistant-ui/react-native": "^0.1.30",
+    "@assistant-ui/react-native": "0.1.33",
     "@expo-google-fonts/raleway": "^0.4.2",
     "@expo/dom-webview": "~56.0.5",
     "@expo/metro-runtime": "~57.0.7",
@@ -109,9 +109,9 @@
     "@types/jest": "^29.5.14",
     "@types/katex": "^0.16.8",
     "@types/react": "^19.2.14",
-    "eslint": "^9.39.4",
+    "eslint": "^9.39.5",
     "expo-atlas": "^0.4.0",
-    "globals": "^17.7.0",
+    "globals": "^17.8.0",
     "jest": "^29.7.0",
     "jest-expo": "~57.0.2",
     "typescript": "~6.0.3",

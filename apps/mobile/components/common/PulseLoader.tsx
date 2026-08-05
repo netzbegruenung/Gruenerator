@@ -196,6 +196,7 @@ export function PulseLoader({
           onPress={onCancel}
           hitSlop={8}
           style={({ pressed }) => [styles.cancelButton, pressed && styles.cancelButtonPressed]}
+          accessibilityRole="button"
         >
           <Text style={[styles.cancelLabel, { color: theme.textSecondary }]}>{cancelLabel}</Text>
         </Pressable>

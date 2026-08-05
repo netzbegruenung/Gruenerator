@@ -1,4 +1,4 @@
-import { MessagePrimitive, useAuiState } from '@assistant-ui/react-native';
+import { useAuiState, AuiIf } from '@assistant-ui/react-native';
 import { memo } from 'react';
 
 import { AssistantMessage } from './message/AssistantMessage';
@@ -20,13 +20,13 @@ export const MessageBubble = memo(function MessageBubble() {
 
   return (
     <>
-      <MessagePrimitive.If user>
+      <AuiIf condition={(s) => s.message.role === 'user'}>
         <UserMessage />
-      </MessagePrimitive.If>
-      <MessagePrimitive.If assistant>
+      </AuiIf>
+      <AuiIf condition={(s) => s.message.role === 'assistant'}>
         <AssistantMessage />
         <FollowUpSuggestions />
-      </MessagePrimitive.If>
+      </AuiIf>
     </>
   );
 });

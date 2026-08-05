@@ -199,6 +199,7 @@ export function Citation(props: CitationProps) {
       data-tool-ui-id={id}
       data-slot="citation"
     >
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- role/tabIndex/onKeyDown are already applied below (conditional on sanitizedHref), eslint just can't resolve the ternary statically. */}
       <div
         className={cn(
           'group @container relative isolate flex w-full min-w-0 flex-col overflow-hidden rounded-xl',

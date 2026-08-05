@@ -1,8 +1,8 @@
 import React, { useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { cn } from '../../../utils/cn';
 import { useDesktopTabsStore, type Tab as TabType } from '../../../stores/desktopTabsStore';
+import { cn } from '../../../utils/cn';
 
 interface TabProps {
   tab: TabType;
@@ -32,6 +32,13 @@ const Tab: React.FC<TabProps> = ({
   const handleClick = () => {
     setActiveTab(tab.id);
     void navigate(tab.route);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleClick();
+    }
   };
 
   const handleClose = (e: React.MouseEvent) => {
@@ -73,6 +80,7 @@ const Tab: React.FC<TabProps> = ({
       tabIndex={isActive ? 0 : -1}
       draggable
       onClick={handleClick}
+      onKeyDown={handleKeyDown}
       onMouseDown={handleMiddleClick}
       onDragStart={(e: React.DragEvent) => onDragStart(e, tab.id, index)}
       onDragOver={(e) => {

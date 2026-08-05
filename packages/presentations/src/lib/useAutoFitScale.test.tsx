@@ -1,7 +1,7 @@
 import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { useAutoFitScale } from './useAutoFitScale.js';
+import { SLIDE_REFIT_EVENT, useAutoFitScale } from './useAutoFitScale.js';
 
 const CAPACITY = 540;
 
@@ -21,6 +21,25 @@ function stubLayout(natural: number, capacity = CAPACITY): void {
     get: () => capacity,
   });
   Object.defineProperty(HTMLElement.prototype, 'scrollHeight', {
+    configurable: true,
+    get(this: HTMLElement) {
+      const raw = this.style.getPropertyValue('--gs-font-scale');
+      return Math.round(natural * Number(raw || 1));
+    },
+  });
+}
+
+/**
+ * The horizontal axis, modelled the same way. jsdom reports 0 for both width
+ * properties by default, which is why the height-only tests above need no
+ * width stub — `0 <= 0` always fits.
+ */
+function stubWidth(natural: number, capacity: number): void {
+  Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+    configurable: true,
+    get: () => capacity,
+  });
+  Object.defineProperty(HTMLElement.prototype, 'scrollWidth', {
     configurable: true,
     get(this: HTMLElement) {
       const raw = this.style.getPropertyValue('--gs-font-scale');
@@ -80,6 +99,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
   Reflect.deleteProperty(HTMLElement.prototype, 'clientHeight');
   Reflect.deleteProperty(HTMLElement.prototype, 'scrollHeight');
+  Reflect.deleteProperty(HTMLElement.prototype, 'clientWidth');
+  Reflect.deleteProperty(HTMLElement.prototype, 'scrollWidth');
   Reflect.deleteProperty(document, 'fonts');
 });
 
@@ -160,6 +181,23 @@ describe('useAutoFitScale', () => {
     expect(fonts.removeEventListener).toHaveBeenCalledWith('loadingdone', registered?.[1]);
   });
 
+  // Tables and images introduced content that overflows sideways. The surface
+  // clips it (`overflow: hidden`) without ever getting taller, so a height-only
+  // probe reports "fits" for a table whose last column is off the slide.
+  it('shrinks for content that overflows sideways at full height', () => {
+    stubLayout(400); // height is comfortable …
+    stubWidth(1200, 960); // … the width is not: needs <= 0.8
+    render(<Surface enabled contentKey="a" />);
+    expect(surface().dataset.scale).toBe('0.8');
+  });
+
+  it('takes the smaller of the two axes', () => {
+    stubLayout(900, CAPACITY); // height alone → 0.6
+    stubWidth(1100, 960); // width alone → 0.8
+    render(<Surface enabled contentKey="a" />);
+    expect(surface().dataset.scale).toBe('0.6');
+  });
+
   it('re-fits when reveal reveals the slide, and disconnects on unmount', () => {
     stubLayout(400);
     const { unmount } = render(<Surface enabled contentKey="a" />);
@@ -176,5 +214,62 @@ describe('useAutoFitScale', () => {
     expect(surface().dataset.scale).toBe('0.7');
     unmount();
     expect(observers[0]?.disconnect).toHaveBeenCalled();
+  });
+});
+
+/**
+ * The PDF export path. Until reveal's PrintView has rebuilt the deck, every
+ * slide but the current one is display:none and measures 0, and none of the
+ * passive triggers above can recover it: the contentKey effect ran at mount,
+ * fonts.ready is one-shot, and the IntersectionObserver is viewport-rooted so
+ * it never fires for slides in a print stack nobody scrolls. Without the
+ * broadcast, slides 2..N stay at scale 1 and `.gruene-slide { overflow: hidden }`
+ * clips them — silently, in the PDF.
+ */
+describe('SLIDE_REFIT_EVENT', () => {
+  it('re-fits a surface that measured 0 while it was hidden', () => {
+    stubLayout(700, 0); // reveal keeps non-current slides display:none
+    render(<Surface enabled contentKey="a" />);
+    expect(surface().dataset.scale).toBe('1');
+
+    stubLayout(700); // PrintView made every section visible
+    act(() => {
+      window.dispatchEvent(new Event(SLIDE_REFIT_EVENT));
+    });
+    expect(surface().dataset.scale).toBe('0.7');
+  });
+
+  it('fits synchronously during dispatch, without waiting for a frame', () => {
+    // The listener binds `fit`, not `schedule`. PresentMode relies on this: it
+    // dispatches and then calls window.print() with no rAF in between on the
+    // fallback path, so a deferred fit would print the unfitted scale.
+    vi.stubGlobal('requestAnimationFrame', () => 1);
+    stubLayout(700, 0);
+    render(<Surface enabled contentKey="a" />);
+    stubLayout(700);
+    act(() => {
+      window.dispatchEvent(new Event(SLIDE_REFIT_EVENT));
+    });
+    expect(surface().style.getPropertyValue('--gs-font-scale')).toBe('0.7');
+  });
+
+  it('ignores the broadcast when disabled — an explicit preset wins', () => {
+    stubLayout(5000);
+    render(<Surface enabled={false} contentKey="a" />);
+    act(() => {
+      window.dispatchEvent(new Event(SLIDE_REFIT_EVENT));
+    });
+    expect(surface().dataset.scale).toBe('1');
+    expect(surface().style.getPropertyValue('--gs-font-scale')).toBe('');
+  });
+
+  it('unsubscribes on unmount — the listener is global, one per slide', () => {
+    stubLayout(400);
+    const remove = vi.spyOn(window, 'removeEventListener');
+    const { unmount } = render(<Surface enabled contentKey="a" />);
+    unmount();
+    expect(remove).toHaveBeenCalledWith(SLIDE_REFIT_EVENT, expect.any(Function));
+    // A late broadcast must not resurrect the unmounted surface.
+    expect(() => window.dispatchEvent(new Event(SLIDE_REFIT_EVENT))).not.toThrow();
   });
 });

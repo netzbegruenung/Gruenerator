@@ -147,6 +147,14 @@ server {
     gzip_min_length 1024;
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml text/javascript image/svg+xml;
 
+    # Never serve source maps. The build no longer emits them (see
+    # apps/web/vite.config.ts), but a stale image or a VITE_SOURCEMAP=1 build
+    # must not re-expose the frontend source. Regex locations are evaluated
+    # before the /assets/ prefix match, so this wins.
+    location ~ \.map$ {
+        return 404;
+    }
+
     # Hashed assets under /assets/ — cache forever
     # Vite outputs all content-hashed files here (js, css, images, fonts)
     location /assets/ {

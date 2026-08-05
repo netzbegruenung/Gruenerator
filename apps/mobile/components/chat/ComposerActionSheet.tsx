@@ -266,6 +266,9 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
           key={model.id}
           icon={model.id === AUTO_MODEL_ID ? 'sparkles-outline' : 'hardware-chip-outline'}
           title={model.name}
+          {...(model.id === AUTO_MODEL_ID && {
+            titleBadge: AUTO_MODEL_OPTION.recommendedLabel,
+          })}
           value={model.description}
           onPress={() => {
             setSelectedModel(model.id);

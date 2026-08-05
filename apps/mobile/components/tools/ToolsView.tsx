@@ -1,6 +1,8 @@
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { StyleSheet, ScrollView } from 'react-native';
 
+import { useLayout } from '../../hooks/useLayout';
 import { spacing } from '../../theme';
+import { ContentColumn } from '../common/ContentColumn';
 
 import { TOOLS } from './toolsConfig';
 import { ToolSquareGrid } from './ToolSquareGrid';
@@ -11,12 +13,16 @@ import { ToolSectionHeading } from './ToolTileGrid';
  * standalone (the /(tabs)/(tools) route) and inside the merged Arbeiten tab.
  */
 export function ToolsView() {
+  const { gridWidth } = useLayout();
+
   return (
     <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-      <View style={styles.section}>
+      {/* A tile field carries no line length, so it gets the wider of the two
+          caps and spends the room on further columns rather than bigger tiles. */}
+      <ContentColumn variant="grid" style={styles.section}>
         <ToolSectionHeading title="Werkzeuge" badge={`${TOOLS.length}`} />
-        <ToolSquareGrid tools={TOOLS} />
-      </View>
+        <ToolSquareGrid tools={TOOLS} availableWidth={gridWidth} />
+      </ContentColumn>
     </ScrollView>
   );
 }
@@ -27,6 +33,5 @@ const styles = StyleSheet.create({
   },
   section: {
     paddingTop: spacing.large,
-    paddingHorizontal: spacing.medium,
   },
 });

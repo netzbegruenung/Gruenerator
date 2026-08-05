@@ -137,6 +137,7 @@ export function VideoUploader({ onVideoSelected }: VideoUploaderProps) {
                 },
               ]}
               onPress={pickVideo}
+              accessibilityRole="button"
             >
               <Ionicons name="images-outline" size={32} color={theme.textGreen} />
               <Text style={[styles.optionText, { color: theme.textGreen }]}>Aus Galerie</Text>
@@ -151,6 +152,7 @@ export function VideoUploader({ onVideoSelected }: VideoUploaderProps) {
                 },
               ]}
               onPress={recordVideo}
+              accessibilityRole="button"
             >
               <Ionicons name="camera-outline" size={32} color={theme.textGreen} />
               <Text style={[styles.optionText, { color: theme.textGreen }]}>Aufnehmen</Text>
@@ -165,7 +167,12 @@ export function VideoUploader({ onVideoSelected }: VideoUploaderProps) {
         <>
           <View style={styles.previewContainer}>
             <Image source={{ uri: selectedVideo.uri }} style={styles.preview} contentFit="cover" />
-            <Pressable style={styles.clearButton} onPress={clearSelection}>
+            <Pressable
+              style={styles.clearButton}
+              onPress={clearSelection}
+              accessibilityRole="button"
+              accessibilityLabel="Video entfernen"
+            >
               <Ionicons name="close-circle" size={28} color={colors.white} />
             </Pressable>
             {selectedVideo.duration && (

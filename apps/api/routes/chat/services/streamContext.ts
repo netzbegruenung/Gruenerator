@@ -13,6 +13,7 @@
  */
 
 import { type chatGraphContract } from '@gruenerator/contracts';
+import { type UserRole, stripRoleBlock } from '@gruenerator/shared/roles';
 import {
   hasMentionTokens,
   parseMentionTokens,
@@ -22,7 +23,8 @@ import { convertToModelMessages } from 'ai';
 
 import { initializeChatState } from '../../../agents/langgraph/ChatGraph/index.js';
 import {
-  isKnownNotebook,
+  isNotebookImplicitlySearchable,
+  isNotebookResolvable,
   isUserNotebookId,
   resolveUserNotebookDocumentIds,
 } from '../../../config/notebookCollectionMap.js';
@@ -32,6 +34,7 @@ import {
   formatMemoriesByCategory,
 } from '../../../services/mem0/index.js';
 import { getCachedPersona } from '../../../services/mem0/personaService.js';
+import { findRole, resolveCustomSystemPrompt } from '../../../services/roles/roleSystemPrompt.js';
 import { recordItemUsageSafe } from '../../../services/usage/ItemUsageService.js';
 import { getAIWorkerPool } from '../../../utils/getAIWorkerPool.js';
 import { NextcloudShareManager } from '../../../utils/integrations/nextcloud/shareManager.js';
@@ -56,7 +59,8 @@ import {
   deleteMessagesFrom,
   deleteTrailingAssistant,
   getThreadToolContext,
-  listThreadArtifacts,
+  readThreadToolHistory,
+  type ThreadToolHistory,
 } from './threadPersistenceService.js';
 
 import type {
@@ -118,6 +122,14 @@ export interface StreamContext {
    *  turn still persists (WP-B). Null when no thread/user message, or when the
    *  placeholder insert failed (the turn then runs as before). */
   pendingAssistantMessageId: string | null;
+  /** The thread's tool metadata, read once here for the classifier's artifact
+   *  list and handed on so the agentic loop's replay and source rehydration
+   *  project the same rows instead of re-reading them. Null on a new thread or
+   *  when the read failed — every consumer then reads for itself, as before. */
+  threadToolHistory: ThreadToolHistory | null;
+  /** Persisted row for the current user turn. Attachments link here so history
+   * can render them on the same message after a reload. */
+  userMessageId: string | null;
 }
 
 export type BuildStreamContextResult = { done: true } | { done: false; ctx: StreamContext };
@@ -146,6 +158,7 @@ export async function buildStreamContext({
     connectFiles: rawConnectFiles,
     currentDocument: rawCurrentDocument,
     customSystemPrompt: rawCustomSystemPrompt,
+    roleRef: rawRoleRef,
     roleName: rawRoleName,
     initialAssistantMessage: rawInitialAssistantMessage,
     activeSkillMention: rawActiveSkillMention,
@@ -201,15 +214,20 @@ export async function buildStreamContext({
     return { done: true };
   }
 
-  const systemNotebookIds = mergedNotebookIds.filter(isKnownNotebook);
+  // @notebook mentions are the turn naming a notebook out loud — the one case a
+  // merely *hidden* notebook still resolves, so a link or thread shared from
+  // another instance keeps working. Only `block` and `enabled: false` say no here.
+  const systemNotebookIds = mergedNotebookIds.filter(isNotebookResolvable);
   const userNotebookUuids = mergedNotebookIds.filter(isUserNotebookId);
   const { documentIds: notebookDocumentIds, resolvedUserNotebookIds } =
     userNotebookUuids.length > 0
       ? await resolveUserNotebookDocumentIds(userId, userNotebookUuids)
       : { documentIds: [], resolvedUserNotebookIds: [] };
   const notebookIds = [...systemNotebookIds, ...resolvedUserNotebookIds];
+  // The composer's default pick scopes every following turn without being
+  // restated, so it is implicit scoping — unlike the mention above.
   const defaultNotebookId =
-    rawDefaultNotebookId && isKnownNotebook(rawDefaultNotebookId)
+    rawDefaultNotebookId && isNotebookImplicitlySearchable(rawDefaultNotebookId)
       ? rawDefaultNotebookId
       : undefined;
   // An agent can bind a user-owned notebook (UUID) as its default knowledge
@@ -336,6 +354,7 @@ export async function buildStreamContext({
   // Placeholder assistant row for turn persistence — minted just below, after
   // the user message is written (so ordering stays user → assistant).
   let pendingAssistantMessageId: string | null = null;
+  let userMessageId: string | null = null;
 
   if (!actualThreadId && lastUserMessage) {
     // Titles are user-visible — never show raw mention tokens.
@@ -417,7 +436,7 @@ export async function buildStreamContext({
     // would duplicate the row. Edit-resubmit removed it above, so write it fresh.
     if (!rawRegenerate) {
       const userText = extractTextContent(lastUserMessage.content);
-      await createMessage(
+      userMessageId = await createMessage(
         actualThreadId,
         'user',
         userText,
@@ -555,7 +574,36 @@ export async function buildStreamContext({
   }
 
   // === Read user profile instructions ===
-  const userInstructions = user.custom_prompt?.trim() || undefined;
+  // Nur der selbst geschriebene Teil. Was der Rollen-Wizard früher in dieselbe
+  // Spalte geschrieben hat — eine Liste aller verfügbaren Rollen — läuft nicht
+  // mehr in jeder Anfrage mit; die Rolle wirkt allein über den Rollen-Chat.
+  const userInstructions = stripRoleBlock(user.custom_prompt) || undefined;
+
+  // === Rollen-Chat: Systemprompt server-seitig auflösen ===
+  // Der Client schickt nur die Referenz. Der Auftrag zur Rolle ist parteiintern
+  // und liegt in INTERN_CONTENT_DIR/rollen — er darf den Server nicht verlassen,
+  // dieselbe Grenze wie bei den Rezepten. `rawCustomSystemPrompt` bleibt der
+  // Weg für frei eingetippte Rollen und für Bestandsdaten, die den Text noch
+  // mitschicken.
+  let customSystemPrompt = rawCustomSystemPrompt ?? undefined;
+  if (rawRoleRef) {
+    const storedRoles = user.user_defaults?.profile?.roles;
+    const role = Array.isArray(storedRoles)
+      ? findRole(storedRoles as UserRole[], rawRoleRef)
+      : null;
+    if (!role) {
+      log.warn(
+        `[${requestId}] roleRef ${rawRoleRef.ebene}/${rawRoleRef.rolle} findet keine ` +
+          'gespeicherte Rolle — der Turn läuft mit dem Basis-Agenten.'
+      );
+    } else {
+      customSystemPrompt = resolveCustomSystemPrompt(
+        role,
+        user.locale ?? 'de-DE',
+        rawCustomSystemPrompt
+      );
+    }
+  }
 
   // === Resolve context window for model-aware budgets ===
   const contextWindowTokens = getContextWindow(modelId);
@@ -618,7 +666,7 @@ export async function buildStreamContext({
       : undefined,
     userLocale: user.locale ?? 'de-DE',
     clientPlatform: rawPlatform ?? 'web',
-    customSystemPrompt: rawCustomSystemPrompt ?? undefined,
+    customSystemPrompt,
     activeSkillMention: rawActiveSkillMention ?? undefined,
     userInstructions,
     contextWindowTokens,
@@ -631,20 +679,26 @@ export async function buildStreamContext({
   // Thread tool memory for the classifier: which tool family the previous
   // substantive turn used ("@tally" is stripped from message text on send, so
   // this is the only carrier a vague follow-up has). Non-fatal on failure.
+  let threadToolHistory: ThreadToolHistory | null = null;
   if (actualThreadId && !isNewThread) {
     // The single slot and the full list, in one round trip. The list is what a
     // follow-up gets matched against when the thread holds several artifacts —
     // the slot only ever remembers the newest one.
-    const [toolContext, artifacts] = await Promise.all([
+    const [toolContext, history] = await Promise.all([
       getThreadToolContext(actualThreadId).catch(() => null),
       // Eine verlorene Artefakt-Liste heisst „Thread ohne Gedächtnis": der Turn
       // läuft mit dem heutigen Verhalten weiter, statt an einer Komfortfunktion
       // zu scheitern — dieselbe Abwägung wie in der Zeile darüber.
       // swallow-ok: best-effort Thread-Gedächtnis, Fallback ist das Ist-Verhalten
-      listThreadArtifacts(actualThreadId).catch(() => []),
+      readThreadToolHistory(actualThreadId).catch(() => null),
     ]);
     initialState.lastToolContext = toolContext;
-    initialState.threadArtifacts = artifacts;
+    initialState.threadArtifacts = history?.artifacts() ?? [];
+    // Weitergereicht statt verworfen: der agentische Loop las bis hierher
+    // dieselben Zeilen ein zweites und drittes Mal (Tool-Replay und
+    // Quellen-Rehydrierung). Bleibt es null, weil der Lesevorgang scheiterte,
+    // liest der Loop selbst — der Ausfall bleibt so eng wie zuvor.
+    threadToolHistory = history;
   }
   if (memoryContext) {
     initialState.memoryContext = memoryContext;
@@ -695,6 +749,8 @@ export async function buildStreamContext({
       mentionTokenFields,
       lastUserTextRaw,
       pendingAssistantMessageId,
+      threadToolHistory,
+      userMessageId,
     },
   };
 }

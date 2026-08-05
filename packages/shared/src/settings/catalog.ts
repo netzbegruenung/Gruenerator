@@ -146,15 +146,6 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
     platforms: ['mobile'],
   },
   {
-    // Web-only on purpose: the skip link exists for keyboard tabbing, which has
-    // no counterpart on a touch screen.
-    id: 'barrierefreiheit.sprunglink',
-    tab: 'barrierefreiheit',
-    title: 'Sprung-Link zum Inhalt',
-    description:
-      'Blendet ganz oben einen Link ein, der beim Tabben den Fokus direkt auf den Hauptinhalt setzt — standardmäßig aus',
-  },
-  {
     // Web-only: this resets the driver.js tours through Workplace, Dokumente,
     // Tabellen, Präsentationen und Sharepic-Studio — surfaces the app doesn't
     // have. The app's "Einführung erneut ansehen" opens its own onboarding and is

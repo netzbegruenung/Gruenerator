@@ -37,7 +37,15 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
     return classes.join(' ');
   };
 
+  const handleEditableKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    handlePreviewClick(event);
+    handleSectionClick(event);
+  };
+
   return (
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events -- reine Klick-Delegation an die Section-Elemente unten, die selbst per role="button"/tabIndex/onKeyDown tastaturbedienbar sind
     <div className="interactive-preview" onClick={handleSectionClick}>
       {/* Hero Section */}
       <section
@@ -45,6 +53,9 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
         ref={(el) => registerSection('hero', el)}
         className="editable-section editable-section-anchor"
         onClick={handlePreviewClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={handleEditableKeyDown}
       >
         <div className="py-[var(--spacing-responsive-xxlarge)] px-[var(--spacing-responsive-medium)] text-center bg-gradient-to-br from-primary-50 to-primary-100 dark:from-primary-900 dark:to-primary-950">
           <div
@@ -86,6 +97,9 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
         ref={(el) => registerSection('about', el)}
         className="editable-section editable-section-anchor relative bg-[var(--background-color-pure)] py-[var(--spacing-responsive-xlarge)] md:py-16 px-[var(--spacing-responsive-medium)] md:px-[var(--spacing-responsive-large)]"
         onClick={handlePreviewClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={handleEditableKeyDown}
       >
         <div className="max-w-7xl mx-auto flex flex-col items-start gap-[var(--spacing-responsive-large)]">
           <h2
@@ -115,6 +129,9 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
         ref={(el) => registerSection('heroImage', el)}
         className="editable-section editable-section-anchor relative min-h-[40vh] bg-cover bg-center bg-scroll flex items-center justify-center"
         onClick={handlePreviewClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={handleEditableKeyDown}
         style={{
           background: candidateData.heroImage.imageUrl
             ? `url(${candidateData.heroImage.imageUrl})`
@@ -151,6 +168,9 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
         ref={(el) => registerSection('themes', el)}
         className="editable-section editable-section-anchor bg-[var(--background-color-alt)] py-[var(--spacing-responsive-xxlarge)] md:py-16 px-[var(--spacing-responsive-medium)] md:px-[var(--spacing-responsive-large)] overflow-hidden"
         onClick={handlePreviewClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={handleEditableKeyDown}
       >
         <div className="max-w-7xl mx-auto">
           <h2 className="font-[GrueneTypeNeue] text-[length:var(--font-size-2xl)] font-bold mb-xl text-center text-[var(--link-color)]">
@@ -216,6 +236,9 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
         ref={(el) => registerSection('actions', el)}
         className="editable-section editable-section-anchor bg-[var(--background-color-pure)] py-[var(--spacing-responsive-xxlarge)] md:py-16 px-[var(--spacing-responsive-medium)] md:px-[var(--spacing-responsive-large)]"
         onClick={handlePreviewClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={handleEditableKeyDown}
       >
         <div className="grid grid-cols-1 gap-[var(--spacing-responsive-medium)] sm:grid-cols-2 lg:grid-cols-3 md:gap-[var(--spacing-responsive-large)] max-w-7xl mx-auto">
           {candidateData.actions.actions.length > 0 ? (
@@ -254,6 +277,9 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
           ref={(el) => registerSection('socialFeed', el)}
           className="editable-section editable-section-anchor py-[var(--spacing-responsive-xlarge)] px-[var(--spacing-responsive-medium)] md:px-[var(--spacing-responsive-large)] bg-[var(--background-color-pure)]"
           onClick={handlePreviewClick}
+          role="button"
+          tabIndex={0}
+          onKeyDown={handleEditableKeyDown}
         >
           <div className="max-w-7xl mx-auto">
             <h2
@@ -293,6 +319,9 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
         ref={(el) => registerSection('contact', el)}
         className="editable-section editable-section-anchor relative bg-cover bg-center py-[var(--spacing-responsive-xxlarge)] md:py-16 px-[var(--spacing-responsive-medium)] md:px-[var(--spacing-responsive-large)]"
         onClick={handlePreviewClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={handleEditableKeyDown}
         style={{
           backgroundImage: candidateData.contact.backgroundImageUrl
             ? `url(${candidateData.contact.backgroundImageUrl})`

@@ -176,6 +176,16 @@ export default defineConfig(({ command }) => ({
     // to TWO physical instances of the same version, so the React context set by
     // one is invisible to the other — "requires an AuiProvider" on /workplace
     // even though the provider is mounted above the consumer.
+    //
+    // Same class of bug for radix-ui: apps/web, packages/ui and packages/chat
+    // import the unified `radix-ui` meta-package, while @blocknote/shadcn (a
+    // transitive dep of @gruenerator/docs) imports the individual
+    // `@radix-ui/react-*` packages directly. `radix-ui` re-exports those same
+    // packages rather than bundling them, but Rolldown still treats the two
+    // import specifiers as separate module-graph entries and can link two
+    // physical copies — so a `<Tooltip.Root>` created via one copy is invisible
+    // to a `<Tooltip.Trigger>` rendered via the other ("`TooltipTrigger` must be
+    // used within `Tooltip`" crashing the docs editor's selection toolbar, #2385).
     dedupe: [
       'react',
       'react-dom',
@@ -185,6 +195,16 @@ export default defineConfig(({ command }) => ({
       '@assistant-ui/react',
       '@assistant-ui/tap',
       '@assistant-ui/core',
+      'radix-ui',
+      '@radix-ui/react-avatar',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-label',
+      '@radix-ui/react-popover',
+      '@radix-ui/react-select',
+      '@radix-ui/react-slot',
+      '@radix-ui/react-tabs',
+      '@radix-ui/react-toggle',
+      '@radix-ui/react-tooltip',
     ],
   },
   optimizeDeps: {
@@ -231,7 +251,14 @@ export default defineConfig(({ command }) => ({
   build: {
     // Use compatible targets for native WebViews (Chrome=Edge WebView2, Safari=WKWebView)
     target: isNativeBuild ? ['chrome105', 'safari15'] : ['es2022', 'safari15'],
-    sourcemap: 'hidden',
+    // `'hidden'` still EMITS the .map files — it only drops the
+    // `//# sourceMappingURL=` comment, so `<chunk>.js.map` stayed fetchable by
+    // guessing the URL and served the whole frontend source (reported
+    // 30.07.2026). Nothing consumes them: Sentry is wired at runtime
+    // (@sentry/react) but no upload step (@sentry/vite-plugin / sentry-cli)
+    // ever existed. Opt back in via VITE_SOURCEMAP=1 for a local perf/debug
+    // build — and only together with an upload+delete step if it ever ships.
+    sourcemap: process.env.VITE_SOURCEMAP === '1' ? 'hidden' : false,
     // CSS IS code-split per chunk. Combined with the natural JS splitting below
     // (only `vendor-react` is forced), each lazy route's CSS rides with its own
     // async chunk — the homepage eager-links ONLY the global `index.css`, not

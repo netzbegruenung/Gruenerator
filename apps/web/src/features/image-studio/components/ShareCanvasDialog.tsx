@@ -175,7 +175,10 @@ export function ShareCanvasDialog({
 
         {userGroups.length > 0 && (
           <div className="border-t border-grey-200 dark:border-grey-700 pt-md">
-            <label className="text-xs font-medium text-grey-500 mb-1 block">
+            <label
+              htmlFor="share-canvas-vorlage-group"
+              className="text-xs font-medium text-grey-500 mb-1 block"
+            >
               Als Vorlage in Gruppe teilen
             </label>
             <p className="text-[11px] text-grey-500 mb-1.5">
@@ -183,6 +186,7 @@ export function ShareCanvasDialog({
             </p>
             <div className="flex gap-2">
               <select
+                id="share-canvas-vorlage-group"
                 value={vorlageGroupId}
                 onChange={(e) => {
                   setVorlageGroupId(e.target.value);
@@ -220,10 +224,17 @@ export function ShareCanvasDialog({
           </div>
         )}
 
-        <div className="border-t border-grey-200 dark:border-grey-700 pt-md">
-          <label className="text-xs font-medium text-grey-500 mb-1 block">
+        <div
+          className="border-t border-grey-200 dark:border-grey-700 pt-md"
+          role="group"
+          aria-labelledby="share-canvas-publish-vorlage-heading"
+        >
+          <p
+            id="share-canvas-publish-vorlage-heading"
+            className="text-xs font-medium text-grey-500 mb-1 block"
+          >
             Als Grünerator-Vorlage veröffentlichen
-          </label>
+          </p>
           <p className="text-[11px] text-grey-500 mb-2">
             Reiche dieses Sharepic für die öffentliche Vorlagen-Galerie ein. Nach einer kurzen
             Prüfung können es alle als Vorlage verwenden.

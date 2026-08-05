@@ -3,6 +3,31 @@ import { jsonSchema, type ModelMessage, type Tool } from 'ai';
 import type { AIRequestData, AIWorkerResult, ContentBlock, ToolCall } from '../types.js';
 import type { RequestMetadata, ResponseMetadata } from './types.js';
 
+/** The AI SDK's own `Schema` wrapper, as produced by `jsonSchema()`. */
+type SdkSchema = ReturnType<typeof jsonSchema>;
+
+/**
+ * Is this ALREADY an AI-SDK schema wrapper?
+ *
+ * `jsonSchema()` is not idempotent, and wrapping a wrapper fails silently in the
+ * worst possible way: the tool's `parameters` then serialise to
+ * `{"jsonSchema": {…the real schema…}}` — no top-level `type`, no `properties`.
+ * The model obeys that shape, nests its whole payload under a `jsonSchema` key,
+ * and every downstream validator rejects it with "title: Required". It reads
+ * like an unreliable model; it is our own double wrap.
+ *
+ * Callers are genuinely split about which shape they hand over —
+ * `generateStructured` and `toolForcedEdit` wrap before calling, the MCP
+ * catalogs pass raw JSON Schema — so this detects instead of demanding one.
+ * `isSchema` is internal to @ai-sdk/provider-utils (not re-exported by `ai`),
+ * hence the mirrored predicate; checked against ai@7.0.37.
+ */
+function isSdkSchema(value: unknown): value is SdkSchema {
+  return (
+    typeof value === 'object' && value !== null && 'jsonSchema' in value && 'validate' in value
+  );
+}
+
 /**
  * Build the Vercel AI SDK `tools` map from a ToolHandler payload.
  *
@@ -27,11 +52,12 @@ export function buildAiSdkTools(toolsPayload: {
       input_schema?: unknown;
     };
     if (!fn.name) continue;
-    const schema = (fn.parameters ??
-      fn.input_schema ?? { type: 'object', properties: {} }) as Parameters<typeof jsonSchema>[0];
+    const schema = fn.parameters ?? fn.input_schema ?? { type: 'object', properties: {} };
     tools[fn.name] = {
       description: fn.description ?? '',
-      inputSchema: jsonSchema(schema),
+      inputSchema: isSdkSchema(schema)
+        ? schema
+        : jsonSchema(schema as Parameters<typeof jsonSchema>[0]),
     };
   }
   return Object.keys(tools).length > 0 ? tools : undefined;
@@ -353,6 +379,20 @@ export function buildAdapterResult(params: {
           input: tc.input as Record<string, unknown>,
         }))
       : undefined;
+
+  // "The model called a tool" and "here is the call" disagreeing. Consumers see
+  // only the second half and report the first: on 02.08.2026 a sheet generation
+  // logged `Kein Tool-Aufruf und kein verwertbares JSON (stop_reason=tool_use)`
+  // and burned a full retry — 16 of the turn's 25 seconds — on a contradiction
+  // nothing recorded. Cheap to print, and it is the only place that still holds
+  // the provider's own view of the response.
+  if (result.finishReason === 'tool-calls' && !toolCalls) {
+    console.warn(
+      `[${provider}Adapter ${requestId}] finishReason=tool-calls but no tool call was returned ` +
+        `for type=${type}, model=${model}. text=${textContent?.length ?? 0} chars. ` +
+        `The caller will see this as "no tool call" and retry.`
+    );
+  }
 
   const rawContentBlocks: ContentBlock[] = [];
   if (textContent) rawContentBlocks.push({ type: 'text', text: textContent });

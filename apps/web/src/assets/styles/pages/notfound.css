@@ -2,7 +2,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 100vh;
+    min-height: 100dvh;
     padding: 2rem;
     background-color: var(--background-color);
 }
@@ -22,6 +22,20 @@
     color: var(--primary);
     margin: 0;
     line-height: 1;
+}
+
+/* Das Marken-Grün erreicht auf der dunklen Karte (--grey-800) nur 1,57:1. Bei
+   8em ist die Ziffer Großtext und braucht 3:1 (WCAG 1.4.3); die helle Stufe
+   derselben Rampe erreicht 5,99:1. Im Hellmodus bleibt es unverändert bei
+   6,70:1 — deshalb nur die Dunkelfassung. */
+[data-theme="dark"] .not-found-content h1 {
+    color: var(--primary-300);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .not-found-content h1 {
+        color: var(--primary-300);
+    }
 }
 
 .not-found-content h2 {

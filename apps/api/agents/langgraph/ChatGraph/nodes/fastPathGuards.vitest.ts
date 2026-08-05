@@ -215,6 +215,35 @@ describe('forbidsPersistentAction', () => {
     ).toBe(false);
   });
 
+  it('does not read a ban on the DELIVERY FORM as a ban on the artifact', () => {
+    // Live on 03.08.2026: this exact message demoted `create_presentation`, so
+    // the sentence written to prevent a hand-typed file removed the tool that
+    // writes a real one. "kein Base64" orders the presentation, it does not
+    // forbid it.
+    const t =
+      'Erstelle unmittelbar eine Präsentation mit genau vier Folien. Liefere ein echtes ' +
+      'Präsentationsartefakt zum Öffnen, kein Base64, kein data:-URI, keine erfundene ' +
+      'öffentliche URL und keine bloße Gliederung.';
+    expect(forbidsPersistentAction(t, ARTIFACT_NOUN_BY_KIND.presentation)).toBe(false);
+
+    for (const variant of [
+      'Mach eine Tabelle daraus, keinen Link und keinen Platzhalter',
+      'Gib mir das Dokument als Datei, nicht als URL',
+    ]) {
+      expect(forbidsPersistentAction(variant, ARTIFACT_NOUN_BY_KIND.sheet), variant).toBe(false);
+      expect(forbidsPersistentAction(variant, DOC), variant).toBe(false);
+    }
+  });
+
+  it('still catches the artifact ban standing next to a delivery-form ban', () => {
+    expect(
+      forbidsPersistentAction(
+        'Kein Base64 und bitte auch keine Präsentation',
+        ARTIFACT_NOUN_BY_KIND.presentation
+      )
+    ).toBe(true);
+  });
+
   it('survives empty and nullish input', () => {
     expect(forbidsPersistentAction('')).toBe(false);
     expect(forbidsPersistentAction(undefined as unknown as string, DOC)).toBe(false);
@@ -291,5 +320,52 @@ describe('forbidsNewResearch', () => {
   it('survives empty and nullish input', () => {
     expect(forbidsNewResearch('')).toBe(false);
     expect(forbidsNewResearch(undefined as unknown as string)).toBe(false);
+  });
+});
+
+describe('eine vollständig zitierte Nachricht ist kein Zitat', () => {
+  /**
+   * Der Live-Fehler, aus dem beide Symptome fielen: Nutzer fügen Text MIT
+   * Anführungszeichen ein. `stripQuotedSpans` hielt die ganze Nachricht für
+   * fremde Rede und liess nichts übrig — während die Erkenner in
+   * `compoundGenerationKind` den ROHEN Text lesen. Der Auftrag wurde also
+   * erkannt, seine Schutzprüfungen sahen ins Leere.
+   */
+  const ASK =
+    'Recherchier mir die aktuellen Zahlen zur Wärmepumpenförderung in Österreich, fass sie in fünf Punkten zusammen, aber erstelle bitte kein Dokument und kein Sharepic daraus.';
+  const SHAREPIC_ASK = 'Was haben wir vorhin besprochen? Mach mir daraus ein Sharepic.';
+
+  it('sieht das Verbot auch in Anführungszeichen', () => {
+    // Ohne den Fix baute forceCompoundGeneration genau das verbotene Dokument.
+    const nouns = ARTIFACT_NOUN_BY_KIND['document'];
+    expect(forbidsPersistentAction(ASK, nouns)).toBe(true);
+    expect(forbidsPersistentAction(`„${ASK}“`, nouns)).toBe(true);
+    expect(forbidsPersistentAction(`"${ASK}"`, nouns)).toBe(true);
+  });
+
+  it('sieht das Sharepic-Wort auch in Anführungszeichen', () => {
+    // Ohne den Fix verweigerte das Lizenz-Gate mit „In diesem Chat gibt es noch
+    // kein Sharepic", statt die Frage zu beantworten.
+    expect(hasExplicitSharepicWord(SHAREPIC_ASK)).toBe(true);
+    expect(hasExplicitSharepicWord(`„${SHAREPIC_ASK}“`)).toBe(true);
+  });
+
+  it('strippt echte fremde Rede weiterhin', () => {
+    // Das Gegenstück: hier steht ein Auftrag UM das Zitat herum, das Zitat ist
+    // wirklich zitiert — und das Nomen darin darf keine Prüfung auslösen.
+    expect(stripQuotedSpans('Antworte auf: „Wir brauchen ein Sharepic dazu."')).not.toContain(
+      'Sharepic'
+    );
+    expect(
+      hasExplicitSharepicWord('Antworte auf die Mail: „Wir brauchen ein Sharepic dazu."')
+    ).toBe(false);
+  });
+
+  it('bleibt bewusst auf die GANZE Nachricht beschränkt', () => {
+    // `„…" bitte` ist nicht mehr vollständig eingeklammert und wird weiter
+    // gestrippt. Eine Unschärfe dafür einzubauen wäre schlechter als die Lücke:
+    // sie ginge zulasten der echten Zitat-Erkennung, die einen kurzen Rahmen
+    // haben darf (siehe der Fall darüber).
+    expect(hasExplicitSharepicWord(`„${SHAREPIC_ASK}“ bitte`)).toBe(false);
   });
 });

@@ -12,7 +12,7 @@ import {
   type Mentionable,
 } from '@gruenerator/chat';
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   View,
   TextInput,
@@ -23,6 +23,7 @@ import {
   Keyboard,
 } from 'react-native';
 
+import { useContentColumn } from '../../hooks/useLayout';
 import { useMentionablesSync } from '../../hooks/useMentionablesSync';
 import { useSpeechToText, appendTranscript } from '../../hooks/useSpeechToText';
 import { useTheme } from '../../hooks/useTheme';
@@ -35,7 +36,6 @@ import {
   type PickedDocument,
 } from '../../services/documentPicker';
 import { colors, spacing } from '../../theme';
-import { SCREEN_EDGE } from '../../theme/layout';
 import { ComposerAttachmentUI } from '../chat/AttachmentUI';
 import { ComposerActionSheet } from '../chat/ComposerActionSheet';
 import { DocumentBrowserSheet } from '../chat/DocumentBrowserSheet';
@@ -78,7 +78,7 @@ import type {
  * `binding` exists because the chat runtime is a *single global* one, mounted
  * once in `AppDrawer`. A composer on the Start/Arbeiten/Recherche tab does not
  * send into the chat thread — it routes, or generates a document — so writing
- * its draft into `aui.composer()` would leak that text into the user's actual
+ * its draft into `aui.composer` would leak that text into the user's actual
  * chat draft. Everything else — mentions, dictation, the mic/send merge, the
  * chrome — is shared by both bindings.
  */
@@ -445,6 +445,7 @@ function ComposerBody({
             style={[composerInputStyle(variant), { color: theme.text }]}
             placeholder={props.placeholder ?? 'Nachricht eingeben...'}
             placeholderTextColor={theme.textSecondary}
+            accessibilityLabel="Nachricht eingeben"
             multiline
             textAlignVertical="top"
             returnKeyType={isBar ? 'send' : 'default'}
@@ -601,7 +602,7 @@ function RuntimeComposer(props: ComposerProps) {
   const internalInputRef = useRef<TextInput>(null);
   const inputRef = props.inputRef ?? internalInputRef;
 
-  const setText = useCallback((value: string) => aui.composer().setText(value), [aui]);
+  const setText = useCallback((value: string) => aui.composer.setText(value), [aui]);
   const input = useComposerInput({ setText, inputRef });
   const variant = props.variant ?? 'card';
   const onSubmit = props.onSubmit;
@@ -614,7 +615,7 @@ function RuntimeComposer(props: ComposerProps) {
   const handleIntercept = useCallback(() => {
     const trimmed = input.textRef.current.trim();
     if (!trimmed) return;
-    aui.composer().setText('');
+    aui.composer.setText('');
     input.reset();
     onSubmit?.(trimmed);
   }, [onSubmit, aui, input]);
@@ -633,14 +634,14 @@ function RuntimeComposer(props: ComposerProps) {
    * `onPressIn` fires before `onPress`, so the primitive then read an empty
    * composer and sent nothing. The message simply vanished — no error, no
    * request. The primitive takes no `onPress` (`Omit<PressableProps,"onPress">`),
-   * so this calls the `aui.composer().send()` it wraps, one step later — the same
+   * so this calls the `aui.composer.send()` it wraps, one step later — the same
    * shape `MessageEditComposer` already uses for the same reason.
    */
   const handleSend = useCallback(() => {
     const trimmed = input.textRef.current.trim();
     if (!trimmed) return;
-    aui.composer().setText(trimmed);
-    aui.composer().send();
+    aui.composer.setText(trimmed);
+    aui.composer.send();
     input.reset();
   }, [aui, input]);
 
@@ -650,7 +651,7 @@ function RuntimeComposer(props: ComposerProps) {
       input={input}
       inputRef={inputRef}
       onSubmitEditing={onSubmit ? handleIntercept : handleSend}
-      addAttachment={(attachment) => void aui.composer().addAttachment(attachment)}
+      addAttachment={(attachment) => void aui.composer.addAttachment(attachment)}
       attachments={
         <View style={styles.attachmentsRow}>
           <ComposerPrimitive.Attachments>{renderComposerAttachment}</ComposerPrimitive.Attachments>
@@ -715,10 +716,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xsmall,
   },
   edge: {
-    paddingHorizontal: SCREEN_EDGE,
     paddingTop: spacing.xsmall,
   },
 });
 
-/** Padding for a composer pinned to the screen edge (chat thread, tab bars). */
-export const composerEdgeStyle = styles.edge;
+/**
+ * Where a composer pinned to the screen edge sits (chat thread, tab bars).
+ *
+ * A hook rather than the exported `StyleSheet` entry it used to be: the
+ * horizontal half of it is now the reading column, whose width and margin depend
+ * on the live window. `StyleSheet.create` runs once at import and would have
+ * frozen both at whatever the app booted in.
+ */
+export function useComposerEdge(): StyleProp<ViewStyle> {
+  const column = useContentColumn('reading');
+
+  return useMemo(() => [column, styles.edge], [column]);
+}

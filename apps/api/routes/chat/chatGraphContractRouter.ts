@@ -32,6 +32,7 @@ import {
   pandasComputeNode,
   buildSystemMessage,
 } from '../../agents/langgraph/ChatGraph/index.js';
+import { knownArtifactRefs } from '../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
 import {
   isSheetFillRequest,
   isTabularComputeQuestion,
@@ -43,10 +44,8 @@ import {
   hasExplicitSharepicWord,
   type ForbiddableArtifact,
 } from '../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
-import {
-  SYSTEM_TOOL_INTENTS,
-  isSystemIntentAvailable,
-} from '../../services/mcp/systemMcpServers.js';
+import { detectManagedSources } from '../../agents/langgraph/ChatGraph/nodes/managedSourceTrigger.js';
+import { SYSTEM_TOOL_INTENTS } from '../../services/mcp/systemMcpServers.js';
 import {
   BOTH_LANES_FAILED,
   buildAiTelemetry,
@@ -96,7 +95,10 @@ import {
   executeIntentPipeline,
 } from './services/intentExecutionService.js';
 import { estimateRequestTokens, extractTextContent } from './services/messageHelpers.js';
-import { stripFabricatedSystemClaims } from './services/outputSanity.js';
+import {
+  stripFabricatedArtifactDelivery,
+  stripFabricatedSystemClaims,
+} from './services/outputSanity.js';
 import {
   recallPastChats,
   recallOfficeDocuments,
@@ -269,6 +271,8 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         mentionTokenFields,
         lastUserTextRaw,
         pendingAssistantMessageId,
+        threadToolHistory,
+        userMessageId,
       } = ctxResult.ctx;
 
       // A placeholder assistant row was minted in buildStreamContext. Its writer
@@ -348,6 +352,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             actualThreadId: threadId,
             isNewThread,
             processedMeta,
+            userMessageId,
             imageAttachments,
             memoryContext,
             memoryRetrieveTimeMs,
@@ -556,11 +561,16 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // The pipeline each one reaches differs (`examples` and
       // `pressemitteilung_examples` run in the search node, the rest in the
       // loop), but forcing the intent is the same act for all of them.
+      //
+      // `wetter` was in this table and carried an availability guard with it —
+      // a forced mention had to clear the same bar the classifier applied, or it
+      // bypassed the degrade. Both are gone: `@wetter` is now a connector
+      // mention (`mcp:system-wetter`), handled by the scoped-MCP branch above,
+      // and the availability question is answered at the mount.
       const SIMPLE_FORCED_INTENTS = [
         'examples',
         'pressemitteilung_examples',
         'chat_history',
-        'wetter',
         'social_post',
         'chart',
         'compute',
@@ -568,23 +578,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       for (const candidate of SIMPLE_FORCED_INTENTS) {
         if (!forcedTools?.includes(candidate)) continue;
         if (!isIntentAllowedForLocale(candidate, initialState.userLocale)) continue;
-        // A forced mention must clear the SAME availability bar the classifier
-        // applies, or it bypasses it: the classifier degrades an unconfigured
-        // system-MCP intent (no SYSTEM_MCP_*_URL) to web, but that runs BEFORE
-        // this force. `wetter` has only an explicit no-op case in the search
-        // node — its tools live in the loop — so forcing it without a
-        // configured source produced a turn that fetched nothing and answered
-        // anyway. Skipping the force leaves the classifier's own routing (and
-        // its degrade) in charge.
-        if (
-          CHAT_INTENTS[candidate].availability === 'system-mcp' &&
-          !isSystemIntentAvailable(candidate, initialState.userLocale)
-        ) {
-          log.info(
-            `[ChatGraph] @${candidate} mention ignored — no configured system source for this locale`
-          );
-          continue;
-        }
         classifiedState.intent = candidate;
         forcedTool = true;
         if (
@@ -1047,11 +1040,12 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           // Sharepic-shaped, and there IS one — but the edit lanes declined it
           // (wrong template, ambiguous, not actually an edit). Answering
           // normally beats minting a surprise second sharepic.
-          log.info('[ChatGraph] Unlicensed sharepic intent, thread has one → direct');
+          log.info('[ChatGraph] Unlicensed sharepic intent, thread has one → produktion');
+          // Decision key unchanged (F1): the journal cards are named after it.
           recordDecision('router.intent_override', 'sharepic_unlicensed_to_direct', {
             inputs: { intentBefore: 'sharepic', sharepicLicensed, threadHasSharepic: true },
           });
-          classifiedState.intent = 'direct';
+          classifiedState.intent = 'produktion';
         } else {
           log.info('[ChatGraph] Unlicensed sharepic intent, nothing to edit → fixed reply');
           recordDecision('router.intent_override', 'sharepic_unlicensed_fixed_text', {
@@ -1100,14 +1094,20 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         );
         recordDecision(
           'router.persistent_action_gate',
-          forbidden ? 'demoted_primary_to_direct' : 'allowed',
+          forbidden ? 'demoted_primary_to_produktion' : 'allowed',
           { inputs: { family: primaryFamily, intent: classifiedState.intent } }
         );
         if (forbidden) {
           log.info(
-            `[ChatGraph] Turn forbids ${primaryFamily} action → demoting intent ${classifiedState.intent} to direct`
+            `[ChatGraph] Turn forbids ${primaryFamily} action → demoting intent ${classifiedState.intent} to produktion`
           );
-          classifiedState.intent = 'direct';
+          classifiedState.intent = 'produktion';
+          // Carry the REASON, not just the outcome. `produktion` is the prose
+          // lane, and the demoted turn lands there still carrying "mach eine
+          // Präsentation" — the tool gone, and nothing in the prompt saying
+          // why. That gap is what the model filled with a hand-written file
+          // (see `forbiddenArtifactAction` in ChatGraph/types.ts).
+          classifiedState.forbiddenArtifactAction = primaryFamily;
         }
       }
 
@@ -1125,28 +1125,39 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // For an `mcp` turn the forcedTool flag means "the user picked this
       // connector" (via @<server>), NOT "pin a deterministic single-pass tool" —
       // so it may still enter the loop, which mounts that server's MCP tools.
-      // System MCP intents (bahn/wetter/news) force the gate the same way: the
-      // legacy pipeline has no executor for them, the loop mounts their tools.
       // `umfragen` (PolitPro) and `hilfe` (in-process docs index) are native
       // domain tools — always available, so they force the gate unconditionally.
       // `hilfe` MUST be here: @doku sets forcedTool, and without this escape
       // decideRunAgentic would keep the turn single-pass, where
       // `gruenerator_docs_search` does not exist — the mention would silently
       // do nothing.
-      // The locale belongs in the availability question: forcing the loop for an
-      // intent whose sources are all dropped for this country mounts nothing and
-      // lets the model answer from memory. `reise` was the reachable case (it
-      // survived the audience degrade by design, hotel + weather covering
-      // Austria) and is switched off now — this stays as prevention for the next
-      // multi-source intent.
+      //
+      // The five system-MCP intents used to force the gate here too, via an
+      // availability check that also carried the locale. Both jobs moved into
+      // `managedSourceKeys` below: the trigger names the connectors, and
+      // `loadManagedMcpCatalog` applies the country filter and the per-user
+      // opt-out at the mount itself — one place instead of two that had to agree.
       const isMcpTurn =
         classifiedState.intent === 'mcp' ||
         classifiedState.intent === 'umfragen' ||
-        classifiedState.intent === 'hilfe' ||
-        (classifiedState.intent != null &&
-          isSystemIntentAvailable(classifiedState.intent, classifiedState.userLocale));
+        classifiedState.intent === 'hilfe';
       const isSystemToolIntent =
         classifiedState.intent != null && SYSTEM_TOOL_INTENTS.has(classifiedState.intent);
+      // First-party connectors this turn should mount. Vocabulary decides
+      // (`managedSourceTrigger`), not a verdict — and an explicit `@gesetze`-style
+      // mention already resolved to an `mcp:system-<key>` scope above, which the
+      // connector path handles on its own.
+      const managedSourceKeys = detectManagedSources(lastUserTextNoMentions);
+      if (managedSourceKeys.length > 0) {
+        classifiedState.managedSourceKeys = managedSourceKeys;
+        log.info(`[ChatGraph] Managed sources: ${managedSourceKeys.join(', ')}`);
+      }
+      // A chosen notebook keeps the turn single-pass, on EVERY agent — only
+      // `searchNode` retrieves notebook content, and no loop tool can address a
+      // notebook. `isCompound` above covers just the named-agent half of this
+      // and additionally drives topic extraction and a progress event, so the
+      // routing fact gets its own name. See AgenticDecisionInput.
+      const hasSelectedNotebook = notebookIds.length > 0;
       const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
       // Compound research+generation (Phase 3n): a generation ask (sharepic,
       // presentation, sheet, text doc, board) with an explicit research signal
@@ -1191,6 +1202,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         !forcedTool &&
         isAgenticLoopEnabled() &&
         !isCompound &&
+        !hasSelectedNotebook &&
         imageAttachments.length === 0 &&
         isCompoundEdit;
       if (compoundEdit) classifiedState.compoundEdit = true;
@@ -1215,6 +1227,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         hasEditTarget: editTarget != null,
         forcedTool: !!forcedTool,
         isCompound,
+        hasSelectedNotebook,
         hasImageAttachments: imageAttachments.length > 0,
         secondaryIntent: classifiedState.secondaryIntent ?? null,
       });
@@ -1263,7 +1276,9 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           lastUserText,
           forcedTool: !!forcedTool,
           isMcpTurn,
+          hasManagedSources: managedSourceKeys.length > 0,
           isCompound,
+          hasSelectedNotebook,
           secondaryIntent: classifiedState.secondaryIntent ?? null,
           compoundGeneration,
           hasImageAttachments: imageAttachments.length > 0,
@@ -1287,6 +1302,16 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // A demoted turn that a kill-switch (compound, forced tool, ...) kept out
       // of the loop must not strand in executeIntentPipeline, which has no
       // 'agentic' branch — degrade to plain search.
+      //
+      // KEINE automatisierte Abdeckung mehr, und das ist eine Aussage über die
+      // Erreichbarkeit, nicht über den Aufwand: `agentic` entstand entweder bei
+      // Tier 3.5 (das mit ausgeschaltetem Loop gar nicht erst demotiert) oder als
+      // Auffangwert der LLM-Stufe (gelöscht). Innerhalb eines Requests können
+      // Klassifikator und Router den Schalter also nicht mehr verschieden sehen.
+      // Was bleibt, ist der WIEDERAUFNAHME-Pfad: ein gespeicherter `agentic`-
+      // Intent, der nach einem Deploy mit umgelegtem Schalter fortgesetzt wird.
+      // Die zugehörige Simulation ist in diesem PR gelöscht worden — sie endete
+      // nachweislich im Fehler-Fallback und belegte den Zweig nie.
       if (!runAgentic && classifiedState.intent === 'agentic') {
         recordDecision('router.intent_override', 'agentic_to_search', {
           inputs: { intentBefore: 'agentic', runAgentic },
@@ -1488,7 +1513,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // The gate re-checks the raw question text (not just intent==='compute'):
       // on multi-turn threads the vague-follow-up confidence penalty pushes the
       // tabular heuristic below threshold and the LLM classifies follow-ups
-      // like "durchschnittlicher umsatz pro region?" as search/direct — which
+      // like "durchschnittlicher umsatz pro region?" as search/produktion — which
       // silently degraded them to the legacy prompt-guidance path. Guards:
       // only hijackable intents (explicit tool intents like chart/image/
       // sharepic/web keep their flow), no @-forced tools, and the matcher
@@ -1496,6 +1521,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // questions.
       const computeOverridableIntents = new Set([
         'compute',
+        'produktion',
         'direct',
         'search',
         'summary',
@@ -1631,7 +1657,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             generateAndCreateDocument({
               ...createTurnBase,
               userContent: createTopic(),
-              intent: 'direct',
+              intent: 'produktion',
             }),
         },
         {
@@ -1836,6 +1862,9 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               sse,
               req,
               threadId: actualThreadId ?? null,
+              // Dieselben Zeilen, die buildStreamContext schon gelesen hat.
+              // Null heisst nur „nicht vorgelesen" — der Loop liest dann selbst.
+              toolHistory: threadToolHistory,
             });
             trace.update({ input: lastUserText, output: result.fullText });
             return result;
@@ -2100,6 +2129,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           // anything changes, push the corrected text via `completion` so the
           // frontend replaces the streamed deltas (same channel as the notebook flow).
           const sanity = stripFabricatedSystemClaims(fullText, [
+            // The user's own message grounds a filename too — see the parameter
+            // doc. Without it, "fass Internetkonzept.pdf zusammen" had its
+            // answer deleted and replaced with a denial of file access.
+            finalState.lastUserTextNoMentions ?? '',
             finalState.attachmentContext ?? '',
             finalState.currentDocument?.title ?? '',
             ...finalState.searchResults.map((r) => `${r.title ?? ''} ${r.content ?? ''}`),
@@ -2110,8 +2143,18 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             );
             fullText = sanity.text;
           }
+          // A file the model typed out, or an artefact path it made up. This is
+          // the path that produced the base64 „.pptx" and the 404'ing
+          // /office/<uuid> on 02.08.2026 — single-pass, no artefact tool.
+          const delivery = stripFabricatedArtifactDelivery(fullText, knownArtifactRefs(finalState));
+          if (delivery.removed.length > 0) {
+            log.warn(
+              `[ChatGraph] Removed fabricated artefact delivery: ${delivery.removed.join(', ')}`
+            );
+            fullText = delivery.text;
+          }
           const citeClamp = stripOutOfRangeCitations(fullText, finalState.citations.length);
-          if (citeClamp.changed || sanity.fabricated.length > 0) {
+          if (citeClamp.changed || sanity.fabricated.length > 0 || delivery.removed.length > 0) {
             fullText = citeClamp.text;
             sse.send('completion', { text: fullText, citations: finalState.citations });
           }
@@ -2258,6 +2301,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         ...(agenticSteps != null && { agenticSteps }),
         ...(langfuseTraceId != null && { traceId: langfuseTraceId }),
         ...(pendingId != null && { pendingMessageId: pendingId }),
+        ...(userMessageId != null && { userMessageId }),
       });
 
       // === Stage 4b: Emit confirm_action for intents that need user approval ===

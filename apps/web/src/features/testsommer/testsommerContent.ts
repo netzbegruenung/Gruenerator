@@ -5,12 +5,12 @@
 export const TESTSOMMER_STYLES = `.ts-scope{
   --black:#000000;--white:#ffffff;
   --primary-50:#F0F8F4;--primary-100:#D8F0E6;--primary-200:#B1E0C9;--primary-300:#8AC9B0;--primary-400:#6BAA91;--primary-500:#52907A;--primary-600:#316049;--primary-700:#285040;--primary-800:#1F3F33;--primary-900:#1A332A;--primary-950:#123624;
-  --secondary-500:#6A9583;--secondary-600:#5F8575;--secondary-700:#445F54;
+  --secondary-500:#6A9583;--secondary-600:#587C6D;--secondary-700:#445F54;
   --grey-50:#f9f9f9;--grey-100:#efefef;--grey-200:#dcdcdc;--grey-300:#bdbdbd;--grey-400:#989898;--grey-500:#7c7c7c;--grey-600:#656565;--grey-700:#525252;--grey-800:#3a3a3a;--grey-900:#2e2e2e;
   --shadow-sm:0 2px 8px rgba(0,0,0,0.05);--shadow-md:0 4px 12px rgba(0,0,0,0.08);--shadow-lg:0 6px 16px rgba(0,0,0,0.12);--shadow-xl:0 8px 24px rgba(0,0,0,0.15);
   --accent:#0BA1DD;--accent-dark:#0987ba;--accent-50:#E8F6FD;--accent-100:#CBEBF9;--accent-200:#A6DDF4;
   font-family:'PT Sans', system-ui, -apple-system, sans-serif;
-  color:var(--grey-800); background:#ffffff; min-height:100vh; overflow-x:hidden; position:relative;
+  color:var(--grey-800); background:#ffffff; min-height:100dvh; overflow-x:hidden; position:relative;
 }
 .ts-scope *{box-sizing:border-box;}
 .ts-scope a{color:var(--accent);text-decoration:none;}

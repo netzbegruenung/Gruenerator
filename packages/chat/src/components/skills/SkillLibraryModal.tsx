@@ -1,9 +1,11 @@
 'use client';
 
+import { isAdminVisibleSkill } from '@gruenerator/shared/agents';
 import { X, Star, Search } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PiSparkle } from 'react-icons/pi';
 
+import { useHiddenSkillMentions } from '../../hooks/useMentionablesQuery';
 import { agentsList, SKILL_CATEGORY_LABELS, type SkillCategory } from '../../lib/agents';
 import {
   agentToMentionable,
@@ -24,8 +26,15 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
   const [search, setSearch] = useState('');
   const { favorites, toggleFavorite } = useSkillFavoritesStore();
   const customAgents = getCustomAgentMentionables();
+  const hiddenSkillMentions = useHiddenSkillMentions();
 
-  const allSkills = useMemo(() => agentsList.map(agentToMentionable), []);
+  const allSkills = useMemo(
+    () =>
+      agentsList
+        .map(agentToMentionable)
+        .filter((s) => isAdminVisibleSkill(s.mention, hiddenSkillMentions)),
+    [hiddenSkillMentions]
+  );
 
   const filtered = useMemo(() => {
     if (!search) return allSkills;
@@ -53,13 +62,28 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
     }));
   }, [filtered]);
 
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   return (
+    // Verdunkelung schließt per Klick; Escape schließt ebenfalls (Effekt oben)
+    // und ein echter Schließen-Knopf steht darunter — die Fläche selbst wird
+    // bewusst kein zweites Bedienelement.
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40"
       onClick={onClose}
     >
+      {/* Fängt nur die Weitergabe an den Schließen-Handler ab, keine Bedienung. */}
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
       <div
         className="mx-4 flex max-h-[80vh] w-full max-w-[28rem] flex-col rounded-2xl border border-border bg-background shadow-xl"
         onClick={(e) => e.stopPropagation()}

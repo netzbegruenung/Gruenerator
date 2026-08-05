@@ -14,20 +14,11 @@ import { streamText, tool, isStepCount, type ModelMessage } from 'ai';
 import { z } from 'zod';
 
 import { extractKeyParagraphs } from '../../../agents/langgraph/WebSearchGraph/utilities/contentExtractor.js';
-import { loadBoardState, formatBoardAsContext } from '../../../services/boards/BoardService.js';
 import { countTokens } from '../../../services/counters/TokenCounter.js';
-import {
-  loadPresentationState,
-  formatPresentationAsContext,
-} from '../../../services/presentations/PresentationGenerationService.js';
-import {
-  loadSheetState,
-  formatSheetAsContext,
-} from '../../../services/sheets/SheetGenerationService.js';
 import { createLogger } from '../../../utils/logger.js';
-import { loadDocumentProse } from '../../docs/docProseReader.js';
 import { getModel } from '../agents/providers.js';
 
+import { readArtifactContent } from './artifactReader.js';
 import { probeThreadSizes, probeOfficeSizes } from './contentSizeService.js';
 import { finishEditTurn } from './editTurnCompletion.js';
 import {
@@ -207,22 +198,14 @@ export async function handleRecallToolLoop(args: HandleRecallLoopArgs): Promise<
             Math.min((maxTokens ?? DEFAULT_READ_TOKENS) * 4, MAX_READ_CHARS)
           );
 
-          let raw: string | null = null;
-          if (type === 'chat') {
-            const ctx = await getThreadRecallContext(id, userId, { maxChars: budgetChars });
-            raw = ctx?.transcript ?? null;
-          } else if (type === 'board') {
-            const b = await loadBoardState(id, userId);
-            raw = b ? formatBoardAsContext(b) : null;
-          } else if (type === 'sheet') {
-            const s = await loadSheetState(id, userId);
-            raw = s ? formatSheetAsContext(s) : null;
-          } else if (type === 'presentation') {
-            const p = await loadPresentationState(id, userId);
-            raw = p ? formatPresentationAsContext(p) : null;
-          } else {
-            raw = await loadDocumentProse(id, userId);
-          }
+          // A thread is not an artifact and keeps its own reader; everything
+          // else goes through the shared one, so this lane and the agentic
+          // loop's `read_artifact` cannot drift apart on what "readable" means.
+          const raw =
+            type === 'chat'
+              ? ((await getThreadRecallContext(id, userId, { maxChars: budgetChars }))
+                  ?.transcript ?? null)
+              : await readArtifactContent({ id, kind: type, userId });
 
           if (raw == null || raw.trim().length === 0) {
             guards.noteFailure('read_user_content');

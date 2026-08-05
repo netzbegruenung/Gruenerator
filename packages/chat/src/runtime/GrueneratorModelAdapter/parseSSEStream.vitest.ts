@@ -195,3 +195,68 @@ describe('parseSSEStream interleaving', () => {
     expect(progress.pendingNarration).toEqual([]);
   });
 });
+
+/**
+ * The loop's image channel. `search_complete` — the event the single-pass path
+ * uses — never arrives on a loop turn, so without this case the images the
+ * backend now sends would land nowhere and the section would stay empty.
+ */
+describe('parseSSEStream search_images', () => {
+  const image = {
+    title: 'Windrad',
+    url: 'https://example.test/wind.jpg',
+    domain: 'example.test',
+    proxyUrl: '/api/search-image?url=x&exp=1&sig=y',
+  };
+
+  async function lastMetadata(events: Array<{ event: string; data: unknown }>) {
+    const outcome = { interrupted: false, indexedDocumentIds: [] as string[] };
+    let last: { metadata?: { custom?: Record<string, unknown> } } | undefined;
+    for await (const result of parseSSEStream(sseResponse(events), callbacks, outcome)) {
+      last = result as typeof last;
+    }
+    return last?.metadata?.custom ?? {};
+  }
+
+  it('puts the images on custom.searchImages', async () => {
+    const custom = await lastMetadata([
+      { event: 'search_images', data: { images: [image] } },
+      { event: 'text_delta', data: { text: 'Hier sind die Bilder.' } },
+    ]);
+    expect(custom.searchImages).toEqual([image]);
+  });
+
+  it('replaces on a second batch — the payload is the full list, not a delta', async () => {
+    const second = { ...image, url: 'https://example.test/b.jpg' };
+    const custom = await lastMetadata([
+      { event: 'search_images', data: { images: [image] } },
+      { event: 'search_images', data: { images: [image, second] } },
+    ]);
+    expect(custom.searchImages).toHaveLength(2);
+  });
+
+  /**
+   * It arrives mid-loop while the model is still working — moving the progress
+   * stage here would retire the running search's status line early.
+   */
+  it('leaves the progress stage alone', async () => {
+    const outcome = { interrupted: false, indexedDocumentIds: [] as string[] };
+    let last: { metadata?: { custom?: { progress?: { stage?: string } } } } | undefined;
+    for await (const result of parseSSEStream(
+      sseResponse([
+        { event: 'search_start', data: { message: 'Suche…' } },
+        { event: 'search_images', data: { images: [image] } },
+      ]),
+      callbacks,
+      outcome
+    )) {
+      last = result as typeof last;
+    }
+    expect(last?.metadata?.custom?.progress?.stage).toBe('searching');
+  });
+
+  it('ignores an empty batch', async () => {
+    const custom = await lastMetadata([{ event: 'search_images', data: { images: [] } }]);
+    expect(custom.searchImages).toBeUndefined();
+  });
+});

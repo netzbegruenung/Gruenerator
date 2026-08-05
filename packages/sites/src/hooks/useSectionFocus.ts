@@ -104,7 +104,7 @@ export function useClickToEdit() {
   const { focusField: storeFocusField, setActiveSection, setMobileEditorOpen } = useEditorStore();
 
   const handlePreviewClick = useCallback(
-    (event: React.MouseEvent<HTMLElement>) => {
+    (event: React.SyntheticEvent<HTMLElement>) => {
       const target = event.target as HTMLElement;
       const editableElement = target.closest('[data-section][data-field]') as HTMLElement;
 
@@ -128,7 +128,7 @@ export function useClickToEdit() {
   );
 
   const handleSectionClick = useCallback(
-    (event: React.MouseEvent<HTMLElement>) => {
+    (event: React.SyntheticEvent<HTMLElement>) => {
       const target = event.target as HTMLElement;
       const sectionElement = target.closest('[data-section-id]') as HTMLElement;
 

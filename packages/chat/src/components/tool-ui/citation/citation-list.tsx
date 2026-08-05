@@ -306,6 +306,7 @@ function StackedCitations({ id, citations, className, onNavigate }: StackedCitat
   };
 
   return (
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- onBlur only closes the popover once focus leaves this wrapper; the actual control is the button below.
     <div ref={containerRef} onBlur={handleBlur} className="inline-flex">
       <Popover open={open}>
         <PopoverTrigger asChild>

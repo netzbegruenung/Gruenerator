@@ -18,32 +18,55 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      API_URL: ${{ vars.WOLKE_WATCH_API_URL || 'https://gruenerator.eu' }}
+      ADMIN_API_URL: ${{ vars.WOLKE_WATCH_API_URL || 'https://gruenerator.eu' }}
     steps:
+      - uses: actions/checkout@v7
+
       - name: Run wolke watch
         id: watch
         continue-on-error: true
+        env:
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
         run: |
-          echo "Scanning auto_sync notebooks for new Wolke files at $API_URL..."
-          RESULT=$(curl -sf -X POST "$API_URL/api/internal/wolke-watch/run" \
-            -H "x-admin-token: ${{ secrets.ADMIN_TOKEN }}" \
-            --max-time 600)
-          echo "$RESULT" | jq .
-          echo "result<<EOF" >> "$GITHUB_OUTPUT"
-          echo "$RESULT" >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
+          echo "Scanning auto_sync notebooks for new Wolke files at $ADMIN_API_URL..."
+          HTTP_CODE=$(.github/scripts/admin-post.sh /api/internal/wolke-watch/run /tmp/wolke.json)
+          jq . /tmp/wolke.json
+
+          # Only the status code travels as a step output. The body stays in the
+          # file and is read back with `cat`: an upstream error page can contain
+          # an apostrophe, which would break the single-quoted expansion of a
+          # step output in the summary step below.
+          echo "status=$HTTP_CODE" >> "$GITHUB_OUTPUT"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Wolke watch failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
 
       - name: Generate summary
         if: always()
         run: |
-          RESULT='${{ steps.watch.outputs.result }}'
+          STATUS='${{ steps.watch.outputs.status }}'
+          RESULT=$(cat /tmp/wolke.json 2>/dev/null || echo '{}')
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
-          if [ -z "$RESULT" ]; then
+          if [ "$STATUS" != "200" ]; then
+            case "$STATUS" in
+              000 | '') REASON="Could not reach $ADMIN_API_URL (timeout, DNS, or TLS error)." ;;
+              403) REASON="The API rejected the admin token — the \`ADMIN_TOKEN\` secret does not match \`env.ADMIN_TOKEN\` on $ADMIN_API_URL." ;;
+              5*) REASON="The wolke-watch endpoint failed server-side (HTTP $STATUS), and the retries did not recover it." ;;
+              *) REASON="The wolke-watch endpoint answered HTTP $STATUS." ;;
+            esac
             {
-              echo "## :x: Wolke Watch — No Result"
+              echo "## :x: Wolke Watch — HTTP ${STATUS:-000}"
               echo ""
-              echo "The wolke-watch endpoint returned nothing. Check the [workflow logs]($RUN_URL)."
+              echo "$REASON"
+              echo ""
+              echo '```json'
+              echo "$RESULT"
+              echo '```'
+              echo ""
+              echo "[Workflow logs]($RUN_URL)"
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi

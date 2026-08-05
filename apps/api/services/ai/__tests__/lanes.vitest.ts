@@ -90,7 +90,7 @@ describe('laneFallback', () => {
     // Matches the two chains `providerFallback` runs today: short creative
     // German is what Mistral is best at, so sharepics try it first.
     expect(laneFallback('sharepic_zitat')[0]).toBe('litellm'); // mistral is primary, so dropped
-    expect(laneFallback('default')[0]).toBe('regolo'); // litellm is primary, so dropped
+    expect(laneFallback('default')[0]).toBe('litellm'); // mistral is primary, so dropped
     expect(laneFallback('image_picker')[0]).toBe('litellm'); // regolo is primary, so dropped
   });
 
@@ -100,6 +100,8 @@ describe('laneFallback', () => {
     // these lanes started.
     expect(laneFallback('antrag')).toEqual(['litellm', 'mistral']);
     expect(laneFallback('social')).toEqual(['litellm', 'mistral']);
-    expect(laneFallback('doc_generation')).toEqual(['litellm', 'regolo']);
+    // `doc_generation` liegt auf GreenPT, das in keiner der beiden Ketten
+    // steht — also bleiben alle drei übrig, Mistral als letzte Instanz.
+    expect(laneFallback('doc_generation')).toEqual(['litellm', 'regolo', 'mistral']);
   });
 });

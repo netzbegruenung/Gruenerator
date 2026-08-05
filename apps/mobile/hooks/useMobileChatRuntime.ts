@@ -12,6 +12,7 @@ import { useShallow } from 'zustand/shallow';
 
 import { getResearchCollectionIds } from '../config/notebooksConfig';
 import { useNotebookFilterStore } from '../stores/notebookFilterStore';
+import { usePreferencesStore } from '../stores/preferencesStore';
 
 interface MobileChatRuntimeOptions {
   adapters?: LocalRuntimeOptions['adapters'];
@@ -27,6 +28,7 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
     searchMode,
     customSystemPrompt,
     customRoleName,
+    customRoleRef,
     customEnabledTools,
     pinnedConnector,
     activeSkillMention,
@@ -40,21 +42,23 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
       searchMode: s.searchMode,
       customSystemPrompt: s.customSystemPrompt,
       customRoleName: s.customRoleName,
+      customRoleRef: s.customRoleRef,
       customEnabledTools: s.customEnabledTools,
       pinnedConnector: s.pinnedConnector,
       activeSkillMention: s.activeSkillMention,
     }))
   );
-  // Notebook filter selection (facets, sources, depth) — only honoured while it
-  // belongs to the notebook being asked, so it can't leak between notebooks.
+  // Notebook filter selection (facets, sources) — only honoured while it belongs
+  // to the notebook being asked, so it can't leak between notebooks. The depth is
+  // not scoped that way: it is a standing preference, not a filter.
   const notebookFilterState = useNotebookFilterStore(
     useShallow((s) => ({
       notebookId: s.notebookId,
       keywordFilters: s.keywordFilters,
       collectionIds: s.collectionIds,
-      depth: s.depth,
     }))
   );
+  const notebookDepth = usePreferencesStore((s) => s.notebookDepth);
   const notebookScope =
     selectedNotebookId && notebookFilterState.notebookId === selectedNotebookId
       ? notebookFilterState
@@ -84,11 +88,12 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
             : [selectedNotebookId]))
         : undefined,
       notebookFilters: notebookScope?.keywordFilters,
-      notebookMode: notebookScope?.depth,
+      notebookMode: notebookDepth,
       threadMode,
       searchMode,
       customSystemPrompt,
       customRoleName,
+      customRoleRef,
       customEnabledTools,
       // Without this the "+" sheet's Konnektoren section is decoration: the
       // adapter injects the connector's mention token and its forcedTool from
@@ -104,10 +109,12 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
       enabledTools,
       selectedNotebookId,
       notebookScope,
+      notebookDepth,
       threadMode,
       searchMode,
       customSystemPrompt,
       customRoleName,
+      customRoleRef,
       customEnabledTools,
       pinnedConnector,
       activeSkillMention,

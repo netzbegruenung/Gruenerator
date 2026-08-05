@@ -75,7 +75,7 @@ const OparlPage = () => {
 
   if (selectedPaper) {
     return (
-      <div className="flex flex-col items-center min-h-screen p-5 bg-background transition-colors duration-300">
+      <div className="flex flex-col items-center min-h-dvh p-5 bg-background transition-colors duration-300">
         <div className="w-full max-w-[750px] mx-auto my-5 p-[35px] bg-background-alt dark:bg-hover-alt rounded-lg shadow-[0_2px_4px_rgba(0,0,0,0.1)] relative max-md:mx-4 max-md:p-5">
           <div className="flex justify-between items-start mb-5">
             <h2 className="text-foreground-heading m-0 text-2xl max-md:text-xl font-semibold flex-1 pr-4">
@@ -155,7 +155,7 @@ const OparlPage = () => {
   }
 
   return (
-    <div className="flex flex-col items-center min-h-screen p-5 bg-background transition-colors duration-300">
+    <div className="flex flex-col items-center min-h-dvh p-5 bg-background transition-colors duration-300">
       <div className="flex flex-col items-center mb-8 mt-24 max-md:mt-20 max-md:mb-6 max-md:px-4 text-center w-full max-w-[var(--container-max-width,1200px)]">
         <h1 className="text-[56px] max-md:text-4xl text-foreground-heading dark:text-[var(--secondary)] m-0 tracking-[-1px] leading-[1.2]">
           Kommunale Anträge
@@ -231,9 +231,10 @@ const OparlPage = () => {
 
           <div className="grid grid-cols-2 max-md:grid-cols-1 gap-4 px-4 max-md:px-0">
             {results.map((paper) => (
-              <div
+              <button
                 key={paper.id}
-                className="flex flex-col p-4 max-md:p-3.5 bg-background-alt dark:bg-hover-alt rounded-lg max-md:rounded-xl transition-colors duration-200 overflow-hidden cursor-pointer hover:bg-hover-alt dark:hover:bg-background-alt"
+                type="button"
+                className="flex flex-col p-4 max-md:p-3.5 bg-background-alt dark:bg-hover-alt rounded-lg max-md:rounded-xl transition-colors duration-200 overflow-hidden cursor-pointer hover:bg-hover-alt dark:hover:bg-background-alt border-none text-left w-full"
                 onClick={() => selectPaper(paper)}
               >
                 <h3 className="text-foreground-heading m-0 mb-2 text-base max-md:text-sm font-medium line-clamp-2 leading-[1.4]">
@@ -268,7 +269,7 @@ const OparlPage = () => {
                 <div className="text-xs text-foreground opacity-60 mt-auto pt-2">
                   Relevanz: {Math.round(paper.score * 100)}%
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </div>

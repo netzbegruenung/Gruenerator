@@ -70,6 +70,14 @@ export interface McpConnectionConfig {
    * (see services/mcp/mcpToolDrift.ts).
    */
   approvedFingerprints?: Record<string, string> | null;
+  /**
+   * A first-party MANAGED connector (`system-<key>`, config from env) rather
+   * than an `mcp_servers` row. Two consequences the catalog MUST honour: there
+   * is no row to write a tools snapshot or a fingerprint baseline to (the id is
+   * not a UUID, so the write fails at the column cast), and the rug-pull check
+   * is moot because we operate the server ourselves.
+   */
+  managed?: boolean;
 }
 
 export interface McpToolDescriptor {

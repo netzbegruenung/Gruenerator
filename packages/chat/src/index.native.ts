@@ -123,6 +123,15 @@ export {
   type SearchDepthIconKey,
 } from './lib/composerControls';
 
+// Notebook retrieval depth — shared registry for the notebook page's tier control
+export {
+  NOTEBOOK_DEPTHS,
+  DEFAULT_NOTEBOOK_DEPTH,
+  notebookDepthDef,
+  type NotebookDepthDef,
+  type NotebookDepthIconKey,
+} from './lib/notebookDepth';
+
 export { useDocumentChatStore } from './stores/documentChatStore';
 export { useSkillFavoritesStore } from './stores/skillFavoritesStore';
 
@@ -142,6 +151,9 @@ export { computeMentionInsertion, type MentionInsertionResult } from './lib/ment
 
 // File mention data hook
 export { useFileMentionData } from './hooks/useFileMentionData';
+
+// Admin-curated Rezepte visibility — see index.ts for the full comment.
+export { useHiddenSkillMentions } from './hooks/useMentionablesQuery';
 
 // Group-level thread sharing. RN-safe: react-query plus `notify`, which imports
 // sonner dynamically and falls back to the console line in hosts that do not
@@ -326,8 +338,10 @@ export {
   documentMentionables,
   getAllMentionables,
   getAgentMentionables,
+  setMentionInstance,
   setMentionLocale,
   getMentionLocale,
+  setHiddenSkillMentions,
   setCustomAgents,
   getCustomAgentMentionables,
   customAgentToMentionable,

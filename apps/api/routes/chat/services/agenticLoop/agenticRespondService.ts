@@ -12,13 +12,17 @@
  * recording) come from `wrapToolsForLoop`; force-finish and lenient arg repair
  * are configured here.
  */
-import { type ChatIntentId } from '@gruenerator/shared/chat-intents';
+import { type ChatIntentId, intentsWithDisposition } from '@gruenerator/shared/chat-intents';
 import { type ModelMessage } from 'ai';
 
+import {
+  knownArtifactRefs,
+  NO_ARTIFACT_URL_RULE,
+} from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
 import { forbidsNewResearch } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
-import { getSourcesForIntent } from '../../../../services/mcp/systemMcpServers.js';
 import { applyContextCap } from '../../../../utils/contextCap.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { loadManagedMcpCatalog } from '../../agents/managedMcpCatalog.js';
 import { loadMcpCatalog, type McpCatalog } from '../../agents/mcpCatalog.js';
 import {
   getLoopPlannerModel,
@@ -27,13 +31,20 @@ import {
   loopPlannerModelName,
   prefersUnifiedLoop,
 } from '../../agents/providers.js';
-import { loadSystemMcpCatalog } from '../../agents/systemMcpCatalog.js';
+import {
+  buildRecipeCatalog,
+  renderRecipeCatalog,
+  type RecipeCatalogEntry,
+} from '../../agents/recipeCatalog.js';
+import { makeRecipeTool } from '../../agents/recipeTools.js';
+import { imageDeliveryNote } from '../../agents/searchImageHarvest.js';
 import { buildChatToolCatalog } from '../../agents/toolCatalog.js';
 import { extractTextContent } from '../messageHelpers.js';
 import {
   defersToSearchDespiteSources,
   deniesSearchAbilityDespiteSearching,
   looksCutOff,
+  stripFabricatedArtifactDelivery,
   stripFabricatedSystemClaims,
 } from '../outputSanity.js';
 import { resolveModel, type ResolvedModelTuple } from '../responseStreamingService.js';
@@ -46,6 +57,7 @@ import {
 import {
   getRecentThreadSources,
   getRecentToolSteps,
+  type ThreadToolHistory,
   getThreadLastMcpServer,
   setThreadLastMcpServer,
 } from '../threadPersistenceService.js';
@@ -56,7 +68,12 @@ import { isMcpReplayEnabled } from './flags.js';
 import { runAgenticLoop, type LoopMode } from './loopEngine.js';
 import { createToolLoopGuards, MAX_SOURCES } from './loopGuards.js';
 import { buildToolObservationReplay } from './mcpReplay.js';
-import { looksLikeExplicitResearchOrder, resolveEditorSurfaceKind } from './routing.js';
+import { createRecipeRegistry } from './recipeRegistry.js';
+import {
+  looksLikeExplicitResearchOrder,
+  resolveEditorSurfaceKind,
+  rewritesSuppliedText,
+} from './routing.js';
 import { createSourceRegistry, withResearchedSources } from './sourceRegistry.js';
 import {
   DEFAULT_LOOP_BUDGET,
@@ -114,11 +131,9 @@ const AGENTIC_INTENT_IDS = [
   'summary',
   'bundestag',
   'abgeordnetenwatch',
-  'bahn',
-  'reise',
-  'hotel',
-  'wetter',
-  'news',
+  // `bahn`/`reise`/`hotel`/`wetter`/`news` were here. They are managed
+  // connectors now and no longer exist as intents — what opens the loop for them
+  // is `managedSourceKeys` (see decideRunAgentic), not membership in this set.
   'umfragen',
   'hilfe',
   'image',
@@ -130,6 +145,19 @@ const AGENTIC_INTENT_IDS = [
 // Typed as ChatIntentId, not string: a typo or a renamed intent used to compile
 // here and simply never match at runtime.
 export const AGENTIC_INTENTS: ReadonlySet<ChatIntentId> = new Set(AGENTIC_INTENT_IDS);
+
+/**
+ * Intents, bei denen der Klassifikator die Recherche AUSDRÜCKLICH benannt hat.
+ *
+ * Abgeleitet aus der Dispositions-Achse: `loop` heisst „der Planer wählt die
+ * Werkzeuge" — aber `agentic` ist der AUFFANGWERT dieser Gruppe und darf
+ * deshalb nicht zwingen, sonst würde jede unklare Frage einen Werkzeugaufruf
+ * erzwingen. Für die aus einem Recherche-Verdikt demotierten `agentic`-Turns
+ * gibt es `loopDemotedFromRetrieval`, das genau diese Herkunft festhält.
+ */
+export const NAMED_RETRIEVAL_INTENTS: ReadonlySet<string> = new Set(
+  [...intentsWithDisposition('loop')].filter((id) => id !== 'agentic')
+);
 
 export { isAgenticLoopEnabled } from './flags.js';
 
@@ -355,9 +383,155 @@ const MCP_CAPABILITY_QUESTION =
 // tool-result budget.
 const MCP_CONTENT_CAP = 25_000;
 
+/**
+ * The synth model's only channel for "what did this turn actually produce".
+ *
+ * Split mode runs the writer WITHOUT tools and without the tool-result replay,
+ * so an artifact it cannot see is an artifact it will deny. Extracted from
+ * `buildSynthSystem` to be testable on its own after two live failures that both
+ * came down to what this string does or does not say — see the notes inside.
+ */
+export function buildArtifactNotes(
+  state: ChatGraphState,
+  opts: { artifactToolMounted: boolean }
+): { notes: string; capabilityNote: string; producedArtifact: boolean } {
+  const artifactToolMounted = opts.artifactToolMounted;
+  // Split mode has no tool returns in the synth context — without these
+  // notes the synthesizer is blind to artifacts the gather phase produced.
+  const artifacts = [
+    state.generatedImage
+      ? 'HINWEIS: In diesem Turn wurde bereits ein Bild erstellt und dem*der Nutzer*in angezeigt — kündige es kurz an. Behaupte NIEMALS, die Bildgenerierung sei fehlgeschlagen: sie ist geglückt, das Bild steht sichtbar im Chat.'
+      : '',
+    // Artefakte aus FRÜHEREN Turns stehen NICHT mehr hier, sondern im
+    // ARTEFAKTE-Block von `systemMessage` (respondNode → artifactInventory).
+    // Der Hinweis stand kurz an dieser Stelle und deckte genau eine Art ab
+    // (Bild) aus genau einer Quelle (dem einen `lastToolContext`-Slot). Die
+    // Liste dort kommt aus `threadArtifacts`, kennt alle Arten und erreicht
+    // beide Pfade — dieselbe Zeile hier wäre eine zweite, ärmere Wahrheit.
+    (state.sharepicVariants?.length ?? 0) > 0
+      ? 'HINWEIS: In diesem Turn wurde bereits ein Sharepic erstellt und dem*der Nutzer*in angezeigt — kündige es kurz an und biete Anpassungen an.'
+      : '',
+    state.createdDocument != null
+      ? `HINWEIS: In diesem Turn wurde bereits ${
+          state.createdDocument.subtype === 'presentations'
+            ? 'eine Präsentation'
+            : state.createdDocument.subtype === 'sheets'
+              ? 'eine Tabelle'
+              : 'ein Dokument'
+        } ("${state.createdDocument.title}") erstellt und dem*der Nutzer*in angezeigt — kündige es kurz an und fasse die recherchierten Kerninhalte zusammen. ${NO_ARTIFACT_URL_RULE}`
+      : '',
+    state.createdBoard != null
+      ? `HINWEIS: In diesem Turn wurde bereits ein Board ("${state.createdBoard.title}") erstellt und dem*der Nutzer*in angezeigt — kündige es kurz an und nenne den Pfad genau so: /boards/${state.createdBoard.boardId}. ${NO_ARTIFACT_URL_RULE}`
+      : '',
+    state.compoundEdit === true
+      ? 'HINWEIS: Die recherchierten Inhalte werden gerade in das GEÖFFNETE Dokument eingefügt. Schreibe NUR eine KURZE Bestätigung (1–2 Sätze), die das Thema nennt und sagt, dass es ins Dokument eingearbeitet wird — KEINE lange Ausformulierung (der Inhalt landet im Dokument, nicht im Chat).'
+      : '',
+    // The edit tool PLANNED a change for the open artefact this turn and sent
+    // it to the client, which applies it in place (Univer / Yjs). Two failure
+    // modes to hold apart, and the prompt used to invite the second while
+    // fixing the first:
+    //
+    //  - The model writes nothing (→ fallback) or claims it cannot edit at all
+    //    — observed live as "keine Antwort gefunden" after 5 slides and "kann
+    //    die Akzentfarbe nicht ändern" after set_deck_option succeeded. Still
+    //    forbidden below.
+    //  - The model reports the change as SAVED. The server cannot know that:
+    //    `editor_operations` has no acknowledgement channel, so with the deck
+    //    not open in a client the ops go nowhere and only a toast appears. On
+    //    03.08.2026 the answer said "AKTUALISIERT" and the deck was unchanged
+    //    on reload. Ordering past tense here is what produced that sentence.
+    //
+    // Present tense is the honest form of what the server actually knows.
+    state.editorEditsSummary
+      ? `HINWEIS: Die gewünschte Änderung ist geplant und wird gerade in die GEÖFFNETE Datei übernommen: ${state.editorEditsSummary}. Sag das dem*der Nutzer*in KURZ in der GEGENWART (1 Satz, z.B. „Die Folien werden gerade aktualisiert — …"). Behaupte NIEMALS, du könntest die Änderung nicht vornehmen — sie ist bereits ausgelöst. Behaupte aber ebenso NICHT, sie sei fertig GESPEICHERT: das Übernehmen geschieht in der geöffneten Datei.`
+      : '',
+    // Editor surface with the AI-edit toggle OFF: the edit tool is NOT
+    // mounted, so any "I changed X" would be a false claim the client never
+    // applied. Force the model to say editing is off instead.
+    resolveEditorSurfaceKind(state.agentConfig?.identifier, state.enabledTools) != null &&
+    state.enabledTools?.['edit_current_doc'] !== true &&
+    state.enabledTools?.['edit_current_board'] !== true
+      ? 'HINWEIS: Die KI-Bearbeitung ist ausgeschaltet — du kannst das geöffnete Dokument nur ANSEHEN und Fragen dazu beantworten, aber NICHTS ändern. Wird eine Änderung gewünscht, sag freundlich und knapp, dass die Bearbeitung ausgeschaltet ist (Stift-Symbol im Chat), und behaupte NIEMALS, etwas geändert/eingetragen zu haben.'
+      : '',
+  ]
+    .filter(Boolean)
+    .map((n) => `\n\n${n}`)
+    .join('');
+  // Turn-outcome honesty: with no gathered sources the model must not claim
+  // it researched — the classic follow-up lie ("laut meiner Recherche …"
+  // with zero tool calls). Skip when an artifact WAS produced (those turns
+  // legitimately have their own confirmation notes above).
+  const producedArtifact =
+    state.generatedImage != null ||
+    (state.sharepicVariants?.length ?? 0) > 0 ||
+    state.createdDocument != null ||
+    state.createdBoard != null ||
+    state.editorEditsSummary != null;
+  // The platform CAN generate sharepics/images (via loop tools) — the synth
+  // model has no tools of its own, so without this it defaults to "I'm just
+  // a text model, I can't make images" and refuses (observed live).
+  //
+  // Attached only when an artifact tool was actually mounted this turn, or
+  // one was produced — not unconditionally. On a pure knowledge turn it was
+  // ~550 characters advertising Sharepics nobody had asked about, and it
+  // worked AGAINST answer rule 1, which then had to forbid the very offers
+  // this note invites. Two rules cancelling each other out.
+  //
+  // Der Schluss-Satz hing früher fest an dieser Notiz und nannte BEIDE
+  // Ausgänge — auch auf einem Turn, dessen Artefakt nachweislich fertig war.
+  // Der Prompt trug damit gleichzeitig „ein Bild wurde erstellt, kündige es
+  // an" und eine fertige Formulierung fürs Gegenteil, und der Schreiber
+  // (gemma4-31b) griff live zur zweiten: „Die Bildgenerierung ist leider
+  // fehlgeschlagen" — unter dem sichtbaren Bild. Ein Ausgang, den der Code
+  // bereits kennt, gehört nicht als Wahlmöglichkeit in den Prompt.
+  const outcomeClause = producedArtifact
+    ? ' In diesem Turn wurde ein Artefakt ERSTELLT: kündige es knapp an und fasse die recherchierten Kerninhalte zusammen. Behaupte unter keinen Umständen, die Erstellung sei fehlgeschlagen.'
+    : ' Wurde ein Artefakt angefragt aber nicht erstellt, sag knapp, dass die Erstellung nicht geklappt hat.';
+  const capabilityNote =
+    artifactToolMounted || producedArtifact
+      ? `\n\nWICHTIG: Du bist Teil einer Plattform, die Sharepics, Bilder, Präsentationen, Tabellen, Dokumente und Boards über Tools ERSTELLEN kann. Behaupte NIEMALS, du seist "nur ein Textmodell" oder nutztest "ein textbasiertes Format", und biete NIEMALS ein Text-Konzept/Storyboard als Ersatz für eine echte Präsentation/Tabelle/ein Dokument an.${outcomeClause}`
+      : '';
+  return { notes: artifacts, capabilityNote, producedArtifact };
+}
+
 /** The connector's text payload, length-capped for the synth prompt. */
 function capMcpContent(content: string): string {
   return applyContextCap(content, MCP_CONTENT_CAP, 'agenticLoop:mcpContent');
+}
+
+/**
+ * Failures of the NATIVE tools — search, scrape, documents, boards, notebooks.
+ *
+ * `buildMcpOutcomeNote` below opens with `steps.filter(s => s.serverName)`, so
+ * it only ever spoke for connectors. Everything else the loop runs had no
+ * channel into the split synth at all: a SUCCESSFUL call reaches the writer
+ * through the source registry, but a FAILED one registers nothing, so where a
+ * tool error had been the writer saw plain silence — and filled it.
+ *
+ * Live on 03.08.2026: `documents` answered "Dokument nicht gefunden oder kein
+ * Zugriff" for the PDF and errored on the presentation, and the answer went on
+ * to report which slide had been corrected and that the source matrix was now
+ * complete. It had opened neither.
+ *
+ * Only failures are listed. Successes already carry their payload in the
+ * sources block; repeating it here would double it in the prompt.
+ */
+export function buildToolFailureNote(steps: PersistedStep[]): string {
+  const failed = steps
+    .filter((s) => !s.serverName)
+    .map((s) => ({ step: s, view: readMcpResult(s.result) }))
+    .filter(({ view }) => !view.ok);
+  if (failed.length === 0) return '';
+  const lines = failed.map(
+    ({ step, view }) => `- ${step.toolName}: FEHLGESCHLAGEN — ${String(view.error).slice(0, 200)}`
+  );
+  return (
+    `\n\nFEHLGESCHLAGENE WERKZEUGE IN DIESEM TURN:\n${lines.join('\n')}\n\n` +
+    'Diese Aufrufe haben KEIN Ergebnis geliefert. Sag ehrlich und konkret, was nicht geklappt hat. ' +
+    'Tu NICHT so, als hättest du die Inhalte trotzdem gesehen: keine Zusammenfassung, kein Vergleich, ' +
+    'kein Prüfergebnis und keine Bestätigung zu etwas, das nur über einen dieser Aufrufe zu erfahren ' +
+    'gewesen wäre. Erfinde keine IDs, Links, Dateinamen oder Inhalte als Ersatz.'
+  );
 }
 
 export function buildMcpOutcomeNote(steps: PersistedStep[]): string {
@@ -423,9 +597,25 @@ export async function streamAgenticResponse(params: {
   /** Express request — required by the sharepic fat tool (compound turns). */
   req?: Request;
   threadId?: string | null;
+  /** The thread's tool memory, already read by `buildStreamContext` for the
+   *  classifier's artifact list. Both reads below project the SAME rows, so
+   *  taking them from here turns three round trips per loop turn into one.
+   *  Null (absent, or the shared read failed) falls back to reading here, which
+   *  keeps each failure as narrow as it was before. */
+  toolHistory?: ThreadToolHistory | null;
 }): Promise<AgenticResponseOutcome> {
-  const { finalState, systemMessage, messages, modelId, requestId, sse, reqSignal, req, threadId } =
-    params;
+  const {
+    finalState,
+    systemMessage,
+    messages,
+    modelId,
+    requestId,
+    sse,
+    reqSignal,
+    req,
+    threadId,
+    toolHistory,
+  } = params;
   const budget = resolveBudget();
   const agentConfig = finalState.agentConfig;
 
@@ -553,24 +743,59 @@ export async function streamAgenticResponse(params: {
       }
     }
 
-    // First-party system sources (bahn/reise/wetter/news intents): mount their
-    // tools the same way — fixed env configs, no user rows. The `reise` umbrella
-    // mounts bahn+hotel+wetter together (systemMcpCatalog skips an unreachable
-    // source, never breaking the turn).
-    // `userLocale` drops sources that do not cover the user's country, which is
-    // resolved per SOURCE, not per intent: an Austrian `reise` turn keeps hotel
-    // and weather and loses only the train tools.
-    const systemSources = getSourcesForIntent(finalState.intent as string, finalState.userLocale);
-    if (systemSources.length > 0) {
-      systemCatalog = await loadSystemMcpCatalog({
-        intent: finalState.intent as string,
+    // First-party MANAGED connectors: mounted the same way, from fixed env
+    // configs with no user rows.
+    //
+    // Selection used to be `getSourcesForIntent(intent)` — one source per intent,
+    // three for the `reise` umbrella. It is now a list of KEYS the vocabulary
+    // trigger produced for this turn (`managedSourceKeys`), so a travel turn
+    // simply carries `['bahn','hotel']` and needs no umbrella.
+    //
+    // Mounting is cheap: `loadManagedMcpCatalog` builds the tools from cached
+    // descriptors and opens a connection only when the model actually calls one.
+    // The loader also applies the per-user opt-out and the country filter, so no
+    // caller can forget either.
+    const managedKeys = finalState.managedSourceKeys ?? [];
+    if (managedKeys.length > 0) {
+      systemCatalog = await loadManagedMcpCatalog({
+        keys: managedKeys,
         sse,
         sourceRegistry,
+        userId: userId ?? null,
         userLocale: finalState.userLocale,
       });
       Object.assign(tools, systemCatalog.tools);
     }
     mcpMountMs = Date.now() - mcpMountStart;
+
+    // Self-loading recipes. Mounted async like the MCP catalogs (the user's
+    // learned text forms need a DB read), and only when nothing already
+    // decides the writing form for this turn:
+    //   - `activeSkillMention`: the user picked a recipe deliberately and
+    //     `buildSystemMessage` already injected it. Letting the model pick a
+    //     second one would overrule an explicit choice — same double-injection
+    //     guard `product_knowledge` uses.
+    //   - `customSystemPrompt`: a thread-level prompt replaces the whole
+    //     persona; self-loading a recipe into it would fight the user.
+    const recipeRegistry = createRecipeRegistry();
+    let recipeCatalog: RecipeCatalogEntry[] = [];
+    if (
+      !finalState.activeSkillMention &&
+      !finalState.customSystemPrompt &&
+      finalState.enabledTools?.['rezept_laden'] !== false
+    ) {
+      recipeCatalog = await buildRecipeCatalog({
+        userLocale: finalState.userLocale,
+        userId: userId ?? null,
+      });
+      if (recipeCatalog.length > 0) {
+        tools.rezept_laden = makeRecipeTool({
+          catalog: recipeCatalog,
+          registry: recipeRegistry,
+          userId: userId ?? null,
+        });
+      }
+    }
 
     // Tool-card labels for BOTH catalogs (user connectors + system sources).
     const toolLabels = new Map([...(mcpCatalog?.labels ?? []), ...(systemCatalog?.labels ?? [])]);
@@ -587,7 +812,7 @@ export async function streamAgenticResponse(params: {
     if (threadId) {
       try {
         const catalogNames = new Set(Object.keys(tools));
-        const recent = await getRecentToolSteps(threadId);
+        const recent = toolHistory ? toolHistory.toolSteps() : await getRecentToolSteps(threadId);
         const replayable = recent.filter(
           (s) =>
             !NON_REPLAYABLE_ACTION_TOOLS.has(s.toolName) &&
@@ -615,14 +840,25 @@ export async function streamAgenticResponse(params: {
     // split made the same follow-up sourced or unsourced depending on nothing
     // but whether the turn routed through the loop.
     //
-    // Deliberately UNGATED (was: edit surfaces only). A thread that just looked
-    // something up should still know it a few messages later — dropping the
-    // research the moment the turn ends is what makes a follow-up feel amnesiac.
-    // Bounded by getRecentThreadSources itself: only the most recent assistant
-    // message carrying sources, capped at 10, snippets already trimmed.
-    if (threadId) {
+    // Weit offen, aber nicht mehr ungetort. Der Grundsatz bleibt: ein Thread,
+    // der gerade etwas nachgeschlagen hat, soll es ein paar Nachrichten später
+    // noch wissen — die Recherche mit dem Turn wegzuwerfen ist das, was einen
+    // Folgeauftrag vergesslich macht. Bounded by getRecentThreadSources itself:
+    // only the most recent assistant messages carrying sources, capped at 10,
+    // snippets already trimmed.
+    //
+    // Die eine Ausnahme ist gemessen: über den 196-Turn-Korpus bekamen genau
+    // zwei Turns hier fremde Recherche unter einen KÜRZUNGSAUFTRAG gelegt, weil
+    // der Einzelpfad `needsThreadGrounding` fragte und der Loop niemanden. Ein
+    // Kürzungsauftrag ist in dem Text gegründet, an dem er arbeitet.
+    const askForCarry =
+      finalState.lastUserTextNoMentions ??
+      extractTextContent(messages[messages.length - 1]?.content ?? '');
+    if (threadId && !rewritesSuppliedText(askForCarry)) {
       try {
-        const carried = await getRecentThreadSources(threadId);
+        const carried = toolHistory
+          ? toolHistory.sources()
+          : await getRecentThreadSources(threadId);
         if (carried.length > 0) {
           sourceRegistry.seedCarried(carried);
           log.info(`[Agentic] rehydrated ${carried.length} prior source(s) for grounding`);
@@ -691,10 +927,14 @@ export async function streamAgenticResponse(params: {
     // resolved here so the model gets real dates and a real country code for
     // timetable/forecast/accommodation params). On a `reise` turn every mounted
     // source contributes its hint.
+    // Usage + answer-format instructions of the connectors that actually MOUNTED.
+    // Read off the catalog rather than off the trigger's key list: a source whose
+    // descriptors could not be loaded contributes no tools, and its instructions
+    // would then tell the model to call something that is not there.
+    const mountedHints = systemCatalog?.promptHints ?? [];
     const systemNote =
-      systemSources.length > 0 && systemCatalog && systemCatalog.labels.size > 0
-        ? `\n\n${systemSources
-            .map((s) => s.promptHint)
+      mountedHints.length > 0
+        ? `\n\n${mountedHints
             .join('\n\n')
             .replaceAll('{{TODAY_ISO}}', new Date().toISOString().slice(0, 10))
             .replaceAll(
@@ -702,7 +942,7 @@ export async function streamAgenticResponse(params: {
               new Date().toISOString().slice(2, 10).replaceAll('-', '')
             )
             .replaceAll('{{COUNTRY}}', finalState.userLocale === 'de-AT' ? 'AT' : 'DE')}`
-        : systemSources.length > 0
+        : managedKeys.length > 0
           ? '\n\nHINWEIS: Der Auskunftsdienst ist gerade nicht erreichbar. Sag das ehrlich und erfinde keine Daten; biete eine Web-Suche als Alternative an.'
           : '';
     // Up-front connector-tool catalog (unconditional when present, NOT gated on a
@@ -713,7 +953,7 @@ export async function streamAgenticResponse(params: {
       : '';
     // Mistral (fast native tool-caller) runs the unified single-model loop;
     // every other model runs the planner/executor split — the fast planner
-    // (INTERMEDIATE_MODEL) gathers, the selected model writes the answer.
+    // (`standard` intermediate stage) gathers, the selected model writes the answer.
     mode = prefersUnifiedLoop(resolution.provider, resolution.modelName) ? 'unified' : 'split';
 
     // Unified mode has no synth phase, so it never sees `renderAll()` — the
@@ -728,7 +968,7 @@ export async function streamAgenticResponse(params: {
     // so prompt and toolset can never disagree about whether searching is on.
     const researchBanned = forbidsNewResearch(finalState.lastUserTextNoMentions ?? lastUserText);
     const toolSystem = withInstructionHierarchy(
-      `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned)}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}`
+      `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned)}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${renderRecipeCatalog(recipeCatalog)}`
     );
     // The turn budget is now SOFT: it strips the tools via `forceFinish` (see
     // below) instead of aborting the stream. Only the absolute ceiling aborts —
@@ -754,80 +994,20 @@ AKTUALITÄT: Hinter dem Titel steht, wo bekannt, das Veröffentlichungsdatum der
 
 Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. Deshalb: empfiehl NIEMALS eine Websuche, eine "kurze Recherche" oder das Nachschlagen auf einer offiziellen Seite. Behaupte aber ebenso NIEMALS, du könntest nicht suchen, hättest keinen Internetzugriff oder könntest "nur auf die bereitgestellten Ergebnisse zugreifen" — das ist falsch: gesucht wird jedes Mal neu, wenn es gebraucht wird, und in diesem Turn ist es geschehen. Reichen die Quellen wirklich nicht, benenne knapp die konkrete LÜCKE ("zum Stand nach September 2025 steht hier nichts") — ohne Suchempfehlung und ohne Aussage über deine Fähigkeiten.`
           : '';
-      // Split mode has no tool returns in the synth context — without these
-      // notes the synthesizer is blind to artifacts the gather phase produced.
-      const artifacts = [
-        finalState.generatedImage
-          ? 'HINWEIS: In diesem Turn wurde bereits ein Bild erstellt und dem*der Nutzer*in angezeigt — kündige es kurz an.'
-          : '',
-        (finalState.sharepicVariants?.length ?? 0) > 0
-          ? 'HINWEIS: In diesem Turn wurde bereits ein Sharepic erstellt und dem*der Nutzer*in angezeigt — kündige es kurz an und biete Anpassungen an.'
-          : '',
-        finalState.createdDocument != null
-          ? `HINWEIS: In diesem Turn wurde bereits ${
-              finalState.createdDocument.subtype === 'presentations'
-                ? 'eine Präsentation'
-                : finalState.createdDocument.subtype === 'sheets'
-                  ? 'eine Tabelle'
-                  : 'ein Dokument'
-            } ("${finalState.createdDocument.title}") erstellt und dem*der Nutzer*in angezeigt — kündige es kurz an und fasse die recherchierten Kerninhalte zusammen.`
-          : '',
-        finalState.createdBoard != null
-          ? `HINWEIS: In diesem Turn wurde bereits ein Board ("${finalState.createdBoard.title}") erstellt und dem*der Nutzer*in angezeigt — kündige es kurz an und nenne den Link (/boards/${finalState.createdBoard.boardId}).`
-          : '',
-        finalState.compoundEdit === true
-          ? 'HINWEIS: Die recherchierten Inhalte werden gerade in das GEÖFFNETE Dokument eingefügt. Schreibe NUR eine KURZE Bestätigung (1–2 Sätze), die das Thema nennt und sagt, dass es ins Dokument eingearbeitet wird — KEINE lange Ausformulierung (der Inhalt landet im Dokument, nicht im Chat).'
-          : '',
-        // The edit tool already changed the open artefact this turn. Make the
-        // model confirm it in past tense — never write empty text (→ fallback)
-        // or claim it couldn't do it (both observed live: "keine Antwort
-        // gefunden" after 5 slides; "kann die Akzentfarbe nicht ändern" after
-        // set_deck_option succeeded).
-        finalState.editorEditsSummary
-          ? `HINWEIS: Die gewünschte Änderung wurde SOEBEN vorgenommen: ${finalState.editorEditsSummary}. Bestätige das dem*der Nutzer*in KURZ in Vergangenheitsform (1 Satz, z.B. „Erledigt — …"). Behaupte NIEMALS, du könntest die Änderung nicht vornehmen — sie ist bereits erfolgt.`
-          : '',
-        // Editor surface with the AI-edit toggle OFF: the edit tool is NOT
-        // mounted, so any "I changed X" would be a false claim the client never
-        // applied. Force the model to say editing is off instead.
-        resolveEditorSurfaceKind(finalState.agentConfig?.identifier, finalState.enabledTools) !=
-          null &&
-        finalState.enabledTools?.['edit_current_doc'] !== true &&
-        finalState.enabledTools?.['edit_current_board'] !== true
-          ? 'HINWEIS: Die KI-Bearbeitung ist ausgeschaltet — du kannst das geöffnete Dokument nur ANSEHEN und Fragen dazu beantworten, aber NICHTS ändern. Wird eine Änderung gewünscht, sag freundlich und knapp, dass die Bearbeitung ausgeschaltet ist (Stift-Symbol im Chat), und behaupte NIEMALS, etwas geändert/eingetragen zu haben.'
-          : '',
-      ]
-        .filter(Boolean)
-        .map((n) => `\n\n${n}`)
-        .join('');
-      // Turn-outcome honesty: with no gathered sources the model must not claim
-      // it researched — the classic follow-up lie ("laut meiner Recherche …"
-      // with zero tool calls). Skip when an artifact WAS produced (those turns
-      // legitimately have their own confirmation notes above).
-      const producedArtifact =
-        finalState.generatedImage != null ||
-        (finalState.sharepicVariants?.length ?? 0) > 0 ||
-        finalState.createdDocument != null ||
-        finalState.createdBoard != null ||
-        finalState.editorEditsSummary != null;
-      // The platform CAN generate sharepics/images (via loop tools) — the synth
-      // model has no tools of its own, so without this it defaults to "I'm just
-      // a text model, I can't make images" and refuses (observed live).
-      //
-      // Attached only when an artifact tool was actually mounted this turn, or
-      // one was produced — not unconditionally. On a pure knowledge turn it was
-      // ~550 characters advertising Sharepics nobody had asked about, and it
-      // worked AGAINST answer rule 1, which then had to forbid the very offers
-      // this note invites. Two rules cancelling each other out.
-      const artifactToolMounted = ARTIFACT_TOOL_NAMES.some((name) => tools[name] != null);
-      const capabilityNote =
-        artifactToolMounted || producedArtifact
-          ? '\n\nWICHTIG: Du bist Teil einer Plattform, die Sharepics, Bilder, Präsentationen, Tabellen, Dokumente und Boards über Tools ERSTELLEN kann. Behaupte NIEMALS, du seist "nur ein Textmodell" oder nutztest "ein textbasiertes Format", und biete NIEMALS ein Text-Konzept/Storyboard als Ersatz für eine echte Präsentation/Tabelle/ein Dokument an. Wurde in diesem Turn ein Artefakt erstellt, kündige es knapp an und fasse die recherchierten Kerninhalte zusammen; wurde eines angefragt aber nicht erstellt, sag knapp, dass die Erstellung nicht geklappt hat.'
-          : '';
+      const {
+        notes: artifacts,
+        capabilityNote,
+        producedArtifact,
+      } = buildArtifactNotes(finalState, {
+        artifactToolMounted: ARTIFACT_TOOL_NAMES.some((name) => tools[name] != null),
+      });
       // Real per-turn MCP outcomes (success/error) so the tool-less synth can
       // report them truthfully instead of guessing — MCP tools don't register
       // sources, so this is the ONLY channel the synth has for connector results.
       const mcpOutcome = buildMcpOutcomeNote(steps);
       const mcpRan = mcpOutcome.length > 0;
+      // Native tool failures — the other half of the same honesty channel.
+      const toolFailures = buildToolFailureNote(steps);
       // The "you researched NOTHING" note is a lie when a connector tool DID run
       // (it just doesn't register sources) — suppress it; mcpOutcome tells the
       // truth about what happened instead.
@@ -861,8 +1041,13 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
       // Same failure the sibling comment in respondNode warns about — "Antworte
       // als zusammenhängende Prosa" and "Strukturiere mit Überschriften" in one
       // prompt. One axis, one instruction, one place.
+      // Split mode's ONLY channel for a self-loaded recipe: this model writes
+      // the answer and has no tools, so it never sees the `rezept_laden`
+      // result. Unified mode gets the same text via `getRecipeBlock` in
+      // prepareStep — mirroring how `carriedNote` is injected for unified
+      // BECAUSE split gets it here.
       return withInstructionHierarchy(
-        `${systemMessage}${mcpNote}${cite}${artifacts}${mcpOutcome}${capabilityNote}${honestyNote}\n\nAntworte auf Deutsch (Du-Form, Genderstern).`
+        `${systemMessage}${mcpNote}${cite}${artifacts}${mcpOutcome}${toolFailures}${capabilityNote}${honestyNote}${recipeRegistry.render()}\n\nAntworte auf Deutsch (Du-Form, Genderstern).`
       );
     };
 
@@ -1026,7 +1211,19 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
         // Third route to the same failure: the LLM classifier said the turn needs
         // research and labelled it `direct` in the same breath. Its own reasoning
         // named the search it then never ran, and the answer was invented whole.
-        finalState.classifierContradictedResearch === true);
+        finalState.classifierContradictedResearch === true ||
+        // Vierter Weg — und der einfachste, der bis zuletzt keinen hatte: der
+        // Klassifikator hat einen Recherche-Intent AUSDRÜCKLICH benannt.
+        //
+        // Die drei Wege oben decken den demotierten Turn und den
+        // Selbstwiderspruch ab; ein sauberes `web`-Verdikt aus der LLM-Stufe
+        // fiel durch alle drei. Live gemessen: „Wie komme ich am Montag früh von
+        // Wien nach Graz?" → Quellen-Auflöser `bahn`, für de-AT nicht verfügbar,
+        // Degradierung auf `web` — und dann `steps=0 sources=0`. Die Antwort kam
+        // vollständig aus dem Modellgedächtnis, inklusive einer erfundenen
+        // Aussage über den Nutzer. Ein Intent, dessen ganzer Zweck das Abrufen
+        // ist, darf nicht nichts abrufen.
+        NAMED_RETRIEVAL_INTENTS.has(finalState.intent ?? ''));
 
     // The synth phase emits nothing between the last tool result and the first
     // answer token. Until this guard existed a lane that stalled there took the
@@ -1066,7 +1263,19 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
         return toolName;
       },
       buildSynthSystem,
-      getSourcesBlock: () => sourceRegistry.renderAll(),
+      // The image note rides on the source block because that is the ONLY thing
+      // the synth phase sees of the gathering — it gets no tool results, so the
+      // note the planner received in its tool result would never reach the model
+      // that actually writes the answer. Appended, never registered: an image has
+      // no text, so it must not become a numbered `[N]`.
+      getSourcesBlock: () => {
+        const sources = sourceRegistry.renderAll();
+        const note = imageDeliveryNote(finalState.webImageResults?.length ?? 0);
+        return note ? `${sources}\n\n${note}` : sources;
+      },
+      // Unified mode only — read per step because `rezept_laden` fills the
+      // registry mid-loop. Split mode's writer gets it via buildSynthSystem.
+      getRecipeBlock: () => recipeRegistry.render(),
       // Prepend the reconstructed tool-call/result history just before the
       // current user message so tool_call↔result pairs stay adjacent + valid.
       messages:
@@ -1174,6 +1383,8 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
   // into the answer — they read as a leak. Checked against everything the model
   // legitimately saw, so real attachment names pass through.
   const sanity = stripFabricatedSystemClaims(text, [
+    // A name the user typed themselves is not one the model invented.
+    finalState.lastUserTextNoMentions ?? '',
     sourceRegistry.renderAll(),
     finalState.attachmentContext ?? '',
     finalState.currentDocument?.title ?? '',
@@ -1183,6 +1394,15 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
       `[Agentic] Removed fabricated internal file claim(s): ${sanity.fabricated.join(', ')}`
     );
     text = sanity.text;
+  }
+
+  // Same guarantee as the single-pass funnel: no typed-out file, no invented
+  // artefact path. The allowlist carries this turn's and the thread's real ids,
+  // so the `/boards/<id>` the board note ASKS the model to print survives.
+  const delivery = stripFabricatedArtifactDelivery(text, knownArtifactRefs(finalState));
+  if (delivery.removed.length > 0) {
+    log.warn(`[Agentic] Removed fabricated artefact delivery: ${delivery.removed.join(', ')}`);
+    text = delivery.text;
   }
 
   if (
@@ -1228,7 +1448,11 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
   // Per-turn tool-outcome breakdown so a silent connector failure is visible in
   // the summary line, not only in the per-tool [Tool] logs above.
   const mcpSteps = steps.filter((s) => s.serverName);
-  const failedSteps = mcpSteps.filter((s) => !readMcpResult(s.result).ok);
+  // ALL steps, not just connectors: this line used to filter on `serverName`
+  // first, so a turn in which `documents` and `scrape_url` both failed logged
+  // `steps=6 sources=26` and nothing else. The one place that could have shown
+  // the failure showed the same as a clean run.
+  const failedSteps = steps.filter((s) => !readMcpResult(s.result).ok);
   const failedTools =
     failedSteps.length > 0
       ? ` failedTools=[${failedSteps

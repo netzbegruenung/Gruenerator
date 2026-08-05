@@ -66,6 +66,18 @@ export interface CreateSearchToolsOptions {
    */
   explicitDeepRequest?: boolean;
   /**
+   * Does this turn get image hits? The CLASSIFIER decides, not the planner —
+   * either because the user asked for pictures in so many words, or because it
+   * judged the subject to be something you can look at (`bilder` in its JSON).
+   *
+   * The model has no argument for this any more. It used to (`bilder: true`), and
+   * that made an explicit image request depend on the planner remembering a flag
+   * one node after the question had already been answered. Briefly it was
+   * unconditional instead, which put stock photos under every question about a
+   * paragraph of law.
+   */
+  wantsImages?: boolean;
+  /**
    * The user's own last message, mention tokens removed. Same role as
    * `explicitDeepRequest`: it is what a narrowing tool argument is checked
    * against. Only `seiten` uses it today — the model invents domains, and an
@@ -89,14 +101,69 @@ export interface CreateSearchToolsOptions {
  * Matched on the bare host or on its registrable label, because people write
  * "auf zeit.de", "bei der Zeit" and "Zeit Online" for the same wish. Label
  * matching is word-bounded so "orf" does not match inside another word.
+ *
+ * Naming an INSTITUTION counts as naming its sites — see `INSTITUTION_HOSTS`.
  */
-function namedByUser(host: string, userText: string): boolean {
+export function namedByUser(host: string, userText: string): boolean {
   const haystack = userText.toLowerCase();
   const needle = host.toLowerCase();
   if (haystack.includes(needle)) return true;
   const label = needle.split('.')[0];
-  if (label == null || label.length < 3) return false;
-  return new RegExp(`\\b${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(haystack);
+  if (label != null && label.length >= 3) {
+    const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (new RegExp(`\\b${escaped}\\b`).test(haystack)) return true;
+  }
+  return institutionNamed(needle, haystack);
+}
+
+/**
+ * Institutions people name instead of hosts, and the hosts that ARE them.
+ *
+ * "Nutze ausschließlich Primärquellen von EU-Kommission, Rat der EU und
+ * Europäischem Parlament" contains no hostname, so the check above dropped
+ * exactly the scope the planner had got right — three times in one live turn on
+ * 02.08.2026 (`site scope dropped (not named by the user): ec.europa.eu,
+ * eur-lex.europa.eu, europa.eu`). The search then ran the open web and the
+ * answer was built from euractiv and a blog, under an instruction that had said
+ * primary sources only. That is the opposite failure to the invented scope this
+ * guard was built for, and it is the worse one: the user's own narrowing was
+ * silently discarded.
+ *
+ * Deliberately not a general "which body owns this domain?" resolver. Every
+ * entry is an institution whose OWN publications are the primary source people
+ * ask for, and the mapping only ever widens what the user demonstrably named —
+ * the planner still cannot invent a scope out of nothing.
+ *
+ * Additive by design: an institution that turns up in a real request gets a
+ * line here. A missing entry costs a dropped scope (today's behaviour), never a
+ * wrong one.
+ */
+const INSTITUTION_HOSTS: ReadonlyArray<{ hosts: readonly string[]; phrases: readonly RegExp[] }> = [
+  {
+    hosts: ['ec.europa.eu', 'europa.eu', 'eur-lex.europa.eu'],
+    phrases: [/\beu[- ]kommission\b/u, /\beurop(?:ä|ae)ische\w*\s+kommission\b/u],
+  },
+  {
+    hosts: ['consilium.europa.eu', 'europa.eu'],
+    phrases: [/\brat der eu\b/u, /\beu[- ]rat\b/u, /\beurop(?:ä|ae)ische\w*\s+rat\b/u],
+  },
+  {
+    hosts: ['europarl.europa.eu', 'europa.eu'],
+    phrases: [/\beu[- ]parlament\b/u, /\beurop(?:ä|ae)ische\w*\s+parlament\b/u],
+  },
+  { hosts: ['eur-lex.europa.eu'], phrases: [/\bamtsblatt der eu\b/u] },
+  // Only where the common German name shares no word with the domain label —
+  // "Bundestag", "Umweltbundesamt" and the like are already matched by the
+  // label rule above, and a second entry for them would be dead code.
+  { hosts: ['destatis.de'], phrases: [/\bstatistische[sn]? bundesamt\b/u] },
+  { hosts: ['parlament.gv.at'], phrases: [/\bnationalrat(?:s|es)?\b/u] },
+];
+
+/** Did the user name an institution that owns this host? */
+function institutionNamed(host: string, haystack: string): boolean {
+  return INSTITUTION_HOSTS.some(
+    (entry) => entry.hosts.includes(host) && entry.phrases.some((p) => p.test(haystack))
+  );
 }
 
 /**
@@ -262,7 +329,7 @@ EINE SUCHE ZUR ZEIT: Starte eine Suche, lies das Ergebnis, und suche erst dann w
 
 SCOPE GEHÖRT IN DIE PARAMETER, NICHT IN DIE ANFRAGE: Nennt der Benutzer Seiten ("such auf zeit.de und orf.at"), setze seiten; nennt er einen Zeitraum ("seit Januar", "letzte Woche"), setze zeitraum. Schreibe beides NICHT in query — dort werden es bloß Suchwörter, und die Suchmaschine filtert nichts.
 
-BILDER: Will der Benutzer Bilder oder Fotos SEHEN ("zeig mir Fotos von der Demo"), setze bilder: true — er bekommt sie als Links. Bild-Treffer sind Recherchematerial zum Anschauen, KEIN verwendbares Bildmaterial: verwende sie nie für Sharepics oder Social-Posts, und behaupte nicht, sie seien frei nutzbar. Will der Benutzer ein NEUES Bild erstellt haben, ist die Websuche das falsche Tool.
+BILDER: Ob eine Suche Bild-Treffer mitliefert, ist vorher entschieden — du hast dafür kein Argument. Kommen welche, sieht der Benutzer sie über deiner Antwort. Es ist Recherchematerial zum Anschauen, KEIN verwendbares Bildmaterial: verwende es nie für Sharepics oder Social-Posts, und behaupte nicht, es sei frei nutzbar. Will der Benutzer ein NEUES Bild erstellt haben, ist die Websuche das falsche Tool.
 
 NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
     inputSchema: z.object({
@@ -309,27 +376,17 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
         .array(z.string())
         .optional()
         .describe('Diese Domains überspringen, z.B. ["reddit.com"]. Reine Hostnamen.'),
-      bilder: z
-        .boolean()
-        .optional()
-        .describe(
-          'Bild-Treffer mitliefern (als Links, keine Vorschaubilder). NUR wenn der Benutzer ausdrücklich Bilder oder Fotos sehen will — nicht bei einer Faktenfrage. Für ein NEUES Bild ist das falsche Tool: dann keine Suche.'
-        ),
+      // No `bilder`: the classifier decides (see `wantsImages` in the options).
+      // As a tool argument it made an explicit image request depend on the
+      // planner remembering a flag — one node after the classifier had already
+      // read the question and answered exactly that.
       // No `maxResults`: the tier owns the source count. Offered to the model it
       // became a second, unlabelled way to under-buy — measured live, a
       // `tiefe: gruendlich` call arrived with `maxResults: 5` and undid the tier.
       // Unknown keys are stripped by the schema, so a replayed stored call that
       // still carries one is simply ignored rather than rejected.
     }),
-    execute: async ({
-      query,
-      searchType,
-      tiefe,
-      zeitraum,
-      seiten,
-      seitenAusschliessen,
-      bilder,
-    }) => {
+    execute: async ({ query, searchType, tiefe, zeitraum, seiten, seitenAusschliessen }) => {
       try {
         // The model's tier is a request in both directions; `resolveSearchTier`
         // clamps it up to the normal case and down to what the user actually
@@ -370,7 +427,10 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
           ...(zeitraum && zeitraum !== 'anytime' ? { timeRange: zeitraum } : {}),
           ...(includeDomains.length > 0 ? { includeDomains } : {}),
           ...(excludeDomains.length > 0 ? { excludeDomains } : {}),
-          ...(bilder === true ? { includeImages: true } : {}),
+          // The classifier's verdict, passed through — see `wantsImages`. The
+          // `maxResults` headroom keeps the images from eating the text hits, and
+          // the client shows three of them, so the proxy serves three files.
+          ...(options.wantsImages === true ? { includeImages: true } : {}),
         });
       } catch (error) {
         log.error('Direct web search error:', error);

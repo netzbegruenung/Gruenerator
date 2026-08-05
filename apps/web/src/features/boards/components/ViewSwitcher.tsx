@@ -48,46 +48,53 @@ export const ViewSwitcher = memo(function ViewSwitcher({
   const handleAdd = useCallback((layout: ViewLayout) => onAddView(layout), [onAddView]);
 
   return (
-    <div className="flex items-center gap-1 px-md sm:px-lg pt-xs">
+    <div className="flex items-center gap-1 px-md sm:px-lg pt-xs overflow-x-auto scrollbar-none">
       {views.map((view) => {
         const Icon = VIEW_ICONS[view.layout] ?? FiGrid;
         const isActive = view.id === activeViewId;
         return (
-          <button
+          <div
             key={view.id}
-            onClick={() => onViewChange(view.id)}
             className={cn(
-              'group flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all border-none cursor-pointer',
+              'group flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all shrink-0',
               isActive
                 ? 'bg-background-pure text-foreground shadow-sm dark:bg-[#282828]'
                 : 'bg-transparent text-grey-500 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800'
             )}
           >
-            <Icon size={13} />
-            {view.name}
+            <button
+              type="button"
+              onClick={() => onViewChange(view.id)}
+              aria-pressed={isActive}
+              className="flex items-center gap-1.5 border-none bg-transparent p-0 cursor-pointer text-inherit whitespace-nowrap"
+            >
+              <Icon size={13} />
+              {view.name}
+            </button>
             {canDelete && (
-              <span
-                role="button"
+              <button
+                type="button"
                 tabIndex={-1}
                 onClick={(e) => {
                   e.stopPropagation();
                   onDeleteView(view.id);
                 }}
+                aria-label={`Ansicht "${view.name}" löschen`}
                 // Touch has no hover: without the max-sm escape this was the only
                 // way to delete a view and it was unreachable on a phone.
-                className="ml-0.5 -mr-1 hidden max-sm:inline-flex group-hover:inline-flex items-center justify-center w-4 h-4 max-sm:w-7 max-sm:h-7 rounded hover:bg-grey-200 dark:hover:bg-grey-700 text-grey-400 hover:text-foreground transition-colors"
+                className="ml-0.5 -mr-1 hidden max-sm:inline-flex group-hover:inline-flex items-center justify-center w-4 h-4 max-sm:w-7 max-sm:h-7 rounded hover:bg-grey-200 dark:hover:bg-grey-700 text-grey-400 hover:text-foreground transition-colors border-none bg-transparent p-0 cursor-pointer"
               >
                 <FiX size={10} />
-              </span>
+              </button>
             )}
-          </button>
+          </div>
         );
       })}
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
-            className="flex items-center justify-center w-7 h-7 rounded-md bg-transparent text-grey-400 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800 border-none cursor-pointer transition-colors"
+            className="flex items-center justify-center w-7 h-7 rounded-md bg-transparent text-grey-400 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800 border-none cursor-pointer transition-colors shrink-0"
             title="Ansicht hinzufügen"
           >
             <FiPlus size={14} />

@@ -40,7 +40,8 @@ const defaultDeps: ExecuteDeps = { generateText };
 interface Sampling {
   temperature: number;
   topP: number;
-  maxOutputTokens: number;
+  /** `null` = no `max_tokens` on the wire; the model's own ceiling applies. */
+  maxOutputTokens: number | null;
 }
 
 /**
@@ -110,6 +111,7 @@ const CONFIG_HINT: Record<ProviderName, string> = {
   litellm: 'LITELLM_API_KEY',
   regolo: 'REGOLO_API_KEY',
   greenpt: 'GREENPT_API_KEY',
+  scaleway: 'SCALEWAY_API_KEY',
 };
 
 export async function execute(
@@ -155,7 +157,10 @@ export async function execute(
       messages: modelMessages,
       temperature: sampling.temperature,
       topP: sampling.topP,
-      maxOutputTokens: sampling.maxOutputTokens,
+      // Omitted entirely when the type is uncapped — passing `undefined` and
+      // passing nothing are the same to the SDK, but the spread makes it read
+      // as a decision rather than a missing value.
+      ...(sampling.maxOutputTokens != null && { maxOutputTokens: sampling.maxOutputTokens }),
       maxRetries: 2,
       ...(tools != null && { tools }),
       ...(toolChoice != null && { toolChoice }),

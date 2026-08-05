@@ -3,7 +3,7 @@
  * Handles routing between Mistral, LiteLLM, and other providers
  */
 
-import { INTERMEDIATE_MODEL } from '../ai/providers.js';
+import { intermediateLane } from '../ai/intermediateLanes.js';
 
 import type {
   ProviderName,
@@ -12,6 +12,9 @@ import type {
   RequestMetadata,
   ProviderResult,
 } from './types.js';
+
+/** @see services/ai/intermediateLanes.ts */
+const LANE = intermediateLane('standard');
 
 /**
  * Check if a model name is compatible with LiteLLM
@@ -106,8 +109,8 @@ interface SelectProviderParams {
  * Ein Aufrufer darf weiterhin sein eigenes Modell benennen (`options.model`).
  */
 const STRUCTURE_TYPES: ReadonlySet<string> = new Set([
-  // Artefakte über erzwungene Tool-Calls
-  'doc_generation', // PDF, Präsentation, Sheet, Dokument, Aufgabenlisten
+  // Artefakte über erzwungene Tool-Calls. `doc_generation` ist HIER NICHT MEHR
+  // drin — siehe ARTIFACT_MODEL.
   'board_generation',
   'canvas_ai_suggest', // Canvas-Vorschläge + Sharepic-/Social-Edits
   'website', // Kandidat*innen-Seiten: langes strukturiertes JSON
@@ -156,11 +159,47 @@ const STRUCTURE_MODEL = 'mistral-medium-2604';
 /**
  * Gemma 4 lives on Regolo. Naming it explicitly is not optional: the Regolo
  * DEFAULT is `qwen3.5-122b`, and qwen is excluded by policy (AVOID_AS_SYNTH).
- * `gemma-litellm` is NOT the same thing — it resolves to `verdigado-think`, a
- * slow reasoning lane the chat path rewrites away for exactly this reason.
+ *
+ * The chat lane now agrees. `gemma-litellm` used to resolve to the slow
+ * `verdigado-think` host, which is why this constant had to spell out the
+ * Regolo pair; it points at these same weights on Regolo now (see
+ * GEMMA_4_REGOLO in routes/chat/agents/providers.ts). The two paths no longer
+ * disagree about where Gemma 4 runs.
  */
 const TEXT_PROVIDER = 'regolo';
 const TEXT_MODEL = 'gemma4-31b';
+
+/**
+ * PDF, Präsentation, Sheet und Dokument — Gemma 4 auf GreenPT statt Mistral
+ * Medium 3.5.
+ *
+ * Der Kommentar über STRUCTURE_TYPES begründet den Mistral-Pin damit, dass nur
+ * Mistral den erzwungenen Tool-Call bedient. Für DIESE Lane stimmt das nicht:
+ * gemessen am 03.08.2026 gegen die echten Prompts, Schemata und Validatoren
+ * (langes PDF, 14-Folien-Deck) rief Mistral das Tool in keinem einzigen Lauf
+ * auf. Es schrieb das JSON als Prosa und lief in `finish_reason=length` —
+ * gerettet hat es nur der Text-Fallback in generateStructured, und der nur in
+ * 2 von 4 Läufen. Mit größerem Budget wird es schlechter statt besser: bei
+ * 12.000 Tokens 187 s, bei 16.000 Tokens 248 s, beide Male in Wiederholung
+ * degeneriert (Tool-Name ```jsonljsonljsonljsonl). Auf der Mistral-API wie auf
+ * Scaleway gleich.
+ *
+ * gemma4 auf GreenPT ruft `create_pdf_document` / `create_presentation` sauber
+ * auf und terminiert: 10 von 10 gültig, 17–43 s statt 63 s pro Versuch.
+ *
+ * NICHT verallgemeinert. Die anderen STRUCTURE_TYPES sind ungemessen, und die
+ * Sharepics sitzen aus einem eigenen gemessenen Grund auf Mistral. Die
+ * Schwester-Lanes bei Regolo (`gemma4-31b`) und LiteLLM (`verdigado-think`)
+ * liefern zwar gültiges JSON, aber nur über den Text-Fallback und mit 105–168 s
+ * bei LiteLLM.
+ *
+ * Voraussetzung ist das größere Output-Budget in services/ai/config.ts: bei
+ * 4096 Tokens verliert ein abgeschnittener Tool-Call ALLES (`content` bleibt
+ * leer, der Text-Fallback hat nichts zu greifen), während Mistrals Prosa noch
+ * halb rettbar war. Budget und Modell gehören hier zusammen.
+ */
+const ARTIFACT_PROVIDER = 'greenpt';
+const ARTIFACT_MODEL = 'gemma4';
 
 /**
  * Select provider and model given request context and environment
@@ -172,9 +211,12 @@ export function selectProviderAndModel({
   metadata = {},
   env = process.env,
 }: SelectProviderParams): ProviderResult {
-  // Base defaults — GPT-OSS 120B via LiteLLM as primary model
-  let provider: ProviderName = (options.provider as ProviderName) || 'litellm';
-  let model: ModelName = options.model || 'verdigado-pro';
+  // Base defaults — Mistral Medium 3.5 since the 2026-07-31 GPT-OSS wind-down.
+  // Must stay in step with the `default` lane in services/ai/lanes.ts: the
+  // parity test in lanes.vitest.ts asserts both tables answer an unrouted type
+  // identically, and this is the half that used to say GPT-OSS.
+  let provider: ProviderName = (options.provider as ProviderName) || 'mistral';
+  let model: ModelName = options.model || STRUCTURE_MODEL;
 
   // Type-based defaults
   // Notebook enrichment - fast model
@@ -206,7 +248,12 @@ export function selectProviderAndModel({
   // Mistral-API einen verdigado-Alias, kassierte einen Fehler und wurde von
   // der Fallback-Kette gerettet — ein garantiert scheiternder Roundtrip pro
   // Request, unsichtbar hinter dem Fallback.
-  else if (STRUCTURE_TYPES.has(type)) {
+  // Artefakte (PDF, Präsentation, Sheet, Dokument) — Gemma 4 auf GreenPT.
+  // Siehe ARTIFACT_MODEL.
+  else if (type === 'doc_generation') {
+    provider = ARTIFACT_PROVIDER;
+    model = options.model || ARTIFACT_MODEL;
+  } else if (STRUCTURE_TYPES.has(type)) {
     provider = 'mistral';
     model = options.model || STRUCTURE_MODEL;
   }
@@ -223,8 +270,8 @@ export function selectProviderAndModel({
     type === 'gruenerator_ask' ||
     type === 'gruenerator_ask_grundsatz'
   ) {
-    provider = INTERMEDIATE_MODEL.provider;
-    model = options.model || INTERMEDIATE_MODEL.model;
+    provider = LANE.provider;
+    model = options.model || LANE.model;
   }
 
   // Respect explicit provider at top-level if present (routes may set data.provider)

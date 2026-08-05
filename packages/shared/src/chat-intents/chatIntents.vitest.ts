@@ -72,7 +72,6 @@ const TOOL_MENTIONS_ADDED: Array<[string, string, string | undefined]> = [
   ['beispiele', 'examples', undefined],
   ['pressemitteilungen', 'pressemitteilung_examples', undefined],
   ['verlauf', 'chat_history', undefined],
-  ['wetter', 'wetter', undefined],
   ['social', 'social_post', undefined],
   ['diagramm', 'chart', undefined],
   ['rechnen', 'compute', undefined],
@@ -150,7 +149,6 @@ describe('locale rules', () => {
     expect(isIntentAllowedForLocale('bundestag', 'de-DE')).toBe(true);
     expect(isIntentAllowedForLocale('umfragen', 'de-AT')).toBe(true);
     expect(isIntentAllowedForLocale('hilfe', 'de-AT')).toBe(true);
-    expect(isIntentAllowedForLocale('wetter', 'de-AT')).toBe(true);
   });
 
   it('treats a missing locale as de-DE, like the backend default', () => {
@@ -173,8 +171,28 @@ describe('locale rules', () => {
   it('every non-all intent declares both a degrade target and a decline note', () => {
     for (const intent of ALL_CHAT_INTENTS) {
       if (intent.audience === 'all') continue;
+      // A retired intent is never produced, so there is no verdict to degrade
+      // and nobody to decline to. Demanding a fallback for one would mean
+      // writing user-facing copy for a path that cannot be reached — the kind of
+      // dead reassurance that later reads as a live promise. The audience field
+      // stays because it still describes the CONNECTOR's data coverage, which
+      // `getManagedConnectors(locale)` reads.
+      if (intent.availability === 'retired') continue;
       expect(intent.degradeTo, `${intent.id} has no degradeTo`).toBeDefined();
       expect(intent.declineNote, `${intent.id} has no declineNote`).toBeTruthy();
+    }
+  });
+
+  it('no retired intent still offers a mention', () => {
+    // The picker filters on this too, but the registry is where the mistake
+    // would be made: leaving a `mention` on a retired entry puts a token on the
+    // wire that the router no longer resolves.
+    for (const intent of ALL_CHAT_INTENTS) {
+      if (intent.availability !== 'retired') continue;
+      // `ChatIntentDefinition` declares `mention` only on the variant that has
+      // one, so the narrowing has to happen here — same `'mention' in i` idiom
+      // as `allIntentMentions()`.
+      expect('mention' in intent, `${intent.id} is retired but still has a mention`).toBe(false);
     }
   });
 });

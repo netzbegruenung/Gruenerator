@@ -140,6 +140,8 @@ export default function FullscreenImageStudioEditor() {
         style={[styles.closeButton, { top: insets.top + 8 }]}
         onPress={handleClose}
         hitSlop={12}
+        accessibilityRole="button"
+        accessibilityLabel="Bildbearbeitung schließen"
       >
         <Ionicons name="close" size={28} color={colors.white} />
       </Pressable>

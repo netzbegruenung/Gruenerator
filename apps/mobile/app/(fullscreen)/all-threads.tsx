@@ -67,6 +67,9 @@ export default function AllThreadsScreen() {
         }
         onLongPress={() => handleDelete(item.id, item.title || 'Neue Unterhaltung')}
         activeOpacity={0.6}
+        accessibilityRole="button"
+        accessibilityLabel={item.title || 'Neue Unterhaltung'}
+        accessibilityHint="Lange drücken zum Löschen"
       >
         <View
           style={[
@@ -97,7 +100,12 @@ export default function AllThreadsScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Zurück"
+        >
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]}>Unterhaltungen</Text>
@@ -106,6 +114,8 @@ export default function AllThreadsScreen() {
             router.push(routeWithParams('/(focused)/chat-conversation', { threadId: 'new' }))
           }
           hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Neue Unterhaltung starten"
         >
           <Ionicons name="add" size={24} color={colors.primary[600]} />
         </TouchableOpacity>

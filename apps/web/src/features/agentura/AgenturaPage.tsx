@@ -1,7 +1,13 @@
-import { agentsList, useSkillFavoritesStore, type AgentListItem } from '@gruenerator/chat';
+import {
+  agentsList,
+  useHiddenSkillMentions,
+  useSkillFavoritesStore,
+  type AgentListItem,
+} from '@gruenerator/chat';
 import {
   getAgentSlug,
   getVisibleSystemAgentsForLocale,
+  isAdminVisibleSkill,
   type Agent,
 } from '@gruenerator/shared/agents';
 import { sortByUsage, type UsageMap } from '@gruenerator/shared/utils';
@@ -192,15 +198,18 @@ function AgenturaPage() {
     return [...byIdentifier.values()];
   }, [sharedSystemAgents, sharedUserAgents]);
 
-  // All skills available to this locale (unfiltered by search).
+  const hiddenSkillMentions = useHiddenSkillMentions();
+
+  // All skills available to this locale (unfiltered by search), minus any an
+  // admin hid from discovery on this deployment.
   const allSkills = useMemo(
     () =>
       agentsList.filter(
         (s) =>
-          Boolean(s.skillSystemPrompt) &&
-          (s.audience === undefined || s.audience === 'all' || s.audience === userLocale)
+          (s.audience === undefined || s.audience === 'all' || s.audience === userLocale) &&
+          isAdminVisibleSkill(s.mention, hiddenSkillMentions)
       ),
-    [userLocale]
+    [userLocale, hiddenSkillMentions]
   );
 
   // Public community agents ("Von der Basis"): owners still see their own listing,
@@ -555,8 +564,8 @@ function AgenturaPage() {
           />
         </div>
         <Select value={sort} onValueChange={(v) => updateParam('sort', v, 'empfohlen')}>
-          <SelectTrigger className="h-11 w-auto gap-xs sm:min-w-[10rem]">
-            <PiArrowsDownUp className="h-4 w-4 text-foreground-muted" />
+          <SelectTrigger aria-label="Sortierung" className="h-11 w-auto gap-xs sm:min-w-[10rem]">
+            <PiArrowsDownUp aria-hidden="true" className="h-4 w-4 text-foreground-muted" />
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

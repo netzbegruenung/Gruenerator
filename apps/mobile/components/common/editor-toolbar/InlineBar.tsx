@@ -11,7 +11,7 @@ import { type ReactNode } from 'react';
 import { View, Pressable, StyleSheet, useColorScheme, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { spacing, lightTheme, darkTheme, moderateScale, verticalScale } from '../../../theme';
+import { spacing, lightTheme, darkTheme, uiScale } from '../../../theme';
 
 export interface InlineBarProps {
   children: ReactNode;
@@ -39,8 +39,10 @@ export function InlineBar({ children, onClose }: InlineBarProps) {
           onPress={onClose}
           hitSlop={12}
           style={[styles.closeButton, { backgroundColor: theme.background }]}
+          accessibilityRole="button"
+          accessibilityLabel="Bearbeitung schließen"
         >
-          <Ionicons name="chevron-back" size={moderateScale(26)} color={theme.text} />
+          <Ionicons name="chevron-back" size={uiScale(26)} color={theme.text} />
         </Pressable>
 
         <ScrollView
@@ -63,24 +65,24 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     borderTopWidth: 1,
-    paddingTop: verticalScale(28),
+    paddingTop: uiScale(28),
   },
   header: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     paddingHorizontal: spacing.medium,
-    gap: moderateScale(12),
+    gap: uiScale(12),
   },
   closeButton: {
-    width: moderateScale(48),
-    height: moderateScale(48),
-    borderRadius: moderateScale(24),
+    width: uiScale(48),
+    height: uiScale(48),
+    borderRadius: uiScale(24),
     alignItems: 'center',
     justifyContent: 'center',
   },
   controlContainer: {
     flexGrow: 1,
     paddingRight: spacing.medium,
-    paddingBottom: verticalScale(24),
+    paddingBottom: uiScale(24),
   },
 });

@@ -75,8 +75,8 @@ export interface SearchDepthDef {
  * component so web and mobile cannot answer it differently — mobile showed the
  * section unconditionally for exactly as long as the rule was web-local.
  *
- * Notebook depth ("Tiefenrecherche", fast/deep) is a *different* control on a
- * different endpoint; it belongs to the notebook page, not to this one.
+ * Notebook depth is a *different* control on a different endpoint; it belongs to
+ * the notebook page, not to this one (see `NOTEBOOK_DEPTHS` below).
  */
 export function showsSearchDepth(agentId: string | null | undefined): boolean {
   return (agentId ? getSystemAgent(agentId)?.routeTo : null) === 'search';
@@ -97,3 +97,8 @@ export const SEARCH_DEPTHS: SearchDepthDef[] = [
     icon: 'deep',
   },
 ];
+
+// Notebook retrieval depth (Klein/Mittel/Ultra) follows the same
+// one-registry-for-both-platforms rule, but lives in `./notebookDepth` — it is a
+// notebook-page control, and its default is read by `chatStore`, which this
+// module already reads back.

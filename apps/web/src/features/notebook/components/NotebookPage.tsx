@@ -1,4 +1,4 @@
-import { ThreadPrimitive } from '@assistant-ui/react';
+import { ThreadPrimitive, AuiIf } from '@assistant-ui/react';
 import {
   AssistantMessage,
   CitationPanelProvider,
@@ -7,6 +7,7 @@ import {
   NotebookChatProvider,
   NotebookComposer,
   UserMessage,
+  notebookDepthDef,
   notebookMentionables,
   useAgentStore,
   type CategoryFilterConfig,
@@ -158,7 +159,12 @@ export const NotebookPageContent = ({
     useNotebookStore();
   const filterValuesCache = useNotebookStore((s) => s.filterValuesCache);
   const activeFiltersStore = useNotebookStore((s) => s.activeFilters);
-  const [mode, setMode] = useState<'fast' | 'deep'>('fast');
+  // Persisted, unlike the source/category filters below: how much work an answer
+  // is worth is a preference, and it used to reset to the narrowest tier on every
+  // mount — including a plain page reload mid-conversation.
+  const storedDepth = useAgentStore((s) => s.notebookDepth);
+  const setMode = useAgentStore((s) => s.setNotebookDepth);
+  const mode = notebookDepthDef(storedDepth).depth;
   const [searchParams, setSearchParams] = useSearchParams();
   const [threadId, setThreadId] = useState<string | null>(threadIdProp ?? null);
   const handleThreadCreated = useCallback((newThreadId: string) => {
@@ -354,7 +360,7 @@ export const NotebookPageContent = ({
       <CitationPanelProvider>
         <ExtraActionsProvider factory={extraActionsFactory}>
           <ThreadPrimitive.Root className="flex h-full min-h-0 flex-col">
-            <ThreadPrimitive.Empty>
+            <AuiIf condition={(s) => s.thread.isEmpty}>
               <div className="flex flex-1 flex-col overflow-y-auto">
                 <NotebookStartpage
                   title={config.startPageTitle}
@@ -378,8 +384,8 @@ export const NotebookPageContent = ({
                   footer={startpageFooter}
                 />
               </div>
-            </ThreadPrimitive.Empty>
-            <ThreadPrimitive.If empty={false}>
+            </AuiIf>
+            <AuiIf condition={(s) => !s.thread.isEmpty}>
               <div className="flex min-h-0 h-full flex-col">
                 <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto px-4">
                   <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 py-4">
@@ -399,7 +405,7 @@ export const NotebookPageContent = ({
                   onModeChange={setMode}
                 />
               </div>
-            </ThreadPrimitive.If>
+            </AuiIf>
           </ThreadPrimitive.Root>
         </ExtraActionsProvider>
         <CitationSidePanel />

@@ -118,7 +118,7 @@ export async function generateThreadTags(
 
   try {
     const result = await generateText({
-      model: getIntermediateModel(),
+      model: getIntermediateModel('trivial'),
       system: TAG_PROMPT,
       prompt: `Nutzerfrage: ${userSnippet}\nAntwort: ${assistantSnippet}`,
       maxOutputTokens: 40,

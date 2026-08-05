@@ -12,4 +12,6 @@ export interface UserRole {
   abgeordnete?: string;
   instructions?: string;
   systemPrompt?: string;
+  /** Fassung des Meta-Prompts, aus dem `systemPrompt` stammt (siehe `ROLE_PROMPT_VERSION`). */
+  promptVersion?: number;
 }

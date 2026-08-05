@@ -27,7 +27,7 @@
     --secondary-300: #A0BBB0;
     --secondary-400: #85A899;
     --secondary-500: #6A9583;
-    --secondary-600: #5F8575;
+    --secondary-600: #587C6D;
     --secondary-700: #445F54;
     --secondary-800: #31453C;
     --secondary-900: #1E2A25;
@@ -45,6 +45,20 @@
     --grey-800: #464646;
     --grey-900: #3d3d3d;
     --grey-950: #262626;
+
+    /* Dark-mode elevation scale — mirrors apps/web's variables.css.
+       0 chrome · 1 page background · 2 raised inline surface · 3 floating surface. */
+    --dark-elevation-0: #171717;
+    --dark-elevation-1: #1a1a1a;
+    --dark-elevation-2: #242424;
+    --dark-elevation-3: #2a2a2a;
+    --dark-hover-overlay: rgba(255, 255, 255, 0.06);
+
+    /* Lesegrau für Text — themeabhängig, weil ein fester Grauwert WCAG 1.4.3
+       (4,5:1) nicht in beiden Modi erfüllen kann. Dark-Werte im
+       [data-theme="dark"]-Block, Werte identisch mit apps/web. */
+    --grey-text-val: #6d6d6d;
+    --grey-text-weak-val: #767676;
 
     /* Neutral Color System ("Sand") */
     --neutral-500: #f8f4ec;
@@ -141,16 +155,18 @@
     --editor-border-soft: #E4E2DA;
     --editor-border-strong: #DBD9D0;
     --editor-text-secondary: #4B4A45;
-    --editor-text-muted: #84827A;
+    /* Warmgrau, um 5 % abgedunkelt (war #84827A): 3,85 -> 4,55:1 auf weißer
+       Editor-Fläche. Gleicher Wert wie in apps/web. */
+    --editor-text-muted: #78766E;
     --editor-placeholder: #9A988F;
 }
 
 [data-theme="dark"] {
-    --background-color: var(--grey-950);
-    --background-color-pure: var(--grey-900);
-    --background-color-alt: var(--grey-800);
-    --background-color-sand: var(--grey-950);
-    --hover-color-alt: var(--grey-700);
+    --background-color: var(--dark-elevation-1);
+    --background-color-pure: var(--dark-elevation-3);
+    --background-color-alt: var(--dark-elevation-2);
+    --background-color-sand: var(--dark-elevation-1);
+    --hover-color-alt: var(--dark-hover-overlay);
     --font-color: var(--neutral-600);
     --font-color-h: var(--neutral-600);
     --link-color: var(--neutral-600);
@@ -165,6 +181,8 @@
     --border-subtle: 1px solid rgba(255, 255, 255, 0.1);
 
     --interactive-accent-color: var(--white);
+    --grey-text-val: #909090;
+    --grey-text-weak-val: #a3a3a3;
     --font-color-disabled: var(--grey-500);
     --border-color-disabled: var(--grey-600);
     --input-background: var(--background-color-alt);

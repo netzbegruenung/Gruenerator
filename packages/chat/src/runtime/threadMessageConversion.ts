@@ -13,8 +13,10 @@ import {
   type ComputeData,
   type GeneratedImage,
   type Citation,
+  type SearchImage,
   type SearchResult,
 } from '../hooks/useChatGraphStream';
+import { isPastedTextAttachment, PASTED_TEXT_PREVIEW_PART_NAME } from '../lib/pastedText';
 import { INTENT_TO_TOOL } from '../lib/toolMappings';
 import { type DocumentCreatedData } from '../types/messageMetadata';
 
@@ -38,12 +40,22 @@ export interface LoadedMessage {
   id: string;
   role: string;
   content: string;
+  attachments?: Array<{
+    id: string;
+    name: string;
+    contentType: string;
+    preview: string;
+    truncated: boolean;
+  }>;
   metadata?: {
     intent?: string;
     searchCount?: number;
     traceId?: string;
     citations?: Citation[];
     searchResults?: SearchResult[];
+    /** Web-search image hits. The proxy handle on each is minted at LOAD time by
+     *  the backend, not stored — see `messagesController`. */
+    searchImages?: SearchImage[];
     generatedImage?: GeneratedImage;
     createdDocument?: DocumentCreatedData;
     computeData?: ComputeData;
@@ -120,6 +132,7 @@ function extractContent(content: unknown): string {
  */
 export const PASSTHROUGH_METADATA_FIELDS = [
   'citations',
+  'searchImages',
   'generatedImage',
   'createdDocument',
   'computeData',
@@ -323,11 +336,30 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
       }
 
       const custom = buildCustomMetadata(m.metadata);
+      const attachments = (m.attachments ?? [])
+        .filter((attachment) => isPastedTextAttachment(attachment.name, attachment.contentType))
+        .map((attachment) => ({
+          id: attachment.id,
+          type: 'document' as const,
+          name: attachment.name,
+          contentType: attachment.contentType,
+          // This is display-only history data. The model adapter ignores data
+          // parts, while the backend re-injects persisted attachments itself.
+          content: [
+            {
+              type: 'data' as const,
+              name: PASTED_TEXT_PREVIEW_PART_NAME,
+              data: { text: attachment.preview, truncated: attachment.truncated },
+            },
+          ],
+          status: { type: 'complete' as const },
+        }));
 
       return {
         role: m.role as 'user' | 'assistant',
         content: contentParts,
         id: m.id,
+        ...(attachments.length > 0 ? { attachments } : {}),
         metadata: Object.keys(custom).length > 0 ? { custom } : undefined,
       };
     });

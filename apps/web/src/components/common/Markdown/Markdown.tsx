@@ -63,6 +63,10 @@ export const MARKDOWN_COMPONENTS: Partial<Components> = {
   a: (props): JSX.Element => {
     const { node, ...rest } = props as AnchorHTMLAttributes<HTMLAnchorElement> & { node?: unknown };
     return (
+      // Renderer-Override für react-markdown: der Linktext steckt in
+      // `rest.children` und kommt aus dem Markdown — die Regel kann durch den
+      // Spread nicht hineinsehen.
+      // eslint-disable-next-line jsx-a11y/anchor-has-content
       <a
         {...rest}
         target="_blank"

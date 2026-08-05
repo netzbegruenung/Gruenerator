@@ -121,7 +121,12 @@ export function NotebookCreator({ visible, onClose, createCollection }: Props) {
     <BottomSheet visible={visible} onClose={handleClose} keyboardAvoiding maxHeight="80%">
       <View style={styles.header}>
         {step === 'metadata' ? (
-          <Pressable onPress={() => setStep('upload')} hitSlop={8}>
+          <Pressable
+            onPress={() => setStep('upload')}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Zurück"
+          >
             <Ionicons name="arrow-back" size={22} color={theme.text} />
           </Pressable>
         ) : (
@@ -130,7 +135,12 @@ export function NotebookCreator({ visible, onClose, createCollection }: Props) {
         <Text style={[styles.title, { color: theme.text }]}>
           {step === 'upload' ? 'Dokument hochladen' : 'Notebook erstellen'}
         </Text>
-        <Pressable onPress={handleClose} hitSlop={8}>
+        <Pressable
+          onPress={handleClose}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Dialog schließen"
+        >
           <Ionicons name="close" size={22} color={theme.textSecondary} />
         </Pressable>
       </View>
@@ -142,6 +152,7 @@ export function NotebookCreator({ visible, onClose, createCollection }: Props) {
               <Pressable
                 onPress={handlePickFile}
                 style={[styles.pickArea, { borderColor: theme.cardBorder }]}
+                accessibilityRole="button"
               >
                 <Ionicons name="cloud-upload-outline" size={40} color={colors.primary[600]} />
                 <Text style={[styles.pickText, { color: theme.text }]}>Datei auswählen</Text>
@@ -170,7 +181,12 @@ export function NotebookCreator({ visible, onClose, createCollection }: Props) {
                   ) : null}
                 </View>
                 {!uploading && (
-                  <Pressable onPress={handleRemoveFile} hitSlop={8}>
+                  <Pressable
+                    onPress={handleRemoveFile}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Datei entfernen"
+                  >
                     <Ionicons name="close-circle" size={22} color={theme.textSecondary} />
                   </Pressable>
                 )}
@@ -187,6 +203,8 @@ export function NotebookCreator({ visible, onClose, createCollection }: Props) {
                   opacity: uploadedDoc ? 1 : 0.5,
                 },
               ]}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !uploadedDoc }}
             >
               <Text
                 style={[
@@ -214,6 +232,7 @@ export function NotebookCreator({ visible, onClose, createCollection }: Props) {
               onChangeText={setName}
               placeholder="Name des Notebooks"
               placeholderTextColor={theme.textSecondary}
+              accessibilityLabel="Name des Notebooks"
               autoFocus
             />
 
@@ -234,6 +253,7 @@ export function NotebookCreator({ visible, onClose, createCollection }: Props) {
               onChangeText={setDescription}
               placeholder="Optionale Beschreibung"
               placeholderTextColor={theme.textSecondary}
+              accessibilityLabel="Beschreibung des Notebooks"
               multiline
               numberOfLines={3}
             />
@@ -249,6 +269,9 @@ export function NotebookCreator({ visible, onClose, createCollection }: Props) {
                   marginTop: spacing.medium,
                 },
               ]}
+              accessibilityRole="button"
+              accessibilityLabel={creating ? 'Wird erstellt' : 'Erstellen'}
+              accessibilityState={{ disabled: !canCreate, busy: creating }}
             >
               {creating ? (
                 <ActivityIndicator size="small" color={colors.white} />

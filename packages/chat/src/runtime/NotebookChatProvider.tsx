@@ -3,10 +3,10 @@
 import {
   AuiProvider,
   AssistantRuntimeProvider,
-  useAui,
   useLocalRuntime,
   type ThreadMessageLike,
 } from '@assistant-ui/react';
+import { type NotebookDepth } from '@gruenerator/contracts';
 import { VoxtralDictationAdapter } from '@gruenerator/voice';
 import { type ReactNode, useMemo, useCallback, useRef } from 'react';
 
@@ -48,7 +48,7 @@ export interface NotebookChatProviderProps {
   initialMessages?: readonly ThreadMessageLike[];
   onComplete?: (metadata: NotebookMessageMetadata) => void;
   onThreadCreated?: (threadId: string) => void;
-  mode?: 'fast' | 'deep';
+  mode?: NotebookDepth;
   endpoint?: string;
   documentIds?: string[];
   threadId?: string | null;
@@ -64,8 +64,7 @@ export interface NotebookChatProviderProps {
  * nesting mode (which leaves thread list methods unimplemented).
  */
 function NotebookAuiReset({ children }: { children: ReactNode }) {
-  const freshAui = useAui({}, { parent: null });
-  return <AuiProvider value={freshAui}>{children}</AuiProvider>;
+  return <AuiProvider value={null}>{children}</AuiProvider>;
 }
 
 function NotebookChatProviderInner({

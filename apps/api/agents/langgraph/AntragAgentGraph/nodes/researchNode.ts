@@ -145,7 +145,7 @@ Halte die Zusammenfassung sachlich und faktenorientiert (max. 400 Wörter). Kein
 
   try {
     const result = await generateText({
-      model: getIntermediateModel(),
+      model: getIntermediateModel('heavy'),
       prompt,
       maxOutputTokens: 800,
       temperature: 0.2,

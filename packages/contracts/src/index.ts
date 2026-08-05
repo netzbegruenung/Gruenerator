@@ -25,6 +25,7 @@ export {
   contentContract,
   itemUsageContract,
   userUsageContract,
+  transparencyContract,
   searchContract,
   globalSearchContract,
   researchContract,
@@ -73,6 +74,8 @@ export {
   userAgentsContract,
   userAgentsSharingContract,
   userTextFormsContract,
+  skillPromptContract,
+  skillVisibilityContract,
   recurringTasksContract,
   canvasAiContract,
   canvasContract,
@@ -93,6 +96,7 @@ export * from './schemas/recentActivity.js';
 export * from './schemas/content.js';
 export * from './schemas/itemUsage.js';
 export * from './schemas/userUsage.js';
+export * from './schemas/transparency.js';
 export * from './schemas/search.js';
 export * from './schemas/globalSearch.js';
 export * from './schemas/research.js';
@@ -116,6 +120,7 @@ export * from './schemas/boardCardDocuments.js';
 export * from './schemas/shares.js';
 export * from './schemas/userProfile.js';
 export * from './schemas/notebook.js';
+export * from './schemas/notebookDepth.js';
 export * from './schemas/notebookCollections.js';
 export * from './schemas/wolkePending.js';
 export * from './schemas/notebookWordpress.js';

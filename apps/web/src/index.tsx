@@ -4,15 +4,26 @@ import { createRoot } from 'react-dom/client';
 
 import './assets/styles/index.css';
 import App from './App';
+import { trackFocusModality } from './components/utils/focusModality';
 import { registerServiceWorker } from './utils/registerServiceWorker';
+
+// Before React renders: the composer autofocuses itself, so the attribute has
+// to be on <html> ahead of the first paint.
+trackFocusModality();
 
 // Stale deploy: cached HTML/chunks reference hashed assets that no longer exist.
 // Reload once per URL to pick up the new build; a second failure surfaces normally.
-window.addEventListener('vite:preloadError', (event) => {
+// Deliberately do NOT call event.preventDefault(): Vite's __vitePreload helper
+// resolves the underlying import() with `undefined` (instead of rethrowing) when
+// the default is prevented, which React.lazy then renders as `payload._result.default`
+// on `undefined` — "can't access property 'default', e._result is undefined" — before
+// this reload() below has taken effect. Letting it rethrow keeps the lazy promise
+// rejected with a normal "Failed to fetch dynamically imported module" error (already
+// in Sentry's ignoreErrors below) while the reload proceeds regardless.
+window.addEventListener('vite:preloadError', () => {
   const reloadedFor = sessionStorage.getItem('vite:preloadError:reloaded');
   if (reloadedFor === window.location.href) return;
   sessionStorage.setItem('vite:preloadError:reloaded', window.location.href);
-  event.preventDefault();
   window.location.reload();
 });
 
@@ -36,6 +47,12 @@ if (sentryDsn) {
       'Importing a module script failed',
       'Failed to fetch dynamically imported module',
       'error loading dynamically imported module',
+      // React.lazy rendering `payload._result.default` after a __vitePreload race
+      // (reload interrupting an in-flight chunk fetch) resolved it to `undefined`
+      // instead of rejecting. Self-heals via ErrorBoundary.isChunkLoadError's
+      // auto-reload; kept here as a backstop in case it still reaches Sentry.
+      /can't access property "default", .+\._result is undefined/,
+      "Cannot read properties of undefined (reading 'default')",
       "Can't find variable: EmptyRanges", // Safari ES2022 class field TDZ bug (fixed by safari15 build target)
       'Thread not found', // @assistant-ui race condition on thread delete/switch — handled gracefully
       /feature named `.+` was not found/, // DuckDuckGo browser internal privacy feature errors
