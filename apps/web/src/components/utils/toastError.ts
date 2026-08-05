@@ -1,4 +1,5 @@
 import { toast } from '@gruenerator/ui';
+import * as Sentry from '@sentry/react';
 
 import {
   defaultErrorMessage,
@@ -114,11 +115,18 @@ export function toastApiError(error: unknown, options: ToastApiErrorOptions = {}
   let errorInfo = getErrorMessage(error);
 
   if (errorInfo === defaultErrorMessage) {
+    // console.error alone is invisible in production — no captureConsole
+    // integration is configured (see index.tsx's Sentry.init). Report it
+    // explicitly so an unclassified error is still debuggable via
+    // Sentry/GlitchTip even when we intentionally don't toast it.
+    Sentry.captureException(error, {
+      tags: { toastSource: source, toastSkipped: source === 'query' },
+    });
+
     if (source === 'query') {
       // Unclassified errors have no specific title/message to show, and a
       // background/read failure isn't something the user needs to act on —
       // "Unerwarteter Fehler" is not actionable and just makes them anxious.
-      // Log it for debugging instead of toasting a vague warning.
       console.error('Unclassified API error (no toast shown):', error);
       return;
     }
