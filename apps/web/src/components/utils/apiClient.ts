@@ -152,7 +152,7 @@ function sleep(ms: number): Promise<void> {
  * fetch, every other caller within the same tick awaits the same promise.
  * Caches the verdict for 5s to collapse 401 cascades across routes.
  */
-async function probeSessionVerdict(): Promise<ProbeVerdict> {
+export async function probeSessionVerdict(): Promise<ProbeVerdict> {
   // Return cached result if recent.
   const now = Date.now();
   if (lastProbe && now - lastProbe.timestamp < PROBE_CACHE_TTL_MS) {
