@@ -221,6 +221,41 @@ describe('generateStructured', () => {
     expect(result).toEqual({ ok: true, data: { title: 'Torso A' } });
   });
 
+  /**
+   * The live failure (board_generation, 06.08.2026): a forced tool call
+   * (`tool_choice: 'required'`) got its argument JSON cut off. Some providers
+   * still report a "tool call" finish reason for that — `tool_calls` ends up
+   * empty (nothing to parse), there's no text to fall back to either, and the
+   * old code read this as "no tool call, no JSON" instead of a truncation.
+   */
+  it('treats a forced tool call with no parseable result (stop_reason=tool_use) as truncation and retries', async () => {
+    const { pool, processRequest } = poolReturning(
+      { success: true, tool_calls: [], content: '', stop_reason: 'tool_use' },
+      toolCall({ title: 'Ganz' })
+    );
+
+    const result = await generateStructured({ ...base, aiWorkerPool: pool });
+
+    expect(result).toEqual({ ok: true, data: { title: 'Ganz' } });
+    expect(processRequest).toHaveBeenCalledTimes(2);
+    const [repair] = processRequest.mock.calls[1];
+    expect(repair.messages.at(-1).content).toContain('abgeschnitten');
+  });
+
+  it('does NOT treat prose the model wrote instead of calling the tool as truncation', async () => {
+    // stop_reason is undefined/'stop' here — the model just ignored the tool
+    // and wrote unrelated prose. A real rejection, not a cut-off tool call.
+    const { pool } = poolReturning(
+      { success: true, content: 'nur Prosa' },
+      { success: true, content: 'immer noch Prosa' }
+    );
+
+    const result = await generateStructured({ ...base, aiWorkerPool: pool });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain('kein verwertbares JSON');
+  });
+
   it('leaves the model choice to providerSelector', async () => {
     // A top-level `provider` picks the ADAPTER without picking a matching
     // model — routes/texte/website.ts documents where that lands. The creation

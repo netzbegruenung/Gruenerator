@@ -2383,7 +2383,8 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // this ran after sse.end() and a failed persist had no way to be
       // reported — the turn looked perfect live and was gone on reload.
       const persistOutcome = await persistPromise;
-      if (!persistOutcome.ok) sendChatWarning(sse, 'persist_failed');
+      if (persistOutcome.discarded) sendChatWarning(sse, 'turn_discarded');
+      else if (!persistOutcome.ok) sendChatWarning(sse, 'persist_failed');
       sse.end();
       // Safety net: if persist finalized (or skipped) but the placeholder is
       // still an empty streaming row (e.g. persist bailed on its own guard),

@@ -161,7 +161,13 @@ export async function execute(
       // passing nothing are the same to the SDK, but the spread makes it read
       // as a decision rather than a missing value.
       ...(sampling.maxOutputTokens != null && { maxOutputTokens: sampling.maxOutputTokens }),
-      maxRetries: 2,
+      // GreenPT's thinking lanes (gemma4 et al.) ignore think:false and keep
+      // reasoning internally until the gateway times out (see
+      // services/ai/greenptThinkingFetch.ts) — retrying the identical request
+      // rarely helps. One retry instead of two reaches the existing
+      // provider-fallback chain (services/ai/aiService.ts) faster, while still
+      // covering genuinely transient failures.
+      maxRetries: provider === 'greenpt' ? 1 : 2,
       ...(tools != null && { tools }),
       ...(toolChoice != null && { toolChoice }),
     });
