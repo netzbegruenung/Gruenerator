@@ -201,6 +201,6 @@ async function cleanupFiles(...filePaths: (string | null | undefined)[]): Promis
   }
 }
 
-export { getVideoMetadata, extractAudio, cleanupFiles };
+export { getVideoMetadata, extractAudio, cleanupFiles, getDuration };
 export type { OriginalFormat };
 export type { VideoMetadata } from '../../routes/subtitler/types.js';
