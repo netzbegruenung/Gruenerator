@@ -31,6 +31,13 @@ import { captureImpact, modelFromRequestBody } from './greenptImpact.js';
  * Known residue: the same probe recorded that gemma4 ignores reasoning controls
  * entirely. If that holds for `think` too, that one lane needs an output-budget
  * floor rather than a flag — tracked as follow-up, not solved here.
+ *
+ * Confirmed live on 06.08.2026: gemma4 ran into a Gateway Timeout on
+ * `doc_generation`. `workers/providers/execute.ts` now gives greenpt only one
+ * retry instead of two — the identical request was near-certain to time out
+ * again, and burning less time on it reaches the provider-fallback chain
+ * (`services/ai/aiService.ts`) sooner. That's a latency mitigation, not the
+ * output-budget floor above — the underlying cause is still open.
  */
 export const greenptFetchWithThinkingDisabled: typeof fetch = async (input, init) => {
   if (init?.body && typeof init.body === 'string') {
