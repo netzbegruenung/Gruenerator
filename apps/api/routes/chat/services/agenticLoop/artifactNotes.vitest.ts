@@ -108,4 +108,29 @@ describe('buildArtifactNotes', () => {
     );
     expect(notes).toBe('');
   });
+
+  it('verlangt EINEN Absatz statt zweier getrennter Sätze, wenn im selben Turn etwas glückte UND etwas fehlschlug', () => {
+    const { capabilityNote } = buildArtifactNotes(
+      makeState({ createdBoard: { boardId: 'b-1', title: 'Sprint' } as never }),
+      {
+        artifactToolMounted: true,
+        hasFailures: true,
+      }
+    );
+    expect(capabilityNote).toContain('EINEN zusammenhängenden Absatz');
+    expect(capabilityNote).not.toContain('wurde ein Artefakt ERSTELLT: kündige es knapp an');
+    expect(capabilityNote).not.toContain('nicht erstellt');
+  });
+
+  it('bleibt beim reinen Erfolgs-Wortlaut, wenn nichts fehlgeschlagen ist', () => {
+    const { capabilityNote } = buildArtifactNotes(
+      makeState({ createdBoard: { boardId: 'b-1', title: 'Sprint' } as never }),
+      {
+        artifactToolMounted: true,
+        hasFailures: false,
+      }
+    );
+    expect(capabilityNote).toContain('wurde ein Artefakt ERSTELLT');
+    expect(capabilityNote).not.toContain('zusammenhängenden Absatz');
+  });
 });

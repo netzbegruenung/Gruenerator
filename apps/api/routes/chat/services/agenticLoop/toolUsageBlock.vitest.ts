@@ -20,6 +20,28 @@ describe('buildToolUsageBlock', () => {
   it('no longer blanket-permits skipping tools for "einfache Folgefrage"', () => {
     expect(block).not.toContain('einfache Folgefrage');
   });
+
+  it("omits the artifact-outcome rule by default (split mode's gather phase reuses this block)", () => {
+    // Regression: this block is reused verbatim as split mode's gather-phase
+    // system prompt (`gatherSystem = toolSystem + GATHER_SUFFIX`), which
+    // explicitly forbids writing a final answer/summary in that phase. Without
+    // this default, "schließe deine Antwort ... ab" directly contradicted
+    // GATHER_SUFFIX's "Schreibe in dieser Phase KEINE finale Antwort" a few
+    // lines later in the very same prompt.
+    expect(block).not.toMatch(/MEHR ALS EIN Artefakt/);
+  });
+});
+
+describe('buildToolUsageBlock with includeArtifactOutcomeRule (unified mode)', () => {
+  const unifiedBlock = buildToolUsageBlock(6, false, true);
+
+  it('requires one outcome sentence per artifact on a multi-artifact turn', () => {
+    // Unified mode has no separate synth step and no buildArtifactNotes note —
+    // this is its only channel for "don't leave an attempted artifact unmentioned".
+    expect(unifiedBlock).toMatch(/MEHR ALS EIN Artefakt/);
+    expect(unifiedBlock).toMatch(/EINEM klaren Satz pro Artefakt/);
+    expect(unifiedBlock).toMatch(/Lass kein versuchtes Artefakt unerwähnt/);
+  });
 });
 
 /**
