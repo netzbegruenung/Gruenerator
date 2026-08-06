@@ -21,14 +21,15 @@ describe('buildToolUsageBlock', () => {
     expect(block).not.toContain('einfache Folgefrage');
   });
 
-  it("omits the artifact-outcome rule by default (split mode's gather phase reuses this block)", () => {
+  it("omits the artifact-outcome rules by default (split mode's gather phase reuses this block)", () => {
     // Regression: this block is reused verbatim as split mode's gather-phase
-    // system prompt (`gatherSystem = toolSystem + GATHER_SUFFIX`), which
-    // explicitly forbids writing a final answer/summary in that phase. Without
-    // this default, "schließe deine Antwort ... ab" directly contradicted
+    // system prompt (`gatherSystem = toolSystem + GATHER_SUFFIX`). The closing
+    // rule ("schließe deine Antwort ... ab") directly contradicted
     // GATHER_SUFFIX's "Schreibe in dieser Phase KEINE finale Antwort" a few
-    // lines later in the very same prompt.
+    // lines later in the same prompt; the opening-plan rule merely duplicated
+    // GATHER_SUFFIX's own identical instruction. Both must stay opt-in.
     expect(block).not.toMatch(/MEHR ALS EIN Artefakt/);
+    expect(block).not.toMatch(/MEHRERE Erstellungen/);
   });
 });
 
@@ -43,11 +44,11 @@ describe('buildToolUsageBlock with includeArtifactOutcomeRule (unified mode)', (
     expect(unifiedBlock).toMatch(/Lass kein versuchtes Artefakt unerwähnt/);
   });
 
-  it('asks for one opening sentence naming the whole plan on a multi-artifact turn (unified mode)', () => {
+  it('asks for one opening sentence naming the whole plan on a multi-artifact turn', () => {
     // Unified mode has no gather phase / GATHER_SUFFIX — this is its only
     // channel for the "name the full plan up front" instruction.
-    expect(block).toMatch(/MEHRERE Erstellungen/);
-    expect(block).toMatch(/bevor du die Tools aufrufst/);
+    expect(unifiedBlock).toMatch(/MEHRERE Erstellungen/);
+    expect(unifiedBlock).toMatch(/bevor du die Tools aufrufst/);
   });
 });
 
