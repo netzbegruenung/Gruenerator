@@ -733,6 +733,11 @@ export const CHAT_WARNINGS = {
     severity: 'error',
     attribution: 'system',
   },
+  turn_discarded: {
+    message: 'Diese Antwort wurde durch eine neuere Anfrage ersetzt.',
+    severity: 'info',
+    attribution: 'system',
+  },
   board_creation_failed: {
     message: 'Das Board konnte nicht erstellt werden. Bitte versuche es noch einmal.',
     severity: 'error',

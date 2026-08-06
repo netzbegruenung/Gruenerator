@@ -79,14 +79,17 @@ describe('persistResumedResponse turn persistence', () => {
     expect(finalizeAssistantMessage).not.toHaveBeenCalled();
   });
 
-  it('does NOT re-insert and skips side effects when the placeholder vanished', async () => {
+  it('does NOT re-insert, skips side effects, and reports discarded:true when the placeholder vanished', async () => {
     finalizeAssistantMessage.mockResolvedValueOnce(false);
 
-    await persistResumedResponse({ ...base, pendingMessageId: 'pending-gone' });
+    const outcome = await persistResumedResponse({ ...base, pendingMessageId: 'pending-gone' });
 
     expect(finalizeAssistantMessage).toHaveBeenCalledTimes(1);
     expect(createMessage).not.toHaveBeenCalled();
     expect(touchThread).not.toHaveBeenCalled();
+    // `ok: true` alone is indistinguishable from a real success — callers
+    // need `discarded` to tell the client instead of leaving it waiting.
+    expect(outcome).toEqual({ ok: true, discarded: true });
   });
 });
 

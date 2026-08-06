@@ -144,3 +144,20 @@ export const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   create_sheet: 90_000,
   create_board: 90_000,
 };
+
+/**
+ * Tools whose args are structured (IDs, enums, board/task fields) rather than
+ * a free-text search query. The near-duplicate Jaccard/subset heuristic in
+ * `loopGuards.ts` is tuned for re-phrased search queries — for these tools
+ * legitimate follow-up calls (another card, a different board field) share
+ * most tokens with a prior call and get wrongly rejected as "too similar".
+ * MCP/connector tools already skip this heuristic via `serverNameFor`
+ * (`wrapTools.ts`); these are its internal-tool equivalent.
+ */
+export const NEAR_DUPLICATE_EXEMPT_TOOLS: ReadonlySet<string> = new Set([
+  'create_board',
+  'boards_tasks',
+  'documents',
+  'read_artifact',
+  'notebooks',
+]);

@@ -65,6 +65,11 @@ export const chatWarningCodeSchema = z.enum([
   'doc_creation_failed',
   // Persistence
   'persist_failed',
+  // Turn superseded by a concurrent regenerate/edit before its pending row
+  // could be finalized — the generated content is intentionally NOT
+  // persisted (see postResponseService.ts), so the client needs a distinct
+  // signal to stop waiting instead of reading `persist_failed`.
+  'turn_discarded',
   // Artefact creation
   'board_creation_failed',
   'task_creation_failed',
