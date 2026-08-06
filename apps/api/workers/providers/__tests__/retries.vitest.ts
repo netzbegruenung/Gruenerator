@@ -25,7 +25,7 @@ vi.mock('../../../services/tools/index.js', () => ({
 
 const { execute } = await import('../execute.js');
 
-const PROVIDERS = ['mistral', 'litellm', 'regolo', 'greenpt'] as const;
+const PROVIDERS = ['mistral', 'litellm', 'regolo', 'greenpt', 'scaleway'] as const;
 type Provider = (typeof PROVIDERS)[number];
 const run = (provider: Provider) =>
   execute(provider, 'req', {
