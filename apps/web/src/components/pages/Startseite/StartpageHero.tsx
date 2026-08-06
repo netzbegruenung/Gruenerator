@@ -80,6 +80,13 @@ const StartpageHero = memo(({ onScrollToContent }: StartpageHeroProps) => {
 
   const primaryProvider = getProviderById(primary);
 
+  // Mirrors LoginPage's requiredEnabledProviders: a deep-linked/remembered
+  // provider outside the default set (e.g. ?login=gruenerator) must still
+  // show up in the list, or it becomes unreachable once picked.
+  const visibleProviders = LOGIN_PROVIDERS.filter(
+    (provider) => provider.enabledByDefault || provider.id === primary
+  );
+
   return (
     <>
       <div className="sp-sunrise" aria-hidden="true" />
@@ -109,6 +116,7 @@ const StartpageHero = memo(({ onScrollToContent }: StartpageHeroProps) => {
           <div
             className={`sp-collapse${providersOpen ? '' : ' sp-collapse-open'}`}
             aria-hidden={providersOpen}
+            inert={providersOpen}
           >
             <div className="sp-cta-row">
               <button
@@ -137,9 +145,10 @@ const StartpageHero = memo(({ onScrollToContent }: StartpageHeroProps) => {
           <div
             className={`sp-collapse${providersOpen ? ' sp-collapse-open' : ''}`}
             aria-hidden={!providersOpen}
+            inert={!providersOpen}
           >
             <ul className="sp-provider-list">
-              {LOGIN_PROVIDERS.filter((provider) => provider.enabledByDefault).map((provider) => (
+              {visibleProviders.map((provider) => (
                 <li key={provider.id}>
                   <button
                     type="button"
