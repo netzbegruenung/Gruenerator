@@ -42,6 +42,13 @@ describe('buildToolUsageBlock with includeArtifactOutcomeRule (unified mode)', (
     expect(unifiedBlock).toMatch(/EINEM klaren Satz pro Artefakt/);
     expect(unifiedBlock).toMatch(/Lass kein versuchtes Artefakt unerwähnt/);
   });
+
+  it('asks for one opening sentence naming the whole plan on a multi-artifact turn (unified mode)', () => {
+    // Unified mode has no gather phase / GATHER_SUFFIX — this is its only
+    // channel for the "name the full plan up front" instruction.
+    expect(block).toMatch(/MEHRERE Erstellungen/);
+    expect(block).toMatch(/bevor du die Tools aufrufst/);
+  });
 });
 
 /**
