@@ -149,16 +149,17 @@ const TranskriptionPage = () => {
   const { handleOpenInDocs, handleCreateTodoList, handleCreateBoard, actionLoading } =
     useContentActions({ getContent: getActiveContent, getTitle, getDocumentType });
 
-  // Checked here rather than after the upload: discovering the limit inside the
-  // provider SDK costs a full 500 MB transfer (plus audio extraction for video)
-  // before the error appears.
+  // Informational only — anything over MAX_AUDIO_MINUTES is auto-split into
+  // chunks server-side (transcribeBuffer in transcriptionRouterService.ts) and
+  // merged back into one transcript, so this no longer blocks submission.
   const handleFileSelected = useCallback((file: File) => {
     setSelectedFile(file);
     setDurationWarning(null);
     void readMediaDurationSeconds(file).then((seconds) => {
       if (seconds != null && seconds > MAX_AUDIO_MINUTES * 60) {
+        const chunks = Math.ceil(seconds / (MAX_AUDIO_MINUTES * 60));
         setDurationWarning(
-          `Die Aufnahme ist ${Math.round(seconds / 60)} Minuten lang. Verarbeitet werden höchstens ${MAX_AUDIO_MINUTES} Minuten — bitte vorher kürzen.`
+          `Die Aufnahme ist ${Math.round(seconds / 60)} Minuten lang und wird automatisch in ${chunks} Abschnitte à höchstens ${MAX_AUDIO_MINUTES} Minuten aufgeteilt. Das dauert entsprechend länger.`
         );
       }
     });
@@ -484,7 +485,6 @@ const TranskriptionPage = () => {
               onClick={handleStart}
               className="w-full"
               type="button"
-              disabled={!!durationWarning}
             />
           </div>
         )}
