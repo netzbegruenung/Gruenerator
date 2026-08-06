@@ -106,21 +106,24 @@ const StartpageHero = memo(({ onScrollToContent }: StartpageHeroProps) => {
         </p>
 
         <div className="sp-cta">
-          <div className="sp-cta-row">
-            <button
-              type="button"
-              className="sp-login"
-              onClick={() => startLogin(primary)}
-              aria-label={primaryProvider ? `Anmelden mit ${primaryProvider.title}` : 'Anmelden'}
-            >
-              <LockIcon /> Login
-            </button>
-            <button type="button" className="sp-more" onClick={onScrollToContent}>
-              Mehr erfahren
-            </button>
+          <div
+            className={`sp-collapse${providersOpen ? '' : ' sp-collapse-open'}`}
+            aria-hidden={providersOpen}
+          >
+            <div className="sp-cta-row">
+              <button
+                type="button"
+                className="sp-login"
+                onClick={() => startLogin(primary)}
+                aria-label={primaryProvider ? `Anmelden mit ${primaryProvider.title}` : 'Anmelden'}
+              >
+                <LockIcon /> Login
+              </button>
+              <button type="button" className="sp-more" onClick={onScrollToContent}>
+                Mehr erfahren
+              </button>
+            </div>
           </div>
-
-          <p className="sp-hint">Exklusiv für Grüne Mitglieder.</p>
 
           <button
             type="button"
@@ -131,9 +134,12 @@ const StartpageHero = memo(({ onScrollToContent }: StartpageHeroProps) => {
             {providersOpen ? 'Anbieter ausblenden' : 'Anderer Anbieter'}
           </button>
 
-          {providersOpen && (
+          <div
+            className={`sp-collapse${providersOpen ? ' sp-collapse-open' : ''}`}
+            aria-hidden={!providersOpen}
+          >
             <ul className="sp-provider-list">
-              {LOGIN_PROVIDERS.map((provider) => (
+              {LOGIN_PROVIDERS.filter((provider) => provider.enabledByDefault).map((provider) => (
                 <li key={provider.id}>
                   <button
                     type="button"
@@ -153,17 +159,23 @@ const StartpageHero = memo(({ onScrollToContent }: StartpageHeroProps) => {
                 </li>
               ))}
             </ul>
-          )}
+          </div>
         </div>
 
-        <button
-          type="button"
-          className="sp-cue"
-          onClick={onScrollToContent}
-          aria-label="Mehr erfahren"
-        >
-          <ChevronIcon />
-        </button>
+        <div className="sp-cue-wrap">
+          <p className="sp-hint">
+            Ein Projekt von Moritz Wächter, kostenfrei für alle Grünen Parteimitglieder in
+            Deutschland und Österreich.
+          </p>
+          <button
+            type="button"
+            className="sp-cue"
+            onClick={onScrollToContent}
+            aria-label="Mehr erfahren"
+          >
+            <ChevronIcon />
+          </button>
+        </div>
       </section>
     </>
   );
