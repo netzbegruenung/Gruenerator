@@ -361,9 +361,17 @@ function deriveToolContext(p: {
  * Outcome of a persistence attempt. `ok: false` means the user's turn is NOT
  * in the database — the caller must tell the user (the answer looked fine
  * live, but it is gone on reload).
+ *
+ * `discarded: true` is a distinct, expected case within `ok: true`: the
+ * pending row was deleted by a concurrent regenerate/edit before this turn's
+ * generation finished, so it's intentionally not persisted (re-inserting
+ * would resurrect a turn the user already discarded) — but the caller still
+ * needs to tell the client, or a fully-generated turn leaves the UI stuck on
+ * a loading state with no explanation.
  */
 export interface PersistOutcome {
   ok: boolean;
+  discarded?: boolean;
 }
 
 /**
@@ -477,8 +485,9 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
     if (pendingMessageId) {
       // Finalize the placeholder row minted before streaming. A miss means the
       // row is gone (e.g. a regenerate from another tab deleted it) — do NOT
-      // re-insert (that would resurrect a turn the user discarded); just warn
-      // and skip all post-persist side effects for this turn.
+      // re-insert (that would resurrect a turn the user discarded); tell the
+      // caller via `discarded` so it can signal the client instead of leaving
+      // it waiting on a turn that will never arrive.
       const matched = await withMessageWriteRetry(
         () => finalizeAssistantMessage(pendingMessageId, persistedText || null, metadata),
         'finalizeAssistantMessage'
@@ -487,7 +496,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
         log.warn(
           `[ChatGraph] Pending assistant row ${pendingMessageId} vanished before finalize — response discarded (thread ${threadId})`
         );
-        return { ok: true };
+        return { ok: true, discarded: true };
       }
     } else {
       await withMessageWriteRetry(
@@ -781,7 +790,7 @@ export async function persistResumedResponse(params: {
         log.warn(
           `[ChatGraph:Resume] Pending assistant row ${pendingMessageId} vanished before finalize — response discarded (thread ${threadId})`
         );
-        return { ok: true };
+        return { ok: true, discarded: true };
       }
     } else {
       await withMessageWriteRetry(
