@@ -108,13 +108,27 @@ function StatTile({ label, value, hint }: { label: string; value: string; hint?:
 }
 
 /**
+ * How much the reference (GPT-4o, Jegham et al. 2025) itself is an estimate —
+ * inferred from API latency and GPU datasheets, not metered. Applied as a
+ * symmetric band around the reference figure so the CO2 savings we claim show
+ * up as a corridor rather than a single number the estimate can't actually
+ * support. A round, openly stated choice, same spirit as the image boundary
+ * uplift in energyFootprint.ts.
+ */
+const REFERENCE_UNCERTAINTY = 0.3;
+
+/**
  * "What if you had used ChatGPT instead."
  *
- * Deliberately reports both directions. On CO2 the European lanes win by a
- * factor of roughly 2-5, but on raw electricity our default Mistral Medium
- * needs MORE than GPT-4o reportedly does — the advantage comes from the French
- * grid, not from our engineering. A block that showed only the flattering half
- * would be the exact kind of claim this whole feature exists to avoid.
+ * CO2: shows the saving, not your own figure again — that's already the stat
+ * tile above this card — plus a corridor, because the GPT-4o side is an
+ * estimate the source paper itself flags as uncertain.
+ *
+ * Energy still reports both directions: our default Mistral Medium needs MORE
+ * raw electricity than GPT-4o reportedly does, and the CO2 advantage comes
+ * from the French grid, not from sparser engineering. Collapsing that to a
+ * "savings" framing too would hide the one place this comparison doesn't
+ * flatter us.
  */
 function ReferenceComparison({ footprint }: { footprint: UsageFootprintDto }) {
   // Text only on both sides. The reference costs the same TOKENS on GPT-4o and
@@ -122,23 +136,30 @@ function ReferenceComparison({ footprint }: { footprint: UsageFootprintDto }) {
   // Flux would invent a saving out of an accounting mismatch.
   const textEmissions = footprint.emissions_g - footprint.image_emissions_g;
   const textEnergy = footprint.energy_wh - footprint.image_energy_wh;
-  const co2Factor = textEmissions > 0 ? footprint.reference_emissions_g / textEmissions : 0;
+  const co2Savings = footprint.reference_emissions_g - textEmissions;
   const energyFactor = textEnergy > 0 ? footprint.reference_energy_wh / textEnergy : 0;
-  if (co2Factor <= 0) return null;
+  if (co2Savings <= 0) return null;
+
+  const co2SavingsLow = Math.max(
+    footprint.reference_emissions_g * (1 - REFERENCE_UNCERTAINTY) - textEmissions,
+    0
+  );
+  const co2SavingsHigh =
+    footprint.reference_emissions_g * (1 + REFERENCE_UNCERTAINTY) - textEmissions;
 
   return (
     <section className="flex flex-col gap-sm rounded-xl border border-grey-200 p-md dark:border-grey-700">
       <h3 className="m-0 text-sm font-semibold text-foreground-heading">
-        Was dieselbe Arbeit mit ChatGPT gekostet hätte
+        Ersparnis gegenüber ChatGPT
       </h3>
       <div className="grid grid-cols-2 gap-sm">
         <div className="flex flex-col gap-1">
-          <span className="text-xs text-grey-500">CO₂</span>
+          <span className="text-xs text-grey-500">CO₂ gespart</span>
           <span className="text-lg font-semibold text-foreground-heading">
-            ≈ {formatGrams(footprint.reference_emissions_g)}
+            ≈ {formatGrams(co2Savings)}
           </span>
           <span className="text-xs text-grey-500">
-            statt {formatGrams(textEmissions)} — {oneDecimal.format(co2Factor)}× so viel
+            etwa {formatGrams(co2SavingsLow)} – {formatGrams(co2SavingsHigh)}
           </span>
         </div>
         <div className="flex flex-col gap-1">
@@ -155,15 +176,16 @@ function ReferenceComparison({ footprint }: { footprint: UsageFootprintDto }) {
         </div>
       </div>
       <p className="m-0 text-xs leading-relaxed text-grey-500">
-        Geschätzt nach Jegham et al. (2025) für GPT-4o — die einzige veröffentlichte Rechnung mit
-        derselben Systemgrenze wie unserer: nur Betriebsstrom, kein Training, keine
-        Hardware-Herstellung. Nur Text: für erzeugte Bilder gibt es keine vergleichbar sauber
-        abgegrenzte OpenAI-Zahl, deshalb bleiben sie hier außen vor.{' '}
-        {energyFactor < 1
-          ? 'Beim Strom liegen wir hier hinten; unser CO₂-Vorteil kommt vom französischen Netz, nicht von sparsamerer Technik. '
-          : ''}
-        Die GPT-4o-Zahl ist selbst nur eine Schätzung — OpenAI veröffentlicht nichts, sie wurde aus
-        Antwortzeiten und GPU-Datenblättern erschlossen.
+        Vergleich zu GPT-4o (Jegham et al. 2025), nur Text — Bilder haben keine vergleichbar sauber
+        abgegrenzte OpenAI-Zahl.{' '}
+        <a
+          href={`${getDocsUrl()}/docs/ueber-den-gruenerator/nachhaltigkeit`}
+          target="_blank"
+          rel="noreferrer"
+          className="underline hover:text-foreground"
+        >
+          Wie wir rechnen
+        </a>
       </p>
     </section>
   );
