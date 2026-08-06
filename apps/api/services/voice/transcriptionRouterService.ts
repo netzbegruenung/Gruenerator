@@ -11,9 +11,12 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 
+import { MAX_AUDIO_MINUTES } from '@gruenerator/contracts';
+
 import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
-import { extractAudio, cleanupFiles } from '../subtitler/videoUploadService.js';
+import { extractAudio, cleanupFiles, getDuration } from '../subtitler/videoUploadService.js';
+import { splitAudioIntoChunks } from '../transcription/audioSplitter.js';
 import {
   GREENPT_STT_MODEL,
   groupGreenptWords,
@@ -161,7 +164,7 @@ const RUNNERS: Record<
  * Every provider the policy did not pick stays in the chain as failover.
  *
  */
-export async function transcribeBuffer(
+async function transcribeSingleBuffer(
   audioBuffer: Buffer,
   filename: string,
   options: TranscriptionOptions = {}
@@ -196,4 +199,79 @@ export async function transcribeBuffer(
       'No transcription provider configured. Set MISTRAL_API_KEY (Voxtral) or GREENPT_API_KEY (green-s-pro).'
     )
   );
+}
+
+function offsetResult(result: TranscriptionResult, offsetSeconds: number): TranscriptionResult {
+  if (offsetSeconds === 0 || !result.segments?.length) return result;
+  return {
+    ...result,
+    segments: result.segments.map((s) => ({
+      ...s,
+      start: s.start + offsetSeconds,
+      end: s.end + offsetSeconds,
+    })),
+  };
+}
+
+function mergeResults(results: TranscriptionResult[]): TranscriptionResult {
+  const first = results[0];
+  if (!first) {
+    throw new Error('Cannot merge an empty transcription result set');
+  }
+  if (results.length === 1) return first;
+
+  return {
+    text: results.map((r) => r.text).join('\n'),
+    segments: results.flatMap((r) => r.segments ?? []),
+    hasTimestamps: results.some((r) => r.hasTimestamps),
+  };
+}
+
+/**
+ * MAX_AUDIO_MINUTES is a per-provider-call ceiling, not a hard rejection limit:
+ * anything longer is split into ≤MAX_AUDIO_MINUTES chunks here, transcribed one
+ * chunk at a time (sequential, to keep memory/rate-limit exposure bounded the
+ * same way a single 500MB buffer already does), and the chunk transcripts are
+ * merged back into one continuous result with offset segment timestamps.
+ */
+export async function transcribeBuffer(
+  audioBuffer: Buffer,
+  filename: string,
+  options: TranscriptionOptions = {}
+): Promise<TranscriptionResult> {
+  const limitSeconds = MAX_AUDIO_MINUTES * 60;
+  const tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'voice-probe-'));
+  const probePath = path.join(tmpDir, `input${path.extname(filename) || '.mp3'}`);
+
+  try {
+    await fs.promises.writeFile(probePath, audioBuffer);
+    const duration = await getDuration(probePath);
+
+    if (duration == null || duration <= limitSeconds) {
+      return await transcribeSingleBuffer(audioBuffer, filename, options);
+    }
+
+    log.info(
+      `[Voice] audio duration ${Math.round(duration)}s exceeds ${limitSeconds}s — splitting into chunks`
+    );
+    const { chunks, tmpDir: splitDir } = await splitAudioIntoChunks(
+      probePath,
+      limitSeconds,
+      duration
+    );
+
+    try {
+      const results: TranscriptionResult[] = [];
+      for (const chunk of chunks) {
+        const chunkBuffer = await fs.promises.readFile(chunk.path);
+        const chunkResult = await transcribeSingleBuffer(chunkBuffer, 'chunk.mp3', options);
+        results.push(offsetResult(chunkResult, chunk.startSeconds));
+      }
+      return mergeResults(results);
+    } finally {
+      await fs.promises.rm(splitDir, { recursive: true, force: true }).catch(() => {});
+    }
+  } finally {
+    await fs.promises.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+  }
 }
