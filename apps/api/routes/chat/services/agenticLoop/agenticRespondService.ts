@@ -77,6 +77,7 @@ import {
 import { createSourceRegistry, withResearchedSources } from './sourceRegistry.js';
 import {
   DEFAULT_LOOP_BUDGET,
+  NEAR_DUPLICATE_EXEMPT_TOOLS,
   TOOL_TIMEOUT_OVERRIDES_MS,
   readMcpResult,
   type LoopBudget,
@@ -876,6 +877,7 @@ export async function streamAgenticResponse(params: {
       recordStep: (s) => steps.push(s),
       perCallTimeoutMs: budget.perCallTimeoutMs,
       perCallTimeoutOverridesMs: TOOL_TIMEOUT_OVERRIDES_MS,
+      nearDuplicateExemptTools: NEAR_DUPLICATE_EXEMPT_TOOLS,
       // Only unified mode streams answer text WHILE tools run, so its `text`
       // length is a meaningful per-tool offset. In split mode `text` stays empty
       // through the whole gather phase → return null so no (all-0) offsets are
