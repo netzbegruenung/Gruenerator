@@ -318,7 +318,23 @@ export function pdfProblemNote(steps: PersistedStep[], answer: string): string {
   return `\n\n_Hinweis aus der PDF-Selbstprüfung:_\n${unmentioned.map((p) => `- ${p}`).join('\n')}`;
 }
 
-export function buildToolUsageBlock(maxSteps: number, researchBanned = false): string {
+/**
+ * @param includeArtifactOutcomeRule Only true for unified mode. `toolSystem`
+ *   (built from this block) is reused verbatim as split mode's gather-phase
+ *   system prompt (`gatherSystem = toolSystem + GATHER_SUFFIX`), which
+ *   explicitly forbids writing a final answer/summary in that phase. The
+ *   "close your answer with one sentence per artifact" rule below is only
+ *   true of the phase that actually writes the final answer — unified's one
+ *   interleaved stream, not split's tool-only planner — so it must not reach
+ *   gather. Split's own final-answer prompt (`buildSynthSystem`) is built from
+ *   `systemMessage` directly, not from this block, and gets the equivalent
+ *   rule via `buildArtifactNotes`'s `outcomeClause` instead.
+ */
+export function buildToolUsageBlock(
+  maxSteps: number,
+  researchBanned = false,
+  includeArtifactOutcomeRule = false
+): string {
   if (researchBanned) {
     return [
       'ARBEITSWEISE IN DIESEM TURN:',
@@ -358,8 +374,14 @@ export function buildToolUsageBlock(maxSteps: number, researchBanned = false): s
     // Unified mode has no separate synth step and no buildArtifactNotes note —
     // it streams text and tool calls interleaved and, left to itself, trails
     // off after the last tool call instead of accounting for every artifact
-    // it attempted. This is its only channel for that rule.
-    '- Hast du in diesem Turn MEHR ALS EIN Artefakt (Board, Dokument, Präsentation, Tabelle, Sharepic, Bild, PDF …) erstellt oder versucht: schließe deine Antwort mit EINEM klaren Satz pro Artefakt ab — Erfolg (knapp) oder Fehlschlag (mit dem konkreten Grund). Lass kein versuchtes Artefakt unerwähnt.',
+    // it attempted. This is its only channel for that rule — gated to unified
+    // only (see the param doc above), since split mode's gather phase reuses
+    // this same block and must NOT be told to close out a final answer.
+    ...(includeArtifactOutcomeRule
+      ? [
+          '- Hast du in diesem Turn MEHR ALS EIN Artefakt (Board, Dokument, Präsentation, Tabelle, Sharepic, Bild, PDF …) erstellt oder versucht: schließe deine Antwort mit EINEM klaren Satz pro Artefakt ab — Erfolg (knapp) oder Fehlschlag (mit dem konkreten Grund). Lass kein versuchtes Artefakt unerwähnt.',
+        ]
+      : []),
     // See the note in the researchBanned branch: length belongs to
     // buildAnswerFormatRule, not here.
     '- Antworte am Ende IMMER auf Deutsch (Du-Form, Genderstern).',
@@ -997,7 +1019,7 @@ export async function streamAgenticResponse(params: {
     // so prompt and toolset can never disagree about whether searching is on.
     const researchBanned = forbidsNewResearch(finalState.lastUserTextNoMentions ?? lastUserText);
     const toolSystem = withInstructionHierarchy(
-      `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned)}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${renderRecipeCatalog(recipeCatalog)}`
+      `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned, mode === 'unified')}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${renderRecipeCatalog(recipeCatalog)}`
     );
     // The turn budget is now SOFT: it strips the tools via `forceFinish` (see
     // below) instead of aborting the stream. Only the absolute ceiling aborts —
