@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 
-import { buildMcpOutcomeNote, buildToolFailureNote } from './agenticRespondService.js';
+import {
+  buildMcpOutcomeNote,
+  buildToolFailureNote,
+  mcpHasFailure,
+} from './agenticRespondService.js';
 import { readMcpResult } from './types.js';
 
 import type { PersistedStep } from './types.js';
@@ -165,5 +169,19 @@ describe('buildToolFailureNote', () => {
       result: { error: 'no workspace' },
     });
     expect(buildToolFailureNote([mcpFailure])).toBe('');
+  });
+});
+
+describe('mcpHasFailure', () => {
+  it('is false with no MCP steps or only successful ones', () => {
+    expect(mcpHasFailure([])).toBe(false);
+    expect(mcpHasFailure([step({ toolName: 'gruenerator_search' })])).toBe(false);
+    expect(mcpHasFailure([step({ serverName: 'Sally', result: { content: 'ok' } })])).toBe(false);
+  });
+
+  it('is true when any MCP call failed', () => {
+    expect(mcpHasFailure([step({ serverName: 'Tally', result: { error: 'no workspace' } })])).toBe(
+      true
+    );
   });
 });

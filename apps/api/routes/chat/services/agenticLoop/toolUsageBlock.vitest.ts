@@ -20,6 +20,14 @@ describe('buildToolUsageBlock', () => {
   it('no longer blanket-permits skipping tools for "einfache Folgefrage"', () => {
     expect(block).not.toContain('einfache Folgefrage');
   });
+
+  it('requires one outcome sentence per artifact on a multi-artifact turn (unified mode)', () => {
+    // Unified mode has no separate synth step and no buildArtifactNotes note —
+    // this is its only channel for "don't leave an attempted artifact unmentioned".
+    expect(block).toMatch(/MEHR ALS EIN Artefakt/);
+    expect(block).toMatch(/EINEM klaren Satz pro Artefakt/);
+    expect(block).toMatch(/Lass kein versuchtes Artefakt unerwähnt/);
+  });
 });
 
 /**
