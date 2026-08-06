@@ -97,6 +97,15 @@ const PLATFORM_MAX_TOKENS: Record<string, number> = {
  * directions — too low it truncates, too high it exceeds a fallback model's own
  * limit and errors. `null` sends no `max_tokens` at all and lets the model's own
  * ceiling apply, which is the only bound that is actually correct per model.
+ *
+ * The cliff itself doesn't go away, it moves to the model's own ceiling — a
+ * 12-card board with priorities/assignees/dependencies can still exceed
+ * mistral-medium-2604's 16384-token limit. That case IS handled by the same
+ * repair-then-torso logic as above (`generateStructured.ts`), it just needed
+ * its truncation detection widened to also catch a forced tool call that got
+ * cut off before producing any parseable result (see the `noToolDespiteForced`
+ * comment there) — a provider can report a "tool call" finish reason even
+ * when the arguments themselves were truncated mid-stream.
  */
 const UNCAPPED_TYPES: ReadonlySet<string> = new Set(['doc_generation', 'board_generation']);
 

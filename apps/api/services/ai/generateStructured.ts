@@ -263,7 +263,25 @@ export async function generateStructured<T>(
       // deck missing its last slides or a document missing its second half.
       // Live on 03.08.2026: 4096 tokens exhausted, "recovered from text",
       // success reported. Treat it as a rejection so the repair turn happens.
-      const truncated = result.stop_reason === 'length';
+      //
+      // `stop_reason === 'length'` misses one shape of the same failure: with
+      // `tool_choice: 'required'` (always set above), a provider that cuts the
+      // tool call's argument JSON off mid-stream can still report a "tool
+      // call" finish reason (mapped to stop_reason 'tool_use', see
+      // adapterUtils.ts) — the SDK just can't parse the truncated arguments,
+      // so `toolInput` is null AND there's no text to fall back to
+      // (`candidates` empty). That reads as "no tool call, no JSON" and hit
+      // the generic unhelpful error instead of the repair-then-torso path
+      // below. Live on 06.08.2026: board_generation, stop_reason=tool_use.
+      //
+      // Gated on stop_reason === 'tool_use' specifically (not just "no
+      // candidates"), so a model that genuinely ignored the tool and wrote
+      // unrelated prose — a real rejection, not a truncation — still falls
+      // through to the generic error a few lines down instead of being
+      // mistaken for a cut-off tool call.
+      const noToolDespiteForced =
+        !toolInput && candidates.length === 0 && result.stop_reason === 'tool_use';
+      const truncated = result.stop_reason === 'length' || noToolDespiteForced;
 
       let rejection = '';
       let rejected = '';
