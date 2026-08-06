@@ -476,6 +476,46 @@ describe('wrapToolsForLoop', () => {
     await run(tools, 's0__search', {});
     expect(events[0].data).toMatchObject({ title: 'Suche Notion…', serverName: 'Notion' });
   });
+
+  /**
+   * boards_tasks/create_board take structured args (boardId, status, dueDate)
+   * that legitimately share most tokens across calls — without the exemption
+   * this reads as a near-duplicate search re-phrasing and blocks a valid
+   * follow-up call in the same turn (see CHAT-AGENTIC-BUGS.md #1).
+   */
+  it('nearDuplicateExemptTools skips the near-dup heuristic for structured internal tools', async () => {
+    const { ctx } = makeCtx({ nearDuplicateExemptTools: new Set(['boards_tasks']) });
+    const tools = wrapToolsForLoop(
+      { boards_tasks: { execute: async () => ({ ok: true }) } } as unknown as ToolSet,
+      ctx
+    );
+    await run(tools, 'boards_tasks', { action: 'add_card', boardId: 'b1', title: 'Karte A' });
+    // Shares boardId + action tokens with the prior call — would be blocked
+    // as near-duplicate for a search-like tool, but boards_tasks is exempt.
+    const out = (await run(
+      tools,
+      'boards_tasks',
+      { action: 'add_card', boardId: 'b1', title: 'Karte B' },
+      'call_2'
+    )) as { error?: string };
+    expect(out.error).toBeUndefined();
+  });
+
+  it('a tool NOT in nearDuplicateExemptTools still gets blocked as near-duplicate', async () => {
+    const { ctx } = makeCtx({ nearDuplicateExemptTools: new Set(['boards_tasks']) });
+    const tools = wrapToolsForLoop(
+      { gruenerator_search: { execute: async () => ({ results: [] }) } } as unknown as ToolSet,
+      ctx
+    );
+    await run(tools, 'gruenerator_search', { query: 'Atomkraft Position Grüne' });
+    const out = (await run(
+      tools,
+      'gruenerator_search',
+      { query: 'Position Atomkraft' },
+      'call_2'
+    )) as { error?: string };
+    expect(out.error).toMatch(/Wechsle das THEMA/);
+  });
   /**
    * A deferred search is postponed, not failed: no tool card, no persisted step,
    * no failure counted. A red "Fehler" card for a search that will run in the next

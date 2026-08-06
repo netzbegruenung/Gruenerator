@@ -40,6 +40,10 @@ export interface WrapToolsContext {
   /** Per-tool overrides for tools whose honest runtime exceeds the generic
    *  budget — see TOOL_TIMEOUT_OVERRIDES_MS. */
   perCallTimeoutOverridesMs?: Record<string, number>;
+  /** Internal structured tools exempt from the near-duplicate heuristic
+   *  (same reasoning as the `serverNameFor`-based MCP skip) — see
+   *  NEAR_DUPLICATE_EXEMPT_TOOLS. */
+  nearDuplicateExemptTools?: ReadonlySet<string>;
   /** Optional display title for the tool card (else the tool name is shown). */
   titleFor?: (toolName: string) => string | undefined;
   /** Optional MCP/connector server label for the tool card. */
@@ -212,10 +216,13 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
         ctx.guards.checkFailureCap(toolName) ??
         ctx.guards.checkTotalFailureBudget() ??
         ctx.guards.checkSearchBudget(toolName) ??
-        // Connector tools (server != null) skip the search-tuned near-dup
+        // Connector tools (server != null) and internal structured tools
+        // (NEAR_DUPLICATE_EXEMPT_TOOLS) skip the search-tuned near-dup
         // heuristic: structured args collide falsely and corrective retries
         // after a validation error would be wrongly blocked as "too similar".
-        ctx.guards.checkDuplicate(toolName, input, { skipNearDuplicate: !!server });
+        ctx.guards.checkDuplicate(toolName, input, {
+          skipNearDuplicate: !!server || (ctx.nearDuplicateExemptTools?.has(toolName) ?? false),
+        });
       if (block) {
         // No `sendStart`/`sendResult`/`recordStep`, for ANY guard: the tool did
         // not run, so a card claiming it did — captioned with steering text

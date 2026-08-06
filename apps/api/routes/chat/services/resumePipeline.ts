@@ -411,7 +411,8 @@ export async function runChatGraphResume({
         sharepicVariants,
         socialPost,
       });
-      if (!artifactPersist.ok) sendChatWarning(sse, 'persist_failed');
+      if (artifactPersist.discarded) sendChatWarning(sse, 'turn_discarded');
+      else if (!artifactPersist.ok) sendChatWarning(sse, 'persist_failed');
 
       sse.send('done', {
         ...(requestContext.actualThreadId != null && {
@@ -650,7 +651,8 @@ export async function runChatGraphResume({
       ...(resumeTraceId != null && { traceId: resumeTraceId }),
       pendingMessageId: pendingId,
     });
-    if (!persistOutcome.ok) sendChatWarning(sse, 'persist_failed');
+    if (persistOutcome.discarded) sendChatWarning(sse, 'turn_discarded');
+    else if (!persistOutcome.ok) sendChatWarning(sse, 'persist_failed');
 
     const totalTimeMs = Date.now() - startTime;
     sse.send('done', {
