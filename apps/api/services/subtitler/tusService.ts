@@ -12,6 +12,7 @@ import { Transform } from 'stream';
 import { pipeline } from 'stream/promises';
 import { fileURLToPath } from 'url';
 
+import { MAX_AUDIO_BYTES, MAX_VIDEO_UPLOAD_BYTES } from '@gruenerator/contracts';
 import { FileStore } from '@tus/file-store';
 import { Server } from '@tus/server';
 import { type Request, type Response } from 'express';
@@ -73,10 +74,20 @@ void (async () => {
   }
 })();
 
+const AUDIO_UPLOAD_PATH = '/api/audio/upload';
+
+/**
+ * Shared by both TUS mount points (see server.ts). The Transkription feature's
+ * /api/audio/upload gets the larger video ceiling — video is transcoded down
+ * to a small mp3 before it reaches a provider, so the raw upload size doesn't
+ * bound memory the way it would for a direct audio/video buffer. The
+ * subtitler mount (/api/subtitler/upload) keeps the original ceiling.
+ */
 const tusServer = new Server({
   path: '/api/subtitler/upload',
   datastore: new FileStore({ directory: TUS_UPLOAD_PATH }),
-  maxSize: 500 * 1024 * 1024,
+  maxSize: (req) =>
+    req.url?.startsWith(AUDIO_UPLOAD_PATH) ? MAX_VIDEO_UPLOAD_BYTES : MAX_AUDIO_BYTES,
   respectForwardedHeaders: true,
 });
 
