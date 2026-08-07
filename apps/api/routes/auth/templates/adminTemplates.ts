@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../../middleware/validateBody.js';
-import { isAdminByEmail } from '../../../utils/adminEmails.js';
+import { requireInstanceAdmin } from '../../../utils/adminAuthz.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import type { AuthRequest } from '../types.js';
@@ -19,26 +19,9 @@ const rejectSchema = z.object({
 });
 
 async function verifyAdmin(req: AuthRequest, res: Response): Promise<boolean> {
-  if (isAdminByEmail(req.user?.email)) return true;
-  const postgres = getPostgresInstance();
-  const profile = await postgres.queryOne(
-    'SELECT is_admin, email FROM profiles WHERE id = $1',
-    [req.user!.id],
-    { table: 'profiles' }
-  );
-  if (!profile?.is_admin) {
-    log.warn(
-      '[adminTemplates] admin check denied: session user_id=%s session_email=%s profile_found=%s profile_email=%s profile_is_admin=%s',
-      req.user!.id,
-      req.user?.email ?? '(none)',
-      profile ? 'yes' : 'no',
-      profile?.email ?? '(null)',
-      profile?.is_admin
-    );
-    res.status(403).json({ success: false, message: 'Keine Admin-Berechtigung.' });
-    return false;
-  }
-  return true;
+  if (await requireInstanceAdmin(req.user!.id, req.user?.email)) return true;
+  res.status(403).json({ success: false, message: 'Keine Admin-Berechtigung.' });
+  return false;
 }
 
 router.get(

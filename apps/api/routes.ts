@@ -11,6 +11,8 @@ import { requireAdminToken } from './middleware/adminTokenMiddleware.js';
 import authMiddleware from './middleware/authMiddleware.js';
 import { deprecatedRoute } from './middleware/deprecatedRoute.js';
 import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
+import { mountBgstOverviewContractRouter } from './routes/admin/bgstOverviewContractRouter.js';
+import { mountLvAdminAssignmentContractRouter } from './routes/admin/lvAdminAssignmentContractRouter.js';
 import antraegeRouter from './routes/antraege/index.js';
 import { mountGroupsContractRouter } from './routes/auth/groups/groupsContract/index.js';
 import { mountImageModelPreferenceContractRouter } from './routes/auth/imageModelPreferenceContractRouter.js';
@@ -364,6 +366,15 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Admin-curated Rezepte visibility — same requireAuth-at-prefix +
   // per-handler is_admin check as admin Vorlagen above.
   app.use('/api/auth/admin/skills', requireAuth);
+  // BGST-instance admin overview (read-only) — same requireAuth-at-prefix +
+  // per-handler requireInstanceAdmin check.
+  app.use('/api/auth/admin/bgst', requireAuth);
+  mountBgstOverviewContractRouter(app);
+  // Hauptgrünerator-Super-Admin: Landesverband master data + who
+  // administers which Landesverband, plus the assignment user picker.
+  app.use('/api/auth/admin/landesverbaende', requireAuth);
+  app.use('/api/auth/admin/users', requireAuth);
+  mountLvAdminAssignmentContractRouter(app);
   // ts-rest contract router for user templates (Vorlagen CRUD) — replaces the
   // legacy userTemplatesRouter. Mounts BEFORE authRouter so contract routes
   // match first. requireAuth is applied at the prefix because every route

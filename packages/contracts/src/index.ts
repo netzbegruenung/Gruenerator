@@ -76,6 +76,8 @@ export {
   userTextFormsContract,
   skillPromptContract,
   skillVisibilityContract,
+  bgstInstanceOverviewContract,
+  lvAdminAssignmentContract,
   recurringTasksContract,
   canvasAiContract,
   canvasContract,
@@ -175,3 +177,6 @@ export * from './presentationBrand.js';
 
 export * from './schemas/scanner.js';
 export * from './schemas/prompts.js';
+export * from './schemas/landesverbaende.js';
+export * from './schemas/lvAdminAssignment.js';
+export * from './schemas/bgstInstanceOverview.js';
