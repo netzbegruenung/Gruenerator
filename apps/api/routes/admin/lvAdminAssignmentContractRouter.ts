@@ -116,7 +116,7 @@ export const lvAdminAssignmentContractRouter = s.router(lvAdminAssignmentContrac
         );
         if (conflict.length > 0) {
           return {
-            status: 500 as const,
+            status: 409 as const,
             body: {
               success: false,
               message: `Domain bereits einem anderen Landesverband zugeordnet (${conflict[0]!.id}).`,

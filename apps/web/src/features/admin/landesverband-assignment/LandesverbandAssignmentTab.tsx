@@ -69,7 +69,13 @@ function UserSearchPicker({
                 <span className="font-medium text-foreground">
                   {user.displayName ?? user.email ?? user.id}
                 </span>
-                {user.email && <span className="text-xs text-grey-500">{user.email}</span>}
+                {user.email ? (
+                  <span className="text-xs text-grey-500">{user.email}</span>
+                ) : (
+                  <span className="text-xs text-red-600">
+                    Keine E-Mail hinterlegt — kann nicht zugewiesen werden
+                  </span>
+                )}
               </button>
             </li>
           ))}
@@ -137,7 +143,7 @@ export default function LandesverbandAssignmentTab() {
 
         <Button
           onClick={handleAssign}
-          disabled={!selectedLvId || !selectedUser || assignMutation.isPending}
+          disabled={!selectedLvId || !selectedUser?.email || assignMutation.isPending}
         >
           {assignMutation.isPending ? 'Wird zugewiesen...' : 'Zuweisen'}
         </Button>
