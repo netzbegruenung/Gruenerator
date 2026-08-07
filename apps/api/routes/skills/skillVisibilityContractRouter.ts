@@ -11,8 +11,10 @@ import { skillVisibilityContract } from '@gruenerator/contracts';
 import { SKILLS } from '@gruenerator/shared/agents';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { getUserLandesverbandId } from '../../services/landesverband/LandesverbandDerivationService.js';
 import {
   getHiddenSkillMentions,
+  getEffectiveHiddenSkillMentions,
   hideSkill,
   unhideSkill,
 } from '../../services/skills/AdminHiddenSkillsService.js';
@@ -33,9 +35,11 @@ const FORBIDDEN = {
 const s = initServer();
 
 export const skillVisibilityContractRouter = s.router(skillVisibilityContract, {
-  getVisibility: async () => {
+  getVisibility: async (args) => {
     try {
-      const hiddenMentions = await getHiddenSkillMentions();
+      const authedUser = getAuthedUser(args.req);
+      const landesverbandId = await getUserLandesverbandId(authedUser.id);
+      const hiddenMentions = [...(await getEffectiveHiddenSkillMentions(landesverbandId))];
       return { status: 200 as const, body: { hiddenMentions } };
     } catch (error) {
       log.error('[skillVisibilityContract.getVisibility] Error:', error);

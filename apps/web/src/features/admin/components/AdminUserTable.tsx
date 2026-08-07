@@ -39,6 +39,8 @@ export interface AdminUserRow {
   email: string | null;
   joinedAt: string | null;
   isAdmin?: boolean;
+  /** Undefined = not applicable to this surface (no badge shown). */
+  emailVerified?: boolean;
 }
 
 interface AdminUserTableProps {
@@ -81,6 +83,11 @@ export default function AdminUserTable({
             {row.original.isAdmin && (
               <Badge variant="secondary" className="text-xs">
                 Admin
+              </Badge>
+            )}
+            {row.original.emailVerified === false && (
+              <Badge variant="outline" className="text-xs">
+                E-Mail nicht verifiziert
               </Badge>
             )}
           </div>
