@@ -150,6 +150,17 @@ export class PostgresService {
         );
       }
 
+      try {
+        const { backfillLandesverbandAssignment } =
+          await import('../../../services/migrations/backfillLandesverbandAssignment.js');
+        await backfillLandesverbandAssignment();
+      } catch (error) {
+        console.warn(
+          '[PostgresService] ⚠️ Landesverband assignment backfill skipped:',
+          (error as Error).message
+        );
+      }
+
       // Auto-sync schema columns (non-critical — log internally)
       let schemaOk = true;
       try {
