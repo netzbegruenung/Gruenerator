@@ -1,4 +1,4 @@
-import { MAX_AUDIO_MINUTES } from '@gruenerator/contracts';
+import { MAX_AUDIO_BYTES, MAX_AUDIO_MB, MAX_AUDIO_MINUTES } from '@gruenerator/contracts';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -153,6 +153,15 @@ const TranskriptionPage = () => {
   // chunks server-side (transcribeBuffer in transcriptionRouterService.ts) and
   // merged back into one transcript, so this no longer blocks submission.
   const handleFileSelected = useCallback((file: File) => {
+    // UploadZone's dropzone-level maxSizeMB is MAX_VIDEO_UPLOAD_MB (3GB) so
+    // large videos aren't blocked before this runs — but a non-video file that
+    // large would still fail server-side (MAX_AUDIO_BYTES, enforced in
+    // voiceContractRouter.ts/voiceController.ts). Catch it here instead of
+    // after a multi-GB upload completes.
+    if (!file.type.startsWith('video/') && file.size > MAX_AUDIO_BYTES) {
+      toast.error(`Datei ist zu groß. Maximal ${MAX_AUDIO_MB}MB für Audio-Dateien.`);
+      return;
+    }
     setSelectedFile(file);
     setDurationWarning(null);
     void readMediaDurationSeconds(file).then((seconds) => {
