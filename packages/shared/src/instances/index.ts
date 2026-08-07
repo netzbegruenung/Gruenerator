@@ -116,11 +116,17 @@ export const INSTANCES = [
     id: 'production',
     hosts: ['gruenerator.eu', 'www.gruenerator.eu'],
     channels: ['stable'],
+    block: {
+      notebookIds: ['gruene-notebook'],
+    },
   },
   {
     id: 'beta',
     hosts: ['beta.gruenerator.eu'],
     channels: ['stable', 'preview'],
+    block: {
+      notebookIds: ['gruene-notebook'],
+    },
   },
   {
     id: 'bgst',
@@ -136,6 +142,9 @@ export const INSTANCES = [
     id: 'local',
     hosts: ['localhost', '127.0.0.1', '[::1]'],
     channels: ['stable', 'preview', 'internal'],
+    block: {
+      notebookIds: ['gruene-notebook'],
+    },
   },
 ] as const satisfies readonly InstanceDefinition[];
 
