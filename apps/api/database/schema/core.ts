@@ -74,8 +74,14 @@ export const profiles = pgTable(
     reduce_motion: boolean('reduce_motion').notNull().default(false),
     reduce_transparency: boolean('reduce_transparency').notNull().default(false),
     show_skip_link: boolean('show_skip_link').notNull().default(true),
+    // Derived server-side from `user_defaults.profile.roles[].bundesland`
+    // (see LandesverbandDerivationService) — not written directly by the
+    // client. No `.references()` here to avoid a circular import with
+    // landesverbaende.ts; the real FK constraint lives in the SQL migration.
+    landesverband_id: text('landesverband_id'),
   },
   (table) => ({
     emailIdx: index('idx_profiles_email').on(table.email),
+    landesverbandIdx: index('idx_profiles_landesverband_id').on(table.landesverband_id),
   })
 );
