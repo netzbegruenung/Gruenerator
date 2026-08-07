@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -24,7 +25,11 @@ const diskStorage = multer.diskStorage({
     cb(null, dir);
   },
   filename: (_req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
+    // Only the extension of the client-supplied name is trusted — the rest
+    // can contain '/' or '..' segments that survive multer's path.join and
+    // escape the temp directory (path traversal / arbitrary file write).
+    const ext = path.extname(file.originalname).slice(0, 16);
+    cb(null, `${randomUUID()}${ext}`);
   },
 });
 
