@@ -69,8 +69,7 @@ const config: Config = {
           sidebarPath: './sidebars.ts',
           // Hidden until ready — remove entries to re-enable in the sidebar.
           // intern: dev-only LV-Korpus analysis pages, internal.
-          // experimente: Themen-Monitor (now /experiments/monitor) not published yet.
-          exclude: ['intern/**', 'experimente/**'],
+          exclude: ['intern/**'],
           // "Edit this page" points at the docs in the monorepo.
           editUrl: 'https://github.com/netzbegruenung/Gruenerator/tree/master/documentation/',
         },
@@ -253,7 +252,6 @@ const config: Config = {
             })),
             { to: EXTRA_LINKS.webinare.to, label: EXTRA_LINKS.webinare.label },
             { type: 'docSidebar' as const, sidebarId: 'archivSidebar', label: 'Archiv' },
-            // { to: '/docs/experimente/intro', label: 'Experimente' }, // hidden — Themen-Monitor not published yet
           ],
         },
       ],
@@ -279,10 +277,6 @@ const config: Config = {
               label: 'Newsletter abonnieren',
               href: 'https://fax.gruenerator.de',
             },
-            // {
-            //   label: 'Themen-Monitor',
-            //   to: '/docs/experimente/intro',
-            // }, // hidden — Themen-Monitor not online yet
           ],
         },
         {
