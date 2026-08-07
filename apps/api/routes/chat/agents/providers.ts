@@ -307,12 +307,14 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
     model: regoloTextDefault(),
     contextWindow: CTX_FULL,
   },
-  // Backend-only lane and, since 03.08.2026, no longer an auto-policy target:
-  // Lane A moved to `gemma-4-26b`. It stays registered because it is still the
-  // model the intermediate stages and the loop PLANNER run on
-  // (LOOP_PLANNER_PRIMARY, DOCS_AI_MODELS / BOARD_AI_MODELS), and because an id
-  // that has been persisted in threads must keep resolving. Not in the model
-  // picker either (that is driven by MODEL_OPTIONS in @gruenerator/core/models).
+  // Backend-only lane and, since 03.08.2026, no longer an auto-policy target
+  // (its auto-policy role moved to `gemma-4-26b`, which was itself folded into
+  // `gemma-litellm` on 07.08.2026 — see autoPolicy.ts). It stays registered
+  // because it is still the model the intermediate stages and the loop
+  // PLANNER run on (LOOP_PLANNER_PRIMARY, DOCS_AI_MODELS / BOARD_AI_MODELS),
+  // and because an id that has been persisted in threads must keep resolving.
+  // Not in the model picker either (that is driven by MODEL_OPTIONS in
+  // @gruenerator/core/models).
   'mistral-small-4': {
     kind: 'single',
     provider: 'regolo',
