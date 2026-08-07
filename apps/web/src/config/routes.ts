@@ -142,6 +142,9 @@ const MeineVorlagenPage = lazy(() => import('../features/vorlagen/MeineVorlagenP
 const AdminDashboardPage = lazy(() => import('../features/admin/AdminDashboardPage'));
 const AdminSkillsPage = lazy(() => import('../features/admin/AdminSkillsPage'));
 const BgstAdminPage = lazy(() => import('../features/admin/bgst/BgstAdminPage'));
+const LandesverbandAdminPage = lazy(
+  () => import('../features/landesverband-admin/LandesverbandAdminPage')
+);
 const GrueneApiTestPage = lazy(() => import('../features/admin/GrueneApiTestPage'));
 const PlaygroundPage = lazy(() => import('../features/playground/PlaygroundPage'));
 const IconAnimationTestPage = lazy(() => import('../features/playground/IconAnimationTestPage'));
@@ -405,6 +408,16 @@ const standardRoutes: RouteConfig[] = [
   { path: '/admin', component: AdminDashboardPage },
   { path: '/admin/skills', component: AdminSkillsPage },
   { path: '/admin/bgst', component: BgstAdminPage },
+  {
+    path: '/admin/landesverband/:lvId',
+    component: LandesverbandAdminPage,
+    layoutMode: 'sidebarOnly',
+  },
+  {
+    path: '/admin/landesverband/:lvId/:tab',
+    component: LandesverbandAdminPage,
+    layoutMode: 'sidebarOnly',
+  },
   { path: '/admin/gruene-api', component: GrueneApiTestPage },
   { path: '/playground', component: PlaygroundPage },
   { path: '/icon-test', component: IconAnimationTestPage, channel: 'internal' },

@@ -12,6 +12,7 @@ import authMiddleware from './middleware/authMiddleware.js';
 import { deprecatedRoute } from './middleware/deprecatedRoute.js';
 import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
 import { mountBgstOverviewContractRouter } from './routes/admin/bgstOverviewContractRouter.js';
+import { mountLandesverbandAdminContractRouter } from './routes/admin/landesverbandAdminContractRouter.js';
 import { mountLvAdminAssignmentContractRouter } from './routes/admin/lvAdminAssignmentContractRouter.js';
 import antraegeRouter from './routes/antraege/index.js';
 import { mountGroupsContractRouter } from './routes/auth/groups/groupsContract/index.js';
@@ -375,6 +376,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/auth/admin/landesverbaende', requireAuth);
   app.use('/api/auth/admin/users', requireAuth);
   mountLvAdminAssignmentContractRouter(app);
+  // Landesverband-Admin self-service (greeting text, LV-scoped Rezepte
+  // visibility, own member list) — requireAuth at the prefix, per-handler
+  // requireLandesverbandAdmin re-verification for every non-`mine` route.
+  app.use('/api/auth/admin/landesverband', requireAuth);
+  mountLandesverbandAdminContractRouter(app);
   // ts-rest contract router for user templates (Vorlagen CRUD) — replaces the
   // legacy userTemplatesRouter. Mounts BEFORE authRouter so contract routes
   // match first. requireAuth is applied at the prefix because every route

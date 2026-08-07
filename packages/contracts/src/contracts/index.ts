@@ -70,3 +70,4 @@ export { skillPromptContract } from './skillPromptContract.js';
 export { skillVisibilityContract } from './skillVisibilityContract.js';
 export { bgstInstanceOverviewContract } from './bgstInstanceOverviewContract.js';
 export { lvAdminAssignmentContract } from './lvAdminAssignmentContract.js';
+export { landesverbandAdminContract } from './landesverbandAdminContract.js';
