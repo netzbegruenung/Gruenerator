@@ -64,3 +64,13 @@ export async function deriveLandesverbandFromRoles(
     log.warn(`[deriveLandesverbandFromRoles] Failed for user ${userId}:`, (error as Error).message);
   }
 }
+
+/** Reads the derived `profiles.landesverband_id` for one user, or null. */
+export async function getUserLandesverbandId(userId: string): Promise<string | null> {
+  const postgres = getPostgresInstance();
+  const row = await postgres.queryOne<{ landesverband_id: string | null }>(
+    'SELECT landesverband_id FROM profiles WHERE id = $1',
+    [userId]
+  );
+  return row?.landesverband_id ?? null;
+}
