@@ -236,7 +236,7 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/office/intro",
     "title": "Office: Dokumente, Tabellen, Folien und Boards",
     "category": "Office",
-    "lead": "Office ist der Ort für alles, was aus Text, Zahlen und Plänen besteht. Fünf Arten von Dokumenten liegen dort nebeneinander: . Du findest sie über den Tab Arbeiten unter der Kachel ."
+    "lead": "Office ist der Ort für alles, was aus Text, Zahlen und Plänen besteht. Vier Arten von Dokumenten liegen dort nebeneinander: Dokument, Tabelle, Präsentation und Board. Du findest sie über den Tab Arbe…"
   },
   {
     "url": "/docs/office/ki-im-editor",
@@ -819,7 +819,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Gespräch starten",
     "anchor": "#gespräch-starten",
     "category": "Chat",
-    "text": "Den Chat erreichst du über den Menüpunkt in der Seitenleiste oder direkt unter /chat. Dort siehst du: Eingabefeld unten zum Schreiben deiner Nachricht Seitenleiste links mit deinem Gesprächsverlauf — Gespräche kannst du dort auch in Ordnern organisieren „+\"-Menü links im Eingabefeld für Modus, Werkzeuge, Quellen und Dateien Modell-Auswahl rechts unten im Eingabefeld Jedes Gespräch wird als eigener Thread mit eigener Adresse (/chat/…) gespeichert. Du kannst jederzeit ein neues Gespräch beginnen oder in der Seitenleiste zu einem früheren Gespräch zurückkehren."
+    "text": "Den Chat erreichst du über den Menüpunkt in der Seitenleiste oder direkt unter /chat. Dort siehst du: Eingabefeld unten zum Schreiben deiner Nachricht Seitenleiste links mit deinem Gesprächsverlauf — Gespräche kannst du dort auch in Projekten bündeln „+\"-Menü links im Eingabefeld für Modus, Werkzeuge, Quellen und Dateien Modell-Auswahl rechts unten im Eingabefeld Jedes Gespräch wird als eigener Thread mit eigener Adresse (/chat/…) gespeichert. Du kannst jederzeit ein neues Gespräch beginnen oder in der Seitenleiste zu einem früheren Gespräch zurückkehren."
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -2283,7 +2283,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Office: Dokumente, Tabellen, Folien und Boards",
     "anchor": "",
     "category": "Office",
-    "text": "Office ist der Ort für alles, was aus Text, Zahlen und Plänen besteht. Fünf Arten von Dokumenten liegen dort nebeneinander: . Du findest sie über den Tab Arbeiten unter der Kachel ."
+    "text": "Office ist der Ort für alles, was aus Text, Zahlen und Plänen besteht. Vier Arten von Dokumenten liegen dort nebeneinander: Dokument, Tabelle, Präsentation und Board. Du findest sie über den Tab Arbeiten unter der Kachel ."
   },
   {
     "url": "/docs/office/intro",
@@ -2483,7 +2483,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Der aktuelle Stand: teilweise konform",
     "anchor": "#der-aktuelle-stand-teilweise-konform",
     "category": "Über den Grünerator",
-    "text": "Behoben und nachgemessen sind unter anderem: Die eingeklappte Hauptnavigation. Sie war mit Screenreader unbenutzbar — die Beschriftungen der Knöpfe waren nicht nur unsichtbar, sondern vollständig aus der Vorlesereihenfolge entfernt. Das war mit Abstand die schwerste Barriere. Die Tastaturfalle im Untertitel-Werkzeug. Die Tabulatortaste kam aus der Segmentliste nicht mehr heraus. Jetzt wechseln die Pfeiltasten das Segment, und Tab bleibt Tab. Aufgabenkarten auf Boards haben einen echten Ziehgriff, der per Tastatur bedienbar ist. Ziehen mit der Maus funktioniert weiter auf der ganzen Karte. Weißer Text auf den Markenfarben erreichte den geforderten Kontrast nicht. Das betraf den Marken-Button und alle Abzeichen in Eukalyptus-Grün. Graue Textstufen erreichen jetzt in hellem wie dunklem Modus die geforderten 4,5:1. Rund 300 Bedienelemente der Mobil-App hatten keinen vorlesbaren Namen — mit Screenreader hörte man nur „Schaltfläche\", ohne zu erfahren, welche. Alle haben jetzt einen."
+    "text": "Behoben und nachgemessen sind unter anderem: Die eingeklappte Hauptnavigation. Sie war mit Screenreader unbenutzbar — die Beschriftungen der Knöpfe waren nicht nur unsichtbar, sondern vollständig aus der Vorlesereihenfolge entfernt. Das war mit Abstand die schwerste Barriere. Die Tastaturfalle im Untertitel-Werkzeug. Die Tabulatortaste kam aus der Segmentliste nicht mehr heraus. Jedes Segment ist jetzt einzeln per Tab erreichbar, sodass du mit der Tastatur wieder herauskommst. Aufgabenkarten auf Boards haben einen echten Ziehgriff, der per Tastatur bedienbar ist. Ziehen mit der Maus funktioniert weiter auf der ganzen Karte. Weißer Text auf den Markenfarben erreichte den geforderten Kontrast nicht. Das betraf den Marken-Button und alle Abzeichen in Eukalyptus-Grün. Graue Textstufen erreichen jetzt in hellem wie dunklem Modus die geforderten 4,5:1. Rund 300 Bedienelemente der Mobil-App hatten keinen vorlesbaren Namen — mit Screenreader hörte man nur „Schaltfläche\", ohne zu erfahren, welche. Alle haben jetzt einen."
   },
   {
     "url": "/docs/ueber-den-gruenerator/barrierefreiheit",
@@ -2499,7 +2499,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Einstellungen, die du selbst setzen kannst",
     "anchor": "#einstellungen-die-du-selbst-setzen-kannst",
     "category": "Über den Grünerator",
-    "text": "Unter Einstellungen → Barrierefreiheit: Einstellung | Wirkung | ------------------------------------ | ------------------------------------------- | Animationen reduzieren | Bewegung und Übergänge werden abgeschaltet. | Transparenz und Unschärfe reduzieren | Durchscheinende Flächen werden deckend. | Hellen und dunklen Modus stellst du unter Einstellungen → Darstellung ein; der Grünerator folgt sonst der Einstellung deines Systems."
+    "text": "Unter Einstellungen → Barrierefreiheit: Einstellung | Wirkung | ------------------------------------ | ------------------------------------------- | Animationen reduzieren | Bewegung und Übergänge werden abgeschaltet. | Transparenz und Unschärfe reduzieren | Durchscheinende Flächen werden deckend. | Hellen und dunklen Modus stellst du unter Einstellungen → Allgemein ein; der Grünerator folgt sonst der Einstellung deines Systems."
   },
   {
     "url": "/docs/ueber-den-gruenerator/barrierefreiheit",
@@ -2523,7 +2523,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Tastaturbedienung",
     "anchor": "#tastaturbedienung",
     "category": "Über den Grünerator",
-    "text": "Der Grünerator ist mit der Tastatur bedienbar. Mit Tab wanderst du vorwärts durch die Bedienelemente, mit Umschalt+Tab zurück, Enter und Leertaste lösen aus, Escape schließt Dialoge. In Listen mit vielen gleichartigen Einträgen — etwa den Segmenten im Untertitel-Werkzeug — wechseln die Pfeiltasten innerhalb der Liste; Tab führt aus der Liste heraus."
+    "text": "Der Grünerator ist mit der Tastatur bedienbar. Mit Tab wanderst du vorwärts durch die Bedienelemente, mit Umschalt+Tab zurück, Enter und Leertaste lösen aus, Escape schließt Dialoge. In Listen mit vielen gleichartigen Einträgen — etwa den Segmenten im Untertitel-Werkzeug — ist jeder Eintrag einzeln per Tab erreichbar; eine Pfeiltasten-Navigation innerhalb der Liste gibt es (noch) nicht."
   },
   {
     "url": "/docs/ueber-den-gruenerator/barrierefreiheit",
@@ -3011,7 +3011,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Auf „Von der Basis\" listen",
     "anchor": "#auf-von-der-basis-listen",
     "category": "Wissen",
-    "text": "Im Modus „Mit Anmeldung\" kannst du zusätzlich den Schalter „Auf ‚Von der Basis' listen\" aktivieren. Dann erscheint dein Notebook auf der allgemeinen Notebooks-Seite im Abschnitt „Von der Basis\" zum Entdecken. Sobald du den Schalter aktivierst, musst du eine der beiden Aussagen bestätigen: „Ich besitze die Daten\" — … oder habe die Rechte zur Veröffentlichung; z.&nbsp;B. eigene Texte, Beschlüsse deines Verbands, Material, das du selbst veröffentlichen darfst. „Daten sind öffentlich verfügbar\" — z.&nbsp;B. offizielle Dokumente, Pressemitteilungen, frei zugängliche Veröffentlichungen. Ohne diese Bestätigung lässt sich das Notebook nicht listen. Hintergrund: Damit stellen wir sicher, dass nur Inhalte mit klarer Rechtelage veröffentlicht werden. Wenn du dir bei den Rechten unsicher bist, lass das Notebook privat — du kannst die Sichtbarkeit jederzeit später ändern."
+    "text": "Im Modus „Mit Anmeldung\" kannst du zusätzlich den Schalter „Auf ‚Von der Basis' listen\" aktivieren. Dein Notebook wird dann über die Suche auf der Notebooks-Seite auffindbar (zusammen mit System- und anderen öffentlichen Notebooks) — eine eigene „Von der Basis\"-Rubrik gibt es dafür nicht. Sobald du den Schalter aktivierst, musst du eine der beiden Aussagen bestätigen: „Ich besitze die Daten\" — … oder habe die Rechte zur Veröffentlichung; z.&nbsp;B. eigene Texte, Beschlüsse deines Verbands, Material, das du selbst veröffentlichen darfst. „Daten sind öffentlich verfügbar\" — z.&nbsp;B. offizielle Dokumente, Pressemitteilungen, frei zugängliche Veröffentlichungen. Ohne diese Bestätigung lässt sich das Notebook nicht listen. Hintergrund: Damit stellen wir sicher, dass nur Inhalte mit klarer Rechtelage veröffentlicht werden. Wenn du dir bei den Rechten unsicher bist, lass das Notebook privat — du kannst die Sichtbarkeit jederzeit später ändern."
   },
   {
     "url": "/docs/wissen/eigenes-notebook-erstellen",
@@ -3043,7 +3043,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 1: Zur Notebook-Übersicht",
     "anchor": "#schritt-1-zur-notebook-übersicht",
     "category": "Wissen",
-    "text": "Öffne in der Navigation Notebooks (/notebooks). Auf dieser Seite sind alle Notebooks an einem Ort gebündelt; deine eigenen findest du im Abschnitt „Eigene\". Beim ersten Mal ist er leer und zeigt nur die Karte zum Erstellen. Klicke neben der Überschrift „Eigene\" auf „Notebook erstellen\" (oder auf die Erstellen-Karte), um den Editor zu öffnen."
+    "text": "Öffne in der Navigation Wissen (/wissen). Auf dieser Seite sind alle Notebooks an einem Ort gebündelt. Wenn du noch kein eigenes Notebook hast, findest du in der obersten Kachelreihe eine Kachel „Neues erstellen\" — ein Klick öffnet direkt den Editor. Sobald du mindestens ein eigenes Notebook hast, ersetzt eine Kachel „Eigene Notebooks\" diese Kachel; ein Klick darauf öffnet den Abschnitt „Eigene\", in dem du über „Notebook erstellen\" weitere Notebooks anlegst."
   },
   {
     "url": "/docs/wissen/eigenes-notebook-erstellen",
@@ -3131,7 +3131,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Landesverband-Grüneratoren",
     "anchor": "",
     "category": "Wissen",
-    "text": "Der Grünerator hat für mehrere Landesverbände eigene, regional getunte Grüneratoren. Sie schreiben nicht generisch-grün, sondern im konkreten Stil des jeweiligen Landesverbands — mit den richtigen Sprecher*innen, den lokalen Themen und der typischen Tonalität. Im Hintergrund recherchieren sie automatisch in der Wissensdatenbank des Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme) und im Web. Es gibt zwei Sorten von Landesverband-Grüneratoren: Öffentlichkeitsarbeit — schreibt Pressemitteilungen und Social-Media-Posts im Stil des Landesverbands. Bürger*innenanfragen — formuliert versandfertige, recherchebasierte Antwort-E-Mails auf Anfragen von Bürger*innen."
+    "text": "Der Grünerator hat für mehrere Landesverbände eigene, regional getunte Grüneratoren. Sie schreiben nicht generisch-grün, sondern im konkreten Stil des jeweiligen Landesverbands — mit den richtigen Sprecher*innen, den lokalen Themen und der typischen Tonalität. Im Hintergrund recherchieren sie automatisch in der Wissensdatenbank des Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme) und im Web. Es gibt drei Sorten von Landesverband-Grüneratoren: Öffentlichkeitsarbeit — schreibt Pressemitteilungen und Social-Media-Posts im Stil des Landesverbands. Bürger*innenanfragen — formuliert versandfertige, recherchebasierte Antwort-E-Mails auf Anfragen von Bürger*innen. Wahlprüfsteine — beantwortet Wahlprüfsteine im Stil und mit den Positionen des Landesverbands."
   },
   {
     "url": "/docs/wissen/landesverbaende",
@@ -3139,7 +3139,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Abgedeckte Landesverbände",
     "anchor": "#abgedeckte-landesverbände",
     "category": "Wissen",
-    "text": "Jede Kachel verlinkt auf die Landesverband-Seite — sie bietet beide Grüneratoren des Landesverbands zur Auswahl an: Öffentlichkeitsarbeit (siehe unten) und Bürger*innenanfragen (siehe unten). Darunter stehen die Rezept-Abkürzungen und ein Link zur Wissensdatenbank (Notebook). Die Grünen Österreich sind kein Landesverband, sondern die Bundespartei — sie haben aber dieselben beiden Grünerator-Typen (erreichbar unter /agents/gruene-oesterreich, Wissensdatenbank /notebooks/oesterreich · @at). Diese Grüneratoren verwenden österreichisches Vokabular (Nationalrat, Klubobfrau*Klubobmann, Klimaticket) und erscheinen nur für Nutzer*innen mit österreichischer Einstellung."
+    "text": "Jede Kachel verlinkt auf die Landesverband-Seite — sie bietet alle drei Grüneratoren des Landesverbands zur Auswahl an: Öffentlichkeitsarbeit (siehe unten), Bürger*innenanfragen (siehe unten) und Wahlprüfsteine. Darunter stehen die Rezept-Abkürzungen und ein Link zur Wissensdatenbank (Notebook). Die Grünen Österreich sind kein Landesverband, sondern die Bundespartei — sie haben aber dieselben drei Grünerator-Typen (erreichbar unter /agents/gruene-oesterreich, Wissensdatenbank /notebooks/oesterreich · @at). Diese Grüneratoren verwenden österreichisches Vokabular (Nationalrat, Klubobfrau*Klubobmann, Klimaticket) und erscheinen nur für Nutzer*innen mit österreichischer Einstellung."
   },
   {
     "url": "/docs/wissen/landesverbaende",
@@ -3163,7 +3163,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "LV-Rezepte im Überblick",
     "anchor": "#lv-rezepte-im-überblick",
     "category": "Wissen",
-    "text": "Für diese Landesverbände gibt es eigene Rezept-Abkürzungen für Pressemitteilung und Instagram: Landesverband | Pressemitteilung | Instagram | ---------------------- | --------------------- | -------------------- | Berlin | /presse-berlin | /insta-berlin | Mecklenburg-Vorpommern | /presse-mv | /insta-mv | Thüringen | /presse-thueringen | /insta-thueringen | Brandenburg | /presse-brandenburg | /insta-brandenburg | Bayern | /presse-bayern | /insta-bayern | Sachsen-Anhalt, Hessen und das Saarland haben (noch) keine eigenen Rezept-Abkürzungen — ihre Grüneratoren erreichst du über die jeweilige Landesverband-Seite. Unabhängig vom Landesverband gibt es allgemeine Rezepte für jede Plattform: /presse, /instagram, /facebook, /twitter, /linkedin und /reel. Sie greifen auf Beispiele aus allen Landesverbänden zurück. Die LV-Rezepte oben sind die Spezialversion mit eingebautem Regional-Stil."
+    "text": "Für diese Landesverbände gibt es eigene Rezept-Abkürzungen für Pressemitteilung und Instagram: Landesverband | Pressemitteilung | Instagram | ---------------------- | --------------------- | -------------------- | Berlin | /presse-berlin | /insta-berlin | Mecklenburg-Vorpommern | /presse-mv | /insta-mv | Thüringen | /presse-thueringen | /insta-thueringen | Brandenburg | /presse-brandenburg | /insta-brandenburg | Bayern | /presse-bayern | — | Sachsen-Anhalt, Hessen und das Saarland haben (noch) keine eigenen Rezept-Abkürzungen — ihre Grüneratoren erreichst du über die jeweilige Landesverband-Seite. Unabhängig vom Landesverband gibt es allgemeine Rezepte für jede Plattform: /presse, /instagram, /facebook, /twitter, /linkedin und /reel. Sie greifen auf Beispiele aus allen Landesverbänden zurück. Die LV-Rezepte oben sind die Spezialversion mit eingebautem Regional-Stil."
   },
   {
     "url": "/docs/wissen/landesverbaende",
