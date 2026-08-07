@@ -62,8 +62,11 @@ const uploadDisk = multer({
       cb(null, dir);
     },
     filename: (_req, file, cb) => {
-      const uniqueName = `${randomUUID()}-${file.originalname}`;
-      cb(null, uniqueName);
+      // Only the extension of the client-supplied name is trusted — the rest
+      // can contain '/' or '..' segments that survive multer's path.join and
+      // escape PENDING_UPLOADS_DIR (path traversal / arbitrary file write).
+      const ext = path.extname(file.originalname).slice(0, 16);
+      cb(null, `${randomUUID()}${ext}`);
     },
   }),
   limits: {

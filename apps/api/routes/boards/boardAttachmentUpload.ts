@@ -29,6 +29,7 @@ import {
   ATTACHMENT_DIR,
   MAX_ATTACHMENT_SIZE,
   deleteStoredFile,
+  isSafeToInline,
   lookupMime,
 } from './boardAttachmentStorage.js';
 
@@ -76,7 +77,11 @@ boardAttachmentUploadRouter.post(
           userId,
           file.originalname,
           file.filename,
-          file.mimetype || lookupMime(file.filename),
+          // Derived from the stored extension, never from the client-supplied
+          // multipart Content-Type — trusting that let an attacker label a
+          // .html/.svg upload with any mimetype and have it echoed back
+          // verbatim on download.
+          lookupMime(file.filename),
           file.size,
         ]
       );
@@ -100,7 +105,7 @@ boardAttachmentUploadRouter.post(
         user_id: userId,
         file_name: file.originalname,
         stored_filename: file.filename,
-        mime_type: file.mimetype || lookupMime(file.filename),
+        mime_type: lookupMime(file.filename),
         file_size: file.size,
         is_cover: false,
         created_at: inserted.created_at,
@@ -148,10 +153,16 @@ boardAttachmentUploadRouter.get(
       await fs.promises.access(filePath);
       const stats = await fs.promises.stat(filePath);
 
+      const mimeType = row.mime_type || lookupMime(safe);
+      // Rendering an attacker-uploaded HTML/SVG inline in the API's own
+      // origin is stored XSS — anything outside the safe-to-render allowlist
+      // must download instead of display.
+      const disposition = isSafeToInline(mimeType) ? 'inline' : 'attachment';
+
       res.writeHead(200, {
         'Content-Length': stats.size,
-        'Content-Type': row.mime_type || lookupMime(safe),
-        'Content-Disposition': `inline; filename="${encodeURIComponent(row.file_name)}"`,
+        'Content-Type': mimeType,
+        'Content-Disposition': `${disposition}; filename="${encodeURIComponent(row.file_name)}"`,
         'Cache-Control': 'private, max-age=3600',
       });
       fs.createReadStream(filePath).pipe(res);
