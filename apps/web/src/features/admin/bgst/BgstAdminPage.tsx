@@ -80,7 +80,7 @@ const BgstAdminPage = () => {
   const { data: users, isLoading: usersLoading } = useBgstUsers();
 
   return (
-    <RequireAdmin>
+    <RequireAdmin type="instanceAdmin">
       <ErrorBoundary>
         <PageContainer maxWidth="md">
           <div className="mb-lg pt-md">
