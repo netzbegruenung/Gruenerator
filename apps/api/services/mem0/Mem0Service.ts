@@ -265,6 +265,22 @@ export class Mem0Service {
   }
 
   /**
+   * Confirms `memoryId` is actually owned by `userId` before any mutation.
+   * mem0's delete()/update() take only a memoryId — with no filter on the
+   * caller's own userId, any authenticated user who obtained another user's
+   * memory ID (returned to clients in normal getAllMemories responses) could
+   * delete or overwrite someone else's memory. Every mutating call below must
+   * go through this first.
+   */
+  private async ownsMemory(memoryId: string, userId: string): Promise<boolean> {
+    if (!this.memory) return false;
+    const existing = await this.memory.get(memoryId);
+    if (!existing) return false;
+    const ownerId = (existing as unknown as { user_id?: string }).user_id;
+    return ownerId === userId;
+  }
+
+  /**
    * Update a specific memory's content.
    * Deletes the old memory and creates a new one with updated text.
    * (Mem0 OSS doesn't support in-place updates, so we delete + re-add.)
@@ -283,6 +299,11 @@ export class Mem0Service {
 
       if (!this.memory) {
         log.warn('[Mem0] Memory client not initialized');
+        return null;
+      }
+
+      if (!(await this.ownsMemory(memoryId, userId))) {
+        log.warn(`[Mem0] Refusing update of memory ${memoryId} — not owned by user ${userId}`);
         return null;
       }
 
@@ -327,6 +348,11 @@ export class Mem0Service {
 
       if (!this.memory) {
         log.warn('[Mem0] Memory client not initialized');
+        return false;
+      }
+
+      if (!(await this.ownsMemory(memoryId, userId))) {
+        log.warn(`[Mem0] Refusing delete of memory ${memoryId} — not owned by user ${userId}`);
         return false;
       }
 
