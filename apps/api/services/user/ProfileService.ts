@@ -6,6 +6,7 @@ import { profiles } from '../../database/schema/core.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { type DeleteResult, getPostgresInstance } from '../../database/services/PostgresService.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
+import { deriveLandesverbandFromRoles } from '../landesverband/LandesverbandDerivationService.js';
 
 import { toUserProfile } from './profileMapper.js';
 
@@ -443,7 +444,11 @@ class ProfileService {
       }
       defaults[generator][key] = value;
 
-      return await this.updateProfile(userId, { user_defaults: defaults });
+      const updated = await this.updateProfile(userId, { user_defaults: defaults });
+      if (generator === 'profile' && key === 'roles') {
+        await deriveLandesverbandFromRoles(userId, value as { bundesland?: string }[]);
+      }
+      return updated;
     } catch (error: unknown) {
       console.error('[ProfileService] Error updating user default:', error);
       throw error;
@@ -477,7 +482,14 @@ class ProfileService {
       const defaults = currentProfile.user_defaults || {};
       defaults[generator] = value;
 
-      return await this.updateProfile(userId, { user_defaults: defaults });
+      const updated = await this.updateProfile(userId, { user_defaults: defaults });
+      if (generator === 'profile' && Array.isArray((value as Record<string, unknown>).roles)) {
+        await deriveLandesverbandFromRoles(
+          userId,
+          (value as Record<string, unknown>).roles as { bundesland?: string }[]
+        );
+      }
+      return updated;
     } catch (error: unknown) {
       console.error('[ProfileService] Error setting user defaults generator:', error);
       throw error;

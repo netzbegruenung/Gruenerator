@@ -141,6 +141,7 @@ const VorlagenGallery = lazy(() => import('../components/common/Gallery'));
 const MeineVorlagenPage = lazy(() => import('../features/vorlagen/MeineVorlagenPage'));
 const AdminDashboardPage = lazy(() => import('../features/admin/AdminDashboardPage'));
 const AdminSkillsPage = lazy(() => import('../features/admin/AdminSkillsPage'));
+const BgstAdminPage = lazy(() => import('../features/admin/bgst/BgstAdminPage'));
 const GrueneApiTestPage = lazy(() => import('../features/admin/GrueneApiTestPage'));
 const PlaygroundPage = lazy(() => import('../features/playground/PlaygroundPage'));
 const IconAnimationTestPage = lazy(() => import('../features/playground/IconAnimationTestPage'));
@@ -403,6 +404,7 @@ const standardRoutes: RouteConfig[] = [
   },
   { path: '/admin', component: AdminDashboardPage },
   { path: '/admin/skills', component: AdminSkillsPage },
+  { path: '/admin/bgst', component: BgstAdminPage },
   { path: '/admin/gruene-api', component: GrueneApiTestPage },
   { path: '/playground', component: PlaygroundPage },
   { path: '/icon-test', component: IconAnimationTestPage, channel: 'internal' },
