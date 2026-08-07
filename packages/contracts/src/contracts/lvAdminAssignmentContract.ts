@@ -49,6 +49,7 @@ export const lvAdminAssignmentContract = c.router(
         401: landesverbandErrorResponseSchema,
         403: landesverbandErrorResponseSchema,
         404: landesverbandErrorResponseSchema,
+        409: landesverbandErrorResponseSchema,
         500: landesverbandErrorResponseSchema,
       },
       summary: 'Update Landesverband name / email-domain verification signal (super-admin)',

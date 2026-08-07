@@ -75,9 +75,9 @@ describe('autoPolicy — a non-off reasoning setting is always actionable', () =
 });
 
 describe('autoPolicy — lane assignment per task shape', () => {
-  it('direct answers take the speed lane with reasoning OFF', () => {
+  it('direct answers take the Gemma content lane with reasoning OFF', () => {
     const sel = resolveAutoSelection({ intent: 'direct', complexity: 'simple' });
-    expect(sel.modelId).toBe('litellm');
+    expect(sel.modelId).toBe('gemma-litellm');
     expect(sel.reasoning).toBe('off');
   });
 
@@ -119,23 +119,32 @@ describe('autoPolicy — lane assignment per task shape', () => {
     }
   });
 
-  it('short/structured turns take the small Gemma lane', () => {
-    // Reporting/summarising over material that is already in context. Since
-    // 03.08.2026 that is Gemma 4 26B (Scaleway, GreenPT on failover) rather than
-    // Mistral Small 4: both only narrate, so the deciding argument is the German,
-    // and keeping A and B in one family means a turn changes size, not voice.
+  it('short/structured turns take the Gemma content lane', () => {
+    // Reporting/summarising over material that is already in context. Folded
+    // into the single Gemma 4 (31B) lane on 07.08.2026 — see the lane comment
+    // in autoPolicy.ts.
     for (const intent of [
       'mcp',
       'summary',
       'chat_history',
       'scrape_url',
-      'compute',
       'chart',
       'bahn',
       'wetter',
       'umfragen',
     ]) {
-      expect(resolveAutoSelection({ intent }).modelId, intent).toBe('gemma-4-26b');
+      expect(resolveAutoSelection({ intent }).modelId, intent).toBe('gemma-litellm');
+    }
+  });
+
+  it('compute narrates pre-computed figures on the Mistral lane, not the shared writer', () => {
+    // 02.08.2026 incident: the shared writer filled a narration gap with its
+    // own arithmetic. Moved off the shared content lane on 07.08.2026 so a
+    // future change to that lane can't reintroduce the regression here too.
+    for (const complexity of COMPLEXITIES) {
+      const sel = resolveAutoSelection({ intent: 'compute', complexity });
+      expect(sel.modelId).toBe('mistral-medium-3.5');
+      expect(sel.reasoning).toBe('off');
     }
   });
 
@@ -233,22 +242,6 @@ describe('autoPolicy — complexity grading', () => {
     }
   });
 
-  it('the small Gemma lane never thinks — measured, not assumed', () => {
-    // Live probe: thinking is correct but costs ~1.6–2k chars of reasoning on a
-    // trivial question, `low` barely reduces it (no native dial), and a small
-    // token budget was consumed entirely by reasoning → empty answer. Too
-    // expensive for the lane chosen FOR speed. The rule survived the move off
-    // Small 4 because the host now ENFORCES it: scalewayThinkingFetch pins
-    // `reasoning_effort: 'none'`. See the note in autoPolicy.ts.
-    for (const intent of ALL_INTENTS) {
-      for (const complexity of COMPLEXITIES) {
-        const sel = resolveAutoSelection({ intent, complexity });
-        if (sel.modelId !== 'gemma-4-26b') continue;
-        expect(sel.reasoning, `${intent}/${complexity}`).toBe('off');
-      }
-    }
-  });
-
   it('grading never changes the lane, only the effort', () => {
     for (const intent of ALL_INTENTS) {
       const lanes = new Set(
@@ -263,12 +256,21 @@ describe('autoPolicy — agent routing hint', () => {
   const CREATIVE_AGENT = 'gruenerator-rede-schreiber'; // autoRoutingHint: 'creative'
   const PRECISE_AGENT = 'gruenerator-bundestag'; // autoRoutingHint: 'precise'
 
-  it('overrides the lane on shape-less intents', () => {
-    expect(resolveAutoSelection({ intent: 'direct', agentId: CREATIVE_AGENT }).modelId).toBe(
-      'gemma-litellm'
-    );
+  it('the precise hint overrides the lane on shape-less intents', () => {
     expect(resolveAutoSelection({ intent: 'direct', agentId: PRECISE_AGENT }).modelId).toBe(
       'mistral-medium-3.5'
+    );
+  });
+
+  it('the creative hint is currently a no-op — every shape-less intent already defaults to Gemma', () => {
+    // Documents intent, not a real override: since the 07.08.2026 lane fold,
+    // GEMMA is what a shape-less intent resolves to with NO agent at all, so
+    // this assertion would pass identically with the 'creative' branch deleted
+    // from resolveAutoSelection. Kept as a tripwire — if a future
+    // HINT_OVERRIDABLE intent's default stops being GEMMA, this test should
+    // start failing and prompt re-adding a real branch.
+    expect(resolveAutoSelection({ intent: 'direct', agentId: CREATIVE_AGENT }).modelId).toBe(
+      resolveAutoSelection({ intent: 'direct' }).modelId
     );
   });
 
@@ -288,7 +290,9 @@ describe('autoPolicy — agent routing hint', () => {
   });
 
   it('an unknown agent id is ignored rather than fatal', () => {
-    expect(resolveAutoSelection({ intent: 'direct', agentId: 'nope' }).modelId).toBe('litellm');
+    expect(resolveAutoSelection({ intent: 'direct', agentId: 'nope' }).modelId).toBe(
+      'gemma-litellm'
+    );
   });
 });
 
