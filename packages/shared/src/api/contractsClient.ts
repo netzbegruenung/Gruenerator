@@ -62,6 +62,7 @@ import {
   skillVisibilityContract,
   bgstInstanceOverviewContract,
   lvAdminAssignmentContract,
+  landesverbandAdminContract,
   userTextFormsContract,
   recurringTasksContract,
   docsContract,
@@ -232,6 +233,7 @@ const _skillPromptClient = () => initClient(skillPromptContract, CLIENT_OPTS);
 const _skillVisibilityClient = () => initClient(skillVisibilityContract, CLIENT_OPTS);
 const _bgstInstanceOverviewClient = () => initClient(bgstInstanceOverviewContract, CLIENT_OPTS);
 const _lvAdminAssignmentClient = () => initClient(lvAdminAssignmentContract, CLIENT_OPTS);
+const _landesverbandAdminClient = () => initClient(landesverbandAdminContract, CLIENT_OPTS);
 const _userTextFormsClient = () => initClient(userTextFormsContract, CLIENT_OPTS);
 const _recurringTasksClient = () => initClient(recurringTasksContract, CLIENT_OPTS);
 const _docsClient = () => initClient(docsContract, CLIENT_OPTS);
@@ -294,6 +296,7 @@ export interface ContractsClient {
   skillVisibility: ReturnType<typeof _skillVisibilityClient>;
   bgstInstanceOverview: ReturnType<typeof _bgstInstanceOverviewClient>;
   lvAdminAssignment: ReturnType<typeof _lvAdminAssignmentClient>;
+  landesverbandAdmin: ReturnType<typeof _landesverbandAdminClient>;
   userTextForms: ReturnType<typeof _userTextFormsClient>;
   recurringTasks: ReturnType<typeof _recurringTasksClient>;
   docs: ReturnType<typeof _docsClient>;
@@ -373,6 +376,7 @@ export function getContractsClient(): ContractsClient {
     skillVisibility: _skillVisibilityClient(),
     bgstInstanceOverview: _bgstInstanceOverviewClient(),
     lvAdminAssignment: _lvAdminAssignmentClient(),
+    landesverbandAdmin: _landesverbandAdminClient(),
     userTextForms: _userTextFormsClient(),
     recurringTasks: _recurringTasksClient(),
     docs: _docsClient(),
