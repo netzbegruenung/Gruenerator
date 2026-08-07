@@ -8,19 +8,20 @@ import AgentTiles from '@site/src/components/AgentTiles';
 
 Der Grünerator hat für mehrere Landesverbände **eigene, regional getunte Grüneratoren**. Sie schreiben nicht generisch-grün, sondern im konkreten Stil des jeweiligen Landesverbands — mit den richtigen Sprecher\*innen, den lokalen Themen und der typischen Tonalität. Im Hintergrund recherchieren sie automatisch in der Wissensdatenbank des Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme) und im Web.
 
-Es gibt zwei Sorten von Landesverband-Grüneratoren:
+Es gibt drei Sorten von Landesverband-Grüneratoren:
 
 - **Öffentlichkeitsarbeit** — schreibt Pressemitteilungen und Social-Media-Posts im Stil des Landesverbands.
 - **Bürger\*innenanfragen** — formuliert versandfertige, recherchebasierte Antwort-E-Mails auf Anfragen von Bürger\*innen.
+- **Wahlprüfsteine** — beantwortet Wahlprüfsteine im Stil und mit den Positionen des Landesverbands.
 
 ## Abgedeckte Landesverbände
 
 <AgentTiles />
 
-Jede Kachel verlinkt auf die **Landesverband-Seite** — sie bietet beide Grüneratoren des Landesverbands zur Auswahl an: **Öffentlichkeitsarbeit** (siehe unten) und **Bürger\*innenanfragen** (siehe unten). Darunter stehen die Rezept-Abkürzungen und ein Link zur Wissensdatenbank (Notebook).
+Jede Kachel verlinkt auf die **Landesverband-Seite** — sie bietet alle drei Grüneratoren des Landesverbands zur Auswahl an: **Öffentlichkeitsarbeit** (siehe unten), **Bürger\*innenanfragen** (siehe unten) und **Wahlprüfsteine**. Darunter stehen die Rezept-Abkürzungen und ein Link zur Wissensdatenbank (Notebook).
 
 :::note[Österreich]
-Die Grünen Österreich sind kein Landesverband, sondern die Bundespartei — sie haben aber dieselben beiden Grünerator-Typen (erreichbar unter `/agents/gruene-oesterreich`, Wissensdatenbank `/notebooks/oesterreich` · `@at`). Diese Grüneratoren verwenden österreichisches Vokabular (Nationalrat, Klubobfrau\*Klubobmann, Klimaticket) und erscheinen nur für Nutzer\*innen mit österreichischer Einstellung.
+Die Grünen Österreich sind kein Landesverband, sondern die Bundespartei — sie haben aber dieselben drei Grünerator-Typen (erreichbar unter `/agents/gruene-oesterreich`, Wissensdatenbank `/notebooks/oesterreich` · `@at`). Diese Grüneratoren verwenden österreichisches Vokabular (Nationalrat, Klubobfrau\*Klubobmann, Klimaticket) und erscheinen nur für Nutzer\*innen mit österreichischer Einstellung.
 :::
 
 ## Pressemitteilungen & Social Media schreiben
@@ -41,7 +42,7 @@ Für diese Landesverbände gibt es eigene Rezept-Abkürzungen für **Pressemitte
 | Mecklenburg-Vorpommern | `/presse-mv`          | `/insta-mv`          |
 | Thüringen              | `/presse-thueringen`  | `/insta-thueringen`  |
 | Brandenburg            | `/presse-brandenburg` | `/insta-brandenburg` |
-| Bayern                 | `/presse-bayern`      | `/insta-bayern`      |
+| Bayern                 | `/presse-bayern`      | —                    |
 
 Sachsen-Anhalt, Hessen und das Saarland haben (noch) keine eigenen Rezept-Abkürzungen — ihre Grüneratoren erreichst du über die jeweilige Landesverband-Seite.
 

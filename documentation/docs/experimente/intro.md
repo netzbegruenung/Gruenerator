@@ -7,7 +7,7 @@ sidebar_position: 0
 Der Themen-Monitor zeigt dir auf einen Blick, worüber deutsche und österreichische Medien gerade berichten. Er sammelt automatisch Nachrichtenartikel, analysiert sie nach Themen und liefert dir handlungsrelevante Einschätzungen für deine Kommunikationsarbeit.
 
 :::info[Ein Experiment]
-Der Themen-Monitor liegt unter **Experimente** (`/experiments/monitor`) — die Adresse sagt dir, woran du bist: Die Funktion ist nutzbar, aber Aufbau und Umfang können sich noch ändern. Du erreichst ihn über die **Wissen**-Seite. Alte Lesezeichen auf `/monitor` leiten automatisch weiter.
+Der Themen-Monitor liegt unter **Experimente** (`/experiments/monitor`) — die Adresse sagt dir, woran du bist: Die Funktion ist nutzbar, aber Aufbau und Umfang können sich noch ändern. Themen und Umfragen erreichst du über die **Wissen**-Seite; Watcher und Feed nur über ihre direkte Adresse. Alte Lesezeichen auf `/monitor` leiten automatisch weiter.
 
 Eine gemeinsame Übersichtsseite gibt es nicht mehr; die vier Bereiche stehen für sich.
 :::
@@ -24,7 +24,7 @@ Der Monitor wertet automatisch über **60 Nachrichtenquellen** aus Deutschland u
 
 ## Die vier Bereiche im Überblick
 
-Der Monitor besteht aus vier Seiten, die du oben über die Navigation wechselst:
+Der Monitor besteht aus vier Seiten. Themen und Umfragen wechselst du oben über eine gemeinsame Navigation; Watcher und Feed erreichst du nur direkt über ihre eigene Adresse.
 
 | Bereich      | Was du siehst                                                                                                           |
 | ------------ | ----------------------------------------------------------------------------------------------------------------------- |

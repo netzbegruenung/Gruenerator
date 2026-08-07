@@ -17,7 +17,7 @@ Der Editor führt dich durch **drei Schritte**: **Quellen → Details → Überp
 
 ### Schritt 1: Zur Notebook-Übersicht
 
-Öffne in der Navigation **Notebooks** (`/notebooks`). Auf dieser Seite sind alle Notebooks an einem Ort gebündelt; deine eigenen findest du im Abschnitt **„Eigene"**. Beim ersten Mal ist er leer und zeigt nur die Karte zum Erstellen. Klicke neben der Überschrift **„Eigene"** auf **„Notebook erstellen"** (oder auf die Erstellen-Karte), um den Editor zu öffnen.
+Öffne in der Navigation **Wissen** (`/wissen`). Auf dieser Seite sind alle Notebooks an einem Ort gebündelt. Wenn du noch kein eigenes Notebook hast, findest du in der obersten Kachelreihe eine Kachel **„Neues erstellen"** — ein Klick öffnet direkt den Editor. Sobald du mindestens ein eigenes Notebook hast, ersetzt eine Kachel **„Eigene Notebooks"** diese Kachel; ein Klick darauf öffnet den Abschnitt **„Eigene"**, in dem du über **„Notebook erstellen"** weitere Notebooks anlegst.
 
 ### Schritt 2: Quellen wählen
 
@@ -94,7 +94,7 @@ Im Dialog **„Notebook teilen"** stellst du die **Sichtbarkeit** ein:
 
 ### Auf „Von der Basis" listen
 
-Im Modus **„Mit Anmeldung"** kannst du zusätzlich den Schalter **„Auf ‚Von der Basis' listen"** aktivieren. Dann erscheint dein Notebook auf der allgemeinen Notebooks-Seite im Abschnitt **„Von der Basis"** zum Entdecken. Sobald du den Schalter aktivierst, musst du eine der beiden Aussagen bestätigen:
+Im Modus **„Mit Anmeldung"** kannst du zusätzlich den Schalter **„Auf ‚Von der Basis' listen"** aktivieren. Dein Notebook wird dann über die Suche auf der Notebooks-Seite auffindbar (zusammen mit System- und anderen öffentlichen Notebooks) — eine eigene „Von der Basis"-Rubrik gibt es dafür nicht. Sobald du den Schalter aktivierst, musst du eine der beiden Aussagen bestätigen:
 
 - **„Ich besitze die Daten"** — … oder habe die Rechte zur Veröffentlichung; z.&nbsp;B. eigene Texte, Beschlüsse deines Verbands, Material, das du selbst veröffentlichen darfst.
 - **„Daten sind öffentlich verfügbar"** — z.&nbsp;B. offizielle Dokumente, Pressemitteilungen, frei zugängliche Veröffentlichungen.
