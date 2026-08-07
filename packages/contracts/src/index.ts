@@ -78,6 +78,7 @@ export {
   skillVisibilityContract,
   bgstInstanceOverviewContract,
   lvAdminAssignmentContract,
+  landesverbandAdminContract,
   recurringTasksContract,
   canvasAiContract,
   canvasContract,
@@ -180,3 +181,4 @@ export * from './schemas/prompts.js';
 export * from './schemas/landesverbaende.js';
 export * from './schemas/lvAdminAssignment.js';
 export * from './schemas/bgstInstanceOverview.js';
+export * from './schemas/landesverbandAdmin.js';
