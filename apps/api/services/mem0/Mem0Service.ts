@@ -271,6 +271,15 @@ export class Mem0Service {
    * memory ID (returned to clients in normal getAllMemories responses) could
    * delete or overwrite someone else's memory. Every mutating call below must
    * go through this first.
+   *
+   * `user_id` (snake_case) is deliberate, not a typo — mem0's naming is
+   * inconsistent here. Traced in mem0ai/dist/oss/index.js: Memory.add() writes
+   * `memPayload.user_id = filters.user_id` (the Qdrant payload key is always
+   * snake_case), and Memory.get() reads it back as `memory.payload.user_id`
+   * and re-exposes it unrenamed — unlike createdAt/updatedAt on the same
+   * object, which the SDK does camelCase on the way out. Fails closed if the
+   * field is ever missing: `undefined === userId` is false, so a malformed
+   * record blocks the mutation rather than allowing it.
    */
   private async ownsMemory(memoryId: string, userId: string): Promise<boolean> {
     if (!this.memory) return false;
