@@ -94,6 +94,35 @@ export async function extractAudioFromVideo(
   }
 }
 
+/**
+ * Same extraction as extractAudioFromVideo, but for a video that already sits
+ * on disk (a TUS upload) — ffmpeg reads it in place instead of round-tripping
+ * the whole file through a Buffer first. That round trip is fine for the
+ * multer routes (their video is already an in-memory buffer from the
+ * multipart parser), but for TUS uploads it would mean holding an up to
+ * MAX_VIDEO_UPLOAD_BYTES-sized Buffer per concurrent request for no reason —
+ * the file is already on disk exactly where ffmpeg needs it.
+ */
+export async function extractAudioFromVideoPath(
+  videoPath: string,
+  originalname: string,
+  options?: ExtractOptions
+): Promise<{ buffer: Buffer; filename: string }> {
+  const tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'voice-video-'));
+  const audioPath = path.join(tmpDir, 'extracted.mp3');
+
+  try {
+    const extractOptions = options?.onProgress != null ? { onProgress: options.onProgress } : {};
+    await extractAudio(videoPath, audioPath, extractOptions);
+    const audioBuffer = await fs.promises.readFile(audioPath);
+    const audioFilename = originalname.replace(/\.[^.]+$/, '.mp3');
+    return { buffer: audioBuffer, filename: audioFilename };
+  } finally {
+    await cleanupFiles(audioPath);
+    await fs.promises.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
 async function transcribeWithVoxtral(
   audioBuffer: Buffer,
   filename: string,
