@@ -256,12 +256,21 @@ describe('autoPolicy — agent routing hint', () => {
   const CREATIVE_AGENT = 'gruenerator-rede-schreiber'; // autoRoutingHint: 'creative'
   const PRECISE_AGENT = 'gruenerator-bundestag'; // autoRoutingHint: 'precise'
 
-  it('overrides the lane on shape-less intents', () => {
-    expect(resolveAutoSelection({ intent: 'direct', agentId: CREATIVE_AGENT }).modelId).toBe(
-      'gemma-litellm'
-    );
+  it('the precise hint overrides the lane on shape-less intents', () => {
     expect(resolveAutoSelection({ intent: 'direct', agentId: PRECISE_AGENT }).modelId).toBe(
       'mistral-medium-3.5'
+    );
+  });
+
+  it('the creative hint is currently a no-op — every shape-less intent already defaults to Gemma', () => {
+    // Documents intent, not a real override: since the 07.08.2026 lane fold,
+    // GEMMA is what a shape-less intent resolves to with NO agent at all, so
+    // this assertion would pass identically with the 'creative' branch deleted
+    // from resolveAutoSelection. Kept as a tripwire — if a future
+    // HINT_OVERRIDABLE intent's default stops being GEMMA, this test should
+    // start failing and prompt re-adding a real branch.
+    expect(resolveAutoSelection({ intent: 'direct', agentId: CREATIVE_AGENT }).modelId).toBe(
+      resolveAutoSelection({ intent: 'direct' }).modelId
     );
   });
 
