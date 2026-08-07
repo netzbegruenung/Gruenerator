@@ -21,7 +21,13 @@
 
 import fs from 'fs';
 
-import { voiceContract, MAX_DURATION_LABEL, MAX_FILE_SIZE_LABEL } from '@gruenerator/contracts';
+import {
+  voiceContract,
+  MAX_AUDIO_BYTES,
+  MAX_AUDIO_MB,
+  MAX_DURATION_LABEL,
+  MAX_FILE_SIZE_LABEL,
+} from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { env } from '../../config/env.js';
@@ -85,6 +91,22 @@ export const voiceContractRouter = s.router(voiceContract, {
         audioBuffer = extracted.buffer;
         filename = extracted.filename;
       } else {
+        // /api/audio/upload's TUS ceiling is MAX_VIDEO_UPLOAD_BYTES (3GB) for the
+        // whole path, video and audio alike — video never buffers fully (see
+        // extractAudioFromVideoPath above), but a non-video upload lands here and
+        // would otherwise buffer the entire file. Gate it at the audio-specific
+        // ceiling instead of trusting client-supplied `filetype`.
+        const uploadSize = uploadStatus.metadata?.size ?? 0;
+        if (uploadSize > MAX_AUDIO_BYTES) {
+          void scheduleImmediateCleanup(uploadId, 'audio upload exceeds MAX_AUDIO_BYTES');
+          return {
+            status: 400 as const,
+            body: {
+              success: false,
+              error: `Datei ist zu groß. Maximal ${MAX_AUDIO_MB}MB für Audio-Uploads.`,
+            },
+          };
+        }
         audioBuffer = Buffer.from(await fs.promises.readFile(filePath));
       }
 

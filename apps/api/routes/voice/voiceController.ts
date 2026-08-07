@@ -9,6 +9,7 @@
 
 import fs from 'fs';
 
+import { MAX_AUDIO_BYTES, MAX_AUDIO_MB } from '@gruenerator/contracts';
 import express, { type Request, type Response, type Router } from 'express';
 import multer, { type FileFilterCallback } from 'multer';
 import { z } from 'zod';
@@ -335,6 +336,21 @@ router.post(
         const audioSizeMB = +(audioBuffer.length / 1024 / 1024).toFixed(1);
         sse.sendRaw('extraction_complete', { type: 'extraction_complete', audioSizeMB });
       } else {
+        // /api/audio/upload's TUS ceiling is MAX_VIDEO_UPLOAD_BYTES (3GB) for the
+        // whole path, video and audio alike — video never buffers fully (see
+        // extractAudioFromVideoPath above), but a non-video upload lands here and
+        // would otherwise buffer the entire file. Gate it at the audio-specific
+        // ceiling instead of trusting client-supplied `filetype`.
+        const uploadSize = uploadStatus.metadata?.size ?? 0;
+        if (uploadSize > MAX_AUDIO_BYTES) {
+          void scheduleImmediateCleanup(uploadId, 'audio upload exceeds MAX_AUDIO_BYTES');
+          sse.sendRaw('error', {
+            type: 'error',
+            text: `Datei ist zu groß. Maximal ${MAX_AUDIO_MB}MB für Audio-Uploads.`,
+          });
+          sse.end();
+          return;
+        }
         audioBuffer = Buffer.from(await fs.promises.readFile(filePath));
       }
 
