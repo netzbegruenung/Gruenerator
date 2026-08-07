@@ -26,6 +26,8 @@ import type { Application } from 'express';
 
 const log = createLogger('landesverbandAdminContractRouter');
 
+const USER_LIST_LIMIT = 1000;
+
 const FORBIDDEN = {
   status: 403 as const,
   body: { success: false, message: 'Keine Admin-Berechtigung für diesen Landesverband.' },
@@ -238,8 +240,9 @@ export const landesverbandAdminContractRouter = s.router(landesverbandAdminContr
          FROM profiles p
          JOIN landesverbaende l ON l.id = p.landesverband_id
          WHERE p.landesverband_id = $1
-         ORDER BY p.created_at DESC NULLS LAST`,
-        [landesverbandId]
+         ORDER BY p.created_at DESC NULLS LAST
+         LIMIT $2`,
+        [landesverbandId, USER_LIST_LIMIT]
       );
 
       return {
