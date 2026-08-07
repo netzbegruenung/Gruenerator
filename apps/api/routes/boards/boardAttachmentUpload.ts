@@ -39,7 +39,7 @@ const db = getPostgresInstance();
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, ATTACHMENT_DIR),
   filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname) || '.bin';
+    const ext = path.extname(file.originalname).slice(0, 16) || '.bin';
     cb(null, `${crypto.randomUUID()}${ext}`);
   },
 });
