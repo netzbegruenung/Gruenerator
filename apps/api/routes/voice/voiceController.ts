@@ -25,6 +25,7 @@ import mistralVoiceService from '../../services/voice/mistralVoiceService.js';
 import { identifySpeakers } from '../../services/voice/protokollService.js';
 import {
   extractAudioFromVideo,
+  extractAudioFromVideoPath,
   isVideoFile,
   transcribeBuffer,
   type TranscriptionOptions,
@@ -316,15 +317,15 @@ router.post(
       markUploadAsProcessed(uploadId);
       const uploadStatus = await getUploadStatus(uploadId);
       const meta = uploadStatus.metadata?.metadata as Record<string, string> | undefined;
-      let audioBuffer: Buffer = Buffer.from(await fs.promises.readFile(filePath));
       let filename = sanitizeFilename(meta?.filename || 'audio.mp3', 'audio.mp3');
       const filetype = meta?.filetype || '';
       const needsFullTranscription = diarize || timestamps;
 
+      let audioBuffer: Buffer;
       if (isVideoFile(filetype)) {
         log.debug('[Voice] TUS upload is video, extracting audio from:', filename);
         sse.sendRaw('extraction_start', { type: 'extraction_start' });
-        const extracted = await extractAudioFromVideo(audioBuffer, filename, {
+        const extracted = await extractAudioFromVideoPath(filePath, filename, {
           onProgress: (percent, timemark) => {
             sse.sendRaw('extraction_progress', { type: 'extraction_progress', percent, timemark });
           },
@@ -333,6 +334,8 @@ router.post(
         filename = extracted.filename;
         const audioSizeMB = +(audioBuffer.length / 1024 / 1024).toFixed(1);
         sse.sendRaw('extraction_complete', { type: 'extraction_complete', audioSizeMB });
+      } else {
+        audioBuffer = Buffer.from(await fs.promises.readFile(filePath));
       }
 
       log.debug('[Voice] Starting TUS streaming transcription for:', filename);

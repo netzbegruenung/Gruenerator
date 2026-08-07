@@ -40,7 +40,7 @@ import {
 } from '../../services/voice/protokollService.js';
 import {
   VIDEO_MIME_TYPES,
-  extractAudioFromVideo,
+  extractAudioFromVideoPath,
   isVideoFile,
   transcribeBuffer,
   type TranscriptionOptions,
@@ -70,7 +70,6 @@ export const voiceContractRouter = s.router(voiceContract, {
       markUploadAsProcessed(uploadId);
       const uploadStatus = await getUploadStatus(uploadId);
       const meta = uploadStatus.metadata?.metadata as Record<string, string> | undefined;
-      let audioBuffer: Buffer = Buffer.from(await fs.promises.readFile(filePath));
       let filename = sanitizeFilename(meta?.filename || 'audio.mp3', 'audio.mp3');
       const filetype = meta?.filetype || '';
 
@@ -80,10 +79,13 @@ export const voiceContractRouter = s.router(voiceContract, {
         ...(diarize && { diarize: true }),
       };
 
+      let audioBuffer: Buffer;
       if (isVideoFile(filetype)) {
-        const extracted = await extractAudioFromVideo(audioBuffer, filename);
+        const extracted = await extractAudioFromVideoPath(filePath, filename);
         audioBuffer = extracted.buffer;
         filename = extracted.filename;
+      } else {
+        audioBuffer = Buffer.from(await fs.promises.readFile(filePath));
       }
 
       const result = await transcribeBuffer(audioBuffer, filename, options);
