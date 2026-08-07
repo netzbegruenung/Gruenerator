@@ -158,7 +158,7 @@ export const POLICY: Record<Exclude<SearchIntent, ExemptIntent>, AutoEntry> = {
   // writes the whole answer from raw sources, so a research turn is ordinary
   // synthesis and takes the default lane like `web` does.
 
-  // ── Lane B: Gemma 4 ──
+  // ── Prose over sources: Gemma 4 ──
   research: { modelId: GEMMA, reasoning: graded('low', 'medium', 'medium') },
   search: { modelId: GEMMA, reasoning: graded('low', 'low', 'medium') },
   web: { modelId: GEMMA, reasoning: graded('low', 'low', 'medium') },
@@ -174,7 +174,7 @@ export const POLICY: Record<Exclude<SearchIntent, ExemptIntent>, AutoEntry> = {
   social_post: { modelId: GEMMA, reasoning: 'off' },
   image: { modelId: GEMMA, reasoning: 'off' },
 
-  // ── Lane C: Mistral Medium 3.5 ──
+  // ── Mistral Medium 3.5 ──
   //
   // The "narrate a platform ACTION" family. These announce something the
   // platform did (or is about to do) that the model cannot see in its context —
@@ -202,9 +202,9 @@ export const POLICY: Record<Exclude<SearchIntent, ExemptIntent>, AutoEntry> = {
   // Same family as its three siblings above: generate structured content AND
   // narrate a platform action the model cannot see in its context. It was the
   // only create_* intent missing from the table, so it took the speed lane —
-  // exactly the setup the Lane C note documents as producing capability
-  // refusals ("Ich kann keine neuen Dateien erstellen") while the artefact is
-  // created anyway.
+  // exactly the setup the Mistral-lane note above documents as producing
+  // capability refusals ("Ich kann keine neuen Dateien erstellen") while the
+  // artefact is created anyway.
   create_pdf: { modelId: MEDIUM, reasoning: graded('medium', 'high', 'high') },
   // The router rewrites this to `agentic`; kept as a safety net.
   modify_board: { modelId: MEDIUM, reasoning: 'medium' },
@@ -291,12 +291,14 @@ export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
   // the speed lane rather than throw.
   const entry = (POLICY as Partial<Record<string, AutoEntry>>)[intent] ?? DEFAULT_ENTRY;
 
+  // `'creative'`/`'research'` hints are absent here on purpose: every
+  // HINT_OVERRIDABLE intent already defaults to GEMMA after the 07.08.2026
+  // lane fold, so those branches would be no-ops. Re-add a branch the day a
+  // HINT_OVERRIDABLE intent's default stops being GEMMA.
   let modelId = entry.modelId;
   if (HINT_OVERRIDABLE.has(intent) && input.agentId) {
     const hint = getSystemAgent(input.agentId)?.autoRoutingHint;
     if (hint === 'precise') modelId = MEDIUM;
-    else if (hint === 'creative') modelId = GEMMA;
-    else if (hint === 'research') modelId = GEMMA;
   }
 
   return { modelId, reasoning: gradeReasoning(entry.reasoning, complexity) };

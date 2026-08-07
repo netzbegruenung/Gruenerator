@@ -332,8 +332,10 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
   // Overflow lanes — Verdigado primary, Regolo on overflow when slot is busy.
   'gpt-oss': GPT_OSS_OVERFLOW,
   'gemma-4': GEMMA_4_REGOLO,
-  // The small side of the Gemma family — auto-policy Lane A. Backend-only, like
-  // `mistral-small-4`: not in MODEL_OPTIONS, so nothing picks it by hand.
+  // The small side of the Gemma family. No longer an auto-policy target (folded
+  // into `gemma-litellm` on 07.08.2026 — see autoPolicy.ts); stays registered
+  // for persisted lane ids. Backend-only, like `mistral-small-4`: not in
+  // MODEL_OPTIONS, so nothing picks it by hand.
   'gemma-4-26b': GEMMA_4_26B,
   // Failover target only — see GEMMA_4_GREENPT.
   'gemma-4-greenpt': GEMMA_4_GREENPT,
