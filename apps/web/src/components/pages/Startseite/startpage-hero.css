@@ -172,6 +172,29 @@
   gap: 14px;
 }
 
+/* Crossfade wrapper: the login/"mehr erfahren" row and the provider list swap
+   places on toggle. Kept mounted (not conditionally rendered) so the fade +
+   collapse can transition both ways instead of snapping. */
+.sp-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.22s ease;
+}
+.sp-collapse > * {
+  overflow: hidden;
+  min-height: 0;
+}
+.sp-collapse-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition:
+    grid-template-rows 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.32s ease 0.08s;
+}
+
 .sp-login,
 .sp-provider {
   display: inline-flex;
@@ -284,7 +307,6 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  animation: sp-provider-list-in 0.24s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .sp-provider-list .sp-provider {
   width: 100%;
@@ -306,17 +328,6 @@
   line-height: 1;
 }
 
-@keyframes sp-provider-list-in {
-  from {
-    opacity: 0;
-    transform: translateY(-6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 /* Muted via a text-muted-foreground-equivalent token, not opacity — see the
    matching note on .sp-provider-toggle above. */
 .sp-hint {
@@ -325,14 +336,22 @@
   font-size: 0.9rem;
   color: var(--color-muted-foreground);
   letter-spacing: 0.01em;
+  text-align: center;
+  max-width: min(56ch, calc(100vw - 48px));
 }
 
 /* ── Scroll cue ── */
-.sp-cue {
+.sp-cue-wrap {
   position: absolute;
   left: 50%;
-  bottom: 26px;
+  bottom: 16px;
   transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.sp-cue {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -421,8 +440,14 @@
     width: 100%;
     min-height: 54px;
   }
+  .sp-cue-wrap {
+    bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+  .sp-hint {
+    max-width: 26ch;
+    font-size: 0.82rem;
+  }
   .sp-cue {
-    bottom: calc(18px + env(safe-area-inset-bottom));
     padding: 10px 20px;
     min-height: 44px;
     min-width: 44px;
@@ -444,8 +469,9 @@
     --sp-sunrise-glow: 1;
     opacity: var(--sp-sunrise-opacity);
   }
-  .sp-provider-list {
-    animation: none;
+  .sp-collapse,
+  .sp-collapse-open {
+    transition: none;
   }
   .sp-cue-chev {
     animation: none;
