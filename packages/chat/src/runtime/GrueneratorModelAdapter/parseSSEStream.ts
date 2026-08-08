@@ -21,7 +21,7 @@ import {
   DEEP_TOOL_MAP,
   formatNamespacedToolLabel,
 } from '../../lib/toolMappings';
-import { useArtifactLiveStore, type ActiveArtifact } from '../../stores/artifactLiveStore';
+import { useArtifactLiveStore, type CodeArtifact } from '../../stores/artifactLiveStore';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useAgentStore } from '../../stores/chatStore';
 import { useReelLiveStore } from '../../stores/reelLiveStore';
@@ -164,7 +164,7 @@ export async function* parseSSEStream(
   let receivedSharepicData: SharepicData | null = null;
   let receivedSocialPostData: SocialPostPayload | null = null;
   let receivedChartData: ChartData | null = null;
-  let receivedArtifactData: ActiveArtifact | null = null;
+  let receivedArtifactData: CodeArtifact | null = null;
   let receivedComputeData: ComputeData | null = null;
   let receivedBahnData: BahnPayload | null = null;
   let receivedFollowUpSuggestions: string[] = [];
@@ -637,7 +637,7 @@ export async function* parseSSEStream(
             artifact?: { type: 'html' | 'svg'; title: string; content: string };
           };
           if (artifact) {
-            const active: ActiveArtifact = { id: `artifact-${Date.now()}`, ...artifact };
+            const active: CodeArtifact = { id: `artifact-${Date.now()}`, ...artifact };
             receivedArtifactData = active;
             // Open the docked panel immediately.
             useArtifactLiveStore.getState().setActiveArtifact(active);

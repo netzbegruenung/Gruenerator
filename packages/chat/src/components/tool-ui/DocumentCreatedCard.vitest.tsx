@@ -12,6 +12,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { useArtifactLiveStore } from '../../stores/artifactLiveStore';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 
 import { DocumentCreatedCard } from './DocumentCreatedCard';
@@ -127,19 +128,36 @@ describe('DocumentCreatedCard — PDF', () => {
 });
 
 describe('DocumentCreatedCard — collaborative documents', () => {
-  it('keeps sheets as a plain link to the editor', () => {
-    render(
-      <DocumentCreatedCard
-        document={{
-          documentId: 'abc',
-          title: 'Prognosen 2026',
-          subtype: 'sheets',
-          url: '/office/abc',
-        }}
-      />
-    );
+  const sheetDocument: DocumentCreatedData = {
+    documentId: 'abc',
+    title: 'Prognosen 2026',
+    subtype: 'sheets',
+    url: '/office/abc',
+  };
 
-    const link = screen.getByRole('link', { name: /Tabelle öffnen/i });
+  afterEach(() => {
+    useArtifactLiveStore.setState({ activeArtifact: null });
+  });
+
+  it('opens the sheet in the docked preview panel on click', async () => {
+    render(<DocumentCreatedCard document={sheetDocument} />);
+
+    await userEvent.click(screen.getByRole('button', { name: /Tabelle öffnen/i }));
+
+    expect(useArtifactLiveStore.getState().activeArtifact).toEqual({
+      id: 'document-abc',
+      type: 'document',
+      documentId: 'abc',
+      subtype: 'sheets',
+      title: 'Prognosen 2026',
+      url: '/office/abc',
+    });
+  });
+
+  it('keeps a secondary link to open the editor in a new tab', () => {
+    render(<DocumentCreatedCard document={sheetDocument} />);
+
+    const link = screen.getByRole('link', { name: /neuem Tab/i });
     expect(link).toHaveAttribute('href', '/office/abc');
     expect(link).toHaveAttribute('target', '_blank');
   });
