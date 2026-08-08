@@ -4,6 +4,7 @@ import {
   CONTEXT_CONFIG,
   getPruningBudget,
   sanitizeContentPartsForModel,
+  fairShare,
 } from './messageHelpers.js';
 
 describe('getPruningBudget', () => {
@@ -27,6 +28,28 @@ describe('getPruningBudget', () => {
 
   it('never prunes below the floor for tiny declared windows', () => {
     expect(getPruningBudget(4096)).toBe(8000);
+  });
+});
+
+describe('fairShare', () => {
+  it('splits evenly when the floor is not binding', () => {
+    expect(fairShare(12, 3, 3)).toBe(4);
+    expect(fairShare(9000, 1500, 3)).toBe(3000);
+  });
+
+  it('holds the floor instead of starving an item when N is large', () => {
+    // The reason this exists: without a floor, a 3-file comparison degrades
+    // toward zero per file as N grows instead of staying usable.
+    expect(fairShare(12, 3, 10)).toBe(3);
+    expect(fairShare(5000, 1500, 10)).toBe(1500);
+  });
+
+  it('gives the whole budget to a single item', () => {
+    expect(fairShare(9000, 1500, 1)).toBe(9000);
+  });
+
+  it('falls back to the floor for a non-positive item count', () => {
+    expect(fairShare(9000, 1500, 0)).toBe(1500);
   });
 });
 
