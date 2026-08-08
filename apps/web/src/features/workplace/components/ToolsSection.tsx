@@ -340,7 +340,7 @@ export function OfficeActionPill({
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      className={`${OFFICE_PILL_BASE} ${getToolTheme(styleKey)?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'} ${active ? 'ring-2 ring-inset ring-foreground/30 dark:ring-white/30' : ''}`}
+      className={`${OFFICE_PILL_BASE} ${getToolTheme(styleKey)?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'} ${active ? 'ring-2 ring-inset ring-foreground dark:ring-white' : ''}`}
     >
       <OfficePillInner styleKey={styleKey} Icon={Icon} title={title} />
     </button>
