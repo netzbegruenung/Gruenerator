@@ -34,6 +34,7 @@ export const McpToolUI = memo(function McpToolUI({ args, result }: McpToolUIProp
       <button
         onClick={() => done && setIsExpanded(!isExpanded)}
         disabled={!done}
+        aria-expanded={done ? isExpanded : undefined}
         className={`inline-flex items-center gap-2 rounded-xl border border-grey-200 dark:border-grey-700 bg-background-pure px-3 py-1.5 transition-colors ${
           done ? 'hover:bg-primary/5 cursor-pointer' : ''
         }`}
