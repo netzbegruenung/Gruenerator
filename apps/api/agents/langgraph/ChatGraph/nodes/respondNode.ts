@@ -9,7 +9,7 @@
 
 import { SKILLS } from '@gruenerator/shared/agents';
 
-import { fairShare, getRetrievalBudget } from '../../../../routes/chat/services/messageHelpers.js';
+import { getRetrievalBudget } from '../../../../routes/chat/services/messageHelpers.js';
 import {
   embedUntrusted,
   INJECTION_WARNING_NOTE,
@@ -23,8 +23,8 @@ import {
 import { CONTENT_INTEGRITY_ANSWER_RULE } from '../../../../services/contentPolicy.js';
 import { buildDocsPageMap } from '../../../../services/docs/docsIndex.js';
 import { localizePlaceholders } from '../../../../services/localization/index.js';
-import { type Locale } from '../../../../services/localization/types.js';
 import { getInternalSkillPrompt } from '../../../../services/skills/internalPrompts.js';
+import { type Locale } from '../../../../services/localization/types.js';
 import { getTextFormForInjection } from '../../../../services/user/textFormRepository.js';
 import { recordDecision, type BranchOf } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
@@ -60,14 +60,6 @@ const ATTACHMENT_LIMITS = {
    *  32k one. */
   TOTAL_BUDGET_CHARS: 20000,
 };
-
-/**
- * Floor per document when the total budget is split evenly across N
- * attachments (see {@link limitAttachmentContext}). Keeps a "compare these 3
- * files" turn from silently dropping the last file once the total budget is
- * spent — every attachment gets at least this many characters.
- */
-const ATTACHMENT_MIN_DOC_CHARS = 1500;
 
 /** Chars reserved for the "[...N Zeichen gekürzt...]" marker. */
 const TRUNCATION_MARKER_CHARS = 60;
@@ -114,7 +106,7 @@ export function truncateDocument(
  * Apply total budget limit to already-formatted attachment context.
  * Parses individual documents and truncates as needed.
  */
-export function limitAttachmentContext(
+function limitAttachmentContext(
   context: string,
   contextWindowTokens?: number,
   budget: number = ATTACHMENT_LIMITS.TOTAL_BUDGET_CHARS
@@ -145,33 +137,30 @@ export function limitAttachmentContext(
     documents.push({ header, content });
   }
 
-  // Fair per-document share instead of first-come-first-served: with N
-  // attachments (e.g. "compare these 3 files"), every document gets a
-  // guaranteed slice of the budget rather than the first ones consuming it
-  // whole and later ones being dropped entirely. Mirrors the fan-out RAG
-  // path's `perSourceLimit` (searchNode.ts, executeMultiDocFanout).
-  const perDocBudget = fairShare(budget, ATTACHMENT_MIN_DOC_CHARS, documents.length);
-
+  // Apply per-document limit and total budget
+  let totalChars = 0;
   const limited: string[] = [];
-  const omittedHeaders: string[] = [];
+  let omittedCount = 0;
 
   for (const doc of documents) {
-    if (!doc.content) {
-      omittedHeaders.push(doc.header.replace(/^### /, ''));
+    if (totalChars >= budget) {
+      omittedCount++;
       continue;
     }
 
-    const perDocLimit = Math.min(ATTACHMENT_LIMITS.PER_DOCUMENT_CHARS, perDocBudget);
+    const remaining = budget - totalChars;
+    const perDocLimit = Math.min(ATTACHMENT_LIMITS.PER_DOCUMENT_CHARS, remaining);
     const truncated = truncateDocument(doc.content, perDocLimit);
 
     limited.push(`${doc.header}\n${truncated}`);
+    totalChars += truncated.length + doc.header.length + 1;
   }
 
-  if (omittedHeaders.length > 0) {
+  if (omittedCount > 0) {
     limited.push(
-      `\n[${omittedHeaders.length} Dokument(e) nicht einbezogen wegen Kontextbeschränkung: ${omittedHeaders.join(', ')}]`
+      `\n[${omittedCount} weitere(s) Dokument(e) nicht einbezogen wegen Kontextbeschränkung]`
     );
-    log.info(`[Attachment] Omitted documents due to context budget: ${omittedHeaders.join(', ')}`);
+    log.info(`[Attachment] Omitted ${omittedCount} documents due to context budget`);
   }
 
   const result = limited.join('\n\n---\n\n');
@@ -406,10 +395,7 @@ function formatPerSourceContext(state: ChatGraphState): string {
         return `(${s.id}.${i + 1}) **${r.title}**\n${content}`.trim();
       })
       .join('\n\n');
-    // Label mirrors the inline path's "(Volltext-Auszug)" marker so the model
-    // knows this is a RAG excerpt, not the whole file — and that more can be
-    // fetched (see the expand_attachment tool) if the excerpt isn't enough.
-    return `### Dokument ${s.id}: ${s.title} (Ausschnitt, weitere Inhalte über Suche verfügbar)\n\n${inner}`;
+    return `### Dokument ${s.id}: ${s.title}\n\n${inner}`;
   });
 
   return `\n\n## QUELLEN PRO DOKUMENT\n\n${blocks.join('\n\n')}\n\n---\n[Ende der dokumentbezogenen Quellen. Halte die Aussagen je Dokument auseinander.]`;
@@ -514,13 +500,7 @@ function formatThreadAttachmentsContext(
     // per-query RAG retrieval (searchNode), so don't also dump their full text
     // here (would duplicate and blow the budget). Small docs stay full-context.
     .filter((a) => !a.isImage && !a.documentId && (a.extractedText || a.summary))
-    .map((a, i) => {
-      // Tells the model whether it sees the full document or only a digest —
-      // otherwise it can't tell an inline full-text extract apart from a
-      // vectorized doc's RAG chunks and may present a partial view as complete.
-      const label = a.extractedText ? 'Volltext-Auszug' : 'Zusammenfassung';
-      return `### ${i + 1}. ${a.name} (${label})\n\n${a.extractedText ?? a.summary}`;
-    })
+    .map((a, i) => `### ${i + 1}. ${a.name}\n\n${a.extractedText ?? a.summary}`)
     .join('\n\n');
 
   if (docBlocks) {
@@ -825,12 +805,12 @@ Regeln:
 
 const ARTIFACT_GUIDANCE = `\nDer*die Nutzer*in möchte ein darstellbares Artefakt (HTML/CSS oder SVG). Schreibe zuerst eine kurze Erklärung (1-2 Sätze), dann GENAU EINEN Code-Block mit dem vollständigen, in sich geschlossenen Artefakt:
 
-- Für Web-/Layout-Inhalte: ein \`\`\`html-Block mit komplettem, eigenständigem HTML (inkl. \`<style>\` inline, KEINE externen Ressourcen, KEINE \`<script>\`-Tags — das Artefakt wird in einer gesperrten Sandbox ohne JavaScript gerendert).
+- Für Web-/Layout-Inhalte: ein \`\`\`html-Block mit komplettem, eigenständigem HTML (inkl. \`<style>\` inline). Inline \`<script>\`-Tags sind erlaubt und werden ausgeführt — das Artefakt läuft in einer Sandbox mit \`allow-scripts\` (opakes Origin, keine Netzwerkzugriffe: \`fetch\`/\`XHR\`/externe Bilder funktionieren dort NICHT). Interaktive Elemente wie Zähler, Formulare oder kleine Demos also gerne per Inline-Script umsetzen.
 - Für Vektorgrafiken/Diagramme/Icons: ein \`\`\`svg-Block mit einem vollständigen \`<svg>\`-Element (mit \`viewBox\`, ohne \`<script>\`).
 
 Regeln:
 - Nur EIN Code-Block, vollständig und eigenständig lauffähig.
-- Kein externer CSS-/JS-/Bild-Link, keine \`<script>\`-Tags (werden ohnehin entfernt).
+- Keine externen CSS-/JS-/Bild-Links und keine Netzwerkzugriffe (\`fetch\`, \`XHR\`, externe \`<img src="https://...">\`) — die Sandbox blockiert sie ohnehin. Nur Inline-\`<style>\`/\`<script>\` und \`data:\`-Bilder funktionieren.
 - Nutze wo passend die Grünen-Markenfarbe (#005538) und klares, barrierearmes Layout.`;
 
 // Compute guidance is state-aware (mirrors image/image_edit): when a

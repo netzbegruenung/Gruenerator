@@ -9,6 +9,7 @@ import {
   type BahnPayload,
   type SharepicUpdatedEvent,
 } from '@gruenerator/contracts';
+import { subtypeToArtifactKind } from '@gruenerator/shared/docs';
 
 import { coerceSharepicVariants } from '../../hooks/useChatGraphStream';
 import { notifyError, notifyWarning } from '../../lib/notify';
@@ -1136,7 +1137,22 @@ export async function* parseSSEStream(
         }
 
         case 'document_created': {
-          receivedCreatedDocument = data as DocumentCreatedData;
+          const created = data as DocumentCreatedData;
+          receivedCreatedDocument = created;
+          // Mirror the 'artifact' case: dock the panel immediately instead of
+          // waiting for a click on DocumentCreatedCard's button. PDFs are
+          // excluded — their url is an authenticated asset endpoint (needs
+          // configFetch + blob), not something a plain iframe src can load.
+          if (subtypeToArtifactKind(created.subtype) !== 'pdf') {
+            useArtifactLiveStore.getState().setActiveArtifact({
+              id: `document-${created.documentId}`,
+              type: 'document',
+              documentId: created.documentId,
+              subtype: created.subtype,
+              title: created.title,
+              url: created.url,
+            });
+          }
           yield buildResult();
           break;
         }
