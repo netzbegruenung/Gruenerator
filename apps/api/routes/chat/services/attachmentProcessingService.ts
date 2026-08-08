@@ -155,7 +155,11 @@ export async function processAttachments(
 
         if (result.text && result.text.length > 0) {
           const text = sheetNote ? `${sheetNote}\n${result.text}` : result.text;
-          documentTexts.push(`### ${attachment.name}\n\n${text}`);
+          // Label makes the inline full-text path distinguishable from a
+          // vectorized doc's RAG chunks (see contextEnrichmentService's
+          // SMALL_DOC_VECTORIZATION_THRESHOLD routing) — the model otherwise
+          // can't tell whether it's seeing everything or an excerpt.
+          documentTexts.push(`### ${attachment.name} (Volltext-Auszug)\n\n${text}`);
           processedMeta.push({
             name: attachment.name,
             mimeType: attachment.type,
