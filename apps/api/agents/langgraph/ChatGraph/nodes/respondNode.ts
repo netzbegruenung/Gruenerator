@@ -825,12 +825,12 @@ Regeln:
 
 const ARTIFACT_GUIDANCE = `\nDer*die Nutzer*in möchte ein darstellbares Artefakt (HTML/CSS oder SVG). Schreibe zuerst eine kurze Erklärung (1-2 Sätze), dann GENAU EINEN Code-Block mit dem vollständigen, in sich geschlossenen Artefakt:
 
-- Für Web-/Layout-Inhalte: ein \`\`\`html-Block mit komplettem, eigenständigem HTML (inkl. \`<style>\` inline, KEINE externen Ressourcen, KEINE \`<script>\`-Tags — das Artefakt wird in einer gesperrten Sandbox ohne JavaScript gerendert).
+- Für Web-/Layout-Inhalte: ein \`\`\`html-Block mit komplettem, eigenständigem HTML (inkl. \`<style>\` inline). Inline \`<script>\`-Tags sind erlaubt und werden ausgeführt — das Artefakt läuft in einer Sandbox mit \`allow-scripts\` (opakes Origin, keine Netzwerkzugriffe: \`fetch\`/\`XHR\`/externe Bilder funktionieren dort NICHT). Interaktive Elemente wie Zähler, Formulare oder kleine Demos also gerne per Inline-Script umsetzen.
 - Für Vektorgrafiken/Diagramme/Icons: ein \`\`\`svg-Block mit einem vollständigen \`<svg>\`-Element (mit \`viewBox\`, ohne \`<script>\`).
 
 Regeln:
 - Nur EIN Code-Block, vollständig und eigenständig lauffähig.
-- Kein externer CSS-/JS-/Bild-Link, keine \`<script>\`-Tags (werden ohnehin entfernt).
+- Keine externen CSS-/JS-/Bild-Links und keine Netzwerkzugriffe (\`fetch\`, \`XHR\`, externe \`<img src="https://...">\`) — die Sandbox blockiert sie ohnehin. Nur Inline-\`<style>\`/\`<script>\` und \`data:\`-Bilder funktionieren.
 - Nutze wo passend die Grünen-Markenfarbe (#005538) und klares, barrierearmes Layout.`;
 
 // Compute guidance is state-aware (mirrors image/image_edit): when a
