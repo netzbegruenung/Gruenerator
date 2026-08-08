@@ -45,12 +45,7 @@ import {
   presentationTemplates,
 } from '../presentations/presentationTemplates';
 import { getSheetTemplate, sheetTemplates } from '../sheets/sheetTemplates';
-import {
-  OFFICE_SCROLL_ITEM,
-  OFFICE_SCROLL_ROW,
-  OfficeActionTile,
-  officeStripStyle,
-} from '../workplace/components/ToolsSection';
+import { OFFICE_PILL_ROW, OfficeActionPill } from '../workplace/components/ToolsSection';
 import { WorkplaceHero } from '../workplace/components/WorkplaceHero';
 
 import { BoardCard } from './BoardCard';
@@ -654,26 +649,21 @@ export function DocumentsContent({
 
       {officeToolStrip && (
         <section className="mb-xl mt-xl">
-          <div
-            className={OFFICE_SCROLL_ROW}
-            style={officeStripStyle(visibleOfficeSuiteTools.length, { maxTilePx: 200 })}
-          >
+          <div className={OFFICE_PILL_ROW}>
             {visibleOfficeSuiteTools.map((tool) => (
-              <div key={tool.id} className={OFFICE_SCROLL_ITEM}>
-                <OfficeActionTile
-                  styleKey="office"
-                  icon={tool.icon}
-                  title={tool.title}
-                  description={tool.description}
-                  onClick={() => {
-                    if (tool.create === 'gallery') setShowGallery(true);
-                    else if (tool.create === 'board') handleCreateBoard('kanban');
-                    else if (tool.create === 'sheet') void handleCreateSheet();
-                    else if (tool.create === 'pres') void handleCreatePresentation();
-                    else void handleTemplateSelect('blank');
-                  }}
-                />
-              </div>
+              <OfficeActionPill
+                key={tool.id}
+                styleKey="office"
+                icon={tool.icon}
+                title={tool.title}
+                onClick={() => {
+                  if (tool.create === 'gallery') setShowGallery(true);
+                  else if (tool.create === 'board') handleCreateBoard('kanban');
+                  else if (tool.create === 'sheet') void handleCreateSheet();
+                  else if (tool.create === 'pres') void handleCreatePresentation();
+                  else void handleTemplateSelect('blank');
+                }}
+              />
             ))}
           </div>
         </section>
