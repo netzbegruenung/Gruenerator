@@ -68,11 +68,21 @@ export function ArtifactPanel({ className }: { className?: string }) {
       ? 'SVG'
       : 'HTML';
 
+  // The docked panel is a glance-sized preview, not the full workspace — the
+  // editor's own topbar (title/back/share) is redundant with the header this
+  // panel already renders below. `embedded=true` is the editor pages' own
+  // opt-in to drop that chrome (see DocsEditorPage's `isEmbedded`); the "open
+  // in new tab" link deliberately omits it so the full editor is one click
+  // away.
+  const embeddedUrl = isDocument
+    ? `${active.url}${active.url.includes('?') ? '&' : '?'}embedded=true`
+    : '';
+
   return (
     <aside
       className={
         className ??
-        'flex w-[24rem] shrink-0 flex-col overflow-hidden border-l border-border bg-background-alt'
+        'flex w-[var(--gr-artifact-panel-width,24rem)] shrink-0 flex-col overflow-hidden border-l border-border bg-background-alt'
       }
       aria-label={`Aktives Artefakt: ${active.title}`}
     >
@@ -116,7 +126,7 @@ export function ArtifactPanel({ className }: { className?: string }) {
 
       <div className="flex-1 overflow-hidden bg-white">
         {isDocument ? (
-          <iframe title={active.title} src={active.url} className="h-full w-full border-0" />
+          <iframe title={active.title} src={embeddedUrl} className="h-full w-full border-0" />
         ) : (
           <iframe
             title={active.title}
