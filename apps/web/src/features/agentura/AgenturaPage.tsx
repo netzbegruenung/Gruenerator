@@ -23,7 +23,6 @@ import {
 import { useMemo, type ReactNode } from 'react';
 import {
   PiArrowsDownUp,
-  PiDetective,
   PiMagnifyingGlass,
   PiMapPin,
   PiPlus,
@@ -43,9 +42,10 @@ import {
 import { PhosphorIcon } from '../agents/icons/PhosphorIcon';
 import { useRecurringTasks } from '../recurring-tasks/api';
 import { useItemUsage } from '../usage/useItemUsage';
+import { OFFICE_PILL_ROW, OfficeActionPill } from '../workplace/components/ToolsSection';
+import { WorkplaceHero } from '../workplace/components/WorkplaceHero';
 
 import { CapabilityTags } from './components/CapabilityTags';
-import { CategoryNav, type AisleNavItem } from './components/CategoryNav';
 import { MarketCard } from './components/MarketCard';
 import { RecurringTaskCard } from './components/RecurringTaskCard';
 import {
@@ -69,6 +69,8 @@ import type { IconType } from 'react-icons';
 import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
 import PageContainer from '@/components/common/PageContainer';
 import { getAgentIcon } from '@/components/layout/Sidebar/sidebarAgentConfig';
+import { getToolGradient } from '@/config/toolTheme';
+import { useFirstName } from '@/hooks/useFirstName';
 import useAgentFavoritesStore from '@/stores/agentFavoritesStore';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -133,6 +135,7 @@ interface MarketSection {
 
 function AgenturaPage() {
   const navigate = useNavigate();
+  const firstName = useFirstName();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const search = searchParams.get('q') ?? '';
@@ -492,13 +495,6 @@ function AgenturaPage() {
         visibleCategories[0]?.key ??
         DEFAULT_CATEGORY);
 
-  const navItems: AisleNavItem[] = visibleCategories.map((c) => ({
-    key: c.key,
-    label: c.label,
-    icon: AGENTURA_CATEGORY_ICONS[c.key],
-    count: countFor(c.key),
-  }));
-
   // Cross-category search results (agents + skills), overriding the category view.
   const searchCards: ReactNode[] = useMemo(() => {
     if (!q) return [];
@@ -535,118 +531,106 @@ function AgenturaPage() {
     : (activeCategory?.emptyText ?? 'Hier ist gerade nichts vorhanden.');
 
   return (
-    <PageContainer maxWidth="lg">
-      <header className="mb-lg">
-        <div className="flex items-center gap-sm">
-          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary-600/10 text-secondary-700 dark:text-secondary-300">
-            <PiDetective className="h-5 w-5" />
-          </span>
-          <h1 className="m-0 text-3xl font-bold tracking-tight text-foreground-heading">
-            Agentura
-          </h1>
-        </div>
-        <p className="mt-sm max-w-[560px] text-sm text-foreground-muted">
-          Dein Markt für Grüneratoren und Rezepte — wähle links eine Kategorie oder such direkt im
-          Markt.
-        </p>
-      </header>
-
-      <div className="mb-xl flex flex-col gap-sm sm:flex-row sm:items-center">
-        <div className="relative flex-1">
+    <PageContainer maxWidth="lg" noPadTop bgClassName={getToolGradient('agents')}>
+      <WorkplaceHero title={firstName ? `Deine Grüneratoren, ${firstName}` : 'Deine Grüneratoren'}>
+        <div className="relative mx-auto max-w-[520px]">
           <PiMagnifyingGlass className="pointer-events-none absolute left-md top-1/2 h-4 w-4 -translate-y-1/2 text-foreground-muted" />
           <Input
             type="text"
             value={search}
             onChange={(e) => updateParam('q', e.target.value, '')}
             placeholder="Im Markt suchen…"
-            className="pl-[2.5rem]"
+            className="h-11 rounded-full pl-[2.5rem]"
             autoFocus
           />
         </div>
-        <Select value={sort} onValueChange={(v) => updateParam('sort', v, 'empfohlen')}>
-          <SelectTrigger aria-label="Sortierung" className="h-11 w-auto gap-xs sm:min-w-[10rem]">
-            <PiArrowsDownUp aria-hidden="true" className="h-4 w-4 text-foreground-muted" />
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {SORT_VALUES.map((v) => (
-              <SelectItem key={v} value={v}>
-                {SORT_LABELS[v]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      </WorkplaceHero>
 
-      <div className="flex flex-col gap-lg lg:flex-row lg:gap-xl">
-        <aside className="lg:w-56 lg:shrink-0">
-          <CategoryNav
-            items={navItems}
-            activeKey={searching ? null : activeCat}
-            onSelect={selectCategory}
-          />
-        </aside>
+      <section className="mb-xl mt-xl">
+        <div role="group" aria-label="Kategorien" className={OFFICE_PILL_ROW}>
+          {visibleCategories.map((cat) => (
+            <OfficeActionPill
+              key={cat.key}
+              styleKey="agents"
+              icon={AGENTURA_CATEGORY_ICONS[cat.key]}
+              title={cat.label}
+              active={!searching && cat.key === activeCat}
+              onClick={() => selectCategory(cat.key)}
+            />
+          ))}
+        </div>
+      </section>
 
-        <div className="min-w-0 flex-1">
-          <div className="mb-lg flex items-end justify-between gap-md">
-            <div className="min-w-0">
-              <div className="flex items-center gap-sm">
-                <h2 className="m-0 truncate text-xl font-semibold text-foreground-heading">
-                  {title}
-                </h2>
-                <span className="shrink-0 rounded-full bg-secondary-600/10 px-2 py-0.5 text-xs font-semibold text-secondary-700 dark:text-secondary-300">
-                  {headerCount}
-                </span>
-              </div>
-              {description && <p className="mt-xs text-sm text-foreground-muted">{description}</p>}
-            </div>
-            <Button asChild variant="brand" size="brand-sm" className="shrink-0">
-              <Link to="/agents/new">
-                <PiPlus />
-                Neuer Grünerator
-              </Link>
-            </Button>
+      <div className="mb-lg flex items-end justify-between gap-md">
+        <div className="min-w-0">
+          <div className="flex items-center gap-sm">
+            <h2 className="m-0 truncate text-xl font-semibold text-foreground-heading">{title}</h2>
+            <span className="shrink-0 rounded-full bg-secondary-600/10 px-2 py-0.5 text-xs font-semibold text-secondary-700 dark:text-secondary-300">
+              {headerCount}
+            </span>
           </div>
-
-          {searching ? (
-            searchCards.length > 0 ? (
-              <div className={GRID}>{searchCards}</div>
-            ) : (
-              <EmptyState icon={EmptyIcon} text={emptyText} />
-            )
-          ) : totalCards > 0 ? (
-            <div className="flex flex-col gap-xl">
-              {sections.map((sec) =>
-                sec.cards.length === 0 && !sec.emptyHint ? null : (
-                  <section key={sec.key}>
-                    {sec.heading && (
-                      <div className="mb-md flex flex-wrap items-center justify-between gap-sm">
-                        <div className="flex items-center gap-xs">
-                          {sec.icon && <sec.icon className="h-4 w-4 text-foreground-muted" />}
-                          <h3 className="m-0 text-sm font-semibold uppercase tracking-wide text-foreground-muted">
-                            {sec.heading}
-                          </h3>
-                          <span className="text-xs font-semibold text-foreground-muted">
-                            {sec.cards.length}
-                          </span>
-                        </div>
-                        {sec.action}
-                      </div>
-                    )}
-                    {sec.cards.length > 0 ? (
-                      <div className={GRID}>{sec.cards}</div>
-                    ) : (
-                      <p className="text-sm text-foreground-muted">{sec.emptyHint}</p>
-                    )}
-                  </section>
-                )
-              )}
-            </div>
-          ) : (
-            <EmptyState icon={EmptyIcon} text={emptyText} />
-          )}
+          {description && <p className="mt-xs text-sm text-foreground-muted">{description}</p>}
+        </div>
+        <div className="flex shrink-0 items-center gap-sm">
+          <Select value={sort} onValueChange={(v) => updateParam('sort', v, 'empfohlen')}>
+            <SelectTrigger aria-label="Sortierung" className="h-11 w-auto gap-xs">
+              <PiArrowsDownUp aria-hidden="true" className="h-4 w-4 text-foreground-muted" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SORT_VALUES.map((v) => (
+                <SelectItem key={v} value={v}>
+                  {SORT_LABELS[v]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button asChild variant="brand" size="brand-sm">
+            <Link to="/agents/new">
+              <PiPlus />
+              Neuer Grünerator
+            </Link>
+          </Button>
         </div>
       </div>
+
+      {searching ? (
+        searchCards.length > 0 ? (
+          <div className={GRID}>{searchCards}</div>
+        ) : (
+          <EmptyState icon={EmptyIcon} text={emptyText} />
+        )
+      ) : totalCards > 0 ? (
+        <div className="flex flex-col gap-xl">
+          {sections.map((sec) =>
+            sec.cards.length === 0 && !sec.emptyHint ? null : (
+              <section key={sec.key}>
+                {sec.heading && (
+                  <div className="mb-md flex flex-wrap items-center justify-between gap-sm">
+                    <div className="flex items-center gap-xs">
+                      {sec.icon && <sec.icon className="h-4 w-4 text-foreground-muted" />}
+                      <h3 className="m-0 text-sm font-semibold uppercase tracking-wide text-foreground-muted">
+                        {sec.heading}
+                      </h3>
+                      <span className="text-xs font-semibold text-foreground-muted">
+                        {sec.cards.length}
+                      </span>
+                    </div>
+                    {sec.action}
+                  </div>
+                )}
+                {sec.cards.length > 0 ? (
+                  <div className={GRID}>{sec.cards}</div>
+                ) : (
+                  <p className="text-sm text-foreground-muted">{sec.emptyHint}</p>
+                )}
+              </section>
+            )
+          )}
+        </div>
+      ) : (
+        <EmptyState icon={EmptyIcon} text={emptyText} />
+      )}
     </PageContainer>
   );
 }

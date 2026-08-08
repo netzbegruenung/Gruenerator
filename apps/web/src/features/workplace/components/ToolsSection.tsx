@@ -318,23 +318,29 @@ export function OfficeTilePill({ tool, themeKey }: { tool: WorkplaceToolItem; th
 // Action pill (a button) — the /office landing strip creates an empty
 // doc/board/sheet/pres (or opens the template gallery) in place. `styleKey`
 // is the tool id (docs/boards/sheets/presentations/vorlagen), each with its
-// own `toolTheme` entry.
+// own `toolTheme` entry. `active` is opt-in for callers that use the pill row
+// as an exclusive filter (e.g. Agentura's category strip) rather than a set
+// of one-shot create actions — Studio/Office never pass it, so their pills
+// stay pixel-identical.
 export function OfficeActionPill({
   styleKey,
   icon: Icon,
   title,
+  active,
   onClick,
 }: {
   styleKey: string;
   icon: IconType;
   title: string;
+  active?: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
+      aria-pressed={active}
       onClick={onClick}
-      className={`${OFFICE_PILL_BASE} ${getToolTheme(styleKey)?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'}`}
+      className={`${OFFICE_PILL_BASE} ${getToolTheme(styleKey)?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'} ${active ? 'ring-2 ring-inset ring-foreground dark:ring-white' : ''}`}
     >
       <OfficePillInner styleKey={styleKey} Icon={Icon} title={title} />
     </button>
