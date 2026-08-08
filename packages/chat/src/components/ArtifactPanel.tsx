@@ -9,7 +9,7 @@ import { useArtifactLiveStore } from '../stores/artifactLiveStore';
 // permanently opaque/null origin, so a script inside the artifact can never
 // reach `window.parent`, read cookies, or touch our own origin's storage.
 const ARTIFACT_CSP =
-  "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: https:; font-src data:; connect-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'";
+  "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'";
 
 /**
  * Docked right-rail view of the generic artifact (HTML/SVG) the user is looking
