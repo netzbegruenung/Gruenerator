@@ -1,6 +1,7 @@
 'use client';
 
-import { Code2, Download, X } from 'lucide-react';
+import { ARTIFACT_TYPE_META, subtypeToArtifactKind } from '@gruenerator/shared/docs';
+import { Code2, Download, ExternalLink, X } from 'lucide-react';
 import { useMemo } from 'react';
 
 import { useArtifactLiveStore } from '../stores/artifactLiveStore';
@@ -12,24 +13,28 @@ const ARTIFACT_CSP =
   "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'";
 
 /**
- * Docked right-rail view of the generic artifact (HTML/SVG) the user is looking
- * at. Mirrors SharepicArtifactPanel's docking UX, but renders arbitrary
- * model-authored markup — so it does so inside a sandboxed iframe that allows
- * inline scripts to run (`sandbox="allow-scripts"`, deliberately without
- * `allow-same-origin`) so live/interactive artifacts work, while a CSP meta
- * tag blocks any network egress, nested iframes, and non-inline script
- * sources from inside that sandbox. Renders nothing while no artifact is
- * active; hosts decide where to dock it.
+ * Docked right-rail view of the active artifact. Two variants:
+ *  - generic HTML/SVG the model authored — mirrors SharepicArtifactPanel's
+ *    docking UX, rendered inside a sandboxed iframe that allows inline
+ *    scripts (`sandbox="allow-scripts"`, deliberately without
+ *    `allow-same-origin`) so live/interactive artifacts work, while a CSP
+ *    meta tag blocks network egress, nested iframes, and non-inline script
+ *    sources from inside that sandbox.
+ *  - a generated document (sheet/presentation/doc) — a plain, unsandboxed
+ *    iframe at its own `/office/:id` editor route, same origin as the app.
+ * Renders nothing while no artifact is active; hosts decide where to dock it.
  */
 export function ArtifactPanel({ className }: { className?: string }) {
   const active = useArtifactLiveStore((s) => s.activeArtifact);
+  const isDocument = active?.type === 'document';
 
   // Wrap the artifact in a minimal, self-contained HTML document. SVG is
   // centered; HTML is rendered as-is. The document is fed via srcDoc into the
   // sandboxed iframe above; the CSP meta tag is the actual script/network
-  // fence, not the sandbox attribute alone.
+  // fence, not the sandbox attribute alone. Document previews skip this
+  // entirely — they iframe the real (same-origin, trusted) editor route.
   const srcDoc = useMemo(() => {
-    if (!active) return '';
+    if (!active || active.type === 'document') return '';
     const body =
       active.type === 'svg'
         ? `<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:12px;box-sizing:border-box">${active.content}</div>`
@@ -45,6 +50,7 @@ export function ArtifactPanel({ className }: { className?: string }) {
   const close = () => useArtifactLiveStore.getState().setActiveArtifact(null);
 
   const download = () => {
+    if (active.type === 'document') return;
     const mime = active.type === 'svg' ? 'image/svg+xml' : 'text/html';
     const ext = active.type === 'svg' ? 'svg' : 'html';
     const blob = new Blob([active.content], { type: mime });
@@ -55,6 +61,12 @@ export function ArtifactPanel({ className }: { className?: string }) {
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  const badge = isDocument
+    ? ARTIFACT_TYPE_META[subtypeToArtifactKind(active.subtype)].label
+    : active.type === 'svg'
+      ? 'SVG'
+      : 'HTML';
 
   return (
     <aside
@@ -68,18 +80,30 @@ export function ArtifactPanel({ className }: { className?: string }) {
         <div className="flex min-w-0 items-center gap-2">
           <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-white">
             <Code2 className="h-3 w-3" />
-            {active.type === 'svg' ? 'SVG' : 'HTML'}
+            {badge}
           </span>
           <span className="truncate text-sm font-medium text-foreground">{active.title}</span>
         </div>
         <div className="flex items-center gap-1">
-          <button
-            onClick={download}
-            className="rounded p-1 text-foreground-muted hover:bg-primary/10 hover:text-foreground"
-            aria-label="Artefakt herunterladen"
-          >
-            <Download className="h-4 w-4" />
-          </button>
+          {isDocument ? (
+            <a
+              href={active.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded p-1 text-foreground-muted hover:bg-primary/10 hover:text-foreground"
+              aria-label="In neuem Tab öffnen"
+            >
+              <ExternalLink className="h-4 w-4" />
+            </a>
+          ) : (
+            <button
+              onClick={download}
+              className="rounded p-1 text-foreground-muted hover:bg-primary/10 hover:text-foreground"
+              aria-label="Artefakt herunterladen"
+            >
+              <Download className="h-4 w-4" />
+            </button>
+          )}
           <button
             onClick={close}
             className="rounded p-1 text-foreground-muted hover:bg-primary/10 hover:text-foreground"
@@ -91,17 +115,23 @@ export function ArtifactPanel({ className }: { className?: string }) {
       </div>
 
       <div className="flex-1 overflow-hidden bg-white">
-        <iframe
-          title={active.title}
-          srcDoc={srcDoc}
-          sandbox="allow-scripts"
-          className="h-full w-full border-0"
-        />
+        {isDocument ? (
+          <iframe title={active.title} src={active.url} className="h-full w-full border-0" />
+        ) : (
+          <iframe
+            title={active.title}
+            srcDoc={srcDoc}
+            sandbox="allow-scripts"
+            className="h-full w-full border-0"
+          />
+        )}
       </div>
 
-      <p className="border-t border-border px-3 py-2 text-xs text-foreground-muted">
-        Beschreibe Änderungen einfach im Chat — z.B. „mach den Hintergrund grün".
-      </p>
+      {!isDocument && (
+        <p className="border-t border-border px-3 py-2 text-xs text-foreground-muted">
+          Beschreibe Änderungen einfach im Chat — z.B. „mach den Hintergrund grün".
+        </p>
+      )}
     </aside>
   );
 }

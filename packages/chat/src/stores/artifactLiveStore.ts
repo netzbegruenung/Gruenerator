@@ -13,10 +13,27 @@ import type { ArtifactData } from '../hooks/useChatGraphStream';
  * Modeled on sharepicLiveStore — the panel-docking UX is shared, but artifacts
  * are static renderables (no canvas/version machinery).
  */
-export interface ActiveArtifact extends ArtifactData {
+export interface CodeArtifact extends ArtifactData {
   /** Stable id so a card can tell whether it is the currently-open artifact. */
   id: string;
 }
+
+/**
+ * Client-only panel variant: an in-place preview of a generated sheet /
+ * presentation / doc, opened from DocumentCreatedCard instead of a new tab.
+ * Not part of the wire-level `artifact` SSE event — `documentId`/`subtype`/
+ * `url` come straight off the `document_created` payload.
+ */
+export interface DocumentArtifact {
+  id: string;
+  type: 'document';
+  documentId: string;
+  subtype: string;
+  title: string;
+  url: string;
+}
+
+export type ActiveArtifact = CodeArtifact | DocumentArtifact;
 
 interface ArtifactLiveStore {
   activeArtifact: ActiveArtifact | null;

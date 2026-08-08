@@ -11,7 +11,7 @@ import type {
   StreamMetadata,
 } from '../hooks/useChatGraphStream';
 import type { Citation as RawCitation, Source, LinkConfig } from '../runtime/NotebookModelAdapter';
-import type { ActiveArtifact } from '../stores/artifactLiveStore';
+import type { CodeArtifact } from '../stores/artifactLiveStore';
 import type {
   ConfirmActionType,
   DocumentCreatedEvent,
@@ -76,7 +76,7 @@ export type ChatMessageMetadata = {
   /** Text half of the EXPERIMENTAL combined social post (SocialPostCard). */
   socialPostData?: SocialPostPayload;
   chartData?: ChartData;
-  artifactData?: ActiveArtifact;
+  artifactData?: CodeArtifact;
   computeData?: ComputeData;
   bahnData?: BahnPayload;
   streamMetadata?: StreamMetadata;
