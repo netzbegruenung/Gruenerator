@@ -319,7 +319,10 @@ export async function enrichContext(opts: {
       );
       const smallDocTexts = processedMeta
         .filter((m) => !m.isImage && m.extractedText && smallDocNames.has(m.name))
-        .map((m) => `### ${m.name}\n\n${m.extractedText}`);
+        // Label distinguishes this inline full-text path from the vectorized
+        // (RAG-chunked) sibling files in the same turn — see
+        // SMALL_DOC_VECTORIZATION_THRESHOLD above.
+        .map((m) => `### ${m.name} (Volltext-Auszug)\n\n${m.extractedText}`);
       initialState.attachmentContext =
         smallDocTexts.length > 0 ? smallDocTexts.join('\n\n---\n\n') : null;
     }
