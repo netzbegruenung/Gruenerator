@@ -122,7 +122,7 @@
     "nodemailer": "^9.0.3",
     "openai": "^6.49.0",
     "pdf-lib": "^1.17.1",
-    "pdfjs-dist": "^6.1.200",
+    "pdfjs-dist": "^6.2.108",
     "pg": "^8.22.0",
     "pptxgenjs": "^4.0.1",
     "react": "19.2.8",
