@@ -112,12 +112,6 @@ const LoginPage = ({
     }
   });
 
-  const sessionExpiredBanner = sessionExpired && !successMessage && (
-    <div className="bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 p-md mb-md rounded-sm text-foreground">
-      Deine Sitzung ist abgelaufen — bitte melde dich erneut an.
-    </div>
-  );
-
   const displayPageName =
     pageName || (mode === 'required' ? getPageName(location.pathname) : undefined);
 
@@ -199,17 +193,29 @@ const LoginPage = ({
           </h1>
           <p className="text-foreground text-base leading-normal mb-sm opacity-90 lg:text-[1.1rem] lg:leading-relaxed">
             {customMessage ||
-              (isMobileApp
-                ? `Melde dich an, um ${displayPageName || 'die App'} zu nutzen`
-                : displayPageName === 'Diese Seite'
-                  ? 'Melde dich an, um fortzufahren'
-                  : `Melde dich an, um ${displayPageName} zu nutzen`)}
+              (sessionExpired && !successMessage
+                ? `Deine Sitzung ist abgelaufen — melde dich erneut an, um ${displayPageName === 'Diese Seite' ? 'fortzufahren' : `${displayPageName} zu nutzen`}`
+                : isMobileApp
+                  ? `Melde dich an, um ${displayPageName || 'die App'} zu nutzen`
+                  : displayPageName === 'Diese Seite'
+                    ? 'Melde dich an, um fortzufahren'
+                    : `Melde dich an, um ${displayPageName} zu nutzen`)}
           </p>
         </div>
       );
     }
 
-    return <h1 className="lp-headline">{isMobileApp ? 'Willkommen!' : 'Willkommen zurück!'}</h1>;
+    return (
+      <h1 className="lp-headline">
+        {sessionExpired && !successMessage
+          ? isMobileApp
+            ? 'Willkommen! Deine Sitzung ist abgelaufen'
+            : 'Willkommen zurück — deine Sitzung ist abgelaufen'
+          : isMobileApp
+            ? 'Willkommen!'
+            : 'Willkommen zurück!'}
+      </h1>
+    );
   };
 
   const authenticatingNotice = isAuthenticating && (
@@ -358,8 +364,6 @@ const LoginPage = ({
             >
               {getHeaderContent()}
 
-              {sessionExpiredBanner}
-
               {successMessage && (
                 <div className="bg-primary-50 dark:bg-primary-900/20 border-l-4 border-primary-500 p-md mb-md rounded-sm">
                   {successMessage}
@@ -426,8 +430,6 @@ const LoginPage = ({
         </div>
 
         {getHeaderContent()}
-
-        {sessionExpiredBanner}
 
         {successMessage && (
           <div className="bg-primary-50 dark:bg-primary-900/20 border-l-4 border-primary-500 p-md mb-md rounded-sm max-w-[380px]">
