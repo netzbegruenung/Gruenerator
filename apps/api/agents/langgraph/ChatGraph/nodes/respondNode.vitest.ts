@@ -6,6 +6,7 @@ import {
   getModeGuidance,
   citableSourcesAvailable,
   truncateDocument,
+  limitAttachmentContext,
 } from './respondNode.js';
 
 import type { ChatGraphState, ComputeData, SearchResult } from '../types.js';
@@ -96,6 +97,46 @@ describe('truncateDocument', () => {
   it('never returns more than it was given', () => {
     for (const limit of [1, 60, 149, 150, 151, 400, 5000]) {
       expect(truncateDocument(long, limit).length, `limit=${limit}`).toBeLessThan(long.length);
+    }
+  });
+});
+
+describe('limitAttachmentContext — fair per-document split (M1/M3)', () => {
+  function doc(name: string, chars: number): string {
+    return `### ${name}\n\n${'A'.repeat(chars)}`;
+  }
+
+  it('keeps all N documents instead of dropping the last one under budget pressure', () => {
+    const context = [doc('A.pdf', 8000), doc('B.pdf', 8000), doc('C.pdf', 8000)].join(
+      '\n\n---\n\n'
+    );
+    // Old first-come-first-served behavior exhausted the budget on A and B,
+    // dropping C entirely — the exact failure mode of a 3-file comparison.
+    const out = limitAttachmentContext(context, undefined, 10_000);
+    expect(out).toContain('A.pdf');
+    expect(out).toContain('B.pdf');
+    expect(out).toContain('C.pdf');
+    expect(out).not.toContain('nicht einbezogen');
+  });
+
+  it('names omitted documents instead of only counting them', () => {
+    const context = [doc('Real.pdf', 500), '### Empty.pdf\n\n'].join('\n\n---\n\n');
+    const out = limitAttachmentContext(context, undefined, 200);
+    expect(out).toContain('nicht einbezogen');
+    expect(out).toContain('Empty.pdf');
+  });
+
+  it('leaves a single document untouched under a generous budget', () => {
+    const context = doc('Solo.pdf', 500);
+    const out = limitAttachmentContext(context, undefined, 10_000);
+    expect(out).toBe(context);
+  });
+
+  it('gives every document at least the minimum floor even with many attachments', () => {
+    const many = Array.from({ length: 10 }, (_, i) => doc(`F${i}.pdf`, 5000));
+    const out = limitAttachmentContext(many.join('\n\n---\n\n'), undefined, 5_000);
+    for (let i = 0; i < 10; i++) {
+      expect(out).toContain(`F${i}.pdf`);
     }
   });
 });

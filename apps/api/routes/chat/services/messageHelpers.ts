@@ -106,6 +106,19 @@ export function getRetrievalBudget(
 }
 
 /**
+ * Split a fixed budget evenly across N items, with a floor so no item is
+ * starved to zero when N grows. Deliberately no ceiling on the total: with
+ * many items the sum can exceed `total` — the same soft-floor tradeoff
+ * {@link getRetrievalBudget} makes, accepted so that every item (chunk slot,
+ * attachment, source) keeps a guaranteed minimum share instead of the first
+ * ones consuming the whole budget and starving the rest.
+ */
+export function fairShare(total: number, floorPerItem: number, itemCount: number): number {
+  if (itemCount <= 0) return floorPerItem;
+  return Math.max(floorPerItem, Math.floor(total / itemCount));
+}
+
+/**
  * Extract text content from a ModelMessage content field.
  * Handles both string content and AI SDK v6 parts array format.
  */

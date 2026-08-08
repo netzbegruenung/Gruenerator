@@ -156,6 +156,21 @@ describe('pandasComputeNode', () => {
     expect(await pandasComputeNode(state)).toEqual({ pythonCode: null });
   });
 
+  it('recovers the exact filename from a labeled first-turn header in fill mode', async () => {
+    // Regression: `### name.xlsx (Volltext-Auszug)` used to fail the tabular
+    // extension check, dropping the file from the fill-mode prompt entirely.
+    const state = makeState('{"related": true, "code": "print(1)"}', {
+      threadAttachments: [],
+      attachmentContext: '### Ausgaben.xlsx (Volltext-Auszug)\n\nRegion | Umsatz\nNord | 100',
+    } as Partial<ChatGraphState>);
+    await pandasComputeNode(state, { mode: 'fill' });
+    const call = (state.aiWorkerPool as unknown as { processRequest: ReturnType<typeof vi.fn> })
+      .processRequest.mock.calls[0][0];
+    expect(call.messages[0].content).toContain(
+      'Dateiname(n) im Arbeitsverzeichnis (exakt so verwenden): Ausgaben.xlsx\n'
+    );
+  });
+
   it('flags a thrown LLM call as a FAILURE, not a skip', async () => {
     // The distinction matters downstream: a skip means "the question wasn't
     // about the table" (answer normally), a failure means the model must NOT
