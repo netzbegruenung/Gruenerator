@@ -5,28 +5,39 @@ import { useMemo } from 'react';
 
 import { useArtifactLiveStore } from '../stores/artifactLiveStore';
 
+// No allow-same-origin: paired with allow-scripts this keeps the iframe on a
+// permanently opaque/null origin, so a script inside the artifact can never
+// reach `window.parent`, read cookies, or touch our own origin's storage.
+const ARTIFACT_CSP =
+  "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'";
+
 /**
  * Docked right-rail view of the generic artifact (HTML/SVG) the user is looking
  * at. Mirrors SharepicArtifactPanel's docking UX, but renders arbitrary
- * model-authored markup — so it does so inside a fully locked-down sandboxed
- * iframe (`sandbox=""`: no scripts, no same-origin, no forms). Renders nothing
- * while no artifact is active; hosts decide where to dock it.
+ * model-authored markup — so it does so inside a sandboxed iframe that allows
+ * inline scripts to run (`sandbox="allow-scripts"`, deliberately without
+ * `allow-same-origin`) so live/interactive artifacts work, while a CSP meta
+ * tag blocks any network egress, nested iframes, and non-inline script
+ * sources from inside that sandbox. Renders nothing while no artifact is
+ * active; hosts decide where to dock it.
  */
 export function ArtifactPanel({ className }: { className?: string }) {
   const active = useArtifactLiveStore((s) => s.activeArtifact);
 
   // Wrap the artifact in a minimal, self-contained HTML document. SVG is
-  // centered; HTML is rendered as-is. The document is fed via srcDoc into a
-  // sandboxed iframe, so any <script>/onload the model slipped in cannot run.
+  // centered; HTML is rendered as-is. The document is fed via srcDoc into the
+  // sandboxed iframe above; the CSP meta tag is the actual script/network
+  // fence, not the sandbox attribute alone.
   const srcDoc = useMemo(() => {
     if (!active) return '';
     const body =
       active.type === 'svg'
         ? `<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:12px;box-sizing:border-box">${active.content}</div>`
         : active.content;
-    // No <base target="_blank">: under sandbox="" link navigation/window.open
-    // is blocked anyway, so it would be a dead, misleading attribute.
-    return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;padding:0;font-family:system-ui,sans-serif;color:#1a1a1a}img,svg{max-width:100%;height:auto}</style></head><body>${body}</body></html>`;
+    // No <base target="_blank">: link navigation/window.open still has no
+    // same-origin browsing context to escape into, so it would be a dead,
+    // misleading attribute.
+    return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${ARTIFACT_CSP}"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;padding:0;font-family:system-ui,sans-serif;color:#1a1a1a}img,svg{max-width:100%;height:auto}</style></head><body>${body}</body></html>`;
   }, [active]);
 
   if (!active) return null;
@@ -83,7 +94,7 @@ export function ArtifactPanel({ className }: { className?: string }) {
         <iframe
           title={active.title}
           srcDoc={srcDoc}
-          sandbox=""
+          sandbox="allow-scripts"
           className="h-full w-full border-0"
         />
       </div>
