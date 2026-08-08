@@ -2,6 +2,7 @@ import { ARTIFACT_TYPE_META, subtypeToArtifactKind } from '@gruenerator/shared/d
 import { ArrowRight, ExternalLink } from 'lucide-react';
 import { memo, useState } from 'react';
 
+import { useArtifactLiveStore } from '../../stores/artifactLiveStore';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 
 import type { DocumentCreatedData } from '../../types/messageMetadata';
@@ -95,15 +96,34 @@ export const DocumentCreatedCard = memo(function DocumentCreatedCard({
         {kind === 'pdf' ? (
           <PdfOpenButton document={document} label={meta.label} />
         ) : (
-          <a
-            href={document.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full bg-primary text-white hover:bg-primary/90 transition-colors flex-shrink-0"
-          >
-            {meta.label} öffnen
-            <ArrowRight className="h-3.5 w-3.5" />
-          </a>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <button
+              type="button"
+              onClick={() =>
+                useArtifactLiveStore.getState().setActiveArtifact({
+                  id: `document-${document.documentId}`,
+                  type: 'document',
+                  documentId: document.documentId,
+                  subtype: document.subtype,
+                  title: document.title,
+                  url: document.url,
+                })
+              }
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full bg-primary text-white hover:bg-primary/90 transition-colors"
+            >
+              {meta.label} öffnen
+              <ArrowRight className="h-3.5 w-3.5" />
+            </button>
+            <a
+              href={document.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-full p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground"
+              aria-label={`${meta.label} in neuem Tab öffnen`}
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          </div>
         )}
       </div>
     </div>
