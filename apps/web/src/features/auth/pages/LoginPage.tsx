@@ -207,10 +207,12 @@ const LoginPage = ({
 
     return (
       <h1 className="lp-headline">
-        {isMobileApp
-          ? 'Willkommen!'
-          : sessionExpired && !successMessage
-            ? 'Willkommen zurück — deine Sitzung ist abgelaufen'
+        {sessionExpired && !successMessage
+          ? isMobileApp
+            ? 'Willkommen! Deine Sitzung ist abgelaufen'
+            : 'Willkommen zurück — deine Sitzung ist abgelaufen'
+          : isMobileApp
+            ? 'Willkommen!'
             : 'Willkommen zurück!'}
       </h1>
     );
