@@ -547,7 +547,7 @@ function AgenturaPage() {
       </WorkplaceHero>
 
       <section className="mb-xl mt-xl">
-        <div className={OFFICE_PILL_ROW}>
+        <div role="group" aria-label="Kategorien" className={OFFICE_PILL_ROW}>
           {visibleCategories.map((cat) => (
             <OfficeActionPill
               key={cat.key}
