@@ -159,7 +159,7 @@ function tabularFileNames(state: ChatGraphState): string[] {
   if (fromAttachments.length > 0) return fromAttachments;
 
   return [...(state.attachmentContext ?? '').matchAll(/^### (.+)$/gm)]
-    .map((m) => m[1].trim())
+    .map((m) => m[1].trim().replace(/\s*\([^)]*\)\s*$/, ''))
     .filter((name) => isTabularAttachment(name, ''));
 }
 
