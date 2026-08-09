@@ -117,16 +117,22 @@ export async function runPdfGeneration(opts: {
         ? 'Der Nutzer möchte ein ausfüllbares Formular. Setze "kind":"form" und baue passende field-Blöcke.\n\n'
         : '';
 
-  const generated = await generateStructured({
+  // Shared by the first pass and the repair below, which differ only in their
+  // user content, temperature and attempt budget.
+  const pdfCall = {
     aiWorkerPool,
     req: reqWithUser,
-    type: 'doc_generation',
+    type: 'doc_generation' as const,
     systemPrompt: PDF_GENERATION_PROMPT,
-    userContent: `${directive}${userContent}`,
     toolName: 'create_pdf_document',
     toolDescription: 'Erzeugt ein fertiges PDF-Dokument aus Titel und Inhaltsblöcken.',
     schema: PDF_DOCUMENT_TOOL_SCHEMA,
     validate: validatePdfStructure,
+  };
+
+  const generated = await generateStructured({
+    ...pdfCall,
+    userContent: `${directive}${userContent}`,
     temperature: 0.5,
     label: 'pdf',
   });
@@ -169,20 +175,13 @@ export async function runPdfGeneration(opts: {
     // rewrite can fix) and whether the result is kept (only if it improved).
     regenerate: async (problems) => {
       const repaired = await generateStructured({
-        aiWorkerPool,
-        req: reqWithUser,
-        type: 'doc_generation',
-        systemPrompt: PDF_GENERATION_PROMPT,
+        ...pdfCall,
         userContent:
           `${directive}${userContent}\n\n` +
           `Dein vorheriger Entwurf hatte diese Mängel:\n` +
           `${problems.map((p) => `- ${p}`).join('\n')}\n\n` +
           `Gib das VOLLSTÄNDIGE Dokument korrigiert erneut aus. Behalte Inhalt und ` +
           `Aussage bei; ändere nur, was zur Behebung nötig ist.`,
-        toolName: 'create_pdf_document',
-        toolDescription: 'Erzeugt ein fertiges PDF-Dokument aus Titel und Inhaltsblöcken.',
-        schema: PDF_DOCUMENT_TOOL_SCHEMA,
-        validate: validatePdfStructure,
         // The first pass already spent its creativity; a repair is deterministic.
         temperature: 0,
         attempts: 1,
