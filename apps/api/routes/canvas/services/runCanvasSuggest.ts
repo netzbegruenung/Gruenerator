@@ -1,7 +1,7 @@
 /**
- * Canvas-suggest LLM call — extracted from `aiSuggestRoute.ts` so the
- * same retry/validation/filtering logic powers both the synchronous
- * route and the streaming chat-edit controller.
+ * Canvas-suggest LLM call — extracted from `aiSuggestRoute.ts`, which is now
+ * its only caller. The streaming chat-edit controller that used to share this
+ * retry/validation/filtering logic has been removed.
  *
  * This was the third hand-rolled copy of the forced-tool-call pattern
  * (alongside sharepicEditLlm and the artifact generators). It now runs on
