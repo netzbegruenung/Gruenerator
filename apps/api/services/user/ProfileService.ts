@@ -170,7 +170,10 @@ class ProfileService {
         'reduce_transparency',
         'show_skip_link',
         'deutschlandmodus',
-        'is_admin',
+        // SECURITY: `is_admin` intentionally excluded — the admin flag must never be
+        // writable through the general profile-update path. Keeping it out of the
+        // writable column list makes self-promotion impossible even if a future
+        // caller forwards an unfiltered request body into updateProfile.
         'content_management',
         'sites',
         'website',
