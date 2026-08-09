@@ -540,6 +540,7 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
   edit_current_board: { id: 'edit_current_board', category: 'surface-edit', audience: 'all' },
   modify_board: { id: 'modify_board', category: 'surface-edit', audience: 'all' },
   share_doc: { id: 'share_doc', category: 'surface-edit', audience: 'all' },
+  edit_sheet: { id: 'edit_sheet', category: 'surface-edit', audience: 'all' },
 
   // ── processing ───────────────────────────────────────────────────────────
   summary: {
