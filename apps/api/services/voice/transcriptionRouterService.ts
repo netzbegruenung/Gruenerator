@@ -207,7 +207,7 @@ async function transcribeSingleBuffer(
   log.info(`[Voice] provider=${provider} (${reason}) chain=${chain.join('→')}`);
 
   let lastError: Error | null = null;
-  const wantsTimestamps = !!options.timestamp_granularities?.length;
+  const wantsTimestamps = !!options.timestamp_granularities?.length || !!options.diarize;
 
   for (const attempt of chain) {
     const runner = RUNNERS[attempt];
