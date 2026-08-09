@@ -19,7 +19,7 @@ import { Skeleton } from '@gruenerator/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { FiMessageSquare, FiShare2 } from 'react-icons/fi';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { CollaboratorAvatars } from '../../components/editor/CollaboratorAvatars';
 import useDarkMode from '../../components/hooks/useDarkMode';
@@ -43,6 +43,10 @@ function SheetsEditorContent() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+  // Set by the chat panel's docked preview iframe (ArtifactPanel) — drops the
+  // topbar there, matching DocsEditorPage's `isEmbedded`.
+  const isEmbedded = searchParams.get('embedded') === 'true';
   const adapter = useDocsAdapter();
 
   // Template picked at creation (SPA nav-state from DocsPage). Seeds the fresh
@@ -213,60 +217,62 @@ function SheetsEditorContent() {
 
   return (
     <div className="h-full flex flex-col relative">
-      <EditorTopBar
-        dataTour="sheets-topbar"
-        title={docData.title}
-        connectionStatus={connectionStatus}
-        onBack={isGuest ? undefined : () => navigate('/office')}
-        editable={isEditable}
-        onTitleChange={handleTitleChange}
-        rightActions={
-          <>
-            {isGuest && guestIdentity && (
-              <GuestBadge
-                guestName={guestIdentity.guestName}
-                guestColor={guestIdentity.guestColor}
-                guestIcon={GUEST_ANIMALS[guestIdentity.guestAnimalIndex].icon}
-                loginUrl={`/login?redirectTo=${encodeURIComponent(`/office/${id}`)}`}
-              />
-            )}
-            {!isGuest && !canEdit && (
-              <div className="flex items-center py-1 px-2.5 text-[0.75rem] rounded-full bg-grey-100/60 dark:bg-grey-800/40 text-grey-600 dark:text-grey-400 border border-grey-200/50 dark:border-grey-700/50">
-                Lesezugriff
-              </div>
-            )}
-            <span className="max-sm:hidden">
-              <CollaboratorAvatars collaborators={collaborators} />
-            </span>
-            {!isGuest && (
-              <button
-                className={`glass-btn ${chatOpen ? 'active' : ''}`}
-                onClick={() => setChatOpen((v) => !v)}
-                aria-label="Chat"
-                title="Chat"
-                data-tour="sheets-chat-toggle"
-              >
-                <FiMessageSquare />
-              </button>
-            )}
-            {/* Undo/redo are the ribbon's first group now — a second pair here
+      {!isEmbedded && (
+        <EditorTopBar
+          dataTour="sheets-topbar"
+          title={docData.title}
+          connectionStatus={connectionStatus}
+          onBack={isGuest ? undefined : () => navigate('/office')}
+          editable={isEditable}
+          onTitleChange={handleTitleChange}
+          rightActions={
+            <>
+              {isGuest && guestIdentity && (
+                <GuestBadge
+                  guestName={guestIdentity.guestName}
+                  guestColor={guestIdentity.guestColor}
+                  guestIcon={GUEST_ANIMALS[guestIdentity.guestAnimalIndex].icon}
+                  loginUrl={`/login?redirectTo=${encodeURIComponent(`/office/${id}`)}`}
+                />
+              )}
+              {!isGuest && !canEdit && (
+                <div className="flex items-center py-1 px-2.5 text-[0.75rem] rounded-full bg-grey-100/60 dark:bg-grey-800/40 text-grey-600 dark:text-grey-400 border border-grey-200/50 dark:border-grey-700/50">
+                  Lesezugriff
+                </div>
+              )}
+              <span className="max-sm:hidden">
+                <CollaboratorAvatars collaborators={collaborators} />
+              </span>
+              {!isGuest && (
+                <button
+                  className={`glass-btn ${chatOpen ? 'active' : ''}`}
+                  onClick={() => setChatOpen((v) => !v)}
+                  aria-label="Chat"
+                  title="Chat"
+                  data-tour="sheets-chat-toggle"
+                >
+                  <FiMessageSquare />
+                </button>
+              )}
+              {/* Undo/redo are the ribbon's first group now — a second pair here
                 would just be a duplicate. */}
-            {isEditable && univerAPI && (
-              <SheetFormatMenu univerAPI={univerAPI} documentTitle={docData.title} />
-            )}
-            {!isGuest && (
-              <button
-                className="glass-btn"
-                onClick={() => setShowShareModal(true)}
-                aria-label="Teilen"
-                title="Teilen"
-              >
-                <FiShare2 />
-              </button>
-            )}
-          </>
-        }
-      />
+              {isEditable && univerAPI && (
+                <SheetFormatMenu univerAPI={univerAPI} documentTitle={docData.title} />
+              )}
+              {!isGuest && (
+                <button
+                  className="glass-btn"
+                  onClick={() => setShowShareModal(true)}
+                  aria-label="Teilen"
+                  title="Teilen"
+                >
+                  <FiShare2 />
+                </button>
+              )}
+            </>
+          }
+        />
+      )}
 
       <div className="flex-1 min-h-0 flex flex-row overflow-hidden">
         <div className="flex-1 min-w-0 min-h-0 flex flex-col" data-tour="sheets-grid">

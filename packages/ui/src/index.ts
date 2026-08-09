@@ -3,7 +3,7 @@ export { RetroGrid } from './components/retro-grid';
 export { ImageComparisonSlider } from './components/ui/image-comparison-slider-horizontal';
 export { cn } from './lib/cn';
 export { useIsMobile } from './hooks/use-mobile';
-export { useIsNarrowerThan } from './hooks/use-container-width';
+export { useIsNarrowerThan, useContainerWidth } from './hooks/use-container-width';
 export {
   ResponsiveMenu,
   ResponsiveMenuSection,
