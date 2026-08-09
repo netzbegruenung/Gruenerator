@@ -207,6 +207,11 @@ export async function runDocGeneration(opts: {
   onCommit?: () => void;
   /** See {@link abandonedBeforeCommit}. */
   abandoned?: AbortSignal;
+  /** kind 'document' only: subtype hint from the classifier. Validated before
+   *  use — see below. */
+  subtypeOverride?: string | null;
+  /** kind 'document' only: prior exchange save_as_doc turns into a document. */
+  conversationContext?: string;
 }): Promise<CreatedDocument | null> {
   const { kind, userContent, aiWorkerPool, req, userId, onCommit } = opts;
   const reqWithUser = req as Express.Request & {
@@ -304,15 +309,23 @@ export async function runDocGeneration(opts: {
   const {
     DOCUMENT_GENERATION_PROMPT,
     DOCUMENT_TOOL_SCHEMA,
+    GENERATED_DOC_SUBTYPES,
     parseDocumentResponse,
     createDocumentWithContent,
   } = await import('../../../services/docs/DocGenerationService.js');
+
+  const subtypeOverride = opts.subtypeOverride ?? null;
+  const subtypeHint = subtypeOverride ? `\nVerwende subtype: "${subtypeOverride}".` : '';
+  const userMessage = opts.conversationContext
+    ? `Konversationskontext:\n${opts.conversationContext}\n\nAktuelle Anfrage: ${userContent}`
+    : userContent;
+
   const generated = await generateStructured({
     aiWorkerPool,
     req: reqWithUser,
     type: 'doc_generation',
-    systemPrompt: DOCUMENT_GENERATION_PROMPT,
-    userContent,
+    systemPrompt: DOCUMENT_GENERATION_PROMPT + subtypeHint,
+    userContent: userMessage,
     toolName: 'create_document',
     toolDescription: 'Erzeugt das Dokument als HTML mit Titel und subtype.',
     schema: DOCUMENT_TOOL_SCHEMA,
@@ -327,11 +340,23 @@ export async function runDocGeneration(opts: {
   const parsed = generated.data;
   if (abandonedBeforeCommit(opts.abandoned, 'Document generation')) return null;
   onCommit?.();
-  const doc = await createDocumentWithContent(parsed.title, parsed.content, parsed.subtype, userId);
+
+  // The override wins over the generator's own (validated) subtype, so it must
+  // be validated too — it originates from the classifier, which can hallucinate
+  // a plausible-but-invalid value. An unknown override is dropped rather than
+  // used, leaving the generator's choice in place.
+  const overrideIsValid =
+    subtypeOverride != null && GENERATED_DOC_SUBTYPES.includes(subtypeOverride);
+  if (subtypeOverride && !overrideIsValid) {
+    log.warn(`[ChatGraph] Ignoring invalid document subtype override "${subtypeOverride}"`);
+  }
+  const subtype = overrideIsValid ? subtypeOverride : parsed.subtype;
+
+  const doc = await createDocumentWithContent(parsed.title, parsed.content, subtype, userId);
   return {
     documentId: doc.id,
     title: parsed.title,
-    subtype: parsed.subtype,
+    subtype,
     url: `/office/${doc.id}`,
   };
 }
@@ -406,76 +431,6 @@ export async function runBoardGeneration(opts: {
     columnNames: structure.statusOptions.map((c: { name: string }) => c.name),
     cardCount: structure.rows.length,
   };
-}
-
-/**
- * Document generation core for the turn-owning path.
- *
- * Differs from `runDocGeneration({kind:'document'})` only in the two inputs the
- * chat surface adds: a `subtypeOverride` hint and a conversation excerpt (used
- * by save_as_doc, which turns an existing exchange into a document).
- */
-export async function createDocumentArtifact(opts: {
-  aiWorkerPool: ChatGraphState['aiWorkerPool'];
-  req: Express.Request;
-  userId: string;
-  userContent: string;
-  subtypeOverride?: string | null;
-  conversationContext?: string;
-  onCommit?: () => void;
-}): Promise<CreatedDocument | null> {
-  const { aiWorkerPool, req, userId, userContent, subtypeOverride, conversationContext, onCommit } =
-    opts;
-  const {
-    DOCUMENT_GENERATION_PROMPT,
-    DOCUMENT_TOOL_SCHEMA,
-    parseDocumentResponse,
-    createDocumentWithContent,
-  } = await import('../../../services/docs/DocGenerationService.js');
-  const { generateStructured, viaLaxParser, withContent } =
-    await import('../../../services/ai/generateStructured.js');
-
-  const subtypeHint = subtypeOverride ? `\nVerwende subtype: "${subtypeOverride}".` : '';
-  const userMessage = conversationContext
-    ? `Konversationskontext:\n${conversationContext}\n\nAktuelle Anfrage: ${userContent}`
-    : userContent;
-
-  const docResult = await generateStructured({
-    aiWorkerPool,
-    req: req as Express.Request & { user?: { id?: string }; sessionID?: string },
-    type: 'doc_generation',
-    systemPrompt: DOCUMENT_GENERATION_PROMPT + subtypeHint,
-    userContent: userMessage,
-    toolName: 'create_document',
-    toolDescription: 'Erzeugt das Dokument als HTML mit Titel und subtype.',
-    schema: DOCUMENT_TOOL_SCHEMA,
-    validate: viaLaxParser(withContent(parseDocumentResponse), 'content fehlt oder ist leer'),
-    temperature: 0.7,
-    label: 'document',
-  });
-
-  const generated = docResult.ok ? docResult.data : null;
-  if (!generated || !generated.content) {
-    // An empty parse used to become a blank document reported as a success — a
-    // fake artifact is worse than an honest failure.
-    log.warn('[ChatGraph] Document generation returned no parseable content');
-    return null;
-  }
-
-  onCommit?.();
-  // The override wins over the generator's own (validated) subtype, so it must
-  // be validated too — it originates from the classifier, which can hallucinate
-  // a plausible-but-invalid value. An unknown override is dropped rather than
-  // used, leaving the generator's choice in place.
-  const { GENERATED_DOC_SUBTYPES } = await import('../../../services/docs/DocGenerationService.js');
-  const overrideIsValid =
-    subtypeOverride != null && GENERATED_DOC_SUBTYPES.includes(subtypeOverride);
-  if (subtypeOverride && !overrideIsValid) {
-    log.warn(`[ChatGraph] Ignoring invalid document subtype override "${subtypeOverride}"`);
-  }
-  const subtype = overrideIsValid ? subtypeOverride : generated.subtype;
-  const doc = await createDocumentWithContent(generated.title, generated.content, subtype, userId);
-  return { documentId: doc.id, title: generated.title, subtype, url: `/office/${doc.id}` };
 }
 
 /** presentation/sheet subtypes route the sticky pointer to their own kind. */
