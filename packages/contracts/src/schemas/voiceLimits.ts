@@ -15,11 +15,13 @@
  * The value itself still reflects Voxtral's documented per-call ceiling.
  *
  * MAX_VIDEO_UPLOAD_BYTES raises the raw-upload ceiling for the Transkription
- * feature's TUS path (/api/audio/upload) only — video is transcoded down to a
- * mono 16kHz mp3 before it ever reaches a provider, so the upload size and the
- * transcribed payload size are unrelated. The subtitler TUS path
- * (/api/subtitler/upload) and the legacy multer /transcribe route (short mic
- * clips via packages/voice) intentionally stay on MAX_AUDIO_BYTES.
+ * feature's TUS path (/api/audio/upload), and only for uploads that declare a
+ * video/* filetype (enforced in tusService's maxSize) — video is transcoded
+ * down to a mono 16kHz mp3 before it ever reaches a provider, so the upload
+ * size and the transcribed payload size are unrelated. Audio uploads ARE the
+ * transcribed payload and stay on MAX_AUDIO_BYTES, as do the subtitler TUS
+ * path (/api/subtitler/upload) and the legacy multer /transcribe route (short
+ * mic clips via packages/voice).
  */
 export const MAX_AUDIO_BYTES = 500 * 1024 * 1024;
 export const MAX_VIDEO_UPLOAD_BYTES = 3 * 1024 * 1024 * 1024;
