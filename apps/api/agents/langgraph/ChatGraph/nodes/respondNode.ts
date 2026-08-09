@@ -1491,12 +1491,23 @@ ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSu
   const rawSystemRole = isNeutralTurn ? NEUTRAL_SUMMARY_ROLE : agentConfig.systemRole;
   const systemRole = localizePlaceholders(rawSystemRole, (state.userLocale as Locale) || 'de-DE');
 
-  // Active-skill prompt fragment: appended only when the user's chat composer
-  // had a /skill mention active for this turn. Each platform skill carries its
-  // own spec (Insta 600 chars, Twitter 280, PM structure …) so the agent's
-  // base systemRole stays platform-agnostic and slim.
-  const activeSkill = state.activeSkillMention
-    ? SKILLS.find((s) => s.mention === state.activeSkillMention)
+  // Active-skill prompt fragment: appended when the user's chat composer had a
+  // /skill mention active for this turn. Each platform skill carries its own
+  // spec (Insta 600 chars, Twitter 280, PM structure …) so the agent's base
+  // systemRole stays platform-agnostic and slim.
+  //
+  // Without an explicit mention, the agent's `defaultRecipeMention` (its core
+  // text form, e.g. `presse-berlin`) fills in — but only on the single-pass
+  // path: on the agentic branch (`retrievalExpected`) the loop mounts
+  // `rezept_laden` and the model picks the recipe itself; baking one in here
+  // would double-inject and overrule that choice.
+  const effectiveSkillMention =
+    state.activeSkillMention ??
+    (!opts.retrievalExpected && !isNeutralTurn
+      ? (agentConfig.defaultRecipeMention ?? null)
+      : null);
+  const activeSkill = effectiveSkillMention
+    ? SKILLS.find((s) => s.mention === effectiveSkillMention)
     : undefined;
 
   // Per-user learned writing style ("Texte anlernen") takes precedence over the
@@ -1506,7 +1517,7 @@ ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSu
   //   - custom mention (no system skill, e.g. /omveinladungen): injected as its
   //     own "## AKTIVE TEXTFORM" block onto the base agent.
   // See services/user/textFormRepository.ts (cached, no LLM on the hot path).
-  const textFormMention = deriveTextFormMention(state.activeSkillMention, activeSkill);
+  const textFormMention = deriveTextFormMention(effectiveSkillMention, activeSkill);
   const userTextForm =
     !isNeutralTurn && agentConfig.userId && textFormMention
       ? await getTextFormForInjection(agentConfig.userId, textFormMention)

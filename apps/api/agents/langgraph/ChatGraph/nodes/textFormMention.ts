@@ -19,6 +19,10 @@ export function deriveTextFormMention(
   if (mention.startsWith('insta')) return 'instagram';
   if (mention.startsWith('facebook')) return 'facebook';
   if (mention.startsWith('presse')) return 'presse';
+  // Standalone dokumente recipes with their own craft rules: folding them onto
+  // the antrag preset would let a learned Antrag style replace the recipe —
+  // since agents auto-load these as `defaultRecipeMention`, on every turn.
+  if (mention === 'wahlpruefstein' || mention === 'buergermail') return mention;
   if (activeSkill?.skillCategory === 'dokumente') return 'antrag';
   return mention;
 }
