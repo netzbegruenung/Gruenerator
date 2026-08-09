@@ -180,6 +180,21 @@ export function loadSchemaCache(): SchemaCache | null {
 /**
  * Validate table name against schema whitelist
  */
+/**
+ * Structural SQL-identifier guard. Table/column names are interpolated raw into
+ * SQL by the query builders, so this MUST hold regardless of whether the schema
+ * whitelist could be loaded (fail-closed). Only unquoted-identifier characters
+ * are allowed: a leading letter/underscore followed by letters, digits, or
+ * underscores. Rejects whitespace, quotes, dots, and every injection metachar.
+ */
+const SAFE_SQL_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+export function assertSafeSqlIdentifier(name: string, kind: 'table' | 'column' = 'table'): void {
+  if (typeof name !== 'string' || !SAFE_SQL_IDENTIFIER.test(name)) {
+    throw new Error(`Invalid ${kind} identifier: ${JSON.stringify(name)}`);
+  }
+}
+
 export function validateTableName(schemaCache: SchemaCache | null, tableName: string): void {
   if (!schemaCache) return;
 
