@@ -26,6 +26,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -88,6 +89,9 @@ const ARTIFACT_DOCK_MIN_WIDTH = 72 * 16;
 // Default/minimum docked width — the panel only grows from here via the
 // resize handle, it never gets narrower than the original fixed width.
 const ARTIFACT_PANEL_DEFAULT_WIDTH = 24 * 16;
+// Per-keypress growth for the ArrowLeft/ArrowRight keyboard resize (WAI-ARIA
+// "window splitter" pattern — the handle must be operable without a pointer).
+const ARTIFACT_PANEL_RESIZE_KEY_STEP = 32;
 
 const ARTIFACT_PANEL_DOCKED =
   'flex w-[var(--gr-artifact-panel-width,24rem)] shrink-0 flex-col overflow-hidden border-l border-border bg-background-alt';
@@ -133,15 +137,38 @@ function ChatPage() {
         const next = startWidth + (startX - moveEvent.clientX);
         setPanelWidthPx(Math.min(dragMaxWidth, Math.max(ARTIFACT_PANEL_DEFAULT_WIDTH, next)));
       };
-      const handleUp = () => {
+      // pointercancel too — a browser gesture or the panel closing mid-drag
+      // must not leave `handleMove` listening on `window` forever, where it'd
+      // silently track the next unrelated pointermove.
+      const stopDragging = () => {
         window.removeEventListener('pointermove', handleMove);
-        window.removeEventListener('pointerup', handleUp);
+        window.removeEventListener('pointerup', stopDragging);
+        window.removeEventListener('pointercancel', stopDragging);
       };
       window.addEventListener('pointermove', handleMove);
-      window.addEventListener('pointerup', handleUp);
+      window.addEventListener('pointerup', stopDragging);
+      window.addEventListener('pointercancel', stopDragging);
     },
     [clampedPanelWidthPx]
   );
+
+  // WAI-ARIA "window splitter" pattern: a separator that resizes layout must
+  // be operable from the keyboard, not pointer-only.
+  const handlePanelResizeKeyDown = useCallback((e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    const dragMaxWidth = Math.max(
+      ARTIFACT_PANEL_DEFAULT_WIDTH,
+      Math.floor((shellRef.current?.clientWidth ?? 0) / 2)
+    );
+    setPanelWidthPx((current) => {
+      const next =
+        e.key === 'ArrowLeft'
+          ? current + ARTIFACT_PANEL_RESIZE_KEY_STEP
+          : current - ARTIFACT_PANEL_RESIZE_KEY_STEP;
+      return Math.min(dragMaxWidth, Math.max(ARTIFACT_PANEL_DEFAULT_WIDTH, next));
+    });
+  }, []);
 
   const shellStyle = useMemo(
     () => ({ '--gr-artifact-panel-width': `${clampedPanelWidthPx}px` }) as CSSProperties,
@@ -377,11 +404,16 @@ function ChatPage() {
         // above). Hidden in overlay mode (too narrow to dock, nothing to split)
         // and while no panel is showing (nothing to resize).
         <div
-          role="separator"
+          role="slider"
           aria-orientation="vertical"
           aria-label="Panelbreite anpassen"
-          className="w-1 shrink-0 cursor-col-resize touch-none bg-transparent transition-colors hover:bg-primary/20 active:bg-primary/30"
+          aria-valuenow={clampedPanelWidthPx}
+          aria-valuemin={ARTIFACT_PANEL_DEFAULT_WIDTH}
+          aria-valuemax={maxPanelWidthPx}
+          tabIndex={0}
+          className="w-1 shrink-0 cursor-col-resize touch-none bg-transparent transition-colors hover:bg-primary/20 active:bg-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
           onPointerDown={handlePanelResizeStart}
+          onKeyDown={handlePanelResizeKeyDown}
         />
       )}
       {!hub && effectiveViewMode === 'thread' && (
