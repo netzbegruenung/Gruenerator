@@ -324,7 +324,9 @@ const INFO_DESCRIPTOR: SharepicTemplateDescriptor = {
 
 const SLIDER_DESCRIPTOR: SharepicTemplateDescriptor = {
   id: 'slider',
-  label: 'Slider-Karussell',
+  // Matches CANVAS_TEMPLATE_FIELDS.slider.label — the descriptor label is shown
+  // to the edit LLM and in the UI, so the two must agree.
+  label: 'Slider',
   canvas: { width: 1080, height: 1350 },
   deck: {
     maxSlides: 10,
@@ -496,6 +498,147 @@ export interface SharepicOpsResult {
 }
 
 /**
+ * Where a validated operation writes. Resolved by the validator (which already
+ * had to look the field/element up to check it) so the translator never repeats
+ * the lookup or asserts that it succeeded.
+ */
+export type SharepicOpTarget =
+  /** A single flat state key: text, font size, color scheme, background, sunflower. */
+  | { write: 'state-key'; stateKey: string }
+  /** Only the sub-keys this operation actually touched and the validator cleared. */
+  | {
+      write: 'element';
+      position?: { stateKey: string; bounds: NonNullable<SharepicElementDescriptor['bounds']> };
+      scaleStateKey?: string;
+      opacityStateKey?: string;
+    }
+  /** `set-background-image` — the caller resolves the query to a URL itself. */
+  | { write: 'image-query' };
+
+export type SharepicOpValidation =
+  { ok: true; op: CanvasAiOperation; target: SharepicOpTarget } | { ok: false; reason: string };
+
+/**
+ * Check one operation against a descriptor and clamp its numeric values.
+ *
+ * Shared by the two AI-op appliers, which are otherwise separate: the chat path
+ * translates ops into a flat state patch server-side (`sharepicOpsToStatePatch`
+ * below), the studio's own AI section dispatches them to canvas-editor actions
+ * (`applyOperation`). Only the RULES are common — what may be edited, which
+ * element exists, what range a value has — so only those live here.
+ *
+ * Returns the operation with clamped values so callers apply the clamped form
+ * rather than re-deriving it. Never throws: an invalid op is a rejection with a
+ * German, user-facing reason.
+ */
+export function validateSharepicOp(
+  descriptor: SharepicTemplateDescriptor,
+  op: CanvasAiOperation,
+  state: Record<string, unknown>
+): SharepicOpValidation {
+  if (!descriptor.supportedOperations.includes(op.kind)) {
+    return {
+      ok: false,
+      reason: `Operation "${op.kind}" wird von ${descriptor.id} nicht unterstützt`,
+    };
+  }
+
+  if (op.kind === 'set-text') {
+    const field = descriptor.textFields.find((f) => f.field === op.field);
+    if (!field) return { ok: false, reason: `Unbekanntes Textfeld "${op.field}"` };
+    return { ok: true, op, target: { write: 'state-key', stateKey: field.stateKey } };
+  }
+
+  if (op.kind === 'set-font-size') {
+    const field = descriptor.textFields.find((f) => f.field === op.field);
+    if (!field?.fontSize) return { ok: false, reason: `Keine Schriftgröße für Feld "${op.field}"` };
+    return {
+      ok: true,
+      op: { ...op, size: clamp(op.size, field.fontSize.min, field.fontSize.max) },
+      target: { write: 'state-key', stateKey: field.fontSize.stateKey },
+    };
+  }
+
+  if (op.kind === 'set-color-scheme') {
+    const schemes = descriptor.colorSchemes;
+    if (!schemes || !schemes.options.some((o) => o.id === op.schemeId)) {
+      return { ok: false, reason: `Unbekanntes Farbschema "${op.schemeId}"` };
+    }
+    return { ok: true, op, target: { write: 'state-key', stateKey: schemes.stateKey } };
+  }
+
+  if (op.kind === 'set-background-color') {
+    const colors = descriptor.backgroundColors;
+    const match = colors?.options.find((o) => o.color.toLowerCase() === op.color.toLowerCase());
+    if (!colors || !match) {
+      const allowed = colors?.options.map((o) => `${o.label} ${o.color}`).join(', ') ?? '';
+      return { ok: false, reason: `Nur diese Hintergrundfarben sind erlaubt: ${allowed}` };
+    }
+    // Normalize to the palette's canonical casing — the LLM writes both.
+    return {
+      ok: true,
+      op: { ...op, color: match.color },
+      target: { write: 'state-key', stateKey: colors.stateKey },
+    };
+  }
+
+  if (op.kind === 'toggle-sunflower') {
+    if (!descriptor.sunflowerVisibleStateKey) {
+      return { ok: false, reason: 'Keine Sonnenblume in dieser Vorlage' };
+    }
+    return {
+      ok: true,
+      op,
+      target: { write: 'state-key', stateKey: descriptor.sunflowerVisibleStateKey },
+    };
+  }
+
+  if (op.kind === 'update-element') {
+    const el = descriptor.elements.find((e) => e.id === op.elementId);
+    if (!el) return { ok: false, reason: `Unbekanntes Element "${op.elementId}"` };
+    if (el.presenceStateKey && !state[el.presenceStateKey]) {
+      return { ok: false, reason: `"${el.label}" ist nicht gesetzt — es gibt nichts zu verändern` };
+    }
+    const patch: typeof op.patch = { ...op.patch };
+    const target: Extract<SharepicOpTarget, { write: 'element' }> = { write: 'element' };
+    if (op.patch.x != null || op.patch.y != null) {
+      if (!el.positionStateKey || !el.bounds) {
+        return { ok: false, reason: `Element "${op.elementId}" ist nicht verschiebbar` };
+      }
+      if (op.patch.x != null) patch.x = clamp(op.patch.x, el.bounds.minX, el.bounds.maxX);
+      if (op.patch.y != null) patch.y = clamp(op.patch.y, el.bounds.minY, el.bounds.maxY);
+      target.position = { stateKey: el.positionStateKey, bounds: el.bounds };
+    }
+    if (op.patch.scale != null) {
+      if (!el.scale) return { ok: false, reason: `Element "${op.elementId}" ist nicht skalierbar` };
+      patch.scale = clamp(op.patch.scale, el.scale.min, el.scale.max);
+      target.scaleStateKey = el.scale.stateKey;
+    }
+    if (op.patch.opacity != null) {
+      if (!el.opacity) {
+        return { ok: false, reason: `Element "${op.elementId}" unterstützt keine Transparenz` };
+      }
+      patch.opacity = clamp(op.patch.opacity, el.opacity.min, el.opacity.max);
+      target.opacityStateKey = el.opacity.stateKey;
+    }
+    if (!target.position && !target.scaleStateKey && !target.opacityStateKey) {
+      // color/rotation (or an empty patch) — nothing this surface supports.
+      return { ok: false, reason: 'Für Elemente werden nur x/y, scale und opacity unterstützt' };
+    }
+    return { ok: true, op: { ...op, patch }, target };
+  }
+
+  if (op.kind === 'set-background-image') {
+    if (!descriptor.backgroundImage) {
+      return { ok: false, reason: 'Diese Vorlage hat kein Hintergrundbild' };
+    }
+    return { ok: true, op, target: { write: 'image-query' } };
+  }
+
+  return { ok: false, reason: `Operation "${op.kind}" wird im Chat nicht unterstützt` };
+}
+
+/**
  * Translate validated operations into a flat state patch. Unknown fields and
  * unsupported kinds are rejected (never thrown); numeric values are clamped
  * to the descriptor bounds.
@@ -510,119 +653,41 @@ export function sharepicOpsToStatePatch(
   const rejected: Array<{ op: CanvasAiOperation; reason: string }> = [];
   const imageQueries: string[] = [];
 
-  for (const op of ops) {
-    if (!descriptor.supportedOperations.includes(op.kind)) {
-      rejected.push({
-        op,
-        reason: `Operation "${op.kind}" wird von ${descriptor.id} nicht unterstützt`,
-      });
+  for (const raw of ops) {
+    const validated = validateSharepicOp(descriptor, raw, state);
+    if (!validated.ok) {
+      rejected.push({ op: raw, reason: validated.reason });
       continue;
     }
+    // Values below are already clamped / normalized and the write targets
+    // resolved by the validator; this loop only performs the writes.
+    const op = validated.op;
+    const target = validated.target;
 
-    if (op.kind === 'set-text') {
-      const field = descriptor.textFields.find((f) => f.field === op.field);
-      if (!field) {
-        rejected.push({ op, reason: `Unbekanntes Textfeld "${op.field}"` });
-        continue;
+    if (target.write === 'state-key') {
+      if (op.kind === 'set-text') patch[target.stateKey] = op.value;
+      else if (op.kind === 'set-font-size') patch[target.stateKey] = op.size;
+      else if (op.kind === 'set-color-scheme') patch[target.stateKey] = op.schemeId;
+      else if (op.kind === 'set-background-color') patch[target.stateKey] = op.color;
+      else if (op.kind === 'toggle-sunflower') patch[target.stateKey] = op.visible;
+    } else if (target.write === 'element' && op.kind === 'update-element') {
+      if (target.position) {
+        // The state writer takes a whole {x, y}, so the untouched axis is filled
+        // from current state — and clamped too, since a stale stored value can
+        // sit outside today's bounds.
+        const { stateKey, bounds } = target.position;
+        const prev = (state[stateKey] as { x?: number; y?: number } | null) ?? null;
+        patch[stateKey] = {
+          x: clamp(op.patch.x ?? prev?.x ?? 0, bounds.minX, bounds.maxX),
+          y: clamp(op.patch.y ?? prev?.y ?? 0, bounds.minY, bounds.maxY),
+        };
       }
-      patch[field.stateKey] = op.value;
-      applied.push(op);
-    } else if (op.kind === 'set-font-size') {
-      const field = descriptor.textFields.find((f) => f.field === op.field);
-      if (!field?.fontSize) {
-        rejected.push({ op, reason: `Keine Schriftgröße für Feld "${op.field}"` });
-        continue;
-      }
-      patch[field.fontSize.stateKey] = clamp(op.size, field.fontSize.min, field.fontSize.max);
-      applied.push(op);
-    } else if (op.kind === 'set-color-scheme') {
-      const schemes = descriptor.colorSchemes;
-      if (!schemes || !schemes.options.some((o) => o.id === op.schemeId)) {
-        rejected.push({ op, reason: `Unbekanntes Farbschema "${op.schemeId}"` });
-        continue;
-      }
-      patch[schemes.stateKey] = op.schemeId;
-      applied.push(op);
-    } else if (op.kind === 'set-background-color') {
-      const colors = descriptor.backgroundColors;
-      const match = colors?.options.find((o) => o.color.toLowerCase() === op.color.toLowerCase());
-      if (!colors || !match) {
-        const allowed = colors?.options.map((o) => `${o.label} ${o.color}`).join(', ') ?? '';
-        rejected.push({ op, reason: `Nur diese Hintergrundfarben sind erlaubt: ${allowed}` });
-        continue;
-      }
-      patch[colors.stateKey] = match.color;
-      applied.push(op);
-    } else if (op.kind === 'toggle-sunflower') {
-      if (!descriptor.sunflowerVisibleStateKey) {
-        rejected.push({ op, reason: 'Keine Sonnenblume in dieser Vorlage' });
-        continue;
-      }
-      patch[descriptor.sunflowerVisibleStateKey] = op.visible;
-      applied.push(op);
-    } else if (op.kind === 'update-element') {
-      const el = descriptor.elements.find((e) => e.id === op.elementId);
-      if (!el) {
-        rejected.push({ op, reason: `Unbekanntes Element "${op.elementId}"` });
-        continue;
-      }
-      if (el.presenceStateKey && !state[el.presenceStateKey]) {
-        rejected.push({
-          op,
-          reason: `"${el.label}" ist nicht gesetzt — es gibt nichts zu verändern`,
-        });
-        continue;
-      }
-      let landed = false;
-      if (op.patch.x != null || op.patch.y != null) {
-        if (!el.positionStateKey || !el.bounds) {
-          rejected.push({ op, reason: `Element "${op.elementId}" ist nicht verschiebbar` });
-          continue;
-        }
-        const prev = (state[el.positionStateKey] as { x?: number; y?: number } | null) ?? null;
-        const x = clamp(op.patch.x ?? prev?.x ?? 0, el.bounds.minX, el.bounds.maxX);
-        const y = clamp(op.patch.y ?? prev?.y ?? 0, el.bounds.minY, el.bounds.maxY);
-        patch[el.positionStateKey] = { x, y };
-        landed = true;
-      }
-      if (op.patch.scale != null) {
-        if (!el.scale) {
-          rejected.push({ op, reason: `Element "${op.elementId}" ist nicht skalierbar` });
-          continue;
-        }
-        patch[el.scale.stateKey] = clamp(op.patch.scale, el.scale.min, el.scale.max);
-        landed = true;
-      }
-      if (op.patch.opacity != null) {
-        if (!el.opacity) {
-          rejected.push({
-            op,
-            reason: `Element "${op.elementId}" unterstützt keine Transparenz`,
-          });
-          continue;
-        }
-        patch[el.opacity.stateKey] = clamp(op.patch.opacity, el.opacity.min, el.opacity.max);
-        landed = true;
-      }
-      if (!landed) {
-        // color/rotation (or an empty patch) — nothing this surface supports.
-        rejected.push({
-          op,
-          reason: 'Für Elemente werden nur x/y, scale und opacity unterstützt',
-        });
-        continue;
-      }
-      applied.push(op);
-    } else if (op.kind === 'set-background-image') {
-      if (!descriptor.backgroundImage) {
-        rejected.push({ op, reason: 'Diese Vorlage hat kein Hintergrundbild' });
-        continue;
-      }
+      if (target.scaleStateKey) patch[target.scaleStateKey] = op.patch.scale;
+      if (target.opacityStateKey) patch[target.opacityStateKey] = op.patch.opacity;
+    } else if (target.write === 'image-query' && op.kind === 'set-background-image') {
       imageQueries.push(op.query);
-      applied.push(op);
-    } else {
-      rejected.push({ op, reason: `Operation "${op.kind}" wird im Chat nicht unterstützt` });
     }
+    applied.push(op);
   }
 
   // Layout reflow: when a layout-driving field changed, clear stale manual
