@@ -75,7 +75,7 @@ export async function extractAudioFromVideo(
   videoBuffer: Buffer,
   originalname: string,
   options?: ExtractOptions
-): Promise<{ buffer: Buffer; filename: string }> {
+): Promise<{ buffer: Buffer; filename: string; durationSeconds: number | null }> {
   const tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'voice-video-'));
   const ext = path.extname(originalname) || '.mp4';
   const videoPath = path.join(tmpDir, `input${ext}`);
@@ -84,10 +84,10 @@ export async function extractAudioFromVideo(
   try {
     await fs.promises.writeFile(videoPath, videoBuffer);
     const extractOptions = options?.onProgress != null ? { onProgress: options.onProgress } : {};
-    await extractAudio(videoPath, audioPath, extractOptions);
+    const { durationSeconds } = await extractAudio(videoPath, audioPath, extractOptions);
     const audioBuffer = await fs.promises.readFile(audioPath);
     const audioFilename = originalname.replace(/\.[^.]+$/, '.mp3');
-    return { buffer: audioBuffer, filename: audioFilename };
+    return { buffer: audioBuffer, filename: audioFilename, durationSeconds };
   } finally {
     await cleanupFiles(videoPath, audioPath);
     await fs.promises.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
@@ -107,16 +107,16 @@ export async function extractAudioFromVideoPath(
   videoPath: string,
   originalname: string,
   options?: ExtractOptions
-): Promise<{ buffer: Buffer; filename: string }> {
+): Promise<{ buffer: Buffer; filename: string; durationSeconds: number | null }> {
   const tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'voice-video-'));
   const audioPath = path.join(tmpDir, 'extracted.mp3');
 
   try {
     const extractOptions = options?.onProgress != null ? { onProgress: options.onProgress } : {};
-    await extractAudio(videoPath, audioPath, extractOptions);
+    const { durationSeconds } = await extractAudio(videoPath, audioPath, extractOptions);
     const audioBuffer = await fs.promises.readFile(audioPath);
     const audioFilename = originalname.replace(/\.[^.]+$/, '.mp3');
-    return { buffer: audioBuffer, filename: audioFilename };
+    return { buffer: audioBuffer, filename: audioFilename, durationSeconds };
   } finally {
     await cleanupFiles(audioPath);
     await fs.promises.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
@@ -207,6 +207,7 @@ async function transcribeSingleBuffer(
   log.info(`[Voice] provider=${provider} (${reason}) chain=${chain.join('→')}`);
 
   let lastError: Error | null = null;
+  const wantsTimestamps = !!options.timestamp_granularities?.length;
 
   for (const attempt of chain) {
     const runner = RUNNERS[attempt];
@@ -214,6 +215,15 @@ async function transcribeSingleBuffer(
 
     try {
       const result = await runner.run(audioBuffer, filename, options);
+      // Same rule as WORD_TIMESTAMP_CHAIN in transcription/providerPolicy.ts:
+      // when timestamps were requested, an answer without them is a failure,
+      // not a success — accepting it would let a chunked transcription merge
+      // timestamped and timestampless chunks from different providers.
+      if (wantsTimestamps && !result.hasTimestamps) {
+        lastError = new Error(`${attempt} returned no timestamps although they were requested`);
+        log.warn(`[Voice] ${lastError.message} — trying next provider`);
+        continue;
+      }
       if (runner.usage) recordOperation({ unit: 'transcriptions', ...runner.usage });
       return result;
     } catch (error) {
@@ -249,11 +259,64 @@ function mergeResults(results: TranscriptionResult[]): TranscriptionResult {
   }
   if (results.length === 1) return first;
 
+  // `every`, not `some`: per-chunk failover means chunks can come from
+  // different providers, and a merged timeline with silent holes is worse
+  // than an honest hasTimestamps: false.
+  const hasTimestamps = results.every((r) => r.hasTimestamps);
+
   return {
     text: results.map((r) => r.text).join('\n'),
-    segments: results.flatMap((r) => r.segments ?? []),
-    hasTimestamps: results.some((r) => r.hasTimestamps),
+    ...(hasTimestamps && { segments: results.flatMap((r) => r.segments ?? []) }),
+    hasTimestamps,
   };
+}
+
+/**
+ * Each chunk transcription numbers its speakers from 0 independently, so
+ * chunk 2's `[speaker_0]` may be a different person than chunk 1's. Shift a
+ * chunk's labels by a running offset so they are globally unique across the
+ * merged transcript — downstream `identifySpeakers` then maps the union.
+ * Sparse ids are kept sparse; the offset advances past the highest id seen.
+ */
+function remapChunkSpeakers(
+  result: TranscriptionResult,
+  idOffset: number
+): { result: TranscriptionResult; maxIdSeen: number } {
+  let maxIdSeen = -1;
+  const text = result.text.replace(/\[speaker_(\d+)\]/g, (_match, digits: string) => {
+    const id = Number(digits);
+    if (id > maxIdSeen) maxIdSeen = id;
+    return `[speaker_${id + idOffset}]`;
+  });
+  return { result: { ...result, text }, maxIdSeen };
+}
+
+/**
+ * Below ~8 kbit/s even MAX_AUDIO_MINUTES of audio stays under this size, so a
+ * smaller buffer cannot exceed the chunk threshold and the duration probe
+ * (temp-file write + ffprobe) is skipped entirely. Real speech encodings sit
+ * well above 8 kbit/s — the video-extraction path emits mono 16 kHz mp3 at
+ * roughly 4× that.
+ */
+const PROBE_SKIP_BYTES = (8_000 / 8) * MAX_AUDIO_MINUTES * 60;
+
+export function mayExceedChunkLimit(audioBuffer: Buffer): boolean {
+  return audioBuffer.length >= PROBE_SKIP_BYTES;
+}
+
+/** Measure a buffer's media duration via ffprobe (temp-file round trip). */
+export async function probeBufferDurationSeconds(
+  audioBuffer: Buffer,
+  filename: string
+): Promise<number | null> {
+  const tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'voice-probe-'));
+  const probePath = path.join(tmpDir, `input${path.extname(filename) || '.mp3'}`);
+  try {
+    await fs.promises.writeFile(probePath, audioBuffer);
+    return await getDuration(probePath);
+  } finally {
+    await fs.promises.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+  }
 }
 
 /**
@@ -262,19 +325,32 @@ function mergeResults(results: TranscriptionResult[]): TranscriptionResult {
  * chunk at a time (sequential, to keep memory/rate-limit exposure bounded the
  * same way a single 500MB buffer already does), and the chunk transcripts are
  * merged back into one continuous result with offset segment timestamps.
+ *
+ * `knownDurationSeconds` lets callers that already measured the duration (the
+ * video-extraction path — extractAudio ffprobes its input anyway) skip the
+ * probe here.
  */
 export async function transcribeBuffer(
   audioBuffer: Buffer,
   filename: string,
-  options: TranscriptionOptions = {}
+  options: TranscriptionOptions = {},
+  knownDurationSeconds?: number | null
 ): Promise<TranscriptionResult> {
   const limitSeconds = MAX_AUDIO_MINUTES * 60;
+
+  if (
+    (knownDurationSeconds == null && !mayExceedChunkLimit(audioBuffer)) ||
+    (knownDurationSeconds != null && knownDurationSeconds <= limitSeconds)
+  ) {
+    return transcribeSingleBuffer(audioBuffer, filename, options);
+  }
+
   const tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'voice-probe-'));
   const probePath = path.join(tmpDir, `input${path.extname(filename) || '.mp3'}`);
 
   try {
     await fs.promises.writeFile(probePath, audioBuffer);
-    const duration = await getDuration(probePath);
+    const duration = knownDurationSeconds ?? (await getDuration(probePath));
 
     if (duration == null || duration <= limitSeconds) {
       return await transcribeSingleBuffer(audioBuffer, filename, options);
@@ -291,9 +367,15 @@ export async function transcribeBuffer(
 
     try {
       const results: TranscriptionResult[] = [];
+      let speakerIdOffset = 0;
       for (const chunk of chunks) {
         const chunkBuffer = await fs.promises.readFile(chunk.path);
-        const chunkResult = await transcribeSingleBuffer(chunkBuffer, 'chunk.mp3', options);
+        let chunkResult = await transcribeSingleBuffer(chunkBuffer, 'chunk.mp3', options);
+        if (options.diarize) {
+          const remapped = remapChunkSpeakers(chunkResult, speakerIdOffset);
+          chunkResult = remapped.result;
+          speakerIdOffset += remapped.maxIdSeen + 1;
+        }
         results.push(offsetResult(chunkResult, chunk.startSeconds));
       }
       return mergeResults(results);
