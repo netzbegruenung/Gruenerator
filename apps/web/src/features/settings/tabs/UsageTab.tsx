@@ -120,9 +120,10 @@ const REFERENCE_UNCERTAINTY = 0.3;
 /**
  * "What if you had used ChatGPT instead."
  *
- * CO2: shows the saving, not your own figure again — that's already the stat
- * tile above this card — plus a corridor, because the GPT-4o side is an
- * estimate the source paper itself flags as uncertain.
+ * CO2: shows the difference in whichever direction it points, not your own
+ * figure again — that's already the stat tile above this card — plus a
+ * corridor, because the GPT-4o side is an estimate the source paper itself
+ * flags as uncertain.
  *
  * Energy still reports both directions: our default Mistral Medium needs MORE
  * raw electricity than GPT-4o reportedly does, and the CO2 advantage comes
@@ -138,25 +139,37 @@ function ReferenceComparison({ footprint }: { footprint: UsageFootprintDto }) {
   const textEnergy = footprint.energy_wh - footprint.image_energy_wh;
   const co2Savings = footprint.reference_emissions_g - textEmissions;
   const energyFactor = textEnergy > 0 ? footprint.reference_energy_wh / textEnergy : 0;
-  if (co2Savings <= 0) return null;
+  // Only vanish when there is nothing to compare — an unfavorable comparison
+  // is reported, not hidden (see the JSDoc above).
+  const hasTextUsage = textEmissions > 0 || textEnergy > 0 || footprint.reference_emissions_g > 0;
+  if (!hasTextUsage) return null;
 
+  const co2Saved = co2Savings >= 0;
   const co2SavingsLow = Math.max(
-    footprint.reference_emissions_g * (1 - REFERENCE_UNCERTAINTY) - textEmissions,
+    co2Saved
+      ? footprint.reference_emissions_g * (1 - REFERENCE_UNCERTAINTY) - textEmissions
+      : textEmissions - footprint.reference_emissions_g * (1 + REFERENCE_UNCERTAINTY),
     0
   );
-  const co2SavingsHigh =
-    footprint.reference_emissions_g * (1 + REFERENCE_UNCERTAINTY) - textEmissions;
+  const co2SavingsHigh = Math.max(
+    co2Saved
+      ? footprint.reference_emissions_g * (1 + REFERENCE_UNCERTAINTY) - textEmissions
+      : textEmissions - footprint.reference_emissions_g * (1 - REFERENCE_UNCERTAINTY),
+    0
+  );
 
   return (
     <section className="flex flex-col gap-sm rounded-xl border border-grey-200 p-md dark:border-grey-700">
       <h3 className="m-0 text-sm font-semibold text-foreground-heading">
-        Ersparnis gegenüber ChatGPT
+        {co2Saved ? 'Ersparnis gegenüber ChatGPT' : 'Vergleich zu ChatGPT'}
       </h3>
       <div className="grid grid-cols-2 gap-sm">
         <div className="flex flex-col gap-1">
-          <span className="text-xs text-grey-500">CO₂ gespart</span>
+          <span className="text-xs text-grey-500">
+            {co2Saved ? 'CO₂ gespart' : 'CO₂ mehr als bei GPT-4o'}
+          </span>
           <span className="text-lg font-semibold text-foreground-heading">
-            ≈ {formatGrams(co2Savings)}
+            ≈ {formatGrams(Math.abs(co2Savings))}
           </span>
           <span className="text-xs text-grey-500">
             etwa {formatGrams(co2SavingsLow)} – {formatGrams(co2SavingsHigh)}
@@ -168,10 +181,15 @@ function ReferenceComparison({ footprint }: { footprint: UsageFootprintDto }) {
             ≈ {formatEnergy(footprint.reference_energy_wh)}
           </span>
           <span className="text-xs text-grey-500">
-            statt {formatEnergy(textEnergy)} —{' '}
-            {energyFactor >= 1
-              ? `${oneDecimal.format(energyFactor)}× so viel`
-              : `${oneDecimal.format(1 / energyFactor)}× weniger als bei uns`}
+            statt {formatEnergy(textEnergy)}
+            {energyFactor > 0 && (
+              <>
+                {' — '}
+                {energyFactor >= 1
+                  ? `${oneDecimal.format(energyFactor)}× so viel`
+                  : `${oneDecimal.format(1 / energyFactor)}× weniger als bei uns`}
+              </>
+            )}
           </span>
         </div>
       </div>
