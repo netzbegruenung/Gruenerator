@@ -37,11 +37,22 @@ export type ActiveArtifact = CodeArtifact | DocumentArtifact;
 
 interface ArtifactLiveStore {
   activeArtifact: ActiveArtifact | null;
+  /**
+   * True while an ArtifactPanel is mounted somewhere in the tree. The panel is
+   * only rendered on /chat; the cards that write activeArtifact also render in
+   * the Sheets/Docs/Presentations assistant chats, where opening "into the
+   * panel" would do nothing visible — they check this flag and fall back to a
+   * plain link instead.
+   */
+  panelMounted: boolean;
   setActiveArtifact: (artifact: ActiveArtifact | null) => void;
+  setPanelMounted: (mounted: boolean) => void;
 }
 
 export const useArtifactLiveStore = create<ArtifactLiveStore>((set) => ({
   activeArtifact: null,
+  panelMounted: false,
+  setPanelMounted: (mounted) => set({ panelMounted: mounted }),
   setActiveArtifact: (artifact) => {
     // Only one docked panel at a time: opening an artifact closes an active
     // sharepic/reel. (Those stores don't import this one, so no cycle.)

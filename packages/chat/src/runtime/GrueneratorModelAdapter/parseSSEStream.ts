@@ -1143,7 +1143,13 @@ export async function* parseSSEStream(
           // waiting for a click on DocumentCreatedCard's button. PDFs are
           // excluded — their url is an authenticated asset endpoint (needs
           // configFetch + blob), not something a plain iframe src can load.
-          if (subtypeToArtifactKind(created.subtype) !== 'pdf') {
+          // Only where an ArtifactPanel is actually mounted (/chat thread view):
+          // elsewhere the write is invisible AND would close a docked
+          // sharepic/reel via the one-panel rule with nothing replacing it.
+          if (
+            useArtifactLiveStore.getState().panelMounted &&
+            subtypeToArtifactKind(created.subtype) !== 'pdf'
+          ) {
             useArtifactLiveStore.getState().setActiveArtifact({
               id: `document-${created.documentId}`,
               type: 'document',
