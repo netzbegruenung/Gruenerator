@@ -28,34 +28,41 @@ export async function splitAudioIntoChunks(
   const chunkCount = Math.max(1, Math.ceil(totalDurationSeconds / chunkSeconds));
   const chunks: AudioChunk[] = [];
 
-  for (let i = 0; i < chunkCount; i++) {
-    const startSeconds = i * chunkSeconds;
-    const outputPath = path.join(tmpDir, `chunk-${i}.mp3`);
+  try {
+    for (let i = 0; i < chunkCount; i++) {
+      const startSeconds = i * chunkSeconds;
+      const outputPath = path.join(tmpDir, `chunk-${i}.mp3`);
 
-    await new Promise<void>((resolve, reject) => {
-      ffmpeg(filePath)
-        .inputOptions(['-ss', String(startSeconds)])
-        .outputOptions([
-          '-t',
-          String(chunkSeconds),
-          '-vn',
-          '-ar',
-          '16000',
-          '-ac',
-          '1',
-          '-c:a',
-          'libmp3lame',
-          '-q:a',
-          '4',
-          '-y',
-        ])
-        .save(outputPath)
-        .on('end', () => resolve())
-        .on('error', (err: Error) => reject(err));
-    });
+      await new Promise<void>((resolve, reject) => {
+        ffmpeg(filePath)
+          .inputOptions(['-ss', String(startSeconds)])
+          .outputOptions([
+            '-t',
+            String(chunkSeconds),
+            '-vn',
+            '-ar',
+            '16000',
+            '-ac',
+            '1',
+            '-c:a',
+            'libmp3lame',
+            '-q:a',
+            '4',
+            '-y',
+          ])
+          .save(outputPath)
+          .on('end', () => resolve())
+          .on('error', (err: Error) => reject(err));
+      });
 
-    log.debug(`Split chunk ${i + 1}/${chunkCount} @${startSeconds}s -> ${outputPath}`);
-    chunks.push({ path: outputPath, startSeconds });
+      log.debug(`Split chunk ${i + 1}/${chunkCount} @${startSeconds}s -> ${outputPath}`);
+      chunks.push({ path: outputPath, startSeconds });
+    }
+  } catch (err) {
+    // The caller only ever sees tmpDir on success — clean up the chunks
+    // already written before rethrowing, or they leak until reboot.
+    await fs.promises.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+    throw err;
   }
 
   return { chunks, tmpDir };

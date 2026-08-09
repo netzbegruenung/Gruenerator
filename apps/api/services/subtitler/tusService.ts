@@ -77,17 +77,51 @@ void (async () => {
 const AUDIO_UPLOAD_PATH = '/api/audio/upload';
 
 /**
- * Shared by both TUS mount points (see server.ts). The Transkription feature's
- * /api/audio/upload gets the larger video ceiling — video is transcoded down
- * to a small mp3 before it reaches a provider, so the raw upload size doesn't
- * bound memory the way it would for a direct audio/video buffer. The
- * subtitler mount (/api/subtitler/upload) keeps the original ceiling.
+ * `filetype` from the client-supplied Upload-Metadata creation header
+ * (comma-separated `key base64value` pairs). Client-controlled, so it is only
+ * trusted in the conservative direction: an absent, unparseable or non-video
+ * value never grants the larger ceiling. The transcription read path
+ * (voiceContractRouter/voiceController) re-checks the stored size against
+ * MAX_AUDIO_BYTES for non-video files before buffering.
+ */
+function declaresVideoFiletype(req: { headers: { get(name: string): string | null } }): boolean {
+  const header = req.headers.get('upload-metadata');
+  if (!header) return false;
+  for (const pair of header.split(',')) {
+    const [key, value] = pair.trim().split(' ');
+    if (key === 'filetype' && value) {
+      try {
+        return Buffer.from(value, 'base64').toString('utf8').startsWith('video/');
+      } catch {
+        return false;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * Shared by both TUS mount points (see server.ts). On the Transkription
+ * feature's /api/audio/upload, only uploads declaring a video/* filetype get
+ * the larger MAX_VIDEO_UPLOAD_BYTES ceiling — video is transcoded down to a
+ * small mp3 before it reaches a provider, so its raw upload size doesn't bound
+ * memory. A pure-audio upload IS the transcribed payload and gets buffered
+ * whole, so everything else stays on MAX_AUDIO_BYTES. The subtitler mount
+ * (/api/subtitler/upload) keeps the original ceiling for everything.
  */
 const tusServer = new Server({
   path: '/api/subtitler/upload',
   datastore: new FileStore({ directory: TUS_UPLOAD_PATH }),
-  maxSize: (req) =>
-    req.url?.startsWith(AUDIO_UPLOAD_PATH) ? MAX_VIDEO_UPLOAD_BYTES : MAX_AUDIO_BYTES,
+  maxSize: (req) => {
+    // req.url is an absolute URL here (@tus/server v2 hands the callback a
+    // fetch Request), so match on the parsed pathname.
+    const pathname = new URL(req.url, 'http://internal').pathname;
+    if (!pathname.startsWith(AUDIO_UPLOAD_PATH)) return MAX_AUDIO_BYTES;
+    // The ceiling matters at creation, where Upload-Metadata is present; PATCH
+    // requests carry no metadata but validate against the size fixed at
+    // creation, so falling back to the audio cap there is harmless.
+    return declaresVideoFiletype(req) ? MAX_VIDEO_UPLOAD_BYTES : MAX_AUDIO_BYTES;
+  },
   respectForwardedHeaders: true,
 });
 
