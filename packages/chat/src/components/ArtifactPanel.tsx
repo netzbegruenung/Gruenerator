@@ -26,8 +26,9 @@ const ARTIFACT_CSP =
   "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'";
 
 /** Document previews go into a NON-sandboxed same-origin iframe, so only
- *  server-built relative `/office/:id` paths may ever reach it. */
-const isRelativeUrl = (url: string) => url.startsWith('/') && !url.startsWith('//');
+ *  server-built relative `/office/:id` paths may ever reach it. Rejects `//`
+ *  and `/\` second chars — browsers treat both as scheme-relative URLs. */
+const isRelativeUrl = (url: string) => url.startsWith('/') && url[1] !== '/' && url[1] !== '\\';
 
 /**
  * Docked right-rail view of the active artifact. Two variants:
