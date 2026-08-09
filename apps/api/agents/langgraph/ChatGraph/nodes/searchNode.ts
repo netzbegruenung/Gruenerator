@@ -1762,6 +1762,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       case 'edit_current_doc':
       case 'edit_current_board':
       case 'create_sheet':
+      case 'edit_sheet':
       case 'create_presentation':
       case 'create_pdf':
       case 'create_recurring_task':

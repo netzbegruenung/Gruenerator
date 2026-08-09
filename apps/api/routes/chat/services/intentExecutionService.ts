@@ -26,8 +26,14 @@ import { env } from '../../../config/env.js';
 import { type ExpressRequest as SharepicExpressRequest } from '../../../services/chat/sharepicGenerationService.js';
 import { createRecurringTask } from '../../../services/recurringTasks/recurringTasksRepository.js';
 import { resolveSearchTier, resolveTier } from '../../../services/search/searchDepth.js';
+import {
+  formatSheetAsContext,
+  loadSheetState,
+} from '../../../services/sheets/SheetGenerationService.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
+import { checkDocumentWriteAccess } from '../../docs/documentAccess.js';
+import { generateSheetOperations } from '../../sheets/sheetAiService.js';
 
 import { needsThreadGrounding } from './agenticLoop/routing.js';
 import { renderSourceLines, withResearchedSources } from './agenticLoop/sourceRegistry.js';
@@ -48,6 +54,7 @@ import {
 } from './createTurn.js';
 import { failCreation, rememberArtifact } from './createTurnHelpers.js';
 import { runDeepResearchTurn } from './deepResearchTurn.js';
+import { finishEditTurn } from './editTurnCompletion.js';
 import { extractTextContent } from './messageHelpers.js';
 import {
   recallPastChats,
@@ -187,6 +194,119 @@ export async function handleBoardCreation(
  */
 export async function handleSheetCreation(opts: CreateTurnOpts): Promise<boolean> {
   return runCreateTurn(SHEET_SPEC, opts);
+}
+
+/** One-line summary of a planned op batch, e.g. "1× format_range". */
+function summarizeSheetOps(operations: Array<{ type: string }>): string {
+  const counts = new Map<string, number>();
+  for (const op of operations) counts.set(op.type, (counts.get(op.type) ?? 0) + 1);
+  return [...counts.entries()].map(([type, n]) => `${n}× ${type}`).join(', ');
+}
+
+/**
+ * edit_sheet — Tier-2.7 follow-up on a chat-created sheet ("mach die erste
+ * Zeile fett"). Plans typed ops with the same planner the in-editor AI
+ * assistant uses (generateSheetOperations) and hands them to the client as an
+ * `editor_operations` SSE event, same shape as the agentic loop's edit tool
+ * (editorTools.ts). No server-side op execution here — only the client's live
+ * Univer instance computes styles/formulas correctly; ArtifactPanel relays
+ * the event into the docked sheet-editor iframe via postMessage, which
+ * applies it through the same applySheetOperations() the in-editor assistant
+ * uses. If the sheet isn't open anywhere, the client's existing "no handler
+ * registered" fallback tells the user to open it — there is deliberately no
+ * second, less-correct execution path for that case.
+ */
+export async function handleSheetEdit(opts: {
+  sse: SSEWriter;
+  classifiedState: ChatGraphState;
+  actualThreadId?: string;
+  userId: string;
+  userContent: string;
+}): Promise<boolean> {
+  const { sse, classifiedState, actualThreadId, userId, userContent } = opts;
+  const sheetId = classifiedState.sheetEditId;
+
+  sse.send('response_start', { message: 'Bearbeite Tabelle...' });
+
+  const fail = async (text: string): Promise<boolean> => {
+    await finishEditTurn({
+      sse,
+      threadId: actualThreadId ?? null,
+      text,
+      intent: 'edit_sheet',
+      persistLabel: 'editSheet:persist',
+      logPrefix: '[SheetEdit]',
+      startTime: classifiedState.startTime,
+      classificationTimeMs: classifiedState.classificationTimeMs,
+    });
+    return true;
+  };
+
+  if (!sheetId) {
+    return fail(
+      'Ich konnte die Tabelle nicht zuordnen. Öffne sie kurz, dann kann ich sie bearbeiten.'
+    );
+  }
+
+  if (!(await checkDocumentWriteAccess(sheetId, userId))) {
+    return fail('Du hast keine Bearbeitungsrechte für diese Tabelle.');
+  }
+
+  const state = await loadSheetState(sheetId, userId);
+  if (!state) {
+    return fail('Ich konnte die Tabelle nicht finden — vielleicht wurde sie gelöscht.');
+  }
+
+  let operations;
+  try {
+    operations = await generateSheetOperations({
+      userPrompt: userContent,
+      sheetContext: formatSheetAsContext(state),
+      referenceContent: null,
+    });
+  } catch (err) {
+    log.error(`[SheetEdit] planning failed: ${err instanceof Error ? err.message : String(err)}`);
+    return fail(
+      'Die Änderung an der Tabelle konnte nicht geplant werden. Versuch es bitte noch einmal.'
+    );
+  }
+
+  if (operations.length === 0) {
+    return fail(
+      'Ich konnte daraus keine konkrete Tabellen-Änderung ableiten. Beschreib bitte genauer, was sich ändern soll.'
+    );
+  }
+
+  const summary = summarizeSheetOps(operations);
+  const responseText = `Ich habe die Änderung an **"${state.title}"** vorbereitet (${summary}).`;
+  for (let i = 0; i < responseText.length; i += 20) {
+    sse.send('text_delta', { text: responseText.slice(i, i + 20) });
+  }
+
+  sse.send('editor_operations', {
+    surface: 'sheet',
+    targetId: sheetId,
+    operations,
+    summary,
+  });
+  log.info(`[SheetEdit] planned ${operations.length} op(s) for sheet ${sheetId}`);
+
+  if (actualThreadId) {
+    await rememberArtifact(actualThreadId, 'sheet', sheetId, state.title);
+  }
+
+  await finishEditTurn({
+    sse,
+    threadId: actualThreadId ?? null,
+    text: responseText,
+    intent: 'edit_sheet',
+    persistLabel: 'editSheet:persist',
+    logPrefix: '[SheetEdit]',
+    startTime: classifiedState.startTime,
+    classificationTimeMs: classifiedState.classificationTimeMs,
+    streamed: true,
+  });
+  return true;
 }
 
 /** create_presentation / @praesentation-erstellen. */

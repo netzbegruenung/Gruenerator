@@ -323,6 +323,8 @@ describe('every SearchIntent has a handler path', () => {
     save_as_doc: 'routes to respond, then confirm_action SSE + pendingActionStore',
     create_sheet:
       'handled via handleSheetCreation — generates a spreadsheet, seeds the Y.Doc, emits document_created SSE (subtype sheets); owns the turn on failure (templated error, never falls through)',
+    edit_sheet:
+      'handled via handleSheetEdit — Tier 2.7 follow-up on a chat-created sheet; plans typed ops (generateSheetOperations), emits editor_operations SSE; owns the turn always (templated text, no fall-through)',
     create_presentation:
       'handled via handlePresentationCreation — generates a reveal.js deck, seeds the Y.Doc, emits document_created SSE (subtype presentations); owns the turn on failure (templated error, never falls through)',
     create_pdf:
