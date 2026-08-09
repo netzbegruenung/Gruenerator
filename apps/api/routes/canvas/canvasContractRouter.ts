@@ -405,9 +405,8 @@ export const canvasContractRouter = s.router(canvasContract, {
 
 /**
  * Mount the canvas CRUD contract router. Call from routes.ts AFTER the
- * canvas AI-suggest and chat-edit routers (so /api/canvas/ai-suggest and
- * /api/canvas/chat-edit/stream match first). requireAuth is applied at the
- * /api/canvas prefix.
+ * canvas AI-suggest router (so /api/canvas/ai-suggest matches first).
+ * requireAuth is applied at the /api/canvas prefix.
  */
 export function mountCanvasContractRouter(app: Application): void {
   createExpressEndpoints(canvasContract, canvasContractRouter, app, {

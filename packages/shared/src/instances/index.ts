@@ -116,7 +116,10 @@ export const INSTANCES = [
     id: 'production',
     hosts: ['gruenerator.eu', 'www.gruenerator.eu'],
     channels: ['stable'],
-    block: {
+    // `hide`, not `block`: the Bundesverband notebook was offered here before it
+    // became bgst-exclusive, so shared links and persisted mention tokens must
+    // keep resolving forever (F0 URL-Sonderrecht, CLAUDE.md).
+    hide: {
       notebookIds: ['gruene-notebook'],
     },
   },
@@ -124,7 +127,7 @@ export const INSTANCES = [
     id: 'beta',
     hosts: ['beta.gruenerator.eu'],
     channels: ['stable', 'preview'],
-    block: {
+    hide: {
       notebookIds: ['gruene-notebook'],
     },
   },
@@ -142,7 +145,7 @@ export const INSTANCES = [
     id: 'local',
     hosts: ['localhost', '127.0.0.1', '[::1]'],
     channels: ['stable', 'preview', 'internal'],
-    block: {
+    hide: {
       notebookIds: ['gruene-notebook'],
     },
   },
