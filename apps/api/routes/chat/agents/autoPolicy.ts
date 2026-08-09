@@ -70,8 +70,13 @@ export const VERDIGADO_INPUT_LIMIT = 40_000;
 /** A scalar applies to every complexity; the record grades by it. */
 type ReasoningRule = ReasoningSetting | Record<Complexity, ReasoningSetting>;
 
-/** Keys into AVAILABLE_MODELS (providers.ts). Not the user-facing catalog. */
-export type AutoLaneId = 'gemma-4-26b' | 'gemma-litellm' | 'mistral-medium-3.5' | 'litellm';
+/**
+ * Keys into AVAILABLE_MODELS (providers.ts). Not the user-facing catalog.
+ * Only the lanes the resolver can actually return; `gemma-4-26b` and `litellm`
+ * left this union with the 07.08.2026 lane fold — they stay registered in
+ * providers.ts for persisted thread ids and intermediate stages only.
+ */
+export type AutoLaneId = 'gemma-litellm' | 'mistral-medium-3.5';
 
 interface AutoEntry {
   modelId: AutoLaneId;
@@ -93,7 +98,9 @@ const graded = (
  * which is what put a production PDF generation on the floor (see the artefact
  * note in services/ai/lanes.ts). `gemma-4-26b` and `litellm` stay registered in
  * providers.ts (persisted ids, intermediate stages) but are no longer an
- * auto-policy target.
+ * auto-policy target. Failover changed with the fold too: when Regolo is down,
+ * former Lane-A intents now degrade to verdigado-think (~20 s to first token,
+ * 120k ctx) — a materially slower degraded path, accepted deliberately.
  */
 const GEMMA: AutoLaneId = 'gemma-litellm';
 /** Mistral Medium 3.5. Where the model calls tools ITSELF and the unified loop
@@ -165,7 +172,7 @@ export const POLICY: Record<Exclude<SearchIntent, ExemptIntent>, AutoEntry> = {
   // writes the whole answer from raw sources, so a research turn is ordinary
   // synthesis and takes the default lane like `web` does.
 
-  // ── Prose over sources: Gemma 4 ──
+  // ── Prose over sources: Gemma 4 (31B, Regolo) ──
   research: { modelId: GEMMA, reasoning: graded('low', 'medium', 'medium') },
   search: { modelId: GEMMA, reasoning: graded('low', 'low', 'medium') },
   web: { modelId: GEMMA, reasoning: graded('low', 'low', 'medium') },
@@ -218,7 +225,7 @@ export const POLICY: Record<Exclude<SearchIntent, ExemptIntent>, AutoEntry> = {
   // The vision override in resolveModel wins over this anyway.
   image_edit: { modelId: MEDIUM, reasoning: 'off' },
 
-  // ── Speed lane, folded into Gemma 4 on 07.08.2026 (see the lane comment above) ──
+  // ── Short/direct turns: Gemma 4 (31B, Regolo) — the former speed lane, folded in on 07.08.2026 (see the lane comment above) ──
   // Same grading as before: the substance is in the message, so the work is
   // formulating, not reasoning — but a complex rewrite still earns `low`.
   produktion: { modelId: GEMMA, reasoning: graded('off', 'off', 'low') },
@@ -295,7 +302,9 @@ export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
   // `intent` arrives as a wire string, so the lookup is a genuine boundary: the
   // table is exhaustive over SearchIntent at COMPILE time, but nothing stops a
   // caller passing something else at runtime, and that must still resolve to
-  // the speed lane rather than throw.
+  // DEFAULT_ENTRY (the Gemma content lane) rather than throw. Never point that
+  // default at GPT-OSS — an unlisted intent may force a tool call, which
+  // GPT-OSS answers with prose (see the DEFAULT_ENTRY note).
   const entry = (POLICY as Partial<Record<string, AutoEntry>>)[intent] ?? DEFAULT_ENTRY;
 
   // `'creative'`/`'research'` hints are absent here on purpose: every
