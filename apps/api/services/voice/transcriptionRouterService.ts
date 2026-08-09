@@ -215,8 +215,7 @@ async function transcribeSingleBuffer(
 
     try {
       const result = await runner.run(audioBuffer, filename, options);
-      // Same rule as WORD_TIMESTAMP_CHAIN in transcription/providerPolicy.ts:
-      // when timestamps were requested, an answer without them is a failure,
+      // When timestamps were requested, an answer without them is a failure,
       // not a success — accepting it would let a chunked transcription merge
       // timestamped and timestampless chunks from different providers.
       if (wantsTimestamps && !result.hasTimestamps) {
@@ -240,7 +239,10 @@ async function transcribeSingleBuffer(
   );
 }
 
-function offsetResult(result: TranscriptionResult, offsetSeconds: number): TranscriptionResult {
+export function offsetResult(
+  result: TranscriptionResult,
+  offsetSeconds: number
+): TranscriptionResult {
   if (offsetSeconds === 0 || !result.segments?.length) return result;
   return {
     ...result,
@@ -252,7 +254,7 @@ function offsetResult(result: TranscriptionResult, offsetSeconds: number): Trans
   };
 }
 
-function mergeResults(results: TranscriptionResult[]): TranscriptionResult {
+export function mergeResults(results: TranscriptionResult[]): TranscriptionResult {
   const first = results[0];
   if (!first) {
     throw new Error('Cannot merge an empty transcription result set');
@@ -278,7 +280,7 @@ function mergeResults(results: TranscriptionResult[]): TranscriptionResult {
  * merged transcript — downstream `identifySpeakers` then maps the union.
  * Sparse ids are kept sparse; the offset advances past the highest id seen.
  */
-function remapChunkSpeakers(
+export function remapChunkSpeakers(
   result: TranscriptionResult,
   idOffset: number
 ): { result: TranscriptionResult; maxIdSeen: number } {
