@@ -48,11 +48,12 @@ import {
 import { CONFIRM_ACTION_CONFIG } from './confirmActionService.js';
 import {
   buildCreateTurnContext,
+  emitArtifactResult,
   runCreateTurn,
   SHAREPIC_CONTEXT_CHARS,
   type CreateTurnOpts,
 } from './createTurn.js';
-import { failCreation, rememberArtifact } from './createTurnHelpers.js';
+import { failCreation, rememberArtifact, streamTextInChunks } from './createTurnHelpers.js';
 import { runDeepResearchTurn } from './deepResearchTurn.js';
 import { finishEditTurn } from './editTurnCompletion.js';
 import { extractTextContent } from './messageHelpers.js';
@@ -281,9 +282,7 @@ export async function handleSheetEdit(opts: {
 
   const summary = summarizeSheetOps(operations);
   const responseText = `Ich habe die Änderung an **"${state.title}"** vorbereitet (${summary}).`;
-  for (let i = 0; i < responseText.length; i += 20) {
-    sse.send('text_delta', { text: responseText.slice(i, i + 20) });
-  }
+  streamTextInChunks(sse, responseText);
 
   sse.send('editor_operations', {
     surface: 'sheet',
@@ -473,9 +472,7 @@ export async function handleRecurringTaskCreation(opts: {
       `Wiederkehrende Aufgabe **„${task.title}"** eingerichtet — läuft ${describeRecurrence(task.recurrence)}, ` +
       `${DELIVERY_LABELS_DE[task.delivery] ?? ''}. Nächste Ausführung: ${nextRun}. ` +
       `Du kannst sie jederzeit unter „Wiederkehrende Aufgaben" bearbeiten oder löschen.`;
-    for (let i = 0; i < responseText.length; i += 20) {
-      sse.send('text_delta', { text: responseText.slice(i, i + 20) });
-    }
+    streamTextInChunks(sse, responseText);
 
     const totalTimeMs = Date.now() - classifiedState.startTime;
     sse.sendRaw('done', {
@@ -565,11 +562,7 @@ async function contributeDocumentToOpenTurn(
     const doc = await spec.generate({ aiWorkerPool, req, userId, userContent }, () => {});
     if (!doc) return false;
 
-    const responseText = spec.successText(doc);
-    for (let i = 0; i < responseText.length; i += 20) {
-      sse.send('text_delta', { text: responseText.slice(i, i + 20) });
-    }
-    sse.send('document_created', doc);
+    emitArtifactResult(sse, spec, doc);
     log.info(`[ChatGraph] Document created (${spec.intent}): "${doc.title}" (${doc.documentId})`);
 
     const contextKind =
