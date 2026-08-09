@@ -20,6 +20,7 @@ import {
   transactionQuery,
   transactionQueryOne,
   transactionExec,
+  toLoggableDbError,
 } from './queries.js';
 import {
   parseSchemaFile,
@@ -489,7 +490,7 @@ export class PostgresService {
     } catch (error) {
       // Never log `params` — they carry user data, password hashes, tokens and
       // OAuth secrets. The parameterized SQL text ($1/$2…) is safe to log.
-      console.error('[PostgresService] Query error:', error, { sql });
+      console.error('[PostgresService] Query error:', { ...toLoggableDbError(error), sql });
 
       const err = error as { code?: string; message: string };
       if (err.code === 'ECONNREFUSED') {
@@ -524,7 +525,7 @@ export class PostgresService {
       const result = await client.query<{ id: string }>(sql, params);
       return { changes: result.rowCount || 0, lastID: result.rows[0]?.id };
     } catch (error) {
-      console.error('[PostgresService] Exec error:', error, { sql });
+      console.error('[PostgresService] Exec error:', { ...toLoggableDbError(error), sql });
       throw new Error(`SQL execution failed: ${(error as Error).message}`);
     } finally {
       client.release();
@@ -542,7 +543,7 @@ export class PostgresService {
       const result = await this.query(sql, values);
       return result[0];
     } catch (error) {
-      console.error('[PostgresService] Insert error:', error, { table });
+      console.error('[PostgresService] Insert error:', { ...toLoggableDbError(error), table });
       throw new Error(`Insert failed: ${(error as Error).message}`);
     }
   }
@@ -563,7 +564,7 @@ export class PostgresService {
       const result = await this.query(sql, values);
       return { changes: result.length, data: result };
     } catch (error) {
-      console.error('[PostgresService] Update error:', error, { table });
+      console.error('[PostgresService] Update error:', { ...toLoggableDbError(error), table });
       throw new Error(`Update failed: ${(error as Error).message}`);
     }
   }
@@ -579,7 +580,7 @@ export class PostgresService {
       const result = await this.query(sql, values);
       return { changes: result.length, data: result };
     } catch (error) {
-      console.error('[PostgresService] Delete error:', error, { table });
+      console.error('[PostgresService] Delete error:', { ...toLoggableDbError(error), table });
       throw new Error(`Delete failed: ${(error as Error).message}`);
     }
   }
@@ -599,7 +600,7 @@ export class PostgresService {
       const result = await this.query(sql, values);
       return result[0];
     } catch (error) {
-      console.error('[PostgresService] Upsert error:', error, { table });
+      console.error('[PostgresService] Upsert error:', { ...toLoggableDbError(error), table });
       throw new Error(`Upsert failed: ${(error as Error).message}`);
     }
   }
@@ -619,7 +620,8 @@ export class PostgresService {
     try {
       return await this.query(sql, values);
     } catch (error) {
-      console.error('[PostgresService] Bulk insert error:', error, {
+      console.error('[PostgresService] Bulk insert error:', {
+        ...toLoggableDbError(error),
         table,
         count: records.length,
       });
