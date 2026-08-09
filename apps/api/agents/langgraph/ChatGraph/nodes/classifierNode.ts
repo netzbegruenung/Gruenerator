@@ -1150,6 +1150,8 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         tc.ref &&
         !hasCurrentDocument &&
         !hasSheetMentions &&
+        !hasAnyDocuments &&
+        !hasBoards &&
         docModifyPattern.test(userContent) &&
         !forbidsPersistentAction(userContent, ARTIFACT_NOUN_BY_KIND.sheet)
       ) {
