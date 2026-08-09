@@ -10,6 +10,7 @@ import * as cheerio from 'cheerio';
 
 import { BRAND } from '../../../utils/domainUtils.js';
 import { createLogger } from '../../../utils/logger.js';
+import { safeFetch } from '../../../utils/validation/urlSecurity.js';
 import { BaseScraper } from '../base/BaseScraper.js';
 
 import type { ScraperResult } from '../types.js';
@@ -242,7 +243,10 @@ export class WebsiteCrawler extends BaseScraper {
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
     try {
-      const response = await fetch(url, {
+      // safeFetch validates the target and re-validates every redirect hop:
+      // the crawler follows user-supplied links, so an unvalidated fetch here
+      // was an SSRF sink (internal hosts, cloud metadata).
+      const response = await safeFetch(url, {
         method: 'GET',
         headers: {
           'User-Agent': this.userAgent,
