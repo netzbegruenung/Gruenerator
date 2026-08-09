@@ -9,6 +9,7 @@
 
 import { SKILLS } from '@gruenerator/shared/agents';
 
+import { looksLikeChitchatTurn } from '../../../../routes/chat/services/agenticLoop/routing.js';
 import { fairShare, getRetrievalBudget } from '../../../../routes/chat/services/messageHelpers.js';
 import {
   embedUntrusted,
@@ -1501,11 +1502,24 @@ ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSu
   // path: on the agentic branch (`retrievalExpected`) the loop mounts
   // `rezept_laden` and the model picks the recipe itself; baking one in here
   // would double-inject and overrule that choice.
+  //
+  // Single-pass is a necessary condition, not a sufficient one: chitchat and
+  // help turns ("was kannst du?", "hilfe") also run single-pass with a
+  // non-neutral intent (`greeting`/`hilfe`, or `produktion` via the residual).
+  // They are not write turns — priming them with ~2k tokens of press-release
+  // formatting would waste the token bilanz this fallback exists to protect,
+  // so they are excluded the same way `isProductMetaQuestion`/`docsPageMap`
+  // already special-case them above.
+  const isWriteEligibleTurn =
+    !opts.retrievalExpected &&
+    !isNeutralTurn &&
+    intent !== 'greeting' &&
+    !looksLikeChitchatTurn(userQuestion) &&
+    !isProductMetaQuestion(userQuestion) &&
+    !docsPageMap;
   const effectiveSkillMention =
     state.activeSkillMention ??
-    (!opts.retrievalExpected && !isNeutralTurn
-      ? (agentConfig.defaultRecipeMention ?? null)
-      : null);
+    (isWriteEligibleTurn ? (agentConfig.defaultRecipeMention ?? null) : null);
   const activeSkill = effectiveSkillMention
     ? SKILLS.find((s) => s.mention === effectiveSkillMention)
     : undefined;

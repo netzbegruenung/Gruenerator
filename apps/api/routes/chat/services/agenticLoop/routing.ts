@@ -78,6 +78,17 @@ const CHITCHAT_RE = /^(wer bist du|was (kannst|bist) du|wie geht|wie heißt du|h
 const PERSONAL_DATA_RE =
   /\b(mein|meine|meiner|meinen)\b[\s\wäöüß]*\b(dokumente?|boards?|aufgaben?|tasks?|notizb[üu]cher|sammlung\w*|reels?|sharepics?|gruppen?|inhalte?)\b/i;
 
+/**
+ * The whole turn (after stripping a leading greeting) is assistant-directed
+ * chit-chat — identity/help/test asks like "was kannst du?" or "hilfe". These
+ * run single-pass but end up with an ordinary non-neutral intent (`produktion`
+ * via the residual), so callers that key behavior on "this is a write turn"
+ * (e.g. the default-recipe autoload in respondNode) must exclude them.
+ */
+export function looksLikeChitchatTurn(raw: string): boolean {
+  return CHITCHAT_RE.test((raw ?? '').trim().replace(GREETING_PREFIX_RE, ''));
+}
+
 export function looksLikeToolableQuestion(raw: string): boolean {
   const t = (raw ?? '').trim().replace(GREETING_PREFIX_RE, '');
   if (t.split(/\s+/).filter(Boolean).length < 3) return false;
