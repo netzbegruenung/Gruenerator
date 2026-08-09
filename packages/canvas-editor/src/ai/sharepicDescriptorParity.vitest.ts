@@ -1,9 +1,17 @@
 import { describe, it, expect } from 'vitest';
 
 import {
+  AT_CANVAS_TYPE_OVERRIDES,
   buildSharepicSnapshot,
+  CANVAS_TEMPLATE_FIELDS,
+  CANVAS_TEMPLATE_TYPES,
+  CANVAS_TYPE_TO_GEN,
   getSharepicTemplateDescriptor,
+  getSharepicVariantLabel,
+  SHAREPIC_EDITABLE_TEMPLATES,
+  SHAREPIC_GEN_TO_CANVAS_TYPE,
   sharepicOpsToStatePatch,
+  validateSharepicOp,
   type CanvasAiOperation,
 } from '@gruenerator/contracts';
 
@@ -254,5 +262,115 @@ describe('buildSharepicSnapshot', () => {
       name: 'N',
     });
     expect(zitatSnapshot.textFields[0].label).toContain('automatisch');
+  });
+});
+
+// CANVAS_TEMPLATE_FIELDS (contracts) is the one field/label/mapping table the
+// studio mint, the API chat path and the chat UI all read. These guards keep it
+// honest against the canonical type enum and against the descriptors.
+describe('canvas template fields parity', () => {
+  it('covers every canonical canvas template type with a label', () => {
+    for (const type of CANVAS_TEMPLATE_TYPES) {
+      expect(CANVAS_TEMPLATE_FIELDS[type], type).toBeDefined();
+      expect(getSharepicVariantLabel(type), type).toBeTruthy();
+    }
+  });
+
+  it('gives a template and its AT variant the same label', () => {
+    for (const [base, atType] of Object.entries(AT_CANVAS_TYPE_OVERRIDES)) {
+      if (!atType) continue;
+      expect(getSharepicVariantLabel(atType), atType).toBe(getSharepicVariantLabel(base));
+    }
+  });
+
+  it('agrees with the descriptor labels for editable templates', () => {
+    for (const type of SHAREPIC_EDITABLE_TEMPLATES) {
+      const descriptor = getSharepicTemplateDescriptor(type)!;
+      expect(descriptor.label, type).toBe(CANVAS_TEMPLATE_FIELDS[type].label);
+    }
+  });
+
+  it('maps every canvas type in CANVAS_TYPE_TO_GEN back through the forward maps', () => {
+    for (const [canvasType, gen] of Object.entries(CANVAS_TYPE_TO_GEN)) {
+      // Either the gen type maps straight back to this canvas type, or this is
+      // the AT variant of the type it maps to.
+      const forward = SHAREPIC_GEN_TO_CANVAS_TYPE[gen];
+      const atOfForward = forward ? AT_CANVAS_TYPE_OVERRIDES[forward] : undefined;
+      const isPhotoQuoteAlias = canvasType === 'zitat' || canvasType === 'zitat-at';
+      expect(
+        canvasType === forward || canvasType === atOfForward || isPhotoQuoteAlias,
+        `${canvasType} -> ${gen}`
+      ).toBe(true);
+    }
+  });
+
+  it('every AT override target is itself a canonical type', () => {
+    for (const atType of Object.values(AT_CANVAS_TYPE_OVERRIDES)) {
+      if (atType) expect(CANVAS_TEMPLATE_TYPES).toContain(atType);
+    }
+  });
+
+  it('descriptor text fields are backed by the mint field list', () => {
+    // `slider` is the documented exception: its deck fields are per-slide and
+    // the mint map deliberately omits subtext2 (see canvasTemplateFields.ts).
+    for (const type of SHAREPIC_EDITABLE_TEMPLATES) {
+      if (type === 'slider') continue;
+      const descriptor = getSharepicTemplateDescriptor(type)!;
+      const known = CANVAS_TEMPLATE_FIELDS[type].fields as readonly string[];
+      for (const field of descriptor.textFields) {
+        expect(known, `${type}.${field.field}`).toContain(field.field);
+      }
+    }
+  });
+});
+
+describe('validateSharepicOp', () => {
+  const dreizeilenD = getSharepicTemplateDescriptor('dreizeilen')!;
+
+  it('clamps a font size into the descriptor bounds', () => {
+    const result = validateSharepicOp(
+      dreizeilenD,
+      { kind: 'set-font-size', field: 'line1', size: 999 } as CanvasAiOperation,
+      {}
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok && result.op.kind === 'set-font-size') expect(result.op.size).toBe(120);
+  });
+
+  it('rejects an unknown text field', () => {
+    const result = validateSharepicOp(
+      dreizeilenD,
+      { kind: 'set-text', field: 'line9', value: 'x' } as CanvasAiOperation,
+      {}
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toContain('Unbekanntes Textfeld');
+  });
+
+  it('rejects moving an element whose presence key is unset', () => {
+    const result = validateSharepicOp(
+      dreizeilenD,
+      {
+        kind: 'update-element',
+        elementId: 'hintergrundbild',
+        patch: { x: 10 },
+      } as CanvasAiOperation,
+      {}
+    );
+    expect(result.ok).toBe(false);
+  });
+
+  it('normalizes a background color to the palette casing', () => {
+    const zitat = getSharepicTemplateDescriptor('zitat-pure')!;
+    const canonical = zitat.backgroundColors!.options[0].color;
+    const result = validateSharepicOp(
+      zitat,
+      { kind: 'set-background-color', color: canonical.toUpperCase() } as CanvasAiOperation,
+      {}
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok && result.op.kind === 'set-background-color') {
+      expect(result.op.color).toBe(canonical);
+    }
   });
 });

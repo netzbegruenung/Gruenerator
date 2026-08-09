@@ -1,3 +1,4 @@
+import { getSharepicVariantLabel, isMintableCanvasType } from '@gruenerator/contracts';
 import { useState, useCallback, useEffect, useRef } from 'react';
 
 import { notifyError } from '../lib/notify';
@@ -14,19 +15,15 @@ export interface SharepicVersionEntry {
   summary: string | null;
 }
 
-const FALLBACK_LABELS: Record<string, string> = {
-  dreizeilen: 'Dreizeiler',
-  'zitat-pure': 'Zitat',
-  zitat: 'Zitat',
-  info: 'Info',
-  simple: 'Sharepic',
-  veranstaltung: 'Veranstaltung',
-  slider: 'Slider',
-  freeform: 'Freeform',
-};
-
+/**
+ * The server sends `label` with every variant; the fallback covers old threads
+ * persisted before it did, and now reads the same table the server labels from.
+ */
 export function sharepicLabel(variant: Pick<SharepicVariant, 'label' | 'canvasType'>): string {
-  return variant.label ?? FALLBACK_LABELS[variant.canvasType] ?? 'Sharepic';
+  if (variant.label) return variant.label;
+  return isMintableCanvasType(variant.canvasType)
+    ? getSharepicVariantLabel(variant.canvasType)
+    : 'Sharepic';
 }
 
 /**
