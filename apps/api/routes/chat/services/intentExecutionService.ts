@@ -48,12 +48,14 @@ import {
 import { CONFIRM_ACTION_CONFIG } from './confirmActionService.js';
 import {
   buildCreateTurnContext,
+  emitArtifactResult,
   runCreateTurn,
   SHAREPIC_CONTEXT_CHARS,
   type CreateTurnOpts,
 } from './createTurn.js';
-import { failCreation, rememberArtifact } from './createTurnHelpers.js';
+import { failCreation, rememberArtifact, streamTextInChunks } from './createTurnHelpers.js';
 import { runDeepResearchTurn } from './deepResearchTurn.js';
+import { emitEditorOperations, planEditorOps } from './editorOpsCore.js';
 import { finishEditTurn } from './editTurnCompletion.js';
 import { extractTextContent } from './messageHelpers.js';
 import {
@@ -196,13 +198,6 @@ export async function handleSheetCreation(opts: CreateTurnOpts): Promise<boolean
   return runCreateTurn(SHEET_SPEC, opts);
 }
 
-/** One-line summary of a planned op batch, e.g. "1× format_range". */
-function summarizeSheetOps(operations: Array<{ type: string }>): string {
-  const counts = new Map<string, number>();
-  for (const op of operations) counts.set(op.type, (counts.get(op.type) ?? 0) + 1);
-  return [...counts.entries()].map(([type, n]) => `${n}× ${type}`).join(', ');
-}
-
 /**
  * edit_sheet — Tier-2.7 follow-up on a chat-created sheet ("mach die erste
  * Zeile fett"). Plans typed ops with the same planner the in-editor AI
@@ -259,38 +254,30 @@ export async function handleSheetEdit(opts: {
     return fail('Ich konnte die Tabelle nicht finden — vielleicht wurde sie gelöscht.');
   }
 
-  let operations;
-  try {
-    operations = await generateSheetOperations({
-      userPrompt: userContent,
-      sheetContext: formatSheetAsContext(state),
-      referenceContent: null,
-    });
-  } catch (err) {
-    log.error(`[SheetEdit] planning failed: ${err instanceof Error ? err.message : String(err)}`);
-    return fail(
-      'Die Änderung an der Tabelle konnte nicht geplant werden. Versuch es bitte noch einmal.'
-    );
-  }
-
-  if (operations.length === 0) {
-    return fail(
-      'Ich konnte daraus keine konkrete Tabellen-Änderung ableiten. Beschreib bitte genauer, was sich ändern soll.'
-    );
-  }
-
-  const summary = summarizeSheetOps(operations);
-  const responseText = `Ich habe die Änderung an **"${state.title}"** vorbereitet (${summary}).`;
-  for (let i = 0; i < responseText.length; i += 20) {
-    sse.send('text_delta', { text: responseText.slice(i, i + 20) });
-  }
-
-  sse.send('editor_operations', {
-    surface: 'sheet',
-    targetId: sheetId,
-    operations,
-    summary,
+  const planned = await planEditorOps({
+    log,
+    logLabel: '[SheetEdit]',
+    plan: () =>
+      generateSheetOperations({
+        userPrompt: userContent,
+        sheetContext: formatSheetAsContext(state),
+        referenceContent: null,
+      }),
   });
+
+  if (!planned.ok) {
+    return fail(
+      planned.reason === 'planning_failed'
+        ? 'Die Änderung an der Tabelle konnte nicht geplant werden. Versuch es bitte noch einmal.'
+        : 'Ich konnte daraus keine konkrete Tabellen-Änderung ableiten. Beschreib bitte genauer, was sich ändern soll.'
+    );
+  }
+
+  const { operations, summary } = planned;
+  const responseText = `Ich habe die Änderung an **"${state.title}"** vorbereitet (${summary}).`;
+  streamTextInChunks(sse, responseText);
+
+  emitEditorOperations(sse, 'sheet', sheetId, operations, summary);
   log.info(`[SheetEdit] planned ${operations.length} op(s) for sheet ${sheetId}`);
 
   if (actualThreadId) {
@@ -473,9 +460,7 @@ export async function handleRecurringTaskCreation(opts: {
       `Wiederkehrende Aufgabe **„${task.title}"** eingerichtet — läuft ${describeRecurrence(task.recurrence)}, ` +
       `${DELIVERY_LABELS_DE[task.delivery] ?? ''}. Nächste Ausführung: ${nextRun}. ` +
       `Du kannst sie jederzeit unter „Wiederkehrende Aufgaben" bearbeiten oder löschen.`;
-    for (let i = 0; i < responseText.length; i += 20) {
-      sse.send('text_delta', { text: responseText.slice(i, i + 20) });
-    }
+    streamTextInChunks(sse, responseText);
 
     const totalTimeMs = Date.now() - classifiedState.startTime;
     sse.sendRaw('done', {
@@ -565,11 +550,7 @@ async function contributeDocumentToOpenTurn(
     const doc = await spec.generate({ aiWorkerPool, req, userId, userContent }, () => {});
     if (!doc) return false;
 
-    const responseText = spec.successText(doc);
-    for (let i = 0; i < responseText.length; i += 20) {
-      sse.send('text_delta', { text: responseText.slice(i, i + 20) });
-    }
-    sse.send('document_created', doc);
+    emitArtifactResult(sse, spec, doc);
     log.info(`[ChatGraph] Document created (${spec.intent}): "${doc.title}" (${doc.documentId})`);
 
     const contextKind =
