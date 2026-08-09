@@ -178,16 +178,71 @@ export function validateUrlSync(
   return { isValid: true, url };
 }
 
+/**
+ * Redirect hops safeFetch follows. Legitimate sites use one or two
+ * (http→https, trailing-slash, canonical host); more is either broken or an
+ * attempt to walk us somewhere. Each hop is re-validated, so this bounds cost.
+ */
+const MAX_SAFE_FETCH_REDIRECTS = 3;
+
+/**
+ * Fetch a user-influenced URL with SSRF protection that also covers redirects.
+ *
+ * The previous implementation validated the URL once and then called
+ * `fetch(url)` with default redirect following — so a `302 Location:
+ * http://169.254.169.254/…` (or any redirect to an internal host) walked
+ * straight past the check, which only ever covered the first URL. Here
+ * redirects are followed by hand with `redirect: 'manual'` and every hop is
+ * re-validated in full before we make the next request.
+ *
+ * NOTE: this does not yet close the DNS-rebinding window (the validator and the
+ * runtime resolve the hostname separately). The connection-pinning pattern that
+ * closes it lives in `routes/search/searchImageProxyRouter.ts`
+ * (`createPinnedLookup`); routing this helper through a pinned undici dispatcher
+ * is the follow-up. Redirect-based SSRF — the more accessible vector — is closed.
+ */
 export async function safeFetch(
   urlString: string,
   fetchOptions: RequestInit = {},
   validationOptions: UrlValidationOptions = {}
 ): Promise<Response> {
-  const validation = await validateUrlForFetch(urlString, validationOptions);
-  if (!validation.isValid) {
-    throw new Error(`URL validation failed: ${validation.error}`);
+  let currentUrl = urlString;
+
+  for (let hop = 0; ; hop++) {
+    const validation = await validateUrlForFetch(currentUrl, validationOptions);
+    if (!validation.isValid || !validation.url) {
+      throw new Error(`URL validation failed: ${validation.error}`);
+    }
+
+    // Force manual redirect handling so we can re-validate each Location; a
+    // caller-supplied `redirect` must never re-open the follow-blindly hole.
+    const response = await fetch(validation.url.toString(), {
+      ...fetchOptions,
+      redirect: 'manual',
+    });
+
+    const isRedirect = response.status >= 300 && response.status < 400;
+    if (!isRedirect) {
+      return response;
+    }
+
+    const location = response.headers.get('location');
+    // A 3xx without a Location is not a redirect we can follow — hand it back.
+    if (!location) {
+      return response;
+    }
+    if (hop >= MAX_SAFE_FETCH_REDIRECTS) {
+      throw new Error('URL validation failed: too many redirects');
+    }
+
+    // Resolve relative Locations against the current URL, then loop to
+    // re-validate the target before the next request is made.
+    try {
+      currentUrl = new URL(location, validation.url).toString();
+    } catch {
+      throw new Error('URL validation failed: unparseable redirect target');
+    }
   }
-  return fetch(urlString, fetchOptions);
 }
 
 export default {
