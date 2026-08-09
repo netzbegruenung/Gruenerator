@@ -186,6 +186,13 @@ export function validateUrlSync(
 const MAX_SAFE_FETCH_REDIRECTS = 3;
 
 /**
+ * Credential headers that must not cross an origin boundary. The WHATWG fetch
+ * algorithm strips these on a cross-origin redirect; our hand-rolled redirect
+ * loop has to do the same or it would leak them to the redirect target.
+ */
+const CREDENTIAL_HEADERS = ['authorization', 'cookie', 'proxy-authorization'];
+
+/**
  * Fetch a user-influenced URL with SSRF protection that also covers redirects.
  *
  * The previous implementation validated the URL once and then called
@@ -200,6 +207,11 @@ const MAX_SAFE_FETCH_REDIRECTS = 3;
  * closes it lives in `routes/search/searchImageProxyRouter.ts`
  * (`createPinnedLookup`); routing this helper through a pinned undici dispatcher
  * is the follow-up. Redirect-based SSRF — the more accessible vector — is closed.
+ *
+ * Credential headers (`Authorization`/`Cookie`/`Proxy-Authorization`) are
+ * stripped once a redirect crosses to a different origin than the original
+ * request, matching native fetch — otherwise a redirect to an attacker host
+ * would receive the caller's bearer token.
  */
 export async function safeFetch(
   urlString: string,
@@ -207,6 +219,8 @@ export async function safeFetch(
   validationOptions: UrlValidationOptions = {}
 ): Promise<Response> {
   let currentUrl = urlString;
+  let originalOrigin: string | null = null;
+  let stripCredentials = false;
 
   for (let hop = 0; ; hop++) {
     const validation = await validateUrlForFetch(currentUrl, validationOptions);
@@ -214,10 +228,24 @@ export async function safeFetch(
       throw new Error(`URL validation failed: ${validation.error}`);
     }
 
+    if (originalOrigin === null) {
+      originalOrigin = validation.url.origin;
+    } else if (!stripCredentials && validation.url.origin !== originalOrigin) {
+      // Left the original origin — never send credential headers again, even if
+      // a later hop redirects back (conservative, matches "strip once crossed").
+      stripCredentials = true;
+    }
+
+    const headers = new Headers(fetchOptions.headers);
+    if (stripCredentials) {
+      for (const name of CREDENTIAL_HEADERS) headers.delete(name);
+    }
+
     // Force manual redirect handling so we can re-validate each Location; a
     // caller-supplied `redirect` must never re-open the follow-blindly hole.
     const response = await fetch(validation.url.toString(), {
       ...fetchOptions,
+      headers,
       redirect: 'manual',
     });
 
