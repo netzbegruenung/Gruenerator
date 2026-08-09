@@ -161,6 +161,10 @@ export const searchIntentSchema = z.enum([
   'modify_board',
   'share_doc',
   'create_sheet',
+  // Follow-up edit on an already-created sheet (Tier 2.7 lastToolContext
+  // pickup) — plans typed ops via the same planner the in-editor AI assistant
+  // uses, distinct from create_sheet.
+  'edit_sheet',
   'create_presentation',
   // Finished, downloadable CI-styled PDF (optionally with Grünen letterhead).
   'create_pdf',

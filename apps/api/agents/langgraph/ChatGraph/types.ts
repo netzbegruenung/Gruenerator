@@ -10,11 +10,11 @@
  * keeping the graph decoupled from transport concerns.
  */
 
+import type { ForbiddableArtifact } from './nodes/fastPathGuards.js';
 import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
 import type { SystemMcpKey } from '../../../services/mcp/systemMcpServers.js';
 import type { AIWorkerPool } from '../../../workers/types.js';
-import type { ForbiddableArtifact } from './nodes/fastPathGuards.js';
 import type {
   WolkeFileRef,
   ConnectFileRef,
@@ -667,6 +667,11 @@ export interface ChatGraphState {
   // Sheet context (from @sheet mentions)
   sheetIds: string[];
   sheetContext: string | null;
+
+  // Target sheet for a Tier-2.7 follow-up edit (lastToolContext pickup) — set
+  // only by classifierNode's edit_sheet branch, distinct from sheetIds' @mention
+  // scoping. See ChatGraphState.docMentionIds for the document equivalent.
+  sheetEditId: string | null;
 
   // Collaborative document context (from @doc mentions)
   docMentionIds: string[];
