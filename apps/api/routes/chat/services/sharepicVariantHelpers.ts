@@ -1,6 +1,15 @@
 import { randomUUID } from 'crypto';
 
-import { type CanvasTemplateType, type SharepicVariant } from '@gruenerator/contracts';
+import {
+  AT_CANVAS_TYPE_OVERRIDES,
+  buildVariantInitialProps,
+  CANVAS_TYPE_TO_GEN,
+  getSharepicVariantLabel,
+  SHAREPIC_GEN_TO_CANVAS_TYPE,
+  type CanvasTemplateType,
+  type SharepicGeneratedContent,
+  type SharepicVariant,
+} from '@gruenerator/contracts';
 
 import {
   generateSharepicForChat,
@@ -172,132 +181,22 @@ export async function getLastSharepicVariant(threadId: string): Promise<PriorSha
 // generator, stream and UI can't drift.
 export type { SharepicVariant };
 
-// Values are validated CanvasTemplateTypes, so a mapped canvasType is always a
-// canonical type the frontend canvas pipeline can mint.
-const CANVAS_TYPE_BY_SHAREPIC: Record<string, CanvasTemplateType> = {
-  dreizeilen: 'dreizeilen',
-  zitat: 'zitat-pure',
-  zitat_pure: 'zitat-pure',
-  info: 'info',
-};
-
-const VARIANT_LABEL_BY_CANVAS_TYPE: Partial<Record<CanvasTemplateType, string>> = {
-  dreizeilen: 'Dreizeiler',
-  'zitat-pure': 'Zitat',
-  zitat: 'Zitat',
-  info: 'Info',
-  'dreizeilen-overlay-at': 'Dreizeiler',
-  'zitat-pure-at': 'Zitat',
-  'zitat-at': 'Zitat',
-  'info-at': 'Info',
-};
-
-/**
- * de-AT overrides: base canvas type → Austrian variant.
- *
- * Der Slogan landet auf dem Overlay-Sujet, nicht auf der reinen Fläche: es ist
- * das einzige AT-Template mit Foto und damit das einzige, das das Stockbild
- * verwertet, das der Generator ohnehin schon auswählt. Ohne es sähen alle drei
- * Vorschläge gleich aus — drei flächige Grün-Panels nebeneinander.
- */
-const AT_CANVAS_TYPE: Partial<Record<CanvasTemplateType, CanvasTemplateType>> = {
-  dreizeilen: 'dreizeilen-overlay-at',
-  'zitat-pure': 'zitat-pure-at',
-  zitat: 'zitat-at',
-  info: 'info-at',
-};
-
 function mapSharepicTypeToCanvasType(
   sharepicType: string,
   userLocale?: string
 ): CanvasTemplateType {
-  const base = CANVAS_TYPE_BY_SHAREPIC[sharepicType] ?? 'dreizeilen';
-  if (userLocale === 'de-AT') return AT_CANVAS_TYPE[base] ?? base;
+  const base = SHAREPIC_GEN_TO_CANVAS_TYPE[sharepicType] ?? 'dreizeilen';
+  if (userLocale === 'de-AT') return AT_CANVAS_TYPE_OVERRIDES[base] ?? base;
   return base;
 }
 
-interface SharepicResponseShape {
+/**
+ * The generator's response. `SharepicGeneratedContent` (contracts) covers the
+ * fields that become `initialProps`; `type` and `altText` are consumed here.
+ */
+interface SharepicResponseShape extends SharepicGeneratedContent {
   type: string;
-  mainSlogan?: { line1?: string; line2?: string; line3?: string; subline?: string };
-  quote?: string;
-  name?: string;
-  header?: string;
-  subheader?: string;
-  body?: string;
-  /**
-   * Österreich-Info: eigene Felder statt header/subheader/body. `infoText`
-   * heisst nicht `text`, weil `text` bei jedem Typ die Zusammenfassung aller
-   * Zeilen trägt.
-   */
-  introline?: string;
-  infoText?: string;
-  accent?: string;
-  selectedImage?: string;
   altText?: string;
-}
-
-function buildInitialPropsForType(
-  sharepic: SharepicResponseShape,
-  canvasType: string
-): Record<string, unknown> {
-  switch (canvasType) {
-    case 'dreizeilen': {
-      const slogan = sharepic.mainSlogan ?? {};
-      return {
-        line1: slogan.line1 ?? '',
-        line2: slogan.line2 ?? '',
-        line3: slogan.line3 ?? '',
-        // Carry the AI-selected stock background so the frontend canvas renders it.
-        // `hasBackgroundImage` is derived from `currentImageSrc` in the dreizeilen
-        // config's createInitialState — passing this key alone shows the layer.
-        ...(sharepic.selectedImage && {
-          currentImageSrc: `/api/image-picker/stock-image/${encodeURIComponent(sharepic.selectedImage)}`,
-        }),
-      };
-    }
-    case 'zitat-pure':
-    case 'zitat':
-    case 'zitat-pure-at':
-    case 'zitat-at': {
-      return {
-        quote: sharepic.quote ?? '',
-        name: sharepic.name ?? '',
-      };
-    }
-    case 'info': {
-      return {
-        header: sharepic.header ?? '',
-        body: sharepic.body ?? sharepic.subheader ?? '',
-      };
-    }
-    // AT-Info: Introline, Infotext und die gelbe Schlusszeile. Der Prompt
-    // liefert die Felder direkt so — anders als das deutsche Info-Sujet mit
-    // header/subheader/body.
-    case 'info-at': {
-      return {
-        introline: sharepic.introline ?? '',
-        text: sharepic.infoText ?? '',
-        accent: sharepic.accent ?? '',
-      };
-    }
-    // AT dreizeilen: line1 + accent (gelbe Mittelzeile) + line3, mit Foto
-    // hinter der Farbfläche. Die Subline kommt aus dem AT-Prompt und darf
-    // leer sein; das Layout schliesst die Lücke dann selbst.
-    case 'dreizeilen-overlay-at': {
-      const slogan = sharepic.mainSlogan ?? {};
-      return {
-        line1: slogan.line1 ?? '',
-        accent: slogan.line2 ?? '',
-        line3: slogan.line3 ?? '',
-        subline: slogan.subline ?? '',
-        ...(sharepic.selectedImage && {
-          currentImageSrc: `/api/image-picker/stock-image/${encodeURIComponent(sharepic.selectedImage)}`,
-        }),
-      };
-    }
-    default:
-      return {};
-  }
 }
 
 interface GenerateVariantsArgs {
@@ -330,20 +229,6 @@ interface GenerateVariantsArgs {
   /** Signed-in user's locale; when 'de-AT' the variants use the Austrian configs. */
   userLocale?: string;
 }
-
-/** Maps a stored canvasType back to the generation type used by generateSharepicForChat. */
-const CANVAS_TYPE_TO_GEN: Record<string, string> = {
-  'zitat-pure': 'zitat_pure',
-  zitat: 'zitat_pure',
-  dreizeilen: 'dreizeilen',
-  info: 'info',
-  // Österreich (de-AT) variants map back to the same generation types; the
-  // result is re-localized to the -at canvasType via toVariant(userLocale).
-  'zitat-pure-at': 'zitat_pure',
-  'zitat-at': 'zitat_pure',
-  'dreizeilen-overlay-at': 'dreizeilen',
-  'info-at': 'info',
-};
 
 /** One generation request: a sharepic type plus the body passed to the prompt. */
 interface VariantRequest {
@@ -445,8 +330,8 @@ function toVariant(
   return {
     id: randomUUID(),
     canvasType,
-    initialProps: buildInitialPropsForType(sharepic, canvasType),
-    label: VARIANT_LABEL_BY_CANVAS_TYPE[canvasType] ?? canvasType,
+    initialProps: buildVariantInitialProps(canvasType, sharepic),
+    label: getSharepicVariantLabel(canvasType),
     ...(sharepic.altText && { altText: sharepic.altText }),
   };
 }
