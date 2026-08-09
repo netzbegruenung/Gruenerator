@@ -31,7 +31,6 @@ export type CanvasFormField =
   | 'text'
   | 'subline'
   | 'subtext'
-  | 'subtext2'
   | 'label'
   | 'eventTitle'
   | 'beschreibung'
@@ -94,10 +93,11 @@ export const CANVAS_TEMPLATE_FIELDS = {
     label: 'Sharepic',
   },
   slider: {
-    // `subtext2` is a real slide field in the deck config but the mint path
-    // never receives it (the wizard collects one subtext) — listed so the
-    // parity guard against the config passes without an exception.
-    fields: ['label', 'headline', 'subtext', 'subtext2'],
+    // `subtext2` is a real slide field in the deck config but deliberately NOT
+    // listed: `buildInitialState` seeds `state[field] ?? ''` for every entry
+    // here, so listing it would write an empty string into every minted deck
+    // and clobber the config default. The parity guard allowlists it.
+    fields: ['label', 'headline', 'subtext'],
     label: 'Slider',
   },
   profilbild: {
