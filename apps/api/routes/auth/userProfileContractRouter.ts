@@ -117,7 +117,6 @@ export const userProfileContractRouter = s.router(userProfileContract, {
         display_name,
         username,
         avatar_robot_id,
-        email,
         custom_prompt,
         default_startpage,
         feedback_button,
@@ -130,7 +129,11 @@ export const userProfileContractRouter = s.router(userProfileContract, {
       if (display_name !== undefined) updateData.display_name = display_name || null;
       if (username !== undefined) updateData.username = username || null;
       if (avatar_robot_id !== undefined) updateData.avatar_robot_id = avatar_robot_id;
-      if (email !== undefined) updateData.email = email || null;
+      // SECURITY: `email` is deliberately NOT self-settable here. Admin elevation
+      // is derived from the profile email (isAdminByEmail → ADMIN_EMAILS), and this
+      // path bypasses Better Auth's verified email-change flow, so honouring a
+      // client-supplied email would let any user promote themselves to admin by
+      // setting a known admin address. The IdP (Keycloak) is authoritative for email.
       if (custom_prompt !== undefined) updateData.custom_prompt = custom_prompt || null;
       if (default_startpage !== undefined) updateData.default_startpage = default_startpage;
       if (feedback_button !== undefined) updateData.feedback_button = feedback_button;

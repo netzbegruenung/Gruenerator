@@ -311,11 +311,13 @@ export interface UpdateCanvasInput {
   format?: string;
 }
 
-export async function updateCanvas(
-  id: string,
-  userId: string,
-  patch: UpdateCanvasInput
-): Promise<MutationResult> {
+/**
+ * Resolve whether `userId` may WRITE the canvas (owner or editor), independent
+ * of the update payload. Use this to gate mutating operations that don't go
+ * through updateCanvas (e.g. version restore), so read-only viewers of a shared
+ * or public canvas cannot mutate it.
+ */
+export async function checkCanvasWriteAccess(id: string, userId: string): Promise<MutationResult> {
   const row = await loadOwnerRow(id);
   if (!row) return { kind: 'not_found' };
 
@@ -325,6 +327,17 @@ export async function updateCanvas(
     row.created_by === userId ||
     (userPermission != null && ['owner', 'editor'].includes(userPermission.level));
   if (!canEdit) return { kind: 'forbidden' };
+
+  return { kind: 'ok' };
+}
+
+export async function updateCanvas(
+  id: string,
+  userId: string,
+  patch: UpdateCanvasInput
+): Promise<MutationResult> {
+  const access = await checkCanvasWriteAccess(id, userId);
+  if (access.kind !== 'ok') return access;
 
   const { title, thumbnail_url, page_count, format } = patch;
 
