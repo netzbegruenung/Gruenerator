@@ -87,6 +87,7 @@ import { buildCreateTurnContext } from './services/createTurn.js';
 import {
   handleBoardCreation,
   handleSheetCreation,
+  handleSheetEdit,
   handlePresentationCreation,
   handlePdfCreation,
   handleRecurringTaskCreation,
@@ -1695,6 +1696,22 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           await cleanupPending(true);
           return { status: 200 as const, body: undefined };
         }
+      }
+
+      // === edit_sheet intent (Tier 2.7 follow-up on a chat-created sheet) ===
+      // handleSheetEdit always owns the turn once dispatched (mirrors
+      // runCreateTurn's contract) — no fall-through to the normal pipeline.
+      if (!runAgentic && classifiedState.intent === 'edit_sheet') {
+        const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+        await handleSheetEdit({
+          sse,
+          classifiedState,
+          ...(actualThreadId != null && { actualThreadId }),
+          userId,
+          userContent: lastUserText as string,
+        });
+        await cleanupPending(true);
+        return { status: 200 as const, body: undefined };
       }
 
       // === EXPERIMENTAL: create_recurring_task intent ===

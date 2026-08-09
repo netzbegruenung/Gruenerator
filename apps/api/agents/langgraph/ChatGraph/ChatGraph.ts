@@ -158,6 +158,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     // Sheet context (from @sheet mentions, populated by controller)
     sheetIds: input.sheetIds || [],
     sheetContext: null,
+    sheetEditId: null,
 
     // Collaborative document context (from @doc mentions, populated by controller)
     docMentionIds: input.docMentionIds || [],

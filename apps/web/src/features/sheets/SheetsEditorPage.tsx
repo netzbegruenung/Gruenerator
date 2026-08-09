@@ -5,6 +5,7 @@ import {
   useSyncGate,
   getAuthErrorMessage,
 } from '@gruenerator/collab';
+import { sheetOperationSchema } from '@gruenerator/contracts';
 import {
   DocsProvider,
   useDocsAdapter,
@@ -14,7 +15,12 @@ import {
   type Document,
 } from '@gruenerator/docs';
 import { EditorTopBar } from '@gruenerator/shared/components/EditorTopBar';
-import { SheetsEditor, type FUniver, type IWorkbookData } from '@gruenerator/sheets';
+import {
+  applySheetOperations,
+  SheetsEditor,
+  type FUniver,
+  type IWorkbookData,
+} from '@gruenerator/sheets';
 import { Skeleton } from '@gruenerator/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
@@ -154,6 +160,49 @@ function SheetsEditorContent() {
   }, [authError]);
 
   const isEditable = canEdit && !authError;
+
+  // Embedded (docked-in-chat) mode has no chat sidebar of its own — a chat-
+  // driven edit (edit_sheet) is planned server-side and relayed here from the
+  // OUTER chat page's SSE stream via postMessage (ArtifactPanel), since an
+  // iframe is a separate JS realm the outer page's own store can't reach.
+  // Applies through the exact same executor the in-editor AI assistant uses
+  // (applySheetOperations — Univer Facade, so it flows through the collab
+  // bridge and lands on the native undo stack).
+  useEffect(() => {
+    if (!isEmbedded || !univerAPI || !isEditable || !id) return;
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data as { source?: string; payload?: unknown } | null;
+      if (data?.source !== 'gruenerator-artifact-panel') return;
+      const payload = data.payload as {
+        targetId?: string;
+        surface?: string;
+        operations?: unknown[];
+      } | null;
+      if (payload?.targetId !== id || payload.surface !== 'sheet') return;
+      void (async () => {
+        const workbook = univerAPI.getActiveWorkbook();
+        if (!workbook) return;
+        const ops = [];
+        for (const raw of payload.operations ?? []) {
+          const parsed = sheetOperationSchema.safeParse(raw);
+          if (parsed.success) ops.push(parsed.data);
+        }
+        if (ops.length === 0) return;
+        const { applied, skipped } = await applySheetOperations(workbook, ops, univerAPI);
+        const { toast } = await import('sonner');
+        if (applied > 0) {
+          toast.success(`${applied} Änderung${applied === 1 ? '' : 'en'} übernommen.`, {
+            id: 'sheet-edit-applied',
+            duration: 2000,
+          });
+        }
+        if (skipped.length > 0) toast.warning(skipped.join(' · '));
+      })();
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [isEmbedded, univerAPI, isEditable, id]);
 
   if (docIsLoading || !isAuthResolved) {
     return (

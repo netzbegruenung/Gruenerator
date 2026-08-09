@@ -525,6 +525,9 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     const hasImageAttachments = state.imageAttachments && state.imageAttachments.length > 0;
     const hasAnyDocuments =
       hasDocumentChat || hasDocuments || hasAttachmentContext || hasCurrentDocument;
+    // @sheet mentions. currentDocument is shared with docs/presentations, so a
+    // sheet open in its own editor is already covered by hasCurrentDocument.
+    const hasSheetMentions = state.sheetIds && state.sheetIds.length > 0;
 
     // "Did the user supply the substance?" — the single answer the writing-order
     // rule consults (Tier 3.5 below, and `decideRunAgentic` in the router). The
@@ -1133,6 +1136,33 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
           searchQuery: null,
           detectedFilters: null,
           reasoning: 'lastToolContext(document) + modification keywords → modify_doc on last doc',
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs: Date.now() - startTime,
+        };
+      }
+      // "Mach die erste Zeile fett" after a chat-created sheet: without this
+      // branch the follow-up fell through to GenerationScope, whose intent
+      // space is creation-only — it silently created a second, unrelated
+      // sheet instead of editing the one just made.
+      if (
+        tc.kind === 'sheet' &&
+        tc.ref &&
+        !hasCurrentDocument &&
+        !hasSheetMentions &&
+        docModifyPattern.test(userContent) &&
+        !forbidsPersistentAction(userContent, ARTIFACT_NOUN_BY_KIND.sheet)
+      ) {
+        log.info('[Classifier] Follow-up sheet edit via lastToolContext → edit_sheet', {
+          ref: tc.ref,
+        });
+        return {
+          intent: 'edit_sheet',
+          sheetEditId: tc.ref,
+          searchSources: [],
+          searchQuery: null,
+          detectedFilters: null,
+          reasoning: 'lastToolContext(sheet) + modification keywords → edit_sheet on last sheet',
           hasTemporal: temporal.hasTemporal,
           complexity,
           classificationTimeMs: Date.now() - startTime,

@@ -384,6 +384,7 @@ export const INTENT_MESSAGE_POOLS: Record<SearchIntent, string[]> = {
   compute: ['Rechne...', 'Zähle...', 'Berechne...'],
   save_as_doc: ['Speichere...', 'Sichere...', 'Archiviere...'],
   create_sheet: ['Erstelle Tabelle...', 'Baue Spreadsheet...', 'Fülle Zellen...'],
+  edit_sheet: ['Bearbeite Tabelle...', 'Passe Zellen an...'],
   create_pdf: ['Baue das PDF...', 'Setze das Dokument...', 'Gestalte die Seiten...'],
   create_presentation: ['Erstelle Präsentation...', 'Baue Folien...', 'Gestalte Slides...'],
   create_recurring_task: [
