@@ -521,11 +521,13 @@ export type SharepicOpValidation =
 /**
  * Check one operation against a descriptor and clamp its numeric values.
  *
- * Shared by the two AI-op appliers, which are otherwise separate: the chat path
- * translates ops into a flat state patch server-side (`sharepicOpsToStatePatch`
- * below), the studio's own AI section dispatches them to canvas-editor actions
- * (`applyOperation`). Only the RULES are common — what may be edited, which
- * element exists, what range a value has — so only those live here.
+ * CHAT PATH ONLY. The studio's AI section (`applyOperation`) must NOT be routed
+ * through this: a descriptor describes the fixed, chat-editable surface, while
+ * the studio also offers `add-asset` / `add-illustration` / `remove-element`,
+ * addresses user-added stickers by dynamic element id, and resolves `set-text`
+ * against `state.additionalTexts`. None of that is in a descriptor, so every
+ * such operation would be rejected as unknown. The studio is governed by its
+ * config's own `TemplateAiCapabilities` instead.
  *
  * Returns the operation with clamped values so callers apply the clamped form
  * rather than re-deriving it. Never throws: an invalid op is a rejection with a
