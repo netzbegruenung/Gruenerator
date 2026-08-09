@@ -1,7 +1,7 @@
 'use client';
 
 import { Check, ChevronRight, Loader2, Plug, X } from 'lucide-react';
-import { memo, useState } from 'react';
+import { memo, useId, useState } from 'react';
 
 interface McpToolUIProps {
   args: Record<string, unknown>;
@@ -18,6 +18,7 @@ interface McpToolUIProps {
  */
 export const McpToolUI = memo(function McpToolUI({ args, result }: McpToolUIProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const detailsId = useId();
   const server = typeof args?.server === 'string' ? args.server : 'MCP';
   const tool = typeof args?.tool === 'string' ? args.tool : '';
   const done = result !== undefined;
@@ -31,10 +32,14 @@ export const McpToolUI = memo(function McpToolUI({ args, result }: McpToolUIProp
 
   return (
     <div className="my-1.5 text-xs">
+      {/* While in flight the pill stays focusable (`aria-disabled`, not
+          `disabled` — a disabled button drops out of the tab order) and the
+          click is a no-op; screen readers still get the "läuft" state. */}
       <button
         onClick={() => done && setIsExpanded(!isExpanded)}
-        disabled={!done}
-        aria-expanded={done ? isExpanded : undefined}
+        aria-disabled={!done}
+        aria-expanded={done ? isExpanded : false}
+        aria-controls={detailsId}
         className={`inline-flex items-center gap-2 rounded-xl border border-grey-200 dark:border-grey-700 bg-background-pure px-3 py-1.5 transition-colors ${
           done ? 'hover:bg-primary/5 cursor-pointer' : ''
         }`}
@@ -56,24 +61,27 @@ export const McpToolUI = memo(function McpToolUI({ args, result }: McpToolUIProp
         )}
       </button>
 
-      {isExpanded && done && (
-        <div className="mt-2 ml-2 space-y-2 border-l-2 border-primary/20 pl-3">
-          {hasCallArgs && (
+      {/* Always in the DOM so aria-controls never points at a missing id. */}
+      <div id={detailsId} hidden={!(isExpanded && done)}>
+        {isExpanded && done && (
+          <div className="mt-2 ml-2 space-y-2 border-l-2 border-primary/20 pl-3">
+            {hasCallArgs && (
+              <div>
+                <div className="mb-1 font-medium text-foreground-muted">Anfrage</div>
+                <pre className="overflow-x-auto rounded-lg bg-surface px-2 py-1.5 font-mono text-[11px] text-foreground whitespace-pre-wrap break-words">
+                  {JSON.stringify(callArgs, null, 2)}
+                </pre>
+              </div>
+            )}
             <div>
-              <div className="mb-1 font-medium text-foreground-muted">Anfrage</div>
+              <div className="mb-1 font-medium text-foreground-muted">Ergebnis</div>
               <pre className="overflow-x-auto rounded-lg bg-surface px-2 py-1.5 font-mono text-[11px] text-foreground whitespace-pre-wrap break-words">
-                {JSON.stringify(callArgs, null, 2)}
+                {typeof result === 'string' ? result : JSON.stringify(result, null, 2)}
               </pre>
             </div>
-          )}
-          <div>
-            <div className="mb-1 font-medium text-foreground-muted">Ergebnis</div>
-            <pre className="overflow-x-auto rounded-lg bg-surface px-2 py-1.5 font-mono text-[11px] text-foreground whitespace-pre-wrap break-words">
-              {typeof result === 'string' ? result : JSON.stringify(result, null, 2)}
-            </pre>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 });
