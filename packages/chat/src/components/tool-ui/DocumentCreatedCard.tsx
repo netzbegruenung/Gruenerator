@@ -78,6 +78,11 @@ export const DocumentCreatedCard = memo(function DocumentCreatedCard({
   const kind = subtypeToArtifactKind(document.subtype);
   const meta = ARTIFACT_TYPE_META[kind];
   const Icon = meta.Icon;
+  // The docked ArtifactPanel is only mounted on /chat; this card also renders
+  // in the Sheets/Docs/Presentations assistant chats. Writing to the store
+  // there would do nothing visible, so the primary action degrades to the old
+  // plain link when no panel is around to react.
+  const panelMounted = useArtifactLiveStore((s) => s.panelMounted);
   return (
     <div className="my-5 max-w-md rounded-xl border border-border bg-background px-4 py-3">
       <div className="flex items-center justify-between gap-3">
@@ -97,32 +102,46 @@ export const DocumentCreatedCard = memo(function DocumentCreatedCard({
           <PdfOpenButton document={document} label={meta.label} />
         ) : (
           <div className="flex items-center gap-1 flex-shrink-0">
-            <button
-              type="button"
-              onClick={() =>
-                useArtifactLiveStore.getState().setActiveArtifact({
-                  id: `document-${document.documentId}`,
-                  type: 'document',
-                  documentId: document.documentId,
-                  subtype: document.subtype,
-                  title: document.title,
-                  url: document.url,
-                })
-              }
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full bg-primary text-white hover:bg-primary/90 transition-colors"
-            >
-              {meta.label} öffnen
-              <ArrowRight className="h-3.5 w-3.5" />
-            </button>
-            <a
-              href={document.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-full p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground"
-              aria-label={`${meta.label} in neuem Tab öffnen`}
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-            </a>
+            {panelMounted ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() =>
+                    useArtifactLiveStore.getState().setActiveArtifact({
+                      id: `document-${document.documentId}`,
+                      type: 'document',
+                      documentId: document.documentId,
+                      subtype: document.subtype,
+                      title: document.title,
+                      url: document.url,
+                    })
+                  }
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full bg-primary text-white hover:bg-primary/90 transition-colors"
+                >
+                  {meta.label} öffnen
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </button>
+                <a
+                  href={document.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-full p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground"
+                  aria-label={`${meta.label} in neuem Tab öffnen`}
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              </>
+            ) : (
+              <a
+                href={document.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full bg-primary text-white hover:bg-primary/90 transition-colors"
+              >
+                {meta.label} öffnen
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            )}
           </div>
         )}
       </div>

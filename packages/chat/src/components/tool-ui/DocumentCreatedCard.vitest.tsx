@@ -136,29 +136,56 @@ describe('DocumentCreatedCard — collaborative documents', () => {
   };
 
   afterEach(() => {
-    useArtifactLiveStore.setState({ activeArtifact: null });
+    useArtifactLiveStore.setState({ activeArtifact: null, panelMounted: false });
   });
 
-  it('opens the sheet in the docked preview panel on click', async () => {
-    render(<DocumentCreatedCard document={sheetDocument} />);
+  describe('with the artifact panel mounted (/chat)', () => {
+    beforeEach(() => {
+      useArtifactLiveStore.setState({ panelMounted: true });
+    });
 
-    await userEvent.click(screen.getByRole('button', { name: /Tabelle öffnen/i }));
+    it('opens the sheet in the docked preview panel on click', async () => {
+      render(<DocumentCreatedCard document={sheetDocument} />);
 
-    expect(useArtifactLiveStore.getState().activeArtifact).toEqual({
-      id: 'document-abc',
-      type: 'document',
-      documentId: 'abc',
-      subtype: 'sheets',
-      title: 'Prognosen 2026',
-      url: '/office/abc',
+      await userEvent.click(screen.getByRole('button', { name: /Tabelle öffnen/i }));
+
+      expect(useArtifactLiveStore.getState().activeArtifact).toEqual({
+        id: 'document-abc',
+        type: 'document',
+        documentId: 'abc',
+        subtype: 'sheets',
+        title: 'Prognosen 2026',
+        url: '/office/abc',
+      });
+    });
+
+    it('keeps a secondary link to open the editor in a new tab', () => {
+      render(<DocumentCreatedCard document={sheetDocument} />);
+
+      const link = screen.getByRole('link', { name: /neuem Tab/i });
+      expect(link).toHaveAttribute('href', '/office/abc');
+      expect(link).toHaveAttribute('target', '_blank');
     });
   });
 
-  it('keeps a secondary link to open the editor in a new tab', () => {
-    render(<DocumentCreatedCard document={sheetDocument} />);
+  describe('without a mounted artifact panel (Sheets/Docs/Presentations chats)', () => {
+    // ArtifactPanel is only mounted on /chat. Everywhere else a store write
+    // would do nothing visible, so the primary action must be a real link.
+    it('renders the primary action as a plain link to the editor', () => {
+      render(<DocumentCreatedCard document={sheetDocument} />);
 
-    const link = screen.getByRole('link', { name: /neuem Tab/i });
-    expect(link).toHaveAttribute('href', '/office/abc');
-    expect(link).toHaveAttribute('target', '_blank');
+      expect(screen.queryByRole('button', { name: /Tabelle öffnen/i })).not.toBeInTheDocument();
+      const link = screen.getByRole('link', { name: /Tabelle öffnen/i });
+      expect(link).toHaveAttribute('href', '/office/abc');
+      expect(link).toHaveAttribute('target', '_blank');
+    });
+
+    it('never writes to the artifact store', async () => {
+      render(<DocumentCreatedCard document={sheetDocument} />);
+
+      await userEvent.click(screen.getByRole('link', { name: /Tabelle öffnen/i }));
+
+      expect(useArtifactLiveStore.getState().activeArtifact).toBeNull();
+    });
   });
 });

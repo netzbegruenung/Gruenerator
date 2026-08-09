@@ -14,20 +14,38 @@ import { useChatConfigStore } from '../stores/chatConfigStore';
  */
 const EDITOR_OPS_MESSAGE_SOURCE = 'gruenerator-artifact-panel';
 
-// No allow-same-origin: paired with allow-scripts this keeps the iframe on a
-// permanently opaque/null origin, so a script inside the artifact can never
-// reach `window.parent`, read cookies, or touch our own origin's storage.
+// Sandbox + CSP, honestly: `sandbox="allow-scripts"` WITHOUT allow-same-origin
+// keeps the iframe on an opaque/null origin — scripts DO run, but they cannot
+// reach `window.parent`, cookies, or our origin's storage. The CSP closes the
+// remaining network exits: connect-src 'none' (no fetch/XHR/WebSocket) and
+// img-src limited to `data:` — no `https:`, because an arbitrary HTTPS GET via
+// an <img> beacon would let a script exfiltrate artifact content. NOT blocked:
+// the iframe can still navigate itself via plain links (sandbox permits
+// self-navigation), which leaks at most the clicked URL, not page content.
 const ARTIFACT_CSP =
   "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'";
+
+/** Document previews go into a NON-sandboxed same-origin iframe, so only
+ *  server-built relative `/office/:id` paths may ever reach it. Resolved
+ *  through the real URL parser instead of char checks, so every alias the
+ *  parser accepts for "another host" (`//`, `/\`, embedded tabs/newlines,
+ *  schemes) fails the same-origin comparison. */
+const isRelativeUrl = (url: string) => {
+  if (!url.startsWith('/')) return false;
+  try {
+    return new URL(url, window.location.origin).origin === window.location.origin;
+  } catch {
+    return false;
+  }
+};
 
 /**
  * Docked right-rail view of the active artifact. Two variants:
  *  - generic HTML/SVG the model authored — mirrors SharepicArtifactPanel's
  *    docking UX, rendered inside a sandboxed iframe that allows inline
  *    scripts (`sandbox="allow-scripts"`, deliberately without
- *    `allow-same-origin`) so live/interactive artifacts work, while a CSP
- *    meta tag blocks network egress, nested iframes, and non-inline script
- *    sources from inside that sandbox.
+ *    `allow-same-origin`) so live/interactive artifacts work — see the
+ *    ARTIFACT_CSP comment for what that combination does and doesn't block.
  *  - a generated document (sheet/presentation/doc) — a plain, unsandboxed
  *    iframe at its own `/office/:id` editor route, same origin as the app.
  * Renders nothing while no artifact is active; hosts decide where to dock it.
@@ -36,6 +54,13 @@ export function ArtifactPanel({ className }: { className?: string }) {
   const active = useArtifactLiveStore((s) => s.activeArtifact);
   const isDocument = active?.type === 'document';
   const documentIframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Tell the cards a panel exists — without one, "öffnen" writes to the store
+  // and nothing visible happens, so they fall back to a plain link.
+  useEffect(() => {
+    useArtifactLiveStore.getState().setPanelMounted(true);
+    return () => useArtifactLiveStore.getState().setPanelMounted(false);
+  }, []);
 
   // Relay `editor_operations` (planned by a chat-driven edit, e.g. edit_sheet)
   // into the docked document iframe — a separate JS realm the outer page's SSE
@@ -152,12 +177,25 @@ export function ArtifactPanel({ className }: { className?: string }) {
 
       <div className="flex-1 overflow-hidden bg-white">
         {isDocument ? (
-          <iframe
-            ref={documentIframeRef}
-            title={active.title}
-            src={embeddedUrl}
-            className="h-full w-full border-0"
-          />
+          isRelativeUrl(active.url) ? (
+            <iframe
+              ref={documentIframeRef}
+              title={active.title}
+              src={embeddedUrl}
+              className="h-full w-full border-0"
+            />
+          ) : (
+            <p className="p-4 text-sm text-foreground-muted">
+              <a
+                href={active.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary underline"
+              >
+                Dokument in neuem Tab öffnen
+              </a>
+            </p>
+          )
         ) : (
           <iframe
             title={active.title}

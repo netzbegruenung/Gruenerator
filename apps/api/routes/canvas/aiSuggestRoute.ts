@@ -3,9 +3,7 @@
  *
  * ts-rest contract handler for the synchronous canvas AI suggestions
  * endpoint. The prompt construction, LLM call, retry/validation logic
- * lives in `services/runCanvasSuggest.ts` so the streaming chat-edit
- * controller (`canvasChatEditController.ts`) can reuse it with
- * research context injected.
+ * lives in `services/runCanvasSuggest.ts`.
  */
 import { canvasAiContract } from '@gruenerator/contracts';
 import { initServer, createExpressEndpoints } from '@ts-rest/express';

@@ -186,21 +186,30 @@ const LoginPage = ({
 
   const getHeaderContent = () => {
     if (mode === 'required') {
+      // The expiry notice renders independently of customMessage: LoginRequired
+      // passes a customMessage in common flows, and the expired-session hint
+      // must not be silently swallowed by it.
+      const showExpiredNotice = sessionExpired && !successMessage;
       return (
         <div className="text-center mb-lg lg:text-left lg:mb-xl">
           <h1 className="gradient-title text-center text-[1.75rem] font-bold mb-sm lg:text-left lg:text-[2.2rem] lg:mb-md">
             {displayPageName}
           </h1>
-          <p className="text-foreground text-base leading-normal mb-sm opacity-90 lg:text-[1.1rem] lg:leading-relaxed">
-            {customMessage ||
-              (sessionExpired && !successMessage
-                ? `Deine Sitzung ist abgelaufen — melde dich erneut an, um ${displayPageName === 'Diese Seite' ? 'fortzufahren' : `${displayPageName} zu nutzen`}`
-                : isMobileApp
+          {showExpiredNotice && (
+            <p className="text-foreground text-base leading-normal mb-sm opacity-90 lg:text-[1.1rem] lg:leading-relaxed">
+              {`Deine Sitzung ist abgelaufen — melde dich erneut an, um ${displayPageName === 'Diese Seite' ? 'fortzufahren' : `${displayPageName} zu nutzen`}`}
+            </p>
+          )}
+          {(customMessage || !showExpiredNotice) && (
+            <p className="text-foreground text-base leading-normal mb-sm opacity-90 lg:text-[1.1rem] lg:leading-relaxed">
+              {customMessage ||
+                (isMobileApp
                   ? `Melde dich an, um ${displayPageName || 'die App'} zu nutzen`
                   : displayPageName === 'Diese Seite'
                     ? 'Melde dich an, um fortzufahren'
                     : `Melde dich an, um ${displayPageName} zu nutzen`)}
-          </p>
+            </p>
+          )}
         </div>
       );
     }

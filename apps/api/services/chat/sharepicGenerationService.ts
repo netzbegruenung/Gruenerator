@@ -610,50 +610,6 @@ const generateZitatPureSharepic = async (
   };
 };
 
-const _generateDreizeilenSharepic = async (
-  expressReq: ExpressRequest,
-  requestBody: RequestBody
-): Promise<SharepicResult> => {
-  const textResponse = await callSharepicText(expressReq, 'dreizeilen', requestBody);
-
-  if (!textResponse?.success) {
-    throw new Error((textResponse?.error as string) || 'Dreizeilen Sharepic generation failed');
-  }
-
-  const mainSlogan = textResponse.mainSlogan as MainSlogan;
-  const alternatives = (textResponse.alternatives as unknown[]) || [];
-  log.debug('[SharepicGeneration] Dreizeilen mainSlogan received:', JSON.stringify(mainSlogan));
-
-  const { payload: canvasPayload } = await callCanvasRoute(
-    canvasRouterFor('dreizeilen', requestBody),
-    mainSlogan as Record<string, unknown>
-  );
-
-  if (!canvasPayload?.image) {
-    throw new Error('Dreizeilen canvas did not return an image');
-  }
-
-  return {
-    success: true,
-    agent: 'dreizeilen',
-    content: {
-      metadata: {
-        sharepicType: 'dreizeilen',
-      },
-      sharepic: {
-        image: canvasPayload.image,
-        type: 'dreizeilen',
-        text: `${mainSlogan.line1 || ''}\n${mainSlogan.line2 || ''}\n${mainSlogan.line3 || ''}`.trim(),
-        mainSlogan,
-        alternatives,
-      },
-      sharepicTitle: 'Sharepic Vorschau',
-      sharepicDownloadText: 'Sharepic herunterladen',
-      sharepicDownloadFilename: `sharepic-dreizeilen-${Date.now()}.png`,
-    },
-  };
-};
-
 const generateZitatWithImageSharepic = async (
   expressReq: ExpressRequest,
   requestBody: RequestBody

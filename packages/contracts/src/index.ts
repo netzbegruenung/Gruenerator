@@ -157,6 +157,7 @@ export * from './schemas/canvasAi.js';
 export * from './schemas/reelEdit.js';
 export * from './schemas/canvas.js';
 export * from './schemas/canvasTemplateDescriptors.js';
+export * from './schemas/canvasTemplateFields.js';
 export * from './schemas/sliderDeck.js';
 export * from './schemas/skill.js';
 export * from './schemas/agent.js';
