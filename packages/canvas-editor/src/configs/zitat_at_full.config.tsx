@@ -124,6 +124,9 @@ const baseZitatAtConfig = createImageTwoTextCanvas({
   primaryField: { key: 'quote', label: 'Zitat' },
   secondaryField: { key: 'name', label: 'Name' },
   calculateLayout,
+  // See zitat_full: the quote mark's keys are not part of the factory's base
+  // state, so they need the passthrough to survive a re-seed.
+  passthroughStateKeys: ['quoteMarkOffset', 'quoteMarkOpacity'],
   elements: [quoteMarkElement, quoteTextElement, nameTextElement, logoElement],
   features: { icons: true, shapes: true, illustrations: true },
   // Anders als beim deutschen Zitat kein schwarzer Verlauf für Textkontrast,
