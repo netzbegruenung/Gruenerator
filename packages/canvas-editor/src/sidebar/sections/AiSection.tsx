@@ -1,3 +1,4 @@
+import { getSharepicTemplateDescriptor, validateSharepicOp } from '@gruenerator/contracts';
 import { useCallback, useState } from 'react';
 import { HiSparkles } from 'react-icons/hi';
 
@@ -100,12 +101,24 @@ function AiSectionEnabled<TState, TActions extends CanvasAiActionsBase>({
 
   const handleApply = useCallback(
     (s: CanvasAiSuggestion) => {
-      const results = s.operations.map((op) =>
-        applyOperation<TState, TActions>(op, actions, getState, capabilities)
-      );
+      // Templates with a chat-edit descriptor get the same rule check the chat
+      // path runs (allowed operations, known fields/elements, value bounds)
+      // before the op reaches the store. Descriptor-less templates keep
+      // applying unchecked — there is nothing to check them against.
+      const descriptor = getSharepicTemplateDescriptor(canvasType);
+      const results = s.operations.map((op) => {
+        if (!descriptor)
+          return applyOperation<TState, TActions>(op, actions, getState, capabilities);
+        // Boundary cast: descriptors address state by flat key, which is what
+        // every sharepic config's state is underneath.
+        const state = getState() as unknown as Record<string, unknown>;
+        const validated = validateSharepicOp(descriptor, op, state);
+        if (!validated.ok) return { ok: false as const, reason: validated.reason };
+        return applyOperation<TState, TActions>(validated.op, actions, getState, capabilities);
+      });
       setApplyResults((prev) => ({ ...prev, [s.id]: results }));
     },
-    [actions, getState, capabilities]
+    [actions, getState, capabilities, canvasType]
   );
 
   return (
