@@ -15,6 +15,7 @@
     "direct",
     "edit_current_board",
     "edit_current_doc",
+    "edit_sheet",
     "examples",
     "greeting",
     "hilfe",
