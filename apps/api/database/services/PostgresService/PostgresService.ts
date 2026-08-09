@@ -640,7 +640,9 @@ export class PostgresService {
       return result;
     } catch (error) {
       await client.query('ROLLBACK');
-      console.error('[PostgresService] Transaction rolled back:', error);
+      // Redact: a pg error from a raw client.query inside the callback carries
+      // bound values in error.detail (same leak class as the other catch blocks).
+      console.error('[PostgresService] Transaction rolled back:', toLoggableDbError(error));
       throw error;
     } finally {
       client.release();
