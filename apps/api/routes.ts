@@ -35,7 +35,6 @@ import { mountBoardsContractRouter } from './routes/boards/boardsContractRouter.
 import { mountBoardSubscriptionsContractRouter } from './routes/boards/boardSubscriptionsContractRouter.js';
 import { mountPublicBoardsContractRouter } from './routes/boards/publicBoardsContractRouter.js';
 import { mountCanvasAiContractRouter } from './routes/canvas/aiSuggestRoute.js';
-import canvasChatEditRouter from './routes/canvas/canvasChatEditController.js';
 import { mountCanvasContractRouter } from './routes/canvas/canvasContractRouter.js';
 import { mountChatGraphContractRouter } from './routes/chat/chatGraphContractRouter.js';
 import { mountThreadsContractRouter } from './routes/chat/threadsContractRouter.js';
@@ -578,31 +577,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   );
   mountCanvasAiContractRouter(app);
 
-  // Canvas chat-edit stream: streaming endpoint that wraps notebook chat
-  // (research + citations + prose) with a tail canvas-AI-suggest call so
-  // operations are research-grounded. Mounted before the canvas CRUD router
-  // for the same reason as ai-suggest above.
-  // requireAuth MUST run before the Redis limiter: the limiter buckets by
-  // req.user (authenticated → 60/day) and falls back to 'anonymous' when it is
-  // unset. canvas_chat_edit's anonymous limit is 0, so without auth resolved
-  // first EVERY user — including logged-in ones — is classed anonymous and
-  // blocked with a 429 on their very first request. requireAuth (inside
-  // canvasChatEditRouter via createAuthenticatedRouter) previously ran only
-  // after the limiter, too late to matter.
-  app.use(
-    '/api/canvas/chat-edit/stream',
-    aiGenerationLimiter,
-    requireAuth,
-    rateLimitMiddleware('canvas_chat_edit', { autoIncrement: true }),
-    canvasChatEditRouter
-  );
-
   // Canvas documents (collaborative): /api/canvas CRUD via ts-rest contract.
   // requireAuth + authenticatedReadLimiter run on the /api/canvas prefix BEFORE
   // the contract endpoints (createExpressEndpoints registers handlers directly
   // on the app, bypassing later prefix middleware). Mounted AFTER the AI-suggest
-  // + chat-edit routers above so /api/canvas/ai-suggest and
-  // /api/canvas/chat-edit/stream match first.
+  // router above so /api/canvas/ai-suggest matches first.
   app.use('/api/canvas', requireAuth, authenticatedReadLimiter);
   mountCanvasContractRouter(app);
 

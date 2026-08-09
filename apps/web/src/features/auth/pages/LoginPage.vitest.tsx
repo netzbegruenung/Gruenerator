@@ -30,8 +30,10 @@ describe('LoginPage (standalone)', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
     expect(toggle).toHaveTextContent(/anbieter ausblenden/i);
     expect(screen.getByRole('list')).toBeInTheDocument();
-    // All 4 LOGIN_PROVIDERS, not just the enabledByDefault subset — matching
-    // the start page's toggle, which surfaces every provider once expanded.
+    // All 4 LOGIN_PROVIDERS, not just the enabledByDefault subset. This
+    // deliberately diverges from StartpageHero, which filters its expanded
+    // list to enabledByDefault (plus the remembered/deep-linked primary):
+    // /login is the fallback surface where every provider must stay reachable.
     expect(screen.getAllByRole('listitem')).toHaveLength(4);
 
     await user.click(toggle);

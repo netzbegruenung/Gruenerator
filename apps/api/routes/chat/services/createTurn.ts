@@ -30,7 +30,7 @@ import { applyContextCap } from '../../../utils/contextCap.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { renderSourceLines, withResearchedSources } from './agenticLoop/sourceRegistry.js';
-import { failCreation, rememberArtifact } from './createTurnHelpers.js';
+import { failCreation, rememberArtifact, streamTextInChunks } from './createTurnHelpers.js';
 import { extractTextContent } from './messageHelpers.js';
 import { createMessage, getRecentThreadSources, touchThread } from './threadPersistenceService.js';
 
@@ -42,9 +42,6 @@ import type {
 } from '../../../agents/langgraph/ChatGraph/types.js';
 
 const log = createLogger('ChatGraphController');
-
-/** Text is streamed in fixed-size slices, matching the previous handlers. */
-const TEXT_CHUNK = 20;
 
 /**
  * How much conversation a create turn is handed.
@@ -198,6 +195,21 @@ export interface ArtifactSpec<T> {
 }
 
 /**
+ * Emit what the chat SHOWS for a finished artifact: the confirmation text, then
+ * the card. Shared with save_as_doc, which contributes both to a turn somebody
+ * else owns and so cannot reuse the whole choreography.
+ *
+ * Returns the text, because both callers persist or log it afterwards.
+ */
+export function emitArtifactResult<T>(sse: SSEWriter, spec: ArtifactSpec<T>, result: T): string {
+  const responseText = spec.successText(result);
+  streamTextInChunks(sse, responseText);
+  const card = spec.card?.(result);
+  if (card) sse.send('document_created', card);
+  return responseText;
+}
+
+/**
  * Run one artifact-creating turn. ALWAYS returns true: the turn is owned either
  * way, because handing a failed create back to the generic responder is what
  * let it invent "copy this into the Office app and export as PDF" — prose that
@@ -261,13 +273,7 @@ export async function runCreateTurn<T>(
       return failCreation(sse, actualThreadId, spec.intent, spec.failureText);
     }
 
-    const responseText = spec.successText(result);
-    for (let i = 0; i < responseText.length; i += TEXT_CHUNK) {
-      sse.send('text_delta', { text: responseText.slice(i, i + TEXT_CHUNK) });
-    }
-
-    const card = spec.card?.(result);
-    if (card) sse.send('document_created', card);
+    const responseText = emitArtifactResult(sse, spec, result);
 
     const { ref, label } = spec.ref(result);
     log.info(`[ChatGraph] ${spec.logLabel} created: "${label}" (${ref})`);
