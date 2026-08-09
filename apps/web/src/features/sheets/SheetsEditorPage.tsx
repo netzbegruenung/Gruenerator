@@ -5,7 +5,11 @@ import {
   useSyncGate,
   getAuthErrorMessage,
 } from '@gruenerator/collab';
-import { editorOperationsEventSchema, sheetOperationSchema } from '@gruenerator/contracts';
+import {
+  editorOperationsEventSchema,
+  sheetOperationSchema,
+  type EditorOperationsEvent,
+} from '@gruenerator/contracts';
 import {
   DocsProvider,
   useDocsAdapter,
@@ -23,7 +27,7 @@ import {
 } from '@gruenerator/sheets';
 import { Skeleton } from '@gruenerator/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FiMessageSquare, FiShare2 } from 'react-icons/fi';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
@@ -172,16 +176,23 @@ function SheetsEditorContent() {
   // bridge and lands on the native undo stack). Gated on the same "KI darf
   // bearbeiten" lock (useDocAiEditEnabled) the in-editor chat's own
   // registerEditHandler respects — this path must not bypass it.
+  //
+  // Auto-open (ArtifactPanel docks this iframe the instant an edit arrives
+  // with nothing already open) races this component's own load: ops can
+  // arrive before Univer — or even docData — is ready. `applyOpsRef` always
+  // points at the latest applier; before the editor is ready it just queues,
+  // so nothing sent while this iframe is still booting is lost.
+  const pendingOpsRef = useRef<EditorOperationsEvent[]>([]);
+  const applyOpsRef = useRef<(payload: EditorOperationsEvent) => void>((payload) => {
+    pendingOpsRef.current.push(payload);
+  });
+
   useEffect(() => {
-    if (!isEmbedded || !univerAPI || !isEditable || !id) return;
-    const handleMessage = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return;
-      const data = event.data as { source: string | null; payload: unknown } | null;
-      if (data?.source !== 'gruenerator-artifact-panel') return;
-      const parsed = editorOperationsEventSchema.safeParse(data.payload);
-      if (!parsed.success) return;
-      const payload = parsed.data;
-      if (payload.targetId !== id || payload.surface !== 'sheet') return;
+    applyOpsRef.current = (payload: EditorOperationsEvent) => {
+      if (!univerAPI || !isEditable) {
+        pendingOpsRef.current.push(payload);
+        return;
+      }
       void (async () => {
         const { toast } = await import('sonner');
         if (!aiEditEnabled) {
@@ -206,9 +217,38 @@ function SheetsEditorContent() {
         if (skipped.length > 0) toast.warning(skipped.join(' · '));
       })();
     };
+    if (univerAPI && isEditable && pendingOpsRef.current.length > 0) {
+      const queued = pendingOpsRef.current;
+      pendingOpsRef.current = [];
+      queued.forEach((payload) => applyOpsRef.current(payload));
+    }
+  }, [univerAPI, isEditable, aiEditEnabled]);
+
+  // Listener attaches as soon as this iframe CAN receive messages — not
+  // gated on Univer readiness (applyOpsRef handles that internally) — and
+  // announces itself so ArtifactPanel knows postMessage now has somewhere to
+  // land (before this runs, the iframe may not have finished navigating at
+  // all, and a postMessage sent into that gap is simply dropped by the
+  // browser, not queued anywhere client-side).
+  useEffect(() => {
+    if (!isEmbedded || !id) return;
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data as { source: string | null; payload: unknown } | null;
+      if (data?.source !== 'gruenerator-artifact-panel') return;
+      const parsed = editorOperationsEventSchema.safeParse(data.payload);
+      if (!parsed.success) return;
+      const payload = parsed.data;
+      if (payload.targetId !== id || payload.surface !== 'sheet') return;
+      applyOpsRef.current(payload);
+    };
     window.addEventListener('message', handleMessage);
+    window.parent.postMessage(
+      { source: 'gruenerator-sheets-editor', type: 'ready', documentId: id },
+      window.location.origin
+    );
     return () => window.removeEventListener('message', handleMessage);
-  }, [isEmbedded, univerAPI, isEditable, id, aiEditEnabled]);
+  }, [isEmbedded, id]);
 
   if (docIsLoading || !isAuthResolved) {
     return (

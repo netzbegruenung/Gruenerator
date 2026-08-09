@@ -347,6 +347,13 @@ export const editorOperationsEventSchema = z
     operations: z.array(z.unknown()),
     summary: z.string().optional(),
     stepId: z.string().optional(),
+    // Present when the emitting turn already knows the target's display title
+    // (e.g. handleSheetEdit's loaded sheet state) — lets the client auto-open a
+    // docked preview for a target with no live handler yet, instead of just
+    // warning that nothing is connected. Absent from paths where the frontend
+    // is guaranteed to already have the target open (editorTools.ts's
+    // agentic-loop edit, gated on state.currentDocument).
+    title: z.string().optional(),
   })
   .passthrough();
 export type EditorOperationsEvent = z.infer<typeof editorOperationsEventSchema>;

@@ -14,6 +14,15 @@ import { useChatConfigStore } from '../stores/chatConfigStore';
  */
 const EDITOR_OPS_MESSAGE_SOURCE = 'gruenerator-artifact-panel';
 
+/**
+ * Namespaced postMessage type SheetsEditorPage sends back once its own
+ * message listener is attached — independent of Univer's own load time. Until
+ * this arrives for the currently-docked documentId, a postMessage sent to the
+ * iframe has nowhere to land (the iframe may not have navigated/executed its
+ * bundle yet) and is silently dropped by the browser, not queued anywhere.
+ */
+const SHEETS_EDITOR_READY_SOURCE = 'gruenerator-sheets-editor';
+
 // No allow-same-origin: paired with allow-scripts this keeps the iframe on a
 // permanently opaque/null origin, so a script inside the artifact can never
 // reach `window.parent`, read cookies, or touch our own origin's storage.
@@ -44,13 +53,49 @@ export function ArtifactPanel({ className }: { className?: string }) {
   // postMessage; nothing docked (or docked on something else) → falls through
   // to parseSSEStream's existing "no handler registered" warning, unchanged.
   const activeDocumentId = active?.type === 'document' ? active.documentId : null;
+  // Ops that arrived before the iframe confirmed it's listening — flushed the
+  // instant the `ready` handshake below lands for this same documentId.
+  const readyDocIdRef = useRef<string | null>(null);
+  const pendingRelayRef = useRef<unknown>(null);
+  useEffect(() => {
+    readyDocIdRef.current = null;
+    pendingRelayRef.current = null;
+  }, [activeDocumentId]);
+
+  useEffect(() => {
+    if (!activeDocumentId) return;
+    function onReady(event: MessageEvent) {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data as { source?: string; type?: string; documentId?: string } | null;
+      if (data?.source !== SHEETS_EDITOR_READY_SOURCE || data.type !== 'ready') return;
+      if (data.documentId !== activeDocumentId) return;
+      readyDocIdRef.current = data.documentId;
+      if (pendingRelayRef.current) {
+        documentIframeRef.current?.contentWindow?.postMessage(
+          { source: EDITOR_OPS_MESSAGE_SOURCE, payload: pendingRelayRef.current },
+          window.location.origin
+        );
+        pendingRelayRef.current = null;
+      }
+    }
+    window.addEventListener('message', onReady);
+    return () => window.removeEventListener('message', onReady);
+  }, [activeDocumentId]);
+
   useEffect(() => {
     if (!activeDocumentId) return;
     return useChatConfigStore.getState().registerEditorOpsHandler(activeDocumentId, (payload) => {
-      documentIframeRef.current?.contentWindow?.postMessage(
-        { source: EDITOR_OPS_MESSAGE_SOURCE, payload },
-        window.location.origin
-      );
+      if (readyDocIdRef.current === activeDocumentId) {
+        documentIframeRef.current?.contentWindow?.postMessage(
+          { source: EDITOR_OPS_MESSAGE_SOURCE, payload },
+          window.location.origin
+        );
+      } else {
+        // Iframe hasn't confirmed it's listening yet (auto-open case: this
+        // handler registers the instant the panel mounts, well before the
+        // iframe has navigated). Hold it — onReady above delivers it.
+        pendingRelayRef.current = payload;
+      }
     });
   }, [activeDocumentId]);
 
