@@ -327,6 +327,43 @@ describe('getModeGuidance for compute intent', () => {
   });
 });
 
+/**
+ * Both chart prompts, byte for byte.
+ *
+ * The two variants share their format block and most of their rules and were
+ * kept as two copy-pasted literals; they are now composed from one template.
+ * Pinning the exact strings is what makes that composition provable — a
+ * substring assertion would have passed through a dropped rule or a lost
+ * newline, and the model only ever sees the whole thing.
+ */
+const CHART_PROMPT_PLAUSIBLE = `\nDer*die Nutzer*in möchte ein Diagramm. Erstelle die Daten und gib sie als JSON-Block zurück.
+Schreibe zuerst eine kurze Erklärung (1-2 Sätze), dann den JSON-Block in diesem Format:
+
+\`\`\`chart
+{"type":"bar","title":"Titel","data":[{"name":"A","wert":10},{"name":"B","wert":20}],"xKey":"name","yKeys":["wert"]}
+\`\`\`
+
+Regeln:
+- type: "bar", "line", "area", "pie" oder "donut"
+- data: Array mit Objekten, jedes hat einen xKey und mindestens einen yKey
+- xKey: Name des Feldes für die X-Achse (z.B. "name", "monat", "jahr")
+- yKeys: Array der Feldnamen für die Werte (z.B. ["wert", "wert2"])
+- Verwende realistische, plausible Daten wenn keine konkreten Zahlen gegeben sind
+- Der JSON-Block MUSS in \`\`\`chart ... \`\`\` eingeschlossen sein`;
+
+const CHART_PROMPT_COMPUTED = `\nDer*die Nutzer*in möchte ein Diagramm. Die Werte wurden bereits deterministisch per Code berechnet (siehe BERECHNUNGSERGEBNIS) — verwende AUSSCHLIESSLICH diese Werte und erfinde KEINE Zahlen.
+Schreibe zuerst eine kurze Erklärung (1-2 Sätze), dann den JSON-Block in diesem Format:
+
+\`\`\`chart
+{"type":"bar","title":"Titel","data":[{"name":"A","wert":10},{"name":"B","wert":20}],"xKey":"name","yKeys":["wert"]}
+\`\`\`
+
+Regeln:
+- type: "bar", "line", "area", "pie" oder "donut"
+- data: Array mit Objekten, jedes hat einen xKey und mindestens einen yKey — die Werte EXAKT aus dem BERECHNUNGSERGEBNIS übernehmen
+- xKey: Name des Feldes für die X-Achse; yKeys: Array der Wert-Feldnamen
+- Der JSON-Block MUSS in \`\`\`chart ... \`\`\` eingeschlossen sein`;
+
 describe('getModeGuidance for chart intent', () => {
   it('grounds the chart on the computed values when a fresh result exists', () => {
     const out = getModeGuidance(
@@ -336,12 +373,14 @@ describe('getModeGuidance for chart intent', () => {
         computedResultFresh: true,
       })
     );
+    expect(out).toBe(CHART_PROMPT_COMPUTED);
     expect(out).toContain('AUSSCHLIESSLICH');
     expect(out).not.toContain('plausible Daten');
   });
 
   it('falls back to the plausible-data guidance without a fresh result', () => {
     const out = getModeGuidance(makeState({ intent: 'chart', computedResult: null }));
+    expect(out).toBe(CHART_PROMPT_PLAUSIBLE);
     expect(out).toContain('plausible Daten');
     expect(out).not.toContain('AUSSCHLIESSLICH');
   });
