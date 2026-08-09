@@ -5,13 +5,19 @@ import { describe, expect, it } from 'vitest';
 import { McpToolUI } from './McpToolUI';
 
 describe('McpToolUI', () => {
-  it('shows a spinner and is not expandable while the call is pending', () => {
+  it('shows a spinner and is not expandable while the call is pending', async () => {
+    const user = userEvent.setup();
     render(<McpToolUI args={{ server: 'notion', tool: 'search' }} />);
     expect(screen.getByText('notion')).toBeInTheDocument();
     expect(screen.getByText('search')).toBeInTheDocument();
     const button = screen.getByRole('button');
-    expect(button).toBeDisabled();
-    expect(button).not.toHaveAttribute('aria-expanded');
+    // Stays focusable (aria-disabled, not disabled) so keyboard users can
+    // still reach it and hear the in-flight state; the click is a no-op.
+    expect(button).toBeEnabled();
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    await user.click(button);
+    expect(button).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('becomes expandable once done, toggling aria-expanded and revealing args/result', async () => {
