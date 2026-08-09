@@ -55,6 +55,7 @@ import {
 } from './createTurn.js';
 import { failCreation, rememberArtifact, streamTextInChunks } from './createTurnHelpers.js';
 import { runDeepResearchTurn } from './deepResearchTurn.js';
+import { emitEditorOperations, planEditorOps } from './editorOpsCore.js';
 import { finishEditTurn } from './editTurnCompletion.js';
 import { extractTextContent } from './messageHelpers.js';
 import {
@@ -197,13 +198,6 @@ export async function handleSheetCreation(opts: CreateTurnOpts): Promise<boolean
   return runCreateTurn(SHEET_SPEC, opts);
 }
 
-/** One-line summary of a planned op batch, e.g. "1× format_range". */
-function summarizeSheetOps(operations: Array<{ type: string }>): string {
-  const counts = new Map<string, number>();
-  for (const op of operations) counts.set(op.type, (counts.get(op.type) ?? 0) + 1);
-  return [...counts.entries()].map(([type, n]) => `${n}× ${type}`).join(', ');
-}
-
 /**
  * edit_sheet — Tier-2.7 follow-up on a chat-created sheet ("mach die erste
  * Zeile fett"). Plans typed ops with the same planner the in-editor AI
@@ -260,36 +254,30 @@ export async function handleSheetEdit(opts: {
     return fail('Ich konnte die Tabelle nicht finden — vielleicht wurde sie gelöscht.');
   }
 
-  let operations;
-  try {
-    operations = await generateSheetOperations({
-      userPrompt: userContent,
-      sheetContext: formatSheetAsContext(state),
-      referenceContent: null,
-    });
-  } catch (err) {
-    log.error(`[SheetEdit] planning failed: ${err instanceof Error ? err.message : String(err)}`);
+  const planned = await planEditorOps({
+    log,
+    logLabel: '[SheetEdit]',
+    plan: () =>
+      generateSheetOperations({
+        userPrompt: userContent,
+        sheetContext: formatSheetAsContext(state),
+        referenceContent: null,
+      }),
+  });
+
+  if (!planned.ok) {
     return fail(
-      'Die Änderung an der Tabelle konnte nicht geplant werden. Versuch es bitte noch einmal.'
+      planned.reason === 'planning_failed'
+        ? 'Die Änderung an der Tabelle konnte nicht geplant werden. Versuch es bitte noch einmal.'
+        : 'Ich konnte daraus keine konkrete Tabellen-Änderung ableiten. Beschreib bitte genauer, was sich ändern soll.'
     );
   }
 
-  if (operations.length === 0) {
-    return fail(
-      'Ich konnte daraus keine konkrete Tabellen-Änderung ableiten. Beschreib bitte genauer, was sich ändern soll.'
-    );
-  }
-
-  const summary = summarizeSheetOps(operations);
+  const { operations, summary } = planned;
   const responseText = `Ich habe die Änderung an **"${state.title}"** vorbereitet (${summary}).`;
   streamTextInChunks(sse, responseText);
 
-  sse.send('editor_operations', {
-    surface: 'sheet',
-    targetId: sheetId,
-    operations,
-    summary,
-  });
+  emitEditorOperations(sse, 'sheet', sheetId, operations, summary);
   log.info(`[SheetEdit] planned ${operations.length} op(s) for sheet ${sheetId}`);
 
   if (actualThreadId) {
