@@ -1271,6 +1271,26 @@ export async function* parseSSEStream(
                 'Die Änderung konnte nicht angewendet werden.'
               );
             }
+          } else if (payload.surface === 'sheet' && payload.title) {
+            // Nothing has this sheet open yet (new/reopened thread, panel
+            // closed) — auto-(re)open the docked preview instead of dropping
+            // the edit. Queue the ops now; ArtifactPanel's relay (registered
+            // once the panel mounts) delivers them via registerEditorOpsHandler's
+            // queue flush, itself deferred until the iframe confirms it can
+            // receive postMessage (see ArtifactPanel/SheetsEditorPage).
+            console.warn(
+              '[ChatAdapter] editor_operations received with no handler — auto-opening docked preview for',
+              payload.targetId
+            );
+            useChatConfigStore.getState().enqueueEditorOps(payload);
+            useArtifactLiveStore.getState().setActiveArtifact({
+              id: `document-${payload.targetId}`,
+              type: 'document',
+              documentId: payload.targetId,
+              subtype: 'sheets',
+              title: payload.title,
+              url: `/office/${payload.targetId}`,
+            });
           } else {
             console.warn(
               '[ChatAdapter] editor_operations received but no handler registered for target',

@@ -290,6 +290,7 @@ export async function handleSheetEdit(opts: {
     targetId: sheetId,
     operations,
     summary,
+    title: state.title,
   });
   log.info(`[SheetEdit] planned ${operations.length} op(s) for sheet ${sheetId}`);
 

@@ -310,6 +310,19 @@ interface ChatConfigStore extends ResolvedChatConfig {
   /** Register an editor-operations handler for a target. Returns the unregister function. */
   registerEditorOpsHandler: (targetId: string, handler: EditorOperationsHandler) => () => void;
   /**
+   * targetId → the latest `editor_operations` event that arrived with no
+   * handler registered (nothing had the target open yet). parseSSEStream
+   * enqueues here instead of just warning when it can also auto-open a docked
+   * preview (see ArtifactPanel's `document` case); registerEditorOpsHandler
+   * flushes the entry the moment a handler shows up, so ops aren't lost to the
+   * race between "the SSE event arrived" and "the panel finished mounting".
+   * Only the latest entry per target is kept — an edit queued behind another
+   * queued edit for the same target is the rare case, not worth a full queue.
+   */
+  pendingEditorOps: Map<string, EditorOperationsEvent>;
+  /** Queue an editor_operations payload for delivery once a handler registers. */
+  enqueueEditorOps: (payload: EditorOperationsEvent) => void;
+  /**
    * Transient signal set by the regenerate / edit-resubmit UI and consumed once
    * by the model adapter on the next run. Tells the backend to replace the last
    * turn instead of appending it (keeps chat_messages linear). Scoped to a
@@ -399,6 +412,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
   documentEditHandlers: new Map(),
   boardActionHandlers: new Map(),
   editorOpsHandlers: new Map(),
+  pendingEditorOps: new Map(),
   pendingRunSignal: null,
 
   configure: (config?: ChatConfig) => {
@@ -471,6 +485,18 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
     const next = new Map(get().editorOpsHandlers);
     next.set(targetId, handler);
     set({ editorOpsHandlers: next });
+    // A handler showing up for a target that already has queued ops (the SSE
+    // event beat the panel/provider mount) means deliver now instead of
+    // waiting for the next editor_operations event, which may never come.
+    const queued = get().pendingEditorOps.get(targetId);
+    if (queued) {
+      const afterQueue = new Map(get().pendingEditorOps);
+      afterQueue.delete(targetId);
+      set({ pendingEditorOps: afterQueue });
+      Promise.resolve(handler(queued)).catch((err: unknown) => {
+        console.warn('[chatConfigStore] queued editorOpsHandler threw', err);
+      });
+    }
     return () => {
       const after = new Map(get().editorOpsHandlers);
       if (after.get(targetId) === handler) {
@@ -478,6 +504,12 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
         set({ editorOpsHandlers: after });
       }
     };
+  },
+
+  enqueueEditorOps: (payload) => {
+    const next = new Map(get().pendingEditorOps);
+    next.set(payload.targetId, payload);
+    set({ pendingEditorOps: next });
   },
 
   signalRegenerate: (threadId) => set({ pendingRunSignal: { threadId, regenerate: true } }),
