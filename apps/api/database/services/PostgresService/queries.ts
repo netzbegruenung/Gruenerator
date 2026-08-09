@@ -156,7 +156,10 @@ export async function transactionQuery(
     const result = await client.query(sql, params);
     return result.rows as Record<string, unknown>[];
   } catch (error) {
-    console.error('[PostgresService] Transaction query error:', { ...toLoggableDbError(error), sql });
+    console.error('[PostgresService] Transaction query error:', {
+      ...toLoggableDbError(error),
+      sql,
+    });
     throw new Error(`Transaction SQL query failed: ${(error as Error).message}`);
   }
 }
@@ -185,7 +188,10 @@ export async function transactionExec(
     const result = await client.query<{ id?: string }>(sql, params);
     return { changes: result.rowCount || 0, lastID: result.rows[0]?.id };
   } catch (error) {
-    console.error('[PostgresService] Transaction exec error:', { ...toLoggableDbError(error), sql });
+    console.error('[PostgresService] Transaction exec error:', {
+      ...toLoggableDbError(error),
+      sql,
+    });
     throw new Error(`Transaction SQL execution failed: ${(error as Error).message}`);
   }
 }
