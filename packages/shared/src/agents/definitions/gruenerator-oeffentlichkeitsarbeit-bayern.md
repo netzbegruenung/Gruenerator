@@ -1,5 +1,6 @@
 ---
 identifier: gruenerator-oeffentlichkeitsarbeit-bayern
+defaultRecipeMention: 'presse-bayern'
 autoRoutingHint: creative
 audience: de-DE
 title: Öffentlichkeitsarbeit Bayern
