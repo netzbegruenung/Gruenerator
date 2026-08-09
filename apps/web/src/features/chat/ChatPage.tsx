@@ -121,36 +121,50 @@ function ChatPage() {
   const maxPanelWidthPx = Math.max(ARTIFACT_PANEL_DEFAULT_WIDTH, Math.floor(shellWidth / 2));
   const clampedPanelWidthPx = Math.min(panelWidthPx, maxPanelWidthPx);
 
+  // Drag state lives in a ref, not closed-over locals: with pointer capture,
+  // move/end fire as React prop callbacks on the handle itself (see below),
+  // so they need to read the values `start` captured without re-subscribing
+  // per render.
+  const panelResizeRef = useRef<{ startX: number; startWidth: number; maxWidth: number } | null>(
+    null
+  );
+
   const handlePanelResizeStart = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
       e.preventDefault();
-      const startX = e.clientX;
-      const startWidth = clampedPanelWidthPx;
-      const dragMaxWidth = Math.max(
-        ARTIFACT_PANEL_DEFAULT_WIDTH,
-        Math.floor((shellRef.current?.clientWidth ?? 0) / 2)
-      );
-
-      const handleMove = (moveEvent: PointerEvent) => {
-        // The handle sits at the panel's left edge — dragging it further left
-        // (smaller clientX) grows the panel.
-        const next = startWidth + (startX - moveEvent.clientX);
-        setPanelWidthPx(Math.min(dragMaxWidth, Math.max(ARTIFACT_PANEL_DEFAULT_WIDTH, next)));
+      // The docked panel is mostly an <iframe>; plain window-level listeners
+      // stop receiving events the moment the pointer crosses into it (a
+      // shrink-drag moves back toward the panel almost immediately) because
+      // the iframe has its own document. Capturing the pointer on the handle
+      // retargets all of its events here regardless of what's underneath.
+      e.currentTarget.setPointerCapture(e.pointerId);
+      panelResizeRef.current = {
+        startX: e.clientX,
+        startWidth: clampedPanelWidthPx,
+        maxWidth: Math.max(
+          ARTIFACT_PANEL_DEFAULT_WIDTH,
+          Math.floor((shellRef.current?.clientWidth ?? 0) / 2)
+        ),
       };
-      // pointercancel too — a browser gesture or the panel closing mid-drag
-      // must not leave `handleMove` listening on `window` forever, where it'd
-      // silently track the next unrelated pointermove.
-      const stopDragging = () => {
-        window.removeEventListener('pointermove', handleMove);
-        window.removeEventListener('pointerup', stopDragging);
-        window.removeEventListener('pointercancel', stopDragging);
-      };
-      window.addEventListener('pointermove', handleMove);
-      window.addEventListener('pointerup', stopDragging);
-      window.addEventListener('pointercancel', stopDragging);
     },
     [clampedPanelWidthPx]
   );
+
+  const handlePanelResizeMove = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = panelResizeRef.current;
+    if (!drag) return;
+    // The handle sits at the panel's left edge — dragging it further left
+    // (smaller clientX) grows the panel.
+    const next = drag.startWidth + (drag.startX - e.clientX);
+    setPanelWidthPx(Math.min(drag.maxWidth, Math.max(ARTIFACT_PANEL_DEFAULT_WIDTH, next)));
+  }, []);
+
+  const handlePanelResizeEnd = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    panelResizeRef.current = null;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+  }, []);
 
   // WAI-ARIA "window splitter" pattern: a separator that resizes layout must
   // be operable from the keyboard, not pointer-only.
@@ -413,6 +427,9 @@ function ChatPage() {
           tabIndex={0}
           className="w-1 shrink-0 cursor-col-resize touch-none bg-transparent transition-colors hover:bg-primary/20 active:bg-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
           onPointerDown={handlePanelResizeStart}
+          onPointerMove={handlePanelResizeMove}
+          onPointerUp={handlePanelResizeEnd}
+          onPointerCancel={handlePanelResizeEnd}
           onKeyDown={handlePanelResizeKeyDown}
         />
       )}
