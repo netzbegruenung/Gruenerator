@@ -68,6 +68,7 @@ edit_current_board                0  anchor
 modify_board                      0  anchor
 share_doc                         0  gated
 create_sheet                      2  artifact
+edit_sheet                        0  anchor
 create_presentation               1  artifact
 create_pdf                        0  artifact
 create_recurring_task             0  gated

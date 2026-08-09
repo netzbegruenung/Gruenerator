@@ -21,6 +21,8 @@
  *   - sharepic → the answer text is a fixed template string in the router; the
  *     slogan comes from sharepicGenerationService. Auto has NO effect, so
  *     `sharepic` is intentionally absent from the table.
+ *   - edit_sheet → same pinned planner as create_sheet; the answer text is a
+ *     fixed template in handleSheetEdit. Also absent from the table.
  *   - summary → summarizeNode already runs on the `heavy` intermediate stage.
  *
  * ── Second-order effect ─────────────────────────────────────────────────────
@@ -111,7 +113,12 @@ const MEDIUM: AutoLaneId = 'mistral-medium-3.5';
  * With the exemption named, the table is exhaustive over SearchIntent and a new
  * intent breaks the build until someone decides.
  */
-export const AUTO_POLICY_EXEMPT = ['sharepic'] as const satisfies readonly SearchIntent[];
+export const AUTO_POLICY_EXEMPT = [
+  'sharepic',
+  // Ops come from sheetAiService, pinned to mistral-medium-2604 like
+  // create_sheet's; the answer text is a fixed template in handleSheetEdit.
+  'edit_sheet',
+] as const satisfies readonly SearchIntent[];
 type ExemptIntent = (typeof AUTO_POLICY_EXEMPT)[number];
 
 /**

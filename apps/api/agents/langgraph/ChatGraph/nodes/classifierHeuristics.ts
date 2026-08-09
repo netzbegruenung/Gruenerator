@@ -161,6 +161,9 @@ export const INTENT_KEYWORDS: Record<
     | 'sharepic'
     | 'save_as_doc'
     | 'create_sheet'
+    // edit_sheet is decided deterministically by Tier 2.7 (lastToolContext +
+    // modification keywords), never keyword-scored here.
+    | 'edit_sheet'
     | 'create_presentation'
     | 'create_pdf'
     // create_recurring_task is LLM-classified (needs a schedule); no keyword heuristic.
@@ -456,7 +459,7 @@ export function wantsImageResults(text: string): boolean {
 // the LLM's job. Only add stems for verbs frequent enough to justify
 // bypassing the LLM call.
 export const DOC_MODIFY_PATTERN =
-  /(?:^|\W)(aender|änder|bearbeit|ergaenz|ergänz|aktualisier|ueberarbeit|überarbeit|f(?:ü|ue)g(?:e)?\s+\S.{0,40}?\s+(?:hinzu|ein)|einf(?:ü|ue)g|vereinfach|umschreib|schreib\s+\S.{0,40}?\s+(?:um|neu)|kuerz|kürz|erweiter|verläng|verlaenger|ersetz|umformulier|formulier\s+\S.{0,40}?\s+(?:um|neu)|verbesser|korrigier|anpass|pass\s+\S.{0,40}?\s+an|entfern|loesch|lösch|streich|(?:ü|ue)bersetz|mach\s+\S.{0,40}?\s+(?:k(?:ü|ue)rzer|l(?:ä|ae)nger|pr(?:ä|ae)ziser|kompakter|pr(?:ä|ae)gnanter|knackiger|schlagkr(?:ä|ae)ftiger|verst(?:ä|ae)ndlicher|freundlicher|formeller|pers(?:ö|oe)nlicher))/i;
+  /(?:^|\W)(aender|änder|bearbeit|ergaenz|ergänz|aktualisier|ueberarbeit|überarbeit|f(?:ü|ue)g(?:e)?\s+\S.{0,40}?\s+(?:hinzu|ein)|einf(?:ü|ue)g|vereinfach|umschreib|schreib\s+\S.{0,40}?\s+(?:um|neu)|kuerz|kürz|erweiter|verläng|verlaenger|ersetz|umformulier|formulier\s+\S.{0,40}?\s+(?:um|neu)|verbesser|korrigier|anpass|pass\s+\S.{0,40}?\s+an|entfern|loesch|lösch|streich|(?:ü|ue)bersetz|mach\s+\S.{0,40}?\s+(?:k(?:ü|ue)rzer|l(?:ä|ae)nger|pr(?:ä|ae)ziser|kompakter|pr(?:ä|ae)gnanter|knackiger|schlagkr(?:ä|ae)ftiger|verst(?:ä|ae)ndlicher|freundlicher|formeller|pers(?:ö|oe)nlicher|fett|kursiv|unterstrichen|durchgestrichen|gr(?:ö|oe)(?:ss|ß)er|kleiner|farbig|bunt(?:er)?)|(?:fett|kursiv|unterstrichen|durchgestrichen|gr(?:ö|oe)(?:ss|ß)er|kleiner|farbig|bunt(?:er)?)\s+mach)/i;
 
 /**
  * Find intent using fuzzy (Levenshtein-based) matching.

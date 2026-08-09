@@ -2,9 +2,17 @@
 
 import { ARTIFACT_TYPE_META, subtypeToArtifactKind } from '@gruenerator/shared/docs';
 import { Code2, Download, ExternalLink, X } from 'lucide-react';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 
 import { useArtifactLiveStore } from '../stores/artifactLiveStore';
+import { useChatConfigStore } from '../stores/chatConfigStore';
+
+/**
+ * Namespaced postMessage type the docked document iframe listens for (see
+ * SheetsEditorPage's embedded-mode listener). Same-origin only — the iframe is
+ * always our own `/office/:id` route, never third-party.
+ */
+const EDITOR_OPS_MESSAGE_SOURCE = 'gruenerator-artifact-panel';
 
 // No allow-same-origin: paired with allow-scripts this keeps the iframe on a
 // permanently opaque/null origin, so a script inside the artifact can never
@@ -27,6 +35,24 @@ const ARTIFACT_CSP =
 export function ArtifactPanel({ className }: { className?: string }) {
   const active = useArtifactLiveStore((s) => s.activeArtifact);
   const isDocument = active?.type === 'document';
+  const documentIframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Relay `editor_operations` (planned by a chat-driven edit, e.g. edit_sheet)
+  // into the docked document iframe — a separate JS realm the outer page's SSE
+  // stream can't reach directly. Registering into the SAME useChatConfigStore
+  // instance parseSSEStream reads from means: sheet open here → relayed via
+  // postMessage; nothing docked (or docked on something else) → falls through
+  // to parseSSEStream's existing "no handler registered" warning, unchanged.
+  const activeDocumentId = active?.type === 'document' ? active.documentId : null;
+  useEffect(() => {
+    if (!activeDocumentId) return;
+    return useChatConfigStore.getState().registerEditorOpsHandler(activeDocumentId, (payload) => {
+      documentIframeRef.current?.contentWindow?.postMessage(
+        { source: EDITOR_OPS_MESSAGE_SOURCE, payload },
+        window.location.origin
+      );
+    });
+  }, [activeDocumentId]);
 
   // Wrap the artifact in a minimal, self-contained HTML document. SVG is
   // centered; HTML is rendered as-is. The document is fed via srcDoc into the
@@ -126,7 +152,12 @@ export function ArtifactPanel({ className }: { className?: string }) {
 
       <div className="flex-1 overflow-hidden bg-white">
         {isDocument ? (
-          <iframe title={active.title} src={embeddedUrl} className="h-full w-full border-0" />
+          <iframe
+            ref={documentIframeRef}
+            title={active.title}
+            src={embeddedUrl}
+            className="h-full w-full border-0"
+          />
         ) : (
           <iframe
             title={active.title}
