@@ -104,7 +104,10 @@
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 56px 24px;
+  /* Bottom padding reserves room for the absolutely-positioned hint + scroll
+     cue (~90px tall at bottom:16px) so an expanded provider list cannot slide
+     under it on short viewports. */
+  padding: 56px 24px 128px;
   /* light-theme locals; overridden for dark below */
   --sp-wordmark: #2f4f40;
   --sp-obr: rgba(47, 79, 64, 0.35);
@@ -408,7 +411,7 @@
 /* ── Phone ── */
 @media (max-width: 768px) {
   .sp-hero {
-    padding: 72px 24px 88px;
+    padding: 72px 24px calc(128px + env(safe-area-inset-bottom));
   }
   .sp-topbar {
     padding: 18px 20px;
@@ -459,6 +462,17 @@
   .sp-content {
     border-top-left-radius: 24px;
     border-top-right-radius: 24px;
+  }
+}
+
+/* On very short viewports the hint + cue are noise the CTA column needs the
+   room for — drop them entirely rather than letting anything overlap. */
+@media (max-height: 560px) {
+  .sp-cue-wrap {
+    display: none;
+  }
+  .sp-hero {
+    padding-bottom: 56px;
   }
 }
 

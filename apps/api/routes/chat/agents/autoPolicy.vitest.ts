@@ -137,6 +137,32 @@ describe('autoPolicy — lane assignment per task shape', () => {
     }
   });
 
+  it('report-lane intents keep reasoning OFF at every complexity', () => {
+    // Load-bearing, not decorative: the lane's current host (Regolo) honours
+    // `enable_thinking`, so a graded setting here would actually buy reasoning
+    // tokens for turns that only report material already in context.
+    for (const intent of [
+      'mcp',
+      'summary',
+      'chat_history',
+      'chart',
+      'scrape_url',
+      'bahn',
+      'wetter',
+      'hotel',
+      'reise',
+      'umfragen',
+      'hilfe',
+    ]) {
+      for (const complexity of COMPLEXITIES) {
+        expect(
+          resolveAutoSelection({ intent, complexity }).reasoning,
+          `${intent}/${complexity}`
+        ).toBe('off');
+      }
+    }
+  });
+
   it('compute narrates pre-computed figures on the Mistral lane, not the shared writer', () => {
     // 02.08.2026 incident: the shared writer filled a narration gap with its
     // own arithmetic. Moved off the shared content lane on 07.08.2026 so a
