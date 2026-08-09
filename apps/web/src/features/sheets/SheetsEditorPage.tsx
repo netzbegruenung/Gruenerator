@@ -5,6 +5,7 @@ import {
   useSyncGate,
   getAuthErrorMessage,
 } from '@gruenerator/collab';
+import { editorOperationsEventSchema, sheetOperationSchema } from '@gruenerator/contracts';
 import {
   DocsProvider,
   useDocsAdapter,
@@ -14,7 +15,12 @@ import {
   type Document,
 } from '@gruenerator/docs';
 import { EditorTopBar } from '@gruenerator/shared/components/EditorTopBar';
-import { SheetsEditor, type FUniver, type IWorkbookData } from '@gruenerator/sheets';
+import {
+  applySheetOperations,
+  SheetsEditor,
+  type FUniver,
+  type IWorkbookData,
+} from '@gruenerator/sheets';
 import { Skeleton } from '@gruenerator/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
@@ -27,6 +33,7 @@ import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import { useAuth } from '../../hooks/useAuth';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 import { platformFetch } from '../../utils/platformFetch';
+import { useDocAiEditEnabled } from '../docs/DocAiEditToggle';
 import { webAppDocsAdapter } from '../docs/docsAdapter';
 import { GuestBadge, GUEST_ANIMALS } from '../docs/GuestBadge';
 import { getOrCreateGuestIdentity } from '../docs/guestIdentity';
@@ -154,6 +161,54 @@ function SheetsEditorContent() {
   }, [authError]);
 
   const isEditable = canEdit && !authError;
+  const { enabled: aiEditEnabled } = useDocAiEditEnabled(id || '');
+
+  // Embedded (docked-in-chat) mode has no chat sidebar of its own — a chat-
+  // driven edit (edit_sheet) is planned server-side and relayed here from the
+  // OUTER chat page's SSE stream via postMessage (ArtifactPanel), since an
+  // iframe is a separate JS realm the outer page's own store can't reach.
+  // Applies through the exact same executor the in-editor AI assistant uses
+  // (applySheetOperations — Univer Facade, so it flows through the collab
+  // bridge and lands on the native undo stack). Gated on the same "KI darf
+  // bearbeiten" lock (useDocAiEditEnabled) the in-editor chat's own
+  // registerEditHandler respects — this path must not bypass it.
+  useEffect(() => {
+    if (!isEmbedded || !univerAPI || !isEditable || !id) return;
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data as { source: string | null; payload: unknown } | null;
+      if (data?.source !== 'gruenerator-artifact-panel') return;
+      const parsed = editorOperationsEventSchema.safeParse(data.payload);
+      if (!parsed.success) return;
+      const payload = parsed.data;
+      if (payload.targetId !== id || payload.surface !== 'sheet') return;
+      void (async () => {
+        const { toast } = await import('sonner');
+        if (!aiEditEnabled) {
+          toast.info('KI-Bearbeitung ist deaktiviert — es wurde nichts an der Tabelle geändert.');
+          return;
+        }
+        const workbook = univerAPI.getActiveWorkbook();
+        if (!workbook) return;
+        const ops = [];
+        for (const raw of payload.operations) {
+          const op = sheetOperationSchema.safeParse(raw);
+          if (op.success) ops.push(op.data);
+        }
+        if (ops.length === 0) return;
+        const { applied, skipped } = await applySheetOperations(workbook, ops, univerAPI);
+        if (applied > 0) {
+          toast.success(`${applied} Änderung${applied === 1 ? '' : 'en'} übernommen.`, {
+            id: 'sheet-edit-applied',
+            duration: 2000,
+          });
+        }
+        if (skipped.length > 0) toast.warning(skipped.join(' · '));
+      })();
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [isEmbedded, univerAPI, isEditable, id, aiEditEnabled]);
 
   if (docIsLoading || !isAuthResolved) {
     return (
