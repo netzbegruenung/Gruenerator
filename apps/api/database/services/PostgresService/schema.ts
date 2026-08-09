@@ -178,9 +178,6 @@ export function loadSchemaCache(): SchemaCache | null {
 }
 
 /**
- * Validate table name against schema whitelist
- */
-/**
  * Structural SQL-identifier guard. Table/column names are interpolated raw into
  * SQL by the query builders, so this MUST hold regardless of whether the schema
  * whitelist could be loaded (fail-closed). Only unquoted-identifier characters
@@ -195,6 +192,9 @@ export function assertSafeSqlIdentifier(name: string, kind: 'table' | 'column' =
   }
 }
 
+/**
+ * Validate table name against schema whitelist
+ */
 export function validateTableName(schemaCache: SchemaCache | null, tableName: string): void {
   if (!schemaCache) return;
 
