@@ -129,6 +129,9 @@ function PresentationsEditorContent() {
   // reached with ?present=1 (the PDF export path adds &print-pdf).
   const autoPresent = searchParams.get('present') === '1';
   const printPdf = searchParams.has('print-pdf');
+  // Set by the chat panel's docked preview iframe (ArtifactPanel) — drops the
+  // topbar there, matching DocsEditorPage's `isEmbedded`.
+  const isEmbedded = searchParams.get('embedded') === 'true';
   const [presenting, setPresenting] = useState(autoPresent);
   const [scrollView, setScrollView] = useState(false);
   const [designPanelOpen, setDesignPanelOpen] = useState(false);
@@ -241,122 +244,124 @@ function PresentationsEditorContent() {
 
   return (
     <div className="h-full flex flex-col relative">
-      <EditorTopBar
-        title={docData.title}
-        connectionStatus={connectionStatus}
-        onBack={isGuest ? undefined : () => navigate('/office')}
-        editable={isEditable}
-        onTitleChange={handleTitleChange}
-        overflowActions={
-          <>
-            {isEditable && editorApi && (
-              <>
+      {!isEmbedded && (
+        <EditorTopBar
+          title={docData.title}
+          connectionStatus={connectionStatus}
+          onBack={isGuest ? undefined : () => navigate('/office')}
+          editable={isEditable}
+          onTitleChange={handleTitleChange}
+          overflowActions={
+            <>
+              {isEditable && editorApi && (
+                <>
+                  <button
+                    className="glass-btn"
+                    onClick={editorApi.undo}
+                    aria-label="Rückgängig"
+                    title="Rückgängig (Strg+Z)"
+                  >
+                    <FiCornerUpLeft />
+                  </button>
+                  <button
+                    className="glass-btn"
+                    onClick={editorApi.redo}
+                    aria-label="Wiederholen"
+                    title="Wiederholen (Strg+Umschalt+Z)"
+                  >
+                    <FiCornerUpRight />
+                  </button>
+                </>
+              )}
+              <button
+                className="glass-btn"
+                onClick={() => {
+                  setScrollView(true);
+                  setPresenting(true);
+                }}
+                aria-label="Lesemodus"
+                title="Lesemodus (scrollbare Ansicht)"
+              >
+                <FiBookOpen />
+              </button>
+              {!isGuest && (
                 <button
-                  className="glass-btn"
-                  onClick={editorApi.undo}
-                  aria-label="Rückgängig"
-                  title="Rückgängig (Strg+Z)"
+                  onClick={() => setShowShareModal(true)}
+                  aria-label="Teilen"
+                  title="Teilen"
+                  className="flex h-9 items-center gap-[7px] rounded-full border border-[#D4DDD7] dark:border-grey-600 bg-white dark:bg-grey-800 px-3.5 text-sm font-bold text-[#2F4238] dark:text-grey-200 hover:bg-[#F4F7F5] dark:hover:bg-grey-700"
                 >
-                  <FiCornerUpLeft />
+                  <FiShare2 size={14} />
+                  Teilen
                 </button>
+              )}
+            </>
+          }
+          rightActions={
+            <>
+              {isGuest && guestIdentity && (
+                <GuestBadge
+                  guestName={guestIdentity.guestName}
+                  guestColor={guestIdentity.guestColor}
+                  guestIcon={GUEST_ANIMALS[guestIdentity.guestAnimalIndex].icon}
+                  loginUrl={`/login?redirectTo=${encodeURIComponent(`/office/${id}`)}`}
+                />
+              )}
+              {!isGuest && !canEdit && (
+                <div className="flex items-center py-1 px-2.5 text-[0.75rem] rounded-full bg-grey-100/60 dark:bg-grey-800/40 text-grey-600 dark:text-grey-400 border border-grey-200/50 dark:border-grey-700/50">
+                  Lesezugriff
+                </div>
+              )}
+              <span className="max-sm:hidden">
+                <CollaboratorAvatars collaborators={collaborators} />
+              </span>
+              {id && (
+                <PresentationExportMenu documentId={id} title={docData.title} isGuest={isGuest} />
+              )}
+              {!isGuest && (
                 <button
-                  className="glass-btn"
-                  onClick={editorApi.redo}
-                  aria-label="Wiederholen"
-                  title="Wiederholen (Strg+Umschalt+Z)"
+                  className={`glass-btn ${chatOpen ? 'active' : ''}`}
+                  onClick={() => setChatOpen((v) => !v)}
+                  aria-label="Chat"
+                  title="Chat"
+                  data-tour="presentations-chat-toggle"
                 >
-                  <FiCornerUpRight />
+                  <FiMessageSquare />
                 </button>
-              </>
-            )}
-            <button
-              className="glass-btn"
-              onClick={() => {
-                setScrollView(true);
-                setPresenting(true);
-              }}
-              aria-label="Lesemodus"
-              title="Lesemodus (scrollbare Ansicht)"
-            >
-              <FiBookOpen />
-            </button>
-            {!isGuest && (
+              )}
+              {isEditable && (
+                <button
+                  onClick={() => setDesignPanelOpen((v) => !v)}
+                  aria-label="Gestalten"
+                  title="Folie gestalten"
+                  data-tour="presentations-design"
+                  className={`flex h-9 max-sm:h-11 max-sm:w-11 max-sm:justify-center items-center gap-[7px] rounded-full px-3.5 max-sm:px-0 text-sm font-bold text-[#2F4238] dark:text-grey-200 ${
+                    designPanelOpen
+                      ? 'bg-[#DCE7E0] dark:bg-grey-700'
+                      : 'bg-[#EFF3F0] dark:bg-grey-800 hover:bg-[#E4EBE7] dark:hover:bg-grey-700'
+                  }`}
+                >
+                  <FiSliders size={15} />
+                  <span className="max-sm:hidden">Gestalten</span>
+                </button>
+              )}
               <button
-                onClick={() => setShowShareModal(true)}
-                aria-label="Teilen"
-                title="Teilen"
-                className="flex h-9 items-center gap-[7px] rounded-full border border-[#D4DDD7] dark:border-grey-600 bg-white dark:bg-grey-800 px-3.5 text-sm font-bold text-[#2F4238] dark:text-grey-200 hover:bg-[#F4F7F5] dark:hover:bg-grey-700"
+                onClick={() => {
+                  setScrollView(false);
+                  setPresenting(true);
+                }}
+                aria-label="Präsentieren"
+                title="Präsentieren"
+                data-tour="presentations-present"
+                className="flex h-9 max-sm:h-11 items-center gap-2 rounded-full bg-primary-600 px-[18px] max-sm:px-4 text-sm font-bold text-white hover:brightness-110"
               >
-                <FiShare2 size={14} />
-                Teilen
+                <FiPlay size={13} fill="currentColor" />
+                <span className="max-sm:hidden">Präsentieren</span>
               </button>
-            )}
-          </>
-        }
-        rightActions={
-          <>
-            {isGuest && guestIdentity && (
-              <GuestBadge
-                guestName={guestIdentity.guestName}
-                guestColor={guestIdentity.guestColor}
-                guestIcon={GUEST_ANIMALS[guestIdentity.guestAnimalIndex].icon}
-                loginUrl={`/login?redirectTo=${encodeURIComponent(`/office/${id}`)}`}
-              />
-            )}
-            {!isGuest && !canEdit && (
-              <div className="flex items-center py-1 px-2.5 text-[0.75rem] rounded-full bg-grey-100/60 dark:bg-grey-800/40 text-grey-600 dark:text-grey-400 border border-grey-200/50 dark:border-grey-700/50">
-                Lesezugriff
-              </div>
-            )}
-            <span className="max-sm:hidden">
-              <CollaboratorAvatars collaborators={collaborators} />
-            </span>
-            {id && (
-              <PresentationExportMenu documentId={id} title={docData.title} isGuest={isGuest} />
-            )}
-            {!isGuest && (
-              <button
-                className={`glass-btn ${chatOpen ? 'active' : ''}`}
-                onClick={() => setChatOpen((v) => !v)}
-                aria-label="Chat"
-                title="Chat"
-                data-tour="presentations-chat-toggle"
-              >
-                <FiMessageSquare />
-              </button>
-            )}
-            {isEditable && (
-              <button
-                onClick={() => setDesignPanelOpen((v) => !v)}
-                aria-label="Gestalten"
-                title="Folie gestalten"
-                data-tour="presentations-design"
-                className={`flex h-9 max-sm:h-11 max-sm:w-11 max-sm:justify-center items-center gap-[7px] rounded-full px-3.5 max-sm:px-0 text-sm font-bold text-[#2F4238] dark:text-grey-200 ${
-                  designPanelOpen
-                    ? 'bg-[#DCE7E0] dark:bg-grey-700'
-                    : 'bg-[#EFF3F0] dark:bg-grey-800 hover:bg-[#E4EBE7] dark:hover:bg-grey-700'
-                }`}
-              >
-                <FiSliders size={15} />
-                <span className="max-sm:hidden">Gestalten</span>
-              </button>
-            )}
-            <button
-              onClick={() => {
-                setScrollView(false);
-                setPresenting(true);
-              }}
-              aria-label="Präsentieren"
-              title="Präsentieren"
-              data-tour="presentations-present"
-              className="flex h-9 max-sm:h-11 items-center gap-2 rounded-full bg-primary-600 px-[18px] max-sm:px-4 text-sm font-bold text-white hover:brightness-110"
-            >
-              <FiPlay size={13} fill="currentColor" />
-              <span className="max-sm:hidden">Präsentieren</span>
-            </button>
-          </>
-        }
-      />
+            </>
+          }
+        />
+      )}
 
       <div className="flex-1 min-h-0 flex flex-row overflow-hidden">
         <div className="flex-1 min-w-0 min-h-0 flex flex-col" data-tour="presentations-surface">
