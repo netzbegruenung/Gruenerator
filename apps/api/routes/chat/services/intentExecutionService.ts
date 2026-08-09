@@ -229,6 +229,7 @@ export async function handleSheetEdit(opts: {
   sse.send('response_start', { message: 'Bearbeite Tabelle...' });
 
   const fail = async (text: string): Promise<boolean> => {
+    sse.send('text_delta', { text });
     await finishEditTurn({
       sse,
       threadId: actualThreadId ?? null,
@@ -238,6 +239,7 @@ export async function handleSheetEdit(opts: {
       logPrefix: '[SheetEdit]',
       startTime: classifiedState.startTime,
       classificationTimeMs: classifiedState.classificationTimeMs,
+      streamed: true,
     });
     return true;
   };
