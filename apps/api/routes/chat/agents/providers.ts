@@ -506,10 +506,10 @@ export function getContextWindow(
 // demanding it reported "not configured" for a lane that would in fact work
 // (and that the worker path used happily).
 //
-// Six modules import isProviderConfigured from here (boardAiService,
-// canvasChatEditController, notebookStreamCore, docs/aiController,
-// presentationAiService, sheetAiService), so it is re-exported rather than
-// every importer being repointed in the same change.
+// Several modules import isProviderConfigured from here (boardAiService,
+// notebookStreamCore, docs/aiController, presentationAiService,
+// sheetAiService), so it is re-exported rather than every importer being
+// repointed in the same change.
 export { isProviderConfigured };
 
 export function getModel(

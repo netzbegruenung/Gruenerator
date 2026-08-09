@@ -784,30 +784,36 @@ const EDIT_CURRENT_DOC_GUIDANCE =
 const SUMMARY_GUIDANCE =
   '\nDer*die Nutzer*in hat eine Zusammenfassung angefordert. Präsentiere die vorbereitete Zusammenfassung klar und strukturiert.';
 
-const CHART_GUIDANCE = `\nDer*die Nutzer*in möchte ein Diagramm. Erstelle die Daten und gib sie als JSON-Block zurück.
-Schreibe zuerst eine kurze Erklärung (1-2 Sätze), dann den JSON-Block in diesem Format:
-
-\`\`\`chart
-{"type":"bar","title":"Titel","data":[{"name":"A","wert":10},{"name":"B","wert":20}],"xKey":"name","yKeys":["wert"]}
-\`\`\`
-
-Regeln:
-- type: "bar", "line", "area", "pie" oder "donut"
-- data: Array mit Objekten, jedes hat einen xKey und mindestens einen yKey
-- xKey: Name des Feldes für die X-Achse (z.B. "name", "monat", "jahr")
-- yKeys: Array der Feldnamen für die Werte (z.B. ["wert", "wert2"])
-- Verwende realistische, plausible Daten wenn keine konkreten Zahlen gegeben sind
-- Der JSON-Block MUSS in \`\`\`chart ... \`\`\` eingeschlossen sein`;
-
 /**
- * Chart guidance. When the run_python interrupt already computed the values
- * (chart over an attached spreadsheet), the model must chart EXACTLY those
- * numbers — the plain CHART_GUIDANCE's "plausible Daten" licence produced
+ * Chart guidance, in its two variants.
+ *
+ * `computed` is for the case where the run_python interrupt already produced the
+ * values (chart over an attached spreadsheet): the model must then chart EXACTLY
+ * those numbers, because the other variant's "plausible Daten" licence produced
  * fabricated category splits in beta.
+ *
+ * Composed rather than written out twice — the format block and half the rules
+ * are identical, and as two literals a rule added to one was invisible to the
+ * other.
  */
-function getChartGuidance(state: ChatGraphState): string {
-  if (state.computedResult && state.computedResultFresh) {
-    return `\nDer*die Nutzer*in möchte ein Diagramm. Die Werte wurden bereits deterministisch per Code berechnet (siehe BERECHNUNGSERGEBNIS) — verwende AUSSCHLIESSLICH diese Werte und erfinde KEINE Zahlen.
+function buildChartGuidance(computed: boolean): string {
+  const intro = computed
+    ? 'Der*die Nutzer*in möchte ein Diagramm. Die Werte wurden bereits deterministisch per Code berechnet (siehe BERECHNUNGSERGEBNIS) — verwende AUSSCHLIESSLICH diese Werte und erfinde KEINE Zahlen.'
+    : 'Der*die Nutzer*in möchte ein Diagramm. Erstelle die Daten und gib sie als JSON-Block zurück.';
+
+  const rules = computed
+    ? [
+        '- data: Array mit Objekten, jedes hat einen xKey und mindestens einen yKey — die Werte EXAKT aus dem BERECHNUNGSERGEBNIS übernehmen',
+        '- xKey: Name des Feldes für die X-Achse; yKeys: Array der Wert-Feldnamen',
+      ]
+    : [
+        '- data: Array mit Objekten, jedes hat einen xKey und mindestens einen yKey',
+        '- xKey: Name des Feldes für die X-Achse (z.B. "name", "monat", "jahr")',
+        '- yKeys: Array der Feldnamen für die Werte (z.B. ["wert", "wert2"])',
+        '- Verwende realistische, plausible Daten wenn keine konkreten Zahlen gegeben sind',
+      ];
+
+  return `\n${intro}
 Schreibe zuerst eine kurze Erklärung (1-2 Sätze), dann den JSON-Block in diesem Format:
 
 \`\`\`chart
@@ -816,10 +822,14 @@ Schreibe zuerst eine kurze Erklärung (1-2 Sätze), dann den JSON-Block in diese
 
 Regeln:
 - type: "bar", "line", "area", "pie" oder "donut"
-- data: Array mit Objekten, jedes hat einen xKey und mindestens einen yKey — die Werte EXAKT aus dem BERECHNUNGSERGEBNIS übernehmen
-- xKey: Name des Feldes für die X-Achse; yKeys: Array der Wert-Feldnamen
+${rules.join('\n')}
 - Der JSON-Block MUSS in \`\`\`chart ... \`\`\` eingeschlossen sein`;
-  }
+}
+
+const CHART_GUIDANCE = buildChartGuidance(false);
+
+function getChartGuidance(state: ChatGraphState): string {
+  if (state.computedResult && state.computedResultFresh) return buildChartGuidance(true);
   return CHART_GUIDANCE;
 }
 

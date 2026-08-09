@@ -8,7 +8,6 @@
  */
 
 import {
-  createDocumentArtifact,
   documentContextKind,
   pdfKindFromText,
   runBoardGeneration,
@@ -145,7 +144,8 @@ export function makeDocumentSpec(opts: {
     contextKind: (doc) => documentContextKind(doc.subtype),
     logLabel: 'Document',
     generate: (ctx, onCommit) =>
-      createDocumentArtifact({
+      runDocGeneration({
+        kind: 'document',
         aiWorkerPool: ctx.aiWorkerPool,
         req: ctx.req,
         userId: ctx.userId,
