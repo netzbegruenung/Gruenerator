@@ -8,7 +8,7 @@
  * plus pure functions to build the LLM snapshot and translate validated
  * `CanvasAiOperation`s into a flat state patch.
  *
- * Parity guards live in `packages/canvas-editor/src/ai/descriptorParity.vitest.ts`
+ * Parity guards live in `packages/canvas-editor/src/ai/sharepicDescriptorParity.vitest.ts`
  * (color schemes / background colors / state keys against the real configs).
  */
 import { z } from 'zod';
