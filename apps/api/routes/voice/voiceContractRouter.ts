@@ -86,10 +86,12 @@ export const voiceContractRouter = s.router(voiceContract, {
       };
 
       let audioBuffer: Buffer;
+      let knownDurationSeconds: number | null = null;
       if (isVideoFile(filetype)) {
         const extracted = await extractAudioFromVideoPath(filePath, filename);
         audioBuffer = extracted.buffer;
         filename = extracted.filename;
+        knownDurationSeconds = extracted.durationSeconds;
       } else {
         // /api/audio/upload's TUS ceiling is MAX_VIDEO_UPLOAD_BYTES (3GB) for the
         // whole path, video and audio alike — video never buffers fully (see
@@ -110,7 +112,7 @@ export const voiceContractRouter = s.router(voiceContract, {
         audioBuffer = Buffer.from(await fs.promises.readFile(filePath));
       }
 
-      const result = await transcribeBuffer(audioBuffer, filename, options);
+      const result = await transcribeBuffer(audioBuffer, filename, options, knownDurationSeconds);
 
       let speakerMap: Record<string, string> = {};
       if (diarize && result.text.includes('[speaker_')) {
