@@ -240,6 +240,11 @@ interface VariantRequest {
  * Build the single regeneration request for a refinement. The previous text is
  * fed back to the model (as the quote to optimise, or described in Details) along
  * with the user's modification instruction, so the topic/core message is kept.
+ *
+ * This is the FALLBACK path: it produces a brand-new variant rather than an
+ * in-place edit with a version history. It now only runs for templates without
+ * a descriptor (freeform, freeform-at, profilbild) or when no target variant
+ * could be resolved — everything else goes through `handleSharepicEdit`.
  */
 function buildRefinementRequest(
   refinement: { instruction: string; prior: PriorSharepic },
