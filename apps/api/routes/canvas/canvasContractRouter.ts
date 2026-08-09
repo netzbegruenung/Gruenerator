@@ -20,6 +20,7 @@ import { canvasContract, getSharepicTemplateDescriptor } from '@gruenerator/cont
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import {
+  checkCanvasWriteAccess,
   cloneCanvas,
   createCanvas,
   deleteCanvas,
@@ -285,7 +286,10 @@ export const canvasContractRouter = s.router(canvasContract, {
   restoreVersion: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
-      const access = await getCanvas(args.params.id, userId);
+      // Restore mutates the live document, so it requires WRITE access (owner or
+      // editor) — not the read access getCanvas grants to viewers of a shared or
+      // public canvas.
+      const access = await checkCanvasWriteAccess(args.params.id, userId);
       if (access.kind === 'not_found') {
         return { status: 404 as const, body: { error: 'Canvas not found' } };
       }
