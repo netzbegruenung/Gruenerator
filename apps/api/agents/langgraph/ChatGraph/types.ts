@@ -525,7 +525,7 @@ export interface ChatGraphInput {
   wolkeFiles?: WolkeFileRef[] | undefined;
   connectFiles?: ConnectFileRef[] | undefined;
   /**
-   * URLs explicitly attached in the composer via the @web mention. Merged with
+   * URLs explicitly attached in the composer via the @link mention. Merged with
    * the classifier's auto-detected URLs and crawled through the scrape_url path.
    */
   attachedWebpageUrls?: string[] | undefined;
@@ -686,7 +686,7 @@ export interface ChatGraphState {
   // Downloaded + parsed inline at searchNode time; never persisted.
   connectFiles: ConnectFileRef[];
 
-  // URLs attached via the @web mentionable. The classifier unions these into
+  // URLs attached via the @link mentionable. The classifier unions these into
   // `detectedUrls` so the existing scrape_url path crawls them.
   attachedWebpageUrls: string[];
 
