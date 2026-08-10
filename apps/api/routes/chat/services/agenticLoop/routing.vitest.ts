@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import {
+  looksLikeChitchatTurn,
   looksLikeToolableQuestion,
   looksLikeCompoundGeneration,
   looksLikeCompoundEdit,
@@ -68,6 +69,31 @@ describe('looksLikeToolableQuestion', () => {
   ];
   it.each(fastPath)('keeps a fast-path turn out of the loop: %s', (_label, q) => {
     expect(looksLikeToolableQuestion(q)).toBe(false);
+  });
+});
+
+describe('looksLikeChitchatTurn', () => {
+  // These reach respondNode single-pass with a non-neutral intent (`produktion`
+  // via the residual) — the default-recipe autoload must not fire on them.
+  const chitchat: [string, string][] = [
+    ['identity', 'Wer bist du?'],
+    ['capability', 'Was kannst du?'],
+    ['help', 'hilfe'],
+    ['test', 'test'],
+    ['greeting-prefixed', 'Hallo, was kannst du denn so?'],
+  ];
+  it.each(chitchat)('flags assistant-directed chit-chat: %s', (_label, q) => {
+    expect(looksLikeChitchatTurn(q)).toBe(true);
+  });
+
+  const writeTurns: [string, string][] = [
+    ['press release', 'Schreib eine Pressemitteilung zur Wärmewende'],
+    ['bürgermail', 'Antworte auf diese Bürgeranfrage: …'],
+    ['greeting + write order', 'Hallo! Schreib mir eine PM zum Radentscheid'],
+    ['empty', '   '],
+  ];
+  it.each(writeTurns)('does not flag a write turn: %s', (_label, q) => {
+    expect(looksLikeChitchatTurn(q)).toBe(false);
   });
 });
 

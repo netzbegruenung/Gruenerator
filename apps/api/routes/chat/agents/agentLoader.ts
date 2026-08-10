@@ -33,10 +33,10 @@ const missingRoleLogged = new Set<string>();
  * would be public. This is the single seam where a system agent becomes an
  * `AgentConfig`, so every downstream reader sees a complete agent.
  *
- * Three cases:
- *   - LV agents (lvPrAgents/lvBuergerAgents) build their role in code and keep
- *     it; they never reach the disk lookup.
- *   - Markdown-defined agents get theirs from `<INTERN_CONTENT_DIR>/agents/`.
+ * Two cases:
+ *   - Every agent with an empty systemRole — markdown-defined agents AND the
+ *     generated LV agents (lvPrAgents/lvBuergerAgents/lvWahlpruefsteinAgents) —
+ *     gets it from `<INTERN_CONTENT_DIR>/agents/<identifier>.md`.
  *   - Nothing on disk means the rollout did not land. Unlike a recipe, an agent
  *     has nothing to fall back *to*, and an empty role makes
  *     `promptAssemblyGraph.buildSystemText` throw — so substitute a generic
