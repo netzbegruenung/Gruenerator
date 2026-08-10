@@ -83,8 +83,9 @@ const PrivacyTab = () => {
           </p>
         )}
         <p className="m-0">
-          Ohne diese Einwilligung kannst du die KI-Funktionen nicht nutzen — beim nächsten Aufruf
-          fragen wir erneut. Was wir verarbeiten, steht in der{' '}
+          Ohne diese Einwilligung kannst du die KI-Funktionen nicht nutzen: nimmst du sie zurück,
+          steht sofort wieder die Einwilligungsabfrage da — dort kannst du erneut einwilligen oder
+          dich abmelden. Was wir verarbeiten, steht in der{' '}
           <a href="/datenschutz" className="underline">
             Datenschutzerklärung
           </a>
