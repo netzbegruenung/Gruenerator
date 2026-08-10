@@ -180,8 +180,18 @@ export const userProfileSchema = z.object({
   reduce_motion: z.boolean().default(false),
   reduce_transparency: z.boolean().default(false),
   show_skip_link: z.boolean().default(true),
-  /** ISO-Zeitstempel der Art.-9-Einwilligung; null = nicht erteilt. */
-  ai_consent_at: z.string().nullish(),
+  /**
+   * ISO-Zeitstempel der Art.-9-Einwilligung; null = nicht erteilt.
+   *
+   * Better Auth führt das Feld als `type: 'date'` (TIMESTAMPTZ-Spalte) und
+   * liefert in `session.user` deshalb ein `Date`, während `profileMapper`
+   * bereits einen ISO-String liefert. Beide Eingaben akzeptieren und auf den
+   * String normalisieren — wie bei `created_at`/`updated_at`.
+   */
+  ai_consent_at: z
+    .union([z.string(), z.date()])
+    .nullish()
+    .transform((value) => (value instanceof Date ? value.toISOString() : value)),
   is_admin: z.boolean().optional(),
   groups_enabled: z.boolean().default(false),
   custom_generators: z.boolean().default(false),
