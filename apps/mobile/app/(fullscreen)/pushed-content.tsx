@@ -1,7 +1,11 @@
 /**
  * PushedContentScreen
- * Displays content received via push-to-phone notification.
- * Allows saving to gallery or sharing via native share sheet.
+ * Read-only viewer for a shared image or video, opened from the recent-activity
+ * list (`useRecentActivity`). Allows saving to gallery or sharing via the native
+ * share sheet.
+ *
+ * The route name is a leftover from push-to-phone, which used to be one way in;
+ * the screen itself never depended on notifications.
  */
 
 import { Ionicons } from '@react-native-vector-icons/ionicons';
