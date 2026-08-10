@@ -45,7 +45,11 @@ import { withTimeout } from '../../../utils/withTimeout.js';
 import { getContextWindow } from '../agents/providers.js';
 
 import { getThreadAttachments } from './attachmentPersistenceService.js';
-import { isTabularAttachment, processAttachments } from './attachmentProcessingService.js';
+import {
+  extractPromotablePasteText,
+  isTabularAttachment,
+  processAttachments,
+} from './attachmentProcessingService.js';
 import { enrichContext } from './contextEnrichmentService.js';
 import {
   extractTextContent,
@@ -348,6 +352,28 @@ export async function buildStreamContext({
 
   let lastUserMessage = validMessages.filter((m) => m.role === 'user').pop();
 
+  // === Promote a bare paste to the prompt ===
+  // The composer converts a large paste into a synthetic text attachment; sent
+  // with an empty textarea, the paste IS the prompt. Left as an attachment it
+  // lands in the untrusted-material channel, whose hierarchy rule forbids
+  // executing instructions found there — the model then correctly answers "du
+  // hast mir keine Aufgabe gestellt" (QA 08/2026). Text pasted into the
+  // composer is the user's own input, so with no other prompt text it becomes
+  // the user message itself (classifier, title, persistence and prompts all see
+  // it); alongside typed text it stays reference material as before.
+  let effectiveAttachments = attachments as ProcessedAttachment[] | undefined;
+  if (lastUserMessage) {
+    const promotion = extractPromotablePasteText(
+      effectiveAttachments,
+      extractTextContent(lastUserMessage.content)
+    );
+    if (promotion) {
+      lastUserMessage.content = promotion.pasteText;
+      effectiveAttachments = promotion.remaining;
+      log.info('[StreamContext] Pasted text promoted to user prompt (composer text was empty)');
+    }
+  }
+
   // === Create thread if needed ===
   // Normalize null → undefined: contract schema uses .nullish() to accept
   // both, but downstream code is typed for string | undefined.
@@ -493,7 +519,7 @@ export async function buildStreamContext({
     attachmentContext: derivedAttachmentContext,
     imageAttachments,
     processedMeta,
-  } = await processAttachments(attachments as ProcessedAttachment[] | undefined, requestId);
+  } = await processAttachments(effectiveAttachments, requestId);
 
   // Merge any client-injected context (e.g. docs editor markdown + selection)
   // with what processAttachments derived from uploaded files.
@@ -504,8 +530,7 @@ export async function buildStreamContext({
       ? `${clientAttachmentContext}\n\n---\n\n${derivedAttachmentContext}`
       : clientAttachmentContext || derivedAttachmentContext;
 
-  const docAttachments =
-    (attachments as ProcessedAttachment[] | undefined)?.filter((a) => !a.isImage) ?? [];
+  const docAttachments = effectiveAttachments?.filter((a) => !a.isImage) ?? [];
 
   const previousAttachments = actualThreadId ? await getThreadAttachments(actualThreadId, 5) : [];
 
