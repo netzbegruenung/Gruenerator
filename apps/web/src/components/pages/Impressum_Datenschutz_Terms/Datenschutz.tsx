@@ -368,14 +368,14 @@ const Datenschutz = () => {
 
       <h3 id="ki-textgenerierung">KI-Textgenerierung und Chat</h3>
       <p>
-        Die von Dir eingegebenen Texte werden zur Bearbeitung an den von Dir je Anfrage gewählten
-        KI-Dienstleister mit Verarbeitung in der EU weitergeleitet (Mistral AI/FR, KI-Modelle der
-        netzbegrünung/EU, Seeweb/Regolo AI/IT, GreenPT/NL mit Verarbeitung in FR). Das Modell
-        Mistral Medium 3.5 läuft dabei auf Rechenleistung von Scaleway/FR; fällt Scaleway aus, geht
-        dieselbe Anfrage direkt an Mistral AI. Eine Nutzung Deiner Eingaben zum Training der KI
-        findet nicht statt. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO; enthalten Deine Eingaben
-        besondere Kategorien (z. B. politische Meinungen), stützt sich deren Verarbeitung auf Art. 9
-        Abs. 2 lit. a DSGVO (Deine ausdrückliche Einwilligung, die wir vor der ersten Nutzung der
+        Die von Dir eingegebenen Texte werden zur Bearbeitung an einen KI-Dienstleister mit
+        Verarbeitung in der EU weitergeleitet (Mistral AI/FR, KI-Modelle der netzbegrünung/EU,
+        Seeweb/Regolo AI/IT, GreenPT/NL mit Verarbeitung in FR). Das Modell Mistral Medium 3.5 läuft
+        dabei auf Rechenleistung von Scaleway/FR; fällt Scaleway aus, geht dieselbe Anfrage direkt
+        an Mistral AI. Eine Nutzung Deiner Eingaben zum Training der KI findet nicht statt.
+        Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO; enthalten Deine Eingaben besondere
+        Kategorien (z. B. politische Meinungen), stützt sich deren Verarbeitung auf Art. 9 Abs. 2
+        lit. a DSGVO (Deine ausdrückliche Einwilligung, die wir vor der ersten Nutzung der
         KI-Funktionen gesondert einholen).
       </p>
 
