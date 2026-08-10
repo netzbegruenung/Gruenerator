@@ -25,12 +25,19 @@ export interface SplitResult {
 /** Zeile aus mindestens drei Trennzeichen: `---`, `***`, `===`, `___`, `- - -`. */
 const RULE_LINE = /^[ \t]*(?:[-*=_~][ \t]*){3,}$/;
 
-/** Überschriftenzeile: „Beispiel 3", „--- Beispiel 3 ---", „## Post 2:", „Text". */
+/**
+ * Überschriftenzeile: „Beispiel 3", „--- Beispiel 3 ---", „## Post 2:".
+ *
+ * Die Nummer ist Pflicht. Ohne sie würde eine Etikettzeile „Text:" oder „Post:",
+ * wie sie beim Kopieren aus einer Vorlage mitten in EINEM Beispiel steht, als
+ * Trenner gelesen — und Trennzeilen verschwinden ersatzlos, das Beispiel zerfiele
+ * still in zwei Bruchstücke.
+ */
 const HEADING_LINE =
-  /^[ \t]*[-*=_~#]*[ \t]*(?:beispiel|example|post|text|nr\.?)[ \t]*#?[ \t]*\d{0,3}[ \t]*[.:)\]-]*[ \t]*[-*=_~#]*[ \t]*$/i;
+  /^[ \t]*[-*=_~#]*[ \t]*(?:beispiel|example|post|text|nr\.?)[ \t]*#?[ \t]*\d{1,3}[ \t]*[.:)\]-]*[ \t]*[-*=_~#]*[ \t]*$/i;
 
 /** Reine Aufzählungszeile: „1.", „2)". */
-const NUMBERED_LINE = /^[ \t]*\d{1,3}[.)][ \t]*$/;
+const NUMBERED_LINE = /^[ \t]*(\d{1,3})[.)][ \t]*$/;
 
 /** Mindestens zwei aufeinanderfolgende Leerzeilen. */
 const BLANK_RUN = /\n[ \t]*\n(?:[ \t]*\n)+/;
@@ -55,6 +62,35 @@ function clean(chunks: string[]): string[] {
 }
 
 /**
+ * Nummerierung ist die gefährlichste Trennung: „1." allein auf einer Zeile ist
+ * bei Anträgen — einem der unterstützten Rezept-Typen — die normale Form für
+ * Beschlussklauseln und ein häufiges Artefakt der PDF-Extraktion. Ein Antrag,
+ * daran zerlegt, kommt als Haufen Klauselfragmente in der Stilanalyse an, die
+ * nach dem Aufbau VOLLSTÄNDIGER Texte fragt.
+ *
+ * Deshalb zählt die Nummerierung nur, wenn sie plausibel die Liste IST und nicht
+ * bloß in einem Text vorkommt: Sie muss den Text eröffnen (kein Vorspann davor)
+ * und lückenlos ab 1 durchzählen. Ein Antrag hat vor seiner ersten Klausel
+ * praktisch immer einen Titel oder ein „Der Rat möge beschließen:".
+ */
+function splitNumbered(text: string): string[] {
+  const lines = text.split('\n');
+  const marks: Array<{ line: number; n: number }> = [];
+  lines.forEach((line, index) => {
+    const match = NUMBERED_LINE.exec(line);
+    if (match) marks.push({ line: index, n: Number(match[1]) });
+  });
+
+  if (marks.length < 2) return [];
+  if (marks.some((mark, i) => mark.n !== i + 1)) return [];
+
+  const preamble = lines.slice(0, marks[0]?.line ?? 0).join('');
+  if (preamble.trim().length > 0) return [];
+
+  return splitAtLines(text, (l) => NUMBERED_LINE.test(l));
+}
+
+/**
  * Zerlegt den Rohtext. Liefert immer mindestens ein Beispiel, solange der Text
  * nicht leer ist — eine Zerlegung, die nur einen Treffer ergibt, gilt als „nicht
  * getrennt" und wird verworfen, damit die nächste Strategie zum Zug kommt.
@@ -66,7 +102,7 @@ export function splitExamples(raw: string): SplitResult {
   const candidates: Array<[SplitStrategy, () => string[]]> = [
     ['rule', () => splitAtLines(text, (l) => RULE_LINE.test(l))],
     ['heading', () => splitAtLines(text, (l) => HEADING_LINE.test(l))],
-    ['numbered', () => splitAtLines(text, (l) => NUMBERED_LINE.test(l))],
+    ['numbered', () => splitNumbered(text)],
     ['blank', () => text.split(BLANK_RUN)],
   ];
 
