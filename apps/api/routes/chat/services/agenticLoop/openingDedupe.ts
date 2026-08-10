@@ -45,9 +45,17 @@ export function matchOpeningPrefix(buffer: string, opening: string): PrefixMatch
     i++;
     j++;
   }
-  // Consume the decoration/whitespace between the duplicate and the real
-  // answer ("**Opening.**\n\nContent" → end lands on "Content").
-  while (i < buffer.length && /[\s*_#]/.test(buffer[i])) i++;
+  // Consume ONLY what still belongs to the duplicate: its closing emphasis
+  // (`**`/`_`, directly attached, max 3 chars) and the whitespace after it.
+  // Nothing beyond — an unbounded `[\s*_#]` sweep here ate the `#` of a real
+  // heading and the opening `**` of a `**Betreff:**` label that START the
+  // actual answer ("**Opening.**\n\n**Betreff:** …" must keep its bold).
+  let emphasis = 0;
+  while (i < buffer.length && emphasis < 3 && /[*_]/.test(buffer[i])) {
+    i++;
+    emphasis++;
+  }
+  while (i < buffer.length && isWs(buffer[i])) i++;
   return { kind: 'matched', end: i };
 }
 
