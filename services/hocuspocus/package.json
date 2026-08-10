@@ -41,7 +41,7 @@
     "@gruenerator/eslint-config": "workspace:*",
     "@types/express": "^5.0.6",
     "@types/node": "^26.1.2",
-    "@types/pg": "^8.20.0",
+    "@types/pg": "^8.20.4",
     "eslint": "^9.39.5",
     "tsx": "^4.23.1",
     "typescript": "^6.0.3",
