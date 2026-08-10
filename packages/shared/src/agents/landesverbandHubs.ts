@@ -40,28 +40,27 @@ export interface LvHub {
 }
 
 /**
- * Derived from the LV registry (`landesverbaende.ts`): every Landesverband that
- * declares a `hub` becomes a hub. notebookId / agent ids / audience all come
- * from the single registry entry, so a hub can never drift from the agents it
- * points at. The registry types the agent ids as `string`; they are valid
- * `SystemAgentId`s by construction, so the cast is the assertion at this boundary.
+ * Derived from the LV registry (`landesverbaende.ts`): jeder Landesverband wird
+ * zu einem Hub. notebookId / agent ids / audience all come from the single
+ * registry entry, so a hub can never drift from the agents it points at. The
+ * registry types the agent ids as `string`; they are valid `SystemAgentId`s by
+ * construction, so the cast is the assertion at this boundary.
+ *
+ * Vollständig statt gefiltert: `hub` ist am Registry-Eintrag Pflicht, weil diese
+ * Liste die einzige notebook→agents-Relation trägt, aus der sich die Ausblende-
+ * Pfade bedienen. Ein hier fehlender LV wäre ein LV, der sich nicht verstecken
+ * lässt — siehe den Kommentar an `LandesverbandEntry.hub`.
  */
-export const LV_HUBS: readonly LvHub[] = LANDESVERBAENDE.flatMap((lv) =>
-  'hub' in lv
-    ? [
-        {
-          lvId: lv.id,
-          slug: lv.hub.slug,
-          name: lv.hub.name,
-          notebookId: lv.notebookId,
-          prAgentId: lv.prAgentId as SystemAgentId,
-          buergerAgentId: lv.buergerAgentId as SystemAgentId,
-          wahlpruefsteinAgentId: lv.wahlpruefsteinAgentId as SystemAgentId,
-          audience: lv.audience,
-        },
-      ]
-    : []
-);
+export const LV_HUBS: readonly LvHub[] = LANDESVERBAENDE.map((lv) => ({
+  lvId: lv.id,
+  slug: lv.hub.slug,
+  name: lv.hub.name,
+  notebookId: lv.notebookId,
+  prAgentId: lv.prAgentId as SystemAgentId,
+  buergerAgentId: lv.buergerAgentId as SystemAgentId,
+  wahlpruefsteinAgentId: lv.wahlpruefsteinAgentId as SystemAgentId,
+  audience: lv.audience,
+}));
 
 const hubBySlug = new Map<string, LvHub>(LV_HUBS.map((hub) => [hub.slug, hub]));
 
