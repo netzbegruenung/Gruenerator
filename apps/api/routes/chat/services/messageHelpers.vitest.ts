@@ -5,6 +5,7 @@ import {
   getPruningBudget,
   sanitizeContentPartsForModel,
   fairShare,
+  sanitizeUIFileParts,
 } from './messageHelpers.js';
 
 describe('getPruningBudget', () => {
@@ -83,5 +84,40 @@ describe('sanitizeContentPartsForModel', () => {
     const [sanitized] = sanitizeContentPartsForModel(messages as never);
 
     expect(sanitized.content).toHaveLength(1);
+  });
+});
+
+describe('sanitizeUIFileParts', () => {
+  it('drops file parts without a url so convertToModelMessages cannot throw', () => {
+    // What the composer merges in for a pasted-text attachment.
+    const { messages, droppedFileParts } = sanitizeUIFileParts([
+      {
+        role: 'user',
+        parts: [
+          { type: 'text', text: 'fasse das zusammen' },
+          { type: 'file', name: 'Eingefügter Text.txt', mimeType: 'text/plain', data: 'abc' },
+        ],
+      },
+    ]);
+
+    expect(droppedFileParts).toBe(1);
+    expect(messages[0].parts).toEqual([{ type: 'text', text: 'fasse das zusammen' }]);
+  });
+
+  it('keeps valid file parts and returns untouched messages by identity', () => {
+    const input = [
+      {
+        role: 'user',
+        parts: [
+          { type: 'file', url: 'https://example.org/a.pdf', mediaType: 'application/pdf' },
+          { type: 'file', providerReference: 'ref_1', mediaType: 'application/pdf' },
+        ],
+      },
+    ];
+
+    const { messages, droppedFileParts } = sanitizeUIFileParts(input);
+
+    expect(droppedFileParts).toBe(0);
+    expect(messages[0]).toBe(input[0]);
   });
 });
