@@ -383,10 +383,12 @@ const Datenschutz = () => {
       <p>
         Bei Nutzung des Grünerator Imagine werden Deine hochgeladenen Bilder und Prompts unmittelbar
         an den Anbieter des gewählten Bildmodells weitergeleitet und dort ausschließlich zur
-        Bearbeitung verwendet. Voreingestellt ist Black Forest Labs (FLUX, EU-API api.eu.bfl.ai);
-        wählst Du das Regolo-Bildmodell, verarbeitet stattdessen Seeweb/Regolo AI (Italien) Deine
-        Eingaben mit dem Modell Qwen-Image. Wir speichern die Bilder nicht auf unseren Servern; eine
-        Nutzung zum KI-Training findet nicht statt. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.
+        Bearbeitung verwendet. Im Bild-Studio ist Black Forest Labs (FLUX, EU-API api.eu.bfl.ai)
+        voreingestellt; wählst Du dort das Regolo-Bildmodell, verarbeitet stattdessen Seeweb/Regolo
+        AI (Italien) Deine Eingaben mit dem Modell Qwen-Image. Die Funktion „KI-Bild erstellen“ im
+        Sharepic-Editor nutzt immer Seeweb/Regolo AI mit Qwen-Image; dort gibt es keine Modellwahl.
+        Wir speichern die Bilder nicht auf unseren Servern; eine Nutzung zum KI-Training findet
+        nicht statt. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.
       </p>
 
       <h3>Audio- und Videotranskription (Reel-Grünerator, Sprachaufnahme)</h3>
