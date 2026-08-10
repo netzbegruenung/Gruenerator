@@ -13,7 +13,7 @@ import { FluxImageService, buildUniversalPrompt } from '../../services/flux/inde
 import { getImageModelForUser } from '../../services/user/imageModelPreference.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
-import { addKiLabel } from '../sharepic/sharepic_canvas/imagine_label_canvas.js';
+import { applyKiLabel } from '../sharepic/sharepic_canvas/imagine_label_canvas.js';
 
 const log = createLogger('imageEditing');
 
@@ -315,7 +315,7 @@ router.post(
       );
 
       const fluxImageBuffer = Buffer.from(stored.base64, 'base64');
-      const labeledBuffer = await addKiLabel(fluxImageBuffer);
+      const labeledBuffer = await applyKiLabel(fluxImageBuffer);
       const labeledBase64 = labeledBuffer.toString('base64');
       fs.writeFileSync(stored.filePath, labeledBuffer);
 
@@ -480,7 +480,7 @@ router.post(
       );
 
       const fluxImageBuffer = Buffer.from(stored.base64, 'base64');
-      const labeledBuffer = await addKiLabel(fluxImageBuffer);
+      const labeledBuffer = await applyKiLabel(fluxImageBuffer);
       const labeledBase64 = labeledBuffer.toString('base64');
       fs.writeFileSync(stored.filePath, labeledBuffer);
 
