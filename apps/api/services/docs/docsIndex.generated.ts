@@ -236,7 +236,7 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/office/intro",
     "title": "Office: Dokumente, Tabellen, Folien und Boards",
     "category": "Office",
-    "lead": "Office ist der Ort für alles, was aus Text, Zahlen und Plänen besteht. Fünf Arten von Dokumenten liegen dort nebeneinander: . Du findest sie über den Tab Arbeiten unter der Kachel ."
+    "lead": "Office ist der Ort für alles, was aus Text, Zahlen und Plänen besteht. Vier Arten von Dokumenten liegen dort nebeneinander: . Du findest sie über den Tab Arbeiten unter der Kachel ."
   },
   {
     "url": "/docs/office/ki-im-editor",
@@ -819,7 +819,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Gespräch starten",
     "anchor": "#gespräch-starten",
     "category": "Chat",
-    "text": "Den Chat erreichst du über den Menüpunkt in der Seitenleiste oder direkt unter /chat. Dort siehst du: Eingabefeld unten zum Schreiben deiner Nachricht Seitenleiste links mit deinem Gesprächsverlauf — Gespräche kannst du dort auch in Ordnern organisieren „+\"-Menü links im Eingabefeld für Modus, Werkzeuge, Quellen und Dateien Modell-Auswahl rechts unten im Eingabefeld Jedes Gespräch wird als eigener Thread mit eigener Adresse (/chat/…) gespeichert. Du kannst jederzeit ein neues Gespräch beginnen oder in der Seitenleiste zu einem früheren Gespräch zurückkehren."
+    "text": "Den Chat erreichst du über den Menüpunkt in der Seitenleiste oder direkt unter /chat. Dort siehst du: Eingabefeld unten zum Schreiben deiner Nachricht Seitenleiste links mit deinem Gesprächsverlauf — Gespräche kannst du dort auch in Projekten bündeln (eigene Projekte und Gruppen, mit Übersicht unter /projekte) „+\"-Menü links im Eingabefeld für Modus, Werkzeuge, Quellen und Dateien Modell-Auswahl rechts unten im Eingabefeld Jedes Gespräch wird als eigener Thread mit eigener Adresse (/chat/…) gespeichert. Du kannst jederzeit ein neues Gespräch beginnen oder in der Seitenleiste zu einem früheren Gespräch zurückkehren."
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -2283,7 +2283,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Office: Dokumente, Tabellen, Folien und Boards",
     "anchor": "",
     "category": "Office",
-    "text": "Office ist der Ort für alles, was aus Text, Zahlen und Plänen besteht. Fünf Arten von Dokumenten liegen dort nebeneinander: . Du findest sie über den Tab Arbeiten unter der Kachel ."
+    "text": "Office ist der Ort für alles, was aus Text, Zahlen und Plänen besteht. Vier Arten von Dokumenten liegen dort nebeneinander: . Du findest sie über den Tab Arbeiten unter der Kachel ."
   },
   {
     "url": "/docs/office/intro",
@@ -2499,7 +2499,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Einstellungen, die du selbst setzen kannst",
     "anchor": "#einstellungen-die-du-selbst-setzen-kannst",
     "category": "Über den Grünerator",
-    "text": "Unter Einstellungen → Barrierefreiheit: Einstellung | Wirkung | ------------------------------------ | ------------------------------------------- | Animationen reduzieren | Bewegung und Übergänge werden abgeschaltet. | Transparenz und Unschärfe reduzieren | Durchscheinende Flächen werden deckend. | Hellen und dunklen Modus stellst du unter Einstellungen → Darstellung ein; der Grünerator folgt sonst der Einstellung deines Systems."
+    "text": "Unter Einstellungen → Barrierefreiheit: Einstellung | Wirkung | ------------------------------------ | ------------------------------------------- | Animationen reduzieren | Bewegung und Übergänge werden abgeschaltet. | Transparenz und Unschärfe reduzieren | Durchscheinende Flächen werden deckend. | Hellen und dunklen Modus stellst du unter Einstellungen → Allgemein ein; der Grünerator folgt sonst der Einstellung deines Systems."
   },
   {
     "url": "/docs/ueber-den-gruenerator/barrierefreiheit",
@@ -3011,7 +3011,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Auf „Von der Basis\" listen",
     "anchor": "#auf-von-der-basis-listen",
     "category": "Wissen",
-    "text": "Im Modus „Mit Anmeldung\" kannst du zusätzlich den Schalter „Auf ‚Von der Basis' listen\" aktivieren. Dann erscheint dein Notebook auf der allgemeinen Notebooks-Seite im Abschnitt „Von der Basis\" zum Entdecken. Sobald du den Schalter aktivierst, musst du eine der beiden Aussagen bestätigen: „Ich besitze die Daten\" — … oder habe die Rechte zur Veröffentlichung; z.&nbsp;B. eigene Texte, Beschlüsse deines Verbands, Material, das du selbst veröffentlichen darfst. „Daten sind öffentlich verfügbar\" — z.&nbsp;B. offizielle Dokumente, Pressemitteilungen, frei zugängliche Veröffentlichungen. Ohne diese Bestätigung lässt sich das Notebook nicht listen. Hintergrund: Damit stellen wir sicher, dass nur Inhalte mit klarer Rechtelage veröffentlicht werden. Wenn du dir bei den Rechten unsicher bist, lass das Notebook privat — du kannst die Sichtbarkeit jederzeit später ändern."
+    "text": "Im Modus „Mit Anmeldung\" kannst du zusätzlich den Schalter „Auf ‚Von der Basis' listen\" aktivieren. Dann taucht dein Notebook für andere in der Suche der Wissen-Seite auf — sie durchsucht System-Notebooks, eigene und die so gelisteten öffentlichen Notebooks gemeinsam; einen eigenen Abschnitt „Von der Basis\" gibt es nicht mehr. Sobald du den Schalter aktivierst, musst du eine der beiden Aussagen bestätigen: „Ich besitze die Daten\" — … oder habe die Rechte zur Veröffentlichung; z.&nbsp;B. eigene Texte, Beschlüsse deines Verbands, Material, das du selbst veröffentlichen darfst. „Daten sind öffentlich verfügbar\" — z.&nbsp;B. offizielle Dokumente, Pressemitteilungen, frei zugängliche Veröffentlichungen. Ohne diese Bestätigung lässt sich das Notebook nicht listen. Hintergrund: Damit stellen wir sicher, dass nur Inhalte mit klarer Rechtelage veröffentlicht werden. Wenn du dir bei den Rechten unsicher bist, lass das Notebook privat — du kannst die Sichtbarkeit jederzeit später ändern."
   },
   {
     "url": "/docs/wissen/eigenes-notebook-erstellen",
@@ -3019,7 +3019,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Dein Notebook nach der Erstellung",
     "anchor": "#dein-notebook-nach-der-erstellung",
     "category": "Wissen",
-    "text": "Im Abschnitt „Eigene\" erscheint jedes deiner Notebooks als Karte. Ein Klick auf die Karte öffnet die Notebook-Detailseite, von der aus du chatten und durchsuchen kannst. Über das Drei-Punkte-Menü der Karte erreichst du weitere Aktionen: Bearbeiten — öffnet wieder den Editor (Quellen, Details, Labels, Wolke, Docs). Auf der Bearbeiten-Seite kannst du Name und Beschreibung auch direkt im Kopfbereich ändern und alle Quellen per „Alle Quellen aktualisieren\" neu synchronisieren. Teilen — Untermenü mit „Link kopieren\" (kopiert die URL des Notebooks) und — falls du in Gruppen bist — Optionen zum direkten Teilen mit einer Gruppe. Die volle Sichtbarkeits- und Veröffentlichungssteuerung liegt dagegen im „Teilen\"-Button auf der Bearbeiten-Seite (siehe Notebook teilen). Löschen — entfernt das Notebook unwiderruflich. Wichtig: Die enthaltenen Dokumente bleiben in deiner persönlichen Bibliothek erhalten und können in andere Notebooks aufgenommen werden."
+    "text": "Hinter der Karte „Eigene Notebooks\" auf der Wissen-Seite erscheint jedes deiner Notebooks als Karte im Abschnitt „Eigene\". Ein Klick auf die Karte öffnet die Notebook-Detailseite, von der aus du chatten und durchsuchen kannst. Über das Drei-Punkte-Menü der Karte erreichst du weitere Aktionen: Bearbeiten — öffnet wieder den Editor (Quellen, Details, Labels, Wolke, Docs). Auf der Bearbeiten-Seite kannst du Name und Beschreibung auch direkt im Kopfbereich ändern und alle Quellen per „Alle Quellen aktualisieren\" neu synchronisieren. Teilen — Untermenü mit „Link kopieren\" (kopiert die URL des Notebooks) und — falls du in Gruppen bist — Optionen zum direkten Teilen mit einer Gruppe. Die volle Sichtbarkeits- und Veröffentlichungssteuerung liegt dagegen im „Teilen\"-Button auf der Bearbeiten-Seite (siehe Notebook teilen). Löschen — entfernt das Notebook unwiderruflich. Wichtig: Die enthaltenen Dokumente bleiben in deiner persönlichen Bibliothek erhalten und können in andere Notebooks aufgenommen werden."
   },
   {
     "url": "/docs/wissen/eigenes-notebook-erstellen",
@@ -3035,7 +3035,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Häufige Fragen",
     "anchor": "#häufige-fragen",
     "category": "Wissen",
-    "text": "Wo schalte ich ein Notebook öffentlich? Nicht mehr in der Erstellung. Öffne das Notebook über Bearbeiten und klicke oben rechts auf „Teilen\". Wähle im Dialog die Sichtbarkeit „Mit Anmeldung\" und aktiviere „Auf ‚Von der Basis' listen\", um es auf der Notebooks-Seite sichtbar zu machen. Was passiert mit Dokumenten, wenn ich ein Notebook lösche? Die Dokumente bleiben in deiner persönlichen Dokumenten-Bibliothek erhalten — nur die Sammlung wird gelöscht. Kann ich dasselbe Dokument in mehrere Notebooks aufnehmen? Ja. Beim Bearbeiten eines Notebooks kannst du beliebige Dokumente aus deiner Bibliothek auswählen. Wie lange dauert die Indexierung? Bei Text-PDFs und reinen Textdateien meist nur Sekunden. Eingescannte PDFs (mit OCR) und sehr große Dateien können einige Minuten brauchen. Das Notebook ist trotzdem sofort nutzbar — neue Dokumente erscheinen in den Antworten, sobald die Indexierung abgeschlossen ist. Mein Dokument wird nicht akzeptiert. Prüfe die Dateiendung (PDF, DOCX, DOC, TXT, MD, ODT, RTF) und die Dateigröße (max. 50 MB). Andere Formate musst du vorher konvertieren."
+    "text": "Wo schalte ich ein Notebook öffentlich? Nicht mehr in der Erstellung. Öffne das Notebook über Bearbeiten und klicke oben rechts auf „Teilen\". Wähle im Dialog die Sichtbarkeit „Mit Anmeldung\" und aktiviere „Auf ‚Von der Basis' listen\", damit es in der Suche der Wissen-Seite auffindbar wird. Was passiert mit Dokumenten, wenn ich ein Notebook lösche? Die Dokumente bleiben in deiner persönlichen Dokumenten-Bibliothek erhalten — nur die Sammlung wird gelöscht. Kann ich dasselbe Dokument in mehrere Notebooks aufnehmen? Ja. Beim Bearbeiten eines Notebooks kannst du beliebige Dokumente aus deiner Bibliothek auswählen. Wie lange dauert die Indexierung? Bei Text-PDFs und reinen Textdateien meist nur Sekunden. Eingescannte PDFs (mit OCR) und sehr große Dateien können einige Minuten brauchen. Das Notebook ist trotzdem sofort nutzbar — neue Dokumente erscheinen in den Antworten, sobald die Indexierung abgeschlossen ist. Mein Dokument wird nicht akzeptiert. Prüfe die Dateiendung (PDF, DOCX, DOC, TXT, MD, ODT, RTF) und die Dateigröße (max. 50 MB). Andere Formate musst du vorher konvertieren."
   },
   {
     "url": "/docs/wissen/eigenes-notebook-erstellen",
@@ -3043,7 +3043,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 1: Zur Notebook-Übersicht",
     "anchor": "#schritt-1-zur-notebook-übersicht",
     "category": "Wissen",
-    "text": "Öffne in der Navigation Notebooks (/notebooks). Auf dieser Seite sind alle Notebooks an einem Ort gebündelt; deine eigenen findest du im Abschnitt „Eigene\". Beim ersten Mal ist er leer und zeigt nur die Karte zum Erstellen. Klicke neben der Überschrift „Eigene\" auf „Notebook erstellen\" (oder auf die Erstellen-Karte), um den Editor zu öffnen."
+    "text": "Öffne in der Navigation Wissen (/wissen). Auf dieser Seite sind alle Notebooks an einem Ort gebündelt. Solange du noch kein eigenes Notebook hast, liegt in der Notebook-Leiste oben eine Karte „Neues erstellen\" — ein Klick darauf öffnet direkt den Editor. Sobald du mindestens ein eigenes Notebook besitzt, tritt an ihre Stelle die Karte „Eigene Notebooks\": Sie klappt den Abschnitt „Eigene\" auf, in dem neben der Überschrift der Button „Notebook erstellen\" sitzt."
   },
   {
     "url": "/docs/wissen/eigenes-notebook-erstellen",
@@ -3131,7 +3131,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Landesverband-Grüneratoren",
     "anchor": "",
     "category": "Wissen",
-    "text": "Der Grünerator hat für mehrere Landesverbände eigene, regional getunte Grüneratoren. Sie schreiben nicht generisch-grün, sondern im konkreten Stil des jeweiligen Landesverbands — mit den richtigen Sprecher*innen, den lokalen Themen und der typischen Tonalität. Im Hintergrund recherchieren sie automatisch in der Wissensdatenbank des Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme) und im Web. Es gibt zwei Sorten von Landesverband-Grüneratoren: Öffentlichkeitsarbeit — schreibt Pressemitteilungen und Social-Media-Posts im Stil des Landesverbands. Bürger*innenanfragen — formuliert versandfertige, recherchebasierte Antwort-E-Mails auf Anfragen von Bürger*innen."
+    "text": "Der Grünerator hat für mehrere Landesverbände eigene, regional getunte Grüneratoren. Sie schreiben nicht generisch-grün, sondern im konkreten Stil des jeweiligen Landesverbands — mit den richtigen Sprecher*innen, den lokalen Themen und der typischen Tonalität. Im Hintergrund recherchieren sie automatisch in der Wissensdatenbank des Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme) und im Web. Es gibt drei Sorten von Landesverband-Grüneratoren: Öffentlichkeitsarbeit — schreibt Pressemitteilungen und Social-Media-Posts im Stil des Landesverbands. Bürger*innenanfragen — formuliert versandfertige, recherchebasierte Antwort-E-Mails auf Anfragen von Bürger*innen. Wahlprüfsteine — beantwortet Fragenkataloge von Verbänden und Initiativen, im Format des Katalogs und im Stil des Landesverbands."
   },
   {
     "url": "/docs/wissen/landesverbaende",
@@ -3139,7 +3139,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Abgedeckte Landesverbände",
     "anchor": "#abgedeckte-landesverbände",
     "category": "Wissen",
-    "text": "Jede Kachel verlinkt auf die Landesverband-Seite — sie bietet beide Grüneratoren des Landesverbands zur Auswahl an: Öffentlichkeitsarbeit (siehe unten) und Bürger*innenanfragen (siehe unten). Darunter stehen die Rezept-Abkürzungen und ein Link zur Wissensdatenbank (Notebook). Die Grünen Österreich sind kein Landesverband, sondern die Bundespartei — sie haben aber dieselben beiden Grünerator-Typen (erreichbar unter /agents/gruene-oesterreich, Wissensdatenbank /notebooks/oesterreich · @at). Diese Grüneratoren verwenden österreichisches Vokabular (Nationalrat, Klubobfrau*Klubobmann, Klimaticket) und erscheinen nur für Nutzer*innen mit österreichischer Einstellung."
+    "text": "Jede Kachel verlinkt auf die Landesverband-Seite — sie bietet die drei Grüneratoren des Landesverbands zur Auswahl an: Öffentlichkeitsarbeit, Bürger*innenservice und Wahlprüfsteine (alle siehe unten). Darunter stehen die Rezept-Abkürzungen und ein Link zur Wissensdatenbank (Notebook). Die Grünen Österreich sind kein Landesverband, sondern die Bundespartei — sie haben aber dieselben drei Grünerator-Typen (erreichbar unter /agents/gruene-oesterreich, Wissensdatenbank /notebooks/oesterreich · @at). Diese Grüneratoren verwenden österreichisches Vokabular (Nationalrat, Klubobfrau*Klubobmann, Klimaticket) und erscheinen nur für Nutzer*innen mit österreichischer Einstellung."
   },
   {
     "url": "/docs/wissen/landesverbaende",
@@ -3163,7 +3163,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "LV-Rezepte im Überblick",
     "anchor": "#lv-rezepte-im-überblick",
     "category": "Wissen",
-    "text": "Für diese Landesverbände gibt es eigene Rezept-Abkürzungen für Pressemitteilung und Instagram: Landesverband | Pressemitteilung | Instagram | ---------------------- | --------------------- | -------------------- | Berlin | /presse-berlin | /insta-berlin | Mecklenburg-Vorpommern | /presse-mv | /insta-mv | Thüringen | /presse-thueringen | /insta-thueringen | Brandenburg | /presse-brandenburg | /insta-brandenburg | Bayern | /presse-bayern | /insta-bayern | Sachsen-Anhalt, Hessen und das Saarland haben (noch) keine eigenen Rezept-Abkürzungen — ihre Grüneratoren erreichst du über die jeweilige Landesverband-Seite. Unabhängig vom Landesverband gibt es allgemeine Rezepte für jede Plattform: /presse, /instagram, /facebook, /twitter, /linkedin und /reel. Sie greifen auf Beispiele aus allen Landesverbänden zurück. Die LV-Rezepte oben sind die Spezialversion mit eingebautem Regional-Stil."
+    "text": "Für diese Landesverbände gibt es eigene Rezept-Abkürzungen für Pressemitteilung und Instagram: Landesverband | Pressemitteilung | Instagram | ---------------------- | --------------------- | -------------------- | Berlin | /presse-berlin | /insta-berlin | Hamburg | /presse-hamburg | /insta-hamburg | Mecklenburg-Vorpommern | /presse-mv | /insta-mv | Thüringen | /presse-thueringen | /insta-thueringen | Brandenburg | /presse-brandenburg | /insta-brandenburg | Bayern | /presse-bayern | — | Sachsen-Anhalt, Hessen und das Saarland haben (noch) keine eigenen Rezept-Abkürzungen — ihre Grüneratoren erreichst du über die jeweilige Landesverband-Seite. Unabhängig vom Landesverband gibt es allgemeine Rezepte für jede Plattform: /presse, /instagram, /facebook, /twitter, /linkedin und /reel. Sie greifen auf Beispiele aus allen Landesverbänden zurück. Die LV-Rezepte oben sind die Spezialversion mit eingebautem Regional-Stil."
   },
   {
     "url": "/docs/wissen/landesverbaende",
@@ -3172,5 +3172,13 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#pressemitteilungen--social-media-schreiben",
     "category": "Wissen",
     "text": "Du erreichst den Öffentlichkeitsarbeit-Grünerator auf zwei Wegen: 1. Über die Landesverband-Seite — öffne die LV-Adresse (z. B. /agents/gruene-berlin) und wähle dort Öffentlichkeitsarbeit; oder wähle den Grünerator-Agent direkt in der Auswahl im Chat aus. Er bleibt für das ganze Gespräch im LV-Stil. 2. Über eine Rezept-Abkürzung — tippe im Chat einen Slash-Befehl wie /presse-berlin und direkt dahinter dein Thema. Das Rezept schickt deine Anfrage an den passenden LV-Grünerator und gibt ihm gleich die richtige Aufgabe mit (Pressemitteilung bzw. Instagram-Post)."
+  },
+  {
+    "url": "/docs/wissen/landesverbaende",
+    "pageTitle": "Landesverband-Grüneratoren",
+    "heading": "Wahlprüfsteine beantworten",
+    "anchor": "#wahlprüfsteine-beantworten",
+    "category": "Wissen",
+    "text": "Die Wahlprüfstein-Grüneratoren beantworten Fragenkataloge von Verbänden und Initiativen (Wahlprüfsteine): Du fügst den Katalog ein, der Grünerator-Agent recherchiert die Positionen des Landesverbands und antwortet im Format des Katalogs und im Stil des Landesverbands. Auch sie erreichst du über die Landesverband-Seite — dort wählst du Wahlprüfsteine."
   }
 ];
