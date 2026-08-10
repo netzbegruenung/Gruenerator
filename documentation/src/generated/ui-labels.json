@@ -121,7 +121,8 @@
   },
   "lv.schleswig-holstein": {
     "title": "Schleswig-Holstein",
-    "notebook": "schleswig-holstein"
+    "notebook": "schleswig-holstein",
+    "agentSlug": "gruene-schleswig-holstein"
   },
   "lv.thueringen": {
     "title": "Thüringen",
