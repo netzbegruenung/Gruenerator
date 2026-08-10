@@ -16,6 +16,7 @@ import {
   type SharepicTemplateDescriptor,
 } from '@gruenerator/contracts';
 
+import { BRAND_THEMES } from '../brand/theme';
 import { dreizeilenFullConfig } from '../configs/dreizeilen_full.config';
 import { dreizeilenOverlayAtFullConfig } from '../configs/dreizeilen_overlay_at_full.config';
 import { infoAtFullConfig } from '../configs/info_at_full.config';
@@ -37,6 +38,23 @@ describe('sharepic template descriptor parity', () => {
     expect(descriptor.colorSchemes?.options).toEqual(
       COLOR_SCHEMES.map((s) => ({ id: s.id, label: s.label }))
     );
+  });
+
+  it('AT background palettes match BRAND_THEMES[de-AT]', () => {
+    const expected = BRAND_THEMES['de-AT'].backgroundColors.map((c) => ({
+      id: c.id,
+      label: c.label,
+      color: c.color,
+    }));
+    for (const type of ['zitat-pure-at', 'info-at']) {
+      const descriptor = getSharepicTemplateDescriptor(type)!;
+      expect(descriptor.backgroundColors?.options, type).toEqual(expected);
+      // The mint default has to be a colour the palette actually offers.
+      expect(
+        expected.map((c) => c.color),
+        type
+      ).toContain(descriptor.defaultState.backgroundColor);
+    }
   });
 
   it('all chat-editable templates have descriptors', () => {
