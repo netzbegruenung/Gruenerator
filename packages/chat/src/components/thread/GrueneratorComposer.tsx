@@ -9,6 +9,7 @@ import {
   useVoiceState,
 } from '@assistant-ui/react';
 import { useAuiState } from '@assistant-ui/store';
+import { useMobileKeyboardOffset } from '@gruenerator/shared/hooks';
 import { mcpBrandColor } from '@gruenerator/shared/utils';
 import { cn, useIsMobile } from '@gruenerator/ui';
 import { ArrowUp, Mic, Plug, Square, X } from 'lucide-react';
@@ -319,6 +320,13 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const uploadRef = useRef<HTMLButtonElement>(null);
   const [mention, setMention] = useState<MentionState>(INITIAL_MENTION_STATE);
+
+  // `interactive-widget=resizes-visual` (apps/web/index.html) keeps the layout
+  // viewport at full height when the on-screen keyboard opens, so no `dvh` box
+  // and no flex column notices it. This publishes the keyboard height as
+  // `--mobile-keyboard-offset` on `:root`; the surfaces that own the composer's
+  // bottom edge shrink themselves by it.
+  useMobileKeyboardOffset(textareaRef);
 
   // Composer mount drives lazy fetching of mentionable data (custom agents,
   // boards, docs). The query is deduplicated across consumers via React Query.

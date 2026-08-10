@@ -69,8 +69,11 @@ const WorkplacePage = () => {
       >
         {tab === 'chat' ? (
           // Minimal chat hero, vertically centered in the viewport (design:
-          // the chat panel is a flex column with justify-center).
-          <div className="flex min-h-0 flex-1 flex-col justify-center-safe overflow-y-auto pb-[6vh] pt-16">
+          // the chat panel is a flex column with justify-center). Die Tastaturhöhe
+          // (useMobileKeyboardOffset, gesetzt vom Composer) kürzt die Spalte, damit
+          // „zentriert" den sichtbaren Bereich meint und nicht den von der Tastatur
+          // verdeckten — `interactive-widget=resizes-visual` lässt 100dvh stehen.
+          <div className="flex min-h-0 flex-1 flex-col justify-center-safe overflow-y-auto pb-[calc(6vh_+_var(--mobile-keyboard-offset,0px))] pt-16">
             <WorkplaceChatTab />
           </div>
         ) : (
