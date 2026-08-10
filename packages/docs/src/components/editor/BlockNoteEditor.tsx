@@ -1,5 +1,4 @@
 import {
-  type ComponentProps,
   useCallback,
   useEffect,
   useMemo,
@@ -29,7 +28,7 @@ import {
 } from '@blocknote/react';
 import { filterSuggestionItems } from '@blocknote/core/extensions';
 import { ForkYDocExtension, withCollaboration } from '@blocknote/core/yjs';
-import { BlockNoteView, ShadCNDefaultComponents } from '@blocknote/shadcn';
+import { BlockNoteView } from '@blocknote/shadcn';
 import {
   AIExtension,
   AIMenuController,
@@ -42,7 +41,6 @@ import { DefaultChatTransport } from 'ai';
 import '@blocknote/core/fonts/inter.css';
 import '@blocknote/shadcn/style.css';
 import '@blocknote/xl-ai/style.css';
-import { Tooltip as TooltipPrimitive } from 'radix-ui';
 import * as Y from 'yjs';
 import { HocuspocusProvider } from '@hocuspocus/provider';
 
@@ -134,17 +132,6 @@ const schema = BlockNoteSchema.create({
   },
   styleSpecs: defaultStyleSpecs,
 });
-
-// BlockNote's shadcn Tooltip wraps each instance in its own TooltipProvider,
-// creating triple-nested providers inside the Toolbar. This override removes
-// the redundant inner provider — the Toolbar already provides one.
-function ToolbarTooltip(props: ComponentProps<typeof TooltipPrimitive.Root>) {
-  return <TooltipPrimitive.Root data-slot="tooltip" {...props} />;
-}
-
-const shadCNComponentOverrides = {
-  Tooltip: { ...ShadCNDefaultComponents.Tooltip, Tooltip: ToolbarTooltip },
-};
 
 const BlockNoteEditorInner = ({
   documentId,
@@ -534,7 +521,6 @@ const BlockNoteEditorInner = ({
           editor={editor}
           theme={theme}
           editable={editable}
-          shadCNComponents={shadCNComponentOverrides}
           formattingToolbar={false}
           slashMenu={false}
           sideMenu={false}
