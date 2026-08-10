@@ -1522,9 +1522,14 @@ export async function executeIntentPipeline(opts: {
         // iteration's results first (the secondary is the more specific ask —
         // a pasted page beats hits the engine merely found). Deduped by URL;
         // rerank re-orders right below.
-        const priorResults = priorIntentResults;
-        if (priorResults.length > 0 && (searchResult.searchResults?.length ?? 0) > 0) {
-          const merged = [...(searchResult.searchResults ?? []), ...priorResults];
+        //
+        // The guard reads the PRIOR results only, deliberately: an empty second
+        // branch (crawl blocked by robots.txt, zero hits) still overwrites
+        // `searchResults` with [] one line above, so also requiring the CURRENT
+        // branch to be non-empty would wipe the first branch's sources — the
+        // very failure this union exists to prevent, with the roles swapped.
+        if (priorIntentResults.length > 0) {
+          const merged = [...(finalState.searchResults ?? []), ...priorIntentResults];
           const seen = new Set<string>();
           const deduped = merged.filter((r) => {
             const key = r.url ?? `${r.source}:${r.title}`;
@@ -1538,7 +1543,6 @@ export async function executeIntentPipeline(opts: {
             citations: buildCitations(deduped),
           } as ChatGraphState;
         }
-        priorIntentResults = finalState.searchResults ?? [];
 
         if (finalState.searchResults?.length > 2) {
           const rerankStepId = `rerank_${Date.now()}`;
@@ -1611,6 +1615,12 @@ export async function executeIntentPipeline(opts: {
         });
       }
     }
+
+    // Carried at the END of every iteration, not inside the search branch:
+    // `chat_history` (and any future branch) writes `searchResults` directly, and
+    // a following scrape_url would otherwise overwrite sources this loop never
+    // recorded as "prior".
+    priorIntentResults = finalState.searchResults ?? [];
   }
 
   finalState = await carryThreadSourcesIfNeeded(finalState, opts.threadId ?? null);
