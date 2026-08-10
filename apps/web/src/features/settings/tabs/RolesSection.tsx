@@ -30,8 +30,13 @@ import {
   CardTitle,
   CardDescription,
   CardContent,
-  SmartInput,
-  type SmartInputOption,
+  Combobox,
+  ComboboxCollection,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
 } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState, useCallback, useEffect, useMemo, useRef, memo } from 'react';
@@ -170,13 +175,11 @@ export default function RolesSection() {
   const rollenMap = isAustrian ? AT_ROLLEN : DE_ROLLEN;
   const bundeslaender = isAustrian ? AT_BUNDESLAENDER : DE_BUNDESLAENDER;
 
-  const bundeslandOptions: SmartInputOption[] = useMemo(
-    () =>
-      bundeslaender.map((bl) => ({
-        value: bl.label,
-        label: bl.label,
-        description: bl.notebookId ? '● Notebook' : undefined,
-      })),
+  // Die Combobox filtert die Einträge selbst; sie bekommt deshalb die Namen und
+  // nicht die Konfiguration. Welche davon ein Notebook haben, steht daneben.
+  const bundeslandNamen = useMemo(() => bundeslaender.map((bl) => bl.label), [bundeslaender]);
+  const mitNotebook = useMemo(
+    () => new Set(bundeslaender.filter((bl) => bl.notebookId).map((bl) => bl.label)),
     [bundeslaender]
   );
 
@@ -194,7 +197,6 @@ export default function RolesSection() {
   const [wizardStep, setWizardStep] = useState<WizardStep>('ebene');
   const [wizEbene, setWizEbene] = useState<string | null>(null);
   const [wizBundesland, setWizBundesland] = useState<string | null>(null);
-  const [wizBundeslandQuery, setWizBundeslandQuery] = useState('');
   const [wizGliederung, setWizGliederung] = useState('');
   const [wizRolle, setWizRolle] = useState<string | null>(null);
   const [wizCustomRolle, setWizCustomRolle] = useState('');
@@ -219,7 +221,6 @@ export default function RolesSection() {
 
   const startAddRole = useCallback(() => {
     setAddingRole(true);
-    setWizBundeslandQuery('');
     setWizGliederung('');
     setWizCustomRolle('');
     setWizAbgeordnete('');
@@ -250,7 +251,6 @@ export default function RolesSection() {
   const handleWizEbene = useCallback((ebene: string) => {
     setWizEbene(ebene);
     setWizBundesland(null);
-    setWizBundeslandQuery('');
     setWizGliederung('');
     setWizRolle(null);
     setWizCustomRolle('');
@@ -265,7 +265,6 @@ export default function RolesSection() {
   const handleWizBundesland = useCallback(
     (bundesland: string) => {
       setWizBundesland(bundesland);
-      setWizBundeslandQuery(bundesland);
       if (wizEbene && NEEDS_LOCAL_NAME.has(wizEbene)) {
         setWizardStep('gliederung');
       } else {
@@ -580,14 +579,30 @@ export default function RolesSection() {
             <h2 className="text-lg font-semibold text-foreground-heading">
               In welchem Bundesland?
             </h2>
-            <SmartInput
-              value={wizBundeslandQuery}
-              onValueChange={(v) => setWizBundeslandQuery(v)}
-              onSelect={(option) => handleWizBundesland(option.label)}
-              options={bundeslandOptions}
-              placeholder="Bundesland eingeben..."
-              autoFocus
-            />
+            <Combobox
+              items={bundeslandNamen}
+              value={wizBundesland}
+              onValueChange={(name: string | null) => {
+                if (name) handleWizBundesland(name);
+              }}
+            >
+              <ComboboxInput placeholder="Bundesland eingeben..." autoFocus />
+              <ComboboxContent>
+                <ComboboxList>
+                  <ComboboxEmpty>Kein Bundesland gefunden</ComboboxEmpty>
+                  <ComboboxCollection>
+                    {(name: string) => (
+                      <ComboboxItem key={name} value={name}>
+                        <span>{name}</span>
+                        {mitNotebook.has(name) && (
+                          <span className="text-xs text-grey-400">● Notebook</span>
+                        )}
+                      </ComboboxItem>
+                    )}
+                  </ComboboxCollection>
+                </ComboboxList>
+              </ComboboxContent>
+            </Combobox>
           </>
         ) : wizardStep === 'gliederung' ? (
           <>
