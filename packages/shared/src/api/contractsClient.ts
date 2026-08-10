@@ -73,6 +73,7 @@ import {
   canvasAiContract,
   monitorContract,
   sitesContract,
+  texteContract,
   subtitlerContract,
   reisekostenContract,
   imagePickerContract,
@@ -244,6 +245,7 @@ const _canvasClient = () => initClient(canvasContract, CLIENT_OPTS);
 const _canvasAiClient = () => initClient(canvasAiContract, CLIENT_OPTS);
 const _monitorClient = () => initClient(monitorContract, CLIENT_OPTS);
 const _sitesClient = () => initClient(sitesContract, CLIENT_OPTS);
+const _texteClient = () => initClient(texteContract, CLIENT_OPTS);
 const _subtitlerClient = () => initClient(subtitlerContract, CLIENT_OPTS);
 const _reisekostenClient = () => initClient(reisekostenContract, CLIENT_OPTS);
 const _imagePickerClient = () => initClient(imagePickerContract, CLIENT_OPTS);
@@ -307,6 +309,7 @@ export interface ContractsClient {
   canvasAi: ReturnType<typeof _canvasAiClient>;
   monitor: ReturnType<typeof _monitorClient>;
   sites: ReturnType<typeof _sitesClient>;
+  texte: ReturnType<typeof _texteClient>;
   subtitler: ReturnType<typeof _subtitlerClient>;
   reisekosten: ReturnType<typeof _reisekostenClient>;
   imagePicker: ReturnType<typeof _imagePickerClient>;
@@ -387,6 +390,7 @@ export function getContractsClient(): ContractsClient {
     canvasAi: _canvasAiClient(),
     monitor: _monitorClient(),
     sites: _sitesClient(),
+    texte: _texteClient(),
     subtitler: _subtitlerClient(),
     reisekosten: _reisekostenClient(),
     imagePicker: _imagePickerClient(),
