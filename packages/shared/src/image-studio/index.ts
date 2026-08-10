@@ -78,6 +78,9 @@ export {
 } from './constants.js';
 export type { StyleVariantConfig, InfrastructureOptionConfig } from './constants.js';
 
+// KI-Transparenz (Art. 50 KI-VO)
+export { AI_IMAGE_TRANSPARENCY } from './ai-transparency.js';
+
 // Validation
 export {
   ERROR_MESSAGES,
