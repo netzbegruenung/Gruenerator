@@ -45,17 +45,30 @@ const SALUTATION_PATTERNS = [
   /^moin\b/i,
 ];
 
+/**
+ * German month names, spelled out or abbreviated. Used to tell a date apart
+ * from markdown syntax: "30. Juni …" is a date, "30. Punkt der Tagesordnung"
+ * is a numbered list item.
+ */
+const MONTH = '(?:jan|feb|mär|maer|mar|apr|mai|jun|jul|aug|sep|okt|nov|dez)';
+
+/** `. ` that ends a sentence — not the dot of an ordinal ("30. Juni"). */
+const SENTENCE_END = new RegExp(`(?<=[^\\d][.!?])\\s|(?<=\\d[.!?])\\s(?!${MONTH})`, 'i');
+
 function stripMarkdown(input: string): string {
-  return input
-    .replace(/\*\*/g, '')
-    .replace(/__/g, '')
-    .replace(/(^|\s)[*_]([^*_\s][^*_]*)[*_](?=\s|$|[.,;:!?])/g, '$1$2')
-    .replace(/`/g, '')
-    .replace(/^\s*#+\s+/, '')
-    .replace(/^\s*>\s+/, '')
-    .replace(/^\s*[-*+]\s+/, '')
-    .replace(/^\s*\d+\.\s+/, '')
-    .trim();
+  return (
+    input
+      .replace(/\*\*/g, '')
+      .replace(/__/g, '')
+      .replace(/(^|\s)[*_]([^*_\s][^*_]*)[*_](?=\s|$|[.,;:!?])/g, '$1$2')
+      .replace(/`/g, '')
+      .replace(/^\s*#+\s+/, '')
+      .replace(/^\s*>\s+/, '')
+      .replace(/^\s*[-*+]\s+/, '')
+      // Numbered list marker — but a leading date ("30. Juni …") is not one.
+      .replace(new RegExp(`^\\s*\\d+\\.\\s+(?!${MONTH})`, 'i'), '')
+      .trim()
+  );
 }
 
 // Politeness lead-ins that push the actual topic out of the visible part of
@@ -92,9 +105,7 @@ function clampToWords(text: string, max: number): string {
 export function extractFallbackTitle(text: string, hasImage?: boolean): string | null {
   if (text && text.length > 5) {
     const collapsed = text.replace(/\s+/g, ' ').trim();
-    // `[^\d]` before the punctuation keeps German ordinals together: "30. Juni"
-    // is one date, not two sentences.
-    const sentences = collapsed.split(/(?<=[^\d][.!?])\s+/).filter((s) => s.length > 0);
+    const sentences = collapsed.split(SENTENCE_END).filter((s) => s && s.length > 0);
 
     for (const raw of sentences) {
       let cleaned = stripMarkdown(raw).trim();
@@ -129,7 +140,7 @@ export function normalizeAiTitle(raw: string | null | undefined): string | null 
 
   if (title.length < 3 || title.length > MAX_AI_TITLE_CHARS) return null;
   if (title.split(/\s+/).length > MAX_AI_TITLE_WORDS) return null;
-  if (/[.!?]\s/.test(title)) return null;
+  if (SENTENCE_END.test(title)) return null;
   return title;
 }
 
