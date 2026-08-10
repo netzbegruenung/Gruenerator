@@ -221,11 +221,14 @@ const Datenschutz = () => {
           <tr>
             <td>Seeweb S.r.l. / Regolo AI</td>
             <td>Italien (EU)</td>
-            <td>KI-Textmodelle, Reranking, Bildmodelle (Zero Data Retention)</td>
+            <td>
+              KI-Textmodelle, Reranking sowie – wenn Du sie wählst – Bildgenerierung mit dem Modell
+              Qwen-Image (Zero Data Retention)
+            </td>
           </tr>
           <tr>
             <td>Black Forest Labs</td>
-            <td>EU (EU-API api.eu.bfl.ai bzw. bei Seeweb/Regolo betriebene FLUX-Modelle)</td>
+            <td>EU (EU-API api.eu.bfl.ai)</td>
             <td>Bildgenerierung (FLUX)</td>
           </tr>
           <tr>
@@ -379,10 +382,11 @@ const Datenschutz = () => {
       <h3>Bildbearbeitung und -generierung (Grünerator Imagine)</h3>
       <p>
         Bei Nutzung des Grünerator Imagine werden Deine hochgeladenen Bilder und Prompts unmittelbar
-        an Black Forest Labs (Verarbeitung in der EU, FLUX-Modell) weitergeleitet und dort
-        ausschließlich zur Bearbeitung verwendet. Wir speichern die Bilder nicht auf unseren
-        Servern; eine Nutzung zum KI-Training findet nicht statt. Rechtsgrundlage ist Art. 6 Abs. 1
-        lit. b DSGVO.
+        an den Anbieter des gewählten Bildmodells weitergeleitet und dort ausschließlich zur
+        Bearbeitung verwendet. Voreingestellt ist Black Forest Labs (FLUX, EU-API api.eu.bfl.ai);
+        wählst Du das Regolo-Bildmodell, verarbeitet stattdessen Seeweb/Regolo AI (Italien) Deine
+        Eingaben mit dem Modell Qwen-Image. Wir speichern die Bilder nicht auf unseren Servern; eine
+        Nutzung zum KI-Training findet nicht statt. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.
       </p>
 
       <h3>Audio- und Videotranskription (Reel-Grünerator, Sprachaufnahme)</h3>
@@ -513,8 +517,9 @@ const Datenschutz = () => {
         Transkription an Mistral AI Voxtral bzw. GreenPT übermittelten Audiodaten kannst Du über uns
         geltend machen; die Audiodaten werden dort nicht dauerhaft gespeichert. Bilder im Grünerator
         Imagine speichern wir nicht, sondern leiten sie nur durch; Deine Rechte hinsichtlich
-        etwaiger bei Black Forest Labs befindlicher Bilddaten kannst Du dennoch jederzeit über uns
-        geltend machen. Zusätzlich erreichst Du Black Forest Labs direkt unter{' '}
+        etwaiger bei Black Forest Labs bzw. – bei Wahl des Regolo-Bildmodells – bei Seeweb/Regolo AI
+        befindlicher Bilddaten kannst Du dennoch jederzeit über uns geltend machen. Zusätzlich
+        erreichst Du Black Forest Labs direkt unter{' '}
         <a href="mailto:support@blackforestlabs.ai">support@blackforestlabs.ai</a>.
       </p>
     </div>
