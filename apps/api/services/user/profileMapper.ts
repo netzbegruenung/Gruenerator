@@ -36,6 +36,7 @@ export function toUserProfile(row: ProfileSelectModel): UserProfile {
     reduce_motion: row.reduce_motion,
     reduce_transparency: row.reduce_transparency,
     show_skip_link: row.show_skip_link,
+    ai_consent_at: row.ai_consent_at ? row.ai_consent_at.toISOString() : null,
     ...(row.custom_prompt != null && { custom_prompt: row.custom_prompt }),
 
     // Feature flags — all have DB defaults so they are non-null

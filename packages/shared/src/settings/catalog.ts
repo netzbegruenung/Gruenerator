@@ -26,6 +26,7 @@ export type SettingsTab =
   | 'allgemein'
   | 'hintergrund'
   | 'barrierefreiheit'
+  | 'datenschutz'
   | 'friends'
   | 'personalisierung'
   | 'briefe'
@@ -116,6 +117,22 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
     title: 'Feedback-Button',
     description:
       'Darstellung des schwebenden Feedback-Buttons: mit Text, nur als Icon oder ganz ausgeblendet — er lässt sich in jede Bildschirmecke ziehen',
+  },
+  {
+    // Web-only: beide Schalter schreiben in den localStorage bzw. das Profil des
+    // Browsers, in dem Umami überhaupt läuft. Die App lädt kein Umami.
+    id: 'datenschutz.reichweitenmessung',
+    tab: 'datenschutz',
+    title: 'Reichweitenmessung',
+    description:
+      'Anonyme Statistik mit Umami (eigene Server, EU). Nur nach Einwilligung — jederzeit widerrufbar',
+  },
+  {
+    id: 'datenschutz.ki-einwilligung',
+    tab: 'datenschutz',
+    title: 'Einwilligung in die KI-Verarbeitung',
+    description:
+      'Ausdrückliche Einwilligung nach Art. 9 DSGVO, weil sich aus deinen Eingaben politische Meinungen ergeben können',
   },
   {
     id: 'barrierefreiheit.animationen',

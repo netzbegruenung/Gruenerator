@@ -94,6 +94,16 @@ export interface AuthStore {
     field: 'reduce_motion' | 'reduce_transparency' | 'show_skip_link',
     enabled: boolean
   ) => Promise<boolean>;
+  /**
+   * Ausdrückliche Einwilligung nach Art. 9 Abs. 2 lit. a DSGVO in die
+   * Verarbeitung besonderer Kategorien (die Eingaben können politische
+   * Meinungen enthalten). `true` erteilt, `false` widerruft.
+   *
+   * Nicht optimistisch: eine erteilte Einwilligung, die der Server nie
+   * angenommen hat, wäre eine falsche Behauptung genau an der Stelle, an der
+   * es auf den Nachweis ankommt.
+   */
+  setAiConsent: (granted: boolean) => Promise<boolean>;
 }
 
 // Detect browser locale for unauthenticated default
@@ -765,6 +775,27 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         user: state.user ? { ...state.user, [field]: previous } : null,
       }));
       toast.error('Einstellung konnte nicht gespeichert werden.');
+      return false;
+    }
+  },
+
+  setAiConsent: async (granted: boolean): Promise<boolean> => {
+    try {
+      const result = await getContractsClient().userProfile.updateProfile({
+        body: { ai_consent: granted },
+      });
+      if (result.status !== 200) {
+        throw new Error(`HTTP ${result.status}`);
+      }
+      const ai_consent_at = result.body.profile?.ai_consent_at ?? null;
+      set((state) => ({
+        user: state.user ? { ...state.user, ai_consent_at } : null,
+      }));
+      return true;
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[AuthStore] Error updating AI consent:', errorMessage);
+      toast.error('Einwilligung konnte nicht gespeichert werden.');
       return false;
     }
   },
