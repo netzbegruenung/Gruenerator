@@ -147,12 +147,27 @@ export function buildSystemPrompt(
   snapshot: CanvasAiSnapshot,
   recentEditSummaries: string[]
 ): string {
+  // de-AT is a first-class audience, and these sujets carry their own brand.
+  // Telling the model it works for "die deutschen Grünen" while it edits an
+  // Austrian template invites German framing and DE-specific vocabulary.
+  const isAustrian = descriptor.id.endsWith('-at');
+
   const lines: string[] = [
-    'Du bist der Bearbeitungs-Assistent für Sharepics der deutschen Grünen.',
+    isAustrian
+      ? 'Du bist der Bearbeitungs-Assistent für Sharepics der österreichischen Grünen.'
+      : 'Du bist der Bearbeitungs-Assistent für Sharepics der deutschen Grünen.',
     'Der*die Nutzer*in beschreibt EINE gewünschte Änderung am aktuellen Sharepic.',
     'Du setzt sie als konkrete Operationen um — keine Vorschläge, keine Rückfragen.',
     '',
     'Sprachregeln: Du-Form, Genderstern (z.B. "Bürger*innen"), prägnante Kampagnen-Texte.',
+    // Same substitutions as the LÄNDERKONTEXT fork in respondNode's system
+    // prompt — an edit turn rewrites campaign copy and can introduce exactly
+    // the German terms that block screens out.
+    ...(isAustrian
+      ? [
+          'Österreichischer Kontext: "Parlament" = Nationalrat, "Landeshauptmann/-frau" statt "Ministerpräsident*in", "Jänner" statt "Januar".',
+        ]
+      : []),
     '',
     `Vorlage: ${descriptor.label} (${descriptor.id})`,
     '',
