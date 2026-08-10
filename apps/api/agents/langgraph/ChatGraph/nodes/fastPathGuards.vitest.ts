@@ -8,6 +8,7 @@ import {
   hasExplicitSharepicWord,
   forbidsPersistentAction,
   forbidsNewResearch,
+  asksForChatDeliverable,
   ARTIFACT_NOUN_BY_KIND,
 } from './fastPathGuards.js';
 
@@ -367,5 +368,41 @@ describe('eine vollständig zitierte Nachricht ist kein Zitat', () => {
     // sie ginge zulasten der echten Zitat-Erkennung, die einen kurzen Rahmen
     // haben darf (siehe der Fall darüber).
     expect(hasExplicitSharepicWord(`„${SHAREPIC_ASK}“ bitte`)).toBe(false);
+  });
+});
+
+describe('asksForChatDeliverable', () => {
+  // QA 08/2026: nach einer chat-erzeugten Tabelle klebte dieser Auftrag am
+  // Sticky-edit_sheet-Zweig ("aktualisiert" ist ein Modify-Verb) — SheetAI
+  // plante 7 Operationen, die zwei Stichpunkte erschienen nie.
+  const QA_ASK =
+    'Neue Information: Der Termin aus Quelle B wurde bestätigt. Erstelle eine aktualisierte Zusammenfassung in genau zwei Stichpunkten.';
+
+  it('erkennt den QA-Auftrag als Chat-Antwort, nicht als Tabellen-Edit', () => {
+    expect(asksForChatDeliverable(QA_ASK, ARTIFACT_NOUN_BY_KIND.sheet)).toBe(true);
+  });
+
+  it('klebt weiter am Artefakt, wenn die Familie benannt ist', () => {
+    expect(
+      asksForChatDeliverable(
+        'Erstelle eine Zusammenfassung als neue Zeile in der Tabelle.',
+        ARTIFACT_NOUN_BY_KIND.sheet
+      )
+    ).toBe(false);
+    expect(
+      asksForChatDeliverable(
+        'Schreib ein Fazit ans Ende des Dokuments.',
+        ARTIFACT_NOUN_BY_KIND.document
+      )
+    ).toBe(false);
+  });
+
+  it('matcht den Umlaut-Anlaut (Überblick) — \\b wäre hier tot', () => {
+    expect(asksForChatDeliverable('Gib mir einen kurzen Überblick.')).toBe(true);
+  });
+
+  it('feuert nicht auf echte Änderungsaufträge ohne Prosa-Deliverable', () => {
+    expect(asksForChatDeliverable('Ändere die dritte Zeile auf 2027.')).toBe(false);
+    expect(asksForChatDeliverable('Mach die erste Zeile fett.')).toBe(false);
   });
 });
