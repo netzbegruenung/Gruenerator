@@ -843,12 +843,15 @@ export async function streamAgenticResponse(params: {
     //     second one would overrule an explicit choice — same double-injection
     //     guard `product_knowledge` uses.
     //   - `customSystemPrompt`: a thread-level prompt replaces the whole
-    //     persona; self-loading a recipe into it would fight the user.
+    //     persona; self-loading a recipe into it would fight the user. A
+    //     CATALOGUE role's baustein is the exception (`roleBausteinActive`):
+    //     that persona is server-authored, and a "Presse & Social-Media" role
+    //     wants the presse recipe rather than being locked out of all of them.
     const recipeRegistry = createRecipeRegistry();
     let recipeCatalog: RecipeCatalogEntry[] = [];
     if (
       !finalState.activeSkillMention &&
-      !finalState.customSystemPrompt &&
+      (!finalState.customSystemPrompt || finalState.roleBausteinActive) &&
       finalState.enabledTools?.['rezept_laden'] !== false
     ) {
       recipeCatalog = await buildRecipeCatalog({

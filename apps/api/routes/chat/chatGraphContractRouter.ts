@@ -56,6 +56,7 @@ import { recordDecision } from '../../utils/decisionJournal.js';
 import { createLogger } from '../../utils/logger.js';
 import { withTimeout } from '../../utils/withTimeout.js';
 
+import { deriveImplicitRecipeMention } from './agents/implicitRecipe.js';
 import {
   streamAgenticResponse,
   isAgenticLoopEnabled,
@@ -1332,6 +1333,36 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         classifiedState.intent = 'web';
         if (!classifiedState.searchQuery && lastUserText) {
           classifiedState.searchQuery = lastUserText;
+        }
+      }
+
+      // Implicit recipe on the single-pass path: `rezept_laden` only exists in
+      // the loop, but the most common writing turn ("Schreib mir eine
+      // Pressemitteilung zu X") is single-pass — the recipe used to load there
+      // only via an explicit @mention. An unambiguous match sets
+      // `activeSkillMention`, so downstream everything behaves exactly as if
+      // the user had picked the recipe: respondNode injects the fragment,
+      // learned text forms keep their precedence, and on a later loop turn the
+      // mount gate reads it as a deliberate choice. Same opt-out and
+      // custom-prompt guards as the loop's catalogue; loop turns are untouched
+      // (the model picks via the tool there).
+      if (
+        !runAgentic &&
+        (classifiedState.intent === 'direct' || classifiedState.intent === 'produktion') &&
+        !classifiedState.activeSkillMention &&
+        !classifiedState.customSystemPrompt &&
+        enabledTools?.['rezept_laden'] !== false
+      ) {
+        const implicitRecipe = deriveImplicitRecipeMention(
+          lastUserTextNoMentions,
+          classifiedState.userLocale ?? null
+        );
+        if (implicitRecipe) {
+          recordDecision('router.implicit_recipe', implicitRecipe, {
+            inputs: { intent: classifiedState.intent },
+          });
+          log.info(`[${requestId}] implicit recipe on single-pass: @${implicitRecipe}`);
+          classifiedState.activeSkillMention = implicitRecipe;
         }
       }
 
