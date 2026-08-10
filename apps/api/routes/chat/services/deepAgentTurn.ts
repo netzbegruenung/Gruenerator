@@ -4,8 +4,9 @@
  *
  * It sits IN FRONT of `deepResearchTurn` rather than replacing it: every gate
  * here returns `null`, which drops the turn into the old one-shot Linkup path.
- * A user who asked for depth therefore always gets an answer, and the expensive
- * new machinery can be switched off at the flag without touching routing.
+ * A user who asked for depth therefore always gets an answer. The remaining
+ * gates are all things the run genuinely needs — a key, a question, a meterable
+ * user — so this path is the default whenever it can actually run.
  *
  * Three properties differ from every other turn and drive the shape:
  *
@@ -91,8 +92,6 @@ export async function runDeepAgentTurn(params: {
   sse: SSEWriter;
 }): Promise<DeepAgentOutcome> {
   const { state, sse } = params;
-
-  if (!env.DEEP_AGENT_RESEARCH_ENABLED) return NOT_SERVED;
 
   const question = state.searchQuery?.trim() ?? '';
   const userId = state.agentConfig?.userId ?? '';
