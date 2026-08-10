@@ -1,5 +1,6 @@
 ---
 identifier: gruenerator-oeffentlichkeitsarbeit-thueringen
+defaultRecipeMention: 'presse-thueringen'
 autoRoutingHint: creative
 audience: de-DE
 title: Öffentlichkeitsarbeit Thüringen

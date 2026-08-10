@@ -17,6 +17,16 @@ export interface User {
    */
   reduce_motion?: boolean;
   reduce_transparency?: boolean;
+  /**
+   * Zeitpunkt der ausdrücklichen Einwilligung nach Art. 9 Abs. 2 lit. a DSGVO;
+   * `null` heißt „nicht erteilt bzw. widerrufen". Fehlt die Angabe, fragen Web
+   * und App vor der ersten KI-Nutzung nach.
+   *
+   * Trotz Index-Signatur ausgeschrieben: das Feld entscheidet, ob ein blockierendes
+   * Gate erscheint, und ein Tippfehler wäre sonst still `undefined` — also
+   * „nicht erteilt" — und würde alle aussperren.
+   */
+  ai_consent_at?: string | null;
   user_metadata?: {
     chat_color?: string;
     [key: string]: unknown;
@@ -50,6 +60,14 @@ export interface AuthActions {
   updateAvatar: (avatarRobotId: string) => Promise<User>;
   updateMessageColor: (color: string) => Promise<void>;
   updateLocale: (locale: 'de-DE' | 'de-AT') => Promise<void>;
+  /**
+   * Ausdrückliche Einwilligung nach Art. 9 Abs. 2 lit. a DSGVO erteilen oder
+   * widerrufen. Eigene Aktion statt `updateProfile({ ai_consent })`, weil
+   * `ai_consent` kein Feld des Profils ist, sondern die Anweisung daran — der
+   * Server setzt daraufhin `ai_consent_at`. Über `updateProfile` bräuchte jeder
+   * Aufrufer einen Cast an `Partial<User>` vorbei.
+   */
+  setAiConsent: (granted: boolean) => Promise<void>;
 }
 
 export type AuthStore = AuthState & AuthActions;

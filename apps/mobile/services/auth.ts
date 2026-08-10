@@ -70,6 +70,17 @@ export function configureAuthStore(): void {
       await apiClient.patch(API_ENDPOINTS.AUTH_PROFILE_COLOR, { color });
     },
 
+    // Eigener Weg statt updateProfileApi: `ai_consent` ist kein Profilfeld,
+    // sondern die Anweisung daran, und der Server antwortet mit dem Zeitstempel,
+    // den er gesetzt hat.
+    setAiConsentApi: async (granted: boolean) => {
+      const res = await getContractsClient().userProfile.updateProfile({
+        body: { ai_consent: granted },
+      });
+      if (res.status !== 200) throw new Error('Einwilligung konnte nicht gespeichert werden.');
+      return res.body.profile.ai_consent_at ?? null;
+    },
+
     updateLocaleApi: async (locale: 'de-DE' | 'de-AT') => {
       await apiClient.put(API_ENDPOINTS.AUTH_PROFILE_LOCALE, { locale });
     },

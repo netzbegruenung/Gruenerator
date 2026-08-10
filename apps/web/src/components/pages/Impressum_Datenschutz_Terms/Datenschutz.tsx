@@ -1,540 +1,263 @@
-import { PRIMARY_URL } from '../../../config/domains';
+/**
+ * Wortlaut 1:1 aus der kanzleifinalen Fassung (datenschutz frankfurt ·
+ * Schönberger & Dielmann, Stand 09.07.2026). Inhaltliche Änderungen gehören
+ * in das Rechtsdokument, nicht in diese Datei — hier wird nur formatiert.
+ */
 
 const Datenschutz = () => {
   return (
     <div className="page-container">
       <h1>Datenschutzerklärung</h1>
-      <p>Stand: 5. Juli 2026</p>
+      <p>Stand: 9. Juli 2026</p>
 
-      <h2>Kurzzusammenfassung</h2>
+      <h2>Einleitung</h2>
       <p>
-        <strong>
-          Der <a href={PRIMARY_URL}>GRUENERATOR</a> verarbeitet nur die Texte, die Du aktiv in die
-          Eingabefelder eingibst. Diese werden zur KI-Bearbeitung an einen unserer europäischen
-          KI-Dienstleister weitergeleitet (insbesondere <a href="https://mistral.ai/">Mistral AI</a>{' '}
-          in Frankreich, KI-Modelle der netzbegrünung e.V. sowie Seeweb/Regolo AI in Italien);
-          welches Modell verwendet wird, kannst Du pro Anfrage selbst wählen. Deine Daten werden
-          dort nicht zum Training der KI verwendet. Bei Nutzung des{' '}
-          <strong>Grünerator Imagine</strong> zur Bildbearbeitung werden Deine hochgeladenen Bilder
-          direkt an <strong>Black Forest Labs</strong> auf EU-Servern weitergeleitet und dort mit
-          dem FLUX-Modell verarbeitet. Wir speichern die Bilder nicht auf unseren Servern. Die
-          Bilder werden ausschließlich zur Bearbeitung verwendet und nicht zum Training der KI
-          genutzt. Wenn Du die Suchfunktion des GRUENERATORs nutzt, werden Deine Suchanfragen über
-          unsere KI-Dienstleister sowie spezialisierte Suchdienste (in der EU) verarbeitet. Bei
-          Nutzung der Sprachverarbeitung werden deine Audiodaten an Mistral AI in der EU verarbeitet
-          (Voxtral für Spracherkennung, Mistral TTS für die Sprachausgabe des KI-Agenten). Bei
-          Aktivierung des <strong>Echtzeit-Sprachdialogs</strong> bleibt Dein Mikrofon für die Dauer
-          der Sitzung aktiv und wird automatisch freigegeben, sobald Du die Sitzung beendest, den
-          Browser-Tab wechselst, die Seite verlässt oder das Fenster schließt. Bitte achte also
-          darauf, dass Du keine personenbezogenen oder vertraulichen Daten eingibst oder sprichst
-          und dass sich keine weiteren Personen ohne deren Einwilligung in Hörweite Deines Mikrofons
-          befinden.
-        </strong>
+        Wir freuen uns über Dein Interesse am GRÜNERATOR. Der Schutz Deiner personenbezogenen Daten
+        und die Wahrung Deiner Privatsphäre haben für uns einen hohen Stellenwert. Gerade weil über
+        den GRÜNERATOR politische Inhalte erstellt werden, ist uns bewusst, dass ein
+        vertrauensvoller und datensparsamer Umgang mit Deinen Eingaben die Grundlage unseres
+        Angebots ist.
       </p>
       <p>
-        <strong>Hinweis zu den KI-Anbietern:</strong> Du kannst pro Anfrage selbst wählen, welches
-        KI-Modell und damit welcher Anbieter Deine Eingaben verarbeitet (oder „Automatisch" wählen
-        lassen). Es kommen ausschließlich Anbieter mit Verarbeitung in der EU zum Einsatz:
+        Mit dieser Datenschutzerklärung informieren wir Dich umfassend, transparent und in
+        verständlicher Form darüber, welche personenbezogenen Daten (nachfolgend „Daten") wir im
+        Zusammenhang mit dem Besuch unserer Website und der Nutzung des GRÜNERATOR verarbeiten, zu
+        welchen Zwecken und auf welcher Rechtsgrundlage dies geschieht und welche Rechte Dir als
+        betroffener Person zustehen. Der GRÜNERATOR ist eine KI-gestützte
+        Content-Erstellungsplattform; wir verarbeiten grundsätzlich nur die Inhalte, die Du aktiv in
+        die Eingabefelder eingibst.
       </p>
-      <ul>
-        <li>Mistral AI (Frankreich)</li>
-        <li>Scaleway (Frankreich) — betreibt für uns das Modell Mistral Medium 3.5</li>
-        <li>KI-Modelle der netzbegrünung e.V. (eigene Server, EU)</li>
-        <li>Seeweb/Regolo AI (Italien)</li>
-      </ul>
-      <p>Die Auswahl triffst Du bei jeder einzelnen Anfrage selbst.</p>
+
+      <h2>Verantwortlicher</h2>
+      <p>Verantwortlicher im Sinne der Datenschutz-Grundverordnung (DSGVO) ist:</p>
       <p>
-        <strong>
-          Wenn Du die Sprachaufnahme-Funktion oder den Reel-Grünerator nutzt, werden Deine Audio-
-          und Videodaten auf unserem Server verarbeitet. Die Audiodaten werden zur Transkription an{' '}
-          <strong>Mistral AI Voxtral</strong> (EU) oder <strong>GreenPT</strong> übermittelt. Die
-          verarbeiteten Daten werden nicht dauerhaft bei uns gespeichert.
-        </strong>
-      </p>
-      <p>
-        Ausführliche Informationen zur Datenschutzerklärung und Deinen Rechten findest Du unten auf
-        dieser Seite. Weiterführende Informationen dazu, wie Mistral AI Deine Eingaben verarbeitet
-        und behandelt, findest Du in der{' '}
-        <a href="https://mistral.ai/privacy-policy/">Datenschutzerklärung</a> sowie in den{' '}
-        <a href="https://mistral.ai/terms/">Nutzungsbedingungen</a> von Mistral AI.
-      </p>
-      <p>
-        <u>Hinweis:</u>
+        Moritz Wächter (GRÜNERATOR)
         <br />
-        Die{' '}
-        <a href="https://netzbegruenung.de/">
-          netzbegrünung – Verein für grüne Netzkultur e.V.
-        </a>{' '}
-        arbeitet daran alle Daten selbst zu verarbeiten, damit Du den GRUENERATOR schon bald
-        komplett sorg- und bedenklos nutzen kannst. Falls Du dieses Ziel unterstützen willst, kannst
-        Du das mit einer <a href="https://netzbegruenung.de/verein/spenden/">Spende</a> oder einer{' '}
-        <a href="https://netzbegruenung.de/verein/mitgliedsantrag/">Mitgliedschaft</a> tun.
-      </p>
-
-      <h2 id="nutzungsbedingungen">Nutzungsbedingungen</h2>
-      <p>
-        Es gelten unsere <a href="/nutzungsbedingungen">Nutzungsbedingungen</a>.
-      </p>
-
-      <h2>Datenschutzhinweise</h2>
-      <p>
-        Informationen über die Verarbeitung Deiner Daten gemäß{' '}
-        <a href="https://dejure.org/gesetze/DSGVO/13.html">
-          Art. 13 der Datenschutz-Grundverordnung (DS-GVO)
-        </a>
-      </p>
-
-      <h3>1. Verantwortlicher</h3>
-      <p>
-        Verantwortlich für diese Website ist Moritz Wächter, Villestr. 6-8, 53347 Alfter,
-        info@moritz-waechter.de.
-      </p>
-
-      <h3>
-        2. Daten, die für die Bereitstellung der Website und die Erstellung der Protokolldateien
-        verarbeitet werden
-      </h3>
-      <h4>a. Welche Daten werden für welchen Zweck verarbeitet?</h4>
-      <p>
-        Wir verarbeiten personenbezogene Daten unserer Nutzer*innen grundsätzlich nur, soweit dies
-        zur Bereitstellung einer funktionsfähigen Website erforderlich ist. Die Verarbeitung
-        personenbezogener Daten unserer Nutzer*innen erfolgt regelmäßig nur nach Einwilligung der
-        Nutzer*in. Eine Ausnahme gilt in solchen Fällen, in denen eine vorherige Einholung einer
-        Einwilligung aus tatsächlichen Gründen nicht möglich ist und die Verarbeitung der Daten
-        durch gesetzliche Vorschriften gestattet.
+        Villestraße 6–8
+        <br />
+        53347 Alfter
+        <br />
+        Deutschland
       </p>
       <p>
-        Die vorübergehende Speicherung der Daten ist für den Ablauf eines Websitebesuchs
-        erforderlich, um eine Auslieferung der Website zu ermöglichen.
+        E-Mail: <a href="mailto:info@moritz-waechter.de">info@moritz-waechter.de</a>
+        <br />
+        Website: <a href="https://gruenerator.eu">https://gruenerator.eu</a>
+      </p>
+      <p>
+        Der GRÜNERATOR wird in technischer Zusammenarbeit mit der netzbegrünung – Verein für grüne
+        Netzkultur e.V. bereitgestellt, die als Auftragsverarbeiter Teile der Infrastruktur
+        betreibt.
       </p>
 
-      <h4>b. Auf welcher Rechtsgrundlage werden diese Daten verarbeitet?</h4>
-      <p>
-        Die Daten werden auf der Grundlage{' '}
-        <a href="https://dejure.org/gesetze/DSGVO/6.html">des Art. 6 Abs. 1 Buchstabe f DS-GVO</a>{' '}
-        verarbeitet.
-      </p>
+      <h2>Kategorien der verarbeiteten Daten</h2>
+      <p>Wir unterteilen die von uns verarbeiteten Daten in folgende Kategorien:</p>
+      <ul>
+        <li>
+          <strong>Bestands- und Anmeldedaten:</strong> z. B. Name und Login-Daten des über den
+          zentralen Anmeldedienst (Keycloak) verwalteten Benutzerkontos.
+        </li>
+        <li>
+          <strong>Inhaltsdaten (Deine Eingaben):</strong> Texte, Prompts und sonstige Inhalte, die
+          Du in die Plattform eingibst, sowie die in ein Notebook eingelesenen Dokumente.
+        </li>
+        <li>
+          <strong>Hochgeladene Medien:</strong> Bilder zur Bearbeitung sowie Audio- und
+          Videoaufnahmen zur Transkription.
+        </li>
+        <li>
+          <strong>Kommunikations- und Sprachdaten:</strong> Audiostream bei Nutzung des
+          Echtzeit-Sprachdialogs.
+        </li>
+        <li>
+          <strong>Metadaten und technische Nutzungsdaten:</strong> IP-Adresse,
+          Geräte-/Browserangaben, Zeitstempel, Session- und Protokolldaten.
+        </li>
+        <li>
+          <strong>Besondere Kategorien personenbezogener Daten (Art. 9 DSGVO):</strong> Insbesondere
+          können sich aus Deinen Eingaben politische Meinungen ergeben. Ob und welche solcher
+          Inhalte verarbeitet werden, liegt vollständig in Deiner Entscheidung.
+        </li>
+      </ul>
 
-      <h4>c. Gibt es neben dem Verantwortlichen weitere Empfänger der personenbezogenen Daten?</h4>
-      <p>
-        Die Website wird bei Hetzner Online GmbH, Industriestr. 25, 91710 Gunzenhausen, Deutschland,
-        info@hetzner.com gehostet. Der Hoster empfängt die oben genannten Daten als
-        Auftragsverarbeiter. Bei Nutzung des Grünerator Imagine fungiert Black Forest Labs als
-        Auftragsverarbeiter für die Bildbearbeitung mittels FLUX-KI (Verarbeitung in der EU). Beim
-        Reel-Grünerator fungiert <strong>Mistral AI Voxtral</strong> (EU) als Auftragsverarbeiter
-        für die Audiotranskription. Als zweite Strecke — sowohl bei Ausfall als auch bei
-        ausdrücklicher Auswahl — wird <strong>GreenPT</strong> eingesetzt.
-      </p>
+      <h2>Kategorien der betroffenen Personen</h2>
+      <ul>
+        <li>Nutzer*innen des GRÜNERATOR.</li>
+        <li>Besucher*innen unserer Website.</li>
+      </ul>
 
-      <p>
-        Darüber hinaus nutzen wir für die Bereitstellung der KI-Funktionen und der Suchfunktion
-        spezialisierte technische Dienstleister, die als unsere Auftragsverarbeiter agieren. Für die
-        Anwendungsüberwachung nutzen wir die selbst gehostete Open-Source-Software{' '}
-        <strong>GlitchTip</strong> auf eigenen Servern in der EU; eine Weitergabe an Dritte findet
-        dabei nicht statt.
-      </p>
+      <h2>Zwecke, zu deren Verfolgung die Verarbeitung erfolgt</h2>
+      <ul>
+        <li>
+          Bereitstellung der Website und des GRÜNERATOR sowie seiner Funktionen (Textgenerierung,
+          Bildbearbeitung, Transkription, Notebooks, Web-Recherche, Sprachverarbeitung).
+        </li>
+        <li>Verwaltung des Benutzerkontos und Authentifizierung.</li>
+        <li>
+          Sicherheit und Stabilität der technischen Infrastruktur, Missbrauchsabwehr und
+          Fehleranalyse.
+        </li>
+        <li>Kommunikation und Bearbeitung von Anfragen.</li>
+        <li>Statistische Reichweitenmessung (nur nach Einwilligung).</li>
+      </ul>
 
-      <h3>Auftragsverarbeitung durch technische Dienstleister</h3>
-
+      <h2>Übersicht und Erklärung der Rechtsgrundlagen</h2>
       <p>
-        <strong>Gemeinsame Grundsätze für alle Dienstleister:</strong>
+        Im Folgenden informieren wir Dich über die Rechtsgrundlagen der DSGVO, auf deren Basis wir
+        Daten verarbeiten. Zusätzlich können nationale Regelungen Deines Wohn- bzw.
+        Aufenthaltslandes gelten.
       </p>
       <ul>
-        <li>Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung)</li>
-        <li>Auftragsverarbeitungsverträge gemäß Art. 28 DSGVO vorhanden</li>
         <li>
           <strong>
-            Kein KI-Training: Deine Daten werden bei keinem unserer Partner zum Training verwendet
-          </strong>
+            Vertragserfüllung und vorvertragliche Maßnahmen (Art. 6 Abs. 1 lit. b DSGVO):
+          </strong>{' '}
+          Verarbeitung zur Bereitstellung des Nutzungsverhältnisses und der Funktionen.
         </li>
-        <li>Maximale Speicherdauer: 30 Tage für technische Zwecke/Missbrauchserkennung</li>
-        <li>Verarbeitung ausschließlich in der EU (außer spezifisch erwähnt)</li>
-      </ul>
-
-      <h4>Unsere Auftragsverarbeiter im Detail:</h4>
-
-      <p>
-        <strong>1. Mistral AI</strong> (15 rue des Halles, 75001 Paris, Frankreich)
-      </p>
-      <ul>
         <li>
-          Zweck: Text- und Sprachverarbeitung (KI-Textmodelle, Voxtral für Spracherkennung, Mistral
-          Speech/TTS für die Sprachausgabe im Echtzeit-Sprachdialog)
+          <strong>Berechtigte Interessen (Art. 6 Abs. 1 lit. f DSGVO):</strong> insbesondere
+          IT-Sicherheit, Missbrauchsabwehr, Stabilität und Fehleranalyse.
         </li>
-        <li>Server: EU (Frankreich)</li>
         <li>
-          Im Echtzeit-Sprachdialog: Live-Stream-Verarbeitung ohne Persistierung bei netzbegrünung;
-          keine Nutzung zu Trainingszwecken; keine Erstellung von Stimmprofilen
+          <strong>Einwilligung (Art. 6 Abs. 1 lit. a DSGVO):</strong> z. B. Reichweitenmessung,
+          Echtzeit-Sprachdialog sowie – soweit einschlägig – die Verarbeitung besonderer Kategorien.
         </li>
-        <li>Besonderheit: Subunternehmer möglich (mit EU-Standardvertragsklauseln)</li>
         <li>
-          Details: <a href="https://mistral.ai/privacy-policy/">Datenschutzerklärung</a> und{' '}
-          <a href="https://mistral.ai/terms/">Nutzungsbedingungen</a>
+          <strong>Verarbeitung besonderer Kategorien (Art. 9 Abs. 2 lit. a DSGVO):</strong>{' '}
+          ausdrückliche Einwilligung, soweit Deine Eingaben besondere Kategorien (z. B. politische
+          Meinungen) enthalten.
+        </li>
+        <li>
+          <strong>Speicherung/Zugriff auf Endgeräte (§ 25 Abs. 1, Abs. 2 Nr. 2 TDDDG):</strong>{' '}
+          technisch notwendige Speicherung ohne Einwilligung; einwilligungsbedürftige Speicherung
+          nur mit Deiner Zustimmung.
         </li>
       </ul>
 
+      <h2>Sicherheitsmaßnahmen</h2>
       <p>
-        <strong>2. Scaleway SAS</strong> (8, Rue de la Ville-l&apos;Évêque, 75008 Paris, Frankreich)
-      </p>
-      <ul>
-        <li>Zweck: Betrieb des KI-Textmodells Mistral Medium 3.5</li>
-        <li>Server: EU (Paris, Frankreich)</li>
-        <li>
-          Besonderheit: Scaleway stellt die Rechenleistung bereit; das Modell selbst stammt von
-          Mistral AI. Fällt Scaleway aus, wird dieselbe Anfrage direkt an Mistral AI weitergeleitet.
-        </li>
-        <li>Verarbeitete Daten: Eingabetexte, Ausgaben, Metadaten</li>
-        <li>
-          Details: <a href="https://www.scaleway.com/en/privacy-policy/">Datenschutzerklärung</a>
-        </li>
-      </ul>
-
-      <p>
-        <strong>3. Black Forest Labs</strong> (FLUX-Bildgenerierung)
-      </p>
-      <ul>
-        <li>Zweck: Bildbearbeitung und -generierung (FLUX-Modell im Grünerator Imagine)</li>
-        <li>
-          Server: Ausschließlich EU – über die EU-API von Black Forest Labs (api.eu.bfl.ai) bzw.
-          alternativ über bei Seeweb/Regolo AI (Italien) betriebene FLUX-Modelle
-        </li>
-        <li>Besonderheit: Keine Speicherung auf unseren Servern, direkte Weiterleitung</li>
-        <li>Verarbeitete Daten: Eingabebilder, Prompts, Ausgabebilder, Metadaten</li>
-        <li>Kontakt: support@blackforestlabs.ai</li>
-      </ul>
-
-      <p>
-        <strong>4. Seeweb S.r.l. / Regolo AI</strong> (C.so Lazio 9/a, 03100 Frosinone, Italien)
-      </p>
-      <ul>
-        <li>Zweck: KI-Textmodelle und semantische Aufbereitung (Reranking)</li>
-        <li>Server: EU (Italien)</li>
-        <li>Zero Data Retention: Input- und Output-Daten werden am Ende jeder Session gelöscht</li>
-        <li>DSGVO-konform: Italienisches Unternehmen mit ausschließlicher EU-Datenverarbeitung</li>
-        <li>
-          Details:{' '}
-          <a href="https://regolo.ai/docs/compliance-and-privacy/privacy-policy/">
-            Datenschutzerklärung
-          </a>
-        </li>
-      </ul>
-
-      <p>
-        {/* TODO(legal): Firmierung, ladungsfähige Anschrift und Serverstandort der
-            GreenPT-Betreibergesellschaft ergänzen sowie den Link auf deren
-            Datenschutzerklärung — mir lagen sie nicht belegt vor, und geraten wird
-            in einer Datenschutzerklärung nichts. MUSS vor dem Livegang stehen. */}
-        <strong>5. GreenPT</strong>
-      </p>
-      <ul>
-        <li>Zweck: Audio-/Videotranskription (Reel-Grünerator, Sprachaufnahme, Protokolle)</li>
-        <li>Transkriptionsmodell: green-s-pro</li>
-        <li>
-          Verarbeitete Daten: Audiodaten, Transkript, Metadaten; bei Protokollen zusätzlich die
-          Zuordnung von Redebeiträgen zu Sprecherkennungen
-        </li>
-        <li>
-          Besonderheit: Wird als zweite, unabhängige Transkriptionsstrecke neben Mistral AI Voxtral
-          betrieben. Fällt Voxtral aus, übernimmt GreenPT dieselbe Anfrage.
-        </li>
-      </ul>
-
-      <p>
-        <strong>6. netzbegrünung e.V.</strong> (Deutschland)
-      </p>
-      <ul>
-        <li>Zweck: Kerninfrastruktur des GRUENERATOR</li>
-        <li>Server: Eigene Server in Finnland (EU)</li>
-        <li>
-          Bereitgestellte Dienste:
-          <ul>
-            <li>PostgreSQL-Datenbank (Benutzerprofile, Einstellungen)</li>
-            <li>Keycloak-Authentifizierung (Login, Benutzerverwaltung)</li>
-            <li>Redis (Session-Speicher, max. 24h Speicherdauer)</li>
-            <li>Qdrant-Vektorsuche (semantische Suche in Parteiprogrammen, anonymisiert)</li>
-            <li>Textbegrünung/Etherpad (kollaboratives Schreiben, Pad-IDs ohne Personenbezug)</li>
-            <li>KI-Modelle der netzbegrünung (selbst gehostete Open-Source-Modelle)</li>
-          </ul>
-        </li>
-        <li>
-          Besonderheit: Vollständige Datenkontrolle durch grüne Netzkultur, keine kommerzielle
-          Datennutzung
-        </li>
-      </ul>
-
-      <p>
-        <strong>7. SearXNG (selbstgehostet)</strong>
-      </p>
-      <ul>
-        <li>Zweck: Suchfunktion (Metasuchmaschine für Web-Informationen)</li>
-        <li>Server: Eigene Server (Deutschland)</li>
-        <li>Besonderheit: Keine Weitergabe an externe Suchanbieter, vollständige Datenkontrolle</li>
-      </ul>
-
-      <p>
-        <strong>8. Linkup Technologies</strong> (Linkup Technologies SAS, 28 avenue des Pépinières,
-        94260 Fresnes, Frankreich; Handelsregister Créteil 930 910 740)
-      </p>
-      <ul>
-        <li>Zweck: Agentische Web-Recherche mit Quellenangaben (Suche-Modus, Tiefenrecherche)</li>
-        <li>Server: EU (Frankreich)</li>
-        <li>Verarbeitete Daten: Suchanfrage</li>
-        <li>
-          Besonderheit: Französischer Anbieter mit ausschließlicher EU-Datenverarbeitung — keine
-          Drittlandübermittlung; ausdrückliche DSGVO-Compliance laut Anbieter
-        </li>
-        <li>
-          Details: <a href="https://www.linkup.so/privacy-policy">Datenschutzerklärung</a> und{' '}
-          <a href="https://www.linkup.so/terms-of-use">Nutzungsbedingungen</a>
-        </li>
-      </ul>
-
-      <p>
-        <strong>9. GlitchTip (selbstgehostet)</strong>
-      </p>
-      <ul>
-        <li>Zweck: Fehlerüberwachung und Anwendungsmonitoring (Error Tracking)</li>
-        <li>Server: Eigene bzw. von der netzbegrünung betriebene Server in der EU</li>
-        <li>Verarbeitete Daten: Fehlerberichte, Stack-Traces, Browserinformationen, IP-Adressen</li>
-        <li>Speicherdauer: Automatische Löschung nach 90 Tagen</li>
-        <li>Sicherheit: TLS 1.2+, Verschlüsselung im Ruhezustand</li>
-        <li>
-          Besonderheit: Selbst gehostete Open-Source-Software (Alternative zu Sentry); keine
-          Weitergabe an Dritte, keine Drittlandübermittlung, keine Nutzung zum KI-Training
-        </li>
-        <li>
-          Details: <a href="https://glitchtip.com/legal/privacy/">Datenschutzerklärung</a>
-        </li>
-      </ul>
-
-      <p>
-        <strong>10. Langfuse (selbstgehostet)</strong>
-      </p>
-      <ul>
-        <li>
-          Zweck: Qualitätssicherung, Fehleranalyse und Nachvollziehbarkeit der KI-Chat-Funktion
-          (Beobachtbarkeit der Sprachmodell-Antworten)
-        </li>
-        <li>Server: Eigene Server in Deutschland</li>
-        <li>
-          Verarbeitete Daten: Chat-Eingaben und -Ausgaben, verwendetes KI-Modell, Token-Zahlen,
-          pseudonyme Nutzer- und Thread-Kennung, Zeitstempel sowie – sofern Du sie abgibst – eine
-          Bewertung der Antwort (Daumen hoch/runter)
-        </li>
-        <li>
-          Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an Qualitätssicherung)
-        </li>
-        <li>Speicherdauer: Automatische Löschung nach 30 Tagen</li>
-        <li>Sicherheit: TLS-Verschlüsselung, Zugriff ausschließlich durch den Betreiber</li>
-        <li>
-          Besonderheit: Selbst gehostete Open-Source-Software; keine Weitergabe an Dritte, keine
-          Drittlandübermittlung, keine Nutzung zum KI-Training
-        </li>
-        <li>
-          Details: <a href="https://langfuse.com/security/privacy">Datenschutzinformationen</a>
-        </li>
-      </ul>
-
-      <h3 id="webanalyse">Webanalyse mit Umami</h3>
-      <p>
-        Diese Website nutzt den Open-Source-Webanalysedienst Umami zur statistischen Auswertung der
-        Besucherzugriffe. Umami wird vom Grünerator selbst auf eigenen Servern in Europa gehostet
-        und betrieben.
-      </p>
-      <p>
-        <strong>Einwilligung:</strong> Die Webanalyse wird erst aktiviert, nachdem Du bei Deinem
-        ersten Besuch zugestimmt hast. Ohne Deine Einwilligung findet keine Analyse statt.
-      </p>
-      <p>
-        <strong>Erfasste Daten (nur nach Einwilligung):</strong>
-      </p>
-      <ul>
-        <li>Besuchte Seiten und Verweildauer</li>
-        <li>Referrer (von welcher Seite Du kamst)</li>
-        <li>Browsertyp und Betriebssystem</li>
-        <li>Anonymisierte IP-Adresse (keine vollständige IP-Speicherung)</li>
-        <li>Ungefährer Standort (Land/Region)</li>
-      </ul>
-      <p>
-        <strong>Datenschutz-Eigenschaften:</strong>
-      </p>
-      <ul>
-        <li>Server ausschließlich in Europa</li>
-        <li>Keine Weitergabe an Dritte</li>
-        <li>Keine Verknüpfung mit anderen Datenquellen</li>
-        <li>Keine personenbezogenen Daten oder eindeutige Identifikatoren</li>
-        <li>Rechtsgrundlage: Art. 6 Abs. 1 lit. a DSGVO (Einwilligung)</li>
-      </ul>
-      <p>
-        <strong>Widerruf:</strong> Du kannst Deine Einwilligung jederzeit widerrufen. Lösche dazu
-        den Eintrag „analyticsConsent" in Deinen Browser-Einstellungen (Websitedaten/Cookies) oder
-        lade die Seite nach dem Widerruf neu.
+        Wir treffen nach Maßgabe des Art. 32 DSGVO unter Berücksichtigung des Stands der Technik,
+        der Implementierungskosten sowie der Art, des Umfangs, der Umstände und der Zwecke der
+        Verarbeitung geeignete technische und organisatorische Maßnahmen, um ein dem Risiko
+        angemessenes Schutzniveau zu gewährleisten. Dazu zählen insbesondere die verschlüsselte
+        Übertragung der Daten mittels SSL/TLS (mind. Version 1.2), die verschlüsselte Speicherung
+        ruhender Daten, Zugriffsbeschränkungen nach dem Need-to-know-Prinzip,
+        Zwei-Faktor-Authentifizierung für administrative Zugänge sowie Datenschutz durch
+        Technikgestaltung und datenschutzfreundliche Voreinstellungen (Art. 25 DSGVO).
       </p>
 
-      <h3>Cookies und Einwilligung</h3>
+      <h2>Übermittlung und Offenbarung von personenbezogenen Daten gegenüber Dritten</h2>
       <p>
-        Diese Website verwendet Cookies. Technisch notwendige Cookies werden ohne Einwilligung
-        gesetzt. Analyse-Cookies (Umami) werden erst nach Deiner ausdrücklichen Einwilligung
-        aktiviert.
-      </p>
-      <p>
-        <strong>Verwendete Cookies:</strong>
-      </p>
-      <ul>
-        <li>
-          <strong>Session-Cookie:</strong> Zur Authentifizierung und Aufrechterhaltung Deiner
-          Sitzung (technisch notwendig, Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO)
-        </li>
-        <li>
-          <strong>Umami-Tracking:</strong> Zur anonymisierten Webanalyse (nur nach Einwilligung,
-          Rechtsgrundlage: Art. 6 Abs. 1 lit. a DSGVO)
-        </li>
-      </ul>
-
-      <h3>Lokale Speicherung im Browser</h3>
-      <p>
-        Wir nutzen den lokalen Speicher Deines Browsers (localStorage, sessionStorage) für folgende
-        Zwecke:
-      </p>
-      <ul>
-        <li>
-          <strong>Authentifizierungsdaten:</strong> Speicherung des Login-Status und der
-          Sitzungsinformationen
-        </li>
-        <li>
-          <strong>Benutzereinstellungen:</strong> Deine persönlichen Präferenzen wie Dark Mode,
-          Spracheinstellungen
-        </li>
-        <li>
-          <strong>Temporäre Zwischenspeicherung:</strong> Entwürfe und ungesendete Eingaben, damit
-          nichts verloren geht
-        </li>
-        <li>
-          <strong>Einwilligungsstatus:</strong> Ob Du den Nutzungsbedingungen und der Webanalyse
-          zugestimmt hast
-        </li>
-      </ul>
-      <p>
-        <strong>Hinweis:</strong> Diese Daten werden ausschließlich lokal in Deinem Browser
-        gespeichert und nicht an unsere Server übertragen. Du kannst sie jederzeit über die
-        Browser-Einstellungen (Websitedaten/Cookies löschen) entfernen.
+        Im Rahmen der Bereitstellung des GRÜNERATOR setzen wir spezialisierte technische
+        Dienstleister ein, die für uns als Auftragsverarbeiter nach Art. 28 DSGVO tätig werden. Mit
+        allen Auftragsverarbeitern bestehen entsprechende Verträge; eine Nutzung Deiner Daten zu
+        Trainings- oder Modellentwicklungszwecken ist vertraglich ausgeschlossen bzw. per Opt-out
+        deaktiviert. Eine Weitergabe an sonstige Dritte erfolgt nur, wenn Du eingewilligt hast, dies
+        gesetzlich vorgeschrieben ist oder es zur Geltendmachung, Ausübung oder Verteidigung von
+        Rechtsansprüchen erforderlich ist.
       </p>
 
       <p>
-        <strong>Wichtiger Hinweis zur Datenverarbeitung:</strong>
-        Wir verarbeiten ausschließlich die von Dir bewusst eingegebenen Texte. Eine automatische
-        Erhebung oder Analyse Deiner politischen Ansichten findet nicht statt. Ob und welche
-        politischen Inhalte verarbeitet werden, liegt vollständig in Deiner Entscheidung. Bitte
-        achte darauf, keine personenbezogenen oder vertraulichen Daten in die Eingabefelder
-        einzugeben, für deren Verarbeitung Du keine Rechtsgrundlage hast.
+        <strong>Übersicht der eingesetzten Auftragsverarbeiter:</strong>
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Dienstleister</th>
+            <th>Sitz / Verarbeitungsort</th>
+            <th>Leistung</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Hetzner Online GmbH</td>
+            <td>Deutschland (EU)</td>
+            <td>Hosting der Webanwendung und Server (ISO 27001)</td>
+          </tr>
+          <tr>
+            <td>netzbegrünung e.V.</td>
+            <td>Deutschland / Finnland (EU)</td>
+            <td>
+              Kerninfrastruktur, Datenbank (PostgreSQL), Keycloak-Authentifizierung, Redis,
+              Vektorsuche (Qdrant, anonymisiert), kollaboratives Schreiben (Etherpad, Pad-IDs ohne
+              Personenbezug), eigene KI-Modelle
+            </td>
+          </tr>
+          <tr>
+            <td>Mistral AI</td>
+            <td>Frankreich (EU)</td>
+            <td>
+              KI-Text- und Sprachverarbeitung (Textmodelle, Voxtral-Spracherkennung, Mistral
+              Speech/TTS)
+            </td>
+          </tr>
+          <tr>
+            <td>IONOS SE</td>
+            <td>Deutschland (EU)</td>
+            <td>ergänzende KI-Textgenerierung (bestimmte Generatorfunktionen)</td>
+          </tr>
+          <tr>
+            <td>Seeweb S.r.l. / Regolo AI</td>
+            <td>Italien (EU)</td>
+            <td>Audio-/Videotranskription (Zero Data Retention), KI-Textmodelle, Reranking</td>
+          </tr>
+          <tr>
+            <td>Black Forest Labs</td>
+            <td>EU (EU-API bzw. IONOS/Regolo)</td>
+            <td>Bildgenerierung (FLUX)</td>
+          </tr>
+          <tr>
+            <td>Linkup Technologies SAS</td>
+            <td>Frankreich (EU)</td>
+            <td>agentische Web-Recherche mit Quellenangaben</td>
+          </tr>
+          <tr>
+            <td>SearXNG (selbst gehostet)</td>
+            <td>Deutschland (EU)</td>
+            <td>Metasuche für die Suchfunktion</td>
+          </tr>
+          <tr>
+            <td>GlitchTip (selbst gehostet)</td>
+            <td>EU</td>
+            <td>Fehler- und Anwendungsmonitoring</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>
+        <strong>Gemeinsame Grundsätze aller Dienstleister:</strong> Verarbeitung ausschließlich in
+        der EU, Auftragsverarbeitungsverträge nach Art. 28 DSGVO, kein KI-Training mit Deinen Daten,
+        kurze Speicherfristen (bei den KI-Dienstleistern in der Regel maximal 30 Tage zur
+        Missbrauchserkennung).
       </p>
 
-      <h4>d. Wie lange werden die Daten gespeichert?</h4>
+      <h2>Datenverarbeitung in Drittländern</h2>
       <p>
-        Die Daten werden gelöscht, sobald sie für die Erreichung des Zwecks ihrer Erhebung nicht
-        mehr erforderlich sind. Bei der Bereitstellung der Website ist dies der Fall, wenn die
-        jeweilige Sitzung beendet ist.
+        Die Verarbeitung Deiner Daten findet ausschließlich auf dem Gebiet der Europäischen Union
+        bzw. des Europäischen Wirtschaftsraums statt (insbesondere Deutschland, Frankreich,
+        Finnland, Italien). Eine Übermittlung personenbezogener Daten in Drittländer außerhalb der
+        EU/des EWR findet nicht statt. Sollte künftig ausnahmsweise eine Drittlandübermittlung
+        erfolgen, geschieht dies nur auf Grundlage eines Angemessenheitsbeschlusses (Art. 45 DSGVO)
+        oder geeigneter Garantien wie der EU-Standardvertragsklauseln (Art. 46 DSGVO); wir
+        informieren Dich hierüber gesondert.
       </p>
 
-      <h3>Medienverarbeitung (Video/Audio/Sprache)</h3>
-
+      <h2>Allgemeiner Hinweis zur Löschung von Daten</h2>
       <p>
-        <strong>Verarbeitung auf unseren Servern:</strong>
-      </p>
-      <ul>
-        <li>Sprachaufnahme & Reel-Videos: FFmpeg (Videobearbeitung) und Orchestrierung</li>
-        <li>Sofortlöschung der Original-Dateien nach Verarbeitung</li>
-        <li>Keine dauerhafte Speicherung</li>
-        <li>Keine manuelle Sichtung oder Anhörung</li>
-        <li>Keine Nutzung zu Trainingszwecken</li>
-      </ul>
-
-      <p>
-        <strong>Externe Verarbeitung durch Dienstleister (Transkription):</strong>
-      </p>
-      <ul>
-        <li>Sprache-zu-Text (primär): Mistral Voxtral (EU-Server, max. 30 Tage)</li>
-        <li>Sprache-zu-Text (zweite Strecke): GreenPT (Modell green-s-pro)</li>
-        <li>Details zu externen Dienstleistern: siehe Auftragsverarbeiter-Sektion oben</li>
-      </ul>
-
-      <h3 id="echtzeit-sprachdialog">Echtzeit-Sprachdialog (Voice Agent)</h3>
-      <p>
-        Der GRUENERATOR bietet einen bidirektionalen Sprachdialog mit der KI an. Du startest die
-        Sitzung über einen sichtbaren Klick auf das Mikrofon-/Voice-Symbol in der Eingabezeile. Eine
-        Sitzung beginnt nur nach Deinem ausdrücklichen, aktiven Einverständnis.
-      </p>
-      <p>
-        <strong>Datenfluss:</strong>
-      </p>
-      <ul>
-        <li>
-          Dein Mikrofon-Audio wird im Browser auf 16&nbsp;kHz (PCM) heruntergerechnet und über eine
-          verschlüsselte WebSocket-Verbindung an unseren Server der netzbegrünung e.V. (EU)
-          gesendet.
-        </li>
-        <li>
-          Unser Server leitet den Audiostream zur Spracherkennung an{' '}
-          <strong>Mistral AI Voxtral</strong> (EU, Frankreich) weiter.
-        </li>
-        <li>
-          Das erkannte Transkript wird in unserer Chat-Pipeline (ChatGraph) mit dem von Dir
-          gewählten KI-Modell verarbeitet (siehe „Hinweis zu den KI-Anbietern" oben).
-        </li>
-        <li>
-          Die Textantwort des Agenten wird satzweise an <strong>Mistral AI Speech (TTS)</strong>{' '}
-          (EU, Frankreich) gesendet und als Audio-Stream zurück in Deinen Browser geliefert, wo sie
-          lokal über Deine Lautsprecher abgespielt wird.
-        </li>
-      </ul>
-      <p>
-        <strong>Mikrofon-Freigabe:</strong> Das Mikrofon bleibt nur so lange aktiv, wie die
-        Sprachsitzung läuft. Es wird automatisch und unverzüglich freigegeben (
-        <code>MediaStreamTrack.stop</code>), sobald einer dieser Auslöser eintritt:
-      </p>
-      <ul>
-        <li>Du klickst auf das Voice-Symbol oder den Hintergrund des Sprachdialog-Fensters</li>
-        <li>Du wechselst den Browser-Tab oder minimierst das Fenster (Visibility Change)</li>
-        <li>Du verlässt die Seite, lädst neu oder schließt den Tab (pagehide / beforeunload)</li>
-        <li>Du wechselst innerhalb der Anwendung in einen anderen Bereich (Route-Navigation)</li>
-        <li>Der Browser-Tab gerät in den Hintergrund (z. B. iOS-bfcache)</li>
-      </ul>
-      <p>
-        <strong>Speicherung &amp; Training:</strong> Audio-Frames werden ausschließlich im
-        Arbeitsspeicher unseres Servers durchgereicht (Live-Stream, keine Persistenz). Weder wir
-        noch Mistral AI verwenden Deinen Audiostream zum Training von KI-Modellen. Es werden keine
-        Sprachprofile (Voice Prints) erstellt.
-      </p>
-      <p>
-        <strong>Rechtsgrundlage:</strong>{' '}
-        <a href="https://dejure.org/gesetze/DSGVO/6.html">Art. 6 Abs. 1 lit. a DSGVO</a>{' '}
-        (Einwilligung durch aktive Aktivierung der Sprachsitzung). Du kannst Deine Einwilligung
-        jederzeit durch das Beenden der Sitzung widerrufen.
-      </p>
-      <p>
-        <strong>Deine Verantwortung:</strong> Sprache kann unbeabsichtigt sensible Informationen
-        enthalten — politische Meinungen, Gesundheitsangaben, religiöse Überzeugungen,
-        Identifikationsmerkmale Dritter (
-        <a href="https://dejure.org/gesetze/DSGVO/9.html">Art. 9 DSGVO</a>). Bitte nutze den
-        Echtzeit-Sprachdialog nur in einer Umgebung, in der sich keine weiteren Personen ohne deren
-        Einwilligung in Hörweite Deines Mikrofons befinden, und sprich keine Daten Dritter aus, für
-        deren Verarbeitung Du keine Rechtsgrundlage hast. Die Funktion ist nicht für die Nutzung
-        durch Minderjährige unter 16 Jahren ohne Einwilligung der Erziehungsberechtigten bestimmt.
+        Wir löschen personenbezogene Daten, sobald die zugrunde liegende Einwilligung widerrufen
+        wird oder keine sonstige Rechtsgrundlage mehr besteht, insbesondere wenn der
+        Verarbeitungszweck entfällt. Werden Daten aus gesetzlichen Gründen (z. B. handels- oder
+        steuerrechtliche Aufbewahrungspflichten: 10 Jahre für Buchungsbelege und Rechnungen gemäß §
+        147 AO, § 257 HGB; 6 Jahre für Geschäftsbriefe; 3 Jahre für Daten zur Geltendmachung oder
+        Abwehr vertraglicher Ansprüche gemäß §§ 195, 199 BGB) weiter benötigt, beschränken wir die
+        Verarbeitung entsprechend. Nach Beendigung der Nutzung werden Deine Daten für weitere 30
+        Tage aufbewahrt und anschließend gelöscht, soweit keine gesetzliche Aufbewahrungspflicht
+        entgegensteht.
       </p>
 
-      <h3>Zweck und Dauer der Datenspeicherung</h3>
       <p>
-        Die Speicherung Deiner Daten dient dazu, Dir die Funktionen unserer Anwendung zur Verfügung
-        zu stellen, insbesondere das Erstellen, Bearbeiten und Abrufen Deiner Inhalte. Deine Daten
-        werden so lange gespeichert, wie sie für die Bereitstellung unserer Dienste erforderlich
-        sind oder bis Du eine Löschung beantragst. Nach Beendigung der Nutzung unserer Dienste
-        werden Deine Daten für weitere 30 Tage aufbewahrt und anschließend gelöscht, es sei denn,
-        gesetzliche Aufbewahrungspflichten erfordern eine längere Speicherung. Deine Rechte auf
-        Auskunft, Berichtigung, Löschung und Einschränkung der Verarbeitung sind im Abschnitt
-        „Betroffenenrechte" beschrieben.
+        <strong>Übersicht der wichtigsten Speicherfristen:</strong>
       </p>
-
-      <h4>Übersicht der Speicherfristen</h4>
       <table>
         <thead>
           <tr>
@@ -545,34 +268,30 @@ const Datenschutz = () => {
         <tbody>
           <tr>
             <td>Sitzungsdaten (Redis)</td>
-            <td>Bis Sitzungsende, max. 24 Stunden</td>
+            <td>bis Sitzungsende, max. 24 Stunden</td>
           </tr>
           <tr>
             <td>Benutzerprofile</td>
-            <td>Bis zur Löschung durch Nutzer</td>
+            <td>bis zur Löschung durch die Nutzer*in</td>
           </tr>
           <tr>
-            <td>KI-Anfragen (KI-Dienstleister)</td>
-            <td>Max. 30 Tage (Missbrauchserkennung)</td>
+            <td>KI-Anfragen bei KI-Dienstleistern</td>
+            <td>max. 30 Tage (Missbrauchserkennung)</td>
+          </tr>
+          <tr>
+            <td>Audio-/Videotranskription (Regolo)</td>
+            <td>Zero Data Retention – Löschung am Ende der Session</td>
+          </tr>
+          <tr>
+            <td>Echtzeit-Sprachdialog (Mikrofon-/TTS-Stream)</td>
+            <td>Live-Stream ohne Persistierung</td>
           </tr>
           <tr>
             <td>Fehlerberichte (GlitchTip)</td>
-            <td>90 Tage (automatische Löschung)</td>
+            <td>90 Tage</td>
           </tr>
           <tr>
-            <td>KI-Chat-Protokolle (Langfuse, Qualitätssicherung)</td>
-            <td>30 Tage (automatische Löschung)</td>
-          </tr>
-          <tr>
-            <td>Audio-/Video-Transkription (Regolo)</td>
-            <td>Zero Retention – Löschung am Ende der Session</td>
-          </tr>
-          <tr>
-            <td>Echtzeit-Sprachdialog (Mikrofon-Stream, TTS-Audio)</td>
-            <td>Live-Stream ohne Persistierung; Mikrofon-Freigabe bei Sitzungsende</td>
-          </tr>
-          <tr>
-            <td>Umami-Analysen</td>
+            <td>Reichweitenmessung (Umami)</td>
             <td>13 Monate</td>
           </tr>
           <tr>
@@ -582,219 +301,169 @@ const Datenschutz = () => {
         </tbody>
       </table>
 
-      <h3>3. Betroffenenrechte</h3>
-      <h4>a. Recht auf Auskunft</h4>
+      <h2>Verarbeitungen im Einzelnen</h2>
+
+      <h3>Bereitstellung der Website und Server-Logfiles</h3>
       <p>
-        Du kannst Auskunft nach{' '}
-        <a href="https://dejure.org/gesetze/DSGVO/15.html">Art. 15 DS-GVO</a> über Deine
-        personenbezogenen Daten verlangen, die wir verarbeiten.
+        Beim Aufruf der Website verarbeiten wir die technisch erforderlichen Daten (u. a.
+        IP-Adresse, Zeitpunkt, angefragte Ressource, Browsertyp), um die Auslieferung der Website zu
+        ermöglichen und ihre Stabilität und Sicherheit zu gewährleisten. Rechtsgrundlage ist Art. 6
+        Abs. 1 lit. f DSGVO. Die Logfiles werden nach 7 Tagen gelöscht. Das Hosting erfolgt durch
+        die Hetzner Online GmbH (Deutschland) als Auftragsverarbeiter.
       </p>
 
+      <h3>Registrierung und Benutzerkonto</h3>
       <p>
-        <strong>Audiodaten beim Reel-Grünerator:</strong>
-        Deine Betroffenenrechte bezüglich der an Regolo/Seeweb übermittelten Audiodaten kannst Du
-        über uns geltend machen. Direktkontakt: privacy@seeweb.it. Die Daten werden am Ende der
-        Session automatisch gelöscht (Zero Data Retention).
+        Die Nutzung setzt eine Registrierung über den zentralen Anmeldedienst (Keycloak) der
+        netzbegrünung e.V. voraus. Wir verarbeiten die dabei angegebenen Bestands- und Anmeldedaten
+        zur Bereitstellung und Verwaltung des Kontos. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b
+        DSGVO. Du kannst Dein Konto jederzeit löschen. Die Bereitstellung Deiner Daten ist weder
+        gesetzlich noch vertraglich vorgeschrieben; ohne die für die Registrierung erforderlichen
+        Angaben kann das Benutzerkonto und damit der GRÜNERATOR jedoch nicht genutzt werden.
       </p>
 
+      <h3 id="ki-textgenerierung">KI-Textgenerierung und Chat</h3>
       <p>
-        <strong>Bilder im Grünerator Imagine:</strong> Da wir Deine Bilder nicht speichern, sondern
-        nur durchleiten, können wir keine Auskunft über oder Löschung von Bilddaten vornehmen, die
-        sich möglicherweise bei Black Forest Labs befinden. Hierfür kontaktiere bitte direkt Black
-        Forest Labs unter support@blackforestlabs.ai.
+        Die von Dir eingegebenen Texte werden zur Bearbeitung an den von Dir je Anfrage gewählten
+        KI-Dienstleister mit Verarbeitung in der EU weitergeleitet (Mistral AI/FR, KI-Modelle der
+        netzbegrünung/EU, Seeweb/Regolo AI/IT; ergänzend IONOS für bestimmte Generatorfunktionen).
+        Eine Nutzung Deiner Eingaben zum Training der KI findet nicht statt. Rechtsgrundlage ist
+        Art. 6 Abs. 1 lit. b DSGVO; enthalten Deine Eingaben besondere Kategorien (z. B. politische
+        Meinungen), stützt sich deren Verarbeitung auf Art. 9 Abs. 2 lit. a DSGVO (Deine
+        ausdrückliche Einwilligung, die wir vor der ersten Nutzung der KI-Funktionen gesondert
+        einholen).
       </p>
 
-      <h4>b. Recht auf Widerspruch</h4>
+      <h3>Bildbearbeitung und -generierung (Grünerator Imagine)</h3>
       <p>
-        Du hast ein Recht auf Widerspruch aus besonderen Gründen (siehe Abschnitt „Recht auf
-        Widerspruch gemäß Art. 21 Abs. 1 DS-GVO").
+        Bei Nutzung des Grünerator Imagine werden Deine hochgeladenen Bilder und Prompts unmittelbar
+        an Black Forest Labs (Verarbeitung in der EU, FLUX-Modell) weitergeleitet und dort
+        ausschließlich zur Bearbeitung verwendet. Wir speichern die Bilder nicht auf unseren
+        Servern; eine Nutzung zum KI-Training findet nicht statt. Rechtsgrundlage ist Art. 6 Abs. 1
+        lit. b DSGVO.
       </p>
 
-      <h4>c. Recht auf Berichtigung</h4>
+      <h3>Audio- und Videotranskription (Reel-Grünerator, Sprachaufnahme)</h3>
       <p>
-        Sollten die Dich betreffenden Angaben nicht (mehr) zutreffend sein, kannst Du nach{' '}
-        <a href="https://dejure.org/gesetze/DSGVO/16.html">Art. 16 DS-GVO</a> eine Berichtigung
-        verlangen. Sollten Deine Daten unvollständig sein, kannst Du eine Vervollständigung
-        verlangen.
+        Zur Transkription werden Deine Audio- und Videodaten auf unseren Servern verarbeitet (u. a.
+        Zuschnitt/Orchestrierung) und zur Sprache-zu-Text-Umwandlung vorrangig an Seeweb/Regolo AI
+        (Italien, Zero Data Retention) und ersatzweise an Mistral AI Voxtral (EU) übermittelt. Die
+        Originaldateien werden nach der Verarbeitung sofort gelöscht; eine dauerhafte Speicherung,
+        manuelle Sichtung oder Nutzung zu Trainingszwecken findet nicht statt. Rechtsgrundlage ist
+        Art. 6 Abs. 1 lit. b DSGVO.
       </p>
 
-      <h4>d. Recht auf Löschung</h4>
+      <h3 id="echtzeit-sprachdialog">Echtzeit-Sprachdialog (Voice Agent)</h3>
       <p>
-        Du kannst nach <a href="https://dejure.org/gesetze/DSGVO/17.html">Art. 17 DS-GVO</a> die
-        Löschung Deiner personenbezogenen Daten verlangen.
+        Der GRÜNERATOR bietet einen bidirektionalen Sprachdialog. Eine Sitzung beginnt nur nach
+        Deinem ausdrücklichen, aktiven Start über das Mikrofon-Symbol. Dein Mikrofon-Audio wird im
+        Browser auf 16&nbsp;kHz heruntergerechnet und über eine verschlüsselte Verbindung an unseren
+        Server (netzbegrünung, EU) und von dort zur Spracherkennung an Mistral AI Voxtral (EU)
+        übermittelt; die Sprachausgabe erfolgt über Mistral AI Speech (EU). Audio-Frames werden
+        ausschließlich im Arbeitsspeicher durchgereicht (Live-Stream, keine Persistierung); es
+        werden keine Sprachprofile erstellt. Das Mikrofon wird automatisch freigegeben, sobald Du
+        die Sitzung beendest, den Tab wechselst oder minimierst, die Seite verlässt oder neu lädst,
+        innerhalb der Anwendung in einen anderen Bereich navigierst oder das Fenster schließt.
+        Rechtsgrundlage ist Art. 6 Abs. 1 lit. a DSGVO (Einwilligung durch aktive Aktivierung); Du
+        kannst die Einwilligung jederzeit durch Beenden der Sitzung widerrufen.
+      </p>
+      <p>
+        <strong>Deine Verantwortung:</strong> Sprache kann unbeabsichtigt sensible Informationen
+        enthalten. Bitte nutze den Sprachdialog nur in einer Umgebung, in der sich keine weiteren
+        Personen ohne deren Einwilligung in Hörweite befinden, und sprich keine Daten Dritter aus,
+        für deren Verarbeitung Du keine Rechtsgrundlage hast. Die Funktion ist nicht für
+        Minderjährige unter 16 Jahren ohne Einwilligung der Erziehungsberechtigten bestimmt.
       </p>
 
-      <h4>e. Recht auf Einschränkung der Verarbeitung</h4>
+      <h3>Notebooks und Web-Recherche</h3>
       <p>
-        Du hast nach <a href="https://dejure.org/gesetze/DSGVO/18.html">Art. 18 DS-GVO</a> das
-        Recht, eine Einschränkung der Verarbeitung Deiner personenbezogenen Daten zu verlangen.
+        Für die Notebook-Funktion werden vom Verantwortlichen bereitgestellte oder von benannten
+        Webseiten automatisiert ausgelesene (gescrapte) Inhalte eingelesen, indexiert und für eine
+        KI-gestützte Frage-Antwort-Funktion (Vektorsuche) vorgehalten. Für die Web-Recherche werden
+        Deine Suchanfragen über die selbst gehostete Metasuche (SearXNG) sowie über Linkup
+        Technologies (Frankreich, EU) verarbeitet. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b und lit.
+        f DSGVO.
       </p>
 
-      <h4>f. Recht auf Beschwerde</h4>
+      <h3>Fehler- und Anwendungsmonitoring (GlitchTip)</h3>
       <p>
-        Wenn Du der Ansicht bist, dass die Verarbeitung Deiner personenbezogenen Daten gegen
-        Datenschutzrecht verstößt, hast Du nach{' '}
-        <a href="https://dejure.org/gesetze/DSGVO/77.html">Art. 77 Abs. 1 DS-GVO</a> das Recht, Dich
-        bei einer Datenschutzaufsichtsbehörde eigener Wahl zu beschweren. Die für den
-        Verantwortlichen zuständige Aufsichtsbehörde ist die Landesbeauftragte für Datenschutz und
-        Informationsfreiheit Nordrhein-Westfalen (LDI NRW), Kavalleriestr. 2-4, 40213 Düsseldorf.
+        Zur Erkennung und Behebung technischer Fehler nutzen wir die selbst gehostete
+        Open-Source-Software GlitchTip auf eigenen bzw. von der netzbegrünung betriebenen Servern in
+        der EU. Verarbeitet werden Fehlerberichte, Stack-Traces, Browserinformationen und
+        IP-Adressen; eine Weitergabe an Dritte findet nicht statt. Löschung nach 90 Tagen.
+        Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO.
       </p>
 
-      <h4>g. Recht auf Datenübertragbarkeit</h4>
+      <h3>Cookies und lokale Speicherung im Browser</h3>
       <p>
-        Die Erfassung der Daten zur Bereitstellung der Website und die Speicherung der
-        Protokolldateien sind für den Betrieb der Internetseite zwingend erforderlich. Sie beruhen
-        daher nicht auf einer Einwilligung nach{' '}
-        <a href="https://dejure.org/gesetze/DSGVO/6.html">Art. 6 Abs. 1 Buchstabe a DS-GVO</a> oder
-        auf einem Vertrag{' '}
-        <a href="https://dejure.org/gesetze/DSGVO/6.html">nach Art. 6 Abs. 1 Buchstabe b DS-GVO</a>,
-        sondern sind{' '}
-        <a href="https://dejure.org/gesetze/DSGVO/6.html">nach Art. 6 Abs. 1 Buchstabe f DS-GVO</a>{' '}
-        gerechtfertigt. Die Voraussetzungen des{' '}
-        <a href="https://dejure.org/gesetze/DSGVO/20.html">Art. 20 Abs. 1 DSGVO</a> sind demnach
-        insoweit nicht erfüllt.
+        Technisch notwendige Cookies (insbesondere ein Session-Cookie zur Authentifizierung) setzen
+        wir auf Grundlage von § 25 Abs. 2 Nr. 2 TDDDG i. V. m. Art. 6 Abs. 1 lit. b DSGVO ohne
+        Einwilligung. Zusätzlich nutzen wir den lokalen Speicher Deines Browsers
+        (localStorage/sessionStorage) für den Login-Status, Deine Einstellungen (z. B. Dark Mode),
+        die Zwischenspeicherung von Entwürfen sowie den Einwilligungsstatus. Diese Daten werden
+        ausschließlich lokal in Deinem Browser gespeichert und nicht an unsere Server übertragen; Du
+        kannst sie jederzeit über die Browsereinstellungen löschen.
       </p>
 
-      <h3>Recht auf Widerspruch gemäß Art. 21 Abs. 1 DS-GVO</h3>
+      <h3 id="webanalyse">Reichweitenmessung mit Umami</h3>
       <p>
-        Du hast das Recht, aus Gründen, die sich aus Deiner besonderen Situation ergeben, jederzeit
-        gegen die Verarbeitung Deiner personenbezogenen Daten, die aufgrund von{' '}
-        <a href="https://dejure.org/gesetze/DSGVO/6.html">Artikel 6 Abs. 1 Buchstabe f DS-GVO</a>{' '}
-        erfolgt, Widerspruch einzulegen. Der Verantwortliche verarbeitet die personenbezogenen Daten
-        dann nicht mehr, es sei denn, er kann zwingende schutzwürdige Gründe für die Verarbeitung
-        nachweisen, die die Interessen, Rechte und Freiheiten der betroffenen Person überwiegen,
-        oder die Verarbeitung dient der Geltendmachung, Ausübung oder Verteidigung von
-        Rechtsansprüchen. Die Erfassung der Daten zur Bereitstellung der Website und die Speicherung
-        der Protokolldateien sind für den Betrieb der Internetseite zwingend erforderlich.
+        Zur statistischen Auswertung der Zugriffe nutzen wir den Open-Source-Webanalysedienst Umami,
+        den wir selbst auf eigenen Servern in Europa betreiben. Die Analyse wird erst nach Deiner
+        ausdrücklichen Einwilligung aktiviert. Erfasst werden – nur nach Einwilligung – besuchte
+        Seiten und Verweildauer, Referrer, Browsertyp und Betriebssystem, eine anonymisierte
+        IP-Adresse sowie ein ungefährer Standort (Land/Region); es werden keine personenbezogenen
+        Identifikatoren gebildet und keine Daten an Dritte weitergegeben. Rechtsgrundlage ist § 25
+        Abs. 1 TDDDG i. V. m. Art. 6 Abs. 1 lit. a DSGVO. Speicherdauer 13 Monate. Deine
+        Einwilligung kannst Du jederzeit mit Wirkung für die Zukunft widerrufen – über die
+        Datenschutz-Einstellungen der Plattform oder durch Löschen des Eintrags „analyticsConsent"
+        in Deinen Browser-Einstellungen.
       </p>
 
-      <h2>Sicherheitsmaßnahmen</h2>
+      <h2>Rechte der betroffenen Personen</h2>
       <p>
-        Wir treffen nach Maßgabe der gesetzlichen Vorgaben unter Berücksichtigung des Stands der
-        Technik, der Implementierungskosten und der Art, des Umfangs, der Umstände und der Zwecke
-        der Verarbeitung sowie der unterschiedlichen Eintrittswahrscheinlichkeiten und des Ausmaßes
-        der Bedrohung der Rechte und Freiheiten natürlicher Personen geeignete technische und
-        organisatorische Maßnahmen, um ein dem Risiko angemessenes Schutzniveau zu gewährleisten.
+        Eine automatisierte Entscheidungsfindung im Einzelfall einschließlich Profiling im Sinne des
+        Art. 22 DSGVO findet nicht statt. Als betroffene Person stehen Dir die folgenden Rechte zu:
       </p>
-      <p>
-        Zu den Maßnahmen gehören insbesondere die Sicherung der Vertraulichkeit, Integrität und
-        Verfügbarkeit von Daten durch Kontrolle des physischen und elektronischen Zugangs zu den
-        Daten als auch des sie betreffenden Zugriffs, der Eingabe, der Weitergabe, der Sicherung der
-        Verfügbarkeit und ihrer Trennung. Des Weiteren haben wir Verfahren eingerichtet, die eine
-        Wahrnehmung von Betroffenenrechten, die Löschung von Daten und Reaktionen auf die Gefährdung
-        der Daten gewährleisten. Ferner berücksichtigen wir den Schutz personenbezogener Daten
-        bereits bei der Entwicklung bzw. Auswahl von Hardware, Software sowie Verfahren entsprechend
-        dem Prinzip des Datenschutzes, durch Technikgestaltung und durch datenschutzfreundliche
-        Voreinstellungen.
-      </p>
-
-      <h2>Übermittlung von personenbezogenen Daten</h2>
-      <p>
-        Im Rahmen unserer Verarbeitung von personenbezogenen Daten kommt es vor, dass diese an
-        andere Stellen, Unternehmen, rechtlich selbstständige Organisationseinheiten oder Personen
-        übermittelt beziehungsweise ihnen gegenüber offengelegt werden. Zu den Empfängern dieser
-        Daten können z. B. mit IT-Aufgaben beauftragte Dienstleister gehören oder Anbieter von
-        Diensten und Inhalten, die in eine Website eingebunden sind. In solchen Fällen beachten wir
-        die gesetzlichen Vorgaben und schließen insbesondere entsprechende Verträge bzw.
-        Vereinbarungen, die dem Schutz Deiner Daten dienen, mit den Empfängern Deiner Daten ab.
-      </p>
-
-      <h2>Internationale Datentransfers</h2>
-      <p>
-        Datenverarbeitung in Drittländern: Sofern wir Daten in einem Drittland (d. h.,außerhalb der
-        Europäischen Union (EU), des Europäischen Wirtschaftsraums (EWR)) verarbeiten oder die
-        Verarbeitung im Rahmen der Inanspruchnahme von Diensten Dritter oder der Offenlegung bzw.
-        Übermittlung von Daten an andere Personen, Stellen oder Unternehmen stattfindet, erfolgt
-        dies nur im Einklang mit den gesetzlichen Vorgaben. Sofern das Datenschutzniveau in dem
-        Drittland mittels eines Angemessenheitsbeschlusses anerkannt wurde (Art. 45 DSGVO), dient
-        dieser als Grundlage des Datentransfers. Im Übrigen erfolgen Datentransfers nur dann, wenn
-        das Datenschutzniveau anderweitig gesichert ist, insbesondere durch Standardvertragsklauseln
-        (Art. 46 Abs. 2 lit. c) DSGVO), ausdrückliche Einwilligung oder im Fall vertraglicher oder
-        gesetzlich erforderlicher Übermittlung (Art. 49 Abs. 1 DSGVO). Im Übrigen teilen wir Dir die
-        Grundlagen der Drittlandübermittlung bei den einzelnen Anbietern aus dem Drittland mit,
-        wobei die Angemessenheitsbeschlüsse als Grundlagen vorrangig gelten. Informationen zu
-        Drittlandtransfers und vorliegenden Angemessenheitsbeschlüssen kannst Du dem
-        Informationsangebot der EU-Kommission entnehmen.
-      </p>
-
-      <p>
-        EU-US Trans-Atlantic Data Privacy Framework: Im Rahmen des sogenannten Data Privacy
-        Framework (DPF) hat die EU-Kommission das Datenschutzniveau ebenfalls für bestimmte
-        Unternehmen aus den USA im Rahmen des Angemessenheitsbeschlusses vom 10.07.2023 als sicher
-        anerkannt. Die Liste der zertifizierten Unternehmen sowie weitere Informationen zu dem DPF
-        kannst Du der Website des Handelsministeriums der USA unter{' '}
-        <a href="https://www.dataprivacyframework.gov/">https://www.dataprivacyframework.gov/</a>{' '}
-        (in Englisch) entnehmen. Wir informieren Dich im Rahmen der Datenschutzhinweise, welche von
-        uns eingesetzten Diensteanbieter unter dem Data Privacy Framework zertifiziert sind.
-      </p>
-
-      <h2>Allgemeine Informationen zur Datenspeicherung und Löschung</h2>
-      <p>
-        Wir löschen personenbezogene Daten, die wir verarbeiten, gemäß den gesetzlichen
-        Bestimmungen, sobald die zugrundeliegenden Einwilligungen widerrufen werden oder keine
-        weiteren rechtlichen Grundlagen für die Verarbeitung bestehen. Dies betrifft Fälle, in denen
-        der ursprüngliche Verarbeitungszweck entfällt oder die Daten nicht mehr benötigt werden.
-        Ausnahmen von dieser Regelung bestehen, wenn gesetzliche Pflichten oder besondere Interessen
-        eine längere Aufbewahrung oder Archivierung der Daten erfordern.
-      </p>
-      <p>
-        Insbesondere müssen Daten, die aus handels- oder steuerrechtlichen Gründen aufbewahrt werden
-        müssen oder deren Speicherung notwendig ist zur Rechtsverfolgung oder zum Schutz der Rechte
-        anderer natürlicher oder juristischer Personen, entsprechend archiviert werden.
-      </p>
-      <p>
-        Unsere Datenschutzhinweise enthalten zusätzliche Informationen zur Aufbewahrung und Löschung
-        von Daten, die speziell für bestimmte Verarbeitungsprozesse gelten.
-      </p>
-      <p>
-        Bei mehreren Angaben zur Aufbewahrungsdauer oder Löschungsfristen eines Datums, ist stets
-        die längste Frist maßgeblich.
-      </p>
-      <p>
-        Beginnt eine Frist nicht ausdrücklich zu einem bestimmten Datum und beträgt sie mindestens
-        ein Jahr, so startet sie automatisch am Ende des Kalenderjahres, in dem das fristauslösende
-        Ereignis eingetreten ist. Im Fall laufender Vertragsverhältnisse, in deren Rahmen Daten
-        gespeichert werden, ist das fristauslösende Ereignis der Zeitpunkt des Wirksamwerdens der
-        Kündigung oder sonstige Beendigung des Rechtsverhältnisses.
-      </p>
-      <p>
-        Daten, die nicht mehr für den ursprünglich vorgesehenen Zweck, sondern aufgrund gesetzlicher
-        Vorgaben oder anderer Gründe aufbewahrt werden, verarbeiten wir ausschließlich zu den
-        Gründen, die ihre Aufbewahrung rechtfertigen.
-      </p>
-
-      <h3>Weitere Hinweise zu Verarbeitungsprozessen, Verfahren und Diensten:</h3>
       <ul>
         <li>
-          <strong>Aufbewahrung und Löschung von Daten:</strong> Die folgenden allgemeinen Fristen
-          gelten für die Aufbewahrung und Archivierung nach deutschem Recht:
-          <ul>
-            <li>
-              10 Jahre - Aufbewahrungsfrist für Bücher und Aufzeichnungen, Jahresabschlüsse,
-              Inventare, Lageberichte, Eröffnungsbilanz sowie die zu ihrem Verständnis
-              erforderlichen Arbeitsanweisungen und sonstigen Organisationsunterlagen,
-              Buchungsbelege und Rechnungen (§ 147 Abs. 3 i. V. m. Abs. 1 Nr. 1, 4 und 4a AO, § 14b
-              Abs. 1 UStG, § 257 Abs. 1 Nr. 1 u. 4, Abs. 4 HGB).
-            </li>
-            <li>
-              6 Jahre - Übrige Geschäftsunterlagen: empfangene Handels- oder Geschäftsbriefe,
-              Wiedergaben der abgesandten Handels- oder Geschäftsbriefe, sonstige Unterlagen, soweit
-              sie für die Besteuerung von Bedeutung sind, z. B. Stundenlohnzettel,
-              Betriebsabrechnungsbögen, Kalkulationsunterlagen, Preisauszeichnungen, aber auch
-              Lohnabrechnungsunterlagen, soweit sie nicht bereits Buchungsbelege sind und
-              Kassenstreifen (§ 147 Abs. 3 i. V. m. Abs. 1 Nr. 2, 3, 5 AO, § 257 Abs. 1 Nr. 2 u. 3,
-              Abs. 4 HGB).
-            </li>
-            <li>
-              3 Jahre - Daten, die erforderlich sind, um potenzielle Gewährleistungs- und
-              Schadensersatzansprüche oder ähnliche vertragliche Ansprüche und Rechte zu
-              berücksichtigen sowie damit verbundene Anfragen zu bearbeiten, basierend auf früheren
-              Geschäftserfahrungen und üblichen Branchenpraktiken, werden für die Dauer der
-              regulären gesetzlichen Verjährungsfrist von drei Jahren gespeichert (§§ 195, 199 BGB).
-            </li>
-          </ul>
+          <strong>Auskunft</strong> (Art. 15 DSGVO) über die von uns verarbeiteten Daten.
+        </li>
+        <li>
+          <strong>Berichtigung</strong> unrichtiger und Vervollständigung unvollständiger Daten
+          (Art. 16 DSGVO).
+        </li>
+        <li>
+          <strong>Löschung</strong> (Art. 17 DSGVO) und Einschränkung der Verarbeitung (Art. 18
+          DSGVO).
+        </li>
+        <li>
+          <strong>Datenübertragbarkeit</strong> (Art. 20 DSGVO), soweit die Verarbeitung auf
+          Einwilligung oder Vertrag beruht und automatisiert erfolgt.
+        </li>
+        <li>
+          <strong>Widerruf</strong> erteilter Einwilligungen mit Wirkung für die Zukunft (Art. 7
+          Abs. 3 DSGVO).
+        </li>
+        <li>
+          <strong>Widerspruch</strong> aus Gründen Deiner besonderen Situation gegen Verarbeitungen
+          auf Grundlage von Art. 6 Abs. 1 lit. f DSGVO (Art. 21 DSGVO).
+        </li>
+        <li>
+          <strong>Beschwerde</strong> bei einer Aufsichtsbehörde (Art. 77 DSGVO). Die für uns
+          zuständige Aufsichtsbehörde ist die Landesbeauftragte für Datenschutz und
+          Informationsfreiheit Nordrhein-Westfalen (LDI NRW), Kavalleriestr. 2–4, 40213 Düsseldorf.
         </li>
       </ul>
+
+      <p>
+        <strong>Besonderheiten bei externer Verarbeitung:</strong> Deine Rechte hinsichtlich der zur
+        Transkription an Seeweb/Regolo übermittelten Audiodaten kannst Du über uns geltend machen;
+        die Daten werden am Ende der Session automatisch gelöscht (Zero Data Retention). Bilder im
+        Grünerator Imagine speichern wir nicht, sondern leiten sie nur durch; Deine Rechte
+        hinsichtlich etwaiger bei Black Forest Labs befindlicher Bilddaten kannst Du dennoch
+        jederzeit über uns geltend machen. Zusätzlich erreichst Du Black Forest Labs direkt unter{' '}
+        <a href="mailto:support@blackforestlabs.ai">support@blackforestlabs.ai</a>.
+      </p>
     </div>
   );
 };

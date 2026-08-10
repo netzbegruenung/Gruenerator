@@ -159,6 +159,7 @@ const TAB_SKELETONS: Record<SettingsTab, () => React.ReactElement> = {
   allgemein: () => <SettingsRowsSkeleton rows={6} />,
   hintergrund: () => <SettingsTilesSkeleton />,
   barrierefreiheit: () => <SettingsRowsSkeleton rows={3} />,
+  datenschutz: () => <SettingsRowsSkeleton rows={2} />,
   friends: () => <SettingsCardsSkeleton cards={4} />,
   personalisierung: () => <SettingsFormSkeleton />,
   briefe: () => <SettingsCardsSkeleton cards={2} />,
