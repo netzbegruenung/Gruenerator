@@ -78,6 +78,7 @@ const NOTEBOOK_PATHS = {
   'brandenburg-notebook': '/notebooks/brandenburg',
   'bayern-notebook': '/notebooks/bayern',
   'sachsen-anhalt-notebook': '/notebooks/sachsen-anhalt',
+  'sachsen-notebook': '/notebooks/sachsen',
   'hessen-notebook': '/notebooks/hessen',
   'saarland-notebook': '/notebooks/saarland',
   'oesterreich-notebook': '/notebooks/oesterreich',
