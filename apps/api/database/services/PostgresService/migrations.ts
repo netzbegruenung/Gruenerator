@@ -62,9 +62,18 @@ export async function runMigrations(pool: Pool): Promise<void> {
         appliedResult.rows.map((row: { filename: string }) => row.filename)
       );
       const pendingFiles = migrationFiles.filter((f) => !appliedFilenames.has(f));
+      // Rows whose .sql file no longer exists (migration deleted or renamed
+      // after it ran). Harmless — the DDL is already in the schema — but
+      // counting them in `applied` made the summary read `130 applied` against
+      // `123 total`, which looks like corruption. Report them separately.
+      const orphanedFilenames = [...appliedFilenames].filter((f) => !migrationFiles.includes(f));
+      const appliedFromDisk = appliedFilenames.size - orphanedFilenames.length;
 
       console.log(
-        `[PostgresService] Migrations: ${migrationFiles.length} total, ${appliedFilenames.size} applied, ${pendingFiles.length} pending`
+        `[PostgresService] Migrations: ${migrationFiles.length} on disk, ${appliedFromDisk} applied, ${pendingFiles.length} pending` +
+          (orphanedFilenames.length > 0
+            ? ` (+${orphanedFilenames.length} applied whose file is gone)`
+            : '')
       );
 
       if (pendingFiles.length === 0) return;
