@@ -67,8 +67,10 @@ export function BahnCard({ data }: { data: BahnPayload }) {
       role="group"
       aria-label={`Deutsche Bahn: Abfahrten ${data.station}`}
     >
-      {/* Header */}
-      <div className="mb-1 flex items-center gap-2">
+      {/* Header — umbrechend: neben dem Datum blieben dem Bahnhofsnamen auf dem
+          Handy 104 px von 353 px, bei 320 px Viewport 34 px. Umgebrochen bekommt
+          er die Zeile für sich (gemessen 276 px bzw. 206 px). */}
+      <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
         <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-[#EC0016] text-[11px] font-extrabold tracking-tight text-white">
           DB
         </span>
