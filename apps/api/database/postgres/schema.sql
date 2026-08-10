@@ -116,27 +116,6 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS ai_consent_at TIMESTAMPTZ;
 
 
 -- ════════════════════════════════════════════════════════════════════════════
--- SECTION 2B: MOBILE PUSH DEVICES
--- Expo push tokens registered by mobile apps, keyed independently from
--- Better Auth session identity so that logout or session rotation does
--- not un-register a device.
--- ════════════════════════════════════════════════════════════════════════════
-
-CREATE TABLE IF NOT EXISTS app_push_devices (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-    expo_push_token TEXT NOT NULL,
-    device_name TEXT,
-    device_type TEXT NOT NULL DEFAULT 'unknown',
-    last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT app_push_devices_user_token_unique UNIQUE (user_id, expo_push_token)
-);
-
-CREATE INDEX IF NOT EXISTS idx_app_push_devices_user ON app_push_devices (user_id);
-
-
--- ════════════════════════════════════════════════════════════════════════════
 -- SECTION 3: GROUPS & MEMBERSHIPS
 -- Group management, memberships, and group-specific settings
 -- ════════════════════════════════════════════════════════════════════════════

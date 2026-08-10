@@ -7,7 +7,6 @@
  *   POST /api/share/video/from-project
  *   PUT  /api/share/:shareToken/image
  *   POST /api/share/:shareToken/save-as-template
- *   POST /api/share/push-to-phone
  *
  * File-streaming routes (preview, download, thumbnail, original) and
  * read-only GET routes are left in the legacy Express router.
@@ -638,56 +637,6 @@ export const shareContractRouter = s.router(sharesContract, {
       return {
         status: 500 as const,
         body: { success: false as const, error: 'Failed to save as template' },
-      };
-    }
-  },
-
-  pushToPhone: async (args) => {
-    try {
-      const userId = getUserId(args.req);
-      if (!userId) return UNAUTHORIZED;
-      const { shareToken } = args.body;
-
-      const service = await getSharedMediaService();
-      const share = await service.getShareByToken(shareToken);
-
-      if (!share) {
-        return {
-          status: 404 as const,
-          body: { success: false as const, error: 'Share not found' },
-        };
-      }
-
-      if (share.user_id !== userId) {
-        return {
-          status: 403 as const,
-          body: { success: false as const, error: 'Not authorized' },
-        };
-      }
-
-      const mediaType = share.media_type || 'image';
-      const notificationTitle =
-        mediaType === 'video' ? 'Neues Video empfangen' : 'Neues Bild empfangen';
-      const body = share.title || 'Von Grünerator gesendet';
-
-      const { sendPushToUser } = await import('../../services/pushNotificationService.js');
-      const pushedToDevices = await sendPushToUser(userId, {
-        title: notificationTitle,
-        body,
-        data: { type: 'pushed_content', shareToken, mediaType },
-      });
-
-      log.info(`Push-to-phone: sent to ${pushedToDevices} device(s)`, { userId, shareToken });
-
-      return {
-        status: 200 as const,
-        body: { success: true as const, pushedToDevices },
-      };
-    } catch (error) {
-      log.error('Failed to push to phone:', error);
-      return {
-        status: 500 as const,
-        body: { success: false as const, error: 'Failed to send to phone' },
       };
     }
   },
