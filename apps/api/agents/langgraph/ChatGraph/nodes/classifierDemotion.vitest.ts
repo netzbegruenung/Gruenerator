@@ -385,6 +385,19 @@ describe('Tier 3.5 — wrapper interactions (URL, edge cases)', () => {
     expect(result.detectedUrls).toHaveLength(1);
   });
 
+  it('"<URL> zusammenfassen" scrapes the page instead of web-searching the verb', async () => {
+    // Live-Befund: der summary-Abstieg zählte nur Dokumente als Material, also
+    // wurde der Link zu `web` degradiert und Linkup nach „zusammenfassen"
+    // gefragt — die Antwort erklärte Synonyme des Wortes und empfahl ein
+    // Zusammenfass-Tool. Der Link IST das Material.
+    const state = buildState({
+      userMessage: 'https://www.tagesschau.de/inland/tempolimit-100.html zusammenfassen',
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('scrape_url');
+    expect(result.detectedUrls).toHaveLength(1);
+  });
+
   it('doc attachments force search BEFORE tier 3.5 — never demoted', async () => {
     const state = buildState({
       userMessage: 'Welche Position haben die Grünen zur Vorratsdatenspeicherung?',

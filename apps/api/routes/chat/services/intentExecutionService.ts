@@ -984,6 +984,10 @@ export async function executeIntentPipeline(opts: {
     log.info(`[ChatGraph] Multi-intent: ${intentsToExecute.join(' → ')}`);
   }
 
+  // Sources already gathered by an earlier iteration of this loop, so a second
+  // search branch unions instead of replacing (see the merge below).
+  let priorIntentResults: SearchResult[] = [];
+
   for (const currentIntent of intentsToExecute) {
     log.info(
       `[ChatGraph] Stage 2 — intent=${currentIntent}, forcedTool=${forcedTool}, enabledTools.image=${enabledTools?.['image']}`
@@ -1364,7 +1368,13 @@ export async function executeIntentPipeline(opts: {
     ) {
       const toolEnabled = forcedTool || enabledTools?.[currentIntent] !== false;
       if (toolEnabled) {
-        let searchInputState = finalState;
+        // `intent` must follow the LOOP, not the classifier's primary verdict.
+        // searchNode switches on `state.intent`, and the state threaded through
+        // here still carried the primary — so a secondary search intent ran the
+        // PRIMARY branch a second time. Live: "<tagesschau-URL> zusammenfassen"
+        // classified web → scrape_url and issued the identical Linkup search
+        // twice (paid, ~2 s each) while the pasted page was never crawled.
+        let searchInputState = { ...finalState, intent: currentIntent } as ChatGraphState;
 
         // @deepresearch has two engines, tried in this order. Both replace BOTH
         // halves of the turn — retrieval and synthesis — and must therefore skip
@@ -1506,6 +1516,29 @@ export async function executeIntentPipeline(opts: {
         // very Linkup call this branch exists to avoid.
         const searchResult = reused ? {} : await searchNode(searchInputState);
         finalState = { ...searchInputState, ...searchResult } as ChatGraphState;
+        // searchNode REPLACES `searchResults`. With the loop now running two
+        // genuinely different branches (e.g. web → scrape_url), the second one
+        // would drop the first one's sources on the floor. Union them, this
+        // iteration's results first (the secondary is the more specific ask —
+        // a pasted page beats hits the engine merely found). Deduped by URL;
+        // rerank re-orders right below.
+        const priorResults = priorIntentResults;
+        if (priorResults.length > 0 && (searchResult.searchResults?.length ?? 0) > 0) {
+          const merged = [...(searchResult.searchResults ?? []), ...priorResults];
+          const seen = new Set<string>();
+          const deduped = merged.filter((r) => {
+            const key = r.url ?? `${r.source}:${r.title}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+          finalState = {
+            ...finalState,
+            searchResults: deduped,
+            citations: buildCitations(deduped),
+          } as ChatGraphState;
+        }
+        priorIntentResults = finalState.searchResults ?? [];
 
         if (finalState.searchResults?.length > 2) {
           const rerankStepId = `rerank_${Date.now()}`;
