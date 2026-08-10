@@ -53,6 +53,11 @@ const Footer = () => {
               · <Link to="/ki-transparenz">KI-Transparenz</Link>
             </p>
           </div>
+          <p className="m-0 mt-md text-[0.8em] text-foreground opacity-70 text-center max-[575px]:text-[0.75em]">
+            Der Grünerator ist ein Projekt von Moritz Wächter, kostenfrei für Mitglieder von BÜNDNIS
+            90/DIE GRÜNEN und Die Grünen/Die Grüne Alternative. Er ist kein Angebot der Partei
+            BÜNDNIS 90/DIE GRÜNEN.
+          </p>
         </div>
       </div>
     </footer>
