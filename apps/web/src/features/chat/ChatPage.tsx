@@ -388,7 +388,15 @@ function ChatPage() {
           das äußerste Flex-Item zählt. Die übrigen Chat-Wirte (ChatLayout,
           Docs-/Sheets-/Presentations-/Board-Panel) sind über ihr
           `overflow-hidden` bereits abgesichert. */}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col pt-4 md:pt-0">
+      {/* Das untere Padding trägt die Höhe der Bildschirmtastatur, die der
+          Composer als --mobile-keyboard-offset veröffentlicht
+          (useMobileKeyboardOffset). Diese eine Spalte um sie zu kürzen bedient
+          beide Zweige darunter — im Thread hebt es den unten verankerten
+          Composer über die Tastatur, in der Übersicht rückt es den zentrierten
+          Hero in den noch sichtbaren Bereich. Die Variable darf genau hier
+          einmal verrechnet werden; ein zweites Padding weiter innen zöge den
+          Composer um die doppelte Tastaturhöhe hoch. */}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col pt-4 pb-[var(--mobile-keyboard-offset,0px)] md:pt-0">
         {hub ? (
           <LandesverbandHub hub={hub} onNavigate={handleNavigate} userLocale={userLocale} />
         ) : effectiveViewMode === 'overview' ? (
@@ -400,7 +408,11 @@ function ChatPage() {
             className={cn(
               'workplace-chat-sunrise workplace-chat-accent',
               chatBackground.className,
-              'flex min-h-0 flex-1 flex-col justify-center overflow-y-auto pb-[6vh]'
+              // `justify-center-safe` wie auf dem Workplace-Chat-Tab: sobald die
+              // Tastatur die Spalte kürzt, überläuft der zentrierte Inhalt — bei
+              // reinem `justify-center` nach oben aus dem Scrollbereich heraus
+              // und damit unerreichbar.
+              'flex min-h-0 flex-1 flex-col justify-center-safe overflow-y-auto pb-[6vh]'
             )}
           >
             <ChatHero projectName={projektName} />
