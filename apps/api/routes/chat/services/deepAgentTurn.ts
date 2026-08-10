@@ -67,36 +67,54 @@ function toLogSteps(steps: ResearchStep[]): ResearchLogStep[] {
   return steps.map((s) => ({ id: s.id, label: s.label, status: s.status }));
 }
 
+/**
+ * What the caller does next.
+ *
+ * Three outcomes rather than `state | null`, because "I could not serve this"
+ * and "nobody can serve this" need different follow-ups. Both engines behind
+ * `@deepresearch` meter through ONE Redis key with different limits (agent 3,
+ * `sourcedAnswer` 1). So once the agent's allowance is gone the count is at
+ * least 3, which is also over the old path's limit of 1 — that path can never
+ * succeed, and letting it try only produces a second, contradictory warning
+ * naming the wrong number. `quota_spent` says so out loud.
+ */
+export type DeepAgentOutcome =
+  | { kind: 'served'; state: Partial<ChatGraphState> }
+  | { kind: 'quota_spent' }
+  | { kind: 'not_served' };
+
+const NOT_SERVED: DeepAgentOutcome = { kind: 'not_served' };
+
 export async function runDeepAgentTurn(params: {
   state: ChatGraphState;
   sse: SSEWriter;
-}): Promise<Partial<ChatGraphState> | null> {
+}): Promise<DeepAgentOutcome> {
   const { state, sse } = params;
 
-  if (!env.DEEP_AGENT_RESEARCH_ENABLED) return null;
+  if (!env.DEEP_AGENT_RESEARCH_ENABLED) return NOT_SERVED;
 
   const question = state.searchQuery?.trim() ?? '';
   const userId = state.agentConfig?.userId ?? '';
 
   if (!env.SCALEWAY_API_KEY) {
     log.info('[DeepAgent] Kein SCALEWAY_API_KEY — der alte Pfad übernimmt');
-    return null;
+    return NOT_SERVED;
   }
   // Linkup is the floor under the search tools: GreenPT is optional and refuses
   // under load, so without Linkup a run would spend minutes finding nothing.
   if (!getLinkupService()) {
     log.info('[DeepAgent] Kein LINKUP_API_KEY — der alte Pfad übernimmt');
-    return null;
+    return NOT_SERVED;
   }
   if (question.length === 0) {
     log.warn('[DeepAgent] Keine Recherchefrage — der alte Pfad übernimmt');
-    return null;
+    return NOT_SERVED;
   }
   // No user means no meter, and an unmetered multi-minute run is worse than a
   // cheaper answer.
   if (!userId) {
     log.warn('[DeepAgent] Keine userId — nicht abrechenbar, der alte Pfad übernimmt');
-    return null;
+    return NOT_SERVED;
   }
 
   const quotaCounter = await getCounter();
@@ -108,7 +126,10 @@ export async function runDeepAgentTurn(params: {
       'deep_research_quota_spent',
       `Die Tiefenrecherche ist für heute aufgebraucht (${quota.limit}× pro Tag, neu in ${quotaCounter.getTimeUntilReset()}). Ich habe stattdessen normal recherchiert.`
     );
-    return null;
+    // Not `not_served`: the sibling engine shares this key with a LOWER limit,
+    // so it is out of allowance too. Its warning would name a different number
+    // and contradict the one just sent.
+    return { kind: 'quota_spent' };
   }
 
   const logId = `research-${Date.now()}`;
@@ -142,7 +163,9 @@ export async function runDeepAgentTurn(params: {
   if (!result) {
     sse.send('research_log_update', { id: logId, status: 'failed' });
     sendChatWarning(sse, 'deep_agent_failed');
-    return null;
+    // Nothing was charged, so the old path still has whatever allowance the
+    // shared key leaves it — let it try.
+    return NOT_SERVED;
   }
 
   let document;
@@ -159,7 +182,7 @@ export async function runDeepAgentTurn(params: {
     log.error(`[DeepAgent] Dokument konnte nicht angelegt werden: ${String(error)}`);
     sse.send('research_log_update', { id: logId, status: 'failed' });
     sendChatWarning(sse, 'deep_agent_failed');
-    return null;
+    return NOT_SERVED;
   }
 
   const url = `/office/${document.id}`;
@@ -193,10 +216,13 @@ export async function runDeepAgentTurn(params: {
     : '';
 
   return {
-    // Reuses the field the old path sets, so everything downstream already knows
-    // "an answer exists, do not synthesise again".
-    deepResearchAnswer: `${result.summary}${note}`,
-    searchCount: result.sources.length,
-    searchTimeMs: Date.now() - started,
+    kind: 'served',
+    state: {
+      // Reuses the field the old path sets, so everything downstream already
+      // knows "an answer exists, do not synthesise again".
+      deepResearchAnswer: `${result.summary}${note}`,
+      searchCount: result.sources.length,
+      searchTimeMs: Date.now() - started,
+    },
   };
 }

@@ -1378,16 +1378,22 @@ export async function executeIntentPipeline(opts: {
         // rather than a dossier, so on success there is nothing to rerank and no
         // source list to emit — only the short summary it put in
         // `deepResearchAnswer`.
+        let allowanceGone = false;
         if (searchInputState.deepResearchRequested === true) {
-          const report = await runDeepAgentTurn({ state: searchInputState, sse });
-          if (report) {
-            finalState = { ...searchInputState, ...report } as ChatGraphState;
+          const outcome = await runDeepAgentTurn({ state: searchInputState, sse });
+          if (outcome.kind === 'served') {
+            finalState = { ...searchInputState, ...outcome.state } as ChatGraphState;
             continue;
           }
+          // Both engines meter through one Redis key, the agent's limit being
+          // the higher one. A spent agent allowance therefore also exceeds the
+          // dossier path's — skipping it saves a doomed call and, more to the
+          // point, a second warning naming a different number.
+          allowanceGone = outcome.kind === 'quota_spent';
         }
 
         // Then Linkup's one-shot dossier, the path that always existed.
-        if (searchInputState.deepResearchRequested === true) {
+        if (searchInputState.deepResearchRequested === true && !allowanceGone) {
           const dossier = await runDeepResearchTurn({ state: searchInputState, sse });
           if (dossier) {
             finalState = { ...searchInputState, ...dossier } as ChatGraphState;
