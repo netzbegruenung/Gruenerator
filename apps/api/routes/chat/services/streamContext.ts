@@ -47,7 +47,11 @@ import { getContextWindow } from '../agents/providers.js';
 import { getThreadAttachments } from './attachmentPersistenceService.js';
 import { isTabularAttachment, processAttachments } from './attachmentProcessingService.js';
 import { enrichContext } from './contextEnrichmentService.js';
-import { extractTextContent, filterEmptyAssistantMessages } from './messageHelpers.js';
+import {
+  extractTextContent,
+  filterEmptyAssistantMessages,
+  sanitizeUIFileParts,
+} from './messageHelpers.js';
 import { type createSSEStream, PROGRESS_MESSAGES } from './sseHelpers.js';
 import { canAccessThread } from './threadAccessService.js';
 import {
@@ -310,9 +314,17 @@ export async function buildStreamContext({
 
   // === Convert messages ===
   let modelMessages: ChatGraphInput['messages'];
+  const { messages: convertibleMessages, droppedFileParts } = sanitizeUIFileParts(
+    clientMessages as UIMessage[]
+  );
+  if (droppedFileParts > 0) {
+    log.info(
+      `[ChatGraph] Dropped ${droppedFileParts} url-less file part(s) before conversion — content rides in attachments`
+    );
+  }
   try {
     modelMessages = (await convertToModelMessages(
-      clientMessages as UIMessage[]
+      convertibleMessages as UIMessage[]
     )) as ModelMessage[] as ChatGraphInput['messages'];
   } catch (convertError) {
     log.error('[ChatGraph] Error converting messages:', convertError);
