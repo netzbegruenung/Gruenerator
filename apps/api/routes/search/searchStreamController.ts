@@ -273,6 +273,11 @@ export async function streamNormalSearch(req: AuthenticatedRequest, res: Respons
       sse.end();
       return;
     }
+    if (state.metadata?.criticalFailure) {
+      sse.sendRaw('error', { error: state.error || 'Websuche fehlgeschlagen' });
+      sse.end();
+      return;
+    }
 
     // Step 3: Intelligent Crawler
     sse.sendRaw('progress', {
@@ -469,10 +474,19 @@ export async function streamDeepSearch(req: AuthenticatedRequest, res: Response)
       return;
     }
 
+    // Web search down: deep research can still run on party documents alone,
+    // but with neither source there is nothing to research.
+    const grundsatzCount = state.grundsatzResults?.results?.length || 0;
+    if (state.metadata?.criticalFailure && grundsatzCount === 0) {
+      sse.sendRaw('error', { error: state.error || 'Deep Research fehlgeschlagen' });
+      sse.end();
+      return;
+    }
+
     if (state.grundsatzResults?.success) {
       sse.sendRaw('progress', {
         stage: 'documents',
-        message: `${state.grundsatzResults.results?.length || 0} Grundsatzprogramm-Ergebnisse gefunden`,
+        message: `${grundsatzCount} Grundsatzprogramm-Ergebnisse gefunden`,
       });
     }
 
