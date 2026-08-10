@@ -81,6 +81,15 @@ const run = (sse: ReturnType<typeof makeSse>, state: object = STATE) =>
     sse: sse as unknown as Parameters<typeof runDeepAgentTurn>[0]['sse'],
   });
 
+/** Unwraps a `served` outcome, failing loudly on any other — the state a
+ *  non-served case carries is `undefined`, which would silently pass a
+ *  `toBeTruthy` further down. */
+async function runServed(sse: ReturnType<typeof makeSse>, state: object = STATE) {
+  const outcome = await run(sse, state);
+  if (outcome.kind !== 'served') throw new Error(`erwartet: served, war: ${outcome.kind}`);
+  return outcome.state;
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   _resetDeepAgentCounterForTests();
@@ -98,40 +107,61 @@ describe('gates — each one falls through to the old path', () => {
     envMock.DEEP_AGENT_RESEARCH_ENABLED = false;
     const sse = makeSse();
 
-    expect(await run(sse)).toBeNull();
+    expect(await run(sse)).toEqual({ kind: 'not_served' });
     expect(runDeepAgentResearch).not.toHaveBeenCalled();
     expect(sse.sent).toHaveLength(0);
   });
 
   it('does nothing without a Scaleway key', async () => {
     envMock.SCALEWAY_API_KEY = '';
-    expect(await run(makeSse())).toBeNull();
+    expect(await run(makeSse())).toEqual({ kind: 'not_served' });
     expect(runDeepAgentResearch).not.toHaveBeenCalled();
   });
 
   it('does nothing without Linkup, the floor under the search tools', async () => {
     linkupService = null;
-    expect(await run(makeSse())).toBeNull();
+    expect(await run(makeSse())).toEqual({ kind: 'not_served' });
     expect(runDeepAgentResearch).not.toHaveBeenCalled();
   });
 
   it('does nothing without a question', async () => {
-    expect(await run(makeSse(), { ...STATE, searchQuery: '   ' })).toBeNull();
+    expect(await run(makeSse(), { ...STATE, searchQuery: '   ' })).toEqual({ kind: 'not_served' });
     expect(runDeepAgentResearch).not.toHaveBeenCalled();
   });
 
   it('does nothing without a userId, since the run could not be metered', async () => {
-    expect(await run(makeSse(), { ...STATE, agentConfig: {} })).toBeNull();
+    expect(await run(makeSse(), { ...STATE, agentConfig: {} })).toEqual({ kind: 'not_served' });
     expect(runDeepAgentResearch).not.toHaveBeenCalled();
   });
 
-  it('warns and falls through when the daily quota is spent', async () => {
+  /**
+   * The one gate that does NOT hand over to the old path. Both engines meter
+   * through a single Redis key, the agent's limit being the higher one — so a
+   * spent agent allowance is necessarily over the dossier path's limit too. Its
+   * warning would name a different number and contradict the one just sent.
+   */
+  it('reports a spent quota as such, so the sibling engine is not tried', async () => {
     checkLimit.mockResolvedValue({ canResearch: false, count: 3, limit: 3, remaining: 0 });
     const sse = makeSse();
 
-    expect(await run(sse)).toBeNull();
+    expect(await run(sse)).toEqual({ kind: 'quota_spent' });
     expect(runDeepAgentResearch).not.toHaveBeenCalled();
     expect(sse.events()).toContain('warning');
+  });
+
+  it('names the agent limit in the warning, not the dossier path’s', async () => {
+    checkLimit.mockResolvedValue({ canResearch: false, count: 3, limit: 3, remaining: 0 });
+    const sse = makeSse();
+
+    await run(sse);
+
+    expect(JSON.stringify(sse.payloadOf('warning'))).toContain('3× pro Tag');
+  });
+
+  it('stays handed-over on a failed run — nothing was charged, so allowance remains', async () => {
+    runDeepAgentResearch.mockResolvedValue(null);
+
+    expect(await run(makeSse())).toEqual({ kind: 'not_served' });
   });
 });
 
@@ -139,7 +169,7 @@ describe('success', () => {
   it('files the report, links it, and returns only a summary', async () => {
     const sse = makeSse();
 
-    const patch = await run(sse);
+    const patch = await runServed(sse);
 
     expect(createDocumentWithContent).toHaveBeenCalledOnce();
     const [title, markdown, subtype, userId] = createDocumentWithContent.mock.calls[0];
@@ -148,7 +178,7 @@ describe('success', () => {
     expect(subtype).toBe('docs');
     expect(userId).toBe('user-1');
 
-    expect(patch?.deepResearchAnswer).toBe('Wien will 2040 klimaneutral sein.');
+    expect(patch.deepResearchAnswer).toBe('Wien will 2040 klimaneutral sein.');
     expect(sse.payloadOf('document_created')).toMatchObject({
       documentId: 'doc-42',
       url: '/office/doc-42',
@@ -198,9 +228,9 @@ describe('success', () => {
   it('marks a partial report in the chat message', async () => {
     runDeepAgentResearch.mockResolvedValue({ ...GOOD_RESULT, partial: true });
 
-    const patch = await run(makeSse());
+    const patch = await runServed(makeSse());
 
-    expect(patch?.deepResearchAnswer).toContain('Zwischenstand');
+    expect(patch.deepResearchAnswer).toContain('Zwischenstand');
   });
 
   it('passes the Austrian locale through to the agent', async () => {
@@ -214,7 +244,7 @@ describe('failure', () => {
     runDeepAgentResearch.mockResolvedValue(null);
     const sse = makeSse();
 
-    expect(await run(sse)).toBeNull();
+    expect(await run(sse)).toEqual({ kind: 'not_served' });
     expect(incrementCount).not.toHaveBeenCalled();
     expect(createDocumentWithContent).not.toHaveBeenCalled();
     expect(sse.events()).toContain('warning');
@@ -223,7 +253,7 @@ describe('failure', () => {
   it('leaves the quota untouched when the agent throws', async () => {
     runDeepAgentResearch.mockRejectedValue(new Error('boom'));
 
-    expect(await run(makeSse())).toBeNull();
+    expect(await run(makeSse())).toEqual({ kind: 'not_served' });
     expect(incrementCount).not.toHaveBeenCalled();
   });
 
@@ -231,7 +261,7 @@ describe('failure', () => {
     createDocumentWithContent.mockRejectedValue(new Error('db down'));
     const sse = makeSse();
 
-    expect(await run(sse)).toBeNull();
+    expect(await run(sse)).toEqual({ kind: 'not_served' });
     expect(incrementCount).not.toHaveBeenCalled();
     expect(sse.events()).toContain('warning');
   });
@@ -239,8 +269,8 @@ describe('failure', () => {
   it('still delivers the report when only the quota increment fails', async () => {
     incrementCount.mockRejectedValue(new Error('redis weg'));
 
-    const patch = await run(makeSse());
+    const patch = await runServed(makeSse());
 
-    expect(patch?.deepResearchAnswer).toBeTruthy();
+    expect(patch.deepResearchAnswer).toBeTruthy();
   });
 });
