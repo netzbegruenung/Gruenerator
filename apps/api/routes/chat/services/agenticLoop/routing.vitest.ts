@@ -12,6 +12,7 @@ import {
   decideEditToolLoop,
   type EditToolLoopInput,
   needsThreadGrounding,
+  looksLikeSelfContainedTurn,
   rewritesSuppliedText,
   looksLikeUnsourcedWritingOrder,
 } from './routing.js';
@@ -1011,5 +1012,30 @@ describe('rewritesSuppliedText', () => {
     const trap = 'Hilfe bei der Formulierung brauche ich nicht, aber: Was fordern die Grünen?';
     expect(needsThreadGrounding(trap)).toBe(false);
     expect(rewritesSuppliedText(trap)).toBe(false);
+  });
+});
+
+describe('umlaut-initial rewrite verbs — \\b vor Umlaut ist keine Wortgrenze', () => {
+  it('Übersetzen ist ein Rewrite und bleibt self-contained', () => {
+    // Vorher tot: \b[üu]bersetze konnte "Übersetze …" nie matchen — der Turn
+    // galt nicht als self-contained und demotierte in die gemma-Synth-Lane
+    // (QA-Lauf 08/2026: zerrissene Übersetzungen).
+    const t = 'Übersetze den folgenden Text ins Englische: Hallo zusammen, wir treffen uns morgen.';
+    expect(rewritesSuppliedText(t)).toBe(true);
+    expect(looksLikeSelfContainedTurn(t, { hasOwnMaterial: false })).toBe(true);
+  });
+
+  it('Überarbeiten ebenso', () => {
+    const t = 'Überarbeite bitte diesen Absatz sprachlich';
+    expect(rewritesSuppliedText(t)).toBe(true);
+    expect(looksLikeSelfContainedTurn(t, { hasOwnMaterial: false })).toBe(true);
+  });
+
+  it('die ASCII-Schreibweise funktioniert weiterhin', () => {
+    expect(rewritesSuppliedText('ubersetze das bitte auf englisch')).toBe(true);
+  });
+
+  it('kein Match mitten im Wort', () => {
+    expect(rewritesSuppliedText('Die Grenzüberarbeitung der Behörde war Thema')).toBe(false);
   });
 });

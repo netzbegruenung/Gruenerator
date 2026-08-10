@@ -752,6 +752,7 @@ export async function streamAgenticResponse(params: {
         intent: finalState.intent,
         agentId: agentConfig.identifier,
         ...(finalState.complexity != null && { complexity: finalState.complexity }),
+        ...(finalState.taskShape != null && { taskShape: finalState.taskShape }),
       }
     );
 
