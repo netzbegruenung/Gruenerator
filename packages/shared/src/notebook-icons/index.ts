@@ -53,6 +53,7 @@ export const NOTEBOOK_ICONS = {
   'abgeordnetenwatch-notebook': PiListChecks,
   'bayern-notebook': PiMapPin,
   'sachsen-anhalt-notebook': PiTree,
+  'sachsen-notebook': PiTree,
   'hessen-notebook': GiRaccoonHead,
   'saarland-notebook': PiMapPin,
   'boell-stiftung-notebook': PiLightbulb,
