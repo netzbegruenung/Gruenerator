@@ -723,6 +723,11 @@ export const webpageMentionables: Mentionable[] = [
     icon: PiLink,
     backgroundColor: '#0EA5E9',
     mention: 'link',
+    // `@web` keeps working — muscle memory, and the old name shipped. Declared
+    // rather than left to chance: `matchFn` also searches `identifier`, so
+    // "web" matched via `webpage-trigger` by accident, and the day that
+    // identifier is renamed the alias would vanish without a test noticing.
+    aliases: ['web', 'webseite', 'url'],
   },
 ];
 
