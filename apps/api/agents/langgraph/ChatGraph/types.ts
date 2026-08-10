@@ -525,7 +525,7 @@ export interface ChatGraphInput {
   wolkeFiles?: WolkeFileRef[] | undefined;
   connectFiles?: ConnectFileRef[] | undefined;
   /**
-   * URLs explicitly attached in the composer via the @web mention. Merged with
+   * URLs explicitly attached in the composer via the @link mention. Merged with
    * the classifier's auto-detected URLs and crawled through the scrape_url path.
    */
   attachedWebpageUrls?: string[] | undefined;
@@ -686,7 +686,7 @@ export interface ChatGraphState {
   // Downloaded + parsed inline at searchNode time; never persisted.
   connectFiles: ConnectFileRef[];
 
-  // URLs attached via the @web mentionable. The classifier unions these into
+  // URLs attached via the @link mentionable. The classifier unions these into
   // `detectedUrls` so the existing scrape_url path crawls them.
   attachedWebpageUrls: string[];
 
@@ -767,6 +767,18 @@ export interface ChatGraphState {
   creationTopic: string | null;
   hasTemporal: boolean;
   complexity: 'simple' | 'moderate' | 'complex';
+
+  /**
+   * Output contract detected on the last user message (`detectTaskShape` in
+   * routes/chat/agents/taskShape.ts): `code` for machine-readable output
+   * (JSON/YAML/code/fences, incl. the sticky edit-follow-up after a code
+   * answer), `strict_format` for explicitly checkable format orders ("genau
+   * drei Sätze", "ohne Einleitung"). Set by the contract router after
+   * classification; consumed by `resolveAutoSelection` as a lane override on
+   * the neutral intents. Orthogonal to `intent` and `complexity` on purpose —
+   * it describes the answer's FORM, not the task.
+   */
+  taskShape?: 'code' | 'strict_format' | null;
 
   /**
    * The user asked for a thorough/deep research in so many words — the ONLY route

@@ -1,9 +1,11 @@
 import { type CreateAttachment } from '@assistant-ui/react-native';
 import {
   buildConnectAttachment,
+  buildWebpageAttachment,
   buildWolkeAttachment,
   canvaDesignsMarkdown,
   isWolkeRoot,
+  normalizeWebpageUrl,
   joinWolkePath,
   useCanvaDesignsQuery,
   useConnectBrowseQuery,
@@ -17,7 +19,15 @@ import {
 } from '@gruenerator/chat';
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { memo, useCallback, useMemo, useState } from 'react';
-import { View, Text, Pressable, ActivityIndicator, ScrollView, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  Pressable,
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+} from 'react-native';
 
 import { colors, spacing, borderRadius, chatType } from '../../theme';
 import { BottomSheet } from '../common/BottomSheet';
@@ -25,18 +35,22 @@ import { BottomSheet } from '../common/BottomSheet';
 import type { Theme } from '../../theme/colors';
 
 /** Which source the sheet is browsing. */
-export type MentionPickerSource = 'wolke' | 'connect' | 'canva';
+export type MentionPickerSource = 'wolke' | 'connect' | 'canva' | 'webpage';
 
 const TITLES: Record<MentionPickerSource, string> = {
   wolke: 'Aus der Wolke',
   connect: 'Aus verbundenen Konten',
   canva: 'Canva-Designs',
+  webpage: 'Link anhängen',
 };
 
 const EMPTY_HINTS: Record<MentionPickerSource, string> = {
   wolke: 'Keine Wolke verbunden. Verbindungen richtest du im Profil ein.',
   connect: 'Kein Konto verbunden. Verbindungen richtest du im Profil ein.',
   canva: 'Canva ist nicht verbunden. Verbindungen richtest du im Profil ein.',
+  // Never shown: the webpage body is an input, not a list, so it has nothing
+  // to be empty of. The record is exhaustive so a new source cannot forget one.
+  webpage: '',
 };
 
 function Row({
@@ -301,6 +315,42 @@ function CanvaBody({
 }
 
 /**
+ * A URL typed by hand. Unlike the other three this is an input, not a browse
+ * list — and unlike them it needs no connected account, so it is the one picker
+ * that always works. Auto-detection of URLs typed straight into the message is
+ * unchanged and remains the common path; this is the explicit shortcut.
+ */
+function WebpageBody({
+  theme,
+  value,
+  onChange,
+}: {
+  theme: Theme;
+  value: string;
+  onChange: (next: string) => void;
+}) {
+  return (
+    <View style={styles.urlWrap}>
+      <TextInput
+        value={value}
+        onChangeText={onChange}
+        placeholder="https://example.org/artikel"
+        placeholderTextColor={theme.textSecondary}
+        autoCapitalize="none"
+        autoCorrect={false}
+        keyboardType="url"
+        inputMode="url"
+        accessibilityLabel="Adresse der Webseite"
+        style={[styles.urlInput, { color: theme.text, borderColor: theme.border }]}
+      />
+      <Text style={[styles.hint, { color: theme.textSecondary }]}>
+        Der Inhalt der Seite wird gelesen und als Kontext angehängt.
+      </Text>
+    </View>
+  );
+}
+
+/**
  * The typed `@`-mention pickers — Nextcloud, connected accounts, Canva — as one
  * sheet with three bodies. Web has three separate floating popovers; on a phone
  * they are the same gesture and the same list, so they are the same surface.
@@ -326,13 +376,18 @@ export const MentionPickerSheet = memo(function MentionPickerSheet({
   const [wolke, setWolke] = useState<Map<string, WolkeFileToken>>(new Map());
   const [connect, setConnect] = useState<Map<string, ConnectFileToken>>(new Map());
   const [canva, setCanva] = useState<Map<string, CanvaDesignToken>>(new Map());
+  const [webpageUrl, setWebpageUrl] = useState('');
 
-  const count = wolke.size + connect.size + canva.size;
+  // The URL counts as "one pick" only once it parses, so the confirm button
+  // cannot be pressed on a half-typed address.
+  const normalizedUrl = normalizeWebpageUrl(webpageUrl);
+  const count = wolke.size + connect.size + canva.size + (normalizedUrl ? 1 : 0);
 
   const reset = useCallback(() => {
     setWolke(new Map());
     setConnect(new Map());
     setCanva(new Map());
+    setWebpageUrl('');
   }, []);
 
   const close = useCallback(() => {
@@ -372,10 +427,11 @@ export const MentionPickerSheet = memo(function MentionPickerSheet({
   const confirm = useCallback(() => {
     for (const file of wolke.values()) onAttach(buildWolkeAttachment(file));
     for (const file of connect.values()) onAttach(buildConnectAttachment(file));
+    if (normalizedUrl) onAttach(buildWebpageAttachment(normalizedUrl));
     const markdown = canvaDesignsMarkdown([...canva.values()]);
     if (markdown) onInsertText(markdown);
     close();
-  }, [wolke, connect, canva, onAttach, onInsertText, close]);
+  }, [wolke, connect, canva, normalizedUrl, onAttach, onInsertText, close]);
 
   const body = useMemo(() => {
     switch (source) {
@@ -385,10 +441,12 @@ export const MentionPickerSheet = memo(function MentionPickerSheet({
         return <ConnectBody theme={theme} selection={connect} onToggle={toggleConnect} />;
       case 'canva':
         return <CanvaBody theme={theme} selection={canva} onToggle={toggleCanva} />;
+      case 'webpage':
+        return <WebpageBody theme={theme} value={webpageUrl} onChange={setWebpageUrl} />;
       default:
         return null;
     }
-  }, [source, theme, wolke, connect, canva, toggleWolke, toggleConnect, toggleCanva]);
+  }, [source, theme, wolke, connect, canva, webpageUrl, toggleWolke, toggleConnect, toggleCanva]);
 
   return (
     <BottomSheet visible={source != null} onClose={close} maxHeight="80%">
@@ -457,6 +515,17 @@ const styles = StyleSheet.create({
   },
   rowDetail: {
     ...chatType.chatMeta,
+  },
+  urlWrap: {
+    paddingHorizontal: spacing.medium,
+    paddingTop: spacing.xsmall,
+  },
+  urlInput: {
+    ...chatType.chatBody,
+    borderWidth: 1,
+    borderRadius: borderRadius.medium,
+    paddingHorizontal: spacing.small,
+    paddingVertical: spacing.small,
   },
   confirm: {
     margin: spacing.medium,

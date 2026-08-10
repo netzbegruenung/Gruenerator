@@ -54,7 +54,7 @@ export const CitationBadge = memo(function CitationBadge({
             sideOffset={4}
             align="center"
             className={cn(
-              'z-50 w-80 max-w-[90vw] rounded-lg border border-border bg-card p-3 shadow-lg',
+              'z-[1020] w-80 max-w-[90vw] rounded-lg border border-border bg-card p-3 shadow-lg',
               'animate-in fade-in-0 zoom-in-95',
               'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95'
             )}
