@@ -128,11 +128,15 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
       'Anonyme Statistik mit Umami (eigene Server, EU). Nur nach Einwilligung — jederzeit widerrufbar',
   },
   {
+    // Auf beiden Plattformen, anders als die Reichweitenmessung darüber: die
+    // Einwilligung hängt am Profil und gilt geräteübergreifend, also muss sie
+    // auch dort widerrufbar sein, wo man gerade ist.
     id: 'datenschutz.ki-einwilligung',
     tab: 'datenschutz',
     title: 'Einwilligung in die KI-Verarbeitung',
     description:
       'Ausdrückliche Einwilligung nach Art. 9 DSGVO, weil sich aus deinen Eingaben politische Meinungen ergeben können',
+    platforms: BOTH,
   },
   {
     id: 'barrierefreiheit.animationen',
