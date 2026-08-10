@@ -164,6 +164,18 @@ const envSchema = z.object({
   // The throttle it has to contain is documented in GreenPTSearchService.ts.
   GREENPT_SEARCH_ENABLED: boolFlag(false),
 
+  // Route `@deepresearch` to the research agent (plan → delegate → crawl →
+  // report as a document) instead of Linkup's one-shot sourcedAnswer. Off by
+  // default: the agent runs for minutes inside the open SSE stream, so it goes
+  // live deliberately and not because a key happened to be set. With the flag
+  // off — or when the run yields no report — the old turn still answers.
+  DEEP_AGENT_RESEARCH_ENABLED: boolFlag(false),
+  // Which lane the research SUBagent runs on. `scaleway` is the measured
+  // default; `greenpt` is the cheaper, greener host that today loses the
+  // comparison on unsuppressible reasoning blocks — the rationale and the
+  // numbers are in `services/research/deepAgent/models.ts`.
+  DEEP_AGENT_WORKER: z.enum(['scaleway', 'greenpt']).default('scaleway'),
+
   // ── Image / Flux ───────────────────────────────────────────────────────
   FLUX_BACKEND: z.string().optional(),
   FLUX_MAX_RETRIES: numStr(3),
