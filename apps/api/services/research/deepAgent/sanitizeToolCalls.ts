@@ -37,48 +37,54 @@ interface ToolCallLike {
 
 export const sanitizeToolCallsMiddleware = createMiddleware({
   name: 'sanitizeToolCalls',
-  afterModel: (state: { messages?: unknown[] }) => {
-    const messages = state.messages ?? [];
-    const last = messages[messages.length - 1];
-    if (!(last instanceof AIMessage)) return undefined;
+  afterModel: {
+    canJumpTo: ['model'],
+    hook: (state: { messages?: unknown[] }) => {
+      const messages = state.messages ?? [];
+      const last = messages[messages.length - 1];
+      if (!(last instanceof AIMessage)) return undefined;
 
-    const calls = (last.tool_calls ?? []) as ToolCallLike[];
-    if (calls.length === 0) return undefined;
+      const calls = (last.tool_calls ?? []) as ToolCallLike[];
+      if (calls.length === 0) return undefined;
 
-    const kept = calls.filter((c) => isValidToolName(c.name));
-    if (kept.length === calls.length) return undefined;
+      const kept = calls.filter((c) => isValidToolName(c.name));
+      if (kept.length === calls.length) return undefined;
 
-    const dropped = calls.length - kept.length;
-    log.warn(
-      `[sanitize] ${dropped} unbrauchbare(r) Tool-Aufruf(e) verworfen: ${calls
-        .filter((c) => !isValidToolName(c.name))
-        .map((c) => JSON.stringify(c.name))
-        .join(', ')}`
-    );
+      const dropped = calls.length - kept.length;
+      log.warn(
+        `[sanitize] ${dropped} unbrauchbare(r) Tool-Aufruf(e) verworfen: ${calls
+          .filter((c) => !isValidToolName(c.name))
+          .map((c) => JSON.stringify(c.name))
+          .join(', ')}`
+      );
 
-    // Same id → LangGraph's message reducer replaces rather than appends.
-    const repaired = new AIMessage({
-      ...(last.id ? { id: last.id } : {}),
-      content: last.content,
-      tool_calls: kept as never,
-      additional_kwargs: last.additional_kwargs,
-    });
+      // Same id → LangGraph's message reducer replaces rather than appends.
+      const repaired = new AIMessage({
+        ...(last.id ? { id: last.id } : {}),
+        content: last.content,
+        tool_calls: kept as never,
+        additional_kwargs: last.additional_kwargs,
+      });
 
-    // Every call was garbage: the turn would end here with nothing to show, so
-    // nudge the model instead of letting the run die quietly.
-    if (kept.length === 0) {
-      return {
-        messages: [
-          repaired,
-          {
-            role: 'user',
-            content:
-              'Der letzte Werkzeugaufruf war fehlerhaft und wurde verworfen. Rufe die Werkzeuge einzeln nacheinander auf — nie mehrere gleichzeitig — und mache dann weiter.',
-          },
-        ],
-      } as never;
-    }
+      // Every call was garbage: the turn would end here with nothing to show,
+      // so nudge the model instead of letting the run die quietly. The message
+      // alone is not enough — without `jumpTo` (and `canJumpTo` above) the
+      // router still ends the run, appended nudge or not.
+      if (kept.length === 0) {
+        return {
+          messages: [
+            repaired,
+            {
+              role: 'user',
+              content:
+                'Der letzte Werkzeugaufruf war fehlerhaft und wurde verworfen. Rufe die Werkzeuge einzeln nacheinander auf — nie mehrere gleichzeitig — und mache dann weiter.',
+            },
+          ],
+          jumpTo: 'model',
+        } as never;
+      }
 
-    return { messages: [repaired] } as never;
+      return { messages: [repaired] } as never;
+    },
   },
 });

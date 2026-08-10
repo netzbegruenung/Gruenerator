@@ -12,11 +12,14 @@ import { isValidToolName, sanitizeToolCallsMiddleware } from './sanitizeToolCall
 
 interface MiddlewareResult {
   messages?: unknown[];
+  jumpTo?: string;
 }
 
-const hook = sanitizeToolCallsMiddleware.afterModel as (state: {
-  messages?: unknown[];
-}) => MiddlewareResult | undefined;
+const afterModel = sanitizeToolCallsMiddleware.afterModel as {
+  canJumpTo?: string[];
+  hook: (state: { messages?: unknown[] }) => MiddlewareResult | undefined;
+};
+const hook = afterModel.hook;
 
 function call(name: unknown, id = 'call-1') {
   return { name, args: {}, id, type: 'tool_call' };
@@ -87,6 +90,19 @@ describe('sanitizeToolCallsMiddleware', () => {
     const nudge = result?.messages?.[1] as { role: string; content: string };
     expect(nudge.role).toBe('user');
     expect(nudge.content).toContain('einzeln');
+  });
+
+  it('jumps back to the model on the all-garbage nudge — the message alone would not reroute', () => {
+    const result = hook({ messages: [aiWith([call('1,2')])] });
+
+    expect(result?.jumpTo).toBe('model');
+    expect(afterModel.canJumpTo).toContain('model');
+  });
+
+  it('does not jump on a partial repair, where the kept call routes to tools normally', () => {
+    const result = hook({ messages: [aiWith([call('web_suche', 'a'), call('1,2', 'b')])] });
+
+    expect(result?.jumpTo).toBeUndefined();
   });
 
   it('keeps the assistant text of the repaired message', () => {
