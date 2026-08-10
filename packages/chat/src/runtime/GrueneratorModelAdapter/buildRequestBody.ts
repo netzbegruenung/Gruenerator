@@ -50,7 +50,7 @@ export interface BuildRequestBodyParams {
   docMentionIds: string[];
   wolkeFiles: ReturnType<typeof parseAllMentions>['wolkeFiles'];
   connectFiles: ReturnType<typeof parseAllMentions>['connectFiles'];
-  /** URLs attached via the @web mention (crawled through the scrape_url path). */
+  /** URLs attached via the @link mention (crawled through the scrape_url path). */
   webpageUrls: string[];
   /** Regenerate the last assistant turn (backend replaces instead of appends). */
   regenerate: boolean;

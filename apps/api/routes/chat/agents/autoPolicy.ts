@@ -260,6 +260,14 @@ const HINT_OVERRIDABLE: ReadonlySet<string> = new Set([
   'agentic',
 ]);
 
+/**
+ * Output-contract shapes (see `taskShape.ts`, which imports this union so the
+ * detector and the policy cannot drift). Same override scope as the agent
+ * hint, same reasoning: a `create_sheet` turn is already on its pinned lane no
+ * matter what shape the text carries.
+ */
+export type TaskShape = 'code' | 'strict_format';
+
 function gradeReasoning(rule: ReasoningRule, complexity: Complexity): ReasoningSetting {
   return typeof rule === 'string' ? rule : rule[complexity];
 }
@@ -280,13 +288,22 @@ export interface AutoSelectionInput {
    * send `auto` doesn't silently land in the speed lane.
    */
   surface?: 'notebook' | null | undefined;
+  /**
+   * Output contract detected on the turn (`detectTaskShape`): machine-readable
+   * output (`code`) or an explicitly checkable format order (`strict_format`).
+   * Routes the neutral intents to the precise writer — which, second-order,
+   * also flips the loop to unified mode (`prefersUnifiedLoop`), so these turns
+   * never pass through the split synth that produced the QA run's broken JSON
+   * and ignored line counts.
+   */
+  taskShape?: TaskShape | null | undefined;
 }
 
 /**
  * Resolve `auto` to a concrete lane + reasoning strength.
  *
  * Order: surface pin → table lookup by intent → complexity grading → agent
- * hint override (neutral intents only).
+ * hint override → task-shape override (both on the neutral intents only).
  */
 export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
   const intent = input.intent ?? 'produktion';
@@ -315,6 +332,12 @@ export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
   if (HINT_OVERRIDABLE.has(intent) && input.agentId) {
     const hint = getSystemAgent(input.agentId)?.autoRoutingHint;
     if (hint === 'precise') modelId = MEDIUM;
+  }
+  // AFTER the agent hint on purpose: an output contract is the user's own
+  // format order, and format fidelity beats an agent's voice preference. Same
+  // scope as the hint — a pinned tool intent stays on its lane regardless.
+  if (input.taskShape != null && HINT_OVERRIDABLE.has(intent)) {
+    modelId = MEDIUM;
   }
 
   return { modelId, reasoning: gradeReasoning(entry.reasoning, complexity) };
