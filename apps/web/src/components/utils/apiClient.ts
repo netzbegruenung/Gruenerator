@@ -1,6 +1,8 @@
+import { isAiConsentRequiredBody } from '@gruenerator/contracts';
 import {
   createApiClient,
   getApiLocale,
+  notifyAiConsentRequired,
   setApiLocale,
   setGlobalApiClient,
 } from '@gruenerator/shared/api';
@@ -553,6 +555,14 @@ apiClient.interceptors.response.use(
   async (error: AxiosError) => {
     const config = error.config;
     if (config?.skipAuthRedirect) {
+      return Promise.reject(error);
+    }
+
+    // Einwilligung fehlt: die Sitzung ist in Ordnung, nur der Zeitstempel im
+    // Store ist veraltet. Melden — AiConsentGate zeigt sich daraufhin selbst.
+    // Steht vor dem 401-Zweig, damit kein Abmelde-Pfad danebengreift.
+    if (error.response?.status === 403 && isAiConsentRequiredBody(error.response.data)) {
+      notifyAiConsentRequired();
       return Promise.reject(error);
     }
 

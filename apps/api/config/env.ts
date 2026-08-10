@@ -47,6 +47,16 @@ const envSchema = z.object({
   ALLOW_DEV_AUTH_BYPASS: boolFlag(false),
   DEV_AUTH_BYPASS_TOKEN: z.string().optional(),
   /**
+   * Schaltet `requireAiConsent` von „beobachten" auf „abweisen" (403).
+   *
+   * Steht bewusst auf `false`, bis das Mobile-Release mit dem Einwilligungs-
+   * Dialog im Store und hinreichend verbreitet ist: eine bereits installierte
+   * Binary kennt das Gate nicht, fragt also nie — und bekäme ab dem Deploy auf
+   * jede KI-Funktion eine Absage. Bis dahin protokolliert die Middleware nur,
+   * wie viele Aufrufe die Durchsetzung treffen würde.
+   */
+  ENFORCE_AI_CONSENT: boolFlag(false),
+  /**
    * Directory the chat decision journal is written to, one JSON file per turn
    * (utils/decisionLog.ts). Lets the live eval lane render the same decision
    * map the simulated lane produces, without putting decision ids on the wire.

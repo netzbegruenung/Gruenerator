@@ -7,6 +7,7 @@ import multer from 'multer';
 import { z } from 'zod';
 
 import { requireAuth } from '../../middleware/authMiddleware.js';
+import { requireAiConsent } from '../../middleware/requireAiConsent.js';
 import { type AuthenticatedRequest } from '../../middleware/types.js';
 import { ImageGenerationCounter } from '../../services/counters/index.js';
 import { FluxImageService } from '../../services/flux/index.js';
@@ -57,6 +58,7 @@ const ASPECT_DIMENSIONS: Record<PresetAspect, { width: number; height: number }>
 router.post(
   '/',
   requireAuth,
+  requireAiConsent,
   upload.single('image'),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
