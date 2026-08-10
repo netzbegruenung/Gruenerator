@@ -7,6 +7,7 @@ import multer from 'multer';
 import { z } from 'zod';
 
 import { requireAuth } from '../../middleware/authMiddleware.js';
+import { requireAiConsent } from '../../middleware/requireAiConsent.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { ImageGenerationCounter } from '../../services/counters/index.js';
 import { FluxImageService, buildUniversalPrompt } from '../../services/flux/index.js';
@@ -226,6 +227,7 @@ export function buildAllyMakerPrompt(placementText: string, _isPrecision = false
 router.post(
   '/prompt',
   requireAuth,
+  requireAiConsent,
   upload.single('image'),
   validateBody(promptRequestSchema),
   async (req: TypedRequest<PromptRequestBody>, res: Response) => {
@@ -392,6 +394,7 @@ router.post(
 router.post(
   '/generate',
   requireAuth,
+  requireAiConsent,
   upload.single('image'),
   validateBody(promptRequestSchema),
   async (req: TypedRequest<PromptRequestBody>, res: Response) => {
