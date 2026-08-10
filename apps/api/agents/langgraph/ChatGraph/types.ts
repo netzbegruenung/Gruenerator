@@ -769,6 +769,18 @@ export interface ChatGraphState {
   complexity: 'simple' | 'moderate' | 'complex';
 
   /**
+   * Output contract detected on the last user message (`detectTaskShape` in
+   * routes/chat/agents/taskShape.ts): `code` for machine-readable output
+   * (JSON/YAML/code/fences, incl. the sticky edit-follow-up after a code
+   * answer), `strict_format` for explicitly checkable format orders ("genau
+   * drei Sätze", "ohne Einleitung"). Set by the contract router after
+   * classification; consumed by `resolveAutoSelection` as a lane override on
+   * the neutral intents. Orthogonal to `intent` and `complexity` on purpose —
+   * it describes the answer's FORM, not the task.
+   */
+  taskShape?: 'code' | 'strict_format' | null;
+
+  /**
    * The user asked for a thorough/deep research in so many words — the ONLY route
    * to Linkup's expensive `deep` engine depth (`tiefenrecherche`).
    *
