@@ -93,3 +93,22 @@ describe('stripDuplicatedOpening', () => {
     expect(stripDuplicatedOpening(OPENING, OPENING)).toBe(OPENING);
   });
 });
+
+describe('createOpeningDedupe — trailing consumption stays bounded', () => {
+  const OPENING2 = 'Ich formuliere jetzt die Erinnerung.';
+
+  it('keeps the bold marker of a label that starts the real answer', () => {
+    const out = run(OPENING2, [`${OPENING2} **Betreff:** Erinnerung Helfendentreffen`]);
+    expect(out).toBe('**Betreff:** Erinnerung Helfendentreffen');
+  });
+
+  it('keeps a heading that starts the real answer', () => {
+    const out = run(OPENING2, [`${OPENING2}\n\n# Ablaufplan\nDanach der Inhalt.`]);
+    expect(out).toBe('# Ablaufplan\nDanach der Inhalt.');
+  });
+
+  it('still consumes the closing emphasis of a decorated duplicate', () => {
+    const out = run(OPENING2, [`**${OPENING2}**\n\nDer eigentliche Text.`]);
+    expect(out).toBe('Der eigentliche Text.');
+  });
+});
