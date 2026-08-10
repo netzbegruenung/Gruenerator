@@ -31,7 +31,7 @@ const DATENSCHUTZ_URL = 'https://gruenerator.eu/datenschutz';
 export function AiConsentGate() {
   const theme = useTheme();
   const user = useAuthStore((s) => s.user);
-  const updateProfile = useAuthStore((s) => s.updateProfile);
+  const setAiConsent = useAuthStore((s) => s.setAiConsent);
 
   const [checked, setChecked] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -44,11 +44,9 @@ export function AiConsentGate() {
     if (!checked || saving) return;
     setSaving(true);
     setError(null);
-    // `ai_consent` ist kein Feld des Profils, sondern die Anweisung daran: der
-    // Server setzt daraufhin `ai_consent_at`. Den Zeitstempel schickt bewusst
-    // niemand mit — er ist der Nachweis (Art. 7 Abs. 1 DSGVO) und darf nicht aus
-    // der Geräteuhr stammen.
-    void updateProfile({ ai_consent: true } as Parameters<typeof updateProfile>[0])
+    // Den Zeitstempel schickt bewusst niemand mit — er ist der Nachweis
+    // (Art. 7 Abs. 1 DSGVO) und darf nicht aus der Geräteuhr stammen.
+    void setAiConsent(true)
       .catch(() => setError('Die Einwilligung konnte nicht gespeichert werden.'))
       .finally(() => setSaving(false));
   };
