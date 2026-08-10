@@ -94,6 +94,11 @@ export const agentFrontmatterSchema = z.object({
   localized: z.record(z.enum(['de-DE', 'de-AT']), agentLocalizationSchema).optional(),
   inlineSourceLinks: z.boolean().optional(),
   /**
+   * Recipe mention the single-pass respond path auto-loads when the user picked
+   * none — the agent's core text form. See `Agent.defaultRecipeMention`.
+   */
+  defaultRecipeMention: z.string().min(1).optional(),
+  /**
    * Numeric ordering hint for the generated registry. Lower wins. Preserves the
    * curated concatenation order (core → öffentlichkeitsarbeit → persona) that
    * the inline files had before migration; the LV-generated agents are appended

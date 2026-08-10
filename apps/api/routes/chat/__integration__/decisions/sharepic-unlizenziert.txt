@@ -6,6 +6,7 @@
 ## turn 0: "Entwirf einen Slogan zur Kernaussage"
 router.run_agentic               = (not reached)
 router.intent_override           = sharepic_unlicensed_fixed_text intentBefore=sharepic sharepicLicensed=false threadHasSharepic=false
+router.implicit_recipe           = (not reached)
 router.persistent_action_gate    = (not reached)
 classifier.tier                  = tier3.8_generation_scope       decidedNoArtifact=false resolved=sharepic
 respond.answer_format            = (not reached)
