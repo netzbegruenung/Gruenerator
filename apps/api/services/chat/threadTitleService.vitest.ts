@@ -89,6 +89,16 @@ describe('extractFallbackTitle', () => {
     );
   });
 
+  it('keeps a date that opens the message instead of reading it as a list marker', () => {
+    expect(extractFallbackTitle('30. Juni ist ein wichtiger Termin')).toBe(
+      '30. Juni ist ein wichtiger'
+    );
+    // A real numbered-list marker must still go.
+    expect(extractFallbackTitle('1. Punkt der Tagesordnung besprechen')).toBe(
+      'Punkt der Tagesordnung'
+    );
+  });
+
   it('accepts short questions that the old 10-character floor dropped', () => {
     expect(extractFallbackTitle('Timer setzen')).toBe('Timer setzen');
   });
@@ -108,6 +118,11 @@ describe('normalizeAiTitle', () => {
   it('strips quotes, trailing punctuation and extra lines', () => {
     expect(normalizeAiTitle('"Protokolle Juni/Juli."')).toBe('Protokolle Juni/Juli');
     expect(normalizeAiTitle('Timer setzen\n\nSoll ich noch etwas tun?')).toBe('Timer setzen');
+  });
+
+  it('accepts a title that contains an ordinal date', () => {
+    expect(normalizeAiTitle('Termin 30. Juni')).toBe('Termin 30. Juni');
+    expect(normalizeAiTitle('Sitzung 1. Juli')).toBe('Sitzung 1. Juli');
   });
 
   it('rejects sentence-shaped answers so the fallback survives', () => {
