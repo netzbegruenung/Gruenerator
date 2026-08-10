@@ -1,14 +1,28 @@
 /**
- * Wortlaut 1:1 aus der kanzleifinalen Fassung (datenschutz frankfurt ·
- * Schönberger & Dielmann, Stand 09.07.2026). Inhaltliche Änderungen gehören
- * in das Rechtsdokument, nicht in diese Datei — hier wird nur formatiert.
+ * Grundlage ist die kanzleifinale Fassung (datenschutz frankfurt · Schönberger &
+ * Dielmann, 09.07.2026). Abweichend davon ist die Liste der Auftragsverarbeiter
+ * an den tatsächlichen Stand des Codes angeglichen — sie benannte IONOS, das
+ * hier seit Längerem nicht mehr angebunden ist („the IONOS backend is retired",
+ * `routes/flux/imaginePure.ts`), und nannte Scaleway, GreenPT und Langfuse
+ * nicht, über die tatsächlich Daten laufen. Ein fehlender Auftragsverarbeiter
+ * ist der schwerere Fehler von beiden, deshalb die Korrektur vor der nächsten
+ * Kanzleirunde.
+ *
+ * Firmierungen und Anschriften stammen aus den Rechtsseiten der Anbieter selbst
+ * (Scaleway: mentions-legales; GreenPT: docs.greenpt.ai/privacy/terms), nicht
+ * aus Firmendatenbanken.
+ *
+ * Wer hier etwas ändert, prüft zuerst den Code: `ProviderName` in
+ * `services/ai/providers.ts` und `TRANSCRIPTION_CHAIN` in
+ * `services/transcription/providerPolicy.ts` sind die Quelle der Wahrheit
+ * darüber, wohin Eingaben tatsächlich gehen.
  */
 
 const Datenschutz = () => {
   return (
     <div className="page-container">
       <h1>Datenschutzerklärung</h1>
-      <p>Stand: 9. Juli 2026</p>
+      <p>Stand: 10. August 2026</p>
 
       <h2>Einleitung</h2>
       <p>
@@ -192,18 +206,26 @@ const Datenschutz = () => {
             </td>
           </tr>
           <tr>
-            <td>IONOS SE</td>
-            <td>Deutschland (EU)</td>
-            <td>ergänzende KI-Textgenerierung (bestimmte Generatorfunktionen)</td>
+            <td>Scaleway SAS</td>
+            <td>Frankreich (EU)</td>
+            <td>
+              Rechenleistung für das KI-Textmodell Mistral Medium 3.5 (das Modell selbst stammt von
+              Mistral AI)
+            </td>
+          </tr>
+          <tr>
+            <td>GreenPT BV</td>
+            <td>Niederlande (Sitz), Frankreich (Verarbeitung, EU)</td>
+            <td>KI-Textmodelle sowie Audio-/Videotranskription (keine dauerhafte Speicherung)</td>
           </tr>
           <tr>
             <td>Seeweb S.r.l. / Regolo AI</td>
             <td>Italien (EU)</td>
-            <td>Audio-/Videotranskription (Zero Data Retention), KI-Textmodelle, Reranking</td>
+            <td>KI-Textmodelle, Reranking, Bildmodelle (Zero Data Retention)</td>
           </tr>
           <tr>
             <td>Black Forest Labs</td>
-            <td>EU (EU-API bzw. IONOS/Regolo)</td>
+            <td>EU (EU-API api.eu.bfl.ai bzw. bei Seeweb/Regolo betriebene FLUX-Modelle)</td>
             <td>Bildgenerierung (FLUX)</td>
           </tr>
           <tr>
@@ -221,8 +243,23 @@ const Datenschutz = () => {
             <td>EU</td>
             <td>Fehler- und Anwendungsmonitoring</td>
           </tr>
+          <tr>
+            <td>Langfuse (selbst gehostet)</td>
+            <td>Deutschland (EU)</td>
+            <td>Qualitätssicherung und Fehleranalyse der KI-Chat-Funktion</td>
+          </tr>
         </tbody>
       </table>
+
+      <p>
+        <strong>Ladungsfähige Anschriften:</strong> Hetzner Online GmbH, Industriestr. 25, 91710
+        Gunzenhausen, Deutschland · netzbegrünung – Verein für grüne Netzkultur e.V., Deutschland ·
+        Mistral AI, 15 rue des Halles, 75001 Paris, Frankreich · Scaleway SAS, 8 rue de la
+        Ville-l&apos;Évêque, 75008 Paris, Frankreich (RCS Paris 433 115 904) · GreenPT BV,
+        Plompetorengracht 4, 3512 CC Utrecht, Niederlande (KvK 97084360) · Seeweb S.r.l., C.so Lazio
+        9/a, 03100 Frosinone, Italien · Linkup Technologies SAS, 28 avenue des Pépinières, 94260
+        Fresnes, Frankreich (RCS Créteil 930 910 740).
+      </p>
 
       <p>
         <strong>Gemeinsame Grundsätze aller Dienstleister:</strong> Verarbeitung ausschließlich in
@@ -235,11 +272,11 @@ const Datenschutz = () => {
       <p>
         Die Verarbeitung Deiner Daten findet ausschließlich auf dem Gebiet der Europäischen Union
         bzw. des Europäischen Wirtschaftsraums statt (insbesondere Deutschland, Frankreich,
-        Finnland, Italien). Eine Übermittlung personenbezogener Daten in Drittländer außerhalb der
-        EU/des EWR findet nicht statt. Sollte künftig ausnahmsweise eine Drittlandübermittlung
-        erfolgen, geschieht dies nur auf Grundlage eines Angemessenheitsbeschlusses (Art. 45 DSGVO)
-        oder geeigneter Garantien wie der EU-Standardvertragsklauseln (Art. 46 DSGVO); wir
-        informieren Dich hierüber gesondert.
+        Finnland, Italien und die Niederlande). Eine Übermittlung personenbezogener Daten in
+        Drittländer außerhalb der EU/des EWR findet nicht statt. Sollte künftig ausnahmsweise eine
+        Drittlandübermittlung erfolgen, geschieht dies nur auf Grundlage eines
+        Angemessenheitsbeschlusses (Art. 45 DSGVO) oder geeigneter Garantien wie der
+        EU-Standardvertragsklauseln (Art. 46 DSGVO); wir informieren Dich hierüber gesondert.
       </p>
 
       <h2>Allgemeiner Hinweis zur Löschung von Daten</h2>
@@ -279,8 +316,12 @@ const Datenschutz = () => {
             <td>max. 30 Tage (Missbrauchserkennung)</td>
           </tr>
           <tr>
-            <td>Audio-/Videotranskription (Regolo)</td>
-            <td>Zero Data Retention – Löschung am Ende der Session</td>
+            <td>Audio-/Videotranskription (Voxtral, GreenPT)</td>
+            <td>keine dauerhafte Speicherung – Verarbeitung nur im Arbeitsspeicher</td>
+          </tr>
+          <tr>
+            <td>KI-Chat-Protokolle (Langfuse, Qualitätssicherung)</td>
+            <td>30 Tage</td>
           </tr>
           <tr>
             <td>Echtzeit-Sprachdialog (Mikrofon-/TTS-Stream)</td>
@@ -326,12 +367,13 @@ const Datenschutz = () => {
       <p>
         Die von Dir eingegebenen Texte werden zur Bearbeitung an den von Dir je Anfrage gewählten
         KI-Dienstleister mit Verarbeitung in der EU weitergeleitet (Mistral AI/FR, KI-Modelle der
-        netzbegrünung/EU, Seeweb/Regolo AI/IT; ergänzend IONOS für bestimmte Generatorfunktionen).
-        Eine Nutzung Deiner Eingaben zum Training der KI findet nicht statt. Rechtsgrundlage ist
-        Art. 6 Abs. 1 lit. b DSGVO; enthalten Deine Eingaben besondere Kategorien (z. B. politische
-        Meinungen), stützt sich deren Verarbeitung auf Art. 9 Abs. 2 lit. a DSGVO (Deine
-        ausdrückliche Einwilligung, die wir vor der ersten Nutzung der KI-Funktionen gesondert
-        einholen).
+        netzbegrünung/EU, Seeweb/Regolo AI/IT, GreenPT/NL mit Verarbeitung in FR). Das Modell
+        Mistral Medium 3.5 läuft dabei auf Rechenleistung von Scaleway/FR; fällt Scaleway aus, geht
+        dieselbe Anfrage direkt an Mistral AI. Eine Nutzung Deiner Eingaben zum Training der KI
+        findet nicht statt. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO; enthalten Deine Eingaben
+        besondere Kategorien (z. B. politische Meinungen), stützt sich deren Verarbeitung auf Art. 9
+        Abs. 2 lit. a DSGVO (Deine ausdrückliche Einwilligung, die wir vor der ersten Nutzung der
+        KI-Funktionen gesondert einholen).
       </p>
 
       <h3>Bildbearbeitung und -generierung (Grünerator Imagine)</h3>
@@ -346,11 +388,11 @@ const Datenschutz = () => {
       <h3>Audio- und Videotranskription (Reel-Grünerator, Sprachaufnahme)</h3>
       <p>
         Zur Transkription werden Deine Audio- und Videodaten auf unseren Servern verarbeitet (u. a.
-        Zuschnitt/Orchestrierung) und zur Sprache-zu-Text-Umwandlung vorrangig an Seeweb/Regolo AI
-        (Italien, Zero Data Retention) und ersatzweise an Mistral AI Voxtral (EU) übermittelt. Die
-        Originaldateien werden nach der Verarbeitung sofort gelöscht; eine dauerhafte Speicherung,
-        manuelle Sichtung oder Nutzung zu Trainingszwecken findet nicht statt. Rechtsgrundlage ist
-        Art. 6 Abs. 1 lit. b DSGVO.
+        Zuschnitt/Orchestrierung) und zur Sprache-zu-Text-Umwandlung vorrangig an Mistral AI Voxtral
+        (Frankreich, EU) und ersatzweise an GreenPT (Verarbeitung in Frankreich, EU; Audio-Eingaben
+        werden dort nicht dauerhaft gespeichert) übermittelt. Die Originaldateien werden nach der
+        Verarbeitung sofort gelöscht; eine dauerhafte Speicherung, manuelle Sichtung oder Nutzung zu
+        Trainingszwecken findet nicht statt. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.
       </p>
 
       <h3 id="echtzeit-sprachdialog">Echtzeit-Sprachdialog (Voice Agent)</h3>
@@ -392,6 +434,17 @@ const Datenschutz = () => {
         der EU. Verarbeitet werden Fehlerberichte, Stack-Traces, Browserinformationen und
         IP-Adressen; eine Weitergabe an Dritte findet nicht statt. Löschung nach 90 Tagen.
         Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO.
+      </p>
+
+      <h3>Qualitätssicherung der KI-Chat-Funktion (Langfuse)</h3>
+      <p>
+        Zur Fehleranalyse und Qualitätssicherung der Chat-Funktion nutzen wir die selbst gehostete
+        Open-Source-Software Langfuse auf eigenen Servern in Deutschland. Verarbeitet werden
+        Chat-Eingaben und -Ausgaben, das verwendete KI-Modell, Token-Zahlen, eine pseudonyme Nutzer-
+        und Thread-Kennung, Zeitstempel sowie – sofern Du sie abgibst – Deine Bewertung einer
+        Antwort (Daumen hoch/runter). Eine Weitergabe an Dritte findet nicht statt, ebenso wenig
+        eine Nutzung zum KI-Training. Löschung nach 30 Tagen. Rechtsgrundlage ist Art. 6 Abs. 1 lit.
+        f DSGVO (berechtigtes Interesse an der Qualitätssicherung).
       </p>
 
       <h3>Cookies und lokale Speicherung im Browser</h3>
@@ -457,11 +510,11 @@ const Datenschutz = () => {
 
       <p>
         <strong>Besonderheiten bei externer Verarbeitung:</strong> Deine Rechte hinsichtlich der zur
-        Transkription an Seeweb/Regolo übermittelten Audiodaten kannst Du über uns geltend machen;
-        die Daten werden am Ende der Session automatisch gelöscht (Zero Data Retention). Bilder im
-        Grünerator Imagine speichern wir nicht, sondern leiten sie nur durch; Deine Rechte
-        hinsichtlich etwaiger bei Black Forest Labs befindlicher Bilddaten kannst Du dennoch
-        jederzeit über uns geltend machen. Zusätzlich erreichst Du Black Forest Labs direkt unter{' '}
+        Transkription an Mistral AI Voxtral bzw. GreenPT übermittelten Audiodaten kannst Du über uns
+        geltend machen; die Audiodaten werden dort nicht dauerhaft gespeichert. Bilder im Grünerator
+        Imagine speichern wir nicht, sondern leiten sie nur durch; Deine Rechte hinsichtlich
+        etwaiger bei Black Forest Labs befindlicher Bilddaten kannst Du dennoch jederzeit über uns
+        geltend machen. Zusätzlich erreichst Du Black Forest Labs direkt unter{' '}
         <a href="mailto:support@blackforestlabs.ai">support@blackforestlabs.ai</a>.
       </p>
     </div>
