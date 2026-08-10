@@ -21,6 +21,36 @@ describe('splitExamples', () => {
     expect(res.examples).toEqual(['Erster', 'Zweiter']);
   });
 
+  it('leaves a bare keyword line inside an example alone', () => {
+    // „Text:"/„Post:" stehen als Etikett mitten in EINEM Beispiel, wenn aus einer
+    // Vorlage kopiert wurde — sie dürfen nicht als Überschrift gelesen werden.
+    const res = splitExamples('Post:\nUnser Antrag ist durch!\n\nText:\nMehr dazu morgen.');
+    expect(res.strategy).toBe('single');
+    expect(res.examples).toHaveLength(1);
+  });
+
+  it('keeps a numbered Antrag with a preamble as one example', () => {
+    const antrag = [
+      'Antrag: Radwege ausbauen',
+      'Der Stadtrat möge beschließen:',
+      '',
+      '1.',
+      'Die Verwaltung erstellt ein Radwegekonzept.',
+      '',
+      '2.',
+      'Die Mittel werden im Haushalt 2027 bereitgestellt.',
+    ].join('\n');
+    const res = splitExamples(antrag);
+    expect(res.strategy).toBe('single');
+    expect(res.examples).toEqual([antrag]);
+  });
+
+  it('ignores numbering that does not count up from one', () => {
+    const res = splitExamples('3.\nDrittens\n7.\nSiebtens');
+    expect(res.strategy).toBe('single');
+    expect(res.examples).toHaveLength(1);
+  });
+
   it('splits on runs of two or more blank lines', () => {
     const res = splitExamples('Erster Absatz\n\nnoch derselbe Text\n\n\nZweiter Text');
     expect(res.strategy).toBe('blank');
