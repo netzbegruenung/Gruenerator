@@ -47,7 +47,7 @@ export function WebMentionPopover({ visible, onSelect, onDismiss }: WebMentionPo
       onDismiss={onDismiss}
       width="w-[360px]"
       role="dialog"
-      ariaLabel="Webseite anhängen"
+      ariaLabel="Link anhängen"
     >
       {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- Escape-only capture inside the already-labeled dialog panel above, not new interactive semantics. */}
       <div
@@ -60,7 +60,7 @@ export function WebMentionPopover({ visible, onSelect, onDismiss }: WebMentionPo
         }}
       >
         <span className="text-xs font-semibold uppercase tracking-wider text-foreground-muted/70">
-          Webseite anhängen
+          Link anhängen
         </span>
         <input
           type="url"
