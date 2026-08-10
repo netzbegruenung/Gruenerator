@@ -21,6 +21,21 @@ const Impressum = () => {
       <h2>Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV:</h2>
       <p>Moritz Wächter</p>
 
+      <h2>Transparenzhinweis</h2>
+      <p>
+        Der Grünerator ist ein Projekt von Moritz Wächter, kostenfrei nutzbar für Mitglieder von
+        BÜNDNIS 90/DIE GRÜNEN und Die Grünen/Die Grüne Alternative. Er wird finanziell unterstützt
+        von Die Grünen/Die Grüne Alternative in Österreich sowie von einzelnen Landesverbänden und
+        Gliederungen von BÜNDNIS 90/DIE GRÜNEN in Deutschland.
+      </p>
+      <p>
+        Der Grünerator ist kein Angebot der Partei BÜNDNIS 90/DIE GRÜNEN und nicht Teil der grünen
+        Basisdienste. Die Anmeldung über den Grünes Netz Login dient allein der Authentifizierung.
+        Der Grünerator erhält dabei kein Passwort und hat keinen Zugriff auf andere grüne Dienste
+        oder deren Daten. Verantwortlich für Betrieb, Entwicklung und Datenschutz ist ausschließlich
+        der Betreiber.
+      </p>
+
       <h2>Haftung für Inhalte</h2>
       <p>
         Als Diensteanbieter sind wir gemäß § 7 Abs. 1 DDG für eigene Inhalte auf diesen Seiten nach

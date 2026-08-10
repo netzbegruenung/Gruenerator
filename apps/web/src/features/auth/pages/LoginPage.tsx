@@ -12,6 +12,7 @@ import {
 import { type JSX, useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
+import { TRANSPARENCY_NOTICE } from '../../../config/transparencyNotice';
 import { useInstantAuth } from '../../../hooks/useAuth';
 import { useAuthStore } from '../../../stores/authStore';
 import { getIntendedRedirect, isMobileAppContext } from '../../../utils/authRedirect';
@@ -297,6 +298,8 @@ const LoginPage = ({
         zu.
       </p>
 
+      <p className="lp-hint">{TRANSPARENCY_NOTICE}</p>
+
       <button
         type="button"
         className="lp-provider-toggle"
@@ -390,6 +393,9 @@ const LoginPage = ({
                   </Link>{' '}
                   zu.
                 </p>
+                <p className="m-0 mt-sm text-muted-foreground text-[0.8rem] leading-normal">
+                  {TRANSPARENCY_NOTICE}
+                </p>
               </div>
             </div>
 
@@ -408,6 +414,9 @@ const LoginPage = ({
                 Nutzungsbedingungen und der Datenschutzerklärung
               </Link>{' '}
               zu.
+            </p>
+            <p className="m-0 mt-sm text-muted-foreground text-[0.8rem] leading-normal">
+              {TRANSPARENCY_NOTICE}
             </p>
           </div>
         </div>
