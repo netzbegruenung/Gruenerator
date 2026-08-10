@@ -541,8 +541,13 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       imageOffset: (props.imageOffset as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
       imageScale: (props.imageScale as number | undefined) ?? 1,
       isBackgroundLocked: false,
-      customEventTitleFontSize: null,
-      customBeschreibungFontSize: null,
+      // Carried over from props for the same reason as the two-text factories:
+      // card renders and remote-sync re-seeds run through here, so hard-nulling
+      // silently reverted a chat "Schrift größer" edit on the next render.
+      customEventTitleFontSize:
+        (props.customEventTitleFontSize as number | null | undefined) ?? null,
+      customBeschreibungFontSize:
+        (props.customBeschreibungFontSize as number | null | undefined) ?? null,
       eventTitleOpacity: 1,
       beschreibungOpacity: 1,
       assetInstances: [],

@@ -13,8 +13,19 @@ import {
   sharepicOpsToStatePatch,
   validateSharepicOp,
   type CanvasAiOperation,
+  type SharepicTemplateDescriptor,
 } from '@gruenerator/contracts';
 
+import { BRAND_THEMES } from '../brand/theme';
+import { dreizeilenFullConfig } from '../configs/dreizeilen_full.config';
+import { dreizeilenOverlayAtFullConfig } from '../configs/dreizeilen_overlay_at_full.config';
+import { infoAtFullConfig } from '../configs/info_at_full.config';
+import { infoFullConfig } from '../configs/info_full.config';
+import { simpleFullConfig } from '../configs/simple_full.config';
+import { veranstaltungFullConfig } from '../configs/veranstaltung_full.config';
+import { zitatAtFullConfig } from '../configs/zitat_at_full.config';
+import { zitatFullConfig } from '../configs/zitat_full.config';
+import { zitatPureAtFullConfig } from '../configs/zitat_pure_at_full.config';
 import { zitatPureFullConfig } from '../configs/zitat_pure_full.config';
 import { COLOR_SCHEMES } from '../utils/dreizeilenLayout';
 
@@ -27,6 +38,23 @@ describe('sharepic template descriptor parity', () => {
     expect(descriptor.colorSchemes?.options).toEqual(
       COLOR_SCHEMES.map((s) => ({ id: s.id, label: s.label }))
     );
+  });
+
+  it('AT background palettes match BRAND_THEMES[de-AT]', () => {
+    const expected = BRAND_THEMES['de-AT'].backgroundColors.map((c) => ({
+      id: c.id,
+      label: c.label,
+      color: c.color,
+    }));
+    for (const type of ['zitat-pure-at', 'info-at']) {
+      const descriptor = getSharepicTemplateDescriptor(type)!;
+      expect(descriptor.backgroundColors?.options, type).toEqual(expected);
+      // The mint default has to be a colour the palette actually offers.
+      expect(
+        expected.map((c) => c.color),
+        type
+      ).toContain(descriptor.defaultState.backgroundColor);
+    }
   });
 
   it('all chat-editable templates have descriptors', () => {
@@ -322,6 +350,75 @@ describe('canvas template fields parity', () => {
       }
     }
   });
+});
+
+/**
+ * Every state key a descriptor lets the chat write has to survive
+ * `createInitialState`. That function is not just the mint seed — card renders
+ * and remote-sync re-seeds run through it too, and both two-text factories
+ * apply a whitelist: a key that is neither part of the base state nor listed in
+ * `passthroughStateKeys` is dropped. Without this guard a descriptor can grant
+ * an operation that applies live and then silently disappears on the next
+ * render, which is exactly how the font-size keys behaved on the image-backed
+ * templates.
+ */
+describe('descriptor state keys survive createInitialState', () => {
+  const CONFIGS: Record<string, { createInitialState: (p: Record<string, unknown>) => unknown }> = {
+    dreizeilen: dreizeilenFullConfig,
+    zitat: zitatFullConfig,
+    'zitat-pure': zitatPureFullConfig,
+    info: infoFullConfig,
+    veranstaltung: veranstaltungFullConfig,
+    simple: simpleFullConfig,
+    'zitat-at': zitatAtFullConfig,
+    'zitat-pure-at': zitatPureAtFullConfig,
+    'dreizeilen-overlay-at': dreizeilenOverlayAtFullConfig,
+    'info-at': infoAtFullConfig,
+  };
+
+  /** Seed each writable key with a type-appropriate, truthy sentinel. */
+  function seedFor(descriptor: SharepicTemplateDescriptor): {
+    seed: Record<string, unknown>;
+    keys: string[];
+  } {
+    const seed: Record<string, unknown> = {};
+    for (const f of descriptor.textFields) {
+      seed[f.stateKey] = 'Sentinel';
+      if (f.fontSize) seed[f.fontSize.stateKey] = 42;
+    }
+    for (const el of descriptor.elements) {
+      if (el.positionStateKey) seed[el.positionStateKey] = { x: 1, y: 2 };
+      if (el.scale) seed[el.scale.stateKey] = 1.25;
+      if (el.opacity) seed[el.opacity.stateKey] = 0.75;
+    }
+    if (descriptor.backgroundColors) {
+      seed[descriptor.backgroundColors.stateKey] = descriptor.backgroundColors.options[0].color;
+    }
+    if (descriptor.colorSchemes) {
+      seed[descriptor.colorSchemes.stateKey] = descriptor.colorSchemes.options[0].id;
+    }
+    if (descriptor.backgroundImage) seed[descriptor.backgroundImage.stateKey] = '/some/photo.jpg';
+    if (descriptor.sunflowerVisibleStateKey) seed[descriptor.sunflowerVisibleStateKey] = true;
+    return { seed, keys: Object.keys(seed) };
+  }
+
+  for (const type of SHAREPIC_EDITABLE_TEMPLATES) {
+    // The slider is a deck: its fields live per-slide, not in the page state.
+    if (type === 'slider') continue;
+
+    it(`${type} keeps every descriptor-writable key`, () => {
+      const descriptor = getSharepicTemplateDescriptor(type)!;
+      const { seed, keys } = seedFor(descriptor);
+      const state = CONFIGS[type].createInitialState(seed) as Record<string, unknown>;
+
+      for (const key of keys) {
+        // Value equality, not just presence: the factories hard-nulled the
+        // font-size keys, and a `null` survives an "is it defined" check while
+        // still throwing the edit away.
+        expect(state[key], `${type}.${key} did not survive createInitialState`).toEqual(seed[key]);
+      }
+    });
+  }
 });
 
 describe('validateSharepicOp', () => {
