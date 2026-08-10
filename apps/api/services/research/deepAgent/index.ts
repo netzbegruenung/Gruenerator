@@ -15,7 +15,9 @@ import { todoListMiddleware } from 'langchain';
 
 import { createLogger } from '../../../utils/logger.js';
 
+import { describeFinalState } from './finalState.js';
 import { leadModel, workerModel } from './models.js';
+import { nudgeMissingReportMiddleware } from './nudgeMissingReport.js';
 import { leadPrompt, researcherPrompt } from './prompts.js';
 import {
   REPORT_PATH,
@@ -104,7 +106,13 @@ export async function runDeepAgentResearch(
     name: 'gruenerator-tiefenbericht',
     model: leadModel(),
     tools: tools as never,
-    middleware: [todoListMiddleware(), sanitizeToolCallsMiddleware] as never,
+    // The nudge is lead-only: the researcher subagent answers in its message
+    // and never owes a /bericht.md, so pushing it back would be wrong there.
+    middleware: [
+      todoListMiddleware(),
+      sanitizeToolCallsMiddleware,
+      nudgeMissingReportMiddleware,
+    ] as never,
     systemPrompt: leadPrompt(locale),
     subagents: [
       {
@@ -164,7 +172,11 @@ export async function runDeepAgentResearch(
 
   const raw = readFile(lastState?.files, REPORT_PATH);
   if (!isUsableReport(raw)) {
-    log.warn(`[DeepAgent] Kein verwertbarer Bericht (abgebrochen=${aborted})`);
+    // The interesting part is WHY the loop stopped — a refusal, a direct
+    // answer, empty content — and that lives only in the final message.
+    log.warn(
+      `[DeepAgent] Kein verwertbarer Bericht (abgebrochen=${aborted}) — ${describeFinalState(lastState)}`
+    );
     return null;
   }
 
