@@ -41,6 +41,7 @@ import { imageDeliveryNote } from '../../agents/searchImageHarvest.js';
 import { buildChatToolCatalog } from '../../agents/toolCatalog.js';
 import { extractTextContent } from '../messageHelpers.js';
 import {
+  containsBrokenJsonPayload,
   defersToSearchDespiteSources,
   deniesSearchAbilityDespiteSearching,
   looksCutOff,
@@ -65,9 +66,15 @@ import { withInstructionHierarchy } from '../untrustedContent.js';
 
 import { stripOutOfRangeCitations } from './citationStrip.js';
 import { isMcpReplayEnabled } from './flags.js';
-import { runAgenticLoop, type LoopMode } from './loopEngine.js';
+import {
+  runAgenticLoop,
+  SYNTH_CUTOFF_RETRY_SUFFIX,
+  SYNTH_INVALID_JSON_RETRY_SUFFIX,
+  type LoopMode,
+} from './loopEngine.js';
 import { createToolLoopGuards, MAX_SOURCES } from './loopGuards.js';
 import { buildToolObservationReplay } from './mcpReplay.js';
+import { createOpeningDedupe, stripDuplicatedOpening } from './openingDedupe.js';
 import { createRecipeRegistry } from './recipeRegistry.js';
 import {
   looksLikeExplicitResearchOrder,
@@ -185,6 +192,10 @@ const COMPOUND_TOOL_FOR: Record<string, string> = {
   board: 'create_board',
   pdf: 'create_pdf',
 };
+
+/** A GFM table: header row followed by a delimiter row. Used to recognise that
+ *  a "Tabelle"-turn was already answered inline in chat. */
+const MARKDOWN_TABLE_RE = /^\s*\|.+\|\s*\r?\n\s*\|(?:\s*:?-+:?\s*\|)+\s*$/m;
 
 /** Tools counted against the per-turn search budget (loopGuards). */
 const SEARCH_FAMILY_TOOLS: ReadonlySet<string> = new Set([
@@ -703,19 +714,36 @@ export async function streamAgenticResponse(params: {
   // wrapTools can drain + associate them with the tool they announced. Split
   // mode only; unified narration flows through the answer text via onText.
   const narrationBuffer: string[] = [];
+  // Split mode's FIRST narration sentence — the model's stated plan, per
+  // GATHER_SUFFIX's instruction to name the whole set of intended artifacts up
+  // front — crosses into the real answer text as soon as a tool ACTUALLY runs,
+  // so it appears as message prose before the first tool card. Held back until
+  // then on purpose: on a steps=0 turn the "plan" announces work that never
+  // happens, and the synth then writes the whole answer anyway — streaming it
+  // there was pure duplication surface. `openingEmitted` is what the synth
+  // prompt and the dedupe key on: only a SHOWN opening must not be restated.
+  // Both stay null/false in unified mode (no onNarration there) and on any
+  // turn where the model never narrated.
+  let openingSentence: string | null = null;
+  let openingEmitted = false;
+  const emitOpeningBeforeTool = (): void => {
+    if (openingSentence == null || openingEmitted) return;
+    openingEmitted = true;
+    endSynthHeartbeat();
+    startResponse();
+    text += `${openingSentence} `;
+    sse.send('text_delta', { text: `${openingSentence} ` });
+  };
   const takeNarration = (): string | null => {
+    // Called at every tool START (wrapTools) — the first call is the moment
+    // "a tool actually runs" becomes true, so the held-back opening streams
+    // here, before the tool card it announces.
+    emitOpeningBeforeTool();
     if (narrationBuffer.length === 0) return null;
     const joined = narrationBuffer.join(' ').trim();
     narrationBuffer.length = 0;
     return joined || null;
   };
-  // Split mode's FIRST narration sentence — the model's stated plan, per
-  // GATHER_SUFFIX's instruction to name the whole set of intended artifacts up
-  // front — crosses into the real answer text below instead of only reaching
-  // the tool card. Captured so buildSynthSystem can tell the writer it was
-  // already shown, rather than restate it. Stays null in unified mode (no
-  // onNarration there) and on any turn where the model never narrated.
-  let openingSentence: string | null = null;
   let responseStarted = false;
   let resolution: Awaited<ReturnType<typeof resolveModel>> | null = null;
   let mcpCatalog: McpCatalog | null = null;
@@ -738,6 +766,22 @@ export async function streamAgenticResponse(params: {
     responseStarted = true;
     sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
   };
+
+  const emitAnswerDelta = (delta: string): void => {
+    // Real content replaces the heartbeat as the UI's proof of progress.
+    endSynthHeartbeat();
+    startResponse();
+    text += delta;
+    sse.send('text_delta', { text: delta });
+  };
+  // Deterministic guard for the opening-sentence invariant (see openingDedupe):
+  // the prompt tells the synth the opening is already on screen, this enforces
+  // it when the model restates it anyway. `openingSentence` is read via getter
+  // because it is only assigned once the gather phase narrates.
+  const answerDedupe = createOpeningDedupe(
+    () => (openingEmitted ? openingSentence : null),
+    emitAnswerDelta
+  );
 
   try {
     resolution = await resolveModel(
@@ -1096,7 +1140,10 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
       // answer (see onNarration above) — the synth writes everything AFTER it,
       // so without this it doesn't know an opening exists and may restate the
       // plan instead of continuing from it.
-      const openingNote = openingSentence
+      // Gated on openingEmitted, not openingSentence: an opening that was held
+      // back (steps=0) was never shown, and telling the synth otherwise would
+      // make it SKIP its own first sentence.
+      const openingNote = openingEmitted
         ? `\n\nHINWEIS: Deine Antwort beginnt bereits mit diesem Satz, der dem*der Nutzer*in schon angezeigt wird: "${openingSentence}" — was du jetzt schreibst, wird DIREKT dahinter angehängt. Wiederhole diesen Satz NICHT und kündige die Erstellung NICHT ein zweites Mal an; führe nahtlos mit dem Ergebnis fort.`
         : '';
       const honestyNote =
@@ -1178,6 +1225,19 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
         finalState.createdDocument != null ||
         finalState.createdBoard != null;
       if (already) return; // planner already created it
+      // The model's own inline answer can BE the deliverable. In unified mode
+      // this hook runs AFTER the stream, so when a "Tabelle"-turn was answered
+      // with a markdown table in chat, spawning a spreadsheet on top duplicates
+      // the answer — and the unwanted artifact then hijacks the NEXT turn via
+      // the lastToolContext sheet-edit follow-up (QA 08/2026). Split mode is
+      // unaffected: there the hook runs before synthesis, while `text` is
+      // still empty.
+      if (kind === 'sheet' && MARKDOWN_TABLE_RE.test(text)) {
+        log.info(
+          '[Agentic] create_sheet not called — answer already carries an inline table, skipping forced generation'
+        );
+        return;
+      }
       const toolName = COMPOUND_TOOL_FOR[kind];
       const genTool = tools[toolName] as
         | { execute?: (input: unknown, opts: { toolCallId: string }) => Promise<unknown> }
@@ -1203,6 +1263,9 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
       // fallback is intentional and must fire even when the loop already spent its
       // failure/search budget (exactly the turns where the planner never reached
       // the generation tool). The `already` check above keeps it idempotent.
+      // A forced generation is "a tool actually runs" too — the held-back
+      // opening streams before its card, same as a planner-issued call.
+      emitOpeningBeforeTool();
       sse.send('tool_step_start', { stepId, toolName, args });
       let result: unknown;
       try {
@@ -1314,7 +1377,7 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
     // clock — users read that as "it just aborts".
     const synthFallback = mode === 'split' ? getLoopSynthFallbackModel(synth.name) : null;
 
-    await runAgenticLoop({
+    const loopResult = await runAgenticLoop({
       mode,
       plannerModel: mode === 'split' ? getLoopPlannerModel() : resolution.model,
       synthModel: synth.model,
@@ -1386,35 +1449,53 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
         (finalState.sharepicVariants?.length ?? 0) > 0 ||
         finalState.createdDocument != null ||
         finalState.createdBoard != null,
-      onText: (delta) => {
-        // Real content replaces the heartbeat as the UI's proof of progress.
-        endSynthHeartbeat();
-        startResponse();
-        text += delta;
-        sse.send('text_delta', { text: delta });
-      },
+      // Every answer delta runs through the opening dedupe: the synth is told
+      // not to restate the already-streamed opening sentence, but the small
+      // lanes do it anyway ("Hallo zusammen, Hallo zusammen …"). The dedupe
+      // holds the head of the answer only while a duplicate is still possible,
+      // then streams normally; in unified mode (no narrated opening) it is a
+      // pure passthrough from the first delta.
+      onText: (delta) => answerDedupe.push(delta),
       onReasoning: (delta) => sse.send('reasoning_delta', { text: delta }),
       // Split-gather narration: the planner's inter-tool prose, sentence-wise.
       // The FIRST sentence — the model's opening plan — crosses into the real
-      // answer text via the same channel onText uses (startResponse + text_delta),
-      // so it appears as message prose BEFORE any tool card, not just inside one.
-      // Every later sentence stays on the existing side channel: buffered for
-      // the next tool_step_start to stamp onto its card, and sent live on its
-      // own SSE event. Repeating the opening line per tool call would be noise
-      // the tool card already carries.
+      // answer text, but only once a tool actually starts (see
+      // emitOpeningBeforeTool): a plan line on a turn that then calls no tool
+      // announces nothing and only duplicates the synth's own opening. Every
+      // later sentence stays on the existing side channel: buffered for the
+      // next tool_step_start to stamp onto its card, and sent live on its own
+      // SSE event. Repeating the opening line per tool call would be noise the
+      // tool card already carries.
       onNarration: (s) => {
         if (openingSentence == null) {
           openingSentence = s;
-          endSynthHeartbeat();
-          startResponse();
-          text += `${s} `;
-          sse.send('text_delta', { text: `${s} ` });
           return;
         }
         narrationBuffer.push(s);
         sse.send('gather_narration', { text: s });
       },
+      // Output-integrity check on the accepted split answer: broken JSON and
+      // mid-sentence cut-offs earn ONE silent synth retry (loopEngine). Both
+      // shapes shipped verbatim in the 2026-08 QA run.
+      validateAnswer: (t) => {
+        if (containsBrokenJsonPayload(t)) return SYNTH_INVALID_JSON_RETRY_SUFFIX;
+        if (looksCutOff(t)) return SYNTH_CUTOFF_RETRY_SUFFIX;
+        return null;
+      },
     });
+    answerDedupe.flush();
+
+    if (loopResult.replacedStreamed) {
+      // The validation retry replaced an answer that was already on the wire.
+      // Same replacement channel the citation clamp uses: `completion` swaps
+      // the streamed deltas for the corrected text, and the recorded offsets
+      // (which index into the discarded stream) are dropped.
+      const prefix = openingEmitted ? `${openingSentence} ` : '';
+      text =
+        prefix + stripDuplicatedOpening(loopResult.text, openingEmitted ? openingSentence : null);
+      for (const s of steps) delete s.textOffset;
+      sse.send('completion', { text, citations: sourceRegistry.getCitations() });
+    }
 
     // Edit + compound-generation guarantees now run inside afterGather in BOTH
     // loop modes (loopEngine calls it post-stream for unified), so no separate
@@ -1435,6 +1516,9 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
       sse.send('text_delta', { text });
     }
   } catch (err) {
+    // Anything the dedupe still holds is real answer text — release it before
+    // the outcome logic reads `text`.
+    answerDedupe.flush();
     const msg = err instanceof Error ? err.message : String(err);
     const aborted =
       err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError');
