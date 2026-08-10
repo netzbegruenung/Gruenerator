@@ -27,6 +27,7 @@ export const TEST_USER: UserProfile = {
   reduce_motion: false,
   reduce_transparency: false,
   show_skip_link: false,
+  ai_consent_at: null,
   groups_enabled: false,
   custom_generators: false,
   database_access: false,

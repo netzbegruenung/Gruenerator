@@ -53,6 +53,10 @@
       "label": "Barrierefreiheit"
     },
     {
+      "value": "datenschutz",
+      "label": "Datenschutz"
+    },
+    {
       "value": "nutzung",
       "label": "Nutzung"
     },
@@ -91,6 +95,16 @@
       "tab": "allgemein",
       "title": "Feedback-Button",
       "description": "Darstellung des schwebenden Feedback-Buttons: mit Text, nur als Icon oder ganz ausgeblendet — er lässt sich in jede Bildschirmecke ziehen"
+    },
+    "datenschutz.reichweitenmessung": {
+      "tab": "datenschutz",
+      "title": "Reichweitenmessung",
+      "description": "Anonyme Statistik mit Umami (eigene Server, EU). Nur nach Einwilligung — jederzeit widerrufbar"
+    },
+    "datenschutz.ki-einwilligung": {
+      "tab": "datenschutz",
+      "title": "Einwilligung in die KI-Verarbeitung",
+      "description": "Ausdrückliche Einwilligung nach Art. 9 DSGVO, weil sich aus deinen Eingaben politische Meinungen ergeben können"
     },
     "barrierefreiheit.animationen": {
       "tab": "barrierefreiheit",
