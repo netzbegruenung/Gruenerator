@@ -157,8 +157,9 @@ export const LANDESVERBAENDE = [
     wahlpruefsteinAgentId: 'gruenerator-wahlpruefsteine-sachsen',
     // Hub trotz verstecktem Notebook: die Verstecken-Kaskade in `system.ts` löst
     // die Agent-Ids ÜBER LV_HUBS auf — ohne Hub-Eintrag bliebe kein Agent
-    // verborgen. Der Hub selbst wird von `getLandesverbandHubs` gefiltert,
-    // solange `sachsen-notebook` auf `enabled: false` steht.
+    // verborgen. Dass der Hub selbst nicht durchschlägt, leistet erst das Gate
+    // in `getLandesverbandHubBySlug`; die gefilterte Plural-Variante hat keine
+    // Aufrufer und hätte `/agents/gruene-sachsen` offen gelassen.
     hub: { slug: 'gruene-sachsen', name: 'Grüne Sachsen' },
   },
   {
