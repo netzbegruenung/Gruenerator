@@ -1,5 +1,9 @@
 import { DEFAULT_INSTANCE_ID, type InstanceId } from '../instances/index.js';
-import { type NotebookId, isNotebookOfferedIn } from '../notebooks/index.js';
+import {
+  type NotebookId,
+  isNotebookOfferedIn,
+  isNotebookResolvableIn,
+} from '../notebooks/index.js';
 
 import { LANDESVERBAENDE } from './landesverbaende.js';
 import { type SystemAgentId } from './system.js';
@@ -61,9 +65,30 @@ export const LV_HUBS: readonly LvHub[] = LANDESVERBAENDE.flatMap((lv) =>
 
 const hubBySlug = new Map<string, LvHub>(LV_HUBS.map((hub) => [hub.slug, hub]));
 
-/** Resolve a URL slug to its Landesverband hub, or `null` if it isn't one. */
-export function getLandesverbandHubBySlug(slug: string): LvHub | null {
-  return hubBySlug.get(slug) ?? null;
+/**
+ * Resolve a URL slug to its Landesverband hub, or `null` if it isn't one — oder
+ * wenn das Notebook des Hubs auf dieser Instanz nicht mehr auflösbar ist.
+ *
+ * Die Prüfung gehört hierher, nicht nur in {@link getLandesverbandHubs}: Die
+ * gefilterte Plural-Variante beantwortet die Auflistungsfrage und hat gar keine
+ * Aufrufer im App-Code — das Routing für `/agents/:slug` läuft ausschließlich
+ * über diese Funktion (`ChatPage.tsx`). Ohne Gate rendert ein deaktivierter
+ * Landesverband seine Hub-Landing samt aller drei funktionsfähiger Agenten
+ * weiter, obwohl er aus jeder Galerie, jedem Picker und dem Inventar
+ * verschwunden ist.
+ *
+ * Bewusst `isNotebookResolvableIn` und nicht `isNotebookOfferedIn`: Ein bloß
+ * von der Instanz *verstecktes* Notebook soll seinen Direktlink behalten
+ * (URL-Sonderrecht, CLAUDE.md) — nur der globale `enabled: false`-Schalter und
+ * die `block`-Stufe schließen wirklich zu.
+ */
+export function getLandesverbandHubBySlug(
+  slug: string,
+  instanceId: InstanceId = DEFAULT_INSTANCE_ID
+): LvHub | null {
+  const hub = hubBySlug.get(slug);
+  if (!hub) return null;
+  return isNotebookResolvableIn(hub.notebookId, instanceId) ? hub : null;
 }
 
 /**
