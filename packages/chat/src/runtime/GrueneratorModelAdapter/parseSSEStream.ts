@@ -77,11 +77,12 @@ const NO_RETRIEVAL_STAGE_INTENTS: ReadonlySet<string> = new Set([
   'compute',
 ]);
 
-/** Display titles for agentic sharepic-loop steps (tool_step_start events). */
+/** Display titles for agentic loop steps (tool_step_start events). */
 const TOOL_STEP_TITLES: Record<string, string> = {
   read_sharepic_state: 'Lese aktuellen Zustand…',
   apply_sharepic_ops: 'Wende Änderung an…',
   restore_version: 'Stelle Version wieder her…',
+  rezept_laden: 'Lade Schreibvorgaben…',
 };
 
 export async function* parseSSEStream(
