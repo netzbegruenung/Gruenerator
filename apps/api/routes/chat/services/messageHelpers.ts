@@ -202,6 +202,46 @@ export function filterEmptyAssistantMessages(messages: ModelMessage[]): ModelMes
 }
 
 /**
+ * Drop UI file parts that carry no resolvable `url` BEFORE convertToModelMessages().
+ *
+ * The SDK maps every `type:'file'`/`'reasoning-file'` part through `new URL(part.url)`,
+ * so a part shaped `{type:'file', name, mimeType, data}` (what the composer merges in
+ * for attachments) throws `TypeError: Invalid URL` and kills the whole turn — most
+ * visibly when pasting long text, which the composer turns into a text attachment.
+ *
+ * Nothing is lost: file parts are dropped again after conversion by
+ * sanitizeContentPartsForModel(), and the file content reaches the model through
+ * processAttachments() → attachmentContext.
+ */
+export function sanitizeUIFileParts<T extends { parts?: unknown }>(
+  messages: readonly T[]
+): {
+  messages: T[];
+  droppedFileParts: number;
+} {
+  let droppedFileParts = 0;
+
+  const sanitized = messages.map((message) => {
+    if (!Array.isArray(message.parts)) return message;
+
+    const parts = message.parts as Array<Record<string, unknown> | null>;
+    const kept = parts.filter((part) => {
+      if (!part || typeof part !== 'object') return true;
+      if (part.type !== 'file' && part.type !== 'reasoning-file') return true;
+      if (part.providerReference != null) return true;
+      if (typeof part.url === 'string' && part.url.length > 0) return true;
+      droppedFileParts++;
+      return false;
+    });
+
+    if (kept.length === parts.length) return message;
+    return { ...message, parts: kept } as T;
+  });
+
+  return { messages: sanitized, droppedFileParts };
+}
+
+/**
  * Remove content part types that the AI SDK doesn't support.
  * The SDK's standardizePrompt() validates parts with Zod and rejects unknown types
  * like {type:'file'} from PDF uploads. Uses an allowlist so new unsupported types
