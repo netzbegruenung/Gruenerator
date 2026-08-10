@@ -28,6 +28,12 @@ const mcpUrl = (): string => {
     ? `https://mcp.${host.replace(/^www\./, '')}`
     : 'https://mcp.gruenerator.eu';
 };
+// Die App-Sektion ist vorerst ausgeblendet — auf true stellen, um Hero und
+// App-Karten (Play Store + TestFlight) wieder anzuzeigen. MCP bleibt immer sichtbar.
+// Beim Wiederanschalten auch den Footer-Link in Header/menuData.tsx zurückbenennen
+// (Connect → Apps & Connect).
+const SHOW_APPS = false as boolean;
+
 const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=de.gruenerator.app';
 // Public TestFlight beta link — swap for the App Store URL once the app is public.
 const TESTFLIGHT_URL = 'https://testflight.apple.com/join/WZnQJzvU';
@@ -338,27 +344,32 @@ const AppsPage = () => {
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 sm:py-12 lg:px-10">
       <h1 className="mb-2 text-2xl font-bold tracking-tight text-foreground-heading sm:text-3xl">
-        Apps & Connect
+        {SHOW_APPS ? 'Apps & Connect' : 'Connect'}
       </h1>
       <p className="mb-7 max-w-prose text-sm text-grey-600 dark:text-grey-400 sm:text-base">
-        Hol dir den Grünerator aufs Smartphone — und verbinde deine KI-Clients direkt mit dem
-        Grünerator MCP-Server.
+        {SHOW_APPS
+          ? 'Hol dir den Grünerator aufs Smartphone — und verbinde deine KI-Clients direkt mit dem Grünerator MCP-Server.'
+          : 'Verbinde deine KI-Clients direkt mit dem Grünerator MCP-Server.'}
       </p>
 
-      <Hero device={device} />
+      {SHOW_APPS && (
+        <>
+          <Hero device={device} />
 
-      <div className="mb-1.5 flex flex-wrap items-center gap-2.5">
-        <h2 className="text-lg font-bold text-foreground-heading sm:text-xl">
-          Apps für dein Smartphone
-        </h2>
-        <Badge variant="outline">Experimentell</Badge>
-      </div>
-      <p className="mb-4 max-w-prose text-sm text-grey-600 dark:text-grey-400">
-        Die Apps befinden sich noch in einer experimentellen Phase — es kann vereinzelt zu Fehlern
-        kommen. Feedback hilft uns, sie besser zu machen.
-      </p>
+          <div className="mb-1.5 flex flex-wrap items-center gap-2.5">
+            <h2 className="text-lg font-bold text-foreground-heading sm:text-xl">
+              Apps für dein Smartphone
+            </h2>
+            <Badge variant="outline">Experimentell</Badge>
+          </div>
+          <p className="mb-4 max-w-prose text-sm text-grey-600 dark:text-grey-400">
+            Die Apps befinden sich noch in einer experimentellen Phase — es kann vereinzelt zu
+            Fehlern kommen. Feedback hilft uns, sie besser zu machen.
+          </p>
 
-      <AppCardsGrid device={device} />
+          <AppCardsGrid device={device} />
+        </>
+      )}
 
       <McpSection />
     </div>
