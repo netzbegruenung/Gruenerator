@@ -80,6 +80,9 @@ function summarize(result: unknown): string | undefined {
   if (Array.isArray(r.results)) return `${r.results.length} Ergebnisse`;
   if (typeof r.resultCount === 'number') return `${r.resultCount} Ergebnisse`;
   if (Array.isArray(r.examples)) return `${r.examples.length} Beispiele`;
+  // rezept_laden: the card names the recipe; the prompt body stays server-side.
+  if (typeof r.titel === 'string' && r.geladen === true) return `Rezept: ${r.titel}`;
+  if (r.geladen === false) return 'Rezept nicht verfügbar';
   return undefined;
 }
 
