@@ -181,7 +181,6 @@ const Hero = ({ device }: { device: VisitorDevice }) => {
 };
 
 const AppCard = ({
-  id,
   title,
   sub,
   icon,
@@ -189,7 +188,6 @@ const AppCard = ({
   qrUrl,
   children,
 }: {
-  id: DeviceId;
   title: string;
   sub: string;
   icon: ReactNode;
@@ -198,7 +196,6 @@ const AppCard = ({
   children: ReactNode;
 }) => (
   <div
-    id={`app-card-${id}`}
     className={cn(
       'flex flex-col gap-4 rounded-2xl border bg-background p-6 sm:p-7',
       detected
@@ -232,7 +229,6 @@ const AppCard = ({
 const AppCardsGrid = ({ device }: { device: VisitorDevice }) => (
   <div className="mb-12 grid grid-cols-1 gap-4 sm:grid-cols-2">
     <AppCard
-      id="ios"
       title="iOS"
       sub="TestFlight · Beta · ab iOS 16"
       icon={<FaApple className="text-[26px]" />}
@@ -253,7 +249,6 @@ const AppCardsGrid = ({ device }: { device: VisitorDevice }) => (
     </AppCard>
 
     <AppCard
-      id="android"
       title="Android"
       sub="Play Store · Open Beta"
       icon={<FaAndroid className="text-[26px]" />}
