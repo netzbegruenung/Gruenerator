@@ -12,8 +12,9 @@
  * Drei Eigenschaften machen die Einwilligung wirksam, und alle drei stehen hier:
  * sie ist **ausdrücklich** (ein eigener Haken, nicht vorbelegt, kein „weiter =
  * einverstanden"), sie ist **aktiv** (ohne Haken bleibt der Bestätigen-Knopf
- * aus), und sie ist **widerruflich** (Einstellungen → Datenschutz, verlinkt im
- * Dialog). Persistiert wird sie serverseitig als Zeitstempel auf dem Profil —
+ * aus), und sie ist **freiwillig** — Ablehnen muss ohne Nachteil möglich sein
+ * (Art. 7 Abs. 4 DSGVO), und ohne erreichbaren Ausgang wäre sie das nicht.
+ * Persistiert wird sie serverseitig als Zeitstempel auf dem Profil —
  * localStorage wäre nach einem Gerätewechsel weg und taugt nicht als Nachweis
  * nach Art. 7 Abs. 1 DSGVO.
  */
@@ -35,6 +36,7 @@ export default function AiConsentGate() {
   const user = useAuthStore((s) => s.user);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const setAiConsent = useAuthStore((s) => s.setAiConsent);
+  const logout = useAuthStore((s) => s.logout);
 
   const [checked, setChecked] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -51,7 +53,15 @@ export default function AiConsentGate() {
   return (
     // Kein Schließen über Escape oder Klick daneben: „weggeklickt" wäre weder
     // Zustimmung noch Ablehnung, und der Dialog käme beim nächsten Rendern
-    // ohnehin wieder. Wer nicht einwilligen will, meldet sich ab.
+    // ohnehin wieder.
+    //
+    // Der Ausgang muss deshalb IM Dialog liegen. Radix' modaler Fokus-Trap
+    // sperrt Tastatur und Zeiger auf den Rest der Seite aus — der Abmelden-Knopf
+    // in der Seitenleiste ist für Nichteinwilligende schlicht nicht erreichbar,
+    // und ohne Ausgang wäre die Einwilligung nicht freiwillig (Art. 7 Abs. 4
+    // DSGVO). Dasselbe gilt nach einem Widerruf über Einstellungen →
+    // Datenschutz: der Dialog steht dann sofort wieder da, und ohne diesen Knopf
+    // hätte ausgerechnet der zugesagte Widerruf die Nutzer*in ausgesperrt.
     <Dialog open>
       <DialogContent
         showCloseButton={false}
@@ -103,7 +113,10 @@ export default function AiConsentGate() {
           Einstellungen → Datenschutz.
         </p>
 
-        <div className="flex justify-end">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Button type="button" variant="ghost" disabled={saving} onClick={() => void logout()}>
+            Ohne Einwilligung abmelden
+          </Button>
           <Button type="button" disabled={!checked || saving} onClick={submit}>
             {saving ? 'Wird gespeichert …' : 'Einwilligen und fortfahren'}
           </Button>
