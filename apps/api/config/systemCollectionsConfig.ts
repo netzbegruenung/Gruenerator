@@ -527,6 +527,24 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     ],
     defaultFilter: { field: 'landesverband', value: ['LSA', 'LSA-F'] },
   },
+  'sachsen-system': {
+    id: 'sachsen-system',
+    key: 'sachsen',
+    country: 'DE',
+    includeInDefaultSearch: false,
+    // Auf true stellen, sobald das sachsen-notebook eingeblendet wird (enabled-Flag).
+    mcpExposed: false,
+    qdrantCollection: 'landesverbaende_documents',
+    name: 'Grüne Sachsen',
+    description: 'Pressemitteilungen, Beschlüsse und Landtagswahlprogramm 2024 der Grünen Sachsen',
+    minQuality: 0.3,
+    recallLimit: 60,
+    filterableFields: [
+      LV_CONTENT_TYPE_FIELD,
+      { field: 'published_at', label: 'Datum', type: 'date_range' },
+    ],
+    defaultFilter: { field: 'landesverband', value: 'SN' },
+  },
   'hessen-system': {
     id: 'hessen-system',
     key: 'hessen',
