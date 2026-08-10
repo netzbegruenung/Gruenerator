@@ -87,6 +87,11 @@ export const chatWarningCodeSchema = z.enum([
   // in quality accidentally, it was capped on purpose, and the message names the
   // reset time. Always carries a `messageOverride`.
   'deep_research_quota_spent',
+  // The research agent ran but produced no usable report, so the turn fell back
+  // to the ordinary deep-research answer. Worth telling the user: the run cost
+  // them minutes of waiting, and silence would read as the long path having
+  // simply been slow.
+  'deep_agent_failed',
   'classifier_degraded',
   'summary_partial',
   'recall_degraded',
@@ -378,6 +383,45 @@ export const artifactPayloadSchema = z.object({
 export type ArtifactPayload = z.infer<typeof artifactPayloadSchema>;
 
 /**
+ * `research_log_*` SSE payloads — the live progress of a deep research run,
+ * rendered in the artifact side panel while the run is in flight.
+ *
+ * Two events rather than one: `research_log_start` opens the panel, every
+ * `research_log_update` merges into what is already there. That merge is why the
+ * fields are all optional — an update carries only what changed, and an older
+ * client that does not know these event names ignores both (unregistered events
+ * pass the gate untouched), which is exactly the degradation we want on shipped
+ * mobile binaries.
+ *
+ * `documentUrl` arrives on the last update, when the report has become a real
+ * document; the panel then hands off to the ordinary document view.
+ */
+export const researchLogStepSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  status: z.enum(['running', 'done', 'failed']),
+});
+export type ResearchLogStep = z.infer<typeof researchLogStepSchema>;
+
+export const researchLogStartSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+});
+export type ResearchLogStart = z.infer<typeof researchLogStartSchema>;
+
+export const researchLogUpdateSchema = z.object({
+  id: z.string(),
+  /** The plan from `write_todos`. Replaces the previous plan wholesale. */
+  plan: z.array(researchLogStepSchema).optional(),
+  /** Tool activity. Merged by step id, appended when the id is new. */
+  steps: z.array(researchLogStepSchema).optional(),
+  status: z.enum(['running', 'done', 'failed']).optional(),
+  documentUrl: z.string().optional(),
+  documentId: z.string().optional(),
+});
+export type ResearchLogUpdate = z.infer<typeof researchLogUpdateSchema>;
+
+/**
  * `compute` SSE payload — the deterministic result of the `compute` intent.
  * The backend runs the calculation in plain JS (never the LLM), then streams
  * the verified numbers so the frontend can render a transparent "Berechnung"
@@ -589,6 +633,8 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
     .passthrough(),
   chart_data: z.object({ chart: chartPayloadSchema.passthrough().optional() }).passthrough(),
   artifact: z.object({ artifact: artifactPayloadSchema.passthrough().optional() }).passthrough(),
+  research_log_start: researchLogStartSchema.passthrough(),
+  research_log_update: researchLogUpdateSchema.passthrough(),
   compute: z.object({ compute: computePayloadSchema.passthrough().optional() }).passthrough(),
   bahn: z.object({ bahn: bahnPayloadSchema.passthrough().optional() }).passthrough(),
   // variants stay unknown[] here: per-item validation (sharepicVariantSchema)

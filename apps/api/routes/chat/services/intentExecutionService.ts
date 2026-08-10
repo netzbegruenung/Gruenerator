@@ -54,6 +54,7 @@ import {
   type CreateTurnOpts,
 } from './createTurn.js';
 import { failCreation, rememberArtifact, streamTextInChunks } from './createTurnHelpers.js';
+import { runDeepAgentTurn } from './deepAgentTurn.js';
 import { runDeepResearchTurn } from './deepResearchTurn.js';
 import { emitEditorOperations, planEditorOps } from './editorOpsCore.js';
 import { finishEditTurn } from './editTurnCompletion.js';
@@ -1372,6 +1373,19 @@ export async function executeIntentPipeline(opts: {
         //
         // `null` means "not served" (quota spent, no key, failed call) and falls
         // through to the ordinary research path with the warning already sent.
+        // The agent edition of the same mention, tried first when its flag is
+        // on. It answers with a DOCUMENT rather than a dossier, so on success
+        // there is nothing to rerank and no source list to emit — only the short
+        // summary it put in `deepResearchAnswer`. `null` falls through to the
+        // one-shot path below, which is the whole point of the ordering.
+        if (searchInputState.deepResearchRequested === true) {
+          const report = await runDeepAgentTurn({ state: searchInputState, sse });
+          if (report) {
+            finalState = { ...searchInputState, ...report } as ChatGraphState;
+            continue;
+          }
+        }
+
         if (searchInputState.deepResearchRequested === true) {
           const dossier = await runDeepResearchTurn({ state: searchInputState, sse });
           if (dossier) {
