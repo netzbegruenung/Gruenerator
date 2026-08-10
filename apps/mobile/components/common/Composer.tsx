@@ -151,7 +151,13 @@ interface MentionState {
 
 /** The mention types that open a source picker instead of inserting text. */
 function asPickerSource(type: Mentionable['type']): MentionPickerSource | null {
-  return type === 'wolke' || type === 'connect' || type === 'canva' ? type : null;
+  // 'webpage' behaves like the other three (picker instead of inserted text),
+  // but is the only one needing no connected account. Before, it fell through
+  // to the text path: the picker offered @link and selecting it inserted a bare
+  // string that attached nothing.
+  return type === 'wolke' || type === 'connect' || type === 'canva' || type === 'webpage'
+    ? type
+    : null;
 }
 
 /**
