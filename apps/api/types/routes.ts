@@ -108,40 +108,14 @@ export interface EditSuggestionResult {
 // Website Generation Types (for claude_website)
 // ============================================================================
 
-export interface WebsiteTheme {
-  title: string;
-  content: string;
-  imageUrl?: string | undefined;
-}
-
-export interface WebsiteAction {
-  text: string;
-  link: string;
-  imageUrl?: string | undefined;
-}
-
-export interface WebsiteContent {
-  hero: {
-    heading: string;
-    text: string;
-  };
-  about: {
-    title: string;
-    content: string;
-  };
-  hero_image: {
-    title: string;
-    subtitle: string;
-    imageUrl?: string | undefined;
-  };
-  themes: WebsiteTheme[];
-  actions: WebsiteAction[];
-  contact: {
-    title: string;
-    email: string;
-    backgroundImageUrl?: string | undefined;
-  };
-}
+/**
+ * Landing-Page-Inhalte. Die Form steht als Zod-Schema in
+ * @gruenerator/contracts (`websiteContentSchema`) — dort prüft der
+ * Vertrags-Router die Modellantwort tatsächlich gegen sie, und der
+ * Seitenbauer leitet denselben Typ ab. Hier nur noch weitergereicht, damit
+ * die bestehenden Importpfade im FlyerToSiteGraph unverändert bleiben.
+ */
+export type { WebsiteContent, WebsiteTheme, WebsiteAction } from '@gruenerator/contracts';
 
 // ============================================================================
 // Utility Types
