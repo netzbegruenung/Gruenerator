@@ -1380,11 +1380,11 @@ export async function executeIntentPipeline(opts: {
         // halves of the turn — retrieval and synthesis — and must therefore skip
         // everything below, not just the search node: reranking reorders
         // `searchResults`, and a finished answer's [N] point at the original
-        // order. For both, `null` means "not served" (flag off, quota spent, no
-        // key, failed run) and falls through to the next one, with the warning
+        // order. For both, `null` means "not served" (quota spent, no key,
+        // failed run) and falls through to the next one, with the warning
         // already sent.
 
-        // First the agent, when its flag is on: it answers with a DOCUMENT
+        // First the agent, whenever it can run at all: it answers with a DOCUMENT
         // rather than a dossier, so on success there is nothing to rerank and no
         // source list to emit — only the short summary it put in
         // `deepResearchAnswer`.
