@@ -111,6 +111,8 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS feedback_button TEXT NOT NULL DEFA
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS reduce_motion BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS reduce_transparency BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS show_skip_link BOOLEAN NOT NULL DEFAULT TRUE;
+-- Art. 9 Abs. 2 lit. a DSGVO: NULL = nicht erteilt bzw. widerrufen.
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS ai_consent_at TIMESTAMPTZ;
 
 
 -- ════════════════════════════════════════════════════════════════════════════

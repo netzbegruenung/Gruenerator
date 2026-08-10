@@ -79,6 +79,8 @@ export const profiles = pgTable(
     // client. No `.references()` here to avoid a circular import with
     // landesverbaende.ts; the real FK constraint lives in the SQL migration.
     landesverband_id: text('landesverband_id'),
+    /** Art. 9 Abs. 2 lit. a DSGVO — NULL heißt „nicht erteilt bzw. widerrufen". */
+    ai_consent_at: timestamp('ai_consent_at', { withTimezone: true }),
   },
   (table) => ({
     emailIdx: index('idx_profiles_email').on(table.email),

@@ -34,6 +34,7 @@ const DEV_BYPASS_USER: Express.User = {
   reduce_motion: false,
   reduce_transparency: false,
   show_skip_link: true,
+  ai_consent_at: null,
   groups_enabled: false,
   custom_generators: false,
   database_access: false,
