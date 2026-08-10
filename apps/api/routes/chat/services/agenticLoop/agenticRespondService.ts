@@ -193,6 +193,10 @@ const COMPOUND_TOOL_FOR: Record<string, string> = {
   pdf: 'create_pdf',
 };
 
+/** A GFM table: header row followed by a delimiter row. Used to recognise that
+ *  a "Tabelle"-turn was already answered inline in chat. */
+const MARKDOWN_TABLE_RE = /^\s*\|.+\|\s*\r?\n\s*\|(?:\s*:?-+:?\s*\|)+\s*$/m;
+
 /** Tools counted against the per-turn search budget (loopGuards). */
 const SEARCH_FAMILY_TOOLS: ReadonlySet<string> = new Set([
   'gruenerator_search',
@@ -1221,6 +1225,19 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
         finalState.createdDocument != null ||
         finalState.createdBoard != null;
       if (already) return; // planner already created it
+      // The model's own inline answer can BE the deliverable. In unified mode
+      // this hook runs AFTER the stream, so when a "Tabelle"-turn was answered
+      // with a markdown table in chat, spawning a spreadsheet on top duplicates
+      // the answer — and the unwanted artifact then hijacks the NEXT turn via
+      // the lastToolContext sheet-edit follow-up (QA 08/2026). Split mode is
+      // unaffected: there the hook runs before synthesis, while `text` is
+      // still empty.
+      if (kind === 'sheet' && MARKDOWN_TABLE_RE.test(text)) {
+        log.info(
+          '[Agentic] create_sheet not called — answer already carries an inline table, skipping forced generation'
+        );
+        return;
+      }
       const toolName = COMPOUND_TOOL_FOR[kind];
       const genTool = tools[toolName] as
         | { execute?: (input: unknown, opts: { toolCallId: string }) => Promise<unknown> }
