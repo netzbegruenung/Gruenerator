@@ -17,6 +17,16 @@ export interface User {
    */
   reduce_motion?: boolean;
   reduce_transparency?: boolean;
+  /**
+   * Zeitpunkt der ausdrücklichen Einwilligung nach Art. 9 Abs. 2 lit. a DSGVO;
+   * `null` heißt „nicht erteilt bzw. widerrufen". Fehlt die Angabe, fragen Web
+   * und App vor der ersten KI-Nutzung nach.
+   *
+   * Trotz Index-Signatur ausgeschrieben: das Feld entscheidet, ob ein blockierendes
+   * Gate erscheint, und ein Tippfehler wäre sonst still `undefined` — also
+   * „nicht erteilt" — und würde alle aussperren.
+   */
+  ai_consent_at?: string | null;
   user_metadata?: {
     chat_color?: string;
     [key: string]: unknown;

@@ -63,6 +63,7 @@ const DETAIL_TITLES: Record<SettingsDetail, string> = {
   chatBackground: getSettingsEntry('hintergrund.startseite').title,
   locale: getSettingsEntry('allgemein.sprache').title,
   accessibility: 'Barrierefreiheit',
+  privacy: 'Datenschutz',
 };
 
 const THEME_OPTIONS: readonly { value: ThemeMode; label: string; icon: IoniconsIconName }[] = [
@@ -292,6 +293,46 @@ export function SettingsSheet() {
       );
     }
 
+    if (detail === 'privacy') {
+      const consentAt = typeof user.ai_consent_at === 'string' ? user.ai_consent_at : null;
+      return (
+        <>
+          {note(
+            'Weil über den Grünerator politische Inhalte entstehen, können sich aus deinen Eingaben politische Meinungen ergeben — besondere Kategorien im Sinne des Art. 9 DSGVO. Die Einwilligung gilt für alle deine Geräte.'
+          )}
+          <ListGroup>
+            <ListRow
+              icon="shield-checkmark-outline"
+              title={getSettingsEntry('datenschutz.ki-einwilligung').title}
+              value={
+                consentAt
+                  ? `Erteilt am ${new Date(consentAt).toLocaleDateString('de-DE')}`
+                  : 'Nicht erteilt'
+              }
+              valueLines={2}
+              accessory={
+                <Switch
+                  value={consentAt != null}
+                  onValueChange={(value) => {
+                    void updateProfile({
+                      ai_consent: value,
+                    } as Parameters<typeof updateProfile>[0]).catch(() => {
+                      Alert.alert('Fehler', 'Einwilligung konnte nicht gespeichert werden.');
+                    });
+                  }}
+                  trackColor={{ true: colors.primary[600], false: colors.grey[300] }}
+                />
+              }
+              last
+            />
+          </ListGroup>
+          {note(
+            'Nimmst du die Einwilligung zurück, fragen wir sofort wieder — ohne sie lassen sich die KI-Funktionen nicht nutzen.'
+          )}
+        </>
+      );
+    }
+
     if (detail === 'friend') {
       return (
         <>
@@ -447,6 +488,16 @@ export function SettingsSheet() {
                   }
                 />
               )}
+              <ListRow
+                icon="shield-checkmark-outline"
+                title="Datenschutz"
+                value={
+                  user.ai_consent_at != null
+                    ? 'KI-Einwilligung erteilt'
+                    : 'KI-Einwilligung ausstehend'
+                }
+                onPress={() => setDetail('privacy')}
+              />
               <ListRow
                 icon="school-outline"
                 title="Einführung erneut ansehen"
