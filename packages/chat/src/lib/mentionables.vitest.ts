@@ -315,3 +315,24 @@ describe('mentionable slug uniqueness across sources', () => {
     expect(shadowed).toEqual([]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Der Link-Anhang hieß bis 08/2026 `@web`. Der Name las sich als „durchsuche das
+// Web" — genau das, was er NICHT tut. Beide Namen müssen den Eintrag finden:
+// der neue, weil er der beworbene ist, der alte, weil er ausgeliefert wurde.
+// ---------------------------------------------------------------------------
+describe('link attachment mentionable', () => {
+  it('is findable as @link AND still as @web', () => {
+    setMentionLocale('de-DE');
+    const idOf = (q: string) => filterMentionables(q).tools.map((m) => m.identifier);
+    expect(idOf('link')).toContain('webpage-trigger');
+    expect(idOf('web')).toContain('webpage-trigger');
+  });
+
+  it('is offered unfiltered, and carries the new name', () => {
+    setMentionLocale('de-DE');
+    const entry = filterMentionables('').tools.find((m) => m.identifier === 'webpage-trigger');
+    expect(entry?.mention).toBe('link');
+    expect(entry?.title).toBe('Link');
+  });
+});
