@@ -85,7 +85,11 @@ export const DocumentCreatedCard = memo(function DocumentCreatedCard({
   const panelMounted = useArtifactLiveStore((s) => s.panelMounted);
   return (
     <div className="my-5 max-w-md rounded-xl border border-border bg-background px-4 py-3">
-      <div className="flex items-center justify-between gap-3">
+      {/* Umbrechend, weil der Aktionsknopf nicht schrumpfen kann: auf einer Zeile
+          bleiben dem Titel auf dem Handy 56 px (bei 320 px Viewport 0 px), er
+          verschwindet also praktisch. Umgebrochen rutschen die Knöpfe unter den
+          Titel und er bekommt die volle Kartenbreite (gemessen 228 px). */}
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <div className="flex items-center gap-3 min-w-0">
           <span
             className="flex h-9 w-9 flex-none items-center justify-center rounded-lg"
