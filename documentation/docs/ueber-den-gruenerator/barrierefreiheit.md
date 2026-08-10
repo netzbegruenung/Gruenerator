@@ -42,7 +42,7 @@ Unter **Einstellungen → Barrierefreiheit**:
 | Animationen reduzieren               | Bewegung und Übergänge werden abgeschaltet. |
 | Transparenz und Unschärfe reduzieren | Durchscheinende Flächen werden deckend.     |
 
-Hellen und dunklen Modus stellst du unter **Einstellungen → Darstellung** ein; der Grünerator folgt sonst der Einstellung deines Systems.
+Hellen und dunklen Modus stellst du unter **Einstellungen → Allgemein** ein; der Grünerator folgt sonst der Einstellung deines Systems.
 
 ## Tastaturbedienung
 

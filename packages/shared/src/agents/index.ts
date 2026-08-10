@@ -25,6 +25,7 @@ export {
   SYSTEM_AGENTS,
   VISIBLE_SYSTEM_AGENTS,
   DEFAULT_SYSTEM_AGENT_ID,
+  DISABLED_LV_AGENT_IDS,
   getSystemAgent,
   type SystemAgentId,
 } from './system.js';
