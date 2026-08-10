@@ -5,6 +5,24 @@
 import { ROBOT_ID_MIN, ROBOT_ID_MAX } from '@gruenerator/core/avatar';
 import { z } from 'zod';
 
+/**
+ * Fehlercode, mit dem die KI-Eingänge eine fehlende Art.-9-Einwilligung
+ * abweisen (HTTP 403). Bewusst **nicht** 401: die Sitzung ist gültig, es fehlt
+ * nur die Einwilligung — auf 401 räumen beide Clients die Anmeldung ab.
+ *
+ * F0: der Wert steht in ausgelieferten Mobile-Binaries. Nicht umbenennen.
+ */
+export const AI_CONSENT_REQUIRED_CODE = 'ai_consent_required';
+
+/** Erkennt die 403-Antwort oben an einem beliebig getippten Fehlerrumpf. */
+export function isAiConsentRequiredBody(body: unknown): boolean {
+  return (
+    typeof body === 'object' &&
+    body !== null &&
+    (body as { code?: unknown }).code === AI_CONSENT_REQUIRED_CODE
+  );
+}
+
 // ── Request body schemas (moved from controller) ────────────────────────────
 
 /**

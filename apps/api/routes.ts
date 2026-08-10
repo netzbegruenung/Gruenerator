@@ -11,6 +11,7 @@ import { requireAdminToken } from './middleware/adminTokenMiddleware.js';
 import authMiddleware from './middleware/authMiddleware.js';
 import { deprecatedRoute } from './middleware/deprecatedRoute.js';
 import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
+import { requireAiConsent } from './middleware/requireAiConsent.js';
 import { mountBgstOverviewContractRouter } from './routes/admin/bgstOverviewContractRouter.js';
 import { mountLandesverbandAdminContractRouter } from './routes/admin/landesverbandAdminContractRouter.js';
 import { mountLvAdminAssignmentContractRouter } from './routes/admin/lvAdminAssignmentContractRouter.js';
@@ -507,6 +508,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   // never populated and every download 401'd. Gate the prefix like /threads.
   app.use('/api/chat-service/compute-assets', requireAuth);
   app.use('/api/chat-graph', requireAuth);
+  // Art.-9-Einwilligung, direkt hinter requireAuth: die Middleware liest
+  // req.user und lässt anonyme Aufrufe durch (die 401 gehört requireAuth).
+  app.use('/api/chat-graph', requireAiConsent);
   // /api/chat-graph/stream is in CUSTOM_BODY_PARSER_PATHS (bodyParserConfig.ts)
   // so the global 10mb body parser is skipped. Install a 50mb parser scoped
   // to /api/chat-graph here so the contract router receives a parsed body
@@ -774,6 +778,18 @@ export async function setupRoutes(app: Application): Promise<void> {
     void requireAuth(req, res, next);
   });
   app.use('/api/subtitler', standardMutationLimiter);
+  // Art.-9-Einwilligung nur auf den KI-Eingängen des Reel-Werkzeugs:
+  // /process + /process-auto starten die Transkription, /generate-social
+  // textet daraus. Projektliste, Export und die Fortschritts-Polls bleiben
+  // offen — sie verarbeiten nichts neu, und wer die Einwilligung widerruft,
+  // muss an seine bereits erzeugten Untertitel weiter herankommen.
+  app.use('/api/subtitler', (req, res, next) => {
+    // req.path ist hier relativ zum Mount.
+    if (req.path.startsWith('/process') || req.path.startsWith('/generate-social')) {
+      return requireAiConsent(req, res, next);
+    }
+    return next();
+  });
   mountSubtitlerContractRouter(app);
   // Legacy routers — binary/streaming routes only (contract handles all JSON).
   app.use('/api/subtitler', subtitlerRouter);
@@ -902,7 +918,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Every voice endpoint spends AI credit or disk, so none of them are public.
   // The /api/voice/realtime WebSocket is unaffected: it is served from the
   // server's `upgrade` handler, which Express middleware never sees.
-  app.use('/api/voice', requireAuth, standardMutationLimiter);
+  app.use('/api/voice', requireAuth, requireAiConsent, standardMutationLimiter);
   // ts-rest contract router — mount before legacy voiceController router
   mountVoiceContractRouter(app);
   app.use('/api/voice', voiceRouter);
@@ -1025,7 +1041,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   // ts-rest contract router for image editing (multi-reference). requireAuth +
   // limiter run at the prefix because createExpressEndpoints registers
   // handlers directly on the app.
-  app.use('/api/image-edit', requireAuth, aiGenerationLimiter);
+  app.use('/api/image-edit', requireAuth, requireAiConsent, aiGenerationLimiter);
   mountImageEditContractRouter(app);
   app.use('/api/imagine/pure', aiGenerationLimiter, imaginePureRoute);
   app.use('/api/imagine/outpaint', aiGenerationLimiter, outpaintRoute);
