@@ -20,6 +20,7 @@ import {
   FiHelpCircle,
   FiServer,
   FiSettings,
+  FiShield,
   FiSliders,
 } from 'react-icons/fi';
 import { IoAccessibilityOutline } from 'react-icons/io5';
@@ -81,6 +82,7 @@ const NAV: {
   { value: 'wolke', label: 'Wolke', icon: FiCloud },
   { value: 'websites', label: 'Meine Websites', icon: FiGlobe },
   { value: 'barrierefreiheit', label: 'Barrierefreiheit', icon: IoAccessibilityOutline },
+  { value: 'datenschutz', label: 'Datenschutz', icon: FiShield },
   { value: 'nutzung', label: 'Nutzung', icon: FiBarChart2 },
   { value: 'support', label: 'Support', icon: FiHelpCircle },
 ];
