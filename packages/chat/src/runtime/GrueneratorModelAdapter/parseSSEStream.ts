@@ -22,7 +22,11 @@ import {
   DEEP_TOOL_MAP,
   formatNamespacedToolLabel,
 } from '../../lib/toolMappings';
-import { useArtifactLiveStore, type CodeArtifact } from '../../stores/artifactLiveStore';
+import {
+  useArtifactLiveStore,
+  type CodeArtifact,
+  type ResearchLogStep,
+} from '../../stores/artifactLiveStore';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useAgentStore } from '../../stores/chatStore';
 import { useReelLiveStore } from '../../stores/reelLiveStore';
@@ -643,6 +647,42 @@ export async function* parseSSEStream(
             receivedArtifactData = active;
             // Open the docked panel immediately.
             useArtifactLiveStore.getState().setActiveArtifact(active);
+          }
+          yield buildResult();
+          break;
+        }
+
+        // A deep research run has started: open the panel so the user can watch
+        // it work. The run takes minutes, so this is the only feedback there is
+        // until the document appears at the end.
+        case 'research_log_start': {
+          const { id, title } = data as { id?: string; title?: string };
+          if (id) {
+            useArtifactLiveStore.getState().setActiveArtifact({
+              id,
+              type: 'research_log',
+              title: title ?? 'Recherche',
+              plan: [],
+              steps: [],
+              status: 'running',
+            });
+          }
+          yield buildResult();
+          break;
+        }
+
+        case 'research_log_update': {
+          const patch = data as {
+            id?: string;
+            plan?: ResearchLogStep[];
+            steps?: ResearchLogStep[];
+            status?: 'running' | 'done' | 'failed';
+            documentUrl?: string;
+            documentId?: string;
+          };
+          if (patch.id) {
+            const { id, ...rest } = patch;
+            useArtifactLiveStore.getState().upsertResearchLog(id, rest);
           }
           yield buildResult();
           break;
