@@ -115,10 +115,21 @@
   --sp-more-hover-bg: rgba(255, 255, 255, 0.5);
   /* Warm-tinted rather than neutral black: the ground here is #fdfaf7 plus
      pastel glows, and a grey shadow on cream reads as dirt. The negative
-     spread keeps the shadow from reaching past the button's left/right edges,
-     which is what lets --sp-cta-shadow-room stay small (see .sp-collapse). */
+     spread keeps the shadow from reaching sideways past the button's edges
+     (0px at rest, 2px on hover), so the clipping box needs vertical room
+     only — horizontal room would not fit on narrow viewports, where the row
+     is already width:100% inside the hero's 24px padding. */
   --sp-cta-shadow: 0 8px 20px -10px rgba(58, 44, 34, 0.45);
   --sp-cta-shadow-hover: 0 14px 28px -12px rgba(58, 44, 34, 0.5);
+  /* Derived from the two shadows above, not eyeballed — CSS cannot read the
+     parts of a box-shadow back out, so recompute this by hand when either
+     changes. For `0 <y> <blur> <spread>` the shadow reaches `spread + blur/2`
+     sideways and `y + spread + blur/2` downwards; the hover state is the
+     larger of the two and sets the requirement:
+       sideways  -12 + 28/2 =  2px  → stays inside the button, no room needed
+       downwards  14 +     2 = 16px → this is what has to fit in the clip box
+     20px = 16px + 4px slack. Upwards both shadows end above the button's top
+     edge (8 - 0 and 14 - 2), so there is nothing to reserve there. */
   --sp-cta-shadow-room: 20px;
 }
 [data-theme='dark'] .sp-hero {
