@@ -282,6 +282,12 @@ const LoginPage = ({
         zu.
       </p>
 
+      <p className="lp-hint">
+        Der Grünerator ist ein Projekt von Moritz Wächter, kostenfrei für Mitglieder von BÜNDNIS
+        90/DIE GRÜNEN und Die Grünen/Die Grüne Alternative. Er ist kein Angebot der Partei BÜNDNIS
+        90/DIE GRÜNEN.
+      </p>
+
       <button
         type="button"
         className="lp-provider-toggle"
@@ -377,6 +383,11 @@ const LoginPage = ({
                   </Link>{' '}
                   zu.
                 </p>
+                <p className="m-0 mt-sm text-muted-foreground text-[0.8rem] leading-normal">
+                  Der Grünerator ist ein Projekt von Moritz Wächter, kostenfrei für Mitglieder von
+                  BÜNDNIS 90/DIE GRÜNEN und Die Grünen/Die Grüne Alternative. Er ist kein Angebot
+                  der Partei BÜNDNIS 90/DIE GRÜNEN.
+                </p>
               </div>
             </div>
 
@@ -395,6 +406,11 @@ const LoginPage = ({
                 Nutzungsbedingungen und der Datenschutzerklärung
               </Link>{' '}
               zu.
+            </p>
+            <p className="m-0 mt-sm text-muted-foreground text-[0.8rem] leading-normal">
+              Der Grünerator ist ein Projekt von Moritz Wächter, kostenfrei für Mitglieder von
+              BÜNDNIS 90/DIE GRÜNEN und Die Grünen/Die Grüne Alternative. Er ist kein Angebot der
+              Partei BÜNDNIS 90/DIE GRÜNEN.
             </p>
           </div>
         </div>
