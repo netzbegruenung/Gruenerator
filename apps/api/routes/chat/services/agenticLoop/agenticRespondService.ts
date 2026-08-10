@@ -710,19 +710,36 @@ export async function streamAgenticResponse(params: {
   // wrapTools can drain + associate them with the tool they announced. Split
   // mode only; unified narration flows through the answer text via onText.
   const narrationBuffer: string[] = [];
+  // Split mode's FIRST narration sentence — the model's stated plan, per
+  // GATHER_SUFFIX's instruction to name the whole set of intended artifacts up
+  // front — crosses into the real answer text as soon as a tool ACTUALLY runs,
+  // so it appears as message prose before the first tool card. Held back until
+  // then on purpose: on a steps=0 turn the "plan" announces work that never
+  // happens, and the synth then writes the whole answer anyway — streaming it
+  // there was pure duplication surface. `openingEmitted` is what the synth
+  // prompt and the dedupe key on: only a SHOWN opening must not be restated.
+  // Both stay null/false in unified mode (no onNarration there) and on any
+  // turn where the model never narrated.
+  let openingSentence: string | null = null;
+  let openingEmitted = false;
+  const emitOpeningBeforeTool = (): void => {
+    if (openingSentence == null || openingEmitted) return;
+    openingEmitted = true;
+    endSynthHeartbeat();
+    startResponse();
+    text += `${openingSentence} `;
+    sse.send('text_delta', { text: `${openingSentence} ` });
+  };
   const takeNarration = (): string | null => {
+    // Called at every tool START (wrapTools) — the first call is the moment
+    // "a tool actually runs" becomes true, so the held-back opening streams
+    // here, before the tool card it announces.
+    emitOpeningBeforeTool();
     if (narrationBuffer.length === 0) return null;
     const joined = narrationBuffer.join(' ').trim();
     narrationBuffer.length = 0;
     return joined || null;
   };
-  // Split mode's FIRST narration sentence — the model's stated plan, per
-  // GATHER_SUFFIX's instruction to name the whole set of intended artifacts up
-  // front — crosses into the real answer text below instead of only reaching
-  // the tool card. Captured so buildSynthSystem can tell the writer it was
-  // already shown, rather than restate it. Stays null in unified mode (no
-  // onNarration there) and on any turn where the model never narrated.
-  let openingSentence: string | null = null;
   let responseStarted = false;
   let resolution: Awaited<ReturnType<typeof resolveModel>> | null = null;
   let mcpCatalog: McpCatalog | null = null;
@@ -757,7 +774,10 @@ export async function streamAgenticResponse(params: {
   // the prompt tells the synth the opening is already on screen, this enforces
   // it when the model restates it anyway. `openingSentence` is read via getter
   // because it is only assigned once the gather phase narrates.
-  const answerDedupe = createOpeningDedupe(() => openingSentence, emitAnswerDelta);
+  const answerDedupe = createOpeningDedupe(
+    () => (openingEmitted ? openingSentence : null),
+    emitAnswerDelta
+  );
 
   try {
     resolution = await resolveModel(
@@ -1115,7 +1135,10 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
       // answer (see onNarration above) — the synth writes everything AFTER it,
       // so without this it doesn't know an opening exists and may restate the
       // plan instead of continuing from it.
-      const openingNote = openingSentence
+      // Gated on openingEmitted, not openingSentence: an opening that was held
+      // back (steps=0) was never shown, and telling the synth otherwise would
+      // make it SKIP its own first sentence.
+      const openingNote = openingEmitted
         ? `\n\nHINWEIS: Deine Antwort beginnt bereits mit diesem Satz, der dem*der Nutzer*in schon angezeigt wird: "${openingSentence}" — was du jetzt schreibst, wird DIREKT dahinter angehängt. Wiederhole diesen Satz NICHT und kündige die Erstellung NICHT ein zweites Mal an; führe nahtlos mit dem Ergebnis fort.`
         : '';
       const honestyNote =
@@ -1222,6 +1245,9 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
       // fallback is intentional and must fire even when the loop already spent its
       // failure/search budget (exactly the turns where the planner never reached
       // the generation tool). The `already` check above keeps it idempotent.
+      // A forced generation is "a tool actually runs" too — the held-back
+      // opening streams before its card, same as a planner-issued call.
+      emitOpeningBeforeTool();
       sse.send('tool_step_start', { stepId, toolName, args });
       let result: unknown;
       try {
@@ -1415,19 +1441,16 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
       onReasoning: (delta) => sse.send('reasoning_delta', { text: delta }),
       // Split-gather narration: the planner's inter-tool prose, sentence-wise.
       // The FIRST sentence — the model's opening plan — crosses into the real
-      // answer text via the same channel onText uses (startResponse + text_delta),
-      // so it appears as message prose BEFORE any tool card, not just inside one.
-      // Every later sentence stays on the existing side channel: buffered for
-      // the next tool_step_start to stamp onto its card, and sent live on its
-      // own SSE event. Repeating the opening line per tool call would be noise
-      // the tool card already carries.
+      // answer text, but only once a tool actually starts (see
+      // emitOpeningBeforeTool): a plan line on a turn that then calls no tool
+      // announces nothing and only duplicates the synth's own opening. Every
+      // later sentence stays on the existing side channel: buffered for the
+      // next tool_step_start to stamp onto its card, and sent live on its own
+      // SSE event. Repeating the opening line per tool call would be noise the
+      // tool card already carries.
       onNarration: (s) => {
         if (openingSentence == null) {
           openingSentence = s;
-          endSynthHeartbeat();
-          startResponse();
-          text += `${s} `;
-          sse.send('text_delta', { text: `${s} ` });
           return;
         }
         narrationBuffer.push(s);
@@ -1449,8 +1472,9 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
       // Same replacement channel the citation clamp uses: `completion` swaps
       // the streamed deltas for the corrected text, and the recorded offsets
       // (which index into the discarded stream) are dropped.
-      const prefix = openingSentence ? `${openingSentence} ` : '';
-      text = prefix + stripDuplicatedOpening(loopResult.text, openingSentence);
+      const prefix = openingEmitted ? `${openingSentence} ` : '';
+      text =
+        prefix + stripDuplicatedOpening(loopResult.text, openingEmitted ? openingSentence : null);
       for (const s of steps) delete s.textOffset;
       sse.send('completion', { text, citations: sourceRegistry.getCitations() });
     }
