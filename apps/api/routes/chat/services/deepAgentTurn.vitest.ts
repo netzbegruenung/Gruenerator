@@ -9,8 +9,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  * the user actually got a report.
  */
 
-const runDeepAgentResearch = vi.fn();
-const createDocumentWithContent = vi.fn();
+// Typed returns rather than bare `vi.fn()`: the forwarding mocks below hand
+// their result straight back to the module under test, and an `any` there is an
+// unsafe return the type-aware lint rules reject.
+const runDeepAgentResearch = vi.fn<(...args: unknown[]) => Promise<unknown>>();
+const createDocumentWithContent = vi.fn<(...args: unknown[]) => Promise<{ id: string }>>();
 const checkLimit = vi.fn();
 const incrementCount = vi.fn();
 let linkupService: unknown = {};
@@ -68,9 +71,15 @@ const GOOD_RESULT = {
   sources: [{ url: 'https://a.example', title: 'A' }],
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// The two casts are the boundary of the test double: `STATE` is the handful of
+// fields this turn reads out of a ChatGraphState with dozens, and `makeSse` is a
+// recording stand-in for the writer. Naming the full types here would assert
+// nothing extra and would have to be rewritten on every unrelated state change.
 const run = (sse: ReturnType<typeof makeSse>, state: object = STATE) =>
-  runDeepAgentTurn({ state: state as any, sse: sse as any });
+  runDeepAgentTurn({
+    state: state as unknown as Parameters<typeof runDeepAgentTurn>[0]['state'],
+    sse: sse as unknown as Parameters<typeof runDeepAgentTurn>[0]['sse'],
+  });
 
 beforeEach(() => {
   vi.clearAllMocks();

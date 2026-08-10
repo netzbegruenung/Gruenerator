@@ -1366,18 +1366,18 @@ export async function executeIntentPipeline(opts: {
       if (toolEnabled) {
         let searchInputState = finalState;
 
-        // @deepresearch: Linkup writes the dossier, so this path replaces BOTH
-        // halves of the turn — retrieval and synthesis. It must therefore skip
+        // @deepresearch has two engines, tried in this order. Both replace BOTH
+        // halves of the turn — retrieval and synthesis — and must therefore skip
         // everything below, not just the search node: reranking reorders
-        // `searchResults`, and Linkup's [N] point at the original order.
-        //
-        // `null` means "not served" (quota spent, no key, failed call) and falls
-        // through to the ordinary research path with the warning already sent.
-        // The agent edition of the same mention, tried first when its flag is
-        // on. It answers with a DOCUMENT rather than a dossier, so on success
-        // there is nothing to rerank and no source list to emit — only the short
-        // summary it put in `deepResearchAnswer`. `null` falls through to the
-        // one-shot path below, which is the whole point of the ordering.
+        // `searchResults`, and a finished answer's [N] point at the original
+        // order. For both, `null` means "not served" (flag off, quota spent, no
+        // key, failed run) and falls through to the next one, with the warning
+        // already sent.
+
+        // First the agent, when its flag is on: it answers with a DOCUMENT
+        // rather than a dossier, so on success there is nothing to rerank and no
+        // source list to emit — only the short summary it put in
+        // `deepResearchAnswer`.
         if (searchInputState.deepResearchRequested === true) {
           const report = await runDeepAgentTurn({ state: searchInputState, sse });
           if (report) {
@@ -1386,6 +1386,7 @@ export async function executeIntentPipeline(opts: {
           }
         }
 
+        // Then Linkup's one-shot dossier, the path that always existed.
         if (searchInputState.deepResearchRequested === true) {
           const dossier = await runDeepResearchTurn({ state: searchInputState, sse });
           if (dossier) {

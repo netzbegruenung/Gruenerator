@@ -9,8 +9,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const greenptWebSearch = vi.fn();
 const linkupWebSearch = vi.fn();
-const validateUrlForFetch = vi.fn();
-const crawlAndDistill = vi.fn();
+// Typed returns rather than bare `vi.fn()`: the forwarding mocks below hand
+// their result straight back to the module under test, and an `any` there is an
+// unsafe return the type-aware lint rules reject.
+const validateUrlForFetch = vi.fn<(url: string) => Promise<unknown>>();
+const crawlAndDistill = vi.fn<(...args: unknown[]) => Promise<unknown>>();
 let greenptService: unknown = null;
 let linkupService: unknown = null;
 
@@ -48,7 +51,12 @@ function setup(overrides: { softDeadlineAt?: number } = {}) {
     if (!found) throw new Error(`tool ${name} missing`);
     return found;
   };
-  return { ctx, webSuche: byName('web_suche'), seiteLesen: byName('seite_lesen') };
+  return {
+    ctx,
+    webSuche: byName('web_suche'),
+    tiefenSuche: byName('tiefen_suche'),
+    seiteLesen: byName('seite_lesen'),
+  };
 }
 
 beforeEach(() => {
@@ -143,6 +151,90 @@ describe('web_suche', () => {
     expect(out).not.toContain('img.example');
     expect(ctx.sources.has('https://img.example')).toBe(false);
     expect(ctx.sources.has('https://text.example')).toBe(true);
+  });
+});
+
+/**
+ * The only genuinely expensive call in the run, so the tests here are about the
+ * meter rather than the results: a `deep` call that slips past its own budget,
+ * or one that is charged for a request that never happened, costs real money.
+ */
+describe('tiefen_suche', () => {
+  it('spends exactly one deep call and asks Linkup at deep depth', async () => {
+    linkupWebSearch.mockResolvedValue({
+      results: [{ url: 'https://a.example', name: 'A', content: 'Inhalt' }],
+    });
+    const { tiefenSuche, ctx } = setup();
+    const before = ctx.budget.deepSearchesLeft;
+
+    const out = await tiefenSuche.invoke({ frage: 'Wie ambitioniert ist Wiens Klimaziel?' });
+
+    expect(linkupWebSearch).toHaveBeenCalledTimes(1);
+    expect(linkupWebSearch.mock.calls[0]?.[0]).toMatchObject({ depth: 'deep' });
+    expect(ctx.budget.deepSearchesLeft).toBe(before - 1);
+    expect(out).toContain('a.example');
+    expect(ctx.sources.has('https://a.example')).toBe(true);
+  });
+
+  it('never touches the cheap search budget', async () => {
+    linkupWebSearch.mockResolvedValue({ results: [] });
+    const { tiefenSuche, ctx } = setup();
+    const cheap = ctx.budget.searchesLeft;
+
+    await tiefenSuche.invoke({ frage: 'Wien' });
+
+    expect(ctx.budget.searchesLeft).toBe(cheap);
+  });
+
+  it('refuses once the deep budget is spent, without paying Linkup again', async () => {
+    const { tiefenSuche, ctx } = setup();
+    ctx.budget.deepSearchesLeft = 0;
+
+    const out = await tiefenSuche.invoke({ frage: 'Wien' });
+
+    expect(out).toContain('Tiefensuchen aufgebraucht');
+    expect(linkupWebSearch).not.toHaveBeenCalled();
+  });
+
+  it('refuses once the soft deadline has passed, before spending anything', async () => {
+    const { tiefenSuche, ctx } = setup({ softDeadlineAt: Date.now() - 1 });
+    const before = ctx.budget.deepSearchesLeft;
+
+    const out = await tiefenSuche.invoke({ frage: 'Wien' });
+
+    expect(out).toContain('Zeitbudget aufgebraucht');
+    expect(linkupWebSearch).not.toHaveBeenCalled();
+    expect(ctx.budget.deepSearchesLeft).toBe(before);
+  });
+
+  it('points at web_suche instead of throwing when Linkup is absent', async () => {
+    linkupService = null;
+    const { tiefenSuche, ctx } = setup();
+    const before = ctx.budget.deepSearchesLeft;
+
+    const out = await tiefenSuche.invoke({ frage: 'Wien' });
+
+    expect(out).toContain('web_suche');
+    // Nothing was asked for, so nothing may be charged.
+    expect(ctx.budget.deepSearchesLeft).toBe(before);
+  });
+
+  it('returns prose — never throws — when the deep call fails', async () => {
+    linkupWebSearch.mockRejectedValue(new Error('timeout'));
+    const { tiefenSuche, ctx } = setup();
+
+    await expect(tiefenSuche.invoke({ frage: 'Wien' })).resolves.toContain('fehlgeschlagen');
+    // The call was made, so it counts — a retry would cost twice.
+    expect(ctx.budget.deepSearchesLeft).toBe(createBudget(Date.now()).deepSearchesLeft - 1);
+  });
+
+  it('marks the step failed so the sidebar does not hang on "running"', async () => {
+    linkupWebSearch.mockRejectedValue(new Error('timeout'));
+    const { tiefenSuche, ctx } = setup();
+
+    await tiefenSuche.invoke({ frage: 'Wien' });
+
+    expect(ctx.onStep).toHaveBeenCalledWith(expect.stringContaining('Tiefensuche'), 'failed');
   });
 });
 

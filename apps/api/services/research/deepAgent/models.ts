@@ -65,7 +65,7 @@ export function leadModel(): ChatOpenAI {
  */
 export function workerModel(): ChatOpenAI {
   const apiKey = env.GREENPT_API_KEY;
-  if (!apiKey || process.env.DEEP_AGENT_WORKER !== 'greenpt') return leadModel();
+  if (!apiKey || env.DEEP_AGENT_WORKER !== 'greenpt') return leadModel();
   return new ChatOpenAI({
     model: GREENPT_GEMMA,
     apiKey,

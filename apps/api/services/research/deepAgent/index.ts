@@ -45,18 +45,19 @@ interface TodoItem {
   status?: string;
 }
 
-/** `write_todos` statuses → the three the sidebar knows. */
-function todoStatus(status: string | undefined): ResearchStep['status'] {
-  if (status === 'completed') return 'done';
-  if (status === 'in_progress') return 'running';
-  return 'running';
-}
-
+/**
+ * `write_todos` items → the steps the sidebar knows.
+ *
+ * Only `completed` is distinguished: `pending` and `in_progress` both render as
+ * running, because a plan item the agent has not reached yet is still work the
+ * user is waiting on, and showing it differently only invites the question why
+ * nothing is happening to it.
+ */
 function planSteps(todos: TodoItem[]): ResearchStep[] {
   return todos.map((t, i) => ({
     id: `plan-${i}`,
     label: t.content ?? `Schritt ${i + 1}`,
-    status: t.status === 'completed' ? 'done' : t.status === 'in_progress' ? 'running' : 'running',
+    status: t.status === 'completed' ? 'done' : 'running',
   }));
 }
 
