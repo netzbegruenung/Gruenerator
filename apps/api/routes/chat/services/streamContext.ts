@@ -586,6 +586,9 @@ export async function buildStreamContext({
   // Weg für frei eingetippte Rollen und für Bestandsdaten, die den Text noch
   // mitschicken.
   let customSystemPrompt = rawCustomSystemPrompt ?? undefined;
+  // Katalogrolle mit Baustein (statt frei getippter Persona): das Rezept-
+  // Selbstladen im Loop bleibt dann AN — siehe resolveCustomSystemPrompt.
+  let roleBausteinActive = false;
   if (rawRoleRef) {
     const storedRoles = user.user_defaults?.profile?.roles;
     const role = Array.isArray(storedRoles)
@@ -597,11 +600,13 @@ export async function buildStreamContext({
           'gespeicherte Rolle — der Turn läuft mit dem Basis-Agenten.'
       );
     } else {
-      customSystemPrompt = resolveCustomSystemPrompt(
+      const resolved = resolveCustomSystemPrompt(
         role,
         user.locale ?? 'de-DE',
         rawCustomSystemPrompt
       );
+      customSystemPrompt = resolved.prompt;
+      roleBausteinActive = resolved.fromBaustein;
     }
   }
 
@@ -667,6 +672,7 @@ export async function buildStreamContext({
     userLocale: user.locale ?? 'de-DE',
     clientPlatform: rawPlatform ?? 'web',
     customSystemPrompt,
+    roleBausteinActive,
     activeSkillMention: rawActiveSkillMention ?? undefined,
     userInstructions,
     contextWindowTokens,
