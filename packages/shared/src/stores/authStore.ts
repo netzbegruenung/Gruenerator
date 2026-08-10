@@ -13,6 +13,8 @@ export interface AuthStoreConfig {
   updateAvatarApi?: (avatarRobotId: string) => Promise<User>;
   updateMessageColorApi?: (color: string) => Promise<void>;
   updateLocaleApi?: (locale: 'de-DE' | 'de-AT') => Promise<void>;
+  /** Antwortet mit dem Zeitstempel, den der Server gesetzt hat (null = widerrufen). */
+  setAiConsentApi?: (granted: boolean) => Promise<string | null>;
   onClearAuth?: () => void;
 }
 
@@ -96,6 +98,22 @@ const createAuthStoreSlice: StateCreator<AuthStore> = (set, get) => ({
           user_metadata: { ...currentUser.user_metadata, chat_color: color },
         },
       });
+    }
+  },
+
+  // Nicht optimistisch: eine Einwilligung, die der Server nie angenommen hat,
+  // wäre eine falsche Behauptung genau an der Stelle, an der es auf den Nachweis
+  // ankommt (Art. 7 Abs. 1 DSGVO).
+  setAiConsent: async (granted) => {
+    if (!storeConfig.setAiConsentApi) {
+      throw new Error('setAiConsentApi not configured');
+    }
+
+    const ai_consent_at = await storeConfig.setAiConsentApi(granted);
+
+    const currentUser = get().user;
+    if (currentUser) {
+      set({ user: { ...currentUser, ai_consent_at } });
     }
   },
 

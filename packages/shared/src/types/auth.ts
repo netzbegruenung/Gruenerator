@@ -60,6 +60,14 @@ export interface AuthActions {
   updateAvatar: (avatarRobotId: string) => Promise<User>;
   updateMessageColor: (color: string) => Promise<void>;
   updateLocale: (locale: 'de-DE' | 'de-AT') => Promise<void>;
+  /**
+   * Ausdrückliche Einwilligung nach Art. 9 Abs. 2 lit. a DSGVO erteilen oder
+   * widerrufen. Eigene Aktion statt `updateProfile({ ai_consent })`, weil
+   * `ai_consent` kein Feld des Profils ist, sondern die Anweisung daran — der
+   * Server setzt daraufhin `ai_consent_at`. Über `updateProfile` bräuchte jeder
+   * Aufrufer einen Cast an `Partial<User>` vorbei.
+   */
+  setAiConsent: (granted: boolean) => Promise<void>;
 }
 
 export type AuthStore = AuthState & AuthActions;

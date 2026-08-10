@@ -123,6 +123,7 @@ export function SettingsSheet() {
   const updateLocale = useAuthStore((s) => s.updateLocale);
   const updateAvatar = useAuthStore((s) => s.updateAvatar);
   const updateProfile = useAuthStore((s) => s.updateProfile);
+  const setAiConsent = useAuthStore((s) => s.setAiConsent);
 
   const [roles, setRoles] = useState<UserRole[] | null>(null);
 
@@ -314,9 +315,7 @@ export function SettingsSheet() {
                 <Switch
                   value={consentAt != null}
                   onValueChange={(value) => {
-                    void updateProfile({
-                      ai_consent: value,
-                    } as Parameters<typeof updateProfile>[0]).catch(() => {
+                    void setAiConsent(value).catch(() => {
                       Alert.alert('Fehler', 'Einwilligung konnte nicht gespeichert werden.');
                     });
                   }}
