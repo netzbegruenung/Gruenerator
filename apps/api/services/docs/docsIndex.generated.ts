@@ -835,7 +835,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Quellenangaben",
     "anchor": "#quellenangaben",
     "category": "Chat",
-    "text": "Wenn der Chat in Dokumenten oder im Web recherchiert, zeigt er dir die verwendeten Quellen an: Nummerierte Badges im Text (z.B. [1], [2]) verweisen auf die genutzten Quellen Hover über einen Badge zeigt dir Titel, URL und einen Textauszug Gruppierte Quellenübersicht unterhalb der Antwort mit allen verwendeten Dokumenten Quellenangaben helfen dir, die Antworten des Grünerators nachzuvollziehen und zu überprüfen. Du kannst jede Quelle direkt anklicken, um das Originaldokument zu öffnen."
+    "text": "Wenn der Chat in Dokumenten oder im Web recherchiert, zeigt er dir die verwendeten Quellen an: Nummerierte Badges im Text (z.B. [1], [2]) verweisen auf die genutzten Quellen Klick auf einen Badge zeigt dir Titel, URL und einen Textauszug Gruppierte Quellenübersicht unterhalb der Antwort mit allen verwendeten Dokumenten Quellenangaben helfen dir, die Antworten des Grünerators nachzuvollziehen und zu überprüfen. Du kannst jede Quelle direkt anklicken, um das Originaldokument zu öffnen."
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -859,7 +859,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Werkzeuge nutzen",
     "anchor": "#werkzeuge-nutzen",
     "category": "Chat",
-    "text": "Werkzeuge erweitern die Fähigkeiten des Chats über die reine Textgenerierung hinaus. Du kannst sie per @-Mention im Eingabefeld aktivieren. Kürzel | Werkzeug | Beschreibung | -------------------- | -------------------- | -------------------------------------------------------------------------- | @recherche | 🔬 Recherche | Web- und Multi-Quellen-Recherche — die Suchtiefe passt sich automatisch an | @dokumente | 📄 Dokumente | Parteiprogramme & Beschlüsse durchsuchen | @docs | 💬 Dokument einfügen | Eigene Dokumente als Kontext einbinden | @zusammenfassung | 📝 Zusammenfassung | Dokument(e) zusammenfassen | @bildgenerieren | 🎨 Bildgenerierung | Bild mit KI generieren | @bildbearbeiten | 🖌️ Bildbearbeitung | Ein generiertes oder hochgeladenes Bild verändern | @sharepic | 🖼️ Sharepic | Sharepic im Grünen Design erstellen (experimentell) | @stadtbegruenen | 🌳 Stadt begrünen | Stadtbild mit Grün transformieren | @umfragen | 📊 Umfragen | Aktuelle Wahlumfragen abfragen | @bundestag | 🏛️ Bundestag | Drucksachen und Reden aus dem Bundestag | @abgeordnetenwatch | 🗳️ Abgeordnetenwatch | Abstimmungen und Profile von Abgeordneten | Öffne das „+\"-Menü links im Eingabefeld, um Werkzeuge d"
+    "text": "Werkzeuge erweitern die Fähigkeiten des Chats über die reine Textgenerierung hinaus. Du kannst sie per @-Mention im Eingabefeld aktivieren. Kürzel | Werkzeug | Beschreibung | -------------------- | -------------------- | -------------------------------------------------------------------------- | @recherche | 🔬 Recherche | Web- und Multi-Quellen-Recherche — die Suchtiefe passt sich automatisch an | @dokumente | 📄 Dokumente | Parteiprogramme & Beschlüsse durchsuchen | @docs | 💬 Dokument einfügen | Eigene Dokumente als Kontext einbinden | @zusammenfassung | 📝 Zusammenfassung | Dokument(e) zusammenfassen | @bildgenerieren | 🎨 Bildgenerierung | Bild mit KI generieren | @bildbearbeiten | 🖌️ Bildbearbeitung | Ein generiertes oder hochgeladenes Bild verändern | @sharepic | 🖼️ Sharepic | Sharepic im Grünen Design erstellen (experimentell) | @stadtbegruenen | 🌳 Stadt begrünen | Stadtbild mit Grün transformieren | @umfragen | 📊 Umfragen | Aktuelle Wahlumfragen abfragen | @bundestag | 🏛️ Bundestag | Drucksachen und Reden aus dem Bundestag | @abgeordnetenwatch | 🗳️ Abgeordnetenwatch | Abstimmungen und Profile von Abgeordneten | Du musst dir keine @-Namen merken: Öffne das „+\"-Menü l"
   },
   {
     "url": "/docs/chat/ki-modelle",
@@ -2243,7 +2243,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Dateien einlesen",
     "anchor": "#dateien-einlesen",
     "category": "Office",
-    "text": "Du kannst bestehende Dateien in ein Dokument einlesen — auch abfotografierte oder gescannte Seiten. Der Text wird dabei erkannt und als bearbeitbarer Inhalt eingefügt, statt nur als Bild zu erscheinen. Wenn du nur den Text aus einem Foto brauchst und kein Dokument daraus machen willst, ist der Scanner der direktere Weg."
+    "text": "Du kannst bestehende PDF-, Word- (.doc, .docx), ODT- und PowerPoint-Dateien in ein Dokument einlesen — auch wenn sie eingescannte Seiten enthalten. Der Text wird dabei erkannt und als bearbeitbarer Inhalt eingefügt, statt nur als Bild zu erscheinen. Ein Foto direkt vom Handy (JPG, PNG) nimmt der Dokument-Import nicht an. Für ein abfotografiertes Blatt ist der Scanner der Weg: Er erkennt den Text, und du kopierst ihn von dort ins Dokument."
   },
   {
     "url": "/docs/office/dokumente",
@@ -2299,7 +2299,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Auf dem Handy",
     "anchor": "#auf-dem-handy",
     "category": "Office",
-    "text": "Dokumente, Tabellen, Folien und Boards findest du in der Grünerator-App unter dem Tab Arbeiten. Dort lässt sich alles nur lesen — Tabellen, Folien und Boards siehst du als Ansicht, nicht als Editor. Zum Bearbeiten öffnest du das Dokument im Browser."
+    "text": "Dokumente, Tabellen, Folien und Boards findest du in der Grünerator-App unter dem Tab Arbeiten. Dokumente kannst du dort auch bearbeiten — mit Formatierung, Slash-Menü und Titel, gemeinsam in Echtzeit wie im Browser. Tabellen, Folien und Boards siehst du auf dem Handy als Ansicht, nicht als Editor. Zum Bearbeiten öffnest du sie im Browser."
   },
   {
     "url": "/docs/office/intro",
