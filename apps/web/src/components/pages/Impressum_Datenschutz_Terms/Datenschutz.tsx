@@ -519,10 +519,9 @@ const Datenschutz = () => {
         Transkription an Mistral AI Voxtral bzw. GreenPT übermittelten Audiodaten kannst Du über uns
         geltend machen; die Audiodaten werden dort nicht dauerhaft gespeichert. Bilder im Grünerator
         Imagine speichern wir nicht, sondern leiten sie nur durch; Deine Rechte hinsichtlich
-        etwaiger bei Black Forest Labs bzw. – bei Wahl des Regolo-Bildmodells – bei Seeweb/Regolo AI
-        befindlicher Bilddaten kannst Du dennoch jederzeit über uns geltend machen. Zusätzlich
-        erreichst Du Black Forest Labs direkt unter{' '}
-        <a href="mailto:support@blackforestlabs.ai">support@blackforestlabs.ai</a>.
+        etwaiger bei Black Forest Labs oder bei Seeweb/Regolo AI befindlicher Bilddaten kannst Du
+        dennoch jederzeit über uns geltend machen. Zusätzlich erreichst Du Black Forest Labs direkt
+        unter <a href="mailto:support@blackforestlabs.ai">support@blackforestlabs.ai</a>.
       </p>
     </div>
   );
