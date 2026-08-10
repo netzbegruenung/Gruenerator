@@ -134,6 +134,11 @@ async function routeUnauthorized(response: Response): Promise<boolean> {
     const body: unknown = await response
       .clone()
       .json()
+      // Eine 403 ohne JSON-Rumpf (Reverse-Proxy, HTML-Fehlerseite) ist hier
+      // keine verschluckte Störung, sondern die Antwort auf die gestellte
+      // Frage: „trägt diese Absage den Einwilligungs-Code?" heißt dann nein.
+      // Der Aufrufer zeigt sie danach als gewöhnlichen Fehler im Thread.
+      // swallow-ok: kein Rumpf = kein Einwilligungs-Code, Fehler bleibt sichtbar
       .catch(() => null);
     if (isAiConsentRequiredBody(body)) {
       notifyAiConsentRequired();
