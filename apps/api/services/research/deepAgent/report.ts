@@ -44,7 +44,11 @@ export function extractTitle(markdown: string, fallback: string): string {
 export function ensureSources(markdown: string, sources: SourceRef[]): string {
   if (/^##\s+Quellen\s*$/m.test(markdown)) return markdown;
   if (sources.length === 0) return markdown;
-  const list = sources.map((s, i) => `${i + 1}. ${s.title} — ${s.url}`).join('\n');
+  // A notebook document usually has no public address. Naming its origin beats
+  // a line ending in a dangling em-dash, and beats an invented link outright.
+  const list = sources
+    .map((s, i) => `${i + 1}. ${s.title} — ${s.url || (s.origin ?? 'Grünerator-Notizbuch')}`)
+    .join('\n');
   return `${markdown.trimEnd()}\n\n## Quellen\n\n${list}\n`;
 }
 

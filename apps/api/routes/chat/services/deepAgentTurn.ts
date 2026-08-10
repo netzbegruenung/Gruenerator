@@ -23,6 +23,7 @@ import { env } from '../../../config/env.js';
 import { DeepResearchCounter } from '../../../services/counters/index.js';
 import { createDocumentWithContent } from '../../../services/docs/DocGenerationService.js';
 import { runDeepAgentResearch } from '../../../services/research/deepAgent/index.js';
+import { buildNotebookScope } from '../../../services/research/deepAgent/notebookScope.js';
 import { DEFAULT_BUDGET } from '../../../services/research/deepAgent/types.js';
 import { getLinkupService } from '../../../services/search/LinkupService.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -143,6 +144,11 @@ export async function runDeepAgentTurn(params: {
   });
   sse.send('research_log_start', { id: logId, title: `Recherche: ${question}` });
 
+  // The party corpora plus whatever notebooks this turn already had in hand.
+  // Nothing is resolved here — the personal notebooks arrive as document ids the
+  // controller already checked ownership for.
+  const notebookScope = buildNotebookScope(state, locale, userId);
+
   let result;
   try {
     result = await runDeepAgentResearch({
@@ -150,6 +156,7 @@ export async function runDeepAgentTurn(params: {
       locale,
       signal: AbortSignal.timeout(DEFAULT_BUDGET.hardMs),
       ...(state.aiWorkerPool ? { aiWorkerPool: state.aiWorkerPool } : {}),
+      ...(notebookScope ? { notebookScope } : {}),
       progress: {
         onPlan: (steps) => sse.send('research_log_update', { id: logId, plan: toLogSteps(steps) }),
         onStep: (step) => sse.send('research_log_update', { id: logId, steps: toLogSteps([step]) }),

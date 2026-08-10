@@ -237,6 +237,37 @@ describe('success', () => {
     await run(makeSse());
     expect(runDeepAgentResearch.mock.calls[0][0]).toMatchObject({ locale: 'de-AT' });
   });
+
+  /**
+   * The notebook scope is the whole access story: what the turn does not put in
+   * is what the agent cannot reach. Personal notebooks arrive as document ids
+   * the controller already checked ownership for — nothing is resolved here.
+   */
+  it('hands the agent the notebooks this turn already had in hand', async () => {
+    await run(makeSse(), {
+      ...STATE,
+      notebookCollectionIds: ['hamburg'],
+      notebookDocumentIds: ['d1'],
+    });
+
+    const params = runDeepAgentResearch.mock.calls[0][0] as {
+      notebookScope?: {
+        mentionedCollections: string[];
+        documentIds: string[];
+        userId: string;
+        corpora: { id: string }[];
+      };
+    };
+    expect(params.notebookScope).toMatchObject({
+      mentionedCollections: ['hamburg'],
+      documentIds: ['d1'],
+      userId: 'user-1',
+    });
+    // Der Turn ist de-AT, also gehört kein deutsches Landesverbands-Korpus dazu.
+    const ids = params.notebookScope?.corpora.map((c) => c.id) ?? [];
+    expect(ids).toContain('oesterreich-notebook');
+    expect(ids).not.toContain('berlin-notebook');
+  });
 });
 
 describe('failure', () => {

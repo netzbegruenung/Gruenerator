@@ -5,6 +5,9 @@
  * can talk about a run without pulling `deepagents` into their graph.
  */
 
+// Type-only, so the cycle with notebookScope.ts is erased at compile time.
+import { type NotebookScope } from './notebookScope.js';
+
 /** Locale the run reports in. Austria is a first-class audience, not a toggle. */
 export type ResearchLocale = 'de-DE' | 'de-AT';
 
@@ -22,14 +25,30 @@ export interface RunBudget {
   deepSearchesLeft: number;
   /** Page crawls. */
   crawlsLeft: number;
+  /**
+   * Grünerator notebook searches. Counted apart from `searchesLeft` because they
+   * cost a Qdrant query and an embedding, nothing else — letting them eat the
+   * twelve paid web searches would make the cheap lane the scarce one.
+   */
+  notebookSearchesLeft: number;
   /** Epoch ms after which tools refuse new work so the report can be written. */
   softDeadlineAt: number;
 }
 
-/** One source the run actually looked at, for the report's `## Quellen` list. */
+/**
+ * One source the run actually looked at, for the report's `## Quellen` list.
+ *
+ * `url` may be empty: a document inside a personal notebook usually has no
+ * public address. Such a source is named by `origin` instead — inventing a
+ * `/office/<id>` link would be worse than none, because a Qdrant `document_id`
+ * is not guaranteed to be a `collaborative_documents` row and `outputSanity`
+ * strips unminted artifact paths back out of model text anyway.
+ */
 export interface SourceRef {
   url: string;
   title: string;
+  /** Where it came from when there is no URL, e.g. `Notizbuch: Berlin`. */
+  origin?: string;
 }
 
 /** A step the user sees in the sidebar while the run is in flight. */
@@ -52,6 +71,11 @@ export interface DeepAgentRunParams {
   progress: DeepAgentProgress;
   /** Passed through to the distiller so crawls reuse the app's model lanes. */
   aiWorkerPool?: unknown;
+  /**
+   * Which Grünerator notebooks this run may look into. Omitted or null means the
+   * notebook tool is not offered at all.
+   */
+  notebookScope?: NotebookScope;
   /** Aborts the run. The caller owns the hard deadline. */
   signal?: AbortSignal;
 }
@@ -81,6 +105,7 @@ export const DEFAULT_BUDGET = {
   searches: 12,
   deepSearches: 2,
   crawls: 8,
+  notebookSearches: 8,
   softMs: 5 * 60_000,
   hardMs: 7 * 60_000,
   recursionLimit: 60,
@@ -91,6 +116,7 @@ export function createBudget(now: number, softMs: number = DEFAULT_BUDGET.softMs
     searchesLeft: DEFAULT_BUDGET.searches,
     deepSearchesLeft: DEFAULT_BUDGET.deepSearches,
     crawlsLeft: DEFAULT_BUDGET.crawls,
+    notebookSearchesLeft: DEFAULT_BUDGET.notebookSearches,
     softDeadlineAt: now + softMs,
   };
 }
