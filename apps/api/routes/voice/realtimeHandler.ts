@@ -2,6 +2,7 @@ import { AudioEncoding, RealtimeTranscription } from '@mistralai/mistralai/extra
 import { WebSocketServer, type WebSocket as WsWebSocket } from 'ws';
 
 import { env } from '../../config/env.js';
+import { denyUpgrade, resolveUpgradeAuth } from '../../middleware/resolveUpgradeAuth.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type http from 'http';
@@ -22,13 +23,27 @@ export function attachRealtimeWebSocket(server: http.Server): void {
     const url = new URL(request.url || '', `http://${request.headers.host}`);
     if (url.pathname !== '/api/voice/realtime') return;
 
-    wss.handleUpgrade(request, socket, head, (ws) => {
-      wss.emit('connection', ws, request);
-    });
+    // Anmeldung und Einwilligung müssen hier ausdrücklich geprüft werden: ein
+    // Upgrade-Handler hängt am HTTP-Server, nicht an Express — das
+    // `app.use('/api/voice', requireAuth, requireAiConsent, …)` in routes.ts
+    // erreicht ihn nie. Ohne die Prüfung nahm dieser Pfad jede anonyme
+    // Verbindung an und streamte Audio auf unseren Kosten an die
+    // Realtime-Transkription.
+    void (async () => {
+      const result = await resolveUpgradeAuth(request, url);
+      if (!result.ok) {
+        log.warn('[Realtime] Upgrade abgelehnt: %s', result.reason);
+        denyUpgrade(socket, result.reason);
+        return;
+      }
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit('connection', ws, request, result.userId);
+      });
+    })();
   });
 
-  wss.on('connection', (ws: WsWebSocket) => {
-    log.debug('[Realtime] Client connected');
+  wss.on('connection', (ws: WsWebSocket, _request: unknown, userId: string) => {
+    log.debug('[Realtime] Client verbunden user=%s', userId);
     void handleRealtimeSession(ws);
   });
 }
@@ -102,7 +117,6 @@ async function handleRealtimeSession(clientWs: WsWebSocket): Promise<void> {
 
       let segmentDone = false;
 
-      // eslint-disable-next-line @typescript-eslint/await-thenable -- the realtime voice connection is async-iterable; the rule mis-types it
       for await (const event of activeConnection) {
         if (clientWs.readyState !== clientWs.OPEN) break;
 

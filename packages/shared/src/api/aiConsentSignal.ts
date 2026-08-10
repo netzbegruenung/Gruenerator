@@ -12,18 +12,31 @@
  * halten verschiedene Auth-Stores (`apps/web/src/stores/authStore` bzw. der
  * geteilte hier), und die Absage kann aus drei Transporten kommen — dem
  * geteilten axios-Client, dem Web-`apiClient` und dem SSE-Fetch im Chat.
+ *
+ * **Ein Set, kein einzelner Platz.** Beide Stores tragen sich beim Modul-Laden
+ * ein. Mit einem „letzter Aufruf gewinnt"-Slot hinge es an der
+ * Auswertungsreihenfolge des Bundlers, wessen Eintrag überlebt — und der erste
+ * künftige Import von `useAuth` aus `@gruenerator/shared` in `apps/web` würde
+ * lautlos den falschen Store zurücksetzen, während `AiConsentGate` den lokalen
+ * liest und den Dialog nie mehr zeigt. Alle eingetragenen Stores zu benach-
+ * richtigen ist harmlos (wer keinen Zeitstempel hält, tut nichts) und macht
+ * die Reihenfolge gleichgültig.
  */
 
 type AiConsentRequiredHandler = () => void;
 
-let handler: AiConsentRequiredHandler | null = null;
+const handlers = new Set<AiConsentRequiredHandler>();
 
-/** Einmal beim Anlegen des Auth-Stores aufrufen. Der letzte Aufruf gewinnt. */
-export function setAiConsentRequiredHandler(fn: AiConsentRequiredHandler | null): void {
-  handler = fn;
+/**
+ * Einmal beim Anlegen eines Auth-Stores aufrufen.
+ * @returns Abmeldefunktion — für Tests, die den Kanal sauber hinterlassen wollen.
+ */
+export function registerAiConsentRequiredHandler(fn: AiConsentRequiredHandler): () => void {
+  handlers.add(fn);
+  return () => handlers.delete(fn);
 }
 
 /** Vom Transport aufzurufen, sobald eine 403 mit dem Einwilligungs-Code kommt. */
 export function notifyAiConsentRequired(): void {
-  handler?.();
+  for (const handler of handlers) handler();
 }
