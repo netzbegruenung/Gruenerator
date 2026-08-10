@@ -200,18 +200,20 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
       backgroundColor: '#7C3AED',
     },
     // @deepresearch is a VARIANT, not an intent of its own: same class of work,
-    // same routing, only the engine and the output shape differ. It is the only
-    // route in the chat to Linkup's `sourcedAnswer` endpoint — the most expensive
-    // call in the product, which is why it must be asked for by name and is
-    // capped at one per day (gate in `intentExecutionService`, counter in
-    // `DeepResearchCounter`). Without this mention no path reaches it, not even
-    // the agentic loop: there is no tool for it.
+    // same routing, only the engine and the output shape differ. It must be
+    // asked for by name and is capped per day, because both engines behind it
+    // are expensive: the research agent (`deepAgentTurn`, runs for minutes and
+    // files a document) when `DEEP_AGENT_RESEARCH_ENABLED` is on, otherwise —
+    // and whenever a run yields nothing — Linkup's `sourcedAnswer` endpoint
+    // (`deepResearchTurn`). Both meter through `DeepResearchCounter`. Without
+    // this mention no path reaches either, not even the agentic loop: there is
+    // no tool for it.
     variantMentions: [
       {
         slug: 'deepresearch',
         aliases: ['tiefenrecherche', 'dossier'],
         title: 'Tiefenrecherche',
-        description: 'Ausführliches Dossier mit Quellen — 1× pro Tag',
+        description: 'Gründliche Recherche mit Quellen — als Bericht, wenige pro Tag',
         avatar: '🔭',
         backgroundColor: '#7C3AED',
         forcedTool: 'deepresearch',

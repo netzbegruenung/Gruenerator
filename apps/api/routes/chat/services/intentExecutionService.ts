@@ -54,6 +54,7 @@ import {
   type CreateTurnOpts,
 } from './createTurn.js';
 import { failCreation, rememberArtifact, streamTextInChunks } from './createTurnHelpers.js';
+import { runDeepAgentTurn } from './deepAgentTurn.js';
 import { runDeepResearchTurn } from './deepResearchTurn.js';
 import { emitEditorOperations, planEditorOps } from './editorOpsCore.js';
 import { finishEditTurn } from './editTurnCompletion.js';
@@ -1365,14 +1366,34 @@ export async function executeIntentPipeline(opts: {
       if (toolEnabled) {
         let searchInputState = finalState;
 
-        // @deepresearch: Linkup writes the dossier, so this path replaces BOTH
-        // halves of the turn — retrieval and synthesis. It must therefore skip
+        // @deepresearch has two engines, tried in this order. Both replace BOTH
+        // halves of the turn — retrieval and synthesis — and must therefore skip
         // everything below, not just the search node: reranking reorders
-        // `searchResults`, and Linkup's [N] point at the original order.
-        //
-        // `null` means "not served" (quota spent, no key, failed call) and falls
-        // through to the ordinary research path with the warning already sent.
+        // `searchResults`, and a finished answer's [N] point at the original
+        // order. For both, `null` means "not served" (flag off, quota spent, no
+        // key, failed run) and falls through to the next one, with the warning
+        // already sent.
+
+        // First the agent, when its flag is on: it answers with a DOCUMENT
+        // rather than a dossier, so on success there is nothing to rerank and no
+        // source list to emit — only the short summary it put in
+        // `deepResearchAnswer`.
+        let allowanceGone = false;
         if (searchInputState.deepResearchRequested === true) {
+          const outcome = await runDeepAgentTurn({ state: searchInputState, sse });
+          if (outcome.kind === 'served') {
+            finalState = { ...searchInputState, ...outcome.state } as ChatGraphState;
+            continue;
+          }
+          // Both engines meter through one Redis key, the agent's limit being
+          // the higher one. A spent agent allowance therefore also exceeds the
+          // dossier path's — skipping it saves a doomed call and, more to the
+          // point, a second warning naming a different number.
+          allowanceGone = outcome.kind === 'quota_spent';
+        }
+
+        // Then Linkup's one-shot dossier, the path that always existed.
+        if (searchInputState.deepResearchRequested === true && !allowanceGone) {
           const dossier = await runDeepResearchTurn({ state: searchInputState, sse });
           if (dossier) {
             finalState = { ...searchInputState, ...dossier } as ChatGraphState;
