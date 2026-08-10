@@ -1,3 +1,4 @@
+import { isAiConsentRequiredBody } from '@gruenerator/contracts';
 import axios, {
   type AxiosInstance,
   type AxiosError,
@@ -5,6 +6,7 @@ import axios, {
   type InternalAxiosRequestConfig,
 } from 'axios';
 
+import { notifyAiConsentRequired } from './aiConsentSignal.js';
 import { getApiLocale } from './locale.js';
 
 import type { ApiConfig } from '../types/auth.js';
@@ -76,6 +78,13 @@ export function createApiClient(options: CreateApiClientOptions): AxiosInstance 
       return response;
     },
     async (error: AxiosError) => {
+      // Einwilligung fehlt: kein Anmeldeproblem — der Store hält nur einen
+      // veralteten Zeitstempel. Melden statt toasten, dann zeigt das Gate sich
+      // selbst. Vor dem 401-Zweig, damit kein Refresh-Versuch dazwischenkommt.
+      if (error.response?.status === 403 && isAiConsentRequiredBody(error.response.data)) {
+        notifyAiConsentRequired();
+        return Promise.reject(error);
+      }
       const originalRequest = error.config as
         | (InternalAxiosRequestConfig & { _retried?: boolean; skipAuthRefresh?: boolean })
         | undefined;

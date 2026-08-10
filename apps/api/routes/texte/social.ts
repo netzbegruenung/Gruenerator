@@ -1,159 +1,52 @@
-import { type Router, type Request, type Response } from 'express';
+/**
+ * `POST /api/texte/social` — Social-Media-Beiträge aus Thema, Details und
+ * Plattformwahl.
+ *
+ * Bewusst kein ts-rest-Vertrag: die Route schaltet auf `?stream=true` bzw.
+ * `Accept: text/event-stream` in Server-Sent Events um und schreibt dann direkt
+ * in `res`. Diese Form bildet ts-rest nicht ab. Der Rumpf wird stattdessen über
+ * `validateBody` geprüft — vorher ging er ungeprüft in den Graphen.
+ *
+ * Anmeldung und Art.-9-Einwilligung liegen auf dem Präfix in `routes.ts`.
+ */
+import { type Router, type Response } from 'express';
+import express from 'express';
 import { z } from 'zod';
 
-import {
-  processStrategyGeneration,
-  processProductionGeneration,
-} from '../../agents/langgraph/PRAgent/index.js';
 import { processGraphRequest } from '../../agents/langgraph/PromptProcessor.js';
-import {
-  processAgentModeStreaming,
-  processAgentModeRequest,
-} from '../../agents/langgraph/SocialAgentGraph/agentModeProcessor.js';
 import { processGraphRequestStreaming } from '../../agents/langgraph/streamingProcessor.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
-import { prAgentWorkflow } from '../../services/WorkflowService/index.js';
-import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 
-import type { User } from '../../types/auth.js';
-
 const log = createLogger('texte/social');
-const router: Router = createAuthenticatedRouter();
+const router: Router = express.Router();
 
-const strategySchema = z
+/**
+ * `passthrough`, weil der PromptProcessor über die vier Pflichtfelder hinaus
+ * eine Reihe optionaler Steuerfelder liest (customPrompt, knowledgeContent,
+ * selectedDocumentIds …), die alle Generatoren teilen. Ein geschlossenes Schema
+ * hier würde sie stillschweigend verwerfen.
+ */
+const socialSchema = z
   .object({
-    inhalt: z.string(),
-    platforms: z.array(z.string()),
+    thema: z.string().min(1, 'Bitte gib ein Thema an'),
+    details: z.string().optional(),
+    platforms: z.array(z.string()).min(1, 'Bitte wähle mindestens eine Plattform'),
+    includeActionIdeas: z.boolean().optional(),
   })
   .passthrough();
-type StrategyBody = z.infer<typeof strategySchema>;
+type SocialBody = z.infer<typeof socialSchema>;
 
-const productionSchema = z.object({
-  workflow_id: z.string().min(1, 'workflow_id erforderlich'),
-  approved_platforms: z.array(z.string()).min(1, 'approved_platforms erforderlich'),
-  user_feedback: z.string().optional(),
-});
-type ProductionBody = z.infer<typeof productionSchema>;
-
-const routeHandler = async (req: Request, res: Response): Promise<void> => {
-  log.debug('[texte/social] Request received via promptProcessor');
-  if (req.query.stream === 'true' || req.headers.accept === 'text/event-stream') {
-    return processGraphRequestStreaming('social', req, res);
-  }
-  await processGraphRequest('social', req, res);
-};
-
-router.post('/', routeHandler);
-
-/**
- * POST /api/social/agent
- * Agent Mode: Research → Strategy → Generate → Format
- */
-router.post('/agent', async (req: Request, res: Response): Promise<void> => {
-  try {
-    log.debug('[texte/social/agent] Agent mode request received');
+router.post(
+  '/',
+  validateBody(socialSchema),
+  async (req: TypedRequest<SocialBody>, res: Response): Promise<void> => {
+    log.debug('[texte/social] Anfrage für %s', req.user?.id ?? 'unbekannt');
     if (req.query.stream === 'true' || req.headers.accept === 'text/event-stream') {
-      return processAgentModeStreaming(req, res);
+      return processGraphRequestStreaming('social', req, res);
     }
-    await processAgentModeRequest(req, res);
-  } catch (error) {
-    log.error('[texte/social/agent] Error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Interner Serverfehler',
-    });
-  }
-});
-
-/**
- * POST /api/social/strategy
- * Phase 1: Generate strategic framing + arguments
- */
-router.post(
-  '/strategy',
-  validateBody(strategySchema),
-  async (req: TypedRequest<StrategyBody>, res: Response): Promise<void> => {
-    try {
-      log.debug('[texte/social/strategy] Strategy generation requested');
-      await processStrategyGeneration(req.body, req, res);
-    } catch (error) {
-      log.error('[texte/social/strategy] Error:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Interner Serverfehler',
-      });
-    }
+    await processGraphRequest('social', req, res);
   }
 );
-
-/**
- * POST /api/social/production
- * Phase 2: Generate production content from approved strategy
- */
-router.post(
-  '/production',
-  validateBody(productionSchema),
-  async (req: TypedRequest<ProductionBody>, res: Response): Promise<void> => {
-    const { workflow_id, approved_platforms, user_feedback } = req.body;
-
-    try {
-      log.debug(
-        '[texte/social/production] Production generation requested for workflow:',
-        workflow_id
-      );
-
-      // Update workflow with approval
-      await prAgentWorkflow.approve(workflow_id, approved_platforms, user_feedback);
-
-      // Generate production
-      await processProductionGeneration(
-        workflow_id,
-        approved_platforms,
-        user_feedback ?? null,
-        req,
-        res
-      );
-    } catch (error) {
-      log.error('[texte/social/production] Error:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Interner Serverfehler',
-      });
-    }
-  }
-);
-
-/**
- * GET /api/social/workflow/:id
- * Fetch workflow state
- */
-router.get('/workflow/:id', async (req: Request<{ id: string }>, res: Response): Promise<void> => {
-  try {
-    const workflow = await prAgentWorkflow.getWorkflow(
-      req.params.id,
-      (req.user as User | undefined)?.id
-    );
-
-    if (!workflow) {
-      res.status(404).json({
-        success: false,
-        error: 'Workflow nicht gefunden',
-      });
-      return;
-    }
-
-    res.json({
-      success: true,
-      workflow,
-    });
-  } catch (error) {
-    log.error('[texte/social/workflow] Error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Interner Serverfehler',
-    });
-  }
-});
 
 export default router;
