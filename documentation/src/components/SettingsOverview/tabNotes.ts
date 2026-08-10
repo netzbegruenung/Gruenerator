@@ -61,6 +61,15 @@ export const TAB_NOTES: TabNote[] = [
     ],
   },
   {
+    tab: 'datenschutz',
+    intro:
+      'Hier verwaltest du die beiden Einwilligungen, die der Grünerator von dir einholt. Beide gelten mit Wirkung für die Zukunft und lassen sich jederzeit zurücknehmen — was bereits verarbeitet wurde, bleibt davon unberührt.',
+    extras: [
+      '**Reichweitenmessung** steuert die anonyme Statistik mit Umami, die wir auf eigenen Servern in der EU betreiben. Ohne deine Zustimmung wird das Skript gar nicht erst geladen; der Schalter gilt für den Browser, in dem du ihn umlegst.',
+      '**Einwilligung in die KI-Verarbeitung** ist die ausdrückliche Einwilligung nach Art. 9 DSGVO: Weil über den Grünerator politische Inhalte entstehen, können sich aus deinen Eingaben politische Meinungen ergeben. Nimmst du sie zurück, fragen wir beim nächsten Aufruf der KI-Funktionen erneut.',
+    ],
+  },
+  {
     tab: 'friends',
     intro:
       'Dein Profilbild: eine Galerie gezeichneter Grünerator-Figuren, aus der du deinen „Friend" wählst. Er erscheint überall dort, wo du auftauchst — in Chats, Projekten und Kommentaren.',

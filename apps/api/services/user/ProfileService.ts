@@ -205,6 +205,15 @@ class ProfileService {
         }
       }
 
+      // Einzige Zeitstempel-Spalte, die über diesen Weg geschrieben wird
+      // (Art.-9-Einwilligung). Sie braucht ein eigenes Feld, weil Drizzle hier
+      // ein `Date` erwartet, die Aufrufer aber ISO-Strings durchreichen — als
+      // String landete sie stumm in keiner der beiden Listen oben.
+      if (updateData.ai_consent_at !== undefined) {
+        const raw = updateData.ai_consent_at;
+        setValues.ai_consent_at = raw ? new Date(raw as string) : null;
+      }
+
       const rows = await db
         .update(profiles)
         .set(setValues)

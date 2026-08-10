@@ -19,6 +19,7 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { enableFreeze } from 'react-native-screens';
 
+import { AiConsentGate } from '../components/auth/AiConsentGate';
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import { AppDrawer } from '../components/navigation';
 import { SettingsSheet } from '../components/settings';
@@ -178,6 +179,12 @@ function RootLayout() {
                     is on screen. Mounted here — once — because the drawer and the
                     profile menu both reach for them from different screens. */}
                 {user ? <SettingsSheet /> : null}
+                {/* Art.-9-Einwilligung. Ganz zuletzt und über allem, damit sie
+                    auch über dem Einstellungen-Sheet steht — ein Widerruf dort
+                    muss sofort wieder fragen, sonst liefe die App weiter ohne
+                    Rechtsgrundlage. Gated auf `user`, weil vor der Anmeldung
+                    niemand da ist, den man fragen könnte. */}
+                {user ? <AiConsentGate /> : null}
               </ErrorBoundary>
             </ActionSheetProvider>
           </KeyboardProvider>

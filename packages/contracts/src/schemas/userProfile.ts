@@ -55,6 +55,12 @@ export const profileUpdateBodySchema = z.object({
   reduce_motion: z.boolean().optional(),
   reduce_transparency: z.boolean().optional(),
   show_skip_link: z.boolean().optional(),
+  /**
+   * Ausdrückliche Einwilligung nach Art. 9 Abs. 2 lit. a DSGVO. Der Client
+   * schreibt nur „erteilt/widerrufen" — den Zeitstempel setzt der Server, damit
+   * der Nachweis nach Art. 7 Abs. 1 DSGVO nicht aus der Browseruhr stammt.
+   */
+  ai_consent: z.boolean().optional(),
 });
 
 /** The exact set of profile columns a client may write. */
@@ -174,6 +180,8 @@ export const userProfileSchema = z.object({
   reduce_motion: z.boolean().default(false),
   reduce_transparency: z.boolean().default(false),
   show_skip_link: z.boolean().default(true),
+  /** ISO-Zeitstempel der Art.-9-Einwilligung; null = nicht erteilt. */
+  ai_consent_at: z.string().nullish(),
   is_admin: z.boolean().optional(),
   groups_enabled: z.boolean().default(false),
   custom_generators: z.boolean().default(false),

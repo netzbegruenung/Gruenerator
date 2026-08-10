@@ -379,7 +379,16 @@ function ChatPage() {
           onOpenNotebookThread={handleNavigate}
         />
       )}
-      <div className="flex min-h-0 flex-1 flex-col pt-4 md:pt-0">
+      {/* `min-w-0`: ohne das ist die Mindestbreite dieses Flex-Items die
+          min-content-Breite des GANZEN Threads. Eine nicht umbrechende Zeile in
+          einer Tool-Karte (`truncate` = white-space: nowrap) zieht damit den
+          kompletten Chat auf ihre Textbreite auf — gemessen 528 px bei 390 px
+          Viewport. Weiter innen wirkt der Riegel nicht: `min-w-0` bzw.
+          `overflow-hidden` am Thread-Root oder am Viewport ändern nichts, nur
+          das äußerste Flex-Item zählt. Die übrigen Chat-Wirte (ChatLayout,
+          Docs-/Sheets-/Presentations-/Board-Panel) sind über ihr
+          `overflow-hidden` bereits abgesichert. */}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col pt-4 md:pt-0">
         {hub ? (
           <LandesverbandHub hub={hub} onNavigate={handleNavigate} userLocale={userLocale} />
         ) : effectiveViewMode === 'overview' ? (
