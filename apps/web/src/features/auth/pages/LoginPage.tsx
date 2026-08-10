@@ -12,6 +12,7 @@ import {
 import { type JSX, useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
+import { TRANSPARENCY_NOTICE } from '../../../config/transparencyNotice';
 import { useInstantAuth } from '../../../hooks/useAuth';
 import { useAuthStore } from '../../../stores/authStore';
 import { getIntendedRedirect, isMobileAppContext } from '../../../utils/authRedirect';
@@ -282,11 +283,7 @@ const LoginPage = ({
         zu.
       </p>
 
-      <p className="lp-hint">
-        Der Grünerator ist ein Projekt von Moritz Wächter, kostenfrei für Mitglieder von BÜNDNIS
-        90/DIE GRÜNEN und Die Grünen/Die Grüne Alternative. Er ist kein Angebot der Partei BÜNDNIS
-        90/DIE GRÜNEN.
-      </p>
+      <p className="lp-hint">{TRANSPARENCY_NOTICE}</p>
 
       <button
         type="button"
@@ -384,9 +381,7 @@ const LoginPage = ({
                   zu.
                 </p>
                 <p className="m-0 mt-sm text-muted-foreground text-[0.8rem] leading-normal">
-                  Der Grünerator ist ein Projekt von Moritz Wächter, kostenfrei für Mitglieder von
-                  BÜNDNIS 90/DIE GRÜNEN und Die Grünen/Die Grüne Alternative. Er ist kein Angebot
-                  der Partei BÜNDNIS 90/DIE GRÜNEN.
+                  {TRANSPARENCY_NOTICE}
                 </p>
               </div>
             </div>
@@ -408,9 +403,7 @@ const LoginPage = ({
               zu.
             </p>
             <p className="m-0 mt-sm text-muted-foreground text-[0.8rem] leading-normal">
-              Der Grünerator ist ein Projekt von Moritz Wächter, kostenfrei für Mitglieder von
-              BÜNDNIS 90/DIE GRÜNEN und Die Grünen/Die Grüne Alternative. Er ist kein Angebot der
-              Partei BÜNDNIS 90/DIE GRÜNEN.
+              {TRANSPARENCY_NOTICE}
             </p>
           </div>
         </div>
