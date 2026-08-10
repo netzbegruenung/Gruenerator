@@ -1,4 +1,6 @@
+import { isAiConsentRequiredBody } from '@gruenerator/contracts';
 import { getSystemAgent } from '@gruenerator/shared/agents';
+import { notifyAiConsentRequired } from '@gruenerator/shared/api';
 import { buildMentionToken } from '@gruenerator/shared/utils';
 
 import { parseAllMentions } from '../../lib/mentionParser';
@@ -57,13 +59,6 @@ export type {
 const MAX_CLIENT_TOOL_ROUNDS = 3;
 
 /**
- * A 401/403 on the stream or a resume means the session died mid-turn. This is
- * a raw `fetch` path with no axios interceptor, so route it through the app's
- * `onUnauthorized` (probe → redirect on a dead session) — otherwise the user is
- * left in a half-logged-in editor with only an in-thread "Sitzung abgelaufen"
- * message and no way back to login until a manual reload.
- */
-/**
  * Report a failure WITHOUT discarding what was already streamed.
  *
  * assistant-ui merges a yielded result as `[...initialContent, ...m.content]`
@@ -105,10 +100,42 @@ function withInterruptionNotice(lastResult: ChatModelRunResult | undefined): Cha
   );
 }
 
-function routeUnauthorized(response: Response): void {
-  if (response.status === 401 || response.status === 403) {
-    void useChatConfigStore.getState().onUnauthorized?.();
+/**
+ * Text der Absage im Chat. Der Einwilligungs-Dialog geht im selben Moment auf
+ * (der Auth-Store bekommt das Signal), die Zeile erklärt nur, warum.
+ */
+const AI_CONSENT_REQUIRED_TEXT =
+  '⚠️ **Für die KI-Funktionen fehlt Deine Einwilligung.** Bitte bestätige sie im Dialog, dann kannst Du direkt weitermachen.';
+
+/**
+ * A 401/403 on the stream or a resume means the session died mid-turn. This is
+ * a raw `fetch` path with no axios interceptor, so route it through the app's
+ * `onUnauthorized` (probe → redirect on a dead session) — otherwise the user is
+ * left in a half-logged-in editor with only an in-thread "Sitzung abgelaufen"
+ * message and no way back to login until a manual reload.
+ *
+ * Eine Ausnahme, und sie ist der Grund für den Rückgabewert: die 403 wegen
+ * fehlender Art.-9-Einwilligung ist **kein** Sitzungsproblem. `onUnauthorized`
+ * darauf angewandt hieße, die Nutzer*in abzumelden, obwohl ihre Sitzung gilt —
+ * nach dem Einwilligen stünde sie vor dem Login statt vor ihrer Frage.
+ * Stattdessen bekommt der Auth-Store das Signal, und das Gate erscheint von
+ * selbst. `true` = es war dieser Fall.
+ */
+async function routeUnauthorized(response: Response): Promise<boolean> {
+  if (response.status !== 401 && response.status !== 403) return false;
+  if (response.status === 403) {
+    // clone(): der Aufrufer liest den Rumpf danach teils selbst aus.
+    const body: unknown = await response
+      .clone()
+      .json()
+      .catch(() => null);
+    if (isAiConsentRequiredBody(body)) {
+      notifyAiConsentRequired();
+      return true;
+    }
   }
+  void useChatConfigStore.getState().onUnauthorized?.();
+  return false;
 }
 
 /**
@@ -159,7 +186,7 @@ async function* runClientToolResumes(params: {
       signal: params.abortSignal,
     });
     if (!resumeResponse.ok) {
-      routeUnauthorized(resumeResponse);
+      await routeUnauthorized(resumeResponse);
       const errorData = await resumeResponse.json().catch(() => ({}));
       throw new Error(
         (errorData as { error?: string }).error || `HTTP error ${resumeResponse.status}`
@@ -252,7 +279,7 @@ export function createGrueneratorModelAdapter(
           });
 
           if (!resumeResponse.ok) {
-            routeUnauthorized(resumeResponse);
+            await routeUnauthorized(resumeResponse);
             const errorData = await resumeResponse.json().catch(() => ({}));
             throw new Error(
               (errorData as { error?: string }).error || `HTTP error ${resumeResponse.status}`
@@ -734,8 +761,15 @@ export function createGrueneratorModelAdapter(
       }
 
       if (!response.ok) {
-        routeUnauthorized(response);
-        yield { content: [{ type: 'text' as const, text: streamErrorMessage(null, response) }] };
+        const consentRequired = await routeUnauthorized(response);
+        yield {
+          content: [
+            {
+              type: 'text' as const,
+              text: consentRequired ? AI_CONSENT_REQUIRED_TEXT : streamErrorMessage(null, response),
+            },
+          ],
+        };
         return;
       }
 
