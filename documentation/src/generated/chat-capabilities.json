@@ -182,9 +182,9 @@
       "mention": "@vorlagen"
     },
     "webpage-trigger": {
-      "title": "Webseite",
+      "title": "Link",
       "description": "Inhalt einer Webseite per URL anhängen",
-      "mention": "@web"
+      "mention": "@link"
     },
     "wolke-trigger": {
       "title": "Wolke",
