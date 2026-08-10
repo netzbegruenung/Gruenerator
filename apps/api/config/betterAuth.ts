@@ -195,6 +195,7 @@ export const auth = betterAuth({
       reduce_motion: { type: 'boolean', required: false, defaultValue: false },
       reduce_transparency: { type: 'boolean', required: false, defaultValue: false },
       show_skip_link: { type: 'boolean', required: false, defaultValue: true },
+      ai_consent_at: { type: 'date', required: false },
       avatar_robot_id: { type: 'number', required: false, defaultValue: 1 },
       profile_image: { type: 'number', required: false, defaultValue: 1 },
       is_admin: { type: 'boolean', required: false, defaultValue: false },

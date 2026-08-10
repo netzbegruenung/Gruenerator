@@ -32,6 +32,7 @@ export const LANDESVERBAND_SOURCE_IDS = [
   'schleswig-holstein-lv',
   'sachsen-anhalt-lv',
   'sachsen-anhalt-fraktion',
+  'sachsen-lv',
   'hessen-lv',
   'hessen-fraktion',
   'saarland-lv',

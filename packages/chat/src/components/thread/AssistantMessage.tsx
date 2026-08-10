@@ -229,6 +229,10 @@ export const AssistantMessage = memo(function AssistantMessage() {
         />
       )}
       <div className="min-w-0 flex-1">
+        {/* Offenlegung der KI-Interaktion (Art. 50 Abs. 1 KI-VO). Sichtbar
+            trägt das Icon die Zuordnung, es ist aber aria-hidden — ohne diese
+            Zeile sagt der Screenreader nicht, wer hier spricht. */}
+        <span className="sr-only">KI-generierte Antwort:</span>
         {isNonDefaultAgent && messageAgent && (
           <SkillBadge
             avatar={messageAgent.avatar}

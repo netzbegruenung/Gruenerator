@@ -37,6 +37,18 @@ export const LV_PR_SPECS = [
     themes:
       'Strukturwandel und Industrie (Stahl, Automobil), Energiewende, Mobilität und ÖPNV (Saarbahn), Bildung, Gesundheit und Krankenhäuser, Grenzregion zu Frankreich',
   },
+  {
+    // Kein korpus-basierter Agent: Sachsen hat noch keine indexierten PMs, also
+    // greift die Template-Variante. Beim Wechsel auf eine hand-getunte
+    // definitions/*.md muss dieser Eintrag weichen — sonst beschatten sich die
+    // beiden Definitionen unter demselben identifier.
+    lv: 'sachsen',
+    title: 'Sachsen',
+    codes: 'SN',
+    notebook: 'sachsen-notebook',
+    themes:
+      'Strukturwandel in der Lausitz und im Mitteldeutschen Revier, Demokratie und Schutz vor Rechtsextremismus, Bildung und Lehrkräftemangel, Mobilität im ländlichen Raum, sorbisches Leben und Kultur, Natur- und Klimaschutz (Erzgebirge, Elbe)',
+  },
 ] as const satisfies ReadonlyArray<{
   lv: string;
   title: string;
