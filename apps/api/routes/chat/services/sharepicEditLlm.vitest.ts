@@ -11,7 +11,7 @@ import {
 } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { buildSystemPrompt } from './sharepicEditLlm.js';
+import { buildOperationCatalog, buildSystemPrompt } from './sharepicEditLlm.js';
 
 const descriptor = getSharepicTemplateDescriptor('dreizeilen') as SharepicTemplateDescriptor;
 
@@ -40,5 +40,55 @@ describe('sharepic edit reply guard', () => {
     expect(prompt).toContain('real existierenden Person');
     expect(prompt).toContain('herabsetzen');
     expect(prompt).toContain('setze sie NICHT um');
+  });
+});
+
+describe('austrian templates get austrian framing', () => {
+  const promptFor = (type: string): string => {
+    const d = getSharepicTemplateDescriptor(type) as SharepicTemplateDescriptor;
+    return buildSystemPrompt(d, buildSharepicSnapshot(d, d.defaultState), []);
+  };
+
+  it('names the Austrian party for an AT template', () => {
+    const prompt = promptFor('info-at');
+    expect(prompt).toContain('österreichischen Grünen');
+    expect(prompt).not.toContain('deutschen Grünen');
+    expect(prompt).toContain('Nationalrat');
+  });
+
+  it('leaves the German templates untouched', () => {
+    const prompt = promptFor('info');
+    expect(prompt).toContain('deutschen Grünen');
+    expect(prompt).not.toContain('Nationalrat');
+  });
+});
+
+describe('operation catalogues stay inside what the template renders', () => {
+  const descriptorFor = (type: string): SharepicTemplateDescriptor =>
+    getSharepicTemplateDescriptor(type) as SharepicTemplateDescriptor;
+  const catalogFor = (type: string): string =>
+    buildOperationCatalog(descriptorFor(type)).join('\n');
+
+  it('offers no font size for the info-at accent — its layout reads no override', () => {
+    const accent = descriptorFor('info-at').textFields.find((f) => f.field === 'accent');
+    expect(accent, 'accent must still be editable as text').toBeDefined();
+    expect(accent?.fontSize).toBeUndefined();
+    // The op is still offered — for the two fields that do render an override.
+    expect(catalogFor('info-at')).toContain('set-font-size');
+  });
+
+  it('offers only the two rendered text fields for veranstaltung', () => {
+    // The date badge is baked into circleBadgeInstances and location/address
+    // have no element in the editor config — see VERANSTALTUNG_DESCRIPTOR.
+    expect(descriptorFor('veranstaltung').textFields.map((f) => f.field)).toEqual([
+      'eventTitle',
+      'beschreibung',
+    ]);
+  });
+
+  it('does not let a stock photo replace the person on a zitat', () => {
+    expect(catalogFor('zitat')).not.toContain('set-background-image');
+    // The generic photo template does allow it.
+    expect(catalogFor('simple')).toContain('set-background-image');
   });
 });
