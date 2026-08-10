@@ -107,6 +107,13 @@ describe('createOpeningDedupe — trailing consumption stays bounded', () => {
     expect(out).toBe('# Ablaufplan\nDanach der Inhalt.');
   });
 
+  it('keeps the bold marker even when it abuts the duplicate without whitespace', () => {
+    // An UNdecorated duplicate owns no trailing emphasis at all — an
+    // unconditional 3-char cap still ate the opening `**` of the label here.
+    const out = run(OPENING2, [`${OPENING2}**Betreff:** Erinnerung Helfendentreffen`]);
+    expect(out).toBe('**Betreff:** Erinnerung Helfendentreffen');
+  });
+
   it('still consumes the closing emphasis of a decorated duplicate', () => {
     const out = run(OPENING2, [`**${OPENING2}**\n\nDer eigentliche Text.`]);
     expect(out).toBe('Der eigentliche Text.');

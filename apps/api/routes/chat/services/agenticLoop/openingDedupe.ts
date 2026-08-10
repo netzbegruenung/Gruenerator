@@ -30,7 +30,12 @@ const isWs = (ch: string): boolean => /\s/.test(ch);
  * a possible match — the caller should wait for more deltas before deciding.
  */
 export function matchOpeningPrefix(buffer: string, opening: string): PrefixMatch {
-  let i = LEADING_DECORATION_RE.exec(buffer)?.[0].length ?? 0;
+  const leading = LEADING_DECORATION_RE.exec(buffer)?.[0] ?? '';
+  // Only emphasis that was OPENED in front of the duplicate can need closing
+  // after it. An undecorated duplicate owns no trailing `*`/`_` at all — those
+  // belong to the real answer (e.g. `…Satz.**Betreff:**` with no whitespace).
+  const leadingEmphasis = (leading.match(/[*_]/g) ?? []).length;
+  let i = leading.length;
   let j = 0;
   while (j < opening.length) {
     if (isWs(opening[j])) {
@@ -45,13 +50,15 @@ export function matchOpeningPrefix(buffer: string, opening: string): PrefixMatch
     i++;
     j++;
   }
-  // Consume ONLY what still belongs to the duplicate: its closing emphasis
-  // (`**`/`_`, directly attached, max 3 chars) and the whitespace after it.
-  // Nothing beyond — an unbounded `[\s*_#]` sweep here ate the `#` of a real
-  // heading and the opening `**` of a `**Betreff:**` label that START the
-  // actual answer ("**Opening.**\n\n**Betreff:** …" must keep its bold).
+  // Consume ONLY what still belongs to the duplicate: the closing counterpart
+  // of the emphasis it OPENED with (symmetric, capped at 3 chars) and the
+  // whitespace after it. Nothing beyond — an unbounded `[\s*_#]` sweep here ate
+  // the `#` of a real heading and the opening `**` of a `**Betreff:**` label
+  // that START the actual answer, and an unconditional 3-char cap still ate
+  // that `**` when it abutted an UNdecorated duplicate with no whitespace.
   let emphasis = 0;
-  while (i < buffer.length && emphasis < 3 && /[*_]/.test(buffer[i])) {
+  const maxEmphasis = Math.min(3, leadingEmphasis);
+  while (i < buffer.length && emphasis < maxEmphasis && /[*_]/.test(buffer[i])) {
     i++;
     emphasis++;
   }
