@@ -17,7 +17,7 @@ Der Editor führt dich durch **drei Schritte**: **Quellen → Details → Überp
 
 ### Schritt 1: Zur Notebook-Übersicht
 
-Öffne in der Navigation **Notebooks** (`/notebooks`). Auf dieser Seite sind alle Notebooks an einem Ort gebündelt; deine eigenen findest du im Abschnitt **„Eigene"**. Beim ersten Mal ist er leer und zeigt nur die Karte zum Erstellen. Klicke neben der Überschrift **„Eigene"** auf **„Notebook erstellen"** (oder auf die Erstellen-Karte), um den Editor zu öffnen.
+Öffne in der Navigation **Wissen** (`/wissen`). Auf dieser Seite sind alle Notebooks an einem Ort gebündelt. Solange du noch kein eigenes Notebook hast, liegt in der Notebook-Leiste oben eine Karte **„Neues erstellen"** — ein Klick darauf öffnet direkt den Editor. Sobald du mindestens ein eigenes Notebook besitzt, tritt an ihre Stelle die Karte **„Eigene Notebooks"**: Sie klappt den Abschnitt **„Eigene"** auf, in dem neben der Überschrift der Button **„Notebook erstellen"** sitzt.
 
 ### Schritt 2: Quellen wählen
 
@@ -94,7 +94,7 @@ Im Dialog **„Notebook teilen"** stellst du die **Sichtbarkeit** ein:
 
 ### Auf „Von der Basis" listen
 
-Im Modus **„Mit Anmeldung"** kannst du zusätzlich den Schalter **„Auf ‚Von der Basis' listen"** aktivieren. Dann erscheint dein Notebook auf der allgemeinen Notebooks-Seite im Abschnitt **„Von der Basis"** zum Entdecken. Sobald du den Schalter aktivierst, musst du eine der beiden Aussagen bestätigen:
+Im Modus **„Mit Anmeldung"** kannst du zusätzlich den Schalter **„Auf ‚Von der Basis' listen"** aktivieren. Dann taucht dein Notebook für andere in der Suche der Wissen-Seite auf — sie durchsucht System-Notebooks, eigene und die so gelisteten öffentlichen Notebooks gemeinsam; einen eigenen Abschnitt „Von der Basis" gibt es nicht mehr. Sobald du den Schalter aktivierst, musst du eine der beiden Aussagen bestätigen:
 
 - **„Ich besitze die Daten"** — … oder habe die Rechte zur Veröffentlichung; z.&nbsp;B. eigene Texte, Beschlüsse deines Verbands, Material, das du selbst veröffentlichen darfst.
 - **„Daten sind öffentlich verfügbar"** — z.&nbsp;B. offizielle Dokumente, Pressemitteilungen, frei zugängliche Veröffentlichungen.
@@ -107,7 +107,7 @@ Wenn du dir bei den Rechten unsicher bist, lass das Notebook privat — du kanns
 
 ## Dein Notebook nach der Erstellung
 
-Im Abschnitt **„Eigene"** erscheint jedes deiner Notebooks als Karte. Ein **Klick** auf die Karte öffnet die Notebook-Detailseite, von der aus du chatten und durchsuchen kannst. Über das **Drei-Punkte-Menü** der Karte erreichst du weitere Aktionen:
+Hinter der Karte **„Eigene Notebooks"** auf der Wissen-Seite erscheint jedes deiner Notebooks als Karte im Abschnitt **„Eigene"**. Ein **Klick** auf die Karte öffnet die Notebook-Detailseite, von der aus du chatten und durchsuchen kannst. Über das **Drei-Punkte-Menü** der Karte erreichst du weitere Aktionen:
 
 - **Bearbeiten** — öffnet wieder den Editor (Quellen, Details, Labels, Wolke, Docs). Auf der Bearbeiten-Seite kannst du Name und Beschreibung auch direkt im Kopfbereich ändern und alle Quellen per **„Alle Quellen aktualisieren"** neu synchronisieren.
 - **Teilen** — Untermenü mit **„Link kopieren"** (kopiert die URL des Notebooks) und — falls du in Gruppen bist — Optionen zum direkten Teilen mit einer Gruppe. Die volle Sichtbarkeits- und Veröffentlichungssteuerung liegt dagegen im **„Teilen"**-Button auf der Bearbeiten-Seite (siehe [Notebook teilen](#dein-notebook-teilen-und-veröffentlichen)).
@@ -116,7 +116,7 @@ Im Abschnitt **„Eigene"** erscheint jedes deiner Notebooks als Karte. Ein **Kl
 ## Häufige Fragen
 
 **Wo schalte ich ein Notebook öffentlich?**
-Nicht mehr in der Erstellung. Öffne das Notebook über **Bearbeiten** und klicke oben rechts auf **„Teilen"**. Wähle im Dialog die Sichtbarkeit **„Mit Anmeldung"** und aktiviere **„Auf ‚Von der Basis' listen"**, um es auf der Notebooks-Seite sichtbar zu machen.
+Nicht mehr in der Erstellung. Öffne das Notebook über **Bearbeiten** und klicke oben rechts auf **„Teilen"**. Wähle im Dialog die Sichtbarkeit **„Mit Anmeldung"** und aktiviere **„Auf ‚Von der Basis' listen"**, damit es in der Suche der Wissen-Seite auffindbar wird.
 
 **Was passiert mit Dokumenten, wenn ich ein Notebook lösche?**
 Die Dokumente bleiben in deiner persönlichen Dokumenten-Bibliothek erhalten — nur die Sammlung wird gelöscht.
