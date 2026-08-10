@@ -41,6 +41,7 @@ import { imageDeliveryNote } from '../../agents/searchImageHarvest.js';
 import { buildChatToolCatalog } from '../../agents/toolCatalog.js';
 import { extractTextContent } from '../messageHelpers.js';
 import {
+  containsBrokenJsonPayload,
   defersToSearchDespiteSources,
   deniesSearchAbilityDespiteSearching,
   looksCutOff,
@@ -65,9 +66,15 @@ import { withInstructionHierarchy } from '../untrustedContent.js';
 
 import { stripOutOfRangeCitations } from './citationStrip.js';
 import { isMcpReplayEnabled } from './flags.js';
-import { runAgenticLoop, type LoopMode } from './loopEngine.js';
+import {
+  runAgenticLoop,
+  SYNTH_CUTOFF_RETRY_SUFFIX,
+  SYNTH_INVALID_JSON_RETRY_SUFFIX,
+  type LoopMode,
+} from './loopEngine.js';
 import { createToolLoopGuards, MAX_SOURCES } from './loopGuards.js';
 import { buildToolObservationReplay } from './mcpReplay.js';
+import { createOpeningDedupe, stripDuplicatedOpening } from './openingDedupe.js';
 import { createRecipeRegistry } from './recipeRegistry.js';
 import {
   looksLikeExplicitResearchOrder,
@@ -739,6 +746,19 @@ export async function streamAgenticResponse(params: {
     sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
   };
 
+  const emitAnswerDelta = (delta: string): void => {
+    // Real content replaces the heartbeat as the UI's proof of progress.
+    endSynthHeartbeat();
+    startResponse();
+    text += delta;
+    sse.send('text_delta', { text: delta });
+  };
+  // Deterministic guard for the opening-sentence invariant (see openingDedupe):
+  // the prompt tells the synth the opening is already on screen, this enforces
+  // it when the model restates it anyway. `openingSentence` is read via getter
+  // because it is only assigned once the gather phase narrates.
+  const answerDedupe = createOpeningDedupe(() => openingSentence, emitAnswerDelta);
+
   try {
     resolution = await resolveModel(
       {
@@ -1313,7 +1333,7 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
     // clock — users read that as "it just aborts".
     const synthFallback = mode === 'split' ? getLoopSynthFallbackModel(synth.name) : null;
 
-    await runAgenticLoop({
+    const loopResult = await runAgenticLoop({
       mode,
       plannerModel: mode === 'split' ? getLoopPlannerModel() : resolution.model,
       synthModel: synth.model,
@@ -1385,13 +1405,13 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
         (finalState.sharepicVariants?.length ?? 0) > 0 ||
         finalState.createdDocument != null ||
         finalState.createdBoard != null,
-      onText: (delta) => {
-        // Real content replaces the heartbeat as the UI's proof of progress.
-        endSynthHeartbeat();
-        startResponse();
-        text += delta;
-        sse.send('text_delta', { text: delta });
-      },
+      // Every answer delta runs through the opening dedupe: the synth is told
+      // not to restate the already-streamed opening sentence, but the small
+      // lanes do it anyway ("Hallo zusammen, Hallo zusammen …"). The dedupe
+      // holds the head of the answer only while a duplicate is still possible,
+      // then streams normally; in unified mode (no narrated opening) it is a
+      // pure passthrough from the first delta.
+      onText: (delta) => answerDedupe.push(delta),
       onReasoning: (delta) => sse.send('reasoning_delta', { text: delta }),
       // Split-gather narration: the planner's inter-tool prose, sentence-wise.
       // The FIRST sentence — the model's opening plan — crosses into the real
@@ -1413,7 +1433,27 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
         narrationBuffer.push(s);
         sse.send('gather_narration', { text: s });
       },
+      // Output-integrity check on the accepted split answer: broken JSON and
+      // mid-sentence cut-offs earn ONE silent synth retry (loopEngine). Both
+      // shapes shipped verbatim in the 2026-08 QA run.
+      validateAnswer: (t) => {
+        if (containsBrokenJsonPayload(t)) return SYNTH_INVALID_JSON_RETRY_SUFFIX;
+        if (looksCutOff(t)) return SYNTH_CUTOFF_RETRY_SUFFIX;
+        return null;
+      },
     });
+    answerDedupe.flush();
+
+    if (loopResult.replacedStreamed) {
+      // The validation retry replaced an answer that was already on the wire.
+      // Same replacement channel the citation clamp uses: `completion` swaps
+      // the streamed deltas for the corrected text, and the recorded offsets
+      // (which index into the discarded stream) are dropped.
+      const prefix = openingSentence ? `${openingSentence} ` : '';
+      text = prefix + stripDuplicatedOpening(loopResult.text, openingSentence);
+      for (const s of steps) delete s.textOffset;
+      sse.send('completion', { text, citations: sourceRegistry.getCitations() });
+    }
 
     // Edit + compound-generation guarantees now run inside afterGather in BOTH
     // loop modes (loopEngine calls it post-stream for unified), so no separate
@@ -1434,6 +1474,9 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
       sse.send('text_delta', { text });
     }
   } catch (err) {
+    // Anything the dedupe still holds is real answer text — release it before
+    // the outcome logic reads `text`.
+    answerDedupe.flush();
     const msg = err instanceof Error ? err.message : String(err);
     const aborted =
       err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError');
