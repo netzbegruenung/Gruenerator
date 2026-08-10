@@ -24,8 +24,8 @@ const Impressum = () => {
       <h2>Transparenzhinweis</h2>
       <p>
         Der Grünerator ist ein Projekt von Moritz Wächter, kostenfrei nutzbar für Mitglieder von
-        BÜNDNIS 90/DIE GRÜNEN und Die Grünen/Die Grüne Alternative. Er wird finanziell unterstützt
-        von Die Grünen/Die Grüne Alternative in Österreich sowie von einzelnen Landesverbänden und
+        BÜNDNIS 90/DIE GRÜNEN und Die Grünen – Die Grüne Alternative. Er wird finanziell unterstützt
+        von Die Grünen – Die Grüne Alternative in Österreich sowie von einzelnen Landesverbänden und
         Gliederungen von BÜNDNIS 90/DIE GRÜNEN in Deutschland.
       </p>
       <p>
