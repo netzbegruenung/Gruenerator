@@ -6,6 +6,7 @@ import {
   buildWebpageAttachment,
   buildWolkeAttachment,
   canvaDesignsMarkdown,
+  normalizeWebpageUrl,
 } from './mentionAttachments';
 
 /**
@@ -118,5 +119,34 @@ describe('appendToDraft', () => {
 
   it('leaves the draft untouched when there is nothing to add', () => {
     expect(appendToDraft('Schreib mir', '')).toBe('Schreib mir');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Zwei Oberflächen tippen jetzt eine URL von Hand ein (Web-Popover, mobiles
+// Sheet). Die Normalisierung liegt deshalb hier und nicht in einer der beiden.
+// ---------------------------------------------------------------------------
+describe('normalizeWebpageUrl', () => {
+  it('completes a missing scheme', () => {
+    expect(normalizeWebpageUrl('tagesschau.de/inland')).toBe('https://tagesschau.de/inland');
+  });
+
+  it('keeps an explicit scheme, http included', () => {
+    expect(normalizeWebpageUrl('http://example.org/a')).toBe('http://example.org/a');
+  });
+
+  it('rejects what is not an http(s) address', () => {
+    // Ohne Punkt ist es ein Wort, kein Host — sonst würde „zusammenfassen“ zu
+    // https://zusammenfassen und der Anhang zeigte auf nichts.
+    expect(normalizeWebpageUrl('zusammenfassen')).toBeNull();
+    expect(normalizeWebpageUrl('  ')).toBeNull();
+    expect(normalizeWebpageUrl('javascript:alert(1)')).toBeNull();
+    expect(normalizeWebpageUrl('file:///etc/passwd')).toBeNull();
+  });
+
+  it('feeds buildWebpageAttachment a chip named by host', () => {
+    const url = normalizeWebpageUrl('www.tagesschau.de/inland/x');
+    expect(url).not.toBeNull();
+    expect(buildWebpageAttachment(url!).name).toBe('www.tagesschau.de');
   });
 });
