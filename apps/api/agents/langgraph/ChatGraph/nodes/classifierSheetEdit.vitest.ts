@@ -104,3 +104,27 @@ describe('Tier 2.7 — Folgeauftrag auf die letzte Tabelle', () => {
     expect(result.intent).not.toBe('edit_sheet');
   });
 });
+
+describe('Tier 2.7 — Chat-Deliverable klebt nicht an der Tabelle', () => {
+  // QA 08/2026: nach der (ungewollt) erzeugten Tabelle verlangte der Turn
+  // ausdrücklich eine Zusammenfassung in genau zwei Stichpunkten — und bekam
+  // stattdessen 7 Sheet-Operationen ohne jeden Antworttext.
+  it('„Erstelle eine aktualisierte Zusammenfassung" bleibt eine Chat-Antwort', async () => {
+    const result = await classifierNode(
+      buildState(
+        'Neue Information: Der Termin aus Quelle B wurde bestätigt. Erstelle eine aktualisierte Zusammenfassung in genau zwei Stichpunkten.',
+        { lastToolContext: AFTER_SHEET }
+      )
+    );
+    expect(result.intent).not.toBe('edit_sheet');
+  });
+
+  it('bleibt edit_sheet, wenn die Zusammenfassung IN die Tabelle soll', async () => {
+    const result = await classifierNode(
+      buildState('Ergänze in der Tabelle eine Zeile mit einer kurzen Zusammenfassung.', {
+        lastToolContext: AFTER_SHEET,
+      })
+    );
+    expect(result.intent).toBe('edit_sheet');
+  });
+});
