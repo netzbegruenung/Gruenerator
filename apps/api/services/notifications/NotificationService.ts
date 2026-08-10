@@ -7,7 +7,6 @@ import {
   sendDocumentNotificationEmail,
   sendNotificationEmail,
 } from '../../services/email/index.js';
-import { sendPushToUser } from '../../services/pushNotificationService.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { shouldDeliver, getProfileForDelivery } from './notificationPreferences.js';
@@ -44,30 +43,6 @@ function toNotification(row: NotificationRow): Notification {
     read_at: row.read_at?.toISOString() ?? null,
     created_at: row.created_at.toISOString(),
   };
-}
-
-function firePush(
-  userId: string,
-  title: string,
-  body: string | null,
-  type: string,
-  actionUrl?: string | null,
-  notificationId?: string
-) {
-  sendPushToUser(userId, {
-    title,
-    body: body ?? '',
-    data: {
-      type,
-      action_url: actionUrl,
-      ...(notificationId ? { notification_id: notificationId } : {}),
-    },
-  }).catch((err: unknown) => {
-    log.warn('Failed to send push notification', {
-      userId,
-      error: err instanceof Error ? err.message : String(err),
-    });
-  });
 }
 
 /** Read a non-empty string field from notification metadata, else null. */
@@ -212,7 +187,7 @@ export async function createNotification(
 
   const profile = await getProfileForDelivery(userId);
 
-  // A muted group suppresses the noisy channels (email + push) for this user;
+  // A muted group suppresses the noisy channel (email) for this user;
   // the in-app notification is still recorded so nothing is lost.
   const groupId = resolveGroupId(metadata, groupKey);
   const groupMuted = groupId ? await isGroupMutedForUser(userId, groupId) : false;
@@ -227,10 +202,11 @@ export async function createNotification(
     !EMAIL_HANDLED_ELSEWHERE.has(type) &&
     !IN_APP_ONLY.has(type) &&
     (await wants('email'));
-  const sendPush = !groupMuted && !IN_APP_ONLY.has(type) && (await wants('push'));
+  // The 'push' channel is still a valid preference value (stored per user, part
+  // of the contract enum), but nothing delivers on it since push was removed.
 
   // Nothing to deliver on any channel — skip entirely.
-  if (!showInApp && !sendEmailChannel && !sendPush) {
+  if (!showInApp && !sendEmailChannel) {
     return null;
   }
 
@@ -257,7 +233,6 @@ export async function createNotification(
     log.warn('Failed to publish notification via Redis', { userId, error: err.message });
   });
 
-  if (sendPush) firePush(userId, title, body ?? null, type, actionUrl, notification.id);
   if (sendEmailChannel) fireEmail(userId, profile, title, body ?? null, type, actionUrl, metadata);
 
   return notification;
