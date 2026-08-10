@@ -204,7 +204,10 @@ export async function generateThreadTitle(
     ],
     options: {
       model: LANE.model,
-      max_tokens: 30,
+      // 80 chars of German title tokenize well past 30 — that cap cut answers
+      // off mid-title (finish_reason=length), which the provider chain then
+      // read as an empty response and failed over for nothing.
+      max_tokens: 64,
       temperature: 0.3,
     },
   };
