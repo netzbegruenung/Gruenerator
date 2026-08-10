@@ -203,8 +203,8 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
     // same routing, only the engine and the output shape differ. It must be
     // asked for by name and is capped per day, because both engines behind it
     // are expensive: the research agent (`deepAgentTurn`, runs for minutes and
-    // files a document) when `DEEP_AGENT_RESEARCH_ENABLED` is on, otherwise —
-    // and whenever a run yields nothing — Linkup's `sourcedAnswer` endpoint
+    // files a document) by default, and — when it lacks a key, or a run yields
+    // nothing — Linkup's `sourcedAnswer` endpoint
     // (`deepResearchTurn`). Both meter through `DeepResearchCounter`. Without
     // this mention no path reaches either, not even the agentic loop: there is
     // no tool for it.
