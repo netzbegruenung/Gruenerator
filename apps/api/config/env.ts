@@ -170,6 +170,11 @@ const envSchema = z.object({
   // live deliberately and not because a key happened to be set. With the flag
   // off — or when the run yields no report — the old turn still answers.
   DEEP_AGENT_RESEARCH_ENABLED: boolFlag(false),
+  // Which lane the research SUBagent runs on. `scaleway` is the measured
+  // default; `greenpt` is the cheaper, greener host that today loses the
+  // comparison on unsuppressible reasoning blocks — the rationale and the
+  // numbers are in `services/research/deepAgent/models.ts`.
+  DEEP_AGENT_WORKER: z.enum(['scaleway', 'greenpt']).default('scaleway'),
 
   // ── Image / Flux ───────────────────────────────────────────────────────
   FLUX_BACKEND: z.string().optional(),

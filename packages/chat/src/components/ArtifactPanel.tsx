@@ -180,7 +180,11 @@ export function ArtifactPanel({ className }: { className?: string }) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden bg-white">
+      {/* `bg-white` is right for the two iframe cases — they render their own
+          untuned document and need a neutral sheet under it. The research log is
+          our own React on theme tokens, so it must sit on the theme's ground or
+          `text-foreground` turns light-on-white in dark mode. */}
+      <div className={`flex-1 overflow-hidden ${isResearchLog ? 'bg-background' : 'bg-white'}`}>
         {isResearchLog ? (
           <ResearchLogView artifact={active} />
         ) : isDocument ? (
@@ -213,7 +217,10 @@ export function ArtifactPanel({ className }: { className?: string }) {
         )}
       </div>
 
-      {!isDocument && (
+      {/* Only for the editable artifacts. A document has its own editor, and a
+          research log is a live read-out of a run in progress — inviting edits
+          on either one promises something the chat cannot do. */}
+      {!isDocument && !isResearchLog && (
         <p className="border-t border-border px-3 py-2 text-xs text-foreground-muted">
           Beschreibe Änderungen einfach im Chat — z.B. „mach den Hintergrund grün".
         </p>
