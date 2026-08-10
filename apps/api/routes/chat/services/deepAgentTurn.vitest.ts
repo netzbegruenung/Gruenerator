@@ -18,7 +18,6 @@ const checkLimit = vi.fn();
 const incrementCount = vi.fn();
 let linkupService: unknown = {};
 const envMock = {
-  DEEP_AGENT_RESEARCH_ENABLED: true,
   SCALEWAY_API_KEY: 'sk-test',
 };
 
@@ -93,7 +92,6 @@ async function runServed(sse: ReturnType<typeof makeSse>, state: object = STATE)
 beforeEach(() => {
   vi.clearAllMocks();
   _resetDeepAgentCounterForTests();
-  envMock.DEEP_AGENT_RESEARCH_ENABLED = true;
   envMock.SCALEWAY_API_KEY = 'sk-test';
   linkupService = {};
   checkLimit.mockResolvedValue({ canResearch: true, count: 0, limit: 3, remaining: 3 });
@@ -103,19 +101,14 @@ beforeEach(() => {
 });
 
 describe('gates — each one falls through to the old path', () => {
-  it('does nothing when the feature flag is off', async () => {
-    envMock.DEEP_AGENT_RESEARCH_ENABLED = false;
+  it('does nothing without a Scaleway key, and stays silent doing it', async () => {
+    envMock.SCALEWAY_API_KEY = '';
     const sse = makeSse();
 
     expect(await run(sse)).toEqual({ kind: 'not_served' });
     expect(runDeepAgentResearch).not.toHaveBeenCalled();
+    // The old path is about to answer — a gate must not narrate its own absence.
     expect(sse.sent).toHaveLength(0);
-  });
-
-  it('does nothing without a Scaleway key', async () => {
-    envMock.SCALEWAY_API_KEY = '';
-    expect(await run(makeSse())).toEqual({ kind: 'not_served' });
-    expect(runDeepAgentResearch).not.toHaveBeenCalled();
   });
 
   it('does nothing without Linkup, the floor under the search tools', async () => {
