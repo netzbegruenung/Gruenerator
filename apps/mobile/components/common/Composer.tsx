@@ -352,11 +352,11 @@ function ComposerBody({
   const [docBrowserVisible, setDocBrowserVisible] = useState(false);
   const [pickerSource, setPickerSource] = useState<MentionPickerSource | null>(null);
 
-  // Three mention types are not text to insert but a source to browse. Web
+  // Four mention types are not text to insert but a source to pick from. Web
   // opens a separate floating popover per type; on a phone they are the same
-  // gesture and the same list, so one sheet serves all three. Without an
-  // `addAttachment` there is nothing to attach to, and the mention falls back
-  // to being plain text.
+  // gesture, so one sheet serves all four — three browse lists and, for a link,
+  // a URL field. Without an `addAttachment` there is nothing to attach to, and
+  // the mention falls back to being plain text.
   const handleMentionSelect = useCallback(
     (mentionable: Mentionable) => {
       const source = asPickerSource(mentionable.type);
