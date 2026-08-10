@@ -82,6 +82,7 @@ import { classifyDocsIntentTiebreak } from './docsIntentTiebreak.js';
 import { resolveEditTarget } from './editTargetResolver.js';
 import {
   ARTIFACT_NOUN_BY_KIND,
+  asksForChatDeliverable,
   forbidsPersistentAction,
   hasExplicitSharepicWord,
   isNegatedArtifactRequest,
@@ -1138,7 +1139,11 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         // "Gib den Stand als JSON aus, keine Dokumentaktion" matches the modify
         // verbs and used to update the thread's last document anyway — this tier
         // is purely positive-patterned and had no negation check.
-        !forbidsPersistentAction(userContent, ARTIFACT_NOUN_BY_KIND.document)
+        !forbidsPersistentAction(userContent, ARTIFACT_NOUN_BY_KIND.document) &&
+        // "Erstelle eine aktualisierte Zusammenfassung in zwei Stichpunkten"
+        // orders a CHAT answer — the modify verb belongs to the summary, not
+        // the artifact. Sticks only when the document itself is named.
+        !asksForChatDeliverable(userContent, ARTIFACT_NOUN_BY_KIND.document)
       ) {
         log.info('[Classifier] Follow-up doc edit via lastToolContext → modify_doc', {
           ref: tc.ref,
@@ -1167,7 +1172,11 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         !hasAnyDocuments &&
         !hasBoards &&
         docModifyPattern.test(userContent) &&
-        !forbidsPersistentAction(userContent, ARTIFACT_NOUN_BY_KIND.sheet)
+        !forbidsPersistentAction(userContent, ARTIFACT_NOUN_BY_KIND.sheet) &&
+        // Same escape as the doc branch: a summary/bullet-point order without
+        // the word "Tabelle" wants the answer in chat, not 7 sheet ops
+        // (QA 08/2026: the two Stichpunkte never appeared).
+        !asksForChatDeliverable(userContent, ARTIFACT_NOUN_BY_KIND.sheet)
       ) {
         log.info('[Classifier] Follow-up sheet edit via lastToolContext → edit_sheet', {
           ref: tc.ref,
