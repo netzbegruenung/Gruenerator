@@ -227,6 +227,25 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   // downgrade would run the web search on the empty string.
   let downgradedSearchQuery: string | null = null;
 
+  // Pasted/attached URLs are resolved HERE, above the summary demotion, because
+  // a link is material: "<url> zusammenfassen" used to be demoted to `web` (the
+  // demotion only looked for documents) and then searched the web for the bare
+  // verb "zusammenfassen".
+  // Agent must allow scraping (whitelist holds 'scrape'; one agent uses the tool
+  // name 'scrape_url') and the user must not have toggled it off in the composer.
+  const scrapeWhitelist = state.agentConfig?.enabledTools;
+  const agentAllowsScrape =
+    !scrapeWhitelist ||
+    scrapeWhitelist.includes('scrape') ||
+    scrapeWhitelist.includes('scrape_url');
+  const scrapeEnabled = agentAllowsScrape && state.enabledTools?.['scrape'] !== false;
+  // @link-attached URLs are explicit user intent — union them with auto-detected
+  // ones (deduped, attached first so they rank highest in scrape_url).
+  const attachedUrls = scrapeEnabled ? (state.attachedWebpageUrls ?? []) : [];
+  const detectedUrls = scrapeEnabled
+    ? [...new Set([...attachedUrls, ...extractUrls(userText)])]
+    : [];
+
   // `summary` is not a wording, it is a STATE: material is already here, so skip
   // the search node (ChatGraph routes it straight to respond), drop the product
   // persona and use the cheap lane. Tier 2 derives it correctly — it fires only
@@ -252,8 +271,17 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     (state.imageAttachments?.length ?? 0) > 0 ||
     (state.pdfFormAttachments?.length ?? 0) > 0;
   if (intent === 'summary' && !hasMaterialToSummarise && !CURRENT_THREAD_REFERENCE.test(userText)) {
-    log.info('[Classifier] summary without any document source → web (nothing to summarise)');
-    intent = 'web';
+    if (detectedUrls.length > 0) {
+      // The page IS the material. Not `summary` (that intent skips the search
+      // node, so the link would never be fetched) and not `web` (searching for
+      // "zusammenfassen" returns dictionary entries and summariser tools —
+      // observed live). scrape_url crawls it and respond summarises the result.
+      log.info('[Classifier] summary without documents but with URL(s) → scrape_url');
+      intent = 'scrape_url';
+    } else {
+      log.info('[Classifier] summary without any document source → web (nothing to summarise)');
+      intent = 'web';
+    }
     downgradedSearchQuery = userText;
   }
 
@@ -311,20 +339,6 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   // the scrape_url slot directly; otherwise it rides as the secondary intent so
   // "schreib einen Tweet zu <url>" both crawls the page AND drafts the tweet.
   let secondaryIntent = result.secondaryIntent ?? null;
-  // Agent must allow scraping (whitelist holds 'scrape'; one agent uses the tool
-  // name 'scrape_url') and the user must not have toggled it off in the composer.
-  const scrapeWhitelist = state.agentConfig?.enabledTools;
-  const agentAllowsScrape =
-    !scrapeWhitelist ||
-    scrapeWhitelist.includes('scrape') ||
-    scrapeWhitelist.includes('scrape_url');
-  const scrapeEnabled = agentAllowsScrape && state.enabledTools?.['scrape'] !== false;
-  // @web-attached URLs are explicit user intent — union them with auto-detected
-  // ones (deduped, attached first so they rank highest in scrape_url).
-  const attachedUrls = scrapeEnabled ? (state.attachedWebpageUrls ?? []) : [];
-  const detectedUrls = scrapeEnabled
-    ? [...new Set([...attachedUrls, ...extractUrls(userText)])]
-    : [];
   if (detectedUrls.length > 0) {
     if (!intent || NO_RETRIEVAL_VERDICTS.has(intent)) {
       intent = 'scrape_url';
