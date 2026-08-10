@@ -1,5 +1,6 @@
 ---
 identifier: gruenerator-oeffentlichkeitsarbeit-hamburg
+defaultRecipeMention: 'presse-hamburg'
 autoRoutingHint: creative
 audience: de-DE
 title: Öffentlichkeitsarbeit Hamburg

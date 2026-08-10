@@ -70,6 +70,11 @@ export interface AgentConfig {
    * emails). Read by the ChatGraph respond node. Default off.
    */
   inlineSourceLinks?: boolean | undefined;
+  /**
+   * Recipe mention the single-pass respond path auto-loads when the user picked
+   * none — the agent's core text form. See `Agent.defaultRecipeMention`.
+   */
+  defaultRecipeMention?: string | undefined;
 }
 
 export interface Thread {
