@@ -59,7 +59,28 @@ const CANVAS_TEMPLATE_TYPE_SET: ReadonlySet<string> = new Set(CANVAS_TEMPLATE_TY
 export const isCanvasTemplateType = (value: unknown): value is CanvasTemplateType =>
   typeof value === 'string' && CANVAS_TEMPLATE_TYPE_SET.has(value);
 
-export const SHAREPIC_EDITABLE_TEMPLATES = ['dreizeilen', 'zitat-pure', 'info', 'slider'] as const;
+/**
+ * Templates the chat edit path can drive directly. Everything else falls back
+ * to `buildRefinementRequest` (regenerate the text, hand back a new variant).
+ *
+ * Deliberately absent: `freeform` / `freeform-at`, whose content is a
+ * free-positioned collection of instances rather than named fields — the
+ * `set-text`/`update-element` vocabulary has nothing to address there — and
+ * `profilbild`, which carries no text at all and is an image-processing flow.
+ */
+export const SHAREPIC_EDITABLE_TEMPLATES = [
+  'dreizeilen',
+  'zitat',
+  'zitat-pure',
+  'info',
+  'veranstaltung',
+  'simple',
+  'slider',
+  'zitat-at',
+  'zitat-pure-at',
+  'dreizeilen-overlay-at',
+  'info-at',
+] as const;
 export type SharepicEditableTemplate = (typeof SHAREPIC_EDITABLE_TEMPLATES)[number];
 
 // Compile-time guard: every chat-editable template must be a canonical canvas
@@ -391,11 +412,250 @@ const SLIDER_DESCRIPTOR: SharepicTemplateDescriptor = {
   defaultState: { colorScheme: 'sand-tanne' },
 };
 
+/**
+ * Solid-background palette of the Austrian brand theme — mirrors
+ * `BRAND_THEMES['de-AT'].backgroundColors`; the parity guard pins the two
+ * together. Built per call so descriptors never share a mutable options array.
+ */
+function atBackgroundColors(): NonNullable<SharepicTemplateDescriptor['backgroundColors']> {
+  return {
+    stateKey: 'backgroundColor',
+    options: [
+      { id: 'dunkelgruen', label: 'Dunkelgrün', color: '#257639' },
+      { id: 'hellgruen', label: 'Hellgrün', color: '#56af31' },
+    ],
+  };
+}
+
+/**
+ * Background photo pan/zoom/opacity for the `createImageTwoTextCanvas`
+ * templates. They all share the factory's state keys and the 1080×1350 frame,
+ * so the bounds are identical — only veranstaltung, which brings its own state,
+ * has no opacity key.
+ */
+function backgroundPhotoElement(options?: { opacity: false }): SharepicElementDescriptor {
+  return {
+    id: 'hintergrundbild',
+    label: 'Hintergrundbild (Ausschnitt)',
+    kind: 'asset',
+    positionStateKey: 'imageOffset',
+    bounds: { minX: -540, maxX: 540, minY: -675, maxY: 675 },
+    scale: { stateKey: 'imageScale', min: 0.5, max: 3 },
+    ...(options?.opacity === false
+      ? {}
+      : { opacity: { stateKey: 'backgroundImageOpacity', min: 0.2, max: 1 } }),
+    presenceStateKey: 'currentImageSrc',
+  };
+}
+
+/** Decorative quotation mark shared by the three quote templates. */
+function quoteMarkElement(): SharepicElementDescriptor {
+  return {
+    id: 'anfuehrungszeichen',
+    label: 'Anführungszeichen',
+    kind: 'asset',
+    positionStateKey: 'quoteMarkOffset',
+    bounds: { minX: -400, maxX: 400, minY: -400, maxY: 400 },
+    opacity: { stateKey: 'quoteMarkOpacity', min: 0, max: 1 },
+  };
+}
+
+/** Quote + name, on the same state keys across zitat / zitat-at / zitat-pure*. */
+function quoteTextFields(): SharepicTextFieldDescriptor[] {
+  return [
+    {
+      field: 'quote',
+      label: 'Zitat',
+      stateKey: 'quote',
+      fontSize: { stateKey: 'customPrimaryFontSize', min: 30, max: 120 },
+    },
+    {
+      field: 'name',
+      label: 'Name',
+      stateKey: 'name',
+      fontSize: { stateKey: 'customSecondaryFontSize', min: 20, max: 80 },
+    },
+  ];
+}
+
+/**
+ * `set-background-image` is deliberately absent from both zitat descriptors:
+ * the photo IS the quoted person, so resolving a stock query against it would
+ * swap them out for a landscape. Cropping and zooming stay available.
+ */
+const ZITAT_DESCRIPTOR: SharepicTemplateDescriptor = {
+  id: 'zitat',
+  label: 'Zitat',
+  canvas: { width: 1080, height: 1350 },
+  supportedOperations: ['set-text', 'set-font-size', 'update-element'],
+  textFields: quoteTextFields(),
+  elements: [quoteMarkElement(), backgroundPhotoElement()],
+  defaultState: {},
+};
+
+const ZITAT_AT_DESCRIPTOR: SharepicTemplateDescriptor = {
+  id: 'zitat-at',
+  label: 'Zitat',
+  canvas: { width: 1080, height: 1350 },
+  supportedOperations: ['set-text', 'set-font-size', 'update-element'],
+  textFields: quoteTextFields(),
+  elements: [quoteMarkElement(), backgroundPhotoElement()],
+  defaultState: {},
+};
+
+const ZITAT_PURE_AT_DESCRIPTOR: SharepicTemplateDescriptor = {
+  id: 'zitat-pure-at',
+  label: 'Zitat',
+  canvas: { width: 1080, height: 1350 },
+  supportedOperations: ['set-text', 'set-font-size', 'set-background-color', 'update-element'],
+  textFields: quoteTextFields(),
+  backgroundColors: atBackgroundColors(),
+  elements: [
+    {
+      // Same absolute-coordinate override as the German zitat-pure; the AT
+      // sujet's left margin is 115 rather than 75 (ZITAT_PURE_AT_CONFIG).
+      id: 'name',
+      label: 'Name (Position)',
+      kind: 'asset',
+      positionStateKey: 'namePosition',
+      bounds: { minX: 115, maxX: 500, minY: 120, maxY: 1250 },
+    },
+    quoteMarkElement(),
+  ],
+  layoutResets: [{ onFields: ['quote'], clearStateKey: 'namePosition' }],
+  defaultState: { backgroundColor: '#257639' },
+};
+
+const INFO_AT_DESCRIPTOR: SharepicTemplateDescriptor = {
+  id: 'info-at',
+  label: 'Info',
+  canvas: { width: 1080, height: 1350 },
+  supportedOperations: ['set-text', 'set-font-size', 'set-background-color'],
+  textFields: [
+    {
+      field: 'introline',
+      label: 'Introline',
+      stateKey: 'introline',
+      fontSize: { stateKey: 'customSecondaryFontSize', min: 20, max: 80 },
+    },
+    {
+      field: 'text',
+      label: 'Infotext',
+      stateKey: 'text',
+      fontSize: { stateKey: 'customPrimaryFontSize', min: 30, max: 120 },
+    },
+    {
+      // No fontSize: the config's calculateLayout feeds the accent zone's size
+      // straight from calculateInfoAtLayout and reads no override key, so
+      // offering set-font-size here would write state nothing renders.
+      field: 'accent',
+      label: 'Schlusszeile (gelb)',
+      stateKey: 'accent',
+    },
+  ],
+  backgroundColors: atBackgroundColors(),
+  elements: [],
+  defaultState: { backgroundColor: '#257639' },
+};
+
+const DREIZEILEN_OVERLAY_AT_DESCRIPTOR: SharepicTemplateDescriptor = {
+  id: 'dreizeilen-overlay-at',
+  label: 'Dreizeiler',
+  canvas: { width: 1080, height: 1350 },
+  // No set-background-color: `boxColor` is writable and rides along via
+  // passthroughStateKeys, but the sujet is specified for Dunkelgrün only — the
+  // Hellgrün of the AT palette would be off-brand on this box.
+  supportedOperations: ['set-text', 'set-font-size', 'update-element', 'set-background-image'],
+  textFields: [
+    // Only the subline carries an effective font-size override. calculateLayout
+    // takes line1 / accent / line3 straight from calculateOverlayAtLayout and
+    // consults no custom key, so a size op on those three would be stored and
+    // then ignored by every render.
+    { field: 'line1', label: 'Zeile 1', stateKey: 'line1' },
+    { field: 'accent', label: 'Zeile 2 (gelbe Betonung)', stateKey: 'accent' },
+    { field: 'line3', label: 'Zeile 3', stateKey: 'line3' },
+    {
+      field: 'subline',
+      label: 'Subline',
+      stateKey: 'subline',
+      fontSize: { stateKey: 'customSecondaryFontSize', min: 20, max: 80 },
+    },
+  ],
+  backgroundImage: { stateKey: 'currentImageSrc' },
+  elements: [backgroundPhotoElement()],
+  defaultState: {},
+};
+
+const SIMPLE_DESCRIPTOR: SharepicTemplateDescriptor = {
+  id: 'simple',
+  label: 'Sharepic',
+  canvas: { width: 1080, height: 1350 },
+  supportedOperations: ['set-text', 'set-font-size', 'update-element', 'set-background-image'],
+  textFields: [
+    {
+      field: 'headline',
+      label: 'Überschrift',
+      stateKey: 'headline',
+      fontSize: { stateKey: 'customPrimaryFontSize', min: 30, max: 120 },
+    },
+    {
+      field: 'subtext',
+      label: 'Unterzeile',
+      stateKey: 'subtext',
+      fontSize: { stateKey: 'customSecondaryFontSize', min: 20, max: 80 },
+    },
+  ],
+  backgroundImage: { stateKey: 'currentImageSrc' },
+  elements: [backgroundPhotoElement()],
+  defaultState: {},
+};
+
+/**
+ * Text fields only. Three groups of state stay out of the op catalog:
+ *
+ * - `weekday` / `date` / `time` are baked into `circleBadgeInstances[0]` at
+ *   mint, so a flat patch of those keys would be a silent no-op on the badge.
+ * - `locationName` / `address` live in the state and are drawn by the
+ *   server-side napi renderer, but the canvas-editor config declares no element
+ *   for them — an edit would be invisible in the studio.
+ *
+ * Both belong in the studio, not in a chat turn.
+ */
+const VERANSTALTUNG_DESCRIPTOR: SharepicTemplateDescriptor = {
+  id: 'veranstaltung',
+  label: 'Veranstaltung',
+  canvas: { width: 1080, height: 1350 },
+  supportedOperations: ['set-text', 'set-font-size', 'update-element'],
+  textFields: [
+    {
+      field: 'eventTitle',
+      label: 'Titel der Veranstaltung',
+      stateKey: 'eventTitle',
+      fontSize: { stateKey: 'customEventTitleFontSize', min: 30, max: 120 },
+    },
+    {
+      field: 'beschreibung',
+      label: 'Beschreibung',
+      stateKey: 'beschreibung',
+      fontSize: { stateKey: 'customBeschreibungFontSize', min: 20, max: 80 },
+    },
+  ],
+  elements: [backgroundPhotoElement({ opacity: false })],
+  defaultState: {},
+};
+
 const DESCRIPTORS: Record<SharepicEditableTemplate, SharepicTemplateDescriptor> = {
   dreizeilen: DREIZEILEN_DESCRIPTOR,
+  zitat: ZITAT_DESCRIPTOR,
   'zitat-pure': ZITAT_PURE_DESCRIPTOR,
   info: INFO_DESCRIPTOR,
+  veranstaltung: VERANSTALTUNG_DESCRIPTOR,
+  simple: SIMPLE_DESCRIPTOR,
   slider: SLIDER_DESCRIPTOR,
+  'zitat-at': ZITAT_AT_DESCRIPTOR,
+  'zitat-pure-at': ZITAT_PURE_AT_DESCRIPTOR,
+  'dreizeilen-overlay-at': DREIZEILEN_OVERLAY_AT_DESCRIPTOR,
+  'info-at': INFO_AT_DESCRIPTOR,
 };
 
 export function getSharepicTemplateDescriptor(

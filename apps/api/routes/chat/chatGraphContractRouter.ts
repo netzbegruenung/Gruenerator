@@ -990,8 +990,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // text, not a fresh sharepic about the word "verlängern". Overrides whatever
       // intent the classifier picked (the edit verb alone rarely classifies as
       // sharepic). Skipped when an image is attached (that's image_edit territory).
-      // Reached only when handleSharepicEdit above declined (no target variant
-      // or non-editable template).
+      // Reached only when handleSharepicEdit above declined: no target variant,
+      // or a template with no descriptor. Since every template except
+      // freeform/freeform-at and profilbild is now chat-editable, that is the
+      // narrow case rather than the common one.
       let sharepicRefinement: { instruction: string; prior: PriorSharepic } | undefined;
       if (
         initialState.clientPlatform !== 'app' &&
