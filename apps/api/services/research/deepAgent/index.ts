@@ -28,7 +28,8 @@ import {
   summaryFromReport,
 } from './report.js';
 import { sanitizeToolCallsMiddleware } from './sanitizeToolCalls.js';
-import { createResearchTools, type ToolContext } from './tools.js';
+import { type ToolContext } from './toolContext.js';
+import { createResearchTools } from './tools.js';
 import {
   DEFAULT_BUDGET,
   createBudget,
@@ -81,6 +82,7 @@ export async function runDeepAgentResearch(
     locale,
     sources,
     ...(params.aiWorkerPool ? { aiWorkerPool: params.aiWorkerPool } : {}),
+    ...(params.notebookScope ? { notebooks: params.notebookScope } : {}),
     onStep: (label, status) => {
       let id = stepIds.get(label);
       if (!id) {

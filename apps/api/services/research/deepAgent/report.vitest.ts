@@ -62,6 +62,23 @@ describe('ensureSources', () => {
   it('does not append an empty section when nothing was collected', () => {
     expect(ensureSources('# T\n\nText', [])).toBe('# T\n\nText');
   });
+
+  /**
+   * A document inside a personal notebook has no public address. Naming its
+   * origin is the honest rendering — a line ending in a bare em-dash reads as a
+   * lost link, and an invented `/office/…` path would be a dead one.
+   */
+  it('names the origin of a source that has no URL', () => {
+    const out = ensureSources('# T\n\nText', [
+      { url: '', title: 'Beschluss 2026', origin: 'Notizbuch: Berlin' },
+    ]);
+    expect(out).toContain('1. Beschluss 2026 — Notizbuch: Berlin');
+  });
+
+  it('falls back to a neutral origin when even that is missing', () => {
+    const out = ensureSources('# T\n\nText', [{ url: '', title: 'Notiz' }]);
+    expect(out).toContain('1. Notiz — Grünerator-Notizbuch');
+  });
 });
 
 describe('markPartial', () => {
