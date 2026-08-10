@@ -113,12 +113,21 @@
   --sp-obr: rgba(47, 79, 64, 0.35);
   --sp-obr-hover: #2f4f40;
   --sp-more-hover-bg: rgba(255, 255, 255, 0.5);
+  /* Warm-tinted rather than neutral black: the ground here is #fdfaf7 plus
+     pastel glows, and a grey shadow on cream reads as dirt. The negative
+     spread keeps the shadow from reaching past the button's left/right edges,
+     which is what lets --sp-cta-shadow-room stay small (see .sp-collapse). */
+  --sp-cta-shadow: 0 8px 20px -10px rgba(58, 44, 34, 0.45);
+  --sp-cta-shadow-hover: 0 14px 28px -12px rgba(58, 44, 34, 0.5);
+  --sp-cta-shadow-room: 20px;
 }
 [data-theme='dark'] .sp-hero {
   --sp-wordmark: #cfe3d8;
   --sp-obr: rgba(207, 227, 216, 0.4);
   --sp-obr-hover: #cfe3d8;
   --sp-more-hover-bg: rgba(255, 255, 255, 0.08);
+  --sp-cta-shadow: 0 8px 20px -10px rgba(0, 0, 0, 0.6);
+  --sp-cta-shadow-hover: 0 14px 28px -12px rgba(0, 0, 0, 0.7);
 }
 
 /* ── Top bar ── */
@@ -174,6 +183,11 @@
   align-items: center;
   gap: 14px;
 }
+/* Shadow room, on both children so align-items:center keeps them level. */
+.sp-cta-row > .sp-login,
+.sp-cta-row > .sp-more {
+  margin-bottom: var(--sp-cta-shadow-room);
+}
 
 /* Crossfade wrapper: the login/"mehr erfahren" row and the provider list swap
    places on toggle. Kept mounted (not conditionally rendered) so the fade +
@@ -182,10 +196,20 @@
   display: grid;
   grid-template-rows: 0fr;
   opacity: 0;
+  margin-bottom: 0;
   transition:
     grid-template-rows 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    margin-bottom 0.32s cubic-bezier(0.22, 1, 0.36, 1),
     opacity 0.22s ease;
 }
+/* The overflow:hidden is what makes the 0fr → 1fr collapse work, so it also
+   slices off the CTA's drop shadow at the row edge — and the sliver that
+   survives inside the box reads as a grey block behind the buttons instead of
+   a shadow. The buttons therefore carry --sp-cta-shadow-room as a bottom
+   margin so the shadow falls inside the clipping box; the wrapper pulls the
+   same amount back so nothing moves. The room has to come from a child margin,
+   not from padding here: padding on the grid item cannot compress below its
+   own size, which would leave the collapsed state a shadow-room tall. */
 .sp-collapse > * {
   overflow: hidden;
   min-height: 0;
@@ -193,8 +217,10 @@
 .sp-collapse-open {
   grid-template-rows: 1fr;
   opacity: 1;
+  margin-bottom: calc(-1 * var(--sp-cta-shadow-room));
   transition:
     grid-template-rows 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    margin-bottom 0.32s cubic-bezier(0.22, 1, 0.36, 1),
     opacity 0.32s ease 0.08s;
 }
 
@@ -213,7 +239,7 @@
   border: none;
   border-radius: 999px;
   padding: 14px 34px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+  box-shadow: var(--sp-cta-shadow);
   cursor: pointer;
   transition:
     transform 0.16s cubic-bezier(0.22, 1, 0.36, 1),
@@ -228,7 +254,7 @@
 .sp-login:hover,
 .sp-provider:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+  box-shadow: var(--sp-cta-shadow-hover);
 }
 .sp-login:active,
 .sp-provider:active {
@@ -310,6 +336,9 @@
   margin: 0;
   padding: 0;
   list-style: none;
+}
+.sp-provider-list > li:last-child {
+  margin-bottom: var(--sp-cta-shadow-room);
 }
 .sp-provider-list .sp-provider {
   width: 100%;
