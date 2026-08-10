@@ -534,6 +534,7 @@ export interface ChatGraphInput {
   userLocale?: UserLocale | undefined;
   clientPlatform?: ClientPlatform | undefined;
   customSystemPrompt?: string | undefined;
+  roleBausteinActive?: boolean | undefined;
   activeSkillMention?: string | undefined;
   userInstructions?: string | undefined;
   contextWindowTokens?: number | undefined;
@@ -699,6 +700,11 @@ export interface ChatGraphState {
 
   // Custom system prompt (replaces entire agent system prompt when set)
   customSystemPrompt: string | null;
+
+  // customSystemPrompt is a CATALOGUE role's baustein (server-side persona),
+  // not a user-typed prompt. Keeps the loop's recipe self-loading mounted:
+  // suppressing recipes protects user personas, not our own role bausteine.
+  roleBausteinActive: boolean;
 
   // Mention key of the active skill (e.g. 'instagram'). When set, respondNode
   // appends the skill's `skillSystemPrompt` as an additive section.

@@ -81,6 +81,9 @@ function extractDocuments() {
   const labels = {};
   if (decl && ts.isObjectLiteralExpression(decl)) {
     for (const [kind, value] of objectEntries(decl)) {
+      // Sharepics live in Studio, not Office: DocsPage.tsx scopes the suite as
+      // `Exclude<DocKind, 'sharepic'>`, so the manifest excludes it too.
+      if (kind === 'sharepic') continue;
       if (value && ts.isObjectLiteralExpression(value)) {
         const label = stringProp(value, 'label');
         if (label) labels[kind] = label;
