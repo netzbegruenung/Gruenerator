@@ -102,13 +102,22 @@ export function findRole(roles: UserRole[], ref: RoleRef): UserRole | null {
  * mit dem Request geschickte Text (Bestandsdaten, die den Text noch
  * mitschicken, oder ein Turn kurz nach dem Anlegen der Rolle, bevor sie
  * gespeichert ist).
+ *
+ * `fromBaustein` unterscheidet die Katalogrolle von der frei getippten: Das
+ * Rezept-Selbstladen im Loop schaltet sich bei jedem `customSystemPrompt` ab
+ * („ein Thread-Prompt ersetzt die Persona"), aber ein server-eigener Baustein
+ * ist keine Nutzer-Persona — eine Rolle „Presse & Social-Media" soll das
+ * Presse-Rezept laden dürfen. Nur der Aufrufer hier weiß, welcher Fall vorliegt.
  */
 export function resolveCustomSystemPrompt(
   role: UserRole,
   locale: Locale,
   rawCustomSystemPrompt: string | null | undefined
-): string | undefined {
-  return (
-    resolveRoleSystemPrompt(role, locale) ?? role.systemPrompt ?? rawCustomSystemPrompt ?? undefined
-  );
+): { prompt: string | undefined; fromBaustein: boolean } {
+  const baustein = resolveRoleSystemPrompt(role, locale);
+  if (baustein) return { prompt: baustein, fromBaustein: true };
+  return {
+    prompt: role.systemPrompt ?? rawCustomSystemPrompt ?? undefined,
+    fromBaustein: false,
+  };
 }
