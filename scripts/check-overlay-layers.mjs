@@ -42,7 +42,6 @@ const SKIP_DIRS = new Set([
 const MODAL = 1010;
 const POPUP = 1020;
 const TOOLTIP = 1030;
-const ALLOWED = new Set([MODAL, POPUP, TOOLTIP]);
 
 // packages/ui/src/components/<file> -> required layer.
 const UI_LAYERS = {
@@ -120,7 +119,15 @@ for (const file of files) {
   }
 
   if (portals) {
-    for (const m of content.matchAll(BARE_Z_RE)) {
+    const tooLow = [...content.matchAll(BARE_Z_RE)];
+    // A hand-picked `z-[500]` sinks just as far as `z-50`. Only rule 2 pins the
+    // exact layer, and it covers packages/ui alone — so catch the floor here.
+    if (uiLayer === undefined) {
+      for (const m of content.matchAll(ARBITRARY_Z_RE)) {
+        if (Number(m[1]) < MODAL) tooLow.push(m);
+      }
+    }
+    for (const m of tooLow) {
       errors.push(
         `${rel}:${lineOf(content, m.index)}: \`${m[0]}\` in a portalled surface — ` +
           `renders below the sidebars (z-[1001]/z-[1005]) and dialogs (z-[1010]). ` +
@@ -132,8 +139,6 @@ for (const file of files) {
   if (uiLayer !== undefined) {
     for (const m of content.matchAll(ARBITRARY_Z_RE)) {
       const value = Number(m[1]);
-      // Sidebar values quoted in the explanatory comment are documentation.
-      if (!ALLOWED.has(value)) continue;
       if (value !== uiLayer) {
         errors.push(
           `${rel}:${lineOf(content, m.index)}: \`${m[0]}\` but this component is ` +
