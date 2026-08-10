@@ -296,8 +296,8 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   onNavigate,
   firstName,
   placeholder,
-  disclaimer = 'Grünerator kann Fehler machen. Wichtige Infos bitte prüfen.',
-  disclaimerCompact = 'Kann Fehler machen.',
+  disclaimer = 'KI-generierte Ergebnisse vor der Veröffentlichung prüfen — sie können fehlerhaft, unvollständig oder irreführend sein.',
+  disclaimerCompact = 'KI-Ergebnisse vor der Veröffentlichung prüfen.',
   showMentions = true,
   showPlusMenu = true,
   showToolToggles = true,
@@ -959,13 +959,19 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
         )}
         {slots?.belowInput}
       </ComposerPrimitive.Root>
+      {/* Erinnerungshinweis nach Art. 50 Abs. 4 KI-VO — er begründet die
+          Ausnahme von der Kennzeichnungspflicht für KI-Text und muss deshalb an
+          jedem Eingabefeld stehen, auch auf dem Telefon. Bis `sm` steht die
+          Kurzfassung, damit der Hinweis über der Tastatur nicht drei Zeilen
+          frisst; darüber die volle. */}
       <p
         className={cn(
-          'mt-1 hidden text-center text-foreground-muted sm:block',
+          'mt-1 text-center text-foreground-muted',
           isCompact ? 'text-[11px]' : 'text-xs'
         )}
       >
-        {isCompact ? disclaimerCompact : disclaimer}
+        <span className="sm:hidden">{disclaimerCompact}</span>
+        <span className="hidden sm:inline">{isCompact ? disclaimerCompact : disclaimer}</span>
       </p>
     </div>
   );

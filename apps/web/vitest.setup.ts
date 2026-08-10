@@ -12,6 +12,17 @@ expect.extend(axeMatchers);
 
 installMatchMediaStub();
 
+// jsdom kennt beides nicht. Popup-Komponenten (Base UI, Radix) messen ihren
+// Anker, cmdk scrollt zum aktiven Eintrag — beides beim Mounten und ungeprüft.
+// Ohne die Stubs stirbt jeder Test an einem fehlenden Browser-API statt an der
+// Sache.
+globalThis.ResizeObserver ??= class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+} as unknown as typeof ResizeObserver;
+Element.prototype.scrollIntoView ??= function scrollIntoView() {};
+
 // MSW: intercept HTTP for the dom lane. Unhandled requests error out so a stray
 // real network call is a loud failure, not a silent hang. Pure-render tests make
 // no requests, so this is a no-op for them.

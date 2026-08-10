@@ -83,14 +83,21 @@ function VoiceOrbOverlay() {
   // the live transcript (auto-rendered from emitTranscript) stays visible
   // and the user reads the conversation in parallel with the audio.
   return (
-    <button
-      type="button"
-      onClick={() => disconnect()}
-      aria-label="Sprachsitzung beenden"
-      className="absolute left-1/2 top-6 z-30 -translate-x-1/2 rounded-full p-2 transition-transform animate-in fade-in zoom-in-90 duration-300 hover:scale-105"
-    >
-      <VoiceOrb className="size-44 drop-shadow-2xl md:size-56" />
-    </button>
+    <div className="absolute left-1/2 top-6 z-30 flex -translate-x-1/2 flex-col items-center gap-1 animate-in fade-in zoom-in-90 duration-300">
+      <button
+        type="button"
+        onClick={() => disconnect()}
+        aria-label="Sprachsitzung beenden"
+        className="rounded-full p-2 transition-transform hover:scale-105"
+      >
+        <VoiceOrb className="size-44 drop-shadow-2xl md:size-56" />
+      </button>
+      {/* Kennzeichnung als KI-Dialog (Art. 50 Abs. 1 KI-VO): der Orb allein
+          sagt nicht, dass hier eine KI antwortet. */}
+      <p className="rounded-full bg-background/80 px-3 py-1 text-xs font-medium text-foreground-muted backdrop-blur">
+        KI-Sprachdialog — Antworten werden von einer KI erzeugt
+      </p>
+    </div>
   );
 }
 

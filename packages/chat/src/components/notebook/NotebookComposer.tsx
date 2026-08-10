@@ -304,7 +304,7 @@ export function NotebookComposer({
       isRunning={isRunning}
       variant="pill"
       placeholder={placeholder}
-      disclaimer="Antworten können ungenau sein. Wichtige Infos bitte prüfen."
+      disclaimer="KI-generierte Antworten können ungenau sein — bitte vor der Veröffentlichung prüfen."
       showMentions={false}
       showPlusMenu={false}
       showToolToggles={false}
