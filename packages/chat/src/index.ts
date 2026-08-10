@@ -321,6 +321,7 @@ export {
   buildWolkeAttachment,
   buildConnectAttachment,
   buildWebpageAttachment,
+  normalizeWebpageUrl,
   canvaDesignsMarkdown,
   appendToDraft,
   type MentionAttachment,

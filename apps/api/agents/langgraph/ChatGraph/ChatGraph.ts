@@ -170,7 +170,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     // Connected-account (Nango) file refs (from @connect mentionable)
     connectFiles: input.connectFiles || [],
 
-    // URLs attached via @web mentionable (unioned into detectedUrls by classifier)
+    // URLs attached via @link mentionable (unioned into detectedUrls by classifier)
     attachedWebpageUrls: input.attachedWebpageUrls || [],
 
     // Current open document (docs editor surface)

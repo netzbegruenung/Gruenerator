@@ -444,7 +444,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
         return;
       }
 
-      // When user selects the @web trigger, swap to the URL input popover
+      // When user selects the @link trigger, swap to the URL input popover
       if (mentionable.type === 'webpage') {
         if (mention.mentionStart >= 0) {
           const currentText = composerRuntime.getState().text;
