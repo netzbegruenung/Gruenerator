@@ -6,7 +6,11 @@ import {
   type SupportedLocale,
   type UserProfile,
 } from '@gruenerator/contracts';
-import { getContractsClient, setApiLocale } from '@gruenerator/shared/api';
+import {
+  getContractsClient,
+  setApiLocale,
+  setAiConsentRequiredHandler,
+} from '@gruenerator/shared/api';
 import { toast } from '@gruenerator/ui';
 import { create } from 'zustand';
 
@@ -800,6 +804,19 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     }
   },
 }));
+
+// Der Server hat einen KI-Eingang mit „Einwilligung fehlt" abgewiesen. Damit
+// ist der Zeitstempel im Store nachweislich veraltet — auf `null` gezogen
+// erscheint AiConsentGate von selbst, statt dass die Nutzer*in vor einem Fehler
+// steht, den sie im Dialog längst ausräumen könnte. Web hält einen eigenen
+// Auth-Store, muss sich also eigens eintragen (Mobile erbt die Registrierung
+// aus dem geteilten Store).
+setAiConsentRequiredHandler(() => {
+  const { user } = useAuthStore.getState();
+  if (user && user.ai_consent_at != null) {
+    useAuthStore.setState({ user: { ...user, ai_consent_at: null } });
+  }
+});
 
 // Export legacy helpers for backward compatibility
 export { legacyHelpers };

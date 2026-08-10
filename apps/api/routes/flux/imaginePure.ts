@@ -7,6 +7,7 @@ import express, { type Response } from 'express';
 import { z } from 'zod';
 
 import { requireAuth } from '../../middleware/authMiddleware.js';
+import { requireAiConsent } from '../../middleware/requireAiConsent.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { ImageGenerationCounter } from '../../services/counters/index.js';
 import { FluxImageService, buildFluxPrompt } from '../../services/flux/index.js';
@@ -102,6 +103,7 @@ function buildPurePrompt(
 router.post(
   '/',
   requireAuth,
+  requireAiConsent,
   validateBody(imaginePureSchema),
   async (req: TypedRequest<ImaginePureRequestBody>, res: Response) => {
     try {

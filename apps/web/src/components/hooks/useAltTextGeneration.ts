@@ -1,49 +1,61 @@
-import useApiSubmit from './useApiSubmit';
+import { getContractsClient } from '@gruenerator/shared/api';
+import { useCallback, useState } from 'react';
 
 /**
- * Custom hook for alt text generation using the standard useApiSubmit pattern
- * Provides consistent loading states, error handling, and success feedback
+ * Alt-Text-Erzeugung über den typisierten Vertragsclient.
+ *
+ * Vorher lief der Aufruf durch `useApiSubmit('/texte/alttext')` — einen
+ * generischen Formular-Sender, dessen Antwort als `Record<string, unknown>`
+ * zurückkam und beim Aufrufer per `typeof response.altText === 'string'`
+ * nachgeprüft werden musste. Über den Vertrag ist `altText` ein `string`, und
+ * der Fehlerfall hat einen Status statt einer geworfenen Ausnahme.
  */
-const useAltTextGeneration = () => {
-  const { loading, success, error, submitForm, resetState, resetSuccess } =
-    useApiSubmit('/texte/alttext');
-
-  const generateAltTextForImage = async (
+export interface UseAltTextGeneration {
+  loading: boolean;
+  error: string | null;
+  /** Liefert den Alt-Text, oder `null` wenn der Server ihn nicht erzeugen konnte. */
+  generateAltTextForImage: (
     imageBase64: string,
-    imageDescription: string | null = null,
-    features: Record<string, unknown> = {}
-  ) => {
-    console.log('[useAltTextGeneration] Starting alt text generation:', {
-      hasImageBase64: !!imageBase64,
-      imageBase64Length: imageBase64?.length || 0,
-      hasImageDescription: !!imageDescription,
-      features,
-    });
+    imageDescription?: string | null
+  ) => Promise<string | null>;
+  reset: () => void;
+}
 
-    const formData = {
-      imageBase64,
-      imageDescription,
-      ...features,
-    };
+export function useAltTextGeneration(): UseAltTextGeneration {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-    try {
-      const response = await submitForm(formData);
-      console.log('[useAltTextGeneration] Alt text generation response:', response);
-      return response;
-    } catch (error) {
-      console.error('[useAltTextGeneration] Alt text generation error:', error);
-      throw error;
-    }
-  };
+  const generateAltTextForImage = useCallback(
+    async (imageBase64: string, imageDescription: string | null = null): Promise<string | null> => {
+      setLoading(true);
+      setError(null);
+      try {
+        const result = await getContractsClient().texte.generateAltText({
+          body: { imageBase64, imageDescription },
+        });
+        if (result.status === 200) return result.body.altText;
 
-  return {
-    loading,
-    success,
-    error,
-    generateAltTextForImage,
-    resetState,
-    resetSuccess,
-  };
-};
+        // Randcast: ts-rest engt `body` nur für die im Vertrag aufgeführten
+        // Status ein — ein 502 vom Reverse-Proxy landet hier als `unknown`.
+        const body = result.body as { error?: string } | null;
+        setError(body?.error ?? `Alt-Text fehlgeschlagen (HTTP ${result.status}).`);
+        return null;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Alt-Text konnte nicht erzeugt werden.');
+        return null;
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
+
+  const reset = useCallback(() => {
+    setError(null);
+    setLoading(false);
+  }, []);
+
+  return { loading, error, generateAltTextForImage, reset };
+}
 
 export default useAltTextGeneration;
