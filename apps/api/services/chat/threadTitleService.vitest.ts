@@ -93,9 +93,16 @@ describe('extractFallbackTitle', () => {
     expect(extractFallbackTitle('30. Juni ist ein wichtiger Termin')).toBe(
       '30. Juni ist ein wichtiger'
     );
-    // A real numbered-list marker must still go.
+    // A real numbered-list marker must still go — including before a word that
+    // merely starts like a month abbreviation.
     expect(extractFallbackTitle('1. Punkt der Tagesordnung besprechen')).toBe(
       'Punkt der Tagesordnung'
+    );
+    expect(extractFallbackTitle('1. Novelle des Klimaschutzgesetzes besprechen')).toBe(
+      'Novelle des Klimaschutzgesetzes'
+    );
+    expect(extractFallbackTitle('2. Marktanalyse für den Kreisverband')).toBe(
+      'Marktanalyse für den'
     );
   });
 

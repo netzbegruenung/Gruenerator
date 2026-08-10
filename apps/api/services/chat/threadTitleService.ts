@@ -49,8 +49,13 @@ const SALUTATION_PATTERNS = [
  * German month names, spelled out or abbreviated. Used to tell a date apart
  * from markdown syntax: "30. Juni …" is a date, "30. Punkt der Tagesordnung"
  * is a numbered list item.
+ *
+ * The trailing `\b` is load-bearing: without it every abbreviation matches as
+ * a bare prefix, and "1. Novelle …" or "2. Marktanalyse …" would be read as a
+ * date instead of a numbered list.
  */
-const MONTH = '(?:jan|feb|mär|maer|mar|apr|mai|jun|jul|aug|sep|okt|nov|dez)';
+const MONTH =
+  '(?:januar|februar|märz|maerz|april|juni|juli|august|september|oktober|november|dezember|jan|feb|mär|maer|mar|apr|mai|jun|jul|aug|sept|sep|okt|nov|dez)\\b';
 
 /** `. ` that ends a sentence — not the dot of an ordinal ("30. Juni"). */
 const SENTENCE_END = new RegExp(`(?<=[^\\d][.!?])\\s|(?<=\\d[.!?])\\s(?!${MONTH})`, 'i');
