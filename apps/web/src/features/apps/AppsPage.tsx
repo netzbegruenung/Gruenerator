@@ -29,13 +29,13 @@ const mcpUrl = (): string => {
     : 'https://mcp.gruenerator.eu';
 };
 const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=de.gruenerator.app';
-// TestFlight-only so far — set once the app is public on the App Store.
-const APP_STORE_URL = null as string | null;
+// Public TestFlight beta link — swap for the App Store URL once the app is public.
+const TESTFLIGHT_URL = 'https://testflight.apple.com/join/WZnQJzvU';
 
 type DeviceId = Exclude<VisitorDevice, null>;
 
-const STORE_URLS: Record<DeviceId, string | null> = {
-  ios: APP_STORE_URL,
+const STORE_URLS: Record<DeviceId, string> = {
+  ios: TESTFLIGHT_URL,
   android: PLAY_STORE_URL,
 };
 
@@ -45,7 +45,7 @@ const DEVICE_NAMES: Record<DeviceId, string> = {
 };
 
 const DEVICE_CTAS: Record<DeviceId, string> = {
-  ios: 'Im App Store öffnen',
+  ios: 'Beta über TestFlight laden',
   android: 'Bei Google Play öffnen',
 };
 
@@ -88,21 +88,10 @@ const FAQ_ITEMS = [
   },
 ];
 
-const scrollToCard = (id: DeviceId) => {
-  document
-    .getElementById(`app-card-${id}`)
-    ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-};
-
-// QR codes only ever point at a store that actually has a listing. A detected
-// visitor sees their own platform (and nothing if it isn't published yet — a
-// foreign store's QR would be a dead end); desktop visitors see every live one.
+// A detected visitor sees only their own platform's QR; desktop visitors see both.
 const heroQrCodes = (device: VisitorDevice): Array<{ id: DeviceId; url: string }> => {
-  const live = (['ios', 'android'] as const).flatMap((id) => {
-    const url = STORE_URLS[id];
-    return url ? [{ id, url }] : [];
-  });
-  return device ? live.filter((entry) => entry.id === device) : live;
+  const all = (['ios', 'android'] as const).map((id) => ({ id, url: STORE_URLS[id] }));
+  return device ? all.filter((entry) => entry.id === device) : all;
 };
 
 const Hero = ({ device }: { device: VisitorDevice }) => {
@@ -117,58 +106,50 @@ const Hero = ({ device }: { device: VisitorDevice }) => {
         </div>
         <h2 className="flex flex-wrap items-center gap-2.5 text-xl font-bold text-foreground-heading sm:text-3xl">
           {device ? `Grünerator für ${DEVICE_NAMES[device]}` : 'Grünerator aufs Handy holen'}
-          {device && !storeHref && (
-            <Badge variant="outline" className="font-normal">
-              Bald verfügbar
-            </Badge>
-          )}
         </h2>
         <p className="mt-2 max-w-md text-sm text-grey-600 dark:text-grey-400 sm:text-base">
-          {!device
-            ? 'Die App gibt es für iPhone und Android. Scanne den QR-Code oder öffne die Seite auf deinem Handy.'
-            : storeHref
-              ? 'Direkt loslegen — die passende App für dieses Gerät.'
-              : 'Die App für dein Gerät ist noch nicht im Store. Bis dahin läuft der Grünerator hier im Browser — die App melden wir, sobald sie da ist.'}
+          {device
+            ? 'Direkt loslegen — die passende App für dieses Gerät.'
+            : 'Die App gibt es für iPhone (TestFlight-Beta) und Android. Scanne den QR-Code oder öffne die Seite auf deinem Handy.'}
         </p>
 
-        {/* Only ever a CTA that leads somewhere: a live store listing, or (for
-            undetected desktop visitors) the card of the platform in question. */}
-        {(storeHref || !device) && (
-          <div className="mt-5 flex flex-wrap gap-2.5">
-            {device && storeHref && (
-              <Button asChild variant="brand" size="lg">
-                <a href={storeHref} target="_blank" rel="noopener noreferrer">
-                  {DEVICE_CTAS[device]}
+        <div className="mt-5 flex flex-wrap gap-2.5">
+          {device && storeHref && (
+            <Button asChild variant="brand" size="lg">
+              <a href={storeHref} target="_blank" rel="noopener noreferrer">
+                {DEVICE_CTAS[device]}
+              </a>
+            </Button>
+          )}
+          {!device && (
+            <>
+              <Button
+                asChild
+                variant="brand"
+                size="lg"
+                className="gap-2"
+                aria-label="Android-App bei Google Play öffnen"
+              >
+                <a href={PLAY_STORE_URL} target="_blank" rel="noopener noreferrer">
+                  <FaAndroid className="text-lg" />
+                  Android
                 </a>
               </Button>
-            )}
-            {!device && (
-              <>
-                <Button
-                  asChild
-                  variant="brand"
-                  size="lg"
-                  className="gap-2"
-                  aria-label="Android-App bei Google Play öffnen"
-                >
-                  <a href={PLAY_STORE_URL} target="_blank" rel="noopener noreferrer">
-                    <FaAndroid className="text-lg" />
-                    Android
-                  </a>
-                </Button>
-                <Button
-                  variant="brand-outline"
-                  size="lg"
-                  className="gap-2"
-                  onClick={() => scrollToCard('ios')}
-                >
+              <Button
+                asChild
+                variant="brand-outline"
+                size="lg"
+                className="gap-2"
+                aria-label="iOS-Beta über TestFlight laden"
+              >
+                <a href={TESTFLIGHT_URL} target="_blank" rel="noopener noreferrer">
                   <FaApple className="text-lg" />
                   iPhone & iPad
-                </Button>
-              </>
-            )}
-          </div>
-        )}
+                </a>
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       {qrCodes.length > 0 && (
@@ -200,7 +181,6 @@ const AppCard = ({
   icon,
   detected,
   qrUrl,
-  status,
   children,
 }: {
   id: DeviceId;
@@ -208,8 +188,7 @@ const AppCard = ({
   sub: string;
   icon: ReactNode;
   detected: boolean;
-  qrUrl: string | null;
-  status?: string;
+  qrUrl: string;
   children: ReactNode;
 }) => (
   <div
@@ -225,13 +204,9 @@ const AppCard = ({
       <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-green-50 text-green-800 dark:bg-green-900/30 dark:text-green-300">
         {icon}
       </span>
-      {qrUrl ? (
-        <span className="hidden rounded-xl border border-grey-200 bg-white p-1.5 dark:border-grey-600 sm:block">
-          <QRCodeSVG value={qrUrl} size={60} title={`QR-Code: ${title}-App herunterladen`} />
-        </span>
-      ) : (
-        status && <Badge variant="outline">{status}</Badge>
-      )}
+      <span className="hidden rounded-xl border border-grey-200 bg-white p-1.5 dark:border-grey-600 sm:block">
+        <QRCodeSVG value={qrUrl} size={60} title={`QR-Code: ${title}-App herunterladen`} />
+      </span>
     </div>
     <div className="flex-1">
       <h3 className="flex items-center gap-2 text-lg font-bold text-foreground-heading">
@@ -253,26 +228,22 @@ const AppCardsGrid = ({ device }: { device: VisitorDevice }) => (
     <AppCard
       id="ios"
       title="iOS"
-      sub="iPhone & iPad · ab iOS 16"
+      sub="TestFlight · Beta · ab iOS 16"
       icon={<FaApple className="text-[26px]" />}
       detected={device === 'ios'}
-      qrUrl={APP_STORE_URL}
-      status="Bald verfügbar"
+      qrUrl={TESTFLIGHT_URL}
     >
-      {APP_STORE_URL ? (
+      <div className="flex flex-col gap-1.5">
         <Button asChild variant={device === 'ios' ? 'brand' : 'brand-outline'}>
-          <a href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">
-            Im App Store
+          <a href={TESTFLIGHT_URL} target="_blank" rel="noopener noreferrer">
+            Über TestFlight
           </a>
         </Button>
-      ) : (
-        <div className="flex flex-col gap-1.5">
-          <Button variant="brand-outline" disabled>
-            Im App Store
-          </Button>
-          <p className="text-xs text-grey-500">Noch nicht öffentlich im App Store.</p>
-        </div>
-      )}
+        <p className="text-xs text-grey-500">
+          Der Link führt zu Apples TestFlight — die kostenlose TestFlight-App wird dabei
+          mitinstalliert, falls sie fehlt.
+        </p>
+      </div>
     </AppCard>
 
     <AppCard
