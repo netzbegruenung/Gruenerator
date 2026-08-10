@@ -35,6 +35,15 @@ describe('deriveTextFormMention', () => {
     );
   });
 
+  it('keeps standalone dokumente recipes on their own mention (no antrag fold)', () => {
+    expect(deriveTextFormMention('wahlpruefstein', { skillCategory: 'dokumente' })).toBe(
+      'wahlpruefstein'
+    );
+    expect(deriveTextFormMention('buergermail', { skillCategory: 'dokumente' })).toBe(
+      'buergermail'
+    );
+  });
+
   it('returns the raw mention for a custom text form (no matching preset/category)', () => {
     expect(deriveTextFormMention('omveinladungen', undefined)).toBe('omveinladungen');
     expect(deriveTextFormMention('twitter', { skillCategory: 'social' })).toBe('twitter');

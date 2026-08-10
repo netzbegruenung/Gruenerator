@@ -1,5 +1,6 @@
 ---
 identifier: gruenerator-oeffentlichkeitsarbeit-sachsen-anhalt
+defaultRecipeMention: 'presse-sachsen-anhalt'
 autoRoutingHint: creative
 audience: de-DE
 title: Öffentlichkeitsarbeit Sachsen-Anhalt
