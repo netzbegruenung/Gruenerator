@@ -197,6 +197,59 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
     },
 
     // ═══════════════════════════════════════════════════════════════════
+    // SACHSEN
+    // ═══════════════════════════════════════════════════════════════════
+    {
+      id: 'sachsen-lv',
+      name: 'Grüne Sachsen',
+      shortName: 'SN',
+      type: 'landesverband',
+      baseUrl: 'https://gruene-sachsen.de',
+      cms: 'wordpress',
+      maxAgeYears: 5,
+      contentPaths: [
+        {
+          // Articles publish at /YYYY/MM/<slug>/ — the /service/presse/ listing is
+          // a virtual index, so the off-path filter would drop everything. Discover
+          // via the WP REST API instead (cat 13 = "Pressemitteilung", 312 posts).
+          type: 'presse',
+          path: '/service/presse/',
+          listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
+          wpApi: { categoryId: 13 },
+        },
+        {
+          // Beschlüsse are HTML posts under the same /YYYY/MM/ permalinks
+          // (cat 21 = "Beschlüsse", 288 posts; listing lives at /positionen/beschluesse/).
+          type: 'beschluss',
+          path: '/positionen/beschluesse/',
+          listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
+          wpApi: { categoryId: 21 },
+        },
+        {
+          // Landtagswahlprogramm 2024 PDF given directly. staticUrls + isPdfArchive
+          // OCRs the PDF (the year 2024 is parsed from the path for the date).
+          type: 'wahlprogramm',
+          path: '/',
+          listSelector: 'a[href$=".pdf"]',
+          isPdfArchive: true,
+          processUndatedPdfs: true,
+          staticUrls: [
+            'https://gruene-sachsen.de/wp-content/uploads/2024/08/Sachsen_gemeinsam_bewegen_Landtagswahlprogramm_BUeNDNIS_90_DIE_GRUeNEN_2024.pdf',
+          ],
+          disableOffPathFilter: true,
+        },
+      ],
+      contentSelectors: {
+        title: ['h1.entry-title', 'h1.wp-block-heading', 'h1', 'meta[property="og:title"]'],
+        date: ['time[datetime]', '.entry-date', 'meta[property="article:published_time"]'],
+        content: ['.entry-content', '.wp-block-post-content', 'article .content', 'main article'],
+        categories: ['a[rel="category tag"]', '.category-links a', '.post-categories a'],
+        author: ['.author-name', '.byline', '.entry-author'],
+      },
+      excludePatterns: ['/tag/', '/author/', '/wp-content/', '/wp-admin/', '#', 'javascript:'],
+    },
+
+    // ═══════════════════════════════════════════════════════════════════
     // MECKLENBURG-VORPOMMERN
     // ═══════════════════════════════════════════════════════════════════
     {
