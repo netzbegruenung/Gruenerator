@@ -4,6 +4,7 @@ import {
   type RichTextDoc,
   type Site,
   type UpdateSiteBody,
+  type WebsiteContent,
 } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -13,14 +14,12 @@ import { SitesApiError } from '../utils/errorHandler';
 
 export type SiteData = Site;
 
-export interface AiGeneratedContent {
-  hero: { heading: string; text: string };
-  about: { title: string; content: string };
-  hero_image: { title: string; subtitle: string; imageUrl?: string };
-  themes: Array<{ title: string; content: string; imageUrl?: string }>;
-  actions: Array<{ text: string; link: string; imageUrl?: string }>;
-  contact: { title: string; email: string; backgroundImageUrl?: string };
-}
+/**
+ * Die vom Server erzeugten Landing-Page-Inhalte. Abgeleitet aus dem
+ * Zod-Schema in @gruenerator/contracts, nicht mehr hier nachgebaut — die
+ * frühere Handkopie war eine zweite Wahrheit über dieselbe Antwort.
+ */
+export type AiGeneratedContent = WebsiteContent;
 
 export interface GeneratedSiteData {
   site_title: string;
@@ -125,8 +124,9 @@ export function useSite() {
       description: string;
       email?: string;
     }): Promise<{ transformed: GeneratedSiteData; raw: AiGeneratedContent }> => {
-      const response = await apiClient.post<{ json: AiGeneratedContent }>('/texte/website', data);
-      const raw: AiGeneratedContent = response.data.json;
+      const res = await getContractsClient().texte.generateWebsiteContent({ body: data });
+      if (res.status !== 200) throw toApiError(res);
+      const raw = res.body.json;
       return { transformed: transformAiResponse(raw), raw };
     },
   });
