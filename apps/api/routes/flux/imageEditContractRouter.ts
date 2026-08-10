@@ -25,7 +25,7 @@ import { logContractValidationError } from '../../utils/contractValidationLogger
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
-import { addKiLabel } from '../sharepic/sharepic_canvas/imagine_label_canvas.js';
+import { applyKiLabel } from '../sharepic/sharepic_canvas/imagine_label_canvas.js';
 
 import { buildGreenEditPrompt, buildAllyMakerPrompt } from './imageEditing.js';
 
@@ -117,10 +117,7 @@ export const imageEditContractRouter = s.router(imageEditContract, {
       });
 
       const rawBuffer = Buffer.from(stored.base64, 'base64');
-      const outputBuffer =
-        body.kiLabel === 'none'
-          ? rawBuffer
-          : await addKiLabel(rawBuffer, body.kiLabel === 'short' ? 'short' : 'full');
+      const outputBuffer = await applyKiLabel(rawBuffer, body.kiLabel ?? 'full');
       fs.writeFileSync(stored.filePath, outputBuffer);
 
       const incrementResult = await imageCounter.incrementCount(
