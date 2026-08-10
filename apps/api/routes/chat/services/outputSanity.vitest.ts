@@ -7,6 +7,7 @@ import {
   looksLikeToolCallLeak,
   stripFabricatedArtifactDelivery,
   stripFabricatedSystemClaims,
+  containsBrokenJsonPayload,
 } from './outputSanity.js';
 
 describe('looksCutOff', () => {
@@ -243,5 +244,31 @@ describe('stripFabricatedArtifactDelivery', () => {
   it('leaves an ordinary answer untouched', () => {
     const answer = 'Das EU-Klimaziel für 2040 ist noch nicht final beschlossen.';
     expect(stripFabricatedArtifactDelivery(answer)).toEqual({ text: answer, removed: [] });
+  });
+});
+
+describe('containsBrokenJsonPayload', () => {
+  it('flags the QA-run broken array', () => {
+    expect(containsBrokenJsonPayload('[{"name": "Anna", "stunden": ,{"name"')).toBe(true);
+  });
+
+  it('accepts valid bare JSON and valid fenced JSON', () => {
+    expect(containsBrokenJsonPayload('[{"name": "Anna", "stunden": 4}]')).toBe(false);
+    expect(containsBrokenJsonPayload('Hier:\n```json\n{"ok": true}\n```\nFertig.')).toBe(false);
+  });
+
+  it('flags a broken fenced json block, labelled or not', () => {
+    expect(containsBrokenJsonPayload('```json\n{"a": 1,\n```')).toBe(true);
+    expect(containsBrokenJsonPayload('```\n[{"a": }]\n```')).toBe(true);
+  });
+
+  it('flags an unterminated ```json fence — that IS the truncation case', () => {
+    expect(containsBrokenJsonPayload('Ergebnis:\n```json\n[{"name": "Anna"')).toBe(true);
+  });
+
+  it('ignores prose and non-JSON code fences', () => {
+    expect(containsBrokenJsonPayload('Eine ganz normale Antwort in Prosa.')).toBe(false);
+    expect(containsBrokenJsonPayload('```ts\nconst x = {broken:;\n```')).toBe(false);
+    expect(containsBrokenJsonPayload('')).toBe(false);
   });
 });
