@@ -17,7 +17,7 @@
  * requested "für Instagram und Facebook" must not silently get one platform's
  * length limit.
  */
-import { DISABLED_LV_AGENT_IDS, SKILLS } from '@gruenerator/shared/agents';
+import { DISABLED_LV_AGENT_IDS, SKILLS, type Skill } from '@gruenerator/shared/agents';
 
 import {
   isMetaQuestionAbout,
@@ -91,14 +91,17 @@ export function deriveImplicitRecipeMention(
 
   const firstSentence = t.split(/[.!?]/)[0] ?? t;
   const hits: ImplicitRecipeMention[] = [];
+  // Same widening as recipeCatalog: `SKILLS` is `as const`, so entries without
+  // an `audience` key reject the property — the declared interface carries it.
+  const allSkills: readonly Skill[] = SKILLS;
   for (const [mention, wordRe] of RECIPE_WORDS) {
     if (!wordRe.test(t)) continue;
     if (isNegatedArtifactRequest(t, wordRe)) continue;
     if (isMetaQuestionAbout(firstSentence, wordRe)) continue;
 
-    const skill = SKILLS.find((s) => s.mention === mention);
+    const skill = allSkills.find((s) => s.mention === mention);
     if (!skill) continue;
-    if (!matchesAudience((skill as { audience?: string }).audience, userLocale)) continue;
+    if (!matchesAudience(skill.audience, userLocale)) continue;
     if (DISABLED_LV_AGENT_IDS.has(skill.identifier)) continue;
     hits.push(mention);
   }
