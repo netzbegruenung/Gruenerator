@@ -33,7 +33,37 @@ export interface DocumentArtifact {
   url: string;
 }
 
-export type ActiveArtifact = CodeArtifact | DocumentArtifact;
+/**
+ * A deep research run in progress, shown in the panel while it works.
+ *
+ * The only artifact that changes after it opens, hence `upsertResearchLog`
+ * alongside the wholesale setter: the run emits one `research_log_start` and
+ * then a stream of partial updates over several minutes. Steps merge by id —
+ * the same step arrives twice, once `running` and once `done`.
+ *
+ * When the run finishes it produces a real document; `documentUrl` carries it so
+ * the panel can hand over to the ordinary `document` view in place.
+ */
+export interface ResearchLogStep {
+  id: string;
+  label: string;
+  status: 'running' | 'done' | 'failed';
+}
+
+export interface ResearchLogArtifact {
+  id: string;
+  type: 'research_log';
+  title: string;
+  /** The agent's plan (`write_todos`). Replaced wholesale on each update. */
+  plan: ResearchLogStep[];
+  /** Tool activity, in the order it first appeared. */
+  steps: ResearchLogStep[];
+  status: 'running' | 'done' | 'failed';
+  documentUrl?: string;
+  documentId?: string;
+}
+
+export type ActiveArtifact = CodeArtifact | DocumentArtifact | ResearchLogArtifact;
 
 interface ArtifactLiveStore {
   activeArtifact: ActiveArtifact | null;
@@ -47,6 +77,26 @@ interface ArtifactLiveStore {
   panelMounted: boolean;
   setActiveArtifact: (artifact: ActiveArtifact | null) => void;
   setPanelMounted: (mounted: boolean) => void;
+  /**
+   * Merge a partial research-log update into the open log.
+   *
+   * A no-op unless a research log with this id is the active artifact: late
+   * updates from a run the user has already navigated away from must not
+   * re-open the panel over whatever they are looking at now.
+   */
+  upsertResearchLog: (id: string, patch: Partial<Omit<ResearchLogArtifact, 'id' | 'type'>>) => void;
+}
+
+/** Merge by id, preserving first-seen order; unknown ids append. */
+function mergeSteps(current: ResearchLogStep[], incoming: ResearchLogStep[]): ResearchLogStep[] {
+  if (incoming.length === 0) return current;
+  const next = [...current];
+  for (const step of incoming) {
+    const at = next.findIndex((s) => s.id === step.id);
+    if (at >= 0) next[at] = step;
+    else next.push(step);
+  }
+  return next;
 }
 
 export const useArtifactLiveStore = create<ArtifactLiveStore>((set) => ({
@@ -66,6 +116,19 @@ export const useArtifactLiveStore = create<ArtifactLiveStore>((set) => ({
     }
     set({ activeArtifact: artifact });
   },
+  upsertResearchLog: (id, patch) =>
+    set((state) => {
+      const active = state.activeArtifact;
+      if (!active || active.type !== 'research_log' || active.id !== id) return state;
+      return {
+        activeArtifact: {
+          ...active,
+          ...patch,
+          plan: patch.plan ?? active.plan,
+          steps: mergeSteps(active.steps, patch.steps ?? []),
+        },
+      };
+    }),
 }));
 
 // Reverse direction of the one-docked-panel rule: activating a sharepic or reel

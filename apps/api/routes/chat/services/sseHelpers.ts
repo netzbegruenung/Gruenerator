@@ -34,6 +34,8 @@ import type {
   BahnPayload,
   ChatErrorCode,
   ChatWarningCode,
+  ResearchLogStart,
+  ResearchLogUpdate,
 } from '@gruenerator/contracts';
 import type { Response } from 'express';
 
@@ -85,6 +87,10 @@ export type SSEEventType =
   | 'confirm_action'
   | 'chart_data'
   | 'artifact'
+  // Live progress of a deep research run, rendered in the artifact side panel.
+  // `_start` opens it, every `_update` merges into what is shown.
+  | 'research_log_start'
+  | 'research_log_update'
   | 'compute'
   | 'bahn'
   | 'memory_context'
@@ -293,6 +299,8 @@ export interface SSEEventPayloads {
   artifact: {
     artifact: ArtifactData;
   };
+  research_log_start: ResearchLogStart;
+  research_log_update: ResearchLogUpdate;
   compute: {
     compute: ComputeData;
   };
@@ -797,6 +805,12 @@ export const CHAT_WARNINGS = {
       'Die Tiefenrecherche ist für heute aufgebraucht — ich habe stattdessen normal recherchiert.',
     severity: 'info',
     attribution: 'user',
+  },
+  deep_agent_failed: {
+    message:
+      'Der Recherche-Agent konnte den Bericht nicht fertigstellen — ich habe stattdessen direkt geantwortet. Dein Kontingent bleibt erhalten.',
+    severity: 'warning',
+    attribution: 'system',
   },
   classifier_degraded: {
     message:
