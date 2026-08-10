@@ -12,7 +12,7 @@ import { ImageGenerationCounter } from '../../services/counters/index.js';
 import { FluxImageService } from '../../services/flux/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
-import { addKiLabel } from '../sharepic/sharepic_canvas/imagine_label_canvas.js';
+import { applyKiLabel } from '../sharepic/sharepic_canvas/imagine_label_canvas.js';
 
 const log = createLogger('outpaint');
 const router = express.Router();
@@ -104,7 +104,7 @@ router.post(
 
       const fluxBuffer = fs.readFileSync(stored.filePath);
       const kiLabel = parsed.data.kiLabel ?? 'full';
-      const labeledBuffer = kiLabel === 'none' ? fluxBuffer : await addKiLabel(fluxBuffer, kiLabel);
+      const labeledBuffer = await applyKiLabel(fluxBuffer, kiLabel);
       const labeledBase64 = labeledBuffer.toString('base64');
 
       const now = new Date();

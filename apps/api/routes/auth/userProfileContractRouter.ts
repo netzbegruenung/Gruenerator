@@ -123,6 +123,7 @@ export const userProfileContractRouter = s.router(userProfileContract, {
         reduce_motion,
         reduce_transparency,
         show_skip_link,
+        ai_consent,
       } = args.body;
 
       const updateData: Record<string, string | number | boolean | null | undefined> = {};
@@ -140,6 +141,11 @@ export const userProfileContractRouter = s.router(userProfileContract, {
       if (reduce_motion !== undefined) updateData.reduce_motion = reduce_motion;
       if (reduce_transparency !== undefined) updateData.reduce_transparency = reduce_transparency;
       if (show_skip_link !== undefined) updateData.show_skip_link = show_skip_link;
+      // Der Zeitstempel kommt vom Server, nicht vom Client: er ist der Nachweis
+      // der Einwilligung (Art. 7 Abs. 1 DSGVO). Widerruf löscht ihn, damit der
+      // Dialog beim nächsten Aufruf wieder erscheint.
+      if (ai_consent !== undefined)
+        updateData.ai_consent_at = ai_consent ? new Date().toISOString() : null;
 
       log.debug(
         `[Profile Contract PUT /profile] Updating profile for user ${user.id}:`,
