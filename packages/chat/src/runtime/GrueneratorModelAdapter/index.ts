@@ -128,6 +128,9 @@ async function routeUnauthorized(response: Response): Promise<boolean> {
     const body: unknown = await response
       .clone()
       .json()
+      // Ein 403 muss kein JSON tragen; der Aufrufer behandelt es danach regulär
+      // weiter, ein geworfener Parse-Fehler würde die echte Ursache verdecken.
+      // swallow-ok: `null` heißt hier genau „nicht der Einwilligungs-Fall".
       .catch(() => null);
     if (isAiConsentRequiredBody(body)) {
       notifyAiConsentRequired();
