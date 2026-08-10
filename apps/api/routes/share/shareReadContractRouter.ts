@@ -281,22 +281,6 @@ export const shareReadContractRouter = s.router(sharesReadContract, {
     }
   },
 
-  listDevices: async ({ req }) => {
-    const userId = getUserId(req);
-    if (!userId) return UNAUTHORIZED;
-    try {
-      const { getUserDevices } = await import('../../services/pushNotificationService.js');
-      const devices = await getUserDevices(userId);
-      return { status: 200 as const, body: { success: true as const, devices } };
-    } catch (error) {
-      log.error('Failed to get devices:', error);
-      return {
-        status: 500 as const,
-        body: { success: false as const, error: 'Failed to get devices' },
-      };
-    }
-  },
-
   deleteShare: async ({ req, params }) => {
     const userId = getUserId(req);
     if (!userId) return UNAUTHORIZED;
