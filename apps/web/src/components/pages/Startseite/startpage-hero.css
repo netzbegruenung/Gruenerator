@@ -148,7 +148,14 @@
   --sp-cta-shadow-hover: 0 14px 28px -12px rgba(0, 0, 0, 0.7);
 }
 
+/* justify-self overrides the container's justify-items: center — as a centred
+   grid item this would size to fit-content, and the phone's width:100% chain
+   down to the CTA would then resolve against whatever the widest child happens
+   to be instead of against the column. It works out today only because the
+   headline fills the column; a shorter headline would collapse the CTA back to
+   button width. Children stay centred via align-items below. */
 .sp-hero-main {
+  justify-self: stretch;
   display: flex;
   flex-direction: column;
   align-items: center;
