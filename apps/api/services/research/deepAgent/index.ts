@@ -15,7 +15,9 @@ import { todoListMiddleware } from 'langchain';
 
 import { createLogger } from '../../../utils/logger.js';
 
+import { describeFinalState } from './finalState.js';
 import { leadModel, workerModel } from './models.js';
+import { nudgeMissingReportMiddleware } from './nudgeMissingReport.js';
 import { leadPrompt, researcherPrompt } from './prompts.js';
 import {
   REPORT_PATH,
@@ -27,6 +29,12 @@ import {
   stripInternalReferences,
   summaryFromReport,
 } from './report.js';
+import {
+  RESUME_LIMIT,
+  WRAP_UP_RECURSION_LIMIT,
+  buildResumeInput,
+  classifyRunError,
+} from './resume.js';
 import { sanitizeToolCallsMiddleware } from './sanitizeToolCalls.js';
 import { type ToolContext } from './toolContext.js';
 import { createResearchTools } from './tools.js';
@@ -104,7 +112,13 @@ export async function runDeepAgentResearch(
     name: 'gruenerator-tiefenbericht',
     model: leadModel(),
     tools: tools as never,
-    middleware: [todoListMiddleware(), sanitizeToolCallsMiddleware] as never,
+    // The nudge is lead-only: the researcher subagent answers in its message
+    // and never owes a /bericht.md, so pushing it back would be wrong there.
+    middleware: [
+      todoListMiddleware(),
+      sanitizeToolCallsMiddleware,
+      nudgeMissingReportMiddleware,
+    ] as never,
     systemPrompt: leadPrompt(locale),
     subagents: [
       {
@@ -126,7 +140,7 @@ export async function runDeepAgentResearch(
   // method, so the surface we depend on is stated here instead.
   const runnable = agent as unknown as {
     stream: (
-      input: { messages: { role: string; content: string }[] },
+      input: Record<string, unknown>,
       options: Record<string, unknown>
     ) => Promise<AsyncIterable<Record<string, unknown>>>;
   };
@@ -137,34 +151,66 @@ export async function runDeepAgentResearch(
   // forward a plan when it actually changed, or the sidebar flickers.
   let lastPlanKey = '';
 
-  try {
-    const stream = await runnable.stream(
-      { messages: [{ role: 'user', content: question }] },
-      {
-        recursionLimit: DEFAULT_BUDGET.recursionLimit,
+  // A dead stream is resumed from its last emitted state instead of being
+  // written off: transient runtime errors get RESUME_LIMIT fresh attempts, the
+  // recursion limit gets one short wrap-up leg — see resume.ts for both.
+  let input: Record<string, unknown> = { messages: [{ role: 'user', content: question }] };
+  let recursionLimit: number = DEFAULT_BUDGET.recursionLimit;
+  let transientResumes = 0;
+  let wrapUpUsed = false;
+
+  for (;;) {
+    try {
+      const stream = await runnable.stream(input, {
+        recursionLimit,
         streamMode: 'values',
         ...(signal ? { signal } : {}),
-      }
-    );
-    for await (const chunk of stream) {
-      lastState = chunk as Record<string, unknown>;
-      const todos = (chunk as { todos?: TodoItem[] }).todos ?? [];
-      if (todos.length > 0) {
-        const key = todos.map((t) => `${t.content}:${t.status}`).join('|');
-        if (key !== lastPlanKey) {
-          lastPlanKey = key;
-          progress.onPlan(planSteps(todos));
+      });
+      for await (const chunk of stream) {
+        lastState = chunk as Record<string, unknown>;
+        const todos = (chunk as { todos?: TodoItem[] }).todos ?? [];
+        if (todos.length > 0) {
+          const key = todos.map((t) => `${t.content}:${t.status}`).join('|');
+          if (key !== lastPlanKey) {
+            lastPlanKey = key;
+            progress.onPlan(planSteps(todos));
+          }
         }
       }
+      break;
+    } catch (error) {
+      const kind = classifyRunError(error, signal);
+      if (
+        kind === 'fatal' ||
+        (kind === 'transient' && transientResumes >= RESUME_LIMIT) ||
+        (kind === 'recursion' && wrapUpUsed)
+      ) {
+        aborted = true;
+        log.warn(`[DeepAgent] Lauf abgebrochen (${kind}): ${String(error)}`);
+        break;
+      }
+      if (kind === 'transient') {
+        transientResumes += 1;
+      } else {
+        wrapUpUsed = true;
+        recursionLimit = WRAP_UP_RECURSION_LIMIT;
+      }
+      input = buildResumeInput(lastState, kind) ?? {
+        messages: [{ role: 'user', content: question }],
+      };
+      log.warn(
+        `[DeepAgent] Lauf unterbrochen (${kind}, Fortsetzung ${transientResumes}/${RESUME_LIMIT}${wrapUpUsed ? ', Wrap-up' : ''}): ${String(error)}`
+      );
     }
-  } catch (error) {
-    aborted = true;
-    log.warn(`[DeepAgent] Lauf abgebrochen: ${String(error)}`);
   }
 
   const raw = readFile(lastState?.files, REPORT_PATH);
   if (!isUsableReport(raw)) {
-    log.warn(`[DeepAgent] Kein verwertbarer Bericht (abgebrochen=${aborted})`);
+    // The interesting part is WHY the loop stopped — a refusal, a direct
+    // answer, empty content — and that lives only in the final message.
+    log.warn(
+      `[DeepAgent] Kein verwertbarer Bericht (abgebrochen=${aborted}) — ${describeFinalState(lastState)}`
+    );
     return null;
   }
 
