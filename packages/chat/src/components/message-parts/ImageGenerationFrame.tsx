@@ -1,7 +1,5 @@
 'use client';
 
-import { cn } from '../../lib/utils';
-
 import { ShimmerText } from './ShimmerText';
 
 const DOTS = Array.from({ length: 64 }, (_, i) => i);
@@ -10,9 +8,10 @@ const DOTS = Array.from({ length: 64 }, (_, i) => i);
  * Pulsing dot grid shown inside the image frame while a generation (or the
  * browser decode of the finished image) is still running. Adapted from the
  * assistant-ui Elements "Image generation" component; the diagonal stagger
- * (row + col) makes the pulse sweep from the top-left corner.
+ * (row + col) makes the pulse sweep from the top-left corner. Both call sites
+ * mount it only while loading, so it always animates.
  */
-export function ImageGenerationDots({ active }: { active: boolean }) {
+export function ImageGenerationDots() {
   return (
     <div className="absolute inset-0 grid grid-cols-8 place-items-center p-6" aria-hidden>
       {DOTS.map((dot) => {
@@ -21,10 +20,7 @@ export function ImageGenerationDots({ active }: { active: boolean }) {
         return (
           <span
             key={dot}
-            className={cn(
-              'size-1 rounded-full bg-foreground/20 transition-opacity duration-500',
-              active ? 'animate-pulse motion-reduce:animate-none' : 'opacity-0'
-            )}
+            className="size-1 animate-pulse rounded-full bg-foreground/20 motion-reduce:animate-none"
             style={{ animationDelay: `${(row + col) * 90}ms` }}
           />
         );
@@ -42,7 +38,7 @@ export function ImageGenerationFrame() {
   return (
     <div className="mb-3 flex w-56 flex-col gap-2.5" role="status">
       <div className="relative aspect-square w-full overflow-hidden rounded-2xl border border-border bg-background-secondary">
-        <ImageGenerationDots active />
+        <ImageGenerationDots />
       </div>
       <p className="min-w-0 truncate text-xs text-foreground-muted">
         <ShimmerText>Bild wird generiert …</ShimmerText>

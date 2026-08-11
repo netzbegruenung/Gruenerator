@@ -69,7 +69,7 @@ export function GeneratedImageDisplay({ image }: GeneratedImageDisplayProps) {
       >
         {isLoading &&
           (isAiImage ? (
-            <ImageGenerationDots active />
+            <ImageGenerationDots />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center bg-background-secondary">
               <Loader2 className="h-8 w-8 animate-spin text-foreground-muted" />

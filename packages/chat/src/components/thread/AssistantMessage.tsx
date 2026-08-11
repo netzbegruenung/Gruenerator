@@ -284,12 +284,15 @@ export const AssistantMessage = memo(function AssistantMessage() {
         {custom?.generatedImage && <GeneratedImageDisplay image={custom.generatedImage} />}
 
         {/* Platzhalter-Rahmen, solange das KI-Bild noch generiert wird. Nur für
-            intent 'image' — Sharepics/Social Posts rendern ihre eigenen Karten
-            und teilen bloß dieselbe progress-Stage. */}
+            die Bild-Intents (Generierung + Bearbeitung) — Sharepics/Social
+            Posts rendern ihre eigenen Karten und teilen bloß dieselbe
+            progress-Stage. */}
         {isStreaming &&
           !custom?.generatedImage &&
           custom?.progress?.stage === 'generating_image' &&
-          custom.progress.intent === 'image' && <ImageGenerationFrame />}
+          (custom.progress.intent === 'image' || custom.progress.intent === 'image_edit') && (
+            <ImageGenerationFrame />
+          )}
 
         {/* Above the answer, not under it: on a turn that found pictures they are
             the first thing the reader looks at, and a gallery that follows a
