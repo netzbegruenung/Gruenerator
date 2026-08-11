@@ -146,7 +146,10 @@ const LandesverbandAdminPage = lazy(
   () => import('../features/landesverband-admin/LandesverbandAdminPage')
 );
 const GrueneApiTestPage = lazy(() => import('../features/admin/GrueneApiTestPage'));
-const PlaygroundPage = lazy(() => import('../features/playground/PlaygroundPage'));
+// Playground stillgelegt: die Seite war der zweite Ort mit freier Modellwahl und
+// musste deshalb in der Datenschutzerklärung als Empfänger benannt werden. Die
+// Route bleibt auskommentiert, bis entschieden ist, ob sie zurückkommt.
+// const PlaygroundPage = lazy(() => import('../features/playground/PlaygroundPage'));
 const IconAnimationTestPage = lazy(() => import('../features/playground/IconAnimationTestPage'));
 // Auth-Komponenten importieren (only components still used after Authentic integration)
 const LoginPage = lazy(() => import('../features/auth/pages/LoginPage'));
@@ -432,7 +435,7 @@ const standardRoutes: RouteConfig[] = [
     layoutMode: 'sidebarOnly',
   },
   { path: '/admin/gruene-api', component: GrueneApiTestPage },
-  { path: '/playground', component: PlaygroundPage },
+  // { path: '/playground', component: PlaygroundPage },
   { path: '/icon-test', component: IconAnimationTestPage, channel: 'internal' },
   { path: '/vorlagen', component: GrueneratorenBundle.VorlagenListe },
   { path: '/vorlagen/meine', component: MeineVorlagenPage },
