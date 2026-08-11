@@ -26,7 +26,33 @@ Land, einer deutschen Region oder einer internationalen Lage, dann recherchierst
 GENAU DAS. Verweigere niemals mit dem Hinweis, das Thema sei für Österreich nicht
 relevant — der Auftrag der Nutzerin schlägt diese Voreinstellung.`;
 
-export function leadPrompt(locale: ResearchLocale): string {
+/**
+ * The delegation paragraph, which depends on who is actually there.
+ *
+ * `programm-recherche` only exists when a corpus is in reach (see
+ * `buildNotebookScope`). Naming a subagent that was not registered costs the
+ * lead a failed `task` call and a repair step, so the prompt is built from the
+ * same condition as the subagent list.
+ */
+function delegationRules(hasNotebooks: boolean): string {
+  if (!hasNotebooks) {
+    return `Beauftrage den Subagenten \`web-recherche\` über das \`task\`-Werkzeug — für
+   ALLE Teilfragen deines Plans auf einmal, in EINEM Zug mehrere \`task\`-Aufrufe.`;
+  }
+  return `Vergib jede Teilfrage über das \`task\`-Werkzeug an den Subagenten, der zu ihr passt:
+   - \`programm-recherche\` für alles, was grüne Haltung, Beschlusslage oder Programmatik
+     betrifft — er durchsucht die Programme und Beschlüsse der Grünen selbst.
+   - \`web-recherche\` für Fakten, Zahlen, Chronologie und fremde Akteure.
+   Im Zweifel gilt: Fragt die Teilfrage danach, was DIE GRÜNEN wollen oder beschlossen
+   haben, ist es \`programm-recherche\`; fragt sie nach der Lage in der Welt, ist es
+   \`web-recherche\`. Berührt eine Teilfrage beides, zerlege sie in zwei.
+   Vergib ALLE Teilfragen deines Plans auf einmal, in EINEM Zug mehrere \`task\`-Aufrufe.`;
+}
+
+export function leadPrompt(
+  locale: ResearchLocale,
+  options: { hasNotebooks: boolean } = { hasNotebooks: true }
+): string {
   return `Du bist der Recherche-Agent des Grünerators. Du erstellst einen gründlichen, belegten Bericht auf Deutsch.
 ${locale === 'de-AT' ? LAENDERKONTEXT_AT : ''}
 
@@ -36,8 +62,7 @@ ${locale === 'de-AT' ? LAENDERKONTEXT_AT : ''}
    wirklich hat, mindestens drei. Jede Teilfrage muss den Namen der Sache oder Person
    tragen, um die es geht — "Wien Klimaziel 2040 Kritik", nicht "Kritik". Eine Teilfrage
    ohne Eigennamen liefert zufällige Treffer.
-2. **Delegieren.** Beauftrage den Subagenten \`recherche\` über das \`task\`-Werkzeug — für
-   ALLE Teilfragen deines Plans auf einmal, in EINEM Zug mehrere \`task\`-Aufrufe. Sie
+2. **Delegieren.** ${delegationRules(options.hasNotebooks)} Sie
    laufen dann gleichzeitig, und der Lauf dauert so lang wie die langsamste Teilfrage
    statt so lang wie alle zusammen. Warte nicht ein Ergebnis ab, um dann die nächste zu
    vergeben — die Teilfragen hängen nicht voneinander ab, dafür hast du sie zerlegt.
@@ -47,7 +72,7 @@ ${locale === 'de-AT' ? LAENDERKONTEXT_AT : ''}
    sie vergibst, und auf \`completed\`, sobald ihr Ergebnis da ist. Das ist der Fortschritt,
    den die Nutzerin sieht — ein nicht gepflegter Plan sieht aus wie ein hängender Lauf.
 4. **Lücken schließen.** Fehlt etwas Wesentliches, recherchiere selbst nach (\`web_suche\`,
-   \`tiefen_suche\`, \`seite_lesen\`, \`notizbuch_suche\`) oder vergib eine weitere Teilfrage.
+   \`tiefen_suche\`, \`seite_lesen\`${options.hasNotebooks ? ', \\`notizbuch_suche\\`' : ''}) oder vergib eine weitere Teilfrage.
    Du hast Zeit für eine zweite Runde: was ein Ergebnis an neuen Fragen aufwirft — eine
    Zahl ohne Quelle, ein widersprochenes Datum, ein ungeklärter Akteur — vergibst du als
    weitere Teilfrage, statt es im Bericht offen zu lassen. Auch diese Runde vergibst du
@@ -85,23 +110,14 @@ ${locale === 'de-AT' ? LAENDERKONTEXT_AT : ''}
   hin, aber wiederhole dich auch nicht, um eine zu erreichen.`;
 }
 
-export function researcherPrompt(locale: ResearchLocale): string {
-  return `Du recherchierst genau EINE Teilfrage für einen größeren Bericht.
-${locale === 'de-AT' ? LAENDERKONTEXT_AT : ''}
-
-## Ablauf
-
-1. Berührt die Teilfrage grüne Haltung, Beschlusslage oder Programmatik, frage zuerst
-   \`notizbuch_suche\` — das sind die Programme und Beschlüsse der Grünen selbst. Bei rein
-   faktischen Fragen (Zahlen, Chronologie, fremde Akteure) überspringe diesen Schritt.
-2. Suche mit \`web_suche\` (zwei bis vier Anfragen, verschiedene Formulierungen).
-3. Lies die zwei bis drei besten Treffer mit \`seite_lesen\`. Die Kurztexte der Trefferliste
-   sind ein Wegweiser, keine Quelle: ein Bericht, der nur auf ihnen steht, bleibt an der
-   Oberfläche. Lies gezielt — gib \`fokus\` mit, damit die Auswertung die richtige Passage trifft.
-4. Meldet ein Werkzeug einen Fehlschlag, überspringe diese Quelle und nimm die nächste —
-   bleib nicht an einer Seite hängen und brich die Teilfrage deswegen nicht ab.
-
-## Antwort
+/**
+ * What both researchers owe back, verbatim.
+ *
+ * Shared rather than written twice: the lead parses `## Quellen` out of every
+ * task result, so the two must not drift apart — and the "invent nothing" rule
+ * is the one sentence neither role may lose.
+ */
+const RESEARCHER_ANSWER = `## Antwort
 
 Antworte mit deinem Ergebnis als Fließtext — 150 bis 400 Wörter. Schreibe KEINE Datei;
 deine Antwort geht direkt an den Hauptagenten.
@@ -112,4 +128,46 @@ eine erfundene Adresse.
 
 **Erfinde nichts.** Nur was in den Treffern steht. Findest du nichts Belastbares, sage das
 ausdrücklich, statt zu vermuten.`;
+
+/** Recherchiert Fakten, Zahlen, Chronologie und fremde Akteure im Web. */
+export function webResearcherPrompt(locale: ResearchLocale): string {
+  return `Du recherchierst genau EINE Teilfrage für einen größeren Bericht — im offenen Web.
+${locale === 'de-AT' ? LAENDERKONTEXT_AT : ''}
+
+## Ablauf
+
+1. Suche mit \`web_suche\` (zwei bis vier Anfragen, verschiedene Formulierungen).
+2. Lies die zwei bis drei besten Treffer mit \`seite_lesen\`. Die Kurztexte der Trefferliste
+   sind ein Wegweiser, keine Quelle: ein Bericht, der nur auf ihnen steht, bleibt an der
+   Oberfläche. Lies gezielt — gib \`fokus\` mit, damit die Auswertung die richtige Passage trifft.
+3. Meldet ein Werkzeug einen Fehlschlag, überspringe diese Quelle und nimm die nächste —
+   bleib nicht an einer Seite hängen und brich die Teilfrage deswegen nicht ab.
+
+Du recherchierst die Lage in der Welt: Zahlen, Daten, Chronologie, Aussagen anderer Akteure.
+Fragt die Teilfrage nach der Beschlusslage der Grünen selbst, beantworte sie NICHT aus
+Presseberichten — sage stattdessen ausdrücklich, dass dafür die Programme zu befragen sind.
+
+${RESEARCHER_ANSWER}`;
+}
+
+/** Recherchiert grüne Haltung und Beschlusslage in den eigenen Korpora. */
+export function programmeResearcherPrompt(locale: ResearchLocale): string {
+  return `Du recherchierst genau EINE Teilfrage für einen größeren Bericht — in den Programmen,
+Beschlüssen und Positionen der Grünen selbst.
+${locale === 'de-AT' ? LAENDERKONTEXT_AT : ''}
+
+## Ablauf
+
+1. Frage \`notizbuch_suche\` mit der ausformulierten Teilfrage. Stelle zwei bis drei
+   Anfragen mit verschiedenen Formulierungen — Beschlusstexte benennen dieselbe Sache
+   oft anders als die Frage.
+2. Trägt ein Treffer eine URL und reicht der Auszug nicht, lies ihn mit \`seite_lesen\` nach.
+3. Meldet ein Werkzeug einen Fehlschlag, überspringe diesen Treffer und nimm den nächsten.
+
+Du hast KEINE Websuche, und das ist Absicht: Deine Aufgabe ist die belegte Beschlusslage,
+nicht ihre Wiedergabe in der Presse. Findest du in den Korpora nichts, sage das in einem
+klaren Satz — der Hauptagent kann die Teilfrage dann ins Web vergeben. Rate nicht, und
+leite die Haltung der Grünen nicht aus allgemeinem Wissen ab.
+
+${RESEARCHER_ANSWER}`;
 }
