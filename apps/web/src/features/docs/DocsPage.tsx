@@ -888,7 +888,7 @@ export function DocumentsContent({
 }
 
 /** Office start page without route chrome — embedded by the workplace
- * "Arbeiten" tab (/workplace/arbeiten), which provides PageContainer + auth
+ * "Arbeiten" page (/workplace), which provides PageContainer + auth
  * and renders the workplace "Zuletzt" feed as THE recents section. */
 export const DocsHome = () => (
   <ErrorBoundary>

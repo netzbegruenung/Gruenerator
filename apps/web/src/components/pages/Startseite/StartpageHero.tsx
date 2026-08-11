@@ -73,7 +73,7 @@ const StartpageHero = memo(({ onScrollToContent }: StartpageHeroProps) => {
     const provider = getProviderById(id);
     if (!provider) return;
     rememberProvider(id);
-    void signInWithProvider(provider, '/workplace').catch((err) => {
+    void signInWithProvider(provider, '/start').catch((err) => {
       console.error('[StartpageHero] Sign-in failed:', err);
     });
   }, []);
