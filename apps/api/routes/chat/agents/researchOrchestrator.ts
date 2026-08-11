@@ -160,6 +160,36 @@ const DEFAULT_MAX_SOURCES = 20;
  */
 const SYNTHESIS_SOURCE_CHARS = 6_000;
 
+/**
+ * Two sources count as the same document above this Jaccard overlap of their
+ * 3-word shingles.
+ *
+ * MEASURED, not guessed, against the 26 sources of the Monitor run on
+ * 11.08.2026 (hot topic "Europa/Außen"), hand-labelled into five same-document
+ * pairs and seven merely-related ones:
+ *
+ *   same document      0.578 … 0.808   (same press release under two URLs,
+ *                                       same Antrag in two renderings)
+ *   different document 0.004 … 0.079   (two press releases in the same house
+ *                                       format, a report ABOUT the Antrag next
+ *                                       to the Antrag itself, two pages sharing
+ *                                       one quoted sentence)
+ *
+ * 0.4 sits in the empty middle of that gap: 5× above the worst false-positive
+ * candidate and well under the weakest true duplicate. The margin is what
+ * matters — a threshold that merely beat the negatives would fold two genuine
+ * sources into one on the next run, and a dropped source is invisible in a way
+ * a duplicate is not.
+ */
+const DUPLICATE_SOURCE_SIMILARITY = 0.4;
+
+/**
+ * Chars of a source considered when comparing. Bounds the O(n²) comparison for
+ * pages that arrive as 50k-char dumps; the opening of a document is also where
+ * two renderings of it agree most.
+ */
+const SIMILARITY_TEXT_CHARS = 4000;
+
 /** Snippet length on the citation objects the UI card renders. */
 const CITATION_SNIPPET_CHARS = 400;
 
@@ -379,6 +409,8 @@ async function readTopSources(
 ): Promise<{ sources: CollectedSource[]; pagesRead: number }> {
   const ranked = [...sources].sort((a, b) => b.relevance - a.relevance);
   const seeds: Array<{ url: string; title: string; content: string; relevance: number }> = [];
+  /** Fetched (validated) URL → the source's own URL, which is what it is keyed by. */
+  const originalUrl = new Map<string, string>();
   for (const source of ranked.slice(0, READER_SCAN_LIMIT)) {
     if (seeds.length >= READER_PAGES_PER_ROUND) break;
     // Already-read sources are skipped rather than re-fetched: a refinement
@@ -390,8 +422,14 @@ async function readTopSources(
       log.warn(`[Research] Lesen übersprungen für ${source.url}: ${check.error ?? 'invalid'}`);
       continue;
     }
+    // The VALIDATED url is what gets fetched, per CLAUDE.md — the checker
+    // normalises, and handing the raw string on would fetch something the check
+    // never saw. It is therefore also the key the crawler answers under, hence
+    // the map back to the source's own url below.
+    const fetchUrl = check.url.toString();
+    originalUrl.set(fetchUrl, source.url);
     seeds.push({
-      url: source.url,
+      url: fetchUrl,
       title: source.title,
       content: source.snippet,
       relevance: source.relevance,
@@ -411,7 +449,9 @@ async function readTopSources(
       ...(aiWorkerPool ? { aiWorkerPool } : {}),
     });
     const digestByUrl = new Map(
-      crawled.filter((r) => r.crawled && r.content).map((r) => [r.url, r.content as string])
+      crawled
+        .filter((r) => r.crawled && r.content)
+        .map((r) => [originalUrl.get(r.url ?? '') ?? r.url, r.content as string])
     );
     if (digestByUrl.size === 0) return { sources, pagesRead: 0 };
 
@@ -768,14 +808,21 @@ export async function executeResearch(params: {
 
   // MMR for diversity, then cap. Re-number contiguously after — the numbers the
   // synthesiser cites are positions in THIS list.
+  //
+  // The global sort is a PRECONDITION of applyMMR ("results sorted by relevance,
+  // highest first"), not tidiness. `executeRound` sorts within its own round, so
+  // a single-round run happened to satisfy it — but rounds are concatenated in
+  // the order they ran, so from the second round on the array is sorted in
+  // segments and MMR seeds itself from round one's best rather than the run's.
+  const ranked = [...allSources].sort((a, b) => b.relevance - a.relevance);
   const diverse =
-    allSources.length > 3
+    ranked.length > 3
       ? (applyMMR(
-          allSources.map((s) => ({ ...s, content: s.snippet })),
+          ranked.map((s) => ({ ...s, content: s.snippet })),
           0.7,
           2
         ) as CollectedSource[])
-      : allSources;
+      : ranked;
   const limitedSources = diverse.slice(0, maxSources).map((s, i) => ({ ...s, id: i + 1 }));
 
   const strategy =
@@ -822,6 +869,121 @@ export async function executeResearch(params: {
 }
 
 /**
+ * Host + path, lowercased, without `www.`, query, fragment or trailing slash.
+ *
+ * Deliberately drops the query: the same press release arrives as `…/meldung`
+ * and `…/meldung?utm_source=…`, and treating those as two sources is the
+ * duplication being removed. Unparseable input falls back to the raw string
+ * rather than to a shared empty key, which would collapse every broken URL
+ * into one source.
+ */
+function canonicalUrl(raw: string): string {
+  try {
+    const url = new URL(raw);
+    return `${url.host.replace(/^www\./, '')}${url.pathname.replace(/\/+$/, '')}`.toLowerCase();
+  } catch {
+    return raw.trim().toLowerCase();
+  }
+}
+
+/** Word 3-shingles of the opening of a text, for the overlap comparison. */
+function textShingles(text: string): Set<string> {
+  const words = text
+    .slice(0, SIMILARITY_TEXT_CHARS)
+    .toLowerCase()
+    .replace(/&[a-z#0-9]+;/g, ' ')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()
+    .split(' ')
+    .filter((w) => w.length > 2);
+
+  const shingles = new Set<string>();
+  for (let i = 0; i + 3 <= words.length; i++) shingles.add(words.slice(i, i + 3).join(' '));
+  return shingles;
+}
+
+function jaccard(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 || b.size === 0) return 0;
+  let shared = 0;
+  for (const s of a) if (b.has(s)) shared++;
+  return shared / (a.size + b.size - shared);
+}
+
+export interface DedupedSources {
+  citations: ResearchCitation[];
+  /** Old citation id → new one. Dropped duplicates point at their survivor. */
+  remap: Map<string, string>;
+}
+
+/**
+ * Collapse sources that are the same document and renumber the survivors 1..n.
+ *
+ * Linkup's deep research routinely returns one press release twice: as the
+ * bundestag.de news item and as the Antrag it quotes, or the same page with and
+ * without tracking parameters. Printed as separate numbered sources they read
+ * as independent corroboration — that is the part that misleads; the wasted
+ * space is the lesser problem.
+ *
+ * Two stages, because neither alone is enough: identical canonical URLs catch
+ * the cheap case exactly, and a text-overlap comparison catches the same
+ * document served under genuinely different paths.
+ *
+ * MUST run before the snippet cap. Measured on the same 26 sources: at the full
+ * page text the five true duplicate pairs score 0.578–0.808 and the related-
+ * but-distinct ones 0.004–0.079, a gap wide enough to sit in. Truncated to the
+ * 300 display chars first, two of those five pairs collapse to 0.015 and 0.113
+ * — BELOW the worst false-positive candidate (0.182), so no threshold can
+ * separate them any more. The order is the fix, not a detail of it.
+ */
+export function dedupeResearchSources(citations: ResearchCitation[]): DedupedSources {
+  const remap = new Map<string, string>();
+  const survivors: ResearchCitation[] = [];
+  const byUrl = new Map<string, ResearchCitation>();
+  const shingleCache: Set<string>[] = [];
+
+  for (const citation of citations) {
+    const urlKey = citation.url ? canonicalUrl(citation.url) : '';
+    const sameUrl = urlKey ? byUrl.get(urlKey) : undefined;
+    if (sameUrl) {
+      remap.set(String(citation.id), String(sameUrl.id));
+      continue;
+    }
+
+    const shingles = textShingles(citation.snippet || '');
+    const twin = survivors.find(
+      (_, i) => jaccard(shingles, shingleCache[i] ?? new Set()) >= DUPLICATE_SOURCE_SIMILARITY
+    );
+    if (twin) {
+      remap.set(String(citation.id), String(twin.id));
+      continue;
+    }
+
+    const renumbered = { ...citation, id: survivors.length + 1 };
+    if (urlKey) byUrl.set(urlKey, renumbered);
+    remap.set(String(citation.id), String(renumbered.id));
+    survivors.push(renumbered);
+    shingleCache.push(shingles);
+  }
+
+  if (survivors.length < citations.length) {
+    log.info(`[Research] Deduped ${citations.length} → ${survivors.length} sources`);
+  }
+  return { citations: survivors, remap };
+}
+
+/**
+ * Move every `[N]` in a text onto the id its source ended up with after
+ * deduplication. A marker whose source was folded away points at the survivor;
+ * a marker the model invented has no entry and stays as it is.
+ */
+export function remapCitationMarkers(text: string, remap: Map<string, string>): string {
+  return text.replace(/\[(\d+)\]/g, (match, n: string) => {
+    const target = remap.get(n);
+    return target ? `[${target}]` : match;
+  });
+}
+
+/**
  * Strip citations the sources don't support, then project the sources into
  * citations and derive the confidence label.
  *
@@ -860,12 +1022,35 @@ function finalizeResearchResult(params: {
     }
   }
 
-  const citations: ResearchCitation[] = limitedSources.map((s) => ({
-    id: s.id,
-    title: s.title,
-    url: s.url,
-    domain: s.domain,
-    snippet: truncateText(s.snippet, CITATION_SNIPPET_CHARS),
+  /**
+   * Deduplicate BEFORE the display cap, then move the answer's `[N]` onto the
+   * surviving ids.
+   *
+   * The order is the whole trick and it is measured — see
+   * `DUPLICATE_SOURCE_SIMILARITY`: on the full text the true duplicate pairs
+   * score 0.578–0.808 against 0.004–0.079 for merely related ones, but truncated
+   * to the display snippet first, two of those pairs fall below the worst
+   * false positive and no threshold can separate them any more.
+   *
+   * This used to run only on the Linkup dossier path. It belongs here at least
+   * as much: rounds are deduplicated by exact URL as they arrive, which lets the
+   * same page through under `?utm_source=…` and under a second path on the same
+   * site — precisely the two cases this catches.
+   */
+  const deduped = dedupeResearchSources(
+    limitedSources.map((s) => ({
+      id: s.id,
+      title: s.title,
+      url: s.url,
+      domain: s.domain,
+      snippet: s.snippet,
+    }))
+  );
+  answer = remapCitationMarkers(answer, deduped.remap);
+
+  const citations: ResearchCitation[] = deduped.citations.map((c) => ({
+    ...c,
+    snippet: truncateText(c.snippet, CITATION_SNIPPET_CHARS),
   }));
 
   const confidence =
