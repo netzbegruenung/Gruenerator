@@ -16,7 +16,12 @@ import { describe, expect, it } from 'vitest';
 
 import { CURRENT_INSTANCE } from '../../../config/instance';
 
-import { SYSTEM_NOTEBOOKS, getNotebookById, getNotebookByPath } from './notebooksConfig';
+import {
+  SYSTEM_NOTEBOOKS,
+  getListedNotebookById,
+  getNotebookById,
+  getNotebookByPath,
+} from './notebooksConfig';
 
 describe('notebooksConfig — discovery', () => {
   it('lists exactly what this instance offers', () => {
@@ -31,6 +36,25 @@ describe('notebooksConfig — discovery', () => {
     // `boell-stiftung-notebook` is `internal`, so it belongs to `local` only.
     const listed = SYSTEM_NOTEBOOKS.some((nb) => nb.id === 'boell-stiftung-notebook');
     expect(listed).toBe(isNotebookOfferedIn('boell-stiftung-notebook', CURRENT_INSTANCE));
+  });
+});
+
+describe('notebooksConfig — listing lookup', () => {
+  it('never returns a notebook this instance does not offer', () => {
+    // The gallery picks a few tiles by id (Bundesverband, Bundestagsfraktion,
+    // KommunalWiki). Using the *resolution* lookup there rendered a tile for a
+    // notebook the instance policy had just hidden everywhere else.
+    for (const nb of NOTEBOOK_REGISTRY) {
+      if (isNotebookOfferedIn(nb.id, CURRENT_INSTANCE) && nb.enabled !== false) continue;
+      expect(getListedNotebookById(nb.id)).toBeUndefined();
+    }
+  });
+
+  it('returns every listed, enabled notebook', () => {
+    for (const nb of SYSTEM_NOTEBOOKS) {
+      if (nb.enabled === false) continue;
+      expect(getListedNotebookById(nb.id)?.id).toBe(nb.id);
+    }
   });
 });
 
