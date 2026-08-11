@@ -276,5 +276,3 @@ self.addEventListener('message', (event) => {
     );
   }
 });
-
-console.log('[SW] Illustration cache service worker loaded!');
