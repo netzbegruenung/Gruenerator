@@ -94,20 +94,27 @@
   }
 }
 
-/* ── Hero: single centred column ── */
+/* ── Hero: centred column over a pinned cue row ──
+   Two grid rows instead of one centred flex column: the hint + scroll cue used
+   to be absolutely positioned, so the centring could not see them and a bottom
+   padding had to stand in for their height. That padding was asymmetric to the
+   56px on top, and a centred box in an asymmetric box shifts by half the
+   difference — the headline sat (128 − 56) / 2 = 36px above the viewport centre.
+   With `1fr auto` the cue occupies its own row, .sp-hero-main centres in exactly
+   what is left, and no number has to be guessed. */
 .sp-hero {
   position: relative;
   z-index: 1;
   min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  justify-items: center;
   text-align: center;
-  /* Bottom padding reserves room for the absolutely-positioned hint + scroll
-     cue (~90px tall at bottom:16px) so an expanded provider list cannot slide
-     under it on short viewports. */
-  padding: 56px 24px 128px;
+  /* Top padding matches the topbar's height (22 + 40 + 22): the bar is
+     absolute and lies over the top of the first row, so a smaller value would
+     let the centring count space the logo already occupies and the block would
+     read high. */
+  padding: 84px 24px 16px;
   /* light-theme locals; overridden for dark below */
   --sp-wordmark: #2f4f40;
   --sp-obr: rgba(47, 79, 64, 0.35);
@@ -139,6 +146,13 @@
   --sp-more-hover-bg: rgba(255, 255, 255, 0.08);
   --sp-cta-shadow: 0 8px 20px -10px rgba(0, 0, 0, 0.6);
   --sp-cta-shadow-hover: 0 14px 28px -12px rgba(0, 0, 0, 0.7);
+}
+
+.sp-hero-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 /* ── Top bar ── */
@@ -194,9 +208,15 @@
   align-items: center;
   gap: 14px;
 }
-/* Shadow room, on both children so align-items:center keeps them level. */
+/* min-width: one width for both — "Mehr erfahren" is 32px wider than "Login" as
+   text, so the pair sits centred but its mass does not: the eye anchors on the
+   white pill, which ends up left of centre, and the outlined button reads as
+   the bigger of the two although both are exactly the same height.
+   margin-bottom: shadow room, on both children so align-items:center keeps them
+   level. */
 .sp-cta-row > .sp-login,
 .sp-cta-row > .sp-more {
+  min-width: 172px;
   margin-bottom: var(--sp-cta-shadow-room);
 }
 
@@ -383,12 +403,13 @@
   max-width: min(56ch, calc(100vw - 48px));
 }
 
-/* ── Scroll cue ── */
+/* ── Scroll cue ──
+   In the flow as the hero's second grid row. As an absolutely positioned
+   shrink-to-fit box at left:50% it could never be wider than half the hero:
+   that is the width an abspos box gets to lay out in, so on a 390px phone the
+   hint was capped at 195px and broke into four lines no matter what max-width
+   it carried. */
 .sp-cue-wrap {
-  position: absolute;
-  left: 50%;
-  bottom: 16px;
-  transform: translateX(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -451,7 +472,8 @@
 /* ── Phone ── */
 @media (max-width: 768px) {
   .sp-hero {
-    padding: 72px 24px calc(128px + env(safe-area-inset-bottom));
+    /* 18 + 34 + 18 = the phone topbar, same reasoning as above. */
+    padding: 70px 24px calc(12px + env(safe-area-inset-bottom));
   }
   .sp-topbar {
     padding: 18px 20px;
@@ -465,6 +487,20 @@
     line-height: 1.18;
     max-width: 16ch;
   }
+  /* The width has to hang on .sp-collapse, not on the row inside it: .sp-cta
+     centres its children, so the grid wrapper shrinks to its content and a
+     width:100% further in resolves against those 135px instead of the column
+     that is actually available. Capped at 380px so the pill does not become a
+     bar on a tablet, but below that it keeps the same 24px gutter as the
+     headline. */
+  .sp-cta {
+    width: 100%;
+  }
+  .sp-collapse {
+    width: 100%;
+    max-width: 380px;
+    margin-inline: auto;
+  }
   /* Stack the CTA full-width; the outlined "Mehr erfahren" drops out on phone
      (the bottom chevron already handles scroll-to-content). */
   .sp-cta-row,
@@ -473,7 +509,10 @@
     align-items: stretch;
     gap: 12px;
     width: 100%;
-    max-width: 320px;
+  }
+  .sp-cta-row > .sp-login,
+  .sp-cta-row > .sp-more {
+    min-width: 0;
   }
   .sp-more {
     display: none;
@@ -483,11 +522,11 @@
     width: 100%;
     min-height: 54px;
   }
-  .sp-cue-wrap {
-    bottom: calc(12px + env(safe-area-inset-bottom));
-  }
   .sp-hint {
-    max-width: 26ch;
+    /* ch is tiny at this size — 26ch were 186px and four lines. Tie it to the
+       gutter instead so the hint keeps the same margin as headline and CTA,
+       with 300px as a ceiling against over-long measure. */
+    max-width: min(300px, calc(100vw - 48px));
     font-size: 0.82rem;
   }
   .sp-cue {
