@@ -339,6 +339,22 @@ describe('convertToThreadMessageLike — reload reconstruction', () => {
     const [msg] = convertToThreadMessageLike([{ id: 'm1', role: 'assistant', content: 'hi' }]);
     expect(msg?.metadata).toBeUndefined();
   });
+
+  it('carries the persisted timestamp as a Date (day separators need it on reload)', () => {
+    const [msg] = convertToThreadMessageLike([
+      { id: 'm1', role: 'assistant', content: 'hi', createdAt: '2026-08-01T09:30:00.000Z' },
+    ]);
+    expect(msg?.createdAt).toEqual(new Date('2026-08-01T09:30:00.000Z'));
+  });
+
+  it('omits createdAt when the persisted value is missing or unparsable', () => {
+    const [bare, broken] = convertToThreadMessageLike([
+      { id: 'm1', role: 'assistant', content: 'hi' },
+      { id: 'm2', role: 'assistant', content: 'ho', createdAt: 'not-a-date' },
+    ]);
+    expect(bare?.createdAt).toBeUndefined();
+    expect(broken?.createdAt).toBeUndefined();
+  });
 });
 
 // Stufe 2 (Interleaving on reload): when persisted tool calls carry a numeric
