@@ -55,6 +55,10 @@ export const profileUpdateBodySchema = z.object({
   reduce_motion: z.boolean().optional(),
   reduce_transparency: z.boolean().optional(),
   show_skip_link: z.boolean().optional(),
+  // Anweisung, kein Profilfeld: der Client sagt „erteilt"/„widerrufen", den
+  // Zeitstempel `ai_consent_at` setzt der Server (Nachweis nach Art. 7 Abs. 1
+  // DSGVO). Deshalb steht hier `ai_consent` und in der Antwort `ai_consent_at`.
+  ai_consent: z.boolean().optional(),
 });
 
 /** The exact set of profile columns a client may write. */
@@ -174,6 +178,11 @@ export const userProfileSchema = z.object({
   reduce_motion: z.boolean().default(false),
   reduce_transparency: z.boolean().default(false),
   show_skip_link: z.boolean().default(true),
+  // Zeitpunkt der KI-Einwilligung, vom Server gesetzt. `null` heißt „nie erteilt
+  // oder widerrufen" und ist die Bedingung, auf die das Einwilligungs-Gate
+  // prüft — daher nullable statt bloß optional, und `.default(null)`, damit der
+  // null-strippende Parse-Pfad in `toBetterAuthUser()` dasselbe Ergebnis liefert.
+  ai_consent_at: z.string().nullable().default(null),
   is_admin: z.boolean().optional(),
   groups_enabled: z.boolean().default(false),
   custom_generators: z.boolean().default(false),
