@@ -37,9 +37,51 @@ export const UNIT_LABELS: Record<string, string> = {
   searches: 'Recherchen',
 };
 
+/**
+ * What a model was used FOR, as a section heading.
+ *
+ * A flat model list reads as one kind of thing, so Voxtral and Linkup end up
+ * looking like chat models with an odd unit. Grouping by function is what makes
+ * "welches Modell macht eigentlich die Untertitel" answerable from the table.
+ */
+export const FUNCTION_LABELS: Record<string, string> = {
+  tokens: 'Textmodelle',
+  images: 'Bildmodelle',
+  transcriptions: 'Spracherkennung',
+  searches: 'Websuche',
+};
+
+/** Order the function sections appear in — text first, it dominates every window. */
+export const FUNCTION_ORDER = ['tokens', 'images', 'transcriptions', 'searches'] as const;
+
+/**
+ * Human names for the upstreams the tracker records.
+ *
+ * The raw values are routing keys, not product names: `litellm` is the proxy in
+ * front of our self-hosted models, and what a user is actually looking at there
+ * is verdigado. Showing the key would name our plumbing instead of the host.
+ */
+export const PROVIDER_LABELS: Record<string, string> = {
+  mistral: 'Mistral AI',
+  scaleway: 'Scaleway',
+  litellm: 'verdigado',
+  regolo: 'Regolo / Seeweb',
+  greenpt: 'GreenPT',
+  bfl: 'Black Forest Labs',
+  linkup: 'Linkup',
+};
+
+export function providerLabel(provider: string): string {
+  return PROVIDER_LABELS[provider] ?? provider;
+}
+
 const numberFormat = new Intl.NumberFormat('de-DE');
+/**
+ * Kept for PUE and grid intensity — those are published INPUTS, not our own
+ * estimates, and "PUE 1" would misstate a datasheet figure of 1,25. The
+ * no-decimals rule applies to what we compute, not to what we cite.
+ */
 export const oneDecimal = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 1 });
-const twoDecimals = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 });
 
 export function formatCount(value: number): string {
   return numberFormat.format(value);
@@ -52,16 +94,27 @@ export function formatTokens(value: number): string {
   return numberFormat.format(value);
 }
 
-/** Footprints span four orders of magnitude between a trial and a heavy month. */
+/**
+ * Footprints span four orders of magnitude between a trial and a heavy month.
+ *
+ * No decimals anywhere: the underlying estimate rests on per-model coefficients
+ * and a bounded share for the lanes nobody meters, so a tenth of a gram is
+ * precision we do not have. "154,1 g" claims a resolution the arithmetic cannot
+ * back; "154 g" says the same thing without the false claim.
+ *
+ * The unit switches a decade later than the obvious 1000 for the same reason —
+ * rounding 1400 g to "1 kg" would throw away 30% to avoid a decimal point,
+ * which is a worse lie than the one we are removing. So grams run to 9999.
+ */
 export function formatGrams(grams: number): string {
-  if (grams >= 1000) return `${twoDecimals.format(grams / 1000)} kg`;
-  if (grams >= 1) return `${oneDecimal.format(grams)} g`;
+  if (grams >= 10_000) return `${numberFormat.format(Math.round(grams / 1000))} kg`;
+  if (grams >= 1) return `${numberFormat.format(Math.round(grams))} g`;
   return `${numberFormat.format(Math.round(grams * 1000))} mg`;
 }
 
 export function formatEnergy(wh: number): string {
-  if (wh >= 1000) return `${twoDecimals.format(wh / 1000)} kWh`;
-  return `${oneDecimal.format(wh)} Wh`;
+  if (wh >= 10_000) return `${numberFormat.format(Math.round(wh / 1000))} kWh`;
+  return `${numberFormat.format(Math.round(wh))} Wh`;
 }
 
 /**
@@ -72,7 +125,7 @@ export const CAR_G_PER_KM = 150;
 
 export function carComparison(grams: number): string {
   const metres = (grams / CAR_G_PER_KM) * 1000;
-  if (metres >= 1000) return `${oneDecimal.format(metres / 1000)} km Autofahrt`;
+  if (metres >= 10_000) return `${numberFormat.format(Math.round(metres / 1000))} km Autofahrt`;
   return `${numberFormat.format(Math.round(metres))} m Autofahrt`;
 }
 

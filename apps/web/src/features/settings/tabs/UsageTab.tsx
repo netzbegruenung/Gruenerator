@@ -12,14 +12,15 @@ import { useState } from 'react';
 
 import { getDocsUrl } from '../../../utils/docsUrl';
 import {
-  carComparison,
   FEATURE_LABELS,
   formatCount,
   formatDay,
   formatEnergy,
   formatGrams,
   formatTokens,
-  oneDecimal,
+  FUNCTION_LABELS,
+  FUNCTION_ORDER,
+  providerLabel,
   REFERENCE_UNCERTAINTY,
   UNIT_LABELS,
 } from '../../../utils/usageFormat';
@@ -57,11 +58,15 @@ function StatTile({ label, value, hint }: { label: string; value: string; hint?:
  * corridor, because the GPT-4o side is an estimate the source paper itself
  * flags as uncertain.
  *
- * Energy still reports both directions: our default Mistral Medium needs MORE
- * raw electricity than GPT-4o reportedly does, and the CO2 advantage comes
- * from the French grid, not from sparser engineering. Collapsing that to a
- * "savings" framing too would hide the one place this comparison doesn't
- * flatter us.
+ * Deliberately shows only the DIFFERENCE, never this account's own figure —
+ * neither in grams nor in watt-hours. Confronting a single person with "your
+ * CO2" makes an individual responsible for a platform decision they did not
+ * make: which model runs where, and on whose grid, is ours to answer. The
+ * platform's own consumption is published in full on the transparency page,
+ * where it belongs.
+ *
+ * The direction is still reported honestly. Where the comparison goes against
+ * us the heading and label say so rather than hiding the card.
  */
 function ReferenceComparison({ footprint }: { footprint: UsageFootprintDto }) {
   // Text only on both sides. The reference costs the same TOKENS on GPT-4o and
@@ -70,7 +75,6 @@ function ReferenceComparison({ footprint }: { footprint: UsageFootprintDto }) {
   const textEmissions = footprint.emissions_g - footprint.image_emissions_g;
   const textEnergy = footprint.energy_wh - footprint.image_energy_wh;
   const co2Savings = footprint.reference_emissions_g - textEmissions;
-  const energyFactor = textEnergy > 0 ? footprint.reference_energy_wh / textEnergy : 0;
   // Only vanish when there is nothing to compare — an unfavorable comparison
   // is reported, not hidden (see the JSDoc above).
   const hasTextUsage = textEmissions > 0 || textEnergy > 0 || footprint.reference_emissions_g > 0;
@@ -108,26 +112,17 @@ function ReferenceComparison({ footprint }: { footprint: UsageFootprintDto }) {
           </span>
         </div>
         <div className="flex flex-col gap-1">
-          <span className="text-xs text-grey-500">Energie</span>
+          <span className="text-xs text-grey-500">Strom bei ChatGPT</span>
           <span className="text-lg font-semibold text-foreground-heading">
             ≈ {formatEnergy(footprint.reference_energy_wh)}
           </span>
-          <span className="text-xs text-grey-500">
-            statt {formatEnergy(textEnergy)}
-            {energyFactor > 0 && (
-              <>
-                {' — '}
-                {energyFactor >= 1
-                  ? `${oneDecimal.format(energyFactor)}× so viel`
-                  : `${oneDecimal.format(1 / energyFactor)}× weniger als bei uns`}
-              </>
-            )}
-          </span>
+          <span className="text-xs text-grey-500">für dieselbe Arbeit auf GPT-4o</span>
         </div>
       </div>
       <p className="m-0 text-xs leading-relaxed text-grey-500">
         Vergleich zu GPT-4o (Jegham et al. 2025), nur Text — Bilder haben keine vergleichbar sauber
-        abgegrenzte OpenAI-Zahl.{' '}
+        abgegrenzte OpenAI-Zahl. Deinen eigenen Verbrauch weisen wir bewusst nicht aus; was die
+        Plattform insgesamt braucht, steht auf der Transparenz-Seite.{' '}
         <a
           href={`${getDocsUrl()}/docs/ueber-den-gruenerator/nachhaltigkeit`}
           target="_blank"
@@ -153,15 +148,15 @@ function FootprintNote({ footprint }: { footprint: UsageFootprintDto }) {
   return (
     <p className="m-0 rounded-xl border border-grey-200 p-md text-xs leading-relaxed text-grey-500 dark:border-grey-700">
       {measuredPct > 0
-        ? `${formatCount(measuredPct)} % dieser Zahl sind Messwerte, die unser Anbieter GreenPT mitliefert. Der Rest ist `
-        : 'Die Zahl ist '}
-      aus deinen Token-Zahlen hochgerechnet — mit Energiewerten, die an genau denselben Modellen
-      gemessen wurden.{' '}
+        ? `${formatCount(measuredPct)} % der Ersparnis oben stützen sich auf Messwerte, die unser Anbieter GreenPT mitliefert. Der Rest ist `
+        : 'Die Ersparnis oben ist '}
+      aus Token-Zahlen hochgerechnet — mit Energiewerten, die an genau denselben Modellen gemessen
+      wurden.{' '}
       {boundedPct > 0 && (
         <>
           Für {formatCount(boundedPct)} % gibt es kein messbares Gegenstück; dort rechnen wir
-          bewusst mit der <strong>Obergrenze</strong> der gemessenen Spanne, damit die Zahl eher zu
-          hoch als zu niedrig ausfällt.{' '}
+          bewusst mit der <strong>Obergrenze</strong> der gemessenen Spanne, damit unsere Seite eher
+          zu schlecht als zu gut dasteht.{' '}
         </>
       )}
       {coveredPct < 100 && (
@@ -247,20 +242,11 @@ export default function UsageTab() {
             <StatTile label="Bilder" value={formatCount(totals.images)} />
             <StatTile label="Transkriptionen" value={formatCount(totals.transcriptions)} />
             <StatTile label="Web-Recherchen" value={formatCount(totals.searches)} />
-            {footprint.emissions_g > 0 && (
-              <StatTile
-                label="CO₂ deiner KI-Nutzung"
-                value={`≈ ${formatGrams(footprint.emissions_g)}`}
-                hint={
-                  // A single generated image outweighs several hundred chat
-                  // turns, so where the number comes from matters more than the
-                  // number: without the split people optimise the wrong thing.
-                  footprint.image_emissions_g > 0
-                    ? `davon ${formatGrams(footprint.image_emissions_g)} aus Bildern · so viel wie ${carComparison(footprint.emissions_g)}`
-                    : `${formatEnergy(footprint.energy_wh)} · so viel wie ${carComparison(footprint.emissions_g)}`
-                }
-              />
-            )}
+            {/* No CO2 tile here on purpose: this tab reports what you DID, and
+                the comparison below reports what that saved. An individual
+                footprint would make one person answerable for a platform
+                decision — which model runs where, on whose grid — that is ours,
+                not theirs. The platform's own figure is on /transparenz. */}
           </div>
 
           {footprint.emissions_g > 0 && (
@@ -347,39 +333,59 @@ export default function UsageTab() {
             </div>
           </section>
 
-          <section className="flex flex-col gap-sm">
-            <h3 className="m-0 text-sm font-semibold text-foreground-heading">Nach Modell</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[28rem] text-sm">
-                <thead>
-                  <tr className="border-b border-grey-200 text-left text-xs text-grey-500 dark:border-grey-700">
-                    <th className="py-1 font-normal">Modell</th>
-                    <th className="py-1 font-normal">Anbieter</th>
-                    <th className="py-1 text-right font-normal">Anfragen</th>
-                    <th className="py-1 text-right font-normal">Menge</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {byModel.map((entry) => (
-                    <tr
-                      key={`${entry.provider}|${entry.model}|${entry.unit}`}
-                      className="border-b border-grey-100 last:border-0 dark:border-grey-800"
-                    >
-                      <td className="py-1.5">{entry.model}</td>
-                      <td className="py-1.5 text-grey-500">{entry.provider}</td>
-                      <td className="py-1.5 text-right tabular-nums">
-                        {formatCount(entry.unit === 'tokens' ? entry.requests : entry.ops)}
-                      </td>
-                      <td className="py-1.5 text-right tabular-nums">
-                        {entry.unit === 'tokens'
-                          ? `${formatCount(entry.total_tokens)} Tokens`
-                          : `${formatCount(entry.ops)} ${UNIT_LABELS[entry.unit] ?? entry.unit}`}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          {/* Grouped by what the model DOES, not flat: Voxtral and Linkup are
+              not chat models with a strange unit, and a flat list made them
+              read that way. */}
+          <section className="flex flex-col gap-md">
+            <h3 className="m-0 text-sm font-semibold text-foreground-heading">Nach Funktion</h3>
+            {FUNCTION_ORDER.map((unit) => {
+              const rows = byModel.filter((entry) => entry.unit === unit);
+              if (rows.length === 0) return null;
+              return (
+                <div key={unit} className="flex flex-col gap-1">
+                  <h4 className="m-0 text-xs font-semibold uppercase tracking-wide text-grey-500">
+                    {FUNCTION_LABELS[unit]}
+                  </h4>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[28rem] text-sm">
+                      <thead>
+                        <tr className="border-b border-grey-200 text-left text-xs text-grey-500 dark:border-grey-700">
+                          <th className="py-1 font-normal">Modell</th>
+                          <th className="py-1 font-normal">Anbieter</th>
+                          <th className="py-1 text-right font-normal">
+                            {unit === 'tokens' ? 'Anfragen' : UNIT_LABELS[unit]}
+                          </th>
+                          {unit === 'tokens' && (
+                            <th className="py-1 text-right font-normal">Tokens</th>
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((entry) => (
+                          <tr
+                            key={`${entry.provider}|${entry.model}`}
+                            className="border-b border-grey-100 last:border-0 dark:border-grey-800"
+                          >
+                            <td className="py-1.5">{entry.model}</td>
+                            <td className="py-1.5 text-grey-500">
+                              {providerLabel(entry.provider)}
+                            </td>
+                            <td className="py-1.5 text-right tabular-nums">
+                              {formatCount(unit === 'tokens' ? entry.requests : entry.ops)}
+                            </td>
+                            {unit === 'tokens' && (
+                              <td className="py-1.5 text-right tabular-nums">
+                                {formatCount(entry.total_tokens)}
+                              </td>
+                            )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })}
           </section>
         </>
       )}
