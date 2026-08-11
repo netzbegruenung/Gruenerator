@@ -567,36 +567,51 @@ function ModelPanel({ byModel }: { byModel: GetTransparencyStatsResponseDto['byM
 function ReferencePanel({ footprint }: { footprint: TransparencyFootprintDto }) {
   const textEmissions = footprint.emissions_g - footprint.image_emissions_g;
   const textEnergy = footprint.energy_wh - footprint.image_energy_wh;
-  const savings = footprint.reference_emissions_g - textEmissions;
-  if (savings <= 0) return null;
-
+  const co2Savings = footprint.reference_emissions_g - textEmissions;
   const energyFactor = textEnergy > 0 ? footprint.reference_energy_wh / textEnergy : 0;
-  const savingsLow = Math.max(
-    footprint.reference_emissions_g * (1 - REFERENCE_UNCERTAINTY) - textEmissions,
+  // Only vanish when there is nothing to compare — an unfavorable comparison
+  // is reported, not hidden (see the JSDoc above). Same rule as the personal
+  // tab's ReferenceComparison; a public page hiding its own bad number would
+  // be the exact failure this whole view exists to avoid.
+  const hasTextUsage = textEmissions > 0 || textEnergy > 0 || footprint.reference_emissions_g > 0;
+  if (!hasTextUsage) return null;
+
+  const co2Saved = co2Savings >= 0;
+  const co2SavingsLow = Math.max(
+    co2Saved
+      ? footprint.reference_emissions_g * (1 - REFERENCE_UNCERTAINTY) - textEmissions
+      : textEmissions - footprint.reference_emissions_g * (1 + REFERENCE_UNCERTAINTY),
     0
   );
-  const savingsHigh = footprint.reference_emissions_g * (1 + REFERENCE_UNCERTAINTY) - textEmissions;
+  const co2SavingsHigh = Math.max(
+    co2Saved
+      ? footprint.reference_emissions_g * (1 + REFERENCE_UNCERTAINTY) - textEmissions
+      : textEmissions - footprint.reference_emissions_g * (1 - REFERENCE_UNCERTAINTY),
+    0
+  );
 
   return (
     <section className="mt-12">
       <div className="mb-5 flex items-baseline justify-between gap-4">
         <h2 className={cn('m-0 text-[1.35rem] font-semibold tracking-[-0.01em]', MONITOR_HEADING)}>
-          Gegenüber ChatGPT
+          {co2Saved ? 'Gegenüber ChatGPT' : 'Vergleich zu ChatGPT'}
         </h2>
       </div>
       <div className={cn('flex flex-wrap gap-10 p-6', MONITOR_CARD)}>
         <div>
-          <p className={cn('m-0 mb-1', MONITOR_EYEBROW)}>CO₂ gespart</p>
+          <p className={cn('m-0 mb-1', MONITOR_EYEBROW)}>
+            {co2Saved ? 'CO₂ gespart' : 'CO₂ mehr als bei GPT-4o'}
+          </p>
           <span
             className={cn(
               'text-[2.2rem] font-semibold leading-none tracking-[-0.02em]',
               MONITOR_HEADING
             )}
           >
-            ≈ {formatGrams(savings)}
+            ≈ {formatGrams(Math.abs(co2Savings))}
           </span>
           <p className={cn('m-0 mt-2 text-[0.85rem]', MONITOR_MUTED)}>
-            etwa {formatGrams(savingsLow)} – {formatGrams(savingsHigh)}
+            etwa {formatGrams(co2SavingsLow)} – {formatGrams(co2SavingsHigh)}
           </p>
         </div>
         <div>
@@ -610,10 +625,15 @@ function ReferencePanel({ footprint }: { footprint: TransparencyFootprintDto }) 
             ≈ {formatEnergy(footprint.reference_energy_wh)}
           </span>
           <p className={cn('m-0 mt-2 text-[0.85rem]', MONITOR_MUTED)}>
-            statt {formatEnergy(textEnergy)} —{' '}
-            {energyFactor >= 1
-              ? `${oneDecimal.format(energyFactor)}× so viel`
-              : `${oneDecimal.format(1 / energyFactor)}× weniger als bei uns`}
+            statt {formatEnergy(textEnergy)}
+            {energyFactor > 0 && (
+              <>
+                {' — '}
+                {energyFactor >= 1
+                  ? `${oneDecimal.format(energyFactor)}× so viel`
+                  : `${oneDecimal.format(1 / energyFactor)}× weniger als bei uns`}
+              </>
+            )}
           </p>
         </div>
         <p className={cn('m-0 max-w-[34rem] flex-1 text-[0.8rem] leading-relaxed', MONITOR_FAINT)}>

@@ -163,6 +163,21 @@ describe('TransparenzView', () => {
     expect(screen.getByText('0 g', { selector: 'strong' })).toBeInTheDocument();
   });
 
+  it('reports the ChatGPT comparison even when it is unfavourable', async () => {
+    // Reference below our own text footprint: we come out worse. The section
+    // must still render — hiding the one number that does not flatter us is
+    // exactly what this page exists to not do.
+    serve({
+      ...RESPONSE,
+      footprint: { ...FOOTPRINT, reference_emissions_g: 200, reference_energy_wh: 500 },
+    });
+    renderWithProviders(<TransparenzView days={30} />);
+
+    await waitFor(() => expect(screen.getByText('Vergleich zu ChatGPT')).toBeInTheDocument());
+    expect(screen.getByText('CO₂ mehr als bei GPT-4o')).toBeInTheDocument();
+    expect(screen.queryByText('CO₂ gespart')).not.toBeInTheDocument();
+  });
+
   it('refuses to publish a figure when too few people were active', async () => {
     serve({ ...RESPONSE, sufficient_data: false, active_users: 2 });
     renderWithProviders(<TransparenzView days={30} />);
