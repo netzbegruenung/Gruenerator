@@ -283,4 +283,51 @@ describe('seite_lesen', () => {
       'konnte nicht gelesen werden'
     );
   });
+
+  it('refunds a failed crawl, so a run of 503s does not spend the reading allowance on nothing', async () => {
+    validateUrlForFetch.mockResolvedValue({ isValid: true, url: new URL('https://ok.example/x') });
+    crawlAndDistill.mockRejectedValue(new Error('503'));
+    const { seiteLesen, ctx } = setup();
+    const before = ctx.budget.crawlsLeft;
+
+    await seiteLesen.invoke({ url: 'https://ok.example/x' });
+
+    expect(ctx.budget.crawlsLeft).toBe(before);
+    expect(ctx.budget.crawlRefundsLeft).toBe(createBudget(Date.now()).crawlRefundsLeft - 1);
+  });
+
+  it('also refunds a page that came back unreadable', async () => {
+    validateUrlForFetch.mockResolvedValue({ isValid: true, url: new URL('https://ok.example/x') });
+    crawlAndDistill.mockResolvedValue([{ url: 'https://ok.example/x', crawled: false }]);
+    const { seiteLesen, ctx } = setup();
+    const before = ctx.budget.crawlsLeft;
+
+    await seiteLesen.invoke({ url: 'https://ok.example/x' });
+
+    expect(ctx.budget.crawlsLeft).toBe(before);
+  });
+
+  it('stops refunding once the refund cap is spent — failures then cost the run again', async () => {
+    validateUrlForFetch.mockResolvedValue({ isValid: true, url: new URL('https://ok.example/x') });
+    crawlAndDistill.mockRejectedValue(new Error('503'));
+    const { seiteLesen, ctx } = setup();
+    ctx.budget.crawlRefundsLeft = 0;
+    const before = ctx.budget.crawlsLeft;
+
+    await seiteLesen.invoke({ url: 'https://ok.example/x' });
+
+    expect(ctx.budget.crawlsLeft).toBe(before - 1);
+  });
+
+  it('a successful read never touches the refund pool', async () => {
+    validateUrlForFetch.mockResolvedValue({ isValid: true, url: new URL('https://ok.example/x') });
+    crawlAndDistill.mockResolvedValue([
+      { url: 'https://ok.example/x', title: 'Seite', content: 'Der Inhalt', crawled: true },
+    ]);
+    const { seiteLesen, ctx } = setup();
+
+    await seiteLesen.invoke({ url: 'https://ok.example/x' });
+
+    expect(ctx.budget.crawlRefundsLeft).toBe(createBudget(Date.now()).crawlRefundsLeft);
+  });
 });
