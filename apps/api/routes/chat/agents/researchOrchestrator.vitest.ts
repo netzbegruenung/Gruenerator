@@ -60,14 +60,24 @@ vi.mock('../../../services/search/CitationGrounder.js', () => ({
   stripUngroundedCitations: (text: string) => text,
 }));
 
+const mmrInput: unknown[][] = [];
 vi.mock('../../../services/search/DiversityReranker.js', () => ({
-  applyMMR: (sources: unknown[]) => sources,
+  applyMMR: (sources: unknown[]) => {
+    mmrInput.push(sources);
+    return sources;
+  },
 }));
 
 // ─── Import after mocks ──────────────────────────────────────
 
-const { executeResearch, localeToSearchScope, DeepPlanSchema, researchConfidence } =
-  await import('./researchOrchestrator.js');
+const {
+  executeResearch,
+  localeToSearchScope,
+  DeepPlanSchema,
+  researchConfidence,
+  dedupeResearchSources,
+  remapCitationMarkers,
+} = await import('./researchOrchestrator.js');
 
 // ─── Helpers ─────────────────────────────────────────────────
 
@@ -101,6 +111,22 @@ function makeDocResult(query: string, count = 2) {
   };
 }
 
+/**
+ * Prose with no shingle overlap between indices — enough for the deduplicator to
+ * treat two read pages as two documents.
+ */
+function distinctProse(index: number): string {
+  const vocab = [
+    'alpha bravo charlie delta echo foxtrot',
+    'zulu yankee xray whiskey victor uniform',
+    'kilo lima mike november oscar papa',
+    'quebec romeo sierra tango umbrella violet',
+    'aachen bremen chemnitz dessau erfurt flensburg',
+    'gera halle ilmenau jena kassel luebeck',
+  ];
+  return (vocab[index % vocab.length] ?? 'sonstige woerter hier').repeat(3);
+}
+
 const PLAN_TWO_WEB = {
   subQuestions: [
     { id: 'q1', question: 'a', sources: ['web'] },
@@ -130,6 +156,7 @@ function synthesisPrompt(): string {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mmrInput.length = 0;
   mockGetIntermediateModel.mockReturnValue({ id: 'mock-model' });
   mockExecuteDirectWebSearch.mockImplementation(async ({ query }: { query: string }) =>
     makeWebResult(query)
@@ -140,8 +167,15 @@ beforeEach(() => {
   mockGenerateText.mockResolvedValue({ text: 'Mocked synthesis answer [1] [2].' });
   mockValidateUrlForFetch.mockImplementation(async (url: string) => ({ isValid: true, url }));
   // Default reader: every page reads successfully, digest names its source.
+  // The filler words differ per URL on purpose — the deduplicator folds sources
+  // whose text overlaps, so digests that were near-identical would collapse
+  // every read source into one and mask what the other tests are checking.
   mockCrawlAndDistill.mockImplementation(async (seeds: Array<{ url: string; title: string }>) =>
-    seeds.map((s) => ({ ...s, content: `GELESENER VOLLTEXT von ${s.url}`, crawled: true }))
+    seeds.map((s, i) => ({
+      ...s,
+      content: `GELESENER VOLLTEXT von ${s.url} ${distinctProse(i)}`,
+      crawled: true,
+    }))
   );
   mockValidateCitations.mockReturnValue({
     ungroundedCitations: [],
@@ -605,5 +639,116 @@ describe('researchConfidence', () => {
     expect(researchConfidence({ ...base, sources: 2, domains: 1, queryInherited: true })).toBe(
       'low'
     );
+  });
+});
+
+/**
+ * `applyMMR` documents its input as "sorted by relevance, highest first" and
+ * seeds itself from the first element. `executeRound` sorts WITHIN a round, so a
+ * single-round run satisfied that by accident — but rounds are concatenated in
+ * the order they ran, so from round two on the array is sorted in segments and
+ * MMR would seed from round one's best rather than the run's.
+ */
+describe('executeResearch — what MMR is handed', () => {
+  it('sorts globally across rounds before reranking', async () => {
+    mockPlannerAndCoverage(PLAN_TWO_WEB, { score: 2, weakAspects: ['luecke'] });
+    // Round 2's hits outrank round 1's, so segment-wise sorting is visible.
+    let round = 0;
+    mockExecuteDirectWebSearch.mockImplementation(async ({ query }: { query: string }) => {
+      round += 1;
+      const base = makeWebResult(query);
+      return {
+        ...base,
+        results: base.results.map((r, i) => ({ ...r, rank: round > 2 ? 1 : 5 + i })),
+      };
+    });
+
+    await executeResearch({ question: 'eine frage' });
+
+    const handed = mmrInput.at(-1) as Array<{ relevance: number }>;
+    expect(handed.length).toBeGreaterThan(2);
+    const scores = handed.map((s) => s.relevance);
+    expect(scores).toEqual([...scores].sort((a, b) => b - a));
+  });
+});
+
+/**
+ * Restored from the Linkup dossier path, where it was the only consumer. It
+ * belongs here at least as much: rounds are deduplicated by EXACT url as they
+ * arrive, which lets the same page through under `?utm_source=…` and under a
+ * second path on the same host.
+ */
+describe('dedupeResearchSources', () => {
+  const cite = (id: number, url: string, snippet: string) => ({
+    id,
+    url,
+    title: `Quelle ${id}`,
+    domain: 'example.org',
+    snippet,
+  });
+
+  it('folds two URLs that address the same document and renumbers the survivors', () => {
+    const out = dedupeResearchSources([
+      cite(1, 'https://example.org/meldung', 'Ein Text'),
+      cite(2, 'https://www.example.org/meldung?utm_source=x', 'Ein Text'),
+      cite(3, 'https://example.org/anderes', 'Etwas ganz anderes'),
+    ]);
+
+    expect(out.citations.map((c) => c.id)).toEqual([1, 2]);
+    expect(out.remap.get('2')).toBe('1');
+    expect(out.remap.get('3')).toBe('2');
+  });
+
+  it('keeps merely related sources apart', () => {
+    const out = dedupeResearchSources([
+      cite(1, 'https://a.example/1', 'Der Bundestag beschloss das Gesetz am Donnerstag.'),
+      cite(2, 'https://b.example/2', 'Völlig anderer Gegenstand, andere Wörter, anderer Text.'),
+    ]);
+    expect(out.citations).toHaveLength(2);
+  });
+
+  it('moves the answer markers onto the surviving ids', () => {
+    const remap = new Map([
+      ['1', '1'],
+      ['2', '1'],
+      ['3', '2'],
+    ]);
+    expect(remapCitationMarkers('A [1] B [2] C [3]', remap)).toBe('A [1] B [1] C [2]');
+  });
+
+  it('leaves a marker the model invented alone', () => {
+    expect(remapCitationMarkers('siehe [9]', new Map([['1', '1']]))).toBe('siehe [9]');
+  });
+});
+
+describe('executeResearch — reading uses the validated URL', () => {
+  it('fetches what the SSRF check returned, not the raw string', async () => {
+    // CLAUDE.md: use the validated `url` from the result. The checker
+    // normalises, so handing the raw string on would fetch something the check
+    // never saw.
+    mockPlannerAndCoverage(PLAN_TWO_WEB);
+    mockValidateUrlForFetch.mockImplementation(async (url: string) => ({
+      isValid: true,
+      url: new URL(`https://normalisiert.example/${encodeURIComponent(url)}`),
+    }));
+
+    await executeResearch({ question: 'eine frage' });
+
+    const seeds = (mockCrawlAndDistill.mock.calls[0] as [Array<{ url: string }>])[0];
+    for (const seed of seeds) {
+      expect(seed.url).toContain('normalisiert.example');
+    }
+  });
+
+  it('still maps the digest back onto the source it came from', async () => {
+    mockPlannerAndCoverage(PLAN_TWO_WEB);
+    mockValidateUrlForFetch.mockImplementation(async (url: string) => ({
+      isValid: true,
+      url: new URL(`${url}?normalisiert=1`),
+    }));
+
+    await executeResearch({ question: 'eine frage' });
+
+    expect(synthesisPrompt()).toContain('GELESENER VOLLTEXT');
   });
 });
