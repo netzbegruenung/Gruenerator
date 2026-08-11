@@ -669,6 +669,7 @@ async function saveThreadAttachmentsFromMeta(
             sizeBytes: meta.sizeBytes,
             isImage: meta.isImage,
             extractedText: meta.extractedText,
+            ...(meta.pageCount != null && { pageCount: meta.pageCount }),
             ...(meta.imageData != null && { imageData: meta.imageData }),
             ...(meta.fileData != null && { fileData: meta.fileData }),
           }),
