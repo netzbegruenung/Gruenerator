@@ -1,6 +1,6 @@
 'use client';
 
-import { FileText, Globe, Code2, Newspaper, Database, File, ExternalLink } from 'lucide-react';
+import { ExternalLink, Globe } from 'lucide-react';
 import * as React from 'react';
 
 import { openSafeNavigationHref, resolveSafeNavigationHref } from '../shared/media';
@@ -8,70 +8,10 @@ import { openSafeNavigationHref, resolveSafeNavigationHref } from '../shared/med
 import { cn, Popover, PopoverContent, PopoverTrigger } from './_adapter';
 import { Citation } from './citation';
 import { SourceGlyph } from './SourceGlyph';
+import { CITATION_TYPE_ICONS } from './typeIcons';
+import { useHoverPopover } from './useHoverPopover';
 
-import type { SerializableCitation, CitationType, CitationVariant } from './schema';
-import type { LucideIcon } from 'lucide-react';
-
-const TYPE_ICONS: Record<CitationType, LucideIcon> = {
-  webpage: Globe,
-  document: FileText,
-  article: Newspaper,
-  api: Database,
-  code: Code2,
-  other: File,
-};
-
-function useHoverPopover(delay = 100) {
-  const [open, setOpen] = React.useState(false);
-  const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const containerRef = React.useRef<HTMLDivElement>(null);
-
-  const handleMouseEnter = React.useCallback(() => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => setOpen(true), delay);
-  }, [delay]);
-
-  const handleMouseLeave = React.useCallback(() => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => setOpen(false), delay);
-  }, [delay]);
-
-  const handleFocus = React.useCallback(() => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    setOpen(true);
-  }, []);
-
-  const handleBlur = React.useCallback(
-    (e: React.FocusEvent) => {
-      const relatedTarget = e.relatedTarget as HTMLElement | null;
-      if (containerRef.current?.contains(relatedTarget)) {
-        return;
-      }
-      if (relatedTarget?.closest('[data-radix-popper-content-wrapper]')) {
-        return;
-      }
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      timeoutRef.current = setTimeout(() => setOpen(false), delay);
-    },
-    [delay]
-  );
-
-  React.useEffect(() => {
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, []);
-
-  return {
-    open,
-    setOpen,
-    containerRef,
-    handleMouseEnter,
-    handleMouseLeave,
-    handleFocus,
-    handleBlur,
-  };
-}
+import type { SerializableCitation, CitationVariant } from './schema';
 
 export interface CitationListProps {
   id: string;
@@ -248,7 +188,7 @@ interface OverflowItemProps {
 }
 
 function OverflowItem({ citation, onClick }: OverflowItemProps) {
-  const TypeIcon = TYPE_ICONS[citation.type ?? 'webpage'] ?? Globe;
+  const TypeIcon = CITATION_TYPE_ICONS[citation.type ?? 'webpage'] ?? Globe;
 
   return (
     <button
@@ -333,7 +273,7 @@ function StackedCitations({ id, citations, className, onNavigate }: StackedCitat
           >
             <div className="flex items-center">
               {visibleCitations.map((citation, index) => {
-                const TypeIcon = TYPE_ICONS[citation.type ?? 'webpage'] ?? Globe;
+                const TypeIcon = CITATION_TYPE_ICONS[citation.type ?? 'webpage'] ?? Globe;
                 return (
                   <div
                     key={citation.id}
