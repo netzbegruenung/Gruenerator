@@ -10,6 +10,7 @@ import {
   makeGroupsTool,
   makeMediaTool,
   makeNotebooksTool,
+  makeSearchThreadsTool,
   type PersonalToolCtx,
 } from './personalDataTools.js';
 
@@ -40,6 +41,10 @@ const nbGetCollection = vi.fn();
 const nbUpdate = vi.fn();
 const nbDelete = vi.fn();
 const readArtifactContent = vi.fn();
+const recallPastChats = vi.fn();
+const listRecentThreads = vi.fn();
+const getThreadRecallContext = vi.fn();
+const resolveSpaceThreadIds = vi.fn();
 
 vi.mock('../../docs/docsSearch.js', () => ({
   searchOfficeContent: (...a: unknown[]) => searchOfficeContent(...a),
@@ -98,6 +103,12 @@ vi.mock('../../../services/subtitler/reelSearch.js', () => ({
 }));
 vi.mock('../services/artifactReader.js', () => ({
   readArtifactContent: (...a: unknown[]) => readArtifactContent(...a),
+}));
+vi.mock('../services/pastChatRecallService.js', () => ({
+  recallPastChats: (...a: unknown[]) => recallPastChats(...a),
+  listRecentThreads: (...a: unknown[]) => listRecentThreads(...a),
+  getThreadRecallContext: (...a: unknown[]) => getThreadRecallContext(...a),
+  resolveSpaceThreadIds: (...a: unknown[]) => resolveSpaceThreadIds(...a),
 }));
 vi.mock('../../../database/services/NotebookQdrantHelper.js', () => ({
   NotebookQdrantHelper: class {
@@ -823,5 +834,68 @@ describe('read_artifact', () => {
     expect(out.truncated).toBe(true);
     expect(out.content.length).toBeLessThan(20_000);
     expect(out.content).toContain('[gekürzt]');
+  });
+});
+
+// --- search_threads ----------------------------------------------------------
+describe('search_threads', () => {
+  it('no query → lists the most recent chats instead of erroring', async () => {
+    dbQuery.mockResolvedValue([]); // getCurrentSpaceId → no space
+    listRecentThreads.mockResolvedValue([
+      {
+        threadId: 'th1',
+        threadTitle: 'Hitzeschutz-Tweets',
+        threadSlugSuffix: 'ab12cd',
+        agentId: 'default',
+        snippet: 'Tweet-Optionen zum Abkühl-Sofortprogramm',
+        messageRole: 'assistant',
+        matchedAt: '2026-08-10T00:00:00.000Z',
+        threadUpdatedAt: '2026-08-10T00:00:00.000Z',
+      },
+    ]);
+    const out = (await exec(makeSearchThreadsTool(ctx('u1')), {
+      action: 'search',
+      scope: 'all',
+      limit: 5,
+    })) as { resultCount: number; results: Array<{ title: string; url: string }> };
+    expect(recallPastChats).not.toHaveBeenCalled();
+    expect(listRecentThreads).toHaveBeenCalledWith('u1', { limit: 5, excludeThreadId: 't1' });
+    expect(out.resultCount).toBe(1);
+    expect(out.results[0].title).toBe('Hitzeschutz-Tweets');
+    expect(out.results[0].url).toContain('ab12cd');
+  });
+
+  it('with query → keyword+semantic recall, not the recency list', async () => {
+    dbQuery.mockResolvedValue([]);
+    recallPastChats.mockResolvedValue([]);
+    await exec(makeSearchThreadsTool(ctx('u1')), {
+      action: 'search',
+      query: 'Hitzeschutz',
+      scope: 'all',
+      limit: 5,
+    });
+    expect(listRecentThreads).not.toHaveBeenCalled();
+    expect(recallPastChats).toHaveBeenCalledWith('u1', 'Hitzeschutz', {
+      limit: 5,
+      excludeThreadId: 't1',
+    });
+  });
+
+  it('no query in a Space → recency list stays scoped to the sibling threads', async () => {
+    dbQuery.mockResolvedValue([{ group_id: 'g1' }]); // getCurrentSpaceId → Space
+    resolveSpaceThreadIds.mockResolvedValue({
+      ok: true,
+      threads: [
+        { id: 'th1', title: 'A' },
+        { id: 'th2', title: 'B' },
+      ],
+    });
+    listRecentThreads.mockResolvedValue([]);
+    await exec(makeSearchThreadsTool(ctx('u1')), { action: 'search', scope: 'space', limit: 3 });
+    expect(listRecentThreads).toHaveBeenCalledWith('u1', {
+      limit: 3,
+      excludeThreadId: 't1',
+      threadIds: ['th1', 'th2'],
+    });
   });
 });
