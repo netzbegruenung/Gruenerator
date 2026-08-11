@@ -9,8 +9,9 @@
  * its own routes first; unmatched paths (GET /stats, POST /clear-cache)
  * fall through to the legacy router.
  *
- * Authentication: routes are public — consistent with existing
- * publicReadLimiter-only mount in routes.ts.
+ * Authentication: requireAuth sits on the /api/unsplash prefix in routes.ts,
+ * mounted BEFORE this call — createExpressEndpoints registers handlers directly
+ * on `app`, so a guard added after it would never run for these routes.
  */
 
 import { unsplashContract } from '@gruenerator/contracts';
