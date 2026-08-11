@@ -550,9 +550,13 @@
   .sp-cue-wrap {
     display: none;
   }
-  .sp-hero {
-    padding-bottom: 56px;
-  }
+  /* No bottom override: with the cue row gone the block should centre in what
+     is left below the topbar, and that is what a small bottom padding gives —
+     the centre of [padding-top, height − padding-bottom] only coincides with
+     the centre of [topbar, height] as padding-bottom approaches zero. The old
+     56px were symmetric against the old 56px top; against the topbar-height
+     top they both push the block low and cost height a landscape phone does
+     not have. The base padding-bottom already carries the safe-area inset. */
 }
 
 @media (prefers-reduced-motion: reduce) {
