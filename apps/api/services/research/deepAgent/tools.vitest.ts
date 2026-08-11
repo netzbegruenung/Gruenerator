@@ -168,6 +168,25 @@ describe('web_suche', () => {
     expect(out).toContain('Überspringe');
   });
 
+  /**
+   * Der Retry darf die Frist nicht überleben: `LinkupService.webSearch` nimmt
+   * selbst kein Signal entgegen, sondern nur seinen eigenen 60-s-Timeout — ein
+   * zweiter Versuch nach Fristablauf verbrennt also eine Minute, die für den
+   * Bericht gedacht war.
+   */
+  it('startet nach dem Abbruch keinen zweiten Linkup-Versuch mehr', async () => {
+    greenptService = null;
+    const controller = new AbortController();
+    controller.abort();
+    const { webSuche, ctx } = setup();
+    (ctx as { signal?: AbortSignal }).signal = controller.signal;
+
+    const out = await webSuche.invoke({ query: 'Wien' });
+
+    expect(linkupWebSearch).not.toHaveBeenCalled();
+    expect(out).toContain('Überspringe');
+  });
+
   it('refunds the search unit when no engine exists at all — nothing was asked of anyone', async () => {
     greenptService = null;
     linkupService = null;
