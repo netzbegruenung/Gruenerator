@@ -6,6 +6,8 @@ import { useEffect, useState } from 'react';
 
 import { cn } from '../../lib/utils';
 
+import { ImageGenerationDots } from './ImageGenerationFrame';
+
 import type { GeneratedImage } from '../../hooks/useChatGraphStream';
 
 interface GeneratedImageDisplayProps {
@@ -25,6 +27,9 @@ export function GeneratedImageDisplay({ image }: GeneratedImageDisplayProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const imageSrc = image.base64 || image.url;
+  // Der Dot-Grid-/Blur-Auftritt gilt nur für KI-Bilder; Sharepics behalten den
+  // schlichten Decode-Spinner ihres eigenen Flows.
+  const isAiImage = image.style !== 'sharepic';
 
   // ESC to close + lock body scroll while open. Native overlay (no Radix Dialog)
   // because this is a passive image viewer, not a modal with focus-trap needs.
@@ -53,12 +58,23 @@ export function GeneratedImageDisplay({ image }: GeneratedImageDisplayProps) {
 
   return (
     <div className="mb-3 space-y-2">
-      <div className="relative overflow-hidden rounded-lg border border-border">
-        {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background-secondary">
-            <Loader2 className="h-8 w-8 animate-spin text-foreground-muted" />
-          </div>
+      <div
+        className={cn(
+          'relative overflow-hidden border border-border',
+          isAiImage ? 'rounded-2xl' : 'rounded-lg',
+          // Solange das Bild dekodiert, hat das <img> keine Größe — der Rahmen
+          // hält solange die Quadrat-Silhouette des Generier-Platzhalters.
+          isLoading && (isAiImage ? 'aspect-square w-56 bg-background-secondary' : '')
         )}
+      >
+        {isLoading &&
+          (isAiImage ? (
+            <ImageGenerationDots active />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center bg-background-secondary">
+              <Loader2 className="h-8 w-8 animate-spin text-foreground-muted" />
+            </div>
+          ))}
         <button
           type="button"
           onClick={() => setIsLightboxOpen(true)}
@@ -70,13 +86,25 @@ export function GeneratedImageDisplay({ image }: GeneratedImageDisplayProps) {
             src={imageSrc}
             alt="Generiertes Bild"
             className={cn(
-              'max-h-[400px] w-auto rounded-lg transition-opacity',
-              isLoading ? 'opacity-0' : 'opacity-100'
+              'max-h-[400px] w-auto',
+              isAiImage
+                ? 'rounded-2xl transition-[opacity,filter] duration-1000 ease-out motion-reduce:transition-none'
+                : 'rounded-lg transition-opacity',
+              isLoading ? (isAiImage ? 'opacity-0 blur-xl' : 'opacity-0') : 'opacity-100 blur-0'
             )}
             onLoad={() => setIsLoading(false)}
           />
         </button>
       </div>
+
+      {isAiImage && image.prompt && (
+        <p
+          className="min-w-0 max-w-[400px] truncate text-xs text-foreground-muted"
+          title={image.prompt}
+        >
+          {image.prompt}
+        </p>
+      )}
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
