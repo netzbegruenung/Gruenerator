@@ -105,19 +105,38 @@ export interface DeepAgentRunResult {
  *
  * `deepSearches` is the number that matters for the bill: Linkup's `deep` depth
  * is the only lane here that costs meaningfully more than a cent, so it is
- * capped at two while ordinary searches get twelve. Linkup's `/v1/research`
+ * capped at two while ordinary searches get two dozen. Linkup's `/v1/research`
  * endpoint (~3 EUR per prompt) is deliberately not reachable from this agent at
  * all — see tools.ts.
+ *
+ * ── Why the numbers grew on 11.08.2026 ────────────────────────────────────
+ *
+ * The old ceilings described a seven-minute run, and the result read like one:
+ * eight pages read, and a report the log calls a `Teilbericht` because the hard
+ * deadline landed mid-sentence. This turn is allowed to take ten to fifteen
+ * minutes — the user is told so before it starts and gets a document, not a
+ * chat reply. Searches are cheap by design (GreenPT first, and it now waits for
+ * its rate gate instead of dropping to Linkup — see tools.ts), so the binding
+ * constraint is wall-clock, and that is what these clocks spend.
+ *
+ * The three clocks are distinct on purpose:
+ *
+ *  - `softMs` — tools stop accepting research; the model still has time to write.
+ *  - `hardMs` — the research legs are aborted. NOT the end of the run.
+ *  - `wrapUpMs` — a fresh short leg whose only job is writing `/bericht.md` from
+ *    what was gathered. Before it, the hard deadline killed the run wherever it
+ *    stood, which is how a run with 83 sources in hand ended as a fragment.
  */
 export const DEFAULT_BUDGET = {
-  searches: 12,
+  searches: 24,
   deepSearches: 2,
-  crawls: 8,
-  crawlRefunds: 4,
-  notebookSearches: 8,
-  softMs: 5 * 60_000,
-  hardMs: 7 * 60_000,
-  recursionLimit: 60,
+  crawls: 20,
+  crawlRefunds: 8,
+  notebookSearches: 12,
+  softMs: 11 * 60_000,
+  hardMs: 13 * 60_000,
+  wrapUpMs: 2 * 60_000,
+  recursionLimit: 160,
 } as const;
 
 export function createBudget(now: number, softMs: number = DEFAULT_BUDGET.softMs): RunBudget {

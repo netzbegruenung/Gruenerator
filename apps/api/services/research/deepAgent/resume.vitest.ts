@@ -3,6 +3,7 @@ import { GraphRecursionError } from '@langchain/langgraph';
 import { describe, expect, it } from 'vitest';
 
 import {
+  DEADLINE_TEXT,
   INTERRUPTED_CALL_TEXT,
   WRAP_UP_TEXT,
   buildResumeInput,
@@ -33,6 +34,32 @@ describe('classifyRunError', () => {
   it('treats abort and timeout errors as fatal even without a signal', () => {
     expect(classifyRunError(namedError('AbortError'))).toBe('fatal');
     expect(classifyRunError(namedError('TimeoutError'))).toBe('fatal');
+  });
+
+  /**
+   * The research clock is a budget, not a failure: the material is gathered and
+   * only the writing is missing, so it earns the same wrap-up leg the recursion
+   * limit gets. The caller's signal remains the one thing that ends a run — and
+   * when both have fired it wins, because then nothing is left to write with.
+   */
+  it('treats its own research deadline as resumable, not as fatal', () => {
+    const deadline = new AbortController();
+    deadline.abort();
+
+    expect(classifyRunError(namedError('TimeoutError'), undefined, deadline.signal)).toBe(
+      'deadline'
+    );
+  });
+
+  it('lets the caller signal win over the research deadline', () => {
+    const caller = new AbortController();
+    const deadline = new AbortController();
+    caller.abort();
+    deadline.abort();
+
+    expect(classifyRunError(namedError('TimeoutError'), caller.signal, deadline.signal)).toBe(
+      'fatal'
+    );
   });
 
   it('recognises the recursion limit as its own kind', () => {
@@ -126,6 +153,16 @@ describe('buildResumeInput', () => {
     const last = messages[2] as HumanMessage;
     expect(last).toBeInstanceOf(HumanMessage);
     expect(last.content).toBe(WRAP_UP_TEXT);
+  });
+
+  it('tells a deadline resume to stop researching and write, and to mark the gaps', () => {
+    const state = { messages: [new HumanMessage('Frage')] };
+
+    const messages = buildResumeInput(state, 'deadline')?.messages as unknown[];
+
+    const last = messages[messages.length - 1] as HumanMessage;
+    expect(last.content).toBe(DEADLINE_TEXT);
+    expect(last.content).toContain('write_file');
   });
 
   it('carries files and todos into the next attempt', () => {
