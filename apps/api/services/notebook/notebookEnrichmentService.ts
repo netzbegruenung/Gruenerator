@@ -21,7 +21,7 @@ import { classifyArticlesBatched, extractPersons } from '../nlp/nlpClient.js';
 const log = createLogger('notebookEnrichment');
 
 /** Bump to force re-enrichment of all docs after a tagging-algorithm change. */
-const NLP_VERSION = 1;
+const NLP_VERSION = 2;
 /** Per-mille noun-frequency floor for including a topic in `themes`. */
 const THEME_MIN_SCORE = 30;
 /** Cap themes per doc to bound facet noise on long programmatic docs. */

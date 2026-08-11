@@ -1,0 +1,41 @@
+# Blockliste für die Personen-Erkennung (NLP-Service)
+#
+# Diese Namen werden bei der Personen-Extraktion verworfen
+# (siehe analyzer.py -> PERSON_BLOCKLIST / extract_persons_batch).
+#
+# Format:
+#   - ein Name pro Zeile, Schreibweise egal (gematcht wird case-insensitiv)
+#   - gematcht wird der VOLLSTÄNDIGE erkannte Name, nicht ein Teil davon.
+#     spaCy erkennt je nach Fließtext mal "Vincent Willock", mal nur "Willock" –
+#     wer beide Formen ausschließen will, trägt beide als eigene Zeile ein.
+#     Nachnamen bewusst nur dann einzeln eintragen, wenn kein*e Politiker*in
+#     denselben Nachnamen trägt: die Zeile blockt ihn sonst überall mit.
+#   - Leerzeilen und Zeilen, die mit '#' beginnen, werden ignoriert
+#
+# Zwei Arten von Einträgen, bitte im jeweiligen Abschnitt ergänzen:
+#   1. Keine Personen  – Marken, Portale, Agenturen, die die NER fälschlich
+#      als PER taggt. Kommen fast immer aus Bildunterschriften ("Foto: … / Unsplash").
+#   2. Mitarbeitende   – reale Personen, die nur als Urheber*in einer Seite
+#      auftauchen (Fotograf*innen, Redaktion, Webteam) und deshalb keine
+#      inhaltlich erwähnten Personen sind.
+
+# --- 1. Keine Personen: Bildquellen, Plattformen, Agenturen ---
+unsplash
+pexels
+pixabay
+shutterstock
+istock
+adobe stock
+getty images
+picture alliance
+imago
+dpa
+canva
+flickr
+wikimedia
+wikimedia commons
+creative commons
+
+# --- 2. Mitarbeitende / Urheber*innen (händisch gepflegt) ---
+# Grüne Berlin – Fotograf
+vincent willock
