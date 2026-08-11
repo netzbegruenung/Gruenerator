@@ -75,8 +75,16 @@ interface ArtifactLiveStore {
    * plain link instead.
    */
   panelMounted: boolean;
+  /**
+   * True while die Chat-Spalte breit genug ist, dass die Schiene neben dem Faden
+   * andockt statt sich über ihn zu legen. Geschrieben von der Chat-Seite, die
+   * als Einzige die Shell-Box misst — das Fenster ist kein Ersatz dafür, es ist
+   * um die App-Seitenleiste breiter als die Spalte.
+   */
+  panelDockable: boolean;
   setActiveArtifact: (artifact: ActiveArtifact | null) => void;
   setPanelMounted: (mounted: boolean) => void;
+  setPanelDockable: (dockable: boolean) => void;
   /**
    * Merge a partial research-log update into the open log.
    *
@@ -103,6 +111,8 @@ export const useArtifactLiveStore = create<ArtifactLiveStore>((set) => ({
   activeArtifact: null,
   panelMounted: false,
   setPanelMounted: (mounted) => set({ panelMounted: mounted }),
+  panelDockable: false,
+  setPanelDockable: (dockable) => set({ panelDockable: dockable }),
   setActiveArtifact: (artifact) => {
     // Only one docked panel at a time: opening an artifact closes an active
     // sharepic/reel. (Those stores don't import this one, so no cycle.)
@@ -130,6 +140,23 @@ export const useArtifactLiveStore = create<ArtifactLiveStore>((set) => ({
       };
     }),
 }));
+
+/**
+ * Ob ein eingehendes Artefakt die Schiene von selbst aufziehen darf.
+ *
+ * Nur wo sie andockt: schafft die Spalte die 72rem nicht, liegt die Schiene über
+ * dem Faden, und ein ungefragtes Aufziehen verdeckt die Antwort, die gerade
+ * weiterläuft. Die Karte im Faden bleibt, ein Tipp darauf öffnet weiterhin.
+ *
+ * Gemessen wird nicht hier — der SSE-Parser kennt keine Layout-Box. Die
+ * Chat-Seite misst ihre Shell und meldet das Ergebnis als `panelDockable`; das
+ * ist dieselbe Messung, die über angedockt vs. überlagernd entscheidet. Wo
+ * niemand meldet (React Native, Editor-Chats) bleibt es beim `false` aus dem
+ * Anfangszustand: dort rendert keine Schiene.
+ */
+export function canAutoOpenArtifactPanel(): boolean {
+  return useArtifactLiveStore.getState().panelDockable;
+}
 
 // Reverse direction of the one-docked-panel rule: activating a sharepic or reel
 // clears an active artifact. Those stores can't import this one (cycle), so the
