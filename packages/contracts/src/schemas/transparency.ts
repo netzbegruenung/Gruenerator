@@ -104,6 +104,15 @@ export const transparencyDayEntrySchema = z.object({
   output_tokens: z.number(),
 });
 
+/**
+ * The shared per-feature breakdown, plus this area's share of the platform
+ * emissions (upper end of the band). 0 for areas whose operations carry no
+ * footprint at all — see `unvalued_ops` for why that is a gap, not a saving.
+ */
+export const transparencyFeatureEntrySchema = usageByFeatureEntrySchema.extend({
+  emissions_g: z.number(),
+});
+
 export const getTransparencyStatsResponseSchema = z.object({
   success: z.literal(true),
   days: z.number(),
@@ -132,7 +141,7 @@ export const getTransparencyStatsResponseSchema = z.object({
   footprint: transparencyFootprintSchema,
   providers: z.array(transparencyProviderEntrySchema),
   daily: z.array(transparencyDayEntrySchema),
-  byFeature: z.array(usageByFeatureEntrySchema),
+  byFeature: z.array(transparencyFeatureEntrySchema),
   byModel: z.array(usageByModelEntrySchema),
 });
 
@@ -143,4 +152,5 @@ export const transparencyErrorResponseSchema = z.object({
 export type TransparencyFootprintDto = z.infer<typeof transparencyFootprintSchema>;
 export type TransparencyProviderEntryDto = z.infer<typeof transparencyProviderEntrySchema>;
 export type TransparencyDayEntryDto = z.infer<typeof transparencyDayEntrySchema>;
+export type TransparencyFeatureEntryDto = z.infer<typeof transparencyFeatureEntrySchema>;
 export type GetTransparencyStatsResponseDto = z.infer<typeof getTransparencyStatsResponseSchema>;
