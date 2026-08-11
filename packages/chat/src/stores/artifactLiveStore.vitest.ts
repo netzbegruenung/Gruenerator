@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { useArtifactLiveStore, type ResearchLogArtifact } from './artifactLiveStore';
+import {
+  canAutoOpenArtifactPanel,
+  useArtifactLiveStore,
+  type ResearchLogArtifact,
+} from './artifactLiveStore';
 
 /**
  * The research log is the only artifact that changes after it opens, so the
@@ -25,7 +29,7 @@ function activeLog(): ResearchLogArtifact {
 }
 
 beforeEach(() => {
-  useArtifactLiveStore.setState({ activeArtifact: null });
+  useArtifactLiveStore.setState({ activeArtifact: null, panelDockable: false });
 });
 
 describe('upsertResearchLog', () => {
@@ -107,5 +111,25 @@ describe('upsertResearchLog', () => {
     });
 
     expect(activeLog().steps).toHaveLength(0);
+  });
+});
+
+describe('canAutoOpenArtifactPanel', () => {
+  it('says no until a host reports a dockable panel', () => {
+    // Anfangszustand: React Native und die Editor-Chats melden nie, dort
+    // rendert auch keine Schiene.
+    expect(canAutoOpenArtifactPanel()).toBe(false);
+  });
+
+  it('says no while the chat column is too narrow to dock', () => {
+    useArtifactLiveStore.getState().setPanelDockable(false);
+
+    expect(canAutoOpenArtifactPanel()).toBe(false);
+  });
+
+  it('says yes once the column is wide enough to dock', () => {
+    useArtifactLiveStore.getState().setPanelDockable(true);
+
+    expect(canAutoOpenArtifactPanel()).toBe(true);
   });
 });
