@@ -40,11 +40,23 @@
  *      It is the only observable signal the throttle gives us, and if it were
  *      passed through as "the web has nothing on this", the chat would answer
  *      ungrounded and nothing in the logs would say why.
- *   2. Calls are gated to one per `MIN_CALL_GAP_MS`, and a call that arrives
- *      inside that window is REFUSED rather than delayed — the caller drops to
- *      Linkup immediately. Queueing would trade a provider we are trying to
- *      save money on against the one thing a chat search cannot spend, which is
- *      the user's waiting time.
+ *   2. Calls are gated to one per `MIN_CALL_GAP_MS`. In the CHAT a call that
+ *      arrives inside that window is REFUSED rather than delayed — the caller
+ *      drops to Linkup immediately, because the one thing a chat search cannot
+ *      spend is the user's waiting time.
+ *
+ * ── Why the gate has a second mode ─────────────────────────────────────────
+ *
+ * `gate: 'wait'` queues instead of refusing. It exists for the deep research
+ * agent, where the trade the chat makes is simply wrong: that run is minutes
+ * long by design, its searches are serial anyway (one model round trip each,
+ * seconds apart), and "refuse" there does not save anyone's time — it just
+ * routes the whole fan-out to Linkup, which is the provider we are trying not
+ * to pay. Waiting out the remainder of a 5 s window inside a 15-minute run is
+ * free; a dozen Linkup searches are not.
+ *
+ * Waiters are serialised through one promise chain, so ten of them do not all
+ * wake at the same moment and re-create the burst the gate exists to prevent.
  */
 
 import { env } from '../../config/env.js';
@@ -123,6 +135,68 @@ interface GreenPTSearchResponse {
 /** Last call's start time, for the spacing gate. Module-level: one per worker. */
 let lastCallStartedAt = 0;
 
+/**
+ * How a caller reacts to the spacing gate.
+ *
+ * `refuse` is the chat's default and stays the default here — a caller that
+ * says nothing keeps the old behaviour. `wait` is the deep agent's.
+ */
+export type GateMode = 'refuse' | 'wait';
+
+/**
+ * Serialises the waiters. Without the chain, N callers that arrive together
+ * would each read the same `lastCallStartedAt`, wait the same remainder and
+ * then fire simultaneously — the exact burst the gate is there to prevent.
+ */
+let gateChain: Promise<void> = Promise.resolve();
+
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new Error('GreenPT gate wait aborted'));
+      return;
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    function onAbort(): void {
+      clearTimeout(timer);
+      reject(new Error('GreenPT gate wait aborted'));
+    }
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
+/**
+ * Claims the next slot, refusing or waiting for it.
+ *
+ * Claiming is what makes the chain work: `lastCallStartedAt` is advanced HERE,
+ * before the request goes out, so the next waiter measures from this call's
+ * start rather than from the last one that happened to finish.
+ */
+async function claimSlot(mode: GateMode, signal?: AbortSignal): Promise<void> {
+  if (mode === 'refuse') {
+    const since = Date.now() - lastCallStartedAt;
+    if (since < MIN_CALL_GAP_MS) {
+      // Refused, not queued. The caller has Linkup ready and the user is waiting.
+      throw new Error(`GreenPT rate gate — ${since}ms since last call, need ${MIN_CALL_GAP_MS}ms`);
+    }
+    lastCallStartedAt = Date.now();
+    return;
+  }
+
+  const mine = gateChain.then(async () => {
+    const remaining = MIN_CALL_GAP_MS - (Date.now() - lastCallStartedAt);
+    if (remaining > 0) await sleep(remaining, signal);
+    lastCallStartedAt = Date.now();
+  });
+  // The chain must not inherit a rejection, or one aborted waiter would poison
+  // every later one; the awaited handle below still surfaces it to its owner.
+  gateChain = mine.catch(() => undefined);
+  await mine;
+}
+
 export class GreenPTSearchService {
   constructor(private readonly apiKey: string) {}
 
@@ -139,16 +213,15 @@ export class GreenPTSearchService {
      *  "climate policy" it moved 3 of 10 hosts, and the query's own language
      *  dominates it. Passed through because it costs nothing. */
     language?: string;
+    /** Spacing-gate behaviour. Defaults to the chat's `refuse`. */
+    gate?: GateMode;
+    /** Aborts a queued wait — the deep agent's run deadline. */
+    signal?: AbortSignal;
   }): Promise<GreenPTSearchResult[]> {
     if (greenptCircuit.isOpen()) {
       throw new Error('GreenPT circuit open — provider considered unavailable');
     }
-    const since = Date.now() - lastCallStartedAt;
-    if (since < MIN_CALL_GAP_MS) {
-      // Refused, not queued. The caller has Linkup ready and the user is waiting.
-      throw new Error(`GreenPT rate gate — ${since}ms since last call, need ${MIN_CALL_GAP_MS}ms`);
-    }
-    lastCallStartedAt = Date.now();
+    await claimSlot(params.gate ?? 'refuse', params.signal);
 
     recordOperation({ unit: 'searches', provider: 'greenpt', model: 'search-web' });
 
@@ -166,7 +239,9 @@ export class GreenPTSearchService {
           maxResults: Math.min(params.maxResults ?? 5, GREENPT_MAX_RESULTS),
           ...(params.language ? { country: params.language } : {}),
         }),
-        signal: controller.signal,
+        signal: params.signal
+          ? AbortSignal.any([controller.signal, params.signal])
+          : controller.signal,
       });
       if (!res.ok) {
         const text = await res.text().catch(() => '');
@@ -220,4 +295,8 @@ export function _resetGreenPTSearchServiceForTests(): void {
   _instance = null;
   greenptCircuit.reset();
   lastCallStartedAt = 0;
+  gateChain = Promise.resolve();
 }
+
+/** The spacing the deep agent has to plan its own retries around. */
+export { MIN_CALL_GAP_MS as GREENPT_MIN_CALL_GAP_MS };
