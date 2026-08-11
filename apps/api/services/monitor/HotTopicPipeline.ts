@@ -159,6 +159,8 @@ Hintergrund — die aktuellen Top-Schlagzeilen:
 ${anchor.headlinesText}
 Weitere Themen: ${theme.secondaryTopics.join(', ')}
 
+Jede Quelle muss eine Aussage zu "${theme.dominantTopic}" enthalten. Allgemeine Partei- oder Programmübersichten ohne Bezug zu diesem Thema sind unbrauchbar — Lexikonartikel über die Partei, Parteiportraits und Übersichtsseiten von Programmen zählen nicht als Beleg.
+
 Fasse die bestehenden Grünen-Positionen detailliert zusammen. Verwende Vergangenheitsform ("Die Grünen haben gefordert...", "Im Programm hieß es..."). Erwähne auch kurz die Nebenthemen, falls relevante Positionen vorhanden sind.`;
 
   return executeResearch({
@@ -278,7 +280,14 @@ function mapCitations(citations: ResearchCitation[]): MonitorCitation[] {
   }));
 }
 
-/** Convert valid [N] markers to [cite:N] for CitationTextRenderer. */
+/**
+ * Convert valid [N] markers to [cite:N] for CitationTextRenderer.
+ *
+ * The numbering arrives already deduplicated and renumbered from
+ * `dedupeResearchSources` (researchOrchestrator), which also rewrote the
+ * research answer's markers — so this stays a pure format conversion and must
+ * not renumber anything itself.
+ */
 function applyCiteMarkers(text: string, citations: ResearchCitation[]): string {
   const validIds = new Set(citations.map((c) => String(c.id)));
   return text.replace(/\[(\d+)\]/g, (match, n: string) =>
