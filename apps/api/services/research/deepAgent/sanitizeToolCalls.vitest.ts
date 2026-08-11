@@ -5,6 +5,7 @@ import {
   RETRY_LIMIT,
   RETRY_TEXT,
   isValidToolName,
+  sanitizeAdditionalKwargs,
   sanitizeToolCallsMiddleware,
 } from './sanitizeToolCalls.js';
 
@@ -56,6 +57,28 @@ describe('isValidToolName', () => {
   it('rejects a name past the 64-character limit', () => {
     expect(isValidToolName('a'.repeat(64))).toBe(true);
     expect(isValidToolName('a'.repeat(65))).toBe(false);
+  });
+});
+
+describe('sanitizeAdditionalKwargs', () => {
+  const good = { id: 'a', type: 'function', function: { name: 'web_suche', arguments: '{}' } };
+  const bad = { id: 'b', type: 'function', function: { name: '2,4,6', arguments: '{}' } };
+
+  it('returns the SAME array when nothing was dropped, so a clean turn is not rewritten', () => {
+    const raw = [good];
+
+    expect(sanitizeAdditionalKwargs({ tool_calls: raw }).tool_calls).toBe(raw);
+  });
+
+  it('removes the key entirely when nothing survives', () => {
+    // Not an empty array: the converter branches on `!= null`, so `[]` would
+    // still beat the parsed calls and send an empty tool_calls list.
+    expect('tool_calls' in sanitizeAdditionalKwargs({ tool_calls: [bad] })).toBe(false);
+  });
+
+  it('leaves unrelated kwargs alone', () => {
+    expect(sanitizeAdditionalKwargs({ reasoning: 'x' })).toEqual({ reasoning: 'x' });
+    expect(sanitizeAdditionalKwargs(undefined)).toEqual({});
   });
 });
 
@@ -137,6 +160,59 @@ describe('sanitizeToolCallsMiddleware', () => {
     const result = hook({ messages: [aiWith([call('web_suche', 'a'), call('1,2', 'b')])] });
 
     expect(result?.jumpTo).toBeUndefined();
+  });
+
+  /**
+   * The channel the first version missed. `@langchain/openai` sends
+   * `additional_kwargs.tool_calls` verbatim whenever `tool_calls` is empty — so
+   * the all-garbage case, the one this middleware creates by emptying
+   * `tool_calls`, was exactly the case that put the bad name back on the wire.
+   */
+  it('strips the poisoned name from the raw payload, not just from tool_calls', () => {
+    const message = new AIMessage({
+      id: 'msg-1',
+      content: '',
+      tool_calls: [call('2,4,6')] as never,
+      additional_kwargs: {
+        tool_calls: [{ id: 'x', type: 'function', function: { name: '2,4,6', arguments: '{}' } }],
+      },
+    });
+
+    const repaired = hook({ messages: [message] })?.messages?.[0] as AIMessage;
+
+    expect(repaired.additional_kwargs.tool_calls).toBeUndefined();
+  });
+
+  it('keeps the valid entries of the raw payload', () => {
+    const raw = [
+      { id: 'a', type: 'function', function: { name: 'web_suche', arguments: '{}' } },
+      { id: 'b', type: 'function', function: { name: '1,2', arguments: '{}' } },
+    ];
+    const message = new AIMessage({
+      id: 'msg-1',
+      content: '',
+      tool_calls: [call('web_suche', 'a')] as never,
+      additional_kwargs: { tool_calls: raw },
+    });
+
+    const repaired = hook({ messages: [message] })?.messages?.[0] as AIMessage;
+
+    expect(repaired.additional_kwargs.tool_calls).toHaveLength(1);
+  });
+
+  it('repairs a message whose bad call only exists as invalid_tool_calls', () => {
+    const message = new AIMessage({
+      id: 'msg-1',
+      content: '',
+      tool_calls: [],
+      invalid_tool_calls: [{ name: '10,11,15', args: '{}', id: 'z', error: 'x' }],
+    });
+
+    const result = hook({ messages: [message] });
+
+    expect((result?.messages?.[0] as AIMessage).invalid_tool_calls).toEqual([]);
+    // No executable call is left, so the turn would end here — push it back.
+    expect(result?.jumpTo).toBe('model');
   });
 
   it('keeps the assistant text of the repaired message', () => {

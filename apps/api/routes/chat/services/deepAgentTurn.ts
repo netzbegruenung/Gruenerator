@@ -51,6 +51,9 @@ const DAILY_LIMIT = 3;
 /** The subtype a generated report is filed under. `docs` is the neutral one. */
 const REPORT_SUBTYPE = 'docs';
 
+/** Keep-alive spacing while the agent works. Well under any proxy idle timeout. */
+const RESEARCH_HEARTBEAT_MS = 20_000;
+
 let counter: DeepResearchCounter | null = null;
 async function getCounter(): Promise<DeepResearchCounter> {
   if (!counter) {
@@ -139,7 +142,7 @@ export async function runDeepAgentTurn(params: {
   // Said in the chat itself, not only as a progress event: this turn takes
   // minutes, and a silent stream reads as a hung request.
   sse.send('text_delta', {
-    text: `Ich recherchiere jetzt gründlich zu „${question}". Das dauert einige Minuten — den Fortschritt siehst du nebenan, am Ende bekommst du einen Bericht als Dokument.\n\n`,
+    text: `Ich recherchiere jetzt gründlich zu „${question}". Das dauert zehn bis fünfzehn Minuten — den Fortschritt siehst du nebenan, am Ende bekommst du einen Bericht als Dokument.\n\n`,
   });
   sse.send('research_log_start', { id: logId, title: `Recherche: ${question}` });
 
@@ -148,12 +151,27 @@ export async function runDeepAgentTurn(params: {
   // controller already checked ownership for.
   const notebookScope = buildNotebookScope(state, locale, userId);
 
+  // A quarter of an hour of open stream, and the quiet stretches inside it are
+  // long: one model turn without a tool call, or the whole wrap-up leg, emits
+  // no step at all. An empty `research_log_update` merges nothing into the
+  // panel (every field but `id` is optional) and is here purely so neither the
+  // proxy nor the client mistakes a working run for a hung one.
+  const heartbeat = setInterval(
+    () => sse.send('research_log_update', { id: logId }),
+    RESEARCH_HEARTBEAT_MS
+  );
+  if (typeof heartbeat.unref === 'function') heartbeat.unref();
+
   let result;
   try {
     result = await runDeepAgentResearch({
       question,
       locale,
-      signal: AbortSignal.timeout(DEFAULT_BUDGET.hardMs),
+      // The last resort, not the research deadline: the agent owns `hardMs`
+      // itself and needs `wrapUpMs` on top of it to still write the report.
+      // Cutting at `hardMs` here is what turned a finished body of research
+      // into a fragment on 11.08.2026.
+      signal: AbortSignal.timeout(DEFAULT_BUDGET.hardMs + DEFAULT_BUDGET.wrapUpMs),
       ...(state.aiWorkerPool ? { aiWorkerPool: state.aiWorkerPool } : {}),
       ...(notebookScope ? { notebookScope } : {}),
       progress: {
@@ -164,6 +182,8 @@ export async function runDeepAgentTurn(params: {
   } catch (error) {
     log.error(`[DeepAgent] Lauf fehlgeschlagen: ${String(error)}`);
     result = null;
+  } finally {
+    clearInterval(heartbeat);
   }
 
   if (!result) {

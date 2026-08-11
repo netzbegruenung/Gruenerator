@@ -14,6 +14,7 @@ import {
   selectSearchStatusLabel,
   type StatusPartLike,
 } from '../../lib/toolStatusLine';
+import { cn } from '../../lib/utils';
 import { useUserAgentsRegistry } from '../../stores/userAgentsRegistry';
 import { HiddenReasoning, HiddenReasoningGroup } from '../assistant-ui/reasoning';
 import { GrueneratorHomeIconLoading } from '../icons';
@@ -197,18 +198,21 @@ export const AssistantMessage = memo(function AssistantMessage() {
 
   return (
     <MessagePrimitive.Root
+      // No `gap` on the row: the icon column carries its own right margin so it
+      // can collapse to nothing together with its width (a flex gap survives a
+      // zero-width item and would leave the indent half in place).
       className={
         isCompact
-          ? 'group mx-auto flex w-full min-w-0 items-start gap-2'
-          : 'group mx-auto flex w-full min-w-0 max-w-3xl items-start gap-4'
+          ? 'group mx-auto flex w-full min-w-0 items-start'
+          : 'group mx-auto flex w-full min-w-0 max-w-3xl items-start'
       }
     >
       {messageAgent ? (
         <div
           className={
             isCompact
-              ? 'flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-white'
-              : 'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-white'
+              ? 'mr-2 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-white'
+              : 'mr-4 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-white'
           }
           style={{ backgroundColor: messageAgent.backgroundColor }}
         >
@@ -218,15 +222,28 @@ export const AssistantMessage = memo(function AssistantMessage() {
         // Stays mounted (rather than swapping to a placeholder) so the
         // built-in bar/dot fade in GrueneratorHomeIconLoading keeps running,
         // and fades its own opacity out once streaming ends — an unmount
-        // would cut that transition short and reserve the footprint anyway.
-        <GrueneratorHomeIconLoading
-          loading={isStreaming}
-          width={isCompact ? 24 : 32}
-          height={isCompact ? 24 : 32}
-          className="flex-shrink-0"
-          style={{ opacity: isStreaming ? 1 : 0, transition: 'opacity 0.3s ease' }}
-          aria-hidden={!isStreaming}
-        />
+        // would cut that transition short.
+        //
+        // On a phone the faded-out icon must also give up its FOOTPRINT: a
+        // 32px column plus a 16px gap left every finished answer indented by
+        // 48px against 16px of right padding, which reads as a broken margin.
+        // The column collapses in step with the opacity fade; from `sm` up it
+        // stays put, where it lines the answer up with agent-avatar turns.
+        <div
+          className={cn(
+            'flex-shrink-0 overflow-hidden transition-[width,margin] duration-300 ease-out',
+            isCompact ? 'mr-2 w-6' : isStreaming ? 'mr-4 w-8' : 'mr-0 w-0 sm:mr-4 sm:w-8'
+          )}
+        >
+          <GrueneratorHomeIconLoading
+            loading={isStreaming}
+            width={isCompact ? 24 : 32}
+            height={isCompact ? 24 : 32}
+            className="flex-shrink-0"
+            style={{ opacity: isStreaming ? 1 : 0, transition: 'opacity 0.3s ease' }}
+            aria-hidden={!isStreaming}
+          />
+        </div>
       )}
       <div className="min-w-0 flex-1">
         {/* Offenlegung der KI-Interaktion (Art. 50 Abs. 1 KI-VO). Sichtbar
