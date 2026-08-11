@@ -388,7 +388,7 @@ function ThemenOverview({
       <ThemenRanking
         topics={snapshot.topics}
         keywords={snapshot.keywords}
-        onOpen={(topic) => navigate(withLocale(`/experiments/monitor/themen/${topic}`))}
+        onOpen={(topic) => navigate(withLocale(`/themen/${topic}`))}
       />
       <KeywordsAndTrends
         keywords={snapshot.keywords}
@@ -400,7 +400,7 @@ function ThemenOverview({
   );
 }
 
-/** /experiments/monitor/themen and /experiments/monitor/themen/:topic. */
+/** /themen and /themen/:topic. */
 function MonitorThemenPage() {
   const { topic } = useParams<{ topic?: string }>();
   const navigate = useNavigate();
@@ -411,7 +411,7 @@ function MonitorThemenPage() {
     topic !== undefined && topic in TOPIC_CONFIG ? (topic as TopicCategory) : null;
 
   if (topic !== undefined && topicKey === null) {
-    return <Navigate to={withLocale('/experiments/monitor/themen')} replace />;
+    return <Navigate to={withLocale('/themen')} replace />;
   }
 
   if (topicKey !== null) {
@@ -420,7 +420,7 @@ function MonitorThemenPage() {
         <TopicDetail
           topic={topicKey}
           locale={locale}
-          onBack={() => navigate(withLocale('/experiments/monitor/themen'))}
+          onBack={() => navigate(withLocale('/themen'))}
         />
       </PageContainer>
     );

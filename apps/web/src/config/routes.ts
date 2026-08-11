@@ -66,13 +66,13 @@ const LegacyAgentSlugRedirectComponent: FC<Record<string, unknown>> = () => {
 const LegacyAgentSlugRedirect = lazy(() =>
   Promise.resolve({ default: LegacyAgentSlugRedirectComponent })
 );
-// Legacy /monitor/themen/:topic → /experiments/monitor/themen/:topic (preserve
-// the topic param). Monitor moved under /experiments to signal experimental
-// status in the URL; the bare /monitor* paths keep redirecting for old links.
+// Legacy /monitor/themen/:topic and /experiments/monitor/themen/:topic → the
+// canonical /themen/:topic (preserve the topic param). The monitor pages now sit
+// at the top level; both old prefixes keep redirecting for old links.
 const LegacyMonitorTopicRedirectComponent: FC<Record<string, unknown>> = () => {
   const { topic } = useParams();
   return createElement(Navigate, {
-    to: `/experiments/monitor/themen/${topic ?? ''}`,
+    to: `/themen/${topic ?? ''}`,
     replace: true,
   });
 };
@@ -356,54 +356,58 @@ const standardRoutes: RouteConfig[] = [
     component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks') })),
   },
   // Experimental features live under /experiments so the URL signals their
-  // status. Monitor is the first — formerly the dev-only /monitor*, now
-  // production-visible at /experiments/monitor*.
+  // status.
   { path: '/experiments', component: ExperimentsIndexPage },
   { path: '/experiments/reisekosten', component: ReisekostenPage },
-  // The Monitor overview was dissolved — its content moved into the standalone
-  // Themen/Umfragen pages. Bare /experiments/monitor now lands on Themen.
-  {
-    path: '/experiments/monitor',
-    component: lazy(() =>
-      Promise.resolve({ default: createRedirect('/experiments/monitor/themen') })
-    ),
-  },
-  { path: '/experiments/monitor/themen', component: MonitorThemenPage },
-  { path: '/experiments/monitor/themen/:topic', component: MonitorThemenPage },
-  { path: '/experiments/monitor/umfragen', component: MonitorUmfragenPage },
-  { path: '/experiments/monitor/watcher', component: MonitorWatcherPage },
-  { path: '/experiments/monitor/feed', component: MonitorFeedPage },
-  // Legacy /monitor* redirects → /experiments/monitor* (old links/bookmarks).
+  // The former Monitor pages are standalone top-level pages — the "/monitor"
+  // grouping segment is gone from the URLs and the navigation.
+  { path: '/themen', component: MonitorThemenPage },
+  { path: '/themen/:topic', component: MonitorThemenPage },
+  { path: '/umfragen', component: MonitorUmfragenPage },
+  { path: '/watcher', component: MonitorWatcherPage },
+  { path: '/feed', component: MonitorFeedPage },
+  // Legacy /monitor* and /experiments/monitor* redirects (old links/bookmarks).
   {
     path: '/monitor',
-    component: lazy(() =>
-      Promise.resolve({ default: createRedirect('/experiments/monitor/themen') })
-    ),
+    component: lazy(() => Promise.resolve({ default: createRedirect('/themen') })),
   },
   {
     path: '/monitor/themen',
-    component: lazy(() =>
-      Promise.resolve({ default: createRedirect('/experiments/monitor/themen') })
-    ),
+    component: lazy(() => Promise.resolve({ default: createRedirect('/themen') })),
   },
   { path: '/monitor/themen/:topic', component: LegacyMonitorTopicRedirect },
   {
     path: '/monitor/umfragen',
-    component: lazy(() =>
-      Promise.resolve({ default: createRedirect('/experiments/monitor/umfragen') })
-    ),
+    component: lazy(() => Promise.resolve({ default: createRedirect('/umfragen') })),
   },
   {
     path: '/monitor/watcher',
-    component: lazy(() =>
-      Promise.resolve({ default: createRedirect('/experiments/monitor/watcher') })
-    ),
+    component: lazy(() => Promise.resolve({ default: createRedirect('/watcher') })),
   },
   {
     path: '/monitor/feed',
-    component: lazy(() =>
-      Promise.resolve({ default: createRedirect('/experiments/monitor/feed') })
-    ),
+    component: lazy(() => Promise.resolve({ default: createRedirect('/feed') })),
+  },
+  {
+    path: '/experiments/monitor',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/themen') })),
+  },
+  {
+    path: '/experiments/monitor/themen',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/themen') })),
+  },
+  { path: '/experiments/monitor/themen/:topic', component: LegacyMonitorTopicRedirect },
+  {
+    path: '/experiments/monitor/umfragen',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/umfragen') })),
+  },
+  {
+    path: '/experiments/monitor/watcher',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/watcher') })),
+  },
+  {
+    path: '/experiments/monitor/feed',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/feed') })),
   },
   { path: '/admin', component: AdminDashboardPage },
   { path: '/admin/skills', component: AdminSkillsPage },
