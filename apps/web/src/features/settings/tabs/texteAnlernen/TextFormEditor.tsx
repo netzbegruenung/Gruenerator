@@ -1,17 +1,23 @@
 import {
-  MAX_TEXT_FORM_EXAMPLE_CHARS,
   MAX_TEXT_FORM_EXAMPLES,
+  MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS,
   type TextForm,
   type TextFormType,
 } from '@gruenerator/contracts';
 import { useUserGroups } from '@gruenerator/shared/groups';
 import { slugifyName } from '@gruenerator/shared/utils';
 import { Button, toast } from '@gruenerator/ui';
-import { useMemo, useRef, useState } from 'react';
-import { FiPlus, FiShare2, FiTrash2, FiUpload, FiX } from 'react-icons/fi';
+import { useId, useMemo, useRef, useState } from 'react';
+import { FiShare2, FiTrash2, FiUpload } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
 import { EXAMPLE_FILE_ACCEPT, extractExampleText } from './extractExampleText';
+import {
+  EXAMPLE_SEPARATOR,
+  joinExamples,
+  splitExamples,
+  splitStrategyLabel,
+} from './splitExamples';
 import { type useTextForms } from './useTextForms';
 
 const TEXTAREA_CLASS =
@@ -35,10 +41,7 @@ interface TextFormEditorProps {
   onDeleted?: () => void;
 }
 
-function seedExamples(form: TextForm | undefined): string[] {
-  const existing = form?.examples.map((e) => e.content) ?? [];
-  return existing.length > 0 ? existing : [''];
-}
+const NUM = (n: number) => n.toLocaleString('de-DE');
 
 const TextFormEditor = ({
   kind,
@@ -52,6 +55,8 @@ const TextFormEditor = ({
   onDeleted,
 }: TextFormEditorProps) => {
   const navigate = useNavigate();
+  const examplesFieldId = useId();
+  const examplesStatusId = useId();
   const { data: groupsData } = useUserGroups();
   const groups = groupsData ?? [];
   const sharedGroupIds = useMemo(
@@ -61,7 +66,7 @@ const TextFormEditor = ({
   const [title, setTitle] = useState(initialForm?.title ?? defaultTitle);
   const [mention, setMention] = useState(initialForm?.mention ?? '');
   const [mentionTouched, setMentionTouched] = useState(false);
-  const [examples, setExamples] = useState<string[]>(() => seedExamples(initialForm));
+  const [rawExamples, setRawExamples] = useState(() => joinExamples(initialForm?.examples ?? []));
   const [styleBlock, setStyleBlock] = useState(initialForm?.styleBlock ?? '');
   const [isReadingFiles, setIsReadingFiles] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -72,20 +77,16 @@ const TextFormEditor = ({
     return mentionTouched ? mention : slugifyName(title, 'textform');
   }, [fixedTextType, initialForm, mention, mentionTouched, title]);
 
-  const filledExamples = examples.map((c) => c.trim()).filter((c) => c.length > 0);
-  const canAddExample = examples.length < MAX_TEXT_FORM_EXAMPLES;
-
-  const updateExample = (idx: number, value: string) =>
-    setExamples((prev) => prev.map((e, i) => (i === idx ? value : e)));
-  const addExample = () => canAddExample && setExamples((prev) => [...prev, '']);
-  const removeExample = (idx: number) =>
-    setExamples((prev) => (prev.length <= 1 ? [''] : prev.filter((_, i) => i !== idx)));
+  const split = useMemo(() => splitExamples(rawExamples), [rawExamples]);
+  const filledExamples = split.examples;
+  const usedChars = rawExamples.trim().length;
+  const tooManyExamples = filledExamples.length > MAX_TEXT_FORM_EXAMPLES;
+  const tooManyChars = usedChars > MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS;
 
   /**
-   * Uploaded files land in the example textareas rather than in a hidden list:
-   * whatever the OCR read stays visible and editable, so a botched extraction is
-   * obvious before it is analysed. Empty slots fill first, then we append up to
-   * the cap.
+   * Uploaded files are appended to the one field, separated by the same rule the
+   * splitter recognises: whatever the OCR read stays visible and editable, so a
+   * botched extraction is obvious before it is analysed.
    */
   const handleFiles = async (fileList: FileList | null) => {
     const files = Array.from(fileList ?? []);
@@ -94,10 +95,7 @@ const TextFormEditor = ({
     setIsReadingFiles(true);
     try {
       const results = await Promise.allSettled(files.map((file) => extractExampleText(file)));
-      const next = [...examples];
-      let added = 0;
-      let overCap = 0;
-      let truncated = 0;
+      const blocks: string[] = [];
 
       results.forEach((result, i) => {
         const name = files[i]?.name ?? 'Datei';
@@ -113,34 +111,24 @@ const TextFormEditor = ({
           toast.error(`Aus „${name}" ließ sich kein Text lesen.`);
           return;
         }
-        if (text.length > MAX_TEXT_FORM_EXAMPLE_CHARS) truncated += 1;
-        const content = text.slice(0, MAX_TEXT_FORM_EXAMPLE_CHARS);
-
-        const blank = next.findIndex((e) => e.trim().length === 0);
-        if (blank >= 0) next[blank] = content;
-        else if (next.length < MAX_TEXT_FORM_EXAMPLES) next.push(content);
-        else {
-          overCap += 1;
-          return;
-        }
-        added += 1;
+        blocks.push(text);
       });
 
-      setExamples(next);
-      if (added > 0) {
-        toast.success(
-          added === 1 ? 'Beispiel aus Datei übernommen.' : `${added} Beispiele übernommen.`
-        );
-      }
-      if (truncated > 0) {
-        toast.info(
-          `Sehr lange Texte wurden auf ${MAX_TEXT_FORM_EXAMPLE_CHARS.toLocaleString('de-DE')} Zeichen gekürzt.`
-        );
-      }
-      if (overCap > 0) {
-        toast.error(
-          `Mehr als ${MAX_TEXT_FORM_EXAMPLES} Beispiele gehen nicht — ${overCap} ${overCap === 1 ? 'Datei blieb' : 'Dateien blieben'} außen vor.`
-        );
+      if (blocks.length === 0) return;
+
+      const merged = [rawExamples.trim(), ...blocks]
+        .filter((b) => b.length > 0)
+        .join(EXAMPLE_SEPARATOR);
+      const truncated = merged.length > MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS;
+      setRawExamples(truncated ? merged.slice(0, MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS) : merged);
+
+      toast.success(
+        blocks.length === 1
+          ? 'Beispiel aus Datei übernommen.'
+          : `${blocks.length} Dateien übernommen.`
+      );
+      if (truncated) {
+        toast.info(`Auf ${NUM(MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS)} Zeichen gekürzt.`);
       }
     } finally {
       setIsReadingFiles(false);
@@ -150,6 +138,18 @@ const TextFormEditor = ({
   const handleAnalyze = async () => {
     if (filledExamples.length === 0) {
       toast.error('Bitte mindestens ein Beispiel einfügen.');
+      return;
+    }
+    if (tooManyExamples) {
+      toast.error(
+        `${filledExamples.length} Beispiele erkannt — höchstens ${MAX_TEXT_FORM_EXAMPLES} sind möglich.`
+      );
+      return;
+    }
+    if (tooManyChars) {
+      toast.error(
+        `Zu viel Text: ${NUM(usedChars)} von ${NUM(MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS)} Zeichen.`
+      );
       return;
     }
     try {
@@ -171,6 +171,10 @@ const TextFormEditor = ({
     }
     if (kind === 'custom' && effectiveMention.length < 2) {
       toast.error('Bitte einen Namen für das Rezept angeben.');
+      return;
+    }
+    if (tooManyExamples || tooManyChars) {
+      toast.error('Bitte zuerst die Beispiele auf das erlaubte Maß kürzen.');
       return;
     }
     try {
@@ -260,40 +264,42 @@ const TextFormEditor = ({
       )}
 
       <div className="flex flex-col gap-2">
-        <p className="m-0 text-xs font-medium text-grey-500 dark:text-grey-400">
-          Beispiele ({hint}) — bis zu {MAX_TEXT_FORM_EXAMPLES}
+        <label
+          htmlFor={examplesFieldId}
+          className="m-0 text-xs font-medium text-grey-500 dark:text-grey-400"
+        >
+          Beispiele ({hint}) — alle in dieses Feld, bis zu {MAX_TEXT_FORM_EXAMPLES} Stück
+        </label>
+        <p className="m-0 text-xs text-grey-500 dark:text-grey-400">
+          Einfach alles hintereinander einfügen. Wir trennen die Beispiele automatisch — an einer
+          Zeile aus <code>---</code>, an Überschriften wie „Beispiel 2&ldquo;, an einer Nummerierung
+          oder an doppelten Leerzeilen.
         </p>
-        {examples.map((value, idx) => (
-          <div key={idx} className="flex items-start gap-2">
-            <textarea
-              value={value}
-              onChange={(e) => updateExample(idx, e.target.value)}
-              placeholder={`Beispiel ${idx + 1} einfügen…`}
-              rows={3}
-              className={TEXTAREA_CLASS}
-            />
-            {examples.length > 1 && (
-              <button
-                type="button"
-                onClick={() => removeExample(idx)}
-                className="mt-1 text-grey-400 hover:text-red-500"
-                title="Beispiel entfernen"
-              >
-                <FiX size={16} />
-              </button>
-            )}
-          </div>
-        ))}
+        <textarea
+          id={examplesFieldId}
+          value={rawExamples}
+          onChange={(e) => setRawExamples(e.target.value)}
+          maxLength={MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS}
+          placeholder={`Beispiel 1…\n\n---\n\nBeispiel 2…`}
+          rows={14}
+          aria-describedby={examplesStatusId}
+          className={TEXTAREA_CLASS}
+        />
+        <p
+          id={examplesStatusId}
+          aria-live="polite"
+          className={
+            tooManyExamples || tooManyChars
+              ? 'm-0 text-xs text-red-600 dark:text-red-400'
+              : 'm-0 text-xs text-grey-500 dark:text-grey-400'
+          }
+        >
+          {filledExamples.length === 0
+            ? `0 Beispiele — noch nichts eingefügt (${NUM(MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS)} Zeichen Platz)`
+            : `${filledExamples.length} ${filledExamples.length === 1 ? 'Beispiel' : 'Beispiele'} erkannt (${splitStrategyLabel(split.strategy)}) · ${NUM(usedChars)} von ${NUM(MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS)} Zeichen`}
+          {tooManyExamples && ` — höchstens ${MAX_TEXT_FORM_EXAMPLES} Beispiele.`}
+        </p>
         <div className="flex flex-wrap items-center gap-md">
-          {canAddExample && (
-            <button
-              type="button"
-              onClick={addExample}
-              className="flex items-center gap-1 text-xs text-primary-600 hover:underline dark:text-primary-400"
-            >
-              <FiPlus size={14} /> Beispiel hinzufügen
-            </button>
-          )}
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
@@ -325,7 +331,7 @@ const TextFormEditor = ({
           size="sm"
           variant="outline"
           onClick={() => void handleAnalyze()}
-          disabled={api.analyze.isPending}
+          disabled={api.analyze.isPending || filledExamples.length === 0 || tooManyExamples}
         >
           {api.analyze.isPending ? 'Analysiere…' : 'Gemeinsamkeiten erkennen'}
         </Button>

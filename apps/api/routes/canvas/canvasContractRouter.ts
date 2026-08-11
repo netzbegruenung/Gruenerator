@@ -20,6 +20,7 @@ import { canvasContract, getSharepicTemplateDescriptor } from '@gruenerator/cont
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import {
+  checkCanvasWriteAccess,
   cloneCanvas,
   createCanvas,
   deleteCanvas,
@@ -285,7 +286,10 @@ export const canvasContractRouter = s.router(canvasContract, {
   restoreVersion: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
-      const access = await getCanvas(args.params.id, userId);
+      // Restore mutates the live document, so it requires WRITE access (owner or
+      // editor) — not the read access getCanvas grants to viewers of a shared or
+      // public canvas.
+      const access = await checkCanvasWriteAccess(args.params.id, userId);
       if (access.kind === 'not_found') {
         return { status: 404 as const, body: { error: 'Canvas not found' } };
       }
@@ -401,9 +405,8 @@ export const canvasContractRouter = s.router(canvasContract, {
 
 /**
  * Mount the canvas CRUD contract router. Call from routes.ts AFTER the
- * canvas AI-suggest and chat-edit routers (so /api/canvas/ai-suggest and
- * /api/canvas/chat-edit/stream match first). requireAuth is applied at the
- * /api/canvas prefix.
+ * canvas AI-suggest router (so /api/canvas/ai-suggest matches first).
+ * requireAuth is applied at the /api/canvas prefix.
  */
 export function mountCanvasContractRouter(app: Application): void {
   createExpressEndpoints(canvasContract, canvasContractRouter, app, {

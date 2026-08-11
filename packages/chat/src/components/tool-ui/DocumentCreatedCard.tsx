@@ -2,6 +2,7 @@ import { ARTIFACT_TYPE_META, subtypeToArtifactKind } from '@gruenerator/shared/d
 import { ArrowRight, ExternalLink } from 'lucide-react';
 import { memo, useState } from 'react';
 
+import { useArtifactLiveStore } from '../../stores/artifactLiveStore';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 
 import type { DocumentCreatedData } from '../../types/messageMetadata';
@@ -77,9 +78,18 @@ export const DocumentCreatedCard = memo(function DocumentCreatedCard({
   const kind = subtypeToArtifactKind(document.subtype);
   const meta = ARTIFACT_TYPE_META[kind];
   const Icon = meta.Icon;
+  // The docked ArtifactPanel is only mounted on /chat; this card also renders
+  // in the Sheets/Docs/Presentations assistant chats. Writing to the store
+  // there would do nothing visible, so the primary action degrades to the old
+  // plain link when no panel is around to react.
+  const panelMounted = useArtifactLiveStore((s) => s.panelMounted);
   return (
     <div className="my-5 max-w-md rounded-xl border border-border bg-background px-4 py-3">
-      <div className="flex items-center justify-between gap-3">
+      {/* Umbrechend, weil der Aktionsknopf nicht schrumpfen kann: auf einer Zeile
+          bleiben dem Titel auf dem Handy 56 px (bei 320 px Viewport 0 px), er
+          verschwindet also praktisch. Umgebrochen rutschen die Knöpfe unter den
+          Titel und er bekommt die volle Kartenbreite (gemessen 228 px). */}
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <div className="flex items-center gap-3 min-w-0">
           <span
             className="flex h-9 w-9 flex-none items-center justify-center rounded-lg"
@@ -95,15 +105,48 @@ export const DocumentCreatedCard = memo(function DocumentCreatedCard({
         {kind === 'pdf' ? (
           <PdfOpenButton document={document} label={meta.label} />
         ) : (
-          <a
-            href={document.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full bg-primary text-white hover:bg-primary/90 transition-colors flex-shrink-0"
-          >
-            {meta.label} öffnen
-            <ArrowRight className="h-3.5 w-3.5" />
-          </a>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {panelMounted ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() =>
+                    useArtifactLiveStore.getState().setActiveArtifact({
+                      id: `document-${document.documentId}`,
+                      type: 'document',
+                      documentId: document.documentId,
+                      subtype: document.subtype,
+                      title: document.title,
+                      url: document.url,
+                    })
+                  }
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full bg-primary text-white hover:bg-primary/90 transition-colors"
+                >
+                  {meta.label} öffnen
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </button>
+                <a
+                  href={document.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-full p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground"
+                  aria-label={`${meta.label} in neuem Tab öffnen`}
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              </>
+            ) : (
+              <a
+                href={document.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full bg-primary text-white hover:bg-primary/90 transition-colors"
+              >
+                {meta.label} öffnen
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            )}
+          </div>
         )}
       </div>
     </div>

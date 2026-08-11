@@ -24,6 +24,44 @@ const ocrService = new OCRService();
 
 export const IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
+/**
+ * The composer converts a large paste into this synthetic text attachment —
+ * see `packages/chat/src/lib/pastedText.ts`. The name is wire-frozen (F0):
+ * shipped clients keep sending it, so it doubles as the detection key here.
+ */
+export const PASTED_TEXT_ATTACHMENT_NAME = 'Eingefügter Text.txt';
+
+/** Is this attachment the composer's synthetic paste file? */
+export function isPastedTextAttachment(name: string, mimeType: string): boolean {
+  return name === PASTED_TEXT_ATTACHMENT_NAME && mimeType === 'text/plain';
+}
+
+/**
+ * When the composer text is empty, the paste IS the prompt: return its decoded
+ * text plus the attachment list without the paste files, so the caller can
+ * promote the text into the user message instead of the untrusted-material
+ * channel (whose hierarchy rule forbids executing instructions found there —
+ * the model then answers "du hast mir keine Aufgabe gestellt", QA 08/2026).
+ * Returns null when there is typed text (the paste stays reference material)
+ * or no promotable paste.
+ */
+export function extractPromotablePasteText(
+  attachments: ProcessedAttachment[] | undefined,
+  typedText: string
+): { pasteText: string; remaining: ProcessedAttachment[] } | null {
+  if (!attachments?.length || typedText.trim().length > 0) return null;
+  const pasteText = attachments
+    .filter((a) => isPastedTextAttachment(a.name, a.type))
+    .map((a) => Buffer.from(a.data, 'base64').toString('utf8').trim())
+    .filter((t) => t.length > 0)
+    .join('\n\n');
+  if (pasteText.length === 0) return null;
+  return {
+    pasteText,
+    remaining: attachments.filter((a) => !isPastedTextAttachment(a.name, a.type)),
+  };
+}
+
 /** Max raw bytes of a tabular file we persist for reload-rehydration (~2 MB).
  *  Larger sheets keep full-text context but no reload-compute (avoids row bloat). */
 const MAX_TABULAR_BYTES_PERSISTED = 2 * 1024 * 1024;
@@ -155,7 +193,11 @@ export async function processAttachments(
 
         if (result.text && result.text.length > 0) {
           const text = sheetNote ? `${sheetNote}\n${result.text}` : result.text;
-          documentTexts.push(`### ${attachment.name}\n\n${text}`);
+          // Label makes the inline full-text path distinguishable from a
+          // vectorized doc's RAG chunks (see contextEnrichmentService's
+          // SMALL_DOC_VECTORIZATION_THRESHOLD routing) — the model otherwise
+          // can't tell whether it's seeing everything or an excerpt.
+          documentTexts.push(`### ${attachment.name} (Volltext-Auszug)\n\n${text}`);
           processedMeta.push({
             name: attachment.name,
             mimeType: attachment.type,

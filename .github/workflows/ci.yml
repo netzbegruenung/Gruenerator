@@ -83,6 +83,13 @@ jobs:
       - name: Tour anchors in sync
         run: node scripts/check-tour-anchors.mjs
 
+      # A portalled popup on shadcn's default z-50 lands below the sidebars
+      # (z-[1001]/z-[1005]) and below any open dialog (z-[1010]). It stays
+      # visible but unclickable, which reads as a dead control, not a z-index
+      # bug. Pin every portalled surface to the modal/popup/tooltip scale.
+      - name: Overlay z-index layers
+        run: node scripts/check-overlay-layers.mjs
+
       # A swallowed error in the chat stack is invisible: the turn looks
       # successful and the artefact/answer is silently missing. Ratchet against
       # a baseline — the count may fall, never rise.

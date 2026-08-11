@@ -134,17 +134,20 @@ describe('current instances', () => {
     expect(INSTANCES.map((i) => i.id)).toEqual(['production', 'beta', 'bgst', 'local']);
   });
 
-  // Filling `hide.notebookCategories`/`notebookIds`/`block` is blocked on the
-  // backend enforcing the same policy (docs/instanz-filterung-plan.md, AP4) —
-  // a hidden notebook would otherwise vanish from the gallery while the chat
-  // kept citing it. `hide.toolIds` has no such backend counterpart (tools are
-  // a frontend-only registry, nothing for the chat to cite), so bgst curates
-  // its tool tiles already.
-  it('carries no notebook content policy yet, so every instance shows the full notebook inventory', () => {
+  // The Bundesverband notebook sits in `hide`, not `block`: it used to be
+  // offered on these instances, so shared links and persisted mention tokens
+  // must keep resolving forever (F0 URL-Sonderrecht, CLAUDE.md) — it just
+  // stops being offered in galleries, pickers and implicit chat search.
+  it('production, beta and local hide the Bundesverband notebook — offered on bgst only', () => {
+    for (const id of ['production', 'beta', 'local'] as const) {
+      expect(getInstance(id).hide?.notebookIds).toEqual(['gruene-notebook']);
+      expect(getInstance(id).hide?.notebookCategories).toBeUndefined();
+    }
+    expect(getInstance('bgst').hide?.notebookIds).toBeUndefined();
+  });
+
+  it('blocks nothing anywhere — every direct notebook link keeps resolving', () => {
     for (const instance of INSTANCES) {
-      const hide = getInstance(instance.id).hide;
-      expect(hide?.notebookCategories).toBeUndefined();
-      expect(hide?.notebookIds).toBeUndefined();
       expect(getInstance(instance.id).block ?? {}).toEqual({});
     }
   });

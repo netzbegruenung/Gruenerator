@@ -34,6 +34,10 @@ const DEV_BYPASS_USER: Express.User = {
   reduce_motion: false,
   reduce_transparency: false,
   show_skip_link: true,
+  // Wie im clientseitigen Bypass ein fester Zeitstempel: der Dev-Bypass-Nutzer
+  // hat keine Profilzeile, ein Widerruf oder eine Einwilligung ginge also ins
+  // Leere — mit `null` säße jeder lokale Lauf hinter dem Dialog fest.
+  ai_consent_at: '2026-01-01T00:00:00.000Z',
   groups_enabled: false,
   custom_generators: false,
   database_access: false,

@@ -9,7 +9,7 @@ import type {
   ChartData,
   ComputeData,
 } from '../../hooks/useChatGraphStream';
-import type { ActiveArtifact } from '../../stores/artifactLiveStore';
+import type { CodeArtifact } from '../../stores/artifactLiveStore';
 import type { ToolKey, ThreadMode, SearchMode } from '../../stores/chatStore';
 import type {
   ConfirmActionData,
@@ -33,7 +33,7 @@ export type GrueneratorMessageMetadata = {
   generatedImage?: GeneratedImage;
   sharepicData?: SharepicData;
   chartData?: ChartData;
-  artifactData?: ActiveArtifact;
+  artifactData?: CodeArtifact;
   computeData?: ComputeData;
   bahnData?: BahnPayload;
   streamMetadata?: StreamMetadata;

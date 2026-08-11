@@ -22,6 +22,7 @@ import {
   API_KEY_DEFAULT_RATE_LIMIT,
   consumeApiKeyRateLimit,
 } from '../../middleware/apiKeyRateLimitMiddleware.js';
+import { hasAiConsent } from '../../middleware/requireAiConsent.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { resolveMcpAuth } from './mcpAuth.js';
@@ -36,6 +37,7 @@ const log = createLogger('McpServer');
 const JSONRPC_UNAUTHORIZED = -32000;
 const JSONRPC_METHOD_NOT_ALLOWED = -32000;
 const JSONRPC_RATE_LIMITED = -32003;
+const JSONRPC_CONSENT_REQUIRED = -32004;
 
 const resourceUrl = new URL(MCP_RESOURCE_URL);
 const PROTECTED_RESOURCE_METADATA_URL = `${resourceUrl.origin}/.well-known/oauth-protected-resource${
@@ -107,6 +109,25 @@ router.post('/', async (req, res) => {
         });
       return;
     }
+  }
+
+  // Art.-9-Einwilligung. Der MCP-Pfad braucht die Prüfung eigens: er löst seine
+  // Tokens selbst auf, sieht `requireAuth` nie und belegt `req.user` nur mit
+  // der ID. Wer hier ein Token hält, hat die Einwilligung beim Anmelden im Web
+  // erteilt — ein Widerruf dort erreicht den Konnektor sonst aber nie, und
+  // genau das wäre die Lücke. Kein `WWW-Authenticate`: die Anmeldung stimmt,
+  // eine erneute OAuth-Runde änderte nichts.
+  if (!(await hasAiConsent(authCtx.userId))) {
+    res.status(403).json({
+      jsonrpc: '2.0',
+      error: {
+        code: JSONRPC_CONSENT_REQUIRED,
+        message:
+          'Für die KI-Funktionen fehlt die ausdrückliche Einwilligung nach Art. 9 Abs. 2 lit. a DSGVO. Bitte einmal im Grünerator anmelden und einwilligen.',
+      },
+      id: null,
+    });
+    return;
   }
 
   // aiWorkerPool's privacy counter reads only req.user.id — no need for a

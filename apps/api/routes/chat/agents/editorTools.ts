@@ -27,6 +27,7 @@ import { generatePresentationOperations } from '../../presentations/presentation
 import { generateSheetOperations } from '../../sheets/sheetAiService.js';
 import { type EditorSurfaceKind } from '../services/agenticLoop/routing.js';
 import { type SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
+import { emitEditorOperations, planEditorOps } from '../services/editorOpsCore.js';
 import { type SSEWriter } from '../services/sseHelpers.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -118,13 +119,6 @@ const EDIT_SURFACE_SPECS: Partial<Record<EditorSurfaceKind, EditSurfaceSpec>> = 
 const INSTRUCTION_DESC =
   'Vollständiger, in sich geschlossener Bearbeitungsauftrag auf Deutsch — inklusive der recherchierten Fakten/Inhalte, die eingearbeitet werden sollen. Der Auftrag wird an den Fachplaner weitergegeben, der die konkreten Operationen erzeugt.';
 
-/** One-line summary of a planned op batch for the model + card ("2× add_slide"). */
-function summarizeOps(operations: Array<{ type: string }>): string {
-  const counts = new Map<string, number>();
-  for (const op of operations) counts.set(op.type, (counts.get(op.type) ?? 0) + 1);
-  return [...counts.entries()].map(([type, n]) => `${n}× ${type}`).join(', ');
-}
-
 /**
  * Builds the `edit_document` tool for the active editor surface, or null if the
  * surface has no plan-and-send tool path (docs/canvas keep the dispatch path).
@@ -151,27 +145,27 @@ export function makeEditArtifactTool(ctx: EditorToolCtx): Tool | null {
           ? `\n\nBEREITS IN DIESEM TURN ANGEWENDET (plane darauf aufbauend, wiederhole diese Änderungen nicht):\n- ${ctx.appliedOpsLog.join('\n- ')}`
           : '';
 
-      let operations;
-      try {
-        operations = await spec.planOperations({
-          instruction,
-          state: ctx.state,
-          appliedNote,
-          referenceContent,
-        });
-      } catch (err) {
-        log.error(
-          `[EditorTool] ${kind} planning failed: ${err instanceof Error ? err.message : err}`
-        );
+      const planned = await planEditorOps({
+        log,
+        logLabel: `[EditorTool] ${kind}`,
+        plan: () =>
+          spec.planOperations({
+            instruction,
+            state: ctx.state,
+            appliedNote,
+            referenceContent,
+          }),
+      });
+
+      if (!planned.ok) {
         // Contained: the loop feeds this back to the model (it apologises or
         // retries with a clearer instruction). No editor_operations is emitted,
         // so the artefact is never half-touched.
-        return {
-          error: `Die Änderung an der ${spec.noun} konnte nicht geplant werden. Versuche es erneut.`,
-        };
-      }
-
-      if (operations.length === 0) {
+        if (planned.reason === 'planning_failed') {
+          return {
+            error: `Die Änderung an der ${spec.noun} konnte nicht geplant werden. Versuche es erneut.`,
+          };
+        }
         return {
           ok: true,
           operationCount: 0,
@@ -179,7 +173,7 @@ export function makeEditArtifactTool(ctx: EditorToolCtx): Tool | null {
         };
       }
 
-      const summary = summarizeOps(operations);
+      const { operations, summary } = planned;
       ctx.appliedOpsLog.push(`${operations.length} Op(s): ${summary}`);
       // Surface a human edit summary onto shared state so the synth prompt makes
       // the model confirm the change (not write empty text or a false refusal).
@@ -187,12 +181,7 @@ export function makeEditArtifactTool(ctx: EditorToolCtx): Tool | null {
       ctx.state.editorEditsSummary = ctx.state.editorEditsSummary
         ? `${ctx.state.editorEditsSummary}; ${editNote}`
         : editNote;
-      ctx.sse.send('editor_operations', {
-        surface: kind,
-        targetId: target.id,
-        operations,
-        summary,
-      });
+      emitEditorOperations(ctx.sse, kind, target.id, operations, summary);
 
       log.info(`[EditorTool] emitted ${operations.length} ${kind} op(s) for "${instruction}"`);
       return { ok: true, operationCount: operations.length, opSummary: summary };

@@ -10,8 +10,6 @@ export const GENERATOR_ENDPOINTS = {
   PRESSE_SOCIAL: '/texte/social',
   ANTRAG: '/antraege/generate-simple',
   UNIVERSAL: '/texte/universal',
-  ALT_TEXT: '/texte/alttext',
-  LEICHTE_SPRACHE: '/texte/leichte-sprache',
 } as const;
 
 // Platform option interface

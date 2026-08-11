@@ -9,7 +9,7 @@ import {
 import { useAuthStore } from '@gruenerator/shared/stores';
 import { QueryClientProvider } from '@tanstack/react-query';
 import * as Notifications from 'expo-notifications';
-import { Stack, Redirect, useSegments, useRouter } from 'expo-router';
+import { Stack, Redirect, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
@@ -19,6 +19,7 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { enableFreeze } from 'react-native-screens';
 
+import { AiConsentGate } from '../components/auth/AiConsentGate';
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import { AppDrawer } from '../components/navigation';
 import { SettingsSheet } from '../components/settings';
@@ -28,6 +29,18 @@ import { useOnboardingStore } from '../stores/onboardingStore';
 import { lightTheme, darkTheme } from '../theme';
 
 void SplashScreen.preventAutoHideAsync();
+
+// Local notifications only (the subtitle export tells you when it is done).
+// Without a handler iOS swallows them while the app is in the foreground.
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 /**
  * Stop re-rendering screens nobody is looking at.
@@ -52,25 +65,10 @@ function RootLayout() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const segments = useSegments();
-  const router = useRouter();
   const { user, isLoading } = useAuthStore();
   const hasCompletedOnboarding = useOnboardingStore((s) => s.hasCompletedOnboarding);
   const hasHydratedOnboarding = useOnboardingStore((s) => s.hasHydrated);
   useAppInitialization();
-
-  // Handle notification taps → navigate to pushed content screen
-  useEffect(() => {
-    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = response.notification.request.content.data;
-      if (data?.type === 'pushed_content' && data?.shareToken) {
-        void router.push(
-          `/(fullscreen)/pushed-content?shareToken=${data.shareToken}&mediaType=${data.mediaType || 'image'}`
-        );
-      }
-    });
-
-    return () => subscription.remove();
-  }, [router]);
 
   const [fontsLoaded] = useFonts({
     Raleway_400Regular,
@@ -178,6 +176,12 @@ function RootLayout() {
                     is on screen. Mounted here — once — because the drawer and the
                     profile menu both reach for them from different screens. */}
                 {user ? <SettingsSheet /> : null}
+                {/* Art.-9-Einwilligung. Ganz zuletzt und über allem, damit sie
+                    auch über dem Einstellungen-Sheet steht — ein Widerruf dort
+                    muss sofort wieder fragen, sonst liefe die App weiter ohne
+                    Rechtsgrundlage. Gated auf `user`, weil vor der Anmeldung
+                    niemand da ist, den man fragen könnte. */}
+                {user ? <AiConsentGate /> : null}
               </ErrorBoundary>
             </ActionSheetProvider>
           </KeyboardProvider>

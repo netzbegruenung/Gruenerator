@@ -30,6 +30,15 @@ vi.mock('../../../services/search/index.js', () => ({
   crawlAndDistill: (seeds: unknown, q: unknown, opts: unknown) => crawlAndDistill(seeds, q, opts),
 }));
 
+const documentSearch = vi.hoisted(() => vi.fn<(args: unknown) => Promise<unknown>>());
+vi.mock(
+  '../../../services/document-services/DocumentSearchService/index.js',
+  async (importOriginal) => ({
+    ...(await importOriginal<Record<string, unknown>>()),
+    getQdrantDocumentService: () => ({ search: documentSearch }),
+  })
+);
+
 const agentConfig = { identifier: 'test' } as unknown as AgentConfig;
 
 type Exec = (i: unknown, o: { toolCallId: string }) => Promise<unknown>;
@@ -358,6 +367,87 @@ describe('toolCatalog scrape_url', () => {
       error?: string;
     };
     expect(out.error).toMatch(/nicht lesen/);
+  });
+});
+
+describe('toolCatalog expand_attachment (M4)', () => {
+  beforeEach(() => {
+    documentSearch.mockReset();
+  });
+
+  function catalogWithAttachments(threadAttachments: unknown[]) {
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    const state = { intent: 'search', threadAttachments } as unknown as ChatGraphState;
+    const { tools } = buildChatToolCatalog({ agentConfig, sourceRegistry, loop: { sse, state } });
+    return { execute: execOf(tools.expand_attachment), sourceRegistry };
+  }
+
+  it('is not mounted outside a loop context', () => {
+    const sourceRegistry = createSourceRegistry();
+    const { toolNames } = buildChatToolCatalog({ agentConfig, sourceRegistry });
+    expect(toolNames).not.toContain('expand_attachment');
+  });
+
+  it('errors on an unknown attachment name instead of guessing', async () => {
+    const { execute } = catalogWithAttachments([
+      { id: 'a1', name: 'Bekannt.pdf', extractedText: 'Text', documentId: null },
+    ]);
+    const out = (await execute({ attachmentName: 'Unbekannt.pdf' }, { toolCallId: 'c1' })) as {
+      error?: string;
+    };
+    expect(out.error).toMatch(/Keine Datei/);
+    expect(documentSearch).not.toHaveBeenCalled();
+  });
+
+  it('registers the full inline text of a small (non-vectorized) attachment', async () => {
+    const { execute, sourceRegistry } = catalogWithAttachments([
+      {
+        id: 'a1',
+        name: 'Klein.pdf',
+        extractedText: 'Der volle Text von Klein.pdf',
+        documentId: null,
+      },
+    ]);
+    const out = (await execute({ attachmentName: 'klein.pdf' }, { toolCallId: 'c1' })) as {
+      resultCount?: number;
+      sources?: string;
+    };
+    expect(out.resultCount).toBe(1);
+    expect(sourceRegistry.size).toBe(1);
+    expect(documentSearch).not.toHaveBeenCalled();
+  });
+
+  it('queries the vector store scoped to the attachment for a large (vectorized) attachment', async () => {
+    documentSearch.mockResolvedValue({
+      results: [
+        { title: 'Groß.pdf', relevant_content: 'Mehr Inhalt', similarity_score: 0.7 },
+        { title: 'Groß.pdf', relevant_content: 'Noch mehr Inhalt', similarity_score: 0.6 },
+      ],
+    });
+    const { execute, sourceRegistry } = catalogWithAttachments([
+      { id: 'a2', name: 'Groß.pdf', extractedText: null, documentId: 'doc-123' },
+    ]);
+    const out = (await execute({ attachmentName: 'Groß.pdf' }, { toolCallId: 'c1' })) as {
+      resultCount?: number;
+    };
+    expect(documentSearch).toHaveBeenCalledTimes(1);
+    const call = documentSearch.mock.calls[0]?.[0] as { filters?: { documentIds?: string[] } };
+    expect(call.filters?.documentIds).toEqual(['doc-123']);
+    expect(out.resultCount).toBe(2);
+    expect(sourceRegistry.size).toBe(2);
+  });
+
+  it('errors when a matched attachment has neither vectorized id nor extracted text', async () => {
+    const { execute } = catalogWithAttachments([
+      { id: 'a3', name: 'Leer.pdf', extractedText: null, documentId: null },
+    ]);
+    const out = (await execute({ attachmentName: 'Leer.pdf' }, { toolCallId: 'c1' })) as {
+      error?: string;
+    };
+    expect(out.error).toMatch(/keinen nachladbaren Text/);
   });
 });
 

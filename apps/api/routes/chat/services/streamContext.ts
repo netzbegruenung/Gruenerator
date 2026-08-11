@@ -45,9 +45,17 @@ import { withTimeout } from '../../../utils/withTimeout.js';
 import { getContextWindow } from '../agents/providers.js';
 
 import { getThreadAttachments } from './attachmentPersistenceService.js';
-import { isTabularAttachment, processAttachments } from './attachmentProcessingService.js';
+import {
+  extractPromotablePasteText,
+  isTabularAttachment,
+  processAttachments,
+} from './attachmentProcessingService.js';
 import { enrichContext } from './contextEnrichmentService.js';
-import { extractTextContent, filterEmptyAssistantMessages } from './messageHelpers.js';
+import {
+  extractTextContent,
+  filterEmptyAssistantMessages,
+  sanitizeUIFileParts,
+} from './messageHelpers.js';
 import { type createSSEStream, PROGRESS_MESSAGES } from './sseHelpers.js';
 import { canAccessThread } from './threadAccessService.js';
 import {
@@ -310,9 +318,17 @@ export async function buildStreamContext({
 
   // === Convert messages ===
   let modelMessages: ChatGraphInput['messages'];
+  const { messages: convertibleMessages, droppedFileParts } = sanitizeUIFileParts(
+    clientMessages as UIMessage[]
+  );
+  if (droppedFileParts > 0) {
+    log.info(
+      `[ChatGraph] Dropped ${droppedFileParts} url-less file part(s) before conversion — content rides in attachments`
+    );
+  }
   try {
     modelMessages = (await convertToModelMessages(
-      clientMessages as UIMessage[]
+      convertibleMessages as UIMessage[]
     )) as ModelMessage[] as ChatGraphInput['messages'];
   } catch (convertError) {
     log.error('[ChatGraph] Error converting messages:', convertError);
@@ -335,6 +351,28 @@ export async function buildStreamContext({
   );
 
   let lastUserMessage = validMessages.filter((m) => m.role === 'user').pop();
+
+  // === Promote a bare paste to the prompt ===
+  // The composer converts a large paste into a synthetic text attachment; sent
+  // with an empty textarea, the paste IS the prompt. Left as an attachment it
+  // lands in the untrusted-material channel, whose hierarchy rule forbids
+  // executing instructions found there — the model then correctly answers "du
+  // hast mir keine Aufgabe gestellt" (QA 08/2026). Text pasted into the
+  // composer is the user's own input, so with no other prompt text it becomes
+  // the user message itself (classifier, title, persistence and prompts all see
+  // it); alongside typed text it stays reference material as before.
+  let effectiveAttachments = attachments as ProcessedAttachment[] | undefined;
+  if (lastUserMessage) {
+    const promotion = extractPromotablePasteText(
+      effectiveAttachments,
+      extractTextContent(lastUserMessage.content)
+    );
+    if (promotion) {
+      lastUserMessage.content = promotion.pasteText;
+      effectiveAttachments = promotion.remaining;
+      log.info('[StreamContext] Pasted text promoted to user prompt (composer text was empty)');
+    }
+  }
 
   // === Create thread if needed ===
   // Normalize null → undefined: contract schema uses .nullish() to accept
@@ -481,7 +519,7 @@ export async function buildStreamContext({
     attachmentContext: derivedAttachmentContext,
     imageAttachments,
     processedMeta,
-  } = await processAttachments(attachments as ProcessedAttachment[] | undefined, requestId);
+  } = await processAttachments(effectiveAttachments, requestId);
 
   // Merge any client-injected context (e.g. docs editor markdown + selection)
   // with what processAttachments derived from uploaded files.
@@ -492,8 +530,7 @@ export async function buildStreamContext({
       ? `${clientAttachmentContext}\n\n---\n\n${derivedAttachmentContext}`
       : clientAttachmentContext || derivedAttachmentContext;
 
-  const docAttachments =
-    (attachments as ProcessedAttachment[] | undefined)?.filter((a) => !a.isImage) ?? [];
+  const docAttachments = effectiveAttachments?.filter((a) => !a.isImage) ?? [];
 
   const previousAttachments = actualThreadId ? await getThreadAttachments(actualThreadId, 5) : [];
 
@@ -586,6 +623,9 @@ export async function buildStreamContext({
   // Weg für frei eingetippte Rollen und für Bestandsdaten, die den Text noch
   // mitschicken.
   let customSystemPrompt = rawCustomSystemPrompt ?? undefined;
+  // Katalogrolle mit Baustein (statt frei getippter Persona): das Rezept-
+  // Selbstladen im Loop bleibt dann AN — siehe resolveCustomSystemPrompt.
+  let roleBausteinActive = false;
   if (rawRoleRef) {
     const storedRoles = user.user_defaults?.profile?.roles;
     const role = Array.isArray(storedRoles)
@@ -597,11 +637,13 @@ export async function buildStreamContext({
           'gespeicherte Rolle — der Turn läuft mit dem Basis-Agenten.'
       );
     } else {
-      customSystemPrompt = resolveCustomSystemPrompt(
+      const resolved = resolveCustomSystemPrompt(
         role,
         user.locale ?? 'de-DE',
         rawCustomSystemPrompt
       );
+      customSystemPrompt = resolved.prompt;
+      roleBausteinActive = resolved.fromBaustein;
     }
   }
 
@@ -667,6 +709,7 @@ export async function buildStreamContext({
     userLocale: user.locale ?? 'de-DE',
     clientPlatform: rawPlatform ?? 'web',
     customSystemPrompt,
+    roleBausteinActive,
     activeSkillMention: rawActiveSkillMention ?? undefined,
     userInstructions,
     contextWindowTokens,

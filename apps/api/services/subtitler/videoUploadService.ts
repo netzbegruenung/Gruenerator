@@ -98,11 +98,16 @@ interface ExtractAudioOptions {
   onProgress?: (percent: number, timemark: string) => void;
 }
 
+/**
+ * Returns the source duration alongside the output path so callers that need
+ * it (chunked transcription) don't have to re-probe a file this function
+ * already measured.
+ */
 async function extractAudio(
   videoPath: string,
   outputPath: string,
   options?: ExtractAudioOptions
-): Promise<string> {
+): Promise<{ outputPath: string; durationSeconds: number | null }> {
   log.debug('Starte Audio-Extraktion:', { inputPath: videoPath, outputPath });
 
   const uploadsDir = path.resolve(__dirname, '../../uploads');
@@ -172,7 +177,7 @@ async function extractAudio(
         const fileSizeMB = (stats.size / (1024 * 1024)).toFixed(2);
         log.debug(`Audio-Extraktion erfolgreich: ${outputPath} (${fileSizeMB} MB)`);
 
-        resolve(outputPath);
+        resolve({ outputPath, durationSeconds: duration ?? null });
       })
       .on('error', (err: Error) => {
         log.error('FFmpeg Fehler:', err);
@@ -201,6 +206,6 @@ async function cleanupFiles(...filePaths: (string | null | undefined)[]): Promis
   }
 }
 
-export { getVideoMetadata, extractAudio, cleanupFiles };
+export { getVideoMetadata, extractAudio, cleanupFiles, getDuration };
 export type { OriginalFormat };
 export type { VideoMetadata } from '../../routes/subtitler/types.js';

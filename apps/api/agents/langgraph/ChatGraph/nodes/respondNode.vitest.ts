@@ -6,6 +6,7 @@ import {
   getModeGuidance,
   citableSourcesAvailable,
   truncateDocument,
+  limitAttachmentContext,
 } from './respondNode.js';
 
 import type { ChatGraphState, ComputeData, SearchResult } from '../types.js';
@@ -96,6 +97,46 @@ describe('truncateDocument', () => {
   it('never returns more than it was given', () => {
     for (const limit of [1, 60, 149, 150, 151, 400, 5000]) {
       expect(truncateDocument(long, limit).length, `limit=${limit}`).toBeLessThan(long.length);
+    }
+  });
+});
+
+describe('limitAttachmentContext — fair per-document split (M1/M3)', () => {
+  function doc(name: string, chars: number): string {
+    return `### ${name}\n\n${'A'.repeat(chars)}`;
+  }
+
+  it('keeps all N documents instead of dropping the last one under budget pressure', () => {
+    const context = [doc('A.pdf', 8000), doc('B.pdf', 8000), doc('C.pdf', 8000)].join(
+      '\n\n---\n\n'
+    );
+    // Old first-come-first-served behavior exhausted the budget on A and B,
+    // dropping C entirely — the exact failure mode of a 3-file comparison.
+    const out = limitAttachmentContext(context, undefined, 10_000);
+    expect(out).toContain('A.pdf');
+    expect(out).toContain('B.pdf');
+    expect(out).toContain('C.pdf');
+    expect(out).not.toContain('nicht einbezogen');
+  });
+
+  it('names omitted documents instead of only counting them', () => {
+    const context = [doc('Real.pdf', 500), '### Empty.pdf\n\n'].join('\n\n---\n\n');
+    const out = limitAttachmentContext(context, undefined, 200);
+    expect(out).toContain('nicht einbezogen');
+    expect(out).toContain('Empty.pdf');
+  });
+
+  it('leaves a single document untouched under a generous budget', () => {
+    const context = doc('Solo.pdf', 500);
+    const out = limitAttachmentContext(context, undefined, 10_000);
+    expect(out).toBe(context);
+  });
+
+  it('gives every document at least the minimum floor even with many attachments', () => {
+    const many = Array.from({ length: 10 }, (_, i) => doc(`F${i}.pdf`, 5000));
+    const out = limitAttachmentContext(many.join('\n\n---\n\n'), undefined, 5_000);
+    for (let i = 0; i < 10; i++) {
+      expect(out).toContain(`F${i}.pdf`);
     }
   });
 });
@@ -286,6 +327,43 @@ describe('getModeGuidance for compute intent', () => {
   });
 });
 
+/**
+ * Both chart prompts, byte for byte.
+ *
+ * The two variants share their format block and most of their rules and were
+ * kept as two copy-pasted literals; they are now composed from one template.
+ * Pinning the exact strings is what makes that composition provable — a
+ * substring assertion would have passed through a dropped rule or a lost
+ * newline, and the model only ever sees the whole thing.
+ */
+const CHART_PROMPT_PLAUSIBLE = `\nDer*die Nutzer*in möchte ein Diagramm. Erstelle die Daten und gib sie als JSON-Block zurück.
+Schreibe zuerst eine kurze Erklärung (1-2 Sätze), dann den JSON-Block in diesem Format:
+
+\`\`\`chart
+{"type":"bar","title":"Titel","data":[{"name":"A","wert":10},{"name":"B","wert":20}],"xKey":"name","yKeys":["wert"]}
+\`\`\`
+
+Regeln:
+- type: "bar", "line", "area", "pie" oder "donut"
+- data: Array mit Objekten, jedes hat einen xKey und mindestens einen yKey
+- xKey: Name des Feldes für die X-Achse (z.B. "name", "monat", "jahr")
+- yKeys: Array der Feldnamen für die Werte (z.B. ["wert", "wert2"])
+- Verwende realistische, plausible Daten wenn keine konkreten Zahlen gegeben sind
+- Der JSON-Block MUSS in \`\`\`chart ... \`\`\` eingeschlossen sein`;
+
+const CHART_PROMPT_COMPUTED = `\nDer*die Nutzer*in möchte ein Diagramm. Die Werte wurden bereits deterministisch per Code berechnet (siehe BERECHNUNGSERGEBNIS) — verwende AUSSCHLIESSLICH diese Werte und erfinde KEINE Zahlen.
+Schreibe zuerst eine kurze Erklärung (1-2 Sätze), dann den JSON-Block in diesem Format:
+
+\`\`\`chart
+{"type":"bar","title":"Titel","data":[{"name":"A","wert":10},{"name":"B","wert":20}],"xKey":"name","yKeys":["wert"]}
+\`\`\`
+
+Regeln:
+- type: "bar", "line", "area", "pie" oder "donut"
+- data: Array mit Objekten, jedes hat einen xKey und mindestens einen yKey — die Werte EXAKT aus dem BERECHNUNGSERGEBNIS übernehmen
+- xKey: Name des Feldes für die X-Achse; yKeys: Array der Wert-Feldnamen
+- Der JSON-Block MUSS in \`\`\`chart ... \`\`\` eingeschlossen sein`;
+
 describe('getModeGuidance for chart intent', () => {
   it('grounds the chart on the computed values when a fresh result exists', () => {
     const out = getModeGuidance(
@@ -295,12 +373,14 @@ describe('getModeGuidance for chart intent', () => {
         computedResultFresh: true,
       })
     );
+    expect(out).toBe(CHART_PROMPT_COMPUTED);
     expect(out).toContain('AUSSCHLIESSLICH');
     expect(out).not.toContain('plausible Daten');
   });
 
   it('falls back to the plausible-data guidance without a fresh result', () => {
     const out = getModeGuidance(makeState({ intent: 'chart', computedResult: null }));
+    expect(out).toBe(CHART_PROMPT_PLAUSIBLE);
     expect(out).toContain('plausible Daten');
     expect(out).not.toContain('AUSSCHLIESSLICH');
   });

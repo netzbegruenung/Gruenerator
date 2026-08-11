@@ -222,11 +222,25 @@ export default function LoginScreen() {
             Mit der Anmeldung stimmst du unseren{' '}
             <Text
               style={styles.legalLink}
+              onPress={() => void Linking.openURL('https://gruenerator.eu/nutzungsbedingungen')}
+            >
+              Nutzungsbedingungen
+            </Text>{' '}
+            und der{' '}
+            <Text
+              style={styles.legalLink}
               onPress={() => void Linking.openURL('https://gruenerator.eu/datenschutz')}
             >
-              Nutzungsbedingungen und der Datenschutzerklärung
+              Datenschutzerklärung
             </Text>{' '}
-            zu.
+            zu. Wie wir KI-Inhalte kennzeichnen, steht unter{' '}
+            <Text
+              style={styles.legalLink}
+              onPress={() => void Linking.openURL('https://gruenerator.eu/ki-transparenz')}
+            >
+              KI-Transparenz
+            </Text>
+            .
           </Text>
           <Pressable
             onPress={() => router.back()}

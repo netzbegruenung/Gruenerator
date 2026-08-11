@@ -80,6 +80,22 @@ export const CONFIRM_ACTION_CONFIG: Record<
   },
 };
 
+/**
+ * Below this, `fullText` is a confirmation sentence and not a document.
+ *
+ * `modify_doc` REPLACES the document with the answer text, so a prompt that
+ * stops asking for the full rewrite silently turns the edit into a deletion —
+ * which is exactly what ARTEFACT_CONFIRM_ONLY did to this intent between
+ * 27b8a205a and the commit adding this guard. The prompt (ARTEFACT_REWRITE_FULL
+ * in respondNode) is the fix; this is the floor under it, because a prompt
+ * regression is invisible from here and the loss is not recoverable.
+ *
+ * 400 chars is deliberately far below any real document and far above every
+ * confirmation sentence the three lanes produced ("Ich habe das Ziel auf 100
+ * Teilnehmende angepasst und den Vermerk ergänzt." is 84).
+ */
+export const MIN_MODIFY_DOC_CONTENT_CHARS = 400;
+
 export function buildPendingAction(opts: {
   intent: SearchIntent;
   threadId: string;
@@ -122,6 +138,13 @@ export function buildPendingAction(opts: {
       };
     case 'modify_doc':
       if (!docMentionIds?.length) return null;
+      if (fullText.trim().length < MIN_MODIFY_DOC_CONTENT_CHARS) {
+        log.warn(
+          `[ChatGraph] modify_doc suppressed: answer is ${fullText.trim().length} chars, ` +
+            `below the ${MIN_MODIFY_DOC_CONTENT_CHARS}-char floor for a document replacement`
+        );
+        return null;
+      }
       return {
         ...base,
         type: 'modify_doc',

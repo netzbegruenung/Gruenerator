@@ -201,7 +201,7 @@ export const chatStreamBodySchema = z.object({
   // Backend deletes that message and everything created at/after it, then
   // proceeds normally (edited user message + fresh assistant reply).
   replaceFromMessageId: z.string().nullish(),
-  // URLs explicitly attached via the @web composer mention. Merged into the
+  // URLs explicitly attached via the @link composer mention. Merged into the
   // classifier's detected URLs and crawled through the existing scrape_url
   // pipeline (selectAndCrawlTopUrls).
   webpageUrls: z.array(z.string().url()).nullish(),
