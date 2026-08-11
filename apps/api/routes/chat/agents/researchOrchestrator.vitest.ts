@@ -64,8 +64,14 @@ vi.mock('../../../services/search/QueryExpansionService.js', () => ({
 
 // ─── Import after mocks ──────────────────────────────────────
 
-const { executeResearch, localeToSearchScope, DeepPlanSchema, linkupConfidence } =
-  await import('./researchOrchestrator.js');
+const {
+  executeResearch,
+  localeToSearchScope,
+  DeepPlanSchema,
+  linkupConfidence,
+  dedupeResearchSources,
+  remapCitationMarkers,
+} = await import('./researchOrchestrator.js');
 const { getLinkupService } = await import('../../../services/search/LinkupService.js');
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -560,5 +566,102 @@ describe('executeResearch — Linkup citation snippets are capped', () => {
     expect(result.citations).toHaveLength(1);
     // 300 + the ellipsis truncateText appends.
     expect(result.citations[0]?.snippet.length).toBeLessThanOrEqual(303);
+  });
+});
+
+describe('dedupeResearchSources', () => {
+  const source = (id: number, url: string, snippet = `Text ${id}`) => ({
+    id,
+    title: `Quelle ${id}`,
+    url,
+    domain: 'example.com',
+    snippet,
+  });
+
+  it('keeps distinct sources and numbers them from 1', () => {
+    const result = dedupeResearchSources([
+      source(1, 'https://gruene.de/a'),
+      source(2, 'https://gruene.de/b'),
+    ]);
+
+    expect(result.citations.map((c) => c.id)).toEqual([1, 2]);
+    expect(result.remap.get('2')).toBe('2');
+  });
+
+  it('folds the same page reached through www, tracking params and a trailing slash', () => {
+    const result = dedupeResearchSources([
+      source(1, 'https://bundestag.de/presse/meldung'),
+      source(2, 'https://www.bundestag.de/presse/meldung/?utm_source=newsletter'),
+    ]);
+
+    expect(result.citations).toHaveLength(1);
+    expect(result.remap.get('2')).toBe('1');
+  });
+
+  it('renumbers the survivors so the list has no gaps', () => {
+    const result = dedupeResearchSources([
+      source(1, 'https://gruene.de/a'),
+      source(2, 'https://gruene.de/a'),
+      source(3, 'https://gruene.de/c'),
+    ]);
+
+    expect(result.citations.map((c) => c.id)).toEqual([1, 2]);
+    expect(result.citations[1]?.title).toBe('Quelle 3');
+    expect(result.remap.get('3')).toBe('2');
+  });
+
+  // The two fixtures below are the actual pages from the Monitor run on
+  // 11.08.2026 that motivated the text stage: same document, different host and
+  // path, so the URL stage cannot see it.
+  const PM_LANG =
+    'Sie betonen außerdem, dass die iranische Bevölkerung unter der sogenannten „maximum pressure“-Kampagne der Trump-Administration seit dem einseitigen Ausstieg der USA aus der Wiener Nuklearvereinbarung und der Intensivierung des US-amerikanischen Sanktionsregimes leide. „Neben Korruption und Missmanagement verschärft es die wirtschaftliche Lage der Iranerinnen und Iraner dramatisch.“ Bündnis 90/Die Grünen fordern von der Bundesregierung mehr Konsequenz gegenüber dem Iran. Der Bundestag hat am Donnerstag, 8. Oktober 2020, erstmals eine halbe Stunde lang über Anträge der Grünen mit dem Titel „Iran – Menschenrechtsverletzungen verurteilen und völkerrechtliche Verpflichtungen kon... Die Fraktion Bündnis 90/Die Grünen wendet sich gegen die „Repression der Menschen- und Bürgerrechte im Iran“ und fordert die Bundesregierung auf, gegenüber der Regierung in Teheran auf Rechtsstaatlichkeit und die Einhaltung der Menschenrechte zu dringen.';
+  const PM_KURZ =
+    'Sie betonen außerdem, dass die ... US-amerikanischen Sanktionsregimes leide. „Neben Korruption und Missmanagement verschärft es die wirtschaftliche Lage der Iranerinnen und Iraner dramatisch.“... Bündnis 90/Die Grünen fordern von der Bundesregierung mehr Konsequenz gegenüber dem Iran. Der Bundestag hat am Donnerstag, 8. Oktober 2020, erstmals eine halbe Stunde lang über Anträge der Grünen mit dem Titel „Iran – Menschenrechtsverletzungen verurteilen und völkerrechtliche Verpflichtungen kon... Die Fraktion Bündnis 90/Die Grünen wendet sich gegen die „Repression der Menschen- und Bürgerrechte im Iran“ und fordert die Bundesregierung auf, gegenüber der Regierung in Teheran auf Rechtsstaatlichkeit und die Einhaltung der Menschenrechte zu dringen.';
+  const ANDERE_PM =
+    'Katharina Dröge zu den Themen Krankenkassenbeiträge, Bürgergeld, Rückführungen nach Syrien, Wirtschaftsreformen, Sondervermögen, Industrie- und internationale Handelspolitik sowie internationale Klimapolitik · Anlässlich der heutigen Fraktionssitzung der Bundestagsfraktion Bündnis 90/Die Grünen finden Sie nachfolgend Statements der Fraktionsvorsitzenden Katharina Dröge zu den Themen Ukraine, Wahlen in Ungarn, Koalitionsausschusses und nötige Entlastungen. Unsere Gedanken sind bei den Menschen im Iran, die so furchtbar unter dem iranischen Regime leiden und die einen absolut berechtigten Wunsch nach einem Ende des Regimes haben.';
+
+  it('folds the same document served under two different paths', () => {
+    const result = dedupeResearchSources([
+      source(1, 'https://bundestag.de/dokumente/textarchiv/2020/kw41-de-iran', PM_LANG),
+      source(2, 'https://www.bundestag.de/presse/hib/iran-menschenrechte', PM_KURZ),
+    ]);
+
+    expect(result.citations).toHaveLength(1);
+    expect(result.remap.get('2')).toBe('1');
+  });
+
+  it('keeps two press releases that merely share a quoted sentence and a house format', () => {
+    const result = dedupeResearchSources([
+      source(1, 'https://bundestag.de/a', PM_LANG),
+      source(2, 'https://gruene-bundestag.de/b', ANDERE_PM),
+    ]);
+
+    expect(result.citations).toHaveLength(2);
+  });
+
+  it('does not fold two sources that carry no text at all', () => {
+    const result = dedupeResearchSources([source(1, '', ''), source(2, '', '')]);
+
+    expect(result.citations).toHaveLength(2);
+  });
+});
+
+describe('remapCitationMarkers', () => {
+  it('moves a marker onto the id its source ended up with', () => {
+    const remap = new Map([
+      ['1', '1'],
+      ['2', '1'],
+      ['3', '2'],
+    ]);
+
+    expect(remapCitationMarkers('Erst [1], dann [2], dann [3].', remap)).toBe(
+      'Erst [1], dann [1], dann [2].'
+    );
+  });
+
+  it('leaves an invented marker untouched', () => {
+    expect(remapCitationMarkers('Steht so in [7].', new Map([['1', '1']]))).toBe(
+      'Steht so in [7].'
+    );
   });
 });
