@@ -13,6 +13,9 @@ Modell-Stand aus dem Code (bei Änderungen dort auch hier nachziehen):
 - apps/api/services/subtitler/regoloTranscriptionService.ts (faster-whisper-large-v3)
 - apps/api/services/mistral/MistralEmbeddingService/ (mistral-embed)
 - apps/api/services/usage/energyFootprint.ts (Energie-Koeffizienten, Netzintensitäten)
+- apps/web/src/utils/usageFormat.ts (Darstellung: Einheiten, Rundung, Vergleichsrechnung)
+- apps/web/src/features/settings/tabs/UsageTab.tsx (Nutzung-Tab — zeigt bewusst KEINEN eigenen Fußabdruck)
+- apps/web/src/features/monitor/components/TransparenzView.tsx (Transparenz-Seite, Plattformzahl)
   */}
 
 # Wie nachhaltig ist der Grünerator?
@@ -71,9 +74,17 @@ Auch innerhalb einer Antwort ist die Arbeit geteilt: Ein **kleines, schnelles Mo
 
 **[Black Forest Labs](https://bfl.ai/)** aus Freiburg entwickelt die FLUX-Bildmodelle. Der Grünerator nutzt ausschließlich den **EU-Endpunkt** (`api.eu.bfl.ai`) mit `flux-2-pro` — die Bilderzeugung läuft damit im europäischen Strommix, der deutlich CO₂-ärmer ist als der US-amerikanische, wo die meisten Bild-KIs rechnen.
 
-## Was dein eigener Verbrauch kostet
+## Wie wir rechnen
 
-Unter **Einstellungen → Nutzung** siehst du Energie- und CO₂-Verbrauch deiner eigenen Anfragen. Diese Zahl ist teils gemessen, teils hochgerechnet — hier steht, wie sie zustande kommt.
+Unter **Einstellungen → Nutzung** siehst du, was du gemacht hast — Anfragen, Tokens, Bilder, Transkriptionen, Recherchen — und daneben, wie viel CO₂ dieselbe Arbeit auf ChatGPT gekostet hätte. Was **du** verbraucht hast, zeigen wir dort bewusst nicht.
+
+Das ist eine Entscheidung, keine Auslassung. Wie viel eine Anfrage kostet, hängt fast vollständig davon ab, welches Modell wo läuft und an welchem Netz das Rechenzentrum hängt — und das entscheiden wir, nicht du. Eine persönliche Gramm-Zahl macht eine einzelne Person für eine Architekturentscheidung verantwortlich, die sie nicht getroffen hat, und legt nahe, weniger zu fragen, wo eigentlich wir sparsamer bauen müssen. Die absolute Zahl gehört deshalb dorthin, wo sie hingehört: auf die **[Transparenz-Seite](https://gruenerator.eu/transparenz)**, die den Verbrauch der ganzen Plattform ausweist.
+
+Die Zahlen unten erklären trotzdem beides — die Ersparnis im Nutzung-Tab und die Plattformzahl entstehen aus derselben Rechnung.
+
+### Warum keine Nachkommastellen
+
+Keine dieser Zahlen trägt eine Nachkommastelle. Der Fußabdruck ruht auf Modellkoeffizienten aus einer Messreihe und, wo die fehlt, auf einer bewussten Obergrenze — ein Zehntelgramm ist eine Auflösung, die diese Rechnung nicht hergibt. „154 g" sagt dasselbe wie „154,1 g", nur ohne eine Genauigkeit zu behaupten, die es nicht gibt. Die Einheit wechselt erst bei 10 kg von Gramm auf Kilogramm, weil „1 kg" für 1400 g ein Drittel wegrunden würde, um einen Dezimalpunkt zu vermeiden.
 
 ### Woher die Messwerte kommen
 
@@ -141,7 +152,7 @@ Wir haben deshalb einen zweiten Weg geprüft: **Antwortgeschwindigkeit als Energ
 
 **Der Proxy lag um 62 % daneben — und zwar in der schmeichelhaften Richtung.** Geschwindigkeit sagt vor allem, über wie viele GPUs ein Modell verteilt ist, nicht wie viel es zieht. Die daraus abgeleiteten Zahlen haben wir verworfen.
 
-Was bleibt, ist die gemessene Spanne dieser Größenklasse: 0,81 mWh je Token (GPT-OSS, Mixture-of-Experts) bis 4,52 mWh (Mistral Medium, dicht). Wir setzen für die ungemessenen Lanes das **obere Ende** an. Das ist bewusst zu hoch gegriffen — bei einer Umweltangabe ist das die richtige Fehlerrichtung. Die Nutzungs-Übersicht weist getrennt aus, welcher Anteil deiner Zahl auf einer solchen Obergrenze beruht, und dieser Anteil wird kleiner, sobald jemand die Lane wirklich misst. Nach oben korrigiert er sich nie.
+Was bleibt, ist die gemessene Spanne dieser Größenklasse: 0,81 mWh je Token (GPT-OSS, Mixture-of-Experts) bis 4,52 mWh (Mistral Medium, dicht). Wir setzen für die ungemessenen Lanes das **obere Ende** an. Das ist bewusst zu hoch gegriffen — bei einer Umweltangabe ist das die richtige Fehlerrichtung, und es lässt unsere eigene Seite eher zu schlecht als zu gut dastehen. Beide Ansichten weisen getrennt aus, welcher Anteil auf einer solchen Obergrenze beruht, und dieser Anteil wird kleiner, sobald jemand die Lane wirklich misst. Nach oben korrigiert er sich nie.
 
 ### Erzeugte Bilder
 
@@ -178,7 +189,7 @@ Wie groß der fehlende Teil ist, zeigt Scaleways eigene Bilanz besonders klar: D
 
 ### Was dieselbe Arbeit mit ChatGPT gekostet hätte
 
-Die Nutzungs-Übersicht stellt deinem Verbrauch eine Vergleichszahl gegenüber. Sie beruht auf **Jegham et al. (2025)** — der einzigen veröffentlichten Rechnung zu GPT-4o mit **derselben Systemgrenze wie unserer**: nur Betriebsstrom, kein Training, keine Hardware-Herstellung, PUE eingerechnet, standortbasierter Emissionsfaktor. Alles andere wäre ein Vergleich von Äpfeln mit Birnen.
+Die Nutzungs-Übersicht zeigt ausschließlich diese Differenz — den Betrag, um den dieselbe Arbeit auf ChatGPT teurer oder billiger gewesen wäre. Sie beruht auf **Jegham et al. (2025)** — der einzigen veröffentlichten Rechnung zu GPT-4o mit **derselben Systemgrenze wie unserer**: nur Betriebsstrom, kein Training, keine Hardware-Herstellung, PUE eingerechnet, standortbasierter Emissionsfaktor. Alles andere wäre ein Vergleich von Äpfeln mit Birnen.
 
 Für eine Kurzanfrage (100 Token rein, 300 raus) nennt die Arbeit 0,42 Wh und damit rund 147 mg CO₂e. Unsere Modelle in derselben Konfiguration:
 
@@ -198,7 +209,9 @@ Zwei Ehrlichkeiten gehören dazu. Erstens: **Beim Strom gewinnen wir nicht durch
 
 ## Was die ganze Plattform verbraucht
 
-Neben deinem eigenen Verbrauch veröffentlichen wir die Summe über alle Nutzer:innen. Drei Entscheidungen dahinter sind erklärungsbedürftig, weil sie die Zahlen kleiner oder unschärfer machen, als sie sein könnten.
+Die **[Transparenz-Seite](https://gruenerator.eu/transparenz)** zeigt die Summe über alle Nutzer:innen: Energie und CO₂ des gesamten Grünerators, aufgeschlüsselt nach Anbieter, Bereich und Funktion, dazu der Tagesverlauf. Das ist die einzige Stelle, an der wir eine absolute Verbrauchszahl nennen — hier beschreibt sie unsere eigenen Entscheidungen und nicht das Verhalten einzelner Menschen.
+
+Drei Entscheidungen dahinter sind erklärungsbedürftig, weil sie die Zahlen kleiner oder unschärfer machen, als sie sein könnten.
 
 **Es ist eine Spanne, keine Zahl.** Wo ein Modell vermessen ist, fallen beide Enden zusammen. Wo wir nur eine Obergrenze haben, zeigt die Spanne das obere und das untere Ende derselben gemessenen Bandbreite. Ihre Breite ist damit ein direktes Maß dafür, wie viel wir noch nicht wissen — und sie wird schmaler, sobald eine Lane vermessen wird, nicht durch besseres Formulieren.
 
@@ -206,7 +219,9 @@ Neben deinem eigenen Verbrauch veröffentlichen wir die Summe über alle Nutzer:
 
 **Die Konstanten stehen dabei.** Zu jedem Anbieter veröffentlichen wir den angesetzten Netzmix und den PUE-Wert neben seinem Anteil. Ein Fußabdruck, den niemand nachrechnen kann, ist eine Behauptung und keine Offenlegung.
 
-Was oben unter „Was die Zahl _nicht_ enthält" steht, gilt hier unverändert — die Plattformzahl ist genauso eine Untergrenze wie die persönliche.
+**Transkription und Websuche stehen dabei, tragen aber null.** Beide erscheinen als eigene Abschnitte mit ihren Modellen — sonst sähe die Aufstellung so aus, als hätten wir sie vergessen. Ein Fußabdruck ist ihnen trotzdem nicht zugeordnet: Für Spracherkennung meldet kein Anbieter Verbrauch, und wir speichern keine Audiodauer, mit der er skalieren würde; bei der Websuche steckt die Energie im Index des Suchanbieters, nicht bei uns. Als Lücke ausgewiesen ist ehrlicher, als sie stillschweigend als Null mitzuzählen.
+
+Was oben unter „Was die Zahl _nicht_ enthält" steht, gilt hier unverändert — auch die Plattformzahl ist eine Untergrenze.
 
 ## Quellen
 
