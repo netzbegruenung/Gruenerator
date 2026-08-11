@@ -186,7 +186,9 @@ describe('success', () => {
     // The first thing the user sees must be prose, not a progress event: this
     // turn is silent for minutes otherwise.
     expect(sse.sent[0]?.event).toBe('text_delta');
-    expect(String((sse.sent[0]?.payload as { text: string }).text)).toContain('einige Minuten');
+    expect(String((sse.sent[0]?.payload as { text: string }).text)).toContain(
+      'zehn bis fünfzehn Minuten'
+    );
     expect(sse.events()).toContain('research_log_start');
   });
 

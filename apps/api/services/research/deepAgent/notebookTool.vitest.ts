@@ -27,7 +27,7 @@ vi.mock('../../document-services/DocumentSearchService/index.js', () => ({
 }));
 
 const { createNotebookTool } = await import('./notebookTool.js');
-const { createBudget } = await import('./types.js');
+const { createBudget, DEFAULT_BUDGET } = await import('./types.js');
 
 interface RunnableTool {
   name: string;
@@ -156,7 +156,7 @@ describe('Sammlungswahl', () => {
     await expect(tool.invoke({ frage: 'x', notizbuch: 'atlantis-notebook' })).rejects.toThrow();
 
     expect(executeDirectSearch).not.toHaveBeenCalled();
-    expect(ctx.budget.notebookSearchesLeft).toBe(8);
+    expect(ctx.budget.notebookSearchesLeft).toBe(DEFAULT_BUDGET.notebookSearches);
   });
 });
 
@@ -166,8 +166,8 @@ describe('Budget', () => {
 
     await tool.invoke({ frage: 'Mietpreisbremse' });
 
-    expect(ctx.budget.notebookSearchesLeft).toBe(7);
-    expect(ctx.budget.searchesLeft).toBe(12);
+    expect(ctx.budget.notebookSearchesLeft).toBe(DEFAULT_BUDGET.notebookSearches - 1);
+    expect(ctx.budget.searchesLeft).toBe(DEFAULT_BUDGET.searches);
   });
 
   it('verweigert, wenn das Notizbuchbudget aufgebraucht ist', async () => {
@@ -185,7 +185,7 @@ describe('Budget', () => {
     const out = await tool.invoke({ frage: 'Mietpreisbremse' });
 
     expect(out).toContain('Zeitbudget');
-    expect(ctx.budget.notebookSearchesLeft).toBe(8);
+    expect(ctx.budget.notebookSearchesLeft).toBe(DEFAULT_BUDGET.notebookSearches);
   });
 });
 
