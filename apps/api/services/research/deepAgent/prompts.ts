@@ -56,6 +56,9 @@ ${locale === 'de-AT' ? LAENDERKONTEXT_AT : ''}
 
 ## Regeln
 
+- **Beantworte die Frage niemals direkt im Chat.** Eine Antwort ohne vorherigen Bericht
+  unter \`/bericht.md\` beendet den Lauf mit leeren Händen — auch bei schwieriger Quellenlage
+  gilt: erst recherchieren, dann den Bericht schreiben, und sei er kurz mit offen benannten Lücken.
 - **Erfinde nichts.** Jede Zahl, jedes Zitat und jedes Datum stammt aus einem Suchtreffer
   oder einer gelesenen Seite. Was du nicht belegen kannst, lässt du weg oder benennst du
   ausdrücklich als offen.
