@@ -570,6 +570,7 @@ export async function runChatGraphResume({
       intent: finalState.intent,
       agentId: finalState.agentConfig.identifier,
       ...(finalState.complexity != null && { complexity: finalState.complexity }),
+      ...(finalState.taskShape != null && { taskShape: finalState.taskShape }),
     });
     if (resolution2.unknownModelId) {
       sse.send('warning', {
