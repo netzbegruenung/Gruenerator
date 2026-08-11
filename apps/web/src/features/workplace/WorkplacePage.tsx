@@ -12,8 +12,10 @@ import { cn } from '@/utils/cn';
 
 import './workplace-sunrise.css';
 
-// Each tab is its own chunk so the default Chat tab paints without pulling
-// office/docs into its bundle. (Wissen is now a standalone /wissen page.)
+// Gemeinsame Hülle für die zwei Flächen: Chat auf `/start`, Arbeiten auf
+// `/workplace`. Welche gerendert wird, steht im Pfad — die Route reicht nichts
+// durch. Jede Fläche ist ihr eigener Chunk, damit der Chat-Einstieg malt, ohne
+// Office/Docs mitzuladen. (Wissen ist die eigenständige /wissen-Seite.)
 const ArbeitenTab = lazy(() => import('./tabs/ArbeitenTab'));
 
 // Arbeiten mirrors the (weakened) notebook radial gradient, green-tinted.

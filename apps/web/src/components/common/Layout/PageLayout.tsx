@@ -10,6 +10,7 @@ import SidebarToggle from '../../layout/SidebarToggle';
 import type { LayoutMode } from '../../../config/routes';
 
 import { cn } from '@/utils/cn';
+import { isWorkplaceSurface } from '@/utils/startpage';
 
 const Footer = lazy(() => import('../../layout/Footer/Footer'));
 
@@ -161,7 +162,7 @@ const PageLayout = ({
       ) : isSidebarOnly ? (
         <div className="fixed top-0 left-0 z-[1002] px-2.5 h-12 flex items-center pointer-events-none">
           <div className="pointer-events-auto">
-            <SidebarToggle variant={pathname.startsWith('/workplace') ? 'ghost' : 'default'} />
+            <SidebarToggle variant={isWorkplaceSurface(pathname) ? 'ghost' : 'default'} />
           </div>
         </div>
       ) : null}

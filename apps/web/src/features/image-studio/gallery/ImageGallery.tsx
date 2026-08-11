@@ -406,7 +406,7 @@ const ImageGallery = () => {
   );
 
   const handleNewImage = () => {
-    void navigate('/workplace/arbeiten');
+    void navigate('/workplace');
   };
 
   // Quick-start tiles for the empty gallery. The builder centralises the

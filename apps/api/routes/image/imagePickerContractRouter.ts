@@ -14,7 +14,9 @@
  * matches its own routes first; unmatched paths fall through to the legacy
  * router (which handles GET /stock-image/:filename binary serving).
  *
- * No requireAuth at prefix — image picker routes are public per legacy router.
+ * requireAuth sits on the /api/image-picker prefix in routes.ts, mounted BEFORE
+ * this call — createExpressEndpoints registers handlers directly on `app`, so a
+ * guard added after it would never run for these routes.
  */
 
 import { imagePickerContract } from '@gruenerator/contracts';

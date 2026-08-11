@@ -28,8 +28,10 @@ export function isAiConsentRequiredBody(body: unknown): boolean {
 /**
  * Closed set of default start pages — which Workplace surface the sidebar
  * "start" icon (and the root/login redirect) opens.
- *   'chat'     → /workplace           (Chat tab)
- *   'arbeiten' → /workplace/arbeiten  (Arbeiten tab)
+ *   'chat'     → /start      (Chat)
+ *   'arbeiten' → /workplace  (Arbeiten)
+ * F0: die Werte stehen in der Datenbank und in ausgelieferten Binaries — die
+ * Pfade dahinter dürfen sich ändern, die Enum-Werte nicht.
  */
 export const startPageSchema = z.enum(['chat', 'arbeiten']);
 export type StartPage = z.infer<typeof startPageSchema>;

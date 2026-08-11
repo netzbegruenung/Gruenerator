@@ -38,7 +38,7 @@ import { getAgentIcon } from './sidebarAgentConfig';
 import { iconClass, menuLinkClass } from './sidebarStyles';
 
 import { cn } from '@/utils/cn';
-import { startPagePath } from '@/utils/startpage';
+import { isWorkplaceSurface, startPagePath } from '@/utils/startpage';
 import '../../../assets/styles/components/layout/sidebar.css';
 
 // The Sidebar renders on every route; keep cmdk and the feature index out of
@@ -87,7 +87,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   // forces the sidebar back to the solid 85% fallback whenever
   // prefers-reduced-transparency strips backdrop-filter, so contrast never
   // rides on this low value once the blur is gone.
-  const isWorkplaceRoute = location.pathname.startsWith('/workplace');
+  const isWorkplaceRoute = isWorkplaceSurface(location.pathname);
 
   const newMenuOpenRef = useRef(false);
   const accountMenuOpenRef = useRef(false);
