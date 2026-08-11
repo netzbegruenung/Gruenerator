@@ -29,10 +29,19 @@ import {
   Cloud,
   Plug,
   Globe,
+  ImageIcon,
+  Paperclip,
 } from 'lucide-react';
 import { type PropsWithChildren, useEffect, useState, type FC } from 'react';
 import { useShallow } from 'zustand/shallow';
 
+import {
+  ATTACHMENT_META_PART_NAME,
+  formatAttachmentSize,
+  formatPageCount,
+  isAttachmentMetaData,
+  type AttachmentMetaData,
+} from '../../lib/attachmentMeta';
 import {
   isPastedTextAttachment,
   PASTED_TEXT_PREVIEW_PART_NAME,
@@ -304,6 +313,156 @@ const PastedTextAttachment: FC = () => {
   );
 };
 
+/** Display metadata from the synthetic meta data part, with the pending
+ *  `File`'s size as fallback (composer, before send() ran). */
+const useAttachmentMeta = (): AttachmentMetaData => {
+  return useAuiState(
+    useShallow((s): AttachmentMetaData => {
+      const part = s.attachment.content?.find(
+        (c) => c.type === 'data' && c.name === ATTACHMENT_META_PART_NAME
+      );
+      const meta: AttachmentMetaData =
+        part && part.type === 'data' && isAttachmentMetaData(part.data) ? part.data : {};
+      if (meta.size == null && s.attachment.file) {
+        return { ...meta, size: s.attachment.file.size };
+      }
+      return meta;
+    })
+  );
+};
+
+type AttachmentOpenTarget =
+  { kind: 'file'; file: File } | { kind: 'data'; data: string; mimeType: string };
+
+/** Openable bytes of the attachment: the pending `File` in the composer, the
+ *  base64 file part in a sent live-session message, nothing after a reload. */
+const useAttachmentOpenTarget = (): AttachmentOpenTarget | null => {
+  return useAuiState(
+    useShallow((s): AttachmentOpenTarget | null => {
+      if (s.attachment.file) return { kind: 'file', file: s.attachment.file };
+      const filePart = s.attachment.content?.find((c) => c.type === 'file');
+      if (filePart && filePart.type === 'file' && filePart.data) {
+        return { kind: 'data', data: filePart.data, mimeType: filePart.mimeType };
+      }
+      return null;
+    })
+  );
+};
+
+function openAttachmentTarget(target: AttachmentOpenTarget): void {
+  let blob: Blob;
+  if (target.kind === 'file') {
+    blob = target.file;
+  } else {
+    try {
+      const binary = atob(target.data);
+      const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+      blob = new Blob([bytes], { type: target.mimeType });
+    } catch {
+      return;
+    }
+  }
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank', 'noopener');
+  // The new tab holds its own reference once loaded; revoke after a grace
+  // period instead of immediately so slow tabs still resolve the URL.
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+const chipRemoveButtonClass =
+  'flex size-4 shrink-0 items-center justify-center rounded-full opacity-60 transition-opacity hover:opacity-100';
+
+/**
+ * Document/file chip: icon square + name + "1,2 MB · 14 Seiten" meta line.
+ * Clicking opens the file in a new tab while its bytes are still around
+ * (composer + live session); after a reload it falls back to a dialog with the
+ * extracted-text preview, or renders inert when there is nothing to show.
+ */
+const FileAttachmentChip: FC = () => {
+  const aui = useAui();
+  const isComposer = aui.attachment.source === 'composer';
+  const { name, type } = useAuiState(
+    useShallow((s) => ({ name: s.attachment.name, type: s.attachment.type }))
+  );
+  const meta = useAttachmentMeta();
+  const openTarget = useAttachmentOpenTarget();
+
+  const Icon = type === 'image' ? ImageIcon : type === 'document' ? FileText : Paperclip;
+  const metaLine = [
+    meta.size != null ? formatAttachmentSize(meta.size) : null,
+    meta.pageCount != null ? formatPageCount(meta.pageCount) : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  const inner = (
+    <>
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-background/70 text-muted-foreground">
+        <Icon className="size-3.5" />
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col text-left">
+        <span className="truncate text-[13px] leading-5 text-foreground">{name}</span>
+        {metaLine && (
+          <span className="truncate text-[11px] leading-4 text-muted-foreground">{metaLine}</span>
+        )}
+      </span>
+    </>
+  );
+  const innerButtonClass =
+    'flex min-w-0 flex-1 items-center gap-2.5 rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary';
+
+  return (
+    <AttachmentPrimitive.Root className="aui-attachment-chip flex w-60 shrink-0 items-center gap-2 rounded-2xl border border-foreground/15 bg-muted/65 px-2.5 py-2 transition-colors hover:bg-muted">
+      {openTarget ? (
+        <button
+          type="button"
+          className={innerButtonClass}
+          onClick={() => openAttachmentTarget(openTarget)}
+          aria-label={`${name} öffnen`}
+        >
+          {inner}
+        </button>
+      ) : meta.preview ? (
+        <Dialog>
+          <DialogTrigger asChild>
+            <button
+              type="button"
+              className={innerButtonClass}
+              aria-label={`Textvorschau von ${name} anzeigen`}
+            >
+              {inner}
+            </button>
+          </DialogTrigger>
+          <DialogContent className="max-h-[80dvh] overflow-hidden sm:max-w-2xl">
+            <DialogTitle className="truncate pr-8">{name}</DialogTitle>
+            <pre className="max-h-[62dvh] overflow-auto whitespace-pre-wrap break-words rounded-lg bg-muted p-3 font-sans text-sm leading-6 text-foreground">
+              {meta.preview}
+            </pre>
+            {meta.truncated && (
+              <p className="text-xs text-foreground-muted">
+                Gekürzte Vorschau des extrahierten Texts.
+              </p>
+            )}
+          </DialogContent>
+        </Dialog>
+      ) : (
+        <div className="flex min-w-0 flex-1 items-center gap-2.5">{inner}</div>
+      )}
+      {isComposer && (
+        <AttachmentPrimitive.Remove asChild>
+          <button
+            type="button"
+            aria-label={`Anhang ${name} entfernen`}
+            className={chipRemoveButtonClass}
+          >
+            <XIcon className="size-3.5" />
+          </button>
+        </AttachmentPrimitive.Remove>
+      )}
+    </AttachmentPrimitive.Root>
+  );
+};
+
 const AttachmentUI: FC = () => {
   const aui = useAui();
   const isComposer = aui.attachment.source === 'composer';
@@ -315,6 +474,7 @@ const AttachmentUI: FC = () => {
   const isGruenMention = useAuiState((s) =>
     (s.attachment.contentType ?? '').startsWith('application/x-gruenerator-')
   );
+  const src = useAttachmentSrc();
   const typeLabel = useAuiState((s) => {
     const type = s.attachment.type;
     switch (type) {
@@ -331,6 +491,10 @@ const AttachmentUI: FC = () => {
 
   if (isGruenMention) return <GruenAttachmentChip />;
   if (isPastedText) return <PastedTextAttachment />;
+  // Documents/files — and reloaded images, whose bytes are not persisted —
+  // render as a metadata chip. Only images with an actual source keep the
+  // thumbnail tile + lightbox below.
+  if (!isImage || !src) return <FileAttachmentChip />;
 
   return (
     <Tooltip>
