@@ -219,7 +219,7 @@ function App() {
                 Single auth model: auth-required is the default. A route opts
                 out by setting `public: true` in routes.ts. The marketing
                 startpage at `/` additionally redirects authenticated users
-                to `/workplace` via <HomeRedirect>.
+                to `/start` bzw. `/workplace` via <HomeRedirect>.
               */}
                   {routes.map(({ path, layoutMode, public: isPublic }) => {
                     const routeElement = (

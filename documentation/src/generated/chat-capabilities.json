@@ -88,7 +88,7 @@
     },
     "deepresearch": {
       "title": "Tiefenrecherche",
-      "description": "Ausführliches Dossier mit Quellen — 1× pro Tag",
+      "description": "Gründliche Recherche mit Quellen — als Bericht, wenige pro Tag",
       "mention": "@deepresearch"
     },
     "docs-picker-trigger": {
@@ -182,9 +182,9 @@
       "mention": "@vorlagen"
     },
     "webpage-trigger": {
-      "title": "Webseite",
+      "title": "Link",
       "description": "Inhalt einer Webseite per URL anhängen",
-      "mention": "@web"
+      "mention": "@link"
     },
     "wolke-trigger": {
       "title": "Wolke",

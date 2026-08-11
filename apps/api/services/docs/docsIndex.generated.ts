@@ -299,6 +299,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "Der Grünerator ist kein einzelnes Programm, sondern eine Sammlung von Werkzeugen. Diese Seite zeigt, welche es gibt und wofür man sie nimmt — damit du nicht suchen musst, wo du etwas findest."
   },
   {
+    "url": "/docs/ueber-den-gruenerator/wie-diese-doku-entsteht",
+    "title": "Wie diese Doku entsteht",
+    "category": "Über den Grünerator",
+    "lead": "Diese Dokumentation beschreibt ein Werkzeug, das sich fast wöchentlich ändert. Damit die Beschreibung nicht still veraltet, entsteht sie größtenteils direkt am Quellcode des Grünerators — die Aufzähl…"
+  },
+  {
     "url": "/docs/webinare",
     "title": "Webinare",
     "category": "Allgemein",
@@ -314,7 +320,7 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/wissen/inhaltsdatenbank",
     "title": "Inhaltsdatenbank",
     "category": "Wissen",
-    "lead": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 33.540 Vektoren in der Datenbank gespeichert."
+    "lead": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 33.713 Vektoren in der Datenbank gespeichert."
   },
   {
     "url": "/docs/wissen/landesverbaende",
@@ -835,7 +841,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Quellenangaben",
     "anchor": "#quellenangaben",
     "category": "Chat",
-    "text": "Wenn der Chat in Dokumenten oder im Web recherchiert, zeigt er dir die verwendeten Quellen an: Nummerierte Badges im Text (z.B. [1], [2]) verweisen auf die genutzten Quellen Hover über einen Badge zeigt dir Titel, URL und einen Textauszug Gruppierte Quellenübersicht unterhalb der Antwort mit allen verwendeten Dokumenten Quellenangaben helfen dir, die Antworten des Grünerators nachzuvollziehen und zu überprüfen. Du kannst jede Quelle direkt anklicken, um das Originaldokument zu öffnen."
+    "text": "Wenn der Chat in Dokumenten oder im Web recherchiert, zeigt er dir die verwendeten Quellen an: Nummerierte Badges im Text (z.B. [1], [2]) verweisen auf die genutzten Quellen Klick auf einen Badge zeigt dir Titel, URL und einen Textauszug Gruppierte Quellenübersicht unterhalb der Antwort mit allen verwendeten Dokumenten Quellenangaben helfen dir, die Antworten des Grünerators nachzuvollziehen und zu überprüfen. Du kannst jede Quelle direkt anklicken, um das Originaldokument zu öffnen."
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -859,7 +865,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Werkzeuge nutzen",
     "anchor": "#werkzeuge-nutzen",
     "category": "Chat",
-    "text": "Werkzeuge erweitern die Fähigkeiten des Chats über die reine Textgenerierung hinaus. Du kannst sie per @-Mention im Eingabefeld aktivieren. Kürzel | Werkzeug | Beschreibung | -------------------- | -------------------- | -------------------------------------------------------------------------- | @recherche | 🔬 Recherche | Web- und Multi-Quellen-Recherche — die Suchtiefe passt sich automatisch an | @dokumente | 📄 Dokumente | Parteiprogramme & Beschlüsse durchsuchen | @docs | 💬 Dokument einfügen | Eigene Dokumente als Kontext einbinden | @zusammenfassung | 📝 Zusammenfassung | Dokument(e) zusammenfassen | @bildgenerieren | 🎨 Bildgenerierung | Bild mit KI generieren | @bildbearbeiten | 🖌️ Bildbearbeitung | Ein generiertes oder hochgeladenes Bild verändern | @sharepic | 🖼️ Sharepic | Sharepic im Grünen Design erstellen (experimentell) | @stadtbegruenen | 🌳 Stadt begrünen | Stadtbild mit Grün transformieren | @umfragen | 📊 Umfragen | Aktuelle Wahlumfragen abfragen | @bundestag | 🏛️ Bundestag | Drucksachen und Reden aus dem Bundestag | @abgeordnetenwatch | 🗳️ Abgeordnetenwatch | Abstimmungen und Profile von Abgeordneten | Öffne das „+\"-Menü links im Eingabefeld, um Werkzeuge d"
+    "text": "Werkzeuge erweitern die Fähigkeiten des Chats über die reine Textgenerierung hinaus. Du kannst sie per @-Mention im Eingabefeld aktivieren. Kürzel | Werkzeug | Beschreibung | -------------------- | -------------------- | -------------------------------------------------------------------------- | @recherche | 🔬 Recherche | Web- und Multi-Quellen-Recherche — die Suchtiefe passt sich automatisch an | @dokumente | 📄 Dokumente | Parteiprogramme & Beschlüsse durchsuchen | @docs | 💬 Dokument einfügen | Eigene Dokumente als Kontext einbinden | @zusammenfassung | 📝 Zusammenfassung | Dokument(e) zusammenfassen | @bildgenerieren | 🎨 Bildgenerierung | Bild mit KI generieren | @bildbearbeiten | 🖌️ Bildbearbeitung | Ein generiertes oder hochgeladenes Bild verändern | @sharepic | 🖼️ Sharepic | Sharepic im Grünen Design erstellen (experimentell) | @stadtbegruenen | 🌳 Stadt begrünen | Stadtbild mit Grün transformieren | @umfragen | 📊 Umfragen | Aktuelle Wahlumfragen abfragen | @bundestag | 🏛️ Bundestag | Drucksachen und Reden aus dem Bundestag | @abgeordnetenwatch | 🗳️ Abgeordnetenwatch | Abstimmungen und Profile von Abgeordneten | Du musst dir keine @-Namen merken: Öffne das „+\"-Menü l"
   },
   {
     "url": "/docs/chat/ki-modelle",
@@ -2243,7 +2249,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Dateien einlesen",
     "anchor": "#dateien-einlesen",
     "category": "Office",
-    "text": "Du kannst bestehende Dateien in ein Dokument einlesen — auch abfotografierte oder gescannte Seiten. Der Text wird dabei erkannt und als bearbeitbarer Inhalt eingefügt, statt nur als Bild zu erscheinen. Wenn du nur den Text aus einem Foto brauchst und kein Dokument daraus machen willst, ist der Scanner der direktere Weg."
+    "text": "Du kannst bestehende PDF-, Word- (.doc, .docx), ODT- und PowerPoint-Dateien in ein Dokument einlesen — auch wenn sie eingescannte Seiten enthalten. Der Text wird dabei erkannt und als bearbeitbarer Inhalt eingefügt, statt nur als Bild zu erscheinen. Ein Foto direkt vom Handy (JPG, PNG) nimmt der Dokument-Import nicht an. Für ein abfotografiertes Blatt ist der Scanner der Weg: Er erkennt den Text, und du kopierst ihn von dort ins Dokument."
   },
   {
     "url": "/docs/office/dokumente",
@@ -2299,7 +2305,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Auf dem Handy",
     "anchor": "#auf-dem-handy",
     "category": "Office",
-    "text": "Dokumente, Tabellen, Folien und Boards findest du in der Grünerator-App unter dem Tab Arbeiten. Dort lässt sich alles nur lesen — Tabellen, Folien und Boards siehst du als Ansicht, nicht als Editor. Zum Bearbeiten öffnest du das Dokument im Browser."
+    "text": "Dokumente, Tabellen, Folien und Boards findest du in der Grünerator-App unter dem Tab Arbeiten. Dokumente kannst du dort auch bearbeiten — mit Formatierung, Slash-Menü und Titel, gemeinsam in Echtzeit wie im Browser. Tabellen, Folien und Boards siehst du auf dem Handy als Ansicht, nicht als Editor. Zum Bearbeiten öffnest du sie im Browser."
   },
   {
     "url": "/docs/office/intro",
@@ -2704,6 +2710,14 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
     "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Warum keine Nachkommastellen",
+    "anchor": "#warum-keine-nachkommastellen",
+    "category": "Über den Grünerator",
+    "text": "Keine dieser Zahlen trägt eine Nachkommastelle. Der Fußabdruck ruht auf Modellkoeffizienten aus einer Messreihe und, wo die fehlt, auf einer bewussten Obergrenze — ein Zehntelgramm ist eine Auflösung, die diese Rechnung nicht hergibt. „154 g\" sagt dasselbe wie „154,1 g\", nur ohne eine Genauigkeit zu behaupten, die es nicht gibt. Die Einheit wechselt erst bei 10 kg von Gramm auf Kilogramm, weil „1 kg\" für 1400 g ein Drittel wegrunden würde, um einen Dezimalpunkt zu vermeiden."
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
     "heading": "Warum Ökostrom die Zahl nicht auf null bringt",
     "anchor": "#warum-ökostrom-die-zahl-nicht-auf-null-bringt",
     "category": "Über den Grünerator",
@@ -2712,18 +2726,10 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
     "pageTitle": "Wie nachhaltig ist der Grünerator?",
-    "heading": "Was dein eigener Verbrauch kostet",
-    "anchor": "#was-dein-eigener-verbrauch-kostet",
-    "category": "Über den Grünerator",
-    "text": "Unter Einstellungen → Nutzung siehst du Energie- und CO₂-Verbrauch deiner eigenen Anfragen. Diese Zahl ist teils gemessen, teils hochgerechnet — hier steht, wie sie zustande kommt."
-  },
-  {
-    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
-    "pageTitle": "Wie nachhaltig ist der Grünerator?",
     "heading": "Was die ganze Plattform verbraucht",
     "anchor": "#was-die-ganze-plattform-verbraucht",
     "category": "Über den Grünerator",
-    "text": "Neben deinem eigenen Verbrauch veröffentlichen wir die Summe über alle Nutzer:innen. Drei Entscheidungen dahinter sind erklärungsbedürftig, weil sie die Zahlen kleiner oder unschärfer machen, als sie sein könnten. Es ist eine Spanne, keine Zahl. Wo ein Modell vermessen ist, fallen beide Enden zusammen. Wo wir nur eine Obergrenze haben, zeigt die Spanne das obere und das untere Ende derselben gemessenen Bandbreite. Ihre Breite ist damit ein direktes Maß dafür, wie viel wir noch nicht wissen — und sie wird schmaler, sobald eine Lane vermessen wird, nicht durch besseres Formulieren. Tage mit sehr wenigen Aktiven fallen ganz heraus. Unterschreitet ein Tag fünf verschiedene Nutzer:innen, wird er nicht nur aus dem Verlauf ausgeblendet, sondern auch aus allen Summen entfernt. Nur auszublenden würde nichts nützen: Wer zwei Zeiträume abfragt, die sich um einen Tag unterscheiden, könnte ihn durch Subtraktion zurückrechnen. Die Zahl der zurückgehaltenen Tage steht mit dabei, damit eine Lücke als Lücke erkennbar ist und nicht als Ruhetag. Die Konstanten stehen dabei. Zu jedem Anbieter veröffentlichen wir den angesetzten Netzmix und den PUE-Wert neben seinem Anteil. Ein Fußabdruck, den niemand "
+    "text": "Die Transparenz-Seite zeigt die Summe über alle Nutzer:innen: Energie und CO₂ des gesamten Grünerators, aufgeschlüsselt nach Anbieter, Bereich und Funktion, dazu der Tagesverlauf. Das ist die einzige Stelle, an der wir eine absolute Verbrauchszahl nennen — hier beschreibt sie unsere eigenen Entscheidungen und nicht das Verhalten einzelner Menschen. Drei Entscheidungen dahinter sind erklärungsbedürftig, weil sie die Zahlen kleiner oder unschärfer machen, als sie sein könnten. Es ist eine Spanne, keine Zahl. Wo ein Modell vermessen ist, fallen beide Enden zusammen. Wo wir nur eine Obergrenze haben, zeigt die Spanne das obere und das untere Ende derselben gemessenen Bandbreite. Ihre Breite ist damit ein direktes Maß dafür, wie viel wir noch nicht wissen — und sie wird schmaler, sobald eine Lane vermessen wird, nicht durch besseres Formulieren. Tage mit sehr wenigen Aktiven fallen ganz heraus. Unterschreitet ein Tag fünf verschiedene Nutzer:innen, wird er nicht nur aus dem Verlauf ausgeblendet, sondern auch aus allen Summen entfernt. Nur auszublenden würde nichts nützen: Wer zwei Zeiträume abfragt, die sich um einen Tag unterscheiden, könnte ihn durch Subtraktion zurückrechnen. Die Zah"
   },
   {
     "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
@@ -2739,7 +2745,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Was dieselbe Arbeit mit ChatGPT gekostet hätte",
     "anchor": "#was-dieselbe-arbeit-mit-chatgpt-gekostet-hätte",
     "category": "Über den Grünerator",
-    "text": "Die Nutzungs-Übersicht stellt deinem Verbrauch eine Vergleichszahl gegenüber. Sie beruht auf Jegham et al. (2025) — der einzigen veröffentlichten Rechnung zu GPT-4o mit derselben Systemgrenze wie unserer: nur Betriebsstrom, kein Training, keine Hardware-Herstellung, PUE eingerechnet, standortbasierter Emissionsfaktor. Alles andere wäre ein Vergleich von Äpfeln mit Birnen. Für eine Kurzanfrage (100 Token rein, 300 raus) nennt die Arbeit 0,42 Wh und damit rund 147 mg CO₂e. Unsere Modelle in derselben Konfiguration: Modell und Standort | Energie | CO₂ | --------------------------- | ------- | ------ | Gemma 4 bei Regolo | 0,21 Wh | 56 mg | GPT-OSS 120B bei Regolo | 0,24 Wh | 66 mg | Gemma 4 bei verdigado | 0,20 Wh | 71 mg | Mistral Medium bei Scaleway | 1,37 Wh | 30 mg | GPT-4o (Jegham et al.) | 0,42 Wh | 147 mg | Daraus ergibt sich die Spanne, die die Übersicht zeigt: rund 2- bis 5-mal weniger CO₂ je vergleichbarer Anfrage. Der Vergleich gilt nur für Text. Für erzeugte Bilder gibt es keine OpenAI-Zahl mit vergleichbar sauber benannter Systemgrenze; eine Herstellerschätzung gegen eine grenzkorrigierte Messung zu stellen würde die Sorgfalt entwerten, um die es hier geht. Bilder bleiben"
+    "text": "Die Nutzungs-Übersicht zeigt ausschließlich diese Differenz — den Betrag, um den dieselbe Arbeit auf ChatGPT teurer oder billiger gewesen wäre. Sie beruht auf Jegham et al. (2025) — der einzigen veröffentlichten Rechnung zu GPT-4o mit derselben Systemgrenze wie unserer: nur Betriebsstrom, kein Training, keine Hardware-Herstellung, PUE eingerechnet, standortbasierter Emissionsfaktor. Alles andere wäre ein Vergleich von Äpfeln mit Birnen. Für eine Kurzanfrage (100 Token rein, 300 raus) nennt die Arbeit 0,42 Wh und damit rund 147 mg CO₂e. Unsere Modelle in derselben Konfiguration: Modell und Standort | Energie | CO₂ | --------------------------- | ------- | ------ | Gemma 4 bei Regolo | 0,21 Wh | 56 mg | GPT-OSS 120B bei Regolo | 0,24 Wh | 66 mg | Gemma 4 bei verdigado | 0,20 Wh | 71 mg | Mistral Medium bei Scaleway | 1,37 Wh | 30 mg | GPT-4o (Jegham et al.) | 0,42 Wh | 147 mg | Daraus ergibt sich die Spanne, die die Übersicht zeigt: rund 2- bis 5-mal weniger CO₂ je vergleichbarer Anfrage. Der Vergleich gilt nur für Text. Für erzeugte Bilder gibt es keine OpenAI-Zahl mit vergleichbar sauber benannter Systemgrenze; eine Herstellerschätzung gegen eine grenzkorrigierte Messung zu stellen"
   },
   {
     "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
@@ -2748,6 +2754,14 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#wie-wir-emissionen-berechnen",
     "category": "Über den Grünerator",
     "text": "Emissionen sind Energie mal Kohlenstoffintensität des Stroms. Wir rechnen standortbasiert, also mit dem realen Strommix am jeweiligen Rechenzentrumsstandort — nicht mit unseren Ökostromverträgen. Das ist bewusst die strengere Variante, und wir folgen damit GreenPT selbst: Der Anbieter wirbt mit 100 % erneuerbarer Energie und rechnet seine Emissionen trotzdem nicht auf null, sondern nutzt stündliche Netzdaten je Standort. Ein Ökostromvertrag ändert nichts daran, welcher Strom im selben Moment physisch durch die Leitung fließt. Die grüne Beschaffung bleibt richtig und wirksam — sie ist nur kein Rabatt auf die Bilanz. Wir rechnen mit diesen Werten (Jahresmittel 2024, nur Verbrennungsemissionen): Standort | g CO₂/kWh | Quelle | ----------------------------------- | --------- | ------------------------------------------------ | Scaleway (Paris) | 24 | Scaleway Impact Report 2025, eigene Scope-2-Zahl | Frankreich (Mistral) | 22 | RTE, Bilan électrique 2024 | Italien (Regolo/Seeweb) | 270 | Ember, Yearly Electricity Data | Deutschland (verdigado auf Hetzner) | 363 | Umweltbundesamt | Bei Scaleway müssen wir nicht auf den Landesdurchschnitt ausweichen: Der Impact Report weist Scope 2 stand"
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Wie wir rechnen",
+    "anchor": "#wie-wir-rechnen",
+    "category": "Über den Grünerator",
+    "text": "Unter Einstellungen → Nutzung siehst du, was du gemacht hast — Anfragen, Tokens, Bilder, Transkriptionen, Recherchen — und daneben, wie viel CO₂ dieselbe Arbeit auf ChatGPT gekostet hätte. Was du verbraucht hast, zeigen wir dort bewusst nicht. Das ist eine Entscheidung, keine Auslassung. Wie viel eine Anfrage kostet, hängt fast vollständig davon ab, welches Modell wo läuft und an welchem Netz das Rechenzentrum hängt — und das entscheiden wir, nicht du. Eine persönliche Gramm-Zahl macht eine einzelne Person für eine Architekturentscheidung verantwortlich, die sie nicht getroffen hat, und legt nahe, weniger zu fragen, wo eigentlich wir sparsamer bauen müssen. Die absolute Zahl gehört deshalb dorthin, wo sie hingehört: auf die Transparenz-Seite, die den Verbrauch der ganzen Plattform ausweist. Die Zahlen unten erklären trotzdem beides — die Ersparnis im Nutzung-Tab und die Plattformzahl entstehen aus derselben Rechnung."
   },
   {
     "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
@@ -2884,6 +2898,62 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#wenn-du-etwas-nicht-findest",
     "category": "Über den Grünerator",
     "text": "Such nach dem Namen. Die Suche im Grünerator kennt auch die gängigen Bezeichnungen — „Untertitel\" findet die Reels, „OCR\" den Scanner. Manches gibt es nur im Web. Einige Werkzeuge brauchen eine große Oberfläche. In der App siehst du die Inhalte dann, kannst sie aber nicht überall bearbeiten. Bei jedem Werkzeug oben steht, wo es läuft. Namen, Beschreibungen und Pfade stammen direkt aus dem Programmcode des Grünerators. Kommt ein Werkzeug dazu oder wird eines umbenannt, meldet sich die Doku-Prüfung automatisch, bis die Seite nachgezogen ist — sie kann also nicht stillschweigend veralten. Es gibt mehrere Grünerator-Instanzen — neben dem allgemeinen etwa eine Testumgebung und eine für die Bundesgeschäftsstelle. Einzelne Instanzen können abweichen: nicht jede bietet alle hier beschriebenen Werkzeuge, Notizbücher und Grüneratoren an. Was deine Instanz anbietet, siehst du immer in ihrer eigenen Oberfläche."
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/wie-diese-doku-entsteht",
+    "pageTitle": "Wie diese Doku entsteht",
+    "heading": "Wie diese Doku entsteht",
+    "anchor": "",
+    "category": "Über den Grünerator",
+    "text": "Diese Dokumentation beschreibt ein Werkzeug, das sich fast wöchentlich ändert. Damit die Beschreibung nicht still veraltet, entsteht sie größtenteils direkt am Quellcode des Grünerators — die Aufzählungen werden maschinell aus ihm ausgelesen, die erklärenden Texte zum überwiegenden Teil von einer KI geschrieben, die den Code dabei mitliest. Weil das eine ungewöhnliche Arbeitsweise ist, steht hier offen, welcher Teil woher kommt. Der größte Teil dieser Doku ist von einer KI geschrieben — beauftragt, gegengelesen und freigegeben von Menschen. Die Listen darin stammen nicht aus der KI, sondern werden Wort für Wort aus dem Quellcode ausgelesen."
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/wie-diese-doku-entsteht",
+    "pageTitle": "Wie diese Doku entsteht",
+    "heading": "Drei Schichten, drei Verfahren",
+    "anchor": "#drei-schichten-drei-verfahren",
+    "category": "Über den Grünerator",
+    "text": "Schicht | Wer macht es | Kann es sich irren? | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | Listen und Namen — Werkzeuge, Einstellungen, Chat-Fähigkeiten, Dateilimits | Ein Programm liest den Quellcode aus. Keine KI beteiligt. | Nein. Es steht wörtlich das da, was im Code steht — oder der Bau der Seite schlägt fehl. | Erklärender Text — Anleitungen, Beispiele, Einordnungen | Überwiegend eine KI, die den Quellcode mitliest. Ein Mensch beauftragt, liest gegen und gibt frei. | Ja. Text kann danebenliegen oder veralten. | Prüfung — Stimmt der Text noch mit der App überein? | Eine zweite KI, die nur lesen darf: Sie vergleicht Artikel und Code und meldet Abweichungen, ändert aber nichts. | Ja. Sie meldet Verdachtsfälle, entscheiden tun Menschen. | Die zweite und die dritte Zeile sind bewusst getrennt. Beim Schreiben arbeitet die KI in einer beauftragten Sitzung: Ein Mensch gibt vor, was dokumentiert werden soll, die KI liest den zugehörigen Code und "
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/wie-diese-doku-entsteht",
+    "pageTitle": "Wie diese Doku entsteht",
+    "heading": "Grenzen",
+    "anchor": "#grenzen",
+    "category": "Über den Grünerator",
+    "text": "Ein von einer KI geschriebener Absatz kann flüssig klingen und trotzdem falsch sein. Das Gegenlesen durch Menschen und die wöchentliche Prüfung fangen vieles ab, aber nicht alles. Der KI-Agent kann sich irren — in beide Richtungen. Er meldet manchmal etwas, das in Ordnung ist, und er übersieht manchmal etwas. Er ist eine zusätzliche Sicherung, keine Garantie. Zwischen zwei Prüfungen liegt bis zu eine Woche. Direkt nach einer Änderung am Grünerator kann ein Absatz kurzzeitig veraltet sein. Screenshots werden nicht automatisch geprüft. Ältere Bilder zeigen deshalb manchmal noch frühere Bezeichnungen. Wenn dir etwas auffällt, das nicht mehr stimmt: melde es auf GitHub oder schreib uns. Das ist immer noch der schnellste Weg — die Automatik ersetzt keine aufmerksamen Leserinnen und Leser."
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/wie-diese-doku-entsteht",
+    "pageTitle": "Wie diese Doku entsteht",
+    "heading": "Selbst nachsehen",
+    "anchor": "#selbst-nachsehen",
+    "category": "Über den Grünerator",
+    "text": "Der gesamte Grünerator ist quelloffen, dieses Verfahren also auch. Die Skripte, die den Code auslesen, liegen unter documentation/scripts/, die Prüfung unter apps/api/check-docs-freshness.ts, die zugehörigen Abläufe in .github/workflows/ (alle Dateien, die mit docs- beginnen). Diese Seite ist die Kennzeichnung, die wir selbst für richtig halten: offenlegen, wo KI im Spiel war, statt es zu verschweigen. Wie das für deine eigenen Texte aussieht, steht im Kennzeichnungs-Guide."
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/wie-diese-doku-entsteht",
+    "pageTitle": "Wie diese Doku entsteht",
+    "heading": "Was blockiert und was nur meldet",
+    "anchor": "#was-blockiert-und-was-nur-meldet",
+    "category": "Über den Grünerator",
+    "text": "Nicht jede Abweichung wiegt gleich schwer, deshalb gibt es zwei Härtegrade: Blockierend — die Änderung kann nicht übernommen werden: Eine ausgelesene Liste ist veraltet. Im Text steht ein Werkzeugname, den es im Code nicht mehr gibt. Ein Artikel wurde hinzugefügt oder umbenannt, ohne das Verzeichnis nachzuziehen, das der Chat für seine Quellenangaben nutzt. Nur meldend — es entsteht eine Aufgabe, aber nichts steht still: Eine neue Fähigkeit ist im Code da, aber noch nirgends beschrieben. Der KI-Agent hält eine Textstelle für veraltet. Die Trennung ist Absicht: Eine neue Funktion im Grünerator soll nicht daran scheitern, dass der passende Doku-Absatz noch fehlt. Umgekehrt soll ein nachweislich falscher Name gar nicht erst online gehen."
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/wie-diese-doku-entsteht",
+    "pageTitle": "Wie diese Doku entsteht",
+    "heading": "Was die KI prüft",
+    "anchor": "#was-die-ki-prüft",
+    "category": "Über den Grünerator",
+    "text": "Ein Knopfname lässt sich maschinell abgleichen, ein Erklärabsatz nicht — er kann veralten, ohne dass ein einziges Wort im Code fehlt. Deshalb bekommt der geschriebene Teil eine eigene, wiederkehrende Prüfung: Jeden Freitagmorgen geht ein KI-Agent alle Anleitungsartikel durch. Er liest den Artikel, sucht die passenden Stellen im Quellcode und beantwortet eine Frage: Gibt es diesen Knopf, dieses Menü, diesen Ablauf noch so, wie der Text es behauptet? Bei Änderungen am Code läuft dieselbe Prüfung sofort — allerdings nur für die Artikel, die zum geänderten Bereich gehören. Das Ergebnis erscheint als Kommentar am Änderungsvorschlag, noch bevor er übernommen wird. Jeder Befund nennt Belege: die zitierte Stelle aus dem Artikel, die dazugehörige Stelle im Code und einen Vorschlag. Daraus wird eine Aufgabe auf GitHub, öffentlich einsehbar. Der Agent arbeitet mit einem Sprachmodell der Claude-Familie und ist auf Lesewerkzeuge beschränkt: Dateien lesen, Text suchen, Dateien finden. Schreiben, Befehle ausführen und ins Internet gehen kann er nicht. Nicht geprüft werden Bereiche, denen kein Code gegenübersteht: das Newsletter-Archiv, die Grundlagenartikel über KI im Allgemeinen und interne Abla"
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/wie-diese-doku-entsteht",
+    "pageTitle": "Wie diese Doku entsteht",
+    "heading": "Was direkt aus dem Code kommt",
+    "anchor": "#was-direkt-aus-dem-code-kommt",
+    "category": "Über den Grünerator",
+    "text": "Für die Teile, die reine Aufzählung sind, gibt es keine abgetippte Kopie in der Doku. Ein Skript liest die Konfigurationsdateien des Grünerators und schreibt daraus eine Datenliste, die die Doku-Seite beim Bauen einbindet: Was | Woraus | Wo du es siehst | ------------------------------------------------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | Werkzeuge und ihre Gruppen | Die Kachel- und Katalog-Konfiguration der Weboberfläche | Alle Werkzeuge | Chat-Fähigkeiten | Die Liste der Absichten, die der Chat erkennen kann, plus die @-Erwähnungen | Was kann ich fragen? | Einstellungen | Der Aufbau des Einstellungen-Dialogs und alle Schalter darin | Einstellungen | Office-Funktionen | Die Verträge zwischen App und KI — und was der Editor davon wirklich ausführt | Office-Überblick | Dateilimits, Sammlungen, Konnektoren | Die Upload-Prüfung und die Konnektor-Registry | Dateien hinzufügen, Konnektoren | Regale der Agentura | Der Kategorien-Katalog des Marktplatzes | Agentura | Namen von Werkzeugen und Menüpunkten im Fließtext | Dieselben Konfiguration"
   },
   {
     "url": "/docs/webinare",
@@ -3107,7 +3177,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Landesverbände",
     "anchor": "#landesverbände",
     "category": "Wissen",
-    "text": "Die Landesverbände-Sammlung enthält 13.251 Vektoren aus 9 Quellen. Landesverband | Kürzel | Vektoren | ------------------------------- | ------ | ---------: | Mecklenburg-Vorpommern Fraktion | MV-F | 2.428 | Berlin Fraktion | BE-F | 2.255 | Brandenburg | BB | 2.161 | Berlin | BE | 1.831 | Mecklenburg-Vorpommern | MV | 1.414 | Sachsen-Anhalt Fraktion | LSA-F | 1.385 | Thüringen | TH | 771 | Bayern | BY | 721 | Sachsen-Anhalt | LSA | 285 | Gesamt | | 13.251 |"
+    "text": "Die Landesverbände-Sammlung enthält 13.279 Vektoren aus 9 Quellen. Landesverband | Kürzel | Vektoren | ------------------------------- | ------ | ---------: | Mecklenburg-Vorpommern Fraktion | MV-F | 2.435 | Berlin Fraktion | BE-F | 2.258 | Brandenburg | BB | 2.170 | Berlin | BE | 1.829 | Mecklenburg-Vorpommern | MV | 1.417 | Sachsen-Anhalt Fraktion | LSA-F | 1.394 | Thüringen | TH | 773 | Bayern | BY | 721 | Sachsen-Anhalt | LSA | 282 | Gesamt | | 13.279 |"
   },
   {
     "url": "/docs/wissen/inhaltsdatenbank",
@@ -3115,7 +3185,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Sammlungen",
     "anchor": "#sammlungen",
     "category": "Wissen",
-    "text": "Sammlung | Vektoren | -------------- | ---------: | Landesverbände | 19.680 | KommunalWiki | 6.789 | Bundestag | 3.305 | Böll-Stiftung | 2.209 | gruene.at | 1.007 | Grünblog | 550 | Gesamt | 33.540 |"
+    "text": "Sammlung | Vektoren | -------------- | ---------: | Landesverbände | 19.717 | KommunalWiki | 6.889 | Bundestag | 3.305 | Böll-Stiftung | 2.219 | gruene.at | 1.007 | Grünblog | 576 | Gesamt | 33.713 |"
   },
   {
     "url": "/docs/wissen/inhaltsdatenbank",
@@ -3123,7 +3193,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Übersicht",
     "anchor": "#übersicht",
     "category": "Wissen",
-    "text": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 33.540 Vektoren in der Datenbank gespeichert."
+    "text": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 33.713 Vektoren in der Datenbank gespeichert."
   },
   {
     "url": "/docs/wissen/landesverbaende",

@@ -109,6 +109,11 @@
     "notebook": "saarland",
     "agentSlug": "gruene-saarland"
   },
+  "lv.sachsen": {
+    "title": "Sachsen",
+    "notebook": "sachsen",
+    "agentSlug": "gruene-sachsen"
+  },
   "lv.sachsen-anhalt": {
     "title": "Sachsen-Anhalt",
     "notebook": "sachsen-anhalt",
@@ -116,7 +121,8 @@
   },
   "lv.schleswig-holstein": {
     "title": "Schleswig-Holstein",
-    "notebook": "schleswig-holstein"
+    "notebook": "schleswig-holstein",
+    "agentSlug": "gruene-schleswig-holstein"
   },
   "lv.thueringen": {
     "title": "Thüringen",

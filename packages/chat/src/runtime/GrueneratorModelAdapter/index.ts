@@ -1,4 +1,6 @@
+import { isAiConsentRequiredBody } from '@gruenerator/contracts';
 import { getSystemAgent } from '@gruenerator/shared/agents';
+import { notifyAiConsentRequired } from '@gruenerator/shared/api';
 import { buildMentionToken } from '@gruenerator/shared/utils';
 
 import { parseAllMentions } from '../../lib/mentionParser';
@@ -57,13 +59,6 @@ export type {
 const MAX_CLIENT_TOOL_ROUNDS = 3;
 
 /**
- * A 401/403 on the stream or a resume means the session died mid-turn. This is
- * a raw `fetch` path with no axios interceptor, so route it through the app's
- * `onUnauthorized` (probe → redirect on a dead session) — otherwise the user is
- * left in a half-logged-in editor with only an in-thread "Sitzung abgelaufen"
- * message and no way back to login until a manual reload.
- */
-/**
  * Report a failure WITHOUT discarding what was already streamed.
  *
  * assistant-ui merges a yielded result as `[...initialContent, ...m.content]`
@@ -105,10 +100,53 @@ function withInterruptionNotice(lastResult: ChatModelRunResult | undefined): Cha
   );
 }
 
-function routeUnauthorized(response: Response): void {
-  if (response.status === 401 || response.status === 403) {
-    void useChatConfigStore.getState().onUnauthorized?.();
+/**
+ * Absage im Chat, wenn die Einwilligung fehlt. Der Dialog geht im selben
+ * Moment auf (der Auth-Store bekommt das Signal), die Zeile erklärt nur, warum.
+ *
+ * Zwei Formen, weil es zwei Wege in die Anzeige gibt: der Hauptstream gibt den
+ * fertigen Text aus, der Resume-Pfad wirft eine `ChatStreamError` und lässt
+ * `streamErrorMessage` die Auszeichnung setzen — wie bei jedem anderen
+ * Fehlercode auch.
+ */
+const AI_CONSENT_REQUIRED_MESSAGE =
+  'Für die KI-Funktionen fehlt Deine Einwilligung — bitte bestätige sie im Dialog, dann kannst Du direkt weitermachen.';
+const AI_CONSENT_REQUIRED_TEXT = `⚠️ **${AI_CONSENT_REQUIRED_MESSAGE}**`;
+
+/**
+ * A 401/403 on the stream or a resume means the session died mid-turn. This is
+ * a raw `fetch` path with no axios interceptor, so route it through the app's
+ * `onUnauthorized` (probe → redirect on a dead session) — otherwise the user is
+ * left in a half-logged-in editor with only an in-thread "Sitzung abgelaufen"
+ * message and no way back to login until a manual reload.
+ *
+ * Eine Ausnahme, und sie ist der Grund für den Rückgabewert: die 403 wegen
+ * fehlender Art.-9-Einwilligung ist **kein** Sitzungsproblem. `onUnauthorized`
+ * darauf angewandt hieße, die Nutzer*in abzumelden, obwohl ihre Sitzung gilt —
+ * nach dem Einwilligen stünde sie vor dem Login statt vor ihrer Frage.
+ * Stattdessen bekommt der Auth-Store das Signal, und das Gate erscheint von
+ * selbst. `true` = es war dieser Fall.
+ */
+async function routeUnauthorized(response: Response): Promise<boolean> {
+  if (response.status !== 401 && response.status !== 403) return false;
+  if (response.status === 403) {
+    // clone(): der Aufrufer liest den Rumpf danach teils selbst aus.
+    const body: unknown = await response
+      .clone()
+      .json()
+      // Eine 403 ohne JSON-Rumpf (Reverse-Proxy, HTML-Fehlerseite) ist hier
+      // keine verschluckte Störung, sondern die Antwort auf die gestellte
+      // Frage: „trägt diese Absage den Einwilligungs-Code?" heißt dann nein.
+      // Der Aufrufer zeigt sie danach als gewöhnlichen Fehler im Thread.
+      // swallow-ok: kein Rumpf = kein Einwilligungs-Code, Fehler bleibt sichtbar
+      .catch(() => null);
+    if (isAiConsentRequiredBody(body)) {
+      notifyAiConsentRequired();
+      return true;
+    }
   }
+  void useChatConfigStore.getState().onUnauthorized?.();
+  return false;
 }
 
 /**
@@ -159,7 +197,10 @@ async function* runClientToolResumes(params: {
       signal: params.abortSignal,
     });
     if (!resumeResponse.ok) {
-      routeUnauthorized(resumeResponse);
+      // Fehlende Einwilligung bekommt denselben Text wie am Hauptstream: der
+      // Dialog geht ohnehin auf, und `HTTP error 403` erklärt nichts.
+      const consentRequired = await routeUnauthorized(resumeResponse);
+      if (consentRequired) throw new ChatStreamError(AI_CONSENT_REQUIRED_MESSAGE);
       const errorData = await resumeResponse.json().catch(() => ({}));
       throw new Error(
         (errorData as { error?: string }).error || `HTTP error ${resumeResponse.status}`
@@ -252,7 +293,8 @@ export function createGrueneratorModelAdapter(
           });
 
           if (!resumeResponse.ok) {
-            routeUnauthorized(resumeResponse);
+            const consentRequired = await routeUnauthorized(resumeResponse);
+            if (consentRequired) throw new ChatStreamError(AI_CONSENT_REQUIRED_MESSAGE);
             const errorData = await resumeResponse.json().catch(() => ({}));
             throw new Error(
               (errorData as { error?: string }).error || `HTTP error ${resumeResponse.status}`
@@ -734,8 +776,15 @@ export function createGrueneratorModelAdapter(
       }
 
       if (!response.ok) {
-        routeUnauthorized(response);
-        yield { content: [{ type: 'text' as const, text: streamErrorMessage(null, response) }] };
+        const consentRequired = await routeUnauthorized(response);
+        yield {
+          content: [
+            {
+              type: 'text' as const,
+              text: consentRequired ? AI_CONSENT_REQUIRED_TEXT : streamErrorMessage(null, response),
+            },
+          ],
+        };
         return;
       }
 

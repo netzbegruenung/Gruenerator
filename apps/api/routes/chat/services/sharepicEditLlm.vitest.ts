@@ -91,4 +91,31 @@ describe('operation catalogues stay inside what the template renders', () => {
     // The generic photo template does allow it.
     expect(catalogFor('simple')).toContain('set-background-image');
   });
+
+  // The catalog used to list only what WORKS, which reads as an offer rather
+  // than a boundary: dreizeilen-overlay-at was handed a `set-background-color`
+  // it cannot do, the validator dropped it, and the chat reported the new
+  // background anyway. Naming the limits — and the studio — is the fix.
+  describe('template limits', () => {
+    it('names that the template has limits at all', () => {
+      const catalog = catalogFor('dreizeilen');
+      expect(catalog).toContain('GRENZEN DIESER VORLAGE');
+      expect(catalog).toMatch(/Layout, Anordnung/);
+    });
+
+    it('points at the studio for anything beyond the catalog', () => {
+      expect(catalogFor('dreizeilen')).toMatch(/Studio/);
+    });
+
+    it('forbids confirming what no operation covered', () => {
+      expect(catalogFor('dreizeilen')).toMatch(/Bestätige NIE etwas/);
+    });
+
+    it('lists a missing capability by its user-facing name, not its op kind', () => {
+      const zitat = descriptorFor('zitat');
+      // Guard the premise — if the template ever gains the op, this case is moot.
+      expect(zitat.supportedOperations).not.toContain('set-background-image');
+      expect(catalogFor('zitat')).toContain('das Hintergrundbild austauschen');
+    });
+  });
 });

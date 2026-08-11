@@ -38,7 +38,7 @@ import { getAgentIcon } from './sidebarAgentConfig';
 import { iconClass, menuLinkClass } from './sidebarStyles';
 
 import { cn } from '@/utils/cn';
-import { startPagePath } from '@/utils/startpage';
+import { isWorkplaceSurface, startPagePath } from '@/utils/startpage';
 import '../../../assets/styles/components/layout/sidebar.css';
 
 // The Sidebar renders on every route; keep cmdk and the feature index out of
@@ -87,7 +87,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   // forces the sidebar back to the solid 85% fallback whenever
   // prefers-reduced-transparency strips backdrop-filter, so contrast never
   // rides on this low value once the blur is gone.
-  const isWorkplaceRoute = location.pathname.startsWith('/workplace');
+  const isWorkplaceRoute = isWorkplaceSurface(location.pathname);
 
   const newMenuOpenRef = useRef(false);
   const accountMenuOpenRef = useRef(false);
@@ -465,7 +465,12 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
           <SheetContent
             side="left"
             showCloseButton={false}
-            className="w-[85vw] max-w-[260px] p-0 bg-background/85 supports-[backdrop-filter]:bg-background/70 backdrop-blur-xl flex flex-col gap-0 [&>div]:gap-0"
+            // Kein Glaseffekt wie auf Desktop: dort scheint ein dekorativer
+            // Verlauf durch, hier der komplette Seiteninhalt. Bei 95% bleibt
+            // nur eine Ahnung von Tiefe. Eigene Klasse statt .sidebar, weil
+            // deren a11y-Fallback auf 85% hier ein Rückschritt wäre —
+            // accessibility.css macht dieses Panel stattdessen ganz deckend.
+            className="sidebar-mobile-panel w-[85vw] max-w-[260px] p-0 bg-background/95 backdrop-blur-xl flex flex-col gap-0 [&>div]:gap-0"
           >
             <SheetTitle className="sr-only">Navigation</SheetTitle>
             {sidebarInner}

@@ -66,13 +66,13 @@ const LegacyAgentSlugRedirectComponent: FC<Record<string, unknown>> = () => {
 const LegacyAgentSlugRedirect = lazy(() =>
   Promise.resolve({ default: LegacyAgentSlugRedirectComponent })
 );
-// Legacy /monitor/themen/:topic → /experiments/monitor/themen/:topic (preserve
-// the topic param). Monitor moved under /experiments to signal experimental
-// status in the URL; the bare /monitor* paths keep redirecting for old links.
+// Legacy /monitor/themen/:topic and /experiments/monitor/themen/:topic → the
+// canonical /themen/:topic (preserve the topic param). The monitor pages now sit
+// at the top level; both old prefixes keep redirecting for old links.
 const LegacyMonitorTopicRedirectComponent: FC<Record<string, unknown>> = () => {
   const { topic } = useParams();
   return createElement(Navigate, {
-    to: `/experiments/monitor/themen/${topic ?? ''}`,
+    to: `/themen/${topic ?? ''}`,
     replace: true,
   });
 };
@@ -132,11 +132,11 @@ const BildEditorV2Page = lazy(
 const ReisekostenPage = lazy(() => import('../features/reisekosten/ReisekostenPage'));
 
 // Statische Importe in dynamische umwandeln
-const TexteRedirectToWorkplaceComponent: FC<Record<string, unknown>> = () =>
-  createElement(Navigate, { to: '/workplace', replace: true });
-const TexteRedirectToWorkplace = lazy(() =>
-  Promise.resolve({ default: TexteRedirectToWorkplaceComponent })
-);
+// Die Text-Grüneratoren sind im Chat aufgegangen, nicht in der Arbeiten-Fläche
+// — alte /texte-Links landen deshalb auf dem Chat-Einstieg.
+const TexteRedirectToChatComponent: FC<Record<string, unknown>> = () =>
+  createElement(Navigate, { to: '/start', replace: true });
+const TexteRedirectToChat = lazy(() => Promise.resolve({ default: TexteRedirectToChatComponent }));
 const VorlagenGallery = lazy(() => import('../components/common/Gallery'));
 const MeineVorlagenPage = lazy(() => import('../features/vorlagen/MeineVorlagenPage'));
 const AdminDashboardPage = lazy(() => import('../features/admin/AdminDashboardPage'));
@@ -234,6 +234,9 @@ const ImagineRedirect = lazy(() => Promise.resolve({ default: createRedirect('/b
 const WissenPage = lazy(() => import('../features/notebook/WissenPage'));
 // The notebook hub is now the standalone /wissen page (no longer a workplace tab).
 const WissenRedirect = lazy(() => Promise.resolve({ default: createRedirect('/wissen') }));
+// Arbeiten hat mit /workplace jetzt eine eigene Top-Level-URL; der alte
+// Tab-Pfad bleibt als Weiterleitung bestehen.
+const ArbeitenRedirect = lazy(() => Promise.resolve({ default: createRedirect('/workplace') }));
 const BoardPage = lazy(() => import('../features/boards/BoardPage'));
 const PublicBoardPage = lazy(() => import('../features/boards/PublicBoardPage'));
 const CollabCanvasStudioPage = lazy(
@@ -243,6 +246,9 @@ const GruenOMatDemoPage = lazy(() => import('../features/gruen-o-mat/GruenOMatDe
 const TestsommerPage = lazy(() => import('../features/testsommer/TestsommerPage'));
 const MonitorThemenPage = lazy(() => import('../features/monitor/pages/MonitorThemenPage'));
 const MonitorUmfragenPage = lazy(() => import('../features/monitor/pages/MonitorUmfragenPage'));
+const MonitorTransparenzPage = lazy(
+  () => import('../features/monitor/pages/MonitorTransparenzPage')
+);
 const MonitorWatcherPage = lazy(() => import('../features/monitor/pages/MonitorWatcherPage'));
 const MonitorFeedPage = lazy(() => import('../features/monitor/pages/MonitorFeedPage'));
 const ExperimentsIndexPage = lazy(() => import('../features/experiments/ExperimentsIndexPage'));
@@ -262,7 +268,7 @@ const SkillDetailPage = lazy(() => import('../features/agentura/SkillDetailPage'
  * Lazy loading für Grüneratoren Bundle
  */
 export const GrueneratorenBundle = {
-  Texte: TexteRedirectToWorkplace,
+  Texte: TexteRedirectToChat,
   ImageStudio: ImageStudioPage,
   ImageGallery: ImageGallery,
   Search: Search,
@@ -280,7 +286,8 @@ export const GrueneratorenBundle = {
 
 // Route Konfigurationen
 const standardRoutes: RouteConfig[] = [
-  // Desktop app always shows DesktopHome dashboard; web redirects auth'd users to /workplace
+  // Desktop app always shows DesktopHome dashboard; web redirects auth'd users to
+  // their start surface (/start or /workplace)
   isDesktopApp()
     ? { path: '/', component: DesktopHome }
     : {
@@ -293,16 +300,17 @@ const standardRoutes: RouteConfig[] = [
   { path: '/testsommer', component: TestsommerPage, public: true, layoutMode: 'noChrome' as const },
   // Unified Text Generator route (wildcard for path-based tab navigation)
   { path: '/texte/*', component: GrueneratorenBundle.Texte, withForm: true },
-  // Wissen is now a standalone page; keep the old tab path as a redirect (static
-  // route outranks the /workplace/* splat below in React Router v6).
+  // Wissen is now a standalone page; keep the old tab path as a redirect.
   { path: '/workplace/wissen', component: WissenRedirect },
   { path: '/wissen', component: WissenPage, layoutMode: 'sidebarOnly' },
-  // Workplace (Chat / Arbeiten). ONE splat route so both tabs resolve to the same
-  // route entry: WorkplacePage then stays mounted across tab switches
-  // (RouteComponent keys the page by config path) instead of remounting the whole
-  // surface each time — it derives the active tab from the pathname and only swaps
-  // the tab content. sidebarOnly keeps the tab row in place.
-  { path: '/workplace/*', component: WorkplacePage, layoutMode: 'sidebarOnly' },
+  // Chat und Arbeiten sind zwei eigenständige Top-Level-Seiten (/start und
+  // /workplace), keine Tabs unter einem gemeinsamen Präfix mehr. Beide rendern
+  // dieselbe Hülle (Hintergrund + Umschaltleiste), die ihre Fläche aus dem
+  // Pfad ableitet. sidebarOnly hält die Leiste an ihrem Platz.
+  { path: '/start', component: WorkplacePage, layoutMode: 'sidebarOnly' },
+  { path: '/workplace', component: WorkplacePage, layoutMode: 'sidebarOnly' },
+  // URLs sind F0: der alte Arbeiten-Pfad leitet dauerhaft auf /workplace.
+  { path: '/workplace/arbeiten', component: ArbeitenRedirect },
   // Guided agent creator (default entry: AI brief → pre-filled wizard) + form
   // editor. Available to everyone via SHOW_AGENT_CREATOR; `/agents/:slug` below
   // stays available so existing agents remain usable.
@@ -359,54 +367,59 @@ const standardRoutes: RouteConfig[] = [
     component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks') })),
   },
   // Experimental features live under /experiments so the URL signals their
-  // status. Monitor is the first — formerly the dev-only /monitor*, now
-  // production-visible at /experiments/monitor*.
+  // status.
   { path: '/experiments', component: ExperimentsIndexPage },
   { path: '/experiments/reisekosten', component: ReisekostenPage },
-  // The Monitor overview was dissolved — its content moved into the standalone
-  // Themen/Umfragen pages. Bare /experiments/monitor now lands on Themen.
-  {
-    path: '/experiments/monitor',
-    component: lazy(() =>
-      Promise.resolve({ default: createRedirect('/experiments/monitor/themen') })
-    ),
-  },
-  { path: '/experiments/monitor/themen', component: MonitorThemenPage },
-  { path: '/experiments/monitor/themen/:topic', component: MonitorThemenPage },
-  { path: '/experiments/monitor/umfragen', component: MonitorUmfragenPage },
-  { path: '/experiments/monitor/watcher', component: MonitorWatcherPage },
-  { path: '/experiments/monitor/feed', component: MonitorFeedPage },
-  // Legacy /monitor* redirects → /experiments/monitor* (old links/bookmarks).
+  // The former Monitor pages are standalone top-level pages — the "/monitor"
+  // grouping segment is gone from the URLs and the navigation.
+  { path: '/themen', component: MonitorThemenPage },
+  { path: '/themen/:topic', component: MonitorThemenPage },
+  { path: '/umfragen', component: MonitorUmfragenPage },
+  { path: '/transparenz', component: MonitorTransparenzPage },
+  { path: '/watcher', component: MonitorWatcherPage },
+  { path: '/feed', component: MonitorFeedPage },
+  // Legacy /monitor* and /experiments/monitor* redirects (old links/bookmarks).
   {
     path: '/monitor',
-    component: lazy(() =>
-      Promise.resolve({ default: createRedirect('/experiments/monitor/themen') })
-    ),
+    component: lazy(() => Promise.resolve({ default: createRedirect('/themen') })),
   },
   {
     path: '/monitor/themen',
-    component: lazy(() =>
-      Promise.resolve({ default: createRedirect('/experiments/monitor/themen') })
-    ),
+    component: lazy(() => Promise.resolve({ default: createRedirect('/themen') })),
   },
   { path: '/monitor/themen/:topic', component: LegacyMonitorTopicRedirect },
   {
     path: '/monitor/umfragen',
-    component: lazy(() =>
-      Promise.resolve({ default: createRedirect('/experiments/monitor/umfragen') })
-    ),
+    component: lazy(() => Promise.resolve({ default: createRedirect('/umfragen') })),
   },
   {
     path: '/monitor/watcher',
-    component: lazy(() =>
-      Promise.resolve({ default: createRedirect('/experiments/monitor/watcher') })
-    ),
+    component: lazy(() => Promise.resolve({ default: createRedirect('/watcher') })),
   },
   {
     path: '/monitor/feed',
-    component: lazy(() =>
-      Promise.resolve({ default: createRedirect('/experiments/monitor/feed') })
-    ),
+    component: lazy(() => Promise.resolve({ default: createRedirect('/feed') })),
+  },
+  {
+    path: '/experiments/monitor',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/themen') })),
+  },
+  {
+    path: '/experiments/monitor/themen',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/themen') })),
+  },
+  { path: '/experiments/monitor/themen/:topic', component: LegacyMonitorTopicRedirect },
+  {
+    path: '/experiments/monitor/umfragen',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/umfragen') })),
+  },
+  {
+    path: '/experiments/monitor/watcher',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/watcher') })),
+  },
+  {
+    path: '/experiments/monitor/feed',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/feed') })),
   },
   { path: '/admin', component: AdminDashboardPage },
   { path: '/admin/skills', component: AdminSkillsPage },
@@ -576,7 +589,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/agent/:slug', component: LegacyAgentSlugRedirect },
   {
     path: '/prompt/:slug',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/workplace') })),
+    component: lazy(() => Promise.resolve({ default: createRedirect('/start') })),
   },
   {
     path: '/ask',

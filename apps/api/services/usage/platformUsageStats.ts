@@ -25,7 +25,7 @@
  */
 
 import { getTransparencyStatsResponseSchema } from '@gruenerator/contracts';
-import { gte, sql } from 'drizzle-orm';
+import { gte, inArray, sql } from 'drizzle-orm';
 
 import { userUsageDaily } from '../../database/schema/index.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
@@ -193,7 +193,7 @@ export async function computePlatformUsageStats(
   const [windowUsers] = await db
     .select({ activeUsers: sql<number>`count(distinct ${userUsageDaily.userId})::int` })
     .from(userUsageDaily)
-    .where(sql`${userUsageDaily.day} = any(${dayList})`);
+    .where(inArray(userUsageDaily.day, dayList));
 
   const activeUsers = windowUsers?.activeUsers ?? 0;
   if (activeUsers < MIN_GROUP_SIZE) {
@@ -222,7 +222,7 @@ export async function computePlatformUsageStats(
       emissionsUg: sql<number>`sum(${userUsageDaily.emissionsUg})::float8`,
     })
     .from(userUsageDaily)
-    .where(sql`${userUsageDaily.day} = any(${dayList})`)
+    .where(inArray(userUsageDaily.day, dayList))
     .groupBy(
       userUsageDaily.day,
       userUsageDaily.feature,

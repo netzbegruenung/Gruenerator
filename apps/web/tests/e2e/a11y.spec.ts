@@ -58,7 +58,8 @@ const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
  *
  * **Jede Route hier muss die Seite sein, die sie behauptet.** Von den bisher
  * zwanzig Einträgen waren SIEBEN Weiterleitungen — die Lane maß in Wahrheit
- * dreizehn verschiedene Seiten, `/workplace` davon viermal:
+ * dreizehn verschiedene Seiten, den Chat-Einstieg (damals `/workplace`, heute
+ * `/start`) davon viermal:
  *
  * | stand hier | landete auf | weil |
  * | --- | --- | --- |
@@ -75,12 +76,15 @@ const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
  * `gotoAuthenticated()`.
  */
 const ROUTES = [
-  // `/` und `/startseite` fehlen hier: beide leiten Angemeldete auf
-  // `/workplace`. Die öffentliche Startseite ist nur ohne Sitzung messbar und
-  // braucht deshalb einen eigenen, ausgeloggten Kontext — bis dahin deckt
-  // `/login` den öffentlichen Teil ab.
+  // `/` und `/startseite` fehlen hier: beide leiten Angemeldete auf ihre
+  // Startfläche (`/start` oder `/workplace`). Die öffentliche Startseite ist
+  // nur ohne Sitzung messbar und braucht deshalb einen eigenen, ausgeloggten
+  // Kontext — bis dahin deckt `/login` den öffentlichen Teil ab.
   '/login',
-  '/workplace',
+  // Chat-Einstieg; bis 08/2026 lag diese Seite auf `/workplace`. Die
+  // Arbeiten-Fläche (heute `/workplace`) war nie Teil der Lane und bleibt es
+  // vorerst — sie gehört in den Arbeitsvorrat, nicht in diesen Umbau.
+  '/start',
   '/chat',
   // Das Kanban liegt auf `/boards/:id` — `/boards` ist eine Weiterleitung.
   // Erreichbar nur mit festem Datenstand, siehe apiFixtures.

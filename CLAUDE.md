@@ -50,6 +50,7 @@ Single workspace: `pnpm --filter @gruenerator/api test:auth`, `pnpm --filter @gr
 - **`services/hocuspocus`** — Hocuspocus WebSocket server for Yjs collab. Zero cross-package deps (inline utils).
 - **`services/mcp`** — MCP server (`https://mcp.gruenerator.eu`). See `docs/CLAUDE-mcp.md`.
 - **`services/comfyui`** — ComfyUI workflows for local GPU image gen.
+- **`services/nlp`** — FastAPI + spaCy (`de_core_news_lg`): Themen, Schlagwörter, Emotionen und Personen für Monitor und Notizbücher. Python, **außerhalb des pnpm-Workspace** — `pnpm test` erfasst es nicht, die Tests laufen mit `pytest` (eigener CI-Job „NLP Service (Python)"). Sie brauchen **kein** Modell: die spaCy-Docs werden von Hand gebaut, damit die Zusicherungen deterministisch bleiben. Siehe `services/nlp/README.md`.
 
 ### Page Layout Modes
 

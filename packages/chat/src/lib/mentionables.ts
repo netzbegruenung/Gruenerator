@@ -15,7 +15,7 @@ import {
   PiFileText,
   PiSparkle,
   PiCloud,
-  PiGlobe,
+  PiLink,
   PiNotePencil,
   PiPlugsConnected,
   PiChartBar,
@@ -700,21 +700,34 @@ export const wolkeMentionables: Mentionable[] = [
   },
 ];
 
-// @web opens a sub-popover for pasting a URL. The page is attached as a chip
+// @link opens a sub-popover for pasting a URL. The page is attached as a chip
 // (contentType application/x-gruenerator-webpage) whose data carries the URL;
 // the backend crawls it through the existing scrape_url pipeline.
+//
+// Attaching is the EXPLICIT path; it is not the only one. A URL typed straight
+// into the message is auto-detected by the classifier (`extractUrls`) and lands
+// on the same scrape_url pipeline, so @link is a convenience, never a
+// precondition. The trigger reads `link` rather than `web` because `@web` was
+// read as "search the web" — the one thing this attachment does not do.
+// `type`/`identifier` stay `webpage*`: they key the attachment contentType and
+// the popover branch, and are not user-facing.
 export const webpageMentionables: Mentionable[] = [
   {
     type: 'webpage',
     category: 'function',
     trigger: '@',
     identifier: 'webpage-trigger',
-    title: 'Webseite',
+    title: 'Link',
     description: 'Inhalt einer Webseite per URL anhängen',
-    avatar: '🌐',
-    icon: PiGlobe,
+    avatar: '🔗',
+    icon: PiLink,
     backgroundColor: '#0EA5E9',
-    mention: 'web',
+    mention: 'link',
+    // `@web` keeps working — muscle memory, and the old name shipped. Declared
+    // rather than left to chance: `matchFn` also searches `identifier`, so
+    // "web" matched via `webpage-trigger` by accident, and the day that
+    // identifier is renamed the alias would vanish without a test noticing.
+    aliases: ['web', 'webseite', 'url'],
   },
 ];
 
