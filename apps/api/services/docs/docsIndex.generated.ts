@@ -2704,6 +2704,14 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
     "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Warum keine Nachkommastellen",
+    "anchor": "#warum-keine-nachkommastellen",
+    "category": "Über den Grünerator",
+    "text": "Keine dieser Zahlen trägt eine Nachkommastelle. Der Fußabdruck ruht auf Modellkoeffizienten aus einer Messreihe und, wo die fehlt, auf einer bewussten Obergrenze — ein Zehntelgramm ist eine Auflösung, die diese Rechnung nicht hergibt. „154 g\" sagt dasselbe wie „154,1 g\", nur ohne eine Genauigkeit zu behaupten, die es nicht gibt. Die Einheit wechselt erst bei 10 kg von Gramm auf Kilogramm, weil „1 kg\" für 1400 g ein Drittel wegrunden würde, um einen Dezimalpunkt zu vermeiden."
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
     "heading": "Warum Ökostrom die Zahl nicht auf null bringt",
     "anchor": "#warum-ökostrom-die-zahl-nicht-auf-null-bringt",
     "category": "Über den Grünerator",
@@ -2712,18 +2720,10 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
     "pageTitle": "Wie nachhaltig ist der Grünerator?",
-    "heading": "Was dein eigener Verbrauch kostet",
-    "anchor": "#was-dein-eigener-verbrauch-kostet",
-    "category": "Über den Grünerator",
-    "text": "Unter Einstellungen → Nutzung siehst du Energie- und CO₂-Verbrauch deiner eigenen Anfragen. Diese Zahl ist teils gemessen, teils hochgerechnet — hier steht, wie sie zustande kommt."
-  },
-  {
-    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
-    "pageTitle": "Wie nachhaltig ist der Grünerator?",
     "heading": "Was die ganze Plattform verbraucht",
     "anchor": "#was-die-ganze-plattform-verbraucht",
     "category": "Über den Grünerator",
-    "text": "Neben deinem eigenen Verbrauch veröffentlichen wir die Summe über alle Nutzer:innen. Drei Entscheidungen dahinter sind erklärungsbedürftig, weil sie die Zahlen kleiner oder unschärfer machen, als sie sein könnten. Es ist eine Spanne, keine Zahl. Wo ein Modell vermessen ist, fallen beide Enden zusammen. Wo wir nur eine Obergrenze haben, zeigt die Spanne das obere und das untere Ende derselben gemessenen Bandbreite. Ihre Breite ist damit ein direktes Maß dafür, wie viel wir noch nicht wissen — und sie wird schmaler, sobald eine Lane vermessen wird, nicht durch besseres Formulieren. Tage mit sehr wenigen Aktiven fallen ganz heraus. Unterschreitet ein Tag fünf verschiedene Nutzer:innen, wird er nicht nur aus dem Verlauf ausgeblendet, sondern auch aus allen Summen entfernt. Nur auszublenden würde nichts nützen: Wer zwei Zeiträume abfragt, die sich um einen Tag unterscheiden, könnte ihn durch Subtraktion zurückrechnen. Die Zahl der zurückgehaltenen Tage steht mit dabei, damit eine Lücke als Lücke erkennbar ist und nicht als Ruhetag. Die Konstanten stehen dabei. Zu jedem Anbieter veröffentlichen wir den angesetzten Netzmix und den PUE-Wert neben seinem Anteil. Ein Fußabdruck, den niemand "
+    "text": "Die Transparenz-Seite zeigt die Summe über alle Nutzer:innen: Energie und CO₂ des gesamten Grünerators, aufgeschlüsselt nach Anbieter, Bereich und Funktion, dazu der Tagesverlauf. Das ist die einzige Stelle, an der wir eine absolute Verbrauchszahl nennen — hier beschreibt sie unsere eigenen Entscheidungen und nicht das Verhalten einzelner Menschen. Drei Entscheidungen dahinter sind erklärungsbedürftig, weil sie die Zahlen kleiner oder unschärfer machen, als sie sein könnten. Es ist eine Spanne, keine Zahl. Wo ein Modell vermessen ist, fallen beide Enden zusammen. Wo wir nur eine Obergrenze haben, zeigt die Spanne das obere und das untere Ende derselben gemessenen Bandbreite. Ihre Breite ist damit ein direktes Maß dafür, wie viel wir noch nicht wissen — und sie wird schmaler, sobald eine Lane vermessen wird, nicht durch besseres Formulieren. Tage mit sehr wenigen Aktiven fallen ganz heraus. Unterschreitet ein Tag fünf verschiedene Nutzer:innen, wird er nicht nur aus dem Verlauf ausgeblendet, sondern auch aus allen Summen entfernt. Nur auszublenden würde nichts nützen: Wer zwei Zeiträume abfragt, die sich um einen Tag unterscheiden, könnte ihn durch Subtraktion zurückrechnen. Die Zah"
   },
   {
     "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
@@ -2739,7 +2739,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Was dieselbe Arbeit mit ChatGPT gekostet hätte",
     "anchor": "#was-dieselbe-arbeit-mit-chatgpt-gekostet-hätte",
     "category": "Über den Grünerator",
-    "text": "Die Nutzungs-Übersicht stellt deinem Verbrauch eine Vergleichszahl gegenüber. Sie beruht auf Jegham et al. (2025) — der einzigen veröffentlichten Rechnung zu GPT-4o mit derselben Systemgrenze wie unserer: nur Betriebsstrom, kein Training, keine Hardware-Herstellung, PUE eingerechnet, standortbasierter Emissionsfaktor. Alles andere wäre ein Vergleich von Äpfeln mit Birnen. Für eine Kurzanfrage (100 Token rein, 300 raus) nennt die Arbeit 0,42 Wh und damit rund 147 mg CO₂e. Unsere Modelle in derselben Konfiguration: Modell und Standort | Energie | CO₂ | --------------------------- | ------- | ------ | Gemma 4 bei Regolo | 0,21 Wh | 56 mg | GPT-OSS 120B bei Regolo | 0,24 Wh | 66 mg | Gemma 4 bei verdigado | 0,20 Wh | 71 mg | Mistral Medium bei Scaleway | 1,37 Wh | 30 mg | GPT-4o (Jegham et al.) | 0,42 Wh | 147 mg | Daraus ergibt sich die Spanne, die die Übersicht zeigt: rund 2- bis 5-mal weniger CO₂ je vergleichbarer Anfrage. Der Vergleich gilt nur für Text. Für erzeugte Bilder gibt es keine OpenAI-Zahl mit vergleichbar sauber benannter Systemgrenze; eine Herstellerschätzung gegen eine grenzkorrigierte Messung zu stellen würde die Sorgfalt entwerten, um die es hier geht. Bilder bleiben"
+    "text": "Die Nutzungs-Übersicht zeigt ausschließlich diese Differenz — den Betrag, um den dieselbe Arbeit auf ChatGPT teurer oder billiger gewesen wäre. Sie beruht auf Jegham et al. (2025) — der einzigen veröffentlichten Rechnung zu GPT-4o mit derselben Systemgrenze wie unserer: nur Betriebsstrom, kein Training, keine Hardware-Herstellung, PUE eingerechnet, standortbasierter Emissionsfaktor. Alles andere wäre ein Vergleich von Äpfeln mit Birnen. Für eine Kurzanfrage (100 Token rein, 300 raus) nennt die Arbeit 0,42 Wh und damit rund 147 mg CO₂e. Unsere Modelle in derselben Konfiguration: Modell und Standort | Energie | CO₂ | --------------------------- | ------- | ------ | Gemma 4 bei Regolo | 0,21 Wh | 56 mg | GPT-OSS 120B bei Regolo | 0,24 Wh | 66 mg | Gemma 4 bei verdigado | 0,20 Wh | 71 mg | Mistral Medium bei Scaleway | 1,37 Wh | 30 mg | GPT-4o (Jegham et al.) | 0,42 Wh | 147 mg | Daraus ergibt sich die Spanne, die die Übersicht zeigt: rund 2- bis 5-mal weniger CO₂ je vergleichbarer Anfrage. Der Vergleich gilt nur für Text. Für erzeugte Bilder gibt es keine OpenAI-Zahl mit vergleichbar sauber benannter Systemgrenze; eine Herstellerschätzung gegen eine grenzkorrigierte Messung zu stellen"
   },
   {
     "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
@@ -2748,6 +2748,14 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#wie-wir-emissionen-berechnen",
     "category": "Über den Grünerator",
     "text": "Emissionen sind Energie mal Kohlenstoffintensität des Stroms. Wir rechnen standortbasiert, also mit dem realen Strommix am jeweiligen Rechenzentrumsstandort — nicht mit unseren Ökostromverträgen. Das ist bewusst die strengere Variante, und wir folgen damit GreenPT selbst: Der Anbieter wirbt mit 100 % erneuerbarer Energie und rechnet seine Emissionen trotzdem nicht auf null, sondern nutzt stündliche Netzdaten je Standort. Ein Ökostromvertrag ändert nichts daran, welcher Strom im selben Moment physisch durch die Leitung fließt. Die grüne Beschaffung bleibt richtig und wirksam — sie ist nur kein Rabatt auf die Bilanz. Wir rechnen mit diesen Werten (Jahresmittel 2024, nur Verbrennungsemissionen): Standort | g CO₂/kWh | Quelle | ----------------------------------- | --------- | ------------------------------------------------ | Scaleway (Paris) | 24 | Scaleway Impact Report 2025, eigene Scope-2-Zahl | Frankreich (Mistral) | 22 | RTE, Bilan électrique 2024 | Italien (Regolo/Seeweb) | 270 | Ember, Yearly Electricity Data | Deutschland (verdigado auf Hetzner) | 363 | Umweltbundesamt | Bei Scaleway müssen wir nicht auf den Landesdurchschnitt ausweichen: Der Impact Report weist Scope 2 stand"
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Wie wir rechnen",
+    "anchor": "#wie-wir-rechnen",
+    "category": "Über den Grünerator",
+    "text": "Unter Einstellungen → Nutzung siehst du, was du gemacht hast — Anfragen, Tokens, Bilder, Transkriptionen, Recherchen — und daneben, wie viel CO₂ dieselbe Arbeit auf ChatGPT gekostet hätte. Was du verbraucht hast, zeigen wir dort bewusst nicht. Das ist eine Entscheidung, keine Auslassung. Wie viel eine Anfrage kostet, hängt fast vollständig davon ab, welches Modell wo läuft und an welchem Netz das Rechenzentrum hängt — und das entscheiden wir, nicht du. Eine persönliche Gramm-Zahl macht eine einzelne Person für eine Architekturentscheidung verantwortlich, die sie nicht getroffen hat, und legt nahe, weniger zu fragen, wo eigentlich wir sparsamer bauen müssen. Die absolute Zahl gehört deshalb dorthin, wo sie hingehört: auf die Transparenz-Seite, die den Verbrauch der ganzen Plattform ausweist. Die Zahlen unten erklären trotzdem beides — die Ersparnis im Nutzung-Tab und die Plattformzahl entstehen aus derselben Rechnung."
   },
   {
     "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",

@@ -46,7 +46,9 @@ async function main(): Promise<void> {
   const result = await runDeepAgentResearch({
     question,
     locale,
-    signal: AbortSignal.timeout(DEFAULT_BUDGET.hardMs),
+    // Same shape as the real caller: the agent owns `hardMs` itself, this is
+    // the outer kill that still leaves it `wrapUpMs` to write the report.
+    signal: AbortSignal.timeout(DEFAULT_BUDGET.hardMs + DEFAULT_BUDGET.wrapUpMs),
     progress: {
       onPlan: (steps) => {
         console.log('\n── Plan ──');

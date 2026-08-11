@@ -23,6 +23,7 @@ import {
   formatNamespacedToolLabel,
 } from '../../lib/toolMappings';
 import {
+  canAutoOpenArtifactPanel,
   useArtifactLiveStore,
   type CodeArtifact,
   type ResearchLogStep,
@@ -645,8 +646,11 @@ export async function* parseSSEStream(
           if (artifact) {
             const active: CodeArtifact = { id: `artifact-${Date.now()}`, ...artifact };
             receivedArtifactData = active;
-            // Open the docked panel immediately.
-            useArtifactLiveStore.getState().setActiveArtifact(active);
+            // Open the docked panel immediately — nur dort, wo sie andocken
+            // kann. Auf schmalen Geräten bleibt es bei der Karte im Faden.
+            if (canAutoOpenArtifactPanel()) {
+              useArtifactLiveStore.getState().setActiveArtifact(active);
+            }
           }
           yield buildResult();
           break;
@@ -1189,6 +1193,7 @@ export async function* parseSSEStream(
           // sharepic/reel via the one-panel rule with nothing replacing it.
           if (
             useArtifactLiveStore.getState().panelMounted &&
+            canAutoOpenArtifactPanel() &&
             subtypeToArtifactKind(created.subtype) !== 'pdf'
           ) {
             useArtifactLiveStore.getState().setActiveArtifact({
