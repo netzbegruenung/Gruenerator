@@ -10,6 +10,8 @@ import {
   FORCE_FINISH_GATHER_SUFFIX,
   SYNTH_RETRY_SYSTEM_SUFFIX,
   SYNTH_REFUSAL_TEXT,
+  SYNTH_CUTOFF_RETRY_SUFFIX,
+  SYNTH_INVALID_JSON_RETRY_SUFFIX,
   type LoopDeps,
   type LoopEngineParams,
 } from './loopEngine.js';
@@ -87,7 +89,7 @@ describe('buildPrepareStep — forced fallback tool', () => {
 const plannerModel = { id: 'planner' } as unknown as LoopEngineParams['plannerModel'];
 const synthModel = { id: 'synth' } as unknown as LoopEngineParams['synthModel'];
 
-type Part = { type: string; text?: string; error?: unknown };
+type Part = { type: string; text?: string; error?: unknown; finishReason?: string };
 type StreamOpts = {
   model: { id: string };
   tools?: Record<string, { execute?: (i: unknown, o: { toolCallId: string }) => Promise<unknown> }>;
@@ -795,5 +797,91 @@ describe('looksLikeToolPlanLeak — markup is not a leaked plan', () => {
     expect(looksLikeToolPlanLeak('Erledigt — die Spalte wurde ergänzt.', ['web_search'])).toBe(
       false
     );
+  });
+});
+
+describe('runAgenticLoop — split validation retry (validateAnswer)', () => {
+  const LONG_INVALID = `${'Viel Text vorab. '.repeat(20)}[{"kaputt": ,{`; // > 200 chars, gate open
+  const SHORT_INVALID = '[{"kaputt": ,{';
+  const VALID = '[{"name": "Anna", "stunden": 4}]';
+
+  /** streamText fake: planner streams nothing useful; synth pass N streams
+   *  synthTexts[N]. Records each synth call's system prompt. */
+  function synthSequence(synthTexts: string[], finishReasons: (string | null)[] = []) {
+    const synthSystems: string[] = [];
+    let synthCall = 0;
+    const deps: LoopDeps = {
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+      streamText: ((o: StreamOpts) => {
+        if (o.model.id === 'planner') return streamOf([]);
+        const idx = synthCall++;
+        synthSystems.push(o.system ?? '');
+        const parts: Part[] = [{ type: 'text-delta', text: synthTexts[idx] ?? '' }];
+        const fr = finishReasons[idx];
+        if (fr) parts.push({ type: 'finish', finishReason: fr });
+        return streamOf(parts);
+      }) as unknown as LoopDeps['streamText'],
+    };
+    return { deps, synthSystems, calls: () => synthCall };
+  }
+
+  const validateJson = (t: string): string | null =>
+    t.includes('kaputt') ? SYNTH_INVALID_JSON_RETRY_SUFFIX : null;
+
+  it('swaps a still-buffered invalid answer silently for the valid retry', async () => {
+    const { deps, synthSystems, calls } = synthSequence([SHORT_INVALID, VALID]);
+    const onText = vi.fn();
+    const out = await runAgenticLoop(baseParams({ onText, validateAnswer: validateJson }), deps);
+    expect(out.text).toBe(VALID);
+    expect(out.replacedStreamed).toBeUndefined();
+    // The invalid pass never reached the client — only the retry did.
+    const streamed = onText.mock.calls.map((c) => c[0]).join('');
+    expect(streamed).toBe(VALID);
+    expect(calls()).toBe(2);
+    expect(synthSystems[1]).toContain(SYNTH_INVALID_JSON_RETRY_SUFFIX);
+  });
+
+  it('flags an already-streamed invalid answer for completion replacement', async () => {
+    const { deps } = synthSequence([LONG_INVALID, VALID]);
+    const onText = vi.fn();
+    const out = await runAgenticLoop(baseParams({ onText, validateAnswer: validateJson }), deps);
+    expect(out.text).toBe(VALID);
+    expect(out.replacedStreamed).toBe(true);
+    // The invalid pass was on the wire; the retry itself stays silent.
+    const streamed = onText.mock.calls.map((c) => c[0]).join('');
+    expect(streamed).toBe(LONG_INVALID);
+  });
+
+  it('keeps the first answer when the retry is invalid too', async () => {
+    const { deps, calls } = synthSequence([SHORT_INVALID, SHORT_INVALID]);
+    const onText = vi.fn();
+    const out = await runAgenticLoop(baseParams({ onText, validateAnswer: validateJson }), deps);
+    expect(out.text).toBe(SHORT_INVALID);
+    expect(out.replacedStreamed).toBeUndefined();
+    expect(calls()).toBe(2);
+    // First answer flushes after the failed retry — nothing is lost.
+    expect(onText.mock.calls.map((c) => c[0]).join('')).toBe(SHORT_INVALID);
+  });
+
+  it('never swaps a streamed answer for a canned refusal from the retry', async () => {
+    const { deps } = synthSequence([SHORT_INVALID, 'Ich kann diese Anfrage nicht erfüllen.']);
+    const out = await runAgenticLoop(baseParams({ validateAnswer: validateJson }), deps);
+    expect(out.text).toBe(SHORT_INVALID);
+  });
+
+  it('does not run a second pass for a valid answer', async () => {
+    const { deps, calls } = synthSequence([VALID]);
+    const out = await runAgenticLoop(baseParams({ validateAnswer: validateJson }), deps);
+    expect(out.text).toBe(VALID);
+    expect(calls()).toBe(1);
+  });
+
+  it('retries on an abnormal finishReason even without validateAnswer', async () => {
+    const CUT = 'Dieser Satz endet mitten im';
+    const DONE = 'Dieser Satz endet mitten im Wort — jetzt aber vollständig zu Ende geschrieben.';
+    const { deps, synthSystems } = synthSequence([CUT, DONE], ['length', null]);
+    const out = await runAgenticLoop(baseParams({}), deps);
+    expect(out.text).toBe(DONE);
+    expect(synthSystems[1]).toContain(SYNTH_CUTOFF_RETRY_SUFFIX);
   });
 });

@@ -17,6 +17,7 @@ import {
   FileSearch,
   LayoutTemplate,
   Library,
+  Link2,
   MessageSquare,
   Paperclip,
   Plug,
@@ -32,6 +33,7 @@ import {
   visibleToolMentionables,
   visibleNotebookMentionables,
   notebookMentionables,
+  webpageMentionables,
   type Mentionable,
 } from '../../lib/mentionables';
 import { connectorId, connectorMentionables, quickSkillMentionables } from '../../lib/plusMenu';
@@ -99,6 +101,11 @@ export const PlusMenu = memo(function PlusMenu({
   const allQuickSkills = quickSkillMentionables(favorites);
 
   const mcpConnectors = connectorMentionables();
+  // The link attachment was reachable ONLY by typing its @mention — the menu
+  // that exists so nobody has to remember @-names was the one place it was
+  // missing. `onInsertMention` is the composer's own select handler, which
+  // opens the URL popover for this type, so the entry needs no extra plumbing.
+  const linkMentionable = webpageMentionables[0];
   const pinnedConnector = useAgentStore((s) => s.pinnedConnector);
   const setPinnedConnector = useAgentStore((s) => s.setPinnedConnector);
 
@@ -384,6 +391,12 @@ export const PlusMenu = memo(function PlusMenu({
             <FileSearch className="h-3.5 w-3.5" />
             Dokument
           </DropdownMenuItem>
+          {linkMentionable && (
+            <DropdownMenuItem onClick={() => onInsertMention(linkMentionable)}>
+              <Link2 className="h-3.5 w-3.5" />
+              Link
+            </DropdownMenuItem>
+          )}
         </DropdownMenuSubContent>
       </DropdownMenuSub>
 
@@ -453,6 +466,14 @@ export const PlusMenu = memo(function PlusMenu({
         >
           Dokument
         </ResponsiveMenuItem>
+        {linkMentionable && (
+          <ResponsiveMenuItem
+            icon={<Link2 />}
+            onClick={() => handleMobileAction(() => onInsertMention(linkMentionable))}
+          >
+            Link
+          </ResponsiveMenuItem>
+        )}
       </ResponsiveMenuSection>
 
       <ResponsiveMenuSection title="Rezepte">

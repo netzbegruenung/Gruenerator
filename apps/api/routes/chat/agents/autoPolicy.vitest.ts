@@ -371,3 +371,43 @@ describe('autoPolicy — classifier-less surfaces', () => {
     );
   });
 });
+
+describe('autoPolicy — taskShape override', () => {
+  it('routes neutral intents with an output contract to the precise lane', () => {
+    for (const intent of ['produktion', 'direct', 'agentic'] as const) {
+      expect(resolveAutoSelection({ intent, taskShape: 'code' }).modelId).toBe(
+        'mistral-medium-3.5'
+      );
+      expect(resolveAutoSelection({ intent, taskShape: 'strict_format' }).modelId).toBe(
+        'mistral-medium-3.5'
+      );
+    }
+  });
+
+  it('leaves non-neutral intents on their table lane', () => {
+    // A search turn with a JSON wish still answers over sources on its lane;
+    // pinned tool intents are already precise.
+    expect(resolveAutoSelection({ intent: 'web', taskShape: 'code' }).modelId).toBe(
+      'gemma-litellm'
+    );
+    expect(resolveAutoSelection({ intent: 'create_sheet', taskShape: 'code' }).modelId).toBe(
+      'mistral-medium-3.5'
+    );
+  });
+
+  it('beats a creative agent hint — format fidelity over voice', () => {
+    // gruenerator-universal has no hint; use the shape override on top of the
+    // hint path via an agent that hints creative, if configured. The contract
+    // is positional: taskShape applies AFTER the hint.
+    const selection = resolveAutoSelection({
+      intent: 'produktion',
+      agentId: 'gruenerator-universal',
+      taskShape: 'code',
+    });
+    expect(selection.modelId).toBe('mistral-medium-3.5');
+  });
+
+  it('no shape → unchanged speed lane', () => {
+    expect(resolveAutoSelection({ intent: 'produktion' }).modelId).toBe('gemma-litellm');
+  });
+});

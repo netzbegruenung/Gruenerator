@@ -310,3 +310,40 @@ export function looksLikeToolCallLeak(text: string): boolean {
   if (typeof text !== 'string' || text.trim().length === 0) return false;
   return JSON_ARGS_RE.test(text) || TOOL_ANNOUNCEMENT_RE.test(text);
 }
+
+/**
+ * Whether an answer that PRESENTS itself as JSON is actually parseable.
+ *
+ * QA finding (2026-08): a JSON-extraction turn shipped `[{…"stunden": ,{…` —
+ * visibly broken, and worthless for the copy-paste use the user asked for.
+ * Checked are only the shapes that unambiguously claim to be JSON: fenced
+ * ```json blocks (an unterminated fence counts — that IS the truncation case),
+ * unlabelled fences whose body starts with `{`/`[`, and an answer whose whole
+ * trimmed text starts with `{`/`[`. Prose that merely contains JSON-ish
+ * fragments is out of scope on purpose — no reliable delimiter, and a false
+ * positive here costs a needless model call.
+ */
+export function containsBrokenJsonPayload(text: string): boolean {
+  const t = (text ?? '').trim();
+  if (t.length === 0) return false;
+  const candidates: string[] = [];
+  const fenceRe = /```(\w*)[ \t]*\r?\n?([\s\S]*?)(?:```|$)/g;
+  let sawFence = false;
+  for (let m = fenceRe.exec(t); m != null; m = fenceRe.exec(t)) {
+    sawFence = true;
+    const lang = (m[1] ?? '').toLowerCase();
+    const body = (m[2] ?? '').trim();
+    if (lang === 'json' || (lang === '' && /^[[{]/.test(body))) candidates.push(body);
+    if (fenceRe.lastIndex === t.length) break;
+  }
+  if (!sawFence && /^[[{]/.test(t)) candidates.push(t);
+  return candidates.some((c) => {
+    if (c.length === 0) return true;
+    try {
+      JSON.parse(c);
+      return false;
+    } catch {
+      return true;
+    }
+  });
+}

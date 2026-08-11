@@ -2,27 +2,14 @@
 
 import { useEffect, useState } from 'react';
 
+import { normalizeWebpageUrl } from '../../lib/mentionAttachments';
+
 import { MentionFloatingPanel } from './MentionFloatingPanel';
 
 interface WebMentionPopoverProps {
   visible: boolean;
   onSelect: (url: string) => void;
   onDismiss: () => void;
-}
-
-/** Normalize user input to an absolute http(s) URL, or null if it isn't one. */
-function normalizeUrl(input: string): string | null {
-  const trimmed = input.trim();
-  if (!trimmed) return null;
-  const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-  try {
-    const url = new URL(withScheme);
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
-    if (!url.hostname.includes('.')) return null;
-    return url.toString();
-  } catch {
-    return null;
-  }
 }
 
 export function WebMentionPopover({ visible, onSelect, onDismiss }: WebMentionPopoverProps) {
@@ -33,7 +20,7 @@ export function WebMentionPopover({ visible, onSelect, onDismiss }: WebMentionPo
     if (!visible) setValue('');
   }, [visible]);
 
-  const normalized = normalizeUrl(value);
+  const normalized = normalizeWebpageUrl(value);
 
   const confirm = () => {
     if (!normalized) return;

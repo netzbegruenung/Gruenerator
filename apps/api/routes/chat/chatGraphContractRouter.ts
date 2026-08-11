@@ -57,6 +57,7 @@ import { createLogger } from '../../utils/logger.js';
 import { withTimeout } from '../../utils/withTimeout.js';
 
 import { deriveImplicitRecipeMention } from './agents/implicitRecipe.js';
+import { detectTaskShape } from './agents/taskShape.js';
 import {
   streamAgenticResponse,
   isAgenticLoopEnabled,
@@ -319,6 +320,21 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         ...(await classifierNode(initialState)),
       } as ChatGraphState;
       classifiedState.lastUserTextNoMentions = lastUserTextNoMentions;
+      // Third routing signal next to intent and complexity: the output
+      // contract the user attached to the turn (JSON/code, "genau N Sätze").
+      // The previous assistant answer feeds the sticky case — a short edit
+      // follow-up after a code/JSON answer carries no format signal of its own.
+      classifiedState.taskShape = detectTaskShape(lastUserTextNoMentions, {
+        lastAssistantText:
+          [...validMessages]
+            .reverse()
+            .filter((m) => m.role === 'assistant')
+            .map((m) => extractTextContent(m.content))
+            .find((t) => t.trim().length > 0) ?? null,
+      });
+      if (classifiedState.taskShape) {
+        log.info(`[ChatGraph] taskShape=${classifiedState.taskShape} detected`);
+      }
       // The heuristic fallback produces a materially worse turn (no
       // multi-source search, no metadata filters) that used to look normal.
       if (classifiedState.classifierDegraded) sendChatWarning(sse, 'classifier_degraded');
@@ -2049,6 +2065,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             {
               hasImages: imageAttachments.length > 0,
               intent: finalState.intent,
+              ...(finalState.taskShape != null && { taskShape: finalState.taskShape }),
               agentId: finalState.agentConfig.identifier,
               // Measured BEFORE pruning on purpose: the question is "does this
               // turn need a bigger lane", and pruning is exactly the loss we
