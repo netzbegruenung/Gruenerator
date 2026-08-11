@@ -42,7 +42,7 @@ import { useMonitorLocaleParam } from '../../monitor/hooks/useMonitorLocaleParam
 import { getNotebookConfig } from '../config/notebookPagesConfig';
 import {
   getAustrianNotebooks,
-  getNotebookById,
+  getListedNotebookById,
   getNotebooksByCategory,
   isNotebookVisibleForLocale,
   type NotebookConfigEntry,
@@ -477,8 +477,8 @@ function NotebooksIndexFooter() {
       isAustrian
         ? getAustrianNotebooks()
         : [
-            getNotebookById('gruene-notebook'),
-            getNotebookById('bundestagsfraktion-notebook'),
+            getListedNotebookById('gruene-notebook'),
+            getListedNotebookById('bundestagsfraktion-notebook'),
           ].filter((nb): nb is NotebookConfigEntry => Boolean(nb)),
     [isAustrian]
   );
@@ -486,7 +486,7 @@ function NotebooksIndexFooter() {
     () =>
       isAustrian
         ? []
-        : [getNotebookById('kommunalwiki-notebook')].filter((nb): nb is NotebookConfigEntry =>
+        : [getListedNotebookById('kommunalwiki-notebook')].filter((nb): nb is NotebookConfigEntry =>
             Boolean(nb)
           ),
     [isAustrian]
