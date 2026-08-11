@@ -101,7 +101,8 @@ function HotTopicHero({ locale }: { locale: MonitorLocale }) {
                 <CitationSourcesDisplay
                   citations={citations}
                   linkConfig={MONITOR_CITATION_LINK_CONFIG}
-                  className="mt-3"
+                  className="mt-4 border-t border-[#eef2ef] pt-4 dark:border-grey-700/60"
+                  collapsible
                 />
               )}
             </>

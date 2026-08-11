@@ -34,6 +34,16 @@ interface CitationSourcesDisplayProps {
   linkConfig?: LinkConfig;
   title?: string;
   className?: string;
+  /**
+   * Fold the whole block behind its own heading, closed by default.
+   *
+   * For surfaces where the citations are evidence for a short text rather than
+   * the content itself: a research answer can carry 20+ sources, and printed in
+   * full they bury the text they belong to. The heading becomes the summary and
+   * carries the source count, so the block still announces what it holds while
+   * closed.
+   */
+  collapsible?: boolean;
 }
 
 interface AdditionalSourceGroup {
@@ -63,6 +73,7 @@ const CitationSourcesDisplay = ({
   linkConfig = DEFAULT_LINK_CONFIG,
   title = 'Quellen und Zitate',
   className = '',
+  collapsible = false,
 }: CitationSourcesDisplayProps): JSX.Element | null => {
   const { fetchChunkContext } = useCitationStore();
 
@@ -196,12 +207,8 @@ const CitationSourcesDisplay = ({
     (a, b) => b.maxScore - a.maxScore
   );
 
-  return (
-    <div className={cn('ask-sources-section', className)}>
-      <div className="flex justify-between items-center mb-md">
-        <h4 className="text-[1.1rem] font-semibold text-foreground-heading m-0">{title}</h4>
-      </div>
-
+  const body = (
+    <>
       <div className="flex flex-col gap-md">
         {documentGroups.map((group, index) => (
           <div
@@ -323,6 +330,29 @@ const CitationSourcesDisplay = ({
           </div>
         </details>
       )}
+    </>
+  );
+
+  if (collapsible) {
+    return (
+      <details className={cn('ask-sources-section', className)}>
+        <summary className="flex cursor-pointer items-center gap-sm text-[1.1rem] font-semibold text-foreground-heading transition-colors hover:text-link">
+          {title}
+          <span className="text-[0.85rem] font-normal text-disabled">
+            ({documentGroups.length})
+          </span>
+        </summary>
+        <div className="mt-md">{body}</div>
+      </details>
+    );
+  }
+
+  return (
+    <div className={cn('ask-sources-section', className)}>
+      <div className="flex justify-between items-center mb-md">
+        <h4 className="text-[1.1rem] font-semibold text-foreground-heading m-0">{title}</h4>
+      </div>
+      {body}
     </div>
   );
 };
