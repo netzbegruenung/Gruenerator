@@ -40,6 +40,8 @@ export interface LoadedMessage {
   id: string;
   role: string;
   content: string;
+  /** ISO timestamp of the persisted row (`chat_messages.created_at`). */
+  createdAt?: string;
   attachments?: Array<{
     id: string;
     name: string;
@@ -355,10 +357,15 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
           status: { type: 'complete' as const },
         }));
 
+      // Without this, reloaded threads all get stamped "now" by the runtime and
+      // the day separators collapse onto the reload moment.
+      const createdAt = m.createdAt ? new Date(m.createdAt) : null;
+
       return {
         role: m.role as 'user' | 'assistant',
         content: contentParts,
         id: m.id,
+        ...(createdAt && !Number.isNaN(createdAt.getTime()) ? { createdAt } : {}),
         ...(attachments.length > 0 ? { attachments } : {}),
         metadata: Object.keys(custom).length > 0 ? { custom } : undefined,
       };
