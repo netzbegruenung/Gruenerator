@@ -7,6 +7,7 @@
  */
 import {
   sharepicEditResponseSchema,
+  type CanvasAiOperationKind,
   type CanvasAiSnapshot,
   type SharepicEditResponse,
   type SharepicTemplateDescriptor,
@@ -116,6 +117,61 @@ export function buildOperationCatalog(descriptor: SharepicTemplateDescriptor): s
       '  - { "kind": "set-background-image", "query": "<deutsche Bildsuche, z.B. Windräder Sonnenuntergang>" }'
     );
   }
+  lines.push(...buildUnsupportedNote(descriptor));
+  return lines;
+}
+
+/**
+ * What this template canNOT do — named, not merely absent.
+ *
+ * The catalog above lists supported ops only, which reads as an offer and not
+ * as a boundary: on 11.08.2026 `dreizeilen-overlay-at` got a
+ * `set-background-color` it does not support, the validator dropped it, and the
+ * chat still reported the new background. The model has no refusal channel here
+ * (the call is tool-forced), so the boundary has to arrive as a fact about the
+ * template plus the one escape that does exist — the studio.
+ */
+const OPERATION_LABEL: Readonly<Record<CanvasAiOperationKind, string>> = {
+  'set-text': 'Texte ändern',
+  'set-font-size': 'Schriftgrößen ändern',
+  'set-color-scheme': 'das Farbschema wechseln',
+  'set-background-color': 'die Hintergrundfarbe ändern',
+  'set-color-mode': 'den Farbmodus wechseln',
+  'add-illustration': 'Illustrationen hinzufügen',
+  'add-asset': 'Bild-Elemente hinzufügen',
+  'remove-element': 'Elemente entfernen',
+  'toggle-sunflower': 'die Sonnenblume ein-/ausblenden',
+  'update-element': 'Elemente verschieben, skalieren oder transparenter machen',
+  'set-background-image': 'das Hintergrundbild austauschen',
+};
+
+export function buildUnsupportedNote(descriptor: SharepicTemplateDescriptor): string[] {
+  // `supportedOperations` is a string[] on the wire descriptor, so the
+  // membership test stays stringly-typed; the LABEL map is the typed side and
+  // makes a new operation kind a compile error here.
+  const supported = new Set<string>(descriptor.supportedOperations);
+  const missing = (Object.keys(OPERATION_LABEL) as CanvasAiOperationKind[])
+    .filter((kind) => !supported.has(kind))
+    .map((kind) => OPERATION_LABEL[kind]);
+
+  const lines = [
+    '',
+    'GRENZEN DIESER VORLAGE — Layout, Anordnung, Schriftarten und alles nicht Gelistete sind fest.',
+  ];
+  if (missing.length > 0) {
+    lines.push(`Diese Vorlage kann im Chat NICHT: ${missing.join('; ')}.`);
+  }
+  lines.push(
+    'Erfinde niemals eine Operation, die oben nicht steht, und benenne keinen Wert außerhalb der genannten Optionen — ' +
+      'beides wird verworfen, und die Bestätigung wäre dann falsch.',
+    // No "return zero operations" escape on purpose: the wire schema requires
+    // 1–8 (canvasAi.ts), and the all-rejected path already answers with the
+    // template's own reason plus the studio hint. The gap this closes is the
+    // PARTIAL one, where the reply spoke for ops that never applied.
+    'Lässt sich ein TEIL der Anweisung so nicht umsetzen: setze den Rest um und schreibe in "reply" klar, ' +
+      'welcher Teil nicht ging und warum — und dass sich das im Studio direkt einstellen lässt. ' +
+      'Bestätige NIE etwas, wofür du keine Operation aus der Liste gesetzt hast.'
+  );
   return lines;
 }
 
