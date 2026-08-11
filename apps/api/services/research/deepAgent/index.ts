@@ -16,6 +16,7 @@ import { todoListMiddleware } from 'langchain';
 import { createLogger } from '../../../utils/logger.js';
 
 import { describeFinalState } from './finalState.js';
+import { suppressGeneralPurposeSubagent } from './harnessProfile.js';
 import { leadModel, workerModel } from './models.js';
 import { nudgeMissingReportMiddleware } from './nudgeMissingReport.js';
 import { leadPrompt, researcherPrompt } from './prompts.js';
@@ -37,7 +38,7 @@ import {
 } from './resume.js';
 import { sanitizeToolCallsMiddleware } from './sanitizeToolCalls.js';
 import { type ToolContext } from './toolContext.js';
-import { createResearchTools } from './tools.js';
+import { createResearchTools, subagentTools } from './tools.js';
 import {
   DEFAULT_BUDGET,
   createBudget,
@@ -112,6 +113,9 @@ export async function runDeepAgentResearch(
   };
 
   const tools = createResearchTools(ctx);
+  // Without this the run has a SECOND delegation target — on the lead model,
+  // with a generic prompt, advertising itself for research. See harnessProfile.ts.
+  suppressGeneralPurposeSubagent();
   // `deepagents` and `langchain` each declare their own tool/middleware shapes,
   // and under `exactOptionalPropertyTypes` the two do not line up structurally
   // (langchain's DynamicStructuredTool lacks the index signature deepagents'
@@ -136,7 +140,8 @@ export async function runDeepAgentResearch(
         description:
           'Beantwortet EINE Teilfrage gründlich mit Websuche und Quellenangaben. Gib die vollständige Teilfrage samt Kontext mit — der Subagent kennt den Gesamtauftrag nicht.',
         systemPrompt: researcherPrompt(locale),
-        tools: tools as never,
+        // Not the lead's list: the expensive deep lane stays a lead decision.
+        tools: subagentTools(tools) as never,
         model: workerModel(),
         // Subagents do not inherit the main agent's middleware, and they run the
         // same lane — so the repair has to be attached here too.
