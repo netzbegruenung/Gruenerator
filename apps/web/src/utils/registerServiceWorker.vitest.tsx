@@ -41,6 +41,7 @@ const setupFakeServiceWorker = () => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   vi.restoreAllMocks();
 });
 
