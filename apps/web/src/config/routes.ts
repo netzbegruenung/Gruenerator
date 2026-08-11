@@ -132,11 +132,11 @@ const BildEditorV2Page = lazy(
 const ReisekostenPage = lazy(() => import('../features/reisekosten/ReisekostenPage'));
 
 // Statische Importe in dynamische umwandeln
-const TexteRedirectToWorkplaceComponent: FC<Record<string, unknown>> = () =>
-  createElement(Navigate, { to: '/workplace', replace: true });
-const TexteRedirectToWorkplace = lazy(() =>
-  Promise.resolve({ default: TexteRedirectToWorkplaceComponent })
-);
+// Die Text-Grüneratoren sind im Chat aufgegangen, nicht in der Arbeiten-Fläche
+// — alte /texte-Links landen deshalb auf dem Chat-Einstieg.
+const TexteRedirectToChatComponent: FC<Record<string, unknown>> = () =>
+  createElement(Navigate, { to: '/start', replace: true });
+const TexteRedirectToChat = lazy(() => Promise.resolve({ default: TexteRedirectToChatComponent }));
 const VorlagenGallery = lazy(() => import('../components/common/Gallery'));
 const MeineVorlagenPage = lazy(() => import('../features/vorlagen/MeineVorlagenPage'));
 const AdminDashboardPage = lazy(() => import('../features/admin/AdminDashboardPage'));
@@ -265,7 +265,7 @@ const SkillDetailPage = lazy(() => import('../features/agentura/SkillDetailPage'
  * Lazy loading für Grüneratoren Bundle
  */
 export const GrueneratorenBundle = {
-  Texte: TexteRedirectToWorkplace,
+  Texte: TexteRedirectToChat,
   ImageStudio: ImageStudioPage,
   ImageGallery: ImageGallery,
   Search: Search,
