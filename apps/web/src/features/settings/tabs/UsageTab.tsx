@@ -6,11 +6,23 @@
  * (generated images, transcriptions, web researches). The daily chart is plain
  * CSS bars — a charting library would be a lot of bundle for ten numbers.
  */
-import { type UsageFeature, type UsageFootprintDto } from '@gruenerator/contracts';
+import { type UsageFootprintDto } from '@gruenerator/contracts';
 import { type QueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { getDocsUrl } from '../../../utils/docsUrl';
+import {
+  carComparison,
+  FEATURE_LABELS,
+  formatCount,
+  formatDay,
+  formatEnergy,
+  formatGrams,
+  formatTokens,
+  oneDecimal,
+  REFERENCE_UNCERTAINTY,
+  UNIT_LABELS,
+} from '../../../utils/usageFormat';
 import { SettingsStatsSkeleton } from '../components/SettingsSkeleton';
 import { usageStatsQuery, useUsageStats } from '../hooks/useUsageStats';
 
@@ -27,76 +39,6 @@ const RANGES = [
   { days: 90, label: '90 Tage' },
 ] as const;
 
-const FEATURE_LABELS: Record<UsageFeature, string> = {
-  chat: 'Chat',
-  docs: 'Dokumente',
-  sheets: 'Tabellen',
-  presentations: 'Präsentationen',
-  boards: 'Boards',
-  sharepic: 'Sharepics & Bilder',
-  subtitler: 'Untertitel',
-  search: 'Suche & Recherche',
-  monitor: 'Monitor',
-  sites: 'Websites',
-  texte: 'Texte',
-  notebook: 'Notebooks',
-  other: 'Sonstiges',
-};
-
-const UNIT_LABELS: Record<string, string> = {
-  tokens: 'Tokens',
-  images: 'Bilder',
-  transcriptions: 'Transkriptionen',
-  searches: 'Recherchen',
-};
-
-const numberFormat = new Intl.NumberFormat('de-DE');
-
-function formatCount(value: number): string {
-  return numberFormat.format(value);
-}
-
-/** Long token counts get an abbreviated form so the tiles stay readable. */
-function formatTokens(value: number): string {
-  if (value >= 1_000_000) return `${numberFormat.format(Math.round(value / 100_000) / 10)} Mio.`;
-  if (value >= 10_000) return `${numberFormat.format(Math.round(value / 1000))} Tsd.`;
-  return numberFormat.format(value);
-}
-
-const oneDecimal = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 1 });
-const twoDecimals = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 });
-
-/** Footprints span four orders of magnitude between a trial and a heavy month. */
-function formatGrams(grams: number): string {
-  if (grams >= 1000) return `${twoDecimals.format(grams / 1000)} kg`;
-  if (grams >= 1) return `${oneDecimal.format(grams)} g`;
-  return `${numberFormat.format(Math.round(grams * 1000))} mg`;
-}
-
-function formatEnergy(wh: number): string {
-  if (wh >= 1000) return `${twoDecimals.format(wh / 1000)} kWh`;
-  return `${oneDecimal.format(wh)} Wh`;
-}
-
-/**
- * Average CO2 of the German car fleet, g/km (UBA). Only ever used to make an
- * abstract milligram figure imaginable — never as a claim of its own.
- */
-const CAR_G_PER_KM = 150;
-
-function carComparison(grams: number): string {
-  const metres = (grams / CAR_G_PER_KM) * 1000;
-  if (metres >= 1000) return `${oneDecimal.format(metres / 1000)} km Autofahrt`;
-  return `${numberFormat.format(Math.round(metres))} m Autofahrt`;
-}
-
-function formatDay(day: string): string {
-  const date = new Date(`${day}T00:00:00Z`);
-  return Number.isNaN(date.getTime())
-    ? day
-    : date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
-}
-
 function StatTile({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div className="flex flex-col gap-1 rounded-xl border border-grey-200 bg-background p-md dark:border-grey-700">
@@ -106,16 +48,6 @@ function StatTile({ label, value, hint }: { label: string; value: string; hint?:
     </div>
   );
 }
-
-/**
- * How much the reference (GPT-4o, Jegham et al. 2025) itself is an estimate —
- * inferred from API latency and GPU datasheets, not metered. Applied as a
- * symmetric band around the reference figure so the CO2 savings we claim show
- * up as a corridor rather than a single number the estimate can't actually
- * support. A round, openly stated choice, same spirit as the image boundary
- * uplift in energyFootprint.ts.
- */
-const REFERENCE_UNCERTAINTY = 0.3;
 
 /**
  * "What if you had used ChatGPT instead."
