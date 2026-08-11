@@ -17,7 +17,6 @@
 import express from 'express';
 
 import { ensureHtml } from '../../services/docs/contentNormalization.js';
-import { seedYjsStateSafe } from '../../services/docs/seedYjsState.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -117,43 +116,24 @@ async function executeAction(action: PendingAction): Promise<{ message: string; 
         throw new ConfirmActionRefusal('Keine Berechtigung, dieses Dokument zu bearbeiten.');
       }
 
-      const { getPostgresInstance } = await import('../../database/services/PostgresService.js');
-      const pg = getPostgresInstance();
+      // One write path: into the live Yjs document, which is what the editor
+      // reads. The previous UPDATE on `content` wrote a column no reader in the
+      // hydration chain consults — hence "chat reports success, document
+      // unchanged". An open editor tab is no longer a reason to refuse; it is
+      // the case this path handles best (the change appears without a reload).
+      const { replaceDocumentHtml } = await import('../../services/docs/docContentService.js');
+      const result = await replaceDocumentHtml(docId, ensureHtml(newContent), {
+        userId: action.userId,
+      });
 
-      // Side-channel writes to `content` while Yjs has live state would diverge
-      // from the editor's CRDT. Refuse so the user edits via the collaborative
-      // editor instead.
-      const liveState = await pg.query(
-        `SELECT 1 FROM yjs_document_snapshots WHERE document_id = $1
-         UNION ALL
-         SELECT 1 FROM yjs_document_updates WHERE document_id = $1
-         LIMIT 1`,
-        [docId]
-      );
-      if (liveState.length > 0) {
+      // Report success only after reading the stored state back. `html` is what
+      // the endpoint decoded from the document AFTER the write; empty means the
+      // new version did not survive block parsing.
+      if (!result.html.trim()) {
         throw new ConfirmActionRefusal(
-          'Dieses Dokument ist im Editor geöffnet — dort kannst du es direkt ändern. ' +
-            'Schließe es und versuch es hier noch einmal.'
+          'Die neue Fassung konnte nicht gespeichert werden — im Dokument steht weiterhin der bisherige Text.'
         );
       }
-
-      const htmlContent = ensureHtml(newContent);
-      await pg.query(
-        'UPDATE collaborative_documents SET content = $1, last_edited_by = $2, updated_at = NOW() WHERE id = $3',
-        [htmlContent, action.userId, docId]
-      );
-      // FOLLOW-UP (Yjs-Commit-Pfad): dieser Seed ist für jedes chat-erzeugte
-      // Dokument ein garantierter No-op. `seedYjsState` schreibt
-      // `collaborative_documents_init` mit ON CONFLICT DO NOTHING, und
-      // DocGenerationService hat diese Zeile bei der Erstellung bereits
-      // geschrieben. Der Editor hydriert aus Yjs, nicht aus `content` — die
-      // Änderung oben landet also in der Spalte und ist im Editor unsichtbar.
-      // Beides zusammen ergibt den gemeldeten Befund „Chat meldet Erfolg,
-      // Dokument unverändert". Richtig ist EIN Schreibweg: die neue Fassung in
-      // den Yjs-Zustand (Update statt DO NOTHING, ggf. über Hocuspocus), mit
-      // `content` als abgeleiteter Spiegel. Das fasst den Dokument-Speicherpfad
-      // an und bekommt einen eigenen PR.
-      await seedYjsStateSafe(docId, htmlContent, 'modify_doc');
 
       return {
         message: `Dokument wurde aktualisiert.`,
