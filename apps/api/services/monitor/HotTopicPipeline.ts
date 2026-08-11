@@ -159,6 +159,8 @@ Hintergrund — die aktuellen Top-Schlagzeilen:
 ${anchor.headlinesText}
 Weitere Themen: ${theme.secondaryTopics.join(', ')}
 
+Jede Quelle muss eine Aussage zu "${theme.dominantTopic}" enthalten. Allgemeine Partei- oder Programmübersichten ohne Bezug zu diesem Thema sind unbrauchbar — Lexikonartikel über die Partei, Parteiportraits und Übersichtsseiten von Programmen zählen nicht als Beleg.
+
 Fasse die bestehenden Grünen-Positionen detailliert zusammen. Verwende Vergangenheitsform ("Die Grünen haben gefordert...", "Im Programm hieß es..."). Erwähne auch kurz die Nebenthemen, falls relevante Positionen vorhanden sind.`;
 
   return executeResearch({
@@ -269,6 +271,76 @@ ${positionsText ? `\nGRÜNE POSITIONEN (nutze diese für fundierte Tweets):\n${p
 
 // ─── Citation helpers ────────────────────────────────────────────────
 
+/**
+ * Host + path, lowercased, without `www.`, query, fragment or trailing slash.
+ *
+ * Deliberately drops the query: the same Bundestag press release arrives as
+ * `…/pressemitteilung` and `…/pressemitteilung?utm_source=…`, and treating those
+ * as two sources is exactly the duplication we are removing. Unparseable input
+ * falls back to the raw string rather than to a shared empty key, which would
+ * collapse every broken URL into one source.
+ */
+function canonicalUrl(raw: string): string {
+  try {
+    const url = new URL(raw);
+    const path = url.pathname.replace(/\/+$/, '');
+    return `${url.host.replace(/^www\./, '')}${path}`.toLowerCase();
+  } catch {
+    return raw.trim().toLowerCase();
+  }
+}
+
+/** First words of the snippet, as the identity of a source that carries no URL. */
+function snippetKey(snippet: string): string {
+  return snippet.replace(/\s+/g, ' ').trim().slice(0, 120).toLowerCase();
+}
+
+export interface DedupedCitations {
+  citations: ResearchCitation[];
+  /** Old citation id → new one. Ids of dropped duplicates point at the survivor. */
+  remap: Map<string, string>;
+}
+
+/**
+ * Collapse sources that are the same document and renumber the survivors 1..n.
+ *
+ * Linkup's deep research routinely returns one press release under two URLs (the
+ * bundestag.de news item and the Antrag it quotes), or the same page with and
+ * without tracking parameters. Printed as separate numbered sources they read as
+ * independent corroboration, which is the part that actually misleads — the
+ * wasted space is the lesser problem.
+ *
+ * Renumbering is what makes this safe to do AFTER the research ran: the answer
+ * text still carries the original `[N]`, so every caller must rewrite its markers
+ * through `remap` (see `applyCiteMarkers`). Without that the text would cite
+ * numbers the list no longer has.
+ */
+export function dedupeCitations(citations: ResearchCitation[]): DedupedCitations {
+  const byKey = new Map<string, ResearchCitation>();
+  const remap = new Map<string, string>();
+  const survivors: ResearchCitation[] = [];
+
+  for (const citation of citations) {
+    const key = citation.url ? canonicalUrl(citation.url) : snippetKey(citation.snippet || '');
+    // A source with neither URL nor snippet has no identity to compare — keep it
+    // rather than folding all of them together.
+    const existing = key ? byKey.get(key) : undefined;
+    if (existing) {
+      remap.set(String(citation.id), String(existing.id));
+      continue;
+    }
+    const renumbered = { ...citation, id: survivors.length + 1 };
+    if (key) byKey.set(key, renumbered);
+    remap.set(String(citation.id), String(renumbered.id));
+    survivors.push(renumbered);
+  }
+
+  if (survivors.length < citations.length) {
+    log.info(`dedupeCitations: ${citations.length} → ${survivors.length} sources`);
+  }
+  return { citations: survivors, remap };
+}
+
 function mapCitations(citations: ResearchCitation[]): MonitorCitation[] {
   return citations.map((c) => ({
     id: String(c.id),
@@ -278,12 +350,17 @@ function mapCitations(citations: ResearchCitation[]): MonitorCitation[] {
   }));
 }
 
-/** Convert valid [N] markers to [cite:N] for CitationTextRenderer. */
-function applyCiteMarkers(text: string, citations: ResearchCitation[]): string {
-  const validIds = new Set(citations.map((c) => String(c.id)));
-  return text.replace(/\[(\d+)\]/g, (match, n: string) =>
-    validIds.has(n) ? `[cite:${n}]` : match
-  );
+/**
+ * Convert `[N]` markers to the `[cite:N]` the CitationTextRenderer reads, moving
+ * each one onto the id its source ended up with after deduplication. A marker
+ * whose source did not survive as an id of its own points at the duplicate that
+ * did; a marker the model invented has no entry and stays plain text.
+ */
+export function applyCiteMarkers(text: string, remap: Map<string, string>): string {
+  return text.replace(/\[(\d+)\]/g, (match, n: string) => {
+    const target = remap.get(n);
+    return target ? `[cite:${target}]` : match;
+  });
 }
 
 // ─── Public API ──────────────────────────────────────────────────────
@@ -347,15 +424,20 @@ export async function getHotTopicAnalysis(
     generateTweets(theme, anchor, research.answer),
   ]);
 
+  // After the briefing, not before: the model writes its `[N]` against the
+  // numbering it was given, and `applyCiteMarkers` moves both texts onto the
+  // deduplicated numbering in one step.
+  const deduped = dedupeCitations(research.citations);
+
   const analysis: MonitorHotTopicAnalysis = {
     dominantTopic: theme.dominantTopic,
     secondaryTopics: theme.secondaryTopics,
-    briefing: applyCiteMarkers(briefing, research.citations),
+    briefing: applyCiteMarkers(briefing, deduped.remap),
     tweets,
     positionsText: research.answer
-      ? applyCiteMarkers(research.answer, research.citations)
+      ? applyCiteMarkers(research.answer, deduped.remap)
       : `Keine Recherche-Ergebnisse zum Thema "${theme.dominantTopic}" gefunden.`,
-    citations: mapCitations(research.citations),
+    citations: mapCitations(deduped.citations),
     confidence: research.confidence,
     generatedAt: new Date().toISOString(),
     sourceFingerprint: anchor.fingerprint,
