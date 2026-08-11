@@ -25,8 +25,13 @@
 import { AIMessage, HumanMessage, ToolMessage } from '@langchain/core/messages';
 import { GraphRecursionError } from '@langchain/langgraph';
 
-/** How often a run may be resumed after a transient runtime error. */
-export const RESUME_LIMIT = 2;
+/**
+ * How often a run may be resumed after a transient runtime error.
+ *
+ * Three rather than two: with the wall-clock budget at a quarter of an hour, a
+ * continuation no longer competes with the report for the same minutes.
+ */
+export const RESUME_LIMIT = 3;
 
 /** Steps the wrap-up leg gets — enough for write_file plus a closing answer. */
 export const WRAP_UP_RECURSION_LIMIT = 12;
@@ -38,7 +43,17 @@ export const WRAP_UP_TEXT =
   'Das Schrittbudget ist erschöpft. Recherchiere nichts mehr: schreibe JETZT mit write_file ' +
   'den Bericht nach /bericht.md aus dem vorhandenen Material und antworte dann mit zwei bis drei Sätzen.';
 
-export type RunErrorKind = 'fatal' | 'transient' | 'recursion';
+export const DEADLINE_TEXT =
+  'Die Zeit für die Recherche ist abgelaufen. Recherchiere nichts mehr und rufe keine Suchwerkzeuge ' +
+  'mehr auf: schreibe JETZT mit write_file den Bericht nach /bericht.md aus dem vorhandenen Material — ' +
+  'lückenhafte Abschnitte kennzeichnest du im Text — und antworte dann mit zwei bis drei Sätzen.';
+
+/**
+ * `deadline` is our own research clock running out, and it is NOT fatal: the
+ * material is in hand and only the writing is missing, so it earns the same
+ * wrap-up leg as `recursion`. Only the CALLER's signal ends a run outright.
+ */
+export type RunErrorKind = 'fatal' | 'transient' | 'recursion' | 'deadline';
 
 /** Guards against a cause chain that loops back on itself. */
 const MAX_CAUSE_DEPTH = 5;
@@ -62,9 +77,11 @@ function errorChain(error: unknown): Error[] {
 /**
  * Decides whether an error that killed the stream is worth a resume.
  *
- * The signal is checked first because an abort surfaces under several names
- * (`AbortError`, `TimeoutError`, or wrapped) — the flag on the signal is the
- * one source that does not depend on who wrapped the error.
+ * The signals are checked first, and in this order, because an abort surfaces
+ * under several names (`AbortError`, `TimeoutError`, or wrapped) — the flag on
+ * the signal is the one source that does not depend on who wrapped the error.
+ * The caller's signal wins over our own research deadline: when both have
+ * fired there is no time left to wrap anything up.
  *
  * The recursion check runs over the cause chain and accepts either the class or
  * the name. Missing it is not a crash but a silent downgrade to `transient`:
@@ -72,8 +89,13 @@ function errorChain(error: unknown): Error[] {
  * meant to do it. `instanceof` alone is not enough either — the error may have
  * crossed a package boundary with its own copy of the class.
  */
-export function classifyRunError(error: unknown, signal?: AbortSignal): RunErrorKind {
+export function classifyRunError(
+  error: unknown,
+  signal?: AbortSignal,
+  researchDeadline?: AbortSignal
+): RunErrorKind {
   if (signal?.aborted) return 'fatal';
+  if (researchDeadline?.aborted) return 'deadline';
   const name = error instanceof Error ? error.name : '';
   if (name === 'AbortError' || name === 'TimeoutError') return 'fatal';
   if (
@@ -129,6 +151,7 @@ export function buildResumeInput(
   }
 
   if (kind === 'recursion') repaired.push(new HumanMessage(WRAP_UP_TEXT));
+  if (kind === 'deadline') repaired.push(new HumanMessage(DEADLINE_TEXT));
 
   return {
     messages: repaired,
