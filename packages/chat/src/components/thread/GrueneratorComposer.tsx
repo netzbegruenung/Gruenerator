@@ -13,7 +13,7 @@ import { useMobileKeyboardOffset } from '@gruenerator/shared/hooks';
 import { mcpBrandColor } from '@gruenerator/shared/utils';
 import { cn, useIsMobile } from '@gruenerator/ui';
 import { ArrowUp, Mic, Plug, Square, X } from 'lucide-react';
-import { memo, useRef, useState, useCallback, type ClipboardEvent } from 'react';
+import { memo, useEffect, useRef, useState, useCallback, type ClipboardEvent } from 'react';
 import { type IconType } from 'react-icons';
 import { RiVoiceAiFill } from 'react-icons/ri';
 import {
@@ -44,6 +44,7 @@ import {
   type CollabDocSelection,
 } from '../../lib/documentMentionables';
 import {
+  mentionableKey,
   type Mentionable,
   type WolkeFileToken,
   type ConnectFileToken,
@@ -58,7 +59,7 @@ import {
   canvaDesignsMarkdown,
 } from '../../lib/mentionAttachments';
 import { getFilteredMentionables, detectMention } from '../../lib/mentionDetection';
-import { computeMentionInsertion } from '../../lib/mentionInsertion';
+import { buildMentionPrefix, computePillMentionInsertion } from '../../lib/mentionInsertion';
 import {
   PASTED_TEXT_ATTACHMENT_NAME,
   shouldCreatePastedTextAttachment,
@@ -71,6 +72,7 @@ import { SearchDepthToggle } from '../SearchDepthToggle';
 
 import { CanvaMentionPopover } from './CanvaMentionPopover';
 import { useChatDensity } from './chatDensityContext';
+import { ComposerMentionPills } from './ComposerMentionPills';
 import { ConnectMentionPopover } from './ConnectMentionPopover';
 import { FileMentionPopover } from './FileMentionPopover';
 import { MentionPopover } from './MentionPopover';
@@ -162,9 +164,27 @@ function SearchDepthToggleSlot() {
   return <SearchDepthToggle />;
 }
 
-function SendButton({ requireProfileHydration }: { requireProfileHydration?: boolean }) {
+function SendButton({
+  requireProfileHydration,
+  hasPillMentions,
+  onFlushPillMentions,
+  onSendWithPillMentions,
+}: {
+  requireProfileHydration?: boolean;
+  hasPillMentions?: boolean;
+  onFlushPillMentions?: () => void;
+  onSendWithPillMentions?: () => void;
+}) {
   const isCompact = useChatDensity() === 'compact';
   const isHydrated = useUserProfileStore((s) => s.isHydrated);
+  // With pill mentions and an otherwise empty draft the primitive Send is
+  // disabled (composer.canSend is false) — only then do we substitute our own
+  // button. While something is genuinely blocking (attachment upload), text or
+  // attachments are present, so this branch stays off and the primitive's
+  // disabled logic keeps ruling.
+  const emptyDraft = useAuiState(
+    (s) => s.composer.text.trim() === '' && s.composer.attachments.length === 0
+  );
 
   if (requireProfileHydration && !isHydrated) {
     return (
@@ -180,8 +200,24 @@ function SendButton({ requireProfileHydration }: { requireProfileHydration?: boo
     );
   }
 
+  if (hasPillMentions && emptyDraft) {
+    return (
+      <button
+        type="button"
+        onClick={onSendWithPillMentions}
+        aria-label="Nachricht senden"
+        className={`${roundBtnSize(isCompact)} ${ROUND_BTN_BASE} bg-primary text-white hover:bg-primary-600 active:scale-95`}
+      >
+        <ArrowUp className={isCompact ? 'h-4 w-4' : 'h-5 w-5'} />
+      </button>
+    );
+  }
+
   return (
     <ComposerPrimitive.Send
+      // Runs BEFORE the primitive's internal send (composeEventHandlers), so
+      // the pills are already in the text when send() reads the state.
+      onClick={hasPillMentions ? onFlushPillMentions : undefined}
       className={`${roundBtnSize(isCompact)} ${ROUND_BTN_BASE} bg-primary text-white enabled:hover:bg-primary-600 enabled:active:scale-95 disabled:opacity-30`}
       aria-label="Nachricht senden"
     >
@@ -259,9 +295,15 @@ function ComposerVoiceToggle() {
 function ComposerButtons({
   isRunning,
   requireProfileHydration,
+  hasPillMentions,
+  onFlushPillMentions,
+  onSendWithPillMentions,
 }: {
   isRunning?: boolean;
   requireProfileHydration?: boolean;
+  hasPillMentions?: boolean;
+  onFlushPillMentions?: () => void;
+  onSendWithPillMentions?: () => void;
 }) {
   const isDictating = useAuiState((s) => s.composer.dictation != null);
   const hasDictation = useAuiState((s) => s.thread.capabilities.dictation);
@@ -269,8 +311,15 @@ function ComposerButtons({
 
   if (isRunning) return <CancelButton />;
   if (isDictating) return <StopDictationButton />;
-  if (hasDictation && isEmpty) return <DictateButton />;
-  return <SendButton requireProfileHydration={requireProfileHydration} />;
+  if (hasDictation && isEmpty && !hasPillMentions) return <DictateButton />;
+  return (
+    <SendButton
+      requireProfileHydration={requireProfileHydration}
+      hasPillMentions={hasPillMentions}
+      onFlushPillMentions={onFlushPillMentions}
+      onSendWithPillMentions={onSendWithPillMentions}
+    />
+  );
 }
 
 interface MentionState {
@@ -320,6 +369,22 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const uploadRef = useRef<HTMLButtonElement>(null);
   const [mention, setMention] = useState<MentionState>(INITIAL_MENTION_STATE);
+  // Function/agent mentions picked from the popover or plus menu live here as
+  // chips ("pills") instead of raw `@websuche` text in the textarea. At send
+  // time they are flushed back into the text as exactly that plain-mention
+  // prefix, so parsing, routing, persistence and the message-bubble chips all
+  // stay on today's path (see buildMentionPrefix).
+  const [pillMentions, setPillMentions] = useState<Mentionable[]>([]);
+  const pillMentionsRef = useRef(pillMentions);
+  pillMentionsRef.current = pillMentions;
+
+  // Pills are a draft property of the current thread's composer — a thread
+  // switch (or new chat, which nulls the id) starts from a clean slate, same
+  // as the store does for activeSkillMention/pinnedConnector.
+  const currentThreadId = useAgentStore((s) => s.currentThreadId);
+  useEffect(() => {
+    setPillMentions([]);
+  }, [currentThreadId]);
 
   // `interactive-widget=resizes-visual` (apps/web/index.html) keeps the layout
   // viewport at full height when the on-screen keyboard opens, so no `dvh` box
@@ -338,6 +403,34 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   useAuiEvent('composer.attachmentAddError', handleAttachmentAddError);
 
   const dismissPopover = useCallback(() => setMention(INITIAL_MENTION_STATE), []);
+
+  const removePillMention = useCallback((m: Mentionable) => {
+    setPillMentions((prev) => prev.filter((p) => mentionableKey(p) !== mentionableKey(m)));
+    // A skill pill carries its per-turn prompt fragment via the store — removing
+    // the chip must also drop that, or the skill would still fire invisibly.
+    if (m.category === 'skill' && useAgentStore.getState().activeSkillMention === m.mention) {
+      useAgentStore.getState().setActiveSkillMention(null);
+    }
+  }, []);
+
+  /** Rewrite the draft to `@mention… <text>` and clear the chips. Must run
+   *  synchronously before whatever triggers composer.send() reads the state. */
+  const flushPillMentions = useCallback(() => {
+    const pills = pillMentionsRef.current;
+    if (pills.length === 0) return;
+    const prefix = buildMentionPrefix(pills);
+    const text = composerRuntime.getState().text;
+    composerRuntime.setText(text.length > 0 ? `${prefix} ${text}` : `${prefix} `);
+    setPillMentions([]);
+  }, [composerRuntime]);
+
+  /** Explicit send for the pills-only case: with an empty draft, canSend is
+   *  false, so the primitive Send/Root submit path is inert — flush first,
+   *  then send the now non-empty draft ourselves. */
+  const sendWithPillMentions = useCallback(() => {
+    flushPillMentions();
+    composerRuntime.send();
+  }, [composerRuntime, flushPillMentions]);
 
   const handlePaste = useCallback(
     (event: ClipboardEvent<HTMLTextAreaElement>) => {
@@ -460,10 +553,14 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
         return;
       }
 
+      // Everything else (agents, skills, tools, notebooks, boards, sheets,
+      // docs, MCP servers) becomes a chip instead of `@websuche` text: strip
+      // the typed trigger, keep only the promptTemplate in the draft, and park
+      // the mention itself in pillMentions until send.
       const currentText = composerRuntime.getState().text;
       const caretPosition =
         mention.mentionStart >= 0 ? textarea.selectionStart : currentText.length;
-      const { newText, cursorPosition } = computeMentionInsertion(
+      const { newText, cursorPosition } = computePillMentionInsertion(
         currentText,
         mentionable,
         mention.mentionStart,
@@ -476,6 +573,11 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
         useAgentStore.getState().setActiveSkillMention(mentionable.mention);
       }
 
+      setPillMentions((prev) =>
+        prev.some((p) => mentionableKey(p) === mentionableKey(mentionable))
+          ? prev
+          : [...prev, mentionable]
+      );
       composerRuntime.setText(newText);
       dismissPopover();
 
@@ -636,7 +738,34 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (!mention.visible) return;
+      if (!mention.visible) {
+        if (pillMentionsRef.current.length === 0) return;
+        const state = composerRuntime.getState();
+        // Enter on a pills-only draft: the primitive's Enter→submit path is
+        // inert (canSend false on empty text), so send explicitly. Non-empty
+        // drafts keep the normal path — the Root onSubmit flush covers them.
+        if (
+          e.key === 'Enter' &&
+          !e.shiftKey &&
+          !e.nativeEvent.isComposing &&
+          !isRunning &&
+          state.text.trim() === '' &&
+          state.attachments.length === 0
+        ) {
+          e.preventDefault();
+          sendWithPillMentions();
+          return;
+        }
+        // Backspace at the very start of the draft eats the last pill,
+        // mirroring how deleting into typed `@websuche ` text behaves.
+        const textarea = e.currentTarget;
+        if (e.key === 'Backspace' && textarea.selectionStart === 0 && textarea.selectionEnd === 0) {
+          e.preventDefault();
+          const last = pillMentionsRef.current[pillMentionsRef.current.length - 1];
+          if (last) removePillMention(last);
+        }
+        return;
+      }
 
       // In datei/docs mode, only handle Escape (cmdk handles arrow keys internally).
       // Enter is swallowed so the textarea doesn't submit the form while the picker
@@ -698,6 +827,10 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
       mention.selectedIndex,
       handleSelect,
       dismissPopover,
+      composerRuntime,
+      isRunning,
+      sendWithPillMentions,
+      removePillMention,
     ]
   );
 
@@ -785,7 +918,10 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
             : 'min-h-0 w-full flex-grow resize-none bg-transparent px-5 pt-3.5 pb-2.5 text-foreground outline-none placeholder:text-foreground-muted/60'
       }
       onChange={showMentions ? handleChange : undefined}
-      onKeyDown={showMentions ? handleKeyDown : undefined}
+      // Not gated on showMentions: the pill handling (Enter/Backspace) must
+      // also work on surfaces whose pills come from the plus menu only. The
+      // popover branches inside are inert there (mention.visible stays false).
+      onKeyDown={handleKeyDown}
       onPaste={handlePaste}
     />
   );
@@ -793,6 +929,13 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   return (
     <div className="px-4 pb-[max(0.25rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-[max(1rem,env(safe-area-inset-bottom))] lg:px-8">
       <ComposerPrimitive.Root
+        // Runs before the Root's internal submit handler (composeEventHandlers),
+        // so an Enter-submitted draft carries the pills when send() reads it.
+        // Guarded on canSend: when the submit will be a no-op (attachment still
+        // uploading), the pills must not be dumped into the text either.
+        onSubmit={() => {
+          if (composerRuntime.getState().canSend) flushPillMentions();
+        }}
         className={cn(
           'composer-root relative mx-auto flex w-full max-w-3xl flex-col border bg-white transition-shadow dark:bg-surface',
           // The keyboard-focus indicator. The composer had none: the textarea
@@ -928,6 +1071,11 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
             {plusMenuNode}
             {slots?.leading}
             {pinnedConnectorChip}
+            <ComposerMentionPills
+              mentions={pillMentions}
+              onRemove={removePillMention}
+              className="ml-0.5 flex-nowrap overflow-hidden"
+            />
             {composerInput}
             {showToolToggles && <SearchDepthToggleSlot />}
             {toolbarExtra}
@@ -936,10 +1084,18 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
             <ComposerButtons
               isRunning={isRunning}
               requireProfileHydration={requireProfileHydration}
+              hasPillMentions={pillMentions.length > 0}
+              onFlushPillMentions={flushPillMentions}
+              onSendWithPillMentions={sendWithPillMentions}
             />
           </div>
         ) : (
           <>
+            <ComposerMentionPills
+              mentions={pillMentions}
+              onRemove={removePillMention}
+              className={isCompact ? 'mx-3 mt-2' : 'mx-5 mt-3'}
+            />
             {composerInput}
 
             <div className="flex items-center justify-between px-2 pb-1">
@@ -960,6 +1116,9 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
                 <ComposerButtons
                   isRunning={isRunning}
                   requireProfileHydration={requireProfileHydration}
+                  hasPillMentions={pillMentions.length > 0}
+                  onFlushPillMentions={flushPillMentions}
+                  onSendWithPillMentions={sendWithPillMentions}
                 />
               </div>
             </div>
