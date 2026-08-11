@@ -382,6 +382,26 @@ export type ApplySharepicOpsOutcome =
   | { ok: false; reason: string; rejected: Array<{ kind: string; reason: string }> };
 
 /**
+ * Correct the reply when only PART of the edit landed.
+ *
+ * `reply` is written by the edit LLM from the ops it PROPOSED, before the
+ * descriptor validated them — so it describes the full instruction either way.
+ * The all-rejected case already gets its own text (`!outcome.ok` below); the
+ * partial one did not, and that is the whole gap: on 11.08.2026 the
+ * `dreizeilen-overlay-at` template rejected `set-background-color`, `set-text`
+ * applied, and the chat reported both. The ops layer already knows — it returns
+ * `rejected` on the success path too. Only nobody read it.
+ */
+export function appendRejectedOpsNote(
+  reply: string,
+  rejected: ReadonlyArray<{ kind: string; reason: string }>
+): string {
+  if (rejected.length === 0) return reply;
+  const reasons = [...new Set(rejected.map((r) => r.reason))].join(' ');
+  return `${reply}\n\nNicht übernommen: ${reasons} ` + 'Im Studio lässt sich das direkt anpassen.';
+}
+
+/**
  * Core of an edit: validate ops against the descriptor, resolve stock-image
  * queries, apply the patch (live-broadcasts into open studio tabs), snapshot
  * a version and emit `sharepic_updated`. Shared by the single-call edit path
@@ -691,7 +711,7 @@ export async function handleSharepicEdit(args: HandleSharepicEditArgs): Promise<
       return true;
     }
 
-    await finishWithText(args, reply, [
+    await finishWithText(args, appendRejectedOpsNote(reply, outcome.rejected), [
       {
         toolCallId: `tc_${Date.now()}`,
         toolName: 'sharepic_edit',
