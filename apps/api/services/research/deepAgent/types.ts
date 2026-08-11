@@ -26,6 +26,14 @@ export interface RunBudget {
   /** Page crawls. */
   crawlsLeft: number;
   /**
+   * How many FAILED crawls get their unit refunded. A crawl costs no external
+   * money, only time — so a run whose sources happen to 503 (observed 11.08.2026
+   * with a whole domain down) should not burn its reading allowance on nothing.
+   * Capped so a model stuck on one dead site cannot crawl forever; paid search
+   * failures are deliberately NOT refunded, the provider may bill the attempt.
+   */
+  crawlRefundsLeft: number;
+  /**
    * Grünerator notebook searches. Counted apart from `searchesLeft` because they
    * cost a Qdrant query and an embedding, nothing else — letting them eat the
    * twelve paid web searches would make the cheap lane the scarce one.
@@ -105,6 +113,7 @@ export const DEFAULT_BUDGET = {
   searches: 12,
   deepSearches: 2,
   crawls: 8,
+  crawlRefunds: 4,
   notebookSearches: 8,
   softMs: 5 * 60_000,
   hardMs: 7 * 60_000,
@@ -116,6 +125,7 @@ export function createBudget(now: number, softMs: number = DEFAULT_BUDGET.softMs
     searchesLeft: DEFAULT_BUDGET.searches,
     deepSearchesLeft: DEFAULT_BUDGET.deepSearches,
     crawlsLeft: DEFAULT_BUDGET.crawls,
+    crawlRefundsLeft: DEFAULT_BUDGET.crawlRefunds,
     notebookSearchesLeft: DEFAULT_BUDGET.notebookSearches,
     softDeadlineAt: now + softMs,
   };
