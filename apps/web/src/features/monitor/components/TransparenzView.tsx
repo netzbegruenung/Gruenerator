@@ -39,7 +39,7 @@ import {
   FUNCTION_ORDER,
   oneDecimal,
   providerLabel,
-  REFERENCE_UNCERTAINTY,
+  referenceComparison,
   UNIT_LABELS,
 } from '../../../utils/usageFormat';
 import { useTransparencyStats } from '../hooks/useTransparency';
@@ -281,7 +281,9 @@ function ProviderPanel({ providers }: { providers: TransparencyProviderEntryDto[
 /* ── Belastbarkeit ────────────────────────────────────────────────────────── */
 
 function Meter({ label, share, hint }: { label: string; share: number; hint: string }) {
-  const pct = Math.round(share * 100);
+  // The schema says 0..1, but this bar is a width in percent: an out-of-range
+  // share would run the fill past its track and break the card silently.
+  const pct = Math.min(100, Math.max(0, Math.round(share * 100)));
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-baseline justify-between gap-3">
@@ -565,30 +567,14 @@ function ModelPanel({ byModel }: { byModel: GetTransparencyStatsResponseDto['byM
  * into a "savings" framing would hide the one place this doesn't flatter us.
  */
 function ReferencePanel({ footprint }: { footprint: TransparencyFootprintDto }) {
-  const textEmissions = footprint.emissions_g - footprint.image_emissions_g;
-  const textEnergy = footprint.energy_wh - footprint.image_energy_wh;
-  const co2Savings = footprint.reference_emissions_g - textEmissions;
-  const energyFactor = textEnergy > 0 ? footprint.reference_energy_wh / textEnergy : 0;
-  // Only vanish when there is nothing to compare — an unfavorable comparison
-  // is reported, not hidden (see the JSDoc above). Same rule as the personal
-  // tab's ReferenceComparison; a public page hiding its own bad number would
-  // be the exact failure this whole view exists to avoid.
-  const hasTextUsage = textEmissions > 0 || textEnergy > 0 || footprint.reference_emissions_g > 0;
-  if (!hasTextUsage) return null;
+  // One computation for both surfaces — see referenceComparison(). Unlike the
+  // personal tab, this page DOES print its own figure next to the reference:
+  // the platform's consumption is exactly what it exists to publish.
+  const comparison = referenceComparison(footprint);
+  if (!comparison.hasComparison) return null;
 
-  const co2Saved = co2Savings >= 0;
-  const co2SavingsLow = Math.max(
-    co2Saved
-      ? footprint.reference_emissions_g * (1 - REFERENCE_UNCERTAINTY) - textEmissions
-      : textEmissions - footprint.reference_emissions_g * (1 + REFERENCE_UNCERTAINTY),
-    0
-  );
-  const co2SavingsHigh = Math.max(
-    co2Saved
-      ? footprint.reference_emissions_g * (1 + REFERENCE_UNCERTAINTY) - textEmissions
-      : textEmissions - footprint.reference_emissions_g * (1 - REFERENCE_UNCERTAINTY),
-    0
-  );
+  const { textEnergy, saved: co2Saved } = comparison;
+  const energyFactor = textEnergy > 0 ? footprint.reference_energy_wh / textEnergy : 0;
 
   return (
     <section className="mt-12">
@@ -608,10 +594,10 @@ function ReferencePanel({ footprint }: { footprint: TransparencyFootprintDto }) 
               MONITOR_HEADING
             )}
           >
-            ≈ {formatGrams(Math.abs(co2Savings))}
+            ≈ {formatGrams(comparison.magnitude)}
           </span>
           <p className={cn('m-0 mt-2 text-[0.85rem]', MONITOR_MUTED)}>
-            etwa {formatGrams(co2SavingsLow)} – {formatGrams(co2SavingsHigh)}
+            etwa {formatGrams(comparison.low)} – {formatGrams(comparison.high)}
           </p>
         </div>
         <div>
