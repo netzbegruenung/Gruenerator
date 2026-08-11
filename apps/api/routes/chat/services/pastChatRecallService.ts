@@ -320,6 +320,51 @@ export async function recallPastChats(
 }
 
 /**
+ * The user's most recently active threads, no query needed — backs the
+ * search_threads no-query path ("worüber haben wir zuletzt gechattet"). Same
+ * result shape as recallPastChats; recency replaces relevance as the ranking.
+ */
+export async function listRecentThreads(
+  userId: string,
+  options: { limit?: number; excludeThreadId?: string; threadIds?: string[] } = {}
+): Promise<ChatSearchResult[]> {
+  const { limit = 5, excludeThreadId, threadIds } = options;
+
+  // An empty space scope means "no threads to list" — mirror recallPastChats.
+  if (threadIds && threadIds.length === 0) return [];
+
+  const db = getPostgresInstance();
+  try {
+    const params: unknown[] = [userId];
+    const where = [`user_id = $1`, `COALESCE(status, 'regular') = 'regular'`];
+    if (excludeThreadId) {
+      params.push(excludeThreadId);
+      where.push(`id <> $${params.length}::uuid`);
+    }
+    if (threadIds) {
+      params.push(threadIds);
+      where.push(`id = ANY($${params.length}::uuid[])`);
+    }
+    params.push(limit);
+    const rows = (await db.query(
+      `SELECT id FROM chat_threads
+       WHERE ${where.join(' AND ')}
+       ORDER BY updated_at DESC
+       LIMIT $${params.length}`,
+      params
+    )) as Array<{ id: string }>;
+    if (rows.length === 0) return [];
+    return await hydrateThreadsAsResults(
+      userId,
+      rows.map((r) => r.id)
+    );
+  } catch (err) {
+    log.warn(`[Recall] listRecentThreads failed: ${err}`);
+    return [];
+  }
+}
+
+/**
  * Deep-read a single thread for the tool path: its compaction summary if one
  * exists, else the last N user/assistant messages. Ownership is enforced with
  * the same predicate as the owned-only search.
