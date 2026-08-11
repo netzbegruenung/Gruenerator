@@ -174,11 +174,12 @@ const envSchema = z.object({
   // The throttle it has to contain is documented in GreenPTSearchService.ts.
   GREENPT_SEARCH_ENABLED: boolFlag(false),
 
-  // Which lane the research SUBagent runs on. `scaleway` is the measured
-  // default; `greenpt` is the cheaper, greener host that today loses the
-  // comparison on unsuppressible reasoning blocks — the rationale and the
-  // numbers are in `services/research/deepAgent/models.ts`.
-  DEEP_AGENT_WORKER: z.enum(['scaleway', 'greenpt']).default('scaleway'),
+  // No DEEP_AGENT_* switches. Which lane the subagent runs on and whether the
+  // lead delegates in parallel are RESEARCH decisions with measurements behind
+  // them, not deployment settings — they live in
+  // `services/research/deepAgent/models.ts`, where the numbers that justify them
+  // are. A knob here would let a deployment silently pick a lane nobody
+  // measured, and the failure (a thin report) looks like the agent being weak.
 
   // ── Image / Flux ───────────────────────────────────────────────────────
   FLUX_BACKEND: z.string().optional(),
