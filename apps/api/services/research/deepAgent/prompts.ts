@@ -32,12 +32,17 @@ ${locale === 'de-AT' ? LAENDERKONTEXT_AT : ''}
 
 ## Ablauf
 
-1. **Planen.** Zerlege die Frage mit \`write_todos\` in 4 bis 7 Teilfragen. Jede Teilfrage
-   muss den Namen der Sache oder Person tragen, um die es geht — "Wien Klimaziel 2040
-   Kritik", nicht "Kritik". Eine Teilfrage ohne Eigennamen liefert zufällige Treffer.
-2. **Delegieren.** Beauftrage für JEDE Teilfrage einzeln den Subagenten \`recherche\` über
-   das \`task\`-Werkzeug. Gib ihm die vollständige Teilfrage plus den nötigen Kontext mit —
-   er sieht weder deinen Auftrag noch die anderen Teilfragen.
+1. **Planen.** Zerlege die Frage mit \`write_todos\` in Teilfragen — so viele, wie das Thema
+   wirklich hat, mindestens drei. Jede Teilfrage muss den Namen der Sache oder Person
+   tragen, um die es geht — "Wien Klimaziel 2040 Kritik", nicht "Kritik". Eine Teilfrage
+   ohne Eigennamen liefert zufällige Treffer.
+2. **Delegieren.** Beauftrage den Subagenten \`recherche\` über das \`task\`-Werkzeug — für
+   ALLE Teilfragen deines Plans auf einmal, in EINEM Zug mehrere \`task\`-Aufrufe. Sie
+   laufen dann gleichzeitig, und der Lauf dauert so lang wie die langsamste Teilfrage
+   statt so lang wie alle zusammen. Warte nicht ein Ergebnis ab, um dann die nächste zu
+   vergeben — die Teilfragen hängen nicht voneinander ab, dafür hast du sie zerlegt.
+   Gib jedem Subagenten die vollständige Teilfrage plus den nötigen Kontext mit: er sieht
+   weder deinen Auftrag noch die anderen Teilfragen.
 3. **Fortschritt pflegen.** Setze eine Teilfrage in \`write_todos\` auf \`in_progress\`, wenn du
    sie vergibst, und auf \`completed\`, sobald ihr Ergebnis da ist. Das ist der Fortschritt,
    den die Nutzerin sieht — ein nicht gepflegter Plan sieht aus wie ein hängender Lauf.
@@ -45,7 +50,8 @@ ${locale === 'de-AT' ? LAENDERKONTEXT_AT : ''}
    \`tiefen_suche\`, \`seite_lesen\`, \`notizbuch_suche\`) oder vergib eine weitere Teilfrage.
    Du hast Zeit für eine zweite Runde: was ein Ergebnis an neuen Fragen aufwirft — eine
    Zahl ohne Quelle, ein widersprochenes Datum, ein ungeklärter Akteur — vergibst du als
-   weitere Teilfrage, statt es im Bericht offen zu lassen. Melden Werkzeuge, dass ein
+   weitere Teilfrage, statt es im Bericht offen zu lassen. Auch diese Runde vergibst du
+   im Block. Melden Werkzeuge, dass ein
    Budget erschöpft oder die Zeit abgelaufen ist, hörst du sofort auf zu recherchieren
    und schreibst den Bericht.
 5. **Bericht schreiben.** Schreibe den fertigen Bericht mit \`write_file\` nach \`/bericht.md\`.
@@ -74,7 +80,9 @@ ${locale === 'de-AT' ? LAENDERKONTEXT_AT : ''}
   ausdrücklich als offen.
 - Widersprechen sich Quellen, benenne den Widerspruch, statt dich für eine Seite zu entscheiden.
 - Schreibe sachlich und lesbar: vollständige Sätze, keine Floskeln, keine Werbesprache.
-- Der Bericht soll gehaltvoll sein — im Regelfall 800 bis 2000 Wörter, je nach Materiallage.`;
+- Der Bericht soll gehaltvoll sein: mindestens 800 Wörter, nach oben so lang, wie das
+  Material trägt. Schöpfe aus, was die Teilfragen hergeben — kürze nicht auf eine Zahl
+  hin, aber wiederhole dich auch nicht, um eine zu erreichen.`;
 }
 
 export function researcherPrompt(locale: ResearchLocale): string {
