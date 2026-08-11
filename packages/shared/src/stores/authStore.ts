@@ -1,6 +1,6 @@
 import { create, type StateCreator } from 'zustand';
 
-import { setAiConsentRequiredHandler } from '../api/aiConsentSignal.js';
+import { registerAiConsentRequiredHandler } from '../api/aiConsentSignal.js';
 import { DEFAULT_AUTH_STATE } from '../types/auth.js';
 
 import type { AuthState, AuthActions, AuthStore, User } from '../types/auth.js';
@@ -139,7 +139,7 @@ export const useAuthStore = create<AuthStore>()(createAuthStoreSlice);
 // ist der Zeitstempel im Store nachweislich veraltet — auf `null` gezogen
 // erscheint das Einwilligungs-Gate von selbst, statt dass die Nutzer*in vor
 // einem Fehler steht, den sie im Dialog längst ausräumen könnte.
-setAiConsentRequiredHandler(() => {
+registerAiConsentRequiredHandler(() => {
   const { user } = useAuthStore.getState();
   if (user && user.ai_consent_at != null) {
     useAuthStore.setState({ user: { ...user, ai_consent_at: null } });
