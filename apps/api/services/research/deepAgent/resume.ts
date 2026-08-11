@@ -23,6 +23,7 @@
  */
 
 import { AIMessage, HumanMessage, ToolMessage } from '@langchain/core/messages';
+import { GraphRecursionError } from '@langchain/langgraph';
 
 /** How often a run may be resumed after a transient runtime error. */
 export const RESUME_LIMIT = 2;
@@ -39,18 +40,49 @@ export const WRAP_UP_TEXT =
 
 export type RunErrorKind = 'fatal' | 'transient' | 'recursion';
 
+/** Guards against a cause chain that loops back on itself. */
+const MAX_CAUSE_DEPTH = 5;
+
+/**
+ * The error plus everything it was wrapped around.
+ *
+ * A re-thrown error hides its kind behind the wrapper: neither `instanceof` nor
+ * the name matches at the surface, so both checks have to run per link.
+ */
+function errorChain(error: unknown): Error[] {
+  const chain: Error[] = [];
+  let current: unknown = error;
+  while (current instanceof Error && chain.length < MAX_CAUSE_DEPTH) {
+    chain.push(current);
+    current = (current as { cause?: unknown }).cause;
+  }
+  return chain;
+}
+
 /**
  * Decides whether an error that killed the stream is worth a resume.
  *
  * The signal is checked first because an abort surfaces under several names
  * (`AbortError`, `TimeoutError`, or wrapped) — the flag on the signal is the
  * one source that does not depend on who wrapped the error.
+ *
+ * The recursion check runs over the cause chain and accepts either the class or
+ * the name. Missing it is not a crash but a silent downgrade to `transient`:
+ * the run would spend two full continuations where one 12-step wrap-up leg was
+ * meant to do it. `instanceof` alone is not enough either — the error may have
+ * crossed a package boundary with its own copy of the class.
  */
 export function classifyRunError(error: unknown, signal?: AbortSignal): RunErrorKind {
   if (signal?.aborted) return 'fatal';
   const name = error instanceof Error ? error.name : '';
   if (name === 'AbortError' || name === 'TimeoutError') return 'fatal';
-  if (name === 'GraphRecursionError') return 'recursion';
+  if (
+    errorChain(error).some(
+      (e) => e instanceof GraphRecursionError || e.name === 'GraphRecursionError'
+    )
+  ) {
+    return 'recursion';
+  }
   return 'transient';
 }
 
