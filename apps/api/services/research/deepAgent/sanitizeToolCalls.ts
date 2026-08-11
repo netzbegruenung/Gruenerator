@@ -15,6 +15,25 @@
  *
  * Repairing rather than failing is the point: a dropped call costs one step, a
  * poisoned history costs the whole report.
+ *
+ * ── Why filtering `tool_calls` was not enough ──────────────────────────────
+ *
+ * The same call rides in up to three fields, and the first version of this
+ * middleware cleaned only the first:
+ *
+ *   1. `tool_calls` — the parsed ones.
+ *   2. `invalid_tool_calls` — where LangChain parks what it could not parse.
+ *   3. `additional_kwargs.tool_calls` — the provider's RAW payload.
+ *
+ * `@langchain/openai`'s converter (`converters/completions`, the
+ * `_convertMessagesToOpenAIParams` path) reads 1 only when it is non-empty and
+ * otherwise passes 3 through verbatim. So the all-garbage case — the one that
+ * empties `tool_calls` — is precisely the case that fell back to the untouched
+ * raw payload and put the poisoned name back on the wire.
+ *
+ * That is the run of 11.08.2026 in the logs: `[sanitize] verworfen` at 10:33:10,
+ * the same 400 immediately after, twice, both continuations of `resume.ts` spent
+ * on it, ~160 s of a 420 s budget. All three fields are filtered now.
  */
 
 import { AIMessage, HumanMessage } from '@langchain/core/messages';
@@ -47,6 +66,38 @@ interface ToolCallLike {
   name?: unknown;
 }
 
+/** The raw OpenAI shape as it survives in `additional_kwargs`. */
+interface RawToolCall {
+  function?: { name?: unknown };
+}
+
+/**
+ * The raw payload, minus every entry the API would reject.
+ *
+ * Returns the `additional_kwargs` to put on the repaired message: the key is
+ * REMOVED rather than set to an empty array when nothing survives, because the
+ * converter branches on `!= null`, not on length — an empty array would still
+ * win over the parsed calls and send `tool_calls: []`.
+ */
+export function sanitizeAdditionalKwargs(
+  kwargs: Record<string, unknown> | undefined
+): Record<string, unknown> {
+  const rest = { ...(kwargs ?? {}) };
+  const raw = rest.tool_calls;
+  if (!Array.isArray(raw)) return rest;
+
+  const kept = (raw as RawToolCall[]).filter((c) => isValidToolName(c?.function?.name));
+  // Identity matters to the caller: an unchanged payload must come back as the
+  // SAME array, or every clean turn looks like a repair and gets rewritten.
+  if (kept.length === raw.length) return rest;
+  if (kept.length === 0) {
+    delete rest.tool_calls;
+    return rest;
+  }
+  rest.tool_calls = kept;
+  return rest;
+}
+
 export const sanitizeToolCallsMiddleware = createMiddleware({
   name: 'sanitizeToolCalls',
   afterModel: {
@@ -57,17 +108,23 @@ export const sanitizeToolCallsMiddleware = createMiddleware({
       if (!(last instanceof AIMessage)) return undefined;
 
       const calls = (last.tool_calls ?? []) as ToolCallLike[];
-      if (calls.length === 0) return undefined;
+      const invalidParsed = (last.invalid_tool_calls ?? []) as ToolCallLike[];
+      const kwargs = sanitizeAdditionalKwargs(last.additional_kwargs);
+      const rawCleaned = kwargs.tool_calls !== last.additional_kwargs?.tool_calls;
 
       const kept = calls.filter((c) => isValidToolName(c.name));
-      if (kept.length === calls.length) return undefined;
+      // `invalid_tool_calls` is dropped wholesale: an entry only lands there
+      // because it could not be parsed, so there is nothing to execute and
+      // nothing worth carrying into the next request.
+      if (kept.length === calls.length && invalidParsed.length === 0 && !rawCleaned) {
+        return undefined;
+      }
 
-      const dropped = calls.length - kept.length;
+      const badNames = [...calls, ...invalidParsed]
+        .filter((c) => !isValidToolName(c.name))
+        .map((c) => JSON.stringify(c.name));
       log.warn(
-        `[sanitize] ${dropped} unbrauchbare(r) Tool-Aufruf(e) verworfen: ${calls
-          .filter((c) => !isValidToolName(c.name))
-          .map((c) => JSON.stringify(c.name))
-          .join(', ')}`
+        `[sanitize] ${badNames.length || 'unbenannte'} unbrauchbare(r) Tool-Aufruf(e) verworfen: ${badNames.join(', ') || '(nur Rohnutzlast)'}`
       );
 
       // Same id → LangGraph's message reducer replaces rather than appends.
@@ -75,7 +132,8 @@ export const sanitizeToolCallsMiddleware = createMiddleware({
         ...(last.id ? { id: last.id } : {}),
         content: last.content,
         tool_calls: kept as never,
-        additional_kwargs: last.additional_kwargs,
+        invalid_tool_calls: [],
+        additional_kwargs: kwargs,
       });
 
       // Every call was garbage: the turn would end here with nothing to show,
