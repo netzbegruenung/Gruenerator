@@ -769,7 +769,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Grenzen",
     "anchor": "#grenzen",
     "category": "Chat",
-    "text": "| | ------------------------------------- | ------------------------------------- | Dateien pro Nachricht | | Größe je Datei | | Alle Dateien einer Nachricht zusammen | | Videos (eigener Weg, siehe unten) | je Datei | Videos zählen nicht in die Gesamtsumme. Sie nehmen einen anderen Weg als die übrigen Dateien — statt in die Anfrage eingebettet zu werden, laden sie separat hoch. Deshalb haben sie ein eigenes, viel höheres Limit. Wählst du eine Datei aus, die der Grünerator nicht lesen kann, bekommst du eine Fehlermeldung mit der Liste der erlaubten Typen — und keine deiner Dateien wird angehängt, auch die gültigen nicht. Nimm die betroffene Datei heraus und häng den Rest erneut an."
+    "text": "| | ------------------------------------- | ------------------------------------- | Dateien pro Nachricht | | Größe je Datei | | Alle Dateien einer Nachricht zusammen | | Videos (eigener Weg, siehe unten) | je Datei | Videos zählen nicht in die Gesamtsumme. Sie nehmen einen anderen Weg als die übrigen Dateien — statt in die Anfrage eingebettet zu werden, laden sie separat hoch. Deshalb haben sie ein eigenes, viel höheres Limit. Wählst du mehrere Dateien auf einmal aus und der Grünerator kann eine davon nicht lesen, bekommst du für diese eine Datei einen Hinweis mit der Liste der erlaubten Typen. Die übrigen Dateien der Auswahl hängen ganz normal an — du musst nichts erneut anhängen."
   },
   {
     "url": "/docs/chat/dateien-hinzufuegen",
