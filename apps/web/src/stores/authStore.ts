@@ -9,7 +9,7 @@ import {
 import {
   getContractsClient,
   setApiLocale,
-  setAiConsentRequiredHandler,
+  registerAiConsentRequiredHandler,
 } from '@gruenerator/shared/api';
 import { toast } from '@gruenerator/ui';
 import { create } from 'zustand';
@@ -811,7 +811,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 // steht, den sie im Dialog längst ausräumen könnte. Web hält einen eigenen
 // Auth-Store, muss sich also eigens eintragen (Mobile erbt die Registrierung
 // aus dem geteilten Store).
-setAiConsentRequiredHandler(() => {
+registerAiConsentRequiredHandler(() => {
   const { user } = useAuthStore.getState();
   if (user && user.ai_consent_at != null) {
     useAuthStore.setState({ user: { ...user, ai_consent_at: null } });

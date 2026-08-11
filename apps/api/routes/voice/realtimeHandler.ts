@@ -2,6 +2,7 @@ import { AudioEncoding, RealtimeTranscription } from '@mistralai/mistralai/extra
 import { WebSocketServer, type WebSocket as WsWebSocket } from 'ws';
 
 import { env } from '../../config/env.js';
+import { denyUpgrade, resolveUpgradeAuth } from '../../middleware/resolveUpgradeAuth.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type http from 'http';
@@ -22,13 +23,41 @@ export function attachRealtimeWebSocket(server: http.Server): void {
     const url = new URL(request.url || '', `http://${request.headers.host}`);
     if (url.pathname !== '/api/voice/realtime') return;
 
-    wss.handleUpgrade(request, socket, head, (ws) => {
-      wss.emit('connection', ws, request);
-    });
+    // Solange der Socket noch uns gehört, braucht er einen eigenen
+    // `error`-Listener: ein roher Socket ohne Listener wirft bei einem
+    // Verbindungsabbruch eine unbehandelte Ausnahme und reißt den Worker mit.
+    // Vor der Einwilligungsprüfung gab es dieses Fenster nicht — `handleUpgrade`
+    // lief synchron und `ws` übernahm die Fehlerbehandlung sofort. Jetzt liegt
+    // ein `await` dazwischen, das jede anonyme Verbindung offen halten kann.
+    const onSocketError = (err: Error): void => {
+      log.warn('[Realtime] Socket-Fehler vor dem Handshake: %s', err.message);
+      socket.destroy();
+    };
+    socket.on('error', onSocketError);
+
+    // Anmeldung und Einwilligung müssen hier ausdrücklich geprüft werden: ein
+    // Upgrade-Handler hängt am HTTP-Server, nicht an Express — das
+    // `app.use('/api/voice', requireAuth, requireAiConsent, …)` in routes.ts
+    // erreicht ihn nie. Ohne die Prüfung nahm dieser Pfad jede anonyme
+    // Verbindung an und streamte Audio auf unseren Kosten an die
+    // Realtime-Transkription.
+    void (async () => {
+      const result = await resolveUpgradeAuth(request, url);
+      if (!result.ok) {
+        log.warn('[Realtime] Upgrade abgelehnt: %s', result.reason);
+        denyUpgrade(socket, result.reason);
+        return;
+      }
+      // Ab hier führt `ws` den Socket — inklusive seiner Fehlerbehandlung.
+      socket.removeListener('error', onSocketError);
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit('connection', ws, request, result.userId);
+      });
+    })();
   });
 
-  wss.on('connection', (ws: WsWebSocket) => {
-    log.debug('[Realtime] Client connected');
+  wss.on('connection', (ws: WsWebSocket, _request: unknown, userId: string) => {
+    log.debug('[Realtime] Client verbunden user=%s', userId);
     void handleRealtimeSession(ws);
   });
 }
