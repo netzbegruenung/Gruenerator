@@ -20,8 +20,19 @@ import * as path from 'path';
 import NextcloudApiClient, { type NextcloudFile } from '../../api-clients/nextcloudApiClient.js';
 import { ocrService } from '../../OcrService/index.js';
 
+/** Read straight off the wire as UTF-8 — never reaches OCR, so no media type needed. */
+export const TEXT_EXTENSIONS = ['.txt', '.md'];
+
+/**
+ * Binary document types handed to OCR. Every entry MUST have a mapping in
+ * `getMediaType`; without one it goes out as application/octet-stream and Mistral
+ * rejects the request, which the caller counts as an error per file on every full
+ * crawl. `wolkeMediaTypes.vitest.ts` guards the pair.
+ */
+export const OCR_EXTENSIONS = ['.pdf', '.docx', '.doc', '.pptx', '.xlsx'];
+
 /** Document types worth extracting from a share (skip images, archives, media). */
-const SUPPORTED_EXTENSIONS = ['.pdf', '.docx', '.doc', '.pptx', '.txt', '.md'];
+const SUPPORTED_EXTENSIONS = [...OCR_EXTENSIONS, ...TEXT_EXTENSIONS];
 
 /** Guard against pathological share trees / recursion loops. */
 const MAX_RECURSION_DEPTH = 5;
@@ -118,7 +129,7 @@ export async function extractWolkeFileText(
   const { buffer } = await client.downloadFile(file.href);
   const lower = file.name.toLowerCase();
 
-  if (lower.endsWith('.txt') || lower.endsWith('.md')) {
+  if (TEXT_EXTENSIONS.some((ext) => lower.endsWith(ext))) {
     return buffer.toString('utf-8');
   }
 
