@@ -272,12 +272,32 @@ router.post('/', async (req, res) => {
       return res.json({ success: true, rejected: true });
     }
 
-    log.info(`Executing confirmed action ${actionId} (${action.type})`);
     // Deleted only once the side effect landed. Deleting first turned every
     // refusal into a one-shot: the user read "im Editor geöffnet", closed the
     // editor, pressed again — and got "Aktion abgelaufen", because the card's
     // action was gone the moment it first failed.
-    const result = await executeAction(action);
+    //
+    // That survival opens a window for a second confirm (another tab, another
+    // device, a double tap) to execute the same action again — and outside
+    // `share_doc` nothing downstream deduplicates, so it would be a second
+    // document, a second group, a second set of board rows. The claim below is
+    // the atomic gate: exactly one request executes, and a failed execution
+    // releases it so the retry the comment above describes still works.
+    if (!(await pendingActionStore.claim(threadId, actionId))) {
+      log.info(`Action ${actionId} (${action.type}) already in flight — refusing duplicate`);
+      return res.status(409).json({
+        error: 'Diese Aktion läuft bereits. Warte kurz und lade den Chat neu.',
+      });
+    }
+
+    log.info(`Executing confirmed action ${actionId} (${action.type})`);
+    let result: { message: string; url?: string };
+    try {
+      result = await executeAction(action);
+    } catch (err) {
+      await pendingActionStore.releaseClaim(threadId, actionId);
+      throw err;
+    }
     await pendingActionStore.delete(threadId, actionId);
 
     if (threadId) {
