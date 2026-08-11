@@ -87,6 +87,21 @@ interface ArtifactLiveStore {
   upsertResearchLog: (id: string, patch: Partial<Omit<ResearchLogArtifact, 'id' | 'type'>>) => void;
 }
 
+/**
+ * Ob ein eingehendes Artefakt die Schiene von selbst aufziehen darf.
+ *
+ * Auf schmalen Geräten nicht: dort liegt die Schiene über dem Faden, und ein
+ * ungefragtes Aufziehen verdeckt die Antwort, die gerade weiterläuft. Die Karte
+ * im Faden bleibt, ein Tipp darauf öffnet weiterhin. Dieselbe Schwelle wie
+ * `ARTIFACT_DOCK_MIN_WIDTH` in der Chat-Seite (72rem), hier aber am Fenster
+ * gemessen — der SSE-Parser kennt keine Layout-Box. Ohne `window` (React
+ * Native) gilt dasselbe Nein: dort rendert keine Schiene.
+ */
+export function canAutoOpenArtifactPanel(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.innerWidth >= 72 * 16;
+}
+
 /** Merge by id, preserving first-seen order; unknown ids append. */
 function mergeSteps(current: ResearchLogStep[], incoming: ResearchLogStep[]): ResearchLogStep[] {
   if (incoming.length === 0) return current;
