@@ -116,8 +116,15 @@ export function officeStripStyle(
 // line up across tiles regardless of how many lines a title wraps to — that even
 // alignment is what keeps the strip tidy. Internals shrink at lg where the 6.5-up
 // tiles are smallest.
+//
+// `h-full` beside `aspect-square`: on phone widths the tile is ~120px wide but a
+// two-line title makes the content ~150px tall, so the square no longer sets the
+// height — the content does, and tiles with a one-line title stayed shorter (28px
+// apart on a 360px-wide phone). Stretching each tile to its flex-stretched wrapper
+// makes the row uniform again; where the square is the taller of the two it still
+// wins, so tablet/desktop are unchanged.
 const OFFICE_TILE_BASE =
-  'group relative flex aspect-square flex-col justify-between gap-2 rounded-2xl p-4 no-underline ' +
+  'group relative flex aspect-square h-full flex-col justify-between gap-2 rounded-2xl p-4 no-underline ' +
   'transition-shadow duration-150 hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] ' +
   'dark:hover:shadow-[0_4px_12px_rgba(0,0,0,0.30)]';
 
@@ -169,7 +176,7 @@ export function OfficeTile({ tool, themeKey }: { tool: WorkplaceToolItem; themeK
     // The star sits beside the link (not nested inside it — a button inside an
     // <a> is invalid and doubles the tab stop confusingly). `group` lives here so
     // the star's hover-reveal still tracks the whole tile.
-    <div className="group relative">
+    <div className="group relative h-full">
       <Link
         to={tool.path ?? '/'}
         className={`${OFFICE_TILE_BASE} ${getToolTheme(styleKey)?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'} outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-600`}
