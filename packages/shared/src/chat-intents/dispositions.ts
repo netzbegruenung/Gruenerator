@@ -103,6 +103,7 @@ export const DISPOSITION_BY_INTENT: Record<ChatIntentId, Disposition> = {
   edit_current_doc: 'anchor',
   edit_current_board: 'anchor',
   modify_board: 'anchor',
+  edit_sheet: 'anchor',
 
   // ── D3 gated — eigenes Gitter, eigene Ausführung. Laufen teils IM Loop
   // (hilfe/summary/mcp), aber ihr Verdikt steuert, was dort montiert wird.

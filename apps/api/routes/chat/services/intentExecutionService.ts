@@ -26,8 +26,14 @@ import { env } from '../../../config/env.js';
 import { type ExpressRequest as SharepicExpressRequest } from '../../../services/chat/sharepicGenerationService.js';
 import { createRecurringTask } from '../../../services/recurringTasks/recurringTasksRepository.js';
 import { resolveSearchTier, resolveTier } from '../../../services/search/searchDepth.js';
+import {
+  formatSheetAsContext,
+  loadSheetState,
+} from '../../../services/sheets/SheetGenerationService.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
+import { checkDocumentWriteAccess } from '../../docs/documentAccess.js';
+import { generateSheetOperations } from '../../sheets/sheetAiService.js';
 
 import { needsThreadGrounding } from './agenticLoop/routing.js';
 import { renderSourceLines, withResearchedSources } from './agenticLoop/sourceRegistry.js';
@@ -42,12 +48,16 @@ import {
 import { CONFIRM_ACTION_CONFIG } from './confirmActionService.js';
 import {
   buildCreateTurnContext,
+  emitArtifactResult,
   runCreateTurn,
   SHAREPIC_CONTEXT_CHARS,
   type CreateTurnOpts,
 } from './createTurn.js';
-import { failCreation, rememberArtifact } from './createTurnHelpers.js';
+import { failCreation, rememberArtifact, streamTextInChunks } from './createTurnHelpers.js';
+import { runDeepAgentTurn } from './deepAgentTurn.js';
 import { runDeepResearchTurn } from './deepResearchTurn.js';
+import { emitEditorOperations, planEditorOps } from './editorOpsCore.js';
+import { finishEditTurn } from './editTurnCompletion.js';
 import { extractTextContent } from './messageHelpers.js';
 import {
   recallPastChats,
@@ -187,6 +197,106 @@ export async function handleBoardCreation(
  */
 export async function handleSheetCreation(opts: CreateTurnOpts): Promise<boolean> {
   return runCreateTurn(SHEET_SPEC, opts);
+}
+
+/**
+ * edit_sheet — Tier-2.7 follow-up on a chat-created sheet ("mach die erste
+ * Zeile fett"). Plans typed ops with the same planner the in-editor AI
+ * assistant uses (generateSheetOperations) and hands them to the client as an
+ * `editor_operations` SSE event, same shape as the agentic loop's edit tool
+ * (editorTools.ts). No server-side op execution here — only the client's live
+ * Univer instance computes styles/formulas correctly; ArtifactPanel relays
+ * the event into the docked sheet-editor iframe via postMessage, which
+ * applies it through the same applySheetOperations() the in-editor assistant
+ * uses. If the sheet isn't open anywhere, the client's existing "no handler
+ * registered" fallback tells the user to open it — there is deliberately no
+ * second, less-correct execution path for that case.
+ */
+export async function handleSheetEdit(opts: {
+  sse: SSEWriter;
+  classifiedState: ChatGraphState;
+  actualThreadId?: string;
+  userId: string;
+  userContent: string;
+}): Promise<boolean> {
+  const { sse, classifiedState, actualThreadId, userId, userContent } = opts;
+  const sheetId = classifiedState.sheetEditId;
+
+  sse.send('response_start', { message: 'Bearbeite Tabelle...' });
+
+  const fail = async (text: string): Promise<boolean> => {
+    sse.send('text_delta', { text });
+    await finishEditTurn({
+      sse,
+      threadId: actualThreadId ?? null,
+      text,
+      intent: 'edit_sheet',
+      persistLabel: 'editSheet:persist',
+      logPrefix: '[SheetEdit]',
+      startTime: classifiedState.startTime,
+      classificationTimeMs: classifiedState.classificationTimeMs,
+      streamed: true,
+    });
+    return true;
+  };
+
+  if (!sheetId) {
+    return fail(
+      'Ich konnte die Tabelle nicht zuordnen. Öffne sie kurz, dann kann ich sie bearbeiten.'
+    );
+  }
+
+  if (!(await checkDocumentWriteAccess(sheetId, userId))) {
+    return fail('Du hast keine Bearbeitungsrechte für diese Tabelle.');
+  }
+
+  const state = await loadSheetState(sheetId, userId);
+  if (!state) {
+    return fail('Ich konnte die Tabelle nicht finden — vielleicht wurde sie gelöscht.');
+  }
+
+  const planned = await planEditorOps({
+    log,
+    logLabel: '[SheetEdit]',
+    plan: () =>
+      generateSheetOperations({
+        userPrompt: userContent,
+        sheetContext: formatSheetAsContext(state),
+        referenceContent: null,
+      }),
+  });
+
+  if (!planned.ok) {
+    return fail(
+      planned.reason === 'planning_failed'
+        ? 'Die Änderung an der Tabelle konnte nicht geplant werden. Versuch es bitte noch einmal.'
+        : 'Ich konnte daraus keine konkrete Tabellen-Änderung ableiten. Beschreib bitte genauer, was sich ändern soll.'
+    );
+  }
+
+  const { operations, summary } = planned;
+  const responseText = `Ich habe die Änderung an **"${state.title}"** vorbereitet (${summary}).`;
+  streamTextInChunks(sse, responseText);
+
+  emitEditorOperations(sse, 'sheet', sheetId, operations, summary);
+  log.info(`[SheetEdit] planned ${operations.length} op(s) for sheet ${sheetId}`);
+
+  if (actualThreadId) {
+    await rememberArtifact(actualThreadId, 'sheet', sheetId, state.title);
+  }
+
+  await finishEditTurn({
+    sse,
+    threadId: actualThreadId ?? null,
+    text: responseText,
+    intent: 'edit_sheet',
+    persistLabel: 'editSheet:persist',
+    logPrefix: '[SheetEdit]',
+    startTime: classifiedState.startTime,
+    classificationTimeMs: classifiedState.classificationTimeMs,
+    streamed: true,
+  });
+  return true;
 }
 
 /** create_presentation / @praesentation-erstellen. */
@@ -351,9 +461,7 @@ export async function handleRecurringTaskCreation(opts: {
       `Wiederkehrende Aufgabe **„${task.title}"** eingerichtet — läuft ${describeRecurrence(task.recurrence)}, ` +
       `${DELIVERY_LABELS_DE[task.delivery] ?? ''}. Nächste Ausführung: ${nextRun}. ` +
       `Du kannst sie jederzeit unter „Wiederkehrende Aufgaben" bearbeiten oder löschen.`;
-    for (let i = 0; i < responseText.length; i += 20) {
-      sse.send('text_delta', { text: responseText.slice(i, i + 20) });
-    }
+    streamTextInChunks(sse, responseText);
 
     const totalTimeMs = Date.now() - classifiedState.startTime;
     sse.sendRaw('done', {
@@ -443,11 +551,7 @@ async function contributeDocumentToOpenTurn(
     const doc = await spec.generate({ aiWorkerPool, req, userId, userContent }, () => {});
     if (!doc) return false;
 
-    const responseText = spec.successText(doc);
-    for (let i = 0; i < responseText.length; i += 20) {
-      sse.send('text_delta', { text: responseText.slice(i, i + 20) });
-    }
-    sse.send('document_created', doc);
+    emitArtifactResult(sse, spec, doc);
     log.info(`[ChatGraph] Document created (${spec.intent}): "${doc.title}" (${doc.documentId})`);
 
     const contextKind =
@@ -880,6 +984,10 @@ export async function executeIntentPipeline(opts: {
     log.info(`[ChatGraph] Multi-intent: ${intentsToExecute.join(' → ')}`);
   }
 
+  // Sources already gathered by an earlier iteration of this loop, so a second
+  // search branch unions instead of replacing (see the merge below).
+  let priorIntentResults: SearchResult[] = [];
+
   for (const currentIntent of intentsToExecute) {
     log.info(
       `[ChatGraph] Stage 2 — intent=${currentIntent}, forcedTool=${forcedTool}, enabledTools.image=${enabledTools?.['image']}`
@@ -1260,16 +1368,42 @@ export async function executeIntentPipeline(opts: {
     ) {
       const toolEnabled = forcedTool || enabledTools?.[currentIntent] !== false;
       if (toolEnabled) {
-        let searchInputState = finalState;
+        // `intent` must follow the LOOP, not the classifier's primary verdict.
+        // searchNode switches on `state.intent`, and the state threaded through
+        // here still carried the primary — so a secondary search intent ran the
+        // PRIMARY branch a second time. Live: "<tagesschau-URL> zusammenfassen"
+        // classified web → scrape_url and issued the identical Linkup search
+        // twice (paid, ~2 s each) while the pasted page was never crawled.
+        let searchInputState = { ...finalState, intent: currentIntent } as ChatGraphState;
 
-        // @deepresearch: Linkup writes the dossier, so this path replaces BOTH
-        // halves of the turn — retrieval and synthesis. It must therefore skip
+        // @deepresearch has two engines, tried in this order. Both replace BOTH
+        // halves of the turn — retrieval and synthesis — and must therefore skip
         // everything below, not just the search node: reranking reorders
-        // `searchResults`, and Linkup's [N] point at the original order.
-        //
-        // `null` means "not served" (quota spent, no key, failed call) and falls
-        // through to the ordinary research path with the warning already sent.
+        // `searchResults`, and a finished answer's [N] point at the original
+        // order. For both, `null` means "not served" (quota spent, no key,
+        // failed run) and falls through to the next one, with the warning
+        // already sent.
+
+        // First the agent, whenever it can run at all: it answers with a DOCUMENT
+        // rather than a dossier, so on success there is nothing to rerank and no
+        // source list to emit — only the short summary it put in
+        // `deepResearchAnswer`.
+        let allowanceGone = false;
         if (searchInputState.deepResearchRequested === true) {
+          const outcome = await runDeepAgentTurn({ state: searchInputState, sse });
+          if (outcome.kind === 'served') {
+            finalState = { ...searchInputState, ...outcome.state } as ChatGraphState;
+            continue;
+          }
+          // Both engines meter through one Redis key, the agent's limit being
+          // the higher one. A spent agent allowance therefore also exceeds the
+          // dossier path's — skipping it saves a doomed call and, more to the
+          // point, a second warning naming a different number.
+          allowanceGone = outcome.kind === 'quota_spent';
+        }
+
+        // Then Linkup's one-shot dossier, the path that always existed.
+        if (searchInputState.deepResearchRequested === true && !allowanceGone) {
           const dossier = await runDeepResearchTurn({ state: searchInputState, sse });
           if (dossier) {
             finalState = { ...searchInputState, ...dossier } as ChatGraphState;
@@ -1382,6 +1516,33 @@ export async function executeIntentPipeline(opts: {
         // very Linkup call this branch exists to avoid.
         const searchResult = reused ? {} : await searchNode(searchInputState);
         finalState = { ...searchInputState, ...searchResult } as ChatGraphState;
+        // searchNode REPLACES `searchResults`. With the loop now running two
+        // genuinely different branches (e.g. web → scrape_url), the second one
+        // would drop the first one's sources on the floor. Union them, this
+        // iteration's results first (the secondary is the more specific ask —
+        // a pasted page beats hits the engine merely found). Deduped by URL;
+        // rerank re-orders right below.
+        //
+        // The guard reads the PRIOR results only, deliberately: an empty second
+        // branch (crawl blocked by robots.txt, zero hits) still overwrites
+        // `searchResults` with [] one line above, so also requiring the CURRENT
+        // branch to be non-empty would wipe the first branch's sources — the
+        // very failure this union exists to prevent, with the roles swapped.
+        if (priorIntentResults.length > 0) {
+          const merged = [...(finalState.searchResults ?? []), ...priorIntentResults];
+          const seen = new Set<string>();
+          const deduped = merged.filter((r) => {
+            const key = r.url ?? `${r.source}:${r.title}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+          finalState = {
+            ...finalState,
+            searchResults: deduped,
+            citations: buildCitations(deduped),
+          } as ChatGraphState;
+        }
 
         if (finalState.searchResults?.length > 2) {
           const rerankStepId = `rerank_${Date.now()}`;
@@ -1454,6 +1615,12 @@ export async function executeIntentPipeline(opts: {
         });
       }
     }
+
+    // Carried at the END of every iteration, not inside the search branch:
+    // `chat_history` (and any future branch) writes `searchResults` directly, and
+    // a following scrape_url would otherwise overwrite sources this loop never
+    // recorded as "prior".
+    priorIntentResults = finalState.searchResults ?? [];
   }
 
   finalState = await carryThreadSourcesIfNeeded(finalState, opts.threadId ?? null);

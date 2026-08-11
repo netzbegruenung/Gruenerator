@@ -35,6 +35,7 @@ import {
   runPdfGeneration,
   runSharepicGeneration,
 } from '../services/intentExecutionService.js';
+import { buildPdfEditBrief, loadLastPdfSpec } from '../services/pdfEditContext.js';
 import { PROGRESS_MESSAGES, type SSEWriter } from '../services/sseHelpers.js';
 
 import type { ChatGraphState, SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -567,8 +568,14 @@ WICHTIG — PRÜFEN STATT BEHAUPTEN: Das Tool öffnet das erzeugte PDF erneut un
         .string()
         .optional()
         .describe('Empfänger-Adressblock (mehrzeilig) — nur bei einem Brief'),
+      aendert_letztes_pdf: z
+        .boolean()
+        .optional()
+        .describe(
+          'true, wenn ein bereits in diesem Gespräch erzeugtes PDF geändert werden soll. Das bisherige Dokument wird dann vollständig übernommen und nur der Auftrag aus "prompt" darauf angewandt — beschreibe in "prompt" dann NUR die Änderung, nicht das ganze Dokument.'
+        ),
     }),
-    execute: async ({ prompt, art, sender, recipient }, options) => {
+    execute: async ({ prompt, art, sender, recipient, aendert_letztes_pdf }, options) => {
       // Idempotent per turn (mirror of makeCreateDocTool).
       if (state.createdDocument) {
         return {
@@ -580,12 +587,29 @@ WICHTIG — PRÜFEN STATT BEHAUPTEN: Das Tool öffnet das erzeugte PDF erneut un
       if (!userId) {
         return { error: 'PDF-Erstellung nicht möglich (keine Nutzer-Sitzung).' };
       }
-      const brief = briefWithContext(prompt, state, sourceRegistry);
+      // An edit re-renders the stored spec; the instruction alone would produce
+      // a new, much shorter document ("Ziel auf 100" → a one-line PDF).
+      const basePdfSpec =
+        aendert_letztes_pdf === true && state.threadId
+          ? await loadLastPdfSpec(state.threadId)
+          : null;
+
+      const brief = basePdfSpec
+        ? buildPdfEditBrief(basePdfSpec, prompt)
+        : briefWithContext(prompt, state, sourceRegistry);
       const userContent = recipient ? `${brief}\n\nEmpfänger des Schreibens:\n${recipient}` : brief;
       // Classify on the ASK, never on the enriched brief: a "Formular"/"Brief"
       // wording inside an appended source snippet would otherwise flip the layout.
+      // An edit keeps the base document's kind — "kürze das" says nothing about
+      // layout, and re-classifying on it would turn a Brief into a Merkblatt.
       const documentKind =
-        art === 'formular' ? 'form' : art === 'brief' ? 'letter' : pdfKindFromText(prompt);
+        art === 'formular'
+          ? 'form'
+          : art === 'brief'
+            ? 'letter'
+            : basePdfSpec
+              ? basePdfSpec.kind
+              : pdfKindFromText(prompt);
       const result = await runPdfGeneration({
         userContent,
         aiWorkerPool: state.aiWorkerPool,
@@ -612,14 +636,29 @@ WICHTIG — PRÜFEN STATT BEHAUPTEN: Das Tool öffnet das erzeugte PDF erneut un
       // forceFinish trips and the router lifts it for message-level persistence.
       sse.send('document_created', result.document);
       state.createdDocument = result.document;
+      // Carries the spec into the persisted message so the NEXT edit has a base.
+      state.createdPdfSpec = result.spec;
+
+      // An edit that found no base silently became a new document built from the
+      // instruction alone — a one-line PDF where the user expected their old one
+      // back. The model has to be able to say so.
+      const baseMissing = aendert_letztes_pdf === true && !basePdfSpec;
+      const verb = basePdfSpec ? 'PDF neu erzeugt' : 'PDF erstellt';
       return {
         document: result.document,
         geprueft: result.summary,
         felder: result.verification.formFields,
         probleme: result.verification.problems,
-        note: result.verification.problems.length
-          ? 'PDF erstellt und als Download angezeigt. Die Selbstprüfung hat Probleme gefunden — nenne sie der*dem Nutzer*in offen. Rufe das Tool NICHT erneut auf.'
-          : 'PDF erstellt, selbst geprüft und als Download angezeigt. Rufe das Tool NICHT erneut auf; kündige es kurz an.',
+        ...(basePdfSpec && { basiertAufVorherigemPdf: true }),
+        note:
+          (baseMissing
+            ? 'ACHTUNG: Zu diesem Gespräch war kein früheres PDF mehr auffindbar — das hier ist eine NEUANLAGE aus deinem Auftrag, keine Überarbeitung. Sag das der*dem Nutzer*in klar. '
+            : basePdfSpec
+              ? 'Das bisherige PDF wurde als Grundlage übernommen und mit der Änderung neu erzeugt. '
+              : '') +
+          (result.verification.problems.length
+            ? `${verb} und als Download angezeigt. Die Selbstprüfung hat Probleme gefunden — nenne sie der*dem Nutzer*in offen. Rufe das Tool NICHT erneut auf.`
+            : `${verb}, selbst geprüft und als Download angezeigt. Rufe das Tool NICHT erneut auf; kündige es kurz an.`),
       };
     },
   });

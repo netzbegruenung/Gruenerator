@@ -33,3 +33,27 @@ export function useIsNarrowerThan(
 
   return narrow;
 }
+
+/**
+ * Reports the element's own content-box width in pixels, live via
+ * ResizeObserver. Sibling to `useIsNarrowerThan` for callers that need the
+ * actual number (e.g. clamping a resizable panel to a fraction of it)
+ * instead of a single boolean crossing.
+ */
+export function useContainerWidth(ref: React.RefObject<HTMLElement | null>): number {
+  const [width, setWidth] = React.useState(0);
+
+  useIsomorphicLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const measure = () => setWidth(el.clientWidth);
+    measure();
+
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [ref]);
+
+  return width;
+}

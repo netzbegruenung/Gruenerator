@@ -28,6 +28,7 @@ import matter from 'gray-matter';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DEFINITIONS_DIR = resolve(__dirname, '../src/agents/definitions');
+const SKILLS_DIR = resolve(__dirname, '../src/agents/skills');
 const OUT_PATH = resolve(DEFINITIONS_DIR, 'index.generated.ts');
 
 interface ParsedAgent {
@@ -90,6 +91,33 @@ function detectPromptBodies(agents: readonly ParsedAgent[]): void {
   );
 }
 
+/**
+ * `defaultRecipeMention` must name an existing recipe: respondNode resolves it
+ * against `SKILLS` and silently runs on the bare systemRole when the lookup
+ * misses, so a typo would ship as a quiet behavior change instead of an error.
+ * The skill *.md frontmatter is the same source `build-skills.ts` emits
+ * `SKILLS` from — reading it directly keeps this check import-cycle-free.
+ */
+function detectUnknownRecipeMentions(agents: readonly ParsedAgent[]): void {
+  const known = new Set(
+    readdirSync(SKILLS_DIR)
+      .filter((f) => f.endsWith('.md'))
+      .map((f) => matter(readFileSync(resolve(SKILLS_DIR, f), 'utf8')).data.mention as unknown)
+      .filter((m): m is string => typeof m === 'string')
+  );
+  const offenders = agents.filter(
+    (a) => a.frontmatter.defaultRecipeMention && !known.has(a.frontmatter.defaultRecipeMention)
+  );
+  if (offenders.length === 0) return;
+  throw new Error(
+    `[build-agents] defaultRecipeMention names no existing recipe in ${offenders.length} agent file(s):\n` +
+      offenders
+        .map((a) => `  · ${a.filename}: "${a.frontmatter.defaultRecipeMention}"`)
+        .join('\n') +
+      `\n\nKnown recipe mentions: ${[...known].sort().join(', ')}`
+  );
+}
+
 function sortAgents(agents: readonly ParsedAgent[]): ParsedAgent[] {
   return [...agents].sort((a, b) => {
     const ao = a.frontmatter.order ?? Number.POSITIVE_INFINITY;
@@ -130,6 +158,7 @@ function build(): void {
   const parsed = parseAll();
   detectDuplicates(parsed);
   detectPromptBodies(parsed);
+  detectUnknownRecipeMentions(parsed);
   const sorted = sortAgents(parsed);
   writeFileSync(OUT_PATH, emit(sorted));
   console.log(`[build-agents] wrote ${sorted.length} agents → ${OUT_PATH}`);

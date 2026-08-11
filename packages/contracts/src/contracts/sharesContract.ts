@@ -14,11 +14,9 @@ import {
   createVideoFromProjectBodySchema,
   updateImageShareBodySchema,
   saveAsTemplateBodySchema,
-  pushToPhoneBodySchema,
   createShareResponseSchema,
   updateImageShareResponseSchema,
   saveAsTemplateResponseSchema,
-  pushToPhoneResponseSchema,
   shareErrorResponseSchema,
   mySharesQuerySchema,
   recentSharesQuerySchema,
@@ -30,7 +28,6 @@ import {
   cloneTemplateResponseSchema,
   listTemplatesResponseSchema,
   getTemplateResponseSchema,
-  listDevicesResponseSchema,
 } from '../schemas/shares.js';
 
 const c = initContract();
@@ -126,24 +123,6 @@ export const sharesContract = c.router(
         500: shareErrorResponseSchema,
       },
       summary: 'Save a share as a template',
-    },
-
-    /**
-     * POST /api/share/push-to-phone
-     * Send a share to the user's mobile device via push notification.
-     */
-    pushToPhone: {
-      method: 'POST',
-      path: '/api/share/push-to-phone',
-      body: pushToPhoneBodySchema,
-      responses: {
-        200: pushToPhoneResponseSchema,
-        401: shareErrorResponseSchema,
-        403: shareErrorResponseSchema,
-        404: shareErrorResponseSchema,
-        500: shareErrorResponseSchema,
-      },
-      summary: 'Push a share to a mobile device',
     },
   },
   { pathPrefix: '' }
@@ -267,18 +246,6 @@ export const sharesReadContract = c.router(
         500: shareErrorResponseSchema,
       },
       summary: "List the user's video shares",
-    },
-
-    /** GET /api/share/devices — the user's registered mobile devices. */
-    listDevices: {
-      method: 'GET',
-      path: '/api/share/devices',
-      responses: {
-        200: listDevicesResponseSchema,
-        401: shareErrorResponseSchema,
-        500: shareErrorResponseSchema,
-      },
-      summary: "List the user's devices",
     },
 
     /** DELETE /api/share/:shareToken — delete a share. */

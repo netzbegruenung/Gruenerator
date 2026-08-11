@@ -41,6 +41,37 @@ export async function seedYjsState(documentId: string, html: string): Promise<bo
 }
 
 /**
+ * Overwrite `collaborative_documents_init` with a Y.Doc built from `html`.
+ *
+ * Only ever correct for a document with NO snapshot and NO update rows: those
+ * two tiers are checked first when the editor hydrates, so an init row under
+ * them is dead weight. `docContentService.replaceDocumentHtml` owns that
+ * precondition — do not call this without it.
+ *
+ * Returns false when the html parsed to nothing (the caller must then treat the
+ * write as failed rather than leave the old state in place and report success).
+ */
+export async function writeYjsInitState(documentId: string, html: string): Promise<boolean> {
+  if (!html?.trim()) return false;
+
+  const ydoc = new Y.Doc();
+  const fragment = ydoc.getXmlFragment(DOCUMENT_FRAGMENT_NAME);
+  injectHtmlIntoFragment(fragment, html);
+  if (fragment.length === 0) return false;
+
+  const compressed = await gzipAsync(Y.encodeStateAsUpdate(ydoc));
+  await getDrizzleInstance()
+    .insert(collaborative_documents_init)
+    .values({ document_id: documentId, init_data: compressed })
+    .onConflictDoUpdate({
+      target: collaborative_documents_init.document_id,
+      set: { init_data: compressed },
+    });
+
+  return true;
+}
+
+/**
  * Best-effort version of `seedYjsState` for request handlers. Logs failures
  * with `context` and never throws — seed failure should not block doc creation
  * because the Phase-6 plaintext fallback in hocuspocus still produces a usable

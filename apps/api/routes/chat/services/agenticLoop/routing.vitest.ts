@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import {
+  looksLikeChitchatTurn,
   looksLikeToolableQuestion,
   looksLikeCompoundGeneration,
   looksLikeCompoundEdit,
@@ -11,6 +12,7 @@ import {
   decideEditToolLoop,
   type EditToolLoopInput,
   needsThreadGrounding,
+  looksLikeSelfContainedTurn,
   rewritesSuppliedText,
   looksLikeUnsourcedWritingOrder,
 } from './routing.js';
@@ -68,6 +70,31 @@ describe('looksLikeToolableQuestion', () => {
   ];
   it.each(fastPath)('keeps a fast-path turn out of the loop: %s', (_label, q) => {
     expect(looksLikeToolableQuestion(q)).toBe(false);
+  });
+});
+
+describe('looksLikeChitchatTurn', () => {
+  // These reach respondNode single-pass with a non-neutral intent (`produktion`
+  // via the residual) — the default-recipe autoload must not fire on them.
+  const chitchat: [string, string][] = [
+    ['identity', 'Wer bist du?'],
+    ['capability', 'Was kannst du?'],
+    ['help', 'hilfe'],
+    ['test', 'test'],
+    ['greeting-prefixed', 'Hallo, was kannst du denn so?'],
+  ];
+  it.each(chitchat)('flags assistant-directed chit-chat: %s', (_label, q) => {
+    expect(looksLikeChitchatTurn(q)).toBe(true);
+  });
+
+  const writeTurns: [string, string][] = [
+    ['press release', 'Schreib eine Pressemitteilung zur Wärmewende'],
+    ['bürgermail', 'Antworte auf diese Bürgeranfrage: …'],
+    ['greeting + write order', 'Hallo! Schreib mir eine PM zum Radentscheid'],
+    ['empty', '   '],
+  ];
+  it.each(writeTurns)('does not flag a write turn: %s', (_label, q) => {
+    expect(looksLikeChitchatTurn(q)).toBe(false);
   });
 });
 
@@ -985,5 +1012,30 @@ describe('rewritesSuppliedText', () => {
     const trap = 'Hilfe bei der Formulierung brauche ich nicht, aber: Was fordern die Grünen?';
     expect(needsThreadGrounding(trap)).toBe(false);
     expect(rewritesSuppliedText(trap)).toBe(false);
+  });
+});
+
+describe('umlaut-initial rewrite verbs — \\b vor Umlaut ist keine Wortgrenze', () => {
+  it('Übersetzen ist ein Rewrite und bleibt self-contained', () => {
+    // Vorher tot: \b[üu]bersetze konnte "Übersetze …" nie matchen — der Turn
+    // galt nicht als self-contained und demotierte in die gemma-Synth-Lane
+    // (QA-Lauf 08/2026: zerrissene Übersetzungen).
+    const t = 'Übersetze den folgenden Text ins Englische: Hallo zusammen, wir treffen uns morgen.';
+    expect(rewritesSuppliedText(t)).toBe(true);
+    expect(looksLikeSelfContainedTurn(t, { hasOwnMaterial: false })).toBe(true);
+  });
+
+  it('Überarbeiten ebenso', () => {
+    const t = 'Überarbeite bitte diesen Absatz sprachlich';
+    expect(rewritesSuppliedText(t)).toBe(true);
+    expect(looksLikeSelfContainedTurn(t, { hasOwnMaterial: false })).toBe(true);
+  });
+
+  it('die ASCII-Schreibweise funktioniert weiterhin', () => {
+    expect(rewritesSuppliedText('ubersetze das bitte auf englisch')).toBe(true);
+  });
+
+  it('kein Match mitten im Wort', () => {
+    expect(rewritesSuppliedText('Die Grenzüberarbeitung der Behörde war Thema')).toBe(false);
   });
 });

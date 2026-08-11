@@ -56,6 +56,8 @@ import { recordDecision } from '../../utils/decisionJournal.js';
 import { createLogger } from '../../utils/logger.js';
 import { withTimeout } from '../../utils/withTimeout.js';
 
+import { deriveImplicitRecipeMention } from './agents/implicitRecipe.js';
+import { detectTaskShape } from './agents/taskShape.js';
 import {
   streamAgenticResponse,
   isAgenticLoopEnabled,
@@ -87,6 +89,7 @@ import { buildCreateTurnContext } from './services/createTurn.js';
 import {
   handleBoardCreation,
   handleSheetCreation,
+  handleSheetEdit,
   handlePresentationCreation,
   handlePdfCreation,
   handleRecurringTaskCreation,
@@ -317,6 +320,21 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         ...(await classifierNode(initialState)),
       } as ChatGraphState;
       classifiedState.lastUserTextNoMentions = lastUserTextNoMentions;
+      // Third routing signal next to intent and complexity: the output
+      // contract the user attached to the turn (JSON/code, "genau N Sätze").
+      // The previous assistant answer feeds the sticky case — a short edit
+      // follow-up after a code/JSON answer carries no format signal of its own.
+      classifiedState.taskShape = detectTaskShape(lastUserTextNoMentions, {
+        lastAssistantText:
+          [...validMessages]
+            .reverse()
+            .filter((m) => m.role === 'assistant')
+            .map((m) => extractTextContent(m.content))
+            .find((t) => t.trim().length > 0) ?? null,
+      });
+      if (classifiedState.taskShape) {
+        log.info(`[ChatGraph] taskShape=${classifiedState.taskShape} detected`);
+      }
       // The heuristic fallback produces a materially worse turn (no
       // multi-source search, no metadata filters) that used to look normal.
       if (classifiedState.classifierDegraded) sendChatWarning(sse, 'classifier_degraded');
@@ -989,8 +1007,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // text, not a fresh sharepic about the word "verlängern". Overrides whatever
       // intent the classifier picked (the edit verb alone rarely classifies as
       // sharepic). Skipped when an image is attached (that's image_edit territory).
-      // Reached only when handleSharepicEdit above declined (no target variant
-      // or non-editable template).
+      // Reached only when handleSharepicEdit above declined: no target variant,
+      // or a template with no descriptor. Since every template except
+      // freeform/freeform-at and profilbild is now chat-editable, that is the
+      // narrow case rather than the common one.
       let sharepicRefinement: { instruction: string; prior: PriorSharepic } | undefined;
       if (
         initialState.clientPlatform !== 'app' &&
@@ -1329,6 +1349,36 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         classifiedState.intent = 'web';
         if (!classifiedState.searchQuery && lastUserText) {
           classifiedState.searchQuery = lastUserText;
+        }
+      }
+
+      // Implicit recipe on the single-pass path: `rezept_laden` only exists in
+      // the loop, but the most common writing turn ("Schreib mir eine
+      // Pressemitteilung zu X") is single-pass — the recipe used to load there
+      // only via an explicit @mention. An unambiguous match sets
+      // `activeSkillMention`, so downstream everything behaves exactly as if
+      // the user had picked the recipe: respondNode injects the fragment,
+      // learned text forms keep their precedence, and on a later loop turn the
+      // mount gate reads it as a deliberate choice. Same opt-out and
+      // custom-prompt guards as the loop's catalogue; loop turns are untouched
+      // (the model picks via the tool there).
+      if (
+        !runAgentic &&
+        (classifiedState.intent === 'direct' || classifiedState.intent === 'produktion') &&
+        !classifiedState.activeSkillMention &&
+        !classifiedState.customSystemPrompt &&
+        enabledTools?.['rezept_laden'] !== false
+      ) {
+        const implicitRecipe = deriveImplicitRecipeMention(
+          lastUserTextNoMentions,
+          classifiedState.userLocale ?? null
+        );
+        if (implicitRecipe) {
+          recordDecision('router.implicit_recipe', implicitRecipe, {
+            inputs: { intent: classifiedState.intent },
+          });
+          log.info(`[${requestId}] implicit recipe on single-pass: @${implicitRecipe}`);
+          classifiedState.activeSkillMention = implicitRecipe;
         }
       }
 
@@ -1697,6 +1747,22 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         }
       }
 
+      // === edit_sheet intent (Tier 2.7 follow-up on a chat-created sheet) ===
+      // handleSheetEdit always owns the turn once dispatched (mirrors
+      // runCreateTurn's contract) — no fall-through to the normal pipeline.
+      if (!runAgentic && classifiedState.intent === 'edit_sheet') {
+        const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+        await handleSheetEdit({
+          sse,
+          classifiedState,
+          ...(actualThreadId != null && { actualThreadId }),
+          userId,
+          userContent: lastUserText as string,
+        });
+        await cleanupPending(true);
+        return { status: 200 as const, body: undefined };
+      }
+
       // === EXPERIMENTAL: create_recurring_task intent ===
       // Falls through to the normal pipeline if extraction fails.
       if (!runAgentic && classifiedState.intent === 'create_recurring_task') {
@@ -1999,6 +2065,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             {
               hasImages: imageAttachments.length > 0,
               intent: finalState.intent,
+              ...(finalState.taskShape != null && { taskShape: finalState.taskShape }),
               agentId: finalState.agentConfig.identifier,
               // Measured BEFORE pruning on purpose: the question is "does this
               // turn need a bigger lane", and pruning is exactly the loss we

@@ -104,18 +104,41 @@
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 56px 24px;
+  /* Bottom padding reserves room for the absolutely-positioned hint + scroll
+     cue (~90px tall at bottom:16px) so an expanded provider list cannot slide
+     under it on short viewports. */
+  padding: 56px 24px 128px;
   /* light-theme locals; overridden for dark below */
   --sp-wordmark: #2f4f40;
   --sp-obr: rgba(47, 79, 64, 0.35);
   --sp-obr-hover: #2f4f40;
   --sp-more-hover-bg: rgba(255, 255, 255, 0.5);
+  /* Warm-tinted rather than neutral black: the ground here is #fdfaf7 plus
+     pastel glows, and a grey shadow on cream reads as dirt. The negative
+     spread keeps the shadow from reaching sideways past the button's edges
+     (0px at rest, 2px on hover), so the clipping box needs vertical room
+     only — horizontal room would not fit on narrow viewports, where the row
+     is already width:100% inside the hero's 24px padding. */
+  --sp-cta-shadow: 0 8px 20px -10px rgba(58, 44, 34, 0.45);
+  --sp-cta-shadow-hover: 0 14px 28px -12px rgba(58, 44, 34, 0.5);
+  /* Derived from the two shadows above, not eyeballed — CSS cannot read the
+     parts of a box-shadow back out, so recompute this by hand when either
+     changes. For `0 <y> <blur> <spread>` the shadow reaches `spread + blur/2`
+     sideways and `y + spread + blur/2` downwards; the hover state is the
+     larger of the two and sets the requirement:
+       sideways  -12 + 28/2 =  2px  → stays inside the button, no room needed
+       downwards  14 +     2 = 16px → this is what has to fit in the clip box
+     20px = 16px + 4px slack. Upwards both shadows end above the button's top
+     edge (8 - 0 and 14 - 2), so there is nothing to reserve there. */
+  --sp-cta-shadow-room: 20px;
 }
 [data-theme='dark'] .sp-hero {
   --sp-wordmark: #cfe3d8;
   --sp-obr: rgba(207, 227, 216, 0.4);
   --sp-obr-hover: #cfe3d8;
   --sp-more-hover-bg: rgba(255, 255, 255, 0.08);
+  --sp-cta-shadow: 0 8px 20px -10px rgba(0, 0, 0, 0.6);
+  --sp-cta-shadow-hover: 0 14px 28px -12px rgba(0, 0, 0, 0.7);
 }
 
 /* ── Top bar ── */
@@ -171,6 +194,46 @@
   align-items: center;
   gap: 14px;
 }
+/* Shadow room, on both children so align-items:center keeps them level. */
+.sp-cta-row > .sp-login,
+.sp-cta-row > .sp-more {
+  margin-bottom: var(--sp-cta-shadow-room);
+}
+
+/* Crossfade wrapper: the login/"mehr erfahren" row and the provider list swap
+   places on toggle. Kept mounted (not conditionally rendered) so the fade +
+   collapse can transition both ways instead of snapping. */
+.sp-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  margin-bottom: 0;
+  transition:
+    grid-template-rows 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    margin-bottom 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.22s ease;
+}
+/* The overflow:hidden is what makes the 0fr → 1fr collapse work, so it also
+   slices off the CTA's drop shadow at the row edge — and the sliver that
+   survives inside the box reads as a grey block behind the buttons instead of
+   a shadow. The buttons therefore carry --sp-cta-shadow-room as a bottom
+   margin so the shadow falls inside the clipping box; the wrapper pulls the
+   same amount back so nothing moves. The room has to come from a child margin,
+   not from padding here: padding on the grid item cannot compress below its
+   own size, which would leave the collapsed state a shadow-room tall. */
+.sp-collapse > * {
+  overflow: hidden;
+  min-height: 0;
+}
+.sp-collapse-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  margin-bottom: calc(-1 * var(--sp-cta-shadow-room));
+  transition:
+    grid-template-rows 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    margin-bottom 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.32s ease 0.08s;
+}
 
 .sp-login,
 .sp-provider {
@@ -187,7 +250,7 @@
   border: none;
   border-radius: 999px;
   padding: 14px 34px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+  box-shadow: var(--sp-cta-shadow);
   cursor: pointer;
   transition:
     transform 0.16s cubic-bezier(0.22, 1, 0.36, 1),
@@ -202,7 +265,7 @@
 .sp-login:hover,
 .sp-provider:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+  box-shadow: var(--sp-cta-shadow-hover);
 }
 .sp-login:active,
 .sp-provider:active {
@@ -284,7 +347,9 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  animation: sp-provider-list-in 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.sp-provider-list > li:last-child {
+  margin-bottom: var(--sp-cta-shadow-room);
 }
 .sp-provider-list .sp-provider {
   width: 100%;
@@ -306,17 +371,6 @@
   line-height: 1;
 }
 
-@keyframes sp-provider-list-in {
-  from {
-    opacity: 0;
-    transform: translateY(-6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 /* Muted via a text-muted-foreground-equivalent token, not opacity — see the
    matching note on .sp-provider-toggle above. */
 .sp-hint {
@@ -325,14 +379,22 @@
   font-size: 0.9rem;
   color: var(--color-muted-foreground);
   letter-spacing: 0.01em;
+  text-align: center;
+  max-width: min(56ch, calc(100vw - 48px));
 }
 
 /* ── Scroll cue ── */
-.sp-cue {
+.sp-cue-wrap {
   position: absolute;
   left: 50%;
-  bottom: 26px;
+  bottom: 16px;
   transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.sp-cue {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -389,7 +451,7 @@
 /* ── Phone ── */
 @media (max-width: 768px) {
   .sp-hero {
-    padding: 72px 24px 88px;
+    padding: 72px 24px calc(128px + env(safe-area-inset-bottom));
   }
   .sp-topbar {
     padding: 18px 20px;
@@ -421,8 +483,14 @@
     width: 100%;
     min-height: 54px;
   }
+  .sp-cue-wrap {
+    bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+  .sp-hint {
+    max-width: 26ch;
+    font-size: 0.82rem;
+  }
   .sp-cue {
-    bottom: calc(18px + env(safe-area-inset-bottom));
     padding: 10px 20px;
     min-height: 44px;
     min-width: 44px;
@@ -437,6 +505,17 @@
   }
 }
 
+/* On very short viewports the hint + cue are noise the CTA column needs the
+   room for — drop them entirely rather than letting anything overlap. */
+@media (max-height: 560px) {
+  .sp-cue-wrap {
+    display: none;
+  }
+  .sp-hero {
+    padding-bottom: 56px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .sp-sunrise {
     animation: none;
@@ -444,8 +523,9 @@
     --sp-sunrise-glow: 1;
     opacity: var(--sp-sunrise-opacity);
   }
-  .sp-provider-list {
-    animation: none;
+  .sp-collapse,
+  .sp-collapse-open {
+    transition: none;
   }
   .sp-cue-chev {
     animation: none;

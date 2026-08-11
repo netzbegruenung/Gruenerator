@@ -27,7 +27,7 @@ import {
 } from '@gruenerator/contracts';
 import { marked, type Token, type Tokens } from 'marked';
 
-import { validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
+import { safeFetch } from '../../utils/validation/urlSecurity.js';
 
 import { countLines, deckFaces, type DeckFaces } from './slideTextMetrics.js';
 
@@ -465,10 +465,9 @@ function containRect(
 async function fetchImageData(url: string): Promise<string | null> {
   if (url.startsWith('data:image/')) return url;
   if (!/^https?:\/\//i.test(url)) return null;
-  const validation = await validateUrlForFetch(url);
-  if (!validation.isValid || !validation.url) return null;
   try {
-    const res = await fetch(validation.url.toString(), { signal: AbortSignal.timeout(5000) });
+    // safeFetch validates the URL and re-validates every redirect hop (SSRF).
+    const res = await safeFetch(url, { signal: AbortSignal.timeout(5000) });
     if (!res.ok) return null;
     const contentType = res.headers.get('content-type') ?? '';
     if (!contentType.startsWith('image/')) return null;

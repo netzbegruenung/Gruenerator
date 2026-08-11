@@ -9,6 +9,7 @@ import {
   type BahnPayload,
   type SharepicUpdatedEvent,
 } from '@gruenerator/contracts';
+import { subtypeToArtifactKind } from '@gruenerator/shared/docs';
 
 import { coerceSharepicVariants } from '../../hooks/useChatGraphStream';
 import { notifyError, notifyWarning } from '../../lib/notify';
@@ -21,7 +22,11 @@ import {
   DEEP_TOOL_MAP,
   formatNamespacedToolLabel,
 } from '../../lib/toolMappings';
-import { useArtifactLiveStore, type ActiveArtifact } from '../../stores/artifactLiveStore';
+import {
+  useArtifactLiveStore,
+  type CodeArtifact,
+  type ResearchLogStep,
+} from '../../stores/artifactLiveStore';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useAgentStore } from '../../stores/chatStore';
 import { useReelLiveStore } from '../../stores/reelLiveStore';
@@ -76,11 +81,12 @@ const NO_RETRIEVAL_STAGE_INTENTS: ReadonlySet<string> = new Set([
   'compute',
 ]);
 
-/** Display titles for agentic sharepic-loop steps (tool_step_start events). */
+/** Display titles for agentic loop steps (tool_step_start events). */
 const TOOL_STEP_TITLES: Record<string, string> = {
   read_sharepic_state: 'Lese aktuellen Zustand…',
   apply_sharepic_ops: 'Wende Änderung an…',
   restore_version: 'Stelle Version wieder her…',
+  rezept_laden: 'Lade Schreibvorgaben…',
 };
 
 export async function* parseSSEStream(
@@ -164,7 +170,7 @@ export async function* parseSSEStream(
   let receivedSharepicData: SharepicData | null = null;
   let receivedSocialPostData: SocialPostPayload | null = null;
   let receivedChartData: ChartData | null = null;
-  let receivedArtifactData: ActiveArtifact | null = null;
+  let receivedArtifactData: CodeArtifact | null = null;
   let receivedComputeData: ComputeData | null = null;
   let receivedBahnData: BahnPayload | null = null;
   let receivedFollowUpSuggestions: string[] = [];
@@ -637,10 +643,46 @@ export async function* parseSSEStream(
             artifact?: { type: 'html' | 'svg'; title: string; content: string };
           };
           if (artifact) {
-            const active: ActiveArtifact = { id: `artifact-${Date.now()}`, ...artifact };
+            const active: CodeArtifact = { id: `artifact-${Date.now()}`, ...artifact };
             receivedArtifactData = active;
             // Open the docked panel immediately.
             useArtifactLiveStore.getState().setActiveArtifact(active);
+          }
+          yield buildResult();
+          break;
+        }
+
+        // A deep research run has started: open the panel so the user can watch
+        // it work. The run takes minutes, so this is the only feedback there is
+        // until the document appears at the end.
+        case 'research_log_start': {
+          const { id, title } = data as { id?: string; title?: string };
+          if (id) {
+            useArtifactLiveStore.getState().setActiveArtifact({
+              id,
+              type: 'research_log',
+              title: title ?? 'Recherche',
+              plan: [],
+              steps: [],
+              status: 'running',
+            });
+          }
+          yield buildResult();
+          break;
+        }
+
+        case 'research_log_update': {
+          const patch = data as {
+            id?: string;
+            plan?: ResearchLogStep[];
+            steps?: ResearchLogStep[];
+            status?: 'running' | 'done' | 'failed';
+            documentUrl?: string;
+            documentId?: string;
+          };
+          if (patch.id) {
+            const { id, ...rest } = patch;
+            useArtifactLiveStore.getState().upsertResearchLog(id, rest);
           }
           yield buildResult();
           break;
@@ -1136,7 +1178,28 @@ export async function* parseSSEStream(
         }
 
         case 'document_created': {
-          receivedCreatedDocument = data as DocumentCreatedData;
+          const created = data as DocumentCreatedData;
+          receivedCreatedDocument = created;
+          // Mirror the 'artifact' case: dock the panel immediately instead of
+          // waiting for a click on DocumentCreatedCard's button. PDFs are
+          // excluded — their url is an authenticated asset endpoint (needs
+          // configFetch + blob), not something a plain iframe src can load.
+          // Only where an ArtifactPanel is actually mounted (/chat thread view):
+          // elsewhere the write is invisible AND would close a docked
+          // sharepic/reel via the one-panel rule with nothing replacing it.
+          if (
+            useArtifactLiveStore.getState().panelMounted &&
+            subtypeToArtifactKind(created.subtype) !== 'pdf'
+          ) {
+            useArtifactLiveStore.getState().setActiveArtifact({
+              id: `document-${created.documentId}`,
+              type: 'document',
+              documentId: created.documentId,
+              subtype: created.subtype,
+              title: created.title,
+              url: created.url,
+            });
+          }
           yield buildResult();
           break;
         }

@@ -6,7 +6,11 @@ import {
   type SupportedLocale,
   type UserProfile,
 } from '@gruenerator/contracts';
-import { getContractsClient, setApiLocale } from '@gruenerator/shared/api';
+import {
+  getContractsClient,
+  setApiLocale,
+  registerAiConsentRequiredHandler,
+} from '@gruenerator/shared/api';
 import { toast } from '@gruenerator/ui';
 import { create } from 'zustand';
 
@@ -94,6 +98,16 @@ export interface AuthStore {
     field: 'reduce_motion' | 'reduce_transparency' | 'show_skip_link',
     enabled: boolean
   ) => Promise<boolean>;
+  /**
+   * Ausdrückliche Einwilligung nach Art. 9 Abs. 2 lit. a DSGVO in die
+   * Verarbeitung besonderer Kategorien (die Eingaben können politische
+   * Meinungen enthalten). `true` erteilt, `false` widerruft.
+   *
+   * Nicht optimistisch: eine erteilte Einwilligung, die der Server nie
+   * angenommen hat, wäre eine falsche Behauptung genau an der Stelle, an der
+   * es auf den Nachweis ankommt.
+   */
+  setAiConsent: (granted: boolean) => Promise<boolean>;
 }
 
 // Detect browser locale for unauthenticated default
@@ -768,7 +782,41 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       return false;
     }
   },
+
+  setAiConsent: async (granted: boolean): Promise<boolean> => {
+    try {
+      const result = await getContractsClient().userProfile.updateProfile({
+        body: { ai_consent: granted },
+      });
+      if (result.status !== 200) {
+        throw new Error(`HTTP ${result.status}`);
+      }
+      const ai_consent_at = result.body.profile?.ai_consent_at ?? null;
+      set((state) => ({
+        user: state.user ? { ...state.user, ai_consent_at } : null,
+      }));
+      return true;
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[AuthStore] Error updating AI consent:', errorMessage);
+      toast.error('Einwilligung konnte nicht gespeichert werden.');
+      return false;
+    }
+  },
 }));
+
+// Der Server hat einen KI-Eingang mit „Einwilligung fehlt" abgewiesen. Damit
+// ist der Zeitstempel im Store nachweislich veraltet — auf `null` gezogen
+// erscheint AiConsentGate von selbst, statt dass die Nutzer*in vor einem Fehler
+// steht, den sie im Dialog längst ausräumen könnte. Web hält einen eigenen
+// Auth-Store, muss sich also eigens eintragen (Mobile erbt die Registrierung
+// aus dem geteilten Store).
+registerAiConsentRequiredHandler(() => {
+  const { user } = useAuthStore.getState();
+  if (user && user.ai_consent_at != null) {
+    useAuthStore.setState({ user: { ...user, ai_consent_at: null } });
+  }
+});
 
 // Export legacy helpers for backward compatibility
 export { legacyHelpers };

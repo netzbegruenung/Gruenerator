@@ -49,6 +49,7 @@ import { query } from '@anthropic-ai/claude-agent-sdk';
 import { jsonrepair } from 'jsonrepair';
 import { z } from 'zod';
 
+import { neutralizeGithubMentions } from './utils/githubMentions.js';
 import { parallelLimit } from './utils/parallelLimit.js';
 
 // ── Paths ───────────────────────────────────────────────────────────────────
@@ -582,11 +583,11 @@ function buildIssueBody(result: DocResult, today: string): string {
   );
   lines.push('');
   for (const [i, f] of result.findings.entries()) {
-    lines.push(`### ${i + 1}. ${f.claim} _(${f.severity})_`);
+    lines.push(`### ${i + 1}. ${neutralizeGithubMentions(f.claim)} _(${f.severity})_`);
     lines.push('');
-    lines.push(`- **Doc says:** ${f.docQuote}`);
-    lines.push(`- **Code shows:** ${f.codeEvidence}`);
-    lines.push(`- **Suggested fix:** ${f.suggestedFix}`);
+    lines.push(`- **Doc says:** ${neutralizeGithubMentions(f.docQuote)}`);
+    lines.push(`- **Code shows:** ${neutralizeGithubMentions(f.codeEvidence)}`);
+    lines.push(`- **Suggested fix:** ${neutralizeGithubMentions(f.suggestedFix)}`);
     lines.push('');
   }
   lines.push('---');
@@ -692,10 +693,10 @@ function buildPrCommentBody(results: DocResult[], today: string): string {
     );
     lines.push('');
     for (const [i, f] of r.findings.entries()) {
-      lines.push(`**${i + 1}. ${f.claim}** _(${f.severity})_`);
-      lines.push(`- **Doku sagt:** ${f.docQuote}`);
-      lines.push(`- **Code zeigt:** ${f.codeEvidence}`);
-      lines.push(`- **Vorschlag:** ${f.suggestedFix}`);
+      lines.push(`**${i + 1}. ${neutralizeGithubMentions(f.claim)}** _(${f.severity})_`);
+      lines.push(`- **Doku sagt:** ${neutralizeGithubMentions(f.docQuote)}`);
+      lines.push(`- **Code zeigt:** ${neutralizeGithubMentions(f.codeEvidence)}`);
+      lines.push(`- **Vorschlag:** ${neutralizeGithubMentions(f.suggestedFix)}`);
       lines.push('');
     }
     lines.push('</details>');
@@ -710,7 +711,9 @@ function buildPrCommentBody(results: DocResult[], today: string): string {
     );
     lines.push('');
     for (const r of errored) {
-      lines.push(`- \`${docSourcePath(r.docPath)}\`: ${r.error ?? 'unbekannter Fehler'}`);
+      lines.push(
+        `- \`${docSourcePath(r.docPath)}\`: ${neutralizeGithubMentions(r.error ?? 'unbekannter Fehler')}`
+      );
     }
     lines.push('');
   }

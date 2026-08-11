@@ -76,6 +76,9 @@ export {
   userTextFormsContract,
   skillPromptContract,
   skillVisibilityContract,
+  bgstInstanceOverviewContract,
+  lvAdminAssignmentContract,
+  landesverbandAdminContract,
   recurringTasksContract,
   canvasAiContract,
   canvasContract,
@@ -83,6 +86,7 @@ export {
   contentSyncContract,
   monitorContract,
   sitesContract,
+  texteContract,
   reisekostenContract,
   promptsContract,
 } from './contracts/index.js';
@@ -154,6 +158,7 @@ export * from './schemas/canvasAi.js';
 export * from './schemas/reelEdit.js';
 export * from './schemas/canvas.js';
 export * from './schemas/canvasTemplateDescriptors.js';
+export * from './schemas/canvasTemplateFields.js';
 export * from './schemas/sliderDeck.js';
 export * from './schemas/skill.js';
 export * from './schemas/agent.js';
@@ -161,6 +166,7 @@ export * from './schemas/groups.js';
 export * from './schemas/contentSync.js';
 export * from './schemas/monitor.js';
 export * from './schemas/sites.js';
+export * from './schemas/texte.js';
 export * from './schemas/richtext.js';
 export * from './schemas/reisekosten.js';
 
@@ -175,3 +181,7 @@ export * from './presentationBrand.js';
 
 export * from './schemas/scanner.js';
 export * from './schemas/prompts.js';
+export * from './schemas/landesverbaende.js';
+export * from './schemas/lvAdminAssignment.js';
+export * from './schemas/bgstInstanceOverview.js';
+export * from './schemas/landesverbandAdmin.js';

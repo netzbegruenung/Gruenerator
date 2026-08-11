@@ -247,6 +247,106 @@ function OfficeExpandTile({
   );
 }
 
+// Pill layout for the /office and /studio landing "create" strips (design 2a
+// — see the "Pills, volle Bezeichnung" variant): a centered, WRAPPING row of
+// icon+label pills instead of square cards. Only 4-5 items per strip, so it
+// wraps onto a second line on narrow viewports rather than scrolling or
+// clipping — fully responsive with no fixed tile widths.
+export const OFFICE_PILL_ROW = 'flex flex-wrap items-center justify-center gap-2.5';
+
+// Pill colour comes from the same `toolTheme` pastel field the square
+// Arbeiten tiles use (via `styleKey`/`themeKey`, same override convention as
+// `OfficeActionTile`/`OfficeTile`). Both landing pages currently pass a
+// single page-wide key ("office" / "canvas") so every pill in a strip shares
+// one hue, matching the tiles they replaced; leaving the override unset
+// falls back to each tool's own id, so a caller can opt into per-tool colour
+// instead (Reel pink, KI-Bilder violet, ...) if that's ever wanted.
+const OFFICE_PILL_BASE =
+  'inline-flex h-[38px] shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-full px-4 ' +
+  'text-sm font-semibold no-underline transition-shadow duration-150 ' +
+  'hover:shadow-[0_2px_8px_rgba(0,0,0,0.10)] dark:hover:shadow-[0_2px_8px_rgba(0,0,0,0.30)] ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-600';
+
+function OfficePillInner({
+  styleKey,
+  Icon,
+  title,
+}: {
+  styleKey: string;
+  Icon: IconType;
+  title: string;
+}) {
+  const theme = getToolTheme(styleKey);
+  return (
+    <>
+      <span className={`flex text-[17px] ${theme?.icon ?? 'text-secondary-600'}`}>
+        <Icon />
+      </span>
+      <span className={theme?.title ?? 'text-foreground-heading'}>{title}</span>
+    </>
+  );
+}
+
+// Navigation pill (a Link) — the /studio landing strip. `themeKey` overrides
+// the colour source same as `OfficeTile`; left unset it reads `tool.id` so
+// each tool (canvas-vorlagen, canvas-ki, canvas-sharepics, reels-untertitel …)
+// keeps its own hue. Favouritable tools keep the same pin-to-sidebar star
+// `OfficeTile` has — the Link becomes a stretched overlay (`absolute inset-0`)
+// so the star (a <button>, invalid nested inside an <a>) stays a sibling,
+// independently clickable/focusable, same idiom `FavouriteStar` documents.
+export function OfficeTilePill({ tool, themeKey }: { tool: WorkplaceToolItem; themeKey?: string }) {
+  const favouritable = isFavouritableTool(tool);
+  const styleKey = themeKey ?? tool.id;
+  return (
+    <div
+      className={`group relative ${OFFICE_PILL_BASE} ${getToolTheme(styleKey)?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'}`}
+    >
+      <Link
+        to={tool.path ?? '/'}
+        className="absolute inset-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-600"
+      >
+        <span className="sr-only">{tool.title}</span>
+      </Link>
+      <span className="pointer-events-none flex items-center gap-2">
+        <OfficePillInner styleKey={styleKey} Icon={tool.icon} title={tool.title} />
+      </span>
+      {favouritable && <FavouriteStar id={tool.id} size={14} />}
+    </div>
+  );
+}
+
+// Action pill (a button) — the /office landing strip creates an empty
+// doc/board/sheet/pres (or opens the template gallery) in place. `styleKey`
+// is the tool id (docs/boards/sheets/presentations/vorlagen), each with its
+// own `toolTheme` entry. `active` is opt-in for callers that use the pill row
+// as an exclusive filter (e.g. Agentura's category strip) rather than a set
+// of one-shot create actions — Studio/Office never pass it, so their pills
+// stay pixel-identical.
+export function OfficeActionPill({
+  styleKey,
+  icon: Icon,
+  title,
+  active,
+  onClick,
+}: {
+  styleKey: string;
+  icon: IconType;
+  title: string;
+  active?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={`${OFFICE_PILL_BASE} ${getToolTheme(styleKey)?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'} ${active ? 'ring-2 ring-inset ring-foreground dark:ring-white' : ''}`}
+    >
+      <OfficePillInner styleKey={styleKey} Icon={Icon} title={title} />
+    </button>
+  );
+}
+
 // A "Weitere" child rendered as a full tile in the expanded second row. Wears the
 // neutral `weitere` hue so the group reads as one family; handles both internal
 // routes (Link) and external links (anchor).
