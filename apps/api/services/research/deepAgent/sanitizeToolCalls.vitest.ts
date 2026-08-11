@@ -1,7 +1,12 @@
 import { AIMessage, HumanMessage } from '@langchain/core/messages';
 import { describe, expect, it } from 'vitest';
 
-import { isValidToolName, sanitizeToolCallsMiddleware } from './sanitizeToolCalls.js';
+import {
+  RETRY_LIMIT,
+  RETRY_TEXT,
+  isValidToolName,
+  sanitizeToolCallsMiddleware,
+} from './sanitizeToolCalls.js';
 
 /**
  * The bug this guards against is not visible in the turn that causes it: the
@@ -87,9 +92,38 @@ describe('sanitizeToolCallsMiddleware', () => {
 
     expect(result?.messages).toHaveLength(2);
     expect((result?.messages?.[0] as AIMessage).tool_calls).toEqual([]);
-    const nudge = result?.messages?.[1] as { role: string; content: string };
-    expect(nudge.role).toBe('user');
+    const nudge = result?.messages?.[1] as HumanMessage;
+    expect(nudge).toBeInstanceOf(HumanMessage);
     expect(nudge.content).toContain('einzeln');
+  });
+
+  it('stops jumping after the retry limit, so a permanently broken model cannot burn the run', () => {
+    const history = [
+      ...Array.from({ length: RETRY_LIMIT }, () => new HumanMessage(RETRY_TEXT)),
+      aiWith([call('1,2')]),
+    ];
+
+    const result = hook({ messages: history });
+
+    expect(result?.jumpTo).toBeUndefined();
+    expect(result?.messages).toHaveLength(1);
+    expect((result?.messages?.[0] as AIMessage).tool_calls).toEqual([]);
+  });
+
+  it('still jumps below the limit', () => {
+    const result = hook({ messages: [new HumanMessage(RETRY_TEXT), aiWith([call('1,2')])] });
+
+    expect(result?.jumpTo).toBe('model');
+  });
+
+  it('does not count unrelated user messages against the limit', () => {
+    const history = [
+      new HumanMessage('Recherchiere bitte X'),
+      new HumanMessage('und auch Y'),
+      aiWith([call('1,2')]),
+    ];
+
+    expect(hook({ messages: history })?.jumpTo).toBe('model');
   });
 
   it('jumps back to the model on the all-garbage nudge — the message alone would not reroute', () => {
