@@ -25,6 +25,7 @@ import {
   HiOutlineBell,
   HiOutlineDocumentText,
   HiOutlineLink,
+  HiOutlineLogout,
   HiOutlineMail,
   HiOutlinePhotograph,
   HiOutlineTrash,
@@ -46,6 +47,7 @@ import {
   useCloneCanvasTemplate,
   useGroupMembers,
   useInviteToGroup,
+  useLeaveGroup,
   useSetGroupMute,
   getGroupInitials,
   type GroupLink,
@@ -190,6 +192,7 @@ const GroupInfoSection = memo(
     const { members, isLoadingMembers } = useGroupMembers(groupId, { isActive: true });
     const [membersDialogOpen, setMembersDialogOpen] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
     const [showVisibilityDialog, setShowVisibilityDialog] = useState(false);
     const cloneTemplate = useCloneCanvasTemplate();
 
@@ -298,6 +301,24 @@ const GroupInfoSection = memo(
     // Personal Space: a solo workspace — hide team collaboration chrome
     // (invite link, visibility, join requests).
     const isPersonal = data?.groupInfo?.group_type === 'personal';
+
+    // Leaving is a member action, not an admin one: everybody except the
+    // creator can leave (the backend rejects the creator — they must delete).
+    const createdBy = data?.groupInfo?.created_by;
+    const canLeave =
+      !isPersonal && !!currentUserId && !!createdBy && String(createdBy) !== String(currentUserId);
+    const leaveGroup = useLeaveGroup();
+    const handleLeaveGroup = useCallback(() => {
+      setShowLeaveConfirm(false);
+      leaveGroup.mutate(groupId, {
+        onSuccess: () => {
+          onSuccessMessage?.('Gruppe verlassen.');
+          void navigate('/');
+        },
+        onError: (err: Error) =>
+          onErrorMessage?.(err.message || 'Gruppe konnte nicht verlassen werden.'),
+      });
+    }, [leaveGroup, groupId, navigate, onSuccessMessage, onErrorMessage]);
 
     const handleSaveBoth = useCallback(() => {
       saveGroupName();
@@ -461,6 +482,19 @@ const GroupInfoSection = memo(
                     >
                       <HiOutlineTrash className="size-4 mr-xs" />
                       {isPersonal ? 'Projekt löschen' : 'Gruppe löschen'}
+                    </DropdownMenuItem>
+                  </>
+                )}
+                {canLeave && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => setShowLeaveConfirm(true)}
+                      disabled={leaveGroup.isPending}
+                      className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
+                    >
+                      <HiOutlineLogout className="size-4 mr-xs" />
+                      Gruppe verlassen
                     </DropdownMenuItem>
                   </>
                 )}
@@ -973,6 +1007,31 @@ const GroupInfoSection = memo(
                 disabled={isDeletingGroup}
               >
                 Endgültig löschen
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showLeaveConfirm} onOpenChange={setShowLeaveConfirm}>
+          <DialogContent className="sm:max-w-[24rem]">
+            <DialogHeader>
+              <DialogTitle>Gruppe verlassen</DialogTitle>
+              <DialogDescription>
+                Du verlierst den Zugriff auf alle Inhalte dieser Gruppe. Die Gruppe selbst und deine
+                eigenen Inhalte bleiben bestehen. Ein erneuter Beitritt ist nur über eine neue
+                Einladung möglich.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-xs">
+              <Button variant="outline" onClick={() => setShowLeaveConfirm(false)}>
+                Abbrechen
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleLeaveGroup}
+                disabled={leaveGroup.isPending}
+              >
+                Verlassen
               </Button>
             </DialogFooter>
           </DialogContent>
