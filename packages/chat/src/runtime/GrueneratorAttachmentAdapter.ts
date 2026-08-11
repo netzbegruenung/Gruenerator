@@ -1,4 +1,9 @@
 import {
+  ATTACHMENT_META_PART_NAME,
+  getPdfPageCount,
+  type AttachmentMetaData,
+} from '../lib/attachmentMeta';
+import {
   validateFile,
   isImageMimeType,
   isVideoMimeType,
@@ -137,14 +142,21 @@ export class GrueneratorAttachmentAdapter implements AttachmentAdapter {
     const base64 = await fileToBase64(attachment.file);
     const isImage = isImageMimeType(mimeType);
 
+    // Display metadata for the attachment chip in the sent message. Data parts
+    // are ignored by the model adapter, so this stays client-side only.
+    const meta: AttachmentMetaData = { size: attachment.file.size };
+    const pageCount = await getPdfPageCount(attachment.file);
+    if (pageCount != null) meta.pageCount = pageCount;
+    const metaPart = { type: 'data' as const, name: ATTACHMENT_META_PART_NAME, data: meta };
+
     return {
       id: attachment.id,
       type: attachment.type,
       name: attachment.name,
       contentType: mimeType,
       content: isImage
-        ? [{ type: 'image' as const, image: `data:${mimeType};base64,${base64}` }]
-        : [{ type: 'file' as const, data: base64, mimeType }],
+        ? [{ type: 'image' as const, image: `data:${mimeType};base64,${base64}` }, metaPart]
+        : [{ type: 'file' as const, data: base64, mimeType }, metaPart],
       status: { type: 'complete' },
     };
   }
