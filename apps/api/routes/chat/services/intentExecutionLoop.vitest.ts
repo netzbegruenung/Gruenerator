@@ -74,6 +74,18 @@ const buildState = (over: Partial<ChatGraphState>): ChatGraphState =>
     ...over,
   }) as unknown as ChatGraphState;
 
+/**
+ * Imported once at module level, not inside each test.
+ *
+ * `intentExecutionService` pulls in a large graph, and a dynamic import inside a
+ * test body charges that one-time load to THAT test's 5 s timeout. Under CI load
+ * the first test tipped over it (5016 ms observed) — and then took the next one
+ * with it: the timed-out call kept running and its `searchNode` calls landed in
+ * the following test, which asserts a call COUNT and saw three instead of one.
+ * At module level the load happens before any timeout is running.
+ */
+const { executeIntentPipeline } = await import('./intentExecutionService.js');
+
 const sse = { send: vi.fn() };
 
 beforeEach(() => {
@@ -84,8 +96,6 @@ beforeEach(() => {
 
 describe('executeIntentPipeline — intent follows the loop', () => {
   it('runs each intent in its OWN searchNode branch and unions the sources', async () => {
-    const { executeIntentPipeline } = await import('./intentExecutionService.js');
-
     const { finalState } = await executeIntentPipeline({
       classifiedState: buildState({
         intent: 'web',
@@ -107,8 +117,6 @@ describe('executeIntentPipeline — intent follows the loop', () => {
   });
 
   it('single-intent turns are unchanged — one call, one result set', async () => {
-    const { executeIntentPipeline } = await import('./intentExecutionService.js');
-
     const { finalState } = await executeIntentPipeline({
       classifiedState: buildState({ intent: 'scrape_url', detectedUrls: ['https://a.test/x'] }),
       sse: sse as never,
@@ -126,8 +134,6 @@ describe('executeIntentPipeline — intent follows the loop', () => {
     // `searchResults` trotzdem mit [], also muss die Vereinigung auch dann
     // laufen, wenn der ZWEITE Zweig leer zurückkommt.
     scrapeReturnsNothing = true;
-    const { executeIntentPipeline } = await import('./intentExecutionService.js');
-
     const { finalState } = await executeIntentPipeline({
       classifiedState: buildState({
         intent: 'web',
@@ -146,8 +152,6 @@ describe('executeIntentPipeline — intent follows the loop', () => {
     // chat_history schreibt `searchResults` selbst, ohne searchNode. Lebte die
     // Übernahme im searchNode-Zweig, hätte der folgende Scrape den Recall
     // überschrieben, ohne ihn je als „vorher" gesehen zu haben.
-    const { executeIntentPipeline } = await import('./intentExecutionService.js');
-
     const { finalState } = await executeIntentPipeline({
       classifiedState: buildState({
         intent: 'chat_history',

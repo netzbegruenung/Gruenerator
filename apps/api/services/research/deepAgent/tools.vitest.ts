@@ -19,6 +19,9 @@ let linkupService: unknown = null;
 
 vi.mock('../../search/GreenPTSearchService.js', () => ({
   getGreenPTSearchService: () => greenptService,
+  // The real ceiling, because the clamp under test is precisely "each lane gets
+  // its OWN limit" — a stubbed value would let the two drift apart unnoticed.
+  GREENPT_MAX_RESULTS: 10,
 }));
 vi.mock('../../search/LinkupService.js', () => ({
   getLinkupService: () => linkupService,
@@ -429,5 +432,80 @@ describe('seite_lesen', () => {
     await seiteLesen.invoke({ url: 'https://ok.example/x' });
 
     expect(ctx.budget.crawlRefundsLeft).toBe(createBudget(Date.now()).crawlRefundsLeft);
+  });
+});
+
+/**
+ * Caps that look like cost controls and bound nothing. `maxResults` is not a
+ * Linkup pricing dimension (depth × outputType is), and the engine returns the
+ * long text whether we keep it or throw it away — so both of these only ever
+ * capped how much the agent could learn per paid call. The chat path made the
+ * same mistake with a flat 300-char snippet until #2227.
+ */
+describe('what a search is allowed to bring back', () => {
+  /** A hit whose text is far longer than any cap under test. */
+  function longHit(url: string) {
+    // Filler that appears nowhere else in the output — 'x' would also match
+    // the one inside "example.com".
+    return { url, name: 'Lang', content: 'y'.repeat(4000) };
+  }
+
+  it('keeps far more of a Linkup hit than the old 400 characters', async () => {
+    greenptService = null;
+    linkupWebSearch.mockResolvedValue({ results: [longHit('https://a.example')] });
+    const { webSuche } = setup();
+
+    const out = await webSuche.invoke({ query: 'Wien Klimaziel' });
+
+    expect(out.match(/y+/)?.[0].length).toBe(1200);
+  });
+
+  it('keeps even more of a deep hit — the expensive call, and the worst place to truncate', async () => {
+    linkupWebSearch.mockResolvedValue({ results: [longHit('https://a.example')] });
+    const { tiefenSuche } = setup();
+
+    const out = await tiefenSuche.invoke({ frage: 'Wie steht Wien zum Klimaziel 2040?' });
+
+    expect(out.match(/y+/)?.[0].length).toBe(1500);
+  });
+
+  it('lets a search ask Linkup for twenty hits', async () => {
+    greenptService = null;
+    linkupWebSearch.mockResolvedValue({ results: [] });
+    const { webSuche } = setup();
+
+    await webSuche.invoke({ query: 'Wien', maxResults: 20 });
+
+    expect(linkupWebSearch).toHaveBeenCalledWith(expect.objectContaining({ maxResults: 20 }));
+  });
+
+  it('holds GreenPT to ITS own ceiling instead of imposing it on Linkup', async () => {
+    // The old code clamped both lanes to 10 — GreenPT's hard limit — so a Linkup
+    // search was silently held to a foreign engine's constraint.
+    greenptWebSearch.mockResolvedValue([]);
+    const { webSuche } = setup();
+
+    await webSuche.invoke({ query: 'Wien', maxResults: 20 });
+
+    expect(greenptWebSearch).toHaveBeenCalledWith(expect.objectContaining({ maxResults: 10 }));
+  });
+
+  it('asks for eight hits when the model names no count', async () => {
+    greenptWebSearch.mockResolvedValue([]);
+    const { webSuche } = setup();
+
+    await webSuche.invoke({ query: 'Wien' });
+
+    expect(greenptWebSearch).toHaveBeenCalledWith(expect.objectContaining({ maxResults: 8 }));
+  });
+
+  it('still clamps a nonsensical request', async () => {
+    greenptService = null;
+    linkupWebSearch.mockResolvedValue({ results: [] });
+    const { webSuche } = setup();
+
+    await webSuche.invoke({ query: 'Wien', maxResults: 500 });
+
+    expect(linkupWebSearch).toHaveBeenCalledWith(expect.objectContaining({ maxResults: 20 }));
   });
 });
