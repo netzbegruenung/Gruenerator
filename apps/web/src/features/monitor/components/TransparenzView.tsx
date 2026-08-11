@@ -20,8 +20,10 @@
 import {
   type GetTransparencyStatsResponseDto,
   type TransparencyDayEntryDto,
+  type TransparencyFeatureEntryDto,
   type TransparencyFootprintDto,
   type TransparencyProviderEntryDto,
+  type UsageFeature,
 } from '@gruenerator/contracts';
 import { cn, LoadingSection, StatusBanner } from '@gruenerator/ui';
 import { useSearchParams } from 'react-router-dom';
@@ -98,6 +100,52 @@ export function useDaysParam(): { days: number; setDays: (d: number) => void } {
   };
 
   return { days, setDays };
+}
+
+/* ── Ansicht wählen ───────────────────────────────────────────────────────── */
+
+/**
+ * Two renderings of the same response: the simple one (default) shows only CO2
+ * grouped by what people did; the expert one keeps every constant and share.
+ * Like the range, the choice lives in the URL so either view can be linked to,
+ * and the default is deleted rather than written out.
+ */
+export function useExpertParam(): { expert: boolean; setExpert: (v: boolean) => void } {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const expert = searchParams.get('ansicht') === 'experten';
+
+  const setExpert = (next: boolean) => {
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev);
+        if (next) params.set('ansicht', 'experten');
+        else params.delete('ansicht');
+        return params;
+      },
+      { replace: true }
+    );
+  };
+
+  return { expert, setExpert };
+}
+
+export function ViewSwitcher({
+  expert,
+  onChange,
+}: {
+  expert: boolean;
+  onChange: (expert: boolean) => void;
+}) {
+  return (
+    <div className={MONITOR_PILL_TRACK}>
+      <PillButton size="sm" active={!expert} onClick={() => onChange(false)}>
+        Einfache Übersicht
+      </PillButton>
+      <PillButton size="sm" active={expert} onClick={() => onChange(true)}>
+        Expert*innenübersicht
+      </PillButton>
+    </div>
+  );
 }
 
 export function RangeSwitcher({
@@ -661,40 +709,142 @@ function MethodNote({ data }: { data: GetTransparencyStatsResponseDto }) {
   );
 }
 
-/* ── Ansicht ──────────────────────────────────────────────────────────────── */
+/* ── Einfache Übersicht ───────────────────────────────────────────────────── */
 
-export function TransparenzView({ days }: { days: number }) {
-  const { data, isLoading, isError } = useTransparencyStats(days);
+/**
+ * The same response, told without a single technical term: one CO2 number and
+ * where it came from, grouped by what people actually did — not by which
+ * datacenter ran it. Tokens, PUE, grid intensity, bands and coverage shares
+ * all stay in the expert view.
+ *
+ * The single number is the UPPER end of the band, with the rounding direction
+ * said in words ("eher darunter") — the honest reading of a range for someone
+ * who was never going to read a range.
+ */
+const SIMPLE_GROUPS: Record<UsageFeature, string> = {
+  chat: 'Chat',
+  sharepic: 'Bilder',
+  docs: 'Texte & Dokumente',
+  texte: 'Texte & Dokumente',
+  notebook: 'Texte & Dokumente',
+  sheets: 'Präsentationen & Tabellen',
+  presentations: 'Präsentationen & Tabellen',
+  subtitler: 'Untertitel',
+  search: 'Websuche',
+  boards: 'Sonstiges',
+  sites: 'Sonstiges',
+  monitor: 'Sonstiges',
+  other: 'Sonstiges',
+};
 
-  if (isLoading) return <LoadingSection label="Verbrauchsdaten werden geladen..." />;
-
-  if (isError || !data) {
-    return (
-      <StatusBanner variant="error">
-        Die Transparenzdaten konnten nicht geladen werden. Bitte versuche es später erneut.
-      </StatusBanner>
-    );
+function simpleGroups(byFeature: TransparencyFeatureEntryDto[]): [string, number][] {
+  const groups = new Map<string, number>();
+  for (const entry of byFeature) {
+    const label = SIMPLE_GROUPS[entry.feature] ?? 'Sonstiges';
+    groups.set(label, (groups.get(label) ?? 0) + entry.emissions_g);
   }
+  return [...groups.entries()].filter(([, grams]) => grams > 0).sort((a, b) => b[1] - a[1]);
+}
 
-  // Not an error and not an empty state: the platform HAS data, it is just too
-  // thin to publish without pointing at individuals. Saying that is the honest
-  // rendering — "keine Daten" would be a false statement about the platform.
-  if (!data.sufficient_data) {
-    return (
-      <div className={cn('p-8', MONITOR_CARD)}>
-        <p className={cn('m-0 text-[1.05rem] font-bold', MONITOR_HEADING)}>
-          Zu wenige Personen für eine veröffentlichbare Zahl
-        </p>
-        <p className={cn('m-0 mt-2 text-[0.9rem] leading-relaxed', MONITOR_MUTED)}>
-          In den letzten {data.days} Tagen waren weniger als {data.min_group_size} Personen aktiv.
-          Ein Verbrauchswert aus so wenigen Personen beschreibt keine Plattform, sondern einzelne
-          Nachmittage — deshalb zeigen wir hier nichts. Mit einem größeren Zeitraum kann die
-          Auswertung greifen.
+function SimpleView({ data }: { data: GetTransparencyStatsResponseDto }) {
+  const { footprint, totals, byFeature } = data;
+  const ranked = simpleGroups(byFeature);
+  const max = Math.max(...ranked.map(([, grams]) => grams), Number.EPSILON);
+
+  return (
+    <>
+      <div className={cn('mb-10 p-8', MONITOR_CARD)}>
+        <p className={cn('m-0 mb-1', MONITOR_EYEBROW)}>CO₂ der letzten {data.days} Tage</p>
+        <div className="flex flex-wrap items-baseline gap-3.5">
+          <span
+            className={cn(
+              'text-[3.4rem] font-semibold leading-none tracking-[-0.03em]',
+              MONITOR_HEADING
+            )}
+          >
+            ≈ {formatGrams(footprint.emissions_g)}
+          </span>
+          <span className={cn('text-[1.1rem] font-bold', MONITOR_ACCENT)}>CO₂</span>
+        </div>
+        <p className={cn('m-0 mt-2.5 max-w-[38rem] text-[0.9rem] leading-relaxed', MONITOR_MUTED)}>
+          Das entspricht ungefähr {carComparison(footprint.emissions_g)}. Wo wir schätzen müssen,
+          runden wir auf — die tatsächliche Zahl liegt eher darunter.
         </p>
       </div>
-    );
-  }
 
+      {ranked.length > 0 && (
+        <section>
+          <div className="mb-5 flex items-baseline justify-between gap-4">
+            <h2
+              className={cn('m-0 text-[1.35rem] font-semibold tracking-[-0.01em]', MONITOR_HEADING)}
+            >
+              Wobei es entstanden ist
+            </h2>
+          </div>
+          <div className={cn('flex flex-col gap-4 p-6', MONITOR_CARD)}>
+            {ranked.map(([label, grams]) => (
+              <BreakdownRow
+                key={label}
+                label={label}
+                sub={carComparison(grams)}
+                value={formatGrams(grams)}
+                share={grams / max}
+              />
+            ))}
+            {(totals.searches > 0 || totals.transcriptions > 0) && (
+              <p
+                className={cn(
+                  'm-0 mt-1 border-t border-[#eef2ef] pt-4 text-[0.8rem] leading-relaxed dark:border-grey-700/60',
+                  MONITOR_FAINT
+                )}
+              >
+                Dazu kommen{' '}
+                {totals.searches > 0 && (
+                  <>
+                    {formatCount(totals.searches)} Websuchen — der Strom dafür fällt beim
+                    Suchanbieter an, nicht bei uns
+                  </>
+                )}
+                {totals.searches > 0 && totals.transcriptions > 0 && <> — und </>}
+                {totals.transcriptions > 0 && (
+                  <>
+                    {formatCount(totals.transcriptions)} untertitelte Videos und Transkripte, für
+                    die uns kein Anbieter einen Verbrauch meldet
+                  </>
+                )}
+                . Beides können wir deshalb nicht seriös mitzählen; es fehlt in der Zahl oben und
+                wir sagen das lieber dazu.
+              </p>
+            )}
+          </div>
+        </section>
+      )}
+
+      <p
+        className={cn(
+          'mt-12 rounded-2xl border border-[#e2eae5] p-6 text-[0.82rem] leading-relaxed dark:border-grey-700/60',
+          MONITOR_MUTED
+        )}
+      >
+        Kein Wert auf dieser Seite ist einer einzelnen Person zuzuordnen — gezählt wird nur, was
+        alle zusammen verbraucht haben. Wer die Rechnung dahinter sehen will — welche Rechenzentren,
+        welche Modelle, mit welchen Annahmen — findet sie in der Expert*innenübersicht.{' '}
+        <a
+          href={DOCS_LINK}
+          target="_blank"
+          rel="noreferrer"
+          className={cn('no-underline hover:underline', MONITOR_ACCENT)}
+        >
+          Wie wir rechnen
+        </a>
+      </p>
+    </>
+  );
+}
+
+/* ── Ansicht ──────────────────────────────────────────────────────────────── */
+
+function ExpertView({ data }: { data: GetTransparencyStatsResponseDto }) {
   const { footprint, totals, daily, byFeature, byModel, providers } = data;
 
   return (
@@ -740,4 +890,39 @@ export function TransparenzView({ days }: { days: number }) {
       <MethodNote data={data} />
     </>
   );
+}
+
+export function TransparenzView({ days, expert }: { days: number; expert: boolean }) {
+  const { data, isLoading, isError } = useTransparencyStats(days);
+
+  if (isLoading) return <LoadingSection label="Verbrauchsdaten werden geladen..." />;
+
+  if (isError || !data) {
+    return (
+      <StatusBanner variant="error">
+        Die Transparenzdaten konnten nicht geladen werden. Bitte versuche es später erneut.
+      </StatusBanner>
+    );
+  }
+
+  // Not an error and not an empty state: the platform HAS data, it is just too
+  // thin to publish without pointing at individuals. Saying that is the honest
+  // rendering — "keine Daten" would be a false statement about the platform.
+  if (!data.sufficient_data) {
+    return (
+      <div className={cn('p-8', MONITOR_CARD)}>
+        <p className={cn('m-0 text-[1.05rem] font-bold', MONITOR_HEADING)}>
+          Zu wenige Personen für eine veröffentlichbare Zahl
+        </p>
+        <p className={cn('m-0 mt-2 text-[0.9rem] leading-relaxed', MONITOR_MUTED)}>
+          In den letzten {data.days} Tagen waren weniger als {data.min_group_size} Personen aktiv.
+          Ein Verbrauchswert aus so wenigen Personen beschreibt keine Plattform, sondern einzelne
+          Nachmittage — deshalb zeigen wir hier nichts. Mit einem größeren Zeitraum kann die
+          Auswertung greifen.
+        </p>
+      </div>
+    );
+  }
+
+  return expert ? <ExpertView data={data} /> : <SimpleView data={data} />;
 }
