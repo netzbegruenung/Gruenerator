@@ -51,6 +51,17 @@ export { type ToolContext } from './toolContext.js';
 const CRAWL_TARGET_CHARS = 6000;
 const CRAWL_TIMEOUT_MS = 12_000;
 
+/**
+ * A failed crawl gets its unit back (capped — see RunBudget.crawlRefundsLeft):
+ * a run whose top sources all 503 should read the next candidates instead of
+ * arriving at the report with its allowance spent on nothing.
+ */
+function refundCrawl(ctx: ToolContext): void {
+  if (ctx.budget.crawlRefundsLeft <= 0) return;
+  ctx.budget.crawlRefundsLeft -= 1;
+  ctx.budget.crawlsLeft += 1;
+}
+
 export function createResearchTools(ctx: ToolContext) {
   /**
    * The workhorse. GreenPT first because it is cheaper, greener and faster;
@@ -233,6 +244,7 @@ export function createResearchTools(ctx: ToolContext) {
         const text = page?.content || page?.fullContent || '';
         if (!page?.crawled || !text) {
           ctx.onStep(`Lese Quelle: ${host}`, 'failed');
+          refundCrawl(ctx);
           return `Die Seite ${host} konnte nicht gelesen werden. Nutze den Suchtreffer-Auszug oder eine andere Quelle.`;
         }
         remember(ctx, target, page.title || host);
@@ -241,6 +253,7 @@ export function createResearchTools(ctx: ToolContext) {
       } catch (error) {
         ctx.onStep(`Lese Quelle: ${host}`, 'failed');
         log.warn(`[seite_lesen] fehlgeschlagen: ${String(error)}`);
+        refundCrawl(ctx);
         return `Die Seite ${host} konnte nicht gelesen werden. Wähle eine andere Quelle.`;
       }
     },
