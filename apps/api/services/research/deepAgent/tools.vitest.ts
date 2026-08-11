@@ -33,7 +33,7 @@ vi.mock('../../search/CrawlingService.js', () => ({
   crawlAndDistill: (...args: unknown[]) => crawlAndDistill(...args),
 }));
 
-const { createResearchTools } = await import('./tools.js');
+const { createResearchTools, subagentTools } = await import('./tools.js');
 const { createBudget } = await import('./types.js');
 
 interface RunnableTool {
@@ -507,5 +507,39 @@ describe('what a search is allowed to bring back', () => {
     await webSuche.invoke({ query: 'Wien', maxResults: 500 });
 
     expect(linkupWebSearch).toHaveBeenCalledWith(expect.objectContaining({ maxResults: 20 }));
+  });
+});
+
+describe('subagentTools', () => {
+  /**
+   * Run against the REAL tool list, not a hand-written one: the point of the
+   * filter is that a tool added to `createResearchTools` reaches the subagents
+   * by default, and only what is named lead-only stays behind.
+   */
+  const leadTools = createResearchTools({
+    budget: createBudget(Date.now()),
+    locale: 'de-DE' as const,
+    sources: new Map(),
+    onStep: vi.fn(),
+  }) as unknown as RunnableTool[];
+
+  it('keeps the deep tier with the lead', () => {
+    const names = subagentTools(leadTools).map((t) => t.name);
+
+    // Linkup `deep`, two calls for the whole run. Since delegation is
+    // concurrent, several workers would race for them — the cap holds either
+    // way, but which sub-question gets them should be a decision, not a race.
+    expect(names).not.toContain('tiefen_suche');
+    expect(leadTools.map((t) => t.name)).toContain('tiefen_suche');
+  });
+
+  it('hands over everything else', () => {
+    const names = subagentTools(leadTools).map((t) => t.name);
+
+    expect(names).toContain('web_suche');
+    expect(names).toContain('seite_lesen');
+    // A subset, never a rebuild — this is what makes new tools flow through.
+    expect(leadTools.map((t) => t.name)).toEqual(expect.arrayContaining(names));
+    expect(names).toHaveLength(leadTools.length - 1);
   });
 });
