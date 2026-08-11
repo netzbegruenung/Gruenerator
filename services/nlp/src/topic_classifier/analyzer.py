@@ -22,6 +22,10 @@ from .lexicons import TopicCategory, get_topic_labels
 # words — one lowercase lemma per line; '#' lines and blanks are ignored.
 _STOPWORD_NOUNS_FILE = Path(__file__).parent / "stopword_nouns.txt"
 
+# Namen, die die NER als PER taggt, die aber keine inhaltlich erwähnte Person
+# sind: Bildquellen ("Unsplash") und Mitarbeitende/Fotograf*innen der LV-Seiten.
+_PERSON_BLOCKLIST_FILE = Path(__file__).parent / "person_blocklist.txt"
+
 
 def _load_stopword_nouns(path: Path) -> set[str]:
     """Load lemmatized noun stopwords from the external word list.
@@ -39,6 +43,26 @@ def _load_stopword_nouns(path: Path) -> set[str]:
 
 
 STOPWORD_NOUNS = _load_stopword_nouns(_STOPWORD_NOUNS_FILE)
+
+
+def _load_person_blocklist(path: Path) -> set[str]:
+    """Load blocked person names from the external list.
+
+    One name per line; blank lines and lines starting with '#' are ignored.
+    Names are casefolded and their internal whitespace collapsed so they match
+    the normalized form built in `extract_persons_batch` (casefold, not lower:
+    it also folds 'ß' to 'ss', so 'Meißner' and 'Meissner' are one entry).
+    """
+    names: set[str] = set()
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        names.add(" ".join(line.split()).casefold())
+    return names
+
+
+PERSON_BLOCKLIST = _load_person_blocklist(_PERSON_BLOCKLIST_FILE)
 
 
 class TopicClassifier:
@@ -227,6 +251,10 @@ class TopicClassifier:
         is counted at most once per document, so the ranking reflects "appears in
         the most documents" rather than "repeated most often in one document".
 
+        Names on PERSON_BLOCKLIST (person_blocklist.txt) are dropped — image
+        credits like "Unsplash" that the NER mistakes for people, plus staff and
+        photographers who only appear as the author of a page.
+
         Returns a ranked list of {person, count} dicts.
         """
         # document frequency per normalized name; keep the most common surface form
@@ -248,6 +276,8 @@ class TopicClassifier:
                 if len(name) < 3 or not name[0].isupper():
                     continue
                 norm = name.casefold()
+                if norm in PERSON_BLOCKLIST:
+                    continue
                 if norm in seen_in_doc:
                     continue
                 seen_in_doc.add(norm)
