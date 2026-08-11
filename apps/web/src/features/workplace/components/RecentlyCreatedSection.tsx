@@ -115,7 +115,12 @@ const FALLBACK_TITLES: Record<RecentItemType, string> = {
 
 // Faint, fixed-height plate every preview sits on (matches the workspace
 // mockup): content lives directly on a tinted surface — no floating paper sheet.
-const PREVIEW_PLATE = 'h-[210px] overflow-hidden bg-grey-50 dark:bg-grey-800/40';
+// Mobile shows two tiles per row, so the plate shrinks with the column width —
+// a 210px preview above a half-width card would read as a tower.
+const PREVIEW_PLATE = 'h-[128px] sm:h-[210px] overflow-hidden bg-grey-50 dark:bg-grey-800/40';
+
+// Two-up on phones (was one), with a tighter gutter so both tiles keep their width.
+const RECENT_GRID = 'grid-cols-2 max-sm:gap-3';
 
 // Schematic preview bodies (placeholder bars, board/table/slides plates) are
 // shared with the Office overview — see components/common/SchematicPreviews.
@@ -174,7 +179,7 @@ const PreviewArea = memo(({ item }: { item: RecentItem }) => {
     }
     return (
       <div
-        className="flex h-[210px] items-center justify-center"
+        className="flex h-[128px] items-center justify-center sm:h-[210px]"
         style={{
           background:
             'repeating-linear-gradient(135deg, var(--color-grey-100) 0 10px, var(--color-grey-200) 10px 20px)',
@@ -205,12 +210,12 @@ const PreviewArea = memo(({ item }: { item: RecentItem }) => {
     body = (
       <div className="flex h-full flex-col justify-center">
         {heading && (
-          <p className="m-0 mb-2 line-clamp-2 text-[15px] font-bold leading-snug text-foreground-heading">
+          <p className="m-0 mb-1 line-clamp-2 text-[13px] font-bold leading-snug text-foreground-heading sm:mb-2 sm:text-[15px]">
             {heading}
           </p>
         )}
         {excerpt && (
-          <p className="m-0 line-clamp-6 text-[14px] leading-relaxed text-grey-500 dark:text-grey-400">
+          <p className="m-0 line-clamp-3 text-[12px] leading-relaxed text-grey-500 dark:text-grey-400 sm:line-clamp-6 sm:text-[14px]">
             {excerpt}
           </p>
         )}
@@ -222,7 +227,7 @@ const PreviewArea = memo(({ item }: { item: RecentItem }) => {
     body = <PlaceholderBars />;
   }
 
-  return <div className={cn(PREVIEW_PLATE, 'p-4 text-left')}>{body}</div>;
+  return <div className={cn(PREVIEW_PLATE, 'p-3 text-left sm:p-4')}>{body}</div>;
 });
 PreviewArea.displayName = 'PreviewArea';
 
@@ -379,12 +384,12 @@ const RecentItemCard = memo(
           )}
         </div>
 
-        <div className="flex items-start gap-2 border-t border-grey-100 px-4 pb-4 pt-3.5 dark:border-grey-700/60">
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <h3 className="m-0 min-w-0 truncate text-[16px] font-semibold text-foreground-heading">
+        <div className="flex items-start gap-1.5 border-t border-grey-100 px-3 pb-3 pt-2.5 dark:border-grey-700/60 sm:gap-2 sm:px-4 sm:pb-4 sm:pt-3.5">
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5 sm:gap-1">
+            <h3 className="m-0 min-w-0 truncate text-[14px] font-semibold text-foreground-heading sm:text-[16px]">
               {item.title || fallbackTitle}
             </h3>
-            <p className="m-0 min-w-0 truncate text-[13px] text-grey-500 dark:text-grey-400">
+            <p className="m-0 min-w-0 truncate text-[11px] text-grey-500 dark:text-grey-400 sm:text-[13px]">
               {metaLine}
             </p>
           </div>
@@ -566,14 +571,14 @@ const RecentlyCreatedSection: React.FC = memo(() => {
       <SectionHeader title="Zuletzt" />
 
       {isLoading ? (
-        <CardGrid columns="5" gap="md">
+        <CardGrid columns="5" gap="md" className={RECENT_GRID}>
           {Array.from({ length: 10 }, (_, i) => (
             <div
               key={i}
               className="rounded-[14px] border border-grey-200/80 dark:border-grey-700/60 overflow-hidden"
             >
-              <Skeleton className="h-[210px] rounded-none" />
-              <div className="px-4 py-3.5">
+              <Skeleton className="h-[128px] rounded-none sm:h-[210px]" />
+              <div className="px-3 py-2.5 sm:px-4 sm:py-3.5">
                 <Skeleton className="h-4 w-2/5" />
                 <Skeleton className="h-4 w-3/4 mt-1.5" />
                 <Skeleton className="h-3 w-1/2 mt-1.5" />
@@ -602,7 +607,7 @@ const RecentlyCreatedSection: React.FC = memo(() => {
         <>
           {/* Vertical grid that scrolls with the page (like Word's "Recent"),
               sliced to the threshold; "Mehr anzeigen" reveals the rest. */}
-          <CardGrid columns="5" gap="md">
+          <CardGrid columns="5" gap="md" className={RECENT_GRID}>
             {(expanded ? items : items.slice(0, RECENT_COLLAPSE_THRESHOLD)).map(renderCard)}
           </CardGrid>
           {items.length > RECENT_COLLAPSE_THRESHOLD && (
