@@ -1,7 +1,6 @@
 'use client';
 
 import { ExternalLink, Globe } from 'lucide-react';
-import * as React from 'react';
 
 import { openSafeNavigationHref, resolveSafeNavigationHref } from '../shared/media';
 
