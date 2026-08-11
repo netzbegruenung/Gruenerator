@@ -123,6 +123,29 @@ describe('parseFormattedContent — markdown', () => {
     expect(parseFormattedContent(undefined)).toEqual([]);
     expect(parseFormattedContent('   ')).toEqual([]);
   });
+
+  it('turns a standalone image paragraph into an image block', () => {
+    const blocks = parseFormattedContent('Davor.\n\n![Ein Sharepic](https://example.org/bild.png)');
+    const image = blocks.find((block) => block.kind === 'image');
+
+    expect(image?.kind === 'image' && image.src).toBe('https://example.org/bild.png');
+    expect(image?.kind === 'image' && image.alt).toBe('Ein Sharepic');
+  });
+
+  it('keeps two images on adjacent lines as two image blocks', () => {
+    const blocks = parseFormattedContent('![a](https://x.org/a.png)\n![b](https://x.org/b.png)');
+    expect(blocks.filter((block) => block.kind === 'image')).toHaveLength(2);
+  });
+
+  it('leaves an image inside running text as an alt-text link segment', () => {
+    const blocks = parseFormattedContent('Siehe ![Logo](https://example.org/logo.png) hier.');
+
+    expect(blocks.filter((block) => block.kind === 'image')).toHaveLength(0);
+    const paragraph = blocks[0];
+    const linked = segmentsOf(paragraph).find((segment) => segment.href);
+    expect(linked?.text).toBe('Logo');
+    expect(linked?.href).toBe('https://example.org/logo.png');
+  });
 });
 
 describe('parseFormattedContent — HTML', () => {
