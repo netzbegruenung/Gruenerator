@@ -84,11 +84,21 @@ export async function runDeepAgentResearch(
   const sources = new Map<string, SourceRef>();
   const budget = createBudget(Date.now());
 
+  // The research clock. It lives HERE and not at the caller because one
+  // deadline cannot both stop the research and leave time to write it down —
+  // the run of 11.08.2026 died mid-wrap-up with 83 sources in hand. The
+  // caller's signal stays the hard kill and is the longer one (hardMs+wrapUpMs).
+  const researchDeadline = AbortSignal.timeout(DEFAULT_BUDGET.hardMs);
+  const researchSignal = signal ? AbortSignal.any([signal, researchDeadline]) : researchDeadline;
+
   const stepIds = new Map<string, string>();
   const ctx: ToolContext = {
     budget,
     locale,
     sources,
+    // Cuts a waiting tool (the GreenPT spacing gate, a retry pause) short with
+    // the research clock instead of letting it outlive its own run.
+    signal: researchSignal,
     ...(params.aiWorkerPool ? { aiWorkerPool: params.aiWorkerPool } : {}),
     ...(params.notebookScope ? { notebooks: params.notebookScope } : {}),
     onStep: (label, status) => {
@@ -152,19 +162,24 @@ export async function runDeepAgentResearch(
   let lastPlanKey = '';
 
   // A dead stream is resumed from its last emitted state instead of being
-  // written off: transient runtime errors get RESUME_LIMIT fresh attempts, the
-  // recursion limit gets one short wrap-up leg — see resume.ts for both.
+  // written off: transient runtime errors get RESUME_LIMIT fresh attempts, and
+  // both budget ceilings — step count and research clock — get the same short
+  // wrap-up leg, whose only job is writing the report. See resume.ts.
   let input: Record<string, unknown> = { messages: [{ role: 'user', content: question }] };
   let recursionLimit: number = DEFAULT_BUDGET.recursionLimit;
   let transientResumes = 0;
   let wrapUpUsed = false;
+  // The wrap-up leg must not inherit the deadline that just fired — it would
+  // abort on its first model call — so from then on only the caller's signal
+  // guards the run.
+  let legSignal: AbortSignal | undefined = researchSignal;
 
   for (;;) {
     try {
       const stream = await runnable.stream(input, {
         recursionLimit,
         streamMode: 'values',
-        ...(signal ? { signal } : {}),
+        ...(legSignal ? { signal: legSignal } : {}),
       });
       for await (const chunk of stream) {
         lastState = chunk as Record<string, unknown>;
@@ -179,21 +194,25 @@ export async function runDeepAgentResearch(
       }
       break;
     } catch (error) {
-      const kind = classifyRunError(error, signal);
+      const kind = classifyRunError(error, signal, researchDeadline);
+      const isWrapUp = kind === 'recursion' || kind === 'deadline';
       if (
         kind === 'fatal' ||
         (kind === 'transient' && transientResumes >= RESUME_LIMIT) ||
-        (kind === 'recursion' && wrapUpUsed)
+        (isWrapUp && wrapUpUsed)
       ) {
         aborted = true;
         log.warn(`[DeepAgent] Lauf abgebrochen (${kind}): ${String(error)}`);
         break;
       }
-      if (kind === 'transient') {
-        transientResumes += 1;
-      } else {
+      if (isWrapUp) {
         wrapUpUsed = true;
         recursionLimit = WRAP_UP_RECURSION_LIMIT;
+        // Past the research deadline the tools refuse anyway, and the leg that
+        // writes the report gets its own allowance from the caller's signal.
+        legSignal = signal;
+      } else {
+        transientResumes += 1;
       }
       input = buildResumeInput(lastState, kind) ?? {
         messages: [{ role: 'user', content: question }],
