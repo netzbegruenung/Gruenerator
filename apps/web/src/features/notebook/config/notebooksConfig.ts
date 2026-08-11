@@ -159,6 +159,15 @@ export const getNotebookById = (id: string): NotebookConfigEntry | undefined =>
     (nb) => nb.id === id && isNotebookResolvableIn(nb.id, CURRENT_INSTANCE)
   );
 
+/**
+ * Listing lookup by id — the counterpart to {@link getNotebookById}, which
+ * resolves *links* and therefore also returns notebooks this instance merely
+ * hides. A gallery row that picks its tiles by id must use this one, otherwise
+ * it renders a tile the instance policy just removed from every other view.
+ */
+export const getListedNotebookById = (id: string): NotebookConfigEntry | undefined =>
+  SYSTEM_NOTEBOOKS.find((nb) => nb.id === id && isNotebookEnabled(nb));
+
 export const getNotebookByPath = (path: string): NotebookConfigEntry | undefined =>
   ALL_SYSTEM_NOTEBOOKS.find(
     (nb) => nb.path === path && isNotebookResolvableIn(nb.id, CURRENT_INSTANCE)
