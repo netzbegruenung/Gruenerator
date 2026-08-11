@@ -65,6 +65,10 @@ export const pendingActionStore = {
    */
   async claim(threadId: string, actionId: string): Promise<boolean> {
     try {
+      // `condition`/`expiration` is the current option shape in redis 6; the
+      // flat `{ NX, EX }` that older lock sites here use (McpOAuthService,
+      // ChatMemoryService) is marked @deprecated in the client's own types.
+      // Both compile to the same command — `SET <key> 1 EX 120 NX`.
       const res = await redisClient.set(claimKey(threadId, actionId), '1', {
         condition: 'NX',
         expiration: { type: 'EX', value: CLAIM_TTL_SECONDS },
