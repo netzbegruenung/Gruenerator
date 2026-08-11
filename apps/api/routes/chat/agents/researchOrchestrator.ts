@@ -1,9 +1,46 @@
 /**
- * Research Orchestrator
+ * The research agent: plan → search → READ → assess → synthesise.
  *
- * Perplexity-style structured research pipeline: plan searches, execute them
- * in parallel, deduplicate and diversify sources, then synthesize a coherent
- * answer with inline citations and follow-up questions.
+ * What this is now, and what it was. Until 08.2026 this module contained three
+ * pipelines stacked on top of each other, of which only the top one ever ran:
+ *
+ * 1. A Linkup short-circuit at the very top. With `LINKUP_API_KEY` set — which
+ *    is every production deployment — `executeResearch` returned Linkup's own
+ *    `sourcedAnswer` dossier and nothing below it executed. Planner, fan-out,
+ *    refinement, synthesis: dead code in production.
+ * 2. A regex planner (`planResearch`) and a template synthesiser that glued
+ *    snippets together, both dating from before we trusted a model to plan.
+ * 3. The LLM path that actually carried the quality.
+ *
+ * Only (3) survives, and it gained the stage all three were missing: **nobody
+ * ever read a page.** Every answer was written from search-result snippets — a
+ * few hundred characters per source — while the loop's `tiefenrecherche` tier
+ * had been reading and distilling full pages since #2227. The research path,
+ * the one whose entire purpose is depth, was the shallowest reader in the
+ * product.
+ *
+ * ── The read stage is a context-quarantined subagent, not an inlined crawl ──
+ *
+ * `readTopSources` hands each page to `crawlAndDistill`, which fetches it and
+ * runs a SEPARATE cheap-model pass that keeps only the passages answering the
+ * question. The raw page never enters this function's context, let alone the
+ * synthesiser's — what comes back is a digest. That is the whole point: a 60k
+ * character page would otherwise have to be either truncated blindly (losing the
+ * answer) or carried whole (crowding out the other nine sources). Isolating the
+ * read is what makes reading twelve pages affordable at all.
+ *
+ * The cheap lane doing the reading is deliberate. `heavy` (Gemma 4 26B-A4B on
+ * Scaleway) carries a 262k window and was being fed ~3k characters of snippets;
+ * the constraint was never the model's capacity, it was that the pipeline threw
+ * the text away before the window was reached.
+ *
+ * ── Who calls this ──
+ *
+ * The Monitor's daily briefing (`HotTopicPipeline`) — and, since #2137, nobody
+ * in the chat: there, research IS the upper tier of `web_search`, so the answer
+ * and every `[N]` in it stay ours. Do not re-add a chat caller without reading
+ * `docs/CLAUDE-chat.md` first; the two-doors design is what the tier ladder
+ * replaced.
  */
 
 import { generateObject, generateText } from 'ai';
@@ -13,10 +50,10 @@ import {
   validateCitations,
   stripUngroundedCitations,
 } from '../../../services/search/CitationGrounder.js';
+import { crawlAndDistill } from '../../../services/search/CrawlingService.js';
 import { applyMMR } from '../../../services/search/DiversityReranker.js';
-import { getLinkupService } from '../../../services/search/LinkupService.js';
-import { expandQuery } from '../../../services/search/QueryExpansionService.js';
 import { createLogger } from '../../../utils/logger.js';
+import { validateUrlForFetch } from '../../../utils/validation/urlSecurity.js';
 import { type AIWorkerPool } from '../../../workers/types.js';
 
 import { executeDirectSearch, executeDirectWebSearch } from './directSearchExecutors.js';
@@ -31,6 +68,16 @@ import {
 export type ResearchLocale = 'de' | 'at' | 'eu';
 export type ReportShape = 'biographical' | 'comparative' | 'positional' | 'event' | 'general';
 
+/**
+ * Sub-question count is a floor with a generous ceiling, not a corridor.
+ *
+ * It used to be `.max(6)` on the grounds of request budget. That reasoning came
+ * from the era when each sub-question bought several paid calls; a sub-search is
+ * now ONE `gruendlich` call, which is the same engine depth and the same single
+ * paid call as the cheap tier (measured 1978ms → 2986ms for twice the material).
+ * So the ceiling protects wall-clock, not cost — and the round budget below
+ * already does that, per round, where it can count.
+ */
 export const DeepPlanSchema = z.object({
   subQuestions: z
     .array(
@@ -41,7 +88,7 @@ export const DeepPlanSchema = z.object({
       })
     )
     .min(2)
-    .max(6),
+    .max(10),
   locale: z.enum(['de', 'at', 'eu']),
   reportShape: z.enum(['biographical', 'comparative', 'positional', 'event', 'general']),
 });
@@ -53,10 +100,65 @@ const QualityAssessmentSchema = z.object({
   weakAspects: z.array(z.string()).max(4).optional(),
 });
 
-const log = createLogger('DirectSearch');
+const log = createLogger('Research');
 
-/** Display cap for Linkup deep-research citations (see executeResearchViaLinkup). */
-const LINKUP_CITATION_SNIPPET_CHARS = 300;
+// ── Budgets ──────────────────────────────────────────────────────────
+//
+// Every number here bounds WALL-CLOCK or context, and none of them bounds cost
+// in the way the numbers they replace claimed to. The distinction matters
+// because the old values were tuned as if they were cost controls: 4 results per
+// sub-search, 8 sources into synthesis, exactly one refinement round. Measured,
+// a sub-search costs the same whether it returns 4 hits or 10 (`maxResults` is
+// not a Linkup pricing dimension — depth × outputType is), so those caps bought
+// nothing and cost material.
+
+/**
+ * Results per sub-search, at the `gruendlich` tier.
+ *
+ * The tier matters more than the number: it adds Linkup's adjacent-keyword
+ * fan-out INSIDE the one paid call, which is the breadth our own `expandQuery`
+ * used to buy with two extra calls. That expansion is gone from this path for
+ * exactly that reason.
+ */
+const SUB_SEARCH_RESULTS = 8;
+
+/** Rounds of searching, including the first. Each round may read pages. */
+const MAX_SEARCH_ROUNDS = 3;
+
+/**
+ * Sub-searches across all rounds. The real wall-clock bound — rounds are
+ * sequential (each waits on the previous round's coverage verdict) while the
+ * searches inside a round run in parallel.
+ */
+const MAX_SUB_SEARCHES = 16;
+
+/** Coverage at or above which the material is good enough to write from. */
+const COVERAGE_TARGET = 4;
+
+/** Pages read per round. */
+const READER_PAGES_PER_ROUND = 6;
+/** Characters kept from each page after distillation. */
+const READER_TARGET_CHARS = 6_000;
+/** Per-page fetch budget. Generous: this path has no interactive turn waiting. */
+const READER_TIMEOUT_MS = 8_000;
+/**
+ * How far down the ranking to look for readable URLs. Each candidate costs a
+ * DNS round trip in `validateUrlForFetch`, so a run of blocked hosts must not
+ * turn into an unbounded sequence of lookups before the first fetch.
+ */
+const READER_SCAN_LIMIT = 14;
+
+/** Sources carried into synthesis when the caller names no limit. */
+const DEFAULT_MAX_SOURCES = 20;
+
+/**
+ * Per-source characters in the synthesis prompt.
+ *
+ * A read page and an unread snippet get the same ceiling; the snippet simply
+ * does not reach it. Sized so the full source block stays well inside the
+ * `heavy` lane's window even at `DEFAULT_MAX_SOURCES` read pages.
+ */
+const SYNTHESIS_SOURCE_CHARS = 6_000;
 
 /**
  * Two sources count as the same document above this Jaccard overlap of their
@@ -88,6 +190,9 @@ const DUPLICATE_SOURCE_SIMILARITY = 0.4;
  */
 const SIMILARITY_TEXT_CHARS = 4000;
 
+/** Snippet length on the citation objects the UI card renders. */
+const CITATION_SNIPPET_CHARS = 400;
+
 export interface ResearchCitation {
   id: number;
   title: string;
@@ -108,16 +213,6 @@ export interface ResearchResult {
   confidence: 'high' | 'medium' | 'low';
 }
 
-interface SearchPlan {
-  queries: Array<{
-    tool: 'web_search' | 'gruenerator_search';
-    query: string;
-    priority: number;
-    reason: string;
-  }>;
-  synthesisStrategy: string;
-}
-
 interface CollectedSource {
   id: number;
   title: string;
@@ -126,68 +221,19 @@ interface CollectedSource {
   snippet: string;
   relevance: number;
   sourceType: 'web' | 'document' | 'person';
+  /** The page was fetched and distilled, so `snippet` is a digest, not a teaser. */
+  read?: boolean;
 }
 
 /**
- * Plan research by analyzing the question and determining search strategy.
- * Uses heuristics to decide which sources to query.
- */
-function planResearch(question: string): SearchPlan {
-  const q = question.toLowerCase();
-  const queries: SearchPlan['queries'] = [];
-
-  // Detect question type
-  const isPartyQuery = /\b(grüne|partei|programm|position|wahlprogramm|beschluss|antrag)\b/i.test(
-    q
-  );
-  const isCurrentEvents = /\b(aktuell|heute|gestern|diese woche|kürzlich|news|nachricht)\b/i.test(
-    q
-  );
-  const isLocalQuery = /\b(ort|stadt|stadtteil|region|gemeinde|kreis|wahlkreis)\b/i.test(q);
-
-  // Priority 2: Party documents for policy questions
-  if (isPartyQuery && !isCurrentEvents) {
-    queries.push({
-      tool: 'gruenerator_search',
-      query: question,
-      priority: 2,
-      reason: 'Query relates to party positions/programs',
-    });
-  }
-
-  // Priority 3: Web search for current events or supplementary info
-  if (isCurrentEvents || queries.length === 0) {
-    queries.push({
-      tool: 'web_search',
-      query: question,
-      priority: isCurrentEvents ? 1 : 3,
-      reason: isCurrentEvents ? 'Query about current events' : 'General information search',
-    });
-  }
-
-  // Add local/geographic web search if location mentioned
-  if (isLocalQuery && !queries.some((q) => q.tool === 'web_search')) {
-    queries.push({
-      tool: 'web_search',
-      query: question,
-      priority: 2,
-      reason: 'Local/geographic information needed',
-    });
-  }
-
-  // Sort by priority
-  queries.sort((a, b) => a.priority - b.priority);
-
-  return {
-    queries,
-    synthesisStrategy: isPartyQuery ? 'policy_overview' : 'factual_synthesis',
-  };
-}
-
-/**
- * Deep-research planner. Decomposes the question into 3–6 sub-questions, infers
- * the country scope (de/at/eu) and the report shape (biographical/comparative/etc.).
- * Used only for `complex` complexity to keep latency bounded for simpler queries.
+ * Decompose the question into sub-questions and infer scope + report shape.
+ *
+ * Returns null when the model fails, and the caller then researches the question
+ * as a single sub-question rather than falling back to a keyword heuristic. The
+ * heuristic that used to sit there (`planResearch`: a handful of German regexes
+ * deciding "party question?" / "current events?") predates trusting a model with
+ * planning at all, and it decided worse than the trivial fallback does — it
+ * routinely sent a biographical question to the party-document collection alone.
  */
 async function planResearchDeep(
   question: string,
@@ -203,7 +249,8 @@ async function planResearchDeep(
       schema: DeepPlanSchema,
       system: `Du planst eine vertiefte Recherche zu Fragen rund um die Grünen (Deutschland und Österreich).
 
-Aufgabe: Zerlege die Nutzerfrage in 3–6 Sub-Fragen, die zusammen das Thema gut abdecken.
+Aufgabe: Zerlege die Nutzerfrage in Sub-Fragen, die zusammen das Thema gut abdecken.
+- Nimm so viele, wie das Thema wirklich hat — bei einer engen Faktenfrage zwei, bei einem breiten Thema auch acht. Erfinde keine Aspekte, nur um auf eine Zahl zu kommen.
 - Jede Sub-Frage adressiert einen eigenen Aspekt (z.B. Biografie, Karriere, Positionen, Aktuelles, Kontroversen, Vergleiche).
 - WICHTIG: Jede Sub-Frage MUSS die zentrale Entität (Person, Partei, Thema, Ereignis) aus der Nutzerfrage explizit nennen. Schreibe z.B. "Welche politischen Positionen vertritt Mona Neubaur?" — NICHT "Welche politischen Positionen?". Sonst liefern Suchmaschinen ohne Kontext irrelevante Treffer.
 - Pro Sub-Frage wähle die passende Quellenart: 'qdrant' für Parteipositionen/Beschlüsse/interne Dokumente, 'web' für Aktuelles/Personen/externe Fakten.
@@ -224,15 +271,31 @@ Gib NUR JSON zurück, das dem Schema entspricht.`,
     });
 
     log.info(
-      `[Research] LLM plan: ${result.object.subQuestions.length} sub-questions, locale=${result.object.locale}, shape=${result.object.reportShape}`
+      `[Research] Plan: ${result.object.subQuestions.length} Sub-Fragen, locale=${result.object.locale}, shape=${result.object.reportShape}`
     );
     return result.object;
   } catch (error) {
     log.warn(
-      `[Research] Deep planner failed, falling back to heuristic: ${error instanceof Error ? error.message : String(error)}`
+      `[Research] Planner failed, researching the question as one sub-question: ${error instanceof Error ? error.message : String(error)}`
     );
     return null;
   }
+}
+
+/**
+ * The plan for a question the planner could not decompose: ask it as-is, of both
+ * source kinds. Two sub-questions rather than one so the schema's own floor is
+ * met and both collections are actually consulted.
+ */
+function fallbackPlan(question: string, locale: ResearchLocale): DeepPlan {
+  return {
+    subQuestions: [
+      { id: 'f1', question, sources: ['web'] },
+      { id: 'f2', question, sources: ['qdrant'] },
+    ],
+    locale,
+    reportShape: 'general',
+  };
 }
 
 /**
@@ -294,62 +357,515 @@ function toDocSource(result: DocSearchHit, id: number, domain: string): Collecte
 }
 
 /**
- * Shared tail of both research paths: strip citations the sources don't
- * support, fall back to template synthesis when most of them were invented,
- * then project the sources into citations.
+ * Confidence from what the run actually produced, instead of a constant.
+ *
+ * An inherited query caps at 'medium': the subject was inferred from the
+ * conversation, so even a perfect retrieval may have researched the wrong
+ * thing — which is exactly the failure that made this label misleading.
+ *
+ * The label is not cosmetic. `respondNode` injects it into the system prompt and
+ * forbids the model to say it found nothing, so a 'high' over a thin run
+ * actively suppresses the honest answer.
  */
-function finalizeResearchResult(params: {
-  question: string;
-  answer: string;
-  confidence: ResearchResult['confidence'];
-  limitedSources: CollectedSource[];
-  strategy: string;
-  searchSteps: ResearchResult['searchSteps'];
-  logPrefix: string;
-  /** Template synthesis produces no citations to validate. */
-  validateGrounding: boolean;
-}): ResearchResult {
-  const { question, limitedSources, strategy, searchSteps, logPrefix } = params;
-  let { answer, confidence } = params;
+export function researchConfidence(signals: {
+  sources: number;
+  domains: number;
+  answerLength: number;
+  queryInherited: boolean;
+}): 'high' | 'medium' | 'low' {
+  const { sources, domains, answerLength, queryInherited } = signals;
+  if (sources === 0 || answerLength < 80) return 'low';
+  if (queryInherited) return sources >= 3 && domains >= 2 ? 'medium' : 'low';
+  if (sources >= 8 && domains >= 4) return 'high';
+  if (sources >= 3 && domains >= 2) return 'medium';
+  return 'low';
+}
 
-  if (params.validateGrounding && answer) {
-    const groundingResult = validateCitations(
-      answer,
-      limitedSources.map((s) => ({ id: s.id, content: s.snippet }))
+/**
+ * Read the highest-ranked sources and replace their teaser snippets with a
+ * question-focused digest of the actual page.
+ *
+ * This is the stage the research path never had. Everything downstream — the
+ * coverage verdict, the synthesis, the citations — was written from search
+ * snippets, so "deep research" meant "more snippets" rather than "read more".
+ *
+ * Three properties are load-bearing:
+ *
+ * - **The raw page never returns.** `crawlAndDistill` sets `content` to the
+ *   digest and keeps `fullContent` to itself. Merging the digest is what lets
+ *   this scale to a dozen pages; merging raw pages would blow the synthesis
+ *   window on the first two.
+ * - **URLs are SSRF-validated** even though they come from the search engine
+ *   rather than from a model. A page that ranks for a query is still
+ *   third-party text chosen by a third party, and this is a server-side fetch.
+ * - **It never throws.** A page that is blocked, slow or unparseable leaves its
+ *   source exactly as the search returned it. Reading is an upgrade, so its
+ *   failure mode is the previous behaviour, not an error.
+ */
+async function readTopSources(
+  sources: CollectedSource[],
+  question: string,
+  aiWorkerPool?: AIWorkerPool
+): Promise<{ sources: CollectedSource[]; pagesRead: number }> {
+  const ranked = [...sources].sort((a, b) => b.relevance - a.relevance);
+  const seeds: Array<{ url: string; title: string; content: string; relevance: number }> = [];
+  /** Fetched (validated) URL → the source's own URL, which is what it is keyed by. */
+  const originalUrl = new Map<string, string>();
+  for (const source of ranked.slice(0, READER_SCAN_LIMIT)) {
+    if (seeds.length >= READER_PAGES_PER_ROUND) break;
+    // Already-read sources are skipped rather than re-fetched: a refinement
+    // round re-ranks the whole pool, so without this the same top pages would
+    // be read again every round and the budget would never reach new ones.
+    if (source.read || !source.url) continue;
+    const check = await validateUrlForFetch(source.url);
+    if (!check.isValid || !check.url) {
+      log.warn(`[Research] Lesen übersprungen für ${source.url}: ${check.error ?? 'invalid'}`);
+      continue;
+    }
+    // The VALIDATED url is what gets fetched, per CLAUDE.md — the checker
+    // normalises, and handing the raw string on would fetch something the check
+    // never saw. It is therefore also the key the crawler answers under, hence
+    // the map back to the source's own url below.
+    const fetchUrl = check.url.toString();
+    originalUrl.set(fetchUrl, source.url);
+    seeds.push({
+      url: fetchUrl,
+      title: source.title,
+      content: source.snippet,
+      relevance: source.relevance,
+    });
+  }
+  if (seeds.length === 0) return { sources, pagesRead: 0 };
+
+  try {
+    const crawled = await crawlAndDistill(seeds, question, {
+      maxUrls: READER_PAGES_PER_ROUND,
+      timeout: READER_TIMEOUT_MS,
+      // `query-focused` rather than `faithful`: nobody named these pages, they
+      // are search hits standing in for an answer. Selecting against the
+      // question is the entire reason to read them rather than trust the teaser.
+      mode: 'query-focused',
+      targetChars: READER_TARGET_CHARS,
+      ...(aiWorkerPool ? { aiWorkerPool } : {}),
+    });
+    const digestByUrl = new Map(
+      crawled
+        .filter((r) => r.crawled && r.content)
+        .map((r) => [originalUrl.get(r.url ?? '') ?? r.url, r.content as string])
     );
+    if (digestByUrl.size === 0) return { sources, pagesRead: 0 };
 
-    if (groundingResult.ungroundedCitations.length > 0) {
-      log.warn(
-        `${logPrefix} ${groundingResult.ungroundedCitations.length} ungrounded citations removed: [${groundingResult.ungroundedCitations.join(', ')}]`
+    log.info(
+      `[Research] ${digestByUrl.size}/${seeds.length} Seiten gelesen für "${truncateText(question, 60)}"`
+    );
+    return {
+      sources: sources.map((source) => {
+        const digest = source.url ? digestByUrl.get(source.url) : undefined;
+        return digest ? { ...source, snippet: digest, read: true } : source;
+      }),
+      pagesRead: digestByUrl.size,
+    };
+  } catch (error) {
+    log.warn(
+      `[Research] Lesen fehlgeschlagen, bleibe bei den Snippets: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return { sources, pagesRead: 0 };
+  }
+}
+
+/**
+ * Execute one round: fan out one mini-search per sub-question, with
+ * locale-scoped collections and language.
+ */
+async function executeRound(
+  plan: DeepPlan,
+  startSourceId: number
+): Promise<{ sources: CollectedSource[]; searchSteps: ResearchResult['searchSteps'] }> {
+  const sources: CollectedSource[] = [];
+  const searchSteps: ResearchResult['searchSteps'] = [];
+  let sourceId = startSourceId;
+  const { qdrantCollection, webLanguage, docDomain } = localeToSearchScope(plan.locale);
+
+  const tasks = plan.subQuestions.flatMap((sq) => {
+    const subTasks: Array<Promise<{ kind: 'web' | 'doc'; query: string; data: unknown }>> = [];
+    if (sq.sources.includes('web')) {
+      subTasks.push(
+        executeDirectWebSearch({
+          query: sq.question,
+          searchType: 'general',
+          // The tier, not just the count: `gruendlich` asks Linkup for its
+          // adjacent-keyword fan-out inside the SAME paid call. This path used
+          // to buy that breadth with its own `expandQuery` variants — two extra
+          // calls for what the engine offers in one.
+          tier: 'gruendlich',
+          maxResults: SUB_SEARCH_RESULTS,
+          language: webLanguage,
+        })
+          .then((data) => ({ kind: 'web' as const, query: sq.question, data }))
+          .catch((err: unknown) => {
+            log.warn(
+              `[Research] Web-Teilsuche fehlgeschlagen für "${sq.question}": ${err instanceof Error ? err.message : String(err)}`
+            );
+            return { kind: 'web' as const, query: sq.question, data: null };
+          })
       );
-      answer = stripUngroundedCitations(answer, groundingResult.ungroundedCitations);
+    }
+    if (sq.sources.includes('qdrant')) {
+      subTasks.push(
+        executeDirectSearch({
+          query: sq.question,
+          collection: qdrantCollection,
+          limit: SUB_SEARCH_RESULTS,
+        })
+          .then((data) => ({ kind: 'doc' as const, query: sq.question, data }))
+          .catch((err: unknown) => {
+            log.warn(
+              `[Research] Qdrant-Teilsuche fehlgeschlagen für "${sq.question}": ${err instanceof Error ? err.message : String(err)}`
+            );
+            return { kind: 'doc' as const, query: sq.question, data: null };
+          })
+      );
+    }
+    return subTasks;
+  });
 
-      if (groundingResult.confidence < 0.5 && groundingResult.totalCitations > 2) {
-        log.warn(`${logPrefix} >50% citations ungrounded, falling back to template synthesis`);
-        const fallback = synthesizeAnswer(question, limitedSources, strategy);
-        answer = fallback.answer;
-        confidence = fallback.confidence;
+  const results = await Promise.all(tasks);
+
+  for (const { kind, query, data } of results) {
+    if (!data) continue;
+    if (kind === 'web') {
+      const web = data as Awaited<ReturnType<typeof executeDirectWebSearch>>;
+      searchSteps.push({ tool: 'web_search', query, resultsCount: web.resultsCount });
+      for (const result of web.results) {
+        sources.push(toWebSource(result, sourceId++));
+      }
+    } else {
+      const doc = data as Awaited<ReturnType<typeof executeDirectSearch>>;
+      searchSteps.push({
+        tool: 'gruenerator_search',
+        query,
+        resultsCount: doc.resultsCount,
+      });
+      for (const result of doc.results) {
+        sources.push(toDocSource(result, sourceId++, docDomain));
       }
     }
   }
 
-  const citations: ResearchCitation[] = limitedSources.map((s) => ({
-    id: s.id,
-    title: s.title,
-    url: s.url,
-    domain: s.domain,
-    snippet: truncateText(s.snippet, 150),
-  }));
+  const uniqueSources = deduplicateByUrl(sources, (s) => s.url || undefined);
+  uniqueSources.sort((a, b) => b.relevance - a.relevance);
+  return { sources: uniqueSources, searchSteps };
+}
 
-  log.info(`${logPrefix} Complete: ${citations.length} citations, confidence: ${confidence}`);
+/**
+ * How well the material covers the question, and what is still missing.
+ *
+ * Judged over EVERY source at full length, not the first eight at 150
+ * characters. The old sample was small enough that the assessor was largely
+ * scoring the top hits' titles — and it is the gate deciding whether to spend
+ * another round, so a blind gate spends badly in both directions.
+ */
+async function assessCoverage(
+  question: string,
+  sources: CollectedSource[]
+): Promise<{ score: number; weakAspects: string[] }> {
+  if (sources.length <= 1) return { score: 1, weakAspects: [] };
 
-  return {
-    answer,
-    citations,
-    followUpQuestions: generateFollowUpQuestions(question, limitedSources),
-    searchSteps,
-    confidence,
+  const aiModel = getIntermediateModel('standard');
+  const summary = sources
+    .map((s, i) => `[${i + 1}] ${s.title}: ${truncateText(s.snippet, 1_200)}`)
+    .join('\n');
+
+  try {
+    const result = await generateObject({
+      model: aiModel,
+      schema: QualityAssessmentSchema,
+      system: `Du bewertest, ob Suchergebnisse eine Recherche-Frage ausreichend abdecken.
+Bewerte Abdeckung 1–5 (5 = vollständig, 3 = lückenhaft, 1 = unzureichend).
+Wenn lückenhaft: nenne 1–3 schwach abgedeckte Aspekte als kurze Suchphrasen (nicht ganze Fragen).`,
+      prompt: `Frage: ${question}\n\nErgebnisse:\n${summary}`,
+      temperature: 0.0,
+    });
+    return {
+      score: result.object.score,
+      weakAspects: result.object.weakAspects ?? [],
+    };
+  } catch (error) {
+    log.warn(
+      `[Research] Abdeckungsprüfung fehlgeschlagen: ${error instanceof Error ? error.message : String(error)}`
+    );
+    // Treated as "good enough": a broken assessor must not spend the remaining
+    // rounds, since it cannot say what they would target.
+    return { score: COVERAGE_TARGET, weakAspects: [] };
+  }
+}
+
+/**
+ * Synthesise the sources into a report with inline citations.
+ *
+ * No output cap. There was one — 500 / 1500 / 2400 tokens by branch — and it
+ * contradicted the prompt it shipped with: `general` asks for "3–5 Aspekte" at
+ * "1–3 Absätze" each, which does not fit in 2400 tokens, so the report was
+ * truncated mid-section precisely on the broad questions it was written for.
+ * The answer paths dropped their output caps in #2002 for the same reason.
+ */
+async function synthesizeReport(params: {
+  question: string;
+  sources: CollectedSource[];
+  strategy: string;
+  brief?: string | null;
+  reportShape: ReportShape;
+}): Promise<string> {
+  const { question, sources, strategy, brief, reportShape } = params;
+  const aiModel = getIntermediateModel('heavy');
+
+  const shapeTemplate: Record<ReportShape, string> = {
+    biographical:
+      'Strukturiere als mehrteiligen Bericht mit Markdown-Überschriften (##): "Werdegang", "Politische Karriere", "Positionen", "Aktuelles". Pro Abschnitt 1–3 Absätze.',
+    comparative:
+      'Strukturiere als Vergleich mit Markdown-Überschriften (##): "Position A", "Position B", "Unterschiede", "Gemeinsamkeiten". Pro Abschnitt 1–3 Absätze.',
+    positional:
+      'Strukturiere als Positionsbericht mit Markdown-Überschriften (##): "Hintergrund", "Position", "Begründung", "Kritik & Debatte". Pro Abschnitt 1–3 Absätze.',
+    event:
+      'Strukturiere als Ereignisbericht mit Markdown-Überschriften (##): "Was ist passiert", "Hintergrund", "Reaktionen", "Einordnung". Pro Abschnitt 1–3 Absätze.',
+    general:
+      'Strukturiere als ausführlichen Bericht mit Markdown-Überschriften (##) für die wichtigsten 3–5 Aspekte. Pro Abschnitt 1–3 Absätze.',
   };
+
+  const systemPrompt = `Du bist ein Recherche-Assistent der Grünen Partei. Synthetisiere die gegebenen Quellen zu einer kohärenten, informativen Antwort auf Deutsch.
+
+Regeln:
+- Nutze NUR Informationen aus den gegebenen Quellen
+- Verwende Inline-Zitate [1], [2] etc. für jede Aussage, die sich auf eine Quelle bezieht
+- ${shapeTemplate[reportShape]}
+- Keine Erfindungen oder externes Wissen hinzufügen
+- Bewerte nichts, was die Quelle nicht selbst bewertet
+- Antworte immer auf Deutsch
+- Fasse die wichtigsten Informationen zusammen und stelle Zusammenhänge her
+- Manche Quellen sind vollständig gelesene Seiten, andere nur kurze Suchtreffer. Stütze dich bevorzugt auf die ausführlichen.
+- Strategie: ${strategy === 'policy_overview' ? 'Fokussiere auf politische Positionen und Beschlüsse' : 'Fasse die faktischen Informationen objektiv zusammen'}`;
+
+  const sourcesText = sources
+    .map(
+      (s, i) =>
+        `[${i + 1}] ${s.title} (${s.domain})${s.read ? ' — vollständig gelesen' : ''}\n${truncateText(s.snippet, SYNTHESIS_SOURCE_CHARS)}`
+    )
+    .join('\n\n');
+
+  const userContent = brief
+    ? `Frage: ${question}\n\nRecherche-Auftrag (zur Orientierung beim Synthetisieren — nicht als Quelle zitieren):\n${brief}\n\nQuellen:\n${sourcesText}`
+    : `Frage: ${question}\n\nQuellen:\n${sourcesText}`;
+
+  const result = await generateText({
+    model: aiModel,
+    messages: [{ role: 'user', content: userContent }],
+    system: systemPrompt,
+    temperature: 0.2,
+  });
+
+  return result.text;
+}
+
+/**
+ * What to hand back when synthesis itself failed.
+ *
+ * The template synthesiser this replaces glued source snippets into paragraphs
+ * and stamped them with citation markers, which read like an answer while being
+ * a concatenation — the one failure mode a research tool must not have. Naming
+ * the failure and listing what was found is honest and costs the caller nothing
+ * it can use.
+ */
+function synthesisFailureAnswer(sources: CollectedSource[]): string {
+  if (sources.length === 0) {
+    return 'Zu dieser Anfrage konnten leider keine relevanten Informationen gefunden werden.';
+  }
+  const list = sources
+    .slice(0, 10)
+    .map((s, i) => `${i + 1}. ${s.title}${s.url ? ` — ${s.url}` : ''}`)
+    .join('\n');
+  return `Die Quellen wurden gefunden, aber der Bericht konnte nicht erstellt werden. Gefundene Quellen:\n\n${list}`;
+}
+
+/**
+ * Run a research question end to end.
+ *
+ * @param params.question - The research question. Also the basis for the search
+ *   queries, via the planner's sub-questions.
+ * @param params.brief - Optional natural-language research plan, forwarded to
+ *   planning and synthesis as orientation. Must NOT be used as a search query —
+ *   keyword indexes don't match prose directives.
+ * @param params.aiWorkerPool - Lets the page reader distil with a model instead
+ *   of lexical scoring alone. Strongly recommended; the reader degrades rather
+ *   than fails without it.
+ * @param params.maxSources - Sources carried into synthesis (default 20).
+ * @param params.readPages - Set false to skip the read stage (search-only run).
+ */
+export async function executeResearch(params: {
+  question: string;
+  brief?: string | null;
+  /** The question was inherited from an earlier turn — caps confidence. */
+  queryInherited?: boolean;
+  aiWorkerPool?: AIWorkerPool;
+  maxSources?: number;
+  readPages?: boolean;
+  userLocale?: string;
+  onProgress?: (message: string) => void;
+}): Promise<ResearchResult> {
+  const {
+    question,
+    brief,
+    queryInherited,
+    aiWorkerPool,
+    maxSources = DEFAULT_MAX_SOURCES,
+    readPages = true,
+    userLocale,
+    onProgress,
+  } = params;
+
+  // Defense in depth: refuse an empty question. Without this the planner
+  // hallucinates topics from context bias (locale, brief).
+  if (!question || !question.trim()) {
+    log.warn('[Research] Refusing to run with empty question');
+    return {
+      answer:
+        'Bitte stelle eine konkrete Recherche-Frage. Beispiel: "Recherchiere Friedrich Merz" oder "@recherche aktuelle Klimapolitik".',
+      citations: [],
+      followUpQuestions: [],
+      searchSteps: [],
+      confidence: 'low',
+    };
+  }
+
+  const defaultLocale: ResearchLocale =
+    userLocale === 'de-AT' ? 'at' : userLocale === 'de-EU' ? 'eu' : 'de';
+
+  log.info(`[Research] Start: "${truncateText(question, 100)}"`);
+  onProgress?.('Plane Recherche…');
+  const plan =
+    (await planResearchDeep(question, defaultLocale, brief)) ??
+    fallbackPlan(question, defaultLocale);
+
+  let allSources: CollectedSource[] = [];
+  const allSearchSteps: ResearchResult['searchSteps'] = [];
+  let searchesSpent = 0;
+  let pagesRead = 0;
+  let round = 0;
+  let currentPlan = plan;
+
+  // Rounds are a BUDGET, not a fixed count. It used to be exactly one optional
+  // refinement, hard-capped with the comment "Hard cap: 1 refinement round" —
+  // which meant a question the assessor still called lückenhaft after round two
+  // was written up anyway, with the gap known and unfilled.
+  while (round < MAX_SEARCH_ROUNDS && searchesSpent < MAX_SUB_SEARCHES) {
+    round += 1;
+    onProgress?.(
+      round === 1
+        ? `Suche zu ${currentPlan.subQuestions.length} Sub-Fragen…`
+        : `Vertiefe Recherche (Runde ${round})…`
+    );
+
+    const result = await executeRound(currentPlan, allSources.length + 1);
+    searchesSpent += result.searchSteps.length;
+    allSearchSteps.push(...result.searchSteps);
+
+    // Dedupe the new round against everything seen so far, by URL.
+    const seenUrls = new Set(allSources.map((s) => s.url).filter(Boolean));
+    allSources = [...allSources, ...result.sources.filter((s) => !s.url || !seenUrls.has(s.url))];
+    log.info(
+      `[Research] Runde ${round}: ${result.sources.length} Treffer, ${allSources.length} Quellen gesamt`
+    );
+
+    if (readPages) {
+      onProgress?.('Lese die wichtigsten Quellen…');
+      const afterRead = await readTopSources(allSources, question, aiWorkerPool);
+      allSources = afterRead.sources;
+      pagesRead += afterRead.pagesRead;
+    }
+
+    if (round >= MAX_SEARCH_ROUNDS || searchesSpent >= MAX_SUB_SEARCHES) break;
+
+    const coverage = await assessCoverage(question, allSources);
+    log.info(
+      `[Research] Abdeckung nach Runde ${round}: ${coverage.score}/5${coverage.weakAspects.length ? ` (schwach: ${coverage.weakAspects.join(', ')})` : ''}`
+    );
+    if (coverage.score >= COVERAGE_TARGET || coverage.weakAspects.length === 0) break;
+
+    // Refinement queries MUST carry entity context. The assessor returns terse
+    // phrases like "Herkunft" (per its prompt "kurze Suchphrasen"). Used as-is,
+    // search engines get no signal about WHO — Mona Neubaur's "Herkunft" search
+    // returned random Bachelorarbeiten. Prefixing the original question carries
+    // the entity name through.
+    currentPlan = {
+      subQuestions: coverage.weakAspects.slice(0, 3).map((aspect, i) => ({
+        id: `r${round + 1}-${i}`,
+        question: `${question} ${aspect}`,
+        sources: ['web', 'qdrant'] as Array<'web' | 'qdrant'>,
+      })),
+      locale: plan.locale,
+      reportShape: plan.reportShape,
+    };
+  }
+
+  // MMR for diversity, then cap. Re-number contiguously after — the numbers the
+  // synthesiser cites are positions in THIS list.
+  //
+  // The global sort is a PRECONDITION of applyMMR ("results sorted by relevance,
+  // highest first"), not tidiness. `executeRound` sorts within its own round, so
+  // a single-round run happened to satisfy it — but rounds are concatenated in
+  // the order they ran, so from the second round on the array is sorted in
+  // segments and MMR seeds itself from round one's best rather than the run's.
+  const ranked = [...allSources].sort((a, b) => b.relevance - a.relevance);
+  const diverse =
+    ranked.length > 3
+      ? (applyMMR(
+          ranked.map((s) => ({ ...s, content: s.snippet })),
+          0.7,
+          2
+        ) as CollectedSource[])
+      : ranked;
+  const limitedSources = diverse.slice(0, maxSources).map((s, i) => ({ ...s, id: i + 1 }));
+
+  const strategy =
+    plan.reportShape === 'positional' || plan.reportShape === 'comparative'
+      ? 'policy_overview'
+      : 'factual_synthesis';
+
+  log.info(
+    `[Research] Synthese: ${limitedSources.length} Quellen (${pagesRead} gelesen), Form ${plan.reportShape}, ${round} Runde(n), ${searchesSpent} Teilsuchen`
+  );
+  onProgress?.('Erstelle Bericht…');
+
+  let answer: string;
+  let synthesised = true;
+  if (limitedSources.length === 0) {
+    answer = synthesisFailureAnswer(limitedSources);
+    synthesised = false;
+  } else {
+    try {
+      answer = await synthesizeReport({
+        question,
+        sources: limitedSources,
+        strategy,
+        ...(brief !== undefined ? { brief } : {}),
+        reportShape: plan.reportShape,
+      });
+    } catch (error) {
+      log.error(
+        '[Research] Synthese fehlgeschlagen:',
+        error instanceof Error ? error.message : String(error)
+      );
+      answer = synthesisFailureAnswer(limitedSources);
+      synthesised = false;
+    }
+  }
+
+  return finalizeResearchResult({
+    answer,
+    limitedSources,
+    searchSteps: allSearchSteps,
+    queryInherited: queryInherited === true,
+    validateGrounding: synthesised,
+  });
 }
 
 /**
@@ -468,849 +984,96 @@ export function remapCitationMarkers(text: string, remap: Map<string, string>): 
 }
 
 /**
- * Execute deep research via Linkup. Replaces our planner+orchestrator when
- * LINKUP_API_KEY is set. Maps Linkup's `sourcedAnswer` response onto our
- * ResearchResult shape so the frontend ResearchArtifactCard works unchanged.
+ * Strip citations the sources don't support, then project the sources into
+ * citations and derive the confidence label.
  *
- * Notes:
- * - confidence is DERIVED (see below). It used to be hardcoded 'high' on the
- *   grounds that Linkup deep is exhaustive by design — but exhaustive research
- *   into the WRONG question is not high confidence, and the label is not
- *   cosmetic: respondNode injects it into the system prompt and forbids the
- *   model to say it found nothing.
- * - searchSteps is synthesized as a single entry so the toolCall chip's
- *   expand panel still has something to show.
- * - followUpQuestions is empty: Linkup doesn't return them; the UI handles
- *   absence gracefully.
+ * When most citations turn out ungrounded the answer is KEPT and the confidence
+ * drops to 'low'. It used to be replaced by the template synthesiser's
+ * snippet concatenation, which traded a report with some bad markers for a
+ * source dump with none — a worse artefact that looked more official.
  */
-async function executeResearchViaLinkup(args: {
-  linkup: NonNullable<ReturnType<typeof getLinkupService>>;
-  question: string;
-  locale: ResearchLocale;
-  /** The question was inherited from an earlier turn, not stated by the user. */
-  queryInherited?: boolean;
-  onProgress?: (message: string) => void;
-}): Promise<ResearchResult> {
-  const { linkup, question, locale, onProgress } = args;
+function finalizeResearchResult(params: {
+  answer: string;
+  limitedSources: CollectedSource[];
+  searchSteps: ResearchResult['searchSteps'];
+  queryInherited: boolean;
+  validateGrounding: boolean;
+}): ResearchResult {
+  const { limitedSources, searchSteps, queryInherited } = params;
+  let { answer } = params;
+  let grounded = true;
 
-  onProgress?.('Tiefgehende Recherche bei Linkup läuft…');
-  const start = Date.now();
-  const res = await linkup.deepResearch({ question, locale });
-  const elapsed = Date.now() - start;
+  if (params.validateGrounding && answer) {
+    const groundingResult = validateCitations(
+      answer,
+      limitedSources.map((s) => ({ id: s.id, content: s.snippet }))
+    );
 
-  // Deduplicate on the FULL page text, before the cap below — the order is
-  // load-bearing, see `dedupeResearchSources`.
+    if (groundingResult.ungroundedCitations.length > 0) {
+      log.warn(
+        `[Research] ${groundingResult.ungroundedCitations.length} ungrounded citations removed: [${groundingResult.ungroundedCitations.join(', ')}]`
+      );
+      answer = stripUngroundedCitations(answer, groundingResult.ungroundedCitations);
+
+      if (groundingResult.confidence < 0.5 && groundingResult.totalCitations > 2) {
+        log.warn('[Research] >50% der Zitate ungedeckt — Konfidenz auf low');
+        grounded = false;
+      }
+    }
+  }
+
+  /**
+   * Deduplicate BEFORE the display cap, then move the answer's `[N]` onto the
+   * surviving ids.
+   *
+   * The order is the whole trick and it is measured — see
+   * `DUPLICATE_SOURCE_SIMILARITY`: on the full text the true duplicate pairs
+   * score 0.578–0.808 against 0.004–0.079 for merely related ones, but truncated
+   * to the display snippet first, two of those pairs fall below the worst
+   * false positive and no threshold can separate them any more.
+   *
+   * This used to run only on the Linkup dossier path. It belongs here at least
+   * as much: rounds are deduplicated by exact URL as they arrive, which lets the
+   * same page through under `?utm_source=…` and under a second path on the same
+   * site — precisely the two cases this catches.
+   */
   const deduped = dedupeResearchSources(
-    res.sources.map((s, i) => ({
-      id: i + 1,
-      title: s.name || extractDomain(s.url),
+    limitedSources.map((s) => ({
+      id: s.id,
+      title: s.title,
       url: s.url,
-      domain: extractDomain(s.url),
-      snippet: s.snippet || '',
+      domain: s.domain,
+      snippet: s.snippet,
     }))
   );
+  answer = remapCitationMarkers(answer, deduped.remap);
 
-  // Linkup's `sourcedAnswer` sources carry the SCRAPED PAGE, not a snippet —
-  // multi-thousand-character dumps of whole Beschlusstexte. Unbounded they
-  // reach the UI as the quote itself (Monitor "Quellen und Zitate" grew to
-  // page-length blockquotes). The orchestrator path caps at 150 in
-  // finalizeResearchResult; this display wants a readable quote, so 300 —
-  // same value the web-search executor uses for its display snippets.
   const citations: ResearchCitation[] = deduped.citations.map((c) => ({
     ...c,
-    snippet: truncateText(c.snippet, LINKUP_CITATION_SNIPPET_CHARS),
+    snippet: truncateText(c.snippet, CITATION_SNIPPET_CHARS),
   }));
 
-  log.info(
-    `[Research] Linkup returned ${res.sources.length} sources (${citations.length} after dedupe) in ${elapsed}ms for "${truncateText(question, 80)}"`
-  );
+  const confidence =
+    !params.validateGrounding || !grounded
+      ? 'low'
+      : researchConfidence({
+          sources: citations.length,
+          domains: new Set(citations.map((c) => c.domain || extractDomain(c.url))).size,
+          answerLength: answer.trim().length,
+          queryInherited,
+        });
+
+  log.info(`[Research] Fertig: ${citations.length} Zitate, Konfidenz ${confidence}`);
 
   return {
-    // Linkup numbered its `[N]` against the source list it returned; the dedupe
-    // renumbered that list, so the answer has to move with it.
-    answer: remapCitationMarkers(res.answer, deduped.remap),
+    answer,
     citations,
+    // Empty by design. The generator this replaces matched three German regexes
+    // against the question and emitted fixed strings ("Gibt es aktuelle
+    // Entwicklungen zu diesem Thema?") that were about the question's SHAPE, not
+    // about what the research found. The UI renders an absent list as absent.
     followUpQuestions: [],
-    searchSteps: [
-      {
-        tool: 'linkup_deep',
-        query: question,
-        resultsCount: citations.length,
-      },
-    ],
-    confidence: linkupConfidence({
-      sources: citations.length,
-      domains: new Set(citations.map((c) => c.domain)).size,
-      answerLength: res.answer.trim().length,
-      queryInherited: args.queryInherited === true,
-    }),
-  };
-}
-
-/**
- * Confidence from what the run actually produced, instead of a constant.
- *
- * An inherited query caps at 'medium': the subject was inferred from the
- * conversation, so even a perfect retrieval may have researched the wrong
- * thing — which is exactly the failure that made this label misleading.
- */
-export function linkupConfidence(signals: {
-  sources: number;
-  domains: number;
-  answerLength: number;
-  queryInherited: boolean;
-}): 'high' | 'medium' | 'low' {
-  const { sources, domains, answerLength, queryInherited } = signals;
-  if (sources === 0 || answerLength < 80) return 'low';
-  if (queryInherited) return sources >= 3 && domains >= 2 ? 'medium' : 'low';
-  if (sources >= 8 && domains >= 4) return 'high';
-  if (sources >= 3 && domains >= 2) return 'medium';
-  return 'low';
-}
-
-/**
- * Execute a deep-research plan: fan out one mini-search per sub-question, with
- * locale-scoped collections and SearXNG language.
- */
-async function executeDeepSearches(
-  plan: DeepPlan,
-  aiWorkerPool?: AIWorkerPool,
-  startSourceId = 1
-): Promise<{ sources: CollectedSource[]; searchSteps: ResearchResult['searchSteps'] }> {
-  const sources: CollectedSource[] = [];
-  const searchSteps: ResearchResult['searchSteps'] = [];
-  let sourceId = startSourceId;
-  const { qdrantCollection, webLanguage, docDomain } = localeToSearchScope(plan.locale);
-
-  // Fan out all sub-questions in parallel — each may target web, qdrant, or both.
-  const tasks = plan.subQuestions.flatMap((sq) => {
-    const subTasks: Array<Promise<{ kind: 'web' | 'doc'; query: string; data: unknown }>> = [];
-    if (sq.sources.includes('web')) {
-      subTasks.push(
-        executeDirectWebSearch({
-          query: sq.question,
-          searchType: 'general',
-          maxResults: 4,
-          language: webLanguage,
-        })
-          .then((data) => ({ kind: 'web' as const, query: sq.question, data }))
-          .catch((err: unknown) => {
-            log.warn(
-              `[Research] Web sub-search failed for "${sq.question}": ${err instanceof Error ? err.message : String(err)}`
-            );
-            return { kind: 'web' as const, query: sq.question, data: null };
-          })
-      );
-    }
-    if (sq.sources.includes('qdrant')) {
-      subTasks.push(
-        executeDirectSearch({
-          query: sq.question,
-          collection: qdrantCollection,
-          limit: 4,
-        })
-          .then((data) => ({ kind: 'doc' as const, query: sq.question, data }))
-          .catch((err: unknown) => {
-            log.warn(
-              `[Research] Qdrant sub-search failed for "${sq.question}": ${err instanceof Error ? err.message : String(err)}`
-            );
-            return { kind: 'doc' as const, query: sq.question, data: null };
-          })
-      );
-    }
-    return subTasks;
-  });
-
-  // Light query expansion for web variants (only when a worker pool is available)
-  // is intentionally skipped here — we already have N sub-questions. Adding 2-3
-  // variants per sub-question would explode the request count past budget.
-
-  const results = await Promise.all(tasks);
-
-  for (const { kind, query, data } of results) {
-    if (!data) continue;
-    if (kind === 'web') {
-      const web = data as Awaited<ReturnType<typeof executeDirectWebSearch>>;
-      searchSteps.push({ tool: 'web_search', query, resultsCount: web.resultsCount });
-      for (const result of web.results) {
-        sources.push(toWebSource(result, sourceId++));
-      }
-    } else {
-      const doc = data as Awaited<ReturnType<typeof executeDirectSearch>>;
-      searchSteps.push({
-        tool: 'gruenerator_search',
-        query,
-        resultsCount: doc.resultsCount,
-      });
-      for (const result of doc.results) {
-        sources.push(toDocSource(result, sourceId++, docDomain));
-      }
-    }
-  }
-
-  // aiWorkerPool currently unused in deep mode — kept in signature for symmetry
-  // with executeSearches and in case we later want light expansion on weak aspects.
-  void aiWorkerPool;
-
-  const uniqueSources = deduplicateByUrl(sources, (s) => s.url || undefined);
-  uniqueSources.sort((a, b) => b.relevance - a.relevance);
-  return { sources: uniqueSources, searchSteps };
-}
-
-/**
- * Lightweight coverage assessor mirroring the qualityGateNode logic, but
- * standalone (not coupled to ChatGraphState). Decides if a refinement round
- * is warranted and returns the weak aspects to target.
- */
-async function assessCoverage(
-  question: string,
-  sources: CollectedSource[]
-): Promise<{ score: number; weakAspects: string[] }> {
-  if (sources.length <= 1) return { score: 1, weakAspects: [] };
-
-  const aiModel = getIntermediateModel('standard');
-  const summary = sources
-    .slice(0, 8)
-    .map((s, i) => `[${i + 1}] ${s.title}: ${truncateText(s.snippet, 150)}`)
-    .join('\n');
-
-  try {
-    const result = await generateObject({
-      model: aiModel,
-      schema: QualityAssessmentSchema,
-      system: `Du bewertest, ob Suchergebnisse eine Recherche-Frage ausreichend abdecken.
-Bewerte Abdeckung 1–5 (5 = vollständig, 3 = lückenhaft, 1 = unzureichend).
-Wenn lückenhaft: nenne 1–3 schwach abgedeckte Aspekte als kurze Suchphrasen (nicht ganze Fragen).`,
-      prompt: `Frage: ${question}\n\nErgebnisse:\n${summary}`,
-      temperature: 0.0,
-    });
-    return {
-      score: result.object.score,
-      weakAspects: result.object.weakAspects ?? [],
-    };
-  } catch (error) {
-    log.warn(
-      `[Research] Coverage assessment failed: ${error instanceof Error ? error.message : String(error)}`
-    );
-    return { score: 4, weakAspects: [] };
-  }
-}
-
-/**
- * Execute all planned searches and collect sources.
- *
- * Web queries are run through `expandQuery` (when an `aiWorkerPool` is supplied)
- * to generate keyword variants — same coverage strategy used by the @web tool —
- * and the variants are searched in parallel and deduplicated by URL.
- */
-async function executeSearches(
-  plan: SearchPlan,
-  locale: ResearchLocale,
-  aiWorkerPool?: AIWorkerPool
-): Promise<{ sources: CollectedSource[]; searchSteps: ResearchResult['searchSteps'] }> {
-  const sources: CollectedSource[] = [];
-  const searchSteps: ResearchResult['searchSteps'] = [];
-  let sourceId = 1;
-  const { qdrantCollection, webLanguage, docDomain } = localeToSearchScope(locale);
-
-  for (const query of plan.queries) {
-    try {
-      switch (query.tool) {
-        case 'web_search': {
-          let variants = [query.query];
-          if (aiWorkerPool) {
-            const expanded = await expandQuery(query.query, aiWorkerPool);
-            if (expanded.alternatives.length > 0) {
-              variants = [query.query, ...expanded.alternatives];
-              log.info(`[Research] Expanded query into ${variants.length} variants`);
-            }
-          }
-
-          const webResultsList = await Promise.all(
-            variants.map((q) =>
-              executeDirectWebSearch({
-                query: q,
-                searchType: 'general',
-                maxResults: 5,
-                language: webLanguage,
-              }).catch((err: unknown) => {
-                log.warn(
-                  `[Research] Web search failed for variant "${q}": ${err instanceof Error ? err.message : String(err)}`
-                );
-                return null;
-              })
-            )
-          );
-
-          for (let i = 0; i < variants.length; i++) {
-            const webResults = webResultsList[i];
-            if (!webResults) continue;
-            searchSteps.push({
-              tool: 'web_search',
-              query: variants[i],
-              resultsCount: webResults.resultsCount,
-            });
-            for (const result of webResults.results) {
-              sources.push(toWebSource(result, sourceId++));
-            }
-          }
-          break;
-        }
-
-        case 'gruenerator_search': {
-          const docResults = await executeDirectSearch({
-            query: query.query,
-            collection: qdrantCollection,
-            limit: 5,
-          });
-          searchSteps.push({
-            tool: 'gruenerator_search',
-            query: query.query,
-            resultsCount: docResults.resultsCount,
-          });
-          for (const result of docResults.results) {
-            sources.push(toDocSource(result, sourceId++, docDomain));
-          }
-          break;
-        }
-      }
-    } catch (error) {
-      log.error(`[Research] Search failed for ${query.tool}:`, error);
-      searchSteps.push({
-        tool: query.tool,
-        query: query.query,
-        resultsCount: 0,
-      });
-    }
-  }
-
-  // Sort sources by relevance and deduplicate by URL
-  const uniqueSources = deduplicateByUrl(sources, (s) => s.url || undefined);
-  uniqueSources.sort((a, b) => b.relevance - a.relevance);
-
-  // Re-number sources after deduplication
-  return {
-    sources: uniqueSources.slice(0, 10).map((s, i) => ({ ...s, id: i + 1 })),
     searchSteps,
-  };
-}
-
-/**
- * Generate follow-up questions based on the original question and sources.
- */
-function generateFollowUpQuestions(question: string, _sources: CollectedSource[]): string[] {
-  const followUps: string[] = [];
-  const q = question.toLowerCase();
-
-  // Person-related follow-ups
-  if (/\b(wer|person|politiker)\b/i.test(q)) {
-    followUps.push('Welche politischen Positionen vertritt diese Person?');
-    followUps.push('Welche aktuellen Projekte oder Initiativen gibt es?');
-  }
-
-  // Policy-related follow-ups
-  if (/\b(politik|position|programm|thema)\b/i.test(q)) {
-    followUps.push('Wie hat sich diese Position in den letzten Jahren entwickelt?');
-    followUps.push('Welche Beschlüsse gibt es zu diesem Thema?');
-  }
-
-  // Location-related follow-ups
-  if (/\b(ort|stadt|region|wahlkreis)\b/i.test(q)) {
-    followUps.push('Wer sind die lokalen Grünen-Vertreter*innen?');
-    followUps.push('Welche lokalen Initiativen gibt es?');
-  }
-
-  // Generic follow-ups if nothing specific
-  if (followUps.length === 0) {
-    followUps.push('Gibt es aktuelle Entwicklungen zu diesem Thema?');
-    followUps.push('Welche weiteren Informationen sind verfügbar?');
-  }
-
-  return followUps.slice(0, 3);
-}
-
-/**
- * Synthesize sources into a Perplexity-style answer with inline citations.
- * This is a template-based approach - for better results, use an LLM call.
- */
-function synthesizeAnswer(
-  _question: string,
-  sources: CollectedSource[],
-  strategy: string
-): { answer: string; confidence: 'high' | 'medium' | 'low' } {
-  if (sources.length === 0) {
-    return {
-      answer: 'Zu dieser Anfrage konnten leider keine relevanten Informationen gefunden werden.',
-      confidence: 'low',
-    };
-  }
-
-  // Build answer from sources with inline citations
-  const paragraphs: string[] = [];
-  const usedSources = new Set<number>();
-
-  // Group sources by type
-  const personSources = sources.filter((s) => s.sourceType === 'person');
-  const docSources = sources.filter((s) => s.sourceType === 'document');
-  const webSources = sources.filter((s) => s.sourceType === 'web');
-
-  // Lead with most relevant information
-  if (personSources.length > 0 && strategy === 'biographical_summary') {
-    const mainPerson = personSources[0];
-    paragraphs.push(`${mainPerson.snippet} [${mainPerson.id}]`);
-    usedSources.add(mainPerson.id);
-
-    // Add additional person context
-    for (const src of personSources.slice(1, 3)) {
-      if (src.snippet && src.snippet.length > 50) {
-        paragraphs.push(`${truncateText(src.snippet, 200)} [${src.id}]`);
-        usedSources.add(src.id);
-      }
-    }
-  }
-
-  // Add document sources for policy context
-  if (docSources.length > 0 && (strategy === 'policy_overview' || paragraphs.length === 0)) {
-    for (const src of docSources.slice(0, 2)) {
-      if (src.snippet) {
-        paragraphs.push(`${truncateText(src.snippet, 250)} [${src.id}]`);
-        usedSources.add(src.id);
-      }
-    }
-  }
-
-  // Add web sources for current/supplementary info
-  if (webSources.length > 0) {
-    const relevantWeb = webSources.slice(0, paragraphs.length === 0 ? 3 : 2);
-    for (const src of relevantWeb) {
-      if (src.snippet) {
-        paragraphs.push(`${truncateText(src.snippet, 200)} [${src.id}]`);
-        usedSources.add(src.id);
-      }
-    }
-  }
-
-  // Determine confidence based on source quality and quantity
-  let confidence: 'high' | 'medium' | 'low' = 'medium';
-  if (usedSources.size >= 3 && sources.some((s) => s.relevance > 0.8)) {
-    confidence = 'high';
-  } else if (usedSources.size < 2) {
-    confidence = 'low';
-  }
-
-  return {
-    answer: paragraphs.join('\n\n'),
     confidence,
   };
-}
-
-/**
- * Synthesize sources into a coherent answer using Mistral-small LLM.
- * Produces higher quality prose than template-based synthesis.
- *
- * @param question - The user's research question
- * @param sources - Collected sources from various searches
- * @param strategy - Synthesis strategy (policy_overview, factual_synthesis, etc.)
- * @returns Synthesized answer with confidence level
- */
-async function synthesizeAnswerWithLLM(
-  question: string,
-  sources: CollectedSource[],
-  strategy: string,
-  brief?: string | null,
-  reportShape?: ReportShape
-): Promise<{ answer: string; confidence: 'high' | 'medium' | 'low' }> {
-  if (sources.length === 0) {
-    return {
-      answer: 'Zu dieser Anfrage konnten leider keine relevanten Informationen gefunden werden.',
-      confidence: 'low',
-    };
-  }
-
-  const aiModel = getIntermediateModel('heavy');
-
-  // Structured-report templates: only used when a deep planner emitted a reportShape.
-  // Single-shot research keeps the original short-answer behavior.
-  const shapeTemplate: Record<ReportShape, string> = {
-    biographical:
-      'Strukturiere als mehrteiligen Bericht mit Markdown-Überschriften (##): "Werdegang", "Politische Karriere", "Positionen", "Aktuelles". Pro Abschnitt 1–3 Absätze.',
-    comparative:
-      'Strukturiere als Vergleich mit Markdown-Überschriften (##): "Position A", "Position B", "Unterschiede", "Gemeinsamkeiten". Pro Abschnitt 1–3 Absätze.',
-    positional:
-      'Strukturiere als Positionsbericht mit Markdown-Überschriften (##): "Hintergrund", "Position", "Begründung", "Kritik & Debatte". Pro Abschnitt 1–3 Absätze.',
-    event:
-      'Strukturiere als Ereignisbericht mit Markdown-Überschriften (##): "Was ist passiert", "Hintergrund", "Reaktionen", "Einordnung". Pro Abschnitt 1–3 Absätze.',
-    general:
-      'Strukturiere als ausführlichen Bericht mit Markdown-Überschriften (##) für die wichtigsten 3–5 Aspekte. Pro Abschnitt 1–3 Absätze.',
-  };
-
-  const lengthRule = reportShape
-    ? `- Schreibe einen ausführlichen, gut gegliederten Bericht (${shapeTemplate[reportShape]})`
-    : '- Schreibe 2-4 prägnante, gut strukturierte Absätze';
-
-  const systemPrompt = `Du bist ein Recherche-Assistent der Grünen Partei. Synthetisiere die gegebenen Quellen zu einer kohärenten, informativen Antwort auf Deutsch.
-
-Regeln:
-- Nutze NUR Informationen aus den gegebenen Quellen
-- Verwende Inline-Zitate [1], [2] etc. für jede Aussage, die sich auf eine Quelle bezieht
-${lengthRule}
-- Keine Erfindungen oder externes Wissen hinzufügen
-- Antworte immer auf Deutsch
-- Fasse die wichtigsten Informationen zusammen und stelle Zusammenhänge her
-- Strategie: ${strategy === 'policy_overview' ? 'Fokussiere auf politische Positionen und Beschlüsse' : 'Fasse die faktischen Informationen objektiv zusammen'}`;
-
-  const sourcesText = sources
-    .map((s, i) => `[${i + 1}] ${s.title} (${s.domain})\n${s.snippet}`)
-    .join('\n\n');
-
-  const userContent = brief
-    ? `Frage: ${question}\n\nRecherche-Auftrag (zur Orientierung beim Synthetisieren — nicht als Quelle zitieren):\n${brief}\n\nQuellen:\n${sourcesText}`
-    : `Frage: ${question}\n\nQuellen:\n${sourcesText}`;
-
-  try {
-    const result = await generateText({
-      model: aiModel,
-      messages: [
-        {
-          role: 'user',
-          content: userContent,
-        },
-      ],
-      system: systemPrompt,
-      temperature: 0.2,
-      maxOutputTokens: reportShape ? 2400 : sources.length > 6 ? 1500 : 500,
-    });
-
-    // Determine confidence based on source quality and quantity
-    let confidence: 'high' | 'medium' | 'low' = 'medium';
-    if (sources.length >= 3 && sources.some((s) => s.relevance > 0.8)) {
-      confidence = 'high';
-    } else if (sources.length < 2) {
-      confidence = 'low';
-    }
-
-    return {
-      answer: result.text,
-      confidence,
-    };
-  } catch (error: unknown) {
-    log.error(
-      '[Research] LLM synthesis failed:',
-      error instanceof Error ? error.message : String(error)
-    );
-    throw error;
-  }
-}
-
-/**
- * Synthesize answer with automatic fallback to template-based synthesis.
- * Uses LLM synthesis by default, falls back gracefully on errors.
- */
-async function synthesizeWithFallback(
-  question: string,
-  sources: CollectedSource[],
-  strategy: string,
-  useLLM: boolean,
-  brief?: string | null,
-  reportShape?: ReportShape
-): Promise<{ answer: string; confidence: 'high' | 'medium' | 'low' }> {
-  if (!useLLM) {
-    return synthesizeAnswer(question, sources, strategy);
-  }
-
-  try {
-    return await synthesizeAnswerWithLLM(question, sources, strategy, brief, reportShape);
-  } catch (error: unknown) {
-    log.warn('[Research] LLM synthesis failed, falling back to template', {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return synthesizeAnswer(question, sources, strategy);
-  }
-}
-
-/**
- * Execute a structured research workflow with planning, searching, and synthesis.
- * This is the main entry point for the research tool.
- *
- * @param params.question - Search-friendly query (short, keyword-focused). Used for
- *   the planner heuristics and the search engines.
- * @param params.brief - Optional natural-language research plan to forward to the
- *   LLM synthesis stage as additional orientation. Must NOT be used as a search
- *   query — keyword indexes don't match prose directives.
- * @param params.aiWorkerPool - Required to run query expansion on web searches.
- * @param params.depth - Search depth: 'quick' (default) or 'thorough'
- * @param params.maxSources - Maximum number of sources to include (default: 8)
- * @param params.useLLMSynthesis - Use Mistral-small for coherent synthesis (default: true)
- */
-export async function executeResearch(params: {
-  question: string;
-  brief?: string | null;
-  /** The question was inherited from an earlier turn — caps confidence. */
-  queryInherited?: boolean;
-  aiWorkerPool?: AIWorkerPool;
-  depth?: 'quick' | 'thorough';
-  maxSources?: number;
-  useLLMSynthesis?: boolean;
-  complexity?: 'simple' | 'moderate' | 'complex';
-  userLocale?: string;
-  onProgress?: (message: string) => void;
-}): Promise<ResearchResult> {
-  const {
-    question,
-    brief,
-    queryInherited,
-    aiWorkerPool,
-    depth = 'quick',
-    maxSources = 8,
-    useLLMSynthesis = true,
-    complexity = 'moderate',
-    userLocale,
-    onProgress,
-  } = params;
-
-  // Defense in depth: refuse empty question. Without this, the deep planner
-  // hallucinates topics from context bias (locale, brief). The proper fix is
-  // upstream (chatGraphContractRouter populates searchQuery from the user's
-  // message when @-mentions force a search intent), but this guard catches
-  // any future caller that forgets to pass a question.
-  if (!question || !question.trim()) {
-    log.warn('[Research] Refusing to run with empty question');
-    return {
-      answer:
-        'Bitte stelle eine konkrete Recherche-Frage. Beispiel: "Recherchiere Friedrich Merz" oder "@recherche aktuelle Klimapolitik".',
-      citations: [],
-      followUpQuestions: [],
-      searchSteps: [],
-      confidence: 'low',
-    };
-  }
-
-  log.info(
-    `[Research] Starting research for: "${truncateText(question, 100)}" (depth: ${depth}, complexity: ${complexity})`
-  );
-
-  const defaultLocale: ResearchLocale =
-    userLocale === 'de-AT' ? 'at' : userLocale === 'de-EU' ? 'eu' : 'de';
-
-  // Linkup deep research: when LINKUP_API_KEY is set, route the full question
-  // to Linkup `/search depth=deep` and skip our orchestrator entirely.
-  // Linkup does its own multi-iteration planning, search, and synthesis;
-  // result shape is mapped onto our ResearchResult so the artifact card works
-  // unchanged. Per env-presence-only gating, Linkup errors propagate.
-  const linkup = getLinkupService();
-  if (linkup) {
-    log.info('[Research] Routing via Linkup (deep)');
-    return executeResearchViaLinkup({
-      linkup,
-      question: question.trim(),
-      locale: defaultLocale,
-      queryInherited: queryInherited === true,
-      ...(onProgress ? { onProgress } : {}),
-    });
-  }
-
-  // Deep path: explicit @recherche always gets LLM-driven planning, parallel
-  // sub-question search, an optional refinement round, and a structured report.
-  // The complexity heuristic is unreliable for short biographical questions
-  // ("wer ist X" is 22 chars → 'simple' but is exactly when deep mode helps),
-  // so we don't gate on it. Bounded to ~17s by the 1-round refinement cap.
-  // Opt-out is `useLLMSynthesis: false` for callers that explicitly want fast.
-  if (useLLMSynthesis) {
-    onProgress?.('Plane Recherche…');
-    const deepPlan = await planResearchDeep(question, defaultLocale, brief);
-    if (deepPlan) {
-      return executeDeepResearch({
-        question,
-        ...(brief !== undefined ? { brief } : {}),
-        plan: deepPlan,
-        maxSources: Math.max(maxSources, 12),
-        ...(aiWorkerPool ? { aiWorkerPool } : {}),
-        ...(onProgress ? { onProgress } : {}),
-      });
-    }
-    log.info('[Research] Deep planner returned null — falling back to single-shot path');
-  }
-
-  // Phase 1: Plan the research
-  const plan = planResearch(question);
-
-  // Limit queries based on depth
-  const maxQueries = depth === 'thorough' ? 5 : 3;
-  plan.queries = plan.queries.slice(0, maxQueries);
-
-  // For thorough mode, ensure both web and document search are included per topic
-  if (depth === 'thorough') {
-    const hasWeb = plan.queries.some((q) => q.tool === 'web_search');
-    const hasDoc = plan.queries.some((q) => q.tool === 'gruenerator_search');
-    if (!hasWeb) {
-      plan.queries.push({
-        tool: 'web_search',
-        query: question,
-        priority: 3,
-        reason: 'Thorough: supplementary web search',
-      });
-    }
-    if (!hasDoc) {
-      plan.queries.push({
-        tool: 'gruenerator_search',
-        query: question,
-        priority: 3,
-        reason: 'Thorough: supplementary document search',
-      });
-    }
-    plan.queries = plan.queries.slice(0, maxQueries);
-  }
-
-  log.info(
-    `[Research] Plan: ${plan.queries.length} queries (depth: ${depth}), strategy: ${plan.synthesisStrategy}`
-  );
-
-  // Phase 2: Execute searches
-  const { sources, searchSteps } = await executeSearches(plan, defaultLocale, aiWorkerPool);
-  log.info(`[Research] Collected ${sources.length} sources from ${searchSteps.length} searches`);
-
-  // B3: Apply MMR diversity to sources before synthesis
-  const diverseSources =
-    sources.length > 3
-      ? (applyMMR(
-          sources.map((s) => ({ ...s, relevance: s.relevance, content: s.snippet })),
-          0.7,
-          2
-        ).map((s, i) => ({ ...s, id: i + 1 })) as CollectedSource[])
-      : sources;
-
-  // Phase 3: Synthesize answer
-  const limitedSources = diverseSources.slice(0, maxSources);
-  log.info(`[Research] Synthesizing with ${useLLMSynthesis ? 'LLM (mistral-small)' : 'template'}`);
-  const { answer, confidence } = await synthesizeWithFallback(
-    question,
-    limitedSources,
-    plan.synthesisStrategy,
-    useLLMSynthesis,
-    brief
-  );
-
-  return finalizeResearchResult({
-    question,
-    answer,
-    confidence,
-    limitedSources,
-    strategy: plan.synthesisStrategy,
-    searchSteps,
-    logPrefix: '[Research]',
-    validateGrounding: useLLMSynthesis,
-  });
-}
-
-/**
- * Deep research: LLM planner → parallel sub-question search → optional refinement
- * round (when coverage is weak) → structured synthesis with reportShape template.
- *
- * Latency budget: ~17s (plan ~2s + round 1 ~5s + assess ~2s + optional round 2 ~5s + synth ~3s).
- * Hard cap: 1 refinement round.
- */
-async function executeDeepResearch(args: {
-  question: string;
-  brief?: string | null;
-  plan: DeepPlan;
-  maxSources: number;
-  aiWorkerPool?: AIWorkerPool;
-  onProgress?: (message: string) => void;
-}): Promise<ResearchResult> {
-  const { question, brief, plan, maxSources, aiWorkerPool, onProgress } = args;
-  log.info(
-    `[Research/Deep] ${plan.subQuestions.length} sub-questions, locale=${plan.locale}, shape=${plan.reportShape}`
-  );
-
-  // Round 1: parallel fan-out across all sub-questions.
-  onProgress?.(`Suche zu ${plan.subQuestions.length} Sub-Fragen…`);
-  const round1 = await executeDeepSearches(plan, aiWorkerPool, 1);
-  log.info(
-    `[Research/Deep] Round 1: ${round1.sources.length} sources from ${round1.searchSteps.length} searches`
-  );
-
-  let allSources = round1.sources;
-  const allSearchSteps = round1.searchSteps;
-
-  // Round 2: only if coverage is weak. Hard cap at 1 refinement round.
-  if (round1.sources.length >= 2) {
-    const coverage = await assessCoverage(question, round1.sources);
-    log.info(
-      `[Research/Deep] Coverage: ${coverage.score}/5${coverage.weakAspects.length ? ` (weak: ${coverage.weakAspects.join(', ')})` : ''}`
-    );
-
-    if (coverage.score < 4 && coverage.weakAspects.length > 0) {
-      onProgress?.(`Vertiefe Recherche zu: ${coverage.weakAspects[0]}…`);
-      // Refinement queries MUST carry entity context. The assessor returns
-      // terse phrases like "Herkunft", "politische Karriere" (per its prompt
-      // "kurze Suchphrasen (nicht ganze Fragen)"). Used as-is, search engines
-      // get no signal about WHO/WHAT — Mona Neubauer's "Herkunft" search
-      // returned random Bachelorarbeiten and montessori articles. Prefix the
-      // original question so the entity name carries through.
-      const refinementPlan: DeepPlan = {
-        subQuestions: coverage.weakAspects.slice(0, 3).map((aspect, i) => ({
-          id: `r2-${i}`,
-          question: `${question} ${aspect}`,
-          sources: ['web', 'qdrant'],
-        })),
-        locale: plan.locale,
-        reportShape: plan.reportShape,
-      };
-      const round2 = await executeDeepSearches(
-        refinementPlan,
-        aiWorkerPool,
-        round1.sources.length + 1
-      );
-      log.info(
-        `[Research/Deep] Round 2: +${round2.sources.length} sources from ${round2.searchSteps.length} searches`
-      );
-
-      // Dedupe round 2 against round 1 by URL, then concat
-      const seenUrls = new Set(round1.sources.map((s) => s.url).filter(Boolean));
-      const newSources = round2.sources.filter((s) => !s.url || !seenUrls.has(s.url));
-      allSources = [...round1.sources, ...newSources];
-      allSearchSteps.push(...round2.searchSteps);
-    }
-  }
-
-  // MMR for diversity, then cap. Re-number contiguously after.
-  const diverse =
-    allSources.length > 3
-      ? (applyMMR(
-          allSources.map((s) => ({ ...s, content: s.snippet })),
-          0.7,
-          2
-        ) as CollectedSource[])
-      : allSources;
-  const limitedSources = diverse.slice(0, maxSources).map((s, i) => ({ ...s, id: i + 1 }));
-
-  log.info(
-    `[Research/Deep] Synthesizing ${limitedSources.length} sources as ${plan.reportShape} report`
-  );
-  onProgress?.('Erstelle Bericht…');
-
-  const strategy =
-    plan.reportShape === 'positional' || plan.reportShape === 'comparative'
-      ? 'policy_overview'
-      : 'factual_synthesis';
-  const { answer, confidence } = await synthesizeWithFallback(
-    question,
-    limitedSources,
-    strategy,
-    true,
-    brief,
-    plan.reportShape
-  );
-
-  return finalizeResearchResult({
-    question,
-    answer,
-    confidence,
-    limitedSources,
-    strategy,
-    searchSteps: allSearchSteps,
-    logPrefix: '[Research/Deep]',
-    // The deep path is always LLM-synthesized.
-    validateGrounding: true,
-  });
 }

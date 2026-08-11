@@ -163,11 +163,15 @@ Jede Quelle muss eine Aussage zu "${theme.dominantTopic}" enthalten. Allgemeine 
 
 Fasse die bestehenden Grünen-Positionen detailliert zusammen. Verwende Vergangenheitsform ("Die Grünen haben gefordert...", "Im Programm hieß es..."). Erwähne auch kurz die Nebenthemen, falls relevante Positionen vorhanden sind.`;
 
+  // This used to route straight into Linkup's own `deep` dossier — the most
+  // expensive call in the product, once per hot topic per day — because
+  // `executeResearch` short-circuited there whenever LINKUP_API_KEY was set.
+  // It now runs our own pipeline: `gruendlich` sub-searches (the same engine
+  // depth as an ordinary web search, one paid call each) plus the page reader,
+  // which is what makes the positions summary specific rather than generic.
   return executeResearch({
     question,
-    depth: 'thorough',
-    maxSources: 12,
-    useLLMSynthesis: true,
+    maxSources: 20,
   });
 }
 

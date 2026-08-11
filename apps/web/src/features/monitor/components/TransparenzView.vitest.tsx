@@ -85,6 +85,7 @@ const RESPONSE = {
       images: 0,
       transcriptions: 12,
       searches: 34,
+      emissions_g: 1140,
     },
     {
       feature: 'sharepic',
@@ -93,6 +94,7 @@ const RESPONSE = {
       images: 140,
       transcriptions: 0,
       searches: 0,
+      emissions_g: 260,
     },
   ],
   byModel: [
@@ -122,7 +124,7 @@ function serve(body: Record<string, unknown>) {
 describe('TransparenzView', () => {
   it('publishes the footprint as a band, not a single number', async () => {
     serve(RESPONSE);
-    renderWithProviders(<TransparenzView days={30} />);
+    renderWithProviders(<TransparenzView days={30} expert />);
 
     // Both ends present, and no decimals anywhere — the estimate cannot carry
     // tenths of a gram, so it must not print them.
@@ -138,7 +140,7 @@ describe('TransparenzView', () => {
         { provider: 'litellm', grid_g_per_kwh: 363, pue: 1.13, energy_wh: 2600, emissions_g: 700 },
       ],
     });
-    renderWithProviders(<TransparenzView days={30} />);
+    renderWithProviders(<TransparenzView days={30} expert />);
 
     await waitFor(() => expect(screen.getByText('verdigado')).toBeInTheDocument());
     expect(screen.queryByText('litellm')).not.toBeInTheDocument();
@@ -146,7 +148,7 @@ describe('TransparenzView', () => {
 
   it('lists models grouped by function, with the unvalued lanes marked', async () => {
     serve(RESPONSE);
-    renderWithProviders(<TransparenzView days={30} />);
+    renderWithProviders(<TransparenzView days={30} expert />);
 
     await waitFor(() => expect(screen.getByText('Textmodelle')).toBeInTheDocument());
     expect(screen.getByText('Bildmodelle')).toBeInTheDocument();
@@ -156,7 +158,7 @@ describe('TransparenzView', () => {
 
   it('shows each provider with the constants its figure was computed from', async () => {
     serve(RESPONSE);
-    renderWithProviders(<TransparenzView days={30} />);
+    renderWithProviders(<TransparenzView days={30} expert />);
 
     // "Mistral AI" also labels the model rows, so match the provider panel's
     // own unambiguous markers instead of the name.
@@ -168,7 +170,7 @@ describe('TransparenzView', () => {
 
   it('labels the gap in the daily series as suppression, not inactivity', async () => {
     serve(RESPONSE);
-    renderWithProviders(<TransparenzView days={30} />);
+    renderWithProviders(<TransparenzView days={30} expert />);
 
     await waitFor(() =>
       expect(screen.getByText(/Die Lücke ist Unterdrückung, keine Untätigkeit/)).toBeInTheDocument()
@@ -178,7 +180,7 @@ describe('TransparenzView', () => {
 
   it('names transcriptions and searches as excluded rather than as zero', async () => {
     serve(RESPONSE);
-    renderWithProviders(<TransparenzView days={30} />);
+    renderWithProviders(<TransparenzView days={30} expert />);
 
     // The counts also appear as activity extras under "Nach Bereich" — that
     // collision is the point of this panel, so assert on the exclusion wording.
@@ -196,7 +198,7 @@ describe('TransparenzView', () => {
       ...RESPONSE,
       footprint: { ...FOOTPRINT, reference_emissions_g: 200, reference_energy_wh: 500 },
     });
-    renderWithProviders(<TransparenzView days={30} />);
+    renderWithProviders(<TransparenzView days={30} expert />);
 
     await waitFor(() => expect(screen.getByText('Vergleich zu ChatGPT')).toBeInTheDocument());
     expect(screen.getByText('CO₂ mehr als bei GPT-4o')).toBeInTheDocument();
@@ -205,7 +207,7 @@ describe('TransparenzView', () => {
 
   it('refuses to publish a figure when too few people were active', async () => {
     serve({ ...RESPONSE, sufficient_data: false, active_users: 2 });
-    renderWithProviders(<TransparenzView days={30} />);
+    renderWithProviders(<TransparenzView days={30} expert />);
 
     await waitFor(() =>
       expect(
@@ -218,10 +220,47 @@ describe('TransparenzView', () => {
 
   it('surfaces an error banner when the endpoint fails', async () => {
     server.use(http.get(ENDPOINT, () => HttpResponse.json({ error: 'boom' }, { status: 500 })));
-    renderWithProviders(<TransparenzView days={30} />);
+    renderWithProviders(<TransparenzView days={30} expert />);
 
     await waitFor(() =>
       expect(screen.getByText(/Transparenzdaten konnten nicht geladen werden/)).toBeInTheDocument()
     );
+  });
+});
+
+describe('TransparenzView (einfache Übersicht)', () => {
+  it('shows one rounded number instead of the band, with the direction in words', async () => {
+    serve(RESPONSE);
+    renderWithProviders(<TransparenzView days={30} expert={false} />);
+
+    await waitFor(() => expect(screen.getByText(/≈ 1\.400 g/)).toBeInTheDocument());
+    // The band and its low end belong to the expert view only.
+    expect(screen.queryByText(/900 g – 1\.400 g/)).not.toBeInTheDocument();
+    expect(screen.getByText(/die tatsächliche Zahl liegt eher darunter/)).toBeInTheDocument();
+  });
+
+  it('groups CO₂ by what people did, not by provider, and drops the jargon', async () => {
+    serve(RESPONSE);
+    renderWithProviders(<TransparenzView days={30} expert={false} />);
+
+    await waitFor(() => expect(screen.getByText('Chat')).toBeInTheDocument());
+    expect(screen.getByText('Bilder')).toBeInTheDocument();
+    expect(screen.getByText('1.140 g')).toBeInTheDocument();
+    expect(screen.getByText('260 g')).toBeInTheDocument();
+    // No provider constants, no token counts, no accounting vocabulary.
+    expect(screen.queryByText(/PUE/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/g\/kWh/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Tokens/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Mistral AI')).not.toBeInTheDocument();
+  });
+
+  it('still names web searches and subtitles as not countable, in plain words', async () => {
+    serve(RESPONSE);
+    renderWithProviders(<TransparenzView days={30} expert={false} />);
+
+    await waitFor(() =>
+      expect(screen.getByText(/34 Websuchen — der Strom dafür fällt beim/)).toBeInTheDocument()
+    );
+    expect(screen.getByText(/12 untertitelte Videos und Transkripte/)).toBeInTheDocument();
   });
 });
