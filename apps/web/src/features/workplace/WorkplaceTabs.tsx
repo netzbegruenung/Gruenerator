@@ -3,12 +3,13 @@ import { memo } from 'react';
 import { Link } from 'react-router-dom';
 
 import { cn } from '@/utils/cn';
+import { ARBEITEN_PATH, CHAT_PATH } from '@/utils/startpage';
 
 export type WorkplaceTab = 'chat' | 'arbeiten';
 
 const TABS: Array<{ id: WorkplaceTab; label: string; path: string }> = [
-  { id: 'chat', label: 'Chat', path: '/workplace' },
-  { id: 'arbeiten', label: 'Arbeiten', path: '/workplace/arbeiten' },
+  { id: 'chat', label: 'Chat', path: CHAT_PATH },
+  { id: 'arbeiten', label: 'Arbeiten', path: ARBEITEN_PATH },
 ];
 
 // The active pill + label echo each section's palette: chat neutral, arbeiten a
@@ -24,14 +25,15 @@ const ACTIVE_TEXT: Record<WorkplaceTab, string> = {
 };
 
 export function workplaceTabFromPathname(pathname: string): WorkplaceTab {
-  if (pathname.startsWith('/workplace/arbeiten')) return 'arbeiten';
-  return 'chat';
+  // Präfix-Vergleich wäre hier falsch: `/startseite` beginnt ebenfalls mit
+  // `/start`, ist aber die öffentliche Landeseite.
+  return pathname === CHAT_PATH ? 'chat' : 'arbeiten';
 }
 
 // Design "tabbar": fixed glass pill centered at the top — frosted container, the
-// active tab a soft-shadowed pill that slides between tabs (shared-layout
-// `layoutId`) and tints per section. This relies on the bar staying mounted
-// across tab switches (the `/workplace/*` splat route keeps WorkplacePage alive).
+// active tab a soft-shadowed pill that tints per section. Seit Chat und Arbeiten
+// getrennte Routen sind, montiert die Leiste beim Wechsel neu; die
+// `layoutId`-Animation greift dann nur noch innerhalb einer Seite.
 // The h-12 row matches PageLayout's sidebar-toggle row so pill and toggle share a
 // centerline.
 const WorkplaceTabs = memo(({ active }: { active: WorkplaceTab }) => {
