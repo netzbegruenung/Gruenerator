@@ -393,7 +393,7 @@ function buildUserPrompt(docPath: string, content: string): string {
     .join('\n');
 }
 
-function extractVerdict(text: string): Verdict {
+function extractVerdict(text: string, docPath: string): Verdict {
   const blocks = [...text.matchAll(/```json\s*([\s\S]*?)```/g)];
   let raw: string;
   if (blocks.length > 0) {
@@ -411,14 +411,16 @@ function extractVerdict(text: string): Verdict {
 
   // Drop `low` rather than reject it: the noise policy stays ("report only
   // high-confidence discrepancies"), but a stray severity no longer discards the
-  // findings around it. A verdict left with nothing reportable counts as ok,
-  // which is what "not worth reporting" means.
+  // findings around it. A verdict left with nothing reportable counts as ok —
+  // that is what "not worth reporting" means, and without the reset a low-only
+  // verdict would render as "stale" with an empty finding list.
   const reportable = verdict.findings.filter((f) => f.severity !== 'low');
   const dropped = verdict.findings.length - reportable.length;
   if (dropped > 0) {
-    console.log(`      ℹ️  ${dropped} low-severity finding(s) dropped (report policy)`);
+    // docPath in the line: two docs are audited concurrently by default.
+    console.log(`      ℹ️  ${docPath}: ${dropped} low-severity finding(s) dropped (report policy)`);
   }
-  return { ...verdict, findings: reportable };
+  return { upToDate: reportable.length === 0 ? true : verdict.upToDate, findings: reportable };
 }
 
 const STRICT_JSON_RETRY_NOTE =
@@ -480,7 +482,7 @@ async function runOneAudit(
     throw new Error(`agent ended: ${endedBadly}`);
   }
   try {
-    return extractVerdict(finalText);
+    return extractVerdict(finalText, docPath);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     throw new JsonVerdictError(message);
