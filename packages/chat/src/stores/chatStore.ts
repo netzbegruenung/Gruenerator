@@ -487,7 +487,7 @@ export const useAgentStore = create<AgentState>()(
           removeItem: (key: string) => mem.delete(key),
         };
       }),
-      version: 15,
+      version: 16,
       migrate: (persisted: unknown, version: number) => {
         const state = persisted as Record<string, unknown>;
         if (version === 0) {
@@ -592,6 +592,21 @@ export const useAgentStore = create<AgentState>()(
           // The notebook depth used to be component state that reset on every
           // mount, so there is nothing to carry over — only a floor to set.
           state.notebookDepth = DEFAULT_NOTEBOOK_DEPTH;
+        }
+        if (version < 16) {
+          // v15 hat allen 'fast' eingeschrieben, ohne dass es je eine Wahl war.
+          // Der Startwert ist jetzt 'deep' — 'deep'/'ultra' bleiben stehen.
+          //
+          // Bewusst in Kauf genommen: ein seit v15 aktiv gewähltes 'fast' ist im
+          // Storage nicht vom damaligen Zwangswert zu unterscheiden und wird hier
+          // mit angehoben. Ein Unterscheidungs-Flag würde erst ab heute
+          // mitschreiben und den Altbestand ebenso wenig auflösen, während der
+          // Verzicht auf die Migration jede bestehende Installation dauerhaft auf
+          // der schmalsten Stufe ließe — dort ist die Tiefe seit diesem PR die
+          // einzige Qualitätswahl. Der Verlust ist eine Auswahl im Composer.
+          if (state.notebookDepth === 'fast') {
+            state.notebookDepth = DEFAULT_NOTEBOOK_DEPTH;
+          }
         }
         return state;
       },

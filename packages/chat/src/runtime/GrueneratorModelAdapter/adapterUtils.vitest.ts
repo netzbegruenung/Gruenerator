@@ -5,6 +5,8 @@
 import { searchGraphStreamBodySchema } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
+import { DEFAULT_NOTEBOOK_DEPTH } from '../../lib/notebookDepth';
+
 import {
   buildRequestBody,
   isAuiInternalThreadId,
@@ -12,6 +14,7 @@ import {
   type BuildRequestBodyParams,
 } from './buildRequestBody';
 import { truncateAttachmentContext } from './truncation';
+
 import type { ToolKey } from '../../stores/chatStore';
 
 describe('isAuiInternalThreadId', () => {
@@ -164,7 +167,7 @@ describe('buildRequestBody', () => {
     const body = buildRequestBody(baseParams({ effectiveMode: 'notebook' }));
     expect(body.messages).toBeDefined();
     expect(body.collectionId).toBe('nb-1');
-    expect(body.mode).toBe('fast');
+    expect(body.mode).toBe(DEFAULT_NOTEBOOK_DEPTH);
     expect('notebookId' in body).toBe(false);
     expect('query' in body).toBe(false);
   });
