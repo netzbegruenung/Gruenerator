@@ -66,6 +66,7 @@ vi.mock('../../../services/search/QueryExpansionService.js', () => ({
 
 const { executeResearch, localeToSearchScope, DeepPlanSchema, linkupConfidence } =
   await import('./researchOrchestrator.js');
+const { getLinkupService } = await import('../../../services/search/LinkupService.js');
 
 // ─── Helpers ─────────────────────────────────────────────────
 
@@ -538,5 +539,26 @@ describe('linkupConfidence', () => {
 
   it('an inherited query with a thin run is low, not medium', () => {
     expect(linkupConfidence({ ...base, sources: 2, domains: 1, queryInherited: true })).toBe('low');
+  });
+});
+
+describe('executeResearch — Linkup citation snippets are capped', () => {
+  it('truncates the scraped page Linkup ships as `snippet`', async () => {
+    // Linkup's sourcedAnswer sources carry the whole scraped page, not an
+    // excerpt. Unbounded, the Monitor rendered a full Beschlusstext as one
+    // blockquote per source.
+    const wholePage = 'A'.repeat(8000);
+    vi.mocked(getLinkupService).mockReturnValueOnce({
+      deepResearch: vi.fn(async () => ({
+        answer: 'Antwort [1].',
+        sources: [{ name: 'Beschluss', url: 'https://gruene.de/beschluss', snippet: wholePage }],
+      })),
+    } as unknown as ReturnType<typeof getLinkupService>);
+
+    const result = await executeResearch({ question: 'Was steht im Beschluss?' });
+
+    expect(result.citations).toHaveLength(1);
+    // 300 + the ellipsis truncateText appends.
+    expect(result.citations[0]?.snippet.length).toBeLessThanOrEqual(303);
   });
 });
