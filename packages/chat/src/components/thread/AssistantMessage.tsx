@@ -24,6 +24,7 @@ import { ChatChart } from '../message-parts/ChatChart';
 import { CitationMarkdownText } from '../message-parts/CitationMarkdownText';
 import { ComputeCard } from '../message-parts/ComputeCard';
 import { GeneratedImageDisplay } from '../message-parts/GeneratedImageDisplay';
+import { ImageGenerationFrame } from '../message-parts/ImageGenerationFrame';
 import { MemoryIndicator } from '../message-parts/MemoryIndicator';
 import { MessageActions } from '../message-parts/MessageActions';
 import { MessageErrorBanner } from '../message-parts/MessageErrorBanner';
@@ -279,6 +280,14 @@ export const AssistantMessage = memo(function AssistantMessage() {
           <SharepicVariantStack data={custom.sharepicData} />
         )}
         {custom?.generatedImage && <GeneratedImageDisplay image={custom.generatedImage} />}
+
+        {/* Platzhalter-Rahmen, solange das KI-Bild noch generiert wird. Nur für
+            intent 'image' — Sharepics/Social Posts rendern ihre eigenen Karten
+            und teilen bloß dieselbe progress-Stage. */}
+        {isStreaming &&
+          !custom?.generatedImage &&
+          custom?.progress?.stage === 'generating_image' &&
+          custom.progress.intent === 'image' && <ImageGenerationFrame />}
 
         {/* Above the answer, not under it: on a turn that found pictures they are
             the first thing the reader looks at, and a gallery that follows a
