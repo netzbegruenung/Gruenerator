@@ -51,12 +51,27 @@ function StatTile({ label, value, hint }: { label: string; value: string; hint?:
 }
 
 /**
+ * Whether there is a text comparison to show at all.
+ *
+ * Shared by the card and its methodology note so the two cannot drift: the note
+ * talks about "die Ersparnis oben", which is a lie the moment the card above it
+ * is absent. Pure image usage is exactly that case — emissions exist, but they
+ * are all Flux, and the GPT-4o reference has no image half to compare against.
+ */
+function hasTextComparison(footprint: UsageFootprintDto): boolean {
+  return (
+    footprint.emissions_g - footprint.image_emissions_g > 0 ||
+    footprint.energy_wh - footprint.image_energy_wh > 0 ||
+    footprint.reference_emissions_g > 0
+  );
+}
+
+/**
  * "What if you had used ChatGPT instead."
  *
- * CO2: shows the difference in whichever direction it points, not your own
- * figure again — that's already the stat tile above this card — plus a
- * corridor, because the GPT-4o side is an estimate the source paper itself
- * flags as uncertain.
+ * CO2: shows the difference in whichever direction it points, plus a corridor,
+ * because the GPT-4o side is an estimate the source paper itself flags as
+ * uncertain.
  *
  * Deliberately shows only the DIFFERENCE, never this account's own figure —
  * neither in grams nor in watt-hours. Confronting a single person with "your
@@ -73,12 +88,10 @@ function ReferenceComparison({ footprint }: { footprint: UsageFootprintDto }) {
   // has no image half at all, so comparing it against a total that includes
   // Flux would invent a saving out of an accounting mismatch.
   const textEmissions = footprint.emissions_g - footprint.image_emissions_g;
-  const textEnergy = footprint.energy_wh - footprint.image_energy_wh;
   const co2Savings = footprint.reference_emissions_g - textEmissions;
   // Only vanish when there is nothing to compare — an unfavorable comparison
   // is reported, not hidden (see the JSDoc above).
-  const hasTextUsage = textEmissions > 0 || textEnergy > 0 || footprint.reference_emissions_g > 0;
-  if (!hasTextUsage) return null;
+  if (!hasTextComparison(footprint)) return null;
 
   const co2Saved = co2Savings >= 0;
   const co2SavingsLow = Math.max(
@@ -249,7 +262,9 @@ export default function UsageTab() {
                 not theirs. The platform's own figure is on /transparenz. */}
           </div>
 
-          {footprint.emissions_g > 0 && (
+          {/* One gate for both: the note explains the card, so it must not
+              outlive it. Pure image usage has emissions but no comparison. */}
+          {footprint.emissions_g > 0 && hasTextComparison(footprint) && (
             <>
               <ReferenceComparison footprint={footprint} />
               <FootprintNote footprint={footprint} />
