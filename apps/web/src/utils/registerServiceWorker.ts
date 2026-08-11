@@ -26,28 +26,22 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
       scope: '/',
     });
 
-    // Handle updates
+    // This worker only caches static assets (illustrations, Pyodide, notebook
+    // covers) — it never serves the app shell, so an update is invisible to the
+    // user and needs neither a confirm() prompt nor a reload. The previous
+    // controllerchange → window.location.reload() fired on the FIRST install
+    // too (clients.claim() changes the controller), silently reloading the page
+    // a few seconds after load for every visitor without a registration —
+    // including every visit in browsers that evict service workers.
     registration.addEventListener('updatefound', () => {
       const newWorker = registration.installing;
       if (!newWorker) return;
 
       newWorker.addEventListener('statechange', () => {
         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-          // New Service Worker available, notify user
-          // Show a notification to the user — reload happens via controllerchange
-          if (window.confirm('Eine neue Version ist verfügbar. Möchtest du aktualisieren?')) {
-            newWorker.postMessage({ type: 'SKIP_WAITING' });
-          }
+          newWorker.postMessage({ type: 'SKIP_WAITING' });
         }
       });
-    });
-
-    // Handle controller change (new Service Worker activated)
-    let isReloading = false;
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (isReloading) return;
-      isReloading = true;
-      window.location.reload();
     });
 
     return registration;
