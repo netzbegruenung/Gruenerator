@@ -487,7 +487,7 @@ export const useAgentStore = create<AgentState>()(
           removeItem: (key: string) => mem.delete(key),
         };
       }),
-      version: 15,
+      version: 16,
       migrate: (persisted: unknown, version: number) => {
         const state = persisted as Record<string, unknown>;
         if (version === 0) {
@@ -592,6 +592,14 @@ export const useAgentStore = create<AgentState>()(
           // The notebook depth used to be component state that reset on every
           // mount, so there is nothing to carry over — only a floor to set.
           state.notebookDepth = DEFAULT_NOTEBOOK_DEPTH;
+        }
+        if (version < 16) {
+          // v15 hat allen 'fast' eingeschrieben, ohne dass es je eine Wahl war.
+          // Der Startwert ist jetzt 'deep' — wer inzwischen bewusst auf 'deep'
+          // oder 'ultra' steht, behält es.
+          if (state.notebookDepth === 'fast') {
+            state.notebookDepth = DEFAULT_NOTEBOOK_DEPTH;
+          }
         }
         return state;
       },
