@@ -69,7 +69,7 @@ const config: Config = {
           sidebarPath: './sidebars.ts',
           // Hidden until ready — remove entries to re-enable in the sidebar.
           // intern: dev-only LV-Korpus analysis pages, internal.
-          // experimente: Themen-Monitor (now /experiments/monitor) not published yet.
+          // experimente: Themen-Monitor (now /themen, /umfragen) not published yet.
           exclude: ['intern/**', 'experimente/**'],
           // "Edit this page" points at the docs in the monorepo.
           editUrl: 'https://github.com/netzbegruenung/Gruenerator/tree/master/documentation/',

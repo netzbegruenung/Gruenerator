@@ -10,8 +10,8 @@ import type { ReactNode } from 'react';
 type MonitorPage = 'themen' | 'umfragen';
 
 const SIBLINGS: { key: MonitorPage; label: string; path: string }[] = [
-  { key: 'themen', label: 'Themen', path: '/experiments/monitor/themen' },
-  { key: 'umfragen', label: 'Umfragen', path: '/experiments/monitor/umfragen' },
+  { key: 'themen', label: 'Themen', path: '/themen' },
+  { key: 'umfragen', label: 'Umfragen', path: '/umfragen' },
 ];
 
 interface MonitorPageHeaderProps {
