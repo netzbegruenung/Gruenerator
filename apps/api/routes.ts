@@ -336,7 +336,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: docResolveRouter } = await import('./routes/docs/resolveController.js');
   const { default: ogDocsRouter } = await import('./routes/docs/ogController.js');
   const { default: usersRouter } = await import('./routes/users/userController.js');
-  const { default: playgroundRouter } = await import('./routes/texte/playground.js');
+  // Playground stillgelegt (siehe apps/web/src/config/routes.ts) — die Route nahm
+  // freie provider/model-Wahl entgegen und wäre sonst ein Empfänger, den die
+  // Datenschutzerklärung nicht mehr nennt.
+  // const { default: playgroundRouter } = await import('./routes/texte/playground.js');
   const { default: mem0Router } = await import('./routes/mem0/mem0Controller.js');
   const { default: emailRouter } = await import('./routes/email/emailController.js');
   const { default: videoRouter } = await import('./routes/video/index.js');
@@ -730,7 +733,7 @@ export async function setupRoutes(app: Application): Promise<void> {
     requireAuth,
     universalRouter
   );
-  app.use('/api/texte/playground', requireAuth, aiGenerationLimiter, playgroundRouter);
+  // app.use('/api/texte/playground', requireAuth, aiGenerationLimiter, playgroundRouter);
   app.use('/api/custom_prompt', aiGenerationLimiter, customPromptRoute);
   app.use('/api/auth/custom_prompt', aiGenerationLimiter, customPromptRoute);
   // ts-rest contract router for user-created agents — replaces the legacy
