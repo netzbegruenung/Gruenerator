@@ -983,8 +983,33 @@ const SOURCE_HEDGING_RULE =
  * Gemma 4 and, less often, Mistral Medium), which is why it belongs in the
  * prompt rather than in the model choice.
  */
-const ARTEFACT_ACTION_GUIDANCE =
-  '\nWICHTIG: Der Grünerator legt Dokumente selbst an, ändert und teilt sie — das passiert automatisch, direkt nachdem du geantwortet hast. Behaupte deshalb NIEMALS, du könntest keine Dokumente oder Dateien erstellen, speichern oder teilen, und verweise NICHT auf Kopieren/Einfügen, ein Dateisystem oder einen Umweg über ein anderes Menü. Bestätige die Aktion knapp in einem Satz (z.B. „Ich lege das als Dokument an.") und schreibe den Inhalt NICHT noch einmal aus.';
+const ARTEFACT_CAPABILITY_NOTE =
+  '\nWICHTIG: Der Grünerator legt Dokumente selbst an, ändert und teilt sie — das passiert automatisch, direkt nachdem du geantwortet hast. Behaupte deshalb NIEMALS, du könntest keine Dokumente oder Dateien erstellen, speichern oder teilen, und verweise NICHT auf Kopieren/Einfügen, ein Dateisystem oder einen Umweg über ein anderes Menü.';
+
+/**
+ * save_as_doc / share_doc / modify_board: the answer text is NOT the artefact.
+ * save_as_doc re-generates the document from its own generator (Stage 4c) with
+ * the answer merely as context; share/board carry ids, not prose. Repeating the
+ * content here would only duplicate it into the chat.
+ */
+const ARTEFACT_CONFIRM_ONLY =
+  ' Bestätige die Aktion knapp in einem Satz (z.B. „Ich lege das als Dokument an.") und schreibe den Inhalt NICHT noch einmal aus.';
+
+/**
+ * modify_doc is the one intent where the answer text IS the artefact: the
+ * confirm card carries `newContent: fullText` (confirmActionService), and the
+ * confirm flow writes exactly that over the document.
+ *
+ * From 27b8a205a (23.07.2026) until this commit, modify_doc shared the
+ * confirm-only tail above — so the model was told to answer with a single
+ * sentence, and that sentence was the payload that would replace the whole
+ * document. Nobody hit it live only because the Yjs live-state guard in
+ * confirmController refuses the write for any document that was ever opened.
+ * Two independent things must therefore stay true together, which is why they
+ * are named in both places: the tail below and MIN_MODIFY_DOC_CONTENT_CHARS.
+ */
+const ARTEFACT_REWRITE_FULL =
+  ' Gib die vollständige neue Fassung des Dokuments aus — sie ersetzt den bisherigen Inhalt eins zu eins. Kürze nicht auf eine Zusammenfassung, lass keinen unveränderten Abschnitt weg und antworte nicht nur mit einer Bestätigung.';
 
 /**
  * Synthesis-mode guidance for multi-document chat.
@@ -1068,11 +1093,12 @@ export function getModeGuidance(state: ChatGraphState): string {
         getForbiddenActionNote(state)
       );
     case 'save_as_doc':
-      return DIRECT_GUIDANCE + ARTEFACT_ACTION_GUIDANCE;
+      return DIRECT_GUIDANCE + ARTEFACT_CAPABILITY_NOTE + ARTEFACT_CONFIRM_ONLY;
     case 'modify_doc':
+      return SEARCH_GUIDANCE + ARTEFACT_CAPABILITY_NOTE + ARTEFACT_REWRITE_FULL;
     case 'modify_board':
     case 'share_doc':
-      return SEARCH_GUIDANCE + ARTEFACT_ACTION_GUIDANCE;
+      return SEARCH_GUIDANCE + ARTEFACT_CAPABILITY_NOTE + ARTEFACT_CONFIRM_ONLY;
     case 'compare':
     case 'research':
     case 'search':
