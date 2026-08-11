@@ -10,8 +10,13 @@
  *
  * That 400 aborts the run — reproduced twice on 10.08.2026, both times minutes
  * in, once after the research was essentially done. `parallel_tool_calls: false`
- * makes it rarer (measured: three concurrent calls collapse to one) but did not
- * eliminate it, so the history is cleaned here instead of hoping upstream.
+ * made it rarer (measured: three concurrent calls collapse to one) but never
+ * eliminated it, so the history is cleaned here instead of hoping upstream.
+ *
+ * That is also why the lead may batch again: this middleware, not the provider
+ * setting, is what the run survives on. The lead delegates in parallel
+ * (`PARALLEL_TOOL_CALLS` in models.ts) precisely because a bad batch is repaired
+ * here, and the worker — which has nothing to batch — stays serial.
  *
  * Repairing rather than failing is the point: a dropped call costs one step, a
  * poisoned history costs the whole report.
@@ -49,10 +54,20 @@ const VALID_TOOL_NAME = /^[a-zA-Z0-9_-]{1,64}$/;
 /** How often one run jumps back to the model on all-garbage turns. */
 export const RETRY_LIMIT = 2;
 
-/** Verbatim marker in the history — counting it is how the limit is enforced. */
+/**
+ * Verbatim marker in the history — counting it is how the limit is enforced.
+ *
+ * Scoped to THIS repair on purpose. It used to read "Rufe die Werkzeuge einzeln
+ * nacheinander auf — nie mehrere gleichzeitig", which is a standing instruction:
+ * the message stays in the history for the rest of the run, so one malformed
+ * batch talked the lead out of parallel delegation permanently — the very thing
+ * `PARALLEL_TOOL_CALLS` exists to buy, undone by a recovery nudge. "Jetzt
+ * einzeln … danach wie gewohnt" repairs the failed turn without rewriting the
+ * strategy behind it.
+ */
 export const RETRY_TEXT =
-  'Der letzte Werkzeugaufruf war fehlerhaft und wurde verworfen. Rufe die Werkzeuge ' +
-  'einzeln nacheinander auf — nie mehrere gleichzeitig — und mache dann weiter.';
+  'Der letzte Werkzeugaufruf war fehlerhaft und wurde verworfen. Wiederhole ihn jetzt ' +
+  'einzeln und korrekt; danach kannst du wie gewohnt weiterarbeiten.';
 
 function countRetries(messages: unknown[]): number {
   return messages.filter((m) => m instanceof HumanMessage && m.content === RETRY_TEXT).length;

@@ -120,6 +120,22 @@ describe('sanitizeToolCallsMiddleware', () => {
     expect(nudge.content).toContain('einzeln');
   });
 
+  /**
+   * The nudge repairs one turn; it must not rewrite the run's strategy. It used
+   * to say "nie mehrere gleichzeitig", and because the message stays in the
+   * history that standing instruction talked the lead out of parallel
+   * delegation for the rest of the run — undoing, via a recovery path, exactly
+   * what `PARALLEL_TOOL_CALLS` buys.
+   */
+  it('scopes the nudge to the failed call instead of banning batching for the rest of the run', () => {
+    const result = hook({ messages: [aiWith([call('1,2')])] });
+    const nudge = (result?.messages?.[1] as HumanMessage).content as string;
+
+    expect(nudge).toContain('jetzt');
+    expect(nudge).not.toMatch(/nie mehrere gleichzeitig/);
+    expect(nudge).toMatch(/danach/);
+  });
+
   it('stops jumping after the retry limit, so a permanently broken model cannot burn the run', () => {
     const history = [
       ...Array.from({ length: RETRY_LIMIT }, () => new HumanMessage(RETRY_TEXT)),
