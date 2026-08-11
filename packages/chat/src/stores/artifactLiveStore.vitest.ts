@@ -1,6 +1,10 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { useArtifactLiveStore, type ResearchLogArtifact } from './artifactLiveStore';
+import {
+  canAutoOpenArtifactPanel,
+  useArtifactLiveStore,
+  type ResearchLogArtifact,
+} from './artifactLiveStore';
 
 /**
  * The research log is the only artifact that changes after it opens, so the
@@ -107,5 +111,35 @@ describe('upsertResearchLog', () => {
     });
 
     expect(activeLog().steps).toHaveLength(0);
+  });
+});
+
+describe('canAutoOpenArtifactPanel', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('says no on a phone-width window', () => {
+    vi.stubGlobal('window', { innerWidth: 390 });
+
+    expect(canAutoOpenArtifactPanel()).toBe(false);
+  });
+
+  it('says no just below the dock threshold', () => {
+    vi.stubGlobal('window', { innerWidth: 72 * 16 - 1 });
+
+    expect(canAutoOpenArtifactPanel()).toBe(false);
+  });
+
+  it('says yes from the dock threshold up', () => {
+    vi.stubGlobal('window', { innerWidth: 72 * 16 });
+
+    expect(canAutoOpenArtifactPanel()).toBe(true);
+  });
+
+  it('says no without a window at all', () => {
+    vi.stubGlobal('window', undefined);
+
+    expect(canAutoOpenArtifactPanel()).toBe(false);
   });
 });
