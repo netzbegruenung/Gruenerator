@@ -9,9 +9,11 @@
  * Kanzleirunde.
  *
  * Die Formulierung zur Anbieterwahl („von Dir je Anfrage gewählt") war ebenfalls
- * falsch — sie trifft nur auf Chat und Playground zu, sonst routet
- * `selectProviderAndModel` (`services/providers/providerSelector.ts`) nach
- * Anfragetyp. Der Absatz steht jetzt in der Nachbesserung der Kanzlei
+ * falsch — sie trifft nur auf den Chat zu, sonst routet `selectProviderAndModel`
+ * (`services/providers/providerSelector.ts`) nach Anfragetyp. Der zweite Ort mit
+ * freier Modellwahl war der Playground; dessen Route ist stillgelegt
+ * (`config/routes.ts`), deshalb nennt der Absatz ihn nicht.
+ * Der Absatz steht jetzt in der Nachbesserung der Kanzlei
  * (Rückmeldung vom 11.08.2026), die die Zuordnung funktionsabhängig offenlegt,
  * wie Art. 13 DSGVO es für bestimmbare Empfänger verlangt. Einzige Abweichung
  * davon ist die Anbieterliste: die Kanzlei führt dort weiterhin IONOS, das hier
@@ -380,17 +382,16 @@ const Datenschutz = () => {
         Die von Dir eingegebenen Texte werden zur Bearbeitung an KI-Dienstleister mit Verarbeitung
         in der EU weitergeleitet (Mistral AI/FR, KI-Modelle der netzbegrünung/EU, Seeweb/Regolo
         AI/IT, GreenPT/NL mit Verarbeitung in FR). Welcher Dienstleister eingesetzt wird, richtet
-        sich nach der genutzten Funktion: Im Chat und im Playground kannst Du das Modell selbst
-        wählen; voreingestellt ist „Automatisch“, bei dieser Einstellung wählt die Plattform den
-        Dienstleister anhand von Funktion und Verfügbarkeit. Bei allen übrigen Funktionen (u. a.
-        Anträge, Reden, Sharepic-Texte, Notebooks, Präsentationen) ist der Dienstleister je
-        Funktionstyp fest vorgegeben. Das Modell Mistral Medium 3.5 läuft dabei auf Rechenleistung
-        von Scaleway/FR; fällt Scaleway aus, geht dieselbe Anfrage direkt an Mistral AI. Eine
-        Nutzung Deiner Eingaben zum Training der KI findet nicht statt. Rechtsgrundlage ist Art. 6
-        Abs. 1 lit. b DSGVO; enthalten Deine Eingaben besondere Kategorien (z. B. politische
-        Meinungen), stützt sich deren Verarbeitung auf Art. 9 Abs. 2 lit. a DSGVO (Deine
-        ausdrückliche Einwilligung, die wir vor der ersten Nutzung der KI-Funktionen gesondert
-        einholen).
+        sich nach der genutzten Funktion: Im Chat kannst Du das Modell selbst wählen; voreingestellt
+        ist „Automatisch“, bei dieser Einstellung wählt die Plattform den Dienstleister anhand von
+        Funktion und Verfügbarkeit. Bei allen übrigen Funktionen (u. a. Anträge, Reden,
+        Sharepic-Texte, Notebooks, Präsentationen) ist der Dienstleister je Funktionstyp fest
+        vorgegeben. Das Modell Mistral Medium 3.5 läuft dabei auf Rechenleistung von Scaleway/FR;
+        fällt Scaleway aus, geht dieselbe Anfrage direkt an Mistral AI. Eine Nutzung Deiner Eingaben
+        zum Training der KI findet nicht statt. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO;
+        enthalten Deine Eingaben besondere Kategorien (z. B. politische Meinungen), stützt sich
+        deren Verarbeitung auf Art. 9 Abs. 2 lit. a DSGVO (Deine ausdrückliche Einwilligung, die wir
+        vor der ersten Nutzung der KI-Funktionen gesondert einholen).
       </p>
 
       <h3>Bildbearbeitung und -generierung (Grünerator Imagine)</h3>
