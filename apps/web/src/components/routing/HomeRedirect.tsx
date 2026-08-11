@@ -12,7 +12,7 @@ interface HomeRedirectProps {
 
 /**
  * Special-cases the marketing startpage (`/`): authenticated users are sent
- * to `/workplace`, guests see the Startseite. This is the *only* route with
+ * to their start surface (`/start` or `/workplace`), guests see the Startseite. This is the *only* route with
  * guest-only semantics — every other public route renders the same for both
  * audiences (legal pages, public shares, the login UI itself).
  *
