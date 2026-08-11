@@ -923,8 +923,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   // registers handlers directly on the app — mounting them after
   // mountVoiceContractRouter would leave the contracted routes uncovered.
   // Every voice endpoint spends AI credit or disk, so none of them are public.
-  // The /api/voice/realtime WebSocket is unaffected: it is served from the
-  // server's `upgrade` handler, which Express middleware never sees.
+  // Diese Zeile deckt /api/voice/realtime NICHT ab: der Kanal hängt am
+  // `upgrade`-Handler des HTTP-Servers, den Express-Middleware nie sieht. Er
+  // prüft Anmeldung und Einwilligung deshalb selbst, über `resolveUpgradeAuth`
+  // in routes/voice/realtimeHandler.ts. Wer hier etwas ändert, muss dort
+  // nachziehen.
   app.use('/api/voice', requireAuth, requireAiConsent, standardMutationLimiter);
   // ts-rest contract router — mount before legacy voiceController router
   mountVoiceContractRouter(app);
