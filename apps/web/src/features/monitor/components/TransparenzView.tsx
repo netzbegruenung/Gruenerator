@@ -35,7 +35,10 @@ import {
   formatEnergy,
   formatGrams,
   formatTokens,
+  FUNCTION_LABELS,
+  FUNCTION_ORDER,
   oneDecimal,
+  providerLabel,
   REFERENCE_UNCERTAINTY,
   UNIT_LABELS,
 } from '../../../utils/usageFormat';
@@ -56,16 +59,6 @@ import {
 
 const RANGES = [7, 30, 90] as const;
 export const DEFAULT_DAYS = 30;
-
-/** Human names for the upstreams the tracker records. */
-const PROVIDER_LABELS: Record<string, string> = {
-  mistral: 'Mistral AI',
-  scaleway: 'Scaleway',
-  litellm: 'verdigado (selbst gehostet)',
-  regolo: 'Regolo / Seeweb',
-  greenpt: 'GreenPT',
-  bfl: 'Black Forest Labs',
-};
 
 const DOCS_LINK = `${getDocsUrl()}/docs/ueber-den-gruenerator/nachhaltigkeit`;
 
@@ -254,7 +247,7 @@ function ProviderPanel({ providers }: { providers: TransparencyProviderEntryDto[
           <div key={entry.provider} className="flex flex-col gap-1.5">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <span className={cn('text-[0.95rem] font-bold', MONITOR_HEADING)}>
-                {PROVIDER_LABELS[entry.provider] ?? entry.provider}
+                {providerLabel(entry.provider)}
               </span>
               <span className={cn('text-[0.95rem] font-bold tabular-nums', MONITOR_ACCENT)}>
                 {formatEnergy(entry.energy_wh)} · {formatGrams(entry.emissions_g)}
@@ -504,49 +497,56 @@ function FeaturePanel({ byFeature }: { byFeature: GetTransparencyStatsResponseDt
   );
 }
 
+/**
+ * Grouped by what the model DOES.
+ *
+ * Voxtral transcribes and Linkup searches; in one flat list they read as chat
+ * models with an odd unit, and the two lanes that carry NO footprint end up
+ * looking like the ones that do. Each function gets its own scale, because a
+ * bar comparing 140 images against 7 million tokens says nothing.
+ */
 function ModelPanel({ byModel }: { byModel: GetTransparencyStatsResponseDto['byModel'] }) {
-  const tokenModels = byModel.filter((e) => e.unit === 'tokens');
-  const otherModels = byModel.filter((e) => e.unit !== 'tokens');
-  const max = Math.max(...tokenModels.map((e) => e.total_tokens), 1);
   if (byModel.length === 0) return null;
 
   return (
     <section className="mt-12">
       <div className="mb-5 flex items-baseline justify-between gap-4">
         <h2 className={cn('m-0 text-[1.35rem] font-semibold tracking-[-0.01em]', MONITOR_HEADING)}>
-          Nach Modell
+          Nach Funktion
         </h2>
-        <span className={cn('text-[0.85rem]', MONITOR_FAINT)}>Sortiert nach Tokens</span>
       </div>
-      <div className={cn('flex flex-col gap-4 p-6', MONITOR_CARD)}>
-        {[...tokenModels]
-          .sort((a, b) => b.total_tokens - a.total_tokens)
-          .map((entry) => (
-            <BreakdownRow
-              key={`${entry.provider}|${entry.model}`}
-              label={entry.model}
-              sub={PROVIDER_LABELS[entry.provider] ?? entry.provider}
-              value={`${formatTokens(entry.total_tokens)} Tokens`}
-              share={entry.total_tokens / max}
-            />
-          ))}
-        {otherModels.length > 0 && (
-          <div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-[#eef2ef] pt-4 dark:border-grey-700/60">
-            {[...otherModels]
-              .sort((a, b) => b.ops - a.ops)
-              .map((entry) => (
-                <span
-                  key={`${entry.provider}|${entry.model}|${entry.unit}`}
-                  className={cn('text-[0.82rem]', MONITOR_MUTED)}
-                >
-                  {entry.model}{' '}
-                  <span className="font-bold tabular-nums">
-                    {formatCount(entry.ops)} {UNIT_LABELS[entry.unit] ?? entry.unit}
-                  </span>
-                </span>
-              ))}
-          </div>
-        )}
+      <div className={cn('flex flex-col gap-6 p-6', MONITOR_CARD)}>
+        {FUNCTION_ORDER.map((unit) => {
+          const rows = byModel.filter((e) => e.unit === unit);
+          if (rows.length === 0) return null;
+          const amount = (e: (typeof rows)[number]) => (unit === 'tokens' ? e.total_tokens : e.ops);
+          const max = Math.max(...rows.map(amount), 1);
+          return (
+            <div key={unit} className="flex flex-col gap-3">
+              <h3 className={cn('m-0', MONITOR_EYEBROW)}>{FUNCTION_LABELS[unit]}</h3>
+              {[...rows]
+                .sort((a, b) => amount(b) - amount(a))
+                .map((entry) => (
+                  <BreakdownRow
+                    key={`${entry.provider}|${entry.model}`}
+                    label={entry.model}
+                    sub={providerLabel(entry.provider)}
+                    value={
+                      unit === 'tokens'
+                        ? `${formatTokens(entry.total_tokens)} Tokens`
+                        : `${formatCount(entry.ops)} ${UNIT_LABELS[unit]}`
+                    }
+                    share={amount(entry) / max}
+                  />
+                ))}
+              {(unit === 'transcriptions' || unit === 'searches') && (
+                <p className={cn('m-0 text-[0.78rem]', MONITOR_FAINT)}>
+                  Zählt mit, trägt aber keinen Fußabdruck — siehe „Nicht enthalten“ oben.
+                </p>
+              )}
+            </div>
+          );
+        })}
       </div>
     </section>
   );

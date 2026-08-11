@@ -124,9 +124,34 @@ describe('TransparenzView', () => {
     serve(RESPONSE);
     renderWithProviders(<TransparenzView days={30} />);
 
-    // 900 g – 1,4 kg: both ends present, each formatted in its own magnitude.
-    await waitFor(() => expect(screen.getByText(/900 g – 1,4 kg/)).toBeInTheDocument());
-    expect(screen.getByText(/3,1 kWh – 4,2 kWh Strom/)).toBeInTheDocument();
+    // Both ends present, and no decimals anywhere — the estimate cannot carry
+    // tenths of a gram, so it must not print them.
+    await waitFor(() => expect(screen.getByText(/900 g – 1\.400 g/)).toBeInTheDocument());
+    expect(screen.getByText(/3\.100 Wh – 4\.200 Wh Strom/)).toBeInTheDocument();
+    expect(screen.queryByText(/\d,\d\s*(g|kg|Wh|kWh)/)).not.toBeInTheDocument();
+  });
+
+  it('names verdigado rather than the litellm routing key', async () => {
+    serve({
+      ...RESPONSE,
+      providers: [
+        { provider: 'litellm', grid_g_per_kwh: 363, pue: 1.13, energy_wh: 2600, emissions_g: 700 },
+      ],
+    });
+    renderWithProviders(<TransparenzView days={30} />);
+
+    await waitFor(() => expect(screen.getByText('verdigado')).toBeInTheDocument());
+    expect(screen.queryByText('litellm')).not.toBeInTheDocument();
+  });
+
+  it('lists models grouped by function, with the unvalued lanes marked', async () => {
+    serve(RESPONSE);
+    renderWithProviders(<TransparenzView days={30} />);
+
+    await waitFor(() => expect(screen.getByText('Textmodelle')).toBeInTheDocument());
+    expect(screen.getByText('Bildmodelle')).toBeInTheDocument();
+    expect(screen.getByText('mistral-medium-2604')).toBeInTheDocument();
+    expect(screen.getByText('flux-2-pro')).toBeInTheDocument();
   });
 
   it('shows each provider with the constants its figure was computed from', async () => {
