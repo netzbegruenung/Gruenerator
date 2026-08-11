@@ -27,7 +27,7 @@ import { tool } from '@langchain/core/tools';
 import { createLogger } from '../../../utils/logger.js';
 import { validateUrlForFetch } from '../../../utils/validation/urlSecurity.js';
 import { crawlAndDistill } from '../../search/CrawlingService.js';
-import { getGreenPTSearchService } from '../../search/GreenPTSearchService.js';
+import { getGreenPTSearchService, GREENPT_MAX_RESULTS } from '../../search/GreenPTSearchService.js';
 import { getLinkupService } from '../../search/LinkupService.js';
 
 import { createNotebookTool } from './notebookTool.js';
@@ -55,6 +55,38 @@ export { type ToolContext } from './toolContext.js';
 /** How much of a crawled page the distiller keeps. */
 const CRAWL_TARGET_CHARS = 6000;
 const CRAWL_TIMEOUT_MS = 12_000;
+
+/**
+ * How much of each hit's text survives into the tool result.
+ *
+ * These were 400 and 600, which is the same mistake the chat path made until
+ * #2227: the engine returns far more text than that, we pay for it either way,
+ * and throwing it away caps what the agent can learn per search no matter how
+ * many hits come back. The chat path settled on 900–1500 for exactly this reason
+ * (`snippetChars` in directSearchExecutors).
+ *
+ * The hit list is still a WEGWEISER, not a source — `seite_lesen` remains the
+ * way to actually read something, and the researcher prompt says so. A longer
+ * teaser only makes the choice of what to read an informed one.
+ *
+ * The deep tier gets more because it returns fewer, better hits and is the
+ * expensive call: leaving its text on the table is the most wasteful truncation
+ * of the three.
+ */
+const SEARCH_SNIPPET_CHARS = 1200;
+const DEEP_SNIPPET_CHARS = 1500;
+
+/**
+ * Hits per `web_suche` call.
+ *
+ * The ceiling was 10, which is GreenPT's own hard limit (`GREENPT_MAX_RESULTS`)
+ * applied to both lanes — so a Linkup search, which has no such limit, was
+ * silently held to a foreign one. Each lane is now clamped to what IT can do;
+ * neither is a cost decision, since `maxResults` is not a Linkup pricing
+ * dimension (depth × outputType is).
+ */
+const MAX_SEARCH_RESULTS = 20;
+const DEFAULT_SEARCH_RESULTS = 8;
 
 /** Attempts per external call — the original plus one retry. */
 const ATTEMPTS = 2;
@@ -124,7 +156,7 @@ export function createResearchTools(ctx: ToolContext) {
         return 'Suchbudget aufgebraucht. Nutze die vorhandenen Ergebnisse und schreibe den Bericht.';
       }
       ctx.budget.searchesLeft -= 1;
-      const limit = Math.min(Math.max(maxResults ?? 6, 1), 10);
+      const limit = Math.min(Math.max(maxResults ?? DEFAULT_SEARCH_RESULTS, 1), MAX_SEARCH_RESULTS);
       const hint = localeHint(ctx.locale);
       ctx.onStep(`Suche: ${query}`, 'running');
 
@@ -134,7 +166,10 @@ export function createResearchTools(ctx: ToolContext) {
           () =>
             greenpt.webSearch({
               query,
-              maxResults: limit,
+              // Its own ceiling, not the shared one: asking for more than
+              // GreenPT serves is how a 20-hit request quietly became a 10-hit
+              // one for every lane.
+              maxResults: Math.min(limit, GREENPT_MAX_RESULTS),
               language: hint.greenpt,
               gate: 'wait',
               ...(ctx.signal ? { signal: ctx.signal } : {}),
@@ -188,7 +223,11 @@ export function createResearchTools(ctx: ToolContext) {
       }
       const hits = res.results
         .filter((r) => r.type !== 'image' && r.content)
-        .map((r) => ({ url: r.url, title: r.name, snippet: r.content.slice(0, 400) }));
+        .map((r) => ({
+          url: r.url,
+          title: r.name,
+          snippet: r.content.slice(0, SEARCH_SNIPPET_CHARS),
+        }));
       hits.forEach((h) => remember(ctx, h.url, h.title));
       ctx.onStep(`Suche: ${query}`, 'done');
       return formatHits(hits);
@@ -204,7 +243,7 @@ export function createResearchTools(ctx: ToolContext) {
             type: 'string',
             description: 'Die Suchanfrage, als vollständige Frage oder Stichwortkette',
           },
-          maxResults: { type: 'number', description: 'Anzahl Treffer, 1–10 (Standard 6)' },
+          maxResults: { type: 'number', description: 'Anzahl Treffer, 1–20 (Standard 8)' },
         },
         required: ['query'],
       },
@@ -247,7 +286,11 @@ export function createResearchTools(ctx: ToolContext) {
       }
       const hits = res.results
         .filter((r) => r.type !== 'image' && r.content)
-        .map((r) => ({ url: r.url, title: r.name, snippet: r.content.slice(0, 600) }));
+        .map((r) => ({
+          url: r.url,
+          title: r.name,
+          snippet: r.content.slice(0, DEEP_SNIPPET_CHARS),
+        }));
       hits.forEach((h) => remember(ctx, h.url, h.title));
       ctx.onStep(`Tiefensuche: ${frage}`, 'done');
       return formatHits(hits);
