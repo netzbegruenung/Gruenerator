@@ -107,14 +107,19 @@ export function formatTokens(value: number): string {
  * which is a worse lie than the one we are removing. So grams run to 9999.
  */
 export function formatGrams(grams: number): string {
-  if (grams >= 10_000) return `${numberFormat.format(Math.round(grams / 1000))} kg`;
-  if (grams >= 1) return `${numberFormat.format(Math.round(grams))} g`;
+  // Threshold tested against the ROUNDED value, not the raw one: 9999,6 g
+  // rounds to 10000, and picking the unit first would print "10.000 g" where
+  // the very next value prints "10 kg". Same at the mg/g seam (0,9996 g).
+  const rounded = Math.round(grams);
+  if (rounded >= 10_000) return `${numberFormat.format(Math.round(grams / 1000))} kg`;
+  if (rounded >= 1) return `${numberFormat.format(rounded)} g`;
   return `${numberFormat.format(Math.round(grams * 1000))} mg`;
 }
 
 export function formatEnergy(wh: number): string {
-  if (wh >= 10_000) return `${numberFormat.format(Math.round(wh / 1000))} kWh`;
-  return `${numberFormat.format(Math.round(wh))} Wh`;
+  const rounded = Math.round(wh);
+  if (rounded >= 10_000) return `${numberFormat.format(Math.round(wh / 1000))} kWh`;
+  return `${numberFormat.format(rounded)} Wh`;
 }
 
 /**
@@ -125,8 +130,9 @@ export const CAR_G_PER_KM = 150;
 
 export function carComparison(grams: number): string {
   const metres = (grams / CAR_G_PER_KM) * 1000;
-  if (metres >= 10_000) return `${numberFormat.format(Math.round(metres / 1000))} km Autofahrt`;
-  return `${numberFormat.format(Math.round(metres))} m Autofahrt`;
+  const rounded = Math.round(metres);
+  if (rounded >= 10_000) return `${numberFormat.format(Math.round(metres / 1000))} km Autofahrt`;
+  return `${numberFormat.format(rounded)} m Autofahrt`;
 }
 
 export function formatDay(day: string): string {
@@ -145,3 +151,68 @@ export function formatDay(day: string): string {
  * uplift in energyFootprint.ts.
  */
 export const REFERENCE_UNCERTAINTY = 0.3;
+
+/** The footprint fields the GPT-4o comparison needs, from either endpoint. */
+export interface ReferenceComparisonInput {
+  emissions_g: number;
+  image_emissions_g: number;
+  energy_wh: number;
+  image_energy_wh: number;
+  reference_emissions_g: number;
+  reference_energy_wh: number;
+}
+
+export interface ReferenceComparisonResult {
+  /** False when there is no text usage at all — nothing to compare. */
+  hasComparison: boolean;
+  /** True when we come out ahead. Callers switch framing, never visibility. */
+  saved: boolean;
+  /** Magnitude of the difference, always positive; `saved` carries the sign. */
+  magnitude: number;
+  low: number;
+  high: number;
+  /** Our own text-only figures. The personal tab must NOT render these. */
+  textEmissions: number;
+  textEnergy: number;
+}
+
+/**
+ * The GPT-4o comparison, computed once for both surfaces.
+ *
+ * This lived twice — in the personal tab and on the transparency page — and
+ * drifted twice inside a single pull request: first the page kept a stale
+ * `return null` that hid an unfavourable result, then the tab's note outlived
+ * the card it described. Two copies of one rule is the bug, so there is one.
+ *
+ * Text only on both sides: the reference has no image half, so comparing it
+ * against a total that includes Flux would invent a saving out of an
+ * accounting mismatch.
+ */
+export function referenceComparison(
+  footprint: ReferenceComparisonInput
+): ReferenceComparisonResult {
+  const textEmissions = footprint.emissions_g - footprint.image_emissions_g;
+  const textEnergy = footprint.energy_wh - footprint.image_energy_wh;
+  const difference = footprint.reference_emissions_g - textEmissions;
+  const saved = difference >= 0;
+
+  return {
+    hasComparison: textEmissions > 0 || textEnergy > 0 || footprint.reference_emissions_g > 0,
+    saved,
+    magnitude: Math.abs(difference),
+    low: Math.max(
+      saved
+        ? footprint.reference_emissions_g * (1 - REFERENCE_UNCERTAINTY) - textEmissions
+        : textEmissions - footprint.reference_emissions_g * (1 + REFERENCE_UNCERTAINTY),
+      0
+    ),
+    high: Math.max(
+      saved
+        ? footprint.reference_emissions_g * (1 + REFERENCE_UNCERTAINTY) - textEmissions
+        : textEmissions - footprint.reference_emissions_g * (1 - REFERENCE_UNCERTAINTY),
+      0
+    ),
+    textEmissions,
+    textEnergy,
+  };
+}
