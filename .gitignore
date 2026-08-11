@@ -112,6 +112,13 @@ GEMINI.md
 
 # Python virtual environments
 **/.venv/
+**/.venv-*/
+
+# Python build/test artifacts (services/nlp)
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
 
 # Scripts directory (root only)
 /scripts/
