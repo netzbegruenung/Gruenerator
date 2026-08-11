@@ -330,7 +330,7 @@ export const MessageActions = memo(function MessageActions({
       {sources && sources.length > 0 && onToggleSources && (
         <MessageSourcesButton citations={sources} open={sourcesOpen} onToggle={onToggleSources} />
       )}
-      <MessageTime className="ml-1 opacity-0 transition-opacity group-hover:opacity-100 pointer-coarse:opacity-100" />
+      <MessageTime className="ml-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100" />
     </div>
   );
 });

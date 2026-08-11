@@ -4,19 +4,23 @@ import { useAuiState } from '@assistant-ui/react';
 
 import { cn } from '../../lib/utils';
 
+import { buildDaySeparatorLabels, type DatedEntry } from './messageTimestampLabels';
+
 const timeFormat = new Intl.DateTimeFormat('de', { hour: '2-digit', minute: '2-digit' });
-const dayFormat = new Intl.DateTimeFormat('de', { day: 'numeric', month: 'long', year: 'numeric' });
 
-function dayKey(d: Date): string {
-  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-}
+// One O(N) pass per messages-array identity, shared by all N separator
+// instances. Without this every instance ran its own scan on every thread
+// update — O(N²) across a streamed answer, since each token publishes a new
+// array to all subscribers.
+const labelCache = new WeakMap<readonly DatedEntry[], Map<string, string | null>>();
 
-function dayLabel(d: Date): string {
-  const now = new Date();
-  if (dayKey(d) === dayKey(now)) return 'Heute';
-  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-  if (dayKey(d) === dayKey(yesterday)) return 'Gestern';
-  return dayFormat.format(d);
+function separatorLabelsFor(messages: readonly DatedEntry[]): Map<string, string | null> {
+  let labels = labelCache.get(messages);
+  if (!labels) {
+    labels = buildDaySeparatorLabels(messages, new Date());
+    labelCache.set(messages, labels);
+  }
+  return labels;
 }
 
 /**
@@ -25,16 +29,7 @@ function dayLabel(d: Date): string {
  * when its day is NOT today — a lone "Heute" over a fresh chat says nothing.
  */
 export function MessageDaySeparator() {
-  const label = useAuiState((s) => {
-    const messages = s.thread.messages;
-    const index = messages.findIndex((m) => m.id === s.message.id);
-    if (index < 0) return null;
-    const current = messages[index]?.createdAt;
-    if (!current) return null;
-    const previous = index > 0 ? messages[index - 1]?.createdAt : null;
-    if (previous) return dayKey(previous) === dayKey(current) ? null : dayLabel(current);
-    return dayKey(current) === dayKey(new Date()) ? null : dayLabel(current);
-  });
+  const label = useAuiState((s) => separatorLabelsFor(s.thread.messages).get(s.message.id) ?? null);
 
   if (!label) return null;
 
