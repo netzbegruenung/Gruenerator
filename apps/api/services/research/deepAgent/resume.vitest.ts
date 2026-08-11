@@ -1,4 +1,5 @@
 import { AIMessage, HumanMessage, ToolMessage } from '@langchain/core/messages';
+import { GraphRecursionError } from '@langchain/langgraph';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -38,6 +39,27 @@ describe('classifyRunError', () => {
     expect(
       classifyRunError(namedError('GraphRecursionError', 'Recursion limit of 60 reached'))
     ).toBe('recursion');
+  });
+
+  it('recognises the real library class, not just the name we assume it carries', () => {
+    expect(classifyRunError(new GraphRecursionError('Recursion limit of 60 reached'))).toBe(
+      'recursion'
+    );
+  });
+
+  it('sees through a wrapper — a re-thrown recursion error still gets the wrap-up leg', () => {
+    const wrapped = new Error('Stream failed', {
+      cause: new GraphRecursionError('Recursion limit of 60 reached'),
+    });
+
+    expect(classifyRunError(wrapped)).toBe('recursion');
+  });
+
+  it('survives a cause chain that points back at itself', () => {
+    const loop = new Error('a') as Error & { cause?: unknown };
+    loop.cause = loop;
+
+    expect(classifyRunError(loop)).toBe('transient');
   });
 
   it('classifies everything else as transient — outages, 400s, network blips', () => {
