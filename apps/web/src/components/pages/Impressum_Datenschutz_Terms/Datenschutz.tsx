@@ -8,6 +8,15 @@
  * ist der schwerere Fehler von beiden, deshalb die Korrektur vor der nächsten
  * Kanzleirunde.
  *
+ * Die Formulierung zur Anbieterwahl („von Dir je Anfrage gewählt") war ebenfalls
+ * falsch — sie trifft nur auf Chat und Playground zu, sonst routet
+ * `selectProviderAndModel` (`services/providers/providerSelector.ts`) nach
+ * Anfragetyp. Der Absatz steht jetzt in der Nachbesserung der Kanzlei
+ * (Rückmeldung vom 11.08.2026), die die Zuordnung funktionsabhängig offenlegt,
+ * wie Art. 13 DSGVO es für bestimmbare Empfänger verlangt. Einzige Abweichung
+ * davon ist die Anbieterliste: die Kanzlei führt dort weiterhin IONOS, das hier
+ * nicht mehr angebunden ist, und kennt GreenPT und Scaleway noch nicht.
+ *
  * Firmierungen und Anschriften stammen aus den Rechtsseiten der Anbieter selbst
  * (Scaleway: mentions-legales; GreenPT: docs.greenpt.ai/privacy/terms), nicht
  * aus Firmendatenbanken.
@@ -22,7 +31,7 @@ const Datenschutz = () => {
   return (
     <div className="page-container">
       <h1>Datenschutzerklärung</h1>
-      <p>Stand: 10. August 2026</p>
+      <p>Stand: 11. August 2026</p>
 
       <h2>Einleitung</h2>
       <p>
@@ -193,8 +202,8 @@ const Datenschutz = () => {
             <td>Deutschland / Finnland (EU)</td>
             <td>
               Kerninfrastruktur, Datenbank (PostgreSQL), Keycloak-Authentifizierung, Redis,
-              Vektorsuche (Qdrant, anonymisiert), kollaboratives Schreiben (Etherpad, Pad-IDs ohne
-              Personenbezug), eigene KI-Modelle
+              Vektorsuche (Qdrant, pseudonymisiert), kollaboratives Schreiben (Etherpad, Pad-IDs
+              ohne Personenbezug), eigene KI-Modelle
             </td>
           </tr>
           <tr>
@@ -368,15 +377,20 @@ const Datenschutz = () => {
 
       <h3 id="ki-textgenerierung">KI-Textgenerierung und Chat</h3>
       <p>
-        Die von Dir eingegebenen Texte werden zur Bearbeitung an den von Dir je Anfrage gewählten
-        KI-Dienstleister mit Verarbeitung in der EU weitergeleitet (Mistral AI/FR, KI-Modelle der
-        netzbegrünung/EU, Seeweb/Regolo AI/IT, GreenPT/NL mit Verarbeitung in FR). Das Modell
-        Mistral Medium 3.5 läuft dabei auf Rechenleistung von Scaleway/FR; fällt Scaleway aus, geht
-        dieselbe Anfrage direkt an Mistral AI. Eine Nutzung Deiner Eingaben zum Training der KI
-        findet nicht statt. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO; enthalten Deine Eingaben
-        besondere Kategorien (z. B. politische Meinungen), stützt sich deren Verarbeitung auf Art. 9
-        Abs. 2 lit. a DSGVO (Deine ausdrückliche Einwilligung, die wir vor der ersten Nutzung der
-        KI-Funktionen gesondert einholen).
+        Die von Dir eingegebenen Texte werden zur Bearbeitung an KI-Dienstleister mit Verarbeitung
+        in der EU weitergeleitet (Mistral AI/FR, KI-Modelle der netzbegrünung/EU, Seeweb/Regolo
+        AI/IT, GreenPT/NL mit Verarbeitung in FR). Welcher Dienstleister eingesetzt wird, richtet
+        sich nach der genutzten Funktion: Im Chat und im Playground kannst Du das Modell selbst
+        wählen; voreingestellt ist „Automatisch“, bei dieser Einstellung wählt die Plattform den
+        Dienstleister anhand von Funktion und Verfügbarkeit. Bei allen übrigen Funktionen (u. a.
+        Anträge, Reden, Sharepic-Texte, Notebooks, Präsentationen) ist der Dienstleister je
+        Funktionstyp fest vorgegeben. Das Modell Mistral Medium 3.5 läuft dabei auf Rechenleistung
+        von Scaleway/FR; fällt Scaleway aus, geht dieselbe Anfrage direkt an Mistral AI. Eine
+        Nutzung Deiner Eingaben zum Training der KI findet nicht statt. Rechtsgrundlage ist Art. 6
+        Abs. 1 lit. b DSGVO; enthalten Deine Eingaben besondere Kategorien (z. B. politische
+        Meinungen), stützt sich deren Verarbeitung auf Art. 9 Abs. 2 lit. a DSGVO (Deine
+        ausdrückliche Einwilligung, die wir vor der ersten Nutzung der KI-Funktionen gesondert
+        einholen).
       </p>
 
       <h3>Bildbearbeitung und -generierung (Grünerator Imagine)</h3>
