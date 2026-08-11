@@ -176,7 +176,11 @@ export function createResearchTools(ctx: ToolContext) {
         (error, tryNo) =>
           log.warn(
             `[web_suche] Linkup Versuch ${tryNo}/${ATTEMPTS} fehlgeschlagen: ${String(error)}`
-          )
+          ),
+        // Ohne das Signal liefe der zweite Versuch auch nach Fristablauf noch —
+        // und `LinkupService.webSearch` nimmt selbst keins entgegen, kennt nur
+        // seinen eigenen 60-s-Timeout. Das wäre eine Minute nach Feierabend.
+        ctx.signal
       );
       if (!res) {
         ctx.onStep(`Suche: ${query}`, 'failed');
