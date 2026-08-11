@@ -6,11 +6,16 @@
  * search client, no second crawler, and in particular no second place that pays
  * Linkup. What is new here is the run budget and the failure policy.
  *
- * Two rules run through all of them:
+ * Three rules run through all of them:
  *
  *  - **A tool never throws.** A thrown error ends the agent's turn; a returned
  *    sentence lets it adapt ("search budget spent, write the report now"). Every
  *    failure is therefore reported as prose in the tool result.
+ *  - **Every failure is retried once, then skipped.** A run that lasts a quarter
+ *    of an hour must not lose a sub-question to one 503, and must not spend that
+ *    quarter hour on it either. So: one more attempt, and if that fails too, a
+ *    tool result that names the failure and tells the model to move on — never a
+ *    silent empty answer, which a model reads as "nothing on this exists".
  *  - **Linkup's `/v1/research` endpoint is never called** (~3 EUR per prompt),
  *    and neither is `LinkupService.deepResearch` — its `sourcedAnswer` belongs
  *    to the `@deepresearch` fallback turn, which has its own quota. This agent
@@ -51,6 +56,38 @@ export { type ToolContext } from './toolContext.js';
 const CRAWL_TARGET_CHARS = 6000;
 const CRAWL_TIMEOUT_MS = 12_000;
 
+/** Attempts per external call — the original plus one retry. */
+const ATTEMPTS = 2;
+
+/**
+ * Runs `attempt` up to `ATTEMPTS` times and returns null when all of them fail.
+ *
+ * Null rather than a throw, because the caller's job is to turn a dead call into
+ * a sentence the model can act on. The last error goes to `onFail` for the log —
+ * a swallowed cause is how "the agent found nothing" stays unexplained.
+ *
+ * There is deliberately no pause between attempts. The one wait that helps is
+ * GreenPT's 5 s spacing, and that already sits inside its own gate (`wait`
+ * mode); everything else here fails on a network or parse error, where a second
+ * try either works immediately or not at all. A blanket sleep would only spend
+ * the run's clock to look diligent.
+ */
+async function retrying<T>(
+  attempt: (tryNo: number) => Promise<T>,
+  onFail: (error: unknown, tryNo: number) => void,
+  signal?: AbortSignal
+): Promise<T | null> {
+  for (let tryNo = 1; tryNo <= ATTEMPTS; tryNo += 1) {
+    if (signal?.aborted) return null;
+    try {
+      return await attempt(tryNo);
+    } catch (error) {
+      onFail(error, tryNo);
+    }
+  }
+  return null;
+}
+
 /**
  * A failed crawl gets its unit back (capped — see RunBudget.crawlRefundsLeft):
  * a run whose top sources all 503 should read the next candidates instead of
@@ -64,14 +101,19 @@ function refundCrawl(ctx: ToolContext): void {
 
 export function createResearchTools(ctx: ToolContext) {
   /**
-   * The workhorse. GreenPT first because it is cheaper, greener and faster;
-   * Linkup `standard` catches everything GreenPT declines.
+   * The workhorse — and the one place where this agent's provider policy differs
+   * from the chat's.
    *
-   * GreenPT signals throttling by returning an EMPTY result set with HTTP 200,
-   * which its service turns into `GreenPTEmptyError`, and it refuses rather than
-   * queues a call inside its 5 s gate. Both are ordinary fallbacks here, not
-   * errors: during a fan-out we will hit that gate constantly and simply pay
-   * Linkup instead.
+   * GreenPT is not merely tried first here, it is WAITED for: `gate: 'wait'`
+   * queues behind the 5 s spacing instead of refusing, and a throttled call
+   * (`GreenPTEmptyError`, its only tell) is retried rather than handed to
+   * Linkup. In the chat the opposite is right — a person is watching a spinner.
+   * In a run measured in minutes, dropping to the paid engine to save five
+   * seconds is the wrong trade, and it is how a "GreenPT first" lane quietly
+   * became a Linkup lane in practice.
+   *
+   * Linkup stays as the floor under it: circuit open, no key, both attempts
+   * dead. It is a fallback now, not a co-equal.
    */
   const webSuche = tool(
     async (input: unknown): Promise<string> => {
@@ -88,12 +130,22 @@ export function createResearchTools(ctx: ToolContext) {
 
       const greenpt = getGreenPTSearchService();
       if (greenpt) {
-        try {
-          const results = await greenpt.webSearch({
-            query,
-            maxResults: limit,
-            language: hint.greenpt,
-          });
+        const results = await retrying(
+          () =>
+            greenpt.webSearch({
+              query,
+              maxResults: limit,
+              language: hint.greenpt,
+              gate: 'wait',
+              ...(ctx.signal ? { signal: ctx.signal } : {}),
+            }),
+          (error, tryNo) =>
+            log.debug(
+              `[web_suche] GreenPT Versuch ${tryNo}/${ATTEMPTS} fehlgeschlagen: ${String(error)}`
+            ),
+          ctx.signal
+        );
+        if (results) {
           const hits = results.map((r) => ({
             url: r.url,
             title: r.title,
@@ -102,35 +154,40 @@ export function createResearchTools(ctx: ToolContext) {
           hits.forEach((h) => remember(ctx, h.url, h.title));
           ctx.onStep(`Suche: ${query}`, 'done');
           return formatHits(hits);
-        } catch (error) {
-          // Throttled, rate-gated, circuit open or genuinely empty — all four
-          // mean the same thing to us: ask the other engine.
-          log.debug(`[web_suche] GreenPT fiel aus, weiche auf Linkup aus: ${String(error)}`);
         }
+        log.info(`[web_suche] GreenPT nach ${ATTEMPTS} Versuchen ohne Treffer — Linkup übernimmt`);
       }
 
       const linkup = getLinkupService();
       if (!linkup) {
         ctx.onStep(`Suche: ${query}`, 'failed');
+        // The search budget is refunded: nothing was asked of any provider, so
+        // charging the run for it would shorten a report for no reason.
+        ctx.budget.searchesLeft += 1;
         return 'Keine Suchmaschine verfügbar. Schreibe den Bericht aus dem vorhandenen Material.';
       }
-      try {
-        const res = await linkup.webSearch({
-          query: `${query}${hint.queryNote}`,
-          depth: 'standard',
-          maxResults: limit,
-        });
-        const hits = res.results
-          .filter((r) => r.type !== 'image' && r.content)
-          .map((r) => ({ url: r.url, title: r.name, snippet: r.content.slice(0, 400) }));
-        hits.forEach((h) => remember(ctx, h.url, h.title));
-        ctx.onStep(`Suche: ${query}`, 'done');
-        return formatHits(hits);
-      } catch (error) {
+      const res = await retrying(
+        () =>
+          linkup.webSearch({
+            query: `${query}${hint.queryNote}`,
+            depth: 'standard',
+            maxResults: limit,
+          }),
+        (error, tryNo) =>
+          log.warn(
+            `[web_suche] Linkup Versuch ${tryNo}/${ATTEMPTS} fehlgeschlagen: ${String(error)}`
+          )
+      );
+      if (!res) {
         ctx.onStep(`Suche: ${query}`, 'failed');
-        log.warn(`[web_suche] Linkup fehlgeschlagen: ${String(error)}`);
-        return 'Die Suche ist fehlgeschlagen. Versuche eine andere Formulierung oder arbeite mit dem vorhandenen Material weiter.';
+        return 'Die Suche ist zweimal fehlgeschlagen. Überspringe diese Teilfrage oder formuliere sie anders — und arbeite sonst mit dem vorhandenen Material weiter.';
       }
+      const hits = res.results
+        .filter((r) => r.type !== 'image' && r.content)
+        .map((r) => ({ url: r.url, title: r.name, snippet: r.content.slice(0, 400) }));
+      hits.forEach((h) => remember(ctx, h.url, h.title));
+      ctx.onStep(`Suche: ${query}`, 'done');
+      return formatHits(hits);
     },
     {
       name: 'web_suche',
@@ -167,23 +224,29 @@ export function createResearchTools(ctx: ToolContext) {
       if (!linkup) return 'Tiefensuche nicht verfügbar. Nutze web_suche.';
       ctx.budget.deepSearchesLeft -= 1;
       ctx.onStep(`Tiefensuche: ${frage}`, 'running');
-      try {
-        const res = await linkup.webSearch({
-          query: `${frage}${localeHint(ctx.locale).queryNote}`,
-          depth: 'deep',
-          maxResults: 15,
-        });
-        const hits = res.results
-          .filter((r) => r.type !== 'image' && r.content)
-          .map((r) => ({ url: r.url, title: r.name, snippet: r.content.slice(0, 600) }));
-        hits.forEach((h) => remember(ctx, h.url, h.title));
-        ctx.onStep(`Tiefensuche: ${frage}`, 'done');
-        return formatHits(hits);
-      } catch (error) {
+      const res = await retrying(
+        () =>
+          linkup.webSearch({
+            query: `${frage}${localeHint(ctx.locale).queryNote}`,
+            depth: 'deep',
+            maxResults: 15,
+          }),
+        (error, tryNo) =>
+          log.warn(`[tiefen_suche] Versuch ${tryNo}/${ATTEMPTS} fehlgeschlagen: ${String(error)}`),
+        ctx.signal
+      );
+      if (!res) {
         ctx.onStep(`Tiefensuche: ${frage}`, 'failed');
-        log.warn(`[tiefen_suche] fehlgeschlagen: ${String(error)}`);
-        return 'Die Tiefensuche ist fehlgeschlagen. Arbeite mit web_suche weiter.';
+        // The unit is NOT refunded: a `deep` call that reached Linkup may well
+        // have been billed, and the budget's job is to bound the bill.
+        return 'Die Tiefensuche ist zweimal fehlgeschlagen. Überspringe sie und arbeite mit web_suche weiter.';
       }
+      const hits = res.results
+        .filter((r) => r.type !== 'image' && r.content)
+        .map((r) => ({ url: r.url, title: r.name, snippet: r.content.slice(0, 600) }));
+      hits.forEach((h) => remember(ctx, h.url, h.title));
+      ctx.onStep(`Tiefensuche: ${frage}`, 'done');
+      return formatHits(hits);
     },
     {
       name: 'tiefen_suche',
@@ -225,37 +288,43 @@ export function createResearchTools(ctx: ToolContext) {
         /* target is already validated; the label is cosmetic */
       }
       ctx.onStep(`Lese Quelle: ${host}`, 'running');
-      try {
-        const crawled = await crawlAndDistill(
-          [{ url: target, title: target, content: '', relevance: 1 }],
-          fokus ?? '',
-          {
-            maxUrls: 1,
-            timeout: CRAWL_TIMEOUT_MS,
-            // query-focused when the caller named a focus, faithful otherwise:
-            // without a question a relevance filter would drop the very passage
-            // the agent went looking for.
-            mode: fokus ? 'query-focused' : 'faithful',
-            targetChars: CRAWL_TARGET_CHARS,
-            ...(ctx.aiWorkerPool ? { aiWorkerPool: ctx.aiWorkerPool as never } : {}),
-          }
-        );
-        const page = crawled[0];
-        const text = page?.content || page?.fullContent || '';
-        if (!page?.crawled || !text) {
-          ctx.onStep(`Lese Quelle: ${host}`, 'failed');
-          refundCrawl(ctx);
-          return `Die Seite ${host} konnte nicht gelesen werden. Nutze den Suchtreffer-Auszug oder eine andere Quelle.`;
-        }
-        remember(ctx, target, page.title || host);
-        ctx.onStep(`Lese Quelle: ${host}`, 'done');
-        return `Inhalt von ${target}:\n\n${text}`;
-      } catch (error) {
+      // An empty result counts as a failure so the retry covers it too: a page
+      // that answers with nothing on the first attempt (slow render, a 503 the
+      // crawler swallowed) is the ordinary case a second try fixes.
+      const text = await retrying(
+        async () => {
+          const crawled = await crawlAndDistill(
+            [{ url: target, title: target, content: '', relevance: 1 }],
+            fokus ?? '',
+            {
+              maxUrls: 1,
+              timeout: CRAWL_TIMEOUT_MS,
+              // query-focused when the caller named a focus, faithful otherwise:
+              // without a question a relevance filter would drop the very passage
+              // the agent went looking for.
+              mode: fokus ? 'query-focused' : 'faithful',
+              targetChars: CRAWL_TARGET_CHARS,
+              ...(ctx.aiWorkerPool ? { aiWorkerPool: ctx.aiWorkerPool as never } : {}),
+            }
+          );
+          const page = crawled[0];
+          const content = page?.content || page?.fullContent || '';
+          if (!page?.crawled || !content) throw new Error('kein Inhalt extrahiert');
+          remember(ctx, target, page.title || host);
+          return content;
+        },
+        (error, tryNo) =>
+          log.warn(`[seite_lesen] ${host} Versuch ${tryNo}/${ATTEMPTS}: ${String(error)}`),
+        ctx.signal
+      );
+
+      if (!text) {
         ctx.onStep(`Lese Quelle: ${host}`, 'failed');
-        log.warn(`[seite_lesen] fehlgeschlagen: ${String(error)}`);
         refundCrawl(ctx);
-        return `Die Seite ${host} konnte nicht gelesen werden. Wähle eine andere Quelle.`;
+        return `Die Seite ${host} war auch im zweiten Versuch nicht lesbar. Überspringe sie: nimm den Suchtreffer-Auszug oder eine andere Quelle.`;
       }
+      ctx.onStep(`Lese Quelle: ${host}`, 'done');
+      return `Inhalt von ${target}:\n\n${text}`;
     },
     {
       name: 'seite_lesen',

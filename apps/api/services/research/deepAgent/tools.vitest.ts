@@ -116,6 +116,69 @@ describe('web_suche', () => {
     await expect(webSuche.invoke({ query: 'Wien' })).resolves.toContain('fehlgeschlagen');
   });
 
+  /**
+   * The provider policy, which is where this agent parts ways with the chat:
+   * GreenPT is waited for and retried, and Linkup is what is left when that
+   * fails twice — not a co-equal engine one throttle away.
+   */
+  it('waits out the GreenPT spacing gate instead of dropping to Linkup', async () => {
+    greenptWebSearch.mockResolvedValue([
+      { url: 'https://a.example', title: 'A', description: 'x' },
+    ]);
+    const { webSuche } = setup();
+
+    await webSuche.invoke({ query: 'Wien' });
+
+    expect(greenptWebSearch.mock.calls[0]?.[0]).toMatchObject({ gate: 'wait' });
+  });
+
+  it('retries a throttled GreenPT once before paying Linkup', async () => {
+    greenptWebSearch
+      .mockRejectedValueOnce(new Error('GreenPT returned zero results'))
+      .mockResolvedValueOnce([{ url: 'https://a.example', title: 'A', description: 'x' }]);
+    const { webSuche } = setup();
+
+    const out = await webSuche.invoke({ query: 'Wien' });
+
+    expect(greenptWebSearch).toHaveBeenCalledTimes(2);
+    expect(linkupWebSearch).not.toHaveBeenCalled();
+    expect(out).toContain('a.example');
+  });
+
+  it('gives Linkup a second attempt too, so one blip does not lose the sub-question', async () => {
+    greenptService = null;
+    linkupWebSearch.mockRejectedValueOnce(new Error('ECONNRESET')).mockResolvedValueOnce({
+      results: [{ url: 'https://b.example', name: 'B', content: 'Inhalt' }],
+    });
+    const { webSuche } = setup();
+
+    const out = await webSuche.invoke({ query: 'Wien' });
+
+    expect(linkupWebSearch).toHaveBeenCalledTimes(2);
+    expect(out).toContain('b.example');
+  });
+
+  it('tells the agent to skip the sub-question when both attempts fail', async () => {
+    greenptService = null;
+    linkupWebSearch.mockRejectedValue(new Error('tot'));
+    const { webSuche } = setup();
+
+    const out = await webSuche.invoke({ query: 'Wien' });
+
+    expect(out).toContain('Überspringe');
+  });
+
+  it('refunds the search unit when no engine exists at all — nothing was asked of anyone', async () => {
+    greenptService = null;
+    linkupService = null;
+    const { webSuche, ctx } = setup();
+    const before = ctx.budget.searchesLeft;
+
+    await webSuche.invoke({ query: 'Wien' });
+
+    expect(ctx.budget.searchesLeft).toBe(before);
+  });
+
   it('refuses once the search budget is spent, without calling any engine', async () => {
     const { webSuche, ctx } = setup();
     ctx.budget.searchesLeft = 0;
@@ -271,7 +334,7 @@ describe('seite_lesen', () => {
 
     const out = await seiteLesen.invoke({ url: 'https://ok.example/x' });
 
-    expect(out).toContain('konnte nicht gelesen werden');
+    expect(out).toContain('nicht lesbar');
   });
 
   it('returns prose — never throws — when the crawler itself blows up', async () => {
@@ -280,8 +343,26 @@ describe('seite_lesen', () => {
     const { seiteLesen } = setup();
 
     await expect(seiteLesen.invoke({ url: 'https://ok.example/x' })).resolves.toContain(
-      'konnte nicht gelesen werden'
+      'nicht lesbar'
     );
+  });
+
+  it('retries a page that failed once, before giving up on it', async () => {
+    validateUrlForFetch.mockResolvedValue({ isValid: true, url: new URL('https://ok.example/x') });
+    crawlAndDistill
+      .mockRejectedValueOnce(new Error('503'))
+      .mockResolvedValueOnce([
+        { url: 'https://ok.example/x', title: 'Seite', content: 'Der Inhalt', crawled: true },
+      ]);
+    const { seiteLesen, ctx } = setup();
+    const before = ctx.budget.crawlsLeft;
+
+    const out = await seiteLesen.invoke({ url: 'https://ok.example/x' });
+
+    expect(crawlAndDistill).toHaveBeenCalledTimes(2);
+    expect(out).toContain('Der Inhalt');
+    // One page read, one unit spent — the retry is part of the same read.
+    expect(ctx.budget.crawlsLeft).toBe(before - 1);
   });
 
   it('refunds a failed crawl, so a run of 503s does not spend the reading allowance on nothing', async () => {

@@ -16,6 +16,11 @@ export interface ToolContext {
   aiWorkerPool?: unknown;
   /** Absent when nothing is in reach; the notebook tool is then not registered. */
   notebooks?: NotebookScope;
+  /**
+   * The run's deadline, so a tool that WAITS (the GreenPT spacing gate, a retry
+   * pause) is cut short with it instead of outliving the run it belongs to.
+   */
+  signal?: AbortSignal;
   onStep: (label: string, status: 'running' | 'done' | 'failed') => void;
 }
 
