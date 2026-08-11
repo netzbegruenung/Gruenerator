@@ -302,7 +302,7 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/ueber-den-gruenerator/wie-diese-doku-entsteht",
     "title": "Wie diese Doku entsteht",
     "category": "Über den Grünerator",
-    "lead": "Diese Dokumentation beschreibt ein Werkzeug, das sich fast wöchentlich ändert. Damit die Beschreibung nicht still veraltet, entsteht sie zu großen Teilen automatisch aus dem Quellcode des Grünerators…"
+    "lead": "Diese Dokumentation beschreibt ein Werkzeug, das sich fast wöchentlich ändert. Damit die Beschreibung nicht still veraltet, entsteht sie größtenteils direkt am Quellcode des Grünerators — die Aufzähl…"
   },
   {
     "url": "/docs/webinare",
@@ -2905,7 +2905,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wie diese Doku entsteht",
     "anchor": "",
     "category": "Über den Grünerator",
-    "text": "Diese Dokumentation beschreibt ein Werkzeug, das sich fast wöchentlich ändert. Damit die Beschreibung nicht still veraltet, entsteht sie zu großen Teilen automatisch aus dem Quellcode des Grünerators — und wird zusätzlich regelmäßig von einer KI gegen den Code geprüft. Weil das eine ungewöhnliche Arbeitsweise ist, steht hier offen, welcher Teil woher kommt."
+    "text": "Diese Dokumentation beschreibt ein Werkzeug, das sich fast wöchentlich ändert. Damit die Beschreibung nicht still veraltet, entsteht sie größtenteils direkt am Quellcode des Grünerators — die Aufzählungen werden maschinell aus ihm ausgelesen, die erklärenden Texte zum überwiegenden Teil von einer KI geschrieben, die den Code dabei mitliest. Weil das eine ungewöhnliche Arbeitsweise ist, steht hier offen, welcher Teil woher kommt. Der größte Teil dieser Doku ist von einer KI geschrieben — beauftragt, gegengelesen und freigegeben von Menschen. Die Listen darin stammen nicht aus der KI, sondern werden Wort für Wort aus dem Quellcode ausgelesen."
   },
   {
     "url": "/docs/ueber-den-gruenerator/wie-diese-doku-entsteht",
@@ -2913,7 +2913,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Drei Schichten, drei Verfahren",
     "anchor": "#drei-schichten-drei-verfahren",
     "category": "Über den Grünerator",
-    "text": "Schicht | Wer macht es | Kann es sich irren? | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | Listen und Namen — Werkzeuge, Einstellungen, Chat-Fähigkeiten, Dateilimits | Ein Programm liest den Quellcode aus. Keine KI beteiligt. | Nein. Es steht wörtlich das da, was im Code steht — oder der Bau der Seite schlägt fehl. | Erklärender Text — Anleitungen, Beispiele, Einordnungen | Menschen, oft mit KI als Schreibhilfe. Jede Änderung läuft über einen Pull Request. | Ja. Text kann veralten oder danebenliegen. | Prüfung — Stimmt der Text noch mit der App überein? | Eine KI liest Text und Quellcode und meldet Abweichungen. | Ja. Sie meldet Verdachtsfälle, entscheiden tun Menschen. | Wichtig ist der Unterschied zwischen der ersten und der dritten Zeile: die KI schreibt diese Doku nicht automatisch. Sie darf in diesem Verfahren ausschließlich lesen — sie hat kein Schreibrecht auf die Dateien und kann nichts veröffentlichen. Was sie findet, wird zu einer Aufgabe für einen Menschen."
+    "text": "Schicht | Wer macht es | Kann es sich irren? | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | Listen und Namen — Werkzeuge, Einstellungen, Chat-Fähigkeiten, Dateilimits | Ein Programm liest den Quellcode aus. Keine KI beteiligt. | Nein. Es steht wörtlich das da, was im Code steht — oder der Bau der Seite schlägt fehl. | Erklärender Text — Anleitungen, Beispiele, Einordnungen | Überwiegend eine KI, die den Quellcode mitliest. Ein Mensch beauftragt, liest gegen und gibt frei. | Ja. Text kann danebenliegen oder veralten. | Prüfung — Stimmt der Text noch mit der App überein? | Eine zweite KI, die nur lesen darf: Sie vergleicht Artikel und Code und meldet Abweichungen, ändert aber nichts. | Ja. Sie meldet Verdachtsfälle, entscheiden tun Menschen. | Die zweite und die dritte Zeile sind bewusst getrennt. Beim Schreiben arbeitet die KI in einer beauftragten Sitzung: Ein Mensch gibt vor, was dokumentiert werden soll, die KI liest den zugehörigen Code und "
   },
   {
     "url": "/docs/ueber-den-gruenerator/wie-diese-doku-entsteht",
@@ -2921,7 +2921,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Grenzen",
     "anchor": "#grenzen",
     "category": "Über den Grünerator",
-    "text": "Der KI-Agent kann sich irren — in beide Richtungen. Er meldet manchmal etwas, das in Ordnung ist, und er übersieht manchmal etwas. Er ist eine zusätzliche Sicherung, keine Garantie. Zwischen zwei Prüfungen liegt bis zu eine Woche. Direkt nach einer Änderung am Grünerator kann ein Absatz kurzzeitig veraltet sein. Screenshots werden nicht automatisch geprüft. Ältere Bilder zeigen deshalb manchmal noch frühere Bezeichnungen. Wenn dir etwas auffällt, das nicht mehr stimmt: melde es auf GitHub oder schreib uns. Das ist immer noch der schnellste Weg — die Automatik ersetzt keine aufmerksamen Leserinnen und Leser."
+    "text": "Ein von einer KI geschriebener Absatz kann flüssig klingen und trotzdem falsch sein. Das Gegenlesen durch Menschen und die wöchentliche Prüfung fangen vieles ab, aber nicht alles. Der KI-Agent kann sich irren — in beide Richtungen. Er meldet manchmal etwas, das in Ordnung ist, und er übersieht manchmal etwas. Er ist eine zusätzliche Sicherung, keine Garantie. Zwischen zwei Prüfungen liegt bis zu eine Woche. Direkt nach einer Änderung am Grünerator kann ein Absatz kurzzeitig veraltet sein. Screenshots werden nicht automatisch geprüft. Ältere Bilder zeigen deshalb manchmal noch frühere Bezeichnungen. Wenn dir etwas auffällt, das nicht mehr stimmt: melde es auf GitHub oder schreib uns. Das ist immer noch der schnellste Weg — die Automatik ersetzt keine aufmerksamen Leserinnen und Leser."
   },
   {
     "url": "/docs/ueber-den-gruenerator/wie-diese-doku-entsteht",
@@ -2929,7 +2929,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Selbst nachsehen",
     "anchor": "#selbst-nachsehen",
     "category": "Über den Grünerator",
-    "text": "Der gesamte Grünerator ist quelloffen, dieses Verfahren also auch. Die Skripte, die den Code auslesen, liegen unter documentation/scripts/, die Prüfung unter apps/api/check-docs-freshness.ts, die zugehörigen Abläufe in .github/workflows/ (alle Dateien, die mit docs- beginnen). Verwandt: Wie kennzeichne ich meine grünerierten Inhalte? — dieselbe Frage, aber für die Texte, die du selbst mit dem Grünerator erstellst."
+    "text": "Der gesamte Grünerator ist quelloffen, dieses Verfahren also auch. Die Skripte, die den Code auslesen, liegen unter documentation/scripts/, die Prüfung unter apps/api/check-docs-freshness.ts, die zugehörigen Abläufe in .github/workflows/ (alle Dateien, die mit docs- beginnen). Diese Seite ist die Kennzeichnung, die wir selbst für richtig halten: offenlegen, wo KI im Spiel war, statt es zu verschweigen. Wie das für deine eigenen Texte aussieht, steht im Kennzeichnungs-Guide."
   },
   {
     "url": "/docs/ueber-den-gruenerator/wie-diese-doku-entsteht",
@@ -2945,7 +2945,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Was die KI prüft",
     "anchor": "#was-die-ki-prüft",
     "category": "Über den Grünerator",
-    "text": "Für den erklärenden Text gibt es keine automatische Quelle — ein Button lässt sich auslesen, ein guter Erklärabsatz nicht. Hier läuft stattdessen eine Prüfung: Jeden Freitagmorgen geht ein KI-Agent alle Anleitungsartikel durch. Er liest den Artikel, sucht die passenden Stellen im Quellcode und beantwortet eine Frage: Gibt es diesen Knopf, dieses Menü, diesen Ablauf noch so, wie der Text es behauptet? Bei Änderungen am Code läuft dieselbe Prüfung sofort — allerdings nur für die Artikel, die zum geänderten Bereich gehören. Das Ergebnis erscheint als Kommentar am Änderungsvorschlag, noch bevor er übernommen wird. Jeder Befund nennt Belege: die zitierte Stelle aus dem Artikel, die dazugehörige Stelle im Code und einen Vorschlag. Daraus wird eine Aufgabe auf GitHub, öffentlich einsehbar. Der Agent arbeitet mit einem Sprachmodell der Claude-Familie und ist auf Lesewerkzeuge beschränkt: Dateien lesen, Text suchen, Dateien finden. Schreiben, Befehle ausführen und ins Internet gehen kann er nicht. Nicht geprüft werden Bereiche, denen kein Code gegenübersteht: das Newsletter-Archiv, die Grundlagenartikel über KI im Allgemeinen und interne Ablagen."
+    "text": "Ein Knopfname lässt sich maschinell abgleichen, ein Erklärabsatz nicht — er kann veralten, ohne dass ein einziges Wort im Code fehlt. Deshalb bekommt der geschriebene Teil eine eigene, wiederkehrende Prüfung: Jeden Freitagmorgen geht ein KI-Agent alle Anleitungsartikel durch. Er liest den Artikel, sucht die passenden Stellen im Quellcode und beantwortet eine Frage: Gibt es diesen Knopf, dieses Menü, diesen Ablauf noch so, wie der Text es behauptet? Bei Änderungen am Code läuft dieselbe Prüfung sofort — allerdings nur für die Artikel, die zum geänderten Bereich gehören. Das Ergebnis erscheint als Kommentar am Änderungsvorschlag, noch bevor er übernommen wird. Jeder Befund nennt Belege: die zitierte Stelle aus dem Artikel, die dazugehörige Stelle im Code und einen Vorschlag. Daraus wird eine Aufgabe auf GitHub, öffentlich einsehbar. Der Agent arbeitet mit einem Sprachmodell der Claude-Familie und ist auf Lesewerkzeuge beschränkt: Dateien lesen, Text suchen, Dateien finden. Schreiben, Befehle ausführen und ins Internet gehen kann er nicht. Nicht geprüft werden Bereiche, denen kein Code gegenübersteht: das Newsletter-Archiv, die Grundlagenartikel über KI im Allgemeinen und interne Abla"
   },
   {
     "url": "/docs/ueber-den-gruenerator/wie-diese-doku-entsteht",
