@@ -2,14 +2,18 @@
  * Session lifecycle debug tracing.
  *
  * The "half logged in" bug happens in prod/beta for arbitrary users who can't
- * be asked to pre-arm a debug flag before an incident. So this is ALWAYS-ON:
- * a module-level ring buffer (last 50 events, cost is nil) plus a
- * `console.info('[SessionDebug]', …)` mirror. The buffer is attached to the
- * one GlitchTip `session-teardown` event per incident (see captureAuthIssue),
- * so a real incident report carries the full ordered timeline.
+ * be asked to pre-arm a debug flag before an incident. So the RECORDING is
+ * ALWAYS-ON: a module-level ring buffer (last 50 events, cost is nil), attached
+ * to the one GlitchTip `session-teardown` event per incident (see
+ * captureAuthIssue) — a real incident report carries the full ordered timeline
+ * without anyone having read a console.
  *
- * Console mirror opt-out only (buffer keeps filling):
- *   localStorage['gruenerator:session_debug'] = 'off'
+ * The `console.info('[SessionDebug]', …)` mirror is therefore only a
+ * convenience, and it is OFF by default: it fired ~30× per page load and
+ * drowned out everything else in devtools. Turn it on per-tab when chasing a
+ * session bug:
+ *   localStorage['gruenerator:session_debug'] = 'on'
+ * or dump the buffer at any time with `__sessionDebug()`.
  *
  * DEPENDENCY DIRECTION: this module sits at the BOTTOM of the graph. It is
  * imported BY apiClient / authStore / useAuth / captureAuthIssue and must
@@ -17,7 +21,7 @@
  */
 
 const RING_BUFFER_SIZE = 50;
-const CONSOLE_OFF_KEY = 'gruenerator:session_debug';
+const CONSOLE_ON_KEY = 'gruenerator:session_debug';
 
 export interface SessionDebugEvent {
   ts: string;
@@ -31,10 +35,10 @@ const ringBuffer: SessionDebugEvent[] = [];
 
 function consoleMirrorEnabled(): boolean {
   try {
-    return localStorage.getItem(CONSOLE_OFF_KEY) !== 'off';
+    return localStorage.getItem(CONSOLE_ON_KEY) === 'on';
   } catch {
-    // localStorage unavailable (private mode / SSR) — default to on.
-    return true;
+    // localStorage unavailable (private mode / SSR) — stay quiet.
+    return false;
   }
 }
 
