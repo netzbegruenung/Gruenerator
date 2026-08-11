@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest';
 
 import { useAuthStore } from '../stores/authStore.js';
 
-import { notifyAiConsentRequired } from './aiConsentSignal.js';
+import { notifyAiConsentRequired, registerAiConsentRequiredHandler } from './aiConsentSignal.js';
 
 import type { User } from '../types/auth.js';
 
@@ -34,5 +34,31 @@ describe('notifyAiConsentRequired', () => {
     notifyAiConsentRequired();
 
     expect(useAuthStore.getState().user).toBeNull();
+  });
+
+  // Web und Mobile halten verschiedene Auth-Stores und tragen sich beide beim
+  // Modul-Laden ein. Mit einem einzelnen Platz hinge es an der Reihenfolge des
+  // Bundlers, wessen Eintrag überlebt — und der verlierende Store zeigte den
+  // Dialog nie wieder. Deshalb: alle werden benachrichtigt.
+  it('benachrichtigt jeden eingetragenen Empfänger, nicht nur den letzten', () => {
+    const seen: string[] = [];
+    const offA = registerAiConsentRequiredHandler(() => seen.push('a'));
+    const offB = registerAiConsentRequiredHandler(() => seen.push('b'));
+
+    notifyAiConsentRequired();
+
+    expect(seen).toEqual(['a', 'b']);
+    offA();
+    offB();
+  });
+
+  it('lässt einen abgemeldeten Empfänger aus', () => {
+    const seen: string[] = [];
+    const off = registerAiConsentRequiredHandler(() => seen.push('a'));
+    off();
+
+    notifyAiConsentRequired();
+
+    expect(seen).toEqual([]);
   });
 });

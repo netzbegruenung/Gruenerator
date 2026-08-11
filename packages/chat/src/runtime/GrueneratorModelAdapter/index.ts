@@ -101,11 +101,17 @@ function withInterruptionNotice(lastResult: ChatModelRunResult | undefined): Cha
 }
 
 /**
- * Text der Absage im Chat. Der Einwilligungs-Dialog geht im selben Moment auf
- * (der Auth-Store bekommt das Signal), die Zeile erklärt nur, warum.
+ * Absage im Chat, wenn die Einwilligung fehlt. Der Dialog geht im selben
+ * Moment auf (der Auth-Store bekommt das Signal), die Zeile erklärt nur, warum.
+ *
+ * Zwei Formen, weil es zwei Wege in die Anzeige gibt: der Hauptstream gibt den
+ * fertigen Text aus, der Resume-Pfad wirft eine `ChatStreamError` und lässt
+ * `streamErrorMessage` die Auszeichnung setzen — wie bei jedem anderen
+ * Fehlercode auch.
  */
-const AI_CONSENT_REQUIRED_TEXT =
-  '⚠️ **Für die KI-Funktionen fehlt Deine Einwilligung.** Bitte bestätige sie im Dialog, dann kannst Du direkt weitermachen.';
+const AI_CONSENT_REQUIRED_MESSAGE =
+  'Für die KI-Funktionen fehlt Deine Einwilligung — bitte bestätige sie im Dialog, dann kannst Du direkt weitermachen.';
+const AI_CONSENT_REQUIRED_TEXT = `⚠️ **${AI_CONSENT_REQUIRED_MESSAGE}**`;
 
 /**
  * A 401/403 on the stream or a resume means the session died mid-turn. This is
@@ -128,9 +134,11 @@ async function routeUnauthorized(response: Response): Promise<boolean> {
     const body: unknown = await response
       .clone()
       .json()
-      // Ein 403 muss kein JSON tragen; der Aufrufer behandelt es danach regulär
-      // weiter, ein geworfener Parse-Fehler würde die echte Ursache verdecken.
-      // swallow-ok: `null` heißt hier genau „nicht der Einwilligungs-Fall".
+      // Eine 403 ohne JSON-Rumpf (Reverse-Proxy, HTML-Fehlerseite) ist hier
+      // keine verschluckte Störung, sondern die Antwort auf die gestellte
+      // Frage: „trägt diese Absage den Einwilligungs-Code?" heißt dann nein.
+      // Der Aufrufer zeigt sie danach als gewöhnlichen Fehler im Thread.
+      // swallow-ok: kein Rumpf = kein Einwilligungs-Code, Fehler bleibt sichtbar
       .catch(() => null);
     if (isAiConsentRequiredBody(body)) {
       notifyAiConsentRequired();
@@ -189,7 +197,10 @@ async function* runClientToolResumes(params: {
       signal: params.abortSignal,
     });
     if (!resumeResponse.ok) {
-      await routeUnauthorized(resumeResponse);
+      // Fehlende Einwilligung bekommt denselben Text wie am Hauptstream: der
+      // Dialog geht ohnehin auf, und `HTTP error 403` erklärt nichts.
+      const consentRequired = await routeUnauthorized(resumeResponse);
+      if (consentRequired) throw new ChatStreamError(AI_CONSENT_REQUIRED_MESSAGE);
       const errorData = await resumeResponse.json().catch(() => ({}));
       throw new Error(
         (errorData as { error?: string }).error || `HTTP error ${resumeResponse.status}`
@@ -282,7 +293,8 @@ export function createGrueneratorModelAdapter(
           });
 
           if (!resumeResponse.ok) {
-            await routeUnauthorized(resumeResponse);
+            const consentRequired = await routeUnauthorized(resumeResponse);
+            if (consentRequired) throw new ChatStreamError(AI_CONSENT_REQUIRED_MESSAGE);
             const errorData = await resumeResponse.json().catch(() => ({}));
             throw new Error(
               (errorData as { error?: string }).error || `HTTP error ${resumeResponse.status}`
