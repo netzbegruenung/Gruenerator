@@ -949,12 +949,18 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/search-graph', requireAuth);
   app.use('/api/search-graph', standardMutationLimiter);
   mountSearchGraphContractRouter(app);
-  // ts-rest contract router — mount before legacy imagePickerRoute
+  // requireAuth goes on the prefix BEFORE the contract mounts, not onto the
+  // legacy `app.use` below: createExpressEndpoints registers its handlers
+  // directly on `app`, so a guard added after it never runs for them (the same
+  // trap that once left /api/exports open). Both surfaces are reached only from
+  // the auth-gated Studio: image-picker /select and the Unsplash search burn
+  // upstream quota on caller-controlled input, and /clear-cache is a mutation.
+  app.use('/api/image-picker', requireAuth, publicReadLimiter);
   mountImagePickerContractRouter(app);
-  app.use('/api/image-picker', publicReadLimiter, imagePickerRoute);
-  // ts-rest contract router — mount before legacy unsplashRouter
+  app.use('/api/image-picker', imagePickerRoute);
+  app.use('/api/unsplash', requireAuth, publicReadLimiter);
   mountUnsplashContractRouter(app);
-  app.use('/api/unsplash', publicReadLimiter, unsplashRouter);
+  app.use('/api/unsplash', unsplashRouter);
   app.use('/api/web-search', requireAuth, publicReadLimiter, webSearchRouter);
   // Serves a web-search image hit through us so the reader's browser never
   // contacts the source host. requireAuth on the prefix even though every handle
@@ -986,7 +992,19 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountExportsContractRouter(app);
   app.use('/api/exports', exportDocumentsRouter);
   app.use('/api/markdown', requireAuth, publicReadLimiter, markdownRouter);
-  app.use('/api/database', publicReadLimiter, databaseTestRouter);
+  // requireAdminToken, not requireAuth: `GET /test?create=true` and
+  // `POST /sync-schema` execute schema.sql and the migration runner against the
+  // live database, and the bare `GET /test` lists every table plus the pool
+  // state. Both were reachable anonymously in production.
+  app.use('/api/database', requireAdminToken, publicReadLimiter, databaseTestRouter);
+
+  // ONE admin gate for the whole /api/internal prefix, mounted before any
+  // internal route registers. The per-router guards below stay (they are
+  // idempotent) — but the prefix is what makes "internal" a promise instead of
+  // a naming convention. Without it, route-stats, gruene-api and the
+  // offboarding documentation answered anonymously while their siblings did
+  // not, and every new sibling inherited the gap by default.
+  app.use('/api/internal', requireAdminToken);
 
   if (snapshottingRouter) {
     app.use('/api/internal', snapshottingRouter);
