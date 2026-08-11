@@ -7,11 +7,12 @@ import { MONITOR_EYEBROW, MONITOR_HEADING } from './theme';
 
 import type { ReactNode } from 'react';
 
-type MonitorPage = 'themen' | 'umfragen';
+type MonitorPage = 'themen' | 'umfragen' | 'transparenz';
 
 const SIBLINGS: { key: MonitorPage; label: string; path: string }[] = [
   { key: 'themen', label: 'Themen', path: '/themen' },
   { key: 'umfragen', label: 'Umfragen', path: '/umfragen' },
+  { key: 'transparenz', label: 'Transparenz', path: '/transparenz' },
 ];
 
 interface MonitorPageHeaderProps {
