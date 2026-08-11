@@ -55,6 +55,9 @@ const QualityAssessmentSchema = z.object({
 
 const log = createLogger('DirectSearch');
 
+/** Display cap for Linkup deep-research citations (see executeResearchViaLinkup). */
+const LINKUP_CITATION_SNIPPET_CHARS = 300;
+
 export interface ResearchCitation {
   id: number;
   title: string;
@@ -350,12 +353,18 @@ async function executeResearchViaLinkup(args: {
   const res = await linkup.deepResearch({ question, locale });
   const elapsed = Date.now() - start;
 
+  // Linkup's `sourcedAnswer` sources carry the SCRAPED PAGE, not a snippet —
+  // multi-thousand-character dumps of whole Beschlusstexte. Unbounded they
+  // reach the UI as the quote itself (Monitor "Quellen und Zitate" grew to
+  // page-length blockquotes). The orchestrator path caps at 150 in
+  // finalizeResearchResult; this display wants a readable quote, so 300 —
+  // same value the web-search executor uses for its display snippets.
   const citations: ResearchCitation[] = res.sources.map((s, i) => ({
     id: i + 1,
     title: s.name || extractDomain(s.url),
     url: s.url,
     domain: extractDomain(s.url),
-    snippet: s.snippet || '',
+    snippet: truncateText(s.snippet || '', LINKUP_CITATION_SNIPPET_CHARS),
   }));
 
   log.info(
