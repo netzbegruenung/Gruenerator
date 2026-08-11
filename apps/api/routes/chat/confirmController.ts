@@ -61,6 +61,30 @@ export async function hasWriteAccess(documentId: string, userId: string): Promis
 }
 
 /**
+ * A refusal the user can act on — passed through to the card verbatim.
+ *
+ * The catch-all below answers every failure with "Aktion konnte nicht ausgeführt
+ * werden", which is why the two refusals in `modify_doc` (no write access, live
+ * Yjs state) read as a dead button: the card said nothing about the editor being
+ * the way in. Anything not marked this way stays generic — an unexpected error
+ * is not a message we want to hand to the client.
+ */
+class ConfirmActionRefusal extends Error {
+  /**
+   * The curated text, held apart from `.message` so no-raw-error-to-client
+   * stays meaningful here: the lint rule exists to stop TOOLING output from
+   * reaching users, and reading a separate field makes the "this string was
+   * written for a user" claim explicit rather than incidental.
+   */
+  readonly userText: string;
+
+  constructor(userText: string) {
+    super(userText);
+    this.userText = userText;
+  }
+}
+
+/**
  * Execute a confirmed action based on its type.
  * Returns a user-facing result message.
  */
@@ -90,7 +114,7 @@ async function executeAction(action: PendingAction): Promise<{ message: string; 
       const { docId, newContent } = action.payload;
 
       if (!(await hasWriteAccess(docId, action.userId))) {
-        throw new Error('Keine Berechtigung, dieses Dokument zu bearbeiten.');
+        throw new ConfirmActionRefusal('Keine Berechtigung, dieses Dokument zu bearbeiten.');
       }
 
       const { getPostgresInstance } = await import('../../database/services/PostgresService.js');
@@ -107,7 +131,10 @@ async function executeAction(action: PendingAction): Promise<{ message: string; 
         [docId]
       );
       if (liveState.length > 0) {
-        throw new Error('Dokument wird gerade bearbeitet — Änderungen über den Editor vornehmen.');
+        throw new ConfirmActionRefusal(
+          'Dieses Dokument ist im Editor geöffnet — dort kannst du es direkt ändern. ' +
+            'Schließe es und versuch es hier noch einmal.'
+        );
       }
 
       const htmlContent = ensureHtml(newContent);
@@ -115,6 +142,17 @@ async function executeAction(action: PendingAction): Promise<{ message: string; 
         'UPDATE collaborative_documents SET content = $1, last_edited_by = $2, updated_at = NOW() WHERE id = $3',
         [htmlContent, action.userId, docId]
       );
+      // FOLLOW-UP (Yjs-Commit-Pfad): dieser Seed ist für jedes chat-erzeugte
+      // Dokument ein garantierter No-op. `seedYjsState` schreibt
+      // `collaborative_documents_init` mit ON CONFLICT DO NOTHING, und
+      // DocGenerationService hat diese Zeile bei der Erstellung bereits
+      // geschrieben. Der Editor hydriert aus Yjs, nicht aus `content` — die
+      // Änderung oben landet also in der Spalte und ist im Editor unsichtbar.
+      // Beides zusammen ergibt den gemeldeten Befund „Chat meldet Erfolg,
+      // Dokument unverändert". Richtig ist EIN Schreibweg: die neue Fassung in
+      // den Yjs-Zustand (Update statt DO NOTHING, ggf. über Hocuspocus), mit
+      // `content` als abgeleiteter Spiegel. Das fasst den Dokument-Speicherpfad
+      // an und bekommt einen eigenen PR.
       await seedYjsStateSafe(docId, htmlContent, 'modify_doc');
 
       return {
@@ -228,15 +266,39 @@ router.post('/', async (req, res) => {
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
-    await pendingActionStore.delete(threadId, actionId);
-
     if (!confirmed) {
+      await pendingActionStore.delete(threadId, actionId);
       log.info(`Action ${actionId} (${action.type}) rejected by user`);
       return res.json({ success: true, rejected: true });
     }
 
+    // Deleted only once the side effect landed. Deleting first turned every
+    // refusal into a one-shot: the user read "im Editor geöffnet", closed the
+    // editor, pressed again — and got "Aktion abgelaufen", because the card's
+    // action was gone the moment it first failed.
+    //
+    // That survival opens a window for a second confirm (another tab, another
+    // device, a double tap) to execute the same action again — and outside
+    // `share_doc` nothing downstream deduplicates, so it would be a second
+    // document, a second group, a second set of board rows. The claim below is
+    // the atomic gate: exactly one request executes, and a failed execution
+    // releases it so the retry the comment above describes still works.
+    if (!(await pendingActionStore.claim(threadId, actionId))) {
+      log.info(`Action ${actionId} (${action.type}) already in flight — refusing duplicate`);
+      return res.status(409).json({
+        error: 'Diese Aktion läuft bereits. Warte kurz und lade den Chat neu.',
+      });
+    }
+
     log.info(`Executing confirmed action ${actionId} (${action.type})`);
-    const result = await executeAction(action);
+    let result: { message: string; url?: string };
+    try {
+      result = await executeAction(action);
+    } catch (err) {
+      await pendingActionStore.releaseClaim(threadId, actionId);
+      throw err;
+    }
+    await pendingActionStore.delete(threadId, actionId);
 
     if (threadId) {
       const resultMessage = result.url
@@ -252,6 +314,10 @@ router.post('/', async (req, res) => {
       url: result.url,
     });
   } catch (err) {
+    if (err instanceof ConfirmActionRefusal) {
+      log.info(`Confirm action refused: ${err.userText}`);
+      return res.status(409).json({ error: err.userText });
+    }
     log.error('Confirm action failed:', err);
     return res.status(500).json({
       error: 'Aktion konnte nicht ausgeführt werden.',

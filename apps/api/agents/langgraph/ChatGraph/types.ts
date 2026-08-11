@@ -965,6 +965,10 @@ export interface ChatGraphState {
   // Presentation/sheet/text-doc fat tool result (compound turns) — lifted by the
   // router into the persisted assistant message's `createdDocument` metadata.
   createdDocument?: CreatedDocument | null;
+  // The spec the `create_pdf` tool rendered from this turn. A PDF ships as
+  // finished bytes, so this is the only thing a later edit can build on —
+  // lifted by postResponseService into the message's `pdfSpec` metadata.
+  createdPdfSpec?: unknown;
   // Board fat tool result (compound turns) — boards have no `document_created`
   // card path, so this is lifted into the loop's `done` event (boardId +
   // boardGeneratedStructure) the way the single-pass board handler does.
