@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest';
 
 import {
+  createDeepTierBudget,
   fastLookupShape,
   isExplicitDeepRequest,
   isKeywordShapedQuery,
+  MODEL_DEEP_CALLS_PER_TURN,
   resolveSearchPlan,
   resolveSearchTier,
   resolveTier,
@@ -62,6 +64,95 @@ describe('resolveSearchTier', () => {
     expect(
       resolveSearchTier({ intent: 'web', requestedTier: 'tiefenrecherche', explicitDeep: false })
     ).toBe('gruendlich');
+  });
+
+  /**
+   * The metered exception. A model staring at ten thin hits could not escalate,
+   * because the only route to the deep engine was a regex over the user's
+   * phrasing — which cannot know what a search returned. `allowModelDeep` is
+   * what the caller passes while its per-turn budget lasts.
+   */
+  it('lets the model reach the top tier while it still has allowance', () => {
+    expect(
+      resolveSearchTier({
+        intent: 'web',
+        requestedTier: 'tiefenrecherche',
+        allowModelDeep: true,
+      })
+    ).toBe('tiefenrecherche');
+  });
+
+  it('still clamps once the allowance is gone', () => {
+    expect(
+      resolveSearchTier({
+        intent: 'web',
+        requestedTier: 'tiefenrecherche',
+        allowModelDeep: false,
+      })
+    ).toBe('gruendlich');
+  });
+
+  it('never lets the allowance upgrade a tier the model did not ask for', () => {
+    // The allowance is permission to honour a request, not a reason to invent
+    // one: an ordinary search stays ordinary even with budget in hand.
+    expect(resolveSearchTier({ intent: 'web', allowModelDeep: true })).toBe('standard');
+    expect(resolveSearchTier({ intent: 'research', allowModelDeep: true })).toBe('gruendlich');
+    expect(
+      resolveSearchTier({ intent: 'web', requestedTier: 'gruendlich', allowModelDeep: true })
+    ).toBe('gruendlich');
+  });
+});
+
+/**
+ * The budget is the whole safeguard: without it `allowModelDeep` would be a
+ * standing permission and the deep engine would be back to being the default
+ * for any model that reads "nutze sie sparsam" as a suggestion — which is the
+ * failure the tier ladder was built twice to prevent.
+ */
+describe('createDeepTierBudget', () => {
+  it('grants the model exactly one deep search per turn', () => {
+    const budget = createDeepTierBudget();
+    expect(budget.remaining).toBe(MODEL_DEEP_CALLS_PER_TURN);
+
+    expect(budget.resolve({ intent: 'web', requestedTier: 'tiefenrecherche' })).toBe(
+      'tiefenrecherche'
+    );
+    expect(budget.remaining).toBe(0);
+
+    expect(budget.resolve({ intent: 'web', requestedTier: 'tiefenrecherche' })).toBe('gruendlich');
+    expect(budget.resolve({ intent: 'web', requestedTier: 'tiefenrecherche' })).toBe('gruendlich');
+  });
+
+  it('does not spend the allowance on a search the user asked to be deep', () => {
+    // The user already said the word, so the turn keeps its model-initiated
+    // call for a different question.
+    const budget = createDeepTierBudget();
+    expect(
+      budget.resolve({ intent: 'web', requestedTier: 'tiefenrecherche', explicitDeep: true })
+    ).toBe('tiefenrecherche');
+    expect(budget.remaining).toBe(MODEL_DEEP_CALLS_PER_TURN);
+  });
+
+  it('does not spend the allowance on ordinary searches', () => {
+    const budget = createDeepTierBudget();
+    budget.resolve({ intent: 'web', requestedTier: 'gruendlich' });
+    budget.resolve({ intent: 'web', requestedTier: 'standard' });
+    budget.resolve({ intent: 'research' });
+    expect(budget.remaining).toBe(MODEL_DEEP_CALLS_PER_TURN);
+  });
+
+  it('keeps honouring explicit deep requests after the allowance is spent', () => {
+    const budget = createDeepTierBudget();
+    budget.resolve({ intent: 'web', requestedTier: 'tiefenrecherche' });
+    expect(budget.remaining).toBe(0);
+    expect(
+      budget.resolve({ intent: 'web', requestedTier: 'tiefenrecherche', explicitDeep: true })
+    ).toBe('tiefenrecherche');
+  });
+
+  it('grants nothing when built with a zero budget', () => {
+    const budget = createDeepTierBudget(0);
+    expect(budget.resolve({ intent: 'web', requestedTier: 'tiefenrecherche' })).toBe('gruendlich');
   });
 
   /**
