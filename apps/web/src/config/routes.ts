@@ -132,11 +132,11 @@ const BildEditorV2Page = lazy(
 const ReisekostenPage = lazy(() => import('../features/reisekosten/ReisekostenPage'));
 
 // Statische Importe in dynamische umwandeln
-const TexteRedirectToWorkplaceComponent: FC<Record<string, unknown>> = () =>
-  createElement(Navigate, { to: '/workplace', replace: true });
-const TexteRedirectToWorkplace = lazy(() =>
-  Promise.resolve({ default: TexteRedirectToWorkplaceComponent })
-);
+// Die Text-Grüneratoren sind im Chat aufgegangen, nicht in der Arbeiten-Fläche
+// — alte /texte-Links landen deshalb auf dem Chat-Einstieg.
+const TexteRedirectToChatComponent: FC<Record<string, unknown>> = () =>
+  createElement(Navigate, { to: '/start', replace: true });
+const TexteRedirectToChat = lazy(() => Promise.resolve({ default: TexteRedirectToChatComponent }));
 const VorlagenGallery = lazy(() => import('../components/common/Gallery'));
 const MeineVorlagenPage = lazy(() => import('../features/vorlagen/MeineVorlagenPage'));
 const AdminDashboardPage = lazy(() => import('../features/admin/AdminDashboardPage'));
@@ -231,6 +231,9 @@ const ImagineRedirect = lazy(() => Promise.resolve({ default: createRedirect('/b
 const WissenPage = lazy(() => import('../features/notebook/WissenPage'));
 // The notebook hub is now the standalone /wissen page (no longer a workplace tab).
 const WissenRedirect = lazy(() => Promise.resolve({ default: createRedirect('/wissen') }));
+// Arbeiten hat mit /workplace jetzt eine eigene Top-Level-URL; der alte
+// Tab-Pfad bleibt als Weiterleitung bestehen.
+const ArbeitenRedirect = lazy(() => Promise.resolve({ default: createRedirect('/workplace') }));
 const BoardPage = lazy(() => import('../features/boards/BoardPage'));
 const PublicBoardPage = lazy(() => import('../features/boards/PublicBoardPage'));
 const CollabCanvasStudioPage = lazy(
@@ -262,7 +265,7 @@ const SkillDetailPage = lazy(() => import('../features/agentura/SkillDetailPage'
  * Lazy loading für Grüneratoren Bundle
  */
 export const GrueneratorenBundle = {
-  Texte: TexteRedirectToWorkplace,
+  Texte: TexteRedirectToChat,
   ImageStudio: ImageStudioPage,
   ImageGallery: ImageGallery,
   Search: Search,
@@ -280,7 +283,8 @@ export const GrueneratorenBundle = {
 
 // Route Konfigurationen
 const standardRoutes: RouteConfig[] = [
-  // Desktop app always shows DesktopHome dashboard; web redirects auth'd users to /workplace
+  // Desktop app always shows DesktopHome dashboard; web redirects auth'd users to
+  // their start surface (/start or /workplace)
   isDesktopApp()
     ? { path: '/', component: DesktopHome }
     : {
@@ -293,16 +297,17 @@ const standardRoutes: RouteConfig[] = [
   { path: '/testsommer', component: TestsommerPage, public: true, layoutMode: 'noChrome' as const },
   // Unified Text Generator route (wildcard for path-based tab navigation)
   { path: '/texte/*', component: GrueneratorenBundle.Texte, withForm: true },
-  // Wissen is now a standalone page; keep the old tab path as a redirect (static
-  // route outranks the /workplace/* splat below in React Router v6).
+  // Wissen is now a standalone page; keep the old tab path as a redirect.
   { path: '/workplace/wissen', component: WissenRedirect },
   { path: '/wissen', component: WissenPage, layoutMode: 'sidebarOnly' },
-  // Workplace (Chat / Arbeiten). ONE splat route so both tabs resolve to the same
-  // route entry: WorkplacePage then stays mounted across tab switches
-  // (RouteComponent keys the page by config path) instead of remounting the whole
-  // surface each time — it derives the active tab from the pathname and only swaps
-  // the tab content. sidebarOnly keeps the tab row in place.
-  { path: '/workplace/*', component: WorkplacePage, layoutMode: 'sidebarOnly' },
+  // Chat und Arbeiten sind zwei eigenständige Top-Level-Seiten (/start und
+  // /workplace), keine Tabs unter einem gemeinsamen Präfix mehr. Beide rendern
+  // dieselbe Hülle (Hintergrund + Umschaltleiste), die ihre Fläche aus dem
+  // Pfad ableitet. sidebarOnly hält die Leiste an ihrem Platz.
+  { path: '/start', component: WorkplacePage, layoutMode: 'sidebarOnly' },
+  { path: '/workplace', component: WorkplacePage, layoutMode: 'sidebarOnly' },
+  // URLs sind F0: der alte Arbeiten-Pfad leitet dauerhaft auf /workplace.
+  { path: '/workplace/arbeiten', component: ArbeitenRedirect },
   // Guided agent creator (default entry: AI brief → pre-filled wizard) + form
   // editor. Available to everyone via SHOW_AGENT_CREATOR; `/agents/:slug` below
   // stays available so existing agents remain usable.
@@ -581,7 +586,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/agent/:slug', component: LegacyAgentSlugRedirect },
   {
     path: '/prompt/:slug',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/workplace') })),
+    component: lazy(() => Promise.resolve({ default: createRedirect('/start') })),
   },
   {
     path: '/ask',
