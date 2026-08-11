@@ -9,6 +9,7 @@ import {
   useAgentStore,
   useChatRuntimeReady,
   useDockedPanelActive,
+  useReportPanelDockable,
   useUserAgentsRegistry,
 } from '@gruenerator/chat';
 import {
@@ -116,6 +117,10 @@ function ChatPage() {
   const shellWidth = useContainerWidth(shellRef);
   const artifactPanelClass = shellNarrow ? ARTIFACT_PANEL_OVERLAY : ARTIFACT_PANEL_DOCKED;
   const dockedPanelActive = useDockedPanelActive();
+
+  // Dieselbe Messung entscheidet auch, ob ein eingehendes Artefakt die Schiene
+  // von selbst aufziehen darf — der SSE-Parser kann sie nicht selbst anstellen.
+  useReportPanelDockable(!shellNarrow);
 
   // User-resizable docked panel width, grown by dragging the handle left.
   // Never below the original fixed width, never past half the chat column —

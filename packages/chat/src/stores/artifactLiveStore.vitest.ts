@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
   canAutoOpenArtifactPanel,
@@ -29,7 +29,7 @@ function activeLog(): ResearchLogArtifact {
 }
 
 beforeEach(() => {
-  useArtifactLiveStore.setState({ activeArtifact: null });
+  useArtifactLiveStore.setState({ activeArtifact: null, panelDockable: false });
 });
 
 describe('upsertResearchLog', () => {
@@ -115,31 +115,21 @@ describe('upsertResearchLog', () => {
 });
 
 describe('canAutoOpenArtifactPanel', () => {
-  afterEach(() => {
-    vi.unstubAllGlobals();
+  it('says no until a host reports a dockable panel', () => {
+    // Anfangszustand: React Native und die Editor-Chats melden nie, dort
+    // rendert auch keine Schiene.
+    expect(canAutoOpenArtifactPanel()).toBe(false);
   });
 
-  it('says no on a phone-width window', () => {
-    vi.stubGlobal('window', { innerWidth: 390 });
+  it('says no while the chat column is too narrow to dock', () => {
+    useArtifactLiveStore.getState().setPanelDockable(false);
 
     expect(canAutoOpenArtifactPanel()).toBe(false);
   });
 
-  it('says no just below the dock threshold', () => {
-    vi.stubGlobal('window', { innerWidth: 72 * 16 - 1 });
-
-    expect(canAutoOpenArtifactPanel()).toBe(false);
-  });
-
-  it('says yes from the dock threshold up', () => {
-    vi.stubGlobal('window', { innerWidth: 72 * 16 });
+  it('says yes once the column is wide enough to dock', () => {
+    useArtifactLiveStore.getState().setPanelDockable(true);
 
     expect(canAutoOpenArtifactPanel()).toBe(true);
-  });
-
-  it('says no without a window at all', () => {
-    vi.stubGlobal('window', undefined);
-
-    expect(canAutoOpenArtifactPanel()).toBe(false);
   });
 });
