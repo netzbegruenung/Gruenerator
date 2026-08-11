@@ -14,8 +14,4 @@ export {
   deleteShare,
   publishShare,
   shareApi,
-  getUserDevices,
-  pushToPhone,
 } from './shareApi.js';
-
-export type { UserDevice, PushToPhoneResponse, DevicesResponse } from './shareApi.js';

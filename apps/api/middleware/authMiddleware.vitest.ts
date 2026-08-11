@@ -203,6 +203,11 @@ describe('requireAuth', () => {
 
     expect(next).toHaveBeenCalledTimes(1);
     expect(req.user?.id).toBe('00000000-0000-4000-a000-000000000001');
+    // Der Bypass-Nutzer hat keine Profilzeile, also auch keine Einwilligung,
+    // die er erteilen könnte. Ohne diesen festen Zeitstempel säße jeder lokale
+    // Lauf hinter dem Einwilligungs-Dialog bzw. hinter `requireAiConsent`.
+    expect(req.user?.ai_consent_at).not.toBeNull();
+    expect(req.user?.ai_consent_at).toBeTruthy();
   });
 
   it('rejects dev bypass with wrong token even in development', async () => {

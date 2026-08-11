@@ -24,6 +24,7 @@ import {
   contentContract,
   itemUsageContract,
   userUsageContract,
+  transparencyContract,
   searchContract,
   globalSearchContract,
   researchContract,
@@ -73,6 +74,7 @@ import {
   canvasAiContract,
   monitorContract,
   sitesContract,
+  texteContract,
   subtitlerContract,
   reisekostenContract,
   imagePickerContract,
@@ -195,6 +197,7 @@ const _recentActivityClient = () => initClient(recentActivityContract, CLIENT_OP
 const _contentClient = () => initClient(contentContract, CLIENT_OPTS);
 const _itemUsageClient = () => initClient(itemUsageContract, CLIENT_OPTS);
 const _userUsageClient = () => initClient(userUsageContract, CLIENT_OPTS);
+const _transparencyClient = () => initClient(transparencyContract, CLIENT_OPTS);
 const _searchClient = () => initClient(searchContract, CLIENT_OPTS);
 const _globalSearchClient = () => initClient(globalSearchContract, CLIENT_OPTS);
 const _researchClient = () => initClient(researchContract, CLIENT_OPTS);
@@ -244,6 +247,7 @@ const _canvasClient = () => initClient(canvasContract, CLIENT_OPTS);
 const _canvasAiClient = () => initClient(canvasAiContract, CLIENT_OPTS);
 const _monitorClient = () => initClient(monitorContract, CLIENT_OPTS);
 const _sitesClient = () => initClient(sitesContract, CLIENT_OPTS);
+const _texteClient = () => initClient(texteContract, CLIENT_OPTS);
 const _subtitlerClient = () => initClient(subtitlerContract, CLIENT_OPTS);
 const _reisekostenClient = () => initClient(reisekostenContract, CLIENT_OPTS);
 const _imagePickerClient = () => initClient(imagePickerContract, CLIENT_OPTS);
@@ -258,6 +262,7 @@ export interface ContractsClient {
   content: ReturnType<typeof _contentClient>;
   itemUsage: ReturnType<typeof _itemUsageClient>;
   userUsage: ReturnType<typeof _userUsageClient>;
+  transparency: ReturnType<typeof _transparencyClient>;
   search: ReturnType<typeof _searchClient>;
   globalSearch: ReturnType<typeof _globalSearchClient>;
   research: ReturnType<typeof _researchClient>;
@@ -307,6 +312,7 @@ export interface ContractsClient {
   canvasAi: ReturnType<typeof _canvasAiClient>;
   monitor: ReturnType<typeof _monitorClient>;
   sites: ReturnType<typeof _sitesClient>;
+  texte: ReturnType<typeof _texteClient>;
   subtitler: ReturnType<typeof _subtitlerClient>;
   reisekosten: ReturnType<typeof _reisekostenClient>;
   imagePicker: ReturnType<typeof _imagePickerClient>;
@@ -338,6 +344,7 @@ export function getContractsClient(): ContractsClient {
     content: _contentClient(),
     itemUsage: _itemUsageClient(),
     userUsage: _userUsageClient(),
+    transparency: _transparencyClient(),
     search: _searchClient(),
     globalSearch: _globalSearchClient(),
     research: _researchClient(),
@@ -387,6 +394,7 @@ export function getContractsClient(): ContractsClient {
     canvasAi: _canvasAiClient(),
     monitor: _monitorClient(),
     sites: _sitesClient(),
+    texte: _texteClient(),
     subtitler: _subtitlerClient(),
     reisekosten: _reisekostenClient(),
     imagePicker: _imagePickerClient(),

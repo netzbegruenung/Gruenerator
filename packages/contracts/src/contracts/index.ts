@@ -64,6 +64,7 @@ export { groupsContract } from './groupsContract.js';
 export { contentSyncContract } from './contentSyncContract.js';
 export { monitorContract } from './monitorContract.js';
 export { sitesContract } from './sitesContract.js';
+export { texteContract } from './texteContract.js';
 export { reisekostenContract } from './reisekostenContract.js';
 export { promptsContract } from './promptsContract.js';
 export { skillPromptContract } from './skillPromptContract.js';

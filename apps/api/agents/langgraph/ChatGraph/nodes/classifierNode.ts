@@ -82,6 +82,7 @@ import { classifyDocsIntentTiebreak } from './docsIntentTiebreak.js';
 import { resolveEditTarget } from './editTargetResolver.js';
 import {
   ARTIFACT_NOUN_BY_KIND,
+  asksForChatDeliverable,
   forbidsPersistentAction,
   hasExplicitSharepicWord,
   isNegatedArtifactRequest,
@@ -227,6 +228,25 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   // downgrade would run the web search on the empty string.
   let downgradedSearchQuery: string | null = null;
 
+  // Pasted/attached URLs are resolved HERE, above the summary demotion, because
+  // a link is material: "<url> zusammenfassen" used to be demoted to `web` (the
+  // demotion only looked for documents) and then searched the web for the bare
+  // verb "zusammenfassen".
+  // Agent must allow scraping (whitelist holds 'scrape'; one agent uses the tool
+  // name 'scrape_url') and the user must not have toggled it off in the composer.
+  const scrapeWhitelist = state.agentConfig?.enabledTools;
+  const agentAllowsScrape =
+    !scrapeWhitelist ||
+    scrapeWhitelist.includes('scrape') ||
+    scrapeWhitelist.includes('scrape_url');
+  const scrapeEnabled = agentAllowsScrape && state.enabledTools?.['scrape'] !== false;
+  // @link-attached URLs are explicit user intent — union them with auto-detected
+  // ones (deduped, attached first so they rank highest in scrape_url).
+  const attachedUrls = scrapeEnabled ? (state.attachedWebpageUrls ?? []) : [];
+  const detectedUrls = scrapeEnabled
+    ? [...new Set([...attachedUrls, ...extractUrls(userText)])]
+    : [];
+
   // `summary` is not a wording, it is a STATE: material is already here, so skip
   // the search node (ChatGraph routes it straight to respond), drop the product
   // persona and use the cheap lane. Tier 2 derives it correctly — it fires only
@@ -252,8 +272,17 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     (state.imageAttachments?.length ?? 0) > 0 ||
     (state.pdfFormAttachments?.length ?? 0) > 0;
   if (intent === 'summary' && !hasMaterialToSummarise && !CURRENT_THREAD_REFERENCE.test(userText)) {
-    log.info('[Classifier] summary without any document source → web (nothing to summarise)');
-    intent = 'web';
+    if (detectedUrls.length > 0) {
+      // The page IS the material. Not `summary` (that intent skips the search
+      // node, so the link would never be fetched) and not `web` (searching for
+      // "zusammenfassen" returns dictionary entries and summariser tools —
+      // observed live). scrape_url crawls it and respond summarises the result.
+      log.info('[Classifier] summary without documents but with URL(s) → scrape_url');
+      intent = 'scrape_url';
+    } else {
+      log.info('[Classifier] summary without any document source → web (nothing to summarise)');
+      intent = 'web';
+    }
     downgradedSearchQuery = userText;
   }
 
@@ -311,20 +340,6 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   // the scrape_url slot directly; otherwise it rides as the secondary intent so
   // "schreib einen Tweet zu <url>" both crawls the page AND drafts the tweet.
   let secondaryIntent = result.secondaryIntent ?? null;
-  // Agent must allow scraping (whitelist holds 'scrape'; one agent uses the tool
-  // name 'scrape_url') and the user must not have toggled it off in the composer.
-  const scrapeWhitelist = state.agentConfig?.enabledTools;
-  const agentAllowsScrape =
-    !scrapeWhitelist ||
-    scrapeWhitelist.includes('scrape') ||
-    scrapeWhitelist.includes('scrape_url');
-  const scrapeEnabled = agentAllowsScrape && state.enabledTools?.['scrape'] !== false;
-  // @web-attached URLs are explicit user intent — union them with auto-detected
-  // ones (deduped, attached first so they rank highest in scrape_url).
-  const attachedUrls = scrapeEnabled ? (state.attachedWebpageUrls ?? []) : [];
-  const detectedUrls = scrapeEnabled
-    ? [...new Set([...attachedUrls, ...extractUrls(userText)])]
-    : [];
   if (detectedUrls.length > 0) {
     if (!intent || NO_RETRIEVAL_VERDICTS.has(intent)) {
       intent = 'scrape_url';
@@ -1124,7 +1139,11 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         // "Gib den Stand als JSON aus, keine Dokumentaktion" matches the modify
         // verbs and used to update the thread's last document anyway — this tier
         // is purely positive-patterned and had no negation check.
-        !forbidsPersistentAction(userContent, ARTIFACT_NOUN_BY_KIND.document)
+        !forbidsPersistentAction(userContent, ARTIFACT_NOUN_BY_KIND.document) &&
+        // "Erstelle eine aktualisierte Zusammenfassung in zwei Stichpunkten"
+        // orders a CHAT answer — the modify verb belongs to the summary, not
+        // the artifact. Sticks only when the document itself is named.
+        !asksForChatDeliverable(userContent, ARTIFACT_NOUN_BY_KIND.document)
       ) {
         log.info('[Classifier] Follow-up doc edit via lastToolContext → modify_doc', {
           ref: tc.ref,
@@ -1153,7 +1172,11 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         !hasAnyDocuments &&
         !hasBoards &&
         docModifyPattern.test(userContent) &&
-        !forbidsPersistentAction(userContent, ARTIFACT_NOUN_BY_KIND.sheet)
+        !forbidsPersistentAction(userContent, ARTIFACT_NOUN_BY_KIND.sheet) &&
+        // Same escape as the doc branch: a summary/bullet-point order without
+        // the word "Tabelle" wants the answer in chat, not 7 sheet ops
+        // (QA 08/2026: the two Stichpunkte never appeared).
+        !asksForChatDeliverable(userContent, ARTIFACT_NOUN_BY_KIND.sheet)
       ) {
         log.info('[Classifier] Follow-up sheet edit via lastToolContext → edit_sheet', {
           ref: tc.ref,

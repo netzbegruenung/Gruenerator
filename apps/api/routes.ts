@@ -11,6 +11,7 @@ import { requireAdminToken } from './middleware/adminTokenMiddleware.js';
 import authMiddleware from './middleware/authMiddleware.js';
 import { deprecatedRoute } from './middleware/deprecatedRoute.js';
 import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
+import { requireAiConsent } from './middleware/requireAiConsent.js';
 import { mountBgstOverviewContractRouter } from './routes/admin/bgstOverviewContractRouter.js';
 import { mountLandesverbandAdminContractRouter } from './routes/admin/landesverbandAdminContractRouter.js';
 import { mountLvAdminAssignmentContractRouter } from './routes/admin/lvAdminAssignmentContractRouter.js';
@@ -124,11 +125,8 @@ import subtitlerRouter from './routes/subtitler/processingController.js';
 import subtitlerProjectRouter from './routes/subtitler/projectController.js';
 import subtitlerShareRouter from './routes/subtitler/shareController.js';
 import { mountSubtitlerContractRouter } from './routes/subtitler/subtitlerContractRouter.js';
-import {
-  universalRouter,
-  textAdjustmentRouter,
-  leichteSpracheRouter,
-} from './routes/texte/index.js';
+import { universalRouter, textAdjustmentRouter } from './routes/texte/index.js';
+import { mountTexteContractRouter } from './routes/texte/texteContractRouter.js';
 import { mountTransferContractRouter } from './routes/transfer/transferContractRouter.js';
 import { mountTransparencyContractRouter } from './routes/transparency/transparencyContractRouter.js';
 import { mountUnsplashContractRouter } from './routes/unsplash/unsplashContractRouter.js';
@@ -310,8 +308,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   } = await import('./routes/auth/index.js');
   const { default: documentsRouter } = await import('./routes/documents/index.js');
   const { default: socialRoute } = await import('./routes/texte/social.js');
-  const { default: alttextRoute } = await import('./routes/texte/alttext.js');
-  const { default: websiteRoute } = await import('./routes/texte/website.js');
   const { default: customPromptRoute } = await import('./routes/custom_prompts/custom_prompt.js');
   const { internalNotebookRouter } = await import('./routes/notebook/index.js');
   const { default: nextcloudApiRouter } = await import('./routes/nextcloud/nextcloudApi.js');
@@ -494,11 +490,19 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/scanner', publicReadLimiter, scannerRouter);
   app.use('/api/protokoll', publicReadLimiter, protokollRouter);
 
-  app.use('/api/texte/social', aiGenerationLimiter, socialRoute);
-  app.use('/api/texte/alttext', aiGenerationLimiter, alttextRoute);
-  app.use('/api/vision', aiGenerationLimiter, requireAuth, visionRouter);
-  app.use('/api/texte/website', aiGenerationLimiter, websiteRoute);
-  app.use('/api/texte/leichte-sprache', aiGenerationLimiter, leichteSpracheRouter);
+  // Alle Texte-Generatoren sind KI-Eingänge: Anmeldung plus Art.-9-Einwilligung.
+  // Die beiden Vertragsrouten brauchen die Middleware auf ihrem eigenen Pfad,
+  // weil createExpressEndpoints direkt auf der App registriert und die
+  // Middleware eines späteren `app.use`-Mounts nie sieht. Eng am Pfad statt am
+  // Präfix `/api/texte`, damit die weiter unten gemounteten Geschwister
+  // (adjustment, universal, playground) requireAuth und den Limiter nicht
+  // doppelt bekommen — zwei Sitzungsauflösungen und doppelte Kontingentzählung
+  // pro Anfrage.
+  app.use('/api/texte/alttext', requireAuth, requireAiConsent, aiGenerationLimiter);
+  app.use('/api/texte/website', requireAuth, requireAiConsent, aiGenerationLimiter);
+  mountTexteContractRouter(app);
+  app.use('/api/texte/social', requireAuth, requireAiConsent, aiGenerationLimiter, socialRoute);
+  app.use('/api/vision', aiGenerationLimiter, requireAuth, requireAiConsent, visionRouter);
   // ts-rest contract routers — mount before legacy routers.
   // Apply requireAuth on the path prefixes BEFORE the mount calls so
   // unauthenticated requests get a 401 instead of crashing the handlers
@@ -510,6 +514,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   // never populated and every download 401'd. Gate the prefix like /threads.
   app.use('/api/chat-service/compute-assets', requireAuth);
   app.use('/api/chat-graph', requireAuth);
+  // Art.-9-Einwilligung, direkt hinter requireAuth: die Middleware liest
+  // req.user und lässt anonyme Aufrufe durch (die 401 gehört requireAuth).
+  app.use('/api/chat-graph', requireAiConsent);
   // /api/chat-graph/stream is in CUSTOM_BODY_PARSER_PATHS (bodyParserConfig.ts)
   // so the global 10mb body parser is skipped. Install a 50mb parser scoped
   // to /api/chat-graph here so the contract router receives a parsed body
@@ -689,8 +696,20 @@ export async function setupRoutes(app: Application): Promise<void> {
     }
   );
 
-  app.use('/api/texte/adjustment', aiGenerationLimiter, requireAuth, textAdjustmentRouter);
-  app.use('/api/texte/universal', aiGenerationLimiter, requireAuth, universalRouter);
+  app.use(
+    '/api/texte/adjustment',
+    aiGenerationLimiter,
+    requireAuth,
+    requireAiConsent,
+    textAdjustmentRouter
+  );
+  app.use(
+    '/api/texte/universal',
+    aiGenerationLimiter,
+    requireAuth,
+    requireAiConsent,
+    universalRouter
+  );
 
   // DEPRECATED — flache `claude_*`-Pfade der ersten Generatoren-Generation.
   // Bleiben nur, bis das naechste Mobile-Release und der Desktop-Rebuild
@@ -699,31 +718,16 @@ export async function setupRoutes(app: Application): Promise<void> {
     '/api/claude_social',
     deprecatedRoute('/api/texte/social'),
     aiGenerationLimiter,
+    requireAuth,
+    requireAiConsent,
     socialRoute
-  );
-  app.use(
-    '/api/claude_alttext',
-    deprecatedRoute('/api/texte/alttext'),
-    aiGenerationLimiter,
-    alttextRoute
-  );
-  app.use(
-    '/api/claude_website',
-    deprecatedRoute('/api/texte/website'),
-    aiGenerationLimiter,
-    websiteRoute
-  );
-  app.use(
-    '/api/leichte_sprache',
-    deprecatedRoute('/api/texte/leichte-sprache'),
-    aiGenerationLimiter,
-    leichteSpracheRouter
   );
   app.use(
     '/api/claude_text_adjustment',
     deprecatedRoute('/api/texte/adjustment'),
     aiGenerationLimiter,
     requireAuth,
+    requireAiConsent,
     textAdjustmentRouter
   );
   app.use(
@@ -731,9 +735,10 @@ export async function setupRoutes(app: Application): Promise<void> {
     deprecatedRoute('/api/texte/universal'),
     aiGenerationLimiter,
     requireAuth,
+    requireAiConsent,
     universalRouter
   );
-  // app.use('/api/texte/playground', requireAuth, aiGenerationLimiter, playgroundRouter);
+  // app.use('/api/texte/playground', requireAuth, requireAiConsent, aiGenerationLimiter, playgroundRouter);
   app.use('/api/custom_prompt', aiGenerationLimiter, customPromptRoute);
   app.use('/api/auth/custom_prompt', aiGenerationLimiter, customPromptRoute);
   // ts-rest contract router for user-created agents — replaces the legacy
@@ -777,6 +782,18 @@ export async function setupRoutes(app: Application): Promise<void> {
     void requireAuth(req, res, next);
   });
   app.use('/api/subtitler', standardMutationLimiter);
+  // Art.-9-Einwilligung nur auf den KI-Eingängen des Reel-Werkzeugs:
+  // /process + /process-auto starten die Transkription, /generate-social
+  // textet daraus. Projektliste, Export und die Fortschritts-Polls bleiben
+  // offen — sie verarbeiten nichts neu, und wer die Einwilligung widerruft,
+  // muss an seine bereits erzeugten Untertitel weiter herankommen.
+  app.use('/api/subtitler', (req, res, next) => {
+    // req.path ist hier relativ zum Mount.
+    if (req.path.startsWith('/process') || req.path.startsWith('/generate-social')) {
+      return requireAiConsent(req, res, next);
+    }
+    return next();
+  });
   mountSubtitlerContractRouter(app);
   // Legacy routers — binary/streaming routes only (contract handles all JSON).
   app.use('/api/subtitler', subtitlerRouter);
@@ -903,9 +920,12 @@ export async function setupRoutes(app: Application): Promise<void> {
   // registers handlers directly on the app — mounting them after
   // mountVoiceContractRouter would leave the contracted routes uncovered.
   // Every voice endpoint spends AI credit or disk, so none of them are public.
-  // The /api/voice/realtime WebSocket is unaffected: it is served from the
-  // server's `upgrade` handler, which Express middleware never sees.
-  app.use('/api/voice', requireAuth, standardMutationLimiter);
+  // Diese Zeile deckt /api/voice/realtime NICHT ab: der Kanal hängt am
+  // `upgrade`-Handler des HTTP-Servers, den Express-Middleware nie sieht. Er
+  // prüft Anmeldung und Einwilligung deshalb selbst, über `resolveUpgradeAuth`
+  // in routes/voice/realtimeHandler.ts. Wer hier etwas ändert, muss dort
+  // nachziehen.
+  app.use('/api/voice', requireAuth, requireAiConsent, standardMutationLimiter);
   // ts-rest contract router — mount before legacy voiceController router
   mountVoiceContractRouter(app);
   app.use('/api/voice', voiceRouter);
@@ -926,12 +946,18 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/search-graph', requireAuth);
   app.use('/api/search-graph', standardMutationLimiter);
   mountSearchGraphContractRouter(app);
-  // ts-rest contract router — mount before legacy imagePickerRoute
+  // requireAuth goes on the prefix BEFORE the contract mounts, not onto the
+  // legacy `app.use` below: createExpressEndpoints registers its handlers
+  // directly on `app`, so a guard added after it never runs for them (the same
+  // trap that once left /api/exports open). Both surfaces are reached only from
+  // the auth-gated Studio: image-picker /select and the Unsplash search burn
+  // upstream quota on caller-controlled input, and /clear-cache is a mutation.
+  app.use('/api/image-picker', requireAuth, publicReadLimiter);
   mountImagePickerContractRouter(app);
-  app.use('/api/image-picker', publicReadLimiter, imagePickerRoute);
-  // ts-rest contract router — mount before legacy unsplashRouter
+  app.use('/api/image-picker', imagePickerRoute);
+  app.use('/api/unsplash', requireAuth, publicReadLimiter);
   mountUnsplashContractRouter(app);
-  app.use('/api/unsplash', publicReadLimiter, unsplashRouter);
+  app.use('/api/unsplash', unsplashRouter);
   app.use('/api/web-search', requireAuth, publicReadLimiter, webSearchRouter);
   // Serves a web-search image hit through us so the reader's browser never
   // contacts the source host. requireAuth on the prefix even though every handle
@@ -963,7 +989,19 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountExportsContractRouter(app);
   app.use('/api/exports', exportDocumentsRouter);
   app.use('/api/markdown', requireAuth, publicReadLimiter, markdownRouter);
-  app.use('/api/database', publicReadLimiter, databaseTestRouter);
+  // requireAdminToken, not requireAuth: `GET /test?create=true` and
+  // `POST /sync-schema` execute schema.sql and the migration runner against the
+  // live database, and the bare `GET /test` lists every table plus the pool
+  // state. Both were reachable anonymously in production.
+  app.use('/api/database', requireAdminToken, publicReadLimiter, databaseTestRouter);
+
+  // ONE admin gate for the whole /api/internal prefix, mounted before any
+  // internal route registers. The per-router guards below stay (they are
+  // idempotent) — but the prefix is what makes "internal" a promise instead of
+  // a naming convention. Without it, route-stats, gruene-api and the
+  // offboarding documentation answered anonymously while their siblings did
+  // not, and every new sibling inherited the gap by default.
+  app.use('/api/internal', requireAdminToken);
 
   if (snapshottingRouter) {
     app.use('/api/internal', snapshottingRouter);
@@ -1028,7 +1066,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   // ts-rest contract router for image editing (multi-reference). requireAuth +
   // limiter run at the prefix because createExpressEndpoints registers
   // handlers directly on the app.
-  app.use('/api/image-edit', requireAuth, aiGenerationLimiter);
+  app.use('/api/image-edit', requireAuth, requireAiConsent, aiGenerationLimiter);
   mountImageEditContractRouter(app);
   app.use('/api/imagine/pure', aiGenerationLimiter, imaginePureRoute);
   app.use('/api/imagine/outpaint', aiGenerationLimiter, outpaintRoute);

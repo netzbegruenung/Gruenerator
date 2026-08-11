@@ -227,6 +227,33 @@ export function forbidsPersistentAction(text: string, nounPattern?: RegExp): boo
 }
 
 /**
+ * A create/give verb ordering a PROSE deliverable — "Erstelle eine
+ * Zusammenfassung in genau zwei Stichpunkten", "gib mir einen Überblick".
+ *
+ * `(?<!\p{L})` instead of `\b`: the noun group starts with umlauts
+ * (Überblick), and `\b` before a non-ASCII letter never matches without the
+ * `u` flag — the silent-death pattern REWRITE_TARGET_RE already hit once.
+ */
+const CHAT_DELIVERABLE_RE =
+  /(?<!\p{L})(?:erstell|schreib|gib|formulier|liefer|verfass|mach)\p{L}*[^.!?\n]{0,60}?(?<!\p{L})(?:zusammenfassung|kurzfassung|stichpunkt|stichw[oö]rter|bulletpoints?|aufz[äa]hlung|[üu]berblick|fazit)\p{L}*/iu;
+
+/**
+ * True when the turn asks for a fresh CHAT deliverable rather than a change to
+ * the artifact. The Tier-2.7 lastToolContext follow-ups are purely
+ * positive-patterned ("aktualisiert" is a modify verb), so after a chat-created
+ * sheet the order "Erstelle eine aktualisierte Zusammenfassung in genau zwei
+ * Stichpunkten" edited the SHEET and the two bullet points never appeared
+ * (QA 08/2026). A summary/overview/fazit order sticks to the artifact only when
+ * the artifact family is actually named ("fasse die Tabelle zusammen …" stays
+ * an edit candidate; pass the family's noun pattern for that check).
+ */
+export function asksForChatDeliverable(text: string, artifactNoun?: RegExp): boolean {
+  const t = stripQuotedSpans(text ?? '');
+  if (!CHAT_DELIVERABLE_RE.test(t)) return false;
+  return artifactNoun ? !artifactNoun.test(t) : true;
+}
+
+/**
  * An explicit ban on looking anything up in THIS turn: "ohne neue Recherche",
  * "keine weitere Suche", "nur aus dem Chat".
  *

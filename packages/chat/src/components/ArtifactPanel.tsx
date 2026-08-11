@@ -7,6 +7,8 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useArtifactLiveStore } from '../stores/artifactLiveStore';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 
+import { ResearchLogView } from './ResearchLogView';
+
 /**
  * Namespaced postMessage type the docked document iframe listens for (see
  * SheetsEditorPage's embedded-mode listener). Same-origin only — the iframe is
@@ -53,6 +55,7 @@ const isRelativeUrl = (url: string) => {
 export function ArtifactPanel({ className }: { className?: string }) {
   const active = useArtifactLiveStore((s) => s.activeArtifact);
   const isDocument = active?.type === 'document';
+  const isResearchLog = active?.type === 'research_log';
   const documentIframeRef = useRef<HTMLIFrameElement>(null);
 
   // Tell the cards a panel exists — without one, "öffnen" writes to the store
@@ -85,7 +88,7 @@ export function ArtifactPanel({ className }: { className?: string }) {
   // fence, not the sandbox attribute alone. Document previews skip this
   // entirely — they iframe the real (same-origin, trusted) editor route.
   const srcDoc = useMemo(() => {
-    if (!active || active.type === 'document') return '';
+    if (!active || active.type === 'document' || active.type === 'research_log') return '';
     const body =
       active.type === 'svg'
         ? `<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:12px;box-sizing:border-box">${active.content}</div>`
@@ -101,7 +104,7 @@ export function ArtifactPanel({ className }: { className?: string }) {
   const close = () => useArtifactLiveStore.getState().setActiveArtifact(null);
 
   const download = () => {
-    if (active.type === 'document') return;
+    if (active.type === 'document' || active.type === 'research_log') return;
     const mime = active.type === 'svg' ? 'image/svg+xml' : 'text/html';
     const ext = active.type === 'svg' ? 'svg' : 'html';
     const blob = new Blob([active.content], { type: mime });
@@ -115,9 +118,11 @@ export function ArtifactPanel({ className }: { className?: string }) {
 
   const badge = isDocument
     ? ARTIFACT_TYPE_META[subtypeToArtifactKind(active.subtype)].label
-    : active.type === 'svg'
-      ? 'SVG'
-      : 'HTML';
+    : isResearchLog
+      ? 'Recherche'
+      : active.type === 'svg'
+        ? 'SVG'
+        : 'HTML';
 
   // The docked panel is a glance-sized preview, not the full workspace — the
   // editor's own topbar (title/back/share) is redundant with the header this
@@ -156,7 +161,7 @@ export function ArtifactPanel({ className }: { className?: string }) {
             >
               <ExternalLink className="h-4 w-4" />
             </a>
-          ) : (
+          ) : isResearchLog ? null : (
             <button
               onClick={download}
               className="rounded p-1 text-foreground-muted hover:bg-primary/10 hover:text-foreground"
@@ -175,8 +180,14 @@ export function ArtifactPanel({ className }: { className?: string }) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden bg-white">
-        {isDocument ? (
+      {/* `bg-white` is right for the two iframe cases — they render their own
+          untuned document and need a neutral sheet under it. The research log is
+          our own React on theme tokens, so it must sit on the theme's ground or
+          `text-foreground` turns light-on-white in dark mode. */}
+      <div className={`flex-1 overflow-hidden ${isResearchLog ? 'bg-background' : 'bg-white'}`}>
+        {isResearchLog ? (
+          <ResearchLogView artifact={active} />
+        ) : isDocument ? (
           isRelativeUrl(active.url) ? (
             <iframe
               ref={documentIframeRef}
@@ -206,7 +217,10 @@ export function ArtifactPanel({ className }: { className?: string }) {
         )}
       </div>
 
-      {!isDocument && (
+      {/* Only for the editable artifacts. A document has its own editor, and a
+          research log is a live read-out of a run in progress — inviting edits
+          on either one promises something the chat cannot do. */}
+      {!isDocument && !isResearchLog && (
         <p className="border-t border-border px-3 py-2 text-xs text-foreground-muted">
           Beschreibe Änderungen einfach im Chat — z.B. „mach den Hintergrund grün".
         </p>

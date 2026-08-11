@@ -9,6 +9,7 @@ import {
   useAgentStore,
   useChatRuntimeReady,
   useDockedPanelActive,
+  useReportPanelDockable,
   useUserAgentsRegistry,
 } from '@gruenerator/chat';
 import {
@@ -77,8 +78,8 @@ const COMPOSER_VARIANT = isDesktopApp() ? 'card' : 'pill';
 
 /**
  * Ab welcher Breite ein Artefakt als angedockte Schiene neben dem Faden steht,
- * statt ihn als Vollbild zu überdecken: die 24rem der Schiene plus 48rem, die
- * dem Faden bleiben müssen.
+ * statt sich als Schiene über ihn zu legen: die 24rem der Schiene plus 48rem,
+ * die dem Faden bleiben müssen.
  *
  * Gemessen wird die Chat-Spalte, nicht das Fenster. Dieselbe Oberfläche steckt
  * als schmales Panel in den Editoren — dort ist ein 1440px breites Fenster kein
@@ -95,7 +96,10 @@ const ARTIFACT_PANEL_RESIZE_KEY_STEP = 32;
 
 const ARTIFACT_PANEL_DOCKED =
   'flex w-[var(--gr-artifact-panel-width,24rem)] shrink-0 flex-col overflow-hidden border-l border-border bg-background-alt';
-const ARTIFACT_PANEL_OVERLAY = 'fixed inset-0 z-[1010] flex flex-col bg-background-alt';
+// Zu schmal zum Andocken heißt nicht Vollbild: die Schiene legt sich rechts
+// über den Faden, der Chat bleibt daneben sichtbar und antippbar.
+const ARTIFACT_PANEL_OVERLAY =
+  'fixed inset-y-0 right-0 z-[1010] flex w-[min(24rem,85vw)] flex-col overflow-hidden border-l border-border bg-background-alt shadow-2xl';
 
 function ChatPage() {
   const [searchParams] = useSearchParams();
@@ -113,6 +117,10 @@ function ChatPage() {
   const shellWidth = useContainerWidth(shellRef);
   const artifactPanelClass = shellNarrow ? ARTIFACT_PANEL_OVERLAY : ARTIFACT_PANEL_DOCKED;
   const dockedPanelActive = useDockedPanelActive();
+
+  // Dieselbe Messung entscheidet auch, ob ein eingehendes Artefakt die Schiene
+  // von selbst aufziehen darf — der SSE-Parser kann sie nicht selbst anstellen.
+  useReportPanelDockable(!shellNarrow);
 
   // User-resizable docked panel width, grown by dragging the handle left.
   // Never below the original fixed width, never past half the chat column —
@@ -388,7 +396,15 @@ function ChatPage() {
           das äußerste Flex-Item zählt. Die übrigen Chat-Wirte (ChatLayout,
           Docs-/Sheets-/Presentations-/Board-Panel) sind über ihr
           `overflow-hidden` bereits abgesichert. */}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col pt-4 md:pt-0">
+      {/* Das untere Padding trägt die Höhe der Bildschirmtastatur, die der
+          Composer als --mobile-keyboard-offset veröffentlicht
+          (useMobileKeyboardOffset). Diese eine Spalte um sie zu kürzen bedient
+          beide Zweige darunter — im Thread hebt es den unten verankerten
+          Composer über die Tastatur, in der Übersicht rückt es den zentrierten
+          Hero in den noch sichtbaren Bereich. Die Variable darf genau hier
+          einmal verrechnet werden; ein zweites Padding weiter innen zöge den
+          Composer um die doppelte Tastaturhöhe hoch. */}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col pt-4 pb-[var(--mobile-keyboard-offset,0px)] md:pt-0">
         {hub ? (
           <LandesverbandHub hub={hub} onNavigate={handleNavigate} userLocale={userLocale} />
         ) : effectiveViewMode === 'overview' ? (
@@ -400,7 +416,11 @@ function ChatPage() {
             className={cn(
               'workplace-chat-sunrise workplace-chat-accent',
               chatBackground.className,
-              'flex min-h-0 flex-1 flex-col justify-center overflow-y-auto pb-[6vh]'
+              // `justify-center-safe` wie auf dem Workplace-Chat-Tab: sobald die
+              // Tastatur die Spalte kürzt, überläuft der zentrierte Inhalt — bei
+              // reinem `justify-center` nach oben aus dem Scrollbereich heraus
+              // und damit unerreichbar.
+              'flex min-h-0 flex-1 flex-col justify-center-safe overflow-y-auto pb-[6vh]'
             )}
           >
             <ChatHero projectName={projektName} />

@@ -678,39 +678,11 @@ export function DocumentsContent({
         Entwicklung. Bitte behalte eine lokale Sicherungskopie deiner Dateien.
       </DismissableBanner>
 
+      {/* Without `showRecents` this is the Arbeiten tab, where the workplace
+          "Zuletzt" feed is THE recents section — the personal grid and the group
+          shares both live on /office instead, below its own recents. */}
       <section>
-        {!showRecents ? (
-          // Embedded in the Arbeiten tab, where the workplace "Zuletzt" feed is
-          // THE recents section — only the group shares (not covered there)
-          // keep rendering.
-          groupDocsByGroup.length > 0 && (
-            <>
-              {groupDocsByGroup.map(([groupId, { groupName, docs }]) => (
-                <div key={groupId} className="mt-xl">
-                  <h2 className="mb-sm flex items-center gap-xs text-sm font-medium text-grey-500 dark:text-grey-400">
-                    <FiUsers size={14} />
-                    {groupName}
-                  </h2>
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(232px,1fr))] gap-md max-md:grid-cols-[repeat(auto-fill,minmax(170px,1fr))]">
-                    {docs.map((item) => {
-                      if (item.kind !== 'document') return null;
-                      return (
-                        <DocumentCard
-                          key={`doc-${item.data.id}-${groupId}`}
-                          doc={item.data}
-                          adapter={adapter}
-                          onDelete={handleDeleteDoc}
-                          onRename={handleRenameDoc}
-                          onShare={setShareDoc}
-                        />
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </>
-          )
-        ) : isLoading || isUnauthorizedError(docsError) ? (
+        {!showRecents ? null : isLoading || isUnauthorizedError(docsError) ? (
           // On a 401 the session teardown+redirect is already in flight — show
           // the skeleton, never a partial/stale grid or an error flash.
           <CardGrid columns="auto" gap="md">
@@ -916,7 +888,7 @@ export function DocumentsContent({
 }
 
 /** Office start page without route chrome — embedded by the workplace
- * "Arbeiten" tab (/workplace/arbeiten), which provides PageContainer + auth
+ * "Arbeiten" page (/workplace), which provides PageContainer + auth
  * and renders the workplace "Zuletzt" feed as THE recents section. */
 export const DocsHome = () => (
   <ErrorBoundary>

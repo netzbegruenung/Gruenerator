@@ -55,6 +55,39 @@ const QualityAssessmentSchema = z.object({
 
 const log = createLogger('DirectSearch');
 
+/** Display cap for Linkup deep-research citations (see executeResearchViaLinkup). */
+const LINKUP_CITATION_SNIPPET_CHARS = 300;
+
+/**
+ * Two sources count as the same document above this Jaccard overlap of their
+ * 3-word shingles.
+ *
+ * MEASURED, not guessed, against the 26 sources of the Monitor run on
+ * 11.08.2026 (hot topic "Europa/Außen"), hand-labelled into five same-document
+ * pairs and seven merely-related ones:
+ *
+ *   same document      0.578 … 0.808   (same press release under two URLs,
+ *                                       same Antrag in two renderings)
+ *   different document 0.004 … 0.079   (two press releases in the same house
+ *                                       format, a report ABOUT the Antrag next
+ *                                       to the Antrag itself, two pages sharing
+ *                                       one quoted sentence)
+ *
+ * 0.4 sits in the empty middle of that gap: 5× above the worst false-positive
+ * candidate and well under the weakest true duplicate. The margin is what
+ * matters — a threshold that merely beat the negatives would fold two genuine
+ * sources into one on the next run, and a dropped source is invisible in a way
+ * a duplicate is not.
+ */
+const DUPLICATE_SOURCE_SIMILARITY = 0.4;
+
+/**
+ * Chars of a source considered when comparing. Bounds the O(n²) comparison for
+ * pages that arrive as 50k-char dumps; the opening of a document is also where
+ * two renderings of it agree most.
+ */
+const SIMILARITY_TEXT_CHARS = 4000;
+
 export interface ResearchCitation {
   id: number;
   title: string;
@@ -320,6 +353,121 @@ function finalizeResearchResult(params: {
 }
 
 /**
+ * Host + path, lowercased, without `www.`, query, fragment or trailing slash.
+ *
+ * Deliberately drops the query: the same press release arrives as `…/meldung`
+ * and `…/meldung?utm_source=…`, and treating those as two sources is the
+ * duplication being removed. Unparseable input falls back to the raw string
+ * rather than to a shared empty key, which would collapse every broken URL
+ * into one source.
+ */
+function canonicalUrl(raw: string): string {
+  try {
+    const url = new URL(raw);
+    return `${url.host.replace(/^www\./, '')}${url.pathname.replace(/\/+$/, '')}`.toLowerCase();
+  } catch {
+    return raw.trim().toLowerCase();
+  }
+}
+
+/** Word 3-shingles of the opening of a text, for the overlap comparison. */
+function textShingles(text: string): Set<string> {
+  const words = text
+    .slice(0, SIMILARITY_TEXT_CHARS)
+    .toLowerCase()
+    .replace(/&[a-z#0-9]+;/g, ' ')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()
+    .split(' ')
+    .filter((w) => w.length > 2);
+
+  const shingles = new Set<string>();
+  for (let i = 0; i + 3 <= words.length; i++) shingles.add(words.slice(i, i + 3).join(' '));
+  return shingles;
+}
+
+function jaccard(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 || b.size === 0) return 0;
+  let shared = 0;
+  for (const s of a) if (b.has(s)) shared++;
+  return shared / (a.size + b.size - shared);
+}
+
+export interface DedupedSources {
+  citations: ResearchCitation[];
+  /** Old citation id → new one. Dropped duplicates point at their survivor. */
+  remap: Map<string, string>;
+}
+
+/**
+ * Collapse sources that are the same document and renumber the survivors 1..n.
+ *
+ * Linkup's deep research routinely returns one press release twice: as the
+ * bundestag.de news item and as the Antrag it quotes, or the same page with and
+ * without tracking parameters. Printed as separate numbered sources they read
+ * as independent corroboration — that is the part that misleads; the wasted
+ * space is the lesser problem.
+ *
+ * Two stages, because neither alone is enough: identical canonical URLs catch
+ * the cheap case exactly, and a text-overlap comparison catches the same
+ * document served under genuinely different paths.
+ *
+ * MUST run before the snippet cap. Measured on the same 26 sources: at the full
+ * page text the five true duplicate pairs score 0.578–0.808 and the related-
+ * but-distinct ones 0.004–0.079, a gap wide enough to sit in. Truncated to the
+ * 300 display chars first, two of those five pairs collapse to 0.015 and 0.113
+ * — BELOW the worst false-positive candidate (0.182), so no threshold can
+ * separate them any more. The order is the fix, not a detail of it.
+ */
+export function dedupeResearchSources(citations: ResearchCitation[]): DedupedSources {
+  const remap = new Map<string, string>();
+  const survivors: ResearchCitation[] = [];
+  const byUrl = new Map<string, ResearchCitation>();
+  const shingleCache: Set<string>[] = [];
+
+  for (const citation of citations) {
+    const urlKey = citation.url ? canonicalUrl(citation.url) : '';
+    const sameUrl = urlKey ? byUrl.get(urlKey) : undefined;
+    if (sameUrl) {
+      remap.set(String(citation.id), String(sameUrl.id));
+      continue;
+    }
+
+    const shingles = textShingles(citation.snippet || '');
+    const twin = survivors.find(
+      (_, i) => jaccard(shingles, shingleCache[i] ?? new Set()) >= DUPLICATE_SOURCE_SIMILARITY
+    );
+    if (twin) {
+      remap.set(String(citation.id), String(twin.id));
+      continue;
+    }
+
+    const renumbered = { ...citation, id: survivors.length + 1 };
+    if (urlKey) byUrl.set(urlKey, renumbered);
+    remap.set(String(citation.id), String(renumbered.id));
+    survivors.push(renumbered);
+    shingleCache.push(shingles);
+  }
+
+  if (survivors.length < citations.length) {
+    log.info(`[Research] Deduped ${citations.length} → ${survivors.length} sources`);
+  }
+  return { citations: survivors, remap };
+}
+
+/**
+ * Move every `[N]` in a text onto the id its source ended up with after
+ * deduplication. A marker whose source was folded away points at the survivor;
+ * a marker the model invented has no entry and stays as it is.
+ */
+export function remapCitationMarkers(text: string, remap: Map<string, string>): string {
+  return text.replace(/\[(\d+)\]/g, (match, n: string) => {
+    const target = remap.get(n);
+    return target ? `[${target}]` : match;
+  });
+}
+
+/**
  * Execute deep research via Linkup. Replaces our planner+orchestrator when
  * LINKUP_API_KEY is set. Maps Linkup's `sourcedAnswer` response onto our
  * ResearchResult shape so the frontend ResearchArtifactCard works unchanged.
@@ -350,20 +498,37 @@ async function executeResearchViaLinkup(args: {
   const res = await linkup.deepResearch({ question, locale });
   const elapsed = Date.now() - start;
 
-  const citations: ResearchCitation[] = res.sources.map((s, i) => ({
-    id: i + 1,
-    title: s.name || extractDomain(s.url),
-    url: s.url,
-    domain: extractDomain(s.url),
-    snippet: s.snippet || '',
+  // Deduplicate on the FULL page text, before the cap below — the order is
+  // load-bearing, see `dedupeResearchSources`.
+  const deduped = dedupeResearchSources(
+    res.sources.map((s, i) => ({
+      id: i + 1,
+      title: s.name || extractDomain(s.url),
+      url: s.url,
+      domain: extractDomain(s.url),
+      snippet: s.snippet || '',
+    }))
+  );
+
+  // Linkup's `sourcedAnswer` sources carry the SCRAPED PAGE, not a snippet —
+  // multi-thousand-character dumps of whole Beschlusstexte. Unbounded they
+  // reach the UI as the quote itself (Monitor "Quellen und Zitate" grew to
+  // page-length blockquotes). The orchestrator path caps at 150 in
+  // finalizeResearchResult; this display wants a readable quote, so 300 —
+  // same value the web-search executor uses for its display snippets.
+  const citations: ResearchCitation[] = deduped.citations.map((c) => ({
+    ...c,
+    snippet: truncateText(c.snippet, LINKUP_CITATION_SNIPPET_CHARS),
   }));
 
   log.info(
-    `[Research] Linkup returned ${citations.length} sources in ${elapsed}ms for "${truncateText(question, 80)}"`
+    `[Research] Linkup returned ${res.sources.length} sources (${citations.length} after dedupe) in ${elapsed}ms for "${truncateText(question, 80)}"`
   );
 
   return {
-    answer: res.answer,
+    // Linkup numbered its `[N]` against the source list it returned; the dedupe
+    // renumbered that list, so the answer has to move with it.
+    answer: remapCitationMarkers(res.answer, deduped.remap),
     citations,
     followUpQuestions: [],
     searchSteps: [

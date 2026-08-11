@@ -27,8 +27,19 @@ export const textFormMentionSchema = z
   .max(48)
   .regex(/^[a-z0-9äöüß-]+$/, 'Nur Kleinbuchstaben, Ziffern, Bindestriche (Umlaute erlaubt)');
 
-export const MAX_TEXT_FORM_EXAMPLES = 5;
-export const MAX_TEXT_FORM_EXAMPLE_CHARS = 8000;
+export const MAX_TEXT_FORM_EXAMPLES = 20;
+/**
+ * Gesamtbudget über ALLE Beispiele zusammen — die eigentliche Grenze. ~40k Token,
+ * gerechnet mit ~3,5 Zeichen/Token für deutsche Prosa, also gut innerhalb des
+ * 128k-Kontexts des Analyse-Modells.
+ */
+export const MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS = 140_000;
+/**
+ * Ein einzelnes Beispiel darf das Gesamtbudget ausschöpfen: Nutzer:innen fügen
+ * alle Beispiele in ein Feld ein, und ein Text, den die Zerlegung nicht trennen
+ * kann, soll nicht an einer zweiten, kleineren Grenze scheitern.
+ */
+export const MAX_TEXT_FORM_EXAMPLE_CHARS = MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS;
 export const MAX_TEXT_FORM_STYLE_CHARS = 8000;
 
 // ── Shared shapes ────────────────────────────────────────────────────────────
@@ -37,6 +48,18 @@ export const textFormExampleSchema = z.object({
   content: z.string().min(1).max(MAX_TEXT_FORM_EXAMPLE_CHARS),
 });
 export type TextFormExample = z.infer<typeof textFormExampleSchema>;
+
+export function textFormExamplesChars(
+  examples: ReadonlyArray<{ readonly content: string }>
+): number {
+  return examples.reduce((sum, e) => sum + e.content.length, 0);
+}
+
+const withinTotalBudget = {
+  check: (examples: ReadonlyArray<{ readonly content: string }>) =>
+    textFormExamplesChars(examples) <= MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS,
+  message: `Alle Beispiele zusammen dürfen höchstens ${MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS.toLocaleString('de-DE')} Zeichen haben.`,
+} as const;
 
 /** A group a recipe is shared with. */
 export const textFormGroupShareSchema = z.object({
@@ -80,7 +103,11 @@ export type TextForm = z.infer<typeof textFormSchema>;
 export const analyzeTextFormBodySchema = z.object({
   textType: textFormTypeSchema.nullish(),
   title: z.string().min(1).max(80).nullish(),
-  examples: z.array(textFormExampleSchema).min(1).max(MAX_TEXT_FORM_EXAMPLES),
+  examples: z
+    .array(textFormExampleSchema)
+    .min(1)
+    .max(MAX_TEXT_FORM_EXAMPLES)
+    .refine(withinTotalBudget.check, { message: withinTotalBudget.message }),
 });
 export type AnalyzeTextFormBody = z.infer<typeof analyzeTextFormBodySchema>;
 
@@ -92,7 +119,10 @@ export const saveTextFormBodySchema = z.object({
   kind: textFormKindSchema,
   textType: textFormTypeSchema.nullish(),
   title: z.string().min(1).max(80),
-  examples: z.array(textFormExampleSchema).max(MAX_TEXT_FORM_EXAMPLES),
+  examples: z
+    .array(textFormExampleSchema)
+    .max(MAX_TEXT_FORM_EXAMPLES)
+    .refine(withinTotalBudget.check, { message: withinTotalBudget.message }),
   styleBlock: z.string().min(1).max(MAX_TEXT_FORM_STYLE_CHARS),
 });
 export type SaveTextFormBody = z.infer<typeof saveTextFormBodySchema>;

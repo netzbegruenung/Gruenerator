@@ -84,7 +84,14 @@ export const PDF_SPEC: ArtifactSpec<CreatePdfResult> = {
       : `PDF **"${result.document.title}"** wurde erstellt — ${result.summary}.`,
   card: (result) => result.document,
   doneExtras: (result) => ({ documentId: result.document.documentId }),
-  persistMetadata: (result) => ({ intent: 'create_pdf', createdDocument: result.document }),
+  // `pdfSpec` is what makes a PDF editable at all: the artefact is immutable
+  // bytes under an asset file name, so a later "ändere das PDF" re-renders from
+  // this spec instead of re-guessing the document from the transcript.
+  persistMetadata: (result) => ({
+    intent: 'create_pdf',
+    createdDocument: result.document,
+    pdfSpec: result.spec,
+  }),
   ref: (result) => ({ ref: result.document.documentId, label: result.document.title }),
 };
 

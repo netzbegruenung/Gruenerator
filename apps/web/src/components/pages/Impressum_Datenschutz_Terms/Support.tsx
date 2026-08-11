@@ -9,6 +9,21 @@ const Support = () => {
         Möglichkeiten zur Verfügung:
       </p>
 
+      <h2>Dokumentation</h2>
+      <p>
+        Anleitungen zu allen Funktionen — von Sharepics über Notizbücher bis zu den Grüneratoren —
+        stehen in der Dokumentation. Vieles lässt sich damit schneller klären als über eine Anfrage:
+      </p>
+      <p>
+        <a href="https://doku.gruenerator.eu" target="_blank" rel="noopener noreferrer">
+          → Zur Grünerator-Dokumentation
+        </a>
+      </p>
+      <p>
+        Im KI-Chat lässt sich die Dokumentation auch direkt durchsuchen: tippe <code>@doku</code> in
+        die Nachricht oder frage ausdrücklich nach der Anleitung zu einer Funktion.
+      </p>
+
       <h2>Chat Begrünung</h2>
       <p>
         Der schnellste Weg, Hilfe zu erhalten, ist unser Support-Kanal im Chat Begrünung. Hier

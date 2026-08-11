@@ -42,7 +42,7 @@ import { useMonitorLocaleParam } from '../../monitor/hooks/useMonitorLocaleParam
 import { getNotebookConfig } from '../config/notebookPagesConfig';
 import {
   getAustrianNotebooks,
-  getNotebookById,
+  getListedNotebookById,
   getNotebooksByCategory,
   isNotebookVisibleForLocale,
   type NotebookConfigEntry,
@@ -340,7 +340,7 @@ const WISSEN_TOOL_TILES: WissenToolTile[] = [
     id: 'monitor-themen',
     title: 'Themen',
     description: 'Meistdiskutierte Themen der letzten 24 Stunden.',
-    path: '/experiments/monitor/themen',
+    path: '/themen',
     Icon: Flame,
     tile: 'bg-[#FADFEA] hover:shadow-[0_14px_30px_rgba(206,0,92,0.18)] dark:bg-[#2C121F]',
     icon: 'text-[#C4006A] dark:text-[#EC5AA0]',
@@ -352,7 +352,7 @@ const WISSEN_TOOL_TILES: WissenToolTile[] = [
     id: 'monitor-umfragen',
     title: 'Umfragen',
     description: 'Sonntagsfrage, Ländertrends und Meinungsbild.',
-    path: '/experiments/monitor/umfragen',
+    path: '/umfragen',
     Icon: BarChart3,
     tile: 'bg-[#F5DDEE] hover:shadow-[0_14px_30px_rgba(184,0,108,0.18)] dark:bg-[#291224]',
     icon: 'text-[#B00070] dark:text-[#E85AAE]',
@@ -477,8 +477,8 @@ function NotebooksIndexFooter() {
       isAustrian
         ? getAustrianNotebooks()
         : [
-            getNotebookById('gruene-notebook'),
-            getNotebookById('bundestagsfraktion-notebook'),
+            getListedNotebookById('gruene-notebook'),
+            getListedNotebookById('bundestagsfraktion-notebook'),
           ].filter((nb): nb is NotebookConfigEntry => Boolean(nb)),
     [isAustrian]
   );
@@ -486,7 +486,7 @@ function NotebooksIndexFooter() {
     () =>
       isAustrian
         ? []
-        : [getNotebookById('kommunalwiki-notebook')].filter((nb): nb is NotebookConfigEntry =>
+        : [getListedNotebookById('kommunalwiki-notebook')].filter((nb): nb is NotebookConfigEntry =>
             Boolean(nb)
           ),
     [isAustrian]

@@ -84,7 +84,7 @@ export const DE_BUNDESLAENDER: BundeslandConfig[] = [
   { label: 'Nordrhein-Westfalen' },
   { label: 'Rheinland-Pfalz' },
   { label: 'Saarland' },
-  { label: 'Sachsen' },
+  { label: 'Sachsen', notebookId: 'sachsen-notebook' },
   { label: 'Sachsen-Anhalt' },
   { label: 'Schleswig-Holstein', notebookId: 'schleswig-holstein-notebook' },
   { label: 'Thüringen', notebookId: 'thueringen-notebook' },

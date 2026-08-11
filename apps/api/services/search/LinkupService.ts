@@ -48,6 +48,22 @@ const linkupCircuit = new CircuitBreaker({
 const LINKUP_API_BASE = 'https://api.linkup.so/v1';
 const LINKUP_TIMEOUT_MS = 60_000;
 
+/**
+ * `sourcedAnswer` braucht mehr Zeit als `searchResults`, weil Linkup nach der
+ * Suche noch den Bericht schreibt — die 60 s des Suchpfads reichen dafür nicht.
+ * Gemessen an der Monitor-Pipeline: der Aufruf lief exakt bis zur Sekunde 60 und
+ * wurde abgebrochen, `withRetry` stuft ein Abort zu Recht als nicht-behebbar ein
+ * (ein zweiter Deep-Lauf kostet dasselbe nochmal), also fiel die Recherche
+ * ersatzlos aus und das Briefing entstand ohne Quellenlage.
+ *
+ * Am Ausgabetyp festgemacht, nicht an `depth: 'deep'`: die Deep-Stufe der
+ * Chat-Suche liefert `searchResults` und behält die 60 s. Über `sourcedAnswer`
+ * laufen der Monitor-Hintergrundlauf UND `@recherche` im Chat — dort ist die
+ * längere Frist ebenfalls die bessere Wahl, weil der Fortschritt gestreamt wird
+ * und eine leere Antwort nach 60 s schlechter ist als eine späte mit Quellen.
+ */
+const LINKUP_SOURCED_ANSWER_TIMEOUT_MS = 180_000;
+
 export interface LinkupSource {
   name: string;
   url: string;
@@ -210,7 +226,11 @@ export class LinkupService {
       model: typeof body.depth === 'string' ? body.depth : 'standard',
     });
     try {
-      const result = await this.request<T>(url, body);
+      const result = await this.request<T>(
+        url,
+        body,
+        body.outputType === 'sourcedAnswer' ? LINKUP_SOURCED_ANSWER_TIMEOUT_MS : LINKUP_TIMEOUT_MS
+      );
       linkupCircuit.recordSuccess();
       return result;
     } catch (error) {
@@ -219,11 +239,15 @@ export class LinkupService {
     }
   }
 
-  private async request<T>(url: string, body: Record<string, unknown>): Promise<T> {
+  private async request<T>(
+    url: string,
+    body: Record<string, unknown>,
+    timeoutMs: number = LINKUP_TIMEOUT_MS
+  ): Promise<T> {
     return withRetry(
       async () => {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), LINKUP_TIMEOUT_MS);
+        const timeout = setTimeout(() => controller.abort(), timeoutMs);
         try {
           const res = await fetch(url, {
             method: 'POST',
