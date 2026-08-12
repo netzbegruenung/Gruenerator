@@ -1,6 +1,16 @@
+// The store subpath, not the package root: the composer sits on landing pages
+// that must not pull the chat UI into their chunk.
+import { useAgentStore } from '@gruenerator/chat/stores';
 import { TypingAnimation, useIsMobile } from '@gruenerator/ui';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
-import { FiCloud, FiCornerDownLeft, FiGrid, FiSearch, FiUpload } from 'react-icons/fi';
+import {
+  FiCloud,
+  FiCornerDownLeft,
+  FiGrid,
+  FiMessageCircle,
+  FiSearch,
+  FiUpload,
+} from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
 import { type FeatureHit, matchFeatures } from '../global-search/featureIndex';
@@ -9,6 +19,7 @@ import {
   DOC_TYPE_META,
   PROMPT_EXAMPLES,
   PROMPT_EXAMPLES_SHORT,
+  detectChatIntent,
   detectDocType,
   detectPromptIntent,
   type DocKind,
@@ -141,9 +152,42 @@ export function DocsComposer({
   const hasResults = matchedItems.length + contentMatches.length + matchedTemplates.length > 0;
   const promptMode = query.length > 0 && (detectPromptIntent(query) || !hasResults);
 
+  // A question belongs in the chat, which this field cannot answer. Explain it
+  // instead of silently generating a document out of it — but as an offer, not
+  // a block: the create action stays available right below.
+  const chatIntent = detectChatIntent(query);
+
   const runCreate = () => {
     if (!query || isGenerating) return;
     onGenerate(detectedKind, query);
+  };
+
+  // Hand the text over as a *draft*, not a sent message: the detection is a
+  // heuristic, so the user gets to read it in the chat composer and press send.
+  const runChatHandoff = () => {
+    if (!query) return;
+    setOpen(false);
+    useAgentStore.getState().setPendingDraft(query);
+    void navigate('/chat');
+  };
+
+  const chatOption: Option = {
+    key: 'chat',
+    onSelect: runChatHandoff,
+    render: () => (
+      <div className="flex w-full min-w-0 items-center gap-3">
+        <span className="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-lg bg-[#E6F0EA] text-[#3E7A5F] dark:bg-grey-700 dark:text-grey-200">
+          <FiMessageCircle size={15} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-semibold text-[#22382E] dark:text-foreground">
+            Im Chat fragen
+          </div>
+          <div className="text-xs text-muted-brand">Text wird in den Chat übernommen</div>
+        </div>
+        <FiCornerDownLeft size={14} className="flex-none text-muted-brand" />
+      </div>
+    ),
   };
 
   const createOption: Option = {
@@ -270,9 +314,11 @@ export function DocsComposer({
     ...toolOptions,
     ...importOptions,
   ];
-  const options: Option[] = promptMode
+  const baseOptions: Option[] = promptMode
     ? [createOption, ...resultOptions]
     : [...resultOptions, createOption];
+  // First, so Enter takes the offer the notice above just made.
+  const options: Option[] = chatIntent ? [chatOption, ...baseOptions] : baseOptions;
 
   const clampedActive = Math.min(active, Math.max(0, options.length - 1));
   const showDropdown = open && query.length > 0 && options.length > 0;
@@ -381,7 +427,23 @@ export function DocsComposer({
             if (blurTimer.current) clearTimeout(blurTimer.current);
           }}
         >
-          {!promptMode && (
+          {chatIntent && (
+            <div
+              role="status"
+              className="mb-1 flex items-start gap-2.5 rounded-xl bg-[#F2F6F3] px-3 py-2.5 dark:bg-grey-700/60"
+            >
+              <FiMessageCircle
+                size={15}
+                aria-hidden="true"
+                className="mt-px flex-none text-[#3E7A5F] dark:text-grey-200"
+              />
+              <p className="text-xs leading-relaxed text-[#4A5B52] dark:text-grey-300">
+                Das klingt nach einer Frage. Hier entstehen Dokumente, Boards, Tabellen und
+                Präsentationen — antworten kann der Chat.
+              </p>
+            </div>
+          )}
+          {!promptMode && !chatIntent && (
             <div className="flex items-center gap-2 px-3 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-brand">
               <FiSearch size={11} /> Ergebnisse
             </div>
