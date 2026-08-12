@@ -5,6 +5,7 @@ import {
   findDegenerationCut,
   isDegenerateSample,
   isStructuralScaffolding,
+  trimTrailingScaffoldLine,
   DEGEN_MIN_LENGTH,
   REPEAT_RUN_CHARS,
   snapToBoundary,
@@ -148,6 +149,31 @@ describe('isDegenerateSample', () => {
     // not scaffolding — and it was real degeneration, correctly cut.
     const window = prose(1400) + repeatTo('---. ', 600);
     expect(isDegenerateSample(window)).toBe(true);
+  });
+});
+
+describe('trimTrailingScaffoldLine', () => {
+  it('drops a runaway divider row the backscan could not cross', () => {
+    // Live 13.08.2026 14:02: 2.248 chars were removed and the kept text STILL
+    // ended `--- --- --- … ---`, directly above the notice.
+    const answer = `${prose(800)}\n| Absatz | Status |\n| --- | --- |\n| Text hier | vollständig |\n`;
+    const kept = answer + repeatTo('--- ', 1200);
+    expect(trimTrailingScaffoldLine(kept)).toBe(answer.trimEnd());
+  });
+
+  it('leaves a normal table row alone', () => {
+    const table = `${prose(600)}\n| Absatz Nummer 3 | Schutz in Einrichtungen | vollständig | - |`;
+    expect(trimTrailingScaffoldLine(table)).toBe(table);
+  });
+
+  it('leaves a short divider alone', () => {
+    const table = `${prose(600)}\n|---|---|---|---|`;
+    expect(trimTrailingScaffoldLine(table)).toBe(table);
+  });
+
+  it('leaves a long line that carries text alone', () => {
+    const long = `${prose(600)}\n${GERMAN_PROSE}`;
+    expect(trimTrailingScaffoldLine(long)).toBe(long);
   });
 });
 
