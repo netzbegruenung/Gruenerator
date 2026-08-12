@@ -534,12 +534,13 @@ function keywordsFromPattern(source) {
 function extractSharepicVariants() {
   const sf = parse(SRC.sharepicVariants);
   const standardDecl = unwrap(findDeclaration(sf, 'SHAREPIC_VARIANT_TYPES'));
-  const standard = new Set();
+  const standardOrder = [];
   if (standardDecl && ts.isArrayLiteralExpression(standardDecl)) {
     for (const el of standardDecl.elements) {
-      if (ts.isStringLiteral(el)) standard.add(el.text);
+      if (ts.isStringLiteral(el)) standardOrder.push(el.text);
     }
   }
+  const standard = new Set(standardOrder);
 
   const decl = unwrap(findDeclaration(sf, 'VARIANT_KEYWORDS'));
   if (!decl || !ts.isArrayLiteralExpression(decl)) {
@@ -572,8 +573,10 @@ function extractSharepicVariants() {
   if (variants.length === 0) {
     throw new Error(`${SRC.sharepicVariants}: no variants extracted — the shape changed.`);
   }
-  // Standard variants first, in fanout order; keyword-only ones after.
-  variants.sort((a, b) => Number(b.standard) - Number(a.standard));
+  // Fanout order (SHAREPIC_VARIANT_TYPES), keyword-only variants after —
+  // VARIANT_KEYWORDS itself is ordered by match priority, not presentation.
+  const rank = (v) => (v.standard ? standardOrder.indexOf(v.type) : standardOrder.length);
+  variants.sort((a, b) => rank(a) - rank(b));
   return variants;
 }
 

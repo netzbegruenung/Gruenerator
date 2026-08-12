@@ -572,6 +572,20 @@
   ],
   "sharepicVariants": [
     {
+      "type": "dreizeilen",
+      "keywords": [
+        "dreizeiler",
+        "dreizeilen",
+        "drei zeilen",
+        "3 zeilen",
+        "slogan",
+        "dreibalken",
+        "drei balken",
+        "balken"
+      ],
+      "standard": true
+    },
+    {
       "type": "zitat",
       "keywords": [
         "zitat…",
@@ -593,20 +607,6 @@
         "information…",
         "erklär…",
         "erklaer…"
-      ],
-      "standard": true
-    },
-    {
-      "type": "dreizeilen",
-      "keywords": [
-        "dreizeiler",
-        "dreizeilen",
-        "drei zeilen",
-        "3 zeilen",
-        "slogan",
-        "dreibalken",
-        "drei balken",
-        "balken"
       ],
       "standard": true
     },
