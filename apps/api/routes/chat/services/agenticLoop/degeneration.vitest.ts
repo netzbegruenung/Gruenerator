@@ -147,6 +147,26 @@ describe('isStructuralScaffolding', () => {
 
 // ── createDegenerationGuard ──────────────────────────────────────────────────
 
+// ── findDegenerationCut ──────────────────────────────────────────────────────
+
+describe('findDegenerationCut', () => {
+  it('keeps a legitimate table that sits between the answer and the spam', () => {
+    // Reported in review of the detector fix: gating only `isDegenerateSample`
+    // moves the bug one function along. The backscan reaches 6000 chars, and a
+    // table inside that range has almost no words after the scaffold filter —
+    // so it used to fall through to the character-based periodicity test and be
+    // read as "still spam", cutting the table out of the kept prefix.
+    const answer = prose(1500);
+    const table = Array.from({ length: 30 }, (_, i) =>
+      i % 4 === 0 ? `| Absatz ${i} | Schutz | Vollständig | - |` : '| | | | |'
+    ).join('\n');
+    const text = `${answer}\n\n${table}\n\n${terminatorSpam(2500)}`;
+    const cut = findDegenerationCut(text, text.length);
+    expect(text.slice(0, cut)).toContain('| Absatz 28 |');
+    expect(text.slice(0, cut)).not.toContain('FERTIG --- ENDE');
+  });
+});
+
 describe('createDegenerationGuard', () => {
   it('stays quiet on a long healthy answer', () => {
     const guard = createDegenerationGuard();
