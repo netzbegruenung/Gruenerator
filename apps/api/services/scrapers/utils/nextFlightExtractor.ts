@@ -76,18 +76,33 @@ function isHexByte(b: number): boolean {
 /** Strip HTML tags and collapse whitespace in a flight text fragment. */
 export function flightTextToPlain(fragment: string): string {
   // Entities are decoded before tag stripping (with &amp; last, so nothing is
-  // double-unescaped); tags formed by decoded entities are stripped too. The
-  // result is plain text for chunking/embedding, never rendered as HTML.
-  return fragment
+  // double-unescaped); tags formed by decoded entities are stripped too.
+  const withBreaks = fragment
     .replace(/&nbsp;/g, ' ')
     .replace(/&quot;/g, '"')
     .replace(/&#39;|&apos;/g, "'")
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&amp;/g, '&')
-    .replace(/<br\s*\/?>/gi, ' ')
-    .replace(/<\/(p|li|h[1-6]|blockquote|div)>/gi, ' ')
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+    .replace(/<br\s*\/?>/gi, ' ');
+
+  return stripTagsToFixpoint(withBreaks).replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Strip tags repeatedly until nothing changes, then drop any leftover angle
+ * brackets. A single regex pass can leave fragments that recombine into a tag
+ * once chunks are concatenated — and chunk_text is rendered through
+ * rehype-raw downstream, which parses embedded HTML rather than escaping it.
+ */
+function stripTagsToFixpoint(input: string): string {
+  let current = input;
+  for (let i = 0; i < 5; i++) {
+    const next = current
+      .replace(/<\/(p|li|h[1-6]|blockquote|div)>/gi, ' ')
+      .replace(/<[^>]*>/g, ' ');
+    if (next === current) break;
+    current = next;
+  }
+  return current.replace(/[<>]/g, ' ');
 }
