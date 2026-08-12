@@ -1,5 +1,7 @@
 import { jsonSchema, type ModelMessage, type Tool } from 'ai';
 
+import { decodeBase64OrDataUrl, decodeDataUrl } from '../../utils/dataUrl.js';
+
 import type { AIRequestData, AIWorkerResult, ContentBlock, ToolCall } from '../types.js';
 import type { RequestMetadata, ResponseMetadata } from './types.js';
 
@@ -139,19 +141,16 @@ function flattenToText(content: unknown): string {
 /** An image block in either dialect, or null if this part is not an image. */
 function toImagePart(c: ContentPart): ImagePart | null {
   if (c.type === 'image' && c.source?.data) {
-    const mimeType = c.source.media_type || 'image/png';
-    const base64 = c.source.data.replace(/^data:image\/[^;]+;base64,/, '');
-    return { type: 'image', image: Buffer.from(base64, 'base64'), mimeType };
+    const decoded = decodeBase64OrDataUrl(c.source.data, c.source.media_type || 'image/png');
+    if (decoded) {
+      return { type: 'image', image: decoded.buffer, mimeType: c.source.media_type || 'image/png' };
+    }
   }
   if (c.type === 'image_url' && c.image_url?.url) {
     const url = c.image_url.url;
-    const dataUri = url.match(/^data:(image\/[^;]+);base64,(.+)$/);
-    if (dataUri) {
-      return {
-        type: 'image',
-        image: Buffer.from(dataUri[2] as string, 'base64'),
-        mimeType: dataUri[1] as string,
-      };
+    const decoded = decodeDataUrl(url, { expectedType: 'image' });
+    if (decoded) {
+      return { type: 'image', image: decoded.buffer, mimeType: decoded.mediaType };
     }
     if (!url.startsWith('data:')) return { type: 'image', image: new URL(url) };
   }
