@@ -29,6 +29,9 @@ export {
 // DocumentQnAService - Question-answering capabilities
 export { DocumentQnAService } from './DocumentQnAService/index.js';
 
+// Embedding input enrichment
+export { buildEmbeddingText, buildEmbeddingTexts } from './embeddingText.js';
+
 // TextChunker - Text segmentation utilities
 export {
   smartChunkDocument,

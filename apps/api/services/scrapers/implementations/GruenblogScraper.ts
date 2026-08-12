@@ -16,7 +16,7 @@ import {
 import { BRAND } from '../../../utils/domainUtils.js';
 import { generatePointId } from '../../../utils/validation/index.js';
 import { chunkQualityService } from '../../ChunkQualityService/index.js';
-import { smartChunkDocument } from '../../document-services/index.js';
+import { smartChunkDocument, buildEmbeddingTexts } from '../../document-services/index.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
 import { BaseScraper } from '../base/BaseScraper.js';
 import { recordSyncEvent, toExcerpt } from '../syncEventRecorder.js';
@@ -397,7 +397,9 @@ export class GruenblogScraper extends BaseScraper {
     }
 
     const chunkTexts = chunks.map((c) => c.text);
-    const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(chunkTexts);
+    const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(
+      buildEmbeddingTexts(chunkTexts, content.title)
+    );
 
     const points = chunks.map((chunk, index) => ({
       id: generatePointId('gruenblog', url, index),
