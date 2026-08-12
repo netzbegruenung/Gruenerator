@@ -12,4 +12,7 @@ export const CHANNEL_META: Record<NotificationChannel, { label: string; shortLab
   push: { label: 'Push', shortLabel: 'Push' },
 };
 
-export const CHANNEL_ORDER: NotificationChannel[] = ['in_app', 'email', 'push'];
+// 'push' is deliberately absent: push notifications were removed, so the
+// toggle would promise a delivery that never happens. The channel itself stays
+// in the type and in the contract enum — stored preferences still carry it.
+export const CHANNEL_ORDER: NotificationChannel[] = ['in_app', 'email'];

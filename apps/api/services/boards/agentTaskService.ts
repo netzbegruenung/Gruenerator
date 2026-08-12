@@ -127,14 +127,18 @@ export async function parkTaskForReview(taskId: string, documentId: string | nul
   );
 }
 
-/** Accept a run that was awaiting review → mark it completed. */
-export async function acceptReviewTask(taskId: string): Promise<boolean> {
+/**
+ * Accept a run that was awaiting review → mark it completed.
+ * Scoped by `board_id` so a caller authorized on one board cannot accept a
+ * review task belonging to another board by passing its task id (IDOR).
+ */
+export async function acceptReviewTask(taskId: string, boardId: string): Promise<boolean> {
   const rows = await db.query<{ id: string }>(
     `UPDATE agent_tasks
         SET status = 'completed', updated_at = now()
-      WHERE id = $1 AND status = 'awaiting_review'
+      WHERE id = $1 AND board_id = $2 AND status = 'awaiting_review'
       RETURNING id`,
-    [taskId]
+    [taskId, boardId]
   );
   return rows.length > 0;
 }

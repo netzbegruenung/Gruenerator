@@ -4,8 +4,7 @@
  * Thin surface that covers mobile-specific flows NOT handled by the
  * generic Better Auth routes:
  *   - POST /auth/mobile/logout             — invalidate the caller's Better Auth session
- *   - POST /auth/mobile/register-push-token — upsert an Expo push token into app_push_devices
- *   - GET  /auth/mobile/devices             — list push-capable devices for the caller
+ *   - POST /auth/mobile/register-push-token — tombstone for shipped binaries (no-op)
  *
  * Login/session/refresh flows are all handled by Better Auth itself:
  *   - OAuth entry: apps/api/routes/auth/appLogin.ts
@@ -45,98 +44,16 @@ router.post('/mobile/logout', async (req: Request, res: Response): Promise<void>
 /**
  * POST /auth/mobile/register-push-token
  *
- * Upsert the caller's Expo push token into `app_push_devices`, keyed
- * by (user_id, expo_push_token).
- */
-router.post(
-  '/mobile/register-push-token',
-  requireAuth,
-  async (req: Request, res: Response): Promise<void> => {
-    try {
-      const userId = req.user?.id;
-      if (!userId) {
-        res.status(401).json({ success: false, error: 'unauthorized' });
-        return;
-      }
-
-      const { expoPushToken, deviceName, deviceType } =
-        (req.body as {
-          expoPushToken?: string;
-          deviceName?: string;
-          deviceType?: string;
-        }) ?? {};
-
-      if (!expoPushToken) {
-        res.status(400).json({
-          success: false,
-          error: 'missing_params',
-          message: 'expoPushToken is required',
-        });
-        return;
-      }
-
-      if (
-        !expoPushToken.startsWith('ExponentPushToken[') &&
-        !expoPushToken.startsWith('ExpoPushToken[')
-      ) {
-        res.status(400).json({
-          success: false,
-          error: 'invalid_push_token',
-          message: 'Invalid Expo push token format',
-        });
-        return;
-      }
-
-      const userAgent = req.headers['user-agent'] ?? '';
-      const uaLower = userAgent.toLowerCase();
-      const resolvedDeviceType =
-        deviceType ??
-        (uaLower.includes('android')
-          ? 'android'
-          : uaLower.includes('iphone')
-            ? 'ios'
-            : uaLower.includes('tauri')
-              ? 'desktop'
-              : 'unknown');
-
-      const resolvedDeviceName = deviceName ?? (userAgent ? userAgent.substring(0, 255) : null);
-
-      const { registerPushToken } = await import('../../services/pushNotificationService.js');
-      await registerPushToken(userId, expoPushToken, {
-        ...(resolvedDeviceName ? { deviceName: resolvedDeviceName } : {}),
-        deviceType: resolvedDeviceType,
-      });
-
-      log.info('[MobileAuth] Push token registered', { userId });
-      res.json({ success: true });
-    } catch (error) {
-      log.error('[MobileAuth] Error registering push token:', error);
-      res.status(500).json({ success: false, error: 'server_error' });
-    }
-  }
-);
-
-/**
- * GET /auth/mobile/devices
+ * Tombstone. Push notifications were removed — nothing is stored and nothing
+ * is sent. The route stays because every already-installed binary calls it on
+ * **every app start** (`useAppInitialization`), and a 404 there would print an
+ * error on a path the user cannot update away from. It answers 200 and drops
+ * the token on the floor.
  *
- * List the caller's push-capable devices.
+ * Delete once the install base for pre-removal builds is negligible.
  */
-router.get('/mobile/devices', requireAuth, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({ success: false, error: 'unauthorized' });
-      return;
-    }
-
-    const { getUserDevices } = await import('../../services/pushNotificationService.js');
-    const devices = await getUserDevices(userId);
-
-    res.json({ success: true, devices });
-  } catch (error) {
-    log.error('[MobileAuth] Error getting devices:', error);
-    res.status(500).json({ success: false, error: 'server_error' });
-  }
+router.post('/mobile/register-push-token', requireAuth, (_req: Request, res: Response): void => {
+  res.json({ success: true, message: 'Push notifications are disabled' });
 });
 
 export default router;

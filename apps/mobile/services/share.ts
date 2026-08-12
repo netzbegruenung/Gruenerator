@@ -4,6 +4,7 @@
  */
 
 import { getPlatformShareUrl, type SharePlatform } from '@gruenerator/shared';
+import { stripDataUrlPrefix } from '@gruenerator/shared/utils';
 import * as Clipboard from 'expo-clipboard';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
@@ -54,7 +55,7 @@ export async function shareFile(
  * images and the sharepic result view.)
  */
 export async function shareBase64Image(base64: string, dialogTitle = 'Bild teilen'): Promise<void> {
-  const data = base64.replace(/^data:image\/\w+;base64,/, '');
+  const data = stripDataUrlPrefix(base64);
   const file = new File(Paths.cache, `share_${Date.now()}.png`);
   const binaryString = atob(data);
   const bytes = new Uint8Array(binaryString.length);
@@ -107,7 +108,7 @@ export async function shareBytesAsFile(
 }
 
 export function base64ToBytes(base64: string): Uint8Array {
-  const binary = atob(base64.replace(/^data:[^;]+;base64,/, ''));
+  const binary = atob(stripDataUrlPrefix(base64));
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return bytes;

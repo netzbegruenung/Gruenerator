@@ -67,6 +67,7 @@ import { extractTextContent } from '../services/messageHelpers.js';
 import {
   recallPastChats,
   getThreadRecallContext,
+  listRecentThreads,
   resolveSpaceThreadIds,
 } from '../services/pastChatRecallService.js';
 
@@ -277,12 +278,16 @@ export function makeSearchThreadsTool(ctx: PersonalToolCtx): Tool {
     description: `Durchsucht die FRÜHEREN CHATS der angemeldeten Person (nicht Dokumente — dafür 'find_content'). Findet, was in vergangenen Unterhaltungen besprochen wurde, per Stichwort + Bedeutung.
 
 NUTZE WENN nach früheren Gesprächen gefragt wird ("worüber haben wir letztens gesprochen", "such in diesem Projekt", "was hatten wir zu X besprochen").
+- Ohne query: listet die zuletzt aktiven Chats (für "worüber haben wir zuletzt gechattet").
 - scope="space": nur die Chats des aktuellen Space durchsuchen (Standard, wenn der Chat in einem Space liegt).
 - scope="all": alle eigenen Chats durchsuchen.
 - action="read": den vollständigen Verlauf EINES Threads lesen (threadId aus einem Suchergebnis).`,
     inputSchema: z.object({
       action: z.enum(['search', 'read']).default('search'),
-      query: z.string().optional().describe('Suchbegriff (bei action="search")'),
+      query: z
+        .string()
+        .optional()
+        .describe('Suchbegriff (bei action="search"); weglassen für die zuletzt aktiven Chats'),
       scope: z.enum(['space', 'all']).default('space'),
       threadId: z.string().optional().describe('Thread-ID zum Lesen (bei action="read")'),
       limit: z.number().int().min(1).max(10).default(5),
@@ -308,7 +313,6 @@ NUTZE WENN nach früheren Gesprächen gefragt wird ("worüber haben wir letztens
       }
 
       const q = (query ?? '').trim();
-      if (!q) return { error: 'Für die Suche wird ein Suchbegriff benötigt.' };
 
       // Space scope: restrict to the sibling threads of the current Space.
       let threadIds: string[] | undefined;
@@ -323,11 +327,17 @@ NUTZE WENN nach früheren Gesprächen gefragt wird ("worüber haben wir letztens
         // No space (or a failed lookup) → unscoped (all-chats) recall.
       }
 
-      const hits = await recallPastChats(userId, q, {
+      const scopeOpts = {
         limit,
         ...(threadId != null && { excludeThreadId: threadId }),
         ...(threadIds != null && { threadIds }),
-      });
+      };
+      // No search term → the most recent chats. "Worüber haben wir zuletzt
+      // gechattet" has no keyword; erroring here sent the loop into a retry
+      // that the near-duplicate guard then blocked.
+      const hits = q
+        ? await recallPastChats(userId, q, scopeOpts)
+        : await listRecentThreads(userId, scopeOpts);
       const results = hits.map((h) =>
         makeRow(
           h.threadTitle || 'Früherer Chat',

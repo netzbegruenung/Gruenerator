@@ -13,10 +13,19 @@ const DEFAULT_DAILY_RESEARCHES = 1;
 
 export class DeepResearchCounter {
   private redis: RedisClient;
-  private dailyLimit = DEFAULT_DAILY_RESEARCHES;
+  private dailyLimit: number;
 
-  constructor(redisClient: RedisClient) {
+  /**
+   * `dailyLimit` is a parameter because the two paths behind `@deepresearch`
+   * cost very different amounts. Linkup's `sourcedAnswer` (the fallback) is
+   * billed per deep research and stays at one per day; the research agent only
+   * ever buys ordinary searches plus at most two `deep` ones, so it is allowed
+   * three. Both share ONE Redis key on purpose — a user cannot spend their
+   * agent runs and then still get a free sourcedAnswer.
+   */
+  constructor(redisClient: RedisClient, dailyLimit: number = DEFAULT_DAILY_RESEARCHES) {
     this.redis = redisClient;
+    this.dailyLimit = dailyLimit;
   }
 
   private getSecondsUntilMidnight(): number {

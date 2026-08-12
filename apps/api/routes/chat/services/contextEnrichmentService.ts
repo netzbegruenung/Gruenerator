@@ -192,32 +192,56 @@ export async function enrichContext(opts: {
       if (docResults.length > 0) {
         // Per-doc budget scales with context window: 8K for 128K models, 2K for 16K models
         const perDocBudget = Math.max(2000, Math.min(8000, Math.floor(contextWindowTokens * 0.25)));
+        const { getDocumentHtml } = await import('../../../services/docs/docContentService.js');
         const docParts = (
-          docResults as Array<{ id: string; title: string; content: string | null }>
-        )
-          .filter((d) => d.content)
-          .map((d) => {
-            let plainText = d.content || '';
-            let prevText: string;
-            do {
-              prevText = plainText;
-              plainText = plainText.replace(/<[^>]+>/g, '');
-            } while (plainText !== prevText);
-            plainText = plainText
-              .replace(/&[a-zA-Z]+;/g, ' ')
-              .replace(/&#x?[0-9a-fA-F]+;/g, ' ')
-              .replace(/\s+/g, ' ')
-              .trim();
-            const truncated = truncateDocument(plainText, perDocBudget);
-            if (truncated.length < plainText.length) {
-              log.info(
-                `[ChatGraph] Doc context truncated: "${d.title}" (${plainText.length} → ${truncated.length} chars, budget: ${perDocBudget})`
-              );
-            } else {
-              log.info(`[ChatGraph] Doc context loaded: "${d.title}" (${plainText.length} chars)`);
-            }
-            return `### ${d.title}\n\n${truncated}`;
-          });
+          await Promise.all(
+            (docResults as Array<{ id: string; title: string; content: string | null }>).map(
+              async (d) => {
+                // The SQL above is the access gate; the CONTENT comes from Yjs.
+                // `content` is a 2000-char preview the Hocuspocus store hook
+                // derives — reading it as the document silently truncated every
+                // doc the editor had ever touched, and a modify_doc turn then
+                // rewrote the whole document from that stump. It stays as the
+                // fallback for the one case it is complete: a document created
+                // server-side and never opened.
+                const fromYjs = await getDocumentHtml(d.id).catch((err: unknown) => {
+                  log.warn(`[ChatGraph] Yjs read for doc ${d.id} failed: ${String(err)}`);
+                  return null;
+                });
+                const raw = fromYjs?.html?.trim() ? fromYjs.html : (d.content ?? '');
+                if (!raw.trim()) return null;
+
+                let plainText = raw;
+                let prevText: string;
+                do {
+                  prevText = plainText;
+                  plainText = plainText.replace(/<[^>]+>/g, '');
+                } while (plainText !== prevText);
+                plainText = plainText
+                  .replace(/&[a-zA-Z]+;/g, ' ')
+                  .replace(/&#x?[0-9a-fA-F]+;/g, ' ')
+                  .replace(/\s+/g, ' ')
+                  .trim();
+                if (!plainText) return null;
+
+                const truncated = truncateDocument(plainText, perDocBudget);
+                const origin = fromYjs?.html?.trim()
+                  ? `yjs${fromYjs.live ? '/live' : ''}`
+                  : 'preview';
+                if (truncated.length < plainText.length) {
+                  log.info(
+                    `[ChatGraph] Doc context truncated: "${d.title}" (${plainText.length} → ${truncated.length} chars, budget: ${perDocBudget}, ${origin})`
+                  );
+                } else {
+                  log.info(
+                    `[ChatGraph] Doc context loaded: "${d.title}" (${plainText.length} chars, ${origin})`
+                  );
+                }
+                return `### ${d.title}\n\n${truncated}`;
+              }
+            )
+          )
+        ).filter((part): part is string => part !== null);
 
         if (docParts.length > 0) {
           initialState.documentMentionContext = docParts.join('\n\n---\n\n');
@@ -242,8 +266,26 @@ export async function enrichContext(opts: {
     }
   }
 
-  // Index large document attachments via vector pipeline
-  const SMALL_DOC_VECTORIZATION_THRESHOLD = 4000;
+  // Index large document attachments via vector pipeline.
+  //
+  // The threshold is a LOAD-BEARING routing decision, not a tuning knob: below
+  // it the extracted text stays inline in `attachmentContext` (reaches every
+  // executor via buildSystemMessage), above it the text is vectorized and
+  // attachmentContext is NULLED — from that point only an executor that
+  // actually consumes `documentChatIds` can see the content. searchNode does
+  // (document-chat search); the AGENTIC LOOP does not reference documentChatIds
+  // at all. Live 12.08.2026: a 5.8k-char pasted text was vectorized, the
+  // classifier forced search intent, the loop executed the turn with steps=0 /
+  // sources=0, and the model truthfully answered "Du hast mir noch keinen Text
+  // geschickt".
+  //
+  // 12k chars ≈ 3k tokens — comfortably inside the 20k-char attachment budget
+  // FLOOR (ATTACHMENT_LIMITS.TOTAL_BUDGET_CHARS; window-derived above it), so
+  // typical pastes and small uploads take the inline path that works in every
+  // executor. Attachments ABOVE the threshold still hit the loop gap — known
+  // follow-up: the loop needs a document-chat retrieval (up-front seed or tool)
+  // before this threshold can protect texts of arbitrary size.
+  const SMALL_DOC_VECTORIZATION_THRESHOLD = 12_000;
 
   const largeDocAttachments = docAttachments.filter((att) => {
     const meta = processedMeta.find((m) => m.name === att.name && !m.isImage);
@@ -302,7 +344,8 @@ export async function enrichContext(opts: {
   }
 
   // Clear raw attachment text for vectorized docs only.
-  // Small docs (<4K chars) keep their inline attachmentContext.
+  // Docs below SMALL_DOC_VECTORIZATION_THRESHOLD keep their inline
+  // attachmentContext — see the threshold's own comment for why that matters.
   // Gated on docAttachments.length: documentChatIds can arrive without any
   // file attachments (pre-supplied references), in which case attachmentContext
   // is the live inline content and must be preserved.
@@ -319,7 +362,10 @@ export async function enrichContext(opts: {
       );
       const smallDocTexts = processedMeta
         .filter((m) => !m.isImage && m.extractedText && smallDocNames.has(m.name))
-        .map((m) => `### ${m.name}\n\n${m.extractedText}`);
+        // Label distinguishes this inline full-text path from the vectorized
+        // (RAG-chunked) sibling files in the same turn — see
+        // SMALL_DOC_VECTORIZATION_THRESHOLD above.
+        .map((m) => `### ${m.name} (Volltext-Auszug)\n\n${m.extractedText}`);
       initialState.attachmentContext =
         smallDocTexts.length > 0 ? smallDocTexts.join('\n\n---\n\n') : null;
     }

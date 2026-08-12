@@ -8,6 +8,8 @@ import {
   setMentionLocale,
   useAgentStore,
   useChatRuntimeReady,
+  useDockedPanelActive,
+  useReportPanelDockable,
   useUserAgentsRegistry,
 } from '@gruenerator/chat';
 import {
@@ -17,8 +19,17 @@ import {
   resolveSkillMention,
 } from '@gruenerator/shared/agents';
 import { getContractsClient } from '@gruenerator/shared/api';
-import { useIsNarrowerThan } from '@gruenerator/ui';
-import { useCallback, useEffect, useRef } from 'react';
+import { useContainerWidth, useIsNarrowerThan } from '@gruenerator/ui';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
@@ -67,8 +78,8 @@ const COMPOSER_VARIANT = isDesktopApp() ? 'card' : 'pill';
 
 /**
  * Ab welcher Breite ein Artefakt als angedockte Schiene neben dem Faden steht,
- * statt ihn als Vollbild zu überdecken: die 24rem der Schiene plus 48rem, die
- * dem Faden bleiben müssen.
+ * statt sich als Schiene über ihn zu legen: die 24rem der Schiene plus 48rem,
+ * die dem Faden bleiben müssen.
  *
  * Gemessen wird die Chat-Spalte, nicht das Fenster. Dieselbe Oberfläche steckt
  * als schmales Panel in den Editoren — dort ist ein 1440px breites Fenster kein
@@ -76,9 +87,19 @@ const COMPOSER_VARIANT = isDesktopApp() ? 'card' : 'pill';
  */
 const ARTIFACT_DOCK_MIN_WIDTH = 72 * 16;
 
+// Default/minimum docked width — the panel only grows from here via the
+// resize handle, it never gets narrower than the original fixed width.
+const ARTIFACT_PANEL_DEFAULT_WIDTH = 24 * 16;
+// Per-keypress growth for the ArrowLeft/ArrowRight keyboard resize (WAI-ARIA
+// "window splitter" pattern — the handle must be operable without a pointer).
+const ARTIFACT_PANEL_RESIZE_KEY_STEP = 32;
+
 const ARTIFACT_PANEL_DOCKED =
-  'flex w-[24rem] shrink-0 flex-col overflow-hidden border-l border-border bg-background-alt';
-const ARTIFACT_PANEL_OVERLAY = 'fixed inset-0 z-[1010] flex flex-col bg-background-alt';
+  'flex w-[var(--gr-artifact-panel-width,24rem)] shrink-0 flex-col overflow-hidden border-l border-border bg-background-alt';
+// Zu schmal zum Andocken heißt nicht Vollbild: die Schiene legt sich rechts
+// über den Faden, der Chat bleibt daneben sichtbar und antippbar.
+const ARTIFACT_PANEL_OVERLAY =
+  'fixed inset-y-0 right-0 z-[1010] flex w-[min(24rem,85vw)] flex-col overflow-hidden border-l border-border bg-background-alt shadow-2xl';
 
 function ChatPage() {
   const [searchParams] = useSearchParams();
@@ -92,9 +113,89 @@ function ChatPage() {
   // the "requires an AuiProvider" prod crash.
   const runtimeReady = useChatRuntimeReady();
   const shellRef = useRef<HTMLDivElement>(null);
-  const artifactPanelClass = useIsNarrowerThan(shellRef, ARTIFACT_DOCK_MIN_WIDTH)
-    ? ARTIFACT_PANEL_OVERLAY
-    : ARTIFACT_PANEL_DOCKED;
+  const shellNarrow = useIsNarrowerThan(shellRef, ARTIFACT_DOCK_MIN_WIDTH);
+  const shellWidth = useContainerWidth(shellRef);
+  const artifactPanelClass = shellNarrow ? ARTIFACT_PANEL_OVERLAY : ARTIFACT_PANEL_DOCKED;
+  const dockedPanelActive = useDockedPanelActive();
+
+  // Dieselbe Messung entscheidet auch, ob ein eingehendes Artefakt die Schiene
+  // von selbst aufziehen darf — der SSE-Parser kann sie nicht selbst anstellen.
+  useReportPanelDockable(!shellNarrow);
+
+  // User-resizable docked panel width, grown by dragging the handle left.
+  // Never below the original fixed width, never past half the chat column —
+  // the thread needs to stay usable, not just "not fully covered".
+  const [panelWidthPx, setPanelWidthPx] = useState(ARTIFACT_PANEL_DEFAULT_WIDTH);
+  const maxPanelWidthPx = Math.max(ARTIFACT_PANEL_DEFAULT_WIDTH, Math.floor(shellWidth / 2));
+  const clampedPanelWidthPx = Math.min(panelWidthPx, maxPanelWidthPx);
+
+  // Drag state lives in a ref, not closed-over locals: with pointer capture,
+  // move/end fire as React prop callbacks on the handle itself (see below),
+  // so they need to read the values `start` captured without re-subscribing
+  // per render.
+  const panelResizeRef = useRef<{ startX: number; startWidth: number; maxWidth: number } | null>(
+    null
+  );
+
+  const handlePanelResizeStart = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      // The docked panel is mostly an <iframe>; plain window-level listeners
+      // stop receiving events the moment the pointer crosses into it (a
+      // shrink-drag moves back toward the panel almost immediately) because
+      // the iframe has its own document. Capturing the pointer on the handle
+      // retargets all of its events here regardless of what's underneath.
+      e.currentTarget.setPointerCapture(e.pointerId);
+      panelResizeRef.current = {
+        startX: e.clientX,
+        startWidth: clampedPanelWidthPx,
+        maxWidth: Math.max(
+          ARTIFACT_PANEL_DEFAULT_WIDTH,
+          Math.floor((shellRef.current?.clientWidth ?? 0) / 2)
+        ),
+      };
+    },
+    [clampedPanelWidthPx]
+  );
+
+  const handlePanelResizeMove = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = panelResizeRef.current;
+    if (!drag) return;
+    // The handle sits at the panel's left edge — dragging it further left
+    // (smaller clientX) grows the panel.
+    const next = drag.startWidth + (drag.startX - e.clientX);
+    setPanelWidthPx(Math.min(drag.maxWidth, Math.max(ARTIFACT_PANEL_DEFAULT_WIDTH, next)));
+  }, []);
+
+  const handlePanelResizeEnd = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    panelResizeRef.current = null;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+  }, []);
+
+  // WAI-ARIA "window splitter" pattern: a separator that resizes layout must
+  // be operable from the keyboard, not pointer-only.
+  const handlePanelResizeKeyDown = useCallback((e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    const dragMaxWidth = Math.max(
+      ARTIFACT_PANEL_DEFAULT_WIDTH,
+      Math.floor((shellRef.current?.clientWidth ?? 0) / 2)
+    );
+    setPanelWidthPx((current) => {
+      const next =
+        e.key === 'ArrowLeft'
+          ? current + ARTIFACT_PANEL_RESIZE_KEY_STEP
+          : current - ARTIFACT_PANEL_RESIZE_KEY_STEP;
+      return Math.min(dragMaxWidth, Math.max(ARTIFACT_PANEL_DEFAULT_WIDTH, next));
+    });
+  }, []);
+
+  const shellStyle = useMemo(
+    () => ({ '--gr-artifact-panel-width': `${clampedPanelWidthPx}px` }) as CSSProperties,
+    [clampedPanelWidthPx]
+  );
   const chatViewMode = useAgentStore((s) => s.chatViewMode);
   const currentThreadTitle = useAgentStore((s) => s.currentThreadTitle);
   const firstName = useFirstName();
@@ -277,7 +378,7 @@ function ChatPage() {
   }
 
   return (
-    <div ref={shellRef} className="flex min-h-0 h-full bg-background">
+    <div ref={shellRef} className="flex min-h-0 h-full bg-background" style={shellStyle}>
       {!hub && (
         <ChatThreadRouting
           threadSlug={threadSlug ?? null}
@@ -286,7 +387,24 @@ function ChatPage() {
           onOpenNotebookThread={handleNavigate}
         />
       )}
-      <div className="flex min-h-0 flex-1 flex-col pt-4 md:pt-0">
+      {/* `min-w-0`: ohne das ist die Mindestbreite dieses Flex-Items die
+          min-content-Breite des GANZEN Threads. Eine nicht umbrechende Zeile in
+          einer Tool-Karte (`truncate` = white-space: nowrap) zieht damit den
+          kompletten Chat auf ihre Textbreite auf — gemessen 528 px bei 390 px
+          Viewport. Weiter innen wirkt der Riegel nicht: `min-w-0` bzw.
+          `overflow-hidden` am Thread-Root oder am Viewport ändern nichts, nur
+          das äußerste Flex-Item zählt. Die übrigen Chat-Wirte (ChatLayout,
+          Docs-/Sheets-/Presentations-/Board-Panel) sind über ihr
+          `overflow-hidden` bereits abgesichert. */}
+      {/* Das untere Padding trägt die Höhe der Bildschirmtastatur, die der
+          Composer als --mobile-keyboard-offset veröffentlicht
+          (useMobileKeyboardOffset). Diese eine Spalte um sie zu kürzen bedient
+          beide Zweige darunter — im Thread hebt es den unten verankerten
+          Composer über die Tastatur, in der Übersicht rückt es den zentrierten
+          Hero in den noch sichtbaren Bereich. Die Variable darf genau hier
+          einmal verrechnet werden; ein zweites Padding weiter innen zöge den
+          Composer um die doppelte Tastaturhöhe hoch. */}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col pt-4 pb-[var(--mobile-keyboard-offset,0px)] md:pt-0">
         {hub ? (
           <LandesverbandHub hub={hub} onNavigate={handleNavigate} userLocale={userLocale} />
         ) : effectiveViewMode === 'overview' ? (
@@ -298,7 +416,11 @@ function ChatPage() {
             className={cn(
               'workplace-chat-sunrise workplace-chat-accent',
               chatBackground.className,
-              'flex min-h-0 flex-1 flex-col justify-center overflow-y-auto pb-[6vh]'
+              // `justify-center-safe` wie auf dem Workplace-Chat-Tab: sobald die
+              // Tastatur die Spalte kürzt, überläuft der zentrierte Inhalt — bei
+              // reinem `justify-center` nach oben aus dem Scrollbereich heraus
+              // und damit unerreichbar.
+              'flex min-h-0 flex-1 flex-col justify-center-safe overflow-y-auto pb-[6vh]'
             )}
           >
             <ChatHero projectName={projektName} />
@@ -319,6 +441,27 @@ function ChatPage() {
           />
         )}
       </div>
+      {!hub && effectiveViewMode === 'thread' && !shellNarrow && dockedPanelActive && (
+        // Drag handle for the docked panel's width — grows it left, capped at
+        // half the chat column (see ARTIFACT_PANEL_DEFAULT_WIDTH/maxPanelWidthPx
+        // above). Hidden in overlay mode (too narrow to dock, nothing to split)
+        // and while no panel is showing (nothing to resize).
+        <div
+          role="slider"
+          aria-orientation="vertical"
+          aria-label="Panelbreite anpassen"
+          aria-valuenow={clampedPanelWidthPx}
+          aria-valuemin={ARTIFACT_PANEL_DEFAULT_WIDTH}
+          aria-valuemax={maxPanelWidthPx}
+          tabIndex={0}
+          className="w-1 shrink-0 cursor-col-resize touch-none bg-transparent transition-colors hover:bg-primary/20 active:bg-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+          onPointerDown={handlePanelResizeStart}
+          onPointerMove={handlePanelResizeMove}
+          onPointerUp={handlePanelResizeEnd}
+          onPointerCancel={handlePanelResizeEnd}
+          onKeyDown={handlePanelResizeKeyDown}
+        />
+      )}
       {!hub && effectiveViewMode === 'thread' && (
         // Sharepic-Modus: pins the active sharepic as a docked artifact while
         // the user iterates via chat. Too narrow to dock, it covers the thread

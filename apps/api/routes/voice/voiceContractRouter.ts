@@ -21,7 +21,13 @@
 
 import fs from 'fs';
 
-import { voiceContract, MAX_DURATION_LABEL, MAX_FILE_SIZE_LABEL } from '@gruenerator/contracts';
+import {
+  voiceContract,
+  MAX_AUDIO_BYTES,
+  MAX_AUDIO_MB,
+  MAX_DURATION_LABEL,
+  MAX_FILE_SIZE_LABEL,
+} from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { env } from '../../config/env.js';
@@ -40,7 +46,7 @@ import {
 } from '../../services/voice/protokollService.js';
 import {
   VIDEO_MIME_TYPES,
-  extractAudioFromVideo,
+  extractAudioFromVideoPath,
   isVideoFile,
   transcribeBuffer,
   type TranscriptionOptions,
@@ -70,7 +76,6 @@ export const voiceContractRouter = s.router(voiceContract, {
       markUploadAsProcessed(uploadId);
       const uploadStatus = await getUploadStatus(uploadId);
       const meta = uploadStatus.metadata?.metadata as Record<string, string> | undefined;
-      let audioBuffer: Buffer = Buffer.from(await fs.promises.readFile(filePath));
       let filename = sanitizeFilename(meta?.filename || 'audio.mp3', 'audio.mp3');
       const filetype = meta?.filetype || '';
 
@@ -80,13 +85,34 @@ export const voiceContractRouter = s.router(voiceContract, {
         ...(diarize && { diarize: true }),
       };
 
+      let audioBuffer: Buffer;
+      let knownDurationSeconds: number | null = null;
       if (isVideoFile(filetype)) {
-        const extracted = await extractAudioFromVideo(audioBuffer, filename);
+        const extracted = await extractAudioFromVideoPath(filePath, filename);
         audioBuffer = extracted.buffer;
         filename = extracted.filename;
+        knownDurationSeconds = extracted.durationSeconds;
+      } else {
+        // /api/audio/upload's TUS ceiling is MAX_VIDEO_UPLOAD_BYTES (3GB) for the
+        // whole path, video and audio alike — video never buffers fully (see
+        // extractAudioFromVideoPath above), but a non-video upload lands here and
+        // would otherwise buffer the entire file. Gate it at the audio-specific
+        // ceiling instead of trusting client-supplied `filetype`.
+        const uploadSize = uploadStatus.metadata?.size ?? 0;
+        if (uploadSize > MAX_AUDIO_BYTES) {
+          void scheduleImmediateCleanup(uploadId, 'audio upload exceeds MAX_AUDIO_BYTES');
+          return {
+            status: 400 as const,
+            body: {
+              success: false,
+              error: `Datei ist zu groß. Maximal ${MAX_AUDIO_MB}MB für Audio-Uploads.`,
+            },
+          };
+        }
+        audioBuffer = Buffer.from(await fs.promises.readFile(filePath));
       }
 
-      const result = await transcribeBuffer(audioBuffer, filename, options);
+      const result = await transcribeBuffer(audioBuffer, filename, options, knownDurationSeconds);
 
       let speakerMap: Record<string, string> = {};
       if (diarize && result.text.includes('[speaker_')) {

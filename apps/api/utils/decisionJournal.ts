@@ -61,6 +61,11 @@ export const DECISION_POINTS = {
     ],
   },
 
+  /** Deterministic recipe pick on the single-pass path (no @mention typed). */
+  'router.implicit_recipe': {
+    branches: ['presse', 'instagram', 'facebook', 'linkedin', 'twitter', 'reel', 'wahlpruefstein'],
+  },
+
   /** "…aber erstelle kein Dokument." — the negative-action gate. */
   'router.persistent_action_gate': {
     branches: ['allowed', 'dropped_secondary', 'demoted_primary_to_produktion'],
@@ -139,7 +144,15 @@ export const DECISION_POINTS = {
   /** The loop silently replacing its own answer. The wire shows only the
    *  replacement, so a wrongly swapped answer looks exactly like a correct one. */
   'loop.synth_verdict': {
-    branches: ['accepted', 'refusal_swapped', 'tool_plan_retried', 'retry_failed_empty'],
+    branches: [
+      'accepted',
+      'refusal_swapped',
+      'tool_plan_retried',
+      'retry_failed_empty',
+      'invalid_retried',
+      'invalid_replaced',
+      'invalid_retry_failed',
+    ],
   },
 } as const satisfies Record<string, { readonly branches: readonly string[] }>;
 

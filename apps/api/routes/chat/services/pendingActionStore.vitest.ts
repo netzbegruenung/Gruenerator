@@ -12,6 +12,7 @@ import type { PendingAction } from '../../../agents/langgraph/ChatGraph/types.js
 vi.mock('../../../utils/redis/client.js', () => ({
   default: {
     setEx: vi.fn().mockResolvedValue('OK'),
+    set: vi.fn().mockResolvedValue('OK'),
     get: vi.fn().mockResolvedValue(null),
     del: vi.fn().mockResolvedValue(1),
   },
@@ -92,10 +93,47 @@ describe('pendingActionStore', () => {
   });
 
   describe('delete', () => {
-    it('deletes the correct key', async () => {
+    it('deletes the action and its claim together', async () => {
       await pendingActionStore.delete('thread-abc', 'action_123');
 
-      expect(mockRedis.del).toHaveBeenCalledWith('pending_action:thread-abc:action_123');
+      expect(mockRedis.del).toHaveBeenCalledWith([
+        'pending_action:thread-abc:action_123',
+        'pending_action:thread-abc:action_123:claim',
+      ]);
+    });
+  });
+
+  // The action row outlives a failed execution so the card's retry works —
+  // which is exactly what lets a second confirm from another tab run the same
+  // side effect twice. The claim is the atomic gate around that window.
+  describe('claim', () => {
+    it('claims with SET NX and a bounded TTL', async () => {
+      vi.mocked(mockRedis.set).mockResolvedValueOnce('OK');
+
+      await expect(pendingActionStore.claim('thread-abc', 'action_123')).resolves.toBe(true);
+      expect(mockRedis.set).toHaveBeenCalledWith(
+        'pending_action:thread-abc:action_123:claim',
+        '1',
+        { condition: 'NX', expiration: { type: 'EX', value: 120 } }
+      );
+    });
+
+    it('refuses when someone else already holds the action', async () => {
+      vi.mocked(mockRedis.set).mockResolvedValueOnce(null);
+
+      await expect(pendingActionStore.claim('thread-abc', 'action_123')).resolves.toBe(false);
+    });
+
+    it('fails closed when Redis errors', async () => {
+      vi.mocked(mockRedis.set).mockRejectedValueOnce(new Error('down'));
+
+      await expect(pendingActionStore.claim('thread-abc', 'action_123')).resolves.toBe(false);
+    });
+
+    it('releases only the claim, leaving the action retryable', async () => {
+      await pendingActionStore.releaseClaim('thread-abc', 'action_123');
+
+      expect(mockRedis.del).toHaveBeenCalledWith('pending_action:thread-abc:action_123:claim');
     });
   });
 });

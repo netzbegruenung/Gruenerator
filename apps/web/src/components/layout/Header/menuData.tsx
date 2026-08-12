@@ -56,9 +56,10 @@ export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResul
     title: 'Workplace',
     description: 'Erstellen, Dokumente & Medien',
     icon: getIcon('navigation', 'home'),
-    // Exact tab paths only — a /workplace prefix would also claim the Wissen
-    // tab, which the dedicated entry below highlights.
-    exactActivePaths: ['/', '/workplace', '/workplace/arbeiten'],
+    // Exakte Pfade: Chat (/start) und Arbeiten (/workplace) sind zwei Seiten,
+    // und ein /workplace-Präfix würde zusätzlich den alten Wissen-Pfad
+    // einfangen, den der dedizierte Eintrag weiter unten hervorhebt.
+    exactActivePaths: ['/', '/start', '/workplace'],
   };
 
   // No `path`: the sidebar opens the global search palette instead of
@@ -104,8 +105,9 @@ export const getFooterLinks = (): MenuItemType[] => [
   {
     id: 'apps',
     path: '/apps',
-    title: 'Apps & Connect',
-    description: 'Apps für deine Geräte & KI-Chat-Integration',
+    // Solange SHOW_APPS in AppsPage.tsx false ist, zeigt /apps nur den MCP-Teil.
+    title: 'Connect',
+    description: 'KI-Chat-Integration über MCP',
   },
   {
     id: 'support',

@@ -1,3 +1,4 @@
+import { MAX_VIDEO_UPLOAD_MB } from '@gruenerator/contracts';
 import { UploadZone as BaseUploadZone, type Accept } from '@gruenerator/ui';
 import { PiMicrophone } from 'react-icons/pi';
 
@@ -27,7 +28,7 @@ export default function UploadZone({ onFileSelected, disabled, onHoverChange }: 
     <BaseUploadZone
       onFileSelected={onFileSelected}
       accept={MEDIA_ACCEPT}
-      maxSizeMB={500}
+      maxSizeMB={MAX_VIDEO_UPLOAD_MB}
       disabled={disabled}
       variant="minimal"
       icon={<PiMicrophone className="size-10 max-md:size-8" />}

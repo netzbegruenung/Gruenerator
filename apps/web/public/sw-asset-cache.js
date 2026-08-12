@@ -154,7 +154,7 @@ self.addEventListener('install', (event) => {
   );
 
   // Activation is triggered by the main thread via SKIP_WAITING message
-  // after user confirms the update — do NOT call self.skipWaiting() here.
+  // (sent automatically on update — pure asset cache, nothing to confirm).
 });
 
 // =============================================================================
@@ -276,5 +276,3 @@ self.addEventListener('message', (event) => {
     );
   }
 });
-
-console.log('[SW] Illustration cache service worker loaded!');

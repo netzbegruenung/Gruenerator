@@ -304,10 +304,14 @@ export function NotebookComposer({
       isRunning={isRunning}
       variant="pill"
       placeholder={placeholder}
-      disclaimer="Antworten können ungenau sein. Wichtige Infos bitte prüfen."
+      disclaimer="KI-generierte Antworten können ungenau sein — bitte vor der Veröffentlichung prüfen."
       showMentions={false}
       showPlusMenu={false}
       showToolToggles={false}
+      // Zwei Regler mit denselben Namen (Klein/Mittel/Ultra) standen
+      // nebeneinander und meinten Verschiedenes. Im Notizbuch löst 'Automatisch'
+      // ohnehin immer auf Ultra auf — die Suchtiefe ist hier die Qualitätswahl.
+      showModelPicker={false}
       slots={{
         leading: (
           <NotebookSettingsDropdown

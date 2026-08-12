@@ -425,8 +425,13 @@ export function createImageTwoTextCanvas<
         // Text fields
         [primaryField.key]: (props[primaryField.key] as string) || '',
         [secondaryField.key]: (props[secondaryField.key] as string) || '',
-        customPrimaryFontSize: null,
-        customSecondaryFontSize: null,
+        // Carried over from props, mirroring createColorTwoTextCanvas: chat
+        // edits persist these into the canvas state, and card renders /
+        // remote-sync re-seeds run through here — hard-nulling them silently
+        // reverted "Schrift größer" edits.
+        customPrimaryFontSize: (props.customPrimaryFontSize as number | null | undefined) ?? null,
+        customSecondaryFontSize:
+          (props.customSecondaryFontSize as number | null | undefined) ?? null,
 
         // Image background
         currentImageSrc: (props.currentImageSrc as string) || (props.imageSrc as string) || '',
@@ -464,7 +469,10 @@ export function createImageTwoTextCanvas<
         saveToHistory,
         debouncedSaveToHistory,
         canvas.width,
-        canvas.height
+        canvas.height,
+        // Diese Vorlagen setzen ihren Text durchweg weiß über den Bildverlauf —
+        // hinzugefügter Text und Icons folgen derselben Vorgabe.
+        '#FFFFFF'
       );
 
       // Callback keys for external sync

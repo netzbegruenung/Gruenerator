@@ -47,6 +47,16 @@ const envSchema = z.object({
   ALLOW_DEV_AUTH_BYPASS: boolFlag(false),
   DEV_AUTH_BYPASS_TOKEN: z.string().optional(),
   /**
+   * Schaltet `requireAiConsent` von „beobachten" auf „abweisen" (403).
+   *
+   * Steht bewusst auf `false`, bis das Mobile-Release mit dem Einwilligungs-
+   * Dialog im Store und hinreichend verbreitet ist: eine bereits installierte
+   * Binary kennt das Gate nicht, fragt also nie — und bekäme ab dem Deploy auf
+   * jede KI-Funktion eine Absage. Bis dahin protokolliert die Middleware nur,
+   * wie viele Aufrufe die Durchsetzung treffen würde.
+   */
+  ENFORCE_AI_CONSENT: boolFlag(false),
+  /**
    * Directory the chat decision journal is written to, one JSON file per turn
    * (utils/decisionLog.ts). Lets the live eval lane render the same decision
    * map the simulated lane produces, without putting decision ids on the wire.
@@ -163,6 +173,13 @@ const envSchema = z.object({
   // alone would swap the chat's search engine without anyone deciding to.
   // The throttle it has to contain is documented in GreenPTSearchService.ts.
   GREENPT_SEARCH_ENABLED: boolFlag(false),
+
+  // No DEEP_AGENT_* switches. Which lane the subagent runs on and whether the
+  // lead delegates in parallel are RESEARCH decisions with measurements behind
+  // them, not deployment settings — they live in
+  // `services/research/deepAgent/models.ts`, where the numbers that justify them
+  // are. A knob here would let a deployment silently pick a lane nobody
+  // measured, and the failure (a thin report) looks like the agent being weak.
 
   // ── Image / Flux ───────────────────────────────────────────────────────
   FLUX_BACKEND: z.string().optional(),
