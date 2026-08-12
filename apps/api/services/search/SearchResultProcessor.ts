@@ -169,6 +169,19 @@ export function sourceTextForPrompt(
 }
 
 /**
+ * Drop the prompt-only fields before a result goes over the wire.
+ *
+ * `chunk_text` exists so the answer prompt and the reranker can read the whole
+ * retrieved chunk; the client's citation list is served by `snippet`. Emitting
+ * it would put roughly 1.5 KB per source into every completion event for a
+ * field nothing on the other side reads.
+ */
+export function toClientSource(result: ExpandedChunkResult): ExpandedChunkResult {
+  const { chunk_text: _chunkText, ...rest } = result;
+  return rest;
+}
+
+/**
  * Validate draft content and inject citation markers
  */
 export function validateAndInjectCitations(
@@ -485,7 +498,7 @@ export function groupSourcesByCollection(
 
     const allSources: ExpandedChunkResult[] = collectionResults
       .filter((r) => !citedDocChunks.has(`${r.document_id}:${r.chunk_index}`))
-      .map((r) => r);
+      .map(toClientSource);
 
     sourcesByCollection[collectionId] = {
       name: config.name,

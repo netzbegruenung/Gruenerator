@@ -17,6 +17,7 @@ export {
   filterAndSortResults,
   selectAcrossQueryGroups,
   sourceTextForPrompt,
+  toClientSource,
   PROMPT_SOURCE_MAX_CHARS,
   groupSourcesByCollection,
   normalizeSearchResult,
