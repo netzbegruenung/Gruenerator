@@ -71,14 +71,13 @@ ${locale === 'de-AT' ? LAENDERKONTEXT_AT : ''}
 3. **Fortschritt pflegen.** Setze eine Teilfrage in \`write_todos\` auf \`in_progress\`, wenn du
    sie vergibst, und auf \`completed\`, sobald ihr Ergebnis da ist. Das ist der Fortschritt,
    den die Nutzerin sieht — ein nicht gepflegter Plan sieht aus wie ein hängender Lauf.
-4. **Lücken schließen.** Fehlt etwas Wesentliches, recherchiere selbst nach (\`web_suche\`,
-   \`tiefen_suche\`, \`seite_lesen\`${options.hasNotebooks ? ', \\`notizbuch_suche\\`' : ''}) oder vergib eine weitere Teilfrage.
-   Du hast Zeit für eine zweite Runde: was ein Ergebnis an neuen Fragen aufwirft — eine
-   Zahl ohne Quelle, ein widersprochenes Datum, ein ungeklärter Akteur — vergibst du als
-   weitere Teilfrage, statt es im Bericht offen zu lassen. Auch diese Runde vergibst du
-   im Block. Melden Werkzeuge, dass ein
-   Budget erschöpft oder die Zeit abgelaufen ist, hörst du sofort auf zu recherchieren
-   und schreibst den Bericht.
+4. **Lücken schließen.** Jedes Teilergebnis kommt strukturiert zurück: \`ergebnis\`,
+   \`quellen\`, \`luecken\` und \`belastbarkeit\`. Was unter \`luecken\` steht, vergibst du als
+   weitere Teilfrage — dafür ist das Feld da; lass es nicht im Bericht offen. Du hast Zeit
+   für eine zweite Runde, und auch die vergibst du im Block. Fehlt darüber hinaus etwas
+   Wesentliches, recherchiere selbst nach (\`web_suche\`, \`tiefen_suche\`,
+   \`seite_lesen\`${options.hasNotebooks ? ', \\`notizbuch_suche\\`' : ''}). Melden Werkzeuge, dass ein Budget erschöpft oder die Zeit
+   abgelaufen ist, hörst du sofort auf zu recherchieren und schreibst den Bericht.
 5. **Bericht schreiben.** Schreibe den fertigen Bericht mit \`write_file\` nach \`/bericht.md\`.
 6. **Antworten.** Antworte zum Schluss mit zwei bis drei Sätzen: was du herausgefunden hast.
    Wiederhole den Bericht NICHT. Erwähne auch keine Dateinamen und keine Werkzeuge — die
@@ -104,6 +103,8 @@ ${locale === 'de-AT' ? LAENDERKONTEXT_AT : ''}
   oder einer gelesenen Seite. Was du nicht belegen kannst, lässt du weg oder benennst du
   ausdrücklich als offen.
 - Widersprechen sich Quellen, benenne den Widerspruch, statt dich für eine Seite zu entscheiden.
+- Meldet ein Teilergebnis \`belastbarkeit: gering\`, schreibe den Abschnitt entsprechend
+  vorsichtig und sage im Text, worauf er sich stützt — nicht so, als stünde er fest.
 - Schreibe sachlich und lesbar: vollständige Sätze, keine Floskeln, keine Werbesprache.
 - Der Bericht soll gehaltvoll sein: mindestens 800 Wörter, nach oben so lang, wie das
   Material trägt. Schöpfe aus, was die Teilfragen hergeben — kürze nicht auf eine Zahl
@@ -113,21 +114,26 @@ ${locale === 'de-AT' ? LAENDERKONTEXT_AT : ''}
 /**
  * What both researchers owe back, verbatim.
  *
- * Shared rather than written twice: the lead parses `## Quellen` out of every
- * task result, so the two must not drift apart — and the "invent nothing" rule
- * is the one sentence neither role may lose.
+ * The SHAPE is enforced by `researcherResponse.ts` — this text only explains
+ * what belongs in each field, which a schema cannot say. Shared rather than
+ * written twice so the two roles cannot drift apart.
  */
 const RESEARCHER_ANSWER = `## Antwort
 
-Antworte mit deinem Ergebnis als Fließtext — 150 bis 400 Wörter. Schreibe KEINE Datei;
-deine Antwort geht direkt an den Hauptagenten.
+Gib dein Ergebnis strukturiert zurück, nicht als freien Text und nicht als Datei:
 
-Hänge darunter einen Block \`## Quellen\` mit den tatsächlich genutzten Quellen an,
-je Zeile \`Titel — URL\`. Notizbuchquellen ohne URL: \`Titel — Notizbuch: Name\`, niemals
-eine erfundene Adresse.
+- \`ergebnis\`: der Fließtext, 150 bis 400 Wörter. KEINE Quellenliste darin — die steht
+  in \`quellen\`.
+- \`quellen\`: nur die Quellen, die du tatsächlich genutzt hast. Notizbuchtreffer ohne
+  Adresse bekommen \`notizbuch\` statt \`url\`, niemals eine erfundene Adresse.
+- \`luecken\`: was offen blieb, je Eintrag ein ausformulierter Satz. Der Hauptagent macht
+  daraus die nächste Teilfrage — schreib sie so, dass jemand ohne deinen Kontext sie
+  bearbeiten kann. Nichts offen: leere Liste.
+- \`belastbarkeit\`: \`hoch\`, \`mittel\` oder \`gering\`, ehrlich eingeschätzt. Der Bericht
+  formuliert danach vorsichtiger — eine geschönte Angabe kostet ihn seine Genauigkeit.
 
 **Erfinde nichts.** Nur was in den Treffern steht. Findest du nichts Belastbares, sage das
-ausdrücklich, statt zu vermuten.`;
+in \`ergebnis\` ausdrücklich und setze \`belastbarkeit\` auf \`gering\`, statt zu vermuten.`;
 
 /** Recherchiert Fakten, Zahlen, Chronologie und fremde Akteure im Web. */
 export function webResearcherPrompt(locale: ResearchLocale): string {

@@ -34,6 +34,17 @@ describe('leadPrompt', () => {
     expect(prompt).toMatch(/mindestens 800 Wörter/);
   });
 
+  it('sends reported gaps back out as sub-questions', () => {
+    // The field exists so the lead does not have to infer an open point from
+    // prose — the step that got skipped.
+    expect(prompt).toContain('`luecken`');
+    expect(prompt).toMatch(/weitere Teilfrage/);
+  });
+
+  it('makes a shaky sub-result visible in the report', () => {
+    expect(prompt).toMatch(/belastbarkeit: gering/);
+  });
+
   it('still pins the mechanics a run dies without', () => {
     expect(prompt).toContain('/bericht.md');
     expect(prompt).toContain('write_todos');
@@ -64,10 +75,11 @@ describe('webResearcherPrompt', () => {
     expect(prompt).toMatch(/Beschlusslage/);
   });
 
-  it('answers in its message instead of writing files', () => {
+  it('answers into the schema instead of writing files', () => {
     // Concurrent `task` calls share one `files` state — three parallel note
     // writes left a single file behind on 10.08.2026.
-    expect(prompt).toMatch(/KEINE Datei/);
+    expect(prompt).toMatch(/nicht als Datei/);
+    expect(prompt).toContain('`ergebnis`');
   });
 });
 
@@ -88,11 +100,18 @@ describe('programmeResearcherPrompt', () => {
   });
 
   it('owes the same answer shape as the web researcher', () => {
-    // The lead parses `## Quellen` out of every task result — the two must not
-    // drift apart.
-    expect(prompt).toContain('## Quellen');
-    expect(prompt).toMatch(/KEINE Datei/);
+    // Shared text, so the two roles cannot drift apart in what they hand back.
+    expect(prompt).toContain('`quellen`');
+    expect(prompt).toContain('`luecken`');
+    expect(prompt).toContain('`belastbarkeit`');
     expect(prompt).toMatch(/Erfinde nichts/);
+  });
+
+  it('explains what belongs in a field, which the schema cannot say', () => {
+    // A schema pins the shape; only the prompt can say that `luecken` must be
+    // readable by someone without the worker's context, because the lead
+    // re-delegates them verbatim.
+    expect(prompt).toMatch(/ohne deinen Kontext/);
   });
 });
 

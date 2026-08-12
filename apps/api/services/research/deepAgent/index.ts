@@ -30,6 +30,7 @@ import {
   stripInternalReferences,
   summaryFromReport,
 } from './report.js';
+import { researcherResponseFormat } from './researcherResponse.js';
 import {
   RESUME_LIMIT,
   WRAP_UP_RECURSION_LIMIT,
@@ -151,6 +152,10 @@ export async function runDeepAgentResearch(
         description:
           'Beantwortet EINE faktische Teilfrage im Web — Zahlen, Daten, Chronologie, fremde Akteure — mit Quellenangaben. Gib die vollständige Teilfrage samt Kontext mit; der Subagent kennt den Gesamtauftrag nicht.',
         systemPrompt: webResearcherPrompt(locale),
+        // JSON instead of prose the lead has to parse back. Built per subagent
+        // rather than shared: `ToolStrategy` carries the tool it hands to the
+        // model, and two agents must not share one instance.
+        responseFormat: researcherResponseFormat(),
         // Not the lead's list: the expensive deep lane stays a lead decision,
         // and the corpora belong to the other researcher. See SUBAGENT_TOOLSETS.
         tools: toolsFor(tools, 'web-recherche') as never,
@@ -169,6 +174,7 @@ export async function runDeepAgentResearch(
               description:
                 'Beantwortet EINE Teilfrage zu grüner Haltung, Beschlusslage oder Programmatik aus den Programmen und Beschlüssen der Grünen selbst. Gib die vollständige Teilfrage samt Kontext mit; der Subagent kennt den Gesamtauftrag nicht.',
               systemPrompt: programmeResearcherPrompt(locale),
+              responseFormat: researcherResponseFormat(),
               tools: toolsFor(tools, 'programm-recherche') as never,
               model: workerModel(),
               middleware: [sanitizeToolCallsMiddleware] as never,
