@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import { NON_LIBRARY_UPLOAD_SOURCES } from '@gruenerator/shared/media-library/constants';
+import { stripDataUrlPrefix } from '@gruenerator/shared/utils';
 import { encode as encodeBlurhash } from 'blurhash';
 import sharp from 'sharp';
 
@@ -417,7 +418,7 @@ class SharedMediaService {
     try {
       await fs.mkdir(shareDir, { recursive: true });
 
-      const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+      const base64Data = stripDataUrlPrefix(imageBase64);
       const imageBuffer = Buffer.from(base64Data, 'base64');
 
       const isPng =
@@ -445,7 +446,7 @@ class SharedMediaService {
 
       let originalImageFilename: string | null = null;
       if (originalImage) {
-        const origBase64Data = originalImage.replace(/^data:image\/\w+;base64,/, '');
+        const origBase64Data = stripDataUrlPrefix(originalImage);
         const origBuffer = Buffer.from(origBase64Data, 'base64');
         const origMimeType = originalImage.startsWith('data:image/jpeg')
           ? 'image/jpeg'
@@ -1155,7 +1156,7 @@ class SharedMediaService {
       const shareDir = getSafeShareDir(shareToken);
       await fs.mkdir(shareDir, { recursive: true });
 
-      const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+      const base64Data = stripDataUrlPrefix(imageBase64);
       const imageBuffer = Buffer.from(base64Data, 'base64');
 
       const mimeType = imageBase64.startsWith('data:image/jpeg') ? 'image/jpeg' : 'image/png';
@@ -1168,7 +1169,7 @@ class SharedMediaService {
       const existingMetadata = existingShare.image_metadata || {};
 
       if (originalImage) {
-        const origBase64Data = originalImage.replace(/^data:image\/\w+;base64,/, '');
+        const origBase64Data = stripDataUrlPrefix(originalImage);
         const origBuffer = Buffer.from(origBase64Data, 'base64');
         const origMimeType = originalImage.startsWith('data:image/jpeg')
           ? 'image/jpeg'

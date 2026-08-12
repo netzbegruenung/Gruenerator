@@ -1,4 +1,5 @@
 import { useShareStore } from '@gruenerator/shared/share';
+import { stripDataUrlPrefix } from '@gruenerator/shared/utils';
 import { useState, useCallback } from 'react';
 
 import useAltTextGeneration from '../../../components/hooks/useAltTextGeneration';
@@ -107,7 +108,7 @@ export const useTemplateResultActions = (): UseTemplateResultActionsReturn => {
 
     setIsAltTextLoading(true);
     try {
-      const imageBase64 = generatedImageSrc.replace(/^data:image\/[^;]+;base64,/, '');
+      const imageBase64 = stripDataUrlPrefix(generatedImageSrc);
       const contextText = `${line1} ${line2} ${line3}`.trim();
       const generated = await generateAltTextForImage(imageBase64, contextText || null);
       if (generated) setAltText(generated);
