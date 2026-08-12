@@ -218,7 +218,12 @@ export class GrueneDeScraper extends BaseScraper {
 
   #extractContent(html: string, entry: SitemapEntry): ExtractedContent {
     const rawTitle = /<title>([^<]*)<\/title>/.exec(html)?.[1] || '';
-    const title = rawTitle.replace(/\s*[-–|]\s*BÜNDNIS 90\/DIE GRÜNEN\s*$/, '').trim();
+    // Fallback to the URL slug: an empty title would fail the sync-event
+    // schema (z.string().min(1)) and 400 the whole event batch of the run.
+    const title =
+      rawTitle.replace(/\s*[-–|]\s*BÜNDNIS 90\/DIE GRÜNEN\s*$/, '').trim() ||
+      new URL(entry.url).pathname.split('/').filter(Boolean).pop()?.replace(/-/g, ' ') ||
+      'gruene.de';
 
     const description =
       /<meta name="description" content="([^"]*)"/.exec(html)?.[1] ||

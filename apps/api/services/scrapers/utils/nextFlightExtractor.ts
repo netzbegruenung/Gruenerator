@@ -75,16 +75,19 @@ function isHexByte(b: number): boolean {
 
 /** Strip HTML tags and collapse whitespace in a flight text fragment. */
 export function flightTextToPlain(fragment: string): string {
+  // Entities are decoded before tag stripping (with &amp; last, so nothing is
+  // double-unescaped); tags formed by decoded entities are stripped too. The
+  // result is plain text for chunking/embedding, never rendered as HTML.
   return fragment
-    .replace(/<br\s*\/?>/gi, ' ')
-    .replace(/<\/(p|li|h[1-6]|blockquote|div)>/gi, ' ')
-    .replace(/<[^>]+>/g, '')
     .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
     .replace(/&quot;/g, '"')
     .replace(/&#39;|&apos;/g, "'")
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<\/(p|li|h[1-6]|blockquote|div)>/gi, ' ')
+    .replace(/<[^>]*>/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }

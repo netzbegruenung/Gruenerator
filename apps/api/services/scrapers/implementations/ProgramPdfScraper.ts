@@ -310,8 +310,19 @@ export class ProgramPdfScraper extends BaseScraper {
           chunk_text: chunkTexts[index],
           quality_score: chunkQualityService.calculateQualityScore(chunkTexts[index]),
           document_type: 'programm',
+          content_type: 'programm',
           extraction_method: extraction.method,
           page_count: extraction.pageCount,
+          // Chunks are sequential through the document; the proportional
+          // estimate keeps page-level citations usable (the chunker gets no
+          // real page markers from either PDF extraction path).
+          page_number: Math.max(
+            1,
+            Math.min(
+              extraction.pageCount,
+              Math.ceil(((index + 1) / chunks.length) * extraction.pageCount)
+            )
+          ),
           primary_category: doc.primaryCategory,
           country: this.sourceConfig.country,
           title: doc.title,
