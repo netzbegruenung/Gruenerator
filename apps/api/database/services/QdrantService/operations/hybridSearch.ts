@@ -222,8 +222,10 @@ async function hybridSearchServerSide(
     with_payload: true,
   });
 
-  // Qdrant's RRF scores live in the same 1/(k+rank) domain as the legacy
-  // client-side RRF, so the existing quality gate stays applicable.
+  // Qdrant's server-side RRF scores are HIGHER than the legacy client-side
+  // 1/(60+rank) domain (measured: rank 1 in both lists ≈ 1.0). The quality
+  // gate's minFinalScore was tuned for the lower legacy domain, so it only
+  // ever filters less here — never more — and stays safe to apply.
   let results: HybridSearchResult[] = response.points.map((point) => ({
     id: point.id,
     score: point.score,
