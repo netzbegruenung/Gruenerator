@@ -66,6 +66,7 @@ jobs:
         run: |
           : > /tmp/rounds.jsonl
           HTTP_CODE=000
+          COLLECTION_ERRORS=0
 
           for ROUND in $(seq 1 "$MAX_ROUNDS"); do
             echo "::group::Enrichment round $ROUND/$MAX_ROUNDS"
@@ -80,6 +81,16 @@ jobs:
             PENDING=$(jq '[.results[]?.pending // 0] | add // 0' /tmp/enrich.json)
             ENRICHED=$(jq '[.results[]?.enriched // 0] | add // 0' /tmp/enrich.json)
             echo "Round $ROUND: enriched=$ENRICHED, pending=$PENDING"
+
+            # A collection that aborted reports pending=0 for itself, so the sum
+            # above would read as "done" while its documents sit untouched. Stop
+            # and fail instead — the next round would hit the same error.
+            COLLECTION_ERRORS=$(jq '[.results[]? | select(has("error"))] | length' /tmp/enrich.json)
+            if [ "$COLLECTION_ERRORS" -gt 0 ]; then
+              jq -r '.results[]? | select(has("error")) | "::error::\(.collection): \(.error)"' \
+                /tmp/enrich.json
+              break
+            fi
 
             if [ "$PENDING" -eq 0 ]; then break; fi
             # Pending work that nothing is chipping away at means the NLP service
@@ -99,6 +110,11 @@ jobs:
 
           if [ "$HTTP_CODE" != "200" ]; then
             echo "::error::Enrichment failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
+
+          if [ "$COLLECTION_ERRORS" -gt 0 ]; then
+            echo "::error::$COLLECTION_ERRORS collection(s) failed to enrich"
             exit 1
           fi
 
@@ -132,7 +148,15 @@ jobs:
           fi
 
           SUCCESS=$(echo "$RESULT" | jq -r '.success')
-          if [ "$SUCCESS" = "true" ]; then ICON=":white_check_mark:"; else ICON=":x:"; fi
+          # Per-collection failures come back inside a 200, so the icon has to
+          # look at them too — otherwise a run that dropped a whole collection
+          # is crowned with a green check.
+          ERRORS=$(jq -sr '[(.[-1] // [])[] | select(has("error")) | "- **\(.collection):** \(.error)"] | join("\n")' /tmp/rounds.jsonl)
+          if [ "$SUCCESS" = "true" ] && [ -z "$ERRORS" ]; then
+            ICON=":white_check_mark:"
+          else
+            ICON=":x:"
+          fi
 
           # Scanned/Skipped/Pending describe the final state (every round rescans
           # the whole collection, so summing them would multiply-count); Enriched
@@ -158,6 +182,14 @@ jobs:
             echo "| Collection | Scanned | Enriched | Skipped | No ID | NLP failures | Pending |"
             echo "|------------|--------:|---------:|--------:|------:|-------------:|--------:|"
             echo "$TABLE"
+            if [ -n "$ERRORS" ]; then
+              echo ""
+              echo "### :x: Collections that failed"
+              echo ""
+              echo "$ERRORS"
+              echo ""
+              echo "Their counters above are partial — \`Pending\` understates what is left."
+            fi
             if [ "${PENDING:-0}" -gt 0 ]; then
               echo ""
               echo ":warning: $PENDING documents are still pending after $ROUNDS rounds."

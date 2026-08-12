@@ -63,6 +63,14 @@ export interface EnrichmentStats {
   nlpFailures: number;
   /** Due documents left untouched because the run's work budget ran out. */
   pending: number;
+  /**
+   * Set when the collection aborted; the other counters are then partial and
+   * `pending` understates what is left. Present so a caller draining `pending`
+   * over several requests can tell "nothing left to do" apart from "this
+   * collection never reported" — a dropped collection would otherwise read as
+   * done and let the caller stop early.
+   */
+  error?: string;
 }
 
 export type EnrichmentMode = 'missing' | 'all';
@@ -195,6 +203,7 @@ export async function enrichCollection(
   const client = qdrant.client;
   if (!client) {
     log.warn(`[${collection}] Qdrant client unavailable`);
+    stats.error = 'Qdrant client unavailable';
     return stats;
   }
 
@@ -338,7 +347,22 @@ export async function enrichAllCollections(
     try {
       results.push(await enrichCollection(collection, options, budget));
     } catch (err) {
-      log.error(`[${collection}] enrichment failed: ${err instanceof Error ? err.message : err}`);
+      const message = err instanceof Error ? err.message : String(err);
+      log.error(`[${collection}] enrichment failed: ${message}`);
+      // Report the failure as a row rather than dropping it. A collection
+      // missing from `results` contributes nothing to the caller's `pending`
+      // sum, so a caller looping until pending hits 0 would call it done and
+      // report a clean run over documents nothing ever touched.
+      results.push({
+        collection,
+        scanned: 0,
+        enriched: 0,
+        skipped: 0,
+        noId: 0,
+        nlpFailures: 0,
+        pending: 0,
+        error: message,
+      });
     }
   }
   return results;
