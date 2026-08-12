@@ -149,11 +149,37 @@ async function fetchImageBytes(src: string): Promise<Buffer | null> {
     const declared = Number(response.headers.get('content-length') ?? 0);
     if (declared > MAX_BYTES) return null;
 
-    const data = Buffer.from(await response.arrayBuffer());
-    return data.length > 0 && data.length <= MAX_BYTES ? data : null;
+    return readBodyCapped(response);
   }
 
   return null;
+}
+
+/**
+ * Read the body with a running byte count instead of `arrayBuffer()`: the
+ * `content-length` check above is only a hint, and a host that omits or
+ * understates the header would otherwise buffer arbitrarily much before the
+ * cap ever ran (same reasoning as `searchImageProxyRouter`, which streams).
+ */
+async function readBodyCapped(response: Response): Promise<Buffer | null> {
+  if (!response.body) return null;
+
+  const reader = response.body.getReader();
+  const chunks: Buffer[] = [];
+  let total = 0;
+
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > MAX_BYTES) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(Buffer.from(value));
+  }
+
+  return total > 0 ? Buffer.concat(chunks) : null;
 }
 
 async function resolveOne(src: string): Promise<ResolvedImage | null> {
