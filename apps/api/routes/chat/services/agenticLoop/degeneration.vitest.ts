@@ -193,14 +193,26 @@ describe('trimTrailingScaffoldLine', () => {
     expect(trimTrailingScaffoldLine(table)).toBe(table);
   });
 
-  it('leaves a short divider alone', () => {
-    const table = `${prose(600)}\n|---|---|---|---|`;
-    expect(trimTrailingScaffoldLine(table)).toBe(table);
+  it('drops a trailing header separator with no rows under it', () => {
+    // Behaviour change of 13.08.2026 22:12: trailing scaffolding is dropped
+    // however it is broken into lines, so a lone `|---|` at the very end goes
+    // too. It has nothing left to separate, and this only ever runs after the
+    // guard fired.
+    const answer = prose(600);
+    expect(trimTrailingScaffoldLine(`${answer}\n|---|---|---|---|`)).toBe(answer.trimEnd());
+  });
+
+  it('drops a whole trailing RUN of short rules', () => {
+    // The live shape: complete table, then nine `---` the model had already
+    // begun spraying. One long line and nine short ones are the same failure.
+    const answer = `${prose(600)}\n| Absatz | Status |\n| Text hier | vollständig |`;
+    const kept = `${answer}\n\n---\n\n---\n\n---\n\n---\n\n------\n\n---\n`;
+    expect(trimTrailingScaffoldLine(kept)).toBe(answer);
   });
 
   it('leaves a long line that carries text alone', () => {
     const long = `${prose(600)}\n${GERMAN_PROSE}`;
-    expect(trimTrailingScaffoldLine(long)).toBe(long);
+    expect(trimTrailingScaffoldLine(long)).toBe(long.trimEnd());
   });
 });
 
