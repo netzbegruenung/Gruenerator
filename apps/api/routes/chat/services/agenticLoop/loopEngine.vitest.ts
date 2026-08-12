@@ -944,6 +944,35 @@ describe('runAgenticLoop — repetition degeneration', () => {
     expect(synthSystems[1]).toContain(SYNTH_DEGENERATE_RETRY_SUFFIX);
   });
 
+  it('split: retries even when the trim left NOTHING (spam from the first token)', async () => {
+    const synthSystems: string[] = [];
+    let synthCall = 0;
+    const CLEAN = 'Die Antwort in einem Satz — und dann ist Schluss.';
+    const deps: LoopDeps = {
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+      streamText: ((o: StreamOpts) => {
+        if (o.model.id === 'planner') return streamOf([]);
+        synthSystems.push(o.system ?? '');
+        if (synthCall++ === 0) {
+          // No healthy prefix at all — the most complete degeneration.
+          return {
+            stream: (async function* () {
+              while (true) yield { type: 'text-delta', text: SPAM_PHRASE };
+            })(),
+          } as unknown as ReturnType<LoopDeps['streamText']>;
+        }
+        return streamOf([{ type: 'text-delta', text: CLEAN }]);
+      }) as unknown as LoopDeps['streamText'],
+    };
+    const out = await runAgenticLoop(baseParams({}), deps);
+    // Regression (review finding): the empty-text gate used to skip the retry
+    // here, shipping the generic no-answer fallback instead.
+    expect(synthCall).toBe(2);
+    expect(out.text).toBe(CLEAN);
+    expect(out.replacedStreamed).toBe(true);
+    expect(synthSystems[1]).toContain(SYNTH_DEGENERATE_RETRY_SUFFIX);
+  });
+
   it('split: keeps the TRIMMED text and still replaces the wire when the retry degenerates too', async () => {
     let synthCall = 0;
     const deps: LoopDeps = {
