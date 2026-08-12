@@ -37,6 +37,7 @@ import {
   classifyRunError,
 } from './resume.js';
 import { sanitizeToolCallsMiddleware } from './sanitizeToolCalls.js';
+import { type SubagentProjections, trackSubagents } from './subagentProgress.js';
 import { type ToolContext } from './toolContext.js';
 import { createResearchTools, toolsFor } from './tools.js';
 import {
@@ -173,20 +174,24 @@ export async function runDeepAgentResearch(
   });
 
   // The `as never` above collapses the agent's inferred generics, which makes
-  // its `stream` input type degrade to `Command`. We only ever use this one
+  // the stream input type degrade to `Command`. We only ever use this one
   // method, so the surface we depend on is stated here instead.
   const runnable = agent as unknown as {
-    stream: (
+    streamEvents: (
       input: Record<string, unknown>,
       options: Record<string, unknown>
-    ) => Promise<AsyncIterable<Record<string, unknown>>>;
+    ) => Promise<SubagentProjections & { values: AsyncIterable<Record<string, unknown>> }>;
   };
 
   let lastState: Record<string, unknown> | null = null;
   let aborted = false;
-  // streamMode 'values' emits each state twice (once per graph node); only
-  // forward a plan when it actually changed, or the sidebar flickers.
+  // `run.values` emits each state twice (once per graph node); only forward a
+  // plan when it actually changed, or the sidebar flickers.
   let lastPlanKey = '';
+  // Subagent `output` promises are not awaited (see trackSubagents), so a step
+  // can still settle after the run is over. Emitting it then would push into a
+  // closed SSE stream — this is the one gate that stops it.
+  let progressClosed = false;
 
   // A dead stream is resumed from its last emitted state instead of being
   // written off: transient runtime errors get RESUME_LIMIT fresh attempts, and
@@ -203,13 +208,22 @@ export async function runDeepAgentResearch(
 
   for (;;) {
     try {
-      const stream = await runnable.stream(input, {
+      const run = await runnable.streamEvents(input, {
+        version: 'v3',
         recursionLimit,
-        streamMode: 'values',
         ...(legSignal ? { signal: legSignal } : {}),
       });
-      for await (const chunk of stream) {
-        lastState = chunk as Record<string, unknown>;
+      // Runs alongside the state loop, not before it: the projections are fed
+      // by the same run, and nothing here may decide whether the run finishes.
+      // A failure in the progress path is logged and dropped — cosmetics must
+      // not cost a report.
+      const tracking = trackSubagents(run, (step) => {
+        if (!progressClosed) progress.onStep(step);
+      }).catch((error: unknown) => {
+        log.warn(`[DeepAgent] Subagenten-Fortschritt abgebrochen: ${String(error)}`);
+      });
+      for await (const chunk of run.values) {
+        lastState = chunk;
         const todos = (chunk as { todos?: TodoItem[] }).todos ?? [];
         if (todos.length > 0) {
           const key = todos.map((t) => `${t.content}:${t.status}`).join('|');
@@ -219,6 +233,7 @@ export async function runDeepAgentResearch(
           }
         }
       }
+      await tracking;
       break;
     } catch (error) {
       const kind = classifyRunError(error, signal, researchDeadline);
@@ -249,6 +264,8 @@ export async function runDeepAgentResearch(
       );
     }
   }
+
+  progressClosed = true;
 
   const raw = readFile(lastState?.files, REPORT_PATH);
   if (!isUsableReport(raw)) {
