@@ -112,6 +112,31 @@ export function detectPromptIntent(text: string): boolean {
   return trimmed.split(/\s+/).length >= 5;
 }
 
+// Openers that mark an input as a question *to the assistant* — the one thing
+// this field cannot do. Kept deliberately narrow: a false positive interrupts a
+// legitimate create, so only unambiguous conversation starters count.
+const CHAT_INTENT_RE =
+  /^\s*(wie|was|warum|wieso|weshalb|wer|wann|wo|wohin|woher|wozu|womit|welche[rsnm]?|gibt es|stimmt es|kannst du|kannst du mal|könntest du|koenntest du|hast du|weißt du|weisst du|erklär|erklaer|erzähl|erzaehl|hilf mir|sag mir|beantworte)\b/i;
+
+/** Below this a question mark is more likely a typo than a question. */
+const MIN_CHAT_WORDS = 3;
+
+/**
+ * Does this input read as a question for the chat rather than something this
+ * field can do (create a document / find one)? Used to explain the mistake
+ * instead of silently generating a document out of a question.
+ *
+ * A create prompt may well *contain* a question ("… Frage: wie steht die
+ * Fraktion dazu?") — the opening decides, so `CREATE_INTENT_RE` wins.
+ */
+export function detectChatIntent(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+  if (CREATE_INTENT_RE.test(trimmed)) return false;
+  if (trimmed.split(/\s+/).length < MIN_CHAT_WORDS) return false;
+  return CHAT_INTENT_RE.test(trimmed) || trimmed.endsWith('?');
+}
+
 // Only the four kinds this composer actually creates. Naming concrete Textsorten
 // ("Pressemitteilung", "Antrag") misleads — those belong to the text generators.
 export const PROMPT_EXAMPLES: string[] = [
