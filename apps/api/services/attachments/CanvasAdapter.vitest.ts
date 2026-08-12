@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { canvasAdapter } from './CanvasAdapter.js';
 
@@ -89,5 +89,31 @@ describe('CanvasAdapter.validateImageAttachment', () => {
         bytes: Buffer.alloc(11 * 1024 * 1024),
       })
     ).toThrow('Image too large');
+  });
+
+  it('lehnt eine zu grosse Data-URL ab, ohne sie vorher zu allokieren', () => {
+    const zuGross = Buffer.alloc(11 * 1024 * 1024).toString('base64');
+    const gebaut: number[] = [];
+    const echtesFrom = Buffer.from;
+    const spion = vi
+      .spyOn(Buffer, 'from')
+      .mockImplementation((...args: Parameters<typeof Buffer.from>) => {
+        const buf = (echtesFrom as (...a: unknown[]) => Buffer)(...args);
+        gebaut.push(buf.length);
+        return buf;
+      });
+
+    try {
+      expect(() =>
+        canvasAdapter.validateImageAttachment({
+          type: 'image/jpeg',
+          data: `data:image/jpeg;base64,${zuGross}`,
+        })
+      ).toThrow('Image too large');
+      // Kein Buffer in Bildgroesse — die Groesse kam aus der base64-Laenge.
+      expect(Math.max(0, ...gebaut)).toBeLessThan(1024 * 1024);
+    } finally {
+      spion.mockRestore();
+    }
   });
 });
