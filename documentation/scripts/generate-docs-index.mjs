@@ -50,12 +50,10 @@ const CATEGORY_LABELS = {
 };
 
 const LEAD_MAX_CHARS = 200;
-// Generous enough that the sections carrying an expanded ChatTables component
-// (see COMPONENT_EXPANSIONS — ~29 Werkzeuge à ~70 Zeichen is the largest) fit
-// whole; at 1200 a third of the Rezepte fell back out of the index. Cost is
-// committed-file size only: BM25 indexes the full text, the chat gets a
-// SNIPPET_CHARS window (services/docs/docsIndex.ts), never the whole section.
-const SECTION_MAX_CHARS = 2600;
+// Also the guard that keeps expanded ChatTables sections (COMPONENT_EXPANSIONS)
+// from inflating the corpus statistics — raising it to fit fuller rows flipped
+// a borderline BM25 ranking; the expansions are compact instead.
+const SECTION_MAX_CHARS = 1200;
 
 function walk(dir, relBase = '') {
   const out = [];
@@ -138,15 +136,20 @@ function loadChatCapabilities() {
  * that lists them. For components whose content IS a generated manifest, we
  * can do better: expand them to flat prose before stripping. One entry per
  * component; an unknown component still strips to nothing, as before.
+ *
+ * Deliberately compact — command/mention + title, no descriptions. The full
+ * rows tripled some section lengths, which shifted the BM25 corpus statistics
+ * enough to flip borderline rankings on unrelated pages (docsIndex.vitest.ts
+ * caught one). The identifiers and titles are the terms people search for; the
+ * descriptions live on the page, not in the index.
  */
 const COMPONENT_EXPANSIONS = {
-  RecipeTables: (m) => m.skills.map((s) => `${s.command} ${s.title} — ${s.description}`).join('\n'),
-  SourceTable: (m) =>
-    m.notebookSources.map((s) => `${s.mention} ${s.title} — ${s.description}`).join('\n'),
+  RecipeTables: (m) => m.skills.map((s) => `${s.command} ${s.title}`).join('\n'),
+  SourceTable: (m) => m.notebookSources.map((s) => `${s.mention} ${s.title}`).join('\n'),
   ToolMentionTable: (m) =>
     Object.values(m.mentionables)
       .filter((t) => t.mention)
-      .map((t) => `${t.mention} ${t.title} — ${t.description ?? ''}`)
+      .map((t) => `${t.mention} ${t.title}`)
       .join('\n'),
   SharepicVariantTable: (m) =>
     m.sharepicVariants.map((v) => `${v.type}: ${v.keywords.join(', ')}`).join('\n'),
