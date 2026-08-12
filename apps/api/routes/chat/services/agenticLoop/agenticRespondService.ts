@@ -1204,6 +1204,18 @@ export async function streamAgenticResponse(params: {
         ` + connectors ${connectorCatalogNote.length} + carried ${carriedNote.length}` +
         ` + recipes ${recipeCatalogBlock.length}`
     );
+    // The other half of the context, and the half nobody could see: how much of
+    // the turn's OWN material survives into the writing call. A four-step chat
+    // over one pasted article failed on steps 2-4 (mapping table built from the
+    // translation, invented source quotes, a web search FOR the article) and the
+    // thread's first user message held 10.327 chars — but whether those chars
+    // were still in `messages` by step 2 could not be read off any log. Per
+    // message, oldest first, so a lost original is visible as a shrinking head.
+    log.info(
+      `[Agentic] turn material: ${messages.length} msgs [${messages
+        .map((m) => `${m.role[0]}${extractTextContent(m.content).length}`)
+        .join(' ')}]`
+    );
     // The turn budget is now SOFT: it strips the tools via `forceFinish` (see
     // below) instead of aborting the stream. Only the absolute ceiling aborts —
     // it is a hang guard, not a pace.
