@@ -14,6 +14,7 @@
     "test": "vitest run",
     "eval:chat": "cross-env NODE_OPTIONS=--conditions=development npx tsx evals/runChatEval.ts",
     "eval:judge": "cross-env NODE_OPTIONS=--conditions=development npx tsx evals/judge/runJudge.ts",
+    "eval:degeneration": "cross-env NODE_OPTIONS=--conditions=development npx tsx evals/degenerationProbe.ts",
     "eval:retrieval": "cross-env NODE_OPTIONS=--conditions=development npx tsx evals/retrieval/runRetrievalEval.ts",
     "eval:retrieval:ann": "cross-env NODE_OPTIONS=--conditions=development npx tsx evals/retrieval/annRecallCheck.ts",
     "eval:longthread": "cross-env EVAL_SLOW=1 EVAL_FILTER=longthread NODE_OPTIONS=--conditions=development npx tsx evals/runChatEval.ts",
