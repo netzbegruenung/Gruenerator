@@ -25,7 +25,7 @@ export async function processUrlContent(
 ): Promise<UrlProcessingResult> {
   console.log(`[DocumentProcessingService] Processing URL content: ${title}`);
 
-  const { chunks, embeddings } = await chunkAndEmbedText(content);
+  const { chunks, embeddings } = await chunkAndEmbedText(content, { title });
 
   const documentMetadata = await postgresDocumentService.saveDocumentMetadata(userId, {
     title: title.trim(),
