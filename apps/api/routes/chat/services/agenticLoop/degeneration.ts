@@ -270,25 +270,6 @@ export function snapToBoundary(text: string, pos: number): number {
   return sentence >= 0 ? from + sentence : pos;
 }
 
-/** Longest unbroken scaffold line still readable as a table row. Measured on
- *  the live answers: real rows run 80–120 chars, the two runaway dividers 790
- *  and 1.305. */
-const MAX_SCAFFOLD_LINE = 400;
-
-/**
- * Drop a trailing divider row the model could not stop extending.
- *
- * The scaffolding gate keeps tables safe by declaring pure layout "never spam",
- * and the backscan therefore stops the moment it reaches one — so a runaway
- * divider standing between the answer and the junk survives the cut. Live
- * 13.08.2026 14:02: 2.248 chars removed, and the kept text still ended
- * `--- --- --- --- … ---`, right above the notice.
- *
- * Length is what separates the two, and only length: a table row is bounded by
- * what fits a table, a runaway row by when the model gave up. This runs ONLY
- * after the guard has already fired, so no healthy answer is ever measured
- * against it.
- */
 /** Distinct words the cut removed that the kept text does not already contain.
  *  Above this, the cut took real content with it. Junk stays far below by
  *  construction — it repeats a handful of tokens (measured 13.08.2026: one
@@ -316,11 +297,32 @@ export function cutLostContent(kept: string, removed: string): boolean {
   return false;
 }
 
+/**
+ * Drop the scaffolding the cut left dangling at the end.
+ *
+ * The scaffolding gate keeps tables safe by declaring pure layout "never spam",
+ * so the backscan stops the moment it reaches one — whatever divider stands
+ * between the answer and the junk therefore survives the cut. Twice live on
+ * 13.08.2026: at 14:02 as ONE runaway row of 1.305 chars, at 22:12 as NINE
+ * short `---` rules after a complete table. Both are the same thing seen from
+ * two sides, so the rule is about position rather than length: trailing
+ * scaffolding, however it is broken into lines.
+ *
+ * Walking backwards stops at the first line that carries text, and never
+ * consumes the whole answer. It runs ONLY after the guard has fired, so no
+ * healthy answer is ever measured against it.
+ */
 export function trimTrailingScaffoldLine(text: string): string {
-  const start = text.lastIndexOf('\n') + 1;
-  const line = text.slice(start);
-  if (line.length <= MAX_SCAFFOLD_LINE || !isStructuralScaffolding(line)) return text;
-  return text.slice(0, start).trimEnd();
+  let rest = text.trimEnd();
+  for (;;) {
+    const start = rest.lastIndexOf('\n') + 1;
+    const line = rest.slice(start);
+    // Stop at the first line that carries text, and never consume the whole
+    // answer — a text made only of scaffolding is the cut's problem, not this
+    // function's.
+    if (start === 0 || line.length === 0 || !isStructuralScaffolding(line)) return rest;
+    rest = rest.slice(0, start).trimEnd();
+  }
 }
 
 // ── Long-range repetition ────────────────────────────────────────────────────
