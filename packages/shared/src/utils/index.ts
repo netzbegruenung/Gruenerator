@@ -56,6 +56,16 @@ export { mcpBrandColor } from './mcpBrand.js';
 // Time-of-day + locale-aware greeting (web Workplace + mobile Chat home)
 export { getGreeting, isPrideMonth, type GreetingOptions } from './greeting.js';
 
+// Data-URL-Parsing (base64) — payload-sicher, siehe dataUrl.ts
+export {
+  parseDataUrl,
+  extractBase64,
+  stripDataUrlPrefix,
+  isDataUrl,
+  decodedByteLength,
+  type ParsedDataUrl,
+} from './dataUrl.js';
+
 // Natural-language notebook/research query parser (region/date/topic)
 export { parseNotebookQuery } from './notebookQuery.js';
 export type { NotebookQueryFilters } from './notebookQuery.js';
