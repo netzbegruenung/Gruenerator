@@ -1,5 +1,6 @@
 import { useCallback, useSyncExternalStore } from 'react';
-import { ForkYDocExtension } from '@blocknote/core/yjs';
+
+import { getDocForkStore } from '../lib/aiExtension';
 
 /**
  * Reactive view of whether AI suggestions are pending review for an editor.
@@ -14,30 +15,21 @@ import { ForkYDocExtension } from '@blocknote/core/yjs';
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type EditorLike = { getExtension?: (factory: any) => unknown } | null | undefined;
-type ForkStore = {
-  store?: {
-    state?: { isForked?: boolean };
-    subscribe?: (listener: () => void) => () => void;
-  };
-};
-
-function getForkStore(editor: EditorLike): ForkStore['store'] | null {
-  if (!editor) return null;
-  const fork = editor.getExtension?.(ForkYDocExtension) as ForkStore | undefined;
-  return fork?.store ?? null;
-}
 
 export function usePendingDocAI(editor: EditorLike): boolean {
   const subscribe = useCallback(
     (onChange: () => void) => {
-      const store = getForkStore(editor);
+      const store = getDocForkStore(editor);
       if (!store?.subscribe) return () => {};
       return store.subscribe(onChange);
     },
     [editor]
   );
 
-  const getSnapshot = useCallback(() => getForkStore(editor)?.state?.isForked ?? false, [editor]);
+  const getSnapshot = useCallback(
+    () => getDocForkStore(editor)?.state?.isForked ?? false,
+    [editor]
+  );
 
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
