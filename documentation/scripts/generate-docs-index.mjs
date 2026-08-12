@@ -118,6 +118,45 @@ function slugifyHeading(text) {
 const MDX_ESM_RE = /^\s*(import|export)\s/;
 
 /**
+ * The manifest behind the `ChatTables` components. Loaded lazily so the index
+ * generator keeps working (minus the expansions) if the file is ever absent.
+ */
+function loadChatCapabilities() {
+  const file = path.join(REPO_ROOT, 'documentation/src/generated/chat-capabilities.json');
+  return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null;
+}
+
+/**
+ * `stripInline` drops every JSX tag, so a table rendered by a React component
+ * would vanish from the BM25 corpus — the chat's `gruenerator_docs_search`
+ * could then no longer answer "welche Rezepte gibt es?" from the very page
+ * that lists them. For components whose content IS a generated manifest, we
+ * can do better: expand them to flat prose before stripping. One entry per
+ * component; an unknown component still strips to nothing, as before.
+ */
+const COMPONENT_EXPANSIONS = {
+  RecipeTables: (m) => m.skills.map((s) => `${s.command} ${s.title} — ${s.description}`).join('\n'),
+  SourceTable: (m) =>
+    m.notebookSources.map((s) => `${s.mention} ${s.title} — ${s.description}`).join('\n'),
+  ToolMentionTable: (m) =>
+    Object.values(m.mentionables)
+      .filter((t) => t.mention)
+      .map((t) => `${t.mention} ${t.title} — ${t.description ?? ''}`)
+      .join('\n'),
+  SharepicVariantTable: (m) =>
+    m.sharepicVariants.map((v) => `${v.type}: ${v.keywords.join(', ')}`).join('\n'),
+};
+
+function expandGeneratedComponents(body) {
+  const manifest = loadChatCapabilities();
+  if (!manifest) return body;
+  return body.replace(/<(\w+)\s*\/>/g, (match, name) => {
+    const expand = COMPONENT_EXPANSIONS[name];
+    return expand ? `\n${expand(manifest)}\n` : match;
+  });
+}
+
+/**
  * Strip markdown/MDX syntax down to readable prose (for leads, snippets, BM25).
  *
  * Order matters. Fenced code and JSX go first (they can contain anything). The
@@ -215,7 +254,8 @@ function build() {
 
   for (const rel of walk(DOCS_DIR)) {
     const raw = readFileSync(path.join(DOCS_DIR, rel), 'utf8');
-    const { data, body } = parseFrontmatter(raw);
+    const { data, body: rawBody } = parseFrontmatter(raw);
+    const body = expandGeneratedComponents(rawBody);
     const h1 = /^#\s+(.+?)\s*$/m.exec(body);
     const title = data.title || (h1 ? stripHeading(h1[1]) : path.basename(rel, path.extname(rel)));
     const topFolder = rel.includes('/') ? rel.slice(0, rel.indexOf('/')) : '';
