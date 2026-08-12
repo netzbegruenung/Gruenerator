@@ -780,7 +780,13 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<LoopResu
     return { text: SYNTH_REFUSAL_TEXT };
   }
   if (!looksLikeToolPlanLeak(first.text, toolNames)) {
-    const reason = first.text.trim().length > 0 ? invalidReason(first) : null;
+    // A degenerate pass earns the retry even when the trim left NOTHING — spam
+    // from the first token is the most complete failure, exactly where a fresh
+    // pass helps most. Plain-empty answers stay the caller's fallback case.
+    const reason =
+      first.text.trim().length > 0 || first.finishReason === DEGENERATE_FINISH_REASON
+        ? invalidReason(first)
+        : null;
     if (reason != null && !(p.writeAbortSignal ?? p.abortSignal).aborted) {
       const replaced = await retryInvalidAnswer(first, reason);
       if (replaced) return replaced;
@@ -788,8 +794,11 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<LoopResu
     recordDecision('loop.synth_verdict', 'accepted', {
       inputs: { textLength: first.text.length },
     });
+    // Captured BEFORE flush() — flush opens the gate unconditionally, so
+    // afterwards isOpen() no longer says whether the CLIENT saw anything.
+    const spamReachedWire = first.isOpen();
     first.flush();
-    if (first.finishReason === DEGENERATE_FINISH_REASON && first.isOpen()) {
+    if (first.finishReason === DEGENERATE_FINISH_REASON && spamReachedWire) {
       // The retry didn't recover, so the trimmed text stands — but the wire
       // still carries the degenerate tail drain cut off. Replace it.
       return { text: first.text, replacedStreamed: true };
