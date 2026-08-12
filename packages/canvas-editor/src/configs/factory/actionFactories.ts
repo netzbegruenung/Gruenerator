@@ -756,7 +756,11 @@ export function createBaseActions<TState extends BaseCanvasState>(
       saveToHistory,
       debouncedSaveToHistory,
       canvasWidth,
-      canvasHeight
+      canvasHeight,
+      // Without a default the icon state carries no color and IconPrimitive
+      // falls back to black — invisible on dark templates. The template's own
+      // font color is by definition readable against its background.
+      { defaultColor: fontColor }
     ),
     ...createShapeActions(
       getState,

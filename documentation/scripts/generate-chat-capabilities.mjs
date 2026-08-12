@@ -65,6 +65,15 @@ const SRC = {
   // scripts/check-unenforced-exhaustive-maps.mjs, which fails CI if that loop
   // is ever dropped.
   intentNotes: 'apps/api/agents/langgraph/ChatGraph/intentPipeline.vitest.ts',
+  // The slash-command Rezepte (`/presse`, `/instagram`, …). index.generated.ts
+  // is itself built from the skills' frontmatter, so it is already pure data.
+  skills: 'packages/shared/src/agents/skills/index.generated.ts',
+  skillTypes: 'packages/shared/src/agents/types.ts',
+  // The @-source registry (`@grundsatz`, `@thüringen`, …) shared by web/mobile
+  // galleries and the chat mention picker.
+  notebooks: 'packages/shared/src/notebooks/index.ts',
+  // Which keywords pin a sharepic request to a specific variant.
+  sharepicVariants: 'apps/api/routes/chat/services/sharepicVariantHelpers.ts',
 };
 
 function parse(relFile) {
@@ -362,6 +371,215 @@ function extractSystemSources() {
   return { sources: out, intentSources };
 }
 
+/** Numeric property (`order: 4`) of an object literal. */
+function numberProp(obj, name) {
+  for (const p of obj.properties) {
+    if (
+      ts.isPropertyAssignment(p) &&
+      p.name &&
+      ts.isIdentifier(p.name) &&
+      p.name.text === name &&
+      ts.isNumericLiteral(p.initializer)
+    ) {
+      return Number(p.initializer.text);
+    }
+  }
+  return undefined;
+}
+
+/** Object-literal property (`mention: {...}`) of an object literal. */
+function objectProp(obj, name) {
+  for (const p of obj.properties) {
+    if (ts.isPropertyAssignment(p) && p.name && ts.isIdentifier(p.name) && p.name.text === name) {
+      const value = unwrap(p.initializer);
+      if (ts.isObjectLiteralExpression(value)) return value;
+    }
+  }
+  return undefined;
+}
+
+/** `false` literal property (`enabled: false`) — undefined when absent or true. */
+function isFalseProp(obj, name) {
+  for (const p of obj.properties) {
+    if (ts.isPropertyAssignment(p) && p.name && ts.isIdentifier(p.name) && p.name.text === name) {
+      return p.initializer.kind === ts.SyntaxKind.FalseKeyword;
+    }
+  }
+  return false;
+}
+
+/**
+ * The slash-command Rezepte (`SKILLS` in the generated skills index), in
+ * registry order, plus the category labels the UI groups them under.
+ *
+ * A Landesverband that turned its notebook off (`enabled: false`) also has its
+ * Rezepte hidden from every picker (see `DISABLED_LV_AGENT_IDS` in
+ * packages/shared/src/agents/system.ts, which derives that from the same
+ * switch). The static equivalent: the disabled notebook's `defaultAgent` is
+ * the identifier its Rezepte carry, so those are skipped here.
+ */
+function extractSkills(disabledAgentIds) {
+  const sf = parse(SRC.skills);
+  const decl = unwrap(findDeclaration(sf, 'SKILLS'));
+  if (!decl || !ts.isArrayLiteralExpression(decl)) {
+    throw new Error(
+      `${SRC.skills}: SKILLS not found as an array literal. ` +
+        `It is the source for the Rezepte table; update generate-chat-capabilities.mjs.`
+    );
+  }
+  const skills = [];
+  for (const el of decl.elements) {
+    const obj = unwrap(el);
+    if (!obj || !ts.isObjectLiteralExpression(obj)) continue;
+    const title = stringProp(obj, 'title');
+    const mention = stringProp(obj, 'mention');
+    if (!title || !mention) continue;
+    const identifier = stringProp(obj, 'identifier');
+    if (identifier && disabledAgentIds.has(identifier)) continue;
+    const entry = {
+      command: `/${mention}`,
+      title,
+      description: stringProp(obj, 'description') ?? '',
+      avatar: stringProp(obj, 'avatar') ?? '',
+      category: stringProp(obj, 'skillCategory') ?? 'sonstiges',
+    };
+    const audience = stringProp(obj, 'audience');
+    if (audience && audience !== 'all') entry.audience = audience;
+    skills.push(entry);
+  }
+  if (skills.length === 0) throw new Error(`${SRC.skills}: no Rezepte extracted.`);
+
+  const typesSf = parse(SRC.skillTypes);
+  const labelsDecl = unwrap(findDeclaration(typesSf, 'SKILL_CATEGORY_LABELS'));
+  const categoryLabels = {};
+  if (labelsDecl && ts.isObjectLiteralExpression(labelsDecl)) {
+    for (const p of labelsDecl.properties) {
+      if (!ts.isPropertyAssignment(p) || !p.name || !ts.isIdentifier(p.name)) continue;
+      if (ts.isStringLiteral(p.initializer)) categoryLabels[p.name.text] = p.initializer.text;
+    }
+  }
+  return { skills, categoryLabels };
+}
+
+/**
+ * The `@`-source registry (`NOTEBOOK_REGISTRY`) — every system notebook with
+ * its mention alias, sorted the way the galleries sort (the `order` field).
+ * Skips `enabled: false` (unroutable) and non-stable channels (not served on
+ * the public instance the docs describe).
+ */
+function extractNotebookSources() {
+  const disabledAgentIds = new Set();
+  const sf = parse(SRC.notebooks);
+  const decl = unwrap(findDeclaration(sf, 'NOTEBOOK_REGISTRY'));
+  if (!decl || !ts.isArrayLiteralExpression(decl)) {
+    throw new Error(
+      `${SRC.notebooks}: NOTEBOOK_REGISTRY not found as an array literal. ` +
+        `It is the source for the Quellen table; update generate-chat-capabilities.mjs.`
+    );
+  }
+  const sources = [];
+  for (const el of decl.elements) {
+    const obj = unwrap(el);
+    if (!obj || !ts.isObjectLiteralExpression(obj)) continue;
+    const id = stringProp(obj, 'id');
+    const mention = objectProp(obj, 'mention');
+    if (!id || !mention) continue;
+    if (isFalseProp(obj, 'enabled')) {
+      const defaultAgent = stringProp(obj, 'defaultAgent');
+      if (defaultAgent) disabledAgentIds.add(defaultAgent);
+      continue;
+    }
+    const channel = stringProp(obj, 'channel');
+    if (channel && channel !== 'stable') continue;
+    const alias = stringProp(mention, 'alias');
+    const title = stringProp(mention, 'title');
+    if (!alias || !title) continue;
+    const entry = {
+      id,
+      mention: `@${alias}`,
+      title,
+      description: stringProp(mention, 'description') ?? '',
+      avatar: stringProp(mention, 'avatar') ?? '',
+      category: stringProp(obj, 'category') ?? 'weitere',
+      order: numberProp(obj, 'order') ?? 0,
+    };
+    const audience = stringProp(obj, 'audience');
+    if (audience && audience !== 'all') entry.audience = audience;
+    sources.push(entry);
+  }
+  if (sources.length === 0) throw new Error(`${SRC.notebooks}: no sources extracted.`);
+  sources.sort((a, b) => a.order - b.order);
+  for (const s of sources) delete s.order;
+  return { sources, disabledAgentIds };
+}
+
+/** `/\b(sliders?|karussells?|…)\b/i` → human-readable keyword list. */
+function keywordsFromPattern(source) {
+  const inner = source.replace(/^\\b\(/, '').replace(/\)\\b$/, '');
+  return inner.split('|').map((token) =>
+    token
+      .replace(/\[\\s-\]\?/g, ' ')
+      .replace(/\[\s-\]\?/g, ' ')
+      .replace(/\\w\*/g, '…')
+      .replace(/s\?$/, '(s)')
+      .trim()
+  );
+}
+
+/**
+ * The sharepic variant keywords (`VARIANT_KEYWORDS`) plus which variants are
+ * part of the standard fanout (`SHAREPIC_VARIANT_TYPES`) — a variant outside
+ * that list (slider) only renders on explicit request.
+ */
+function extractSharepicVariants() {
+  const sf = parse(SRC.sharepicVariants);
+  const standardDecl = unwrap(findDeclaration(sf, 'SHAREPIC_VARIANT_TYPES'));
+  const standardOrder = [];
+  if (standardDecl && ts.isArrayLiteralExpression(standardDecl)) {
+    for (const el of standardDecl.elements) {
+      if (ts.isStringLiteral(el)) standardOrder.push(el.text);
+    }
+  }
+  const standard = new Set(standardOrder);
+
+  const decl = unwrap(findDeclaration(sf, 'VARIANT_KEYWORDS'));
+  if (!decl || !ts.isArrayLiteralExpression(decl)) {
+    throw new Error(
+      `${SRC.sharepicVariants}: VARIANT_KEYWORDS not found as an array literal. ` +
+        `It is the source for the Sharepic-Varianten table; update generate-chat-capabilities.mjs.`
+    );
+  }
+  const variants = [];
+  for (const el of decl.elements) {
+    const obj = unwrap(el);
+    if (!obj || !ts.isObjectLiteralExpression(obj)) continue;
+    const type = stringProp(obj, 'type');
+    if (!type) continue;
+    let pattern;
+    for (const p of obj.properties) {
+      if (
+        ts.isPropertyAssignment(p) &&
+        p.name &&
+        ts.isIdentifier(p.name) &&
+        p.name.text === 'pattern' &&
+        ts.isRegularExpressionLiteral(p.initializer)
+      ) {
+        pattern = p.initializer.text.replace(/^\/|\/[a-z]*$/g, '');
+      }
+    }
+    if (!pattern) continue;
+    variants.push({ type, keywords: keywordsFromPattern(pattern), standard: standard.has(type) });
+  }
+  if (variants.length === 0) {
+    throw new Error(`${SRC.sharepicVariants}: no variants extracted — the shape changed.`);
+  }
+  // Fanout order (SHAREPIC_VARIANT_TYPES), keyword-only variants after —
+  // VARIANT_KEYWORDS itself is ordered by match priority, not presentation.
+  const rank = (v) => (v.standard ? standardOrder.indexOf(v.type) : standardOrder.length);
+  variants.sort((a, b) => rank(a) - rank(b));
+  return variants;
+}
+
 function sortKeys(obj) {
   const sorted = {};
   for (const key of Object.keys(obj).sort()) sorted[key] = obj[key];
@@ -378,6 +596,8 @@ function generate() {
   ]
     .filter((i) => intents.includes(i))
     .sort();
+  const notebooks = extractNotebookSources();
+  const { skills, categoryLabels } = extractSkills(notebooks.disabledAgentIds);
   const manifest = {
     intents: intents.slice().sort(),
     experimentalIntents,
@@ -385,6 +605,10 @@ function generate() {
     userTools: sortKeys(extractUserTools()),
     systemSources: sortKeys(system.sources),
     systemIntentSources: sortKeys(system.intentSources),
+    skills,
+    skillCategoryLabels: categoryLabels,
+    notebookSources: notebooks.sources,
+    sharepicVariants: extractSharepicVariants(),
   };
   return {
     json: JSON.stringify(manifest, null, 2) + '\n',

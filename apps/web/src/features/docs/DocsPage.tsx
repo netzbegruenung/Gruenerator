@@ -45,12 +45,7 @@ import {
   presentationTemplates,
 } from '../presentations/presentationTemplates';
 import { getSheetTemplate, sheetTemplates } from '../sheets/sheetTemplates';
-import {
-  OFFICE_SCROLL_ITEM,
-  OFFICE_SCROLL_ROW,
-  OfficeActionTile,
-  officeStripStyle,
-} from '../workplace/components/ToolsSection';
+import { OFFICE_PILL_ROW, OfficeActionPill } from '../workplace/components/ToolsSection';
 import { WorkplaceHero } from '../workplace/components/WorkplaceHero';
 
 import { BoardCard } from './BoardCard';
@@ -654,26 +649,21 @@ export function DocumentsContent({
 
       {officeToolStrip && (
         <section className="mb-xl mt-xl">
-          <div
-            className={OFFICE_SCROLL_ROW}
-            style={officeStripStyle(visibleOfficeSuiteTools.length, { maxTilePx: 200 })}
-          >
+          <div className={OFFICE_PILL_ROW}>
             {visibleOfficeSuiteTools.map((tool) => (
-              <div key={tool.id} className={OFFICE_SCROLL_ITEM}>
-                <OfficeActionTile
-                  styleKey="office"
-                  icon={tool.icon}
-                  title={tool.title}
-                  description={tool.description}
-                  onClick={() => {
-                    if (tool.create === 'gallery') setShowGallery(true);
-                    else if (tool.create === 'board') handleCreateBoard('kanban');
-                    else if (tool.create === 'sheet') void handleCreateSheet();
-                    else if (tool.create === 'pres') void handleCreatePresentation();
-                    else void handleTemplateSelect('blank');
-                  }}
-                />
-              </div>
+              <OfficeActionPill
+                key={tool.id}
+                styleKey="office"
+                icon={tool.icon}
+                title={tool.title}
+                onClick={() => {
+                  if (tool.create === 'gallery') setShowGallery(true);
+                  else if (tool.create === 'board') handleCreateBoard('kanban');
+                  else if (tool.create === 'sheet') void handleCreateSheet();
+                  else if (tool.create === 'pres') void handleCreatePresentation();
+                  else void handleTemplateSelect('blank');
+                }}
+              />
             ))}
           </div>
         </section>
@@ -688,39 +678,11 @@ export function DocumentsContent({
         Entwicklung. Bitte behalte eine lokale Sicherungskopie deiner Dateien.
       </DismissableBanner>
 
+      {/* Without `showRecents` this is the Arbeiten tab, where the workplace
+          "Zuletzt" feed is THE recents section — the personal grid and the group
+          shares both live on /office instead, below its own recents. */}
       <section>
-        {!showRecents ? (
-          // Embedded in the Arbeiten tab, where the workplace "Zuletzt" feed is
-          // THE recents section — only the group shares (not covered there)
-          // keep rendering.
-          groupDocsByGroup.length > 0 && (
-            <>
-              {groupDocsByGroup.map(([groupId, { groupName, docs }]) => (
-                <div key={groupId} className="mt-xl">
-                  <h2 className="mb-sm flex items-center gap-xs text-sm font-medium text-grey-500 dark:text-grey-400">
-                    <FiUsers size={14} />
-                    {groupName}
-                  </h2>
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(232px,1fr))] gap-md max-md:grid-cols-[repeat(auto-fill,minmax(170px,1fr))]">
-                    {docs.map((item) => {
-                      if (item.kind !== 'document') return null;
-                      return (
-                        <DocumentCard
-                          key={`doc-${item.data.id}-${groupId}`}
-                          doc={item.data}
-                          adapter={adapter}
-                          onDelete={handleDeleteDoc}
-                          onRename={handleRenameDoc}
-                          onShare={setShareDoc}
-                        />
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </>
-          )
-        ) : isLoading || isUnauthorizedError(docsError) ? (
+        {!showRecents ? null : isLoading || isUnauthorizedError(docsError) ? (
           // On a 401 the session teardown+redirect is already in flight — show
           // the skeleton, never a partial/stale grid or an error flash.
           <CardGrid columns="auto" gap="md">
@@ -926,7 +888,7 @@ export function DocumentsContent({
 }
 
 /** Office start page without route chrome — embedded by the workplace
- * "Arbeiten" tab (/workplace/arbeiten), which provides PageContainer + auth
+ * "Arbeiten" page (/workplace), which provides PageContainer + auth
  * and renders the workplace "Zuletzt" feed as THE recents section. */
 export const DocsHome = () => (
   <ErrorBoundary>

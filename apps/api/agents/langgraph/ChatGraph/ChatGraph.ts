@@ -158,6 +158,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     // Sheet context (from @sheet mentions, populated by controller)
     sheetIds: input.sheetIds || [],
     sheetContext: null,
+    sheetEditId: null,
 
     // Collaborative document context (from @doc mentions, populated by controller)
     docMentionIds: input.docMentionIds || [],
@@ -169,7 +170,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     // Connected-account (Nango) file refs (from @connect mentionable)
     connectFiles: input.connectFiles || [],
 
-    // URLs attached via @web mentionable (unioned into detectedUrls by classifier)
+    // URLs attached via @link mentionable (unioned into detectedUrls by classifier)
     attachedWebpageUrls: input.attachedWebpageUrls || [],
 
     // Current open document (docs editor surface)
@@ -180,6 +181,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
 
     // Custom system prompt (from thread or user settings)
     customSystemPrompt: input.customSystemPrompt || null,
+    roleBausteinActive: input.roleBausteinActive === true,
 
     // Active skill (drives platform-specific prompt fragment in respondNode)
     activeSkillMention: input.activeSkillMention || null,

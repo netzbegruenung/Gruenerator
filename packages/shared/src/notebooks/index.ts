@@ -48,6 +48,7 @@ export type NotebookId =
   | 'brandenburg-notebook'
   | 'bayern-notebook'
   | 'sachsen-anhalt-notebook'
+  | 'sachsen-notebook'
   | 'hessen-notebook'
   | 'saarland-notebook'
   | 'oesterreich-notebook'
@@ -343,6 +344,26 @@ export const NOTEBOOK_REGISTRY = [
       title: 'Grüne Sachsen-Anhalt',
       description: 'Presse, Beschlüsse und Landtagswahlprogramm 2026 Sachsen-Anhalt',
       avatar: '🌾',
+      backgroundColor: '#316049',
+    },
+  },
+  {
+    id: 'sachsen-notebook',
+    title: 'Sachsen',
+    description:
+      'Durchsuchbar sind Pressemitteilungen, Beschlüsse und das Landtagswahlprogramm 2024 der Grünen Sachsen.',
+    meta: 'Archiv',
+    tags: ['Sachsen', 'Presse', 'Beschlüsse', 'Wahlprogramm'],
+    order: 14,
+    category: 'landesebene',
+    audience: 'de-DE',
+    // Vorerst ausgeblendet — einblenden = diese Zeile entfernen.
+    enabled: false,
+    mention: {
+      alias: 'sachsen',
+      title: 'Grüne Sachsen',
+      description: 'Presse, Beschlüsse und Landtagswahlprogramm 2024 Sachsen',
+      avatar: '🌳',
       backgroundColor: '#316049',
     },
   },

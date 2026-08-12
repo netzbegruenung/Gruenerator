@@ -21,6 +21,8 @@
  *   - sharepic → the answer text is a fixed template string in the router; the
  *     slogan comes from sharepicGenerationService. Auto has NO effect, so
  *     `sharepic` is intentionally absent from the table.
+ *   - edit_sheet → same pinned planner as create_sheet; the answer text is a
+ *     fixed template in handleSheetEdit. Also absent from the table.
  *   - summary → summarizeNode already runs on the `heavy` intermediate stage.
  *
  * ── Second-order effect ─────────────────────────────────────────────────────
@@ -68,8 +70,13 @@ export const VERDIGADO_INPUT_LIMIT = 40_000;
 /** A scalar applies to every complexity; the record grades by it. */
 type ReasoningRule = ReasoningSetting | Record<Complexity, ReasoningSetting>;
 
-/** Keys into AVAILABLE_MODELS (providers.ts). Not the user-facing catalog. */
-export type AutoLaneId = 'gemma-4-26b' | 'gemma-litellm' | 'mistral-medium-3.5' | 'litellm';
+/**
+ * Keys into AVAILABLE_MODELS (providers.ts). Not the user-facing catalog.
+ * Only the lanes the resolver can actually return; `gemma-4-26b` and `litellm`
+ * left this union with the 07.08.2026 lane fold — they stay registered in
+ * providers.ts for persisted thread ids and intermediate stages only.
+ */
+export type AutoLaneId = 'gemma-litellm' | 'mistral-medium-3.5';
 
 interface AutoEntry {
   modelId: AutoLaneId;
@@ -83,48 +90,25 @@ const graded = (
 ): Record<Complexity, ReasoningSetting> => ({ simple, moderate, complex });
 
 /**
- * Lane A — Gemma 4 26B (Scaleway, GreenPT on failover). Short, structured,
- * latency-critical turns where the prose share is small or the work is
- * delegated anyway.
- *
- * It was Mistral Small 4 until 03.08.2026. Both lanes narrate material that is
- * already in context, so the deciding argument is which one writes better
- * German — and that is the Gemma family, which is why Lane B has been on it all
- * along. Keeping the two writers in ONE family also means the only thing that
- * changes between an A-turn and a B-turn is the size, not the voice.
- *
- * Reasoning stays OFF across this whole lane, and on this host that is enforced
- * rather than requested: `scalewayThinkingFetch` pins `reasoning_effort:'none'`
- * on every request. The rule itself predates the move and was measured on Small
- * 4 (live probe, "Zug 9:40 + 95 min"): thinking was correct but cost ~1.6–2k
- * characters on a trivial question, `effort:'low'` barely moved it, and at a
- * 400-token budget the reasoning ate the whole allowance and the answer came
- * back EMPTY. The same failure shape is documented for Gemma 4 on GreenPT — see
- * GEMMA_4_GREENPT in providers.ts — which is why that host is the failover and
- * not the primary.
+ * Gemma 4 31B (Regolo) is now the single content-answer lane. Lane A (Gemma 4
+ * 26B, Scaleway) and Lane D (GPT-OSS) were folded into it on 07.08.2026: both
+ * were picked for speed over a small/latency-critical prose share, and Gemma 4
+ * on Regolo matches that latency (4.0s end to end, measured 2026-07-31)
+ * without GPT-OSS's known weakness — it answers a forced tool call with prose,
+ * which is what put a production PDF generation on the floor (see the artefact
+ * note in services/ai/lanes.ts). `gemma-4-26b` and `litellm` stay registered in
+ * providers.ts (persisted ids, intermediate stages) but are no longer an
+ * auto-policy target. Failover changed with the fold too: when Regolo is down,
+ * former Lane-A intents now degrade to verdigado-think (~20 s to first token,
+ * 120k ctx) — a materially slower degraded path, accepted deliberately.
  */
-const SMALL: AutoLaneId = 'gemma-4-26b';
-/** Lane B — Gemma 4 31B (Regolo). Prose over sources; this is what the loop's
- *  writer slot already does today, so these intents stay behaviourally close to
- *  master. Same family as Lane A, one size up. */
 const GEMMA: AutoLaneId = 'gemma-litellm';
-/** Lane C — Mistral Medium 3.5. Only where the model calls tools ITSELF and
- *  the unified loop should kick in. */
+/** Mistral Medium 3.5. Where the model calls tools ITSELF and the unified loop
+ *  should kick in, and — since 07.08.2026 — `compute`: narrating pre-computed
+ *  figures without letting the writer invent its own arithmetic needs the more
+ *  careful lane, not the speed one. See the `compute` entry below for the
+ *  incident that motivated it. */
 const MEDIUM: AutoLaneId = 'mistral-medium-3.5';
-/**
- * Lane D — GPT-OSS. The speed lane, and as of 2026-07-31 reserved for `direct`
- * ALONE.
- *
- * GPT-OSS is being wound down as a general-purpose lane. It keeps `direct`
- * because that turn is pure latency — no tools, no sources — and GPT-OSS is
- * the fastest thing available (verdigado-pro 1.4s to first token, its Regolo
- * overflow side 0.7s). Everywhere else it was picked for speed it is now
- * matched by Gemma 4 on Regolo (4.0s end to end, measured 2026-07-31) without
- * GPT-OSS's known weakness: it answers a forced tool call with prose, which is
- * what put a production PDF generation on the floor — see the artefact note in
- * services/ai/lanes.ts.
- */
-const FAST: AutoLaneId = 'litellm';
 
 /**
  * Intents the auto model genuinely cannot influence — the ONLY legitimate
@@ -136,7 +120,12 @@ const FAST: AutoLaneId = 'litellm';
  * With the exemption named, the table is exhaustive over SearchIntent and a new
  * intent breaks the build until someone decides.
  */
-export const AUTO_POLICY_EXEMPT = ['sharepic'] as const satisfies readonly SearchIntent[];
+export const AUTO_POLICY_EXEMPT = [
+  'sharepic',
+  // Ops come from sheetAiService, pinned to mistral-medium-2604 like
+  // create_sheet's; the answer text is a fixed template in handleSheetEdit.
+  'edit_sheet',
+] as const satisfies readonly SearchIntent[];
 type ExemptIntent = (typeof AUTO_POLICY_EXEMPT)[number];
 
 /**
@@ -150,41 +139,40 @@ type ExemptIntent = (typeof AUTO_POLICY_EXEMPT)[number];
  * means.
  */
 export const POLICY: Record<Exclude<SearchIntent, ExemptIntent>, AutoEntry> = {
-  // ── Lane A: Gemma 4 26B ──
+  // ── Content answers: Gemma 4 (31B, Regolo) ──
   // Synth summarises tool output; the planner makes the MCP calls.
-  mcp: { modelId: SMALL, reasoning: 'off' },
+  mcp: { modelId: GEMMA, reasoning: 'off' },
   // summarizeNode runs on the `heavy` intermediate stage — same tier.
-  summary: { modelId: SMALL, reasoning: 'off' },
-  chat_history: { modelId: SMALL, reasoning: 'off' },
+  summary: { modelId: GEMMA, reasoning: 'off' },
+  chat_history: { modelId: GEMMA, reasoning: 'off' },
   // Narration over an artefact that is already IN CONTEXT (numbers, chart data,
   // scraped text). The premise is load-bearing: this lane REPEATS figures, it
   // does not produce them. A turn on 02.08.2026 broke it — one figure had been
-  // computed, five were narrated — and Small 4 filled the gap with arithmetic of
-  // its own, marking `42.000 + 84.000 = 120.000` as correct. The fix is upstream
-  // (computeArithmeticBatch checks every claim, and the answer rule forbids
-  // ruling on anything outside the checked block), not a bigger writer here.
-  compute: { modelId: SMALL, reasoning: 'off' },
-  chart: { modelId: SMALL, reasoning: 'off' },
-  scrape_url: { modelId: SMALL, reasoning: 'off' },
+  // computed, five were narrated — and the writer filled the gap with
+  // arithmetic of its own, marking `42.000 + 84.000 = 120.000` as correct. Moved
+  // to Mistral Medium on 07.08.2026 rather than staying on the shared prose
+  // lane, so a regression here can't ride in on a change tuned for the other
+  // content intents. The upstream fix still stands (computeArithmeticBatch
+  // checks every claim, and the answer rule forbids ruling on anything outside
+  // the checked block) — this is belt-and-braces, not a replacement for it.
+  compute: { modelId: MEDIUM, reasoning: 'off' },
+  chart: { modelId: GEMMA, reasoning: 'off' },
+  scrape_url: { modelId: GEMMA, reasoning: 'off' },
   // Structured facts from system MCP sources — reporting, not writing.
-  bahn: { modelId: SMALL, reasoning: 'off' },
-  wetter: { modelId: SMALL, reasoning: 'off' },
-  hotel: { modelId: SMALL, reasoning: 'off' },
-  reise: { modelId: SMALL, reasoning: 'off' },
-  umfragen: { modelId: SMALL, reasoning: 'off' },
+  bahn: { modelId: GEMMA, reasoning: 'off' },
+  wetter: { modelId: GEMMA, reasoning: 'off' },
+  hotel: { modelId: GEMMA, reasoning: 'off' },
+  reise: { modelId: GEMMA, reasoning: 'off' },
+  umfragen: { modelId: GEMMA, reasoning: 'off' },
   // Reporting retrieved documentation sections back — the same shape as `mcp`
-  // above (planner fetches, synth summarises). Was silently taking the speed
-  // lane via DEFAULT_ENTRY; kept on a lane of the same tier so this commit
-  // fixes the omission without also changing what a hilfe turn costs.
-  // Moved off GPT-OSS with the 2026-07-31 wind-down. Same tier as before —
-  // Gemma 4 on Regolo answers in 4.0s — so a hilfe turn does not get slower.
+  // above (planner fetches, synth summarises).
   hilfe: { modelId: GEMMA, reasoning: 'off' },
   // `research_wrapper` lived here while a research turn only framed a
-  // ready-made answer in two sentences — a Lane-A task. With the research/web
-  // merge the model writes the whole answer from raw sources, so a research
-  // turn is ordinary synthesis and takes the default lane like `web` does.
+  // ready-made answer in two sentences. With the research/web merge the model
+  // writes the whole answer from raw sources, so a research turn is ordinary
+  // synthesis and takes the default lane like `web` does.
 
-  // ── Lane B: Gemma 4 ──
+  // ── Prose over sources: Gemma 4 (31B, Regolo) ──
   research: { modelId: GEMMA, reasoning: graded('low', 'medium', 'medium') },
   search: { modelId: GEMMA, reasoning: graded('low', 'low', 'medium') },
   web: { modelId: GEMMA, reasoning: graded('low', 'low', 'medium') },
@@ -200,7 +188,7 @@ export const POLICY: Record<Exclude<SearchIntent, ExemptIntent>, AutoEntry> = {
   social_post: { modelId: GEMMA, reasoning: 'off' },
   image: { modelId: GEMMA, reasoning: 'off' },
 
-  // ── Lane C: Mistral Medium 3.5 ──
+  // ── Mistral Medium 3.5 ──
   //
   // The "narrate a platform ACTION" family. These announce something the
   // platform did (or is about to do) that the model cannot see in its context —
@@ -228,25 +216,24 @@ export const POLICY: Record<Exclude<SearchIntent, ExemptIntent>, AutoEntry> = {
   // Same family as its three siblings above: generate structured content AND
   // narrate a platform action the model cannot see in its context. It was the
   // only create_* intent missing from the table, so it took the speed lane —
-  // exactly the setup the Lane C note documents as producing capability
-  // refusals ("Ich kann keine neuen Dateien erstellen") while the artefact is
-  // created anyway.
+  // exactly the setup the Mistral-lane note above documents as producing
+  // capability refusals ("Ich kann keine neuen Dateien erstellen") while the
+  // artefact is created anyway.
   create_pdf: { modelId: MEDIUM, reasoning: graded('medium', 'high', 'high') },
   // The router rewrites this to `agentic`; kept as a safety net.
   modify_board: { modelId: MEDIUM, reasoning: 'medium' },
   // The vision override in resolveModel wins over this anyway.
   image_edit: { modelId: MEDIUM, reasoning: 'off' },
 
-  // ── Lane D: GPT-OSS ──
-  // Same lane and grading as `direct`, whose supplied-substance half it took
-  // over: the substance is in the message, so the work is formulating, not
-  // reasoning — but a complex rewrite still earns `low`.
-  produktion: { modelId: FAST, reasoning: graded('off', 'off', 'low') },
-  direct: { modelId: FAST, reasoning: graded('off', 'off', 'low') },
+  // ── Short/direct turns: Gemma 4 (31B, Regolo) — the former speed lane, folded in on 07.08.2026 (see the lane comment above) ──
+  // Same grading as before: the substance is in the message, so the work is
+  // formulating, not reasoning — but a complex rewrite still earns `low`.
+  produktion: { modelId: GEMMA, reasoning: graded('off', 'off', 'low') },
+  direct: { modelId: GEMMA, reasoning: graded('off', 'off', 'low') },
   // Ungraded, unlike `direct`: a greeting has no complexity axis to grade on —
   // the gate that produces it only fires when the message is a greeting and
   // nothing else. Spending reasoning tokens on "Hallo" is pure latency.
-  greeting: { modelId: FAST, reasoning: 'off' },
+  greeting: { modelId: GEMMA, reasoning: 'off' },
 };
 
 /**
@@ -273,6 +260,14 @@ const HINT_OVERRIDABLE: ReadonlySet<string> = new Set([
   'agentic',
 ]);
 
+/**
+ * Output-contract shapes (see `taskShape.ts`, which imports this union so the
+ * detector and the policy cannot drift). Same override scope as the agent
+ * hint, same reasoning: a `create_sheet` turn is already on its pinned lane no
+ * matter what shape the text carries.
+ */
+export type TaskShape = 'code' | 'strict_format';
+
 function gradeReasoning(rule: ReasoningRule, complexity: Complexity): ReasoningSetting {
   return typeof rule === 'string' ? rule : rule[complexity];
 }
@@ -293,13 +288,22 @@ export interface AutoSelectionInput {
    * send `auto` doesn't silently land in the speed lane.
    */
   surface?: 'notebook' | null | undefined;
+  /**
+   * Output contract detected on the turn (`detectTaskShape`): machine-readable
+   * output (`code`) or an explicitly checkable format order (`strict_format`).
+   * Routes the neutral intents to the precise writer — which, second-order,
+   * also flips the loop to unified mode (`prefersUnifiedLoop`), so these turns
+   * never pass through the split synth that produced the QA run's broken JSON
+   * and ignored line counts.
+   */
+  taskShape?: TaskShape | null | undefined;
 }
 
 /**
  * Resolve `auto` to a concrete lane + reasoning strength.
  *
  * Order: surface pin → table lookup by intent → complexity grading → agent
- * hint override (neutral intents only).
+ * hint override → task-shape override (both on the neutral intents only).
  */
 export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
   const intent = input.intent ?? 'produktion';
@@ -315,15 +319,25 @@ export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
   // `intent` arrives as a wire string, so the lookup is a genuine boundary: the
   // table is exhaustive over SearchIntent at COMPILE time, but nothing stops a
   // caller passing something else at runtime, and that must still resolve to
-  // the speed lane rather than throw.
+  // DEFAULT_ENTRY (the Gemma content lane) rather than throw. Never point that
+  // default at GPT-OSS — an unlisted intent may force a tool call, which
+  // GPT-OSS answers with prose (see the DEFAULT_ENTRY note).
   const entry = (POLICY as Partial<Record<string, AutoEntry>>)[intent] ?? DEFAULT_ENTRY;
 
+  // `'creative'`/`'research'` hints are absent here on purpose: every
+  // HINT_OVERRIDABLE intent already defaults to GEMMA after the 07.08.2026
+  // lane fold, so those branches would be no-ops. Re-add a branch the day a
+  // HINT_OVERRIDABLE intent's default stops being GEMMA.
   let modelId = entry.modelId;
   if (HINT_OVERRIDABLE.has(intent) && input.agentId) {
     const hint = getSystemAgent(input.agentId)?.autoRoutingHint;
     if (hint === 'precise') modelId = MEDIUM;
-    else if (hint === 'creative') modelId = GEMMA;
-    else if (hint === 'research') modelId = GEMMA;
+  }
+  // AFTER the agent hint on purpose: an output contract is the user's own
+  // format order, and format fidelity beats an agent's voice preference. Same
+  // scope as the hint — a pinned tool intent stays on its lane regardless.
+  if (input.taskShape != null && HINT_OVERRIDABLE.has(intent)) {
+    modelId = MEDIUM;
   }
 
   return { modelId, reasoning: gradeReasoning(entry.reasoning, complexity) };

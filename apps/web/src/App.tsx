@@ -46,6 +46,9 @@ import { toastApiError } from './components/utils/toastError';
 // visitors and waited for the React boot to paint; inline removes that
 // dependency entirely. The same `termsAccepted` localStorage key gates both.
 const PopupWartung = lazy(() => import('./components/Popups/popup_wartung'));
+// Art.-9-Einwilligung vor der ersten KI-Nutzung. Lazy, weil abgemeldete
+// Besucher*innen ihn nie sehen und er nach der Zustimmung nie wieder rendert.
+const AiConsentGate = lazy(() => import('./features/auth/components/AiConsentGate'));
 // const CustomGrueneratorenPopup = lazy(() => import('./components/Popups/popup_custom_grueneratoren'));
 // const PopupAustriaLaunch = lazy(() => import('./components/Popups/popup_austria_launch'));
 
@@ -202,6 +205,9 @@ function App() {
               <GlobalBridges />
               <SettingsDialogHost />
               <SuspenseWrapper>
+                <AiConsentGate />
+              </SuspenseWrapper>
+              <SuspenseWrapper>
                 {/* <PopupAustriaLaunch /> */}
                 <div id="aria-live-region" aria-live="polite" className="sr-only" />
 
@@ -213,7 +219,7 @@ function App() {
                 Single auth model: auth-required is the default. A route opts
                 out by setting `public: true` in routes.ts. The marketing
                 startpage at `/` additionally redirects authenticated users
-                to `/workplace` via <HomeRedirect>.
+                to `/start` bzw. `/workplace` via <HomeRedirect>.
               */}
                   {routes.map(({ path, layoutMode, public: isPublic }) => {
                     const routeElement = (

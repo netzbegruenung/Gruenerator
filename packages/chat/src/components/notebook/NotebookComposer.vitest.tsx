@@ -19,10 +19,15 @@ import { NotebookComposer } from './NotebookComposer';
 import type { NotebookDepth } from '@gruenerator/contracts';
 
 // The composer itself is assistant-ui's; only the leading slot is under test.
+const composerProps: { showModelPicker?: boolean }[] = [];
 vi.mock('../thread/GrueneratorComposer', () => ({
-  GrueneratorComposer: ({ slots }: { slots?: { leading?: React.ReactNode } }) => (
-    <div>{slots?.leading}</div>
-  ),
+  GrueneratorComposer: (props: {
+    slots?: { leading?: React.ReactNode };
+    showModelPicker?: boolean;
+  }) => {
+    composerProps.push({ showModelPicker: props.showModelPicker });
+    return <div>{props.slots?.leading}</div>;
+  },
 }));
 vi.mock('@assistant-ui/store', () => ({
   useAuiState: () => false,
@@ -86,6 +91,14 @@ describe('NotebookComposer — depth control', () => {
     for (const tier of NOTEBOOK_DEPTHS) {
       expect(await screen.findByText(tier.description)).toBeVisible();
     }
+  });
+
+  it('hides the model picker — the depth is the notebook’s only quality choice', () => {
+    composerProps.length = 0;
+    renderComposer('deep');
+    // Both dropdowns were labelled Klein/Mittel/Ultra and meant different
+    // things; 'Automatisch' resolves to Ultra on notebooks anyway.
+    expect(composerProps.at(-1)?.showModelPicker).toBe(false);
   });
 
   it('leaves the control out entirely when the surface does not offer it', () => {

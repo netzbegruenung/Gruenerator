@@ -472,6 +472,10 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
       // Presentation/sheet from a compound loop turn — same metadata shape the
       // single-pass handlers persist, so the document card rehydrates on reload.
       ...(createdDocument && { createdDocument }),
+      // The spec a `create_pdf` tool call rendered from. PDF_SPEC persists the
+      // same key on the single-pass path; both doors must store it, or a later
+      // "ändere das PDF" finds nothing to build on (see loadLastPdfSpec).
+      ...(finalState.createdPdfSpec != null && { pdfSpec: finalState.createdPdfSpec }),
       // Deterministic calculation (computeNode / run_python) incl. base64
       // figures/files (capped) so the Berechnung card survives reloads. Gated
       // on computedResultFresh: clients forward the LAST result with every
@@ -665,6 +669,7 @@ async function saveThreadAttachmentsFromMeta(
             sizeBytes: meta.sizeBytes,
             isImage: meta.isImage,
             extractedText: meta.extractedText,
+            ...(meta.pageCount != null && { pageCount: meta.pageCount }),
             ...(meta.imageData != null && { imageData: meta.imageData }),
             ...(meta.fileData != null && { fileData: meta.fileData }),
           }),

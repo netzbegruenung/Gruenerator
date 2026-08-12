@@ -15,7 +15,7 @@
  * second entry — the same precedence `buildSystemMessage` applies for an
  * explicitly picked recipe.
  */
-import { SKILLS, getSystemAgent, type Skill } from '@gruenerator/shared/agents';
+import { DISABLED_LV_AGENT_IDS, SKILLS, type Skill } from '@gruenerator/shared/agents';
 
 import { deriveTextFormMention } from '../../../agents/langgraph/ChatGraph/nodes/textFormMention.js';
 import { getInternalSkillPrompt } from '../../../services/skills/internalPrompts.js';
@@ -47,11 +47,16 @@ function matchesAudience(audience: string | undefined, userLocale: string | null
 
 /**
  * Recipes of a Landesverband that was switched off must not be offered — the
- * same filter `agentsList` applies in the composer. The mention stays
+ * same switch `agentsList` applies in the composer. The mention stays
  * resolvable for legacy threads; it is only absent from the menu.
+ *
+ * Deliberately NOT `hiddenFromInventory`: that flag also marks active-but-
+ * unlisted agents (gruenerator-universal, the editor agents), and filtering on
+ * it silently dropped `wahlpruefstein` and `aktion` — recipes of the DEFAULT
+ * chat agent — from the catalogue.
  */
 function ownerIsVisible(identifier: string): boolean {
-  return getSystemAgent(identifier)?.hiddenFromInventory !== true;
+  return !DISABLED_LV_AGENT_IDS.has(identifier);
 }
 
 export async function buildRecipeCatalog(params: {

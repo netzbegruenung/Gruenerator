@@ -221,6 +221,32 @@ export async function runWebSearch(input: WebSearchInput): Promise<WebSearchOutp
 
     const result = await webSearchGraph.invoke(initialState);
 
+    // SearXNG was down for every query (searxngNode sets `criticalFailure`).
+    // Report it as an error rather than an empty success — the callers all
+    // branch on `status`, and "no results" is not the same answer as "the
+    // search engine is unreachable". Deep mode can still answer from party
+    // documents alone, so it only errors when those came back empty too.
+    if (result.metadata?.criticalFailure) {
+      const grundsatzCount = result.grundsatzResults?.results?.length ?? 0;
+      if (mode === 'normal' || grundsatzCount === 0) {
+        console.error('[WebSearchGraph] Web search provider unavailable — reporting failure');
+        return {
+          status: 'error' as const,
+          query: result.query,
+          results: [],
+          citations: [],
+          citationSources: [],
+          message: 'Die Websuche ist derzeit nicht erreichbar.',
+          error: result.error ?? 'Die Websuche ist derzeit nicht erreichbar.',
+          metadata: {
+            ...result.metadata,
+            searchType: mode,
+            errorOccurred: true,
+          } as SearchMetadata,
+        } satisfies NormalSearchOutput;
+      }
+    }
+
     // Format final output based on mode
     if (mode === 'normal') {
       // For normal mode, get results from the first successful web search

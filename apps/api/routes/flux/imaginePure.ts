@@ -7,13 +7,14 @@ import express, { type Response } from 'express';
 import { z } from 'zod';
 
 import { requireAuth } from '../../middleware/authMiddleware.js';
+import { requireAiConsent } from '../../middleware/requireAiConsent.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { ImageGenerationCounter } from '../../services/counters/index.js';
 import { FluxImageService, buildFluxPrompt } from '../../services/flux/index.js';
 import { getImageModelForUser } from '../../services/user/imageModelPreference.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
-import { addKiLabel } from '../sharepic/sharepic_canvas/imagine_label_canvas.js';
+import { applyKiLabel } from '../sharepic/sharepic_canvas/imagine_label_canvas.js';
 
 const log = createLogger('imaginePure');
 const router = express.Router();
@@ -102,6 +103,7 @@ function buildPurePrompt(
 router.post(
   '/',
   requireAuth,
+  requireAiConsent,
   validateBody(imaginePureSchema),
   async (req: TypedRequest<ImaginePureRequestBody>, res: Response) => {
     try {
@@ -237,8 +239,7 @@ router.post(
       const fluxImageBuffer = fs.readFileSync(fluxResult.filePath);
 
       const kiLabel = req.body.kiLabel ?? 'full';
-      const labeledBuffer =
-        kiLabel === 'none' ? fluxImageBuffer : await addKiLabel(fluxImageBuffer, kiLabel);
+      const labeledBuffer = await applyKiLabel(fluxImageBuffer, kiLabel);
 
       log.debug(`[ImaginePure] KI label (${kiLabel}), final size: ${labeledBuffer.length} bytes`);
 

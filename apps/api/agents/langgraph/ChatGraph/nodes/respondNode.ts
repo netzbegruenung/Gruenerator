@@ -9,7 +9,8 @@
 
 import { SKILLS } from '@gruenerator/shared/agents';
 
-import { getRetrievalBudget } from '../../../../routes/chat/services/messageHelpers.js';
+import { looksLikeChitchatTurn } from '../../../../routes/chat/services/agenticLoop/routing.js';
+import { fairShare, getRetrievalBudget } from '../../../../routes/chat/services/messageHelpers.js';
 import {
   embedUntrusted,
   INJECTION_WARNING_NOTE,
@@ -23,8 +24,8 @@ import {
 import { CONTENT_INTEGRITY_ANSWER_RULE } from '../../../../services/contentPolicy.js';
 import { buildDocsPageMap } from '../../../../services/docs/docsIndex.js';
 import { localizePlaceholders } from '../../../../services/localization/index.js';
-import { getInternalSkillPrompt } from '../../../../services/skills/internalPrompts.js';
 import { type Locale } from '../../../../services/localization/types.js';
+import { getInternalSkillPrompt } from '../../../../services/skills/internalPrompts.js';
 import { getTextFormForInjection } from '../../../../services/user/textFormRepository.js';
 import { recordDecision, type BranchOf } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
@@ -60,6 +61,14 @@ const ATTACHMENT_LIMITS = {
    *  32k one. */
   TOTAL_BUDGET_CHARS: 20000,
 };
+
+/**
+ * Floor per document when the total budget is split evenly across N
+ * attachments (see {@link limitAttachmentContext}). Keeps a "compare these 3
+ * files" turn from silently dropping the last file once the total budget is
+ * spent — every attachment gets at least this many characters.
+ */
+const ATTACHMENT_MIN_DOC_CHARS = 1500;
 
 /** Chars reserved for the "[...N Zeichen gekürzt...]" marker. */
 const TRUNCATION_MARKER_CHARS = 60;
@@ -106,7 +115,7 @@ export function truncateDocument(
  * Apply total budget limit to already-formatted attachment context.
  * Parses individual documents and truncates as needed.
  */
-function limitAttachmentContext(
+export function limitAttachmentContext(
   context: string,
   contextWindowTokens?: number,
   budget: number = ATTACHMENT_LIMITS.TOTAL_BUDGET_CHARS
@@ -137,30 +146,33 @@ function limitAttachmentContext(
     documents.push({ header, content });
   }
 
-  // Apply per-document limit and total budget
-  let totalChars = 0;
+  // Fair per-document share instead of first-come-first-served: with N
+  // attachments (e.g. "compare these 3 files"), every document gets a
+  // guaranteed slice of the budget rather than the first ones consuming it
+  // whole and later ones being dropped entirely. Mirrors the fan-out RAG
+  // path's `perSourceLimit` (searchNode.ts, executeMultiDocFanout).
+  const perDocBudget = fairShare(budget, ATTACHMENT_MIN_DOC_CHARS, documents.length);
+
   const limited: string[] = [];
-  let omittedCount = 0;
+  const omittedHeaders: string[] = [];
 
   for (const doc of documents) {
-    if (totalChars >= budget) {
-      omittedCount++;
+    if (!doc.content) {
+      omittedHeaders.push(doc.header.replace(/^### /, ''));
       continue;
     }
 
-    const remaining = budget - totalChars;
-    const perDocLimit = Math.min(ATTACHMENT_LIMITS.PER_DOCUMENT_CHARS, remaining);
+    const perDocLimit = Math.min(ATTACHMENT_LIMITS.PER_DOCUMENT_CHARS, perDocBudget);
     const truncated = truncateDocument(doc.content, perDocLimit);
 
     limited.push(`${doc.header}\n${truncated}`);
-    totalChars += truncated.length + doc.header.length + 1;
   }
 
-  if (omittedCount > 0) {
+  if (omittedHeaders.length > 0) {
     limited.push(
-      `\n[${omittedCount} weitere(s) Dokument(e) nicht einbezogen wegen Kontextbeschränkung]`
+      `\n[${omittedHeaders.length} Dokument(e) nicht einbezogen wegen Kontextbeschränkung: ${omittedHeaders.join(', ')}]`
     );
-    log.info(`[Attachment] Omitted ${omittedCount} documents due to context budget`);
+    log.info(`[Attachment] Omitted documents due to context budget: ${omittedHeaders.join(', ')}`);
   }
 
   const result = limited.join('\n\n---\n\n');
@@ -395,7 +407,10 @@ function formatPerSourceContext(state: ChatGraphState): string {
         return `(${s.id}.${i + 1}) **${r.title}**\n${content}`.trim();
       })
       .join('\n\n');
-    return `### Dokument ${s.id}: ${s.title}\n\n${inner}`;
+    // Label mirrors the inline path's "(Volltext-Auszug)" marker so the model
+    // knows this is a RAG excerpt, not the whole file — and that more can be
+    // fetched (see the expand_attachment tool) if the excerpt isn't enough.
+    return `### Dokument ${s.id}: ${s.title} (Ausschnitt, weitere Inhalte über Suche verfügbar)\n\n${inner}`;
   });
 
   return `\n\n## QUELLEN PRO DOKUMENT\n\n${blocks.join('\n\n')}\n\n---\n[Ende der dokumentbezogenen Quellen. Halte die Aussagen je Dokument auseinander.]`;
@@ -500,7 +515,13 @@ function formatThreadAttachmentsContext(
     // per-query RAG retrieval (searchNode), so don't also dump their full text
     // here (would duplicate and blow the budget). Small docs stay full-context.
     .filter((a) => !a.isImage && !a.documentId && (a.extractedText || a.summary))
-    .map((a, i) => `### ${i + 1}. ${a.name}\n\n${a.extractedText ?? a.summary}`)
+    .map((a, i) => {
+      // Tells the model whether it sees the full document or only a digest —
+      // otherwise it can't tell an inline full-text extract apart from a
+      // vectorized doc's RAG chunks and may present a partial view as complete.
+      const label = a.extractedText ? 'Volltext-Auszug' : 'Zusammenfassung';
+      return `### ${i + 1}. ${a.name} (${label})\n\n${a.extractedText ?? a.summary}`;
+    })
     .join('\n\n');
 
   if (docBlocks) {
@@ -764,30 +785,36 @@ const EDIT_CURRENT_DOC_GUIDANCE =
 const SUMMARY_GUIDANCE =
   '\nDer*die Nutzer*in hat eine Zusammenfassung angefordert. Präsentiere die vorbereitete Zusammenfassung klar und strukturiert.';
 
-const CHART_GUIDANCE = `\nDer*die Nutzer*in möchte ein Diagramm. Erstelle die Daten und gib sie als JSON-Block zurück.
-Schreibe zuerst eine kurze Erklärung (1-2 Sätze), dann den JSON-Block in diesem Format:
-
-\`\`\`chart
-{"type":"bar","title":"Titel","data":[{"name":"A","wert":10},{"name":"B","wert":20}],"xKey":"name","yKeys":["wert"]}
-\`\`\`
-
-Regeln:
-- type: "bar", "line", "area", "pie" oder "donut"
-- data: Array mit Objekten, jedes hat einen xKey und mindestens einen yKey
-- xKey: Name des Feldes für die X-Achse (z.B. "name", "monat", "jahr")
-- yKeys: Array der Feldnamen für die Werte (z.B. ["wert", "wert2"])
-- Verwende realistische, plausible Daten wenn keine konkreten Zahlen gegeben sind
-- Der JSON-Block MUSS in \`\`\`chart ... \`\`\` eingeschlossen sein`;
-
 /**
- * Chart guidance. When the run_python interrupt already computed the values
- * (chart over an attached spreadsheet), the model must chart EXACTLY those
- * numbers — the plain CHART_GUIDANCE's "plausible Daten" licence produced
+ * Chart guidance, in its two variants.
+ *
+ * `computed` is for the case where the run_python interrupt already produced the
+ * values (chart over an attached spreadsheet): the model must then chart EXACTLY
+ * those numbers, because the other variant's "plausible Daten" licence produced
  * fabricated category splits in beta.
+ *
+ * Composed rather than written out twice — the format block and half the rules
+ * are identical, and as two literals a rule added to one was invisible to the
+ * other.
  */
-function getChartGuidance(state: ChatGraphState): string {
-  if (state.computedResult && state.computedResultFresh) {
-    return `\nDer*die Nutzer*in möchte ein Diagramm. Die Werte wurden bereits deterministisch per Code berechnet (siehe BERECHNUNGSERGEBNIS) — verwende AUSSCHLIESSLICH diese Werte und erfinde KEINE Zahlen.
+function buildChartGuidance(computed: boolean): string {
+  const intro = computed
+    ? 'Der*die Nutzer*in möchte ein Diagramm. Die Werte wurden bereits deterministisch per Code berechnet (siehe BERECHNUNGSERGEBNIS) — verwende AUSSCHLIESSLICH diese Werte und erfinde KEINE Zahlen.'
+    : 'Der*die Nutzer*in möchte ein Diagramm. Erstelle die Daten und gib sie als JSON-Block zurück.';
+
+  const rules = computed
+    ? [
+        '- data: Array mit Objekten, jedes hat einen xKey und mindestens einen yKey — die Werte EXAKT aus dem BERECHNUNGSERGEBNIS übernehmen',
+        '- xKey: Name des Feldes für die X-Achse; yKeys: Array der Wert-Feldnamen',
+      ]
+    : [
+        '- data: Array mit Objekten, jedes hat einen xKey und mindestens einen yKey',
+        '- xKey: Name des Feldes für die X-Achse (z.B. "name", "monat", "jahr")',
+        '- yKeys: Array der Feldnamen für die Werte (z.B. ["wert", "wert2"])',
+        '- Verwende realistische, plausible Daten wenn keine konkreten Zahlen gegeben sind',
+      ];
+
+  return `\n${intro}
 Schreibe zuerst eine kurze Erklärung (1-2 Sätze), dann den JSON-Block in diesem Format:
 
 \`\`\`chart
@@ -796,21 +823,25 @@ Schreibe zuerst eine kurze Erklärung (1-2 Sätze), dann den JSON-Block in diese
 
 Regeln:
 - type: "bar", "line", "area", "pie" oder "donut"
-- data: Array mit Objekten, jedes hat einen xKey und mindestens einen yKey — die Werte EXAKT aus dem BERECHNUNGSERGEBNIS übernehmen
-- xKey: Name des Feldes für die X-Achse; yKeys: Array der Wert-Feldnamen
+${rules.join('\n')}
 - Der JSON-Block MUSS in \`\`\`chart ... \`\`\` eingeschlossen sein`;
-  }
+}
+
+const CHART_GUIDANCE = buildChartGuidance(false);
+
+function getChartGuidance(state: ChatGraphState): string {
+  if (state.computedResult && state.computedResultFresh) return buildChartGuidance(true);
   return CHART_GUIDANCE;
 }
 
 const ARTIFACT_GUIDANCE = `\nDer*die Nutzer*in möchte ein darstellbares Artefakt (HTML/CSS oder SVG). Schreibe zuerst eine kurze Erklärung (1-2 Sätze), dann GENAU EINEN Code-Block mit dem vollständigen, in sich geschlossenen Artefakt:
 
-- Für Web-/Layout-Inhalte: ein \`\`\`html-Block mit komplettem, eigenständigem HTML (inkl. \`<style>\` inline, KEINE externen Ressourcen, KEINE \`<script>\`-Tags — das Artefakt wird in einer gesperrten Sandbox ohne JavaScript gerendert).
+- Für Web-/Layout-Inhalte: ein \`\`\`html-Block mit komplettem, eigenständigem HTML (inkl. \`<style>\` inline). Inline \`<script>\`-Tags sind erlaubt und werden ausgeführt — das Artefakt läuft in einer Sandbox mit \`allow-scripts\` (opakes Origin, keine Netzwerkzugriffe: \`fetch\`/\`XHR\`/externe Bilder funktionieren dort NICHT). Interaktive Elemente wie Zähler, Formulare oder kleine Demos also gerne per Inline-Script umsetzen.
 - Für Vektorgrafiken/Diagramme/Icons: ein \`\`\`svg-Block mit einem vollständigen \`<svg>\`-Element (mit \`viewBox\`, ohne \`<script>\`).
 
 Regeln:
 - Nur EIN Code-Block, vollständig und eigenständig lauffähig.
-- Kein externer CSS-/JS-/Bild-Link, keine \`<script>\`-Tags (werden ohnehin entfernt).
+- Keine externen CSS-/JS-/Bild-Links und keine Netzwerkzugriffe (\`fetch\`, \`XHR\`, externe \`<img src="https://...">\`) — die Sandbox blockiert sie ohnehin. Nur Inline-\`<style>\`/\`<script>\` und \`data:\`-Bilder funktionieren.
 - Nutze wo passend die Grünen-Markenfarbe (#005538) und klares, barrierearmes Layout.`;
 
 // Compute guidance is state-aware (mirrors image/image_edit): when a
@@ -952,8 +983,33 @@ const SOURCE_HEDGING_RULE =
  * Gemma 4 and, less often, Mistral Medium), which is why it belongs in the
  * prompt rather than in the model choice.
  */
-const ARTEFACT_ACTION_GUIDANCE =
-  '\nWICHTIG: Der Grünerator legt Dokumente selbst an, ändert und teilt sie — das passiert automatisch, direkt nachdem du geantwortet hast. Behaupte deshalb NIEMALS, du könntest keine Dokumente oder Dateien erstellen, speichern oder teilen, und verweise NICHT auf Kopieren/Einfügen, ein Dateisystem oder einen Umweg über ein anderes Menü. Bestätige die Aktion knapp in einem Satz (z.B. „Ich lege das als Dokument an.") und schreibe den Inhalt NICHT noch einmal aus.';
+const ARTEFACT_CAPABILITY_NOTE =
+  '\nWICHTIG: Der Grünerator legt Dokumente selbst an, ändert und teilt sie — das passiert automatisch, direkt nachdem du geantwortet hast. Behaupte deshalb NIEMALS, du könntest keine Dokumente oder Dateien erstellen, speichern oder teilen, und verweise NICHT auf Kopieren/Einfügen, ein Dateisystem oder einen Umweg über ein anderes Menü.';
+
+/**
+ * save_as_doc / share_doc / modify_board: the answer text is NOT the artefact.
+ * save_as_doc re-generates the document from its own generator (Stage 4c) with
+ * the answer merely as context; share/board carry ids, not prose. Repeating the
+ * content here would only duplicate it into the chat.
+ */
+const ARTEFACT_CONFIRM_ONLY =
+  ' Bestätige die Aktion knapp in einem Satz (z.B. „Ich lege das als Dokument an.") und schreibe den Inhalt NICHT noch einmal aus.';
+
+/**
+ * modify_doc is the one intent where the answer text IS the artefact: the
+ * confirm card carries `newContent: fullText` (confirmActionService), and the
+ * confirm flow writes exactly that over the document.
+ *
+ * From 27b8a205a (23.07.2026) until this commit, modify_doc shared the
+ * confirm-only tail above — so the model was told to answer with a single
+ * sentence, and that sentence was the payload that would replace the whole
+ * document. Nobody hit it live only because the Yjs live-state guard in
+ * confirmController refuses the write for any document that was ever opened.
+ * Two independent things must therefore stay true together, which is why they
+ * are named in both places: the tail below and MIN_MODIFY_DOC_CONTENT_CHARS.
+ */
+const ARTEFACT_REWRITE_FULL =
+  ' Gib die vollständige neue Fassung des Dokuments aus — sie ersetzt den bisherigen Inhalt eins zu eins. Kürze nicht auf eine Zusammenfassung, lass keinen unveränderten Abschnitt weg und antworte nicht nur mit einer Bestätigung.';
 
 /**
  * Synthesis-mode guidance for multi-document chat.
@@ -1037,11 +1093,12 @@ export function getModeGuidance(state: ChatGraphState): string {
         getForbiddenActionNote(state)
       );
     case 'save_as_doc':
-      return DIRECT_GUIDANCE + ARTEFACT_ACTION_GUIDANCE;
+      return DIRECT_GUIDANCE + ARTEFACT_CAPABILITY_NOTE + ARTEFACT_CONFIRM_ONLY;
     case 'modify_doc':
+      return SEARCH_GUIDANCE + ARTEFACT_CAPABILITY_NOTE + ARTEFACT_REWRITE_FULL;
     case 'modify_board':
     case 'share_doc':
-      return SEARCH_GUIDANCE + ARTEFACT_ACTION_GUIDANCE;
+      return SEARCH_GUIDANCE + ARTEFACT_CAPABILITY_NOTE + ARTEFACT_CONFIRM_ONLY;
     case 'compare':
     case 'research':
     case 'search':
@@ -1471,12 +1528,36 @@ ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSu
   const rawSystemRole = isNeutralTurn ? NEUTRAL_SUMMARY_ROLE : agentConfig.systemRole;
   const systemRole = localizePlaceholders(rawSystemRole, (state.userLocale as Locale) || 'de-DE');
 
-  // Active-skill prompt fragment: appended only when the user's chat composer
-  // had a /skill mention active for this turn. Each platform skill carries its
-  // own spec (Insta 600 chars, Twitter 280, PM structure …) so the agent's
-  // base systemRole stays platform-agnostic and slim.
-  const activeSkill = state.activeSkillMention
-    ? SKILLS.find((s) => s.mention === state.activeSkillMention)
+  // Active-skill prompt fragment: appended when the user's chat composer had a
+  // /skill mention active for this turn. Each platform skill carries its own
+  // spec (Insta 600 chars, Twitter 280, PM structure …) so the agent's base
+  // systemRole stays platform-agnostic and slim.
+  //
+  // Without an explicit mention, the agent's `defaultRecipeMention` (its core
+  // text form, e.g. `presse-berlin`) fills in — but only on the single-pass
+  // path: on the agentic branch (`retrievalExpected`) the loop mounts
+  // `rezept_laden` and the model picks the recipe itself; baking one in here
+  // would double-inject and overrule that choice.
+  //
+  // Single-pass is a necessary condition, not a sufficient one: chitchat and
+  // help turns ("was kannst du?", "hilfe") also run single-pass with a
+  // non-neutral intent (`greeting`/`hilfe`, or `produktion` via the residual).
+  // They are not write turns — priming them with ~2k tokens of press-release
+  // formatting would waste the token bilanz this fallback exists to protect,
+  // so they are excluded the same way `isProductMetaQuestion`/`docsPageMap`
+  // already special-case them above.
+  const isWriteEligibleTurn =
+    !opts.retrievalExpected &&
+    !isNeutralTurn &&
+    intent !== 'greeting' &&
+    !looksLikeChitchatTurn(userQuestion) &&
+    !isProductMetaQuestion(userQuestion) &&
+    !docsPageMap;
+  const effectiveSkillMention =
+    state.activeSkillMention ??
+    (isWriteEligibleTurn ? (agentConfig.defaultRecipeMention ?? null) : null);
+  const activeSkill = effectiveSkillMention
+    ? SKILLS.find((s) => s.mention === effectiveSkillMention)
     : undefined;
 
   // Per-user learned writing style ("Texte anlernen") takes precedence over the
@@ -1486,7 +1567,7 @@ ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSu
   //   - custom mention (no system skill, e.g. /omveinladungen): injected as its
   //     own "## AKTIVE TEXTFORM" block onto the base agent.
   // See services/user/textFormRepository.ts (cached, no LLM on the hot path).
-  const textFormMention = deriveTextFormMention(state.activeSkillMention, activeSkill);
+  const textFormMention = deriveTextFormMention(effectiveSkillMention, activeSkill);
   const userTextForm =
     !isNeutralTurn && agentConfig.userId && textFormMention
       ? await getTextFormForInjection(agentConfig.userId, textFormMention)

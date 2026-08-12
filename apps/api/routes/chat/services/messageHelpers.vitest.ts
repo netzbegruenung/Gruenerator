@@ -4,6 +4,8 @@ import {
   CONTEXT_CONFIG,
   getPruningBudget,
   sanitizeContentPartsForModel,
+  fairShare,
+  sanitizeUIFileParts,
 } from './messageHelpers.js';
 
 describe('getPruningBudget', () => {
@@ -27,6 +29,28 @@ describe('getPruningBudget', () => {
 
   it('never prunes below the floor for tiny declared windows', () => {
     expect(getPruningBudget(4096)).toBe(8000);
+  });
+});
+
+describe('fairShare', () => {
+  it('splits evenly when the floor is not binding', () => {
+    expect(fairShare(12, 3, 3)).toBe(4);
+    expect(fairShare(9000, 1500, 3)).toBe(3000);
+  });
+
+  it('holds the floor instead of starving an item when N is large', () => {
+    // The reason this exists: without a floor, a 3-file comparison degrades
+    // toward zero per file as N grows instead of staying usable.
+    expect(fairShare(12, 3, 10)).toBe(3);
+    expect(fairShare(5000, 1500, 10)).toBe(1500);
+  });
+
+  it('gives the whole budget to a single item', () => {
+    expect(fairShare(9000, 1500, 1)).toBe(9000);
+  });
+
+  it('falls back to the floor for a non-positive item count', () => {
+    expect(fairShare(9000, 1500, 0)).toBe(1500);
   });
 });
 
@@ -60,5 +84,40 @@ describe('sanitizeContentPartsForModel', () => {
     const [sanitized] = sanitizeContentPartsForModel(messages as never);
 
     expect(sanitized.content).toHaveLength(1);
+  });
+});
+
+describe('sanitizeUIFileParts', () => {
+  it('drops file parts without a url so convertToModelMessages cannot throw', () => {
+    // What the composer merges in for a pasted-text attachment.
+    const { messages, droppedFileParts } = sanitizeUIFileParts([
+      {
+        role: 'user',
+        parts: [
+          { type: 'text', text: 'fasse das zusammen' },
+          { type: 'file', name: 'Eingefügter Text.txt', mimeType: 'text/plain', data: 'abc' },
+        ],
+      },
+    ]);
+
+    expect(droppedFileParts).toBe(1);
+    expect(messages[0].parts).toEqual([{ type: 'text', text: 'fasse das zusammen' }]);
+  });
+
+  it('keeps valid file parts and returns untouched messages by identity', () => {
+    const input = [
+      {
+        role: 'user',
+        parts: [
+          { type: 'file', url: 'https://example.org/a.pdf', mediaType: 'application/pdf' },
+          { type: 'file', providerReference: 'ref_1', mediaType: 'application/pdf' },
+        ],
+      },
+    ];
+
+    const { messages, droppedFileParts } = sanitizeUIFileParts(input);
+
+    expect(droppedFileParts).toBe(0);
+    expect(messages[0]).toBe(input[0]);
   });
 });

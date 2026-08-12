@@ -7,10 +7,46 @@
  * 3. Update Keycloak & nginx (external configs)
  */
 
+import { domainToASCII } from 'node:url';
+
 import { env } from './env.js';
 
 export const PRIMARY_DOMAIN = env.PRIMARY_DOMAIN;
 export const PRIMARY_URL = `https://${PRIMARY_DOMAIN}`;
+
+/**
+ * Umlaut-Domains, aus denen die A-Label (`xn--…`) berechnet werden.
+ *
+ * Nicht von Hand eintragen: Punycode ist keine Zeichenersetzung, sondern eine
+ * Kodierung über das ganze Label — die vorherigen handgeschriebenen Einträge
+ * dekodierten zu `grenïerator-test.de`, `netzbegrnungë.verdigado.net` und
+ * einmal zu gar nichts (`xn--grenerator-z2a.de` ist kein gültiges A-Label, die
+ * WHATWG-URL-Analyse lehnt es ab). Der Browser schickt `Origin` immer als
+ * A-Label, also stand die echte Umlaut-Domain nie in der Liste und wurde
+ * blockiert.
+ */
+const UNICODE_DOMAINS: string[] = [
+  'grünerator.de',
+  'www.grünerator.de',
+  'beta.grünerator.de',
+  'grünerator-test.de',
+  'www.grünerator-test.de',
+  'grünerator.netzbegrünung.verdigado.net',
+  'www.grünerator.netzbegrünung.verdigado.net',
+  'grünerator-test.netzbegrünung.verdigado.net',
+  'www.grünerator-test.netzbegrünung.verdigado.net',
+];
+
+/**
+ * Beide Schreibweisen: der `Origin`-Header trägt das A-Label, während
+ * `x-forwarded-host` und Konfigurationswerte auch die U-Label-Form führen
+ * können. `domainToASCII` gibt bei ungültiger Eingabe '' zurück — das wird
+ * verworfen, damit ein Tippfehler nicht als leerer Eintrag mitläuft.
+ */
+const IDN_DOMAINS: string[] = UNICODE_DOMAINS.flatMap((domain) => {
+  const ascii = domainToASCII(domain);
+  return ascii ? [domain, ascii] : [domain];
+});
 
 export const ALLOWED_DOMAINS: string[] = [
   PRIMARY_DOMAIN,
@@ -36,16 +72,7 @@ export const ALLOWED_DOMAINS: string[] = [
   'www.gruenerator.netzbegruenung.verdigado.net',
   'gruenerator-test.netzbegruenung.verdigado.net',
   'www.gruenerator-test.netzbegruenung.verdigado.net',
-  'xn--grenerator-z2a.de',
-  'www.xn--grenerator-z2a.de',
-  'beta.xn--grenerator-z2a.de',
-  'xn--grenerator-test-4pb.de',
-  'www.xn--grenerator-test-4pb.de',
-  'xn--grenerator-z2a.xn--netzbegrnung-dfb.verdigado.net',
-  'www.xn--grenerator-z2a.xn--netzbegrnung-dfb.verdigado.net',
-  'xn--grenerator-test-4pb.xn--netzbegrnung-dfb.verdigado.net',
-  'www.xn--grenerator-test-4pb.xn--netzbegrnung-dfb.verdigado.net',
-  'www.xn--grnerator-z2a.xn--netzbegrnung-dfb.verdigado.net',
+  ...IDN_DOMAINS,
 ];
 
 export const DEV_DOMAINS: string[] = ['localhost', '127.0.0.1'];

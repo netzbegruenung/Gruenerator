@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  PiAnchor,
   PiBuildings,
   PiCastleTurret,
   PiFlowerLight,
@@ -48,6 +49,13 @@ const TILES: LvTile[] = [
     insta: '/insta-berlin',
   },
   {
+    id: 'hamburg',
+    Icon: PiAnchor,
+    mention: '@hamburg',
+    presse: '/presse-hamburg',
+    insta: '/insta-hamburg',
+  },
+  {
     id: 'mecklenburg-vorpommern',
     Icon: PiWaves,
     mention: '@mv',
@@ -73,7 +81,6 @@ const TILES: LvTile[] = [
     Icon: PiMountains,
     mention: '@bayern',
     presse: '/presse-bayern',
-    insta: '/insta-bayern',
   },
   { id: 'sachsen-anhalt', Icon: PiCastleTurret, mention: '@sachsen-anhalt' },
   { id: 'hessen', Icon: PiLeaf, mention: '@hessen' },
@@ -104,11 +111,13 @@ export default function AgentTiles(): React.JSX.Element {
                 {label.title}
               </a>
             </div>
-            <p className={styles.kinds}>Öffentlichkeitsarbeit · Bürger*innenanfragen</p>
-            {tile.presse && tile.insta && (
+            <p className={styles.kinds}>
+              Öffentlichkeitsarbeit · Bürger*innenanfragen · Wahlprüfsteine
+            </p>
+            {(tile.presse ?? tile.insta) && (
               <div className={styles.chips}>
-                <span className={styles.chip}>{tile.presse}</span>
-                <span className={styles.chip}>{tile.insta}</span>
+                {tile.presse && <span className={styles.chip}>{tile.presse}</span>}
+                {tile.insta && <span className={styles.chip}>{tile.insta}</span>}
               </div>
             )}
             <a className={styles.notebook} href={`${APP}/notebooks/${label.notebook}`}>

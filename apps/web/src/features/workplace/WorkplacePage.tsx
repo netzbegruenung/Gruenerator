@@ -12,8 +12,10 @@ import { cn } from '@/utils/cn';
 
 import './workplace-sunrise.css';
 
-// Each tab is its own chunk so the default Chat tab paints without pulling
-// office/docs into its bundle. (Wissen is now a standalone /wissen page.)
+// Gemeinsame Hülle für die zwei Flächen: Chat auf `/start`, Arbeiten auf
+// `/workplace`. Welche gerendert wird, steht im Pfad — die Route reicht nichts
+// durch. Jede Fläche ist ihr eigener Chunk, damit der Chat-Einstieg malt, ohne
+// Office/Docs mitzuladen. (Wissen ist die eigenständige /wissen-Seite.)
 const ArbeitenTab = lazy(() => import('./tabs/ArbeitenTab'));
 
 // Arbeiten mirrors the (weakened) notebook radial gradient, green-tinted.
@@ -69,8 +71,11 @@ const WorkplacePage = () => {
       >
         {tab === 'chat' ? (
           // Minimal chat hero, vertically centered in the viewport (design:
-          // the chat panel is a flex column with justify-center).
-          <div className="flex min-h-0 flex-1 flex-col justify-center-safe overflow-y-auto pb-[6vh] pt-16">
+          // the chat panel is a flex column with justify-center). Die Tastaturhöhe
+          // (useMobileKeyboardOffset, gesetzt vom Composer) kürzt die Spalte, damit
+          // „zentriert" den sichtbaren Bereich meint und nicht den von der Tastatur
+          // verdeckten — `interactive-widget=resizes-visual` lässt 100dvh stehen.
+          <div className="flex min-h-0 flex-1 flex-col justify-center-safe overflow-y-auto pb-[calc(6vh_+_var(--mobile-keyboard-offset,0px))] pt-16">
             <WorkplaceChatTab />
           </div>
         ) : (

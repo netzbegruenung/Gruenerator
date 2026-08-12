@@ -131,6 +131,21 @@ const CRAWL_SNIPPET_CHARS = 8_000;
 const CRAWL_DISTILL_TARGET_CHARS = 8_000;
 
 /**
+ * Chunk limit for `expand_attachment`'s vectorized-doc path — well above the
+ * fan-out's per-source share (searchNode.ts, FANOUT_MIN_CHUNKS_PER_SOURCE),
+ * since this is a deliberate "give me more of this one file" call, not an
+ * even split across many sources competing for the same budget.
+ */
+const EXPAND_ATTACHMENT_CHUNK_LIMIT = 20;
+
+/**
+ * Registration cap for a full inline attachment text handed back via
+ * `expand_attachment`. Same reasoning as `CRAWL_SNIPPET_CHARS`: a deliberate
+ * reread of a named file deserves more room than an ordinary search snippet.
+ */
+const EXPAND_ATTACHMENT_SNIPPET_CHARS = 12_000;
+
+/**
  * Crawl budget for `tiefenrecherche` — the ONE tier that reads pages.
  *
  * Until this existed the loop never crawled: `directSearchExecutors` does not
@@ -465,6 +480,94 @@ NUTZE WENN:
         // the headline.
         const sources = sourceRegistry.register(results, { snippetChars: CRAWL_SNIPPET_CHARS });
         return { resultCount: results.length, sources };
+      },
+    });
+  }
+
+  // expand_attachment: recovers from the fair-split budget in
+  // limitAttachmentContext (respondNode.ts) and the fan-out's per-source chunk
+  // cap (executeMultiDocFanout, searchNode.ts) by pulling more content for ONE
+  // named attachment on demand — see docs/chat-context-memory-paths.md,
+  // "Mehrdokument-Fan-out" (M4).
+  //
+  // Scope note: only resolves attachments carried over from a PRIOR turn
+  // (`state.threadAttachments`, which has a stable id + optional documentId
+  // per file). A file uploaded THIS turn has no such stable, name-addressable
+  // record once contextEnrichmentService.ts has routed and discarded its
+  // local `processedMeta` — closing that gap needs a state-schema addition,
+  // out of scope here.
+  if (loop && !researchBanned) {
+    tools.expand_attachment = tool({
+      description: `Lädt mehr Inhalt aus einer Datei nach, die in einem früheren Turn dieses Gesprächs hochgeladen wurde, wenn der bisher gezeigte Auszug für die Aufgabe (z. B. einen Vergleich mehrerer Dateien) nicht ausreicht.
+
+NUTZE WENN:
+- Eine Auslassungs-Meldung oder ein "(Ausschnitt, weitere Inhalte über Suche verfügbar)"-Hinweis eine Datei nennt, die du für die Antwort brauchst
+- Ein Dateivergleich mit dem bisher gezeigten Auszug erkennbar unvollständig wäre
+
+Übergib den exakten Dateinamen. Funktioniert nur für Anhänge aus früheren Turns dieses Gesprächs, nicht für Dateien, die gerade erst in dieser Nachricht hochgeladen wurden.`,
+      inputSchema: z.object({
+        attachmentName: z
+          .string()
+          .describe('Exakter Dateiname des Anhangs aus einem früheren Turn'),
+      }),
+      execute: async ({ attachmentName }) => {
+        const attachment = (loop.state.threadAttachments ?? []).find(
+          (a) => a.name.toLowerCase() === attachmentName.toLowerCase()
+        );
+        if (!attachment) {
+          return {
+            error:
+              `Keine Datei namens "${attachmentName}" aus einem früheren Turn gefunden. ` +
+              `In dieser Nachricht neu hochgeladene Dateien lassen sich derzeit nicht gezielt nachladen.`,
+          };
+        }
+
+        // Vectorized (large) doc: pull a much bigger sample than the fan-out's
+        // per-source share via a fresh, uncapped-relative-to-fanout query.
+        if (attachment.documentId) {
+          const documentSearchService = (
+            await import('../../../services/document-services/DocumentSearchService/index.js')
+          ).getQdrantDocumentService();
+          const query = loop.state.lastUserTextNoMentions ?? lastUserText(loop.state);
+          const response = await documentSearchService.search({
+            query,
+            userId: agentConfig.userId,
+            options: { limit: EXPAND_ATTACHMENT_CHUNK_LIMIT, mode: 'hybrid', threshold: 0.15 },
+            filters: { documentIds: [attachment.documentId] },
+          });
+          const results: SearchResult[] = (response.results || []).map((r) => ({
+            source: `attachment:${attachment.id}`,
+            title: r.title || attachment.name,
+            content: r.relevant_content || '',
+            ...(r.source_url ? { url: r.source_url } : {}),
+            relevance: r.similarity_score ?? 0.5,
+          }));
+          if (results.length === 0) {
+            return { error: `Konnte keine weiteren Inhalte aus "${attachmentName}" laden.` };
+          }
+          const sources = sourceRegistry.register(results);
+          if (!sources) return { error: `Konnte "${attachmentName}" nicht nachladen.` };
+          return { resultCount: results.length, sources };
+        }
+
+        // Inline (small) doc: the full text already lives on threadAttachments,
+        // untruncated — truncation only happens in the rendered prompt, not here.
+        if (attachment.extractedText) {
+          const results: SearchResult[] = [
+            {
+              source: `attachment:${attachment.id}`,
+              title: attachment.name,
+              content: attachment.extractedText,
+            },
+          ];
+          const sources = sourceRegistry.register(results, {
+            snippetChars: EXPAND_ATTACHMENT_SNIPPET_CHARS,
+          });
+          if (!sources) return { error: `Konnte "${attachmentName}" nicht nachladen.` };
+          return { resultCount: 1, sources };
+        }
+
+        return { error: `"${attachmentName}" enthält keinen nachladbaren Text.` };
       },
     });
   }

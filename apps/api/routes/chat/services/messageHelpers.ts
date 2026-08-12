@@ -106,6 +106,19 @@ export function getRetrievalBudget(
 }
 
 /**
+ * Split a fixed budget evenly across N items, with a floor so no item is
+ * starved to zero when N grows. Deliberately no ceiling on the total: with
+ * many items the sum can exceed `total` — the same soft-floor tradeoff
+ * {@link getRetrievalBudget} makes, accepted so that every item (chunk slot,
+ * attachment, source) keeps a guaranteed minimum share instead of the first
+ * ones consuming the whole budget and starving the rest.
+ */
+export function fairShare(total: number, floorPerItem: number, itemCount: number): number {
+  if (itemCount <= 0) return floorPerItem;
+  return Math.max(floorPerItem, Math.floor(total / itemCount));
+}
+
+/**
  * Extract text content from a ModelMessage content field.
  * Handles both string content and AI SDK v6 parts array format.
  */
@@ -186,6 +199,46 @@ export function filterEmptyAssistantMessages(messages: ModelMessage[]): ModelMes
     }
     return true;
   });
+}
+
+/**
+ * Drop UI file parts that carry no resolvable `url` BEFORE convertToModelMessages().
+ *
+ * The SDK maps every `type:'file'`/`'reasoning-file'` part through `new URL(part.url)`,
+ * so a part shaped `{type:'file', name, mimeType, data}` (what the composer merges in
+ * for attachments) throws `TypeError: Invalid URL` and kills the whole turn — most
+ * visibly when pasting long text, which the composer turns into a text attachment.
+ *
+ * Nothing is lost: file parts are dropped again after conversion by
+ * sanitizeContentPartsForModel(), and the file content reaches the model through
+ * processAttachments() → attachmentContext.
+ */
+export function sanitizeUIFileParts<T extends { parts?: unknown }>(
+  messages: readonly T[]
+): {
+  messages: T[];
+  droppedFileParts: number;
+} {
+  let droppedFileParts = 0;
+
+  const sanitized = messages.map((message) => {
+    if (!Array.isArray(message.parts)) return message;
+
+    const parts = message.parts as Array<Record<string, unknown> | null>;
+    const kept = parts.filter((part) => {
+      if (!part || typeof part !== 'object') return true;
+      if (part.type !== 'file' && part.type !== 'reasoning-file') return true;
+      if (part.providerReference != null) return true;
+      if (typeof part.url === 'string' && part.url.length > 0) return true;
+      droppedFileParts++;
+      return false;
+    });
+
+    if (kept.length === parts.length) return message;
+    return { ...message, parts: kept } as T;
+  });
+
+  return { messages: sanitized, droppedFileParts };
 }
 
 /**

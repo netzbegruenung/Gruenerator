@@ -372,6 +372,13 @@ export const EXAMPLES: CapabilityExample[] = [
     ],
   },
   {
+    intent: 'edit_sheet',
+    group: 'bearbeiten',
+    label: 'Eine erstellte Tabelle ändern',
+    hint: 'Direkt nach dem Erstellen weiterschreiben — der Grünerator merkt sich die zuletzt erstellte Tabelle.',
+    questions: ['Mach die erste Zeile fett.', 'Ergänze eine Summenzeile am Ende der Tabelle.'],
+  },
+  {
     intent: 'edit_current_doc',
     group: 'bearbeiten',
     label: 'Das offene Dokument ändern',

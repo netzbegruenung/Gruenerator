@@ -73,6 +73,28 @@ export function buildConnectAttachment(file: ConnectFileToken): MentionAttachmen
   );
 }
 
+/**
+ * Normalize user input to an absolute http(s) URL, or null if it isn't one.
+ *
+ * Lives beside `buildWebpageAttachment` rather than in the web popover: both
+ * platforms take a URL by hand (web popover, mobile picker sheet), and the
+ * scheme-completion and the "must contain a dot" rule are exactly the kind of
+ * detail that drifts once it is written twice.
+ */
+export function normalizeWebpageUrl(input: string): string | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+  const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  try {
+    const url = new URL(withScheme);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+    if (!url.hostname.includes('.')) return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
 /** A web page the user pasted or picked. Named by host, since the full URL
  *  makes an unreadable chip. */
 export function buildWebpageAttachment(url: string): MentionAttachment {

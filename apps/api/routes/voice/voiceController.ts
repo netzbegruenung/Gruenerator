@@ -9,6 +9,7 @@
 
 import fs from 'fs';
 
+import { MAX_AUDIO_BYTES, MAX_AUDIO_MB, MAX_AUDIO_MINUTES } from '@gruenerator/contracts';
 import express, { type Request, type Response, type Router } from 'express';
 import multer, { type FileFilterCallback } from 'multer';
 import { z } from 'zod';
@@ -25,7 +26,10 @@ import mistralVoiceService from '../../services/voice/mistralVoiceService.js';
 import { identifySpeakers } from '../../services/voice/protokollService.js';
 import {
   extractAudioFromVideo,
+  extractAudioFromVideoPath,
   isVideoFile,
+  mayExceedChunkLimit,
+  probeBufferDurationSeconds,
   transcribeBuffer,
   type TranscriptionOptions,
   type TranscriptionSegment,
@@ -151,11 +155,13 @@ router.post(
     };
 
     try {
+      let knownDurationSeconds: number | null = null;
       if (isVideoFile(req.file.mimetype)) {
         log.debug('[Voice] Video detected, extracting audio from:', filename);
         const extracted = await extractAudioFromVideo(req.file.buffer, filename);
         audioBuffer = extracted.buffer;
         filename = extracted.filename;
+        knownDurationSeconds = extracted.durationSeconds;
         log.debug(
           '[Voice] Audio extracted:',
           filename,
@@ -165,7 +171,7 @@ router.post(
 
       log.debug('[Voice] Starting transcription for:', filename, 'Options:', options);
 
-      const result = await transcribeBuffer(audioBuffer, filename, options);
+      const result = await transcribeBuffer(audioBuffer, filename, options, knownDurationSeconds);
 
       let speakerMap: Record<string, string> = {};
       if (options.diarize && result.text.includes('[speaker_')) {
@@ -228,6 +234,7 @@ router.post('/transcribe/stream', upload.single('audio'), (async (
   const sse = createSSEStream(res);
 
   try {
+    let knownDurationSeconds: number | null = null;
     if (isVideoFile(req.file.mimetype)) {
       log.debug('[Voice] Video detected, extracting audio from:', filename);
       sse.sendRaw('extraction_start', { type: 'extraction_start' });
@@ -239,6 +246,7 @@ router.post('/transcribe/stream', upload.single('audio'), (async (
       });
       audioBuffer = extracted.buffer;
       filename = extracted.filename;
+      knownDurationSeconds = extracted.durationSeconds;
 
       const audioSizeMB = +(audioBuffer.length / 1024 / 1024).toFixed(1);
       log.debug('[Voice] Audio extracted:', filename, `(${audioSizeMB} MB)`);
@@ -255,7 +263,7 @@ router.post('/transcribe/stream', upload.single('audio'), (async (
         ...(diarize && { diarize: true }),
       };
 
-      const result = await transcribeBuffer(audioBuffer, filename, options);
+      const result = await transcribeBuffer(audioBuffer, filename, options, knownDurationSeconds);
 
       let speakerMap: Record<string, string> = {};
       if (diarize && result.text.includes('[speaker_')) {
@@ -272,14 +280,32 @@ router.post('/transcribe/stream', upload.single('audio'), (async (
         speakerMap,
       });
     } else {
-      // Streaming transcription — Voxtral only (Whisper has no streaming API)
-
-      for await (const event of mistralVoiceService.transcribeFromBufferStream(
-        audioBuffer,
-        filename,
-        { language }
-      )) {
-        sse.sendRaw(event.type, event);
+      // Streaming transcription — Voxtral only (Whisper has no streaming API).
+      // The streaming API has no chunking and shares the per-call duration
+      // ceiling, so anything longer falls back to the chunked non-streaming
+      // path instead of dying inside the provider SDK mid-stream.
+      const duration =
+        knownDurationSeconds ??
+        (mayExceedChunkLimit(audioBuffer)
+          ? await probeBufferDurationSeconds(audioBuffer, filename)
+          : null);
+      if (duration != null && duration > MAX_AUDIO_MINUTES * 60) {
+        const result = await transcribeBuffer(audioBuffer, filename, { language }, duration);
+        sse.sendRaw('done', {
+          type: 'done',
+          text: result.text,
+          segments: result.segments,
+          hasTimestamps: result.hasTimestamps,
+          speakerMap: {},
+        });
+      } else {
+        for await (const event of mistralVoiceService.transcribeFromBufferStream(
+          audioBuffer,
+          filename,
+          { language }
+        )) {
+          sse.sendRaw(event.type, event);
+        }
       }
     }
   } catch (error) {
@@ -316,23 +342,42 @@ router.post(
       markUploadAsProcessed(uploadId);
       const uploadStatus = await getUploadStatus(uploadId);
       const meta = uploadStatus.metadata?.metadata as Record<string, string> | undefined;
-      let audioBuffer: Buffer = Buffer.from(await fs.promises.readFile(filePath));
       let filename = sanitizeFilename(meta?.filename || 'audio.mp3', 'audio.mp3');
       const filetype = meta?.filetype || '';
       const needsFullTranscription = diarize || timestamps;
 
+      let audioBuffer: Buffer;
+      let knownDurationSeconds: number | null = null;
       if (isVideoFile(filetype)) {
         log.debug('[Voice] TUS upload is video, extracting audio from:', filename);
         sse.sendRaw('extraction_start', { type: 'extraction_start' });
-        const extracted = await extractAudioFromVideo(audioBuffer, filename, {
+        const extracted = await extractAudioFromVideoPath(filePath, filename, {
           onProgress: (percent, timemark) => {
             sse.sendRaw('extraction_progress', { type: 'extraction_progress', percent, timemark });
           },
         });
         audioBuffer = extracted.buffer;
         filename = extracted.filename;
+        knownDurationSeconds = extracted.durationSeconds;
         const audioSizeMB = +(audioBuffer.length / 1024 / 1024).toFixed(1);
         sse.sendRaw('extraction_complete', { type: 'extraction_complete', audioSizeMB });
+      } else {
+        // /api/audio/upload's TUS ceiling is MAX_VIDEO_UPLOAD_BYTES (3GB) for the
+        // whole path, video and audio alike — video never buffers fully (see
+        // extractAudioFromVideoPath above), but a non-video upload lands here and
+        // would otherwise buffer the entire file. Gate it at the audio-specific
+        // ceiling instead of trusting client-supplied `filetype`.
+        const uploadSize = uploadStatus.metadata?.size ?? 0;
+        if (uploadSize > MAX_AUDIO_BYTES) {
+          void scheduleImmediateCleanup(uploadId, 'audio upload exceeds MAX_AUDIO_BYTES');
+          sse.sendRaw('error', {
+            type: 'error',
+            text: `Datei ist zu groß. Maximal ${MAX_AUDIO_MB}MB für Audio-Uploads.`,
+          });
+          sse.end();
+          return;
+        }
+        audioBuffer = Buffer.from(await fs.promises.readFile(filePath));
       }
 
       log.debug('[Voice] Starting TUS streaming transcription for:', filename);
@@ -345,7 +390,7 @@ router.post(
           ...(diarize && { diarize: true }),
         };
 
-        const result = await transcribeBuffer(audioBuffer, filename, options);
+        const result = await transcribeBuffer(audioBuffer, filename, options, knownDurationSeconds);
 
         let speakerMap: Record<string, string> = {};
         if (diarize && result.text.includes('[speaker_')) {
@@ -360,12 +405,31 @@ router.post(
           speakerMap,
         });
       } else {
-        for await (const event of mistralVoiceService.transcribeFromBufferStream(
-          audioBuffer,
-          filename,
-          { language }
-        )) {
-          sse.sendRaw(event.type, event);
+        // The streaming API has no chunking and shares the per-call duration
+        // ceiling, so anything longer falls back to the chunked non-streaming
+        // path instead of dying inside the provider SDK mid-stream.
+        const duration =
+          knownDurationSeconds ??
+          (mayExceedChunkLimit(audioBuffer)
+            ? await probeBufferDurationSeconds(audioBuffer, filename)
+            : null);
+        if (duration != null && duration > MAX_AUDIO_MINUTES * 60) {
+          const result = await transcribeBuffer(audioBuffer, filename, { language }, duration);
+          sse.sendRaw('done', {
+            type: 'done',
+            text: result.text,
+            segments: result.segments,
+            hasTimestamps: result.hasTimestamps,
+            speakerMap: {},
+          });
+        } else {
+          for await (const event of mistralVoiceService.transcribeFromBufferStream(
+            audioBuffer,
+            filename,
+            { language }
+          )) {
+            sse.sendRaw(event.type, event);
+          }
         }
       }
 

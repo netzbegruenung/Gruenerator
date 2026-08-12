@@ -202,8 +202,20 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
     try {
       let videoPath: string;
       if (projectId) {
+        // SECURITY: scope the project lookup to the authenticated owner. Using the
+        // unscoped getProjectById here let any user export another user's video by
+        // passing its project id (IDOR → cross-tenant read via the exportToken).
+        const userId = getUserId(args.req);
+        if (!userId) {
+          return { status: 404 as const, body: { error: 'Projekt nicht gefunden' } };
+        }
         const ps = await getProjectService();
-        const proj = await ps.getProjectById(projectId);
+        let proj: Awaited<ReturnType<typeof ps.getProject>> | null = null;
+        try {
+          proj = await ps.getProject(userId, projectId);
+        } catch {
+          return { status: 404 as const, body: { error: 'Projekt nicht gefunden' } };
+        }
         if (!proj?.video_path) {
           return { status: 404 as const, body: { error: 'Projekt nicht gefunden' } };
         }

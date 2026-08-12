@@ -32,13 +32,18 @@ const RAW_SYSTEM_AGENTS: readonly Agent[] = [
 // off (`enabled: false`), hide all of them from discovery — same single switch, no
 // per-agent flag. LV_HUBS (itself derived from the LV registry) is the
 // authoritative notebook→agents map, so we resolve the agent ids from it.
-const disabledLvAgentIds = new Set<string>(
+// Exported for consumers that must distinguish "LV switched off" from the
+// static `hiddenFromInventory` on editor/default agents: the recipe catalogue
+// keeps a hidden-but-active agent's recipes (gruenerator-universal owns
+// `wahlpruefstein`/`aktion`) while dropping a disabled Landesverband's.
+export const DISABLED_LV_AGENT_IDS: ReadonlySet<string> = new Set<string>(
   LV_HUBS.filter((hub) => getDisabledNotebookIds().has(hub.notebookId)).flatMap((hub) => [
     hub.prAgentId,
     hub.buergerAgentId,
     hub.wahlpruefsteinAgentId,
   ])
 );
+const disabledLvAgentIds = DISABLED_LV_AGENT_IDS;
 
 // Identifiers stay live (legacy threads + backend fallbacks keep resolving via
 // `getSystemAgent`); only `hiddenFromInventory` flips so no UI surface offers them.
