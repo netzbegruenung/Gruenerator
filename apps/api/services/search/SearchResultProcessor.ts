@@ -12,6 +12,7 @@ import { recencyBoost, resolveSourceDate } from './recency.js';
 import type {
   SearchResultInput,
   ExpandedChunkResult,
+  ReferenceData,
   ReferencesMap,
   Citation,
   Source,
@@ -49,6 +50,7 @@ export function expandResultsToChunks(
           source_id: r.source_id ?? null,
           title,
           snippet: chunk.preview || '',
+          ...(chunk.text && { chunk_text: chunk.text }),
           filename: r.filename || null,
           similarity: r.similarity_score || 0,
           chunk_index: chunk.chunk_index,
@@ -66,6 +68,7 @@ export function expandResultsToChunks(
         source_id: r.source_id ?? null,
         title,
         snippet: r.relevant_content || r.chunk_text || '',
+        ...(r.chunk_text && { chunk_text: r.chunk_text }),
         filename: r.filename || null,
         similarity: typeof r.similarity_score === 'number' ? r.similarity_score : 0,
         chunk_index: r.chunk_index || 0,
@@ -124,6 +127,7 @@ export function buildReferencesMap(
     referencesMap[id] = {
       title: r.title,
       snippets: [[r.snippet]],
+      ...(r.chunk_text && { chunk_text: r.chunk_text }),
       description: null,
       date: resolveSourceDate(r, { allowCreatedAt: options.allowCreatedAt }),
       source: 'qa_documents',
@@ -139,6 +143,29 @@ export function buildReferencesMap(
   }
 
   return referencesMap;
+}
+
+/**
+ * Per-source budget for prompt context.
+ *
+ * Chunks target ~1600 characters (TextChunker), so this passes a retrieved
+ * chunk through whole in the ordinary case. The previous 300/400-character cut
+ * meant a model asked to quote a passage, name a speaker or read a figure was
+ * working from the chunk's opening sentences while the sentence that matched
+ * the query sat in the discarded remainder.
+ */
+export const PROMPT_SOURCE_MAX_CHARS = 1800;
+
+/**
+ * The text of a source as the model should see it: the full chunk when the
+ * search layer supplied one, falling back to the display snippet.
+ */
+export function sourceTextForPrompt(
+  ref: ReferenceData,
+  maxChars: number = PROMPT_SOURCE_MAX_CHARS
+): string {
+  const text = ref.chunk_text || ref.snippets[0]?.[0] || '';
+  return text.slice(0, maxChars).replace(/\s+/g, ' ').trim();
 }
 
 /**
@@ -338,6 +365,61 @@ export function filterAndSortResults(
     .filter((r) => r.similarity >= threshold)
     .sort((a, b) => effective(b) - effective(a))
     .slice(0, limit);
+}
+
+/**
+ * Pick results across several query formulations, giving each one a share of
+ * the budget instead of letting absolute scores decide alone.
+ *
+ * Needed for decomposed batch questions. Flattening first and cutting at
+ * `limit` sorts sub-questions against each other, so a part whose evidence
+ * simply scores lower — a name in a side clause against a headline figure —
+ * loses every one of its chunks and gets answered with "not in the sources"
+ * while its chunk sat just below the cut. Round-robin gives each part its turn
+ * before any part gets a second chunk; leftover slots still go by score.
+ *
+ * With one group this is exactly `filterAndSortResults`, so the ordinary
+ * single-question path is unchanged.
+ */
+export function selectAcrossQueryGroups(
+  groups: ExpandedChunkResult[][],
+  options: FilterOptions = {}
+): ExpandedChunkResult[] {
+  const nonEmpty = groups.filter((g) => g.length > 0);
+  if (nonEmpty.length <= 1) {
+    return filterAndSortResults(nonEmpty[0] ?? [], options);
+  }
+
+  const { limit = 40, ...rest } = options;
+  const ranked = nonEmpty.map((g) => filterAndSortResults(g, { ...rest, limit: Infinity }));
+
+  const selected: ExpandedChunkResult[] = [];
+  const seen = new Set<string>();
+  const cursors = ranked.map(() => 0);
+
+  let progressed = true;
+  while (selected.length < limit && progressed) {
+    progressed = false;
+    for (let g = 0; g < ranked.length && selected.length < limit; g++) {
+      const group = ranked[g] ?? [];
+      let cursor = cursors[g] ?? 0;
+      while (cursor < group.length) {
+        const candidate = group[cursor];
+        cursor += 1;
+        if (!candidate) continue;
+        // Same identity as deduplicateResults — skip what another group took.
+        const key = `${candidate.collection_id ?? ''}:${candidate.document_id}:${candidate.chunk_index}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        selected.push(candidate);
+        progressed = true;
+        break;
+      }
+      cursors[g] = cursor;
+    }
+  }
+
+  return selected;
 }
 
 /**
