@@ -16,6 +16,7 @@ import {
   type LoopDeps,
   type LoopEngineParams,
 } from './loopEngine.js';
+import { DEGENERATION_NOTICE } from './degeneration.js';
 
 import type { ModelMessage } from 'ai';
 
@@ -918,6 +919,10 @@ describe('runAgenticLoop — repetition degeneration', () => {
     // Without the guard this test never terminates — the stream is endless.
     expect(out.replacedStreamed).toBe(true);
     expect(out.text).toContain('Ausbildungsgarantie');
+    // The cut announces itself. Without this the trimmed answer is
+    // indistinguishable from one the model simply finished — which is exactly
+    // how the guard's own false positive went unnoticed on 12.08.2026.
+    expect(out.text).toContain(DEGENERATION_NOTICE);
     expect(out.text.length).toBeLessThan(PROSE_TOTAL + 500);
     // The wire saw SOME spam (unified streams live) but detection bounded it.
     const streamed = onText.mock.calls.map((c) => c[0]).join('');
@@ -938,6 +943,8 @@ describe('runAgenticLoop — repetition degeneration', () => {
       }) as unknown as LoopDeps['streamText'],
     };
     const out = await runAgenticLoop(baseParams({}), deps);
+    // A recovered answer carries NO notice — the retry discards the trimmed
+    // pass wholesale, and nothing was cut from what the user ends up with.
     expect(out.text).toBe(CLEAN);
     // The degenerate pass had already opened the gate → completion replace.
     expect(out.replacedStreamed).toBe(true);
@@ -987,6 +994,8 @@ describe('runAgenticLoop — repetition degeneration', () => {
     expect(synthCall).toBe(2);
     expect(out.text).toContain('Ausbildungsgarantie');
     expect(out.text).not.toContain('Abschluss.**');
+    // Retry failed, so the trim stands — and then it must say so.
+    expect(out.text).toContain(DEGENERATION_NOTICE);
     expect(out.replacedStreamed).toBe(true);
   });
 });
