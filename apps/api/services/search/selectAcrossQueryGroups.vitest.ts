@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { filterAndSortResults, selectAcrossQueryGroups } from './SearchResultProcessor.js';
+import {
+  filterAndSortResults,
+  selectAcrossQueryGroups,
+  toClientSource,
+} from './SearchResultProcessor.js';
 
 import type { ExpandedChunkResult } from './types.js';
 
@@ -94,5 +98,35 @@ describe('selectAcrossQueryGroups', () => {
   it('handles empty input and all-empty groups', () => {
     expect(selectAcrossQueryGroups([], { limit: 5 })).toEqual([]);
     expect(selectAcrossQueryGroups([[], []], { limit: 5 })).toEqual([]);
+  });
+
+  it('ranks paraphrases of one question by score, since they share a group', () => {
+    // Paraphrases must NOT get a fair share each — a weak hit from a worse
+    // rewording would take a slot from a stronger hit of the best one. The
+    // caller merges them into a single group; this pins that this then behaves
+    // as plain score ordering.
+    const paraphraseGroup = [chunk('best', 0, 0.9), chunk('best', 1, 0.88), chunk('worse', 0, 0.4)];
+
+    expect(ids(selectAcrossQueryGroups([paraphraseGroup], { threshold: 0.35, limit: 2 }))).toEqual([
+      'best#0',
+      'best#1',
+    ]);
+  });
+});
+
+describe('toClientSource', () => {
+  it('drops chunk_text and keeps everything the client renders', () => {
+    const withText = { ...chunk('a', 0, 0.9), chunk_text: 'the full 1600-character chunk' };
+
+    const client = toClientSource(withText);
+
+    expect(client).not.toHaveProperty('chunk_text');
+    expect(client.snippet).toBe('a#0');
+    expect(client.document_id).toBe('a');
+    expect(client.similarity).toBe(0.9);
+  });
+
+  it('is a no-op for a result that never carried one', () => {
+    expect(toClientSource(chunk('a', 0, 0.9))).toEqual(chunk('a', 0, 0.9));
   });
 });

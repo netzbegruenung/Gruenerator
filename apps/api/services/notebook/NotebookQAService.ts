@@ -505,22 +505,34 @@ export class NotebookQAService {
 
     const profile = getNotebookDepthProfile(depth ?? 'deep');
 
-    // Two different things end up in this list, with two different budgets.
-    // Paraphrases are a thoroughness dial and stay capped by the depth tier.
-    // Sub-questions are not: a message asking eight things has to be searched
-    // as eight things in every tier, or the parts that no single averaged
-    // embedding lands near come back unanswered. The full message stays first
-    // in the list, so the holistic search is never given up.
+    // Two different things get searched here, and they are grouped differently
+    // because they mean different things.
+    //
+    // Paraphrases are rewordings of ONE question — a thoroughness dial, capped
+    // by the depth tier. They share a group: ranking them against each other by
+    // score is exactly right, and giving each its own fair share would let a
+    // weak hit from a worse rewording take a slot from a stronger hit of the
+    // best one.
+    //
+    // Sub-questions are different questions and get a group each. They are not
+    // a thoroughness dial and so do not sit under the tier's variant cap: a
+    // message asking eight things has to be searched as eight things in every
+    // tier, or the parts that no single averaged embedding lands near come back
+    // unanswered.
     const paraphrases = (queries?.length ? queries : [trimmedQuestion]).slice(
       0,
       profile.queryVariants
     );
-    const subQuestions = splitCompositeQuestion(trimmedQuestion);
-    const effectiveQueries = [...new Set([...paraphrases, ...subQuestions])];
+    const subQuestions = splitCompositeQuestion(trimmedQuestion).filter(
+      (q) => !paraphrases.includes(q)
+    );
+    // The full message leads the first group, so the holistic search is never
+    // given up even when the message decomposes cleanly.
+    const queryGroups = [paraphrases, ...subQuestions.map((q) => [q])];
 
     if (subQuestions.length > 0) {
       log.info(
-        `[NotebookQA] composite question split into ${subQuestions.length} sub-questions (${effectiveQueries.length} searches total)`
+        `[NotebookQA] composite question split into ${subQuestions.length} sub-questions (${paraphrases.length + subQuestions.length} searches total)`
       );
     }
 
@@ -532,7 +544,7 @@ export class NotebookQAService {
         collectionIds!,
         requestFilters,
         profile,
-        effectiveQueries
+        queryGroups
       );
     } else if (collectionId) {
       return this._getSingleCollectionSearchContext(
@@ -541,7 +553,7 @@ export class NotebookQAService {
         userId,
         requestFilters,
         profile,
-        effectiveQueries,
+        queryGroups,
         getCollectionFn,
         getDocumentIdsFn
       );
@@ -558,7 +570,8 @@ export class NotebookQAService {
     collectionIds: string[],
     requestFilters: RequestFilters | undefined,
     profile: NotebookDepthProfile,
-    queries: string[]
+    /** One group per retrieval angle; group 0 holds the paraphrases. */
+    queryGroups: string[][]
   ): Promise<SearchContext | null> {
     // Detect document scope and subcategory filters from natural language
     const detectedScope = queryIntentService.detectDocumentScope(question);
@@ -584,24 +597,26 @@ export class NotebookQAService {
     // Search every collection × every query formulation in parallel, keeping
     // the hits grouped per query so selectAcrossQueryGroups can give each one
     // its share of the budget.
-    const resultsByQuery = await Promise.all(
-      queries.map(async (q) => {
-        const perCollection = await Promise.all(
-          effectiveCollectionIds.map((cId) =>
-            this._searchCollection(
-              cId,
-              q,
-              documentScope,
-              this._extractCollectionFilters(cId, effectiveFilters, effectiveCollectionIds),
-              profile
+    const resultsByGroup = await Promise.all(
+      queryGroups.map(async (group) => {
+        const perQuery = await Promise.all(
+          group.flatMap((q) =>
+            effectiveCollectionIds.map((cId) =>
+              this._searchCollection(
+                cId,
+                q,
+                documentScope,
+                this._extractCollectionFilters(cId, effectiveFilters, effectiveCollectionIds),
+                profile
+              )
             )
           )
         );
-        return deduplicateResults(perCollection.flat(), true);
+        return deduplicateResults(perQuery.flat(), true);
       })
     );
 
-    const sortedResults = selectAcrossQueryGroups(resultsByQuery, {
+    const sortedResults = selectAcrossQueryGroups(resultsByGroup, {
       threshold: profile.threshold,
       limit: profile.sortLimit.multi,
     });
@@ -635,7 +650,8 @@ export class NotebookQAService {
     userId: string | undefined,
     requestFilters: RequestFilters | undefined,
     profile: NotebookDepthProfile,
-    queries: string[],
+    /** One group per retrieval angle; group 0 holds the paraphrases. */
+    queryGroups: string[][],
     getCollectionFn?: (id: string) => Promise<{ name: string; user_id: string | null } | null>,
     getDocumentIdsFn?: (id: string) => Promise<string[]>
   ): Promise<SearchContext | null> {
@@ -709,29 +725,38 @@ export class NotebookQAService {
     const singleCollectionName = systemConfig?.name || collection?.name || collectionId;
 
     // Grouped per query, not flattened — see selectAcrossQueryGroups.
-    const resultsByQuery = await Promise.all(
-      queries.map(async (q) => {
-        const searchResults = await this._performSearch({
-          query: q,
-          searchCollection: isSystem ? systemConfig.qdrantCollection : 'documents',
-          userId: isSystem ? null : (userId ?? null),
-          documentIds: isSystem ? undefined : documentIds,
-          titleFilter:
-            isSystem && collectionId === 'grundsatz-system'
-              ? documentScope.documentTitleFilter
-              : undefined,
-          additionalFilter,
-          searchParams,
-        });
+    const resultsByGroup = await Promise.all(
+      queryGroups.map(async (group) => {
+        const perQuery = await Promise.all(
+          group.map(async (q) => {
+            const searchResults = await this._performSearch({
+              query: q,
+              searchCollection: isSystem ? systemConfig.qdrantCollection : 'documents',
+              userId: isSystem ? null : (userId ?? null),
+              documentIds: isSystem ? undefined : documentIds,
+              titleFilter:
+                isSystem && collectionId === 'grundsatz-system'
+                  ? documentScope.documentTitleFilter
+                  : undefined,
+              additionalFilter,
+              searchParams,
+            });
 
-        const expanded = expandResultsToChunks(searchResults, collectionId, singleCollectionName);
-        // Post-filter: validate results match requested source_id filter (defense-in-depth)
-        const postFiltered = this._applySourceIdPostFilter(expanded, effectiveFilters);
-        return deduplicateResults(postFiltered, false);
+            const expanded = expandResultsToChunks(
+              searchResults,
+              collectionId,
+              singleCollectionName
+            );
+            // Post-filter: validate results match requested source_id filter
+            // (defense-in-depth)
+            return this._applySourceIdPostFilter(expanded, effectiveFilters);
+          })
+        );
+        return deduplicateResults(perQuery.flat(), false);
       })
     );
 
-    const sortedResults = selectAcrossQueryGroups(resultsByQuery, {
+    const sortedResults = selectAcrossQueryGroups(resultsByGroup, {
       threshold: profile.threshold,
       limit: profile.sortLimit.single,
       allowCreatedAt: !isSystem,
