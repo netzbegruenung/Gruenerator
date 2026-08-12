@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       source:
-        description: 'Single non-LV source (gruenblog, gruene-at, kommunalwiki, boell-stiftung, bundestag, abgeordnetenwatch). Mutually exclusive with landesverband.'
+        description: 'Single non-LV source (gruenblog, gruene-at, kommunalwiki, boell-stiftung, bundestag, abgeordnetenwatch, grundsatz, gruene-de, oesterreich). Mutually exclusive with landesverband.'
         required: false
         type: string
       landesverband:
@@ -49,7 +49,7 @@ jobs:
           INPUT_LV: ${{ inputs.landesverband }}
         run: |
           ALL_LVS='["BB","BE","BY","HE","HH","LSA","MV","SL","TH"]'
-          ALL_SOURCES='["gruenblog","gruene-at","kommunalwiki","boell-stiftung","bundestag","abgeordnetenwatch"]'
+          ALL_SOURCES='["gruenblog","gruene-at","kommunalwiki","boell-stiftung","bundestag","abgeordnetenwatch","grundsatz","gruene-de","oesterreich"]'
           EMPTY='[]'
 
           if [ -n "$INPUT_SOURCE" ] && [ -n "$INPUT_LV" ]; then

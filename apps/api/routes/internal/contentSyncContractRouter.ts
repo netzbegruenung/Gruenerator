@@ -169,6 +169,39 @@ async function loadSource(sourceId: ContentSyncSource): Promise<SourceConfig> {
       };
       break;
     }
+    case 'grundsatz': {
+      const { grundsatzPdfScraperService } =
+        await import('../../services/scrapers/implementations/ProgramPdfScraper.js');
+      config = {
+        name: 'Grundsatzprogramme (PDF)',
+        timeoutMs: 30 * 60 * 1000,
+        init: () => grundsatzPdfScraperService.init(),
+        run: (opts) => grundsatzPdfScraperService.fullCrawl({ forceUpdate: opts.forceUpdate }),
+      };
+      break;
+    }
+    case 'oesterreich': {
+      const { oesterreichPdfScraperService } =
+        await import('../../services/scrapers/implementations/ProgramPdfScraper.js');
+      config = {
+        name: 'Die Grünen Österreich – Programme (PDF)',
+        timeoutMs: 30 * 60 * 1000,
+        init: () => oesterreichPdfScraperService.init(),
+        run: (opts) => oesterreichPdfScraperService.fullCrawl({ forceUpdate: opts.forceUpdate }),
+      };
+      break;
+    }
+    case 'gruene-de': {
+      const { grueneDeScraperService } =
+        await import('../../services/scrapers/implementations/GrueneDeScraper.js');
+      config = {
+        name: 'Gruene DE (gruene.de)',
+        timeoutMs: 45 * 60 * 1000,
+        init: () => grueneDeScraperService.init(),
+        run: (opts) => grueneDeScraperService.fullCrawl({ forceUpdate: opts.forceUpdate }),
+      };
+      break;
+    }
   }
 
   sourceCache[sourceId] = config;
