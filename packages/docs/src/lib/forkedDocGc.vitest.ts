@@ -78,7 +78,11 @@ describe('forked doc GC', () => {
     expect(forkDoc.gc).toBe(false);
   });
 
+  // A fork whose bound doc is still the synced one cannot happen through
+  // BlockNote's own fork() — which is why this backstop firing is itself drift,
+  // and warns. Muted here so the assertion, not the console, carries the test.
   it('leaves the synced doc alone', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const mainDoc = new Y.Doc();
     const { editor, fork } = fakeEditor({ boundDoc: mainDoc, isForked: false });
 
@@ -86,6 +90,8 @@ describe('forked doc GC', () => {
     fork();
 
     expect(mainDoc.gc).toBe(true);
+    expect(warn).toHaveBeenCalledOnce();
+    warn.mockRestore();
   });
 
   it('covers an editor mounting into an in-progress review', () => {
