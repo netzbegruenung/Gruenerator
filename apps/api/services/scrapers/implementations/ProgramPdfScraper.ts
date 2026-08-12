@@ -310,7 +310,7 @@ export class ProgramPdfScraper extends BaseScraper {
           chunk_text: chunkTexts[index],
           quality_score: chunkQualityService.calculateQualityScore(chunkTexts[index]),
           document_type: 'programm',
-          content_type: 'programm',
+          content_type: doc.primaryCategory.toLowerCase(),
           extraction_method: extraction.method,
           page_count: extraction.pageCount,
           // Chunks are sequential through the document; the proportional
