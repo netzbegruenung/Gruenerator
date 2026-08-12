@@ -23,12 +23,17 @@
  *     cannot see because they tokenize to one giant "word" (":-):-):-)",
  *     "1234567890…", "E---F---E---F").
  *
- * False-positive stance: the word floor (0.16) sits far under real prose and
- * even under degenerate-looking legitimate output (repetitive lists measure
- * ~0.3), and the periodicity check needs 600 chars of near-perfect repetition —
- * an intentional divider line is an order of magnitude shorter. The cost of a
- * false hit is bounded anyway: split mode runs its one silent validation retry,
- * unified mode trims the tail and keeps the healthy prefix.
+ * False-positive stance, corrected by a live miss: the word floor (0.16) sits
+ * far under real prose, and the periodicity check needs 600 chars of near-
+ * perfect repetition. The original claim here — that nothing legitimate is that
+ * repetitive for that long — was wrong. A markdown table with empty cells is,
+ * and it truncated a healthy answer in production within a day. Hence
+ * {@link isStructuralScaffolding} in front of both metrics: they measure
+ * repetition and cannot, by construction, tell it apart from layout.
+ *
+ * The cost of a false hit is NOT small, which is why that gate matters: split
+ * mode runs its one silent validation retry, but unified mode simply keeps the
+ * prefix — an answer cut mid-table, shipped as if finished.
  */
 
 /** Sentinel finishReason for a stream we aborted because it degenerated.
@@ -56,8 +61,17 @@ const PERIODIC_TAIL = 600;
 const MAX_PERIOD = 60;
 const SELF_SIMILARITY_FLOOR = 0.9;
 
+/** A token made ONLY of table/rule punctuation — `|`, `---`, `:---:`. */
+const SCAFFOLD_TOKEN = /^[|\-:+_=]+$/;
+
+/** Words, with layout punctuation dropped.
+ *
+ *  Without the filter a markdown table reads as a two-word vocabulary (`|` and
+ *  `-`) repeated hundreds of times, which is exactly the signature this module
+ *  hunts — the diversity metric cannot then tell a table from a loop. Dropping
+ *  them leaves the CELLS, which is what the metric is supposed to judge. */
 function words(sample: string): string[] {
-  return sample.split(/\s+/).filter(Boolean);
+  return sample.split(/\s+/).filter((w) => w.length > 0 && !SCAFFOLD_TOKEN.test(w));
 }
 
 /** Distinct/total words. 1 (healthy) when there is too little to judge. */
@@ -86,11 +100,43 @@ function selfSimilarity(sample: string): number {
   return best;
 }
 
+/** Characters a markdown table, a rule or a horizontal divider is BUILT from —
+ *  as opposed to what it says. */
+const SCAFFOLD_CHARS = /[|\-:+_=\s]/g;
+/** Below this share of non-scaffold characters, a window carries no text. */
+const SCAFFOLD_SUBSTANCE_FLOOR = 0.15;
+
+/**
+ * Whether a window is layout, not language.
+ *
+ * A wide markdown table with empty cells emits runs like `| - | - | - | - |`,
+ * and BOTH metrics read that as a loop: the periodicity check sees a near-
+ * perfect period of 4, and the word metric counts `-` and `|` as words of which
+ * there are exactly two distinct. Live 12.08.2026 12:26:44 that truncated a
+ * healthy 6.020-char answer at 2.820 chars, mid-table — the guard did more
+ * damage than the failure it was built for.
+ *
+ * Strip the scaffolding and ask what is left. Table skeletons leave nothing;
+ * the spam this guard exists for keeps its substance — `1234567890…` is all
+ * digits, `:-)` keeps its parens, `Ende. Fertig. 😊` keeps its letters.
+ *
+ * The knowing trade: a run of PURE dashes is now invisible here. That is the
+ * long-range repetition case, which needs its own detector anyway — a bounded
+ * blind spot beats shredding every table we ever print.
+ */
+export function isStructuralScaffolding(sample: string): boolean {
+  if (sample.length === 0) return false;
+  const substance = sample.replace(SCAFFOLD_CHARS, '').length;
+  return substance / sample.length < SCAFFOLD_SUBSTANCE_FLOOR;
+}
+
 /** Whether a text SAMPLE of ~{@link DEGEN_WINDOW} chars reads as degenerate.
  *  The word-diversity floor is calibrated to THIS window size (distinct count
  *  stays constant in spam while total grows) — do not reuse it on smaller
  *  windows; that is what the vocabulary-overlap scan below is for. */
 export function isDegenerateSample(sample: string): boolean {
+  // Before either metric: neither of them can tell layout from repetition.
+  if (isStructuralScaffolding(sample)) return false;
   if (wordDiversity(sample, MIN_WORDS) < WORD_DIVERSITY_FLOOR) return true;
   return selfSimilarity(sample) >= SELF_SIMILARITY_FLOOR;
 }
