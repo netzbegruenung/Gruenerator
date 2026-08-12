@@ -50,7 +50,12 @@ const CATEGORY_LABELS = {
 };
 
 const LEAD_MAX_CHARS = 200;
-const SECTION_MAX_CHARS = 1200;
+// Generous enough that the sections carrying an expanded ChatTables component
+// (see COMPONENT_EXPANSIONS — ~29 Werkzeuge à ~70 Zeichen is the largest) fit
+// whole; at 1200 a third of the Rezepte fell back out of the index. Cost is
+// committed-file size only: BM25 indexes the full text, the chat gets a
+// SNIPPET_CHARS window (services/docs/docsIndex.ts), never the whole section.
+const SECTION_MAX_CHARS = 2600;
 
 function walk(dir, relBase = '') {
   const out = [];
@@ -226,6 +231,13 @@ function firstParagraph(body) {
   return candidates.length > 0 ? truncateLead(candidates[0]) : '';
 }
 
+/** Cap at the last word boundary before the limit — never mid-word. */
+function truncateSection(text) {
+  if (text.length <= SECTION_MAX_CHARS) return text;
+  const cut = text.lastIndexOf(' ', SECTION_MAX_CHARS - 1);
+  return `${text.slice(0, cut > 0 ? cut : SECTION_MAX_CHARS - 1).trimEnd()}…`;
+}
+
 function truncateLead(text) {
   return text.length > LEAD_MAX_CHARS ? `${text.slice(0, LEAD_MAX_CHARS - 1).trimEnd()}…` : text;
 }
@@ -273,7 +285,7 @@ function build() {
         heading: section.heading,
         anchor: section.anchor,
         category,
-        text: text.length > SECTION_MAX_CHARS ? text.slice(0, SECTION_MAX_CHARS) : text,
+        text: truncateSection(text),
       });
     }
   }
