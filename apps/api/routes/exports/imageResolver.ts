@@ -10,6 +10,7 @@
  * download.
  */
 
+import { decodeDataUrl } from '../../utils/dataUrl.js';
 import { createLogger } from '../../utils/logger.js';
 import { validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
 
@@ -108,14 +109,8 @@ function fitToPage(width: number, height: number): { width: number; height: numb
 }
 
 function fromDataUri(src: string): Buffer | null {
-  const match = /^data:image\/[a-z+.-]+;base64,(.+)$/i.exec(src);
-  if (!match) return null;
-  try {
-    const data = Buffer.from(match[1], 'base64');
-    return data.length > 0 && data.length <= MAX_BYTES ? data : null;
-  } catch {
-    return null;
-  }
+  const decoded = decodeDataUrl(src, { expectedType: 'image', maxBytes: MAX_BYTES });
+  return decoded && decoded.buffer.length > 0 ? decoded.buffer : null;
 }
 
 /**
