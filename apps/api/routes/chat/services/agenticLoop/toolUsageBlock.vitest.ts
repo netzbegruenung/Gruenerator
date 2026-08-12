@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { buildToolUsageBlock } from './agenticRespondService.js';
+import { buildToolUsageBlock, materialDominatesTurn } from './agenticRespondService.js';
 
 describe('buildToolUsageBlock', () => {
   const block = buildToolUsageBlock(6);
@@ -74,5 +74,95 @@ describe('buildToolUsageBlock under a research ban', () => {
 
   it('still forbids inventing what it cannot look up', () => {
     expect(banned).toMatch(/erfinde/i);
+  });
+});
+
+describe('buildToolUsageBlock — gated on the mounted toolset', () => {
+  // Live 13.08.2026 22:12: a turn with `steps=0` (pasted text, no tool call at
+  // all) still carried ~1.350 chars of search rules and ~600 of artifact rules,
+  // on top of 19 tool schemata. None of it was actionable.
+  const SEARCHLESS = ['expand_attachment', 'summarize', 'read_artifact', 'rezept_laden'];
+  const WITH_SEARCH = [...SEARCHLESS, 'gruenerator_search', 'web_search'];
+
+  it('drops the search rules when no search tool is mounted', () => {
+    const block = buildToolUsageBlock(6, false, false, SEARCHLESS);
+    expect(block).not.toMatch(/interne Dokumentsuche/);
+    expect(block).not.toMatch(/SUCHEN BAUEN AUFEINANDER AUF/);
+    expect(block).not.toMatch(/KEINE belegte Quelle/);
+    expect(block).not.toMatch(/\[N\]-Markern/);
+  });
+
+  it('keeps them as soon as one search tool is there', () => {
+    const block = buildToolUsageBlock(6, false, false, WITH_SEARCH);
+    expect(block).toMatch(/interne Dokumentsuche/);
+    expect(block).toMatch(/KEINE belegte Quelle/);
+  });
+
+  it('ties the web_search scope rule to web_search itself', () => {
+    expect(buildToolUsageBlock(6, false, false, ['gruenerator_search'])).not.toMatch(
+      /SCOPE GEHÖRT IN DIE PARAMETER/
+    );
+    expect(buildToolUsageBlock(6, false, false, ['web_search'])).toMatch(
+      /SCOPE GEHÖRT IN DIE PARAMETER/
+    );
+  });
+
+  it('drops the artifact rules when nothing can create an artifact', () => {
+    expect(buildToolUsageBlock(6, false, true, SEARCHLESS)).not.toMatch(/MEHR ALS EIN Artefakt/);
+    expect(buildToolUsageBlock(6, false, true, [...SEARCHLESS, 'create_board'])).toMatch(
+      /MEHR ALS EIN Artefakt/
+    );
+  });
+
+  it('keeps every rule when the caller does not know the toolset', () => {
+    // Omitting the list must never silently lose guidance.
+    const block = buildToolUsageBlock(6, false, true);
+    expect(block).toMatch(/interne Dokumentsuche/);
+    expect(block).toMatch(/SCOPE GEHÖRT IN DIE PARAMETER/);
+    expect(block).toMatch(/MEHR ALS EIN Artefakt/);
+  });
+
+  it('no longer advertises tools that are not mounted', () => {
+    // The dropped inventory sentence named DIP and abgeordnetenwatch; neither
+    // was among the 19 tools of the live turn. It duplicated the schemata and
+    // invited calls to tools that did not exist.
+    const block = buildToolUsageBlock(6, false, true, WITH_SEARCH);
+    expect(block).not.toMatch(/abgeordnetenwatch/);
+    expect(block).not.toMatch(/\(DIP\)/);
+  });
+
+  it('saves real length on a tool-less turn', () => {
+    const full = buildToolUsageBlock(8, false, true);
+    const lean = buildToolUsageBlock(8, false, true, SEARCHLESS);
+    expect(full.length - lean.length).toBeGreaterThan(1800);
+  });
+});
+
+describe('materialDominatesTurn — when the writer gives up the tool catalog', () => {
+  // The live system prompt of 13.08.2026, 22:12 measured 3.164 chars before
+  // the tool block was appended.
+  const SYSTEM = 'x'.repeat(3164);
+
+  it('an ordinary question stays on the unified path', () => {
+    expect(materialDominatesTurn('Was fordern die Grünen zum Hitzeschutz?', SYSTEM)).toBe(false);
+    expect(materialDominatesTurn('x'.repeat(3000), SYSTEM)).toBe(false);
+  });
+
+  it('the pasted article that looped four times does not', () => {
+    // 11.191 chars of pasted text plus rules — the turn is material, not a
+    // question, and every unified run of it degenerated.
+    expect(materialDominatesTurn('x'.repeat(11_191), SYSTEM)).toBe(true);
+  });
+
+  it('moves with the prompt instead of standing on a tuned constant', () => {
+    // Same material, a system prompt that grew past it → no longer dominant.
+    // This is the point of comparing the two rather than picking a number.
+    const material = 'x'.repeat(5000);
+    expect(materialDominatesTurn(material, 'x'.repeat(4000))).toBe(true);
+    expect(materialDominatesTurn(material, 'x'.repeat(6000))).toBe(false);
+  });
+
+  it('is not tripped by an empty turn', () => {
+    expect(materialDominatesTurn('', SYSTEM)).toBe(false);
   });
 });
