@@ -11,6 +11,15 @@ describe('detectChatIntent', () => {
     expect(detectChatIntent('Hilf mir bei der Einschätzung')).toBe(true);
   });
 
+  it('erkennt Verbstämme in jeder Beugung — `\\b` hinter dem Stamm täte das nicht', () => {
+    expect(detectChatIntent('erklär mir den Antrag')).toBe(true);
+    expect(detectChatIntent('Erkläre mir den Antrag')).toBe(true);
+    expect(detectChatIntent('erklärst du mir das')).toBe(true);
+    expect(detectChatIntent('Erzähl mir mehr dazu')).toBe(true);
+    // Das Substantiv ist ein Suchbegriff, kein Gesprächsauftakt.
+    expect(detectChatIntent('Erklärung zur Wärmepumpe')).toBe(false);
+  });
+
   it('lässt Erstell-Prompts in Ruhe, auch wenn sie eine Frage enthalten', () => {
     expect(
       detectChatIntent(
