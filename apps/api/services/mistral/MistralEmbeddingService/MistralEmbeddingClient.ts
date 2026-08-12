@@ -43,6 +43,30 @@ export class MistralEmbeddingClient {
     }, 'generateEmbedding');
   }
 
+  // The char-based token estimate in truncateIfNeeded can undershoot for dense
+  // OCR text. When the API still rejects a text as too long, halve it until it
+  // fits instead of indexing a zero vector (unfindable via cosine, but it
+  // pollutes scroll/text results and counts).
+  private async embedWithShrink(text: string): Promise<number[]> {
+    let current = text;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try {
+        return await this.generateEmbedding(current);
+      } catch (error) {
+        const msg = (error as Error).message || '';
+        const isTokenLimit = msg.includes('exceeding max') || msg.includes('too many tokens');
+        if (!isTokenLimit || current.length < 1000) throw error;
+        const half = current.slice(0, Math.floor(current.length / 2));
+        const lastSpace = half.lastIndexOf(' ');
+        current = lastSpace > 0 ? half.slice(0, lastSpace) : half;
+        console.warn(
+          `[MistralEmbeddingClient] Text still over token limit, retrying with ${current.length} chars`
+        );
+      }
+    }
+    throw new Error('Failed to embed text within token limit after shrinking');
+  }
+
   async generateBatchEmbeddings(texts: string[]): Promise<number[][]> {
     if (!Array.isArray(texts) || texts.length === 0)
       throw new Error('Texts must be non-empty array');
@@ -115,34 +139,17 @@ export class MistralEmbeddingClient {
       const results: number[][] = [];
       for (const text of batch) {
         try {
-          results.push(await this.generateEmbedding(text));
+          results.push(await this.embedWithShrink(text));
         } catch (individualError) {
           const indErr = individualError as Error;
-          if (
-            indErr.message.includes('exceeding max') ||
-            indErr.message.includes('too many tokens')
-          ) {
-            console.warn(
-              `[MistralEmbeddingClient] Skipping oversized text (${text.length} chars) — using zero vector`
-            );
-            results.push(new Array<number>(1024).fill(0));
-          } else {
-            console.error(`[MistralEmbeddingClient] Individual text failed:`, indErr.message);
-            throw new Error(`Failed to generate embedding for text: ${indErr.message}`);
-          }
+          console.error(`[MistralEmbeddingClient] Individual text failed:`, indErr.message);
+          throw new Error(`Failed to generate embedding for text: ${indErr.message}`);
         }
       }
       return results;
     }
 
-    const errMsg = error.message || '';
-    if (errMsg.includes('exceeding max') || errMsg.includes('too many tokens')) {
-      console.warn(
-        `[MistralEmbeddingClient] Skipping oversized text (${batch[0].length} chars) — using zero vector`
-      );
-      return [new Array(1024).fill(0)];
-    }
-    throw error;
+    return [await this.embedWithShrink(batch[0])];
   }
 
   estimateTokens(text: string): number {

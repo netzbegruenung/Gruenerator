@@ -298,7 +298,7 @@ export async function embedThreadAttachmentForRag(params: {
   const { attachmentId, userId, name, extractedText } = params;
   const documentId = randomUUID();
 
-  const { chunks, embeddings } = await chunkAndEmbedText(extractedText);
+  const { chunks, embeddings } = await chunkAndEmbedText(extractedText, { title: name });
   await getQdrantDocumentService().storeDocumentVectors(userId, documentId, chunks, embeddings, {
     sourceType: 'chat_attachment',
     title: name,
