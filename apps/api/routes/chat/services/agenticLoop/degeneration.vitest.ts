@@ -1,0 +1,150 @@
+import { describe, expect, it } from 'vitest';
+
+import {
+  createDegenerationGuard,
+  findDegenerationCut,
+  isDegenerateSample,
+  DEGEN_MIN_LENGTH,
+} from './degeneration.js';
+
+// ── Samples ──────────────────────────────────────────────────────────────────
+// The spam patterns are lifted from the live incident (12.08.2026): shuffled
+// terminator phrases, smiley/dash runs, digit cycles. The healthy samples are
+// deliberately the REPETITIVE end of legitimate output (lists, tables), because
+// that is where a naive detector false-positives.
+
+const TERMINATOR_POOL = [
+  '--- FINAL & KORREKT: ---',
+  'Antwort steht oben. ---',
+  'Fertig.** ---',
+  'Ende.** ---',
+  'Danke! 😊 ---',
+  'Abschluss.** ---',
+  'FERTIG --- ENDE ---',
+  'ANTWORT: SIEHE ERSTE ANTWORT. ---',
+];
+
+/** Deterministic shuffle-ish sequence so the test is stable. */
+function terminatorSpam(chars: number): string {
+  let out = '';
+  let i = 0;
+  while (out.length < chars) {
+    out += `${TERMINATOR_POOL[(i * 7 + 3) % TERMINATOR_POOL.length]} `;
+    i++;
+  }
+  return out.slice(0, chars);
+}
+
+function repeatTo(pattern: string, chars: number): string {
+  return pattern.repeat(Math.ceil(chars / pattern.length)).slice(0, chars);
+}
+
+const GERMAN_PROSE = `Die Grünen betonen, dass die aktuelle Preisentwicklung Studierende und Auszubildende besonders hart trifft. Viele müssen neben dem Studium arbeiten, was häufig zu Verzögerungen beim Abschluss oder sogar zum Abbruch führt. Da 83,4 % der Studierenden in Städten leben, liegen die Wohnkosten dort oft über der BAföG-Wohnkostenpauschale. Zudem reicht die Mindestausbildungsvergütung von 682 Euro oft nicht für ein WG-Zimmer aus. Die Bundesregierung stellt zwar Milliardenhilfen bereit, aber keine gezielte Unterstützung für junge Menschen. Ihre Forderungen lauten: Direkte Auszahlung des Kindergelds an junge Menschen in Ausbildung als erste Säule der Finanzierung, eine Grundsicherung, die tatsächliche Bedarfe deckt, und ein Sofortprogramm für studentisches Wohnen. `;
+
+function prose(chars: number): string {
+  return repeatTo(GERMAN_PROSE, chars);
+}
+
+/** Genuinely VARIED prose — a repeated identical paragraph is itself
+ *  degenerate, so the healthy-stream tests need fresh content per chunk. */
+function variedProse(chunk: number): string {
+  const sentences = GERMAN_PROSE.split('. ');
+  const s = sentences[chunk % sentences.length];
+  return `Im Abschnitt ${chunk} zum Thema ${chunk * 7} heißt es: ${s} — beschlossen mit ${chunk * 3} Stimmen bei einem Budget von ${chunk * 11} Millionen Euro. `;
+}
+
+// ── isDegenerateSample ───────────────────────────────────────────────────────
+
+describe('isDegenerateSample', () => {
+  it('flags shuffled terminator-phrase spam (word diversity)', () => {
+    expect(isDegenerateSample(terminatorSpam(2000))).toBe(true);
+  });
+
+  it('flags smiley runs, dash cycles and digit cycles (periodicity)', () => {
+    expect(isDegenerateSample(repeatTo(':-)', 2000))).toBe(true);
+    expect(isDegenerateSample(repeatTo('E---F---', 2000))).toBe(true);
+    expect(isDegenerateSample(repeatTo('1234567890', 2000))).toBe(true);
+  });
+
+  it('passes ordinary German prose', () => {
+    expect(isDegenerateSample(prose(2000))).toBe(false);
+  });
+
+  it('passes a repetitive but legitimate bullet list', () => {
+    const lines = Array.from(
+      { length: 40 },
+      (_, i) =>
+        `- Wir fordern mehr Investitionen in Bereich ${i}: konkrete Maßnahme Nummer ${i * 3} mit Schwerpunkt auf Punkt ${i + 7}.`
+    );
+    expect(isDegenerateSample(lines.join('\n').slice(0, 2000))).toBe(false);
+  });
+
+  it('passes a markdown table with varied cells', () => {
+    const rows = Array.from(
+      { length: 40 },
+      (_, i) =>
+        `| 20${10 + i} | ${i * 137} Anträge | Landesverband ${i} | ${i % 2 ? 'Ja' : 'Nein'} |`
+    );
+    expect(isDegenerateSample(rows.join('\n').slice(0, 2000))).toBe(false);
+  });
+
+  it('is not tripped by a short divider line inside prose', () => {
+    expect(isDegenerateSample(`${prose(900)}\n\n---\n\n${prose(900)}`)).toBe(false);
+  });
+});
+
+// ── createDegenerationGuard ──────────────────────────────────────────────────
+
+describe('createDegenerationGuard', () => {
+  it('stays quiet on a long healthy answer', () => {
+    const guard = createDegenerationGuard();
+    let text = '';
+    for (let i = 0; i < 100; i++) {
+      text += variedProse(i);
+      expect(guard.check(text)).toBe(false);
+    }
+    expect(text.length).toBeGreaterThan(15_000);
+  });
+
+  it('fires once the tail window fills with spam, and latches', () => {
+    const guard = createDegenerationGuard();
+    let text = '';
+    for (let i = 0; i < 25; i++) text += variedProse(i);
+    const healthyLen = text.length;
+    expect(guard.check(text)).toBe(false);
+    let fired = false;
+    // The incident shape: healthy answer, then the model cannot stop.
+    for (let i = 0; i < 200 && !fired; i++) {
+      text += terminatorSpam(200);
+      fired = guard.check(text);
+    }
+    expect(fired).toBe(true);
+    // Detection latency bounds what reaches the wire: window + stride, not 30k.
+    expect(text.length).toBeLessThan(healthyLen + 4000);
+    expect(guard.check(text)).toBe(true);
+  });
+
+  it('never judges anything under the minimum length', () => {
+    const guard = createDegenerationGuard();
+    expect(guard.check(repeatTo(':-)', DEGEN_MIN_LENGTH - 1))).toBe(false);
+  });
+});
+
+// ── findDegenerationCut ──────────────────────────────────────────────────────
+
+describe('findDegenerationCut', () => {
+  it('cuts near the prose/spam boundary', () => {
+    let healthy = '';
+    for (let i = 0; i < 30; i++) healthy += variedProse(i);
+    const text = healthy + terminatorSpam(2500);
+    const cut = findDegenerationCut(text, text.length);
+    // The healthy prefix survives; at most a few hundred chars of spam remain.
+    expect(cut).toBeGreaterThanOrEqual(healthy.length - 600);
+    expect(cut).toBeLessThanOrEqual(healthy.length + 400);
+  });
+
+  it('cuts (nearly) everything when the answer was spam from the first token', () => {
+    const text = repeatTo(':-)', 3500);
+    expect(findDegenerationCut(text, text.length)).toBeLessThanOrEqual(300);
+  });
+});
