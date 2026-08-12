@@ -12,6 +12,12 @@
  *
  * Document and query side MUST use the same pipeline; queries get plain 1.0
  * weights (BM25 query-side TF is 1 for typical short queries).
+ *
+ * FROZEN once a collection has been backfilled: stemmer, stopword list and
+ * hash together define the sparse index. Changing any of them makes queries
+ * hash differently than the stored documents — the sparse side then degrades
+ * silently instead of failing. Any change requires a full sparse re-backfill
+ * (`scripts/migrate-bm25-sparse.ts`, no re-embedding needed).
  */
 
 const K1 = 1.2;
@@ -237,7 +243,8 @@ export function cistem(word: string): string {
   let w = word.toLowerCase();
   w = w.replace(/ß/g, 'ss').replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ä/g, 'a');
 
-  if (w.length > 6 && w.startsWith('ge')) {
+  // Reference regex is ^ge(.{4,}) — fires from total length 6 on.
+  if (w.length >= 6 && w.startsWith('ge')) {
     w = w.slice(2);
   }
 
