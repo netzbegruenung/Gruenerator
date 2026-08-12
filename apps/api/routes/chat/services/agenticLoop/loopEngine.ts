@@ -31,11 +31,7 @@ import { createLogger } from '../../../../utils/logger.js';
 import { isWholesaleRefusal, refusalLanguage } from '../refusalDetection.js';
 import { createIdleDeadline } from '../streamIdleDeadline.js';
 
-import {
-  createDegenerationGuard,
-  findDegenerationCut,
-  DEGENERATE_FINISH_REASON,
-} from './degeneration.js';
+import { createDegenerationGuard, DEGENERATE_FINISH_REASON } from './degeneration.js';
 
 import type { LanguageModel, ModelMessage, ToolSet } from 'ai';
 
@@ -879,7 +875,11 @@ async function drain(
         // the healthy prefix, and let the caller's finishReason handling take
         // over (split: silent retry; unified: completion replace).
         if (degeneration.check(text)) {
-          const cut = findDegenerationCut(text, text.length);
+          // The guard's own cut: when the long-range detector fired it knows
+          // the exact offset where the repetition began. No backscan can
+          // reconstruct that once the spam changed shape mid-run — live
+          // 12.08.2026 it removed 1.800 of 45.711 chars for exactly that reason.
+          const cut = degeneration.cutAt(text);
           log.warn(
             `[Engine] repetitive degeneration detected after ${text.length} chars — aborting the stream, keeping ${cut}`
           );
