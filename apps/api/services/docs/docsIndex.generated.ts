@@ -801,7 +801,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "KI-Chat",
     "anchor": "",
     "category": "Chat",
-    "text": "Der Grünerator Chat ist dein persönlicher KI-Assistent für grüne Politik. Du kannst Fragen stellen, Texte erstellen lassen, in Parteiprogrammen recherchieren und sogar Bilder generieren — alles in einer Chat-Oberfläche."
+    "text": "Der Grünerator Chat ist dein persönlicher KI-Assistent für grüne Politik. Du kannst Fragen stellen, Texte erstellen lassen, in Parteiprogrammen recherchieren und sogar Bilder generieren — alles in einer Chat-Oberfläche. Die Tabellen auf dieser Seite (Rezepte, Quellen, Werkzeuge) werden direkt aus dem Code des Grünerators erzeugt — sie zeigen also genau das, was der Chat gerade kann. Wie das funktioniert, steht unter Wie diese Doku entsteht."
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -825,7 +825,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Gespräch starten",
     "anchor": "#gespräch-starten",
     "category": "Chat",
-    "text": "Den Chat erreichst du über den Menüpunkt in der Seitenleiste oder direkt unter /chat. Dort siehst du: Eingabefeld unten zum Schreiben deiner Nachricht Seitenleiste links mit deinem Gesprächsverlauf — Gespräche kannst du dort auch in Projekten bündeln (eigene Projekte und Gruppen, mit Übersicht unter /projekte) „+\"-Menü links im Eingabefeld für Modus, Werkzeuge, Quellen und Dateien Modell-Auswahl rechts unten im Eingabefeld Jedes Gespräch wird als eigener Thread mit eigener Adresse (/chat/…) gespeichert. Du kannst jederzeit ein neues Gespräch beginnen oder in der Seitenleiste zu einem früheren Gespräch zurückkehren."
+    "text": "Den Chat erreichst du über den Menüpunkt in der Seitenleiste oder direkt unter /chat. Dort siehst du: Eingabefeld unten zum Schreiben deiner Nachricht Seitenleiste links mit deinem Gesprächsverlauf — Gespräche kannst du dort auch in Projekten bündeln (eigene Projekte und Gruppen, mit Übersicht unter /projekte) „+\"-Menü links im Eingabefeld für Rezepte, Werkzeuge, Quellen und Dateien Modell-Auswahl rechts unten im Eingabefeld Jedes Gespräch wird als eigener Thread mit eigener Adresse (/chat/…) gespeichert. Du kannst jederzeit ein neues Gespräch beginnen oder in der Seitenleiste zu einem früheren Gespräch zurückkehren."
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -833,7 +833,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Quellen durchsuchen",
     "anchor": "#quellen-durchsuchen",
     "category": "Chat",
-    "text": "Der Chat kann gezielt in grünen Parteiprogrammen, Beschlüssen und Dokumenten recherchieren. Tippe @ im Eingabefeld, um eine Quelle auszuwählen. Kürzel | Quelle | Inhalt | --------------------- | ------------------------- | ------------------------------------------------- | @alle | 🔍 Alle Quellen | Durchsucht mehrere Quellen parallel | @grundsatz | 📗 Grundsatzprogramm | Grundsatzprogramme von Bündnis 90/Die Grünen | @bundestagsfraktion | 🏛️ Bundestagsfraktion | Inhalte von gruene-bundestag.de | @thüringen | 🏔️ Grüne Thüringen | Beschlüsse und Wahlprogramme Thüringen | @bayern | 🦁 Grüne Bayern | Regierungsprogramm Bayern | @berlin | 🐻 Grüne Berlin | Pressemitteilungen und Beschlüsse Berlin | @mv | 🌊 Grüne MV | Mecklenburg-Vorpommern | @brandenburg | 🌲 Grüne Brandenburg | Brandenburg | @sachsen-anhalt | 🏰 Grüne Sachsen-Anhalt | Sachsen-Anhalt | @hessen | 🦌 Grüne Hessen | Hessen | @saar | 🌿 Grüne Saarland | Saarland | @at | 🇦🇹 Grüne Österreich | Programme von Die Grünen Österreich | @kommunalwiki | 📚 KommunalWiki | Fachwissen zur Kommunalpolitik | @böll | 📖 Heinrich-Böll-Stiftung | Analysen und Dossiers der Böll-Stiftung | @gruenblog | ✍️ Grünblog | Beiträge aus dem Grü"
+    "text": "Der Chat kann gezielt in grünen Parteiprogrammen, Beschlüssen und Dokumenten recherchieren. Tippe @ im Eingabefeld, um eine Quelle auszuwählen. Weitere Landesverbände werden laufend ergänzt. Wenn dein Landesverband ein Grünerator Notebook erworben hat, erscheinen eure Daten automatisch als Quelle. Deine @-Mentions erscheinen als Chips in der gesendeten Nachricht und der Chat merkt sie sich: Folgefragen wie „fasse das kürzer\" bleiben automatisch bei der gewählten Quelle bzw. dem gewählten Werkzeug."
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -846,10 +846,10 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/chat/ki-chat",
     "pageTitle": "KI-Chat",
-    "heading": "Skills auswählen",
-    "anchor": "#skills-auswählen",
+    "heading": "Rezepte auswählen",
+    "anchor": "#rezepte-auswählen",
     "category": "Chat",
-    "text": "Skills sind spezialisierte Schreib-Modi, die auf bestimmte Textarten optimiert sind — sie kennen den richtigen Ton, die Struktur und die Längenvorgaben der jeweiligen Plattform. So wählst du einen Skill: Tippe / im Eingabefeld und wähle aus der Liste, oder öffne das „+\"-Menü im Eingabefeld Befehl | Skill | Beschreibung | ------------ | ------------------- | -------------------------------- | /presse | 📰 Pressemitteilung | Pressemitteilungen verfassen | /instagram | 📸 Instagram | Instagram-Posts & Captions | /facebook | 👍 Facebook | Facebook-Posts & Beiträge | /twitter | 🐦 Twitter / X | Tweets & Threads | /linkedin | 💼 LinkedIn | LinkedIn-Posts & Artikel | /reel | 🎬 Reel / TikTok | Reel- & TikTok-Skripte | /aktion | 💡 Aktionsideen | Kreative Aktionsideen entwickeln | Für Anträge, Reden, Wahlprogramme und Bürger*innenanfragen gibt es eigene Grüneratoren — du findest sie unter dem Menüpunkt in der Seitenleiste und kannst sie direkt im Chat öffnen. Du kannst einen Skill mit Quellen und Werkzeugen kombinieren. Zum Beispiel: /presse @grundsatz Klimaschutz in Kommunen schreibt eine Pressemitteilung auf Basis des Grundsatzprogramms."
+    "text": "Rezepte sind spezialisierte Schreib-Modi, die auf bestimmte Textarten optimiert sind — sie kennen den richtigen Ton, die Struktur und die Längenvorgaben der jeweiligen Plattform. So wählst du ein Rezept: Tippe / im Eingabefeld und wähle aus der Liste, oder öffne das „+\"-Menü im Eingabefeld — dort findest du auch die Rezept-Bibliothek mit allen Rezepten Für Anträge, Reden, Wahlprogramme und Bürger*innenanfragen gibt es eigene Grüneratoren — du findest sie unter dem Menüpunkt in der Seitenleiste und kannst sie direkt im Chat öffnen. Du kannst ein Rezept mit Quellen und Werkzeugen kombinieren. Zum Beispiel: /presse @grundsatz Klimaschutz in Kommunen schreibt eine Pressemitteilung auf Basis des Grundsatzprogramms."
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -857,7 +857,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Tipps für die Nutzung",
     "anchor": "#tipps-für-die-nutzung",
     "category": "Chat",
-    "text": "Kombiniere Skill + Quelle + Thema für die besten Ergebnisse, z.B. /presse @bundestagsfraktion Kindergrundsicherung Nutze @recherche für aktuelle Nachrichten und tiefgehende Analysen — es durchsucht Web und Dokumente und wählt die Suchtiefe automatisch Starte ein neues Gespräch für jedes neue Thema — so bleibt der Kontext sauber und die Antworten präziser Lade relevante Dokumente hoch, wenn du einen bestehenden Text überarbeiten oder darauf aufbauen möchtest"
+    "text": "Kombiniere Rezept + Quelle + Thema für die besten Ergebnisse, z.B. /presse @bundestagsfraktion Kindergrundsicherung Nutze @recherche für aktuelle Nachrichten und tiefgehende Analysen — es durchsucht Web und Dokumente und wählt die Suchtiefe automatisch Starte ein neues Gespräch für jedes neue Thema — so bleibt der Kontext sauber und die Antworten präziser Lade relevante Dokumente hoch, wenn du einen bestehenden Text überarbeiten oder darauf aufbauen möchtest"
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -865,7 +865,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Werkzeuge nutzen",
     "anchor": "#werkzeuge-nutzen",
     "category": "Chat",
-    "text": "Werkzeuge erweitern die Fähigkeiten des Chats über die reine Textgenerierung hinaus. Du kannst sie per @-Mention im Eingabefeld aktivieren. Kürzel | Werkzeug | Beschreibung | -------------------- | -------------------- | -------------------------------------------------------------------------- | @recherche | 🔬 Recherche | Web- und Multi-Quellen-Recherche — die Suchtiefe passt sich automatisch an | @dokumente | 📄 Dokumente | Parteiprogramme & Beschlüsse durchsuchen | @docs | 💬 Dokument einfügen | Eigene Dokumente als Kontext einbinden | @zusammenfassung | 📝 Zusammenfassung | Dokument(e) zusammenfassen | @bildgenerieren | 🎨 Bildgenerierung | Bild mit KI generieren | @bildbearbeiten | 🖌️ Bildbearbeitung | Ein generiertes oder hochgeladenes Bild verändern | @sharepic | 🖼️ Sharepic | Sharepic im Grünen Design erstellen (experimentell) | @stadtbegruenen | 🌳 Stadt begrünen | Stadtbild mit Grün transformieren | @umfragen | 📊 Umfragen | Aktuelle Wahlumfragen abfragen | @bundestag | 🏛️ Bundestag | Drucksachen und Reden aus dem Bundestag | @abgeordnetenwatch | 🗳️ Abgeordnetenwatch | Abstimmungen und Profile von Abgeordneten | Du musst dir keine @-Namen merken: Öffne das „+\"-Menü l"
+    "text": "Werkzeuge erweitern die Fähigkeiten des Chats über die reine Textgenerierung hinaus. Du kannst sie per @-Mention im Eingabefeld aktivieren — von der Recherche über Bildgenerierung bis zum Erstellen von Dokumenten, Tabellen und Präsentationen. Was du mit jeder dieser Fähigkeiten konkret fragen kannst, zeigt dir die Seite Was kann ich fragen? mit Musterfragen zu jeder Funktion. Du musst dir keine @-Namen merken: Öffne das „+\"-Menü links im Eingabefeld und dann Funktionen. Dort stehen alle Werkzeuge aus der Tabelle oben zur Auswahl, und ein Klick setzt die passende @-Erwähnung in deine Nachricht. Die Erwähnung gilt jeweils für diese eine Nachricht. Für die nächste wählst du sie erneut aus — dauerhaft eingeschaltet bleibt kein Werkzeug."
   },
   {
     "url": "/docs/chat/ki-modelle",
@@ -913,7 +913,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Grafik-Variante gezielt anfragen",
     "anchor": "#grafik-variante-gezielt-anfragen",
     "category": "Chat",
-    "text": "Ohne weitere Angabe bekommst du die drei Varianten Dreizeiler, Zitat und Info zur Auswahl. Du kannst aber auch direkt eine bestimmte Variante anfragen — nenne sie einfach im Text: Variante | Stichwörter | ---------------------- | ----------------------------------------------------- | Dreizeiler | „Dreizeiler\", „3 Zeilen\", „Slogan\", „Balken\" | Zitat | „Zitat\", „Spruch\", „Statement\", „Aussage\" | Info | „Info\", „Fakten\", „Faktencheck\", „erklär…\" | Slider / Karussell | „Slider\", „Karussell\", „Carousel\", „Slides\", „Folien\" | Beispiel: „Erstelle ein Zitat-Sharepic zu Artenschutz\" liefert direkt die Zitat-Variante. Ein Slider (mehrseitiges Insta-Karussell) ist ein eigenständiges Format und wird nur auf ausdrückliche Anfrage erzeugt — nicht als Teil der drei Standard-Varianten. Frag ihn z. B. mit „… als Karussell\" an."
+    "text": "Ohne weitere Angabe bekommst du die Standard-Varianten zur Auswahl. Du kannst aber auch direkt eine bestimmte Variante anfragen — nenne einfach eines der Stichwörter im Text. Die Tabelle wird direkt aus dem Code erzeugt und zeigt genau die Stichwörter, auf die der Chat tatsächlich reagiert: Beispiel: „Erstelle ein Zitat-Sharepic zu Artenschutz\" liefert direkt die Zitat-Variante. Ein Slider (mehrseitiges Insta-Karussell) ist ein eigenständiges Format und wird nur auf ausdrückliche Anfrage erzeugt — nicht als Teil der Standard-Varianten. Frag ihn z. B. mit „… als Karussell\" an."
   },
   {
     "url": "/docs/chat/social-media-post",
