@@ -903,9 +903,14 @@ async function drain(
           // or a divider the model could not stop extending turns entirely on
           // how long the last unbroken line is — and 200 chars do not say.
           const lastBreak = text.lastIndexOf('\n');
+          const kept = text.slice(0, cut).trimEnd();
+          // Only warn about a cut that took something with it. Removing a run
+          // of dashes leaves a COMPLETE answer, and "may be incomplete" under
+          // it would be a false alarm about a correct result.
+          const lost = cutLostContent(kept, text.slice(cut));
           log.warn(
             `[Engine] degeneration tail shape: lastLine=${text.length - lastBreak - 1}c ` +
-              `newlinesInWindow=${(text.slice(-2000).match(/\n/g) ?? []).length} removed=${text.length - cut}`
+              `newlinesInWindow=${(text.slice(-2000).match(/\n/g) ?? []).length} removed=${text.length - cut} lostContent=${lost}`
           );
           finishReason = DEGENERATE_FINISH_REASON;
           // The kept prefix says it was cut. Both answer paths replace what the
@@ -913,11 +918,6 @@ async function drain(
           // silent retry fails), so the note travels with the trim instead of
           // the trim passing for a finished answer. A successful split retry
           // discards this text wholesale — and with it the note, correctly.
-          const kept = text.slice(0, cut).trimEnd();
-          // ...but only when there is something to warn about. Removing a run
-          // of dashes leaves a COMPLETE answer, and "may be incomplete" under
-          // it would be a false alarm about a correct result.
-          const lost = cutLostContent(kept, text.slice(cut));
           text = kept.length > 0 ? (lost ? `${kept}\n\n${DEGENERATION_NOTICE}` : kept) : '';
           // Best-effort teardown so the upstream stops billing us for spam.
           // swallow-ok: cleanup of an already-abandoned degenerate stream
