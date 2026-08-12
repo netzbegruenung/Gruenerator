@@ -2,6 +2,8 @@
  * Validation utilities for attachment processing
  */
 
+import { extractBase64 } from '@gruenerator/shared/utils';
+
 import { ALLOWED_ATTACHMENT_TYPES, MAX_FILE_SIZE } from './constants.js';
 
 import type { Attachment, FileAttachment, CrawledUrlAttachment } from './types.js';
@@ -25,14 +27,7 @@ export function isCrawledUrlAttachment(attachment: Attachment): attachment is Cr
  * Handles both "data:image/png;base64,..." and raw base64 strings
  */
 export function extractBase64FromDataUrl(data: string): string {
-  if (data.startsWith('data:')) {
-    const match = data.match(/^data:[^;]+;base64,(.+)$/);
-    if (!match) {
-      throw new Error('Invalid data URL format');
-    }
-    return match[1];
-  }
-  return data;
+  return extractBase64(data);
 }
 
 /**

@@ -220,14 +220,15 @@ const createImageAttachmentFromFile = async (filename: string): Promise<ImageAtt
   const imagePath = imagePickerService.getImagePath(filename);
 
   try {
+    // Bytes bleiben Bytes: die Vorlagen sind mehrere MB gross, ein Umweg ueber
+    // base64 haette den Buffer nur aufgeblaeht, um ihn im Canvas-Adapter sofort
+    // wieder zu dekodieren.
     const imageBuffer = await fs.readFile(imagePath);
-    const base64Data = imageBuffer.toString('base64');
     const mimeType = filename.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
-    const dataUrl = `data:${mimeType};base64,${base64Data}`;
 
     return {
       type: mimeType,
-      data: dataUrl,
+      bytes: imageBuffer,
       name: filename,
       size: imageBuffer.length,
       source: 'ai-selected',
@@ -1072,4 +1073,7 @@ const generateSharepicForChat = async (
 };
 
 export { generateSharepicForChat };
+// Exportiert, damit ein Test festhalten kann, dass die Vorlage als Bytes und
+// nicht als Data-URL weitergereicht wird.
+export { createImageAttachmentFromFile };
 export type { SharepicResult, RequestBody, ExpressRequest };

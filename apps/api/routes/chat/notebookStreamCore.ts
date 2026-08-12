@@ -23,6 +23,7 @@ import {
   renumberCitationsInOrder,
   validateAndInjectCitations,
   groupSourcesByCollection,
+  toClientSource,
 } from '../../services/search/index.js';
 import { expandQuery } from '../../services/search/QueryExpansionService.js';
 import {
@@ -446,7 +447,8 @@ export async function handleNotebookStream(
 
     const allSources = searchContext.sortedResults
       .filter((_, i) => !citations.some((c) => c.index === String(i + 1)))
-      .slice(0, 10);
+      .slice(0, 10)
+      .map(toClientSource);
 
     let sourcesByCollection: SourcesByCollection | undefined;
     if (searchContext.isMulti && searchContext.effectiveCollectionIds) {
