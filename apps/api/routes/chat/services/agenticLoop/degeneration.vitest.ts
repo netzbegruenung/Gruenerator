@@ -6,6 +6,7 @@ import {
   isDegenerateSample,
   isStructuralScaffolding,
   trimTrailingScaffoldLine,
+  cutLostContent,
   DEGEN_MIN_LENGTH,
   REPEAT_RUN_CHARS,
   snapToBoundary,
@@ -149,6 +150,32 @@ describe('isDegenerateSample', () => {
     // not scaffolding — and it was real degeneration, correctly cut.
     const window = prose(1400) + repeatTo('---. ', 600);
     expect(isDegenerateSample(window)).toBe(true);
+  });
+});
+
+describe('cutLostContent', () => {
+  const answer = Array.from({ length: 30 }, (_, i) => variedProse(i)).join('');
+
+  it('says no when only dashes were removed', () => {
+    // 13.08.2026 13:46 and 14:02: the answer was complete, the notice under it
+    // would have claimed otherwise.
+    expect(cutLostContent(answer, repeatTo('---. ', 2200))).toBe(false);
+    expect(cutLostContent(answer, repeatTo('--- ', 2200))).toBe(false);
+    expect(cutLostContent(answer, repeatTo('| --- | -- ', 2200))).toBe(false);
+  });
+
+  it('says no for terminator spam — a handful of phrases, endlessly shuffled', () => {
+    expect(cutLostContent(answer, terminatorSpam(2500))).toBe(false);
+  });
+
+  it('says no when the model merely wrote the answer twice', () => {
+    // Nothing is lost: every word of the removed copy stands in the kept text.
+    expect(cutLostContent(answer, `\n\nKorrigierte Ausgabe:\n\n${answer}`)).toBe(false);
+  });
+
+  it('says yes when the cut ate real prose', () => {
+    const lost = Array.from({ length: 20 }, (_, i) => variedProse(100 + i)).join('');
+    expect(cutLostContent(answer, lost + terminatorSpam(1500))).toBe(true);
   });
 });
 
