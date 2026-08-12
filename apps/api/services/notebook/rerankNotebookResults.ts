@@ -8,10 +8,14 @@
 
 import { createLogger } from '../../utils/logger.js';
 import { rerankPipeline } from '../search/rerankPipeline.js';
+import { sourceTextForPrompt } from '../search/SearchResultProcessor.js';
 
 import type { ExpandedChunkResult, ReferencesMap } from '../search/types.js';
 
 const log = createLogger('NotebookRerank');
+
+/** What the cross-encoder gets to read per candidate. */
+const RERANK_INPUT_MAX_CHARS = 1200;
 
 export interface RerankOptions {
   results: ExpandedChunkResult[];
@@ -49,9 +53,12 @@ export async function rerankNotebookResults({
 
   const candidates = results.slice(0, inputLimit);
 
+  // The cross-encoder used to judge `snippet`, which on a semantic hit is the
+  // chunk's opening 300 characters and not the passage that matched — it was
+  // ranking sources by their first sentences. Give it the chunk.
   const items = candidates.map((r) => ({
     title: r.title,
-    content: r.snippet.slice(0, 300),
+    content: (r.chunk_text || r.snippet).slice(0, RERANK_INPUT_MAX_CHARS),
     relevance: r.similarity,
   }));
 
@@ -99,10 +106,8 @@ function buildContextSummary(referencesMap: ReferencesMap): string {
   return Object.keys(referencesMap)
     .map((id) => {
       const ref = referencesMap[id];
-      const snippet = ref.snippets[0]?.[0] || '';
-      const short = snippet.slice(0, 400).replace(/\s+/g, ' ').trim();
       const collectionTag = ref.collection_name ? `[${ref.collection_name}] ` : '';
-      return `${id}. ${collectionTag}${ref.title} — "${short}"`;
+      return `${id}. ${collectionTag}${ref.title} — "${sourceTextForPrompt(ref)}"`;
     })
     .join('\n');
 }

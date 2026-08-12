@@ -24,12 +24,12 @@ import { ChatChart } from '../message-parts/ChatChart';
 import { CitationMarkdownText } from '../message-parts/CitationMarkdownText';
 import { ComputeCard } from '../message-parts/ComputeCard';
 import { GeneratedImageDisplay } from '../message-parts/GeneratedImageDisplay';
+import { ImageGenerationFrame } from '../message-parts/ImageGenerationFrame';
 import { MemoryIndicator } from '../message-parts/MemoryIndicator';
 import { MessageActions } from '../message-parts/MessageActions';
 import { MessageErrorBanner } from '../message-parts/MessageErrorBanner';
 import { MessageDaySeparator } from '../message-parts/MessageTimestamp';
 import { MessageStreamingProvider } from '../message-parts/messageStreamingContext';
-import { ProgressIndicator } from '../message-parts/ProgressIndicator';
 import { SearchImagesSection } from '../message-parts/SearchImagesSection';
 import { SearchResultsSection, type AdditionalSource } from '../message-parts/SearchResultsSection';
 import { SharepicVariantStack } from '../message-parts/SharepicVariantStack';
@@ -37,10 +37,8 @@ import { SkillBadge } from '../message-parts/SkillBadge';
 import { SocialPostCard } from '../message-parts/SocialPostCard';
 import { StreamingStatusLine } from '../message-parts/StreamingStatusLine';
 import { ToolCallGroup } from '../message-parts/ToolCallGroup';
-import { TypingIndicator } from '../message-parts/TypingIndicator';
 import { ConfirmActionCard } from '../tool-ui/ConfirmActionCard';
 import { DocumentCreatedCard } from '../tool-ui/DocumentCreatedCard';
-import { ProgressTracker } from '../tool-ui/progress-tracker/ProgressTracker';
 import { ReelPickerCard } from '../tool-ui/ReelPickerCard';
 import { ReelProcessingCard } from '../tool-ui/ReelProcessingCard';
 
@@ -90,6 +88,11 @@ export const AssistantMessage = memo(function AssistantMessage() {
   // (notebook QA, eigener chat) leave it unset → no agent avatar/badge. We do
   // NOT fall back to the currently-selected agent: selection is ambient UI state,
   // not message provenance, and leaks the wrong agent into notebook answers.
+  // In lokale Variablen gezogen, damit die useMemo-Deps exakt den gelesenen
+  // Werten entsprechen — optional-gechainte Deps (`custom?.agentId`) kann der
+  // React Compiler nicht erhalten und überspringt sonst die ganze Komponente.
+  const agentMention = custom?.agentMention ?? null;
+  const agentId = custom?.agentId ?? null;
   const messageAgent = useMemo<
     | {
         identifier: string;
@@ -100,10 +103,10 @@ export const AssistantMessage = memo(function AssistantMessage() {
       }
     | undefined
   >(() => {
-    const skill = custom?.agentMention
-      ? agentsList.find((a) => a.mention === custom.agentMention)
-      : custom?.agentId
-        ? agentsList.find((a) => a.identifier === custom.agentId)
+    const skill = agentMention
+      ? agentsList.find((a) => a.mention === agentMention)
+      : agentId
+        ? agentsList.find((a) => a.identifier === agentId)
         : undefined;
     if (skill) {
       return {
@@ -116,8 +119,8 @@ export const AssistantMessage = memo(function AssistantMessage() {
     }
     // User agents aren't in the skills catalog — resolve from the registry and
     // map their Phosphor `iconKey` through the dynamic resolver.
-    if (custom?.agentId) {
-      const ua = userAgents.find((a) => a.identifier === custom.agentId);
+    if (agentId) {
+      const ua = userAgents.find((a) => a.identifier === agentId);
       if (ua) {
         return {
           identifier: ua.identifier,
@@ -129,7 +132,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
       }
     }
     return undefined;
-  }, [custom?.agentMention, custom?.agentId, userAgents]);
+  }, [agentMention, agentId, userAgents]);
 
   const isNonDefaultAgent = messageAgent != null && messageAgent.identifier !== getDefaultAgent();
   const fetchFullText = useFetchFullText();
@@ -282,6 +285,17 @@ export const AssistantMessage = memo(function AssistantMessage() {
             <SharepicVariantStack data={custom.sharepicData} />
           )}
           {custom?.generatedImage && <GeneratedImageDisplay image={custom.generatedImage} />}
+
+          {/* Platzhalter-Rahmen, solange das KI-Bild noch generiert wird. Nur für
+              die Bild-Intents (Generierung + Bearbeitung) — Sharepics/Social
+              Posts rendern ihre eigenen Karten und teilen bloß dieselbe
+              progress-Stage. */}
+          {isStreaming &&
+            !custom?.generatedImage &&
+            custom?.progress?.stage === 'generating_image' &&
+            (custom.progress.intent === 'image' || custom.progress.intent === 'image_edit') && (
+              <ImageGenerationFrame />
+            )}
 
           {/* Above the answer, not under it: on a turn that found pictures they are
             the first thing the reader looks at, and a gallery that follows a

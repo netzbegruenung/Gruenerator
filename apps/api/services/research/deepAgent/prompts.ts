@@ -98,8 +98,7 @@ ${locale === 'de-AT' ? LAENDERKONTEXT_AT : ''}
 3. Lies die zwei bis drei besten Treffer mit \`seite_lesen\`. Die Kurztexte der Trefferliste
    sind ein Wegweiser, keine Quelle: ein Bericht, der nur auf ihnen steht, bleibt an der
    Oberfläche. Lies gezielt — gib \`fokus\` mit, damit die Auswertung die richtige Passage trifft.
-4. Nutze \`tiefen_suche\` nur, wenn die Frage mehrstufig ist und die normale Suche nichts hergibt.
-5. Meldet ein Werkzeug einen Fehlschlag, überspringe diese Quelle und nimm die nächste —
+4. Meldet ein Werkzeug einen Fehlschlag, überspringe diese Quelle und nimm die nächste —
    bleib nicht an einer Seite hängen und brich die Teilfrage deswegen nicht ab.
 
 ## Antwort

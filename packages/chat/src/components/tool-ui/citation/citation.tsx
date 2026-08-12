@@ -1,35 +1,20 @@
 'use client';
 
-import { FileText, Globe, Code2, Newspaper, Database, File, ExternalLink } from 'lucide-react';
+import { ExternalLink, Globe } from 'lucide-react';
 import * as React from 'react';
 
+import { extractDomain } from '../../../lib/urlUtils';
 import { openSafeNavigationHref, sanitizeHref } from '../shared/media';
 
 import { cn, Popover, PopoverContent, PopoverTrigger } from './_adapter';
+import { CitationPreview } from './CitationPreview';
 import { SourceGlyph } from './SourceGlyph';
+import { CITATION_TYPE_ICONS } from './typeIcons';
+import { useHoverPopover } from './useHoverPopover';
 
-import type { SerializableCitation, CitationType, CitationVariant } from './schema';
-import type { LucideIcon } from 'lucide-react';
+import type { SerializableCitation, CitationVariant } from './schema';
 
 const FALLBACK_LOCALE = 'en-US';
-
-const TYPE_ICONS: Record<CitationType, LucideIcon> = {
-  webpage: Globe,
-  document: FileText,
-  article: Newspaper,
-  api: Database,
-  code: Code2,
-  other: File,
-};
-
-function extractDomain(url: string): string | undefined {
-  try {
-    const urlObj = new URL(url);
-    return urlObj.hostname.replace(/^www\./, '');
-  } catch {
-    return undefined;
-  }
-}
 
 function formatDate(isoString: string, locale: string): string {
   try {
@@ -41,29 +26,6 @@ function formatDate(isoString: string, locale: string): string {
   } catch {
     return isoString;
   }
-}
-
-function useHoverPopover(delay = 100) {
-  const [open, setOpen] = React.useState(false);
-  const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleMouseEnter = React.useCallback(() => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => setOpen(true), delay);
-  }, [delay]);
-
-  const handleMouseLeave = React.useCallback(() => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => setOpen(false), delay);
-  }, [delay]);
-
-  React.useEffect(() => {
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, []);
-
-  return { open, setOpen, handleMouseEnter, handleMouseLeave };
 }
 
 export interface CitationProps extends SerializableCitation {
@@ -99,7 +61,7 @@ export function Citation(props: CitationProps) {
     locale,
   };
 
-  const TypeIcon = TYPE_ICONS[type] ?? Globe;
+  const TypeIcon = CITATION_TYPE_ICONS[type] ?? Globe;
 
   const handleClick = () => {
     if (!sanitizedHref) return;
@@ -174,17 +136,14 @@ export function Citation(props: CitationProps) {
           onCloseAutoFocus={(e) => e.preventDefault()}
           onClick={handleClick}
         >
-          <div className="hover:bg-muted/50 flex flex-col gap-2 p-3 transition-colors">
-            <div className="flex items-start gap-2">
-              {iconElement}
-              <span className="text-muted-foreground text-xs">{domain}</span>
-            </div>
-            <p className="text-sm leading-snug font-medium">{title}</p>
-            {snippet && (
-              <p className="text-muted-foreground line-clamp-2 text-xs leading-relaxed">
-                {snippet}
-              </p>
-            )}
+          <div className="hover:bg-muted/50 transition-colors">
+            <CitationPreview
+              icon={iconElement}
+              domain={domain}
+              title={title}
+              body={snippet}
+              bodyClassName="line-clamp-2"
+            />
           </div>
         </PopoverContent>
       </Popover>

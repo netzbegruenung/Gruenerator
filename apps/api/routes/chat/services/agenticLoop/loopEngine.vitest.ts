@@ -12,6 +12,7 @@ import {
   SYNTH_REFUSAL_TEXT,
   SYNTH_CUTOFF_RETRY_SUFFIX,
   SYNTH_INVALID_JSON_RETRY_SUFFIX,
+  SYNTH_DEGENERATE_RETRY_SUFFIX,
   type LoopDeps,
   type LoopEngineParams,
 } from './loopEngine.js';
@@ -883,5 +884,109 @@ describe('runAgenticLoop — split validation retry (validateAnswer)', () => {
     const out = await runAgenticLoop(baseParams({}), deps);
     expect(out.text).toBe(DONE);
     expect(synthSystems[1]).toContain(SYNTH_CUTOFF_RETRY_SUFFIX);
+  });
+});
+
+describe('runAgenticLoop — repetition degeneration', () => {
+  // The live incident shape (12.08.2026): a correct answer, then the model
+  // cannot stop and streams terminator spam until an external cap fires.
+  // The prose VARIES per sentence — a verbatim-repeated sentence would itself
+  // (correctly) count as degenerate.
+  const proseSentence = (i: number): string =>
+    `Punkt ${i}: Die Grünen fordern eine Ausbildungsgarantie mit ${i * 3} Maßnahmen und einem BAföG-Plus von ${i * 11} Euro, damit junge Menschen im Wahlkreis ${i * 7} unabhängig vom Elternhaus lernen können. `;
+  const PROSE_TOTAL = Array.from({ length: 40 }, (_, i) => proseSentence(i)).join('').length;
+  const SPAM_PHRASE = '--- Ende.** --- Fertig.** --- Danke! 😊 --- Abschluss.** --- FINAL --- ';
+
+  /** A stream that yields healthy prose, then ENDLESS spam — it only stops when
+   *  the consumer stops pulling, which is exactly what the guard must do. */
+  function endlessSpamStream(): ReturnType<LoopDeps['streamText']> {
+    return {
+      stream: (async function* () {
+        for (let i = 0; i < 40; i++) yield { type: 'text-delta', text: proseSentence(i) };
+        while (true) yield { type: 'text-delta', text: SPAM_PHRASE };
+      })(),
+    } as unknown as ReturnType<LoopDeps['streamText']>;
+  }
+
+  it('unified: aborts the endless stream, trims the spam tail and requests a completion replace', async () => {
+    const onText = vi.fn();
+    const deps: LoopDeps = {
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+      streamText: (() => endlessSpamStream()) as unknown as LoopDeps['streamText'],
+    };
+    const out = await runAgenticLoop(baseParams({ mode: 'unified', onText }), deps);
+    // Without the guard this test never terminates — the stream is endless.
+    expect(out.replacedStreamed).toBe(true);
+    expect(out.text).toContain('Ausbildungsgarantie');
+    expect(out.text.length).toBeLessThan(PROSE_TOTAL + 500);
+    // The wire saw SOME spam (unified streams live) but detection bounded it.
+    const streamed = onText.mock.calls.map((c) => c[0]).join('');
+    expect(streamed.length).toBeLessThan(PROSE_TOTAL + 8000);
+  });
+
+  it('split: a degenerate first pass triggers the dedicated retry suffix and a completion replace', async () => {
+    const synthSystems: string[] = [];
+    let synthCall = 0;
+    const CLEAN = 'Die Antwort in einem Satz — und dann ist Schluss.';
+    const deps: LoopDeps = {
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+      streamText: ((o: StreamOpts) => {
+        if (o.model.id === 'planner') return streamOf([]);
+        synthSystems.push(o.system ?? '');
+        if (synthCall++ === 0) return endlessSpamStream();
+        return streamOf([{ type: 'text-delta', text: CLEAN }]);
+      }) as unknown as LoopDeps['streamText'],
+    };
+    const out = await runAgenticLoop(baseParams({}), deps);
+    expect(out.text).toBe(CLEAN);
+    // The degenerate pass had already opened the gate → completion replace.
+    expect(out.replacedStreamed).toBe(true);
+    expect(synthSystems[1]).toContain(SYNTH_DEGENERATE_RETRY_SUFFIX);
+  });
+
+  it('split: retries even when the trim left NOTHING (spam from the first token)', async () => {
+    const synthSystems: string[] = [];
+    let synthCall = 0;
+    const CLEAN = 'Die Antwort in einem Satz — und dann ist Schluss.';
+    const deps: LoopDeps = {
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+      streamText: ((o: StreamOpts) => {
+        if (o.model.id === 'planner') return streamOf([]);
+        synthSystems.push(o.system ?? '');
+        if (synthCall++ === 0) {
+          // No healthy prefix at all — the most complete degeneration.
+          return {
+            stream: (async function* () {
+              while (true) yield { type: 'text-delta', text: SPAM_PHRASE };
+            })(),
+          } as unknown as ReturnType<LoopDeps['streamText']>;
+        }
+        return streamOf([{ type: 'text-delta', text: CLEAN }]);
+      }) as unknown as LoopDeps['streamText'],
+    };
+    const out = await runAgenticLoop(baseParams({}), deps);
+    // Regression (review finding): the empty-text gate used to skip the retry
+    // here, shipping the generic no-answer fallback instead.
+    expect(synthCall).toBe(2);
+    expect(out.text).toBe(CLEAN);
+    expect(out.replacedStreamed).toBe(true);
+    expect(synthSystems[1]).toContain(SYNTH_DEGENERATE_RETRY_SUFFIX);
+  });
+
+  it('split: keeps the TRIMMED text and still replaces the wire when the retry degenerates too', async () => {
+    let synthCall = 0;
+    const deps: LoopDeps = {
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+      streamText: ((o: StreamOpts) => {
+        if (o.model.id === 'planner') return streamOf([]);
+        synthCall++;
+        return endlessSpamStream();
+      }) as unknown as LoopDeps['streamText'],
+    };
+    const out = await runAgenticLoop(baseParams({}), deps);
+    expect(synthCall).toBe(2);
+    expect(out.text).toContain('Ausbildungsgarantie');
+    expect(out.text).not.toContain('Abschluss.**');
+    expect(out.replacedStreamed).toBe(true);
   });
 });

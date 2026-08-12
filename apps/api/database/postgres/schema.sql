@@ -1112,6 +1112,7 @@ CREATE TABLE IF NOT EXISTS chat_thread_attachments (
     mime_type TEXT NOT NULL,
     size_bytes BIGINT NOT NULL,
     is_image BOOLEAN DEFAULT FALSE,
+    page_count INTEGER,           -- From OCR extraction (PDFs only) — display metadata for attachment chips
 
     -- Extracted content
     extracted_text TEXT,          -- Full OCR text (for re-processing)
