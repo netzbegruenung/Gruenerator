@@ -44,7 +44,10 @@ async function main() {
 
   const results: EnrichmentStats[] = [];
   for (const c of targets) {
-    results.push(await enrichCollection(c, { mode, dryRun }));
+    // maxDocs: 0 — the per-request work budget exists to keep the HTTP endpoint
+    // under the reverse proxy's timeout. This script bypasses HTTP, so a
+    // backfill should run to completion instead of stopping at the default cap.
+    results.push(await enrichCollection(c, { mode, dryRun, maxDocs: 0 }));
   }
 
   console.table(results);
