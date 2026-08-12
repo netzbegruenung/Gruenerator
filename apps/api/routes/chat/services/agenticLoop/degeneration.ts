@@ -254,7 +254,15 @@ export function createDegenerationGuard(): DegenerationGuard {
    *  started repeating itself. */
   let repeatOnset: number | null = null;
 
-  const firstSeen = new Map<number, number>();
+  /** Hash → the offset it was LAST seen at. "Last", not "first", is the whole
+   *  meaning of the distance test: it must measure the gap to the previous
+   *  repetition, which for a periodic passage is its period. Freezing the first
+   *  sighting instead makes the measured gap grow without bound — after ~1.200
+   *  chars EVERY offset of any exactly periodic text reports a long-range
+   *  match, and 480 chars later the detector fires on a table of identical
+   *  empty rows. Reported in review of #2573; the same passage is what the
+   *  window metrics were repaired for two PRs earlier. */
+  const lastSeen = new Map<number, number>();
   let indexedUpTo = 0;
   let runStart: number | null = null;
 
@@ -265,19 +273,26 @@ export function createDegenerationGuard(): DegenerationGuard {
     const limit = Math.min(text.length, MAX_INDEXED_CHARS) - SHINGLE_LENGTH;
     for (let start = indexedUpTo; start <= limit; start++) {
       const hash = shingleHash(text, start);
-      const previous = firstSeen.get(hash);
-      if (previous !== undefined && start - previous >= MIN_REPEAT_DISTANCE) {
-        if (runStart === null) runStart = start;
-        if (start + SHINGLE_LENGTH - runStart >= REPEAT_RUN_CHARS) {
-          repeatOnset = runStart;
-          indexedUpTo = start + 1;
-          return true;
-        }
-      } else {
-        runStart = null;
-        if (previous === undefined) firstSeen.set(hash, start);
-      }
+      const previous = lastSeen.get(hash);
+      lastSeen.set(hash, start);
       indexedUpTo = start + 1;
+      if (previous === undefined || start - previous < MIN_REPEAT_DISTANCE) {
+        runStart = null;
+        continue;
+      }
+      if (runStart === null) runStart = start;
+      if (start + SHINGLE_LENGTH - runStart < REPEAT_RUN_CHARS) continue;
+      // Belt and braces with the distance test above: a repeated run made only
+      // of table skeleton is layout, and a shingle index cannot tell layout
+      // from a re-emitted answer any better than the window metrics could.
+      // Dropping the run rather than returning lets a REAL repeat that follows
+      // the table still accumulate its own 480 chars.
+      if (isStructuralScaffolding(text.slice(runStart, start + SHINGLE_LENGTH))) {
+        runStart = null;
+        continue;
+      }
+      repeatOnset = runStart;
+      return true;
     }
     return false;
   }
