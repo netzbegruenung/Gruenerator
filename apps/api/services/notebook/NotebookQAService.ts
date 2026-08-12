@@ -50,6 +50,7 @@ import {
   selectAcrossQueryGroups,
   sourceTextForPrompt,
   splitCompositeQuestion,
+  toClientSource,
   groupSourcesByCollection,
   formatDe,
 } from '../search/index.js';
@@ -84,6 +85,13 @@ import type {
 
 const log = createLogger('NotebookQAService');
 const documentSearchService = new DocumentSearchService();
+
+/**
+ * Per-source budget for the fast-mode prompt. Smaller than
+ * PROMPT_SOURCE_MAX_CHARS because fast mode packs 15 sources and answers
+ * briefly — but still the matched passage, not the chunk's opening.
+ */
+const FAST_DRAFT_SOURCE_MAX_CHARS = 900;
 
 interface CorpusDocSummary {
   id: string;
@@ -243,7 +251,7 @@ export class NotebookQAService {
       answer: cleanDraft,
       citations,
       sources,
-      allSources: sortedResults.slice(citations.length, citations.length + 10),
+      allSources: sortedResults.slice(citations.length, citations.length + 10).map(toClientSource),
       sourcesByCollection,
       metadata: this._buildMetadata(
         startTime,
@@ -450,7 +458,8 @@ export class NotebookQAService {
 
     const allSources = sorted
       .filter((_, i) => !citations.some((c) => c.index === String(i + 1)))
-      .slice(0, 10);
+      .slice(0, 10)
+      .map(toClientSource);
 
     return {
       success: true,
@@ -1025,11 +1034,18 @@ export class NotebookQAService {
     const context = results
       .slice(0, 15)
       .map((r) => {
-        const snippet = r.snippet.slice(0, 300).replace(/\s+/g, ' ').trim();
+        // Same reason as sourceTextForPrompt: `snippet` is the chunk's opening
+        // 300 characters on a semantic hit, so answering from it reproduces
+        // exactly the "not in the sources" failure this path is supposed to
+        // avoid. Fast mode gets a smaller budget, not a worse excerpt.
+        const text = (r.chunk_text || r.snippet)
+          .slice(0, FAST_DRAFT_SOURCE_MAX_CHARS)
+          .replace(/\s+/g, ' ')
+          .trim();
         const collectionTag = r.collection_name ? `[${r.collection_name}] ` : '';
         const dateLabel = formatDe(r.published_at ?? r.date ?? null);
         const datePart = dateLabel ? `(Datum: ${dateLabel}) ` : '';
-        return `${collectionTag}${datePart}${r.title}: "${snippet}"`;
+        return `${collectionTag}${datePart}${r.title}: "${text}"`;
       })
       .join('\n\n');
 
