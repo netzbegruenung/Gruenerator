@@ -427,7 +427,21 @@ export function applyReciprocalRankFusion(
 }
 
 /**
- * Apply weighted combination to merge vector and text results
+ * Apply weighted combination to merge vector and text results.
+ *
+ * A chunk that only the vector lane found is scored on the vector weight ALONE
+ * (weighted average), not on the full weight sum. Otherwise its score is scaled
+ * down by the missing text weight and it has to clear the caller's threshold
+ * from behind a handicap that varies with the query's wording — with
+ * `vectorWeight` 0.5 a threshold of 0.35 silently means cosine 0.70, with 0.85
+ * it means cosine 0.41. Same chunk, same collection, different phrasing.
+ *
+ * The asymmetry with text-only chunks (still scaled by the text weight) is
+ * deliberate: the two absences carry different information. The vector lane
+ * ranks the whole collection, so a missing text hit only means the chunk lacks
+ * the literal term — no evidence against it. The text lane is a filter, so a
+ * missing vector hit means the chunk WAS scored and fell below the threshold —
+ * that is evidence against it, and keeps its penalty.
  */
 export function applyWeightedCombination(
   vectorResults: VectorSearchResult[],
@@ -475,14 +489,26 @@ export function applyWeightedCombination(
   });
 
   return Array.from(scoresMap.values())
-    .map((result) => ({
-      id: result.item.id,
-      score: result.vectorScore + result.textScore,
-      payload: result.item.payload,
-      searchMethod: result.searchMethod,
-      originalVectorScore: result.originalVectorScore,
-      originalTextScore: result.originalTextScore,
-    }))
+    .map((result) => {
+      const hasVector = result.originalVectorScore !== null;
+      const hasText = result.originalTextScore !== null;
+      // Divide by the weight of the lanes that actually contributed, so a
+      // vector-only hit keeps its cosine instead of being scaled by a weight
+      // that the caller's threshold knows nothing about.
+      const contributingWeight =
+        hasVector && !hasText
+          ? normalizedVectorWeight
+          : normalizedVectorWeight + normalizedTextWeight;
+
+      return {
+        id: result.item.id,
+        score: (result.vectorScore + result.textScore) / (contributingWeight || 1),
+        payload: result.item.payload,
+        searchMethod: result.searchMethod,
+        originalVectorScore: result.originalVectorScore,
+        originalTextScore: result.originalTextScore,
+      };
+    })
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
 }

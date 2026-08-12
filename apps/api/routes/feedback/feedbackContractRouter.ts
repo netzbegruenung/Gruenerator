@@ -16,6 +16,7 @@ import { type Application } from 'express';
 import { isEmailConfigured, sendEmail } from '../../services/email/index.js';
 import { baseLayout, escapeHtml } from '../../services/email/templates.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
+import { decodeDataUrl } from '../../utils/dataUrl.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -75,15 +76,14 @@ export const feedbackContractRouter = s.router(feedbackContract, {
       let attachments:
         Array<{ filename: string; content: Buffer; contentType: string }> | undefined;
       if (screenshot) {
-        const match = /^data:(image\/[a-zA-Z+]+);base64,(.+)$/s.exec(screenshot);
-        if (match) {
-          const contentType = match[1];
-          const ext = contentType.split('/')[1]?.split('+')[0] ?? 'png';
+        const decoded = decodeDataUrl(screenshot, { expectedType: 'image' });
+        if (decoded) {
+          const ext = decoded.mediaType.split('/')[1]?.split('+')[0] ?? 'png';
           attachments = [
             {
               filename: `screenshot.${ext}`,
-              content: Buffer.from(match[2], 'base64'),
-              contentType,
+              content: decoded.buffer,
+              contentType: decoded.mediaType,
             },
           ];
         } else {

@@ -63,6 +63,8 @@ interface SaveAttachmentParams {
   sizeBytes: number;
   isImage: boolean;
   extractedText: string | null;
+  /** Page count from OCR (PDFs only) — display metadata for attachment chips. */
+  pageCount?: number;
   /** Base64 image bytes (images only) — used to generate a persistent vision
    *  description so follow-up turns can reason about the image. */
   imageData?: string;
@@ -86,6 +88,7 @@ export async function saveThreadAttachment(params: SaveAttachmentParams): Promis
     sizeBytes,
     isImage,
     extractedText,
+    pageCount,
     imageData,
     fileData,
   } = params;
@@ -94,8 +97,8 @@ export async function saveThreadAttachment(params: SaveAttachmentParams): Promis
 
   const result = await postgres.query(
     `INSERT INTO chat_thread_attachments
-     (thread_id, message_id, user_id, name, mime_type, size_bytes, is_image, extracted_text, file_data)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     (thread_id, message_id, user_id, name, mime_type, size_bytes, is_image, extracted_text, page_count, file_data)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      RETURNING id`,
     [
       threadId,
@@ -106,6 +109,7 @@ export async function saveThreadAttachment(params: SaveAttachmentParams): Promis
       sizeBytes,
       isImage,
       extractedText,
+      pageCount ?? null,
       fileData ?? null,
     ]
   );
@@ -294,7 +298,7 @@ export async function embedThreadAttachmentForRag(params: {
   const { attachmentId, userId, name, extractedText } = params;
   const documentId = randomUUID();
 
-  const { chunks, embeddings } = await chunkAndEmbedText(extractedText);
+  const { chunks, embeddings } = await chunkAndEmbedText(extractedText, { title: name });
   await getQdrantDocumentService().storeDocumentVectors(userId, documentId, chunks, embeddings, {
     sourceType: 'chat_attachment',
     title: name,

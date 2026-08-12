@@ -69,7 +69,9 @@ router.get('/', async (req, res) => {
                       'name', cta.name,
                       'contentType', cta.mime_type,
                       'preview', LEFT(COALESCE(cta.extracted_text, ''), 2000),
-                      'truncated', CHAR_LENGTH(COALESCE(cta.extracted_text, '')) > 2000
+                      'truncated', CHAR_LENGTH(COALESCE(cta.extracted_text, '')) > 2000,
+                      'size', cta.size_bytes,
+                      'pageCount', cta.page_count
                     ) ORDER BY cta.created_at ASC
                   )
                   FROM chat_thread_attachments cta
@@ -155,6 +157,8 @@ router.get('/', async (req, res) => {
                 contentType: record.contentType,
                 preview: record.preview,
                 truncated: record.truncated,
+                ...(typeof record.size === 'number' && { size: record.size }),
+                ...(typeof record.pageCount === 'number' && { pageCount: record.pageCount }),
               },
             ];
           })

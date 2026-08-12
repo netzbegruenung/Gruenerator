@@ -49,6 +49,14 @@ describe('researcherPrompt', () => {
     expect(researcherPrompt('de-DE')).toMatch(/Wegweiser, keine Quelle/);
   });
 
+  it('does not offer the subagent a tool it no longer has', () => {
+    // `tiefen_suche` is lead-only now (see `subagentTools`). A prompt that still
+    // names it teaches the worker to call something that is not in its list —
+    // which costs a step and reads to the model like a broken tool.
+    expect(researcherPrompt('de-DE')).not.toContain('tiefen_suche');
+    expect(leadPrompt('de-DE')).toContain('tiefen_suche');
+  });
+
   it('answers in its message instead of writing files', () => {
     // Concurrent `task` calls share one `files` state — three parallel note
     // writes left a single file behind on 10.08.2026.

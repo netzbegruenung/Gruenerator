@@ -92,6 +92,32 @@ const DEFAULT_SEARCH_RESULTS = 8;
 const ATTEMPTS = 2;
 
 /**
+ * Tools the lead keeps to itself.
+ *
+ * `tiefen_suche` is the only genuinely expensive lane in this agent — Linkup
+ * `deep`, capped at two calls for the whole run — and the subagents used to get
+ * the lead's list verbatim. Since delegation runs concurrently, several workers
+ * now compete for those two calls: the cap still holds, but which sub-question
+ * gets them becomes a race rather than a decision. The lead keeps the tool and
+ * researches gaps itself, which is where the choice belongs.
+ *
+ * The docs point the same way — "Keep this minimal and include only what's
+ * needed" (Deep Agents, *Subagents*).
+ */
+const LEAD_ONLY_TOOLS = new Set(['tiefen_suche']);
+
+/**
+ * The lead's tools minus the ones a subagent must not spend on its own.
+ *
+ * Filtering by name rather than rebuilding the list keeps ONE construction site
+ * for the tools: a tool added to `createResearchTools` reaches the subagents
+ * unless it is named here.
+ */
+export function subagentTools<T extends { name: string }>(tools: readonly T[]): T[] {
+  return tools.filter((t) => !LEAD_ONLY_TOOLS.has(t.name));
+}
+
+/**
  * Runs `attempt` up to `ATTEMPTS` times and returns null when all of them fail.
  *
  * Null rather than a throw, because the caller's job is to turn a dead call into

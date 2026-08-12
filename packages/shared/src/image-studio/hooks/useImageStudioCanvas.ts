@@ -7,6 +7,7 @@ import { useState, useCallback } from 'react';
 
 import { getGlobalApiClient } from '../../api/client.js';
 import { isMobile } from '../../platform/index.js';
+import { stripDataUrlPrefix } from '../../utils/dataUrl.js';
 import { getTypeConfig, getCanvasEndpoint } from '../constants.js';
 import {
   validateCanvasInput,
@@ -78,7 +79,7 @@ export function useImageStudioCanvas(
         } as unknown as Blob);
       } else if (request.imageData) {
         // Web: Handle base64 image data by converting to Blob
-        const base64Data = request.imageData.replace(/^data:image\/\w+;base64,/, '');
+        const base64Data = stripDataUrlPrefix(request.imageData);
         const byteCharacters = atob(base64Data);
         const byteNumbers = new Array(byteCharacters.length);
         for (let i = 0; i < byteCharacters.length; i++) {

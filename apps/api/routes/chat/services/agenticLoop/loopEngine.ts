@@ -31,6 +31,12 @@ import { createLogger } from '../../../../utils/logger.js';
 import { isWholesaleRefusal, refusalLanguage } from '../refusalDetection.js';
 import { createIdleDeadline } from '../streamIdleDeadline.js';
 
+import {
+  createDegenerationGuard,
+  findDegenerationCut,
+  DEGENERATE_FINISH_REASON,
+} from './degeneration.js';
+
 import type { LanguageModel, ModelMessage, ToolSet } from 'ai';
 
 const log = createLogger('AgenticLoopEngine');
@@ -382,7 +388,7 @@ async function streamWithTools(
   p: LoopEngineParams,
   model: LanguageModel,
   deps: LoopDeps
-): Promise<{ text: string }> {
+): Promise<LoopResult> {
   const result = deps.streamText({
     model,
     system: p.toolSystem,
@@ -404,7 +410,14 @@ async function streamWithTools(
     experimental_repairToolCall: repairToolCall,
     ...phaseTelemetry('unified'),
   });
-  const { text } = await drain(result, p.onText, p.onReasoning);
+  const { text, finishReason } = await drain(result, p.onText, p.onReasoning);
+  if (finishReason === DEGENERATE_FINISH_REASON) {
+    // Unified streams live, so the spam is already on the wire — drain has
+    // trimmed the returned text back to the healthy prefix, and the caller's
+    // `completion` replace (the same channel the split validation retry uses)
+    // swaps what the client shows and what gets persisted.
+    return { text, replacedStreamed: true };
+  }
   return { text };
 }
 
@@ -502,6 +515,8 @@ export const SYNTH_CUTOFF_RETRY_SUFFIX =
   '\n\nWICHTIG: Dein letzter Versuch brach mitten im Satz ab. Schreibe die Antwort JETZT vollständig zu Ende — gleiche Sprache, gleiches Format, aber mit einem echten Schluss.';
 export const SYNTH_INVALID_JSON_RETRY_SUFFIX =
   '\n\nWICHTIG: Dein letzter Versuch enthielt syntaktisch UNGÜLTIGES JSON. Gib das angeforderte JSON jetzt vollständig und valide aus (mit JSON.parse parsebar), ohne Kommentare und ohne abgebrochene Strukturen.';
+export const SYNTH_DEGENERATE_RETRY_SUFFIX =
+  '\n\nWICHTIG: Dein letzter Versuch verlor sich in endlosen Wiederholungen ("Ende", "Fertig", wiederholte Zeichenfolgen) statt aufzuhören. Schreibe die Antwort JETZT genau EINMAL, beende sie mit einem normalen Schlusssatz und gib danach NICHTS mehr aus — keine Abschlussmarker, keine Wiederholungen.';
 
 /**
  * The retry nudge. Says nothing about LENGTH on purpose: an output format the
@@ -678,6 +693,9 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<LoopResu
    *  abnormal finishReason means the upstream cut the stream; the caller's
    *  validators see the text alone and cannot know that. */
   const invalidReason = (pass: { text: string; finishReason: string | null }): string | null => {
+    if (pass.finishReason === DEGENERATE_FINISH_REASON) {
+      return SYNTH_DEGENERATE_RETRY_SUFFIX;
+    }
     if (
       pass.finishReason != null &&
       pass.finishReason !== 'stop' &&
@@ -762,7 +780,13 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<LoopResu
     return { text: SYNTH_REFUSAL_TEXT };
   }
   if (!looksLikeToolPlanLeak(first.text, toolNames)) {
-    const reason = first.text.trim().length > 0 ? invalidReason(first) : null;
+    // A degenerate pass earns the retry even when the trim left NOTHING — spam
+    // from the first token is the most complete failure, exactly where a fresh
+    // pass helps most. Plain-empty answers stay the caller's fallback case.
+    const reason =
+      first.text.trim().length > 0 || first.finishReason === DEGENERATE_FINISH_REASON
+        ? invalidReason(first)
+        : null;
     if (reason != null && !(p.writeAbortSignal ?? p.abortSignal).aborted) {
       const replaced = await retryInvalidAnswer(first, reason);
       if (replaced) return replaced;
@@ -770,7 +794,15 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<LoopResu
     recordDecision('loop.synth_verdict', 'accepted', {
       inputs: { textLength: first.text.length },
     });
+    // Captured BEFORE flush() — flush opens the gate unconditionally, so
+    // afterwards isOpen() no longer says whether the CLIENT saw anything.
+    const spamReachedWire = first.isOpen();
     first.flush();
+    if (first.finishReason === DEGENERATE_FINISH_REASON && spamReachedWire) {
+      // The retry didn't recover, so the trimmed text stands — but the wire
+      // still carries the degenerate tail drain cut off. Replace it.
+      return { text: first.text, replacedStreamed: true };
+    }
     return { text: first.text };
   }
 
@@ -811,6 +843,7 @@ async function drain(
 ): Promise<{ text: string; finishReason: string | null }> {
   let text = '';
   let finishReason: string | null = null;
+  const degeneration = createDegenerationGuard();
   const iterator = result.stream[Symbol.asyncIterator]();
   try {
     while (true) {
@@ -828,6 +861,24 @@ async function drain(
       } else if (part.type === 'text-delta' && part.text != null && part.text.length > 0) {
         text += part.text;
         onText(part.text);
+        // A model that cannot stop ("Ende. Fertig. 😊" loops, digit/smiley runs)
+        // has no limit on our side to run into — the answer paths deliberately
+        // set no maxOutputTokens, so without this it streams until the PROVIDER's
+        // cap fires (live 12.08.2026: 32.826 chars over 263s). Cut it here, keep
+        // the healthy prefix, and let the caller's finishReason handling take
+        // over (split: silent retry; unified: completion replace).
+        if (degeneration.check(text)) {
+          const cut = findDegenerationCut(text, text.length);
+          log.warn(
+            `[Engine] repetitive degeneration detected after ${text.length} chars — aborting the stream, keeping ${cut}`
+          );
+          finishReason = DEGENERATE_FINISH_REASON;
+          text = text.slice(0, cut).trimEnd();
+          // Best-effort teardown so the upstream stops billing us for spam.
+          // swallow-ok: cleanup of an already-abandoned degenerate stream
+          void Promise.resolve(iterator.return?.()).catch(() => {});
+          break;
+        }
       } else if (part.type === 'finish') {
         finishReason = part.finishReason ?? null;
       }
@@ -840,7 +891,13 @@ async function drain(
   // provider's own), `content-filter`, `error` or `other`. Previously only
   // `length` was checked, so an abnormally terminated stream was persisted and
   // shipped as a finished answer with nothing in the logs to say otherwise.
-  if (finishReason != null && finishReason !== 'stop' && finishReason !== 'tool-calls') {
+  // Degeneration has its own log line above.
+  if (
+    finishReason != null &&
+    finishReason !== 'stop' &&
+    finishReason !== 'tool-calls' &&
+    finishReason !== DEGENERATE_FINISH_REASON
+  ) {
     log.warn(
       `[Engine] stream ended with finishReason=${finishReason} after ${text.length} chars — the answer is likely truncated`
     );

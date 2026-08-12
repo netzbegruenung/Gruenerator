@@ -5,7 +5,7 @@
 
 import { getQdrantInstance, type QdrantService } from '../../../database/services/QdrantService.js';
 import { chunkQualityService } from '../../ChunkQualityService/index.js';
-import { smartChunkDocument } from '../../document-services/index.js';
+import { smartChunkDocument, buildEmbeddingTexts } from '../../document-services/index.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
 import { BaseScraper } from '../base/BaseScraper.js';
 import { recordSyncEvent, toExcerpt } from '../syncEventRecorder.js';
@@ -341,7 +341,9 @@ export class KommunalwikiScraper extends BaseScraper {
     }
 
     const chunkTexts = chunks.map((c) => c.text);
-    const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(chunkTexts);
+    const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(
+      buildEmbeddingTexts(chunkTexts, article.title)
+    );
 
     const articleType = this.detectArticleType(article.title, categories);
     const primaryCategory = categories.length > 0 ? categories[0] : null;
