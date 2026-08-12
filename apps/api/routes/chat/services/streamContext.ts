@@ -87,6 +87,51 @@ const log = createLogger('chatGraphContractRouter');
 // without that context.
 const EXTERNAL_CONTEXT_TIMEOUT_MS = 3_000;
 
+/**
+ * Long material pasted straight into the message body — not uploaded as a file —
+ * is persisted as a synthetic attachment so later turns get it back through
+ * `FRÜHERE DOKUMENTE IN DIESEM GESPRÄCH`.
+ *
+ * Measured on thread `5b184c40` (13.08.2026, 00:53–00:56): a translate → glossary
+ * → mapping-table → proofread chain over one article. The first user message held
+ * 10.327 chars and `chat_thread_attachments` had no row for that thread at all, so
+ * nothing could be re-injected. Steps 2–4 then built the mapping table out of the
+ * translation instead of the source, invented source quotes, and the model even
+ * web-searched for the article it had been handed one turn earlier.
+ *
+ * The web composer already converts pastes ≥600 chars into a real attachment, but
+ * only on its own paste path. Text that arrives as plain message content (mobile,
+ * API clients, a paste the composer did not intercept) bypassed persistence.
+ *
+ * Threshold: the base system prompt runs ~3.000 chars, the same yardstick
+ * `materialDominatesTurn` uses. Below it a message is an instruction; above it,
+ * it is material the user will keep referring to.
+ */
+export const INLINE_MATERIAL_MIN_CHARS = 3_000;
+/** Same name the composer gives an intercepted paste — one concept, one label. */
+export const INLINE_MATERIAL_ATTACHMENT_NAME = 'Eingefügter Text.txt';
+
+/**
+ * The synthetic attachment for this turn's inline material, or null when there
+ * is nothing to carry forward. Skipped when the turn already brought a document
+ * (that one IS the material) and on regenerate (the user message is unchanged —
+ * a second row would duplicate it).
+ */
+export function inlineMaterialAttachment(
+  text: string,
+  opts: { regenerate: boolean; hasDocumentAttachment: boolean }
+): ProcessAttachmentsResult['processedMeta'][number] | null {
+  if (opts.regenerate || opts.hasDocumentAttachment) return null;
+  if (text.length < INLINE_MATERIAL_MIN_CHARS) return null;
+  return {
+    name: INLINE_MATERIAL_ATTACHMENT_NAME,
+    mimeType: 'text/plain',
+    sizeBytes: Buffer.byteLength(text, 'utf8'),
+    isImage: false,
+    extractedText: text,
+  };
+}
+
 // chat_threads.id is a uuid column. A client may send a local-only sentinel id
 // (e.g. "__LOCALID_..." from the lazy-thread-creation runtime, or the sheet /
 // deck editor sidebars) for a thread it has not persisted yet — that is not a
@@ -529,6 +574,20 @@ export async function buildStreamContext({
     clientAttachmentContext && derivedAttachmentContext
       ? `${clientAttachmentContext}\n\n---\n\n${derivedAttachmentContext}`
       : clientAttachmentContext || derivedAttachmentContext;
+
+  const inlineMaterial = inlineMaterialAttachment(
+    lastUserMessage ? extractTextContent(lastUserMessage.content) : '',
+    {
+      regenerate: !!rawRegenerate,
+      hasDocumentAttachment: processedMeta.some((m) => !m.isImage),
+    }
+  );
+  if (inlineMaterial) {
+    processedMeta.push(inlineMaterial);
+    log.info(
+      `[StreamContext] Carrying ${inlineMaterial.extractedText?.length ?? 0}c of inline material forward as a document`
+    );
+  }
 
   const docAttachments = effectiveAttachments?.filter((a) => !a.isImage) ?? [];
 
