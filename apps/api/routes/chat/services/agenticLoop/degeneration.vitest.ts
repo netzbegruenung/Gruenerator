@@ -129,6 +129,26 @@ describe('isDegenerateSample', () => {
     expect(isDegenerateSample(repeatTo('1234567890', 2000))).toBe(true);
     expect(isDegenerateSample(terminatorSpam(2000))).toBe(true);
   });
+
+  // ── The two live tails of 13.08.2026, measured ─────────────────────────────
+  // The diagnostic log printed the shape of both. They look alike in a 200-char
+  // excerpt and must be judged differently, and the deciding property is
+  // whether anything but scaffolding is left in the TAIL the metric reads.
+
+  it('passes prose that ends in a table divider (13:24, removed 0)', () => {
+    // Detected after 16.034 chars and then cut nothing, because detection asked
+    // about scaffolding over 2.000 chars and the cut asked over 600. Both must
+    // now say the same thing: layout.
+    const window = prose(1400) + repeatTo('| --- | --- | -- ', 600);
+    expect(isDegenerateSample(window)).toBe(false);
+  });
+
+  it('flags the dash-and-dot run that followed it (13:46, removed 2.149)', () => {
+    // `lastLine=790c newlinesInWindow=4`. The dots are substance, so this is
+    // not scaffolding — and it was real degeneration, correctly cut.
+    const window = prose(1400) + repeatTo('---. ', 600);
+    expect(isDegenerateSample(window)).toBe(true);
+  });
 });
 
 describe('isStructuralScaffolding', () => {
