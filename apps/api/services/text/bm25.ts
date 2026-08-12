@@ -261,9 +261,12 @@ export function cistem(word: string): string {
 }
 
 /** FNV-1a 32-bit hash → sparse index space. */
+const MAX_HASH_CHARS = 64;
+
 export function hashTerm(term: string): number {
   let hash = 0x811c9dc5;
-  for (let i = 0; i < term.length; i++) {
+  const len = Math.min(term.length, MAX_HASH_CHARS);
+  for (let i = 0; i < len; i++) {
     hash ^= term.charCodeAt(i);
     hash = Math.imul(hash, 0x01000193);
   }
