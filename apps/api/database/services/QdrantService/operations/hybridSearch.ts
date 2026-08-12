@@ -289,8 +289,7 @@ export async function performTextSearch(
 
       try {
         const scrollResult = await client.scroll(collection, {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          filter: textFilter as any,
+          filter: textFilter as Schemas['Filter'],
           limit: Math.ceil(limit / variants.length) + 5,
           with_payload: true,
           with_vector: false,
@@ -351,8 +350,7 @@ export async function performTextSearch(
           tokFilter.must!.push({ key: 'chunk_text', match: { text: tok } });
           try {
             const tokRes = await client.scroll(collection, {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              filter: tokFilter as any,
+              filter: tokFilter as Schemas['Filter'],
               limit: Math.ceil(limit / tokens.length) + 3,
               with_payload: true,
               with_vector: false,
