@@ -11,11 +11,15 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+import { createLogger } from '../../utils/logger.js';
+
 import { parseCitationMarkers } from './citationParser.js';
 
 import type { ResolvedImage } from './imageResolver.js';
 import type { FormattedBlock, FormattedSegment } from './types.js';
 import type * as Docx from 'docx';
+
+const log = createLogger('docxRenderer');
 
 export const BODY_FONT = 'PT Sans';
 export const HEADING_FONT = 'GrueneTypeNeue';
@@ -174,15 +178,26 @@ let embeddedFontsPromise: Promise<Array<{ name: string; data: Buffer }>> | null 
  * `GrueneTypeNeue` instead of hoping the reader's machine has them. Only the
  * regular cuts exist as files; Word synthesises bold/italic from them. Consolas
  * stays unembedded — not ours to ship, and universally installed anyway.
+ *
+ * A load failure yields an empty list (the export must still produce a file,
+ * just without embedded fonts) and is NOT cached — caching the rejected
+ * attempt would disable embedding until the process restarts.
  */
 export function loadEmbeddedFonts(): Promise<Array<{ name: string; data: Buffer }>> {
   embeddedFontsPromise ??= Promise.all([
     fs.readFile(path.join(FONTS_DIR, 'PTSans-Regular.ttf')),
     fs.readFile(path.join(FONTS_DIR, 'GrueneTypeNeue-Regular.ttf')),
-  ]).then(([body, heading]) => [
-    { name: BODY_FONT, data: body },
-    { name: HEADING_FONT, data: heading },
-  ]);
+  ]).then(
+    ([body, heading]) => [
+      { name: BODY_FONT, data: body },
+      { name: HEADING_FONT, data: heading },
+    ],
+    (err: unknown) => {
+      embeddedFontsPromise = null;
+      log.warn(`[docxRenderer] font embedding skipped: ${(err as Error).message}`);
+      return [];
+    }
+  );
   return embeddedFontsPromise;
 }
 

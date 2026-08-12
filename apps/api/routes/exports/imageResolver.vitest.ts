@@ -1,6 +1,14 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { resolveImages, sniffImage } from './imageResolver.js';
+
+vi.mock('../../utils/validation/urlSecurity.js', () => ({
+  validateUrlForFetch: vi.fn(async (url: string) =>
+    url.startsWith('https:')
+      ? { isValid: true, url: new URL(url) }
+      : { isValid: false, error: 'Protocol not allowed' }
+  ),
+}));
 
 import type { FormattedBlock } from './types.js';
 
@@ -84,6 +92,55 @@ describe('resolveImages', () => {
       imageBlock('file:///etc/passwd'),
       imageBlock('javascript:alert(1)'),
     ]);
+    expect(resolved.size).toBe(0);
+  });
+});
+
+describe('resolveImages — fetch path', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function streamOf(chunks: Uint8Array[]): ReadableStream<Uint8Array> {
+    return new ReadableStream({
+      start(controller) {
+        for (const chunk of chunks) controller.enqueue(chunk);
+        controller.close();
+      },
+    });
+  }
+
+  it('embeds a fetched image', async () => {
+    const png = Buffer.from(PNG_1X1, 'base64');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(streamOf([new Uint8Array(png)]), { status: 200 }))
+    );
+
+    const resolved = await resolveImages([imageBlock('https://example.org/a.png')]);
+    expect(resolved.get('https://example.org/a.png')).toMatchObject({
+      type: 'png',
+      width: 1,
+      height: 1,
+    });
+  });
+
+  // `content-length` is just a hint; the cap has to hold against a body that
+  // is silently larger than declared.
+  it('drops a body that exceeds the cap regardless of content-length', async () => {
+    const megabyte = new Uint8Array(1024 * 1024);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(streamOf(Array.from({ length: 9 }, () => megabyte)), {
+            status: 200,
+            headers: { 'content-length': '10' },
+          })
+      )
+    );
+
+    const resolved = await resolveImages([imageBlock('https://example.org/huge.png')]);
     expect(resolved.size).toBe(0);
   });
 });
