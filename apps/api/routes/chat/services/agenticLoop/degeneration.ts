@@ -177,25 +177,135 @@ export function findDegenerationCut(text: string, detectedAt: number): number {
   return floor;
 }
 
+// ── Long-range repetition ────────────────────────────────────────────────────
+//
+// The failure the two window metrics above cannot see (live 12.08.2026,
+// 12:22:08): the model wrote the COMPLETE answer, decided it was not clean
+// enough, announced "Korrigierte Ausgabe" and wrote it again. Seven times, over
+// 45.711 chars. Every window of that is flawless German with ordinary word
+// diversity — the guard only woke up at the very end, when the model started
+// spelling "FERTIG" one letter per line, which finally looked local enough.
+//
+// So the signal has to be long-range: is this passage one the model already
+// wrote thousands of chars ago? Shingles answer that in one pass.
+
+/** Window hashed as one shingle. Long enough that ordinary German phrases do
+ *  not collide by accident, short enough to catch a re-emitted paragraph. */
+const SHINGLE_LENGTH = 48;
+/** How far back a match must be to count. This is the whole false-positive
+ *  defence: a table repeating `| Vollständig | - |` every ~40 chars, a list
+ *  with parallel phrasing, or the same term used consistently (which our own
+ *  prompts REQUIRE) never reaches this distance. A re-emitted section does. */
+const MIN_REPEAT_DISTANCE = 1200;
+/** Contiguous repeated text needed before we call it a loop. A quotation, a
+ *  restated heading or a summarised bullet stays under this; an answer written
+ *  a second time blows past it immediately. */
+export const REPEAT_RUN_CHARS = 480;
+/** Stop growing the index once a stream is this long — it has either fired by
+ *  now or it is not this kind of failure, and the map must not grow unbounded. */
+const MAX_INDEXED_CHARS = 120_000;
+/** Window used to ask "was the text right before the onset already junk?".
+ *
+ *  Exactly {@link MIN_REPEAT_DISTANCE}, and that is structural rather than
+ *  tuned: short-period junk cannot match ITSELF until that much of it exists,
+ *  so its run always starts at least this far inside the junk and the probe is
+ *  guaranteed to be pure junk. A re-emitted answer's onset, by contrast, has
+ *  the healthy original directly behind it. Shorter probes are not just less
+ *  accurate but structurally wrong — under MIN_WORDS the diversity metric
+ *  reports "healthy" for anything, and the periodicity metric only sees
+ *  periods up to MAX_PERIOD (60), which a ~70-char junk phrase already exceeds. */
+const ONSET_PROBE = MIN_REPEAT_DISTANCE;
+
+/** Cheap non-cryptographic hash of text[start, start+SHINGLE_LENGTH).
+ *  Indexed at EVERY offset on purpose: a strided index only matches when the
+ *  repetition happens to land on the same stride, and a re-emitted answer
+ *  starts wherever the preamble ("Endgültige Version:") happens to end. */
+function shingleHash(text: string, start: number): number {
+  let h = 0;
+  for (let i = start; i < start + SHINGLE_LENGTH; i++) {
+    h = (Math.imul(h, 131) + text.charCodeAt(i)) | 0;
+  }
+  return h;
+}
+
 export interface DegenerationGuard {
   /** Feed the FULL accumulated text after each delta; true once degenerate.
    *  Internally strided — cheap enough to call per chunk. */
   check(text: string): boolean;
+  /** Where the healthy prefix ends, for the text that tripped {@link check}.
+   *  Prefers the exact onset when the long-range detector fired — no backscan,
+   *  no guessing — and falls back to {@link findDegenerationCut} otherwise. */
+  cutAt(text: string): number;
 }
 
 export function createDegenerationGuard(): DegenerationGuard {
   let nextCheckAt = DEGEN_MIN_LENGTH;
   let fired = false;
+  /** Set only by the long-range detector: the exact offset at which the model
+   *  started repeating itself. */
+  let repeatOnset: number | null = null;
+
+  const firstSeen = new Map<number, number>();
+  let indexedUpTo = 0;
+  let runStart: number | null = null;
+
+  /** Index every new offset and report whether a long-enough repeated run has
+   *  accumulated. Runs once per new char over the stream's life, so the total
+   *  cost is linear in the answer length. */
+  function scanForRepeats(text: string): boolean {
+    const limit = Math.min(text.length, MAX_INDEXED_CHARS) - SHINGLE_LENGTH;
+    for (let start = indexedUpTo; start <= limit; start++) {
+      const hash = shingleHash(text, start);
+      const previous = firstSeen.get(hash);
+      if (previous !== undefined && start - previous >= MIN_REPEAT_DISTANCE) {
+        if (runStart === null) runStart = start;
+        if (start + SHINGLE_LENGTH - runStart >= REPEAT_RUN_CHARS) {
+          repeatOnset = runStart;
+          indexedUpTo = start + 1;
+          return true;
+        }
+      } else {
+        runStart = null;
+        if (previous === undefined) firstSeen.set(hash, start);
+      }
+      indexedUpTo = start + 1;
+    }
+    return false;
+  }
+
   return {
     check(text: string): boolean {
       if (fired) return true;
       if (text.length < nextCheckAt) return false;
       nextCheckAt = text.length + DEGEN_CHECK_STRIDE;
-      if (isDegenerateSample(text.slice(-DEGEN_WINDOW))) {
+      if (scanForRepeats(text) || isDegenerateSample(text.slice(-DEGEN_WINDOW))) {
         fired = true;
         return true;
       }
       return false;
+    },
+    cutAt(text: string): number {
+      if (repeatOnset === null) return findDegenerationCut(text, text.length);
+      // `repeatOnset` is where the run of repeated shingles STARTS, which is
+      // the true onset only for long-range repetition. Short-period junk
+      // ("--- Ende.** --- Fertig.** ---") also matches itself, but not until
+      // MIN_REPEAT_DISTANCE of it has piled up — so its run starts ~1200 chars
+      // deep in the junk, and cutting there would keep all of it.
+      //
+      // The window before the onset tells the two apart: for a re-emitted
+      // answer it is the healthy original (stop exactly there), for junk it is
+      // more junk (keep walking back with the window metrics).
+      //
+      // Probed over ONSET_PROBE, not DEGEN_WINDOW: a 2000-char window reaching
+      // back from a junk run still holds the healthy prose that preceded it,
+      // and the mixture measures healthy — which is the whole question here.
+      //
+      // Note the fallback runs from the END of the text, not from the onset.
+      // Its spam vocabulary is sampled from the window before `detectedAt`, so
+      // handing it an earlier point mixes healthy prose into that vocabulary —
+      // and the scan then reads the healthy prose as spam and eats the answer.
+      const before = text.slice(Math.max(0, repeatOnset - ONSET_PROBE), repeatOnset);
+      return isDegenerateSample(before) ? findDegenerationCut(text, text.length) : repeatOnset;
     },
   };
 }
