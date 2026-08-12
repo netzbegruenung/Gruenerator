@@ -34,7 +34,7 @@ export async function processFileUpload(
     throw new Error('No text could be extracted from the document');
   }
 
-  const { chunks, embeddings } = await chunkAndEmbedText(extractedText);
+  const { chunks, embeddings } = await chunkAndEmbedText(extractedText, { title });
 
   const documentMetadata = await postgresDocumentService.saveDocumentMetadata(userId, {
     title: title.trim(),
@@ -144,7 +144,9 @@ export async function processUploadedDocument(
     }
 
     await markStage('chunking');
-    const { chunks, embeddings } = await chunkAndEmbedText(extractedText);
+    const { chunks, embeddings } = await chunkAndEmbedText(extractedText, {
+      title: document.title ?? null,
+    });
 
     await markStage('upserting', { current: 0, total: chunks.length });
     await qdrantDocumentService.storeDocumentVectors(
