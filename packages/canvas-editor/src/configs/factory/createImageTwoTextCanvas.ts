@@ -469,7 +469,10 @@ export function createImageTwoTextCanvas<
         saveToHistory,
         debouncedSaveToHistory,
         canvas.width,
-        canvas.height
+        canvas.height,
+        // Diese Vorlagen setzen ihren Text durchweg weiß über den Bildverlauf —
+        // hinzugefügter Text und Icons folgen derselben Vorgabe.
+        '#FFFFFF'
       );
 
       // Callback keys for external sync

@@ -241,7 +241,10 @@ export const profilbildFullConfig: FullCanvasConfig<ProfilbildFullState, Profilb
       saveToHistory,
       debouncedSaveToHistory,
       CANVAS_SIZE,
-      CANVAS_SIZE
+      CANVAS_SIZE,
+      // Readable on the Tanne default background — also the default color for
+      // added text and icons.
+      '#FFFFFF'
     );
 
     return {
