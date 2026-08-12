@@ -266,8 +266,26 @@ export async function enrichContext(opts: {
     }
   }
 
-  // Index large document attachments via vector pipeline
-  const SMALL_DOC_VECTORIZATION_THRESHOLD = 4000;
+  // Index large document attachments via vector pipeline.
+  //
+  // The threshold is a LOAD-BEARING routing decision, not a tuning knob: below
+  // it the extracted text stays inline in `attachmentContext` (reaches every
+  // executor via buildSystemMessage), above it the text is vectorized and
+  // attachmentContext is NULLED — from that point only an executor that
+  // actually consumes `documentChatIds` can see the content. searchNode does
+  // (document-chat search); the AGENTIC LOOP does not reference documentChatIds
+  // at all. Live 12.08.2026: a 5.8k-char pasted text was vectorized, the
+  // classifier forced search intent, the loop executed the turn with steps=0 /
+  // sources=0, and the model truthfully answered "Du hast mir noch keinen Text
+  // geschickt".
+  //
+  // 12k chars ≈ 3k tokens — comfortably inside the 20k-char attachment budget
+  // FLOOR (ATTACHMENT_LIMITS.TOTAL_BUDGET_CHARS; window-derived above it), so
+  // typical pastes and small uploads take the inline path that works in every
+  // executor. Attachments ABOVE the threshold still hit the loop gap — known
+  // follow-up: the loop needs a document-chat retrieval (up-front seed or tool)
+  // before this threshold can protect texts of arbitrary size.
+  const SMALL_DOC_VECTORIZATION_THRESHOLD = 12_000;
 
   const largeDocAttachments = docAttachments.filter((att) => {
     const meta = processedMeta.find((m) => m.name === att.name && !m.isImage);
