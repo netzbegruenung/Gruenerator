@@ -896,6 +896,16 @@ async function drain(
             `[Engine] degeneration window: ${JSON.stringify(text.slice(-200))} | ` +
               `cut lands on: ${JSON.stringify(text.slice(Math.max(0, cut - 200), cut))}`
           );
+          // Shape of the tail, which the 200-char excerpts cannot show. Live
+          // 13.08.2026 the guard fired on a table divider and then cut NOTHING
+          // (keeping == length): whether that row was a legitimate wide table
+          // or a divider the model could not stop extending turns entirely on
+          // how long the last unbroken line is — and 200 chars do not say.
+          const lastBreak = text.lastIndexOf('\n');
+          log.warn(
+            `[Engine] degeneration tail shape: lastLine=${text.length - lastBreak - 1}c ` +
+              `newlinesInWindow=${(text.slice(-2000).match(/\n/g) ?? []).length} removed=${text.length - cut}`
+          );
           finishReason = DEGENERATE_FINISH_REASON;
           // The kept prefix says it was cut. Both answer paths replace what the
           // client shows with this string (unified always, split when the
