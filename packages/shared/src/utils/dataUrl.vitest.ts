@@ -79,12 +79,20 @@ describe('parseDataUrl bei Payloads in Megabyte-Groesse', () => {
       return performance.now() - started;
     };
 
-    timeOf(small); // warmlaufen
+    // BEIDE Faelle warmlaufen lassen. Der erste Zugriff auf den 7,4-MB-String
+    // kostet Allokation und First Touch — auf einem ausgelasteten CI-Runner
+    // zweistellige Millisekunden, gemessen ohne dass irgendwer scannt. Genau
+    // das liess den Test flaken (9,6 ms und 16,6 ms gegen ein 5-ms-Budget).
+    timeOf(small);
+    timeOf(huge);
+
     const smallMs = Math.max(timeOf(small), 0.1);
     const hugeMs = timeOf(huge);
 
     // Grosszuegig: es geht nur darum, dass die Laufzeit nicht mit dem Payload
-    // waechst. Ein Scan ueber 7,4 MB waere um Groessenordnungen langsamer.
+    // waechst. Ein Scan ueber 7,4 MB waere um Groessenordnungen langsamer —
+    // die alte `(.+)$`-Variante braucht fuer dieselben 50 Durchlaeufe ~90 ms,
+    // das Budget hier liegt bei 5 ms.
     expect(hugeMs).toBeLessThan(smallMs * 50);
   });
 });
