@@ -19,11 +19,20 @@ export const globalSearchItemSchema = z.object({
 export type GlobalSearchItem = z.infer<typeof globalSearchItemSchema>;
 
 /**
+ * Upper bound for `q`. Exported so callers can clamp (or skip) *before* firing —
+ * the composer input doubles as a prompt field, and a pasted prompt would
+ * otherwise send a multi-KB query per keystroke that can only be rejected.
+ */
+export const GLOBAL_SEARCH_MAX_QUERY_LENGTH = 200;
+
+export const GLOBAL_SEARCH_MIN_QUERY_LENGTH = 2;
+
+/**
  * Only `q`. The per-category cap is a server constant — a coerced numeric query
  * param would widen the ts-rest request type past Express's `ParsedQs`.
  */
 export const globalSearchQuerySchema = z.object({
-  q: z.string().min(2).max(200),
+  q: z.string().min(GLOBAL_SEARCH_MIN_QUERY_LENGTH).max(GLOBAL_SEARCH_MAX_QUERY_LENGTH),
 });
 
 export const globalSearchResultsSchema = z.object({
