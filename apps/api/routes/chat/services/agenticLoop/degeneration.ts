@@ -36,7 +36,13 @@
 export const DEGENERATE_FINISH_REASON = 'degenerate';
 
 /** Don't judge anything before this much text — short answers are never
- *  degenerate, and the window needs material to measure. */
+ *  degenerate, and the window needs material to measure.
+ *
+ *  MUST stay well above SHORT_ANSWER_MAX_CHARS (loopEngine's gate hold, 200):
+ *  the split path's degenerate-replace logic assumes the gated emitter is
+ *  already OPEN whenever the guard fires — i.e. the client has seen the spam
+ *  and a `completion` replace is the right cleanup. A detection threshold
+ *  below the gate hold would silently change that calculus. */
 export const DEGEN_MIN_LENGTH = 3000;
 /** Re-check cadence (chars grown since the last check). */
 export const DEGEN_CHECK_STRIDE = 500;
