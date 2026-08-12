@@ -266,6 +266,32 @@ export function snapToBoundary(text: string, pos: number): number {
   return sentence >= 0 ? from + sentence : pos;
 }
 
+/** Longest unbroken scaffold line still readable as a table row. Measured on
+ *  the live answers: real rows run 80–120 chars, the two runaway dividers 790
+ *  and 1.305. */
+const MAX_SCAFFOLD_LINE = 400;
+
+/**
+ * Drop a trailing divider row the model could not stop extending.
+ *
+ * The scaffolding gate keeps tables safe by declaring pure layout "never spam",
+ * and the backscan therefore stops the moment it reaches one — so a runaway
+ * divider standing between the answer and the junk survives the cut. Live
+ * 13.08.2026 14:02: 2.248 chars removed, and the kept text still ended
+ * `--- --- --- --- … ---`, right above the notice.
+ *
+ * Length is what separates the two, and only length: a table row is bounded by
+ * what fits a table, a runaway row by when the model gave up. This runs ONLY
+ * after the guard has already fired, so no healthy answer is ever measured
+ * against it.
+ */
+export function trimTrailingScaffoldLine(text: string): string {
+  const start = text.lastIndexOf('\n') + 1;
+  const line = text.slice(start);
+  if (line.length <= MAX_SCAFFOLD_LINE || !isStructuralScaffolding(line)) return text;
+  return text.slice(0, start).trimEnd();
+}
+
 // ── Long-range repetition ────────────────────────────────────────────────────
 //
 // The failure the two window metrics above cannot see (live 12.08.2026,
@@ -374,7 +400,10 @@ export function createDegenerationGuard(): DegenerationGuard {
       return false;
     },
     cutAt(text: string): number {
-      return snapToBoundary(text, rawCut(text));
+      const snapped = snapToBoundary(text, rawCut(text));
+      // Last: the backscan cannot cross a scaffold row, so it may have stopped
+      // ON one. Only trimming, never extending — the offset can shrink.
+      return trimTrailingScaffoldLine(text.slice(0, snapped)).length;
     },
   };
 
