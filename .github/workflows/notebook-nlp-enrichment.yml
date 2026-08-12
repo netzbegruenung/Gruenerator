@@ -10,7 +10,7 @@ on:
         required: false
         type: string
       mode:
-        description: "Enrichment mode: 'missing' (new/changed only) or 'all' (full re-tag)"
+        description: "Mode: 'missing' (new/changed only) or 'all' (full re-tag — uncapped, may hit the proxy's 5 min limit)"
         required: false
         type: choice
         default: missing
@@ -50,22 +50,49 @@ jobs:
         continue-on-error: true
         env:
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
-          # A run normally answers in ~11s. When it does not, the reverse proxy
-          # cuts the connection at ~5 min (504) while the enrichment keeps going
-          # server-side — so allow exactly one retry: enough to ride out a blip,
-          # few enough that we do not stack several overlapping enrichments.
-          # `mode: missing` makes an overlap wasteful but harmless (already
-          # enriched docs are skipped).
+          # The endpoint caps how many documents one request enriches and reports
+          # the rest as `pending`, so a single request stays well under the
+          # reverse proxy's ~5 min cut-off. A retry here is therefore only for a
+          # genuine blip, not for a backlog — the backlog is drained by the round
+          # loop below. `mode: missing` makes an overlapping run wasteful but
+          # harmless (already enriched docs are skipped).
           ATTEMPTS: '2'
           RETRY_DELAY: '60'
           MAX_TIME: '7000'
+          # A full re-tag after an NLP_VERSION bump is ~12k documents; at the
+          # endpoint's default budget that is a handful of rounds. The cap only
+          # stops a run that makes no progress from spinning for the whole job.
+          MAX_ROUNDS: '12'
         run: |
-          HTTP_CODE=$(.github/scripts/admin-post.sh /api/internal/notebook/enrich \
-            /tmp/enrich.json '${{ steps.payload.outputs.payload }}')
-          jq . /tmp/enrich.json
+          : > /tmp/rounds.jsonl
+          HTTP_CODE=000
 
-          # Only the status code travels as a step output. The body stays in the
-          # file and is read back with `cat`: an upstream error page can contain
+          for ROUND in $(seq 1 "$MAX_ROUNDS"); do
+            echo "::group::Enrichment round $ROUND/$MAX_ROUNDS"
+            HTTP_CODE=$(.github/scripts/admin-post.sh /api/internal/notebook/enrich \
+              /tmp/enrich.json '${{ steps.payload.outputs.payload }}')
+            jq . /tmp/enrich.json
+            echo "::endgroup::"
+
+            if [ "$HTTP_CODE" != "200" ]; then break; fi
+
+            jq -c '.results // []' /tmp/enrich.json >> /tmp/rounds.jsonl
+            PENDING=$(jq '[.results[]?.pending // 0] | add // 0' /tmp/enrich.json)
+            ENRICHED=$(jq '[.results[]?.enriched // 0] | add // 0' /tmp/enrich.json)
+            echo "Round $ROUND: enriched=$ENRICHED, pending=$PENDING"
+
+            if [ "$PENDING" -eq 0 ]; then break; fi
+            # Pending work that nothing is chipping away at means the NLP service
+            # is failing, not that the budget ran out — another round would only
+            # repeat the same failures.
+            if [ "$ENRICHED" -eq 0 ]; then
+              echo "::warning::$PENDING documents still pending but the last round enriched none — stopping."
+              break
+            fi
+          done
+
+          # Only the status code travels as a step output. The bodies stay in the
+          # files and are read back with `cat`: an upstream error page can contain
           # an apostrophe, which would break the single-quoted expansion of a
           # step output in the summary step below.
           echo "status=$HTTP_CODE" >> "$GITHUB_OUTPUT"
@@ -86,7 +113,7 @@ jobs:
             case "$STATUS" in
               000 | '') REASON="Could not reach $ADMIN_API_URL (timeout, DNS, or TLS error)." ;;
               403) REASON="The API rejected the admin token — the \`ADMIN_TOKEN\` secret does not match \`env.ADMIN_TOKEN\` on $ADMIN_API_URL." ;;
-              504) REASON="The reverse proxy cut the request at ~5 min. The enrichment itself most likely kept running server-side, so this is a *reporting* failure, not necessarily a lost run — check the API logs before re-dispatching." ;;
+              504) REASON="The reverse proxy cut the request at ~5 min. The endpoint's per-request work budget is meant to prevent exactly this, so either the NLP service got much slower or the budget (\`DEFAULT_MAX_DOCS\` in \`notebookEnrichmentService.ts\`) is now too high. The enrichment itself most likely kept running server-side, so this is a *reporting* failure, not necessarily a lost run." ;;
               5*) REASON="The enrichment endpoint failed server-side (HTTP $STATUS)." ;;
               *) REASON="The enrichment endpoint answered HTTP $STATUS." ;;
             esac
@@ -107,15 +134,34 @@ jobs:
           SUCCESS=$(echo "$RESULT" | jq -r '.success')
           if [ "$SUCCESS" = "true" ]; then ICON=":white_check_mark:"; else ICON=":x:"; fi
 
+          # Scanned/Skipped/Pending describe the final state (every round rescans
+          # the whole collection, so summing them would multiply-count); Enriched
+          # and NLP failures are totals over all rounds.
+          ROUNDS=$(wc -l < /tmp/rounds.jsonl | tr -d ' ')
+          TABLE=$(jq -sr '
+            [.[] | .[]] as $all
+            | (.[-1] // [])[]
+            | . as $l
+            | ([$all[] | select(.collection == $l.collection) | .enriched] | add // 0) as $e
+            | ([$all[] | select(.collection == $l.collection) | .nlpFailures] | add // 0) as $f
+            | "| \($l.collection) | \($l.scanned) | \($e) | \($l.skipped) | \($l.noId) | \($f) | \($l.pending) |"
+          ' /tmp/rounds.jsonl)
+          PENDING=$(jq -s '[(.[-1] // [])[].pending] | add // 0' /tmp/rounds.jsonl)
+
           {
             echo "## $ICON Notebook NLP Enrichment"
             echo ""
             echo "**Date:** $(date -u '+%d.%m.%Y %H:%M UTC')"
             echo "**Run:** [${{ github.run_id }}]($RUN_URL)"
+            echo "**Rounds:** $ROUNDS"
             echo ""
-            echo "| Collection | Scanned | Enriched | Skipped | No ID | NLP failures |"
-            echo "|------------|--------:|---------:|--------:|------:|-------------:|"
-            echo "$RESULT" | jq -r '.results[] | "| \(.collection) | \(.scanned) | \(.enriched) | \(.skipped) | \(.noId) | \(.nlpFailures) |"'
+            echo "| Collection | Scanned | Enriched | Skipped | No ID | NLP failures | Pending |"
+            echo "|------------|--------:|---------:|--------:|------:|-------------:|--------:|"
+            echo "$TABLE"
+            if [ "${PENDING:-0}" -gt 0 ]; then
+              echo ""
+              echo ":warning: $PENDING documents are still pending after $ROUNDS rounds."
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Fail if enrichment errored
