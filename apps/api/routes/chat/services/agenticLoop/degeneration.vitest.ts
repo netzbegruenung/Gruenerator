@@ -7,6 +7,7 @@ import {
   isStructuralScaffolding,
   DEGEN_MIN_LENGTH,
   REPEAT_RUN_CHARS,
+  snapToBoundary,
 } from './degeneration.js';
 
 // ── Samples ──────────────────────────────────────────────────────────────────
@@ -255,6 +256,29 @@ describe('createDegenerationGuard — long-range repetition', () => {
     expect(guard.check(text)).toBe(false);
   });
 
+  it('does not eat a templated answer when only junk was appended', () => {
+    // Prose whose sentences share most of their words — a translation table, a
+    // list of demands, the "Punkt N:" shape our own prompts produce. The cut's
+    // spam vocabulary used to be sampled wide enough to swallow those words,
+    // after which every healthy window read as spam and the scan ran to its
+    // 6000-char floor, deleting most of a good answer.
+    const guard = createDegenerationGuard();
+    let text = '';
+    for (let i = 0; i < 40; i++) {
+      text += `Punkt ${i}: Die Grünen fordern eine Ausbildungsgarantie mit ${i * 3} Maßnahmen und einem BAföG-Plus von ${i * 11} Euro.\n`;
+    }
+    const healthyLen = text.length;
+    let fired = false;
+    for (let i = 0; i < 200 && !fired; i++) {
+      text += '--- Ende.** --- Fertig.** --- Danke! 😊 --- Abschluss.** --- FINAL --- ';
+      fired = guard.check(text);
+    }
+    expect(fired).toBe(true);
+    const cut = guard.cutAt(text);
+    expect(cut).toBeGreaterThan(healthyLen - 600);
+    expect(text.slice(0, cut)).not.toContain('Abschluss.**');
+  });
+
   it('falls back to the window cut when only the window metrics fired', () => {
     const guard = createDegenerationGuard();
     let text = '';
@@ -288,5 +312,40 @@ describe('findDegenerationCut', () => {
   it('cuts (nearly) everything when the answer was spam from the first token', () => {
     const text = repeatTo(':-)', 3500);
     expect(findDegenerationCut(text, text.length)).toBeLessThanOrEqual(300);
+  });
+});
+
+// ── snapToBoundary ───────────────────────────────────────────────────────────
+// Both live cuts ended mid-token: "…bezieht sich daher nur a" (12:22) and
+// "…| einen Aktionsplan gegen | | | |\n| Hit" (12:26).
+
+describe('snapToBoundary', () => {
+  it('backs a mid-word cut up to the sentence that ended before it', () => {
+    const text = 'Die Grünen fordern mehr Geld. Die Zuordnungstabelle bezieht sich daher nur a';
+    const snapped = snapToBoundary(text, text.length);
+    expect(text.slice(0, snapped)).toBe('Die Grünen fordern mehr Geld. ');
+  });
+
+  it('backs a half table row up to the previous row', () => {
+    const table =
+      '| Absatz | Überschrift | Status |\n| Erster Absatz | Schutz | Vollständig |\n| Hit';
+    const snapped = snapToBoundary(table, table.length);
+    expect(table.slice(0, snapped)).not.toContain('| Hit');
+    expect(table.slice(0, snapped)).toContain('Vollständig');
+  });
+
+  it('prefers a paragraph break over a sentence end', () => {
+    const text = 'Erster Absatz endet hier.\n\nZweiter Absatz. Und noch ein Satz. Halb';
+    const snapped = snapToBoundary(text, text.length);
+    expect(text.slice(0, snapped)).toBe('Erster Absatz endet hier.');
+  });
+
+  it('leaves the cut alone when no boundary is in reach', () => {
+    const wall = 'a'.repeat(1000);
+    expect(snapToBoundary(wall, 900)).toBe(900);
+  });
+
+  it('handles a cut at the very start', () => {
+    expect(snapToBoundary('irgendwas', 0)).toBe(0);
   });
 });
