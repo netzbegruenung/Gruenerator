@@ -50,6 +50,9 @@ const CATEGORY_LABELS = {
 };
 
 const LEAD_MAX_CHARS = 200;
+// Also the guard that keeps expanded ChatTables sections (COMPONENT_EXPANSIONS)
+// from inflating the corpus statistics — raising it to fit fuller rows flipped
+// a borderline BM25 ranking; the expansions are compact instead.
 const SECTION_MAX_CHARS = 1200;
 
 function walk(dir, relBase = '') {
@@ -116,6 +119,50 @@ function slugifyHeading(text) {
 
 /** An MDX ESM statement (`import UiLabel from '@site/...'`) — never prose. */
 const MDX_ESM_RE = /^\s*(import|export)\s/;
+
+/**
+ * The manifest behind the `ChatTables` components. Loaded lazily so the index
+ * generator keeps working (minus the expansions) if the file is ever absent.
+ */
+function loadChatCapabilities() {
+  const file = path.join(REPO_ROOT, 'documentation/src/generated/chat-capabilities.json');
+  return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null;
+}
+
+/**
+ * `stripInline` drops every JSX tag, so a table rendered by a React component
+ * would vanish from the BM25 corpus — the chat's `gruenerator_docs_search`
+ * could then no longer answer "welche Rezepte gibt es?" from the very page
+ * that lists them. For components whose content IS a generated manifest, we
+ * can do better: expand them to flat prose before stripping. One entry per
+ * component; an unknown component still strips to nothing, as before.
+ *
+ * Deliberately compact — command/mention + title, no descriptions. The full
+ * rows tripled some section lengths, which shifted the BM25 corpus statistics
+ * enough to flip borderline rankings on unrelated pages (docsIndex.vitest.ts
+ * caught one). The identifiers and titles are the terms people search for; the
+ * descriptions live on the page, not in the index.
+ */
+const COMPONENT_EXPANSIONS = {
+  RecipeTables: (m) => m.skills.map((s) => `${s.command} ${s.title}`).join('\n'),
+  SourceTable: (m) => m.notebookSources.map((s) => `${s.mention} ${s.title}`).join('\n'),
+  ToolMentionTable: (m) =>
+    Object.values(m.mentionables)
+      .filter((t) => t.mention)
+      .map((t) => `${t.mention} ${t.title}`)
+      .join('\n'),
+  SharepicVariantTable: (m) =>
+    m.sharepicVariants.map((v) => `${v.type}: ${v.keywords.join(', ')}`).join('\n'),
+};
+
+function expandGeneratedComponents(body) {
+  const manifest = loadChatCapabilities();
+  if (!manifest) return body;
+  return body.replace(/<(\w+)\s*\/>/g, (match, name) => {
+    const expand = COMPONENT_EXPANSIONS[name];
+    return expand ? `\n${expand(manifest)}\n` : match;
+  });
+}
 
 /**
  * Strip markdown/MDX syntax down to readable prose (for leads, snippets, BM25).
@@ -187,6 +234,13 @@ function firstParagraph(body) {
   return candidates.length > 0 ? truncateLead(candidates[0]) : '';
 }
 
+/** Cap at the last word boundary before the limit — never mid-word. */
+function truncateSection(text) {
+  if (text.length <= SECTION_MAX_CHARS) return text;
+  const cut = text.lastIndexOf(' ', SECTION_MAX_CHARS - 1);
+  return `${text.slice(0, cut > 0 ? cut : SECTION_MAX_CHARS - 1).trimEnd()}…`;
+}
+
 function truncateLead(text) {
   return text.length > LEAD_MAX_CHARS ? `${text.slice(0, LEAD_MAX_CHARS - 1).trimEnd()}…` : text;
 }
@@ -215,7 +269,8 @@ function build() {
 
   for (const rel of walk(DOCS_DIR)) {
     const raw = readFileSync(path.join(DOCS_DIR, rel), 'utf8');
-    const { data, body } = parseFrontmatter(raw);
+    const { data, body: rawBody } = parseFrontmatter(raw);
+    const body = expandGeneratedComponents(rawBody);
     const h1 = /^#\s+(.+?)\s*$/m.exec(body);
     const title = data.title || (h1 ? stripHeading(h1[1]) : path.basename(rel, path.extname(rel)));
     const topFolder = rel.includes('/') ? rel.slice(0, rel.indexOf('/')) : '';
@@ -233,7 +288,7 @@ function build() {
         heading: section.heading,
         anchor: section.anchor,
         category,
-        text: text.length > SECTION_MAX_CHARS ? text.slice(0, SECTION_MAX_CHARS) : text,
+        text: truncateSection(text),
       });
     }
   }
