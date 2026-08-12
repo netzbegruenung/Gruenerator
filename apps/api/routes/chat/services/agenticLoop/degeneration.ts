@@ -60,6 +60,10 @@ export const DEGENERATE_FINISH_REASON = 'degenerate';
  * and the missing half was only found by reading the server log. A cut that
  * announces itself turns that into an obvious, re-runnable failure, which is
  * the only reason the guard may err at all.
+ *
+ * Shown only when {@link cutLostContent} says the cut took something with it.
+ * A cut that removed nothing but dashes leaves a COMPLETE answer, and telling
+ * its reader it "may be incomplete" is simply false.
  */
 export const DEGENERATION_NOTICE =
   '_Hinweis: Die Antwort wurde an dieser Stelle abgebrochen, weil sich das Modell zu wiederholen begann. Was darüber steht, kann unvollständig sein — frage gern noch einmal nach._';
@@ -285,6 +289,33 @@ const MAX_SCAFFOLD_LINE = 400;
  * after the guard has already fired, so no healthy answer is ever measured
  * against it.
  */
+/** Distinct words the cut removed that the kept text does not already contain.
+ *  Above this, the cut took real content with it. Junk stays far below by
+ *  construction — it repeats a handful of tokens (measured 13.08.2026: one
+ *  distinct word for the `---.` run, under two dozen for `+. **END**! ~~~`). */
+const LOST_VOCAB_FLOOR = 30;
+
+/**
+ * Whether the cut cost the reader anything.
+ *
+ * The notice warns about LOST CONTENT, so it must be asked about content, not
+ * about the cut. Two removals look identical to the guard and are opposites to
+ * the reader: a run of dashes leaves the answer complete, half a paragraph does
+ * not. Vocabulary separates them — junk repeats a few tokens, and a re-emitted
+ * copy of the answer says nothing the kept text does not already say. Only
+ * words that are genuinely NEW count as loss.
+ */
+export function cutLostContent(kept: string, removed: string): boolean {
+  const known = new Set(words(kept));
+  const novel = new Set<string>();
+  for (const word of words(removed)) {
+    if (known.has(word)) continue;
+    novel.add(word);
+    if (novel.size > LOST_VOCAB_FLOOR) return true;
+  }
+  return false;
+}
+
 export function trimTrailingScaffoldLine(text: string): string {
   const start = text.lastIndexOf('\n') + 1;
   const line = text.slice(start);

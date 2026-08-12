@@ -919,10 +919,9 @@ describe('runAgenticLoop — repetition degeneration', () => {
     // Without the guard this test never terminates — the stream is endless.
     expect(out.replacedStreamed).toBe(true);
     expect(out.text).toContain('Ausbildungsgarantie');
-    // The cut announces itself. Without this the trimmed answer is
-    // indistinguishable from one the model simply finished — which is exactly
-    // how the guard's own false positive went unnoticed on 12.08.2026.
-    expect(out.text).toContain(DEGENERATION_NOTICE);
+    // No notice: the spam repeats a handful of phrases, so nothing the reader
+    // needed was removed and "may be incomplete" would be a false alarm.
+    expect(out.text).not.toContain(DEGENERATION_NOTICE);
     expect(out.text.length).toBeLessThan(PROSE_TOTAL + 500);
     // The wire saw SOME spam (unified streams live) but detection bounded it.
     const streamed = onText.mock.calls.map((c) => c[0]).join('');
@@ -994,8 +993,13 @@ describe('runAgenticLoop — repetition degeneration', () => {
     expect(synthCall).toBe(2);
     expect(out.text).toContain('Ausbildungsgarantie');
     expect(out.text).not.toContain('Abschluss.**');
-    // Retry failed, so the trim stands — and then it must say so.
-    expect(out.text).toContain(DEGENERATION_NOTICE);
+    expect(out.text).not.toContain(DEGENERATION_NOTICE);
     expect(out.replacedStreamed).toBe(true);
   });
+
+  // The notice's OTHER branch — a cut that really did take content — is unit
+  // tested in degeneration.vitest.ts (`cutLostContent`). It has no fixture
+  // here on purpose: junk rich enough in vocabulary to count as loss is also
+  // too varied to trip the detector, so any stream that produced both would be
+  // a construction, not a case. That the notice is now rare is the point.
 });

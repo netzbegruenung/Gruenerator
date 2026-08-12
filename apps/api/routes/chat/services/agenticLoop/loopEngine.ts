@@ -35,6 +35,7 @@ import {
   createDegenerationGuard,
   DEGENERATE_FINISH_REASON,
   DEGENERATION_NOTICE,
+  cutLostContent,
 } from './degeneration.js';
 
 import type { LanguageModel, ModelMessage, ToolSet } from 'ai';
@@ -913,7 +914,11 @@ async function drain(
           // the trim passing for a finished answer. A successful split retry
           // discards this text wholesale — and with it the note, correctly.
           const kept = text.slice(0, cut).trimEnd();
-          text = kept.length > 0 ? `${kept}\n\n${DEGENERATION_NOTICE}` : '';
+          // ...but only when there is something to warn about. Removing a run
+          // of dashes leaves a COMPLETE answer, and "may be incomplete" under
+          // it would be a false alarm about a correct result.
+          const lost = cutLostContent(kept, text.slice(cut));
+          text = kept.length > 0 ? (lost ? `${kept}\n\n${DEGENERATION_NOTICE}` : kept) : '';
           // Best-effort teardown so the upstream stops billing us for spam.
           // swallow-ok: cleanup of an already-abandoned degenerate stream
           void Promise.resolve(iterator.return?.()).catch(() => {});
