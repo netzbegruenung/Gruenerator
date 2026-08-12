@@ -47,6 +47,9 @@ import {
   validateAndInjectCitations,
   renumberCitationsInOrder,
   filterAndSortResults,
+  selectAcrossQueryGroups,
+  sourceTextForPrompt,
+  splitCompositeQuestion,
   groupSourcesByCollection,
   formatDe,
 } from '../search/index.js';
@@ -501,10 +504,25 @@ export class NotebookQAService {
     );
 
     const profile = getNotebookDepthProfile(depth ?? 'deep');
-    const effectiveQueries = (queries?.length ? queries : [trimmedQuestion]).slice(
+
+    // Two different things end up in this list, with two different budgets.
+    // Paraphrases are a thoroughness dial and stay capped by the depth tier.
+    // Sub-questions are not: a message asking eight things has to be searched
+    // as eight things in every tier, or the parts that no single averaged
+    // embedding lands near come back unanswered. The full message stays first
+    // in the list, so the holistic search is never given up.
+    const paraphrases = (queries?.length ? queries : [trimmedQuestion]).slice(
       0,
       profile.queryVariants
     );
+    const subQuestions = splitCompositeQuestion(trimmedQuestion);
+    const effectiveQueries = [...new Set([...paraphrases, ...subQuestions])];
+
+    if (subQuestions.length > 0) {
+      log.info(
+        `[NotebookQA] composite question split into ${subQuestions.length} sub-questions (${effectiveQueries.length} searches total)`
+      );
+    }
 
     const isMulti = !!collectionIds && collectionIds.length > 0;
 
@@ -563,24 +581,27 @@ export class NotebookQAService {
       ...requestFilters,
     };
 
-    // Search every collection × every query formulation in parallel
-    const searchPromises = effectiveCollectionIds.flatMap((cId) => {
-      const filtersForCollection = this._extractCollectionFilters(
-        cId,
-        effectiveFilters,
-        effectiveCollectionIds
-      );
-      return queries.map((q) =>
-        this._searchCollection(cId, q, documentScope, filtersForCollection, profile)
-      );
-    });
+    // Search every collection × every query formulation in parallel, keeping
+    // the hits grouped per query so selectAcrossQueryGroups can give each one
+    // its share of the budget.
+    const resultsByQuery = await Promise.all(
+      queries.map(async (q) => {
+        const perCollection = await Promise.all(
+          effectiveCollectionIds.map((cId) =>
+            this._searchCollection(
+              cId,
+              q,
+              documentScope,
+              this._extractCollectionFilters(cId, effectiveFilters, effectiveCollectionIds),
+              profile
+            )
+          )
+        );
+        return deduplicateResults(perCollection.flat(), true);
+      })
+    );
 
-    const searchResultsArrays = await Promise.all(searchPromises);
-    const allResults = searchResultsArrays.flat();
-
-    // Deduplicate and filter
-    const dedupedResults = deduplicateResults(allResults, true);
-    const sortedResults = filterAndSortResults(dedupedResults, {
+    const sortedResults = selectAcrossQueryGroups(resultsByQuery, {
       threshold: profile.threshold,
       limit: profile.sortLimit.multi,
     });
@@ -685,33 +706,32 @@ export class NotebookQAService {
       );
     }
 
-    const searchResults = (
-      await Promise.all(
-        queries.map((q) =>
-          this._performSearch({
-            query: q,
-            searchCollection: isSystem ? systemConfig.qdrantCollection : 'documents',
-            userId: isSystem ? null : (userId ?? null),
-            documentIds: isSystem ? undefined : documentIds,
-            titleFilter:
-              isSystem && collectionId === 'grundsatz-system'
-                ? documentScope.documentTitleFilter
-                : undefined,
-            additionalFilter,
-            searchParams,
-          })
-        )
-      )
-    ).flat();
-
     const singleCollectionName = systemConfig?.name || collection?.name || collectionId;
-    const expanded = expandResultsToChunks(searchResults, collectionId, singleCollectionName);
 
-    // Post-filter: validate results match requested source_id filter (defense-in-depth)
-    const postFiltered = this._applySourceIdPostFilter(expanded, effectiveFilters);
+    // Grouped per query, not flattened — see selectAcrossQueryGroups.
+    const resultsByQuery = await Promise.all(
+      queries.map(async (q) => {
+        const searchResults = await this._performSearch({
+          query: q,
+          searchCollection: isSystem ? systemConfig.qdrantCollection : 'documents',
+          userId: isSystem ? null : (userId ?? null),
+          documentIds: isSystem ? undefined : documentIds,
+          titleFilter:
+            isSystem && collectionId === 'grundsatz-system'
+              ? documentScope.documentTitleFilter
+              : undefined,
+          additionalFilter,
+          searchParams,
+        });
 
-    const deduped = deduplicateResults(postFiltered, false);
-    const sortedResults = filterAndSortResults(deduped, {
+        const expanded = expandResultsToChunks(searchResults, collectionId, singleCollectionName);
+        // Post-filter: validate results match requested source_id filter (defense-in-depth)
+        const postFiltered = this._applySourceIdPostFilter(expanded, effectiveFilters);
+        return deduplicateResults(postFiltered, false);
+      })
+    );
+
+    const sortedResults = selectAcrossQueryGroups(resultsByQuery, {
       threshold: profile.threshold,
       limit: profile.sortLimit.single,
       allowCreatedAt: !isSystem,
@@ -753,12 +773,11 @@ export class NotebookQAService {
     const sourceLines = Object.keys(referencesMap)
       .map((id) => {
         const ref = referencesMap[id];
-        const snippet = ref.snippets[0]?.[0] || '';
-        const short = snippet.slice(0, 400).replace(/\s+/g, ' ').trim();
+        const text = sourceTextForPrompt(ref);
         const collectionTag = ref.collection_name ? `[${ref.collection_name}] ` : '';
         const dateLabel = formatDe(ref.date);
         const datePart = dateLabel ? `(Datum: ${dateLabel}) ` : '';
-        return `${id}. ${collectionTag}${datePart}${ref.title} — "${short}"`;
+        return `${id}. ${collectionTag}${datePart}${ref.title} — "${text}"`;
       })
       .join('\n');
     const contextSummary = `Heutiges Datum: ${today}\n\n${sourceLines}`;
@@ -934,12 +953,11 @@ export class NotebookQAService {
     const refsSummary = refKeys
       .map((id) => {
         const ref = referencesMap[id];
-        const snippet = ref.snippets[0]?.[0] || '';
-        const short = snippet.slice(0, 400).replace(/\s+/g, ' ').trim();
+        const text = sourceTextForPrompt(ref);
         const collectionTag = ref.collection_name ? `[${ref.collection_name}] ` : '';
         const dateLabel = formatDe(ref.date);
         const datePart = dateLabel ? `(Datum: ${dateLabel}) ` : '';
-        return `${id}. ${collectionTag}${datePart}${ref.title} — "${short}"`;
+        return `${id}. ${collectionTag}${datePart}${ref.title} — "${text}"`;
       })
       .join('\n');
 
