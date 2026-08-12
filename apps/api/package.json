@@ -12,6 +12,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "test": "vitest run",
+    "resume-research": "cross-env NODE_OPTIONS=--conditions=development npx tsx resume-research.ts",
     "eval:chat": "cross-env NODE_OPTIONS=--conditions=development npx tsx evals/runChatEval.ts",
     "eval:judge": "cross-env NODE_OPTIONS=--conditions=development npx tsx evals/judge/runJudge.ts",
     "eval:longthread": "cross-env EVAL_SLOW=1 EVAL_FILTER=longthread NODE_OPTIONS=--conditions=development npx tsx evals/runChatEval.ts",

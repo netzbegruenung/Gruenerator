@@ -38,6 +38,7 @@ import { startCardDueReminderWorker } from './services/boards/cardDueReminderWor
 import { startUploadsCleanup } from './services/cleanup/uploadsCleanupService.js';
 import { startNotificationCleanup } from './services/notifications/notificationCleanupService.js';
 import { startRecurringTaskWorker } from './services/recurringTasks/recurringTaskWorker.js';
+import { startDeepResearchCleanup } from './services/research/deepAgent/resumableRuns.js';
 import { startCleanupScheduler as startExportCleanup } from './services/subtitler/exportCleanupService.js';
 import { tusServer, handleBinaryUpload } from './services/subtitler/tusService.js';
 import { shutdownLangfuseTelemetry } from './services/telemetry/langfuseTelemetry.js';
@@ -86,6 +87,7 @@ if (skipCluster) {
   startExportCleanup();
   startUploadsCleanup();
   startNotificationCleanup();
+  startDeepResearchCleanup();
 
   await startWorker();
 } else if (cluster.isPrimary) {
@@ -166,6 +168,7 @@ if (skipCluster) {
   startExportCleanup();
   startUploadsCleanup();
   startNotificationCleanup();
+  startDeepResearchCleanup();
 
   const { shutdown: _shutdown, registerSignalHandlers } = createMasterShutdownHandler({
     workerTimeout: 10000,
@@ -735,7 +738,6 @@ async function startWorker(): Promise<void> {
       success: false,
       error: 'Ein Serverfehler ist aufgetreten',
 
-      // eslint-disable-next-line gruenerator/no-raw-error-to-client -- dev-only branch; prod gets `errorMessage`
       message: isDev ? err.message : errorMessage,
       stack: isDev ? err.stack : undefined,
       errorId: `${Date.now()}-${Math.floor(Math.random() * 1000)}`,
