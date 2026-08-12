@@ -172,7 +172,19 @@ export interface TopChunk {
   page_number?: number | null | undefined;
   quality_score?: number | null | undefined;
   has_term?: boolean | undefined;
+  /** Short excerpt for display in the UI's citation list. */
   preview: string;
+  /**
+   * The chunk as retrieved, untruncated.
+   *
+   * `preview` is display copy: it is cut to CONTENT_MAX_EXCERPT_LENGTH (300)
+   * from the chunk's START unless the entire query appears in the chunk
+   * verbatim, which for a natural-language question it never does. So on a
+   * semantic hit the preview is the chunk's opening sentences and usually NOT
+   * the passage that matched. Anything that has to reason over the hit — the
+   * answer prompt, the reranker — must read this field instead.
+   */
+  text?: string | undefined;
 }
 
 export interface DocumentResult {
