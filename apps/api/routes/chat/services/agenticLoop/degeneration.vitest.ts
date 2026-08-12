@@ -4,6 +4,7 @@ import {
   createDegenerationGuard,
   findDegenerationCut,
   isDegenerateSample,
+  isStructuralScaffolding,
   DEGEN_MIN_LENGTH,
 } from './degeneration.js';
 
@@ -90,6 +91,56 @@ describe('isDegenerateSample', () => {
 
   it('is not tripped by a short divider line inside prose', () => {
     expect(isDegenerateSample(`${prose(900)}\n\n---\n\n${prose(900)}`)).toBe(false);
+  });
+
+  // ── The live false positive (12.08.2026 12:26:44) ──────────────────────────
+  // A wide table whose later columns are empty truncated a HEALTHY 6.020-char
+  // answer at 2.820 chars, mid-table. The window below is the one the log
+  // printed as the reason.
+
+  it('passes the empty-cell table window that truncated a live answer', () => {
+    const window =
+      ' - | - | - | - | - | - | - | - - | - | - | - | - | - - | - ' +
+      '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -';
+    expect(isDegenerateSample(window)).toBe(false);
+  });
+
+  it('passes a wide table whose trailing columns are empty', () => {
+    // The shape the model produced: a first column wrapping over several rows,
+    // leaving every other cell blank.
+    const rows = [
+      '| Absatz (Original) | Überschrift | Status | Fehlt |',
+      '|---|---|---|---|',
+      ...Array.from({ length: 40 }, (_, i) =>
+        i % 4 === 0
+          ? `| Absatz Nummer ${i} beginnt | Schutz in Einrichtungen | Vollständig | - |`
+          : '| | | | |'
+      ),
+    ];
+    expect(isDegenerateSample(rows.join('\n').slice(-2000))).toBe(false);
+  });
+
+  it('still flags spam that only LOOKS like scaffolding', () => {
+    // Same dashes, but with substance between them — this is the tail of the
+    // 45.711-char incident, where the model spelled "FERTIG" one letter a line.
+    expect(isDegenerateSample(repeatTo('--- **E** 😊.', 2000))).toBe(true);
+    expect(isDegenerateSample(repeatTo('1234567890', 2000))).toBe(true);
+    expect(isDegenerateSample(terminatorSpam(2000))).toBe(true);
+  });
+});
+
+describe('isStructuralScaffolding', () => {
+  it('recognises table skeletons and rules', () => {
+    expect(isStructuralScaffolding(repeatTo('| - ', 600))).toBe(true);
+    expect(isStructuralScaffolding(repeatTo('|---', 600))).toBe(true);
+    expect(isStructuralScaffolding(repeatTo('=', 600))).toBe(true);
+  });
+
+  it('does not swallow content that merely contains dashes', () => {
+    expect(isStructuralScaffolding(prose(600))).toBe(false);
+    expect(isStructuralScaffolding(repeatTo(':-)', 600))).toBe(false);
+    expect(isStructuralScaffolding(repeatTo('1234567890', 600))).toBe(false);
+    expect(isStructuralScaffolding(repeatTo('E---F---', 600))).toBe(false);
   });
 });
 
