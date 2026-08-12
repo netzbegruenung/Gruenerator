@@ -81,8 +81,16 @@ export const DEGENERATION_NOTICE =
  *  and a `completion` replace is the right cleanup. A detection threshold
  *  below the gate hold would silently change that calculus. */
 export const DEGEN_MIN_LENGTH = 8000;
-/** Re-check cadence (chars grown since the last check). */
-export const DEGEN_CHECK_STRIDE = 500;
+/** Re-check cadence (chars grown since the last check).
+ *
+ *  Unified mode streams live, so this stride is literally how much junk the
+ *  user watches before the guard speaks. Live 13.08.2026 13:46 that was 2.149
+ *  chars of `---. ---. ---.` — roughly 18 seconds of dashes, correctly cut
+ *  afterwards but seen. The periodicity metric needs {@link PERIODIC_TAIL}
+ *  chars of evidence, so ~600 is the floor no cadence can beat; halving the
+ *  stride takes the avoidable half off. A check costs one pass over 2.000
+ *  chars plus ≤ 60 passes over 600 — nothing next to a token round-trip. */
+export const DEGEN_CHECK_STRIDE = 250;
 /** Tail window the word-diversity metric judges. */
 export const DEGEN_WINDOW = 2000;
 
@@ -119,6 +127,14 @@ function wordDiversity(sample: string, minWords: number): number {
 function selfSimilarity(sample: string): number {
   const tail = sample.slice(-PERIODIC_TAIL);
   if (tail.length < 200) return 0;
+  // Gated on the TAIL this metric actually judges, not on the caller's window.
+  // The two scopes used to disagree, and the disagreement was visible in
+  // production: `isDegenerateSample` asked about scaffolding over 2.000 chars,
+  // so a window of prose plus a trailing table divider passed — and then fired
+  // HERE on the divider alone. `findDegenerationCut` judges 600-char windows,
+  // called the same divider layout, and cut nothing. Live 13.08.2026 13:24:
+  // detected after 16.034 chars, kept 16.034. An alarm with no effect.
+  if (isStructuralScaffolding(tail)) return 0;
   let best = 0;
   for (let period = 1; period <= MAX_PERIOD; period++) {
     let matches = 0;
