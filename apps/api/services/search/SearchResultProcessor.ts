@@ -381,8 +381,8 @@ export function filterAndSortResults(
 }
 
 /**
- * Pick results across several query formulations, giving each one a share of
- * the budget instead of letting absolute scores decide alone.
+ * Pick results across several DISTINCT questions, giving each a share of the
+ * budget instead of letting absolute scores decide alone.
  *
  * Needed for decomposed batch questions. Flattening first and cutting at
  * `limit` sorts sub-questions against each other, so a part whose evidence
@@ -391,8 +391,13 @@ export function filterAndSortResults(
  * while its chunk sat just below the cut. Round-robin gives each part its turn
  * before any part gets a second chunk; leftover slots still go by score.
  *
+ * One group per question, NOT per query string: rewordings of one question
+ * belong in a single group. Splitting them would hand a fair share to each
+ * phrasing, letting a weak hit from a worse rewording take a slot from a
+ * stronger hit of the best one — the opposite of what fairness is for here.
+ *
  * With one group this is exactly `filterAndSortResults`, so the ordinary
- * single-question path is unchanged.
+ * single-question path is unchanged at every depth tier.
  */
 export function selectAcrossQueryGroups(
   groups: ExpandedChunkResult[][],
