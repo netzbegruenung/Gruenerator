@@ -6,6 +6,7 @@ import {
   isDegenerateSample,
   isStructuralScaffolding,
   DEGEN_MIN_LENGTH,
+  REPEAT_RUN_CHARS,
 } from './degeneration.js';
 
 // ── Samples ──────────────────────────────────────────────────────────────────
@@ -178,6 +179,96 @@ describe('createDegenerationGuard', () => {
   it('never judges anything under the minimum length', () => {
     const guard = createDegenerationGuard();
     expect(guard.check(repeatTo(':-)', DEGEN_MIN_LENGTH - 1))).toBe(false);
+  });
+});
+
+// ── Long-range repetition (the 45.711-char incident) ─────────────────────────
+// The model wrote the whole answer, announced "Korrigierte Ausgabe" and wrote
+// it again — seven times. Every 2000-char window of that is flawless German, so
+// neither window metric could see it.
+
+describe('createDegenerationGuard — long-range repetition', () => {
+  /** A complete, healthy answer of roughly the length the live one had. */
+  function answer(): string {
+    return Array.from({ length: 8 }, (_, i) => variedProse(i)).join('');
+  }
+
+  it('fires when the model writes the same answer a second time', () => {
+    const guard = createDegenerationGuard();
+    const first = answer();
+    let text = first;
+    expect(guard.check(text)).toBe(false);
+
+    // The live preamble between the copies. The offset it introduces is exactly
+    // why the index has to be alignment-independent.
+    text += '\n\nKorrigierte Ausgabe (ohne interne Reflexion):\n\n';
+    let fired = false;
+    for (const piece of first.match(/.{1,200}/gs) ?? []) {
+      text += piece;
+      fired = guard.check(text);
+      if (fired) break;
+    }
+    expect(fired).toBe(true);
+    // Caught inside the second copy, not after seven of them.
+    expect(text.length).toBeLessThan(first.length * 2);
+  });
+
+  it('cuts exactly where the repetition started', () => {
+    const guard = createDegenerationGuard();
+    const first = answer();
+    const preamble = '\n\nKorrigierte Ausgabe:\n\n';
+    let text = first;
+    guard.check(text);
+    text += preamble;
+    for (const piece of first.match(/.{1,200}/gs) ?? []) {
+      text += piece;
+      if (guard.check(text)) break;
+    }
+    const cut = guard.cutAt(text);
+    // Everything the model wrote once survives; the second copy is gone.
+    expect(cut).toBeGreaterThanOrEqual(first.length);
+    expect(cut).toBeLessThanOrEqual(first.length + preamble.length + REPEAT_RUN_CHARS);
+  });
+
+  it('ignores the repetition INSIDE a legitimate table', () => {
+    // The Zuordnungstabelle from the live prompt: `| Vollständig | - |` over and
+    // over, but only ~40 chars apart — far under the distance threshold.
+    const guard = createDegenerationGuard();
+    let text = variedProse(0) + variedProse(1);
+    for (let i = 0; i < 120; i++) {
+      text += `| Absatz ${i} beginnt hier | Überschrift ${i % 5} | Vollständig | - |\n`;
+      expect(guard.check(text)).toBe(false);
+    }
+    expect(text.length).toBeGreaterThan(6000);
+  });
+
+  it('tolerates a passage quoted twice', () => {
+    // A restated paragraph is normal writing. Only a RUN longer than
+    // REPEAT_RUN_CHARS counts, so a single quoted block must pass.
+    const guard = createDegenerationGuard();
+    const quote = variedProse(3).slice(0, 400);
+    let text = '';
+    for (let i = 0; i < 6; i++) text += variedProse(i + 10);
+    text += quote;
+    for (let i = 0; i < 6; i++) text += variedProse(i + 30);
+    text += `Wie oben zitiert: ${quote}`;
+    expect(guard.check(text)).toBe(false);
+  });
+
+  it('falls back to the window cut when only the window metrics fired', () => {
+    const guard = createDegenerationGuard();
+    let text = '';
+    for (let i = 0; i < 25; i++) text += variedProse(i);
+    const healthyLen = text.length;
+    let fired = false;
+    for (let i = 0; i < 200 && !fired; i++) {
+      text += terminatorSpam(200);
+      fired = guard.check(text);
+    }
+    expect(fired).toBe(true);
+    const cut = guard.cutAt(text);
+    expect(cut).toBeGreaterThan(healthyLen - 2000);
+    expect(cut).toBeLessThanOrEqual(text.length);
   });
 });
 
