@@ -10,8 +10,9 @@ import * as crypto from 'crypto';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
+import { extractBase64 } from '@gruenerator/shared/utils';
+
 import { MIME_TO_EXTENSION, MAX_IMAGE_SIZE } from './constants.js';
-import { extractBase64FromDataUrl } from './validation.js';
 
 import type { Attachment, ImageAttachment, MulterMemoryFile, MulterDiskFile } from './types.js';
 
@@ -42,13 +43,24 @@ export class CanvasAdapter {
   }
 
   /**
-   * Convert base64 attachment to Buffer for dreizeilen_canvas
+   * Die Bytes eines Attachments — `bytes` direkt, sonst aus `data` dekodiert.
+   * Ein Attachment, das seine Bytes schon kennt, laeuft hier ohne base64-Umweg
+   * durch (der AI-Bildpfad reichte so 7,4 MB String pro Sharepic herum).
+   */
+  private resolveBytes(attachment: ImageAttachment): Buffer {
+    if (attachment.bytes) return attachment.bytes;
+    if (!attachment.data) throw new Error('Invalid attachment: missing data');
+    return Buffer.from(extractBase64(attachment.data), 'base64');
+  }
+
+  /**
+   * Convert attachment to Buffer for dreizeilen_canvas
    * dreizeilen_canvas uses multer memory storage and expects req.file.buffer
-   * @param attachment - Attachment object with base64 data
+   * @param attachment - Attachment object with bytes or base64 data
    * @returns Mock multer file object with buffer
    */
   convertToBuffer(attachment: ImageAttachment): MulterMemoryFile {
-    if (!attachment || !attachment.data) {
+    if (!attachment || (!attachment.data && !attachment.bytes)) {
       throw new Error('Invalid attachment: missing data');
     }
 
@@ -56,12 +68,7 @@ export class CanvasAdapter {
       throw new Error(`Invalid file type for sharepic: ${attachment.type}. Expected image.`);
     }
 
-    // Extract base64 from data URL if needed
-    const base64Data = extractBase64FromDataUrl(attachment.data);
-    console.log('[AttachmentAdapter] Extracted base64 from data URL');
-
-    // Convert base64 to buffer
-    const buffer = Buffer.from(base64Data, 'base64');
+    const buffer = this.resolveBytes(attachment);
 
     // Return mock multer file object
     return {
@@ -81,7 +88,7 @@ export class CanvasAdapter {
    * @returns Mock multer file object with path and cleanup function
    */
   async convertToTempFile(attachment: ImageAttachment): Promise<MulterDiskFile> {
-    if (!attachment || !attachment.data) {
+    if (!attachment || (!attachment.data && !attachment.bytes)) {
       throw new Error('Invalid attachment: missing data');
     }
 
@@ -103,12 +110,7 @@ export class CanvasAdapter {
     const filename = `sharepic_temp_${tempId}${extension}`;
     const tempPath = path.join(uploadsDir, filename);
 
-    // Extract base64 from data URL if needed
-    const base64Data = extractBase64FromDataUrl(attachment.data);
-    console.log('[AttachmentAdapter] Extracted base64 from data URL for temp file');
-
-    // Convert base64 to buffer and save to file
-    const buffer = Buffer.from(base64Data, 'base64');
+    const buffer = this.resolveBytes(attachment);
     await fs.writeFile(tempPath, buffer);
 
     console.log(`[AttachmentAdapter] Created temp file: ${tempPath} (${buffer.length} bytes)`);
@@ -161,7 +163,7 @@ export class CanvasAdapter {
       throw new Error(`Invalid file type: ${attachment.type}. Sharepics require image files.`);
     }
 
-    if (!attachment.data) {
+    if (!attachment.data && !attachment.bytes) {
       throw new Error('Attachment missing data');
     }
 
@@ -175,10 +177,7 @@ export class CanvasAdapter {
 
     // Basic size check (Buffer.from will validate the base64)
     try {
-      // Extract base64 from data URL if needed
-      const base64Data = extractBase64FromDataUrl(attachment.data);
-
-      const buffer = Buffer.from(base64Data, 'base64');
+      const buffer = this.resolveBytes(attachment);
       if (buffer.length === 0) {
         throw new Error('Empty image data');
       }
