@@ -34,21 +34,53 @@
  * The cost of a false hit is NOT small, which is why that gate matters: split
  * mode runs its one silent validation retry, but unified mode simply keeps the
  * prefix — an answer cut mid-table, shipped as if finished.
+ *
+ * Two decisions follow from that cost, and they are the reason this module is
+ * allowed to exist at all:
+ *
+ *  - It stays SILENT until {@link DEGEN_MIN_LENGTH} (8.000 chars), far past
+ *    where detection alone would work. Below that the loop is cheap and the
+ *    false hit is not.
+ *  - When it does cut, it SAYS SO — {@link DEGENERATION_NOTICE} rides along
+ *    with the kept prefix. That is what turns a wrong call from silent
+ *    corruption into a visible, re-runnable failure.
  */
 
 /** Sentinel finishReason for a stream we aborted because it degenerated.
  *  Distinct from 'length' so the split retry can name the actual problem. */
 export const DEGENERATE_FINISH_REASON = 'degenerate';
 
+/**
+ * What the user sees when we cut a stream. Appended to the kept prefix, never
+ * shown alone.
+ *
+ * The point is not politeness. Silently trimming makes a false hit
+ * indistinguishable from a model that simply finished — live 12.08.2026 the
+ * first reading of the truncated answer was "das Modell hat früh aufgehört",
+ * and the missing half was only found by reading the server log. A cut that
+ * announces itself turns that into an obvious, re-runnable failure, which is
+ * the only reason the guard may err at all.
+ */
+export const DEGENERATION_NOTICE =
+  '_Hinweis: Die Antwort wurde an dieser Stelle abgebrochen, weil sich das Modell zu wiederholen begann. Was darüber steht, kann unvollständig sein — frage gern noch einmal nach._';
+
 /** Don't judge anything before this much text — short answers are never
  *  degenerate, and the window needs material to measure.
+ *
+ *  Deliberately far above what detection alone would need (3.000 sufficed).
+ *  The two errors are not symmetric: an undetected loop is VISIBLE nonsense the
+ *  user re-runs, a false hit silently amputates a good answer that then reads
+ *  as finished. So the guard only speaks where the damage is already large.
+ *  Both live cases fit that line — the healthy answer it truncated ran 6.020
+ *  chars total and is now never judged, while the loops it exists for were
+ *  32.826 and 45.711 chars and still are.
  *
  *  MUST stay well above SHORT_ANSWER_MAX_CHARS (loopEngine's gate hold, 200):
  *  the split path's degenerate-replace logic assumes the gated emitter is
  *  already OPEN whenever the guard fires — i.e. the client has seen the spam
  *  and a `completion` replace is the right cleanup. A detection threshold
  *  below the gate hold would silently change that calculus. */
-export const DEGEN_MIN_LENGTH = 3000;
+export const DEGEN_MIN_LENGTH = 8000;
 /** Re-check cadence (chars grown since the last check). */
 export const DEGEN_CHECK_STRIDE = 500;
 /** Tail window the word-diversity metric judges. */
@@ -120,9 +152,11 @@ const SCAFFOLD_SUBSTANCE_FLOOR = 0.15;
  * the spam this guard exists for keeps its substance — `1234567890…` is all
  * digits, `:-)` keeps its parens, `Ende. Fertig. 😊` keeps its letters.
  *
- * The knowing trade: a run of PURE dashes is now invisible here. That is the
- * long-range repetition case, which needs its own detector anyway — a bounded
- * blind spot beats shredding every table we ever print.
+ * The knowing trade: a run made up ONLY of the scaffold set is now invisible
+ * here — not just dashes but `|`, `:`, `+`, `_`, `=` and whitespace, so a flood
+ * of `:::::` or `+++++` hides just as well. Catching those is the long-range
+ * repetition detector's job, and a blind spot of that exact shape beats
+ * shredding every table we ever print.
  */
 export function isStructuralScaffolding(sample: string): boolean {
   if (sample.length === 0) return false;
@@ -160,6 +194,13 @@ export function findDegenerationCut(text: string, detectedAt: number): number {
   const MAX_BACKSCAN = 6000;
   const spamVocab = new Set(words(text.slice(Math.max(0, detectedAt - DEGEN_WINDOW), detectedAt)));
   const readsAsSpam = (sample: string): boolean => {
+    // The same gate the detector uses, for the same reason — without it the fix
+    // only moves the bug one function along. A table window keeps almost no
+    // words after the scaffold filter, so it falls through to the character-
+    // based periodicity test and reads as spam there. The backscan would then
+    // run THROUGH a legitimate table standing in front of real spam and cut it
+    // out of the prefix we keep.
+    if (isStructuralScaffolding(sample)) return false;
     const w = words(sample);
     if (w.length >= 5) {
       let hits = 0;

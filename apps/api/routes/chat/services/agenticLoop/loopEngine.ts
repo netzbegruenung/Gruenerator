@@ -31,7 +31,11 @@ import { createLogger } from '../../../../utils/logger.js';
 import { isWholesaleRefusal, refusalLanguage } from '../refusalDetection.js';
 import { createIdleDeadline } from '../streamIdleDeadline.js';
 
-import { createDegenerationGuard, DEGENERATE_FINISH_REASON } from './degeneration.js';
+import {
+  createDegenerationGuard,
+  DEGENERATE_FINISH_REASON,
+  DEGENERATION_NOTICE,
+} from './degeneration.js';
 
 import type { LanguageModel, ModelMessage, ToolSet } from 'ai';
 
@@ -893,7 +897,13 @@ async function drain(
               `cut lands on: ${JSON.stringify(text.slice(Math.max(0, cut - 200), cut))}`
           );
           finishReason = DEGENERATE_FINISH_REASON;
-          text = text.slice(0, cut).trimEnd();
+          // The kept prefix says it was cut. Both answer paths replace what the
+          // client shows with this string (unified always, split when the
+          // silent retry fails), so the note travels with the trim instead of
+          // the trim passing for a finished answer. A successful split retry
+          // discards this text wholesale — and with it the note, correctly.
+          const kept = text.slice(0, cut).trimEnd();
+          text = kept.length > 0 ? `${kept}\n\n${DEGENERATION_NOTICE}` : '';
           // Best-effort teardown so the upstream stops billing us for spam.
           // swallow-ok: cleanup of an already-abandoned degenerate stream
           void Promise.resolve(iterator.return?.()).catch(() => {});
