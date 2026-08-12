@@ -415,7 +415,10 @@ const BlockNoteEditorInner = ({
 
     // The AI fork is a fresh Y.Doc with Yjs' default GC on, which breaks the
     // positions xl-ai tracks across streamed chunks. See disableGcOnAIFork.
-    const stopForkGcGuard = disableGcOnAIFork(editor, ydoc ?? null);
+    const stopForkGcGuard = disableGcOnAIFork(editor, {
+      syncedYdoc: ydoc ?? null,
+      isCollaborative: Boolean(collaborationOptions),
+    });
 
     // Fix checkbox multi-click: intercept click on checkbox inputs and
     // toggle the block directly via editor API, bypassing ProseMirror's

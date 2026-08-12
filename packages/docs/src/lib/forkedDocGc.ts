@@ -1,6 +1,7 @@
-import { ForkYDocExtension } from '@blocknote/core/yjs';
 import { ySyncPluginKey } from 'y-prosemirror';
 import type * as Y from 'yjs';
+
+import { getDocForkStore } from './aiExtension';
 
 /**
  * Keep the positions xl-ai tracks during an AI edit resolvable.
@@ -22,12 +23,19 @@ import type * as Y from 'yjs';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type EditorLike = { getExtension?: (factory: any) => unknown; prosemirrorState?: unknown };
 
-type ForkStore = {
-  store?: {
-    state?: { isForked?: boolean };
-    subscribe?: (listener: () => void) => () => void;
-  };
-};
+export interface ForkGcGuardOptions {
+  /** The synced doc, so the guard can never flip GC on it. */
+  syncedYdoc?: Y.Doc | null;
+  /**
+   * Whether the editor was created `withCollaboration` — i.e. whether a fork
+   * extension is expected at all. Derived from the editor's collaboration
+   * options, deliberately NOT from the presence of a `ydoc`: `useCollaboration`
+   * hands out a placeholder `new Y.Doc()` before the provider exists, so a
+   * truthy doc alone does not mean the Yjs extensions are attached, and the
+   * drift warning below would fire on a perfectly healthy mount.
+   */
+  isCollaborative?: boolean;
+}
 
 /**
  * This guard reaches into BlockNote's fork store and y-prosemirror's plugin
@@ -63,19 +71,20 @@ function getBoundYDoc(editor: EditorLike): Y.Doc | null {
  * Disable garbage collection on the AI fork as soon as BlockNote creates it.
  * Returns an unsubscribe function; a no-op when the editor has no fork
  * extension (non-collaborative surfaces).
- *
- * @param mainYdoc the synced doc, used as a guard so we never flip GC on it.
  */
-export function disableGcOnAIFork(editor: EditorLike | null, mainYdoc?: Y.Doc | null): () => void {
+export function disableGcOnAIFork(
+  editor: EditorLike | null,
+  { syncedYdoc = null, isCollaborative = false }: ForkGcGuardOptions = {}
+): () => void {
   if (!editor) return () => {};
   // Once per editor mount: enough to be noticed, not enough to spam a session.
   const warnDrift = createDriftWarner();
-  const store = (editor.getExtension?.(ForkYDocExtension) as ForkStore | undefined)?.store;
+  const store = getDocForkStore(editor);
   if (!store?.subscribe) {
     // Only a collaborative editor has a fork to guard; without one this is
-    // correctly a no-op. With a synced doc present, a missing store means the
+    // correctly a no-op. With collaboration on, a missing store means the
     // extension moved — see createDriftWarner above.
-    if (mainYdoc) {
+    if (isCollaborative) {
       warnDrift('ForkYDocExtension exposes no subscribable store');
     }
     return () => {};
@@ -88,7 +97,7 @@ export function disableGcOnAIFork(editor: EditorLike | null, mainYdoc?: Y.Doc | 
     // bound doc is the fork by now. The identity check is the backstop: if the
     // swap ever lands late, we'd rather leave GC alone than disable it on the
     // long-lived synced doc.
-    if (!forked || forked === mainYdoc) {
+    if (!forked || forked === syncedYdoc) {
       warnDrift(
         forked
           ? 'forked but the ySync plugin still points at the synced doc'

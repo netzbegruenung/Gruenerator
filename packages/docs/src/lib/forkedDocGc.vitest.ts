@@ -5,24 +5,21 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { disableGcOnAIFork } from './forkedDocGc';
 
-/**
- * Reproduces what xl-ai does for a selection-scoped AI edit: anchor a relative
- * position inside a block, then have the AI replace that block. Returns whether
- * the anchor is still resolvable — BlockNote throws "Position not found, cannot
- * track positions" when it is not.
- */
-function anchorSurvivesBlockReplace(gc: boolean): boolean {
-  const doc = new Y.Doc({ gc });
+/** One paragraph, as the ySync binding would hold it. Returns its text type. */
+function seedParagraph(doc: Y.Doc): Y.XmlText {
   const fragment = doc.getXmlFragment('prosemirror');
   const paragraph = new Y.XmlElement('paragraph');
   const text = new Y.XmlText();
   paragraph.insert(0, [text]);
   fragment.insert(0, [paragraph]);
   text.insert(0, 'Der markierte Absatz');
+  return text;
+}
 
-  const anchor = Y.createRelativePositionFromTypeIndex(text, 5);
-
+/** What the streamed AI update does: drop the block and write a new one. */
+function replaceBlock(doc: Y.Doc) {
   doc.transact(() => {
+    const fragment = doc.getXmlFragment('prosemirror');
     fragment.delete(0, 1);
     const rewritten = new Y.XmlElement('paragraph');
     const rewrittenText = new Y.XmlText();
@@ -30,7 +27,18 @@ function anchorSurvivesBlockReplace(gc: boolean): boolean {
     fragment.insert(0, [rewritten]);
     rewrittenText.insert(0, 'Der neu geschriebene Absatz');
   });
+}
 
+/**
+ * What xl-ai does for a selection-scoped edit: anchor a relative position inside
+ * a block, then have the AI replace that block. False means BlockNote would
+ * throw "Position not found, cannot track positions".
+ */
+function anchorSurvivesBlockReplace(gc: boolean): boolean {
+  const doc = new Y.Doc({ gc });
+  const text = seedParagraph(doc);
+  const anchor = Y.createRelativePositionFromTypeIndex(text, 5);
+  replaceBlock(doc);
   return Y.createAbsolutePositionFromRelativePosition(anchor, doc) !== null;
 }
 
@@ -71,11 +79,41 @@ describe('forked doc GC', () => {
     expect(forkDoc.gc).toBe(true);
 
     const { editor, fork } = fakeEditor({ boundDoc: forkDoc, isForked: false });
-    disableGcOnAIFork(editor, null);
+    disableGcOnAIFork(editor, { isCollaborative: true });
     expect(forkDoc.gc).toBe(true);
 
     fork();
     expect(forkDoc.gc).toBe(false);
+  });
+
+  // The whole fix in one run: guard mounted, BlockNote forks, xl-ai anchors the
+  // selection, the streamed update replaces that block — and the anchor still
+  // resolves. Without the guard the same sequence is exactly GRUENERATOR-F7.
+  it('keeps a tracked anchor resolvable across the AI block replace', () => {
+    const forkDoc = new Y.Doc();
+    const text = seedParagraph(forkDoc);
+    const { editor, fork } = fakeEditor({ boundDoc: forkDoc, isForked: false });
+
+    disableGcOnAIFork(editor, { isCollaborative: true });
+    fork();
+
+    const anchor = Y.createRelativePositionFromTypeIndex(text, 5);
+    replaceBlock(forkDoc);
+
+    expect(Y.createAbsolutePositionFromRelativePosition(anchor, forkDoc)).not.toBeNull();
+  });
+
+  it('without the guard the same sequence loses the anchor', () => {
+    const forkDoc = new Y.Doc();
+    const text = seedParagraph(forkDoc);
+    const { fork } = fakeEditor({ boundDoc: forkDoc, isForked: false });
+
+    fork();
+
+    const anchor = Y.createRelativePositionFromTypeIndex(text, 5);
+    replaceBlock(forkDoc);
+
+    expect(Y.createAbsolutePositionFromRelativePosition(anchor, forkDoc)).toBeNull();
   });
 
   // A fork whose bound doc is still the synced one cannot happen through
@@ -86,7 +124,7 @@ describe('forked doc GC', () => {
     const mainDoc = new Y.Doc();
     const { editor, fork } = fakeEditor({ boundDoc: mainDoc, isForked: false });
 
-    disableGcOnAIFork(editor, mainDoc);
+    disableGcOnAIFork(editor, { syncedYdoc: mainDoc, isCollaborative: true });
     fork();
 
     expect(mainDoc.gc).toBe(true);
@@ -98,7 +136,7 @@ describe('forked doc GC', () => {
     const forkDoc = new Y.Doc();
     const { editor } = fakeEditor({ boundDoc: forkDoc, isForked: true });
 
-    disableGcOnAIFork(editor, null);
+    disableGcOnAIFork(editor, { isCollaborative: true });
 
     expect(forkDoc.gc).toBe(false);
   });
@@ -113,7 +151,7 @@ describe('forked doc GC', () => {
     // Upstream moved the plugin state: nothing resolvable behind the key.
     editor.prosemirrorState = {};
 
-    disableGcOnAIFork(editor, mainDoc);
+    disableGcOnAIFork(editor, { syncedYdoc: mainDoc, isCollaborative: true });
     fork();
 
     expect(warn).toHaveBeenCalledOnce();
@@ -124,7 +162,10 @@ describe('forked doc GC', () => {
   it('warns when the fork extension no longer exposes a store', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    disableGcOnAIFork({ getExtension: () => undefined, prosemirrorState: {} }, new Y.Doc());
+    disableGcOnAIFork(
+      { getExtension: () => undefined, prosemirrorState: {} },
+      { syncedYdoc: new Y.Doc(), isCollaborative: true }
+    );
 
     expect(warn).toHaveBeenCalledOnce();
     warn.mockRestore();
@@ -133,7 +174,22 @@ describe('forked doc GC', () => {
   it('stays quiet on a non-collaborative editor', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    disableGcOnAIFork({ getExtension: () => undefined, prosemirrorState: {} }, null);
+    disableGcOnAIFork({ getExtension: () => undefined, prosemirrorState: {} }, {});
+
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  // useCollaboration hands out a placeholder `new Y.Doc()` before the provider
+  // exists, so a truthy doc alone must not be read as "collaboration is on" —
+  // otherwise a call site that skips the sync gate warns on every healthy mount.
+  it('stays quiet when a doc exists but the editor has no collaboration', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    disableGcOnAIFork(
+      { getExtension: () => undefined, prosemirrorState: {} },
+      { syncedYdoc: new Y.Doc(), isCollaborative: false }
+    );
 
     expect(warn).not.toHaveBeenCalled();
     warn.mockRestore();
