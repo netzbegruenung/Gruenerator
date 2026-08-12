@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { buildToolUsageBlock } from './agenticRespondService.js';
+import { buildToolUsageBlock, materialDominatesTurn } from './agenticRespondService.js';
 
 describe('buildToolUsageBlock', () => {
   const block = buildToolUsageBlock(6);
@@ -135,5 +135,34 @@ describe('buildToolUsageBlock — gated on the mounted toolset', () => {
     const full = buildToolUsageBlock(8, false, true);
     const lean = buildToolUsageBlock(8, false, true, SEARCHLESS);
     expect(full.length - lean.length).toBeGreaterThan(1800);
+  });
+});
+
+describe('materialDominatesTurn — when the writer gives up the tool catalog', () => {
+  // The live system prompt of 13.08.2026, 22:12 measured 3.164 chars before
+  // the tool block was appended.
+  const SYSTEM = 'x'.repeat(3164);
+
+  it('an ordinary question stays on the unified path', () => {
+    expect(materialDominatesTurn('Was fordern die Grünen zum Hitzeschutz?', SYSTEM)).toBe(false);
+    expect(materialDominatesTurn('x'.repeat(3000), SYSTEM)).toBe(false);
+  });
+
+  it('the pasted article that looped four times does not', () => {
+    // 11.191 chars of pasted text plus rules — the turn is material, not a
+    // question, and every unified run of it degenerated.
+    expect(materialDominatesTurn('x'.repeat(11_191), SYSTEM)).toBe(true);
+  });
+
+  it('moves with the prompt instead of standing on a tuned constant', () => {
+    // Same material, a system prompt that grew past it → no longer dominant.
+    // This is the point of comparing the two rather than picking a number.
+    const material = 'x'.repeat(5000);
+    expect(materialDominatesTurn(material, 'x'.repeat(4000))).toBe(true);
+    expect(materialDominatesTurn(material, 'x'.repeat(6000))).toBe(false);
+  });
+
+  it('is not tripped by an empty turn', () => {
+    expect(materialDominatesTurn('', SYSTEM)).toBe(false);
   });
 });

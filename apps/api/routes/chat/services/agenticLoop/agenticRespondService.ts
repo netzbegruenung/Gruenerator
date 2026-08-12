@@ -367,6 +367,31 @@ const CREATION_TOOL_NAMES = new Set([
 const hasAny = (names: readonly string[], set: ReadonlySet<string>): boolean =>
   names.some((n) => set.has(n));
 
+/**
+ * Whether the turn's own material outweighs the instructions around it.
+ *
+ * The observed degeneration needs three things together: the unified loop, the
+ * full tool catalog in the writing context, and a task whose material is large
+ * enough that the answer is long and highly structured. Live 13.08.2026 the
+ * same 11.191-char paste looped four times through the unified path and stayed
+ * clean every time the writer ran without the catalog. The offline probe
+ * closes the argument from the other side: the same model, the same prompt,
+ * no tools — 15 of 15 clean.
+ *
+ * The comparison is against the system prompt rather than a tuned constant on
+ * purpose. It asks a question with a meaning: does this turn consist of a
+ * QUESTION to answer, or of MATERIAL to work on? Once the material is the
+ * larger half, the writing phase is the expensive part and it deserves a clean
+ * context — and the threshold moves by itself whenever the prompt does.
+ *
+ * Nothing is lost by switching: split still runs the whole tool phase on the
+ * planner, so the turn can search exactly as before. Only the writer loses the
+ * catalog it had no use for.
+ */
+export function materialDominatesTurn(userText: string, systemMessage: string): boolean {
+  return userText.length > systemMessage.length;
+}
+
 export function buildToolUsageBlock(
   maxSteps: number,
   researchBanned = false,
@@ -1133,7 +1158,21 @@ export async function streamAgenticResponse(params: {
     // Mistral (fast native tool-caller) runs the unified single-model loop;
     // every other model runs the planner/executor split — the fast planner
     // (`standard` intermediate stage) gathers, the selected model writes the answer.
-    mode = prefersUnifiedLoop(resolution.provider, resolution.modelName) ? 'unified' : 'split';
+    //
+    // ...unless the turn's own material outweighs the instructions around it.
+    // Then split wins for a different reason: its writer runs WITHOUT the tool
+    // catalog, and that is the only configuration in which this failure has
+    // never been observed (see materialDominatesTurn).
+    const materialHeavy = materialDominatesTurn(lastUserText, systemMessage);
+    mode =
+      prefersUnifiedLoop(resolution.provider, resolution.modelName) && !materialHeavy
+        ? 'unified'
+        : 'split';
+    if (materialHeavy) {
+      log.info(
+        `[Agentic] material-heavy turn (${lastUserText.length}c user vs ${systemMessage.length}c system) — writing without the tool catalog`
+      );
+    }
 
     // Unified mode has no synth phase, so it never sees `renderAll()` — the
     // carried sources would be numbered, chip-backed and completely invisible to
