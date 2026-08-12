@@ -10,11 +10,14 @@
  * the progress reporting and the report extraction.
  */
 
+import { randomUUID } from 'node:crypto';
+
 import { createDeepAgent } from 'deepagents';
 import { todoListMiddleware } from 'langchain';
 
 import { createLogger } from '../../../utils/logger.js';
 
+import { getCheckpointer } from './checkpointer.js';
 import { describeFinalState } from './finalState.js';
 import { suppressGeneralPurposeSubagent } from './harnessProfile.js';
 import { leadModel, workerModel } from './models.js';
@@ -126,6 +129,16 @@ export async function runDeepAgentResearch(
   // depend on it — the second subagent and the lead's prompt — must follow that
   // one fact instead of re-deriving it.
   const hasNotebooks = tools.some((t) => t.name === 'notizbuch_suche');
+  // Null when Postgres is out of reach — the run is then exactly as durable as
+  // it was before, which is to say not at all. See checkpointer.ts.
+  const checkpointer = await getCheckpointer();
+  // Every step of this run is written under this id. It is per RUN, not per
+  // chat thread: two researches in one conversation are two independent
+  // histories, and sharing an id would make the second resume into the first.
+  const threadId = params.threadId ?? `research-${randomUUID()}`;
+  // Logged unconditionally: without it a checkpoint row cannot be tied back to
+  // the run that wrote it, which is the only way anyone would ever resume one.
+  log.info(`[DeepAgent] Lauf ${threadId} (${checkpointer ? 'gesichert' : 'flüchtig'})`);
   // Without this the run has a SECOND delegation target — on the lead model,
   // with a generic prompt, advertising itself for research. See harnessProfile.ts.
   suppressGeneralPurposeSubagent();
@@ -138,6 +151,7 @@ export async function runDeepAgentResearch(
   const agent = createDeepAgent({
     name: 'gruenerator-tiefenbericht',
     model: leadModel(),
+    ...(checkpointer ? { checkpointer } : {}),
     tools: tools as never,
     // The nudge is lead-only: the researcher subagent answers in its message
     // and never owes a /bericht.md, so pushing it back would be wrong there.
@@ -230,6 +244,9 @@ export async function runDeepAgentResearch(
         version: 'v3',
         recursionLimit,
         ...(callbacks.length > 0 ? { callbacks } : {}),
+        // Without this the checkpointer has nothing to key on and LangGraph
+        // rejects the run — the two always ship together.
+        ...(checkpointer ? { configurable: { thread_id: threadId } } : {}),
         ...(legSignal ? { signal: legSignal } : {}),
       });
       // Before anything else touches the run: `run.output` rejects on every
@@ -306,6 +323,7 @@ export async function runDeepAgentResearch(
 
   return {
     markdown,
+    threadId,
     title: extractTitle(markdown, question.slice(0, 120)),
     summary: finalSummary(lastState, question, markdown),
     partial: aborted,
