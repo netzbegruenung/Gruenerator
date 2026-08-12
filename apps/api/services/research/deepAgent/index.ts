@@ -44,6 +44,7 @@ import {
   silenceRunOutput,
   trackSubagents,
 } from './subagentProgress.js';
+import { researchCallbacks } from './telemetry.js';
 import { type ToolContext } from './toolContext.js';
 import { createResearchTools, toolsFor } from './tools.js';
 import {
@@ -196,6 +197,10 @@ export async function runDeepAgentResearch(
     >;
   };
 
+  // One handler for the whole run, resume legs included: they are continuations
+  // of the same research and belong under the same trace.
+  const callbacks = researchCallbacks(params.userId ? { userId: params.userId } : {});
+
   let lastState: Record<string, unknown> | null = null;
   let aborted = false;
   // `run.values` emits each state twice (once per graph node); only forward a
@@ -224,6 +229,7 @@ export async function runDeepAgentResearch(
       const run = await runnable.streamEvents(input, {
         version: 'v3',
         recursionLimit,
+        ...(callbacks.length > 0 ? { callbacks } : {}),
         ...(legSignal ? { signal: legSignal } : {}),
       });
       // Before anything else touches the run: `run.output` rejects on every

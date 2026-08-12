@@ -174,6 +174,7 @@ export async function runDeepAgentTurn(params: {
       signal: AbortSignal.timeout(DEFAULT_BUDGET.hardMs + DEFAULT_BUDGET.wrapUpMs),
       ...(state.aiWorkerPool ? { aiWorkerPool: state.aiWorkerPool } : {}),
       ...(notebookScope ? { notebookScope } : {}),
+      userId,
       progress: {
         onPlan: (steps) => sse.send('research_log_update', { id: logId, plan: toLogSteps(steps) }),
         onStep: (step) => sse.send('research_log_update', { id: logId, steps: toLogSteps([step]) }),

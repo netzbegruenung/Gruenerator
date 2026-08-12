@@ -84,6 +84,12 @@ export interface DeepAgentRunParams {
    * notebook tool is not offered at all.
    */
   notebookScope?: NotebookScope;
+  /**
+   * Whose run this is — used only to attribute the Langfuse trace, so a slow or
+   * failed research can be found from a support request instead of by grepping.
+   * Omitted means an unattributed trace, not a disabled one.
+   */
+  userId?: string;
   /** Aborts the run. The caller owns the hard deadline. */
   signal?: AbortSignal;
 }
