@@ -1083,8 +1083,19 @@ export async function streamAgenticResponse(params: {
     // Same predicate the catalog used to decide what to mount — read once here
     // so prompt and toolset can never disagree about whether searching is on.
     const researchBanned = forbidsNewResearch(finalState.lastUserTextNoMentions ?? lastUserText);
+    const toolUsageBlock = buildToolUsageBlock(budget.maxSteps, researchBanned, mode === 'unified');
+    const recipeCatalogBlock = renderRecipeCatalog(recipeCatalog);
     const toolSystem = withInstructionHierarchy(
-      `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned, mode === 'unified')}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${renderRecipeCatalog(recipeCatalog)}`
+      `${systemMessage}\n\n${toolUsageBlock}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${recipeCatalogBlock}`
+    );
+    // Where the ~8.700 chars come from. `system=8721c` alone says nothing about
+    // which parts a turn actually needed, and a prompt is not trimmed on a
+    // guess — every share below has to be read off a real turn first.
+    log.info(
+      `[Agentic] system prompt ${toolSystem.length}c = base ${systemMessage.length}` +
+        ` + toolRules ${toolUsageBlock.length} + mcp ${mcpNote.length} + sources ${systemNote.length}` +
+        ` + connectors ${connectorCatalogNote.length} + carried ${carriedNote.length}` +
+        ` + recipes ${recipeCatalogBlock.length}`
     );
     // The turn budget is now SOFT: it strips the tools via `forceFinish` (see
     // below) instead of aborting the stream. Only the absolute ceiling aborts —
