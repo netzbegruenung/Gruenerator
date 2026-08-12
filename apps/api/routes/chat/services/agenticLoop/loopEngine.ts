@@ -866,6 +866,7 @@ async function drain(
           finishReason = DEGENERATE_FINISH_REASON;
           text = text.slice(0, cut).trimEnd();
           // Best-effort teardown so the upstream stops billing us for spam.
+          // swallow-ok: cleanup of an already-abandoned degenerate stream
           void Promise.resolve(iterator.return?.()).catch(() => {});
           break;
         }
