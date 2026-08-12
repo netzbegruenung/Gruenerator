@@ -37,7 +37,12 @@ import {
   classifyRunError,
 } from './resume.js';
 import { sanitizeToolCallsMiddleware } from './sanitizeToolCalls.js';
-import { type SubagentProjections, trackSubagents } from './subagentProgress.js';
+import {
+  type RunWithOutput,
+  type SubagentProjections,
+  silenceRunOutput,
+  trackSubagents,
+} from './subagentProgress.js';
 import { type ToolContext } from './toolContext.js';
 import { createResearchTools, toolsFor } from './tools.js';
 import {
@@ -180,7 +185,9 @@ export async function runDeepAgentResearch(
     streamEvents: (
       input: Record<string, unknown>,
       options: Record<string, unknown>
-    ) => Promise<SubagentProjections & { values: AsyncIterable<Record<string, unknown>> }>;
+    ) => Promise<
+      SubagentProjections & RunWithOutput & { values: AsyncIterable<Record<string, unknown>> }
+    >;
   };
 
   let lastState: Record<string, unknown> | null = null;
@@ -213,6 +220,10 @@ export async function runDeepAgentResearch(
         recursionLimit,
         ...(legSignal ? { signal: legSignal } : {}),
       });
+      // Before anything else touches the run: `run.output` rejects on every
+      // abort with nobody holding it, and that unhandled rejection kills the
+      // process — measured, see silenceRunOutput.
+      silenceRunOutput(run);
       // Runs alongside the state loop, not before it: the projections are fed
       // by the same run, and nothing here may decide whether the run finishes.
       // A failure in the progress path is logged and dropped — cosmetics must

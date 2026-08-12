@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  silenceRunOutput,
   subagentLabel,
   trackSubagents,
   type SubagentLike,
@@ -236,5 +237,77 @@ describe('the run surface index.ts asserts', () => {
     });
 
     expect(typeof (agent as unknown as { streamEvents?: unknown }).streamEvents).toBe('function');
+  });
+});
+
+describe('silenceRunOutput', () => {
+  /**
+   * The regression test for a run that died on 12.08.2026 AFTER surviving its
+   * own deadline: `run.output` rejected with nobody holding it, and Node ends
+   * the process on an unhandled rejection — taking the wrap-up leg, and in the
+   * API a whole cluster worker, with it.
+   */
+  it('keeps a rejecting run output from reaching the process', async () => {
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown): void => {
+      unhandled.push(reason);
+    };
+    process.on('unhandledRejection', onUnhandled);
+    try {
+      silenceRunOutput({ output: Promise.reject(new Error('The operation was aborted')) });
+      // Two turns of the microtask queue plus a macrotask: Node decides a
+      // rejection is unhandled at the END of the turn, so a bare `await`
+      // would pass whether or not the catch was attached.
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off('unhandledRejection', onUnhandled);
+    }
+  });
+
+  /**
+   * The half that a short probe cannot reach. Silencing `run.output` alone
+   * looked like the fix at 45 seconds — the full 13-minute run died anyway,
+   * because by then TOOL CALLS were in flight and each one hands over live
+   * `output`/`status`/`error` promises we never read.
+   */
+  it('silences the promises of every tool call, delegation or not', async () => {
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown): void => {
+      unhandled.push(reason);
+    };
+    process.on('unhandledRejection', onUnhandled);
+    try {
+      const aborted = (): Promise<never> => Promise.reject(new Error('aborted'));
+      await trackSubagents(
+        {
+          toolCalls: iterate([
+            // Not a `task` call — skipped for progress, but its promises are
+            // just as live, which is why they are silenced before the filter.
+            { name: 'web_suche', callId: 'x', input: {}, output: aborted(), status: aborted() },
+            {
+              name: 'task',
+              callId: 'call-1',
+              input: { description: 'Wehrpflicht' },
+              error: aborted(),
+            },
+          ]),
+          subagents: iterate([]),
+        },
+        () => {}
+      );
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off('unhandledRejection', onUnhandled);
+    }
+  });
+
+  it('tolerates a run without the projection at all', () => {
+    // The surface is asserted by hand (`as unknown as`); a version that stops
+    // building `output` eagerly must not turn into a crash here.
+    expect(() => silenceRunOutput({})).not.toThrow();
   });
 });
