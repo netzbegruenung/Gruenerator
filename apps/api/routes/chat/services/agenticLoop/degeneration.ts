@@ -120,9 +120,11 @@ const SCAFFOLD_SUBSTANCE_FLOOR = 0.15;
  * the spam this guard exists for keeps its substance — `1234567890…` is all
  * digits, `:-)` keeps its parens, `Ende. Fertig. 😊` keeps its letters.
  *
- * The knowing trade: a run of PURE dashes is now invisible here. That is the
- * long-range repetition case, which needs its own detector anyway — a bounded
- * blind spot beats shredding every table we ever print.
+ * The knowing trade: a run made up ONLY of the scaffold set is now invisible
+ * here — not just dashes but `|`, `:`, `+`, `_`, `=` and whitespace, so a flood
+ * of `:::::` or `+++++` hides just as well. Catching those is the long-range
+ * repetition detector's job, and a blind spot of that exact shape beats
+ * shredding every table we ever print.
  */
 export function isStructuralScaffolding(sample: string): boolean {
   if (sample.length === 0) return false;
@@ -160,6 +162,13 @@ export function findDegenerationCut(text: string, detectedAt: number): number {
   const MAX_BACKSCAN = 6000;
   const spamVocab = new Set(words(text.slice(Math.max(0, detectedAt - DEGEN_WINDOW), detectedAt)));
   const readsAsSpam = (sample: string): boolean => {
+    // The same gate the detector uses, for the same reason — without it the fix
+    // only moves the bug one function along. A table window keeps almost no
+    // words after the scaffold filter, so it falls through to the character-
+    // based periodicity test and reads as spam there. The backscan would then
+    // run THROUGH a legitimate table standing in front of real spam and cut it
+    // out of the prefix we keep.
+    if (isStructuralScaffolding(sample)) return false;
     const w = words(sample);
     if (w.length >= 5) {
       let hits = 0;
