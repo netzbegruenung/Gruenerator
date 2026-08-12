@@ -69,7 +69,9 @@ export function ContextControls({
     if (type === 'shape') {
       return { color: activeFloatingModule?.data.fill ?? '#000000', variant: 'swatch' as const };
     }
-    if (type === 'icon' || type === 'illustration' || type === 'asset') {
+    // Assets are fixed-color brand graphics (PNG/SVG files) — AssetPrimitive
+    // has no color to set, so a swatch there would be a dead control.
+    if (type === 'icon' || type === 'illustration') {
       return { color: activeFloatingModule?.data.color ?? '#000000', variant: 'swatch' as const };
     }
     return null;
