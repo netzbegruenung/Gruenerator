@@ -338,6 +338,22 @@ describe('createDegenerationGuard — long-range repetition', () => {
     expect(text.length).toBeGreaterThan(6000);
   });
 
+  it('ignores a table of IDENTICAL empty rows', () => {
+    // Review finding on #2573, and the gap the test above left open: its rows
+    // all differ (`Absatz ${i}`), so they never form an exactly periodic run.
+    // Identical rows do — and with the distance measured against the FROZEN
+    // first sighting it grew past 1.200 by itself, so every later offset
+    // counted as a long-range match and the detector fired on pure layout.
+    // Same shape as the live false positive of 12.08.2026 12:26:44.
+    const guard = createDegenerationGuard();
+    let text = variedProse(0) + variedProse(1);
+    for (let i = 0; i < 300; i++) {
+      text += '| | | | |\n';
+      expect(guard.check(text)).toBe(false);
+    }
+    expect(text.length).toBeGreaterThan(3000);
+  });
+
   it('tolerates a passage quoted twice', () => {
     // A restated paragraph is normal writing. Only a RUN longer than
     // REPEAT_RUN_CHARS counts, so a single quoted block must pass.
