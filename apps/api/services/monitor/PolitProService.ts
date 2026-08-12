@@ -542,52 +542,100 @@ export async function getEuGreens(): Promise<EuGreensData | null> {
   const cached = await getCachedJson(cacheKey, euGreensResponseSchema);
   if (cached) return cached;
 
-  const results = await Promise.all(
-    EU_GREEN_PARTIES.map(async (entry) => {
-      const trendResult = await fetchApi<ApiTrendData>(`/${entry.countryCode}/trend`);
-      if (!trendResult.ok) return null;
-      if (!parliamentMatches(entry.countryCode, trendResult.data.poll.parliament)) {
-        log.error(
-          `[getEuGreens] API returned wrong parliament "${trendResult.data.poll.parliament}" for "${entry.countryCode}" — discarding`
-        );
-        return null;
-      }
-      const party = trendResult.data.poll.parties.find((p) => p.name_short === entry.partyShort);
-      if (!party) {
-        log.warn(`[getEuGreens] Party "${entry.partyShort}" not found for ${entry.countryCode}`);
-        return null;
-      }
-      return {
-        countryCode: entry.countryCode,
-        countryName: entry.countryName,
-        party: entry.partyLabel,
-        percent: party.percent,
-        diff: party.diff != null ? round1(party.diff) : null,
-        electionDiff: party.election_diff != null ? round1(party.election_diff) : null,
-        date: trendResult.data.poll.date,
-        note: entry.note ?? null,
-        ...(entry.broadAlliance ? { broadAlliance: true } : {}),
-      };
-    })
-  );
+  return singleFlight(cacheKey, async () => {
+    // Re-check: a request that queued behind the in-flight batch would
+    // otherwise fire the whole batch a second time.
+    const fresh = await getCachedJson(cacheKey, euGreensResponseSchema);
+    if (fresh) return fresh;
 
-  const found = results
-    .filter((r): r is NonNullable<typeof r> => r !== null)
-    .sort((a, b) => b.percent - a.percent);
+    const results = await inChunks(
+      EU_GREEN_PARTIES.map((entry) => async () => {
+        const trendResult = await fetchApi<ApiTrendData>(`/${entry.countryCode}/trend`);
+        if (!trendResult.ok) return null;
+        if (!parliamentMatches(entry.countryCode, trendResult.data.poll.parliament)) {
+          log.error(
+            `[getEuGreens] API returned wrong parliament "${trendResult.data.poll.parliament}" for "${entry.countryCode}" — discarding`
+          );
+          return null;
+        }
+        const party = trendResult.data.poll.parties.find((p) => p.name_short === entry.partyShort);
+        if (!party) {
+          log.warn(`[getEuGreens] Party "${entry.partyShort}" not found for ${entry.countryCode}`);
+          return null;
+        }
+        return {
+          countryCode: entry.countryCode,
+          countryName: entry.countryName,
+          party: entry.partyLabel,
+          percent: party.percent,
+          diff: party.diff != null ? round1(party.diff) : null,
+          electionDiff: party.election_diff != null ? round1(party.election_diff) : null,
+          date: trendResult.data.poll.date,
+          note: entry.note ?? null,
+          ...(entry.broadAlliance ? { broadAlliance: true } : {}),
+        };
+      }),
+      6,
+      2500
+    );
 
-  log.info(`[getEuGreens] ${found.length}/${EU_GREEN_PARTIES.length} green parties resolved`);
-  if (found.length === 0) return null;
+    const found = results
+      .filter((r): r is NonNullable<typeof r> => r !== null)
+      .sort((a, b) => b.percent - a.percent);
 
-  const data: EuGreensData = { results: found, fetchedAt: new Date().toISOString() };
-  // Don't cache heavily incomplete batches (rate-limit burst or the upstream
-  // wrong-parliament bug) — retry on the next request instead.
-  if (found.length >= EU_GREEN_PARTIES.length - 3) {
-    await setCachedJson(cacheKey, data, CACHE_TTL);
-  }
-  return data;
+    log.info(`[getEuGreens] ${found.length}/${EU_GREEN_PARTIES.length} green parties resolved`);
+    if (found.length === 0) return getLastGood(cacheKey, euGreensResponseSchema);
+
+    const data: EuGreensData = { results: found, fetchedAt: new Date().toISOString() };
+    // Don't cache heavily incomplete batches (rate-limit burst or the upstream
+    // wrong-parliament bug) — retry on the next request instead, and prefer the
+    // last complete batch over serving a half-empty map.
+    if (found.length >= EU_GREEN_PARTIES.length - 3) {
+      await setCachedJson(cacheKey, data, CACHE_TTL);
+      await setLastGood(cacheKey, data);
+      return data;
+    }
+    return (await getLastGood(cacheKey, euGreensResponseSchema)) ?? data;
+  });
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Collapse concurrent batch fetches of the same key into one upstream run.
+ * Without this, N simultaneous requests for a cold key each fire the full
+ * ~23-call batch and blow the 30 req/min budget, so every one of them ends
+ * up empty and the endpoint 503s.
+ */
+const inFlight = new Map<string, Promise<unknown>>();
+
+function singleFlight<T>(key: string, run: () => Promise<T>): Promise<T> {
+  const existing = inFlight.get(key) as Promise<T> | undefined;
+  if (existing) return existing;
+  const promise = run().finally(() => inFlight.delete(key));
+  inFlight.set(key, promise);
+  return promise;
+}
+
+/**
+ * Last known-good copy of a batch, kept far longer than the regular cache.
+ * When a rate-limit burst or an upstream outage yields nothing, week-old
+ * poll numbers beat an error state — PolitPro updates weekly anyway.
+ */
+const LAST_GOOD_TTL = 14 * 24 * 60 * 60;
+
+async function getLastGood<S extends z.ZodTypeAny>(
+  cacheKey: string,
+  schema: S
+): Promise<z.infer<S> | null> {
+  const data = await getCachedJson(`${cacheKey}:last-good`, schema);
+  if (data) log.warn(`[PolitPro] Serving last-good snapshot for ${cacheKey}`);
+  return data;
+}
+
+async function setLastGood(cacheKey: string, data: unknown): Promise<void> {
+  await setCachedJson(`${cacheKey}:last-good`, data, LAST_GOOD_TTL);
+}
 
 /**
  * Run thunks in paced chunks to stay clear of the 30 req/min API rate limit
@@ -644,32 +692,39 @@ export async function getEuGreensHistory(): Promise<EuGreensHistoryData | null> 
   const cached = await getCachedJson(cacheKey, euGreensHistoryResponseSchema);
   if (cached) return cached;
 
-  const series = (
-    await inChunks(
-      EU_GREEN_PARTIES.map((entry) => async () => {
-        const data = await fetchHistoryDatasets(entry.countryCode);
-        const ds = data?.datasets.find((d) => d.name_short === entry.partyShort);
-        if (!ds) return null;
-        return {
-          countryCode: entry.countryCode,
-          countryName: entry.countryName,
-          party: entry.partyLabel,
-          points: ds.history.map((h) => ({ date: h.date, value: h.percent })),
-        };
-      }),
-      4
-    )
-  ).filter((s): s is NonNullable<typeof s> => s !== null);
+  return singleFlight(cacheKey, async () => {
+    const fresh = await getCachedJson(cacheKey, euGreensHistoryResponseSchema);
+    if (fresh) return fresh;
 
-  log.info(`[getEuGreensHistory] ${series.length}/${EU_GREEN_PARTIES.length} series resolved`);
-  if (series.length === 0) return null;
+    const series = (
+      await inChunks(
+        EU_GREEN_PARTIES.map((entry) => async () => {
+          const data = await fetchHistoryDatasets(entry.countryCode);
+          const ds = data?.datasets.find((d) => d.name_short === entry.partyShort);
+          if (!ds) return null;
+          return {
+            countryCode: entry.countryCode,
+            countryName: entry.countryName,
+            party: entry.partyLabel,
+            points: ds.history.map((h) => ({ date: h.date, value: h.percent })),
+          };
+        }),
+        4
+      )
+    ).filter((s): s is NonNullable<typeof s> => s !== null);
 
-  const data: EuGreensHistoryData = { series, fetchedAt: new Date().toISOString() };
-  // Don't cache heavily incomplete batches (e.g. after a 429 burst).
-  if (series.length >= EU_GREEN_PARTIES.length - 3) {
-    await setCachedJson(cacheKey, data, HISTORY_TTL);
-  }
-  return data;
+    log.info(`[getEuGreensHistory] ${series.length}/${EU_GREEN_PARTIES.length} series resolved`);
+    if (series.length === 0) return getLastGood(cacheKey, euGreensHistoryResponseSchema);
+
+    const data: EuGreensHistoryData = { series, fetchedAt: new Date().toISOString() };
+    // Don't cache heavily incomplete batches (e.g. after a 429 burst).
+    if (series.length >= EU_GREEN_PARTIES.length - 3) {
+      await setCachedJson(cacheKey, data, HISTORY_TTL);
+      await setLastGood(cacheKey, data);
+      return data;
+    }
+    return (await getLastGood(cacheKey, euGreensHistoryResponseSchema)) ?? data;
+  });
 }
 
 /**
