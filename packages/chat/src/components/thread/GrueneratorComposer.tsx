@@ -344,9 +344,15 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
       if (!enablePastedTextAttachments) return;
 
       const clipboard = event.clipboardData;
-      // Let assistant-ui retain its native file/image-paste behaviour.
-      if (clipboard.files.length > 0) return;
-
+      // Substantial text wins over clipboard FILES on purpose. Word, PDF
+      // viewers and website copies put a bitmap RENDER of the copied text next
+      // to `text/plain`, and the previous "any file → native paste" early
+      // return turned such a paste into an IMAGE upload (live 12.08.2026: a
+      // pasted role-definition prompt arrived as "hochgeladenes Bild" and got
+      // described instead of executed). Genuine image pastes are unaffected —
+      // screenshots and copied images carry no qualifying text, and a real
+      // file paste's text flavor is at most a short path — so those still fall
+      // through to assistant-ui's native file/image-paste behaviour.
       const text = clipboard.getData('text/plain');
       if (!shouldCreatePastedTextAttachment(text)) return;
 
