@@ -115,8 +115,13 @@ export function detectPromptIntent(text: string): boolean {
 // Openers that mark an input as a question *to the assistant* — the one thing
 // this field cannot do. Kept deliberately narrow: a false positive interrupts a
 // legitimate create, so only unambiguous conversation starters count.
+//
+// Zwei Gruppen, weil `\b` hinter einem Verbstamm dessen Beugung ausschließt:
+// `erklär\b` trifft „erklär mir", aber NICHT „erkläre mir" (r→e ist keine
+// Wortgrenze). Die Stämme tragen ihre Endungen deshalb selbst — begrenzt auf die
+// Verbformen, damit das Substantiv („Erklärung Wärmepumpe") ein Suchbegriff bleibt.
 const CHAT_INTENT_RE =
-  /^\s*(wie|was|warum|wieso|weshalb|wer|wann|wo|wohin|woher|wozu|womit|welche[rsnm]?|gibt es|stimmt es|kannst du|kannst du mal|könntest du|koenntest du|hast du|weißt du|weisst du|erklär|erklaer|erzähl|erzaehl|hilf mir|sag mir|beantworte)\b/i;
+  /^\s*(?:(?:wie|was|warum|wieso|weshalb|wer|wann|wo|wohin|woher|wozu|womit|welche[rsnm]?|gibt es|stimmt es|kannst du|könntest du|koenntest du|hast du|weißt du|weisst du|hilf mir|sag mir|beantworte)\b|(?:erklär|erklaer|erzähl|erzaehl)(?:e|st)?\b)/i;
 
 /** Below this a question mark is more likely a typo than a question. */
 const MIN_CHAT_WORDS = 3;
