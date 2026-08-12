@@ -344,7 +344,8 @@ export async function enrichContext(opts: {
   }
 
   // Clear raw attachment text for vectorized docs only.
-  // Small docs (<4K chars) keep their inline attachmentContext.
+  // Docs below SMALL_DOC_VECTORIZATION_THRESHOLD keep their inline
+  // attachmentContext — see the threshold's own comment for why that matters.
   // Gated on docAttachments.length: documentChatIds can arrive without any
   // file attachments (pre-supplied references), in which case attachmentContext
   // is the live inline content and must be preserved.
