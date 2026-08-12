@@ -201,10 +201,16 @@ export function findDegenerationCut(text: string, detectedAt: number): number {
 /** Window hashed as one shingle. Long enough that ordinary German phrases do
  *  not collide by accident, short enough to catch a re-emitted paragraph. */
 const SHINGLE_LENGTH = 48;
-/** How far back a match must be to count. This is the whole false-positive
- *  defence: a table repeating `| Vollständig | - |` every ~40 chars, a list
- *  with parallel phrasing, or the same term used consistently (which our own
- *  prompts REQUIRE) never reaches this distance. A re-emitted section does. */
+/** How far back a match must be to count.
+ *
+ *  Measured against the FIRST sighting of a shingle, so for an exactly periodic
+ *  passage the distance grows with every repetition and crosses this threshold
+ *  on its own after ~1.200 chars. That is intended — it is what lets the same
+ *  scan see short-period junk, which `rawCut` relies on — but it means the
+ *  threshold is NOT by itself a defence against repetitive layout. The earlier
+ *  claim here, that a table repeating `| Vollständig | - |` every ~40 chars
+ *  never reaches this distance, was wrong; the scaffolding check on the run is
+ *  what actually holds that line. */
 const MIN_REPEAT_DISTANCE = 1200;
 /** Contiguous repeated text needed before we call it a loop. A quotation, a
  *  restated heading or a summarised bullet stays under this; an answer written
@@ -254,15 +260,20 @@ export function createDegenerationGuard(): DegenerationGuard {
    *  started repeating itself. */
   let repeatOnset: number | null = null;
 
-  /** Hash → the offset it was LAST seen at. "Last", not "first", is the whole
-   *  meaning of the distance test: it must measure the gap to the previous
-   *  repetition, which for a periodic passage is its period. Freezing the first
-   *  sighting instead makes the measured gap grow without bound — after ~1.200
-   *  chars EVERY offset of any exactly periodic text reports a long-range
-   *  match, and 480 chars later the detector fires on a table of identical
-   *  empty rows. Reported in review of #2573; the same passage is what the
-   *  window metrics were repaired for two PRs earlier. */
-  const lastSeen = new Map<number, number>();
+  /** Hash → the offset it was FIRST seen at, deliberately never updated.
+   *
+   *  Review of this PR proposed tracking the LAST sighting instead, so the
+   *  distance would measure one period rather than growing without bound. That
+   *  reading is right about the mechanism and wrong about the intent: the
+   *  growing distance is what also makes short-period junk match itself once
+   *  ~1.200 chars of it exist, and `rawCut` documents and depends on exactly
+   *  that to place the cut at the junk's start. Switching to last-seen removes
+   *  the mechanism and leaves ~280 chars of spam in the kept answer (measured,
+   *  loopEngine.vitest.ts).
+   *
+   *  What the finding got right is that this path knew nothing of the
+   *  scaffolding gate — see the run check below. */
+  const firstSeen = new Map<number, number>();
   let indexedUpTo = 0;
   let runStart: number | null = null;
 
@@ -273,11 +284,11 @@ export function createDegenerationGuard(): DegenerationGuard {
     const limit = Math.min(text.length, MAX_INDEXED_CHARS) - SHINGLE_LENGTH;
     for (let start = indexedUpTo; start <= limit; start++) {
       const hash = shingleHash(text, start);
-      const previous = lastSeen.get(hash);
-      lastSeen.set(hash, start);
+      const previous = firstSeen.get(hash);
       indexedUpTo = start + 1;
       if (previous === undefined || start - previous < MIN_REPEAT_DISTANCE) {
         runStart = null;
+        if (previous === undefined) firstSeen.set(hash, start);
         continue;
       }
       if (runStart === null) runStart = start;
