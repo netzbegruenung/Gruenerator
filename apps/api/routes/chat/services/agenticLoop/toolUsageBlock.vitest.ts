@@ -76,3 +76,64 @@ describe('buildToolUsageBlock under a research ban', () => {
     expect(banned).toMatch(/erfinde/i);
   });
 });
+
+describe('buildToolUsageBlock — gated on the mounted toolset', () => {
+  // Live 13.08.2026 22:12: a turn with `steps=0` (pasted text, no tool call at
+  // all) still carried ~1.350 chars of search rules and ~600 of artifact rules,
+  // on top of 19 tool schemata. None of it was actionable.
+  const SEARCHLESS = ['expand_attachment', 'summarize', 'read_artifact', 'rezept_laden'];
+  const WITH_SEARCH = [...SEARCHLESS, 'gruenerator_search', 'web_search'];
+
+  it('drops the search rules when no search tool is mounted', () => {
+    const block = buildToolUsageBlock(6, false, false, SEARCHLESS);
+    expect(block).not.toMatch(/interne Dokumentsuche/);
+    expect(block).not.toMatch(/SUCHEN BAUEN AUFEINANDER AUF/);
+    expect(block).not.toMatch(/KEINE belegte Quelle/);
+    expect(block).not.toMatch(/\[N\]-Markern/);
+  });
+
+  it('keeps them as soon as one search tool is there', () => {
+    const block = buildToolUsageBlock(6, false, false, WITH_SEARCH);
+    expect(block).toMatch(/interne Dokumentsuche/);
+    expect(block).toMatch(/KEINE belegte Quelle/);
+  });
+
+  it('ties the web_search scope rule to web_search itself', () => {
+    expect(buildToolUsageBlock(6, false, false, ['gruenerator_search'])).not.toMatch(
+      /SCOPE GEHÖRT IN DIE PARAMETER/
+    );
+    expect(buildToolUsageBlock(6, false, false, ['web_search'])).toMatch(
+      /SCOPE GEHÖRT IN DIE PARAMETER/
+    );
+  });
+
+  it('drops the artifact rules when nothing can create an artifact', () => {
+    expect(buildToolUsageBlock(6, false, true, SEARCHLESS)).not.toMatch(/MEHR ALS EIN Artefakt/);
+    expect(buildToolUsageBlock(6, false, true, [...SEARCHLESS, 'create_board'])).toMatch(
+      /MEHR ALS EIN Artefakt/
+    );
+  });
+
+  it('keeps every rule when the caller does not know the toolset', () => {
+    // Omitting the list must never silently lose guidance.
+    const block = buildToolUsageBlock(6, false, true);
+    expect(block).toMatch(/interne Dokumentsuche/);
+    expect(block).toMatch(/SCOPE GEHÖRT IN DIE PARAMETER/);
+    expect(block).toMatch(/MEHR ALS EIN Artefakt/);
+  });
+
+  it('no longer advertises tools that are not mounted', () => {
+    // The dropped inventory sentence named DIP and abgeordnetenwatch; neither
+    // was among the 19 tools of the live turn. It duplicated the schemata and
+    // invited calls to tools that did not exist.
+    const block = buildToolUsageBlock(6, false, true, WITH_SEARCH);
+    expect(block).not.toMatch(/abgeordnetenwatch/);
+    expect(block).not.toMatch(/\(DIP\)/);
+  });
+
+  it('saves real length on a tool-less turn', () => {
+    const full = buildToolUsageBlock(8, false, true);
+    const lean = buildToolUsageBlock(8, false, true, SEARCHLESS);
+    expect(full.length - lean.length).toBeGreaterThan(1800);
+  });
+});
