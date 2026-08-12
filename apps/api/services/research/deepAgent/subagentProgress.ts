@@ -23,11 +23,20 @@
 
 import { type ResearchStep } from './types.js';
 
-/** The subset of `ToolCallStream` this needs — stated so tests need no run. */
+/**
+ * The subset of `ToolCallStream` this needs — stated so tests need no run.
+ *
+ * The three promises are not read for their values; they are listed because
+ * every yielded call carries them LIVE and they must be silenced (see
+ * `silencePromises`).
+ */
 export interface TaskCallLike {
   readonly name: string;
   readonly callId: string;
   readonly input: unknown;
+  readonly output?: PromiseLike<unknown> | undefined;
+  readonly status?: PromiseLike<unknown> | undefined;
+  readonly error?: PromiseLike<unknown> | undefined;
 }
 
 /** The subset of `SubagentRunStream` this needs. */
@@ -40,6 +49,54 @@ export interface SubagentLike {
 export interface SubagentProjections {
   readonly toolCalls: AsyncIterable<TaskCallLike>;
   readonly subagents: AsyncIterable<SubagentLike>;
+}
+
+/** The run's final-state promise. Present on every `streamEvents` run. */
+export interface RunWithOutput {
+  readonly output?: PromiseLike<unknown> | undefined;
+}
+
+/**
+ * Observes the one projection nobody else does.
+ *
+ * `streamEvents` builds `run.output` eagerly, and on any abort it REJECTS —
+ * whether or not anyone asked for it. The state loop catches its own error and
+ * carries on into the wrap-up leg; `run.output` meanwhile rejects with no
+ * handler attached, and Node kills the process on an unhandled rejection.
+ *
+ * Measured on 12.08.2026: a run hit its research deadline at 13 minutes, logged
+ * `Lauf unterbrochen (deadline … Wrap-up)` as designed — and then died on
+ * `DOMException [TimeoutError]` before it could write the report. In the API
+ * that is a cluster worker gone, not just one report.
+ *
+ * `stream()` had no such promise, which is why this only appears with the v3
+ * stream. Swallowing is right rather than sloppy: it is the SAME error the
+ * values loop already threw and classified, so there is nothing here that is
+ * not handled elsewhere.
+ */
+export function silenceRunOutput(run: RunWithOutput): void {
+  silencePromises(run.output);
+}
+
+/**
+ * Attaches a no-op catch to promises we hold but never read.
+ *
+ * Every `ToolCallStream` the `toolCalls` projection yields carries `output`,
+ * `status` and `error` — live promises of the pregel task behind the call. We
+ * only want the call's ARGUMENTS, but merely receiving the handle is enough:
+ * when the run aborts, each in-flight task rejects, and a rejection nobody
+ * holds ends the process.
+ *
+ * This is the second, harder half of the same bug as `silenceRunOutput`.
+ * Silencing `run.output` alone looked like a fix on a 45-second probe, where
+ * the deadline hits before any tool call is in flight — the full 13-minute run
+ * died anyway, on a rejection carrying `pregelTaskId`. Short repros do not
+ * reach this one.
+ */
+function silencePromises(...promises: (PromiseLike<unknown> | undefined)[]): void {
+  for (const promise of promises) {
+    if (promise) void Promise.resolve(promise).catch(() => {});
+  }
 }
 
 /**
@@ -104,6 +161,9 @@ export async function trackSubagents(
 
   const calls = (async () => {
     for await (const call of run.toolCalls) {
+      // BEFORE the filter, deliberately: a call we skip still handed us its
+      // live task promises, and an unsilenced one kills the process on abort.
+      silencePromises(call.output, call.status, call.error);
       // Only `task` calls delegate. The researchers' own searches keep coming
       // through `ctx.onStep`, which is where their retry and budget wording is.
       if (call.name !== 'task') continue;
