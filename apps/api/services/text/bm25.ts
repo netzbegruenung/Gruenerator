@@ -235,7 +235,7 @@ export interface SparseVector {
  */
 export function cistem(word: string): string {
   let w = word.toLowerCase();
-  w = w.replace(/ß/g, 'ss');
+  w = w.replace(/ß/g, 'ss').replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ä/g, 'a');
 
   if (w.length > 6 && w.startsWith('ge')) {
     w = w.slice(2);

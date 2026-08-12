@@ -244,6 +244,29 @@ async function migrate(client: QdrantClient, collection: string, dryRun: boolean
   }
 
   if (existing.has(collection) && (await hasBm25(client, collection))) {
+    if (existing.has(tmp)) {
+      // Crash window: the source was already recreated with the sparse config
+      // but the copy-back may be incomplete (the tmp copy is only deleted
+      // after a verified copy-back). Resume the copy-back instead of treating
+      // the partially-filled source as migrated — otherwise points are
+      // silently dropped.
+      if (dryRun) {
+        console.log(`[dry-run] ${collection}: would resume copy-back from ${tmp}`);
+        return;
+      }
+      console.log(`[resume] ${collection}: tmp copy still present — resuming copy-back`);
+      const restored = await copyPoints(client, tmp, collection);
+      const tmpCount = await pointCount(client, tmp);
+      const finalCount = await pointCount(client, collection);
+      if (finalCount !== tmpCount) {
+        throw new Error(
+          `${collection}: count mismatch after resumed copy-back (${finalCount} != ${tmpCount}) — tmp copy ${tmp} kept`
+        );
+      }
+      await client.deleteCollection(tmp);
+      console.log(`[done] ${collection}: ${restored} points restored, tmp removed`);
+      return;
+    }
     console.log(`[ok] ${collection}: already declares ${BM25_SPARSE_VECTOR_NAME} — backfilling`);
     await backfill(client, collection, dryRun);
     return;
