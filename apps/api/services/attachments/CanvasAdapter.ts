@@ -10,7 +10,7 @@ import * as crypto from 'crypto';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
-import { extractBase64 } from '@gruenerator/shared/utils';
+import { decodedByteLength, extractBase64 } from '@gruenerator/shared/utils';
 
 import { MIME_TO_EXTENSION, MAX_IMAGE_SIZE } from './constants.js';
 
@@ -50,7 +50,16 @@ export class CanvasAdapter {
   private resolveBytes(attachment: ImageAttachment): Buffer {
     if (attachment.bytes) return attachment.bytes;
     if (!attachment.data) throw new Error('Invalid attachment: missing data');
-    return Buffer.from(extractBase64(attachment.data), 'base64');
+
+    const base64 = extractBase64(attachment.data);
+    // Die 10-MB-Grenze gilt hier schon lange, wurde aber erst NACH dem
+    // Dekodieren geprueft — ein zu grosses Bild wurde also erst allokiert und
+    // dann verworfen. decodedByteLength liest die Groesse aus der Laenge.
+    const bytes = decodedByteLength(base64);
+    if (bytes > MAX_IMAGE_SIZE) {
+      throw new Error(`Image too large: ${Math.round(bytes / 1024 / 1024)}MB. Maximum: 10MB`);
+    }
+    return Buffer.from(base64, 'base64');
   }
 
   /**
