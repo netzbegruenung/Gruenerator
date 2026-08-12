@@ -36,10 +36,12 @@ import {
 import { researcherResponseFormat } from './researcherResponse.js';
 import {
   RESUME_LIMIT,
+  RESUMED_RUN_TEXT,
   WRAP_UP_RECURSION_LIMIT,
   buildResumeInput,
   classifyRunError,
 } from './resume.js';
+import { recordRunFinished, recordRunStarted } from './runRegistry.js';
 import { sanitizeToolCallsMiddleware } from './sanitizeToolCalls.js';
 import {
   type RunWithOutput,
@@ -139,6 +141,15 @@ export async function runDeepAgentResearch(
   // Logged unconditionally: without it a checkpoint row cannot be tied back to
   // the run that wrote it, which is the only way anyone would ever resume one.
   log.info(`[DeepAgent] Lauf ${threadId} (${checkpointer ? 'gesichert' : 'flüchtig'})`);
+  // Opens the registry row. Only meaningful with a checkpointer — without one
+  // there is no state to find later — but written either way, because "which
+  // researches ran and how they ended" is worth having on its own.
+  await recordRunStarted({
+    threadId,
+    question,
+    locale,
+    ...(params.userId ? { userId: params.userId } : {}),
+  });
   // Without this the run has a SECOND delegation target — on the lead model,
   // with a generic prompt, advertising itself for research. See harnessProfile.ts.
   suppressGeneralPurposeSubagent();
@@ -229,7 +240,12 @@ export async function runDeepAgentResearch(
   // written off: transient runtime errors get RESUME_LIMIT fresh attempts, and
   // both budget ceilings — step count and research clock — get the same short
   // wrap-up leg, whose only job is writing the report. See resume.ts.
-  let input: Record<string, unknown> = { messages: [{ role: 'user', content: question }] };
+  // A caller-supplied thread id means this is a CONTINUATION: the checkpointer
+  // hands the agent its own history back, so repeating the question would have
+  // it re-plan and re-delegate work already paid for.
+  let input: Record<string, unknown> = {
+    messages: [{ role: 'user', content: params.threadId ? RESUMED_RUN_TEXT : question }],
+  };
   let recursionLimit: number = DEFAULT_BUDGET.recursionLimit;
   let transientResumes = 0;
   let wrapUpUsed = false;
@@ -309,6 +325,9 @@ export async function runDeepAgentResearch(
 
   const raw = readFile(lastState?.files, REPORT_PATH);
   if (!isUsableReport(raw)) {
+    // Left as `failed`, NOT deleted: with a checkpointer this row plus its
+    // state is the whole material a resume would work from.
+    await recordRunFinished({ threadId, status: 'failed' });
     // The interesting part is WHY the loop stopped — a refusal, a direct
     // answer, empty content — and that lives only in the final message.
     log.warn(
@@ -316,6 +335,8 @@ export async function runDeepAgentResearch(
     );
     return null;
   }
+
+  await recordRunFinished({ threadId, status: 'finished', partial: aborted });
 
   const sourceList = [...sources.values()];
   let markdown = ensureSources(raw.trim(), sourceList);
