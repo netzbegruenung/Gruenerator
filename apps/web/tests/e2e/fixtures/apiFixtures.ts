@@ -113,6 +113,29 @@ export async function installApiFixtures(page: Page): Promise<void> {
     // `cookieConsent`) trafen keinen davon — dort fällt es nicht auf, weil die
     // Hilfsfunktion den Knopf zusätzlich anklickt.
     localStorage.setItem('termsAccepted', 'true');
+
+    // Die Onboarding-Touren (driver.js) starten sonst von selbst und schieben
+    // ein Popover über die Seite — mitten in die Messung. Das ist der Grund
+    // für die wechselnden `color-contrast`-Funde in CI: gemeldet wurde
+    // `.driver-popover-next-btn` und die Flächen der Tour, nicht die Route.
+    // Lokal fiel es nicht auf, weil die Tour dort schon durch war, bevor axe
+    // lief; auf einem ausgelasteten Runner erscheint sie mittendrin.
+    //
+    // Die Schlüssel stehen in `src/features/tours/tourState.ts`. Sie hier zu
+    // setzen heißt NICHT, dass die Tour barrierefrei ist — sie ist eine
+    // Überlagerung und gehört als solche geprüft (siehe OVERLAYS in
+    // a11y.spec.ts), nicht zufällig und halb eingeblendet über einer anderen
+    // Messung.
+    for (const key of [
+      'gruenerator-workplace-tour-v2',
+      'gruenerator-tour-docs-v1',
+      'gruenerator-tour-sheets-v1',
+      'gruenerator-tour-presentations-v1',
+      'gruenerator-tour-canvas-v1',
+      'gruenerator-tour-studio-v1',
+    ]) {
+      localStorage.setItem(key, 'done');
+    }
   });
 
   // react-scan wird in `index.html` auf JEDEM localhost-Host von unpkg
