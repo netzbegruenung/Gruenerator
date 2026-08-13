@@ -141,6 +141,23 @@ const MODEL_ENERGY: Readonly<Record<string, EnergyCoefficients>> = {
     mWhFixed: 0.14,
     basis: 'measured',
   },
+  // The SAME model under GreenPT's own id, because the loop PLANNER runs there
+  // since 13.08.2026 (LOOP_PLANNER_PRIMARY) and usage records the id we asked
+  // for. GreenPT returns `impact` per request, so this entry is only the
+  // fallback for a turn whose impact capture came back empty — without it such
+  // a row would count as uncovered rather than estimated.
+  //
+  // Numbers are a fresh 5-run sweep of 13.08.2026 (8/60/400/1200 output plus a
+  // 3911-token prompt), 2.8% mean error. They differ from `mistral-small-latest`
+  // above, which still carries the 31.07.2026 fit of the same model: same
+  // measurement, different split between slope and fixed term. Reconcile the
+  // two the next time the table is re-measured — do not assume one is drift.
+  'mistral-small-3.2-24b-instruct-2506': {
+    mWhPerOutputToken: 0.5987,
+    mWhPerInputToken: 0.0034,
+    mWhFixed: 8.82,
+    basis: 'measured',
+  },
   // GreenPT `green-embeddings`, single run: 8150 Wms for 30 tokens, no output side
   'mistral-embed': {
     mWhPerOutputToken: 0,
