@@ -110,10 +110,17 @@ describe('decideRunAgentic', () => {
     'bundestag',
     'abgeordnetenwatch',
     'image',
-    // Mirrors AGENTIC_INTENT_IDS (agenticRespondService), which routing.ts is
-    // deliberately import-free of. `agentic` belongs here: since the split it
-    // is the classifier's residual, so it must own the loop outright rather
-    // than depend on one of the phrasing rescues below.
+    // Eine Fixture nach dem Vorbild von AGENTIC_INTENTS (agenticRespondService),
+    // von dem routing.ts bewusst import-frei ist — `decideRunAgentic` bekommt
+    // die Menge als Parameter, also reicht hier eine repräsentative Auswahl
+    // (`research`/`umfragen`/`hilfe` fehlen und werden hier nicht gebraucht).
+    // Bewusst KEINE Ableitung aus der echten Menge: die prüfte die
+    // Implementierung gegen sich selbst. Woraus die echte Menge besteht
+    // (loop-Disposition + vier Zusätze), hält `dispositionSets.vitest.ts` fest.
+    //
+    // `agentic` gehört hierher: seit der Aufteilung ist es das Residual des
+    // Klassifikators, muss den Loop also selbst besitzen statt von einer der
+    // Formulierungs-Rettungen unten abzuhängen.
     'agentic',
   ]);
   const base = {

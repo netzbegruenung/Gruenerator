@@ -121,6 +121,11 @@ export interface ProcessedAttachmentMeta {
    *  fillable PDFs, so `fill_pdf_form` still has the document on follow-up
    *  turns. Consumers MUST filter by mimeType — see getThreadTabularFiles. */
   fileData?: string;
+  /** Qdrant document id, set by `enrichContext` once it vectorized this file in
+   *  THIS turn. Its only job is to stop the post-response persistence from
+   *  embedding the same bytes a second time under a second id — see
+   *  `saveThreadAttachmentsFromMeta`. Absent means "nobody indexed it yet". */
+  documentId?: string;
 }
 
 /**

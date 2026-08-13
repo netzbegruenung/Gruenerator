@@ -8,6 +8,7 @@
  */
 
 import { SKILLS } from '@gruenerator/shared/agents';
+import { type ChatIntentId, isGroundableProse } from '@gruenerator/shared/chat-intents';
 
 import { looksLikeChitchatTurn } from '../../../../routes/chat/services/agenticLoop/routing.js';
 import {
@@ -1083,16 +1084,20 @@ function getSynthesisGuidance(state: ChatGraphState): string {
  * but pointed at nothing. Every other such turn stays closed; that is the
  * regression guard this whole design rests on.
  *
- * `greeting` has no exception at all: the source carry never runs for it (see
- * CARRY_ELIGIBLE_INTENTS), so it is closed unconditionally.
+ * `greeting` has no exception at all: the source carry never runs for it — the
+ * same `isGroundableProse` that gates citations here gates the carry — so it is
+ * closed unconditionally by the guard clause below.
+ *
+ * The gated set is `isGroundableProse`: the `prose` disposition without
+ * `greeting`, derived in `@gruenerator/shared/chat-intents`. It used to be a
+ * third hand-written copy of the same two ids, next to `NO_TOOL_VERDICTS` and
+ * `CARRY_ELIGIBLE_INTENTS`.
  */
-const CITATION_GATED_INTENTS: ReadonlySet<string> = new Set(['produktion', 'direct']);
-
 export function citableSourcesAvailable(state: ChatGraphState): boolean {
   if (state.intent === 'greeting') return false;
   return (
     state.searchResults.length > 0 &&
-    (!CITATION_GATED_INTENTS.has(state.intent) || state.sourcesCarriedFromThread === true)
+    (!isGroundableProse(state.intent) || state.sourcesCarriedFromThread === true)
   );
 }
 
@@ -1259,7 +1264,11 @@ const ENUMERABLE_CLAUSE =
  * produces, i.e. the label most loop turns actually carry. Without it a demoted
  * turn could not reach the expanded rule even once the source count was right.
  */
-const EXTERNAL_RESEARCH_INTENTS: ReadonlySet<string> = new Set(['research', 'web', 'agentic']);
+const EXTERNAL_RESEARCH_INTENTS: ReadonlySet<ChatIntentId> = new Set([
+  'research',
+  'web',
+  'agentic',
+]);
 
 /**
  * Intents whose own guidance block (see `getModeGuidance`) already prescribes
@@ -1271,7 +1280,7 @@ const EXTERNAL_RESEARCH_INTENTS: ReadonlySet<string> = new Set(['research', 'web
  * `compute` only say what to talk about, not how to shape it, so the generic
  * rule still applies to them.
  */
-const INTENTS_WITH_OWN_FORMAT: ReadonlySet<string> = new Set([
+const INTENTS_WITH_OWN_FORMAT: ReadonlySet<ChatIntentId> = new Set([
   'edit_current_doc',
   'image_edit',
   'chart',
@@ -1325,6 +1334,9 @@ function buildAnswerFormatRule(
         // A mode NAME, not a flag — keep the name, it distinguishes the
         // multi-doc shapes that share the `synthesis_*` branches.
         synthesisMode: state.synthesisMode ?? 'none',
+        // Visible on EVERY branch, not just the one it owns: "the user drew a
+        // table and we still ordered prose" has to be readable off the map.
+        taskShape: state.taskShape ?? 'none',
       },
     });
   };
@@ -1346,12 +1358,32 @@ function buildAnswerFormatRule(
   // block below counts on rules 1–4 existing.
   const formatOwner = state.synthesisMode
     ? `synthesis:${state.synthesisMode}`
-    : INTENTS_WITH_OWN_FORMAT.has(String(state.intent))
+    : INTENTS_WITH_OWN_FORMAT.has(state.intent)
       ? `intent:${String(state.intent)}`
       : null;
   if (formatOwner != null) {
     note('own_format', { formatOwner });
     return 'Form und Umfang dieser Antwort sind oben bereits vorgegeben — halte dich genau daran.';
+  }
+
+  // The third owner, and the only one that isn't ours: the user prescribed the
+  // output shape in the turn itself. `detectTaskShape` already finds it — a
+  // drawn table skeleton, "gib ausschließlich …", "genau drei Sätze", a
+  // machine format — and until now the finding only picked the model lane.
+  //
+  // The 13.08.2026 run is what this costs. Turn 3 handed over a full table
+  // header row and turn 4 an "erstelle ausschließlich"-restriction; both were
+  // classified `agentic`, so neither reached the two owners above and both got
+  // "2-4 Absätze mit klarer Struktur" ordered from the system prompt — against
+  // the contract standing in the user's own message. The answers argued with
+  // generic completeness rules instead of the ones the turn was given.
+  //
+  // The sentence differs from the one above on purpose: that prescription
+  // stands HIGHER IN THIS PROMPT, this one stands in the conversation. Pointing
+  // at "oben" would send the model looking for something that isn't there.
+  if (state.taskShape != null) {
+    note('own_format', { formatOwner: `task_shape:${state.taskShape}` });
+    return 'Form und Umfang gibt der Auftrag der*des Nutzer*in vor — halte dich genau an das dort verlangte Format und füge nichts hinzu, was es nicht vorsieht.';
   }
 
   if (state.complexity === 'complex') {
@@ -1363,7 +1395,7 @@ function buildAnswerFormatRule(
     return 'Kurze, präzise Antworten (1-2 Absätze)';
   }
 
-  const isExternalResearch = EXTERNAL_RESEARCH_INTENTS.has(String(state.intent));
+  const isExternalResearch = EXTERNAL_RESEARCH_INTENTS.has(state.intent);
   if (isExternalResearch && (retrievalExpected || sourceCount >= STRUCTURE_SOURCE_THRESHOLD)) {
     note('research_expanded');
     // "darfst du gliedern — Pflicht ist das nicht" was permission nobody took:

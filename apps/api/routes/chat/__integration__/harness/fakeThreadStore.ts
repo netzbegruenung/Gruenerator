@@ -241,7 +241,17 @@ export async function deleteEmptyStreamingRows(threadId: string): Promise<void> 
   }
 }
 
+/** Was Postgres bei `WHERE id = $2` mit einer nicht-uuid tut: 22P02. */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function deleteMessagesFrom(threadId: string, messageId: string): Promise<number> {
+  // Ein Fake, der annimmt, was die echte Datenbank zurückweist, verbirgt genau
+  // die Fehlerklasse, für die dieser Prüfstand da ist. Am 13.08.2026 schickte
+  // der Client „Xa4ZTed" — einen Slug-Suffix — und der Turn brach mit 500 ab,
+  // während der Fake hier brav 0 zurückgab.
+  if (!UUID_RE.test(messageId)) {
+    throw new Error(`Database query failed: invalid input syntax for type uuid: "${messageId}"`);
+  }
   const anchor = messages.get(messageId);
   if (!anchor || anchor.threadId !== threadId) return 0;
   let removed = 0;

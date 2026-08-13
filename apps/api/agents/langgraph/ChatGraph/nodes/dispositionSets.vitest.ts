@@ -1,9 +1,14 @@
 /**
  * Die Dispositions-Achse gegen die Mengen, die dieselbe Partition beschreiben.
  *
- * Zwei sind seit diesem Schnitt ABGELEITET (`NO_RETRIEVAL_VERDICTS`,
- * `NO_TOOL_VERDICTS`) — für sie prüft dieser Test nur, dass die Ableitung das
- * Erwartete ergibt. Interessanter sind die, die bewusst NICHT abgeleitet werden:
+ * Zwei sind ABGELEITET: `NO_RETRIEVAL_VERDICTS` (die `prose`-Gruppe) und
+ * `GROUNDABLE_PROSE_INTENTS` (`prose` ohne `greeting`) — für sie prüft dieser
+ * Test nur, dass die Ableitung das Erwartete ergibt. Die zweite hat drei
+ * Konsumenten abgelöst, die dieselben zwei Ids je als Literal führten:
+ * `NO_TOOL_VERDICTS` (routing), `CITATION_GATED_INTENTS` (respondNode) und
+ * `CARRY_ELIGIBLE_INTENTS` (intentExecutionService).
+ *
+ * Interessanter sind die, die bewusst NICHT abgeleitet werden:
  * `AGENTIC_INTENTS` beantwortet eine andere Frage („wo läuft der Turn?") als die
  * Disposition („was muss vorher feststehen?"), und der Unterschied zwischen
  * beiden ist eine inhaltliche Aussage. Sie hier auszubuchstabieren macht aus
@@ -19,6 +24,8 @@ import {
   DISPOSITION_BY_INTENT,
   dispositionOf,
   intentsWithDisposition,
+  GROUNDABLE_PROSE_INTENTS,
+  isGroundableProse,
   type ChatIntentId,
 } from '@gruenerator/shared/chat-intents';
 
@@ -66,6 +73,21 @@ describe('abgeleitete Mengen', () => {
     expect(sorted(NO_RETRIEVAL_VERDICTS)).toEqual(['direct', 'greeting', 'produktion']);
   });
 
+  it('GROUNDABLE_PROSE_INTENTS ist prose OHNE greeting', () => {
+    // Der Ausschluss IST der Inhalt der Menge. Ginge er verloren, würde ein
+    // Gruss wieder erbfähig: er dürfte die Loop-Rettungen anfassen, Zitate
+    // zeigen und den Quellenblock eines früheren Turns übernehmen — drei
+    // Wirkungen, die vor diesem Schnitt an drei Literalen hingen und einzeln
+    // hätten wegdriften können.
+    expect(sorted(GROUNDABLE_PROSE_INTENTS)).toEqual(['direct', 'produktion']);
+    expect(sorted(intentsWithDisposition('prose'))).toEqual(
+      sorted([...GROUNDABLE_PROSE_INTENTS, 'greeting'])
+    );
+    expect(isGroundableProse('greeting')).toBe(false);
+    // Nimmt ein unverengtes `string` an — das ist der Zweck des Prädikats.
+    expect(isGroundableProse('gibt-es-nicht')).toBe(false);
+  });
+
   it('NO_TOOL_VERDICTS ist es NICHT — greeting fehlt mit Absicht', () => {
     // Beinahe dieselbe Menge, andere Frage. Die Disposition sagt „ein Gruss
     // braucht kein Werkzeug"; `NO_TOOL_VERDICTS` sagt „diese Verdikte dürfen die
@@ -77,12 +99,17 @@ describe('abgeleitete Mengen', () => {
   });
 });
 
-describe('bewusst NICHT abgeleitet', () => {
-  it('AGENTIC_INTENTS enthält jede loop-Disposition', () => {
+describe('AGENTIC_INTENTS — halb abgeleitet, halb Aussage', () => {
+  it('enthält jede loop-Disposition — seit dem Schnitt per Konstruktion', () => {
     // Die eine Richtung, die gelten MUSS: ein Intent, dessen Werkzeugwahl der
     // Planer trifft, muss den Planer auch erreichen. Ein loop-Intent, der hier
-    // fehlt, würde ohne jede Recherche beantwortet — der Fehler, den die
+    // fehlte, würde ohne jede Recherche beantwortet — der Fehler, den die
     // Degrade-Versicherung in `decideRunAgentic` schon einmal auffangen musste.
+    //
+    // Diese Zusicherung war eine handgepflegte Liste gegen eine Ableitung; jetzt
+    // ist sie die Ableitung selbst und kann nicht mehr brechen. Der Test bleibt
+    // trotzdem stehen: er ist der Ort, an dem jemand liest, WARUM die Richtung
+    // gilt — und er wird wieder scharf, sobald jemand die Aufzählung zurückholt.
     for (const id of intentsWithDisposition('loop')) {
       expect(AGENTIC_INTENTS.has(id), `loop-Intent ${id} fehlt in AGENTIC_INTENTS`).toBe(true);
     }
