@@ -413,6 +413,86 @@ export function materialDominatesTurn(
   return userText.length + carriedMaterialChars > systemMessage.length - carriedMaterialChars;
 }
 
+/**
+ * Darf der Loop dem Planer einen Werkzeugaufruf ABVERLANGEN (`toolChoice: required`)?
+ *
+ * Fünf Wege sind über die Zeit hier eingezogen, jeder aus einem eigenen Live-
+ * Ausfall — die Kommentare an den Zweigen nennen sie. Herausgezogen, weil eine
+ * fünfstellige Oder-Kette mit acht Eingaben mitten in einer 1.700-Zeilen-Funktion
+ * nicht prüfbar ist: bis hierher gab es keinen einzigen Test darauf, welcher Weg
+ * bei welchem Turn feuert.
+ */
+export function shouldForceFirstToolCall(input: {
+  researchBanned: boolean;
+  intent: string | null | undefined;
+  hasMcpScope: boolean;
+  isMcpCapabilityQuestion: boolean;
+  mcpToolCount: number;
+  lastUserText: string;
+  loopDemotedFromRetrieval: boolean;
+  classifierContradictedResearch: boolean;
+  /** Der Turn bringt seinen Stoff selbst mit — dieselbe Zahl, die dem SCHREIBER
+   *  den Werkzeugkatalog entzieht (`materialDominatesTurn`). */
+  materialHeavy: boolean;
+}): boolean {
+  // Der Bann vetoed alles. `toolChoice: 'required'` ist kein Vorschlag, den das
+  // Modell gegen den Satz des Nutzers abwägen kann — unter „ohne neue Recherche"
+  // sind die verbleibenden Werkzeuge die falschen.
+  if (input.researchBanned) return false;
+
+  // MCP mit gesetztem Server-Scope: eine Fähigkeitsfrage (WS-5 beschreibt die
+  // Werkzeuge) braucht keinen Aufruf, alles andere schon.
+  if (
+    input.intent === 'mcp' &&
+    input.hasMcpScope &&
+    !input.isMcpCapabilityQuestion &&
+    input.mcpToolCount > 0
+  ) {
+    return true;
+  }
+
+  // Ein ausdrückliches „recherchiere das" muss auch suchen. Die Demotion schiebt
+  // solche Turns nach `agentic`, wo der Planer gar nichts rufen kann — live als
+  // steps=0-Antworten beobachtet, die die eben bestellte Recherche anboten.
+  // `direct_response` bleibt der Notausgang (searchTools.ts).
+  if (looksLikeExplicitResearchOrder(input.lastUserText)) return true;
+
+  // Derselbe Ausfall ohne das Verb: eine schlichte Faktenfrage, von der Heuristik
+  // längst als Abruf erkannt („wer ist aktuell Bundeskanzler in Österreich" →
+  // web@0.80), demotiert und dann mit dem Ehrlichkeitshinweis statt einer
+  // Nachschlage beantwortet. Das Verdikt des Klassifikators ist das Signal; ein
+  // `direct`, das bloß werkzeugfähig aussah, setzt das Flag nicht.
+  //
+  // …ausser der Turn bringt seinen Stoff selbst mit. Gemessen auf test am
+  // 13.08.2026, Turn 4 einer Übersetzungs-Prüfaufgabe: `looksMultiTopic` zog
+  // einer 739-Zeichen-Prüfliste 0,30 ab (0,65 → 0,35), die Demotion setzte das
+  // Flag, und der Planer MUSSTE suchen — nach dem Artikel, der zwei Nachrichten
+  // weiter oben vollständig im Kontext stand. Die acht Snippets landen über
+  // `buildSynthSystem` im Prompt des Schreibers, der damit zwei verschiedene
+  // „Originale" gegeneinander las: er beanstandete eine vorhandene Überschrift
+  // und zitierte „Pflanzen spendeten", während er zugleich Präsens im Original
+  // behauptete.
+  //
+  // Dem Schreiber den Katalog zu entziehen und dem Planer im selben Turn einen
+  // Abruf abzuverlangen, waren zwei entgegengesetzte Urteile über denselben Turn.
+  // Der Zwang fällt weg, die Möglichkeit bleibt: der Planer DARF suchen, wenn die
+  // Aufgabe es verlangt. Das ausdrückliche „recherchiere das" oben ist unberührt.
+  if (input.loopDemotedFromRetrieval && !input.materialHeavy) return true;
+
+  // Dritter Weg: die LLM-Stufe sagte „braucht Recherche" und schrieb im selben
+  // Atemzug `direct` — ihre eigene Begründung benannte die Suche, die dann nie
+  // lief, und die Antwort war vollständig erfunden.
+  if (input.classifierContradictedResearch) return true;
+
+  // Vierter Weg, der bis zuletzt keinen hatte: der Klassifikator hat einen
+  // Recherche-Intent AUSDRÜCKLICH benannt. Live: „Wie komme ich am Montag früh
+  // von Wien nach Graz?" → Auflöser `bahn`, für de-AT nicht verfügbar,
+  // Degradierung auf `web` — und dann steps=0 sources=0, Antwort samt einer
+  // erfundenen Aussage über den Nutzer aus dem Modellgedächtnis. Ein Intent,
+  // dessen ganzer Zweck das Abrufen ist, darf nicht nichts abrufen.
+  return NAMED_RETRIEVAL_INTENTS.has(input.intent ?? '');
+}
+
 export function buildToolUsageBlock(
   maxSteps: number,
   researchBanned = false,
@@ -1452,55 +1532,19 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
       await forceCompoundGeneration();
     };
 
-    // On an EXPLICIT-scope MCP turn with tools mounted, require the first tool
-    // call so the (weak split) planner can't answer from prose without hitting
-    // the server (observed live: @trivago "suche hotels" → intent=mcp steps=0,
-    // 62s, generic "keine Antwort"). Applies on the FIRST scope turn too, not
-    // just follow-ups — the shipped mcpNote already tells the planner to prefer
-    // a param-free sibling / sensible defaults over asking back, so a forced
-    // call self-corrects via the error-as-result loop instead of stalling.
-    // Still exempt a capability question (WS-5 describes tools, no call needed).
-    //
-    // The ban vetoes ALL of it. `toolChoice: 'required'` is not a suggestion the
-    // model can weigh against the user's sentence — it is the loop mechanically
-    // insisting on a tool call, and under "ohne neue Recherche" the only tools
-    // left to reach for are the wrong ones.
-    const forceFirstToolCall =
-      !researchBanned &&
-      ((finalState.intent === 'mcp' &&
-        finalState.mcpServerScope != null &&
-        !isMcpCapabilityQuestion &&
-        !!mcpCatalog &&
-        mcpCatalog.labels.size > 0) ||
-        // An explicit "recherchiere das" must actually search. Loop demotion puts
-        // these turns into `agentic`, where the planner may call nothing at all —
-        // observed live as steps=0 answers that offered to do the research the
-        // user had just requested. `direct_response` remains the escape hatch
-        // (searchTools.ts), so a genuinely tool-free answer is still reachable.
-        looksLikeExplicitResearchOrder(lastUserText) ||
-        // Same failure without the explicit verb: a plain factual question the
-        // heuristic already classified as retrieval ("wer ist aktuell
-        // Bundeskanzler in Österreich" → web@0.80) was demoted into the loop and
-        // answered with the honesty note instead of a lookup. The classifier's
-        // verdict is the signal; a `direct` question that merely looked toolable
-        // does NOT set this, so follow-ups on carried sources stay tool-free.
-        finalState.loopDemotedFromRetrieval === true ||
-        // Third route to the same failure: the LLM classifier said the turn needs
-        // research and labelled it `direct` in the same breath. Its own reasoning
-        // named the search it then never ran, and the answer was invented whole.
-        finalState.classifierContradictedResearch === true ||
-        // Vierter Weg — und der einfachste, der bis zuletzt keinen hatte: der
-        // Klassifikator hat einen Recherche-Intent AUSDRÜCKLICH benannt.
-        //
-        // Die drei Wege oben decken den demotierten Turn und den
-        // Selbstwiderspruch ab; ein sauberes `web`-Verdikt aus der LLM-Stufe
-        // fiel durch alle drei. Live gemessen: „Wie komme ich am Montag früh von
-        // Wien nach Graz?" → Quellen-Auflöser `bahn`, für de-AT nicht verfügbar,
-        // Degradierung auf `web` — und dann `steps=0 sources=0`. Die Antwort kam
-        // vollständig aus dem Modellgedächtnis, inklusive einer erfundenen
-        // Aussage über den Nutzer. Ein Intent, dessen ganzer Zweck das Abrufen
-        // ist, darf nicht nichts abrufen.
-        NAMED_RETRIEVAL_INTENTS.has(finalState.intent ?? ''));
+    // Die fünf Wege dahinter stehen in `shouldForceFirstToolCall` — samt der
+    // Live-Ausfälle, die jeden einzelnen erzwungen haben.
+    const forceFirstToolCall = shouldForceFirstToolCall({
+      researchBanned,
+      intent: finalState.intent,
+      hasMcpScope: finalState.mcpServerScope != null,
+      isMcpCapabilityQuestion,
+      mcpToolCount: mcpCatalog?.labels.size ?? 0,
+      lastUserText,
+      loopDemotedFromRetrieval: finalState.loopDemotedFromRetrieval === true,
+      classifierContradictedResearch: finalState.classifierContradictedResearch === true,
+      materialHeavy,
+    });
 
     // The synth phase emits nothing between the last tool result and the first
     // answer token. Until this guard existed a lane that stalled there took the
