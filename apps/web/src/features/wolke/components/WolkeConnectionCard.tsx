@@ -10,6 +10,7 @@ import {
   useTestConnection,
   generateDisplayName,
   parseShareLink,
+  WolkeFolderBrowser,
   type ShareLink,
   type WolkeScope,
 } from '@gruenerator/wolke';
@@ -17,7 +18,6 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { FiChevronDown, FiExternalLink, FiTrash2, FiUsers, FiWifi } from 'react-icons/fi';
 
 import ShareWolkeLinkDialog from './ShareWolkeLinkDialog';
-import WolkeFolderBrowser from './WolkeFolderBrowser';
 
 import { cn } from '@/utils/cn';
 

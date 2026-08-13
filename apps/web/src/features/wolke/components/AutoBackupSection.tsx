@@ -1,7 +1,9 @@
-import { useWolkePreferencesStore, type BackupInterval } from '@gruenerator/wolke';
+import {
+  useWolkePreferencesStore,
+  WolkeFolderBrowser,
+  type BackupInterval,
+} from '@gruenerator/wolke';
 import { FiClock, FiFolder, FiPlus } from 'react-icons/fi';
-
-import WolkeFolderBrowser from './WolkeFolderBrowser';
 
 import { cn } from '@/utils/cn';
 
