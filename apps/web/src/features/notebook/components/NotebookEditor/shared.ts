@@ -1,5 +1,9 @@
 import {
+  DOCUMENT_MAX_UPLOAD_BYTES,
+  DOCUMENT_UPLOAD_EXTENSIONS,
+  DOCUMENT_UPLOAD_FORMAT_HINT,
   NOTEBOOK_MAX_DOCUMENTS,
+  resolveDocumentUploadFormat,
   type LinkedDocRef,
   type WolkeFolderRef,
   type WordpressSiteRef,
@@ -45,9 +49,54 @@ export const DOCUMENT_SOURCE_LABELS: Record<DocumentSource, string> = {
   wordpress: 'WordPress',
 };
 
-export const ACCEPTED_EXTENSIONS = ['.pdf', '.docx', '.doc', '.txt', '.md', '.odt', '.rtf'];
+export const ACCEPTED_EXTENSIONS = DOCUMENT_UPLOAD_EXTENSIONS;
+export const ACCEPTED_FORMATS_HINT = DOCUMENT_UPLOAD_FORMAT_HINT;
 export const MAX_DOCUMENTS = NOTEBOOK_MAX_DOCUMENTS;
 export const TOTAL_STEPS = 3;
+
+const MAX_UPLOAD_MB = Math.round(DOCUMENT_MAX_UPLOAD_BYTES / (1024 * 1024));
+
+export interface RejectedFile {
+  name: string;
+  reason: string;
+}
+
+/**
+ * Gate every file on its way into the staging tray. The dialog's `accept` list
+ * is only a suggestion and does nothing for drag & drop, so this — not the
+ * input — is what keeps unreadable files out. Rejecting here rather than at
+ * upload time means the user finds out while still looking at the file.
+ */
+export function partitionUploadableFiles(files: File[]): {
+  accepted: File[];
+  rejected: RejectedFile[];
+} {
+  const accepted: File[] = [];
+  const rejected: RejectedFile[] = [];
+
+  for (const file of files) {
+    if (!resolveDocumentUploadFormat(file.name, file.type)) {
+      rejected.push({ name: file.name, reason: 'Format wird nicht unterstützt' });
+      continue;
+    }
+    if (file.size > DOCUMENT_MAX_UPLOAD_BYTES) {
+      rejected.push({ name: file.name, reason: `größer als ${MAX_UPLOAD_MB} MB` });
+      continue;
+    }
+    accepted.push(file);
+  }
+
+  return { accepted, rejected };
+}
+
+export function describeRejectedFiles(rejected: RejectedFile[]): string {
+  const listed = rejected
+    .slice(0, 3)
+    .map((r) => `${r.name} (${r.reason})`)
+    .join(', ');
+  const rest = rejected.length > 3 ? ` und ${rejected.length - 3} weitere` : '';
+  return `Nicht übernommen: ${listed}${rest}. Unterstützt werden ${ACCEPTED_FORMATS_HINT} bis ${MAX_UPLOAD_MB} MB.`;
+}
 
 export function getFileTypeStyle(filename: string): { label: string; accentVia: string } {
   const ext = filename.toLowerCase().split('.').pop() ?? '';

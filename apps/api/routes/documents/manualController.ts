@@ -15,7 +15,12 @@ import { randomUUID } from 'crypto';
 import fs from 'fs';
 import path from 'path';
 
-import express, { type Router, type Response } from 'express';
+import {
+  DOCUMENT_MAX_UPLOAD_BYTES,
+  DOCUMENT_UPLOAD_FORMAT_HINT,
+  resolveDocumentUploadFormat,
+} from '@gruenerator/contracts';
+import express, { type Router, type Response, type NextFunction, type Request } from 'express';
 import multer from 'multer';
 
 import { getDocumentProcessingService } from '../../services/document-services/DocumentProcessingService/index.js';
@@ -70,9 +75,30 @@ const uploadDisk = multer({
     },
   }),
   limits: {
-    fileSize: 50 * 1024 * 1024,
+    fileSize: DOCUMENT_MAX_UPLOAD_BYTES,
   },
 });
+
+/**
+ * Turn multer's own rejections into the same German, actionable message the
+ * type guard below uses. Without this the size limit surfaced through the
+ * global handler in server.ts, which talks about videos.
+ */
+function handleUploadRejection(
+  err: unknown,
+  _req: Request,
+  res: Response,
+  next: NextFunction
+): void {
+  if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+    res.status(413).json({
+      success: false,
+      message: `Die Datei ist größer als ${Math.round(DOCUMENT_MAX_UPLOAD_BYTES / (1024 * 1024))} MB und kann nicht hochgeladen werden.`,
+    });
+    return;
+  }
+  next(err);
+}
 
 /**
  * POST /upload-only - Fast file upload to disk, no OCR/vectorization.
@@ -81,6 +107,7 @@ const uploadDisk = multer({
 router.post(
   '/upload-only',
   uploadDisk.single('document'),
+  handleUploadRejection,
   async (req: DocumentRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user?.id;
@@ -95,6 +122,22 @@ router.post(
       const file = req.file;
       if (!file) {
         res.status(400).json({ success: false, message: 'No file uploaded' });
+        return;
+      }
+
+      // Reject here rather than at extraction time: the file is only read
+      // minutes later by the deferred pipeline, and a failure there is a row
+      // the user has already moved on from.
+      if (!resolveDocumentUploadFormat(file.originalname, file.mimetype)) {
+        try {
+          fs.unlinkSync(file.path);
+        } catch {
+          // Ignore cleanup error
+        }
+        res.status(415).json({
+          success: false,
+          message: `„${file.originalname}" kann nicht gelesen werden. Unterstützt werden: ${DOCUMENT_UPLOAD_FORMAT_HINT}.`,
+        });
         return;
       }
 
@@ -187,6 +230,8 @@ router.get(
             }
           | null
           | undefined) ?? null;
+      // Why a 'failed' document failed — written by processUploadedDocument.
+      const processingError = (docMeta.processing_error as string | null | undefined) ?? null;
 
       res.json({
         success: true,
@@ -197,6 +242,7 @@ router.get(
           vectorCount: document.vector_count || 0,
           processingStage,
           processingProgress,
+          error: processingError,
         },
       });
     } catch (error) {
