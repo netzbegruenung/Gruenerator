@@ -96,6 +96,7 @@ async function main(): Promise<void> {
     `Umfang:   ${result.markdown.length} Zeichen, ${result.markdown.split(/\s+/).length} Wörter`
   );
   console.log(`Quellen:  ${result.sources.length}`);
+  console.log(`Lauf-ID:  ${result.threadId}`);
   console.log(`Vollständig: ${result.partial ? 'NEIN (Teilbericht)' : 'ja'}`);
   console.log(`\nZusammenfassung:\n${result.summary}\n`);
 

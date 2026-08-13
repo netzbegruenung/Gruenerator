@@ -45,7 +45,9 @@ function delegationRules(hasNotebooks: boolean): string {
    - \`web-recherche\` für Fakten, Zahlen, Chronologie und fremde Akteure.
    Im Zweifel gilt: Fragt die Teilfrage danach, was DIE GRÜNEN wollen oder beschlossen
    haben, ist es \`programm-recherche\`; fragt sie nach der Lage in der Welt, ist es
-   \`web-recherche\`. Berührt eine Teilfrage beides, zerlege sie in zwei.
+   \`web-recherche\`. Das gilt auch für FRÜHERE Positionen der Grünen — "Haltung 2011"
+   ist Beschlusslage, keine Zeitgeschichte. Berührt eine Teilfrage beides, zerlege sie
+   in zwei.
    Vergib ALLE Teilfragen deines Plans auf einmal, in EINEM Zug mehrere \`task\`-Aufrufe.`;
 }
 
@@ -71,10 +73,13 @@ ${locale === 'de-AT' ? LAENDERKONTEXT_AT : ''}
 3. **Fortschritt pflegen.** Setze eine Teilfrage in \`write_todos\` auf \`in_progress\`, wenn du
    sie vergibst, und auf \`completed\`, sobald ihr Ergebnis da ist. Das ist der Fortschritt,
    den die Nutzerin sieht — ein nicht gepflegter Plan sieht aus wie ein hängender Lauf.
-4. **Lücken schließen.** Jedes Teilergebnis kommt strukturiert zurück: \`ergebnis\`,
-   \`quellen\`, \`luecken\` und \`belastbarkeit\`. Was unter \`luecken\` steht, vergibst du als
-   weitere Teilfrage — dafür ist das Feld da; lass es nicht im Bericht offen. Du hast Zeit
-   für eine zweite Runde, und auch die vergibst du im Block. Fehlt darüber hinaus etwas
+4. **Lücken schließen — EINE Runde, höchstens drei Teilfragen.** Jedes Teilergebnis kommt
+   strukturiert zurück: \`ergebnis\`, \`quellen\`, \`luecken\` und \`belastbarkeit\`. Was unter
+   \`luecken\` steht, vergibst du als weitere Teilfrage — dafür ist das Feld da. Es gibt aber
+   genau eine solche Runde und darin höchstens DREI Teilfragen: wähle die aus, ohne die der
+   Bericht falsch würde, und benenne den Rest im Text als offen. Eine dritte Runde schaffst
+   du zeitlich nicht, und ein Lauf, der sie beginnt, endet als Teilbericht. Auch diese Runde
+   vergibst du im Block. Fehlt darüber hinaus etwas
    Wesentliches, recherchiere selbst nach (\`web_suche\`, \`tiefen_suche\`,
    \`seite_lesen\`${options.hasNotebooks ? ', \\`notizbuch_suche\\`' : ''}). Melden Werkzeuge, dass ein Budget erschöpft oder die Zeit
    abgelaufen ist, hörst du sofort auf zu recherchieren und schreibst den Bericht.

@@ -34,6 +34,14 @@ describe('leadPrompt', () => {
     expect(prompt).toMatch(/mindestens 800 Wörter/);
   });
 
+  it('bounds the follow-up round instead of letting it eat the clock', () => {
+    // All three measured runs ended as PARTIAL reports — not on the search
+    // budget (12 of 24 searches) but on time: eight delegations, two of them
+    // killed mid-flight by the deadline.
+    expect(prompt).toMatch(/höchstens DREI Teilfragen/);
+    expect(prompt).toMatch(/Teilbericht/);
+  });
+
   it('sends reported gaps back out as sub-questions', () => {
     // The field exists so the lead does not have to infer an open point from
     // prose — the step that got skipped.
@@ -116,6 +124,13 @@ describe('programmeResearcherPrompt', () => {
 });
 
 describe('delegation rules', () => {
+  it('routes a historical party position to the corpora, not the web', () => {
+    // Measured: "Position der Grünen zur Wehrpflicht im Jahr 2011" went to
+    // `web-recherche` — one misroute in eight delegations. A past resolution is
+    // still a resolution.
+    expect(leadPrompt('de-DE', { hasNotebooks: true })).toMatch(/FRÜHERE Positionen/);
+  });
+
   it('offers both specialists when a corpus is in reach', () => {
     const prompt = leadPrompt('de-DE', { hasNotebooks: true });
 
