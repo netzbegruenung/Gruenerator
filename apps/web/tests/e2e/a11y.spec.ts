@@ -227,21 +227,30 @@ async function gotoAuthenticated(page: Page, theme: Theme, route: string): Promi
   );
 
   // Und dann auf die SEITE warten, nicht nur auf ihre Farben. Im CI-Lauf vom
-  // 13.08.2026 hießen die gemeldeten Stellen `:root` und `.size-full` — das ist
-  // keine Oberfläche, das ist der Ladezustand: `AuthSplash` liegt als
-  // `fixed inset-0` über allem, solange `/auth/status` nicht geantwortet hat,
-  // und axe misst dann brav den Platzhalter. Der Splash trägt
-  // `aria-label="Wird geladen"`; sein Verschwinden ist das ehrlichere Signal
-  // als jede Frist. Danach noch auf echten Inhalt warten — Skelette enthalten
-  // weder Überschriften noch Bedienelemente.
-  await page
-    .locator('[aria-label="Wird geladen"]')
-    .first()
-    .waitFor({ state: 'detached', timeout: 15_000 });
-  await page
-    .locator('body :is(h1, h2, button, a, input)')
-    .first()
-    .waitFor({ state: 'attached', timeout: 15_000 });
+  // 13.08.2026 hieß die gemeldete Stelle `:root` — das ist keine Oberfläche,
+  // das ist der Ladezustand: `AuthSplash` liegt als `fixed inset-0` über allem,
+  // solange `/auth/status` nicht geantwortet hat, und axe misst dann brav den
+  // Platzhalter.
+  //
+  // Als **positive** Bedingung formuliert, und das ist der Punkt: ein erster
+  // Versuch wartete mit `waitFor({ state: 'detached' })` auf das Verschwinden
+  // des Splashs — und der Zustand ist erfüllt, solange das Element noch gar
+  // nicht da ist. Auf einem langsamen Runner lief die Prüfung damit VOR dem
+  // Ladezustand durch und maß ihn anschließend mit. Der Lauf wurde dadurch
+  // schlechter, nicht besser (11 Wiederholungen statt 2).
+  //
+  // `AuthSplash` rendert kein `<main>` — die Bedingung unten kann er also
+  // nicht erfüllen, egal wie die Zeiten fallen. `PageLayout` setzt genau ein
+  // `<main id="main-content">` auf jeder Route.
+  await page.waitForFunction(
+    () => {
+      if (document.querySelector('[aria-label="Wird geladen"]')) return false;
+      const inhalt = document.querySelector('main');
+      return !!inhalt?.querySelector('h1, h2, button, a, input');
+    },
+    undefined,
+    { timeout: 20_000 }
+  );
   await page.waitForTimeout(1500);
 
   // Der Riegel für den Farbmodus, und er gehört zur selben Fehlerklasse wie die
@@ -425,6 +434,13 @@ ohne sie prüft axe eine leere Auswahl und meldet null Verstöße.`
               impact: v.impact,
               hilfe: v.helpUrl,
               stellen: v.nodes.map((n) => n.target.join(' ')).slice(0, 5),
+              // Axes eigene Begründung, und die ist der Unterschied zwischen
+              // „irgendwo stimmt ein Kontrast nicht" und einem Befund, mit dem
+              // man arbeiten kann: sie nennt die gemessenen Farben und das
+              // Verhältnis. Ohne sie stand im CI-Log nur ein Klassenname, und
+              // die Ursache (eine Überlagerung, die sich in die Messung
+              // schob) war von einem echten Mangel nicht zu unterscheiden.
+              messwerte: v.nodes[0]?.failureSummary?.replace(/\s+/g, ' ').slice(0, 300),
             }))
           ).toEqual([]);
         });
@@ -496,6 +512,13 @@ test.describe('Barrierefreiheit (WCAG 2.2 AA)', () => {
               impact: v.impact,
               hilfe: v.helpUrl,
               stellen: v.nodes.map((n) => n.target.join(' ')).slice(0, 5),
+              // Axes eigene Begründung, und die ist der Unterschied zwischen
+              // „irgendwo stimmt ein Kontrast nicht" und einem Befund, mit dem
+              // man arbeiten kann: sie nennt die gemessenen Farben und das
+              // Verhältnis. Ohne sie stand im CI-Log nur ein Klassenname, und
+              // die Ursache (eine Überlagerung, die sich in die Messung
+              // schob) war von einem echten Mangel nicht zu unterscheiden.
+              messwerte: v.nodes[0]?.failureSummary?.replace(/\s+/g, ' ').slice(0, 300),
             }))
           ).toEqual([]);
         });
