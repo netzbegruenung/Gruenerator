@@ -2,6 +2,9 @@
 // Shared between web (apps/web profile) and mobile (apps/mobile profile) so the
 // AT/DE role taxonomy stays single-sourced — Austria is a first-class locale.
 
+import { LANDESVERBAENDE } from '../agents/landesverbaende.js';
+import { getDisabledNotebookIds } from '../notebooks/index.js';
+
 export interface EbeneConfig {
   id: string;
   label: string;
@@ -71,24 +74,44 @@ export const AT_ROLLEN: Record<string, string[]> = {
   gemeinde: ['Mitarbeiter*in Gemeindegruppe', 'Gemeinderät*in', 'Presse & Social-Media'],
 };
 
-export const DE_BUNDESLAENDER: BundeslandConfig[] = [
-  { label: 'Baden-Württemberg' },
-  { label: 'Bayern', notebookId: 'bayern-notebook' },
-  { label: 'Berlin', notebookId: 'berlin-notebook' },
-  { label: 'Brandenburg', notebookId: 'brandenburg-notebook' },
-  { label: 'Bremen' },
-  { label: 'Hamburg', notebookId: 'hamburg-notebook' },
-  { label: 'Hessen' },
-  { label: 'Mecklenburg-Vorpommern', notebookId: 'mecklenburg-vorpommern-notebook' },
-  { label: 'Niedersachsen' },
-  { label: 'Nordrhein-Westfalen' },
-  { label: 'Rheinland-Pfalz' },
-  { label: 'Saarland' },
-  { label: 'Sachsen', notebookId: 'sachsen-notebook' },
-  { label: 'Sachsen-Anhalt' },
-  { label: 'Schleswig-Holstein', notebookId: 'schleswig-holstein-notebook' },
-  { label: 'Thüringen', notebookId: 'thueringen-notebook' },
-];
+/** Alle sechzehn, in der Reihenfolge, in der der Assistent sie anbietet. */
+const DE_BUNDESLAND_LABELS = [
+  'Baden-Württemberg',
+  'Bayern',
+  'Berlin',
+  'Brandenburg',
+  'Bremen',
+  'Hamburg',
+  'Hessen',
+  'Mecklenburg-Vorpommern',
+  'Niedersachsen',
+  'Nordrhein-Westfalen',
+  'Rheinland-Pfalz',
+  'Saarland',
+  'Sachsen',
+  'Sachsen-Anhalt',
+  'Schleswig-Holstein',
+  'Thüringen',
+] as const;
+
+/**
+ * `notebookId` wird aus der Landesverbands-Registry abgeleitet, nie von Hand
+ * getippt. Die handgepflegte Fassung war auseinandergelaufen: Hessen, Saarland
+ * und Sachsen-Anhalt trugen keine Id, obwohl ihr Notebook existiert, während
+ * Hamburg, Schleswig-Holstein und Sachsen eine trugen, obwohl ihre Notebooks
+ * per `enabled: false` abgeschaltet sind. Beides zeigte der Rollen-Assistent
+ * als „● Notebook"-Hinweis falsch an.
+ *
+ * Dass `label` dem `title` eines `LandesverbandEntry` entspricht, ist tragend:
+ * genau darüber ordnet `landesverbandIdsForRoles` eine Rolle ihrem
+ * Landesverband zu.
+ */
+export const DE_BUNDESLAENDER: BundeslandConfig[] = DE_BUNDESLAND_LABELS.map((label) => {
+  const entry = LANDESVERBAENDE.find((lv) => lv.title === label);
+  return entry && !getDisabledNotebookIds().has(entry.notebookId)
+    ? { label, notebookId: entry.notebookId }
+    : { label };
+});
 
 export const AT_BUNDESLAENDER: BundeslandConfig[] = [
   { label: 'Wien' },
