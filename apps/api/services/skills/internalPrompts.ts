@@ -42,7 +42,9 @@ const DEV_FALLBACK_DIR = resolve(__dirname, '../../../../.external/gruenerator-i
 /** Strips an accidental YAML frontmatter block — the private files carry none. */
 const FRONTMATTER = /^---\r?\n[\s\S]*?\r?\n---\r?\n/;
 
-type Kind = 'skills' | 'agents' | 'rollen';
+const KINDS = ['skills', 'agents', 'rollen'] as const;
+
+type Kind = (typeof KINDS)[number];
 
 const caches = new Map<Kind, Map<string, string>>();
 
@@ -123,7 +125,7 @@ export function getInternalRolePrompt(key: string): string | null {
   return get('rollen', key);
 }
 
-/** How many bodies are loaded. Boot diagnostics and the prompt endpoint use it. */
+/** How many bodies are loaded. `reportInternalPromptInventory` builds on it. */
 export function getInternalPromptCount(kind: Kind): number {
   let cache = caches.get(kind);
   if (!cache) {
@@ -131,4 +133,42 @@ export function getInternalPromptCount(kind: Kind): number {
     caches.set(kind, cache);
   }
   return cache.size;
+}
+
+/**
+ * Loads all three kinds and reports the inventory. Called once per worker at
+ * boot — the point is the *timing*, not the counts.
+ *
+ * Without it the only signal is the warning inside `load`, and that one is
+ * lazy: it fires on the first turn that happens to need a prompt, minutes or
+ * hours after the deploy, buried in request logs. On beta that gap swallowed a
+ * whole failed rollout — the api container had started 41 minutes before Salt
+ * wrote `INTERN_CONTENT_DIR` into `.env`, so it ran on `DEV_FALLBACK_DIR` with
+ * every recipe *and* every persona silently absent, and four measurement runs
+ * were spent before anyone read the line. `env_file` is only consulted at
+ * `docker compose up`, so a rollout that adds the variable needs a recreate,
+ * not a restart.
+ *
+ * Empty is not automatically an error: a fork or a fresh clone has no private
+ * checkout and should still boot. Production is the case that must be loud,
+ * hence the `NODE_ENV` split.
+ */
+export function reportInternalPromptInventory(): void {
+  const counts = KINDS.map((kind) => ({ kind, size: getInternalPromptCount(kind) }));
+  const empty = counts.filter((c) => c.size === 0).map((c) => c.kind);
+  const summary = counts.map((c) => `${c.kind}=${c.size}`).join(' ');
+  const root = env.INTERN_CONTENT_DIR ?? `${DEV_FALLBACK_DIR} (fallback, INTERN_CONTENT_DIR unset)`;
+
+  if (empty.length === 0) {
+    log.info(`Internal prompts loaded from ${root}: ${summary}`);
+    return;
+  }
+
+  const message =
+    `No internal prompts for ${empty.join(', ')} at ${root} (${summary}) — recipes and ` +
+    `personas degrade to the base systemRole. Check INTERN_CONTENT_DIR reaches the ` +
+    `container ('docker compose up --detach --force-recreate api', not restart).`;
+
+  if (env.NODE_ENV === 'production') log.error(message);
+  else log.warn(message);
 }
