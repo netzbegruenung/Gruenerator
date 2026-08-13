@@ -183,7 +183,11 @@ async function axiosFetcher({
   // that step, so setting the flag on a client did exactly nothing until this
   // block existed. Verified by `contractsClientValidation.vitest.ts`, whose
   // regression case passed happily while the flag was set but inert.
-  if (validateResponse) {
+  // `route.validateResponseOnClient` is ts-rest's deprecated per-route opt-in.
+  // Nothing in this repo sets it, but honouring it here costs one `??` and
+  // avoids re-creating exactly the trap above: a flag that type-checks, reads
+  // as enabled, and is silently ignored by this bridge.
+  if (validateResponse ?? route.validateResponseOnClient) {
     const responseSchema = route.responses[response.status];
     if (isZodType(responseSchema)) {
       return {
