@@ -209,9 +209,11 @@ describe('createDegenerationGuard', () => {
 // neither window metric could see it.
 
 describe('createDegenerationGuard — long-range repetition', () => {
-  /** A complete, healthy answer of roughly the length the live one had. */
+  /** A complete, healthy answer. Long enough that a SECOND copy of it crosses
+   *  DEGEN_MIN_LENGTH — below that the guard deliberately never looks, so a
+   *  shorter fixture would only prove that the threshold holds. */
   function answer(): string {
-    return Array.from({ length: 8 }, (_, i) => variedProse(i)).join('');
+    return Array.from({ length: 30 }, (_, i) => variedProse(i)).join('');
   }
 
   it('fires when the model writes the same answer a second time', () => {
