@@ -246,11 +246,34 @@ export interface RouteOptions {
 }
 
 /**
+ * Ob Mistral Medium 3.5 den Umweg über Scaleway nehmen darf.
+ *
+ * STAND 2026-08-13: AUS. Der Scaleway-Upstream lieferte im Betrieb fehlerhafte
+ * Antworten, deshalb geht das Hauptmodell wieder direkt an die Mistral-API.
+ *
+ * Der Schalter sitzt hier und nicht an den Aufrufern, weil ZWEI Pfade dieselbe
+ * Frage stellen: dieses Routing für normale Turns und
+ * {@link SCALEWAY_MISTRAL_MODELS} in `regoloReasoningStream.ts` für die
+ * Denk-Lane. Ein Schalter, der nur einen davon kennt, lässt die Hälfte des
+ * Verkehrs in Paris.
+ *
+ * Zurückschalten ist reine Konfiguration — `SCALEWAY_MISTRAL_ROUTING=true`.
+ * Deshalb bleibt alles darunter (Tabelle, Fallback-Fetch, Denk-Lane und deren
+ * Tests) unangetastet stehen. Betrifft NICHT `provider: 'scaleway'`: Gemma 4
+ * läuft weiter dort.
+ */
+export function isScalewayMistralRoutingEnabled(): boolean {
+  return env.SCALEWAY_MISTRAL_ROUTING && isProviderConfigured('scaleway');
+}
+
+/**
  * Where a request for a Mistral model should actually go.
  *
- * All Mistral Medium 3.5 traffic runs on Scaleway; the Mistral API is the
- * fallback, applied at three levels:
+ * Mistral Medium 3.5 traffic can run on Scaleway; the Mistral API is the
+ * fallback, applied at four levels:
  *
+ *  0. POLICY (here) — {@link isScalewayMistralRoutingEnabled}; derzeit aus, so
+ *     dass die Stufen 1–3 im Normalbetrieb gar nicht erst erreicht werden.
  *  1. CONFIGURATION (here) — no Scaleway key, every caller stays on Mistral.
  *  2. CAPABILITY (here) — reasoning requests stay on Mistral, see below.
  *  3. REQUEST (`scalewayMistralFallbackFetch`) — a failed Scaleway call is
@@ -279,7 +302,8 @@ export interface RouteOptions {
  * So a thinking request goes to the Mistral API, where `@ai-sdk/mistral`
  * surfaces reasoning through `fullStream` as the chat UI expects. Everything
  * else — every generator, sheet, presentation, notebook, sharepic and
- * non-thinking chat turn — runs on Scaleway.
+ * non-thinking chat turn — would run on Scaleway, sobald Stufe 0 das wieder
+ * zulässt.
  */
 export function routeMistralModel(
   modelId: string | undefined,
@@ -289,7 +313,7 @@ export function routeMistralModel(
   if (
     scalewayModel !== undefined &&
     options.needsReasoning !== true &&
-    isProviderConfigured('scaleway')
+    isScalewayMistralRoutingEnabled()
   ) {
     return { upstream: 'scaleway', model: scalewayModel };
   }
@@ -305,9 +329,13 @@ export function routeMistralModel(
 export function isProviderConfigured(provider: string): boolean {
   switch (provider) {
     case 'mistral':
-      // Either upstream can serve the lane, so the lane is configured if
-      // EITHER key is present — a Scaleway-only deployment is valid.
-      return !!env.MISTRAL_API_KEY || !!env.SCALEWAY_API_KEY;
+      // A Scaleway-only deployment is valid ONLY while the routing is on —
+      // that is the whole of what makes Scaleway able to serve this lane. With
+      // the routing off, `routeMistralModel` sends everything to the Mistral
+      // API, so a Scaleway key says nothing about whether the lane can answer;
+      // reporting it configured would have every fallback chain pick a lane
+      // that then fails on a missing key.
+      return !!env.MISTRAL_API_KEY || isScalewayMistralRoutingEnabled();
     case 'scaleway':
       return !!env.SCALEWAY_API_KEY;
     case 'litellm':
@@ -335,8 +363,10 @@ export function logProviderAvailability(): void {
     .join(' · ');
   log.info(`Provider availability: ${lanes}`);
   log.info(
-    isProviderConfigured('scaleway')
+    isScalewayMistralRoutingEnabled()
       ? `Mistral Medium 3.5 → Scaleway (fallback: ${env.MISTRAL_API_KEY ? 'Mistral API' : 'NONE — MISTRAL_API_KEY unset'})`
-      : 'Mistral Medium 3.5 → Mistral API (SCALEWAY_API_KEY unset)'
+      : `Mistral Medium 3.5 → Mistral API (${
+          env.SCALEWAY_MISTRAL_ROUTING ? 'SCALEWAY_API_KEY unset' : 'SCALEWAY_MISTRAL_ROUTING aus'
+        })`
   );
 }

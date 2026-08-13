@@ -30,7 +30,10 @@ afterEach(() => {
 
 describe('routeMistralModel', () => {
   it('sends every Mistral Medium 3.5 alias to Scaleway', async () => {
-    const { routeMistralModel } = await loadRouting({ SCALEWAY_API_KEY: 'scw-key' });
+    const { routeMistralModel } = await loadRouting({
+      SCALEWAY_API_KEY: 'scw-key',
+      SCALEWAY_MISTRAL_ROUTING: 'true',
+    });
 
     // All three ids name the same weights; the codebase uses all three
     // (mistral-medium-2604 in the lane tables, mistral-medium-3.5 in the
@@ -44,7 +47,10 @@ describe('routeMistralModel', () => {
   });
 
   it('leaves the other Mistral models on the Mistral API', async () => {
-    const { routeMistralModel } = await loadRouting({ SCALEWAY_API_KEY: 'scw-key' });
+    const { routeMistralModel } = await loadRouting({
+      SCALEWAY_API_KEY: 'scw-key',
+      SCALEWAY_MISTRAL_ROUTING: 'true',
+    });
 
     // This Scaleway project serves neither Pixtral nor the embedding models, so
     // a `startsWith('mistral-')` rule would have broken vision and search.
@@ -60,7 +66,10 @@ describe('routeMistralModel', () => {
     // chain of thought lands in `message.reasoning`, which the SDK does not
     // read, while still billing against max_tokens, so `content` comes back
     // EMPTY. Reasoning therefore belongs on @ai-sdk/mistral.
-    const { routeMistralModel } = await loadRouting({ SCALEWAY_API_KEY: 'scw-key' });
+    const { routeMistralModel } = await loadRouting({
+      SCALEWAY_API_KEY: 'scw-key',
+      SCALEWAY_MISTRAL_ROUTING: 'true',
+    });
 
     expect(routeMistralModel('mistral-medium-2604', { needsReasoning: true })).toEqual({
       upstream: 'mistral',
@@ -73,8 +82,26 @@ describe('routeMistralModel', () => {
     expect(routeMistralModel('mistral-medium-2604', {}).upstream).toBe('scaleway');
   });
 
+  it('stays on the Mistral API when the routing flag is off, key or no key', async () => {
+    // Der Standardzustand seit 2026-08-13: Scaleway lieferte fehlerhafte
+    // Antworten. Der Schlüssel darf gesetzt bleiben — Gemma 4 braucht ihn —,
+    // der Schalter allein entscheidet über das Hauptmodell.
+    const { routeMistralModel, isScalewayMistralRoutingEnabled } = await loadRouting({
+      SCALEWAY_API_KEY: 'scw-key',
+      SCALEWAY_MISTRAL_ROUTING: undefined,
+    });
+
+    expect(isScalewayMistralRoutingEnabled()).toBe(false);
+    for (const id of ['mistral-medium-2604', 'mistral-medium-3.5', 'mistral-medium-latest']) {
+      expect(routeMistralModel(id)).toEqual({ upstream: 'mistral', model: id });
+    }
+  });
+
   it('falls back to Mistral when Scaleway is not configured', async () => {
-    const { routeMistralModel } = await loadRouting({ SCALEWAY_API_KEY: undefined });
+    const { routeMistralModel } = await loadRouting({
+      SCALEWAY_API_KEY: undefined,
+      SCALEWAY_MISTRAL_ROUTING: 'true',
+    });
 
     expect(routeMistralModel('mistral-medium-2604')).toEqual({
       upstream: 'mistral',
@@ -87,10 +114,27 @@ describe('routeMistralModel', () => {
     // unconfigured would make fallback chains skip it entirely.
     const { isProviderConfigured } = await loadRouting({
       SCALEWAY_API_KEY: 'scw-key',
+      SCALEWAY_MISTRAL_ROUTING: 'true',
       MISTRAL_API_KEY: undefined,
     });
 
     expect(isProviderConfigured('mistral')).toBe(true);
+    expect(isProviderConfigured('scaleway')).toBe(true);
+  });
+
+  it('reports the mistral lane UNconfigured when only Scaleway has a key and routing is off', async () => {
+    // The Scaleway key stops vouching for this lane the moment the routing is
+    // off: every request goes to the Mistral API, which has no key here. Saying
+    // "configured" would make fallback chains pick a lane that cannot answer —
+    // and Scaleway is still legitimately configured for Gemma, so the key alone
+    // is no longer the question.
+    const { isProviderConfigured } = await loadRouting({
+      SCALEWAY_API_KEY: 'scw-key',
+      SCALEWAY_MISTRAL_ROUTING: undefined,
+      MISTRAL_API_KEY: undefined,
+    });
+
+    expect(isProviderConfigured('mistral')).toBe(false);
     expect(isProviderConfigured('scaleway')).toBe(true);
   });
 });
