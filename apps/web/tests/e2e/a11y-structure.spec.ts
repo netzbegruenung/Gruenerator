@@ -14,6 +14,14 @@
  * Baseline-Lauf gemessen worden (782 vs. 834 Vorkommen zwischen zwei Läufen
  * derselben Fassung, praktisch vollständig aus `/boards`).
  *
+ * **Einfarbig, und das bleibt so.** `a11y.spec.ts` prüft seit 08/2026 jede
+ * Route in hell UND dunkel; hier wäre derselbe Zusatz reine Laufzeit. Ein
+ * ARIA-Baum kennt keine Farbe — Rollen, Namen und Hierarchie sind unter beiden
+ * Themes identisch, und die Snapshots wären es auch. Anders läge der Fall
+ * erst, wenn eine Route je nach Modus andere Elemente rendern würde (etwa ein
+ * Umschalter, der nur in einem Modus existiert); dann gehört die Route mit
+ * beiden Snapshots hierher und die Begründung mit ihr.
+ *
  * Datengetriebene Routen kommen dazu, sobald ein fixierter Datenstand steht
  * (Seed oder MSW) — siehe docs/barrierefreiheit-baseline-2026-08.md §8.
  *
@@ -75,6 +83,18 @@ async function gotoAuthenticated(page: Page, route: string): Promise<void> {
   // Uhr und nicht den Baum.
   await page.waitForLoadState('load');
   await page.evaluate(() => document.fonts.ready);
+  // Dasselbe Bereitschaftssignal wie in `a11y.spec.ts`, aus demselben Grund:
+  // der Dev-Server hängt CSS erst beim Auswerten des JS-Moduls ein, `load` ist
+  // dann längst durch. `--background-color` steht in unserer eigenen
+  // Farbebene — ist es berechenbar, greifen auch die `hidden sm:inline`-Regeln,
+  // an denen dieser Snapshot hängt.
+  await page.waitForFunction(
+    () =>
+      getComputedStyle(document.documentElement).getPropertyValue('--background-color').trim() !==
+      '',
+    undefined,
+    { timeout: 15_000 }
+  );
   await page.waitForTimeout(1000);
 }
 
