@@ -25,6 +25,7 @@ import { DeepResearchCounter } from '../../../services/counters/index.js';
 import { createDocumentWithContent } from '../../../services/docs/DocGenerationService.js';
 import { runDeepAgentResearch } from '../../../services/research/deepAgent/index.js';
 import { buildNotebookScope } from '../../../services/research/deepAgent/notebookScope.js';
+import { recordRunDocument } from '../../../services/research/deepAgent/runRegistry.js';
 import { DEFAULT_BUDGET } from '../../../services/research/deepAgent/types.js';
 import { getLinkupService } from '../../../services/search/LinkupService.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -174,6 +175,7 @@ export async function runDeepAgentTurn(params: {
       signal: AbortSignal.timeout(DEFAULT_BUDGET.hardMs + DEFAULT_BUDGET.wrapUpMs),
       ...(state.aiWorkerPool ? { aiWorkerPool: state.aiWorkerPool } : {}),
       ...(notebookScope ? { notebookScope } : {}),
+      userId,
       progress: {
         onPlan: (steps) => sse.send('research_log_update', { id: logId, plan: toLogSteps(steps) }),
         onStep: (step) => sse.send('research_log_update', { id: logId, steps: toLogSteps([step]) }),
@@ -210,6 +212,11 @@ export async function runDeepAgentTurn(params: {
     sendChatWarning(sse, 'deep_agent_failed');
     return NOT_SERVED;
   }
+
+  // Closes the loop for the registry: a finished run points at the document its
+  // report became, so an operator looking at an old thread id lands on the
+  // result instead of a bare row. Fails soft, like the rest of the registry.
+  await recordRunDocument(result.threadId, document.id);
 
   const url = `/office/${document.id}`;
 

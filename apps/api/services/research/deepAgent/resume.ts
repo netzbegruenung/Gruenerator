@@ -39,6 +39,19 @@ export const WRAP_UP_RECURSION_LIMIT = 12;
 export const INTERRUPTED_CALL_TEXT =
   'Dieser Werkzeugaufruf wurde durch eine Störung unterbrochen und nicht ausgeführt. Wiederhole ihn, falls sein Ergebnis noch fehlt.';
 
+/**
+ * The opening turn of a CONTINUED run.
+ *
+ * A resume re-enters the same `thread_id`, so the checkpointer hands the agent
+ * its own history back. Sending the original question again would read as a
+ * second, identical order — the model would re-plan and re-delegate work that
+ * is already paid for. This says what actually happened instead.
+ */
+export const RESUMED_RUN_TEXT =
+  'Dieser Lauf wurde durch einen Neustart unterbrochen und wird jetzt fortgesetzt. Fang NICHT ' +
+  'von vorne an: sieh dir an, was du bereits herausgefunden hast, hole nur noch das Fehlende ' +
+  'nach und schreibe dann den Bericht nach /bericht.md.';
+
 export const WRAP_UP_TEXT =
   'Das Schrittbudget ist erschöpft. Recherchiere nichts mehr: schreibe JETZT mit write_file ' +
   'den Bericht nach /bericht.md aus dem vorhandenen Material und antworte dann mit zwei bis drei Sätzen.';
