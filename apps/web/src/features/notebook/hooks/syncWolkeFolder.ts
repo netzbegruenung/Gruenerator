@@ -5,6 +5,7 @@ import { type useDocumentsStore } from '../../../stores/documentsStore';
 import {
   failureNotice,
   joinNotices,
+  subfolderNotice as subfolderNoticeFor,
   summarizeWolkeImport,
   unsupportedFileNotice,
   type WolkeImportFailure,
@@ -50,9 +51,16 @@ export async function syncWolkeFolder(
   ctx: SyncContext
 ): Promise<WolkeFolderSyncResult> {
   try {
-    const browseResult = await ctx.documentsStore.browseWolkeFiles(folder.shareLinkId);
+    const includeSubfolders = folder.includeSubfolders === true;
+    // folderPath used to be dropped here, so an attached subfolder synced the
+    // share root instead of itself.
+    const browseResult = await ctx.documentsStore.browseWolkeFiles(folder.shareLinkId, {
+      ...(folder.folderPath ? { path: folder.folderPath } : {}),
+      recursive: includeSubfolders,
+    });
     const supported = browseResult.files.filter((f) => f.isSupported);
     const unsupportedNotice = unsupportedFileNotice(browseResult.files);
+    const subfolderNotice = subfolderNoticeFor(browseResult, includeSubfolders);
 
     if (supported.length === 0) {
       return {
@@ -65,7 +73,7 @@ export async function syncWolkeFolder(
         updatedLastSyncedAt: new Date().toISOString(),
         skippedDueToSlotsFull: 0,
         failures: [],
-        notice: unsupportedNotice,
+        notice: joinNotices([unsupportedNotice, subfolderNotice]),
       };
     }
 
@@ -99,7 +107,7 @@ export async function syncWolkeFolder(
       updatedLastSyncedAt: new Date().toISOString(),
       skippedDueToSlotsFull,
       failures: summary.failures,
-      notice: joinNotices([failureNotice(summary.failures), unsupportedNotice]),
+      notice: joinNotices([failureNotice(summary.failures), unsupportedNotice, subfolderNotice]),
     };
   } catch (e) {
     return {

@@ -85,6 +85,15 @@ const NotebookEditorWolkeSection = ({
     [folders, onFoldersChange]
   );
 
+  const handleToggleSubfolders = useCallback(
+    (shareLinkId: string, includeSubfolders: boolean) => {
+      onFoldersChange(
+        folders.map((f) => (f.shareLinkId === shareLinkId ? { ...f, includeSubfolders } : f))
+      );
+    },
+    [folders, onFoldersChange]
+  );
+
   const handleRemove = useCallback(
     (shareLinkId: string) => {
       onFoldersChange(folders.filter((f) => f.shareLinkId !== shareLinkId));
@@ -247,6 +256,18 @@ const NotebookEditorWolkeSection = ({
                         {folder.folderName}
                       </div>
                     </div>
+                    <label className="flex cursor-pointer items-center gap-xs text-xs text-grey-500">
+                      <input
+                        type="checkbox"
+                        className="size-3.5 shrink-0 accent-primary-500"
+                        checked={folder.includeSubfolders === true}
+                        disabled={disabled || isSyncing}
+                        onChange={(e) =>
+                          handleToggleSubfolders(folder.shareLinkId, e.target.checked)
+                        }
+                      />
+                      <span>Unterordner einbeziehen</span>
+                    </label>
                     <div className="mt-auto flex items-center justify-between gap-xs">
                       <span className="text-xs text-grey-500">
                         {isSyncing ? 'Wird synchronisiert…' : formatRelative(folder.lastSyncedAt)}
