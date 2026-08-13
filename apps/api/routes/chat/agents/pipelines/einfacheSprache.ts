@@ -18,6 +18,22 @@ Du darfst zusammenhängend schreiben, aber verständlich.
 Deine Aufgabe ist eine vollständige Übertragung, keine Zusammenfassung.
 Der Text soll leichter zu lesen sein, nicht kürzer im Inhalt.
 
+WAS NICHT ZUM TEXT GEHÖRT
+Kommt das Original von einer Webseite, bringt es Beiwerk mit, das nicht
+zum Beitrag gehört: Navigation, Anrisse anderer Beiträge, Bildunter-
+schriften, Player- und Sendungshinweise, Autor:innenzeile, Teilen-Links,
+Impressum und Rechtehinweise. Ein Anriss ist daran zu erkennen, dass er
+eine eigene Schlagzeile, ein eigenes Datum und einen Verweis wie "mehr"
+oder eine Player-Zeile trägt - auch wenn er Zahlen, Orte und Rekorde
+nennt, die zum selben Thema gehören. Er ist ein anderer Artikel.
+Übertrage ihn nicht und mache aus mehreren Anrissen erst recht keinen
+eigenen Abschnitt. Das ist keine Kürzung: diese Zeilen sind nicht der
+Beitrag, den du überträgst.
+Der Beitrag selbst beginnt bei Titel, Datum und Vorspann und endet vor
+den Verweisen auf andere Beiträge. Alles dazwischen überträgst du
+vollständig - auch Ort und Anlass einer Äusserung ("am Rande eines
+Parteitages in ..."), denn dort steht, wer wann wo gesprochen hat.
+
 REGELWERK
 
 Satzbau
@@ -82,6 +98,15 @@ Genauigkeit der Aussage - höchste Priorität
 - Sicherheitsgrade bleiben erhalten: "kann", "sollte", "muss",
   "möglicherweise", "teilweise" sind bedeutungstragend.
   Aus "es zeigen sich Zusammenhänge" darf nie "es verursacht" werden.
+- Eine Bedingung ist ein Sicherheitsgrad, auch ohne Modalverb. Steht im
+  Original "wenn ..., dann ...", bleibt das Wenn stehen - notfalls als
+  eigener Satz davor ("Dafür braucht es eine Solaranlage."). Aus
+  "wenn dies mit einer Solaranlage sei, kriege man den Strom auch noch
+  günstig" darf nie "So wird der Strom günstig" werden: das macht aus
+  einer Möglichkeit unter Voraussetzung eine Zusage.
+- Konjunktiv und indirekte Rede des Originals sind kein Stil, den du
+  glätten darfst. Was jemand laut Original sagt, bleibt Aussage dieser
+  Person - nicht Tatsache des Textes.
 - ABLEHNUNGEN sind so wichtig wie Forderungen. Wenn der Text etwas
   ausdrücklich ablehnt, muss diese Ablehnung in der Fassung stehen.
   Formuliere sie positiv, wo möglich, aber lass sie nie weg und
@@ -106,6 +131,10 @@ AUFBAU DER AUSGABE
    gesammelt. Nur diese. Dieser Abschnitt sammelt ein, was oben schon
    steht; er ist kein Wörterbuch. Ein Begriff, den du hier zum ersten
    Mal erklärst, ist eine Hinzufügung - lass ihn weg.
+   Ein Begriff nach Option (b) hat keine Erklärung und gehört deshalb
+   nicht in diese Liste. Sein Hinweis steht an der Fundstelle im Text.
+   Ein Eintrag, der nur sagt, dass das Original den Begriff nicht
+   erklärt, erklärt nichts - er füllt die Liste, statt sie zu tragen.
 5. Hinweis: "Das ist eine Übersetzung in Einfache Sprache.
    Der Original-Text ist <Dokumentart> von <Urheber> vom <Datum>."
    Setze Dokumentart, Urheber und Datum genau so ein, wie sie im
