@@ -18,6 +18,9 @@ interface WolkeFolderBrowserProps {
   shareLinkId?: string;
   shareLinkUrl?: string;
   onFolderSelect?: (folderPath: string, folderName: string) => void;
+  /** Name reported for the share root, which has no folder name of its own. */
+  rootLabel?: string;
+  selectedPath?: string;
 }
 
 const SLIDE_VARIANTS = {
@@ -32,9 +35,12 @@ const WolkeFolderBrowser = ({
   shareLinkId: externalShareLinkId,
   shareLinkUrl,
   onFolderSelect,
+  rootLabel = 'Stammverzeichnis',
+  selectedPath: externalSelectedPath,
 }: WolkeFolderBrowserProps) => {
   const [viewMode, setViewMode] = useState<ViewMode>('tree');
   const [pickedShareLinkId, setPickedShareLinkId] = useState<string | null>(null);
+  const [ownSelectedPath, setOwnSelectedPath] = useState<string | undefined>(undefined);
   const { data: shareLinks = [] } = useShareLinks(undefined, undefined, {
     enabled: !externalShareLinkId,
   });
@@ -47,6 +53,13 @@ const WolkeFolderBrowser = ({
       setPickedShareLinkId(activeShareLinks[0]!.id);
     }
   }, [externalShareLinkId, pickedShareLinkId, activeShareLinks]);
+
+  // Selection lives here, not in the views, so switching tree ↔ grid keeps it.
+  const selectedPath = externalSelectedPath ?? ownSelectedPath;
+  const handleFolderSelect = (folderPath: string, folderName: string) => {
+    setOwnSelectedPath(folderPath);
+    onFolderSelect?.(folderPath, folderName);
+  };
 
   if (!shareLinkId) {
     return (
@@ -69,7 +82,18 @@ const WolkeFolderBrowser = ({
 
   return (
     <div className="flex flex-col gap-sm relative">
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-between gap-xs">
+        {/* The share root is a folder like any other, but it has no row of its
+            own in either view — without this button it cannot be picked. */}
+        {onFolderSelect ? (
+          <RootSelectButton
+            label={rootLabel}
+            isSelected={selectedPath === ''}
+            onSelect={() => handleFolderSelect('', rootLabel)}
+          />
+        ) : (
+          <span />
+        )}
         <ViewToggle viewMode={viewMode} onChange={setViewMode} />
       </div>
 
@@ -77,22 +101,53 @@ const WolkeFolderBrowser = ({
         <WolkeTreeBrowser
           shareLinkId={shareLinkId}
           shareLinkUrl={shareLinkUrl}
-          onFolderSelect={onFolderSelect}
+          onFolderSelect={handleFolderSelect}
+          selectedPath={selectedPath}
         />
       ) : (
         <GridView
           shareLinkId={shareLinkId}
           shareLinkUrl={shareLinkUrl}
-          onFolderSelect={onFolderSelect}
+          onFolderSelect={handleFolderSelect}
+          selectedPath={selectedPath}
         />
       )}
     </div>
   );
 };
 
+const RootSelectButton = ({
+  label,
+  isSelected,
+  onSelect,
+}: {
+  label: string;
+  isSelected: boolean;
+  onSelect: () => void;
+}) => (
+  <button
+    type="button"
+    onClick={onSelect}
+    aria-pressed={isSelected}
+    className={cn(
+      'px-sm py-xxs rounded-md text-xs font-medium transition-colors',
+      isSelected
+        ? 'bg-primary-500 text-white'
+        : 'text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20'
+    )}
+  >
+    {isSelected ? `${label} ausgewählt` : `Ganzen Ordner (${label}) auswählen`}
+  </button>
+);
+
 // ── Grid View ─────────────────────────────────────────────────────────
 
-const GridView = ({ shareLinkId, shareLinkUrl, onFolderSelect }: WolkeFolderBrowserProps) => {
+const GridView = ({
+  shareLinkId,
+  shareLinkUrl,
+  onFolderSelect,
+  selectedPath,
+}: WolkeFolderBrowserProps) => {
   const [currentPath, setCurrentPath] = useState('');
   const directionRef = useRef(1);
   const {
@@ -191,6 +246,8 @@ const GridView = ({ shareLinkId, shareLinkUrl, onFolderSelect }: WolkeFolderBrow
               shareLinkId={shareLinkId!}
               shareLinkUrl={shareLinkUrl}
               onNavigate={navigateTo}
+              {...(onFolderSelect ? { onSelect: onFolderSelect } : {})}
+              {...(selectedPath !== undefined ? { selectedPath } : {})}
             />
           ))}
         </motion.div>
@@ -330,29 +387,24 @@ const FileGridItem = ({
   shareLinkId,
   shareLinkUrl,
   onNavigate,
+  onSelect,
+  selectedPath,
 }: {
   item: WolkeFileItem;
   currentPath: string;
   shareLinkId: string;
   shareLinkUrl?: string;
   onNavigate: (path: string) => void;
+  onSelect?: (folderPath: string, folderName: string) => void;
+  selectedPath?: string;
 }) => {
   const isDir = item.isDirectory;
   const relativePath = currentPath ? `${currentPath}/${item.name}` : item.name;
+  const isSelected = selectedPath === relativePath;
   const { Icon, color } = getFileIcon(item);
 
   const content = (
-    <div className="relative flex flex-col items-center gap-sm p-md pb-sm">
-      {isDir && (
-        <div className="absolute top-xs right-xs">
-          <FolderStarButton
-            shareLinkId={shareLinkId}
-            folderPath={relativePath}
-            folderName={item.name}
-            className="opacity-0 group-hover/row:opacity-100"
-          />
-        </div>
-      )}
+    <div className="flex flex-col items-center gap-sm p-md pb-sm">
       <Icon className={cn('w-8 h-8', color)} />
       <span
         className="text-xs text-center w-full line-clamp-3 leading-snug break-words hyphens-auto"
@@ -367,14 +419,43 @@ const FileGridItem = ({
     'group/row rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-foreground';
 
   if (isDir) {
+    // The corner control used to sit inside the navigation button — a button
+    // inside a button, which no screen reader reaches. Now they are siblings.
     return (
-      <button
-        type="button"
-        onClick={() => onNavigate(relativePath)}
-        className={cn(cellClass, 'text-left')}
-      >
-        {content}
-      </button>
+      <div className={cn(cellClass, 'relative', isSelected && 'ring-1 ring-primary-500/50')}>
+        <button
+          type="button"
+          onClick={() => onNavigate(relativePath)}
+          className="w-full text-left"
+          aria-label={`Ordner ${item.name} öffnen`}
+        >
+          {content}
+        </button>
+        <div className="absolute top-xs right-xs">
+          {onSelect ? (
+            <button
+              type="button"
+              onClick={() => onSelect(relativePath, item.name)}
+              aria-pressed={isSelected}
+              className={cn(
+                'px-xs py-0.5 rounded text-[0.65rem] font-medium transition-all',
+                isSelected
+                  ? 'bg-primary-500 text-white'
+                  : 'text-primary-600 dark:text-primary-400 opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100 hover:bg-primary-50 dark:hover:bg-primary-900/20'
+              )}
+            >
+              {isSelected ? 'Ausgewählt' : 'Auswählen'}
+            </button>
+          ) : (
+            <FolderStarButton
+              shareLinkId={shareLinkId}
+              folderPath={relativePath}
+              folderName={item.name}
+              className="opacity-0 group-hover/row:opacity-100"
+            />
+          )}
+        </div>
+      </div>
     );
   }
 

@@ -36,16 +36,17 @@ Du erreichst den Öffentlichkeitsarbeit-Grünerator auf zwei Wegen:
 
 Für diese Landesverbände gibt es eigene Rezept-Abkürzungen für **Pressemitteilung** und **Instagram**:
 
-| Landesverband          | Pressemitteilung      | Instagram            |
-| ---------------------- | --------------------- | -------------------- |
-| Berlin                 | `@presse-berlin`      | `@insta-berlin`      |
-| Hamburg                | `@presse-hamburg`     | `@insta-hamburg`     |
-| Mecklenburg-Vorpommern | `@presse-mv`          | `@insta-mv`          |
-| Thüringen              | `@presse-thueringen`  | `@insta-thueringen`  |
-| Brandenburg            | `@presse-brandenburg` | `@insta-brandenburg` |
-| Bayern                 | `@presse-bayern`      | —                    |
+| Landesverband          | Pressemitteilung         | Instagram            |
+| ---------------------- | ------------------------ | -------------------- |
+| Berlin                 | `@presse-berlin`         | `@insta-berlin`      |
+| Mecklenburg-Vorpommern | `@presse-mv`             | `@insta-mv`          |
+| Thüringen              | `@presse-thueringen`     | `@insta-thueringen`  |
+| Brandenburg            | `@presse-brandenburg`    | `@insta-brandenburg` |
+| Bayern                 | `@presse-bayern`         | —                    |
+| Hessen                 | `@presse-hessen`         | —                    |
+| Sachsen-Anhalt         | `@presse-sachsen-anhalt` | —                    |
 
-Sachsen-Anhalt, Hessen und das Saarland haben (noch) keine eigenen Rezept-Abkürzungen — ihre Grüneratoren erreichst du über die jeweilige Landesverband-Seite.
+Das Saarland hat (noch) keine eigene Rezept-Abkürzung — seinen Grünerator erreichst du über die Landesverband-Seite.
 
 :::tip[Allgemeine Rezepte für alle Kanäle]
 Unabhängig vom Landesverband gibt es allgemeine Rezepte für jede Plattform: `@presse`, `@instagram`, `@facebook`, `@twitter`, `@linkedin` und `@reel`. Sie greifen auf Beispiele aus allen Landesverbänden zurück. Die LV-Rezepte oben sind die Spezialversion mit eingebautem Regional-Stil.
@@ -70,6 +71,6 @@ Jeder Landesverband hat ein **Notebook** — eine durchsuchbare Sammlung seiner 
 Du kannst dasselbe Notebook auch direkt nutzen:
 
 - **Aufrufen & durchstöbern:** über seine Adresse, z. B. `/notebooks/berlin`.
-- **Im Chat als Quelle einbinden:** tippe die `@`-Erwähnung, z. B. `@berlin`, `@hamburg`, `@mv`, `@thüringen`, `@brandenburg`, `@bayern`, `@sachsen-anhalt`, `@hessen` oder `@saar`. Der Chat zieht dann seine Antworten aus diesem Notebook.
+- **Im Chat als Quelle einbinden:** tippe die `@`-Erwähnung, z. B. `@berlin`, `@mv`, `@thüringen`, `@brandenburg`, `@bayern`, `@sachsen-anhalt`, `@hessen` oder `@saar`. Der Chat zieht dann seine Antworten aus diesem Notebook.
 
 Mehr zu Notebooks allgemein findest du unter [Notebooks](/docs/wissen/eigenes-notebook-erstellen).

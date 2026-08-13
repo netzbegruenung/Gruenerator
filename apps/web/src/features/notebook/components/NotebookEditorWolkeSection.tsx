@@ -1,6 +1,6 @@
 import { type WolkeFolderRef } from '@gruenerator/contracts';
 import { Badge, Button, SectionHeader } from '@gruenerator/ui';
-import { useShareLinks, type ShareLink } from '@gruenerator/wolke';
+import { useShareLinks, WolkeFolderBrowser, type ShareLink } from '@gruenerator/wolke';
 import { useState, useCallback, useMemo } from 'react';
 import { HiCloud, HiExclamation, HiRefresh, HiX } from 'react-icons/hi';
 
@@ -8,6 +8,14 @@ import { useDocumentsStore } from '../../../stores/documentsStore';
 import { cn } from '../../../utils/cn';
 import { useSettingsDialogStore } from '../../settings/settingsDialogStore';
 import { syncWolkeFolder } from '../hooks/syncWolkeFolder';
+import {
+  attachWolkeFolder,
+  isWolkeFolderAttached,
+  removeWolkeFolder,
+  updateWolkeFolder,
+  wolkeFolderDisplayName,
+  wolkeFolderKey,
+} from '../hooks/wolkeFolderRefs';
 import { joinNotices } from '../hooks/wolkeImportSummary';
 
 export interface ImportedWolkeDocument {
@@ -60,25 +68,34 @@ const NotebookEditorWolkeSection = ({
   const shareLinksQuery = useShareLinks();
 
   const [pickerOpen, setPickerOpen] = useState(false);
+  /** The share whose folder tree is open — null while only the share list shows. */
+  const [browsingLink, setBrowsingLink] = useState<ShareLink | null>(null);
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const attachedIds = useMemo(() => new Set(folders.map((f) => f.shareLinkId)), [folders]);
+  // Every active share stays offerable: a notebook may take several folders out
+  // of the same share, so "already attached" is a property of (share, path).
   const availableLinks = useMemo(
-    () => (shareLinksQuery.data ?? []).filter((l) => !attachedIds.has(l.id)),
-    [shareLinksQuery.data, attachedIds]
+    () => (shareLinksQuery.data ?? []).filter((l) => l.is_active !== false),
+    [shareLinksQuery.data]
   );
 
   const handleAttach = useCallback(
-    (link: ShareLink) => {
+    (link: ShareLink, folderPath: string) => {
+      const shareLabel = pickShareLabel(link);
       const next: WolkeFolderRef = {
         shareLinkId: link.id,
-        shareLabel: pickShareLabel(link),
-        folderPath: '',
-        folderName: pickShareLabel(link),
+        shareLabel,
+        folderPath,
+        folderName: wolkeFolderDisplayName(shareLabel, folderPath),
         lastSyncedAt: null,
       };
-      onFoldersChange([...folders, next]);
+      if (isWolkeFolderAttached(folders, next)) {
+        setError(`"${next.folderName}" ist bereits als Quelle hinterlegt.`);
+        return;
+      }
+      onFoldersChange(attachWolkeFolder(folders, next));
+      setBrowsingLink(null);
       setPickerOpen(false);
       setError(null);
     },
@@ -86,24 +103,23 @@ const NotebookEditorWolkeSection = ({
   );
 
   const handleToggleSubfolders = useCallback(
-    (shareLinkId: string, includeSubfolders: boolean) => {
-      onFoldersChange(
-        folders.map((f) => (f.shareLinkId === shareLinkId ? { ...f, includeSubfolders } : f))
-      );
+    (key: string, includeSubfolders: boolean) => {
+      onFoldersChange(updateWolkeFolder(folders, key, { includeSubfolders }));
     },
     [folders, onFoldersChange]
   );
 
   const handleRemove = useCallback(
-    (shareLinkId: string) => {
-      onFoldersChange(folders.filter((f) => f.shareLinkId !== shareLinkId));
+    (key: string) => {
+      onFoldersChange(removeWolkeFolder(folders, key));
     },
     [folders, onFoldersChange]
   );
 
   const handleSync = useCallback(
     async (folder: WolkeFolderRef) => {
-      setSyncingId(folder.shareLinkId);
+      const folderKey = wolkeFolderKey(folder);
+      setSyncingId(folderKey);
       setError(null);
       try {
         // Same code path as the full sync — this used to be a second, drifted
@@ -122,11 +138,7 @@ const NotebookEditorWolkeSection = ({
         if (result.newlyImported.length > 0) onDocsImported(result.newlyImported);
 
         onFoldersChange(
-          folders.map((f) =>
-            f.shareLinkId === folder.shareLinkId
-              ? { ...f, lastSyncedAt: result.updatedLastSyncedAt }
-              : f
-          )
+          updateWolkeFolder(folders, folderKey, { lastSyncedAt: result.updatedLastSyncedAt })
         );
 
         const slotsNotice =
@@ -192,30 +204,62 @@ const NotebookEditorWolkeSection = ({
         <>
           {(pickerOpen || folders.length === 0) && availableLinks.length > 0 && (
             <div className="mb-md flex flex-col gap-1 rounded-xl border border-grey-200 bg-background p-xs dark:border-grey-700">
-              <p className="m-0 px-1 pb-1 text-xs uppercase tracking-wide text-grey-500">
-                Verbundene Wolke-Ordner
-              </p>
-              {availableLinks.map((link) => (
-                <button
-                  key={link.id}
-                  type="button"
-                  className="flex items-center gap-sm rounded-md px-sm py-xs text-left transition-colors hover:bg-background-alt"
-                  onClick={() => handleAttach(link)}
-                >
-                  <HiCloud size={14} className="shrink-0 text-grey-400" aria-hidden />
-                  <span className="truncate text-sm text-foreground">{pickShareLabel(link)}</span>
-                </button>
-              ))}
+              {browsingLink ? (
+                <>
+                  <div className="flex items-center justify-between gap-xs px-1 pb-1">
+                    <p className="m-0 truncate text-xs uppercase tracking-wide text-grey-500">
+                      Ordner in „{pickShareLabel(browsingLink)}&ldquo; wählen
+                    </p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setBrowsingLink(null)}
+                    >
+                      Zurück
+                    </Button>
+                  </div>
+                  {/* Until this picker existed, attaching always wrote
+                      folderPath: '' — a share whose useful files sit two levels
+                      down could only be added as "the whole share". */}
+                  <WolkeFolderBrowser
+                    shareLinkId={browsingLink.id}
+                    {...(browsingLink.share_link ? { shareLinkUrl: browsingLink.share_link } : {})}
+                    rootLabel={pickShareLabel(browsingLink)}
+                    onFolderSelect={(folderPath) => handleAttach(browsingLink, folderPath)}
+                  />
+                </>
+              ) : (
+                <>
+                  <p className="m-0 px-1 pb-1 text-xs uppercase tracking-wide text-grey-500">
+                    Verbundene Wolke-Ordner
+                  </p>
+                  {availableLinks.map((link) => (
+                    <button
+                      key={link.id}
+                      type="button"
+                      className="flex items-center gap-sm rounded-md px-sm py-xs text-left transition-colors hover:bg-background-alt"
+                      onClick={() => setBrowsingLink(link)}
+                    >
+                      <HiCloud size={14} className="shrink-0 text-grey-400" aria-hidden />
+                      <span className="truncate text-sm text-foreground">
+                        {pickShareLabel(link)}
+                      </span>
+                    </button>
+                  ))}
+                </>
+              )}
             </div>
           )}
 
           {folders.length > 0 && (
             <div className="grid grid-cols-1 gap-md sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
               {folders.map((folder) => {
-                const isSyncing = syncingId === folder.shareLinkId;
+                const folderKey = wolkeFolderKey(folder);
+                const isSyncing = syncingId === folderKey;
                 return (
                   <div
-                    key={folder.shareLinkId}
+                    key={folderKey}
                     className={cn(
                       'group relative flex min-h-[112px] min-w-0 flex-col gap-xs overflow-hidden rounded-xl border border-grey-200 bg-background p-md transition-all duration-200 dark:border-grey-800',
                       isSyncing ? 'opacity-90' : 'hover:shadow-sm'
@@ -237,7 +281,7 @@ const NotebookEditorWolkeSection = ({
                           : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
                       )}
                       disabled={disabled || isSyncing}
-                      onClick={() => handleRemove(folder.shareLinkId)}
+                      onClick={() => handleRemove(folderKey)}
                       title="Bereits importierte Dokumente bleiben im Notebook."
                       aria-label={`${folder.folderName} entfernen`}
                     >
@@ -262,9 +306,7 @@ const NotebookEditorWolkeSection = ({
                         className="size-3.5 shrink-0 accent-primary-500"
                         checked={folder.includeSubfolders === true}
                         disabled={disabled || isSyncing}
-                        onChange={(e) =>
-                          handleToggleSubfolders(folder.shareLinkId, e.target.checked)
-                        }
+                        onChange={(e) => handleToggleSubfolders(folderKey, e.target.checked)}
                       />
                       <span>Unterordner einbeziehen</span>
                     </label>
