@@ -19,7 +19,7 @@ import { describeFinalState } from './finalState.js';
 import { suppressGeneralPurposeSubagent } from './harnessProfile.js';
 import { leadModel, workerModel } from './models.js';
 import { nudgeMissingReportMiddleware } from './nudgeMissingReport.js';
-import { leadPrompt, researcherPrompt } from './prompts.js';
+import { leadPrompt, programmeResearcherPrompt, webResearcherPrompt } from './prompts.js';
 import {
   REPORT_PATH,
   ensureSources,
@@ -30,6 +30,7 @@ import {
   stripInternalReferences,
   summaryFromReport,
 } from './report.js';
+import { researcherResponseFormat } from './researcherResponse.js';
 import {
   RESUME_LIMIT,
   WRAP_UP_RECURSION_LIMIT,
@@ -37,8 +38,14 @@ import {
   classifyRunError,
 } from './resume.js';
 import { sanitizeToolCallsMiddleware } from './sanitizeToolCalls.js';
+import {
+  type RunWithOutput,
+  type SubagentProjections,
+  silenceRunOutput,
+  trackSubagents,
+} from './subagentProgress.js';
 import { type ToolContext } from './toolContext.js';
-import { createResearchTools, subagentTools } from './tools.js';
+import { createResearchTools, toolsFor } from './tools.js';
 import {
   DEFAULT_BUDGET,
   createBudget,
@@ -113,6 +120,11 @@ export async function runDeepAgentResearch(
   };
 
   const tools = createResearchTools(ctx);
+  // Read off the built tools, not off `params`: the corpus tool only exists when
+  // something is actually in reach (`buildNotebookScope`), and both things that
+  // depend on it — the second subagent and the lead's prompt — must follow that
+  // one fact instead of re-deriving it.
+  const hasNotebooks = tools.some((t) => t.name === 'notizbuch_suche');
   // Without this the run has a SECOND delegation target — on the lead model,
   // with a generic prompt, advertising itself for research. See harnessProfile.ts.
   suppressGeneralPurposeSubagent();
@@ -133,38 +145,66 @@ export async function runDeepAgentResearch(
       sanitizeToolCallsMiddleware,
       nudgeMissingReportMiddleware,
     ] as never,
-    systemPrompt: leadPrompt(locale),
+    systemPrompt: leadPrompt(locale, { hasNotebooks }),
     subagents: [
       {
-        name: 'recherche',
+        name: 'web-recherche',
         description:
-          'Beantwortet EINE Teilfrage gründlich mit Websuche und Quellenangaben. Gib die vollständige Teilfrage samt Kontext mit — der Subagent kennt den Gesamtauftrag nicht.',
-        systemPrompt: researcherPrompt(locale),
-        // Not the lead's list: the expensive deep lane stays a lead decision.
-        tools: subagentTools(tools) as never,
+          'Beantwortet EINE faktische Teilfrage im Web — Zahlen, Daten, Chronologie, fremde Akteure — mit Quellenangaben. Gib die vollständige Teilfrage samt Kontext mit; der Subagent kennt den Gesamtauftrag nicht.',
+        systemPrompt: webResearcherPrompt(locale),
+        // JSON instead of prose the lead has to parse back. Built per subagent
+        // rather than shared: `ToolStrategy` carries the tool it hands to the
+        // model, and two agents must not share one instance.
+        responseFormat: researcherResponseFormat(),
+        // Not the lead's list: the expensive deep lane stays a lead decision,
+        // and the corpora belong to the other researcher. See SUBAGENT_TOOLSETS.
+        tools: toolsFor(tools, 'web-recherche') as never,
         model: workerModel(),
         // Subagents do not inherit the main agent's middleware, and they run the
         // same lane — so the repair has to be attached here too.
         middleware: [sanitizeToolCallsMiddleware] as never,
       },
+      // Only when a corpus is actually in reach: without `notizbuch_suche` this
+      // subagent has nothing to search, and an empty specialist is worse than
+      // none — the lead would delegate programme questions into a dead end.
+      ...(hasNotebooks
+        ? [
+            {
+              name: 'programm-recherche',
+              description:
+                'Beantwortet EINE Teilfrage zu grüner Haltung, Beschlusslage oder Programmatik aus den Programmen und Beschlüssen der Grünen selbst. Gib die vollständige Teilfrage samt Kontext mit; der Subagent kennt den Gesamtauftrag nicht.',
+              systemPrompt: programmeResearcherPrompt(locale),
+              responseFormat: researcherResponseFormat(),
+              tools: toolsFor(tools, 'programm-recherche') as never,
+              model: workerModel(),
+              middleware: [sanitizeToolCallsMiddleware] as never,
+            },
+          ]
+        : []),
     ],
   });
 
   // The `as never` above collapses the agent's inferred generics, which makes
-  // its `stream` input type degrade to `Command`. We only ever use this one
+  // the stream input type degrade to `Command`. We only ever use this one
   // method, so the surface we depend on is stated here instead.
   const runnable = agent as unknown as {
-    stream: (
+    streamEvents: (
       input: Record<string, unknown>,
       options: Record<string, unknown>
-    ) => Promise<AsyncIterable<Record<string, unknown>>>;
+    ) => Promise<
+      SubagentProjections & RunWithOutput & { values: AsyncIterable<Record<string, unknown>> }
+    >;
   };
 
   let lastState: Record<string, unknown> | null = null;
   let aborted = false;
-  // streamMode 'values' emits each state twice (once per graph node); only
-  // forward a plan when it actually changed, or the sidebar flickers.
+  // `run.values` emits each state twice (once per graph node); only forward a
+  // plan when it actually changed, or the sidebar flickers.
   let lastPlanKey = '';
+  // Subagent `output` promises are not awaited (see trackSubagents), so a step
+  // can still settle after the run is over. Emitting it then would push into a
+  // closed SSE stream — this is the one gate that stops it.
+  let progressClosed = false;
 
   // A dead stream is resumed from its last emitted state instead of being
   // written off: transient runtime errors get RESUME_LIMIT fresh attempts, and
@@ -181,13 +221,26 @@ export async function runDeepAgentResearch(
 
   for (;;) {
     try {
-      const stream = await runnable.stream(input, {
+      const run = await runnable.streamEvents(input, {
+        version: 'v3',
         recursionLimit,
-        streamMode: 'values',
         ...(legSignal ? { signal: legSignal } : {}),
       });
-      for await (const chunk of stream) {
-        lastState = chunk as Record<string, unknown>;
+      // Before anything else touches the run: `run.output` rejects on every
+      // abort with nobody holding it, and that unhandled rejection kills the
+      // process — measured, see silenceRunOutput.
+      silenceRunOutput(run);
+      // Runs alongside the state loop, not before it: the projections are fed
+      // by the same run, and nothing here may decide whether the run finishes.
+      // A failure in the progress path is logged and dropped — cosmetics must
+      // not cost a report.
+      const tracking = trackSubagents(run, (step) => {
+        if (!progressClosed) progress.onStep(step);
+      }).catch((error: unknown) => {
+        log.warn(`[DeepAgent] Subagenten-Fortschritt abgebrochen: ${String(error)}`);
+      });
+      for await (const chunk of run.values) {
+        lastState = chunk;
         const todos = (chunk as { todos?: TodoItem[] }).todos ?? [];
         if (todos.length > 0) {
           const key = todos.map((t) => `${t.content}:${t.status}`).join('|');
@@ -197,6 +250,7 @@ export async function runDeepAgentResearch(
           }
         }
       }
+      await tracking;
       break;
     } catch (error) {
       const kind = classifyRunError(error, signal, researchDeadline);
@@ -227,6 +281,8 @@ export async function runDeepAgentResearch(
       );
     }
   }
+
+  progressClosed = true;
 
   const raw = readFile(lastState?.files, REPORT_PATH);
   if (!isUsableReport(raw)) {
