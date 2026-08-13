@@ -331,8 +331,15 @@ KEYCLOAK_REALM=Gruenerator
 KEYCLOAK_CLIENT_ID=gruenerator
 KEYCLOAK_CLIENT_SECRET=...
 
-# Database
-DATABASE_URL=postgresql://user:pass@localhost:5432/gruenerator
+# Database — either the POSTGRES_* set (as in .env.example) …
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_USER=gruenerator
+POSTGRES_PASSWORD=...
+POSTGRES_DATABASE=gruenerator
+POSTGRES_SSL=false
+# … or DATABASE_URL as a single-string override, which wins over all of them
+# DATABASE_URL=postgresql://user:pass@localhost:5432/gruenerator
 
 # Redis
 REDIS_URL=redis://localhost:6379
@@ -350,7 +357,7 @@ See `.env.example` for the full list.
 ### Frontend Environment Variables
 
 ```bash
-VITE_BACKEND_URL=http://localhost:3001
+VITE_API_BASE_URL=/api                 # API origin; defaults to /api (same-origin via the dev proxy)
 ```
 
 ---
