@@ -234,6 +234,7 @@ export {
   selectReasoningText,
   selectSearchSources,
   selectSearchStatusLabel,
+  selectStepAfterText,
   type StatusPartLike,
 } from './lib/toolStatusLine';
 

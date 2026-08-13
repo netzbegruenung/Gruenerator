@@ -6,6 +6,7 @@ import {
   selectReasoningText,
   selectSearchSources,
   selectSearchStatusLabel,
+  selectStepAfterText,
   useFetchFullText,
   type ChatMessageMetadata,
   type Citation,
@@ -85,6 +86,8 @@ export const AssistantMessage = memo(function AssistantMessage() {
   const hasOwnDetail =
     message.content.some((p) => p.type === 'tool-call') ||
     message.content.some((p) => p.type === 'reasoning');
+  // …except on an agentic turn, which keeps working after its first sentence.
+  const stepAfterText = selectStepAfterText(statusParts);
   const toolStatus = selectSearchStatusLabel(statusParts);
   const reasoningText = selectReasoningText(statusParts);
   const statusSources = useMemo(() => selectSearchSources(statusParts), [statusParts]);
@@ -120,6 +123,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
           isStreaming={isStreaming}
           hasOwnDetail={hasOwnDetail}
           textLength={messageText.length}
+          stepAfterText={stepAfterText}
           progress={progress}
           theme={theme}
           toolStatus={toolStatus}
