@@ -79,7 +79,16 @@ export function shareThumbnailPreviewUrl(
   width: 200 | 400 | 800 = 400
 ): string | undefined {
   if (!url) return url;
-  if (THUMBS_RE.test(url)) return `${url}&w=${width}&fmt=webp`;
+  if (THUMBS_RE.test(url)) {
+    // set, not append: the API already mints these with a default w/fmt, and a
+    // second pair would make `req.query.w` an array server-side — which parses
+    // as NaN and answers 400, i.e. a broken tile.
+    const [path, query] = url.split('?');
+    const params = new URLSearchParams(query);
+    params.set('w', String(width));
+    params.set('fmt', 'webp');
+    return `${path}?${params.toString()}`;
+  }
   const match = SHARE_DOWNLOAD_RE.exec(url);
   return match ? `/api/share/${match[1]}/preview?w=${width}&fmt=webp` : url;
 }
