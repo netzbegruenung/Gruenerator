@@ -1,6 +1,6 @@
+import { generateSharepicText, type SharepicTextType } from '@gruenerator/shared/image-studio';
 import { useState, useCallback } from 'react';
 
-import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import apiClient from '../../../components/utils/apiClient';
 import useImageStudioStore from '../../../stores/imageStudioStore';
 import { IMAGE_STUDIO_TYPES, getTypeConfig } from '../utils/typeConfig';
@@ -85,63 +85,33 @@ interface TextGenerationResult {
   label?: string;
 }
 
-// API response types for type-safe access
-interface ApiResponseBase {
-  alternatives?: Array<Record<string, string>>;
-  searchTerms?: string[];
-}
-
-interface QuoteApiResponse extends ApiResponseBase {
-  quote?: string;
-}
-
-interface InfoApiResponse extends ApiResponseBase {
-  header?: string;
-  subheader?: string;
-  body?: string;
-}
-
-interface SimpleApiResponse extends ApiResponseBase {
-  mainSimple?: {
-    headline?: string;
-    subtext?: string;
-  };
-  headline?: string;
-  subtext?: string;
-}
-
-interface SliderApiResponse extends ApiResponseBase {
-  mainSlider?: { label?: string; headline?: string; subtext?: string };
-  label?: string;
-  headline?: string;
-  subtext?: string;
-}
-
-interface VeranstaltungApiResponse extends ApiResponseBase {
-  mainEvent?: {
-    eventTitle?: string;
-    beschreibung?: string;
-    weekday?: string;
-    date?: string;
-    time?: string;
-    locationName?: string;
-    address?: string;
-  };
-  eventTitle?: string;
-  beschreibung?: string;
-  weekday?: string;
-  date?: string;
-  time?: string;
-  locationName?: string;
-  address?: string;
-}
-
-interface DreizeilenApiResponse extends ApiResponseBase {
-  mainSlogan?: {
-    line1: string;
-    line2: string;
-    line3: string;
-  };
+/**
+ * Studio-ID → Backend-Typ, der zugleich das letzte Pfadsegment ist.
+ * `null` für alles ohne Textgenerierung.
+ *
+ * Hier standen bis eben sieben handgeschriebene `*ApiResponse`-Interfaces, und
+ * gleich zwei davon beschrieben eine Form, die es nie gab: `InfoApiResponse`
+ * erwartete header/body auf oberster Ebene, wo der Draht sie unter `mainInfo`
+ * nestet — jede Info-Generierung endete deshalb in „Unerwartete
+ * Antwortstruktur von der API". Die Formen kommen jetzt aus dem Vertrag.
+ */
+function toSharepicTextType(type: string): SharepicTextType | null {
+  switch (type) {
+    case IMAGE_STUDIO_TYPES.ZITAT:
+      return 'zitat';
+    case IMAGE_STUDIO_TYPES.ZITAT_PURE:
+      return 'zitat_pure';
+    case IMAGE_STUDIO_TYPES.INFO:
+      return 'info';
+    case IMAGE_STUDIO_TYPES.VERANSTALTUNG:
+      return 'veranstaltung';
+    case IMAGE_STUDIO_TYPES.SIMPLE:
+      return 'simple';
+    case IMAGE_STUDIO_TYPES.SLIDER:
+      return 'slider';
+    default:
+      return 'dreizeilen';
+  }
 }
 
 interface UseImageGenerationReturn {
@@ -161,14 +131,6 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const quoteSubmit = useApiSubmit('/sharepic/text/zitat');
-  const dreizeilenSubmit = useApiSubmit('/sharepic/text/dreizeilen');
-  const infoSubmit = useApiSubmit('/sharepic/text/info');
-  const zitatPureSubmit = useApiSubmit('/sharepic/text/zitat_pure');
-  const veranstaltungSubmit = useApiSubmit('/sharepic/text/veranstaltung');
-  const simpleSubmit = useApiSubmit('/sharepic/text/simple');
-  const sliderSubmit = useApiSubmit('/sharepic/text/slider');
-
   const generateText = useCallback(
     async (type: string, formData: TextFormData): Promise<TextGenerationResult | null> => {
       const config = getTypeConfig(type);
@@ -176,141 +138,93 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
         return null;
       }
 
+      const textType = toSharepicTextType(type);
+      if (!textType) {
+        return null;
+      }
+
       setLoading(true);
       setError('');
 
       try {
-        let submitFn: (data: Record<string, unknown>) => Promise<Record<string, unknown>>;
-        let isQuoteType = false;
-        let isInfoType = false;
-        let isVeranstaltungType = false;
-        let isSimpleType = false;
-        let isSliderType = false;
-
-        switch (type) {
-          case IMAGE_STUDIO_TYPES.ZITAT:
-            submitFn = quoteSubmit.submitForm;
-            isQuoteType = true;
-            break;
-          case IMAGE_STUDIO_TYPES.ZITAT_PURE:
-            submitFn = zitatPureSubmit.submitForm;
-            isQuoteType = true;
-            break;
-          case IMAGE_STUDIO_TYPES.INFO:
-            submitFn = infoSubmit.submitForm;
-            isInfoType = true;
-            break;
-          case IMAGE_STUDIO_TYPES.VERANSTALTUNG:
-            submitFn = veranstaltungSubmit.submitForm;
-            isVeranstaltungType = true;
-            break;
-          case IMAGE_STUDIO_TYPES.SIMPLE:
-            submitFn = simpleSubmit.submitForm;
-            isSimpleType = true;
-            break;
-          case IMAGE_STUDIO_TYPES.SLIDER:
-            submitFn = sliderSubmit.submitForm;
-            isSliderType = true;
-            break;
-          case IMAGE_STUDIO_TYPES.DREIZEILEN:
-          default:
-            submitFn = dreizeilenSubmit.submitForm;
-            break;
-        }
-
-        const dataToSend = {
-          ...formData,
+        const body = {
+          thema: formData.thema ?? null,
+          name: formData.name ?? null,
           source: 'image-studio',
           count: formData.count || 1,
+          ...(textType === 'slider' && formData.smartCount ? { smartCount: true } : {}),
         };
 
-        const rawResponse = await submitFn(dataToSend);
+        switch (textType) {
+          case 'simple': {
+            const r = await generateSharepicText('simple', body);
+            return {
+              headline: r.mainSimple.headline,
+              subtext: r.mainSimple.subtext,
+              alternatives: r.alternatives,
+            };
+          }
 
-        if (isSimpleType) {
-          const response = rawResponse as SimpleApiResponse;
-          const mainSimple = response.mainSimple ?? response;
-          if (!mainSimple || !mainSimple.headline) {
-            throw new Error('Unerwartete Antwortstruktur von der API');
+          case 'zitat':
+          case 'zitat_pure': {
+            const r = await generateSharepicText(textType, body);
+            return {
+              quote: r.quote,
+              name: formData.name,
+              // Auf dem Draht sind das nackte Strings; die Ergebnisansicht
+              // erwartet Objekte mit `quote`.
+              alternatives: r.alternatives.map((quote) => ({ quote })),
+            };
           }
-          const result: TextGenerationResult = {
-            headline: mainSimple.headline,
-            subtext: mainSimple.subtext || '',
-            alternatives: response.alternatives || [],
-          };
-          return result;
-        } else if (isQuoteType) {
-          const response = rawResponse as QuoteApiResponse;
-          if (!response || !response.quote) {
-            throw new Error('Unerwartete Antwortstruktur von der API');
+
+          case 'info': {
+            const r = await generateSharepicText('info', body);
+            return {
+              header: r.mainInfo.header,
+              subheader: r.mainInfo.subheader,
+              body: r.mainInfo.body,
+              alternatives: r.alternatives,
+              searchTerms: r.searchTerms,
+            };
           }
-          return {
-            quote: response.quote,
-            name: formData.name,
-            alternatives: response.alternatives || [],
-          };
-        } else if (isInfoType) {
-          const response = rawResponse as InfoApiResponse;
-          if (!response || !response.header || !response.body) {
-            throw new Error('Unerwartete Antwortstruktur von der API');
+
+          case 'veranstaltung': {
+            const r = await generateSharepicText('veranstaltung', body);
+            return {
+              eventTitle: r.mainEvent.eventTitle,
+              beschreibung: r.mainEvent.beschreibung,
+              weekday: r.mainEvent.weekday,
+              date: r.mainEvent.date,
+              time: r.mainEvent.time,
+              locationName: r.mainEvent.locationName,
+              address: r.mainEvent.address,
+              alternatives: r.alternatives,
+              searchTerms: r.searchTerms,
+            };
           }
-          return {
-            header: response.header,
-            subheader: response.subheader || '',
-            body: response.body,
-            alternatives: response.alternatives || [],
-            searchTerms: response.searchTerms || [],
-          };
-        } else if (isVeranstaltungType) {
-          const response = rawResponse as VeranstaltungApiResponse;
-          const mainEvent = response.mainEvent ?? response;
-          if (!mainEvent || !mainEvent.eventTitle) {
-            throw new Error('Unerwartete Antwortstruktur von der API');
+
+          case 'slider': {
+            const r = await generateSharepicText('slider', body);
+            return {
+              label: r.mainSlider.label || 'Wusstest du?',
+              headline: r.mainSlider.headline,
+              subtext: r.mainSlider.subtext,
+              alternatives: r.alternatives,
+              searchTerms: r.searchTerms,
+            };
           }
-          return {
-            eventTitle: mainEvent.eventTitle || '',
-            beschreibung: mainEvent.beschreibung || '',
-            weekday: mainEvent.weekday || '',
-            date: mainEvent.date || '',
-            time: mainEvent.time || '',
-            locationName: mainEvent.locationName || '',
-            address: mainEvent.address || '',
-            alternatives: response.alternatives || [],
-            searchTerms: response.searchTerms || [],
-          };
-        } else if (isSliderType) {
-          const response = rawResponse as SliderApiResponse;
-          const mainSlider = response.mainSlider ?? response;
-          if (!mainSlider || !mainSlider.headline) {
-            throw new Error('Unerwartete Antwortstruktur von der API');
+
+          case 'dreizeilen': {
+            const r = await generateSharepicText('dreizeilen', body);
+            return {
+              mainSlogan: r.mainSlogan,
+              alternatives: r.alternatives,
+              searchTerms: r.searchTerms,
+            };
           }
-          return {
-            label: mainSlider.label || 'Wusstest du?',
-            headline: mainSlider.headline,
-            subtext: mainSlider.subtext || '',
-            alternatives: response.alternatives || [],
-            searchTerms: response.searchTerms || [],
-          };
-        } else {
-          const response = rawResponse as DreizeilenApiResponse;
-          if (!response || !response.mainSlogan || !response.alternatives) {
-            throw new Error('Unerwartete Antwortstruktur von der API');
-          }
-          return {
-            mainSlogan: response.mainSlogan,
-            alternatives: response.alternatives,
-            searchTerms: response.searchTerms || [],
-          };
         }
       } catch (err) {
-        let errorMessage = 'Ein Fehler ist aufgetreten';
-        if (err instanceof Error) {
-          errorMessage = err.message;
-        } else if (typeof err === 'object' && err !== null && 'response' in err) {
-          const errObj = err as Record<string, unknown>;
-          const response = errObj.response as Record<string, unknown> | undefined;
-          errorMessage =
-            ((response?.data as Record<string, unknown>)?.message as string) || errorMessage;
-        }
+        const errorMessage = err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten';
         setError(errorMessage);
         console.error('Error generating text:', err);
         throw err;
@@ -318,15 +232,7 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
         setLoading(false);
       }
     },
-    [
-      quoteSubmit,
-      dreizeilenSubmit,
-      infoSubmit,
-      zitatPureSubmit,
-      veranstaltungSubmit,
-      simpleSubmit,
-      sliderSubmit,
-    ]
+    []
   );
 
   const generateTemplateImage = useCallback(
