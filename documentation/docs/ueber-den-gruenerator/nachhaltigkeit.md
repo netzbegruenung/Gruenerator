@@ -10,7 +10,9 @@ Modell-Stand aus dem Code (bei Änderungen dort auch hier nachziehen):
 - apps/api/services/ai/providers.ts (INTERMEDIATE_MODEL, PROVIDER_DEFAULTS)
 - apps/api/services/flux/FluxImageService.ts (BFL EU-Endpunkt, flux-2-pro)
 - apps/api/services/flux/RegoloImageService.ts (Qwen-Image)
-- apps/api/services/subtitler/regoloTranscriptionService.ts (faster-whisper-large-v3)
+- apps/api/services/transcription/providerPolicy.ts (TRANSCRIPTION_CHAIN: voxtral -> greenpt)
+- apps/api/services/providers/providerSelector.ts (ARTIFACT_PROVIDER — PDF/Präsentation/Sheet/Dokument)
+- packages/core/src/models/catalog.ts (die im Chat wählbaren Lanes)
 - apps/api/services/mistral/MistralEmbeddingService/ (mistral-embed)
 - apps/api/services/usage/energyFootprint.ts (Energie-Koeffizienten, Netzintensitäten)
 - apps/web/src/utils/usageFormat.ts (Darstellung: Einheiten, Rundung, Vergleichsrechnung)
@@ -30,25 +32,29 @@ Künstliche Intelligenz kostet Strom, Wasser und Hardware — das lässt sich ni
 
 Der Grünerator selbst — Web-Oberfläche, Datenbanken, Suche — läuft bei **[Hetzner](https://docs.hetzner.com/de/general/company-and-policy/sustainability-at-hetzner/)** in Deutschland. Hetzner betreibt seine deutschen Standorte nach eigenen Angaben mit **100 % Wasserkraft**, ist EMAS- und ISO-14001-zertifiziert und erreicht mit einem durchschnittlichen PUE-Wert von **1,13** eine überdurchschnittliche Energieeffizienz (je näher an 1,0, desto weniger Strom geht für Kühlung und Infrastruktur verloren). Gegenüber dem deutschen Durchschnitts-Strommix spart das laut Hetzner rund **77.000 Tonnen CO₂ pro Jahr**.
 
-Auch die **selbst gehosteten Open-Source-Modelle** (GPT-OSS und Gemma 4), die netzbegrünung e.V. und die verdigado eG für den Grünerator betreiben, laufen auf dieser Wasserkraft-Infrastruktur.
+Auch die **selbst gehosteten Open-Source-Modelle**, die netzbegrünung e.V. und die verdigado eG für den Grünerator betreiben, laufen auf dieser Wasserkraft-Infrastruktur — heute vor allem GPT-OSS 120B.
+
+Gemma 4 lief dort ebenfalls, wird aber seit dem 31.07.2026 bei Regolo in Italien bedient. Der Grund war Tempo: Die selbst gehostete Variante denkt vor jeder Antwort nach, und kein Schalter stellte das ab — rund zwei Drittel ihrer Ausgabe gingen in einen Denkblock, den niemand angefordert hatte. Dieselben Gewichte antworten bei Regolo neunmal schneller. Die verdigado-Instanz bleibt als Ausweichweg stehen, falls Regolo ausfällt.
 
 ## Sparsame Modelle statt Größenwahn
 
 Die größten kommerziellen KI-Modelle brauchen für jede einzelne Antwort ein Vielfaches der Energie eines kompakten Modells. Der Grünerator setzt deshalb bewusst auf **kleine und mittlere Modelle** — vom 31-Milliarden-Parameter-Modell Gemma 4 bis zum mittelgroßen Mistral Medium. Das sind die Modelle, die tatsächlich im Einsatz sind:
 
-| Aufgabe                              | Modell                                                         | Läuft bei                                      |
-| ------------------------------------ | -------------------------------------------------------------- | ---------------------------------------------- |
-| Chat & Texte (Standard)              | Mistral Medium 3.5 (`mistral-medium-2604`)                     | Mistral AI 🇫🇷                                  |
-| Kreativtexte, Antworten schreiben    | Gemma 4 — 31 Mrd. Parameter (`gemma4-31b`)                     | verdigado 🇩🇪 / Regolo 🇮🇹                       |
-| Schnelle Antworten                   | GPT-OSS 120B (`gpt-oss-120b`)                                  | verdigado 🇩🇪 / Regolo 🇮🇹                       |
-| Anfragen einordnen, Zwischenschritte | Mistral Small 4 (`mistral-small-4-119b`)                       | Regolo 🇮🇹                                      |
-| Werkzeuge planen und aufrufen        | Mistral Small (`mistral-small-latest`)                         | Mistral AI 🇫🇷                                  |
-| Bilder verstehen                     | Gemma 4 (`gemma4-31b`), Pixtral Large                          | Regolo 🇮🇹 / Mistral AI 🇫🇷                      |
-| Bilder erzeugen & bearbeiten         | FLUX 2 Pro (`flux-2-pro`), Qwen-Image                          | Black Forest Labs 🇩🇪 (EU-Endpunkt) / Regolo 🇮🇹 |
-| Untertitel & Transkription           | Whisper Large v3 (`faster-whisper-large-v3`), Fallback Voxtral | Regolo 🇮🇹 / Mistral AI 🇫🇷                      |
-| Suche & Notebooks (Embeddings)       | `mistral-embed`                                                | Mistral AI 🇫🇷                                  |
+| Aufgabe                                   | Modell                                             | Läuft bei                                      |
+| ----------------------------------------- | -------------------------------------------------- | ---------------------------------------------- |
+| Chat & Texte (Standard)                   | Mistral Medium 3.5 (`mistral-medium-2604`)         | Mistral AI 🇫🇷                                  |
+| Kreativtexte, Antworten schreiben         | Gemma 4 — 31 Mrd. Parameter (`gemma4-31b`)         | Regolo 🇮🇹 (Ausweichweg verdigado 🇩🇪)           |
+| Kurze und strukturierte Antworten         | Gemma 4 — 26 Mrd. Parameter (`gemma-4-26b-a4b-it`) | Scaleway 🇫🇷 (Ausweichweg GreenPT 🇪🇺)           |
+| Dokumente, Präsentationen, PDFs, Tabellen | Gemma 4 (`gemma4`)                                 | GreenPT 🇪🇺                                     |
+| Schnelle Antworten                        | GPT-OSS 120B (`gpt-oss-120b`)                      | verdigado 🇩🇪 / Regolo 🇮🇹                       |
+| Anfragen einordnen, Zwischenschritte      | Mistral Small 4 (`mistral-small-4-119b`)           | Regolo 🇮🇹                                      |
+| Werkzeuge planen und aufrufen             | Mistral Small (`mistral-small-latest`)             | Mistral AI 🇫🇷                                  |
+| Bilder verstehen                          | Gemma 4 (`gemma4-31b`), Pixtral Large              | Regolo 🇮🇹 / Mistral AI 🇫🇷                      |
+| Bilder erzeugen & bearbeiten              | FLUX 2 Pro (`flux-2-pro`), Qwen-Image              | Black Forest Labs 🇩🇪 (EU-Endpunkt) / Regolo 🇮🇹 |
+| Untertitel & Transkription                | Voxtral, Ausweichweg `green-s-pro`                 | Mistral AI 🇫🇷 / GreenPT 🇪🇺                     |
+| Suche & Notebooks (Embeddings)            | `mistral-embed`                                    | Mistral AI 🇫🇷                                  |
 
-Wer mag, kann im Chat zusätzlich Qwen 3.5 (`qwen3.5-122b`) über Regolo wählen. Kein einziges dieser Modelle spielt in der Größenklasse der energiehungrigsten Frontier-Modelle — und für die Aufgaben im politischen Alltag reicht das nicht nur, es ist oft sogar die bessere Wahl, weil kleinere Modelle schneller antworten.
+Im Chat selbst stehen vier Lanes zur Wahl — **Klein** (GPT-OSS 120B bei verdigado), **Mittel** (Gemma 4 bei Regolo), **Ultra** (Mistral Medium 3.5) und **GreenPT**. Kein einziges dieser Modelle spielt in der Größenklasse der energiehungrigsten Frontier-Modelle — und für die Aufgaben im politischen Alltag reicht das nicht nur, es ist oft sogar die bessere Wahl, weil kleinere Modelle schneller antworten.
 
 ## Intelligentes Routing: nur so viel KI wie nötig
 
@@ -60,15 +66,17 @@ Auch innerhalb einer Antwort ist die Arbeit geteilt: Ein **kleines, schnelles Mo
 
 ### Regolo (Seeweb, Italien) — 100 % erneuerbar
 
-**[Regolo](https://regolo.ai/sustainable-ai/)** betreibt seine GPU-Server nach eigenen Angaben mit **100 % erneuerbarer Energie**, verzichtet auf Wasserkühlung und führt Hardware im Kreislauf (wiederverwenden, aufarbeiten, recyceln). Das Unternehmen ist ISO-14001-zertifiziert, Qualified Supporter der Green Web Foundation und arbeitet nach dem europäischen DNSH-Prinzip („Do No Significant Harm", EU-Taxonomie) — alles in europäischen Rechenzentren, mit Zero Data Retention. Beim Grünerator übernimmt Regolo die Anfragen-Einordnung (`mistral-small-4-119b`), das Schreiben von Antworten (`gemma4-31b`), Transkription (`faster-whisper-large-v3`) und dient als Überlauf für die selbst gehosteten Modelle.
+**[Regolo](https://regolo.ai/sustainable-ai/)** betreibt seine GPU-Server nach eigenen Angaben mit **100 % erneuerbarer Energie**, verzichtet auf Wasserkühlung und führt Hardware im Kreislauf (wiederverwenden, aufarbeiten, recyceln). Das Unternehmen ist ISO-14001-zertifiziert, Qualified Supporter der Green Web Foundation und arbeitet nach dem europäischen DNSH-Prinzip („Do No Significant Harm", EU-Taxonomie) — alles in europäischen Rechenzentren, mit Zero Data Retention. Beim Grünerator übernimmt Regolo die Anfragen-Einordnung (`mistral-small-4-119b`), das Schreiben von Antworten (`gemma4-31b`), das Bildmodell Qwen-Image und dient als Überlauf für die selbst gehosteten Modelle. Transkription lief hier bis Juli 2026 ebenfalls; Regolos eigene Hinweise begrenzten sie auf zwei Minuten pro Datei, und an einem 180-Sekunden-Ausschnitt wiederholte das Modell tatsächlich einen ganzen Satz. Seitdem läuft Transkription über Voxtral und GreenPT, die beide ohne diese Einschränkung arbeiten.
 
-### GreenPT — grüne Entwicklung
+### GreenPT — Dokumente und Ausweichweg
 
-**[GreenPT](https://greenpt.com/sustainability)** rechnet ausschließlich in EU-Rechenzentren mit **100 % erneuerbarer Energie** — in Paris sowie in Helsinki (je zur Hälfte Wasser- und Windkraft) — und nennt konkrete Effizienzwerte: PUE 1,25 (Branchenschnitt: 1,55) und ein Wasserverbrauch (WUE) von 0,25 statt branchenüblicher 1,8. Der Grünerator nutzt GreenPT als Modell-Lane in der **Entwicklungsumgebung** (`gemma4`) — auch das Testen neuer Funktionen läuft damit grün.
+**[GreenPT](https://greenpt.com/sustainability)** rechnet ausschließlich in EU-Rechenzentren mit **100 % erneuerbarer Energie** — in Paris sowie in Helsinki (je zur Hälfte Wasser- und Windkraft) — und nennt konkrete Effizienzwerte: PUE 1,25 (Branchenschnitt: 1,55) und ein Wasserverbrauch (WUE) von 0,25 statt branchenüblicher 1,8.
+
+Beim Grünerator schreibt GreenPTs Gemma 4 (`gemma4`) alle **erzeugten Dateien**: PDFs, Präsentationen, Tabellen und Dokumente. Das ist keine Verlegenheitslösung, sondern gemessen: Am 03.08.2026 gegen die echten Prompts und Vorlagen rief das große Standardmodell das nötige Werkzeug in keinem einzigen Lauf sauber auf und lief in Wiederholungen fest, GreenPTs Gemma 4 in zehn von zehn Läufen — und dabei drei- bis viermal schneller. Dazu ist GreenPT der **Ausweichweg** für die Transkription und für die kurze Gemma-Lane bei Scaleway. Als frei wählbare Chat-Lane ist GreenPT im Code fertig verdrahtet, aber noch nicht für alle freigeschaltet.
 
 ### Mistral AI (Frankreich) — Transparenz-Vorreiter
 
-**[Mistral AI](https://mistral.ai/news/our-contribution-to-a-global-environmental-standard-for-ai/)** vermarktet sich nicht als Öko-Anbieter, hat aber als erstes KI-Unternehmen überhaupt eine **vollständige, unabhängig geprüfte Lebenszyklus-Analyse** eines eigenen Modells veröffentlicht — erstellt mit der französischen Umweltagentur ADEME und Carbone 4, peer-reviewed nach ISO 14040/44. Die Zahlen machen KI-Umweltkosten erstmals konkret vergleichbar: Eine typische Antwort (400 Token) verursacht etwa **1,14 g CO₂e und 45 ml Wasser**. Mistral setzt sich zudem für einen verbindlichen globalen Umweltstandard für KI ein. Dazu kommt der französische Strommix, der zu den CO₂-ärmsten Europas gehört. Beim Grünerator liefert Mistral das Standardmodell (`mistral-medium-2604`), die Werkzeug-Planung, die Embeddings für Suche und Notebooks sowie den Transkriptions-Fallback Voxtral.
+**[Mistral AI](https://mistral.ai/news/our-contribution-to-a-global-environmental-standard-for-ai/)** vermarktet sich nicht als Öko-Anbieter, hat aber als erstes KI-Unternehmen überhaupt eine **vollständige, unabhängig geprüfte Lebenszyklus-Analyse** eines eigenen Modells veröffentlicht — erstellt mit der französischen Umweltagentur ADEME und Carbone 4, peer-reviewed nach ISO 14040/44. Die Zahlen machen KI-Umweltkosten erstmals konkret vergleichbar: Eine typische Antwort (400 Token) verursacht etwa **1,14 g CO₂e und 45 ml Wasser**. Mistral setzt sich zudem für einen verbindlichen globalen Umweltstandard für KI ein. Dazu kommt der französische Strommix, der zu den CO₂-ärmsten Europas gehört. Beim Grünerator liefert Mistral das Standardmodell (`mistral-medium-2604`), die Werkzeug-Planung, die Embeddings für Suche und Notebooks sowie die Transkription mit Voxtral.
 
 ### Black Forest Labs (Freiburg) — Bilder aus der EU
 
@@ -139,7 +147,7 @@ Wo Berichte konkret werden, rechnen wir es an: Seewebs PUE unter 1,20 und Hetzne
 
 ### Modelle ohne Messwert: Obergrenze statt Schätzung
 
-Für einige Lanes betreibt GreenPT kein Gegenstück — Mistral Small 4 (119 Mrd.), Qwen 3.5 (122 Mrd.) und Pixtral Large. Sie einfach wegzulassen wäre die bequemste Lösung und die falscheste: Bei realer Nutzung läuft ein Großteil des Volumens genau dort.
+Für einige Lanes betreibt GreenPT kein Gegenstück — Mistral Small 4 (119 Mrd.) und Pixtral Large. Sie einfach wegzulassen wäre die bequemste Lösung und die falscheste: Bei realer Nutzung läuft ein Großteil des Volumens genau dort.
 
 Über die **Modellgröße** lässt sich das nicht schätzen — die Messreihe widerlegt den Zusammenhang direkt: GPT-OSS mit 120 Mrd. Parametern verbraucht je Token weniger als ein Sechstel von Mistral Medium mit 128 Mrd.
 
