@@ -46,8 +46,13 @@ import { boellStiftungScraperService } from './services/scrapers/implementations
 import { bundestagScraperService } from './services/scrapers/implementations/BundestagScraper/index.js';
 import { gruenblogScraperService } from './services/scrapers/implementations/GruenblogScraper.js';
 import { grueneAtScraperService } from './services/scrapers/implementations/GrueneAtScraper.js';
+import { grueneDeScraperService } from './services/scrapers/implementations/GrueneDeScraper.js';
 import { kommunalwikiScraper } from './services/scrapers/implementations/KommunalwikiScraper.js';
 import { landesverbandScraperService } from './services/scrapers/implementations/LandesverbandScraper/index.js';
+import {
+  grundsatzPdfScraperService,
+  oesterreichPdfScraperService,
+} from './services/scrapers/implementations/ProgramPdfScraper.js';
 import { scrapeAndIndexSocialMedia } from './services/scrapers/implementations/SocialMediaExamplesScraper.js';
 import { drainSyncEvents } from './services/scrapers/syncEventRecorder.js';
 import { type SourceGroupResult, type SyncSummary } from './types/syncTypes.js';
@@ -187,6 +192,61 @@ const SOURCE_GROUPS: SourceGroup[] = [
         skipped: result.skipped,
         fetchErrors,
         errors: Math.max(0, result.errors - fetchErrors),
+      };
+    },
+  },
+  {
+    id: 'gruene-de',
+    name: 'Gruene Deutschland (gruene.de)',
+    timeoutMs: 45 * 60 * 1000,
+    async run(args) {
+      await grueneDeScraperService.init();
+      const result = await grueneDeScraperService.fullCrawl({
+        forceUpdate: args.force,
+      });
+      const fetchErrors = result.skipReasons?.fetch_error?.count ?? 0;
+      return {
+        stored: result.stored,
+        updated: result.updated,
+        skipped: result.skipped,
+        fetchErrors,
+        errors: Math.max(0, result.errors - fetchErrors),
+      };
+    },
+  },
+  {
+    id: 'grundsatz',
+    name: 'Grundsatzprogramme (PDF)',
+    timeoutMs: 30 * 60 * 1000,
+    async run(args) {
+      await grundsatzPdfScraperService.init();
+      const result = await grundsatzPdfScraperService.fullCrawl({
+        forceUpdate: args.force,
+      });
+      return {
+        stored: result.stored,
+        updated: result.updated,
+        skipped: result.skipped,
+        fetchErrors: 0,
+        errors: result.errors,
+      };
+    },
+  },
+  {
+    id: 'oesterreich',
+    name: 'Die Gruenen Oesterreich – Programme (PDF)',
+    timeoutMs: 30 * 60 * 1000,
+    async run(args) {
+      await oesterreichPdfScraperService.init();
+      const result = await oesterreichPdfScraperService.fullCrawl({
+        forceUpdate: args.force,
+      });
+      return {
+        stored: result.stored,
+        updated: result.updated,
+        skipped: result.skipped,
+        fetchErrors: 0,
+        errors: result.errors,
       };
     },
   },
