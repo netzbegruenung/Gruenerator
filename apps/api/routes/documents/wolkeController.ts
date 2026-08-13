@@ -9,8 +9,6 @@
  * - POST /import - Import selected files from Wolke
  */
 
-import path from 'path';
-
 import express, { type Router, type Response } from 'express';
 import { z } from 'zod';
 
@@ -18,6 +16,10 @@ import { validateBody, type TypedRequest } from '../../middleware/validateBody.j
 import NextcloudApiClient from '../../services/api-clients/nextcloudApiClient.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
 import { getWolkeSyncService } from '../../services/sync/index.js';
+import {
+  isSupportedWolkeFile,
+  wolkeFileExtension,
+} from '../../services/sync/supportedFileTypes.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { formatFileSize } from './helpers.js';
@@ -31,9 +33,6 @@ const router: Router = express.Router();
 // Initialize services
 const wolkeSyncService = getWolkeSyncService();
 const postgresDocumentService = getPostgresDocumentService();
-
-// Supported file types for Wolke import
-const SUPPORTED_FILE_TYPES = ['.pdf', '.txt', '.md', '.doc', '.docx'];
 
 const wolkeSyncSchema = z.object({
   shareLinkId: z.string().min(1),
@@ -191,7 +190,7 @@ router.get(
 
       // Filter and enrich files with additional metadata for UI
       const enrichedFiles = files.map((file) => {
-        const fileExtension = path.extname(file.name).toLowerCase();
+        const fileExtension = wolkeFileExtension(file.name);
         const lastModified = file.lastModified;
         const lastModifiedStr = lastModified
           ? (typeof lastModified === 'string'
@@ -203,7 +202,7 @@ router.get(
         return {
           ...file,
           fileExtension,
-          isSupported: SUPPORTED_FILE_TYPES.includes(fileExtension),
+          isSupported: !file.isDirectory && isSupportedWolkeFile(file.name),
           sizeFormatted: file.size ? formatFileSize(file.size) : 'Unknown',
           lastModifiedFormatted: lastModifiedStr,
         };
@@ -303,9 +302,12 @@ router.post(
         } catch (error) {
           failedCount++;
           log.error(`[POST /import] Failed to process file ${fileInfo.name}:`, error);
+          // `reason` is what the UI renders — the raw message is for the log and
+          // for support, not for a label the user has to interpret.
           results.push({
             filename: fileInfo.name,
             success: false,
+            reason: 'processing_failed',
             error: (error as Error).message,
           });
         }
