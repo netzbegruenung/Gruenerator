@@ -34,4 +34,22 @@ describe('toCamelCase', () => {
   it('handles multi-underscore keys', () => {
     expect(toCamelCase({ a_b_c: 1 })).toEqual({ aBC: 1 });
   });
+
+  // `pg` returns every TIMESTAMPTZ as a Date. A Date is `typeof 'object'` with
+  // zero enumerable own properties, so the generic object branch used to rebuild
+  // it as `{}` and the timestamp disappeared silently.
+  it('serialises Date values instead of flattening them to {}', () => {
+    const created = new Date('2026-07-06T18:43:52.349Z');
+    expect(toCamelCase({ created_at: created })).toEqual({
+      createdAt: '2026-07-06T18:43:52.349Z',
+    });
+  });
+
+  it('serialises Dates nested in arrays and objects', () => {
+    const d = new Date('2026-01-02T03:04:05.000Z');
+    expect(toCamelCase([{ created_at: d }])).toEqual([{ createdAt: '2026-01-02T03:04:05.000Z' }]);
+    expect(toCamelCase({ outer_key: { created_at: d } })).toEqual({
+      outerKey: { createdAt: '2026-01-02T03:04:05.000Z' },
+    });
+  });
 });
