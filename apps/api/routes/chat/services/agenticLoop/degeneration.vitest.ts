@@ -5,6 +5,8 @@ import {
   findDegenerationCut,
   isDegenerateSample,
   isStructuralScaffolding,
+  trimTrailingScaffoldLine,
+  cutLostContent,
   DEGEN_MIN_LENGTH,
   REPEAT_RUN_CHARS,
   snapToBoundary,
@@ -128,6 +130,89 @@ describe('isDegenerateSample', () => {
     expect(isDegenerateSample(repeatTo('--- **E** 😊.', 2000))).toBe(true);
     expect(isDegenerateSample(repeatTo('1234567890', 2000))).toBe(true);
     expect(isDegenerateSample(terminatorSpam(2000))).toBe(true);
+  });
+
+  // ── The two live tails of 13.08.2026, measured ─────────────────────────────
+  // The diagnostic log printed the shape of both. They look alike in a 200-char
+  // excerpt and must be judged differently, and the deciding property is
+  // whether anything but scaffolding is left in the TAIL the metric reads.
+
+  it('passes prose that ends in a table divider (13:24, removed 0)', () => {
+    // Detected after 16.034 chars and then cut nothing, because detection asked
+    // about scaffolding over 2.000 chars and the cut asked over 600. Both must
+    // now say the same thing: layout.
+    const window = prose(1400) + repeatTo('| --- | --- | -- ', 600);
+    expect(isDegenerateSample(window)).toBe(false);
+  });
+
+  it('flags the dash-and-dot run that followed it (13:46, removed 2.149)', () => {
+    // `lastLine=790c newlinesInWindow=4`. The dots are substance, so this is
+    // not scaffolding — and it was real degeneration, correctly cut.
+    const window = prose(1400) + repeatTo('---. ', 600);
+    expect(isDegenerateSample(window)).toBe(true);
+  });
+});
+
+describe('cutLostContent', () => {
+  const answer = Array.from({ length: 30 }, (_, i) => variedProse(i)).join('');
+
+  it('says no when only dashes were removed', () => {
+    // 13.08.2026 13:46 and 14:02: the answer was complete, the notice under it
+    // would have claimed otherwise.
+    expect(cutLostContent(answer, repeatTo('---. ', 2200))).toBe(false);
+    expect(cutLostContent(answer, repeatTo('--- ', 2200))).toBe(false);
+    expect(cutLostContent(answer, repeatTo('| --- | -- ', 2200))).toBe(false);
+  });
+
+  it('says no for terminator spam — a handful of phrases, endlessly shuffled', () => {
+    expect(cutLostContent(answer, terminatorSpam(2500))).toBe(false);
+  });
+
+  it('says no when the model merely wrote the answer twice', () => {
+    // Nothing is lost: every word of the removed copy stands in the kept text.
+    expect(cutLostContent(answer, `\n\nKorrigierte Ausgabe:\n\n${answer}`)).toBe(false);
+  });
+
+  it('says yes when the cut ate real prose', () => {
+    const lost = Array.from({ length: 20 }, (_, i) => variedProse(100 + i)).join('');
+    expect(cutLostContent(answer, lost + terminatorSpam(1500))).toBe(true);
+  });
+});
+
+describe('trimTrailingScaffoldLine', () => {
+  it('drops a runaway divider row the backscan could not cross', () => {
+    // Live 13.08.2026 14:02: 2.248 chars were removed and the kept text STILL
+    // ended `--- --- --- … ---`, directly above the notice.
+    const answer = `${prose(800)}\n| Absatz | Status |\n| --- | --- |\n| Text hier | vollständig |\n`;
+    const kept = answer + repeatTo('--- ', 1200);
+    expect(trimTrailingScaffoldLine(kept)).toBe(answer.trimEnd());
+  });
+
+  it('leaves a normal table row alone', () => {
+    const table = `${prose(600)}\n| Absatz Nummer 3 | Schutz in Einrichtungen | vollständig | - |`;
+    expect(trimTrailingScaffoldLine(table)).toBe(table);
+  });
+
+  it('drops a trailing header separator with no rows under it', () => {
+    // Behaviour change of 13.08.2026 22:12: trailing scaffolding is dropped
+    // however it is broken into lines, so a lone `|---|` at the very end goes
+    // too. It has nothing left to separate, and this only ever runs after the
+    // guard fired.
+    const answer = prose(600);
+    expect(trimTrailingScaffoldLine(`${answer}\n|---|---|---|---|`)).toBe(answer.trimEnd());
+  });
+
+  it('drops a whole trailing RUN of short rules', () => {
+    // The live shape: complete table, then nine `---` the model had already
+    // begun spraying. One long line and nine short ones are the same failure.
+    const answer = `${prose(600)}\n| Absatz | Status |\n| Text hier | vollständig |`;
+    const kept = `${answer}\n\n---\n\n---\n\n---\n\n---\n\n------\n\n---\n`;
+    expect(trimTrailingScaffoldLine(kept)).toBe(answer);
+  });
+
+  it('leaves a long line that carries text alone', () => {
+    const long = `${prose(600)}\n${GERMAN_PROSE}`;
+    expect(trimTrailingScaffoldLine(long)).toBe(long.trimEnd());
   });
 });
 

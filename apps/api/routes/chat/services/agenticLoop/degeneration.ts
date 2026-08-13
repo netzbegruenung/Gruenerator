@@ -60,6 +60,10 @@ export const DEGENERATE_FINISH_REASON = 'degenerate';
  * and the missing half was only found by reading the server log. A cut that
  * announces itself turns that into an obvious, re-runnable failure, which is
  * the only reason the guard may err at all.
+ *
+ * Shown only when {@link cutLostContent} says the cut took something with it.
+ * A cut that removed nothing but dashes leaves a COMPLETE answer, and telling
+ * its reader it "may be incomplete" is simply false.
  */
 export const DEGENERATION_NOTICE =
   '_Hinweis: Die Antwort wurde an dieser Stelle abgebrochen, weil sich das Modell zu wiederholen begann. Was darüber steht, kann unvollständig sein — frage gern noch einmal nach._';
@@ -81,8 +85,16 @@ export const DEGENERATION_NOTICE =
  *  and a `completion` replace is the right cleanup. A detection threshold
  *  below the gate hold would silently change that calculus. */
 export const DEGEN_MIN_LENGTH = 8000;
-/** Re-check cadence (chars grown since the last check). */
-export const DEGEN_CHECK_STRIDE = 500;
+/** Re-check cadence (chars grown since the last check).
+ *
+ *  Unified mode streams live, so this stride is literally how much junk the
+ *  user watches before the guard speaks. Live 13.08.2026 13:46 that was 2.149
+ *  chars of `---. ---. ---.` — roughly 18 seconds of dashes, correctly cut
+ *  afterwards but seen. The periodicity metric needs {@link PERIODIC_TAIL}
+ *  chars of evidence, so ~600 is the floor no cadence can beat; halving the
+ *  stride takes the avoidable half off. A check costs one pass over 2.000
+ *  chars plus ≤ 60 passes over 600 — nothing next to a token round-trip. */
+export const DEGEN_CHECK_STRIDE = 250;
 /** Tail window the word-diversity metric judges. */
 export const DEGEN_WINDOW = 2000;
 
@@ -119,6 +131,14 @@ function wordDiversity(sample: string, minWords: number): number {
 function selfSimilarity(sample: string): number {
   const tail = sample.slice(-PERIODIC_TAIL);
   if (tail.length < 200) return 0;
+  // Gated on the TAIL this metric actually judges, not on the caller's window.
+  // The two scopes used to disagree, and the disagreement was visible in
+  // production: `isDegenerateSample` asked about scaffolding over 2.000 chars,
+  // so a window of prose plus a trailing table divider passed — and then fired
+  // HERE on the divider alone. `findDegenerationCut` judges 600-char windows,
+  // called the same divider layout, and cut nothing. Live 13.08.2026 13:24:
+  // detected after 16.034 chars, kept 16.034. An alarm with no effect.
+  if (isStructuralScaffolding(tail)) return 0;
   let best = 0;
   for (let period = 1; period <= MAX_PERIOD; period++) {
     let matches = 0;
@@ -248,6 +268,61 @@ export function snapToBoundary(text: string, pos: number): number {
     sentence = (match.index ?? 0) + match[0].length;
   }
   return sentence >= 0 ? from + sentence : pos;
+}
+
+/** Distinct words the cut removed that the kept text does not already contain.
+ *  Above this, the cut took real content with it. Junk stays far below by
+ *  construction — it repeats a handful of tokens (measured 13.08.2026: one
+ *  distinct word for the `---.` run, under two dozen for `+. **END**! ~~~`). */
+const LOST_VOCAB_FLOOR = 30;
+
+/**
+ * Whether the cut cost the reader anything.
+ *
+ * The notice warns about LOST CONTENT, so it must be asked about content, not
+ * about the cut. Two removals look identical to the guard and are opposites to
+ * the reader: a run of dashes leaves the answer complete, half a paragraph does
+ * not. Vocabulary separates them — junk repeats a few tokens, and a re-emitted
+ * copy of the answer says nothing the kept text does not already say. Only
+ * words that are genuinely NEW count as loss.
+ */
+export function cutLostContent(kept: string, removed: string): boolean {
+  const known = new Set(words(kept));
+  const novel = new Set<string>();
+  for (const word of words(removed)) {
+    if (known.has(word)) continue;
+    novel.add(word);
+    if (novel.size > LOST_VOCAB_FLOOR) return true;
+  }
+  return false;
+}
+
+/**
+ * Drop the scaffolding the cut left dangling at the end.
+ *
+ * The scaffolding gate keeps tables safe by declaring pure layout "never spam",
+ * so the backscan stops the moment it reaches one — whatever divider stands
+ * between the answer and the junk therefore survives the cut. Twice live on
+ * 13.08.2026: at 14:02 as ONE runaway row of 1.305 chars, at 22:12 as NINE
+ * short `---` rules after a complete table. Both are the same thing seen from
+ * two sides, so the rule is about position rather than length: trailing
+ * scaffolding, however it is broken into lines.
+ *
+ * Walking backwards stops at the first line that carries text, and never
+ * consumes the whole answer. It runs ONLY after the guard has fired, so no
+ * healthy answer is ever measured against it.
+ */
+export function trimTrailingScaffoldLine(text: string): string {
+  let rest = text.trimEnd();
+  for (;;) {
+    const start = rest.lastIndexOf('\n') + 1;
+    const line = rest.slice(start);
+    // Stop at the first line that carries text, and never consume the whole
+    // answer — a text made only of scaffolding is the cut's problem, not this
+    // function's.
+    if (start === 0 || line.length === 0 || !isStructuralScaffolding(line)) return rest;
+    rest = rest.slice(0, start).trimEnd();
+  }
 }
 
 // ── Long-range repetition ────────────────────────────────────────────────────
@@ -384,7 +459,10 @@ export function createDegenerationGuard(): DegenerationGuard {
       return false;
     },
     cutAt(text: string): number {
-      return snapToBoundary(text, rawCut(text));
+      const snapped = snapToBoundary(text, rawCut(text));
+      // Last: the backscan cannot cross a scaffold row, so it may have stopped
+      // ON one. Only trimming, never extending — the offset can shrink.
+      return trimTrailingScaffoldLine(text.slice(0, snapped)).length;
     },
   };
 
