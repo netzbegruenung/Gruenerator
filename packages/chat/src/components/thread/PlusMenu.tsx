@@ -19,20 +19,19 @@ import {
   Globe,
   LayoutTemplate,
   Library,
-  Link2,
   MessageSquare,
+  Paperclip,
   Plug,
   PlusIcon,
   Settings,
   Telescope,
-  Upload,
   Wand2,
   Zap,
 } from 'lucide-react';
 import { memo, useState } from 'react';
 
 import { COMPOSER_TOOLS, type ComposerToolIconKey } from '../../lib/composerControls';
-import { resolveMentionable, webpageMentionables, type Mentionable } from '../../lib/mentionables';
+import { resolveMentionable, type Mentionable } from '../../lib/mentionables';
 import {
   connectorId,
   connectorMentionables,
@@ -64,8 +63,8 @@ export interface ComposerPreset {
 
 interface PlusMenuProps {
   onInsertMention: (mentionable: Mentionable) => void;
+  /** Opens the file panel, which carries the local upload as its first row. */
   onOpenFileBrowser: () => void;
-  onUploadFile: () => void;
   onOpenSkillsPage?: () => void;
   /** Surface-specific prompt presets shown as a "Vorlagen" submenu. */
   presets?: ComposerPreset[];
@@ -99,7 +98,6 @@ const Hint = ({ children }: { children: React.ReactNode }) => (
 export const PlusMenu = memo(function PlusMenu({
   onInsertMention,
   onOpenFileBrowser,
-  onUploadFile,
   onOpenSkillsPage,
   presets,
   onApplyPreset,
@@ -180,11 +178,6 @@ export const PlusMenu = memo(function PlusMenu({
     setThreadMode('eigener');
   };
 
-  const insertLink = () => {
-    const link = webpageMentionables[0];
-    if (link) onInsertMention(link);
-  };
-
   const handleMobileAction = (action: () => void) => {
     setMenuOpen(false);
     action();
@@ -210,23 +203,14 @@ export const PlusMenu = memo(function PlusMenu({
   const activeConnectorCount = pinnedConnector ? 1 : 0;
 
   // ── Group 1: add context ───────────────────────────────────────────────────
+  // Eine Zeile statt drei: das Hochladen steht als erste Zeile im Dateipanel
+  // selbst, und einen Link fügt man schneller ein, als man ihn im Menü sucht.
   const desktopAttachItems = (
-    <>
-      <DropdownMenuItem onClick={onUploadFile}>
-        <Upload className="h-3.5 w-3.5" />
-        <span className="flex-1">Fotos &amp; Dateien hochladen</span>
-      </DropdownMenuItem>
-      <DropdownMenuItem onClick={onOpenFileBrowser}>
-        <Library className="h-3.5 w-3.5" />
-        <span className="flex-1">Aus Bibliothek</span>
-        <Hint>Dokumente, Notizbücher, Wolke</Hint>
-      </DropdownMenuItem>
-      <DropdownMenuItem onClick={insertLink}>
-        <Link2 className="h-3.5 w-3.5" />
-        <span className="flex-1">Link anhängen</span>
-        <Hint>Webseite per URL</Hint>
-      </DropdownMenuItem>
-    </>
+    <DropdownMenuItem onClick={onOpenFileBrowser}>
+      <Paperclip className="h-3.5 w-3.5" />
+      <span className="flex-1">Datei hinzufügen</span>
+      <Hint>Hochladen, Dokumente, Notizbücher</Hint>
+    </DropdownMenuItem>
   );
 
   // ── Group 2: namespaces ────────────────────────────────────────────────────
@@ -428,27 +412,17 @@ export const PlusMenu = memo(function PlusMenu({
           {rolesEntry}
         </>
       )}
-      <DropdownMenuSeparator />
-      <p className="px-2 py-1.5 text-xs text-foreground-muted">
-        Tippen für Rezepte, Dateien, Notizbücher …
-      </p>
     </>
   );
 
   const mobileContent = (
     <>
       <ResponsiveMenuSection title="Hinzufügen">
-        <ResponsiveMenuItem icon={<Upload />} onClick={() => handleMobileAction(onUploadFile)}>
-          Fotos &amp; Dateien hochladen
-        </ResponsiveMenuItem>
         <ResponsiveMenuItem
-          icon={<Library />}
+          icon={<Paperclip />}
           onClick={() => handleMobileAction(onOpenFileBrowser)}
         >
-          Aus Bibliothek
-        </ResponsiveMenuItem>
-        <ResponsiveMenuItem icon={<Link2 />} onClick={() => handleMobileAction(insertLink)}>
-          Link anhängen
+          Datei hinzufügen
         </ResponsiveMenuItem>
       </ResponsiveMenuSection>
 
