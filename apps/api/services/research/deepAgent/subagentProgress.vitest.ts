@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  CUT_SHORT_NOTE,
   silenceRunOutput,
   subagentLabel,
   trackSubagents,
@@ -143,6 +144,50 @@ describe('trackSubagents', () => {
       'Programm-Recherche: Beschlusslage',
       'Web-Recherche: Zahlen',
     ]);
+  });
+
+  /**
+   * Measured on 12.08.2026: two of eight delegations were still running when
+   * the research clock fired, and showed up as bare ✗ rows next to a report
+   * that had been written just fine. The status has to stay `failed` — the
+   * wire enum crosses to shipped mobile binaries — so the label carries the
+   * difference.
+   */
+  it('says so when the clock, not the work, ended a delegation', async () => {
+    const steps: ResearchStep[] = [];
+    const aborted = Object.assign(new Error('The operation was aborted'), {
+      name: 'TimeoutError',
+    });
+
+    await trackSubagents(
+      {
+        toolCalls: iterate([taskCall('call-1', 'Wehrpflicht')]),
+        subagents: iterate([subagent('web-recherche', 'call-1', Promise.reject(aborted))]),
+      },
+      (step) => steps.push(step)
+    );
+    await Promise.resolve();
+
+    const final = finalSteps(steps).get('sub-call-1');
+    expect(final?.status).toBe('failed');
+    expect(final?.label).toContain(CUT_SHORT_NOTE);
+  });
+
+  it('leaves a genuine failure unexplained rather than blaming the clock', async () => {
+    const steps: ResearchStep[] = [];
+
+    await trackSubagents(
+      {
+        toolCalls: iterate([taskCall('call-1', 'Wehrpflicht')]),
+        subagents: iterate([
+          subagent('web-recherche', 'call-1', Promise.reject(new Error('400 kaputt'))),
+        ]),
+      },
+      (step) => steps.push(step)
+    );
+    await Promise.resolve();
+
+    expect(finalSteps(steps).get('sub-call-1')?.label).not.toContain(CUT_SHORT_NOTE);
   });
 
   it('marks a failed delegation instead of leaving it spinning', async () => {
