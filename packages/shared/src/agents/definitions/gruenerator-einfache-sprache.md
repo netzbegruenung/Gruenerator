@@ -42,8 +42,5 @@ localized:
 locale: de-DE
 audience: all
 author: Grünerator
-skillMentions:
-  - rueckuebersetzung
-  - sprachpruefung
 order: 22
 ---
