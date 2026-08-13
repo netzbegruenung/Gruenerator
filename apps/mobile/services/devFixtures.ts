@@ -1,6 +1,9 @@
-import { type BoardDocument, type CanvasListItem } from '@gruenerator/contracts';
+import {
+  type BoardDocument,
+  type CanvasListItem,
+  type ShareListItem,
+} from '@gruenerator/contracts';
 import { type Project } from '@gruenerator/shared';
-import { type Share } from '@gruenerator/shared/share';
 
 import { DEV_AUTH_BYPASS, DEV_BYPASS_USER } from './devAuth';
 import { type Document } from './docs/docsApi';
@@ -111,43 +114,79 @@ export const DEV_CANVASES: CanvasListItem[] = [
 /**
  * Image shares and reel projects as their own endpoints return them.
  *
- * The Studio tab reads `/share/my` and `/subtitler/projects` directly rather than
- * the merged `/recent-activity` feed, so it needs fixtures in those two shapes —
- * `DEV_RECENT_ACTIVITY` below still covers the start page's "Zuletzt" strip.
- * `imageType` is what splits Sharepics from KI-Bilder, so both kinds appear here.
+ * The Studio tab reads `/share/recent` and `/subtitler/projects` directly rather
+ * than the merged `/recent-activity` feed, so it needs fixtures in those two
+ * shapes — `DEV_RECENT_ACTIVITY` below still covers the start page's "Zuletzt"
+ * strip. `imageType` is what splits Sharepics from KI-Bilder, so both kinds
+ * appear here.
+ *
+ * Typed as the contract row and filled the way Postgres answers: a nullable
+ * `title`, and `fileSize` as the string `pg` returns for BIGINT. Fixtures that
+ * quietly assume a friendlier shape are a large part of why the emulator stayed
+ * green while real accounts crashed.
  */
-export const DEV_SHARES: Share[] = [
+export const DEV_SHARES: ShareListItem[] = [
   {
+    id: 'dev-row-sonnenblumenfeld',
     shareToken: 'dev-image-sonnenblumenfeld',
     mediaType: 'image',
     title: 'Sonnenblumenfeld bei Sonnenaufgang',
     status: 'ready',
     createdAt: ago(5),
     imageType: 'pure-create',
+    contentOrigin: 'ki',
+    thumbnailPath: null,
+    fileSize: '184320',
+    duration: null,
+    imageMetadata: {},
+    downloadCount: 0,
   },
   {
+    id: 'dev-row-lastenrad',
     shareToken: 'dev-image-lastenrad',
     mediaType: 'image',
     title: 'Lastenrad in der Innenstadt',
     status: 'ready',
     createdAt: ago(21),
     imageType: 'universal-edit',
+    contentOrigin: 'ki',
+    thumbnailPath: 'uploads/dev-lastenrad.webp',
+    fileSize: '221184',
+    duration: null,
+    imageMetadata: {},
+    downloadCount: 3,
   },
   {
+    id: 'dev-row-windpark',
     shareToken: 'dev-image-windpark',
     mediaType: 'image',
     title: 'Windpark im Abendlicht',
     status: 'ready',
     createdAt: ago(70),
     imageType: 'dreizeilen',
+    contentOrigin: 'sharepic',
+    thumbnailPath: null,
+    fileSize: '150528',
+    duration: null,
+    imageMetadata: {},
+    downloadCount: 0,
   },
   {
+    // Untitled on purpose: `title` is a nullable column, so the mapper's
+    // "Ohne Titel" fallback should be exercised by the fixtures too.
+    id: 'dev-row-portrait',
     shareToken: 'dev-image-portrait',
     mediaType: 'image',
-    title: 'Porträt für Kandidat:innenseite',
+    title: null,
     status: 'ready',
     createdAt: ago(94),
     imageType: 'profilbild',
+    contentOrigin: 'sharepic',
+    thumbnailPath: null,
+    fileSize: '98304',
+    duration: null,
+    imageMetadata: {},
+    downloadCount: 1,
   },
 ];
 
