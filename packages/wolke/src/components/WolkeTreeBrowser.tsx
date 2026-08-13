@@ -23,6 +23,8 @@ interface WolkeTreeBrowserProps {
   shareLinkId: string;
   shareLinkUrl?: string;
   onFolderSelect?: (folderPath: string, folderName: string) => void;
+  /** Controlled selection; falls back to the tree's own when not given. */
+  selectedPath?: string;
 }
 
 interface WolkeTreeContext {
@@ -42,10 +44,15 @@ const useTreeData = () => {
   return ctx;
 };
 
-const WolkeTreeBrowser = ({ shareLinkId, shareLinkUrl, onFolderSelect }: WolkeTreeBrowserProps) => {
+const WolkeTreeBrowser = ({
+  shareLinkId,
+  shareLinkUrl,
+  onFolderSelect,
+  selectedPath: externalSelectedPath,
+}: WolkeTreeBrowserProps) => {
   const [childrenMap, setChildrenMap] = useState<Map<string, WolkeFileItem[]>>(new Map());
   const [loadingPaths, setLoadingPaths] = useState<Set<string>>(new Set());
-  const [selectedPath, setSelectedPath] = useState<string | undefined>(undefined);
+  const [ownSelectedPath, setOwnSelectedPath] = useState<string | undefined>(undefined);
   const fetchedRef = useRef<Set<string>>(new Set());
 
   const loadChildren = useCallback(
@@ -73,7 +80,9 @@ const WolkeTreeBrowser = ({ shareLinkId, shareLinkUrl, onFolderSelect }: WolkeTr
     fetchedRef.current = new Set();
     setChildrenMap(new Map());
     setLoadingPaths(new Set());
-    loadChildren('');
+    // Reset as a reaction to the share link changing (loadChildren identity),
+    // then reload the root; not a render-derived value.
+    void loadChildren('');
   }, [loadChildren]);
 
   const rootItems = childrenMap.get('') ?? [];
@@ -82,10 +91,12 @@ const WolkeTreeBrowser = ({ shareLinkId, shareLinkUrl, onFolderSelect }: WolkeTr
 
   const handleFolderSelect = onFolderSelect
     ? (folderPath: string, folderName: string) => {
-        setSelectedPath(folderPath);
+        setOwnSelectedPath(folderPath);
         onFolderSelect(folderPath, folderName);
       }
     : undefined;
+
+  const selectedPath = externalSelectedPath ?? ownSelectedPath;
 
   const ctx: WolkeTreeContext = {
     shareLinkId,
@@ -192,11 +203,12 @@ const WolkeTreeNode = ({
               e.stopPropagation();
               onFolderSelect(itemPath, item.name);
             }}
+            aria-pressed={isSelected}
             className={cn(
               'ml-auto shrink-0 px-xs py-0.5 rounded text-[0.65rem] font-medium transition-all',
               isSelected
                 ? 'bg-primary-500 text-white'
-                : 'bg-transparent text-primary-600 dark:text-primary-400 opacity-0 group-hover/treerow:opacity-100 hover:bg-primary-50 dark:hover:bg-primary-900/20'
+                : 'bg-transparent text-primary-600 dark:text-primary-400 opacity-0 group-hover/treerow:opacity-100 focus-visible:opacity-100 hover:bg-primary-50 dark:hover:bg-primary-900/20'
             )}
           >
             {isSelected ? 'Ausgewählt' : 'Auswählen'}
