@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import {
   attachWolkeFolder,
-  isWolkeFolderAttached,
   removeWolkeFolder,
   updateWolkeFolder,
   wolkeFolderDisplayName,
