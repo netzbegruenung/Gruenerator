@@ -212,10 +212,20 @@ const CLIENT_OPTS = {
  * Same client, but the 200 body is parsed against the contract's Zod schema
  * before it is handed back — a mismatch throws a `ZodError` naming the field.
  *
- * Only the contracts feeding the mobile Studio tab use this. That tab once died
- * with `undefined is not a function` deep inside a render because `/share/recent`
- * shipped `createdAt: {}` and nothing between the response and the sort had any
- * opinion about the shape. Validation is that missing opinion.
+ * The reason is the mobile Studio tab: it once died with `undefined is not a
+ * function` deep inside a render because `/share/recent` shipped `createdAt: {}`
+ * and nothing between the response and the sort had any opinion about the shape.
+ * Validation is that missing opinion.
+ *
+ * The *effect* is wider than that reason, and deliberately so. These are
+ * process-wide singletons, so switching them on validates every caller of the
+ * three contracts — `canvas` also serves the collab canvas editor, chat sharepic
+ * minting and the template gallery; `subtitler` serves the whole web subtitler
+ * pipeline; `sharesRead` also serves template cloning and share renaming. Those
+ * response builders serialize their dates through the same `toIso` pattern, so
+ * none of them throws today, but none was audited or covered by a test here
+ * either. A drift in one of them now fails loudly instead of silently — which is
+ * the point, but it will surface in the web app, not only in the Studio tab.
  *
  * Not switched on globally: every other contract would start throwing on
  * mismatches nobody has audited yet. Widening this is a deliberate, separate
@@ -281,17 +291,17 @@ const _docsClient = () => initClient(docsContract, CLIENT_OPTS);
 const _documentsClient = () => initClient(documentsContract, CLIENT_OPTS);
 const _groupsClient = () => initClient(groupsContract, CLIENT_OPTS);
 const _userProfileClient = () => initClient(userProfileContract, CLIENT_OPTS);
-// Studio-Tab-Quelle → validiert, siehe VALIDATED_CLIENT_OPTS.
+// Validiert (nicht nur für den Studio-Tab) — siehe VALIDATED_CLIENT_OPTS.
 const _canvasClient = () => initClient(canvasContract, VALIDATED_CLIENT_OPTS);
 const _canvasAiClient = () => initClient(canvasAiContract, CLIENT_OPTS);
 const _monitorClient = () => initClient(monitorContract, CLIENT_OPTS);
 const _sitesClient = () => initClient(sitesContract, CLIENT_OPTS);
 const _texteClient = () => initClient(texteContract, CLIENT_OPTS);
-// Studio-Tab-Quelle → validiert, siehe VALIDATED_CLIENT_OPTS.
+// Validiert (nicht nur für den Studio-Tab) — siehe VALIDATED_CLIENT_OPTS.
 const _subtitlerClient = () => initClient(subtitlerContract, VALIDATED_CLIENT_OPTS);
 const _reisekostenClient = () => initClient(reisekostenContract, CLIENT_OPTS);
 const _imagePickerClient = () => initClient(imagePickerContract, CLIENT_OPTS);
-// Studio-Tab-Quelle → validiert, siehe VALIDATED_CLIENT_OPTS.
+// Validiert (nicht nur für den Studio-Tab) — siehe VALIDATED_CLIENT_OPTS.
 const _sharesReadClient = () => initClient(sharesReadContract, VALIDATED_CLIENT_OPTS);
 const _promptsClient = () => initClient(promptsContract, CLIENT_OPTS);
 
