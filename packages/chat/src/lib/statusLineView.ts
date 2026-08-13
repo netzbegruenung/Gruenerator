@@ -52,6 +52,12 @@ export interface StatusLineInput {
    * not fall back to the dots just because the label is between values.
    */
   hasProgress: boolean;
+  /**
+   * The turn took a step after its text had already begun — see
+   * `selectStepAfterText`. Keeps the line alive past the first token for a
+   * multi-step agentic turn, where the work is not over when the prose starts.
+   */
+  stepAfterText?: boolean;
 }
 
 /**
@@ -59,12 +65,19 @@ export interface StatusLineInput {
  * alongside its streaming prose; a turn with a card or reasoning retires the
  * line the moment the answer text starts (the thinking is not persisted anyway,
  * and the sources reappear in the message's Quellen-Liste).
+ *
+ * The one exception is the agentic loop, where "text started" no longer means
+ * "the work is done": the model writes between its tool calls. Once a step is
+ * seen AFTER text, the line stays for the rest of the stream — otherwise the
+ * label and the thinking dropdown would be gone from the first token on, and
+ * every later node would run behind a silent, empty UI.
  */
 export function selectStatusLineView({
   hasOwnDetail,
   hasText,
   stage,
   hasProgress,
+  stepAfterText = false,
 }: StatusLineInput): StatusLineView {
   const concrete = stage !== undefined && CONCRETE_STAGES.has(stage);
   const detailStage = stage !== undefined && DETAIL_STAGES.has(stage);
@@ -76,7 +89,7 @@ export function selectStatusLineView({
     return hasText ? 'none' : 'typing';
   }
 
-  if (!hasText && hasProgress && detailStage) return 'progress';
+  if ((!hasText || stepAfterText) && hasProgress && detailStage) return 'progress';
   return 'none';
 }
 

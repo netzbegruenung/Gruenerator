@@ -12,6 +12,7 @@ import {
   selectReasoningText,
   selectSearchSources,
   selectSearchStatusLabel,
+  selectStepAfterText,
   type StatusPartLike,
 } from '../../lib/toolStatusLine';
 import { cn } from '../../lib/utils';
@@ -28,8 +29,8 @@ import { ImageGenerationFrame } from '../message-parts/ImageGenerationFrame';
 import { MemoryIndicator } from '../message-parts/MemoryIndicator';
 import { MessageActions } from '../message-parts/MessageActions';
 import { MessageErrorBanner } from '../message-parts/MessageErrorBanner';
-import { MessageDaySeparator } from '../message-parts/MessageTimestamp';
 import { MessageStreamingProvider } from '../message-parts/messageStreamingContext';
+import { MessageDaySeparator } from '../message-parts/MessageTimestamp';
 import { SearchImagesSection } from '../message-parts/SearchImagesSection';
 import { SearchResultsSection, type AdditionalSource } from '../message-parts/SearchResultsSection';
 import { SharepicVariantStack } from '../message-parts/SharepicVariantStack';
@@ -152,6 +153,8 @@ export const AssistantMessage = memo(function AssistantMessage() {
   const hasOwnDetail =
     message.content.some((p) => p.type === 'tool-call') ||
     message.content.some((p) => p.type === 'reasoning');
+  // …except on an agentic turn, which keeps working after its first sentence.
+  const stepAfterText = selectStepAfterText(statusParts);
   const toolStatus = selectSearchStatusLabel(statusParts);
   const reasoningText = selectReasoningText(statusParts);
   const statusSources = useMemo(() => selectSearchSources(statusParts), [statusParts]);
@@ -273,6 +276,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
           <StreamingStatusLine
             isStreaming={isStreaming}
             hasOwnDetail={hasOwnDetail}
+            stepAfterText={stepAfterText}
             textContent={textContent}
             custom={custom}
             toolStatus={toolStatus}
