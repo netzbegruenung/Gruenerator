@@ -703,8 +703,11 @@ export const docsContractRouter = s.router(docsContract, {
         label: 'document',
       });
 
-      // Empty content is the parser's failure signal — creating the document
-      // anyway produced a blank artifact reported as a success (201).
+      // Every attempt failed: provider error, no tool call and no usable JSON,
+      // a rejected structure (empty `content` is the validator's failure
+      // signal), or an answer that stayed truncated through the repair turn.
+      // Reported as an error rather than created anyway — an empty parse used
+      // to become a blank document reported as a success (201).
       if (!docResult.ok) {
         log.warn(`[docsContract.generateDocument] Generation failed: ${docResult.error}`);
         return {
