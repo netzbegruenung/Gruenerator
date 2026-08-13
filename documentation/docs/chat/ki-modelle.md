@@ -18,7 +18,7 @@ Du wählst eine Größe, kein Herstellermodell – dieselben drei Stufen, die du
 
 **Mittel** – Eine gute Mischung aus Tempo und Qualität, besonders für Kreativtexte. Open-Source-Modell auf europäischen Servern.
 
-**Ultra** – Die beste Qualität, für Recherche und lange Aufgaben. Läuft auf EU-Servern (Scaleway bzw. Mistral AI, Frankreich).
+**Ultra** – Die beste Qualität, für Recherche und lange Aufgaben. Läuft auf EU-Servern (Mistral AI, Frankreich).
 
 Welches Modell hinter einer Stufe steckt, kann sich ändern, wenn ein besseres verfügbar wird – die Stufe bleibt. Welche Anbieter aktuell dahinterstehen, steht jederzeit in der [Datenschutzerklärung](https://gruenerator.de/datenschutz).
 
