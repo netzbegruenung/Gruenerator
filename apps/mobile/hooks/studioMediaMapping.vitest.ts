@@ -213,3 +213,45 @@ describe('toReelItems', () => {
     expect(without && 'thumbnailUrl' in without).toBe(false);
   });
 });
+
+/**
+ * The tab went to a red screen for any account holding a row whose timestamp was
+ * not a string: the API's `toCamelCase` rebuilt every `Date` as `{}`, and `{}` has
+ * no `localeCompare`, so `Array.sort` threw "undefined is not a function" out of
+ * the render. The source is fixed in `apps/api/utils/case.ts`; sorting is still
+ * not worth a blank tab, so one unusable date must not cost the other rows.
+ */
+describe('ein unbrauchbarer Zeitstempel kippt die Sortierung nicht', () => {
+  it('haelt einen Share mit Objekt-Datum aus', () => {
+    const shares = [
+      share({ shareToken: 'alt', contentOrigin: 'ki', createdAt: '2026-07-01T10:00:00.000Z' }),
+      share({ shareToken: 'kaputt', contentOrigin: 'ki', createdAt: {} as unknown as string }),
+      share({ shareToken: 'neu', contentOrigin: 'ki', createdAt: '2026-08-01T10:00:00.000Z' }),
+    ];
+
+    const items = toKiImageItems(shares);
+
+    expect(items).toHaveLength(3);
+    expect(items.map((i) => i.id)).toEqual(['neu', 'alt', 'kaputt']);
+  });
+
+  it('haelt einen Canvas mit Objekt-Datum aus', () => {
+    const canvases = [
+      canvas({ id: 'gut', updated_at: '2026-07-02T10:00:00.000Z' }),
+      canvas({ id: 'kaputt', updated_at: {} as unknown as string }),
+    ];
+
+    expect(() => toSharepicItems([], canvases)).not.toThrow();
+    expect(toSharepicItems([], canvases).map((i) => i.id)).toEqual(['gut', 'kaputt']);
+  });
+
+  it('haelt ein Reel ganz ohne Zeitstempel aus', () => {
+    const projects = [
+      project({ id: 'gut', last_edited_at: '2026-07-03T10:00:00.000Z' }),
+      project({ id: 'kaputt', last_edited_at: '', created_at: '' }),
+    ];
+
+    expect(() => toReelItems(projects)).not.toThrow();
+    expect(toReelItems(projects).map((i) => i.id)).toEqual(['gut', 'kaputt']);
+  });
+});
