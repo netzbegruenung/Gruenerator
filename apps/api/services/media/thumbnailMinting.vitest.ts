@@ -17,7 +17,7 @@ const envMock = {
 };
 vi.mock('../../config/env.js', () => ({ env: envMock }));
 
-const { buildCanvasThumbnailUrl, buildThumbnailTileUrl, versionFromDate } =
+const { buildCanvasThumbnailUrl, buildThumbnailTileUrl, versionFromDate, versionFromShareRow } =
   await import('./thumbnailUrl.js');
 const { verifyThumbnail } = await import('./thumbnailSignature.js');
 
@@ -69,6 +69,39 @@ describe('recent-activity mint sites', () => {
     // thumbnail still rendered a blank plate.
     expect(url).not.toContain('/download');
     expect(accepted(url)).toBe(true);
+  });
+});
+
+describe('media version', () => {
+  const created = '2026-08-01T10:00:00.000Z';
+
+  it('follows image_metadata.updatedAt when the image was edited', () => {
+    // updateImageShare overwrites media.<ext> under the SAME share token, so
+    // created_at does not move on an edit. A version derived from it would
+    // leave every client that already fetched the tile on the pre-edit picture
+    // for a year — immutable, no revalidation, no way out.
+    const before = versionFromShareRow({ created_at: created, image_metadata: null });
+    const after = versionFromShareRow({
+      created_at: created,
+      image_metadata: { updatedAt: '2026-08-02T09:00:00.000Z' },
+    });
+    expect(after).not.toBe(before);
+  });
+
+  it('falls back to created_at for a share that was never edited', () => {
+    expect(versionFromShareRow({ created_at: created, image_metadata: {} })).toBe(
+      versionFromDate(created)
+    );
+  });
+
+  it.each([
+    ['a non-object metadata column', 'not json'],
+    ['a non-string updatedAt', { updatedAt: 12345 }],
+    ['a missing column', undefined],
+  ])('ignores %s rather than throwing inside a list mapper', (_label, metadata) => {
+    expect(versionFromShareRow({ created_at: created, image_metadata: metadata })).toBe(
+      versionFromDate(created)
+    );
   });
 });
 

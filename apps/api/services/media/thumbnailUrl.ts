@@ -108,6 +108,29 @@ export function versionFromShareToken(token: string): string {
 }
 
 /**
+ * The content version of a media share.
+ *
+ * `created_at` alone is NOT enough, and this is the whole reason this helper
+ * exists: `updateImageShare` (the gallery edit flow) overwrites `media.<ext>`
+ * under the SAME share token. The row's creation time does not move, so a
+ * version derived from it would leave every client that already fetched the
+ * tile showing the pre-edit picture for a year — the exact staleness the
+ * version segment is supposed to make impossible.
+ *
+ * The edit writes `image_metadata.updatedAt`, so that is the authority when
+ * present. (The server already drops its own `thumbs/` cache on edit; it is
+ * only the clients that need a changed URL.)
+ */
+export function versionFromShareRow(row: {
+  created_at?: Date | string | null;
+  image_metadata?: unknown;
+}): string {
+  const metadata = row.image_metadata as { updatedAt?: unknown } | null | undefined;
+  const updatedAt = typeof metadata?.updatedAt === 'string' ? metadata.updatedAt : null;
+  return versionFromDate(updatedAt ?? row.created_at ?? null);
+}
+
+/**
  * The shape web writes into `canvas_documents.thumbnail_url`: the canvas
  * thumbnail is uploaded to the media library and stored as its download URL.
  * Kept in one place because both the mint side (for the version token) and the
