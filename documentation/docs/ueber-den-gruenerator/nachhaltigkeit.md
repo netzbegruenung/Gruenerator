@@ -123,7 +123,7 @@ Bei Scaleway müssen wir nicht auf den Landesdurchschnitt ausweichen: Der Impact
 
 Dazu kommt die Effizienz des Rechenzentrums selbst (PUE — wie viel Strom zusätzlich für Kühlung und Infrastruktur draufgeht). GreenPTs Messwerte enthalten einen PUE von 1,25; wo unsere Anbieter besser sind, rechnen wir die Differenz gut: Hetzner gibt 1,13 an (Spanne 1,10–1,16), Seeweb unter 1,20.
 
-**Ein Glücksfall für die Genauigkeit:** GreenPT rechnet selbst bei Scaleway in Paris („Every GreenPT request runs on Scaleway's 100 % renewable-powered compute in Paris"), und Scaleway stellt sämtliche KI-Server in ein einziges Rechenzentrum — DC5, PUE 1,25. Unser Standardmodell Mistral Medium läuft ebenfalls über Scaleway. Für dieses Modell ist unsere Messung also **keine Übertragung auf fremde Hardware**, sondern dieselbe Maschinenklasse im selben Gebäude. Nur für die Gemma- und GPT-OSS-Lanes bei Regolo und verdigado bleibt es eine Übertragung — dort ist das „≈" wörtlich zu nehmen.
+**Ein Glücksfall für die Genauigkeit:** GreenPT rechnet selbst bei Scaleway in Paris („Every GreenPT request runs on Scaleway's 100 % renewable-powered compute in Paris"), und Scaleway stellt sämtliche KI-Server in ein einziges Rechenzentrum — DC5, PUE 1,25. Unsere Gemma-4-Lane läuft ebenfalls dort. Für sie ist unsere Messung also **keine Übertragung auf fremde Hardware**, sondern dieselbe Maschinenklasse im selben Gebäude. Für alle anderen Lanes — unser Standardmodell Mistral Medium bei Mistral in Frankreich, GPT-OSS bei verdigado, die Regolo-Modelle in Italien — bleibt es eine Übertragung; dort ist das „≈" wörtlich zu nehmen. (Mistral Medium lief bis August 2026 ebenfalls über Scaleway; wir haben es wegen fehlerhafter Antworten dieses Anbieters wieder direkt zu Mistral gelegt.)
 
 Eine Unschärfe bleibt und sei benannt: Der deutsche Wert des Umweltbundesamts ist verbrauchsbasiert (Stromimporte eingerechnet), die französische und italienische Zahl sind erzeugungsbasiert. Italien importiert viel französischen Atomstrom, sein verbrauchsbasierter Wert läge also **unter** 270. Der Fehler geht damit zu Lasten Italiens, nicht zu seinen Gunsten.
 
@@ -193,13 +193,13 @@ Die Nutzungs-Übersicht zeigt ausschließlich diese Differenz — den Betrag, um
 
 Für eine Kurzanfrage (100 Token rein, 300 raus) nennt die Arbeit 0,42 Wh und damit rund 147 mg CO₂e. Unsere Modelle in derselben Konfiguration:
 
-| Modell und Standort         | Energie | CO₂    |
-| --------------------------- | ------- | ------ |
-| Gemma 4 bei Regolo          | 0,21 Wh | 56 mg  |
-| GPT-OSS 120B bei Regolo     | 0,24 Wh | 66 mg  |
-| Gemma 4 bei verdigado       | 0,20 Wh | 71 mg  |
-| Mistral Medium bei Scaleway | 1,37 Wh | 30 mg  |
-| **GPT-4o (Jegham et al.)**  | 0,42 Wh | 147 mg |
+| Modell und Standort          | Energie | CO₂    |
+| ---------------------------- | ------- | ------ |
+| Gemma 4 bei Regolo           | 0,21 Wh | 56 mg  |
+| GPT-OSS 120B bei Regolo      | 0,24 Wh | 66 mg  |
+| Gemma 4 bei verdigado        | 0,20 Wh | 71 mg  |
+| Mistral Medium in Frankreich | 1,37 Wh | 30 mg  |
+| **GPT-4o (Jegham et al.)**   | 0,42 Wh | 147 mg |
 
 Daraus ergibt sich die Spanne, die die Übersicht zeigt: **rund 2- bis 5-mal weniger CO₂** je vergleichbarer Anfrage.
 

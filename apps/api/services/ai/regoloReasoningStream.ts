@@ -21,7 +21,7 @@
 
 import { env } from '../../config/env.js';
 
-import { isProviderConfigured, SCALEWAY_MISTRAL_MODELS } from './providerInstances.js';
+import { isScalewayMistralRoutingEnabled, SCALEWAY_MISTRAL_MODELS } from './providerInstances.js';
 import { scalewayBaseUrl } from './scalewayEndpoint.js';
 
 import type { ModelMessage } from 'ai';
@@ -98,11 +98,12 @@ const LITELLM_REASONING_MODELS = new Set(['verdigado-think', 'verdigado-pro']);
  * cannot read at all; that asymmetry is why the fallback for this lane is the
  * `@ai-sdk/mistral` path and never a raw replay (see streamForResolution).
  *
- * Without a Scaleway key this returns null and the lane keeps its previous
- * behaviour — thinking served by the Mistral API through the SDK.
+ * Ohne Scaleway-Routing (Schlüssel fehlt oder `SCALEWAY_MISTRAL_ROUTING` aus —
+ * derzeit der Normalfall) gibt das null zurück und die Lane behält ihr
+ * vorheriges Verhalten: Denken über die Mistral-API durchs SDK.
  */
 function scalewayReasoningModel(model: string): string | null {
-  if (!isProviderConfigured('scaleway')) return null;
+  if (!isScalewayMistralRoutingEnabled()) return null;
   return SCALEWAY_MISTRAL_MODELS[model] ?? null;
 }
 

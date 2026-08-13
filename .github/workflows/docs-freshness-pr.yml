@@ -18,13 +18,25 @@ on:
       - 'packages/presentations/**'
       - 'apps/api/routes/chat/**'
       - 'apps/api/agents/langgraph/ChatGraph/**'
-      # Structural files audited against the root README (readme/ pseudo-doc)
+      # Structural files audited against the root README (readme/ pseudo-doc).
+      # services/ai and workers/providers ALSO feed chat/ and
+      # ueber-den-gruenerator/ — see AREA_HINTS.
       - 'pnpm-workspace.yaml'
       - 'package.json'
       - 'turbo.json'
       - '.env.example'
       - 'apps/api/workers/providers/**'
       - 'apps/api/services/ai/**'
+      # Provider and energy claims in ueber-den-gruenerator/ (Nachhaltigkeit)
+      - 'apps/api/services/usage/energyFootprint.ts'
+      - 'apps/api/services/transcription/**'
+      - 'packages/core/src/models/**'
+      # Pre-existing gaps: these three were in AREA_HINTS but never here, so a
+      # PR touching only them started no audit at all — the same silent miss
+      # this PR is about, one step earlier in the chain.
+      - 'apps/api/routes/mcp-server/**' # integrationen/
+      - 'packages/sheets/**' # office/
+      - 'packages/docs/**' # office/
 
 permissions:
   contents: read
