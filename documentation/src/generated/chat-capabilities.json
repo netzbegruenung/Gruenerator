@@ -268,70 +268,70 @@
   "systemIntentSources": {},
   "skills": [
     {
-      "command": "/presse",
+      "command": "@presse",
       "title": "Pressemitteilung",
       "description": "Pressemitteilungen verfassen",
       "avatar": "📰",
       "category": "presse"
     },
     {
-      "command": "/instagram",
+      "command": "@instagram",
       "title": "Instagram",
       "description": "Instagram-Posts & Captions",
       "avatar": "📸",
       "category": "social"
     },
     {
-      "command": "/facebook",
+      "command": "@facebook",
       "title": "Facebook",
       "description": "Facebook-Posts & Beiträge",
       "avatar": "👍",
       "category": "social"
     },
     {
-      "command": "/twitter",
+      "command": "@twitter",
       "title": "Twitter / X",
       "description": "Tweets & Threads",
       "avatar": "🐦",
       "category": "social"
     },
     {
-      "command": "/linkedin",
+      "command": "@linkedin",
       "title": "LinkedIn",
       "description": "LinkedIn-Posts & Artikel",
       "avatar": "💼",
       "category": "social"
     },
     {
-      "command": "/reel",
+      "command": "@reel",
       "title": "Reel / TikTok",
       "description": "Reel- & TikTok-Skripte",
       "avatar": "🎬",
       "category": "social"
     },
     {
-      "command": "/aktion",
+      "command": "@aktion",
       "title": "Aktionsideen",
       "description": "Kreative Aktionsideen entwickeln",
       "avatar": "💡",
       "category": "sonstiges"
     },
     {
-      "command": "/wahlpruefstein",
+      "command": "@wahlpruefstein",
       "title": "Wahlprüfsteine",
       "description": "Fragenkataloge von Verbänden beantworten",
       "avatar": "📋",
       "category": "dokumente"
     },
     {
-      "command": "/buergermail",
+      "command": "@buergermail",
       "title": "Bürger*innen-Mail",
       "description": "Antwort-E-Mail auf eine Bürger*innenanfrage",
       "avatar": "✉️",
       "category": "dokumente"
     },
     {
-      "command": "/presse-berlin",
+      "command": "@presse-berlin",
       "title": "PM Berlin",
       "description": "Pressemitteilung im Stil Grüne Berlin",
       "avatar": "🐻",
@@ -339,7 +339,7 @@
       "audience": "de-DE"
     },
     {
-      "command": "/insta-berlin",
+      "command": "@insta-berlin",
       "title": "Insta Berlin",
       "description": "Instagram-Post im Stil Grüne Berlin",
       "avatar": "🐻",
@@ -347,7 +347,7 @@
       "audience": "de-DE"
     },
     {
-      "command": "/presse-mv",
+      "command": "@presse-mv",
       "title": "PM MV",
       "description": "Pressemitteilung im Stil Grüne Mecklenburg-Vorpommern",
       "avatar": "🌊",
@@ -355,7 +355,7 @@
       "audience": "de-DE"
     },
     {
-      "command": "/insta-mv",
+      "command": "@insta-mv",
       "title": "Insta MV",
       "description": "Instagram-Post im Stil Grüne Mecklenburg-Vorpommern",
       "avatar": "🌊",
@@ -363,7 +363,7 @@
       "audience": "de-DE"
     },
     {
-      "command": "/presse-thueringen",
+      "command": "@presse-thueringen",
       "title": "PM Thüringen",
       "description": "Pressemitteilung im Stil Bündnisgrüne Thüringen",
       "avatar": "🌲",
@@ -371,7 +371,7 @@
       "audience": "de-DE"
     },
     {
-      "command": "/insta-thueringen",
+      "command": "@insta-thueringen",
       "title": "Insta Thüringen",
       "description": "Instagram-Post im Stil Bündnisgrüne Thüringen",
       "avatar": "🌲",
@@ -379,7 +379,7 @@
       "audience": "de-DE"
     },
     {
-      "command": "/presse-brandenburg",
+      "command": "@presse-brandenburg",
       "title": "PM Brandenburg",
       "description": "Pressemitteilung im Stil Brandenburger Bündnisgrüne",
       "avatar": "🌻",
@@ -387,7 +387,7 @@
       "audience": "de-DE"
     },
     {
-      "command": "/insta-brandenburg",
+      "command": "@insta-brandenburg",
       "title": "Insta Brandenburg",
       "description": "Instagram-Post im Stil Brandenburger Bündnisgrüne",
       "avatar": "🌻",
@@ -395,7 +395,7 @@
       "audience": "de-DE"
     },
     {
-      "command": "/presse-bayern",
+      "command": "@presse-bayern",
       "title": "PM Bayern",
       "description": "Pressemitteilung im Stil Grüne Bayern",
       "avatar": "🦁",
@@ -403,7 +403,7 @@
       "audience": "de-DE"
     },
     {
-      "command": "/presse-hessen",
+      "command": "@presse-hessen",
       "title": "PM Hessen",
       "description": "Pressemitteilung im Stil Grüne Hessen",
       "avatar": "🌳",
@@ -411,7 +411,7 @@
       "audience": "de-DE"
     },
     {
-      "command": "/presse-sachsen-anhalt",
+      "command": "@presse-sachsen-anhalt",
       "title": "PM Sachsen-Anhalt",
       "description": "Pressemitteilung im Stil Grüne Sachsen-Anhalt",
       "avatar": "🏭",
@@ -419,7 +419,7 @@
       "audience": "de-DE"
     },
     {
-      "command": "/presse-at",
+      "command": "@presse-at",
       "title": "Aussendung (AT)",
       "description": "Aussendung im Stil der Grünen Österreich",
       "avatar": "📢",
@@ -427,14 +427,14 @@
       "audience": "de-AT"
     },
     {
-      "command": "/rueckuebersetzung",
+      "command": "@rueckuebersetzung",
       "title": "Rückübersetzung",
       "description": "Formuliert eine Fassung in Einfacher Sprache zurück in Fachdeutsch — blind, ohne das Original",
       "avatar": "🔁",
       "category": "dokumente"
     },
     {
-      "command": "/sprachpruefung",
+      "command": "@sprachpruefung",
       "title": "Sprach-Prüfung",
       "description": "Prüft eine Übertragung in Einfache Sprache gegen das Original — Abdeckung, Befunde, Freigabe-Urteil",
       "avatar": "🔍",

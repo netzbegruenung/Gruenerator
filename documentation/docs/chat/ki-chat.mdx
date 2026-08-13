@@ -19,7 +19,7 @@ Den Chat erreichst du über den Menüpunkt **<UiLabel id="catalog.tool-chat" />*
 
 - **Eingabefeld** unten zum Schreiben deiner Nachricht
 - **Seitenleiste** links mit deinem Gesprächsverlauf — Gespräche kannst du dort auch in **Projekten** bündeln (eigene Projekte und Gruppen, mit Übersicht unter `/projekte`)
-- **„+"-Menü** links im Eingabefeld für Rezepte, Werkzeuge, Quellen und Dateien
+- **„+"-Menü** links im Eingabefeld — Dateien anhängen, Websuche und Dokumentensuche ein- und ausschalten, Rezepte, Rollen, Konnektoren und die Erstellen-Werkzeuge
 - **Modell-Auswahl** rechts unten im Eingabefeld
 
 Jedes Gespräch wird als eigener **Thread** mit eigener Adresse (`/chat/…`) gespeichert. Du kannst jederzeit ein neues Gespräch beginnen oder in der Seitenleiste zu einem früheren Gespräch zurückkehren.
@@ -30,7 +30,7 @@ Rezepte sind spezialisierte Schreib-Modi, die auf bestimmte Textarten optimiert 
 
 **So wählst du ein Rezept:**
 
-- Tippe `/` im Eingabefeld und wähle aus der Liste, **oder**
+- Tippe `@` im Eingabefeld und wähle aus der Liste — Rezepte stehen dort ganz oben, **oder**
 - öffne das **„+"-Menü** im Eingabefeld — dort findest du auch die **Rezept-Bibliothek** mit allen Rezepten
 
 <RecipeTables />
@@ -38,7 +38,7 @@ Rezepte sind spezialisierte Schreib-Modi, die auf bestimmte Textarten optimiert 
 Für Anträge, Reden, Wahlprogramme und Bürger\*innenanfragen gibt es eigene **Grüneratoren** — du findest sie unter dem Menüpunkt **<UiLabel id="menu.grueneratoren" />** in der Seitenleiste und kannst sie direkt im Chat öffnen.
 
 :::tip[Rezepte kombinieren]
-Du kannst ein Rezept mit Quellen und Werkzeugen kombinieren. Zum Beispiel: `/presse @grundsatz Klimaschutz in Kommunen` schreibt eine Pressemitteilung auf Basis des Grundsatzprogramms.
+Du kannst ein Rezept mit Quellen und Werkzeugen kombinieren. Zum Beispiel: `@presse @grundsatz Klimaschutz in Kommunen` schreibt eine Pressemitteilung auf Basis des Grundsatzprogramms.
 :::
 
 ## Quellen durchsuchen
@@ -64,9 +64,11 @@ Werkzeuge erweitern die Fähigkeiten des Chats über die reine Textgenerierung h
 Was du mit jeder dieser Fähigkeiten konkret fragen kannst, zeigt dir die Seite [Was kann ich fragen?](./was-kann-ich-fragen) mit Musterfragen zu jeder Funktion.
 
 :::tip[Werkzeuge auswählen, ohne sie zu tippen]
-Du musst dir keine `@`-Namen merken: Öffne das **„+"-Menü** links im Eingabefeld und dann **Funktionen**. Dort stehen alle Werkzeuge aus der Tabelle oben zur Auswahl, und ein Klick setzt die passende `@`-Erwähnung in deine Nachricht.
+Im **„+"-Menü** links im Eingabefeld stehen die Werkzeuge, mit denen du etwas **erzeugst** — Bild, Sharepic, Diagramm, Zusammenfassung, Dokument, Tabelle, Präsentation, Board — unter **Erstellen**. Ein Klick setzt die passende `@`-Erwähnung in deine Nachricht, und sie gilt jeweils **für diese eine Nachricht**.
 
-Die Erwähnung gilt jeweils **für diese eine Nachricht**. Für die nächste wählst du sie erneut aus — dauerhaft eingeschaltet bleibt kein Werkzeug.
+Werkzeuge, die etwas **nachschlagen** (`@bundestag`, `@umfragen`, `@doku`, `@verlauf` …), stehen bewusst nicht im Menü: sie sind Quellen, keine Handlungen. Du erreichst sie, indem du `@` tippst — die Liste filtert mit.
+
+Zwei Schalter im Menü bleiben dagegen **dauerhaft** gesetzt, bis du sie wieder umlegst: **Websuche** und **Dokumentensuche**. Beide sind ab Werk an. **Tiefenrecherche** direkt darunter ist kein Schalter, sondern gilt nur für die nächste Nachricht.
 :::
 
 ### Externe Dienste (Konnektoren)
@@ -75,7 +77,7 @@ Du kannst auch **externe Dienste** wie Notion, Tally oder Todoist per `@`-Mentio
 
 ## Dateien im Chat
 
-Du kannst PDFs und Bilder direkt im Chat hochladen, um sie als Kontext für deine Frage zu verwenden. Öffne dazu das **„+"-Menü** im Eingabefeld und wähle **Dateien**.
+Du kannst PDFs und Bilder direkt im Chat hochladen, um sie als Kontext für deine Frage zu verwenden. Öffne dazu das **„+"-Menü** im Eingabefeld und wähle **Fotos & Dateien hochladen**. Daneben stehen **Aus Bibliothek** (Dokumente, Notizbücher, Wolke) und **Link anhängen** für eine Webseite per URL.
 
 Mehr Details zu unterstützten Dateitypen und Einschränkungen findest du unter [Dateien hinzufügen](./dateien-hinzufuegen).
 
@@ -93,7 +95,7 @@ Quellenangaben helfen dir, die Antworten des Grünerators nachzuvollziehen und z
 
 ## Tipps für die Nutzung
 
-- **Kombiniere Rezept + Quelle + Thema** für die besten Ergebnisse, z.B. `/presse @bundestagsfraktion Kindergrundsicherung`
+- **Kombiniere Rezept + Quelle + Thema** für die besten Ergebnisse, z.B. `@presse @bundestagsfraktion Kindergrundsicherung`
 - **Nutze `@recherche`** für aktuelle Nachrichten und tiefgehende Analysen — es durchsucht Web und Dokumente und wählt die Suchtiefe automatisch
 - **Starte ein neues Gespräch** für jedes neue Thema — so bleibt der Kontext sauber und die Antworten präziser
 - **Lade relevante Dokumente hoch**, wenn du einen bestehenden Text überarbeiten oder darauf aufbauen möchtest

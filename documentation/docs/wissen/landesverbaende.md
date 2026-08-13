@@ -30,7 +30,7 @@ Du erreichst den Öffentlichkeitsarbeit-Grünerator auf zwei Wegen:
 
 **1. Über die Landesverband-Seite** — öffne die LV-Adresse (z. B. `/agents/gruene-berlin`) und wähle dort **Öffentlichkeitsarbeit**; oder wähle den Grünerator-Agent direkt in der Auswahl im Chat aus. Er bleibt für das ganze Gespräch im LV-Stil.
 
-**2. Über eine Rezept-Abkürzung** — tippe im Chat einen Slash-Befehl wie `/presse-berlin` und direkt dahinter dein Thema. Das Rezept schickt deine Anfrage an den passenden LV-Grünerator und gibt ihm gleich die richtige Aufgabe mit (Pressemitteilung bzw. Instagram-Post).
+**2. Über eine Rezept-Abkürzung** — tippe im Chat `@presse-berlin` und direkt dahinter dein Thema. Das Rezept schickt deine Anfrage an den passenden LV-Grünerator und gibt ihm gleich die richtige Aufgabe mit (Pressemitteilung bzw. Instagram-Post).
 
 ### LV-Rezepte im Überblick
 
@@ -38,17 +38,17 @@ Für diese Landesverbände gibt es eigene Rezept-Abkürzungen für **Pressemitte
 
 | Landesverband          | Pressemitteilung      | Instagram            |
 | ---------------------- | --------------------- | -------------------- |
-| Berlin                 | `/presse-berlin`      | `/insta-berlin`      |
-| Hamburg                | `/presse-hamburg`     | `/insta-hamburg`     |
-| Mecklenburg-Vorpommern | `/presse-mv`          | `/insta-mv`          |
-| Thüringen              | `/presse-thueringen`  | `/insta-thueringen`  |
-| Brandenburg            | `/presse-brandenburg` | `/insta-brandenburg` |
-| Bayern                 | `/presse-bayern`      | —                    |
+| Berlin                 | `@presse-berlin`      | `@insta-berlin`      |
+| Hamburg                | `@presse-hamburg`     | `@insta-hamburg`     |
+| Mecklenburg-Vorpommern | `@presse-mv`          | `@insta-mv`          |
+| Thüringen              | `@presse-thueringen`  | `@insta-thueringen`  |
+| Brandenburg            | `@presse-brandenburg` | `@insta-brandenburg` |
+| Bayern                 | `@presse-bayern`      | —                    |
 
 Sachsen-Anhalt, Hessen und das Saarland haben (noch) keine eigenen Rezept-Abkürzungen — ihre Grüneratoren erreichst du über die jeweilige Landesverband-Seite.
 
 :::tip[Allgemeine Rezepte für alle Kanäle]
-Unabhängig vom Landesverband gibt es allgemeine Rezepte für jede Plattform: `/presse`, `/instagram`, `/facebook`, `/twitter`, `/linkedin` und `/reel`. Sie greifen auf Beispiele aus allen Landesverbänden zurück. Die LV-Rezepte oben sind die Spezialversion mit eingebautem Regional-Stil.
+Unabhängig vom Landesverband gibt es allgemeine Rezepte für jede Plattform: `@presse`, `@instagram`, `@facebook`, `@twitter`, `@linkedin` und `@reel`. Sie greifen auf Beispiele aus allen Landesverbänden zurück. Die LV-Rezepte oben sind die Spezialversion mit eingebautem Regional-Stil.
 :::
 
 ## Bürger\*innenanfragen beantworten
