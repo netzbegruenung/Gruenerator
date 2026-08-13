@@ -21,6 +21,8 @@ interface DocumentsPanelProps {
   documents: DocumentWithSource[];
   documentCount: number;
   indexingDocIds: Set<string>;
+  /** Documents whose processing failed, keyed by id with the reason. */
+  failedDocs: Map<string, string>;
   loading: boolean;
   onRemove: (id: string) => void;
   onRemoveMany: (ids: string[]) => void;
@@ -31,6 +33,7 @@ export default function DocumentsPanel({
   documents,
   documentCount,
   indexingDocIds,
+  failedDocs,
   loading,
   onRemove,
   onRemoveMany,
@@ -86,6 +89,14 @@ export default function DocumentsPanel({
 
   const filtered = Boolean(query.trim()) || activeSource !== null;
 
+  // Failed documents stay in the list — they still occupy a slot and the user
+  // may want to see which file it was — but they get named up front, because a
+  // single red row inside a thousand is not something anyone scrolls to find.
+  const failedIds = useMemo(
+    () => documents.filter((e) => failedDocs.has(e.doc.id)).map((e) => e.doc.id),
+    [documents, failedDocs]
+  );
+
   return (
     <>
       <SectionHeader
@@ -101,6 +112,29 @@ export default function DocumentsPanel({
           </span>
         }
       />
+
+      {failedIds.length > 0 && (
+        <div
+          role="status"
+          className="flex flex-col gap-sm rounded-lg border border-red-300 bg-red-50 px-md py-sm text-sm text-red-800 sm:flex-row sm:items-center sm:justify-between dark:border-red-900 dark:bg-red-950/30 dark:text-red-200"
+        >
+          <span>
+            {failedIds.length === 1
+              ? '1 Dokument konnte nicht gelesen werden und taucht in keiner Suche auf.'
+              : `${failedIds.length} Dokumente konnten nicht gelesen werden und tauchen in keiner Suche auf.`}
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => onRemoveMany(failedIds)}
+            disabled={loading}
+            className="shrink-0"
+          >
+            Entfernen
+          </Button>
+        </div>
+      )}
 
       {documents.length === 0 ? (
         <div className="rounded-xl border border-dashed border-grey-300 px-md py-xl text-center dark:border-grey-700">
@@ -219,6 +253,7 @@ export default function DocumentsPanel({
                         doc={entry.doc}
                         source={entry.source}
                         indexing={indexingDocIds.has(entry.doc.id)}
+                        failure={failedDocs.get(entry.doc.id) ?? null}
                         selected={selectedIds.has(entry.doc.id)}
                         loading={loading}
                         onToggleSelect={toggleSelect}
