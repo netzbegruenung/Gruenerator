@@ -342,6 +342,7 @@ export {
   setMentionInstance,
   setMentionLocale,
   getMentionLocale,
+  setMentionLandesverbaende,
   setHiddenSkillMentions,
   setCustomAgents,
   getCustomAgentMentionables,

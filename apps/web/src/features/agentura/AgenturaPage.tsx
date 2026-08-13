@@ -2,12 +2,14 @@ import {
   agentsList,
   useHiddenSkillMentions,
   useSkillFavoritesStore,
+  useUserLandesverbaende,
   type AgentListItem,
 } from '@gruenerator/chat';
 import {
   getAgentSlug,
   getVisibleSystemAgentsForLocale,
   isAdminVisibleSkill,
+  isLvItemVisibleForRoles,
   type Agent,
 } from '@gruenerator/shared/agents';
 import { sortByUsage, type UsageMap } from '@gruenerator/shared/utils';
@@ -174,6 +176,7 @@ function AgenturaPage() {
 
   const favorites = useSkillFavoritesStore((s) => s.favorites);
   const toggleFavorite = useSkillFavoritesStore((s) => s.toggleFavorite);
+  const { lvIds, headings: lvHeadings } = useUserLandesverbaende();
 
   const { data: userAgents = [] } = useUserAgents();
   const { data: sharedSystemAgents = [] } = useSharedSystemAgents();
@@ -232,13 +235,26 @@ function AgenturaPage() {
     () => systemAgents.filter((a) => !isLandesverbandIdentifier(a.identifier)),
     [systemAgents]
   );
+  // Das Landesverbands-Regal ist persönlich: es zeigt die Agenten und Rezepte
+  // des eigenen Landesverbands, nicht die aller elf. Die Zuordnung kommt aus
+  // den Profilrollen (Ebene „Land"). Ohne gepflegte Rolle bleibt `lvIds` leer
+  // und der Filter lässt alles durch — niemand verliert Inhalte, nur weil er
+  // sein Profil noch nicht ausgefüllt hat.
   const lvSystemAgents = useMemo(
-    () => systemAgents.filter((a) => isLandesverbandIdentifier(a.identifier)),
-    [systemAgents]
+    () =>
+      systemAgents.filter(
+        (a) =>
+          isLandesverbandIdentifier(a.identifier) && isLvItemVisibleForRoles(a.identifier, lvIds)
+      ),
+    [systemAgents, lvIds]
   );
   const lvSkills = useMemo(
-    () => allSkills.filter((s) => isLandesverbandIdentifier(s.identifier)),
-    [allSkills]
+    () =>
+      allSkills.filter(
+        (s) =>
+          isLandesverbandIdentifier(s.identifier) && isLvItemVisibleForRoles(s.identifier, lvIds)
+      ),
+    [allSkills, lvIds]
   );
 
   const favoriteSkills = useMemo(
@@ -426,7 +442,7 @@ function AgenturaPage() {
       ];
       const lv = lvCards();
       if (lv.length)
-        sections.push({ key: 'off-lv', heading: 'Landesverbände', icon: PiMapPin, cards: lv });
+        sections.push({ key: 'off-lv', heading: lvHeadings.agents, icon: PiMapPin, cards: lv });
       for (const cat of SKILL_CATEGORY_ORDER) {
         const cards = sortSkills(byCategory.get(cat) ?? []).map(skillCard);
         if (cards.length)
