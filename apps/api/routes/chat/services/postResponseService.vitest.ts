@@ -14,12 +14,20 @@ const createMessage = vi.fn();
 const finalizeAssistantMessage = vi.fn();
 const touchThread = vi.fn();
 const setThreadToolContext = vi.fn();
+const saveThreadAttachment = vi.fn();
+const embedThreadAttachmentForRag = vi.fn();
 
 vi.mock('./threadPersistenceService.js', () => ({
   createMessage,
   finalizeAssistantMessage,
   touchThread,
   setThreadToolContext,
+}));
+
+vi.mock('./attachmentPersistenceService.js', () => ({
+  saveThreadAttachment,
+  embedThreadAttachmentForRag,
+  RAG_ATTACHMENT_THRESHOLD_CHARS: 20_000,
 }));
 
 const { persistResumedResponse } = await import('./postResponseService.js');
@@ -45,6 +53,65 @@ beforeEach(() => {
   finalizeAssistantMessage.mockReset().mockResolvedValue(true);
   touchThread.mockReset().mockResolvedValue(undefined);
   setThreadToolContext.mockReset().mockResolvedValue(undefined);
+  saveThreadAttachment.mockReset().mockResolvedValue('attachment-1');
+  embedThreadAttachmentForRag.mockReset().mockResolvedValue('doc-new');
+});
+
+/**
+ * Zwei Stellen vektorisieren denselben Anhang: `enrichContext` VOR der Antwort
+ * und diese Persistenz DANACH. Bis zum 13.08.2026 wussten sie nichts
+ * voneinander — jede legte eine eigene Qdrant-id an, und `getThreadAttachments`
+ * reichte dem nächsten Turn beide Kopien zurück. Gemessen: acht ids für eine
+ * .docx über vier Turns, `material=286075c` für 57.215 Zeichen Text.
+ *
+ * Die Naht ist `meta.documentId`. Ist sie gesetzt, hat es schon jemand getan.
+ */
+describe('Anhänge werden nicht zweimal eingebettet', () => {
+  const grosserText = 'x'.repeat(57_215);
+  const meta = (over: Record<string, unknown> = {}) => ({
+    name: 'Grundlagenpapier.docx',
+    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    sizeBytes: 676_042,
+    isImage: false,
+    extractedText: grosserText,
+    ...over,
+  });
+
+  it('bettet nicht erneut ein, wenn enrichContext es schon getan hat', async () => {
+    await persistResumedResponse({
+      ...base,
+      userId: 'user-1',
+      processedMeta: [meta({ documentId: '61f23708-516b-48c9-b977-404610b77bf2' })] as never,
+    });
+
+    expect(embedThreadAttachmentForRag).not.toHaveBeenCalled();
+    // …und die vorhandene id steht in der Zeile, sonst fände sie kein
+    // Folge-Turn wieder und der zweite Schreiber wäre nur verschoben.
+    expect(saveThreadAttachment.mock.calls[0]![0]).toMatchObject({
+      documentId: '61f23708-516b-48c9-b977-404610b77bf2',
+    });
+  });
+
+  it('bettet weiterhin ein, wenn niemand es getan hat (Resume-Pfad)', async () => {
+    await persistResumedResponse({
+      ...base,
+      userId: 'user-1',
+      processedMeta: [meta()] as never,
+    });
+
+    expect(embedThreadAttachmentForRag).toHaveBeenCalledTimes(1);
+    expect(saveThreadAttachment.mock.calls[0]![0]).not.toHaveProperty('documentId');
+  });
+
+  it('lässt einen kleinen Anhang unvektorisiert', async () => {
+    await persistResumedResponse({
+      ...base,
+      userId: 'user-1',
+      processedMeta: [meta({ extractedText: 'x'.repeat(3_000) })] as never,
+    });
+
+    expect(embedThreadAttachmentForRag).not.toHaveBeenCalled();
+  });
 });
 
 describe('persistResumedResponse turn persistence', () => {

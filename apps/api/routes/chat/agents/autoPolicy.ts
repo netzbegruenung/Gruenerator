@@ -32,6 +32,7 @@
  */
 
 import { getSystemAgent } from '@gruenerator/shared/agents';
+import { type ChatIntentId } from '@gruenerator/shared/chat-intents';
 
 import type { SearchIntent } from '@gruenerator/contracts';
 
@@ -253,12 +254,24 @@ const DEFAULT_ENTRY: AutoEntry = { modelId: GEMMA, reasoning: graded('off', 'off
  * `direct` when this set was written — an agent that pins a lane for voice
  * consistency should keep getting it on "Hallo" too.
  */
-const HINT_OVERRIDABLE: ReadonlySet<string> = new Set([
+const HINT_OVERRIDABLE: ReadonlySet<ChatIntentId> = new Set([
   'produktion',
   'direct',
   'greeting',
   'agentic',
 ]);
+
+/**
+ * Membership-Test, der ein unverengtes `string` annimmt.
+ *
+ * `intent` kommt hier laut `resolveAutoSelection` als Wire-String an — die
+ * Datei nennt diesen Boundary bereits für den `POLICY`-Lookup. Der Cast steht
+ * deshalb EINMAL neben der Menge statt an ihren drei Aufrufstellen; ein
+ * Nicht-Mitglied liefert `false`, genau wie der Lookup auf DEFAULT_ENTRY fällt.
+ */
+function isHintOverridable(intent: string): boolean {
+  return HINT_OVERRIDABLE.has(intent as ChatIntentId);
+}
 
 /**
  * Output-contract shapes (see `taskShape.ts`, which imports this union so the
@@ -354,14 +367,14 @@ export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
   // lane fold, so those branches would be no-ops. Re-add a branch the day a
   // HINT_OVERRIDABLE intent's default stops being GEMMA.
   let modelId = entry.modelId;
-  if (HINT_OVERRIDABLE.has(intent) && input.agentId) {
+  if (isHintOverridable(intent) && input.agentId) {
     const hint = getSystemAgent(input.agentId)?.autoRoutingHint;
     if (hint === 'precise') modelId = MEDIUM;
   }
   // AFTER the agent hint on purpose: an output contract is the user's own
   // format order, and format fidelity beats an agent's voice preference. Same
   // scope as the hint — a pinned tool intent stays on its lane regardless.
-  if (input.taskShape != null && HINT_OVERRIDABLE.has(intent)) {
+  if (input.taskShape != null && isHintOverridable(intent)) {
     modelId = MEDIUM;
   }
 
@@ -379,7 +392,7 @@ export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
   //
   // Lifts reasoning only, never lowers it: an intent that already asks for more
   // keeps what it asks for.
-  if ((input.materialChars ?? 0) >= MATERIAL_LANE_MIN_CHARS && HINT_OVERRIDABLE.has(intent)) {
+  if ((input.materialChars ?? 0) >= MATERIAL_LANE_MIN_CHARS && isHintOverridable(intent)) {
     modelId = MEDIUM;
     if (reasoning === 'off' || reasoning === 'low') reasoning = 'medium';
   }

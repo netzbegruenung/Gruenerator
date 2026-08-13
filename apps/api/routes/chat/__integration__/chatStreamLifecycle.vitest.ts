@@ -103,6 +103,25 @@ describe('stream lifecycle', () => {
     expect(threads.size).toBe(1);
   });
 
+  it('überlebt ein replaceFromMessageId, das keine uuid ist', async () => {
+    // 13.08.2026: der Client schickte „Xa4ZTed" — einen Slug-Suffix, keine
+    // Zeilen-id. `deleteMessagesFrom` reichte ihn ungeprüft an SQL weiter,
+    // Postgres warf 22P02, und die Ausnahme nahm den ganzen Turn mit: „Es ist
+    // ein interner Fehler aufgetreten", bevor ein einziges Token geschrieben
+    // war. Der threadId eine Zeile höher war seit Langem geprüft.
+    const first = await runTurn(suite.baseUrl(), greeting());
+    const threadId = first.trace.threadId;
+
+    const second = await runTurn(suite.baseUrl(), {
+      messages: [userTurn('Nochmal, anders formuliert', 'm2')],
+      threadId,
+      replaceFromMessageId: 'Xa4ZTed',
+    });
+
+    expect(second.trace.error).toBeNull();
+    expect(second.events.filter((e) => e.event === 'done')).toHaveLength(1);
+  });
+
   it('mints a fresh thread when the id is not accessible', async () => {
     const first = await runTurn(suite.baseUrl(), greeting());
     threadAccess.allow = false;
