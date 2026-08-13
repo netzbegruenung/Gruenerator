@@ -49,7 +49,7 @@ const OVERRIDE_RE =
   /\b(?:ignoriere|vergiss|missachte)\s+(?:alle\s+)?(?:vorherigen?\s+|bisherigen?\s+|obigen?\s+)?(?:anweisungen|regeln|instruktionen)\b|\b(?:ignore|disregard|forget)\s+(?:all\s+)?(?:previous|prior|above)\s+instructions?\b|\byou\s+(?:are|must)\s+now\b|\bdu\s+bist\s+(?:ab\s+)?jetzt\b|\bneue\s+anweisung(?:en)?\s*:/i;
 
 const SYSTEM_LABEL_RE =
-  /(?:^|\n)[ \t]*[#*_>\s-]{0,6}system[-\s]?(?:hinweis|prompt|nachricht|message|instruction|rolle)\b/i;
+  /(?:^|\n)[ \t]*[#*_>\s-]{0,6}system[-\s]?(?:hinweis|prompt|nachricht|message|instruction|anweisung|rolle)\b/i;
 
 /** True when the material contains something shaped like an instruction. */
 export function containsInstructionMarkers(content: string): boolean {
