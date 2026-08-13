@@ -16,6 +16,7 @@ services:
   api:
     image: gruenerator-api:test
     restart: unless-stopped
+    env_file: .env
     environment:
       - PORT=3001
       - NODE_ENV=production
@@ -39,6 +40,7 @@ services:
   hocuspocus:
     image: gruenerator-hocuspocus:test
     restart: unless-stopped
+    env_file: .env
     environment:
       - HOCUSPOCUS_PORT=1240
       - HEALTH_PORT=1241
