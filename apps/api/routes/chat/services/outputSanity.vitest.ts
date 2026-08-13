@@ -9,6 +9,7 @@ import {
   stripFabricatedSystemClaims,
   stripToolControlTokens,
   containsBrokenJsonPayload,
+  createControlTokenFilter,
 } from './outputSanity.js';
 
 describe('looksCutOff', () => {
@@ -312,5 +313,57 @@ describe('stripToolControlTokens', () => {
   it('does not eat prose that merely mentions the word', () => {
     const prose = 'Der Begriff tool_call bezeichnet einen Werkzeugaufruf.';
     expect(stripToolControlTokens(prose)).toBe(prose);
+  });
+});
+
+describe('createControlTokenFilter — über den ganzen Strom', () => {
+  const run = (chunks: string[]): string => {
+    const f = createControlTokenFilter();
+    return chunks.map((c) => f.push(c)).join('') + f.flush();
+  };
+
+  it('gibt harmlosen Text unverändert weiter', () => {
+    expect(run(['Hallo ', 'Welt, ', 'alles gut.'])).toBe('Hallo Welt, alles gut.');
+  });
+
+  it('schneidet das Token am Anfang heraus', () => {
+    expect(run(['<tool_call>', 'Grüne fordern ein Sofortprogramm.'])).toBe(
+      'Grüne fordern ein Sofortprogramm.'
+    );
+  });
+
+  it('schneidet es auch MITTEN im Strom heraus — der Fall, den das Gitter verfehlte', () => {
+    // Der alte Filter lief nur über die ersten 200 Zeichen. Danach ging alles
+    // ungeprüft durch, und genau so kam das Token am 13.08.2026 zurück.
+    const lang = 'a'.repeat(500);
+    expect(run([lang, '<tool_call>', lang])).toBe(lang + lang);
+  });
+
+  it('erkennt ein Token, das über die Delta-Grenze zerfällt', () => {
+    expect(run(['Text ', '<tool', '_call>', ' weiter'])).toBe('Text  weiter');
+  });
+
+  it('auch wenn es Zeichen für Zeichen ankommt', () => {
+    expect(run(['A', ...'<tool_call>'.split(''), 'B'])).toBe('AB');
+  });
+
+  it('lässt das Token in einem Code-Zaun stehen', () => {
+    // „Wie sieht ein tool_call aus?" ist eine legitime Produktfrage.
+    const text = 'So sieht es aus:\n```\n<tool_call>\n```\nAlles klar?';
+    expect(run([text])).toBe(text);
+  });
+
+  it('behält die Zaun-Tiefe über Teilstücke hinweg', () => {
+    const out = run(['Beispiel:\n```\n', '<tool_call>', '\n```\n', '<tool_call>', 'Ende']);
+    expect(out).toBe('Beispiel:\n```\n<tool_call>\n```\nEnde');
+  });
+
+  it('verliert nichts am Ende — der Rest kommt im flush', () => {
+    expect(run(['kurz'])).toBe('kurz');
+    expect(run(['abc', 'def'])).toBe('abcdef');
+  });
+
+  it('verträgt leere Teilstücke', () => {
+    expect(run(['', 'Text', ''])).toBe('Text');
   });
 });
