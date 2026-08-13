@@ -88,6 +88,17 @@ export interface Mentionable {
    * @websearch mentions in existing threads still work).
    */
   aliases?: string[];
+  /**
+   * The originating intent's registry category (`'generation'`, `'retrieval'`,
+   * …), carried over on `type: 'tool'` entries only.
+   *
+   * Exists so the plus menu can ask the registry which entries are "make me
+   * something" rather than keeping a second hand-written slug list beside
+   * `TOOL_MENTION_ORDER` — two lists that would drift the first time an intent
+   * is added. Not a display field; `MentionableCategory` above is the unrelated
+   * skill/function split and keeps its name.
+   */
+  intentCategory?: string;
 }
 
 export interface CustomAgentMentionable {
@@ -422,6 +433,7 @@ function buildToolMentionables(): Mentionable[] {
           backgroundColor: mention.backgroundColor,
           mention: mention.slug,
           audience: intent.audience,
+          intentCategory: intent.category,
           ...(mention.aliases ? { aliases: [...mention.aliases] } : {}),
           ...(mention.promptTemplate ? { promptTemplate: mention.promptTemplate } : {}),
           ...(icon ? { icon } : {}),
