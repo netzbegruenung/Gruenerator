@@ -116,12 +116,59 @@ export const templatesQuerySchema = z.object({
   visibility: z.string().optional(),
 });
 
+/**
+ * One row of `GET /api/share/recent`, modelled on the SELECT in
+ * `SharedMediaService.getUserShares` — the 13 columns it actually returns, run
+ * through the router's `toCamelCase`.
+ *
+ * Deliberately NOT modelled on the `Share` interface in `@gruenerator/shared`:
+ * that one promises `thumbnailUrl`, `viewCount`, `fileName` and `mimeType`,
+ * none of which this endpoint selects, and types `duration` as a number where
+ * `pg` hands back every NUMERIC/BIGINT as a string (no `setTypeParser` anywhere
+ * in the API).
+ *
+ * `createdAt` is the point of the whole schema: it is a TIMESTAMPTZ, i.e. a
+ * `Date` before serialisation, and `toCamelCase` used to rebuild every Date as
+ * `{}`. Requiring a string here means such a response fails at the client
+ * boundary with a named field instead of at `localeCompare` inside the render.
+ */
+export const shareListItemSchema = z.object({
+  id: z.string(),
+  shareToken: z.string(),
+  mediaType: z.string(),
+  title: z.string().nullable(),
+  thumbnailPath: z.string().nullable(),
+  // BIGINT / NUMERIC arrive as strings from `pg`; older rows may hold numbers.
+  fileSize: z.union([z.number(), z.string()]).nullable(),
+  duration: z.union([z.number(), z.string()]).nullable(),
+  imageType: z.string().nullable(),
+  imageMetadata: z.record(z.unknown()),
+  status: z.string(),
+  downloadCount: z.number(),
+  createdAt: z.string(),
+  // Effectively one of 'ki' | 'sharepic' | 'upload' | 'unknown', but kept as a
+  // string on purpose: the column is added by `syncSchemaColumns`, which never
+  // applies CHECK constraints, so the closed set is not guaranteed on every
+  // database. Optional because an instance predating the migration has no
+  // column at all. `isKiImage` consumes it as `string | null` anyway.
+  contentOrigin: z.string().optional(),
+});
+
+export type ShareListItem = z.infer<typeof shareListItemSchema>;
+
 export const shareListResponseSchema = z.object({
   success: z.literal(true),
-  shares: z.array(z.unknown()),
+  shares: z.array(shareListItemSchema),
   count: z.number(),
   limit: z.number(),
 });
+
+/**
+ * Named for the one route that uses it. `ShareListResponse` is taken by the
+ * hand-written interface in `@gruenerator/shared/share`, which still describes
+ * the untyped `/share/my` family.
+ */
+export type RecentSharesResponse = z.infer<typeof shareListResponseSchema>;
 
 export const shareListSimpleResponseSchema = z.object({
   success: z.literal(true),
