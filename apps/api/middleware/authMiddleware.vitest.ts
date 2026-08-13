@@ -52,6 +52,31 @@ vi.mock('../config/env.js', () => ({
   },
 }));
 
+// `session_not_found` classification: the middleware asks Postgres whether the
+// presented token still has a live row, so the three causes Better Auth
+// collapses into one null answer stay distinguishable.
+const sessionRowsMock = vi.fn<() => Promise<{ expires_at: Date }[]>>();
+
+vi.mock('../database/services/DrizzleService.js', () => ({
+  getDrizzleInstance: () => ({
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          limit: () => sessionRowsMock(),
+        }),
+      }),
+    }),
+  }),
+}));
+
+const captureAuthIssueMock = vi.fn<(opts: Record<string, unknown>) => void>();
+
+vi.mock('../utils/observability/captureAuthIssue.js', () => ({
+  captureAuthIssue: (opts: Record<string, unknown>): void => {
+    captureAuthIssueMock(opts);
+  },
+}));
+
 // Import AFTER mocks so the middleware picks up the mocked modules.
 const { requireAuth, optionalAuth, requireAdmin, getUserId } = await import('./authMiddleware.js');
 
@@ -97,6 +122,9 @@ function mockRes() {
 
 beforeEach(() => {
   getSessionMock.mockReset();
+  sessionRowsMock.mockReset();
+  sessionRowsMock.mockResolvedValue([]);
+  captureAuthIssueMock.mockReset();
   envMock.NODE_ENV = 'development';
   envMock.ALLOW_DEV_AUTH_BYPASS = false;
   envMock.DEV_AUTH_BYPASS_TOKEN = null;
@@ -290,6 +318,71 @@ describe('requireAuth', () => {
     expect(state.redirected).toBeNull();
     expect(next).not.toHaveBeenCalled();
     errorSpy.mockRestore();
+  });
+});
+
+// ── session_not_found classification ──────────────────────────────────────
+//
+// A token cookie that resolves to nothing has three causes wearing the same
+// 401. Only one of them is a defect: a row that is present AND unexpired.
+// Without this distinction the frontend's teardown telemetry shows the
+// identical symptom for an ordinary expiry and for a broken cookie signature
+// / corrupt Redis value — which is exactly how the latter stayed invisible.
+
+describe('session_not_found row classification', () => {
+  async function fireResolveNull(token: string) {
+    getSessionMock.mockResolvedValue(null);
+    const req = mockReq({
+      originalUrl: '/api/notifications',
+      headers: { cookie: `__Secure-ba.session_token=${token}.somesignature` },
+    });
+    const { res, state } = mockRes();
+    await requireAuth(req, res, vi.fn() as NextFunction);
+    return state;
+  }
+
+  it('reports a live, unexpired row as an auth issue', async () => {
+    sessionRowsMock.mockResolvedValue([{ expires_at: new Date(Date.now() + 86_400_000) }]);
+
+    const state = await fireResolveNull('livetok1');
+
+    expect(state.statusCode).toBe(401);
+    expect(state.body).toMatchObject({ code: 'session_not_found' });
+    await vi.waitFor(() => expect(captureAuthIssueMock).toHaveBeenCalledTimes(1));
+    expect(captureAuthIssueMock.mock.calls[0]?.[0]).toMatchObject({
+      stage: 'session-resolve',
+      extras: { rowState: 'live', tokenPrefix: 'livetok1' },
+    });
+  });
+
+  it('stays silent for an expired row — the ordinary session expiry', async () => {
+    sessionRowsMock.mockResolvedValue([{ expires_at: new Date(Date.now() - 1000) }]);
+
+    const state = await fireResolveNull('exprdtok');
+
+    expect(state.statusCode).toBe(401);
+    await vi.waitFor(() => expect(sessionRowsMock).toHaveBeenCalled());
+    expect(captureAuthIssueMock).not.toHaveBeenCalled();
+  });
+
+  it('stays silent for a missing row — signed out or revoked', async () => {
+    sessionRowsMock.mockResolvedValue([]);
+
+    await fireResolveNull('gonetok1');
+
+    await vi.waitFor(() => expect(sessionRowsMock).toHaveBeenCalled());
+    expect(captureAuthIssueMock).not.toHaveBeenCalled();
+  });
+
+  it('does not query the row per request — the lookup rides the log debounce', async () => {
+    sessionRowsMock.mockResolvedValue([]);
+
+    await fireResolveNull('debouncd');
+    await vi.waitFor(() => expect(sessionRowsMock).toHaveBeenCalledTimes(1));
+    await fireResolveNull('debouncd');
+    await fireResolveNull('debouncd');
+
+    expect(sessionRowsMock).toHaveBeenCalledTimes(1);
   });
 });
 
