@@ -979,11 +979,20 @@ export async function* parseSSEStream(
           // list is what the tracker labels itself from, so a finished tool that
           // only flipped `currentProgress` left "Suche läuft" standing over the
           // rest of the turn.
-          transitionStep('generating');
-          currentProgress = {
-            stage: 'generating',
-            message: summary ?? (ok ? 'Änderung angewendet' : 'Schritt fehlgeschlagen'),
-          };
+          //
+          // …but only once NOTHING is still running. A model step may call two
+          // tools at once (loopGuards allows two concurrent searches), and the
+          // first result back would otherwise complete the step while its
+          // sibling is still working — the tracker would claim the retrieval was
+          // done and go on to "Formuliere Antwort".
+          const stepStillOpen = [...toolStepsById.values()].some((s) => s.result == null);
+          const message = summary ?? (ok ? 'Änderung angewendet' : 'Schritt fehlgeschlagen');
+          if (stepStillOpen) {
+            currentProgress = { ...currentProgress, message };
+          } else {
+            transitionStep('generating');
+            currentProgress = { stage: 'generating', message };
+          }
           yield buildResult();
           break;
         }
