@@ -38,6 +38,20 @@ function fail(res: Response, status: number, error: string): Response {
   return res.status(status).json({ error });
 }
 
+/**
+ * Last value of a query parameter, whatever shape Express handed us.
+ *
+ * `?w=400&w=200` arrives as an array, and `Number(['400','200'])` is NaN — which
+ * would answer 400 and blank the tile. A repeated parameter is a client that
+ * appended instead of replacing, not an attack; taking the last value is the
+ * ordinary reading and keeps the image rendering. Anything that is not a string
+ * (a nested object from `?w[a]=1`) is dropped rather than coerced.
+ */
+function lastValue(value: unknown): string | undefined {
+  const candidate: unknown = Array.isArray(value) ? value[value.length - 1] : value;
+  return typeof candidate === 'string' ? candidate : undefined;
+}
+
 interface ThumbParams {
   kind: string;
   id: string;
@@ -58,7 +72,7 @@ router.get('/:kind/:id/:v', async (req: Request<ThumbParams>, res: Response) => 
   //
   // No `w` at all means the original bytes, unresized — the canvas viewer
   // downloads this URL and saves it as the sharepic.
-  const rawWidth = req.query.w;
+  const rawWidth = lastValue(req.query.w);
   let width: ThumbnailWidth | null = null;
   if (rawWidth !== undefined) {
     const parsed = Number(rawWidth);
@@ -68,16 +82,19 @@ router.get('/:kind/:id/:v', async (req: Request<ThumbParams>, res: Response) => 
     width = parsed;
   }
 
-  const rawFmt = req.query.fmt;
+  const rawFmt = lastValue(req.query.fmt);
   let fmt: ThumbnailFormat = 'webp';
   if (rawFmt !== undefined) {
-    if (typeof rawFmt !== 'string' || !isThumbnailFormat(rawFmt)) {
+    if (!isThumbnailFormat(rawFmt)) {
       return fail(res, 400, 'Ungültiges Format');
     }
     fmt = rawFmt;
   }
 
-  const verified = verifyThumbnail({ kind: kind as ThumbnailKind, id, v }, req.query.sig);
+  const verified = verifyThumbnail(
+    { kind: kind as ThumbnailKind, id, v },
+    lastValue(req.query.sig)
+  );
   if (!verified.ok) {
     if (verified.reason === 'unconfigured') return fail(res, 503, 'Vorschau nicht konfiguriert');
     if (verified.reason === 'malformed') return fail(res, 400, 'Signatur fehlt');

@@ -187,6 +187,21 @@ describe('GET /api/thumbs/:kind/:id/:v', () => {
       expect((await get(url)).status).toBe(400);
     });
 
+    it('takes the last value of a repeated parameter instead of 400-ing', async () => {
+      // A client that appends `&w=&fmt=` to a URL the API already minted with a
+      // default pair makes req.query.w an array, and Number([…]) is NaN. That
+      // used to answer 400 — a blank tile on exactly the surfaces this endpoint
+      // exists to fill.
+      const res = await get(`${signed()}&w=200&fmt=webp`);
+      expect(res.status).toBe(200);
+      const meta = await sharp(Buffer.from(await res.arrayBuffer())).metadata();
+      expect(meta.width).toBe(200);
+    });
+
+    it('still rejects a repeated parameter whose last value is invalid', async () => {
+      expect((await get(`${signed()}&w=99999`)).status).toBe(400);
+    });
+
     it('never reaches the resolver for a traversal attempt', async () => {
       const res = await get('/api/thumbs/media/..%2f..%2fetc%2fpasswd/v1?sig=x');
       expect(res.status).toBe(403);
