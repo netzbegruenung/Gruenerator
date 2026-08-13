@@ -7,6 +7,7 @@ import {
   selectReasoningText,
   selectSearchSources,
   selectSearchStatusLabel,
+  selectStepAfterText,
   visibleToolNames,
   type StatusPartLike,
 } from './toolStatusLine';
@@ -244,5 +245,33 @@ describe('selectSearchSources', () => {
       },
     });
     expect(selectSearchSources([step(1), step(2), step(3)])).toHaveLength(8);
+  });
+});
+
+describe('selectStepAfterText', () => {
+  const text = (t: string): StatusPartLike => ({ type: 'text', text: t });
+  const card = (id: string): StatusPartLike => ({
+    type: 'tool-call',
+    toolCallId: id,
+    toolName: 'self_review',
+    args: {},
+  });
+
+  it('is false for the single-pass shape: cards first, then the answer', () => {
+    expect(selectStepAfterText([card('t1'), text('Die Antwort …')])).toBe(false);
+  });
+
+  it('is true once a step follows streamed prose — the agentic loop', () => {
+    expect(selectStepAfterText([text('Ich prüfe das kurz.'), card('t1'), text('')])).toBe(true);
+  });
+
+  it('ignores the empty trailing text part appended after every card', () => {
+    // buildResult always ends the message on text; an empty tail must not make
+    // the NEXT card look like a post-answer step.
+    expect(selectStepAfterText([text(''), card('t1'), text(''), card('t2')])).toBe(false);
+  });
+
+  it('is false for a turn with no cards at all', () => {
+    expect(selectStepAfterText([text('Nur Prosa.')])).toBe(false);
   });
 });
