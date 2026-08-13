@@ -121,6 +121,22 @@ describe('routeMistralModel', () => {
     expect(isProviderConfigured('mistral')).toBe(true);
     expect(isProviderConfigured('scaleway')).toBe(true);
   });
+
+  it('reports the mistral lane UNconfigured when only Scaleway has a key and routing is off', async () => {
+    // The Scaleway key stops vouching for this lane the moment the routing is
+    // off: every request goes to the Mistral API, which has no key here. Saying
+    // "configured" would make fallback chains pick a lane that cannot answer —
+    // and Scaleway is still legitimately configured for Gemma, so the key alone
+    // is no longer the question.
+    const { isProviderConfigured } = await loadRouting({
+      SCALEWAY_API_KEY: 'scw-key',
+      SCALEWAY_MISTRAL_ROUTING: undefined,
+      MISTRAL_API_KEY: undefined,
+    });
+
+    expect(isProviderConfigured('mistral')).toBe(false);
+    expect(isProviderConfigured('scaleway')).toBe(true);
+  });
 });
 
 describe('scalewayFetchWithMistralFallback', () => {
