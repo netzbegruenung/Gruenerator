@@ -264,12 +264,35 @@ describe('resolveOriginalText', () => {
     expect(resolveOriginalText(state, 'Übertrage das')).toBe(neu.trim());
   });
 
-  it('führt den jüngsten Anhang mit, nicht den längsten', () => {
+  it('führt den jüngsten Anhang mit, nicht den längsten — in beiden Listenrichtungen', () => {
     // Über mehrere Turns ist „welches Dokument" eine Frage der Reihenfolge:
-    // wer einen zweiten Text nachreicht, meint ihn.
+    // wer einen zweiten Text nachreicht, meint ihn. Entschieden wird das am
+    // Zeitstempel, nicht an der Listenposition: `getThreadAttachments` fragt DESC
+    // ab und dreht danach um, und seine Doku behauptete jahrelang das Gegenteil —
+    // eine Auswahl, deren Fehlgriff ein falsches Original ist, darf daran nicht
+    // hängen.
     const neuer = 'Der zweite Artikel. '.repeat(5);
-    const state = { ...leer, threadAttachments: [anhang(lang), anhang(neuer, { id: 'a2' })] };
-    expect(resolveOriginalText(state, 'Und jetzt der hier bitte')).toBe(neuer.trim());
+    const alt = anhang(lang, { createdAt: new Date('2026-08-13T21:38:00Z') });
+    const jung = anhang(neuer, { id: 'a2', createdAt: new Date('2026-08-13T21:41:00Z') });
+
+    for (const liste of [
+      [alt, jung],
+      [jung, alt],
+    ]) {
+      const state = { ...leer, threadAttachments: liste };
+      expect(resolveOriginalText(state, 'Und jetzt der hier bitte')).toBe(neuer.trim());
+    }
+  });
+
+  it('nimmt bei gleichem Zeitstempel den letzten der Liste', () => {
+    // Zwei Anhänge desselben Turns: die Sortierung ist stabil, also entscheidet
+    // die Listenreihenfolge — kein Zufall, sondern der einzige verbliebene Hinweis.
+    const zweiter = 'Die zweite Datei desselben Turns. '.repeat(5);
+    const state = {
+      ...leer,
+      threadAttachments: [anhang(lang), anhang(zweiter, { id: 'a2' })],
+    };
+    expect(resolveOriginalText(state, 'Bitte übertragen')).toBe(zweiter.trim());
   });
 
   it('führt kein Bild mit — seine Beschreibung ist kein Ausgangstext', () => {

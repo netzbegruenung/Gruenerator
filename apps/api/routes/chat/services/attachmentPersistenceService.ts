@@ -141,7 +141,14 @@ export async function saveThreadAttachment(params: SaveAttachmentParams): Promis
 
 /**
  * Get all thread attachments for a thread.
- * Returns the most recent attachments, ordered by creation date descending.
+ *
+ * Picks the `limit` MOST RECENT rows (`ORDER BY created_at DESC`) but returns
+ * them oldest-first — the `reverse()` below is load-bearing, and the two steps
+ * mean different things: DESC decides WHICH attachments survive the limit,
+ * ascending order decides how they read in a prompt.
+ *
+ * This doc comment said "ordered by creation date descending" until 14.08.2026
+ * and sent a reviewer down exactly that path.
  */
 export async function getThreadAttachments(
   threadId: string,

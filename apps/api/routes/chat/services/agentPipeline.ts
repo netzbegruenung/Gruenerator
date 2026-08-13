@@ -127,9 +127,20 @@ export function resolveOriginalText(state: MaterialState, lastUserText: string):
  * `documentId` wird bewusst NICHT gefiltert — anders als im Antwort-Kontext ist
  * hier gerade der eingebettete grosse Text der gesuchte. Bilder scheiden aus:
  * ihr `extractedText` ist eine Bildbeschreibung, kein Ausgangstext.
+ *
+ * Sortiert wird nach `createdAt` und nicht auf die Reihenfolge der Liste
+ * vertraut. Die stimmt heute (`getThreadAttachments` fragt DESC ab und dreht
+ * danach um), aber sie steht nirgends im Typ — und die Doku der Funktion behauptet
+ * bis heute das Gegenteil. Auf eine Zusicherung, die nur aus zwei Zeilen
+ * Implementierung besteht, gehört keine Auswahl, deren Fehlgriff ein falsches
+ * Original ist.
  */
 function carriedOriginalText(state: MaterialState): string {
-  const docs = (state.threadAttachments ?? []).filter((a) => !a.isImage && a.extractedText?.trim());
+  const docs = (state.threadAttachments ?? [])
+    .filter((a) => !a.isImage && a.extractedText?.trim())
+    // Stabil: bei gleichem Zeitstempel (zwei Anhänge desselben Turns) bleibt die
+    // Listenreihenfolge, der letzte gewinnt.
+    .sort((a, b) => (a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0));
   return docs[docs.length - 1]?.extractedText?.trim() ?? '';
 }
 
