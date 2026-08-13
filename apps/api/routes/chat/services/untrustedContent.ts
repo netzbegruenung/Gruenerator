@@ -52,7 +52,7 @@ const OVERRIDE_RE =
 // Hinweise(n), Nachrichten, Anweisungen, Rollen, prompts, instructions. Adding
 // it per stem is how the singular-only gap keeps coming back.
 const SYSTEM_LABEL_RE =
-  /(?:^|\n)[ \t]*[#*_>\s-]{0,6}system[-\s]?(?:hinweis|prompt|nachricht|message|instruction|anweisung|rolle)(?:e[ns]?|[ns])?\b/i;
+  /(?:^|\n)[ \t]*[#*_>\s-]{0,6}system[-\s]?(?:hinweis|prompt|nachricht|message|instruction|instruktion|anweisung|rolle)(?:e[ns]?|[ns])?\b/i;
 
 /** True when the material contains something shaped like an instruction. */
 export function containsInstructionMarkers(content: string): boolean {
