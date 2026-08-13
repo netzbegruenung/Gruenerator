@@ -65,8 +65,8 @@ const SRC = {
   // scripts/check-unenforced-exhaustive-maps.mjs, which fails CI if that loop
   // is ever dropped.
   intentNotes: 'apps/api/agents/langgraph/ChatGraph/intentPipeline.vitest.ts',
-  // The slash-command Rezepte (`/presse`, `/instagram`, …). index.generated.ts
-  // is itself built from the skills' frontmatter, so it is already pure data.
+  // The Rezepte (`@presse`, `@instagram`, …). index.generated.ts is itself
+  // built from the skills' frontmatter, so it is already pure data.
   skills: 'packages/shared/src/agents/skills/index.generated.ts',
   skillTypes: 'packages/shared/src/agents/types.ts',
   // The @-source registry (`@grundsatz`, `@thüringen`, …) shared by web/mobile
@@ -409,7 +409,7 @@ function isFalseProp(obj, name) {
 }
 
 /**
- * The slash-command Rezepte (`SKILLS` in the generated skills index), in
+ * The Rezepte (`SKILLS` in the generated skills index), in
  * registry order, plus the category labels the UI groups them under.
  *
  * A Landesverband that turned its notebook off (`enabled: false`) also has its
@@ -437,7 +437,12 @@ function extractSkills(disabledAgentIds) {
     const identifier = stringProp(obj, 'identifier');
     if (identifier && disabledAgentIds.has(identifier)) continue;
     const entry = {
-      command: `/${mention}`,
+      // `@`, nicht `/`: Rezepte hatten früher einen eigenen Auslöser, der ist
+      // beim Zusammenlegen der beiden Listen weggefallen (Kopfkommentar in
+      // packages/chat/src/lib/mentionDetection.ts — `@` ist der einzige
+      // Trigger). Die Tabelle zeigte trotzdem weiter `/presse`, also einen
+      // Befehl, der im Eingabefeld nichts auslöst.
+      command: `@${mention}`,
       title,
       description: stringProp(obj, 'description') ?? '',
       avatar: stringProp(obj, 'avatar') ?? '',
