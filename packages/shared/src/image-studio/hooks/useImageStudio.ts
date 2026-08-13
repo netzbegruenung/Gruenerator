@@ -29,8 +29,17 @@ import type {
 /**
  * Studio-ID → Backend-Typ. Nur `zitat-pure` weicht ab (Bindestrich hier,
  * Unterstrich auf dem Draht); `profilbild` hat keine Textgenerierung.
+ *
+ * Die österreichischen Typen sind ausgeschlossen, und zwar als Aussage, nicht
+ * als Auslassung: Mobile bietet die AT-Sujets nicht an, also kann diese
+ * Funktion sie nicht liefern — und `mapTextResponse`/`validateTextResponse`
+ * unten müssen ihre Felder folglich nicht kennen. Nimmt Mobile die AT-Vorlagen
+ * auf, fällt hier ein Typfehler an, statt dass eine unbekannte Antwortform
+ * still durchrutscht.
  */
-function toSharepicTextType(type: ImageStudioTemplateType): SharepicTextType | null {
+function toSharepicTextType(
+  type: ImageStudioTemplateType
+): Exclude<SharepicTextType, 'dreizeilen_at' | 'info_at'> | null {
   switch (type) {
     case 'zitat-pure':
       return 'zitat_pure';

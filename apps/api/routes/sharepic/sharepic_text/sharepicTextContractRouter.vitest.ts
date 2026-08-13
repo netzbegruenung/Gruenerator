@@ -126,6 +126,42 @@ describe('sharepicTextContractRouter', () => {
     expect(passed).not.toHaveProperty('_campaignPrompt');
   });
 
+  describe('Österreich', () => {
+    /**
+     * Der Kern kennt zwei Wege zu den AT-Prompts: den Typ (das hier) und
+     * `userLocale` (den In-Process-Pfad des Chats). Die Vertragsrouten gehen
+     * ausschliesslich über den Typ — sonst hinge die Antwortform an einem Kopf
+     * statt an der Route.
+     */
+    it.each([
+      ['generateInfoAt', 'info_at', 'mainInfo', { introline: 'I', text: 'T', accent: 'A' }],
+      [
+        'generateDreizeilenAt',
+        'dreizeilen_at',
+        'mainSlogan',
+        { line1: 'A', line2: 'B', line3: 'C', subline: 'S' },
+      ],
+    ] as const)('%s ruft den Kern mit %s auf', async (method, type, mainKey, main) => {
+      generateUnifiedTexts.mockResolvedValue(success(mainKey, main));
+
+      const res = await sharepicTextContractRouter[method]({
+        req,
+        body: { thema: 'Windkraft' },
+      } as never);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({ success: true, [mainKey]: main });
+
+      const [, passedType, passedBody] = generateUnifiedTexts.mock.calls[0] as [
+        unknown,
+        string,
+        Record<string, unknown>,
+      ];
+      expect(passedType).toBe(type);
+      expect(passedBody).not.toHaveProperty('userLocale');
+    });
+  });
+
   describe('slider', () => {
     it('mit smartCount: Folienzahl aus der Analyse plus Cover und Abschluss', async () => {
       analyzeSlideCount.mockResolvedValue(3);
