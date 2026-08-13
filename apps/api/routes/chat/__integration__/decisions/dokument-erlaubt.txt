@@ -9,7 +9,7 @@ router.intent_override           = (not reached)
 router.implicit_recipe           = (not reached)
 router.persistent_action_gate    = allowed                        family=document intent=save_as_doc
 classifier.tier                  = tier3_heuristic                confidence=0.9 effectiveConfidence=0.9 heuristicIntent=save_as_doc isVagueFollowup=null needsDecomposition=false
-respond.answer_format            = standard                       complexity=moderate intent=save_as_doc retrievalExpected=false sourceCount=0 synthesisMode=none
+respond.answer_format            = standard                       complexity=moderate intent=save_as_doc retrievalExpected=false sourceCount=0 synthesisMode=none taskShape=none
 loop.tool_guard                  = (none)
 loop.synth_verdict               = (not reached)
 -- wire --
