@@ -71,9 +71,13 @@ export interface SharedMediaService {
     shareToken: string,
     params: UpdateImageShareParams
   ): Promise<ShareResult>;
-  getThumbnailFilePath(relativePath: string): string;
-  getMediaFilePath(relativePath: string): string;
-  getOriginalImagePath(shareToken: string, filename: string): string;
+  // These return null for a missing path and for anything resolving outside the
+  // uploads root — the traversal guard's whole point. The interface used to
+  // declare them as returning `string`, which let callers hand the result
+  // straight to `fs` and turned a rejected path into a crash instead of a 404.
+  getThumbnailFilePath(relativePath: string | null): string | null;
+  getMediaFilePath(relativePath: string | null): string | null;
+  getOriginalImagePath(shareToken: string, filename: string): string | null;
   clearOriginalImageMetadata(shareToken: string): Promise<void>;
   markAsTemplate(
     userId: string,

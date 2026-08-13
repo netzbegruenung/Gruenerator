@@ -172,6 +172,9 @@ router.get('/:shareToken/thumbnail', async (req: Request<ShareTokenParams>, res:
     }
 
     const thumbnailPath = service.getThumbnailFilePath(share.thumbnail_path);
+    if (!thumbnailPath) {
+      return res.status(404).json({ error: 'Thumbnail nicht gefunden' });
+    }
 
     try {
       await fsPromises.access(thumbnailPath);
@@ -214,6 +217,9 @@ router.get(
         shareToken,
         metadata.originalImageFilename as string
       );
+      if (!originalPath) {
+        return res.status(404).json({ error: 'Originalbild nicht vorhanden' });
+      }
 
       try {
         const stat = await fsPromises.stat(originalPath);
@@ -273,6 +279,9 @@ router.get('/:shareToken/preview', async (req: Request<ShareTokenParams>, res: R
     }
 
     const mediaPath = service.getMediaFilePath(share.file_path);
+    if (!mediaPath) {
+      return res.status(404).json({ error: 'Datei nicht verfügbar' });
+    }
 
     try {
       const stat = await fsPromises.stat(mediaPath);
@@ -499,6 +508,10 @@ router.get(
       await service.recordDownload(shareToken as string, userEmail, ipAddress);
 
       const mediaPath = service.getMediaFilePath(share.file_path);
+      if (!mediaPath) {
+        res.status(404).json({ success: false, error: 'Datei nicht gefunden' });
+        return;
+      }
 
       try {
         const stat = await fsPromises.stat(mediaPath);
