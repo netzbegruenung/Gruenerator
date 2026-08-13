@@ -165,4 +165,25 @@ describe('materialDominatesTurn — when the writer gives up the tool catalog', 
   it('is not tripped by an empty turn', () => {
     expect(materialDominatesTurn('', SYSTEM)).toBe(false);
   });
+
+  describe('a document carried into the system message', () => {
+    // Measured 13.08.2026 07:23-07:24: the article is persisted and re-injected
+    // as FRÜHERE DOKUMENTE, so `base` grows 3.414 → 14.554 while the follow-up
+    // asking to CHECK that article is only 712 chars.
+    const GROWN = 'x'.repeat(14_554);
+    const DOCUMENT = 10_149;
+
+    it('keeps the check turn off the unified path', () => {
+      expect(materialDominatesTurn('x'.repeat(712), GROWN, DOCUMENT)).toBe(true);
+    });
+
+    it('without counting it, the same turn would go unified', () => {
+      // The regression this guards: fixing the missing context re-arms the loop.
+      expect(materialDominatesTurn('x'.repeat(712), GROWN)).toBe(false);
+    });
+
+    it('a small document does not make every question material', () => {
+      expect(materialDominatesTurn('Was steht da zum Hitzeschutz?', SYSTEM, 400)).toBe(false);
+    });
+  });
 });
