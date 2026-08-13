@@ -3,6 +3,7 @@
  * Handles OCR extraction and content preview generation
  */
 
+import { randomUUID } from 'crypto';
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
@@ -60,9 +61,13 @@ export async function extractTextFromFile(file: UploadedFile): Promise<string> {
   const format = resolveDocumentUploadFormat(file.originalname, file.mimetype);
 
   if (format?.kind === 'ocr') {
-    const tempDir = os.tmpdir();
-    const tempFileName = `manual_upload_${Date.now()}_${file.originalname}`;
-    const tempFilePath = path.join(tempDir, tempFileName);
+    // The upload name never enters the path. `originalname` comes straight from
+    // the client — `../../…` in it escaped os.tmpdir() and let a caller pick the
+    // file that gets written and then unlinked. The extension still has to be
+    // right (OcrService dispatches on it), so it comes from the closed format
+    // registry, not from the name.
+    const tempFileName = `manual_upload_${randomUUID()}${format.extension}`;
+    const tempFilePath = path.join(os.tmpdir(), tempFileName);
 
     await fs.writeFile(tempFilePath, file.buffer);
 
