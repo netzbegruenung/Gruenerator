@@ -46,7 +46,11 @@ Das **Hochladen** dauert nur Sekunden, das anschließende **Indexieren** (damit 
 
 #### Optional: Wolke-Ordner anbinden
 
-Wenn du bereits einen Freigabe-Link aus der Grünen Wolke eingerichtet hast, kannst du über die Kachel **„Aus der Wolke verbinden"** einen ganzen Cloud-Ordner an dein Notebook hängen. Dokumente aus dem Ordner werden dann automatisch importiert und mit der Wolke synchronisiert. Diese Funktion ist mit einem **„Experimentell"**-Badge gekennzeichnet — der Komfort wächst, aber die Sync-Logik kann sich noch ändern.
+Wenn du bereits einen Freigabe-Link aus der Grünen Wolke eingerichtet hast, kannst du über die Kachel **„Aus der Wolke verbinden"** einen Cloud-Ordner an dein Notebook hängen. Dokumente aus dem Ordner werden dann automatisch importiert und mit der Wolke synchronisiert. Diese Funktion ist mit einem **„Experimentell"**-Badge gekennzeichnet — der Komfort wächst, aber die Sync-Logik kann sich noch ändern.
+
+Nach der Auswahl einer Verbindung öffnet sich ein Ordner-Browser: Du hängst entweder die ganze Freigabe an oder gezielt einen **Unterordner** daraus — praktisch, wenn nur ein Teil der Freigabe ins Notebook gehört. Mehrere Ordner derselben Freigabe lassen sich nebeneinander anbinden. Jede Ordner-Karte hat außerdem einen Schalter **„Unterordner einbeziehen"**: standardmäßig aus, dann wird nur die oberste Ebene importiert; eingeschaltet zieht der Sync auch alles aus den Unterordnern mit.
+
+Schlägt beim Sync eine Datei fehl, wird sie samt Grund benannt statt stillschweigend übersprungen.
 
 Mehr zur Einrichtung des Wolke-Links: → [Wolke einbinden](/docs/konto/gruene-wolke).
 
@@ -56,7 +60,7 @@ Mehr zur Einrichtung des Wolke-Links: → [Wolke einbinden](/docs/konto/gruene-w
 
 #### Optional: Eine Website einlesen
 
-Über die Kachel **„Von einer Website"** bindest du die Inhalte einer **WordPress**-Website ein — etwa die Seite deines Kreis- oder Landesverbands. Du gibst die Adresse ein, der Grünerator sieht nach, welche Beiträge und Seiten es dort gibt, und du wählst aus, was ins Notebook soll. Rubriken lassen sich dabei gezielt an- und abwählen, statt alles auf einmal zu übernehmen.
+Über die Kachel **„Von einer Website"** bindest du die Inhalte einer **WordPress**-Website ein — etwa die Seite deines Kreis- oder Landesverbands. Du gibst die Adresse ein, der Grünerator sieht nach, welche Beiträge und Seiten es dort gibt, und du wählst aus, was ins Notebook soll. Rubriken lassen sich dabei gezielt an- und abwählen, statt alles auf einmal zu übernehmen. Wie die Wolke- und die Docs-Quelle trägt auch diese Funktion ein **„Experimentell"**-Badge.
 
 :::note[Nur WordPress]
 Der Import setzt voraus, dass die Website mit WordPress läuft und ihre Inhalte maschinenlesbar bereitstellt. Bei anderen Systemen bleibt der Weg über heruntergeladene Dateien.
