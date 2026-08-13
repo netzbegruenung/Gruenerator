@@ -76,7 +76,11 @@ export class WolkeWatchService {
 
     for (const folder of collection.wolke_folders) {
       const shareLink = await this.sync.getShareLink(collection.user_id, folder.shareLinkId);
-      const files = await this.sync.listSupportedFilesInFolder(shareLink, folder.folderPath);
+      // The watcher must look exactly as deep as the sync does — otherwise a new
+      // file in a subfolder of a recursive folder is never offered.
+      const files = await this.sync.listSupportedFilesInFolder(shareLink, folder.folderPath, {
+        includeSubfolders: folder.includeSubfolders === true,
+      });
 
       // Files already imported into `documents` for this (user, share link).
       const importedRows = await db

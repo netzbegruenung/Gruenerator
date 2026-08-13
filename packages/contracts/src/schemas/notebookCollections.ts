@@ -62,6 +62,14 @@ export const wolkeFolderRefSchema = z.object({
   folderPath: z.string(),
   folderName: z.string(),
   lastSyncedAt: z.string().nullable().optional(),
+  /**
+   * Pull files out of subfolders too, down to WOLKE_MAX_WALK_DEPTH levels.
+   * Optional and defaulting to off: recursion costs a download, an OCR call and
+   * an embedding run per file, and folders like a 173 MB backup directory are
+   * exactly what nobody wants indexed by accident. Absent means false, so
+   * folders attached before this existed keep behaving as they did.
+   */
+  includeSubfolders: z.boolean().optional(),
 });
 export type WolkeFolderRef = z.infer<typeof wolkeFolderRefSchema>;
 

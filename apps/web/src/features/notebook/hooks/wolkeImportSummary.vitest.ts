@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   failureNotice,
   joinNotices,
+  subfolderNotice,
   summarizeWolkeImport,
   unsupportedFileNotice,
   wolkeFailureLabel,
@@ -129,6 +130,39 @@ describe('unsupportedFileNotice', () => {
     expect(
       unsupportedFileNotice([file({ name: 'ok.pdf', fileExtension: '.pdf', isSupported: true })])
     ).toBeNull();
+  });
+});
+
+describe('subfolderNotice', () => {
+  it('names subfolders that were left behind when recursion is off', () => {
+    expect(subfolderNotice({ folderCount: 6 }, false)).toBe(
+      '6 Unterordner wurden nicht mitgezogen — schalte „Unterordner einbeziehen" ein.'
+    );
+  });
+
+  it('uses the singular for exactly one', () => {
+    expect(subfolderNotice({ folderCount: 1 }, false)).toContain('1 Unterordner wurde');
+  });
+
+  it('says nothing when there are no subfolders', () => {
+    expect(subfolderNotice({ folderCount: 0 }, false)).toBeNull();
+    expect(subfolderNotice({}, false)).toBeNull();
+  });
+
+  it('stays quiet about subfolders that WERE pulled', () => {
+    expect(subfolderNotice({ folderCount: 6 }, true)).toBeNull();
+  });
+
+  it('reports the depth limit only when recursion actually hit it', () => {
+    expect(subfolderNotice({ folderCount: 6, depthLimited: true }, true)).toBe(
+      'Der Ordner ist mehr als 3 Ebenen tief — der Rest wurde nicht mitgezogen.'
+    );
+  });
+
+  it('reports both limits together', () => {
+    expect(subfolderNotice({ depthLimited: true, truncated: true }, true)).toContain(
+      'mehr als 3 Ebenen tief und mehr als 500 Dateien'
+    );
   });
 });
 

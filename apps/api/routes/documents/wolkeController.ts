@@ -15,6 +15,7 @@ import { z } from 'zod';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import NextcloudApiClient from '../../services/api-clients/nextcloudApiClient.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
+import { walkWolkeFolder } from '../../services/sync/folderWalk.js';
 import { getWolkeSyncService } from '../../services/sync/index.js';
 import {
   isSupportedWolkeFile,
@@ -25,6 +26,9 @@ import { createLogger } from '../../utils/logger.js';
 import { formatFileSize } from './helpers.js';
 
 import type { DocumentRequest, WolkeImportResult } from './types.js';
+// Two shapes share the name: the WebDAV listing entry (nullable size, knows
+// about directories) and the narrower one processFile takes.
+import type { NextcloudFile as NextcloudListEntry } from '../../services/api-clients/nextcloudApiClient.js';
 import type { NextcloudFile } from '../../services/sync/types.js';
 
 const log = createLogger('documents:wolke');
@@ -37,6 +41,7 @@ const postgresDocumentService = getPostgresDocumentService();
 const wolkeSyncSchema = z.object({
   shareLinkId: z.string().min(1),
   folderPath: z.string().optional(),
+  includeSubfolders: z.boolean().optional(),
 });
 
 const wolkeAutoSyncSchema = z.object({
@@ -91,7 +96,7 @@ router.post(
   validateBody(wolkeSyncSchema),
   async (req: TypedRequest<z.infer<typeof wolkeSyncSchema>>, res: Response): Promise<void> => {
     try {
-      const { shareLinkId, folderPath = '' } = req.body;
+      const { shareLinkId, folderPath = '', includeSubfolders = false } = req.body;
       const userId = req.user?.id;
       if (!userId) {
         res.status(401).json({ error: 'Unauthorized' });
@@ -100,7 +105,7 @@ router.post(
 
       // Start sync in background (fire and forget)
       wolkeSyncService
-        .syncFolder(userId, shareLinkId, folderPath)
+        .syncFolder(userId, shareLinkId, folderPath, { includeSubfolders })
         .then((result) => {
           log.debug(`[POST /sync] Sync completed:`, result);
         })
@@ -178,15 +183,39 @@ router.get(
       }
 
       const folderPath = (req.query.path as string) || '';
+      // Opt-in: one PROPFIND per subfolder, and every file found becomes a
+      // download + OCR + embedding run at import time.
+      const recursive = req.query.recursive === 'true';
       log.debug(`[GET /browse/:shareLinkId] Browsing files for share link ${shareLinkId}`, {
         folderPath,
+        recursive,
       });
 
       const shareLink = await wolkeSyncService.getShareLink(userId, shareLinkId);
 
-      // List all files and folders (unfiltered, unlike listFolderContents which is for sync)
+      // Unfiltered on purpose: the UI decides what to show, the sync path filters.
       const client = await NextcloudApiClient.create(shareLink.share_link);
-      const files = await client.listFolder(folderPath || undefined);
+      const listFolder = (path: string) => client.listFolder(path || undefined);
+
+      // Non-recursive keeps returning directory entries: the folder tree browser
+      // uses this same endpoint to navigate and would lose its subfolders.
+      // The recursive walk returns files only — its whole point is that the
+      // caller no longer has to navigate.
+      let files: NextcloudListEntry[];
+      let folderCount: number;
+      let depthLimited = false;
+      let truncated = false;
+
+      if (recursive) {
+        const walk = await walkWolkeFolder(listFolder, folderPath);
+        files = walk.files;
+        folderCount = walk.folderCount;
+        depthLimited = walk.depthLimited;
+        truncated = walk.truncated;
+      } else {
+        files = await listFolder(folderPath);
+        folderCount = files.filter((entry) => entry.isDirectory).length;
+      }
 
       // Filter and enrich files with additional metadata for UI
       const enrichedFiles = files.map((file) => {
@@ -218,6 +247,12 @@ router.get(
         files: enrichedFiles,
         totalFiles: enrichedFiles.length,
         supportedFiles: enrichedFiles.filter((f) => f.isSupported).length,
+        // Lets the caller say "6 subfolders were not pulled" instead of leaving
+        // them invisible, and name the limits when a recursive walk hit one.
+        folderCount,
+        recursive,
+        depthLimited,
+        truncated,
       });
     } catch (error) {
       log.error('[GET /browse/:shareLinkId] Error:', error);
