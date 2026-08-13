@@ -104,17 +104,40 @@ const ATTEMPTS = 2;
  * The docs point the same way — "Keep this minimal and include only what's
  * needed" (Deep Agents, *Subagents*).
  */
-const LEAD_ONLY_TOOLS = new Set(['tiefen_suche']);
+export const LEAD_ONLY_TOOLS = new Set(['tiefen_suche']);
 
 /**
- * The lead's tools minus the ones a subagent must not spend on its own.
+ * What each subagent gets — the tool half of its specialisation.
  *
- * Filtering by name rather than rebuilding the list keeps ONE construction site
- * for the tools: a tool added to `createResearchTools` reaches the subagents
- * unless it is named here.
+ * The prompt half used to carry this alone ("touches green positions? ask
+ * `notizbuch_suche` first"), which is an instruction a model may skip. Splitting
+ * by TOOLS makes the same distinction structural: a web researcher cannot reach
+ * into the corpora by accident, and a programme researcher cannot answer a
+ * question about the party's own resolutions out of a newspaper.
+ *
+ * `seite_lesen` is in both because both need to read what they found — the
+ * corpus hits carry URLs to the resolutions behind them.
+ *
+ * Allow-lists rather than the exclusion filter this replaces: with more than one
+ * subagent there is no single "everything but" to compute. The price is that a
+ * NEW tool reaches nobody by default, so `tools.vitest.ts` asserts that every
+ * tool is named somewhere — here or in `LEAD_ONLY_TOOLS` — which turns the
+ * omission into a failing test instead of a silently unused tool.
  */
-export function subagentTools<T extends { name: string }>(tools: readonly T[]): T[] {
-  return tools.filter((t) => !LEAD_ONLY_TOOLS.has(t.name));
+export const SUBAGENT_TOOLSETS = {
+  'web-recherche': ['web_suche', 'seite_lesen'],
+  'programm-recherche': ['notizbuch_suche', 'seite_lesen'],
+} as const;
+
+export type SubagentName = keyof typeof SUBAGENT_TOOLSETS;
+
+/** The named subset, in the order `createResearchTools` built them. */
+export function toolsFor<T extends { name: string }>(
+  tools: readonly T[],
+  subagent: SubagentName
+): T[] {
+  const wanted = new Set<string>(SUBAGENT_TOOLSETS[subagent]);
+  return tools.filter((t) => wanted.has(t.name));
 }
 
 /**
