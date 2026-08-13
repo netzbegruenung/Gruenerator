@@ -16,6 +16,7 @@ import { getPipelineAgent } from '../agents/pipelines/index.js';
 
 import { resolveOriginalText, runAgentPipeline } from './agentPipeline.js';
 
+import type { ThreadAttachment } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { PipelineAgent } from '../agents/pipelines/index.js';
 
 const ES = getPipelineAgent('gruenerator-einfache-sprache') as PipelineAgent;
@@ -184,8 +185,27 @@ describe('runAgentPipeline', () => {
 });
 
 describe('resolveOriginalText', () => {
-  const leer = { attachmentContext: null, documentMentionContext: null, currentDocument: null };
+  const leer = {
+    attachmentContext: null,
+    documentMentionContext: null,
+    currentDocument: null,
+    threadAttachments: [],
+  };
   const lang = 'Auf dem Parteitag in Sassnitz. '.repeat(20);
+  const anhang = (
+    extractedText: string,
+    over: Partial<ThreadAttachment> = {}
+  ): ThreadAttachment => ({
+    id: 'a1',
+    name: 'Eingefügter Text.txt',
+    mimeType: 'text/plain',
+    isImage: false,
+    extractedText,
+    documentId: null,
+    summary: null,
+    createdAt: new Date('2026-08-13T21:38:00Z'),
+    ...over,
+  });
 
   it('nimmt den eingefügten Text aus der Nachricht', () => {
     expect(resolveOriginalText(leer, lang)).toBe(lang.trim());
@@ -216,6 +236,50 @@ describe('resolveOriginalText', () => {
 
   it('gibt einen leeren String, wenn es nichts gibt', () => {
     expect(resolveOriginalText(leer, '   ')).toBe('');
+  });
+
+  it('nimmt in einem Revisions-Turn nicht die Kritik des Nutzers als Original', () => {
+    // Der Lauf vom 13.08.2026: der Artikel lag im Anhang des ersten Turns, die
+    // Beanstandung im zweiten. Die Beanstandung gewann den Längenvergleich, weil
+    // sie der einzige Kandidat war — der Prüfbericht führte danach die Kritik als
+    // „Kerninhalte des Originals" und lehnte die Fassung ab.
+    const kritik = 'Die Freigabe ist falsch: nicht veröffentlichungsreif. '.repeat(20);
+    const state = { ...leer, threadAttachments: [anhang(lang)] };
+    expect(kritik.length).toBeGreaterThan(lang.length);
+    expect(resolveOriginalText(state, kritik)).toBe(lang.trim());
+  });
+
+  it('lässt neu eingefügtes Material den mitgeführten Text ablösen', () => {
+    // Anders als eine Anweisung ist Material lang — dieselbe Grenze, an der
+    // `inlineMaterialAttachment` es zum Anhang macht.
+    const neu = 'Ein zweiter Artikel, frisch eingefügt. '.repeat(120);
+    const state = { ...leer, threadAttachments: [anhang(lang)] };
+    expect(neu.length).toBeGreaterThanOrEqual(3000);
+    expect(resolveOriginalText(state, neu)).toBe(neu.trim());
+  });
+
+  it('lässt einen Anhang DIESES Turns den mitgeführten Text ablösen', () => {
+    const neu = 'Ein zweiter Artikel, diesmal als Datei. '.repeat(5);
+    const state = { ...leer, attachmentContext: neu, threadAttachments: [anhang(lang)] };
+    expect(resolveOriginalText(state, 'Übertrage das')).toBe(neu.trim());
+  });
+
+  it('führt den jüngsten Anhang mit, nicht den längsten', () => {
+    // Über mehrere Turns ist „welches Dokument" eine Frage der Reihenfolge:
+    // wer einen zweiten Text nachreicht, meint ihn.
+    const neuer = 'Der zweite Artikel. '.repeat(5);
+    const state = { ...leer, threadAttachments: [anhang(lang), anhang(neuer, { id: 'a2' })] };
+    expect(resolveOriginalText(state, 'Und jetzt der hier bitte')).toBe(neuer.trim());
+  });
+
+  it('führt kein Bild mit — seine Beschreibung ist kein Ausgangstext', () => {
+    const bild = anhang('Ein Foto zeigt Klimageräte auf einem Dach.', {
+      isImage: true,
+      mimeType: 'image/png',
+    });
+    expect(resolveOriginalText({ ...leer, threadAttachments: [bild] }, 'Nochmal bitte')).toBe(
+      'Nochmal bitte'
+    );
   });
 });
 

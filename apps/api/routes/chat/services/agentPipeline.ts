@@ -38,6 +38,8 @@
 import { intermediateLane } from '../../../agents/langgraph/ChatGraph/llmConfig.js';
 import { createLogger } from '../../../utils/logger.js';
 
+import { INLINE_MATERIAL_MIN_CHARS } from './streamContext.js';
+
 import type { SSEWriter } from './sseHelpers.js';
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { MaterialState, PipelineAgent, PipelineStep } from '../agents/pipelines/index.js';
@@ -72,15 +74,63 @@ const log = createLogger('AgentPipeline');
  * den Systemprompt genagelt und ist zugleich das Mass der Prüfung. Vorher
  * entschied Schritt 1 selbst, was aus dem Thread-Kontext gemeint war — und dort
  * liegt bei jedem Folge-Turn der Volltext aller früheren Anhänge.
+ *
+ * ── Der Turn, der gar kein eigenes Material hat ──
+ *
+ * Ein Nutzer, der die Fassung beanstandet („die Freigabe ist falsch, hier sind
+ * sechs Fehler"), schickt eine Anweisung und sonst nichts. Der Längenvergleich
+ * hatte dann nur noch einen Kandidaten und nahm ihn: am 13.08.2026 wurde die
+ * Kritik selbst zum Original, und der Prüfbericht führte die Beanstandungen als
+ * „Kerninhalte des Originals", meldete sechs davon als fehlend und lehnte eine
+ * Fassung ab, die er nie gegen ihren Artikel gehalten hatte.
+ *
+ * Der Artikel WAR da, nur nicht mehr in den drei Kanälen: ein grosser Anhang
+ * wandert nach dem ersten Turn nach Qdrant, und `formatThreadAttachmentsContext`
+ * lässt ihn dann aus dem Volltext-Kontext heraus (`!a.documentId`), weil er per
+ * RAG zurückkommt. Für ein Gespräch ist das richtig; für eine Prüfung, die den
+ * ganzen Text braucht, ist es tödlich. Deshalb liest dieser Auflöser die
+ * Anhang-Zeilen des Threads direkt und nimmt ihren gespeicherten Volltext.
  */
 export function resolveOriginalText(state: MaterialState, lastUserText: string): string {
-  const candidates = [
-    lastUserText,
-    state.attachmentContext ?? '',
-    state.documentMentionContext ?? '',
-  ].map((c) => c.trim());
-  const longest = candidates.reduce((a, b) => (b.length > a.length ? b : a), '');
+  const material = [state.attachmentContext ?? '', state.documentMentionContext ?? '']
+    .map((c) => c.trim())
+    .filter(Boolean);
+  const instruction = lastUserText.trim();
+
+  // Bringt dieser Turn kein eigenes Material mit, revidiert er einen früheren —
+  // dann ist die Nachricht die Anweisung, nicht der Ausgangstext. Die Grenze ist
+  // dieselbe, an der `inlineMaterialAttachment` Material von Anweisung trennt;
+  // zwei Zahlen für dieselbe Frage würden auseinanderlaufen.
+  if (material.length === 0 && instruction.length < INLINE_MATERIAL_MIN_CHARS) {
+    const carried = carriedOriginalText(state);
+    if (carried) {
+      log.info(
+        `Kein eigenes Material in diesem Turn — Ausgangstext aus dem Thread übernommen ` +
+          `(${carried.length} Zeichen, Anweisung ${instruction.length})`
+      );
+      return carried;
+    }
+  }
+
+  const longest = [instruction, ...material].reduce((a, b) => (b.length > a.length ? b : a), '');
   return longest || (state.currentDocument?.markdown ?? '').trim();
+}
+
+/**
+ * Der Volltext des zuletzt hochgeladenen oder eingefügten Dokuments dieses
+ * Threads, oder ''.
+ *
+ * Der JÜNGSTE gewinnt und nicht der längste: über mehrere Turns hinweg ist die
+ * Frage „welches Dokument ist gemeint" eine der Reihenfolge, nicht des Umfangs.
+ * Wer einen zweiten Text nachreicht, meint ihn.
+ *
+ * `documentId` wird bewusst NICHT gefiltert — anders als im Antwort-Kontext ist
+ * hier gerade der eingebettete grosse Text der gesuchte. Bilder scheiden aus:
+ * ihr `extractedText` ist eine Bildbeschreibung, kein Ausgangstext.
+ */
+function carriedOriginalText(state: MaterialState): string {
+  const docs = (state.threadAttachments ?? []).filter((a) => !a.isImage && a.extractedText?.trim());
+  return docs[docs.length - 1]?.extractedText?.trim() ?? '';
 }
 
 async function runStep(
