@@ -320,6 +320,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: threadSharingRouter } = await import('./routes/chat/threadSharingController.js');
   const { default: gruenOMatRouter } = await import('./routes/gruenomat/gruenOMatController.js');
   const { default: mediaRouter } = await import('./routes/media/mediaController.js');
+  const { default: thumbnailRouter } = await import('./routes/media/thumbnailRouter.js');
   const { sitesController: sitesRouter, publicController: _publicSiteRouter } =
     await import('./routes/sites/index.js');
   const { default: flyerController } = await import('./routes/sites/flyerController.js');
@@ -810,6 +811,12 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountShareContractRouter(app);
   mountShareReadContractRouter(app);
   app.use('/api/share', publicReadLimiter, shareFileRouter);
+  // Unified thumbnails. Deliberately WITHOUT requireAuth/optionalAuth: a native
+  // <Image> and a plain <img> cannot send a bearer token, so the permission
+  // travels in the URL as an HMAC minted by whichever list endpoint already
+  // checked access. Adding auth here breaks every preview in the mobile app —
+  // routes.mountGuard.vitest.ts asserts it stays open.
+  app.use('/api/thumbs', publicReadLimiter, thumbnailRouter);
   // ts-rest contract router — mount before legacy transferRouter (GET /list and DELETE /:token)
   // POST /upload (multer file upload) falls through to the legacy router.
   app.use('/api/transfer', requireAuth);
