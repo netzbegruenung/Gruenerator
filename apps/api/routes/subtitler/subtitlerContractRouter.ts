@@ -63,6 +63,39 @@ function getUserId(req: Request): string | undefined {
   return user?.id;
 }
 
+/**
+ * Drizzle hands back TIMESTAMPTZ columns as `Date`; the contract declares them
+ * as strings, because a string is what the client can ever receive. Express
+ * would serialise them implicitly on the way out — doing it here instead makes
+ * the handler's type equal the wire, so the contract stays provable rather than
+ * merely plausible.
+ */
+interface ProjectRowDates {
+  created_at?: Date | string | null;
+  updated_at?: Date | string | null;
+  last_edited_at?: Date | string | null;
+}
+
+function toIsoDate(value: Date | string | null | undefined): string | null {
+  if (value instanceof Date) return value.toISOString();
+  return typeof value === 'string' ? value : null;
+}
+
+function toIsoProjectDates<T extends ProjectRowDates>(
+  project: T
+): Omit<T, 'created_at' | 'updated_at' | 'last_edited_at'> & {
+  created_at: string | null;
+  updated_at: string | null;
+  last_edited_at: string | null;
+} {
+  return {
+    ...project,
+    created_at: toIsoDate(project.created_at),
+    updated_at: toIsoDate(project.updated_at),
+    last_edited_at: toIsoDate(project.last_edited_at),
+  };
+}
+
 let _projectService: SubtitlerProjectService | null = null;
 
 async function getProjectService(): Promise<SubtitlerProjectService> {
@@ -684,7 +717,10 @@ Erstelle einen Instagram Reel Beitragstext, der:
       }
       const service = await getProjectService();
       const projects = await service.getUserProjects(userId);
-      return { status: 200 as const, body: { success: true, projects } };
+      return {
+        status: 200 as const,
+        body: { success: true, projects: projects.map(toIsoProjectDates) },
+      };
     } catch (error: unknown) {
       log.error('[subtitlerContract.listProjects] Error:', error);
       return {
@@ -703,7 +739,7 @@ Erstelle einen Instagram Reel Beitragstext, der:
       const { projectId } = args.params;
       const service = await getProjectService();
       const project = await service.getProject(userId, projectId);
-      return { status: 200 as const, body: { success: true, project } };
+      return { status: 200 as const, body: { success: true, project: toIsoProjectDates(project) } };
     } catch (error: unknown) {
       log.error('[subtitlerContract.getProject] Error:', error);
       const errMsg = error instanceof Error ? error.message : String(error);
@@ -734,7 +770,7 @@ Erstelle einen Instagram Reel Beitragstext, der:
       }
       const { project, isNew } = await saveOrUpdateProject(userId, args.body);
       const status = isNew ? (201 as const) : (200 as const);
-      return { status, body: { success: true, project, isNew } };
+      return { status, body: { success: true, project: toIsoProjectDates(project), isNew } };
     } catch (error: unknown) {
       log.error('[subtitlerContract.createProject] Error:', error);
       return {
@@ -758,7 +794,7 @@ Erstelle einen Instagram Reel Beitragstext, der:
       const { projectId } = args.params;
       const service = await getProjectService();
       const project = await service.updateProject(userId, projectId, args.body);
-      return { status: 200 as const, body: { success: true, project } };
+      return { status: 200 as const, body: { success: true, project: toIsoProjectDates(project) } };
     } catch (error: unknown) {
       log.error('[subtitlerContract.updateProject] Error:', error);
       const errMsg = error instanceof Error ? error.message : String(error);
