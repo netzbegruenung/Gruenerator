@@ -76,9 +76,16 @@ const PROBE_CACHE_TTL_MS = 5_000;
 
 type ProbeVerdict = 'alive' | 'dead' | 'indeterminate';
 
+// How the probe arrived at its verdict. Only the dead-verdict values are
+// interesting downstream: they separate "the auth backend rejected the
+// credential outright" from "it answered 200 with an empty session twice",
+// which are different failure modes wearing the same teardown.
+type ProbeDetail = 'probe-401' | 'confirmed-no-user' | 'alive' | 'infra';
+
 interface ProbeState {
   timestamp: number;
   verdict: ProbeVerdict;
+  detail: ProbeDetail;
 }
 
 let probeInFlight: Promise<ProbeVerdict> | null = null;
@@ -177,6 +184,7 @@ export async function probeSessionVerdict(): Promise<ProbeVerdict> {
   probeInFlight = (async (): Promise<ProbeVerdict> => {
     const startedAt = Date.now();
     let verdict: ProbeVerdict;
+    let detail: ProbeDetail;
     let first: SessionProbeResult | undefined;
     let confirmed: SessionProbeResult | undefined;
     try {
@@ -184,14 +192,17 @@ export async function probeSessionVerdict(): Promise<ProbeVerdict> {
 
       if (first.outcome === 'alive') {
         verdict = 'alive';
+        detail = 'alive';
       } else if (first.outcome === 'unauthorized') {
         // A definitive 401/403 from the probe itself proves the session is
         // dead — no ambiguity to confirm.
         verdict = 'dead';
+        detail = 'probe-401';
       } else if (first.outcome === 'error') {
         // Timeout, network error, or 5xx (e.g. auth_unavailable while Redis
         // is down) is an infra signal, not a session signal.
         verdict = 'indeterminate';
+        detail = 'infra';
       } else {
         // '200 with no user' — the ambiguous case. Re-confirm once after a
         // short delay before treating it as definitive death.
@@ -199,21 +210,25 @@ export async function probeSessionVerdict(): Promise<ProbeVerdict> {
         confirmed = await fetchSessionProbe();
         if (confirmed.outcome === 'alive') {
           verdict = 'alive';
+          detail = 'alive';
         } else if (confirmed.outcome === 'no-user' || confirmed.outcome === 'unauthorized') {
           verdict = 'dead';
+          detail = 'confirmed-no-user';
         } else {
           // Second attempt errored — never confirmed. Don't log out on an
           // unconfirmed, possibly-transient signal.
           verdict = 'indeterminate';
+          detail = 'infra';
         }
       }
     } finally {
       probeInFlight = null;
     }
 
-    lastProbe = { timestamp: Date.now(), verdict };
+    lastProbe = { timestamp: Date.now(), verdict, detail };
     sessionDebug('probe.verdict', {
       verdict,
+      detail,
       httpStatus: first?.httpStatus,
       hasUserInBody: first?.hasUserInBody ?? false,
       confirmOutcome: confirmed?.outcome,
@@ -341,7 +356,7 @@ function markBackendDeadSession(): void {
   }
 }
 
-function performLoginRedirect(source: string): void {
+function performLoginRedirect(source: string, code?: string): void {
   const now = Date.now();
   const recent = readRedirectTimestamps()
     .filter((ts) => now - ts < CIRCUIT_BREAKER_WINDOW_MS)
@@ -349,8 +364,11 @@ function performLoginRedirect(source: string): void {
   writeRedirectTimestamps(recent);
 
   const breakerTripped = recent.length >= CIRCUIT_BREAKER_THRESHOLD;
+  const probeDetail = lastProbe?.detail ?? 'unknown';
   sessionDebug('teardown.redirect', {
     source,
+    code,
+    probeDetail,
     redirectCount: recent.length,
     breakerTripped,
   });
@@ -358,10 +376,30 @@ function performLoginRedirect(source: string): void {
   // redirect, not just circuit-breaker trips, closing the telemetry blind
   // spot where ordinary half-logged-in deaths went unreported. The attached
   // sessionDebug ring buffer carries the full lead-up.
+  //
+  // But "never benign" is not "always an incident": a session that expired
+  // under a background poller is the steady state, and reporting it at
+  // `error` alongside a redirect loop buried both in one undifferentiated
+  // issue. So the level tracks how anomalous the teardown actually is — a
+  // single, non-repeating redirect is a warning — while the tags and the
+  // split fingerprint keep every cause separately queryable. The genuinely
+  // pathological case (a live, unexpired session row that will not resolve)
+  // is detected where it is knowable: the backend's authMiddleware.
+  const isRoutineExpiry = !breakerTripped && recent.length === 1;
   captureAuthIssue({
     stage: 'session-teardown',
     cause: new Error(`session teardown via ${source}`),
-    extras: { source, redirectCount: recent.length, breakerTripped },
+    level: isRoutineExpiry ? 'warning' : 'error',
+    tags: {
+      'auth.source': source,
+      'auth.probe': probeDetail,
+      // `session_not_found` = the backend had a token and could not resolve it;
+      // `no_session_cookie` = the cookie was already gone client-side, which
+      // should not normally reach a teardown at all.
+      'auth.401code': code ?? 'unknown',
+    },
+    fingerprintExtra: [source, probeDetail, code ?? 'unknown'],
+    extras: { source, code, probeDetail, redirectCount: recent.length, breakerTripped },
   });
 
   // Tell the login page WHY the user landed there. sessionStorage so it
@@ -433,7 +471,10 @@ export type UnauthorizedOutcome = 'retry' | 'logout' | 'stay';
  *                indeterminate (infra blip). Never log out on this — the caller
  *                should surface the error without redirecting.
  */
-export async function handleUnauthorized(source: string): Promise<UnauthorizedOutcome> {
+export async function handleUnauthorized(
+  source: string,
+  code?: string
+): Promise<UnauthorizedOutcome> {
   if (_isLoggingOut) return 'stay';
   const verdict = await probeSessionVerdict();
   if (verdict === 'alive') return 'retry';
@@ -441,7 +482,7 @@ export async function handleUnauthorized(source: string): Promise<UnauthorizedOu
     if (isPublicPage() || window.location.pathname === '/login') return 'stay';
     if (!redirectInFlight) {
       redirectInFlight = true;
-      performLoginRedirect(source);
+      performLoginRedirect(source, code);
     }
     return 'logout';
   }
@@ -476,7 +517,7 @@ const sharedApiClient = createApiClient({
       requestId: info?.requestId,
       code: info?.code,
     });
-    const outcome = await handleUnauthorized('shared-401');
+    const outcome = await handleUnauthorized('shared-401', info?.code);
     if (outcome === 'retry') {
       sessionDebug('retry.after-probe', { stack: 'shared', endpoint: info?.url });
       return true;
@@ -576,7 +617,7 @@ apiClient.interceptors.response.use(
         code: errorBody?.code,
         requestId: errorBody?.requestId ?? error.response.headers?.['x-request-id'],
       });
-      const outcome = await handleUnauthorized('legacy-axios-401');
+      const outcome = await handleUnauthorized('legacy-axios-401', errorBody?.code);
       if (outcome === 'retry' && config && !config._retried401) {
         config._retried401 = true;
         sessionDebug('retry.after-probe', { stack: 'legacy-axios', endpoint: config.url });

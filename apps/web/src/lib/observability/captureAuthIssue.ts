@@ -14,6 +14,22 @@ interface AuthIssueOptions {
   stage: AuthStage;
   cause: unknown;
   extras?: Record<string, unknown>;
+  /**
+   * Extra tags. Use for the low-cardinality dimensions worth slicing an issue
+   * by in GlitchTip — anything else belongs in `extras`.
+   */
+  tags?: Record<string, string>;
+  /**
+   * Severity. Defaults to `error`. Pass `warning` for the expected-but-still-
+   * worth-recording cases (an ordinary session expiry is not an incident) so
+   * the genuine anomalies stay visible above them.
+   */
+  level?: 'warning' | 'error';
+  /**
+   * Appended to the default `['auth', stage, errorName]` fingerprint. Keeps
+   * causally different events in separate issues instead of one 27-event pile.
+   */
+  fingerprintExtra?: string[];
 }
 
 // Same benign-suppression list as the backend helper, kept in sync because
@@ -73,7 +89,11 @@ export function captureAuthIssue(opts: AuthIssueOptions): void {
   Sentry.withScope((scope) => {
     scope.setTag('auth.stage', opts.stage);
     scope.setTag('auth.transport', 'web');
-    scope.setFingerprint(['auth', opts.stage, name]);
+    if (opts.tags) {
+      for (const [key, value] of Object.entries(opts.tags)) scope.setTag(key, value);
+    }
+    scope.setLevel(opts.level ?? 'error');
+    scope.setFingerprint(['auth', opts.stage, name, ...(opts.fingerprintExtra ?? [])]);
     if (opts.extras) scope.setExtras(opts.extras);
     if (typeof window !== 'undefined') {
       scope.setExtra('href', window.location.href);

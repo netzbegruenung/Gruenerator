@@ -4,13 +4,19 @@
  * active user out (see GRUENERATOR-DP: "session teardown via shared-401") or
  * lets a genuinely dead session sit unrecognized.
  *
+ * Plus the severity grading of the teardown report itself (see the second
+ * describe block).
+ *
  * The module under test is re-imported fresh per test (`vi.resetModules()`)
- * because `lastProbe`/`probeInFlight` are private module-level caches with no
- * reset hook — reusing one module instance across tests would leak the
- * previous test's cached verdict.
+ * because `lastProbe`/`probeInFlight`/`redirectInFlight` are private
+ * module-level caches with no reset hook — reusing one module instance across
+ * tests would leak the previous test's cached verdict, and the one-shot
+ * redirect latch would swallow every teardown after the first.
  */
 import { type AxiosStatic } from 'axios';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { REDIRECT_TIMESTAMPS } from '../../features/auth/storageKeys';
 
 vi.mock('axios', async (importOriginal) => {
   const actual = await importOriginal<{ default: AxiosStatic }>();
@@ -22,6 +28,10 @@ vi.mock('axios', async (importOriginal) => {
     },
   };
 });
+
+vi.mock('../../lib/observability/captureAuthIssue', () => ({
+  captureAuthIssue: vi.fn(),
+}));
 
 const aliveResponse = { status: 200, data: { user: { id: 'u1' } } };
 const noUserResponse = { status: 200, data: { user: null } };
@@ -125,5 +135,141 @@ describe('probeSessionVerdict', () => {
 
     await expect(verdict).resolves.toBe('indeterminate');
     expect(get).toHaveBeenCalledTimes(2);
+  });
+});
+
+/**
+ * The teardown report's SEVERITY, which is the whole point of reporting every
+ * teardown rather than only breaker trips: an expiry under a background poller
+ * is the steady state and must not sit at `error` next to a redirect loop, or
+ * both collapse into one undifferentiated GlitchTip issue again.
+ *
+ * These run in the `node` lane, so the browser globals the redirect path
+ * touches are stubbed by hand — `window.location` above all, since the real
+ * one would navigate.
+ */
+function memoryStorage(): Storage {
+  const map = new Map<string, string>();
+  return {
+    getItem: (k: string) => map.get(k) ?? null,
+    setItem: (k: string, v: string) => void map.set(k, String(v)),
+    removeItem: (k: string) => void map.delete(k),
+    clear: () => map.clear(),
+    key: (i: number) => [...map.keys()][i] ?? null,
+    get length() {
+      return map.size;
+    },
+  };
+}
+
+describe('session-teardown severity', () => {
+  let sessionStore: Storage;
+
+  beforeEach(() => {
+    sessionStore = memoryStorage();
+    vi.stubGlobal('sessionStorage', sessionStore);
+    vi.stubGlobal('localStorage', memoryStorage());
+    vi.stubGlobal('window', {
+      // Not a public page and not /login — both would short-circuit to 'stay'
+      // before any redirect is fired.
+      location: { pathname: '/chat', search: '', href: '', replace: vi.fn() },
+      // sessionDebug installs visibility/focus listeners at import time as soon
+      // as a `window` exists.
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    });
+    vi.stubGlobal('document', { visibilityState: 'visible' });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.clearAllMocks();
+  });
+
+  /** Fires exactly one teardown and returns the reported `session-teardown` call. */
+  async function fireTeardown(priorRedirects: number[]) {
+    if (priorRedirects.length > 0) {
+      sessionStore.setItem(REDIRECT_TIMESTAMPS, JSON.stringify(priorRedirects));
+    }
+    vi.resetModules();
+    const axios = (await import('axios')).default;
+    // A 401 from the probe is a straight 'dead' verdict — no confirm round.
+    vi.mocked(axios.get).mockRejectedValue(httpError(401));
+    const { captureAuthIssue } = await import('../../lib/observability/captureAuthIssue');
+    const { handleUnauthorized } = await import('./apiClient');
+
+    await expect(handleUnauthorized('shared-401', 'session_not_found')).resolves.toBe('logout');
+
+    const calls = vi.mocked(captureAuthIssue).mock.calls.map(([opts]) => opts);
+    return {
+      teardown: calls.find((o) => o.stage === 'session-teardown'),
+      stages: calls.map((o) => o.stage),
+    };
+  }
+
+  it('grades a single, non-repeating redirect as a warning', async () => {
+    const { teardown, stages } = await fireTeardown([]);
+
+    expect(teardown?.level).toBe('warning');
+    // Nothing looped, so the breaker must not have reported alongside it.
+    expect(stages).not.toContain('redirect-loop');
+  });
+
+  it('grades a second redirect inside the 10s window as an error', async () => {
+    const { teardown } = await fireTeardown([Date.now() - 1_000]);
+
+    expect(teardown?.level).toBe('error');
+  });
+
+  it('grades a breaker trip as an error and reports the loop too', async () => {
+    const now = Date.now();
+    const { teardown, stages } = await fireTeardown([now - 2_000, now - 1_000]);
+
+    expect(teardown?.level).toBe('error');
+    expect(stages).toContain('redirect-loop');
+  });
+
+  it('ignores redirects that fell out of the 10s window', async () => {
+    // Two stale timestamps: without the window filter these would push the
+    // count to 3 and trip the breaker on an ordinary expiry.
+    const now = Date.now();
+    const { teardown, stages } = await fireTeardown([now - 60_000, now - 30_000]);
+
+    expect(teardown?.level).toBe('warning');
+    expect(stages).not.toContain('redirect-loop');
+  });
+
+  it('tags the teardown by source, probe verdict and 401 code, and splits the fingerprint', async () => {
+    const { teardown } = await fireTeardown([]);
+
+    expect(teardown?.tags).toMatchObject({
+      'auth.source': 'shared-401',
+      'auth.401code': 'session_not_found',
+    });
+    // The probe dimension has to be present and concrete — an 'unknown' here
+    // would mean the verdict never reached the report.
+    expect(teardown?.tags?.['auth.probe']).toBeTruthy();
+    expect(teardown?.fingerprintExtra).toEqual([
+      'shared-401',
+      teardown?.tags?.['auth.probe'],
+      'session_not_found',
+    ]);
+  });
+
+  it('falls back to an explicit unknown code rather than dropping the tag', async () => {
+    vi.resetModules();
+    const axios = (await import('axios')).default;
+    vi.mocked(axios.get).mockRejectedValue(httpError(401));
+    const { captureAuthIssue } = await import('../../lib/observability/captureAuthIssue');
+    const { handleUnauthorized } = await import('./apiClient');
+
+    await handleUnauthorized('legacy-401');
+
+    const teardown = vi
+      .mocked(captureAuthIssue)
+      .mock.calls.map(([opts]) => opts)
+      .find((o) => o.stage === 'session-teardown');
+
+    expect(teardown?.tags?.['auth.401code']).toBe('unknown');
   });
 });
