@@ -65,6 +65,41 @@ describe('detectTaskShape — strict_format', () => {
   it('counted CONTENT wishes are not format orders', () => {
     expect(detectTaskShape('Nenne mir genau drei Beispiele für Bürgerenergie')).toBeNull();
   });
+
+  // The 13.08.2026 run: one job split into four turns. Turn 1 was detected and
+  // routed to the careful lane; turns 2-4 were not and dropped to the speed
+  // lane mid-thread, which is where the fidelity failures came from.
+  describe('the four-turn run of 13.08.2026', () => {
+    it('recognises a drawn table skeleton', () => {
+      expect(
+        detectTaskShape(
+          'Erstelle ausschließlich diese Tabelle:\n' +
+            '| Absatz (erste vier Wörter) | Überschrift | vollständig / verkürzt | was fehlt |'
+        )
+      ).toBe('strict_format');
+    });
+
+    it('recognises an exclusive-output order', () => {
+      expect(detectTaskShape('Gib nur diese Befundtabelle aus.')).toBe('strict_format');
+      expect(detectTaskShape('Erstelle ausschließlich „Schwierige Wörter“.')).toBe('strict_format');
+      expect(detectTaskShape('Erstelle ausschliesslich die Zuordnung.')).toBe('strict_format');
+    });
+
+    it('recognises a verbatim-string requirement', () => {
+      expect(detectTaskShape('Bei bekannten Begriffen ergänze exakt: „…“')).toBe('strict_format');
+      expect(detectTaskShape('Verwende exakt diesen Hinweis am Ende')).toBe('strict_format');
+    });
+  });
+
+  it('an intensity is not a contract', () => {
+    // "nur" as a softener, not as a restriction on the deliverable.
+    expect(detectTaskShape('Erklär mir nur kurz, worum es bei der Wärmewende geht')).toBeNull();
+    expect(detectTaskShape('Ich wollte nur fragen, ob das Fest schon geplant ist')).toBeNull();
+  });
+
+  it('a single pipe in prose is not a table', () => {
+    expect(detectTaskShape('Schreib über Bündnis 90 | Die Grünen in Bayern')).toBeNull();
+  });
 });
 
 describe('detectTaskShape — null', () => {
