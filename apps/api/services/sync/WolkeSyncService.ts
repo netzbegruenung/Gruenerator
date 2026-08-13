@@ -23,6 +23,7 @@ import {
 import { mistralEmbeddingService } from '../mistral/index.js';
 import { ocrService } from '../OcrService/index.js';
 
+import { walkWolkeFolder } from './folderWalk.js';
 import {
   isOcrWolkeExtension,
   isPlaintextWolkeExtension,
@@ -175,47 +176,38 @@ export class WolkeSyncService {
   }
 
   /**
-   * List files in a Nextcloud folder
-   */
-  async listFolderContents(
-    shareLink: NextcloudShareLink,
-    _folderPath: string = ''
-  ): Promise<NextcloudFile[]> {
-    try {
-      const client = await NextcloudApiClient.create(shareLink.share_link);
-      const shareInfo = await client.getShareInfo();
-
-      if (!shareInfo.success) {
-        throw new Error('Failed to get share information');
-      }
-
-      // Filter for supported file types
-      const files = shareInfo.files ?? [];
-      const supportedFiles = files.filter((file) => isSupportedWolkeFile(file.name));
-
-      console.log(`[WolkeSyncService] Found ${supportedFiles.length} supported files in folder`);
-      return supportedFiles as NextcloudFile[];
-    } catch (error: unknown) {
-      console.error('[WolkeSyncService] Error listing folder contents:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * List the supported files in a SPECIFIC folder of a share (honours
-   * folderPath, unlike listFolderContents which only sees the share root).
+   * List the supported files in a SPECIFIC folder of a share.
+   *
    * Uses the same `client.listFolder(folderPath)` the manual import path uses,
    * so `file.href` — the dedup key stored as documents.wolke_file_path — is
    * identical between detection and import. Reuses the shared supportedFileTypes
    * filter (no duplicated extension list).
+   *
+   * This replaced `listFolderContents`, which took a folderPath and ignored it
+   * (`_folderPath`), always listing the share root via `getShareInfo`. Syncing
+   * an attached subfolder therefore synced the wrong folder.
    */
   async listSupportedFilesInFolder(
     shareLink: NextcloudShareLink,
-    folderPath: string = ''
+    folderPath: string = '',
+    options: { includeSubfolders?: boolean } = {}
   ): Promise<NextcloudFile[]> {
     const client = await NextcloudApiClient.create(shareLink.share_link);
-    const files = await client.listFolder(folderPath || undefined);
-    return files.filter((file) => isSupportedWolkeFile(file.name)) as NextcloudFile[];
+    const listFolder = (path: string) => client.listFolder(path || undefined);
+
+    const files = options.includeSubfolders
+      ? (await walkWolkeFolder(listFolder, folderPath)).files
+      : await listFolder(folderPath);
+
+    const supported = files.filter(
+      (file) => !file.isDirectory && isSupportedWolkeFile(file.name)
+    ) as NextcloudFile[];
+
+    console.log(
+      `[WolkeSyncService] Found ${supported.length} supported files in folder "${folderPath}"` +
+        (options.includeSubfolders ? ' (including subfolders)' : '')
+    );
+    return supported;
   }
 
   /**
@@ -501,13 +493,14 @@ export class WolkeSyncService {
   async syncFolder(
     userId: string,
     shareLinkId: string,
-    folderPath: string = ''
+    folderPath: string = '',
+    options: { includeSubfolders?: boolean } = {}
   ): Promise<SyncResult> {
     try {
       await this.ensureInitialized();
 
       console.log(
-        `[WolkeSyncService] Starting sync for user ${userId}, share ${shareLinkId}, folder: ${folderPath}`
+        `[WolkeSyncService] Starting sync for user ${userId}, share ${shareLinkId}, folder: ${folderPath}, subfolders: ${options.includeSubfolders === true}`
       );
 
       // Get or create sync status
@@ -521,7 +514,7 @@ export class WolkeSyncService {
 
       try {
         const shareLink = await this.getShareLink(userId, shareLinkId);
-        const files = await this.listFolderContents(shareLink, folderPath);
+        const files = await this.listSupportedFilesInFolder(shareLink, folderPath, options);
 
         let processedCount = 0;
         let failedCount = 0;

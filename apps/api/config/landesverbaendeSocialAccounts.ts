@@ -130,6 +130,98 @@ export const LV_SOCIAL_ACCOUNTS: readonly LvSocialAccount[] = [
     verifiedSource: 'https://gruene-brandenburg.de',
   },
 
+  // Nachgezogen 2026-08-13 über `scripts/discover-lv-social-handles.ts`, das
+  // inzwischen für alle vier LVs eine Homepage erreicht (Bayern hat seit dem
+  // ersten Seeding eine vollständige Scraper-Config). Jeder Handle stammt aus
+  // dem Footer der jeweiligen LV-Seite — der LV kontrolliert seine Website,
+  // der Footer-Link IST damit die Verifikationsquelle.
+
+  // ─── Bayern (BY) ──────────────────────────────────────────────────────
+  {
+    lv: 'BY',
+    platform: 'instagram',
+    handle: 'gruenebayern',
+    country: 'DE',
+    verifiedSource: 'https://www.gruene-bayern.de',
+  },
+  {
+    lv: 'BY',
+    platform: 'facebook',
+    handle: 'gruenebayern',
+    country: 'DE',
+    verifiedSource: 'https://www.gruene-bayern.de',
+  },
+
+  // ─── Hessen (HE) ──────────────────────────────────────────────────────
+  {
+    lv: 'HE',
+    platform: 'instagram',
+    handle: 'gruenehessen',
+    country: 'DE',
+    verifiedSource: 'https://www.gruene-hessen.de',
+  },
+  {
+    lv: 'HE',
+    platform: 'facebook',
+    handle: 'gruenehessen',
+    country: 'DE',
+    verifiedSource: 'https://www.gruene-hessen.de',
+  },
+
+  // ─── Sachsen-Anhalt (LSA) ─────────────────────────────────────────────
+  // Der Footer führt zusätzlich `sziborraseidlitz` (Spitzenkandidatin zur
+  // Landtagswahl 2026). Ein Personen-Account ist kein LV-Account — er bleibt
+  // draußen, sonst mischen sich zwei Stimmen im Stilkorpus.
+  {
+    lv: 'LSA',
+    platform: 'instagram',
+    handle: 'gruene_lsa',
+    country: 'DE',
+    verifiedSource: 'https://www.gruene-lsa.de',
+  },
+  {
+    lv: 'LSA',
+    platform: 'facebook',
+    handle: 'GRUENELSA',
+    country: 'DE',
+    verifiedSource: 'https://www.gruene-lsa.de',
+  },
+
+  // ─── Saarland (SL) ────────────────────────────────────────────────────
+  {
+    lv: 'SL',
+    platform: 'instagram',
+    handle: 'gruene_saar',
+    country: 'DE',
+    verifiedSource: 'https://gruene-saar.de',
+  },
+  {
+    lv: 'SL',
+    platform: 'facebook',
+    handle: 'GrueneSaar',
+    country: 'DE',
+    verifiedSource: 'https://gruene-saar.de',
+  },
+
+  // ─── Sachsen (SN) ─────────────────────────────────────────────────────
+  // Handles verifiziert, Notizbuch aber `enabled: false` — kein Rezept, das
+  // den Korpus bräuchte. Steht hier, damit ein Wiedereinschalten nichts
+  // nachzuholen hat.
+  {
+    lv: 'SN',
+    platform: 'instagram',
+    handle: 'gruene_sachsen',
+    country: 'DE',
+    verifiedSource: 'https://gruene-sachsen.de',
+  },
+  {
+    lv: 'SN',
+    platform: 'facebook',
+    handle: 'gruene.sachsen',
+    country: 'DE',
+    verifiedSource: 'https://gruene-sachsen.de',
+  },
+
   // ─── TODO: Schleswig-Holstein (SH) ────────────────────────────────────
   // SH has no full scraper config in landesverbaendeConfig.ts (only PDF
   // sources for wahlprogramm.pdf), so discover-lv-social-handles.ts can't
@@ -137,12 +229,4 @@ export const LV_SOCIAL_ACCOUNTS: readonly LvSocialAccount[] = [
   // and add IG + FB handles from the footer with verifiedSource set.
   // Note: PR-SH agent's notebook is currently `enabled: false` in web
   // anyway — low urgency.
-
-  // ─── TODO: Bayern (BY) ────────────────────────────────────────────────
-  // BY has no full scraper config in landesverbaendeConfig.ts (only PDF
-  // sources for regierungsprogramm.pdf), so discover-lv-social-handles.ts
-  // can't reach a homepage. To populate: manually visit
-  // https://www.gruene-bayern.de and add IG + FB handles from the footer
-  // with verifiedSource set. PR-BY is one of the largest LVs by reach —
-  // higher priority gap.
 ] as const;

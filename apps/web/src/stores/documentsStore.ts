@@ -69,6 +69,17 @@ interface WolkeBrowseApiResponse {
   success: boolean;
   message?: string;
   files: WolkeFile[];
+  /** Subfolders seen — below the listed folder, or visited during a recursive walk. */
+  folderCount?: number;
+  /** Subfolders left unopened because the walk hit its depth limit. */
+  depthLimited?: boolean;
+  /** The walk stopped early at the file cap. */
+  truncated?: boolean;
+}
+
+export interface BrowseWolkeOptions {
+  path?: string;
+  recursive?: boolean;
 }
 
 /**
@@ -163,6 +174,9 @@ interface WolkeFileResponse {
   success: boolean;
   files: WolkeFile[];
   message?: string;
+  folderCount?: number;
+  depthLimited?: boolean;
+  truncated?: boolean;
 }
 
 interface WolkeImportResponse {
@@ -199,7 +213,10 @@ interface DocumentsActions {
   ) => void;
   updateDocumentTitle: (documentId: string, newTitle: string) => Promise<boolean>;
   refreshDocument: (documentId: string) => Promise<Document>;
-  browseWolkeFiles: (shareLinkId: string) => Promise<WolkeFileResponse>;
+  browseWolkeFiles: (
+    shareLinkId: string,
+    options?: BrowseWolkeOptions
+  ) => Promise<WolkeFileResponse>;
   importWolkeFiles: (
     shareLinkId: string,
     files: WolkeFile[],
@@ -705,7 +722,7 @@ export const useDocumentsStore = create<DocumentsStore>()(
       },
 
       // Browse files in a Wolke share
-      browseWolkeFiles: async (shareLinkId) => {
+      browseWolkeFiles: async (shareLinkId, options = {}) => {
         set((state) => {
           state.isLoading = true;
           state.error = null;
@@ -713,8 +730,12 @@ export const useDocumentsStore = create<DocumentsStore>()(
 
         try {
           console.log('[DocumentsStore] Browsing Wolke files for share link:', shareLinkId);
+          const query = new URLSearchParams();
+          if (options.path) query.set('path', options.path);
+          if (options.recursive) query.set('recursive', 'true');
+          const suffix = query.size > 0 ? `?${query.toString()}` : '';
           const response = await apiClient.get<WolkeBrowseApiResponse>(
-            `/documents/wolke/browse/${shareLinkId}`
+            `/documents/wolke/browse/${shareLinkId}${suffix}`
           );
           const result = response.data;
 
