@@ -7,6 +7,7 @@ import {
   looksLikeToolCallLeak,
   stripFabricatedArtifactDelivery,
   stripFabricatedSystemClaims,
+  stripToolControlTokens,
   containsBrokenJsonPayload,
 } from './outputSanity.js';
 
@@ -270,5 +271,46 @@ describe('containsBrokenJsonPayload', () => {
     expect(containsBrokenJsonPayload('Eine ganz normale Antwort in Prosa.')).toBe(false);
     expect(containsBrokenJsonPayload('```ts\nconst x = {broken:;\n```')).toBe(false);
     expect(containsBrokenJsonPayload('')).toBe(false);
+  });
+});
+
+describe('stripToolControlTokens', () => {
+  it('removes a leaked opening token, keeping the answer', () => {
+    // Live 13.08.2026: three of four turns opened with this before writing
+    // 1.866 correct characters. The split writer has no tools — it was
+    // imitating the gather phase's transcript in its context.
+    expect(stripToolControlTokens('<tool_call>\n\nGrüne fordern Sofortprogramm')).toBe(
+      '\n\nGrüne fordern Sofortprogramm'
+    );
+  });
+
+  it('removes closing and paired tokens too', () => {
+    expect(stripToolControlTokens('a</tool_call>b')).toBe('ab');
+    expect(stripToolControlTokens('<tool_call></tool_call>Text')).toBe('Text');
+    expect(stripToolControlTokens('<|im_end|>Fertig')).toBe('Fertig');
+  });
+
+  it('leaves the token alone inside fenced code', () => {
+    // "Wie sieht ein tool_call im Chat-Template aus?" is a legitimate question
+    // about this product, and its answer shows the token.
+    const answer = 'So sieht es aus:\n```\n<tool_call>{"name":"x"}</tool_call>\n```\nAlles klar?';
+    expect(stripToolControlTokens(answer)).toBe(answer);
+  });
+
+  it('still strips outside the fence when a fence is present', () => {
+    expect(stripToolControlTokens('<tool_call>Hier:\n```\ncode\n```\nEnde')).toBe(
+      'Hier:\n```\ncode\n```\nEnde'
+    );
+  });
+
+  it('touches nothing when there is nothing to strip', () => {
+    const clean = 'Eine gewöhnliche Antwort über Hitzeschutz.';
+    expect(stripToolControlTokens(clean)).toBe(clean);
+    expect(stripToolControlTokens('')).toBe('');
+  });
+
+  it('does not eat prose that merely mentions the word', () => {
+    const prose = 'Der Begriff tool_call bezeichnet einen Werkzeugaufruf.';
+    expect(stripToolControlTokens(prose)).toBe(prose);
   });
 });

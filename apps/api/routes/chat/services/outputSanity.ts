@@ -289,6 +289,43 @@ export function looksCutOff(text: string): boolean {
 }
 
 /**
+ * The chat-template control tokens with which the open-weight models wrap a
+ * tool call. They are protocol, never content: the SDK parses real ones out of
+ * the stream long before the text reaches here, so an occurrence in the answer
+ * text is always an imitation the model typed as prose.
+ *
+ * Live 13.08.2026, four turns in a row: the split writer runs WITHOUT tools but
+ * WITH the gather phase's tool transcript in its context, and opened three of
+ * four answers with a bare `<tool_call>` before writing perfectly good German.
+ * The existing guards all missed it — `looksLikeToolPlanLeak` only fires when
+ * the WHOLE answer is short and plan-shaped, and here the answer was 1.866
+ * correct characters behind one stray token.
+ *
+ * Deleted, not retried: everything after it was fine, and re-rolling a good
+ * answer over one token would cost the user a second wait for no gain.
+ */
+const CONTROL_TOKEN_RE =
+  /<\/?(?:tool_call|tool_calls|tool_response|tool_result|function_call|\|?(?:tool_calls|im_start|im_end)\|?)>/gi;
+
+/**
+ * Strip those tokens — outside fenced code only.
+ *
+ * The fence exception is the whole reason this is not a bare `.replace()`: "wie
+ * sieht ein tool_call im Chat-Template aus?" is a legitimate question about this
+ * product, and its answer shows the token inside a fence. Odd-indexed segments
+ * of a ```-split ARE the fenced bodies, so they pass through untouched.
+ */
+export function stripToolControlTokens(text: string): string {
+  if (typeof text !== 'string' || text.length === 0) return text ?? '';
+  CONTROL_TOKEN_RE.lastIndex = 0;
+  if (!CONTROL_TOKEN_RE.test(text)) return text;
+  return text
+    .split('```')
+    .map((segment, i) => (i % 2 === 0 ? segment.replace(CONTROL_TOKEN_RE, '') : segment))
+    .join('```');
+}
+
+/**
  * Whether generated user-facing text is actually a leaked TOOL CALL.
  *
  * Live: a request to look up a number and post it produced the 93-character
