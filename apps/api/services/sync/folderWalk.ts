@@ -83,7 +83,10 @@ export async function walkWolkeFolder(
 
   let frontier: string[] = [rootPath];
 
-  for (let depth = 0; depth <= maxDepth && frontier.length > 0; depth++) {
+  // Once the file cap is reached nothing further can change the result, and
+  // every additional folder is another PROPFIND over the network. The cap
+  // bounds cost, so it has to stop the traversal, not just the pushing.
+  walk: for (let depth = 0; depth <= maxDepth && frontier.length > 0; depth++) {
     const nextFrontier: string[] = [];
 
     for (const folderPath of frontier) {
@@ -106,7 +109,7 @@ export async function walkWolkeFolder(
         if (seenFileHrefs.has(entry.href)) continue;
         if (files.length >= maxFiles) {
           truncated = true;
-          continue;
+          break walk;
         }
         seenFileHrefs.add(entry.href);
         files.push(entry);
