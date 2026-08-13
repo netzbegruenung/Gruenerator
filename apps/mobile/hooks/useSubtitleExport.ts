@@ -164,6 +164,10 @@ export function useSubtitleExport(saveChanges: () => Promise<boolean>) {
                 });
               }
             } catch (downloadErr) {
+              // The cause used to die here: the screen said "Der Download ist
+              // fehlgeschlagen" and nothing reached the log, so a plain 401 took a
+              // device, a debug build and a throwaway probe to identify.
+              console.error('[SubtitleExport] Download fehlgeschlagen:', downloadErr);
               if (isMountedRef.current) {
                 setState({
                   status: 'error',
