@@ -35,7 +35,7 @@ import {
 import { useShallow } from 'zustand/shallow';
 
 import { useTheme } from '../../hooks/useTheme';
-import { spacing, borderRadius, chatType } from '../../theme';
+import { spacing, borderRadius, chatType, colors } from '../../theme';
 import { route } from '../../types/routes';
 import { BottomSheet } from '../common/BottomSheet';
 import { ListGroup, ListRow, useSurfaceStyles } from '../common/ListRow';
@@ -430,11 +430,19 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
                       title={tool.label}
                       value={tool.description}
                       last={last}
-                      onPress={() => toggleTool(tool.key)}
+                      // Kein `onPress` auf der Zeile: der Schalter sitzt INNERHALB
+                      // desselben `Pressable` (ListRow), also hätte ein Tipp auf den
+                      // Schalter zwei Wege zu `toggleTool` — und zweimal umlegen sieht
+                      // aus wie ein toter Schalter. Ohne `onPress` schaltet ListRow
+                      // sein Pressable ab (`disabled={disabled || !onPress}`) und die
+                      // Zeile meldet sich nicht mehr als Button, obwohl ihr eigentliches
+                      // Bedienelement ein Schalter ist. Dasselbe Muster wie bei jeder
+                      // Switch-Zeile in SettingsSheet.tsx.
                       accessory={
                         <Switch
                           value={enabledTools[tool.key] !== false}
                           onValueChange={() => toggleTool(tool.key)}
+                          trackColor={{ true: colors.primary[600], false: colors.grey[300] }}
                         />
                       }
                     />
