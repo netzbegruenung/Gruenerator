@@ -917,8 +917,12 @@ export async function streamForResolution(params: {
       // sich dann wie ein Reasoning-Problem — während der zweite Versuch in
       // exakt denselben Fehler lief, weil an der Anfrage lag, was der Text
       // dem Host zuschrieb.
+      //
+      // `err.message` trägt den Status bereits (siehe den Konstruktor von
+      // ReasoningStreamUnavailableError), deshalb hier NICHT zusätzlich
+      // `err.status` — sonst steht die Zahl zweimal in derselben Zeile.
       log.warn(
-        `${logPrefix ?? '[ChatGraph]'} Scaleway-Reasoning fehlgeschlagen (${err.status}: ${err.message}) — zweiter Versuch über die Mistral-API`
+        `${logPrefix ?? '[ChatGraph]'} Scaleway-Reasoning fehlgeschlagen (${err.message}) — zweiter Versuch über die Mistral-API`
       );
     }
   }
