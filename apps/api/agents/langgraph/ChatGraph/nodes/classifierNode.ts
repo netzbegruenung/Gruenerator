@@ -16,7 +16,7 @@
  *   Residual:   The rule table's own verdict, named for what it is
  */
 
-import { degradeTargetForLocale } from '@gruenerator/shared/chat-intents';
+import { type ChatIntentId, degradeTargetForLocale } from '@gruenerator/shared/chat-intents';
 
 import { isAgenticLoopEnabled } from '../../../../routes/chat/services/agenticLoop/flags.js';
 import {
@@ -102,7 +102,7 @@ const log = createLogger('ChatGraph:Classifier');
  *  gated. Generation intents (sharepic, social_post, image, ...) and
  *  interrupt/confirm intents must keep the LLM tier so their gates, HITL and
  *  fixed UX contracts stay intact. */
-const DEMOTABLE_HEURISTIC_INTENTS: ReadonlySet<string> = new Set([
+const DEMOTABLE_HEURISTIC_INTENTS: ReadonlySet<ChatIntentId> = new Set([
   'search',
   'web',
   'examples',

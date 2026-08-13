@@ -8,6 +8,7 @@
  */
 
 import { createRecurringTaskBodySchema, type ScheduleRecurrence } from '@gruenerator/contracts';
+import { isGroundableProse } from '@gruenerator/shared/chat-intents';
 import { buildChatThreadSlug, findBestMatch } from '@gruenerator/shared/utils';
 
 import {
@@ -909,15 +910,18 @@ export async function runSharepicGeneration(opts: {
  * it. `greeting` is absent on purpose — a greeting has nothing to ground — and
  * so is `agentic`, which does its own retrieval inside the loop and would
  * otherwise start every turn with a stale source block.
+ *
+ * That set is `isGroundableProse`: the `prose` disposition without `greeting`,
+ * derived in `@gruenerator/shared/chat-intents`. `agentic` is excluded by the
+ * disposition itself (it is `loop`, not `prose`), so only the `greeting` cut
+ * needs stating — and it is stated there, once, instead of here for the third
+ * time.
  */
-const CARRY_ELIGIBLE_INTENTS: ReadonlySet<string> = new Set(['produktion', 'direct']);
-
 export async function carryThreadSourcesIfNeeded(
   state: ChatGraphState,
   threadId: string | null
 ): Promise<ChatGraphState> {
-  if (!CARRY_ELIGIBLE_INTENTS.has(state.intent) || state.searchResults.length > 0 || !threadId)
-    return state;
+  if (!isGroundableProse(state.intent) || state.searchResults.length > 0 || !threadId) return state;
   const lastUser = [...state.messages].reverse().find((m) => m.role === 'user');
   if (!needsThreadGrounding(lastUser ? extractTextContent(lastUser.content) : '')) return state;
   try {
