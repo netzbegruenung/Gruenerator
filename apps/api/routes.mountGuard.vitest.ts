@@ -63,4 +63,22 @@ describe('routes.ts mount order', () => {
       expect(guard, `${prefix} guard must precede ${mount}`).toBeLessThan(mountCall);
     }
   });
+
+  /**
+   * The inverse invariant. `/api/thumbs` must stay OPEN: a native `<Image>` and
+   * a plain `<img>` cannot send an Authorization header, so the permission
+   * travels in the URL as an HMAC minted by an endpoint that already checked
+   * access. Adding auth here looks like hardening and is a total outage of
+   * every preview in the mobile app — which is exactly how reel thumbnails were
+   * broken before this endpoint existed.
+   */
+  it('leaves /api/thumbs unauthenticated', () => {
+    const mounts = [...routesSource.matchAll(/app\.use\('\/api\/thumbs[^)]*\)/g)].map((m) => m[0]);
+    expect(mounts.length).toBeGreaterThan(0);
+    for (const mount of mounts) {
+      expect(mount, 'thumbnails must render without a session').not.toMatch(
+        /requireAuth|optionalAuth|requireAdminToken/
+      );
+    }
+  });
 });
