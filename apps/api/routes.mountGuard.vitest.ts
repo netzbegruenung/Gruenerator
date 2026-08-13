@@ -29,6 +29,10 @@ const routesSource = fs.readFileSync(
 
 const firstIndexOf = (needle: string): number => routesSource.indexOf(needle);
 
+/** Escapes every regex metacharacter, backslash first — a partial escape is
+ *  the classic `js/incomplete-sanitization` finding. */
+const escapeRegExp = (value: string): string => value.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&');
+
 describe('routes.ts mount order', () => {
   it('gates the whole /api/internal prefix before any internal route registers', () => {
     const gate = firstIndexOf("app.use('/api/internal', requireAdminToken)");
@@ -59,7 +63,7 @@ describe('routes.ts mount order', () => {
       // `requireAuth` need not be the FIRST middleware — /api/sharepic/text
       // puts `aiGenerationLimiter` in front of it — only in the same call.
       const guard = routesSource.search(
-        new RegExp(`app\\.use\\('${prefix.replace(/\//g, '\\/')}',[^)]*requireAuth`)
+        new RegExp(`app\\.use\\('${escapeRegExp(prefix)}',[^)]*requireAuth`)
       );
       const mountCall = firstIndexOf(mount);
 
