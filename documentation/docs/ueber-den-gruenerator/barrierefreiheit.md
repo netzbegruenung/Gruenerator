@@ -31,7 +31,7 @@ Behoben und nachgemessen sind unter anderem:
 - **Einzelne Farbpaare liegen weiter unter dem geforderten Wert** — bekannt ist ein Blau-auf-Blau-Paar im Bereich _Projekte_.
 - **Die Seitenstruktur ist uneinheitlich.** Nicht jede Seite kennzeichnet ihren Hauptbereich und ihre Navigationsleisten so, dass ein Screenreader direkt dorthin springen kann.
 - **Die Mobil-App ist nicht auf einem Gerät geprüft.** Die Namen der Bedienelemente sind gesetzt, aber Kontrast, Reihenfolge beim Durchtippen und die tatsächlichen Ansagen von VoiceOver und TalkBack sind ungeprüft.
-- **Nicht gemessen wurden bisher:** die veröffentlichten Kandidat:innen-Seiten, die Desktop-App und diese Dokumentationsseite selbst.
+- **Nicht gemessen wurden bisher:** der dunkle Modus, die veröffentlichten Kandidat:innen-Seiten, die Desktop-App und diese Dokumentationsseite selbst.
 
 ## Einstellungen, die du selbst setzen kannst
 
@@ -66,7 +66,7 @@ Hilfreich ist: welche Seite, was du tun wolltest, und womit du arbeitest (Browse
 
 **Selbstbewertung**, kein externer Test. Konkret:
 
-- **axe-core** über 20 Seiten der Web-Oberfläche, in hellem und dunklem Modus, zuletzt am 2. August 2026.
+- **axe-core** über 13 Seiten der Web-Oberfläche, zuletzt am 2. August 2026. Gemessen wird bisher nur der helle Modus; der dunkle ist ungeprüft.
 - **ESLint-Regelsätze** (`jsx-a11y` für das Web, `react-native-a11y` für die Mobil-App) laufen bei jeder Änderung mit.
 - **Komponententests** mit `axe` an den Stellen, an denen ARIA von Hand gesetzt wird.
 
