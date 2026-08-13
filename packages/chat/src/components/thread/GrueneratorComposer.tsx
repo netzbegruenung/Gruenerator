@@ -840,7 +840,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     ]
   );
 
-  const handlePlusMenuUpload = useCallback(() => {
+  const openFilePicker = useCallback(() => {
     uploadRef.current?.click();
   }, []);
 
@@ -874,7 +874,6 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     <PlusMenu
       onInsertMention={handleSelect}
       onOpenFileBrowser={handlePlusMenuOpenFileBrowser}
-      onUploadFile={handlePlusMenuUpload}
       includeModes={showToolToggles}
       insideAgent={insideAgent}
       firstName={firstName ?? null}
@@ -1029,6 +1028,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
                 s.kind === 'document' ? handleDocumentSelect(s.doc) : handleCollabDocSelect(s.doc)
               }
               onDismiss={dismissPopover}
+              onUploadFile={openFilePicker}
             />
           ) : mention.mode === 'wolke' ? (
             <WolkeMentionPopover

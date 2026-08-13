@@ -25,7 +25,6 @@ import type { Mentionable } from '../../lib/mentionables';
 
 const onInsertMention = vi.fn();
 const onOpenFileBrowser = vi.fn();
-const onUploadFile = vi.fn();
 
 function renderMenu(props: Partial<React.ComponentProps<typeof PlusMenu>> = {}) {
   // The recipe library modal mounts with the menu (it owns its own `open`
@@ -40,7 +39,6 @@ function renderMenu(props: Partial<React.ComponentProps<typeof PlusMenu>> = {}) 
       <PlusMenu
         onInsertMention={onInsertMention}
         onOpenFileBrowser={onOpenFileBrowser}
-        onUploadFile={onUploadFile}
         includeModes
         {...props}
       />
@@ -57,7 +55,6 @@ async function openMenu(user: ReturnType<typeof userEvent.setup>) {
 beforeEach(() => {
   onInsertMention.mockReset();
   onOpenFileBrowser.mockReset();
-  onUploadFile.mockReset();
   // `ResponsiveMenu` picks dropdown vs. sheet from a width media query, and
   // `window.innerWidth` is module-global in jsdom — without this reset the
   // mobile block below leaves every later test on the sheet branch, where
@@ -143,23 +140,24 @@ describe('switch group', () => {
 });
 
 describe('attach group', () => {
-  it('offers upload and the library browser', async () => {
+  it('is a single row that opens the file panel', async () => {
     const user = userEvent.setup();
     renderMenu();
     const menu = await openMenu(user);
 
-    await user.click(within(menu).getByRole('menuitem', { name: /Fotos & Dateien hochladen/ }));
-    expect(onUploadFile).toHaveBeenCalledTimes(1);
+    await user.click(within(menu).getByRole('menuitem', { name: /Datei hinzufügen/ }));
+    expect(onOpenFileBrowser).toHaveBeenCalledTimes(1);
   });
 
-  it('inserts the @link mentionable for "Link anhängen"', async () => {
+  it('no longer carries the separate upload and link rows', async () => {
     const user = userEvent.setup();
     renderMenu();
     const menu = await openMenu(user);
 
-    await user.click(within(menu).getByRole('menuitem', { name: /Link anhängen/ }));
-    const inserted = onInsertMention.mock.calls[0]?.[0] as Mentionable;
-    expect(inserted.mention).toBe('link');
+    // Das Hochladen sitzt jetzt als erste Zeile IM Dateipanel
+    // (`FileMentionPopover`), der Link kommt per Einfügen in den Composer.
+    expect(within(menu).queryByRole('menuitem', { name: /Fotos & Dateien hochladen/ })).toBeNull();
+    expect(within(menu).queryByRole('menuitem', { name: /Link anhängen/ })).toBeNull();
   });
 });
 

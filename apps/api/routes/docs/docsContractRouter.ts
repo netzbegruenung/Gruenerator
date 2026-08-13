@@ -23,12 +23,18 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import {
+  generateStructured,
+  viaLaxParser,
+  withContent,
+} from '../../services/ai/generateStructured.js';
+import {
   softDeleteCollaborativeDocument,
   updateCollaborativeDocument,
   type QueryRunner,
 } from '../../services/docs/CollaborativeDocumentService.js';
 import {
   DOCUMENT_GENERATION_PROMPT,
+  DOCUMENT_TOOL_SCHEMA,
   parseDocumentResponse,
   createDocumentWithContent,
 } from '../../services/docs/DocGenerationService.js';
@@ -679,22 +685,31 @@ export const docsContractRouter = s.router(docsContract, {
         };
       }
 
-      const aiResult = await getAIWorkerPool(args.req).processRequest(
-        {
-          type: 'doc_generation',
-          systemPrompt: DOCUMENT_GENERATION_PROMPT,
-          messages: [{ role: 'user', content: description.trim() }],
-          options: { temperature: 0.7 },
-        },
-        args.req
-      );
+      // Same schema-enforced path the chat surface uses (createDocumentArtifact):
+      // forced tool call + repair turn + truncation handling. Prompting for JSON
+      // and parsing whatever came back made this route fail with a 500 whenever
+      // the model wrapped its answer in prose or ran out of output budget.
+      const docResult = await generateStructured({
+        aiWorkerPool: getAIWorkerPool(args.req),
+        req: args.req,
+        type: 'doc_generation',
+        systemPrompt: DOCUMENT_GENERATION_PROMPT,
+        userContent: description.trim(),
+        toolName: 'create_document',
+        toolDescription: 'Erzeugt das Dokument als HTML mit Titel und subtype.',
+        schema: DOCUMENT_TOOL_SCHEMA,
+        validate: viaLaxParser(withContent(parseDocumentResponse), 'content fehlt oder ist leer'),
+        temperature: 0.7,
+        label: 'document',
+      });
 
-      const generated =
-        aiResult.success && aiResult.content ? parseDocumentResponse(aiResult.content) : null;
-      // Empty content is the parser's failure signal — creating the document
-      // anyway produced a blank artifact reported as a success (201).
-      if (!generated || !generated.content) {
-        log.warn('[docsContract.generateDocument] Model returned no parseable content');
+      // Every attempt failed: provider error, no tool call and no usable JSON,
+      // a rejected structure (empty `content` is the validator's failure
+      // signal), or an answer that stayed truncated through the repair turn.
+      // Reported as an error rather than created anyway — an empty parse used
+      // to become a blank document reported as a success (201).
+      if (!docResult.ok) {
+        log.warn(`[docsContract.generateDocument] Generation failed: ${docResult.error}`);
         return {
           status: 500 as const,
           body: {
@@ -703,6 +718,7 @@ export const docsContractRouter = s.router(docsContract, {
           },
         };
       }
+      const generated = docResult.data;
 
       const document = await createDocumentWithContent(
         generated.title,

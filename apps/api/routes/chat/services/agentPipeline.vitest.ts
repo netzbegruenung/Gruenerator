@@ -1,0 +1,250 @@
+/**
+ * Was hier festgehalten wird, ist nicht die Formatierung der Ausgabe, sondern
+ * die Bauform: dass die Nachschritte überhaupt stattfinden, dass die blinde
+ * Rückübersetzung NUR die Fassung sieht, und dass ein Ausfall benannt statt
+ * verschwiegen wird. Alle drei waren im Lauf vom 13.08.2026 verletzt — der eine
+ * Turn bewertete sich selbst und meldete „vollständig", während ein Ortsname
+ * fehlte.
+ *
+ * Die Tests fahren die Kette über die Registry, nicht über fest verdrahtete
+ * Schritte: was hier grün ist, gilt für jeden Agenten, der später dazukommt.
+ */
+
+import { describe, expect, it, vi, beforeEach } from 'vitest';
+
+import { getPipelineAgent } from '../agents/pipelines/index.js';
+
+import { resolveOriginalText, runAgentPipeline } from './agentPipeline.js';
+
+import type { PipelineAgent } from '../agents/pipelines/index.js';
+
+const ES = getPipelineAgent('gruenerator-einfache-sprache') as PipelineAgent;
+
+/** Über der Schwelle, damit die Kette überhaupt anläuft. */
+const FASSUNG = 'Die Grünen fordern ein Sofortprogramm. '.repeat(15);
+const ORIGINAL = 'Auf dem Parteitag in Sassnitz beschlossen die Grünen ein Sofortprogramm.';
+
+interface Sent {
+  event: string;
+  payload: Record<string, unknown>;
+}
+
+/** Nimmt je Schritt-`type` eine Antwort entgegen; null = Ausfall. */
+function fakePool(answers: Record<string, string | null>) {
+  const calls: Array<{ type: string; systemPrompt: string; userMessage: string }> = [];
+  const processRequest = vi.fn(async (req: Record<string, unknown>) => {
+    const messages = req.messages as Array<{ content: string }>;
+    calls.push({
+      type: String(req.type),
+      systemPrompt: String(req.systemPrompt),
+      userMessage: messages[0]?.content ?? '',
+    });
+    return { content: answers[String(req.type)] ?? null };
+  });
+  return { calls, pool: { processRequest } };
+}
+
+function fakeSse(): { sse: { send: (e: string, p: unknown) => void }; sent: Sent[] } {
+  const sent: Sent[] = [];
+  return {
+    sent,
+    sse: {
+      send: (event: string, payload: unknown) => {
+        sent.push({ event, payload: payload as Record<string, unknown> });
+      },
+    },
+  };
+}
+
+const RUECK_TYPE = 'chat_einfache_sprache_rueck';
+const PRUEF_TYPE = 'chat_einfache_sprache_pruefung';
+
+function run(
+  answers: Record<string, string | null>,
+  overrides: { produced?: string; original?: string } = {}
+) {
+  const { sse, sent } = fakeSse();
+  const { calls, pool } = fakePool(answers);
+  const promise = runAgentPipeline({
+    pipeline: ES,
+    state: { aiWorkerPool: pool } as never,
+    sse: sse as never,
+    produced: overrides.produced ?? FASSUNG,
+    original: overrides.original ?? ORIGINAL,
+  });
+  return { promise, sent, calls };
+}
+
+const streamed = (sent: Sent[]): string =>
+  sent
+    .filter((s) => s.event === 'text_delta')
+    .map((s) => String(s.payload.text))
+    .join('');
+
+describe('runAgentPipeline', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('reicht der Rückübersetzung NUR die Fassung, nie das Original', async () => {
+    const { promise, calls } = run({
+      [RUECK_TYPE]: 'Fachdeutsche Fassung.',
+      [PRUEF_TYPE]: 'FREIGABE',
+    });
+    await promise;
+
+    const rueck = calls.find((c) => c.type === RUECK_TYPE);
+    // Der eigentliche Befund: die Nachricht IST die Fassung, und das Original
+    // taucht in diesem Aufruf nirgends auf — auch nicht im Systemprompt. Wäre
+    // es dabei, wäre die „blinde" Rückübersetzung eine Rekonstruktion und als
+    // Prüfmittel wertlos.
+    expect(rueck?.userMessage).toBe(FASSUNG.trim());
+    expect(JSON.stringify(rueck)).not.toContain('Sassnitz');
+  });
+
+  it('gibt der Prüfung alle drei Texte', async () => {
+    const { promise, calls } = run({
+      [RUECK_TYPE]: 'Fachdeutsche Fassung.',
+      [PRUEF_TYPE]: 'ÜBERARBEITUNG',
+    });
+    await promise;
+
+    const pruef = calls.find((c) => c.type === PRUEF_TYPE);
+    expect(pruef?.userMessage).toContain(ORIGINAL);
+    expect(pruef?.userMessage).toContain(FASSUNG);
+    expect(pruef?.userMessage).toContain('Fachdeutsche Fassung.');
+  });
+
+  it('strömt jeden Schritt und gibt exakt das Angehängte zurück', async () => {
+    const { promise, sent } = run({
+      [RUECK_TYPE]: 'Fachdeutsche Fassung.',
+      [PRUEF_TYPE]: 'FREIGABE, keine Befunde.',
+    });
+    const appended = await promise;
+
+    expect(appended).toContain('Fachdeutsche Fassung.');
+    expect(appended).toContain('FREIGABE, keine Befunde.');
+    // Rückgabewert und Bildschirm müssen deckungsgleich sein — sonst zeigt ein
+    // Neuladen des Threads etwas anderes als der Lauf.
+    expect(streamed(sent)).toBe(appended);
+  });
+
+  it('benennt einen ausgefallenen Schritt, statt ihn zu verschweigen', async () => {
+    const { promise } = run({ [RUECK_TYPE]: 'Fachdeutsch.', [PRUEF_TYPE]: null });
+    const appended = await promise;
+
+    // Ohne diesen Satz sähe eine ungeprüfte Fassung wie eine freigegebene aus.
+    expect(appended).toContain('ungeprüft');
+  });
+
+  it('prüft trotzdem, wenn die Rückübersetzung ausfällt', async () => {
+    const { promise, calls } = run({ [RUECK_TYPE]: null, [PRUEF_TYPE]: 'ÜBERARBEITUNG' });
+    const appended = await promise;
+
+    const pruef = calls.find((c) => c.type === PRUEF_TYPE);
+    expect(pruef?.userMessage).toContain('nicht zustande gekommen');
+    expect(appended).toContain('ÜBERARBEITUNG');
+  });
+
+  it('kürzt ein überlanges Original und sagt es dem Prüfer', async () => {
+    // Drei Texte plus Systemprompt müssen in ein Fenster passen. Still gekürzt
+    // wäre die Abdeckungsliste unvollständig, ohne dass es jemand merkt — und
+    // genau sie ist das Prüfmittel.
+    const riesig = 'Ein Satz über Klimaanlagen in Pflegeheimen. '.repeat(1000);
+    expect(riesig.length).toBeGreaterThan(24000);
+
+    const { promise, calls } = run(
+      { [RUECK_TYPE]: 'Fachdeutsch.', [PRUEF_TYPE]: 'ÜBERARBEITUNG' },
+      { original: riesig }
+    );
+    await promise;
+
+    const pruef = calls.find((c) => c.type === PRUEF_TYPE);
+    expect(pruef?.userMessage.length).toBeLessThan(riesig.length);
+    expect(pruef?.userMessage).toContain('Gekürzt');
+  });
+
+  it('spart die Modellaufrufe bei einer kurzen Antwort', async () => {
+    const { promise, calls } = run({}, { produced: 'Kurze Rückfrage.' });
+    const appended = await promise;
+
+    expect(appended).toBe('');
+    expect(calls).toHaveLength(0);
+  });
+
+  it('prüft nicht ohne Original, sagt es aber', async () => {
+    const { promise, calls } = run({}, { original: '   ' });
+    const appended = await promise;
+
+    expect(calls).toHaveLength(0);
+    // Früher war dieser Zweig stumm — eine ungeprüfte Fassung sah damit aus wie
+    // eine freigegebene. Genau der Fall trat bei `@dokument`-Mentions ein.
+    expect(appended).toContain('ungeprüft');
+  });
+});
+
+describe('resolveOriginalText', () => {
+  const leer = { attachmentContext: null, documentMentionContext: null, currentDocument: null };
+  const lang = 'Auf dem Parteitag in Sassnitz. '.repeat(20);
+
+  it('nimmt den eingefügten Text aus der Nachricht', () => {
+    expect(resolveOriginalText(leer, lang)).toBe(lang.trim());
+  });
+
+  it('nimmt den Anhang, wenn die Nachricht nur die Anweisung trägt', () => {
+    const state = { ...leer, attachmentContext: lang };
+    expect(resolveOriginalText(state, 'Übertrage das in Einfache Sprache')).toBe(lang.trim());
+  });
+
+  it('nimmt die @dokument-Mention — der Fall, der vorher durchfiel', () => {
+    // Die Nutzernachricht ist hier NICHT leer, sondern kurz. Eine `||`-Kette
+    // hätte sie genommen und gegen einen Einzeiler geprüft.
+    const state = { ...leer, documentMentionContext: lang };
+    expect(resolveOriginalText(state, 'Übertrage @mein-antrag in Einfache Sprache')).toBe(
+      lang.trim()
+    );
+  });
+
+  it('greift auf das offene Dokument nur zurück, wenn es sonst nichts gibt', () => {
+    const cur = { id: 'd1', title: null, markdown: lang, selectionText: null };
+    expect(resolveOriginalText({ ...leer, currentDocument: cur }, '  ')).toBe(lang.trim());
+    // Mit eingefügtem Material gewinnt das Material, auch wenn das offene
+    // Dokument länger ist — es hat mit der Anfrage nichts zu tun.
+    const kurz = 'Kurzer eingefügter Absatz.';
+    expect(resolveOriginalText({ ...leer, currentDocument: cur }, kurz)).toBe(kurz);
+  });
+
+  it('gibt einen leeren String, wenn es nichts gibt', () => {
+    expect(resolveOriginalText(leer, '   ')).toBe('');
+  });
+});
+
+describe('Pipeline-Registry', () => {
+  it('erkennt die eingetragenen Agenten und sonst keinen', () => {
+    expect(getPipelineAgent('gruenerator-einfache-sprache')).not.toBeNull();
+    expect(getPipelineAgent('gruenerator-leichte-sprache')).not.toBeNull();
+    expect(getPipelineAgent('gruenerator-universal')).toBeNull();
+    expect(getPipelineAgent(null)).toBeNull();
+    expect(getPipelineAgent(undefined)).toBeNull();
+  });
+
+  it('bringt die Einfache-Sprache-Persona im Repo mit, Leichte Sprache nicht', () => {
+    // Der Unterschied ist die Zuständigkeit, nicht die Vertraulichkeit — siehe
+    // den Kopf von leichteSprache.ts.
+    expect(getPipelineAgent('gruenerator-einfache-sprache')?.systemRole).toContain('B1');
+    expect(getPipelineAgent('gruenerator-leichte-sprache')?.systemRole).toBeNull();
+  });
+
+  it('hält jeden Schritt für einen Ausfall sprechfähig', () => {
+    // Ein Schritt ohne `missingText` wäre im Ausfall stumm, und Stille liest
+    // sich hier als Freigabe. Gilt für jeden künftigen Eintrag mit.
+    for (const id of ['gruenerator-einfache-sprache', 'gruenerator-leichte-sprache']) {
+      const pipeline = getPipelineAgent(id);
+      expect(pipeline?.steps.length).toBeGreaterThan(0);
+      for (const step of pipeline?.steps ?? []) {
+        expect(step.missingText.length).toBeGreaterThan(20);
+        expect(step.heading).toContain('##');
+      }
+    }
+  });
+});
