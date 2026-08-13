@@ -19,7 +19,7 @@ import { describeFinalState } from './finalState.js';
 import { suppressGeneralPurposeSubagent } from './harnessProfile.js';
 import { leadModel, workerModel } from './models.js';
 import { nudgeMissingReportMiddleware } from './nudgeMissingReport.js';
-import { leadPrompt, researcherPrompt } from './prompts.js';
+import { leadPrompt, programmeResearcherPrompt, webResearcherPrompt } from './prompts.js';
 import {
   REPORT_PATH,
   ensureSources,
@@ -38,7 +38,7 @@ import {
 } from './resume.js';
 import { sanitizeToolCallsMiddleware } from './sanitizeToolCalls.js';
 import { type ToolContext } from './toolContext.js';
-import { createResearchTools, subagentTools } from './tools.js';
+import { createResearchTools, toolsFor } from './tools.js';
 import {
   DEFAULT_BUDGET,
   createBudget,
@@ -113,6 +113,11 @@ export async function runDeepAgentResearch(
   };
 
   const tools = createResearchTools(ctx);
+  // Read off the built tools, not off `params`: the corpus tool only exists when
+  // something is actually in reach (`buildNotebookScope`), and both things that
+  // depend on it — the second subagent and the lead's prompt — must follow that
+  // one fact instead of re-deriving it.
+  const hasNotebooks = tools.some((t) => t.name === 'notizbuch_suche');
   // Without this the run has a SECOND delegation target — on the lead model,
   // with a generic prompt, advertising itself for research. See harnessProfile.ts.
   suppressGeneralPurposeSubagent();
@@ -133,20 +138,37 @@ export async function runDeepAgentResearch(
       sanitizeToolCallsMiddleware,
       nudgeMissingReportMiddleware,
     ] as never,
-    systemPrompt: leadPrompt(locale),
+    systemPrompt: leadPrompt(locale, { hasNotebooks }),
     subagents: [
       {
-        name: 'recherche',
+        name: 'web-recherche',
         description:
-          'Beantwortet EINE Teilfrage gründlich mit Websuche und Quellenangaben. Gib die vollständige Teilfrage samt Kontext mit — der Subagent kennt den Gesamtauftrag nicht.',
-        systemPrompt: researcherPrompt(locale),
-        // Not the lead's list: the expensive deep lane stays a lead decision.
-        tools: subagentTools(tools) as never,
+          'Beantwortet EINE faktische Teilfrage im Web — Zahlen, Daten, Chronologie, fremde Akteure — mit Quellenangaben. Gib die vollständige Teilfrage samt Kontext mit; der Subagent kennt den Gesamtauftrag nicht.',
+        systemPrompt: webResearcherPrompt(locale),
+        // Not the lead's list: the expensive deep lane stays a lead decision,
+        // and the corpora belong to the other researcher. See SUBAGENT_TOOLSETS.
+        tools: toolsFor(tools, 'web-recherche') as never,
         model: workerModel(),
         // Subagents do not inherit the main agent's middleware, and they run the
         // same lane — so the repair has to be attached here too.
         middleware: [sanitizeToolCallsMiddleware] as never,
       },
+      // Only when a corpus is actually in reach: without `notizbuch_suche` this
+      // subagent has nothing to search, and an empty specialist is worse than
+      // none — the lead would delegate programme questions into a dead end.
+      ...(hasNotebooks
+        ? [
+            {
+              name: 'programm-recherche',
+              description:
+                'Beantwortet EINE Teilfrage zu grüner Haltung, Beschlusslage oder Programmatik aus den Programmen und Beschlüssen der Grünen selbst. Gib die vollständige Teilfrage samt Kontext mit; der Subagent kennt den Gesamtauftrag nicht.',
+              systemPrompt: programmeResearcherPrompt(locale),
+              tools: toolsFor(tools, 'programm-recherche') as never,
+              model: workerModel(),
+              middleware: [sanitizeToolCallsMiddleware] as never,
+            },
+          ]
+        : []),
     ],
   });
 
