@@ -85,6 +85,19 @@ export const EDIT_SHEET_CONFIGS: Record<ImageStudioTemplateType, EditSheetConfig
     showColorScheme: false,
     showAdvanced: false,
   },
+  // Nur die Felder EINER Folie. Der Create-Flow hier kennt keine
+  // Mehrseitigkeit, deshalb bietet auch nichts den Typ zur Auswahl an — der
+  // Eintrag hält bloss den Record vollständig.
+  slider: {
+    textFields: [
+      { key: 'label', label: 'Label', maxLength: 25 },
+      { key: 'headline', label: 'Headline', multiline: true, maxLength: 130 },
+      { key: 'subtext', label: 'Subtext', multiline: true, maxLength: 200 },
+    ],
+    showFontSize: false,
+    showColorScheme: false,
+    showAdvanced: false,
+  },
 };
 
 export function getEditSheetConfig(type: ImageStudioTemplateType): EditSheetConfig {

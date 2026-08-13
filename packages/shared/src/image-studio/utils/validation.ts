@@ -13,13 +13,11 @@ import type {
   DreizeilenResponse,
   QuoteResponse,
   InfoResponse,
+  VeranstaltungResponse,
+  SimpleResponse,
+  SliderResponse,
+  TextGenerationResponse,
 } from '../types.js';
-
-/** Raw veranstaltung response — event fields may be at top level or wrapped in mainEvent */
-interface VeranstaltungRawResponse {
-  mainEvent?: { eventTitle?: string };
-  eventTitle?: string;
-}
 
 /** Typed canvas response from the API */
 interface CanvasApiResponse {
@@ -244,57 +242,55 @@ export function validateFormData(
 // ============================================================================
 
 /**
- * Validate text generation response
+ * Prüft, ob das Modell die tragenden Felder leer gelassen hat.
+ *
+ * Die STRUKTUR prüft diese Funktion nicht mehr — dafür gibt es den ts-rest-
+ * Vertrag. Vorher stand hier eine zweite, handgeschriebene Beschreibung der
+ * Antwortform, und sie war falsch: der Info-Zweig las `r.header` auf oberster
+ * Ebene, wo der Draht `mainInfo.header` sendet. Ergebnis war „Unerwartete
+ * Antwortstruktur von der API" bei jeder einzelnen Info-Generierung.
  */
 export function validateTextResponse(
   type: ImageStudioTemplateType,
-  response: unknown
+  response: TextGenerationResponse
 ): ImageStudioValidationResult {
-  if (!response || typeof response !== 'object') {
-    return { valid: false, error: ERROR_MESSAGES.UNEXPECTED_RESPONSE };
-  }
+  const empty = { valid: false, error: ERROR_MESSAGES.UNEXPECTED_RESPONSE };
 
   switch (type) {
     case 'dreizeilen': {
-      const r = response as Partial<DreizeilenResponse>;
-      if (!r.mainSlogan || !r.alternatives) {
-        return { valid: false, error: ERROR_MESSAGES.UNEXPECTED_RESPONSE };
-      }
-      break;
+      const r = response as DreizeilenResponse;
+      return r.mainSlogan.line1 ? { valid: true } : empty;
     }
 
     case 'zitat':
     case 'zitat-pure': {
-      const r = response as Partial<QuoteResponse>;
-      if (!r.quote) {
-        return { valid: false, error: ERROR_MESSAGES.UNEXPECTED_RESPONSE };
-      }
-      break;
+      const r = response as QuoteResponse;
+      return r.quote ? { valid: true } : empty;
     }
 
     case 'info': {
-      const r = response as Partial<InfoResponse>;
-      if (!r.header || !r.body) {
-        return { valid: false, error: ERROR_MESSAGES.UNEXPECTED_RESPONSE };
-      }
-      break;
+      const r = response as InfoResponse;
+      return r.mainInfo.header && r.mainInfo.body ? { valid: true } : empty;
     }
 
     case 'veranstaltung': {
-      const r = response as VeranstaltungRawResponse;
-      const mainEvent = r.mainEvent ?? r;
-      if (!mainEvent.eventTitle) {
-        return { valid: false, error: ERROR_MESSAGES.UNEXPECTED_RESPONSE };
-      }
-      break;
+      const r = response as VeranstaltungResponse;
+      return r.mainEvent.eventTitle ? { valid: true } : empty;
+    }
+
+    case 'simple': {
+      const r = response as SimpleResponse;
+      return r.mainSimple.headline ? { valid: true } : empty;
+    }
+
+    case 'slider': {
+      const r = response as SliderResponse;
+      return r.mainSlider.headline ? { valid: true } : empty;
     }
 
     case 'profilbild':
-    case 'simple':
-      break;
+      return { valid: true };
   }
-
-  return { valid: true };
 }
 
 /**

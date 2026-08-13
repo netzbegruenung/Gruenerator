@@ -6,8 +6,8 @@
 
 import { useState, useCallback } from 'react';
 
-import { getGlobalApiClient } from '../../api/client.js';
-import { getTypeConfig, getTextEndpoint, mapTextResponse } from '../constants.js';
+import { generateSharepicText, type SharepicTextType } from '../api/sharepicText.js';
+import { getTypeConfig, mapTextResponse } from '../constants.js';
 import {
   validateTextGenerationInput,
   validateTextResponse,
@@ -24,8 +24,22 @@ import type {
   UseImageStudioOptions,
   UseImageStudioReturn,
   ImageStudioFormData,
-  TextGenerationResponse,
 } from '../types.js';
+
+/**
+ * Studio-ID → Backend-Typ. Nur `zitat-pure` weicht ab (Bindestrich hier,
+ * Unterstrich auf dem Draht); `profilbild` hat keine Textgenerierung.
+ */
+function toSharepicTextType(type: ImageStudioTemplateType): SharepicTextType | null {
+  switch (type) {
+    case 'zitat-pure':
+      return 'zitat_pure';
+    case 'profilbild':
+      return null;
+    default:
+      return type;
+  }
+}
 
 /**
  * Main hook for image-studio functionality
@@ -104,31 +118,26 @@ export function useImageStudio(options: UseImageStudioOptions = {}): UseImageStu
           throw new Error(validation.error);
         }
 
-        // Get endpoint
-        const endpoint = getTextEndpoint(type);
-        if (!endpoint) {
+        const textType = toSharepicTextType(type);
+        if (!textType) {
           throw new Error('Kein Text-Endpoint für diesen Typ konfiguriert');
         }
 
-        // Prepare request data
-        const requestData = {
-          ...formData,
+        const response = await generateSharepicText(textType, {
+          thema: formData.thema,
+          name: formData.name ?? null,
           source: 'image-studio',
           count: 5,
-        };
+        });
 
-        // Make API request
-        const client = getGlobalApiClient();
-        const response = await client.post<TextGenerationResponse>(endpoint, requestData);
-
-        // Validate response
-        const responseValidation = validateTextResponse(type, response.data);
+        // Prüft nur noch, ob das Modell Pflichtfelder leer gelassen hat — die
+        // Struktur garantiert inzwischen der Vertrag.
+        const responseValidation = validateTextResponse(type, response);
         if (!responseValidation.valid) {
           throw new Error(responseValidation.error);
         }
 
-        // Map response to normalized format
-        const result = mapTextResponse(type, response.data);
+        const result = mapTextResponse(type, response);
 
         onTextGenerated?.(result);
         return result;
