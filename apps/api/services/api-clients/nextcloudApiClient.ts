@@ -54,6 +54,29 @@ export interface DownloadFileResult {
   size: number;
 }
 
+/**
+ * A PROPFIND on a folder returns that folder itself as an entry. The parser
+ * only ever dropped the share root's self-entry, so listing a subfolder
+ * reported the subfolder as its own child: the count of subfolders was one too
+ * high, and the folder browser offered a phantom child whose selected path
+ * (`Stadtrat/Stadtrat`) does not exist.
+ *
+ * Hrefs are percent-encoded and end in a slash for collections; the requested
+ * path may be either. Compare decoded and unslashed.
+ */
+export function isWebdavSelfEntry(href: string, requestPath: string): boolean {
+  const normalize = (value: string): string => {
+    let decoded = value;
+    try {
+      decoded = decodeURIComponent(value);
+    } catch {
+      // A malformed escape sequence must not drop a real entry.
+    }
+    return decoded.replace(/^\/+/, '').replace(/\/+$/, '');
+  };
+  return normalize(href) === normalize(requestPath);
+}
+
 class NextcloudApiClient {
   private shareLink: string;
   private parsedLink: ParsedShareLink | null;
@@ -543,7 +566,7 @@ class NextcloudApiClient {
       });
 
       if (response.status === 207) {
-        return this.parseWebDAVResponse(response.data);
+        return this.parseWebDAVResponse(response.data, new URL(propfindUrl).pathname);
       }
 
       return [];
@@ -624,7 +647,7 @@ class NextcloudApiClient {
   /**
    * Parse WebDAV XML response (simplified parser)
    */
-  private parseWebDAVResponse(xmlData: string): NextcloudFile[] {
+  private parseWebDAVResponse(xmlData: string, requestPath?: string): NextcloudFile[] {
     // This is a simplified parser - in production you might want to use a proper XML parser
     const files: NextcloudFile[] = [];
 
@@ -648,8 +671,12 @@ class NextcloudApiClient {
           if (hrefMatch && hrefMatch[1]) {
             const href = hrefMatch[1].trim();
 
-            // Skip the root directory
+            // Skip the listed folder itself — the share root always, any other
+            // requested folder once we know which one was asked for.
             if (href.endsWith('/webdav/') || href.endsWith('/webdav')) {
+              return;
+            }
+            if (requestPath && isWebdavSelfEntry(href, requestPath)) {
               return;
             }
 

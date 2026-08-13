@@ -128,6 +128,21 @@ describe('walkWolkeFolder', () => {
     expect(result.truncated).toBe(true);
   });
 
+  it('stops opening folders once the file cap is reached', async () => {
+    const listFolder = fakeShare({
+      '': [dir('a'), dir('b'), dir('c'), doc('1.pdf'), doc('2.pdf'), doc('3.pdf')],
+      a: [doc('a/x.pdf')],
+      b: [doc('b/x.pdf')],
+      c: [doc('c/x.pdf')],
+    });
+
+    const result = await walkWolkeFolder(listFolder, '', { maxFiles: 2 });
+
+    expect(result.truncated).toBe(true);
+    // Only the root listing — the cap bounds requests, not just results.
+    expect(listFolder).toHaveBeenCalledTimes(1);
+  });
+
   it('walks a subfolder as its root without leaking the parent', async () => {
     const listFolder = fakeShare({
       '': [doc('root.pdf'), dir('Stadtrat')],
