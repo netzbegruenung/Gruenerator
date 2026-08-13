@@ -164,6 +164,9 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     docMentionIds: input.docMentionIds || [],
     documentMentionContext: null,
 
+    // Vom Router gesetzt, wenn dieser Turn einem Pipeline-Agenten gehört.
+    pipelineSourceText: null,
+
     // Wolke (Nextcloud) file refs (from @wolke mentionable, validated by controller)
     wolkeFiles: input.wolkeFiles || [],
 

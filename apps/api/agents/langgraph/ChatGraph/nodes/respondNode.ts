@@ -745,6 +745,37 @@ ${documentMentionContext}`;
 }
 
 /**
+ * Nagelt fest, WELCHEN Text der Einfache-Sprache-Agent überträgt.
+ *
+ * Ohne diesen Block wählt das Modell selbst aus allem, was im Kontext steht —
+ * und dort liegt bei jedem Folge-Turn auch der Volltext aller früheren Anhänge
+ * (`formatThreadAttachmentsContext`). Die Prüfkette dahinter sieht dagegen nur
+ * den aktuellen Turn. Genau diese Schere ging am 13.08.2026 auf: übertragen
+ * wurde der Artikel aus dem vorigen Turn, geprüft wurde gegen das frisch
+ * eingefügte Material — und der Bericht meldete für eine handwerklich saubere
+ * Fassung „Halluzination, ABLEHNUNG".
+ *
+ * Der Block wiederholt das Material wörtlich, statt darauf zu verweisen: er ist
+ * die einzige Stelle, an der Schritt 1 und Schritt 3 denselben String meinen.
+ */
+function formatPipelineSourceText(original: string | null): string {
+  if (!original) return '';
+
+  return `
+
+## ZU ÜBERTRAGENDER TEXT
+
+Übertrage GENAU den folgenden Text — vollständig, ohne Kürzung. Anderes Material
+im Kontext (frühere Anhänge, frühere Nachrichten) ist NICHT gemeint, auch wenn es
+länger oder inhaltlich naheliegender wirkt. Dieselbe Fassung wird anschließend
+gegen genau diesen Text geprüft.
+
+<<<ORIGINAL
+${original}
+ORIGINAL`;
+}
+
+/**
  * Format memory context from mem0 cross-thread memories.
  * These are persistent facts and preferences about the user,
  * grouped by category (identity, preference, context, etc.).
@@ -1471,6 +1502,7 @@ export async function buildSystemMessage(
   const boardContextFormatted = formatBoardContext(boardContext);
   const sheetContextFormatted = formatSheetContext(state.sheetContext);
   const docMentionContextFormatted = formatDocumentMentionContext(documentMentionContext);
+  const pipelineSourceText = formatPipelineSourceText(state.pipelineSourceText);
   const localeContext = formatLocaleContext(state.userLocale);
   const platformContext = formatPlatformContext(state.clientPlatform);
 
@@ -1677,7 +1709,7 @@ ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSu
   const injectionWarning = state.injectionSuspected ? INJECTION_WARNING_NOTE : '';
 
   return `${systemRole}${skillFragment}${degradationBlock}
-Heutiges Datum: ${today}${localeContext}${platformContext}${productIdentity}${productKnowledge}${docsPageMap}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${artifactInventory}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}
+Heutiges Datum: ${today}${localeContext}${platformContext}${productIdentity}${productKnowledge}${docsPageMap}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${artifactInventory}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}${pipelineSourceText}
 
 ## ANTWORT-REGELN
 1. ${SCOPE_RULE}

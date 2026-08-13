@@ -2,7 +2,7 @@
 identifier: 'gruenerator-oeffentlichkeitsarbeit-at'
 title: 'Aussendung (AT)'
 description: 'Aussendung im Stil der Grünen Österreich'
-iconKey: 'PiMegaphone'
+iconKey: 'PiMountains'
 avatar: '📢'
 backgroundColor: '#316049'
 mention: 'presse-at'

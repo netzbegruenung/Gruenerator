@@ -28,13 +28,37 @@ export type UntrustedKind =
 /**
  * Instruction-shaped markers. Used for DETECTION only (telemetry + a targeted
  * warning in the answer prompt), never to rewrite the text.
+ *
+ * Precision matters more than recall here, because a false positive is not
+ * silent: the warning tells the model to name the finding, so the answer opens
+ * by accusing the user of a manipulation attempt. Two earlier alternatives did
+ * exactly that on ordinary material — ANY markdown heading (`#{1,6}\s*\S`, so
+ * every attached protocol and every `## Antrag`), and a bare mention of
+ * "System-Prompt"/"Systemnachricht" anywhere in a sentence ("hier ist mein
+ * System Prompt, bitte überarbeite ihn").
+ *
+ * What is left are the two shapes that carry an actual takeover: an explicit
+ * override imperative, and a system-role LABEL in header position (start of a
+ * line, optionally decorated with `#`/`*`/`>`), which is how an injected block
+ * announces itself. A mid-sentence mention is talk ABOUT a prompt, not one.
+ *
+ * Missing a payload here is not fatal: INSTRUCTION_HIERARCHY_RULE ships on
+ * every turn that carries untrusted material regardless of this flag.
  */
-const INSTRUCTION_MARKER_RE =
-  /(?:^|\n)\s*#{1,6}\s*\S|\bsystem[-\s]?(?:hinweis|prompt|nachricht|message|instruction)\b|\b(?:ignoriere|vergiss|missachte)\s+(?:alle\s+)?(?:vorherigen?\s+)?(?:anweisungen|regeln|instruktionen)\b|\bignore\s+(?:all\s+)?(?:previous|prior|above)\s+instructions?\b|\byou\s+(?:are|must)\s+now\b|\bneue\s+anweisung(?:en)?\s*:/i;
+const OVERRIDE_RE =
+  /\b(?:ignoriere|vergiss|missachte)\s+(?:alle\s+)?(?:vorherigen?\s+|bisherigen?\s+|obigen?\s+)?(?:anweisungen|regeln|instruktionen)\b|\b(?:ignore|disregard|forget)\s+(?:all\s+)?(?:previous|prior|above)\s+instructions?\b|\byou\s+(?:are|must)\s+now\b|\bdu\s+bist\s+(?:ab\s+)?jetzt\b|\bneue\s+anweisung(?:en)?\s*:/i;
+
+// The trailing `(?:e[ns]?|[ns])?` is the plural, for every stem at once:
+// Hinweise(n), Nachrichten, Anweisungen, Rollen, prompts, instructions. Adding
+// it per stem is how the singular-only gap keeps coming back.
+const SYSTEM_LABEL_RE =
+  /(?:^|\n)[ \t]*[#*_>\s-]{0,6}system[-\s]?(?:hinweis|prompt|nachricht|message|instruction|instruktion|anweisung|rolle)(?:e[ns]?|[ns])?\b/i;
 
 /** True when the material contains something shaped like an instruction. */
 export function containsInstructionMarkers(content: string): boolean {
-  return typeof content === 'string' && INSTRUCTION_MARKER_RE.test(content);
+  return (
+    typeof content === 'string' && (OVERRIDE_RE.test(content) || SYSTEM_LABEL_RE.test(content))
+  );
 }
 
 /**

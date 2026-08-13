@@ -392,8 +392,12 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   // is kept so the answer prompt can warn the model before it acts. Deliberately
   // NOT a rejection: pasted mails and citizen inquiries legitimately contain
   // instruction-shaped language, and blocking them would break summarisation.
+  //
+  // Only MATERIAL is scanned, never `userText`: the user's own message is the
+  // trusted instruction channel. Scanning it meant every structured prompt
+  // ("## Kontext … ## Ton") tripped the warning and the answer opened by
+  // accusing its own author of a manipulation attempt.
   const injectionSuspected =
-    containsInstructionMarkers(userText) ||
     containsInstructionMarkers(state.attachmentContext ?? '') ||
     containsInstructionMarkers(state.currentDocument?.markdown ?? '');
   if (injectionSuspected) {
