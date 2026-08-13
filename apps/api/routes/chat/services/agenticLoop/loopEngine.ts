@@ -303,6 +303,19 @@ export interface LoopEngineParams {
    *  provider/context window is the backstop) — explicit caps truncated
    *  think-lane answers mid-sentence because reasoning tokens count too. */
   maxOutputTokens?: number;
+  /**
+   * Per-request provider options for the phases that run on the SELECTED model
+   * — unified and synth. Today this carries exactly one thing: Mistral's
+   * `reasoningEffort`.
+   *
+   * It has to be threaded through rather than baked into the model instance
+   * because `@ai-sdk/mistral` takes the effort per request, not per client. And
+   * it must not reach the GATHER phase: that runs on the fixed planner lane
+   * (Mistral Small on Regolo), an OpenAI-compat client that would drop a
+   * `mistral` block in silence — and the planner has no prose to think about
+   * anyway.
+   */
+  providerOptions?: Record<string, Record<string, string>>;
   abortSignal: AbortSignal;
   /**
    * Split mode: the signal the WRITE phase runs under. Defaults to
@@ -410,6 +423,7 @@ async function streamWithTools(
     stopWhen: isStepCount(p.maxSteps),
     temperature: p.temperature,
     ...(p.maxOutputTokens != null && { maxOutputTokens: p.maxOutputTokens }),
+    ...(p.providerOptions != null && { providerOptions: p.providerOptions }),
     abortSignal: p.abortSignal,
     prepareStep: buildPrepareStep(
       p.toolSystem,
@@ -671,6 +685,7 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<LoopResu
       messages,
       temperature: p.temperature,
       ...(p.maxOutputTokens != null && { maxOutputTokens: p.maxOutputTokens }),
+      ...(p.providerOptions != null && { providerOptions: p.providerOptions }),
       // Combined so a stalled provider call is torn down, not just abandoned.
       // `writeAbortSignal` deliberately, NOT the turn budget — see its doc.
       abortSignal: AbortSignal.any([p.writeAbortSignal ?? p.abortSignal, idle.signal]),
