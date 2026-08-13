@@ -46,7 +46,7 @@ function buildAgent() {
     }),
     tools: [],
     subagents: [
-      { name: 'recherche', description: 'Beantwortet eine Teilfrage', systemPrompt: 'x' },
+      { name: 'web-recherche', description: 'Beantwortet eine Teilfrage', systemPrompt: 'x' },
     ],
   });
 }
@@ -60,18 +60,18 @@ describe('suppressGeneralPurposeSubagent', () => {
   it('removes the built-in general-purpose delegation target', () => {
     // Before — the default the plan was written against. If this half ever
     // fails, the suppression became unnecessary and this module can go.
-    expect(delegationTargets(buildAgent())).toEqual(['general-purpose', 'recherche']);
+    expect(delegationTargets(buildAgent())).toEqual(['general-purpose', 'web-recherche']);
 
     suppressGeneralPurposeSubagent();
 
     // Our own subagent stays — a profile that suppressed everything would pass
     // a mere "not.toContain" and break the run.
-    expect(delegationTargets(buildAgent())).toEqual(['recherche']);
+    expect(delegationTargets(buildAgent())).toEqual(['web-recherche']);
   });
 
   it('is idempotent, because it runs once per research run', () => {
     suppressGeneralPurposeSubagent();
     suppressGeneralPurposeSubagent();
-    expect(delegationTargets(buildAgent())).toEqual(['recherche']);
+    expect(delegationTargets(buildAgent())).toEqual(['web-recherche']);
   });
 });
