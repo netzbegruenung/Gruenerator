@@ -60,6 +60,40 @@ export function isEinfacheSpracheAgent(identifier: string | null | undefined): b
 }
 
 /**
+ * Findet den Ausgangstext, gegen den geprüft wird.
+ *
+ * Der Router kennt vier Wege, auf denen Material hereinkommt, und die Prüfkette
+ * braucht ALLE: fehlt der Ausgangstext, prüft sie nichts. Eingefügtes Material
+ * hebt `streamContext` in die Nutzernachricht, `@datei`/`@text` landen im
+ * Anhang-Kontext, `@dokument` in `documentMentionContext`.
+ *
+ * Warum der LÄNGSTE gewinnt und nicht der erste: bei `@dokument` ist die
+ * Nutzernachricht nur die Anweisung („Übertrage @mein-antrag in Einfache
+ * Sprache"). Die ist nicht leer — eine Reihenfolge-Regel mit `||` würde sie
+ * also nehmen und die Prüfung gegen einen Einzeiler laufen lassen, was schlimmer
+ * ist als gar nicht zu prüfen: die Abdeckungsliste meldete dann Vollständigkeit
+ * für einen Satz. Material ist lang, eine Anweisung kurz — die Länge ist hier
+ * das ehrlichere Merkmal als die Herkunft.
+ *
+ * `currentDocument` steht bewusst NUR als letzter Ausweg drin und nimmt am
+ * Längenvergleich nicht teil: im Dokument-Editor ist das offene Dokument oft
+ * länger als der eingefügte Absatz und hat mit ihm nichts zu tun. Ein falsches
+ * Original ist teurer als keins — es erzeugt erfundene KRITISCH-Befunde.
+ */
+export function resolveOriginalText(
+  state: Pick<ChatGraphState, 'attachmentContext' | 'documentMentionContext' | 'currentDocument'>,
+  lastUserText: string
+): string {
+  const candidates = [
+    lastUserText,
+    state.attachmentContext ?? '',
+    state.documentMentionContext ?? '',
+  ].map((c) => c.trim());
+  const longest = candidates.reduce((a, b) => (b.length > a.length ? b : a), '');
+  return longest || (state.currentDocument?.markdown ?? '').trim();
+}
+
+/**
  * Untergrenze, ab der geprüft wird. Unter ein paar hundert Zeichen hat der
  * Nutzer keinen Fachtext übertragen lassen, sondern eine Frage gestellt oder
  * einen Satz getestet — zwei zusätzliche Modellaufrufe wären dann reine Kosten.
@@ -95,16 +129,25 @@ export async function runEinfacheSprachePruefkette(params: {
     );
     return '';
   }
-  if (!original.trim()) {
-    log.warn('[ES] Kein Original gefunden — keine Prüfung');
-    return '';
-  }
-
   let appended = '';
   const emit = (text: string): void => {
     appended += text;
     sse.send('text_delta', { text });
   };
+
+  // Kein Ausgangstext heisst: es gibt nichts zu vergleichen. Das ist der eine
+  // Zweig, der früher stumm war — und Stille ist hier die teuerste Antwort, weil
+  // eine ungeprüfte Fassung dann genauso aussieht wie eine freigegebene.
+  if (!original.trim()) {
+    log.warn('[ES] Kein Original gefunden — keine Prüfung');
+    emit(
+      PRUEF_HEADING +
+        'Der Ausgangstext war hier nicht auffindbar, deshalb konnte die Fassung oben nicht ' +
+        'gegen ihn geprüft werden. Sie ist **ungeprüft**. Füge den Originaltext direkt in die ' +
+        'Nachricht ein, dann läuft die Prüfung mit.'
+    );
+    return appended;
+  }
 
   // ── Schritt 2: blinde Rückübersetzung ──
   sse.send('progress_step', {

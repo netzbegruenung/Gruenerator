@@ -19,9 +19,8 @@ vi.mock('../../../agents/langgraph/ChatGraph/nodes/einfacheSprachePruefungNode.j
   einfacheSprachePruefungNode: pruefMock,
 }));
 
-const { isEinfacheSpracheAgent, runEinfacheSprachePruefkette } = await import(
-  './einfacheSpracheTurn.js'
-);
+const { isEinfacheSpracheAgent, resolveOriginalText, runEinfacheSprachePruefkette } =
+  await import('./einfacheSpracheTurn.js');
 
 /** Über der MIN_ES_CHARS-Schwelle, damit die Kette überhaupt anläuft. */
 const ES_TEXT = 'Die Grünen fordern ein Sofortprogramm. '.repeat(15);
@@ -142,12 +141,50 @@ describe('runEinfacheSprachePruefkette', () => {
     expect(pruefMock).not.toHaveBeenCalled();
   });
 
-  it('prüft nicht ohne Original — es gäbe nichts zu vergleichen', async () => {
+  it('prüft nicht ohne Original, sagt es aber', async () => {
     const { promise } = run({ original: '   ' });
     const appended = await promise;
 
-    expect(appended).toBe('');
     expect(pruefMock).not.toHaveBeenCalled();
+    // Früher war dieser Zweig stumm — eine ungeprüfte Fassung sah damit aus wie
+    // eine freigegebene. Genau der Fall trat bei `@dokument`-Mentions ein.
+    expect(appended).toContain('ungeprüft');
+  });
+});
+
+describe('resolveOriginalText', () => {
+  const leer = { attachmentContext: null, documentMentionContext: null, currentDocument: null };
+  const lang = 'Auf dem Parteitag in Sassnitz. '.repeat(20);
+
+  it('nimmt den eingefügten Text aus der Nachricht', () => {
+    expect(resolveOriginalText(leer, lang)).toBe(lang.trim());
+  });
+
+  it('nimmt den Anhang, wenn die Nachricht nur die Anweisung trägt', () => {
+    const state = { ...leer, attachmentContext: lang };
+    expect(resolveOriginalText(state, 'Übertrage das in Einfache Sprache')).toBe(lang.trim());
+  });
+
+  it('nimmt die @dokument-Mention — der Fall, der vorher durchfiel', () => {
+    // Die Nutzernachricht ist hier NICHT leer, sondern kurz. Eine `||`-Kette
+    // hätte sie genommen und gegen einen Einzeiler geprüft.
+    const state = { ...leer, documentMentionContext: lang };
+    expect(resolveOriginalText(state, 'Übertrage @mein-antrag in Einfache Sprache')).toBe(
+      lang.trim()
+    );
+  });
+
+  it('greift auf das offene Dokument nur zurück, wenn es sonst nichts gibt', () => {
+    const cur = { id: 'd1', title: null, markdown: lang, selectionText: null };
+    expect(resolveOriginalText({ ...leer, currentDocument: cur }, '  ')).toBe(lang.trim());
+    // Mit eingefügtem Material gewinnt das Material, auch wenn das offene
+    // Dokument länger ist — es hat mit der Anfrage nichts zu tun.
+    const kurz = 'Kurzer eingefügter Absatz.';
+    expect(resolveOriginalText({ ...leer, currentDocument: cur }, kurz)).toBe(kurz);
+  });
+
+  it('gibt einen leeren String, wenn es nichts gibt', () => {
+    expect(resolveOriginalText(leer, '   ')).toBe('');
   });
 });
 
