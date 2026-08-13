@@ -84,6 +84,17 @@ export interface DeepAgentRunParams {
    * notebook tool is not offered at all.
    */
   notebookScope?: NotebookScope;
+  /**
+   * Whose run this is — used only to attribute the Langfuse trace, so a slow or
+   * failed research can be found from a support request instead of by grepping.
+   * Omitted means an unattributed trace, not a disabled one.
+   */
+  userId?: string;
+  /**
+   * Checkpoint key. Omitted means a fresh one per run — pass an existing id to
+   * continue a research whose process died.
+   */
+  threadId?: string;
   /** Aborts the run. The caller owns the hard deadline. */
   signal?: AbortSignal;
 }
@@ -91,6 +102,11 @@ export interface DeepAgentRunParams {
 export interface DeepAgentRunResult {
   /** The report as markdown, `## Quellen` guaranteed present. */
   markdown: string;
+  /**
+   * The checkpoint key this run wrote under. Store it and a later run can be
+   * handed it back; without a checkpointer it is a label and nothing more.
+   */
+  threadId: string;
   /** H1 of the report, used as the document title. */
   title: string;
   /** Two or three sentences for the chat message. */
