@@ -274,30 +274,4 @@ export const SKILLS = [
     audience: 'de-AT',
     promptTemplate: 'Schreibe eine Aussendung im Stil der Grünen Österreich zum Thema: ',
   },
-  {
-    identifier: 'gruenerator-einfache-sprache',
-    title: 'Rückübersetzung',
-    description:
-      'Formuliert eine Fassung in Einfacher Sprache zurück in Fachdeutsch — blind, ohne das Original',
-    iconKey: 'PiTranslate',
-    avatar: '🔁',
-    backgroundColor: '#316049',
-    mention: 'rueckuebersetzung',
-    skillCategory: 'dokumente',
-    promptTemplate:
-      'Formuliere diese Fassung in Einfacher Sprache zurück in normales Fachdeutsch. Wichtig: Nutze einen neuen Chat und füge NUR die Fassung in Einfacher Sprache ein, nicht das Original — sonst ist die Rückübersetzung nicht blind und taugt nicht als Prüfmittel.\n',
-  },
-  {
-    identifier: 'gruenerator-einfache-sprache',
-    title: 'Sprach-Prüfung',
-    description:
-      'Prüft eine Übertragung in Einfache Sprache gegen das Original — Abdeckung, Befunde, Freigabe-Urteil',
-    iconKey: 'PiListChecks',
-    avatar: '🔍',
-    backgroundColor: '#316049',
-    mention: 'sprachpruefung',
-    skillCategory: 'dokumente',
-    promptTemplate:
-      'Prüfe diese Übertragung in Einfache Sprache. Ich füge drei Texte ein: das Original, die Fassung in Einfacher Sprache und die blinde Rückübersetzung.\nORIGINAL:\n',
-  },
 ] as const satisfies readonly SystemSkill[];
