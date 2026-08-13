@@ -9,9 +9,44 @@
  * kept naming the old host through the PR that moved it).
  */
 
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { describe, expect, it } from 'vitest';
 
 import { AREA_HINTS, foldersForChangedFiles, SCOPE_FOLDERS } from './docsFreshnessAreas.js';
+
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const WORKFLOW_PATH = path.join(REPO_ROOT, '.github/workflows/docs-freshness-pr.yml');
+
+/**
+ * The `paths:` entries of the workflow's `pull_request` trigger.
+ *
+ * Hand-parsed rather than through a YAML library: neither `yaml` nor `js-yaml`
+ * is a declared dependency of this workspace, and a test is a poor place to
+ * acquire one. The shape is fixed, and a failed parse throws instead of
+ * returning an empty list — otherwise every assertion below would pass
+ * vacuously the day someone reformats the file.
+ */
+function workflowPathFilters(): string[] {
+  const yaml = readFileSync(WORKFLOW_PATH, 'utf-8');
+  const block = /\n {4}paths:\n((?: {6}(?:-|#)[^\n]*\n)+)/.exec(yaml);
+  if (!block) throw new Error(`No 'paths:' block found in ${WORKFLOW_PATH}`);
+  const entries = block[1]
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith('- '))
+    .map((line) =>
+      line
+        .slice(2)
+        .replace(/#.*$/, '')
+        .trim()
+        .replace(/^['"]|['"]$/g, '')
+    );
+  if (entries.length === 0) throw new Error('Parsed the paths block but found no entries');
+  return entries;
+}
 
 describe('AREA_HINTS coverage', () => {
   it('gives every audited doc folder a hint', () => {
@@ -20,6 +55,32 @@ describe('AREA_HINTS coverage', () => {
     // missing half.
     const missing = SCOPE_FOLDERS.filter((folder) => !AREA_HINTS[folder]);
     expect(missing).toEqual([]);
+  });
+
+  it('has a workflow paths: filter for every hint path', () => {
+    // The same silent miss one step earlier: the reverse map can only choose
+    // among the PRs the workflow runs on at all. A hint path with no matching
+    // `paths:` entry means the job never starts, so the folder is never audited
+    // no matter how correct the map is. Three entries sat in exactly that state
+    // (routes/mcp-server, packages/sheets, packages/docs) until 08/2026.
+    //
+    // GitHub Actions has no YAML anchors, so the two lists are separate copies
+    // by necessity — which is precisely why they need a test and not a comment.
+    const filters = workflowPathFilters().map((p) => p.replace(/\/\*\*$/, ''));
+    const uncovered: string[] = [];
+
+    for (const [folder, csv] of Object.entries(AREA_HINTS)) {
+      for (const prefix of csv.split(',').map((s) => s.trim())) {
+        // A filter covers a hint when it is the hint itself or an ancestor of
+        // it: 'apps/web/src/**' covers 'apps/web/src/features/chat'.
+        const covered = filters.some(
+          (filter) => prefix === filter || prefix.startsWith(`${filter}/`)
+        );
+        if (!covered) uncovered.push(`${folder} → ${prefix}`);
+      }
+    }
+
+    expect(uncovered).toEqual([]);
   });
 
   it('lists every hint path repo-relative, so startsWith can match', () => {
@@ -52,6 +113,15 @@ describe('foldersForChangedFiles', () => {
     expect(foldersForChangedFiles(['apps/api/services/usage/energyFootprint.ts'])).toContain(
       'ueber-den-gruenerator'
     );
+  });
+
+  it('does not claim a sibling whose name merely starts with a hint path', () => {
+    // `apps/api/services/aiSearchAgent.ts` is a real file sitting next to the
+    // `services/ai` directory. A bare startsWith would pull chat/,
+    // ueber-den-gruenerator/ and readme/ into the audit every time it is edited.
+    expect(foldersForChangedFiles(['apps/api/services/aiSearchAgent.ts'])).toEqual([]);
+    // …while the directory itself still matches.
+    expect(foldersForChangedFiles(['apps/api/services/ai/providers.ts'])).toContain('chat');
   });
 
   it('matches the root manifest but not a workspace one', () => {

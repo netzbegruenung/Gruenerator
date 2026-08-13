@@ -99,9 +99,24 @@ export function foldersForChangedFiles(changedFiles: string[]): string[] {
       .split(',')
       .map((d) => d.trim())
       .filter(Boolean);
-    if (changedFiles.some((f) => prefixes.some((p) => f.startsWith(p)))) {
+    if (changedFiles.some((f) => prefixes.some((p) => matchesPrefix(f, p)))) {
       affected.add(folder);
     }
   }
   return [...affected];
+}
+
+/**
+ * A hint entry names either a directory or a single file, and both have to match
+ * on a path boundary.
+ *
+ * A bare `startsWith` does not: `apps/api/services/ai` would also claim
+ * `apps/api/services/aiSearchAgent.ts`, which is a real file, and every edit to
+ * it would drag three doc folders into the audit for nothing. Over-triggering is
+ * the mild direction of this bug — the audit is advisory and the agent filters
+ * false positives — but it costs one agent run per doc and teaches people to
+ * skim past the comment it posts.
+ */
+function matchesPrefix(changedFile: string, prefix: string): boolean {
+  return changedFile === prefix || changedFile.startsWith(`${prefix}/`);
 }
