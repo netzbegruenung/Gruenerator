@@ -17,7 +17,6 @@ import type { ParsedResponse } from '../hooks/useGeneratorResponse';
 export type EndpointCategory =
   | 'claude-text' // Standard text generation endpoints
   | 'claude-search' // Search query endpoints
-  | 'claude-structured' // Endpoints returning structured data (dreizeilen, info, …)
   | 'docs' // Document management
   | 'analyze' // Analysis endpoints
   | 'custom-generator' // Custom generator endpoints
@@ -134,27 +133,6 @@ const RESPONSE_PARSERS = {
       typeof response === 'object' &&
       response !== null &&
       ('content' in response || 'results' in response),
-    extract: (response: Record<string, unknown>) => ({
-      content: JSON.stringify(response),
-      metadata: response,
-    }),
-  },
-
-  /**
-   * Structured response endpoints (dreizeilen, info, headline)
-   * Format varies by endpoint but contains structured data
-   */
-  'claude-structured': {
-    validate: (response: unknown): response is Record<string, unknown> =>
-      typeof response === 'object' &&
-      response !== null &&
-      (('mainSlogan' in response &&
-        'alternatives' in response &&
-        Array.isArray((response as Record<string, unknown>).alternatives)) ||
-        ('mainInfo' in response && 'alternatives' in response) ||
-        'mainSimple' in response ||
-        'mainEvent' in response ||
-        'quote' in response),
     extract: (response: Record<string, unknown>) => ({
       content: JSON.stringify(response),
       metadata: response,
@@ -371,15 +349,11 @@ const ENDPOINT_CATEGORIES: Record<string, EndpointCategory> = {
   // Search
   search: 'claude-search',
 
-  // Structured responses (Sharepic-Textgenerierung)
-  '/sharepic/text/dreizeilen': 'claude-structured',
-  '/sharepic/text/info': 'claude-structured',
-  '/sharepic/text/simple': 'claude-structured',
-  '/sharepic/text/veranstaltung': 'claude-structured',
-  '/sharepic/text/zitat': 'claude-structured',
-  '/sharepic/text/zitat_pure': 'claude-structured',
-  '/sharepic/text/slider': 'claude-structured',
-  '/sharepic/text/default': 'claude-structured',
+  // Die Sharepic-Textrouten standen hier, bis sie ts-rest-Verträge bekamen.
+  // Der Parser war die dritte Beschreibung derselben Antwort — und eine
+  // unvollständige: `mainSlider` fehlte in seiner Prüfung, weshalb
+  // /sharepic/text/slider im Web mit „Invalid response format" scheiterte,
+  // obwohl die API korrekt antwortete. Der Vertrag prüft das jetzt.
 
   // Documents
   'docs/from-export': 'docs',
