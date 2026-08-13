@@ -9,7 +9,7 @@
  * leaf (a dependency-free `node:async_hooks` store), so recording here keeps
  * this module's unit-testability intact.
  */
-import { type ChatIntentId } from '@gruenerator/shared/chat-intents';
+import { type ChatIntentId, isGroundableProse } from '@gruenerator/shared/chat-intents';
 
 import {
   ARTIFACT_NOUN_BY_KIND,
@@ -36,18 +36,16 @@ import { recordDecision } from '../../../../utils/decisionJournal.js';
  * door: what the classifier cannot place now goes to `agentic` directly (prompt
  * rule 12), which is in AGENTIC_INTENTS. They still matter for the no-tool
  * verdicts the model DID commit to and got wrong.
+ *
+ * WHICH verdicts the rescues may touch is `isGroundableProse` — the `prose`
+ * disposition without `greeting`, derived in `@gruenerator/shared/chat-intents`.
+ * The exclusion is the whole statement and is argued there: since #2269 a
+ * greeting carries its own intent so that no phrasing and no self-contradiction
+ * of the classifier can pull it into the loop; deriving from `prose` alone would
+ * give that up. Until now the same two ids sat here as a literal
+ * (`NO_TOOL_VERDICTS`) alongside two more copies under two more names.
+ * `dispositionSets.vitest.ts` still pins the difference from the `prose` group.
  */
-// NICHT aus der `prose`-Disposition abgeleitet, obwohl es fast dieselbe Menge
-// ist — und die Differenz ist der Grund. Die Disposition beantwortet „braucht
-// dieser Intent ein Werkzeug?" (ein Gruss: nein). Diese Menge beantwortet
-// „welche Verdikte dürfen die drei Rettungen unten überhaupt anfassen?", und
-// `greeting` steht bewusst NICHT darin: seit #2269 trägt ein Gruss einen eigenen
-// Intent, damit ihn keine Formulierung und kein Selbstwiderspruch des
-// Klassifikators mehr in den Loop ziehen kann. Das ist eine strukturelle
-// Garantie und stärker als jede Wortprüfung — eine Ableitung würde sie
-// aufgeben. `dispositionSets.vitest.ts` hält den Unterschied fest, damit er
-// beim nächsten Mal nicht still verschwindet.
-const NO_TOOL_VERDICTS: ReadonlySet<string> = new Set(['produktion', 'direct']);
 
 // Question words. Includes the wo-compounds (worüber/woran/womit/…) that the
 // original list missed — live failure: "worüber hat X im Bundestag gesprochen"
@@ -341,7 +339,7 @@ export function looksLikeSelfContainedTurn(
 // renamed intent fails the build — it used to compile and silently never match.
 // The Set stays `ReadonlySet<string>` because `decideRunAgentic` takes a plain
 // `intent: string`; narrowing that is a separate change.
-export const COMPOUND_GENERATION_INTENTS: ReadonlySet<string> = new Set([
+export const COMPOUND_GENERATION_INTENTS: ReadonlySet<ChatIntentId> = new Set([
   'sharepic',
   'create_presentation',
   'create_sheet',
@@ -475,12 +473,23 @@ const DOCUMENT_CREATE_RE = creationOrderPattern('dokument|schriftst[üu]ck|textd
  * still creates a sheet even though the classifier only reached `direct@0.50`
  * (→ demoted to `agentic`), not `create_sheet`.
  */
+/**
+ * Membership-Test, der ein unverengtes `string` annimmt — dieselbe Bauart und
+ * derselbe Grund wie `isGroundableProse`: der Intent kommt hier aus
+ * `AgenticDecisionInput`, das ihn bewusst als `string` führt (die Testfixtures
+ * konstruieren ihn im Objektliteral). Der Cast steht damit EINMAL neben der
+ * Menge statt an jeder Aufrufstelle; ein Nicht-Mitglied liefert `false`.
+ */
+function isCompoundGenerationIntent(intent: string): boolean {
+  return COMPOUND_GENERATION_INTENTS.has(intent as ChatIntentId);
+}
+
 export function compoundGenerationKind(intent: string, raw: string): CompoundGenerationKind | null {
   const t = (raw ?? '').trim();
   // A NAMED generation intent has a single-pass dispatcher of its own, so only a
   // turn that ALSO carries a research signal is lifted into the loop; without it
   // `null` means "the dispatcher builds it", which is correct and faster.
-  if (COMPOUND_GENERATION_INTENTS.has(intent)) {
+  if (isCompoundGenerationIntent(intent)) {
     if (!looksLikeCompoundGeneration(t)) return null;
     if (intent === 'sharepic') return 'sharepic';
     if (intent === 'create_presentation') return 'presentation';
@@ -700,7 +709,7 @@ export interface AgenticDecisionInput {
  * loop — the model choice only decides unified-vs-split MODE inside the loop.
  */
 export function decideRunAgentic(p: AgenticDecisionInput): boolean {
-  const compoundGen = COMPOUND_GENERATION_INTENTS.has(p.intent) && p.compoundGeneration;
+  const compoundGen = isCompoundGenerationIntent(p.intent) && p.compoundGeneration;
   // "Füll mir das Formular aus" is an imperative with no question word, so
   // looksLikeToolableQuestion rejects it by design (content imperatives are
   // creative generation). With a PDF attached it is exactly a tool turn — and
@@ -725,12 +734,12 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
   const inLoopSet =
     p.agenticIntents.has(p.intent) ||
     // A named first-party connector puts the turn in the loop whatever the
-    // intent says. Deliberately NOT folded into the `NO_TOOL_VERDICTS` branch
+    // intent says. Deliberately NOT folded into the groundable-prose branch
     // below: the asks this covers ("Wetter Köln morgen", "§ 823 BGB") are
     // telegram-style and fail every one of `looksLikeToolableQuestion`'s four
     // shapes, and they can arrive under any verdict, not just a no-tool one.
     p.hasManagedSources === true ||
-    (NO_TOOL_VERDICTS.has(p.intent) &&
+    (isGroundableProse(p.intent) &&
       (looksLikeToolableQuestion(p.lastUserText) ||
         p.classifierContradictedResearch === true ||
         unsourcedWriting ||
