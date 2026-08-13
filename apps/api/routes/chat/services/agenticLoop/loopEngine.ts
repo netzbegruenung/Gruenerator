@@ -28,7 +28,7 @@ import {
 import { buildAiTelemetry } from '../../../../services/telemetry/langfuseTelemetry.js';
 import { recordDecision } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
-import { stripToolControlTokens } from '../outputSanity.js';
+import { createControlTokenFilter, stripToolControlTokens } from '../outputSanity.js';
 import { isWholesaleRefusal, refusalLanguage } from '../refusalDetection.js';
 import { createIdleDeadline } from '../streamIdleDeadline.js';
 
@@ -425,7 +425,18 @@ async function streamWithTools(
     experimental_repairToolCall: repairToolCall,
     ...phaseTelemetry('unified'),
   });
-  const { text, finishReason } = await drain(result, p.onText, p.onReasoning);
+  // Der unified-Pfad hatte gar keine Steuertoken-Säuberung: er schreibt MIT
+  // gemounteten Werkzeugen, also genau dort, wo das Chat-Template das Token
+  // erzeugt. Dass der Ausfall bisher nur im split-Modus auffiel, heißt nur, dass
+  // Mistral seltener geprüft wurde — nicht, dass der Pfad sauber ist.
+  const unifiedFilter = createControlTokenFilter();
+  const emitFiltered = (delta: string) => {
+    const clean = unifiedFilter.push(delta);
+    if (clean.length > 0) p.onText(clean);
+  };
+  const { text, finishReason } = await drain(result, emitFiltered, p.onReasoning);
+  const tail = unifiedFilter.flush();
+  if (tail.length > 0) p.onText(tail);
   if (finishReason === DEGENERATE_FINISH_REASON) {
     // Unified streams live, so the spam is already on the wire — drain has
     // trimmed the returned text back to the healthy prefix, and the caller's
@@ -607,25 +618,30 @@ function createGatedEmitter(
 ): { push: (d: string) => void; flush: () => void; discard: () => void; isOpen: () => boolean } {
   let buffer = '';
   let open = false;
+  // Der Steuertoken-Filter läuft über den GANZEN Strom, nicht nur über das
+  // Haltefenster. Die frühere Fassung säuberte allein den Puffer, weil sie
+  // annahm, das Token stehe immer vor der ersten Prosa — am 13.08.2026 kam es in
+  // einem Turn mit Werkzeugschritt erneut durch, nachdem das Gitter offen war.
+  const filter = createControlTokenFilter();
+  const emit = (text: string) => {
+    if (text.length > 0) onText(text);
+  };
   return {
     push(delta) {
       if (open) {
-        onText(delta);
+        emit(filter.push(delta));
         return;
       }
       buffer += delta;
       if (buffer.length > holdChars) {
-        // The hold window is also where a stray chat-template control token is
-        // removed: it is emitted first, before any prose, so it is always
-        // inside this buffer — and stripping it here means the client never
-        // renders it, not even for one frame.
-        onText(stripToolControlTokens(buffer));
+        emit(filter.push(buffer));
         buffer = '';
         open = true;
       }
     },
     flush() {
-      if (buffer.length > 0) onText(stripToolControlTokens(buffer));
+      if (buffer.length > 0) emit(filter.push(buffer));
+      emit(filter.flush());
       buffer = '';
       open = true;
     },
