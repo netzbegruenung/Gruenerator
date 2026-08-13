@@ -8,26 +8,39 @@ vi.mock('ai', () => ({
 }));
 
 const mockResolveModelTuple = vi.fn();
+const mockGetModel = vi.fn();
 vi.mock('../agents/providers.js', () => ({
-  getModel: (provider: string, model: string) => ({ provider, model }),
+  getModel: (provider: string, model: string, options?: unknown) => {
+    mockGetModel(provider, model, options);
+    return { provider, model };
+  },
   resolveModelTuple: (...args: unknown[]) => mockResolveModelTuple(...args),
-  // Spiegelt MODEL_OUTPUT_LIMITS: Medium 3.5 gedeckelt, alles andere offen.
-  getMaxOutputTokens: (model: string | null | undefined) =>
-    model === 'mistral-medium-2604' || model === 'mistral-medium-3.5-128b' ? 16_384 : null,
   VISION_MODEL: { provider: 'mistral', model: 'pixtral-large-latest' },
   isVisionCapable: () => true,
 }));
 
 vi.mock('../../../services/ai/modelDiscovery.js', () => ({
-  isReasoningCapable: () => false,
+  isReasoningCapable: (model: string) => model === 'mistral-medium-2604',
 }));
 
 const mockStreamWithReasoning = vi.fn();
 vi.mock('../../../services/ai/regoloReasoningStream.js', () => ({
   isReasoningStreamModel: (provider: string, model: string) =>
     (provider === 'regolo' && (model.startsWith('qwen') || model === 'gemma4-31b')) ||
-    (provider === 'litellm' && (model === 'verdigado-think' || model === 'verdigado-pro')),
+    (provider === 'litellm' && (model === 'verdigado-think' || model === 'verdigado-pro')) ||
+    // Medium 3.5 HAT einen Roh-Reasoning-Pfad (Scaleway). Stand hier vorher auf
+    // false und machte damit jede Aussage über das Zusammenspiel von Pin und
+    // Streamer auf der Mistral-Lane wertlos — der Zweig war im Test unerreichbar.
+    (provider === 'mistral' && model === 'mistral-medium-2604'),
   streamWithReasoning: (...args: unknown[]) => mockStreamWithReasoning(...args),
+  ReasoningStreamUnavailableError: class ReasoningStreamUnavailableError extends Error {
+    status: number;
+    constructor(provider: string, status: number, body: string) {
+      super(`${provider} reasoning stream unavailable: ${status} ${body}`);
+      this.name = 'ReasoningStreamUnavailableError';
+      this.status = status;
+    }
+  },
 }));
 
 vi.mock('./messageHelpers.js', () => ({
@@ -45,8 +58,16 @@ vi.mock('../../../utils/logger.js', () => ({
   createLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() }),
 }));
 
-const { resolveModel, streamWithFallback, streamForResolution, getFirstTokenDeadlineMs } =
-  await import('./responseStreamingService.js');
+const { ReasoningStreamUnavailableError } =
+  await import('../../../services/ai/regoloReasoningStream.js');
+
+const {
+  resolveModel,
+  streamWithFallback,
+  streamForResolution,
+  getFirstTokenDeadlineMs,
+  thinksOnThisLane,
+} = await import('./responseStreamingService.js');
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -171,6 +192,7 @@ beforeEach(() => {
   mockStreamText.mockReset();
   mockResolveModelTuple.mockReset();
   mockStreamWithReasoning.mockReset();
+  mockGetModel.mockReset();
 });
 
 afterEach(() => {
@@ -221,6 +243,109 @@ describe('resolveModel', () => {
 });
 
 // ─── streamWithFallback × streamForResolution ───────────────────────────────
+
+// ─── Eine Lesart von reasoningEffort ────────────────────────────────────────
+
+describe('thinksOnThisLane', () => {
+  // Mistrals Dial ist binär; `low` ist auf einem Modell ohne Low-Stufe ein
+  // „nicht denken" — dieselbe Entscheidung, die mistralReasoningOption trifft.
+  it('liest low auf der Mistral-Lane als NICHT denken', () => {
+    expect(thinksOnThisLane('mistral', 'mistral-medium-2604', 'low')).toBe(false);
+    expect(thinksOnThisLane('mistral', 'mistral-medium-2604', 'medium')).toBe(true);
+    expect(thinksOnThisLane('mistral', 'mistral-medium-2604', 'high')).toBe(true);
+  });
+
+  it('lässt Lanes ohne binären Dial bei ihrer Lesart: alles außer off denkt', () => {
+    expect(thinksOnThisLane('regolo', 'qwen3.5-122b', 'low')).toBe(true);
+    expect(thinksOnThisLane('litellm', 'verdigado-pro', 'low')).toBe(true);
+  });
+
+  it('off heißt überall off', () => {
+    expect(thinksOnThisLane('mistral', 'mistral-medium-2604', 'off')).toBe(false);
+    expect(thinksOnThisLane('regolo', 'qwen3.5-122b', 'off')).toBe(false);
+  });
+
+  it('ein Mistral-Modell ohne Reasoning denkt auch bei high nicht', () => {
+    expect(thinksOnThisLane('mistral', 'pixtral-large-latest', 'high')).toBe(false);
+  });
+});
+
+describe('Pin und Streamer stellen dieselbe Frage', () => {
+  const agentConfig = { provider: 'mistral', model: 'mistral-medium-2604' };
+
+  // Der Kern des Fehlers: der Streamer hielt `low` für „denken" und ging auf
+  // den Roh-Pfad, während der Pin es für „nicht denken" hielt und den Host auf
+  // Scaleway ließ. Der „Ersatz über die Mistral-API" lief dann auf denselben
+  // Host zurück, den der erste Versuch gerade abgelehnt hatte.
+  it('pinnt den Host für einen denkenden Zug auf die Mistral-API', async () => {
+    mockResolveModelTuple.mockResolvedValue(null);
+    await resolveModel(agentConfig, undefined, 'req_test', {
+      surface: 'notebook',
+      complexity: 'complex',
+    });
+    expect(mockGetModel.mock.calls.at(-1)?.[2]).toEqual({ needsReasoning: true });
+  });
+
+  it('pinnt NICHT, wenn der Zug auf dieser Lane gar nicht denkt (low)', async () => {
+    mockResolveModelTuple.mockResolvedValue(null);
+    await resolveModel(agentConfig, undefined, 'req_test', {
+      surface: 'notebook',
+      complexity: 'simple',
+    });
+    expect(mockGetModel.mock.calls.at(-1)?.[2]).toEqual({ needsReasoning: false });
+  });
+
+  it('nimmt bei low NICHT den Reasoning-Pfad — sonst hinge er über einem Host, den der Pin nicht umgestellt hat', async () => {
+    mockStreamText.mockReturnValue(streamOf([{ type: 'text-delta', text: 'ok' }]));
+    await streamForResolution({
+      resolution: makeResolution({ reasoningEffort: 'low' }) as Parameters<
+        typeof streamForResolution
+      >[0]['resolution'],
+      messages: MESSAGES,
+      temperature: 0.2,
+      sse: makeSse() as never,
+    });
+    expect(mockStreamWithReasoning).not.toHaveBeenCalled();
+    // Und dann auch keine halbe Wahrheit: kein Reasoning angefragt.
+    expect(mockStreamText.mock.calls[0][0].providerOptions).toBeUndefined();
+  });
+
+  it('nimmt bei high den Reasoning-Pfad', async () => {
+    mockStreamWithReasoning.mockImplementation(async function* () {
+      yield { type: 'text', delta: 'ok' };
+    });
+    await streamForResolution({
+      resolution: makeResolution({ reasoningEffort: 'high' }) as Parameters<
+        typeof streamForResolution
+      >[0]['resolution'],
+      messages: MESSAGES,
+      temperature: 0.2,
+      sse: makeSse() as never,
+    });
+    expect(mockStreamWithReasoning).toHaveBeenCalled();
+  });
+
+  // Das zweite Zuhause muss eines SEIN: fällt der Roh-Pfad aus, läuft der Zug
+  // über die SDK — und dort mit Reasoning, nicht als stumme Kurzantwort.
+  it('trägt das Reasoning in den zweiten Versuch, wenn der Roh-Pfad ausfällt', async () => {
+    mockStreamWithReasoning.mockImplementation(() => {
+      throw new ReasoningStreamUnavailableError('scaleway', 503, 'upstream weg');
+    });
+    mockStreamText.mockReturnValue(streamOf([{ type: 'text-delta', text: 'ok' }]));
+    const text = await streamForResolution({
+      resolution: makeResolution({ reasoningEffort: 'high' }) as Parameters<
+        typeof streamForResolution
+      >[0]['resolution'],
+      messages: MESSAGES,
+      temperature: 0.2,
+      sse: makeSse() as never,
+    });
+    expect(text).toBe('ok');
+    expect(mockStreamText.mock.calls[0][0].providerOptions).toEqual({
+      mistral: { reasoningEffort: 'high' },
+    });
+  });
+});
 
 // ─── Ausgabedecke ───────────────────────────────────────────────────────────
 
