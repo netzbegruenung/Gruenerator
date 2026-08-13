@@ -2,7 +2,7 @@
 identifier: 'gruenerator-oeffentlichkeitsarbeit-hessen'
 title: 'PM Hessen'
 description: 'Pressemitteilung im Stil Grüne Hessen'
-iconKey: 'PiTreeEvergreen'
+iconKey: 'PiTree'
 avatar: '🌳'
 backgroundColor: '#316049'
 mention: 'presse-hessen'

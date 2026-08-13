@@ -2,7 +2,7 @@
 identifier: 'gruenerator-oeffentlichkeitsarbeit-sachsen-anhalt'
 title: 'PM Sachsen-Anhalt'
 description: 'Pressemitteilung im Stil Grüne Sachsen-Anhalt'
-iconKey: 'PiFactory'
+iconKey: 'PiFlowerLight'
 avatar: '🏭'
 backgroundColor: '#316049'
 mention: 'presse-sachsen-anhalt'
