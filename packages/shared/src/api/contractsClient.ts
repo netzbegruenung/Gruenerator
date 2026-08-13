@@ -81,7 +81,7 @@ import {
   sharesReadContract,
   promptsContract,
 } from '@gruenerator/contracts';
-import { initClient } from '@ts-rest/core';
+import { initClient, isZodType, type AppRoute } from '@ts-rest/core';
 import { isAxiosError } from 'axios';
 
 import { getGlobalApiClient } from './client.js';
@@ -129,11 +129,15 @@ async function axiosFetcher({
   method,
   headers,
   body,
+  route,
+  validateResponse,
 }: {
   path: string;
   method: string;
   headers: Record<string, string>;
   body: unknown;
+  route: AppRoute;
+  validateResponse?: boolean | undefined;
 }): Promise<{ status: number; body: unknown; headers: Headers }> {
   const axios = getGlobalApiClient();
   const isBinary = BINARY_RESPONSE_PATHS.has(path);
@@ -174,6 +178,22 @@ async function axiosFetcher({
     if (value !== undefined) nativeHeaders.set(key, String(value));
   }
 
+  // ts-rest only applies `validateResponse` inside its own `tsRestFetchApi`.
+  // Handing it a custom `api` — which is the whole point of this bridge — skips
+  // that step, so setting the flag on a client did exactly nothing until this
+  // block existed. Verified by `contractsClientValidation.vitest.ts`, whose
+  // regression case passed happily while the flag was set but inert.
+  if (validateResponse) {
+    const responseSchema = route.responses[response.status];
+    if (isZodType(responseSchema)) {
+      return {
+        status: response.status,
+        body: responseSchema.parse(response.data),
+        headers: nativeHeaders,
+      };
+    }
+  }
+
   return {
     status: response.status,
     body: response.data,
@@ -186,6 +206,24 @@ async function axiosFetcher({
 const CLIENT_OPTS = {
   baseUrl: '',
   api: axiosFetcher,
+} as const;
+
+/**
+ * Same client, but the 200 body is parsed against the contract's Zod schema
+ * before it is handed back — a mismatch throws a `ZodError` naming the field.
+ *
+ * Only the contracts feeding the mobile Studio tab use this. That tab once died
+ * with `undefined is not a function` deep inside a render because `/share/recent`
+ * shipped `createdAt: {}` and nothing between the response and the sort had any
+ * opinion about the shape. Validation is that missing opinion.
+ *
+ * Not switched on globally: every other contract would start throwing on
+ * mismatches nobody has audited yet. Widening this is a deliberate, separate
+ * step — see the contract-adoption backlog.
+ */
+const VALIDATED_CLIENT_OPTS = {
+  ...CLIENT_OPTS,
+  validateResponse: true,
 } as const;
 
 // Infer types directly from initClient — avoids importing InitClientReturn
@@ -243,15 +281,18 @@ const _docsClient = () => initClient(docsContract, CLIENT_OPTS);
 const _documentsClient = () => initClient(documentsContract, CLIENT_OPTS);
 const _groupsClient = () => initClient(groupsContract, CLIENT_OPTS);
 const _userProfileClient = () => initClient(userProfileContract, CLIENT_OPTS);
-const _canvasClient = () => initClient(canvasContract, CLIENT_OPTS);
+// Studio-Tab-Quelle → validiert, siehe VALIDATED_CLIENT_OPTS.
+const _canvasClient = () => initClient(canvasContract, VALIDATED_CLIENT_OPTS);
 const _canvasAiClient = () => initClient(canvasAiContract, CLIENT_OPTS);
 const _monitorClient = () => initClient(monitorContract, CLIENT_OPTS);
 const _sitesClient = () => initClient(sitesContract, CLIENT_OPTS);
 const _texteClient = () => initClient(texteContract, CLIENT_OPTS);
-const _subtitlerClient = () => initClient(subtitlerContract, CLIENT_OPTS);
+// Studio-Tab-Quelle → validiert, siehe VALIDATED_CLIENT_OPTS.
+const _subtitlerClient = () => initClient(subtitlerContract, VALIDATED_CLIENT_OPTS);
 const _reisekostenClient = () => initClient(reisekostenContract, CLIENT_OPTS);
 const _imagePickerClient = () => initClient(imagePickerContract, CLIENT_OPTS);
-const _sharesReadClient = () => initClient(sharesReadContract, CLIENT_OPTS);
+// Studio-Tab-Quelle → validiert, siehe VALIDATED_CLIENT_OPTS.
+const _sharesReadClient = () => initClient(sharesReadContract, VALIDATED_CLIENT_OPTS);
 const _promptsClient = () => initClient(promptsContract, CLIENT_OPTS);
 
 export interface ContractsClient {
