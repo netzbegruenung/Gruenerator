@@ -27,3 +27,34 @@ export function computeMentionInsertion(
 
   return { newText, cursorPosition };
 }
+
+/**
+ * Pill-mode insertion: the mention itself becomes a composer chip instead of
+ * text, so only the optional promptTemplate lands in the textarea. The typed
+ * `@quer…` trigger span (mentionStart..caretPosition) is removed.
+ */
+export function computePillMentionInsertion(
+  currentText: string,
+  mentionable: Mentionable,
+  mentionStart: number,
+  caretPosition: number
+): MentionInsertionResult {
+  const insertAt = mentionStart >= 0 ? mentionStart : currentText.length;
+  const before = currentText.slice(0, insertAt);
+  const after = mentionStart >= 0 ? currentText.slice(caretPosition) : '';
+  const tmpl = mentionable.promptTemplate ?? '';
+  return { newText: `${before}${tmpl}${after}`, cursorPosition: before.length + tmpl.length };
+}
+
+/**
+ * The plain-text prefix a set of pill mentions contributes at send time —
+ * `@websuche @berlin ` / `/presse `. Prepending this to the draft re-enters the
+ * exact text path a hand-typed mention takes today (`parseAllMentions` →
+ * routing + durable `@[Label](type:id)` tokens), so the wire format and the
+ * persisted message stay byte-identical to the pre-pill behaviour.
+ */
+export function buildMentionPrefix(
+  mentions: ReadonlyArray<Pick<Mentionable, 'category' | 'mention'>>
+): string {
+  return mentions.map((m) => `${m.category === 'skill' ? '/' : '@'}${m.mention}`).join(' ');
+}

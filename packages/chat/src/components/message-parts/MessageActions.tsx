@@ -38,6 +38,7 @@ import { useChatDensity } from '../thread/chatDensityContext';
 
 import { MessageBranchPicker } from './MessageBranchPicker';
 import { MessageSourcesButton } from './MessageSourcesButton';
+import { MessageTime } from './MessageTimestamp';
 
 import type { Citation, ChatMessage } from '../../hooks/useChatGraphStream';
 import type { ExportToDocsBody, ExportToDocsResponse } from '@gruenerator/contracts';
@@ -329,6 +330,7 @@ export const MessageActions = memo(function MessageActions({
       {sources && sources.length > 0 && onToggleSources && (
         <MessageSourcesButton citations={sources} open={sourcesOpen} onToggle={onToggleSources} />
       )}
+      <MessageTime className="ml-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100" />
     </div>
   );
 });
