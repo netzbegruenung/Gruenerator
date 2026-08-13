@@ -62,6 +62,7 @@ import {
   getThreadLastMcpServer,
   setThreadLastMcpServer,
 } from '../threadPersistenceService.js';
+import { turnMaterialChars } from '../turnMaterial.js';
 import { withInstructionHierarchy } from '../untrustedContent.js';
 
 import { stripOutOfRangeCitations } from './citationStrip.js';
@@ -887,6 +888,11 @@ export async function streamAgenticResponse(params: {
     emitAnswerDelta
   );
 
+  // Computed BEFORE the model is resolved: the same number decides the lane
+  // (precise + reasoning on) and, further down, whether the writer gives up the
+  // tool catalog. Two computations could disagree — see turnMaterial.ts.
+  const carriedMaterialChars = turnMaterialChars(finalState);
+
   try {
     resolution = await resolveModel(
       {
@@ -901,6 +907,7 @@ export async function streamAgenticResponse(params: {
         agentId: agentConfig.identifier,
         ...(finalState.complexity != null && { complexity: finalState.complexity }),
         ...(finalState.taskShape != null && { taskShape: finalState.taskShape }),
+        materialChars: carriedMaterialChars,
       }
     );
 
@@ -1178,15 +1185,9 @@ export async function streamAgenticResponse(params: {
     // ...unless the turn's own material outweighs the instructions around it.
     // Then split wins for a different reason: its writer runs WITHOUT the tool
     // catalog, and that is the only configuration in which this failure has
-    // never been observed (see materialDominatesTurn).
-    // Documents the turn works ON, wherever they entered the prompt: this turn's
-    // upload and every file carried over from an earlier turn. Text only — an
-    // image contributes a vision summary, not material to transform.
-    const carriedMaterialChars =
-      (finalState.attachmentContext?.length ?? 0) +
-      (finalState.threadAttachments ?? [])
-        .filter((a) => !a.isImage)
-        .reduce((sum, a) => sum + (a.extractedText?.length ?? a.summary?.length ?? 0), 0);
+    // never been observed (see materialDominatesTurn). `carriedMaterialChars`
+    // is computed above, before resolveModel, so the lane and the loop mode
+    // cannot read different numbers.
     const materialHeavy = materialDominatesTurn(lastUserText, systemMessage, carriedMaterialChars);
     mode =
       prefersUnifiedLoop(resolution.provider, resolution.modelName) && !materialHeavy
