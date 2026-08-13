@@ -1,7 +1,7 @@
 /**
  * ts-rest contract router for POST /api/sharepic/text/<type>.
  *
- * Seven types, one shared core: every handler funnels into `run()`, which
+ * Nine types, one shared core: every handler funnels into `run()`, which
  * calls the Express-free `generateUnifiedTexts` and serializes through
  * `toSharepicTextWireBody` — the same function the legacy Express wrapper and
  * the deprecated `*_claude` aliases use. That shared serializer is what keeps
@@ -19,7 +19,9 @@
 
 import {
   sharepicTextContract,
+  type DreizeilenAtTextResponse,
   type DreizeilenTextResponse,
+  type InfoAtTextResponse,
   type InfoTextResponse,
   type SharepicTextBody,
   type SimpleTextResponse,
@@ -61,12 +63,13 @@ function clampCount(count: number | null | undefined): number {
 /**
  * Builds the handler body FIELD BY FIELD instead of spreading `args.body`.
  *
- * That is deliberate. `generateUnifiedTexts` branches on `userLocale` into the
- * `<type>_at` prompts, whose answers carry DIFFERENT FIELDS (`info_at` returns
- * introline/text/accent). The contract's body schema omits `userLocale`, and
- * this function never reintroduces it — so the 200 shape is fixed by
- * construction, not by hoping the schema stripped it. Same for
- * `_campaignPrompt`, which would otherwise let a caller swap the system prompt.
+ * That is deliberate. `generateUnifiedTexts` ALSO branches on `userLocale` into
+ * the `<type>_at` prompts — a second door to the same Austrian sujets that the
+ * `info_at`/`dreizeilen_at` routes reach through `type`. Two doors, one shape
+ * per route: the routes pass the AT type explicitly and never a locale, so
+ * `POST …/info` cannot answer with Austrian fields no matter what the caller
+ * sends. Same for `_campaignPrompt`, which would let a caller swap the system
+ * prompt.
  */
 function toUnifiedBody(body: SharepicTextBody): UnifiedTextBody {
   return {
@@ -137,6 +140,23 @@ export const sharepicTextContractRouter = s.router(sharepicTextContract, {
     const r = await run(args.req, 'simple', args.body);
     return r.status === 200
       ? { status: 200 as const, body: r.body as SimpleTextResponse }
+      : { status: r.status, body: r.body };
+  },
+
+  // Die AT-Routen reichen den `_at`-Typ an denselben Kern weiter. Der Handler
+  // schlägt Prompt UND Feldliste unter diesem Schlüssel nach — es braucht also
+  // keinen Locale-Parameter, damit die österreichischen Felder herauskommen.
+  generateDreizeilenAt: async (args) => {
+    const r = await run(args.req, 'dreizeilen_at', args.body);
+    return r.status === 200
+      ? { status: 200 as const, body: r.body as DreizeilenAtTextResponse }
+      : { status: r.status, body: r.body };
+  },
+
+  generateInfoAt: async (args) => {
+    const r = await run(args.req, 'info_at', args.body);
+    return r.status === 200
+      ? { status: 200 as const, body: r.body as InfoAtTextResponse }
       : { status: r.status, body: r.body };
   },
 

@@ -10,7 +10,9 @@
 import { getContractsClient } from '../../api/contractsClient.js';
 
 import type {
+  DreizeilenAtTextResponse,
   DreizeilenTextResponse,
+  InfoAtTextResponse,
   InfoTextResponse,
   SharepicSliderTextBody,
   SharepicTextBody,
@@ -27,7 +29,17 @@ import type {
  * gehört der jeweiligen App, nicht diesem Modul.
  */
 export type SharepicTextType =
-  'dreizeilen' | 'zitat' | 'zitat_pure' | 'info' | 'veranstaltung' | 'simple' | 'slider';
+  | 'dreizeilen'
+  | 'zitat'
+  | 'zitat_pure'
+  | 'info'
+  | 'veranstaltung'
+  | 'simple'
+  | 'slider'
+  // Österreich: eigene Sujets mit eigenen Feldern, deshalb eigene Typen —
+  // nicht dieselben Typen plus ein Locale-Flag.
+  | 'dreizeilen_at'
+  | 'info_at';
 
 export interface SharepicTextResponseByType {
   dreizeilen: DreizeilenTextResponse;
@@ -37,6 +49,8 @@ export interface SharepicTextResponseByType {
   veranstaltung: VeranstaltungTextResponse;
   simple: SimpleTextResponse;
   slider: SliderTextResponse;
+  dreizeilen_at: DreizeilenAtTextResponse;
+  info_at: InfoAtTextResponse;
 }
 
 /**
@@ -66,6 +80,10 @@ export async function generateSharepicText<T extends SharepicTextType>(
         return client.generateVeranstaltung({ body });
       case 'simple':
         return client.generateSimple({ body });
+      case 'dreizeilen_at':
+        return client.generateDreizeilenAt({ body });
+      case 'info_at':
+        return client.generateInfoAt({ body });
       case 'slider':
         return client.generateSlider({ body: body as SharepicSliderTextBody });
       default: {
