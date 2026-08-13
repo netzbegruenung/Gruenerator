@@ -1,11 +1,12 @@
 'use client';
 
-import { isAdminVisibleSkill } from '@gruenerator/shared/agents';
+import { isAdminVisibleSkill, isLvItemVisibleForRoles } from '@gruenerator/shared/agents';
 import { X, Star, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { PiSparkle } from 'react-icons/pi';
 
 import { useHiddenSkillMentions } from '../../hooks/useMentionablesQuery';
+import { useUserLandesverbaende } from '../../hooks/useUserLandesverbaende';
 import { agentsList, SKILL_CATEGORY_LABELS, type SkillCategory } from '../../lib/agents';
 import {
   agentToMentionable,
@@ -27,13 +28,21 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
   const { favorites, toggleFavorite } = useSkillFavoritesStore();
   const customAgents = getCustomAgentMentionables();
   const hiddenSkillMentions = useHiddenSkillMentions();
+  const { lvIds } = useUserLandesverbaende();
 
+  // Landesverbands-Rezepte gehören in die Bibliothek der Person, die in dem
+  // Landesverband arbeitet — nicht in die aller. Ohne Rollenangabe bleibt
+  // `lvIds` leer und der Filter lässt alles durch.
   const allSkills = useMemo(
     () =>
       agentsList
         .map(agentToMentionable)
-        .filter((s) => isAdminVisibleSkill(s.mention, hiddenSkillMentions)),
-    [hiddenSkillMentions]
+        .filter(
+          (s) =>
+            isAdminVisibleSkill(s.mention, hiddenSkillMentions) &&
+            isLvItemVisibleForRoles(s.identifier, lvIds)
+        ),
+    [hiddenSkillMentions, lvIds]
   );
 
   const filtered = useMemo(() => {
