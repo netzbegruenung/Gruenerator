@@ -53,7 +53,10 @@ function captureFetch(): { calls: Array<{ url: string; body: Record<string, unkn
 
 describe('isReasoningStreamModel — Mistral lane', () => {
   it('claims every Medium 3.5 alias when Scaleway is configured', async () => {
-    const { isReasoningStreamModel } = await loadStream({ SCALEWAY_API_KEY: 'scw-key' });
+    const { isReasoningStreamModel } = await loadStream({
+      SCALEWAY_API_KEY: 'scw-key',
+      SCALEWAY_MISTRAL_ROUTING: 'true',
+    });
 
     // Same three ids routeMistralModel accepts. Missing one would send that
     // caller's thinking turn down the SDK path and off Scaleway in silence.
@@ -63,15 +66,33 @@ describe('isReasoningStreamModel — Mistral lane', () => {
   });
 
   it('declines without a Scaleway key, leaving the lane on the Mistral API', async () => {
-    const { isReasoningStreamModel } = await loadStream({ SCALEWAY_API_KEY: undefined });
+    const { isReasoningStreamModel } = await loadStream({
+      SCALEWAY_API_KEY: undefined,
+      SCALEWAY_MISTRAL_ROUTING: 'true',
+    });
 
     // The point of the guard: a deployment with no Scaleway key must keep the
     // previous behaviour rather than fail every thinking turn.
     expect(isReasoningStreamModel('mistral', 'mistral-medium-2604')).toBe(false);
   });
 
+  it('declines when the routing flag is off, even with a key', async () => {
+    // Diese Lane hängt NICHT an `routeMistralModel`, sie liest die Tabelle
+    // selbst. Ohne diesen Fall bliebe der Denk-Verkehr auf Scaleway, während
+    // alles andere längst wieder direkt bei Mistral liegt.
+    const { isReasoningStreamModel } = await loadStream({
+      SCALEWAY_API_KEY: 'scw-key',
+      SCALEWAY_MISTRAL_ROUTING: undefined,
+    });
+
+    expect(isReasoningStreamModel('mistral', 'mistral-medium-2604')).toBe(false);
+  });
+
   it('declines Mistral models Scaleway does not serve', async () => {
-    const { isReasoningStreamModel } = await loadStream({ SCALEWAY_API_KEY: 'scw-key' });
+    const { isReasoningStreamModel } = await loadStream({
+      SCALEWAY_API_KEY: 'scw-key',
+      SCALEWAY_MISTRAL_ROUTING: 'true',
+    });
 
     // Pixtral and Small are not in this Scaleway project. Claiming them would
     // 404 every one of their thinking turns.
@@ -84,6 +105,7 @@ describe('streamWithReasoning — Mistral lane request shape', () => {
   it('posts to Scaleway under the id Scaleway knows the weights by', async () => {
     const { streamWithReasoning } = await loadStream({
       SCALEWAY_API_KEY: 'scw-key',
+      SCALEWAY_MISTRAL_ROUTING: 'true',
       SCALEWAY_BASE_URL: 'https://api.scaleway.ai/proj/v1',
     });
     const { calls } = captureFetch();
@@ -104,6 +126,7 @@ describe('streamWithReasoning — Mistral lane request shape', () => {
   it('sends reasoning_effort:high and never a low/medium effort', async () => {
     const { streamWithReasoning } = await loadStream({
       SCALEWAY_API_KEY: 'scw-key',
+      SCALEWAY_MISTRAL_ROUTING: 'true',
       SCALEWAY_BASE_URL: 'https://api.scaleway.ai/proj/v1',
     });
     const { calls } = captureFetch();
@@ -129,6 +152,7 @@ describe('ReasoningStreamUnavailableError', () => {
   it('is thrown when the upstream never answered, so the caller may retry', async () => {
     const { streamWithReasoning, ReasoningStreamUnavailableError } = await loadStream({
       SCALEWAY_API_KEY: 'scw-key',
+      SCALEWAY_MISTRAL_ROUTING: 'true',
       SCALEWAY_BASE_URL: 'https://api.scaleway.ai/proj/v1',
     });
     vi.stubGlobal('fetch', async () => new Response('upstream down', { status: 503 }));
@@ -152,6 +176,7 @@ describe('ReasoningStreamUnavailableError', () => {
   it('does not mask a mid-stream failure as retryable', async () => {
     const { streamWithReasoning, ReasoningStreamUnavailableError } = await loadStream({
       SCALEWAY_API_KEY: 'scw-key',
+      SCALEWAY_MISTRAL_ROUTING: 'true',
       SCALEWAY_BASE_URL: 'https://api.scaleway.ai/proj/v1',
     });
     // The chunk and the failure must land in SEPARATE pulls: `controller.error()`
@@ -200,6 +225,7 @@ describe('extractDelta — the shape Scaleway actually streams', () => {
   it('reads Scaleway thinking from delta.reasoning', async () => {
     const { streamWithReasoning } = await loadStream({
       SCALEWAY_API_KEY: 'scw-key',
+      SCALEWAY_MISTRAL_ROUTING: 'true',
       SCALEWAY_BASE_URL: 'https://api.scaleway.ai/proj/v1',
     });
     // Verbatim shape captured from Scaleway on 2026-07-31. If Scaleway ever
