@@ -33,7 +33,8 @@ vi.mock('../../search/CrawlingService.js', () => ({
   crawlAndDistill: (...args: unknown[]) => crawlAndDistill(...args),
 }));
 
-const { createResearchTools, subagentTools } = await import('./tools.js');
+const { createResearchTools, toolsFor, SUBAGENT_TOOLSETS, LEAD_ONLY_TOOLS } =
+  await import('./tools.js');
 const { createBudget } = await import('./types.js');
 
 interface RunnableTool {
@@ -510,36 +511,68 @@ describe('what a search is allowed to bring back', () => {
   });
 });
 
-describe('subagentTools', () => {
+describe('subagent toolsets', () => {
   /**
-   * Run against the REAL tool list, not a hand-written one: the point of the
-   * filter is that a tool added to `createResearchTools` reaches the subagents
-   * by default, and only what is named lead-only stays behind.
+   * Built from the REAL tool list, not a hand-written one — the guard below is
+   * only worth anything if it sees every tool the agent actually has.
    */
   const leadTools = createResearchTools({
     budget: createBudget(Date.now()),
     locale: 'de-DE' as const,
     sources: new Map(),
     onStep: vi.fn(),
-  }) as unknown as RunnableTool[];
+    notebooks: {
+      corpora: [{ id: 'nb', title: 'Notizbuch', description: 'Beschlüsse', collections: ['nb'] }],
+      mentionedCollections: [],
+      documentIds: [],
+      userId: 'u1',
+    },
+  } as never) as unknown as RunnableTool[];
+  const leadNames = leadTools.map((t) => t.name);
+
+  it('gives the web researcher no way into the corpora', () => {
+    const names = toolsFor(leadTools, 'web-recherche').map((t) => t.name);
+
+    expect(names).toEqual(['web_suche', 'seite_lesen']);
+  });
+
+  it('gives the programme researcher no way into the open web', () => {
+    // The point of the split: a question about the party's own resolutions
+    // cannot be answered out of a newspaper by accident.
+    const names = toolsFor(leadTools, 'programm-recherche').map((t) => t.name);
+
+    expect(names).toContain('notizbuch_suche');
+    expect(names).not.toContain('web_suche');
+  });
 
   it('keeps the deep tier with the lead', () => {
-    const names = subagentTools(leadTools).map((t) => t.name);
-
     // Linkup `deep`, two calls for the whole run. Since delegation is
     // concurrent, several workers would race for them — the cap holds either
     // way, but which sub-question gets them should be a decision, not a race.
-    expect(names).not.toContain('tiefen_suche');
-    expect(leadTools.map((t) => t.name)).toContain('tiefen_suche');
+    for (const subagent of Object.keys(SUBAGENT_TOOLSETS) as (keyof typeof SUBAGENT_TOOLSETS)[]) {
+      expect(toolsFor(leadTools, subagent).map((t) => t.name)).not.toContain('tiefen_suche');
+    }
+    expect(leadNames).toContain('tiefen_suche');
   });
 
-  it('hands over everything else', () => {
-    const names = subagentTools(leadTools).map((t) => t.name);
+  /**
+   * The price of allow-lists: a new tool reaches nobody unless someone says
+   * where it goes. This turns that omission into a failing test rather than a
+   * tool that silently exists for the lead alone.
+   */
+  it('leaves no tool unassigned', () => {
+    const assigned = new Set<string>([
+      ...Object.values(SUBAGENT_TOOLSETS).flat(),
+      ...LEAD_ONLY_TOOLS,
+    ]);
 
-    expect(names).toContain('web_suche');
-    expect(names).toContain('seite_lesen');
-    // A subset, never a rebuild — this is what makes new tools flow through.
-    expect(leadTools.map((t) => t.name)).toEqual(expect.arrayContaining(names));
-    expect(names).toHaveLength(leadTools.length - 1);
+    expect(leadNames.filter((name) => !assigned.has(name))).toEqual([]);
+  });
+
+  it('names no tool that does not exist', () => {
+    const known = new Set(leadNames);
+    const named = [...new Set([...Object.values(SUBAGENT_TOOLSETS).flat(), ...LEAD_ONLY_TOOLS])];
+
+    expect(named.filter((name) => !known.has(name))).toEqual([]);
   });
 });

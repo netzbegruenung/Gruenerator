@@ -20,6 +20,7 @@ export * from './canvas.js';
 export * from './boards.js';
 export * from './agentTasks.js';
 export * from './boardScheduledRuns.js';
+export * from './deepResearchRuns.js';
 export * from './recurringTasks.js';
 export * from './yjs.js';
 export * from './sites.js';
