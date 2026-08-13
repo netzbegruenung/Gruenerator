@@ -34,7 +34,7 @@ export async function processFileUpload(
     throw new Error('No text could be extracted from the document');
   }
 
-  const { chunks, embeddings } = await chunkAndEmbedText(extractedText);
+  const { chunks, embeddings } = await chunkAndEmbedText(extractedText, { title });
 
   const documentMetadata = await postgresDocumentService.saveDocumentMetadata(userId, {
     title: title.trim(),
@@ -113,6 +113,8 @@ export async function processUploadedDocument(
   try {
     await postgresDocumentService.updateDocumentMetadata(documentId, userId, {
       status: 'processing',
+      // Clear a previous run's reason, so a retry doesn't show a stale error.
+      additionalMetadata: { processing_error: null },
     });
 
     const document = await postgresDocumentService.getDocumentById(documentId, userId);
@@ -140,11 +142,15 @@ export async function processUploadedDocument(
     await markStage('extracting');
     const extractedText = await extractTextFromFile(file);
     if (!extractedText || extractedText.trim().length === 0) {
-      throw new Error('No text could be extracted from the document');
+      throw new Error(
+        'Aus diesem Dokument konnte kein Text gelesen werden. Prüfe, ob die Datei Text enthält.'
+      );
     }
 
     await markStage('chunking');
-    const { chunks, embeddings } = await chunkAndEmbedText(extractedText);
+    const { chunks, embeddings } = await chunkAndEmbedText(extractedText, {
+      title: document.title ?? null,
+    });
 
     await markStage('upserting', { current: 0, total: chunks.length });
     await qdrantDocumentService.storeDocumentVectors(
@@ -204,8 +210,16 @@ export async function processUploadedDocument(
     );
 
     try {
+      // Keep the reason with the row: `status='failed'` alone left the upload UI
+      // with nothing to say, so the spinner simply vanished and the document
+      // looked fine while being unsearchable.
       await postgresDocumentService.updateDocumentMetadata(documentId, userId, {
         status: 'failed',
+        additionalMetadata: {
+          processing_error: error instanceof Error ? error.message : 'Verarbeitung fehlgeschlagen',
+          processing_stage: null,
+          processing_progress: null,
+        },
       });
     } catch {
       // Ignore status update failure

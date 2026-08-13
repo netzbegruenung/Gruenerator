@@ -63,12 +63,18 @@ interface SaveAttachmentParams {
   sizeBytes: number;
   isImage: boolean;
   extractedText: string | null;
+  /** Page count from OCR (PDFs only) — display metadata for attachment chips. */
+  pageCount?: number;
   /** Base64 image bytes (images only) — used to generate a persistent vision
    *  description so follow-up turns can reason about the image. */
   imageData?: string;
   /** Base64 raw bytes (tabular files only) — persisted so the in-browser pandas
    *  interpreter can be rehydrated after a thread reload. */
   fileData?: string;
+  /** Qdrant id when this file was ALREADY vectorized in this turn
+   *  (`enrichContext`). Written straight into the row so nobody has to mint a
+   *  second id for the same bytes afterwards. */
+  documentId?: string;
 }
 
 /**
@@ -86,16 +92,18 @@ export async function saveThreadAttachment(params: SaveAttachmentParams): Promis
     sizeBytes,
     isImage,
     extractedText,
+    pageCount,
     imageData,
     fileData,
+    documentId,
   } = params;
 
   const postgres = getPostgresInstance();
 
   const result = await postgres.query(
     `INSERT INTO chat_thread_attachments
-     (thread_id, message_id, user_id, name, mime_type, size_bytes, is_image, extracted_text, file_data)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     (thread_id, message_id, user_id, name, mime_type, size_bytes, is_image, extracted_text, page_count, file_data, document_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
      RETURNING id`,
     [
       threadId,
@@ -106,7 +114,9 @@ export async function saveThreadAttachment(params: SaveAttachmentParams): Promis
       sizeBytes,
       isImage,
       extractedText,
+      pageCount ?? null,
       fileData ?? null,
+      documentId ?? null,
     ]
   );
 
@@ -294,7 +304,7 @@ export async function embedThreadAttachmentForRag(params: {
   const { attachmentId, userId, name, extractedText } = params;
   const documentId = randomUUID();
 
-  const { chunks, embeddings } = await chunkAndEmbedText(extractedText);
+  const { chunks, embeddings } = await chunkAndEmbedText(extractedText, { title: name });
   await getQdrantDocumentService().storeDocumentVectors(userId, documentId, chunks, embeddings, {
     sourceType: 'chat_attachment',
     title: name,

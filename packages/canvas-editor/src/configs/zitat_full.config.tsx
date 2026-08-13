@@ -97,6 +97,10 @@ const baseZitatConfig = createImageTwoTextCanvas({
   primaryField: { key: 'quote', label: 'Zitat' },
   secondaryField: { key: 'name', label: 'Name' },
   calculateLayout,
+  // The quote mark reads these two keys but the factory's base state does not
+  // declare them, so without the passthrough every chat edit to it was dropped
+  // by the initial-state whitelist. Same list as zitat_pure_full.
+  passthroughStateKeys: ['quoteMarkOffset', 'quoteMarkOpacity'],
   elements: [quoteMarkElement, quoteTextElement, nameTextElement],
   features: { icons: true, shapes: true, illustrations: true },
   gradientOpacity: ZITAT_CONFIG.gradient.bottomOpacity,

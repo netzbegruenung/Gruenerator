@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       source:
-        description: 'Single non-LV source (gruenblog, gruene-at, kommunalwiki, boell-stiftung, bundestag, abgeordnetenwatch). Mutually exclusive with landesverband.'
+        description: 'Single non-LV source (gruenblog, gruene-at, kommunalwiki, boell-stiftung, bundestag, abgeordnetenwatch, grundsatz, gruene-de, oesterreich). Mutually exclusive with landesverband.'
         required: false
         type: string
       landesverband:
@@ -49,7 +49,7 @@ jobs:
           INPUT_LV: ${{ inputs.landesverband }}
         run: |
           ALL_LVS='["BB","BE","BY","HE","HH","LSA","MV","SL","TH"]'
-          ALL_SOURCES='["gruenblog","gruene-at","kommunalwiki","boell-stiftung","bundestag","abgeordnetenwatch"]'
+          ALL_SOURCES='["gruenblog","gruene-at","kommunalwiki","boell-stiftung","bundestag","abgeordnetenwatch","grundsatz","gruene-de","oesterreich"]'
           EMPTY='[]'
 
           if [ -n "$INPUT_SOURCE" ] && [ -n "$INPUT_LV" ]; then
@@ -362,6 +362,17 @@ jobs:
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
           CONTENT_SYNC_API_URL: ${{ vars.NOTEBOOK_API_URL || 'https://gruenerator.eu' }}
 
+      # Die Statistikseite ist eine indexierte Doku-Seite. Wird sie geschrieben,
+      # ohne den Chat-Index nachzuziehen, ist `docsIndex.generated.ts` veraltet —
+      # und weil `docs:index:check` ein IMMER laufender Pflicht-Check ist (CI-Job
+      # „Format & Generated" und Docs Build), färbt dieser stündliche Lauf danach
+      # jeden fremden PR rot. Genau so passiert am 10.08.2026, zweimal an einem
+      # Abend (#2493, #2504). Der Generator importiert nur node:-Builtins, also
+      # genügt bares `node` — kein Setup, kein Install.
+      - name: Regenerate the chat docs index
+        if: always()
+        run: node documentation/scripts/generate-docs-index.mjs
+
       - name: Create PR for stats page update
         if: always()
         uses: peter-evans/create-pull-request@v8
@@ -370,7 +381,9 @@ jobs:
           title: 'docs: update content stats'
           body: 'Automated content stats update from Content Sync workflow.'
           branch: automated/content-stats-update
-          add-paths: documentation/docs/wissen/inhaltsdatenbank.md
+          add-paths: |
+            documentation/docs/wissen/inhaltsdatenbank.md
+            apps/api/services/docs/docsIndex.generated.ts
           delete-branch: true
           labels: automated
 
@@ -474,6 +487,17 @@ jobs:
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
           CONTENT_SYNC_API_URL: ${{ vars.NOTEBOOK_API_URL || 'https://gruenerator.eu' }}
 
+      # Die Statistikseite ist eine indexierte Doku-Seite. Wird sie geschrieben,
+      # ohne den Chat-Index nachzuziehen, ist `docsIndex.generated.ts` veraltet —
+      # und weil `docs:index:check` ein IMMER laufender Pflicht-Check ist (CI-Job
+      # „Format & Generated" und Docs Build), färbt dieser stündliche Lauf danach
+      # jeden fremden PR rot. Genau so passiert am 10.08.2026, zweimal an einem
+      # Abend (#2493, #2504). Der Generator importiert nur node:-Builtins, also
+      # genügt bares `node` — kein Setup, kein Install.
+      - name: Regenerate the chat docs index
+        if: always()
+        run: node documentation/scripts/generate-docs-index.mjs
+
       - name: Create PR for stats page update
         if: always()
         uses: peter-evans/create-pull-request@v8
@@ -482,7 +506,9 @@ jobs:
           title: 'docs: update content stats'
           body: 'Automated content stats update from Content Sync workflow.'
           branch: automated/content-stats-update
-          add-paths: documentation/docs/wissen/inhaltsdatenbank.md
+          add-paths: |
+            documentation/docs/wissen/inhaltsdatenbank.md
+            apps/api/services/docs/docsIndex.generated.ts
           delete-branch: true
           labels: automated
 

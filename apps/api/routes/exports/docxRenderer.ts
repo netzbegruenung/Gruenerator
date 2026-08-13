@@ -7,10 +7,19 @@
  * fix.
  */
 
+import { promises as fs } from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+import { createLogger } from '../../utils/logger.js';
+
 import { parseCitationMarkers } from './citationParser.js';
 
+import type { ResolvedImage } from './imageResolver.js';
 import type { FormattedBlock, FormattedSegment } from './types.js';
 import type * as Docx from 'docx';
+
+const log = createLogger('docxRenderer');
 
 export const BODY_FONT = 'PT Sans';
 export const HEADING_FONT = 'GrueneTypeNeue';
@@ -156,6 +165,80 @@ function runsForSegments(
 export interface RenderOptions {
   /** Enables `[cite:N]` → superscript rewriting. */
   withCitations?: boolean;
+  /** Resolved image data by block `src`; unresolved images fall back to an alt-text link. */
+  images?: ReadonlyMap<string, ResolvedImage>;
+}
+
+const FONTS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '../../public/fonts');
+
+let embeddedFontsPromise: Promise<Array<{ name: string; data: Buffer }>> | null = null;
+
+/**
+ * Fonts for the Document's `fonts` option, so the file carries `PT Sans` and
+ * `GrueneTypeNeue` instead of hoping the reader's machine has them. Only the
+ * regular cuts exist as files; Word synthesises bold/italic from them. Consolas
+ * stays unembedded — not ours to ship, and universally installed anyway.
+ *
+ * A load failure yields an empty list (the export must still produce a file,
+ * just without embedded fonts) and is NOT cached — caching the rejected
+ * attempt would disable embedding until the process restarts.
+ */
+export function loadEmbeddedFonts(): Promise<Array<{ name: string; data: Buffer }>> {
+  embeddedFontsPromise ??= Promise.all([
+    fs.readFile(path.join(FONTS_DIR, 'PTSans-Regular.ttf')),
+    fs.readFile(path.join(FONTS_DIR, 'GrueneTypeNeue-Regular.ttf')),
+  ]).then(
+    ([body, heading]) => [
+      { name: BODY_FONT, data: body },
+      { name: HEADING_FONT, data: heading },
+    ],
+    (err: unknown) => {
+      embeddedFontsPromise = null;
+      log.warn(`[docxRenderer] font embedding skipped: ${(err as Error).message}`);
+      return [];
+    }
+  );
+  return embeddedFontsPromise;
+}
+
+/**
+ * Section header/footer shared by both export routes: document title top right,
+ * `Seite N von M` bottom centre.
+ */
+export function buildPageChrome(
+  docx: typeof Docx,
+  title: string
+): { headers: { default: Docx.Header }; footers: { default: Docx.Footer } } {
+  const { Header, Footer, Paragraph, TextRun, AlignmentType, PageNumber } = docx;
+  const style = { size: 16, color: '666666', font: BODY_FONT };
+
+  return {
+    headers: {
+      default: new Header({
+        children: [
+          new Paragraph({
+            children: [new TextRun({ ...style, text: title })],
+            alignment: AlignmentType.RIGHT,
+          }),
+        ],
+      }),
+    },
+    footers: {
+      default: new Footer({
+        children: [
+          new Paragraph({
+            children: [
+              new TextRun({
+                ...style,
+                children: ['Seite ', PageNumber.CURRENT, ' von ', PageNumber.TOTAL_PAGES],
+              }),
+            ],
+            alignment: AlignmentType.CENTER,
+          }),
+        ],
+      }),
+    },
+  };
 }
 
 /**
@@ -255,6 +338,42 @@ export function renderBlocks(
         );
       }
       out.push(new Paragraph({ children: [], spacing: { after: 200 } }));
+    } else if (block.kind === 'image') {
+      const resolved = options.images?.get(block.src);
+      if (resolved) {
+        out.push(
+          new Paragraph({
+            children: [
+              new docx.ImageRun({
+                type: resolved.type,
+                data: resolved.data,
+                transformation: { width: resolved.width, height: resolved.height },
+                altText: {
+                  name: block.alt || 'Bild',
+                  description: block.alt || 'Bild',
+                  title: block.alt || 'Bild',
+                },
+              }),
+            ],
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 200 },
+          })
+        );
+      } else {
+        // Unresolvable picture: the alt text as a link, exactly the shape the
+        // export produced before images were embedded at all.
+        out.push(
+          new Paragraph({
+            children: runsForSegments(
+              docx,
+              [{ text: block.alt || block.src, bold: false, italic: false, href: block.src }],
+              { size: BODY_SIZE, font: BODY_FONT },
+              false
+            ),
+            spacing: { after: 200 },
+          })
+        );
+      }
     } else if (block.kind === 'divider') {
       out.push(
         new Paragraph({

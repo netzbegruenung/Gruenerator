@@ -198,10 +198,13 @@ export function resolveSearchPlan(params: {
  * A tier the model asked for is a REQUEST, not authority — and that holds in
  * BOTH directions:
  *
- * - Upward, `explicitDeep` is the only route to `tiefenrecherche`. Left
- *   unclamped, a model that reads "nutze sie sparsam" as a suggestion spends the
- *   deep engine on whatever it likes, and the classifier path had the same hole
- *   through a complexity heuristic.
+ * - Upward, the route to `tiefenrecherche` is either the user's own words
+ *   (`explicitDeep`) or a METERED allowance the model may spend on its own
+ *   judgement (`allowModelDeep`, see {@link createDeepTierBudget}). Left
+ *   entirely unclamped, a model that reads "nutze sie sparsam" as a suggestion
+ *   spends the deep engine on whatever it likes, and the classifier path had the
+ *   same hole through a complexity heuristic — which is why the allowance is a
+ *   countable budget rather than a permission flag.
  * - Downward, a requested `standard` is raised back to `gruendlich`. The tool
  *   description has said "gruendlich: DER NORMALFALL … standard: NUR wenn die
  *   Antwort genau EIN Datum ist" since the tiers were rebuilt, and the planner
@@ -228,12 +231,70 @@ export function resolveSearchTier(params: {
   requestedTier?: SearchTier | null;
   /** The user asked for a deep/thorough research in so many words. */
   explicitDeep?: boolean;
+  /**
+   * This turn still has a model-initiated deep call left. Never a standing
+   * permission — the caller owns a budget and passes what is left of it, so a
+   * model that asks for depth on every search gets it once.
+   */
+  allowModelDeep?: boolean;
 }): SearchTier {
   if (params.requestedTier === 'standard') return 'gruendlich';
   const wanted: SearchTier =
     params.requestedTier ?? (params.intent === 'research' ? 'gruendlich' : 'standard');
-  if (wanted === 'tiefenrecherche' && !params.explicitDeep) return 'gruendlich';
-  return wanted;
+  if (wanted !== 'tiefenrecherche') return wanted;
+  if (params.explicitDeep === true) return 'tiefenrecherche';
+  return params.allowModelDeep === true ? 'tiefenrecherche' : 'gruendlich';
+}
+
+/**
+ * Model-initiated deep searches allowed per turn, on top of anything the user
+ * asked for in so many words.
+ *
+ * One, because the deep engine is the only setting in the search stack that
+ * costs a multiple of the others (Linkup prices `deep` at roughly ten times
+ * `standard`), and because a turn that genuinely needs to read widely gets the
+ * depth ONCE and then has 20 sources to work from. The point of the allowance is
+ * not volume: it is that a model which has just seen thin results may say so and
+ * escalate, instead of being clamped by a regex over the user's phrasing that
+ * cannot know what the search returned.
+ */
+export const MODEL_DEEP_CALLS_PER_TURN = 1;
+
+export interface DeepTierBudget {
+  /**
+   * Resolve one search's tier, spending the model's deep allowance if — and only
+   * if — this call is what turns it into a deep one.
+   */
+  resolve(params: {
+    intent: string;
+    requestedTier?: SearchTier | null;
+    explicitDeep?: boolean;
+  }): SearchTier;
+  /** Model-initiated deep calls still available this turn. */
+  readonly remaining: number;
+}
+
+/**
+ * One turn's allowance of model-initiated deep searches.
+ *
+ * Resolution and accounting live in the same object on purpose: they are one
+ * decision, and splitting them is how a budget gets checked but never
+ * decremented. A user-requested deep search never touches the allowance — the
+ * user already said the word, so the turn keeps its model-initiated call for a
+ * different question.
+ */
+export function createDeepTierBudget(limit: number = MODEL_DEEP_CALLS_PER_TURN): DeepTierBudget {
+  let left = Math.max(0, limit);
+  return {
+    resolve(params) {
+      const tier = resolveSearchTier({ ...params, allowModelDeep: left > 0 });
+      if (tier === 'tiefenrecherche' && params.explicitDeep !== true) left -= 1;
+      return tier;
+    },
+    get remaining() {
+      return left;
+    },
+  };
 }
 
 /**

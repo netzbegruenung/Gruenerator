@@ -1,5 +1,6 @@
 ---
 identifier: gruenerator-oeffentlichkeitsarbeit-hessen
+defaultRecipeMention: 'presse-hessen'
 autoRoutingHint: creative
 audience: de-DE
 title: Öffentlichkeitsarbeit Hessen

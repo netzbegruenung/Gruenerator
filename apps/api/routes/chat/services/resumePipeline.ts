@@ -68,6 +68,7 @@ import {
   discardPendingAssistantIfEmpty,
   getUser,
 } from './threadPersistenceService.js';
+import { turnMaterialChars } from './turnMaterial.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { ServerInferRequest } from '@ts-rest/core';
@@ -570,6 +571,8 @@ export async function runChatGraphResume({
       intent: finalState.intent,
       agentId: finalState.agentConfig.identifier,
       ...(finalState.complexity != null && { complexity: finalState.complexity }),
+      ...(finalState.taskShape != null && { taskShape: finalState.taskShape }),
+      materialChars: turnMaterialChars(finalState),
     });
     if (resolution2.unknownModelId) {
       sse.send('warning', {

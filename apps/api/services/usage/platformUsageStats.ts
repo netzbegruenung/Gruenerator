@@ -25,7 +25,7 @@
  */
 
 import { getTransparencyStatsResponseSchema } from '@gruenerator/contracts';
-import { gte, sql } from 'drizzle-orm';
+import { gte, inArray, sql } from 'drizzle-orm';
 
 import { userUsageDaily } from '../../database/schema/index.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
@@ -63,7 +63,7 @@ const CACHE_TTL_SECONDS = 15 * 60;
 
 /** Bumped when the response shape changes, so old entries expire immediately
  *  rather than being served until their TTL runs out. */
-const CACHE_KEY_PREFIX = 'transparency:usage:v1';
+const CACHE_KEY_PREFIX = 'transparency:usage:v2';
 
 const WMS_PER_WH = 3_600_000;
 const UG_PER_G = 1_000_000;
@@ -193,7 +193,7 @@ export async function computePlatformUsageStats(
   const [windowUsers] = await db
     .select({ activeUsers: sql<number>`count(distinct ${userUsageDaily.userId})::int` })
     .from(userUsageDaily)
-    .where(sql`${userUsageDaily.day} = any(${dayList})`);
+    .where(inArray(userUsageDaily.day, dayList));
 
   const activeUsers = windowUsers?.activeUsers ?? 0;
   if (activeUsers < MIN_GROUP_SIZE) {
@@ -222,7 +222,7 @@ export async function computePlatformUsageStats(
       emissionsUg: sql<number>`sum(${userUsageDaily.emissionsUg})::float8`,
     })
     .from(userUsageDaily)
-    .where(sql`${userUsageDaily.day} = any(${dayList})`)
+    .where(inArray(userUsageDaily.day, dayList))
     .groupBy(
       userUsageDaily.day,
       userUsageDaily.feature,
@@ -249,6 +249,7 @@ export async function computePlatformUsageStats(
       images: number;
       transcriptions: number;
       searches: number;
+      emissionsUg: number;
     }
   >();
   const byModel = new Map<
@@ -297,6 +298,9 @@ export async function computePlatformUsageStats(
     const unit = unitFallback(row.unit);
     const feature = featureFallback(row.feature);
     const tokens = row.inputTokens + row.outputTokens;
+    // This row's contribution to the platform emissions (upper end), so the
+    // per-feature breakdown can carry a CO2 figure of its own.
+    let rowEmissionsUg = 0;
 
     if (unit === 'tokens') {
       textOutputTokens += row.outputTokens;
@@ -308,6 +312,7 @@ export async function computePlatformUsageStats(
         emissionsUg += row.emissionsUg;
         energyWmsLow += row.energyWms;
         emissionsUgLow += row.emissionsUg;
+        rowEmissionsUg = row.emissionsUg;
         coveredOutputTokens += row.outputTokens;
         coveredRequests += row.requests;
         addProvider(row.provider, row.energyWms, row.emissionsUg, 'tokens');
@@ -326,6 +331,7 @@ export async function computePlatformUsageStats(
           emissionsUg += high.emissionsUg;
           energyWmsLow += low?.energyWms ?? high.energyWms;
           emissionsUgLow += low?.emissionsUg ?? high.emissionsUg;
+          rowEmissionsUg = high.emissionsUg;
           coveredOutputTokens += row.outputTokens;
           coveredRequests += row.requests;
           if (high.basis === 'bound') boundedEnergyWms += high.energyWms;
@@ -345,6 +351,7 @@ export async function computePlatformUsageStats(
         emissionsUgLow += low?.emissionsUg ?? high.emissionsUg;
         imageEnergyWms += high.energyWms;
         imageEmissionsUg += high.emissionsUg;
+        rowEmissionsUg = high.emissionsUg;
         if (high.basis === 'bound') boundedEnergyWms += high.energyWms;
         addProvider(row.provider, high.energyWms, high.emissionsUg, 'images');
       }
@@ -370,9 +377,11 @@ export async function computePlatformUsageStats(
       images: 0,
       transcriptions: 0,
       searches: 0,
+      emissionsUg: 0,
     };
     featureEntry.requests += row.requests;
     featureEntry.total_tokens += tokens;
+    featureEntry.emissionsUg += rowEmissionsUg;
     if (unit === 'images') featureEntry.images += row.ops;
     if (unit === 'transcriptions') featureEntry.transcriptions += row.ops;
     if (unit === 'searches') featureEntry.searches += row.ops;
@@ -447,7 +456,11 @@ export async function computePlatformUsageStats(
       }))
       .sort((a, b) => a.day.localeCompare(b.day)),
     byFeature: [...byFeature.entries()]
-      .map(([feature, entry]) => ({ feature, ...entry }))
+      .map(([feature, { emissionsUg: featureEmissionsUg, ...entry }]) => ({
+        feature,
+        ...entry,
+        emissions_g: featureEmissionsUg / UG_PER_G,
+      }))
       .sort((a, b) => b.total_tokens - a.total_tokens || b.requests - a.requests),
     byModel: [...byModel.values()].sort((a, b) => b.total_tokens - a.total_tokens || b.ops - a.ops),
   };

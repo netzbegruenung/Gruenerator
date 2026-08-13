@@ -1,15 +1,23 @@
+/**
+ * Öffentlicher KI-Hinweis nach Art. 50 KI-VO — Wortlaut 1:1 aus Teil 1 der
+ * kanzleifinalen Fassung (datenschutz frankfurt · Schönberger & Dielmann,
+ * Stand 09.07.2026). Teil 2 des Dokuments ist interne KI-VO-Dokumentation und
+ * wird bewusst nicht veröffentlicht.
+ */
+
 const KITransparenz = () => {
   return (
     <div className="page-container">
       <h1>KI-Transparenz</h1>
-      <p>Stand: 18. Juni 2026</p>
+      <p>Öffentlicher Hinweis für Nutzer*innen · Art. 50 KI-VO (Verordnung (EU) 2024/1689)</p>
+      <p>Stand: 9. Juli 2026</p>
 
       <p>
-        Der GRUENERATOR ist eine KI-gestützte Plattform: Texte, Bilder, Transkriptionen und
-        Antworten werden ganz oder teilweise mit Hilfe künstlicher Intelligenz erstellt. Auf dieser
-        Seite erklären wir, wie wir KI-generierte Inhalte kennzeichnen und worauf Du achten
-        solltest. Diese Informationen unterstützen die Transparenzpflichten nach Artikel 50 der
-        KI-Verordnung der EU (KI-VO), die ab dem 2. August 2026 gelten.
+        Der GRÜNERATOR ist eine KI-gestützte Plattform: Texte, Bilder, Transkriptionen und Antworten
+        werden ganz oder teilweise mit Hilfe künstlicher Intelligenz erstellt. Hier erklären wir,
+        wie wir KI-generierte Inhalte kennzeichnen und worauf Du achten solltest. Diese
+        Informationen unterstützen die Transparenzpflichten nach Artikel 50 der KI-Verordnung der EU
+        (KI-VO).
       </p>
 
       <h2>Bilder</h2>
@@ -32,12 +40,10 @@ const KITransparenz = () => {
         erstellt. Du prüfst und bearbeitest diese Texte und veröffentlichst sie unter Deiner eigenen
         redaktionellen Verantwortung. In diesem Fall greift die gesetzliche Ausnahme von der
         Kennzeichnungspflicht für KI-Text (Art. 50 Abs. 4 KI-VO), da der Inhalt einer menschlichen
-        Prüfung unterliegt und Du die redaktionelle Verantwortung trägst.
-      </p>
-      <p>
-        Wir blenden an den Eingabefeldern einen Hinweis ein, der Dich daran erinnert, KI-Ergebnisse
-        vor der Veröffentlichung zu prüfen. KI-generierte Inhalte können fehlerhaft, unvollständig
-        oder irreführend sein.
+        Prüfung unterliegt und Du die redaktionelle Verantwortung trägst. An den Eingabefeldern
+        blenden wir einen Hinweis ein, der Dich daran erinnert, KI-Ergebnisse vor der
+        Veröffentlichung zu prüfen. KI-generierte Inhalte können fehlerhaft, unvollständig oder
+        irreführend sein.
       </p>
 
       <h2>Sprache, Chat und weitere Funktionen</h2>

@@ -124,7 +124,8 @@ describe('resolveCustomSystemPrompt', () => {
       'client-generated prompt'
     );
 
-    expect(result).toContain('Ortsverband-Baustein.');
+    expect(result.prompt).toContain('Ortsverband-Baustein.');
+    expect(result.fromBaustein).toBe(true);
   });
 
   it('falls back to the stored AI-generated prompt for a freely typed role', async () => {
@@ -136,7 +137,7 @@ describe('resolveCustomSystemPrompt', () => {
       'client-generated prompt'
     );
 
-    expect(result).toBe('stored role prompt');
+    expect(result).toEqual({ prompt: 'stored role prompt', fromBaustein: false });
   });
 
   it('falls back to the client-sent prompt when the role has none stored yet', async () => {
@@ -148,7 +149,7 @@ describe('resolveCustomSystemPrompt', () => {
       'client-generated prompt'
     );
 
-    expect(result).toBe('client-generated prompt');
+    expect(result).toEqual({ prompt: 'client-generated prompt', fromBaustein: false });
   });
 
   it('returns undefined when neither a baustein nor any prompt is available', async () => {
@@ -160,7 +161,7 @@ describe('resolveCustomSystemPrompt', () => {
       null
     );
 
-    expect(result).toBeUndefined();
+    expect(result).toEqual({ prompt: undefined, fromBaustein: false });
   });
 });
 

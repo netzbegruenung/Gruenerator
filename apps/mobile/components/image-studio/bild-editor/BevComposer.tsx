@@ -1,5 +1,5 @@
 import { type KiLabelMode } from '@gruenerator/contracts';
-import { STYLE_VARIANTS } from '@gruenerator/shared/image-studio';
+import { AI_IMAGE_TRANSPARENCY, STYLE_VARIANTS } from '@gruenerator/shared/image-studio';
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { type ReactNode, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -130,6 +130,11 @@ function SettingsSheet({
               </Pressable>
             );
           })}
+          {settings.kiLabel === 'none' && (
+            <Text style={[styles.transparencyNote, { color: palette.muted }]}>
+              {AI_IMAGE_TRANSPARENCY.labelRemovedWarningShort}
+            </Text>
+          )}
         </View>
       </ScrollView>
     </BottomSheet>
@@ -495,6 +500,12 @@ const styles = StyleSheet.create({
     fontFamily: BODY_FONT,
     fontSize: 14,
     flex: 1,
+  },
+  transparencyNote: {
+    fontFamily: BODY_FONT,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 4,
   },
   modeRow: {
     flexDirection: 'row',

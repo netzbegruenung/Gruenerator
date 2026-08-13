@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import {
+  looksLikeChitchatTurn,
   looksLikeToolableQuestion,
   looksLikeCompoundGeneration,
   looksLikeCompoundEdit,
@@ -11,6 +12,7 @@ import {
   decideEditToolLoop,
   type EditToolLoopInput,
   needsThreadGrounding,
+  looksLikeSelfContainedTurn,
   rewritesSuppliedText,
   looksLikeUnsourcedWritingOrder,
 } from './routing.js';
@@ -71,6 +73,31 @@ describe('looksLikeToolableQuestion', () => {
   });
 });
 
+describe('looksLikeChitchatTurn', () => {
+  // These reach respondNode single-pass with a non-neutral intent (`produktion`
+  // via the residual) — the default-recipe autoload must not fire on them.
+  const chitchat: [string, string][] = [
+    ['identity', 'Wer bist du?'],
+    ['capability', 'Was kannst du?'],
+    ['help', 'hilfe'],
+    ['test', 'test'],
+    ['greeting-prefixed', 'Hallo, was kannst du denn so?'],
+  ];
+  it.each(chitchat)('flags assistant-directed chit-chat: %s', (_label, q) => {
+    expect(looksLikeChitchatTurn(q)).toBe(true);
+  });
+
+  const writeTurns: [string, string][] = [
+    ['press release', 'Schreib eine Pressemitteilung zur Wärmewende'],
+    ['bürgermail', 'Antworte auf diese Bürgeranfrage: …'],
+    ['greeting + write order', 'Hallo! Schreib mir eine PM zum Radentscheid'],
+    ['empty', '   '],
+  ];
+  it.each(writeTurns)('does not flag a write turn: %s', (_label, q) => {
+    expect(looksLikeChitchatTurn(q)).toBe(false);
+  });
+});
+
 describe('decideRunAgentic', () => {
   const AGENTIC = new Set([
     'search',
@@ -83,10 +110,17 @@ describe('decideRunAgentic', () => {
     'bundestag',
     'abgeordnetenwatch',
     'image',
-    // Mirrors AGENTIC_INTENT_IDS (agenticRespondService), which routing.ts is
-    // deliberately import-free of. `agentic` belongs here: since the split it
-    // is the classifier's residual, so it must own the loop outright rather
-    // than depend on one of the phrasing rescues below.
+    // Eine Fixture nach dem Vorbild von AGENTIC_INTENTS (agenticRespondService),
+    // von dem routing.ts bewusst import-frei ist — `decideRunAgentic` bekommt
+    // die Menge als Parameter, also reicht hier eine repräsentative Auswahl
+    // (`research`/`umfragen`/`hilfe` fehlen und werden hier nicht gebraucht).
+    // Bewusst KEINE Ableitung aus der echten Menge: die prüfte die
+    // Implementierung gegen sich selbst. Woraus die echte Menge besteht
+    // (loop-Disposition + vier Zusätze), hält `dispositionSets.vitest.ts` fest.
+    //
+    // `agentic` gehört hierher: seit der Aufteilung ist es das Residual des
+    // Klassifikators, muss den Loop also selbst besitzen statt von einer der
+    // Formulierungs-Rettungen unten abzuhängen.
     'agentic',
   ]);
   const base = {
@@ -985,5 +1019,30 @@ describe('rewritesSuppliedText', () => {
     const trap = 'Hilfe bei der Formulierung brauche ich nicht, aber: Was fordern die Grünen?';
     expect(needsThreadGrounding(trap)).toBe(false);
     expect(rewritesSuppliedText(trap)).toBe(false);
+  });
+});
+
+describe('umlaut-initial rewrite verbs — \\b vor Umlaut ist keine Wortgrenze', () => {
+  it('Übersetzen ist ein Rewrite und bleibt self-contained', () => {
+    // Vorher tot: \b[üu]bersetze konnte "Übersetze …" nie matchen — der Turn
+    // galt nicht als self-contained und demotierte in die gemma-Synth-Lane
+    // (QA-Lauf 08/2026: zerrissene Übersetzungen).
+    const t = 'Übersetze den folgenden Text ins Englische: Hallo zusammen, wir treffen uns morgen.';
+    expect(rewritesSuppliedText(t)).toBe(true);
+    expect(looksLikeSelfContainedTurn(t, { hasOwnMaterial: false })).toBe(true);
+  });
+
+  it('Überarbeiten ebenso', () => {
+    const t = 'Überarbeite bitte diesen Absatz sprachlich';
+    expect(rewritesSuppliedText(t)).toBe(true);
+    expect(looksLikeSelfContainedTurn(t, { hasOwnMaterial: false })).toBe(true);
+  });
+
+  it('die ASCII-Schreibweise funktioniert weiterhin', () => {
+    expect(rewritesSuppliedText('ubersetze das bitte auf englisch')).toBe(true);
+  });
+
+  it('kein Match mitten im Wort', () => {
+    expect(rewritesSuppliedText('Die Grenzüberarbeitung der Behörde war Thema')).toBe(false);
   });
 });

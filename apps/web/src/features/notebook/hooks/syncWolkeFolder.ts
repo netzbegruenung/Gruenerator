@@ -2,6 +2,15 @@ import { type WolkeFolderRef } from '@gruenerator/contracts';
 
 import { type useDocumentsStore } from '../../../stores/documentsStore';
 
+import {
+  failureNotice,
+  joinNotices,
+  subfolderNotice as subfolderNoticeFor,
+  summarizeWolkeImport,
+  unsupportedFileNotice,
+  type WolkeImportFailure,
+} from './wolkeImportSummary';
+
 export interface ImportedWolkeDocument {
   id: string;
   title: string;
@@ -16,8 +25,14 @@ export type WolkeFolderSyncResult =
       currentDocumentIds: string[];
       /** Subset newly created on this sync — caller may want to poll for indexing. */
       newlyImported: ImportedWolkeDocument[];
+      /** Files that were already imported before this sync. */
+      alreadyImported: ImportedWolkeDocument[];
       updatedLastSyncedAt: string;
       skippedDueToSlotsFull: number;
+      /** Files the import rejected, with a reason each. Empty on a clean run. */
+      failures: WolkeImportFailure[];
+      /** Human-readable line about failures and unsupported formats, or null. */
+      notice: string | null;
     }
   | {
       kind: 'error';
@@ -36,8 +51,16 @@ export async function syncWolkeFolder(
   ctx: SyncContext
 ): Promise<WolkeFolderSyncResult> {
   try {
-    const browseResult = await ctx.documentsStore.browseWolkeFiles(folder.shareLinkId);
+    const includeSubfolders = folder.includeSubfolders === true;
+    // folderPath used to be dropped here, so an attached subfolder synced the
+    // share root instead of itself.
+    const browseResult = await ctx.documentsStore.browseWolkeFiles(folder.shareLinkId, {
+      ...(folder.folderPath ? { path: folder.folderPath } : {}),
+      recursive: includeSubfolders,
+    });
     const supported = browseResult.files.filter((f) => f.isSupported);
+    const unsupportedNotice = unsupportedFileNotice(browseResult.files);
+    const subfolderNotice = subfolderNoticeFor(browseResult, includeSubfolders);
 
     if (supported.length === 0) {
       return {
@@ -46,8 +69,11 @@ export async function syncWolkeFolder(
         folderPath: folder.folderPath,
         currentDocumentIds: [],
         newlyImported: [],
+        alreadyImported: [],
         updatedLastSyncedAt: new Date().toISOString(),
         skippedDueToSlotsFull: 0,
+        failures: [],
+        notice: joinNotices([unsupportedNotice, subfolderNotice]),
       };
     }
 
@@ -64,29 +90,24 @@ export async function syncWolkeFolder(
     }
 
     const result = await ctx.documentsStore.importWolkeFiles(folder.shareLinkId, sliced);
-    const results = result.results ?? [];
+    const summary = summarizeWolkeImport(result.results ?? []);
 
-    const newlyImported: ImportedWolkeDocument[] = results
-      .filter((r) => r.success === true && !r.skipped && typeof r.documentId === 'string')
-      .map((r) => ({ id: r.documentId as string, title: r.filename }));
-
-    const alreadyImportedIds = results
-      .filter(
-        (r) =>
-          r.skipped === true && r.reason === 'already_imported' && typeof r.documentId === 'string'
-      )
-      .map((r) => r.documentId as string);
-
-    const currentDocumentIds = [...newlyImported.map((d) => d.id), ...alreadyImportedIds];
+    const currentDocumentIds = [
+      ...summary.imported.map((d) => d.id),
+      ...summary.alreadyImported.map((d) => d.id),
+    ];
 
     return {
       kind: 'success',
       shareLinkId: folder.shareLinkId,
       folderPath: folder.folderPath,
       currentDocumentIds,
-      newlyImported,
+      newlyImported: summary.imported,
+      alreadyImported: summary.alreadyImported,
       updatedLastSyncedAt: new Date().toISOString(),
       skippedDueToSlotsFull,
+      failures: summary.failures,
+      notice: joinNotices([failureNotice(summary.failures), unsupportedNotice, subfolderNotice]),
     };
   } catch (e) {
     return {

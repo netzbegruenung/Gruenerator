@@ -9,7 +9,7 @@
  * leaf (a dependency-free `node:async_hooks` store), so recording here keeps
  * this module's unit-testability intact.
  */
-import { type ChatIntentId } from '@gruenerator/shared/chat-intents';
+import { type ChatIntentId, isGroundableProse } from '@gruenerator/shared/chat-intents';
 
 import {
   ARTIFACT_NOUN_BY_KIND,
@@ -36,18 +36,16 @@ import { recordDecision } from '../../../../utils/decisionJournal.js';
  * door: what the classifier cannot place now goes to `agentic` directly (prompt
  * rule 12), which is in AGENTIC_INTENTS. They still matter for the no-tool
  * verdicts the model DID commit to and got wrong.
+ *
+ * WHICH verdicts the rescues may touch is `isGroundableProse` — the `prose`
+ * disposition without `greeting`, derived in `@gruenerator/shared/chat-intents`.
+ * The exclusion is the whole statement and is argued there: since #2269 a
+ * greeting carries its own intent so that no phrasing and no self-contradiction
+ * of the classifier can pull it into the loop; deriving from `prose` alone would
+ * give that up. Until now the same two ids sat here as a literal
+ * (`NO_TOOL_VERDICTS`) alongside two more copies under two more names.
+ * `dispositionSets.vitest.ts` still pins the difference from the `prose` group.
  */
-// NICHT aus der `prose`-Disposition abgeleitet, obwohl es fast dieselbe Menge
-// ist — und die Differenz ist der Grund. Die Disposition beantwortet „braucht
-// dieser Intent ein Werkzeug?" (ein Gruss: nein). Diese Menge beantwortet
-// „welche Verdikte dürfen die drei Rettungen unten überhaupt anfassen?", und
-// `greeting` steht bewusst NICHT darin: seit #2269 trägt ein Gruss einen eigenen
-// Intent, damit ihn keine Formulierung und kein Selbstwiderspruch des
-// Klassifikators mehr in den Loop ziehen kann. Das ist eine strukturelle
-// Garantie und stärker als jede Wortprüfung — eine Ableitung würde sie
-// aufgeben. `dispositionSets.vitest.ts` hält den Unterschied fest, damit er
-// beim nächsten Mal nicht still verschwindet.
-const NO_TOOL_VERDICTS: ReadonlySet<string> = new Set(['produktion', 'direct']);
 
 // Question words. Includes the wo-compounds (worüber/woran/womit/…) that the
 // original list missed — live failure: "worüber hat X im Bundestag gesprochen"
@@ -77,6 +75,17 @@ const CHITCHAT_RE = /^(wer bist du|was (kannst|bist) du|wie geht|wie heißt du|h
 // (find_content/documents/boards_tasks/notebooks) are reachable.
 const PERSONAL_DATA_RE =
   /\b(mein|meine|meiner|meinen)\b[\s\wäöüß]*\b(dokumente?|boards?|aufgaben?|tasks?|notizb[üu]cher|sammlung\w*|reels?|sharepics?|gruppen?|inhalte?)\b/i;
+
+/**
+ * The whole turn (after stripping a leading greeting) is assistant-directed
+ * chit-chat — identity/help/test asks like "was kannst du?" or "hilfe". These
+ * run single-pass but end up with an ordinary non-neutral intent (`produktion`
+ * via the residual), so callers that key behavior on "this is a write turn"
+ * (e.g. the default-recipe autoload in respondNode) must exclude them.
+ */
+export function looksLikeChitchatTurn(raw: string): boolean {
+  return CHITCHAT_RE.test((raw ?? '').trim().replace(GREETING_PREFIX_RE, ''));
+}
 
 export function looksLikeToolableQuestion(raw: string): boolean {
   const t = (raw ?? '').trim().replace(GREETING_PREFIX_RE, '');
@@ -155,7 +164,7 @@ const CHITCHAT_ONLY_RE =
 export function rewritesSuppliedText(raw: string): boolean {
   const t = (raw ?? '').trim().replace(GREETING_PREFIX_RE, '');
   if (t.length === 0) return false;
-  return REWRITE_TARGET_RE.test(t) || REGENERATE_RE.test(t) || CREATIVE_FORM_RE.test(t);
+  return hasRewriteTarget(t) || REGENERATE_RE.test(t) || CREATIVE_FORM_RE.test(t);
 }
 
 export function needsThreadGrounding(raw: string): boolean {
@@ -211,7 +220,18 @@ const REGENERATE_RE =
   /\b(nochmal|noch\s+einmal|erneut|nochmals)\b[^.?!]*\b(auf\s+(englisch|deutsch|franz[öo]sisch|spanisch|italienisch|t[üu]rkisch)|k[üu]rzer|l[äa]nger|anders|f[öo]rmlicher|freundlicher|einfacher|in\s+stichpunkten)\b/i;
 
 const REWRITE_TARGET_RE =
-  /\b(k[üu]rze|k[üu]rzer|straffe|verk[üu]rze|umformulier|umschreib|[üu]berarbeit|korrigier|lektorier|vereinfach|versch[äa]rfe|gendere|[üu]bersetze?)[a-zäöüß]*\b|\b(diese[nrsm]?|obige[nrsm]?|folgende[nrsm]?)\s+(text|entwurf|abschnitt|absatz|fassung|version)\b|\b(das|es)\s+(k[üu]rzer|l[äa]nger|freundlicher|f[öo]rmlicher|einfacher)\b/i;
+  /\b(k[üu]rze|k[üu]rzer|straffe|verk[üu]rze|umformulier|umschreib|korrigier|lektorier|vereinfach|versch[äa]rfe|gendere)[a-zäöüß]*\b|\b(diese[nrsm]?|obige[nrsm]?|folgende[nrsm]?)\s+(text|entwurf|abschnitt|absatz|fassung|version)\b|\b(das|es)\s+(k[üu]rzer|l[äa]nger|freundlicher|f[öo]rmlicher|einfacher)\b/i;
+
+// The umlaut-initial rewrite verbs, split out of REWRITE_TARGET_RE because they
+// were DEAD there: `\b` before `ü` is no word boundary without the `u` flag (the
+// note above documents the trap the group itself still carried). "Übersetze
+// diesen Text" therefore never counted as a rewrite, was never self-contained,
+// and demoted into the loop — the 2026-08 QA run's broken translations. Fix
+// idiom per classifierParsing/parseScope: lookbehind + `\p{L}` under `u`.
+const REWRITE_TARGET_UMLAUT_RE = /(?<!\p{L})[üu](?:berarbeit|bersetz)\p{L}*/iu;
+
+const hasRewriteTarget = (t: string): boolean =>
+  REWRITE_TARGET_RE.test(t) || REWRITE_TARGET_UMLAUT_RE.test(t);
 
 /**
  * A writing order whose SUBSTANCE the user did not supply.
@@ -232,7 +252,7 @@ export function looksLikeUnsourcedWritingOrder(
   const t = (raw ?? '').trim();
   if (t.length === 0) return false;
   if (CREATIVE_FORM_RE.test(t)) return false;
-  if (REWRITE_TARGET_RE.test(t)) return false;
+  if (hasRewriteTarget(t)) return false;
   // The verb can belong to a PROHIBITION instead of an order: "Halte das fest,
   // aber erstelle diesmal kein Dokument" is the exact sentence fastPathGuards
   // was written for. Reading its "erstelle" as a writing order sent the turn to
@@ -296,7 +316,7 @@ export function looksLikeSelfContainedTurn(
   // WITH prose around it is a different turn and still loops.
   if (BARE_URL_ONLY_RE.test(t)) return true;
   if (CREATIVE_FORM_RE.test(t)) return true;
-  if (REWRITE_TARGET_RE.test(t) || REGENERATE_RE.test(t)) return true;
+  if (hasRewriteTarget(t) || REGENERATE_RE.test(t)) return true;
   // A PROHIBITION is not a request, and it must not reach a planner. "Halte die
   // Ergebnisse fest, aber erstelle diesmal kein Dokument" is honoured by exactly
   // one thing — the router's persistent-action gate — and that gate only ever
@@ -319,7 +339,7 @@ export function looksLikeSelfContainedTurn(
 // renamed intent fails the build — it used to compile and silently never match.
 // The Set stays `ReadonlySet<string>` because `decideRunAgentic` takes a plain
 // `intent: string`; narrowing that is a separate change.
-export const COMPOUND_GENERATION_INTENTS: ReadonlySet<string> = new Set([
+export const COMPOUND_GENERATION_INTENTS: ReadonlySet<ChatIntentId> = new Set([
   'sharepic',
   'create_presentation',
   'create_sheet',
@@ -358,7 +378,7 @@ export function looksLikeCompoundGeneration(raw: string): boolean {
 // the edit verbs and "als/ins <artifact-part>" targets. Used with a research
 // signal to detect a compound "recherchiere X UND bau es ins Dokument ein" turn.
 const EDIT_SIGNAL_RE =
-  /\b(einf[üu]g\w*|hinzuf[üu]g\w*|erg[äa]nz\w*|[üu]berarbeit\w*|aktualisier\w*|einarbeit\w*|einbau\w*|einpfleg\w*)\b|\bf[üu]g\w*\b[^.?!]*\b(hinzu|ein)\b|\b(als|ins?|in die|in der|in den)\s+(folie|abschnitt|dokument|tabelle|pr[äa]sentation|kapitel|spalte|zeile|karte|liste)\b/i;
+  /\b(einf[üu]g\w*|hinzuf[üu]g\w*|erg[äa]nz\w*|aktualisier\w*|einarbeit\w*|einbau\w*|einpfleg\w*)\b|(?<!\p{L})[üu]berarbeit\p{L}*|\bf[üu]g\w*\b[^.?!]*\b(hinzu|ein)\b|\b(als|ins?|in die|in der|in den)\s+(folie|abschnitt|dokument|tabelle|pr[äa]sentation|kapitel|spalte|zeile|karte|liste)\b/iu;
 
 // An EXPLICIT research verb (not the broad RESEARCH_SIGNAL_RE, whose content
 // nouns "aktuell/programm/position/daten" are everyday words in a pure edit like
@@ -453,12 +473,23 @@ const DOCUMENT_CREATE_RE = creationOrderPattern('dokument|schriftst[üu]ck|textd
  * still creates a sheet even though the classifier only reached `direct@0.50`
  * (→ demoted to `agentic`), not `create_sheet`.
  */
+/**
+ * Membership-Test, der ein unverengtes `string` annimmt — dieselbe Bauart und
+ * derselbe Grund wie `isGroundableProse`: der Intent kommt hier aus
+ * `AgenticDecisionInput`, das ihn bewusst als `string` führt (die Testfixtures
+ * konstruieren ihn im Objektliteral). Der Cast steht damit EINMAL neben der
+ * Menge statt an jeder Aufrufstelle; ein Nicht-Mitglied liefert `false`.
+ */
+function isCompoundGenerationIntent(intent: string): boolean {
+  return COMPOUND_GENERATION_INTENTS.has(intent as ChatIntentId);
+}
+
 export function compoundGenerationKind(intent: string, raw: string): CompoundGenerationKind | null {
   const t = (raw ?? '').trim();
   // A NAMED generation intent has a single-pass dispatcher of its own, so only a
   // turn that ALSO carries a research signal is lifted into the loop; without it
   // `null` means "the dispatcher builds it", which is correct and faster.
-  if (COMPOUND_GENERATION_INTENTS.has(intent)) {
+  if (isCompoundGenerationIntent(intent)) {
     if (!looksLikeCompoundGeneration(t)) return null;
     if (intent === 'sharepic') return 'sharepic';
     if (intent === 'create_presentation') return 'presentation';
@@ -678,7 +709,7 @@ export interface AgenticDecisionInput {
  * loop — the model choice only decides unified-vs-split MODE inside the loop.
  */
 export function decideRunAgentic(p: AgenticDecisionInput): boolean {
-  const compoundGen = COMPOUND_GENERATION_INTENTS.has(p.intent) && p.compoundGeneration;
+  const compoundGen = isCompoundGenerationIntent(p.intent) && p.compoundGeneration;
   // "Füll mir das Formular aus" is an imperative with no question word, so
   // looksLikeToolableQuestion rejects it by design (content imperatives are
   // creative generation). With a PDF attached it is exactly a tool turn — and
@@ -703,12 +734,12 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
   const inLoopSet =
     p.agenticIntents.has(p.intent) ||
     // A named first-party connector puts the turn in the loop whatever the
-    // intent says. Deliberately NOT folded into the `NO_TOOL_VERDICTS` branch
+    // intent says. Deliberately NOT folded into the groundable-prose branch
     // below: the asks this covers ("Wetter Köln morgen", "§ 823 BGB") are
     // telegram-style and fail every one of `looksLikeToolableQuestion`'s four
     // shapes, and they can arrive under any verdict, not just a no-tool one.
     p.hasManagedSources === true ||
-    (NO_TOOL_VERDICTS.has(p.intent) &&
+    (isGroundableProse(p.intent) &&
       (looksLikeToolableQuestion(p.lastUserText) ||
         p.classifierContradictedResearch === true ||
         unsourcedWriting ||

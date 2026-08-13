@@ -17,9 +17,10 @@
         "src/test/**/*.ts",
         "playwright.config.ts",
         "playwright.smoke.config.ts",
-        "tests/**/*.spec.ts"
+        "tests/**/*.spec.ts",
+        "tests/e2e/harness/*.tsx"
       ],
-      "project": ["src/**/*.{ts,tsx}", "tests/**/*.ts"],
+      "project": ["src/**/*.{ts,tsx}", "tests/**/*.{ts,tsx}"],
       "ignoreDependencies": ["vite-bundle-analyzer"]
     },
     "apps/api": {

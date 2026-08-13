@@ -362,8 +362,6 @@ const ENDPOINT_CATEGORIES: Record<string, EndpointCategory> = {
   '/texte/social': 'claude-text',
   '/texte/social/agent': 'claude-text',
   '/texte/universal': 'claude-text',
-  '/texte/alttext': 'alt-text',
-  '/texte/leichte-sprache': 'claude-text',
   '/texte/adjustment': 'text-adjustment',
 
   // Antrag endpoints

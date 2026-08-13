@@ -16,6 +16,7 @@ import { createLogger } from '../utils/logger.js';
 import { captureAuthIssue } from '../utils/observability/captureAuthIssue.js';
 import { redisClient } from '../utils/redis/client.js';
 
+import { USER_ADDITIONAL_FIELDS } from './betterAuthUserFields.js';
 import { ALLOWED_DOMAINS } from './domains.js';
 import { env } from './env.js';
 import { mapKeycloakProfileToUser } from './mapKeycloakProfileToUser.js';
@@ -177,53 +178,7 @@ export const auth = betterAuth({
       createdAt: 'created_at',
       updatedAt: 'updated_at',
     },
-    additionalFields: {
-      keycloak_id: { type: 'string', required: false },
-      username: { type: 'string', required: false },
-      locale: { type: 'string', required: false, defaultValue: 'de-DE' },
-      auth_source: { type: 'string', required: false, fieldName: 'auth_source' },
-      first_name: { type: 'string', required: false },
-      last_name: { type: 'string', required: false },
-      custom_prompt: { type: 'string', required: false },
-      custom_antrag_gliederung: { type: 'string', required: false },
-      presseabbinder: { type: 'string', required: false },
-      chat_color: { type: 'string', required: false },
-      chat_background: { type: 'string', required: false },
-      document_mode: { type: 'string', required: false, defaultValue: 'manual' },
-      default_startpage: { type: 'string', required: false, defaultValue: 'chat' },
-      feedback_button: { type: 'string', required: false, defaultValue: 'text' },
-      reduce_motion: { type: 'boolean', required: false, defaultValue: false },
-      reduce_transparency: { type: 'boolean', required: false, defaultValue: false },
-      show_skip_link: { type: 'boolean', required: false, defaultValue: true },
-      avatar_robot_id: { type: 'number', required: false, defaultValue: 1 },
-      profile_image: { type: 'number', required: false, defaultValue: 1 },
-      is_admin: { type: 'boolean', required: false, defaultValue: false },
-      deutschlandmodus: { type: 'boolean', required: false, defaultValue: false },
-      groups_enabled: { type: 'boolean', required: false, defaultValue: false },
-      groups: { type: 'boolean', required: false, defaultValue: false },
-      custom_generators: { type: 'boolean', required: false, defaultValue: false },
-      database_access: { type: 'boolean', required: false, defaultValue: false },
-      collab: { type: 'boolean', required: false, defaultValue: false },
-      notebook: { type: 'boolean', required: false, defaultValue: false },
-      sharepic: { type: 'boolean', required: false, defaultValue: false },
-      anweisungen: { type: 'boolean', required: false, defaultValue: false },
-      content_management: { type: 'boolean', required: false, defaultValue: false },
-      labor_enabled: { type: 'boolean', required: false, defaultValue: false },
-      sites_enabled: { type: 'boolean', required: false, defaultValue: true },
-      sites: { type: 'boolean', required: false, defaultValue: false },
-      chat: { type: 'boolean', required: false, defaultValue: false },
-      website: { type: 'boolean', required: false, defaultValue: false },
-      ai_sharepic: { type: 'boolean', required: false, defaultValue: false },
-      vorlagen: { type: 'boolean', required: false, defaultValue: false },
-      video_editor: { type: 'boolean', required: false, defaultValue: false },
-      scanner: { type: 'boolean', required: false, defaultValue: false },
-      prompts: { type: 'boolean', required: false, defaultValue: false },
-      interactive_antrag_enabled: { type: 'boolean', required: false, defaultValue: true },
-      docs: { type: 'boolean', required: false, defaultValue: false },
-      boards: { type: 'boolean', required: false, defaultValue: false },
-      bundestag_api_enabled: { type: 'boolean', required: false, defaultValue: false },
-      memory_enabled: { type: 'boolean', required: false, defaultValue: false },
-    },
+    additionalFields: USER_ADDITIONAL_FIELDS,
   },
 
   session: {

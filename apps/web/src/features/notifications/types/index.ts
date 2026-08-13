@@ -1,3 +1,4 @@
+import { getRobotAvatarPath } from '@gruenerator/shared/avatar';
 import {
   CloudDownload,
   FileText,
@@ -153,7 +154,7 @@ export const NOTIFICATION_TYPES: Record<string, NotificationTypeConfig> = {
     label: 'Neue Avatare',
     description: 'Wenn neue Profil-Avatare verfügbar sind',
     icon: Sparkles,
-    image: '/images/profileimages/11.webp',
+    image: getRobotAvatarPath(11),
     group: 'system',
     actions: (ctx) => [setAvatarAction(11, 'Avatar aktivieren')(ctx)],
   },

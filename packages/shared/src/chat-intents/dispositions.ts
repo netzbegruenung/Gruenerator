@@ -103,6 +103,7 @@ export const DISPOSITION_BY_INTENT: Record<ChatIntentId, Disposition> = {
   edit_current_doc: 'anchor',
   edit_current_board: 'anchor',
   modify_board: 'anchor',
+  edit_sheet: 'anchor',
 
   // ── D3 gated — eigenes Gitter, eigene Ausführung. Laufen teils IM Loop
   // (hilfe/summary/mcp), aber ihr Verdikt steuert, was dort montiert wird.
@@ -148,4 +149,46 @@ export function intentsWithDisposition(disposition: Disposition): ReadonlySet<Ch
       (id) => DISPOSITION_BY_INTENT[id] === disposition
     )
   );
+}
+
+/**
+ * Prosa-Verdikte, die etwas aus dem Thread ERBEN können — `prose` ohne
+ * `greeting`.
+ *
+ * Diese Menge stand als Literal `new Set(['produktion', 'direct'])` an drei
+ * Stellen unter drei Namen: `NO_TOOL_VERDICTS` (agenticLoop/routing.ts, welche
+ * Verdikte die Loop-Rettungen anfassen dürfen), `CITATION_GATED_INTENTS`
+ * (respondNode, wer Zitate zeigen darf) und `CARRY_ELIGIBLE_INTENTS`
+ * (intentExecutionService, wer frühere Recherche erbt). Drei Fragen, dieselbe
+ * Antwort — und jede Stelle erklärte den Ausschluss von `greeting` neu.
+ *
+ * Der Ausschluss ist der eigentliche Inhalt und deshalb hier begründet, nicht
+ * dreimal: Ein Gruss hat nichts zu erden. Er trägt seit #2269 einen eigenen
+ * Intent, damit ihn keine Formulierung mehr in den Loop, in eine Zitatliste
+ * oder an einen übernommenen Quellenblock ziehen kann. `prose` allein wäre
+ * also die falsche Ableitung — sie nähme genau die Garantie zurück, für die
+ * `greeting` abgespalten wurde.
+ *
+ * Nicht als vierte Disposition modelliert: eine Disposition beantwortet „was
+ * muss vor der Antwort feststehen?", und darauf geben `greeting` und
+ * `produktion` dieselbe Antwort (nichts). Erbfähigkeit ist eine zweite Frage an
+ * dieselbe Gruppe — also eine Ableitung, keine Partition.
+ */
+export const GROUNDABLE_PROSE_INTENTS: ReadonlySet<ChatIntentId> = new Set(
+  [...intentsWithDisposition('prose')].filter((id) => id !== 'greeting')
+);
+
+/**
+ * Membership-Test für {@link GROUNDABLE_PROSE_INTENTS}, der auch ein
+ * unverengtes `string` annimmt.
+ *
+ * Existiert, damit die Verbreiterung an EINER Stelle steht statt an jeder
+ * Aufrufstelle: die drei Konsumenten bekommen ihren Intent aus Zuständen, die
+ * ihn teils als `string` führen, und `Set<ChatIntentId>.has(string)` ist ein
+ * Typfehler. Ein `as ChatIntentId` je Aufrufstelle wäre dreimal dieselbe
+ * Zusicherung — also genau die Streuung, die diese Datei abschafft. Ein
+ * Nicht-Mitglied liefert `false`, der Cast kann zur Laufzeit nichts verletzen.
+ */
+export function isGroundableProse(intent: string): boolean {
+  return GROUNDABLE_PROSE_INTENTS.has(intent as ChatIntentId);
 }

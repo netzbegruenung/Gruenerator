@@ -76,7 +76,13 @@
   }
 }
 
-/* ── Hero: single centred column, identical shape to .sp-hero ── */
+/* ── Hero: single centred column ──
+   No longer the same shape as .sp-hero: that one carries a hint + scroll cue in
+   its own grid row, this one keeps its hint inside .lp-cta and stays a centred
+   flex column. What both share is the top padding — the topbar is absolute and
+   lies over the top of the column, so anything smaller than its height lets the
+   centring count space the logo already occupies. At 56px the block sat 42px
+   above the centre of the frame the topbar actually leaves. */
 .lp-hero {
   position: relative;
   z-index: 1;
@@ -86,7 +92,7 @@
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 56px 24px;
+  padding: 84px 24px 24px;
 }
 
 /* ── Top bar ── */
@@ -277,10 +283,11 @@
   text-underline-offset: 2px;
 }
 
-/* ── Phone — identical breakpoint/behaviour to .sp-hero's ── */
+/* ── Phone — same breakpoint as .sp-hero's ── */
 @media (max-width: 768px) {
   .lp-hero {
-    padding: 72px 24px 88px;
+    /* 18 + 34 + 18 = the phone topbar, same reasoning as above. */
+    padding: 70px 24px 24px;
   }
   .lp-topbar {
     padding: 18px 20px;

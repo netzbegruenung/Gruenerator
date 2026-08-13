@@ -40,6 +40,26 @@ export function lookupMime(filename: string): string {
   return MIME_MAP[path.extname(filename).toLowerCase()] || 'application/octet-stream';
 }
 
+/**
+ * Types safe to serve with `Content-Disposition: inline`. Excludes SVG (can
+ * carry <script>) and anything not in MIME_MAP (would only get here via a
+ * client-supplied mimetype we no longer trust) — those must download instead
+ * of rendering in the API's origin, or a malicious upload becomes stored XSS.
+ */
+const INLINE_SAFE_TYPES = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+  'application/pdf',
+  'text/plain',
+  'text/csv',
+]);
+
+export function isSafeToInline(mimeType: string): boolean {
+  return INLINE_SAFE_TYPES.has(mimeType);
+}
+
 void (async () => {
   try {
     await fs.promises.mkdir(ATTACHMENT_DIR, { recursive: true });

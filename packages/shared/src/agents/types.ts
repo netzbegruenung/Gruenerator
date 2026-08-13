@@ -201,6 +201,15 @@ export interface Agent {
    * chat relies on the `[N]` cards instead. Read by the ChatGraph respond node.
    */
   inlineSourceLinks?: boolean;
+  /**
+   * Recipe (`Skill.mention`) the single-pass respond path loads when the user
+   * picked none — the agent's core text form (e.g. `presse-berlin` for the
+   * Berlin PR agent). Keeps the agent's systemRole down to identity while the
+   * craft rules live in exactly one place, the recipe body. The agentic loop
+   * ignores this and lets the model pick via `rezept_laden`. An explicit
+   * composer mention always wins.
+   */
+  defaultRecipeMention?: string;
 }
 
 export type AgentCategory = 'gruppen';

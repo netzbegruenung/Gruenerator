@@ -1,5 +1,5 @@
 import { type KiLabelMode } from '@gruenerator/contracts';
-import { STYLE_VARIANTS } from '@gruenerator/shared/image-studio';
+import { AI_IMAGE_TRANSPARENCY, STYLE_VARIANTS } from '@gruenerator/shared/image-studio';
 import { AIPromptInput, Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
 import {
   ChevronDown,
@@ -184,6 +184,11 @@ function SettingsMenu({ bev }: { bev: BildEditorV2 }) {
                 </button>
               ))}
             </div>
+            {settings.kiLabel === 'none' && (
+              <p role="status" className="text-xs leading-snug text-foreground-muted">
+                {AI_IMAGE_TRANSPARENCY.labelRemovedWarning}
+              </p>
+            )}
           </div>
         </div>
       </PopoverContent>

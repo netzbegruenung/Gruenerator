@@ -430,6 +430,12 @@ const buildE2EBypassAuthData = (): AuthData => {
       reduce_motion: false,
       reduce_transparency: false,
       show_skip_link: true,
+      // Fester Zeitstempel, nicht `null`: sonst stünde vor jedem E2E- und
+      // a11y-Lauf der Art.-9-Dialog, und weil er modal ist, käme `main` in
+      // jedem ARIA-Snapshot leer zurück — die ganze Struktur-Regression würde
+      // dauerhaft nichts mehr prüfen. Das Gate selbst deckt AiConsentGate.vitest
+      // ab, wo die Einwilligung auch wirklich fehlen kann.
+      ai_consent_at: '2026-01-01T00:00:00.000Z',
       groups_enabled: true,
       custom_generators: true,
       database_access: true,

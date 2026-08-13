@@ -16,6 +16,7 @@ import {
   type SearchImage,
   type SearchResult,
 } from '../hooks/useChatGraphStream';
+import { ATTACHMENT_META_PART_NAME, type AttachmentMetaData } from '../lib/attachmentMeta';
 import { isPastedTextAttachment, PASTED_TEXT_PREVIEW_PART_NAME } from '../lib/pastedText';
 import { INTENT_TO_TOOL } from '../lib/toolMappings';
 import { type DocumentCreatedData } from '../types/messageMetadata';
@@ -40,12 +41,18 @@ export interface LoadedMessage {
   id: string;
   role: string;
   content: string;
+  /** ISO timestamp of the persisted row (`chat_messages.created_at`). */
+  createdAt?: string;
   attachments?: Array<{
     id: string;
     name: string;
     contentType: string;
     preview: string;
     truncated: boolean;
+    /** Real file size in bytes (`size_bytes`) — absent on legacy responses. */
+    size?: number;
+    /** OCR page count (PDFs only) — absent for images and legacy rows. */
+    pageCount?: number;
   }>;
   metadata?: {
     intent?: string;
@@ -336,29 +343,56 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
       }
 
       const custom = buildCustomMetadata(m.metadata);
-      const attachments = (m.attachments ?? [])
-        .filter((attachment) => isPastedTextAttachment(attachment.name, attachment.contentType))
-        .map((attachment) => ({
+      // All persisted attachments come back as display-only history data — the
+      // model adapter ignores data parts, while the backend re-injects
+      // persisted attachments itself. Pasted text keeps its dedicated preview
+      // part (card UI); every other file becomes a metadata chip (name, size,
+      // page count, extracted-text preview) — the bytes are not persisted.
+      const attachments = (m.attachments ?? []).map((attachment) => {
+        if (isPastedTextAttachment(attachment.name, attachment.contentType)) {
+          return {
+            id: attachment.id,
+            type: 'document' as const,
+            name: attachment.name,
+            contentType: attachment.contentType,
+            content: [
+              {
+                type: 'data' as const,
+                name: PASTED_TEXT_PREVIEW_PART_NAME,
+                data: { text: attachment.preview, truncated: attachment.truncated },
+              },
+            ],
+            status: { type: 'complete' as const },
+          };
+        }
+        const meta: AttachmentMetaData = {
+          ...(attachment.size != null ? { size: attachment.size } : {}),
+          ...(attachment.pageCount != null ? { pageCount: attachment.pageCount } : {}),
+          ...(attachment.preview
+            ? { preview: attachment.preview, truncated: attachment.truncated }
+            : {}),
+        };
+        return {
           id: attachment.id,
-          type: 'document' as const,
+          type: attachment.contentType.startsWith('image/')
+            ? ('image' as const)
+            : ('document' as const),
           name: attachment.name,
           contentType: attachment.contentType,
-          // This is display-only history data. The model adapter ignores data
-          // parts, while the backend re-injects persisted attachments itself.
-          content: [
-            {
-              type: 'data' as const,
-              name: PASTED_TEXT_PREVIEW_PART_NAME,
-              data: { text: attachment.preview, truncated: attachment.truncated },
-            },
-          ],
+          content: [{ type: 'data' as const, name: ATTACHMENT_META_PART_NAME, data: meta }],
           status: { type: 'complete' as const },
-        }));
+        };
+      });
+
+      // Without this, reloaded threads all get stamped "now" by the runtime and
+      // the day separators collapse onto the reload moment.
+      const createdAt = m.createdAt ? new Date(m.createdAt) : null;
 
       return {
         role: m.role as 'user' | 'assistant',
         content: contentParts,
         id: m.id,
+        ...(createdAt && !Number.isNaN(createdAt.getTime()) ? { createdAt } : {}),
         ...(attachments.length > 0 ? { attachments } : {}),
         metadata: Object.keys(custom).length > 0 ? { custom } : undefined,
       };

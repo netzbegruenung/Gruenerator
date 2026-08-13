@@ -108,6 +108,10 @@ const REGOLO_SMALL_4 = { provider: 'regolo', model: 'mistral-small-4-119b' } as 
  *  `scalewayThinkingFetch.ts`, sonst kommt leerer Inhalt zurück. */
 const GEMMA_4_SCALEWAY = 'gemma-4-26b-a4b-it';
 
+/** Gemma 4 als dichtes 31B auf Regolo — was `heavy` bis zum 01.08.2026 fuhr.
+ *  Lebt nur noch in der `pruefung`-Stufe weiter, Begründung dort. */
+const GEMMA_4_REGOLO = 'gemma4-31b';
+
 /** `mistral-medium-2604` === Mistral Medium 3.5. Provider bleibt `mistral`:
  *  `routeMistralModel` schickt genau diese ID nach Scaleway/Paris, und alles
  *  Policy-Relevante prüft `provider === 'mistral'` (siehe CLAUDE.md). */
@@ -226,6 +230,40 @@ export const INTERMEDIATE_LANES = {
    * die Doppelung ein.
    */
   compute: { provider: 'mistral', model: MISTRAL_MEDIUM },
+
+  /**
+   * Prüfen, was ein anderes Modell geschrieben hat — mit eigenem Kontext.
+   *
+   * Konsumenten: die Nachschritte der Pipeline-Agenten
+   * (`routes/chat/services/agentPipeline.ts`). Eigene Stufe und nicht `heavy`,
+   * weil sich diese hier in zwei Punkten anders verhält als jeder andere
+   * Zwischenschritt:
+   *
+   * 1. **Die Ausgabe ist lang, nicht kurz.** Ein Prüfbericht bringt
+   *    Abdeckungstabelle, Befundtabelle und Korrekturvorschläge — Tausende
+   *    Tokens, nicht 20. Die Reasoning-Falle aus dem Kopf dieser Datei
+   *    (Denk-Tokens zählen gegen `max_tokens`, leerer `content` startet
+   *    stillschweigend die Fallback-Kette) trifft deshalb umgekehrt: nicht das
+   *    Budget ist zu klein, sondern der Bericht wäre unter einem knappen Deckel
+   *    abgeschnitten. Die Aufrufer setzen `max_tokens` entsprechend hoch.
+   * 2. **Ein Fehler ist hier eine übersehene Auslassung**, kein schwächerer
+   *    Satz. Genau dafür wurde die Kette gebaut: der Lauf vom 13.08.2026 zeigte
+   *    ein Modell, das seinen eigenen Text im eigenen Kontext bewertete und
+   *    „keine schwierigen Stellen" meldete, während ein Ortsname fehlte.
+   *
+   * Modell: das dichte `gemma4-31b` auf Regolo, ausdrücklich gewünscht. Es ist
+   * NICHT dasselbe wie `heavy`: diese Stufe zog am 01.08.2026 auf Scaleways
+   * MoE-Variante um, weil die mit 4B aktiven Parametern rund doppelt so schnell
+   * antwortet (Zusammenfassung 2,36 s gegen 5,28 s; p50 unter 10 parallelen
+   * Anfragen 1,78 s gegen 2,62 s) bei gleicher Inhaltstreue. Der Preis wird
+   * hier bewusst gezahlt — die Kette läuft ohnehin hinter einer gestreamten
+   * Antwort, ihre Latenz steht dem Lesen also nicht im Weg.
+   *
+   * Wenn die Wartezeit doch stört: `GEMMA_4_SCALEWAY` einsetzen. Dann muss der
+   * Client aus `scalewayThinkingFetch.ts` mitkommen, der `reasoning_effort:
+   * 'none'` erzwingt — sonst antwortet das Modell mit leerem `content`.
+   */
+  pruefung: { provider: 'regolo', model: GEMMA_4_REGOLO },
 } as const satisfies Record<string, IntermediateLaneConfig>;
 
 export type IntermediateLaneId = keyof typeof INTERMEDIATE_LANES;

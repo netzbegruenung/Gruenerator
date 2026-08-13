@@ -79,7 +79,9 @@ export const syncStatusErrorSchema = z.object({
  *   - 'uploaded'   manualController sets this after the file is on disk
  *   - 'processing' processUploadedDocument flips this while extracting + embedding
  *   - 'completed'  final success state
- *   - 'failed'     final error state (actual error stays in server logs; no error_message column)
+ *   - 'failed'     final error state; the reason is written to
+ *                  documents.metadata.processing_error and surfaced by the
+ *                  status routes (there is no error_message column)
  */
 export const documentStatusValueSchema = z.enum([
   'pending',
@@ -159,6 +161,85 @@ export const documentContentErrorSchema = z.object({
 
 export type DocumentContent = z.infer<typeof documentContentSchema>;
 export type DocumentContentResponse = z.infer<typeof documentContentResponseSchema>;
+
+// ── Upload formats ───────────────────────────────────────────────────────────
+
+/**
+ * The formats the extraction pipeline can actually read. Single source of truth
+ * for the file dialog's `accept` list, the client-side drop check and the
+ * server-side guard on POST /documents/upload-only — those three drifted apart
+ * before: the UI advertised DOC/ODT/RTF, which `extractTextFromFile` has never
+ * supported, and the resulting failure was invisible.
+ *
+ * `kind` mirrors the branch taken in
+ * apps/api/services/document-services/DocumentProcessingService/textExtraction.ts:
+ *   - 'ocr'  → handed to Mistral OCR
+ *   - 'text' → decoded as utf-8
+ *
+ * Adding an entry here is a promise the pipeline has to keep; extend
+ * textExtraction.ts in the same change.
+ */
+export const DOCUMENT_UPLOAD_FORMATS = [
+  { extension: '.pdf', label: 'PDF', mimeTypes: ['application/pdf'], kind: 'ocr' },
+  {
+    extension: '.docx',
+    label: 'DOCX',
+    mimeTypes: ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+    kind: 'ocr',
+  },
+  {
+    extension: '.pptx',
+    label: 'PPTX',
+    mimeTypes: ['application/vnd.openxmlformats-officedocument.presentationml.presentation'],
+    kind: 'ocr',
+  },
+  { extension: '.txt', label: 'TXT', mimeTypes: ['text/plain'], kind: 'text' },
+  { extension: '.md', label: 'MD', mimeTypes: ['text/markdown', 'text/x-markdown'], kind: 'text' },
+  { extension: '.csv', label: 'CSV', mimeTypes: ['text/csv'], kind: 'text' },
+  { extension: '.png', label: 'PNG', mimeTypes: ['image/png'], kind: 'ocr' },
+  { extension: '.jpg', label: 'JPG', mimeTypes: ['image/jpeg', 'image/jpg'], kind: 'ocr' },
+  { extension: '.jpeg', label: 'JPEG', mimeTypes: ['image/jpeg', 'image/jpg'], kind: 'ocr' },
+  { extension: '.avif', label: 'AVIF', mimeTypes: ['image/avif'], kind: 'ocr' },
+] as const;
+
+export type DocumentUploadFormat = (typeof DOCUMENT_UPLOAD_FORMATS)[number];
+export type DocumentUploadExtension = DocumentUploadFormat['extension'];
+
+/** For the file dialog's `accept` attribute and the "PDF, DOCX, …" hint. */
+export const DOCUMENT_UPLOAD_EXTENSIONS: readonly DocumentUploadExtension[] =
+  DOCUMENT_UPLOAD_FORMATS.map((f) => f.extension);
+
+/** Matches the multer `limits.fileSize` on every document upload route. */
+export const DOCUMENT_MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+
+/**
+ * Resolve a file to its extraction format. The extension decides, not the
+ * mimetype: browsers hand us an empty string or `application/octet-stream` for
+ * `.md` on most platforms, and a mimetype-only check therefore rejected files
+ * the pipeline can read perfectly well. The mimetype is only consulted as a
+ * fallback when the name carries no usable extension (Wolke/Docs imports).
+ */
+export function resolveDocumentUploadFormat(
+  filename: string | null | undefined,
+  mimetype?: string | null
+): DocumentUploadFormat | null {
+  const name = (filename ?? '').toLowerCase();
+  const byExtension = DOCUMENT_UPLOAD_FORMATS.find((f) => name.endsWith(f.extension));
+  if (byExtension) return byExtension;
+
+  const mime = (mimetype ?? '').toLowerCase().split(';')[0]?.trim() ?? '';
+  if (!mime) return null;
+  return (
+    DOCUMENT_UPLOAD_FORMATS.find((f) => (f.mimeTypes as readonly string[]).includes(mime)) ?? null
+  );
+}
+
+/** Human-readable list for error messages and UI hints ("PDF, DOCX, …"). */
+export const DOCUMENT_UPLOAD_FORMAT_HINT = DOCUMENT_UPLOAD_FORMATS.filter(
+  (f) => f.extension !== '.jpeg'
+)
+  .map((f) => f.label)
+  .join(', ');
 
 // ── Shared error schema ──────────────────────────────────────────────────────
 

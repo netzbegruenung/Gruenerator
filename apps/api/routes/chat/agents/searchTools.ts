@@ -9,7 +9,7 @@ import { tool, type ToolSet } from 'ai';
 import { z } from 'zod';
 
 import { normalizeDomainList } from '../../../services/search/domainFilters.js';
-import { resolveSearchTier, SEARCH_TIERS } from '../../../services/search/searchDepth.js';
+import { createDeepTierBudget, SEARCH_TIERS } from '../../../services/search/searchDepth.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import {
@@ -180,6 +180,12 @@ export function createSearchTools(
 ): ToolSet {
   const restrictions = agentConfig.toolRestrictions;
 
+  // One allowance per factory call, and the factory runs once per turn
+  // (`buildChatToolCatalog`). Holding it here rather than inside `execute` is
+  // what makes it a per-TURN budget: a per-call counter would reset on every
+  // search and grant the deep engine unboundedly.
+  const deepBudget = createDeepTierBudget();
+
   const allowedCollections: readonly string[] = restrictions?.allowedCollections?.length
     ? restrictions.allowedCollections
     : ALL_COLLECTIONS;
@@ -323,7 +329,7 @@ NUTZE WENN:
 
 WÄHLE DIE STUFE NACH AUFWAND, NICHT NACH WORTLAUT:
 - gruendlich: DER NORMALFALL, lass tiefe einfach weg. 10 Quellen.
-- tiefenrecherche: nur wenn der Benutzer ausdrücklich eine gründliche Recherche verlangt hat. Dauert 15–30 Sekunden.
+- tiefenrecherche: 20 Quellen, die Top-Treffer werden im Volltext gelesen. Dauert 15–30 Sekunden. Nimm sie, wenn der Benutzer ausdrücklich gründlich recherchiert haben will ODER wenn die Frage sie sachlich braucht (viele Teilaspekte, strittige Faktenlage, eine gründliche Suche kam eben dünn zurück). Du hast dafür EINEN Aufruf pro Antwort, den der Benutzer nicht verlangt haben muss — gib ihn der Frage, die ihn am nötigsten hat, nicht der ersten.
 
 EINE SUCHE ZUR ZEIT: Starte eine Suche, lies das Ergebnis, und suche erst dann weiter, wenn wirklich etwas fehlt. Höchstens zwei Suchen gleichzeitig. War ein Ergebnis schwach, formuliere die Anfrage EINMAL anders (notfalls englisch) — schicke keine Varianten auf Vorrat los.
 
@@ -358,7 +364,7 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
         .optional()
         .default('gruendlich')
         .describe(
-          'Rechercheaufwand: gruendlich (Normalfall, 10 Quellen) oder tiefenrecherche (nur auf ausdrücklichen Wunsch, langsam)'
+          'Rechercheaufwand: gruendlich (Normalfall, 10 Quellen) oder tiefenrecherche (20 Quellen + Volltext, langsam, einmal pro Antwort ohne ausdrücklichen Wunsch)'
         ),
       zeitraum: z
         .enum(['anytime', 'day', 'week', 'month', 'year'])
@@ -388,17 +394,26 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
     }),
     execute: async ({ query, searchType, tiefe, zeitraum, seiten, seitenAusschliessen }) => {
       try {
-        // The model's tier is a request in both directions; `resolveSearchTier`
-        // clamps it up to the normal case and down to what the user actually
-        // consented to. Without this the deep engine is one hallucinated
-        // argument away, and a five-snippet answer one skipped instruction away.
-        const tier = resolveSearchTier({
-          intent: 'web',
-          requestedTier: tiefe,
-          explicitDeep: options.explicitDeepRequest ?? false,
-        });
+        // The model's tier is a request in both directions: clamped UP to the
+        // normal case (a five-snippet answer must not be one skipped instruction
+        // away) and, upward, metered rather than forbidden.
+        //
+        // The deep engine used to be reachable only through
+        // `isExplicitDeepRequest`, a regex over the user's phrasing. That guard
+        // cannot see what a search returned, so a model staring at ten thin hits
+        // had no way to escalate and no way to say so. `deepBudget` gives it one
+        // deep call per turn on its own judgement — the budget lives on the
+        // factory, which runs once per turn, so it is a per-turn allowance and
+        // not a per-call permission.
+        const explicitDeep = options.explicitDeepRequest ?? false;
+        const before = deepBudget.remaining;
+        const tier = deepBudget.resolve({ intent: 'web', requestedTier: tiefe, explicitDeep });
         if (tier !== tiefe) {
           log.info(`[Tools] web_search tier clamped: ${tiefe} → ${tier}`);
+        } else if (deepBudget.remaining < before) {
+          log.info(
+            `[Tools] web_search: modellinitiierte Tiefenrecherche gewährt (Rest ${deepBudget.remaining})`
+          );
         }
         // Hostnames are normalised here rather than trusted: the model reliably
         // writes "https://zeit.de/" or "www.zeit.de" when the user did, and the

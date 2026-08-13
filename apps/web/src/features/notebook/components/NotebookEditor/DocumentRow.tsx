@@ -1,6 +1,13 @@
 import { Button, Checkbox } from '@gruenerator/ui';
 import { memo } from 'react';
-import { HiCloud, HiDocumentText, HiGlobeAlt, HiUpload, HiX } from 'react-icons/hi';
+import {
+  HiCloud,
+  HiDocumentText,
+  HiExclamationCircle,
+  HiGlobeAlt,
+  HiUpload,
+  HiX,
+} from 'react-icons/hi';
 
 import { cn } from '../../../../utils/cn';
 
@@ -29,6 +36,8 @@ interface DocumentRowProps {
   doc: UploadedDocument;
   source: DocumentSource;
   indexing: boolean;
+  /** Why background processing failed, or null when it didn't. */
+  failure: string | null;
   selected: boolean;
   loading: boolean;
   onToggleSelect: (id: string) => void;
@@ -39,6 +48,7 @@ function DocumentRowInner({
   doc,
   source,
   indexing,
+  failure,
   selected,
   loading,
   onToggleSelect,
@@ -52,7 +62,11 @@ function DocumentRowInner({
     <div
       className={cn(
         'group flex h-full min-w-0 items-center gap-md rounded-lg px-sm transition-colors',
-        selected ? 'bg-primary-50/60 dark:bg-primary-950/25' : 'hover:bg-background-alt'
+        selected
+          ? 'bg-primary-50/60 dark:bg-primary-950/25'
+          : failure
+            ? 'bg-red-50/60 dark:bg-red-950/20'
+            : 'hover:bg-background-alt'
       )}
     >
       <Checkbox
@@ -84,6 +98,14 @@ function DocumentRowInner({
               <span>{fileType.label}</span>
             </>
           )}
+          {failure && (
+            <>
+              <span aria-hidden>·</span>
+              <span className="truncate text-red-700 dark:text-red-400" title={failure}>
+                {failure}
+              </span>
+            </>
+          )}
         </div>
       </div>
 
@@ -91,6 +113,14 @@ function DocumentRowInner({
         <span className="flex shrink-0 items-center gap-xs text-xs text-grey-500">
           <span className="size-3 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
           <span className="hidden sm:inline">Wird verarbeitet…</span>
+        </span>
+      ) : failure ? (
+        // Not decorative: this is the only place the user learns the document
+        // will be missing from every search. The reason sits in the line above.
+        <span className="flex shrink-0 items-center gap-xs text-xs font-medium text-red-700 dark:text-red-400">
+          <HiExclamationCircle size={14} aria-hidden />
+          <span className="hidden sm:inline">Nicht durchsuchbar</span>
+          <span className="sr-only">{`${displayName}: nicht durchsuchbar — ${failure}`}</span>
         </span>
       ) : null}
 

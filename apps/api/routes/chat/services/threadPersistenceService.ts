@@ -493,6 +493,23 @@ export interface ThreadToolHistory {
   lastGeneratedImageUrl(): string | null;
 }
 
+/**
+ * This thread's completed user messages, oldest first — the source for
+ * `backfillEmptyUserMessages`. Capped: only the tail can align with what a client
+ * replays, and a long thread must not pull its whole history on every turn.
+ */
+export async function getUserMessageTexts(threadId: string, limit = 20): Promise<string[]> {
+  const postgres = getPostgresInstance();
+  const rows = await postgres.query(
+    `SELECT content FROM chat_messages
+     WHERE thread_id = $1 AND role = 'user' AND status = 'complete' AND content IS NOT NULL
+     ORDER BY created_at DESC
+     LIMIT $2`,
+    [threadId, limit]
+  );
+  return rows.map((row) => row.content as string).reverse();
+}
+
 export async function readThreadToolHistory(threadId: string): Promise<ThreadToolHistory> {
   const rows = await readThreadToolRows(threadId);
   return {

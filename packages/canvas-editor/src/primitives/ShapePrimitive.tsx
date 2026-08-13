@@ -14,6 +14,7 @@ import {
 
 import { assertNever, type ShapeInstance } from '../utils/shapes';
 import { gradientToKonvaProps } from '../utils/gradientFill';
+import { PATH_VIEWBOX, resizedShapeSize, shapeNodeScale } from '../utils/shapeTransform';
 
 import type Konva from 'konva';
 
@@ -24,9 +25,6 @@ interface ShapePrimitiveProps {
   onChange: (newAttrs: Partial<ShapeInstance>) => void;
   draggable?: boolean;
 }
-
-// SVG paths are designed in a 100x100 viewBox. Renderer rescales to shape.width/height.
-const PATH_VIEWBOX = 100;
 
 /** Subset of ShapeType rendered via Konva.Path with a hand-tuned SVG path. */
 type PathShapeType =
@@ -115,6 +113,8 @@ const SHAPE_PATHS: Record<PathShapeType, string> = {
   minus: 'M5,42 L95,42 L95,58 L5,58 Z',
   'x-mark': 'M14,5 L50,40 L86,5 L95,14 L60,50 L95,86 L86,95 L50,60 L14,95 L5,86 L40,50 L5,14 Z',
 };
+
+const isPathShape = (type: ShapeInstance['type']): type is PathShapeType => type in SHAPE_PATHS;
 
 const PATH_OFFSETS: Record<PathShapeType, { x: number; y: number }> = {
   arrow: { x: 50, y: 50 },
@@ -505,18 +505,19 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
     const node = shapeRef.current;
     if (!node) return;
 
-    const scaleX = node.scaleX();
-    const scaleY = node.scaleY();
+    const pathShape = isPathShape(shape.type);
+    const size = resizedShapeSize(pathShape, shape, node.scaleX(), node.scaleY());
+    const nodeScale = shapeNodeScale(pathShape, size);
 
-    node.scaleX(1);
-    node.scaleY(1);
+    node.scaleX(nodeScale.width);
+    node.scaleY(nodeScale.height);
 
     onChange({
       x: node.x(),
       y: node.y(),
       rotation: node.rotation(),
-      width: Math.max(5, shape.width * scaleX),
-      height: Math.max(5, shape.height * scaleY),
+      width: size.width,
+      height: size.height,
       scaleX: 1,
       scaleY: 1,
     });

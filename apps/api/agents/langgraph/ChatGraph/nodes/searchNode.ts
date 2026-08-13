@@ -18,6 +18,7 @@ import {
 } from '../../../../routes/chat/agents/directSearch.js';
 import { resolveExamplesLvScope } from '../../../../routes/chat/agents/lvScope.js';
 import { relevanceLabelToScore } from '../../../../routes/chat/agents/searchFormatting.js';
+import { fairShare } from '../../../../routes/chat/services/messageHelpers.js';
 import { resolveReferentialQuery } from '../../../../routes/chat/services/referentialTopic.js';
 import { getEnrichedPoliticianService } from '../../../../services/abgeordnetenwatch/index.js';
 import { type AwEnrichedResult } from '../../../../services/abgeordnetenwatch/types.js';
@@ -749,12 +750,21 @@ export interface MultiDocFanoutResult {
   errors: SearchErrorEntry[];
 }
 
+/** Total chunk slots shared across all fanned-out sources in one query. */
+const FANOUT_CHUNK_BUDGET = 12;
+/** Floor so a query spanning many sources still gets a usable sample per source. */
+const FANOUT_MIN_CHUNKS_PER_SOURCE = 3;
+
 export async function executeMultiDocFanout(
   query: string,
   sources: DocumentSource[],
   agentConfig: AgentConfig
 ): Promise<MultiDocFanoutResult> {
-  const perSourceLimit = Math.max(3, Math.floor(12 / sources.length));
+  const perSourceLimit = fairShare(
+    FANOUT_CHUNK_BUDGET,
+    FANOUT_MIN_CHUNKS_PER_SOURCE,
+    sources.length
+  );
   const errors: SearchErrorEntry[] = [];
   const collections = new Set<string>();
 
@@ -1752,6 +1762,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       case 'edit_current_doc':
       case 'edit_current_board':
       case 'create_sheet':
+      case 'edit_sheet':
       case 'create_presentation':
       case 'create_pdf':
       case 'create_recurring_task':
