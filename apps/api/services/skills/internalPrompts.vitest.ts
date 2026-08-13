@@ -17,8 +17,14 @@ import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const envMock = { INTERN_CONTENT_DIR: undefined as string | undefined };
+const envMock = {
+  INTERN_CONTENT_DIR: undefined as string | undefined,
+  NODE_ENV: 'test' as string,
+};
 vi.mock('../../config/env.js', () => ({ env: envMock }));
+
+const logSpy = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
+vi.mock('../../utils/logger.js', () => ({ createLogger: () => logSpy }));
 
 let root: string;
 
@@ -32,7 +38,12 @@ beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), 'intern-content-'));
   mkdirSync(join(root, 'skills'));
   mkdirSync(join(root, 'agents'));
+  mkdirSync(join(root, 'rollen'));
   envMock.INTERN_CONTENT_DIR = root;
+  envMock.NODE_ENV = 'test';
+  logSpy.info.mockClear();
+  logSpy.warn.mockClear();
+  logSpy.error.mockClear();
 });
 
 afterEach(() => {
@@ -90,6 +101,59 @@ describe('getInternalAgentPrompt', () => {
     const { getInternalAgentPrompt } = await loadModule();
 
     expect(getInternalAgentPrompt('presse')).toBeNull();
+  });
+});
+
+/**
+ * The boot report exists because the loader's own warning is lazy — it fires on
+ * the first turn that needs a prompt, long after the deploy that broke it. What
+ * these cases guard is therefore not the wording but the level: an empty
+ * inventory in production has to be loud enough to stop a deploy, while a fork
+ * with no private checkout must still boot without a red log.
+ */
+describe('reportInternalPromptInventory', () => {
+  it('reports one line with all three counts when everything is rolled out', async () => {
+    writeFileSync(join(root, 'skills', 'instagram.md'), 'Hook.');
+    writeFileSync(join(root, 'agents', 'gruenerator-antrag.md'), 'Persona.');
+    writeFileSync(join(root, 'rollen', 'mdb-buero.md'), 'Auftrag.');
+    const { reportInternalPromptInventory } = await loadModule();
+
+    reportInternalPromptInventory();
+
+    expect(logSpy.warn).not.toHaveBeenCalled();
+    expect(logSpy.error).not.toHaveBeenCalled();
+    expect(logSpy.info).toHaveBeenCalledWith(expect.stringContaining('skills=1 agents=1 rollen=1'));
+  });
+
+  it('names the kinds that are empty rather than reporting a bare total', async () => {
+    writeFileSync(join(root, 'skills', 'instagram.md'), 'Hook.');
+    const { reportInternalPromptInventory } = await loadModule();
+
+    reportInternalPromptInventory();
+
+    const message = logSpy.warn.mock.calls[0]?.[0] as string;
+    expect(message).toContain('agents, rollen');
+    expect(message).not.toContain('skills,');
+  });
+
+  it('escalates to error in production — an empty rollout there is a broken deploy', async () => {
+    envMock.NODE_ENV = 'production';
+    const { reportInternalPromptInventory } = await loadModule();
+
+    reportInternalPromptInventory();
+
+    expect(logSpy.error).toHaveBeenCalledWith(expect.stringContaining('skills, agents, rollen'));
+    expect(logSpy.warn).not.toHaveBeenCalled();
+  });
+
+  it('stays a warning outside production, so a fork without the checkout still boots', async () => {
+    envMock.INTERN_CONTENT_DIR = undefined;
+    const { reportInternalPromptInventory } = await loadModule();
+
+    reportInternalPromptInventory();
+
+    expect(logSpy.error).not.toHaveBeenCalled();
+    expect(logSpy.warn).toHaveBeenCalledWith(expect.stringContaining('INTERN_CONTENT_DIR unset'));
   });
 });
 

@@ -39,6 +39,7 @@ import { startUploadsCleanup } from './services/cleanup/uploadsCleanupService.js
 import { startNotificationCleanup } from './services/notifications/notificationCleanupService.js';
 import { startRecurringTaskWorker } from './services/recurringTasks/recurringTaskWorker.js';
 import { startDeepResearchCleanup } from './services/research/deepAgent/resumableRuns.js';
+import { reportInternalPromptInventory } from './services/skills/internalPrompts.js';
 import { startCleanupScheduler as startExportCleanup } from './services/subtitler/exportCleanupService.js';
 import { tusServer, handleBinaryUpload } from './services/subtitler/tusService.js';
 import { shutdownLangfuseTelemetry } from './services/telemetry/langfuseTelemetry.js';
@@ -292,6 +293,12 @@ async function startWorker(): Promise<void> {
     const err = error instanceof Error ? error : new Error(String(error));
     log.warn(`ProfileService init failed: ${err.message}`);
   }
+
+  // Party-internal recipe and persona bodies live outside the repo and are read
+  // from disk. Eager here on purpose: the loader's own warning is lazy, so a
+  // failed rollout would otherwise stay invisible until the first turn that
+  // needs a prompt — and that turn answers, just without its craft rules.
+  reportInternalPromptInventory();
 
   // Async board agent: drains the agent_tasks queue (@gruenerator delegations).
   // Safe to run in every cluster worker — claiming uses FOR UPDATE SKIP LOCKED.
