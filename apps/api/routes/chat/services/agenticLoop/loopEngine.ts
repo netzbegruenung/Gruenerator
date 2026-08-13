@@ -28,6 +28,7 @@ import {
 import { buildAiTelemetry } from '../../../../services/telemetry/langfuseTelemetry.js';
 import { recordDecision } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { stripToolControlTokens } from '../outputSanity.js';
 import { isWholesaleRefusal, refusalLanguage } from '../refusalDetection.js';
 import { createIdleDeadline } from '../streamIdleDeadline.js';
 
@@ -600,13 +601,17 @@ function createGatedEmitter(
       }
       buffer += delta;
       if (buffer.length > holdChars) {
-        onText(buffer);
+        // The hold window is also where a stray chat-template control token is
+        // removed: it is emitted first, before any prose, so it is always
+        // inside this buffer — and stripping it here means the client never
+        // renders it, not even for one frame.
+        onText(stripToolControlTokens(buffer));
         buffer = '';
         open = true;
       }
     },
     flush() {
-      if (buffer.length > 0) onText(buffer);
+      if (buffer.length > 0) onText(stripToolControlTokens(buffer));
       buffer = '';
       open = true;
     },
@@ -661,7 +666,16 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<LoopResu
     });
     try {
       const { text, finishReason } = await drain(result, gate.push, p.onReasoning, idle);
-      return { text, finishReason, flush: gate.flush, discard: gate.discard, isOpen: gate.isOpen };
+      // Stripped again on the accumulated text: `drain` collects it from the
+      // SDK independently of the gate, and this copy is what gets persisted and
+      // what every validator downstream reads.
+      return {
+        text: stripToolControlTokens(text),
+        finishReason,
+        flush: gate.flush,
+        discard: gate.discard,
+        isOpen: gate.isOpen,
+      };
     } catch (err) {
       // Nothing buffered may leak on the error path — the caller's catch writes
       // its own user-facing message.
