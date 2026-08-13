@@ -71,6 +71,10 @@ interface SaveAttachmentParams {
   /** Base64 raw bytes (tabular files only) — persisted so the in-browser pandas
    *  interpreter can be rehydrated after a thread reload. */
   fileData?: string;
+  /** Qdrant id when this file was ALREADY vectorized in this turn
+   *  (`enrichContext`). Written straight into the row so nobody has to mint a
+   *  second id for the same bytes afterwards. */
+  documentId?: string;
 }
 
 /**
@@ -91,14 +95,15 @@ export async function saveThreadAttachment(params: SaveAttachmentParams): Promis
     pageCount,
     imageData,
     fileData,
+    documentId,
   } = params;
 
   const postgres = getPostgresInstance();
 
   const result = await postgres.query(
     `INSERT INTO chat_thread_attachments
-     (thread_id, message_id, user_id, name, mime_type, size_bytes, is_image, extracted_text, page_count, file_data)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+     (thread_id, message_id, user_id, name, mime_type, size_bytes, is_image, extracted_text, page_count, file_data, document_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
      RETURNING id`,
     [
       threadId,
@@ -111,6 +116,7 @@ export async function saveThreadAttachment(params: SaveAttachmentParams): Promis
       extractedText,
       pageCount ?? null,
       fileData ?? null,
+      documentId ?? null,
     ]
   );
 

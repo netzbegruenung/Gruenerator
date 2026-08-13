@@ -825,6 +825,35 @@ describe('read_artifact', () => {
     expect(out.error).toMatch(/nicht gefunden|kein Zugriff/);
   });
 
+  it('übersetzt einen 22P02 in eine Anweisung statt in SQL-Prosa', async () => {
+    // 13.08.2026: das Modell las `Dokument a13dc241` aus unserer eigenen
+    // Quellenliste und gab die acht Zeichen als id zurück. Postgres antwortete
+    // mit „invalid input syntax for type uuid", und genau das stand danach als
+    // Werkzeug-Ergebnis im Loop — ein Fehler, mit dem das Modell nichts
+    // anfangen kann, über einen Wert, den es für richtig hielt.
+    readArtifactContent.mockRejectedValueOnce(
+      new Error('Database query failed: invalid input syntax for type uuid: "a13dc241"')
+    );
+    const out = (await exec(makeReadArtifactTool(ctx('u1')), {
+      kind: 'doc',
+      id: 'a13dc241',
+    })) as { error?: string };
+
+    expect(out.error).not.toMatch(/invalid input syntax|Database query failed/);
+    expect(out.error).toMatch(/vollständige id/);
+  });
+
+  it('lässt eine PDF-Referenz durch, die keine blanke uuid ist', async () => {
+    // Kein Vorab-Filter auf uuid: ein erzeugtes PDF heißt `<uuid>.pdf`, und ein
+    // Guard, der das abwiese, nähme dem Modell sein eigenes Artefakt weg.
+    readArtifactContent.mockResolvedValueOnce('Fact Sheet, Seite 1');
+    const out = (await exec(makeReadArtifactTool(ctx('u1')), {
+      kind: 'pdf',
+      id: 'b3b6f307-90b7-465a-a5fe-d76ae8a0d69c.pdf',
+    })) as { content?: string };
+    expect(out.content).toContain('Fact Sheet');
+  });
+
   it('caps a huge artifact and says that it did', async () => {
     readArtifactContent.mockResolvedValueOnce('x'.repeat(20_000));
     const out = (await exec(makeReadArtifactTool(ctx('u1')), {

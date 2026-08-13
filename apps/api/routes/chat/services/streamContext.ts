@@ -534,7 +534,17 @@ export async function buildStreamContext({
     // Never truncates a brand-new thread (nothing to replace there).
     if (!isNewThread) {
       if (rawReplaceFromMessageId) {
-        const removed = await deleteMessagesFrom(actualThreadId, rawReplaceFromMessageId);
+        // Same 22P02 trap the thread id is guarded against above, one field
+        // over and unguarded until 13.08.2026: the client sent "Xa4ZTed" — a
+        // slug suffix, not a row id — Postgres threw on `WHERE id = $2`, and
+        // the exception took the whole turn with it ("Es ist ein interner
+        // Fehler aufgetreten"), before a single token was written.
+        //
+        // A non-UUID id is exactly the case the fallback below already handles:
+        // it names no persisted row. Route it there instead of to SQL.
+        const removed = UUID_RE.test(rawReplaceFromMessageId)
+          ? await deleteMessagesFrom(actualThreadId, rawReplaceFromMessageId)
+          : 0;
         // In-session messages carry an AUI id that isn't a persisted row → the
         // delete matches nothing; fall back to dropping the trailing reply.
         if (removed === 0) await deleteTrailingAssistant(actualThreadId);
