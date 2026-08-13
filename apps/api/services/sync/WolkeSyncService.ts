@@ -23,6 +23,13 @@ import {
 import { mistralEmbeddingService } from '../mistral/index.js';
 import { ocrService } from '../OcrService/index.js';
 
+import {
+  isOcrWolkeExtension,
+  isPlaintextWolkeExtension,
+  isSupportedWolkeFile,
+  wolkeFileExtension,
+} from './supportedFileTypes.js';
+
 import type { NextcloudFile, FileProcessResult, SyncResult } from './types.js';
 import type { NextcloudShareLink } from '../../utils/integrations/nextcloud/types.js';
 
@@ -32,23 +39,11 @@ export class WolkeSyncService {
   private postgres: ReturnType<typeof getPostgresInstance>;
   private qdrantService: DocumentSearchService;
   private documentService: ReturnType<typeof getPostgresDocumentService>;
-  private supportedFileTypes: string[];
 
   constructor() {
     this.postgres = getPostgresInstance();
     this.qdrantService = new DocumentSearchService();
     this.documentService = getPostgresDocumentService();
-    this.supportedFileTypes = [
-      '.pdf',
-      '.docx',
-      '.pptx',
-      '.png',
-      '.jpg',
-      '.jpeg',
-      '.avif',
-      '.txt',
-      '.md',
-    ];
   }
 
   /**
@@ -196,10 +191,7 @@ export class WolkeSyncService {
 
       // Filter for supported file types
       const files = shareInfo.files ?? [];
-      const supportedFiles = files.filter((file) => {
-        const fileExtension = path.extname(file.name.toLowerCase());
-        return this.supportedFileTypes.includes(fileExtension);
-      });
+      const supportedFiles = files.filter((file) => isSupportedWolkeFile(file.name));
 
       console.log(`[WolkeSyncService] Found ${supportedFiles.length} supported files in folder`);
       return supportedFiles as NextcloudFile[];
@@ -223,9 +215,7 @@ export class WolkeSyncService {
   ): Promise<NextcloudFile[]> {
     const client = await NextcloudApiClient.create(shareLink.share_link);
     const files = await client.listFolder(folderPath || undefined);
-    return files.filter((file) =>
-      this.supportedFileTypes.includes(path.extname(file.name.toLowerCase()))
-    ) as NextcloudFile[];
+    return files.filter((file) => isSupportedWolkeFile(file.name)) as NextcloudFile[];
   }
 
   /**
@@ -324,8 +314,8 @@ export class WolkeSyncService {
       );
 
       // Check if file type is supported
-      const fileExtension = path.extname(file.name).toLowerCase();
-      if (!this.supportedFileTypes.includes(fileExtension)) {
+      const fileExtension = wolkeFileExtension(file.name);
+      if (!isSupportedWolkeFile(file.name)) {
         console.warn(`[WolkeSyncService] Unsupported file type: ${file.name} (${fileExtension})`);
         return { skipped: true, reason: 'unsupported_file_type' };
       }
@@ -345,9 +335,7 @@ export class WolkeSyncService {
       console.log(`[WolkeSyncService] Extracting text from: ${file.name}`);
       let extractedText: string;
 
-      const supportedMistralTypes = ['.pdf', '.docx', '.pptx', '.png', '.jpg', '.jpeg', '.avif'];
-
-      if (supportedMistralTypes.includes(fileExtension)) {
+      if (isOcrWolkeExtension(fileExtension)) {
         // Use Mistral OCR for documents and images
         const tempDir = os.tmpdir();
         const tempFileName = `wolke_sync_${Date.now()}_${file.name}`;
@@ -366,7 +354,7 @@ export class WolkeSyncService {
           }
           throw error;
         }
-      } else if (['.txt', '.md'].includes(fileExtension)) {
+      } else if (isPlaintextWolkeExtension(fileExtension)) {
         // Plain text files
         extractedText = fileData.buffer.toString('utf-8');
       } else {

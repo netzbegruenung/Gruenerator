@@ -144,6 +144,8 @@ interface WolkeFile {
   sizeFormatted: string;
   lastModified: string;
   shareLinkId?: string;
+  /** Browse lists folders too — they are never importable. */
+  isDirectory?: boolean;
 }
 
 interface DocumentsState {
