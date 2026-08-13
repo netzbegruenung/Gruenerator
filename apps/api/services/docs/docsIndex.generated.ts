@@ -809,7 +809,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Dateien im Chat",
     "anchor": "#dateien-im-chat",
     "category": "Chat",
-    "text": "Du kannst PDFs und Bilder direkt im Chat hochladen, um sie als Kontext für deine Frage zu verwenden. Öffne dazu das „+\"-Menü im Eingabefeld und wähle Fotos & Dateien hochladen. Daneben stehen Aus Bibliothek (Dokumente, Notizbücher, Wolke) und Link anhängen für eine Webseite per URL. Mehr Details zu unterstützten Dateitypen und Einschränkungen findest du unter Dateien hinzufügen."
+    "text": "Du kannst PDFs und Bilder direkt im Chat hochladen, um sie als Kontext für deine Frage zu verwenden. Öffne dazu das „+\"-Menü im Eingabefeld und wähle Datei hinzufügen. Das Panel, das sich öffnet, führt oben Fotos & Dateien hochladen und darunter deine Dokumente, Notizbücher und gespeicherten Texte. Eine Webseite gibst du am schnellsten mit, indem du ihre URL direkt ins Eingabefeld einfügst. Mehr Details zu unterstützten Dateitypen und Einschränkungen findest du unter Dateien hinzufügen."
   },
   {
     "url": "/docs/chat/ki-chat",
