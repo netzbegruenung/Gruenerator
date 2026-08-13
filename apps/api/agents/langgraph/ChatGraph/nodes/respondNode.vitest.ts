@@ -7,9 +7,10 @@ import {
   citableSourcesAvailable,
   truncateDocument,
   limitAttachmentContext,
+  formatThreadAttachmentsContext,
 } from './respondNode.js';
 
-import type { ChatGraphState, ComputeData, SearchResult } from '../types.js';
+import type { ChatGraphState, ComputeData, SearchResult, ThreadAttachment } from '../types.js';
 
 vi.mock('../../../../utils/logger.js', () => ({
   createLogger: () => ({
@@ -477,5 +478,63 @@ describe('formatSearchContext routing', () => {
   it('returns empty string when there are no search results', async () => {
     const out = await formatSearchContext(makeState({ searchResults: [] }));
     expect(out).toBe('');
+  });
+});
+
+describe('formatThreadAttachmentsContext — kein doppelter Ausgangstext', () => {
+  const article = 'Die Grünen drängen auf einen Aktionsplan gegen Hitze. '.repeat(40);
+
+  const doc = (extractedText: string | null, over: Partial<ThreadAttachment> = {}) =>
+    ({
+      id: 'a1',
+      name: 'Eingefügter Text.txt',
+      isImage: false,
+      extractedText,
+      summary: 'Kurzfassung',
+      ...over,
+    }) as ThreadAttachment;
+
+  it('lässt den Anhang weg, wenn sein Text schon in der Historie steht', () => {
+    const out = formatThreadAttachmentsContext([doc(article)], undefined, `Nutzer: ${article}`);
+    expect(out).toBe('');
+  });
+
+  it('spielt ihn ein, wenn die Kürzung die Historie-Kopie entfernt hat', () => {
+    // Der Rückfall ist der Punkt: ohne Historie-Kopie ist die Wiedereinspielung
+    // die einzige Stelle, an der das Dokument den Prompt noch erreicht.
+    const out = formatThreadAttachmentsContext([doc(article)], undefined, 'Und weiter?');
+    expect(out).toContain('FRÜHERE DOKUMENTE');
+    expect(out).toContain('Volltext-Auszug');
+  });
+
+  it('greift nicht bei kurzen Texten, wo Gleichheit Zufall wäre', () => {
+    const out = formatThreadAttachmentsContext([doc('Hallo Welt')], undefined, 'Hallo Welt');
+    expect(out).toContain('FRÜHERE DOKUMENTE');
+  });
+
+  it('ist unempfindlich gegen abweichende Umbrüche', () => {
+    const inHistory = article.replace(/ /g, '\n');
+    const out = formatThreadAttachmentsContext([doc(article)], undefined, inHistory);
+    expect(out).toBe('');
+  });
+
+  it('lässt einen zweiten, nicht replizierten Anhang stehen', () => {
+    const other = 'Ein ganz anderes Dokument über Radwege. '.repeat(40);
+    const out = formatThreadAttachmentsContext(
+      [doc(article), doc(other, { id: 'a2', name: 'Radwege.txt' })],
+      undefined,
+      article
+    );
+    expect(out).toContain('Radwege.txt');
+    expect(out).not.toContain('Aktionsplan gegen Hitze');
+  });
+
+  it('rührt Bilder nicht an', () => {
+    const out = formatThreadAttachmentsContext(
+      [doc(null, { isImage: true, summary: 'Ein Foto von Katharina Dröge' })],
+      undefined,
+      'Ein Foto von Katharina Dröge'
+    );
+    expect(out).toContain('FRÜHERE BILDER');
   });
 });

@@ -16,6 +16,7 @@ import {
   type LoopDeps,
   type LoopEngineParams,
 } from './loopEngine.js';
+import { DEGENERATION_NOTICE } from './degeneration.js';
 
 import type { ModelMessage } from 'ai';
 
@@ -918,6 +919,9 @@ describe('runAgenticLoop — repetition degeneration', () => {
     // Without the guard this test never terminates — the stream is endless.
     expect(out.replacedStreamed).toBe(true);
     expect(out.text).toContain('Ausbildungsgarantie');
+    // No notice: the spam repeats a handful of phrases, so nothing the reader
+    // needed was removed and "may be incomplete" would be a false alarm.
+    expect(out.text).not.toContain(DEGENERATION_NOTICE);
     expect(out.text.length).toBeLessThan(PROSE_TOTAL + 500);
     // The wire saw SOME spam (unified streams live) but detection bounded it.
     const streamed = onText.mock.calls.map((c) => c[0]).join('');
@@ -938,6 +942,8 @@ describe('runAgenticLoop — repetition degeneration', () => {
       }) as unknown as LoopDeps['streamText'],
     };
     const out = await runAgenticLoop(baseParams({}), deps);
+    // A recovered answer carries NO notice — the retry discards the trimmed
+    // pass wholesale, and nothing was cut from what the user ends up with.
     expect(out.text).toBe(CLEAN);
     // The degenerate pass had already opened the gate → completion replace.
     expect(out.replacedStreamed).toBe(true);
@@ -987,6 +993,74 @@ describe('runAgenticLoop — repetition degeneration', () => {
     expect(synthCall).toBe(2);
     expect(out.text).toContain('Ausbildungsgarantie');
     expect(out.text).not.toContain('Abschluss.**');
+    expect(out.text).not.toContain(DEGENERATION_NOTICE);
     expect(out.replacedStreamed).toBe(true);
+  });
+
+  // The notice's OTHER branch — a cut that really did take content — is unit
+  // tested in degeneration.vitest.ts (`cutLostContent`). It has no fixture
+  // here on purpose: junk rich enough in vocabulary to count as loss is also
+  // too varied to trip the detector, so any stream that produced both would be
+  // a construction, not a case. That the notice is now rare is the point.
+});
+
+describe('runAgenticLoop — reasoning reaches the writing phases', () => {
+  // The auto policy grades a reasoning strength for every turn and
+  // `resolveModel` pins a thinking turn to the Mistral API for it. Until
+  // 13.08.2026 no phase then sent the option that switches thinking on — the
+  // lane moved, the reasoning did not.
+  const REASONING = { mistral: { reasoningEffort: 'high' } };
+
+  type OptsWithProvider = StreamOpts & { providerOptions?: Record<string, unknown> };
+
+  it('forwards it to the unified pass', async () => {
+    const seen: (Record<string, unknown> | undefined)[] = [];
+    const deps: LoopDeps = {
+      streamText: ((o: OptsWithProvider) => {
+        seen.push(o.providerOptions);
+        return streamOf([{ type: 'text-delta', text: 'ok' }]);
+      }) as unknown as LoopDeps['streamText'],
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+    };
+
+    await runAgenticLoop(baseParams({ mode: 'unified', providerOptions: REASONING }), deps);
+
+    expect(seen).toEqual([REASONING]);
+  });
+
+  it('forwards it to the synth pass but NOT to the planner', async () => {
+    // The planner is a fixed lane reached through an OpenAI-compat client — a
+    // `mistral` block would be dropped there in silence, and the planner has no
+    // prose to think about anyway.
+    const seen: { model: string; providerOptions?: Record<string, unknown> }[] = [];
+    const deps: LoopDeps = {
+      streamText: ((o: OptsWithProvider) => {
+        seen.push({
+          model: o.model.id,
+          ...(o.providerOptions && { providerOptions: o.providerOptions }),
+        });
+        return streamOf([{ type: 'text-delta', text: 'ok' }]);
+      }) as unknown as LoopDeps['streamText'],
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+    };
+
+    await runAgenticLoop(baseParams({ mode: 'split', providerOptions: REASONING }), deps);
+
+    expect(seen).toEqual([{ model: 'planner' }, { model: 'synth', providerOptions: REASONING }]);
+  });
+
+  it('sends nothing when the turn does not think', async () => {
+    const seen: (Record<string, unknown> | undefined)[] = [];
+    const deps: LoopDeps = {
+      streamText: ((o: OptsWithProvider) => {
+        seen.push(o.providerOptions);
+        return streamOf([{ type: 'text-delta', text: 'ok' }]);
+      }) as unknown as LoopDeps['streamText'],
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+    };
+
+    await runAgenticLoop(baseParams({ mode: 'unified' }), deps);
+
+    expect(seen).toEqual([undefined]);
   });
 });

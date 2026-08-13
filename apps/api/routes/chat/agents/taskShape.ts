@@ -68,6 +68,31 @@ const COUNTED_FORMAT_RE = new RegExp(
 const FORMAT_ORDER_RE =
   /\b(ohne|keine)\s+(einleitung|vorrede|vorbemerkung|begr[üu](?:ß|ss)ung|erkl[äa]rung(?:en)?|kommentar[e]?)\b|\bnur\s+die\s+([äa]nderungen|stichpunkte|liste|tabelle|betreffzeile)\b|\balle\s+anderen\s+(zeichen|zeilen|stellen)\s+unver[äa]ndert\b|\b(zeilenumbr[üu]che|formatierung)\s+(beibehalten|erhalten|[üu]bernehmen)\b/i;
 
+// "Erstelle ausschließlich …", "Gib nur diese Befundtabelle aus". The 13.08.
+// run split one job into four turns; every follow-up opened with a restriction
+// of exactly this shape and none of them tripped FORMAT_ORDER_RE, which only
+// knows `nur die <fünf feste Nomen>`. The verb list is closed and the
+// restriction has to follow the verb directly, so "erklär mir nur kurz…" — an
+// intensity, not a contract — stays out.
+const EXCLUSIVE_OUTPUT_RE =
+  /\b(gib|gebe|erstelle|erzeuge|liefere|schreibe|antworte)\s+(?:mir\s+)?(?:bitte\s+)?(nur|ausschlie(?:ß|ss)lich)\b|\bausschlie(?:ß|ss)lich\s+(diese[nrsm]?|die|das|den|folgende[nrs]?)\b/i;
+
+// A verbatim string the answer must carry ("ergänze exakt: …"). Deviating by a
+// word voids it, which is exactly what a format contract is.
+const VERBATIM_RE =
+  /\b(erg[äa]nze|verwende|nutze|setze)\s+(genau|exakt)\b|\b(exakt|w[öo]rtlich)\s+(diesen|folgenden)\s+(satz|wortlaut|hinweis|text)\b/i;
+
+// The user DREW the output: a line carrying three or more table pipes is a
+// literal skeleton — the strongest output contract there is, and the one this
+// detector was blindest to. Turns 3 and 4 of the 13.08. run each handed over a
+// full header row (`| Absatz | Überschrift | vollständig … |`) and were graded
+// as ordinary prose. `markdown[- ]?tabelle` in MACHINE_FORMAT_RE matches the
+// WORD, never the thing itself.
+//
+// Not `code`: the deliverable is a German prose table, so a wrong cell is
+// wrong, not unparseable.
+const TABLE_SKELETON_RE = /^[^\n|]*\|[^\n|]*\|[^\n|]*\|/m;
+
 export interface TaskShapeContext {
   /**
    * The previous assistant answer, for edit stickiness: "ändere den Wert auf 5"
@@ -111,7 +136,15 @@ export function detectTaskShape(
     return 'code';
   }
 
-  if (COUNTED_FORMAT_RE.test(t) || FORMAT_ORDER_RE.test(t)) return 'strict_format';
+  if (
+    COUNTED_FORMAT_RE.test(t) ||
+    FORMAT_ORDER_RE.test(t) ||
+    EXCLUSIVE_OUTPUT_RE.test(t) ||
+    VERBATIM_RE.test(t) ||
+    TABLE_SKELETON_RE.test(t)
+  ) {
+    return 'strict_format';
+  }
 
   return null;
 }

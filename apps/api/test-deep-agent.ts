@@ -8,7 +8,14 @@
  * Usage:
  *   npx tsx apps/api/test-deep-agent.ts --query "Wie ambitioniert ist Wiens Klimaziel 2040?"
  *   npx tsx apps/api/test-deep-agent.ts --query "..." --locale de-AT
+ *   npx tsx apps/api/test-deep-agent.ts --query "..." --ohne-notizbuecher
  *   npx tsx apps/api/test-deep-agent.ts --query "..." --write   # writes a real document
+ *
+ * The corpora are in reach by default, exactly as in the chat. That matters for
+ * more than the search results: `programm-recherche` is only registered when
+ * `notizbuch_suche` exists, so a harness without a scope quietly runs a
+ * one-subagent agent and can say nothing about the specialisation.
+ * `--ohne-notizbuecher` is the other half of that test — the web-only shape.
  *
  * Without `--write` nothing touches the database — the markdown goes to stdout.
  * Requires SCALEWAY_API_KEY and LINKUP_API_KEY (GREENPT_API_KEY optional but
@@ -18,6 +25,7 @@
 import 'dotenv/config';
 
 import { runDeepAgentResearch } from './services/research/deepAgent/index.js';
+import { buildNotebookScope } from './services/research/deepAgent/notebookScope.js';
 import { DEFAULT_BUDGET, type ResearchLocale } from './services/research/deepAgent/types.js';
 
 function arg(name: string): string | undefined {
@@ -33,11 +41,21 @@ async function main(): Promise<void> {
   const question = arg('query') ?? 'Wie ambitioniert ist das Klimaziel der Stadt Wien für 2040?';
   const locale = (arg('locale') ?? 'de-DE') as ResearchLocale;
   const write = flag('write');
+  // Same call the chat makes, minus the mentions a real turn may carry: the
+  // corpora come from the locale and the instance gate, not from the state.
+  const notebookScope = flag('ohne-notizbuecher')
+    ? null
+    : buildNotebookScope({}, locale, arg('user') ?? 'harness');
 
   console.log(`Frage:  ${question}`);
   console.log(`Locale: ${locale}`);
   console.log(
-    `Modus:  ${write ? 'Dokument wird angelegt' : 'Trockenlauf (kein DB-Schreibvorgang)'}\n`
+    `Modus:  ${write ? 'Dokument wird angelegt' : 'Trockenlauf (kein DB-Schreibvorgang)'}`
+  );
+  console.log(
+    notebookScope
+      ? `Subagenten: web-recherche, programm-recherche (${notebookScope.corpora.length} Korpora)`
+      : 'Subagenten: nur web-recherche (keine Korpora in Reichweite)\n'
   );
 
   const started = Date.now();
@@ -49,6 +67,7 @@ async function main(): Promise<void> {
     // Same shape as the real caller: the agent owns `hardMs` itself, this is
     // the outer kill that still leaves it `wrapUpMs` to write the report.
     signal: AbortSignal.timeout(DEFAULT_BUDGET.hardMs + DEFAULT_BUDGET.wrapUpMs),
+    ...(notebookScope ? { notebookScope } : {}),
     progress: {
       onPlan: (steps) => {
         console.log('\n── Plan ──');
@@ -77,6 +96,7 @@ async function main(): Promise<void> {
     `Umfang:   ${result.markdown.length} Zeichen, ${result.markdown.split(/\s+/).length} Wörter`
   );
   console.log(`Quellen:  ${result.sources.length}`);
+  console.log(`Lauf-ID:  ${result.threadId}`);
   console.log(`Vollständig: ${result.partial ? 'NEIN (Teilbericht)' : 'ja'}`);
   console.log(`\nZusammenfassung:\n${result.summary}\n`);
 
