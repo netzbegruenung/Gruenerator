@@ -19,10 +19,19 @@ const RECONNECT_MAX_DELAY = 30000;
 // reason=no_session_cookie` stream from tabs the user had long stopped using).
 //
 // So a failed handshake asks the same authority every other stack asks. A
-// confirmed-dead session tears the tab down like any other 401; anything else
-// (infra blip, offline) gets a bounded number of retries instead of an
-// unbounded one.
+// confirmed-dead session tears the tab down like any other 401; a session the
+// probe confirms alive keeps reconnecting freely (the failure was never an auth
+// failure); only an unresolved one — infra blip, offline — spends the bounded
+// budget below.
 const MAX_HANDSHAKE_FAILURES = 5;
+
+// Why the stop needs a reason: only one of the two is final. A dead session is
+// terminal — the tab is already navigating to /login and must never dial again.
+// An exhausted retry budget is merely "not now": the same connectivity loss that
+// spent it (lift, tunnel, sleeping laptop) ends, and coming back online has to
+// revive the stream, or the fix would trade an endless reconnect loop for
+// notifications that stay dead until the next full reload.
+type StopReason = 'auth' | 'budget' | 'teardown';
 
 interface SSENotificationData {
   title?: string;
@@ -39,7 +48,7 @@ export function useNotificationSSE(onNotification?: OnNotificationCallback): voi
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handshakeFailuresRef = useRef(0);
   const connectedRef = useRef(false);
-  const stoppedRef = useRef(false);
+  const stopReasonRef = useRef<StopReason | null>(null);
   const onNotificationRef = useRef(onNotification);
   onNotificationRef.current = onNotification;
 
@@ -50,7 +59,7 @@ export function useNotificationSSE(onNotification?: OnNotificationCallback): voi
   const isEnabled = !!user?.id && !isDesktopApp();
 
   const connect = useCallback(() => {
-    if (stoppedRef.current) return;
+    if (stopReasonRef.current !== null) return;
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
     }
@@ -80,7 +89,7 @@ export function useNotificationSSE(onNotification?: OnNotificationCallback): voi
 
     es.onerror = () => {
       es.close();
-      if (stoppedRef.current) return;
+      if (stopReasonRef.current !== null) return;
 
       const scheduleReconnect = () => {
         const delay = Math.min(
@@ -101,14 +110,20 @@ export function useNotificationSSE(onNotification?: OnNotificationCallback): voi
       handshakeFailuresRef.current++;
       void (async () => {
         const outcome = await handleUnauthorized('notification-sse');
+        if (stopReasonRef.current !== null) return;
         // 'logout' → the teardown + /login redirect already fired; this tab is
-        // navigating away, so never reconnect.
-        if (outcome === 'logout' || stoppedRef.current) {
-          stoppedRef.current = true;
+        // navigating away, so never dial again.
+        if (outcome === 'logout') {
+          stopReasonRef.current = 'auth';
           return;
         }
-        if (handshakeFailuresRef.current >= MAX_HANDSHAKE_FAILURES) {
-          stoppedRef.current = true;
+        if (outcome === 'retry') {
+          // The probe confirmed the session is alive, so this was never an auth
+          // failure — it must not spend the auth budget, the same reason the
+          // other 401 call sites replay instead of backing off.
+          handshakeFailuresRef.current = 0;
+        } else if (handshakeFailuresRef.current >= MAX_HANDSHAKE_FAILURES) {
+          stopReasonRef.current = 'budget';
           return;
         }
         scheduleReconnect();
@@ -121,13 +136,26 @@ export function useNotificationSSE(onNotification?: OnNotificationCallback): voi
 
     // A fresh mount (or a new user) is a fresh budget — a give-up must not
     // outlive the session it was decided for.
-    stoppedRef.current = false;
+    stopReasonRef.current = null;
     reconnectAttemptRef.current = 0;
     handshakeFailuresRef.current = 0;
     connect();
 
+    // Regained connectivity revives a budget-exhausted stream, never an
+    // auth-stopped one: after a teardown the tab is on its way to /login, and
+    // redialing from there would just probe a session we already know is gone.
+    const onOnline = () => {
+      if (stopReasonRef.current !== 'budget') return;
+      stopReasonRef.current = null;
+      reconnectAttemptRef.current = 0;
+      handshakeFailuresRef.current = 0;
+      connect();
+    };
+    window.addEventListener('online', onOnline);
+
     return () => {
-      stoppedRef.current = true;
+      window.removeEventListener('online', onOnline);
+      stopReasonRef.current = 'teardown';
       eventSourceRef.current?.close();
       eventSourceRef.current = null;
       if (reconnectTimerRef.current) {
