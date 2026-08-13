@@ -52,10 +52,15 @@ describe('routes.ts mount order', () => {
       { prefix: '/api/image-picker', mount: 'mountImagePickerContractRouter(app)' },
       { prefix: '/api/unsplash', mount: 'mountUnsplashContractRouter(app)' },
       { prefix: '/api/exports', mount: 'mountExportsContractRouter(app)' },
+      { prefix: '/api/sharepic/text', mount: 'mountSharepicTextContractRouter(app)' },
     ];
 
     for (const { prefix, mount } of cases) {
-      const guard = firstIndexOf(`app.use('${prefix}', requireAuth`);
+      // `requireAuth` need not be the FIRST middleware — /api/sharepic/text
+      // puts `aiGenerationLimiter` in front of it — only in the same call.
+      const guard = routesSource.search(
+        new RegExp(`app\\.use\\('${prefix.replace(/\//g, '\\/')}',[^)]*requireAuth`)
+      );
       const mountCall = firstIndexOf(mount);
 
       expect(guard, `${prefix} has no requireAuth on its prefix`).toBeGreaterThan(-1);
