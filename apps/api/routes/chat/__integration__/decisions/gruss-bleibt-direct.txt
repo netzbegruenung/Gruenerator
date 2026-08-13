@@ -9,7 +9,7 @@ router.intent_override           = (not reached)
 router.implicit_recipe           = (not reached)
 router.persistent_action_gate    = (not reached)
 classifier.tier                  = tier3_short_message            confidence=0.95 heuristicIntent=greeting
-respond.answer_format            = brief                          complexity=simple intent=greeting retrievalExpected=false sourceCount=0 synthesisMode=none
+respond.answer_format            = brief                          complexity=simple intent=greeting retrievalExpected=false sourceCount=0 synthesisMode=none taskShape=none
 loop.tool_guard                  = (none)
 loop.synth_verdict               = (not reached)
 -- wire --
