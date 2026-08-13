@@ -1,10 +1,14 @@
-import { type GlobalSearchResponse } from '@gruenerator/contracts';
+import {
+  GLOBAL_SEARCH_MAX_QUERY_LENGTH,
+  GLOBAL_SEARCH_MIN_QUERY_LENGTH,
+  type GlobalSearchResponse,
+} from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 
 import useDebounce from '../../components/hooks/useDebounce';
 
-export const MIN_QUERY_LENGTH = 2;
+export const MIN_QUERY_LENGTH = GLOBAL_SEARCH_MIN_QUERY_LENGTH;
 
 const DEBOUNCE_MS = 250;
 
@@ -18,11 +22,14 @@ async function fetchGlobalSearch(query: string): Promise<GlobalSearchResponse> {
 
 export function useGlobalSearch(input: string, enabled = true) {
   const debounced = useDebounce(input.trim(), DEBOUNCE_MS);
-  const active = enabled && debounced.length >= MIN_QUERY_LENGTH;
+  // A pasted wall of text is still a legitimate search intent here, so clamp
+  // rather than skip — the contract rejects anything longer outright.
+  const sent = debounced.slice(0, GLOBAL_SEARCH_MAX_QUERY_LENGTH);
+  const active = enabled && sent.length >= MIN_QUERY_LENGTH;
 
   const query = useQuery({
-    queryKey: ['global-search', debounced],
-    queryFn: () => fetchGlobalSearch(debounced),
+    queryKey: ['global-search', sent],
+    queryFn: () => fetchGlobalSearch(sent),
     enabled: active,
     // Keeps the previous result on screen between keystrokes instead of
     // flashing empty.

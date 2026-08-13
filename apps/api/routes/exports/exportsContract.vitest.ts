@@ -90,11 +90,11 @@ describe('POST /api/exports/pdf — Vertrag', () => {
     // Fehlerfall darf niemals als PDF durchgehen.
     expect(res.status).toBeGreaterThanOrEqual(400);
     expect(res.headers.get('content-type')).not.toContain('application/pdf');
-    // Bestandsverhalten, unverändert durch den Renderer-Tausch: die
-    // Zod-Validierung des ts-rest-Routers endet im Express-Fehlerhandler und
-    // liefert HTML, kein JSON. Der Mobile-Client fängt das ab (JSON.parse in
-    // try/catch), deshalb hier festgehalten statt im selben PR umgebaut.
-    expect(res.headers.get('content-type')).toContain('text/html');
+    // Die Zod-Validierung des ts-rest-Routers beantwortet den Fehler jetzt
+    // selbst mit 400 + JSON (Zod-Issues), statt als status-loser Error im
+    // Express-Fehlerhandler zu landen und dort als 500-HTML-Seite zu enden.
+    expect(res.status).toBe(400);
+    expect(res.headers.get('content-type')).toContain('application/json');
   }, 60_000);
 });
 
