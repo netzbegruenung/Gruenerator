@@ -15,7 +15,7 @@ describe('regoloFetchWithThinkingDisabled — body transformation', () => {
     vi.restoreAllMocks();
   });
 
-  it('injects chat_template_kwargs.enable_thinking=false into chat completion bodies', async () => {
+  it("injects reasoning_effort='none' into chat completion bodies", async () => {
     await regoloFetchWithThinkingDisabled('https://api.regolo.ai/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -27,27 +27,31 @@ describe('regoloFetchWithThinkingDisabled — body transformation', () => {
 
     const [, init] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
     const sentBody = JSON.parse((init as RequestInit).body as string);
-    expect(sentBody.chat_template_kwargs).toEqual({ enable_thinking: false });
+    expect(sentBody.reasoning_effort).toBe('none');
     expect(sentBody.model).toBe('qwen3.5-122b');
     expect(sentBody.messages).toHaveLength(1);
   });
 
-  it('preserves existing chat_template_kwargs fields', async () => {
+  /**
+   * Der Grund für den Hebelwechsel, als Test: `enable_thinking:false` liess
+   * gpt-oss-120b weiterdenken (208 Zeichen Reasoning, gemessen 13.08.2026),
+   * `reasoning_effort:'none'` schaltet es ab. Ein Body, der den alten Flag
+   * mitbringt, darf ihn behalten — überschrieben wird er vom neuen Feld.
+   */
+  it('sets none even when the caller brought the old chat-template flag', async () => {
     await regoloFetchWithThinkingDisabled('https://api.regolo.ai/v1/chat/completions', {
       method: 'POST',
       body: JSON.stringify({
-        model: 'qwen3.5-122b',
+        model: 'gpt-oss-120b',
         messages: [{ role: 'user', content: 'x' }],
-        chat_template_kwargs: { some_other_flag: true },
+        chat_template_kwargs: { enable_thinking: true },
       }),
     });
 
     const [, init] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
     const sentBody = JSON.parse((init as RequestInit).body as string);
-    expect(sentBody.chat_template_kwargs).toEqual({
-      some_other_flag: true,
-      enable_thinking: false,
-    });
+    expect(sentBody.reasoning_effort).toBe('none');
+    expect(sentBody.chat_template_kwargs).toEqual({ enable_thinking: true });
   });
 
   it('does not mutate the caller-supplied init object', async () => {
@@ -143,7 +147,7 @@ describe.skipIf(!process.env.REGOLO_API_KEY || process.env.RUN_LIVE_TESTS !== '1
       expect(finish).toBe('length');
     }, 30_000);
 
-    it('with chat_template_kwargs.enable_thinking=false: Qwen emits content directly', async () => {
+    it("with the wrapper (reasoning_effort='none'): Qwen emits content directly", async () => {
       const baseInit: RequestInit = {
         method: 'POST',
         headers: {
