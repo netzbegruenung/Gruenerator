@@ -93,6 +93,19 @@ export function useNotebookEditorState({
                 : {}),
           }))
         );
+        // Rehydrate failures from the stored status: the marker has to survive
+        // closing the editor, otherwise a document that failed yesterday looks
+        // perfectly fine today and still answers nothing.
+        setFailedDocs(
+          new Map(
+            editingCollection.documents
+              .filter((doc) => doc.status === 'failed')
+              .map((doc) => [
+                doc.id,
+                doc.processing_error || 'Das Dokument konnte nicht gelesen werden.',
+              ])
+          )
+        );
       }
       setStep(0);
     } else {

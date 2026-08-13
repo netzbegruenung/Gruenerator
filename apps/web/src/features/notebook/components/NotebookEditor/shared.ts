@@ -14,7 +14,13 @@ export interface NotebookCollection {
   id?: string;
   name: string;
   description?: string;
-  documents?: { id: string; title?: string; source_type?: string | null }[];
+  documents?: {
+    id: string;
+    title?: string;
+    source_type?: string | null;
+    status?: string | null;
+    processing_error?: string | null;
+  }[];
   labels?: string[];
   wolke_folders?: WolkeFolderRef[];
   linked_docs?: LinkedDocRef[];
