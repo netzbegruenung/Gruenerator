@@ -10,7 +10,11 @@
 import { SKILLS } from '@gruenerator/shared/agents';
 
 import { looksLikeChitchatTurn } from '../../../../routes/chat/services/agenticLoop/routing.js';
-import { fairShare, getRetrievalBudget } from '../../../../routes/chat/services/messageHelpers.js';
+import {
+  extractTextContent,
+  fairShare,
+  getRetrievalBudget,
+} from '../../../../routes/chat/services/messageHelpers.js';
 import {
   embedUntrusted,
   INJECTION_WARNING_NOTE,
@@ -492,6 +496,35 @@ Der*die Nutzer*in hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}
   return sections.join('');
 }
 
+/** Unter dieser Länge ist eine Textgleichheit keine Aussage, sondern Zufall. */
+const DEDUP_MIN_CHARS = 500;
+
+const squashWhitespace = (text: string): string => text.replace(/\s+/g, ' ').trim();
+
+/**
+ * Steht der Dokumenttext ohnehin schon wörtlich in der Historie?
+ *
+ * Gemessen auf test am 13.08.2026: ein eingefügter 10.149-Zeichen-Artikel wird
+ * als Anhang gebunden UND bleibt die erste Nutzernachricht. Ab Turn 2 lag er
+ * zweimal im Prompt (Basis-Prompt 3.414 → 14.306 Zeichen), die daran zu prüfende
+ * Übersetzung nur einmal — 2:1 zugunsten des Ausgangstexts, bei einer Aufgabe,
+ * die genau diese beiden gegeneinander lesen soll.
+ *
+ * Geprüft wird gegen die Nachrichten, die tatsächlich mitgehen: hat die Kürzung
+ * die Historie-Kopie entfernt, greift die Gleichheit nicht und der Anhang wird
+ * wie bisher eingespielt. Die Wiedereinspielung bleibt also der Rückfall, sie
+ * hört nur auf, eine Dopplung zu sein.
+ */
+function alreadyVerbatimInConversation(
+  extractedText: string | null | undefined,
+  conversationText: string
+): boolean {
+  if (!extractedText || !conversationText) return false;
+  const needle = squashWhitespace(extractedText);
+  if (needle.length < DEDUP_MIN_CHARS) return false;
+  return squashWhitespace(conversationText).includes(needle);
+}
+
 /**
  * Format thread attachments (from previous messages) as context.
  * Documents re-inject their FULL extracted text (budget-capped) so a file stays
@@ -500,9 +533,10 @@ Der*die Nutzer*in hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}
  * Images carry a vision-generated description as their summary, letting
  * follow-up turns reason about an earlier image without re-sending the pixels.
  */
-function formatThreadAttachmentsContext(
+export function formatThreadAttachmentsContext(
   attachments: ThreadAttachment[],
-  contextWindowTokens?: number
+  contextWindowTokens?: number,
+  conversationText = ''
 ): string {
   if (!attachments || attachments.length === 0) {
     return '';
@@ -515,6 +549,7 @@ function formatThreadAttachmentsContext(
     // per-query RAG retrieval (searchNode), so don't also dump their full text
     // here (would duplicate and blow the budget). Small docs stay full-context.
     .filter((a) => !a.isImage && !a.documentId && (a.extractedText || a.summary))
+    .filter((a) => !alreadyVerbatimInConversation(a.extractedText, conversationText))
     .map((a, i) => {
       // Tells the model whether it sees the full document or only a digest —
       // otherwise it can't tell an inline full-text extract apart from a
@@ -1396,7 +1431,8 @@ export async function buildSystemMessage(
   const tabularComputeGuidance = formatTabularComputeGuidance(state);
   const threadAttachmentsContext = formatThreadAttachmentsContext(
     threadAttachments,
-    state.contextWindowTokens
+    state.contextWindowTokens,
+    (state.messages ?? []).map((m) => extractTextContent(m.content)).join('\n')
   );
   const memoryContextFormatted = formatMemoryContext(memoryContext);
   const chatHistoryFormatted = state.chatHistoryContext ? `\n\n${state.chatHistoryContext}` : '';
