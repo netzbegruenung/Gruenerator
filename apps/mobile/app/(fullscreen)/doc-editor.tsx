@@ -39,6 +39,7 @@ import {
   type DocSuggestionItem,
 } from '../../stores/docsEditorBridgeStore';
 import { useDocsStore } from '../../stores/docsStore';
+import { completeDomWarmup } from '../../stores/domWarmupStore';
 import { lightTheme, darkTheme, colors, BODY_FONT } from '../../theme';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_DOCS_API_URL || 'https://gruenerator.eu/api';
@@ -61,6 +62,12 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
 }
 
 export default function DocumentScreen() {
+  // The real editor is up: no reason to keep warming this bundle off screen,
+  // and a hidden second WebView would only take resources from this one.
+  useEffect(() => {
+    completeDomWarmup('docs-editor');
+  }, []);
+
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const colorScheme = useColorScheme();

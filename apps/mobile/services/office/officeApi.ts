@@ -6,7 +6,7 @@ import {
   type PresentationContentResponse,
   type SheetContentResponse,
 } from '@gruenerator/contracts';
-import { apiRequest } from '@gruenerator/shared/api';
+import { apiRequest, getContractsClient } from '@gruenerator/shared/api';
 
 import { DEV_BOARDS, DEV_CANVASES, DEV_FIXTURES_ENABLED } from '../devFixtures';
 
@@ -23,9 +23,22 @@ export const officeApi = {
     return apiRequest<BoardDocument[]>('get', '/boards').then((r) => r ?? []);
   },
 
-  fetchCanvases(): Promise<CanvasListItem[]> {
-    if (DEV_FIXTURES_ENABLED) return Promise.resolve(DEV_CANVASES);
-    return apiRequest<CanvasListItem[]>('get', '/canvas').then((r) => r ?? []);
+  /**
+   * Via the contracts client, so the response is parsed against
+   * `canvasListItemSchema` before any caller sees it.
+   *
+   * Throws on a non-200 instead of returning `[]`: the Studio tab tells "nothing
+   * created yet" apart from "loading failed", and a swallowed empty array turns
+   * a failed request into an onboarding offer for someone whose media merely
+   * did not load.
+   */
+  async fetchCanvases(): Promise<CanvasListItem[]> {
+    if (DEV_FIXTURES_ENABLED) return DEV_CANVASES;
+    const res = await getContractsClient().canvas.list();
+    if (res.status !== 200) {
+      throw new Error(`Canvas-Liste konnte nicht geladen werden (${res.status})`);
+    }
+    return res.body;
   },
 
   fetchBoardState(id: string): Promise<BoardState> {

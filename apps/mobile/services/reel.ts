@@ -297,11 +297,19 @@ export async function pollExportProgress(exportToken: string): Promise<ExportPro
  */
 export async function downloadExportedVideo(exportToken: string): Promise<string> {
   const destination = new ExpoFile(Paths.cache, `export_${exportToken}.mp4`);
+  // The native downloader sends no headers of its own, so it arrived at the API
+  // as an anonymous request and got 401 `no_session_cookie` — the export token in
+  // the path is not what the route authenticates on. Mobile authenticates by
+  // bearer token; the upload above already carries it the same way.
+  const token = await secureStorage.getToken();
 
   const file = await ExpoFile.downloadFileAsync(
     `${binaryBaseUrl()}/subtitler/export-download/${exportToken}`,
     destination,
-    { idempotent: true }
+    {
+      idempotent: true,
+      ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
+    }
   );
 
   return file.uri;

@@ -1,11 +1,10 @@
-import { type CanvasListItem } from '@gruenerator/contracts';
+import { type CanvasListItem, type ShareListItem } from '@gruenerator/contracts';
 import { type Project } from '@gruenerator/shared';
 import { isKiImage } from '@gruenerator/shared/media-library/contentOrigin';
-import { type Share } from '@gruenerator/shared/share';
 
 import { type RecentItem } from './useRecentActivity';
 
-function shareToItem(share: Share): RecentItem {
+function shareToItem(share: ShareListItem): RecentItem {
   return {
     // The share token, not a row id — `useOpenRecentItem` hands this straight to
     // the in-app viewer as `shareToken`.
@@ -14,16 +13,26 @@ function shareToItem(share: Share): RecentItem {
     date: share.createdAt,
     type: 'image',
     href: `/share/${share.shareToken}`,
-    // A fresh share has no thumbnail until the variants pass finishes; the
-    // preview route renders one on demand. Same fallback the web feed uses —
-    // without it a just-created sharepic shows as a blank plate.
-    thumbnailUrl: share.thumbnailUrl ?? `/api/share/${share.shareToken}/preview?w=400&fmt=webp`,
+    // The preview route renders a thumbnail on demand, which is what every row
+    // gets: `/share/recent` selects `thumbnail_path`, never a ready-made URL.
+    // (The old `share.thumbnailUrl ?? …` read a field the endpoint never sends,
+    // so this fallback was already the only branch that ever ran.)
+    thumbnailUrl: `/api/share/${share.shareToken}/preview?w=400&fmt=webp`,
   };
 }
 
+/**
+ * ISO strings from Postgres: lexicographic order is chronological order.
+ *
+ * Defensive against a non-string `date`: a single malformed row used to throw
+ * "undefined is not a function" out of `Array.sort` and take the whole Studio tab
+ * down with it (a `Date` has no `localeCompare`). Sorting is not worth a blank
+ * screen — an unusable timestamp sorts last instead.
+ */
 function byDateDesc(a: RecentItem, b: RecentItem): number {
-  // ISO strings from Postgres: lexicographic order is chronological order.
-  return b.date.localeCompare(a.date);
+  const left = typeof a.date === 'string' ? a.date : '';
+  const right = typeof b.date === 'string' ? b.date : '';
+  return right.localeCompare(left);
 }
 
 /**
@@ -33,7 +42,7 @@ function byDateDesc(a: RecentItem, b: RecentItem): number {
  * No dedup: an exported share and the canvas it came from are two artifacts with
  * no linking key between them.
  */
-export function toSharepicItems(shares: Share[], canvases: CanvasListItem[]): RecentItem[] {
+export function toSharepicItems(shares: ShareListItem[], canvases: CanvasListItem[]): RecentItem[] {
   const shareItems = shares.filter((share) => !isKiImage(share)).map(shareToItem);
   const canvasItems = canvases.map((canvas): RecentItem => ({
     id: canvas.id,
@@ -48,7 +57,7 @@ export function toSharepicItems(shares: Share[], canvases: CanvasListItem[]): Re
   return [...shareItems, ...canvasItems].sort(byDateDesc);
 }
 
-export function toKiImageItems(shares: Share[]): RecentItem[] {
+export function toKiImageItems(shares: ShareListItem[]): RecentItem[] {
   return shares
     .filter((share) => isKiImage(share))
     .map(shareToItem)

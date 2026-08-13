@@ -88,6 +88,22 @@ const lastUserText = (formattedMessages: FormattedMessage[]): string =>
   '';
 
 /**
+ * Flatten to the `{ role, content }` wire shape (`ModelMessage`) that the
+ * notebook endpoint takes. Non-text parts are dropped — notebook RAG asks a
+ * question of a collection and has no attachment path.
+ */
+const toContentMessages = (
+  formattedMessages: FormattedMessage[]
+): Array<{ role: string; content: string }> =>
+  formattedMessages.map((m) => ({
+    role: m.role,
+    content: m.parts
+      .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
+      .map((p) => p.text)
+      .join(''),
+  }));
+
+/**
  * Assemble the mode-aware request body for the chat backend. Each mode
  * (search / notebook / eigener / chat) ships a different field set; the shared
  * chat/eigener payload differs only in agentId + customSystemPrompt/roleName.
@@ -182,7 +198,14 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     const collectionIds = config.selectedNotebookCollectionIds;
     const notebookFilters = config.notebookFilters;
     return {
-      messages: formattedMessages,
+      // `content` as a plain string, NOT the `parts` shape the chat endpoint
+      // takes: /notebook/stream reads `ModelMessage[]` and rejects anything
+      // whose last user message has no string `content`
+      // ("Die Anfrage enthielt keine Nutzernachricht.", notebookStreamCore.ts).
+      // Sending `parts` here made every notebook answer on mobile come back
+      // empty — web never hit it because its notebook surfaces run through
+      // NotebookModelAdapter, which always sent a string.
+      messages: toContentMessages(formattedMessages),
       ...(collectionIds && collectionIds.length > 0
         ? { collectionIds }
         : { collectionId: config.selectedNotebookId || 'gruenerator-notebook' }),
