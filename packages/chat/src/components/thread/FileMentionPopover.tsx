@@ -11,6 +11,7 @@ import {
   ScrollArea,
   Skeleton,
 } from '@gruenerator/ui';
+import { Upload } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 
 import { useFileMentionData } from '../../hooks/useFileMentionData';
@@ -35,9 +36,17 @@ interface FileMentionPopoverProps {
   visible: boolean;
   onSelect: (selection: FileMentionSelection) => void;
   onDismiss: () => void;
+  /** Opens the OS file picker. The "+" menu offers one "Datei hinzufügen" row
+   * and lands here, so the local upload has to be reachable from inside. */
+  onUploadFile?: () => void;
 }
 
-export function FileMentionPopover({ visible, onSelect, onDismiss }: FileMentionPopoverProps) {
+export function FileMentionPopover({
+  visible,
+  onSelect,
+  onDismiss,
+  onUploadFile,
+}: FileMentionPopoverProps) {
   const [level, setLevel] = useState<Level>('root');
   const [selectedCollection, setSelectedCollection] = useState<NotebookCollectionItem | null>(null);
   const [searchResults, setSearchResults] = useState<DocumentSearchResult[]>([]);
@@ -197,6 +206,24 @@ export function FileMentionPopover({ visible, onSelect, onDismiss }: FileMention
             <ScrollArea className="h-full">
               {isRootLevel ? (
                 <>
+                  {/* Section 0: local upload — the "+" menu's single file row
+                      lands here, so the OS picker has to be one click away. */}
+                  {onUploadFile ? (
+                    <CommandGroup>
+                      <CommandItem
+                        value="Hochladen Foto Datei Gerät"
+                        onSelect={() => {
+                          onDismiss();
+                          onUploadFile();
+                        }}
+                        className="flex items-center gap-2"
+                      >
+                        <Upload className="h-4 w-4 flex-shrink-0" />
+                        <span className="truncate text-sm">Fotos &amp; Dateien hochladen</span>
+                      </CommandItem>
+                    </CommandGroup>
+                  ) : null}
+
                   {/* Section 1: Notebooks */}
                   {loadingCollections ? (
                     <div className="space-y-2 p-3">
