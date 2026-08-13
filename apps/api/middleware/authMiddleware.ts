@@ -231,27 +231,36 @@ function maybeLogResolveNull(
   // The row lookup rides the same debounce as the log line, so one browser
   // firing ten parallel queries at a dead session costs one indexed SELECT
   // per 30s — not one per request.
+  //
+  // Diagnostics must never take the process down: this is fire-and-forget in a
+  // hot auth path, and `apps/api` installs no global `unhandledRejection`
+  // handler, so an unexpected throw from the logger or the Sentry SDK would
+  // kill the whole cluster worker instead of just losing one log line.
   void (async () => {
-    const rowState = token != null ? await classifySessionRow(token) : 'unknown';
-    // The smoking gun: a session token was presented but resolved to null.
-    // `db=` says which of the three causes it was (see SessionRowState);
-    // `session_data_cookie=present` flags the cookie-cache-divergence window.
-    log.warn(
-      '[Session] resolve-null-with-token token=%s path=%s session_data_cookie=%s db=%s',
-      tokenPrefix,
-      path,
-      sessionDataPresent ? 'present' : 'absent',
-      rowState
-    );
-    if (rowState === 'live') {
-      // A live, unexpired row that will not resolve is a real defect, not a
-      // logged-out user — surface it instead of letting it hide inside the
-      // frontend's session-teardown noise.
-      captureAuthIssue({
-        stage: 'session-resolve',
-        cause: new Error('session row is live but getSession() returned null'),
-        extras: { tokenPrefix, path, sessionDataPresent, rowState },
-      });
+    try {
+      const rowState = token != null ? await classifySessionRow(token) : 'unknown';
+      // The smoking gun: a session token was presented but resolved to null.
+      // `db=` says which of the three causes it was (see SessionRowState);
+      // `session_data_cookie=present` flags the cookie-cache-divergence window.
+      log.warn(
+        '[Session] resolve-null-with-token token=%s path=%s session_data_cookie=%s db=%s',
+        tokenPrefix,
+        path,
+        sessionDataPresent ? 'present' : 'absent',
+        rowState
+      );
+      if (rowState === 'live') {
+        // A live, unexpired row that will not resolve is a real defect, not a
+        // logged-out user — surface it instead of letting it hide inside the
+        // frontend's session-teardown noise.
+        captureAuthIssue({
+          stage: 'session-resolve',
+          cause: new Error('session row is live but getSession() returned null'),
+          extras: { tokenPrefix, path, sessionDataPresent, rowState },
+        });
+      }
+    } catch {
+      // Nothing to report to — reporting is what just failed.
     }
   })();
 }
