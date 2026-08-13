@@ -251,7 +251,12 @@ export const AssistantMessage = memo(function AssistantMessage() {
             />
           </div>
         )}
-        <div className="min-w-0 flex-1">
+        {/* `relative`: `sr-only` ist `position: absolute`. Ohne positionierten
+            Elternteil INNERHALB des Scrollbereichs ist der Enthaltenden-Block der
+            Thread-Root oberhalb des Viewports — die Viewport-Kappung greift dann
+            nicht, und die statische Position der Marke (weit unten im Verlauf)
+            verlängert das Dokument um tausende Pixel. */}
+        <div className="relative min-w-0 flex-1">
           {/* Offenlegung der KI-Interaktion (Art. 50 Abs. 1 KI-VO). Sichtbar
             trägt das Icon die Zuordnung, es ist aber aria-hidden — ohne diese
             Zeile sagt der Screenreader nicht, wer hier spricht. */}
