@@ -809,7 +809,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Dateien im Chat",
     "anchor": "#dateien-im-chat",
     "category": "Chat",
-    "text": "Du kannst PDFs und Bilder direkt im Chat hochladen, um sie als Kontext für deine Frage zu verwenden. Öffne dazu das „+\"-Menü im Eingabefeld und wähle Dateien. Mehr Details zu unterstützten Dateitypen und Einschränkungen findest du unter Dateien hinzufügen."
+    "text": "Du kannst PDFs und Bilder direkt im Chat hochladen, um sie als Kontext für deine Frage zu verwenden. Öffne dazu das „+\"-Menü im Eingabefeld und wähle Fotos & Dateien hochladen. Daneben stehen Aus Bibliothek (Dokumente, Notizbücher, Wolke) und Link anhängen für eine Webseite per URL. Mehr Details zu unterstützten Dateitypen und Einschränkungen findest du unter Dateien hinzufügen."
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -825,7 +825,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Gespräch starten",
     "anchor": "#gespräch-starten",
     "category": "Chat",
-    "text": "Den Chat erreichst du über den Menüpunkt in der Seitenleiste oder direkt unter /chat. Dort siehst du: Eingabefeld unten zum Schreiben deiner Nachricht Seitenleiste links mit deinem Gesprächsverlauf — Gespräche kannst du dort auch in Projekten bündeln (eigene Projekte und Gruppen, mit Übersicht unter /projekte) „+\"-Menü links im Eingabefeld für Rezepte, Werkzeuge, Quellen und Dateien Modell-Auswahl rechts unten im Eingabefeld Jedes Gespräch wird als eigener Thread mit eigener Adresse (/chat/…) gespeichert. Du kannst jederzeit ein neues Gespräch beginnen oder in der Seitenleiste zu einem früheren Gespräch zurückkehren."
+    "text": "Den Chat erreichst du über den Menüpunkt in der Seitenleiste oder direkt unter /chat. Dort siehst du: Eingabefeld unten zum Schreiben deiner Nachricht Seitenleiste links mit deinem Gesprächsverlauf — Gespräche kannst du dort auch in Projekten bündeln (eigene Projekte und Gruppen, mit Übersicht unter /projekte) „+\"-Menü links im Eingabefeld — Dateien anhängen, Websuche und Dokumentensuche ein- und ausschalten, Rezepte, Rollen, Konnektoren und die Erstellen-Werkzeuge Modell-Auswahl rechts unten im Eingabefeld Jedes Gespräch wird als eigener Thread mit eigener Adresse (/chat/…) gespeichert. Du kannst jederzeit ein neues Gespräch beginnen oder in der Seitenleiste zu einem früheren Gespräch zurückkehren."
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -849,7 +849,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Rezepte auswählen",
     "anchor": "#rezepte-auswählen",
     "category": "Chat",
-    "text": "Rezepte sind spezialisierte Schreib-Modi, die auf bestimmte Textarten optimiert sind — sie kennen den richtigen Ton, die Struktur und die Längenvorgaben der jeweiligen Plattform. So wählst du ein Rezept: Tippe / im Eingabefeld und wähle aus der Liste, oder öffne das „+\"-Menü im Eingabefeld — dort findest du auch die Rezept-Bibliothek mit allen Rezepten /presse Pressemitteilung /instagram Instagram /facebook Facebook /twitter Twitter / X /linkedin LinkedIn /reel Reel / TikTok /aktion Aktionsideen /wahlpruefstein Wahlprüfsteine /buergermail Bürgerinnen-Mail /presse-berlin PM Berlin /insta-berlin Insta Berlin /presse-mv PM MV /insta-mv Insta MV /presse-thueringen PM Thüringen /insta-thueringen Insta Thüringen /presse-brandenburg PM Brandenburg /insta-brandenburg Insta Brandenburg /presse-bayern PM Bayern /presse-hessen PM Hessen /presse-sachsen-anhalt PM Sachsen-Anhalt /presse-at Aussendung (AT) Für Anträge, Reden, Wahlprogramme und Bürger*innenanfragen gibt es eigene Grüneratoren — du findest sie unter dem Menüpunkt in der Seitenleiste und kannst sie direkt im Chat öffnen. Du kannst ein Rezept mit Quellen und Werkzeugen kombinieren. Zum Beispiel: /presse @grundsatz Klimaschutz in…"
+    "text": "Rezepte sind spezialisierte Schreib-Modi, die auf bestimmte Textarten optimiert sind — sie kennen den richtigen Ton, die Struktur und die Längenvorgaben der jeweiligen Plattform. So wählst du ein Rezept: Tippe @ im Eingabefeld und wähle aus der Liste — Rezepte stehen dort ganz oben, oder öffne das „+\"-Menü im Eingabefeld — dort findest du auch die Rezept-Bibliothek mit allen Rezepten @presse Pressemitteilung @instagram Instagram @facebook Facebook @twitter Twitter / X @linkedin LinkedIn @reel Reel / TikTok @aktion Aktionsideen @wahlpruefstein Wahlprüfsteine @buergermail Bürgerinnen-Mail @presse-berlin PM Berlin @insta-berlin Insta Berlin @presse-mv PM MV @insta-mv Insta MV @presse-thueringen PM Thüringen @insta-thueringen Insta Thüringen @presse-brandenburg PM Brandenburg @insta-brandenburg Insta Brandenburg @presse-bayern PM Bayern @presse-hessen PM Hessen @presse-sachsen-anhalt PM Sachsen-Anhalt @presse-at Aussendung (AT) Für Anträge, Reden, Wahlprogramme und Bürger*innenanfragen gibt es eigene Grüneratoren — du findest sie unter dem Menüpunkt in der Seitenleiste und kannst sie direkt im Chat öffnen. Du kannst ein Rezept mit Quellen und Werkzeugen kombinieren. Zum Beispiel:…"
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -857,7 +857,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Tipps für die Nutzung",
     "anchor": "#tipps-für-die-nutzung",
     "category": "Chat",
-    "text": "Kombiniere Rezept + Quelle + Thema für die besten Ergebnisse, z.B. /presse @bundestagsfraktion Kindergrundsicherung Nutze @recherche für aktuelle Nachrichten und tiefgehende Analysen — es durchsucht Web und Dokumente und wählt die Suchtiefe automatisch Starte ein neues Gespräch für jedes neue Thema — so bleibt der Kontext sauber und die Antworten präziser Lade relevante Dokumente hoch, wenn du einen bestehenden Text überarbeiten oder darauf aufbauen möchtest"
+    "text": "Kombiniere Rezept + Quelle + Thema für die besten Ergebnisse, z.B. @presse @bundestagsfraktion Kindergrundsicherung Nutze @recherche für aktuelle Nachrichten und tiefgehende Analysen — es durchsucht Web und Dokumente und wählt die Suchtiefe automatisch Starte ein neues Gespräch für jedes neue Thema — so bleibt der Kontext sauber und die Antworten präziser Lade relevante Dokumente hoch, wenn du einen bestehenden Text überarbeiten oder darauf aufbauen möchtest"
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -865,7 +865,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Werkzeuge nutzen",
     "anchor": "#werkzeuge-nutzen",
     "category": "Chat",
-    "text": "Werkzeuge erweitern die Fähigkeiten des Chats über die reine Textgenerierung hinaus. Du kannst sie per @-Mention im Eingabefeld aktivieren — von der Recherche über Bildgenerierung bis zum Erstellen von Dokumenten, Tabellen und Präsentationen. @abgeordnetenwatch Abgeordnetenwatch @board-erstellen Board erstellen @bundestag Bundestag @canva Canva @diagramm Diagramm @verlauf Chatverlauf @rechnen Rechnen @connect Verbundene Accounts @deepresearch Tiefenrecherche @docs Dokument einfügen @dokument-erstellen Dokument erstellen @beispiele Beispiele @doku Hilfe & Anleitungen @bildgenerieren Bildgenerierung @stadtbegruenen Stadt begrünen @bildbearbeiten Bild bearbeiten @pdf-erstellen PDF erstellen @praesentation-erstellen Präsentation erstellen @pressemitteilungen Pressemitteilungen @recherche Recherche @dokumente Dokumente @sharepic Sharepic @tabelle-erstellen Tabelle erstellen @social Social Post @zusammenfassung Zusammenfassung @umfragen Umfragen @vorlagen Vorlagen @link Link @wolke Wolke Was du mit jeder dieser Fähigkeiten konkret fragen kannst, zeigt dir die Seite Was kann ich fragen? mit Musterfragen zu jeder Funktion. Du musst dir keine @-Namen merken: Öffne das „+\"-Menü links im…"
+    "text": "Werkzeuge erweitern die Fähigkeiten des Chats über die reine Textgenerierung hinaus. Du kannst sie per @-Mention im Eingabefeld aktivieren — von der Recherche über Bildgenerierung bis zum Erstellen von Dokumenten, Tabellen und Präsentationen. @abgeordnetenwatch Abgeordnetenwatch @board-erstellen Board erstellen @bundestag Bundestag @canva Canva @diagramm Diagramm @verlauf Chatverlauf @rechnen Rechnen @connect Verbundene Accounts @deepresearch Tiefenrecherche @docs Dokument einfügen @dokument-erstellen Dokument erstellen @beispiele Beispiele @doku Hilfe & Anleitungen @bildgenerieren Bildgenerierung @stadtbegruenen Stadt begrünen @bildbearbeiten Bild bearbeiten @pdf-erstellen PDF erstellen @praesentation-erstellen Präsentation erstellen @pressemitteilungen Pressemitteilungen @recherche Recherche @dokumente Dokumente @sharepic Sharepic @tabelle-erstellen Tabelle erstellen @social Social Post @zusammenfassung Zusammenfassung @umfragen Umfragen @vorlagen Vorlagen @link Link @wolke Wolke Was du mit jeder dieser Fähigkeiten konkret fragen kannst, zeigt dir die Seite Was kann ich fragen? mit Musterfragen zu jeder Funktion. Im „+\"-Menü links im Eingabefeld stehen die Werkzeuge, mit denen…"
   },
   {
     "url": "/docs/chat/ki-modelle",
@@ -1009,7 +1009,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Grüneratoren und Rezepte",
     "anchor": "#grüneratoren-und-rezepte",
     "category": "Grüneratoren",
-    "text": "In der Agentura leben zwei Arten von Helfern: Grüneratoren sind spezialisierte KI-Persönlichkeiten mit eigenem Ton, eigenem Wissen und eigenen Werkzeugen. Du öffnest sie direkt im Chat und arbeitest dort mit ihnen. Rezepte sind kurze Schnellbefehle für eine konkrete Aufgabe (z. B. eine Pressemitteilung im Stil deines Landesverbands). Du rufst sie im Chat mit / auf. Eine Faustregel: Ein Grünerator-Agent ist ein eigenständiges Gegenüber für ein ganzes Themenfeld. Ein Rezept ist eine einzelne Vorlage, die du auf jeden beliebigen Grünerator-Agenten anwenden kannst. In der Mehrzahl heißen sie Grüneratoren. In der Einzahl sagen wir Grünerator-Agent — „der Grünerator\" ohne Zusatz meint das Produkt als Ganzes."
+    "text": "In der Agentura leben zwei Arten von Helfern: Grüneratoren sind spezialisierte KI-Persönlichkeiten mit eigenem Ton, eigenem Wissen und eigenen Werkzeugen. Du öffnest sie direkt im Chat und arbeitest dort mit ihnen. Rezepte sind kurze Schnellbefehle für eine konkrete Aufgabe (z. B. eine Pressemitteilung im Stil deines Landesverbands). Du rufst sie im Chat mit @ auf. Eine Faustregel: Ein Grünerator-Agent ist ein eigenständiges Gegenüber für ein ganzes Themenfeld. Ein Rezept ist eine einzelne Vorlage, die du auf jeden beliebigen Grünerator-Agenten anwenden kannst. In der Mehrzahl heißen sie Grüneratoren. In der Einzahl sagen wir Grünerator-Agent — „der Grünerator\" ohne Zusatz meint das Produkt als Ganzes."
   },
   {
     "url": "/docs/grueneratoren/agentura",
@@ -3233,7 +3233,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "LV-Rezepte im Überblick",
     "anchor": "#lv-rezepte-im-überblick",
     "category": "Wissen",
-    "text": "Für diese Landesverbände gibt es eigene Rezept-Abkürzungen für Pressemitteilung und Instagram: Landesverband | Pressemitteilung | Instagram | ---------------------- | --------------------- | -------------------- | Berlin | /presse-berlin | /insta-berlin | Hamburg | /presse-hamburg | /insta-hamburg | Mecklenburg-Vorpommern | /presse-mv | /insta-mv | Thüringen | /presse-thueringen | /insta-thueringen | Brandenburg | /presse-brandenburg | /insta-brandenburg | Bayern | /presse-bayern | — | Sachsen-Anhalt, Hessen und das Saarland haben (noch) keine eigenen Rezept-Abkürzungen — ihre Grüneratoren erreichst du über die jeweilige Landesverband-Seite. Unabhängig vom Landesverband gibt es allgemeine Rezepte für jede Plattform: /presse, /instagram, /facebook, /twitter, /linkedin und /reel. Sie greifen auf Beispiele aus allen Landesverbänden zurück. Die LV-Rezepte oben sind die Spezialversion mit eingebautem Regional-Stil."
+    "text": "Für diese Landesverbände gibt es eigene Rezept-Abkürzungen für Pressemitteilung und Instagram: Landesverband | Pressemitteilung | Instagram | ---------------------- | --------------------- | -------------------- | Berlin | @presse-berlin | @insta-berlin | Hamburg | @presse-hamburg | @insta-hamburg | Mecklenburg-Vorpommern | @presse-mv | @insta-mv | Thüringen | @presse-thueringen | @insta-thueringen | Brandenburg | @presse-brandenburg | @insta-brandenburg | Bayern | @presse-bayern | — | Sachsen-Anhalt, Hessen und das Saarland haben (noch) keine eigenen Rezept-Abkürzungen — ihre Grüneratoren erreichst du über die jeweilige Landesverband-Seite. Unabhängig vom Landesverband gibt es allgemeine Rezepte für jede Plattform: @presse, @instagram, @facebook, @twitter, @linkedin und @reel. Sie greifen auf Beispiele aus allen Landesverbänden zurück. Die LV-Rezepte oben sind die Spezialversion mit eingebautem Regional-Stil."
   },
   {
     "url": "/docs/wissen/landesverbaende",
@@ -3241,7 +3241,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Pressemitteilungen & Social Media schreiben",
     "anchor": "#pressemitteilungen--social-media-schreiben",
     "category": "Wissen",
-    "text": "Du erreichst den Öffentlichkeitsarbeit-Grünerator auf zwei Wegen: 1. Über die Landesverband-Seite — öffne die LV-Adresse (z. B. /agents/gruene-berlin) und wähle dort Öffentlichkeitsarbeit; oder wähle den Grünerator-Agent direkt in der Auswahl im Chat aus. Er bleibt für das ganze Gespräch im LV-Stil. 2. Über eine Rezept-Abkürzung — tippe im Chat einen Slash-Befehl wie /presse-berlin und direkt dahinter dein Thema. Das Rezept schickt deine Anfrage an den passenden LV-Grünerator und gibt ihm gleich die richtige Aufgabe mit (Pressemitteilung bzw. Instagram-Post)."
+    "text": "Du erreichst den Öffentlichkeitsarbeit-Grünerator auf zwei Wegen: 1. Über die Landesverband-Seite — öffne die LV-Adresse (z. B. /agents/gruene-berlin) und wähle dort Öffentlichkeitsarbeit; oder wähle den Grünerator-Agent direkt in der Auswahl im Chat aus. Er bleibt für das ganze Gespräch im LV-Stil. 2. Über eine Rezept-Abkürzung — tippe im Chat @presse-berlin und direkt dahinter dein Thema. Das Rezept schickt deine Anfrage an den passenden LV-Grünerator und gibt ihm gleich die richtige Aufgabe mit (Pressemitteilung bzw. Instagram-Post)."
   },
   {
     "url": "/docs/wissen/landesverbaende",
