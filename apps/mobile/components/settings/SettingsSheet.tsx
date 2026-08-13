@@ -1,5 +1,9 @@
 import { type ChatBackground } from '@gruenerator/contracts';
-import { getAllRobotIds, getRobotAvatarUrl } from '@gruenerator/shared/avatar';
+import {
+  GRUENERATOR_FRIENDS,
+  getRobotAvatarUrl,
+  type StarterElement,
+} from '@gruenerator/shared/avatar';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { AT_EBENEN, DE_EBENEN, type UserRole } from '@gruenerator/shared/roles';
 import { chatBackgroundsFor, getSettingsEntry } from '@gruenerator/shared/settings';
@@ -51,8 +55,20 @@ import { AppUpdateRow } from './AppUpdateRow';
  */
 
 // Robot avatar 10 ("Wolki") is unlocked via a Wolke connection, which isn't
-// available on mobile — so the picker offers 1–9.
-const PICKABLE_ROBOT_IDS = getAllRobotIds().filter((id) => id !== 10);
+// available on mobile — so the picker offers the rest.
+const PICKABLE_FRIENDS = GRUENERATOR_FRIENDS.filter((friend) => friend.unlock !== 'wolke');
+
+/**
+ * Die Ringfarben der drei Starter, wie im Web (`FriendsTab`): sie hängen an der
+ * Figur und ihrem Element, nicht an der Auswahl — die Auswahl macht den Ring nur
+ * kräftiger. Deshalb stehen hier Element-Farben und keine Theme-Token; das
+ * Grünerator-Grün würde Feuer, Natur und Wasser gerade wieder einebnen.
+ */
+const STARTER_RING: Record<StarterElement, string> = {
+  feuer: '#EF4444',
+  natur: '#10B981',
+  wasser: '#0EA5E9',
+};
 
 type Locale = 'de-DE' | 'de-AT';
 
@@ -337,8 +353,10 @@ export function SettingsSheet() {
         <>
           {note(getSettingsEntry('friends.avatar').description ?? '')}
           <View style={styles.grid}>
-            {PICKABLE_ROBOT_IDS.map((id) => {
+            {PICKABLE_FRIENDS.map((friend) => {
+              const id = friend.id;
               const selected = String(id) === user.avatar_robot_id;
+              const ring = friend.starter ? STARTER_RING[friend.starter] : colors.primary[600];
               return (
                 <Pressable
                   key={id}
@@ -351,23 +369,41 @@ export function SettingsSheet() {
                     setDetail(null);
                   }}
                   accessibilityRole="button"
-                  accessibilityLabel={`Friend ${id}`}
+                  accessibilityLabel={`${friend.name} auswählen`}
+                  accessibilityHint={friend.tagline}
                   accessibilityState={{ selected }}
-                  style={[
-                    styles.option,
-                    {
-                      backgroundColor: theme.surface,
-                      borderColor: selected ? colors.primary[600] : 'transparent',
-                    },
-                  ]}
+                  style={styles.option}
                 >
-                  <Image
-                    source={{ uri: getRobotAvatarUrl(id) }}
-                    style={styles.optionImage}
-                    contentFit="cover"
-                    cachePolicy="memory-disk"
-                    recyclingKey={String(id)}
-                  />
+                  <View
+                    style={[
+                      styles.optionPlate,
+                      {
+                        backgroundColor: theme.surface,
+                        borderColor: ring,
+                        // Ausgewählt heißt kräftiger, nicht andersfarbig: die
+                        // Zuordnung Figur→Element muss den Tap überleben.
+                        borderWidth: selected ? 3 : 1,
+                        opacity: selected ? 1 : 0.75,
+                      },
+                    ]}
+                  >
+                    <Image
+                      source={{ uri: getRobotAvatarUrl(id) }}
+                      style={styles.optionImage}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                      recyclingKey={String(id)}
+                    />
+                  </View>
+                  <Text
+                    style={[
+                      styles.optionName,
+                      { color: selected ? theme.text : theme.textSecondary },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {friend.name}
+                  </Text>
                 </Pressable>
               );
             })}
@@ -575,16 +611,25 @@ const styles = StyleSheet.create({
   },
   option: {
     width: '30%',
+    alignItems: 'center',
+    gap: spacing.xsmall,
+  },
+  optionPlate: {
+    width: '100%',
     aspectRatio: 1,
     borderRadius: borderRadius.large,
     borderCurve: 'continuous',
-    borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
   optionImage: {
     width: '78%',
     height: '78%',
+  },
+  optionName: {
+    fontSize: 12,
+    fontFamily: BODY_FONT,
+    fontWeight: '500',
   },
   logout: {
     minHeight: 44,

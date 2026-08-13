@@ -20,6 +20,7 @@ import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-c
 import { enableFreeze } from 'react-native-screens';
 
 import { AiConsentGate } from '../components/auth/AiConsentGate';
+import { DomWarmup } from '../components/common/DomWarmup';
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import { AppDrawer } from '../components/navigation';
 import { SettingsSheet } from '../components/settings';
@@ -176,6 +177,10 @@ function RootLayout() {
                     is on screen. Mounted here — once — because the drawer and the
                     profile menu both reach for them from different screens. */}
                 {user ? <SettingsSheet /> : null}
+                {/* Off-screen preload of the `use dom` WebView bundles (docs
+                    editor), so the first document a user opens doesn't pay for
+                    the WebView boot. Retires itself. */}
+                {user ? <DomWarmup /> : null}
                 {/* Art.-9-Einwilligung. Ganz zuletzt und über allem, damit sie
                     auch über dem Einstellungen-Sheet steht — ein Widerruf dort
                     muss sofort wieder fragen, sonst liefe die App weiter ohne
