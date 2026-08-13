@@ -36,22 +36,29 @@ export function getDocAIExtension(documentId: string): DocAIExtension | null {
  * BlockNote's collaboration fork store. `isForked` is true between `fork()` (AI
  * invoke) and `merge()` (accept/reject) — i.e. while AI suggestions are pending
  * review and held in a detached Y.Doc that does not sync.
+ *
+ * Declared once here, like the AI extension above: four call sites read this
+ * store (this file, usePendingDocAI, useDocAIReviewState, disableGcOnAIFork),
+ * and a BlockNote upgrade that moves it should mean one edit, not four.
  */
-type ForkStore = { store?: { state?: { isForked?: boolean } } };
+export type DocForkStore = {
+  state?: { isForked?: boolean };
+  subscribe?: (listener: () => void) => () => void;
+};
 
-function getForkExtensionForEditor(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  editor: any
-): ForkStore | null {
-  const fork = (editor as EditorWithExtensions).getExtension?.(ForkYDocExtension);
-  return (fork as ForkStore | undefined) ?? null;
+/** The fork store of a mounted editor, or null (non-collaborative surfaces). */
+export function getDocForkStore(editor: unknown): DocForkStore | null {
+  if (!editor) return null;
+  const fork = (editor as EditorWithExtensions).getExtension?.(ForkYDocExtension) as
+    { store?: DocForkStore } | undefined;
+  return fork?.store ?? null;
 }
 
 /** Whether AI suggestions are pending review (forked) for a document. */
 export function isDocAIForked(documentId: string): boolean {
   const editor = useEditorStore.getState().getEditor(documentId);
   if (!editor) return false;
-  return getForkExtensionForEditor(editor)?.store?.state?.isForked ?? false;
+  return getDocForkStore(editor)?.state?.isForked ?? false;
 }
 
 /**
