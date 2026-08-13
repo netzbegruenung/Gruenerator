@@ -1392,8 +1392,15 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // mount gate reads it as a deliberate choice. Same opt-out and
       // custom-prompt guards as the loop's catalogue; loop turns are untouched
       // (the model picks via the tool there).
+      //
+      // Einfache Sprache steht ganz aussen vor: der Turn ist per Override immer
+      // `produktion`, bringt immer eigenes Material mit und hat seine Ausgabeform
+      // bereits (Übertragung + Prüfkette). Ein Rezept wäre dort keine Ergänzung,
+      // sondern ein zweiter Formatgeber — im Lauf vom 13.08.2026 gewann er, und
+      // der Agent bot statt einer Übertragung einen Facebook-Post an.
       if (
         !runAgentic &&
+        !einfacheSpracheTurn &&
         (classifiedState.intent === 'direct' || classifiedState.intent === 'produktion') &&
         !classifiedState.activeSkillMention &&
         !classifiedState.customSystemPrompt &&
