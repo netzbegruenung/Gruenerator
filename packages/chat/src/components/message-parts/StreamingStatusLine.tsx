@@ -19,6 +19,9 @@ interface StreamingStatusLineProps {
    *  only shows BEFORE the answer text starts — a turn with neither keeps the
    *  older behaviour of narrating alongside the streaming prose. */
   hasOwnDetail: boolean;
+  /** The turn took a step after its text began — an agentic loop that is not
+   *  finished yet, so the line must outlive the first token. */
+  stepAfterText?: boolean;
   textContent: string;
   custom: ChatMessageMetadata | undefined;
   /** The running retrieval step ("Websuche „Klimageld"") — see toolStatusLine. */
@@ -42,11 +45,13 @@ const NO_SOURCES: ReadonlyArray<SerializableCitation> = [];
  * a search gets said, and `reasoningText`/`sources` hang under the line as a
  * dropdown. All of it disappears with the line the moment the answer text
  * starts — the thinking is not persisted anyway, and the sources reappear in
- * the message's Quellen-Liste.
+ * the message's Quellen-Liste. On a multi-step agentic turn (`stepAfterText`)
+ * it stays instead: there the first sentence is a preamble, not the end.
  */
 export function StreamingStatusLine({
   isStreaming,
   hasOwnDetail,
+  stepAfterText = false,
   textContent,
   custom,
   toolStatus = null,
@@ -82,6 +87,7 @@ export function StreamingStatusLine({
     hasText: textContent.length > 0,
     stage,
     hasProgress: progress != null,
+    stepAfterText,
   });
 
   let node: ReactNode = null;

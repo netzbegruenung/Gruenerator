@@ -576,6 +576,34 @@ describe('runAgenticLoop — split gather narration', () => {
     expect(onNarration).not.toHaveBeenCalledWith('nie erreicht');
   });
 
+  it('forwards the planner’s thinking — the tool phase used to have none', async () => {
+    // Split mode runs the thinking lanes (GreenPT/Regolo gpt-oss). Dropping the
+    // gather reasoning left every one of those turns with an empty "Gedanken"
+    // panel until the answer was already being written.
+    const onReasoning = vi.fn();
+    const onText = vi.fn();
+    const deps: LoopDeps = {
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+      streamText: ((o: StreamOpts) =>
+        o.model.id === 'planner'
+          ? streamOf([
+              { type: 'reasoning-delta', text: 'Ich brauche erst die Quelle.' },
+              { type: 'text-delta', text: 'Ich suche.' },
+            ])
+          : streamOf([
+              { type: 'reasoning-delta', text: 'Jetzt formulieren.' },
+              { type: 'text-delta', text: 'FINAL' },
+            ])) as unknown as LoopDeps['streamText'],
+    };
+
+    await runAgenticLoop(baseParams({ mode: 'split', onReasoning, onText }), deps);
+
+    expect(onReasoning).toHaveBeenCalledWith('Ich brauche erst die Quelle.');
+    expect(onReasoning).toHaveBeenCalledWith('Jetzt formulieren.');
+    // The planner's thinking is thinking, not answer text.
+    expect(onText).not.toHaveBeenCalledWith('Ich brauche erst die Quelle.');
+  });
+
   it('flushes a trailing partial (punctuation-free) sentence at phase end', async () => {
     const onNarration = vi.fn();
     const deps: LoopDeps = {
