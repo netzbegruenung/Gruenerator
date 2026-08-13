@@ -152,6 +152,7 @@ function emptyStats(days: number, sinceDay: string, suppressedDays: number, acti
       reference_energy_wh: 0,
       reference_emissions_g: 0,
       market_emissions_g: 0,
+      image_market_emissions_g: 0,
       market_backed_share: 0,
       unvalued_ops: { transcriptions: 0, searches: 0 },
     },
@@ -289,6 +290,7 @@ export async function computePlatformUsageStats(
   // Independent of the low/high band above: that band is uncertainty, this is a
   // second accounting method. See MARKET_INTENSITY_G_PER_KWH.
   let marketEmissionsUg = 0;
+  let imageMarketEmissionsUg = 0;
   let marketBackedEnergyWms = 0;
 
   const addProvider = (
@@ -367,6 +369,7 @@ export async function computePlatformUsageStats(
         imageEmissionsUg += high.emissionsUg;
         rowEmissionsUg = high.emissionsUg;
         marketEmissionsUg += high.marketEmissionsUg;
+        imageMarketEmissionsUg += high.marketEmissionsUg;
         if (hasMarketInstrument(row.provider)) marketBackedEnergyWms += high.energyWms;
         if (high.basis === 'bound') boundedEnergyWms += high.energyWms;
         addProvider(row.provider, high.energyWms, high.emissionsUg, 'images');
@@ -446,6 +449,7 @@ export async function computePlatformUsageStats(
       reference_energy_wh: reference.energyWms / WMS_PER_WH,
       reference_emissions_g: reference.emissionsUg / UG_PER_G,
       market_emissions_g: marketEmissionsUg / UG_PER_G,
+      image_market_emissions_g: imageMarketEmissionsUg / UG_PER_G,
       market_backed_share: energyWms > 0 ? marketBackedEnergyWms / energyWms : 0,
       unvalued_ops: {
         transcriptions: totals.transcriptions,

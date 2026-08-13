@@ -61,6 +61,9 @@ export const transparencyFootprintSchema = z.object({
    *  name in userUsage.ts for the method, the evidence per lane and the
    *  asymmetry that keeps it from being a like-for-like comparison. */
   market_emissions_g: z.number(),
+  /** Image half of `market_emissions_g` — see the field of the same name in
+   *  userUsage.ts. Regolo images have an instrument, BFL images do not. */
+  image_market_emissions_g: z.number(),
   /** 0..1 — share of the counted energy backed by a named instrument. */
   market_backed_share: z.number(),
   /**

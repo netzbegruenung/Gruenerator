@@ -144,7 +144,7 @@ Marktbasiert ist dabei nichts zu schätzen: Für Verbrauch, der durch entwertete
 | Seeweb (Regolo)                | ISO 14001, „solo da fonti rinnovabili certificate", benannter Versorger, Green Web Foundation          | Selbstauskunft plus zertifiziertes Managementsystem        |
 | **Black Forest Labs (Bilder)** | **keiner** — läuft hinter Azure Front Door, die Region der Inferenz ist für uns unsichtbar             | kein Anspruch                                              |
 
-Die Bildmodelle fallen also heraus. Für sie sind beide Methoden identisch, und das ist die ehrliche Antwort: Wir können nicht einmal sagen, in welchem Land die GPU steht, also können wir dort auch keinen Ökostrom anrechnen — Microsofts eigene Beschaffung ist nicht unsere.
+Entscheidend ist, dass diese Liste nach **Anbieter** geht und nicht nach Art der Aufgabe. Es ist also nicht so, dass „Bilder" pauschal herausfielen: Regolo erzeugt mit Qwen-Image ebenfalls Bilder, und die laufen im selben zertifizierten Seeweb-Rechenzentrum wie die Textmodelle — sie tragen den Nachweis also mit. Heraus fällt allein **Black Forest Labs**. Für dessen Bilder sind beide Methoden identisch, und das ist die ehrliche Antwort: Wir können nicht einmal sagen, in welchem Land die GPU steht, also können wir dort auch keinen Ökostrom anrechnen — Microsofts eigene Beschaffung ist nicht unsere.
 
 :::caution Die Spanne ist einseitig, und das muss man wissen
 

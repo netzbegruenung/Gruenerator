@@ -138,6 +138,7 @@ export const userUsageContractRouter = s.router(userUsageContract, {
       // so both ends of the range describe exactly the same rows. See
       // MARKET_INTENSITY_G_PER_KWH in energyFootprint.ts.
       let marketEmissionsUg = 0;
+      let imageMarketEmissionsUg = 0;
       let marketBackedEnergyWms = 0;
 
       for (const row of rows) {
@@ -195,6 +196,7 @@ export const userUsageContractRouter = s.router(userUsageContract, {
             if (hasMarketInstrument(row.provider)) marketBackedEnergyWms += estimate.energyWms;
             imageEnergyWms += estimate.energyWms;
             imageEmissionsUg += estimate.emissionsUg;
+            imageMarketEmissionsUg += estimate.marketEmissionsUg;
             if (estimate.basis === 'bound') boundedEnergyWms += estimate.energyWms;
           }
         }
@@ -265,6 +267,7 @@ export const userUsageContractRouter = s.router(userUsageContract, {
             reference_energy_wh: reference.energyWms / 3_600_000,
             reference_emissions_g: reference.emissionsUg / 1_000_000,
             market_emissions_g: marketEmissionsUg / 1_000_000,
+            image_market_emissions_g: imageMarketEmissionsUg / 1_000_000,
             market_backed_share: energyWms > 0 ? marketBackedEnergyWms / energyWms : 0,
           },
           daily: [...daily.entries()]

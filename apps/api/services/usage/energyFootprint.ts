@@ -292,11 +292,18 @@ const GRID_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
  *    and the Neutral Datacenter Pact. A self-declaration backed by a certified
  *    management system — weaker than EMAS, strong enough to name.
  *
- * DELIBERATELY ABSENT: `bfl`. Image generation runs behind Azure Front Door and
- * the inference region is invisible to us (see the note in the table above).
- * Microsoft's own renewable purchasing is not ours to claim for a datacenter we
- * cannot even locate, so images fall through to the location factor and the two
- * methods converge there. That asymmetry is the honest outcome, not a gap.
+ * DELIBERATELY ABSENT: `bfl`. Its image generation runs behind Azure Front Door
+ * and the inference region is invisible to us (see the note in the table
+ * above). Microsoft's own renewable purchasing is not ours to claim for a
+ * datacenter we cannot even locate, so BFL falls through to the location factor
+ * and the two methods converge for it. That asymmetry is the honest outcome,
+ * not a gap.
+ *
+ * Note the scope of that exception: it is per PROVIDER, not "images". Regolo
+ * also generates images (Qwen-Image) and serves them from the same Seeweb
+ * datacenter as its text lanes, so those DO carry the instrument. Anything
+ * treating "the image half" as uniformly instrument-free is wrong — which is
+ * exactly the bug that shipped in the frontend's first cut of this feature.
  */
 const MARKET_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
   mistral: 0,
@@ -510,8 +517,9 @@ export function estimateImageFootprint(params: {
   return {
     energyWms,
     emissionsUg: emissionsFromEnergy(energyWms, gridIntensityFor(params.provider)),
-    // `bfl` has no market instrument we can name, so this collapses onto the
-    // location figure for the image lane — deliberately, see the table.
+    // Per provider, NOT per unit: collapses onto the location figure for `bfl`
+    // (no locatable region) but is zero for Regolo's Qwen-Image, which runs in
+    // the same certified datacenter as its text lanes. See the table.
     marketEmissionsUg: emissionsFromEnergy(energyWms, marketIntensityFor(params.provider)),
     basis: c.basis,
   };
