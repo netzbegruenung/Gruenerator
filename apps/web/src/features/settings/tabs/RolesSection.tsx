@@ -1,4 +1,5 @@
 import { type UserRole } from '@gruenerator/chat';
+import { landesverbandOfferForBundesland } from '@gruenerator/shared/agents';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { getInstance } from '@gruenerator/shared/instances';
 import {
@@ -176,12 +177,8 @@ export default function RolesSection() {
   const bundeslaender = isAustrian ? AT_BUNDESLAENDER : DE_BUNDESLAENDER;
 
   // Die Combobox filtert die Einträge selbst; sie bekommt deshalb die Namen und
-  // nicht die Konfiguration. Welche davon ein Notebook haben, steht daneben.
+  // nicht die Konfiguration.
   const bundeslandNamen = useMemo(() => bundeslaender.map((bl) => bl.label), [bundeslaender]);
-  const mitNotebook = useMemo(
-    () => new Set(bundeslaender.filter((bl) => bl.notebookId).map((bl) => bl.label)),
-    [bundeslaender]
-  );
 
   const [roles, setRoles] = useState<UserRole[]>(serverRoles ?? []);
   const seededRef = useRef(serverRoles !== undefined);
@@ -202,6 +199,31 @@ export default function RolesSection() {
   const [wizCustomRolle, setWizCustomRolle] = useState('');
   const [wizAbgeordnete, setWizAbgeordnete] = useState('');
   const [wizInstructions, setWizInstructions] = useState('');
+
+  /**
+   * Was die gewählte Rolle freischaltet — einmal am Ende des Assistenten, nicht
+   * neben jedem Listeneintrag: die Bundesland-Combobox ist eine Auswahl, kein
+   * Ort für Fließtext.
+   *
+   * Nur auf der Ebene „Land": Kreis- und Ortsverbände geben zwar ein Bundesland
+   * an, bekommen aber keine LV-Zuteilung — ein Hinweis dort wäre ein
+   * Versprechen, das die Rolle nicht einlöst.
+   */
+  const wizAngebot = useMemo(() => {
+    if (wizEbene !== 'land' || !wizBundesland) return null;
+    const offer = landesverbandOfferForBundesland(isAustrian ? 'Österreich' : wizBundesland);
+    if (!offer) return null;
+
+    const teile = [offer.agents === 1 ? '1 Agenten' : `${offer.agents} Agenten`];
+    if (offer.skills > 0) teile.push(offer.skills === 1 ? '1 Rezept' : `${offer.skills} Rezepte`);
+    const aufzaehlung =
+      teile.length > 1 ? `${teile.slice(0, -1).join(', ')} und ${teile.at(-1)}` : teile[0];
+
+    return {
+      title: offer.title,
+      beschreibung: `${aufzaehlung} sowie das Notizbuch ${offer.title} erscheinen künftig in deiner Agentur und im Chat.`,
+    };
+  }, [wizEbene, wizBundesland, isAustrian]);
 
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -594,9 +616,6 @@ export default function RolesSection() {
                     {(name: string) => (
                       <ComboboxItem key={name} value={name}>
                         <span>{name}</span>
-                        {mitNotebook.has(name) && (
-                          <span className="text-xs text-grey-400">● Notebook</span>
-                        )}
                       </ComboboxItem>
                     )}
                   </ComboboxCollection>
@@ -711,6 +730,14 @@ export default function RolesSection() {
               placeholder="z.B. Schreibe Pressemitteilungen immer mit Zitat des Fraktionsvorsitzenden."
               autoFocus
             />
+            {wizAngebot && (
+              <div className="rounded-lg border border-grey-200 bg-background-alt/40 p-md dark:border-grey-700">
+                <p className="text-sm font-medium text-foreground-heading">
+                  Du bekommst Zugang zum Landesverband {wizAngebot.title}
+                </p>
+                <p className="mt-xs text-sm text-foreground-muted">{wizAngebot.beschreibung}</p>
+              </div>
+            )}
             <div className="flex items-center gap-sm">
               <Button onClick={handleAddRole} disabled={generating}>
                 {generating ? 'Speichert…' : 'Rolle speichern'}
