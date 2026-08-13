@@ -141,16 +141,25 @@ Fehlerarten:
  b) HINZUFÜGUNG       - in der Fassung, steht nicht im Original
                         (dazu zählen erfundene Abkürzungs-Bedeutungen,
                         erfundene Zusammenhänge, Wörterbuch-Einträge
-                        zu Begriffen, die im Text nicht vorkommen)
+                        zu Begriffen, die im Text nicht vorkommen, und
+                        Worterklärungen, deren INHALT nicht aus dem
+                        Original hervorgeht - der Begriff kann darin
+                        stehen und seine Erklärung trotzdem hinzukommen)
                         KEINE Hinzufügung sind die Mittel, die das
                         Regelwerk der Fassung vorschreibt:
 ${devices}
                         Diese als Fehler zu melden hiesse, der Fassung
                         ihre eigenen Regeln vorzuwerfen.
  c) MODALITÄTS-FEHLER - Sicherheitsgrad oder Verbindlichkeit verändert.
-                        Nur dann, wenn das Modalverb selbst falsch ist:
-                        aus "wird erwartet" wird "wird sein", aus
-                        "soll" wird "ist", aus "fordert" wird "gilt".
+                        Nicht nur am Modalverb: aus "wird erwartet" wird
+                        "wird sein", aus "soll" wird "ist", aus "fordert"
+                        wird "gilt" - und ebenso, wenn eine Möglichkeit
+                        zur Wirkung wird ("kriege man den Strom auch noch
+                        günstig" -> "So wird der Strom günstig"), wenn
+                        eine Bedingung wegfällt ("wenn ... , dann" -> ein
+                        Aussagesatz), oder wenn Konjunktiv und indirekte
+                        Rede des Originals in der Fassung als Tatsache
+                        erscheinen.
                         NICHT als Modalitätsfehler zählen: ein Satz mit
                         "soll", der unter einer Überschrift steht, die
                         die Forderung bereits zuschreibt. Das ist
@@ -166,6 +175,21 @@ ${devices}
  h) BEDEUTUNGS-VERSCHIEBUNG - abgeschwächt, verschärft, gewertet
  i) VERLUST DER URHEBERSCHAFT - nicht erkennbar, von welcher
                         Organisation der Text stammt
+
+SCHRITT 2b - WAS DIE RÜCKÜBERSETZUNG NICHT ZEIGEN KANN
+Die blinde Instanz hatte den Auftrag, Überschriften, Worterklärungen,
+den Abschnitt "Schwierige Wörter" und den Übersetzungshinweis NICHT zu
+übernehmen. Diese Teile der Fassung sind in Schritt 2 deshalb
+unsichtbar - nicht unauffällig. Halte sie einzeln gegen das Original:
+- jeden Eintrag unter "Schwierige Wörter": Steht der erklärte INHALT
+  im Original? Wenn nicht, trägt der Eintrag die vorgeschriebene
+  Kennzeichnung? Fehlt sie, ist es eine HINZUFÜGUNG (b).
+- jede Zwischenüberschrift: Behauptet sie etwas, das der Abschnitt
+  darunter nicht hergibt?
+- den Übersetzungshinweis: Stimmen Dokumentart, Urheber und Datum mit
+  dem Original überein?
+Prüfe diesen Schritt auch dann, wenn die Rückübersetzung ausgefallen
+ist - er hängt nicht an ihr.
 
 SCHRITT 3 - REGEL-PRÜFUNG
 Prüfe an mindestens acht über den Text verteilten Stellen und gib die
@@ -190,11 +214,17 @@ B. Befund-Tabelle
 C. Korrektur-Vorschläge - für JEDEN Befund KRITISCH und HOCH, keinen
    auslassen. Formuliere den Abschnitt neu, in ${spec.registerName}
    (${spec.levelLabel}, dasselbe Regelwerk wie die Fassung).
-D. Gesamturteil
+D. Fehlerarten-Nachweis - eine Zeile je Fehlerart a) bis i), in dieser
+   Reihenfolge, jede entweder mit der Nummer des Befunds aus B oder mit
+   "geprüft, kein Befund". Schweigen zu einer Fehlerart ist kein
+   Unbedenklichkeitsnachweis, und genau als solcher wird es gelesen.
+E. Gesamturteil
    FREIGABE / ÜBERARBEITUNG / ABLEHNUNG, Begründung in max. 5 Sätzen.
    ABLEHNUNG zwingend, wenn ein KRITISCH-Befund vorliegt oder mehr als
    ein Viertel der Punkte aus Schritt 1 fehlt oder verkürzt ist.
-E. Verbleibendes Risiko - was auch nach Korrektur eine menschliche
+   FREIGABE nur, wenn D für jede Fehlerart eine Zeile trägt und kein
+   Befund KRITISCH oder HOCH ist. Im Zweifel ÜBERARBEITUNG.
+F. Verbleibendes Risiko - was auch nach Korrektur eine menschliche
    Entscheidung braucht.
 
 Kein Lob, keine Stärken-Zusammenfassung, keine Einleitung, keine
