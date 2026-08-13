@@ -21,7 +21,7 @@ apps/api/services/providers/providerSelector.ts */}
 - **Black Forest Labs** (Freiburg, Deutschland) — Bilderzeugung und -bearbeitung mit FLUX 2 Pro (`flux-2-pro`), ausschließlich über den EU-Endpunkt `api.eu.bfl.ai`
 - **Regolo / Seeweb** (Italien) — Open-Source-Modelle (Gemma 4, GPT-OSS 120B, Mistral Small 4) und das Bildmodell Qwen-Image — Zero Data Retention, 100 % erneuerbare Energie
 - **GreenPT** (Paris und Helsinki) — erzeugte Dateien (PDFs, Präsentationen, Tabellen, Dokumente) mit Gemma 4 sowie der Ausweichweg für die Transkription, 100 % erneuerbare Energie
-- **Scaleway** (Paris) — Gemma 4 für kurze und strukturierte Antworten
+- **Scaleway** (Paris) — Gemma 4 (`gemma-4-26b-a4b-it`) für das Zusammenfassen langer Dokumente
 - **netzbegrünung e.V. / verdigado eG** (Deutschland / Finnland) — Infrastruktur, Datenbank, selbst gehostetes GPT-OSS 120B (und Gemma 4 als Ausweichweg)
 - **SearXNG** (selbstgehostet, Deutschland) — Suche
 - **Hetzner** (Deutschland) — Hosting, an deutschen Standorten mit 100 % Wasserkraft
