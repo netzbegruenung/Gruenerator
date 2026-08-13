@@ -411,3 +411,74 @@ describe('autoPolicy — taskShape override', () => {
     expect(resolveAutoSelection({ intent: 'produktion' }).modelId).toBe('gemma-litellm');
   });
 });
+
+describe('resolveAutoSelection — carried material', () => {
+  // The signal that needs no wording. Measured 13.08.2026: a 10.149-char
+  // article, pasted once and carried into three follow-up turns.
+  const ARTICLE = 10_149;
+
+  it('routes document work to the precise lane', () => {
+    expect(resolveAutoSelection({ intent: 'agentic', materialChars: ARTICLE }).modelId).toBe(
+      'mistral-medium-3.5'
+    );
+    expect(resolveAutoSelection({ intent: 'produktion', materialChars: ARTICLE }).modelId).toBe(
+      'mistral-medium-3.5'
+    );
+  });
+
+  it('turns reasoning on, which the intent table never did', () => {
+    // `agentic` carries a flat 'low' that no complexity staffing touches — all
+    // four turns of the live run were graded 'low', two of them at
+    // complexity=complex, and the model then rated 8/8 paragraphs "vollständig"
+    // and missed a modality shift.
+    expect(resolveAutoSelection({ intent: 'agentic', complexity: 'complex' }).reasoning).toBe(
+      'low'
+    );
+    expect(
+      resolveAutoSelection({ intent: 'agentic', complexity: 'complex', materialChars: ARTICLE })
+        .reasoning
+    ).toBe('medium');
+  });
+
+  it('never lowers reasoning an intent already asked for', () => {
+    const withMaterial = resolveAutoSelection({
+      intent: 'produktion',
+      complexity: 'complex',
+      agentId: 'gruenerator-universal',
+      materialChars: ARTICLE,
+    });
+    expect(withMaterial.reasoning).not.toBe('off');
+  });
+
+  it('a short quote is not document work', () => {
+    // A pasted sentence must not move the whole turn to the slow lane.
+    expect(resolveAutoSelection({ intent: 'produktion', materialChars: 400 }).modelId).toBe(
+      'gemma-litellm'
+    );
+    expect(resolveAutoSelection({ intent: 'produktion', materialChars: 2_999 }).modelId).toBe(
+      'gemma-litellm'
+    );
+    expect(resolveAutoSelection({ intent: 'produktion', materialChars: 3_000 }).modelId).toBe(
+      'mistral-medium-3.5'
+    );
+  });
+
+  it('leaves pinned tool intents alone', () => {
+    // Same scope as the shape and hint overrides.
+    expect(resolveAutoSelection({ intent: 'web', materialChars: ARTICLE }).modelId).toBe(
+      'gemma-litellm'
+    );
+  });
+
+  it('needs no taskShape to fire — that is the point', () => {
+    // The wording-based detector could only ever recognise the phrasings it was
+    // built against. This one reads a length.
+    const selection = resolveAutoSelection({
+      intent: 'agentic',
+      complexity: 'moderate',
+      materialChars: ARTICLE,
+    });
+    expect(selection.modelId).toBe('mistral-medium-3.5');
+    expect(selection.reasoning).toBe('medium');
+  });
+});

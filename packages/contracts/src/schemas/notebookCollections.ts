@@ -199,6 +199,13 @@ export const documentRecordSchema = z.object({
   source_type: z.string().nullish(),
   wolke_share_link_id: z.string().nullish(),
   status: z.string().nullish(),
+  /**
+   * Why a `status='failed'` document failed, lifted out of documents.metadata.
+   * Carried on the collection itself so reopening a notebook shows the same
+   * "Nicht durchsuchbar" marker the upload session showed — without it the
+   * failure was only ever visible until the editor was closed.
+   */
+  processing_error: z.string().nullish(),
 });
 
 export const wolkeShareLinkSchema = z.object({

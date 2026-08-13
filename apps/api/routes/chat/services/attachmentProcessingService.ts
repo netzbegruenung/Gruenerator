@@ -110,6 +110,9 @@ export interface ProcessedAttachmentMeta {
   sizeBytes: number;
   isImage: boolean;
   extractedText: string | null;
+  /** Page count from the OCR extraction (PDFs only) — display metadata for the
+   *  attachment chips, persisted so it survives a thread reload. */
+  pageCount?: number;
   /** Base64 image bytes, set for images only — used to generate a persistent
    *  vision description (summary) for multi-turn image memory. */
   imageData?: string;
@@ -191,6 +194,14 @@ export async function processAttachments(
           attachment.type
         );
 
+        // Page counts are only meaningful for PDFs — the OCR service reports a
+        // hardcoded 1 for directly decoded text files, which would render a
+        // misleading "1 Seite" on every .txt/.csv chip.
+        const pageCount =
+          attachment.type === 'application/pdf' && result.pageCount > 0
+            ? result.pageCount
+            : undefined;
+
         if (result.text && result.text.length > 0) {
           const text = sheetNote ? `${sheetNote}\n${result.text}` : result.text;
           // Label makes the inline full-text path distinguishable from a
@@ -204,6 +215,7 @@ export async function processAttachments(
             sizeBytes: attachment.size,
             isImage: false,
             extractedText: text,
+            ...(pageCount != null && { pageCount }),
             ...(persistedData != null && { fileData: persistedData }),
           });
           log.info(`[${requestId}] Extracted ${result.text.length} chars from: ${attachment.name}`);
@@ -219,6 +231,7 @@ export async function processAttachments(
             sizeBytes: attachment.size,
             isImage: false,
             extractedText: null,
+            ...(pageCount != null && { pageCount }),
             ...(persistedData != null && { fileData: persistedData }),
           });
         }

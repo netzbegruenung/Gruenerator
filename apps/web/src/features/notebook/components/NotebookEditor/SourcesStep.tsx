@@ -7,7 +7,7 @@ import NotebookEditorWolkeSection from '../NotebookEditorWolkeSection';
 import NotebookEditorWordpressSection from '../NotebookEditorWordpressSection';
 
 import DocumentsPanel from './DocumentsPanel';
-import { ACCEPTED_EXTENSIONS, MAX_DOCUMENTS } from './shared';
+import { ACCEPTED_EXTENSIONS, ACCEPTED_FORMATS_HINT, MAX_DOCUMENTS } from './shared';
 
 import type { NotebookEditorStateBundle } from './useNotebookEditorState';
 
@@ -30,6 +30,7 @@ export default function SourcesStep({ state }: SourcesStepProps) {
     isDragOver,
     uploadError,
     indexingDocIds,
+    failedDocs,
     loading,
     fileInputRef,
     handleFileSelect,
@@ -92,7 +93,7 @@ export default function SourcesStep({ state }: SourcesStepProps) {
               <div>
                 <p className="m-0 text-base font-semibold text-foreground">Dateien hochladen</p>
                 <p className="mt-xs m-0 text-xs text-grey-500">
-                  PDF, DOCX, TXT, MD, ODT, RTF · {remainingSlots} von {MAX_DOCUMENTS} Plätzen frei
+                  {ACCEPTED_FORMATS_HINT} · {remainingSlots} von {MAX_DOCUMENTS} Plätzen frei
                 </p>
               </div>
             </>
@@ -249,6 +250,7 @@ export default function SourcesStep({ state }: SourcesStepProps) {
             documents={documentsWithSource}
             documentCount={documentCount}
             indexingDocIds={indexingDocIds}
+            failedDocs={failedDocs}
             loading={loading}
             onRemove={handleRemoveDocument}
             onRemoveMany={handleRemoveDocuments}

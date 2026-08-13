@@ -28,8 +28,16 @@ import {
 import { buildAiTelemetry } from '../../../../services/telemetry/langfuseTelemetry.js';
 import { recordDecision } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { createControlTokenFilter, stripToolControlTokens } from '../outputSanity.js';
 import { isWholesaleRefusal, refusalLanguage } from '../refusalDetection.js';
 import { createIdleDeadline } from '../streamIdleDeadline.js';
+
+import {
+  createDegenerationGuard,
+  DEGENERATE_FINISH_REASON,
+  DEGENERATION_NOTICE,
+  cutLostContent,
+} from './degeneration.js';
 
 import type { LanguageModel, ModelMessage, ToolSet } from 'ai';
 
@@ -295,6 +303,19 @@ export interface LoopEngineParams {
    *  provider/context window is the backstop) — explicit caps truncated
    *  think-lane answers mid-sentence because reasoning tokens count too. */
   maxOutputTokens?: number;
+  /**
+   * Per-request provider options for the phases that run on the SELECTED model
+   * — unified and synth. Today this carries exactly one thing: Mistral's
+   * `reasoningEffort`.
+   *
+   * It has to be threaded through rather than baked into the model instance
+   * because `@ai-sdk/mistral` takes the effort per request, not per client. And
+   * it must not reach the GATHER phase: that runs on the fixed planner lane
+   * (Mistral Small on Regolo), an OpenAI-compat client that would drop a
+   * `mistral` block in silence — and the planner has no prose to think about
+   * anyway.
+   */
+  providerOptions?: Record<string, Record<string, string>>;
   abortSignal: AbortSignal;
   /**
    * Split mode: the signal the WRITE phase runs under. Defaults to
@@ -382,7 +403,7 @@ async function streamWithTools(
   p: LoopEngineParams,
   model: LanguageModel,
   deps: LoopDeps
-): Promise<{ text: string }> {
+): Promise<LoopResult> {
   const result = deps.streamText({
     model,
     system: p.toolSystem,
@@ -391,6 +412,7 @@ async function streamWithTools(
     stopWhen: isStepCount(p.maxSteps),
     temperature: p.temperature,
     ...(p.maxOutputTokens != null && { maxOutputTokens: p.maxOutputTokens }),
+    ...(p.providerOptions != null && { providerOptions: p.providerOptions }),
     abortSignal: p.abortSignal,
     prepareStep: buildPrepareStep(
       p.toolSystem,
@@ -404,7 +426,25 @@ async function streamWithTools(
     experimental_repairToolCall: repairToolCall,
     ...phaseTelemetry('unified'),
   });
-  const { text } = await drain(result, p.onText, p.onReasoning);
+  // Der unified-Pfad hatte gar keine Steuertoken-Säuberung: er schreibt MIT
+  // gemounteten Werkzeugen, also genau dort, wo das Chat-Template das Token
+  // erzeugt. Dass der Ausfall bisher nur im split-Modus auffiel, heißt nur, dass
+  // Mistral seltener geprüft wurde — nicht, dass der Pfad sauber ist.
+  const unifiedFilter = createControlTokenFilter();
+  const emitFiltered = (delta: string) => {
+    const clean = unifiedFilter.push(delta);
+    if (clean.length > 0) p.onText(clean);
+  };
+  const { text, finishReason } = await drain(result, emitFiltered, p.onReasoning);
+  const tail = unifiedFilter.flush();
+  if (tail.length > 0) p.onText(tail);
+  if (finishReason === DEGENERATE_FINISH_REASON) {
+    // Unified streams live, so the spam is already on the wire — drain has
+    // trimmed the returned text back to the healthy prefix, and the caller's
+    // `completion` replace (the same channel the split validation retry uses)
+    // swaps what the client shows and what gets persisted.
+    return { text, replacedStreamed: true };
+  }
   return { text };
 }
 
@@ -502,6 +542,8 @@ export const SYNTH_CUTOFF_RETRY_SUFFIX =
   '\n\nWICHTIG: Dein letzter Versuch brach mitten im Satz ab. Schreibe die Antwort JETZT vollständig zu Ende — gleiche Sprache, gleiches Format, aber mit einem echten Schluss.';
 export const SYNTH_INVALID_JSON_RETRY_SUFFIX =
   '\n\nWICHTIG: Dein letzter Versuch enthielt syntaktisch UNGÜLTIGES JSON. Gib das angeforderte JSON jetzt vollständig und valide aus (mit JSON.parse parsebar), ohne Kommentare und ohne abgebrochene Strukturen.';
+export const SYNTH_DEGENERATE_RETRY_SUFFIX =
+  '\n\nWICHTIG: Dein letzter Versuch verlor sich in endlosen Wiederholungen ("Ende", "Fertig", wiederholte Zeichenfolgen) statt aufzuhören. Schreibe die Antwort JETZT genau EINMAL, beende sie mit einem normalen Schlusssatz und gib danach NICHTS mehr aus — keine Abschlussmarker, keine Wiederholungen.';
 
 /**
  * The retry nudge. Says nothing about LENGTH on purpose: an output format the
@@ -577,21 +619,30 @@ function createGatedEmitter(
 ): { push: (d: string) => void; flush: () => void; discard: () => void; isOpen: () => boolean } {
   let buffer = '';
   let open = false;
+  // Der Steuertoken-Filter läuft über den GANZEN Strom, nicht nur über das
+  // Haltefenster. Die frühere Fassung säuberte allein den Puffer, weil sie
+  // annahm, das Token stehe immer vor der ersten Prosa — am 13.08.2026 kam es in
+  // einem Turn mit Werkzeugschritt erneut durch, nachdem das Gitter offen war.
+  const filter = createControlTokenFilter();
+  const emit = (text: string) => {
+    if (text.length > 0) onText(text);
+  };
   return {
     push(delta) {
       if (open) {
-        onText(delta);
+        emit(filter.push(delta));
         return;
       }
       buffer += delta;
       if (buffer.length > holdChars) {
-        onText(buffer);
+        emit(filter.push(buffer));
         buffer = '';
         open = true;
       }
     },
     flush() {
-      if (buffer.length > 0) onText(buffer);
+      if (buffer.length > 0) emit(filter.push(buffer));
+      emit(filter.flush());
       buffer = '';
       open = true;
     },
@@ -639,6 +690,7 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<LoopResu
       messages,
       temperature: p.temperature,
       ...(p.maxOutputTokens != null && { maxOutputTokens: p.maxOutputTokens }),
+      ...(p.providerOptions != null && { providerOptions: p.providerOptions }),
       // Combined so a stalled provider call is torn down, not just abandoned.
       // `writeAbortSignal` deliberately, NOT the turn budget — see its doc.
       abortSignal: AbortSignal.any([p.writeAbortSignal ?? p.abortSignal, idle.signal]),
@@ -646,7 +698,16 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<LoopResu
     });
     try {
       const { text, finishReason } = await drain(result, gate.push, p.onReasoning, idle);
-      return { text, finishReason, flush: gate.flush, discard: gate.discard, isOpen: gate.isOpen };
+      // Stripped again on the accumulated text: `drain` collects it from the
+      // SDK independently of the gate, and this copy is what gets persisted and
+      // what every validator downstream reads.
+      return {
+        text: stripToolControlTokens(text),
+        finishReason,
+        flush: gate.flush,
+        discard: gate.discard,
+        isOpen: gate.isOpen,
+      };
     } catch (err) {
       // Nothing buffered may leak on the error path — the caller's catch writes
       // its own user-facing message.
@@ -678,6 +739,9 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<LoopResu
    *  abnormal finishReason means the upstream cut the stream; the caller's
    *  validators see the text alone and cannot know that. */
   const invalidReason = (pass: { text: string; finishReason: string | null }): string | null => {
+    if (pass.finishReason === DEGENERATE_FINISH_REASON) {
+      return SYNTH_DEGENERATE_RETRY_SUFFIX;
+    }
     if (
       pass.finishReason != null &&
       pass.finishReason !== 'stop' &&
@@ -762,7 +826,13 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<LoopResu
     return { text: SYNTH_REFUSAL_TEXT };
   }
   if (!looksLikeToolPlanLeak(first.text, toolNames)) {
-    const reason = first.text.trim().length > 0 ? invalidReason(first) : null;
+    // A degenerate pass earns the retry even when the trim left NOTHING — spam
+    // from the first token is the most complete failure, exactly where a fresh
+    // pass helps most. Plain-empty answers stay the caller's fallback case.
+    const reason =
+      first.text.trim().length > 0 || first.finishReason === DEGENERATE_FINISH_REASON
+        ? invalidReason(first)
+        : null;
     if (reason != null && !(p.writeAbortSignal ?? p.abortSignal).aborted) {
       const replaced = await retryInvalidAnswer(first, reason);
       if (replaced) return replaced;
@@ -770,7 +840,15 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<LoopResu
     recordDecision('loop.synth_verdict', 'accepted', {
       inputs: { textLength: first.text.length },
     });
+    // Captured BEFORE flush() — flush opens the gate unconditionally, so
+    // afterwards isOpen() no longer says whether the CLIENT saw anything.
+    const spamReachedWire = first.isOpen();
     first.flush();
+    if (first.finishReason === DEGENERATE_FINISH_REASON && spamReachedWire) {
+      // The retry didn't recover, so the trimmed text stands — but the wire
+      // still carries the degenerate tail drain cut off. Replace it.
+      return { text: first.text, replacedStreamed: true };
+    }
     return { text: first.text };
   }
 
@@ -811,6 +889,7 @@ async function drain(
 ): Promise<{ text: string; finishReason: string | null }> {
   let text = '';
   let finishReason: string | null = null;
+  const degeneration = createDegenerationGuard();
   const iterator = result.stream[Symbol.asyncIterator]();
   try {
     while (true) {
@@ -828,6 +907,38 @@ async function drain(
       } else if (part.type === 'text-delta' && part.text != null && part.text.length > 0) {
         text += part.text;
         onText(part.text);
+        // A model that cannot stop ("Ende. Fertig. 😊" loops, digit/smiley runs)
+        // has no limit on our side to run into — the answer paths deliberately
+        // set no maxOutputTokens, so without this it streams until the PROVIDER's
+        // cap fires (live 12.08.2026: 32.826 chars over 263s). Cut it here, keep
+        // the healthy prefix, and let the caller's finishReason handling take
+        // over (split: silent retry; unified: completion replace).
+        if (degeneration.check(text)) {
+          // The guard's own cut: when the long-range detector fired it knows
+          // the exact offset where the repetition began. No backscan can
+          // reconstruct that once the spam changed shape mid-run — live
+          // 12.08.2026 it removed 1.800 of 45.711 chars for exactly that reason.
+          const cut = degeneration.cutAt(text);
+          log.warn(
+            `[Engine] repetitive degeneration detected after ${text.length} chars — aborting the stream, keeping ${cut}`
+          );
+          finishReason = DEGENERATE_FINISH_REASON;
+          // The kept prefix says it was cut. Both answer paths replace what the
+          // client shows with this string (unified always, split when the
+          // silent retry fails), so the note travels with the trim instead of
+          // the trim passing for a finished answer. A successful split retry
+          // discards this text wholesale — and with it the note, correctly.
+          const kept = text.slice(0, cut).trimEnd();
+          // ...but only when there is something to warn about. Removing a run
+          // of dashes leaves a COMPLETE answer, and "may be incomplete" under
+          // it would be a false alarm about a correct result.
+          const lost = cutLostContent(kept, text.slice(cut));
+          text = kept.length > 0 ? (lost ? `${kept}\n\n${DEGENERATION_NOTICE}` : kept) : '';
+          // Best-effort teardown so the upstream stops billing us for spam.
+          // swallow-ok: cleanup of an already-abandoned degenerate stream
+          void Promise.resolve(iterator.return?.()).catch(() => {});
+          break;
+        }
       } else if (part.type === 'finish') {
         finishReason = part.finishReason ?? null;
       }
@@ -840,7 +951,13 @@ async function drain(
   // provider's own), `content-filter`, `error` or `other`. Previously only
   // `length` was checked, so an abnormally terminated stream was persisted and
   // shipped as a finished answer with nothing in the logs to say otherwise.
-  if (finishReason != null && finishReason !== 'stop' && finishReason !== 'tool-calls') {
+  // Degeneration has its own log line above.
+  if (
+    finishReason != null &&
+    finishReason !== 'stop' &&
+    finishReason !== 'tool-calls' &&
+    finishReason !== DEGENERATE_FINISH_REASON
+  ) {
     log.warn(
       `[Engine] stream ended with finishReason=${finishReason} after ${text.length} chars — the answer is likely truncated`
     );

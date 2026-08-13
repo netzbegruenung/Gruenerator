@@ -289,6 +289,125 @@ export function looksCutOff(text: string): boolean {
 }
 
 /**
+ * The chat-template control tokens with which the open-weight models wrap a
+ * tool call. They are protocol, never content: the SDK parses real ones out of
+ * the stream long before the text reaches here, so an occurrence in the answer
+ * text is always an imitation the model typed as prose.
+ *
+ * Live 13.08.2026, four turns in a row: the split writer runs WITHOUT tools but
+ * WITH the gather phase's tool transcript in its context, and opened three of
+ * four answers with a bare `<tool_call>` before writing perfectly good German.
+ * The existing guards all missed it — `looksLikeToolPlanLeak` only fires when
+ * the WHOLE answer is short and plan-shaped, and here the answer was 1.866
+ * correct characters behind one stray token.
+ *
+ * Deleted, not retried: everything after it was fine, and re-rolling a good
+ * answer over one token would cost the user a second wait for no gain.
+ */
+const CONTROL_TOKEN_RE =
+  /<\/?(?:tool_call|tool_calls|tool_response|tool_result|function_call|\|?(?:tool_calls|im_start|im_end)\|?)>/gi;
+
+/**
+ * Strip those tokens — outside fenced code only.
+ *
+ * The fence exception is the whole reason this is not a bare `.replace()`: "wie
+ * sieht ein tool_call im Chat-Template aus?" is a legitimate question about this
+ * product, and its answer shows the token inside a fence. Odd-indexed segments
+ * of a ```-split ARE the fenced bodies, so they pass through untouched.
+ */
+export function stripToolControlTokens(text: string): string {
+  if (typeof text !== 'string' || text.length === 0) return text ?? '';
+  CONTROL_TOKEN_RE.lastIndex = 0;
+  if (!CONTROL_TOKEN_RE.test(text)) return text;
+  return text
+    .split('```')
+    .map((segment, i) => (i % 2 === 0 ? segment.replace(CONTROL_TOKEN_RE, '') : segment))
+    .join('```');
+}
+
+/** Das längste Token oben (`<tool_response>`, `<function_call>`) misst 15 Zeichen. */
+const MAX_CONTROL_TOKEN_CHARS = 15;
+
+/**
+ * Dieselbe Säuberung, aber über einen Strom aus Teilstücken.
+ *
+ * `stripToolControlTokens` bekam den ganzen Text und war deshalb nur dort
+ * anwendbar, wo einer vorliegt: auf dem gesammelten Ergebnis und im 200-Zeichen-
+ * Haltefenster des Antwort-Gitters. Der Kommentar dort behauptete, das Token
+ * komme „immer als Erstes, vor jeder Prosa" — eine Annahme, keine Messung.
+ * Gemessen am 13.08.2026: Turn 1 lief mit einem Werkzeugschritt, und das Token
+ * erschien erneut, obwohl der Filter ausgeliefert war. Sobald das Gitter offen
+ * ist, geht jedes Delta ungeprüft durch.
+ *
+ * Zwei Dinge kann ein Stück-für-Stück-Filter nicht naiv: ein Token kann über die
+ * Grenze zweier Deltas zerfallen (`<tool` + `_call>`), und die Ausnahme für
+ * Code-Zäune braucht Gedächtnis über Stücke hinweg. Deshalb hält dieser Filter
+ * die letzten {@link MAX_CONTROL_TOKEN_CHARS} Zeichen zurück, bis mehr kommt
+ * (die Verzögerung ist eine Bildschirmbreite), und trägt die Zaun-Tiefe mit.
+ */
+export function createControlTokenFilter(): {
+  push: (chunk: string) => string;
+  flush: () => string;
+} {
+  let carry = '';
+  let insideFence = false;
+
+  const scrub = (text: string): string => {
+    let out = '';
+    let rest = text;
+    for (;;) {
+      const at = rest.indexOf('```');
+      if (at === -1) {
+        out += insideFence ? rest : rest.replace(CONTROL_TOKEN_RE, '');
+        return out;
+      }
+      const head = rest.slice(0, at);
+      out += insideFence ? head : head.replace(CONTROL_TOKEN_RE, '');
+      out += '```';
+      insideFence = !insideFence;
+      rest = rest.slice(at + 3);
+    }
+  };
+
+  return {
+    push(chunk) {
+      if (typeof chunk !== 'string' || chunk.length === 0) return '';
+      const combined = carry + chunk;
+
+      // Zurückgehalten wird, was ANGEFANGEN aussieht — nicht eine feste Länge.
+      // Eine feste Länge zerschnitt ein bereits vollständiges Token beim
+      // nächsten Stück wieder (`<tool_call>` landete im Rest, die Hälfte davon
+      // ging beim übernächsten Push raus). Ein Test hat das gefangen.
+      let cut = combined.length;
+
+      // Ein `<` ohne schließendes `>` in Reichweite: kann der Anfang sein.
+      const lt = combined.lastIndexOf('<');
+      if (
+        lt !== -1 &&
+        combined.indexOf('>', lt) === -1 &&
+        combined.length - lt < MAX_CONTROL_TOKEN_CHARS
+      ) {
+        cut = lt;
+      }
+
+      // Ein bis zwei Backticks am Ende: könnte ein angefangener Zaun sein, und
+      // die Zaun-Ausnahme entscheidet, ob überhaupt gesäubert wird.
+      let ticks = 0;
+      while (ticks < 3 && combined[combined.length - 1 - ticks] === '`') ticks++;
+      if (ticks > 0 && ticks < 3) cut = Math.min(cut, combined.length - ticks);
+
+      carry = combined.slice(cut);
+      return scrub(combined.slice(0, cut));
+    },
+    flush() {
+      const out = scrub(carry);
+      carry = '';
+      return out;
+    },
+  };
+}
+
+/**
  * Whether generated user-facing text is actually a leaked TOOL CALL.
  *
  * Live: a request to look up a number and post it produced the 93-character

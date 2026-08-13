@@ -167,6 +167,7 @@ import {
   persistSourcesOnFailure,
   touchThread,
 } from './services/threadPersistenceService.js';
+import { turnMaterialChars } from './services/turnMaterial.js';
 
 import type { ChatGraphState, CreatedDocument } from '../../agents/langgraph/ChatGraph/types.js';
 import type { ModelMessage } from 'ai';
@@ -2066,6 +2067,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               hasImages: imageAttachments.length > 0,
               intent: finalState.intent,
               ...(finalState.taskShape != null && { taskShape: finalState.taskShape }),
+              materialChars: turnMaterialChars(finalState),
               agentId: finalState.agentConfig.identifier,
               // Measured BEFORE pruning on purpose: the question is "does this
               // turn need a bigger lane", and pruning is exactly the loss we

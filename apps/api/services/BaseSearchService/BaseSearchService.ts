@@ -474,6 +474,7 @@ export class BaseSearchService {
             normQuery && tc.has_term
               ? extractMatchedExcerpt(tc.text, query, contentConfig.maxExcerptLength)
               : this.extractRelevantExcerpt(tc.text),
+          text: tc.text,
         })),
         chunk_count: doc.chunks.length,
         relevance_info: this.buildRelevanceInfo(doc, enhancedScore),
@@ -883,6 +884,7 @@ export class BaseSearchService {
             normQuery && tc.has_term
               ? extractMatchedExcerpt(tc.text, query, contentConfig.maxExcerptLength)
               : this.extractRelevantExcerpt(tc.text),
+          text: tc.text,
         })),
         chunk_count: doc.chunks.length,
         search_methods: searchMethods,
@@ -1127,6 +1129,7 @@ export class BaseSearchService {
           page_number: tc.page_number ?? null,
           quality_score: typeof tc.quality_score === 'number' ? tc.quality_score : null,
           preview: BaseSearchService.extractExcerpt(tc.text, 300),
+          text: tc.text,
         })),
         chunk_count: doc.chunks.length,
         relevance_info: `Found ${doc.chunks.length} relevant sections in "${doc.title}"`,

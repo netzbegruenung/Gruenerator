@@ -297,13 +297,38 @@ export interface AutoSelectionInput {
    * and ignored line counts.
    */
   taskShape?: TaskShape | null | undefined;
+  /**
+   * Characters of MATERIAL the turn carries — this turn's upload plus every
+   * document carried over from earlier turns (`turnMaterialChars`). Above
+   * MATERIAL_LANE_MIN_CHARS the turn is work ON a text, not a question about
+   * the world, and takes the precise lane with reasoning on.
+   *
+   * The signal `taskShape` cannot be: a format contract has to be *phrased*, so
+   * detecting it means guessing at wordings, and a detector only ever knows the
+   * formulations it was built against. A carried document has a length no
+   * matter how its owner writes.
+   */
+  materialChars?: number | null | undefined;
 }
+
+/**
+ * Above this much carried material the turn counts as document work.
+ *
+ * Same magnitude as INLINE_MATERIAL_MIN_CHARS in streamContext.ts, and for the
+ * same reason: that is where a paste stops being a sentence and starts being a
+ * document worth persisting. Not imported across the layer boundary — the
+ * policy must stay testable without the request pipeline — but the two are
+ * meant to move together.
+ */
+export const MATERIAL_LANE_MIN_CHARS = 3_000;
 
 /**
  * Resolve `auto` to a concrete lane + reasoning strength.
  *
  * Order: surface pin → table lookup by intent → complexity grading → agent
- * hint override → task-shape override (both on the neutral intents only).
+ * hint override → task-shape override → material override (the last three on
+ * the neutral intents only). The material override runs last because it is the
+ * only one that also raises reasoning.
  */
 export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
   const intent = input.intent ?? 'produktion';
@@ -340,7 +365,26 @@ export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
     modelId = MEDIUM;
   }
 
-  return { modelId, reasoning: gradeReasoning(entry.reasoning, complexity) };
+  let reasoning = gradeReasoning(entry.reasoning, complexity);
+
+  // A turn that carries a document is work ON that text, and the work is
+  // almost always comparison: translate it, check it, map it against itself.
+  // Measured 13.08.2026 on exactly such a thread — four turns, all
+  // `complexity=complex`, all graded `reasoning=low` because `agentic` carries
+  // a flat 'low' that no complexity staffing touches. The model then rated
+  // eight of eight paragraphs "vollständig", missed a modality shift ("kann
+  // günstiger machen" → "ist günstiger") and contradicted its own table one
+  // turn later. Reading two long texts against each other without thinking is
+  // what that looks like.
+  //
+  // Lifts reasoning only, never lowers it: an intent that already asks for more
+  // keeps what it asks for.
+  if ((input.materialChars ?? 0) >= MATERIAL_LANE_MIN_CHARS && HINT_OVERRIDABLE.has(intent)) {
+    modelId = MEDIUM;
+    if (reasoning === 'off' || reasoning === 'low') reasoning = 'medium';
+  }
+
+  return { modelId, reasoning };
 }
 
 /**

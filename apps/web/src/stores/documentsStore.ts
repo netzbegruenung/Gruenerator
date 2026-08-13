@@ -34,7 +34,18 @@ interface DocumentStatusResponse {
     vectorCount?: number;
     processingStage?: 'extracting' | 'chunking' | 'upserting' | null;
     processingProgress?: { stage: string; current: number; total: number } | null;
+    /** Why processing failed — only set for status='failed'. */
+    error?: string | null;
   };
+}
+
+/**
+ * Terminal state of a poll. Carries the failure reason so the caller can name
+ * it; a bare status left the upload UI unable to say anything at all.
+ */
+export interface DocumentPollResult {
+  status: DocumentStatus;
+  error: string | null;
 }
 
 interface DocumentDeleteResponse {
@@ -171,7 +182,7 @@ interface DocumentsActions {
   pollDocumentStatus: (
     documentId: string,
     onStatusChange?: (status: DocumentStatus) => void
-  ) => Promise<DocumentStatus>;
+  ) => Promise<DocumentPollResult>;
   crawlUrl: (url: string, title: string, groupId?: string | null) => Promise<Document>;
   deleteDocument: (documentId: string) => Promise<boolean>;
   searchDocuments: (query: string, options?: SearchOptions) => Promise<SearchResult[]>;
@@ -422,7 +433,7 @@ export const useDocumentsStore = create<DocumentsStore>()(
         const STUCK_UPLOADED_TIMEOUT_MS = 30_000;
         const startedAt = Date.now();
 
-        const poll = (): Promise<DocumentStatus> =>
+        const poll = (): Promise<DocumentPollResult> =>
           new Promise((resolve, reject) => {
             const interval = setInterval(async () => {
               try {
@@ -431,6 +442,7 @@ export const useDocumentsStore = create<DocumentsStore>()(
                 );
                 const status = (response.data?.data?.status ?? 'pending') as DocumentStatus;
                 const vectorCount = response.data?.data?.vectorCount ?? 0;
+                const error = response.data?.data?.error ?? null;
                 console.debug('[notebook-upload] poll', { documentId, status, vectorCount });
 
                 if (onStatusChange) onStatusChange(status);
@@ -443,7 +455,7 @@ export const useDocumentsStore = create<DocumentsStore>()(
                 const isQueryable = status === 'completed' && vectorCount > 0;
                 if (isQueryable || status === 'failed') {
                   clearInterval(interval);
-                  resolve(status);
+                  resolve({ status, error });
                   return;
                 }
 
@@ -452,7 +464,7 @@ export const useDocumentsStore = create<DocumentsStore>()(
                     `[notebook-upload] doc ${documentId} stuck in 'uploaded' >${STUCK_UPLOADED_TIMEOUT_MS}ms — releasing spinner`
                   );
                   clearInterval(interval);
-                  resolve(status);
+                  resolve({ status, error });
                 }
               } catch {
                 clearInterval(interval);

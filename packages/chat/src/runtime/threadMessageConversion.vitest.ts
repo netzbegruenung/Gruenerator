@@ -1,11 +1,13 @@
 import { describe, it, expect } from 'vitest';
 
+import { ATTACHMENT_META_PART_NAME } from '../lib/attachmentMeta';
+import { PASTED_TEXT_ATTACHMENT_NAME, PASTED_TEXT_PREVIEW_PART_NAME } from '../lib/pastedText';
+
 import {
   convertToThreadMessageLike,
   PASSTHROUGH_METADATA_FIELDS,
   type LoadedMessage,
 } from './threadMessageConversion';
-import { PASTED_TEXT_ATTACHMENT_NAME, PASTED_TEXT_PREVIEW_PART_NAME } from '../lib/pastedText';
 
 // Regression guard for the live⇄reload contract: rich content that renders live
 // (via SSE, onto `custom.*`) must be reconstructable from persisted metadata so a
@@ -80,6 +82,85 @@ describe('convertToThreadMessageLike — reload reconstruction', () => {
       name: PASTED_TEXT_PREVIEW_PART_NAME,
       data: { text: 'Erster Absatz aus dem eingefügten Text.', truncated: false },
     });
+  });
+
+  it('rehydrates uploaded files as metadata chips (size, page count, preview)', () => {
+    const [message] = convertToThreadMessageLike([
+      {
+        id: 'm-file',
+        role: 'user',
+        content: 'Was steht in dem PDF?',
+        attachments: [
+          {
+            id: 'a-pdf',
+            name: 'migration-0.14.pdf',
+            contentType: 'application/pdf',
+            preview: 'Kapitel 1: Breaking Changes …',
+            truncated: true,
+            size: 1258291,
+            pageCount: 14,
+          },
+          {
+            id: 'a-img',
+            name: 'composer-regression.png',
+            contentType: 'image/png',
+            preview: '',
+            truncated: false,
+            size: 421888,
+          },
+        ],
+      },
+    ]);
+
+    const attachments = (
+      message as {
+        attachments?: Array<{ type: string; content: Array<{ name?: string; data?: unknown }> }>;
+      }
+    ).attachments;
+    expect(attachments).toHaveLength(2);
+    expect(attachments?.[0]?.type).toBe('document');
+    expect(attachments?.[0]?.content[0]).toEqual({
+      type: 'data',
+      name: ATTACHMENT_META_PART_NAME,
+      data: {
+        size: 1258291,
+        pageCount: 14,
+        preview: 'Kapitel 1: Breaking Changes …',
+        truncated: true,
+      },
+    });
+    // Images come back as metadata-only chips too — bytes are not persisted,
+    // and an empty preview must not produce a preview dialog.
+    expect(attachments?.[1]?.type).toBe('image');
+    expect(attachments?.[1]?.content[0]).toEqual({
+      type: 'data',
+      name: ATTACHMENT_META_PART_NAME,
+      data: { size: 421888 },
+    });
+  });
+
+  it('tolerates legacy attachment rows without size/pageCount', () => {
+    const [message] = convertToThreadMessageLike([
+      {
+        id: 'm-legacy',
+        role: 'user',
+        content: 'Alt',
+        attachments: [
+          {
+            id: 'a-old',
+            name: 'alt.docx',
+            contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            preview: '',
+            truncated: false,
+          },
+        ],
+      },
+    ]);
+
+    const attachments = (message as { attachments?: Array<{ content: Array<{ data?: unknown }> }> })
+      .attachments;
+    expect(attachments).toHaveLength(1);
+    expect(attachments?.[0]?.content[0]?.data).toEqual({});
   });
 
   it.each(PASSTHROUGH_METADATA_FIELDS)(
@@ -338,6 +419,22 @@ describe('convertToThreadMessageLike — reload reconstruction', () => {
   it('emits no custom metadata for a bare message (nothing to rehydrate)', () => {
     const [msg] = convertToThreadMessageLike([{ id: 'm1', role: 'assistant', content: 'hi' }]);
     expect(msg?.metadata).toBeUndefined();
+  });
+
+  it('carries the persisted timestamp as a Date (day separators need it on reload)', () => {
+    const [msg] = convertToThreadMessageLike([
+      { id: 'm1', role: 'assistant', content: 'hi', createdAt: '2026-08-01T09:30:00.000Z' },
+    ]);
+    expect(msg?.createdAt).toEqual(new Date('2026-08-01T09:30:00.000Z'));
+  });
+
+  it('omits createdAt when the persisted value is missing or unparsable', () => {
+    const [bare, broken] = convertToThreadMessageLike([
+      { id: 'm1', role: 'assistant', content: 'hi' },
+      { id: 'm2', role: 'assistant', content: 'ho', createdAt: 'not-a-date' },
+    ]);
+    expect(bare?.createdAt).toBeUndefined();
+    expect(broken?.createdAt).toBeUndefined();
   });
 });
 

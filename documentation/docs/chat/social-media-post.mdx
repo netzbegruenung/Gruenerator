@@ -2,6 +2,8 @@
 sidebar_position: 3
 ---
 
+import { SharepicVariantTable } from '@site/src/components/ChatTables';
+
 # Social-Media-Post erstellen
 
 Du kannst dir im [KI-Chat](./ki-chat.mdx) einen kompletten Social-Media-Post in einem Schritt erstellen lassen: **Posttext und passende Sharepic-Grafik zusammen**, in einer Karte.
@@ -26,7 +28,7 @@ Der Grünerator erzeugt daraufhin eine Karte mit:
 - **Variante wählen:** Klicke eine der drei Miniaturen an, um die Vorschau umzuschalten.
 - **Text kopieren:** Über das Kopieren-Symbol übernimmst du die Caption direkt in die Zwischenablage.
 - **Herunterladen:** Lädt die gewählte Sharepic-Variante als Bild herunter.
-- **Im Studio öffnen:** Öffnet die Grafik im [Sharepic-Studio](./ki-chat.mdx), wo du Text, Farben und Layout weiter anpassen kannst.
+- **Im Studio öffnen:** Öffnet die Grafik im [Sharepic-Studio](../ueber-den-gruenerator/tools), wo du Text, Farben und Layout weiter anpassen kannst.
 - **Im Chat bearbeiten:** Beschreibe Änderungen einfach als Nachricht (z. B. „mach den Zitat-Text kürzer" oder „anderer Hintergrund") — der Grünerator passt Text oder Grafik direkt an.
 
 :::tip[Kanal wählen]
@@ -35,19 +37,14 @@ Nenne den Kanal in deiner Anfrage (Instagram, Facebook, LinkedIn …), damit Ton
 
 ## Grafik-Variante gezielt anfragen
 
-Ohne weitere Angabe bekommst du die drei Varianten **Dreizeiler**, **Zitat** und **Info** zur Auswahl. Du kannst aber auch direkt eine bestimmte Variante anfragen — nenne sie einfach im Text:
+Ohne weitere Angabe bekommst du die Standard-Varianten zur Auswahl. Du kannst aber auch direkt eine bestimmte Variante anfragen — nenne einfach eines der Stichwörter im Text. Die Tabelle wird direkt aus dem Code erzeugt und zeigt genau die Stichwörter, auf die der Chat tatsächlich reagiert:
 
-| Variante               | Stichwörter                                           |
-| ---------------------- | ----------------------------------------------------- |
-| **Dreizeiler**         | „Dreizeiler", „3 Zeilen", „Slogan", „Balken"          |
-| **Zitat**              | „Zitat", „Spruch", „Statement", „Aussage"             |
-| **Info**               | „Info", „Fakten", „Faktencheck", „erklär…"            |
-| **Slider / Karussell** | „Slider", „Karussell", „Carousel", „Slides", „Folien" |
+<SharepicVariantTable />
 
 Beispiel: _„Erstelle ein Zitat-Sharepic zu Artenschutz"_ liefert direkt die Zitat-Variante.
 
 :::note[Karussell / Slider]
-Ein **Slider** (mehrseitiges Insta-Karussell) ist ein eigenständiges Format und wird nur auf ausdrückliche Anfrage erzeugt — nicht als Teil der drei Standard-Varianten. Frag ihn z. B. mit _„… als Karussell"_ an.
+Ein **Slider** (mehrseitiges Insta-Karussell) ist ein eigenständiges Format und wird nur auf ausdrückliche Anfrage erzeugt — nicht als Teil der Standard-Varianten. Frag ihn z. B. mit _„… als Karussell"_ an.
 :::
 
 ## Gut zu wissen
