@@ -49,6 +49,13 @@ import { query } from '@anthropic-ai/claude-agent-sdk';
 import { jsonrepair } from 'jsonrepair';
 import { z } from 'zod';
 
+import {
+  AREA_HINTS,
+  foldersForChangedFiles,
+  README_FOLDER,
+  SCOPE_FOLDERS,
+  TOURS_FOLDER,
+} from './docsFreshnessAreas.js';
 import { neutralizeGithubMentions } from './utils/githubMentions.js';
 import { parallelLimit } from './utils/parallelLimit.js';
 
@@ -56,66 +63,14 @@ import { parallelLimit } from './utils/parallelLimit.js';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, '../..');
 const DOCS_ROOT = path.join(REPO_ROOT, 'documentation', 'docs');
-// In-app product tours audited as pseudo-docs under the virtual folder
-// "touren/": the step titles/descriptions are UI claims exactly like doc
-// prose, they just live in TS modules instead of markdown.
+// TOURS_FOLDER / README_FOLDER (the virtual folders these two pseudo-doc
+// sources are audited under) live in docsFreshnessAreas.ts — they are keys of
+// AREA_HINTS.
 const TOURS_ROOT = path.join(REPO_ROOT, 'apps', 'web', 'src', 'features', 'tours');
-const TOURS_FOLDER = 'touren';
-// The repo-root README is audited as a pseudo-doc under the virtual folder
-// "readme/": its feature list, workspace tables, command list and provider
-// claims drift against the code exactly like doc prose does.
-const README_FOLDER = 'readme';
 const README_DOC = `${README_FOLDER}/README.md`;
 const README_PATH = path.join(REPO_ROOT, 'README.md');
 
-// ── Scope ───────────────────────────────────────────────────────────────────
-// Feature/tutorial docs only — folders that describe the app UI. Content archives
-// (archiv, intern) and concept docs (grundlagen) are intentionally excluded: they
-// have nothing to verify against code.
-const SCOPE_FOLDERS = [
-  'ueber-den-gruenerator',
-  'chat',
-  'office',
-  'wissen',
-  'grueneratoren',
-  'konto',
-  'integrationen',
-  'experimente',
-] as const;
-
-// Optional hints (doc folder → likely source dirs) to focus the agent's search and
-// cut token use. Non-essential; the agent can grep without them.
-const AREA_HINTS: Record<string, string> = {
-  // "Was kann ich fragen?" is verified against the chat's own registries, so the
-  // backend classifier/router dirs count as source for this folder too.
-  chat: 'packages/chat, apps/web/src/features/chat, apps/web/src/features/models, apps/api/routes/chat, apps/api/agents/langgraph/ChatGraph, packages/contracts/src/schemas',
-  grueneratoren: 'apps/web/src/features/agents, apps/web/src/features/agentura, packages/chat',
-  wissen: 'apps/web/src/features/notebook',
-  experimente: 'apps/web/src/features/monitor',
-  konto:
-    'apps/web/src/features/wolke, apps/web/src/features/user-defaults, apps/web/src/features/groups, apps/web/src/features/settings',
-  integrationen: 'apps/web/src/features/connections, apps/api/routes/mcp-server',
-  // The Office articles describe four editors that share one document model, so
-  // the hint spans the feature dirs, their packages and the contracts the
-  // generated manifest reads. Without this entry no Office code change would
-  // ever trigger a docs check — AREA_HINTS is also the reverse map used by
-  // docs-freshness-pr.yml.
-  office:
-    'apps/web/src/features/docs, apps/web/src/features/sheets, apps/web/src/features/presentations, apps/web/src/features/boards, packages/sheets, packages/presentations, packages/docs, packages/chat/src/editor-surface, packages/contracts/src/schemas',
-  // Every surface a tour steps through, plus the tour modules themselves —
-  // so a PR touching a toured surface re-audits the tour texts (the anchor
-  // EXISTENCE check is deterministic: scripts/check-tour-anchors.mjs).
-  [TOURS_FOLDER]:
-    'apps/web/src/features/tours, apps/web/src/features/workplace, apps/web/src/components/layout/Sidebar, apps/web/src/features/docs, apps/web/src/features/sheets, apps/web/src/features/presentations, apps/web/src/features/image-studio, packages/canvas-editor, packages/presentations',
-  // Renamed twice (Gruppen → Spaces → Projekte); the code still says "groups"
-  // throughout, so the hint points at the old names on purpose.
-  // README claims are structural (workspace layout, commands, AI providers,
-  // env vars), so the reverse map triggers on structural files — a bare
-  // "package.json" prefix only matches the root manifest since changed paths
-  // are repo-relative.
-  [README_FOLDER]:
-    'pnpm-workspace.yaml, package.json, turbo.json, .env.example, apps/api/workers/providers, apps/api/services/ai',
-};
+// SCOPE_FOLDERS and AREA_HINTS: see docsFreshnessAreas.ts.
 
 const DEFAULT_MODEL = process.env.DOCS_CHECK_MODEL || 'claude-sonnet-5';
 
@@ -267,24 +222,6 @@ function docSourcePath(docPath: string): string {
   }
   if (docPath === README_DOC) return 'README.md';
   return `documentation/docs/${docPath}`;
-}
-
-// Reverse of AREA_HINTS: given the source files a PR changed, which doc folders
-// could be affected. Coarse (folder-level) on purpose — each folder holds only a
-// few docs, and the AI audit filters false positives downstream. Folders without
-// an AREA_HINTS entry (intro/signal docs) are never triggered by a source change.
-function foldersForChangedFiles(changedFiles: string[]): string[] {
-  const affected = new Set<string>();
-  for (const [folder, dirsCsv] of Object.entries(AREA_HINTS)) {
-    const prefixes = dirsCsv
-      .split(',')
-      .map((d) => d.trim())
-      .filter(Boolean);
-    if (changedFiles.some((f) => prefixes.some((p) => f.startsWith(p)))) {
-      affected.add(folder);
-    }
-  }
-  return [...affected];
 }
 
 function docsForChangedFiles(changedFilesPath: string): string[] {
