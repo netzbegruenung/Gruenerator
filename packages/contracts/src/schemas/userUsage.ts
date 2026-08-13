@@ -102,6 +102,17 @@ export const usageFootprintSchema = z.object({
    */
   market_emissions_g: z.number(),
   /**
+   * The image half of `market_emissions_g`, so a consumer can isolate the TEXT
+   * side of either method. Necessary rather than convenient: image lanes differ
+   * in whether they have an instrument at all — Regolo serves Qwen-Image from
+   * Seeweb's certified supply (market-based 0), Black Forest Labs sits behind
+   * Azure Front Door with no locatable region (market == location). Subtracting
+   * `image_emissions_g` from `market_emissions_g` therefore over-subtracts
+   * exactly the Regolo images and makes the market-based text side look better
+   * than it is.
+   */
+  image_market_emissions_g: z.number(),
+  /**
    * 0..1 — share of the counted energy whose provider actually has a named
    * instrument. At 1 the whole range rests on documented contracts; below 1 the
    * remainder simply carries its location factor into both ends, so the range

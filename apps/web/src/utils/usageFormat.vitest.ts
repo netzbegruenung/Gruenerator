@@ -66,6 +66,7 @@ describe('referenceComparison', () => {
     // No green-power instrument by default, so both methods coincide and the
     // corridor is pure reference uncertainty — the pre-14.08.2026 behaviour.
     market_emissions_g: 100,
+    image_market_emissions_g: 20,
     market_backed_share: 0,
   };
 
@@ -82,7 +83,12 @@ describe('referenceComparison', () => {
 
   it('widens the favourable end to the market-based figure, not the headline', () => {
     // 60 g of the 100 are location-only; market-based our text side is 30-20=10.
-    const r = referenceComparison({ ...base, market_emissions_g: 30, market_backed_share: 1 });
+    const r = referenceComparison({
+      ...base,
+      market_emissions_g: 30,
+      image_market_emissions_g: 20,
+      market_backed_share: 1,
+    });
     expect(r.marketDiffers).toBe(true);
     // Headline is unchanged — the market number must never move the main figure.
     expect(r.magnitude).toBe(120);
@@ -105,6 +111,7 @@ describe('referenceComparison', () => {
       reference_emissions_g: 370.91,
       reference_energy_wh: 1059.74,
       market_emissions_g: 127.89,
+      image_market_emissions_g: 127.89,
       market_backed_share: 0.87,
     });
     expect(r.saved).toBe(false);
@@ -118,8 +125,32 @@ describe('referenceComparison', () => {
   it('ignores a market figure that has no instrument behind it', () => {
     // market_backed_share 0 means the lanes fell through to their location
     // factor; a lower number there would be a bug, and must not widen anything.
-    const r = referenceComparison({ ...base, market_emissions_g: 30, market_backed_share: 0 });
+    const r = referenceComparison({
+      ...base,
+      market_emissions_g: 30,
+      image_market_emissions_g: 20,
+      market_backed_share: 0,
+    });
     expect(r.marketDiffers).toBe(false);
+  });
+
+  it('subtracts the MARKET image half, not the location one', () => {
+    // Regression: Regolo serves Qwen-Image from the same certified datacenter
+    // as its text lanes, so its market-based image emissions are 0 while the
+    // location-based ones are not. Subtracting `image_emissions_g` here (the
+    // first cut of this feature) removed those twice and understated our
+    // market-based text side, making the favourable end too optimistic.
+    //
+    // Location: 100 total, 20 of it images -> 80 g text.
+    // Market:   30 total, 0 of it images (Regolo) -> 30 g text, NOT 10.
+    const r = referenceComparison({
+      ...base,
+      market_emissions_g: 30,
+      image_market_emissions_g: 0,
+      market_backed_share: 1,
+    });
+    expect(r.textMarketEmissions).toBe(30);
+    expect(r.best).toBeCloseTo(230); // 200*1.3 - 30, not 250
   });
 
   it('phrases a one-sided corridor without the straddle wording', () => {
@@ -149,6 +180,7 @@ describe('referenceComparison', () => {
       reference_emissions_g: 0,
       reference_energy_wh: 0,
       market_emissions_g: 20,
+      image_market_emissions_g: 20,
       market_backed_share: 0,
     });
     expect(r.hasComparison).toBe(false);

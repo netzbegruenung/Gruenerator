@@ -178,6 +178,7 @@ export interface ReferenceComparisonInput {
   reference_emissions_g: number;
   reference_energy_wh: number;
   market_emissions_g: number;
+  image_market_emissions_g: number;
   market_backed_share: number;
 }
 
@@ -235,10 +236,15 @@ export function referenceComparison(
 ): ReferenceComparisonResult {
   const textEmissions = footprint.emissions_g - footprint.image_emissions_g;
   const textEnergy = footprint.energy_wh - footprint.image_energy_wh;
-  // Images carry no market instrument (region unknown), so the image half is
-  // identical under both methods and subtracting it here is safe.
+  // Subtract the image half of the MARKET total, not the location one. The two
+  // differ whenever images ran on a lane that has an instrument: Regolo serves
+  // Qwen-Image from Seeweb's certified supply, so its market-based image
+  // emissions are 0 while the location-based ones are not. Using
+  // `image_emissions_g` here over-subtracted exactly those, understating the
+  // market-based text side and making the favourable end of the corridor look
+  // better than it is. Only Black Forest Labs has no instrument.
   const textMarketEmissions = Math.max(
-    footprint.market_emissions_g - footprint.image_emissions_g,
+    footprint.market_emissions_g - footprint.image_market_emissions_g,
     0
   );
   const difference = footprint.reference_emissions_g - textEmissions;
