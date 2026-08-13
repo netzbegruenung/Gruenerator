@@ -1,4 +1,5 @@
 import { type UserRole } from '@gruenerator/chat';
+import { landesverbandOfferForBundesland } from '@gruenerator/shared/agents';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { getInstance } from '@gruenerator/shared/instances';
 import {
@@ -176,12 +177,8 @@ export default function RolesSection() {
   const bundeslaender = isAustrian ? AT_BUNDESLAENDER : DE_BUNDESLAENDER;
 
   // Die Combobox filtert die Einträge selbst; sie bekommt deshalb die Namen und
-  // nicht die Konfiguration. Welche davon ein Notebook haben, steht daneben.
+  // nicht die Konfiguration.
   const bundeslandNamen = useMemo(() => bundeslaender.map((bl) => bl.label), [bundeslaender]);
-  const mitNotebook = useMemo(
-    () => new Set(bundeslaender.filter((bl) => bl.notebookId).map((bl) => bl.label)),
-    [bundeslaender]
-  );
 
   const [roles, setRoles] = useState<UserRole[]>(serverRoles ?? []);
   const seededRef = useRef(serverRoles !== undefined);
@@ -202,6 +199,30 @@ export default function RolesSection() {
   const [wizCustomRolle, setWizCustomRolle] = useState('');
   const [wizAbgeordnete, setWizAbgeordnete] = useState('');
   const [wizInstructions, setWizInstructions] = useState('');
+
+  /**
+   * Was ein Bundesland freischaltet — daneben in der Liste und noch einmal auf
+   * der Zusammenfassung. Vorher stand dort nur „● Notebook", was die eigentliche
+   * Wirkung der Rolle (Agenten und Rezepte des Landesverbands) verschwieg — und
+   * obendrein aus einer handgepflegten Liste kam, die für Hessen, Saarland und
+   * Sachsen-Anhalt gar nichts anzeigte.
+   *
+   * Nur auf der Ebene „Land": Kreis- und Ortsverbände geben zwar ein Bundesland
+   * an, bekommen aber keine LV-Zuteilung — ein Hinweis dort wäre ein
+   * Versprechen, das die Rolle nicht einlöst.
+   */
+  const angebotFuer = useCallback(
+    (label: string): string | null => {
+      if (wizEbene !== 'land') return null;
+      const offer = landesverbandOfferForBundesland(isAustrian ? 'Österreich' : label);
+      if (!offer) return null;
+      const teile = [`${offer.agents} Agenten`];
+      if (offer.skills > 0) teile.push(offer.skills === 1 ? '1 Rezept' : `${offer.skills} Rezepte`);
+      teile.push('Notizbuch');
+      return teile.join(' · ');
+    },
+    [wizEbene, isAustrian]
+  );
 
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -594,8 +615,8 @@ export default function RolesSection() {
                     {(name: string) => (
                       <ComboboxItem key={name} value={name}>
                         <span>{name}</span>
-                        {mitNotebook.has(name) && (
-                          <span className="text-xs text-grey-400">● Notebook</span>
+                        {angebotFuer(name) && (
+                          <span className="text-xs text-grey-400">● {angebotFuer(name)}</span>
                         )}
                       </ComboboxItem>
                     )}
@@ -640,6 +661,12 @@ export default function RolesSection() {
                 {ebenen.find((e) => e.id === wizEbene)?.label}
                 {wizBundesland ? ` · ${wizBundesland}` : ''}
                 {wizGliederung ? ` · ${wizGliederung}` : ''}
+              </p>
+            )}
+            {wizBundesland && angebotFuer(wizBundesland) && (
+              <p className="text-sm text-grey-500 -mt-sm">
+                Diese Rolle schaltet {angebotFuer(wizBundesland)} des Landesverbands{' '}
+                {isAustrian ? 'Österreich' : wizBundesland} frei.
               </p>
             )}
 
