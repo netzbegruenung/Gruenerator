@@ -329,9 +329,13 @@ export function routeMistralModel(
 export function isProviderConfigured(provider: string): boolean {
   switch (provider) {
     case 'mistral':
-      // Either upstream can serve the lane, so the lane is configured if
-      // EITHER key is present — a Scaleway-only deployment is valid.
-      return !!env.MISTRAL_API_KEY || !!env.SCALEWAY_API_KEY;
+      // A Scaleway-only deployment is valid ONLY while the routing is on —
+      // that is the whole of what makes Scaleway able to serve this lane. With
+      // the routing off, `routeMistralModel` sends everything to the Mistral
+      // API, so a Scaleway key says nothing about whether the lane can answer;
+      // reporting it configured would have every fallback chain pick a lane
+      // that then fails on a missing key.
+      return !!env.MISTRAL_API_KEY || isScalewayMistralRoutingEnabled();
     case 'scaleway':
       return !!env.SCALEWAY_API_KEY;
     case 'litellm':
