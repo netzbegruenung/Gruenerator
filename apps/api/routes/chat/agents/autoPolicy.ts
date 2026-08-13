@@ -34,6 +34,8 @@
 import { getSystemAgent } from '@gruenerator/shared/agents';
 import { type ChatIntentId } from '@gruenerator/shared/chat-intents';
 
+import { getPipelineAgent } from './pipelines/index.js';
+
 import type { SearchIntent } from '@gruenerator/contracts';
 
 /**
@@ -336,16 +338,55 @@ export interface AutoSelectionInput {
 export const MATERIAL_LANE_MIN_CHARS = 3_000;
 
 /**
+ * Die Lane für Schritt 1 eines Pipeline-Agenten (Einfache/Leichte Sprache).
+ *
+ * GEMMA statt MEDIUM, und das ist die Korrektur eines gemessenen Ausfalls:
+ * Am 13.08.2026 lief eine Übertragung von 5.838 Zeichen über die Material-Regel
+ * unten auf Mistral Medium 3.5 mit `reasoning: medium`. Mistrals Dial ist binär,
+ * also wurde daraus `reasoning_effort: 'high'`; das Modell dachte drei Minuten
+ * lang — inhaltlich brauchbar, aber stark wiederholend —, schrieb kein einziges
+ * Antwort-Token und starb an der Turn-Uhr. Der Nutzer verlor den ganzen Zug.
+ *
+ * Gemessen am selben Tag gegen api.regolo.ai, gleicher Prompt: gemma4-31b
+ * denkt ~2.500 Zeichen und ist nach 13 s fertig (ohne Denken 3,5 s) — eine
+ * Grössenordnung, die in jedes Budget passt. Das Denken bleibt AN, weil eine
+ * Übertragung Vergleichsarbeit ist; die Lane ist nur eine, die daran nicht
+ * stirbt.
+ *
+ * `medium` heisst hier ehrlich gelesen „an": low/medium/high liefern auf
+ * gemma4-31b 2533/2589/2412 Zeichen Reasoning, also Rauschen statt Stufen
+ * (Messtabelle in `services/ai/regoloReasoningStream.ts`). Der Wert steht
+ * trotzdem als `medium` da, weil er dieselbe Bedeutung auf jeder anderen Lane
+ * behält, falls diese Zeile je auf eine andere zeigt.
+ *
+ * Warum die Entscheidung HIER und nicht in der Pipeline-Registry steht: die
+ * Registry sagt ausdrücklich, dass sie keine Modellwahl deklariert (zwei Orte,
+ * die dasselbe entscheiden, driften). Lanes entscheidet diese Datei.
+ */
+const PIPELINE_LANE: AutoEntry = { modelId: GEMMA, reasoning: 'medium' };
+
+/**
  * Resolve `auto` to a concrete lane + reasoning strength.
  *
- * Order: surface pin → table lookup by intent → complexity grading → agent
- * hint override → task-shape override → material override (the last three on
- * the neutral intents only). The material override runs last because it is the
- * only one that also raises reasoning.
+ * Order: surface pin → pipeline pin → table lookup by intent → complexity
+ * grading → agent hint override → task-shape override → material override (the
+ * last three on the neutral intents only). The material override runs last
+ * because it is the only one that also raises reasoning.
  */
 export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
   const intent = input.intent ?? 'produktion';
   const complexity = input.complexity ?? 'simple';
+
+  // Vor allen Overrides: ein Pipeline-Agent hat seine Aufgabe schon
+  // festgelegt (`forceIntent: 'produktion'`, eigenes Material, eigene
+  // Prüfkette). Hint, taskShape und Material-Regel hätten hier nichts mehr zu
+  // entscheiden — sie würden nur die Lane wegdrehen, auf der die Kette misst.
+  if (input.agentId && getPipelineAgent(input.agentId)) {
+    return {
+      modelId: PIPELINE_LANE.modelId,
+      reasoning: gradeReasoning(PIPELINE_LANE.reasoning, complexity),
+    };
+  }
 
   if (input.surface === 'notebook') {
     return {
