@@ -117,47 +117,55 @@ const log = createLogger('AgenticRespond');
  * `loop` branch. `image` (generate) enters the loop only for attachment-free
  * turns — `image_edit` needs an attachment and the router gate excludes those.
  */
-const AGENTIC_INTENT_IDS = [
-  'search',
-  'web',
-  // `research` was excluded while it WAS a second engine: it called Linkup's
-  // `sourcedAnswer`, so Linkup wrote the prose and numbered its own citations,
-  // which could not be merged with the loop's `[N]` registry. That engine is
-  // gone (see searchNode's `case 'research'` and CATALOG_TOOLS, both of which
-  // were updated at the time) — research is now the same retrieval at a deeper
-  // tier, and the exclusion outlived its reason. Keeping it here cost a
-  // measured 3 sources in 31s against 10 in 15s for the identical question
-  // without the word "recherchiere": the single-pass path searched the user's
-  // sentence VERBATIM ("recherchiere im netz: wer war marilyn monroe"), then
-  // the reranker's diversity filter cut 9 hits to 3. So the intent that
-  // promises more delivered less.
-  //
-  // The dossier path is untouched: `@deepresearch`/`@recherche` set
-  // `forcedTool`, and the gate in `decideRunAgentic` keeps every forced turn
-  // single-pass. Compound and secondary-intent research turns keep their own
-  // kill-switches there too.
-  'research',
-  'examples',
-  'pressemitteilung_examples',
-  'compare',
+/**
+ * Was ÜBER die `loop`-Disposition hinaus in den Loop darf — und nur das steht
+ * hier noch von Hand.
+ *
+ * Die `loop`-Gruppe selbst wird abgeleitet (siehe `AGENTIC_INTENTS`), weil die
+ * eine Richtung ohnehin gelten MUSS: ein Intent, dessen Werkzeugwahl der Planer
+ * trifft, muss den Planer auch erreichen. Ein `loop`-Intent, der hier fehlte,
+ * würde ohne jede Recherche beantwortet. `dispositionSets.vitest.ts` hat genau
+ * das bisher als Test erzwungen — abgeleitet kann es gar nicht mehr eintreten.
+ *
+ * Diese vier sind die Gegenrichtung, die NICHT gilt, und deshalb bleiben sie
+ * ausgeschrieben: sie laufen IM Loop, aber ihr Verdikt muss vorher feststehen,
+ * weil es steuert, was dort montiert wird (`hilfe`/`summary`/`mcp` mounten ihr
+ * eigenes Domain-Tool über `buildChatToolCatalog`) bzw. weil es Geld kostet
+ * (`image`). Wer die Liste ändert, ändert eine Aussage.
+ *
+ * `image` (generate) betritt den Loop nur für anhanglose Turns — `image_edit`
+ * braucht einen Anhang, und das Router-Gate schliesst die aus.
+ *
+ * Historie, die sonst verloren ginge:
+ *  - `research` stand hier als AUSNAHME (ausgeschlossen), solange es eine zweite
+ *    Engine war: es rief Linkups `sourcedAnswer`, das seine eigenen Zitate
+ *    nummerierte und mit der `[N]`-Registry des Loops nicht zusammenging. Die
+ *    Engine ist weg; der Ausschluss kostete gemessen 3 Quellen in 31s gegen 10
+ *    in 15s für dieselbe Frage ohne das Wort „recherchiere". Heute trägt
+ *    `research` die `loop`-Disposition und kommt über die Ableitung.
+ *  - `bahn`/`reise`/`hotel`/`wetter`/`news` standen hier. Sie sind verwaltete
+ *    Connectoren und keine Intents mehr; was den Loop für sie öffnet, ist
+ *    `managedSourceKeys` (siehe `decideRunAgentic`), nicht diese Menge.
+ */
+const AGENTIC_EXTRA_IDS = [
   'mcp',
   'summary',
-  'bundestag',
-  'abgeordnetenwatch',
-  // `bahn`/`reise`/`hotel`/`wetter`/`news` were here. They are managed
-  // connectors now and no longer exist as intents — what opens the loop for them
-  // is `managedSourceKeys` (see decideRunAgentic), not membership in this set.
-  'umfragen',
   'hilfe',
   'image',
-  // Loop demotion (classifier Tier 3.5): low-confidence toolable turns that
-  // skipped the LLM classifier entirely.
-  'agentic',
 ] as const satisfies readonly ChatIntentId[];
 
-// Typed as ChatIntentId, not string: a typo or a renamed intent used to compile
-// here and simply never match at runtime.
-export const AGENTIC_INTENTS: ReadonlySet<ChatIntentId> = new Set(AGENTIC_INTENT_IDS);
+/**
+ * `loop`-Disposition + die vier Zusätze. Abgeleitet statt aufgezählt: ein neuer
+ * `loop`-Intent ist damit automatisch drin, statt dass ein Test daran erinnern
+ * muss.
+ *
+ * Typisiert als ChatIntentId, nicht string: ein Tippfehler oder ein umbenannter
+ * Intent kompilierte hier bisher und traf zur Laufzeit einfach nie.
+ */
+export const AGENTIC_INTENTS: ReadonlySet<ChatIntentId> = new Set([
+  ...intentsWithDisposition('loop'),
+  ...AGENTIC_EXTRA_IDS,
+]);
 
 /**
  * Intents, bei denen der Klassifikator die Recherche AUSDRÜCKLICH benannt hat.

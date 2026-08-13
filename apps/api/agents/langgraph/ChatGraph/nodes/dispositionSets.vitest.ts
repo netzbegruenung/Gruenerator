@@ -77,12 +77,17 @@ describe('abgeleitete Mengen', () => {
   });
 });
 
-describe('bewusst NICHT abgeleitet', () => {
-  it('AGENTIC_INTENTS enthält jede loop-Disposition', () => {
+describe('AGENTIC_INTENTS — halb abgeleitet, halb Aussage', () => {
+  it('enthält jede loop-Disposition — seit dem Schnitt per Konstruktion', () => {
     // Die eine Richtung, die gelten MUSS: ein Intent, dessen Werkzeugwahl der
     // Planer trifft, muss den Planer auch erreichen. Ein loop-Intent, der hier
-    // fehlt, würde ohne jede Recherche beantwortet — der Fehler, den die
+    // fehlte, würde ohne jede Recherche beantwortet — der Fehler, den die
     // Degrade-Versicherung in `decideRunAgentic` schon einmal auffangen musste.
+    //
+    // Diese Zusicherung war eine handgepflegte Liste gegen eine Ableitung; jetzt
+    // ist sie die Ableitung selbst und kann nicht mehr brechen. Der Test bleibt
+    // trotzdem stehen: er ist der Ort, an dem jemand liest, WARUM die Richtung
+    // gilt — und er wird wieder scharf, sobald jemand die Aufzählung zurückholt.
     for (const id of intentsWithDisposition('loop')) {
       expect(AGENTIC_INTENTS.has(id), `loop-Intent ${id} fehlt in AGENTIC_INTENTS`).toBe(true);
     }
