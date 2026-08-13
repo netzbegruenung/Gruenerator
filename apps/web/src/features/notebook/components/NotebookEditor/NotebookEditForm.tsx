@@ -29,6 +29,7 @@ export default function NotebookEditForm({ state }: NotebookEditFormProps) {
     isDragOver,
     uploadError,
     indexingDocIds,
+    failedDocs,
     loading,
     watchedName,
     fileInputRef,
@@ -95,6 +96,7 @@ export default function NotebookEditForm({ state }: NotebookEditFormProps) {
             documents={documentsWithSource}
             documentCount={documentCount}
             indexingDocIds={indexingDocIds}
+            failedDocs={failedDocs}
             loading={loading}
             onRemove={handleRemoveDocument}
             onRemoveMany={handleRemoveDocuments}

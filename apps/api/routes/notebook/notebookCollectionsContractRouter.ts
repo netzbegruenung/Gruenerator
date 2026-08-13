@@ -169,10 +169,25 @@ async function enrichNotebookCollection(
 
   let documents: DocumentRecord[] = [];
   if (documentIds.length > 0) {
-    documents = await postgres.query<DocumentRecord>(
-      'SELECT id, title, page_count, created_at, source_type, wolke_share_link_id FROM documents WHERE id = ANY($1)',
+    // `status` and the failure reason ride along so the editor can mark
+    // unreadable documents on open. `metadata` is read here but never returned:
+    // it also holds the on-disk filePath, which has no business leaving the
+    // server.
+    const rows = await postgres.query<DocumentRecord & { metadata?: unknown }>(
+      'SELECT id, title, page_count, created_at, source_type, wolke_share_link_id, status, metadata FROM documents WHERE id = ANY($1)',
       [documentIds]
     );
+    documents = rows.map(({ metadata, ...doc }) => {
+      const meta = (
+        typeof metadata === 'string'
+          ? (JSON.parse(metadata) as Record<string, unknown>)
+          : ((metadata ?? {}) as Record<string, unknown>)
+      ) as { processing_error?: unknown };
+      return {
+        ...doc,
+        processing_error: typeof meta.processing_error === 'string' ? meta.processing_error : null,
+      };
+    });
   }
 
   let wolke_share_links: WolkeShareLink[] = [];
