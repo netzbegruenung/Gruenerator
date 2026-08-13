@@ -327,4 +327,29 @@ describe('parseSSEStream progress steps', () => {
     expect(progress.steps.find((s) => s.stage === 'searching')?.status).toBe('completed');
     expect(progress.steps.find((s) => s.stage === 'generating')?.status).toBe('in-progress');
   });
+
+  it('holds the step open while a parallel sibling is still running', async () => {
+    // One model step may call two tools at once. The first result back must not
+    // declare the retrieval finished while the second is still in flight.
+    const outcome = { interrupted: false, indexedDocumentIds: [] as string[] };
+    let last: { metadata?: { custom?: Record<string, unknown> } } | undefined;
+    const events = [
+      { event: 'tool_step_start', data: { stepId: 's1', toolName: 'gruenerator_search' } },
+      { event: 'tool_step_start', data: { stepId: 's2', toolName: 'web_search' } },
+      {
+        event: 'tool_step_result',
+        data: { stepId: 's1', toolName: 'gruenerator_search', ok: true },
+      },
+    ];
+    for await (const result of parseSSEStream(sseResponse(events), callbacks, outcome)) {
+      last = result as typeof last;
+    }
+    const progress = last?.metadata?.custom?.progress as {
+      stage: string;
+      steps: Array<{ stage: string; status: string }>;
+    };
+    expect(progress.stage).toBe('searching');
+    expect(progress.steps.find((s) => s.stage === 'searching')?.status).toBe('in-progress');
+    expect(progress.steps.some((s) => s.stage === 'generating')).toBe(false);
+  });
 });
