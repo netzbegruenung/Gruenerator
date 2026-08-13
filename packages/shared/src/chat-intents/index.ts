@@ -669,4 +669,6 @@ export {
   DISPOSITION_ORDER,
   dispositionOf,
   intentsWithDisposition,
+  GROUNDABLE_PROSE_INTENTS,
+  isGroundableProse,
 } from './dispositions.js';
