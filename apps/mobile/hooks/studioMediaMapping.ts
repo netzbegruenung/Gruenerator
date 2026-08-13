@@ -21,9 +21,18 @@ function shareToItem(share: Share): RecentItem {
   };
 }
 
+/**
+ * ISO strings from Postgres: lexicographic order is chronological order.
+ *
+ * Defensive against a non-string `date`: a single malformed row used to throw
+ * "undefined is not a function" out of `Array.sort` and take the whole Studio tab
+ * down with it (a `Date` has no `localeCompare`). Sorting is not worth a blank
+ * screen — an unusable timestamp sorts last instead.
+ */
 function byDateDesc(a: RecentItem, b: RecentItem): number {
-  // ISO strings from Postgres: lexicographic order is chronological order.
-  return b.date.localeCompare(a.date);
+  const left = typeof a.date === 'string' ? a.date : '';
+  const right = typeof b.date === 'string' ? b.date : '';
+  return right.localeCompare(left);
 }
 
 /**
