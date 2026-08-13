@@ -81,12 +81,23 @@ describe('deriveImplicitRecipeMention', () => {
     // Fußzeilen-Link „Facebook" und irgendein „Text…" stehen beliebig weit
     // auseinander — als Auftragssatz gelesen ergäbe das ein Rezept, als
     // Dokument gelesen ist es Rauschen.
+    //
+    // GENAU EIN Plattformwort im Fixture: mit zweien griffe schon die
+    // Zwei-Plattformen-Regel, und der Test wäre auch ohne den Längendeckel
+    // grün — er würde dann etwas anderes messen, als er behauptet.
     const seite =
       'Hauptnavigation Nebennavigation Inhalt Fußzeile\n' +
       'Sofortprogramm für Klimaanlagen in Pflegeheimen. '.repeat(20) +
-      '\nDen Text teilen auf: Facebook Instagram';
+      '\nDen Text teilen auf: Facebook';
     expect(seite.length).toBeGreaterThan(500);
     expect(deriveImplicitRecipeMention(seite, 'de-DE')).toBe(null);
+
+    // Die Kontrolle, die den Test ehrlich macht: derselbe Text unter der
+    // Schwelle liefert sehr wohl ein Rezept. Ohne sie belegte oben nichts,
+    // dass die Länge der Grund war.
+    const kurz = 'Den Text teilen auf: Facebook';
+    expect(kurz.length).toBeLessThan(500);
+    expect(deriveImplicitRecipeMention(kurz, 'de-DE')).toBe('facebook');
 
     // Die Gegenprobe: derselbe Auftrag, kurz gehalten, greift weiter.
     expect(deriveImplicitRecipeMention('Schreib einen Facebook-Post dazu', 'de-DE')).toBe(

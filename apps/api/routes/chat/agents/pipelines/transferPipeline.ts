@@ -205,6 +205,12 @@ Ankündigung deines Vorgehens.`;
 const RUECK_ID = 'es-rueck';
 const PRUEF_ID = 'es-pruefung';
 
+/**
+ * Obergrenze für das Original im Prüfkontext. Siehe `buildUserMessage` des
+ * Prüfschritts für die Begründung — und dafür, warum die Kürzung angesagt wird.
+ */
+const MAX_ORIGINAL_CHARS = 24000;
+
 export function buildTransferPipeline(spec: TransferPipelineSpec): PipelineAgent {
   const rueck: PipelineStep = {
     id: RUECK_ID,
@@ -232,14 +238,34 @@ export function buildTransferPipeline(spec: TransferPipelineSpec): PipelineAgent
     systemPrompt: pruefungPrompt(spec),
     requestType: 'chat_einfache_sprache_pruefung',
     maxTokens: 8000,
+    // Niedriger als die Rückübersetzung: hier wird gezählt und belegt, nicht
+    // formuliert.
+    temperature: 0.1,
     buildUserMessage: (ctx) => {
+      // Drei Texte plus Systemprompt müssen in ein Fenster passen, und das
+      // Original ist der einzige unbegrenzte Teil — Fassung und Rückübersetzung
+      // sind durch ihre eigenen Token-Deckel schon beschränkt. Die Kürzung wird
+      // im Prompt ANGESAGT: still gekürzt wäre die Abdeckungsliste
+      // unvollständig, ohne dass es jemand merkt, und genau diese Liste ist das
+      // Prüfmittel.
+      const gekuerzt = ctx.original.length > MAX_ORIGINAL_CHARS;
+      const original = gekuerzt ? ctx.original.slice(0, MAX_ORIGINAL_CHARS) : ctx.original;
+      const kuerzungsHinweis = gekuerzt
+        ? '\n\n(Gekürzt — das Original ist länger als hier gezeigt. Beziehe die ' +
+          'Abdeckungsliste nur auf den gezeigten Teil und sage das im Bericht.)'
+        : '';
+
+      // Der Prompt kennt drei benannte Texte und behandelt einen fehlenden
+      // ausdrücklich. Deshalb wird die ausgefallene Rückübersetzung BENANNT
+      // statt weggelassen — sonst prüft das Modell zwei Texte und meldet es nicht.
       const rueckText = ctx.previous.get(RUECK_ID);
       return (
-        `<original>\n${ctx.original}\n</original>\n\n` +
+        `<original>\n${original}${kuerzungsHinweis}\n</original>\n\n` +
         `<fassung>\n${ctx.produced}\n</fassung>\n\n` +
         (rueckText
           ? `<rueckuebersetzung>\n${rueckText}\n</rueckuebersetzung>`
-          : '<rueckuebersetzung>\n(nicht zustande gekommen)\n</rueckuebersetzung>')
+          : '<rueckuebersetzung>\n(Die Rückübersetzung ist nicht zustande gekommen. ' +
+            'Prüfe ohne sie und sage das.)\n</rueckuebersetzung>')
       );
     },
     missingText:

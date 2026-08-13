@@ -98,7 +98,11 @@ async function runStep(
         // GENAU eine Nachricht, und in ihr steht nur, was `buildUserMessage`
         // hineingelegt hat. Kein `state.messages`, kein Verlauf, keine Anhänge.
         messages: [{ role: 'user', content: userMessage }],
-        options: { model: LANE.model, max_tokens: step.maxTokens, temperature: 0.2 },
+        options: {
+          model: LANE.model,
+          max_tokens: step.maxTokens,
+          temperature: step.temperature ?? 0.2,
+        },
       },
       null
     );
