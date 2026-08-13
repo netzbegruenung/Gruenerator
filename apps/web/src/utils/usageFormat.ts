@@ -152,6 +152,23 @@ export function formatDay(day: string): string {
  */
 export const REFERENCE_UNCERTAINTY = 0.3;
 
+/**
+ * The corridor as one sentence, because both ends carry a sign and a unit and
+ * "0 mg – 72 g" told the reader nothing about which side of zero they were on.
+ *
+ * Lives here rather than in a component so the personal tab and the
+ * transparency page cannot phrase the same range two different ways — the bug
+ * this module already exists to prevent.
+ */
+export function formatCorridor(worst: number, best: number): string {
+  const side = (v: number): string =>
+    v >= 0 ? `${formatGrams(v)} gespart` : `${formatGrams(-v)} mehr`;
+  // Straddling zero: name both directions explicitly, never a bare interval.
+  if (worst < 0 && best > 0)
+    return `von ${formatGrams(-worst)} mehr bis ${formatGrams(best)} gespart`;
+  return `${side(worst)} bis ${side(best)}`;
+}
+
 /** The footprint fields the GPT-4o comparison needs, from either endpoint. */
 export interface ReferenceComparisonInput {
   emissions_g: number;
@@ -160,6 +177,8 @@ export interface ReferenceComparisonInput {
   image_energy_wh: number;
   reference_emissions_g: number;
   reference_energy_wh: number;
+  market_emissions_g: number;
+  market_backed_share: number;
 }
 
 export interface ReferenceComparisonResult {
@@ -167,10 +186,33 @@ export interface ReferenceComparisonResult {
   hasComparison: boolean;
   /** True when we come out ahead. Callers switch framing, never visibility. */
   saved: boolean;
-  /** Magnitude of the difference, always positive; `saved` carries the sign. */
+  /** Magnitude of the headline difference, always positive; `saved` has the sign. */
   magnitude: number;
-  low: number;
-  high: number;
+  /**
+   * SIGNED bounds of the corridor — positive is a saving, negative an excess.
+   *
+   * They are signed on purpose. The corridor spans two things at once
+   * (Jegham's +/-30% on the GPT-4o side, and the two accounting methods on
+   * ours), and those can STRADDLE ZERO: location-based we come out worse,
+   * market-based better. Clamping both ends to a positive magnitude — which is
+   * what this returned before 14.08.2026 — silently rendered the favourable end
+   * as "0 g" and hid a real saving. The platform page was the proof: 468 g
+   * location vs 371 g reference reads as 97 g too much, while the market-based
+   * side is 0 g and therefore 371 g SAVED.
+   *
+   * `worst` = location-based figure against the strict end of the reference.
+   * `best`  = market-based figure against the generous end.
+   */
+  worst: number;
+  best: number;
+  /** True when the corridor crosses zero, i.e. the answer genuinely depends on
+   *  which accounting method you accept. Callers must then name both. */
+  straddlesZero: boolean;
+  /** True when the two methods actually diverge, i.e. the market end is worth
+   *  naming. False when no lane in the window has an instrument. */
+  marketDiffers: boolean;
+  /** Our text-only market-based emissions. Personal tab must NOT render it. */
+  textMarketEmissions: number;
   /** Our own text-only figures. The personal tab must NOT render these. */
   textEmissions: number;
   textEnergy: number;
@@ -193,26 +235,33 @@ export function referenceComparison(
 ): ReferenceComparisonResult {
   const textEmissions = footprint.emissions_g - footprint.image_emissions_g;
   const textEnergy = footprint.energy_wh - footprint.image_energy_wh;
+  // Images carry no market instrument (region unknown), so the image half is
+  // identical under both methods and subtracting it here is safe.
+  const textMarketEmissions = Math.max(
+    footprint.market_emissions_g - footprint.image_emissions_g,
+    0
+  );
   const difference = footprint.reference_emissions_g - textEmissions;
   const saved = difference >= 0;
+
+  // The favourable end pairs the generous reading of BOTH inputs: the top of
+  // Jegham's corridor with our green-power contracts honoured. The unfavourable
+  // end pairs the strict reading of both. Anything mixed would be arbitrary.
+  const refLow = footprint.reference_emissions_g * (1 - REFERENCE_UNCERTAINTY);
+  const refHigh = footprint.reference_emissions_g * (1 + REFERENCE_UNCERTAINTY);
 
   return {
     hasComparison: textEmissions > 0 || textEnergy > 0 || footprint.reference_emissions_g > 0,
     saved,
     magnitude: Math.abs(difference),
-    low: Math.max(
-      saved
-        ? footprint.reference_emissions_g * (1 - REFERENCE_UNCERTAINTY) - textEmissions
-        : textEmissions - footprint.reference_emissions_g * (1 + REFERENCE_UNCERTAINTY),
-      0
-    ),
-    high: Math.max(
-      saved
-        ? footprint.reference_emissions_g * (1 + REFERENCE_UNCERTAINTY) - textEmissions
-        : textEmissions - footprint.reference_emissions_g * (1 - REFERENCE_UNCERTAINTY),
-      0
-    ),
+    // No branch on `saved` and no clamping: one signed subtraction per end, so
+    // the pair keeps its meaning when the two methods disagree about the sign.
+    worst: refLow - textEmissions,
+    best: refHigh - textMarketEmissions,
+    straddlesZero: refLow - textEmissions < 0 && refHigh - textMarketEmissions > 0,
+    marketDiffers: footprint.market_backed_share > 0 && textMarketEmissions < textEmissions,
     textEmissions,
+    textMarketEmissions,
     textEnergy,
   };
 }

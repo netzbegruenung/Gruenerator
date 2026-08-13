@@ -14,7 +14,10 @@ import { and, eq, gte } from 'drizzle-orm';
 import { userUsageDaily } from '../../database/schema/index.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import {
+  emissionsFromEnergy,
   estimateFootprint,
+  hasMarketInstrument,
+  marketIntensityFor,
   estimateImageFootprint,
   referenceFootprint,
 } from '../../services/usage/energyFootprint.js';
@@ -131,6 +134,11 @@ export const userUsageContractRouter = s.router(userUsageContract, {
       // turns: without the split the headline would read as a chat footprint.
       let imageEnergyWms = 0;
       let imageEmissionsUg = 0;
+      // The same totals under the MARKET-based method, accumulated in parallel
+      // so both ends of the range describe exactly the same rows. See
+      // MARKET_INTENSITY_G_PER_KWH in energyFootprint.ts.
+      let marketEmissionsUg = 0;
+      let marketBackedEnergyWms = 0;
 
       for (const row of rows) {
         const unit = usageUnitFallback(row.unit);
@@ -144,6 +152,14 @@ export const userUsageContractRouter = s.router(userUsageContract, {
             energyWms += row.energyWms;
             measuredEnergyWms += row.energyWms;
             emissionsUg += row.emissionsUg;
+            // The provider reported the location-based figure; the market side
+            // is ours to apply, and GreenPT runs on Scaleway's GoO-backed
+            // supply. Its own hourly grid number stays the headline.
+            marketEmissionsUg += emissionsFromEnergy(
+              row.energyWms,
+              marketIntensityFor(row.provider)
+            );
+            if (hasMarketInstrument(row.provider)) marketBackedEnergyWms += row.energyWms;
             coveredOutputTokens += row.outputTokens;
             coveredRequests += row.requests;
           } else {
@@ -157,6 +173,8 @@ export const userUsageContractRouter = s.router(userUsageContract, {
             if (estimate) {
               energyWms += estimate.energyWms;
               emissionsUg += estimate.emissionsUg;
+              marketEmissionsUg += estimate.marketEmissionsUg;
+              if (hasMarketInstrument(row.provider)) marketBackedEnergyWms += estimate.energyWms;
               coveredOutputTokens += row.outputTokens;
               coveredRequests += row.requests;
               if (estimate.basis === 'bound') boundedEnergyWms += estimate.energyWms;
@@ -173,6 +191,8 @@ export const userUsageContractRouter = s.router(userUsageContract, {
           if (estimate) {
             energyWms += estimate.energyWms;
             emissionsUg += estimate.emissionsUg;
+            marketEmissionsUg += estimate.marketEmissionsUg;
+            if (hasMarketInstrument(row.provider)) marketBackedEnergyWms += estimate.energyWms;
             imageEnergyWms += estimate.energyWms;
             imageEmissionsUg += estimate.emissionsUg;
             if (estimate.basis === 'bound') boundedEnergyWms += estimate.energyWms;
@@ -244,6 +264,8 @@ export const userUsageContractRouter = s.router(userUsageContract, {
             image_emissions_g: imageEmissionsUg / 1_000_000,
             reference_energy_wh: reference.energyWms / 3_600_000,
             reference_emissions_g: reference.emissionsUg / 1_000_000,
+            market_emissions_g: marketEmissionsUg / 1_000_000,
+            market_backed_share: energyWms > 0 ? marketBackedEnergyWms / energyWms : 0,
           },
           daily: [...daily.entries()]
             .map(([day, entry]) => ({

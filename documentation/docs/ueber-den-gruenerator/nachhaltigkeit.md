@@ -106,7 +106,7 @@ Nebenbei zeigt die Messung, dass der **Prompt fast nichts kostet**: Ein gesendet
 
 ### Wie wir Emissionen berechnen
 
-Emissionen sind Energie mal Kohlenstoffintensität des Stroms. Wir rechnen **standortbasiert**, also mit dem realen Strommix am jeweiligen Rechenzentrumsstandort — nicht mit unseren Ökostromverträgen.
+Emissionen sind Energie mal Kohlenstoffintensität des Stroms. Dafür gibt es zwei anerkannte Methoden, und das GHG-Protokoll verlangt ausdrücklich **beide**. Wir weisen seit August 2026 auch beide aus: die **standortbasierte** Zahl mit dem realen Strommix am Rechenzentrumsstandort ist unsere Bilanz und die Zahl, die überall groß steht. Die **marktbasierte** Zahl, die den bezogenen Ökostrom anrechnet, bildet das günstige Ende der angezeigten Spanne. Nie eine ohne die andere.
 
 Das ist bewusst die strengere Variante, und wir folgen damit GreenPT selbst: Der Anbieter wirbt mit 100 % erneuerbarer Energie und rechnet seine Emissionen trotzdem nicht auf null, sondern nutzt stündliche Netzdaten je Standort. Ein Ökostromvertrag ändert nichts daran, welcher Strom im selben Moment physisch durch die Leitung fließt. Die grüne Beschaffung bleibt richtig und wirksam — sie ist nur kein Rabatt auf die Bilanz.
 
@@ -121,21 +121,41 @@ Wir rechnen mit diesen Werten (Jahresmittel 2024, nur Verbrennungsemissionen):
 
 Bei Scaleway müssen wir nicht auf den Landesdurchschnitt ausweichen: Der Impact Report weist Scope 2 standortbasiert mit 3.155 t CO₂e bei 132.881 MWh aus — macht 23,7 g/kWh aus erster Hand.
 
-Dazu kommt die Effizienz des Rechenzentrums selbst (PUE — wie viel Strom zusätzlich für Kühlung und Infrastruktur draufgeht). GreenPTs Messwerte enthalten einen PUE von 1,25; wo unsere Anbieter besser sind, rechnen wir die Differenz gut: Hetzner gibt 1,13 an (Spanne 1,10–1,16), Seeweb unter 1,20.
+Dazu kommt die Effizienz des Rechenzentrums selbst (PUE — wie viel Strom zusätzlich für Kühlung und Infrastruktur draufgeht). GreenPTs Messwerte enthalten einen PUE von 1,25; wo unsere Anbieter besser sind, rechnen wir die Differenz gut: Hetzner gibt 1,12 an, Seeweb unter 1,20.
 
 **Ein Glücksfall für die Genauigkeit:** GreenPT rechnet selbst bei Scaleway in Paris („Every GreenPT request runs on Scaleway's 100 % renewable-powered compute in Paris"), und Scaleway stellt sämtliche KI-Server in ein einziges Rechenzentrum — DC5, PUE 1,25. Unsere Gemma-4-Lane läuft ebenfalls dort. Für sie ist unsere Messung also **keine Übertragung auf fremde Hardware**, sondern dieselbe Maschinenklasse im selben Gebäude. Für alle anderen Lanes — unser Standardmodell Mistral Medium bei Mistral in Frankreich, GPT-OSS bei verdigado, die Regolo-Modelle in Italien — bleibt es eine Übertragung; dort ist das „≈" wörtlich zu nehmen. (Mistral Medium lief bis August 2026 ebenfalls über Scaleway; wir haben es wegen fehlerhafter Antworten dieses Anbieters wieder direkt zu Mistral gelegt.)
 
 Eine Unschärfe bleibt und sei benannt: Der deutsche Wert des Umweltbundesamts ist verbrauchsbasiert (Stromimporte eingerechnet), die französische und italienische Zahl sind erzeugungsbasiert. Italien importiert viel französischen Atomstrom, sein verbrauchsbasierter Wert läge also **unter** 270. Der Fehler geht damit zu Lasten Italiens, nicht zu seinen Gunsten.
 
-### Warum Ökostrom die Zahl nicht auf null bringt
+### Warum Ökostrom die Hauptzahl nicht auf null bringt — und wo er trotzdem auftaucht
 
-Alle drei Anbieter beziehen nach eigenen Angaben erneuerbare Energie — Seeweb ausschließlich, Hetzner seit 2008 Wasserkraft, Scaleway zu 100 %. Trotzdem steht in unserer Rechnung der jeweilige Netzmix. Das ist keine Nachlässigkeit, sondern der Punkt.
+Alle drei Anbieter beziehen zertifizierte erneuerbare Energie. Trotzdem steht in unserer **Hauptzahl** der jeweilige Netzmix. Das ist keine Nachlässigkeit, sondern der Punkt: Ein Ökostromvertrag ändert nichts daran, welcher Strom im selben Moment physisch durch die Leitung fließt.
 
 **Scaleway macht es selbst genau so.** Der Impact Report weist den Ökostrom ausdrücklich als _Guarantee of Origin_ aus, also als Herkunftsnachweise — und rechnet die Emissionen trotzdem standortbasiert. Ein Anbieter, der sich mit einem Federstrich auf nahe null hätte rechnen können, tut es nicht. Dem folgen wir.
 
-Bei **Regolo** kommt hinzu, dass es gar keine Zahl gäbe, die man einsetzen könnte: Der Nachhaltigkeitsbericht der DHH-Gruppe 2024 nennt für Seeweb zwar 7,3 GWh Stromverbrauch und null Prozent fossilen Anteil, hält aber fest, dass die Gruppengesellschaften ihre Treibhausgasemissionen **derzeit nicht messen** („the Group companies do not currently measure greenhouse gas emissions"). Bei **Hetzner** ist es dasselbe Bild — die Nachhaltigkeitsseite nennt PUE und Wasserkraft, aber keine Scope-2-Bilanz.
+Ihn ganz zu verschweigen wäre allerdings die andere Hälfte derselben Unehrlichkeit. Zertifikate zu kaufen ist eine reale Handlung mit realer Wirkung auf den Ausbau. Deshalb zeigen wir die marktbasierte Rechnung als **günstiges Ende der Spanne**, ausdrücklich als zweite Methode gekennzeichnet — nicht als Unsicherheit und nie als Ersatz für die Hauptzahl.
 
-Wo Berichte konkret werden, rechnen wir es an: Seewebs PUE unter 1,20 und Hetzners 1,13 senken beide Werte gegenüber unserem Referenzwert. Sobald einer der beiden eine Scope-2-Bilanz veröffentlicht, nehmen wir sie auf — bei Scaleway ist genau das schon passiert.
+Marktbasiert ist dabei nichts zu schätzen: Für Verbrauch, der durch entwertete Herkunftsnachweise gedeckt ist, gilt der Emissionsfaktor der vertraglich bezogenen Erzeugung, also null. Die einzige Frage je Anbieter ist der **Beleg**, und die Latte ist ein benanntes Instrument, kein grünes Selbstbild:
+
+| Anbieter                       | Beleg                                                                                                  | Stärke                                                     |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
+| Scaleway / GreenPT             | _Guarantee of Origin_ im Impact Report, dazu eigene standortbasierte Scope-2-Zahl                      | dokumentiert                                               |
+| Hetzner (verdigado)            | **EMAS-Registrierung** seit 2025 (Gunzenhausen, Nürnberg, Falkenstein); 100 % Erneuerbare in DE und FI | am stärksten — staatlich zugelassener Gutachter prüft nach |
+| Seeweb (Regolo)                | ISO 14001, „solo da fonti rinnovabili certificate", benannter Versorger, Green Web Foundation          | Selbstauskunft plus zertifiziertes Managementsystem        |
+| **Black Forest Labs (Bilder)** | **keiner** — läuft hinter Azure Front Door, die Region der Inferenz ist für uns unsichtbar             | kein Anspruch                                              |
+
+Die Bildmodelle fallen also heraus. Für sie sind beide Methoden identisch, und das ist die ehrliche Antwort: Wir können nicht einmal sagen, in welchem Land die GPU steht, also können wir dort auch keinen Ökostrom anrechnen — Microsofts eigene Beschaffung ist nicht unsere.
+
+:::caution Die Spanne ist einseitig, und das muss man wissen
+
+Am günstigen Ende rechnen wir **unseren** Ökostrom an, lassen die GPT-4o-Vergleichszahl aber standortbasiert stehen. Microsoft kauft ebenfalls Erneuerbare ein — deren Nachweise sind nur nicht unsere und dürfen von uns nicht verrechnet werden. Das günstige Ende vergleicht insofern zwei **Methoden**, nicht zwei Rechenzentren. Unsere Bilanz bleibt das ungünstige Ende.
+
+Aus demselben Grund übernehmen wir **nicht**, wie Regolo es im eigenen Playground tut: Dort steht „Saved CO₂ 0,631 g" für eine Anfrage mit 1,804 kWh — das sind 350 g/kWh, also der EU-Durchschnitt, gegen den die eigene Erzeugung gerechnet wird. Das ist keine Bilanz, sondern eine vermiedene Emission gegenüber einem Netz, an dem der Anbieter gar nicht hängt.
+:::
+
+Wo Berichte konkret werden, rechnen wir es zusätzlich an: Seewebs PUE unter 1,20 und Hetzners 1,12 senken beide Werte gegenüber unserem Referenzwert. Bei Seeweb ist dabei zu beachten, dass die 1,2 laut eigener Seite in den _neuesten_ Serverfarmen erreicht werden — für die ältere Flotte dürfte der Wert höher liegen. Das ist die eine Stelle, an der unsere Annahme eher schmeichelt als vorsichtig ist.
+
+Sobald Seeweb oder Hetzner eine standortbasierte Scope-2-Bilanz veröffentlichen, nehmen wir sie auf — bei Scaleway ist genau das schon passiert. Für Hetzner ist die EMAS-Umwelterklärung der wahrscheinlichste Ort dafür.
 
 ### Modelle ohne Messwert: Obergrenze statt Schätzung
 

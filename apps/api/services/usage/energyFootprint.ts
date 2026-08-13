@@ -31,15 +31,25 @@
  * CO2 number and applying it to a request served in Germany would import the
  * wrong grid. We take their Wh and supply our own intensity.
  *
- * ACCOUNTING METHOD — location-based, matching GreenPT's own choice:
+ * ACCOUNTING METHOD — BOTH, reported as a pair. The headline stays
+ * location-based, matching GreenPT's own choice:
  *   "1-hour datacenter-level CO2 data: in cooperation with Nodera, we use
  *    hourly carbon intensity data specific to each datacenter location, not
  *    regional or annual averages."  (docs.greenpt.ai/sustainability)
  * GreenPT advertises "100% renewable energy" and still does NOT zero out its
- * emissions. Rebating our own green-power contracts (market-based accounting)
- * while calibrating against their location-based numbers would be
- * methodologically incoherent, so we don't. The green electricity is a fact
- * worth stating in prose, not a discount to apply to the figure.
+ * emissions, and neither do we.
+ *
+ * Since 14.08.2026 the market-based figure is computed too and shown as the
+ * OTHER END OF A RANGE, never alone — see MARKET_INTENSITY_G_PER_KWH. The GHG
+ * Protocol asks for dual reporting, and hiding the green-power contracts
+ * entirely was its own kind of incomplete: our operators really do buy
+ * certified renewables, and Hetzner's is EMAS-verified.
+ *
+ * Read the range with its one asymmetry in mind: we zero OUR side where an
+ * instrument exists but leave the GPT-4o reference on Jegham's location factor,
+ * because we hold no instrument of Microsoft's to cancel. Microsoft buys
+ * renewables too, so the optimistic end of the range is partly an artefact of
+ * applying one method to one side. Every surface that renders it has to say so.
  */
 
 /** Wms per mWh — GreenPT reports energy in watt-milliseconds. */
@@ -252,15 +262,84 @@ const GRID_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
  */
 
 /**
+ * MARKET-BASED intensities — the SECOND accounting method, reported alongside
+ * the location-based one above and never instead of it.
+ *
+ * The table above answers "what did the grid at that place emit". This one
+ * answers "what does the electricity this operator CONTRACTED emit". The GHG
+ * Protocol Scope 2 Guidance defines both and requires dual reporting precisely
+ * because neither alone is complete: location-based ignores that buying
+ * certified renewables is a real act, market-based ignores that the electrons
+ * came off a mixed grid.
+ *
+ * There is nothing to estimate here. Under the market-based method, consumption
+ * covered by cancelled certificates carries the emission factor of the
+ * contracted generation — zero for certified renewables. So the only question
+ * per lane is EVIDENCE, and the bar is a named instrument, not a green
+ * self-image:
+ *
+ *  scaleway/greenpt — Guarantee of Origin, stated in Scaleway's Impact Report
+ *    2025 alongside its own location-based Scope 2 figure. The strongest case,
+ *    and note what Scaleway itself does with it: it holds the GoO AND still
+ *    reports location-based. That is the model this table copies.
+ *  litellm (Hetzner) — "Wir beziehen 100% des Stroms in Deutschland und
+ *    Finnland aus erneuerbaren Energien", and since 2025 an EMAS registration
+ *    for Gunzenhausen, Nürnberg and Falkenstein. EMAS is the strongest evidence
+ *    of the three because a state-approved verifier checks the declaration;
+ *    ISO 14001 and a company blog do not carry that.
+ *  regolo (Seeweb) — "Attingiamo energia elettrica solo da fonti rinnovabili
+ *    certificate", ISO 14001, named supplier (Enel green), Green Web Foundation
+ *    and the Neutral Datacenter Pact. A self-declaration backed by a certified
+ *    management system — weaker than EMAS, strong enough to name.
+ *
+ * DELIBERATELY ABSENT: `bfl`. Image generation runs behind Azure Front Door and
+ * the inference region is invisible to us (see the note in the table above).
+ * Microsoft's own renewable purchasing is not ours to claim for a datacenter we
+ * cannot even locate, so images fall through to the location factor and the two
+ * methods converge there. That asymmetry is the honest outcome, not a gap.
+ */
+const MARKET_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
+  mistral: 0,
+  scaleway: 0,
+  greenpt: 0,
+  litellm: 0,
+  regolo: 0,
+};
+
+/**
+ * Whether this provider has a named instrument behind its market-based factor.
+ * Drives the share the API reports, so the UI can say how much of a range rests
+ * on evidence rather than on a fallback to the location number.
+ */
+export function hasMarketInstrument(provider: string): boolean {
+  return provider in MARKET_INTENSITY_G_PER_KWH;
+}
+
+/** Market-based intensity, falling back to the location factor where no
+ *  instrument is documented — so an undocumented lane collapses the range
+ *  instead of silently inheriting someone else's green power. */
+export function marketIntensityFor(provider: string): number {
+  return MARKET_INTENSITY_G_PER_KWH[provider] ?? gridIntensityFor(provider);
+}
+
+/**
  * Power Usage Effectiveness. GreenPT states 1.25 and its `impact` figures
  * already include that overhead, so a coefficient carries it too. Hosts with a
  * better PUE get the difference credited back.
  */
 const GREENPT_PUE = 1.25;
 const PUE_BY_PROVIDER: Readonly<Record<string, number>> = {
-  litellm: 1.13, // Hetzner, per its own sustainability disclosure
-  // Seeweb (Regolo's operator), DHH Group sustainability report 2024, p. 8:
-  // "achieving a PUE (Power Usage Effectiveness) below 1,20".
+  // Hetzner. 1,12 is its own published fleet average and now sits inside an
+  // EMAS-registered environmental management system (Gunzenhausen, Nürnberg,
+  // Falkenstein, since 2025), i.e. a state-approved verifier checks the
+  // declaration it comes from. Was 1,13 from a weaker source.
+  litellm: 1.12,
+  // Seeweb (Regolo's operator). Two sources agree on 1,2: the DHH Group
+  // sustainability report 2024, p. 8 ("achieving a PUE below 1,20") and
+  // Seeweb's own page. Read the second one carefully though — it says 1,2 is
+  // reached "nelle nostre server farm più recenti", so 1,2 is the BEST case of
+  // the fleet, not its average. Kept because it is what both sources state,
+  // but it is the one PUE here that likely flatters rather than errs high.
   regolo: 1.2,
   // Scaleway Impact Report 2025, p. 25: DC5 runs at PUE 1,25 and "all the
   // servers necessary for artificial intelligence are installed in this data
@@ -273,8 +352,15 @@ const PUE_BY_PROVIDER: Readonly<Record<string, number>> = {
 export interface Footprint {
   /** Watt-milliseconds, the unit GreenPT reports. */
   energyWms: number;
-  /** Micrograms CO2e. */
+  /** Micrograms CO2e, LOCATION-based — the headline method. */
   emissionsUg: number;
+  /**
+   * Micrograms CO2e, MARKET-based. Zero wherever the operator holds a named
+   * renewable instrument, equal to `emissionsUg` where it does not. Reported
+   * as the other end of a range, never on its own: see
+   * MARKET_INTENSITY_G_PER_KWH for why both methods have to appear together.
+   */
+  marketEmissionsUg: number;
 }
 
 /* ------------------------------------------------------------------ images */
@@ -424,6 +510,9 @@ export function estimateImageFootprint(params: {
   return {
     energyWms,
     emissionsUg: emissionsFromEnergy(energyWms, gridIntensityFor(params.provider)),
+    // `bfl` has no market instrument we can name, so this collapses onto the
+    // location figure for the image lane — deliberately, see the table.
+    marketEmissionsUg: emissionsFromEnergy(energyWms, marketIntensityFor(params.provider)),
     basis: c.basis,
   };
 }
@@ -469,9 +558,17 @@ export function referenceFootprint(params: { outputTokens: number; requests: num
   const mWh =
     REFERENCE_MWH_PER_OUTPUT_TOKEN * params.outputTokens + REFERENCE_MWH_FIXED * params.requests;
   const energyWms = Math.round(mWh * WMS_PER_MWH);
+  const emissionsUg = emissionsFromEnergy(energyWms, REFERENCE_GRID_G_PER_KWH);
   return {
     energyWms,
-    emissionsUg: emissionsFromEnergy(energyWms, REFERENCE_GRID_G_PER_KWH),
+    emissionsUg,
+    // IDENTICAL on purpose. Microsoft buys renewables at scale, but a
+    // market-based figure is only legitimate for whoever holds the cancelled
+    // certificates, and those are not ours to spend on OpenAI's behalf. So the
+    // reference stays location-based in both columns — which is exactly what
+    // makes the optimistic end of our range one-sided, and why the UI must
+    // label it rather than present it as a like-for-like saving.
+    marketEmissionsUg: emissionsUg,
   };
 }
 
@@ -574,6 +671,7 @@ export function estimateFootprint(params: {
   return {
     energyWms,
     emissionsUg: emissionsFromEnergy(energyWms, gridIntensityFor(params.provider)),
+    marketEmissionsUg: emissionsFromEnergy(energyWms, marketIntensityFor(params.provider)),
     // The LANE's basis, not the variant's: swapping in the floor to draw a range
     // does not turn an unmetered lane into a metered one.
     basis: table.basis,

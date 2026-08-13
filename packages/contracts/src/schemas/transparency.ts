@@ -57,6 +57,12 @@ export const transparencyFootprintSchema = z.object({
    *  Text only, and it can come out worse OR better than ours per lane. */
   reference_energy_wh: z.number(),
   reference_emissions_g: z.number(),
+  /** MARKET-based counterpart of `emissions_g` — see the field of the same
+   *  name in userUsage.ts for the method, the evidence per lane and the
+   *  asymmetry that keeps it from being a like-for-like comparison. */
+  market_emissions_g: z.number(),
+  /** 0..1 — share of the counted energy backed by a named instrument. */
+  market_backed_share: z.number(),
   /**
    * Operations that are counted but carry NO footprint, because no defensible
    * coefficient exists for them yet.
