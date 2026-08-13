@@ -408,6 +408,40 @@ export async function generateUnifiedTexts(
   };
 }
 
+/**
+ * Die EINZIGE Stelle, die die Drahtform der Sharepic-Textantwort kennt.
+ *
+ * Drei Transporte teilen sie sich: der ts-rest-Contract-Router, der
+ * Express-Wrapper unten (der noch `text/default` und die deprecated
+ * `*_claude`-Aliasse bedient) und die In-Process-Aufrufer. Solange alle drei
+ * hierdurch serialisieren, können Contract-Antwort und Alias-Antwort nicht
+ * auseinanderlaufen — genau das prüft `wireBody.vitest.ts` gegen die
+ * Zod-Schemata aus `@gruenerator/contracts`.
+ *
+ * Der Top-Level-Key wechselt pro Typ (`mainSlogan`/`mainInfo`/…). Das ist
+ * eingefrorene Drahtform (F0): ausgelieferte Mobile-Binaries lesen diese
+ * Namen. Bei `zitat`/`zitat_pure` ist `main` ein String, kein Objekt.
+ */
+export function toSharepicTextWireBody(
+  result: Extract<UnifiedTextResult, { success: true }>,
+  type: string,
+  name: string
+): Record<string, unknown> {
+  const response: Record<string, unknown> = {
+    success: true,
+    [result.mainKey]: result.main,
+    alternatives: result.alternatives,
+    searchTerms: result.searchTerms,
+  };
+
+  if (type === 'zitat' || type === 'zitat_pure') {
+    response.quote = result.main;
+    response.name = name;
+  }
+
+  return response;
+}
+
 /** Thin Express wrapper around `generateUnifiedTexts` — response JSON unchanged. */
 export async function handleUnifiedRequest(
   req: SharepicRequest,
@@ -421,17 +455,5 @@ export async function handleUnifiedRequest(
     return;
   }
 
-  const response: Record<string, unknown> = {
-    success: true,
-    [result.mainKey]: result.main,
-    alternatives: result.alternatives,
-    searchTerms: result.searchTerms,
-  };
-
-  if (type === 'zitat' || type === 'zitat_pure') {
-    response.quote = result.main;
-    response.name = req.body.name || '';
-  }
-
-  res.json(response);
+  res.json(toSharepicTextWireBody(result, type, req.body.name || ''));
 }
