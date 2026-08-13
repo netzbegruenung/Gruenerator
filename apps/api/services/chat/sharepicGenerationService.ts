@@ -220,14 +220,15 @@ const createImageAttachmentFromFile = async (filename: string): Promise<ImageAtt
   const imagePath = imagePickerService.getImagePath(filename);
 
   try {
+    // Bytes bleiben Bytes: die Vorlagen sind mehrere MB gross, ein Umweg ueber
+    // base64 haette den Buffer nur aufgeblaeht, um ihn im Canvas-Adapter sofort
+    // wieder zu dekodieren.
     const imageBuffer = await fs.readFile(imagePath);
-    const base64Data = imageBuffer.toString('base64');
     const mimeType = filename.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
-    const dataUrl = `data:${mimeType};base64,${base64Data}`;
 
     return {
       type: mimeType,
-      data: dataUrl,
+      bytes: imageBuffer,
       name: filename,
       size: imageBuffer.length,
       source: 'ai-selected',
@@ -606,50 +607,6 @@ const generateZitatPureSharepic = async (
       sharepicTitle: 'Sharepic Vorschau',
       sharepicDownloadText: 'Sharepic herunterladen',
       sharepicDownloadFilename: `sharepic-zitat_pure-${Date.now()}.png`,
-    },
-  };
-};
-
-const _generateDreizeilenSharepic = async (
-  expressReq: ExpressRequest,
-  requestBody: RequestBody
-): Promise<SharepicResult> => {
-  const textResponse = await callSharepicText(expressReq, 'dreizeilen', requestBody);
-
-  if (!textResponse?.success) {
-    throw new Error((textResponse?.error as string) || 'Dreizeilen Sharepic generation failed');
-  }
-
-  const mainSlogan = textResponse.mainSlogan as MainSlogan;
-  const alternatives = (textResponse.alternatives as unknown[]) || [];
-  log.debug('[SharepicGeneration] Dreizeilen mainSlogan received:', JSON.stringify(mainSlogan));
-
-  const { payload: canvasPayload } = await callCanvasRoute(
-    canvasRouterFor('dreizeilen', requestBody),
-    mainSlogan as Record<string, unknown>
-  );
-
-  if (!canvasPayload?.image) {
-    throw new Error('Dreizeilen canvas did not return an image');
-  }
-
-  return {
-    success: true,
-    agent: 'dreizeilen',
-    content: {
-      metadata: {
-        sharepicType: 'dreizeilen',
-      },
-      sharepic: {
-        image: canvasPayload.image,
-        type: 'dreizeilen',
-        text: `${mainSlogan.line1 || ''}\n${mainSlogan.line2 || ''}\n${mainSlogan.line3 || ''}`.trim(),
-        mainSlogan,
-        alternatives,
-      },
-      sharepicTitle: 'Sharepic Vorschau',
-      sharepicDownloadText: 'Sharepic herunterladen',
-      sharepicDownloadFilename: `sharepic-dreizeilen-${Date.now()}.png`,
     },
   };
 };
@@ -1116,4 +1073,7 @@ const generateSharepicForChat = async (
 };
 
 export { generateSharepicForChat };
+// Exportiert, damit ein Test festhalten kann, dass die Vorlage als Bytes und
+// nicht als Data-URL weitergereicht wird.
+export { createImageAttachmentFromFile };
 export type { SharepicResult, RequestBody, ExpressRequest };

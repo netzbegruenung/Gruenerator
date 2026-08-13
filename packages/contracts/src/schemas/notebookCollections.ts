@@ -62,6 +62,14 @@ export const wolkeFolderRefSchema = z.object({
   folderPath: z.string(),
   folderName: z.string(),
   lastSyncedAt: z.string().nullable().optional(),
+  /**
+   * Pull files out of subfolders too, down to WOLKE_MAX_WALK_DEPTH levels.
+   * Optional and defaulting to off: recursion costs a download, an OCR call and
+   * an embedding run per file, and folders like a 173 MB backup directory are
+   * exactly what nobody wants indexed by accident. Absent means false, so
+   * folders attached before this existed keep behaving as they did.
+   */
+  includeSubfolders: z.boolean().optional(),
 });
 export type WolkeFolderRef = z.infer<typeof wolkeFolderRefSchema>;
 
@@ -199,6 +207,13 @@ export const documentRecordSchema = z.object({
   source_type: z.string().nullish(),
   wolke_share_link_id: z.string().nullish(),
   status: z.string().nullish(),
+  /**
+   * Why a `status='failed'` document failed, lifted out of documents.metadata.
+   * Carried on the collection itself so reopening a notebook shows the same
+   * "Nicht durchsuchbar" marker the upload session showed — without it the
+   * failure was only ever visible until the editor was closed.
+   */
+  processing_error: z.string().nullish(),
 });
 
 export const wolkeShareLinkSchema = z.object({

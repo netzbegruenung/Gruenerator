@@ -45,13 +45,23 @@ import { withTimeout } from '../../../utils/withTimeout.js';
 import { getContextWindow } from '../agents/providers.js';
 
 import { getThreadAttachments } from './attachmentPersistenceService.js';
-import { isTabularAttachment, processAttachments } from './attachmentProcessingService.js';
+import {
+  extractPromotablePasteText,
+  isTabularAttachment,
+  processAttachments,
+} from './attachmentProcessingService.js';
 import { enrichContext } from './contextEnrichmentService.js';
-import { extractTextContent, filterEmptyAssistantMessages } from './messageHelpers.js';
+import { backfillEmptyUserMessages } from './historyBackfill.js';
+import {
+  extractTextContent,
+  filterEmptyAssistantMessages,
+  sanitizeUIFileParts,
+} from './messageHelpers.js';
 import { type createSSEStream, PROGRESS_MESSAGES } from './sseHelpers.js';
 import { canAccessThread } from './threadAccessService.js';
 import {
   getUser,
+  getUserMessageTexts,
   createThread,
   createMessage,
   createPendingAssistantMessage,
@@ -78,6 +88,51 @@ const log = createLogger('chatGraphContractRouter');
 // hanging service must not stall the chat. On timeout the turn proceeds
 // without that context.
 const EXTERNAL_CONTEXT_TIMEOUT_MS = 3_000;
+
+/**
+ * Long material pasted straight into the message body — not uploaded as a file —
+ * is persisted as a synthetic attachment so later turns get it back through
+ * `FRÜHERE DOKUMENTE IN DIESEM GESPRÄCH`.
+ *
+ * Measured on thread `5b184c40` (13.08.2026, 00:53–00:56): a translate → glossary
+ * → mapping-table → proofread chain over one article. The first user message held
+ * 10.327 chars and `chat_thread_attachments` had no row for that thread at all, so
+ * nothing could be re-injected. Steps 2–4 then built the mapping table out of the
+ * translation instead of the source, invented source quotes, and the model even
+ * web-searched for the article it had been handed one turn earlier.
+ *
+ * The web composer already converts pastes ≥600 chars into a real attachment, but
+ * only on its own paste path. Text that arrives as plain message content (mobile,
+ * API clients, a paste the composer did not intercept) bypassed persistence.
+ *
+ * Threshold: the base system prompt runs ~3.000 chars, the same yardstick
+ * `materialDominatesTurn` uses. Below it a message is an instruction; above it,
+ * it is material the user will keep referring to.
+ */
+export const INLINE_MATERIAL_MIN_CHARS = 3_000;
+/** Same name the composer gives an intercepted paste — one concept, one label. */
+export const INLINE_MATERIAL_ATTACHMENT_NAME = 'Eingefügter Text.txt';
+
+/**
+ * The synthetic attachment for this turn's inline material, or null when there
+ * is nothing to carry forward. Skipped when the turn already brought a document
+ * (that one IS the material) and on regenerate (the user message is unchanged —
+ * a second row would duplicate it).
+ */
+export function inlineMaterialAttachment(
+  text: string,
+  opts: { regenerate: boolean; hasDocumentAttachment: boolean }
+): ProcessAttachmentsResult['processedMeta'][number] | null {
+  if (opts.regenerate || opts.hasDocumentAttachment) return null;
+  if (text.length < INLINE_MATERIAL_MIN_CHARS) return null;
+  return {
+    name: INLINE_MATERIAL_ATTACHMENT_NAME,
+    mimeType: 'text/plain',
+    sizeBytes: Buffer.byteLength(text, 'utf8'),
+    isImage: false,
+    extractedText: text,
+  };
+}
 
 // chat_threads.id is a uuid column. A client may send a local-only sentinel id
 // (e.g. "__LOCALID_..." from the lazy-thread-creation runtime, or the sheet /
@@ -310,9 +365,17 @@ export async function buildStreamContext({
 
   // === Convert messages ===
   let modelMessages: ChatGraphInput['messages'];
+  const { messages: convertibleMessages, droppedFileParts } = sanitizeUIFileParts(
+    clientMessages as UIMessage[]
+  );
+  if (droppedFileParts > 0) {
+    log.info(
+      `[ChatGraph] Dropped ${droppedFileParts} url-less file part(s) before conversion — content rides in attachments`
+    );
+  }
   try {
     modelMessages = (await convertToModelMessages(
-      clientMessages as UIMessage[]
+      convertibleMessages as UIMessage[]
     )) as ModelMessage[] as ChatGraphInput['messages'];
   } catch (convertError) {
     log.error('[ChatGraph] Error converting messages:', convertError);
@@ -335,6 +398,28 @@ export async function buildStreamContext({
   );
 
   let lastUserMessage = validMessages.filter((m) => m.role === 'user').pop();
+
+  // === Promote a bare paste to the prompt ===
+  // The composer converts a large paste into a synthetic text attachment; sent
+  // with an empty textarea, the paste IS the prompt. Left as an attachment it
+  // lands in the untrusted-material channel, whose hierarchy rule forbids
+  // executing instructions found there — the model then correctly answers "du
+  // hast mir keine Aufgabe gestellt" (QA 08/2026). Text pasted into the
+  // composer is the user's own input, so with no other prompt text it becomes
+  // the user message itself (classifier, title, persistence and prompts all see
+  // it); alongside typed text it stays reference material as before.
+  let effectiveAttachments = attachments as ProcessedAttachment[] | undefined;
+  if (lastUserMessage) {
+    const promotion = extractPromotablePasteText(
+      effectiveAttachments,
+      extractTextContent(lastUserMessage.content)
+    );
+    if (promotion) {
+      lastUserMessage.content = promotion.pasteText;
+      effectiveAttachments = promotion.remaining;
+      log.info('[StreamContext] Pasted text promoted to user prompt (composer text was empty)');
+    }
+  }
 
   // === Create thread if needed ===
   // Normalize null → undefined: contract schema uses .nullish() to accept
@@ -367,6 +452,32 @@ export async function buildStreamContext({
     actualThreadId = thread.id;
     isNewThread = true;
     sse.send('thread_created', { threadId: actualThreadId });
+  }
+
+  // Earlier user messages can arrive with no text at all (see historyBackfill);
+  // the persisted rows still have it. Runs before this turn's own message is
+  // written, so the persisted list is exactly the prior history. Only pay for the
+  // query when a message is actually empty.
+  if (
+    actualThreadId &&
+    !isNewThread &&
+    validMessages.some(
+      (m, i) =>
+        m.role === 'user' &&
+        i < validMessages.length - 1 &&
+        extractTextContent(m.content).length === 0
+    )
+  ) {
+    try {
+      const filled = backfillEmptyUserMessages(
+        validMessages as ModelMessage[],
+        await getUserMessageTexts(actualThreadId)
+      );
+      log.info(`[StreamContext] Restored ${filled} empty user message(s) from the thread`);
+    } catch (err) {
+      // A turn without its own history is degraded, not broken.
+      log.warn('[StreamContext] Could not restore empty user messages (continuing):', err);
+    }
   }
 
   if (actualThreadId && lastUserMessage) {
@@ -423,7 +534,17 @@ export async function buildStreamContext({
     // Never truncates a brand-new thread (nothing to replace there).
     if (!isNewThread) {
       if (rawReplaceFromMessageId) {
-        const removed = await deleteMessagesFrom(actualThreadId, rawReplaceFromMessageId);
+        // Same 22P02 trap the thread id is guarded against above, one field
+        // over and unguarded until 13.08.2026: the client sent "Xa4ZTed" — a
+        // slug suffix, not a row id — Postgres threw on `WHERE id = $2`, and
+        // the exception took the whole turn with it ("Es ist ein interner
+        // Fehler aufgetreten"), before a single token was written.
+        //
+        // A non-UUID id is exactly the case the fallback below already handles:
+        // it names no persisted row. Route it there instead of to SQL.
+        const removed = UUID_RE.test(rawReplaceFromMessageId)
+          ? await deleteMessagesFrom(actualThreadId, rawReplaceFromMessageId)
+          : 0;
         // In-session messages carry an AUI id that isn't a persisted row → the
         // delete matches nothing; fall back to dropping the trailing reply.
         if (removed === 0) await deleteTrailingAssistant(actualThreadId);
@@ -481,7 +602,7 @@ export async function buildStreamContext({
     attachmentContext: derivedAttachmentContext,
     imageAttachments,
     processedMeta,
-  } = await processAttachments(attachments as ProcessedAttachment[] | undefined, requestId);
+  } = await processAttachments(effectiveAttachments, requestId);
 
   // Merge any client-injected context (e.g. docs editor markdown + selection)
   // with what processAttachments derived from uploaded files.
@@ -492,8 +613,21 @@ export async function buildStreamContext({
       ? `${clientAttachmentContext}\n\n---\n\n${derivedAttachmentContext}`
       : clientAttachmentContext || derivedAttachmentContext;
 
-  const docAttachments =
-    (attachments as ProcessedAttachment[] | undefined)?.filter((a) => !a.isImage) ?? [];
+  const inlineMaterial = inlineMaterialAttachment(
+    lastUserMessage ? extractTextContent(lastUserMessage.content) : '',
+    {
+      regenerate: !!rawRegenerate,
+      hasDocumentAttachment: processedMeta.some((m) => !m.isImage),
+    }
+  );
+  if (inlineMaterial) {
+    processedMeta.push(inlineMaterial);
+    log.info(
+      `[StreamContext] Carrying ${inlineMaterial.extractedText?.length ?? 0}c of inline material forward as a document`
+    );
+  }
+
+  const docAttachments = effectiveAttachments?.filter((a) => !a.isImage) ?? [];
 
   const previousAttachments = actualThreadId ? await getThreadAttachments(actualThreadId, 5) : [];
 
@@ -586,6 +720,9 @@ export async function buildStreamContext({
   // Weg für frei eingetippte Rollen und für Bestandsdaten, die den Text noch
   // mitschicken.
   let customSystemPrompt = rawCustomSystemPrompt ?? undefined;
+  // Katalogrolle mit Baustein (statt frei getippter Persona): das Rezept-
+  // Selbstladen im Loop bleibt dann AN — siehe resolveCustomSystemPrompt.
+  let roleBausteinActive = false;
   if (rawRoleRef) {
     const storedRoles = user.user_defaults?.profile?.roles;
     const role = Array.isArray(storedRoles)
@@ -597,11 +734,13 @@ export async function buildStreamContext({
           'gespeicherte Rolle — der Turn läuft mit dem Basis-Agenten.'
       );
     } else {
-      customSystemPrompt = resolveCustomSystemPrompt(
+      const resolved = resolveCustomSystemPrompt(
         role,
         user.locale ?? 'de-DE',
         rawCustomSystemPrompt
       );
+      customSystemPrompt = resolved.prompt;
+      roleBausteinActive = resolved.fromBaustein;
     }
   }
 
@@ -667,6 +806,7 @@ export async function buildStreamContext({
     userLocale: user.locale ?? 'de-DE',
     clientPlatform: rawPlatform ?? 'web',
     customSystemPrompt,
+    roleBausteinActive,
     activeSkillMention: rawActiveSkillMention ?? undefined,
     userInstructions,
     contextWindowTokens,

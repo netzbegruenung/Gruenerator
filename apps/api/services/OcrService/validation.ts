@@ -73,5 +73,11 @@ export function getMediaType(ext: string): string {
     return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
   if (e === '.pptx')
     return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+  if (e === '.xlsx') return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  // Legacy OLE2 Word. Mistral OCR accepts it under application/msword but rejects
+  // the octet-stream fallback below with a 400 (code 3051, "Document content must
+  // be a URL … or base64 encoded document") — measured against Wahlprüfstein .doc
+  // files in a Wolke share, which failed on every full LV crawl until this line.
+  if (e === '.doc') return 'application/msword';
   return 'application/octet-stream';
 }

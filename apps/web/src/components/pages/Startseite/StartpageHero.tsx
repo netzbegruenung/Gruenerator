@@ -73,12 +73,19 @@ const StartpageHero = memo(({ onScrollToContent }: StartpageHeroProps) => {
     const provider = getProviderById(id);
     if (!provider) return;
     rememberProvider(id);
-    void signInWithProvider(provider, '/workplace').catch((err) => {
+    void signInWithProvider(provider, '/start').catch((err) => {
       console.error('[StartpageHero] Sign-in failed:', err);
     });
   }, []);
 
   const primaryProvider = getProviderById(primary);
+
+  // Mirrors LoginPage's requiredEnabledProviders: a deep-linked/remembered
+  // provider outside the default set (e.g. ?login=gruenerator) must still
+  // show up in the list, or it becomes unreachable once picked.
+  const visibleProviders = LOGIN_PROVIDERS.filter(
+    (provider) => provider.enabledByDefault || provider.id === primary
+  );
 
   return (
     <>
@@ -99,71 +106,89 @@ const StartpageHero = memo(({ onScrollToContent }: StartpageHeroProps) => {
           />
         </div>
 
-        <h1 className="sr-only">Grünerator – die Grüne KI, exklusiv für Grüne Mitglieder</h1>
+        <div className="sp-hero-main">
+          <h1 className="sr-only">Grünerator – die Grüne KI, exklusiv für Grüne Mitglieder</h1>
 
-        <p className="sp-headline" aria-hidden="true">
-          {HEADLINE}
-        </p>
+          <p className="sp-headline" aria-hidden="true">
+            {HEADLINE}
+          </p>
 
-        <div className="sp-cta">
-          <div className="sp-cta-row">
+          <div className="sp-cta">
+            <div
+              className={`sp-collapse${providersOpen ? '' : ' sp-collapse-open'}`}
+              aria-hidden={providersOpen}
+              inert={providersOpen}
+            >
+              <div className="sp-cta-row">
+                <button
+                  type="button"
+                  className="sp-login"
+                  onClick={() => startLogin(primary)}
+                  aria-label={
+                    primaryProvider ? `Anmelden mit ${primaryProvider.title}` : 'Anmelden'
+                  }
+                >
+                  <LockIcon /> Login
+                </button>
+                <button type="button" className="sp-more" onClick={onScrollToContent}>
+                  Mehr erfahren
+                </button>
+              </div>
+            </div>
+
             <button
               type="button"
-              className="sp-login"
-              onClick={() => startLogin(primary)}
-              aria-label={primaryProvider ? `Anmelden mit ${primaryProvider.title}` : 'Anmelden'}
+              className="sp-provider-toggle"
+              onClick={() => setProvidersOpen((open) => !open)}
+              aria-expanded={providersOpen}
             >
-              <LockIcon /> Login
+              {providersOpen ? 'Anbieter ausblenden' : 'Anderer Anbieter'}
             </button>
-            <button type="button" className="sp-more" onClick={onScrollToContent}>
-              Mehr erfahren
-            </button>
+
+            <div
+              className={`sp-collapse${providersOpen ? ' sp-collapse-open' : ''}`}
+              aria-hidden={!providersOpen}
+              inert={!providersOpen}
+            >
+              <ul className="sp-provider-list">
+                {visibleProviders.map((provider) => (
+                  <li key={provider.id}>
+                    <button
+                      type="button"
+                      className="sp-provider"
+                      aria-current={provider.id === primary ? 'true' : undefined}
+                      onClick={() => startLogin(provider.id)}
+                    >
+                      {provider.logoPath ? (
+                        <img src={provider.logoPath} alt="" className="sp-provider-logo" />
+                      ) : (
+                        <span className="sp-provider-logo" aria-hidden="true">
+                          🌱
+                        </span>
+                      )}
+                      {provider.title}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
-
-          <p className="sp-hint">Exklusiv für Grüne Mitglieder.</p>
-
-          <button
-            type="button"
-            className="sp-provider-toggle"
-            onClick={() => setProvidersOpen((open) => !open)}
-            aria-expanded={providersOpen}
-          >
-            {providersOpen ? 'Anbieter ausblenden' : 'Anderer Anbieter'}
-          </button>
-
-          {providersOpen && (
-            <ul className="sp-provider-list">
-              {LOGIN_PROVIDERS.map((provider) => (
-                <li key={provider.id}>
-                  <button
-                    type="button"
-                    className="sp-provider"
-                    aria-current={provider.id === primary ? 'true' : undefined}
-                    onClick={() => startLogin(provider.id)}
-                  >
-                    {provider.logoPath ? (
-                      <img src={provider.logoPath} alt="" className="sp-provider-logo" />
-                    ) : (
-                      <span className="sp-provider-logo" aria-hidden="true">
-                        🌱
-                      </span>
-                    )}
-                    {provider.title}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
         </div>
 
-        <button
-          type="button"
-          className="sp-cue"
-          onClick={onScrollToContent}
-          aria-label="Mehr erfahren"
-        >
-          <ChevronIcon />
-        </button>
+        <div className="sp-cue-wrap">
+          <p className="sp-hint">
+            Ein Projekt von Moritz Wächter, kostenfrei für alle Grünen Parteimitglieder in
+            Deutschland und Österreich.
+          </p>
+          <button
+            type="button"
+            className="sp-cue"
+            onClick={onScrollToContent}
+            aria-label="Mehr erfahren"
+          >
+            <ChevronIcon />
+          </button>
+        </div>
       </section>
     </>
   );

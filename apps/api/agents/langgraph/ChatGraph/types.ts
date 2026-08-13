@@ -10,11 +10,11 @@
  * keeping the graph decoupled from transport concerns.
  */
 
+import type { ForbiddableArtifact } from './nodes/fastPathGuards.js';
 import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
 import type { SystemMcpKey } from '../../../services/mcp/systemMcpServers.js';
 import type { AIWorkerPool } from '../../../workers/types.js';
-import type { ForbiddableArtifact } from './nodes/fastPathGuards.js';
 import type {
   WolkeFileRef,
   ConnectFileRef,
@@ -525,7 +525,7 @@ export interface ChatGraphInput {
   wolkeFiles?: WolkeFileRef[] | undefined;
   connectFiles?: ConnectFileRef[] | undefined;
   /**
-   * URLs explicitly attached in the composer via the @web mention. Merged with
+   * URLs explicitly attached in the composer via the @link mention. Merged with
    * the classifier's auto-detected URLs and crawled through the scrape_url path.
    */
   attachedWebpageUrls?: string[] | undefined;
@@ -534,6 +534,7 @@ export interface ChatGraphInput {
   userLocale?: UserLocale | undefined;
   clientPlatform?: ClientPlatform | undefined;
   customSystemPrompt?: string | undefined;
+  roleBausteinActive?: boolean | undefined;
   activeSkillMention?: string | undefined;
   userInstructions?: string | undefined;
   contextWindowTokens?: number | undefined;
@@ -668,9 +669,27 @@ export interface ChatGraphState {
   sheetIds: string[];
   sheetContext: string | null;
 
+  // Target sheet for a Tier-2.7 follow-up edit (lastToolContext pickup) — set
+  // only by classifierNode's edit_sheet branch, distinct from sheetIds' @mention
+  // scoping. See ChatGraphState.docMentionIds for the document equivalent.
+  sheetEditId: string | null;
+
   // Collaborative document context (from @doc mentions)
   docMentionIds: string[];
   documentMentionContext: string | null;
+
+  // Der Text, den der Einfache-Sprache-Agent in DIESEM Turn übertragen soll —
+  // vom Router aus `resolveOriginalText` gesetzt, sonst null.
+  //
+  // Er existiert, damit Übertragung und Prüfung nachweislich denselben
+  // Ausgangstext meinen. Ohne ihn liefen beide auseinander: der Antwortschritt
+  // sieht den ganzen Thread (`formatThreadAttachmentsContext` spielt den
+  // Volltext JEDES früheren Anhangs wieder ein), die Prüfkette nur den
+  // aktuellen Turn. Am 13.08.2026 übertrug Schritt 1 deshalb den Artikel aus
+  // dem vorigen Turn, während Schritt 3 gegen das frisch eingefügte Material
+  // prüfte — der Bericht meldete folgerichtig „Halluzination, ABLEHNUNG" für
+  // eine Fassung, die nur am falschen Original gemessen worden war.
+  pipelineSourceText: string | null;
 
   // Wolke (Nextcloud) file refs selected via @wolke mentionable.
   // Downloaded + parsed inline at searchNode time; never persisted.
@@ -680,7 +699,7 @@ export interface ChatGraphState {
   // Downloaded + parsed inline at searchNode time; never persisted.
   connectFiles: ConnectFileRef[];
 
-  // URLs attached via the @web mentionable. The classifier unions these into
+  // URLs attached via the @link mentionable. The classifier unions these into
   // `detectedUrls` so the existing scrape_url path crawls them.
   attachedWebpageUrls: string[];
 
@@ -694,6 +713,11 @@ export interface ChatGraphState {
 
   // Custom system prompt (replaces entire agent system prompt when set)
   customSystemPrompt: string | null;
+
+  // customSystemPrompt is a CATALOGUE role's baustein (server-side persona),
+  // not a user-typed prompt. Keeps the loop's recipe self-loading mounted:
+  // suppressing recipes protects user personas, not our own role bausteine.
+  roleBausteinActive: boolean;
 
   // Mention key of the active skill (e.g. 'instagram'). When set, respondNode
   // appends the skill's `skillSystemPrompt` as an additive section.
@@ -756,6 +780,18 @@ export interface ChatGraphState {
   creationTopic: string | null;
   hasTemporal: boolean;
   complexity: 'simple' | 'moderate' | 'complex';
+
+  /**
+   * Output contract detected on the last user message (`detectTaskShape` in
+   * routes/chat/agents/taskShape.ts): `code` for machine-readable output
+   * (JSON/YAML/code/fences, incl. the sticky edit-follow-up after a code
+   * answer), `strict_format` for explicitly checkable format orders ("genau
+   * drei Sätze", "ohne Einleitung"). Set by the contract router after
+   * classification; consumed by `resolveAutoSelection` as a lane override on
+   * the neutral intents. Orthogonal to `intent` and `complexity` on purpose —
+   * it describes the answer's FORM, not the task.
+   */
+  taskShape?: 'code' | 'strict_format' | null;
 
   /**
    * The user asked for a thorough/deep research in so many words — the ONLY route
@@ -942,6 +978,10 @@ export interface ChatGraphState {
   // Presentation/sheet/text-doc fat tool result (compound turns) — lifted by the
   // router into the persisted assistant message's `createdDocument` metadata.
   createdDocument?: CreatedDocument | null;
+  // The spec the `create_pdf` tool rendered from this turn. A PDF ships as
+  // finished bytes, so this is the only thing a later edit can build on —
+  // lifted by postResponseService into the message's `pdfSpec` metadata.
+  createdPdfSpec?: unknown;
   // Board fat tool result (compound turns) — boards have no `document_created`
   // card path, so this is lifted into the loop's `done` event (boardId +
   // boardGeneratedStructure) the way the single-pass board handler does.

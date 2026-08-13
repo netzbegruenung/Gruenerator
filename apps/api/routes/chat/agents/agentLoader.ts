@@ -21,6 +21,8 @@ import {
 } from '../../../services/userAgents/userAgentsRepository.js';
 import { createLogger } from '../../../utils/logger.js';
 
+import { getPipelineSystemRole } from './pipelines/index.js';
+
 import type { AgentConfig } from './types.js';
 
 const log = createLogger('AgentLoader');
@@ -33,10 +35,16 @@ const missingRoleLogged = new Set<string>();
  * would be public. This is the single seam where a system agent becomes an
  * `AgentConfig`, so every downstream reader sees a complete agent.
  *
- * Three cases:
- *   - LV agents (lvPrAgents/lvBuergerAgents) build their role in code and keep
- *     it; they never reach the disk lookup.
- *   - Markdown-defined agents get theirs from `<INTERN_CONTENT_DIR>/agents/`.
+ * Drei Fälle:
+ *   - Ein Pipeline-Agent (`agents/pipelines/`) bringt seine Persona im Repo mit,
+ *     wenn sie reines Handwerk ist. Sie steht in `apps/api` und damit weder im
+ *     Web- noch im Mobile-Bundle — das ist der Unterschied, auf den es ankommt,
+ *     nicht „öffentlich vs. privat". Ein solcher Agent kann den Rollout gar
+ *     nicht verfehlen; am 13.08.2026 lief Einfache Sprache zwei Stunden mit der
+ *     generischen Ersatzrolle, weil Salt noch nicht durch war.
+ *   - Every agent with an empty systemRole — markdown-defined agents AND the
+ *     generated LV agents (lvPrAgents/lvBuergerAgents/lvWahlpruefsteinAgents) —
+ *     gets it from `<INTERN_CONTENT_DIR>/agents/<identifier>.md`.
  *   - Nothing on disk means the rollout did not land. Unlike a recipe, an agent
  *     has nothing to fall back *to*, and an empty role makes
  *     `promptAssemblyGraph.buildSystemText` throw — so substitute a generic
@@ -45,6 +53,9 @@ const missingRoleLogged = new Set<string>();
  */
 function withInternalRole(agent: Agent): AgentConfig {
   if (agent.systemRole) return agent as AgentConfig;
+
+  const fromPipeline = getPipelineSystemRole(agent.identifier);
+  if (fromPipeline) return { ...agent, systemRole: fromPipeline } as AgentConfig;
 
   const internal = getInternalAgentPrompt(agent.identifier);
   if (internal) return { ...agent, systemRole: internal } as AgentConfig;

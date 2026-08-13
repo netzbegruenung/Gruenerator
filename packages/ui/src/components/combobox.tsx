@@ -96,7 +96,24 @@ function ComboboxContent({
         align={align}
         alignOffset={alignOffset}
         anchor={anchor}
-        className="isolate z-50"
+        // Die Combobox ist die einzige Base-UI-Komponente in einem sonst
+        // Radix-basierten Paket, und ihr Popup landet per Portal als eigenes
+        // <body>-Kind. Steht sie in einem Radix-Dialog, setzt dessen
+        // DismissableLayer `body { pointer-events: none }` und hebt es nur im
+        // Dialog-Zweig wieder auf — das Popup bleibt sichtbar, aber jeder Klick
+        // geht ins Leere. Genau daran war der Bundesland-Schritt unter
+        // Einstellungen › Personalisierung › Rollen nicht bedienbar.
+        //
+        // Inline und nicht als Utility-Klasse, aus zwei Gründen: `pointer-events`
+        // ist hier nicht Aussehen, sondern die Bedienbarkeit selbst, und nur
+        // inline lässt es sich in der jsdom-Lane nachmessen, in der kein Tailwind
+        // kompiliert. Ohne Dialog drumherum ist es folgenlos.
+        //
+        // Gegen das Schließen des Dialogs beim Klick ins Popup braucht es hier
+        // nichts: React-Portale leiten Events durch den React-Baum, der Dialog
+        // zählt den Klick also ohnehin als „innen" (nachgemessen).
+        style={{ pointerEvents: 'auto' }}
+        className="isolate z-[1020]"
       >
         <ComboboxPrimitive.Popup
           data-slot="combobox-content"

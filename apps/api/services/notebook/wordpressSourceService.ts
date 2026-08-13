@@ -23,7 +23,7 @@ import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { parseMetadata } from '../../routes/documents/helpers.js';
 import { createLogger } from '../../utils/logger.js';
-import { validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
+import { safeFetch } from '../../utils/validation/urlSecurity.js';
 import { getQdrantDocumentService } from '../document-services/DocumentSearchService/index.js';
 import { getPostgresDocumentService } from '../document-services/PostgresDocumentService/index.js';
 import { cleanText, stripHtmlTags } from '../scrapers/utils/htmlCleaner.js';
@@ -107,21 +107,18 @@ export function normalizeSiteUrl(raw: string): string {
 }
 
 async function wpFetch(url: string): Promise<Response> {
-  const validation = await validateUrlForFetch(url);
-  if (!validation.isValid || !validation.url) {
-    throw new WpSourceError('invalid_url', validation.error || 'URL nicht erlaubt');
-  }
   try {
-    return await fetch(validation.url, {
+    // safeFetch validates the URL and re-validates every redirect hop (SSRF).
+    return await safeFetch(url, {
       headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' },
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-      redirect: 'follow',
     });
   } catch (error) {
-    throw new WpSourceError(
-      'fetch_failed',
-      `Website nicht erreichbar: ${(error as Error).message}`
-    );
+    const message = (error as Error).message;
+    if (message.startsWith('URL validation failed')) {
+      throw new WpSourceError('invalid_url', 'URL nicht erlaubt');
+    }
+    throw new WpSourceError('fetch_failed', `Website nicht erreichbar: ${message}`);
   }
 }
 

@@ -6,6 +6,7 @@
 import { useState, useCallback } from 'react';
 
 import { getGlobalApiClient } from '../../api/client.js';
+import { stripDataUrlPrefix } from '../../utils/dataUrl.js';
 import { KI_TYPE_CONFIGS } from '../constants.js';
 
 import type {
@@ -210,7 +211,7 @@ export function useKiImageGeneration(
         const formData = new FormData();
 
         // Convert base64 image to Blob
-        const cleanBase64 = request.imageData.replace(/^data:image\/\w+;base64,/, '');
+        const cleanBase64 = stripDataUrlPrefix(request.imageData);
         const binaryString = atob(cleanBase64);
         const bytes = new Uint8Array(binaryString.length);
         for (let i = 0; i < binaryString.length; i++) {

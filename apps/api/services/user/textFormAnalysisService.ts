@@ -8,7 +8,7 @@
  * markdown block that later gets injected into the chat system prompt.
  */
 
-import { type TextFormType } from '@gruenerator/contracts';
+import { MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS, type TextFormType } from '@gruenerator/contracts';
 import { generateObject } from 'ai';
 import { z } from 'zod';
 
@@ -53,8 +53,25 @@ Regeln:
 - signaturePhrases: nur Formulierungen, die WÖRTLICH (oder fast wörtlich) in den Beispielen vorkommen.
 - Schreibe auf Deutsch, knapp und präzise. Keine Meta-Kommentare.`;
 
+/**
+ * Rendert die Beispiele und hält dabei das Zeichenbudget ein. Zod deckelt die
+ * Summe schon am Contract; der Deckel hier ist die zweite Grenze für Rezepte,
+ * die vor der Anhebung des Limits gespeichert wurden oder über einen anderen
+ * Aufrufer hereinkommen — ein gesprengtes Kontextfenster ist ein 500er, kein
+ * Validierungsfehler.
+ */
 function buildExamplesText(examples: ReadonlyArray<{ content: string }>): string {
-  return examples.map((e, i) => `--- Beispiel ${i + 1} ---\n${e.content.trim()}`).join('\n\n');
+  const blocks: string[] = [];
+  let used = 0;
+  for (const [i, example] of examples.entries()) {
+    const content = example.content.trim();
+    if (content.length === 0) continue;
+    const remaining = MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS - used;
+    if (remaining <= 0) break;
+    used += content.length;
+    blocks.push(`--- Beispiel ${i + 1} ---\n${content.slice(0, remaining)}`);
+  }
+  return blocks.join('\n\n');
 }
 
 function renderStyleBlock(label: string, s: StyleExtract): string {
@@ -91,20 +108,23 @@ export async function analyzeTextForm(
   examples: ReadonlyArray<{ content: string }>
 ): Promise<{ styleBlock: string; model: string }> {
   const model = getModel('mistral', ANALYSIS_MODEL);
+  const examplesText = buildExamplesText(examples);
 
   const result = await generateObject({
     model,
     schema: StyleSchema,
     system: SYSTEM_PROMPT,
-    prompt: `## ${label} — Beispiele\n\n${buildExamplesText(examples)}\n\nAnalysiere die Gemeinsamkeiten des Schreibstils.`,
+    prompt: `## ${label} — Beispiele\n\n${examplesText}\n\nAnalysiere die Gemeinsamkeiten des Schreibstils.`,
     maxOutputTokens: 2000,
     temperature: 0.25,
-    abortSignal: AbortSignal.timeout(45000),
+    // Bis zu ~40k Token Eingabe: der alte 45-s-Deckel reichte für fünf kurze
+    // Beispiele, nicht für zwanzig lange.
+    abortSignal: AbortSignal.timeout(150_000),
   });
 
   const styleBlock = renderStyleBlock(label, result.object);
   log.info(
-    `[analyzeTextForm] "${label}" — ${examples.length} examples → ${styleBlock.length} chars`
+    `[analyzeTextForm] "${label}" — ${examples.length} examples / ${examplesText.length} chars → ${styleBlock.length} chars`
   );
   return { styleBlock, model: ANALYSIS_MODEL };
 }

@@ -11,13 +11,14 @@ import { skillVisibilityContract } from '@gruenerator/contracts';
 import { SKILLS } from '@gruenerator/shared/agents';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
-import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { getUserLandesverbandId } from '../../services/landesverband/LandesverbandDerivationService.js';
 import {
   getHiddenSkillMentions,
+  getEffectiveHiddenSkillMentions,
   hideSkill,
   unhideSkill,
 } from '../../services/skills/AdminHiddenSkillsService.js';
-import { isAdminByEmail } from '../../utils/adminEmails.js';
+import { requireInstanceAdmin } from '../../utils/adminAuthz.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
@@ -25,28 +26,6 @@ import { createLogger } from '../../utils/logger.js';
 import type { Application } from 'express';
 
 const log = createLogger('skillVisibilityContractRouter');
-
-async function checkIsAdmin(userId: string, email?: string): Promise<boolean> {
-  if (isAdminByEmail(email)) return true;
-  const postgres = getPostgresInstance();
-  const profile = await postgres.queryOne(
-    'SELECT is_admin, email FROM profiles WHERE id = $1',
-    [userId],
-    { table: 'profiles' }
-  );
-  const allowed = Boolean(profile?.is_admin);
-  if (!allowed) {
-    log.warn(
-      '[skillVisibilityContract] admin check denied: session user_id=%s session_email=%s profile_found=%s profile_email=%s profile_is_admin=%s',
-      userId,
-      email ?? '(none)',
-      profile ? 'yes' : 'no',
-      profile?.email ?? '(null)',
-      profile?.is_admin
-    );
-  }
-  return allowed;
-}
 
 const FORBIDDEN = {
   status: 403 as const,
@@ -56,9 +35,11 @@ const FORBIDDEN = {
 const s = initServer();
 
 export const skillVisibilityContractRouter = s.router(skillVisibilityContract, {
-  getVisibility: async () => {
+  getVisibility: async (args) => {
     try {
-      const hiddenMentions = await getHiddenSkillMentions();
+      const authedUser = getAuthedUser(args.req);
+      const landesverbandId = await getUserLandesverbandId(authedUser.id);
+      const hiddenMentions = [...(await getEffectiveHiddenSkillMentions(landesverbandId))];
       return { status: 200 as const, body: { hiddenMentions } };
     } catch (error) {
       log.error('[skillVisibilityContract.getVisibility] Error:', error);
@@ -72,7 +53,7 @@ export const skillVisibilityContractRouter = s.router(skillVisibilityContract, {
   list: async (args) => {
     try {
       const authedUser = getAuthedUser(args.req);
-      if (!(await checkIsAdmin(authedUser.id, authedUser.email))) return FORBIDDEN;
+      if (!(await requireInstanceAdmin(authedUser.id, authedUser.email))) return FORBIDDEN;
 
       const hiddenMentions = new Set(await getHiddenSkillMentions());
       const data = SKILLS.map((skill) => ({
@@ -96,7 +77,7 @@ export const skillVisibilityContractRouter = s.router(skillVisibilityContract, {
   setHidden: async (args) => {
     try {
       const authedUser = getAuthedUser(args.req);
-      if (!(await checkIsAdmin(authedUser.id, authedUser.email))) return FORBIDDEN;
+      if (!(await requireInstanceAdmin(authedUser.id, authedUser.email))) return FORBIDDEN;
 
       const { mention } = args.params;
       if (args.body.hidden) {

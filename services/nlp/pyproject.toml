@@ -14,3 +14,30 @@ dependencies = [
     "pydantic>=2.0.0",
     "orjson>=3.9.0",
 ]
+
+# The word lists are data files next to the code. Without this, `pip install .`
+# builds a package whose analyzer raises FileNotFoundError on import — the
+# Docker image happens to dodge it by copying src/ wholesale instead of
+# installing. tests/test_wordlists.py keeps this glob and the shipped files
+# in sync.
+[tool.setuptools.package-data]
+topic_classifier = ["*.txt"]
+
+# Test-only. Deliberately NOT a spaCy model: the suite builds its Docs by hand
+# and needs none. Install de_core_news_sm on top to also run the `model` tier.
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "httpx>=0.27.0",  # required by fastapi.testclient
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# The package is not installed for the test run (the Dockerfile ships it by
+# copying src/ and setting PYTHONPATH); point pytest at the same directory so
+# `import topic_classifier` resolves the same way it does in the image.
+pythonpath = ["src"]
+addopts = "-q --strict-markers"
+markers = [
+    "model: needs an installed German spaCy model (auto-skipped without one)",
+]

@@ -3,7 +3,7 @@ import { type CanvasTemplateType } from '@gruenerator/contracts';
 import { shareApi, type ShareImageMetadata } from '@gruenerator/shared/share';
 
 import apiClient from '../../../components/utils/apiClient';
-import { isMintableCanvasType } from '../utils/canvasTypeFields';
+import { CANVAS_TYPE_FIELDS, isMintableCanvasType } from '../utils/canvasTypeFields';
 import {
   IMAGE_STUDIO_CATEGORIES,
   IMAGE_STUDIO_TYPES,
@@ -481,28 +481,16 @@ export function parseAIGeneratedData(
     editingSource: 'aiPrompt',
   };
 
-  if (mappedType === IMAGE_STUDIO_TYPES.DREIZEILEN) {
-    formData.line1 = generatedData.line1 || '';
-    formData.line2 = generatedData.line2 || '';
-    formData.line3 = generatedData.line3 || '';
-  } else if (mappedType === IMAGE_STUDIO_TYPES.ZITAT_PURE) {
-    formData.quote = generatedData.quote || '';
-    formData.name = generatedData.name || '';
-  } else if (mappedType === IMAGE_STUDIO_TYPES.INFO) {
-    formData.header = generatedData.header || '';
+  // Was a per-type if/else that covered five types and silently dropped the
+  // generated text for every other one — including all four AT variants.
+  for (const field of CANVAS_TYPE_FIELDS[sharepicType].fields) {
+    formData[field] = generatedData[field] || '';
+  }
+  // INFO is the one field the wizard form needs but the mint map does not:
+  // `subheader` seeds the form's middle input, while the canvas takes only
+  // header/body (`buildVariantInitialProps` folds subheader into body).
+  if (mappedType === IMAGE_STUDIO_TYPES.INFO) {
     formData.subheader = generatedData.subheader || '';
-    formData.body = generatedData.body || '';
-  } else if (mappedType === IMAGE_STUDIO_TYPES.VERANSTALTUNG) {
-    formData.eventTitle = generatedData.eventTitle || '';
-    formData.weekday = generatedData.weekday || '';
-    formData.date = generatedData.date || '';
-    formData.time = generatedData.time || '';
-    formData.locationName = generatedData.locationName || '';
-    formData.address = generatedData.address || '';
-    formData.beschreibung = generatedData.beschreibung || '';
-  } else if (mappedType === IMAGE_STUDIO_TYPES.SIMPLE) {
-    formData.headline = generatedData.headline || '';
-    formData.subtext = generatedData.subtext || '';
   }
 
   // Add selected image if provided

@@ -27,8 +27,10 @@ import {
   useApproveVorlage,
   useRejectVorlage,
 } from './hooks/useAdminVorlagen';
+import LandesverbandAssignmentTab from './landesverband-assignment/LandesverbandAssignmentTab';
 
 type StatusTab = 'pending_review' | 'published' | 'rejected';
+type DashboardTab = StatusTab | 'landesverbaende';
 
 const TABS: { key: StatusTab; label: string }[] = [
   { key: 'pending_review', label: 'Ausstehend' },
@@ -39,14 +41,19 @@ const TABS: { key: StatusTab; label: string }[] = [
 const AdminDashboardPage = () => {
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.is_admin === true;
-  const [activeTab, setActiveTab] = useState<StatusTab>('pending_review');
+  const [activeTab, setActiveTab] = useState<DashboardTab>('pending_review');
   const [approveTarget, setApproveTarget] = useState<string | null>(null);
   const [approveMessage, setApproveMessage] = useState('');
   const [rejectTarget, setRejectTarget] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
 
+  const isStatusTab = activeTab !== 'landesverbaende';
+
   const { data: stats } = useVorlagenStats(isAdmin);
-  const { data: vorlagen, isLoading } = useAdminVorlagen(activeTab, isAdmin);
+  const { data: vorlagen, isLoading } = useAdminVorlagen(
+    isStatusTab ? activeTab : 'pending_review',
+    isAdmin && isStatusTab
+  );
   const approveMutation = useApproveVorlage();
   const rejectMutation = useRejectVorlage();
 
@@ -85,7 +92,7 @@ const AdminDashboardPage = () => {
             </p>
           )}
           <Button variant="brand" size="brand" asChild>
-            <Link to="/workplace">Zurück zum Workplace</Link>
+            <Link to="/start">Zurück zum Grünerator</Link>
           </Button>
         </div>
       </PageContainer>
@@ -144,54 +151,78 @@ const AdminDashboardPage = () => {
               {label} ({statCounts[key]})
             </button>
           ))}
+          <button
+            type="button"
+            onClick={() => setActiveTab('landesverbaende')}
+            className={cn(
+              'px-3 py-1.5 text-sm font-medium rounded-md border-none cursor-pointer transition-colors',
+              activeTab === 'landesverbaende'
+                ? 'bg-grey-200 dark:bg-grey-700 text-foreground'
+                : 'bg-transparent text-grey-500 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800'
+            )}
+          >
+            Landesverbände
+          </button>
         </div>
 
-        <section>
-          <SectionHeader title="Vorlagen" />
-          {isLoading ? (
-            <CardGrid columns="3">
-              {Array.from({ length: 4 }, (_, i) => (
-                <div
-                  key={i}
-                  className="rounded-md border border-grey-200 dark:border-grey-700 overflow-hidden"
-                >
-                  <Skeleton className="aspect-[4/3] rounded-none" />
-                  <div className="p-md">
-                    <Skeleton className="h-4 w-3/4" />
-                    <Skeleton className="h-3 w-1/2 mt-1.5" />
+        {isStatusTab ? (
+          <section>
+            <SectionHeader title="Vorlagen" />
+            {isLoading ? (
+              <CardGrid columns="3">
+                {Array.from({ length: 4 }, (_, i) => (
+                  <div
+                    key={i}
+                    className="rounded-md border border-grey-200 dark:border-grey-700 overflow-hidden"
+                  >
+                    <Skeleton className="aspect-[4/3] rounded-none" />
+                    <div className="p-md">
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-3 w-1/2 mt-1.5" />
+                    </div>
                   </div>
-                </div>
-              ))}
-            </CardGrid>
-          ) : !vorlagen || vorlagen.length === 0 ? (
-            <p className="text-sm text-grey-500 dark:text-grey-400 py-lg text-center">
-              {activeTab === 'pending_review'
-                ? 'Keine ausstehenden Vorlagen.'
-                : activeTab === 'published'
-                  ? 'Noch keine freigegebenen Vorlagen.'
-                  : 'Keine abgelehnten Vorlagen.'}
+                ))}
+              </CardGrid>
+            ) : !vorlagen || vorlagen.length === 0 ? (
+              <p className="text-sm text-grey-500 dark:text-grey-400 py-lg text-center">
+                {activeTab === 'pending_review'
+                  ? 'Keine ausstehenden Vorlagen.'
+                  : activeTab === 'published'
+                    ? 'Noch keine freigegebenen Vorlagen.'
+                    : 'Keine abgelehnten Vorlagen.'}
+              </p>
+            ) : (
+              <CardGrid columns="3">
+                {vorlagen.map((v) => (
+                  <VorlagenReviewCard
+                    key={v.id}
+                    vorlage={v}
+                    onApprove={(id) => {
+                      setApproveTarget(id);
+                      setApproveMessage('');
+                    }}
+                    onReject={(id) => {
+                      setRejectTarget(id);
+                      setRejectReason('');
+                    }}
+                    isApproving={
+                      approveMutation.isPending && approveMutation.variables?.id === v.id
+                    }
+                    isRejecting={rejectMutation.isPending && rejectMutation.variables?.id === v.id}
+                  />
+                ))}
+              </CardGrid>
+            )}
+          </section>
+        ) : (
+          <section>
+            <SectionHeader title="Landesverband-Admins" />
+            <p className="text-sm text-grey-500 dark:text-grey-400 mb-md">
+              Lege fest, wer welchen Landesverband administrieren darf.
             </p>
-          ) : (
-            <CardGrid columns="3">
-              {vorlagen.map((v) => (
-                <VorlagenReviewCard
-                  key={v.id}
-                  vorlage={v}
-                  onApprove={(id) => {
-                    setApproveTarget(id);
-                    setApproveMessage('');
-                  }}
-                  onReject={(id) => {
-                    setRejectTarget(id);
-                    setRejectReason('');
-                  }}
-                  isApproving={approveMutation.isPending && approveMutation.variables?.id === v.id}
-                  isRejecting={rejectMutation.isPending && rejectMutation.variables?.id === v.id}
-                />
-              ))}
-            </CardGrid>
-          )}
-        </section>
+            <LandesverbandAssignmentTab />
+          </section>
+        )}
 
         <Dialog open={approveTarget !== null} onOpenChange={() => setApproveTarget(null)}>
           <DialogContent className="bg-background-pure">

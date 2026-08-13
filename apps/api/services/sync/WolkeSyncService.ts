@@ -23,6 +23,14 @@ import {
 import { mistralEmbeddingService } from '../mistral/index.js';
 import { ocrService } from '../OcrService/index.js';
 
+import { walkWolkeFolder } from './folderWalk.js';
+import {
+  isOcrWolkeExtension,
+  isPlaintextWolkeExtension,
+  isSupportedWolkeFile,
+  wolkeFileExtension,
+} from './supportedFileTypes.js';
+
 import type { NextcloudFile, FileProcessResult, SyncResult } from './types.js';
 import type { NextcloudShareLink } from '../../utils/integrations/nextcloud/types.js';
 
@@ -32,23 +40,11 @@ export class WolkeSyncService {
   private postgres: ReturnType<typeof getPostgresInstance>;
   private qdrantService: DocumentSearchService;
   private documentService: ReturnType<typeof getPostgresDocumentService>;
-  private supportedFileTypes: string[];
 
   constructor() {
     this.postgres = getPostgresInstance();
     this.qdrantService = new DocumentSearchService();
     this.documentService = getPostgresDocumentService();
-    this.supportedFileTypes = [
-      '.pdf',
-      '.docx',
-      '.pptx',
-      '.png',
-      '.jpg',
-      '.jpeg',
-      '.avif',
-      '.txt',
-      '.md',
-    ];
   }
 
   /**
@@ -180,52 +176,38 @@ export class WolkeSyncService {
   }
 
   /**
-   * List files in a Nextcloud folder
-   */
-  async listFolderContents(
-    shareLink: NextcloudShareLink,
-    _folderPath: string = ''
-  ): Promise<NextcloudFile[]> {
-    try {
-      const client = await NextcloudApiClient.create(shareLink.share_link);
-      const shareInfo = await client.getShareInfo();
-
-      if (!shareInfo.success) {
-        throw new Error('Failed to get share information');
-      }
-
-      // Filter for supported file types
-      const files = shareInfo.files ?? [];
-      const supportedFiles = files.filter((file) => {
-        const fileExtension = path.extname(file.name.toLowerCase());
-        return this.supportedFileTypes.includes(fileExtension);
-      });
-
-      console.log(`[WolkeSyncService] Found ${supportedFiles.length} supported files in folder`);
-      return supportedFiles as NextcloudFile[];
-    } catch (error: unknown) {
-      console.error('[WolkeSyncService] Error listing folder contents:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * List the supported files in a SPECIFIC folder of a share (honours
-   * folderPath, unlike listFolderContents which only sees the share root).
+   * List the supported files in a SPECIFIC folder of a share.
+   *
    * Uses the same `client.listFolder(folderPath)` the manual import path uses,
    * so `file.href` — the dedup key stored as documents.wolke_file_path — is
    * identical between detection and import. Reuses the shared supportedFileTypes
    * filter (no duplicated extension list).
+   *
+   * This replaced `listFolderContents`, which took a folderPath and ignored it
+   * (`_folderPath`), always listing the share root via `getShareInfo`. Syncing
+   * an attached subfolder therefore synced the wrong folder.
    */
   async listSupportedFilesInFolder(
     shareLink: NextcloudShareLink,
-    folderPath: string = ''
+    folderPath: string = '',
+    options: { includeSubfolders?: boolean } = {}
   ): Promise<NextcloudFile[]> {
     const client = await NextcloudApiClient.create(shareLink.share_link);
-    const files = await client.listFolder(folderPath || undefined);
-    return files.filter((file) =>
-      this.supportedFileTypes.includes(path.extname(file.name.toLowerCase()))
+    const listFolder = (path: string) => client.listFolder(path || undefined);
+
+    const files = options.includeSubfolders
+      ? (await walkWolkeFolder(listFolder, folderPath)).files
+      : await listFolder(folderPath);
+
+    const supported = files.filter(
+      (file) => !file.isDirectory && isSupportedWolkeFile(file.name)
     ) as NextcloudFile[];
+
+    console.log(
+      `[WolkeSyncService] Found ${supported.length} supported files in folder "${folderPath}"` +
+        (options.includeSubfolders ? ' (including subfolders)' : '')
+    );
+    return supported;
   }
 
   /**
@@ -316,7 +298,18 @@ export class WolkeSyncService {
 
       if (!fileHasChanged) {
         console.log(`[WolkeSyncService] File ${file.name} is up to date, skipping`);
-        return { skipped: true, reason: 'up_to_date' };
+        // Hand the id back. `hasFileChanged` only answers false when there IS an
+        // existing document, and a skip that names no document is
+        // indistinguishable from a file that vanished — a caller reconciling a
+        // folder against its notebook would drop the document over it.
+        // `POST /import` short-circuits this case earlier today, so nothing
+        // regresses; the next caller just shouldn't have to re-query what we
+        // already loaded (wolkePendingContractRouter does exactly that).
+        return {
+          skipped: true,
+          reason: 'up_to_date',
+          ...(existingDoc ? { documentId: String(existingDoc.id) } : {}),
+        };
       }
 
       console.log(
@@ -324,8 +317,8 @@ export class WolkeSyncService {
       );
 
       // Check if file type is supported
-      const fileExtension = path.extname(file.name).toLowerCase();
-      if (!this.supportedFileTypes.includes(fileExtension)) {
+      const fileExtension = wolkeFileExtension(file.name);
+      if (!isSupportedWolkeFile(file.name)) {
         console.warn(`[WolkeSyncService] Unsupported file type: ${file.name} (${fileExtension})`);
         return { skipped: true, reason: 'unsupported_file_type' };
       }
@@ -345,9 +338,7 @@ export class WolkeSyncService {
       console.log(`[WolkeSyncService] Extracting text from: ${file.name}`);
       let extractedText: string;
 
-      const supportedMistralTypes = ['.pdf', '.docx', '.pptx', '.png', '.jpg', '.jpeg', '.avif'];
-
-      if (supportedMistralTypes.includes(fileExtension)) {
+      if (isOcrWolkeExtension(fileExtension)) {
         // Use Mistral OCR for documents and images
         const tempDir = os.tmpdir();
         const tempFileName = `wolke_sync_${Date.now()}_${file.name}`;
@@ -366,7 +357,7 @@ export class WolkeSyncService {
           }
           throw error;
         }
-      } else if (['.txt', '.md'].includes(fileExtension)) {
+      } else if (isPlaintextWolkeExtension(fileExtension)) {
         // Plain text files
         extractedText = fileData.buffer.toString('utf-8');
       } else {
@@ -502,13 +493,14 @@ export class WolkeSyncService {
   async syncFolder(
     userId: string,
     shareLinkId: string,
-    folderPath: string = ''
+    folderPath: string = '',
+    options: { includeSubfolders?: boolean } = {}
   ): Promise<SyncResult> {
     try {
       await this.ensureInitialized();
 
       console.log(
-        `[WolkeSyncService] Starting sync for user ${userId}, share ${shareLinkId}, folder: ${folderPath}`
+        `[WolkeSyncService] Starting sync for user ${userId}, share ${shareLinkId}, folder: ${folderPath}, subfolders: ${options.includeSubfolders === true}`
       );
 
       // Get or create sync status
@@ -522,7 +514,7 @@ export class WolkeSyncService {
 
       try {
         const shareLink = await this.getShareLink(userId, shareLinkId);
-        const files = await this.listFolderContents(shareLink, folderPath);
+        const files = await this.listSupportedFilesInFolder(shareLink, folderPath, options);
 
         let processedCount = 0;
         let failedCount = 0;

@@ -23,6 +23,7 @@ import {
   VERDIGADO_INPUT_LIMIT,
   type Complexity,
   type ReasoningSetting,
+  type TaskShape,
 } from '../agents/autoPolicy.js';
 import {
   getModel,
@@ -205,6 +206,13 @@ export async function resolveModel(
     hasImages?: boolean;
     intent?: string;
     complexity?: Complexity;
+    /** Output contract on the turn (detectTaskShape) — lane override for the
+     *  neutral intents, see resolveAutoSelection. */
+    taskShape?: TaskShape | null;
+    /** Characters of material the turn carries (`turnMaterialChars`) — routes
+     *  document work to the precise lane and lifts reasoning, see
+     *  resolveAutoSelection. */
+    materialChars?: number | null;
     agentId?: string | null;
     /** For surfaces without a classifier (notebook) — see resolveAutoSelection. */
     surface?: 'notebook';
@@ -255,6 +263,8 @@ export async function resolveModel(
     const selection = resolveAutoSelection({
       ...(options?.intent != null && { intent: options.intent }),
       ...(options?.complexity != null && { complexity: options.complexity }),
+      ...(options?.taskShape != null && { taskShape: options.taskShape }),
+      ...(options?.materialChars != null && { materialChars: options.materialChars }),
       ...(options?.agentId != null && { agentId: options.agentId }),
       ...(options?.surface != null && { surface: options.surface }),
     });
@@ -271,7 +281,8 @@ export async function resolveModel(
       log.info(
         `[ChatGraph] auto → ${selection.modelId} (${modelProvider}/${modelName}) ` +
           `intent=${options?.intent ?? 'none'} complexity=${options?.complexity ?? 'simple'} ` +
-          `reasoning=${selection.reasoning}`
+          `reasoning=${selection.reasoning}${options?.taskShape ? ` taskShape=${options.taskShape}` : ''}` +
+          `${options?.materialChars ? ` material=${options.materialChars}c` : ''}`
       );
     } else {
       // The policy names a lane that is not in AVAILABLE_MODELS — a code bug,

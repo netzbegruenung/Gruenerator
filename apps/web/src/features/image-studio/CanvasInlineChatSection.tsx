@@ -9,13 +9,14 @@ import {
   CompactWelcome,
   EditorAssistantProvider,
   useChatConfigStore,
+  useEditorAssistant,
   type ChatRequestContext,
   type EditorSurfaceAdapter,
 } from '@gruenerator/chat';
 import { chatThreadResponseSchema } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { Sparkles } from 'lucide-react';
-import { useId, useMemo, useRef, useState } from 'react';
+import { useId, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { useCanvasChatDoc } from './CanvasChatDocContext';
 
@@ -188,21 +189,64 @@ function CanvasChatInner({ aiEdit, canvasType, getSharepicText }: InnerProps) {
       userName={null}
       aiEditEnabled
     >
-      <div className="flex h-full min-h-0 flex-col">
-        <CompactThread
-          welcome={
-            <CompactWelcome
-              icon={<Sparkles className="size-6 text-primary" />}
-              description="Stelle Fragen zu deinem Sharepic oder beschreibe direkt eine Änderung. Vorschläge erscheinen direkt am Canvas."
-              suggestions={QUICK_PROMPTS}
-            />
-          }
-          assistantIcon={<Sparkles className="size-3.5" />}
-          composerPlaceholder="Frage stellen oder Änderung beschreiben…"
-        />
-        <CanvasEditStatusRow applying={applying} error={applyError} />
-      </div>
+      <CanvasChatSurface applying={applying} applyError={applyError} />
     </EditorAssistantProvider>
+  );
+}
+
+function CanvasChatNotice({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex h-full items-center justify-center px-4 text-center text-xs text-foreground-muted">
+      {children}
+    </div>
+  );
+}
+
+/**
+ * The thread only mounts once the provider reports `ready`. Before that there is
+ * no AssistantRuntimeProvider inside the isolated AUI scope — `ThreadPrimitive`
+ * reads `s.thread` unguarded and throws "The current scope does not have a
+ * 'thread' property", which took the whole canvas editor down while the thread
+ * id was still being resolved. Same gate as the docs/sheets/boards sidebars.
+ */
+function CanvasChatSurface({
+  applying,
+  applyError,
+}: {
+  applying: boolean;
+  applyError: string | null;
+}) {
+  const state = useEditorAssistant();
+
+  if (state.status === 'guest') {
+    return (
+      <CanvasChatNotice>Bitte melde dich an, um den KI-Assistenten zu nutzen.</CanvasChatNotice>
+    );
+  }
+  if (state.status === 'loading') {
+    return <CanvasChatNotice>Chat wird geladen…</CanvasChatNotice>;
+  }
+  if (state.status === 'error') {
+    return (
+      <CanvasChatNotice>Chat konnte nicht geladen werden: {state.error.message}</CanvasChatNotice>
+    );
+  }
+
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <CompactThread
+        welcome={
+          <CompactWelcome
+            icon={<Sparkles className="size-6 text-primary" />}
+            description="Stelle Fragen zu deinem Sharepic oder beschreibe direkt eine Änderung. Vorschläge erscheinen direkt am Canvas."
+            suggestions={QUICK_PROMPTS}
+          />
+        }
+        assistantIcon={<Sparkles className="size-3.5" />}
+        composerPlaceholder="Frage stellen oder Änderung beschreiben…"
+      />
+      <CanvasEditStatusRow applying={applying} error={applyError} />
+    </div>
   );
 }
 

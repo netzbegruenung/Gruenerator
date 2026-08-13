@@ -34,7 +34,18 @@ interface DocumentStatusResponse {
     vectorCount?: number;
     processingStage?: 'extracting' | 'chunking' | 'upserting' | null;
     processingProgress?: { stage: string; current: number; total: number } | null;
+    /** Why processing failed — only set for status='failed'. */
+    error?: string | null;
   };
+}
+
+/**
+ * Terminal state of a poll. Carries the failure reason so the caller can name
+ * it; a bare status left the upload UI unable to say anything at all.
+ */
+export interface DocumentPollResult {
+  status: DocumentStatus;
+  error: string | null;
 }
 
 interface DocumentDeleteResponse {
@@ -58,6 +69,17 @@ interface WolkeBrowseApiResponse {
   success: boolean;
   message?: string;
   files: WolkeFile[];
+  /** Subfolders seen — below the listed folder, or visited during a recursive walk. */
+  folderCount?: number;
+  /** Subfolders left unopened because the walk hit its depth limit. */
+  depthLimited?: boolean;
+  /** The walk stopped early at the file cap. */
+  truncated?: boolean;
+}
+
+export interface BrowseWolkeOptions {
+  path?: string;
+  recursive?: boolean;
 }
 
 /**
@@ -133,6 +155,8 @@ interface WolkeFile {
   sizeFormatted: string;
   lastModified: string;
   shareLinkId?: string;
+  /** Browse lists folders too — they are never importable. */
+  isDirectory?: boolean;
 }
 
 interface DocumentsState {
@@ -150,6 +174,9 @@ interface WolkeFileResponse {
   success: boolean;
   files: WolkeFile[];
   message?: string;
+  folderCount?: number;
+  depthLimited?: boolean;
+  truncated?: boolean;
 }
 
 interface WolkeImportResponse {
@@ -171,7 +198,7 @@ interface DocumentsActions {
   pollDocumentStatus: (
     documentId: string,
     onStatusChange?: (status: DocumentStatus) => void
-  ) => Promise<DocumentStatus>;
+  ) => Promise<DocumentPollResult>;
   crawlUrl: (url: string, title: string, groupId?: string | null) => Promise<Document>;
   deleteDocument: (documentId: string) => Promise<boolean>;
   searchDocuments: (query: string, options?: SearchOptions) => Promise<SearchResult[]>;
@@ -186,7 +213,10 @@ interface DocumentsActions {
   ) => void;
   updateDocumentTitle: (documentId: string, newTitle: string) => Promise<boolean>;
   refreshDocument: (documentId: string) => Promise<Document>;
-  browseWolkeFiles: (shareLinkId: string) => Promise<WolkeFileResponse>;
+  browseWolkeFiles: (
+    shareLinkId: string,
+    options?: BrowseWolkeOptions
+  ) => Promise<WolkeFileResponse>;
   importWolkeFiles: (
     shareLinkId: string,
     files: WolkeFile[],
@@ -422,7 +452,7 @@ export const useDocumentsStore = create<DocumentsStore>()(
         const STUCK_UPLOADED_TIMEOUT_MS = 30_000;
         const startedAt = Date.now();
 
-        const poll = (): Promise<DocumentStatus> =>
+        const poll = (): Promise<DocumentPollResult> =>
           new Promise((resolve, reject) => {
             const interval = setInterval(async () => {
               try {
@@ -431,6 +461,7 @@ export const useDocumentsStore = create<DocumentsStore>()(
                 );
                 const status = (response.data?.data?.status ?? 'pending') as DocumentStatus;
                 const vectorCount = response.data?.data?.vectorCount ?? 0;
+                const error = response.data?.data?.error ?? null;
                 console.debug('[notebook-upload] poll', { documentId, status, vectorCount });
 
                 if (onStatusChange) onStatusChange(status);
@@ -443,7 +474,7 @@ export const useDocumentsStore = create<DocumentsStore>()(
                 const isQueryable = status === 'completed' && vectorCount > 0;
                 if (isQueryable || status === 'failed') {
                   clearInterval(interval);
-                  resolve(status);
+                  resolve({ status, error });
                   return;
                 }
 
@@ -452,7 +483,7 @@ export const useDocumentsStore = create<DocumentsStore>()(
                     `[notebook-upload] doc ${documentId} stuck in 'uploaded' >${STUCK_UPLOADED_TIMEOUT_MS}ms — releasing spinner`
                   );
                   clearInterval(interval);
-                  resolve(status);
+                  resolve({ status, error });
                 }
               } catch {
                 clearInterval(interval);
@@ -691,7 +722,7 @@ export const useDocumentsStore = create<DocumentsStore>()(
       },
 
       // Browse files in a Wolke share
-      browseWolkeFiles: async (shareLinkId) => {
+      browseWolkeFiles: async (shareLinkId, options = {}) => {
         set((state) => {
           state.isLoading = true;
           state.error = null;
@@ -699,8 +730,12 @@ export const useDocumentsStore = create<DocumentsStore>()(
 
         try {
           console.log('[DocumentsStore] Browsing Wolke files for share link:', shareLinkId);
+          const query = new URLSearchParams();
+          if (options.path) query.set('path', options.path);
+          if (options.recursive) query.set('recursive', 'true');
+          const suffix = query.size > 0 ? `?${query.toString()}` : '';
           const response = await apiClient.get<WolkeBrowseApiResponse>(
-            `/documents/wolke/browse/${shareLinkId}`
+            `/documents/wolke/browse/${shareLinkId}${suffix}`
           );
           const result = response.data;
 

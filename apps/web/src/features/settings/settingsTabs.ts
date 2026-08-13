@@ -41,6 +41,7 @@ const LOADERS: Record<SettingsTab, () => Promise<SettingsTabModule>> = {
   wolke: () => import('./tabs/WolkeTab'),
   websites: () => import('./tabs/WebsitesTab'),
   barrierefreiheit: () => import('./tabs/AccessibilityTab'),
+  datenschutz: () => import('./tabs/PrivacyTab'),
   nutzung: () => import('./tabs/UsageTab'),
   support: () => import('./tabs/SupportTab'),
 };

@@ -7,6 +7,9 @@ import {
   looksLikeToolCallLeak,
   stripFabricatedArtifactDelivery,
   stripFabricatedSystemClaims,
+  stripToolControlTokens,
+  containsBrokenJsonPayload,
+  createControlTokenFilter,
 } from './outputSanity.js';
 
 describe('looksCutOff', () => {
@@ -243,5 +246,124 @@ describe('stripFabricatedArtifactDelivery', () => {
   it('leaves an ordinary answer untouched', () => {
     const answer = 'Das EU-Klimaziel für 2040 ist noch nicht final beschlossen.';
     expect(stripFabricatedArtifactDelivery(answer)).toEqual({ text: answer, removed: [] });
+  });
+});
+
+describe('containsBrokenJsonPayload', () => {
+  it('flags the QA-run broken array', () => {
+    expect(containsBrokenJsonPayload('[{"name": "Anna", "stunden": ,{"name"')).toBe(true);
+  });
+
+  it('accepts valid bare JSON and valid fenced JSON', () => {
+    expect(containsBrokenJsonPayload('[{"name": "Anna", "stunden": 4}]')).toBe(false);
+    expect(containsBrokenJsonPayload('Hier:\n```json\n{"ok": true}\n```\nFertig.')).toBe(false);
+  });
+
+  it('flags a broken fenced json block, labelled or not', () => {
+    expect(containsBrokenJsonPayload('```json\n{"a": 1,\n```')).toBe(true);
+    expect(containsBrokenJsonPayload('```\n[{"a": }]\n```')).toBe(true);
+  });
+
+  it('flags an unterminated ```json fence — that IS the truncation case', () => {
+    expect(containsBrokenJsonPayload('Ergebnis:\n```json\n[{"name": "Anna"')).toBe(true);
+  });
+
+  it('ignores prose and non-JSON code fences', () => {
+    expect(containsBrokenJsonPayload('Eine ganz normale Antwort in Prosa.')).toBe(false);
+    expect(containsBrokenJsonPayload('```ts\nconst x = {broken:;\n```')).toBe(false);
+    expect(containsBrokenJsonPayload('')).toBe(false);
+  });
+});
+
+describe('stripToolControlTokens', () => {
+  it('removes a leaked opening token, keeping the answer', () => {
+    // Live 13.08.2026: three of four turns opened with this before writing
+    // 1.866 correct characters. The split writer has no tools — it was
+    // imitating the gather phase's transcript in its context.
+    expect(stripToolControlTokens('<tool_call>\n\nGrüne fordern Sofortprogramm')).toBe(
+      '\n\nGrüne fordern Sofortprogramm'
+    );
+  });
+
+  it('removes closing and paired tokens too', () => {
+    expect(stripToolControlTokens('a</tool_call>b')).toBe('ab');
+    expect(stripToolControlTokens('<tool_call></tool_call>Text')).toBe('Text');
+    expect(stripToolControlTokens('<|im_end|>Fertig')).toBe('Fertig');
+  });
+
+  it('leaves the token alone inside fenced code', () => {
+    // "Wie sieht ein tool_call im Chat-Template aus?" is a legitimate question
+    // about this product, and its answer shows the token.
+    const answer = 'So sieht es aus:\n```\n<tool_call>{"name":"x"}</tool_call>\n```\nAlles klar?';
+    expect(stripToolControlTokens(answer)).toBe(answer);
+  });
+
+  it('still strips outside the fence when a fence is present', () => {
+    expect(stripToolControlTokens('<tool_call>Hier:\n```\ncode\n```\nEnde')).toBe(
+      'Hier:\n```\ncode\n```\nEnde'
+    );
+  });
+
+  it('touches nothing when there is nothing to strip', () => {
+    const clean = 'Eine gewöhnliche Antwort über Hitzeschutz.';
+    expect(stripToolControlTokens(clean)).toBe(clean);
+    expect(stripToolControlTokens('')).toBe('');
+  });
+
+  it('does not eat prose that merely mentions the word', () => {
+    const prose = 'Der Begriff tool_call bezeichnet einen Werkzeugaufruf.';
+    expect(stripToolControlTokens(prose)).toBe(prose);
+  });
+});
+
+describe('createControlTokenFilter — über den ganzen Strom', () => {
+  const run = (chunks: string[]): string => {
+    const f = createControlTokenFilter();
+    return chunks.map((c) => f.push(c)).join('') + f.flush();
+  };
+
+  it('gibt harmlosen Text unverändert weiter', () => {
+    expect(run(['Hallo ', 'Welt, ', 'alles gut.'])).toBe('Hallo Welt, alles gut.');
+  });
+
+  it('schneidet das Token am Anfang heraus', () => {
+    expect(run(['<tool_call>', 'Grüne fordern ein Sofortprogramm.'])).toBe(
+      'Grüne fordern ein Sofortprogramm.'
+    );
+  });
+
+  it('schneidet es auch MITTEN im Strom heraus — der Fall, den das Gitter verfehlte', () => {
+    // Der alte Filter lief nur über die ersten 200 Zeichen. Danach ging alles
+    // ungeprüft durch, und genau so kam das Token am 13.08.2026 zurück.
+    const lang = 'a'.repeat(500);
+    expect(run([lang, '<tool_call>', lang])).toBe(lang + lang);
+  });
+
+  it('erkennt ein Token, das über die Delta-Grenze zerfällt', () => {
+    expect(run(['Text ', '<tool', '_call>', ' weiter'])).toBe('Text  weiter');
+  });
+
+  it('auch wenn es Zeichen für Zeichen ankommt', () => {
+    expect(run(['A', ...'<tool_call>'.split(''), 'B'])).toBe('AB');
+  });
+
+  it('lässt das Token in einem Code-Zaun stehen', () => {
+    // „Wie sieht ein tool_call aus?" ist eine legitime Produktfrage.
+    const text = 'So sieht es aus:\n```\n<tool_call>\n```\nAlles klar?';
+    expect(run([text])).toBe(text);
+  });
+
+  it('behält die Zaun-Tiefe über Teilstücke hinweg', () => {
+    const out = run(['Beispiel:\n```\n', '<tool_call>', '\n```\n', '<tool_call>', 'Ende']);
+    expect(out).toBe('Beispiel:\n```\n<tool_call>\n```\nEnde');
+  });
+
+  it('verliert nichts am Ende — der Rest kommt im flush', () => {
+    expect(run(['kurz'])).toBe('kurz');
+    expect(run(['abc', 'def'])).toBe('abcdef');
+  });
+
+  it('verträgt leere Teilstücke', () => {
+    expect(run(['', 'Text', ''])).toBe('Text');
   });
 });

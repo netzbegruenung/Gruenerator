@@ -161,7 +161,7 @@ export const boardSchedulesContractRouter = s.router(boardSchedulesContract, {
       const { canEdit } = await checkBoardAccess(boardId, userId);
       if (!canEdit) return { status: 403 as const, body: { error: 'Kein Schreibzugriff' } };
 
-      const ok = await acceptReviewTask(taskId);
+      const ok = await acceptReviewTask(taskId, boardId);
       if (!ok) return { status: 404 as const, body: { error: 'Lauf nicht gefunden' } };
       return { status: 200 as const, body: { success: true as const } };
     } catch (error) {

@@ -136,7 +136,7 @@ const Nutzungsbedingungen = () => {
         Plattform vorübergehend oder dauerhaft zu sperren.
       </p>
 
-      <h2>§ 5 KI-generierte Inhalte</h2>
+      <h2 id="nutzung-ki-generierter-inhalte">§ 5 Nutzung KI-generierter Inhalte</h2>
       <p>
         (1) Die Plattform nutzt verschiedene KI-Modelle zur Inhaltserstellung. Du kannst pro Anfrage
         selbst wählen, welches Modell und damit welcher Anbieter Deine Eingaben verarbeitet. Es

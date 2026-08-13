@@ -9,12 +9,7 @@ import withAuthRequired from '../../../components/common/LoginRequired/withAuthR
 import PageContainer from '../../../components/common/PageContainer';
 import { getToolGradient } from '../../../config/toolTheme';
 import { useFirstName } from '../../../hooks/useFirstName';
-import {
-  OFFICE_SCROLL_ITEM,
-  OFFICE_SCROLL_ROW,
-  OfficeActionTile,
-  officeStripStyle,
-} from '../../workplace/components/ToolsSection';
+import { OFFICE_PILL_ROW, OfficeActionPill } from '../../workplace/components/ToolsSection';
 import { WorkplaceHero } from '../../workplace/components/WorkplaceHero';
 import GroupDetailSection from '../components/GroupDetailSection';
 import GroupsCreateSection from '../components/GroupsCreateSection';
@@ -168,25 +163,19 @@ const ProjektePage = () => {
       </WorkplaceHero>
 
       <section className="mb-xl mt-md">
-        <div className={OFFICE_SCROLL_ROW} style={officeStripStyle(2, { maxTilePx: 200 })}>
-          <div className={OFFICE_SCROLL_ITEM}>
-            <OfficeActionTile
-              styleKey="projekte"
-              icon={HiUser}
-              title="Projekt erstellen"
-              description="Nur für dich — organisiere deine Chats & Inhalte."
-              onClick={() => openCreate('personal')}
-            />
-          </div>
-          <div className={OFFICE_SCROLL_ITEM}>
-            <OfficeActionTile
-              styleKey="projekte"
-              icon={HiUserGroup}
-              title="Gruppe erstellen"
-              description="Mit Team — Mitglieder, geteilte Inhalte & Beitritt."
-              onClick={() => openCreate('standard')}
-            />
-          </div>
+        <div className={OFFICE_PILL_ROW}>
+          <OfficeActionPill
+            styleKey="projekte"
+            icon={HiUser}
+            title="Projekt erstellen"
+            onClick={() => openCreate('personal')}
+          />
+          <OfficeActionPill
+            styleKey="projekte"
+            icon={HiUserGroup}
+            title="Gruppe erstellen"
+            onClick={() => openCreate('standard')}
+          />
         </div>
       </section>
 

@@ -58,7 +58,8 @@ const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
  *
  * **Jede Route hier muss die Seite sein, die sie behauptet.** Von den bisher
  * zwanzig Einträgen waren SIEBEN Weiterleitungen — die Lane maß in Wahrheit
- * dreizehn verschiedene Seiten, `/workplace` davon viermal:
+ * dreizehn verschiedene Seiten, den Chat-Einstieg (damals `/workplace`, heute
+ * `/start`) davon viermal:
  *
  * | stand hier | landete auf | weil |
  * | --- | --- | --- |
@@ -75,12 +76,15 @@ const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
  * `gotoAuthenticated()`.
  */
 const ROUTES = [
-  // `/` und `/startseite` fehlen hier: beide leiten Angemeldete auf
-  // `/workplace`. Die öffentliche Startseite ist nur ohne Sitzung messbar und
-  // braucht deshalb einen eigenen, ausgeloggten Kontext — bis dahin deckt
-  // `/login` den öffentlichen Teil ab.
+  // `/` und `/startseite` fehlen hier: beide leiten Angemeldete auf ihre
+  // Startfläche (`/start` oder `/workplace`). Die öffentliche Startseite ist
+  // nur ohne Sitzung messbar und braucht deshalb einen eigenen, ausgeloggten
+  // Kontext — bis dahin deckt `/login` den öffentlichen Teil ab.
   '/login',
-  '/workplace',
+  // Chat-Einstieg; bis 08/2026 lag diese Seite auf `/workplace`. Die
+  // Arbeiten-Fläche (heute `/workplace`) war nie Teil der Lane und bleibt es
+  // vorerst — sie gehört in den Arbeitsvorrat, nicht in diesen Umbau.
+  '/start',
   '/chat',
   // Das Kanban liegt auf `/boards/:id` — `/boards` ist eine Weiterleitung.
   // Erreichbar nur mit festem Datenstand, siehe apiFixtures.
@@ -209,6 +213,134 @@ fehlende oder falsch geformte Antwort in apiFixtures.ts, kein Befund über die
 Oberfläche.`
   ).toEqual([]);
 }
+
+/**
+ * Überlagerungen, die erst nach einem Klick im DOM stehen.
+ *
+ * Der Grund für diesen Block: die Routen-Prüfungen oben messen den Zustand
+ * direkt nach dem Laden. Menüs, Dialoge und Blätter sind zu diesem Zeitpunkt
+ * **gar nicht da** — Radix rendert sie in ein Portal, und zwar erst beim
+ * Öffnen. `/chat` steht seit jeher in `ROUTES` und meldete trotzdem nie etwas
+ * über das Plusmenü, weil die Lane nie eines geöffnet hat. Ein grüner Haken
+ * über eine Fläche, die nicht im DOM war, ist dieselbe Fehlerklasse wie die
+ * übersprungenen Prüfungen weiter oben: er sieht aus wie eine Zusage.
+ *
+ * Gemessen wird nur die Überlagerung (`include`), nicht die ganze Seite —
+ * sonst meldet jeder Eintrag hier die Routen-Befunde ein zweites Mal und der
+ * Fehlertext zeigt nicht mehr auf die Fläche, um die es geht.
+ *
+ * Beide Breiten sind nötig, weil `ResponsiveMenu` an `(width < 48rem)` in zwei
+ * verschiedene Bäume verzweigt: Desktop bekommt Radix' `menuitemcheckbox`
+ * geschenkt, das Blatt zeichnet seinen An/Aus-Zustand mit zwei divs und trägt
+ * `role="switch"` + `aria-checked` von Hand (`ResponsiveMenuToggle`). Genau
+ * die handgeschriebene Zusage braucht eine Messung.
+ */
+const OVERLAYS = [
+  {
+    name: 'Plusmenü (Desktop-Dropdown)',
+    route: '/chat',
+    viewport: { width: 1280, height: 720 },
+    // Radix' DropdownMenuContent
+    scope: '[role="menu"]',
+    // `scrollable-region-focusable` trifft hier zu und ist trotzdem kein
+    // Hindernis. Der Befund stimmt im DOM: `DropdownMenuContent` trägt
+    // `overflow-y-auto` und eine gedeckelte Höhe, und seit dem Umbau ist die
+    // Liste bei 720 px Fensterhöhe länger als der Deckel. Die Regel verlangt
+    // dann `tabindex="0"` am Rollbereich — sie kennt nur Tab.
+    //
+    // Ein Menü wird aber nicht mit Tab durchlaufen, sondern mit den Pfeiltasten
+    // (roving tabindex, WAI-ARIA Menu Pattern): der Rollbereich ist genau ein
+    // Tabstopp, und der Browser rollt den fokussierten Eintrag ins Bild. Ein
+    // zusätzlicher Tabstopp am Container wäre eine Verschlechterung.
+    //
+    // Deshalb steht die Regel hier ab — aber NICHT auf Zuruf: der Test unten
+    // fährt mit der Tastatur ans Listenende und belegt, was die Regel bezweifelt.
+    // Fällt das weg, ist die Ausnahme unbelegt und muss neu verhandelt werden.
+    disableRules: ['scrollable-region-focusable'],
+  },
+  {
+    name: 'Plusmenü (mobiles Blatt)',
+    route: '/chat',
+    viewport: { width: 390, height: 844 },
+    // Das Blatt ist ein Radix-Dialog, siehe ResponsiveMenu.
+    scope: '[role="dialog"]',
+    disableRules: [],
+  },
+];
+
+test.describe('Barrierefreiheit: Überlagerungen', () => {
+  test.beforeAll(() => {
+    test.skip(!BYPASS_AKTIV, 'VITE_E2E_AUTH_BYPASS ist nicht gesetzt.');
+  });
+
+  for (const overlay of OVERLAYS) {
+    test(`${overlay.name} hat keine WCAG-2.2-AA-Verstöße`, async ({ page }) => {
+      // Vor dem Laden: `useIsMobile` liest die Breite schon im ersten Frame
+      // (`useSyncExternalStore`), ein späterer Wechsel würde die falsche
+      // Verzweigung messen.
+      await page.setViewportSize(overlay.viewport);
+      await gotoAuthenticated(page, overlay.route);
+
+      await page.getByRole('button', { name: 'Aktionen und Modus' }).click();
+
+      const inhalt = page.locator(overlay.scope);
+      await expect(
+        inhalt,
+        `${overlay.name}: die Überlagerung ist nach dem Klick nicht erschienen —
+ohne sie prüft axe eine leere Auswahl und meldet null Verstöße.`
+      ).toBeVisible();
+      // Radix blendet mit einer Opazitäts-Animation ein. Währenddessen misst
+      // `color-contrast` Zwischenwerte und meldet Funde, die nach dem Einblenden
+      // nicht mehr existieren.
+      await page.waitForTimeout(500);
+
+      const builder = new AxeBuilder({ page }).withTags(WCAG_TAGS).include(overlay.scope);
+      if (overlay.disableRules.length) builder.disableRules(overlay.disableRules);
+
+      const { violations } = await builder.analyze();
+
+      expect(
+        violations.map((v) => ({
+          rule: v.id,
+          impact: v.impact,
+          hilfe: v.helpUrl,
+          stellen: v.nodes.map((n) => n.target.join(' ')).slice(0, 5),
+        }))
+      ).toEqual([]);
+    });
+  }
+
+  test('das Ende des Dropdowns ist mit der Tastatur erreichbar', async ({ page }) => {
+    // Der Beleg für die abgeschaltete Regel oben. Geprüft wird nicht, ob ein
+    // `tabindex` irgendwo steht, sondern die Sache selbst: kommt man ans untere
+    // Ende der Liste, obwohl sie über den Deckel hinausragt?
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await gotoAuthenticated(page, '/chat');
+
+    await page.getByRole('button', { name: 'Aktionen und Modus' }).click();
+    const menu = page.locator('[role="menu"]');
+    await expect(menu).toBeVisible();
+
+    // Radix fokussiert beim Öffnen per Zeiger den Container, nicht einen
+    // Eintrag. Pfeil-hoch springt von dort ans ENDE der Liste — also genau in
+    // den Bereich, den die Regel für unerreichbar hält.
+    await page.keyboard.press('ArrowUp');
+
+    const eintraege = menu.locator('[role^="menuitem"]');
+    const letzter = eintraege.last();
+    await expect(
+      letzter,
+      `Pfeil-hoch hat den letzten Eintrag des Plusmenüs nicht fokussiert. Damit
+ist die Ausnahme für scrollable-region-focusable nicht mehr belegt: entweder
+ist die Tastaturführung kaputt, oder das Menü endet nicht mehr auf einem
+Eintrag (ein Fußtext als letztes Kind reicht dafür schon).`
+    ).toBeFocused();
+
+    // Und der Eintrag muss auch sichtbar sein, nicht nur fokussiert — sonst
+    // hätte der Rollbereich den Fokus zwar, zeigte ihn aber nicht.
+    await expect(letzter).toBeInViewport();
+  });
+});
 
 test.describe('Barrierefreiheit (WCAG 2.2 AA)', () => {
   test.beforeAll(() => {

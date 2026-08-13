@@ -6,6 +6,7 @@ import { profiles } from '../../database/schema/core.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { type DeleteResult, getPostgresInstance } from '../../database/services/PostgresService.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
+import { deriveLandesverbandFromRoles } from '../landesverband/LandesverbandDerivationService.js';
 
 import { toUserProfile } from './profileMapper.js';
 
@@ -169,7 +170,10 @@ class ProfileService {
         'reduce_transparency',
         'show_skip_link',
         'deutschlandmodus',
-        'is_admin',
+        // SECURITY: `is_admin` intentionally excluded — the admin flag must never be
+        // writable through the general profile-update path. Keeping it out of the
+        // writable column list makes self-promotion impossible even if a future
+        // caller forwards an unfiltered request body into updateProfile.
         'content_management',
         'sites',
         'website',
@@ -199,6 +203,15 @@ class ProfileService {
         if (updateData[col] !== undefined) {
           (setValues as Record<string, unknown>)[col] = updateData[col];
         }
+      }
+
+      // Einzige Zeitstempel-Spalte, die über diesen Weg geschrieben wird
+      // (Art.-9-Einwilligung). Sie braucht ein eigenes Feld, weil Drizzle hier
+      // ein `Date` erwartet, die Aufrufer aber ISO-Strings durchreichen — als
+      // String landete sie stumm in keiner der beiden Listen oben.
+      if (updateData.ai_consent_at !== undefined) {
+        const raw = updateData.ai_consent_at;
+        setValues.ai_consent_at = raw ? new Date(raw as string) : null;
       }
 
       const rows = await db
@@ -443,7 +456,11 @@ class ProfileService {
       }
       defaults[generator][key] = value;
 
-      return await this.updateProfile(userId, { user_defaults: defaults });
+      const updated = await this.updateProfile(userId, { user_defaults: defaults });
+      if (generator === 'profile' && key === 'roles') {
+        await deriveLandesverbandFromRoles(userId, value as { bundesland?: string }[]);
+      }
+      return updated;
     } catch (error: unknown) {
       console.error('[ProfileService] Error updating user default:', error);
       throw error;
@@ -477,7 +494,14 @@ class ProfileService {
       const defaults = currentProfile.user_defaults || {};
       defaults[generator] = value;
 
-      return await this.updateProfile(userId, { user_defaults: defaults });
+      const updated = await this.updateProfile(userId, { user_defaults: defaults });
+      if (generator === 'profile' && Array.isArray((value as Record<string, unknown>).roles)) {
+        await deriveLandesverbandFromRoles(
+          userId,
+          (value as Record<string, unknown>).roles as { bundesland?: string }[]
+        );
+      }
+      return updated;
     } catch (error: unknown) {
       console.error('[ProfileService] Error setting user defaults generator:', error);
       throw error;

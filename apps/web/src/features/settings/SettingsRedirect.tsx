@@ -50,7 +50,7 @@ const SettingsRedirect = () => {
         .getState()
         .openSettings(tab ? (TAB_MAP[tab] ?? 'allgemein') : undefined);
     }
-    void navigate(pageRedirect ?? '/workplace', { replace: true });
+    void navigate(pageRedirect ?? '/start', { replace: true });
   }, [tab, navigate]);
 
   return null;

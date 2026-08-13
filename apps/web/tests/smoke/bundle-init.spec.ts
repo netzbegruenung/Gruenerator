@@ -15,7 +15,7 @@ import { test, expect } from '@playwright/test';
  *   - /boards         → vendor-excalidraw, vendor-collab, vendor-mermaid
  *   - /themen         → vendor-recharts
  *   - /docs/<id>      → vendor-blocknote-export (lazy on Export click — not asserted here)
- *   - /chat, /workplace, /dashboard, /settings → entry chunk only
+ *   - /chat, /start, /workplace, /dashboard, /settings → entry chunk only
  *
  * The test fails on ANY pageerror or console-error matching the chunk-init
  * fingerprints. Other unrelated errors (network failures from missing API
@@ -36,6 +36,7 @@ const ROUTES = [
   '/boards',
   '/themen',
   '/chat',
+  '/start',
   '/workplace',
   '/workplace/arbeiten',
   '/workplace/wissen',

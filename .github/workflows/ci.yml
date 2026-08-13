@@ -83,6 +83,13 @@ jobs:
       - name: Tour anchors in sync
         run: node scripts/check-tour-anchors.mjs
 
+      # A portalled popup on shadcn's default z-50 lands below the sidebars
+      # (z-[1001]/z-[1005]) and below any open dialog (z-[1010]). It stays
+      # visible but unclickable, which reads as a dead control, not a z-index
+      # bug. Pin every portalled surface to the modal/popup/tooltip scale.
+      - name: Overlay z-index layers
+        run: node scripts/check-overlay-layers.mjs
+
       # A swallowed error in the chat stack is invisible: the turn looks
       # successful and the artefact/answer is silently missing. Ratchet against
       # a baseline — the count may fall, never rise.
@@ -244,6 +251,41 @@ jobs:
 
       - name: Run tests
         run: pnpm test
+
+  # The NLP service is Python and sits outside the pnpm workspace, so `pnpm
+  # test` never sees it. Its scoring, filtering and blocklist logic feeds the
+  # `themes`/`persons` payloads in Qdrant and the keyword snapshots in Postgres,
+  # where a regression surfaces as quietly wrong facets rather than as an error.
+  #
+  # No pnpm, no node_modules. `de_core_news_sm` (~15 MB) instead of the
+  # production `de_core_news_lg` (~610 MB): the model tier checks pipeline
+  # wiring, not model quality, and every other test builds its spaCy Docs by
+  # hand and needs no model at all.
+  nlp:
+    name: NLP Service (Python)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/nlp
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: services/nlp/pyproject.toml
+
+      - name: Install dependencies
+        run: pip install ".[dev]"
+
+      - name: Install spaCy model
+        run: python -m spacy download de_core_news_sm
+
+      - name: Run tests
+        run: pytest
 
   build:
     name: Build ${{ matrix.app }}

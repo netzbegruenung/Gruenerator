@@ -36,12 +36,22 @@ export interface LandesverbandEntry {
   /** Identifier of the Wahlprüfsteine agent. */
   wahlpruefsteinAgentId: string;
   /**
-   * Branded hub: `/agents/<slug>` opens a landing offering all three agents. Absent
-   * when the LV has no hub yet (e.g. Schleswig-Holstein, notebook disabled).
-   * `slug` is intentionally decoupled from `id` (MV's id is
-   * `mecklenburg-vorpommern` but its shared link is `gruene-mv`).
+   * Branded hub: `/agents/<slug>` opens a landing offering all three agents.
+   *
+   * Pflicht für jeden LV, auch bei deaktiviertem Notebook: der Hub ist die
+   * einzige Stelle, an der die notebook→agents-Relation steht, und ALLE drei
+   * Ausblende-Pfade lesen sie aus `LV_HUBS`. Ein LV ohne Hub lässt sich daher
+   * nicht verstecken — seine Spezialagenten bleiben im Inventar stehen.
+   *
+   * Dass der Hub dadurch nicht selbst zur Hintertür wird, leistet das Gate in
+   * `getLandesverbandHubBySlug` (die Auflösung, über die `/agents/:slug`
+   * wirklich läuft) — nicht die gleichnamige gefilterte Plural-Variante, die
+   * gar keine Aufrufer hat.
+   *
+   * `slug` ist bewusst von `id` entkoppelt (MVs id ist
+   * `mecklenburg-vorpommern`, der geteilte Link aber `gruene-mv`).
    */
-  hub?: { slug: string; name: string };
+  hub: { slug: string; name: string };
 }
 
 export const LANDESVERBAENDE = [
@@ -144,6 +154,25 @@ export const LANDESVERBAENDE = [
     hub: { slug: 'gruene-sachsen-anhalt', name: 'Grüne Sachsen-Anhalt' },
   },
   {
+    id: 'sachsen',
+    title: 'Sachsen',
+    codes: 'SN',
+    notebookId: 'sachsen-notebook',
+    homepage: 'https://gruene-sachsen.de',
+    themes:
+      'Strukturwandel in der Lausitz und im Mitteldeutschen Revier, Demokratie und Schutz vor Rechtsextremismus, Bildung und Lehrkräftemangel, Mobilität im ländlichen Raum, sorbisches Leben und Kultur, Natur- und Klimaschutz (Erzgebirge, Elbe)',
+    audience: 'de-DE',
+    prAgentId: 'gruenerator-oeffentlichkeitsarbeit-sachsen',
+    buergerAgentId: 'gruenerator-buergeranfragen-sachsen',
+    wahlpruefsteinAgentId: 'gruenerator-wahlpruefsteine-sachsen',
+    // Hub trotz verstecktem Notebook: die Verstecken-Kaskade in `system.ts` löst
+    // die Agent-Ids ÜBER LV_HUBS auf — ohne Hub-Eintrag bliebe kein Agent
+    // verborgen. Dass der Hub selbst nicht durchschlägt, leistet erst das Gate
+    // in `getLandesverbandHubBySlug`; die gefilterte Plural-Variante hat keine
+    // Aufrufer und hätte `/agents/gruene-sachsen` offen gelassen.
+    hub: { slug: 'gruene-sachsen', name: 'Grüne Sachsen' },
+  },
+  {
     id: 'hessen',
     title: 'Hessen',
     codes: ['HE', 'HE-F'],
@@ -183,7 +212,11 @@ export const LANDESVERBAENDE = [
     prAgentId: 'gruenerator-oeffentlichkeitsarbeit-schleswig-holstein',
     buergerAgentId: 'gruenerator-buergeranfragen-schleswig-holstein',
     wahlpruefsteinAgentId: 'gruenerator-wahlpruefsteine-schleswig-holstein',
-    // No hub: the SH notebook is currently disabled in the frontend.
+    // Hub trotz deaktiviertem Notebook — er IST der Versteck-Schalter, nicht
+    // dessen Gegenteil: alle drei Ausblende-Pfade (hiddenFromInventory in
+    // `system.ts`, `getLvAgentIdsHiddenIn`, `getHubMemberAgentIds`) lösen die
+    // Agent-Ids über LV_HUBS auf. Ohne Eintrag greift keiner davon.
+    hub: { slug: 'gruene-schleswig-holstein', name: 'Grüne Schleswig-Holstein' },
   },
   {
     id: 'oesterreich',

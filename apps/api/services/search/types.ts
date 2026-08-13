@@ -106,6 +106,8 @@ export interface SearchResultInput {
   filename?: string | undefined;
   top_chunks?: Array<{
     preview?: string | undefined;
+    /** Untruncated chunk — see TopChunk.text on why the preview is not enough. */
+    text?: string | undefined;
     chunk_index: number;
     page_number?: number | null | undefined;
   }>;
@@ -131,7 +133,15 @@ export interface ExpandedChunkResult {
   source_url: string | null;
   source_id?: string | null | undefined;
   title: string;
+  /** Short excerpt for the UI's citation list. */
   snippet: string;
+  /**
+   * The retrieved chunk in full, when the search layer supplied it. `snippet`
+   * is cut to 300 chars from the chunk's start on a semantic hit, so the
+   * passage that actually matched is usually not in it — read this for the
+   * answer prompt and the reranker, `snippet` only for display.
+   */
+  chunk_text?: string | undefined;
   filename: string | null;
   similarity: number;
   chunk_index: number;
@@ -147,7 +157,10 @@ export interface ExpandedChunkResult {
 
 export interface ReferenceData {
   title: string;
+  /** Display excerpts for the UI's citation list. */
   snippets: string[][];
+  /** The retrieved chunk in full — what the answer prompt must read. */
+  chunk_text?: string | undefined;
   description: string | null;
   // Real source date (published_at, else upload date) or null when none.
   date: string | null;

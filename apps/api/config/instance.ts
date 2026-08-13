@@ -12,8 +12,9 @@
  * (one `QDRANT_URL`), so a frontend-only policy would leave the chat citing
  * sources from a notebook the user cannot see.
  *
- * No registered instance carries a content policy yet, so today every gate
- * answers exactly as it did before instances existed.
+ * First live policy: production, beta and local `hide` the Bundesverband
+ * notebook (`gruene-notebook`, bgst-exclusive). Hidden means not offered —
+ * direct links and persisted mentions still resolve (F0 URL-Sonderrecht).
  */
 import { resolveInstance, type InstanceId } from '@gruenerator/shared/instances';
 

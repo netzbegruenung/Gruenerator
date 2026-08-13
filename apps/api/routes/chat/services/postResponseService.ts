@@ -472,6 +472,10 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
       // Presentation/sheet from a compound loop turn — same metadata shape the
       // single-pass handlers persist, so the document card rehydrates on reload.
       ...(createdDocument && { createdDocument }),
+      // The spec a `create_pdf` tool call rendered from. PDF_SPEC persists the
+      // same key on the single-pass path; both doors must store it, or a later
+      // "ändere das PDF" finds nothing to build on (see loadLastPdfSpec).
+      ...(finalState.createdPdfSpec != null && { pdfSpec: finalState.createdPdfSpec }),
       // Deterministic calculation (computeNode / run_python) incl. base64
       // figures/files (capped) so the Berechnung card survives reloads. Gated
       // on computedResultFresh: clients forward the LAST result with every
@@ -665,8 +669,10 @@ async function saveThreadAttachmentsFromMeta(
             sizeBytes: meta.sizeBytes,
             isImage: meta.isImage,
             extractedText: meta.extractedText,
+            ...(meta.pageCount != null && { pageCount: meta.pageCount }),
             ...(meta.imageData != null && { imageData: meta.imageData }),
             ...(meta.fileData != null && { fileData: meta.fileData }),
+            ...(meta.documentId != null && { documentId: meta.documentId }),
           }),
         `saveThreadAttachment:${meta.name}`
       );
@@ -675,8 +681,24 @@ async function saveThreadAttachmentsFromMeta(
       // Large prose documents (not images, not tabular) get chunked+embedded
       // in the background so follow-up turns retrieve them via RAG instead of
       // re-injecting truncated full text. Small docs stay full-context.
+      //
+      // Unless `enrichContext` already did it this turn: then the id is on the
+      // meta, it went into the row above, and embedding again would only mint a
+      // second Qdrant id for bytes that are already there. That was the state
+      // until 13.08.2026 — two writers, no handshake, one new document id each
+      // per turn. Retrieval then split its budget across the copies and
+      // `getThreadAttachments` handed the model the same file five times.
+      //
+      // This branch stays as the FALLBACK for the paths enrichContext doesn't
+      // cover (notably the resume path, which persists after an interrupt).
+      // Its threshold is deliberately not the same number as
+      // SMALL_DOC_VECTORIZATION_THRESHOLD (12k, and load-bearing for a
+      // different question — see the comment there); between 12k and 20k a
+      // resumed turn therefore keeps full-text re-injection where a normal turn
+      // moves to RAG. Known, narrow, and not worth a behaviour change here.
       const isTabular = isTabularAttachment(meta.name, meta.mimeType);
       if (
+        meta.documentId == null &&
         !meta.isImage &&
         !isTabular &&
         meta.extractedText &&

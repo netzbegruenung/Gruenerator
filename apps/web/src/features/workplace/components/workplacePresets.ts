@@ -1,4 +1,5 @@
 import { agentsList, type AgentListItem, type ComposerPreset } from '@gruenerator/chat';
+import { isLandesverbandIdentifier } from '@gruenerator/shared/agents';
 
 const EXAMPLE_PROMPTS: Record<string, string> = {
   presse:
@@ -34,8 +35,18 @@ function buildPresetText(agent: AgentListItem): string {
   return seed ? `/${agent.mention} ${seed}` : `/${agent.mention} `;
 }
 
-export const WORKPLACE_PRESETS: ComposerPreset[] = agentsList.map((agent) => ({
-  key: agent.identifier,
-  title: agent.title,
-  text: buildPresetText(agent),
-}));
+/**
+ * Ohne die Landesverbands-Varianten (PM Berlin, Insta Hamburg …): sie
+ * verdoppelten jede Textsorte pro LV und bliesen die Liste auf. Erreichbar
+ * bleiben sie als Rezepte — dort steht ihr Handwerkswissen ohnehin.
+ *
+ * `key` ist die Mention, nicht der Identifier: sechs Rezepte teilen sich
+ * `gruenerator-oeffentlichkeitsarbeit`, als React-key wäre er nicht eindeutig.
+ */
+export const WORKPLACE_PRESETS: ComposerPreset[] = agentsList
+  .filter((agent) => !isLandesverbandIdentifier(agent.identifier))
+  .map((agent) => ({
+    key: agent.mention,
+    title: agent.title,
+    text: buildPresetText(agent),
+  }));

@@ -63,10 +63,6 @@ export const saveAsTemplateBodySchema = z.object({
   visibility: z.enum(['private', 'unlisted', 'public']).optional(),
 });
 
-export const pushToPhoneBodySchema = z.object({
-  shareToken: z.string(),
-});
-
 // ── Response sub-schemas ────────────────────────────────────────────────────
 
 export const shareResultSchema = z.object({
@@ -101,11 +97,6 @@ export const saveAsTemplateResponseSchema = z.object({
   templateUrl: z.string(),
   shareToken: z.string(),
   visibility: z.string(),
-});
-
-export const pushToPhoneResponseSchema = z.object({
-  success: z.literal(true),
-  pushedToDevices: z.number(),
 });
 
 // ── Read / management endpoints ─────────────────────────────────────────────
@@ -171,9 +162,4 @@ export const listTemplatesResponseSchema = z.object({
 export const getTemplateResponseSchema = z.object({
   success: z.literal(true),
   template: z.unknown(),
-});
-
-export const listDevicesResponseSchema = z.object({
-  success: z.literal(true),
-  devices: z.array(z.unknown()),
 });
