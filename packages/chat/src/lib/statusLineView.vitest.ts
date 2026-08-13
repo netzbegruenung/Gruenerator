@@ -40,6 +40,28 @@ describe('selectStatusLineView', () => {
     expect(selectStatusLineView({ ...detail, hasText: true })).toBe('none');
   });
 
+  it('keeps the line alive when a step follows the answer text (agentic loop)', () => {
+    // The reported bug: the Leichte-Sprache agent showed its thinking and its
+    // loading label for the first step only. Text arrived, the line retired —
+    // and every later node ran behind an empty UI.
+    const detail = { ...base, hasOwnDetail: true, stage: 'generating', hasText: true } as const;
+    expect(selectStatusLineView(detail)).toBe('none');
+    expect(selectStatusLineView({ ...detail, stepAfterText: true })).toBe('progress');
+  });
+
+  it('still needs a concrete stage once a step follows the text', () => {
+    // `generating_image` stays out: the sharepic card already says it.
+    expect(
+      selectStatusLineView({
+        ...base,
+        hasOwnDetail: true,
+        stage: 'generating_image',
+        hasText: true,
+        stepAfterText: true,
+      })
+    ).toBe('none');
+  });
+
   it('never shows the dots on a turn that has a card or reasoning', () => {
     // The card carries its own affordance; dots above it would double up.
     expect(selectStatusLineView({ ...base, hasOwnDetail: true, stage: 'classifying' })).toBe(

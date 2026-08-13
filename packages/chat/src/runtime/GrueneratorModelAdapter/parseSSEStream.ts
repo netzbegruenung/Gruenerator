@@ -116,7 +116,15 @@ export async function* parseSSEStream(
   type TextSegment = { type: 'text'; text: string };
   const orderedContent: Array<TextSegment | ToolCallPart> = [];
   let currentTextSegment: TextSegment | null = null;
+  // One blob for the whole turn (the dropdown reads it as one text). A blank
+  // line is inserted at every step boundary, otherwise the agentic loop's later
+  // thinking is glued onto the previous step's last sentence mid-word.
   let accumulatedReasoning = '';
+  function breakReasoningBlock(): void {
+    if (accumulatedReasoning.length > 0 && !accumulatedReasoning.endsWith('\n\n')) {
+      accumulatedReasoning += '\n\n';
+    }
+  }
   // Themed progress labels — picked once per turn, stable for the whole stream.
   const stageLabels = pickStageLabels();
   let currentProgress: ChatProgress = {
@@ -856,6 +864,7 @@ export async function* parseSSEStream(
         // step renders as a tool-call part, mirroring the thinking_step
         // archive-and-replace mechanics (including the duplicate-stepId guard).
         case 'tool_step_start': {
+          breakReasoningBlock();
           const {
             stepId,
             toolName,
@@ -966,6 +975,11 @@ export async function* parseSSEStream(
             // its pre-result state on screen.
             orderReplaceCard(updated);
           }
+          // The STEP has to move with the stage, not just the message: the step
+          // list is what the tracker labels itself from, so a finished tool that
+          // only flipped `currentProgress` left "Suche läuft" standing over the
+          // rest of the turn.
+          transitionStep('generating');
           currentProgress = {
             stage: 'generating',
             message: summary ?? (ok ? 'Änderung angewendet' : 'Schritt fehlgeschlagen'),
@@ -975,6 +989,9 @@ export async function* parseSSEStream(
         }
 
         case 'response_start': {
+          // Split mode's synth phase starts here — its thinking is a new block,
+          // not a continuation of the planner's.
+          breakReasoningBlock();
           const { message } = data as { message: string };
           transitionStep('generating');
           currentProgress = { ...currentProgress, stage: 'generating', message };

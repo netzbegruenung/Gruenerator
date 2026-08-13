@@ -260,3 +260,71 @@ describe('parseSSEStream search_images', () => {
     expect(custom.searchImages).toBeUndefined();
   });
 });
+
+describe('parseSSEStream reasoning across steps', () => {
+  const reasoningOf = (content: ContentPart[]): string =>
+    content.find((p): p is { type: 'reasoning'; text: string } => p.type === 'reasoning')?.text ??
+    '';
+
+  it('separates each step’s thinking with a blank line', async () => {
+    const content = await lastContent([
+      { event: 'reasoning_delta', data: { text: 'Erst den Text lesen.' } },
+      { event: 'tool_step_start', data: { stepId: 's1', toolName: 'self_review' } },
+      { event: 'tool_step_result', data: { stepId: 's1', toolName: 'self_review', ok: true } },
+      { event: 'reasoning_delta', data: { text: 'Jetzt die Sätze kürzen.' } },
+    ]);
+    expect(reasoningOf(content)).toBe('Erst den Text lesen.\n\nJetzt die Sätze kürzen.');
+  });
+
+  it('keeps one step’s deltas glued together', async () => {
+    const content = await lastContent([
+      { event: 'reasoning_delta', data: { text: 'Der Satz ' } },
+      { event: 'reasoning_delta', data: { text: 'ist zu lang.' } },
+    ]);
+    expect(reasoningOf(content)).toBe('Der Satz ist zu lang.');
+  });
+
+  it('opens a new block for the synth phase', async () => {
+    const content = await lastContent([
+      { event: 'reasoning_delta', data: { text: 'Planung.' } },
+      { event: 'response_start', data: { message: 'Formuliere Antwort' } },
+      { event: 'reasoning_delta', data: { text: 'Formulierung.' } },
+    ]);
+    expect(reasoningOf(content)).toBe('Planung.\n\nFormulierung.');
+  });
+
+  it('inserts no leading break when nothing has been thought yet', async () => {
+    const content = await lastContent([
+      { event: 'tool_step_start', data: { stepId: 's1', toolName: 'self_review' } },
+      { event: 'reasoning_delta', data: { text: 'Erster Gedanke.' } },
+    ]);
+    expect(reasoningOf(content)).toBe('Erster Gedanke.');
+  });
+});
+
+describe('parseSSEStream progress steps', () => {
+  it('completes the retrieval step when its result lands', async () => {
+    // The tracker labels itself from the STEP list, so a tool that only moved
+    // `currentProgress` left "Suche läuft" shimmering over the whole answer.
+    const outcome = { interrupted: false, indexedDocumentIds: [] as string[] };
+    let last: { metadata?: { custom?: Record<string, unknown> } } | undefined;
+    const events = [
+      { event: 'text_delta', data: { text: 'Ich prüfe das.' } },
+      { event: 'tool_step_start', data: { stepId: 's1', toolName: 'gruenerator_search' } },
+      {
+        event: 'tool_step_result',
+        data: { stepId: 's1', toolName: 'gruenerator_search', ok: true },
+      },
+    ];
+    for await (const result of parseSSEStream(sseResponse(events), callbacks, outcome)) {
+      last = result as typeof last;
+    }
+    const progress = last?.metadata?.custom?.progress as {
+      stage: string;
+      steps: Array<{ stage: string; status: string }>;
+    };
+    expect(progress.stage).toBe('generating');
+    expect(progress.steps.find((s) => s.stage === 'searching')?.status).toBe('completed');
+    expect(progress.steps.find((s) => s.stage === 'generating')?.status).toBe('in-progress');
+  });
+});
