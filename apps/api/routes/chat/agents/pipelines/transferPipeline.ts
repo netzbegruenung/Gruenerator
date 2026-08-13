@@ -119,6 +119,14 @@ Zeilen gehören nicht in die Fassung und fehlen dort zu Recht - als
 "fehlt" gezählt, erzeugen sie einen Mangel, den niemand beheben kann.
 Nenne sie einmal gesammelt in einer Zeile unter der Tabelle.
 
+Dazu zählen ausdrücklich die Anrisse anderer Beiträge, auch wenn sie
+Zahlen, Daten, Orte oder Rekorde zum selben Thema nennen. Ein Anriss
+trägt eine eigene Schlagzeile, ein eigenes Datum und einen Verweis wie
+"mehr" oder eine Player-Zeile - daran erkennst du ihn, nicht daran, wie
+inhaltlich er klingt. Er ist kein Punkt des Originals. Steht er
+trotzdem in der Fassung, ist das keine Abdeckung, sondern eine
+HINZUFÜGUNG (b), und zwar auch dann, wenn die Zahlen darin stimmen.
+
 Erstelle daraus eine Tabelle:
 
 | Punkt | Kerninhalt im Original (1 Zeile) | in der Fassung: vollständig / verkürzt / fehlt | was fehlt |
@@ -126,6 +134,13 @@ Erstelle daraus eine Tabelle:
 Arbeite die Liste lückenlos ab. Überspringe keinen Punkt, auch keinen,
 der dir unwichtig erscheint. Zähle am Ende aus:
 X von Y Punkten vollständig, Z verkürzt, W fehlend.
+
+Ein Punkt ist mehr als seine Kernaussage. Ort, Anlass, Zeitpunkt und
+Urheber einer Äusserung gehören zu dem Punkt, in dessen Absatz sie
+stehen ("am Rande eines Parteitages in ..."). Fehlen sie in der
+Fassung, ist der Punkt verkürzt - auch wenn die Aussage selbst
+vollständig dasteht. Genau diese Angaben verschwinden beim Vereinfachen
+als Erstes, weil sie den Satz verlängern, ohne die Forderung zu ändern.
 
 "Vollständig" ist eine Behauptung, die du belegen können musst. Prüfe
 sie bei mindestens drei Punkten, indem du den Satz aus der Fassung
@@ -209,15 +224,28 @@ B. Befund-Tabelle
    HOCH     = wesentlicher Inhalt fehlt oder ist missverständlich
    MITTEL   = Regelverstoß, der das Verstehen erschwert
    NIEDRIG  = stilistisch, ohne Verständnisfolgen
+   Ein Modalitäts-Fehler (c) ist mindestens HOCH: er verändert, was der
+   Urheber zugesagt, gefordert oder nur für möglich gehalten hat. Das
+   ist kein Stilproblem, sondern eine andere politische Aussage.
    Für jeden Befund: Zitiere die belegende Stelle aus dem Original.
    Findest du keinen Beleg, streiche den Befund.
+   B muss jede Zeile aus A aufnehmen, die "verkürzt" oder "fehlt"
+   trägt: was dort fehlt, ist ein Befund - in aller Regel eine
+   AUSLASSUNG (a). Eine A-Zeile ohne Befund in B heisst, du hast den
+   Mangel gesehen und nicht gemeldet.
 C. Korrektur-Vorschläge - für JEDEN Befund KRITISCH und HOCH, keinen
    auslassen. Formuliere den Abschnitt neu, in ${spec.registerName}
    (${spec.levelLabel}, dasselbe Regelwerk wie die Fassung).
+   Bei MITTEL genügt der korrigierte Satz statt des ganzen Abschnitts -
+   aber er steht da. Ein Befund ohne Korrektur zwingt die lesende
+   Person, den Fehler selbst zu beheben, den du bereits kennst.
 D. Fehlerarten-Nachweis - eine Zeile je Fehlerart a) bis i), in dieser
    Reihenfolge, jede entweder mit der Nummer des Befunds aus B oder mit
    "geprüft, kein Befund". Schweigen zu einer Fehlerart ist kein
    Unbedenklichkeitsnachweis, und genau als solcher wird es gelesen.
+   "geprüft, kein Befund" bei a) ist ausgeschlossen, solange A eine
+   Zeile mit "verkürzt" oder "fehlt" trägt. Widersprechen sich A und D,
+   gilt A.
 E. Gesamturteil
    FREIGABE / ÜBERARBEITUNG / ABLEHNUNG, Begründung in max. 5 Sätzen.
    ABLEHNUNG zwingend, wenn ein KRITISCH-Befund vorliegt oder mehr als
