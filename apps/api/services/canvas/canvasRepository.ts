@@ -24,6 +24,7 @@ import {
 } from '../../routes/docs/documentAccess.js';
 import { type DocumentPermissions } from '../../routes/docs/types.js';
 import { likeContainsPattern } from '../../utils/sqlLike.js';
+import { buildCanvasThumbnailUrl } from '../media/thumbnailUrl.js';
 
 export const CANVAS_SUBTYPE = 'canvas';
 const DEFAULT_CANVAS_FORMAT = 'post-portrait';
@@ -141,7 +142,15 @@ function rowToCanvasListItem(row: Omit<CanvasJoinedRow, 'initial_state'>): Canva
     is_public: row.is_public ?? false,
     template_type: row.template_type,
     base_template_id: row.base_template_id,
-    thumbnail_url: row.thumbnail_url,
+    // Read/write asymmetry, deliberate: the COLUMN keeps storing what web
+    // writes (`/api/share/<token>/download`), but reads substitute a signed
+    // thumbs URL. The stored URL requires auth, so clients that render it in an
+    // <img>/<Image> — every mobile surface — got nothing. Keeping the field NAME
+    // means the already-shipped app starts working without a release.
+    //
+    // Full size rather than a tile, because the mobile canvas viewer downloads
+    // exactly this URL into the photo gallery.
+    thumbnail_url: buildCanvasThumbnailUrl(row.id, row.thumbnail_url, {}) ?? row.thumbnail_url,
     page_count: row.page_count,
     format: row.format,
     ...(row.share_mode ? { share_mode: row.share_mode as CanvasDocument['share_mode'] } : {}),

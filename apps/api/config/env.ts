@@ -40,6 +40,25 @@ const envSchema = z.object({
    * invalidating every session.
    */
   SEARCH_IMAGE_PROXY_SECRET: z.string().optional(),
+  /**
+   * Signing key for thumbnail URLs (`/api/thumbs/...`). Optional: falls back to
+   * SESSION_SECRET so existing deployments boot, and with neither set no
+   * thumbnail URLs are minted at all (surfaces show their placeholder).
+   *
+   * Set this separately and rotate THIS one — rotating SESSION_SECRET to
+   * invalidate a leaked thumbnail URL would log out every user on the platform.
+   * During a rotation move the old value to `_PREVIOUS` for one deploy so URLs
+   * already sitting in cached list responses keep resolving.
+   */
+  MEDIA_URL_SIGNING_SECRET: z.string().optional(),
+  MEDIA_URL_SIGNING_SECRET_PREVIOUS: z.string().optional(),
+  /**
+   * Where generated thumbnail variants are cached. Defaults to
+   * `apps/api/uploads/thumb-cache`. Point it elsewhere to size or wipe the
+   * derived-image cache independently of the uploads it is derived from — every
+   * file under it is reproducible, so it can be deleted at any time.
+   */
+  THUMBNAIL_CACHE_DIR: z.string().optional(),
   ADMIN_TOKEN: z.string().optional(),
   // Comma-separated emails elevated to is_admin = true at session-parse time.
   // Runtime override — no DB write. Empty/unset → no overrides.
