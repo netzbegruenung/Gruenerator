@@ -48,10 +48,11 @@ const WEBDAV_PREFIX = '/public.php/webdav';
  */
 export function folderPathFromHref(href: string): string {
   const withoutPrefix = href.startsWith(WEBDAV_PREFIX) ? href.slice(WEBDAV_PREFIX.length) : href;
-  const trimmed = withoutPrefix.replace(/^\/+/, '').replace(/\/+$/, '');
-  if (!trimmed) return '';
-  return trimmed
+  // Splitting and dropping empty segments trims both ends and collapses double
+  // slashes — an anchored `/+$/` would do the same at the cost of a ReDoS.
+  return withoutPrefix
     .split('/')
+    .filter(Boolean)
     .map((segment) => {
       try {
         return decodeURIComponent(segment);
