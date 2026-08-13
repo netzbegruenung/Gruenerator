@@ -5,12 +5,14 @@ import {
   ReelArtifactPanel,
   SharepicArtifactPanel,
   setMentionInstance,
+  setMentionLandesverbaende,
   setMentionLocale,
   useAgentStore,
   useChatRuntimeReady,
   useDockedPanelActive,
   useReportPanelDockable,
   useUserAgentsRegistry,
+  useUserLandesverbaende,
 } from '@gruenerator/chat';
 import {
   getLandesverbandHubBySlug,
@@ -218,6 +220,15 @@ function ChatPage() {
   useEffect(() => {
     setMentionLocale(userLocale);
   }, [userLocale]);
+  // Dasselbe für die Landesverbands-Zuteilung: der Picker bietet LV-Rezepte und
+  // -Notizbücher nur denen an, die laut Profilrolle (Ebene „Land") in diesem
+  // Landesverband arbeiten. Ohne Rolle bleibt `lvIds` leer und es wird nicht
+  // gefiltert. Auflösung bleibt davon unberührt — ein `@bayern` in einem alten
+  // Thread muss für alle weiter auflösen.
+  const { lvIds } = useUserLandesverbaende();
+  useEffect(() => {
+    setMentionLandesverbaende(lvIds);
+  }, [lvIds]);
   // The agent we've already auto-applied a default notebook for. Prevents the
   // effect from re-applying (and clobbering a manual notebook pick) when the
   // `userAgents` query reference changes on an unrelated cache invalidation.

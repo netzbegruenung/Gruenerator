@@ -315,6 +315,10 @@ export { useFileMentionData } from './hooks/useFileMentionData';
 // (Agentura, SkillLibraryModal, PlusMenu).
 export { useHiddenSkillMentions } from './hooks/useMentionablesQuery';
 
+// Landesverbands-Zuteilung aus den Profilrollen. Steuert, welche LV-Agenten,
+// -Rezepte und -Notizbücher eine Person überhaupt angeboten bekommt.
+export { useUserLandesverbaende, type UserLandesverbaende } from './hooks/useUserLandesverbaende';
+
 // Typed-mention attachments (Wolke / Connect / web page) and the Canva draft
 // insertion. Shared so the recognition triple the backend keys on cannot drift
 // between platforms — see lib/mentionAttachments.ts.
@@ -371,6 +375,7 @@ export {
   setMentionInstance,
   setMentionLocale,
   getMentionLocale,
+  setMentionLandesverbaende,
   setHiddenSkillMentions,
   setCustomAgents,
   getCustomAgentMentionables,

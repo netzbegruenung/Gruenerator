@@ -66,6 +66,7 @@ import {
   getThreadLastMcpServer,
   setThreadLastMcpServer,
 } from '../threadPersistenceService.js';
+import { resolveAbortOutcome } from '../turnAbortOutcome.js';
 import { turnMaterialChars } from '../turnMaterial.js';
 import { withInstructionHierarchy } from '../untrustedContent.js';
 
@@ -247,57 +248,13 @@ function resolveBudget(): LoopBudget {
 }
 
 /**
- * Appended when the stream was torn down after the answer had already started.
- *
- * Leads with a blank line so it separates from whatever half-sentence it lands
- * behind, and names the cause in the user's terms — "abgebrochen", not
- * "AbortError". It ships as a `text_delta` AND into the persisted text, so a
- * reloaded thread carries the same warning the live turn showed.
+ * Abbruch-Ausgang und Trunkierungs-Notiz liegen seit 13.08.2026 in
+ * `../turnAbortOutcome.js`, weil der Single-Pass-Pfad dieselbe Antwort braucht
+ * — dort fiel die Turn-Uhr bis dahin stumm aus und der Stummel wurde als
+ * fertige Antwort gespeichert. Re-Export, damit Aufrufer und Tests unverändert
+ * über diesen Namen importieren.
  */
-export const TRUNCATION_NOTE =
-  '\n\n_Hier musste ich abbrechen — die Antwort ist unvollständig. Frag gern nach dem fehlenden Teil._';
-
-/** What a failed turn owes the user, given what it had already written. */
-export interface AbortOutcome {
-  /** Text to send as a delta. */
-  delta: string;
-  /** `replace`: nothing was written, `delta` IS the answer (and any recorded
-   *  textOffset now points into text that no longer exists).
-   *  `append`: a half answer stands and only gets the honest footnote. */
-  mode: 'replace' | 'append';
-}
-
-/**
- * The four ways a loop turn can end badly — one function, because the
- * interesting case used to have no branch at all.
- *
- * Before, only the empty-text cases were handled; a turn that died with an
- * answer half-written fell through in silence and shipped the stump. The
- * asymmetry is deliberate the other way round now: an ABORT with text means the
- * stream was torn down mid-sentence, so the user must be told. A genuine ERROR
- * with text is different — the answer had already streamed to completion and
- * something afterwards (an artifact hook, a persistence step) threw. Marking
- * that one "unvollständig" would be a lie, so it stays silent.
- */
-export function resolveAbortOutcome(params: {
-  text: string;
-  aborted: boolean;
-}): AbortOutcome | null {
-  if (params.text.trim().length === 0) {
-    if (params.aborted) {
-      return {
-        delta:
-          'Das hat leider zu lange gedauert. Magst du es noch einmal versuchen oder die Frage eingrenzen?',
-        mode: 'replace',
-      };
-    }
-    return {
-      delta: 'Bei der Antwort ist etwas schiefgelaufen. Versuch es bitte gleich noch einmal.',
-      mode: 'replace',
-    };
-  }
-  return params.aborted ? { delta: TRUNCATION_NOTE, mode: 'append' } : null;
-}
+export { TRUNCATION_NOTE, resolveAbortOutcome, type AbortOutcome } from '../turnAbortOutcome.js';
 
 /**
  * @param researchBanned The user forbade looking anything up this turn
