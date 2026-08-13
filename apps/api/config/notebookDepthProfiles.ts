@@ -29,6 +29,14 @@ export interface NotebookDepthProfile {
   rerankInput: number;
   /** Passages that survive into the prompt. */
   rerankOutput: number;
+  /**
+   * Ausgabe-Wunsch der Stufe, keine Zusage. Liegt er über der Decke des
+   * Modells, das die Lane auflöst, kürzt `clampToModelOutputLimit`
+   * (routes/chat/services/responseStreamingService.ts) darauf herunter — Mistral
+   * Medium 3.5 nimmt hier höchstens 16.384 an, andere Lanes mehr. Die Zahl darf
+   * deshalb großzügig bleiben; sie ist auf die Stufe getunt, nicht auf das
+   * Modell.
+   */
   maxOutputTokens: number;
   /** Shrink the answer to match a shrunken context. */
   conciseAnswer: boolean;

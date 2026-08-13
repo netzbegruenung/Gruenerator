@@ -490,6 +490,47 @@ export function getContextWindow(
   return DEFAULT_CONTEXT_WINDOW;
 }
 
+/**
+ * Ausgabedecken je Modell — die zweite Achse neben dem Kontextfenster.
+ *
+ * Sie ist eine ANDERE Größe als `contextWindow` und lässt sich daraus nicht
+ * ableiten: Mistral Medium 3.5 nimmt 262k Eingabe entgegen, deckelt die
+ * Ausgabe aber bei 16.384. Wer beides verwechselt, schickt eine Zahl, die das
+ * Modell hart ablehnt — HTTP 400 `payload validation: max_completion_tokens is
+ * limited to 16384 for mistral-medium-3.5-128b`, gemessen am 13.08.2026 gegen
+ * Scaleway, mit `maxOutputTokens: 40000` aus `notebookDepthProfiles`. Es ist
+ * KEIN Host-Problem: die Mistral-API deckelt dieselben Gewichte gleich, der
+ * Replay in `scalewayMistralFallbackFetch` liefe also in denselben Fehler
+ * (und failt bei 400 zurecht gar nicht erst über).
+ *
+ * Beide Namen desselben Modells stehen drin, weil zwischen Aufrufer und
+ * Upstream `routeMistralModel` umbenennt — der Clamp greift eine Ebene ÜBER
+ * dieser Umbenennung, sieht also nur `mistral-medium-2604`, während dieselbe
+ * Decke unter dem Scaleway-Namen gilt.
+ *
+ * Ein Modell OHNE Eintrag wird nicht gedeckelt: der Anbieter entscheidet dann,
+ * so wie die Antwortpfade es seit #2002 ohnehin halten. Eine geratene Zahl
+ * wäre in beide Richtungen falsch — zu niedrig kürzt die Antwort still, zu
+ * hoch bricht den Aufruf ab.
+ */
+const MODEL_OUTPUT_LIMITS: Readonly<Record<string, number>> = {
+  // Mistral Medium 3.5 — dieselben Gewichte, drei Namen (Codebase, Scaleway,
+  // GreenPT), eine Decke.
+  'mistral-medium-2604': 16_384,
+  'mistral-medium-3.5-128b': 16_384,
+};
+
+/**
+ * Die Ausgabedecke eines Modells, oder `null`, wenn keine bekannt ist.
+ *
+ * Nimmt den Modellnamen des Upstreams (`ModelResolution.modelName`), nicht die
+ * nutzerseitige Lane-ID: die Decke hängt an den Gewichten, nicht an der Lane.
+ */
+export function getMaxOutputTokens(modelName: string | null | undefined): number | null {
+  if (!modelName) return null;
+  return MODEL_OUTPUT_LIMITS[modelName] ?? null;
+}
+
 // Provider clients come from the ONE construction site — see
 // services/ai/providerInstances.ts. This module used to build its own four
 // singletons; they drifted from the worker path's copies in base-URL handling,

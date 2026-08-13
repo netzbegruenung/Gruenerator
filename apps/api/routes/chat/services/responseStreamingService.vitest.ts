@@ -11,6 +11,9 @@ const mockResolveModelTuple = vi.fn();
 vi.mock('../agents/providers.js', () => ({
   getModel: (provider: string, model: string) => ({ provider, model }),
   resolveModelTuple: (...args: unknown[]) => mockResolveModelTuple(...args),
+  // Spiegelt MODEL_OUTPUT_LIMITS: Medium 3.5 gedeckelt, alles andere offen.
+  getMaxOutputTokens: (model: string | null | undefined) =>
+    model === 'mistral-medium-2604' || model === 'mistral-medium-3.5-128b' ? 16_384 : null,
   VISION_MODEL: { provider: 'mistral', model: 'pixtral-large-latest' },
   isVisionCapable: () => true,
 }));
@@ -218,6 +221,59 @@ describe('resolveModel', () => {
 });
 
 // ─── streamWithFallback × streamForResolution ───────────────────────────────
+
+// ─── Ausgabedecke ───────────────────────────────────────────────────────────
+
+describe('clampToModelOutputLimit', () => {
+  /** Ein Zug, der die Decke des Modells überschreitet — die Notizbuch-Stufen
+   *  `deep`/`ultra` fordern 40.000, Mistral Medium 3.5 nimmt 16.384. */
+  function runWithMaxTokens(resolution: ReturnType<typeof makeResolution>, maxTokens: number) {
+    return streamForResolution({
+      resolution: resolution as Parameters<typeof streamForResolution>[0]['resolution'],
+      messages: MESSAGES,
+      maxTokens,
+      temperature: 0.2,
+      sse: makeSse() as never,
+    });
+  }
+
+  it('kürzt eine Anforderung über der Modell-Decke, statt den Aufruf 400en zu lassen', async () => {
+    mockStreamText.mockReturnValue(streamOf([{ type: 'text-delta', text: 'ok' }]));
+    await runWithMaxTokens(makeResolution(), 40_000);
+    expect(mockStreamText.mock.calls[0][0].maxOutputTokens).toBe(16_384);
+  });
+
+  it('lässt eine Anforderung unterhalb der Decke unangetastet', async () => {
+    mockStreamText.mockReturnValue(streamOf([{ type: 'text-delta', text: 'ok' }]));
+    await runWithMaxTokens(makeResolution(), 8_000);
+    expect(mockStreamText.mock.calls[0][0].maxOutputTokens).toBe(8_000);
+  });
+
+  it('deckelt ein Modell ohne bekannte Decke nicht — der Anbieter entscheidet', async () => {
+    mockStreamText.mockReturnValue(streamOf([{ type: 'text-delta', text: 'ok' }]));
+    await runWithMaxTokens(
+      makeResolution({ provider: 'regolo', modelName: 'gpt-oss-120b' }),
+      40_000
+    );
+    expect(mockStreamText.mock.calls[0][0].maxOutputTokens).toBe(40_000);
+  });
+
+  it('gilt auch auf dem Reasoning-Pfad, der nicht über die AI SDK läuft', async () => {
+    mockStreamWithReasoning.mockImplementation(async function* () {
+      yield { type: 'text', delta: 'ok' };
+    });
+    await runWithMaxTokens(
+      makeResolution({
+        provider: 'litellm',
+        modelName: 'verdigado-pro',
+        reasoningEffort: 'high',
+      }),
+      40_000
+    );
+    // verdigado-pro hat keine Decke; die Zahl muss unverändert ankommen.
+    expect(mockStreamWithReasoning.mock.calls[0][0].maxTokens).toBe(40_000);
+  });
+});
 
 describe('streamWithFallback', () => {
   it('happy path: accumulates text deltas and emits them in order', async () => {

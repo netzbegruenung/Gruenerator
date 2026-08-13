@@ -24,6 +24,7 @@ import {
   type ReasoningSetting,
 } from '../agents/autoPolicy.js';
 import {
+  getMaxOutputTokens,
   getModel,
   resolveModelTuple,
   VISION_MODEL,
@@ -762,6 +763,48 @@ export async function streamWithFallback(params: {
 }
 
 /**
+ * Eine angeforderte Ausgabelänge auf das gedrosselt, was das Modell annimmt.
+ *
+ * Die Decke steht in `getMaxOutputTokens` (agents/providers.ts). Kein Eintrag
+ * heißt: nicht deckeln — der Anbieter entscheidet, wie auf allen Antwortpfaden
+ * ohne eigene Zahl.
+ *
+ * Warum überhaupt gekürzt und nicht abgelehnt: eine zu große Zahl ist ein
+ * Konfigurationsfehler des Aufrufers, kein Nutzerfehler. `max_tokens` ist eine
+ * OBERGRENZE, keine Bestellmenge — auf 16.384 gekürzt schreibt das Modell
+ * dieselbe Antwort, die es bei 40.000 geschrieben hätte, solange sie darunter
+ * bleibt. Ungekürzt lehnt der Upstream den ganzen Aufruf mit 400 ab, und zwar
+ * auf JEDEM Host derselben Gewichte — der Turn ist tot, nicht nur gekürzt.
+ * Deshalb warnt es laut, statt still zu passieren.
+ *
+ * Die Warnung feuert einmal je (Modell, angeforderte Zahl) und Prozess. Sie
+ * meldet einen Konfigurationsfehler, und der ändert sich zwischen zwei Zügen
+ * nicht: ungedrosselt stünde sie unter JEDER Notizbuch-Deep-Antwort und wäre
+ * binnen einer Stunde unlesbar — genau das Rauschen, in dem der nächste echte
+ * Befund untergeht.
+ */
+const clampWarned = new Set<string>();
+
+export function clampToModelOutputLimit(
+  requested: number | undefined,
+  modelName: string,
+  logPrefix: string
+): number | undefined {
+  if (requested == null) return undefined;
+  const limit = getMaxOutputTokens(modelName);
+  if (limit === null || requested <= limit) return requested;
+
+  const key = `${modelName}:${requested}`;
+  if (!clampWarned.has(key)) {
+    clampWarned.add(key);
+    log.warn(
+      `${logPrefix} maxOutputTokens ${requested} über der Decke von ${modelName} (${limit}) — gekürzt (weitere Fälle dieser Paarung werden nicht mehr gemeldet)`
+    );
+  }
+  return limit;
+}
+
+/**
  * Dispatch entry point paired with streamWithFallback. Routes reasoning-capable
  * lanes through the reasoning-aware streamer; everything else through the
  * standard AI SDK path.
@@ -794,6 +837,17 @@ export async function streamForResolution(params: {
     thinking
   );
 
+  // Die Ausgabedecke des AUFGELÖSTEN Modells — hier und nicht beim Aufrufer,
+  // weil erst an dieser Stelle feststeht, welches Modell die Anfrage bekommt:
+  // die Lane kann per Auto-Policy, per Verdigado-Slot oder per Sibling-Fallback
+  // gewechselt haben. Ein Aufrufer, der seine Zahl selbst prüft, prüft sie
+  // gegen ein Modell, das den Zug am Ende gar nicht schreibt.
+  const cappedMaxTokens = clampToModelOutputLimit(
+    maxTokens,
+    resolution.modelName,
+    logPrefix ?? '[ChatGraph]'
+  );
+
   // `off` deliberately skips the reasoning streamer entirely: for the lanes
   // that stream thinking by default (verdigado-pro/-think, the Regolo family)
   // that is the ONLY way to actually stop them from thinking, and it is what
@@ -806,7 +860,7 @@ export async function streamForResolution(params: {
       provider: resolution.provider,
       modelName: resolution.modelName,
       messages,
-      ...(maxTokens != null && { maxTokens }),
+      ...(cappedMaxTokens != null && { maxTokens: cappedMaxTokens }),
       temperature,
       sse,
       firstTokenDeadlineMs,
@@ -831,8 +885,14 @@ export async function streamForResolution(params: {
       if (resolution.provider !== 'mistral' || !(err instanceof ReasoningStreamUnavailableError)) {
         throw err;
       }
+      // Den Grund des Upstreams MITSCHREIBEN, nicht deuten: die frühere
+      // Fassung meldete pauschal „reasoning unavailable", und ein 400 wegen
+      // ungültigem Payload (`max_completion_tokens is limited to 16384`) las
+      // sich dann wie ein Reasoning-Problem — während der zweite Versuch in
+      // exakt denselben Fehler lief, weil an der Anfrage lag, was der Text
+      // dem Host zuschrieb.
       log.warn(
-        `${logPrefix ?? '[ChatGraph]'} Scaleway reasoning unavailable (${err.status}) — falling back to the Mistral API`
+        `${logPrefix ?? '[ChatGraph]'} Scaleway-Reasoning fehlgeschlagen (${err.status}: ${err.message}) — zweiter Versuch über die Mistral-API`
       );
     }
   }
@@ -840,7 +900,7 @@ export async function streamForResolution(params: {
   const args: Parameters<typeof streamAndAccumulateOrThrow>[0] = {
     model: resolution.model,
     messages,
-    ...(maxTokens != null && { maxTokens }),
+    ...(cappedMaxTokens != null && { maxTokens: cappedMaxTokens }),
     temperature,
     sse,
     firstTokenDeadlineMs,
