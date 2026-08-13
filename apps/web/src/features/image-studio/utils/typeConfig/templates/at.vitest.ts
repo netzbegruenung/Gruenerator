@@ -117,7 +117,9 @@ describe('AT-Vorlagen: Ablauf', () => {
     expect(CANVAS_TEMPLATE_FIELDS['zitat-at'].image?.required).toBe(true);
     expect(zitatAtTypeConfig.requiresImage).toBe(true);
 
-    expect(CANVAS_TEMPLATE_FIELDS['info-at'].image).toBeUndefined();
+    // `satisfies` behält den Literaltyp: ein Eintrag ohne Bildkonfiguration hat
+    // die Eigenschaft gar nicht, `.image` würde nicht einmal kompilieren.
+    expect('image' in CANVAS_TEMPLATE_FIELDS['info-at']).toBe(false);
     expect(infoAtTypeConfig.requiresImage).toBe(false);
   });
 });
