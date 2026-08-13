@@ -186,6 +186,38 @@ export function findDegenerationCut(text: string, detectedAt: number): number {
   return floor;
 }
 
+/** How far back a cut may be nudged to land on a readable ending. */
+const BOUNDARY_LOOKBACK = 400;
+
+/**
+ * Move a cut back to the last place a reader would accept as an ending.
+ *
+ * Both cut paths return a raw character offset, and both were observed ending
+ * mid-token in production: `"…bezieht sich daher nur a"` (12:22) and
+ * `"…| einen Aktionsplan gegen | | | |\n| Hit"` (12:26). The engine even logs
+ * `answer ends mid-sentence` about its own output and does nothing with it.
+ *
+ * Order matters: paragraph, then LINE, then sentence. The line rung is there
+ * for tables — half a table row is exactly as broken as half a word, and a
+ * sentence-only rule would happily stop inside one.
+ */
+export function snapToBoundary(text: string, pos: number): number {
+  if (pos <= 0) return 0;
+  const from = Math.max(0, pos - BOUNDARY_LOOKBACK);
+  const window = text.slice(from, pos);
+
+  const paragraph = window.lastIndexOf('\n\n');
+  if (paragraph >= 0) return from + paragraph;
+  const line = window.lastIndexOf('\n');
+  if (line >= 0) return from + line;
+
+  let sentence = -1;
+  for (const match of window.matchAll(/[.!?:][)"»']?\s/g)) {
+    sentence = (match.index ?? 0) + match[0].length;
+  }
+  return sentence >= 0 ? from + sentence : pos;
+}
+
 // ── Long-range repetition ────────────────────────────────────────────────────
 //
 // The failure the two window metrics above cannot see (live 12.08.2026,
@@ -320,27 +352,36 @@ export function createDegenerationGuard(): DegenerationGuard {
       return false;
     },
     cutAt(text: string): number {
-      if (repeatOnset === null) return findDegenerationCut(text, text.length);
-      // `repeatOnset` is where the run of repeated shingles STARTS, which is
-      // the true onset only for long-range repetition. Short-period junk
-      // ("--- Ende.** --- Fertig.** ---") also matches itself, but not until
-      // MIN_REPEAT_DISTANCE of it has piled up — so its run starts ~1200 chars
-      // deep in the junk, and cutting there would keep all of it.
-      //
-      // The window before the onset tells the two apart: for a re-emitted
-      // answer it is the healthy original (stop exactly there), for junk it is
-      // more junk (keep walking back with the window metrics).
-      //
-      // Probed over ONSET_PROBE, not DEGEN_WINDOW: a 2000-char window reaching
-      // back from a junk run still holds the healthy prose that preceded it,
-      // and the mixture measures healthy — which is the whole question here.
-      //
-      // Note the fallback runs from the END of the text, not from the onset.
-      // Its spam vocabulary is sampled from the window before `detectedAt`, so
-      // handing it an earlier point mixes healthy prose into that vocabulary —
-      // and the scan then reads the healthy prose as spam and eats the answer.
-      const before = text.slice(Math.max(0, repeatOnset - ONSET_PROBE), repeatOnset);
-      return isDegenerateSample(before) ? findDegenerationCut(text, text.length) : repeatOnset;
+      return snapToBoundary(text, rawCut(text));
     },
   };
+
+  /** The cut before it is nudged onto a readable boundary. */
+  function rawCut(text: string): number {
+    if (repeatOnset === null) return findDegenerationCut(text, text.length);
+    // `repeatOnset` is where the run of repeated shingles STARTS, which is
+    // the true onset only for long-range repetition. Short-period junk
+    // ("--- Ende.** --- Fertig.** ---") also matches itself, but not until
+    // MIN_REPEAT_DISTANCE of it has piled up — so its run starts ~1200 chars
+    // deep in the junk, and cutting there would keep all of it.
+    //
+    // The window before the onset tells the two apart: for a re-emitted answer
+    // it is the healthy original (stop exactly there), for junk it is more junk.
+    //
+    // Probed over ONSET_PROBE, not DEGEN_WINDOW: a 2000-char window reaching
+    // back from a junk run still holds the healthy prose that preceded it, and
+    // the mixture measures healthy — which is the whole question here.
+    const before = text.slice(Math.max(0, repeatOnset - ONSET_PROBE), repeatOnset);
+    if (!isDegenerateSample(before)) return repeatOnset;
+
+    // Junk: subtract exactly the distance the run needed in order to exist.
+    // Junk cannot match itself until MIN_REPEAT_DISTANCE of it has piled up, so
+    // its run necessarily starts that far past the true onset — subtracting it
+    // lands back at the start. This replaces a backscan over `findDegeneration-
+    // Cut`'s spam VOCABULARY, which cannot decide this case either way: sampled
+    // wide it swallows the words of a templated answer and then eats the answer
+    // itself, sampled narrow it misses shuffled junk phrases and stops early.
+    // Arithmetic beats a threshold here.
+    return Math.max(0, repeatOnset - MIN_REPEAT_DISTANCE);
+  }
 }
