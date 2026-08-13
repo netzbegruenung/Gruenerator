@@ -19,6 +19,7 @@
  */
 import { DISABLED_LV_AGENT_IDS, SKILLS, type Skill } from '@gruenerator/shared/agents';
 
+import { NOUN_TRIGGER_MAX_LENGTH } from '../../../agents/langgraph/ChatGraph/nodes/analyzedMessage.js';
 import {
   isMetaQuestionAbout,
   isNegatedArtifactRequest,
@@ -86,6 +87,16 @@ export function deriveImplicitRecipeMention(
 ): ImplicitRecipeMention | null {
   const t = stripQuotedSpans(text ?? '');
   if (t.trim().length === 0) return null;
+  // Ab hier ist der Text kein Auftrag mehr, sondern Material: `streamContext`
+  // hebt eingefügten Text in die Nutzernachricht, und dann liest dieser Matcher
+  // eine ganze Seite statt eines Satzes. Der Lauf vom 13.08.2026 zeigt, wie
+  // billig das schiefgeht — 5794 Zeichen einer Webseite, in deren Fußzeile
+  // „Facebook" stand und irgendwo das Wort „Text": beide Bedingungen erfüllt,
+  // Rezept gesetzt, und der Agent fragte zurück, ob er einen Facebook-Post
+  // schreiben soll. Zufällige Ko-Vorkommen sind in einem Dokument die Regel,
+  // in einem Auftragssatz die Ausnahme. Dieselbe Schwelle, an der auch der
+  // Klassifikator „langer Einfügetext" sagt (`isLongPaste`).
+  if (t.length > NOUN_TRIGGER_MAX_LENGTH) return null;
   if (!WRITE_SIGNAL_RE.test(t)) return null;
   if (TRANSFORMATION_RE.test(t)) return null;
 
