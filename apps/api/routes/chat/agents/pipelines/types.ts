@@ -50,6 +50,8 @@ export interface PipelineStep {
   /** `type` der AI-Anfrage — landet in Kosten- und Nutzungsstatistiken. */
   readonly requestType: string;
   readonly maxTokens: number;
+  /** Voreinstellung 0.2 — siehe `runStep` in `services/agentPipeline.ts`. */
+  readonly temperature?: number;
   /**
    * Baut die EINE Nutzernachricht des Schritts. Was hier nicht hineingeht,
    * sieht der Schritt nicht — kein Verlauf, keine Anhänge. Genau darin liegt

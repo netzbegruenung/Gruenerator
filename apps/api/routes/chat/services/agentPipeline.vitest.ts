@@ -146,6 +146,24 @@ describe('runAgentPipeline', () => {
     expect(appended).toContain('ÜBERARBEITUNG');
   });
 
+  it('kürzt ein überlanges Original und sagt es dem Prüfer', async () => {
+    // Drei Texte plus Systemprompt müssen in ein Fenster passen. Still gekürzt
+    // wäre die Abdeckungsliste unvollständig, ohne dass es jemand merkt — und
+    // genau sie ist das Prüfmittel.
+    const riesig = 'Ein Satz über Klimaanlagen in Pflegeheimen. '.repeat(1000);
+    expect(riesig.length).toBeGreaterThan(24000);
+
+    const { promise, calls } = run(
+      { [RUECK_TYPE]: 'Fachdeutsch.', [PRUEF_TYPE]: 'ÜBERARBEITUNG' },
+      { original: riesig }
+    );
+    await promise;
+
+    const pruef = calls.find((c) => c.type === PRUEF_TYPE);
+    expect(pruef?.userMessage.length).toBeLessThan(riesig.length);
+    expect(pruef?.userMessage).toContain('Gekürzt');
+  });
+
   it('spart die Modellaufrufe bei einer kurzen Antwort', async () => {
     const { promise, calls } = run({}, { produced: 'Kurze Rückfrage.' });
     const appended = await promise;
