@@ -1,6 +1,5 @@
-import { type CanvasListItem } from '@gruenerator/contracts';
+import { type CanvasListItem, type ShareListItem } from '@gruenerator/contracts';
 import { type Project } from '@gruenerator/shared';
-import { type Share } from '@gruenerator/shared/share';
 import { describe, expect, it } from 'vitest';
 
 import { toKiImageItems, toReelItems, toSharepicItems } from './studioMediaMapping';
@@ -13,11 +12,22 @@ import { toKiImageItems, toReelItems, toSharepicItems } from './studioMediaMappi
  * Studio content was made entirely with Vorlagen.
  */
 
-const share = (over: Partial<Share> & Pick<Share, 'shareToken'>): Share => ({
+// Defaults mirror what `/api/share/recent` actually selects — including the
+// columns the old `Share` interface left out (`id`, `thumbnailPath`, `fileSize`).
+const share = (
+  over: Partial<ShareListItem> & Pick<ShareListItem, 'shareToken'>
+): ShareListItem => ({
+  id: `row-${over.shareToken}`,
   mediaType: 'image',
   title: 'Ein Bild',
   status: 'ready',
   createdAt: '2026-07-01T10:00:00.000Z',
+  thumbnailPath: null,
+  fileSize: null,
+  duration: null,
+  imageType: null,
+  imageMetadata: {},
+  downloadCount: 0,
   ...over,
 });
 
@@ -172,12 +182,17 @@ describe('toKiImageItems', () => {
     expect(item?.thumbnailUrl).toBe('/api/share/tok/preview?w=400&fmt=webp');
   });
 
-  it('prefers the real thumbnail once there is one', () => {
+  // Was "prefers the real thumbnail once there is one", asserting a
+  // `share.thumbnailUrl` that `/api/share/recent` has never sent — it selects
+  // `thumbnail_path`. The preferred branch could not run, so the test only ever
+  // confirmed the fallback under a different name. Pinned to the truth instead;
+  // routing the stored path through is a separate change.
+  it('uses the preview route even for a share that already has a thumbnail stored', () => {
     const [item] = toKiImageItems([
-      share({ shareToken: 'tok', imageType: 'imagine', thumbnailUrl: '/api/share/tok/thumbnail' }),
+      share({ shareToken: 'tok', imageType: 'imagine', thumbnailPath: 'uploads/tok.webp' }),
     ]);
 
-    expect(item?.thumbnailUrl).toBe('/api/share/tok/thumbnail');
+    expect(item?.thumbnailUrl).toBe('/api/share/tok/preview?w=400&fmt=webp');
   });
 
   it('names an untitled share instead of rendering an empty label', () => {
