@@ -4,46 +4,46 @@ import {
   DropdownMenuSub,
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
+  DropdownMenuCheckboxItem,
   DropdownMenuItem,
   DropdownMenuSeparator,
   ResponsiveMenu,
   ResponsiveMenuSection,
   ResponsiveMenuItem,
+  ResponsiveMenuToggle,
 } from '@gruenerator/ui';
 import {
-  BookOpen,
   Check,
   ExternalLink,
-  FileSearch,
+  FileText,
+  Globe,
   LayoutTemplate,
   Library,
   Link2,
   MessageSquare,
-  Paperclip,
   Plug,
   PlusIcon,
   Settings,
+  Telescope,
   Upload,
   Wand2,
   Zap,
 } from 'lucide-react';
 import { memo, useState } from 'react';
 
+import { COMPOSER_TOOLS, type ComposerToolIconKey } from '../../lib/composerControls';
+import { resolveMentionable, webpageMentionables, type Mentionable } from '../../lib/mentionables';
 import {
-  visibleToolMentionables,
-  visibleNotebookMentionables,
-  notebookMentionables,
-  webpageMentionables,
-  type Mentionable,
-} from '../../lib/mentionables';
-import { connectorId, connectorMentionables, quickSkillMentionables } from '../../lib/plusMenu';
+  connectorId,
+  connectorMentionables,
+  creationMentionables,
+  quickSkillMentionables,
+} from '../../lib/plusMenu';
 import {
   useScopedThreadMode,
-  useScopedSelectedNotebookId,
   useScopedCustomRoleRef,
   useScopedCustomSystemPrompt,
   useScopedSetThreadMode,
-  useScopedSetSelectedNotebook,
   useScopedSetCustomSystemPrompt,
   useScopedSetCustomRoleName,
   useScopedSetCustomRoleRef,
@@ -70,9 +70,8 @@ interface PlusMenuProps {
   /** Surface-specific prompt presets shown as a "Vorlagen" submenu. */
   presets?: ComposerPreset[];
   onApplyPreset?: (text: string) => void;
-  /** Include the thread-mode section (Chat / Rollen) and make the Notebooks
-   * submenu switch the thread mode instead of inserting a mention.
-   * Replaces the former standalone ToolToggles menu. */
+  /** Include the thread-scoped sections (Rollen, and the switch group) that only
+   * make sense on a full chat surface. Assistant surfaces pass false. */
   includeModes?: boolean;
   onNavigate?: (path: string) => void;
   firstName?: string | null;
@@ -80,6 +79,22 @@ interface PlusMenuProps {
 }
 
 const activeClass = 'bg-primary-50 text-primary-700 dark:bg-primary-500/10 dark:text-primary-300';
+
+/**
+ * Semantic icon key → component, for the switch group. The keys live in the
+ * shared `COMPOSER_TOOLS` registry (which must stay renderer-agnostic so React
+ * Native can read it); this map is web's half of that contract.
+ */
+const TOOL_ICONS: Record<ComposerToolIconKey, React.ComponentType<{ className?: string }>> = {
+  globe: Globe,
+  research: Telescope,
+  document: FileText,
+};
+
+/** Grey secondary text next to a row's label. */
+const Hint = ({ children }: { children: React.ReactNode }) => (
+  <span className="truncate text-xs text-foreground-muted">{children}</span>
+);
 
 export const PlusMenu = memo(function PlusMenu({
   onInsertMention,
@@ -99,15 +114,13 @@ export const PlusMenu = memo(function PlusMenu({
   const favorites = useSkillFavoritesStore((s) => s.favorites);
   // Own agents and learned recipes were reachable only via typeahead before.
   const allQuickSkills = quickSkillMentionables(favorites);
+  const creationItems = creationMentionables();
 
   const mcpConnectors = connectorMentionables();
-  // The link attachment was reachable ONLY by typing its @mention — the menu
-  // that exists so nobody has to remember @-names was the one place it was
-  // missing. `onInsertMention` is the composer's own select handler, which
-  // opens the URL popover for this type, so the entry needs no extra plumbing.
-  const linkMentionable = webpageMentionables[0];
   const pinnedConnector = useAgentStore((s) => s.pinnedConnector);
   const setPinnedConnector = useAgentStore((s) => s.setPinnedConnector);
+  const enabledTools = useAgentStore((s) => s.enabledTools);
+  const toggleTool = useAgentStore((s) => s.toggleTool);
 
   // Pin (not one-off insert) a connector so its MCP scope holds across
   // follow-ups; selecting the pinned one again unpins.
@@ -121,10 +134,8 @@ export const PlusMenu = memo(function PlusMenu({
   };
 
   const threadMode = useScopedThreadMode();
-  const selectedNotebookId = useScopedSelectedNotebookId();
   const customSystemPrompt = useScopedCustomSystemPrompt();
   const setThreadMode = useScopedSetThreadMode();
-  const setSelectedNotebook = useScopedSetSelectedNotebook();
   const setCustomSystemPrompt = useScopedSetCustomSystemPrompt();
   const setCustomRoleName = useScopedSetCustomRoleName();
   const setCustomRoleRef = useScopedSetCustomRoleRef();
@@ -138,11 +149,6 @@ export const PlusMenu = memo(function PlusMenu({
   const hasCustomPrompt = !!customSystemPrompt || !!customRoleRef;
   const hasRoles = roles.length > 0;
 
-  const activeNotebookLabel =
-    threadMode === 'notebook'
-      ? (notebookMentionables.find((nb) => nb.identifier === selectedNotebookId)?.title ??
-        'Notebook')
-      : null;
   const activeRoleName =
     threadMode === 'eigener' && hasRoles
       ? (
@@ -174,22 +180,24 @@ export const PlusMenu = memo(function PlusMenu({
     setThreadMode('eigener');
   };
 
-  // One notebook list for both former entry points ("Quellen" mention insert
-  // and ToolToggles thread mode): with modes it scopes the thread to the
-  // notebook; without (assistant surfaces) it inserts the mention as before.
-  const selectNotebook = (notebook: Mentionable) => {
-    if (showModes) {
-      setSelectedNotebook(notebook.identifier);
-      setCustomRoleName(null);
-      setThreadMode('notebook');
-      return;
-    }
-    onInsertMention(notebook);
+  const insertLink = () => {
+    const link = webpageMentionables[0];
+    if (link) onInsertMention(link);
   };
 
   const handleMobileAction = (action: () => void) => {
     setMenuOpen(false);
     action();
+  };
+
+  const isRoleActive = (roleIndex: number): boolean => {
+    const role = roles[roleIndex];
+    return (
+      threadMode === 'eigener' &&
+      !!role &&
+      role.ebene === customRoleRef?.ebene &&
+      role.rolle === customRoleRef?.rolle
+    );
   };
 
   const rolesEntry = onNavigate ? (
@@ -199,66 +207,31 @@ export const PlusMenu = memo(function PlusMenu({
     </DropdownMenuItem>
   ) : null;
 
-  const desktopModeItems = showModes ? (
+  const activeConnectorCount = pinnedConnector ? 1 : 0;
+
+  // ── Group 1: add context ───────────────────────────────────────────────────
+  const desktopAttachItems = (
     <>
-      <DropdownMenuItem
-        onSelect={selectChatMode}
-        className={threadMode === 'chat' ? activeClass : ''}
-      >
-        <MessageSquare className="h-3.5 w-3.5" />
-        Chat
+      <DropdownMenuItem onClick={onUploadFile}>
+        <Upload className="h-3.5 w-3.5" />
+        <span className="flex-1">Fotos &amp; Dateien hochladen</span>
       </DropdownMenuItem>
-      <DropdownMenuSub>
-        <DropdownMenuSubTrigger className={threadMode === 'eigener' ? activeClass : ''}>
-          <Settings className="h-3.5 w-3.5" />
-          <span className="flex-1 truncate">
-            {threadMode === 'eigener' ? eigenerBadgeLabel : 'Rollen'}
-          </span>
-        </DropdownMenuSubTrigger>
-        <DropdownMenuSubContent className="max-h-[24rem] overflow-y-auto">
-          {hasRoles ? (
-            roles.map((role, i) => {
-              const isActive =
-                threadMode === 'eigener' &&
-                role.ebene === customRoleRef?.ebene &&
-                role.rolle === customRoleRef?.rolle;
-              return (
-                <DropdownMenuItem
-                  key={`role-${i}`}
-                  onSelect={() => selectRole(i)}
-                  className={isActive ? activeClass : ''}
-                >
-                  <Settings className="h-3.5 w-3.5" />
-                  <span className="flex-1 truncate">{role.rolle}</span>
-                </DropdownMenuItem>
-              );
-            })
-          ) : (
-            <DropdownMenuItem
-              disabled={!hasCustomPrompt}
-              onSelect={selectEigener}
-              className={threadMode === 'eigener' ? activeClass : ''}
-            >
-              <Settings className="h-3.5 w-3.5" />
-              <span className="flex-1">Eigener Chat</span>
-            </DropdownMenuItem>
-          )}
-          {onNavigate && (
-            <>
-              <DropdownMenuSeparator />
-              {rolesEntry}
-            </>
-          )}
-        </DropdownMenuSubContent>
-      </DropdownMenuSub>
-      <DropdownMenuSeparator />
+      <DropdownMenuItem onClick={onOpenFileBrowser}>
+        <Library className="h-3.5 w-3.5" />
+        <span className="flex-1">Aus Bibliothek</span>
+        <Hint>Dokumente, Notizbücher, Wolke</Hint>
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={insertLink}>
+        <Link2 className="h-3.5 w-3.5" />
+        <span className="flex-1">Link anhängen</span>
+        <Hint>Webseite per URL</Hint>
+      </DropdownMenuItem>
     </>
-  ) : null;
+  );
 
-  const desktopContent = (
+  // ── Group 2: namespaces ────────────────────────────────────────────────────
+  const desktopNamespaceItems = (
     <>
-      {desktopModeItems}
-
       <DropdownMenuSub>
         <DropdownMenuSubTrigger>
           <Wand2 className="h-3.5 w-3.5" />
@@ -288,75 +261,61 @@ export const PlusMenu = memo(function PlusMenu({
         </DropdownMenuSubContent>
       </DropdownMenuSub>
 
-      {presets && presets.length > 0 && onApplyPreset && (
+      {showModes && (
         <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
-            <LayoutTemplate className="h-3.5 w-3.5" />
-            Vorlagen
+          <DropdownMenuSubTrigger className={threadMode === 'eigener' ? activeClass : ''}>
+            <Settings className="h-3.5 w-3.5" />
+            <span className="flex-1 truncate">Rollen</span>
+            {threadMode === 'eigener' && <Hint>{eigenerBadgeLabel}</Hint>}
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent className="max-h-[24rem] overflow-y-auto">
-            {presets.map((preset) => (
-              <DropdownMenuItem key={preset.key} onClick={() => onApplyPreset(preset.text)}>
-                {preset.title}
+            <DropdownMenuItem
+              onSelect={selectChatMode}
+              className={threadMode === 'chat' ? activeClass : ''}
+            >
+              <MessageSquare className="h-3.5 w-3.5" />
+              <span className="flex-1">Ohne Rolle</span>
+              {threadMode === 'chat' && <Check className="h-3.5 w-3.5" />}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {hasRoles ? (
+              roles.map((role, i) => (
+                <DropdownMenuItem
+                  key={`role-${i}`}
+                  onSelect={() => selectRole(i)}
+                  className={isRoleActive(i) ? activeClass : ''}
+                >
+                  <Settings className="h-3.5 w-3.5" />
+                  <span className="flex-1 truncate">{role.rolle}</span>
+                  {isRoleActive(i) && <Check className="h-3.5 w-3.5" />}
+                </DropdownMenuItem>
+              ))
+            ) : (
+              <DropdownMenuItem
+                disabled={!hasCustomPrompt}
+                onSelect={selectEigener}
+                className={threadMode === 'eigener' ? activeClass : ''}
+              >
+                <Settings className="h-3.5 w-3.5" />
+                <span className="flex-1">Eigener Chat</span>
               </DropdownMenuItem>
-            ))}
+            )}
+            {onNavigate && (
+              <>
+                <DropdownMenuSeparator />
+                {rolesEntry}
+              </>
+            )}
           </DropdownMenuSubContent>
         </DropdownMenuSub>
       )}
-
-      <DropdownMenuSub>
-        <DropdownMenuSubTrigger
-          className={showModes && threadMode === 'notebook' ? activeClass : ''}
-        >
-          <BookOpen className="h-3.5 w-3.5" />
-          <span className="flex-1 truncate">
-            {showModes && threadMode === 'notebook' ? activeNotebookLabel : 'Notebooks'}
-          </span>
-        </DropdownMenuSubTrigger>
-        <DropdownMenuSubContent className="max-h-[24rem] overflow-y-auto">
-          {visibleNotebookMentionables().map((notebook) => {
-            const NbIcon = notebook.icon ?? BookOpen;
-            const isActive =
-              showModes && threadMode === 'notebook' && selectedNotebookId === notebook.identifier;
-            return (
-              <DropdownMenuItem
-                key={notebook.identifier}
-                onClick={() => selectNotebook(notebook)}
-                className={isActive ? activeClass : ''}
-              >
-                <NbIcon className="h-3.5 w-3.5" />
-                <span className="flex-1">{notebook.title}</span>
-              </DropdownMenuItem>
-            );
-          })}
-        </DropdownMenuSubContent>
-      </DropdownMenuSub>
-
-      <DropdownMenuSub>
-        <DropdownMenuSubTrigger>
-          <Zap className="h-3.5 w-3.5" />
-          Funktionen
-        </DropdownMenuSubTrigger>
-        <DropdownMenuSubContent>
-          {visibleToolMentionables().map((tool) => {
-            const Icon = tool.icon;
-            return (
-              <DropdownMenuItem key={tool.identifier} onClick={() => onInsertMention(tool)}>
-                {Icon ? <Icon className="h-4 w-4 text-secondary-600" /> : null}
-                {tool.title}
-              </DropdownMenuItem>
-            );
-          })}
-        </DropdownMenuSubContent>
-      </DropdownMenuSub>
 
       {mcpConnectors.length > 0 && (
         <DropdownMenuSub>
           <DropdownMenuSubTrigger className={pinnedConnector ? activeClass : ''}>
             <Plug className="h-3.5 w-3.5" />
-            <span className="flex-1 truncate">
-              {pinnedConnector ? pinnedConnector.label : 'Konnektoren'}
-            </span>
+            <span className="flex-1 truncate">Konnektoren</span>
+            {activeConnectorCount > 0 && <Hint>{`${activeConnectorCount} an`}</Hint>}
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent className="max-h-[24rem] overflow-y-auto">
             {mcpConnectors.map((connector) => {
@@ -379,57 +338,170 @@ export const PlusMenu = memo(function PlusMenu({
 
       <DropdownMenuSub>
         <DropdownMenuSubTrigger>
-          <Paperclip className="h-3.5 w-3.5" />
-          Dateien
+          <Zap className="h-3.5 w-3.5" />
+          <span className="flex-1">Erstellen</span>
         </DropdownMenuSubTrigger>
-        <DropdownMenuSubContent>
-          <DropdownMenuItem onClick={onUploadFile}>
-            <Upload className="h-3.5 w-3.5" />
-            Datei hochladen
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={onOpenFileBrowser}>
-            <FileSearch className="h-3.5 w-3.5" />
-            Dokument
-          </DropdownMenuItem>
-          {linkMentionable && (
-            <DropdownMenuItem onClick={() => onInsertMention(linkMentionable)}>
-              <Link2 className="h-3.5 w-3.5" />
-              Link
-            </DropdownMenuItem>
-          )}
+        <DropdownMenuSubContent className="max-h-[24rem] overflow-y-auto">
+          {creationItems.map((tool) => {
+            const Icon = tool.icon;
+            return (
+              <DropdownMenuItem
+                key={`${tool.type}:${tool.mention}`}
+                onClick={() => onInsertMention(tool)}
+              >
+                {Icon ? <Icon className="h-4 w-4 text-secondary-600" /> : null}
+                {tool.title}
+              </DropdownMenuItem>
+            );
+          })}
         </DropdownMenuSubContent>
       </DropdownMenuSub>
 
+      {presets && presets.length > 0 && onApplyPreset && (
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <LayoutTemplate className="h-3.5 w-3.5" />
+            Vorlagen
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="max-h-[24rem] overflow-y-auto">
+            {presets.map((preset) => (
+              <DropdownMenuItem key={preset.key} onClick={() => onApplyPreset(preset.text)}>
+                {preset.title}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+      )}
+    </>
+  );
+
+  // ── Group 3: switches ──────────────────────────────────────────────────────
+  // A `toggle` row keeps the menu open (`onSelect` preventDefault) because
+  // flipping two of these in a row is the normal case; a `once` row closes it,
+  // since it has just written into the composer.
+  const desktopToolItems = showModes ? (
+    <>
+      {COMPOSER_TOOLS.map((tool) => {
+        const Icon = TOOL_ICONS[tool.icon];
+        if (tool.kind === 'toggle') {
+          return (
+            <DropdownMenuCheckboxItem
+              key={tool.key}
+              indicatorSide="right"
+              checked={enabledTools[tool.key] !== false}
+              onCheckedChange={() => toggleTool(tool.key)}
+              onSelect={(e) => e.preventDefault()}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              <span className="flex-1">{tool.label}</span>
+              <Hint>{tool.description}</Hint>
+            </DropdownMenuCheckboxItem>
+          );
+        }
+        const mentionable = resolveMentionable(tool.mention);
+        if (!mentionable) return null;
+        return (
+          <DropdownMenuItem key={tool.mention} onClick={() => onInsertMention(mentionable)}>
+            <Icon className="h-3.5 w-3.5" />
+            <span className="flex-1">{tool.label}</span>
+            <Hint>{tool.description}</Hint>
+          </DropdownMenuItem>
+        );
+      })}
+    </>
+  ) : null;
+
+  const desktopContent = (
+    <>
+      {desktopAttachItems}
+      <DropdownMenuSeparator />
+      {desktopNamespaceItems}
+      {desktopToolItems && (
+        <>
+          <DropdownMenuSeparator />
+          {desktopToolItems}
+        </>
+      )}
       {includeModes && insideAgent && rolesEntry && (
         <>
           <DropdownMenuSeparator />
           {rolesEntry}
         </>
       )}
+      <DropdownMenuSeparator />
+      <p className="px-2 py-1.5 text-xs text-foreground-muted">
+        Tippen für Rezepte, Dateien, Notizbücher …
+      </p>
     </>
   );
 
   const mobileContent = (
     <>
+      <ResponsiveMenuSection title="Hinzufügen">
+        <ResponsiveMenuItem icon={<Upload />} onClick={() => handleMobileAction(onUploadFile)}>
+          Fotos &amp; Dateien hochladen
+        </ResponsiveMenuItem>
+        <ResponsiveMenuItem
+          icon={<Library />}
+          onClick={() => handleMobileAction(onOpenFileBrowser)}
+        >
+          Aus Bibliothek
+        </ResponsiveMenuItem>
+        <ResponsiveMenuItem icon={<Link2 />} onClick={() => handleMobileAction(insertLink)}>
+          Link anhängen
+        </ResponsiveMenuItem>
+      </ResponsiveMenuSection>
+
+      <ResponsiveMenuSection title="Rezepte">
+        {allQuickSkills.map((skill) => {
+          const Icon = skill.icon;
+          return (
+            <ResponsiveMenuItem
+              key={skill.mention}
+              icon={Icon ? <Icon className="h-4 w-4 text-secondary-600" /> : null}
+              onClick={() => handleMobileAction(() => onInsertMention(skill))}
+            >
+              {skill.title}
+            </ResponsiveMenuItem>
+          );
+        })}
+        <ResponsiveMenuItem
+          icon={<Library />}
+          onClick={() => {
+            setMenuOpen(false);
+            setLibraryOpen(true);
+          }}
+        >
+          Alle Rezepte durchsuchen…
+        </ResponsiveMenuItem>
+        {onOpenSkillsPage && (
+          <ResponsiveMenuItem
+            icon={<ExternalLink />}
+            onClick={() => {
+              setMenuOpen(false);
+              onOpenSkillsPage();
+            }}
+          >
+            Zur Rezept-Bibliothek
+          </ResponsiveMenuItem>
+        )}
+      </ResponsiveMenuSection>
+
       {showModes && (
-        <ResponsiveMenuSection title="Modus">
+        <ResponsiveMenuSection title="Rollen">
           <ResponsiveMenuItem
             icon={<MessageSquare />}
             active={threadMode === 'chat'}
             onClick={() => handleMobileAction(selectChatMode)}
           >
-            Chat
+            Ohne Rolle
           </ResponsiveMenuItem>
           {hasRoles ? (
             roles.map((role, i) => (
               <ResponsiveMenuItem
                 key={`role-${i}`}
                 icon={<Settings />}
-                active={
-                  threadMode === 'eigener' &&
-                  role.ebene === customRoleRef?.ebene &&
-                  role.rolle === customRoleRef?.rolle
-                }
+                active={isRoleActive(i)}
                 onClick={() => handleMobileAction(() => selectRole(i))}
               >
                 {role.rolle}
@@ -456,59 +528,34 @@ export const PlusMenu = memo(function PlusMenu({
         </ResponsiveMenuSection>
       )}
 
-      <ResponsiveMenuSection title="Dateien">
-        <ResponsiveMenuItem icon={<Upload />} onClick={() => handleMobileAction(onUploadFile)}>
-          Datei hochladen
-        </ResponsiveMenuItem>
-        <ResponsiveMenuItem
-          icon={<FileSearch />}
-          onClick={() => handleMobileAction(onOpenFileBrowser)}
-        >
-          Dokument
-        </ResponsiveMenuItem>
-        {linkMentionable && (
-          <ResponsiveMenuItem
-            icon={<Link2 />}
-            onClick={() => handleMobileAction(() => onInsertMention(linkMentionable))}
-          >
-            Link
-          </ResponsiveMenuItem>
-        )}
-      </ResponsiveMenuSection>
+      {mcpConnectors.length > 0 && (
+        <ResponsiveMenuSection title="Konnektoren">
+          {mcpConnectors.map((connector) => (
+            <ResponsiveMenuItem
+              key={connector.identifier}
+              icon={<Plug />}
+              active={pinnedConnector?.id === connectorId(connector)}
+              onClick={() => handleMobileAction(() => togglePinnedConnector(connector))}
+            >
+              {connector.title}
+            </ResponsiveMenuItem>
+          ))}
+        </ResponsiveMenuSection>
+      )}
 
-      <ResponsiveMenuSection title="Rezepte">
-        {allQuickSkills.map((skill) => {
-          const Icon = skill.icon;
+      <ResponsiveMenuSection title="Erstellen">
+        {creationItems.map((tool) => {
+          const Icon = tool.icon;
           return (
             <ResponsiveMenuItem
-              key={skill.mention}
+              key={`${tool.type}:${tool.mention}`}
               icon={Icon ? <Icon className="h-4 w-4 text-secondary-600" /> : null}
-              onClick={() => handleMobileAction(() => onInsertMention(skill))}
+              onClick={() => handleMobileAction(() => onInsertMention(tool))}
             >
-              {skill.title}
+              {tool.title}
             </ResponsiveMenuItem>
           );
         })}
-        <ResponsiveMenuItem
-          icon={<Library />}
-          onClick={() => {
-            setMenuOpen(false);
-            setLibraryOpen(true);
-          }}
-        >
-          Alle Skills durchsuchen...
-        </ResponsiveMenuItem>
-        {onOpenSkillsPage && (
-          <ResponsiveMenuItem
-            icon={<ExternalLink />}
-            onClick={() => {
-              setMenuOpen(false);
-              onOpenSkillsPage();
-            }}
-          >
-            Zur Skill-Bibliothek
-          </ResponsiveMenuItem>
-        )}
       </ResponsiveMenuSection>
 
       {presets && presets.length > 0 && onApplyPreset && (
@@ -525,51 +572,33 @@ export const PlusMenu = memo(function PlusMenu({
         </ResponsiveMenuSection>
       )}
 
-      <ResponsiveMenuSection title="Notebooks">
-        {visibleNotebookMentionables().map((notebook) => {
-          const NbIcon = notebook.icon ?? BookOpen;
-          return (
-            <ResponsiveMenuItem
-              key={notebook.identifier}
-              icon={<NbIcon />}
-              active={
-                showModes && threadMode === 'notebook' && selectedNotebookId === notebook.identifier
-              }
-              onClick={() => handleMobileAction(() => selectNotebook(notebook))}
-            >
-              {notebook.title}
-            </ResponsiveMenuItem>
-          );
-        })}
-      </ResponsiveMenuSection>
-
-      <ResponsiveMenuSection title="Funktionen">
-        {visibleToolMentionables().map((tool) => {
-          const Icon = tool.icon;
-          return (
-            <ResponsiveMenuItem
-              key={tool.identifier}
-              icon={Icon ? <Icon className="h-4 w-4 text-secondary-600" /> : null}
-              onClick={() => handleMobileAction(() => onInsertMention(tool))}
-            >
-              {tool.title}
-            </ResponsiveMenuItem>
-          );
-        })}
-      </ResponsiveMenuSection>
-
-      {mcpConnectors.length > 0 && (
-        <ResponsiveMenuSection title="Konnektoren">
-          {mcpConnectors.map((connector) => (
-            <ResponsiveMenuItem
-              key={connector.identifier}
-              icon={<Plug />}
-              active={pinnedConnector?.id === connectorId(connector)}
-              onClick={() => handleMobileAction(() => togglePinnedConnector(connector))}
-            >
-              {connector.title}
-            </ResponsiveMenuItem>
-          ))}
+      {showModes && (
+        <ResponsiveMenuSection title="Werkzeuge">
+          {COMPOSER_TOOLS.map((tool) => {
+            const Icon = TOOL_ICONS[tool.icon];
+            if (tool.kind === 'toggle') {
+              return (
+                <ResponsiveMenuToggle
+                  key={tool.key}
+                  icon={<Icon />}
+                  label={tool.label}
+                  checked={enabledTools[tool.key] !== false}
+                  onCheckedChange={() => toggleTool(tool.key)}
+                />
+              );
+            }
+            const mentionable = resolveMentionable(tool.mention);
+            if (!mentionable) return null;
+            return (
+              <ResponsiveMenuItem
+                key={tool.mention}
+                icon={<Icon />}
+                onClick={() => handleMobileAction(() => onInsertMention(mentionable))}
+              >
+                {tool.label}
+              </ResponsiveMenuItem>
+            );
+          })}
         </ResponsiveMenuSection>
       )}
 
@@ -586,13 +615,7 @@ export const PlusMenu = memo(function PlusMenu({
     </>
   );
 
-  const showModeBadge = showModes && threadMode !== 'chat';
-  const badgeLabel =
-    threadMode === 'eigener'
-      ? eigenerBadgeLabel
-      : threadMode === 'notebook'
-        ? activeNotebookLabel
-        : null;
+  const showModeBadge = showModes && threadMode === 'eigener';
 
   return (
     <>
@@ -600,6 +623,7 @@ export const PlusMenu = memo(function PlusMenu({
         open={menuOpen}
         onOpenChange={setMenuOpen}
         sheetTitle="Aktionen"
+        dropdownClassName="w-[22rem]"
         trigger={
           <button
             type="button"
@@ -611,9 +635,9 @@ export const PlusMenu = memo(function PlusMenu({
             }`}
           >
             <PlusIcon className={isCompact ? 'h-4 w-4 stroke-[1.5px]' : 'h-5 w-5 stroke-[1.5px]'} />
-            {showModeBadge && badgeLabel && (
+            {showModeBadge && (
               <span className="max-w-32 truncate text-[12px] font-medium tracking-tight">
-                {badgeLabel}
+                {eigenerBadgeLabel}
               </span>
             )}
           </button>
