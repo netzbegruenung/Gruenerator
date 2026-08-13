@@ -50,6 +50,8 @@ export const CONTENT_TYPE_LABELS: Record<string, string> = {
   antrag: 'Antrag',
   blog: 'Blogbeitrag',
   wahlprogramm: 'Wahlprogramm',
+  grundsatzprogramm: 'Grundsatzprogramm',
+  regierungsprogramm: 'Regierungsprogramm',
   wahlpruefstein: 'Wahlprüfstein',
   position: 'Positionspapier',
   rede: 'Rede',

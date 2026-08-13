@@ -19,6 +19,9 @@ export const contentSyncSourceSchema = z.enum([
   'bundestag',
   'social-media',
   'abgeordnetenwatch',
+  'grundsatz',
+  'gruene-de',
+  'oesterreich',
 ]);
 
 export type ContentSyncSource = z.infer<typeof contentSyncSourceSchema>;
