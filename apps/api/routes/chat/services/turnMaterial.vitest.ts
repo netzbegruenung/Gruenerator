@@ -19,13 +19,49 @@ describe('turnMaterialChars', () => {
   });
 
   it('falls back to the summary when the full text was not kept', () => {
-    // Large docs get vectorised instead of re-injected; the summary is all the
-    // prompt sees, and it is still material.
+    // A legacy row without stored text: the formatter injects its summary, so
+    // the summary is what the model sees and what counts.
     expect(
       turnMaterialChars({
         threadAttachments: [{ isImage: false, extractedText: null, summary: 'x'.repeat(700) }],
       })
     ).toBe(700);
+  });
+
+  it('ignores a vectorised document — it is not in the prompt', () => {
+    // The 13.08.2026 defect. `formatThreadAttachmentsContext` drops every row
+    // with a documentId (RAG serves it per query instead), so its text reaches
+    // the model nowhere. Counted anyway, the number took the writer's tool
+    // catalog away for material that was not there.
+    expect(
+      turnMaterialChars({
+        threadAttachments: [
+          {
+            isImage: false,
+            documentId: '61f23708-516b-48c9-b977-404610b77bf2',
+            extractedText: 'x'.repeat(57_215),
+            summary: 'x'.repeat(1_293),
+          },
+        ],
+      })
+    ).toBe(0);
+  });
+
+  it('counts the un-vectorised sibling in the same thread', () => {
+    // Both filters key off the same field, so the split has to survive a mixed
+    // thread — otherwise the fix would trade one blind spot for another.
+    expect(
+      turnMaterialChars({
+        threadAttachments: [
+          {
+            isImage: false,
+            documentId: 'a13dc241-543f-4e2f-8ec8-2872d6109296',
+            extractedText: 'x'.repeat(57_215),
+          },
+          { isImage: false, documentId: null, extractedText: 'x'.repeat(3_400) },
+        ],
+      })
+    ).toBe(3_400);
   });
 
   it('ignores images', () => {

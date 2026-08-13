@@ -323,6 +323,14 @@ export async function enrichContext(opts: {
           );
 
           initialState.documentChatIds.push(result.id);
+          // Hand the id to the persistence step that runs AFTER the answer.
+          // Without it, `saveThreadAttachmentsFromMeta` embeds the very same
+          // bytes a second time under a second id — measured 13.08.2026: one
+          // 57.215-char .docx produced two "Stored 59 vectors" lines per turn,
+          // eight document ids over four turns, and `documentChatIds` grew by
+          // two per turn because `getThreadAttachments` handed every copy back.
+          const meta = processedMeta.find((m) => m.name === att.name && !m.isImage);
+          if (meta) meta.documentId = result.id;
           sse.send('document_indexed', {
             documentId: result.id,
             title: result.title,

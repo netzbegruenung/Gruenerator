@@ -404,6 +404,13 @@ const hasAny = (names: readonly string[], set: ReadonlySet<string>): boolean =>
  *
  * The material is the same material either side of the boundary; which channel
  * carried it into the prompt says nothing about the turn.
+ *
+ * What it does say something about: whether the material is in the prompt AT
+ * ALL. A large attachment is vectorized and then re-injected NOWHERE — that is
+ * the case the sentence above does not cover, and `turnMaterialChars` excludes
+ * it for that reason. This predicate must never be handed a number that counts
+ * it. Fed one, it strips the writer's tool catalog to protect material the
+ * writer does not have, and the answer says so.
  */
 export function materialDominatesTurn(
   userText: string,
