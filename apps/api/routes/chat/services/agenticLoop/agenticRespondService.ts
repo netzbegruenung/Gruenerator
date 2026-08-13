@@ -107,17 +107,6 @@ import type { Request } from 'express';
 const log = createLogger('AgenticRespond');
 
 /**
- * Chat intents the agentic loop owns. Deliberately excludes:
- *  - `direct` — greetings/creative turns keep the zero-tool fast path (plain
- *    respond), so "hallo" never pays tool-loop overhead.
- * `mcp` (Phase 2) enters the loop when a user has connected servers — see the
- * router's gate, which must let it through despite the @<server> forcedTool flag.
- * `summary`/`bundestag`/`abgeordnetenwatch` (Phase 2b) and `image` (Phase 3)
- * each mount their own domain tool via `buildChatToolCatalog`'s intent-scoped
- * `loop` branch. `image` (generate) enters the loop only for attachment-free
- * turns — `image_edit` needs an attachment and the router gate excludes those.
- */
-/**
  * Was ÜBER die `loop`-Disposition hinaus in den Loop darf — und nur das steht
  * hier noch von Hand.
  *
@@ -133,8 +122,16 @@ const log = createLogger('AgenticRespond');
  * eigenes Domain-Tool über `buildChatToolCatalog`) bzw. weil es Geld kostet
  * (`image`). Wer die Liste ändert, ändert eine Aussage.
  *
- * `image` (generate) betritt den Loop nur für anhanglose Turns — `image_edit`
- * braucht einen Anhang, und das Router-Gate schliesst die aus.
+ * Zwei Eigenheiten, die nur hier stehen:
+ *  - `mcp` betritt den Loop, wenn die Person Server verbunden hat — das
+ *    Router-Gate muss es durchlassen TROTZ des `@<server>`-forcedTool-Flags,
+ *    das sonst jeden Turn single-pass hält.
+ *  - `image` (generate) betritt ihn nur für anhanglose Turns; `image_edit`
+ *    braucht einen Anhang, und das Router-Gate schliesst die aus.
+ *
+ * Nicht im Loop und ausdrücklich so gewollt: `direct`/`greeting`/`produktion`
+ * (Disposition `prose`) behalten den werkzeuglosen Schnellpfad, damit „hallo"
+ * nie Loop-Overhead zahlt.
  *
  * Historie, die sonst verloren ginge:
  *  - `research` stand hier als AUSNAHME (ausgeschlossen), solange es eine zweite
