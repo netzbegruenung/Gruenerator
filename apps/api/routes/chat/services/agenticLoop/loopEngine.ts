@@ -28,6 +28,7 @@ import {
 import { buildAiTelemetry } from '../../../../services/telemetry/langfuseTelemetry.js';
 import { recordDecision } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { stripToolControlTokens } from '../outputSanity.js';
 import { isWholesaleRefusal, refusalLanguage } from '../refusalDetection.js';
 import { createIdleDeadline } from '../streamIdleDeadline.js';
 
@@ -302,6 +303,19 @@ export interface LoopEngineParams {
    *  provider/context window is the backstop) — explicit caps truncated
    *  think-lane answers mid-sentence because reasoning tokens count too. */
   maxOutputTokens?: number;
+  /**
+   * Per-request provider options for the phases that run on the SELECTED model
+   * — unified and synth. Today this carries exactly one thing: Mistral's
+   * `reasoningEffort`.
+   *
+   * It has to be threaded through rather than baked into the model instance
+   * because `@ai-sdk/mistral` takes the effort per request, not per client. And
+   * it must not reach the GATHER phase: that runs on the fixed planner lane
+   * (Mistral Small on Regolo), an OpenAI-compat client that would drop a
+   * `mistral` block in silence — and the planner has no prose to think about
+   * anyway.
+   */
+  providerOptions?: Record<string, Record<string, string>>;
   abortSignal: AbortSignal;
   /**
    * Split mode: the signal the WRITE phase runs under. Defaults to
@@ -398,6 +412,7 @@ async function streamWithTools(
     stopWhen: isStepCount(p.maxSteps),
     temperature: p.temperature,
     ...(p.maxOutputTokens != null && { maxOutputTokens: p.maxOutputTokens }),
+    ...(p.providerOptions != null && { providerOptions: p.providerOptions }),
     abortSignal: p.abortSignal,
     prepareStep: buildPrepareStep(
       p.toolSystem,
@@ -601,13 +616,17 @@ function createGatedEmitter(
       }
       buffer += delta;
       if (buffer.length > holdChars) {
-        onText(buffer);
+        // The hold window is also where a stray chat-template control token is
+        // removed: it is emitted first, before any prose, so it is always
+        // inside this buffer — and stripping it here means the client never
+        // renders it, not even for one frame.
+        onText(stripToolControlTokens(buffer));
         buffer = '';
         open = true;
       }
     },
     flush() {
-      if (buffer.length > 0) onText(buffer);
+      if (buffer.length > 0) onText(stripToolControlTokens(buffer));
       buffer = '';
       open = true;
     },
@@ -655,6 +674,7 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<LoopResu
       messages,
       temperature: p.temperature,
       ...(p.maxOutputTokens != null && { maxOutputTokens: p.maxOutputTokens }),
+      ...(p.providerOptions != null && { providerOptions: p.providerOptions }),
       // Combined so a stalled provider call is torn down, not just abandoned.
       // `writeAbortSignal` deliberately, NOT the turn budget — see its doc.
       abortSignal: AbortSignal.any([p.writeAbortSignal ?? p.abortSignal, idle.signal]),
@@ -662,7 +682,16 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<LoopResu
     });
     try {
       const { text, finishReason } = await drain(result, gate.push, p.onReasoning, idle);
-      return { text, finishReason, flush: gate.flush, discard: gate.discard, isOpen: gate.isOpen };
+      // Stripped again on the accumulated text: `drain` collects it from the
+      // SDK independently of the gate, and this copy is what gets persisted and
+      // what every validator downstream reads.
+      return {
+        text: stripToolControlTokens(text),
+        finishReason,
+        flush: gate.flush,
+        discard: gate.discard,
+        isOpen: gate.isOpen,
+      };
     } catch (err) {
       // Nothing buffered may leak on the error path — the caller's catch writes
       // its own user-facing message.
