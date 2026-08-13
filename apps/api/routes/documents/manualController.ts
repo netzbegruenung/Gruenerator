@@ -80,6 +80,26 @@ const uploadDisk = multer({
 });
 
 /**
+ * Delete a pending upload, refusing any path that resolves outside
+ * PENDING_UPLOADS_DIR. The stored name is already reduced to `<uuid><ext>`
+ * above, so traversal cannot happen today — this keeps the deletion sink safe
+ * regardless of how the storage config changes later, and is what the two
+ * cleanup paths below share instead of calling unlink on their own.
+ */
+function removePendingUpload(filePath: string): void {
+  const resolved = path.resolve(filePath);
+  if (!resolved.startsWith(PENDING_UPLOADS_DIR + path.sep)) {
+    log.warn(`[upload] refusing to delete a path outside the pending directory: ${resolved}`);
+    return;
+  }
+  try {
+    fs.unlinkSync(resolved);
+  } catch {
+    // Non-critical cleanup error
+  }
+}
+
+/**
  * Turn multer's own rejections into the same German, actionable message the
  * type guard below uses. Without this the size limit surfaced through the
  * global handler in server.ts, which talks about videos.
@@ -129,11 +149,7 @@ router.post(
       // minutes later by the deferred pipeline, and a failure there is a row
       // the user has already moved on from.
       if (!resolveDocumentUploadFormat(file.originalname, file.mimetype)) {
-        try {
-          fs.unlinkSync(file.path);
-        } catch {
-          // Ignore cleanup error
-        }
+        removePendingUpload(file.path);
         res.status(415).json({
           success: false,
           message: `„${file.originalname}" kann nicht gelesen werden. Unterstützt werden: ${DOCUMENT_UPLOAD_FORMAT_HINT}.`,
@@ -173,13 +189,7 @@ router.post(
     } catch (error) {
       log.error('[POST /upload-only] Error:', error);
       // Clean up uploaded file on error
-      if (req.file?.path) {
-        try {
-          fs.unlinkSync(req.file.path);
-        } catch {
-          // Ignore cleanup error
-        }
-      }
+      if (req.file?.path) removePendingUpload(req.file.path);
       res.status(500).json({
         success: false,
         message: (error as Error).message || 'Failed to upload file',
