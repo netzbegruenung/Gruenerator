@@ -98,8 +98,14 @@ export interface PipelineAgent {
   readonly steps: readonly PipelineStep[];
 }
 
-/** Der Zustand, den `resolveOriginalText` liest. */
+/**
+ * Der Zustand, den `resolveOriginalText` liest.
+ *
+ * `threadAttachments` steht darin für die Turns, die kein eigenes Material
+ * mitbringen: eine Beanstandung der Fassung IST eine Anweisung, und das Original
+ * von vorhin liegt dann nur noch in dieser Liste. Begründung an der Fundstelle.
+ */
 export type MaterialState = Pick<
   ChatGraphState,
-  'attachmentContext' | 'documentMentionContext' | 'currentDocument'
+  'attachmentContext' | 'documentMentionContext' | 'currentDocument' | 'threadAttachments'
 >;
