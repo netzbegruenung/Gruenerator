@@ -88,6 +88,7 @@ import { pruneMessages, applyCompaction } from './services/contextPruningService
 import { buildCreateTurnContext } from './services/createTurn.js';
 import {
   isEinfacheSpracheAgent,
+  resolveOriginalText,
   runEinfacheSprachePruefkette,
 } from './services/einfacheSpracheTurn.js';
 import {
@@ -2267,17 +2268,15 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
 
       // === Einfache Sprache: die beiden Prüfschritte, jeder mit eigenem Kontext ===
       // Läuft NACH der gestromten Übertragung und hängt an denselben Text an,
-      // damit Persistenz und Neuladen sehen, was auf dem Bildschirm steht. Das
-      // Original ist der mitgelieferte Text: bei eingefügtem Material hebt
-      // `streamContext` ihn in die Nutzernachricht, bei einer Datei steht er im
-      // Anhang-Kontext — deshalb beide Quellen, in dieser Reihenfolge.
+      // damit Persistenz und Neuladen sehen, was auf dem Bildschirm steht. Woher
+      // der Ausgangstext kommt, entscheidet `resolveOriginalText` — er kann in
+      // der Nachricht, im Anhang oder in einer `@dokument`-Mention stecken.
       if (einfacheSpracheTurn) {
-        const original = lastUserText.trim() || (finalState.attachmentContext ?? '').trim();
         fullText += await runEinfacheSprachePruefkette({
           state: finalState,
           sse,
           esText: fullText,
-          original,
+          original: resolveOriginalText(finalState, lastUserText),
         });
       }
 
