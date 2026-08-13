@@ -51,6 +51,7 @@ import {
   processAttachments,
 } from './attachmentProcessingService.js';
 import { enrichContext } from './contextEnrichmentService.js';
+import { backfillEmptyUserMessages } from './historyBackfill.js';
 import {
   extractTextContent,
   filterEmptyAssistantMessages,
@@ -60,6 +61,7 @@ import { type createSSEStream, PROGRESS_MESSAGES } from './sseHelpers.js';
 import { canAccessThread } from './threadAccessService.js';
 import {
   getUser,
+  getUserMessageTexts,
   createThread,
   createMessage,
   createPendingAssistantMessage,
@@ -450,6 +452,32 @@ export async function buildStreamContext({
     actualThreadId = thread.id;
     isNewThread = true;
     sse.send('thread_created', { threadId: actualThreadId });
+  }
+
+  // Earlier user messages can arrive with no text at all (see historyBackfill);
+  // the persisted rows still have it. Runs before this turn's own message is
+  // written, so the persisted list is exactly the prior history. Only pay for the
+  // query when a message is actually empty.
+  if (
+    actualThreadId &&
+    !isNewThread &&
+    validMessages.some(
+      (m, i) =>
+        m.role === 'user' &&
+        i < validMessages.length - 1 &&
+        extractTextContent(m.content).length === 0
+    )
+  ) {
+    try {
+      const filled = backfillEmptyUserMessages(
+        validMessages as ModelMessage[],
+        await getUserMessageTexts(actualThreadId)
+      );
+      log.info(`[StreamContext] Restored ${filled} empty user message(s) from the thread`);
+    } catch (err) {
+      // A turn without its own history is degraded, not broken.
+      log.warn('[StreamContext] Could not restore empty user messages (continuing):', err);
+    }
   }
 
   if (actualThreadId && lastUserMessage) {
