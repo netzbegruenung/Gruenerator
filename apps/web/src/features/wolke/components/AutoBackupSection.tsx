@@ -3,7 +3,7 @@ import {
   WolkeFolderBrowser,
   type BackupInterval,
 } from '@gruenerator/wolke';
-import { FiClock, FiFolder, FiPlus } from 'react-icons/fi';
+import { FiClock, FiFolder } from 'react-icons/fi';
 
 import { cn } from '@/utils/cn';
 
@@ -87,23 +87,14 @@ const AutoBackupSection = () => {
               )}
             </div>
             <div className="rounded-lg border border-grey-200 dark:border-grey-700 p-sm">
-              <div className="flex items-center gap-xs px-sm py-xs mb-xs">
-                <FiFolder className="w-3.5 h-3.5 text-grey-500" />
-                <span className="text-xs text-foreground">Hauptordner</span>
-                <button
-                  type="button"
-                  onClick={() => handleFolderSelect('', 'Hauptordner')}
-                  className={cn(
-                    'ml-auto shrink-0 px-xs py-0.5 rounded text-[0.65rem] font-medium transition-all',
-                    autoBackup.folderPath === ''
-                      ? 'bg-primary-500 text-white'
-                      : 'text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950/30'
-                  )}
-                >
-                  {autoBackup.folderPath === '' ? 'Ausgewählt' : 'Auswählen'}
-                </button>
-              </div>
-              <WolkeFolderBrowser onFolderSelect={handleFolderSelect} />
+              {/* The browser carries the root row itself now. A second one here
+                  would disagree with it: this one knew the saved target, the
+                  browser's own selection starts empty. */}
+              <WolkeFolderBrowser
+                onFolderSelect={handleFolderSelect}
+                rootLabel="Hauptordner"
+                {...(autoBackup.folderPath !== null ? { selectedPath: autoBackup.folderPath } : {})}
+              />
             </div>
           </div>
         </div>
