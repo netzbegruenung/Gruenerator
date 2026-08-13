@@ -306,7 +306,18 @@ export class WolkeSyncService {
 
       if (!fileHasChanged) {
         console.log(`[WolkeSyncService] File ${file.name} is up to date, skipping`);
-        return { skipped: true, reason: 'up_to_date' };
+        // Hand the id back. `hasFileChanged` only answers false when there IS an
+        // existing document, and a skip that names no document is
+        // indistinguishable from a file that vanished — a caller reconciling a
+        // folder against its notebook would drop the document over it.
+        // `POST /import` short-circuits this case earlier today, so nothing
+        // regresses; the next caller just shouldn't have to re-query what we
+        // already loaded (wolkePendingContractRouter does exactly that).
+        return {
+          skipped: true,
+          reason: 'up_to_date',
+          ...(existingDoc ? { documentId: String(existingDoc.id) } : {}),
+        };
       }
 
       console.log(
