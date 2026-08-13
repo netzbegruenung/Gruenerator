@@ -48,7 +48,11 @@ import {
   stripFabricatedArtifactDelivery,
   stripFabricatedSystemClaims,
 } from '../outputSanity.js';
-import { resolveModel, type ResolvedModelTuple } from '../responseStreamingService.js';
+import {
+  mistralReasoningOption,
+  resolveModel,
+  type ResolvedModelTuple,
+} from '../responseStreamingService.js';
 import {
   PROGRESS_MESSAGES,
   sendChatWarning,
@@ -1563,6 +1567,19 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
       temperature: agentConfig.params.temperature ?? 0.3,
       // No output cap (OpenWebUI-style): the model window is the backstop.
       // The old 4000-token floor truncated think-lane answers mid-sentence.
+      //
+      // The auto policy grades a reasoning strength for every turn, and until
+      // now the loop resolved it and then dropped it: `resolveModel` used it to
+      // pin a thinking turn to the Mistral API (`needsReasoning`), but no phase
+      // ever sent the option that actually switches thinking on. The lane moved,
+      // the reasoning did not.
+      ...(mistralReasoningOption(resolution.reasoningEffort) != null && {
+        providerOptions: {
+          mistral: {
+            reasoningEffort: mistralReasoningOption(resolution.reasoningEffort) as string,
+          },
+        },
+      }),
       abortSignal,
       writeAbortSignal,
       afterGather,
