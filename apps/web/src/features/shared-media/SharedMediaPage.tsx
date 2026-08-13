@@ -176,9 +176,13 @@ const SharedMediaPage = () => {
   const handleShareToInstagram = useCallback(async () => {
     setIsSharing(true);
     try {
-      const response = await apiClient.get<Blob>(`/share/${shareToken}/preview`, {
-        responseType: 'blob',
-      });
+      // Video and image now have separate routes; /preview is images only for
+      // new consumers.
+      const path =
+        shareData?.mediaType === 'video'
+          ? `/share/${shareToken}/stream`
+          : `/share/${shareToken}/preview`;
+      const response = await apiClient.get<Blob>(path, { responseType: 'blob' });
       const blob = response.data as Blob;
       const mimeType = shareData?.mediaType === 'video' ? 'video/mp4' : 'image/png';
       const extension = shareData?.mediaType === 'video' ? 'mp4' : 'png';
@@ -318,7 +322,7 @@ const SharedMediaPage = () => {
               preload="metadata"
               playsInline
             >
-              <source src={`${baseURL}/share/${shareToken}/preview`} type="video/mp4" />
+              <source src={`${baseURL}/share/${shareToken}/stream`} type="video/mp4" />
               Dein Browser unterstützt keine Video-Wiedergabe.
             </video>
           ) : (
