@@ -112,11 +112,17 @@
       "import": "./dist/settings/index.js",
       "default": "./dist/settings/index.js"
     },
-    "./sharepic": {
-      "development": "./src/sharepic/index.ts",
-      "types": "./src/sharepic/index.ts",
-      "import": "./dist/sharepic/index.js",
-      "default": "./dist/sharepic/index.js"
+    "./canvas-editor": {
+      "development": "./src/canvas-editor/index.ts",
+      "types": "./src/canvas-editor/index.ts",
+      "import": "./dist/canvas-editor/index.js",
+      "default": "./dist/canvas-editor/index.js"
+    },
+    "./share": {
+      "development": "./src/share/index.ts",
+      "types": "./src/share/index.ts",
+      "import": "./dist/share/index.js",
+      "default": "./dist/share/index.js"
     },
     "./image-studio": {
       "development": "./src/image-studio/index.ts",
