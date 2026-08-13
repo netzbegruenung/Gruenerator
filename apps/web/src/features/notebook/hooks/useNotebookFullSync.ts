@@ -89,18 +89,31 @@ export function useNotebookFullSync() {
           updatedFolders.push({ ...folder, lastSyncedAt: result.updatedLastSyncedAt });
           const added = result.newlyImported.length;
           const totalNow = result.currentDocumentIds.length;
-          const summary =
+          const base =
             added > 0 ? `${added} neu · ${totalNow} insgesamt` : `${totalNow} unverändert`;
-          setRow(key, { status: 'done', summary });
+          const summary =
+            result.failures.length > 0
+              ? `${base} · ${result.failures.length} fehlgeschlagen`
+              : base;
+          setRow(key, {
+            status: 'done',
+            summary,
+            ...(result.notice ? { errorMessage: result.notice } : {}),
+          });
         } else {
           updatedFolders.push(folder);
           setRow(key, { status: 'error', errorMessage: result.message });
         }
       }
 
-      // Only conclude "vanished" when ALL folders synced successfully — otherwise we can't be sure.
+      // Only conclude "vanished" when ALL folders synced successfully AND no
+      // single file failed. A file that fails to re-import (unreadable PDF,
+      // OCR hiccup) is still sitting in the folder — treating its absence from
+      // currentDocumentIds as "deleted in the Wolke" would drop the document
+      // from the notebook on every full sync.
       const allWolkeFoldersOk =
-        wolkeResults.length === 0 || wolkeResults.every((r) => r.kind === 'success');
+        wolkeResults.length === 0 ||
+        wolkeResults.every((r) => r.kind === 'success' && r.failures.length === 0);
       const allWolkeNow = new Set<string>();
       for (const r of wolkeResults) {
         if (r.kind === 'success') r.currentDocumentIds.forEach((id) => allWolkeNow.add(id));
@@ -203,6 +216,7 @@ export function useNotebookFullSync() {
         removed: removedWolkeIds.length + removedManualIds.length,
         errors:
           wolkeResults.filter((r) => r.kind === 'error').length +
+          wolkeResults.reduce((acc, r) => acc + (r.kind === 'success' ? r.failures.length : 0), 0) +
           docsResults.filter((r) => r.kind === 'error').length,
       });
     },
