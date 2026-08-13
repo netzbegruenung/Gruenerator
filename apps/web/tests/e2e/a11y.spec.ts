@@ -242,6 +242,21 @@ const OVERLAYS = [
     viewport: { width: 1280, height: 720 },
     // Radix' DropdownMenuContent
     scope: '[role="menu"]',
+    // `scrollable-region-focusable` trifft hier zu und ist trotzdem kein
+    // Hindernis. Der Befund stimmt im DOM: `DropdownMenuContent` trägt
+    // `overflow-y-auto` und eine gedeckelte Höhe, und seit dem Umbau ist die
+    // Liste bei 720 px Fensterhöhe länger als der Deckel. Die Regel verlangt
+    // dann `tabindex="0"` am Rollbereich — sie kennt nur Tab.
+    //
+    // Ein Menü wird aber nicht mit Tab durchlaufen, sondern mit den Pfeiltasten
+    // (roving tabindex, WAI-ARIA Menu Pattern): der Rollbereich ist genau ein
+    // Tabstopp, und der Browser rollt den fokussierten Eintrag ins Bild. Ein
+    // zusätzlicher Tabstopp am Container wäre eine Verschlechterung.
+    //
+    // Deshalb steht die Regel hier ab — aber NICHT auf Zuruf: der Test unten
+    // fährt mit der Tastatur ans Listenende und belegt, was die Regel bezweifelt.
+    // Fällt das weg, ist die Ausnahme unbelegt und muss neu verhandelt werden.
+    disableRules: ['scrollable-region-focusable'],
   },
   {
     name: 'Plusmenü (mobiles Blatt)',
@@ -249,6 +264,7 @@ const OVERLAYS = [
     viewport: { width: 390, height: 844 },
     // Das Blatt ist ein Radix-Dialog, siehe ResponsiveMenu.
     scope: '[role="dialog"]',
+    disableRules: [],
   },
 ];
 
@@ -278,10 +294,10 @@ ohne sie prüft axe eine leere Auswahl und meldet null Verstöße.`
       // nicht mehr existieren.
       await page.waitForTimeout(500);
 
-      const { violations } = await new AxeBuilder({ page })
-        .withTags(WCAG_TAGS)
-        .include(overlay.scope)
-        .analyze();
+      const builder = new AxeBuilder({ page }).withTags(WCAG_TAGS).include(overlay.scope);
+      if (overlay.disableRules.length) builder.disableRules(overlay.disableRules);
+
+      const { violations } = await builder.analyze();
 
       expect(
         violations.map((v) => ({
@@ -293,6 +309,37 @@ ohne sie prüft axe eine leere Auswahl und meldet null Verstöße.`
       ).toEqual([]);
     });
   }
+
+  test('das Ende des Dropdowns ist mit der Tastatur erreichbar', async ({ page }) => {
+    // Der Beleg für die abgeschaltete Regel oben. Geprüft wird nicht, ob ein
+    // `tabindex` irgendwo steht, sondern die Sache selbst: kommt man ans untere
+    // Ende der Liste, obwohl sie über den Deckel hinausragt?
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await gotoAuthenticated(page, '/chat');
+
+    await page.getByRole('button', { name: 'Aktionen und Modus' }).click();
+    const menu = page.locator('[role="menu"]');
+    await expect(menu).toBeVisible();
+
+    // Radix fokussiert beim Öffnen per Zeiger den Container, nicht einen
+    // Eintrag. Pfeil-hoch springt von dort ans ENDE der Liste — also genau in
+    // den Bereich, den die Regel für unerreichbar hält.
+    await page.keyboard.press('ArrowUp');
+
+    const eintraege = menu.locator('[role^="menuitem"]');
+    const letzter = eintraege.last();
+    await expect(
+      letzter,
+      `Pfeil-hoch hat den letzten Eintrag des Plusmenüs nicht fokussiert. Damit
+ist die Ausnahme für scrollable-region-focusable nicht mehr belegt: entweder
+ist die Tastaturführung kaputt, oder das Menü endet nicht mehr auf einem
+Eintrag (ein Fußtext als letztes Kind reicht dafür schon).`
+    ).toBeFocused();
+
+    // Und der Eintrag muss auch sichtbar sein, nicht nur fokussiert — sonst
+    // hätte der Rollbereich den Fokus zwar, zeigte ihn aber nicht.
+    await expect(letzter).toBeInViewport();
+  });
 });
 
 test.describe('Barrierefreiheit (WCAG 2.2 AA)', () => {
