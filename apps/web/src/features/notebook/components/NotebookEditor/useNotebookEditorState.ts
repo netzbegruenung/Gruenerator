@@ -15,7 +15,9 @@ import { type ImportedWordpressDocument } from '../NotebookEditorWordpressSectio
 import {
   MAX_DOCUMENTS,
   TOTAL_STEPS,
+  describeRejectedFiles,
   hasFileDrag,
+  partitionUploadableFiles,
   type DocumentWithSource,
   type NotebookCollection,
   type NotebookEditorFormData,
@@ -47,6 +49,9 @@ export function useNotebookEditorState({
   const [labels, setLabels] = useState<string[]>([]);
   const [newLabel, setNewLabel] = useState('');
   const [indexingDocIds, setIndexingDocIds] = useState<Set<string>>(() => new Set());
+  // Documents whose background processing failed, keyed by id with the reason.
+  // Without this the spinner just disappeared and the row looked indexed.
+  const [failedDocs, setFailedDocs] = useState<Map<string, string>>(() => new Map());
   const [addingLabel, setAddingLabel] = useState(false);
   const [wolkeFolders, setWolkeFolders] = useState<WolkeFolderRef[]>([]);
   const [wolkePanelOpen, setWolkePanelOpen] = useState(false);
@@ -98,6 +103,7 @@ export function useNotebookEditorState({
       setWordpressSites([]);
       setUploadedDocuments([]);
       setStagedFiles([]);
+      setFailedDocs(new Map());
       setStep(0);
       setWolkePanelOpen(false);
       setDocsPanelOpen(false);
@@ -120,6 +126,54 @@ export function useNotebookEditorState({
     if (wordpressSites.length > 0) setWordpressPanelOpen(true);
   }, [wordpressSites.length]);
 
+  /**
+   * Follow a batch of documents through background indexing: spinner while it
+   * runs, a named failure afterwards if the pipeline couldn't read the file.
+   * Every source (upload, Wolke, Docs, WordPress) funnels through here so a
+   * failure looks the same wherever the document came from.
+   */
+  const watchIndexing = useCallback(
+    (docIds: string[]) => {
+      if (docIds.length === 0) return;
+      setIndexingDocIds((prev) => {
+        const next = new Set(prev);
+        docIds.forEach((id) => next.add(id));
+        return next;
+      });
+      setFailedDocs((prev) => {
+        if (!docIds.some((id) => prev.has(id))) return prev;
+        const next = new Map(prev);
+        docIds.forEach((id) => next.delete(id));
+        return next;
+      });
+
+      docIds.forEach((id) => {
+        void pollDocumentStatus(id)
+          .then((result) => {
+            if (result.status !== 'failed') return;
+            setFailedDocs((prev) => {
+              const next = new Map(prev);
+              next.set(id, result.error ?? 'Das Dokument konnte nicht gelesen werden.');
+              return next;
+            });
+          })
+          .catch(() => {
+            // Poll itself broke (network/auth) — that's not a document defect,
+            // so leave the row unmarked rather than blaming the file.
+          })
+          .finally(() => {
+            setIndexingDocIds((prev) => {
+              if (!prev.has(id)) return prev;
+              const next = new Set(prev);
+              next.delete(id);
+              return next;
+            });
+          });
+      });
+    },
+    [pollDocumentStatus]
+  );
+
   // Stage files for upload (preview-then-commit pattern). Slot check accounts
   // for both already-uploaded docs and other files still in the staging tray.
   // Auto-suggests a notebook name from the first file when adding to an empty
@@ -129,9 +183,13 @@ export function useNotebookEditorState({
       if (files.length === 0) return;
       setUploadError(null);
 
+      // Format check first: telling someone their PDF didn't fit is useful,
+      // telling them their .zip didn't fit is misleading.
+      const { accepted: readable, rejected } = partitionUploadableFiles(files);
+
       const remainingSlots = MAX_DOCUMENTS - uploadedDocuments.length - stagedFiles.length;
-      const accepted = files.slice(0, Math.max(0, remainingSlots));
-      const skipped = files.length - accepted.length;
+      const accepted = readable.slice(0, Math.max(0, remainingSlots));
+      const skipped = readable.length - accepted.length;
 
       if (accepted.length > 0) {
         setStagedFiles((prev) => [...prev, ...accepted]);
@@ -148,11 +206,14 @@ export function useNotebookEditorState({
           setValue('name', suggestedName, { shouldValidate: true });
         }
       }
+      const messages: string[] = [];
+      if (rejected.length > 0) messages.push(describeRejectedFiles(rejected));
       if (skipped > 0) {
-        setUploadError(
+        messages.push(
           `${skipped} Datei${skipped === 1 ? '' : 'en'} übersprungen — ein Notebook fasst insgesamt ${MAX_DOCUMENTS} Dokumente über alle Quellen hinweg.`
         );
       }
+      if (messages.length > 0) setUploadError(messages.join(' '));
     },
     [uploadedDocuments.length, stagedFiles.length, editingCollection, getValues, setValue]
   );
@@ -187,21 +248,7 @@ export function useNotebookEditorState({
       }
       if (newDocs.length > 0) {
         setUploadedDocuments((prev) => [...prev, ...newDocs]);
-        setIndexingDocIds((prev) => {
-          const next = new Set(prev);
-          newDocs.forEach((d) => next.add(d.id));
-          return next;
-        });
-        newDocs.forEach((d) => {
-          void pollDocumentStatus(d.id).finally(() => {
-            setIndexingDocIds((prev) => {
-              if (!prev.has(d.id)) return prev;
-              const next = new Set(prev);
-              next.delete(d.id);
-              return next;
-            });
-          });
-        });
+        watchIndexing(newDocs.map((d) => d.id));
         setStagedFiles([]);
       }
     } catch (err) {
@@ -209,7 +256,7 @@ export function useNotebookEditorState({
     } finally {
       setIsUploading(false);
     }
-  }, [stagedFiles, isUploading, uploadFileOnly, pollDocumentStatus]);
+  }, [stagedFiles, isUploading, uploadFileOnly, watchIndexing]);
 
   const handleFileSelect = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -248,15 +295,32 @@ export function useNotebookEditorState({
     setIsDragOver(false);
   }, []);
 
-  const handleRemoveDocument = useCallback((id: string) => {
-    setUploadedDocuments((prev) => prev.filter((doc) => doc.id !== id));
+  const forgetFailed = useCallback((ids: string[]) => {
+    setFailedDocs((prev) => {
+      if (!ids.some((id) => prev.has(id))) return prev;
+      const next = new Map(prev);
+      ids.forEach((id) => next.delete(id));
+      return next;
+    });
   }, []);
 
-  const handleRemoveDocuments = useCallback((ids: string[]) => {
-    if (ids.length === 0) return;
-    const drop = new Set(ids);
-    setUploadedDocuments((prev) => prev.filter((doc) => !drop.has(doc.id)));
-  }, []);
+  const handleRemoveDocument = useCallback(
+    (id: string) => {
+      setUploadedDocuments((prev) => prev.filter((doc) => doc.id !== id));
+      forgetFailed([id]);
+    },
+    [forgetFailed]
+  );
+
+  const handleRemoveDocuments = useCallback(
+    (ids: string[]) => {
+      if (ids.length === 0) return;
+      const drop = new Set(ids);
+      setUploadedDocuments((prev) => prev.filter((doc) => !drop.has(doc.id)));
+      forgetFailed(ids);
+    },
+    [forgetFailed]
+  );
 
   const handleDocsImported = useCallback(
     (docs: ImportedLinkedDoc[]) => {
@@ -268,23 +332,9 @@ export function useNotebookEditorState({
           .map((d) => ({ id: d.id, title: d.title }));
         return [...prev, ...additions];
       });
-      setIndexingDocIds((prev) => {
-        const next = new Set(prev);
-        docs.forEach((d) => next.add(d.id));
-        return next;
-      });
-      docs.forEach((d) => {
-        void pollDocumentStatus(d.id).finally(() => {
-          setIndexingDocIds((prev) => {
-            if (!prev.has(d.id)) return prev;
-            const next = new Set(prev);
-            next.delete(d.id);
-            return next;
-          });
-        });
-      });
+      watchIndexing(docs.map((d) => d.id));
     },
-    [pollDocumentStatus]
+    [watchIndexing]
   );
 
   const handleWolkeDocsImported = useCallback(
@@ -297,23 +347,9 @@ export function useNotebookEditorState({
           .map((d) => ({ id: d.id, title: d.title, source: 'wolke' as const }));
         return [...prev, ...additions];
       });
-      setIndexingDocIds((prev) => {
-        const next = new Set(prev);
-        docs.forEach((d) => next.add(d.id));
-        return next;
-      });
-      docs.forEach((d) => {
-        void pollDocumentStatus(d.id).finally(() => {
-          setIndexingDocIds((prev) => {
-            if (!prev.has(d.id)) return prev;
-            const next = new Set(prev);
-            next.delete(d.id);
-            return next;
-          });
-        });
-      });
+      watchIndexing(docs.map((d) => d.id));
     },
-    [pollDocumentStatus]
+    [watchIndexing]
   );
 
   const handleWordpressDocsImported = useCallback(
@@ -326,23 +362,9 @@ export function useNotebookEditorState({
           .map((d) => ({ id: d.id, title: d.title, source: 'wordpress' as const }));
         return [...prev, ...additions];
       });
-      setIndexingDocIds((prev) => {
-        const next = new Set(prev);
-        docs.forEach((d) => next.add(d.id));
-        return next;
-      });
-      docs.forEach((d) => {
-        void pollDocumentStatus(d.id).finally(() => {
-          setIndexingDocIds((prev) => {
-            if (!prev.has(d.id)) return prev;
-            const next = new Set(prev);
-            next.delete(d.id);
-            return next;
-          });
-        });
-      });
+      watchIndexing(docs.map((d) => d.id));
     },
-    [pollDocumentStatus]
+    [watchIndexing]
   );
 
   const handleAddLabel = useCallback(() => {
@@ -441,6 +463,7 @@ export function useNotebookEditorState({
     reset();
     setUploadedDocuments([]);
     setStagedFiles([]);
+    setFailedDocs(new Map());
     setLabels([]);
     setNewLabel('');
     setWolkeFolders([]);
@@ -462,6 +485,7 @@ export function useNotebookEditorState({
     labels,
     newLabel,
     indexingDocIds,
+    failedDocs,
     addingLabel,
     wolkeFolders,
     wolkePanelOpen,

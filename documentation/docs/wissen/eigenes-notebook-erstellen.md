@@ -9,7 +9,9 @@ Ein Notebook bündelt Dokumente zu einem Thema und macht ihren Inhalt im Grüner
 
 ## Was du benötigst
 
-Ein angemeldetes Grünerator-Konto und ein paar Dokumente, die du zusammenfassen, durchsuchen oder als Wissensbasis nutzen möchtest. Unterstützt werden **PDF, DOCX, DOC, TXT, MD, ODT und RTF** — bis zu **1.000 Dokumente** pro Notebook und **maximal 50 MB** pro Datei.
+Ein angemeldetes Grünerator-Konto und ein paar Dokumente, die du zusammenfassen, durchsuchen oder als Wissensbasis nutzen möchtest. Unterstützt werden **PDF, DOCX, PPTX, TXT, MD, CSV** sowie Bilder (**PNG, JPG, AVIF**, die per Texterkennung gelesen werden) — bis zu **1.000 Dokumente** pro Notebook und **maximal 50 MB** pro Datei.
+
+Ältere Office-Formate — `.doc`, `.odt` und `.rtf` — kann der Grünerator nicht lesen und nimmt sie deshalb gar nicht erst an. Öffne solche Dateien einmal in Word oder LibreOffice und speichere sie als **PDF** oder **DOCX**.
 
 ## Schritt-für-Schritt
 
@@ -30,12 +32,10 @@ Im ersten Schritt des Editors („Quellen — Woher kommen deine Dokumente?") st
 
 Beim Hochladen werden die gewählten Dateien zunächst als Vorschau **„Bereit zum Hochladen"** gesammelt. Dort kannst du einzelne Dateien wieder entfernen und startest den Upload dann mit **„Hochladen"**. Überschüssige Uploads jenseits der 1.000 werden mit einem Hinweis abgelehnt.
 
-:::caution[Prüf die Dateitypen selbst, bevor du hochlädst]
-Der Assistent filtert **nicht** nach Format. Die Auswahlliste des Dateidialogs schlägt zwar die unterstützten Endungen vor, aber per Drag & Drop landet jede Datei im Upload — auch eine, die später nicht gelesen werden kann.
+:::note[Nicht lesbare Dateien werden abgewiesen]
+Dateien in einem nicht unterstützten Format oder über 50 MB kommen gar nicht erst in die Vorschau — egal ob du sie über den Dateidialog auswählst oder per Drag & Drop ablegst. Unter der Kachel steht dann, welche Datei aus welchem Grund nicht übernommen wurde.
 
-Solche Dateien scheitern erst bei der Verarbeitung im Hintergrund, und **das siehst du in der Dokumentenliste derzeit nicht**: Der Ladehinweis verschwindet einfach, ohne Fehlermeldung. Wenn ein Dokument später in der Suche fehlt, ist das die wahrscheinlichste Ursache.
-
-Auch einige der oben genannten Endungen sind betroffen — `.doc`, `.odt` und `.rtf` gehen durch die Vorauswahl, werden bei der Textextraktion aber nicht in jedem Fall unterstützt. Bei wichtigen Dokumenten ist PDF oder DOCX der sichere Weg.
+Scheitert ein Dokument später doch noch bei der Verarbeitung — etwa ein PDF ohne erkennbaren Text —, bleibt es in der Dokumentenliste stehen und ist rot als **„Nicht durchsuchbar"** markiert, mit dem Grund daneben. Über den Hinweis oberhalb der Liste entfernst du alle betroffenen Dokumente auf einmal.
 :::
 
 Sobald die erste Datei hochgeladen ist, schlägt der Editor automatisch einen Notebook-Namen vor — abgeleitet vom Dateinamen der ersten Datei (gekürzt auf 60 Zeichen). Mit **„Weiter →"** gelangst du zu Schritt 2 (Details).
@@ -128,7 +128,10 @@ Ja. Beim Bearbeiten eines Notebooks kannst du beliebige Dokumente aus deiner Bib
 Bei Text-PDFs und reinen Textdateien meist nur Sekunden. Eingescannte PDFs (mit OCR) und sehr große Dateien können einige Minuten brauchen. Das Notebook ist trotzdem sofort nutzbar — neue Dokumente erscheinen in den Antworten, sobald die Indexierung abgeschlossen ist.
 
 **Mein Dokument wird nicht akzeptiert.**
-Prüfe die Dateiendung (PDF, DOCX, DOC, TXT, MD, ODT, RTF) und die Dateigröße (max. 50 MB). Andere Formate musst du vorher konvertieren.
+Prüfe die Dateiendung (PDF, DOCX, PPTX, TXT, MD, CSV, PNG, JPG, AVIF) und die Dateigröße (max. 50 MB). Andere Formate — darunter `.doc`, `.odt` und `.rtf` — musst du vorher als PDF oder DOCX speichern.
+
+**Ein Dokument ist rot als „Nicht durchsuchbar" markiert.**
+Dann ließ sich beim Verarbeiten kein Text daraus gewinnen; der Grund steht in der Zeile. Häufigster Fall ist eine leere oder beschädigte Datei. Das Dokument bleibt im Notebook, taucht aber in keiner Antwort auf — entferne es und lade es in einem anderen Format erneut hoch.
 
 ## Verwandte Themen
 
