@@ -83,6 +83,25 @@ describe('containsInstructionMarkers', () => {
       expect(containsInstructionMarkers(text), text).toBe(false);
     }
   });
+
+  /**
+   * The reported symptom: longer prompts and attached markdown answered with
+   * "das Dokument enthält anweisungsartige Formulierungen … Manipulationsversuch".
+   * Every line here used to return true — headings via `#{1,6}\s*\S`, prompt talk
+   * via a bare `system[-\s]?prompt` mention anywhere in a sentence.
+   */
+  it('does not flag structured markdown or talk about a system prompt', () => {
+    for (const text of [
+      '# Protokoll der Sitzung\n\nAnwesend: Vorstand, Beisitzende.',
+      '## Antrag\n\nDer Landesparteitag möge beschließen …',
+      '### Kontext\nWir planen einen Newsletter.\n\n### Ton\nSachlich, kurze Sätze.',
+      'Hier ist mein System Prompt, bitte überarbeite ihn.',
+      'Die Systemnachricht des Bots ist zu lang geworden.',
+      'Wir müssen den System-Prompt für den Agenten anpassen.',
+    ]) {
+      expect(containsInstructionMarkers(text), text).toBe(false);
+    }
+  });
 });
 
 /**
