@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 
 import {
+  buildSystemMessage,
   formatSearchContext,
   formatTabularComputeGuidance,
   getModeGuidance,
@@ -536,5 +537,50 @@ describe('formatThreadAttachmentsContext — kein doppelter Ausgangstext', () =>
       'Ein Foto von Katharina Dröge'
     );
     expect(out).toContain('FRÜHERE BILDER');
+  });
+});
+
+describe('Pipeline-Turn: genau ein Ausgangstext im Prompt', () => {
+  const alt = 'Ein Artikel aus einem früheren Turn über Radwege. '.repeat(40);
+  const pinned = 'Die Grünen fordern ein Sofortprogramm für Klimaanlagen. '.repeat(20);
+
+  const state = (over: Partial<ChatGraphState> = {}) =>
+    makeState({
+      intent: 'produktion',
+      searchResults: [],
+      citations: [],
+      agentConfig: { identifier: 'gruenerator-einfache-sprache', systemRole: 'ROLLE …' },
+      threadAttachments: [
+        {
+          id: 'a1',
+          name: 'Eingefügter Text.txt',
+          mimeType: 'text/plain',
+          isImage: false,
+          extractedText: alt,
+          documentId: null,
+          summary: null,
+          createdAt: new Date('2026-08-13T21:38:00Z'),
+        } as ThreadAttachment,
+      ],
+      attachmentContext: alt,
+      documentMentionContext: alt,
+      ...over,
+    });
+
+  it('verdrängt jedes andere Material, sobald ein Text angeheftet ist', async () => {
+    // Solange beides im Prompt steht, ist die Anheftung eine Bitte — und am
+    // 13.08.2026 entschied sich das Modell für den Thread-Kontext, während die
+    // Prüfkette gegen den angehefteten Text mass.
+    const out = await buildSystemMessage(state({ pipelineSourceText: pinned }));
+    expect(out).toContain('ZU ÜBERTRAGENDER TEXT');
+    expect(out).toContain('Sofortprogramm für Klimaanlagen');
+    expect(out).not.toContain('Radwege');
+    expect(out).not.toContain('FRÜHERE DOKUMENTE');
+  });
+
+  it('lässt den gewöhnlichen Turn unberührt', async () => {
+    const out = await buildSystemMessage(state({ pipelineSourceText: null }));
+    expect(out).not.toContain('ZU ÜBERTRAGENDER TEXT');
+    expect(out).toContain('Radwege');
   });
 });
