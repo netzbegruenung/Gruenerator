@@ -69,6 +69,8 @@ const {
   thinksOnThisLane,
 } = await import('./responseStreamingService.js');
 
+const { TRUNCATION_NOTE } = await import('./turnAbortOutcome.js');
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 interface SentEvent {
@@ -595,5 +597,169 @@ describe('streamWithFallback', () => {
     expect(result).toBe('Antwort nach langem Denken');
     expect(sse.events.some((e) => e.event === 'reasoning_delta')).toBe(true);
     expect(sse.events.some((e) => e.event === 'fallback')).toBe(false);
+  });
+});
+
+// ─── Abbruch: Uhr, Denk-Budget, Nutzer ──────────────────────────────────────
+
+/**
+ * Der Mock, ohne den die Uhr-Tests nichts beweisen: `firstTokenThenHang` oben
+ * ignoriert das Abbruchsignal und endet nie — der Test dort konnte deshalb nur
+ * prüfen, dass ein `AbortSignal` umkippt, nicht was danach passiert.
+ *
+ * Das echte AI SDK (7.0.58) stuft eine `DOMException/TimeoutError` als ABBRUCH
+ * ein: es schiebt einen `abort`-Part in den Stream und schliesst ihn dann
+ * regulär. Genau das bildet dieser Mock ab.
+ */
+function abortAware(pre: Array<Record<string, unknown>>, opts: { thinkEveryMs?: number } = {}) {
+  return (args: { abortSignal: AbortSignal }) => ({
+    stream: (async function* () {
+      for (const part of pre) yield part;
+      const { abortSignal } = args;
+      if (opts.thinkEveryMs) {
+        while (!abortSignal.aborted) {
+          await new Promise((r) => setTimeout(r, opts.thinkEveryMs));
+          if (abortSignal.aborted) break;
+          yield { type: 'reasoning-delta', text: 'denkt weiter. ' };
+        }
+      } else {
+        await new Promise<void>((resolve) => {
+          if (abortSignal.aborted) return resolve();
+          abortSignal.addEventListener('abort', () => resolve(), { once: true });
+        });
+      }
+      yield { type: 'abort', reason: 'aborted' };
+    })(),
+  });
+}
+
+/** Roher Reasoning-Pfad: denkt, bis das Signal fällt — dann wirft er, wie ein
+ *  abgebrochener `fetch`-Body es tut (kein `abort`-Part wie beim SDK). */
+function reasoningStreamThatThinksUntilAbort() {
+  return (params: { signal: AbortSignal }) => ({
+    async *[Symbol.asyncIterator]() {
+      while (true) {
+        await new Promise((r) => setTimeout(r, 10_000));
+        if (params.signal.aborted) {
+          throw new DOMException('wall-clock exceeded', 'TimeoutError');
+        }
+        yield { type: 'reasoning', delta: 'denkt. ' };
+      }
+    },
+  });
+}
+
+describe('Uhr-Abbruch verliert den Zug nicht mehr', () => {
+  it('Phase 1: die Uhr ohne ein einziges Token ist ein Erst-Token-Timeout, kein leerer Upstream', async () => {
+    vi.useFakeTimers();
+    mockStreamText
+      .mockImplementationOnce(abortAware([], { thinkEveryMs: 30_000 }))
+      .mockImplementationOnce(() =>
+        streamOf([{ type: 'text-delta', text: 'Antwort vom Sibling' }])
+      );
+    const sse = makeSse();
+    const resultPromise = runStream(
+      makeResolution({
+        reasoningEffort: 'off',
+        sibling: { provider: 'mistral', model: 'mistral-medium-2604' },
+      }),
+      sse
+    );
+    await vi.advanceTimersByTimeAsync(200_000);
+    expect(await resultPromise).toBe('Antwort vom Sibling');
+    const fallback = sse.events.find((e) => e.event === 'fallback');
+    // Vorher: 'empty_completion' — der Abbruch sah aus wie ein leerer Upstream.
+    expect((fallback!.data as { reason: string }).reason).toBe('first_token_timeout');
+  });
+
+  it('Phase 2: die halbe Antwort wird als unvollständig markiert statt als fertige gespeichert', async () => {
+    vi.useFakeTimers();
+    mockStreamText.mockImplementationOnce(
+      abortAware([{ type: 'text-delta', text: 'Der Anfang der Antwort.' }])
+    );
+    const sse = makeSse();
+    const resultPromise = runStream(makeResolution({ reasoningEffort: 'off' }), sse);
+    await vi.advanceTimersByTimeAsync(200_000);
+    const result = await resultPromise;
+    expect(result).toContain('Der Anfang der Antwort.');
+    expect(result).toContain(TRUNCATION_NOTE.trim());
+    // Die Notiz ging AUCH über die Leitung — live und nach Reload dieselbe Warnung.
+    expect(textDeltas(sse).join('')).toContain(TRUNCATION_NOTE.trim());
+    expect(sse.events.some((e) => e.event === 'fallback')).toBe(false);
+  });
+
+  it('ein Nutzer-Abbruch löst KEINEN Sibling-Versuch aus', async () => {
+    vi.useFakeTimers();
+    const controller = new AbortController();
+    mockStreamText.mockImplementationOnce(abortAware([]));
+    const sse = makeSse();
+    const promise = streamForResolution({
+      resolution: makeResolution({ reasoningEffort: 'off' }) as never,
+      messages: MESSAGES,
+      temperature: 0.7,
+      sse: sse as never,
+      signal: controller.signal,
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    controller.abort();
+    await expect(promise).rejects.toMatchObject({ name: 'AbortError' });
+    expect(mockStreamText).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Denk-Budget', () => {
+  it('bricht endloses Denken ab und schreibt den Zug ohne Denken zu Ende (Roh-Pfad)', async () => {
+    vi.useFakeTimers();
+    mockStreamWithReasoning.mockImplementationOnce((params: { signal: AbortSignal }) =>
+      reasoningStreamThatThinksUntilAbort()(params)
+    );
+    mockStreamText.mockImplementationOnce(() =>
+      streamOf([{ type: 'text-delta', text: 'Die Übertragung, ungedacht.' }])
+    );
+    const sse = makeSse();
+    const resultPromise = runStream(makeResolution({ reasoningEffort: 'medium' }), sse);
+    // 120 s Denk-Budget < 280 s Turn-Uhr der denkenden Lane: das Budget greift zuerst.
+    await vi.advanceTimersByTimeAsync(125_000);
+    expect(await resultPromise).toBe('Die Übertragung, ungedacht.');
+    // Zweiter Versuch OHNE Denken — sonst liefe er in dieselbe Schleife.
+    expect(mockStreamText.mock.calls[0][0]).not.toHaveProperty('providerOptions');
+    expect(sse.events.some((e) => e.event === 'reasoning_delta')).toBe(true);
+  });
+
+  it('bricht endloses Denken auch auf dem SDK-Pfad ab', async () => {
+    vi.useFakeTimers();
+    // Scaleway fällt aus → SDK-Pfad übernimmt MIT Denken (providerOptions)…
+    mockStreamWithReasoning.mockImplementationOnce(() => {
+      throw new ReasoningStreamUnavailableError('mistral', 503, 'upstream down');
+    });
+    mockStreamText
+      .mockImplementationOnce(abortAware([], { thinkEveryMs: 10_000 }))
+      .mockImplementationOnce(() =>
+        streamOf([{ type: 'text-delta', text: 'Antwort ohne Denken' }])
+      );
+    const sse = makeSse();
+    const resultPromise = runStream(makeResolution({ reasoningEffort: 'high' }), sse);
+    await vi.advanceTimersByTimeAsync(125_000);
+    expect(await resultPromise).toBe('Antwort ohne Denken');
+    expect(mockStreamText.mock.calls[0][0]).toHaveProperty('providerOptions');
+    expect(mockStreamText.mock.calls[1][0]).not.toHaveProperty('providerOptions');
+  });
+
+  it('gründliches Denken innerhalb des Budgets läuft unangetastet durch', async () => {
+    vi.useFakeTimers();
+    mockStreamWithReasoning.mockImplementationOnce(() => ({
+      async *[Symbol.asyncIterator]() {
+        for (let i = 0; i < 4; i++) {
+          await new Promise((r) => setTimeout(r, 15_000));
+          yield { type: 'reasoning', delta: `Schritt ${i}. ` };
+        }
+        yield { type: 'text', delta: 'Gut überlegte Antwort.' };
+      },
+    }));
+    const sse = makeSse();
+    const resultPromise = runStream(makeResolution({ reasoningEffort: 'medium' }), sse);
+    await vi.advanceTimersByTimeAsync(70_000);
+    expect(await resultPromise).toBe('Gut überlegte Antwort.');
+    expect(mockStreamText).not.toHaveBeenCalled();
   });
 });

@@ -1,4 +1,8 @@
-import { isAdminVisibleSkill } from '@gruenerator/shared/agents';
+import {
+  isAdminVisibleSkill,
+  isLvItemVisibleForRoles,
+  isLvNotebookVisibleForRoles,
+} from '@gruenerator/shared/agents';
 import { allIntentMentions, forcedToolFor } from '@gruenerator/shared/chat-intents';
 import {
   PiFlask,
@@ -214,12 +218,27 @@ export function setHiddenSkillMentions(mentions: readonly string[]): void {
   hiddenSkillMentions = mentions;
 }
 
+// Die Landesverbände der angemeldeten Person, abgeleitet aus ihren Profilrollen
+// (`useUserLandesverbaende`). Gesetzt vom Host wie `mentionLocale` darüber, weil
+// dieses Paket sowohl im Web-Bundle als auch in der Mobile-Binary steckt und
+// keins von beiden einen gemeinsamen Weg zum Profil hat.
+//
+// Leer heißt „keine Zuordnung" und damit: nicht filtern. Deshalb ist der
+// Vorgabewert sicher — ein Host, der den Setter nie ruft (Mobile), verhält sich
+// wie bisher.
+let mentionLandesverbaende: readonly string[] = [];
+
+export function setMentionLandesverbaende(lvIds: readonly string[]): void {
+  mentionLandesverbaende = lvIds;
+}
+
 /** Agent/skill mentionables visible for the current locale, minus admin-hidden Rezepte. */
 export function getAgentMentionables(): Mentionable[] {
   return agentMentionables.filter(
     (m) =>
       (m.audience === undefined || m.audience === 'all' || m.audience === mentionLocale) &&
-      isAdminVisibleSkill(m.mention, hiddenSkillMentions)
+      isAdminVisibleSkill(m.mention, hiddenSkillMentions) &&
+      isLvItemVisibleForRoles(m.identifier, mentionLandesverbaende)
   );
 }
 
@@ -262,7 +281,10 @@ export function visibleNotebookMentionables(): Mentionable[] {
   const locale = mentionLocale === 'de-AT' ? 'de-AT' : 'de-DE';
   const allowed = new Set<string>(getNotebooksForAudience(locale).map((n) => n.id));
   return notebookMentionables.filter(
-    (m) => allowed.has(m.identifier) && isNotebookOfferedIn(m.identifier, mentionInstance)
+    (m) =>
+      allowed.has(m.identifier) &&
+      isNotebookOfferedIn(m.identifier, mentionInstance) &&
+      isLvNotebookVisibleForRoles(m.identifier, mentionLandesverbaende)
   );
 }
 

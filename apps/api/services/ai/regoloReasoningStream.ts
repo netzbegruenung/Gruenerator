@@ -8,7 +8,7 @@
  * an OpenAI-compat upstream streams alongside the answer is silently dropped.
  * Two of our upstreams do exactly that:
  *   - Regolo / vLLM (Qwen3, gpt-oss, Gemma 4): `delta.reasoning_content`,
- *     gated behind the chat-template flag `enable_thinking`.
+ *     gesteuert über `reasoning_effort` (`none` schaltet ab).
  *   - Verdigado / LiteLLM / Ollama (Gemma 4 `verdigado-think`):
  *     `delta.reasoning`, on by default.
  * To surface either to our UI (Reasoning/ReasoningGroup components), we bypass
@@ -63,10 +63,10 @@ const REGOLO_ENDPOINT = 'https://api.regolo.ai/v1/chat/completions';
 
 /**
  * Models that stream reasoning to us, keyed by provider. Regolo's vLLM family
- * needs `enable_thinking: true` (the inverse of the `regoloFetchWithThinkingDisabled`
- * default we apply on the SDK path); LiteLLM's Ollama-backed aliases
- * (`verdigado-think` = Gemma 4, `verdigado-pro` = gpt-oss) emit `reasoning` by
- * default and need no flag.
+ * bekommt hier ein echtes `reasoning_effort` (die Umkehr des `none`, das
+ * `regoloFetchWithThinkingDisabled` auf dem SDK-Pfad setzt); LiteLLM's
+ * Ollama-backed aliases (`verdigado-think` = Gemma 4, `verdigado-pro` =
+ * gpt-oss) emit `reasoning` by default and need no flag.
  */
 const REGOLO_REASONING_MODELS = new Set([
   'qwen3.5-122b',
@@ -76,7 +76,7 @@ const REGOLO_REASONING_MODELS = new Set([
   // Small 4 is reasoning-capable but ran with thinking hard-off everywhere
   // (it was only ever the intermediate model). The auto policy can now grade it up
   // to `low` on moderate/complex turns; without this entry that grading would
-  // be silently ignored — the SDK path forces enable_thinking:false.
+  // be silently ignored — the SDK path forces reasoning_effort:'none'.
   'mistral-small-4-119b',
 ]);
 const LITELLM_REASONING_MODELS = new Set(['verdigado-think', 'verdigado-pro']);
@@ -131,13 +131,40 @@ export class ReasoningStreamUnavailableError extends Error {
 }
 
 /**
- * gpt-oss exposes a native low/medium/high `reasoning_effort` dial. The other
- * lanes only have on/off (a chat-template flag or nothing at all), so effort is
- * deliberately NOT sent to them — an unknown body field is a needless risk on a
- * strict upstream.
+ * LiteLLMs Ollama-Aliase: `verdigado-pro` (gpt-oss) hat den nativen Dial,
+ * `verdigado-think` (Gemma 4) nicht. Für Regolo gilt diese Liste NICHT — dort
+ * nimmt jedes Modell `reasoning_effort` an, siehe {@link REGOLO_EFFORT_NOTE}.
  */
 const EFFORT_AWARE_MODELS = new Set(['gpt-oss-120b', 'verdigado-pro']);
 
+/**
+ * ── Warum Regolo `reasoning_effort` bekommt und kein `enable_thinking` ──
+ *
+ * Regolo nimmt `reasoning_effort` für JEDES seiner Modelle an — nicht nur für
+ * gpt-oss, wie hier bis 13.08.2026 stand. Es ist auch der bessere Hebel als
+ * `chat_template_kwargs.enable_thinking`, gemessen 13.08.2026 gegen
+ * api.regolo.ai (identischer Prompt, `max_tokens` 800–1500, Zeichen Reasoning
+ * bzw. Antworttext):
+ *
+ *   Modell               nichts     effort:high    effort:none   enable_thinking:true/false
+ *   gemma4-31b           0 / 1025   2412 / 1222    0 / 957       2600 / 1257   ·  0 / 959
+ *   mistral-small-4-119b 0 /  513   5526 /  184    0 / 288       5420 /    0   ·  0 / 214
+ *   gpt-oss-120b       334 /  594   1285 /  425    0 / 487        208 /  549   ·  208 / 633
+ *   qwen3.5-122b      3516 /    0   3487 /    0    0 / 532       3303 /    0   ·  0 / 518
+ *   qwen3.6-27b       2061 /  521   1799 /  436    0 / 504       2185 /  531   ·  0 / 432
+ *
+ * Zwei Konsequenzen, und beide sind der Grund für die Umstellung:
+ *
+ *  - `enable_thinking:false` schaltet gpt-oss NICHT ab (208 Zeichen mit wie
+ *    ohne Flag), `reasoning_effort:'none'` schon. Der Aus-Hebel auf dem
+ *    SDK-Pfad war für diese Lane also wirkungslos — siehe regoloThinkingFetch.
+ *  - Als Regler taugt der Dial nur dort, wo das Modell ihn kennt: gemma4-31b
+ *    liefert für low/medium/high 2533/2589/2412 Zeichen, also Rauschen statt
+ *    Stufen — dort heisst alles ausser `none` schlicht „an". Bei
+ *    mistral-small (3805/2830/5526) und gpt-oss ist ein Effekt messbar.
+ *    Wer `medium` als „halb so viel Denken" liest, liest auf Gemma etwas
+ *    hinein, das der Upstream nicht anbietet.
+ */
 function resolveConfig(
   provider: string,
   model: string,
@@ -149,7 +176,9 @@ function resolveConfig(
     return {
       endpoint: REGOLO_ENDPOINT,
       apiKey: env.REGOLO_API_KEY,
-      bodyExtras: { chat_template_kwargs: { enable_thinking: true }, ...effortExtra },
+      // `high`, wenn der Aufrufer nichts sagt: dieses Modul zu erreichen heisst
+      // bereits „denken an", und `none` wäre die stille Umkehr davon.
+      bodyExtras: { reasoning_effort: effort ?? 'high' },
     };
   }
   if (provider === 'litellm') {
