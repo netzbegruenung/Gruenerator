@@ -84,6 +84,30 @@ export const usageFootprintSchema = z.object({
    */
   reference_energy_wh: z.number(),
   reference_emissions_g: z.number(),
+  /**
+   * `emissions_g` again, same scope, computed with the MARKET-based method:
+   * zero for every lane whose operator holds a named renewable instrument
+   * (Scaleway Guarantee of Origin, Hetzner EMAS, Seeweb certified supply),
+   * unchanged where none is documented — image generation above all, where the
+   * inference region is invisible to us.
+   *
+   * Exists to be rendered as the other end of a RANGE against `emissions_g`,
+   * never on its own. The two are different accounting methods, not an
+   * uncertainty interval, and the GHG Protocol asks for both.
+   *
+   * ONE-SIDED BY CONSTRUCTION: `reference_emissions_g` has no market-based
+   * counterpart, because certificates are only spendable by whoever cancelled
+   * them and we hold none of Microsoft's. Any surface showing this field has to
+   * say that the optimistic end applies one method to one side.
+   */
+  market_emissions_g: z.number(),
+  /**
+   * 0..1 — share of the counted energy whose provider actually has a named
+   * instrument. At 1 the whole range rests on documented contracts; below 1 the
+   * remainder simply carries its location factor into both ends, so the range
+   * narrows rather than overstating.
+   */
+  market_backed_share: z.number(),
 });
 
 export const usageDayEntrySchema = z.object({

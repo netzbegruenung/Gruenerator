@@ -7,7 +7,13 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { carComparison, formatEnergy, formatGrams, referenceComparison } from './usageFormat';
+import {
+  carComparison,
+  formatCorridor,
+  formatEnergy,
+  formatGrams,
+  referenceComparison,
+} from './usageFormat';
 
 describe('formatGrams', () => {
   it('never prints a decimal', () => {
@@ -57,6 +63,10 @@ describe('referenceComparison', () => {
     image_energy_wh: 60,
     reference_emissions_g: 200,
     reference_energy_wh: 500,
+    // No green-power instrument by default, so both methods coincide and the
+    // corridor is pure reference uncertainty — the pre-14.08.2026 behaviour.
+    market_emissions_g: 100,
+    market_backed_share: 0,
   };
 
   it('reports a favourable comparison with a corridor around the reference', () => {
@@ -64,8 +74,57 @@ describe('referenceComparison', () => {
     expect(r.hasComparison).toBe(true);
     expect(r.saved).toBe(true);
     expect(r.magnitude).toBe(120); // 200 - (100 - 20)
-    expect(r.low).toBeCloseTo(60); // 200*0.7 - 80
-    expect(r.high).toBeCloseTo(180); // 200*1.3 - 80
+    expect(r.worst).toBeCloseTo(60); // 200*0.7 - 80
+    expect(r.best).toBeCloseTo(180); // 200*1.3 - 80
+    expect(r.marketDiffers).toBe(false);
+    expect(r.straddlesZero).toBe(false);
+  });
+
+  it('widens the favourable end to the market-based figure, not the headline', () => {
+    // 60 g of the 100 are location-only; market-based our text side is 30-20=10.
+    const r = referenceComparison({ ...base, market_emissions_g: 30, market_backed_share: 1 });
+    expect(r.marketDiffers).toBe(true);
+    // Headline is unchanged — the market number must never move the main figure.
+    expect(r.magnitude).toBe(120);
+    // Unfavourable end still location-based, favourable end market-based.
+    expect(r.worst).toBeCloseTo(60); // 200*0.7 - 80
+    expect(r.best).toBeCloseTo(250); // 200*1.3 - 10
+  });
+
+  it('reports a corridor that STRADDLES zero instead of clamping the saving away', () => {
+    // The bug this replaced: with a magnitude-only corridor the favourable end
+    // rendered as "0 g" whenever the two accounting methods disagreed about the
+    // sign, hiding a real saving. Numbers are the live platform figures of
+    // 14.08.2026 — 468 g location vs 371 g reference, and 0 g market-based
+    // because every text lane has a green-power instrument (only images do not).
+    const r = referenceComparison({
+      emissions_g: 596.02,
+      image_emissions_g: 127.89,
+      energy_wh: 2906.26,
+      image_energy_wh: 363.33,
+      reference_emissions_g: 370.91,
+      reference_energy_wh: 1059.74,
+      market_emissions_g: 127.89,
+      market_backed_share: 0.87,
+    });
+    expect(r.saved).toBe(false);
+    expect(r.magnitude).toBeCloseTo(97.22, 1); // headline stays location-based
+    expect(r.worst).toBeCloseTo(-208.5, 0); // 370.91*0.7 - 468.13
+    expect(r.best).toBeCloseTo(482.18, 0); // 370.91*1.3 - 0
+    expect(r.straddlesZero).toBe(true);
+    expect(formatCorridor(r.worst, r.best)).toMatch(/^von .* mehr bis .* gespart$/);
+  });
+
+  it('ignores a market figure that has no instrument behind it', () => {
+    // market_backed_share 0 means the lanes fell through to their location
+    // factor; a lower number there would be a bug, and must not widen anything.
+    const r = referenceComparison({ ...base, market_emissions_g: 30, market_backed_share: 0 });
+    expect(r.marketDiffers).toBe(false);
+  });
+
+  it('phrases a one-sided corridor without the straddle wording', () => {
+    expect(formatCorridor(60, 180)).toBe('60 g gespart bis 180 g gespart');
+    expect(formatCorridor(-30, -10)).toBe('30 g mehr bis 10 g mehr');
   });
 
   it('reports an unfavourable comparison rather than collapsing it', () => {
@@ -73,9 +132,11 @@ describe('referenceComparison', () => {
     expect(r.hasComparison).toBe(true);
     expect(r.saved).toBe(false);
     expect(r.magnitude).toBe(60); // |20 - 80|
-    // Corridor stays positive in the unfavourable direction too.
-    expect(r.low).toBeGreaterThanOrEqual(0);
-    expect(r.high).toBeGreaterThan(r.low);
+    // Both ends are NEGATIVE here — an excess at either reading, no straddle.
+    expect(r.worst).toBeLessThan(0);
+    expect(r.best).toBeLessThan(0);
+    expect(r.best).toBeGreaterThan(r.worst);
+    expect(r.straddlesZero).toBe(false);
   });
 
   it('has nothing to compare for pure image usage', () => {
@@ -87,6 +148,8 @@ describe('referenceComparison', () => {
       image_energy_wh: 60,
       reference_emissions_g: 0,
       reference_energy_wh: 0,
+      market_emissions_g: 20,
+      market_backed_share: 0,
     });
     expect(r.hasComparison).toBe(false);
   });

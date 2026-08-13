@@ -16,6 +16,7 @@ import {
   formatCount,
   formatDay,
   formatEnergy,
+  formatCorridor,
   formatGrams,
   formatTokens,
   FUNCTION_LABELS,
@@ -88,7 +89,7 @@ function ReferenceComparison({ footprint }: { footprint: UsageFootprintDto }) {
             ≈ {formatGrams(comparison.magnitude)}
           </span>
           <span className="text-xs text-grey-500">
-            etwa {formatGrams(comparison.low)} – {formatGrams(comparison.high)}
+            {formatCorridor(comparison.worst, comparison.best)}
           </span>
         </div>
         <div className="flex flex-col gap-1">
@@ -103,6 +104,16 @@ function ReferenceComparison({ footprint }: { footprint: UsageFootprintDto }) {
         Vergleich zu GPT-4o (Jegham et al. 2025), nur Text — Bilder haben keine vergleichbar sauber
         abgegrenzte OpenAI-Zahl. Deinen eigenen Verbrauch weisen wir bewusst nicht aus; was die
         Plattform insgesamt braucht, steht auf der Transparenz-Seite.{' '}
+        {comparison.marketDiffers && (
+          <>
+            Die Spanne umfasst zwei Dinge: die Unsicherheit der GPT-4o-Zahl (±30 %) und die beiden
+            anerkannten Bilanzierungsmethoden. Das günstige Ende rechnet unseren Ökostrom an
+            (marktbasiert) — unsere Rechenzentren beziehen zertifizierten Grünstrom, Hetzner
+            EMAS-geprüft. <strong>Es gilt nur für unsere Seite:</strong> Microsoft kauft ebenfalls
+            Erneuerbare ein, aber deren Nachweise können wir nicht verrechnen. Unsere Bilanz ist das
+            ungünstige Ende.{' '}
+          </>
+        )}
         <a
           href={`${getDocsUrl()}/docs/ueber-den-gruenerator/nachhaltigkeit`}
           target="_blank"
