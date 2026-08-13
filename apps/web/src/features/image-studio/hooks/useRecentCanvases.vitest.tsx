@@ -26,7 +26,25 @@ describe('useRecentCanvases (MSW)', () => {
   });
 
   it('returns the canvas list on a 200 response', async () => {
-    const canvases = [{ id: 'c1', title: 'Sharepic 1', template_type: 'sharepic' }];
+    // A whole row, not the three fields the assertions read: the canvas client
+    // validates its responses against `canvasListItemSchema`, so a stub that
+    // skips required columns no longer stands in for what the endpoint sends.
+    const canvases = [
+      {
+        id: 'c1',
+        title: 'Sharepic 1',
+        template_type: 'sharepic',
+        created_by: 'u1',
+        created_at: '2026-08-01T10:00:00.000Z',
+        updated_at: '2026-08-02T10:00:00.000Z',
+        permissions: null,
+        is_public: false,
+        base_template_id: null,
+        thumbnail_url: null,
+        page_count: 1,
+        format: 'square',
+      },
+    ];
     server.use(http.get(ENDPOINT, () => HttpResponse.json(canvases)));
 
     const { result } = renderHook(() => useRecentCanvases(true), { wrapper });
