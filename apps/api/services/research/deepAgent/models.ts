@@ -26,10 +26,15 @@
 import { ChatOpenAI } from '@langchain/openai';
 
 import { env } from '../../../config/env.js';
+import { isScalewayMistralRoutingEnabled, MISTRAL_API_URL } from '../../ai/providerInstances.js';
 import { scalewayBaseUrl } from '../../ai/scalewayEndpoint.js';
 
 /** Scaleway's name for Mistral Medium 3.5 — mirrors SCALEWAY_MISTRAL_MODELS. */
 const SCALEWAY_MEDIUM = 'mistral-medium-3.5-128b';
+
+/** The same weights under the name the Mistral API knows them by — the key of
+ *  SCALEWAY_MISTRAL_MODELS that maps to SCALEWAY_MEDIUM. */
+const MISTRAL_MEDIUM = 'mistral-medium-2604';
 
 /**
  * Gemma 4 26B-A4B on Scaleway — a MoE with 4B ACTIVE parameters, and the model
@@ -101,8 +106,34 @@ const REASONING_OFF = { reasoning_effort: 'none' } as const;
  *
  * Mistral Medium 3.5 because the run lives or dies on tool-calling discipline —
  * a lead that fumbles `task` or `write_file` produces no document at all.
+ *
+ * THE THIRD PATH. `isScalewayMistralRoutingEnabled()` also gates this one, even
+ * though nothing here goes through `routeMistralModel`: this is the same
+ * weights on the same upstream, so a host that answers badly answers badly
+ * here too. It was missed on the first pass — the module builds its own
+ * `ChatOpenAI` and named the host in a local constant, so neither the routing
+ * table nor a grep for `routeMistralModel` led here.
+ *
+ * The module comment above says "no environment switches here, deliberately",
+ * and that still holds: WHICH MODEL each role runs is a research decision with
+ * measurements behind it, and that is untouched. WHICH HOST serves the same
+ * weights is an operational one, and it is the only thing this reads.
+ *
+ * The Mistral API is OpenAI-compatible on this endpoint — `ChatOpenAI` needs no
+ * adapter. That is not a guess: `scalewayMistralFallbackFetch` already replays
+ * a Scaleway-shaped body against `/v1/chat/completions` there, model id swapped,
+ * and the whole fallback design rests on it.
  */
 export function leadModel(): ChatOpenAI {
+  if (!isScalewayMistralRoutingEnabled()) {
+    return new ChatOpenAI({
+      model: MISTRAL_MEDIUM,
+      apiKey: requireMistralKey(),
+      temperature: 0.3,
+      configuration: { baseURL: MISTRAL_API_URL },
+      modelKwargs: { ...PARALLEL_TOOL_CALLS },
+    });
+  }
   return new ChatOpenAI({
     model: SCALEWAY_MEDIUM,
     apiKey: requireScalewayKey(),
@@ -142,5 +173,13 @@ export function workerModel(): ChatOpenAI {
 function requireScalewayKey(): string {
   const apiKey = env.SCALEWAY_API_KEY;
   if (!apiKey) throw new Error('SCALEWAY_API_KEY is required for the deep research agent');
+  return apiKey;
+}
+
+/** Same rule for the lead's other host. The worker keeps needing the Scaleway
+ *  key either way — it runs Gemma, which is not affected by the switch. */
+function requireMistralKey(): string {
+  const apiKey = env.MISTRAL_API_KEY;
+  if (!apiKey) throw new Error('MISTRAL_API_KEY is required for the deep research lead agent');
   return apiKey;
 }
