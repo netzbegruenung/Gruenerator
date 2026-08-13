@@ -27,33 +27,91 @@ export interface ComposerModeDef {
  */
 export const COMPOSER_MODES: ComposerModeDef[] = [
   { mode: 'chat', label: 'Chat', icon: 'chat' },
-  { mode: 'notebook', label: 'Notebook', icon: 'notebook' },
+  // NOTIZBUCHMODUS — vorerst nicht weiterverfolgt (08/2026).
+  //
+  // Als WÄHLBARER Modus stillgelegt: er stand im Plusmenü gleichrangig neben
+  // Chat und Rolle, obwohl er etwas anderes tut als beide — er schickt den Turn
+  // an einen anderen Endpunkt (`/notebook/stream`, siehe
+  // `buildRequestBody`/`GrueneratorModelAdapter`). Ein Notizbuch als QUELLE
+  // erreicht man weiterhin per `@mention`; die läuft über `notebookIds` durch
+  // den normalen Chat-Endpunkt und ist von dieser Zeile nicht betroffen.
+  //
+  // `ThreadMode` behält `'notebook'` und der Transportweg bleibt vollständig
+  // intakt: `apps/mobile/app/(focused)/chat-conversation.tsx` setzt den Modus
+  // beim Einstieg aus einem Notizbuch selbst — Mobile hat, anders als Web
+  // (`NotebookModelAdapter`), keine eigene Notizbuch-Oberfläche. Diese Zeile
+  // wieder einkommentieren stellt die Auswahl her, mehr braucht es nicht.
+  // { mode: 'notebook', label: 'Notebook', icon: 'notebook' },
   { mode: 'eigener', label: 'Eigener Chat', icon: 'custom' },
 ];
 
-export type ComposerToolIconKey = 'document' | 'globe' | 'idea' | 'newspaper' | 'research';
-
-export interface ComposerToolDef {
-  key: ToolKey;
-  /** User-facing label (German, du-form). */
-  label: string;
-  icon: ComposerToolIconKey;
-}
+export type ComposerToolIconKey = 'document' | 'globe' | 'research';
 
 /**
- * Single source of truth for the per-tool composer toggles, following the
- * COMPOSER_MODES pattern: the tool set, labels, and icon semantics live here
- * so the toggle list can't drift between platforms.
+ * A row in the plus menu's bottom group. Two kinds, deliberately side by side:
+ *
+ * - `toggle` flips an `enabledTools` key and STAYS set across turns. It renders
+ *   with a check, because that check is the only thing telling a user the state
+ *   outlives this message.
+ * - `once` inserts an @mention and applies to THIS message only. No check.
+ *
+ * Both kinds sat in the old menu as identical click-items, which is how a
+ * one-shot `@recherche` and a sticky search setting became indistinguishable.
+ * Keep the union — do not destructure `kind` at the call site, or the branches
+ * stop narrowing.
+ */
+export type ComposerToolDef =
+  | {
+      kind: 'toggle';
+      key: ToolKey;
+      /** User-facing label (German, du-form). */
+      label: string;
+      /** Grey secondary text; says what the row does, not that it exists. */
+      description: string;
+      icon: ComposerToolIconKey;
+    }
+  | {
+      kind: 'once';
+      /** `mention` slug resolved via `resolveMentionable` at render time. */
+      mention: string;
+      label: string;
+      description: string;
+      icon: ComposerToolIconKey;
+    };
+
+/**
+ * Single source of truth for the composer's switch group, following the
+ * COMPOSER_MODES pattern: the set, labels, and icon semantics live here so the
+ * list can't drift between platforms.
+ *
+ * `research` also gates the internal `web` key (see chatStore `toggleTool`) —
+ * one user-facing switch, two backend gates. The `examples` and
+ * `pressemitteilung_examples` keys keep their defaults and their @mentions but
+ * are no longer switches: they are corpus lookups the classifier picks, not
+ * something a user reaches for per message.
  */
 export const COMPOSER_TOOLS: ComposerToolDef[] = [
-  { key: 'search', label: 'Dokumentensuche', icon: 'document' },
-  // Merged search tool: a single "Recherche" toggle gates both backend search
-  // paths (fast web + deep research). The `web` ToolKey lives on internally as a
-  // gate/back-compat key (see chatStore `toggleTool`), but is no longer a
-  // separate user-facing toggle.
-  { key: 'examples', label: 'Beispiele', icon: 'idea' },
-  { key: 'pressemitteilung_examples', label: 'Pressemitteilungen', icon: 'newspaper' },
-  { key: 'research', label: 'Recherche', icon: 'research' },
+  {
+    kind: 'toggle',
+    key: 'research',
+    label: 'Websuche',
+    description: 'Aktuelles aus dem Web',
+    icon: 'globe',
+  },
+  {
+    kind: 'once',
+    mention: 'deepresearch',
+    label: 'Tiefenrecherche',
+    description: 'Mehrere Suchläufe, langes Dossier',
+    icon: 'research',
+  },
+  {
+    kind: 'toggle',
+    key: 'search',
+    label: 'Dokumentensuche',
+    description: 'Deine Dateien & Notizbücher',
+    icon: 'document',
+  },
 ];
 
 export type SearchDepthIconKey = 'fast' | 'deep';
