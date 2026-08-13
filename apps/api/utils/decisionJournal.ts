@@ -58,6 +58,7 @@ export const DECISION_POINTS = {
       'modify_board_to_agentic',
       'agentic_to_search',
       'system_tool_to_web',
+      'einfache_sprache_to_produktion',
     ],
   },
 
