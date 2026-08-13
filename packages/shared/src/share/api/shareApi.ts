@@ -4,6 +4,7 @@
  */
 
 import { apiRequest } from '../../api/client.js';
+import { getContractsClient } from '../../api/contractsClient.js';
 
 import type {
   ShareResponse,
@@ -16,6 +17,7 @@ import type {
   ShareMediaType,
   ShareStatus,
 } from '../types.js';
+import type { RecentSharesResponse } from '@gruenerator/contracts';
 
 /**
  * API endpoints for sharing
@@ -94,9 +96,20 @@ export async function getUserShares(
  * The bounded counterpart to `getUserShares`, which has no `limit` parameter and
  * falls back to the service default of 100 rows — more than any recents strip can
  * show, over mobile data. Images only; the endpoint hardcodes the media type.
+ *
+ * Goes through the contracts client, so the rows are parsed against
+ * `shareListItemSchema` at the boundary. Returns the contract-derived
+ * `RecentSharesResponse`, not the hand-written `ShareListResponse` the rest of
+ * this module still uses: the latter promises fields this endpoint never sends.
  */
-export async function getRecentShares(limit = 20): Promise<ShareListResponse> {
-  return apiRequest<ShareListResponse>('get', `${SHARE_ENDPOINTS.RECENT_SHARES}?limit=${limit}`);
+export async function getRecentShares(limit = 20): Promise<RecentSharesResponse> {
+  const res = await getContractsClient().sharesRead.recentShares({
+    query: { limit: String(limit) },
+  });
+  if (res.status !== 200) {
+    throw new Error(`Letzte Shares konnten nicht geladen werden (${res.status})`);
+  }
+  return res.body;
 }
 
 /**

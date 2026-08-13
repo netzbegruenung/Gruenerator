@@ -12,7 +12,7 @@
  * Mount BEFORE the legacy shareFileRouter so ts-rest matches its routes first.
  */
 
-import { sharesReadContract } from '@gruenerator/contracts';
+import { sharesReadContract, type ShareListItem } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { toCamelCase } from '../../utils/case.js';
@@ -22,6 +22,7 @@ import { createLogger } from '../../utils/logger.js';
 import { getSharedMediaService } from './shareServices.js';
 
 import type { UserProfile } from '../../services/user/types.js';
+import type { SharedMediaRow } from '../../types/media.js';
 import type { Application, Request } from 'express';
 
 const log = createLogger('sharesReadContract');
@@ -33,6 +34,36 @@ const UNAUTHORIZED = {
 
 function getUserId(req: Request): string | undefined {
   return (req.user as UserProfile | undefined)?.id;
+}
+
+/**
+ * A `shared_media` row as the list contract declares it.
+ *
+ * Written out column by column instead of running the row through the generic
+ * `toCamelCase`: that helper takes `unknown` and returns `unknown`, so every
+ * call site ended in an `as unknown[]` and the contract could promise a shape
+ * nothing checked. It is also what hid the original bug — `toCamelCase` used to
+ * rebuild `created_at` (a `Date`) as `{}`, and no type anywhere objected.
+ *
+ * Only the columns `getUserShares` actually SELECTs appear here.
+ */
+function toShareListItem(row: SharedMediaRow): ShareListItem {
+  return {
+    id: row.id,
+    shareToken: row.share_token,
+    mediaType: row.media_type,
+    title: row.title,
+    thumbnailPath: row.thumbnail_path,
+    fileSize: row.file_size,
+    duration: row.duration,
+    imageType: row.image_type,
+    // NOT NULL DEFAULT '{}' in Postgres; the row type is wider than the column.
+    imageMetadata: row.image_metadata ?? {},
+    status: row.status,
+    downloadCount: row.download_count,
+    createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
+    contentOrigin: row.content_origin,
+  };
 }
 
 function getUserName(req: Request): string {
@@ -193,7 +224,7 @@ export const shareReadContractRouter = s.router(sharesReadContract, {
         status: 200 as const,
         body: {
           success: true as const,
-          shares: toCamelCase(shares) as unknown[],
+          shares: shares.map(toShareListItem),
           count,
           limit: 50,
         },
@@ -229,7 +260,7 @@ export const shareReadContractRouter = s.router(sharesReadContract, {
         status: 200 as const,
         body: {
           success: true as const,
-          shares: toCamelCase(recentShares) as unknown[],
+          shares: recentShares.map(toShareListItem),
           count: recentShares.length,
           limit,
         },
