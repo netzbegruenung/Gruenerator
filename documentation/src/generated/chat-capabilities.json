@@ -425,20 +425,6 @@
       "avatar": "📢",
       "category": "presse",
       "audience": "de-AT"
-    },
-    {
-      "command": "/rueckuebersetzung",
-      "title": "Rückübersetzung",
-      "description": "Formuliert eine Fassung in Einfacher Sprache zurück in Fachdeutsch — blind, ohne das Original",
-      "avatar": "🔁",
-      "category": "dokumente"
-    },
-    {
-      "command": "/sprachpruefung",
-      "title": "Sprach-Prüfung",
-      "description": "Prüft eine Übertragung in Einfache Sprache gegen das Original — Abdeckung, Befunde, Freigabe-Urteil",
-      "avatar": "🔍",
-      "category": "dokumente"
     }
   ],
   "skillCategoryLabels": {
