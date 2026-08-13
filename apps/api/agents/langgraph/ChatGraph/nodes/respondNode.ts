@@ -757,6 +757,10 @@ ${documentMentionContext}`;
  *
  * Der Block wiederholt das Material wörtlich, statt darauf zu verweisen: er ist
  * die einzige Stelle, an der Schritt 1 und Schritt 3 denselben String meinen.
+ *
+ * Er ist ausserdem der EINZIGE Material-Block eines Pipeline-Turns: die Aufrufer
+ * schweigen dann (`isPinnedTransfer`). Ein Hinweis „nimm das andere nicht" neben
+ * dem anderen ist eine Bitte; ein leerer Kontext ist eine Tatsache.
  */
 function formatPipelineSourceText(original: string | null): string {
   if (!original) return '';
@@ -765,14 +769,13 @@ function formatPipelineSourceText(original: string | null): string {
 
 ## ZU ÜBERTRAGENDER TEXT
 
-Übertrage GENAU den folgenden Text — vollständig, ohne Kürzung. Anderes Material
-im Kontext (frühere Anhänge, frühere Nachrichten) ist NICHT gemeint, auch wenn es
-länger oder inhaltlich naheliegender wirkt. Dieselbe Fassung wird anschließend
-gegen genau diesen Text geprüft.
+Übertrage GENAU den folgenden Text — vollständig, ohne Kürzung. Er ist das einzige
+Material dieses Turns; die Nachrichten davor sind Anweisungen an dich, kein
+Ausgangstext. Dieselbe Fassung wird anschließend gegen genau diesen Text geprüft.
 
 <<<ORIGINAL
 ${original}
-ORIGINAL`;
+ORIGINAL>>>`;
 }
 
 /**
@@ -1486,22 +1489,34 @@ export async function buildSystemMessage(
   } = state;
   const searchContext = await formatSearchContext(state, !!agentConfig.inlineSourceLinks);
   const perSourceContext = formatPerSourceContext(state);
-  const currentDocumentContext = formatCurrentDocument(state);
-  const attachmentContext = formatAttachmentContext(state);
+  // Ein Pipeline-Agent hat seinen Ausgangstext schon gewählt (`resolveOriginalText`)
+  // und bekommt ihn weiter unten wörtlich angeheftet. Die übrigen Material-Blöcke
+  // schweigen dann: solange sie danebenstehen, ist die Anheftung eine Bitte, die
+  // das Modell abwägen darf — und am 13.08.2026 wog es falsch ab und übertrug den
+  // Artikel aus dem Thread-Kontext, während die Prüfkette gegen den angehefteten
+  // Text mass. Ein Übertragungs-Turn hat genau ein Original, und welches, steht
+  // schon fest.
+  const isPinnedTransfer = !!state.pipelineSourceText;
+  const currentDocumentContext = isPinnedTransfer ? '' : formatCurrentDocument(state);
+  const attachmentContext = isPinnedTransfer ? '' : formatAttachmentContext(state);
   const imageContext = formatImageContext(state);
   const summaryContextFormatted = formatSummaryContext(summaryContext);
   const computedResultFormatted = formatComputedResultContext(computedResult);
   const tabularComputeGuidance = formatTabularComputeGuidance(state);
-  const threadAttachmentsContext = formatThreadAttachmentsContext(
-    threadAttachments,
-    state.contextWindowTokens,
-    (state.messages ?? []).map((m) => extractTextContent(m.content)).join('\n')
-  );
+  const threadAttachmentsContext = isPinnedTransfer
+    ? ''
+    : formatThreadAttachmentsContext(
+        threadAttachments,
+        state.contextWindowTokens,
+        (state.messages ?? []).map((m) => extractTextContent(m.content)).join('\n')
+      );
   const memoryContextFormatted = formatMemoryContext(memoryContext);
   const chatHistoryFormatted = state.chatHistoryContext ? `\n\n${state.chatHistoryContext}` : '';
   const boardContextFormatted = formatBoardContext(boardContext);
   const sheetContextFormatted = formatSheetContext(state.sheetContext);
-  const docMentionContextFormatted = formatDocumentMentionContext(documentMentionContext);
+  const docMentionContextFormatted = isPinnedTransfer
+    ? ''
+    : formatDocumentMentionContext(documentMentionContext);
   const pipelineSourceText = formatPipelineSourceText(state.pipelineSourceText);
   const localeContext = formatLocaleContext(state.userLocale);
   const platformContext = formatPlatformContext(state.clientPlatform);
