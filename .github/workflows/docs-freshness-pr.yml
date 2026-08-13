@@ -31,6 +31,12 @@ on:
       - 'apps/api/services/usage/energyFootprint.ts'
       - 'apps/api/services/transcription/**'
       - 'packages/core/src/models/**'
+      # Pre-existing gaps: these three were in AREA_HINTS but never here, so a
+      # PR touching only them started no audit at all — the same silent miss
+      # this PR is about, one step earlier in the chain.
+      - 'apps/api/routes/mcp-server/**' # integrationen/
+      - 'packages/sheets/**' # office/
+      - 'packages/docs/**' # office/
 
 permissions:
   contents: read
