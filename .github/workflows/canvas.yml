@@ -1,0 +1,79 @@
+name: Canvas-Editor
+
+# Eigener Workflow statt eines Jobs in ci.yml — dieselbe Begruendung wie bei
+# a11y.yml: die Lane braucht einen Playwright-Browser und einen laufenden
+# Dev-Server. In ci.yml gehaengt wuerde sie jeden PR verlangsamen, auch die,
+# die den Editor nicht anfassen. Deshalb pfad-gefiltert.
+#
+# Was sie prueft, kann keine der bestehenden Lanes pruefen: die Resize-Geometrie
+# entsteht erst aus Konvas Transformer, echten Zeigerereignissen und echtem
+# Layout. Die node-vitest-Lane deckt die Arithmetik ab, aber sie muss die
+# Konva-Skalierung annehmen — und genau in dieser Annahme sass der Fehler, den
+# dieser Workflow ab jetzt festhaelt (Path-Formen wuchsen beim Verkleinern).
+
+on:
+  pull_request:
+    branches: [master, main]
+    paths:
+      - 'packages/canvas-editor/**'
+      - 'apps/web/tests/e2e/canvas-shape-resize.spec.ts'
+      - 'apps/web/tests/e2e/harness/**'
+      - '.github/workflows/canvas.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+
+jobs:
+  resize:
+    name: Resize-Geometrie (Konva-Transformer)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Nur Chromium: geprueft wird Konvas Geometrie ueber der Canvas-2D-API,
+      # nicht das Rendering-Verhalten einzelner Engines.
+      - name: Playwright-Browser
+        run: pnpm --filter @gruenerator/web exec playwright install --with-deps chromium
+
+      - name: Build shared packages
+        run: pnpm build:shared
+
+      # Der Harness braucht weder Auth noch Backend — er mountet eine nackte
+      # Konva-Stage. Faellt der Dev-Server aus, faellt der Test aus; die Suite
+      # kennt keinen Skip-Pfad, ein gruener Haken hier heisst also wirklich
+      # "gelaufen und bestanden".
+      - name: Resize-Lane
+        working-directory: apps/web
+        run: pnpm exec playwright test canvas-shape-resize.spec.ts --reporter=github,list
+
+      - name: Bericht hochladen
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: canvas-resize-report
+          path: apps/web/test-results/
+          retention-days: 14
+          if-no-files-found: ignore

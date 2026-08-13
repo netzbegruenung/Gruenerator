@@ -10,10 +10,14 @@
  */
 
 import {
+  boardToolMentionables,
+  docToolMentionables,
   getAgentMentionables,
   getCustomAgentMentionables,
   getMcpServerMentionables,
   getTextformMentionables,
+  presentationToolMentionables,
+  sheetToolMentionables,
   visibleToolMentionables,
   type Mentionable,
 } from './mentionables';
@@ -52,6 +56,42 @@ export function quickSkillMentionables(favorites: readonly string[]): Mentionabl
  */
 export function functionMentionables(): Mentionable[] {
   return visibleToolMentionables();
+}
+
+/**
+ * Intent categories the "Erstellen" submenu offers: everything whose result is
+ * a new artefact.
+ *
+ * `retrieval` is deliberately absent. Looking something up (`@bundestag`,
+ * `@umfragen`, `@verlauf`, `@doku`) is not an action a user picks from a menu of
+ * verbs — it is a source, and sources reach the composer by typing `@`. Keeping
+ * them here is what made the old "Funktionen" list read as an unsorted pile of
+ * nineteen unrelated things.
+ *
+ * `surface-edit` and `internal` never carry a mention, so they cannot appear.
+ */
+const CREATION_INTENT_CATEGORIES: readonly string[] = ['generation', 'artifact', 'processing'];
+
+/**
+ * The "Erstellen" submenu: locale-filtered generation intents plus the four
+ * create-a-surface entries that live outside the intent registry.
+ *
+ * Those four (`@dokument-erstellen`, `@tabelle-erstellen`,
+ * `@praesentation-erstellen`, `@board-erstellen`) were reachable ONLY by typing
+ * before — they are `type: 'doc' | 'sheet' | 'presentation' | 'board'`, and the
+ * menu only ever rendered `type: 'tool'`. Same act as generating an image, so
+ * same list.
+ */
+export function creationMentionables(): Mentionable[] {
+  return [
+    ...visibleToolMentionables().filter(
+      (m) => m.intentCategory != null && CREATION_INTENT_CATEGORIES.includes(m.intentCategory)
+    ),
+    ...docToolMentionables.filter((m) => m.identifier === 'dokument-erstellen'),
+    ...sheetToolMentionables,
+    ...presentationToolMentionables,
+    ...boardToolMentionables,
+  ];
 }
 
 /** Connected MCP servers, pinnable to hold their scope across follow-ups. */

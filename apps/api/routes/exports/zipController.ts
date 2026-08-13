@@ -6,11 +6,15 @@
 import { ZipArchive } from 'archiver';
 import express, { type Request, type Response } from 'express';
 
+import { decodeDataUrl } from '../../utils/dataUrl.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { setContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('exportZip');
+
+/** Nur diese Bildtypen landen im Export-ZIP. */
+const SUPPORTED_EXPORT_TYPES = new Set(['image/png', 'image/jpeg', 'image/jpg']);
 
 const router = express.Router();
 
@@ -84,19 +88,16 @@ router.post(
       for (let i = 0; i < images.length; i++) {
         const dataUrl = images[i];
 
-        // Extract base64 data from data URL
-        const matches = dataUrl.match(/^data:image\/(png|jpeg|jpg);base64,(.+)$/);
-        if (!matches) {
+        const decoded = decodeDataUrl(dataUrl, { expectedType: 'image' });
+        if (!decoded || !SUPPORTED_EXPORT_TYPES.has(decoded.mediaType)) {
           log.warn(`[exportZip] Invalid data URL format for image ${i + 1}`);
           continue;
         }
 
-        const [, format, base64Data] = matches;
-        const buffer = Buffer.from(base64Data, 'base64');
-        const extension = format === 'jpeg' || format === 'jpg' ? 'jpg' : 'png';
+        const extension = decoded.mediaType === 'image/png' ? 'png' : 'jpg';
         const imageFilename = `seite-${i + 1}.${extension}`;
 
-        archive.append(buffer, { name: imageFilename });
+        archive.append(decoded.buffer, { name: imageFilename });
       }
 
       // Finalize the archive

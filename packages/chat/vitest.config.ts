@@ -51,7 +51,15 @@ export default defineConfig({
           // name has no `@` and so never matched the scoped pattern — it stayed
           // externalized and Node-resolved @radix-ui/react-slot's nested react.
           // apps/web's config carries the same note.
-          server: { deps: { inline: [/radix-ui/, '@gruenerator/ui'] } },
+          // `@tanstack/react-query` ships its OWN nested react (measured
+          // 08/2026: 19.2.3 under the package, 19.2.8 hoisted), so a component
+          // that reaches a data hook — the plus menu does, via the recipe
+          // library modal — crashes with "Cannot read properties of null
+          // (reading 'useContext')" unless it is inlined too and goes through
+          // the alias. apps/web's config carries the same list.
+          server: {
+            deps: { inline: ['@tanstack/react-query', /radix-ui/, '@gruenerator/ui'] },
+          },
         },
       },
     ],

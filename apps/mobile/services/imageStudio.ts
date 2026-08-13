@@ -4,6 +4,7 @@
  */
 
 import { getGlobalApiClient } from '@gruenerator/shared/api';
+import { stripDataUrlPrefix } from '@gruenerator/shared/utils';
 import { File, Paths } from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
@@ -127,7 +128,7 @@ export async function base64ToFileUri(
   filename: string = `sharepic_${Date.now()}.png`
 ): Promise<string> {
   // Remove data URI prefix if present
-  const cleanBase64 = base64Data.replace(/^data:image\/\w+;base64,/, '');
+  const cleanBase64 = stripDataUrlPrefix(base64Data);
 
   const file = new File(Paths.cache, filename);
 
@@ -258,7 +259,7 @@ export async function fetchMediathekImage(share: Share): Promise<ImagePickerResu
 
     return {
       uri: fileUri,
-      base64: `data:${blob.type || 'image/jpeg'};base64,${base64.replace(/^data:image\/\w+;base64,/, '')}`,
+      base64: `data:${blob.type || 'image/jpeg'};base64,${stripDataUrlPrefix(base64)}`,
       width: share.imageMetadata?.width || 1080,
       height: share.imageMetadata?.height || 1080,
       mimeType: blob.type || 'image/jpeg',
@@ -315,7 +316,7 @@ export async function removeBackgroundRemote(
     const formData = new FormData();
 
     // Convert base64 to blob for upload
-    const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+    const cleanBase64 = stripDataUrlPrefix(imageBase64);
     const binaryString = atob(cleanBase64);
     const bytes = new Uint8Array(binaryString.length);
     for (let i = 0; i < binaryString.length; i++) {
@@ -388,7 +389,7 @@ export async function generateProfilbild(
     const formData = new FormData();
 
     // Convert base64 to blob
-    const cleanBase64 = transparentImage.replace(/^data:image\/\w+;base64,/, '');
+    const cleanBase64 = stripDataUrlPrefix(transparentImage);
     const binaryString = atob(cleanBase64);
     const bytes = new Uint8Array(binaryString.length);
     for (let i = 0; i < binaryString.length; i++) {

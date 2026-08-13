@@ -30,6 +30,16 @@ const PERSON_TOP_N = 20;
 const TEXT_CHARS_PER_DOC = 1500;
 const SCROLL_BATCH = 100;
 const NLP_BATCH_SIZE = 15;
+/**
+ * Documents a single request may enrich before it stops and reports the rest as
+ * `pending`. The endpoint is synchronous behind a reverse proxy that cuts the
+ * connection at ~5 min, so an unbounded run turns every `NLP_VERSION` bump into
+ * a guaranteed 504 (#2559: bumping to 2 made all ~12,400 head docs due at once
+ * and the nightly job spent 2×5 min before the proxy gave up — twice, because
+ * the retry started a second overlapping full re-tag). Scrolling stays
+ * unbounded: it costs ~10 s for the whole corpus and keeps `pending` honest.
+ */
+const DEFAULT_MAX_DOCS = 4000;
 
 /** Qdrant collections to enrich: distinct system collections, minus dormant satzungen. */
 export const ENRICHMENT_COLLECTIONS = [
@@ -51,9 +61,47 @@ export interface EnrichmentStats {
   skipped: number;
   noId: number;
   nlpFailures: number;
+  /** Due documents left untouched because the run's work budget ran out. */
+  pending: number;
+  /**
+   * Set when the collection aborted; the other counters are then partial and
+   * `pending` understates what is left. Present so a caller draining `pending`
+   * over several requests can tell "nothing left to do" apart from "this
+   * collection never reported" — a dropped collection would otherwise read as
+   * done and let the caller stop early.
+   */
+  error?: string;
 }
 
 export type EnrichmentMode = 'missing' | 'all';
+
+export interface EnrichmentOptions {
+  mode?: EnrichmentMode;
+  dryRun?: boolean;
+  /**
+   * Documents to enrich at most; `0` lifts the cap. Defaults to
+   * DEFAULT_MAX_DOCS, and is ignored entirely when `mode` is `'all'`.
+   */
+  maxDocs?: number | null;
+}
+
+/** Shared across collections so one run's budget is a total, not a per-collection one. */
+interface WorkBudget {
+  remaining: number;
+}
+
+/**
+ * `mode: 'all'` is deliberately uncapped. A budget only helps a caller that can
+ * resume, and re-tagging cannot resume: it ignores the enrichment markers, so
+ * every follow-up request would find the same documents due and redo the same
+ * head of the list forever. Large re-tags belong in
+ * `scripts/backfill-nlp-enrichment.ts`, which does not sit behind the proxy.
+ */
+function createBudget(options: EnrichmentOptions): WorkBudget {
+  const { maxDocs } = options;
+  if (options.mode === 'all' || maxDocs === 0) return { remaining: Number.POSITIVE_INFINITY };
+  return { remaining: maxDocs && maxDocs > 0 ? maxDocs : DEFAULT_MAX_DOCS };
+}
 
 interface HeadDoc {
   pointId: string | number;
@@ -134,7 +182,8 @@ function deriveThemes(
  */
 export async function enrichCollection(
   collection: string,
-  options: { mode?: EnrichmentMode; dryRun?: boolean } = {}
+  options: EnrichmentOptions = {},
+  budget: WorkBudget = createBudget(options)
 ): Promise<EnrichmentStats> {
   const mode: EnrichmentMode = options.mode ?? 'missing';
   const dryRun = options.dryRun ?? false;
@@ -146,6 +195,7 @@ export async function enrichCollection(
     skipped: 0,
     noId: 0,
     nlpFailures: 0,
+    pending: 0,
   };
 
   const qdrant = getQdrantInstance();
@@ -153,6 +203,7 @@ export async function enrichCollection(
   const client = qdrant.client;
   if (!client) {
     log.warn(`[${collection}] Qdrant client unavailable`);
+    stats.error = 'Qdrant client unavailable';
     return stats;
   }
 
@@ -206,9 +257,17 @@ export async function enrichCollection(
       pending.push(doc);
     }
 
+    // Spend the run's budget on the head of this page; the tail is reported as
+    // pending and picked up by the next request. Deducting up front (rather
+    // than per successful write) can only make a run do less work, never more.
+    const affordable = Math.min(pending.length, budget.remaining);
+    stats.pending += pending.length - affordable;
+    budget.remaining -= affordable;
+    const due = pending.slice(0, affordable);
+
     // Classify in batches; persons are per-document (NER attribution).
-    for (let i = 0; i < pending.length; i += NLP_BATCH_SIZE) {
-      const batch = pending.slice(i, i + NLP_BATCH_SIZE);
+    for (let i = 0; i < due.length; i += NLP_BATCH_SIZE) {
+      const batch = due.slice(i, i + NLP_BATCH_SIZE);
       const classifications = await classifyArticlesBatched<TopicCategory>(
         batch.map((d) => ({ id: d.idValue, title: d.title, text: d.text })),
         { batchSize: NLP_BATCH_SIZE }
@@ -264,26 +323,46 @@ export async function enrichCollection(
     offset = typeof next === 'string' || typeof next === 'number' ? next : null;
     if (offset === null) break;
     log.info(
-      `[${collection}] progress: scanned=${stats.scanned} enriched=${stats.enriched} skipped=${stats.skipped}`
+      `[${collection}] progress: scanned=${stats.scanned} enriched=${stats.enriched} skipped=${stats.skipped} pending=${stats.pending}`
     );
   }
 
   log.info(
-    `[${collection}] done: scanned=${stats.scanned} enriched=${stats.enriched} skipped=${stats.skipped} noId=${stats.noId} nlpFailures=${stats.nlpFailures}`
+    `[${collection}] done: scanned=${stats.scanned} enriched=${stats.enriched} skipped=${stats.skipped} noId=${stats.noId} nlpFailures=${stats.nlpFailures} pending=${stats.pending}`
   );
   return stats;
 }
 
-/** Enrich all in-scope collections sequentially (NLP service is CPU-bound). */
+/**
+ * Enrich all in-scope collections sequentially (NLP service is CPU-bound).
+ * The work budget is shared across them, so a run that exhausts it in an early
+ * collection still scans the rest and reports what they have left as `pending`.
+ */
 export async function enrichAllCollections(
-  options: { mode?: EnrichmentMode } = {}
+  options: EnrichmentOptions = {}
 ): Promise<EnrichmentStats[]> {
+  const budget = createBudget(options);
   const results: EnrichmentStats[] = [];
   for (const collection of ENRICHMENT_COLLECTIONS) {
     try {
-      results.push(await enrichCollection(collection, options));
+      results.push(await enrichCollection(collection, options, budget));
     } catch (err) {
-      log.error(`[${collection}] enrichment failed: ${err instanceof Error ? err.message : err}`);
+      const message = err instanceof Error ? err.message : String(err);
+      log.error(`[${collection}] enrichment failed: ${message}`);
+      // Report the failure as a row rather than dropping it. A collection
+      // missing from `results` contributes nothing to the caller's `pending`
+      // sum, so a caller looping until pending hits 0 would call it done and
+      // report a clean run over documents nothing ever touched.
+      results.push({
+        collection,
+        scanned: 0,
+        enriched: 0,
+        skipped: 0,
+        noId: 0,
+        nlpFailures: 0,
+        pending: 0,
+        error: message,
+      });
     }
   }
   return results;

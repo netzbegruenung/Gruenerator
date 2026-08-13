@@ -4,6 +4,7 @@
  * Extracted from simple_canvas.ts lines 124-150 and campaign_canvas.ts
  */
 
+import { stripDataUrlPrefix } from '@gruenerator/shared/utils';
 import {
   loadImage,
   type SKRSContext2D as CanvasRenderingContext2D,
@@ -32,10 +33,7 @@ export async function renderBackground(
   }
 
   if (background.type === 'image' && background.imageData) {
-    const buffer = Buffer.from(
-      background.imageData.replace(/^data:image\/\w+;base64,/, ''),
-      'base64'
-    );
+    const buffer = Buffer.from(stripDataUrlPrefix(background.imageData), 'base64');
     const image: Image = await loadImage(buffer);
 
     const imageAspectRatio = image.width / image.height;

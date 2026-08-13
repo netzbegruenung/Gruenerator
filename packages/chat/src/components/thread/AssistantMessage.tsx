@@ -24,11 +24,12 @@ import { ChatChart } from '../message-parts/ChatChart';
 import { CitationMarkdownText } from '../message-parts/CitationMarkdownText';
 import { ComputeCard } from '../message-parts/ComputeCard';
 import { GeneratedImageDisplay } from '../message-parts/GeneratedImageDisplay';
+import { ImageGenerationFrame } from '../message-parts/ImageGenerationFrame';
 import { MemoryIndicator } from '../message-parts/MemoryIndicator';
 import { MessageActions } from '../message-parts/MessageActions';
 import { MessageErrorBanner } from '../message-parts/MessageErrorBanner';
+import { MessageDaySeparator } from '../message-parts/MessageTimestamp';
 import { MessageStreamingProvider } from '../message-parts/messageStreamingContext';
-import { ProgressIndicator } from '../message-parts/ProgressIndicator';
 import { SearchImagesSection } from '../message-parts/SearchImagesSection';
 import { SearchResultsSection, type AdditionalSource } from '../message-parts/SearchResultsSection';
 import { SharepicVariantStack } from '../message-parts/SharepicVariantStack';
@@ -36,10 +37,8 @@ import { SkillBadge } from '../message-parts/SkillBadge';
 import { SocialPostCard } from '../message-parts/SocialPostCard';
 import { StreamingStatusLine } from '../message-parts/StreamingStatusLine';
 import { ToolCallGroup } from '../message-parts/ToolCallGroup';
-import { TypingIndicator } from '../message-parts/TypingIndicator';
 import { ConfirmActionCard } from '../tool-ui/ConfirmActionCard';
 import { DocumentCreatedCard } from '../tool-ui/DocumentCreatedCard';
-import { ProgressTracker } from '../tool-ui/progress-tracker/ProgressTracker';
 import { ReelPickerCard } from '../tool-ui/ReelPickerCard';
 import { ReelProcessingCard } from '../tool-ui/ReelProcessingCard';
 
@@ -89,6 +88,11 @@ export const AssistantMessage = memo(function AssistantMessage() {
   // (notebook QA, eigener chat) leave it unset → no agent avatar/badge. We do
   // NOT fall back to the currently-selected agent: selection is ambient UI state,
   // not message provenance, and leaks the wrong agent into notebook answers.
+  // In lokale Variablen gezogen, damit die useMemo-Deps exakt den gelesenen
+  // Werten entsprechen — optional-gechainte Deps (`custom?.agentId`) kann der
+  // React Compiler nicht erhalten und überspringt sonst die ganze Komponente.
+  const agentMention = custom?.agentMention ?? null;
+  const agentId = custom?.agentId ?? null;
   const messageAgent = useMemo<
     | {
         identifier: string;
@@ -99,10 +103,10 @@ export const AssistantMessage = memo(function AssistantMessage() {
       }
     | undefined
   >(() => {
-    const skill = custom?.agentMention
-      ? agentsList.find((a) => a.mention === custom.agentMention)
-      : custom?.agentId
-        ? agentsList.find((a) => a.identifier === custom.agentId)
+    const skill = agentMention
+      ? agentsList.find((a) => a.mention === agentMention)
+      : agentId
+        ? agentsList.find((a) => a.identifier === agentId)
         : undefined;
     if (skill) {
       return {
@@ -115,8 +119,8 @@ export const AssistantMessage = memo(function AssistantMessage() {
     }
     // User agents aren't in the skills catalog — resolve from the registry and
     // map their Phosphor `iconKey` through the dynamic resolver.
-    if (custom?.agentId) {
-      const ua = userAgents.find((a) => a.identifier === custom.agentId);
+    if (agentId) {
+      const ua = userAgents.find((a) => a.identifier === agentId);
       if (ua) {
         return {
           identifier: ua.identifier,
@@ -128,7 +132,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
       }
     }
     return undefined;
-  }, [custom?.agentMention, custom?.agentId, userAgents]);
+  }, [agentMention, agentId, userAgents]);
 
   const isNonDefaultAgent = messageAgent != null && messageAgent.identifier !== getDefaultAgent();
   const fetchFullText = useFetchFullText();
@@ -197,147 +201,161 @@ export const AssistantMessage = memo(function AssistantMessage() {
   const showActions = !isStreaming && textContent.length > 0;
 
   return (
-    <MessagePrimitive.Root
-      // No `gap` on the row: the icon column carries its own right margin so it
-      // can collapse to nothing together with its width (a flex gap survives a
-      // zero-width item and would leave the indent half in place).
-      className={
-        isCompact
-          ? 'group mx-auto flex w-full min-w-0 items-start'
-          : 'group mx-auto flex w-full min-w-0 max-w-3xl items-start'
-      }
-    >
-      {messageAgent ? (
-        <div
-          className={
-            isCompact
-              ? 'mr-2 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-white'
-              : 'mr-4 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-white'
-          }
-          style={{ backgroundColor: messageAgent.backgroundColor }}
-        >
-          <messageAgent.icon className={isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4'} aria-hidden />
-        </div>
-      ) : (
-        // Stays mounted (rather than swapping to a placeholder) so the
-        // built-in bar/dot fade in GrueneratorHomeIconLoading keeps running,
-        // and fades its own opacity out once streaming ends — an unmount
-        // would cut that transition short.
-        //
-        // On a phone the faded-out icon must also give up its FOOTPRINT: a
-        // 32px column plus a 16px gap left every finished answer indented by
-        // 48px against 16px of right padding, which reads as a broken margin.
-        // The column collapses in step with the opacity fade; from `sm` up it
-        // stays put, where it lines the answer up with agent-avatar turns.
-        <div
-          className={cn(
-            'flex-shrink-0 overflow-hidden transition-[width,margin] duration-300 ease-out',
-            isCompact ? 'mr-2 w-6' : isStreaming ? 'mr-4 w-8' : 'mr-0 w-0 sm:mr-4 sm:w-8'
-          )}
-        >
-          <GrueneratorHomeIconLoading
-            loading={isStreaming}
-            width={isCompact ? 24 : 32}
-            height={isCompact ? 24 : 32}
-            className="flex-shrink-0"
-            style={{ opacity: isStreaming ? 1 : 0, transition: 'opacity 0.3s ease' }}
-            aria-hidden={!isStreaming}
-          />
-        </div>
-      )}
-      <div className="min-w-0 flex-1">
-        {/* Offenlegung der KI-Interaktion (Art. 50 Abs. 1 KI-VO). Sichtbar
+    <>
+      <MessageDaySeparator />
+      <MessagePrimitive.Root
+        // No `gap` on the row: the icon column carries its own right margin so it
+        // can collapse to nothing together with its width (a flex gap survives a
+        // zero-width item and would leave the indent half in place).
+        className={
+          isCompact
+            ? 'group mx-auto flex w-full min-w-0 items-start'
+            : 'group mx-auto flex w-full min-w-0 max-w-3xl items-start'
+        }
+      >
+        {messageAgent ? (
+          <div
+            className={
+              isCompact
+                ? 'mr-2 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-white'
+                : 'mr-4 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-white'
+            }
+            style={{ backgroundColor: messageAgent.backgroundColor }}
+          >
+            <messageAgent.icon className={isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4'} aria-hidden />
+          </div>
+        ) : (
+          // Stays mounted (rather than swapping to a placeholder) so the
+          // built-in bar/dot fade in GrueneratorHomeIconLoading keeps running,
+          // and fades its own opacity out once streaming ends — an unmount
+          // would cut that transition short.
+          //
+          // On a phone the faded-out icon must also give up its FOOTPRINT: a
+          // 32px column plus a 16px gap left every finished answer indented by
+          // 48px against 16px of right padding, which reads as a broken margin.
+          // The column collapses in step with the opacity fade; from `sm` up it
+          // stays put, where it lines the answer up with agent-avatar turns.
+          <div
+            className={cn(
+              'flex-shrink-0 overflow-hidden transition-[width,margin] duration-300 ease-out',
+              isCompact ? 'mr-2 w-6' : isStreaming ? 'mr-4 w-8' : 'mr-0 w-0 sm:mr-4 sm:w-8'
+            )}
+          >
+            <GrueneratorHomeIconLoading
+              loading={isStreaming}
+              width={isCompact ? 24 : 32}
+              height={isCompact ? 24 : 32}
+              className="flex-shrink-0"
+              style={{ opacity: isStreaming ? 1 : 0, transition: 'opacity 0.3s ease' }}
+              aria-hidden={!isStreaming}
+            />
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          {/* Offenlegung der KI-Interaktion (Art. 50 Abs. 1 KI-VO). Sichtbar
             trägt das Icon die Zuordnung, es ist aber aria-hidden — ohne diese
             Zeile sagt der Screenreader nicht, wer hier spricht. */}
-        <span className="sr-only">KI-generierte Antwort:</span>
-        {isNonDefaultAgent && messageAgent && (
-          <SkillBadge
-            avatar={messageAgent.avatar}
-            icon={messageAgent.icon}
-            title={messageAgent.title}
-            backgroundColor={messageAgent.backgroundColor}
+          <span className="sr-only">KI-generierte Antwort:</span>
+          {isNonDefaultAgent && messageAgent && (
+            <SkillBadge
+              avatar={messageAgent.avatar}
+              icon={messageAgent.icon}
+              title={messageAgent.title}
+              backgroundColor={messageAgent.backgroundColor}
+            />
+          )}
+
+          <StreamingStatusLine
+            isStreaming={isStreaming}
+            hasOwnDetail={hasOwnDetail}
+            textContent={textContent}
+            custom={custom}
+            toolStatus={toolStatus}
+            reasoningText={reasoningText}
+            sources={statusSources}
           />
-        )}
 
-        <StreamingStatusLine
-          isStreaming={isStreaming}
-          hasOwnDetail={hasOwnDetail}
-          textContent={textContent}
-          custom={custom}
-          toolStatus={toolStatus}
-          reasoningText={reasoningText}
-          sources={statusSources}
-        />
+          {custom?.socialPostData && (
+            <SocialPostCard
+              post={custom.socialPostData}
+              {...(custom.sharepicData ? { sharepicData: custom.sharepicData } : {})}
+            />
+          )}
+          {custom?.sharepicData && !custom?.generatedImage && !custom?.socialPostData && (
+            <SharepicVariantStack data={custom.sharepicData} />
+          )}
+          {custom?.generatedImage && <GeneratedImageDisplay image={custom.generatedImage} />}
 
-        {custom?.socialPostData && (
-          <SocialPostCard
-            post={custom.socialPostData}
-            {...(custom.sharepicData ? { sharepicData: custom.sharepicData } : {})}
-          />
-        )}
-        {custom?.sharepicData && !custom?.generatedImage && !custom?.socialPostData && (
-          <SharepicVariantStack data={custom.sharepicData} />
-        )}
-        {custom?.generatedImage && <GeneratedImageDisplay image={custom.generatedImage} />}
+          {/* Platzhalter-Rahmen, solange das KI-Bild noch generiert wird. Nur für
+              die Bild-Intents (Generierung + Bearbeitung) — Sharepics/Social
+              Posts rendern ihre eigenen Karten und teilen bloß dieselbe
+              progress-Stage. */}
+          {isStreaming &&
+            !custom?.generatedImage &&
+            custom?.progress?.stage === 'generating_image' &&
+            (custom.progress.intent === 'image' || custom.progress.intent === 'image_edit') && (
+              <ImageGenerationFrame />
+            )}
 
-        {/* Above the answer, not under it: on a turn that found pictures they are
+          {/* Above the answer, not under it: on a turn that found pictures they are
             the first thing the reader looks at, and a gallery that follows a
             1000-word text is a gallery nobody scrolls to. */}
-        {showSearchImages && searchImages && <SearchImagesSection images={searchImages} />}
+          {showSearchImages && searchImages && <SearchImagesSection images={searchImages} />}
 
-        <CitationProvider citations={citations} fetchFullText={fetchFullText}>
-          <MessagePrimitive.Parts components={partComponents} />
-        </CitationProvider>
+          <CitationProvider citations={citations} fetchFullText={fetchFullText}>
+            <MessagePrimitive.Parts components={partComponents} />
+          </CitationProvider>
 
-        <MessageErrorBanner />
+          <MessageErrorBanner />
 
-        {custom?.interrupted && (
-          <p className="text-xs text-foreground-muted italic">Antwort wurde unterbrochen</p>
-        )}
+          {custom?.interrupted && (
+            <p className="text-xs text-foreground-muted italic">Antwort wurde unterbrochen</p>
+          )}
 
-        {!isStreaming && custom?.chartData && <ChatChart data={custom.chartData} />}
+          {!isStreaming && custom?.chartData && <ChatChart data={custom.chartData} />}
 
-        {!isStreaming && custom?.artifactData && <ArtifactCard artifact={custom.artifactData} />}
-        {!isStreaming && custom?.computeData && <ComputeCard data={custom.computeData} />}
-        {!isStreaming && custom?.bahnData && <BahnCard data={custom.bahnData} />}
+          {!isStreaming && custom?.artifactData && <ArtifactCard artifact={custom.artifactData} />}
+          {!isStreaming && custom?.computeData && <ComputeCard data={custom.computeData} />}
+          {!isStreaming && custom?.bahnData && <BahnCard data={custom.bahnData} />}
 
-        {!isStreaming && custom?.confirmAction && (
-          <ConfirmActionCard action={custom.confirmAction} />
-        )}
+          {!isStreaming && custom?.confirmAction && (
+            <ConfirmActionCard action={custom.confirmAction} />
+          )}
 
-        {!isStreaming && custom?.createdDocument && (
-          <DocumentCreatedCard document={custom.createdDocument} />
-        )}
+          {!isStreaming && custom?.createdDocument && (
+            <DocumentCreatedCard document={custom.createdDocument} />
+          )}
 
-        {!isStreaming && custom?.reelProcessing && (
-          <ReelProcessingCard data={custom.reelProcessing} />
-        )}
+          {!isStreaming && custom?.reelProcessing && (
+            <ReelProcessingCard data={custom.reelProcessing} />
+          )}
 
-        {!isStreaming && custom?.reelPicker && <ReelPickerCard data={custom.reelPicker} />}
+          {!isStreaming && custom?.reelPicker && <ReelPickerCard data={custom.reelPicker} />}
 
-        {showActions && (
-          <MessageActions
-            content={textContent}
-            metadata={actionsMetadata}
-            showFeedback={custom?.streamMetadata?.traceId != null}
-            {...(showSearchResults
-              ? { sources: citations, sourcesOpen, onToggleSources: toggleSources }
-              : {})}
-          />
-        )}
+          {showActions && (
+            <MessageActions
+              content={textContent}
+              metadata={actionsMetadata}
+              showFeedback={custom?.streamMetadata?.traceId != null}
+              {...(showSearchResults
+                ? { sources: citations, sourcesOpen, onToggleSources: toggleSources }
+                : {})}
+            />
+          )}
 
-        {showSearchResults && (
-          <SearchResultsSection
-            citations={citations}
-            additionalSources={additionalSources}
-            {...(showActions ? { open: sourcesOpen, onOpenChange: setSourcesOpen } : {})}
-          />
-        )}
+          {showSearchResults && (
+            <SearchResultsSection
+              citations={citations}
+              additionalSources={additionalSources}
+              {...(showActions ? { open: sourcesOpen, onOpenChange: setSourcesOpen } : {})}
+            />
+          )}
 
-        {!isStreaming && custom?.progress?.memoryContext && (
-          <MemoryIndicator memoryContext={custom.progress.memoryContext} />
-        )}
-      </div>
-    </MessagePrimitive.Root>
+          {!isStreaming && custom?.progress?.memoryContext && (
+            <MemoryIndicator memoryContext={custom.progress.memoryContext} />
+          )}
+        </div>
+      </MessagePrimitive.Root>
+    </>
   );
 });

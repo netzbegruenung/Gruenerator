@@ -3,6 +3,7 @@ import {
   bigint,
   boolean,
   index,
+  integer,
   jsonb,
   pgTable,
   text,
@@ -79,6 +80,8 @@ export const chatThreadAttachments = pgTable(
     mime_type: text('mime_type').notNull(),
     size_bytes: bigint('size_bytes', { mode: 'number' }).notNull(),
     is_image: boolean('is_image').default(false),
+    // From OCR extraction (PDFs only) — display metadata for attachment chips.
+    page_count: integer('page_count'),
     extracted_text: text('extracted_text'),
     summary: text('summary'),
     // Raw file bytes (base64) for tabular attachments only — lets the in-browser

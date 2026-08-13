@@ -12,9 +12,11 @@ import {
   SYNTH_REFUSAL_TEXT,
   SYNTH_CUTOFF_RETRY_SUFFIX,
   SYNTH_INVALID_JSON_RETRY_SUFFIX,
+  SYNTH_DEGENERATE_RETRY_SUFFIX,
   type LoopDeps,
   type LoopEngineParams,
 } from './loopEngine.js';
+import { DEGENERATION_NOTICE } from './degeneration.js';
 
 import type { ModelMessage } from 'ai';
 
@@ -883,5 +885,182 @@ describe('runAgenticLoop — split validation retry (validateAnswer)', () => {
     const out = await runAgenticLoop(baseParams({}), deps);
     expect(out.text).toBe(DONE);
     expect(synthSystems[1]).toContain(SYNTH_CUTOFF_RETRY_SUFFIX);
+  });
+});
+
+describe('runAgenticLoop — repetition degeneration', () => {
+  // The live incident shape (12.08.2026): a correct answer, then the model
+  // cannot stop and streams terminator spam until an external cap fires.
+  // The prose VARIES per sentence — a verbatim-repeated sentence would itself
+  // (correctly) count as degenerate.
+  const proseSentence = (i: number): string =>
+    `Punkt ${i}: Die Grünen fordern eine Ausbildungsgarantie mit ${i * 3} Maßnahmen und einem BAföG-Plus von ${i * 11} Euro, damit junge Menschen im Wahlkreis ${i * 7} unabhängig vom Elternhaus lernen können. `;
+  const PROSE_TOTAL = Array.from({ length: 40 }, (_, i) => proseSentence(i)).join('').length;
+  const SPAM_PHRASE = '--- Ende.** --- Fertig.** --- Danke! 😊 --- Abschluss.** --- FINAL --- ';
+
+  /** A stream that yields healthy prose, then ENDLESS spam — it only stops when
+   *  the consumer stops pulling, which is exactly what the guard must do. */
+  function endlessSpamStream(): ReturnType<LoopDeps['streamText']> {
+    return {
+      stream: (async function* () {
+        for (let i = 0; i < 40; i++) yield { type: 'text-delta', text: proseSentence(i) };
+        while (true) yield { type: 'text-delta', text: SPAM_PHRASE };
+      })(),
+    } as unknown as ReturnType<LoopDeps['streamText']>;
+  }
+
+  it('unified: aborts the endless stream, trims the spam tail and requests a completion replace', async () => {
+    const onText = vi.fn();
+    const deps: LoopDeps = {
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+      streamText: (() => endlessSpamStream()) as unknown as LoopDeps['streamText'],
+    };
+    const out = await runAgenticLoop(baseParams({ mode: 'unified', onText }), deps);
+    // Without the guard this test never terminates — the stream is endless.
+    expect(out.replacedStreamed).toBe(true);
+    expect(out.text).toContain('Ausbildungsgarantie');
+    // No notice: the spam repeats a handful of phrases, so nothing the reader
+    // needed was removed and "may be incomplete" would be a false alarm.
+    expect(out.text).not.toContain(DEGENERATION_NOTICE);
+    expect(out.text.length).toBeLessThan(PROSE_TOTAL + 500);
+    // The wire saw SOME spam (unified streams live) but detection bounded it.
+    const streamed = onText.mock.calls.map((c) => c[0]).join('');
+    expect(streamed.length).toBeLessThan(PROSE_TOTAL + 8000);
+  });
+
+  it('split: a degenerate first pass triggers the dedicated retry suffix and a completion replace', async () => {
+    const synthSystems: string[] = [];
+    let synthCall = 0;
+    const CLEAN = 'Die Antwort in einem Satz — und dann ist Schluss.';
+    const deps: LoopDeps = {
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+      streamText: ((o: StreamOpts) => {
+        if (o.model.id === 'planner') return streamOf([]);
+        synthSystems.push(o.system ?? '');
+        if (synthCall++ === 0) return endlessSpamStream();
+        return streamOf([{ type: 'text-delta', text: CLEAN }]);
+      }) as unknown as LoopDeps['streamText'],
+    };
+    const out = await runAgenticLoop(baseParams({}), deps);
+    // A recovered answer carries NO notice — the retry discards the trimmed
+    // pass wholesale, and nothing was cut from what the user ends up with.
+    expect(out.text).toBe(CLEAN);
+    // The degenerate pass had already opened the gate → completion replace.
+    expect(out.replacedStreamed).toBe(true);
+    expect(synthSystems[1]).toContain(SYNTH_DEGENERATE_RETRY_SUFFIX);
+  });
+
+  it('split: retries even when the trim left NOTHING (spam from the first token)', async () => {
+    const synthSystems: string[] = [];
+    let synthCall = 0;
+    const CLEAN = 'Die Antwort in einem Satz — und dann ist Schluss.';
+    const deps: LoopDeps = {
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+      streamText: ((o: StreamOpts) => {
+        if (o.model.id === 'planner') return streamOf([]);
+        synthSystems.push(o.system ?? '');
+        if (synthCall++ === 0) {
+          // No healthy prefix at all — the most complete degeneration.
+          return {
+            stream: (async function* () {
+              while (true) yield { type: 'text-delta', text: SPAM_PHRASE };
+            })(),
+          } as unknown as ReturnType<LoopDeps['streamText']>;
+        }
+        return streamOf([{ type: 'text-delta', text: CLEAN }]);
+      }) as unknown as LoopDeps['streamText'],
+    };
+    const out = await runAgenticLoop(baseParams({}), deps);
+    // Regression (review finding): the empty-text gate used to skip the retry
+    // here, shipping the generic no-answer fallback instead.
+    expect(synthCall).toBe(2);
+    expect(out.text).toBe(CLEAN);
+    expect(out.replacedStreamed).toBe(true);
+    expect(synthSystems[1]).toContain(SYNTH_DEGENERATE_RETRY_SUFFIX);
+  });
+
+  it('split: keeps the TRIMMED text and still replaces the wire when the retry degenerates too', async () => {
+    let synthCall = 0;
+    const deps: LoopDeps = {
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+      streamText: ((o: StreamOpts) => {
+        if (o.model.id === 'planner') return streamOf([]);
+        synthCall++;
+        return endlessSpamStream();
+      }) as unknown as LoopDeps['streamText'],
+    };
+    const out = await runAgenticLoop(baseParams({}), deps);
+    expect(synthCall).toBe(2);
+    expect(out.text).toContain('Ausbildungsgarantie');
+    expect(out.text).not.toContain('Abschluss.**');
+    expect(out.text).not.toContain(DEGENERATION_NOTICE);
+    expect(out.replacedStreamed).toBe(true);
+  });
+
+  // The notice's OTHER branch — a cut that really did take content — is unit
+  // tested in degeneration.vitest.ts (`cutLostContent`). It has no fixture
+  // here on purpose: junk rich enough in vocabulary to count as loss is also
+  // too varied to trip the detector, so any stream that produced both would be
+  // a construction, not a case. That the notice is now rare is the point.
+});
+
+describe('runAgenticLoop — reasoning reaches the writing phases', () => {
+  // The auto policy grades a reasoning strength for every turn and
+  // `resolveModel` pins a thinking turn to the Mistral API for it. Until
+  // 13.08.2026 no phase then sent the option that switches thinking on — the
+  // lane moved, the reasoning did not.
+  const REASONING = { mistral: { reasoningEffort: 'high' } };
+
+  type OptsWithProvider = StreamOpts & { providerOptions?: Record<string, unknown> };
+
+  it('forwards it to the unified pass', async () => {
+    const seen: (Record<string, unknown> | undefined)[] = [];
+    const deps: LoopDeps = {
+      streamText: ((o: OptsWithProvider) => {
+        seen.push(o.providerOptions);
+        return streamOf([{ type: 'text-delta', text: 'ok' }]);
+      }) as unknown as LoopDeps['streamText'],
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+    };
+
+    await runAgenticLoop(baseParams({ mode: 'unified', providerOptions: REASONING }), deps);
+
+    expect(seen).toEqual([REASONING]);
+  });
+
+  it('forwards it to the synth pass but NOT to the planner', async () => {
+    // The planner is a fixed lane reached through an OpenAI-compat client — a
+    // `mistral` block would be dropped there in silence, and the planner has no
+    // prose to think about anyway.
+    const seen: { model: string; providerOptions?: Record<string, unknown> }[] = [];
+    const deps: LoopDeps = {
+      streamText: ((o: OptsWithProvider) => {
+        seen.push({
+          model: o.model.id,
+          ...(o.providerOptions && { providerOptions: o.providerOptions }),
+        });
+        return streamOf([{ type: 'text-delta', text: 'ok' }]);
+      }) as unknown as LoopDeps['streamText'],
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+    };
+
+    await runAgenticLoop(baseParams({ mode: 'split', providerOptions: REASONING }), deps);
+
+    expect(seen).toEqual([{ model: 'planner' }, { model: 'synth', providerOptions: REASONING }]);
+  });
+
+  it('sends nothing when the turn does not think', async () => {
+    const seen: (Record<string, unknown> | undefined)[] = [];
+    const deps: LoopDeps = {
+      streamText: ((o: OptsWithProvider) => {
+        seen.push(o.providerOptions);
+        return streamOf([{ type: 'text-delta', text: 'ok' }]);
+      }) as unknown as LoopDeps['streamText'],
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+    };
+
+    await runAgenticLoop(baseParams({ mode: 'unified' }), deps);
+
+    expect(seen).toEqual([undefined]);
   });
 });
