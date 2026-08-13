@@ -10,9 +10,12 @@ import {
   functionMentionables,
   connectorMentionables,
   connectorId,
-  notebookMentionables,
+  COMPOSER_TOOLS,
+  resolveMentionable,
+  // notebookMentionables — Notizbuchmodus vorerst nicht weiterverfolgt (08/2026).
   useSkillFavoritesStore,
   type ComposerIconKey,
+  type ComposerToolIconKey,
   type Mentionable,
   type SearchDepthIconKey,
 } from '@gruenerator/chat';
@@ -20,7 +23,15 @@ import { isModelEnabledByDefault } from '@gruenerator/shared/models';
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
 import { memo, useCallback, useState, type ReactNode } from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet, useColorScheme } from 'react-native';
+import {
+  View,
+  Text,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  useColorScheme,
+} from 'react-native';
 import { useShallow } from 'zustand/shallow';
 
 import { useTheme } from '../../hooks/useTheme';
@@ -37,17 +48,22 @@ const MODE_ICONS: Record<ComposerIconKey, IoniconsIconName> = {
   custom: 'settings-outline',
 };
 
+const TOOL_ICONS: Record<ComposerToolIconKey, IoniconsIconName> = {
+  globe: 'globe-outline',
+  research: 'telescope-outline',
+  document: 'document-text-outline',
+};
+
 const DEPTH_ICONS: Record<SearchDepthIconKey, IoniconsIconName> = {
   fast: 'flash-outline',
   deep: 'telescope-outline',
 };
 
 /** Which detail list the sheet is showing; `null` is the root. */
-type Detail = 'mode' | 'notebook' | 'skills' | 'functions' | 'depth' | 'model' | 'connectors';
+type Detail = 'mode' | 'skills' | 'functions' | 'depth' | 'model' | 'connectors';
 
 const DETAIL_TITLES: Record<Detail, string> = {
   mode: 'Modus',
-  notebook: 'Notebook',
   skills: 'Rezepte',
   functions: 'Funktionen',
   depth: 'Recherchetiefe',
@@ -75,10 +91,11 @@ interface Props {
  * (`ChatSettingsSheet`) split mode/notebook/model off into a second surface that
  * web never had, and left the model list filtered differently in each.
  *
- * Content follows web section for section. The per-tool switches this sheet used
- * to show ("Dokumentensuche", "Beispiele", …) are gone: `GrueneratorComposer`
- * has no such toggles — web configures `enabledTools` per agent, not per message
- * — so they were mobile-only drift. Recherchetiefe follows the shared
+ * Content follows web section for section, including the switch group: these
+ * toggles were removed here once as "mobile-only drift" because web had none —
+ * the wrong direction, since `enabledTools` was wired end to end the whole time
+ * and simply had no UI on either platform. They render from the shared
+ * `COMPOSER_TOOLS`, so the set cannot diverge again. Recherchetiefe follows the shared
  * `showsSearchDepth` rule instead of being always visible, and the model list
  * web's own `isModelEnabledByDefault` filter, which mobile skipped and so
  * offered models web hides. Konnektoren is the opposite gap: web pins an MCP
@@ -107,7 +124,6 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
     selectedModel,
     searchMode,
     threadMode,
-    selectedNotebookId,
     pinnedConnector,
     customSystemPrompt,
   } = useAgentStore(
@@ -116,7 +132,6 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
       selectedModel: s.selectedModel,
       searchMode: s.searchMode,
       threadMode: s.threadMode,
-      selectedNotebookId: s.selectedNotebookId,
       pinnedConnector: s.pinnedConnector,
       customSystemPrompt: s.customSystemPrompt,
     }))
@@ -124,8 +139,9 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
   const setSelectedModel = useAgentStore((s) => s.setSelectedModel);
   const setSearchMode = useAgentStore((s) => s.setSearchMode);
   const setThreadMode = useAgentStore((s) => s.setThreadMode);
-  const setSelectedNotebook = useAgentStore((s) => s.setSelectedNotebook);
   const setPinnedConnector = useAgentStore((s) => s.setPinnedConnector);
+  const enabledTools = useAgentStore((s) => s.enabledTools);
+  const toggleTool = useAgentStore((s) => s.toggleTool);
 
   // Module-level list, filled by `useMentionablesSync` on the composer that owns
   // this sheet. Read during the render that opens the sheet, exactly as web's
@@ -148,7 +164,6 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
   // actually carries roles.
   const modes = COMPOSER_MODES.filter((m) => m.mode !== 'eigener' || customSystemPrompt);
   const activeMode = modes.find((m) => m.mode === threadMode) ?? modes[0];
-  const activeNotebook = notebookMentionables.find((nb) => nb.identifier === selectedNotebookId);
 
   // Every way out returns the sheet to its root, so reopening never lands in the
   // detail list the user left behind.
@@ -190,29 +205,33 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
           title={mode.label}
           onPress={() => {
             setThreadMode(mode.mode);
-            setDetail(mode.mode === 'notebook' ? 'notebook' : null);
+            setDetail(null);
           }}
           selected={threadMode === mode.mode}
           last={i === modes.length - 1}
         />
       ));
     }
-    if (detail === 'notebook') {
-      return notebookMentionables.map((notebook, i) => (
-        <ListRow
-          key={notebook.identifier}
-          icon="book-outline"
-          title={notebook.title}
-          onPress={() => {
-            setSelectedNotebook(notebook.identifier);
-            setThreadMode('notebook');
-            setDetail(null);
-          }}
-          selected={selectedNotebookId === notebook.identifier}
-          last={i === notebookMentionables.length - 1}
-        />
-      ));
-    }
+    // NOTIZBUCHMODUS — vorerst nicht weiterverfolgt (08/2026), siehe
+    // `COMPOSER_MODES` in `packages/chat/src/lib/composerControls.ts`. Die
+    // Auswahl ist stillgelegt, der Transportweg nicht: der Einstieg aus einem
+    // Notizbuch (`chat-conversation.tsx`) setzt den Modus weiterhin selbst.
+    // if (detail === 'notebook') {
+    //   return notebookMentionables.map((notebook, i) => (
+    //     <ListRow
+    //       key={notebook.identifier}
+    //       icon="book-outline"
+    //       title={notebook.title}
+    //       onPress={() => {
+    //         setSelectedNotebook(notebook.identifier);
+    //         setThreadMode('notebook');
+    //         setDetail(null);
+    //       }}
+    //       selected={selectedNotebookId === notebook.identifier}
+    //       last={i === notebookMentionables.length - 1}
+    //     />
+    //   ));
+    // }
     if (detail === 'skills' || detail === 'functions') {
       const list = detail === 'skills' ? skills : functions;
       const rows = list.map((item, i) => (
@@ -361,14 +380,16 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
                 value={activeMode.label}
                 onPress={() => setDetail('mode')}
               />
-              {threadMode === 'notebook' && (
+              {/* NOTIZBUCHMODUS — vorerst nicht weiterverfolgt (08/2026).
+                  Siehe `COMPOSER_MODES`. */}
+              {/* {threadMode === 'notebook' && (
                 <ListRow
                   icon="book-outline"
                   title="Notebook"
                   value={activeNotebook?.title ?? 'Auswählen'}
                   onPress={() => setDetail('notebook')}
                 />
-              )}
+              )} */}
               {showsSearchDepth(selectedAgentId) && (
                 <ListRow
                   icon={DEPTH_ICONS[activeDepth.icon]}
@@ -397,6 +418,42 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
                 />
               </ListGroup>
             )}
+
+            <ListGroup>
+              {COMPOSER_TOOLS.map((tool, i) => {
+                const last = i === COMPOSER_TOOLS.length - 1;
+                if (tool.kind === 'toggle') {
+                  return (
+                    <ListRow
+                      key={tool.key}
+                      icon={TOOL_ICONS[tool.icon]}
+                      title={tool.label}
+                      value={tool.description}
+                      last={last}
+                      onPress={() => toggleTool(tool.key)}
+                      accessory={
+                        <Switch
+                          value={enabledTools[tool.key] !== false}
+                          onValueChange={() => toggleTool(tool.key)}
+                        />
+                      }
+                    />
+                  );
+                }
+                const mentionable = resolveMentionable(tool.mention);
+                if (!mentionable || !onInsertMention) return null;
+                return (
+                  <ListRow
+                    key={tool.mention}
+                    icon={TOOL_ICONS[tool.icon]}
+                    title={tool.label}
+                    value={tool.description}
+                    last={last}
+                    onPress={() => runAction(() => onInsertMention(mentionable))}
+                  />
+                );
+              })}
+            </ListGroup>
           </>
         )}
       </ScrollView>
