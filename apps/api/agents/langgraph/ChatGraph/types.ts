@@ -678,6 +678,19 @@ export interface ChatGraphState {
   docMentionIds: string[];
   documentMentionContext: string | null;
 
+  // Der Text, den der Einfache-Sprache-Agent in DIESEM Turn übertragen soll —
+  // vom Router aus `resolveOriginalText` gesetzt, sonst null.
+  //
+  // Er existiert, damit Übertragung und Prüfung nachweislich denselben
+  // Ausgangstext meinen. Ohne ihn liefen beide auseinander: der Antwortschritt
+  // sieht den ganzen Thread (`formatThreadAttachmentsContext` spielt den
+  // Volltext JEDES früheren Anhangs wieder ein), die Prüfkette nur den
+  // aktuellen Turn. Am 13.08.2026 übertrug Schritt 1 deshalb den Artikel aus
+  // dem vorigen Turn, während Schritt 3 gegen das frisch eingefügte Material
+  // prüfte — der Bericht meldete folgerichtig „Halluzination, ABLEHNUNG" für
+  // eine Fassung, die nur am falschen Original gemessen worden war.
+  pipelineSourceText: string | null;
+
   // Wolke (Nextcloud) file refs selected via @wolke mentionable.
   // Downloaded + parsed inline at searchNode time; never persisted.
   wolkeFiles: WolkeFileRef[];

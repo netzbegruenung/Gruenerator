@@ -234,8 +234,8 @@ export const INTERMEDIATE_LANES = {
   /**
    * Prüfen, was ein anderes Modell geschrieben hat — mit eigenem Kontext.
    *
-   * Konsumenten: die Rückübersetzungs- und Prüfschritte der Einfache-Sprache-
-   * Kette (`nodes/einfacheSprache*Node.ts`). Eigene Stufe und nicht `heavy`,
+   * Konsumenten: die Nachschritte der Pipeline-Agenten
+   * (`routes/chat/services/agentPipeline.ts`). Eigene Stufe und nicht `heavy`,
    * weil sich diese hier in zwei Punkten anders verhält als jeder andere
    * Zwischenschritt:
    *

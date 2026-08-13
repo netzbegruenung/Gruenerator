@@ -57,6 +57,7 @@ import { createLogger } from '../../utils/logger.js';
 import { withTimeout } from '../../utils/withTimeout.js';
 
 import { deriveImplicitRecipeMention } from './agents/implicitRecipe.js';
+import { getPipelineAgent } from './agents/pipelines/index.js';
 import { detectTaskShape } from './agents/taskShape.js';
 import {
   streamAgenticResponse,
@@ -74,6 +75,7 @@ import {
   decideEditToolLoop,
 } from './services/agenticLoop/routing.js';
 import { type PersistedStep } from './services/agenticLoop/types.js';
+import { resolveOriginalText, runAgentPipeline } from './services/agentPipeline.js';
 import {
   ARTIFACT_CONFIRMATION_TEXTS,
   buildPostWithSharepicsConfirmation,
@@ -86,11 +88,6 @@ import { extractCompoundTopic } from './services/compoundTopicExtractor.js';
 import { extractChartFromResponse, emitConfirmAction } from './services/confirmActionService.js';
 import { pruneMessages, applyCompaction } from './services/contextPruningService.js';
 import { buildCreateTurnContext } from './services/createTurn.js';
-import {
-  isEinfacheSpracheAgent,
-  resolveOriginalText,
-  runEinfacheSprachePruefkette,
-} from './services/einfacheSpracheTurn.js';
 import {
   handleBoardCreation,
   handleSheetCreation,
@@ -1292,10 +1289,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // (agenticLoop/routing.ts) — including the `direct`-question rescue.
       // compoundEdit forces the loop even for an edit_current_* intent (which
       // isn't otherwise a loop intent) — its guards above mirror decideRunAgentic's.
-      // Einfache Sprache geht NIE über die Schleife. Übertragen ist reine
-      // Textarbeit am mitgelieferten Material, und die Prüfung dahinter ist
-      // eine eigene Kette (services/einfacheSpracheTurn.ts) statt eines
-      // Werkzeugs. Der erste Lauf (13.08.2026) belegte beide Hälften: 19
+      // Ein Pipeline-Agent (routes/chat/agents/pipelines/) geht NIE über die
+      // Schleife. Übertragen ist reine Textarbeit am mitgelieferten Material,
+      // und die Prüfung dahinter ist eine eigene Kette statt eines Werkzeugs.
+      // Der erste Einfache-Sprache-Lauf (13.08.2026) belegte beide Hälften: 19
       // Werkzeuge gemountet, KEINES benutzt (`steps=0`) — bezahlt wurden
       // trotzdem 2661 Zeichen Werkzeugregeln und 1141 Zeichen Rezept-Katalog im
       // Systemprompt, aus dem das Modell dann die Nachbarrolle
@@ -1307,16 +1304,32 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // Beides nötig, weil `produktion` zwar in NO_TOOL_VERDICTS steht, die
       // Rettungsregel in decideRunAgentic es aber dennoch in den Loop heben
       // kann.
-      const einfacheSpracheTurn = isEinfacheSpracheAgent(classifiedState.agentConfig?.identifier);
-      if (einfacheSpracheTurn && classifiedState.intent !== 'produktion') {
+      const pipelineAgent = getPipelineAgent(classifiedState.agentConfig?.identifier);
+      if (pipelineAgent && classifiedState.intent !== pipelineAgent.forceIntent) {
         recordDecision('router.intent_override', 'einfache_sprache_to_produktion', {
           inputs: { intentBefore: classifiedState.intent },
         });
-        classifiedState.intent = 'produktion';
+        classifiedState.intent = pipelineAgent.forceIntent;
+      }
+
+      // Der Ausgangstext wird EINMAL bestimmt und von beiden Enden der Kette
+      // benutzt: der Antwortschritt bekommt ihn über den State in den
+      // Systemprompt genagelt, die Nachschritte messen gegen dieselbe Variable.
+      // Vorher entschied Schritt 1 selbst, was er aus dem Thread-Kontext für
+      // gemeint hielt — und dort liegt der Volltext jedes früheren Anhangs.
+      const pipelineOriginal = pipelineAgent
+        ? resolveOriginalText(classifiedState, lastUserText)
+        : '';
+      if (pipelineAgent) {
+        classifiedState.pipelineSourceText = pipelineOriginal || null;
+        log.info(
+          `[${requestId}] [${pipelineAgent.identifier}] Ausgangstext festgelegt: ` +
+            `${pipelineOriginal.length} Zeichen`
+        );
       }
 
       const runAgentic =
-        !einfacheSpracheTurn &&
+        !pipelineAgent &&
         (editToolLoop ||
           compoundEdit ||
           decideRunAgentic({
@@ -1400,7 +1413,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // der Agent bot statt einer Übertragung einen Facebook-Post an.
       if (
         !runAgentic &&
-        !einfacheSpracheTurn &&
+        !pipelineAgent &&
         (classifiedState.intent === 'direct' || classifiedState.intent === 'produktion') &&
         !classifiedState.activeSkillMention &&
         !classifiedState.customSystemPrompt &&
@@ -2273,17 +2286,19 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         return { status: 200 as const, body: undefined };
       }
 
-      // === Einfache Sprache: die beiden Prüfschritte, jeder mit eigenem Kontext ===
-      // Läuft NACH der gestromten Übertragung und hängt an denselben Text an,
-      // damit Persistenz und Neuladen sehen, was auf dem Bildschirm steht. Woher
-      // der Ausgangstext kommt, entscheidet `resolveOriginalText` — er kann in
-      // der Nachricht, im Anhang oder in einer `@dokument`-Mention stecken.
-      if (einfacheSpracheTurn) {
-        fullText += await runEinfacheSprachePruefkette({
+      // === Pipeline-Agenten: die Nachschritte, jeder mit eigenem Kontext ===
+      // Laufen NACH der gestromten Antwort und hängen an denselben Text an,
+      // damit Persistenz und Neuladen sehen, was auf dem Bildschirm steht.
+      // `pipelineOriginal` ist dieselbe Zeichenkette, die Schritt 1 oben im
+      // Systemprompt festgenagelt bekam — die Prüfung misst nichts anderes, als
+      // was übertragen werden sollte.
+      if (pipelineAgent) {
+        fullText += await runAgentPipeline({
+          pipeline: pipelineAgent,
           state: finalState,
           sse,
-          esText: fullText,
-          original: resolveOriginalText(finalState, lastUserText),
+          produced: fullText,
+          original: pipelineOriginal,
         });
       }
 
