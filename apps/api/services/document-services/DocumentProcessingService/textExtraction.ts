@@ -7,6 +7,8 @@ import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
 
+import { DOCUMENT_UPLOAD_FORMAT_HINT, resolveDocumentUploadFormat } from '@gruenerator/contracts';
+
 import { ocrService } from '../../OcrService/index.js';
 
 import type { UploadedFile } from './types.js';
@@ -47,20 +49,17 @@ export function generateContentPreview(text: string, limit: number = 600): strin
 }
 
 /**
- * Extract text from file buffer based on MIME type
+ * Extract text from a file buffer.
+ *
+ * The format is resolved from the filename first (see
+ * `resolveDocumentUploadFormat`) — deciding on the mimetype alone used to fail
+ * `.md` uploads, because browsers send those as an empty type and the deferred
+ * pipeline then widens that to `application/octet-stream`.
  */
 export async function extractTextFromFile(file: UploadedFile): Promise<string> {
-  const supportedMistralTypes = [
-    'application/pdf',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    'image/png',
-    'image/jpeg',
-    'image/jpg',
-    'image/avif',
-  ];
+  const format = resolveDocumentUploadFormat(file.originalname, file.mimetype);
 
-  if (supportedMistralTypes.includes(file.mimetype)) {
+  if (format?.kind === 'ocr') {
     const tempDir = os.tmpdir();
     const tempFileName = `manual_upload_${Date.now()}_${file.originalname}`;
     const tempFilePath = path.join(tempDir, tempFileName);
@@ -82,11 +81,15 @@ export async function extractTextFromFile(file: UploadedFile): Promise<string> {
     } finally {
       await fs.unlink(tempFilePath);
     }
-  } else if (file.mimetype.startsWith('text/')) {
+  } else if (format?.kind === 'text' || file.mimetype.startsWith('text/')) {
     return file.buffer.toString('utf-8');
   } else {
+    const ext = path
+      .extname(file.originalname || '')
+      .toUpperCase()
+      .replace('.', '');
     throw new Error(
-      `Dateityp nicht unterstützt: ${file.mimetype}. Unterstützt werden: PDF, Word (DOCX), PowerPoint (PPTX), Bilder (PNG, JPG, AVIF) und Textdateien.`
+      `${ext ? `${ext}-Dateien` : 'Dieser Dateityp'} können nicht gelesen werden. Unterstützt werden: ${DOCUMENT_UPLOAD_FORMAT_HINT}. Speichere das Dokument als PDF oder DOCX und lade es erneut hoch.`
     );
   }
 }
