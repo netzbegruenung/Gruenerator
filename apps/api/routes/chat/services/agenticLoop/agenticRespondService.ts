@@ -387,9 +387,25 @@ const hasAny = (names: readonly string[], set: ReadonlySet<string>): boolean =>
  * Nothing is lost by switching: split still runs the whole tool phase on the
  * planner, so the turn can search exactly as before. Only the writer loses the
  * catalog it had no use for.
+ *
+ * Carried documents count as material even though they arrive INSIDE the system
+ * message. Measured 13.08.2026 07:23: once a pasted article is persisted and
+ * re-injected as `FRÜHERE DOKUMENTE`, the base prompt grows from 3.414 to 14.554
+ * chars — and the follow-up asking to check that article ("Erstelle
+ * ausschließlich diese Tabelle", 712 chars) suddenly reads as a small question
+ * next to a huge instruction block. The predicate would flip to "not material
+ * heavy" for exactly the turns that need the clean writer most, and the fix for
+ * the missing context would have quietly re-armed the loop.
+ *
+ * The material is the same material either side of the boundary; which channel
+ * carried it into the prompt says nothing about the turn.
  */
-export function materialDominatesTurn(userText: string, systemMessage: string): boolean {
-  return userText.length > systemMessage.length;
+export function materialDominatesTurn(
+  userText: string,
+  systemMessage: string,
+  carriedMaterialChars = 0
+): boolean {
+  return userText.length + carriedMaterialChars > systemMessage.length - carriedMaterialChars;
 }
 
 export function buildToolUsageBlock(
@@ -1163,14 +1179,22 @@ export async function streamAgenticResponse(params: {
     // Then split wins for a different reason: its writer runs WITHOUT the tool
     // catalog, and that is the only configuration in which this failure has
     // never been observed (see materialDominatesTurn).
-    const materialHeavy = materialDominatesTurn(lastUserText, systemMessage);
+    // Documents the turn works ON, wherever they entered the prompt: this turn's
+    // upload and every file carried over from an earlier turn. Text only — an
+    // image contributes a vision summary, not material to transform.
+    const carriedMaterialChars =
+      (finalState.attachmentContext?.length ?? 0) +
+      (finalState.threadAttachments ?? [])
+        .filter((a) => !a.isImage)
+        .reduce((sum, a) => sum + (a.extractedText?.length ?? a.summary?.length ?? 0), 0);
+    const materialHeavy = materialDominatesTurn(lastUserText, systemMessage, carriedMaterialChars);
     mode =
       prefersUnifiedLoop(resolution.provider, resolution.modelName) && !materialHeavy
         ? 'unified'
         : 'split';
     if (materialHeavy) {
       log.info(
-        `[Agentic] material-heavy turn (${lastUserText.length}c user vs ${systemMessage.length}c system) — writing without the tool catalog`
+        `[Agentic] material-heavy turn (${lastUserText.length}c user + ${carriedMaterialChars}c documents vs ${systemMessage.length}c system) — writing without the tool catalog`
       );
     }
 
