@@ -496,9 +496,15 @@ async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
         if (next.done) break;
         const part = next.value;
         if (part.type === 'error') throw part.error;
-        // reasoning-delta discarded; text-delta becomes narration (or is drained
-        // silently when no onNarration is wired).
-        if (part.type === 'text-delta' && part.text != null && part.text.length > 0) {
+        // text-delta becomes narration (or is drained silently when no
+        // onNarration is wired). The planner's reasoning goes to the SAME
+        // channel as the synth's: the split lanes ARE the thinking models, and
+        // dropping it here left every non-Mistral turn with no thinking at all
+        // for the whole tool phase — the client's "Gedanken" panel only ever
+        // filled up once the answer was already being written.
+        if (part.type === 'reasoning-delta' && part.text != null && part.text.length > 0) {
+          p.onReasoning(part.text);
+        } else if (part.type === 'text-delta' && part.text != null && part.text.length > 0) {
           chunker?.push(part.text);
         }
       }
