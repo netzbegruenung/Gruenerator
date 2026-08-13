@@ -4,6 +4,7 @@ import {
   createDegenerationGuard,
   findDegenerationCut,
   isDegenerateSample,
+  isStructuralScaffolding,
   DEGEN_MIN_LENGTH,
 } from './degeneration.js';
 
@@ -91,9 +92,79 @@ describe('isDegenerateSample', () => {
   it('is not tripped by a short divider line inside prose', () => {
     expect(isDegenerateSample(`${prose(900)}\n\n---\n\n${prose(900)}`)).toBe(false);
   });
+
+  // ── The live false positive (12.08.2026 12:26:44) ──────────────────────────
+  // A wide table whose later columns are empty truncated a HEALTHY 6.020-char
+  // answer at 2.820 chars, mid-table. The window below is the one the log
+  // printed as the reason.
+
+  it('passes the empty-cell table window that truncated a live answer', () => {
+    const window =
+      ' - | - | - | - | - | - | - | - - | - | - | - | - | - - | - ' +
+      '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -';
+    expect(isDegenerateSample(window)).toBe(false);
+  });
+
+  it('passes a wide table whose trailing columns are empty', () => {
+    // The shape the model produced: a first column wrapping over several rows,
+    // leaving every other cell blank.
+    const rows = [
+      '| Absatz (Original) | Überschrift | Status | Fehlt |',
+      '|---|---|---|---|',
+      ...Array.from({ length: 40 }, (_, i) =>
+        i % 4 === 0
+          ? `| Absatz Nummer ${i} beginnt | Schutz in Einrichtungen | Vollständig | - |`
+          : '| | | | |'
+      ),
+    ];
+    expect(isDegenerateSample(rows.join('\n').slice(-2000))).toBe(false);
+  });
+
+  it('still flags spam that only LOOKS like scaffolding', () => {
+    // Same dashes, but with substance between them — this is the tail of the
+    // 45.711-char incident, where the model spelled "FERTIG" one letter a line.
+    expect(isDegenerateSample(repeatTo('--- **E** 😊.', 2000))).toBe(true);
+    expect(isDegenerateSample(repeatTo('1234567890', 2000))).toBe(true);
+    expect(isDegenerateSample(terminatorSpam(2000))).toBe(true);
+  });
+});
+
+describe('isStructuralScaffolding', () => {
+  it('recognises table skeletons and rules', () => {
+    expect(isStructuralScaffolding(repeatTo('| - ', 600))).toBe(true);
+    expect(isStructuralScaffolding(repeatTo('|---', 600))).toBe(true);
+    expect(isStructuralScaffolding(repeatTo('=', 600))).toBe(true);
+  });
+
+  it('does not swallow content that merely contains dashes', () => {
+    expect(isStructuralScaffolding(prose(600))).toBe(false);
+    expect(isStructuralScaffolding(repeatTo(':-)', 600))).toBe(false);
+    expect(isStructuralScaffolding(repeatTo('1234567890', 600))).toBe(false);
+    expect(isStructuralScaffolding(repeatTo('E---F---', 600))).toBe(false);
+  });
 });
 
 // ── createDegenerationGuard ──────────────────────────────────────────────────
+
+// ── findDegenerationCut ──────────────────────────────────────────────────────
+
+describe('findDegenerationCut', () => {
+  it('keeps a legitimate table that sits between the answer and the spam', () => {
+    // Reported in review of the detector fix: gating only `isDegenerateSample`
+    // moves the bug one function along. The backscan reaches 6000 chars, and a
+    // table inside that range has almost no words after the scaffold filter —
+    // so it used to fall through to the character-based periodicity test and be
+    // read as "still spam", cutting the table out of the kept prefix.
+    const answer = prose(1500);
+    const table = Array.from({ length: 30 }, (_, i) =>
+      i % 4 === 0 ? `| Absatz ${i} | Schutz | Vollständig | - |` : '| | | | |'
+    ).join('\n');
+    const text = `${answer}\n\n${table}\n\n${terminatorSpam(2500)}`;
+    const cut = findDegenerationCut(text, text.length);
+    expect(text.slice(0, cut)).toContain('| Absatz 28 |');
+    expect(text.slice(0, cut)).not.toContain('FERTIG --- ENDE');
+  });
+});
 
 describe('createDegenerationGuard', () => {
   it('stays quiet on a long healthy answer', () => {
