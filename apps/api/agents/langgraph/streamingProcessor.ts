@@ -285,9 +285,10 @@ export async function processGraphRequestStreaming(
      *    routes/chat/services/responseStreamingService.ts;
      *  - regolo takes NO reasoning option at all. Its provider id is 'regolo'
      *    (createOpenAI({name:'regolo'})), so an `openai` block would not reach
-     *    it anyway, and its fetch wrapper pins `enable_thinking: false` on
+     *    it anyway, and its fetch wrapper pins `reasoning_effort: 'none'` on
      *    every request (services/ai/regoloThinkingFetch.ts). Sending one would
-     *    be a lie in the code about what the lane does.
+     *    be a lie in the code about what the lane does — denkende Regolo-Züge
+     *    laufen über regoloReasoningStream, nicht über diesen Pfad.
      */
     let reasoningProviderOptions: Record<string, Record<string, string>> | undefined;
     if (reasoningEffort) {

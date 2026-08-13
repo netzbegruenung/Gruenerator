@@ -482,3 +482,45 @@ describe('resolveAutoSelection — carried material', () => {
     expect(selection.reasoning).toBe('medium');
   });
 });
+
+describe('resolveAutoSelection — Pipeline-Agenten', () => {
+  // Der Lauf, der diese Regel erzwungen hat: 5.838 Zeichen Fachtext an den
+  // Agenten „Einfache Sprache". Material-Regel + `autoRoutingHint: 'precise'`
+  // ergaben mistral-medium-3.5 mit reasoning=medium — auf Mistral binär, also
+  // volles Denken. Drei Minuten Denken, kein Antwort-Token, Turn verloren.
+  const ES = 'gruenerator-einfache-sprache';
+  const MATERIAL = 5_838;
+
+  it('bleibt auf Gemma 4, auch mit Material und precise-Hint', () => {
+    const selection = resolveAutoSelection({
+      intent: 'produktion',
+      complexity: 'moderate',
+      agentId: ES,
+      materialChars: MATERIAL,
+    });
+    expect(selection.modelId).toBe('gemma-litellm');
+    // Denken bleibt an — eine Übertragung ist Vergleichsarbeit. Nur die Lane
+    // ist eine, die daran nicht stirbt.
+    expect(selection.reasoning).toBe('medium');
+  });
+
+  it('lässt sich auch von taskShape nicht wegdrehen', () => {
+    expect(
+      resolveAutoSelection({ intent: 'produktion', agentId: ES, taskShape: 'strict_format' })
+        .modelId
+    ).toBe('gemma-litellm');
+  });
+
+  it('ein gewöhnlicher Agent mit demselben Material bleibt auf der präzisen Lane', () => {
+    // Die Material-Regel ist NICHT zurückgenommen, sie gilt nur nicht für die
+    // Agenten, die ihre Prüfung selbst mitbringen.
+    const selection = resolveAutoSelection({
+      intent: 'produktion',
+      complexity: 'moderate',
+      agentId: 'gruenerator-universal',
+      materialChars: MATERIAL,
+    });
+    expect(selection.modelId).toBe('mistral-medium-3.5');
+    expect(selection.reasoning).toBe('medium');
+  });
+});
