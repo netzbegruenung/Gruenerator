@@ -76,6 +76,24 @@ describe('deriveImplicitRecipeMention', () => {
     ).toBe(null);
   });
 
+  it('steht bei eingefügtem Material still, statt Wörter zu sammeln', () => {
+    // Der Lauf vom 13.08.2026, verkürzt: eine eingefügte Webseite. Der
+    // Fußzeilen-Link „Facebook" und irgendein „Text…" stehen beliebig weit
+    // auseinander — als Auftragssatz gelesen ergäbe das ein Rezept, als
+    // Dokument gelesen ist es Rauschen.
+    const seite =
+      'Hauptnavigation Nebennavigation Inhalt Fußzeile\n' +
+      'Sofortprogramm für Klimaanlagen in Pflegeheimen. '.repeat(20) +
+      '\nDen Text teilen auf: Facebook Instagram';
+    expect(seite.length).toBeGreaterThan(500);
+    expect(deriveImplicitRecipeMention(seite, 'de-DE')).toBe(null);
+
+    // Die Gegenprobe: derselbe Auftrag, kurz gehalten, greift weiter.
+    expect(deriveImplicitRecipeMention('Schreib einen Facebook-Post dazu', 'de-DE')).toBe(
+      'facebook'
+    );
+  });
+
   it('ignores platform words inside quotes', () => {
     expect(
       deriveImplicitRecipeMention(
