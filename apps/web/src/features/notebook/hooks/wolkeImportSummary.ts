@@ -89,6 +89,39 @@ export function unsupportedFileNotice(files: WolkeFile[]): string | null {
     : `${unsupported.length} Dateien in nicht unterstützten Formaten${extensionList} übersprungen.`;
 }
 
+export interface SubfolderCounts {
+  folderCount?: number;
+  depthLimited?: boolean;
+  truncated?: boolean;
+}
+
+/**
+ * Says what happened to the subfolders. Silence here was the whole problem:
+ * a folder with six subfolders looked identical to one with none, because
+ * directory entries have no file extension and fell through the "supported
+ * file" filter without a trace.
+ */
+export function subfolderNotice(
+  counts: SubfolderCounts,
+  includeSubfolders: boolean
+): string | null {
+  const folderCount = counts.folderCount ?? 0;
+
+  if (!includeSubfolders) {
+    if (folderCount === 0) return null;
+    return folderCount === 1
+      ? '1 Unterordner wurde nicht mitgezogen — schalte „Unterordner einbeziehen" ein.'
+      : `${folderCount} Unterordner wurden nicht mitgezogen — schalte „Unterordner einbeziehen" ein.`;
+  }
+
+  const limits: string[] = [];
+  if (counts.depthLimited) limits.push('mehr als 3 Ebenen tief');
+  if (counts.truncated) limits.push('mehr als 500 Dateien');
+  if (limits.length === 0) return null;
+
+  return `Der Ordner ist ${limits.join(' und ')} — der Rest wurde nicht mitgezogen.`;
+}
+
 const MAX_NAMED_FAILURES = 3;
 
 /** One sentence naming what failed and why — null when everything worked. */

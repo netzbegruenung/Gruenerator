@@ -425,6 +425,54 @@
       "avatar": "📢",
       "category": "presse",
       "audience": "de-AT"
+    },
+    {
+      "command": "@presse-saarland",
+      "title": "PM Saarland",
+      "description": "Pressemitteilung im Stil der Saar-Grünen",
+      "avatar": "⚒️",
+      "category": "presse",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@insta-saarland",
+      "title": "Insta Saarland",
+      "description": "Instagram-Post im Stil der Saar-Grünen",
+      "avatar": "⚒️",
+      "category": "social",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@insta-bayern",
+      "title": "Insta Bayern",
+      "description": "Instagram-Post im Stil Grüne Bayern",
+      "avatar": "🦁",
+      "category": "social",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@insta-hessen",
+      "title": "Insta Hessen",
+      "description": "Instagram-Post im Stil Grüne Hessen",
+      "avatar": "🌳",
+      "category": "social",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@insta-sachsen-anhalt",
+      "title": "Insta Sachsen-Anhalt",
+      "description": "Instagram-Post im Stil Grüne Sachsen-Anhalt",
+      "avatar": "🌾",
+      "category": "social",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@insta-at",
+      "title": "Insta Österreich",
+      "description": "Instagram-Post im Stil der Grünen Österreich",
+      "avatar": "🇦🇹",
+      "category": "social",
+      "audience": "de-AT"
     }
   ],
   "skillCategoryLabels": {
