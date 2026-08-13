@@ -182,7 +182,9 @@ router.get(
         return;
       }
 
-      const folderPath = (req.query.path as string) || '';
+      // `?path=a&path=b` makes Express hand back an array. The cast that used to
+      // stand here claimed otherwise, and every string method downstream threw.
+      const folderPath = typeof req.query.path === 'string' ? req.query.path : '';
       // Opt-in: one PROPFIND per subfolder, and every file found becomes a
       // download + OCR + embedding run at import time.
       const recursive = req.query.recursive === 'true';

@@ -72,7 +72,8 @@ export function isWebdavSelfEntry(href: string, requestPath: string): boolean {
     } catch {
       // A malformed escape sequence must not drop a real entry.
     }
-    return decoded.replace(/^\/+/, '').replace(/\/+$/, '');
+    // Split-and-drop trims both ends without an anchored `/+$/` and its ReDoS.
+    return decoded.split('/').filter(Boolean).join('/');
   };
   return normalize(href) === normalize(requestPath);
 }
