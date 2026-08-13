@@ -54,6 +54,7 @@ import {
   imageModelPreferenceContract,
   mcpServersContract,
   imageEditContract,
+  sharepicTextContract,
   adminVorlagenContract,
   userTemplatesContract,
   templateInteractionsContract,
@@ -279,6 +280,7 @@ const _modelPreferencesClient = () => initClient(modelPreferencesContract, CLIEN
 const _imageModelPreferenceClient = () => initClient(imageModelPreferenceContract, CLIENT_OPTS);
 const _mcpServersClient = () => initClient(mcpServersContract, CLIENT_OPTS);
 const _imageEditClient = () => initClient(imageEditContract, CLIENT_OPTS);
+const _sharepicTextClient = () => initClient(sharepicTextContract, CLIENT_OPTS);
 const _adminVorlagenClient = () => initClient(adminVorlagenContract, CLIENT_OPTS);
 const _userTemplatesClient = () => initClient(userTemplatesContract, CLIENT_OPTS);
 const _templateInteractionsClient = () => initClient(templateInteractionsContract, CLIENT_OPTS);
@@ -347,6 +349,7 @@ export interface ContractsClient {
   imageModelPreference: ReturnType<typeof _imageModelPreferenceClient>;
   mcpServers: ReturnType<typeof _mcpServersClient>;
   imageEdit: ReturnType<typeof _imageEditClient>;
+  sharepicText: ReturnType<typeof _sharepicTextClient>;
   adminVorlagen: ReturnType<typeof _adminVorlagenClient>;
   userTemplates: ReturnType<typeof _userTemplatesClient>;
   templateInteractions: ReturnType<typeof _templateInteractionsClient>;
@@ -429,6 +432,7 @@ export function getContractsClient(): ContractsClient {
     imageModelPreference: _imageModelPreferenceClient(),
     mcpServers: _mcpServersClient(),
     imageEdit: _imageEditClient(),
+    sharepicText: _sharepicTextClient(),
     adminVorlagen: _adminVorlagenClient(),
     userTemplates: _userTemplatesClient(),
     templateInteractions: _templateInteractionsClient(),

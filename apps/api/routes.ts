@@ -116,6 +116,7 @@ import {
   handleSliderSmartRequest,
   type SharepicType,
 } from './routes/sharepic/sharepic_text/index.js';
+import { mountSharepicTextContractRouter } from './routes/sharepic/sharepic_text/sharepicTextContractRouter.js';
 import { type SharepicRequest } from './routes/sharepic/sharepic_text/types.js';
 import { mountSheetsContractRouter } from './routes/sheets/sheetsContractRouter.js';
 import { mountSitesContractRouter } from './routes/sites/sitesContractRouter.js';
@@ -611,8 +612,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/profilbild_canvas', standardMutationLimiter, requireAuth, profilbildCanvasRoute);
   app.use('/api/simple_canvas', standardMutationLimiter, requireAuth, simpleCanvasRoute);
   app.use('/api/slider_canvas', standardMutationLimiter, requireAuth, sliderCanvasRoute);
-  // Sharepic-Textgenerierung: ein Handler für alle Typen. Muss VOR
-  // `app.use('/api/sharepic', promptRoute)` stehen, damit /text/:type matcht.
+  // Sharepic-Textgenerierung. Muss VOR `app.use('/api/sharepic', promptRoute)`
+  // stehen, damit /text/* matcht.
   const SHAREPIC_TEXT_TYPES: readonly SharepicType[] = [
     'dreizeilen',
     'zitat',
@@ -636,14 +637,24 @@ export async function setupRoutes(app: Application): Promise<void> {
     await handleSharepicTextRequest(req as SharepicRequest, res, type);
   };
 
+  // Auth und Limiter haengen am PRAEFIX und VOR dem Mount: createExpressEndpoints
+  // registriert die Handler direkt auf `app` und erbt keine spaetere
+  // Prefix-Middleware. Ohne diese Zeile waeren die Vertragsrouten offen.
+  app.use('/api/sharepic/text', aiGenerationLimiter, requireAuth);
+  mountSharepicTextContractRouter(app);
+
+  // Rest-Fallback hinter dem Vertrag: bedient nur noch `default`, dessen
+  // Antwortform (`{sharepics, metadata}`) nicht zu den sieben Textvertraegen
+  // passt. Limiter/Auth NICHT wiederholen — die haengen schon am Praefix,
+  // sonst zaehlt das Kontingent pro Anfrage doppelt.
   app.post(
     '/api/sharepic/text/:type',
-    aiGenerationLimiter,
-    requireAuth,
     async (req: Request<{ type: string }>, res: Response): Promise<void> => {
       const type = SHAREPIC_TEXT_TYPES.find((t) => t === req.params.type);
       if (!type) {
-        res.status(400).json({ error: `Unbekannter Sharepic-Texttyp: ${req.params.type}` });
+        res
+          .status(400)
+          .json({ success: false, error: `Unbekannter Sharepic-Texttyp: ${req.params.type}` });
         return;
       }
       await runSharepicText(type, req, res);

@@ -59,7 +59,6 @@ export {
   getTypesWithTextGeneration,
   typeRequiresImage,
   typeHasTextGeneration,
-  getTextEndpoint,
   getCanvasEndpoint,
   getInputFields,
   getPreviewFields,
@@ -93,6 +92,10 @@ export {
   validateCanvasResponse,
 } from './utils/validation.js';
 export type { ImageStudioValidationResult } from './utils/validation.js';
+
+// Sharepic-Textgenerierung über den ts-rest-Vertrag
+export { generateSharepicText } from './api/sharepicText.js';
+export type { SharepicTextType, SharepicTextResponseByType } from './api/sharepicText.js';
 
 // Hooks
 export { useImageStudio } from './hooks/useImageStudio.js';

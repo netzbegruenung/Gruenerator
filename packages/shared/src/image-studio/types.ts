@@ -3,7 +3,15 @@
  * Platform-agnostic type definitions for image-studio feature
  */
 
-import { type CanvasTemplateType } from '@gruenerator/contracts';
+import {
+  type CanvasTemplateType,
+  type DreizeilenTextResponse,
+  type InfoTextResponse,
+  type SimpleTextResponse,
+  type SliderTextResponse,
+  type VeranstaltungTextResponse,
+  type ZitatTextResponse,
+} from '@gruenerator/contracts';
 
 // ============================================================================
 // CORE ENUMS
@@ -17,7 +25,14 @@ import { type CanvasTemplateType } from '@gruenerator/contracts';
  * value the canvas pipeline can't mint.
  */
 export type ImageStudioTemplateType =
-  'dreizeilen' | 'zitat' | 'zitat-pure' | 'info' | 'veranstaltung' | 'profilbild' | 'simple';
+  | 'dreizeilen'
+  | 'zitat'
+  | 'zitat-pure'
+  | 'info'
+  | 'veranstaltung'
+  | 'profilbild'
+  | 'simple'
+  | 'slider';
 
 // Compile-time guard: every template type here must be a canonical canvas type.
 type _AssertTemplateSubset = ImageStudioTemplateType extends CanvasTemplateType ? true : never;
@@ -179,84 +194,34 @@ export interface TextGenerationRequest {
 }
 
 /**
- * Dreizeilen (3-line slogan) response
+ * Text generation responses — derived from the ts-rest contract, never
+ * re-declared here.
+ *
+ * These used to be hand-written interfaces, and they were wrong in three
+ * places at once: `InfoResponse` put header/subheader/body at the top level
+ * where the wire nests them under `mainInfo`, `SimpleResponse` did the same
+ * with `mainSimple`, and `QuoteResponse` typed `alternatives` as objects where
+ * the wire sends bare strings. Every one of those produced empty fields at
+ * runtime and compiled fine. Deriving from the contract makes the same mistake
+ * a type error.
  */
-export interface DreizeilenResponse {
-  mainSlogan: {
-    line1: string;
-    line2: string;
-    line3: string;
-  };
-  alternatives: Array<{
-    line1: string;
-    line2: string;
-    line3: string;
-  }>;
-  searchTerms?: string[];
-}
-
-/**
- * Quote response (zitat, zitat-pure)
- */
-export interface QuoteResponse {
-  quote: string;
-  name: string;
-  alternatives: Array<{
-    quote: string;
-  }>;
-}
-
-/**
- * Info response
- */
-export interface InfoResponse {
-  header: string;
-  subheader: string;
-  body: string;
-  alternatives: Array<{
-    header: string;
-    subheader: string;
-    body: string;
-  }>;
-  searchTerms?: string[];
-}
-
-/**
- * Veranstaltung (event) response
- */
-export interface VeranstaltungResponse {
-  eventTitle: string;
-  beschreibung: string;
-  weekday: string;
-  date: string;
-  time: string;
-  locationName: string;
-  address: string;
-  alternatives: Array<{
-    eventTitle: string;
-    beschreibung: string;
-    weekday: string;
-    date: string;
-    time: string;
-    locationName: string;
-    address: string;
-  }>;
-  searchTerms?: string[];
-}
-
-/**
- * Simple (Text auf Bild) response
- */
-export interface SimpleResponse {
-  headline: string;
-  subtext: string;
-}
+export type DreizeilenResponse = DreizeilenTextResponse;
+export type QuoteResponse = ZitatTextResponse;
+export type InfoResponse = InfoTextResponse;
+export type VeranstaltungResponse = VeranstaltungTextResponse;
+export type SimpleResponse = SimpleTextResponse;
+export type SliderResponse = SliderTextResponse;
 
 /**
  * Union type for all text generation responses
  */
 export type TextGenerationResponse =
-  DreizeilenResponse | QuoteResponse | InfoResponse | VeranstaltungResponse | SimpleResponse;
+  | DreizeilenResponse
+  | QuoteResponse
+  | InfoResponse
+  | VeranstaltungResponse
+  | SimpleResponse
+  | SliderResponse;
 
 /**
  * Normalized text generation result

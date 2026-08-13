@@ -18,37 +18,26 @@ import type {
   InfoResponse,
   VeranstaltungResponse,
   SimpleResponse,
+  SliderResponse,
 } from './types.js';
 
 // ============================================================================
 // API RESPONSE TYPES (raw shapes returned by backend endpoints)
 // ============================================================================
 
-/** Raw veranstaltung API response — event data may be wrapped in mainEvent */
-interface VeranstaltungApiResponse {
-  mainEvent?: VeranstaltungResponse;
-  eventTitle?: string;
-  beschreibung?: string;
-  weekday?: string;
-  date?: string;
-  time?: string;
-  locationName?: string;
-  address?: string;
-  alternatives?: Array<{
-    eventTitle?: string;
-    beschreibung?: string;
-    weekday?: string;
-    date?: string;
-    time?: string;
-    locationName?: string;
-    address?: string;
-  }>;
-  searchTerms?: string[];
-}
-
-/** Union of all raw text generation API responses */
+/**
+ * Union of all text generation API responses.
+ *
+ * These come from `@gruenerator/contracts` now — there is no second,
+ * hand-written description of the same wire any more.
+ */
 type TextApiResponse =
-  DreizeilenResponse | QuoteResponse | InfoResponse | VeranstaltungApiResponse | SimpleResponse;
+  | DreizeilenResponse
+  | QuoteResponse
+  | InfoResponse
+  | VeranstaltungResponse
+  | SimpleResponse
+  | SliderResponse;
 
 // ============================================================================
 // TYPE CONFIGURATIONS
@@ -148,6 +137,23 @@ export const IMAGE_STUDIO_TYPE_CONFIGS: Record<ImageStudioTemplateType, ImageStu
       canvas: '/simple_canvas',
     },
     legacyType: 'Simple',
+  },
+
+  // Slider ist ein DECK: Cover + 1-3 Inhaltsfolien + Abschluss. Die Folien
+  // kommen in `alternatives` — das sind keine Alternativen im UI-Sinn, sondern
+  // die Seiten. Wer den Typ in eine Auswahlliste aufnimmt, braucht vorher eine
+  // mehrseitige Ansicht; der Mobile-Create-Flow hat heute keine.
+  slider: {
+    id: 'slider',
+    label: 'Slider-Deck',
+    description: 'Mehrseitiges Deck: Cover, Inhaltsfolien, Abschluss',
+    requiresImage: true,
+    hasTextGeneration: true,
+    endpoints: {
+      text: '/sharepic/text/slider',
+      canvas: '/slider_canvas',
+    },
+    legacyType: 'Slider',
   },
 };
 
@@ -603,6 +609,38 @@ export const TEMPLATE_FIELD_CONFIGS: Record<ImageStudioTemplateType, TemplateFie
     showEditPanel: true,
     minimalLayout: false,
   },
+
+  // `showAlternatives: false` ist hier kein Weglassen, sondern das Gegenteil:
+  // beim Slider sind die „Alternativen" die Folgefolien des Decks. Sie als
+  // Auswahl anzubieten hiesse, die Seiten 2..n als Ersatz für Seite 1 zu
+  // zeigen. Eine mehrseitige Ansicht ist die Voraussetzung dafür, den Typ
+  // überhaupt in eine Auswahl aufzunehmen.
+  slider: {
+    inputFields: [
+      {
+        name: 'thema',
+        type: 'textarea',
+        label: 'Thema & Details',
+        placeholder: 'Beschreibe dein Thema für das Deck...',
+        required: true,
+        minLength: 3,
+      },
+    ],
+    previewFields: [
+      { name: 'label', type: 'text', label: 'Label', required: false },
+      { name: 'headline', type: 'text', label: 'Headline', required: false },
+      { name: 'subtext', type: 'text', label: 'Subtext', required: false },
+    ],
+    resultFields: ['label', 'headline', 'subtext'],
+    showImageUpload: true,
+    showColorControls: false,
+    showFontSizeControl: true,
+    showAdvancedEditing: false,
+    showCredit: false,
+    showAlternatives: false,
+    showEditPanel: true,
+    minimalLayout: false,
+  },
 };
 
 // ============================================================================
@@ -642,9 +680,11 @@ export function mapTextResponse(
           quote: r.quote || '',
           name: r.name || '',
         },
-        alternatives: (r.alternatives || []).map((alt) => ({
-          quote: alt.quote || '',
-        })),
+        // `alternatives` ist hier ein string[], kein Objekt-Array — der
+        // Handler gibt für Zitate `data.zitat` zurück. Der alte `alt.quote`
+        // war auf jedem Eintrag `undefined` und erzeugte eine Liste leerer
+        // Zitate.
+        alternatives: (r.alternatives || []).map((alt) => ({ quote: alt })),
       };
     }
 
@@ -652,9 +692,9 @@ export function mapTextResponse(
       const r = response as InfoResponse;
       return {
         fields: {
-          header: r.header || '',
-          subheader: r.subheader || '',
-          body: r.body || '',
+          header: r.mainInfo?.header || '',
+          subheader: r.mainInfo?.subheader || '',
+          body: r.mainInfo?.body || '',
         },
         alternatives: (r.alternatives || []).map((alt) => ({
           header: alt.header || '',
@@ -666,17 +706,17 @@ export function mapTextResponse(
     }
 
     case 'veranstaltung': {
-      const r = response as VeranstaltungApiResponse;
-      const mainEvent = r.mainEvent ?? r;
+      const r = response as VeranstaltungResponse;
+      const mainEvent = r.mainEvent;
       return {
         fields: {
-          eventTitle: mainEvent.eventTitle || '',
-          beschreibung: mainEvent.beschreibung || '',
-          weekday: mainEvent.weekday || '',
-          date: mainEvent.date || '',
-          time: mainEvent.time || '',
-          locationName: mainEvent.locationName || '',
-          address: mainEvent.address || '',
+          eventTitle: mainEvent?.eventTitle || '',
+          beschreibung: mainEvent?.beschreibung || '',
+          weekday: mainEvent?.weekday || '',
+          date: mainEvent?.date || '',
+          time: mainEvent?.time || '',
+          locationName: mainEvent?.locationName || '',
+          address: mainEvent?.address || '',
         },
         alternatives: (r.alternatives || []).map((alt) => ({
           eventTitle: alt.eventTitle || '',
@@ -695,10 +735,34 @@ export function mapTextResponse(
       const r = response as SimpleResponse;
       return {
         fields: {
-          headline: r.headline || '',
-          subtext: r.subtext || '',
+          headline: r.mainSimple?.headline || '',
+          subtext: r.mainSimple?.subtext || '',
         },
-        alternatives: [],
+        alternatives: (r.alternatives || []).map((alt) => ({
+          headline: alt.headline || '',
+          subtext: alt.subtext || '',
+        })),
+        searchTerms: r.searchTerms || [],
+      };
+    }
+
+    case 'slider': {
+      const r = response as SliderResponse;
+      return {
+        fields: {
+          label: r.mainSlider?.label || '',
+          headline: r.mainSlider?.headline || '',
+          subtext: r.mainSlider?.subtext || '',
+          subtext2: r.mainSlider?.subtext2 || '',
+        },
+        // Für den Slider sind das die FOLGEFOLIEN, nicht Alternativen.
+        alternatives: (r.alternatives || []).map((alt) => ({
+          label: alt.label || '',
+          headline: alt.headline || '',
+          subtext: alt.subtext || '',
+          subtext2: alt.subtext2 || '',
+        })),
+        searchTerms: r.searchTerms || [],
       };
     }
 
@@ -761,13 +825,6 @@ export function typeRequiresImage(typeId: ImageStudioTemplateType): boolean {
  */
 export function typeHasTextGeneration(typeId: ImageStudioTemplateType): boolean {
   return IMAGE_STUDIO_TYPE_CONFIGS[typeId]?.hasTextGeneration ?? false;
-}
-
-/**
- * Get the text endpoint for a type
- */
-export function getTextEndpoint(typeId: ImageStudioTemplateType): string | null {
-  return IMAGE_STUDIO_TYPE_CONFIGS[typeId]?.endpoints.text || null;
 }
 
 /**
