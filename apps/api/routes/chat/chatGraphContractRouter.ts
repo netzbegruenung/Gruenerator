@@ -87,6 +87,10 @@ import { extractChartFromResponse, emitConfirmAction } from './services/confirmA
 import { pruneMessages, applyCompaction } from './services/contextPruningService.js';
 import { buildCreateTurnContext } from './services/createTurn.js';
 import {
+  isEinfacheSpracheAgent,
+  runEinfacheSprachePruefkette,
+} from './services/einfacheSpracheTurn.js';
+import {
   handleBoardCreation,
   handleSheetCreation,
   handleSheetEdit,
@@ -1287,38 +1291,62 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // (agenticLoop/routing.ts) — including the `direct`-question rescue.
       // compoundEdit forces the loop even for an edit_current_* intent (which
       // isn't otherwise a loop intent) — its guards above mirror decideRunAgentic's.
-      const runAgentic =
-        editToolLoop ||
-        compoundEdit ||
-        decideRunAgentic({
-          loopEnabled: isAgenticLoopEnabled(),
-          agenticIntents: AGENTIC_INTENTS,
-          intent: classifiedState.intent,
-          lastUserText,
-          forcedTool: !!forcedTool,
-          isMcpTurn,
-          hasManagedSources: managedSourceKeys.length > 0,
-          isCompound,
-          hasSelectedNotebook,
-          secondaryIntent: classifiedState.secondaryIntent ?? null,
-          compoundGeneration,
-          hasImageAttachments: imageAttachments.length > 0,
-          isPdfFillRequest:
-            ((classifiedState.pdfFormAttachments?.length ?? 0) > 0 ||
-              (classifiedState.threadAttachments ?? []).some(
-                (a) => a.mimeType === 'application/pdf'
-              )) &&
-            isSheetFillRequest(lastUserText),
-          classifierContradictedResearch: classifiedState.classifierContradictedResearch === true,
-          // Same question the classifier's Tier 3.5 asks, asked again here
-          // because a turn can reach this gate without having passed that tier
-          // (confident heuristic, LLM verdict, post-pass correction).
-          hasOwnMaterial:
-            lastUserText.length > NOUN_TRIGGER_MAX_LENGTH ||
-            !!classifiedState.attachmentContext ||
-            !!classifiedState.currentDocument ||
-            (classifiedState.docMentionIds ?? []).length > 0,
+      // Einfache Sprache geht NIE über die Schleife. Übertragen ist reine
+      // Textarbeit am mitgelieferten Material, und die Prüfung dahinter ist
+      // eine eigene Kette (services/einfacheSpracheTurn.ts) statt eines
+      // Werkzeugs. Der erste Lauf (13.08.2026) belegte beide Hälften: 19
+      // Werkzeuge gemountet, KEINES benutzt (`steps=0`) — bezahlt wurden
+      // trotzdem 2661 Zeichen Werkzeugregeln und 1141 Zeichen Rezept-Katalog im
+      // Systemprompt, aus dem das Modell dann die Nachbarrolle
+      // „Rückübersetzung" in seine Ausgabe zog.
+      //
+      // `produktion` und nicht `direct`: der Turn IST eine Schreibaufgabe mit
+      // eigenem Material, und `direct` ist seit #2269 F0 — es wird nur noch
+      // gelesen, nicht mehr neu vergeben (siehe agenticLoop/routing.ts).
+      // Beides nötig, weil `produktion` zwar in NO_TOOL_VERDICTS steht, die
+      // Rettungsregel in decideRunAgentic es aber dennoch in den Loop heben
+      // kann.
+      const einfacheSpracheTurn = isEinfacheSpracheAgent(classifiedState.agentConfig?.identifier);
+      if (einfacheSpracheTurn && classifiedState.intent !== 'produktion') {
+        recordDecision('router.intent_override', 'einfache_sprache_to_produktion', {
+          inputs: { intentBefore: classifiedState.intent },
         });
+        classifiedState.intent = 'produktion';
+      }
+
+      const runAgentic =
+        !einfacheSpracheTurn &&
+        (editToolLoop ||
+          compoundEdit ||
+          decideRunAgentic({
+            loopEnabled: isAgenticLoopEnabled(),
+            agenticIntents: AGENTIC_INTENTS,
+            intent: classifiedState.intent,
+            lastUserText,
+            forcedTool: !!forcedTool,
+            isMcpTurn,
+            hasManagedSources: managedSourceKeys.length > 0,
+            isCompound,
+            hasSelectedNotebook,
+            secondaryIntent: classifiedState.secondaryIntent ?? null,
+            compoundGeneration,
+            hasImageAttachments: imageAttachments.length > 0,
+            isPdfFillRequest:
+              ((classifiedState.pdfFormAttachments?.length ?? 0) > 0 ||
+                (classifiedState.threadAttachments ?? []).some(
+                  (a) => a.mimeType === 'application/pdf'
+                )) &&
+              isSheetFillRequest(lastUserText),
+            classifierContradictedResearch: classifiedState.classifierContradictedResearch === true,
+            // Same question the classifier's Tier 3.5 asks, asked again here
+            // because a turn can reach this gate without having passed that tier
+            // (confident heuristic, LLM verdict, post-pass correction).
+            hasOwnMaterial:
+              lastUserText.length > NOUN_TRIGGER_MAX_LENGTH ||
+              !!classifiedState.attachmentContext ||
+              !!classifiedState.currentDocument ||
+              (classifiedState.docMentionIds ?? []).length > 0,
+          }));
 
       // A demoted turn that a kill-switch (compound, forced tool, ...) kept out
       // of the loop must not strand in executeIntentPipeline, which has no
@@ -2235,6 +2263,22 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       if (fullText === null) {
         await cleanupPending(true);
         return { status: 200 as const, body: undefined };
+      }
+
+      // === Einfache Sprache: die beiden Prüfschritte, jeder mit eigenem Kontext ===
+      // Läuft NACH der gestromten Übertragung und hängt an denselben Text an,
+      // damit Persistenz und Neuladen sehen, was auf dem Bildschirm steht. Das
+      // Original ist der mitgelieferte Text: bei eingefügtem Material hebt
+      // `streamContext` ihn in die Nutzernachricht, bei einer Datei steht er im
+      // Anhang-Kontext — deshalb beide Quellen, in dieser Reihenfolge.
+      if (einfacheSpracheTurn) {
+        const original = lastUserText.trim() || (finalState.attachmentContext ?? '').trim();
+        fullText += await runEinfacheSprachePruefkette({
+          state: finalState,
+          sse,
+          esText: fullText,
+          original,
+        });
       }
 
       // === Stage 3b: Extract chart data from response (if chart intent) ===
