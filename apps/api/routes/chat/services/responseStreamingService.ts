@@ -41,6 +41,7 @@ import {
   type SSEWriter,
 } from './sseHelpers.js';
 import { createIdleDeadline, type IdleDeadline } from './streamIdleDeadline.js';
+import { resolveAbortOutcome } from './turnAbortOutcome.js';
 
 const log = createLogger('ResponseStreaming');
 
@@ -56,11 +57,59 @@ const FIRST_TOKEN_DEADLINE_MS = 20_000;
 // deadline is CLEARED once text starts, leaving Phase 2 (the drain loop)
 // uncapped — a slow/trickling generation ran 338 s live. This ceiling composes
 // into the streamText abortSignal and is NEVER cleared, so it bounds the whole
-// turn (both phases + any fallback attempt). The agentic loop has its own
-// wall-clock budget and does not use these functions.
+// attempt (both phases). The agentic loop has its own wall-clock budget and
+// does not use these functions.
 const SINGLE_PASS_WALL_CLOCK_MS = (() => {
   const n = Number.parseInt(process.env.CHAT_SINGLE_PASS_WALL_CLOCK_MS ?? '', 10);
   return Number.isInteger(n) && n > 0 ? n : 180_000;
+})();
+
+/**
+ * Dieselbe Uhr für eine DENKENDE Lane — sie muss Denken UND Schreiben tragen.
+ *
+ * Gemessen 13.08.2026 gegen regolo/gemma4-31b mit der echten Aufgabe des
+ * Agenten „Einfache Sprache" (5.979 Zeichen Fachtext, `max_tokens: 12000`):
+ * 31 s bis zum ersten Antworttext, 61 s bis fertig, 8.267 Zeichen Denken,
+ * 9.514 Zeichen Antwort, keine Zahl verloren. Derselbe Zug ohne Denken war
+ * nach 6,5 s fertig — mit 1.927 Zeichen, also einer Zusammenfassung statt einer
+ * Übertragung, und drei fehlenden Zahlen. Das Denken trägt hier, es ist kein
+ * Luxus; die Uhr muss also Platz dafür lassen statt es abzuschneiden.
+ *
+ * 280 s bleibt unter dem `proxy_read_timeout 300s` von nginx für `/api/`
+ * (nginx.conf) — jenseits davon schneidet ohnehin der Proxy.
+ */
+const THINKING_WALL_CLOCK_MS = (() => {
+  const n = Number.parseInt(process.env.CHAT_THINKING_WALL_CLOCK_MS ?? '', 10);
+  return Number.isInteger(n) && n > 0 ? n : 280_000;
+})();
+
+/**
+ * Wie lange eine DENKENDE Lane insgesamt brauchen darf, bis das erste
+ * Antwort-Token da ist.
+ *
+ * Die Leerlauf-Frist oben kann das nicht: jedes Denk-Delta stellt sie neu
+ * scharf (`touch()`), also bindet sie ein Modell, das ununterbrochen denkt,
+ * überhaupt nicht. Am 13.08.2026 dachte Mistral Medium 3.5 über eine
+ * Übertragung von 5.838 Zeichen drei Minuten lang — inhaltlich brauchbar, aber
+ * stark wiederholend —, schrieb kein Antwort-Token und starb an der Turn-Uhr:
+ * kein Text, keine gespeicherte Antwort, drei Minuten Wartezeit für nichts.
+ *
+ * Läuft das Budget ab, ist NICHTS beim Nutzer angekommen ausser Denk-Deltas —
+ * derselbe sichere Zustand, in dem `streamForResolution` schon heute den
+ * Reasoning-Pfad wiederholt. Der Zug wird deshalb einmal ohne Denken neu
+ * gefahren, statt den Turn zu verlieren.
+ *
+ * 120 s ist bewusst grosszügig, und die Zahl ist gemessen statt geschätzt:
+ * gemma4-31b denkt über 5.979 Zeichen Fachtext 31 s (siehe
+ * THINKING_WALL_CLOCK_MS). Ein Budget knapp darüber würde genau die langen
+ * Dokumente abwürgen, für die das Denken gebraucht wird — und der Ersatzlauf
+ * ohne Denken ist bei dieser Aufgabe messbar SCHLECHTER (Zusammenfassung statt
+ * Übertragung, drei Zahlen verloren). Das Budget fängt die Entgleisung, nicht
+ * das gründliche Denken.
+ */
+const REASONING_PHASE_BUDGET_MS = (() => {
+  const n = Number.parseInt(process.env.CHAT_REASONING_PHASE_BUDGET_MS ?? '', 10);
+  return Number.isInteger(n) && n > 0 ? n : 120_000;
 })();
 /** LiteLLM overflow lane can queue behind its single Verdigado slot. */
 const LITELLM_FIRST_TOKEN_DEADLINE_MS = 30_000;
@@ -425,6 +474,22 @@ class EmptyCompletionError extends Error {
 }
 
 /**
+ * Das Denk-Budget der Phase 1 ist abgelaufen: das Modell denkt, aber es
+ * ANTWORTET nicht.
+ *
+ * Ausdrücklich KEIN {@link StreamFailure}: ein Sibling hilft hier nicht (das
+ * Modell ist erreichbar und lebt), und die Meldung an den Nutzer wäre die
+ * falsche Antwort auf ein Problem, das noch behebbar ist.
+ * `streamForResolution` fängt sie und fährt denselben Zug ohne Denken.
+ */
+class ReasoningBudgetExceededError extends Error {
+  constructor(readonly budgetMs: number) {
+    super(`Kein Antworttext nach ${budgetMs}ms Denken`);
+    this.name = 'ReasoningBudgetExceededError';
+  }
+}
+
+/**
  * Sentinel error thrown when the primary model fails to produce output AND
  * no text_delta has been emitted yet. Caller catches this to trigger fallback.
  */
@@ -432,6 +497,64 @@ export type StreamFailure = FirstTokenTimeoutError | EmptyCompletionError;
 
 export function isStreamFailure(err: unknown): err is StreamFailure {
   return err instanceof FirstTokenTimeoutError || err instanceof EmptyCompletionError;
+}
+
+/**
+ * Wer den Stream abgebrochen hat — die einzige Frage, die nach einem Abbruch
+ * noch offen ist, und bis 13.08.2026 stellte sie niemand.
+ *
+ * Das AI SDK (7.0.58) stuft eine `DOMException` mit `name: 'TimeoutError'` als
+ * ABBRUCH ein, nicht als Fehler: `streamText` schiebt einen `abort`-Part in den
+ * Stream und schliesst ihn danach regulär (`ai/dist/index.js`, `pull()`). Beide
+ * Drain-Schleifen hier kannten diesen Part nicht, also sah ein Uhr-Abbruch
+ * genauso aus wie ein sauberes Ende — in Phase 1 als `EmptyCompletionError`
+ * (falsch etikettiert, aber wenigstens ein Fallback), in Phase 2 als FERTIGE
+ * Antwort, die anschliessend als vollständiger Zug gespeichert wurde.
+ */
+type AbortCause = 'caller' | 'reasoning_budget' | 'wall_clock' | null;
+
+function abortCause(sources: {
+  caller?: AbortSignal | undefined;
+  reasoningBudget?: AbortSignal | undefined;
+  wall: AbortSignal;
+}): AbortCause {
+  // Reihenfolge = Vorrang: ein vom Nutzer abgebrochener Zug ist kein Timeout,
+  // auch wenn eine Frist im selben Tick mitgefeuert hat.
+  if (sources.caller?.aborted) return 'caller';
+  if (sources.reasoningBudget?.aborted) return 'reasoning_budget';
+  if (sources.wall.aborted) return 'wall_clock';
+  return null;
+}
+
+/** Dieselbe Einstufung, die das AI SDK vornimmt (`isAbortError` in
+ *  @ai-sdk/provider-utils): `TimeoutError` ist ein Abbruch, kein Fehler. */
+function isAbortError(err: unknown): boolean {
+  return (
+    (err instanceof Error || err instanceof DOMException) &&
+    (err.name === 'AbortError' || err.name === 'TimeoutError')
+  );
+}
+
+/**
+ * Was Phase 1 aus einem Abbruch macht — noch ist kein Antworttext beim Nutzer.
+ *
+ * Der Nutzer-Abbruch bleibt ein Abbruch (ein Fallback auf den Sibling wäre eine
+ * Anfrage, die niemand mehr will), das Denk-Budget ist behebbar
+ * (`streamForResolution` fährt ohne Denken nach), und die Turn-Uhr ohne ein
+ * einziges Token ist genau das, was `FirstTokenTimeoutError` beschreibt — also
+ * Fallback und klare Meldung statt `code:'internal'`.
+ */
+function phase1AbortError(
+  cause: AbortCause,
+  budgets: { reasoningBudgetMs?: number | undefined; wallClockMs: number },
+  fallback: () => Error
+): Error {
+  if (cause === 'caller') return new DOMException('Aborted by caller', 'AbortError');
+  if (cause === 'reasoning_budget') {
+    return new ReasoningBudgetExceededError(budgets.reasoningBudgetMs ?? 0);
+  }
+  if (cause === 'wall_clock') return new FirstTokenTimeoutError(budgets.wallClockMs);
+  return fallback();
 }
 
 /**
@@ -469,6 +592,8 @@ async function streamAndAccumulateOrThrow(params: {
   telemetry?: Parameters<typeof streamText>[0]['experimental_telemetry'];
   firstTokenDeadlineMs?: number;
   wallClockMs?: number;
+  /** Nur für denkende Lanes gesetzt — siehe REASONING_PHASE_BUDGET_MS. */
+  reasoningBudgetMs?: number;
 }): Promise<string | null> {
   const {
     model,
@@ -482,6 +607,7 @@ async function streamAndAccumulateOrThrow(params: {
     telemetry,
     firstTokenDeadlineMs = FIRST_TOKEN_DEADLINE_MS,
     wallClockMs = SINGLE_PASS_WALL_CLOCK_MS,
+    reasoningBudgetMs,
   } = params;
 
   const {
@@ -493,7 +619,23 @@ async function streamAndAccumulateOrThrow(params: {
   // Turn wall-clock: bounds BOTH phases (the first-token deadline is cleared
   // after phase 1, leaving the drain uncapped). Cleared on normal completion.
   const wall = createAbortTimer(wallClockMs);
-  const composed = AbortSignal.any([...(signal ? [signal] : []), deadlineSignal, wall.signal]);
+  // Denk-Budget: bindet NUR Phase 1 und wird mit dem ersten Antworttext
+  // entschärft — anders als die Leerlauf-Frist, die jedes Denk-Delta neu stellt.
+  const reasoningBudget = reasoningBudgetMs != null ? createAbortTimer(reasoningBudgetMs) : null;
+  const composed = AbortSignal.any([
+    ...(signal ? [signal] : []),
+    deadlineSignal,
+    wall.signal,
+    ...(reasoningBudget ? [reasoningBudget.signal] : []),
+  ]);
+  const causeOf = (): AbortCause =>
+    abortCause({ caller: signal, reasoningBudget: reasoningBudget?.signal, wall: wall.signal });
+  const abortErrorForPhase1 = (): Error =>
+    phase1AbortError(
+      causeOf(),
+      { reasoningBudgetMs, wallClockMs },
+      () => new EmptyCompletionError()
+    );
 
   const { system, messages: messagesWithoutSystem } = extractSystemFromMessages(
     messages as ModelMessage[]
@@ -529,9 +671,13 @@ async function streamAndAccumulateOrThrow(params: {
   try {
     while (!textStarted) {
       const next = await Promise.race([iterator.next(), deadline]);
-      if (next.done) throw new EmptyCompletionError();
+      // `done` heisst hier zweierlei: der Upstream war leer — oder eine unserer
+      // Fristen hat abgebrochen und das SDK hat den Stream danach regulär
+      // geschlossen. Ohne diese Frage sah der zweite Fall aus wie der erste.
+      if (next.done) throw abortErrorForPhase1();
       const part = next.value;
       if (part.type === 'error') throw part.error;
+      if (part.type === 'abort') throw abortErrorForPhase1();
       if (part.type === 'reasoning-delta' && part.text.length > 0) {
         // Alive, but not answering yet: rearm the idle window and let the real
         // reasoning deltas replace the heartbeat as the UI's proof of progress.
@@ -540,6 +686,7 @@ async function streamAndAccumulateOrThrow(params: {
         sse.send('reasoning_delta', { text: part.text });
       } else if (part.type === 'text-delta' && part.text.length > 0) {
         clear();
+        reasoningBudget?.clear();
         stopHeartbeat();
         fullText += part.text;
         sse.send('text_delta', { text: part.text });
@@ -549,18 +696,27 @@ async function streamAndAccumulateOrThrow(params: {
   } catch (err) {
     clear();
     wall.clear();
+    reasoningBudget?.clear();
     stopHeartbeat();
     throw err;
   }
 
   // Phase 2 — visible text is on the wire; just drain. Errors here can't
   // trigger a clean fallback, so they end the stream gracefully.
+  let aborted = false;
   try {
     while (true) {
       const next = await iterator.next();
-      if (next.done) break;
+      if (next.done) {
+        aborted = causeOf() !== null;
+        break;
+      }
       const part = next.value;
       if (part.type === 'error') throw part.error;
+      if (part.type === 'abort') {
+        aborted = true;
+        break;
+      }
       if (part.type === 'reasoning-delta' && part.text.length > 0) {
         sse.send('reasoning_delta', { text: part.text });
       } else if (part.type === 'text-delta' && part.text.length > 0) {
@@ -585,7 +741,24 @@ async function streamAndAccumulateOrThrow(params: {
   }
 
   wall.clear();
-  return fullText;
+  return aborted ? markTruncated(fullText, sse, logPrefix) : fullText;
+}
+
+/**
+ * Die halbe Antwort bleibt stehen — sie ist echte Arbeit —, darf aber nicht als
+ * fertige durchgehen. Die Notiz geht als `text_delta` raus UND in den
+ * Rückgabewert, also auch in die Persistenz: nach einem Reload steht dieselbe
+ * Warnung da, die der Nutzer live gesehen hat. Dasselbe Vorgehen wie im
+ * agentischen Loop, jetzt aus derselben Quelle (turnAbortOutcome).
+ */
+function markTruncated(text: string, sse: SSEWriter, logPrefix: string): string {
+  const outcome = resolveAbortOutcome({ text, aborted: true });
+  if (!outcome) return text;
+  log.warn(
+    `${logPrefix} Stream abgebrochen nach ${text.length} Zeichen — als unvollständig markiert`
+  );
+  sse.send('text_delta', { text: outcome.delta });
+  return outcome.mode === 'append' ? text + outcome.delta : outcome.delta;
 }
 
 /**
@@ -603,6 +776,7 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
   logPrefix?: string;
   firstTokenDeadlineMs?: number;
   wallClockMs?: number;
+  reasoningBudgetMs?: number;
   effort?: ThinkingEffort;
 }): Promise<string | null> {
   const {
@@ -617,6 +791,7 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
     logPrefix = '[ChatGraph]',
     firstTokenDeadlineMs = FIRST_TOKEN_DEADLINE_MS,
     wallClockMs = SINGLE_PASS_WALL_CLOCK_MS,
+    reasoningBudgetMs = REASONING_PHASE_BUDGET_MS,
   } = params;
 
   const {
@@ -628,7 +803,16 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
   // Turn wall-clock: bounds BOTH phases (the first-token deadline is cleared
   // after phase 1, leaving the drain uncapped). Cleared on normal completion.
   const wall = createAbortTimer(wallClockMs);
-  const composed = AbortSignal.any([...(signal ? [signal] : []), deadlineSignal, wall.signal]);
+  // Dieser Pfad läuft NUR für denkende Lanes — das Denk-Budget gilt hier immer.
+  const reasoningBudget = createAbortTimer(reasoningBudgetMs);
+  const composed = AbortSignal.any([
+    ...(signal ? [signal] : []),
+    deadlineSignal,
+    wall.signal,
+    reasoningBudget.signal,
+  ]);
+  const causeOf = (): AbortCause =>
+    abortCause({ caller: signal, reasoningBudget: reasoningBudget.signal, wall: wall.signal });
 
   const streamParams: Parameters<typeof streamWithReasoning>[0] = {
     provider,
@@ -654,6 +838,7 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
       const chunk = next.value;
       if (chunk.type === 'text') {
         clear();
+        reasoningBudget.clear();
         stopHeartbeat();
         fullText += chunk.delta;
         sse.send('text_delta', { text: chunk.delta });
@@ -666,8 +851,14 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
   } catch (err) {
     clear();
     wall.clear();
+    reasoningBudget.clear();
     stopHeartbeat();
-    throw err;
+    // Der Roh-Fetch wirft den Abbruch (anders als das SDK, das einen `abort`-
+    // Part schickt) — die Frage „wer war es" ist dieselbe. Ohne sie flog eine
+    // nackte DOMException bis in den Router und wurde dort zu `code:'internal'`.
+    throw isAbortError(err)
+      ? phase1AbortError(causeOf(), { reasoningBudgetMs, wallClockMs }, () => err as Error)
+      : err;
   }
 
   // Phase 2 — first text chunk is in. Drain without deadline.
@@ -684,6 +875,11 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
     }
   } catch (streamError: unknown) {
     wall.clear();
+    if (isAbortError(streamError)) {
+      // Halb geschriebene Antwort: sie bleibt stehen, aber markiert — der
+      // Zweig darunter hätte sie samt gestromtem Text verworfen (return null).
+      return markTruncated(fullText, sse, logPrefix);
+    }
     const errorMessage = streamError instanceof Error ? streamError.message : 'Unknown error';
     log.error(`${logPrefix} Reasoning stream error after first token:`, errorMessage);
     sse.send('error', {
@@ -828,7 +1024,7 @@ export async function streamWithFallback(params: {
  * Reasoning has three different shapes upstream, all driven by the single
  * `resolution.reasoningEffort` value:
  *   - Mistral: a per-request `reasoningEffort` provider option.
- *   - Regolo (vLLM): the `enable_thinking` chat-template flag.
+ *   - Regolo (vLLM): `reasoning_effort` (`none` schaltet ab).
  *   - LiteLLM/Ollama: thinking is ON by default; `off` means taking the SDK
  *     path instead, which sets `think: false` via litellmFetchWithThinkingDisabled.
  */
@@ -868,6 +1064,10 @@ export async function streamForResolution(params: {
     logPrefix ?? '[ChatGraph]'
   );
 
+  /** Gesetzt, wenn der Denk-Versuch am Budget scheiterte: der SDK-Pfad unten
+   *  ist dann der Ersatz OHNE Denken, nicht der zweite Anlauf mit. */
+  let thinkingRetriedWithoutBudget = false;
+
   // `off` deliberately skips the reasoning streamer entirely: for the lanes
   // that stream thinking by default (verdigado-pro/-think, the Regolo family)
   // that is the ONLY way to actually stop them from thinking, and it is what
@@ -883,6 +1083,9 @@ export async function streamForResolution(params: {
       temperature,
       sse,
       firstTokenDeadlineMs,
+      // Denken UND Schreiben müssen in diese Uhr passen — siehe die Messung an
+      // THINKING_WALL_CLOCK_MS.
+      wallClockMs: THINKING_WALL_CLOCK_MS,
     };
     if (signal) args.signal = signal;
     if (logPrefix) args.logPrefix = logPrefix;
@@ -908,22 +1111,39 @@ export async function streamForResolution(params: {
       // never answered — nothing has reached the user's screen yet. A
       // mid-stream failure throws a plain Error and is deliberately not caught
       // here; retrying would replay tokens the user has already seen.
-      if (resolution.provider !== 'mistral' || !(err instanceof ReasoningStreamUnavailableError)) {
+      // Das Denk-Budget ist die zweite Art, auf der ein Denk-Versuch enden
+      // darf, ohne dass der Zug verloren ist — und sie gilt auf JEDER Lane:
+      // unten steht der SDK-Pfad, und der denkt nicht (Regolo pinnt dort
+      // `reasoning_effort:'none'`, Mistral bekommt keine providerOptions).
+      // Dieselbe Sicherheitsbedingung wie darunter: es ist noch kein
+      // Antworttext beim Nutzer, nur Denk-Deltas.
+      if (err instanceof ReasoningBudgetExceededError) {
+        log.warn(
+          `${logPrefix ?? '[ChatGraph]'} ${resolution.provider}/${resolution.modelName} hat ${err.budgetMs}ms gedacht ohne zu antworten — zweiter Versuch ohne Denken`
+        );
+      } else if (
+        resolution.provider !== 'mistral' ||
+        !(err instanceof ReasoningStreamUnavailableError)
+      ) {
         throw err;
+      } else {
+        // Den Grund des Upstreams MITSCHREIBEN, nicht deuten: die frühere
+        // Fassung meldete pauschal „reasoning unavailable", und ein 400 wegen
+        // ungültigem Payload (`max_completion_tokens is limited to 16384`) las
+        // sich dann wie ein Reasoning-Problem — während der zweite Versuch in
+        // exakt denselben Fehler lief, weil an der Anfrage lag, was der Text
+        // dem Host zuschrieb.
+        //
+        // `err.message` trägt den Status bereits (siehe den Konstruktor von
+        // ReasoningStreamUnavailableError), deshalb hier NICHT zusätzlich
+        // `err.status` — sonst steht die Zahl zweimal in derselben Zeile.
+        log.warn(
+          `${logPrefix ?? '[ChatGraph]'} Scaleway-Reasoning fehlgeschlagen (${err.message}) — zweiter Versuch über die Mistral-API`
+        );
       }
-      // Den Grund des Upstreams MITSCHREIBEN, nicht deuten: die frühere
-      // Fassung meldete pauschal „reasoning unavailable", und ein 400 wegen
-      // ungültigem Payload (`max_completion_tokens is limited to 16384`) las
-      // sich dann wie ein Reasoning-Problem — während der zweite Versuch in
-      // exakt denselben Fehler lief, weil an der Anfrage lag, was der Text
-      // dem Host zuschrieb.
-      //
-      // `err.message` trägt den Status bereits (siehe den Konstruktor von
-      // ReasoningStreamUnavailableError), deshalb hier NICHT zusätzlich
-      // `err.status` — sonst steht die Zahl zweimal in derselben Zeile.
-      log.warn(
-        `${logPrefix ?? '[ChatGraph]'} Scaleway-Reasoning fehlgeschlagen (${err.message}) — zweiter Versuch über die Mistral-API`
-      );
+      // Der zweite Versuch denkt nur im Scaleway-Fall noch einmal: beim
+      // Budget-Abbruch ist das Weglassen der Zweck.
+      thinkingRetriedWithoutBudget = err instanceof ReasoningBudgetExceededError;
     }
   }
 
@@ -941,9 +1161,32 @@ export async function streamForResolution(params: {
   // Mistral reasoning models (e.g. Medium 3.5) only think when `reasoningEffort`
   // is set per request; @ai-sdk/mistral then surfaces the reasoning via
   // fullStream so streamAndAccumulateOrThrow can emit it as reasoning_delta.
-  if (thinking && resolution.provider === 'mistral' && isReasoningCapable(resolution.modelName)) {
+  const thinkHere = thinking && !thinkingRetriedWithoutBudget;
+  if (thinkHere && resolution.provider === 'mistral' && isReasoningCapable(resolution.modelName)) {
     const mistralEffort = mistralReasoningOption(resolution.reasoningEffort);
-    if (mistralEffort) args.providerOptions = { mistral: { reasoningEffort: mistralEffort } };
+    if (mistralEffort) {
+      args.providerOptions = { mistral: { reasoningEffort: mistralEffort } };
+      // Nur wo wirklich gedacht wird: auf einer stummen Lane bindet die
+      // Leerlauf-Frist bereits, ein zweites Budget wäre eine zweite Uhr auf
+      // dieselbe Frage.
+      args.reasoningBudgetMs = REASONING_PHASE_BUDGET_MS;
+      args.wallClockMs = THINKING_WALL_CLOCK_MS;
+    }
   }
-  return streamAndAccumulateOrThrow(args);
+  try {
+    return await streamAndAccumulateOrThrow(args);
+  } catch (err) {
+    if (!(err instanceof ReasoningBudgetExceededError)) throw err;
+    // Zweiter Anlauf ohne Denken — derselbe sichere Zustand wie oben: nichts
+    // ausser Denk-Deltas ist beim Nutzer angekommen.
+    log.warn(
+      `${logPrefix ?? '[ChatGraph]'} ${resolution.provider}/${resolution.modelName} hat ${err.budgetMs}ms gedacht ohne zu antworten — zweiter Versuch ohne Denken`
+    );
+    delete args.providerOptions;
+    delete args.reasoningBudgetMs;
+    // Ohne Denken gilt wieder die gewöhnliche Uhr: der zweite Lauf schreibt
+    // nur noch.
+    args.wallClockMs = SINGLE_PASS_WALL_CLOCK_MS;
+    return await streamAndAccumulateOrThrow(args);
+  }
 }
