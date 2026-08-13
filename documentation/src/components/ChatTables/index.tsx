@@ -47,7 +47,7 @@ function AudienceNote({ audience }: { audience?: string }): React.JSX.Element | 
 }
 
 /**
- * The slash-command Rezepte, grouped by their UI category. Rendered straight
+ * The Rezepte, grouped by their UI category. Rendered straight
  * from the generated manifest, so a new recipe in
  * `packages/shared/src/agents/skills/` appears here after
  * `capabilities:generate` — and a removed one disappears.
