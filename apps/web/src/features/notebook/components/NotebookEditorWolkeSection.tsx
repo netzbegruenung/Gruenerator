@@ -7,6 +7,8 @@ import { HiCloud, HiExclamation, HiRefresh, HiX } from 'react-icons/hi';
 import { useDocumentsStore } from '../../../stores/documentsStore';
 import { cn } from '../../../utils/cn';
 import { useSettingsDialogStore } from '../../settings/settingsDialogStore';
+import { syncWolkeFolder } from '../hooks/syncWolkeFolder';
+import { joinNotices } from '../hooks/wolkeImportSummary';
 
 export interface ImportedWolkeDocument {
   id: string;
@@ -56,7 +58,6 @@ const NotebookEditorWolkeSection = ({
   disabled,
 }: Props) => {
   const shareLinksQuery = useShareLinks();
-  const { browseWolkeFiles, importWolkeFiles } = useDocumentsStore();
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [syncingId, setSyncingId] = useState<string | null>(null);
@@ -96,57 +97,50 @@ const NotebookEditorWolkeSection = ({
       setSyncingId(folder.shareLinkId);
       setError(null);
       try {
-        const browseResult = await browseWolkeFiles(folder.shareLinkId);
-        const supported = browseResult.files.filter((f) => f.isSupported);
-        if (supported.length === 0) {
-          setError(`Keine unterstützten Dateien in "${folder.folderName}" gefunden.`);
+        // Same code path as the full sync — this used to be a second, drifted
+        // copy that reported even less back to the user.
+        const result = await syncWolkeFolder(folder, {
+          documentsStore: useDocumentsStore.getState(),
+          remainingSlots,
+        });
+
+        if (result.kind === 'error') {
+          setError(result.message);
           return;
         }
 
-        const sliced = supported.slice(0, Math.max(0, remainingSlots));
-        const skipped = supported.length - sliced.length;
-        if (sliced.length === 0) {
-          setError('Notebook ist voll.');
-          return;
-        }
+        if (result.alreadyImported.length > 0) onDocsImported(result.alreadyImported);
+        if (result.newlyImported.length > 0) onDocsImported(result.newlyImported);
 
-        const result = await importWolkeFiles(folder.shareLinkId, sliced);
-        const imported = (result.results ?? [])
-          .filter((r) => r.success && r.documentId)
-          .map((r) => ({ id: r.documentId as string, title: r.filename }));
-
-        const alreadyImported = (result.results ?? []).filter(
-          (r) => r.skipped && r.documentId && r.reason === 'already_imported'
-        );
-        if (alreadyImported.length > 0) {
-          onDocsImported(
-            alreadyImported.map((r) => ({ id: r.documentId as string, title: r.filename }))
-          );
-        }
-
-        if (imported.length > 0) {
-          onDocsImported(imported);
-        }
-
-        const syncedAt = new Date().toISOString();
         onFoldersChange(
           folders.map((f) =>
-            f.shareLinkId === folder.shareLinkId ? { ...f, lastSyncedAt: syncedAt } : f
+            f.shareLinkId === folder.shareLinkId
+              ? { ...f, lastSyncedAt: result.updatedLastSyncedAt }
+              : f
           )
         );
 
-        if (skipped > 0) {
-          setError(
-            `${skipped} Datei${skipped === 1 ? '' : 'en'} übersprungen — Notebook fast voll.`
-          );
-        }
+        const slotsNotice =
+          result.skippedDueToSlotsFull > 0
+            ? `${result.skippedDueToSlotsFull} Datei${
+                result.skippedDueToSlotsFull === 1 ? '' : 'en'
+              } übersprungen — Notebook fast voll.`
+            : null;
+        const emptyNotice =
+          result.newlyImported.length === 0 &&
+          result.alreadyImported.length === 0 &&
+          result.failures.length === 0
+            ? `Keine unterstützten Dateien in "${folder.folderName}" gefunden.`
+            : null;
+
+        setError(joinNotices([emptyNotice, result.notice, slotsNotice]));
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Synchronisation fehlgeschlagen.');
       } finally {
         setSyncingId(null);
       }
     },
-    [browseWolkeFiles, importWolkeFiles, remainingSlots, folders, onFoldersChange, onDocsImported]
+    [remainingSlots, folders, onFoldersChange, onDocsImported]
   );
 
   const isLoading = shareLinksQuery.isLoading;
