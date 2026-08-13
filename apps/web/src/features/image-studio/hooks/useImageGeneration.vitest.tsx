@@ -95,6 +95,89 @@ describe('useImageGeneration.generateText', () => {
     expect(out).toMatchObject({ quote: 'Ein Zitat.', alternatives: [{ quote: 'Noch eins.' }] });
   });
 
+  /**
+   * Österreich hängt an eigenen Routen. Der MSW-Pfad ist hier die eigentliche
+   * Zusicherung: griffe die AT-Vorlage auf `/info`, käme deutscher Text mit
+   * header/subheader/body in ein Sujet, das Introline/Text/Akzent setzt — und
+   * der Test bliebe ohne den Pfadabgleich trotzdem grün.
+   */
+  describe('Österreich', () => {
+    it('info-at: eigene Route, introline/text/accent', async () => {
+      server.use(
+        http.post(`${BASE}/info_at`, () =>
+          HttpResponse.json({
+            success: true,
+            mainInfo: {
+              introline: 'Windkraft',
+              text: 'Jedes neue Windrad macht uns',
+              accent: 'unabhängiger.',
+            },
+            alternatives: [],
+            searchTerms: ['windrad'],
+          })
+        )
+      );
+
+      const { result } = renderHook(() => useImageGeneration());
+
+      let out: Awaited<ReturnType<typeof result.current.generateText>> = null;
+      await act(async () => {
+        out = await result.current.generateText('info-at', { thema: 'Windkraft' });
+      });
+
+      expect(out).toMatchObject({
+        introline: 'Windkraft',
+        text: 'Jedes neue Windrad macht uns',
+        accent: 'unabhängiger.',
+      });
+      expect(result.current.error).toBe('');
+    });
+
+    it('dreizeilen-overlay-at: eigene Route, Slogan mit Subline', async () => {
+      server.use(
+        http.post(`${BASE}/dreizeilen_at`, () =>
+          HttpResponse.json({
+            success: true,
+            mainSlogan: {
+              line1: 'Mehr Windkraft',
+              line2: 'für Österreich',
+              line3: 'und für uns',
+              subline: 'Ausbau bis 2030',
+            },
+            alternatives: [],
+            searchTerms: [],
+          })
+        )
+      );
+
+      const { result } = renderHook(() => useImageGeneration());
+
+      let out: Awaited<ReturnType<typeof result.current.generateText>> = null;
+      await act(async () => {
+        out = await result.current.generateText('dreizeilen-overlay-at', { thema: 'Windkraft' });
+      });
+
+      expect(out).toMatchObject({
+        mainSlogan: {
+          line1: 'Mehr Windkraft',
+          line2: 'für Österreich',
+          subline: 'Ausbau bis 2030',
+        },
+      });
+    });
+
+    it('freies Design bleibt ohne Textgenerierung', async () => {
+      const { result } = renderHook(() => useImageGeneration());
+
+      let out: Awaited<ReturnType<typeof result.current.generateText>> = null;
+      await act(async () => {
+        out = await result.current.generateText('freeform-at', { thema: 'X' });
+      });
+
+      expect(out).toBeNull();
+    });
+  });
+
   it('400: die Ablehnung des Modells landet wörtlich im Fehlerzustand', async () => {
     server.use(
       http.post(`${BASE}/zitat`, () =>

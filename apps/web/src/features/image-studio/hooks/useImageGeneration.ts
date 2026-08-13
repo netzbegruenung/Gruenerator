@@ -67,7 +67,7 @@ interface KiImageFormData {
 interface TextGenerationResult {
   quote?: string;
   name?: string;
-  mainSlogan?: { line1: string; line2: string; line3: string };
+  mainSlogan?: { line1: string; line2: string; line3: string; subline?: string };
   alternatives: Array<Record<string, string>>;
   searchTerms?: string[];
   header?: string;
@@ -83,6 +83,10 @@ interface TextGenerationResult {
   headline?: string;
   subtext?: string;
   label?: string;
+  /** Österreich-Info: Introline, Satz, gelber Akzent statt header/subheader/body. */
+  introline?: string;
+  text?: string;
+  accent?: string;
 }
 
 /**
@@ -109,6 +113,17 @@ function toSharepicTextType(type: string): SharepicTextType | null {
       return 'simple';
     case IMAGE_STUDIO_TYPES.SLIDER:
       return 'slider';
+    // Österreich: eigene Sujets, eigene Prompts, eigene Antwortform. Sie hängen
+    // NICHT an den deutschen Routen mit einem Locale-Kopf — der Sujet-Typ ist
+    // die Entscheidung, und die trifft die Vorlagenauswahl.
+    case IMAGE_STUDIO_TYPES.ZITAT_AT:
+      return 'zitat';
+    case IMAGE_STUDIO_TYPES.ZITAT_PURE_AT:
+      return 'zitat_pure';
+    case IMAGE_STUDIO_TYPES.DREIZEILEN_OVERLAY_AT:
+      return 'dreizeilen_at';
+    case IMAGE_STUDIO_TYPES.INFO_AT:
+      return 'info_at';
     default:
       return 'dreizeilen';
   }
@@ -214,10 +229,22 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
             };
           }
 
-          case 'dreizeilen': {
-            const r = await generateSharepicText('dreizeilen', body);
+          case 'dreizeilen':
+          case 'dreizeilen_at': {
+            const r = await generateSharepicText(textType, body);
             return {
               mainSlogan: r.mainSlogan,
+              alternatives: r.alternatives,
+              searchTerms: r.searchTerms,
+            };
+          }
+
+          case 'info_at': {
+            const r = await generateSharepicText('info_at', body);
+            return {
+              introline: r.mainInfo.introline,
+              text: r.mainInfo.text,
+              accent: r.mainInfo.accent,
               alternatives: r.alternatives,
               searchTerms: r.searchTerms,
             };
