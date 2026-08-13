@@ -32,7 +32,7 @@ export interface NotebookDepthProfile {
   /**
    * Ausgabe-Wunsch der Stufe, keine Zusage. Liegt er über der Decke des
    * Modells, das die Lane auflöst, kürzt `clampToModelOutputLimit`
-   * (routes/chat/services/responseStreamingService.ts) darauf herunter — Mistral
+   * (services/ai/modelOutputLimits.ts) darauf herunter — Mistral
    * Medium 3.5 nimmt hier höchstens 16.384 an, andere Lanes mehr. Die Zahl darf
    * deshalb großzügig bleiben; sie ist auf die Stufe getunt, nicht auf das
    * Modell.

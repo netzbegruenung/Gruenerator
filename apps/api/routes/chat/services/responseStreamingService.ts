@@ -10,6 +10,7 @@
 import { streamText, type ModelMessage, type LanguageModel } from 'ai';
 
 import { isReasoningCapable } from '../../../services/ai/modelDiscovery.js';
+import { clampToModelOutputLimit } from '../../../services/ai/modelOutputLimits.js';
 import {
   isReasoningStreamModel,
   ReasoningStreamUnavailableError,
@@ -24,7 +25,6 @@ import {
   type ReasoningSetting,
 } from '../agents/autoPolicy.js';
 import {
-  getMaxOutputTokens,
   getModel,
   resolveModelTuple,
   VISION_MODEL,
@@ -139,6 +139,51 @@ const EXPLICIT_SELECTION_REASONING: ReasoningSetting = 'high';
  */
 export function mistralReasoningOption(setting: ReasoningSetting): 'high' | null {
   return setting === 'medium' || setting === 'high' ? 'high' : null;
+}
+
+/**
+ * Ob dieser Zug auf DIESER Lane wirklich denkt.
+ *
+ * Die EINE Lesart von `reasoningEffort`, weil es vorher zwei gab und sie sich
+ * widersprachen. `low` — was die Auto-Policy jeder einfachen Notizbuch-Frage
+ * gibt (autoPolicy, surface `notebook`, complexity `simple`) — hieß:
+ *
+ *   - für den Streamer „an": `reasoningEffort !== 'off'`, also lief der
+ *     Roh-Fetch, der `reasoning_effort: 'high'` fest verdrahtet. Aus „ein
+ *     bisschen denken" wurde volles Denken.
+ *   - für den Modell-Pin „aus": `mistralReasoningOption('low') === null`, also
+ *     kein `needsReasoning`, also Scaleway statt Mistral-API — und auf dem
+ *     SDK-Pfad auch keine `providerOptions.mistral`, also gar kein Denken.
+ *
+ * Beides zusammen ergab den Fehler, den der 400er verdeckte: der Roh-Pfad
+ * scheiterte, und der „Ersatz über die Mistral-API" lief in Wahrheit auf
+ * denselben Scaleway-Host zurück (`resolution.model` war mit
+ * `needsReasoning: false` gebaut worden) — diesmal ohne jedes Reasoning.
+ *
+ * Aufgelöst wird zugunsten der bereits dokumentierten Entscheidung in
+ * {@link mistralReasoningOption}: Mistrals Dial ist BINÄR, und alles unter
+ * `medium` ist auf einem Modell ohne Low-Stufe ehrlich gelesen ein „nicht
+ * denken". Das ist keine neue Produktentscheidung, sondern die bestehende,
+ * konsequent angewandt — der Roh-Pfad, der `low` zu `high` hochstufte, war der
+ * Ausreißer.
+ *
+ * Weil Pin und Streamer jetzt dieselbe Antwort bekommen, gilt wieder, was der
+ * Fallback im Catch-Block unten voraussetzt: läuft der Reasoning-Pfad, dann ist
+ * `resolution.model` die Mistral-API — es gibt also wirklich ein zweites Zuhause.
+ *
+ * Lanes ohne binären Dial (Regolo/vLLM, LiteLLM/Ollama) behalten ihre Lesart:
+ * dort ist alles außer `off` ein Denken.
+ */
+export function thinksOnThisLane(
+  provider: string,
+  modelName: string,
+  setting: ReasoningSetting
+): boolean {
+  if (setting === 'off') return false;
+  if (provider === 'mistral') {
+    return isReasoningCapable(modelName) && mistralReasoningOption(setting) !== null;
+  }
+  return true;
 }
 
 /**
@@ -290,11 +335,13 @@ export async function resolveModel(
     // `providerOptions.mistral` block set further down (see the streamOnce
     // call site), so the effort would be dropped without a trace — no error,
     // no reasoning, nothing in the logs. See routeMistralModel.
+    //
+    // DIESELBE Frage, die streamForResolution stellt, und deshalb derselbe
+    // Ausdruck: driften die beiden auseinander, wählt der Streamer einen
+    // Reasoning-Pfad, für den der Pin den Host gar nicht umgestellt hat.
+    // Genau so war es — siehe thinksOnThisLane.
     model: getModel(modelProvider, modelName, {
-      needsReasoning:
-        modelProvider === 'mistral' &&
-        isReasoningCapable(modelName) &&
-        mistralReasoningOption(reasoningEffort) !== null,
+      needsReasoning: thinksOnThisLane(modelProvider, modelName, reasoningEffort),
     }),
     provider: modelProvider,
     modelName,
@@ -763,48 +810,6 @@ export async function streamWithFallback(params: {
 }
 
 /**
- * Eine angeforderte Ausgabelänge auf das gedrosselt, was das Modell annimmt.
- *
- * Die Decke steht in `getMaxOutputTokens` (agents/providers.ts). Kein Eintrag
- * heißt: nicht deckeln — der Anbieter entscheidet, wie auf allen Antwortpfaden
- * ohne eigene Zahl.
- *
- * Warum überhaupt gekürzt und nicht abgelehnt: eine zu große Zahl ist ein
- * Konfigurationsfehler des Aufrufers, kein Nutzerfehler. `max_tokens` ist eine
- * OBERGRENZE, keine Bestellmenge — auf 16.384 gekürzt schreibt das Modell
- * dieselbe Antwort, die es bei 40.000 geschrieben hätte, solange sie darunter
- * bleibt. Ungekürzt lehnt der Upstream den ganzen Aufruf mit 400 ab, und zwar
- * auf JEDEM Host derselben Gewichte — der Turn ist tot, nicht nur gekürzt.
- * Deshalb warnt es laut, statt still zu passieren.
- *
- * Die Warnung feuert einmal je (Modell, angeforderte Zahl) und Prozess. Sie
- * meldet einen Konfigurationsfehler, und der ändert sich zwischen zwei Zügen
- * nicht: ungedrosselt stünde sie unter JEDER Notizbuch-Deep-Antwort und wäre
- * binnen einer Stunde unlesbar — genau das Rauschen, in dem der nächste echte
- * Befund untergeht.
- */
-const clampWarned = new Set<string>();
-
-export function clampToModelOutputLimit(
-  requested: number | undefined,
-  modelName: string,
-  logPrefix: string
-): number | undefined {
-  if (requested == null) return undefined;
-  const limit = getMaxOutputTokens(modelName);
-  if (limit === null || requested <= limit) return requested;
-
-  const key = `${modelName}:${requested}`;
-  if (!clampWarned.has(key)) {
-    clampWarned.add(key);
-    log.warn(
-      `${logPrefix} maxOutputTokens ${requested} über der Decke von ${modelName} (${limit}) — gekürzt (weitere Fälle dieser Paarung werden nicht mehr gemeldet)`
-    );
-  }
-  return limit;
-}
-
-/**
  * Dispatch entry point paired with streamWithFallback. Routes reasoning-capable
  * lanes through the reasoning-aware streamer; everything else through the
  * standard AI SDK path.
@@ -830,7 +835,11 @@ export async function streamForResolution(params: {
   const { resolution, messages, maxTokens, temperature, sse, signal, logPrefix, telemetry } =
     params;
 
-  const thinking = resolution.reasoningEffort !== 'off';
+  const thinking = thinksOnThisLane(
+    resolution.provider,
+    resolution.modelName,
+    resolution.reasoningEffort
+  );
   const firstTokenDeadlineMs = getFirstTokenDeadlineMs(
     resolution.provider,
     resolution.modelName,
@@ -877,6 +886,13 @@ export async function streamForResolution(params: {
       // the needsReasoning pin in resolveModel), so falling through to the SDK
       // path below re-runs the turn against Mistral with reasoning intact.
       // Every other lane has nowhere to fall back to, so its error propagates.
+      //
+      // Diese Voraussetzung TRÄGT jetzt, weil Pin und Streamer dieselbe Frage
+      // stellen (thinksOnThisLane). Vorher taten sie es nicht: bei `low` kam
+      // der Streamer hierher, während der Pin den Host auf Scaleway gelassen
+      // hatte — der „Ersatz über die Mistral-API" lief also auf denselben Host
+      // zurück, den der erste Versuch gerade abgelehnt hatte, und ohne jedes
+      // Reasoning. Wer die beiden Ausdrücke wieder trennt, holt das zurück.
       //
       // Safe only because ReasoningStreamUnavailableError means the upstream
       // never answered — nothing has reached the user's screen yet. A
