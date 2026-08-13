@@ -10,6 +10,7 @@
 import { streamText, type ModelMessage, type LanguageModel } from 'ai';
 
 import { isReasoningCapable } from '../../../services/ai/modelDiscovery.js';
+import { clampToModelOutputLimit } from '../../../services/ai/modelOutputLimits.js';
 import {
   isReasoningStreamModel,
   ReasoningStreamUnavailableError,
@@ -139,6 +140,51 @@ const EXPLICIT_SELECTION_REASONING: ReasoningSetting = 'high';
  */
 export function mistralReasoningOption(setting: ReasoningSetting): 'high' | null {
   return setting === 'medium' || setting === 'high' ? 'high' : null;
+}
+
+/**
+ * Ob dieser Zug auf DIESER Lane wirklich denkt.
+ *
+ * Die EINE Lesart von `reasoningEffort`, weil es vorher zwei gab und sie sich
+ * widersprachen. `low` — was die Auto-Policy jeder einfachen Notizbuch-Frage
+ * gibt (autoPolicy, surface `notebook`, complexity `simple`) — hieß:
+ *
+ *   - für den Streamer „an": `reasoningEffort !== 'off'`, also lief der
+ *     Roh-Fetch, der `reasoning_effort: 'high'` fest verdrahtet. Aus „ein
+ *     bisschen denken" wurde volles Denken.
+ *   - für den Modell-Pin „aus": `mistralReasoningOption('low') === null`, also
+ *     kein `needsReasoning`, also Scaleway statt Mistral-API — und auf dem
+ *     SDK-Pfad auch keine `providerOptions.mistral`, also gar kein Denken.
+ *
+ * Beides zusammen ergab den Fehler, den der 400er verdeckte: der Roh-Pfad
+ * scheiterte, und der „Ersatz über die Mistral-API" lief in Wahrheit auf
+ * denselben Scaleway-Host zurück (`resolution.model` war mit
+ * `needsReasoning: false` gebaut worden) — diesmal ohne jedes Reasoning.
+ *
+ * Aufgelöst wird zugunsten der bereits dokumentierten Entscheidung in
+ * {@link mistralReasoningOption}: Mistrals Dial ist BINÄR, und alles unter
+ * `medium` ist auf einem Modell ohne Low-Stufe ehrlich gelesen ein „nicht
+ * denken". Das ist keine neue Produktentscheidung, sondern die bestehende,
+ * konsequent angewandt — der Roh-Pfad, der `low` zu `high` hochstufte, war der
+ * Ausreißer.
+ *
+ * Weil Pin und Streamer jetzt dieselbe Antwort bekommen, gilt wieder, was der
+ * Fallback im Catch-Block unten voraussetzt: läuft der Reasoning-Pfad, dann ist
+ * `resolution.model` die Mistral-API — es gibt also wirklich ein zweites Zuhause.
+ *
+ * Lanes ohne binären Dial (Regolo/vLLM, LiteLLM/Ollama) behalten ihre Lesart:
+ * dort ist alles außer `off` ein Denken.
+ */
+export function thinksOnThisLane(
+  provider: string,
+  modelName: string,
+  setting: ReasoningSetting
+): boolean {
+  if (setting === 'off') return false;
+  if (provider === 'mistral') {
+    return isReasoningCapable(modelName) && mistralReasoningOption(setting) !== null;
+  }
+  return true;
 }
 
 /**
@@ -300,11 +346,13 @@ export async function resolveModel(
     // `providerOptions.mistral` block set further down (see the streamOnce
     // call site), so the effort would be dropped without a trace — no error,
     // no reasoning, nothing in the logs. See routeMistralModel.
+    //
+    // DIESELBE Frage, die streamForResolution stellt, und deshalb derselbe
+    // Ausdruck: driften die beiden auseinander, wählt der Streamer einen
+    // Reasoning-Pfad, für den der Pin den Host gar nicht umgestellt hat.
+    // Genau so war es — siehe thinksOnThisLane.
     model: getModel(modelProvider, modelName, {
-      needsReasoning:
-        modelProvider === 'mistral' &&
-        isReasoningCapable(modelName) &&
-        mistralReasoningOption(reasoningEffort) !== null,
+      needsReasoning: thinksOnThisLane(modelProvider, modelName, reasoningEffort),
     }),
     provider: modelProvider,
     modelName,
@@ -798,11 +846,26 @@ export async function streamForResolution(params: {
   const { resolution, messages, maxTokens, temperature, sse, signal, logPrefix, telemetry } =
     params;
 
-  const thinking = resolution.reasoningEffort !== 'off';
+  const thinking = thinksOnThisLane(
+    resolution.provider,
+    resolution.modelName,
+    resolution.reasoningEffort
+  );
   const firstTokenDeadlineMs = getFirstTokenDeadlineMs(
     resolution.provider,
     resolution.modelName,
     thinking
+  );
+
+  // Die Ausgabedecke des AUFGELÖSTEN Modells — hier und nicht beim Aufrufer,
+  // weil erst an dieser Stelle feststeht, welches Modell die Anfrage bekommt:
+  // die Lane kann per Auto-Policy, per Verdigado-Slot oder per Sibling-Fallback
+  // gewechselt haben. Ein Aufrufer, der seine Zahl selbst prüft, prüft sie
+  // gegen ein Modell, das den Zug am Ende gar nicht schreibt.
+  const cappedMaxTokens = clampToModelOutputLimit(
+    maxTokens,
+    resolution.modelName,
+    logPrefix ?? '[ChatGraph]'
   );
 
   // `off` deliberately skips the reasoning streamer entirely: for the lanes
@@ -816,7 +879,7 @@ export async function streamForResolution(params: {
       provider: resolution.provider,
       modelName: resolution.modelName,
       messages,
-      ...(maxTokens != null && { maxTokens }),
+      ...(cappedMaxTokens != null && { maxTokens: cappedMaxTokens }),
       temperature,
       sse,
       firstTokenDeadlineMs,
@@ -834,6 +897,13 @@ export async function streamForResolution(params: {
       // path below re-runs the turn against Mistral with reasoning intact.
       // Every other lane has nowhere to fall back to, so its error propagates.
       //
+      // Diese Voraussetzung TRÄGT jetzt, weil Pin und Streamer dieselbe Frage
+      // stellen (thinksOnThisLane). Vorher taten sie es nicht: bei `low` kam
+      // der Streamer hierher, während der Pin den Host auf Scaleway gelassen
+      // hatte — der „Ersatz über die Mistral-API" lief also auf denselben Host
+      // zurück, den der erste Versuch gerade abgelehnt hatte, und ohne jedes
+      // Reasoning. Wer die beiden Ausdrücke wieder trennt, holt das zurück.
+      //
       // Safe only because ReasoningStreamUnavailableError means the upstream
       // never answered — nothing has reached the user's screen yet. A
       // mid-stream failure throws a plain Error and is deliberately not caught
@@ -841,8 +911,14 @@ export async function streamForResolution(params: {
       if (resolution.provider !== 'mistral' || !(err instanceof ReasoningStreamUnavailableError)) {
         throw err;
       }
+      // Den Grund des Upstreams MITSCHREIBEN, nicht deuten: die frühere
+      // Fassung meldete pauschal „reasoning unavailable", und ein 400 wegen
+      // ungültigem Payload (`max_completion_tokens is limited to 16384`) las
+      // sich dann wie ein Reasoning-Problem — während der zweite Versuch in
+      // exakt denselben Fehler lief, weil an der Anfrage lag, was der Text
+      // dem Host zuschrieb.
       log.warn(
-        `${logPrefix ?? '[ChatGraph]'} Scaleway reasoning unavailable (${err.status}) — falling back to the Mistral API`
+        `${logPrefix ?? '[ChatGraph]'} Scaleway-Reasoning fehlgeschlagen (${err.status}: ${err.message}) — zweiter Versuch über die Mistral-API`
       );
     }
   }
@@ -850,7 +926,7 @@ export async function streamForResolution(params: {
   const args: Parameters<typeof streamAndAccumulateOrThrow>[0] = {
     model: resolution.model,
     messages,
-    ...(maxTokens != null && { maxTokens }),
+    ...(cappedMaxTokens != null && { maxTokens: cappedMaxTokens }),
     temperature,
     sse,
     firstTokenDeadlineMs,

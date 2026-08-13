@@ -9,6 +9,7 @@
 import { streamText } from 'ai';
 
 import { createSSEStream, sseInternalError } from '../../routes/chat/services/sseHelpers.js';
+import { clampToModelOutputLimit } from '../../services/ai/modelOutputLimits.js';
 import { getModel, type ProviderName } from '../../services/ai/providers.js';
 import {
   localizePromptObject,
@@ -338,15 +339,22 @@ export async function processGraphRequestStreaming(
       needsReasoning: reasoningProviderOptions?.mistral !== undefined,
     });
 
+    // Die Denk-Variante fordert 32768 und `max_tokens * 2` kann beliebig hoch
+    // liegen — beides über der Ausgabedecke von Mistral Medium 3.5 (16.384),
+    // und ein Überschreiten kostet nicht Länge, sondern den ganzen Aufruf
+    // (HTTP 400). Derselbe Clamp wie im Chat-Streamer, damit hier keine zweite
+    // Zahlentabelle entsteht.
+    const maxOutputTokens = clampToModelOutputLimit(
+      reasoningEffort ? 32768 : aiOptions.max_tokens ? aiOptions.max_tokens * 2 : 16384,
+      effectiveModel,
+      '[AgenticStream]'
+    );
+
     const result = streamText({
       model,
       system: promptResult.system,
       messages,
-      maxOutputTokens: reasoningEffort
-        ? 32768
-        : aiOptions.max_tokens
-          ? aiOptions.max_tokens * 2
-          : 16384,
+      ...(maxOutputTokens != null && { maxOutputTokens }),
       temperature: aiOptions.temperature ?? 0.7,
       abortSignal: abortController.signal,
       ...(reasoningProviderOptions ? { providerOptions: reasoningProviderOptions } : {}),
