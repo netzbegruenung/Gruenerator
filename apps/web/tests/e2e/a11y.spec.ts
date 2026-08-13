@@ -214,6 +214,87 @@ Oberfläche.`
   ).toEqual([]);
 }
 
+/**
+ * Überlagerungen, die erst nach einem Klick im DOM stehen.
+ *
+ * Der Grund für diesen Block: die Routen-Prüfungen oben messen den Zustand
+ * direkt nach dem Laden. Menüs, Dialoge und Blätter sind zu diesem Zeitpunkt
+ * **gar nicht da** — Radix rendert sie in ein Portal, und zwar erst beim
+ * Öffnen. `/chat` steht seit jeher in `ROUTES` und meldete trotzdem nie etwas
+ * über das Plusmenü, weil die Lane nie eines geöffnet hat. Ein grüner Haken
+ * über eine Fläche, die nicht im DOM war, ist dieselbe Fehlerklasse wie die
+ * übersprungenen Prüfungen weiter oben: er sieht aus wie eine Zusage.
+ *
+ * Gemessen wird nur die Überlagerung (`include`), nicht die ganze Seite —
+ * sonst meldet jeder Eintrag hier die Routen-Befunde ein zweites Mal und der
+ * Fehlertext zeigt nicht mehr auf die Fläche, um die es geht.
+ *
+ * Beide Breiten sind nötig, weil `ResponsiveMenu` an `(width < 48rem)` in zwei
+ * verschiedene Bäume verzweigt: Desktop bekommt Radix' `menuitemcheckbox`
+ * geschenkt, das Blatt zeichnet seinen An/Aus-Zustand mit zwei divs und trägt
+ * `role="switch"` + `aria-checked` von Hand (`ResponsiveMenuToggle`). Genau
+ * die handgeschriebene Zusage braucht eine Messung.
+ */
+const OVERLAYS = [
+  {
+    name: 'Plusmenü (Desktop-Dropdown)',
+    route: '/chat',
+    viewport: { width: 1280, height: 720 },
+    // Radix' DropdownMenuContent
+    scope: '[role="menu"]',
+  },
+  {
+    name: 'Plusmenü (mobiles Blatt)',
+    route: '/chat',
+    viewport: { width: 390, height: 844 },
+    // Das Blatt ist ein Radix-Dialog, siehe ResponsiveMenu.
+    scope: '[role="dialog"]',
+  },
+];
+
+test.describe('Barrierefreiheit: Überlagerungen', () => {
+  test.beforeAll(() => {
+    test.skip(!BYPASS_AKTIV, 'VITE_E2E_AUTH_BYPASS ist nicht gesetzt.');
+  });
+
+  for (const overlay of OVERLAYS) {
+    test(`${overlay.name} hat keine WCAG-2.2-AA-Verstöße`, async ({ page }) => {
+      // Vor dem Laden: `useIsMobile` liest die Breite schon im ersten Frame
+      // (`useSyncExternalStore`), ein späterer Wechsel würde die falsche
+      // Verzweigung messen.
+      await page.setViewportSize(overlay.viewport);
+      await gotoAuthenticated(page, overlay.route);
+
+      await page.getByRole('button', { name: 'Aktionen und Modus' }).click();
+
+      const inhalt = page.locator(overlay.scope);
+      await expect(
+        inhalt,
+        `${overlay.name}: die Überlagerung ist nach dem Klick nicht erschienen —
+ohne sie prüft axe eine leere Auswahl und meldet null Verstöße.`
+      ).toBeVisible();
+      // Radix blendet mit einer Opazitäts-Animation ein. Währenddessen misst
+      // `color-contrast` Zwischenwerte und meldet Funde, die nach dem Einblenden
+      // nicht mehr existieren.
+      await page.waitForTimeout(500);
+
+      const { violations } = await new AxeBuilder({ page })
+        .withTags(WCAG_TAGS)
+        .include(overlay.scope)
+        .analyze();
+
+      expect(
+        violations.map((v) => ({
+          rule: v.id,
+          impact: v.impact,
+          hilfe: v.helpUrl,
+          stellen: v.nodes.map((n) => n.target.join(' ')).slice(0, 5),
+        }))
+      ).toEqual([]);
+    });
+  }
+});
+
 test.describe('Barrierefreiheit (WCAG 2.2 AA)', () => {
   test.beforeAll(() => {
     test.skip(
