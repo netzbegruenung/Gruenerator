@@ -1235,7 +1235,6 @@ export const SYSTEM_AGENT_DEFINITIONS = [
     locale: 'de-DE',
     author: 'Grünerator',
     autoRoutingHint: 'precise',
-    skillMentions: ['rueckuebersetzung', 'sprachpruefung'],
     iconKey: 'book-open-text',
     audience: 'all',
     localized: {
