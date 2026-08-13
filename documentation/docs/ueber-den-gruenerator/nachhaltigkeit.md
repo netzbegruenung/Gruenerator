@@ -44,7 +44,7 @@ Die größten kommerziellen KI-Modelle brauchen für jede einzelne Antwort ein V
 | ----------------------------------------- | -------------------------------------------------- | ---------------------------------------------- |
 | Chat & Texte (Standard)                   | Mistral Medium 3.5 (`mistral-medium-2604`)         | Mistral AI 🇫🇷                                  |
 | Kreativtexte, Antworten schreiben         | Gemma 4 — 31 Mrd. Parameter (`gemma4-31b`)         | Regolo 🇮🇹 (Ausweichweg verdigado 🇩🇪)           |
-| Kurze und strukturierte Antworten         | Gemma 4 — 26 Mrd. Parameter (`gemma-4-26b-a4b-it`) | Scaleway 🇫🇷 (Ausweichweg GreenPT 🇪🇺)           |
+| Lange Dokumente zusammenfassen            | Gemma 4 — 26 Mrd. Parameter (`gemma-4-26b-a4b-it`) | Scaleway 🇫🇷 (Paris)                            |
 | Dokumente, Präsentationen, PDFs, Tabellen | Gemma 4 (`gemma4`)                                 | GreenPT 🇪🇺                                     |
 | Schnelle Antworten                        | GPT-OSS 120B (`gpt-oss-120b`)                      | verdigado 🇩🇪 / Regolo 🇮🇹                       |
 | Anfragen einordnen, Zwischenschritte      | Mistral Small 4 (`mistral-small-4-119b`)           | Regolo 🇮🇹                                      |
@@ -54,7 +54,7 @@ Die größten kommerziellen KI-Modelle brauchen für jede einzelne Antwort ein V
 | Untertitel & Transkription                | Voxtral, Ausweichweg `green-s-pro`                 | Mistral AI 🇫🇷 / GreenPT 🇪🇺                     |
 | Suche & Notebooks (Embeddings)            | `mistral-embed`                                    | Mistral AI 🇫🇷                                  |
 
-Im Chat selbst stehen vier Lanes zur Wahl — **Klein** (GPT-OSS 120B bei verdigado), **Mittel** (Gemma 4 bei Regolo), **Ultra** (Mistral Medium 3.5) und **GreenPT**. Kein einziges dieser Modelle spielt in der Größenklasse der energiehungrigsten Frontier-Modelle — und für die Aufgaben im politischen Alltag reicht das nicht nur, es ist oft sogar die bessere Wahl, weil kleinere Modelle schneller antworten.
+Im Chat selbst stehen drei Lanes zur Wahl — **Klein** (GPT-OSS 120B bei verdigado), **Mittel** (Gemma 4 bei Regolo) und **Ultra** (Mistral Medium 3.5). Kein einziges dieser Modelle spielt in der Größenklasse der energiehungrigsten Frontier-Modelle — und für die Aufgaben im politischen Alltag reicht das nicht nur, es ist oft sogar die bessere Wahl, weil kleinere Modelle schneller antworten.
 
 ## Intelligentes Routing: nur so viel KI wie nötig
 
@@ -72,7 +72,7 @@ Auch innerhalb einer Antwort ist die Arbeit geteilt: Ein **kleines, schnelles Mo
 
 **[GreenPT](https://greenpt.com/sustainability)** rechnet ausschließlich in EU-Rechenzentren mit **100 % erneuerbarer Energie** — in Paris sowie in Helsinki (je zur Hälfte Wasser- und Windkraft) — und nennt konkrete Effizienzwerte: PUE 1,25 (Branchenschnitt: 1,55) und ein Wasserverbrauch (WUE) von 0,25 statt branchenüblicher 1,8.
 
-Beim Grünerator schreibt GreenPTs Gemma 4 (`gemma4`) alle **erzeugten Dateien**: PDFs, Präsentationen, Tabellen und Dokumente. Das ist keine Verlegenheitslösung, sondern gemessen: Am 03.08.2026 gegen die echten Prompts und Vorlagen rief das große Standardmodell das nötige Werkzeug in keinem einzigen Lauf sauber auf und lief in Wiederholungen fest, GreenPTs Gemma 4 in zehn von zehn Läufen — und dabei drei- bis viermal schneller. Dazu ist GreenPT der **Ausweichweg** für die Transkription und für die kurze Gemma-Lane bei Scaleway. Als frei wählbare Chat-Lane ist GreenPT im Code fertig verdrahtet, aber noch nicht für alle freigeschaltet.
+Beim Grünerator schreibt GreenPTs Gemma 4 (`gemma4`) alle **erzeugten Dateien**: PDFs, Präsentationen, Tabellen und Dokumente. Das ist keine Verlegenheitslösung, sondern gemessen: Am 03.08.2026 gegen die echten Prompts und Vorlagen rief das große Standardmodell das nötige Werkzeug in keinem einzigen Lauf sauber auf und lief in Wiederholungen fest, GreenPTs Gemma 4 in zehn von zehn Läufen — und dabei drei- bis viermal schneller. Dazu ist GreenPT der **Ausweichweg** für die Transkription und für die Gemma-Lane bei Scaleway. Als frei wählbare Chat-Lane ist GreenPT im Code fertig verdrahtet, im Modellwähler aber noch nicht freigeschaltet — deshalb steht sie oben nicht bei den drei wählbaren Lanes.
 
 ### Mistral AI (Frankreich) — Transparenz-Vorreiter
 
