@@ -503,8 +503,11 @@ export const LOOP_SYNTH_PRIMARY = { provider: 'regolo' as const, model: 'gemma4-
 export const LOOP_SYNTH_FALLBACK = { provider: 'litellm' as const, model: 'verdigado-pro' };
 
 /** Models that must NEVER write the loop answer: reasoning/"think" lanes (slow),
- *  Chinese lanes (qwen — excluded by policy), and gpt-oss (verified tool-call
- *  fail / reasoning leak). Any of these in the synth slot is rewritten to the
+ *  gpt-oss (verified tool-call fail / reasoning leak) und die chinesisch
+ *  trainierten Lanes. Letztere sind heute nirgends mehr wählbar — der Zweig
+ *  bleibt als zweite Sicherung neben `isExcludedTextModel`, weil
+ *  REGOLO_DEFAULT_MODEL aus der Umgebung kommt und dort wieder eine stehen
+ *  könnte. Any of these in the synth slot is rewritten to the
  *  best-writer lane. Stays active even when the policy chose the model, so a
  *  policy pointing at gemma-litellm (→ verdigado-think) still lands on the
  *  fast gemma4-31b host. */

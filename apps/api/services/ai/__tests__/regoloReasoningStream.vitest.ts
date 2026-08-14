@@ -3,10 +3,6 @@ import { describe, it, expect } from 'vitest';
 import { isReasoningStreamModel, streamWithReasoning } from '../regoloReasoningStream.js';
 
 describe('isReasoningStreamModel', () => {
-  it('returns true for qwen3.5-122b on regolo', () => {
-    expect(isReasoningStreamModel('regolo', 'qwen3.5-122b')).toBe(true);
-  });
-
   it('returns true for gpt-oss-120b on regolo', () => {
     expect(isReasoningStreamModel('regolo', 'gpt-oss-120b')).toBe(true);
   });
@@ -27,18 +23,18 @@ describe('isReasoningStreamModel', () => {
     expect(isReasoningStreamModel('litellm', 'gemma')).toBe(false);
   });
 
-  it('returns false for qwen on litellm (different provider)', () => {
-    expect(isReasoningStreamModel('litellm', 'qwen3.5-122b')).toBe(false);
+  it('returns false for a regolo-only model asked on litellm', () => {
+    expect(isReasoningStreamModel('litellm', 'gpt-oss-120b')).toBe(false);
   });
 });
 
 describe.skipIf(!process.env.REGOLO_API_KEY)('streamWithReasoning — live integration', () => {
-  it('yields both reasoning and text chunks from qwen3.5-122b', async () => {
+  it('yields both reasoning and text chunks from gemma4-31b', async () => {
     const chunks: Array<{ type: 'text' | 'reasoning'; delta: string }> = [];
 
     for await (const chunk of streamWithReasoning({
       provider: 'regolo',
-      model: 'qwen3.5-122b',
+      model: 'gemma4-31b',
       messages: [
         {
           role: 'system',
