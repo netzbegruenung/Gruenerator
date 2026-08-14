@@ -652,8 +652,14 @@ function loopPlannerChoice(): { provider: Provider; model: string } {
   // stays the self-hosted option, litellm/verdigado-pro the last resort.
   if (isProviderConfigured('greenpt')) return LOOP_PLANNER_PRIMARY;
   if (isProviderConfigured('regolo')) return LOOP_PLANNER_SELFHOSTED;
-  if (isProviderConfigured('litellm')) return LOOP_PLANNER_FALLBACK;
-  return LOOP_PLANNER_PRIMARY;
+  // Last resort when NOTHING is configured, and it has to be litellm: its
+  // provider has a default base URL and tolerates an empty key, while greenpt
+  // and regolo both THROW without one. Returning the primary here (as this did
+  // until 14.08.2026) killed every agentic turn with "GREENPT_API_KEY
+  // environment variable is required" — the loop never reached its first model
+  // call. Before the lane moved to GreenPT the same line returned regolo, which
+  // `resolveModel` silently substitutes with Mistral, so the bug was invisible.
+  return LOOP_PLANNER_FALLBACK;
 }
 
 function loopSynthWriterChoice(): { provider: Provider; model: string } {
