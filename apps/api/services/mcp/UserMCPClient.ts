@@ -36,7 +36,12 @@ export type McpTransportKind = 'http' | 'sse';
  */
 const LenientListToolsResultSchema = z
   .object({
-    tools: z.array(z.record(z.string(), z.unknown())).optional(),
+    // `z.unknown()` und nicht `z.record(...)`: ein einzelner nicht-objekthafter
+    // Eintrag (null, ein String) hätte sonst das Array-Parsing zum Scheitern
+    // gebracht — und damit wieder die ganze Seite verworfen, also genau das,
+    // wogegen dieses Schema antritt. Aussortiert wird pro Eintrag, nicht pro
+    // Antwort.
+    tools: z.array(z.unknown()).optional(),
     nextCursor: z.string().optional(),
   })
   .passthrough();
@@ -56,7 +61,9 @@ function asRecord(value: unknown): Record<string, unknown> | null {
  * name is fatal — an absent or mistyped `inputSchema` becomes the empty object
  * schema, which is what a parameterless tool looks like anyway.
  */
-function normalizeToolDescriptor(raw: Record<string, unknown>): McpToolDescriptor | null {
+function normalizeToolDescriptor(entry: unknown): McpToolDescriptor | null {
+  const raw = asRecord(entry);
+  if (!raw) return null;
   const name = typeof raw.name === 'string' ? raw.name.trim() : '';
   if (!name) return null;
 
@@ -182,6 +189,7 @@ export class UserMCPClient {
   private activeTransport: McpTransportKind | null = null;
   private negotiatedProtocolVersion: string | null = null;
   private lastSkippedTools = 0;
+  private lastTruncatedTools = 0;
 
   constructor(private readonly config: McpConnectionConfig) {}
 
@@ -203,9 +211,24 @@ export class UserMCPClient {
     return this.negotiatedProtocolVersion;
   }
 
-  /** Entries the last {@link listTools} dropped because they carried no name. */
+  /**
+   * Whether the server declared a `tools` capability at all. Separates "bietet
+   * keine Werkzeuge an" from "bietet welche an, gibt aber keine heraus" — zwei
+   * Fälle, die als leere Liste identisch aussehen und verschiedene Abhilfen
+   * haben.
+   */
+  get declaresTools(): boolean {
+    return this.client?.getServerCapabilities()?.tools != null;
+  }
+
+  /** Entries the last {@link listTools} dropped as unusable (no name, no object). */
   get skippedTools(): number {
     return this.lastSkippedTools;
+  }
+
+  /** Tools the last {@link listTools} cut off at the cap. Never silent. */
+  get truncatedTools(): number {
+    return this.lastTruncatedTools;
   }
 
   private authHeaders(): Record<string, string> {
@@ -338,6 +361,7 @@ export class UserMCPClient {
     if (!this.client) throw new Error('UserMCPClient.listTools called before connect()');
     const out: McpToolDescriptor[] = [];
     let skipped = 0;
+    let truncated = 0;
     let cursor: string | undefined;
     let page = 0;
 
@@ -348,8 +372,15 @@ export class UserMCPClient {
         { timeout: CALL_TIMEOUT_MS }
       );
       page++;
-      for (const raw of result.tools ?? []) {
-        if (out.length >= MAX_LISTED_TOOLS) break;
+      const entries = result.tools ?? [];
+      for (const raw of entries) {
+        // Abgeschnittenes wird GEZÄHLT, nicht stillschweigend verworfen: ein
+        // blankes `break` hätte hier exakt den Fehler wiederholt, gegen den
+        // diese Methode antritt — nur eine Ebene tiefer.
+        if (out.length >= MAX_LISTED_TOOLS) {
+          truncated += entries.length - out.length - skipped;
+          break;
+        }
         const tool = normalizeToolDescriptor(raw);
         if (tool) out.push(tool);
         else skipped++;
@@ -357,20 +388,23 @@ export class UserMCPClient {
       cursor = result.nextCursor;
     } while (cursor && page < MAX_TOOL_PAGES && out.length < MAX_LISTED_TOOLS);
 
-    if (cursor) {
+    if (cursor || truncated > 0) {
       log.warn('MCP tools/list truncated', {
         server: this.config.name,
         pages: page,
         tools: out.length,
+        droppedOnLastPage: truncated,
+        morePagesPending: Boolean(cursor),
       });
     }
     if (skipped > 0) {
-      log.warn('MCP tools/list entries skipped (no usable name)', {
+      log.warn('MCP tools/list entries skipped (not a tool object / no usable name)', {
         server: this.config.name,
         skipped,
       });
     }
     this.lastSkippedTools = skipped;
+    this.lastTruncatedTools = truncated;
     return out;
   }
 

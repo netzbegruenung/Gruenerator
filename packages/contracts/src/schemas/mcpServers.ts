@@ -83,6 +83,16 @@ export const mcpServerTestResponseSchema = z.object({
   protocolVersion: z.string().nullish(),
   /** Entries the server returned that carried no usable name. */
   skippedTools: z.number().nullish(),
+  /** Tools cut off at our cap — gezählt, damit sie nicht still verschwinden. */
+  truncatedTools: z.number().nullish(),
+  /**
+   * Klassifikation dessen, was zu sagen ist — auch bei `ok: true` (ein
+   * erreichbarer Server ohne Werkzeuge ist kein Fehler und trotzdem kein
+   * Erfolg). Absent, wenn alles glatt lief.
+   */
+  reasonCode: z.string().nullish(),
+  /** Der konkrete Handgriff zur Meldung, falls es einen gibt. */
+  hint: z.string().nullish(),
 });
 export type McpServerTestResult = z.infer<typeof mcpServerTestResponseSchema>;
 

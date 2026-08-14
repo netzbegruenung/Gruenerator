@@ -52,6 +52,7 @@ import {
   testMcpServer,
   McpOAuthStartError,
   type McpAuthType,
+  type McpServerTestResult,
   type McpOAuthErrorCode,
   type McpRegistryEntry,
   type McpServerSummary,
@@ -189,30 +190,32 @@ const ToolChips = memo(({ tools, max = 16 }: { tools: string[]; max?: number }) 
 });
 ToolChips.displayName = 'ToolChips';
 
+/** Die Detailfelder der Testantwort, die das UI anzeigt. */
+type McpTestDetails = Pick<
+  McpServerTestResult,
+  'transport' | 'protocolVersion' | 'skippedTools' | 'truncatedTools' | 'hint'
+>;
+
 /**
- * Die Zeile, die beim Support-Fall „0 Tools" fehlte: welcher Transport getragen
- * hat, welche Protokollversion ausgehandelt wurde und wie viele Einträge der
- * Server ohne brauchbaren Namen geliefert hat.
+ * Was beim Support-Fall „0 Tools" fehlte: der Handgriff zur Meldung und die
+ * harten Fakten darunter (Transport, Protokollversion, verworfene Einträge).
+ * Der Hinweis steht bewusst über den Fakten — er ist das, was zu tun ist.
  */
-const McpTestDiagnostics = memo(
-  ({
-    result,
-  }: {
-    result: {
-      transport?: string | null;
-      protocolVersion?: string | null;
-      skippedTools?: number | null;
-    };
-  }) => {
-    const parts: string[] = [];
-    if (result.transport)
-      parts.push(result.transport === 'sse' ? 'Transport: SSE' : 'Transport: HTTP');
-    if (result.protocolVersion) parts.push(`Protokoll: ${result.protocolVersion}`);
-    if (result.skippedTools) parts.push(`${result.skippedTools} Einträge ohne Namen übersprungen`);
-    if (parts.length === 0) return null;
-    return <span className="text-[11px] text-grey-400">{parts.join(' · ')}</span>;
-  }
-);
+const McpTestDiagnostics = memo(({ result }: { result: McpTestDetails }) => {
+  const facts: string[] = [];
+  if (result.transport)
+    facts.push(result.transport === 'sse' ? 'Transport: SSE' : 'Transport: HTTP');
+  if (result.protocolVersion) facts.push(`Protokoll: ${result.protocolVersion}`);
+  if (result.skippedTools) facts.push(`${result.skippedTools} unbrauchbare Einträge übersprungen`);
+  if (result.truncatedTools) facts.push(`${result.truncatedTools} weitere Werkzeuge abgeschnitten`);
+  if (!result.hint && facts.length === 0) return null;
+  return (
+    <>
+      {result.hint && <span className="text-xs text-grey-500">{result.hint}</span>}
+      {facts.length > 0 && <span className="text-[11px] text-grey-400">{facts.join(' · ')}</span>}
+    </>
+  );
+});
 McpTestDiagnostics.displayName = 'McpTestDiagnostics';
 
 // ── Add-form ─────────────────────────────────────────────────────────────────
@@ -366,14 +369,9 @@ const McpServerRow = memo(
     const update = useUpdateMcpServer();
     const test = useTestMcpServer();
     const queryClient = useQueryClient();
-    const [testResult, setTestResult] = useState<{
-      ok: boolean;
-      tools: string[];
-      error: string | null;
-      transport?: string | null;
-      protocolVersion?: string | null;
-      skippedTools?: number | null;
-    } | null>(null);
+    const [testResult, setTestResult] = useState<
+      ({ ok: boolean; tools: string[]; error: string | null } & McpTestDetails) | null
+    >(null);
 
     // A managed connector is operated by us: no OAuth to complete, nothing to
     // remove, and "Verbunden" would be misleading — nobody connected it.
@@ -406,10 +404,14 @@ const McpServerRow = memo(
           setTestResult({
             ok: r.ok,
             tools: r.toolNames,
+            // Bei null Werkzeugen trägt der Backend-Hinweis die Erklärung, auch
+            // wenn der Verbindungsaufbau selbst geklappt hat.
             error: r.ok ? null : (r.error ?? 'Verbindung fehlgeschlagen'),
             transport: r.transport,
             protocolVersion: r.protocolVersion,
             skippedTools: r.skippedTools,
+            truncatedTools: r.truncatedTools,
+            hint: r.hint,
           }),
         onError: (err) =>
           setTestResult({
