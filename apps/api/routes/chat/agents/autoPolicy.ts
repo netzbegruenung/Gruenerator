@@ -447,24 +447,50 @@ export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
  * policy instead of two systems overriding each other. `providers.ts` turns
  * these into LanguageModel instances (it owns env + getModel).
  *
- * PLANNER: Mistral Small on REGOLO — Mistral Small always runs self-hosted, no
- * exceptions. The planner only calls tools and formulates queries (the synth
- * writes the prose), so Small's tool-calling is plenty.
+ * PLANNER: Mistral Small on GREENPT. The planner only calls tools and
+ * formulates queries (the synth writes the prose), so Small's tool-calling is
+ * plenty. Tool calls were verified live on all three tiers below on 13.08.2026:
+ * `finish_reason=tool_calls`, valid argument JSON, empty `content`, no
+ * reasoning leaking into the answer channel.
+ *
+ * WHY GREENPT AND NOT REGOLO, which this lane used until 13.08.2026: the
+ * planner runs on EVERY agentic turn, and on Regolo it was the single reason
+ * the personal footprint comparison came out WORSE than GPT-4o. Two independent
+ * derivations put `mistral-small-4-119b` at 2,68-2,97 mWh per output token
+ * (Regolo's own playground figure, and our GreenPT measurement of the 24B
+ * scaled by parameter count); against Italy's 270 g/kWh that is 0,70 mg
+ * CO2/token, where the GPT-4o reference sits at 0,40. GreenPT serves the 24B
+ * from Scaleway Paris at 24 g/kWh, which is 0,014 mg/token — a factor of 48.
+ *
+ * Be honest about where that factor comes from: roughly 90% is the GRID, not
+ * the model. The same move to Scaleway would pay off with a far heavier model.
+ *
+ * Second reason, independent of the first: GreenPT is the only lane that
+ * reports its own energy per request (`greenptImpact.ts`), so the planner's
+ * footprint stops being an extrapolation from someone else's hardware.
  *
  * History worth knowing before touching this: an earlier attempt at the regolo
  * planner was reverted for a "steps=0 gather" regression — the planner returned
- * without calling any tool. It is back deliberately; the `afterGather`
- * guarantee in agenticRespondService now backstops "did it actually call the
- * generation tool", and tool calls were re-verified live on this lane. If
- * multi-step gather degrades again, bump the model here (mistral-medium-2604)
+ * without calling any tool. The `afterGather` guarantee in
+ * agenticRespondService now backstops "did it actually call the generation
+ * tool". A single tool-call probe does NOT prove multi-step gather holds, so if
+ * it degrades, bump the model here (mistral-medium-3.5-128b on the same host)
  * rather than moving the provider back.
  *
- * Trade-off accepted: Regolo has no Mistral prompt caching, so the planner's
- * fixed tool-usage prefix is re-billed every turn.
+ * Trade-off accepted: no Mistral prompt caching on this host either, so the
+ * planner's fixed tool-usage prefix is re-billed every turn — same as before.
  *
- * litellm/verdigado-pro is the cross-provider fallback when regolo is absent.
+ * The two lower tiers keep the loop alive when GreenPT is not configured:
+ * regolo stays the self-hosted option, litellm/verdigado-pro the last resort.
  */
-export const LOOP_PLANNER_PRIMARY = { provider: 'regolo' as const, model: 'mistral-small-4-119b' };
+export const LOOP_PLANNER_PRIMARY = {
+  provider: 'greenpt' as const,
+  model: 'mistral-small-3.2-24b-instruct-2506',
+};
+export const LOOP_PLANNER_SELFHOSTED = {
+  provider: 'regolo' as const,
+  model: 'mistral-small-4-119b',
+};
 export const LOOP_PLANNER_FALLBACK = { provider: 'litellm' as const, model: 'verdigado-pro' };
 
 /** SYNTH: best German writer, and never a reasoning lane (latency). gemma-4
