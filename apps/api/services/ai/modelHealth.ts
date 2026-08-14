@@ -20,13 +20,22 @@
  * baut sich aus dem laufenden Verkehr auf und wird beim Boot aus
  * `ai_model_latency` vorgewärmt.
  *
- * ── Zwei Dinge, die leicht falsch werden ──
+ * ── Drei Dinge, die leicht falsch werden ──
  *
  * 1. **Die Basislinie darf die Störung nicht fressen.** Würde sie auch von
  *    langsamen Proben gespeist, sänke sie mit — „langsam" wäre nach ein paar
  *    Minuten das neue Normal und der Vermerk löschte sich selbst. Sie nimmt
  *    deshalb nur Proben auf, die als gesund beurteilt wurden.
- * 2. **Kurze Antworten sind keine Durchsatzmessung.** Ein Auflöser mit
+ * 2. **Der Kaltstart hat keine Referenz, und das ist keine Nachlässigkeit.**
+ *    Fallen die ersten Proben eines Paares mitten in eine Störung, IST die
+ *    Störung die Basislinie — ohne Vorwissen lässt sich „langsam" nicht von
+ *    „so ist dieses Modell eben" unterscheiden, und eine absolute Schwelle
+ *    wäre genau die Zahl, die es hier nicht geben soll. Zwei Dinge federn das:
+ *    `primeBaseline` lädt beim Boot die p75 der letzten 24 h, und sobald die
+ *    Störung endet, ziehen die gesunden Proben die EWMA nach oben, bis die
+ *    zähen unter ein Drittel fallen. Blind bleibt also nur der Fall „frische
+ *    Installation UND laufende Störung", und auch der heilt von selbst.
+ * 3. **Kurze Antworten sind keine Durchsatzmessung.** Ein Auflöser mit
  *    `max_tokens: 8` liefert 2 Tokens in 300 ms — das sind 6,7 tok/s und misst
  *    die Anlaufzeit, nicht den Durchsatz. Unter MIN_OUTPUT_TOKENS wird eine
  *    Probe nur für die Statistik gezählt, nie beurteilt.
