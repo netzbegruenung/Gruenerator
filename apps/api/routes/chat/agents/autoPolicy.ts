@@ -348,22 +348,26 @@ export const MATERIAL_LANE_MIN_CHARS = 3_000;
  * Antwort-Token und starb an der Turn-Uhr. Der Nutzer verlor den ganzen Zug.
  *
  * Gemessen am selben Tag gegen api.regolo.ai, gleicher Prompt: gemma4-31b
- * denkt ~2.500 Zeichen und ist nach 13 s fertig (ohne Denken 3,5 s) — eine
- * Grössenordnung, die in jedes Budget passt. Das Denken bleibt AN, weil eine
- * Übertragung Vergleichsarbeit ist; die Lane ist nur eine, die daran nicht
- * stirbt.
+ * denkt ~2.500 Zeichen und ist nach 13 s fertig (ohne Denken 3,5 s).
  *
- * `medium` heisst hier ehrlich gelesen „an": low/medium/high liefern auf
- * gemma4-31b 2533/2589/2412 Zeichen Reasoning, also Rauschen statt Stufen
- * (Messtabelle in `services/ai/regoloReasoningStream.ts`). Der Wert steht
- * trotzdem als `medium` da, weil er dieselbe Bedeutung auf jeder anderen Lane
- * behält, falls diese Zeile je auf eine andere zeigt.
+ * `off` seit 14.08.2026, VERSUCHSWEISE — der Wert stand auf `medium`. Diese
+ * Lane hat das Denken an dem Vormittag in KEINEM gemessenen Lauf zu Ende
+ * gebracht: jeder endete mit „regolo/gemma4-31b hat 120000ms gedacht ohne zu
+ * antworten — zweiter Versuch ohne Denken". Die ausgelieferte Fassung kam also
+ * ohnehin jedes Mal vom Pfad ohne Denken; `medium` kaufte nichts und kostete
+ * zwei Minuten pro Zug. `off` macht daraus die Voreinstellung, statt sie
+ * zweimal anzulaufen.
+ *
+ * Zurückdrehen, sobald ein Lauf zeigt, dass das Denken hier durchkommt und die
+ * Fassung besser macht — die Stufen selbst sind auf dieser Lane ohnehin Rauschen
+ * (low/medium/high: 2533/2589/2412 Zeichen Reasoning, Messtabelle in
+ * `services/ai/regoloReasoningStream.ts`), die Frage ist nur an/aus.
  *
  * Warum die Entscheidung HIER und nicht in der Pipeline-Registry steht: die
  * Registry sagt ausdrücklich, dass sie keine Modellwahl deklariert (zwei Orte,
  * die dasselbe entscheiden, driften). Lanes entscheidet diese Datei.
  */
-const PIPELINE_LANE: AutoEntry = { modelId: GEMMA, reasoning: 'medium' };
+const PIPELINE_LANE: AutoEntry = { modelId: GEMMA, reasoning: 'off' };
 
 /**
  * Resolve `auto` to a concrete lane + reasoning strength.

@@ -53,6 +53,13 @@ export interface PipelineStep {
   /** Voreinstellung 0.2 — siehe `runStep` in `services/agentPipeline.ts`. */
   readonly temperature?: number;
   /**
+   * Eigene Zeitsperre in ms. Ohne Angabe gilt `env.REQUEST_TIMEOUT` (120 s),
+   * und das ist für einen Nachschritt der falsche Massstab: die Fassung steht
+   * beim Nutzer schon auf dem Bildschirm, es wartet niemand auf ein leeres
+   * Fenster. Fällt der Schritt dagegen aus, geht eine ungeprüfte Fassung raus.
+   */
+  readonly timeoutMs?: number;
+  /**
    * Baut die EINE Nutzernachricht des Schritts. Was hier nicht hineingeht,
    * sieht der Schritt nicht — kein Verlauf, keine Anhänge. Genau darin liegt
    * der Wert: die blinde Rückübersetzung ist nur blind, solange ihre
