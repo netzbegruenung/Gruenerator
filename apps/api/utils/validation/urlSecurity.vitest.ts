@@ -54,7 +54,9 @@ describe('validateUrlForFetch — DNS records', () => {
 
     await expect(validateUrlForFetch('https://rebind.example/a')).resolves.toMatchObject({
       isValid: false,
-      error: 'Host resolves to private IP address',
+      // The offending address is named: which record it was is what makes the
+      // difference between a misconfiguration and an attempt.
+      error: 'Host resolves to private IP address 169.254.169.254',
     });
   });
 
@@ -71,7 +73,9 @@ describe('validateUrlForFetch — DNS records', () => {
 
     await expect(validateUrlForFetch('https://void.example/a')).resolves.toMatchObject({
       isValid: false,
-      error: 'DNS lookup failed for host',
+      // Distinct from the lookup error below on purpose: an empty answer is not
+      // the same event as a resolver that failed.
+      error: 'DNS returned no addresses',
     });
   });
 
