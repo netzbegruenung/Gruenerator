@@ -94,6 +94,16 @@ import type { ProviderName } from './providers.js';
 export interface IntermediateLaneConfig {
   readonly provider: ProviderName;
   readonly model: string;
+  /**
+   * Wer einspringt, wenn der Primär zu lange braucht — NICHT wenn er ausfällt,
+   * dafür gibt es die Fallback-Kette. Der Aufrufer bestimmt, ab wann „zu lange"
+   * gilt, und schaltet den Sibling dann PARALLEL dazu (siehe `runStep` in
+   * routes/chat/services/agentPipeline.ts).
+   *
+   * Warum das hier steht und nicht beim Aufrufer: welches Modell für dieselbe
+   * Aufgabe taugt, ist eine Messfrage, und die Messungen stehen in dieser Datei.
+   */
+  readonly hedge?: { readonly provider: ProviderName; readonly model: string };
 }
 
 /** Der Ausgangszustand: was `INTERMEDIATE_MODEL` für alle 36 Stellen war. */
@@ -259,11 +269,31 @@ export const INTERMEDIATE_LANES = {
    * hier bewusst gezahlt — die Kette läuft ohnehin hinter einer gestreamten
    * Antwort, ihre Latenz steht dem Lesen also nicht im Weg.
    *
-   * Wenn die Wartezeit doch stört: `GEMMA_4_SCALEWAY` einsetzen. Dann muss der
-   * Client aus `scalewayThinkingFetch.ts` mitkommen, der `reasoning_effort:
-   * 'none'` erzwingt — sonst antwortet das Modell mit leerem `content`.
+   * ── 14.08.2026: der Sibling, und warum er kein Ersatz ist ──
+   *
+   * Regolos `gemma4-31b` antwortete an diesem Tag mit **3,7 tok/s**; die Notiz
+   * bei GEMMA_4 in routes/chat/agents/providers.ts hält für dieselbe Lane
+   * ~76 tok/s fest. Regolo selbst war gesund (sein `mistral-small-4-119b` lief
+   * mit 113 tok/s), es war dieses eine Modell dort. Ein Prüfbericht, der ruhig
+   * 36 s braucht, brauchte 218 s und riss die Zeitsperre.
+   *
+   * Eine Störung ist keine Eigenschaft, also bleibt der Primär stehen. Statt
+   * dessen ein Sibling, den der Aufrufer nach einer Frist PARALLEL dazuschaltet.
+   * Gemessen am echten Prüf-Prompt, zwei Läufe: 16,8 s / 15,3 s, vollständige
+   * Abdeckungs- und Modalitätstabelle, der fehlende Urheber als MITTEL-Befund.
+   * Der Client aus `scalewayThinkingFetch.ts` kommt über `case 'scaleway'` in
+   * services/ai/providers.ts von selbst mit.
+   *
+   * GreenPTs `gemma4` wäre der andere Kandidat und ist es NICHT: welche Gewichte
+   * es trägt, ist unbelegt (siehe GEMMA_4_GREENPT in
+   * routes/chat/agents/providers.ts), und ein stilles Qualitätsgefälle ist
+   * ausgerechnet beim Prüfschritt der teuerste Fehler.
    */
-  pruefung: { provider: 'regolo', model: GEMMA_4_REGOLO },
+  pruefung: {
+    provider: 'regolo',
+    model: GEMMA_4_REGOLO,
+    hedge: { provider: 'scaleway', model: GEMMA_4_SCALEWAY },
+  },
 } as const satisfies Record<string, IntermediateLaneConfig>;
 
 export type IntermediateLaneId = keyof typeof INTERMEDIATE_LANES;
