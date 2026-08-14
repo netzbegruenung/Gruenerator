@@ -44,9 +44,10 @@ const MISTRAL_MEDIUM = 'mistral-medium-2604';
 const VERDIGADO_PRO = 'verdigado-pro';
 /** Gemma 4 — named explicitly because Regolo's DEFAULT is qwen, which policy excludes. */
 const GEMMA_4 = 'gemma4-31b';
-/** Dasselbe Modell bei GreenPT, wo es unter kurzem Namen läuft und — anders als
- *  bei Regolo — den erzwungenen Tool-Call bedient statt JSON als Prosa zu
- *  schreiben. Siehe ARTIFACT_MODEL in services/providers/providerSelector.ts. */
+/** Gemma 4 bei GreenPT — welche Gewichte, ist unbelegt (siehe GEMMA_4_GREENPT in
+ *  routes/chat/agents/providers.ts). Gewählt ist es dafür, dass es den
+ *  erzwungenen Tool-Call bedient statt JSON als Prosa zu schreiben, anders als
+ *  Regolo. Siehe ARTIFACT_MODEL in services/providers/providerSelector.ts. */
 const GEMMA_4_GREENPT = 'gemma4';
 
 /**

@@ -192,6 +192,10 @@ AUFBAU DER AUSGABE
 4. "Schwierige Wörter" - die im Text erklärten Begriffe noch einmal
    gesammelt. Nur diese. Dieser Abschnitt sammelt ein, was oben schon
    steht; er ist kein Wörterbuch.
+   Ein Eintrag lautet "<Begriff>: <die Erklärung, die oben steht>". Der
+   Satz "Diese Erklärung steht nicht im Original-Text." ist keine
+   Erklärung, sondern ihre Kennzeichnung; er bleibt oben an der
+   Fundstelle. Ein Eintrag, der nur aus ihm besteht, erklärt nichts.
    Bevor du einen Eintrag schreibst, stelle ihm zwei Fragen:
    - Steht seine Erklärung oben im Fliesstext, an der Stelle, wo der
      Begriff zum ersten Mal vorkommt? Findest du sie dort nicht, gehört
