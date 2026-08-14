@@ -135,7 +135,14 @@ export async function* parseSSEStream(
     { stage: 'classifying', label: stageLabels.classifying, status: 'in-progress' },
   ];
 
-  function transitionStep(newStage: ProgressStage, labelOverride?: string) {
+  /**
+   * @param key Identität des Schritts, wenn die Stufe sie nicht trägt. Ein
+   *   Pipeline-Nachschritt läuft unter derselben Stufe wie ein echtes
+   *   Such-Werkzeug; ohne eigenen Schlüssel überschriebe sein Titel rückwirkend
+   *   dessen Label, und die Herkunft des Suchschritts wäre aus der fertigen
+   *   Liste nicht mehr ablesbar.
+   */
+  function transitionStep(newStage: ProgressStage, labelOverride?: string, key?: string) {
     // Mark current in-progress step as completed
     for (const step of progressSteps) {
       if (step.status === 'in-progress') {
@@ -146,21 +153,16 @@ export async function* parseSSEStream(
     // Add new step if it has a label and isn't 'complete'/'error'/'idle'
     const label = labelOverride || stageLabels[newStage];
     if (label && newStage !== 'complete' && newStage !== 'error' && newStage !== 'idle') {
-      // Don't duplicate if the same stage already exists
-      if (!progressSteps.some((s) => s.stage === newStage)) {
-        progressSteps.push({ stage: newStage, label, status: 'in-progress' });
+      const same = (s: ProgressStep): boolean => (s.key ?? s.stage) === (key ?? newStage);
+      const existing = progressSteps.find(same);
+      if (!existing) {
+        progressSteps.push({ stage: newStage, label, status: 'in-progress', ...(key && { key }) });
       } else {
-        // Re-activate existing step
-        const existing = progressSteps.find((s) => s.stage === newStage);
-        if (existing) {
-          existing.status = 'in-progress';
-          // A revisited stage otherwise keeps the label of its first pass. When
-          // the caller names one it is *the* information — two pipeline steps
-          // share a stage and differ only by title ("Rückübersetzung" vs
-          // "Prüfung"). Without an override the themed stage word stands, as
-          // before.
-          if (labelOverride) existing.label = labelOverride;
-        }
+        existing.status = 'in-progress';
+        // Ein wiederbelebter Schritt trägt sonst das Label seines ersten Laufs.
+        // Nennt der Aufrufer eines, ist genau das die Information: die beiden
+        // Nachschritte unterscheiden sich NUR im Titel.
+        if (labelOverride) existing.label = labelOverride;
       }
     }
     if (newStage === 'complete') {
@@ -1084,7 +1086,7 @@ export async function* parseSSEStream(
           // `intent` event + `thinking_step`. Conflating the two is what
           // caused the search→rerank race that orphaned the rich
           // examples/search/web tool-cards (see PR history).
-          const { title, status } = data as {
+          const { stepId, title, status } = data as {
             stepId: string;
             toolName: string;
             title: string;
@@ -1096,10 +1098,11 @@ export async function* parseSSEStream(
             // the step label ahead of `message`, and there is always a step list.
             // So a pipeline agent's after-steps ran for minutes under step 1's
             // label ("Feile …"), indistinguishable from a hang. The step now
-            // enters the list, under the same stage as before. Guarded so the
-            // 3s heartbeat re-send does not churn the list.
+            // enters the list, under the same stage as before but under its OWN
+            // key, so it never overwrites a real search step's label. Guarded so
+            // the 3s heartbeat re-send does not churn the list.
             if (currentProgress.stage !== 'searching' || currentProgress.message !== title) {
-              transitionStep('searching', title);
+              transitionStep('searching', title, `progress:${stepId}`);
             }
             currentProgress = { ...currentProgress, stage: 'searching', message: title };
           } else if (status === 'completed') {

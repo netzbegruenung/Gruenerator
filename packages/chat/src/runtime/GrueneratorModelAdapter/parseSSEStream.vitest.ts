@@ -381,4 +381,48 @@ describe('parseSSEStream progress steps', () => {
     const active = progress.steps.filter((s) => s.status === 'in-progress');
     expect(active.map((s) => s.label)).toEqual(['Prüfung läuft']);
   });
+
+  it('überschreibt das Label eines echten Suchschritts nicht', async () => {
+    // Nachschritt und Such-Werkzeug teilen sich die Stufe `searching`. Ohne
+    // eigene Identität übernähme der Titel des Nachschritts rückwirkend das
+    // Label der Suche, und deren Herkunft wäre aus der fertigen Liste nicht
+    // mehr ablesbar.
+    const outcome = { interrupted: false, indexedDocumentIds: [] as string[] };
+    let last: { metadata?: { custom?: Record<string, unknown> } } | undefined;
+    const events = [
+      { event: 'tool_step_start', data: { stepId: 's1', toolName: 'gruenerator_search' } },
+      {
+        event: 'tool_step_result',
+        data: { stepId: 's1', toolName: 'gruenerator_search', ok: true, result: { count: 3 } },
+      },
+      { event: 'text_delta', data: { text: 'Die Fassung.' } },
+      {
+        event: 'progress_step',
+        data: {
+          stepId: 'es-pruefung',
+          toolName: 'pipe',
+          title: 'Prüfung läuft',
+          status: 'in_progress',
+        },
+      },
+    ];
+    for await (const result of parseSSEStream(sseResponse(events), callbacks, outcome)) {
+      last = result as typeof last;
+    }
+    const progress = last?.metadata?.custom?.progress as {
+      steps: Array<{ stage: string; label: string; status: string }>;
+    };
+    // Zwei Einträge auf derselben Stufe: die Suche behält ihr eigenes Label
+    // (hier „3 Ergebnisse" aus dem Werkzeug-Ergebnis), der Nachschritt bekommt
+    // einen eigenen. Vor dem Schlüssel war es EIN Eintrag, und der trug am Ende
+    // den Titel des Nachschritts.
+    const suchend = progress.steps.filter((s) => s.stage === 'searching');
+    expect(suchend).toHaveLength(2);
+    expect(suchend[0]?.label).not.toBe('Prüfung läuft');
+    expect(suchend[0]?.status).toBe('completed');
+    expect(suchend[1]?.label).toBe('Prüfung läuft');
+    expect(progress.steps.filter((s) => s.status === 'in-progress').map((s) => s.label)).toEqual([
+      'Prüfung läuft',
+    ]);
+  });
 });
