@@ -42,6 +42,7 @@ import { createLogger } from '../../../utils/logger.js';
 import { captureSseError } from '../../../utils/observability/captureSseError.js';
 import { ThreadId, UserId } from '../../../utils/types/branded.js';
 import { withTimeout } from '../../../utils/withTimeout.js';
+import { getPipelineAgent } from '../agents/pipelines/index.js';
 import { getContextWindow } from '../agents/providers.js';
 
 import { getThreadAttachments } from './attachmentPersistenceService.js';
@@ -637,7 +638,13 @@ export async function buildStreamContext({
     {
       regenerate: !!rawRegenerate,
       hasDocumentAttachment: processedMeta.some((m) => !m.isImage),
-      promoted: promptIsPastedText,
+      // Nur für Pipeline-Agenten. Ein gewöhnlicher Chat liest die Nachricht im
+      // Verlauf ohnehin wieder; er braucht die Zeile nicht — bekäme aber mit ihr
+      // für jeden 200-Zeichen-Paste eine Anhang-Zeile, einen Zusammenfassungs-
+      // Aufruf im Hintergrund (ab 100 Zeichen) und den eigenen Text ab dann als
+      // „FRÜHERE DOKUMENTE" zurück. Die Kette dagegen misst gegen den
+      // Ausgangstext und braucht ihn auch im Folge-Turn, der nichts mitbringt.
+      promoted: promptIsPastedText && !!getPipelineAgent(agentId),
     }
   );
   if (inlineMaterial) {
