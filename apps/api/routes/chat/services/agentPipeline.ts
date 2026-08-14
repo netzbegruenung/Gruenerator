@@ -38,9 +38,9 @@
 import { intermediateLane } from '../../../agents/langgraph/ChatGraph/llmConfig.js';
 import { createLogger } from '../../../utils/logger.js';
 
+import { startStepHeartbeat, type SSEWriter } from './sseHelpers.js';
 import { INLINE_MATERIAL_MIN_CHARS } from './streamContext.js';
 
-import type { SSEWriter } from './sseHelpers.js';
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { MaterialState, PipelineAgent, PipelineStep } from '../agents/pipelines/index.js';
 
@@ -268,19 +268,25 @@ export async function runAgentPipeline(params: {
       continue;
     }
 
-    sse.send('progress_step', {
+    const progress = {
       stepId: step.id,
       toolName: pipeline.identifier,
       title: step.title,
-      status: 'in_progress',
-    });
-    const result = await runStep(step, state, userMessage);
-    sse.send('progress_step', {
-      stepId: step.id,
-      toolName: pipeline.identifier,
-      title: step.title,
-      status: 'completed',
-    });
+      status: 'in_progress' as const,
+    };
+    sse.send('progress_step', progress);
+    // Ein Nachschritt ist das längste stumme Fenster im ganzen System: gemessen
+    // 218 s für den Prüfbericht, 64 s für die Rückübersetzung. Ein einzelnes
+    // Ereignis zu Beginn trägt das weder für die Leitung noch für den Menschen
+    // davor — Begründung an `startStepHeartbeat`.
+    const stopBeat = startStepHeartbeat(sse, progress);
+    let result: string | null;
+    try {
+      result = await runStep(step, state, userMessage);
+    } finally {
+      stopBeat();
+    }
+    sse.send('progress_step', { ...progress, status: 'completed' });
 
     if (result) {
       previous.set(step.id, result);

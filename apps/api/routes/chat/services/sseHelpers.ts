@@ -668,6 +668,34 @@ export function startResponseHeartbeat(sse: SSEWriter): () => void {
 }
 
 /**
+ * Derselbe Dienst für ein viel längeres Fenster: die Nachschritte eines
+ * Pipeline-Agenten (`services/agentPipeline.ts`) laufen hinter einer bereits
+ * fertig gestromten Antwort und schwiegen dabei am 14.08.2026 218 Sekunden am
+ * Stück — ein Prüfbericht auf einer ausgelasteten Lane. Auf dem Bildschirm ist
+ * das von einem Absturz nicht zu unterscheiden; die Person schickt den Turn
+ * noch einmal, was dieselbe Lane weiter auslastet.
+ *
+ * Anders als beim Antwort-Heartbeat gibt es hier etwas zu sagen — der Schritt
+ * hat einen Titel. Deshalb wiederholt sich sein EIGENES `progress_step` statt
+ * eines generischen Ersatzes: der Client behandelt das Ereignis idempotent
+ * (es setzt nur den Fortschritt, nie eine Werkzeugkarte), und der Titel bleibt
+ * derselbe, den der Schritt zu Beginn gemeldet hat.
+ */
+export function startStepHeartbeat(sse: SSEWriter, payload: ProgressStepPayload): () => void {
+  const handle = setInterval(() => {
+    if (sse.isEnded()) return;
+    sse.send('progress_step', payload);
+  }, HEARTBEAT_INTERVAL_MS);
+  if (typeof handle.unref === 'function') handle.unref();
+  let cleared = false;
+  return () => {
+    if (cleared) return;
+    cleared = true;
+    clearInterval(handle);
+  };
+}
+
+/**
  * Non-fatal degradation warning when one or more search backends were
  * unreachable — shared by the primary and resume search pipelines so the
  * copy can't drift.
