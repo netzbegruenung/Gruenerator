@@ -65,6 +65,26 @@ function keycloakProvider(id: string, idpHint: string) {
   };
 }
 
+/**
+ * Session-cookie scope for this deployment, derived from its own base URL:
+ * `https://beta.gruenerator.eu` → `.beta.gruenerator.eu`. The leading dot keeps
+ * subdomains (`doku.`, `sites.`) inside the same session, which is why prod —
+ * whose base URL is the bare `gruenerator.eu` — behaves exactly as it did when
+ * the domain was hardcoded. Falls back to that literal when the URL is unset or
+ * unparseable, because a missing cookie domain would make Better Auth issue a
+ * host-only cookie and log every subdomain user out.
+ */
+function deriveCookieDomain(baseUrl: string | null): string {
+  const FALLBACK = '.gruenerator.eu';
+  if (baseUrl == null || baseUrl === '') return FALLBACK;
+  try {
+    return `.${new URL(baseUrl).hostname}`;
+  } catch {
+    log.warn('[BetterAuth] BETTER_AUTH_URL=%s is not a URL — cookie domain falls back', baseUrl);
+    return FALLBACK;
+  }
+}
+
 const pgConfig = loadConfig();
 const pool = new pg.Pool(pgConfig);
 const db = drizzle(pool, { schema });
@@ -346,20 +366,28 @@ export const auth = betterAuth({
       generateId: false,
     },
     // The cookie domain must be narrower than the set of instances that share
-    // it, or they overwrite each other's session cookie. beta and prod both ran
-    // with NODE_ENV=production and therefore both wrote `ba.session_token` on
-    // `.gruenerator.eu` while using SEPARATE databases: whichever host wrote
-    // last won the cookie, and the other could no longer resolve the token
+    // it, or they overwrite each other's session cookie. beta and prod both run
+    // with NODE_ENV=production and therefore both wrote `ba.session_token` on a
+    // hardcoded `.gruenerator.eu` while using SEPARATE databases: whichever host
+    // wrote last won the cookie, and the other could no longer resolve the token
     // (observed as a 401 `session_not_found` with `db=absent` on a session row
-    // that was alive and unexpired). COOKIE_DOMAIN scopes each instance to its
-    // own subtree (`.beta.gruenerator.eu`, `.bgst.gruenerator.eu`); prod keeps
-    // the parent domain so `doku.` and `sites.` keep sharing its session.
+    // that was alive and unexpired).
+    //
+    // The default is derived from BETTER_AUTH_URL because that is already set
+    // per deployment and is the origin Better Auth treats as canonical anyway —
+    // so a new instance cannot forget to narrow its cookie. NOT derived from
+    // the instances registry (`@gruenerator/shared/instances`): server-side that
+    // resolves through INSTANCE_ID alone, which only the bgst pillar sets, so
+    // prod AND beta would both land on the `production` fallback and share the
+    // parent domain again. That fallback is deliberately soft for the notebook
+    // gate it was built for; for cookie scope the same softness points the wrong
+    // way. COOKIE_DOMAIN stays as the explicit override.
     crossSubDomainCookies: (() => {
       const config: { enabled: boolean; domain?: string } = {
         enabled: true,
       };
       if (env.NODE_ENV === 'production') {
-        config.domain = env.COOKIE_DOMAIN ?? '.gruenerator.eu';
+        config.domain = env.COOKIE_DOMAIN ?? deriveCookieDomain(env.BETTER_AUTH_URL ?? null);
       }
       return config;
     })(),

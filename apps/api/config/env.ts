@@ -139,10 +139,12 @@ const envSchema = z.object({
 
   // ── Better Auth ────────────────────────────────────────────────────────
   BETTER_AUTH_URL: z.string().optional(),
-  // Session-cookie domain in production. Unset = the parent `.gruenerator.eu`.
-  // NOT derivable from PRIMARY_DOMAIN: that is the brand domain and is the same
-  // for every instance. Any instance with its own database MUST set this to its
-  // own subtree — see `betterAuth.ts` → crossSubDomainCookies.
+  // Explicit override for the session-cookie scope in production. Normally
+  // unset: the scope is derived from BETTER_AUTH_URL, so an instance with its
+  // own database narrows its cookie automatically. Set this only where the
+  // cookie must span more or less than the deployment's own host. NOT related
+  // to PRIMARY_DOMAIN — that is the brand domain, identical on every instance.
+  // See `betterAuth.ts` → deriveCookieDomain.
   COOKIE_DOMAIN: z.string().optional(),
 
   // ── MCP server (authenticated, OAuth) ──────────────────────────────────
