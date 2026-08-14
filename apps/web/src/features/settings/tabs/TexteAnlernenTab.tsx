@@ -232,7 +232,7 @@ const TexteAnlernenTab = () => {
               status={formatLearned(byMention(recipe.preset.textType))}
               onClick={() => {
                 closeSettings();
-                void navigate(`/agentura/skill/${encodeURIComponent(recipe.mention)}`);
+                void navigate(`/agentura/rezept/${encodeURIComponent(recipe.mention)}`);
               }}
             />
           ))}

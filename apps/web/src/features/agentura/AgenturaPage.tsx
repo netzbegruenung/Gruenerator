@@ -304,7 +304,7 @@ function AgenturaPage() {
   );
 
   const handleSelectSkill = (skill: AgentListItem) => {
-    void navigate(`/agentura/skill/${encodeURIComponent(skill.mention)}`);
+    void navigate(`/agentura/rezept/${encodeURIComponent(skill.mention)}`);
   };
   const handleSelectAgent = (agent: Agent) => {
     void navigate(`/agentura/agent/${encodeURIComponent(getAgentSlug(agent.identifier))}`);
