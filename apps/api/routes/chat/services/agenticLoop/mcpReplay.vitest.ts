@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 
-import { buildToolObservationReplay } from './mcpReplay.js';
+import { buildToolObservationReplay, spliceToolReplay } from './mcpReplay.js';
 
 import type { PersistedStep } from './types.js';
+import type { ModelMessage } from 'ai';
 
 function mcpStep(over: Partial<PersistedStep> = {}): PersistedStep {
   return {
@@ -114,5 +115,40 @@ describe('buildToolObservationReplay', () => {
     const msgs = buildToolObservationReplay([step], catalog);
     const out = (msgs[1].content as Array<{ output: { value: string } }>)[0].output.value;
     expect(out.length).toBeGreaterThan(3000);
+  });
+});
+
+describe('spliceToolReplay', () => {
+  const history: ModelMessage[] = [
+    { role: 'user', content: 'was steht im wahlprogramm?' },
+    { role: 'assistant', content: 'Dazu habe ich gesucht.' },
+    { role: 'user', content: 'und morgen?' },
+  ];
+  const replay = buildToolObservationReplay([mcpStep()], catalog);
+
+  it('never lets a user message follow a tool message', () => {
+    // mistral-common (GreenPT, Mistral API) rejects that transition with 400.
+    const out = spliceToolReplay(history, replay);
+    const roles = out.map((m) => m.role);
+    for (let i = 1; i < roles.length; i++) {
+      expect(`${roles[i - 1]}→${roles[i]}`).not.toBe('tool→user');
+    }
+    expect(roles).toEqual(['user', 'assistant', 'assistant', 'tool', 'assistant', 'user']);
+  });
+
+  it('keeps the current user message last and the replay pair adjacent', () => {
+    const out = spliceToolReplay(history, replay);
+    expect(out[out.length - 1]).toBe(history[history.length - 1]);
+    expect(out.indexOf(replay[1])).toBe(out.indexOf(replay[0]) + 1);
+  });
+
+  it('adds no bridge when the last message is not a user message', () => {
+    const ending: ModelMessage[] = [{ role: 'assistant', content: 'weiter' }];
+    expect(spliceToolReplay(ending, replay)).toEqual([...replay, ending[0]]);
+  });
+
+  it('passes the history through untouched when there is no replay', () => {
+    expect(spliceToolReplay(history, [])).toEqual(history);
+    expect(spliceToolReplay([], replay)).toEqual([]);
   });
 });

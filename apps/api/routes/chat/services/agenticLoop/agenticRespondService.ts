@@ -79,7 +79,7 @@ import {
   type LoopMode,
 } from './loopEngine.js';
 import { createToolLoopGuards, MAX_SOURCES } from './loopGuards.js';
-import { buildToolObservationReplay } from './mcpReplay.js';
+import { buildToolObservationReplay, spliceToolReplay } from './mcpReplay.js';
 import { createOpeningDedupe, stripDuplicatedOpening } from './openingDedupe.js';
 import { createRecipeRegistry } from './recipeRegistry.js';
 import {
@@ -1568,10 +1568,8 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
       getRecipeBlock: () => recipeRegistry.render(),
       // Prepend the reconstructed tool-call/result history just before the
       // current user message so tool_call↔result pairs stay adjacent + valid.
-      messages:
-        toolReplayMessages.length > 0 && messages.length > 0
-          ? [...messages.slice(0, -1), ...toolReplayMessages, messages[messages.length - 1]]
-          : messages,
+      // The splice also bridges tool→user, which mistral-common rejects.
+      messages: spliceToolReplay(messages, toolReplayMessages),
       // The synth phase runs WITHOUT tools — it gets the plain history. Feeding
       // it the replay made it imitate the tool-call pattern in prose instead of
       // answering (live: the entire answer was "Let's perform web_search.").
