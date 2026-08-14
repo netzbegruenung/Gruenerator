@@ -26,6 +26,7 @@ import { createLogger } from '../../../utils/logger.js';
 import {
   AVOID_AS_SYNTH,
   LOOP_PLANNER_PRIMARY,
+  LOOP_PLANNER_SELFHOSTED,
   LOOP_PLANNER_FALLBACK,
   LOOP_SYNTH_PRIMARY,
   LOOP_SYNTH_FALLBACK,
@@ -322,8 +323,11 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
     contextWindow: CTX_FULL,
     fallback: 'gpt-oss',
   },
-  // Registered but not wired into any default or auto-routing yet — the catalog
-  // entry is offByDefault, so nothing selects this lane unless asked for by id.
+  // This USER-SELECTABLE lane stays off by default (catalog `offByDefault`), so
+  // nothing picks it as an answer model unless asked for by id. The greenpt
+  // PROVIDER is no longer unused though: since 13.08.2026 the loop planner runs
+  // there by default (LOOP_PLANNER_PRIMARY), which does not go through this
+  // entry — it names provider and model directly.
   greenpt: {
     kind: 'single',
     provider: 'greenpt',
@@ -642,9 +646,10 @@ export function prefersUnifiedLoop(provider: string, _modelName: string): boolea
  */
 
 function loopPlannerChoice(): { provider: Provider; model: string } {
-  // Mistral Small always runs self-hosted on regolo; fall back to
-  // litellm/verdigado-pro only when regolo isn't configured.
-  if (isProviderConfigured('regolo')) return LOOP_PLANNER_PRIMARY;
+  // GreenPT first — see LOOP_PLANNER_PRIMARY in autoPolicy.ts for why. Regolo
+  // stays the self-hosted option, litellm/verdigado-pro the last resort.
+  if (isProviderConfigured('greenpt')) return LOOP_PLANNER_PRIMARY;
+  if (isProviderConfigured('regolo')) return LOOP_PLANNER_SELFHOSTED;
   if (isProviderConfigured('litellm')) return LOOP_PLANNER_FALLBACK;
   return LOOP_PLANNER_PRIMARY;
 }

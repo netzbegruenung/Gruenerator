@@ -41,6 +41,7 @@ import {
   FUNCTION_ORDER,
   oneDecimal,
   providerLabel,
+  formatCorridor,
   referenceComparison,
   UNIT_LABELS,
 } from '../../../utils/usageFormat';
@@ -645,7 +646,7 @@ function ReferencePanel({ footprint }: { footprint: TransparencyFootprintDto }) 
             ≈ {formatGrams(comparison.magnitude)}
           </span>
           <p className={cn('m-0 mt-2 text-[0.85rem]', MONITOR_MUTED)}>
-            etwa {formatGrams(comparison.low)} – {formatGrams(comparison.high)}
+            {formatCorridor(comparison.worst, comparison.best)}
           </p>
         </div>
         <div>
@@ -672,8 +673,25 @@ function ReferencePanel({ footprint }: { footprint: TransparencyFootprintDto }) 
         </div>
         <p className={cn('m-0 max-w-[34rem] flex-1 text-[0.8rem] leading-relaxed', MONITOR_FAINT)}>
           Vergleich zu GPT-4o (Jegham et al., arXiv:2505.09598), nur Text — für Bilder gibt es keine
-          vergleichbar sauber abgegrenzte OpenAI-Zahl. Der Korridor bildet ab, dass die GPT-4o-Seite
-          selbst geschätzt ist: aus API-Latenzen und GPU-Datenblättern abgeleitet, nicht gemessen.
+          vergleichbar sauber abgegrenzte OpenAI-Zahl. Der Korridor bildet zwei Dinge ab. Erstens
+          ist die GPT-4o-Seite selbst geschätzt: aus API-Latenzen und GPU-Datenblättern abgeleitet,
+          nicht gemessen (±30 %).
+          {comparison.marketDiffers && (
+            <>
+              {' '}
+              Zweitens gibt es zwei anerkannte Bilanzierungsmethoden. Die Zahl oben ist
+              standortbasiert — sie rechnet mit dem Netz am Standort und ist unsere offizielle
+              Bilanz. Das günstige Ende der Spanne ist marktbasiert und rechnet den bezogenen
+              Ökostrom an: {formatGrams(comparison.textMarketEmissions)} statt{' '}
+              {formatGrams(comparison.textEmissions)}. Belege dafür sind Scaleways
+              Herkunftsnachweise, Hetzners EMAS-Registrierung und Seewebs zertifizierter Bezug; für
+              die Bildmodelle gibt es keinen, weil wir die Region gar nicht kennen — dort fallen
+              beide Methoden zusammen.{' '}
+              <strong className={MONITOR_MUTED}>Die Verrechnung gilt nur für unsere Seite:</strong>{' '}
+              Microsoft kauft ebenfalls Erneuerbare ein, aber deren Nachweise sind nicht unsere. Das
+              günstige Ende vergleicht insofern zwei Methoden, nicht zwei Rechenzentren.
+            </>
+          )}
         </p>
       </div>
     </section>
