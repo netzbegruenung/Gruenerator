@@ -5,6 +5,7 @@
 
 import { env } from '../../../config/env.js';
 import { isVisionCapable } from '../../../services/ai/modelDiscovery.js';
+import { pickHealthyTarget } from '../../../services/ai/modelSiblings.js';
 import {
   getGreenPTProvider,
   getLiteLLMProvider,
@@ -522,12 +523,25 @@ export function getModel(
   modelId: string,
   options: RouteOptions = {}
 ): LanguageModel {
+  // Ein zäh vermerktes Paar wird übersprungen statt abgewartet — siehe
+  // services/ai/modelSiblings.ts. Ohne Vermerk ändert sich hier nichts.
+  const healthy = pickHealthyTarget(provider, modelId);
+  const lane = healthy ?? { provider, model: modelId };
+
   // Attribute usage to the upstream that actually served it — the Mistral lane
   // runs on Scaleway. `takeProviderFallback` is deliberately NOT set for that:
   // it drives user-visible "answered on a different model" reporting, and this
   // is the same model on a different upstream, which users should not be shown.
-  const upstream = provider === 'mistral' ? routeMistralModel(modelId, options).upstream : provider;
-  return withUsageTracking(resolveModel(provider, modelId, options), upstream);
+  const upstream =
+    lane.provider === 'mistral' ? routeMistralModel(lane.model, options).upstream : lane.provider;
+  const model = withUsageTracking(resolveModel(lane.provider, lane.model, options), upstream);
+
+  // Ein Gesundheits-Tausch IST ein anderes Modell — anders als der
+  // Scaleway-Upstream oben. Er wird nach `resolveModel` gemeldet, weil das den
+  // Vermerk zurücksetzt, und über denselben Kanal wie der bestehende
+  // First-Token-Fallback: die Anzeige sagt dann, worauf geantwortet wurde.
+  if (healthy) lastFallbackProvider = healthy.provider;
+  return model;
 }
 
 /**
@@ -720,12 +734,18 @@ export function loopSynthChoice(
 }
 
 export function getLoopSynthModel(
-  resolution: { model: LanguageModel; modelName: string },
+  resolution: { model: LanguageModel; modelName: string; provider: string },
   undecided: boolean
-): { model: LanguageModel; name: string } {
+): { model: LanguageModel; name: string; provider: string } {
   const choice = loopSynthChoice(resolution.modelName, undecided);
-  if (choice.provider === null) return { model: resolution.model, name: resolution.modelName };
-  return { model: getModel(choice.provider, choice.model), name: choice.model };
+  if (choice.provider === null) {
+    return { model: resolution.model, name: resolution.modelName, provider: resolution.provider };
+  }
+  return {
+    model: getModel(choice.provider, choice.model),
+    name: choice.model,
+    provider: choice.provider,
+  };
 }
 
 /**

@@ -12,6 +12,7 @@
 
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
+import { _resetModelHealthForTests } from '../../../services/ai/modelHealth.js';
 import { getPipelineAgent } from '../agents/pipelines/index.js';
 
 import { resolveOriginalText, runAgentPipeline } from './agentPipeline.js';
@@ -97,6 +98,10 @@ const streamed = (sent: Sent[]): string =>
 describe('runAgentPipeline', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Der Vermerk aus services/ai/modelHealth.ts überdauert sonst den Test:
+    // ein Lauf, in dem die Hedge-Frist riss, schickt den nächsten sofort zum
+    // Sibling — richtig im Betrieb, hier eine Verunreinigung.
+    _resetModelHealthForTests();
   });
 
   it('reicht der Rückübersetzung NUR die Fassung, nie das Original', async () => {
@@ -250,6 +255,13 @@ describe('runAgentPipeline', () => {
  * längst gescheitert ist.
  */
 describe('runAgentPipeline — Sibling bei Langsamkeit', () => {
+  // Ein Lauf, in dem die Frist riss, vermerkt das Paar — der nächste Lauf ginge
+  // sonst sofort zum Sibling. Im Betrieb genau richtig, hier eine
+  // Verunreinigung zwischen den Fällen.
+  beforeEach(() => {
+    _resetModelHealthForTests();
+  });
+
   /** Ein Pool, dessen Antwort je Provider verschieden ausfällt. */
   function poolNachProvider(handler: (provider: string, type: string) => Promise<string | null>): {
     pool: { processRequest: ReturnType<typeof vi.fn> };
@@ -305,6 +317,29 @@ describe('runAgentPipeline — Sibling bei Langsamkeit', () => {
       expect(appended).toContain('Vom Sibling.');
       // Und nicht als Ausfall verbucht: der Schritt hat geliefert.
       expect(appended).not.toContain('nicht zustande gekommen');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('der ZWEITE Lauf wartet die Frist nicht noch einmal ab', async () => {
+    // Das eigentliche Versprechen: eine Störung wird einmal entdeckt. Ohne
+    // Vermerk zahlte jeder Turn die 30 s erneut, obwohl der Turn davor sie
+    // schon bewiesen hat.
+    vi.useFakeTimers();
+    try {
+      const stumm = poolNachProvider(async (provider) =>
+        provider === 'regolo' ? new Promise<string>(() => {}) : 'Vom Sibling.'
+      );
+      const ersterLauf = laufe(stumm.pool);
+      await vi.advanceTimersByTimeAsync(300_000);
+      await ersterLauf;
+
+      const zweiter = poolNachProvider(async () => 'Vom Sibling.');
+      await laufe(zweiter.pool);
+
+      // Kein Tick auf der Uhr, und Regolo wurde gar nicht erst gefragt.
+      expect(zweiter.calls.map((c) => c.provider)).toEqual(['scaleway', 'scaleway']);
     } finally {
       vi.useRealTimers();
     }
