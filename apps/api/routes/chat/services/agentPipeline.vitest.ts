@@ -258,6 +258,20 @@ describe('resolveOriginalText', () => {
     expect(resolveOriginalText(state, neu)).toBe(neu.trim());
   });
 
+  it('lässt kurzes EINGEFÜGTES Material den mitgeführten Text ablösen', () => {
+    // Der Lauf vom 14.08.2026: ein frisch eingefügter Text von 1339 Zeichen fiel
+    // unter die Längengrenze, galt als Anweisung und wurde vom Artikel des
+    // vorigen Turns verdrängt. Die Fassung entstand trotzdem aus ihm, die
+    // Prüfung mass gegen den alten Artikel und meldete sie als Halluzination.
+    const neu = 'Der Stadtrat hat über einen neuen Busfahrplan beraten. '.repeat(8);
+    const state = { ...leer, threadAttachments: [anhang(lang)] };
+    expect(neu.length).toBeLessThan(3000);
+    expect(resolveOriginalText(state, neu, true)).toBe(neu.trim());
+    // Ohne das Merkmal entscheidet weiter die Länge — eine getippte Beanstandung
+    // derselben Länge bleibt eine Anweisung.
+    expect(resolveOriginalText(state, neu)).toBe(lang.trim());
+  });
+
   it('lässt einen Anhang DIESES Turns den mitgeführten Text ablösen', () => {
     const neu = 'Ein zweiter Artikel, diesmal als Datei. '.repeat(5);
     const state = { ...leer, attachmentContext: neu, threadAttachments: [anhang(lang)] };

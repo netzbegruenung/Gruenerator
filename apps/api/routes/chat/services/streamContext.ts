@@ -173,6 +173,11 @@ export interface StreamContext {
   /** Last user message text WITH tokens (pre-sanitization) — for regex
    *  heuristics that need the remove-form. */
   lastUserTextRaw: string;
+  /** True when this turn's user message IS a paste — the composer's synthetic
+   *  paste attachment sent with an empty textarea, promoted above. Read by
+   *  `resolveOriginalText`, which otherwise has only length to tell a short
+   *  pasted source text from a typed instruction. */
+  promptIsPastedText: boolean;
   /** Placeholder assistant row minted before streaming so an aborted/crashed
    *  turn still persists (WP-B). Null when no thread/user message, or when the
    *  placeholder insert failed (the turn then runs as before). */
@@ -409,6 +414,7 @@ export async function buildStreamContext({
   // the user message itself (classifier, title, persistence and prompts all see
   // it); alongside typed text it stays reference material as before.
   let effectiveAttachments = attachments as ProcessedAttachment[] | undefined;
+  let promptIsPastedText = false;
   if (lastUserMessage) {
     const promotion = extractPromotablePasteText(
       effectiveAttachments,
@@ -417,6 +423,7 @@ export async function buildStreamContext({
     if (promotion) {
       lastUserMessage.content = promotion.pasteText;
       effectiveAttachments = promotion.remaining;
+      promptIsPastedText = true;
       log.info('[StreamContext] Pasted text promoted to user prompt (composer text was empty)');
     }
   }
@@ -888,6 +895,7 @@ export async function buildStreamContext({
       contextWindowTokens,
       mentionTokenFields,
       lastUserTextRaw,
+      promptIsPastedText,
       pendingAssistantMessageId,
       threadToolHistory,
       userMessageId,
