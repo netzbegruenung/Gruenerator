@@ -145,7 +145,9 @@ describe('estimateFootprint', () => {
 
   it('credits back a better PUE than GreenPT reference', () => {
     // Same Gemma 4 weights on three hosts. Both of ours beat GreenPT's 1.25:
-    // Hetzner 1.13, Seeweb 1.20 (DHH sustainability report 2024, p. 8).
+    // Hetzner 1.12 (its own EMAS-registered declaration, was 1.13 from a weaker
+    // source), Seeweb 1.20 (DHH sustainability report 2024, p. 8). The numbers
+    // below are read from PUE_BY_PROVIDER — an update there belongs here too.
     const shape = { inputTokens: 600, outputTokens: 400, requests: 1 };
     const greenpt = estimateFootprint({ ...shape, provider: 'greenpt', model: 'gemma4-31b' });
     const regolo = estimateFootprint({ ...shape, provider: 'regolo', model: 'gemma4-31b' });
@@ -154,8 +156,20 @@ describe('estimateFootprint', () => {
       provider: 'litellm',
       model: 'verdigado-think',
     });
-    expect((regolo?.energyWms ?? 0) / (greenpt?.energyWms ?? 1)).toBeCloseTo(1.2 / 1.25, 2);
-    expect((verdigado?.energyWms ?? 0) / (greenpt?.energyWms ?? 1)).toBeCloseTo(1.13 / 1.25, 2);
+    // Derived from the table, not re-typed: the claim under test is that the
+    // energy scales with the host's PUE, and a hard-coded 1.13 kept asserting a
+    // constant the code no longer held.
+    const ref = pueFor('greenpt');
+    expect(pueFor('regolo')).toBeLessThan(ref);
+    expect(pueFor('litellm')).toBeLessThan(ref);
+    expect((regolo?.energyWms ?? 0) / (greenpt?.energyWms ?? 1)).toBeCloseTo(
+      pueFor('regolo') / ref,
+      2
+    );
+    expect((verdigado?.energyWms ?? 0) / (greenpt?.energyWms ?? 1)).toBeCloseTo(
+      pueFor('litellm') / ref,
+      2
+    );
   });
 
   it('applies the upstream grid, not the lane name', () => {
@@ -336,5 +350,9 @@ describe('pueFor', () => {
     expect(pueFor('bfl', 'tokens')).toBe(1.25);
     expect(pueFor('bfl', 'images')).toBe(1.56);
     expect(pueFor('regolo')).toBe(1.2);
+    // Hetzner's own EMAS-registered declaration. Pinned HERE and nowhere else,
+    // so moving the constant fails one obvious test instead of an arithmetic
+    // assertion three describes away.
+    expect(pueFor('litellm')).toBe(1.12);
   });
 });
