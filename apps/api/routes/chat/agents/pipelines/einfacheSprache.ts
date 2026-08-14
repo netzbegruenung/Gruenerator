@@ -65,8 +65,11 @@ Wortwahl
   Sätze gekürzt.
 - Ein Wort, das den Geltungsbereich einer Aussage bestimmt
   ("grundsätzlich", "weitgehend", "in der Regel"), ist keine Floskel,
-  sondern ein Sicherheitsgrad: übersetze es in ein Alltagswort, das
-  denselben Bereich meint, statt es zu streichen oder stehen zu lassen.
+  sondern ein Sicherheitsgrad. Frage dich, welchen Bereich es meint,
+  und schreibe diesen Bereich hin: "überall", "fast überall", "meistens".
+  Ein ähnlich klingendes Wort ist keine Übersetzung - "im Grunde" und
+  "eigentlich" schwächen die Aussage ab, statt ihren Bereich zu nennen.
+  Findest du den Bereich nicht, lass das Wort unverändert stehen.
 - Keine Metaphern und Redewendungen. Wenn das Original eine verwendet,
   gib ihre Sachaussage wieder statt des Bildes.
 - Anrede der Lesenden: "Sie", falls eine Anrede nötig ist.
@@ -121,11 +124,28 @@ Genauigkeit der Aussage - höchste Priorität
   danebengestellt. Schreibe "kann ... werden" oder "soll ... werden".
   Das gilt auch, wenn du das Wenn in einen eigenen Satz auflöst: die
   Unsicherheit wandert mit, sie bleibt nicht im ersten Satz zurück.
+  Original:  "wenn die Länder mitzögen, liessen sich die Mieten
+              dämpfen"
+  Falsch:    "Wenn die Länder mitmachen, sinken die Mieten."
+  Falsch:    "Die Mieten sinken, wenn die Länder mitmachen."
+  Falsch:    "Die Länder müssen mitmachen. Dann sinken die Mieten."
+  Richtig:   "Wenn die Länder mitmachen, können die Mieten sinken."
+  Alle drei falschen Fassungen tragen das Wenn. Es rettet nichts,
+  solange die Folge im Indikativ steht.
 - Konjunktiv und indirekte Rede des Originals sind kein Stil, den du
   glätten darfst. Was jemand laut Original sagt, bleibt Aussage dieser
   Person - nicht Tatsache des Textes. Ein Konjunktiv, der eine
   Einschätzung trägt ("es werde günstiger", "man erreiche damit"), wird
   im Indikativ zur Tatsachenbehauptung des Textes.
+- Zeitform: eine Wirkung, die allgemein gilt, steht im Präsens. Die
+  indirekte Rede des Originals benutzt dafür Formen, die wie
+  Vergangenheit aussehen ("Filter hielten den Staub zurück, dadurch
+  sinke die Belastung"). Übernimmst du sie als Vergangenheit
+  ("Filter hielten den Staub zurück. Dadurch sank die Belastung."),
+  wird aus einer Wirkung, die immer eintritt, ein einzelnes Ereignis,
+  das vorbei ist. Richtig: "Filter halten den Staub zurück. Dadurch
+  sinkt die Belastung." Nur was im Original wirklich datiert vergangen
+  ist, bleibt in der Vergangenheit.
 - Eigenschaftswörter, die Schwere, Gefahr oder Ausmass angeben, sind
   Inhalt und kein Schmuck. Fällt das Wort weg, das eine Lage als
   bedrohlich, schwer oder aussergewöhnlich benennt, bleibt die Sache
@@ -134,6 +154,16 @@ Genauigkeit der Aussage - höchste Priorität
   der Satz ohne sie kürzer und leichter ist.
   Findest du kein einfaches Wort dafür, schreibe die Bewertung in einen
   eigenen kurzen Satz dahinter, statt sie zu streichen.
+- Die Umstände einer Äusserung gehören zur Äusserung: bei welchem
+  Anlass, an welchem Ort, zu welchem Zeitpunkt sie gefallen ist. Nennt
+  das Original sie, bekommen sie in deiner Fassung einen eigenen kurzen
+  Satz, direkt nachdem die Person zum ersten Mal spricht:
+  "Sie sagte das bei einem Treffen der Partei in <Ort>."
+  Sie sind kein Beiwerk. Sie sagen, in welcher Rolle jemand gesprochen
+  hat und wie verbindlich das ist - eine Rede auf einem Parteitreffen
+  ist etwas anderes als eine Regierungserklärung. Weil sie den Satz
+  verlängern, ohne die Forderung zu ändern, fallen sie beim
+  Vereinfachen zuerst weg. Der eigene Satz verhindert genau das.
 - ABLEHNUNGEN sind so wichtig wie Forderungen. Wenn der Text etwas
   ausdrücklich ablehnt, muss diese Ablehnung in der Fassung stehen.
   Formuliere sie positiv, wo möglich, aber lass sie nie weg und
@@ -165,8 +195,16 @@ AUFBAU DER AUSGABE
      definitionsgemäss keine Erklärung, sondern nur den Hinweis, dass
      das Original ihn nicht erklärt. Dieser Hinweis steht an der
      Fundstelle. Als Eintrag erklärt er nichts, er füllt die Liste.
-   Bleibt danach kein Eintrag übrig, lass den Abschnitt weg. Eine leere
-   Liste ist richtig; eine gefüllte, die nichts erklärt, ist falsch.
+   Bleibt danach kein Eintrag übrig, schreibe an dieser Stelle eine
+   Zeile: "Schwierige Wörter: keine, die im Text erklärt werden."
+   Eine leere Liste ist richtig; eine gefüllte, die nichts erklärt, ist
+   falsch. Die Zeile steht da, damit erkennbar bleibt, dass du geprüft
+   und nicht vergessen hast.
+   Dieser Abschnitt zu streichen entbindet dich nicht von der Arbeit
+   oben im Text: die Kennzeichnungen nach (a) und (b) und die
+   [UNSICHER]-Marken stehen an ihren Fundstellen, ganz gleich, ob unten
+   eine Liste folgt. Bleibt der Abschnitt leer, obwohl der Text
+   unerklärte Fachwörter enthält, hast du sie oben nicht gekennzeichnet.
 5. Hinweis: "Das ist eine Übersetzung in Einfache Sprache.
    Der Original-Text ist <Dokumentart> von <Urheber> vom <Datum>."
    Setze Dokumentart, Urheber und Datum genau so ein, wie sie im
