@@ -84,6 +84,10 @@ export interface AIRequestData {
   platforms?: string[] | undefined;
   documents?: DocumentReference[] | undefined;
   tools?: Tool[] | undefined;
+  /** Eigene Zeitsperre für DIESEN Aufruf in ms; ohne Angabe gilt
+   *  `env.REQUEST_TIMEOUT`. Für Aufrufe, die nachweislich länger brauchen als
+   *  eine interaktive Antwort und deren Ausfall teurer ist als das Warten. */
+  timeoutMs?: number | undefined;
   [key: string]: unknown;
 }
 
