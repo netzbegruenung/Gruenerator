@@ -16,7 +16,7 @@ import {
 } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { FiServer, FiSearch, FiCheck, FiRefreshCw } from 'react-icons/fi';
+import { FiServer, FiSearch, FiCheck, FiRefreshCw, FiAlertCircle } from 'react-icons/fi';
 import {
   SiNotion,
   SiCoda,
@@ -189,6 +189,32 @@ const ToolChips = memo(({ tools, max = 16 }: { tools: string[]; max?: number }) 
 });
 ToolChips.displayName = 'ToolChips';
 
+/**
+ * Die Zeile, die beim Support-Fall „0 Tools" fehlte: welcher Transport getragen
+ * hat, welche Protokollversion ausgehandelt wurde und wie viele Einträge der
+ * Server ohne brauchbaren Namen geliefert hat.
+ */
+const McpTestDiagnostics = memo(
+  ({
+    result,
+  }: {
+    result: {
+      transport?: string | null;
+      protocolVersion?: string | null;
+      skippedTools?: number | null;
+    };
+  }) => {
+    const parts: string[] = [];
+    if (result.transport)
+      parts.push(result.transport === 'sse' ? 'Transport: SSE' : 'Transport: HTTP');
+    if (result.protocolVersion) parts.push(`Protokoll: ${result.protocolVersion}`);
+    if (result.skippedTools) parts.push(`${result.skippedTools} Einträge ohne Namen übersprungen`);
+    if (parts.length === 0) return null;
+    return <span className="text-[11px] text-grey-400">{parts.join(' · ')}</span>;
+  }
+);
+McpTestDiagnostics.displayName = 'McpTestDiagnostics';
+
 // ── Add-form ─────────────────────────────────────────────────────────────────
 
 interface McpSectionProps {
@@ -344,6 +370,9 @@ const McpServerRow = memo(
       ok: boolean;
       tools: string[];
       error: string | null;
+      transport?: string | null;
+      protocolVersion?: string | null;
+      skippedTools?: number | null;
     } | null>(null);
 
     // A managed connector is operated by us: no OAuth to complete, nothing to
@@ -378,6 +407,9 @@ const McpServerRow = memo(
             ok: r.ok,
             tools: r.toolNames,
             error: r.ok ? null : (r.error ?? 'Verbindung fehlgeschlagen'),
+            transport: r.transport,
+            protocolVersion: r.protocolVersion,
+            skippedTools: r.skippedTools,
           }),
         onError: (err) =>
           setTestResult({
@@ -467,19 +499,32 @@ const McpServerRow = memo(
         {testResult &&
           (testResult.ok ? (
             <div className="flex flex-col gap-1.5">
-              <span
-                className={cn(
-                  'inline-flex items-center gap-1.5 text-xs font-semibold',
-                  okTextClass
-                )}
-              >
-                <FiCheck className="w-3.5 h-3.5" />
-                {testResult.tools.length} Tools verfügbar
-              </span>
+              {/* Ein erreichbarer Server ohne Werkzeuge ist kein Erfolg — grün mit
+                  „0 Tools verfügbar" hat genau diesen Fall als in Ordnung gemeldet. */}
+              {testResult.tools.length === 0 ? (
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                  <FiAlertCircle className="w-3.5 h-3.5" />
+                  Verbunden, aber der Server meldet keine Werkzeuge
+                </span>
+              ) : (
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1.5 text-xs font-semibold',
+                    okTextClass
+                  )}
+                >
+                  <FiCheck className="w-3.5 h-3.5" />
+                  {testResult.tools.length} Tools verfügbar
+                </span>
+              )}
               <ToolChips tools={testResult.tools} />
+              <McpTestDiagnostics result={testResult} />
             </div>
           ) : (
-            <span className="text-xs text-grey-500">✗ {testResult.error}</span>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-grey-500">✗ {testResult.error}</span>
+              <McpTestDiagnostics result={testResult} />
+            </div>
           ))}
       </div>
     );
@@ -591,12 +636,22 @@ const BearerConnectDialog = ({
 
         {tools ? (
           <div className="flex flex-col gap-sm">
-            <span
-              className={cn('inline-flex items-center gap-1.5 text-sm font-semibold', okTextClass)}
-            >
-              <FiCheck className="w-4 h-4" />
-              Verbunden — {tools.length} Tools verfügbar
-            </span>
+            {tools.length === 0 ? (
+              <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-600 dark:text-amber-400">
+                <FiAlertCircle className="w-4 h-4" />
+                Verbunden, aber der Server meldet keine Werkzeuge — bitte den Token prüfen
+              </span>
+            ) : (
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1.5 text-sm font-semibold',
+                  okTextClass
+                )}
+              >
+                <FiCheck className="w-4 h-4" />
+                Verbunden — {tools.length} Tools verfügbar
+              </span>
+            )}
             <ToolChips tools={tools} max={10} />
           </div>
         ) : (

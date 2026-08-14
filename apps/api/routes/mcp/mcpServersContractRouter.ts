@@ -174,6 +174,13 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
         // Managed connectors have no row to cache into (see mcpCatalog) — the
         // test itself still runs, which is the point of the button.
         if (!config.managed) await McpServerRegistry.saveToolsSnapshot(userId, config.id, tools);
+        log.info('MCP test succeeded', {
+          server: config.name,
+          transport: client.transportKind,
+          protocolVersion: client.protocolVersion,
+          toolCount: tools.length,
+          skippedTools: client.skippedTools,
+        });
         return {
           status: 200 as const,
           body: {
@@ -181,9 +188,22 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
             toolCount: tools.length,
             toolNames: tools.map((t) => t.name),
             error: null,
+            transport: client.transportKind,
+            protocolVersion: client.protocolVersion,
+            skippedTools: client.skippedTools,
           },
         };
       } catch (err) {
+        // The raw message never reached anyone: this branch logged nothing, and
+        // `toUserFacingMessage` replaces anything long or multi-line (a ZodError,
+        // say) with a generic sentence. Log it verbatim — a connector that fails
+        // for a stranger's server is undebuggable without it.
+        log.warn('MCP test failed', {
+          server: config.name,
+          url: config.url,
+          transport: client.transportKind,
+          message: err instanceof Error ? err.message : String(err),
+        });
         return {
           status: 200 as const,
           body: {
@@ -191,6 +211,9 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
             toolCount: 0,
             toolNames: [],
             error: toUserFacingMessage(err),
+            transport: client.transportKind,
+            protocolVersion: client.protocolVersion,
+            skippedTools: 0,
           },
         };
       } finally {
