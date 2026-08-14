@@ -373,15 +373,21 @@ export class UserMCPClient {
       );
       page++;
       const entries = result.tools ?? [];
-      for (const raw of entries) {
+      for (let i = 0; i < entries.length; i++) {
         // Abgeschnittenes wird GEZÄHLT, nicht stillschweigend verworfen: ein
         // blankes `break` hätte hier exakt den Fehler wiederholt, gegen den
         // diese Methode antritt — nur eine Ebene tiefer.
+        //
+        // Gezählt wird der Rest DIESER Seite (`entries.length - i`). Die erste
+        // Fassung rechnete `entries.length - out.length - skipped` und mischte
+        // damit einen seitenlokalen mit zwei über alle Seiten kumulierten
+        // Zählern: griff der Deckel erst ab Seite 2, kam eine negative Zahl
+        // heraus — und `truncated > 0` unterdrückte dann sogar den Warn-Log.
         if (out.length >= MAX_LISTED_TOOLS) {
-          truncated += entries.length - out.length - skipped;
+          truncated += entries.length - i;
           break;
         }
-        const tool = normalizeToolDescriptor(raw);
+        const tool = normalizeToolDescriptor(entries[i]);
         if (tool) out.push(tool);
         else skipped++;
       }
@@ -393,7 +399,9 @@ export class UserMCPClient {
         server: this.config.name,
         pages: page,
         tools: out.length,
-        droppedOnLastPage: truncated,
+        // Über alle Seiten summiert, nicht nur die letzte — der alte Name
+        // behauptete eine Seitenbindung, die die Zahl nie hatte.
+        droppedByCap: truncated,
         morePagesPending: Boolean(cursor),
       });
     }
