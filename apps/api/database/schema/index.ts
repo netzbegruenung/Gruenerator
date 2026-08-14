@@ -38,3 +38,4 @@ export * from './userWebsites.js';
 export * from './userLetterheads.js';
 export * from './adminHiddenSkills.js';
 export * from './landesverbaende.js';
+export * from './aiModelLatency.js';

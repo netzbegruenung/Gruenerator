@@ -10,6 +10,7 @@
 import { streamText, type ModelMessage, type LanguageModel } from 'ai';
 
 import { isReasoningCapable } from '../../../services/ai/modelDiscovery.js';
+import { recordSlowVerdict } from '../../../services/ai/modelHealth.js';
 import { clampToModelOutputLimit } from '../../../services/ai/modelOutputLimits.js';
 import {
   isReasoningStreamModel,
@@ -974,6 +975,11 @@ export async function streamWithFallback(params: {
     return await buildStream(primary);
   } catch (err) {
     if (!isStreamFailure(err)) throw err;
+
+    // Das Verdikt, das die Messung nicht liefern kann: es kamen gar keine
+    // Tokens. Der nächste Turn wartet dann nicht noch einmal die volle Frist
+    // auf dasselbe Paar.
+    recordSlowVerdict(primary.provider, primary.modelName, err.kind);
 
     const sibling = primary.sibling;
     if (!sibling) {

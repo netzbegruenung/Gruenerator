@@ -32,6 +32,10 @@ import { shouldSkipBodyParser } from './middleware/bodyParserConfig.js';
 import { createCacheMiddleware } from './middleware/cacheMiddleware.js';
 import { setupRoutes } from './routes.js';
 import { createAIService, type AIService } from './services/ai/aiService.js';
+import {
+  startModelLatencyCleanup,
+  startModelLatencyRollup,
+} from './services/ai/modelLatencyStore.js';
 import { startBoardAgentWorker } from './services/boards/boardAgentWorker.js';
 import { startBoardScheduleWorker } from './services/boards/boardScheduleWorker.js';
 import { startCardDueReminderWorker } from './services/boards/cardDueReminderWorker.js';
@@ -88,6 +92,7 @@ if (skipCluster) {
   startUploadsCleanup();
   startNotificationCleanup();
   startDeepResearchCleanup();
+  startModelLatencyCleanup();
 
   await startWorker();
 } else if (cluster.isPrimary) {
@@ -169,6 +174,7 @@ if (skipCluster) {
   startUploadsCleanup();
   startNotificationCleanup();
   startDeepResearchCleanup();
+  startModelLatencyCleanup();
 
   const { shutdown: _shutdown, registerSignalHandlers } = createMasterShutdownHandler({
     workerTimeout: 10000,
@@ -292,6 +298,10 @@ async function startWorker(): Promise<void> {
     const err = error instanceof Error ? error : new Error(String(error));
     log.warn(`ProfileService init failed: ${err.message}`);
   }
+
+  // Misst mit, wie schnell jedes Modell antwortet, und wärmt die Basislinie aus
+  // den letzten 24 h vor. Braucht die Postgres-Init oben.
+  startModelLatencyRollup();
 
   // Async board agent: drains the agent_tasks queue (@gruenerator delegations).
   // Safe to run in every cluster worker — claiming uses FOR UPDATE SKIP LOCKED.
