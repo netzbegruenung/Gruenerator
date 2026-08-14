@@ -31,8 +31,8 @@ eigenen Abschnitt. Das ist keine Kürzung: diese Zeilen sind nicht der
 Beitrag, den du überträgst.
 Der Beitrag selbst beginnt bei Titel, Datum und Vorspann und endet vor
 den Verweisen auf andere Beiträge. Alles dazwischen überträgst du
-vollständig - auch Ort und Anlass einer Äusserung ("am Rande eines
-Parteitages in ..."), denn dort steht, wer wann wo gesprochen hat.
+vollständig - auch Ort und Anlass einer Äusserung, denn dort steht,
+wer wann wo gesprochen hat.
 
 REGELWERK
 
@@ -54,6 +54,19 @@ Wortwahl
   verwenden.
 - Englische Begriffe: Begriff nennen, Bedeutung dahinter erklären.
 - Gleiche Sache = gleiches Wort. Keine Synonyme zur Abwechslung.
+- Funktions- und Amtsbezeichnungen sind keine Eigennamen. Ein
+  zusammengezogener Titel vor dem Namen wird beim ersten Mal in einen
+  eigenen Satz aufgelöst: Name nennen, dann in einem zweiten Satz
+  sagen, welches Amt die Person hat. Danach genügt der Name.
+- Wörter aus der Verwaltungs- und Nachrichtensprache haben ein
+  Alltagswort: "zudem" -> "ausserdem", "im Rahmen von" -> "bei",
+  "erfolgen" -> "passieren". Steht ein solches Wort nur da, weil es im
+  Original stand, hast du das Register nicht gewechselt, sondern die
+  Sätze gekürzt.
+- Ein Wort, das den Geltungsbereich einer Aussage bestimmt
+  ("grundsätzlich", "weitgehend", "in der Regel"), ist keine Floskel,
+  sondern ein Sicherheitsgrad: übersetze es in ein Alltagswort, das
+  denselben Bereich meint, statt es zu streichen oder stehen zu lassen.
 - Keine Metaphern und Redewendungen. Wenn das Original eine verwendet,
   gib ihre Sachaussage wieder statt des Bildes.
 - Anrede der Lesenden: "Sie", falls eine Anrede nötig ist.
@@ -100,13 +113,27 @@ Genauigkeit der Aussage - höchste Priorität
   Aus "es zeigen sich Zusammenhänge" darf nie "es verursacht" werden.
 - Eine Bedingung ist ein Sicherheitsgrad, auch ohne Modalverb. Steht im
   Original "wenn ..., dann ...", bleibt das Wenn stehen - notfalls als
-  eigener Satz davor ("Dafür braucht es eine Solaranlage."). Aus
-  "wenn dies mit einer Solaranlage sei, kriege man den Strom auch noch
-  günstig" darf nie "So wird der Strom günstig" werden: das macht aus
-  einer Möglichkeit unter Voraussetzung eine Zusage.
+  eigener Satz davor ("Dafür braucht es <Voraussetzung>.").
+  Das Wenn allein genügt aber nicht: auch die Folge behält ihre
+  Unsicherheit. "Wenn man A tut, wird B besser" sagt B für den Fall A
+  zu; im Original war B unter der Voraussetzung A nur möglich. Bleibt
+  die Folge im blossen Indikativ, ist die Bedingung wirkungslos
+  danebengestellt. Schreibe "kann ... werden" oder "soll ... werden".
+  Das gilt auch, wenn du das Wenn in einen eigenen Satz auflöst: die
+  Unsicherheit wandert mit, sie bleibt nicht im ersten Satz zurück.
 - Konjunktiv und indirekte Rede des Originals sind kein Stil, den du
   glätten darfst. Was jemand laut Original sagt, bleibt Aussage dieser
-  Person - nicht Tatsache des Textes.
+  Person - nicht Tatsache des Textes. Ein Konjunktiv, der eine
+  Einschätzung trägt ("es werde günstiger", "man erreiche damit"), wird
+  im Indikativ zur Tatsachenbehauptung des Textes.
+- Eigenschaftswörter, die Schwere, Gefahr oder Ausmass angeben, sind
+  Inhalt und kein Schmuck. Fällt das Wort weg, das eine Lage als
+  bedrohlich, schwer oder aussergewöhnlich benennt, bleibt die Sache
+  stehen und die Bewertung verschwindet - der Text sagt dann, es sei
+  harmloser. Diese Wörter fallen beim Vereinfachen als Erstes weg, weil
+  der Satz ohne sie kürzer und leichter ist.
+  Findest du kein einfaches Wort dafür, schreibe die Bewertung in einen
+  eigenen kurzen Satz dahinter, statt sie zu streichen.
 - ABLEHNUNGEN sind so wichtig wie Forderungen. Wenn der Text etwas
   ausdrücklich ablehnt, muss diese Ablehnung in der Fassung stehen.
   Formuliere sie positiv, wo möglich, aber lass sie nie weg und
@@ -129,12 +156,17 @@ AUFBAU DER AUSGABE
    eigenen Zwischenüberschriften
 4. "Schwierige Wörter" - die im Text erklärten Begriffe noch einmal
    gesammelt. Nur diese. Dieser Abschnitt sammelt ein, was oben schon
-   steht; er ist kein Wörterbuch. Ein Begriff, den du hier zum ersten
-   Mal erklärst, ist eine Hinzufügung - lass ihn weg.
-   Ein Begriff nach Option (b) hat keine Erklärung und gehört deshalb
-   nicht in diese Liste. Sein Hinweis steht an der Fundstelle im Text.
-   Ein Eintrag, der nur sagt, dass das Original den Begriff nicht
-   erklärt, erklärt nichts - er füllt die Liste, statt sie zu tragen.
+   steht; er ist kein Wörterbuch.
+   Bevor du einen Eintrag schreibst, stelle ihm zwei Fragen:
+   - Steht seine Erklärung oben im Fliesstext, an der Stelle, wo der
+     Begriff zum ersten Mal vorkommt? Findest du sie dort nicht, gehört
+     der Eintrag nicht hierher. Streiche ihn - ergänze ihn nicht oben.
+   - Handelt es sich um einen Begriff nach Option (b)? Dann hat er
+     definitionsgemäss keine Erklärung, sondern nur den Hinweis, dass
+     das Original ihn nicht erklärt. Dieser Hinweis steht an der
+     Fundstelle. Als Eintrag erklärt er nichts, er füllt die Liste.
+   Bleibt danach kein Eintrag übrig, lass den Abschnitt weg. Eine leere
+   Liste ist richtig; eine gefüllte, die nichts erklärt, ist falsch.
 5. Hinweis: "Das ist eine Übersetzung in Einfache Sprache.
    Der Original-Text ist <Dokumentart> von <Urheber> vom <Datum>."
    Setze Dokumentart, Urheber und Datum genau so ein, wie sie im
