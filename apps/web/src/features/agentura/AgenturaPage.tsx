@@ -377,15 +377,33 @@ function AgenturaPage() {
   // A market aisle renders as one or more sections; only `gruenerator` and `meine`
   // use headed sub-sections, every other aisle is a single unheaded card grid.
   const sectionsFor = (key: AgenturaCategoryKey): MarketSection[] => {
-    if (key === 'empfohlen')
-      return [
-        {
-          key: 'empfohlen',
-          cards: sortAgentEntries(
-            featuredAgents.map((a) => ({ agent: a, isUser: false, editable: false }))
-          ).map(agentCard),
-        },
-      ];
+    if (key === 'empfohlen') {
+      const sections: MarketSection[] = [];
+      // Das eigene Landesverbands-Regal steht ganz oben, nicht erst unter
+      // „Offizielle Grüneratoren": es ist das Einzige auf dieser Seite, das
+      // wirklich nur dieser Person gehört. Wer keine Zuteilung hat, sieht den
+      // Abschnitt gar nicht — dann gäbe es nichts, was „für dich" wäre.
+      const lvAgents = sortAgentEntries(
+        lvSystemAgents.map((a) => ({ agent: a, isUser: false, editable: false }))
+      ).map(agentCard);
+      if (lvAgents.length > 0)
+        sections.push({
+          key: 'empfohlen-lv',
+          heading: lvHeadings.agents,
+          icon: PiMapPin,
+          cards: lvAgents,
+        });
+      sections.push({
+        key: 'empfohlen',
+        // Überschrift nur, wenn das LV-Regal darüber steht — sonst wäre sie eine
+        // Dopplung des Seitentitels.
+        ...(sections.length > 0 && { heading: 'Empfohlen' }),
+        cards: sortAgentEntries(
+          featuredAgents.map((a) => ({ agent: a, isUser: false, editable: false }))
+        ).map(agentCard),
+      });
+      return sections;
+    }
     if (key === 'meine')
       return [
         {
