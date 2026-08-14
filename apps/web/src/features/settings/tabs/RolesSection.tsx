@@ -1,5 +1,5 @@
-import { type UserRole } from '@gruenerator/chat';
-import { landesverbandOfferForBundesland } from '@gruenerator/shared/agents';
+import { type UserRole, useUserLandesverbaende } from '@gruenerator/chat';
+import { isLandesverbandRolle, landesverbandOfferForBundesland } from '@gruenerator/shared/agents';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { getInstance } from '@gruenerator/shared/instances';
 import {
@@ -42,6 +42,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useState, useCallback, useEffect, useMemo, useRef, memo } from 'react';
 import { HiOutlineArrowLeft, HiOutlineArrowPath, HiOutlineTrash, HiPlus } from 'react-icons/hi2';
+import { useNavigate } from 'react-router-dom';
 
 import { CURRENT_INSTANCE } from '../../../config/instance';
 import { QUERY_KEYS } from '../../../features/auth/hooks/useProfileData';
@@ -49,6 +50,7 @@ import { profileApiService, type Profile } from '../../../features/auth/services
 import { useAuthStore } from '../../../stores/authStore';
 import { platformFetch } from '../../../utils/platformFetch';
 import { useSetUserDefault, useUserDefault } from '../../user-defaults/userDefaultsQueries';
+import { useSettingsDialogStore } from '../settingsDialogStore';
 
 import { readCustomPrompt } from './customPromptField';
 
@@ -180,6 +182,19 @@ export default function RolesSection() {
   // nicht die Konfiguration.
   const bundeslandNamen = useMemo(() => bundeslaender.map((bl) => bl.label), [bundeslaender]);
 
+  // Die Landesverbands-Zuteilung dieser Person — dieselbe Quelle, aus der
+  // Agentur, Bibliothek und Mention-Menü sie lesen.
+  const { lvIds, headings: lvHeadings } = useUserLandesverbaende();
+  const navigate = useNavigate();
+  const closeSettings = useSettingsDialogStore((s) => s.close);
+  const goTo = useCallback(
+    (to: string) => {
+      closeSettings();
+      void navigate(to);
+    },
+    [closeSettings, navigate]
+  );
+
   const [roles, setRoles] = useState<UserRole[]>(serverRoles ?? []);
   const seededRef = useRef(serverRoles !== undefined);
   useEffect(() => {
@@ -205,12 +220,16 @@ export default function RolesSection() {
    * neben jedem Listeneintrag: die Bundesland-Combobox ist eine Auswahl, kein
    * Ort für Fließtext.
    *
-   * Nur auf der Ebene „Land": Kreis- und Ortsverbände geben zwar ein Bundesland
-   * an, bekommen aber keine LV-Zuteilung — ein Hinweis dort wäre ein
-   * Versprechen, das die Rolle nicht einlöst.
+   * Nur für die Geschäftsstellen-Rolle: Kreis- und Ortsverbände geben zwar ein
+   * Bundesland an, und auf der Landesebene stehen auch Fraktion und
+   * Abgeordnetenbüro — die Landesverbands-Inhalte bekommt aber allein die
+   * Geschäftsstelle. Ein Hinweis anderswo wäre ein Versprechen, das die Rolle
+   * nicht einlöst. Der Schritt „Rolle" liegt vor diesem, `wizRolle` steht hier
+   * also schon fest.
    */
   const wizAngebot = useMemo(() => {
-    if (wizEbene !== 'land' || !wizBundesland) return null;
+    if (!wizEbene || !wizBundesland || !wizRolle) return null;
+    if (!isLandesverbandRolle(wizEbene, wizRolle)) return null;
     const offer = landesverbandOfferForBundesland(isAustrian ? 'Österreich' : wizBundesland);
     if (!offer) return null;
 
@@ -223,7 +242,7 @@ export default function RolesSection() {
       title: offer.title,
       beschreibung: `${aufzaehlung} sowie das Notizbuch ${offer.title} erscheinen künftig in deiner Agentur und im Chat.`,
     };
-  }, [wizEbene, wizBundesland, isAustrian]);
+  }, [wizEbene, wizBundesland, wizRolle, isAustrian]);
 
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -797,6 +816,33 @@ export default function RolesSection() {
                       regenerating={regeneratingIndex === i}
                     />
                   ))}
+                </div>
+              )}
+
+              {/* Die Zuteilung war bisher unsichtbar: man legte eine Rolle an
+                  und musste selbst darauf kommen, in der Agentur nachzusehen.
+                  Diese beiden Wege schließen den Kreis — sie erscheinen nur,
+                  wenn wirklich etwas zugeteilt ist, sonst führten sie ins
+                  Leere. Der Dialog schließt mit, sonst läge die Agentur
+                  dahinter. */}
+              {lvIds !== null && lvIds.length > 0 && (
+                <div className="mt-md border-t border-grey-200 pt-md dark:border-grey-700">
+                  <p className="m-0 text-sm text-foreground-muted">
+                    Über deine Rolle sind dir die Inhalte von <strong>{lvHeadings.agents}</strong>{' '}
+                    zugeteilt.
+                  </p>
+                  <div className="mt-sm flex flex-wrap gap-sm">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => goTo('/agentura?cat=gruenerator')}
+                    >
+                      Zu deinen Rezepten
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => goTo('/agentura?cat=meine')}>
+                      Zu deinen Grüneratoren
+                    </Button>
+                  </div>
                 </div>
               )}
             </CardContent>

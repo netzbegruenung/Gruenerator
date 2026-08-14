@@ -1066,6 +1066,7 @@ export async function streamAgenticResponse(params: {
       recipeCatalog = await buildRecipeCatalog({
         userLocale: finalState.userLocale,
         userId: userId ?? null,
+        roles: finalState.userRoles,
       });
       if (recipeCatalog.length > 0) {
         tools.rezept_laden = makeRecipeTool({

@@ -237,9 +237,10 @@ function AgenturaPage() {
   );
   // Das Landesverbands-Regal ist persönlich: es zeigt die Agenten und Rezepte
   // des eigenen Landesverbands, nicht die aller elf. Die Zuordnung kommt aus
-  // den Profilrollen (Ebene „Land"). Ohne gepflegte Rolle bleibt `lvIds` leer
-  // und der Filter lässt alles durch — niemand verliert Inhalte, nur weil er
-  // sein Profil noch nicht ausgefüllt hat.
+  // der Profilrolle „Mitarbeiter*in Landesgeschäftsstelle" (AT:
+  // Landesorganisation). Ohne diese Rolle bleibt das Regal leer — die Zuteilung
+  // IST der Zugang. Solange die Rollen noch nicht geladen sind, ist `lvIds`
+  // `null` und es wird nicht gefiltert, damit das Regal nicht erst leer steht.
   const lvSystemAgents = useMemo(
     () =>
       systemAgents.filter(

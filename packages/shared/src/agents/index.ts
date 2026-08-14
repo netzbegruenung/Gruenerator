@@ -66,6 +66,7 @@ export {
 } from './landesverbaende.js';
 
 export {
+  isLandesverbandRolle,
   isLvItemVisibleForRoles,
   isLvNotebookVisibleForRoles,
   landesverbandHeadings,

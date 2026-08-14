@@ -28,6 +28,7 @@ import type {
   ClientPlatform,
   SharepicVariant,
 } from '@gruenerator/contracts';
+import type { RoleLandesverbandInput } from '@gruenerator/shared/agents';
 import type { ModelMessage } from 'ai';
 
 export type { WolkeFileRef, ConnectFileRef, CurrentBoard, SocialPostPayload };
@@ -535,6 +536,12 @@ export interface ChatGraphInput {
   clientPlatform?: ClientPlatform | undefined;
   customSystemPrompt?: string | undefined;
   roleBausteinActive?: boolean | undefined;
+  /**
+   * Die Profilrollen der Person. Der Rezept-Katalog leitet daraus ab, welche
+   * Landesverbands-Rezepte das Modell überhaupt kennen darf — dieselbe
+   * Zuteilung, die Agentura und das Mention-Menü anwenden.
+   */
+  userRoles?: readonly RoleLandesverbandInput[] | undefined;
   activeSkillMention?: string | undefined;
   userInstructions?: string | undefined;
   contextWindowTokens?: number | undefined;
@@ -718,6 +725,11 @@ export interface ChatGraphState {
   // not a user-typed prompt. Keeps the loop's recipe self-loading mounted:
   // suppressing recipes protects user personas, not our own role bausteine.
   roleBausteinActive: boolean;
+
+  // Profilrollen der Person. Quelle der Landesverbands-Zuteilung im
+  // Rezept-Katalog: leer heißt „keine Landesgeschäftsstellen-Rolle" und damit
+  // keine LV-Rezepte — dieselbe Regel wie in Agentura und im Mention-Menü.
+  userRoles: readonly RoleLandesverbandInput[];
 
   // Mention key of the active skill (e.g. 'instagram'). When set, respondNode
   // appends the skill's `skillSystemPrompt` as an additive section.
