@@ -90,8 +90,24 @@ const log = createLogger('AgentPipeline');
  * RAG zurückkommt. Für ein Gespräch ist das richtig; für eine Prüfung, die den
  * ganzen Text braucht, ist es tödlich. Deshalb liest dieser Auflöser die
  * Anhang-Zeilen des Threads direkt und nimmt ihren gespeicherten Volltext.
+ *
+ * ── Der kurze Text, der trotzdem Material ist ──
+ *
+ * Die Längengrenze allein irrt in die andere Richtung: am 14.08.2026 lag ein
+ * frisch eingefügter Text von 1339 Zeichen unter ihr, wurde als Anweisung
+ * gewertet und vom Artikel des vorigen Turns verdrängt. Die Fassung entstand
+ * trotzdem aus ihm - er stand ja in der Nachricht -, die Prüfung mass gegen den
+ * alten Artikel und meldete die richtige Fassung als vollständige Halluzination.
+ *
+ * `promptIsPastedText` ist dafür das ehrlichere Merkmal als die Länge: eine
+ * Beanstandung wird getippt, ein Ausgangstext eingefügt. Trifft es zu, ist die
+ * Nachricht Material, wie kurz sie auch sei.
  */
-export function resolveOriginalText(state: MaterialState, lastUserText: string): string {
+export function resolveOriginalText(
+  state: MaterialState,
+  lastUserText: string,
+  promptIsPastedText = false
+): string {
   const material = [state.attachmentContext ?? '', state.documentMentionContext ?? '']
     .map((c) => c.trim())
     .filter(Boolean);
@@ -101,7 +117,11 @@ export function resolveOriginalText(state: MaterialState, lastUserText: string):
   // dann ist die Nachricht die Anweisung, nicht der Ausgangstext. Die Grenze ist
   // dieselbe, an der `inlineMaterialAttachment` Material von Anweisung trennt;
   // zwei Zahlen für dieselbe Frage würden auseinanderlaufen.
-  if (material.length === 0 && instruction.length < INLINE_MATERIAL_MIN_CHARS) {
+  if (
+    material.length === 0 &&
+    !promptIsPastedText &&
+    instruction.length < INLINE_MATERIAL_MIN_CHARS
+  ) {
     const carried = carriedOriginalText(state);
     if (carried) {
       log.info(
