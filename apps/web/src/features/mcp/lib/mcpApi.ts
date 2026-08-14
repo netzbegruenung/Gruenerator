@@ -3,10 +3,17 @@ import {
   type McpAuthType,
   type McpRegistryEntry,
   type McpOauthStartResult,
+  type McpServerTestResult,
 } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 
-export type { McpServerSummary, McpAuthType, McpRegistryEntry, McpOauthStartResult };
+export type {
+  McpServerSummary,
+  McpAuthType,
+  McpRegistryEntry,
+  McpOauthStartResult,
+  McpServerTestResult,
+};
 
 export type McpOAuthErrorCode = 'dcr_rejected' | 'no_oauth_support';
 
@@ -34,13 +41,6 @@ export interface McpServerCreateInput {
   token?: string | null;
   oauthClientId?: string | null;
   oauthClientSecret?: string | null;
-}
-
-export interface McpServerTestResult {
-  ok: boolean;
-  toolCount: number;
-  toolNames: string[];
-  error: string | null;
 }
 
 export async function fetchMcpServers(): Promise<McpServerSummary[]> {
