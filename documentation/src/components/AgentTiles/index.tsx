@@ -12,6 +12,7 @@ import {
 } from 'react-icons/pi';
 import type { IconType } from 'react-icons';
 
+import capabilities from '@site/src/generated/chat-capabilities.json';
 import labelsJson from '@site/src/generated/ui-labels.json';
 
 import styles from './styles.module.css';
@@ -26,66 +27,69 @@ interface LvLabel {
 const labels = labelsJson as Record<string, LvLabel>;
 
 /**
- * Presentation only: which Landesverbände to show and their icon + @-mention +
- * optional Presse/Insta shortcodes (none of which live in the app source). The
- * drift-prone bits — display name, hub slug, notebook slug — are pulled from the
- * generated manifest (derived from packages/shared LANDESVERBAENDE) by `id`, so
- * a rename in code flows in here and a removed LV fails the docs build.
+ * Every LV recipe the app actually offers. The generator already drops the
+ * recipes of a Landesverband whose notebook is `enabled: false` (Hamburg, at
+ * the time of writing), so a chip only exists here if the `@`-mention really
+ * resolves in the composer. `-at` is Austria — it has the same two recipes but
+ * no tile; the Österreich note in the doc covers it.
+ */
+const LV_RECIPES = new Set(
+  (capabilities.skills as { command: string }[])
+    .map((s) => s.command)
+    .filter((c) => /^@(presse|insta)-/.test(c) && !c.endsWith('-at'))
+);
+
+/**
+ * Presentation only: which Landesverbände to show and their icon + @-mention
+ * (neither lives in the app source). The drift-prone bits — display name, hub
+ * slug, notebook slug — are pulled from the generated manifest (derived from
+ * packages/shared LANDESVERBAENDE) by `id`, so a rename in code flows in here
+ * and a removed LV fails the docs build. The Presse/Insta chips are likewise
+ * derived, from `LV_RECIPES` above: the tile only says which mention suffix a
+ * LV uses (`mv`, not `mecklenburg-vorpommern`), the generated list decides
+ * whether the chip is shown at all.
  */
 interface LvTile {
   id: string;
   Icon: IconType;
   mention: string;
-  presse?: string;
-  insta?: string;
+  /** Suffix of the `@presse-…`/`@insta-…` recipes; omit if the LV has none. */
+  recipeSlug?: string;
 }
 
 const TILES: LvTile[] = [
+  { id: 'berlin', Icon: PiBuildings, mention: '@berlin', recipeSlug: 'berlin' },
+  { id: 'hamburg', Icon: PiAnchor, mention: '@hamburg', recipeSlug: 'hamburg' },
+  { id: 'mecklenburg-vorpommern', Icon: PiWaves, mention: '@mv', recipeSlug: 'mv' },
+  { id: 'thueringen', Icon: PiTree, mention: '@thüringen', recipeSlug: 'thueringen' },
+  { id: 'brandenburg', Icon: PiFlowerLight, mention: '@brandenburg', recipeSlug: 'brandenburg' },
+  { id: 'bayern', Icon: PiMountains, mention: '@bayern', recipeSlug: 'bayern' },
   {
-    id: 'berlin',
-    Icon: PiBuildings,
-    mention: '@berlin',
-    presse: '/presse-berlin',
-    insta: '/insta-berlin',
+    id: 'sachsen-anhalt',
+    Icon: PiCastleTurret,
+    mention: '@sachsen-anhalt',
+    recipeSlug: 'sachsen-anhalt',
   },
-  {
-    id: 'hamburg',
-    Icon: PiAnchor,
-    mention: '@hamburg',
-    presse: '/presse-hamburg',
-    insta: '/insta-hamburg',
-  },
-  {
-    id: 'mecklenburg-vorpommern',
-    Icon: PiWaves,
-    mention: '@mv',
-    presse: '/presse-mv',
-    insta: '/insta-mv',
-  },
-  {
-    id: 'thueringen',
-    Icon: PiTree,
-    mention: '@thüringen',
-    presse: '/presse-thueringen',
-    insta: '/insta-thueringen',
-  },
-  {
-    id: 'brandenburg',
-    Icon: PiFlowerLight,
-    mention: '@brandenburg',
-    presse: '/presse-brandenburg',
-    insta: '/insta-brandenburg',
-  },
-  {
-    id: 'bayern',
-    Icon: PiMountains,
-    mention: '@bayern',
-    presse: '/presse-bayern',
-  },
-  { id: 'sachsen-anhalt', Icon: PiCastleTurret, mention: '@sachsen-anhalt' },
-  { id: 'hessen', Icon: PiLeaf, mention: '@hessen' },
-  { id: 'saarland', Icon: PiPlant, mention: '@saar' },
+  { id: 'hessen', Icon: PiLeaf, mention: '@hessen', recipeSlug: 'hessen' },
+  { id: 'saarland', Icon: PiPlant, mention: '@saar', recipeSlug: 'saarland' },
 ];
+
+/**
+ * Fails the docs build when a LV recipe exists in the app but no tile claims
+ * it — the direction the hand-written list kept drifting in (Bayern, Hessen,
+ * Sachsen-Anhalt and Saarland all gained recipes that the docs never grew).
+ */
+const claimed = new Set(
+  TILES.flatMap((t) => (t.recipeSlug ? [`@presse-${t.recipeSlug}`, `@insta-${t.recipeSlug}`] : []))
+);
+const unclaimed = [...LV_RECIPES].filter((c) => !claimed.has(c));
+if (unclaimed.length > 0) {
+  throw new Error(
+    `AgentTiles: no tile claims the recipe(s) ${unclaimed.join(', ')}. ` +
+      `Add the Landesverband (or its recipeSlug) to TILES, and keep the table in ` +
+      `documentation/docs/wissen/landesverbaende.md in step.`
+  );
+}
 
 export default function AgentTiles(): React.JSX.Element {
   return (
@@ -101,6 +105,9 @@ export default function AgentTiles(): React.JSX.Element {
           );
         }
         const Icon = tile.Icon;
+        const presse = `@presse-${tile.recipeSlug}`;
+        const insta = `@insta-${tile.recipeSlug}`;
+        const chips = [presse, insta].filter((c) => LV_RECIPES.has(c));
         return (
           <div key={tile.id} className={styles.tile}>
             <div className={styles.head}>
@@ -114,10 +121,13 @@ export default function AgentTiles(): React.JSX.Element {
             <p className={styles.kinds}>
               Öffentlichkeitsarbeit · Bürger*innenanfragen · Wahlprüfsteine
             </p>
-            {(tile.presse ?? tile.insta) && (
+            {chips.length > 0 && (
               <div className={styles.chips}>
-                {tile.presse && <span className={styles.chip}>{tile.presse}</span>}
-                {tile.insta && <span className={styles.chip}>{tile.insta}</span>}
+                {chips.map((c) => (
+                  <span key={c} className={styles.chip}>
+                    {c}
+                  </span>
+                ))}
               </div>
             )}
             <a className={styles.notebook} href={`${APP}/notebooks/${label.notebook}`}>
