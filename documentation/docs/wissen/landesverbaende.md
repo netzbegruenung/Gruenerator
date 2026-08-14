@@ -36,17 +36,16 @@ Du erreichst den Öffentlichkeitsarbeit-Grünerator auf zwei Wegen:
 
 Für diese Landesverbände gibt es eigene Rezept-Abkürzungen für **Pressemitteilung** und **Instagram**:
 
-| Landesverband          | Pressemitteilung         | Instagram            |
-| ---------------------- | ------------------------ | -------------------- |
-| Berlin                 | `@presse-berlin`         | `@insta-berlin`      |
-| Mecklenburg-Vorpommern | `@presse-mv`             | `@insta-mv`          |
-| Thüringen              | `@presse-thueringen`     | `@insta-thueringen`  |
-| Brandenburg            | `@presse-brandenburg`    | `@insta-brandenburg` |
-| Bayern                 | `@presse-bayern`         | —                    |
-| Hessen                 | `@presse-hessen`         | —                    |
-| Sachsen-Anhalt         | `@presse-sachsen-anhalt` | —                    |
-
-Das Saarland hat (noch) keine eigene Rezept-Abkürzung — seinen Grünerator erreichst du über die Landesverband-Seite.
+| Landesverband          | Pressemitteilung         | Instagram               |
+| ---------------------- | ------------------------ | ----------------------- |
+| Berlin                 | `@presse-berlin`         | `@insta-berlin`         |
+| Mecklenburg-Vorpommern | `@presse-mv`             | `@insta-mv`             |
+| Thüringen              | `@presse-thueringen`     | `@insta-thueringen`     |
+| Brandenburg            | `@presse-brandenburg`    | `@insta-brandenburg`    |
+| Bayern                 | `@presse-bayern`         | `@insta-bayern`         |
+| Hessen                 | `@presse-hessen`         | `@insta-hessen`         |
+| Sachsen-Anhalt         | `@presse-sachsen-anhalt` | `@insta-sachsen-anhalt` |
+| Saarland               | `@presse-saarland`       | `@insta-saarland`       |
 
 :::tip[Allgemeine Rezepte für alle Kanäle]
 Unabhängig vom Landesverband gibt es allgemeine Rezepte für jede Plattform: `@presse`, `@instagram`, `@facebook`, `@twitter`, `@linkedin` und `@reel`. Sie greifen auf Beispiele aus allen Landesverbänden zurück. Die LV-Rezepte oben sind die Spezialversion mit eingebautem Regional-Stil.

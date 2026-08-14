@@ -75,6 +75,6 @@ Du kannst einen Agenten auch als **wiederkehrende Aufgabe** anlegen — er läuf
 
 ## Schritt 4: Speichern und nutzen
 
-Klicke oben rechts auf **Speichern**. Der Knopf ist erst aktiv, wenn **Name**, **Beschreibung** und **Anleitung** ausgefüllt sind. Nach dem Speichern erscheint **„Gespeichert ✓"** und du landest auf der Bearbeitungsseite deines Agenten.
+Klicke oben rechts auf **Speichern**. Der Knopf ist erst aktiv, wenn **Name**, **Beschreibung** und **Anleitung** ausgefüllt sind. Beim ersten Speichern wird der Agent angelegt und du landest direkt auf seiner Bearbeitungsseite. Bei jedem weiteren Speichern dort erscheint oben rechts **„Gespeichert ✓"**.
 
 Von dort öffnest du ihn über **Im Chat öffnen** und kannst sofort mit ihm arbeiten. Spätere Änderungen nimmst du jederzeit über das Stift-Symbol (Bearbeiten) auf der Karte oder Detailseite vor. Mit **Abbrechen** verwirfst du nicht gespeicherte Änderungen.
