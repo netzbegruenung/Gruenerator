@@ -45,7 +45,10 @@ function fakePool(answers: Record<string, string | null>) {
   return { calls, pool: { processRequest } };
 }
 
-function fakeSse(): { sse: { send: (e: string, p: unknown) => void }; sent: Sent[] } {
+function fakeSse(): {
+  sse: { send: (e: string, p: unknown) => void; isEnded: () => boolean };
+  sent: Sent[];
+} {
   const sent: Sent[] = [];
   return {
     sent,
@@ -53,6 +56,7 @@ function fakeSse(): { sse: { send: (e: string, p: unknown) => void }; sent: Sent
       send: (event: string, payload: unknown) => {
         sent.push({ event, payload: payload as Record<string, unknown> });
       },
+      isEnded: () => false,
     },
   };
 }
@@ -181,6 +185,53 @@ describe('runAgentPipeline', () => {
     // Früher war dieser Zweig stumm — eine ungeprüfte Fassung sah damit aus wie
     // eine freigegebene. Genau der Fall trat bei `@dokument`-Mentions ein.
     expect(appended).toContain('ungeprüft');
+  });
+
+  it('meldet den laufenden Schritt weiter, solange er läuft', async () => {
+    // Der Prüfbericht brauchte am 14.08.2026 218 Sekunden. In dieser Zeit ging
+    // genau EIN Ereignis raus — auf dem Bildschirm nicht von einem Absturz zu
+    // unterscheiden, und die Leitung liegt derweil ohne ein einziges Byte da.
+    vi.useFakeTimers();
+    try {
+      const { sse, sent } = fakeSse();
+      // Nur der ERSTE Schritt hängt; der zweite antwortet sofort, damit die
+      // Kette nach dem Freigeben zu Ende läuft.
+      const holder: { release?: () => void } = {};
+      const pool = {
+        processRequest: vi.fn(async (req: Record<string, unknown>) => {
+          if (String(req.type) !== RUECK_TYPE) return { content: 'FREIGABE' };
+          await new Promise<void>((resolve) => {
+            holder.release = resolve;
+          });
+          return { content: 'Fachdeutsch.' };
+        }),
+      };
+      const promise = runAgentPipeline({
+        pipeline: ES,
+        state: { aiWorkerPool: pool } as never,
+        sse: sse as never,
+        produced: FASSUNG,
+        original: ORIGINAL,
+      });
+      await vi.advanceTimersByTimeAsync(10_000);
+
+      const beats = sent.filter(
+        (s) => s.event === 'progress_step' && s.payload.status === 'in_progress'
+      );
+      expect(beats.length).toBeGreaterThan(2);
+      // Wiederholt wird der Schritt selbst, nicht ein Platzhalter.
+      expect(new Set(beats.map((s) => s.payload.stepId))).toEqual(new Set(['es-rueck']));
+
+      holder.release?.();
+      await promise;
+      // Der Schlag hört auf, wenn der Schritt fertig ist — sonst liefe er über
+      // die nächste Antwort hinweg weiter.
+      const nachher = sent.filter((s) => s.payload.stepId === 'es-rueck').length;
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(sent.filter((s) => s.payload.stepId === 'es-rueck')).toHaveLength(nachher);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

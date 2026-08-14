@@ -352,4 +352,33 @@ describe('parseSSEStream progress steps', () => {
     expect(progress.steps.find((s) => s.stage === 'searching')?.status).toBe('in-progress');
     expect(progress.steps.some((s) => s.stage === 'generating')).toBe(false);
   });
+
+  it('puts a pipeline after-step into the step list under its own title', async () => {
+    // Die Nachschritte des Einfache-Sprache-Agenten laufen NACH dem Text und
+    // minutenlang. Ihr Titel stand bis 14.08.2026 nur in `progress.message`,
+    // den der Tracker nicht liest — auf dem Bildschirm blieb das Label von
+    // Schritt 1 stehen. Beide Schritte teilen sich eine Stufe und
+    // unterscheiden sich NUR im Titel; deshalb prüft der Test den zweiten.
+    const outcome = { interrupted: false, indexedDocumentIds: [] as string[] };
+    let last: { metadata?: { custom?: Record<string, unknown> } } | undefined;
+    const step = (id: string, title: string, status: string) => ({
+      event: 'progress_step',
+      data: { stepId: id, toolName: 'gruenerator-einfache-sprache', title, status },
+    });
+    const events = [
+      { event: 'text_delta', data: { text: 'Die Fassung.' } },
+      step('es-rueck', 'Rückübersetzung wird erstellt', 'in_progress'),
+      step('es-rueck', 'Rückübersetzung wird erstellt', 'in_progress'), // Heartbeat
+      step('es-rueck', 'Rückübersetzung wird erstellt', 'completed'),
+      step('es-pruefung', 'Prüfung läuft', 'in_progress'),
+    ];
+    for await (const result of parseSSEStream(sseResponse(events), callbacks, outcome)) {
+      last = result as typeof last;
+    }
+    const progress = last?.metadata?.custom?.progress as {
+      steps: Array<{ stage: string; label: string; status: string }>;
+    };
+    const active = progress.steps.filter((s) => s.status === 'in-progress');
+    expect(active.map((s) => s.label)).toEqual(['Prüfung läuft']);
+  });
 });
