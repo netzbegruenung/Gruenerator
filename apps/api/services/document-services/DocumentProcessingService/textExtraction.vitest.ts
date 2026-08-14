@@ -13,6 +13,9 @@
  * the deferred pipeline, and were rejected despite being plain readable text.
  */
 
+import os from 'os';
+import path from 'path';
+
 import { DOCUMENT_UPLOAD_FORMATS } from '@gruenerator/contracts';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -71,6 +74,22 @@ describe('extractTextFromFile — the extension decides, not the browser mimetyp
   it('still resolves by mimetype when the name carries no extension', async () => {
     const text = await extractTextFromFile(asFile('wolke-export', 'text/plain', 'Inhalt'));
     expect(text).toBe('Inhalt');
+  });
+});
+
+describe('extractTextFromFile — the upload name never reaches the filesystem path', () => {
+  it.each([
+    '../../../../etc/passwd.pdf',
+    'ordner/unterordner/bericht.pdf',
+    '..\\..\\windows\\system32\\config.pdf',
+  ])('writes %s inside the temp directory under a generated name', async (originalname) => {
+    await extractTextFromFile(asFile(originalname, 'application/pdf'));
+
+    const tempPath = extractTextFromDocument.mock.calls[0]?.[0] as string;
+    expect(path.dirname(tempPath)).toBe(os.tmpdir());
+    expect(path.basename(tempPath)).toMatch(
+      /^manual_upload_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.pdf$/
+    );
   });
 });
 
