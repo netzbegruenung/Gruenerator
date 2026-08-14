@@ -30,7 +30,7 @@ import { intermediateLane } from '../llmConfig.js';
 
 import { renderArtifactChoices } from './artifactInventory.js';
 
-import type { AIWorkerPool } from '../../../../workers/types.js';
+import type { AiClient } from '../../../../services/ai/types.js';
 import type { ThreadToolContext } from '../types.js';
 
 /** @see services/ai/intermediateLanes.ts */
@@ -59,7 +59,7 @@ interface ResolveArgs {
   userContent: string;
   /** Newest first, as `listThreadArtifacts` returns them. */
   artifacts: ThreadToolContext[];
-  aiWorkerPool: AIWorkerPool;
+  aiClient: AiClient;
 }
 
 /**
@@ -70,7 +70,7 @@ interface ResolveArgs {
 export async function resolveEditTarget({
   userContent,
   artifacts,
-  aiWorkerPool,
+  aiClient,
 }: ResolveArgs): Promise<number | null> {
   if (artifacts.length < 2) return null;
   const startTime = Date.now();
@@ -79,7 +79,7 @@ export async function resolveEditTarget({
 
   try {
     const response = await withTimeout(
-      aiWorkerPool.processRequest(
+      aiClient.processRequest(
         {
           type: 'chat_intent_classification',
           provider: LANE.provider,

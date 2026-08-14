@@ -3,7 +3,7 @@
  */
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
-import type { AIWorkerPool } from '../../workers/types.js';
+import type { AiClient } from '../../services/ai/types.js';
 
 // ============================================================================
 // Request Types
@@ -275,9 +275,9 @@ export interface RedisJobData {
 export interface SubtitlerRequest extends AuthenticatedRequest {
   app: {
     locals: {
-      aiWorkerPool?: AIWorkerPool | undefined;
+      aiClient?: AiClient | undefined;
     };
   } & AuthenticatedRequest['app'];
 }
 
-export type { AIWorkerPool };
+export type { AiClient };

@@ -1,6 +1,6 @@
 import prompts from '../../../prompts/sharepic/index.js';
 import { CONTENT_INTEGRITY_BULLETS } from '../../../services/contentPolicy.js';
-import { getAIWorkerPool } from '../../../utils/getAIWorkerPool.js';
+import { getAiClient } from '../../../utils/getAiClient.js';
 import { createLogger } from '../../../utils/logger.js';
 import { replaceTemplate } from '../../../utils/sharepic/template.js';
 import {
@@ -212,7 +212,7 @@ export type UnifiedTextResult =
 /**
  * Core of the unified sharepic text generation, extracted from the Express
  * handler so the chat pipeline can call it without an HTTP round-trip. `req`
- * is only used for worker-pool access (`getAIWorkerPool`).
+ * is only used for worker-pool access (`getAiClient`).
  */
 export async function generateUnifiedTexts(
   req: SharepicRequest,
@@ -280,7 +280,7 @@ export async function generateUnifiedTexts(
     attempts++;
 
     try {
-      const result = await getAIWorkerPool(req).processRequest(
+      const result = await getAiClient(req).processRequest(
         {
           type: `sharepic_${type}`,
           systemPrompt,

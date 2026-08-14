@@ -388,7 +388,7 @@ function describeRecurrence(rec: ScheduleRecurrence): string {
 export async function handleRecurringTaskCreation(opts: {
   sse: SSEWriter;
   classifiedState: ChatGraphState;
-  aiWorkerPool: ChatGraphState['aiWorkerPool'];
+  aiClient: ChatGraphState['aiClient'];
   req: Express.Request;
   actualThreadId?: string;
   userId: string;
@@ -396,10 +396,10 @@ export async function handleRecurringTaskCreation(opts: {
   agentId?: string | null;
   userLocale: 'de-DE' | 'de-AT';
 }): Promise<boolean> {
-  const { sse, classifiedState, aiWorkerPool, req, actualThreadId, userId, userContent } = opts;
+  const { sse, classifiedState, aiClient, req, actualThreadId, userId, userContent } = opts;
 
   try {
-    const genResult = await aiWorkerPool.processRequest(
+    const genResult = await aiClient.processRequest(
       {
         type: 'doc_generation',
         systemPrompt: RECURRING_EXTRACTION_PROMPT,
@@ -516,7 +516,7 @@ export async function handleRecurringTaskCreation(opts: {
 export async function generateAndCreateDocument(opts: {
   sse: SSEWriter;
   classifiedState: ChatGraphState;
-  aiWorkerPool: ChatGraphState['aiWorkerPool'];
+  aiClient: ChatGraphState['aiClient'];
   req: Express.Request;
   actualThreadId?: string;
   userId: string;
@@ -547,9 +547,9 @@ async function contributeDocumentToOpenTurn(
   spec: ReturnType<typeof makeDocumentSpec>,
   opts: CreateTurnOpts
 ): Promise<boolean> {
-  const { sse, aiWorkerPool, req, userId, userContent, actualThreadId } = opts;
+  const { sse, aiClient, req, userId, userContent, actualThreadId } = opts;
   try {
-    const doc = await spec.generate({ aiWorkerPool, req, userId, userContent }, () => {});
+    const doc = await spec.generate({ aiClient, req, userId, userContent }, () => {});
     if (!doc) return false;
 
     emitArtifactResult(sse, spec, doc);

@@ -184,7 +184,7 @@ async function askOne(
   userMessage: string,
   target: LaneTarget
 ): Promise<string> {
-  const response = await state.aiWorkerPool.processRequest(
+  const response = await state.aiClient.processRequest(
     {
       type: step.requestType,
       provider: target.provider,

@@ -94,7 +94,7 @@ function abandonedBeforeCommit(signal: AbortSignal | undefined, what: string): b
  */
 export async function runPdfGeneration(opts: {
   userContent: string;
-  aiWorkerPool: ChatGraphState['aiWorkerPool'];
+  aiClient: ChatGraphState['aiClient'];
   req: Express.Request;
   userId: string;
   pdfOptions?: PdfGenerationOptions;
@@ -102,7 +102,7 @@ export async function runPdfGeneration(opts: {
   /** See {@link abandonedBeforeCommit}. */
   abandoned?: AbortSignal;
 }): Promise<CreatePdfResult | null> {
-  const { userContent, aiWorkerPool, req, userId, onCommit } = opts;
+  const { userContent, aiClient, req, userId, onCommit } = opts;
   const reqWithUser = req as Express.Request & { user?: { id?: string }; sessionID?: string };
   const { PDF_GENERATION_PROMPT, validatePdfStructure, createPdfDocument } =
     await import('../../../services/pdf/PdfGenerationService.js');
@@ -120,7 +120,7 @@ export async function runPdfGeneration(opts: {
   // Shared by the first pass and the repair below, which differ only in their
   // user content, temperature and attempt budget.
   const pdfCall = {
-    aiWorkerPool,
+    aiClient,
     req: reqWithUser,
     type: 'doc_generation' as const,
     systemPrompt: PDF_GENERATION_PROMPT,
@@ -195,7 +195,7 @@ export async function runPdfGeneration(opts: {
 export async function runDocGeneration(opts: {
   kind: 'presentation' | 'sheet' | 'document';
   userContent: string;
-  aiWorkerPool: ChatGraphState['aiWorkerPool'];
+  aiClient: ChatGraphState['aiClient'];
   req: Express.Request;
   userId: string;
   /** Invoked ONCE, after the model produced a parseable structure but BEFORE
@@ -212,7 +212,7 @@ export async function runDocGeneration(opts: {
   /** kind 'document' only: prior exchange save_as_doc turns into a document. */
   conversationContext?: string;
 }): Promise<CreatedDocument | null> {
-  const { kind, userContent, aiWorkerPool, req, userId, onCommit } = opts;
+  const { kind, userContent, aiClient, req, userId, onCommit } = opts;
   const reqWithUser = req as Express.Request & {
     user?: { id?: string; locale?: string };
     sessionID?: string;
@@ -233,7 +233,7 @@ export async function runDocGeneration(opts: {
       'title oder slides fehlen'
     );
     const generated = await generateStructured({
-      aiWorkerPool,
+      aiClient,
       req: reqWithUser,
       type: 'doc_generation',
       systemPrompt: PRESENTATION_GENERATION_PROMPT,
@@ -278,7 +278,7 @@ export async function runDocGeneration(opts: {
     const { SHEET_GENERATION_PROMPT, SHEET_TOOL_SCHEMA, parseSheetStructure, createSheetDocument } =
       await import('../../../services/sheets/SheetGenerationService.js');
     const generated = await generateStructured({
-      aiWorkerPool,
+      aiClient,
       req: reqWithUser,
       type: 'doc_generation',
       systemPrompt: SHEET_GENERATION_PROMPT,
@@ -320,7 +320,7 @@ export async function runDocGeneration(opts: {
     : userContent;
 
   const generated = await generateStructured({
-    aiWorkerPool,
+    aiClient,
     req: reqWithUser,
     type: 'doc_generation',
     systemPrompt: DOCUMENT_GENERATION_PROMPT + subtypeHint,
@@ -381,7 +381,7 @@ export interface CreatedBoard {
  */
 export async function runBoardGeneration(opts: {
   userContent: string;
-  aiWorkerPool: ChatGraphState['aiWorkerPool'];
+  aiClient: ChatGraphState['aiClient'];
   req: Express.Request;
   userId: string;
   /** Invoked ONCE after a parseable structure but BEFORE the DB write — same
@@ -391,7 +391,7 @@ export async function runBoardGeneration(opts: {
   /** See {@link abandonedBeforeCommit}. */
   abandoned?: AbortSignal;
 }): Promise<CreatedBoard | null> {
-  const { userContent, aiWorkerPool, req, userId, onCommit } = opts;
+  const { userContent, aiClient, req, userId, onCommit } = opts;
   const {
     BOARD_GENERATION_PROMPT,
     BOARD_TOOL_SCHEMA,
@@ -403,7 +403,7 @@ export async function runBoardGeneration(opts: {
     await import('../../../services/ai/generateStructured.js');
 
   const generated = await generateStructured({
-    aiWorkerPool,
+    aiClient,
     req: req as Express.Request & { user?: { id?: string }; sessionID?: string },
     type: 'board_generation',
     systemPrompt: BOARD_GENERATION_PROMPT,

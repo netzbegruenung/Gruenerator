@@ -108,7 +108,7 @@ const req = {} as never;
 
 const baseOpts = {
   classifiedState,
-  aiWorkerPool: garbageWorkerPool,
+  aiClient: garbageWorkerPool,
   req,
   actualThreadId: 'thread-1',
   userId: 'user-1',

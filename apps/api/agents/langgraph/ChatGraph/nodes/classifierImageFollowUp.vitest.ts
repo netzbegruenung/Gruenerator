@@ -35,14 +35,14 @@ const STUB_AGENT_CONFIG = {
   isSystemDefault: true,
 };
 
-function makeWorkerPool() {
+function makeAiClient() {
   return { processRequest: vi.fn(async () => ({ content: 'keine' })) };
 }
 
 function buildState(
   overrides: Partial<ChatGraphState> & {
     userMessage: string;
-    pool?: ReturnType<typeof makeWorkerPool>;
+    pool?: ReturnType<typeof makeAiClient>;
   }
 ): ChatGraphState {
   const { userMessage, pool, ...rest } = overrides;
@@ -51,7 +51,7 @@ function buildState(
     threadId: null,
     agentConfig: STUB_AGENT_CONFIG,
     enabledTools: { search: true, web: true, image: true, image_edit: true },
-    aiWorkerPool: pool ?? makeWorkerPool(),
+    aiClient: pool ?? makeAiClient(),
     userLocale: 'de-DE',
     attachmentContext: null,
     imageAttachments: [],
@@ -88,7 +88,7 @@ describe('classifierNode — Bild-Folgeauftrag', () => {
     'Nochmal, aber abends',
     'bearbeite das Bild',
   ])('beansprucht "%s" als Bildbearbeitung, ohne das Modell zu fragen', async (text) => {
-    const pool = makeWorkerPool();
+    const pool = makeAiClient();
     const result = await classifierNode(
       buildState({ userMessage: text, lastToolContext: afterImage, pool })
     );

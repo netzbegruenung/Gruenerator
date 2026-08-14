@@ -3,7 +3,7 @@
  * Defines state interfaces for the LangGraph search workflow
  */
 
-import { type AIWorkerPool } from '../../../workers/types.js';
+import { type AiClient } from '../../../services/ai/types.js';
 
 import type {
   Citation,
@@ -161,7 +161,7 @@ export interface WebSearchState {
   mode: 'normal' | 'deep';
   user_id: string;
   searchOptions: SearchOptions;
-  aiWorkerPool: AIWorkerPool;
+  aiClient: AiClient;
   req: Request;
 
   // Intermediate state — Annotation<T | null> → T | null
@@ -198,7 +198,7 @@ export interface WebSearchInput {
   mode?: 'normal' | 'deep' | undefined;
   user_id?: string | undefined;
   searchOptions?: SearchOptions | undefined;
-  aiWorkerPool: AIWorkerPool;
+  aiClient: AiClient;
   req: Request;
 }
 

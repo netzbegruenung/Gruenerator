@@ -7,7 +7,7 @@
 import { processAndBuildAttachments } from '../services/attachments/index.js';
 import { extractUrlsFromContent, filterNewUrls, getUrlDomain } from '../services/content/index.js';
 import { extractLocaleFromRequest } from '../services/localization/index.js';
-import { type SearxngAIWorkerPool } from '../services/search/index.js';
+import { type SearxngAiClient } from '../services/search/index.js';
 
 import { getErrorMessage } from './errors/index.js';
 
@@ -237,7 +237,7 @@ class RequestEnricher {
     requestData: Record<string, unknown>,
     options: Partial<EnrichmentOptions>
   ): Promise<{ preAnswer: string; timeMs: number } | null> {
-    if (!options.enableNotebookEnrich || !options.aiWorkerPool) {
+    if (!options.enableNotebookEnrich || !options.aiClient) {
       return null;
     }
 
@@ -269,7 +269,7 @@ class RequestEnricher {
         `🎯 [NotebookEnrich] Generating preliminary draft for: "${theme.substring(0, 50)}..."`
       );
 
-      const result = await options.aiWorkerPool.processRequest({
+      const result = await options.aiClient.processRequest({
         type: 'notebook_enrich',
         messages: [{ role: 'user', content: userPrompt }],
         systemPrompt,
@@ -402,7 +402,7 @@ class RequestEnricher {
     // Web search enrichment (if enabled)
     if (enableWebSearch && webSearchQuery) {
       enrichmentTasks.push(
-        this.performWebSearch(webSearchQuery, options.aiWorkerPool, options.req)
+        this.performWebSearch(webSearchQuery, options.aiClient, options.req)
           .then((result) => ({
             type: 'websearch' as const,
             knowledge: result.knowledge,
@@ -715,7 +715,7 @@ class RequestEnricher {
    */
   async performWebSearch(
     searchQuery: string,
-    aiWorkerPool: EnrichmentOptions['aiWorkerPool'],
+    aiClient: EnrichmentOptions['aiClient'],
     req: unknown
   ): Promise<WebSearchResult> {
     const searxngService = await getSearxngWebSearchService();
@@ -739,11 +739,11 @@ class RequestEnricher {
 
       // Try to generate AI summary
       try {
-        if (aiWorkerPool) {
+        if (aiClient) {
           const summary = await searxngService.generateAISummary(
             searchResults,
             searchQuery,
-            aiWorkerPool as SearxngAIWorkerPool,
+            aiClient as SearxngAiClient,
             {},
             req
           );

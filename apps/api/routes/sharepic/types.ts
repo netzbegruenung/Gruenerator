@@ -1,4 +1,4 @@
-import type { AIWorkerPool, AIWorkerResult } from '../../workers/types.js';
+import type { AiClient, AiResult } from '../../services/ai/types.js';
 import type { Request } from 'express';
 
 // Note: User type is provided by Express.User through global type augmentation in types/express.d.ts
@@ -7,12 +7,12 @@ import type { Request } from 'express';
 export interface SharepicRequest extends Request {
   app: Request['app'] & {
     locals: {
-      aiWorkerPool?: AIWorkerPool;
+      aiClient?: AiClient;
     };
   };
 }
 
-export type { AIWorkerPool, AIWorkerResult };
+export type { AiClient, AiResult };
 
 export interface SharepicColors {
   background: string;

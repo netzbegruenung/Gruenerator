@@ -42,8 +42,7 @@ oder
  */
 export async function qualityGateNode(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
   const startTime = Date.now();
-  const { searchResults, searchQuery, searchCount, maxSearches, aiWorkerPool, researchBrief } =
-    state;
+  const { searchResults, searchQuery, searchCount, maxSearches, aiClient, researchBrief } = state;
 
   // Skip quality check if we've already used max searches or have few results
   if (searchCount >= maxSearches) {
@@ -88,7 +87,7 @@ export async function qualityGateNode(state: ChatGraphState): Promise<Partial<Ch
       .map((r, i) => `[${i + 1}] ${r.title}: ${r.content.slice(0, 150)}`)
       .join('\n');
 
-    const response = await aiWorkerPool.processRequest(
+    const response = await aiClient.processRequest(
       {
         type: 'chat_quality_gate',
         provider: LANE.provider,

@@ -132,7 +132,7 @@ export interface RequestWithCorrelation extends Request {
 /**
  * AI worker error result
  */
-export interface AIWorkerErrorResult {
+export interface AiClientErrorResult {
   success: false;
   error: string;
   [key: string]: unknown;

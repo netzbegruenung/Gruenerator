@@ -117,7 +117,7 @@ ${referencesText}
 
 Crawl-Statistik: ${state.crawlMetadata?.crawledUrls || 0} erfolgreich gecrawlt`;
 
-    const result = await state.aiWorkerPool.processRequest(
+    const result = await state.aiClient.processRequest(
       {
         type: 'web_search_summary',
         systemPrompt,

@@ -36,7 +36,7 @@ import {
 import { getCachedPersona } from '../../../services/mem0/personaService.js';
 import { findRole, resolveCustomSystemPrompt } from '../../../services/roles/roleSystemPrompt.js';
 import { recordItemUsageSafe } from '../../../services/usage/ItemUsageService.js';
-import { getAIWorkerPool } from '../../../utils/getAIWorkerPool.js';
+import { getAiClient } from '../../../utils/getAiClient.js';
 import { NextcloudShareManager } from '../../../utils/integrations/nextcloud/shareManager.js';
 import { createLogger } from '../../../utils/logger.js';
 import { captureSseError } from '../../../utils/observability/captureSseError.js';
@@ -166,7 +166,7 @@ type ProcessAttachmentsResult = Awaited<ReturnType<typeof processAttachments>>;
 export interface StreamContext {
   requestId: string;
   userId: string;
-  aiWorkerPool: ReturnType<typeof getAIWorkerPool>;
+  aiClient: ReturnType<typeof getAiClient>;
   notebookIds: string[];
   validMessages: ChatGraphInput['messages'];
   lastUserMessage: ChatGraphInput['messages'][number] | undefined;
@@ -269,9 +269,9 @@ export async function buildStreamContext({
   }
 
   const userId = user.id;
-  const aiWorkerPool = getAIWorkerPool(req);
+  const aiClient = getAiClient(req);
 
-  if (!aiWorkerPool) {
+  if (!aiClient) {
     sse.send('error', {
       error: PROGRESS_MESSAGES.aiUnavailable,
       code: 'provider_unavailable',
@@ -789,7 +789,7 @@ export async function buildStreamContext({
       image: true,
       image_edit: true,
     },
-    aiWorkerPool,
+    aiClient,
     attachmentContext: attachmentContext ?? undefined,
     imageAttachments: imageAttachments.length > 0 ? imageAttachments : undefined,
     threadAttachments: previousAttachments.length > 0 ? previousAttachments : undefined,
@@ -899,7 +899,7 @@ export async function buildStreamContext({
     ctx: {
       requestId,
       userId,
-      aiWorkerPool,
+      aiClient,
       notebookIds,
       validMessages,
       lastUserMessage,

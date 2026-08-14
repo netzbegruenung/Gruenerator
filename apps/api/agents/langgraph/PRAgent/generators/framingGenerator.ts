@@ -1,9 +1,9 @@
-import { getAIWorkerPool } from '../../../../utils/getAIWorkerPool.js';
+import { getAiClient } from '../../../../utils/getAiClient.js';
 import { MARKDOWN_FORMATTING_INSTRUCTIONS } from '../../../../utils/prompt/index.js';
 import { assemblePromptGraphAsync } from '../../promptAssemblyGraph.js';
 
+import type { AiResult } from '../../../../services/ai/types.js';
 import type { EnrichedState } from '../../../../utils/types/requestEnrichment.js';
-import type { AIWorkerResult } from '../../../../workers/types.js';
 import type { ContentExample } from '../../types/promptAssembly.js';
 import type { PRAgentRequest } from '../types.js';
 import type { Request } from 'express';
@@ -52,7 +52,7 @@ Entwickle das strategische Framing für dieses Thema.`;
     formatting: MARKDOWN_FORMATTING_INSTRUCTIONS,
   });
 
-  const aiResult: AIWorkerResult = await getAIWorkerPool(req).processRequest(
+  const aiResult: AiResult = await getAiClient(req).processRequest(
     {
       type: 'social',
       systemPrompt: promptResult.system,

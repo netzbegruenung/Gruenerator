@@ -76,7 +76,7 @@ vi.mock('../services/responseStreamingService.js', async (orig) => {
 
 const { startChatApp, userTurn } = await import('./harness/testApp.js');
 const { runTurn, installNetworkGuard } = await import('./harness/trace.js');
-const { createAiWorkerPoolStub } = await import('./harness/aiWorkerPoolStub.js');
+const { createAiClientStub } = await import('./harness/aiClientStub.js');
 const { pinChatEnv } = await import('./harness/env.js');
 const { resetThreadStore } = await import('./harness/fakeThreadStore.js');
 const { resetMockControls } = await import('./harness/mocks.js');
@@ -85,7 +85,7 @@ const { decisionLogMiddleware } = await import('../../../utils/decisionLog.js');
 const { readDecisionJournal, mergeJournals } = await import('../../../evals/decisionLog.js');
 const { renderDecisionMap } = await import('../../../evals/renderDecisionMap.js');
 
-const pool = createAiWorkerPoolStub();
+const pool = createAiClientStub();
 let logDir: string;
 let app: Awaited<ReturnType<typeof startChatApp>>;
 let restoreNetwork: () => void;
@@ -101,7 +101,7 @@ beforeAll(async () => {
     CHAT_DECISION_LOG_DIR: logDir,
   });
   if (!middleware) throw new Error('decision log middleware should have been constructed');
-  app = await startChatApp({ aiWorkerPool: pool, decisionJournal: middleware });
+  app = await startChatApp({ aiClient: pool, decisionJournal: middleware });
 });
 
 afterAll(async () => {

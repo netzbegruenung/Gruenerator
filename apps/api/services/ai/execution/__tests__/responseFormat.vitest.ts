@@ -23,12 +23,12 @@ vi.mock('ai', () => ({
   wrapLanguageModel: (...args: [{ model: unknown }]) => wrapLanguageModel(...args),
   defaultSettingsMiddleware: (...args: unknown[]) => defaultSettingsMiddleware(...args),
 }));
-vi.mock('../../../services/ai/providers.js', () => ({
+vi.mock('../../providers.js', () => ({
   getModel: vi.fn((provider: string, model: string) => ({ provider, modelId: model })),
   isProviderConfigured: vi.fn(() => true),
   getDefaultModel: vi.fn(() => 'default-model'),
 }));
-vi.mock('../../../services/tools/index.js', () => ({
+vi.mock('../../../tools/index.js', () => ({
   default: { prepareToolsPayload: vi.fn(() => ({})) },
 }));
 

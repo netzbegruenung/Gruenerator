@@ -29,7 +29,7 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     maxSearches: 2,
     researchBrief: null,
     researchMeta: null,
-    aiWorkerPool: {
+    aiClient: {
       processRequest: vi.fn().mockResolvedValue({
         content: JSON.stringify({ score: 4, sufficient: true }),
       }),
@@ -43,14 +43,14 @@ describe('qualityGateNode', () => {
     const state = makeState({ searchCount: 2, maxSearches: 2 });
     const result = await qualityGateNode(state);
     expect(result.qualityScore).toBeUndefined();
-    expect(state.aiWorkerPool.processRequest).not.toHaveBeenCalled();
+    expect(state.aiClient.processRequest).not.toHaveBeenCalled();
   });
 
   it('skips when there is at most one result', async () => {
     const state = makeState({ searchResults: makeResults(1) });
     const result = await qualityGateNode(state);
     expect(result.qualityScore).toBeUndefined();
-    expect(state.aiWorkerPool.processRequest).not.toHaveBeenCalled();
+    expect(state.aiClient.processRequest).not.toHaveBeenCalled();
   });
 
   it('returns score from JSON on happy path (sufficient)', async () => {
@@ -63,7 +63,7 @@ describe('qualityGateNode', () => {
 
   it('returns refinedQuery when LLM signals insufficient', async () => {
     const state = makeState({
-      aiWorkerPool: {
+      aiClient: {
         processRequest: vi.fn().mockResolvedValue({
           content: JSON.stringify({
             score: 2,
@@ -82,7 +82,7 @@ describe('qualityGateNode', () => {
 
   it('returns qualityScore=0 (NOT 3) and records error on parse failure', async () => {
     const state = makeState({
-      aiWorkerPool: {
+      aiClient: {
         processRequest: vi.fn().mockResolvedValue({ content: 'not json at all' }),
       } as any,
     });
@@ -96,7 +96,7 @@ describe('qualityGateNode', () => {
 
   it('returns qualityScore=0 and records error on LLM rejection', async () => {
     const state = makeState({
-      aiWorkerPool: {
+      aiClient: {
         processRequest: vi.fn().mockRejectedValue(new Error('worker pool down')),
       } as any,
     });

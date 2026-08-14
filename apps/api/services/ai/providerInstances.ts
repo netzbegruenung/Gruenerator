@@ -51,7 +51,7 @@ export const GREENPT_BASE_URL = 'https://api.greenpt.ai/v1';
  *   /v1/audio/{transcriptions,speech} all work.
  *   404 "no Route matched" on EU: /v1/files, /v1/conversations (Agents) and
  *   /v1/audio/voices. Those three keep using `MISTRAL_GLOBAL_API_URL` — see
- *   `mistralGlobalClient` in `workers/mistralClient.ts` for who and why.
+ *   `mistralGlobalClient` in `services/ai/mistralClient.ts` for who and why.
  */
 export const MISTRAL_GLOBAL_API_URL = 'https://api.mistral.ai/v1';
 export const MISTRAL_EU_API_URL = 'https://api.eu.mistral.ai/v1';

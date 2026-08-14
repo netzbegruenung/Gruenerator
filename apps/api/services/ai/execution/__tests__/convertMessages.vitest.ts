@@ -16,7 +16,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('../../../services/ocrService.js', () => ({
+vi.mock('../../../ocrService.js', () => ({
   ocrService: {
     extractTextFromBase64PDF: vi.fn(() => Promise.resolve({ text: 'Seite 1 Text' })),
   },

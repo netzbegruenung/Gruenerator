@@ -80,7 +80,7 @@ function run(
   const { calls, pool } = fakePool(answers);
   const promise = runAgentPipeline({
     pipeline: ES,
-    state: { aiWorkerPool: pool } as never,
+    state: { aiClient: pool } as never,
     sse: sse as never,
     produced: overrides.produced ?? FASSUNG,
     original: overrides.original ?? ORIGINAL,
@@ -216,7 +216,7 @@ describe('runAgentPipeline', () => {
       };
       const promise = runAgentPipeline({
         pipeline: ES,
-        state: { aiWorkerPool: pool } as never,
+        state: { aiClient: pool } as never,
         sse: sse as never,
         produced: FASSUNG,
         original: ORIGINAL,
@@ -268,7 +268,7 @@ describe('runAgentPipeline — Sibling bei Langsamkeit', () => {
   const laufe = (pool: { processRequest: ReturnType<typeof vi.fn> }) =>
     runAgentPipeline({
       pipeline: ES,
-      state: { aiWorkerPool: pool } as never,
+      state: { aiClient: pool } as never,
       sse: fakeSse().sse as never,
       produced: FASSUNG,
       original: ORIGINAL,
