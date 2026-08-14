@@ -60,6 +60,15 @@ export interface PipelineStep {
    */
   readonly timeoutMs?: number;
   /**
+   * Ab wann der Sibling der Lane PARALLEL dazugeschaltet wird. Ohne Angabe —
+   * oder ohne Sibling — läuft nur der Primär.
+   *
+   * Der Wert gehört hierher und nicht in die Lane: was „zu lange" heisst, hängt
+   * an der Aufgabe dieses Schritts. Grosszügig setzen, denn jeder Griff kostet
+   * den Aufruf doppelt, in Tokens wie in CO₂.
+   */
+  readonly hedgeAfterMs?: number;
+  /**
    * Baut die EINE Nutzernachricht des Schritts. Was hier nicht hineingeht,
    * sieht der Schritt nicht — kein Verlauf, keine Anhänge. Genau darin liegt
    * der Wert: die blinde Rückübersetzung ist nur blind, solange ihre

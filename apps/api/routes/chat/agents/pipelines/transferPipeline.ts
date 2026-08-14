@@ -350,6 +350,8 @@ export function buildTransferPipeline(spec: TransferPipelineSpec): PipelineAgent
     // Reasoning-Modell — seine Denk-Tokens zählen gegen dieses Budget, und ein
     // zu knapper Deckel liefert leeren `content` statt einer kurzen Antwort.
     maxTokens: 3000,
+    // Ruhig 8 s, im langsamen Lauf 64 s. Derselbe Abstand wie bei der Prüfung.
+    hedgeAfterMs: 30_000,
     // NUR die Fassung. Kein Original, kein Verlauf — sonst ist die Blindheit
     // dahin und der Schritt misst nichts mehr.
     buildUserMessage: (ctx) => ctx.produced.trim() || null,
@@ -380,6 +382,11 @@ export function buildTransferPipeline(spec: TransferPipelineSpec): PipelineAgent
     // spät prüfen als gar nicht. Die Sperre bricht die Anfrage beim Anbieter
     // nicht ab (siehe `executeWithTimeout`), sie beendet nur das Warten.
     timeoutMs: 240_000,
+    // Deutlich über den ruhigen 36 s, damit der Griff die Ausnahme bleibt: er
+    // kostet den Aufruf doppelt. Der langsame Lauf lag bei 218 s, der Sibling
+    // schafft denselben Bericht in rund 16 s — es ist also reichlich Abstand
+    // zwischen „heute etwas träge" und „hier stimmt etwas nicht".
+    hedgeAfterMs: 75_000,
     buildUserMessage: (ctx) => {
       // Drei Texte plus Systemprompt müssen in ein Fenster passen, und das
       // Original ist der einzige unbegrenzte Teil — Fassung und Rückübersetzung
