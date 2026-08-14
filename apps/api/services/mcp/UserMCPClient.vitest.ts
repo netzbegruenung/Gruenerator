@@ -130,6 +130,28 @@ describe('UserMCPClient.listTools tolerance', () => {
     expect(tool?.meta).toEqual({ 'ui.resourceUri': 'ui://widget' });
   });
 
+  it('survives a non-object entry in the tools array', async () => {
+    // z.array(z.record(...)) hätte hier die ganze Seite verworfen — also genau
+    // den Fehler wiederholt, gegen den das permissive Schema antritt.
+    const client = withResponses({}, [{ tools: [null, 'kaputt', { name: 'gut' }] }]);
+
+    const tools = await client.listTools();
+
+    expect(tools.map((t) => t.name)).toEqual(['gut']);
+    expect(client.skippedTools).toBe(2);
+  });
+
+  it('counts tools cut off by the cap instead of dropping them silently', async () => {
+    const client = withResponses({}, [
+      { tools: Array.from({ length: 505 }, (_, i) => ({ name: `t${i}` })) },
+    ]);
+
+    const tools = await client.listTools();
+
+    expect(tools).toHaveLength(500);
+    expect(client.truncatedTools).toBe(5);
+  });
+
   it('stops after the page cap instead of following a cursor forever', async () => {
     const client = new UserMCPClient({
       id: 'x',

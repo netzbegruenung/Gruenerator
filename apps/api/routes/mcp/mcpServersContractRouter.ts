@@ -9,12 +9,12 @@
 import { mcpServersContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { classifyMcpFailure, describeEmptyToolList } from '../../services/mcp/mcpFailure.js';
 import { McpOAuthService } from '../../services/mcp/McpOAuthService.js';
 import { McpRegistryService } from '../../services/mcp/McpRegistryService.js';
 import { McpServerRegistry } from '../../services/mcp/McpServerRegistry.js';
 import { UserMCPClient } from '../../services/mcp/UserMCPClient.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
-import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
 import { validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
@@ -180,7 +180,12 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
           protocolVersion: client.protocolVersion,
           toolCount: tools.length,
           skippedTools: client.skippedTools,
+          truncatedTools: client.truncatedTools,
+          declaresTools: client.declaresTools,
         });
+        // Eine leere Liste ist kein Erfolg. Welcher der beiden Gründe vorliegt,
+        // verrät die `tools`-Capability — und die Abhilfe unterscheidet sich.
+        const empty = tools.length === 0 ? describeEmptyToolList(client.declaresTools) : null;
         return {
           status: 200 as const,
           body: {
@@ -191,18 +196,24 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
             transport: client.transportKind,
             protocolVersion: client.protocolVersion,
             skippedTools: client.skippedTools,
+            truncatedTools: client.truncatedTools,
+            ...(empty ? { reasonCode: empty.code, hint: empty.hint ?? null } : {}),
           },
         };
       } catch (err) {
-        // The raw message never reached anyone: this branch logged nothing, and
-        // `toUserFacingMessage` replaces anything long or multi-line (a ZodError,
-        // say) with a generic sentence. Log it verbatim — a connector that fails
-        // for a stranger's server is undebuggable without it.
+        // Die Rohmeldung erreichte niemanden: dieser Zweig loggte nichts, und
+        // `toUserFacingMessage` ersetzt alles Lange oder Mehrzeilige (etwa einen
+        // ZodError) durch einen generischen Satz. Roh ins Log, klassifiziert ins
+        // UI — ein 404, ein abgelaufenes Token und ein selbstsigniertes
+        // Zertifikat brauchen drei verschiedene Sätze.
+        const reason = classifyMcpFailure(err, { name: config.name, url: config.url });
         log.warn('MCP test failed', {
           server: config.name,
           url: config.url,
           transport: client.transportKind,
+          reasonCode: reason.code,
           message: err instanceof Error ? err.message : String(err),
+          stack: err instanceof Error ? err.stack : undefined,
         });
         return {
           status: 200 as const,
@@ -210,10 +221,13 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
             ok: false,
             toolCount: 0,
             toolNames: [],
-            error: toUserFacingMessage(err),
+            error: reason.message,
             transport: client.transportKind,
             protocolVersion: client.protocolVersion,
             skippedTools: 0,
+            truncatedTools: 0,
+            reasonCode: reason.code,
+            hint: reason.hint ?? null,
           },
         };
       } finally {
