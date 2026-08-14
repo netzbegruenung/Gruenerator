@@ -979,7 +979,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Detailseiten",
     "anchor": "#detailseiten",
     "category": "Grüneratoren",
-    "text": "Jeder Grünerator und jedes Rezept hat eine eigene Detailseite — wie ein Produkt im Laden. Grüneratoren (/agentura/agent/...): Kopfbereich mit den Aktionen Im Chat öffnen, Favorit und Teilen. Übersicht — Beschreibung des Grünerator-Agenten. Gesprächsbeginn — Begrüßungsnachricht und eine Vorschau auf Beispiel-Antworten. Fähigkeiten — welche Werkzeuge der Grünerator-Agent nutzt und auf welches Wissen er zugreift. Verwandte — ähnliche Grüneratoren, die zum Thema passen. Rezepte (/agentura/skill/...): Kopfbereich mit den Aktionen Im Chat verwenden, Favorit und Link kopieren. Der vollständige Rezept-Text als Markdown — so siehst du genau, was das Rezept macht, bevor du es nutzt. Eine Vorlage und verwandte Rezepte."
+    "text": "Jeder Grünerator und jedes Rezept hat eine eigene Detailseite — wie ein Produkt im Laden. Grüneratoren (/agentura/agent/...): Kopfbereich mit den Aktionen Im Chat öffnen, Favorit und Teilen. Übersicht — Beschreibung des Grünerator-Agenten. Gesprächsbeginn — Begrüßungsnachricht und eine Vorschau auf Beispiel-Antworten. Fähigkeiten — welche Werkzeuge der Grünerator-Agent nutzt und auf welches Wissen er zugreift. Verwandte — ähnliche Grüneratoren, die zum Thema passen. Rezepte (/agentura/rezept/...): Kopfbereich mit den Aktionen Im Chat verwenden, Favorit und Link kopieren. Der vollständige Rezept-Text als Markdown — so siehst du genau, was das Rezept macht, bevor du es nutzt. Eine Vorlage und verwandte Rezepte."
   },
   {
     "url": "/docs/grueneratoren/agentura",
