@@ -179,12 +179,6 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "Der Grünerator für Chrome ist eine Browser-Erweiterung, die Aufgaben auf Webseiten für dich erledigt: suchen, blättern, anklicken, Formulare ausfüllen, Inhalte heraussuchen. Du beschreibst in einem S…"
   },
   {
-    "url": "/docs/integrationen/gruen-o-mat-einbetten",
-    "title": "GrünOMat einbetten",
-    "category": "Integrationen",
-    "lead": "Dieser Artikel ist über draft: true aus dem Build genommen und nicht aktuell. Zwei Dinge müssen geprüft werden, bevor er wieder freigegeben wird:"
-  },
-  {
     "url": "/docs/integrationen/ki-chat-einrichten",
     "title": "Grünerator in ChatGPT & Co nutzen",
     "category": "Integrationen",
@@ -1674,62 +1668,6 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#wie-die-erweiterung-arbeitet",
     "category": "Integrationen",
     "text": "Hinter dem Seitenpanel stecken zwei Agenten — im Gesprächsverlauf erkennst du sie an ihren Namen: Navigator — führt aus. Er klickt, tippt, blättert, wechselt Tabs und liest die Seite. Er läuft in jedem Schritt. Planner — legt das Vorgehen fest und prüft den Fortschritt. Er läuft standardmäßig alle drei Schritte und immer dann, wenn der Navigator meldet, er sei fertig. Was der Navigator auf einer Seite tun kann: bei Google suchen, Adressen öffnen, zurückgehen, Elemente anklicken, Text eingeben, Tabs öffnen, wechseln und schließen, scrollen (auch gezielt zu einer Textstelle), Tastenkürzel senden, Auswahllisten lesen und auswählen, Gefundenes zwischenspeichern und warten. Er benutzt deinen Browser mit deinen Anmeldungen. Wo du eingeloggt bist, ist er es auch — und er handelt mit deinen Rechten. Lass ihn nicht unbeaufsichtigt auf Seiten laufen, auf denen etwas Verbindliches passieren kann (Bezahlvorgänge, Verwaltungsoberflächen, Mitgliederdaten)."
-  },
-  {
-    "url": "/docs/integrationen/gruen-o-mat-einbetten",
-    "pageTitle": "GrünOMat einbetten",
-    "heading": "GrünOMat einbetten",
-    "anchor": "",
-    "category": "Integrationen",
-    "text": "Dieser Artikel ist über draft: true aus dem Build genommen und nicht aktuell. Zwei Dinge müssen geprüft werden, bevor er wieder freigegeben wird: Die Sammlungstabelle ist unvollständig. Sie listet fünf Sammlungen; tatsächlich akzeptiert das Widget jede Sammlung aus SYSTEMCOLLECTIONS (apps/api/config/systemCollectionsConfig.ts) — die Validierung läuft über isSystemCollectionId(), nicht über eine kurze Auswahlliste. Beim Reaktivieren gehört die Tabelle an reference.json gehängt, nicht neu abgetippt. Die Aussage zu localhost ist vermutlich falsch. Der Artikel behauptet, für lokale Tests brauche es keine Freischaltung, weil 'self' immer erlaubt sei. 'self' in frame-ancestors meint aber die Herkunft der eingebetteten Ressource (gruen-o-mat.eu), nicht die Seite der Entwickler*in. Wer die Schnellstart-Zeile in eine lokale HTML-Datei kopiert, dürfte vom Browser blockiert werden. Das ist nicht verifiziert — es gehört ausprobiert, bevor es jemand befolgt. Der übrige Inhalt wurde gegen apps/gruen-o-mat/public/embed.js geprüft und stimmt (Attribute, Vorgabewerte, window.GruenOMat-API, Shadow-DOM, Lazy-Load, Mobil-Vollbild). Der GrünOMat lässt sich als Chat-Widget auf externen Websites…"
-  },
-  {
-    "url": "/docs/integrationen/gruen-o-mat-einbetten",
-    "pageTitle": "GrünOMat einbetten",
-    "heading": "Beispiel mit allen Optionen",
-    "anchor": "#beispiel-mit-allen-optionen",
-    "category": "Integrationen",
-    "text": "Das Widget nutzt Shadow DOM — die CSS-Stile deiner Website beeinflussen das Widget nicht und umgekehrt."
-  },
-  {
-    "url": "/docs/integrationen/gruen-o-mat-einbetten",
-    "pageTitle": "GrünOMat einbetten",
-    "heading": "Domain-Freischaltung",
-    "anchor": "#domain-freischaltung",
-    "category": "Integrationen",
-    "text": "Aus Sicherheitsgründen muss die Domain, auf der das Widget eingebettet wird, freigeschaltet werden. Ohne Freischaltung blockiert der Browser das Laden des Chat-Fensters (iframe). Um deine Domain freischalten zu lassen, schreib eine E-Mail an das Grünerator-Team mit der Domain (z.B. https://mein-kreisverband.de). Für lokale Tests (localhost) ist keine Freischaltung nötig — 'self' ist immer erlaubt."
-  },
-  {
-    "url": "/docs/integrationen/gruen-o-mat-einbetten",
-    "pageTitle": "GrünOMat einbetten",
-    "heading": "Konfiguration",
-    "anchor": "#konfiguration",
-    "category": "Integrationen",
-    "text": "Das Widget lässt sich über data- Attribute am Script-Tag konfigurieren: Attribut | Standard | Beschreibung | ----------------- | ------------------ | ------------------------------------------------------------------- | data-collection | gruene-de-system | Quellensammlung für den Chat (siehe unten) | data-mode | widget | Darstellung: widget (Button), inline (im Seiteninhalt), modal | data-container | — | CSS-Selektor des Ziel-Elements — Pflicht bei data-mode=\"inline\" | data-position | bottom-right | Position des Buttons: bottom-right oder bottom-left | data-color | #316049 | Farbe des Chat-Buttons und der Titelleiste | data-title | Grün-O-Mat | Titel im Chat-Fenster | Im modal-Modus öffnet sich ein zentrierter Dialog statt des Widget-Fensters. Zusätzlich gibt es eine JavaScript-API, um den Chat programmatisch zu steuern (z. B. von einem eigenen Button aus): window.GruenOMat.open(), .close() und .toggle()."
-  },
-  {
-    "url": "/docs/integrationen/gruen-o-mat-einbetten",
-    "pageTitle": "GrünOMat einbetten",
-    "heading": "Schnellstart",
-    "anchor": "#schnellstart",
-    "category": "Integrationen",
-    "text": "Füge folgendes Script-Tag am Ende deines ein: Das war's — auf deiner Seite erscheint ein grüner Chat-Button unten rechts, der den GrünOMat mit den Inhalten der Grünen Hamburg öffnet."
-  },
-  {
-    "url": "/docs/integrationen/gruen-o-mat-einbetten",
-    "pageTitle": "GrünOMat einbetten",
-    "heading": "Technische Details",
-    "anchor": "#technische-details",
-    "category": "Integrationen",
-    "text": "Das Widget lädt den Chat-Iframe erst beim ersten Klick auf den Button (kein Performance-Overhead beim Seitenaufruf) Mobilgeräte: Das Chat-Fenster wird automatisch im Vollbild angezeigt Schließen: Klick auf ✕, Klick auf den Hintergrund, oder Escape-Taste Der Chat-Button verwendet z-index: 2147483646 um über allen anderen Elementen zu liegen"
-  },
-  {
-    "url": "/docs/integrationen/gruen-o-mat-einbetten",
-    "pageTitle": "GrünOMat einbetten",
-    "heading": "Verfügbare Sammlungen",
-    "anchor": "#verfügbare-sammlungen",
-    "category": "Integrationen",
-    "text": "Collection-ID | Landesverband | --------------------------- | ------------------------ | hamburg-system | Grüne Hamburg | schleswig-holstein-system | Grüne Schleswig-Holstein | thueringen-system | Grüne Thüringen | bayern-system | Grüne Bayern | berlin-system | Grüne Berlin |"
   },
   {
     "url": "/docs/integrationen/ki-chat-einrichten",
