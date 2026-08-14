@@ -20,6 +20,7 @@ import {
   NO_ARTIFACT_URL_RULE,
 } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
 import { forbidsNewResearch } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
+import { recordSlowVerdict } from '../../../../services/ai/modelHealth.js';
 import { applyContextCap } from '../../../../utils/contextCap.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { loadManagedMcpCatalog } from '../../agents/managedMcpCatalog.js';
@@ -1373,8 +1374,15 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
     const undecided = !resolution.fromAutoPolicy && (!modelId || modelId === 'mistral');
     const synth =
       mode === 'split'
-        ? getLoopSynthModel({ model: resolution.model, modelName: resolution.modelName }, undecided)
-        : { model: resolution.model, name: resolution.modelName };
+        ? getLoopSynthModel(
+            {
+              model: resolution.model,
+              modelName: resolution.modelName,
+              provider: resolution.provider,
+            },
+            undecided
+          )
+        : { model: resolution.model, name: resolution.modelName, provider: resolution.provider };
     synthName = synth.name;
 
     // The compound turn's whole point is the artifact — but the split planner
@@ -1530,6 +1538,9 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
         stopSynthHeartbeat = startResponseHeartbeat(sse);
       },
       onSynthFallback: () => {
+        // Stillstand ist das Verdikt, das die Messung nicht liefert: es kam
+        // nichts, was sich hätte messen lassen.
+        recordSlowVerdict(synth.provider, synth.name, 'synth_stall');
         if (!synthFallback) return;
         log.warn(`[Agentic] synth ${synth.name} stalled → falling back to ${synthFallback.name}`);
         sse.send('fallback', {

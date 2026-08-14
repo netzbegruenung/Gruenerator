@@ -734,12 +734,18 @@ export function loopSynthChoice(
 }
 
 export function getLoopSynthModel(
-  resolution: { model: LanguageModel; modelName: string },
+  resolution: { model: LanguageModel; modelName: string; provider: string },
   undecided: boolean
-): { model: LanguageModel; name: string } {
+): { model: LanguageModel; name: string; provider: string } {
   const choice = loopSynthChoice(resolution.modelName, undecided);
-  if (choice.provider === null) return { model: resolution.model, name: resolution.modelName };
-  return { model: getModel(choice.provider, choice.model), name: choice.model };
+  if (choice.provider === null) {
+    return { model: resolution.model, name: resolution.modelName, provider: resolution.provider };
+  }
+  return {
+    model: getModel(choice.provider, choice.model),
+    name: choice.model,
+    provider: choice.provider,
+  };
 }
 
 /**
