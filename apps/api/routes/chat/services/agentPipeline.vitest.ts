@@ -32,20 +32,31 @@ interface Sent {
 
 /** Nimmt je Schritt-`type` eine Antwort entgegen; null = Ausfall. */
 function fakePool(answers: Record<string, string | null>) {
-  const calls: Array<{ type: string; systemPrompt: string; userMessage: string }> = [];
+  const calls: Array<{
+    type: string;
+    systemPrompt: string;
+    userMessage: string;
+    provider: string;
+    model: string;
+  }> = [];
   const processRequest = vi.fn(async (req: Record<string, unknown>) => {
     const messages = req.messages as Array<{ content: string }>;
     calls.push({
       type: String(req.type),
       systemPrompt: String(req.systemPrompt),
       userMessage: messages[0]?.content ?? '',
+      provider: String(req.provider),
+      model: String((req.options as { model?: string } | undefined)?.model),
     });
     return { content: answers[String(req.type)] ?? null };
   });
   return { calls, pool: { processRequest } };
 }
 
-function fakeSse(): { sse: { send: (e: string, p: unknown) => void }; sent: Sent[] } {
+function fakeSse(): {
+  sse: { send: (e: string, p: unknown) => void; isEnded: () => boolean };
+  sent: Sent[];
+} {
   const sent: Sent[] = [];
   return {
     sent,
@@ -53,6 +64,7 @@ function fakeSse(): { sse: { send: (e: string, p: unknown) => void }; sent: Sent
       send: (event: string, payload: unknown) => {
         sent.push({ event, payload: payload as Record<string, unknown> });
       },
+      isEnded: () => false,
     },
   };
 }
@@ -181,6 +193,144 @@ describe('runAgentPipeline', () => {
     // Früher war dieser Zweig stumm — eine ungeprüfte Fassung sah damit aus wie
     // eine freigegebene. Genau der Fall trat bei `@dokument`-Mentions ein.
     expect(appended).toContain('ungeprüft');
+  });
+
+  it('meldet den laufenden Schritt weiter, solange er läuft', async () => {
+    // Der Prüfbericht brauchte am 14.08.2026 218 Sekunden. In dieser Zeit ging
+    // genau EIN Ereignis raus — auf dem Bildschirm nicht von einem Absturz zu
+    // unterscheiden, und die Leitung liegt derweil ohne ein einziges Byte da.
+    vi.useFakeTimers();
+    try {
+      const { sse, sent } = fakeSse();
+      // Nur der ERSTE Schritt hängt; der zweite antwortet sofort, damit die
+      // Kette nach dem Freigeben zu Ende läuft.
+      const holder: { release?: () => void } = {};
+      const pool = {
+        processRequest: vi.fn(async (req: Record<string, unknown>) => {
+          if (String(req.type) !== RUECK_TYPE) return { content: 'FREIGABE' };
+          await new Promise<void>((resolve) => {
+            holder.release = resolve;
+          });
+          return { content: 'Fachdeutsch.' };
+        }),
+      };
+      const promise = runAgentPipeline({
+        pipeline: ES,
+        state: { aiWorkerPool: pool } as never,
+        sse: sse as never,
+        produced: FASSUNG,
+        original: ORIGINAL,
+      });
+      await vi.advanceTimersByTimeAsync(10_000);
+
+      const beats = sent.filter(
+        (s) => s.event === 'progress_step' && s.payload.status === 'in_progress'
+      );
+      expect(beats.length).toBeGreaterThan(2);
+      // Wiederholt wird der Schritt selbst, nicht ein Platzhalter.
+      expect(new Set(beats.map((s) => s.payload.stepId))).toEqual(new Set(['es-rueck']));
+
+      holder.release?.();
+      await promise;
+      // Der Schlag hört auf, wenn der Schritt fertig ist — sonst liefe er über
+      // die nächste Antwort hinweg weiter.
+      const nachher = sent.filter((s) => s.payload.stepId === 'es-rueck').length;
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(sent.filter((s) => s.payload.stepId === 'es-rueck')).toHaveLength(nachher);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+/**
+ * Der Hedge, und was an ihm schiefgehen kann: dass er im Normalfall trotzdem
+ * feuert (doppelte Kosten), dass er im Störfall NICHT feuert (der Fehler vom
+ * 14.08.), und dass er auf einen abgelaufenen Wecker wartet, obwohl der Primär
+ * längst gescheitert ist.
+ */
+describe('runAgentPipeline — Sibling bei Langsamkeit', () => {
+  /** Ein Pool, dessen Antwort je Provider verschieden ausfällt. */
+  function poolNachProvider(handler: (provider: string, type: string) => Promise<string | null>): {
+    pool: { processRequest: ReturnType<typeof vi.fn> };
+    calls: Array<{ provider: string; type: string }>;
+  } {
+    const calls: Array<{ provider: string; type: string }> = [];
+    const processRequest = vi.fn(async (req: Record<string, unknown>) => {
+      const provider = String(req.provider);
+      const type = String(req.type);
+      calls.push({ provider, type });
+      return { content: await handler(provider, type) };
+    });
+    return { pool: { processRequest }, calls };
+  }
+
+  const laufe = (pool: { processRequest: ReturnType<typeof vi.fn> }) =>
+    runAgentPipeline({
+      pipeline: ES,
+      state: { aiWorkerPool: pool } as never,
+      sse: fakeSse().sse as never,
+      produced: FASSUNG,
+      original: ORIGINAL,
+    });
+
+  it('ruft den Sibling NICHT, wenn der Primär rechtzeitig antwortet', async () => {
+    // Der teuerste Fehlgriff wäre ein Hedge, der immer feuert: jeder Schritt
+    // kostete dann zwei Aufrufe, in Tokens wie in CO₂.
+    const { pool, calls } = poolNachProvider(async () => 'Fertig.');
+    await laufe(pool);
+
+    expect(calls.map((c) => c.provider)).toEqual(['regolo', 'regolo']);
+  });
+
+  it('lässt den Sibling gewinnen, wenn der Primär über die Frist hinaus schweigt', async () => {
+    vi.useFakeTimers();
+    try {
+      const { pool, calls } = poolNachProvider(async (provider) => {
+        // Der Primär antwortet nie — der langsame Lauf vom 14.08. im Extrem.
+        if (provider === 'regolo') return new Promise<string>(() => {});
+        return 'Vom Sibling.';
+      });
+      const promise = laufe(pool);
+
+      // Vor der Frist (30 s für die Rückübersetzung) darf nichts passieren.
+      await vi.advanceTimersByTimeAsync(20_000);
+      expect(calls.map((c) => c.provider)).toEqual(['regolo']);
+
+      // Reichlich: der zweite Schritt hat seine eigene, längere Frist.
+      await vi.advanceTimersByTimeAsync(300_000);
+      const appended = await promise;
+
+      expect(calls.filter((c) => c.provider === 'scaleway')).not.toHaveLength(0);
+      expect(appended).toContain('Vom Sibling.');
+      // Und nicht als Ausfall verbucht: der Schritt hat geliefert.
+      expect(appended).not.toContain('nicht zustande gekommen');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('holt den Sibling sofort, wenn der Primär vorher scheitert', async () => {
+    // Auf den Wecker zu warten, obwohl schon feststeht, dass nichts mehr kommt,
+    // wäre eine halbe Minute geschenkt.
+    vi.useFakeTimers();
+    try {
+      const { pool, calls } = poolNachProvider(async (provider) =>
+        provider === 'regolo' ? null : 'Vom Sibling.'
+      );
+      const promise = laufe(pool);
+      await vi.advanceTimersByTimeAsync(0);
+
+      // Ohne einen einzigen Tick auf der Uhr: beide Schritte sind schon durch,
+      // je Schritt Primär und dann sofort der Sibling.
+      expect(calls.filter((c) => c.type === RUECK_TYPE).map((c) => c.provider)).toEqual([
+        'regolo',
+        'scaleway',
+      ]);
+      expect(await promise).toContain('Vom Sibling.');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

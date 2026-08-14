@@ -23,7 +23,12 @@ const KEY = process.env.GREENPT_API_KEY;
 /** GreenPT model id -> the model id we record in user_usage_daily. */
 const MODELS: readonly { greenpt: string; ours: string }[] = [
   { greenpt: 'mistral-medium-3.5-128b', ours: 'mistral-medium-2604' },
-  { greenpt: 'gemma4', ours: 'gemma4-31b / verdigado-think' },
+  // Welche Gewichte `gemma4` bei GreenPT trägt, ist unbelegt — die Zuordnung
+  // hier ist eine Vermutung, `agents/providers.ts` vermutet die 26B. Über die
+  // API nicht klärbar (14.08.2026): /v1/models nennt keine Parameterzahl, und
+  // der Temperatur-0-Vergleich scheitert, weil sich das Denken dort nicht
+  // abschalten lässt.
+  { greenpt: 'gemma4', ours: 'gemma4-31b / verdigado-think (unbelegt)' },
   { greenpt: 'gpt-oss-120b', ours: 'gpt-oss-120b / verdigado-pro' },
   { greenpt: 'mistral-small-3.2-24b-instruct-2506', ours: 'mistral-small-latest' },
   { greenpt: 'qwen3.5-397b-a17b', ours: '(no equivalent lane — reference only)' },
