@@ -179,12 +179,6 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "Der Grünerator für Chrome ist eine Browser-Erweiterung, die Aufgaben auf Webseiten für dich erledigt: suchen, blättern, anklicken, Formulare ausfüllen, Inhalte heraussuchen. Du beschreibst in einem S…"
   },
   {
-    "url": "/docs/integrationen/gruen-o-mat-einbetten",
-    "title": "GrünOMat einbetten",
-    "category": "Integrationen",
-    "lead": "Dieser Artikel ist über draft: true aus dem Build genommen und nicht aktuell. Zwei Dinge müssen geprüft werden, bevor er wieder freigegeben wird:"
-  },
-  {
     "url": "/docs/integrationen/ki-chat-einrichten",
     "title": "Grünerator in ChatGPT & Co nutzen",
     "category": "Integrationen",
@@ -1073,7 +1067,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 4: Speichern und nutzen",
     "anchor": "#schritt-4-speichern-und-nutzen",
     "category": "Grüneratoren",
-    "text": "Klicke oben rechts auf Speichern. Der Knopf ist erst aktiv, wenn Name, Beschreibung und Anleitung ausgefüllt sind. Nach dem Speichern erscheint „Gespeichert ✓\" und du landest auf der Bearbeitungsseite deines Agenten. Von dort öffnest du ihn über Im Chat öffnen und kannst sofort mit ihm arbeiten. Spätere Änderungen nimmst du jederzeit über das Stift-Symbol (Bearbeiten) auf der Karte oder Detailseite vor. Mit Abbrechen verwirfst du nicht gespeicherte Änderungen."
+    "text": "Klicke oben rechts auf Speichern. Der Knopf ist erst aktiv, wenn Name, Beschreibung und Anleitung ausgefüllt sind. Beim ersten Speichern wird der Agent angelegt und du landest direkt auf seiner Bearbeitungsseite. Bei jedem weiteren Speichern dort erscheint oben rechts „Gespeichert ✓\". Von dort öffnest du ihn über Im Chat öffnen und kannst sofort mit ihm arbeiten. Spätere Änderungen nimmst du jederzeit über das Stift-Symbol (Bearbeiten) auf der Karte oder Detailseite vor. Mit Abbrechen verwirfst du nicht gespeicherte Änderungen."
   },
   {
     "url": "/docs/grundlagen/finetuning",
@@ -1674,62 +1668,6 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#wie-die-erweiterung-arbeitet",
     "category": "Integrationen",
     "text": "Hinter dem Seitenpanel stecken zwei Agenten — im Gesprächsverlauf erkennst du sie an ihren Namen: Navigator — führt aus. Er klickt, tippt, blättert, wechselt Tabs und liest die Seite. Er läuft in jedem Schritt. Planner — legt das Vorgehen fest und prüft den Fortschritt. Er läuft standardmäßig alle drei Schritte und immer dann, wenn der Navigator meldet, er sei fertig. Was der Navigator auf einer Seite tun kann: bei Google suchen, Adressen öffnen, zurückgehen, Elemente anklicken, Text eingeben, Tabs öffnen, wechseln und schließen, scrollen (auch gezielt zu einer Textstelle), Tastenkürzel senden, Auswahllisten lesen und auswählen, Gefundenes zwischenspeichern und warten. Er benutzt deinen Browser mit deinen Anmeldungen. Wo du eingeloggt bist, ist er es auch — und er handelt mit deinen Rechten. Lass ihn nicht unbeaufsichtigt auf Seiten laufen, auf denen etwas Verbindliches passieren kann (Bezahlvorgänge, Verwaltungsoberflächen, Mitgliederdaten)."
-  },
-  {
-    "url": "/docs/integrationen/gruen-o-mat-einbetten",
-    "pageTitle": "GrünOMat einbetten",
-    "heading": "GrünOMat einbetten",
-    "anchor": "",
-    "category": "Integrationen",
-    "text": "Dieser Artikel ist über draft: true aus dem Build genommen und nicht aktuell. Zwei Dinge müssen geprüft werden, bevor er wieder freigegeben wird: Die Sammlungstabelle ist unvollständig. Sie listet fünf Sammlungen; tatsächlich akzeptiert das Widget jede Sammlung aus SYSTEMCOLLECTIONS (apps/api/config/systemCollectionsConfig.ts) — die Validierung läuft über isSystemCollectionId(), nicht über eine kurze Auswahlliste. Beim Reaktivieren gehört die Tabelle an reference.json gehängt, nicht neu abgetippt. Die Aussage zu localhost ist vermutlich falsch. Der Artikel behauptet, für lokale Tests brauche es keine Freischaltung, weil 'self' immer erlaubt sei. 'self' in frame-ancestors meint aber die Herkunft der eingebetteten Ressource (gruen-o-mat.eu), nicht die Seite der Entwickler*in. Wer die Schnellstart-Zeile in eine lokale HTML-Datei kopiert, dürfte vom Browser blockiert werden. Das ist nicht verifiziert — es gehört ausprobiert, bevor es jemand befolgt. Der übrige Inhalt wurde gegen apps/gruen-o-mat/public/embed.js geprüft und stimmt (Attribute, Vorgabewerte, window.GruenOMat-API, Shadow-DOM, Lazy-Load, Mobil-Vollbild). Der GrünOMat lässt sich als Chat-Widget auf externen Websites…"
-  },
-  {
-    "url": "/docs/integrationen/gruen-o-mat-einbetten",
-    "pageTitle": "GrünOMat einbetten",
-    "heading": "Beispiel mit allen Optionen",
-    "anchor": "#beispiel-mit-allen-optionen",
-    "category": "Integrationen",
-    "text": "Das Widget nutzt Shadow DOM — die CSS-Stile deiner Website beeinflussen das Widget nicht und umgekehrt."
-  },
-  {
-    "url": "/docs/integrationen/gruen-o-mat-einbetten",
-    "pageTitle": "GrünOMat einbetten",
-    "heading": "Domain-Freischaltung",
-    "anchor": "#domain-freischaltung",
-    "category": "Integrationen",
-    "text": "Aus Sicherheitsgründen muss die Domain, auf der das Widget eingebettet wird, freigeschaltet werden. Ohne Freischaltung blockiert der Browser das Laden des Chat-Fensters (iframe). Um deine Domain freischalten zu lassen, schreib eine E-Mail an das Grünerator-Team mit der Domain (z.B. https://mein-kreisverband.de). Für lokale Tests (localhost) ist keine Freischaltung nötig — 'self' ist immer erlaubt."
-  },
-  {
-    "url": "/docs/integrationen/gruen-o-mat-einbetten",
-    "pageTitle": "GrünOMat einbetten",
-    "heading": "Konfiguration",
-    "anchor": "#konfiguration",
-    "category": "Integrationen",
-    "text": "Das Widget lässt sich über data- Attribute am Script-Tag konfigurieren: Attribut | Standard | Beschreibung | ----------------- | ------------------ | ------------------------------------------------------------------- | data-collection | gruene-de-system | Quellensammlung für den Chat (siehe unten) | data-mode | widget | Darstellung: widget (Button), inline (im Seiteninhalt), modal | data-container | — | CSS-Selektor des Ziel-Elements — Pflicht bei data-mode=\"inline\" | data-position | bottom-right | Position des Buttons: bottom-right oder bottom-left | data-color | #316049 | Farbe des Chat-Buttons und der Titelleiste | data-title | Grün-O-Mat | Titel im Chat-Fenster | Im modal-Modus öffnet sich ein zentrierter Dialog statt des Widget-Fensters. Zusätzlich gibt es eine JavaScript-API, um den Chat programmatisch zu steuern (z. B. von einem eigenen Button aus): window.GruenOMat.open(), .close() und .toggle()."
-  },
-  {
-    "url": "/docs/integrationen/gruen-o-mat-einbetten",
-    "pageTitle": "GrünOMat einbetten",
-    "heading": "Schnellstart",
-    "anchor": "#schnellstart",
-    "category": "Integrationen",
-    "text": "Füge folgendes Script-Tag am Ende deines ein: Das war's — auf deiner Seite erscheint ein grüner Chat-Button unten rechts, der den GrünOMat mit den Inhalten der Grünen Hamburg öffnet."
-  },
-  {
-    "url": "/docs/integrationen/gruen-o-mat-einbetten",
-    "pageTitle": "GrünOMat einbetten",
-    "heading": "Technische Details",
-    "anchor": "#technische-details",
-    "category": "Integrationen",
-    "text": "Das Widget lädt den Chat-Iframe erst beim ersten Klick auf den Button (kein Performance-Overhead beim Seitenaufruf) Mobilgeräte: Das Chat-Fenster wird automatisch im Vollbild angezeigt Schließen: Klick auf ✕, Klick auf den Hintergrund, oder Escape-Taste Der Chat-Button verwendet z-index: 2147483646 um über allen anderen Elementen zu liegen"
-  },
-  {
-    "url": "/docs/integrationen/gruen-o-mat-einbetten",
-    "pageTitle": "GrünOMat einbetten",
-    "heading": "Verfügbare Sammlungen",
-    "anchor": "#verfügbare-sammlungen",
-    "category": "Integrationen",
-    "text": "Collection-ID | Landesverband | --------------------------- | ------------------------ | hamburg-system | Grüne Hamburg | schleswig-holstein-system | Grüne Schleswig-Holstein | thueringen-system | Grüne Thüringen | bayern-system | Grüne Bayern | berlin-system | Grüne Berlin |"
   },
   {
     "url": "/docs/integrationen/ki-chat-einrichten",
@@ -2569,7 +2507,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Unsere europäischen Partner",
     "anchor": "#unsere-europäischen-partner",
     "category": "Über den Grünerator",
-    "text": "Mistral AI (Frankreich) — Standardmodell Mistral Medium 3.5 (mistral-medium-2604), Werkzeug-Planung mit Mistral Small, Bildverstehen mit Pixtral Large, Suche und Notebooks mit mistral-embed, Transkription mit Voxtral Black Forest Labs (Freiburg, Deutschland) — Bilderzeugung und -bearbeitung mit FLUX 2 Pro (flux-2-pro), ausschließlich über den EU-Endpunkt api.eu.bfl.ai Regolo / Seeweb (Italien) — Open-Source-Modelle (Gemma 4, GPT-OSS 120B, Mistral Small 4) und das Bildmodell Qwen-Image — Zero Data Retention, 100 % erneuerbare Energie GreenPT (Paris und Helsinki) — erzeugte Dateien (PDFs, Präsentationen, Tabellen, Dokumente) mit Gemma 4 sowie der Ausweichweg für die Transkription, 100 % erneuerbare Energie Scaleway (Paris) — Gemma 4 (gemma-4-26b-a4b-it) für das Zusammenfassen langer Dokumente netzbegrünung e.V. / verdigado eG (Deutschland / Finnland) — Infrastruktur, Datenbank, selbst gehostetes GPT-OSS 120B (und Gemma 4 als Ausweichweg) SearXNG (selbstgehostet, Deutschland) — Suche Hetzner (Deutschland) — Hosting, an deutschen Standorten mit 100 % Wasserkraft Wer europäische Werte vertritt, sollte europäische Werkzeuge nutzen. Der Grünerator zeigt, dass das ohne Qualitätsverlust…"
+    "text": "Mistral AI (Frankreich) — Standardmodell Mistral Medium 3.5 (mistral-medium-2604), Bildverstehen mit Pixtral Large, Suche und Notebooks mit mistral-embed, Transkription mit Voxtral Black Forest Labs (Freiburg, Deutschland) — Bilderzeugung und -bearbeitung mit FLUX 2 Pro (flux-2-pro), ausschließlich über den EU-Endpunkt api.eu.bfl.ai Regolo / Seeweb (Italien) — Open-Source-Modelle (Gemma 4, GPT-OSS 120B, Mistral Small 4) und das Bildmodell Qwen-Image — Zero Data Retention, 100 % erneuerbare Energie GreenPT (Paris und Helsinki) — Werkzeug-Planung mit Mistral Small (Ausweichwege: Regolo und verdigado), erzeugte Dateien (PDFs, Präsentationen, Tabellen, Dokumente) mit Gemma 4 sowie der Ausweichweg für die Transkription, 100 % erneuerbare Energie Scaleway (Paris) — Gemma 4 (gemma-4-26b-a4b-it) für das Zusammenfassen langer Dokumente netzbegrünung e.V. / verdigado eG (Deutschland / Finnland) — Infrastruktur, Datenbank, selbst gehostetes GPT-OSS 120B (und Gemma 4 als Ausweichweg) SearXNG (selbstgehostet, Deutschland) — Suche Hetzner (Deutschland) — Hosting, an deutschen Standorten mit 100 % Wasserkraft Wer europäische Werte vertritt, sollte europäische Werkzeuge nutzen. Der Grünerator…"
   },
   {
     "url": "/docs/ueber-den-gruenerator/intro",
@@ -3233,7 +3171,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "LV-Rezepte im Überblick",
     "anchor": "#lv-rezepte-im-überblick",
     "category": "Wissen",
-    "text": "Für diese Landesverbände gibt es eigene Rezept-Abkürzungen für Pressemitteilung und Instagram: Landesverband | Pressemitteilung | Instagram | ---------------------- | ------------------------ | -------------------- | Berlin | @presse-berlin | @insta-berlin | Mecklenburg-Vorpommern | @presse-mv | @insta-mv | Thüringen | @presse-thueringen | @insta-thueringen | Brandenburg | @presse-brandenburg | @insta-brandenburg | Bayern | @presse-bayern | — | Hessen | @presse-hessen | — | Sachsen-Anhalt | @presse-sachsen-anhalt | — | Das Saarland hat (noch) keine eigene Rezept-Abkürzung — seinen Grünerator erreichst du über die Landesverband-Seite. Unabhängig vom Landesverband gibt es allgemeine Rezepte für jede Plattform: @presse, @instagram, @facebook, @twitter, @linkedin und @reel. Sie greifen auf Beispiele aus allen Landesverbänden zurück. Die LV-Rezepte oben sind die Spezialversion mit eingebautem Regional-Stil."
+    "text": "Für diese Landesverbände gibt es eigene Rezept-Abkürzungen für Pressemitteilung und Instagram: Landesverband | Pressemitteilung | Instagram | ---------------------- | ------------------------ | ----------------------- | Berlin | @presse-berlin | @insta-berlin | Mecklenburg-Vorpommern | @presse-mv | @insta-mv | Thüringen | @presse-thueringen | @insta-thueringen | Brandenburg | @presse-brandenburg | @insta-brandenburg | Bayern | @presse-bayern | @insta-bayern | Hessen | @presse-hessen | @insta-hessen | Sachsen-Anhalt | @presse-sachsen-anhalt | @insta-sachsen-anhalt | Saarland | @presse-saarland | @insta-saarland | Unabhängig vom Landesverband gibt es allgemeine Rezepte für jede Plattform: @presse, @instagram, @facebook, @twitter, @linkedin und @reel. Sie greifen auf Beispiele aus allen Landesverbänden zurück. Die LV-Rezepte oben sind die Spezialversion mit eingebautem Regional-Stil."
   },
   {
     "url": "/docs/wissen/landesverbaende",
