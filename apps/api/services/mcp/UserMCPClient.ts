@@ -19,11 +19,69 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { type Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
+import { z } from 'zod';
 
 import { createLogger } from '../../utils/logger.js';
 import { validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
 
 const log = createLogger('user-mcp-client');
+
+/** Which wire protocol carried the session. */
+export type McpTransportKind = 'http' | 'sse';
+
+/**
+ * Deliberately permissive `tools/list` shape — see {@link UserMCPClient.listTools}.
+ * The SDK's `safeParse` shim accepts zod v3 and v4 schemas alike, so this stays
+ * in the repo's zod 3 idiom.
+ */
+const LenientListToolsResultSchema = z
+  .object({
+    // `z.unknown()` und nicht `z.record(...)`: ein einzelner nicht-objekthafter
+    // Eintrag (null, ein String) hätte sonst das Array-Parsing zum Scheitern
+    // gebracht — und damit wieder die ganze Seite verworfen, also genau das,
+    // wogegen dieses Schema antritt. Aussortiert wird pro Eintrag, nicht pro
+    // Antwort.
+    tools: z.array(z.unknown()).optional(),
+    nextCursor: z.string().optional(),
+  })
+  .passthrough();
+
+/** Bounds on a stranger's tool list: pages followed, tools accepted. */
+const MAX_TOOL_PAGES = 10;
+const MAX_LISTED_TOOLS = 500;
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+/**
+ * Repair one raw tool entry into something the loop can mount. Only a missing
+ * name is fatal — an absent or mistyped `inputSchema` becomes the empty object
+ * schema, which is what a parameterless tool looks like anyway.
+ */
+function normalizeToolDescriptor(entry: unknown): McpToolDescriptor | null {
+  const raw = asRecord(entry);
+  if (!raw) return null;
+  const name = typeof raw.name === 'string' ? raw.name.trim() : '';
+  if (!name) return null;
+
+  const rawSchema = asRecord(raw.inputSchema);
+  const inputSchema: Record<string, unknown> = rawSchema
+    ? { ...rawSchema, type: 'object', properties: asRecord(rawSchema.properties) ?? {} }
+    : { type: 'object', properties: {} };
+
+  const outputSchema = asRecord(raw.outputSchema);
+  const meta = asRecord(raw._meta);
+  return {
+    name,
+    description: typeof raw.description === 'string' ? raw.description : '',
+    inputSchema,
+    ...(outputSchema ? { outputSchema } : {}),
+    ...(meta ? { meta } : {}),
+  };
+}
 
 /** Pull `resource` (embedded) and `resource_link` blocks out of a tool result's
  *  content array — this is where a `ui://…` MCP-Apps widget pointer arrives. */
@@ -128,6 +186,10 @@ export interface McpResource {
 export class UserMCPClient {
   private client: Client | null = null;
   private transport: StreamableHTTPClientTransport | SSEClientTransport | null = null;
+  private activeTransport: McpTransportKind | null = null;
+  private negotiatedProtocolVersion: string | null = null;
+  private lastSkippedTools = 0;
+  private lastTruncatedTools = 0;
 
   constructor(private readonly config: McpConnectionConfig) {}
 
@@ -139,20 +201,55 @@ export class UserMCPClient {
     return this.config.name;
   }
 
-  private buildTransport(): StreamableHTTPClientTransport | SSEClientTransport {
-    const headers: Record<string, string> = {};
+  /** Which transport actually completed the handshake (for diagnostics). */
+  get transportKind(): McpTransportKind | null {
+    return this.activeTransport;
+  }
+
+  /** Protocol version the server negotiated, when the transport reports one. */
+  get protocolVersion(): string | null {
+    return this.negotiatedProtocolVersion;
+  }
+
+  /**
+   * Whether the server declared a `tools` capability at all. Separates "bietet
+   * keine Werkzeuge an" from "bietet welche an, gibt aber keine heraus" — zwei
+   * Fälle, die als leere Liste identisch aussehen und verschiedene Abhilfen
+   * haben.
+   */
+  get declaresTools(): boolean {
+    return this.client?.getServerCapabilities()?.tools != null;
+  }
+
+  /** Entries the last {@link listTools} dropped as unusable (no name, no object). */
+  get skippedTools(): number {
+    return this.lastSkippedTools;
+  }
+
+  /** Tools the last {@link listTools} cut off at the cap. Never silent. */
+  get truncatedTools(): number {
+    return this.lastTruncatedTools;
+  }
+
+  private authHeaders(): Record<string, string> {
     if (
       (this.config.authType === 'bearer' || this.config.authType === 'oauth') &&
       this.config.token
     ) {
-      headers.Authorization = `Bearer ${this.config.token}`;
+      return { Authorization: `Bearer ${this.config.token}` };
     }
+    return {};
+  }
+
+  private buildTransport(
+    kind: McpTransportKind
+  ): StreamableHTTPClientTransport | SSEClientTransport {
+    const headers = this.authHeaders();
     const url = new URL(this.config.url);
-    // Many official servers only expose the legacy SSE transport (URL ends in
-    // `/sse`); the rest use StreamableHTTP. Pick by URL so both connect. For SSE
-    // the auth header must ride both the POST (requestInit) and the GET event
-    // stream (eventSourceInit.fetch), since EventSource can't set headers itself.
-    if (url.pathname.endsWith('/sse')) {
+    // For SSE the auth header must ride both the POST (requestInit) and the GET
+    // event stream (eventSourceInit.fetch), since EventSource can't set headers
+    // itself.
+    if (kind === 'sse') {
       return new SSEClientTransport(url, {
         requestInit: { headers },
         eventSourceInit: {
@@ -167,8 +264,30 @@ export class UserMCPClient {
     return new StreamableHTTPClientTransport(url, { requestInit: { headers } });
   }
 
-  /** Connect and complete the MCP initialize handshake. Throws on failure. */
+  /**
+   * Connect and complete the MCP initialize handshake. Throws on failure.
+   *
+   * Both transports are tried: the URL path only tells us which one to try
+   * FIRST. Guessing from the path alone (as this did) puts a `/sse/`-with-slash
+   * or an unconventionally routed endpoint on the wrong transport and reports
+   * the server as unreachable — every other MCP client falls back instead.
+   */
   async connect(): Promise<void> {
+    // A missing token used to connect ANONYMOUSLY: a failed OAuth refresh or a
+    // token that won't decrypt left `token: null`, and servers that answer an
+    // unauthenticated session with an empty tool list instead of a 401 then look
+    // like "connected, 0 tools". Say what actually happened. Checked first
+    // because it touches no network at all — the SSRF guard below still gates
+    // every connection that is actually opened.
+    if (
+      (this.config.authType === 'bearer' || this.config.authType === 'oauth') &&
+      !this.config.token
+    ) {
+      throw new Error(
+        `Für „${this.config.name}" liegt kein gültiger Zugang vor — bitte den Server neu ` +
+          `autorisieren bzw. das Token erneut hinterlegen.`
+      );
+    }
     // SSRF guard at the connect chokepoint: the server URL is user-provided, so
     // re-validate on every connect (not just at create time — DNS can rebind to
     // an internal address between). Blocks localhost/private IPs/metadata hosts.
@@ -178,35 +297,123 @@ export class UserMCPClient {
         `Unsichere MCP-Server-URL (${this.config.name}): ${urlCheck.error ?? 'blockiert'}`
       );
     }
-    this.client = new Client({ name: 'gruenerator-chat', version: '1.0.0' }, { capabilities: {} });
-    this.transport = this.buildTransport();
-    // The SDK's concrete transport types `sessionId` as `string | undefined`,
-    // which trips exactOptionalPropertyTypes against the `Transport` interface
-    // (`sessionId?: string`). Boundary cast at the SDK edge — structurally sound.
-    await this.client.connect(this.transport as unknown as Transport, {
-      timeout: CONNECT_TIMEOUT_MS,
-    });
+
+    // Trailing slash tolerated: `https://host/sse/` is the same hint as `/sse`.
+    const path = new URL(this.config.url).pathname.replace(/\/+$/, '');
+    const order: McpTransportKind[] = path.endsWith('/sse') ? ['sse', 'http'] : ['http', 'sse'];
+
+    let firstError: unknown = null;
+    for (const kind of order) {
+      // A fresh Client per attempt — a half-completed handshake leaves the
+      // previous one unusable.
+      const client = new Client(
+        { name: 'gruenerator-chat', version: '1.0.0' },
+        { capabilities: {} }
+      );
+      const transport = this.buildTransport(kind);
+      try {
+        // The SDK's concrete transport types `sessionId` as `string | undefined`,
+        // which trips exactOptionalPropertyTypes against the `Transport` interface
+        // (`sessionId?: string`). Boundary cast at the SDK edge — structurally sound.
+        await client.connect(transport as unknown as Transport, { timeout: CONNECT_TIMEOUT_MS });
+        this.client = client;
+        this.transport = transport;
+        this.activeTransport = kind;
+        this.negotiatedProtocolVersion =
+          (transport as { protocolVersion?: string }).protocolVersion ?? null;
+        if (kind !== order[0]) {
+          log.info('MCP connected via fallback transport', {
+            server: this.config.name,
+            transport: kind,
+          });
+        }
+        return;
+      } catch (err) {
+        firstError ??= err;
+        log.warn('MCP connect attempt failed', {
+          server: this.config.name,
+          transport: kind,
+          message: err instanceof Error ? err.message : String(err),
+        });
+        await transport.close().catch(() => {});
+      }
+    }
+    throw firstError instanceof Error ? firstError : new Error(String(firstError));
   }
 
+  /**
+   * List the server's tools — tolerantly, and across all pages.
+   *
+   * NOT `client.listTools()`: that parses the response with the SDK's strict
+   * `ToolSchema`, which requires `inputSchema` and pins it to `type: "object"`.
+   * `safeParse` rejects the WHOLE response on the first offending entry, so a
+   * single hand-written tool costs the user every tool on the server — while
+   * nachsichtige Clients (ChatGPT) show them all. We take the raw result and
+   * repair each tool ourselves; only an entry without a usable name is dropped,
+   * and that is counted and logged rather than swallowed.
+   *
+   * Consequence to be aware of: `client.listTools()` also fills the SDK's cache
+   * of output schemas, which `callTool` uses to validate `structuredContent`.
+   * Going through `client.request` skips that cache — `callTool` gets more
+   * lenient, never stricter.
+   */
   async listTools(): Promise<McpToolDescriptor[]> {
     if (!this.client) throw new Error('UserMCPClient.listTools called before connect()');
-    const result = await this.client.listTools(undefined, { timeout: CALL_TIMEOUT_MS });
-    return (result.tools ?? []).map((t) => {
-      const raw = t as {
-        outputSchema?: Record<string, unknown>;
-        _meta?: Record<string, unknown>;
-      };
-      return {
-        name: t.name,
-        description: t.description ?? '',
-        inputSchema: (t.inputSchema as Record<string, unknown>) ?? {
-          type: 'object',
-          properties: {},
-        },
-        ...(raw.outputSchema ? { outputSchema: raw.outputSchema } : {}),
-        ...(raw._meta ? { meta: raw._meta } : {}),
-      };
-    });
+    const out: McpToolDescriptor[] = [];
+    let skipped = 0;
+    let truncated = 0;
+    let cursor: string | undefined;
+    let page = 0;
+
+    do {
+      const result = await this.client.request(
+        { method: 'tools/list', params: cursor ? { cursor } : {} },
+        LenientListToolsResultSchema,
+        { timeout: CALL_TIMEOUT_MS }
+      );
+      page++;
+      const entries = result.tools ?? [];
+      for (let i = 0; i < entries.length; i++) {
+        // Abgeschnittenes wird GEZÄHLT, nicht stillschweigend verworfen: ein
+        // blankes `break` hätte hier exakt den Fehler wiederholt, gegen den
+        // diese Methode antritt — nur eine Ebene tiefer.
+        //
+        // Gezählt wird der Rest DIESER Seite (`entries.length - i`). Die erste
+        // Fassung rechnete `entries.length - out.length - skipped` und mischte
+        // damit einen seitenlokalen mit zwei über alle Seiten kumulierten
+        // Zählern: griff der Deckel erst ab Seite 2, kam eine negative Zahl
+        // heraus — und `truncated > 0` unterdrückte dann sogar den Warn-Log.
+        if (out.length >= MAX_LISTED_TOOLS) {
+          truncated += entries.length - i;
+          break;
+        }
+        const tool = normalizeToolDescriptor(entries[i]);
+        if (tool) out.push(tool);
+        else skipped++;
+      }
+      cursor = result.nextCursor;
+    } while (cursor && page < MAX_TOOL_PAGES && out.length < MAX_LISTED_TOOLS);
+
+    if (cursor || truncated > 0) {
+      log.warn('MCP tools/list truncated', {
+        server: this.config.name,
+        pages: page,
+        tools: out.length,
+        // Über alle Seiten summiert, nicht nur die letzte — der alte Name
+        // behauptete eine Seitenbindung, die die Zahl nie hatte.
+        droppedByCap: truncated,
+        morePagesPending: Boolean(cursor),
+      });
+    }
+    if (skipped > 0) {
+      log.warn('MCP tools/list entries skipped (not a tool object / no usable name)', {
+        server: this.config.name,
+        skipped,
+      });
+    }
+    this.lastSkippedTools = skipped;
+    this.lastTruncatedTools = truncated;
+    return out;
   }
 
   /**
@@ -328,6 +535,7 @@ export class UserMCPClient {
     } finally {
       this.client = null;
       this.transport = null;
+      this.activeTransport = null;
     }
   }
 }
