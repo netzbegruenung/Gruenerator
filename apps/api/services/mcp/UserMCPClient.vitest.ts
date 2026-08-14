@@ -152,6 +152,23 @@ describe('UserMCPClient.listTools tolerance', () => {
     expect(client.truncatedTools).toBe(5);
   });
 
+  it('counts the cap correctly when it bites on a LATER page', async () => {
+    // Der Deckel greift erst auf Seite 2, und Seite 2 ist die letzte (kein
+    // nextCursor). Die erste Zählformel verrechnete hier einen seitenlokalen
+    // mit kumulierten Zählern und kam auf eine negative Zahl — womit auch der
+    // `truncated > 0`-Log ausfiel und die Tools wieder lautlos verschwanden.
+    const client = withResponses({}, [
+      { tools: Array.from({ length: 300 }, (_, i) => ({ name: `a${i}` })), nextCursor: 'c1' },
+      { tools: Array.from({ length: 300 }, (_, i) => ({ name: `b${i}` })) },
+    ]);
+
+    const tools = await client.listTools();
+
+    expect(tools).toHaveLength(500);
+    // 600 geliefert, 500 behalten — die 100 dahinter werden benannt, nicht weg.
+    expect(client.truncatedTools).toBe(100);
+  });
+
   it('stops after the page cap instead of following a cursor forever', async () => {
     const client = new UserMCPClient({
       id: 'x',
