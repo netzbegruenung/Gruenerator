@@ -4,12 +4,15 @@ import {
   SKILLS,
   isLandesverbandIdentifier,
   isLvItemVisibleForRoles,
+  landesverbandHeadings,
 } from '@gruenerator/shared/agents';
 import { type QueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { FiArrowLeft, FiChevronRight, FiPlus } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
 
 import { SettingsCardsSkeleton } from '../components/SettingsSkeleton';
+import { useSettingsDialogStore } from '../settingsDialogStore';
 
 import TextFormEditor from './texteAnlernen/TextFormEditor';
 import { textFormsQuery, useTextForms } from './texteAnlernen/useTextForms';
@@ -84,31 +87,36 @@ const TexteAnlernenTab = () => {
   const api = useTextForms(!!user);
   const [target, setTarget] = useState<EditorTarget | null>(null);
   const { lvIds } = useUserLandesverbaende();
+  const navigate = useNavigate();
+  const closeSettings = useSettingsDialogStore((s) => s.close);
 
-  // Die Landesverbands-Rezepte, die diese Person laut Profilrolle hat, sortiert
-  // nach dem Preset, dessen Stil sie übernehmen. Ohne diese Zeile sieht der Tab
-  // für eine Landesgeschäftsstelle genauso aus wie für alle anderen — obwohl
-  // ein angelernter Presse-Stil dort auch @presse-bayern steuert.
+  // Die Landesverbands-Rezepte, die diese Person laut Profilrolle hat — jedes
+  // mit dem Preset, dessen Stil es übernimmt. Ohne diesen Abschnitt sieht der
+  // Tab für eine Landesgeschäftsstelle genauso aus wie für alle anderen,
+  // obwohl ein angelernter Presse-Stil dort auch @presse-bayern steuert.
   //
   // Die Zuordnung spiegelt `deriveTextFormMention` im Backend: `presse-*` fällt
-  // auf `presse`, `insta-*` auf `instagram`. Deshalb gibt es hier bewusst KEINE
-  // eigenen LV-Presets — sie schrieben alle in dieselbe Zeile.
-  const lvMentionsByTextType = useMemo(() => {
-    const byType = new Map<TextFormType, string[]>();
-    if (lvIds === null || lvIds.length === 0) return byType;
-    for (const skill of SKILLS) {
-      if (!isLandesverbandIdentifier(skill.identifier)) continue;
-      if (!isLvItemVisibleForRoles(skill.identifier, lvIds)) continue;
-      const textType: TextFormType | null = skill.mention.startsWith('presse')
-        ? 'presse'
-        : skill.mention.startsWith('insta')
-          ? 'instagram'
-          : null;
-      if (!textType) continue;
-      byType.set(textType, [...(byType.get(textType) ?? []), skill.mention]);
-    }
-    return byType;
+  // auf `presse`, `insta-*` auf `instagram`. Genau deshalb sind das KEINE
+  // eigenen Presets: sie schrieben alle in dieselbe Zeile von
+  // `user_text_forms` (unique auf `(user_id, mention)`). Die Einträge führen
+  // deshalb auf die Rezeptseite — dorthin, wo das Rezept steht — statt in
+  // einen Editor, der eine Trennung vortäuschte, die es nicht gibt.
+  const lvRecipes = useMemo(() => {
+    if (lvIds === null || lvIds.length === 0) return [];
+    return SKILLS.flatMap((skill) => {
+      if (!isLandesverbandIdentifier(skill.identifier)) return [];
+      if (!isLvItemVisibleForRoles(skill.identifier, lvIds)) return [];
+      const preset = PRESETS.find((p) =>
+        p.textType === 'instagram'
+          ? skill.mention.startsWith('insta')
+          : skill.mention.startsWith(p.textType)
+      );
+      if (!preset) return [];
+      return [{ mention: skill.mention, title: skill.title, preset }];
+    });
   }, [lvIds]);
+
+  const lvHeading = useMemo(() => landesverbandHeadings(lvIds).skills, [lvIds]);
 
   if (api.query.isLoading) return <SettingsCardsSkeleton cards={4} />;
 
@@ -196,24 +204,40 @@ const TexteAnlernenTab = () => {
 
       <section className="flex flex-col gap-sm">
         <h3 className="m-0 text-sm font-semibold text-foreground-heading">Mitgelieferte Rezepte</h3>
-        {PRESETS.map((preset) => {
-          const lvMentions = lvMentionsByTextType.get(preset.textType) ?? [];
-          const mentions = [preset.textType, ...lvMentions].map((m) => `@${m}`).join(', ');
-          return (
-            <FormRow
-              key={preset.textType}
-              label={preset.label}
-              meta={
-                lvMentions.length > 0
-                  ? `Ersetzt die mitgelieferten Rezepte ${mentions}`
-                  : `Ersetzt das mitgelieferte Rezept @${preset.textType}`
-              }
-              status={formatLearned(byMention(preset.textType))}
-              onClick={() => setTarget({ kind: 'preset', ...preset })}
-            />
-          );
-        })}
+        {PRESETS.map((preset) => (
+          <FormRow
+            key={preset.textType}
+            label={preset.label}
+            meta={`Ersetzt das mitgelieferte Rezept @${preset.textType}`}
+            status={formatLearned(byMention(preset.textType))}
+            onClick={() => setTarget({ kind: 'preset', ...preset })}
+          />
+        ))}
       </section>
+
+      {lvRecipes.length > 0 && (
+        <section className="flex flex-col gap-sm">
+          <div>
+            <h3 className="m-0 text-sm font-semibold text-foreground-heading">{lvHeading}</h3>
+            <p className="m-0 text-xs text-grey-500 dark:text-grey-400">
+              Über deine Rolle zugeteilt. Diese Rezepte haben keinen eigenen Stil zum Anlernen — sie
+              übernehmen den, den du oben hinterlegst.
+            </p>
+          </div>
+          {lvRecipes.map((recipe) => (
+            <FormRow
+              key={recipe.mention}
+              label={recipe.title}
+              meta={`@${recipe.mention} · nutzt deinen Stil für ${recipe.preset.hint}`}
+              status={formatLearned(byMention(recipe.preset.textType))}
+              onClick={() => {
+                closeSettings();
+                void navigate(`/agentura/skill/${encodeURIComponent(recipe.mention)}`);
+              }}
+            />
+          ))}
+        </section>
+      )}
 
       <section className="flex flex-col gap-sm">
         <div>
