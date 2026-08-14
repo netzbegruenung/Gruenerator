@@ -345,12 +345,21 @@ export const auth = betterAuth({
     database: {
       generateId: false,
     },
+    // The cookie domain must be narrower than the set of instances that share
+    // it, or they overwrite each other's session cookie. beta and prod both ran
+    // with NODE_ENV=production and therefore both wrote `ba.session_token` on
+    // `.gruenerator.eu` while using SEPARATE databases: whichever host wrote
+    // last won the cookie, and the other could no longer resolve the token
+    // (observed as a 401 `session_not_found` with `db=absent` on a session row
+    // that was alive and unexpired). COOKIE_DOMAIN scopes each instance to its
+    // own subtree (`.beta.gruenerator.eu`, `.bgst.gruenerator.eu`); prod keeps
+    // the parent domain so `doku.` and `sites.` keep sharing its session.
     crossSubDomainCookies: (() => {
       const config: { enabled: boolean; domain?: string } = {
         enabled: true,
       };
       if (env.NODE_ENV === 'production') {
-        config.domain = '.gruenerator.eu';
+        config.domain = env.COOKIE_DOMAIN ?? '.gruenerator.eu';
       }
       return config;
     })(),
