@@ -137,10 +137,13 @@ X von Y Punkten vollständig, Z verkürzt, W fehlend.
 
 Ein Punkt ist mehr als seine Kernaussage. Ort, Anlass, Zeitpunkt und
 Urheber einer Äusserung gehören zu dem Punkt, in dessen Absatz sie
-stehen ("am Rande eines Parteitages in ..."). Fehlen sie in der
-Fassung, ist der Punkt verkürzt - auch wenn die Aussage selbst
-vollständig dasteht. Genau diese Angaben verschwinden beim Vereinfachen
-als Erstes, weil sie den Satz verlängern, ohne die Forderung zu ändern.
+stehen. Ebenso die Eigenschaftswörter, mit denen das Original eine Lage
+als bedrohlich, schwer oder aussergewöhnlich bewertet: sie tragen die
+Dringlichkeit, und ohne sie steht dieselbe Sache harmloser da. Fehlen
+diese Angaben in der Fassung, ist der Punkt verkürzt - auch wenn die
+Aussage selbst vollständig dasteht. Genau sie verschwinden beim
+Vereinfachen als Erstes, weil sie den Satz verlängern, ohne die
+Forderung zu ändern.
 
 "Vollständig" ist eine Behauptung, die du belegen können musst. Prüfe
 sie bei mindestens drei Punkten, indem du den Satz aus der Fassung
@@ -169,12 +172,14 @@ ${devices}
                         Nicht nur am Modalverb: aus "wird erwartet" wird
                         "wird sein", aus "soll" wird "ist", aus "fordert"
                         wird "gilt" - und ebenso, wenn eine Möglichkeit
-                        zur Wirkung wird ("kriege man den Strom auch noch
-                        günstig" -> "So wird der Strom günstig"), wenn
-                        eine Bedingung wegfällt ("wenn ... , dann" -> ein
-                        Aussagesatz), oder wenn Konjunktiv und indirekte
-                        Rede des Originals in der Fassung als Tatsache
-                        erscheinen.
+                        zur Wirkung wird, wenn eine Bedingung wegfällt
+                        ("wenn ..., dann" -> ein Aussagesatz), oder wenn
+                        Konjunktiv und indirekte Rede des Originals in
+                        der Fassung als Tatsache erscheinen.
+                        Eine übernommene Bedingung heilt den Fehler
+                        nicht: steht das Wenn noch da, die Folge aber im
+                        Indikativ, ist die Zusage dieselbe wie ohne das
+                        Wenn. Prüfe Bedingung und Folge getrennt.
                         NICHT als Modalitätsfehler zählen: ein Satz mit
                         "soll", der unter einer Überschrift steht, die
                         die Forderung bereits zuschreibt. Das ist
@@ -196,9 +201,20 @@ Die blinde Instanz hatte den Auftrag, Überschriften, Worterklärungen,
 den Abschnitt "Schwierige Wörter" und den Übersetzungshinweis NICHT zu
 übernehmen. Diese Teile der Fassung sind in Schritt 2 deshalb
 unsichtbar - nicht unauffällig. Halte sie einzeln gegen das Original:
-- jeden Eintrag unter "Schwierige Wörter": Steht der erklärte INHALT
-  im Original? Wenn nicht, trägt der Eintrag die vorgeschriebene
-  Kennzeichnung? Fehlt sie, ist es eine HINZUFÜGUNG (b).
+- jeden Eintrag unter "Schwierige Wörter", mit drei Fragen in dieser
+  Reihenfolge:
+  1. Steht der erklärte INHALT im Original? Wenn nicht, trägt der
+     Eintrag die vorgeschriebene Kennzeichnung? Fehlt sie, ist es eine
+     HINZUFÜGUNG (b).
+  2. Steht dieselbe Erklärung auch oben im Fliesstext der Fassung, an
+     der Stelle, wo der Begriff vorkommt? Der Abschnitt sammelt nur
+     ein, was oben schon erklärt ist. Ein Eintrag, der dort nicht
+     wiederzufinden ist, wird hier zum ersten Mal erklärt und ist eine
+     HINZUFÜGUNG (b) - unabhängig davon, ob seine Kennzeichnung stimmt.
+  3. Erklärt der Eintrag überhaupt etwas? Ein Eintrag, der nur mitteilt,
+     dass das Original den Begriff nicht erklärt, gehört an die
+     Fundstelle im Text und nicht in diese Liste. Das ist ein
+     Regelverstoss (MITTEL), keine Hinzufügung.
 - jede Zwischenüberschrift: Behauptet sie etwas, das der Abschnitt
   darunter nicht hergibt?
 - den Übersetzungshinweis: Stimmen Dokumentart, Urheber und Datum mit
@@ -211,7 +227,10 @@ Prüfe an mindestens acht über den Text verteilten Stellen und gib die
 geprüften Stellen an:
 Satzlänge, mehr als ein Nebensatz pro Satz, Passiv ohne benannten
 Akteur, Substantivierungen, Metaphern, unerklärte Fachwörter, fehlende
-oder überzählige Wörterbuch-Einträge, uneinheitliche Begriffe.
+oder überzählige Wörterbuch-Einträge, uneinheitliche Begriffe,
+stehengebliebene Wörter der Verwaltungs- und Nachrichtensprache sowie
+Amts- und Funktionsbezeichnungen, die vor einem Namen zusammengezogen
+statt in einem eigenen Satz aufgelöst sind.
 Wenn du hier nichts findest, benenne die acht geprüften Stellen
 trotzdem.
 
