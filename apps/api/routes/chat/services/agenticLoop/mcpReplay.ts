@@ -120,3 +120,30 @@ export function buildToolObservationReplay(
   };
   return [assistant, tool];
 }
+
+/**
+ * Bridge between a replayed tool result and the current user message.
+ *
+ * mistral-common — the validator behind GreenPT and the Mistral API — checks
+ * role transitions strictly and rejects a `user` message directly after a `tool`
+ * message (live 14.08.2026, GreenPT/mistral-small: 400 "Unexpected role 'user'
+ * after role 'tool'"). That is exactly the shape the replay produces when it is
+ * spliced in front of the current user turn. A one-line assistant message makes
+ * the transition legal; hosts that don't validate simply see one short turn more.
+ */
+export const REPLAY_BRIDGE_TEXT = '(Ergebnisse der bisherigen Tool-Aufrufe siehe oben.)';
+
+/**
+ * Splice the replay block in just before the current user message, so every
+ * tool-call stays adjacent to its result and the role sequence stays valid.
+ */
+export function spliceToolReplay(
+  messages: readonly ModelMessage[],
+  replay: readonly ModelMessage[]
+): ModelMessage[] {
+  if (replay.length === 0 || messages.length === 0) return [...messages];
+  const last = messages[messages.length - 1];
+  const bridge: ModelMessage[] =
+    last.role === 'user' ? [{ role: 'assistant', content: REPLAY_BRIDGE_TEXT }] : [];
+  return [...messages.slice(0, -1), ...replay, ...bridge, last];
+}

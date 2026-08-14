@@ -24,7 +24,7 @@ export function startCanvasTour(): void {
       popover: {
         title: 'Die Werkzeugleiste',
         description:
-          'Hintergrund, Text, Elemente, Tools und Uploads — hier erreichst du alle Bearbeitungsoptionen für dein Sharepic.',
+          'Text, Elemente, Tools und Uploads — hier erreichst du alle Bearbeitungsoptionen für dein Sharepic. Den Hintergrund bearbeitest du mit einem Klick direkt auf die Hintergrundfläche.',
         side: 'right',
       },
     },
