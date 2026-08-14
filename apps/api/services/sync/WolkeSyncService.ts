@@ -341,7 +341,11 @@ export class WolkeSyncService {
       if (isOcrWolkeExtension(fileExtension)) {
         // Use Mistral OCR for documents and images
         const tempDir = os.tmpdir();
-        const tempFileName = `wolke_sync_${Date.now()}_${file.name}`;
+        // The name comes from the remote share listing, so it never goes into
+        // the path unescaped — same rule as in `wolkeShareHandler`. The
+        // extension stays, OcrService dispatches on it.
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-120);
+        const tempFileName = `wolke_sync_${Date.now()}_${safeName}`;
         const tempFilePath = path.join(tempDir, tempFileName);
 
         try {
