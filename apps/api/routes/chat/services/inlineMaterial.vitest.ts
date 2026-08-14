@@ -41,6 +41,30 @@ describe('inlineMaterialAttachment', () => {
     expect(inlineMaterialAttachment(material(10_000), { ...clean, regenerate: true })).toBeNull();
   });
 
+  it('carries a promoted paste forward even below the threshold', () => {
+    // The measured case of 14.08.2026: a 1.339-char source text, promoted to the
+    // prompt and therefore dropped from the attachment list. Not persisted, the
+    // next turn ("bitte korrigieren") carries the PREVIOUS article back in — one
+    // turn of correct behaviour, then the same wrong original as before.
+    const result = inlineMaterialAttachment(material(1_339), { ...clean, promoted: true });
+    expect(result?.extractedText).toHaveLength(1_339);
+    // Ohne die Beförderung bleibt die Länge die Grenze.
+    expect(inlineMaterialAttachment(material(1_339), clean)).toBeNull();
+  });
+
+  it('carries nothing forward for an empty promoted message', () => {
+    expect(inlineMaterialAttachment('   ', { ...clean, promoted: true })).toBeNull();
+  });
+
+  it('still yields to a real document and to regenerate when promoted', () => {
+    // Die Beförderung hebt die Längengrenze, nicht die beiden anderen Sperren.
+    const p = { ...clean, promoted: true };
+    expect(inlineMaterialAttachment(material(1_339), { ...p, regenerate: true })).toBeNull();
+    expect(
+      inlineMaterialAttachment(material(1_339), { ...p, hasDocumentAttachment: true })
+    ).toBeNull();
+  });
+
   it('measures size in bytes, not chars', () => {
     const umlauts = 'ü'.repeat(4_000);
     expect(inlineMaterialAttachment(umlauts, clean)?.sizeBytes).toBe(8_000);
