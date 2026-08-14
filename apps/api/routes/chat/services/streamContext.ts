@@ -118,13 +118,25 @@ export const INLINE_MATERIAL_ATTACHMENT_NAME = 'Eingefügter Text.txt';
  * is nothing to carry forward. Skipped when the turn already brought a document
  * (that one IS the material) and on regenerate (the user message is unchanged —
  * a second row would duplicate it).
+ *
+ * `promoted` lifts the length floor, and only that one. A promoted paste is not
+ * "some short message": the composer created it because the paste passed its own
+ * bar (≥600 chars, or ≥200 across three lines), and it arrived with an empty
+ * textarea, so it is the turn's material by construction. Without this, the
+ * paste is dropped from `effectiveAttachments` on promotion and never persisted:
+ * `resolveOriginalText` picks it correctly for THIS turn, and the next turn —
+ * "bitte korrigieren", no material of its own — carries the previous article
+ * back in, because that is the newest row the thread has. Measured 14.08.2026: a
+ * 1.339-char source text, one turn of correct behaviour, then the same wrong
+ * original as before.
  */
 export function inlineMaterialAttachment(
   text: string,
-  opts: { regenerate: boolean; hasDocumentAttachment: boolean }
+  opts: { regenerate: boolean; hasDocumentAttachment: boolean; promoted?: boolean }
 ): ProcessAttachmentsResult['processedMeta'][number] | null {
   if (opts.regenerate || opts.hasDocumentAttachment) return null;
-  if (text.length < INLINE_MATERIAL_MIN_CHARS) return null;
+  if (!opts.promoted && text.length < INLINE_MATERIAL_MIN_CHARS) return null;
+  if (text.trim().length === 0) return null;
   return {
     name: INLINE_MATERIAL_ATTACHMENT_NAME,
     mimeType: 'text/plain',
@@ -625,6 +637,7 @@ export async function buildStreamContext({
     {
       regenerate: !!rawRegenerate,
       hasDocumentAttachment: processedMeta.some((m) => !m.isImage),
+      promoted: promptIsPastedText,
     }
   );
   if (inlineMaterial) {

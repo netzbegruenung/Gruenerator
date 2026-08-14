@@ -102,6 +102,17 @@ const log = createLogger('AgentPipeline');
  * `promptIsPastedText` ist dafür das ehrlichere Merkmal als die Länge: eine
  * Beanstandung wird getippt, ein Ausgangstext eingefügt. Trifft es zu, ist die
  * Nachricht Material, wie kurz sie auch sei.
+ *
+ * Zwei Kosten dieser Entscheidung, damit sie nicht überrascht:
+ *
+ * 1. Wer eine Beanstandung EINFÜGT statt sie zu tippen, macht sie zum Original —
+ *    genau der Fehler vom 13.08., nur auf einem anderen Weg. Der Preis ist
+ *    angenommen: die Beförderung setzt eine leere Eingabezeile voraus, und wer
+ *    beanstandet, tippt. Ein Merkmal, das eine eingefügte Kritik von einem
+ *    eingefügten Ausgangstext unterscheidet, gibt es nicht.
+ * 2. Das Merkmal hängt am Paste-Anhang des Web-Composers. Wo der Text als blosser
+ *    Nachrichteninhalt ankommt (Mobile, API-Clients), gibt es keine Beförderung
+ *    und weiterhin nur die Länge. Dort steht der Fehler von 14.08. noch.
  */
 export function resolveOriginalText(
   state: MaterialState,
