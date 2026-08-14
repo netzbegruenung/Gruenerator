@@ -118,8 +118,15 @@ export async function validateUrlForFetch(
 
   if (!skipDnsCheck && !ipMatch && !allowPrivateIPs) {
     try {
-      const { address } = await dnsLookup(hostname);
-      if (isPrivateAddress(address)) {
+      // `all: true` — the single-address form returns whichever record the
+      // resolver hands back first, so a name with one public and one private
+      // record passed the check about half the time while the socket could
+      // still land on the private one. Every record has to be public.
+      const records = await dnsLookup(hostname, { all: true });
+      if (records.length === 0) {
+        return { isValid: false, error: 'DNS lookup failed for host' };
+      }
+      if (records.some((record) => isPrivateAddress(record.address))) {
         return { isValid: false, error: 'Host resolves to private IP address' };
       }
     } catch {
