@@ -371,6 +371,15 @@ export function buildTransferPipeline(spec: TransferPipelineSpec): PipelineAgent
     // Niedriger als die Rückübersetzung: hier wird gezählt und belegt, nicht
     // formuliert.
     temperature: 0.1,
+    // Gemessen 14.08.2026: 35,9 s und 36,9 s in zwei ruhigen Läufen, dann ein
+    // Lauf unter Last, in dem schon die Rückübersetzung von 8 s auf 43,6 s
+    // stieg und die Prüfung in die globale 120-s-Sperre fiel. Ergebnis war
+    // „Die Fassung oben ist ungeprüft" — der Ausfall genau des Schritts, für
+    // den es diesen Agenten gibt. Die Fassung steht zu diesem Zeitpunkt längst
+    // auf dem Bildschirm, es wartet niemand auf ein leeres Fenster; also lieber
+    // spät prüfen als gar nicht. Die Sperre bricht die Anfrage beim Anbieter
+    // nicht ab (siehe `executeWithTimeout`), sie beendet nur das Warten.
+    timeoutMs: 240_000,
     buildUserMessage: (ctx) => {
       // Drei Texte plus Systemprompt müssen in ein Fenster passen, und das
       // Original ist der einzige unbegrenzte Teil — Fassung und Rückübersetzung
