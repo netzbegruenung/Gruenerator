@@ -1,4 +1,4 @@
-import type { AiClient } from './workers';
+import type { AiClient } from '../services/ai/types.js';
 import type { SharepicImageManager } from '../services/image/types';
 import type { UserProfile } from '@gruenerator/contracts';
 import type { Request, Response, NextFunction } from 'express';
