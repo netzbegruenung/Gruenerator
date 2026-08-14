@@ -229,7 +229,9 @@ unsichtbar - nicht unauffällig. Halte sie einzeln gegen das Original:
 - jede Zwischenüberschrift: Behauptet sie etwas, das der Abschnitt
   darunter nicht hergibt?
 - den Übersetzungshinweis: Stimmen Dokumentart, Urheber und Datum mit
-  dem Original überein?
+  dem Original überein? Eine Angabe, die das Original nicht macht,
+  fehlt im Hinweis zu Recht. Steht dort stattdessen ein Lückenfüller
+  ("von ohne Urheber", "vom ohne Datum"), ist das ein Befund (MITTEL).
 Prüfe diesen Schritt auch dann, wenn die Rückübersetzung ausgefallen
 ist - er hängt nicht an ihr.
 
