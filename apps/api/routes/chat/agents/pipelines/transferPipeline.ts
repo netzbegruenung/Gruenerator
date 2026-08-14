@@ -135,6 +135,13 @@ Arbeite die Liste lückenlos ab. Überspringe keinen Punkt, auch keinen,
 der dir unwichtig erscheint. Zähle am Ende aus:
 X von Y Punkten vollständig, Z verkürzt, W fehlend.
 
+Nennt das Original die Umstände einer Äusserung - Anlass, Ort,
+Zeitpunkt -, bekommen sie eine eigene Zeile in der Tabelle, auch wenn
+sie im Original in einem Nebensatz stehen. Sie sind ein Punkt, kein
+Beiwerk: sie sagen, in welcher Rolle jemand gesprochen hat. Wenn du
+diese Zeile gar nicht erst anlegst, kann die Tabelle den Verlust nicht
+zeigen und zählt eine unvollständige Fassung als lückenlos.
+
 Ein Punkt ist mehr als seine Kernaussage. Ort, Anlass, Zeitpunkt und
 Urheber einer Äusserung gehören zu dem Punkt, in dessen Absatz sie
 stehen. Ebenso die Eigenschaftswörter, mit denen das Original eine Lage
@@ -192,7 +199,11 @@ ${devices}
                         oder Datum verändert oder ersetzt
  g) VERSCHMELZUNG     - zwei getrennte Aussagen zu einer verbunden,
                         dadurch ein Zusammenhang behauptet
- h) BEDEUTUNGS-VERSCHIEBUNG - abgeschwächt, verschärft, gewertet
+ h) BEDEUTUNGS-VERSCHIEBUNG - abgeschwächt, verschärft, gewertet;
+                        dazu die Zeitform: eine Wirkung, die im Original
+                        allgemein gilt, steht in der Fassung in der
+                        Vergangenheit und ist damit ein abgeschlossenes
+                        Ereignis statt einer Regel
  i) VERLUST DER URHEBERSCHAFT - nicht erkennbar, von welcher
                         Organisation der Text stammt
 
@@ -222,6 +233,30 @@ unsichtbar - nicht unauffällig. Halte sie einzeln gegen das Original:
 Prüfe diesen Schritt auch dann, wenn die Rückübersetzung ausgefallen
 ist - er hängt nicht an ihr.
 
+SCHRITT 2c - MODALITÄTS-ABGLEICH (aufzählen, nicht beurteilen)
+Modalitätsfehler entgehen dir, wenn du den Text liest und dich fragst,
+ob dir etwas auffällt. Zähle stattdessen ab.
+Gehe das ORIGINAL durch und schreibe jede Stelle heraus, an der eine
+Aussage nicht einfach behauptet wird:
+- Konjunktiv oder indirekte Rede ("sei", "werde", "könne", "hiess es")
+- ein Modalwort ("kann", "soll", "müsste", "möglicherweise", "dürfte")
+- eine Bedingung ("wenn ...", "sofern ...", "bei ...")
+- eine Einschränkung des Geltungsbereichs ("weitgehend", "in der Regel")
+Für jede dieser Stellen eine Zeile:
+
+| Nr | Original (Zitat) | entsprechende Stelle in der Fassung (Zitat) | Grad erhalten: ja / nein |
+
+Die Fassung darf umformulieren; entscheidend ist allein, ob am Ende
+dieselbe Verbindlichkeit dasteht. Prüfe bei Bedingungen Bedingung UND
+Folge getrennt: das übernommene "wenn" macht eine Folge im Indikativ
+nicht unsicher. Findest du zur Original-Stelle nichts in der Fassung,
+ist der Grad nicht erhalten - eine weggelassene Einschränkung ist die
+häufigste Form dieses Fehlers.
+Jede Zeile mit "nein" wird zu einem Befund (c) in B. Ist diese Liste
+leer, weil das Original keine einzige solche Stelle enthält, schreibe
+das ausdrücklich hin - bei einem Text, der Forderungen und Aussagen
+Dritter wiedergibt, ist das der unwahrscheinlichere Fall.
+
 SCHRITT 3 - REGEL-PRÜFUNG
 Prüfe an mindestens acht über den Text verteilten Stellen und gib die
 geprüften Stellen an:
@@ -237,6 +272,10 @@ trotzdem.
 AUSGABE
 
 A. Abdeckungstabelle mit Auszählung
+A2. Modalitäts-Abgleich - die Tabelle aus Schritt 2c, vollständig und
+   mit beiden Zitaten je Zeile. Sie steht auch dann da, wenn jede Zeile
+   "ja" trägt: sie ist der Nachweis, dass du abgezählt und nicht nur
+   überflogen hast.
 B. Befund-Tabelle
    | Nr | Stelle | Fehlerart | Schweregrad | Beschreibung |
    KRITISCH = inhaltlich falsch oder politisch verfälscht
@@ -264,13 +303,22 @@ D. Fehlerarten-Nachweis - eine Zeile je Fehlerart a) bis i), in dieser
    Unbedenklichkeitsnachweis, und genau als solcher wird es gelesen.
    "geprüft, kein Befund" bei a) ist ausgeschlossen, solange A eine
    Zeile mit "verkürzt" oder "fehlt" trägt. Widersprechen sich A und D,
-   gilt A.
+   gilt A. Dasselbe gilt für c) gegenüber A2: jede Zeile dort mit
+   "nein" ist ein Befund.
 E. Gesamturteil
    FREIGABE / ÜBERARBEITUNG / ABLEHNUNG, Begründung in max. 5 Sätzen.
    ABLEHNUNG zwingend, wenn ein KRITISCH-Befund vorliegt oder mehr als
    ein Viertel der Punkte aus Schritt 1 fehlt oder verkürzt ist.
-   FREIGABE nur, wenn D für jede Fehlerart eine Zeile trägt und kein
-   Befund KRITISCH oder HOCH ist. Im Zweifel ÜBERARBEITUNG.
+   FREIGABE nur, wenn D für jede Fehlerart eine Zeile trägt, A2
+   vorliegt und keine ihrer Zeilen "nein" trägt, und kein Befund
+   KRITISCH oder HOCH ist. Im Zweifel ÜBERARBEITUNG.
+   Ein Bericht ohne einen einzigen Befund ist möglich, aber selten.
+   Bevor du ihn abgibst, geh A, A2 und Schritt 2b noch einmal durch:
+   Trägt jede Aussage Dritter in der Fassung denselben Grad wie im
+   Original? Steht der Anlass der Äusserung darin? Sind die Fachwörter
+   gekennzeichnet? Findest du dabei nichts, ist "keine Befunde" dein
+   Ergebnis - findest du etwas, war es kein sorgfältiger Bericht,
+   sondern ein schneller.
 F. Verbleibendes Risiko - was auch nach Korrektur eine menschliche
    Entscheidung braucht.
 
@@ -314,7 +362,10 @@ export function buildTransferPipeline(spec: TransferPipelineSpec): PipelineAgent
     heading: '\n\n---\n\n## Prüfbericht\n\n',
     systemPrompt: pruefungPrompt(spec),
     requestType: 'chat_einfache_sprache_pruefung',
-    maxTokens: 8000,
+    // Angehoben mit der Modalitäts-Tabelle aus Schritt 2c: sie bringt zwei
+    // Zitate je Zeile. Gemma 4 denkt gegen dasselbe Budget, und ein
+    // abgeschnittener Bericht verliert als Erstes das Gesamturteil am Ende.
+    maxTokens: 11000,
     // Niedriger als die Rückübersetzung: hier wird gezählt und belegt, nicht
     // formuliert.
     temperature: 0.1,
