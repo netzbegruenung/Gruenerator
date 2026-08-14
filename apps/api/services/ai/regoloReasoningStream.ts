@@ -70,8 +70,6 @@ const REGOLO_ENDPOINT = 'https://api.regolo.ai/v1/chat/completions';
  * gpt-oss) emit `reasoning` by default and need no flag.
  */
 const REGOLO_REASONING_MODELS = new Set([
-  'qwen3.5-122b',
-  'qwen3.6-27b',
   'gpt-oss-120b',
   'gemma4-31b',
   // Small 4 is reasoning-capable but ran with thinking hard-off everywhere

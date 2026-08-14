@@ -135,7 +135,7 @@ describe('footprint band', () => {
 
   it('opens up where a lane is valued by bound rather than by meter', async () => {
     // qwen3.5-122b has no meter; it is costed at the top of the measured span.
-    selectQueue = [...eligible(), [row({ provider: 'regolo', model: 'qwen3.5-122b' })]];
+    selectQueue = [...eligible(), [row({ provider: 'regolo', model: 'pixtral-large-latest' })]];
 
     const stats = await computePlatformUsageStats(30);
 
@@ -190,7 +190,7 @@ describe('provider disclosure', () => {
     selectQueue = [
       [{ day: '2026-07-30', activeUsers: MIN_GROUP_SIZE }],
       [{ activeUsers: MIN_GROUP_SIZE }],
-      [row({ provider: 'regolo', model: 'qwen3.5-122b' })],
+      [row({ provider: 'regolo', model: 'pixtral-large-latest' })],
     ];
 
     const stats = await computePlatformUsageStats(30);
@@ -219,7 +219,7 @@ describe('cacheability', () => {
       'a mix of measured, bound and unvalued rows',
       [
         row({ energyWms: 1_000_000, emissionsUg: 5_000 }),
-        row({ provider: 'regolo', model: 'qwen3.5-122b' }),
+        row({ provider: 'regolo', model: 'pixtral-large-latest' }),
         row({ provider: 'linkup', model: 'deep', unit: 'searches', ops: 2, requests: 0 }),
       ],
     ],

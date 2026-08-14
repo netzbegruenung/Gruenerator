@@ -60,9 +60,6 @@ export { isVisionCapable };
  * single inference slot is busy. The unchosen sibling becomes the
  * first-token-timeout fallback for the chosen side.
  *
- * Chinese-trained models (Qwen) intentionally have NO fallback. The user
- * sees an explicit warning before selecting them; auto-routing in or out
- * would break that informed-consent boundary.
  */
 export type Provider = 'mistral' | 'litellm' | 'regolo' | 'greenpt' | 'scaleway';
 
@@ -76,9 +73,7 @@ export interface ModelConfigSingle {
   /**
    * Optional first-token-timeout fallback (single-step). For Mistral lanes
    * this is typically a Gemma/GPT-OSS overflow lane so a hung Mistral
-   * upstream still produces an answer for the user. Qwen entries
-   * intentionally have NO fallback — the "Chinese-only-when-selected"
-   * informed-consent boundary forbids auto-routing IN or OUT.
+   * upstream still produces an answer for the user.
    */
   fallback?: string;
 }
@@ -625,9 +620,8 @@ function resolveModel(
  * function calling with multi-step tool use). Conservative on purpose: only
  * Mistral is enabled for now — it's the primary EU provider and our strongest
  * tool-caller (mistral-medium-2604). The overflow lanes (Gemma/GPT-OSS via
- * litellm/regolo) and Qwen are NOT gated in yet; a non-tool-capable user
- * selection stays on the single-pass pipeline rather than being silently
- * swapped (the informed-consent boundary in resolveModel).
+ * litellm/regolo) are NOT gated in yet; a non-tool-capable user selection
+ * stays on the single-pass pipeline rather than being silently swapped.
  */
 export function isAgenticToolCapable(provider: string, _modelName: string): boolean {
   return provider === 'mistral';
@@ -722,7 +716,7 @@ export function getLoopSynthFallbackModel(
  * Gemma lane: `gemma-litellm` now resolves to gemma4-31b on Regolo directly
  * (see GEMMA_4_REGOLO), so the rewrite that used to save that lane from
  * `verdigado-think` is a no-op for it. The guard stays for the lanes it still
- * covers — qwen, gpt-oss, and any agent config naming a think lane by hand.
+ * covers — gpt-oss and any agent config naming a think lane by hand.
  */
 export function loopSynthChoice(
   resolvedModelName: string,

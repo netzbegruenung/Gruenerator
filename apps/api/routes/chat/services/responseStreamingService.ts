@@ -936,8 +936,7 @@ export const streamAndAccumulateWithReasoning = wrapWithCompatCatch(
  * Stream from a primary model with single-step fallback to its sibling on
  * first-token failure. The sibling is set by resolveModel() — for overflow
  * lanes it's the unchosen Verdigado/Regolo partner; for single configs
- * without a sibling, no fallback fires (Qwen "Chinese-only-when-selected"
- * firewall: never auto-route INTO Qwen, never silently auto-route OUT).
+ * without a sibling, no fallback fires.
  *
  * Single-step by design: the fallback's buildStream is invoked directly, not
  * via a recursive streamWithFallback. Do not refactor to recurse.
