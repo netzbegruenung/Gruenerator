@@ -243,12 +243,13 @@ const GEMMA_4_26B: ModelConfigSingle = {
 };
 
 /**
- * The GreenPT side of the SAME 26B model, reachable ONLY as the failover above.
+ * GreenPTs `gemma4`, erreichbar NUR als Ausweichweg der Lane darüber.
  *
- * Same weights, second EU host — that is the whole point of this entry: a
- * Scaleway outage keeps the lane on the model it was chosen for instead of
- * silently promoting the turn to the 31B. (Regolo's `gemma4-31b` is the bigger
- * sibling and belongs to Lane B; it is NOT this model.)
+ * Welche Gewichte das sind, ist UNBELEGT: diese Stelle behauptete „the SAME 26B
+ * model", `scripts/probeGreenptImpact.ts` ordnet dieselbe ID unserer dichten 31B
+ * zu. GreenPT nennt keine Parameterzahl, und aus dem Namen folgt keine.
+ * Ausweichweg ist dieser Eintrag deshalb wegen der gemessenen Zahlen unten, nicht
+ * wegen einer Identität mit seinem Primär.
  *
  * Not in the user-facing catalog and not an auto-policy target, for the same
  * reason as GEMMA_4_VERDIGADO: picking it deliberately would opt into a

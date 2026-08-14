@@ -102,6 +102,10 @@ export interface ProgressStep {
   label: string;
   status: 'pending' | 'in-progress' | 'completed' | 'failed';
   completedAt?: number;
+  /** Identität des Schritts, wo die Stufe sie nicht trägt: mehrere Schritte
+   *  teilen sich eine Stufe und dürfen sich trotzdem nicht überschreiben.
+   *  Ohne Angabe IST die Stufe die Identität. */
+  key?: string;
 }
 
 export interface MemoryContextInfo {

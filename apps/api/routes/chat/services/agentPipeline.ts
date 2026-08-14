@@ -38,9 +38,9 @@
 import { intermediateLane } from '../../../agents/langgraph/ChatGraph/llmConfig.js';
 import { createLogger } from '../../../utils/logger.js';
 
+import { startStepHeartbeat, type SSEWriter } from './sseHelpers.js';
 import { INLINE_MATERIAL_MIN_CHARS } from './streamContext.js';
 
-import type { SSEWriter } from './sseHelpers.js';
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { MaterialState, PipelineAgent, PipelineStep } from '../agents/pipelines/index.js';
 
@@ -175,43 +175,122 @@ function carriedOriginalText(state: MaterialState): string {
   return docs[docs.length - 1]?.extractedText?.trim() ?? '';
 }
 
+/** Ein Ziel der Lane: Primär oder Sibling. */
+type LaneTarget = { provider: string; model: string };
+
+async function askOne(
+  step: PipelineStep,
+  state: ChatGraphState,
+  userMessage: string,
+  target: LaneTarget
+): Promise<string> {
+  const response = await state.aiWorkerPool.processRequest(
+    {
+      type: step.requestType,
+      provider: target.provider,
+      systemPrompt: step.systemPrompt,
+      // GENAU eine Nachricht, und in ihr steht nur, was `buildUserMessage`
+      // hineingelegt hat. Kein `state.messages`, kein Verlauf, keine Anhänge.
+      messages: [{ role: 'user', content: userMessage }],
+      ...(step.timeoutMs != null && { timeoutMs: step.timeoutMs }),
+      options: {
+        model: target.model,
+        max_tokens: step.maxTokens,
+        temperature: step.temperature ?? 0.2,
+      },
+    },
+    null
+  );
+  const text = (response.content || '').trim();
+  // Als Ablehnung und nicht als leeres Ergebnis: im Wettlauf unten soll eine
+  // leere Antwort den Sibling nicht daran hindern, noch zu gewinnen.
+  if (!text) throw new Error(`${target.provider}/${target.model}: leere Antwort`);
+  return text;
+}
+
+/**
+ * Führt den Schritt aus — und schaltet den Sibling der Lane dazu, wenn der
+ * Primär zu lange braucht.
+ *
+ * ── Warum dazuschalten und nicht umschalten ──
+ *
+ * Am 14.08.2026 antwortete Regolos `gemma4-31b` mit 3,7 tok/s statt der
+ * notierten ~76; Regolo selbst war gesund. Eine Störung ist keine Eigenschaft,
+ * also wäre ein dauerhafter Modellwechsel die falsche Lehre — er schriebe eine
+ * Überlast von einem Nachmittag ins Repo. Der Sibling tritt deshalb nur DAZU,
+ * und sobald der Primär sich fängt, ist der Normalzustand von selbst zurück:
+ * kein Zustand, der veralten kann, kein Cooldown, den jemand raten muss.
+ *
+ * Ein Circuit Breaker wäre die andere Bauform und ist bewusst nicht gewählt: er
+ * muss erst n Fehlschläge sammeln, also zahlt das erste Opfer jeder Störung den
+ * vollen Preis. Hier ist schon der erste Aufruf gerettet. Sein Vorteil — nicht
+ * doppelt zu zahlen, solange die Störung dauert — ist der nächste Schritt,
+ * sobald die Logzeile unten zeigt, wie oft der Griff überhaupt fällt.
+ *
+ * Der Preis, damit er nicht überrascht: greift der Hedge, kostet der Schritt
+ * zwei Aufrufe, in Tokens wie in CO₂. Deshalb liegt `hedgeAfterMs` weit über
+ * der gemessenen Normalzeit.
+ *
+ * Ausfall UND Langsamkeit sind getrennte Dinge: für den Ausfall gibt es die
+ * Fallback-Kette des Providers, hier geht es nur um die Zeit.
+ */
 async function runStep(
   step: PipelineStep,
   state: ChatGraphState,
   userMessage: string
 ): Promise<string | null> {
   const start = Date.now();
-  try {
-    const response = await state.aiWorkerPool.processRequest(
-      {
-        type: step.requestType,
-        provider: LANE.provider,
-        systemPrompt: step.systemPrompt,
-        // GENAU eine Nachricht, und in ihr steht nur, was `buildUserMessage`
-        // hineingelegt hat. Kein `state.messages`, kein Verlauf, keine Anhänge.
-        messages: [{ role: 'user', content: userMessage }],
-        ...(step.timeoutMs != null && { timeoutMs: step.timeoutMs }),
-        options: {
-          model: LANE.model,
-          max_tokens: step.maxTokens,
-          temperature: step.temperature ?? 0.2,
-        },
-      },
-      null
-    );
+  const ask = (target: LaneTarget): Promise<[string, LaneTarget]> =>
+    askOne(step, state, userMessage, target).then((t) => [t, target]);
 
-    const text = (response.content || '').trim();
-    if (!text) {
-      log.warn(`[${step.id}] Leere Antwort — Schritt übersprungen`);
-      return null;
+  const primary: LaneTarget = { provider: LANE.provider, model: LANE.model };
+  const sibling = LANE.hedge ?? null;
+
+  let timer: NodeJS.Timeout | null = null;
+  try {
+    const attempts: Array<Promise<[string, LaneTarget]>> = [ask(primary)];
+
+    if (sibling && step.hedgeAfterMs != null) {
+      const frist = new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, step.hedgeAfterMs);
+        timer.unref?.();
+      });
+      // Der Sibling tritt an, wenn die Frist um ist ODER der Primär vorher
+      // gescheitert ist — auf einen abgelaufenen Wecker zu warten, während
+      // bereits feststeht, dass nichts mehr kommt, wäre verschenkte Zeit.
+      const gescheitert = attempts[0]!.then(
+        () => new Promise<never>(() => {}),
+        () => 'gescheitert' as const
+      );
+      attempts.push(
+        Promise.race([frist.then(() => 'zu langsam' as const), gescheitert]).then((grund) => {
+          log.info(`[${step.id}] Primär ${grund} — ${sibling.model} tritt dazu`);
+          return ask(sibling);
+        })
+      );
     }
-    log.info(`[${step.id}] ${text.length} Zeichen in ${Date.now() - start}ms`);
+
+    // Es gewinnt, wer zuerst LIEFERT. Scheitern alle, wirft `Promise.any` und
+    // der Schritt fällt unten offen aus.
+    const [text, gewinner] = await Promise.any(attempts);
+    log.info(
+      `[${step.id}] ${text.length} Zeichen in ${Date.now() - start}ms ` +
+        `via ${gewinner.provider}/${gewinner.model}`
+    );
     return text;
   } catch (error: unknown) {
-    log.warn(
-      `[${step.id}] Fehler (fail-open): ${error instanceof Error ? error.message : String(error)}`
-    );
+    const grund =
+      error instanceof AggregateError
+        ? error.errors.map((e) => (e instanceof Error ? e.message : String(e))).join(' | ')
+        : error instanceof Error
+          ? error.message
+          : String(error);
+    log.warn(`[${step.id}] Fehler (fail-open): ${grund}`);
     return null;
+  } finally {
+    // Gewinnt der Primär, darf der Wecker nicht mehr klingeln — sonst liefe der
+    // Sibling los, wenn niemand mehr auf ihn wartet.
+    if (timer) clearTimeout(timer);
   }
 }
 
@@ -268,19 +347,25 @@ export async function runAgentPipeline(params: {
       continue;
     }
 
-    sse.send('progress_step', {
+    const progress = {
       stepId: step.id,
       toolName: pipeline.identifier,
       title: step.title,
-      status: 'in_progress',
-    });
-    const result = await runStep(step, state, userMessage);
-    sse.send('progress_step', {
-      stepId: step.id,
-      toolName: pipeline.identifier,
-      title: step.title,
-      status: 'completed',
-    });
+      status: 'in_progress' as const,
+    };
+    sse.send('progress_step', progress);
+    // Ein Nachschritt ist das längste stumme Fenster im ganzen System: gemessen
+    // 218 s für den Prüfbericht, 64 s für die Rückübersetzung. Ein einzelnes
+    // Ereignis zu Beginn trägt das weder für die Leitung noch für den Menschen
+    // davor — Begründung an `startStepHeartbeat`.
+    const stopBeat = startStepHeartbeat(sse, progress);
+    let result: string | null;
+    try {
+      result = await runStep(step, state, userMessage);
+    } finally {
+      stopBeat();
+    }
+    sse.send('progress_step', { ...progress, status: 'completed' });
 
     if (result) {
       previous.set(step.id, result);
