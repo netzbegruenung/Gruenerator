@@ -276,6 +276,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         contextWindowTokens,
         mentionTokenFields,
         lastUserTextRaw,
+        promptIsPastedText,
         pendingAssistantMessageId,
         threadToolHistory,
         userMessageId,
@@ -1318,7 +1319,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // Vorher entschied Schritt 1 selbst, was er aus dem Thread-Kontext für
       // gemeint hielt — und dort liegt der Volltext jedes früheren Anhangs.
       const pipelineOriginal = pipelineAgent
-        ? resolveOriginalText(classifiedState, lastUserText)
+        ? resolveOriginalText(classifiedState, lastUserText, promptIsPastedText)
         : '';
       if (pipelineAgent) {
         classifiedState.pipelineSourceText = pipelineOriginal || null;

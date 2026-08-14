@@ -64,7 +64,10 @@ class AIService implements AIWorkerPool {
     requestId: string,
     data: AIRequestData
   ): Promise<AIWorkerResult> {
-    const timeoutMs = REQUEST_TIMEOUT_MS;
+    // Der Aufrufer darf sein eigenes Budget setzen. Der globale Wert ist an der
+    // interaktiven Antwort bemessen; ein Nachschritt, der erst nach dem Streamen
+    // läuft, hat einen anderen Massstab — dort ist Warten billiger als Ausfall.
+    const timeoutMs = data.timeoutMs ?? REQUEST_TIMEOUT_MS;
 
     return new Promise<AIWorkerResult>((resolve, reject) => {
       const timeout = setTimeout(() => {
