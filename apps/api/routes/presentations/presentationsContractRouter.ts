@@ -12,7 +12,7 @@ import { isPresentationBrand, presentationsContract } from '@gruenerator/contrac
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
-import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
+import { getAiClient } from '../../utils/getAiClient.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
 import { checkDocumentWriteAccess } from '../docs/documentAccess.js';
@@ -113,7 +113,7 @@ export const presentationsContractRouter = s.router(presentationsContract, {
         createPresentationDocument,
       } = await import('../../services/presentations/PresentationGenerationService.js');
 
-      const genResult = await getAIWorkerPool(args.req).processRequest(
+      const genResult = await getAiClient(args.req).processRequest(
         {
           type: 'doc_generation',
           systemPrompt: PRESENTATION_GENERATION_PROMPT,

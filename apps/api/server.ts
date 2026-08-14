@@ -243,15 +243,15 @@ async function startWorker(): Promise<void> {
   // Initialize AI service (direct AI SDK calls, no worker threads)
   log.debug('Initializing AI service');
   aiService = createAIService(redisClient);
-  app.locals.aiWorkerPool = aiService;
+  app.locals.aiClient = aiService;
 
   // Initialize AI Search Agent
   try {
     const aiSearchAgentModule = (await import('./services/aiSearchAgent.js')) as {
-      setAIWorkerPool?: (pool: unknown) => void;
+      setAiClient?: (pool: unknown) => void;
     };
-    if (typeof aiSearchAgentModule.setAIWorkerPool === 'function') {
-      aiSearchAgentModule.setAIWorkerPool(aiService);
+    if (typeof aiSearchAgentModule.setAiClient === 'function') {
+      aiSearchAgentModule.setAiClient(aiService);
       log.debug('AI Search Agent initialized');
     }
   } catch (error) {
@@ -738,7 +738,6 @@ async function startWorker(): Promise<void> {
       success: false,
       error: 'Ein Serverfehler ist aufgetreten',
 
-      // eslint-disable-next-line gruenerator/no-raw-error-to-client -- dev-only branch; prod gets `errorMessage`
       message: isDev ? err.message : errorMessage,
       stack: isDev ? err.stack : undefined,
       errorId: `${Date.now()}-${Math.floor(Math.random() * 1000)}`,

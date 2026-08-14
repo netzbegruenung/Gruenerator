@@ -14,7 +14,7 @@ import { zodToJsonSchema } from 'zod-to-json-schema';
 
 import { createLogger } from '../../../utils/logger.js';
 
-import type { AIWorkerPool, AIWorkerResult, Tool } from '../../../workers/types.js';
+import type { AiClient, AiResult, Tool } from '../../../services/ai/types.js';
 import type { z } from 'zod';
 
 const log = createLogger('toolForcedEdit');
@@ -33,12 +33,12 @@ export interface RunToolForcedEditParams<T> {
   instruction: string;
   /** Log prefix, e.g. '[reel_edit]'. */
   logPrefix: string;
-  aiWorkerPool: AIWorkerPool;
+  aiClient: AiClient;
   req?: unknown;
   maxAttempts?: number;
 }
 
-function extractToolCall(result: AIWorkerResult, toolName: string): Record<string, unknown> | null {
+function extractToolCall(result: AiResult, toolName: string): Record<string, unknown> | null {
   if (result.tool_calls) {
     const match = result.tool_calls.find((c) => c.name === toolName);
     if (match) return match.input;
@@ -60,7 +60,7 @@ export async function runToolForcedEdit<T>({
   systemPrompt,
   instruction,
   logPrefix,
-  aiWorkerPool,
+  aiClient,
   req,
   maxAttempts = DEFAULT_MAX_ATTEMPTS,
 }: RunToolForcedEditParams<T>): Promise<ToolForcedEditResult<T>> {
@@ -82,7 +82,7 @@ export async function runToolForcedEdit<T>({
   let lastError = '';
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const result = await aiWorkerPool.processRequest(
+      const result = await aiClient.processRequest(
         {
           type: 'canvas_ai_suggest',
           systemPrompt,

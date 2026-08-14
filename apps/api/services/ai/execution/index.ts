@@ -1,9 +1,9 @@
-import { normalizeProviderName } from '../../services/ai/providers.js';
+import { normalizeProviderName } from '../providers.js';
 
 import { execute, type ExecuteDeps } from './execute.js';
 
-import type { ProviderName } from '../../services/ai/providers.js';
-import type { AIRequestData, AIWorkerResult } from '../types.js';
+import type { ProviderName } from '../providers.js';
+import type { AIRequestData, AiResult } from '../types.js';
 
 // Must list EVERY ProviderName. This is an array, not a Record, so the compiler
 // does not check it — a missing member is not an error but a silent downgrade:
@@ -16,7 +16,7 @@ async function executeProvider(
   requestId: string,
   data: AIRequestData,
   deps?: ExecuteDeps
-): Promise<AIWorkerResult> {
+): Promise<AiResult> {
   let provider = providerName as ProviderName;
   if (!KNOWN.includes(provider)) {
     // Retired provider names (e.g. 'ionos' from a stale client or a persisted

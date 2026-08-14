@@ -260,7 +260,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // below was written against (requestId is already in scope from above).
       const {
         userId,
-        aiWorkerPool,
+        aiClient,
         notebookIds,
         validMessages,
         lastUserMessage,
@@ -772,7 +772,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           reelUpload: rawReelUpload,
           userLocale: initialState.userLocale || 'de-DE',
           clientPlatform: initialState.clientPlatform,
-          aiWorkerPool,
+          aiClient,
           startTime: initialState.startTime,
           ...(classifiedState.classificationTimeMs != null && {
             classificationTimeMs: classifiedState.classificationTimeMs,
@@ -812,7 +812,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             reelUpload: null,
             userLocale: initialState.userLocale || 'de-DE',
             clientPlatform: initialState.clientPlatform,
-            aiWorkerPool,
+            aiClient,
             startTime: initialState.startTime,
             ...(classifiedState.classificationTimeMs != null && {
               classificationTimeMs: classifiedState.classificationTimeMs,
@@ -907,7 +907,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             userId,
             instruction: editText,
             postId: rawCurrentSocialPost?.postId ?? null,
-            aiWorkerPool,
+            aiClient,
             startTime: initialState.startTime,
             ...(classifiedState.classificationTimeMs != null && {
               classificationTimeMs: classifiedState.classificationTimeMs,
@@ -992,7 +992,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             userId,
             instruction: editText,
             currentSharepic: rawCurrentSharepic ?? null,
-            aiWorkerPool,
+            aiClient,
             startTime: initialState.startTime,
             ...(classifiedState.classificationTimeMs != null && {
               classificationTimeMs: classifiedState.classificationTimeMs,
@@ -1719,7 +1719,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       const createTurnBase = {
         sse,
         classifiedState,
-        aiWorkerPool,
+        aiClient,
         req,
         ...(actualThreadId != null && { actualThreadId }),
         userId,
@@ -1821,7 +1821,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         const created = await handleRecurringTaskCreation({
           sse,
           classifiedState,
-          aiWorkerPool,
+          aiClient,
           req,
           ...(actualThreadId != null && { actualThreadId }),
           userId,
@@ -2429,7 +2429,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         isNewThread,
         lastUserMessage: lastUserMessage as ModelMessage,
         processedMeta,
-        aiWorkerPool,
+        aiClient,
         requestId,
         memoryEnabled,
         ...(agentId != null && { agentId }),
@@ -2474,7 +2474,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         await generateAndCreateDocument({
           sse,
           classifiedState,
-          aiWorkerPool,
+          aiClient,
           req,
           ...(actualThreadId != null && { actualThreadId }),
           userId,

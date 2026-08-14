@@ -78,7 +78,7 @@ export interface DeepAgentRunParams {
   locale: ResearchLocale;
   progress: DeepAgentProgress;
   /** Passed through to the distiller so crawls reuse the app's model lanes. */
-  aiWorkerPool?: unknown;
+  aiClient?: unknown;
   /**
    * Which Grünerator notebooks this run may look into. Omitted or null means the
    * notebook tool is not offered at all.

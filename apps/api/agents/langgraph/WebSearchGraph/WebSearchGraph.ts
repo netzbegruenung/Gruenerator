@@ -6,7 +6,7 @@
 import { StateGraph, Annotation } from '@langchain/langgraph';
 import { type Request } from 'express';
 
-import { type AIWorkerPool } from '../../../workers/types.js';
+import { type AiClient } from '../../../services/ai/types.js';
 
 import { aggregatorNode } from './nodes/AggregatorNode.js';
 import { contentEnricherNode } from './nodes/ContentEnricherNode.js';
@@ -51,7 +51,7 @@ const SearchState = Annotation.Root({
   searchOptions: Annotation<SearchOptions>({
     reducer: (x, y) => ({ ...x, ...y }),
   }),
-  aiWorkerPool: Annotation<AIWorkerPool>({
+  aiClient: Annotation<AiClient>({
     reducer: (x, y) => y ?? x,
   }),
   req: Annotation<Request>({
@@ -183,7 +183,7 @@ export async function runWebSearch(input: WebSearchInput): Promise<WebSearchOutp
     mode = 'normal',
     user_id = 'anonymous',
     searchOptions = {},
-    aiWorkerPool,
+    aiClient,
     req,
   } = input;
 
@@ -195,7 +195,7 @@ export async function runWebSearch(input: WebSearchInput): Promise<WebSearchOutp
       mode,
       user_id,
       searchOptions,
-      aiWorkerPool,
+      aiClient,
       req,
       metadata: {
         startTime: Date.now(),

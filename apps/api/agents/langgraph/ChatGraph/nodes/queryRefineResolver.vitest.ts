@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { classifierNode } from './classifierNode.js';
 import { refineSearchQuery } from './queryRefineResolver.js';
 
-import type { AIWorkerPool } from '../../../../workers/types.js';
+import type { AiClient } from '../../../../services/ai/types.js';
 import type { ChatGraphState } from '../types.js';
 
 /**
@@ -48,7 +48,7 @@ function makePool(reply: string | (() => never) | (() => Promise<never>)) {
     if (typeof reply === 'function') return reply();
     return { content: reply };
   });
-  return { processRequest } as unknown as AIWorkerPool & {
+  return { processRequest } as unknown as AiClient & {
     processRequest: ReturnType<typeof vi.fn>;
   };
 }
@@ -58,18 +58,18 @@ async function refine(reply: string | (() => never), userContent = 'Fass mir das
     userContent,
     conversationContext: null,
     topicalContext: null,
-    aiWorkerPool: makePool(reply),
+    aiClient: makePool(reply),
   });
 }
 
 /** Ein Turn mit @notebook-Mention — eine der fünf erzwungenen Suchen. */
-function buildForcedSearchState(userMessage: string, pool: AIWorkerPool): ChatGraphState {
+function buildForcedSearchState(userMessage: string, pool: AiClient): ChatGraphState {
   return {
     messages: [{ role: 'user' as const, content: userMessage }],
     threadId: null,
     agentConfig: STUB_AGENT_CONFIG,
     enabledTools: {},
-    aiWorkerPool: pool,
+    aiClient: pool,
     userLocale: 'de-DE',
     clientPlatform: 'web',
     notebookIds: ['nb-1'],
@@ -234,7 +234,7 @@ describe('refineSearchQuery — was er dem Modell schickt', () => {
       userContent: 'Fass mir das zusammen',
       conversationContext: null,
       topicalContext: null,
-      aiWorkerPool: pool,
+      aiClient: pool,
     });
     const sent = pool.processRequest.mock.calls[0]?.[0] as { systemPrompt?: string };
     expect(sent.systemPrompt).toContain('Du formulierst Suchanfragen');
@@ -250,7 +250,7 @@ describe('refineSearchQuery — was er dem Modell schickt', () => {
       userContent: 'Und was steht da zum Zeitplan?',
       conversationContext: 'Vorher ging es um die Wärmeplanung.',
       topicalContext: 'Thema: kommunale Wärmeplanung',
-      aiWorkerPool: pool,
+      aiClient: pool,
     });
     const sent = pool.processRequest.mock.calls[0]?.[0] as {
       messages?: Array<{ content: string }>;

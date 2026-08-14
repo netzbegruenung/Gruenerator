@@ -109,7 +109,7 @@ function toWebSearchState(state: SearchGraphState): WebSearchState {
     mode: 'deep',
     user_id: 'search-graph',
     searchOptions: state.searchOptions || { maxResults: 10, language: 'de-DE' },
-    aiWorkerPool: state.aiWorkerPool,
+    aiClient: state.aiClient,
     req: null as never,
     metadata: { startTime: Date.now(), searchMode: 'deep' },
     subqueries: state.subQueries ?? null,

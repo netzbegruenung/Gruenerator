@@ -19,13 +19,12 @@ on:
       - 'apps/api/routes/chat/**'
       - 'apps/api/agents/langgraph/ChatGraph/**'
       # Structural files audited against the root README (readme/ pseudo-doc).
-      # services/ai and workers/providers ALSO feed chat/ and
+      # services/ai ALSO feeds chat/ and
       # ueber-den-gruenerator/ — see AREA_HINTS.
       - 'pnpm-workspace.yaml'
       - 'package.json'
       - 'turbo.json'
       - '.env.example'
-      - 'apps/api/workers/providers/**'
       - 'apps/api/services/ai/**'
       # Provider and energy claims in ueber-den-gruenerator/ (Nachhaltigkeit)
       - 'apps/api/services/usage/energyFootprint.ts'

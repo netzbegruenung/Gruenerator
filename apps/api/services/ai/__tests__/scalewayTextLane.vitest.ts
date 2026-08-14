@@ -8,7 +8,7 @@
  *     max_tokens 1500, nach 5386 Zeichen Reasoning). Leerer Inhalt ist für
  *     `aiService` kein Fehler, sondern startet die Fallback-Kette — der Ausfall
  *     wäre also teuer UND unsichtbar.
- *  2. `KNOWN` in workers/providers/index.ts. Das ist ein Array, kein Record:
+ *  2. `KNOWN` in services/ai/execution/index.ts. Das ist ein Array, kein Record:
  *     ein fehlender Provider ist kein Typfehler, sondern eine stille
  *     Degradierung über `normalizeProviderName` nach `'mistral'` — ausgerechnet
  *     auf das teuerste Modell, hinter nichts als einer console.warn.
@@ -16,7 +16,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { KNOWN_PROVIDERS } from '../../../workers/providers/index.js';
+import { KNOWN_PROVIDERS } from '../execution/index.js';
 import { intermediateLane } from '../intermediateLanes.js';
 import { normalizeProviderName } from '../providers.js';
 import { scalewayFetchWithThinkingDisabled } from '../scalewayThinkingFetch.js';

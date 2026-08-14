@@ -16,7 +16,7 @@ import { getLinkupService } from './LinkupService.js';
 import { distillPassages } from './PassageDistiller.js';
 
 import type { DistilledChunk, DistillMode } from './PassageDistiller.js';
-import type { AIWorkerPool } from '../../workers/types.js';
+import type { AiClient } from '../ai/types.js';
 
 const log = createLogger('CrawlingService');
 
@@ -232,7 +232,7 @@ export interface DistilledCrawlResult extends CrawledResult {
 export interface CrawlAndDistillOptions extends CrawlOptions {
   mode: DistillMode;
   targetChars: number;
-  aiWorkerPool?: AIWorkerPool | null;
+  aiClient?: AiClient | null;
 }
 
 /**
@@ -267,7 +267,7 @@ export async function crawlAndDistill<T extends CrawlableResult>(
         mode: options.mode,
         targetChars: options.targetChars,
         ...(result.url ? { url: result.url } : {}),
-        ...(options.aiWorkerPool ? { aiWorkerPool: options.aiWorkerPool } : {}),
+        ...(options.aiClient ? { aiClient: options.aiClient } : {}),
       });
 
       return {

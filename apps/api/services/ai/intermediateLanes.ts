@@ -78,7 +78,7 @@
  *
  * Zwei Konsumententypen, die man beim nächsten Verschieben nicht verwechseln
  * darf:
- *   - über `aiWorkerPool.processRequest` → die Fallback-Kette
+ *   - über `aiClient.processRequest` → die Fallback-Kette
  *     (`litellm` → `regolo` → `mistral`, providerFallback.ts) fängt Ausfall UND
  *     leere Antwort ab. GreenPT steht NICHT in der Kette, wäre also selbst
  *     abgesichert, ohne je als Auffangnetz zu dienen.

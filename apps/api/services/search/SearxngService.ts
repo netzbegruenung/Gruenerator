@@ -16,7 +16,7 @@ import type {
   CacheEntry,
   ServiceStatus,
 } from './types.js';
-import type { AIWorkerPool } from '../../workers/types.js';
+import type { AiClient } from '../ai/types.js';
 
 const LOG_LEVEL = env.LOG_LEVEL;
 const isDebug = LOG_LEVEL === 'debug';
@@ -48,7 +48,7 @@ interface RedisClientLike {
   ping: () => Promise<string>;
 }
 
-export type { AIWorkerPool };
+export type { AiClient };
 
 class SearxngService {
   private baseUrl: string;
@@ -282,7 +282,7 @@ class SearxngService {
   async generateAISummary(
     searchResults: FormattedSearchResults,
     originalQuery: string,
-    aiWorkerPool: AIWorkerPool,
+    aiClient: AiClient,
     _summaryOptions: Record<string, unknown> = {},
     req: unknown = null
   ): Promise<FormattedSearchResultsWithSummary> {
@@ -297,7 +297,7 @@ class SearxngService {
       };
     }
 
-    if (!aiWorkerPool) {
+    if (!aiClient) {
       if (isVerbose) console.warn('[SearXNG] No AI worker pool for summary');
       return {
         ...searchResults,
@@ -335,7 +335,7 @@ Gib eine direkte, hilfreiche Antwort auf die Frage des Nutzers. Nutze die Inform
 
       if (isVerbose) console.log(`[SearXNG] Generating AI summary`);
 
-      const aiResponse = await aiWorkerPool.processRequest(summaryRequest, req);
+      const aiResponse = await aiClient.processRequest(summaryRequest, req);
 
       if (aiResponse.success && aiResponse.content) {
         return {

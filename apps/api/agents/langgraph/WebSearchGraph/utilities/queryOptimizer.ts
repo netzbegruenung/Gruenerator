@@ -5,7 +5,7 @@
 
 import { parseAIJsonResponse } from '../../../../services/search/index.js';
 
-import type { AIWorkerPool } from '../../../../workers/types.js';
+import type { AiClient } from '../../../../services/ai/types.js';
 import type { Request } from 'express';
 
 /**
@@ -41,7 +41,7 @@ export function optimizeSearchQuery(query: string): string {
  */
 export async function generateResearchQuestions(
   originalQuery: string,
-  aiWorkerPool: AIWorkerPool,
+  aiClient: AiClient,
   req: Request | null
 ): Promise<string[]> {
   try {
@@ -60,7 +60,7 @@ Antworte ausschließlich im JSON-Format: {"research_questions":["Frage 1","Frage
 
 Fokussiere dich auf externe Quellen und verschiedene Perspektiven.`;
 
-    const result = await aiWorkerPool.processRequest(
+    const result = await aiClient.processRequest(
       {
         type: 'text_adjustment',
         systemPrompt: researchSystemPrompt,

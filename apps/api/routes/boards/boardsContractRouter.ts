@@ -36,7 +36,7 @@ import {
   type QueryRunner,
 } from '../../services/docs/CollaborativeDocumentService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
-import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
+import { getAiClient } from '../../utils/getAiClient.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
 import { ensureDocChatThread } from '../chat/services/threadPersistenceService.js';
@@ -290,7 +290,7 @@ export const boardsContractRouter = s.router(boardsContract, {
         };
       }
 
-      const aiResult = await getAIWorkerPool(args.req).processRequest(
+      const aiResult = await getAiClient(args.req).processRequest(
         {
           type: 'board_generation',
           systemPrompt: BOARD_GENERATION_PROMPT,

@@ -19,12 +19,12 @@ vi.mock('ai', () => ({
   generateText: (...args: unknown[]) => generateText(...args),
   jsonSchema: (s: unknown) => s,
 }));
-vi.mock('../../../services/ai/providers.js', () => ({
+vi.mock('../../providers.js', () => ({
   getModel: (...args: unknown[]) => getModel(...(args as [string, string])),
   isProviderConfigured: vi.fn(() => true),
   getDefaultModel: vi.fn(() => 'verdigado-pro'),
 }));
-vi.mock('../../../services/tools/index.js', () => ({
+vi.mock('../../../tools/index.js', () => ({
   default: { prepareToolsPayload: vi.fn(() => ({})) },
 }));
 

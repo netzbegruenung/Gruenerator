@@ -1,6 +1,6 @@
 import { env } from '../../../config/env.js';
 import { parallelLimit } from '../../../utils/parallelLimit.js';
-import mistralClient from '../../../workers/mistralClient.js';
+import mistralClient from '../../ai/mistralClient.js';
 
 export interface MistralEmbeddingOptions {
   model?: string;

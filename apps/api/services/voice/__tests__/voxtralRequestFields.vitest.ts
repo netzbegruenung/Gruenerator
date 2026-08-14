@@ -15,7 +15,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const complete = vi.fn().mockResolvedValue({ text: 'ok', segments: [] });
 
-vi.mock('../../../workers/mistralClient.js', () => ({
+vi.mock('../../ai/mistralClient.js', () => ({
   default: { audio: { transcriptions: { complete } } },
 }));
 

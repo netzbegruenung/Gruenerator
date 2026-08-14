@@ -93,7 +93,7 @@ interface SearchIntent {
   originalRequest?: string;
 }
 
-interface AIWorkerResult {
+interface AiResult {
   success: boolean;
   content?: string;
   tool_calls?: ToolCall[];
@@ -184,8 +184,8 @@ interface AgentStats {
 interface ExpressRequest {
   app: {
     locals: {
-      aiWorkerPool: {
-        processRequest: (request: AIWorkerRequest, req: ExpressRequest) => Promise<AIWorkerResult>;
+      aiClient: {
+        processRequest: (request: AiClientRequest, req: ExpressRequest) => Promise<AiResult>;
       };
     };
   };
@@ -194,7 +194,7 @@ interface ExpressRequest {
   };
 }
 
-interface AIWorkerRequest {
+interface AiClientRequest {
   type: string;
   systemPrompt: string;
   messages: Array<{ role: string; content: string }>;
@@ -344,7 +344,7 @@ class AISearchAgent {
         throw new Error('Request object required for AI worker access');
       }
 
-      const enhancementResult = await this.callAIWorker(query, contentType, options, req);
+      const enhancementResult = await this.callAiClient(query, contentType, options, req);
       const enhancement = this.parseAIResponse(enhancementResult, query);
 
       if (useCache && enhancement.success) {
@@ -364,12 +364,12 @@ class AISearchAgent {
   /**
    * Call the AI worker for query enhancement
    */
-  private async callAIWorker(
+  private async callAiClient(
     query: string,
     contentType: string,
     options: EnhanceQueryOptions,
     req: ExpressRequest
-  ): Promise<AIWorkerResult> {
+  ): Promise<AiResult> {
     try {
       const validQuery = InputValidator.validateSearchQuery(query);
       const validContentType = InputValidator.validateContentType(contentType);
@@ -379,7 +379,7 @@ class AISearchAgent {
 
       log.debug('Calling AI worker for query enhancement');
 
-      const result = await req.app.locals.aiWorkerPool.processRequest(
+      const result = await req.app.locals.aiClient.processRequest(
         {
           type: 'search_enhancement',
           systemPrompt: systemPrompt,
@@ -484,7 +484,7 @@ Antworte NUR mit diesem JSON (keine Markdown-Blöcke):
   /**
    * Parse and validate AI response
    */
-  private parseAIResponse(aiResult: AIWorkerResult, originalQuery: string): EnhancementResult {
+  private parseAIResponse(aiResult: AiResult, originalQuery: string): EnhancementResult {
     try {
       if (!aiResult || !aiResult.success || !aiResult.content) {
         throw new Error('Invalid AI worker response');
@@ -693,7 +693,7 @@ Antworte NUR mit diesem JSON (keine Markdown-Blöcke):
     try {
       const systemPrompt = this.buildAutonomousSearchPrompt(searchIntent, originalQuery);
 
-      const workerRequest: AIWorkerRequest = {
+      const workerRequest: AiClientRequest = {
         type: 'search_enhancement',
         systemPrompt: systemPrompt,
         messages: [
@@ -719,7 +719,7 @@ Antworte NUR mit diesem JSON (keine Markdown-Blöcke):
         throw new Error('Request object required for AI worker access');
       }
 
-      const aiResult = await req.app.locals.aiWorkerPool.processRequest(workerRequest, req);
+      const aiResult = await req.app.locals.aiClient.processRequest(workerRequest, req);
 
       return await this.processAutonomousSearchResult(aiResult, searchIntent);
     } catch (error) {
@@ -807,7 +807,7 @@ Nach der Suche erkläre deine Keyword-Wahl und begründe die Relevanz der Ergebn
    * Process autonomous search result and tool calls
    */
   private async processAutonomousSearchResult(
-    aiResult: AIWorkerResult,
+    aiResult: AiResult,
     searchIntent: SearchIntent
   ): Promise<SearchDatabaseResult> {
     if (!aiResult || !aiResult.success) {

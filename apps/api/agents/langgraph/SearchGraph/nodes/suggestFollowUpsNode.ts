@@ -36,7 +36,7 @@ export async function suggestFollowUpsNode(
       .map((r) => r.title)
       .join(', ');
 
-    const result = await state.aiWorkerPool.processRequest(
+    const result = await state.aiClient.processRequest(
       {
         type: 'text_adjustment',
         systemPrompt: SUGGEST_SYSTEM_PROMPT,

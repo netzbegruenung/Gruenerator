@@ -63,7 +63,7 @@ export async function briefGeneratorNode(state: ChatGraphState): Promise<Partial
   );
 
   try {
-    const { messages, searchQuery, subQueries, aiWorkerPool } = state;
+    const { messages, searchQuery, subQueries, aiClient } = state;
 
     const recentMessages = messages.slice(-MAX_CONVERSATION_MESSAGES);
     const conversationSummary = recentMessages
@@ -83,7 +83,7 @@ Erkannte Suchquery: ${searchQuery || 'keine'}${subQueriesText}
 
 Erstelle einen klaren, fokussierten Recherche-Auftrag.`;
 
-    const response = await aiWorkerPool.processRequest(
+    const response = await aiClient.processRequest(
       {
         type: 'chat_research_brief',
         provider: LANE.provider,

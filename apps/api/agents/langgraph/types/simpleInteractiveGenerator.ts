@@ -9,15 +9,15 @@ import type {
   Locale,
   RequestObject,
 } from './promptAssembly.js';
-import type { AIWorkerPool } from '../../../workers/types.js';
+import type { AiClient } from '../../../services/ai/types.js';
 import type { Request } from 'express';
 
-export type { AIWorkerPool };
+export type { AiClient };
 
 /**
  * Request to AI worker pool
  */
-export interface AIWorkerRequest {
+export interface AiClientRequest {
   /** Type of AI request */
   type: string;
   /** System prompt for the AI */
@@ -36,7 +36,7 @@ export interface AIWorkerRequest {
 /**
  * Response from AI worker pool
  */
-export interface AIWorkerResponse {
+export interface AiClientResponse {
   /** Whether the request was successful */
   success: boolean;
   /** Content returned from the AI */
@@ -146,7 +146,7 @@ export interface QuestionGenerationState {
   requestType: string;
   generatorType: string;
   locale: string;
-  aiWorkerPool: AIWorkerPool;
+  aiClient: AiClient;
   req: Request;
 }
 
@@ -300,7 +300,7 @@ export interface InitiateGeneratorParams {
   requestType: string;
   generatorType?: string | undefined;
   locale?: Locale | undefined;
-  aiWorkerPool: AIWorkerPool;
+  aiClient: AiClient;
   req: Request;
 }
 
@@ -330,7 +330,7 @@ export interface ContinueGeneratorParams {
   userId: string;
   sessionId: string;
   answers: QuestionAnswers;
-  aiWorkerPool: AIWorkerPool;
+  aiClient: AiClient;
   req: Request;
 }
 
@@ -362,7 +362,7 @@ export interface GenerateFinalResultParams {
   locale?: Locale | undefined;
   questions?: GeneratedQuestion[] | undefined;
   answers?: QuestionAnswers | undefined;
-  aiWorkerPool: AIWorkerPool;
+  aiClient: AiClient;
   req: Request;
 }
 

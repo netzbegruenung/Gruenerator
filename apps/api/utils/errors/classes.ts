@@ -133,7 +133,7 @@ export class DatabaseError extends VectorBackendError {
 /**
  * AI worker error - issues with AI service calls
  */
-export class AIWorkerError extends VectorBackendError {
+export class AiClientError extends VectorBackendError {
   public readonly provider?: string;
   public readonly model?: string;
   public readonly requestType?: string;

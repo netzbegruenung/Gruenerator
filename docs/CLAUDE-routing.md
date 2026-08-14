@@ -1,6 +1,6 @@
 # CLAUDE-routing.md
 
-Express 5 route typing, AI worker pool access, and locale-aware backend code.
+Express 5 route typing, AI client access, and locale-aware backend code.
 
 ## Express 5 Route Typing
 
@@ -33,19 +33,19 @@ router.get('/:id', async (req: AuthRequest<{ id: string }>, res: Response) => {
 
 Custom request types (`AuthRequest`, `AuthenticatedRequest`) accept optional params generic `P`. For complex params, use `getParam()` from `utils/params.js`.
 
-## AI Worker Pool Access
+## AI Client Access
 
-Always use typed helper — never `req.app.locals.aiWorkerPool` (it's `any`):
+Always use typed helper — never `req.app.locals.aiClient` (it's `any`):
 
 ```typescript
-import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
-const aiWorkerPool = getAIWorkerPool(req);
+import { getAiClient } from '../../utils/getAiClient.js';
+const aiClient = getAiClient(req);
 ```
 
 Import type from canonical interface only:
 ```typescript
-import { type AIWorkerPool } from '../../workers/types.js';  // correct
-// NOT from '../../workers/aiWorkerPool.js' — that imports the class
+import { type AiClient } from '../../services/ai/types.js';  // correct
+// NOT from '../../services/ai/aiService.js' — that imports the class
 ```
 
 ## Locale-Aware Backend Code
@@ -56,6 +56,6 @@ Platform serves German (`de-DE`) and Austrian (`de-AT`) users. Never hardcode pa
 2. **Qdrant collections**: Filter by locale. Austrian: `oesterreich_gruene_documents`, `gruene_at_documents`. German: `grundsatz_documents`, `bundestag_content`, `kommunalwiki_documents`, `gruene_de_documents`.
 3. **Web search**: Never hardcode party name. Use locale-aware name or omit.
 4. **`enrichRequest(body, options, req)`**: `req` must be 3rd argument (not inside options).
-5. **Direct `aiWorkerPool.processRequest`**: Bypasses localization. Prefer `assemblePromptGraphAsync` or call `localizePlaceholders()` manually.
+5. **Direct `aiClient.processRequest`**: Bypasses localization. Prefer `assemblePromptGraphAsync` or call `localizePlaceholders()` manually.
 
 Utilities in `services/localization/index.ts`: `extractLocaleFromRequest(req)`, `localizePlaceholders(text, locale)`, `getDefaultCollectionsForLocale(locale)`.

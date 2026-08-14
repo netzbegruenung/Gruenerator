@@ -6,10 +6,10 @@ import {
   getProviderDisplayName,
   normalizeProviderName,
   getModel,
-} from '../../../services/ai/providers.js';
-import { isProviderAvailable } from '../../../services/providers/providerFallback.js';
-import { determineProviderFromModel } from '../../../services/providers/providerSelector.js';
-import { isExcludedTextModel, regoloTextDefault } from '../../../services/ai/textModelPolicy.js';
+} from '../../providers.js';
+import { isProviderAvailable } from '../../../providers/providerFallback.js';
+import { determineProviderFromModel } from '../../../providers/providerSelector.js';
+import { isExcludedTextModel, regoloTextDefault } from '../../textModelPolicy.js';
 import { executeProvider, KNOWN_PROVIDERS } from '../index.js';
 
 describe('Regolo provider — unit tests', () => {

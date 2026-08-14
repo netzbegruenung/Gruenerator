@@ -35,7 +35,7 @@ function makeState(llmContent: string, overrides: Partial<ChatGraphState> = {}):
       },
     ],
     attachmentContext: null,
-    aiWorkerPool: {
+    aiClient: {
       processRequest: vi.fn().mockResolvedValue({ content: llmContent }),
     },
     ...overrides,
@@ -107,7 +107,7 @@ describe('pandasComputeNode', () => {
     const { pythonCode } = await pandasComputeNode(state);
     expect(pythonCode).toBe('print("Gesamtgewinn:", 42)');
 
-    const call = (state.aiWorkerPool as unknown as { processRequest: ReturnType<typeof vi.fn> })
+    const call = (state.aiClient as unknown as { processRequest: ReturnType<typeof vi.fn> })
       .processRequest.mock.calls[0][0];
     expect(call.messages[0].content).toContain('wie hoch ist der gesamtgewinn?');
     expect(call.messages[0].content).toContain('Region | Umsatz | Gewinn');
@@ -119,7 +119,7 @@ describe('pandasComputeNode', () => {
       searchQuery: 'Grüne Umsatzentwicklung Landesverband Bericht',
     } as Partial<ChatGraphState>);
     await pandasComputeNode(state);
-    const call = (state.aiWorkerPool as unknown as { processRequest: ReturnType<typeof vi.fn> })
+    const call = (state.aiClient as unknown as { processRequest: ReturnType<typeof vi.fn> })
       .processRequest.mock.calls[0][0];
     expect(call.messages[0].content).toContain('wie hoch ist der gesamtgewinn?');
     expect(call.messages[0].content).not.toContain('Landesverband Bericht');
@@ -131,7 +131,7 @@ describe('pandasComputeNode', () => {
       previousCode: 'print(df["Gewinnn"].sum())',
       previousError: "KeyError: 'Gewinnn'",
     });
-    const call = (state.aiWorkerPool as unknown as { processRequest: ReturnType<typeof vi.fn> })
+    const call = (state.aiClient as unknown as { processRequest: ReturnType<typeof vi.fn> })
       .processRequest.mock.calls[0][0];
     expect(call.messages[0].content).toContain('FEHLGESCHLAGEN');
     expect(call.messages[0].content).toContain('print(df["Gewinnn"].sum())');
@@ -164,7 +164,7 @@ describe('pandasComputeNode', () => {
       attachmentContext: '### Ausgaben.xlsx (Volltext-Auszug)\n\nRegion | Umsatz\nNord | 100',
     } as Partial<ChatGraphState>);
     await pandasComputeNode(state, { mode: 'fill' });
-    const call = (state.aiWorkerPool as unknown as { processRequest: ReturnType<typeof vi.fn> })
+    const call = (state.aiClient as unknown as { processRequest: ReturnType<typeof vi.fn> })
       .processRequest.mock.calls[0][0];
     expect(call.messages[0].content).toContain(
       'Dateiname(n) im Arbeitsverzeichnis (exakt so verwenden): Ausgaben.xlsx\n'
@@ -177,7 +177,7 @@ describe('pandasComputeNode', () => {
     // compute the number itself.
     const state = makeState('');
     (
-      state.aiWorkerPool as unknown as { processRequest: ReturnType<typeof vi.fn> }
+      state.aiClient as unknown as { processRequest: ReturnType<typeof vi.fn> }
     ).processRequest.mockRejectedValue(new Error('provider down'));
     expect(await pandasComputeNode(state)).toEqual({ pythonCode: null, computeFailed: true });
   });

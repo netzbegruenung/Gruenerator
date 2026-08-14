@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import type { AIRequestData, AIWorkerResult } from '../../../workers/types.js';
+import type { AIRequestData, AiResult } from '../types.js';
 
 const mockExecuteProvider = vi.fn();
 const mockSelectProviderAndModel = vi.fn();
 const mockTryFallbackProviders = vi.fn();
 const mockTrySharepicFallbackProviders = vi.fn();
 
-vi.mock('../../../workers/providers/index.js', () => ({
+vi.mock('../execution/index.js', () => ({
   executeProvider: (...args: unknown[]) => mockExecuteProvider(...args),
 }));
 
@@ -29,7 +29,7 @@ vi.mock('../../../config/env.js', () => ({
 import { AIService } from '../aiService.js';
 import { AiProviderError } from '../../providers/providerErrors.js';
 
-const VALID_RESULT: AIWorkerResult = {
+const VALID_RESULT: AiResult = {
   content: 'Generated text',
   stop_reason: 'end_turn',
   success: true,
@@ -39,7 +39,7 @@ const VALID_RESULT: AIWorkerResult = {
   },
 };
 
-const TOOL_USE_RESULT: AIWorkerResult = {
+const TOOL_USE_RESULT: AiResult = {
   content: null,
   stop_reason: 'tool_use',
   tool_calls: [{ id: 'call_1', name: 'search', input: { query: 'test' } }],
@@ -71,7 +71,7 @@ describe('AIService', () => {
     service = new AIService();
   });
 
-  it('returns AIWorkerResult with correct shape', async () => {
+  it('returns AiResult with correct shape', async () => {
     const result = await service.processRequest(makeRequest());
 
     expect(result.content).toBe('Generated text');

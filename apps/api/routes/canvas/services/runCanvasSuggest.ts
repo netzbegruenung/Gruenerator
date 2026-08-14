@@ -36,14 +36,14 @@ import {
   type CanvasSuggestContextHints,
 } from './buildCanvasSuggestPrompt.js';
 
-import type { AIWorkerPool } from '../../../workers/types.js';
+import type { AiClient } from '../../../services/ai/types.js';
 
 export interface RunCanvasSuggestArgs {
   prompt: string;
   snapshot: CanvasAiSnapshot;
   capabilities: CanvasSuggestCapabilitiesView;
   contextHints?: CanvasSuggestContextHints;
-  aiWorkerPool: AIWorkerPool;
+  aiClient: AiClient;
   /** Optional Express request — passed through for tracing/correlation. */
   req?: unknown;
   /** Tag prefix for log lines. Defaults to 'canvas_ai_suggest'. */
@@ -56,7 +56,7 @@ export type RunCanvasSuggestResult =
 export async function runCanvasSuggest(
   args: RunCanvasSuggestArgs
 ): Promise<RunCanvasSuggestResult> {
-  const { prompt, snapshot, capabilities, contextHints, aiWorkerPool, req, logTag } = args;
+  const { prompt, snapshot, capabilities, contextHints, aiClient, req, logTag } = args;
 
   const rawSchema = zodToJsonSchema(canvasAiSuggestResponseSchema, {
     target: 'jsonSchema7',
@@ -66,7 +66,7 @@ export async function runCanvasSuggest(
   const supported = capabilities.supportedOperations;
 
   const result = await generateStructured<CanvasAiSuggestion[]>({
-    aiWorkerPool,
+    aiClient,
     ...(req !== undefined && { req }),
     type: 'canvas_ai_suggest',
     systemPrompt: buildCanvasSuggestSystemPrompt(snapshot, capabilities, contextHints),

@@ -16,7 +16,7 @@ import { Sentry } from '../../lib/sentry.js';
 import { lookupUmfragen } from '../../services/monitor/UmfragenService.js';
 import { notebookQAService } from '../../services/notebook/NotebookQAService.js';
 import { getProfileService } from '../../services/user/ProfileService.js';
-import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
+import { getAiClient } from '../../utils/getAiClient.js';
 import { createLogger } from '../../utils/logger.js';
 import {
   executeDirectExamplesSearch,
@@ -306,7 +306,7 @@ export interface McpServerBuildOptions {
   scopes: Set<string>;
   /** Nur beim Schlüssel-Weg gesetzt — trägt die Landesverbands-Freigabe. */
   apiKey?: McpAuthContext['apiKey'];
-  /** The live Express request — carries app.locals.aiWorkerPool and req.user. */
+  /** The live Express request — carries app.locals.aiClient and req.user. */
   req: Request;
 }
 
@@ -601,7 +601,7 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
               collectionId: id,
               question: query,
               userId,
-              aiWorkerPool: getAIWorkerPool(req),
+              aiClient: getAiClient(req),
               // Both are REQUIRED for user collections — the service throws
               // without them. Passing the already-fetched row mirrors
               // notebookContractRouter and hands the access decision to
@@ -641,7 +641,7 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
         const created = await runDocGeneration({
           kind,
           userContent: prompt,
-          aiWorkerPool: getAIWorkerPool(req),
+          aiClient: getAiClient(req),
           req,
           userId,
         });
@@ -664,7 +664,7 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
       guarded('create_board', async ({ prompt }) => {
         const created = await runBoardGeneration({
           userContent: prompt,
-          aiWorkerPool: getAIWorkerPool(req),
+          aiClient: getAiClient(req),
           req,
           userId,
         });

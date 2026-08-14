@@ -24,7 +24,7 @@ import {
   type StructuredValidation,
 } from './generateStructured.js';
 
-import type { AIWorkerPool } from '../../workers/types.js';
+import type { AiClient } from './types.js';
 
 const TOOL = 'create_thing';
 
@@ -47,12 +47,12 @@ const toolCall = (input: Record<string, unknown>) => ({
 });
 
 function poolReturning(...responses: unknown[]): {
-  pool: AIWorkerPool;
+  pool: AiClient;
   processRequest: ReturnType<typeof vi.fn>;
 } {
   const processRequest = vi.fn();
   for (const response of responses) processRequest.mockResolvedValueOnce(response);
-  return { pool: { processRequest } as unknown as AIWorkerPool, processRequest };
+  return { pool: { processRequest } as unknown as AiClient, processRequest };
 }
 
 const base = {
@@ -70,7 +70,7 @@ describe('generateStructured', () => {
   it('returns the validated tool call on the first attempt', async () => {
     const { pool, processRequest } = poolReturning(toolCall({ title: 'Fact Sheet' }));
 
-    const result = await generateStructured({ ...base, aiWorkerPool: pool });
+    const result = await generateStructured({ ...base, aiClient: pool });
 
     expect(result).toEqual({ ok: true, data: { title: 'Fact Sheet' } });
     expect(processRequest).toHaveBeenCalledTimes(1);
@@ -79,7 +79,7 @@ describe('generateStructured', () => {
   it('forces the tool call rather than relying on the prompt', async () => {
     const { pool, processRequest } = poolReturning(toolCall({ title: 'X' }));
 
-    await generateStructured({ ...base, aiWorkerPool: pool });
+    await generateStructured({ ...base, aiClient: pool });
 
     const [request] = processRequest.mock.calls[0];
     expect(request.options.tool_choice).toBe('required');
@@ -93,7 +93,7 @@ describe('generateStructured', () => {
       toolCall({ title: 'Repariert' })
     );
 
-    const result = await generateStructured({ ...base, aiWorkerPool: pool });
+    const result = await generateStructured({ ...base, aiClient: pool });
 
     expect(result).toEqual({ ok: true, data: { title: 'Repariert' } });
     expect(processRequest).toHaveBeenCalledTimes(2);
@@ -112,7 +112,7 @@ describe('generateStructured', () => {
   it('recovers JSON from text when the provider ignores tools', async () => {
     const { pool } = poolReturning({ success: true, content: '{"title":"Aus Text"}' });
 
-    const result = await generateStructured({ ...base, aiWorkerPool: pool });
+    const result = await generateStructured({ ...base, aiClient: pool });
 
     expect(result).toEqual({ ok: true, data: { title: 'Aus Text' } });
   });
@@ -126,7 +126,7 @@ describe('generateStructured', () => {
       content: 'Bitte sehr:\n```json\n{"title":"Aus Text"}\n```',
     });
 
-    await generateStructured({ ...base, aiWorkerPool: pool, validate: gate });
+    await generateStructured({ ...base, aiClient: pool, validate: gate });
 
     expect(gate).toHaveBeenCalledWith({ title: 'Aus Text' });
   });
@@ -137,7 +137,7 @@ describe('generateStructured', () => {
       toolCall({ title: 'Repariert' })
     );
 
-    const result = await generateStructured({ ...base, aiWorkerPool: pool });
+    const result = await generateStructured({ ...base, aiClient: pool });
 
     expect(result).toEqual({ ok: true, data: { title: 'Repariert' } });
     const [repair] = processRequest.mock.calls[1];
@@ -159,7 +159,7 @@ describe('generateStructured', () => {
       { success: true, content: 'immer noch Prosa' }
     );
 
-    const result = await generateStructured({ ...base, aiWorkerPool: pool });
+    const result = await generateStructured({ ...base, aiClient: pool });
 
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toContain('kein verwertbares JSON');
@@ -177,7 +177,7 @@ describe('generateStructured', () => {
       toolCall({ title: 'Repariert' })
     );
 
-    await generateStructured({ ...base, aiWorkerPool: pool });
+    await generateStructured({ ...base, aiClient: pool });
 
     const [repair] = processRequest.mock.calls[1];
     expect(repair.messages.some((m: { role: string }) => m.role === 'assistant')).toBe(false);
@@ -197,7 +197,7 @@ describe('generateStructured', () => {
       toolCall({ title: 'Ganz' })
     );
 
-    const result = await generateStructured({ ...base, aiWorkerPool: pool });
+    const result = await generateStructured({ ...base, aiClient: pool });
 
     expect(result).toEqual({ ok: true, data: { title: 'Ganz' } });
     expect(processRequest).toHaveBeenCalledTimes(2);
@@ -216,7 +216,7 @@ describe('generateStructured', () => {
       { ...toolCall({ title: 'Torso B' }), stop_reason: 'length' }
     );
 
-    const result = await generateStructured({ ...base, aiWorkerPool: pool });
+    const result = await generateStructured({ ...base, aiClient: pool });
 
     expect(result).toEqual({ ok: true, data: { title: 'Torso A' } });
   });
@@ -234,7 +234,7 @@ describe('generateStructured', () => {
       toolCall({ title: 'Ganz' })
     );
 
-    const result = await generateStructured({ ...base, aiWorkerPool: pool });
+    const result = await generateStructured({ ...base, aiClient: pool });
 
     expect(result).toEqual({ ok: true, data: { title: 'Ganz' } });
     expect(processRequest).toHaveBeenCalledTimes(2);
@@ -250,7 +250,7 @@ describe('generateStructured', () => {
       { success: true, content: 'immer noch Prosa' }
     );
 
-    const result = await generateStructured({ ...base, aiWorkerPool: pool });
+    const result = await generateStructured({ ...base, aiClient: pool });
 
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toContain('kein verwertbares JSON');
@@ -262,7 +262,7 @@ describe('generateStructured', () => {
     // types route to Mistral Medium 3.5 by TYPE; see providerSelector.
     const { pool, processRequest } = poolReturning(toolCall({ title: 'X' }));
 
-    await generateStructured({ ...base, aiWorkerPool: pool });
+    await generateStructured({ ...base, aiClient: pool });
 
     const [request] = processRequest.mock.calls[0];
     expect(request.provider).toBeUndefined();
@@ -272,7 +272,7 @@ describe('generateStructured', () => {
   it('gives up after the attempt budget and reports the last error', async () => {
     const { pool, processRequest } = poolReturning(toolCall({}), toolCall({}));
 
-    const result = await generateStructured({ ...base, aiWorkerPool: pool });
+    const result = await generateStructured({ ...base, aiClient: pool });
 
     expect(result).toEqual({ ok: false, error: 'title: Required' });
     expect(processRequest).toHaveBeenCalledTimes(2);
@@ -285,7 +285,7 @@ describe('generateStructured', () => {
       toolCall({ title: 'Endlich' })
     );
 
-    const result = await generateStructured({ ...base, aiWorkerPool: pool, attempts: 3 });
+    const result = await generateStructured({ ...base, aiClient: pool, attempts: 3 });
 
     expect(result).toEqual({ ok: true, data: { title: 'Endlich' } });
     expect(processRequest).toHaveBeenCalledTimes(3);
@@ -297,7 +297,7 @@ describe('generateStructured', () => {
       toolCall({ title: 'Zweiter Versuch' })
     );
 
-    const result = await generateStructured({ ...base, aiWorkerPool: pool });
+    const result = await generateStructured({ ...base, aiClient: pool });
 
     expect(result).toEqual({ ok: true, data: { title: 'Zweiter Versuch' } });
   });
@@ -310,7 +310,7 @@ describe('generateStructured', () => {
 
     const result = await generateStructured({
       ...base,
-      aiWorkerPool: { processRequest } as unknown as AIWorkerPool,
+      aiClient: { processRequest } as unknown as AiClient,
     });
 
     expect(result).toEqual({ ok: true, data: { title: 'Nach dem Fehler' } });
@@ -325,7 +325,7 @@ describe('generateStructured', () => {
       ],
     });
 
-    const result = await generateStructured({ ...base, aiWorkerPool: pool });
+    const result = await generateStructured({ ...base, aiClient: pool });
 
     expect(result).toEqual({ ok: true, data: { title: 'Aus Block' } });
   });
@@ -345,7 +345,7 @@ describe('generateStructured', () => {
       toolCall({ title: 'richtig' })
     );
 
-    const result = await generateStructured({ ...base, aiWorkerPool: pool });
+    const result = await generateStructured({ ...base, aiClient: pool });
 
     expect(result).toEqual({ ok: true, data: { title: 'richtig' } });
   });

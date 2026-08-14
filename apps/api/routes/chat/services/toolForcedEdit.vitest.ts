@@ -10,12 +10,12 @@ import { z } from 'zod';
 
 import { runToolForcedEdit } from './toolForcedEdit.js';
 
-import type { AIWorkerPool } from '../../../workers/types.js';
+import type { AiClient } from '../../../services/ai/types.js';
 
 const schema = z.object({ summary: z.string(), count: z.number() });
 
 function makePool(results: unknown[]): {
-  pool: AIWorkerPool;
+  pool: AiClient;
   processRequest: ReturnType<typeof vi.fn>;
 } {
   const processRequest = vi.fn();
@@ -23,7 +23,7 @@ function makePool(results: unknown[]): {
     if (r instanceof Error) processRequest.mockRejectedValueOnce(r);
     else processRequest.mockResolvedValueOnce(r);
   }
-  return { pool: { processRequest } as unknown as AIWorkerPool, processRequest };
+  return { pool: { processRequest } as unknown as AiClient, processRequest };
 }
 
 const base = {
@@ -41,7 +41,7 @@ describe('runToolForcedEdit', () => {
       { success: true, tool_calls: [{ name: 'apply_edit', input: { summary: 'ok', count: 2 } }] },
     ]);
 
-    const result = await runToolForcedEdit({ ...base, aiWorkerPool: pool });
+    const result = await runToolForcedEdit({ ...base, aiClient: pool });
 
     expect(result).toEqual({ ok: true, edit: { summary: 'ok', count: 2 } });
     expect(processRequest).toHaveBeenCalledTimes(1);
@@ -61,7 +61,7 @@ describe('runToolForcedEdit', () => {
       },
     ]);
 
-    await expect(runToolForcedEdit({ ...base, aiWorkerPool: pool })).resolves.toEqual({
+    await expect(runToolForcedEdit({ ...base, aiClient: pool })).resolves.toEqual({
       ok: true,
       edit: { summary: 'ok', count: 1 },
     });
@@ -79,7 +79,7 @@ describe('runToolForcedEdit', () => {
       },
     ]);
 
-    const result = await runToolForcedEdit({ ...base, aiWorkerPool: pool });
+    const result = await runToolForcedEdit({ ...base, aiClient: pool });
     expect(result).toEqual({ ok: false, error: 'No tool call in response' });
   });
 
@@ -89,7 +89,7 @@ describe('runToolForcedEdit', () => {
       { success: true, tool_calls: [{ name: 'apply_edit', input: { summary: 'ok', count: 3 } }] },
     ]);
 
-    const result = await runToolForcedEdit({ ...base, aiWorkerPool: pool });
+    const result = await runToolForcedEdit({ ...base, aiClient: pool });
 
     expect(result).toEqual({ ok: true, edit: { summary: 'ok', count: 3 } });
     expect(processRequest).toHaveBeenCalledTimes(2);
@@ -99,7 +99,7 @@ describe('runToolForcedEdit', () => {
     const bad = { success: true, tool_calls: [{ name: 'apply_edit', input: { summary: 42 } }] };
     const { pool, processRequest } = makePool([bad, bad]);
 
-    const result = await runToolForcedEdit({ ...base, aiWorkerPool: pool });
+    const result = await runToolForcedEdit({ ...base, aiClient: pool });
 
     expect(processRequest).toHaveBeenCalledTimes(2);
     expect(result.ok).toBe(false);
@@ -109,7 +109,7 @@ describe('runToolForcedEdit', () => {
   it('survives a thrown request and reports the message', async () => {
     const { pool } = makePool([new Error('boom'), new Error('boom')]);
 
-    const result = await runToolForcedEdit({ ...base, aiWorkerPool: pool });
+    const result = await runToolForcedEdit({ ...base, aiClient: pool });
 
     expect(result).toEqual({ ok: false, error: 'boom' });
   });
@@ -118,7 +118,7 @@ describe('runToolForcedEdit', () => {
     const bad = { success: false, error: 'nope' };
     const { pool, processRequest } = makePool([bad, bad, bad]);
 
-    await runToolForcedEdit({ ...base, aiWorkerPool: pool, maxAttempts: 3 });
+    await runToolForcedEdit({ ...base, aiClient: pool, maxAttempts: 3 });
 
     expect(processRequest).toHaveBeenCalledTimes(3);
   });

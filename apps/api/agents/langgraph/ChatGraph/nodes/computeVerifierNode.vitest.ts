@@ -14,7 +14,7 @@ function makeState(llmContent: string): ChatGraphState {
     // Retrieval rewrite — the verifier must judge against the RAW question.
     searchQuery: 'Gesamtumsatz Unternehmen Statistik Bericht',
     pandasLastCode: 'print("Gesamtumsatz:", df["Umsatz"].sum())',
-    aiWorkerPool: { processRequest: vi.fn().mockResolvedValue({ content: llmContent }) },
+    aiClient: { processRequest: vi.fn().mockResolvedValue({ content: llmContent }) },
   } as unknown as ChatGraphState;
 }
 
@@ -54,7 +54,7 @@ describe('computeVerifierNode', () => {
       plausible: false,
       hint: 'Umsatz doppelt hergeleitet',
     });
-    const call = (state.aiWorkerPool as unknown as { processRequest: ReturnType<typeof vi.fn> })
+    const call = (state.aiClient as unknown as { processRequest: ReturnType<typeof vi.fn> })
       .processRequest.mock.calls[0][0];
     // RAW user question, not the retrieval rewrite in searchQuery.
     expect(call.messages[0].content).toContain('wie hoch ist der gesamtumsatz?');
@@ -67,7 +67,7 @@ describe('computeVerifierNode', () => {
   it('fails open when the LLM call throws', async () => {
     const state = makeState('');
     (
-      state.aiWorkerPool as unknown as { processRequest: ReturnType<typeof vi.fn> }
+      state.aiClient as unknown as { processRequest: ReturnType<typeof vi.fn> }
     ).processRequest.mockRejectedValue(new Error('down'));
     expect(await computeVerifierNode(state, RESULT)).toEqual({ plausible: true });
   });
@@ -77,7 +77,7 @@ describe('computeVerifierNode', () => {
     (state as { pandasLastCode?: string }).pandasLastCode = undefined;
     expect(await computeVerifierNode(state, RESULT)).toEqual({ plausible: true });
     expect(
-      (state.aiWorkerPool as unknown as { processRequest: ReturnType<typeof vi.fn> }).processRequest
+      (state.aiClient as unknown as { processRequest: ReturnType<typeof vi.fn> }).processRequest
     ).not.toHaveBeenCalled();
   });
 
@@ -85,7 +85,7 @@ describe('computeVerifierNode', () => {
     const state = makeState('{"plausible": true}');
     (state as unknown as { messages: unknown[] }).messages = [];
     expect(await computeVerifierNode(state, RESULT)).toEqual({ plausible: true });
-    const call = (state.aiWorkerPool as unknown as { processRequest: ReturnType<typeof vi.fn> })
+    const call = (state.aiClient as unknown as { processRequest: ReturnType<typeof vi.fn> })
       .processRequest.mock.calls[0][0];
     expect(call.messages[0].content).toContain('Gesamtumsatz Unternehmen Statistik Bericht');
   });
