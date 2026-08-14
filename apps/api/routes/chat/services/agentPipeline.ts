@@ -90,8 +90,35 @@ const log = createLogger('AgentPipeline');
  * RAG zurückkommt. Für ein Gespräch ist das richtig; für eine Prüfung, die den
  * ganzen Text braucht, ist es tödlich. Deshalb liest dieser Auflöser die
  * Anhang-Zeilen des Threads direkt und nimmt ihren gespeicherten Volltext.
+ *
+ * ── Der kurze Text, der trotzdem Material ist ──
+ *
+ * Die Längengrenze allein irrt in die andere Richtung: am 14.08.2026 lag ein
+ * frisch eingefügter Text von 1339 Zeichen unter ihr, wurde als Anweisung
+ * gewertet und vom Artikel des vorigen Turns verdrängt. Die Fassung entstand
+ * trotzdem aus ihm - er stand ja in der Nachricht -, die Prüfung mass gegen den
+ * alten Artikel und meldete die richtige Fassung als vollständige Halluzination.
+ *
+ * `promptIsPastedText` ist dafür das ehrlichere Merkmal als die Länge: eine
+ * Beanstandung wird getippt, ein Ausgangstext eingefügt. Trifft es zu, ist die
+ * Nachricht Material, wie kurz sie auch sei.
+ *
+ * Zwei Kosten dieser Entscheidung, damit sie nicht überrascht:
+ *
+ * 1. Wer eine Beanstandung EINFÜGT statt sie zu tippen, macht sie zum Original —
+ *    genau der Fehler vom 13.08., nur auf einem anderen Weg. Der Preis ist
+ *    angenommen: die Beförderung setzt eine leere Eingabezeile voraus, und wer
+ *    beanstandet, tippt. Ein Merkmal, das eine eingefügte Kritik von einem
+ *    eingefügten Ausgangstext unterscheidet, gibt es nicht.
+ * 2. Das Merkmal hängt am Paste-Anhang des Web-Composers. Wo der Text als blosser
+ *    Nachrichteninhalt ankommt (Mobile, API-Clients), gibt es keine Beförderung
+ *    und weiterhin nur die Länge. Dort steht der Fehler von 14.08. noch.
  */
-export function resolveOriginalText(state: MaterialState, lastUserText: string): string {
+export function resolveOriginalText(
+  state: MaterialState,
+  lastUserText: string,
+  promptIsPastedText = false
+): string {
   const material = [state.attachmentContext ?? '', state.documentMentionContext ?? '']
     .map((c) => c.trim())
     .filter(Boolean);
@@ -101,7 +128,11 @@ export function resolveOriginalText(state: MaterialState, lastUserText: string):
   // dann ist die Nachricht die Anweisung, nicht der Ausgangstext. Die Grenze ist
   // dieselbe, an der `inlineMaterialAttachment` Material von Anweisung trennt;
   // zwei Zahlen für dieselbe Frage würden auseinanderlaufen.
-  if (material.length === 0 && instruction.length < INLINE_MATERIAL_MIN_CHARS) {
+  if (
+    material.length === 0 &&
+    !promptIsPastedText &&
+    instruction.length < INLINE_MATERIAL_MIN_CHARS
+  ) {
     const carried = carriedOriginalText(state);
     if (carried) {
       log.info(
@@ -159,6 +190,7 @@ async function runStep(
         // GENAU eine Nachricht, und in ihr steht nur, was `buildUserMessage`
         // hineingelegt hat. Kein `state.messages`, kein Verlauf, keine Anhänge.
         messages: [{ role: 'user', content: userMessage }],
+        ...(step.timeoutMs != null && { timeoutMs: step.timeoutMs }),
         options: {
           model: LANE.model,
           max_tokens: step.maxTokens,

@@ -42,6 +42,7 @@ import { createLogger } from '../../../utils/logger.js';
 import { captureSseError } from '../../../utils/observability/captureSseError.js';
 import { ThreadId, UserId } from '../../../utils/types/branded.js';
 import { withTimeout } from '../../../utils/withTimeout.js';
+import { getPipelineAgent } from '../agents/pipelines/index.js';
 import { getContextWindow } from '../agents/providers.js';
 
 import { getThreadAttachments } from './attachmentPersistenceService.js';
@@ -118,13 +119,25 @@ export const INLINE_MATERIAL_ATTACHMENT_NAME = 'Eingefügter Text.txt';
  * is nothing to carry forward. Skipped when the turn already brought a document
  * (that one IS the material) and on regenerate (the user message is unchanged —
  * a second row would duplicate it).
+ *
+ * `promoted` lifts the length floor, and only that one. A promoted paste is not
+ * "some short message": the composer created it because the paste passed its own
+ * bar (≥600 chars, or ≥200 across three lines), and it arrived with an empty
+ * textarea, so it is the turn's material by construction. Without this, the
+ * paste is dropped from `effectiveAttachments` on promotion and never persisted:
+ * `resolveOriginalText` picks it correctly for THIS turn, and the next turn —
+ * "bitte korrigieren", no material of its own — carries the previous article
+ * back in, because that is the newest row the thread has. Measured 14.08.2026: a
+ * 1.339-char source text, one turn of correct behaviour, then the same wrong
+ * original as before.
  */
 export function inlineMaterialAttachment(
   text: string,
-  opts: { regenerate: boolean; hasDocumentAttachment: boolean }
+  opts: { regenerate: boolean; hasDocumentAttachment: boolean; promoted?: boolean }
 ): ProcessAttachmentsResult['processedMeta'][number] | null {
   if (opts.regenerate || opts.hasDocumentAttachment) return null;
-  if (text.length < INLINE_MATERIAL_MIN_CHARS) return null;
+  if (!opts.promoted && text.length < INLINE_MATERIAL_MIN_CHARS) return null;
+  if (text.trim().length === 0) return null;
   return {
     name: INLINE_MATERIAL_ATTACHMENT_NAME,
     mimeType: 'text/plain',
@@ -173,6 +186,11 @@ export interface StreamContext {
   /** Last user message text WITH tokens (pre-sanitization) — for regex
    *  heuristics that need the remove-form. */
   lastUserTextRaw: string;
+  /** True when this turn's user message IS a paste — the composer's synthetic
+   *  paste attachment sent with an empty textarea, promoted above. Read by
+   *  `resolveOriginalText`, which otherwise has only length to tell a short
+   *  pasted source text from a typed instruction. */
+  promptIsPastedText: boolean;
   /** Placeholder assistant row minted before streaming so an aborted/crashed
    *  turn still persists (WP-B). Null when no thread/user message, or when the
    *  placeholder insert failed (the turn then runs as before). */
@@ -409,6 +427,7 @@ export async function buildStreamContext({
   // the user message itself (classifier, title, persistence and prompts all see
   // it); alongside typed text it stays reference material as before.
   let effectiveAttachments = attachments as ProcessedAttachment[] | undefined;
+  let promptIsPastedText = false;
   if (lastUserMessage) {
     const promotion = extractPromotablePasteText(
       effectiveAttachments,
@@ -417,6 +436,7 @@ export async function buildStreamContext({
     if (promotion) {
       lastUserMessage.content = promotion.pasteText;
       effectiveAttachments = promotion.remaining;
+      promptIsPastedText = true;
       log.info('[StreamContext] Pasted text promoted to user prompt (composer text was empty)');
     }
   }
@@ -618,6 +638,13 @@ export async function buildStreamContext({
     {
       regenerate: !!rawRegenerate,
       hasDocumentAttachment: processedMeta.some((m) => !m.isImage),
+      // Nur für Pipeline-Agenten. Ein gewöhnlicher Chat liest die Nachricht im
+      // Verlauf ohnehin wieder; er braucht die Zeile nicht — bekäme aber mit ihr
+      // für jeden 200-Zeichen-Paste eine Anhang-Zeile, einen Zusammenfassungs-
+      // Aufruf im Hintergrund (ab 100 Zeichen) und den eigenen Text ab dann als
+      // „FRÜHERE DOKUMENTE" zurück. Die Kette dagegen misst gegen den
+      // Ausgangstext und braucht ihn auch im Folge-Turn, der nichts mitbringt.
+      promoted: promptIsPastedText && !!getPipelineAgent(agentId),
     }
   );
   if (inlineMaterial) {
@@ -888,6 +915,7 @@ export async function buildStreamContext({
       contextWindowTokens,
       mentionTokenFields,
       lastUserTextRaw,
+      promptIsPastedText,
       pendingAssistantMessageId,
       threadToolHistory,
       userMessageId,

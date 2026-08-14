@@ -499,9 +499,12 @@ describe('resolveAutoSelection — Pipeline-Agenten', () => {
       materialChars: MATERIAL,
     });
     expect(selection.modelId).toBe('gemma-litellm');
-    // Denken bleibt an — eine Übertragung ist Vergleichsarbeit. Nur die Lane
-    // ist eine, die daran nicht stirbt.
-    expect(selection.reasoning).toBe('medium');
+    // Denken versuchsweise aus (14.08.2026): auf dieser Lane kam es in keinem
+    // gemessenen Lauf durch, jeder endete im Rückfall „zweiter Versuch ohne
+    // Denken". Was der Test festhält, ist die Lane und ihre Unverdrehbarkeit —
+    // der Reasoning-Wert ist hier bewusst mitgeprüft, damit ein Zurückdrehen
+    // eine sichtbare Entscheidung bleibt und kein Nebeneffekt.
+    expect(selection.reasoning).toBe('off');
   });
 
   it('lässt sich auch von taskShape nicht wegdrehen', () => {
