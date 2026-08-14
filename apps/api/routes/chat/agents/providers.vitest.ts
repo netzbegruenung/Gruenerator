@@ -27,14 +27,24 @@ describe('prefersUnifiedLoop (unified vs planner/executor split)', () => {
 
 describe('split-mode model policy (getLoopSynthModel / loopPlannerModelName)', () => {
   it('planner is a verified NON-Chinese tool-caller', () => {
-    // Native Mistral Small (fast tool-caller) when configured, else
-    // litellm/verdigado-pro. Never qwen (Chinese), gpt-oss (tool-call fail) or a
-    // think model.
+    // The three declared tiers (autoPolicy.ts): GreenPT's Mistral Small first,
+    // then self-hosted regolo, then litellm/verdigado-pro. Tool calls were
+    // verified live on all three on 13.08.2026.
     const planner = loopPlannerModelName();
-    expect(['verdigado-pro', 'mistral-small-4-119b', 'mistral-medium-2604']).toContain(planner);
+    expect([
+      'mistral-small-3.2-24b-instruct-2506',
+      'mistral-small-4-119b',
+      'verdigado-pro',
+    ]).toContain(planner);
+    // The invariant behind that list, spelled out so widening the constants
+    // cannot quietly slip a banned lane into the slot.
+    expect(planner).not.toMatch(/qwen|glm|kimi|minimax|deepseek|think/i);
   });
 
-  it('the planner never runs Mistral Small natively — self-hosted only', () => {
+  it('the planner never runs Mistral Small on the vendor API', () => {
+    // Mistral Small is served from GreenPT (Scaleway Paris) or self-hosted on
+    // Regolo — never `mistral-small-latest`, which would bill the Mistral API.
+    // The lane moved hosts on 13.08.2026; the rule about the vendor API did not.
     expect(loopPlannerModelName()).not.toBe('mistral-small-latest');
   });
 

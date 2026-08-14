@@ -37,6 +37,9 @@ import {
   estimateImageFootprint,
   gridIntensityFor,
   pueFor,
+  emissionsFromEnergy,
+  hasMarketInstrument,
+  marketIntensityFor,
   referenceFootprint,
 } from './energyFootprint.js';
 
@@ -148,6 +151,9 @@ function emptyStats(days: number, sinceDay: string, suppressedDays: number, acti
       image_emissions_g: 0,
       reference_energy_wh: 0,
       reference_emissions_g: 0,
+      market_emissions_g: 0,
+      image_market_emissions_g: 0,
+      market_backed_share: 0,
       unvalued_ops: { transcriptions: 0, searches: 0 },
     },
     providers: [],
@@ -280,6 +286,12 @@ export async function computePlatformUsageStats(
   let textOutputTokens = 0;
   let coveredOutputTokens = 0;
   let coveredRequests = 0;
+  // MARKET-based counterpart of `emissionsUg`, accumulated over the same rows.
+  // Independent of the low/high band above: that band is uncertainty, this is a
+  // second accounting method. See MARKET_INTENSITY_G_PER_KWH.
+  let marketEmissionsUg = 0;
+  let imageMarketEmissionsUg = 0;
+  let marketBackedEnergyWms = 0;
 
   const addProvider = (
     provider: string,
@@ -313,6 +325,8 @@ export async function computePlatformUsageStats(
         energyWmsLow += row.energyWms;
         emissionsUgLow += row.emissionsUg;
         rowEmissionsUg = row.emissionsUg;
+        marketEmissionsUg += emissionsFromEnergy(row.energyWms, marketIntensityFor(row.provider));
+        if (hasMarketInstrument(row.provider)) marketBackedEnergyWms += row.energyWms;
         coveredOutputTokens += row.outputTokens;
         coveredRequests += row.requests;
         addProvider(row.provider, row.energyWms, row.emissionsUg, 'tokens');
@@ -332,6 +346,8 @@ export async function computePlatformUsageStats(
           energyWmsLow += low?.energyWms ?? high.energyWms;
           emissionsUgLow += low?.emissionsUg ?? high.emissionsUg;
           rowEmissionsUg = high.emissionsUg;
+          marketEmissionsUg += high.marketEmissionsUg;
+          if (hasMarketInstrument(row.provider)) marketBackedEnergyWms += high.energyWms;
           coveredOutputTokens += row.outputTokens;
           coveredRequests += row.requests;
           if (high.basis === 'bound') boundedEnergyWms += high.energyWms;
@@ -352,6 +368,9 @@ export async function computePlatformUsageStats(
         imageEnergyWms += high.energyWms;
         imageEmissionsUg += high.emissionsUg;
         rowEmissionsUg = high.emissionsUg;
+        marketEmissionsUg += high.marketEmissionsUg;
+        imageMarketEmissionsUg += high.marketEmissionsUg;
+        if (hasMarketInstrument(row.provider)) marketBackedEnergyWms += high.energyWms;
         if (high.basis === 'bound') boundedEnergyWms += high.energyWms;
         addProvider(row.provider, high.energyWms, high.emissionsUg, 'images');
       }
@@ -429,6 +448,9 @@ export async function computePlatformUsageStats(
       image_emissions_g: imageEmissionsUg / UG_PER_G,
       reference_energy_wh: reference.energyWms / WMS_PER_WH,
       reference_emissions_g: reference.emissionsUg / UG_PER_G,
+      market_emissions_g: marketEmissionsUg / UG_PER_G,
+      image_market_emissions_g: imageMarketEmissionsUg / UG_PER_G,
+      market_backed_share: energyWms > 0 ? marketBackedEnergyWms / energyWms : 0,
       unvalued_ops: {
         transcriptions: totals.transcriptions,
         searches: totals.searches,
