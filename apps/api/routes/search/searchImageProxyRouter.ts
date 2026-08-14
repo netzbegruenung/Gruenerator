@@ -10,22 +10,19 @@
  * instead of one. So #2206 rendered links. This route is what turns them into
  * thumbnails without giving the trade back.
  *
- * WHY IT IS NOT `safeFetch`. That helper validates the URL string and then calls
- * `fetch(urlString)` with default redirect following, so its check only ever
- * covers the first URL in the chain: a 302 to `169.254.169.254` walks straight
- * past it. Here redirects are followed by hand with `redirect: 'manual'` and
- * every hop is re-validated in full, with a small cap.
+ * HOW IT FETCHES. Redirects are followed by hand with `redirect: 'manual'` and
+ * every hop is re-validated in full, with a small cap — the default follower
+ * would take a 302 to `169.254.169.254` blind. And the connection is PINNED:
+ * the name is resolved once, every address it answers with has to be public,
+ * and undici gets a `connect.lookup` that can only return addresses from that
+ * check. Without it the name is resolved twice — once by the validator, once by
+ * the runtime opening the socket — and only the first answer is ever checked,
+ * so a host answering publicly during validation and privately a moment later
+ * (DNS rebinding) would walk through.
  *
- * The other half of `safeFetch`'s problem is subtler and is why this route does
- * not call the global `fetch` either: the name would be resolved twice — once by
- * the validator, once by the runtime when it opens the socket — and only the
- * first answer would be checked. A host that answers publicly during validation
- * and privately a moment later (DNS rebinding) would walk through. So the
- * connection is PINNED: we resolve the name once, require every address it
- * answers with to be public, and hand undici a `connect.lookup` that can only
- * return addresses from that check. A hostname we never validated has no entry
- * and the socket is refused outright — the check and the connect see the same
- * address by construction, not by timing.
+ * Both mechanics now live in `utils/validation/urlSecurity.ts` and are shared
+ * with `safeFetch`; this route keeps its own loop for what is specific to it —
+ * the byte cap, the content-type allowlist and the deliberately bare header set.
  *
  * The threat model is an attacker who can influence what a web search returns —
  * which is not exotic, because SEO is a profession. The signature (see
@@ -33,28 +30,22 @@
  * below assumes that limit can fail and re-checks anyway.
  */
 
-import { lookup as dnsLookupCb } from 'dns';
-import { promisify } from 'util';
-
 import express, { type Request, type Response, type Router } from 'express';
 import { Agent, fetch as undiciFetch } from 'undici';
 
 import { verifyImageUrl, type VerifyFailure } from '../../services/search/imageProxySignature.js';
 import { createLogger } from '../../utils/logger.js';
-import { isPrivateAddress, validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
-
-import type { LookupAddress } from 'dns';
-import type { LookupFunction } from 'net';
+import {
+  createPinnedLookup,
+  resolvePinnedAddresses,
+  validateUrlForFetch,
+  type PinnedHosts,
+} from '../../utils/validation/urlSecurity.js';
 
 const log = createLogger('SearchImageProxy');
 
-const dnsLookup = promisify(dnsLookupCb);
-
 /** The upstream Response — Express's `Response` shadows the global in this file. */
 type FetchResponse = Awaited<ReturnType<typeof undiciFetch>>;
-
-/** Hostname → the addresses we resolved AND checked for it. */
-type PinnedHosts = Map<string, LookupAddress[]>;
 
 const router: Router = express.Router();
 
@@ -103,58 +94,6 @@ const VERIFY_STATUS: Record<VerifyFailure, number> = {
 };
 
 /**
- * Resolve a hostname and accept it only if EVERY address it answers with is
- * public.
- *
- * `all: true` is the load-bearing option. A plain `dns.lookup` hands back one
- * address, so a record listing a public and a private address passes a check on
- * whichever came first and then connects to whichever the runtime picks. Taking
- * all of them, and requiring all of them, removes that choice.
- *
- * An IP literal resolves to itself, so literals come through here too — which is
- * how IPv6 literals get range-checked at all: the validator's private-IP test is
- * written for dotted-quad.
- */
-async function resolvePublicAddresses(
-  hostname: string
-): Promise<{ ok: true; addresses: LookupAddress[] } | { ok: false; why: string }> {
-  let addresses: LookupAddress[];
-  try {
-    // `verbatim` keeps the resolver's own ordering; we check every entry anyway,
-    // so reordering could only ever hide one behind another.
-    addresses = await dnsLookup(hostname, { all: true, verbatim: true });
-  } catch {
-    // Kept apart from the rejection below on purpose: a name that does not
-    // resolve is a dead link, a name that resolves privately is an attempt. One
-    // shared message would send someone hunting an attack that never happened.
-    return { ok: false, why: 'DNS lookup failed' };
-  }
-  if (addresses.length === 0) return { ok: false, why: 'DNS returned no addresses' };
-  const priv = addresses.find((entry) => isPrivateAddress(entry.address));
-  if (priv) return { ok: false, why: `resolves to private address ${priv.address}` };
-  return { ok: true, addresses };
-}
-
-/**
- * The `connect.lookup` undici uses. It answers only from `pinned`, so a name that
- * did not pass `checkHop` cannot be connected to at all — including a name that
- * passed once and would resolve differently now.
- *
- * Exported for the test that matters most here: the assertion is not "a private
- * address is rejected" but "an unvalidated hostname never reaches a socket".
- */
-export function createPinnedLookup(pinned: PinnedHosts): LookupFunction {
-  return (hostname, _options, callback) => {
-    const addresses = pinned.get(hostname);
-    if (!addresses || addresses.length === 0) {
-      callback(new Error(`unpinned host: ${hostname}`), []);
-      return;
-    }
-    callback(null, addresses);
-  };
-}
-
-/**
  * Validate one URL as a fetch target and pin the addresses it may be reached at.
  * Returns the validated absolute URL, or a reason for the log.
  */
@@ -178,7 +117,7 @@ async function checkHop(
     return { ok: false, why: result.error ?? 'validation failed' };
   }
 
-  const resolved = await resolvePublicAddresses(result.url.hostname);
+  const resolved = await resolvePinnedAddresses(result.url.hostname);
   if (!resolved.ok) {
     return { ok: false, why: resolved.why };
   }
