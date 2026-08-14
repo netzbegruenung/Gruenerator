@@ -139,6 +139,13 @@ const envSchema = z.object({
 
   // ── Better Auth ────────────────────────────────────────────────────────
   BETTER_AUTH_URL: z.string().optional(),
+  // Explicit override for the session-cookie scope in production. Normally
+  // unset: the scope is derived from BETTER_AUTH_URL, so an instance with its
+  // own database narrows its cookie automatically. Set this only where the
+  // cookie must span more or less than the deployment's own host. NOT related
+  // to PRIMARY_DOMAIN — that is the brand domain, identical on every instance.
+  // See `betterAuth.ts` → deriveCookieDomain.
+  COOKIE_DOMAIN: z.string().optional(),
 
   // ── MCP server (authenticated, OAuth) ──────────────────────────────────
   MCP_SERVER_ENABLED: boolFlag(false),
