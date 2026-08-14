@@ -21,6 +21,7 @@
 
 import { env } from '../../config/env.js';
 
+import { recordModelSample } from './modelHealth.js';
 import { isScalewayMistralRoutingEnabled, SCALEWAY_MISTRAL_MODELS } from './providerInstances.js';
 import { scalewayBaseUrl } from './scalewayEndpoint.js';
 
@@ -227,6 +228,7 @@ export async function* streamWithReasoning(
     throw new Error(`Endpoint for '${params.provider}' reasoning stream is not configured`);
   }
 
+  const startedAt = Date.now();
   const response = await fetch(config.endpoint, {
     method: 'POST',
     headers: {
@@ -252,6 +254,7 @@ export async function* streamWithReasoning(
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let firstTextAt: number | null = null;
 
   try {
     while (true) {
@@ -277,11 +280,30 @@ export async function* streamWithReasoning(
 
         const delta = extractDelta(parsed);
         if (delta.reasoning) yield { type: 'reasoning', delta: delta.reasoning };
-        if (delta.text) yield { type: 'text', delta: delta.text };
+        if (delta.text) {
+          firstTextAt ??= Date.now();
+          yield { type: 'text', delta: delta.text };
+        }
       }
     }
   } finally {
     reader.releaseLock();
+    // Dieser Pfad ruft rohes `fetch` und geht damit an `withUsageTracking`
+    // vorbei — ohne das hier wäre ausgerechnet die Lane mit der längsten
+    // sichtbaren Wartezeit die einzige unbeobachtete.
+    //
+    // NUR Zeit bis zum ersten Antworttext, kein Durchsatz: der Strom trägt
+    // keine Token-Zahlen. Aus Zeichen zu schätzen hiesse, für dasselbe Modell
+    // zwei Einheiten in dieselbe Basislinie zu mischen. Vollständig zu schliessen
+    // wäre es mit `stream_options: { include_usage: true }` — je Upstream zu
+    // prüfen, weil ein unbekanntes Feld dort auch ein 400 sein kann.
+    recordModelSample({
+      provider: params.provider,
+      model: params.model,
+      outputTokens: 0,
+      durationMs: Date.now() - startedAt,
+      ttftMs: firstTextAt === null ? null : firstTextAt - startedAt,
+    });
   }
 }
 
