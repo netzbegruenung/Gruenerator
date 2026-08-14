@@ -81,7 +81,16 @@ export function RobotAvatar({
         // initials flash on fast loads while still surfacing it if the avatar is
         // slow/broken. For initials-only users we want it shown immediately.
         {...(isRobot ? { delayMs: 300 } : {})}
-        className={cn('bg-primary-500 font-bold text-white', fallbackClassName)}
+        // `primary-600` und nicht `primary-500`: die Initialen sind weiß, fett
+        // und 12 px groß — das ist KEINE „große Schrift" im Sinne von WCAG
+        // 1.4.3 (dafür bräuchte es 14 pt fett ≈ 18,7 px), also gilt 4,5:1.
+        // Weiß auf `primary-500` (#52907a) erreicht 3,73:1, auf `primary-600`
+        // (#316049) sind es 7,24:1.
+        //
+        // Gefunden hat das die a11y-Lane, aber erst, seit sie auf die fertige
+        // Seite wartet: die Ersatzfläche steht nur, solange das Avatarbild
+        // fehlt oder noch lädt. Wer kein Bild hinterlegt hat, sieht sie dauerhaft.
+        className={cn('bg-primary-600 font-bold text-white', fallbackClassName)}
       >
         {initials}
       </AvatarFallback>
