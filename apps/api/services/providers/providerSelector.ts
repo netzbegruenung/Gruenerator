@@ -158,7 +158,8 @@ const STRUCTURE_MODEL = 'mistral-medium-2604';
 
 /**
  * Gemma 4 lives on Regolo. Naming it explicitly is not optional: the Regolo
- * DEFAULT is `qwen3.5-122b`, and qwen is excluded by policy (AVOID_AS_SYNTH).
+ * DEFAULT kommt aus REGOLO_DEFAULT_MODEL und ist nicht garantiert der,
+ * den diese Lane will.
  *
  * The chat lane now agrees. `gemma-litellm` used to resolve to the slow
  * `verdigado-think` host, which is why this constant had to spell out the

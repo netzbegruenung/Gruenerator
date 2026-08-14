@@ -17,7 +17,7 @@ describe('Vision — unit tests', () => {
     it('returns true for known vision models', () => {
       expect(isVisionCapable('gemma4-31b')).toBe(true);
       expect(isVisionCapable('pixtral-large-latest')).toBe(true);
-      expect(isVisionCapable('qwen3.5-122b')).toBe(true);
+      expect(isVisionCapable('mistral-small-4-119b')).toBe(true);
     });
 
     it('returns false for non-vision models', () => {

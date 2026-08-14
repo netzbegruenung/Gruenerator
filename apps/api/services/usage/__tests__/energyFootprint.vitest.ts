@@ -100,7 +100,7 @@ describe('estimateFootprint', () => {
   });
 
   it('bounds the unmetered lanes from ABOVE and flags them as such', () => {
-    // GreenPT serves no equivalent of the 119b Small, the 122b Qwen or Pixtral
+    // GreenPT serves no equivalent of the 119b Small, the 119b Small or Pixtral
     // Large. A throughput proxy was tried and failed its own control (it put
     // gpt-oss at 0.43x gemma4 where the meter says 1.12x), so instead of a
     // guess these carry the TOP of the measured span for their size class.
@@ -108,7 +108,7 @@ describe('estimateFootprint', () => {
     const shape = { provider: 'regolo', inputTokens: 500, outputTokens: 500, requests: 1 };
     const gemma = estimateFootprint({ ...shape, model: 'gemma4-31b' });
 
-    for (const model of ['mistral-small-4-119b', 'qwen3.5-122b']) {
+    for (const model of ['mistral-small-4-119b', 'pixtral-large-latest']) {
       const bounded = estimateFootprint({ ...shape, model });
       expect(bounded?.basis).toBe('bound');
       // An upper bound must sit above the cheapest measured model of the fleet.
@@ -306,7 +306,7 @@ describe('the low end of the band', () => {
   it('drops an un-metered lane to the floor of the same measured span', () => {
     const args = {
       provider: 'regolo',
-      model: 'qwen3.5-122b',
+      model: 'pixtral-large-latest',
       inputTokens: 4000,
       outputTokens: 500,
       requests: 3,
@@ -325,7 +325,7 @@ describe('the low end of the band', () => {
     // measured — the share the API reports would then overstate our coverage.
     const args = {
       provider: 'regolo',
-      model: 'qwen3.5-122b',
+      model: 'pixtral-large-latest',
       inputTokens: 100,
       outputTokens: 100,
       requests: 1,
