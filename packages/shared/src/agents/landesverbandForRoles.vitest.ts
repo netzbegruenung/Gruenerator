@@ -14,46 +14,80 @@ import { DE_BUNDESLAENDER } from '../roles/rolesConfig.js';
 const hessen = LANDESVERBAENDE.find((lv) => lv.id === 'hessen')!;
 const bayern = LANDESVERBAENDE.find((lv) => lv.id === 'bayern')!;
 
+/** Die einzige Rolle, die einen Landesverband freischaltet. */
+const LGS = 'Mitarbeiter*in Landesgeschäftsstelle';
+
 describe('landesverbandIdsForRoles', () => {
-  it('leitet den Landesverband aus einer Landesrolle ab', () => {
-    expect(landesverbandIdsForRoles([{ ebene: 'land', bundesland: 'Hessen' }], 'de-DE')).toEqual([
-      'hessen',
-    ]);
+  it('leitet den Landesverband aus der Landesgeschäftsstellen-Rolle ab', () => {
+    expect(
+      landesverbandIdsForRoles([{ ebene: 'land', rolle: LGS, bundesland: 'Hessen' }], 'de-DE')
+    ).toEqual(['hessen']);
   });
 
   it('ignoriert Rollen unterhalb der Landesebene', () => {
     // Ein Kreisverband nennt zwar ein Bundesland, arbeitet aber nicht im LV —
     // und bei einer ausschließenden Regel kostet eine falsche Vermutung Zugang.
     expect(
-      landesverbandIdsForRoles([{ ebene: 'kreisverband', bundesland: 'Hessen' }], 'de-DE')
+      landesverbandIdsForRoles(
+        [{ ebene: 'kreisverband', rolle: 'Mitarbeiter*in Kreisverband', bundesland: 'Hessen' }],
+        'de-DE'
+      )
     ).toEqual([]);
-    expect(landesverbandIdsForRoles([{ ebene: 'bund' }], 'de-DE')).toEqual([]);
+    expect(
+      landesverbandIdsForRoles(
+        [{ ebene: 'bund', rolle: 'Mitarbeiter*in Bundesgeschäftsstelle' }],
+        'de-DE'
+      )
+    ).toEqual([]);
+  });
+
+  it('schaltet nur die Geschäftsstelle frei, nicht die übrige Landesebene', () => {
+    // Fraktion und Abgeordnetenbüro sitzen auf derselben Ebene und im selben
+    // Bundesland — die Rezepte gehören trotzdem der Geschäftsstelle.
+    for (const rolle of ['Mitarbeiter*in Landtagsfraktion', 'Mitarbeiter*in MdL-Büro']) {
+      expect(
+        landesverbandIdsForRoles([{ ebene: 'land', rolle, bundesland: 'Hessen' }], 'de-DE')
+      ).toEqual([]);
+    }
+  });
+
+  it('bleibt ohne Bundesland leer, statt einen Verband zu raten', () => {
+    expect(landesverbandIdsForRoles([{ ebene: 'land', rolle: LGS }], 'de-DE')).toEqual([]);
   });
 
   it('gibt bei Bundesländern ohne Landesverband nichts zurück', () => {
     expect(
-      landesverbandIdsForRoles([{ ebene: 'land', bundesland: 'Nordrhein-Westfalen' }], 'de-DE')
+      landesverbandIdsForRoles(
+        [{ ebene: 'land', rolle: LGS, bundesland: 'Nordrhein-Westfalen' }],
+        'de-DE'
+      )
     ).toEqual([]);
   });
 
   it('lässt abgeschaltete Landesverbände nicht wieder auferstehen', () => {
     // Schleswig-Holstein, Hamburg und Sachsen stehen auf `enabled: false`.
     expect(
-      landesverbandIdsForRoles([{ ebene: 'land', bundesland: 'Schleswig-Holstein' }], 'de-DE')
+      landesverbandIdsForRoles(
+        [{ ebene: 'land', rolle: LGS, bundesland: 'Schleswig-Holstein' }],
+        'de-DE'
+      )
     ).toEqual([]);
   });
 
-  it('ordnet österreichische Landesrollen dem einen AT-Verband zu', () => {
-    expect(landesverbandIdsForRoles([{ ebene: 'land', bundesland: 'Wien' }], 'de-AT')).toEqual([
-      'oesterreich',
-    ]);
+  it('ordnet die österreichische Landesorganisation dem einen AT-Verband zu', () => {
+    expect(
+      landesverbandIdsForRoles(
+        [{ ebene: 'land', rolle: 'Mitarbeiter*in Landesorganisation', bundesland: 'Wien' }],
+        'de-AT'
+      )
+    ).toEqual(['oesterreich']);
   });
 
   it('liefert mehrere Ids in Registry-Reihenfolge', () => {
     const ids = landesverbandIdsForRoles(
       [
-        { ebene: 'land', bundesland: 'Hessen' },
-        { ebene: 'land', bundesland: 'Bayern' },
+        { ebene: 'land', rolle: LGS, bundesland: 'Hessen' },
+        { ebene: 'land', rolle: LGS, bundesland: 'Bayern' },
       ],
       'de-DE'
     );
@@ -64,8 +98,16 @@ describe('landesverbandIdsForRoles', () => {
 });
 
 describe('isLvItemVisibleForRoles', () => {
-  it('zeigt ohne Rollenangabe weiterhin alles', () => {
-    expect(isLvItemVisibleForRoles(bayern.prAgentId, [])).toBe(true);
+  it('zeigt alles, solange die Rollen noch nicht bekannt sind', () => {
+    // `null` ist der Ladezustand — eine Ladephase darf nichts wegnehmen, was
+    // gleich wieder erscheint.
+    expect(isLvItemVisibleForRoles(bayern.prAgentId, null)).toBe(true);
+  });
+
+  it('blendet LV-Inhalte aus, wenn geprüft keine Zuteilung vorliegt', () => {
+    // `[]` ist eine Antwort, kein Ladezustand: keine Geschäftsstellenrolle,
+    // also kein LV-Material.
+    expect(isLvItemVisibleForRoles(bayern.prAgentId, [])).toBe(false);
   });
 
   it('lässt Nicht-LV-Agenten immer durch', () => {
@@ -85,20 +127,29 @@ describe('isLvNotebookVisibleForRoles', () => {
     expect(isLvNotebookVisibleForRoles('hessen-notebook', ['hessen'])).toBe(true);
     expect(isLvNotebookVisibleForRoles('bayern-notebook', ['hessen'])).toBe(false);
     expect(isLvNotebookVisibleForRoles('kommunalwiki-notebook', ['hessen'])).toBe(true);
-    expect(isLvNotebookVisibleForRoles('bayern-notebook', [])).toBe(true);
+    expect(isLvNotebookVisibleForRoles('bayern-notebook', null)).toBe(true);
+    expect(isLvNotebookVisibleForRoles('bayern-notebook', [])).toBe(false);
   });
 });
 
 describe('lvSkillMentionsForRoles', () => {
   it('liefert nur Rezepte des eigenen Landesverbands, kleingeschrieben', () => {
-    const mentions = lvSkillMentionsForRoles([{ ebene: 'land', bundesland: 'Bayern' }], 'de-DE');
+    const mentions = lvSkillMentionsForRoles(
+      [{ ebene: 'land', rolle: LGS, bundesland: 'Bayern' }],
+      'de-DE'
+    );
     expect(mentions).toContain('presse-bayern');
     expect(mentions.every((m) => m === m.toLowerCase())).toBe(true);
     expect(mentions).not.toContain('presse-berlin');
   });
 
-  it('bleibt ohne Landesrolle leer', () => {
-    expect(lvSkillMentionsForRoles([{ ebene: 'bund' }], 'de-DE')).toEqual([]);
+  it('bleibt ohne Geschäftsstellenrolle leer', () => {
+    expect(
+      lvSkillMentionsForRoles(
+        [{ ebene: 'bund', rolle: 'Mitarbeiter*in Bundesgeschäftsstelle' }],
+        'de-DE'
+      )
+    ).toEqual([]);
   });
 });
 
@@ -142,6 +193,7 @@ describe('DE_BUNDESLAENDER', () => {
 
 describe('landesverbandHeadings', () => {
   it('beugt die Überschrift nach Anzahl', () => {
+    expect(landesverbandHeadings(null).agents).toBe('Landesverbände');
     expect(landesverbandHeadings([]).agents).toBe('Landesverbände');
     expect(landesverbandHeadings(['hessen']).agents).toBe('Grüne Hessen');
     expect(landesverbandHeadings(['hessen']).skills).toBe('Rezepte aus Hessen');

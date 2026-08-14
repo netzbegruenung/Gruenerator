@@ -1,6 +1,12 @@
+import { useUserLandesverbaende } from '@gruenerator/chat';
 import { type TextForm, type TextFormType } from '@gruenerator/contracts';
+import {
+  SKILLS,
+  isLandesverbandIdentifier,
+  isLvItemVisibleForRoles,
+} from '@gruenerator/shared/agents';
 import { type QueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { FiArrowLeft, FiChevronRight, FiPlus } from 'react-icons/fi';
 
 import { SettingsCardsSkeleton } from '../components/SettingsSkeleton';
@@ -77,6 +83,32 @@ const TexteAnlernenTab = () => {
   const user = useAuthStore((s) => s.user);
   const api = useTextForms(!!user);
   const [target, setTarget] = useState<EditorTarget | null>(null);
+  const { lvIds } = useUserLandesverbaende();
+
+  // Die Landesverbands-Rezepte, die diese Person laut Profilrolle hat, sortiert
+  // nach dem Preset, dessen Stil sie übernehmen. Ohne diese Zeile sieht der Tab
+  // für eine Landesgeschäftsstelle genauso aus wie für alle anderen — obwohl
+  // ein angelernter Presse-Stil dort auch @presse-bayern steuert.
+  //
+  // Die Zuordnung spiegelt `deriveTextFormMention` im Backend: `presse-*` fällt
+  // auf `presse`, `insta-*` auf `instagram`. Deshalb gibt es hier bewusst KEINE
+  // eigenen LV-Presets — sie schrieben alle in dieselbe Zeile.
+  const lvMentionsByTextType = useMemo(() => {
+    const byType = new Map<TextFormType, string[]>();
+    if (lvIds === null || lvIds.length === 0) return byType;
+    for (const skill of SKILLS) {
+      if (!isLandesverbandIdentifier(skill.identifier)) continue;
+      if (!isLvItemVisibleForRoles(skill.identifier, lvIds)) continue;
+      const textType: TextFormType | null = skill.mention.startsWith('presse')
+        ? 'presse'
+        : skill.mention.startsWith('insta')
+          ? 'instagram'
+          : null;
+      if (!textType) continue;
+      byType.set(textType, [...(byType.get(textType) ?? []), skill.mention]);
+    }
+    return byType;
+  }, [lvIds]);
 
   if (api.query.isLoading) return <SettingsCardsSkeleton cards={4} />;
 
@@ -164,15 +196,23 @@ const TexteAnlernenTab = () => {
 
       <section className="flex flex-col gap-sm">
         <h3 className="m-0 text-sm font-semibold text-foreground-heading">Mitgelieferte Rezepte</h3>
-        {PRESETS.map((preset) => (
-          <FormRow
-            key={preset.textType}
-            label={preset.label}
-            meta={`Ersetzt das mitgelieferte Rezept @${preset.textType}`}
-            status={formatLearned(byMention(preset.textType))}
-            onClick={() => setTarget({ kind: 'preset', ...preset })}
-          />
-        ))}
+        {PRESETS.map((preset) => {
+          const lvMentions = lvMentionsByTextType.get(preset.textType) ?? [];
+          const mentions = [preset.textType, ...lvMentions].map((m) => `@${m}`).join(', ');
+          return (
+            <FormRow
+              key={preset.textType}
+              label={preset.label}
+              meta={
+                lvMentions.length > 0
+                  ? `Ersetzt die mitgelieferten Rezepte ${mentions}`
+                  : `Ersetzt das mitgelieferte Rezept @${preset.textType}`
+              }
+              status={formatLearned(byMention(preset.textType))}
+              onClick={() => setTarget({ kind: 'preset', ...preset })}
+            />
+          );
+        })}
       </section>
 
       <section className="flex flex-col gap-sm">

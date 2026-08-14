@@ -223,12 +223,13 @@ export function setHiddenSkillMentions(mentions: readonly string[]): void {
 // dieses Paket sowohl im Web-Bundle als auch in der Mobile-Binary steckt und
 // keins von beiden einen gemeinsamen Weg zum Profil hat.
 //
-// Leer heißt „keine Zuordnung" und damit: nicht filtern. Deshalb ist der
-// Vorgabewert sicher — ein Host, der den Setter nie ruft (Mobile), verhält sich
-// wie bisher.
-let mentionLandesverbaende: readonly string[] = [];
+// `null` heißt „noch nicht bekannt" und damit: nicht filtern. `[]` heißt
+// „geprüft, keine Landesgeschäftsstellen-Rolle" und blendet die LV-Rezepte aus.
+// Deshalb ist der Vorgabewert `null` und nicht `[]` — ein Host, der den Setter
+// nie ruft (Mobile), verhält sich wie bisher, statt allen alles wegzunehmen.
+let mentionLandesverbaende: readonly string[] | null = null;
 
-export function setMentionLandesverbaende(lvIds: readonly string[]): void {
+export function setMentionLandesverbaende(lvIds: readonly string[] | null): void {
   mentionLandesverbaende = lvIds;
 }
 
