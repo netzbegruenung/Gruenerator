@@ -76,7 +76,15 @@ export const mcpServerTestResponseSchema = z.object({
   toolCount: z.number(),
   toolNames: z.array(z.string()),
   error: z.string().nullable(),
+  // Diagnostics, all additive: "connected, but zero tools" is indistinguishable
+  // from "everything is fine" without them, and that is exactly the report we
+  // could not debug. Optional so older clients keep parsing the response.
+  transport: z.enum(['http', 'sse']).nullish(),
+  protocolVersion: z.string().nullish(),
+  /** Entries the server returned that carried no usable name. */
+  skippedTools: z.number().nullish(),
 });
+export type McpServerTestResult = z.infer<typeof mcpServerTestResponseSchema>;
 
 export const mcpServerErrorResponseSchema = z.object({
   error: z.string(),
