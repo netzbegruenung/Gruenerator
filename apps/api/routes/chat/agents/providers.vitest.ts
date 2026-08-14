@@ -5,6 +5,7 @@ import {
   getContextWindow,
   loopSynthChoice,
   getModelConfig,
+  getLoopPlannerModel,
   loopPlannerModelName,
   prefersUnifiedLoop,
   resolveModelTuple,
@@ -46,6 +47,20 @@ describe('split-mode model policy (getLoopSynthModel / loopPlannerModelName)', (
     // Regolo — never `mistral-small-latest`, which would bill the Mistral API.
     // The lane moved hosts on 13.08.2026; the rule about the vendor API did not.
     expect(loopPlannerModelName()).not.toBe('mistral-small-latest');
+  });
+
+  it('resolves to a usable model even when NO provider is configured', () => {
+    // The slot must never land on a lane whose getter throws on a missing key.
+    // It did between 13. and 14.08.2026: the last-resort branch returned the
+    // GreenPT tier, so with nothing configured every agentic turn died with
+    // "GREENPT_API_KEY environment variable is required" before its first model
+    // call — ten loop scenarios red, and in production a deployment that forgot
+    // the key would have lost the whole loop rather than one lane.
+    //
+    // This assertion holds in both worlds: with a key the primary builds, and
+    // in a keyless CI the litellm tier does (default base URL, empty key
+    // tolerated). What it forbids is the throw.
+    expect(() => getLoopPlannerModel()).not.toThrow();
   });
 
   it('auto selection writes with the best writer, NEVER a think model', () => {
