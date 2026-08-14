@@ -152,7 +152,15 @@ export async function* parseSSEStream(
       } else {
         // Re-activate existing step
         const existing = progressSteps.find((s) => s.stage === newStage);
-        if (existing) existing.status = 'in-progress';
+        if (existing) {
+          existing.status = 'in-progress';
+          // A revisited stage otherwise keeps the label of its first pass. When
+          // the caller names one it is *the* information — two pipeline steps
+          // share a stage and differ only by title ("Rückübersetzung" vs
+          // "Prüfung"). Without an override the themed stage word stands, as
+          // before.
+          if (labelOverride) existing.label = labelOverride;
+        }
       }
     }
     if (newStage === 'complete') {
@@ -1083,6 +1091,16 @@ export async function* parseSSEStream(
             status: 'in_progress' | 'completed';
           };
           if (status === 'in_progress') {
+            // Until 14.08.2026 `title` only ever reached `currentProgress.message`,
+            // which the ProgressTracker does not read — `selectStatusLabel` takes
+            // the step label ahead of `message`, and there is always a step list.
+            // So a pipeline agent's after-steps ran for minutes under step 1's
+            // label ("Feile …"), indistinguishable from a hang. The step now
+            // enters the list, under the same stage as before. Guarded so the
+            // 3s heartbeat re-send does not churn the list.
+            if (currentProgress.stage !== 'searching' || currentProgress.message !== title) {
+              transitionStep('searching', title);
+            }
             currentProgress = { ...currentProgress, stage: 'searching', message: title };
           } else if (status === 'completed') {
             currentProgress = { ...currentProgress, message: title };
