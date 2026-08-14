@@ -824,7 +824,14 @@ export default function RolesSection() {
                   Diese beiden Wege schließen den Kreis — sie erscheinen nur,
                   wenn wirklich etwas zugeteilt ist, sonst führten sie ins
                   Leere. Der Dialog schließt mit, sonst läge die Agentur
-                  dahinter. */}
+                  dahinter.
+
+                  Die Ziele sind bewusst verschieden und beide das, was der
+                  Knopf verspricht: die Grüneratoren stehen im
+                  Landesverbands-Regal ganz oben auf der Startansicht,
+                  die Rezepte im Regal „Offizielle Grüneratoren". NICHT
+                  `cat=meine` — das sind die selbst erstellten, also gerade
+                  nicht die zugeteilten. */}
               {lvIds !== null && lvIds.length > 0 && (
                 <div className="mt-md border-t border-grey-200 pt-md dark:border-grey-700">
                   <p className="m-0 text-sm text-foreground-muted">
@@ -839,7 +846,7 @@ export default function RolesSection() {
                     >
                       Zu deinen Rezepten
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => goTo('/agentura?cat=meine')}>
+                    <Button variant="outline" size="sm" onClick={() => goTo('/agentura')}>
                       Zu deinen Grüneratoren
                     </Button>
                   </div>
