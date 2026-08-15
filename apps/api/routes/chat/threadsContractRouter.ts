@@ -347,6 +347,7 @@ export const threadsContractRouter = s.router(threadsContract, {
         body: {
           customSystemPrompt: settings?.custom_system_prompt ?? null,
           customEnabledTools: settings?.custom_enabled_tools ?? null,
+          roleRef: settings?.role_ref ?? null,
         },
       };
     } catch (error) {
@@ -359,11 +360,12 @@ export const threadsContractRouter = s.router(threadsContract, {
     try {
       const userId = getUserId(args.req);
       const { threadId } = args.params;
-      const { customSystemPrompt, customEnabledTools } = args.body;
+      const { customSystemPrompt, customEnabledTools, roleRef } = args.body;
 
       const updated = await updateThreadSettings(threadId, userId, {
         ...(customSystemPrompt !== undefined && { customSystemPrompt }),
         ...(customEnabledTools !== undefined && { customEnabledTools }),
+        ...(roleRef !== undefined && { roleRef }),
       });
 
       if (!updated) {

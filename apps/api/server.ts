@@ -744,13 +744,12 @@ async function startWorker(): Promise<void> {
       errorMessage = 'Zugriffsfehler beim Lesen einer Datei.';
     }
 
-    // Hoisted out of the object literal on purpose. `no-raw-error-to-client`
-    // only inspects a property's direct value, so this keeps the rule quiet
-    // without an eslint-disable comment — prettier has stripped that comment
-    // from this exact line seven times now (7ed3486be, 2985eec20, 72cc51d5b,
-    // e86f12961 …), turning master's lint red each time. The branch itself is
-    // safe: production never sees `err.message`, only the curated
-    // `errorMessage` above.
+    // Der Rohtext verlässt den Server nur unter NODE_ENV === 'development'
+    // (`isDev`, oben) — dieselbe Bedingung, die unten schon den Stack trägt.
+    // `no-raw-error-to-client` sieht die Verzweigung nicht und hat hier bis
+    // hierher acht Mal ein eslint-disable verlangt, das lint-staged jedes Mal
+    // wieder wegoptimiert hat (die Regel prüft nur den DIREKTEN Property-Wert).
+    // Eine Variable überlebt den Hook, ein Kommentar nicht.
     const responseMessage = isDev ? err.message : errorMessage;
 
     res.status(statusCode).json({

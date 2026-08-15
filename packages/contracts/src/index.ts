@@ -93,6 +93,7 @@ export {
 } from './contracts/index.js';
 
 // ── Schemas (Zod) ───────────────────────────────────────────────────────────
+export * from './schemas/roleRef.js';
 export * from './schemas/threads.js';
 export * from './schemas/textForm.js';
 export * from './schemas/exports.js';
