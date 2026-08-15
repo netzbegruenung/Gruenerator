@@ -315,7 +315,6 @@ export const SYSTEM_AGENT_DEFINITIONS = [
     defaultNotebookIds: ['berlin-notebook'],
     autoRoutingHint: 'creative',
     audience: 'de-DE',
-    defaultRecipeMention: 'presse-berlin',
     systemRole: '',
   },
   {
@@ -357,7 +356,6 @@ export const SYSTEM_AGENT_DEFINITIONS = [
     defaultNotebookIds: ['hamburg-notebook'],
     autoRoutingHint: 'creative',
     audience: 'de-DE',
-    defaultRecipeMention: 'presse-hamburg',
     systemRole: '',
   },
   {
@@ -399,7 +397,6 @@ export const SYSTEM_AGENT_DEFINITIONS = [
     defaultNotebookIds: ['mecklenburg-vorpommern-notebook'],
     autoRoutingHint: 'creative',
     audience: 'de-DE',
-    defaultRecipeMention: 'presse-mv',
     systemRole: '',
   },
   {
@@ -441,7 +438,6 @@ export const SYSTEM_AGENT_DEFINITIONS = [
     defaultNotebookIds: ['thueringen-notebook'],
     autoRoutingHint: 'creative',
     audience: 'de-DE',
-    defaultRecipeMention: 'presse-thueringen',
     systemRole: '',
   },
   {
@@ -483,7 +479,6 @@ export const SYSTEM_AGENT_DEFINITIONS = [
     defaultNotebookIds: ['brandenburg-notebook'],
     autoRoutingHint: 'creative',
     audience: 'de-DE',
-    defaultRecipeMention: 'presse-brandenburg',
     systemRole: '',
   },
   {
@@ -525,7 +520,6 @@ export const SYSTEM_AGENT_DEFINITIONS = [
     defaultNotebookIds: ['bayern-notebook'],
     autoRoutingHint: 'creative',
     audience: 'de-DE',
-    defaultRecipeMention: 'presse-bayern',
     systemRole: '',
   },
   {
@@ -567,7 +561,6 @@ export const SYSTEM_AGENT_DEFINITIONS = [
     defaultNotebookIds: ['sachsen-anhalt-notebook'],
     autoRoutingHint: 'creative',
     audience: 'de-DE',
-    defaultRecipeMention: 'presse-sachsen-anhalt',
     systemRole: '',
   },
   {
@@ -609,7 +602,6 @@ export const SYSTEM_AGENT_DEFINITIONS = [
     defaultNotebookIds: ['hessen-notebook'],
     autoRoutingHint: 'creative',
     audience: 'de-DE',
-    defaultRecipeMention: 'presse-hessen',
     systemRole: '',
   },
   {
@@ -654,7 +646,6 @@ export const SYSTEM_AGENT_DEFINITIONS = [
     iconKey: 'megaphone',
     pinnedToSidebar: true,
     audience: 'de-AT',
-    defaultRecipeMention: 'presse-at',
     systemRole: '',
   },
   {

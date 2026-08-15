@@ -1,6 +1,6 @@
 ---
 identifier: gruenerator-oeffentlichkeitsarbeit-berlin
-defaultRecipeMention: 'presse-berlin'
+defaultRecipeMention: 'presse-berlin-fraktion'
 autoRoutingHint: creative
 audience: de-DE
 title: Öffentlichkeitsarbeit Berlin
