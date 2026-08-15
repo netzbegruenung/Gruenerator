@@ -59,6 +59,32 @@ describe('saveThreadSettings', () => {
   });
 });
 
+describe('roleRefSource', () => {
+  // Der Effekt in `GrueneratorChatRuntime` schreibt nur, was die Person selbst
+  // gewählt hat. Ohne diese Unterscheidung schriebe jeder Threadwechsel die
+  // gerade geladene Rolle sofort wieder zurück.
+  it('markiert eine selbst gewählte Rolle als `user`', () => {
+    useAgentStore.setState({ roleRefSource: 'load' });
+
+    useAgentStore.getState().setCustomRoleRef(ROLE);
+
+    expect(useAgentStore.getState().roleRefSource).toBe('user');
+  });
+
+  it('markiert eine geladene Rolle als `load`', async () => {
+    useAgentStore.setState({ roleRefSource: 'user' });
+    const { client } = fakeClient({
+      customSystemPrompt: null,
+      customEnabledTools: null,
+      roleRef: ROLE,
+    });
+
+    await useAgentStore.getState().loadThreadSettings('thread-1', client);
+
+    expect(useAgentStore.getState().roleRefSource).toBe('load');
+  });
+});
+
 describe('loadThreadSettings', () => {
   it('stellt Rolle und Modus aus der gespeicherten Referenz wieder her', async () => {
     useAgentStore.setState({ threadMode: 'chat', customRoleRef: null, customRoleName: null });
