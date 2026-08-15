@@ -10,6 +10,7 @@ import { z } from 'zod';
 
 import { currentBoardSchema } from './boards.js';
 import { computePayloadSchema } from './chatStreamEvents.js';
+import { roleRefSchema } from './roleRef.js';
 
 // ── Shared sub-schemas ──────────────────────────────────────────────────────
 
@@ -176,12 +177,7 @@ export const chatStreamBodySchema = z.object({
   // den User-Defaults und setzt den Systemprompt aus dem internen Baustein
   // zusammen — Ebene UND Bezeichnung, weil dieselbe Bezeichnung auf mehreren
   // Ebenen vorkommt.
-  roleRef: z
-    .object({
-      ebene: z.string(),
-      rolle: z.string(),
-    })
-    .nullish(),
+  roleRef: roleRefSchema.nullish(),
   roleName: z.string().nullish(),
   // Seed for a brand-new thread: the generated text (Antrag, PM, Social) the
   // user came to chat about. Backend persists it as the first assistant
