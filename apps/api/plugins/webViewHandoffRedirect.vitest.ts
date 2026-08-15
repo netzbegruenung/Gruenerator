@@ -12,8 +12,26 @@ describe('validateRedirectTarget', () => {
       ['/notebook/1', 'notebooks'],
       ['/texte/1', 'texts'],
       ['/gruenerator/mein-slug', 'agent slug'],
+      ['/documents/1', 'shared documents'],
     ])('%s — %s', (input) => {
       expect(validateRedirectTarget(input)).toEqual({ ok: true, path: input });
+    });
+
+    // The allowlist is hand-maintained against the mobile callers, and one
+    // entry was already missed once (/documents/, shipped in
+    // GroupContentSection.tsx long before this endpoint existed). Pin every
+    // path the app actually opens, so a new caller without an entry fails here
+    // rather than as a 400 on a device.
+    it.each([
+      ['/boards/1'],
+      ['/gruenerator/slug'],
+      ['/notebook/1'],
+      ['/texte/1'],
+      ['/datenbank/vorlagen?selected=1'],
+      ['/documents/1'],
+      ['/studio/canvas/1'],
+    ])('covers the live mobile caller %s', (input) => {
+      expect(validateRedirectTarget(input).ok).toBe(true);
     });
   });
 
