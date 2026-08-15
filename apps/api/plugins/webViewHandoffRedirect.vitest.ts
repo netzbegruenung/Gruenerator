@@ -13,6 +13,7 @@ describe('validateRedirectTarget', () => {
       ['/texte/1', 'texts'],
       ['/gruenerator/mein-slug', 'agent slug'],
       ['/documents/1', 'shared documents'],
+      ['/office/1', 'office dispatcher — docs, sheets and presentations'],
     ])('%s — %s', (input) => {
       expect(validateRedirectTarget(input)).toEqual({ ok: true, path: input });
     });
@@ -29,6 +30,7 @@ describe('validateRedirectTarget', () => {
       ['/texte/1'],
       ['/datenbank/vorlagen?selected=1'],
       ['/documents/1'],
+      ['/office/1'],
       ['/studio/canvas/1'],
     ])('covers the live mobile caller %s', (input) => {
       expect(validateRedirectTarget(input).ok).toBe(true);
