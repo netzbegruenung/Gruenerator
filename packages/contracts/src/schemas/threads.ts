@@ -5,6 +5,8 @@
  */
 import { z } from 'zod';
 
+import { roleRefSchema } from './roleRef.js';
+
 // ── Shared sub-schemas ──────────────────────────────────────────────────────
 
 export const lastMessageSchema = z.object({
@@ -50,6 +52,10 @@ export const patchThreadBodySchema = z.object({
 export const patchThreadSettingsBodySchema = z.object({
   customSystemPrompt: z.string().nullable().optional(),
   customEnabledTools: z.record(z.boolean()).nullable().optional(),
+  // Die gewählte Rolle. Eine Katalogrolle bringt keinen `customSystemPrompt`
+  // mit — ohne dieses Feld hätte der Thread nichts, woran er den Rollen-Modus
+  // nach einem Neuladen wiedererkennt, und fiele stumm auf „Chat" zurück.
+  roleRef: roleRefSchema.nullable().optional(),
 });
 
 // ── Response schemas ────────────────────────────────────────────────────────
@@ -79,6 +85,7 @@ export const patchThreadResponseSchema = z.object({
 export const threadSettingsResponseSchema = z.object({
   customSystemPrompt: z.string().nullable(),
   customEnabledTools: z.record(z.boolean()).nullable(),
+  roleRef: roleRefSchema.nullable(),
 });
 
 export const generateTitleResponseSchema = z.object({
