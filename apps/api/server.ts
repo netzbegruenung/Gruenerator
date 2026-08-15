@@ -748,6 +748,10 @@ async function startWorker(): Promise<void> {
       success: false,
       error: 'Ein Serverfehler ist aufgetreten',
 
+      // Der Rohtext geht nur unter NODE_ENV === 'development' hinaus (`isDev`,
+      // oben); in Produktion steht hier die kuratierte Meldung. Die Regel sieht
+      // die Verzweigung nicht — dieselbe Bedingung trägt schon `stack` darunter.
+
       message: isDev ? err.message : errorMessage,
       stack: isDev ? err.stack : undefined,
       errorId: `${Date.now()}-${Math.floor(Math.random() * 1000)}`,
