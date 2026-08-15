@@ -1,12 +1,15 @@
+import { parseWebViewMessage } from '@gruenerator/shared';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import * as WebBrowser from 'expo-web-browser';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ActivityIndicator, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { WebView } from 'react-native-webview';
+import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
-import { secureStorage } from '../../services/storage';
+import { mintWebViewHandoff } from '../../services/webview/handoff';
+import { decideNavigation } from '../../services/webview/navigationPolicy';
 import { colors, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 
 const WEB_BASE = 'https://gruenerator.eu';
@@ -19,15 +22,8 @@ export default function WebViewerScreen() {
   const insets = useSafeAreaInsets();
   const webViewRef = useRef<WebView>(null);
   const [loading, setLoading] = useState(true);
-  const [authToken, setAuthToken] = useState<string | null>(null);
-  const [tokenReady, setTokenReady] = useState(false);
-
-  useMemo(() => {
-    void secureStorage.getToken().then((t) => {
-      setAuthToken(t);
-      setTokenReady(true);
-    });
-  }, []);
+  const [targetUrl, setTargetUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const handleClose = useCallback(() => {
     router.back();
@@ -40,6 +36,88 @@ export default function WebViewerScreen() {
     return decoded;
   }, [path]);
 
+  // The page is opened with `?embedded=1`, which switches the web app to its
+  // chrome-less mode (no sidebar, no banners, no login redirect). Without it
+  // the WebView would show app navigation the user could tap into.
+  const embeddedPath = useMemo(() => {
+    const [pathname, query] = normalizedPath.split('?');
+    const params = new URLSearchParams(query);
+    params.set('embedded', '1');
+    return `${pathname}?${params.toString()}`;
+  }, [normalizedPath]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void mintWebViewHandoff(embeddedPath)
+      .then((url) => {
+        if (!cancelled) setTargetUrl(url);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        console.warn('[WebViewer] handoff failed', err);
+        setError('Die Seite konnte nicht geöffnet werden. Bitte melde dich neu an.');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [embeddedPath]);
+
+  // Only the page we opened may load. `originWhitelist` cannot do this job —
+  // per react-native-webview's docs an origin outside the whitelist is handed
+  // to the system browser, i.e. it escalates instead of blocking.
+  const policy = useMemo(
+    () => ({
+      origin: WEB_BASE,
+      allowedPathPrefixes: [normalizedPath.split('?')[0] ?? '/'],
+    }),
+    [normalizedPath]
+  );
+
+  const openExternally = useCallback((url: string) => {
+    void WebBrowser.openBrowserAsync(url).catch((err: unknown) =>
+      console.warn('[WebViewer] failed to open external URL', err)
+    );
+  }, []);
+
+  const handleShouldStartLoad = useCallback(
+    (request: { url: string; isTopFrame?: boolean }) => {
+      const decision = decideNavigation(request, policy);
+      if (decision === 'external') openExternally(request.url);
+      return decision === 'allow';
+    },
+    [policy, openExternally]
+  );
+
+  // `target="_blank"` never becomes a navigation, so the gate above never sees
+  // it — the editor's Unsplash attribution links arrive here instead.
+  const handleOpenWindow = useCallback(
+    (event: { nativeEvent: { targetUrl: string } }) => {
+      const url = event.nativeEvent.targetUrl;
+      if (decideNavigation({ url, isTopFrame: true }, policy) === 'external') {
+        openExternally(url);
+      }
+    },
+    [policy, openExternally]
+  );
+
+  const handleMessage = useCallback(
+    (event: WebViewMessageEvent) => {
+      const message = parseWebViewMessage(event.nativeEvent.data);
+      if (message === null) return;
+      // Both messages mean the same thing for the host: this screen is done.
+      // SESSION_LOST additionally tells the user why, since the page cannot
+      // show a login screen from inside a pinned WebView.
+      if (message.type === 'SESSION_LOST') {
+        setError('Deine Sitzung ist abgelaufen. Bitte melde dich neu an.');
+        return;
+      }
+      if (message.type === 'CLOSE') {
+        handleClose();
+      }
+    },
+    [handleClose]
+  );
+
   if (!path) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -47,9 +125,6 @@ export default function WebViewerScreen() {
       </View>
     );
   }
-
-  const targetUrl = `${WEB_BASE}/api/auth/v2/web-handoff?redirect=${encodeURIComponent(normalizedPath)}`;
-  const headers = authToken ? { Authorization: `Bearer ${authToken}` } : undefined;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -72,7 +147,11 @@ export default function WebViewerScreen() {
         <View style={styles.closeButton} />
       </View>
 
-      {!tokenReady ? (
+      {error !== null ? (
+        <View style={styles.loading}>
+          <Text style={[styles.errorText, { color: theme.textSecondary }]}>{error}</Text>
+        </View>
+      ) : targetUrl === null ? (
         <View style={styles.loading}>
           <ActivityIndicator color={colors.primary[600]} />
         </View>
@@ -80,15 +159,31 @@ export default function WebViewerScreen() {
         <>
           <WebView
             ref={webViewRef}
-            source={{ uri: targetUrl, ...(headers ? { headers } : {}) }}
+            source={{ uri: targetUrl }}
             sharedCookiesEnabled
             thirdPartyCookiesEnabled
             onLoadStart={() => setLoading(true)}
             onLoadEnd={() => setLoading(false)}
             style={styles.webview}
-            allowsBackForwardNavigationGestures
             domStorageEnabled
             javaScriptEnabled
+            onMessage={handleMessage}
+            // — containment —
+            onShouldStartLoadWithRequest={handleShouldStartLoad}
+            onOpenWindow={handleOpenWindow}
+            // Second line of defence only; the gate above is what blocks.
+            originWhitelist={[`${WEB_BASE}/*`]}
+            // Android defaults to true, which lets target="_blank" spawn a
+            // second WebView we do not control.
+            setSupportMultipleWindows={false}
+            javaScriptCanOpenWindowsAutomatically={false}
+            // Edge-swipe would walk the web history back out of the page.
+            allowsBackForwardNavigationGestures={false}
+            // iOS long-press peek renders an arbitrary URL outside the gate.
+            allowsLinkPreview={false}
+            allowFileAccess={false}
+            allowFileAccessFromFileURLs={false}
+            allowUniversalAccessFromFileURLs={false}
           />
           {loading && (
             <View style={styles.loadingOverlay} pointerEvents="none">
@@ -119,7 +214,13 @@ const styles = StyleSheet.create({
   },
   title: { fontFamily: BODY_FONT, fontSize: 16, fontWeight: '600' },
   webview: { flex: 1 },
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  errorText: {
+    fontFamily: BODY_FONT,
+    fontSize: 15,
+    textAlign: 'center',
+    lineHeight: 21,
+  },
   loadingOverlay: {
     position: 'absolute',
     top: 0,
