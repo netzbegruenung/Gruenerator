@@ -821,22 +821,15 @@ export default function RolesSection() {
 
               {/* Die Zuteilung war bisher unsichtbar: man legte eine Rolle an
                   und musste selbst darauf kommen, in der Agentur nachzusehen.
-                  Diese beiden Wege schließen den Kreis — sie erscheinen nur,
-                  wenn wirklich etwas zugeteilt ist, sonst führten sie ins
-                  Leere. Der Dialog schließt mit, sonst läge die Agentur
-                  dahinter.
+                  Dieser Weg schließt den Kreis — er erscheint nur, wenn
+                  wirklich etwas zugeteilt ist, sonst führte er ins Leere. Der
+                  Dialog schließt mit, sonst läge die Agentur dahinter.
 
-                  Die Ziele sind bewusst verschieden und beide das, was der
-                  Knopf verspricht: die Grüneratoren stehen im
-                  Landesverbands-Regal oben in „Empfohlen", die Rezepte im
-                  Regal „Offizielle Grüneratoren".
-
-                  Beide Kategorien stehen AUSDRÜCKLICH im Link. `cat=meine`
-                  wäre falsch — das sind die selbst erstellten, also gerade
-                  nicht die zugeteilten. Und ein nacktes `/agentura` genügt
-                  nicht: Agentura öffnet ohne `?cat=` auf „Meine
-                  Grüneratoren", sobald jemand eigene besitzt (`fallbackCat`),
-                  und dort fehlt das LV-Regal wieder. */}
+                  Grüneratoren und Rezepte des Landesverbands stehen seit dem
+                  Regal-Umbau beide unter `cat=landesverband`, deshalb ein Knopf
+                  statt zwei. Die Kategorie steht AUSDRÜCKLICH im Link: ein
+                  nacktes `/agentura` öffnet immer „Meine Grüneratoren", und
+                  dort ist das Zugeteilte gerade nicht. */}
               {lvIds !== null && lvIds.length > 0 && (
                 <div className="mt-md border-t border-grey-200 pt-md dark:border-grey-700">
                   <p className="m-0 text-sm text-foreground-muted">
@@ -847,16 +840,9 @@ export default function RolesSection() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => goTo('/agentura?cat=gruenerator')}
+                      onClick={() => goTo('/agentura?cat=landesverband')}
                     >
-                      Zu deinen Rezepten
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => goTo('/agentura?cat=empfohlen')}
-                    >
-                      Zu deinen Grüneratoren
+                      Zu deinem Landesverband
                     </Button>
                   </div>
                 </div>

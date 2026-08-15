@@ -1,19 +1,14 @@
 {
   "categories": [
     {
-      "key": "empfohlen",
-      "label": "Empfohlen",
-      "description": "Beliebte Grüneratoren zum Einstieg — eine Auswahl über alle Regale hinweg."
-    },
-    {
       "key": "meine",
       "label": "Meine Grüneratoren",
-      "description": "Deine selbst erstellten Grüneratoren und wiederkehrenden Aufgaben."
+      "description": "Deine selbst erstellten Grüneratoren, wiederkehrende Aufgaben und was in deinen Gruppen geteilt wurde."
     },
     {
-      "key": "gruppen",
-      "label": "Geteilt mit Gruppen",
-      "description": "Grüneratoren, die in deinen Gruppen geteilt wurden."
+      "key": "landesverband",
+      "label": "Dein Landesverband",
+      "description": "Die Grüneratoren und Rezepte deines Landesverbands, über deine Rolle zugeteilt."
     },
     {
       "key": "community",
@@ -23,7 +18,7 @@
     {
       "key": "gruenerator",
       "label": "Offizielle Grüneratoren",
-      "description": "Fertige Grüneratoren, Presse- & Social-Rezepte und Landesverbände von Grünerator."
+      "description": "Fertige Grüneratoren sowie Presse- & Social-Rezepte von Grünerator."
     },
     {
       "key": "favoriten",
@@ -31,7 +26,7 @@
       "description": "Deine gemerkten Grüneratoren und Rezepte."
     }
   ],
-  "defaultCategory": "empfohlen",
+  "defaultCategory": "meine",
   "sortLabels": {
     "empfohlen": "Empfohlen",
     "az": "A–Z"
