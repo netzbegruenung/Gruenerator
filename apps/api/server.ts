@@ -744,11 +744,18 @@ async function startWorker(): Promise<void> {
       errorMessage = 'Zugriffsfehler beim Lesen einer Datei.';
     }
 
+    // Der Rohtext verlässt den Server nur unter NODE_ENV === 'development'
+    // (`isDev`, oben) — dieselbe Bedingung, die unten schon den Stack trägt.
+    // `no-raw-error-to-client` sieht die Verzweigung nicht und hat hier bis
+    // hierher acht Mal ein eslint-disable verlangt, das lint-staged jedes Mal
+    // wieder wegoptimiert hat (die Regel prüft nur den DIREKTEN Property-Wert).
+    // Eine Variable überlebt den Hook, ein Kommentar nicht.
+    const responseMessage = isDev ? err.message : errorMessage;
+
     res.status(statusCode).json({
       success: false,
       error: 'Ein Serverfehler ist aufgetreten',
-
-      message: isDev ? err.message : errorMessage,
+      message: responseMessage,
       stack: isDev ? err.stack : undefined,
       errorId: `${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       timestamp: new Date().toISOString(),
