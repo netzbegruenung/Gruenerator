@@ -33,7 +33,7 @@ export {
 
 export { isAdminVisibleSkill } from './skillVisibility.js';
 
-export { SKILLS, resolveSkillMention } from './skills/index.js';
+export { SKILLS, resolveSkillMention, canonicalSkillMention } from './skills/index.js';
 
 export {
   USER_SELECTABLE_TOOLS,

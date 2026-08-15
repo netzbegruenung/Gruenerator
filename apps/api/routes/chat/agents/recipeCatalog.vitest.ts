@@ -34,7 +34,7 @@ describe('buildRecipeCatalog', () => {
     const at = await buildRecipeCatalog({ userLocale: 'de-AT', userId: null, roles: null });
     const mentions = at.map((e) => e.mention);
     // Every LV variant carries audience: 'de-DE'.
-    expect(mentions).not.toContain('presse-bayern');
+    expect(mentions).not.toContain('presse-bayern-fraktion');
     expect(mentions).not.toContain('insta-berlin');
     // The untagged generic ones stay — they default to "all".
     expect(mentions).toContain('presse');
@@ -46,8 +46,8 @@ describe('buildRecipeCatalog', () => {
     // nirgends findet.
     const entries = await buildRecipeCatalog({ userLocale: 'de-DE', userId: null, roles: [] });
     const mentions = entries.map((e) => e.mention);
-    expect(mentions).not.toContain('presse-bayern');
-    expect(mentions).not.toContain('presse-berlin');
+    expect(mentions).not.toContain('presse-bayern-fraktion');
+    expect(mentions).not.toContain('presse-berlin-fraktion');
     expect(mentions).toContain('presse');
   });
 
@@ -60,9 +60,13 @@ describe('buildRecipeCatalog', () => {
       ],
     });
     const mentions = entries.map((e) => e.mention);
-    expect(mentions).toContain('presse-bayern');
+    expect(mentions).toContain('presse-bayern-fraktion');
+    // Beide Ebenen gehören derselben Rolle — wer für Bayern schreibt, schreibt
+    // mal für die Fraktion und mal für die Partei.
+    expect(mentions).toContain('presse-bayern-partei');
     expect(mentions).toContain('insta-bayern');
-    expect(mentions).not.toContain('presse-berlin');
+    expect(mentions).not.toContain('presse-berlin-fraktion');
+    expect(mentions).not.toContain('presse-berlin-partei');
     expect(mentions).toContain('presse');
   });
 
@@ -72,7 +76,7 @@ describe('buildRecipeCatalog', () => {
       userId: null,
       roles: [{ ebene: 'land', rolle: 'Mitarbeiter*in Landtagsfraktion', bundesland: 'Bayern' }],
     });
-    expect(entries.map((e) => e.mention)).not.toContain('presse-bayern');
+    expect(entries.map((e) => e.mention)).not.toContain('presse-bayern-fraktion');
   });
 
   it('adds the user’s own learned forms', async () => {
