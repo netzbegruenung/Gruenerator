@@ -1,10 +1,8 @@
 import {
   type BoardDocument,
-  type BoardState,
   type CanvasDocument,
   type CanvasListItem,
   type PresentationContentResponse,
-  type SheetContentResponse,
 } from '@gruenerator/contracts';
 import { apiRequest, getContractsClient } from '@gruenerator/shared/api';
 
@@ -13,9 +11,12 @@ import { DEV_BOARDS, DEV_CANVASES, DEV_FIXTURES_ENABLED } from '../devFixtures';
 /**
  * Read-only Office data for the mobile viewers. Boards and canvas are NOT in
  * the /docs list (DOCS_ONLY_SUBTYPES excludes them), so the Office tab fetches
- * them from their own endpoints and merges. Sheet/presentation CONTENT comes
- * from the snapshot-decoding GET endpoints (no live collab), so each viewer
- * renders natively from a static JSON read-model.
+ * them from their own endpoints and merges.
+ *
+ * Only the LIST endpoints are left. Boards, sheets and canvas now open in the
+ * embedded WebView, which loads the real editor over live collab — their
+ * snapshot-decoding content endpoints had no caller once the native read-only
+ * viewers went. Presentations still render natively from a snapshot.
  */
 export const officeApi = {
   fetchBoards(): Promise<BoardDocument[]> {
@@ -41,16 +42,8 @@ export const officeApi = {
     return res.body;
   },
 
-  fetchBoardState(id: string): Promise<BoardState> {
-    return apiRequest<BoardState>('get', `/boards/${id}/state`);
-  },
-
   fetchCanvas(id: string): Promise<CanvasDocument> {
     return apiRequest<CanvasDocument>('get', `/canvas/${id}`);
-  },
-
-  fetchSheetContent(id: string): Promise<SheetContentResponse> {
-    return apiRequest<SheetContentResponse>('get', `/sheets/${id}/content`);
   },
 
   fetchPresentationContent(id: string): Promise<PresentationContentResponse> {
