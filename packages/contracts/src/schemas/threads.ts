@@ -92,9 +92,9 @@ export const generateTitleResponseSchema = z.object({
   status: z.enum(['accepted', 'skipped']),
   reason: z.string().optional(),
   /** The title that reached the database, so the caller can show it right away.
-   *  Null when nothing was written (no usable text, or the thread was renamed).
-   *  Optional: older clients ignore it, and `skipped` never carries one. */
-  title: z.string().nullable().optional(),
+   *  Null — never absent — when nothing was written: no usable text yet, the
+   *  thread was renamed meanwhile, or the request was skipped. */
+  title: z.string().nullable(),
 });
 
 export type GenerateTitleResponse = z.infer<typeof generateTitleResponseSchema>;
