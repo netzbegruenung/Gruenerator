@@ -281,6 +281,21 @@ function useGrueneratorThreadRuntime() {
     }
   }, []);
 
+  // Rollenwechsel MITTEN im Thread: `onThreadCreated` feuert nur beim ersten
+  // Turn, eine danach gewählte Rolle wäre sonst nie beim Server gelandet.
+  //
+  // Gebunden an `roleRefSource`, nicht an `customRoleRef`: den Wert setzt auch
+  // `loadThreadSettings`, und ein Threadwechsel würde sonst genau das
+  // zurückschreiben, was gerade geladen wurde — eine überflüssige Anfrage, im
+  // Fehlerfall mit irreführendem Hinweis.
+  const roleRefSource = useAgentStore((s) => s.roleRefSource);
+  const currentThreadId = useAgentStore((s) => s.currentThreadId);
+  useEffect(() => {
+    if (roleRefSource !== 'user' || !currentThreadId) return;
+    void useAgentStore.getState().saveThreadSettings(currentThreadId, runtimeApiClientRef.current);
+    useAgentStore.setState({ roleRefSource: 'load' });
+  }, [currentThreadId, roleRefSource]);
+
   const needsCompactionRef = useRef(needsCompaction);
   needsCompactionRef.current = needsCompaction;
   const compactionSummaryRef = useRef(compactionState.summary);

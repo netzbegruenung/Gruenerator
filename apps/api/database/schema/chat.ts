@@ -1,3 +1,4 @@
+import { type RoleRef } from '@gruenerator/contracts';
 import { type InferSelectModel } from 'drizzle-orm';
 import {
   bigint,
@@ -32,6 +33,10 @@ export const chatThreads = pgTable(
     thread_type: varchar('thread_type', { length: 20 }).default('chat'),
     custom_system_prompt: text('custom_system_prompt'),
     custom_enabled_tools: jsonb('custom_enabled_tools').$type<Record<string, unknown>>(),
+    // Die im Thread gewählte Rolle. Katalogrollen haben keinen eigenen
+    // Prompttext (der ist parteiintern), also ist diese Referenz das Einzige,
+    // woran der Thread seinen Rollen-Modus nach einem Neuladen wiedererkennt.
+    role_ref: jsonb('role_ref').$type<RoleRef>(),
     notebook_collection_id: varchar('notebook_collection_id', { length: 255 }),
     notebook_collection_ids: jsonb('notebook_collection_ids').$type<string[]>(),
     doc_id: uuid('doc_id'),
