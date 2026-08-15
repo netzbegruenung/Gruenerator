@@ -289,7 +289,11 @@
           dismissed = localStorage.getItem('termsAccepted') === 'true';
         } catch (e) {}
         var noChrome = /-no-header-footer/.test(location.pathname);
-        if (dismissed || noChrome) {
+        // Embedded in the mobile app's WebView. The banner's three links are
+        // the easiest way out of a WebView meant to show exactly one page.
+        // Removing it grants nothing: analytics stays off until accepted.
+        var embedded = /(^|[?&])embedded=1(&|$)/.test(location.search);
+        if (dismissed || noChrome || embedded) {
           banner.remove();
           return;
         }

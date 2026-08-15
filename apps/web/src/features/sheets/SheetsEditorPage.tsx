@@ -25,13 +25,15 @@ import { Skeleton } from '@gruenerator/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { FiMessageSquare, FiShare2 } from 'react-icons/fi';
-import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 
 import { CollaboratorAvatars } from '../../components/editor/CollaboratorAvatars';
 import useDarkMode from '../../components/hooks/useDarkMode';
 import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import { useAuth } from '../../hooks/useAuth';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
+import { useHostAwareBack } from '../../hooks/useHostAwareBack';
+import { isEmbedded } from '../../utils/platform';
 import { platformFetch } from '../../utils/platformFetch';
 import { useDocAiEditEnabled } from '../docs/DocAiEditToggle';
 import { webAppDocsAdapter } from '../docs/docsAdapter';
@@ -48,12 +50,17 @@ const ShareModal = lazyWithRetry(() =>
 
 function SheetsEditorContent() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+  const handleBack = useHostAwareBack('/office');
   const location = useLocation();
   const [searchParams] = useSearchParams();
   // Set by the chat panel's docked preview iframe (ArtifactPanel) — drops the
-  // topbar there, matching DocsEditorPage's `isEmbedded`.
-  const isEmbedded = searchParams.get('embedded') === 'true';
+  // topbar there, matching DocsEditorPage's `isInlineEmbed`.
+  //
+  // Not to be confused with `isEmbedded()` from utils/platform: same query key,
+  // different value (`embedded=1`) and a different host (the mobile app's
+  // WebView). Two flags, deliberately distinct — this one only hides the
+  // topbar, that one strips the whole app chrome.
+  const isInlineEmbed = searchParams.get('embedded') === 'true';
   const adapter = useDocsAdapter();
 
   // Template picked at creation (SPA nav-state from DocsPage). Seeds the fresh
@@ -148,7 +155,9 @@ function SheetsEditorContent() {
   const editorReady = useSyncGate(provider, isSynced);
   const connectionStatus = useDelayedConnectionStatus(isConnected, isLocalLoaded);
 
-  useTourAutostart('sheets', editorReady && !!univerAPI && !isGuest, () => {
+  // Not embedded: the tour paints a full-viewport overlay with its own controls
+  // over a WebView the user cannot navigate away from.
+  useTourAutostart('sheets', editorReady && !!univerAPI && !isGuest && !isEmbedded(), () => {
     void import('../tours/sheetsTour').then((m) => m.startSheetsTour());
   });
 
@@ -173,7 +182,7 @@ function SheetsEditorContent() {
   // bearbeiten" lock (useDocAiEditEnabled) the in-editor chat's own
   // registerEditHandler respects — this path must not bypass it.
   useEffect(() => {
-    if (!isEmbedded || !univerAPI || !isEditable || !id) return;
+    if (!isInlineEmbed || !univerAPI || !isEditable || !id) return;
     const handleMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin) return;
       const data = event.data as { source: string | null; payload: unknown } | null;
@@ -208,7 +217,7 @@ function SheetsEditorContent() {
     };
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [isEmbedded, univerAPI, isEditable, id, aiEditEnabled]);
+  }, [isInlineEmbed, univerAPI, isEditable, id, aiEditEnabled]);
 
   if (docIsLoading || !isAuthResolved) {
     return (
@@ -272,12 +281,12 @@ function SheetsEditorContent() {
 
   return (
     <div className="h-full flex flex-col relative">
-      {!isEmbedded && (
+      {!isInlineEmbed && (
         <EditorTopBar
           dataTour="sheets-topbar"
           title={docData.title}
           connectionStatus={connectionStatus}
-          onBack={isGuest ? undefined : () => navigate('/office')}
+          onBack={isGuest ? undefined : handleBack}
           editable={isEditable}
           onTitleChange={handleTitleChange}
           rightActions={
