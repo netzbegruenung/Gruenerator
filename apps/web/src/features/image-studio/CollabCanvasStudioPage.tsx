@@ -6,19 +6,19 @@ import {
 } from '@gruenerator/canvas-editor';
 import { PresenceAvatars, useCollaborators } from '@gruenerator/collab';
 import { type CanvasDocument } from '@gruenerator/contracts';
-import { postToNativeHost } from '@gruenerator/shared';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { EditableTitle } from '@gruenerator/shared/components/EditableTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 import { PiArrowLeft } from 'react-icons/pi';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 
 import { DottedBackground } from '../../components/common/DottedBackground';
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
+import { useHostAwareBack } from '../../hooks/useHostAwareBack';
 import { useAuthStore } from '../../stores/authStore';
 import { isEmbedded } from '../../utils/platform';
 import { useTourAutostart } from '../tours/useTourAutostart';
@@ -30,7 +30,7 @@ import { WebCanvasEditorProvider } from './WebCanvasEditorProvider';
 
 function CollabCanvasStudioContent() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+  const handleCancel = useHostAwareBack('/workplace');
   const user = useAuthStore((s) => s.user);
   const config = useCollaborationConfig();
   const [shareOpen, setShareOpen] = useState(false);
@@ -128,17 +128,6 @@ function CollabCanvasStudioContent() {
     },
     [id, canEdit, queryClient]
   );
-
-  const handleCancel = useCallback(() => {
-    if (isEmbedded()) {
-      // The native host pins this WebView to the canvas; navigating to
-      // /workplace inside it would drop the user into app chrome they cannot
-      // leave. Let the host close the screen instead.
-      postToNativeHost({ type: 'CLOSE' });
-      return;
-    }
-    void navigate('/workplace');
-  }, [navigate]);
 
   const collaborators = useCollaborators(collab.provider);
 

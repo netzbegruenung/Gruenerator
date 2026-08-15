@@ -3,8 +3,8 @@ import { EditableTitle } from '@gruenerator/shared/components/EditableTitle';
 import { memo } from 'react';
 import { FiArrowLeft } from 'react-icons/fi';
 import { PiStar, PiStarFill } from 'react-icons/pi';
-import { useNavigate } from 'react-router-dom';
 
+import { useHostAwareBack } from '../../../hooks/useHostAwareBack';
 import useSidebarFavouritesStore, { useIsFavourite } from '../../../stores/sidebarFavouritesStore';
 
 import { BoardDropdown } from './BoardDropdown';
@@ -50,7 +50,7 @@ export const BoardInlineHeader = memo(function BoardInlineHeader({
   onOpenFullSettings,
   compact,
 }: BoardInlineHeaderProps) {
-  const navigate = useNavigate();
+  const handleBack = useHostAwareBack('/workplace');
   const collaborators = useCollaborators(provider);
   const isFavourite = useIsFavourite(boardId);
   const toggleFavourite = useSidebarFavouritesStore((s) => s.toggleFavourite);
@@ -64,7 +64,7 @@ export const BoardInlineHeader = memo(function BoardInlineHeader({
     >
       <div className={`flex items-center gap-sm ${compact ? '' : 'order-2 sm:order-1'}`}>
         <button
-          onClick={() => navigate('/workplace')}
+          onClick={handleBack}
           className="flex items-center text-grey-500 hover:text-foreground transition-colors bg-transparent border-none cursor-pointer p-1 max-sm:p-[14px] rounded-md hover:bg-grey-100 dark:hover:bg-[#2a2a2a]"
           aria-label="Zurück zur Board-Liste"
         >
