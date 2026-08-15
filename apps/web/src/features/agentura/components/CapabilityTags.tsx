@@ -49,7 +49,7 @@ export function CapabilityTags({ agent, showTags = false }: CapabilityTagsProps)
         return (
           <span
             key={chip.key}
-            className="inline-flex items-center gap-1 rounded-full bg-secondary-600/10 px-2 py-0.5 text-xs text-secondary-700 dark:text-secondary-300"
+            className="inline-flex items-center gap-1 rounded-full bg-grey-100 px-2 py-0.5 text-xs text-foreground-muted dark:bg-grey-800"
           >
             <Icon className="h-3 w-3" />
             {chip.label}
