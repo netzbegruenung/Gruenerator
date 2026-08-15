@@ -15,6 +15,27 @@ export const isWebApp = (): boolean => {
   return !isNativeApp();
 };
 
+/**
+ * True when the page runs inside a host that supplies its own chrome — today
+ * the mobile app's in-app WebView, which opens us with `?embedded=1`.
+ *
+ * Read ONCE at module import, deliberately. The flag has to survive
+ * client-side navigation, and React Router drops the query string as soon as
+ * the app navigates; re-reading `location.search` later would silently turn
+ * the chrome back on mid-session. A module constant is also available to code
+ * that runs before React mounts.
+ *
+ * Everything this switches off is a way to navigate *out* of the embedded
+ * page: app chrome, global overlays, and the hard redirect to /login. The
+ * matching server-side allowlist of embeddable paths lives in
+ * `apps/api/plugins/webViewHandoffRedirect.ts`.
+ */
+const EMBEDDED =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('embedded') === '1';
+
+export const isEmbedded = (): boolean => EMBEDDED;
+
 export type AppContext = 'web' | 'desktop';
 
 export const getAppContext = (): AppContext => {
