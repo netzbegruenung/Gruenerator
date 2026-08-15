@@ -30,9 +30,10 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
   const hiddenSkillMentions = useHiddenSkillMentions();
   const { lvIds } = useUserLandesverbaende();
 
-  // Landesverbands-Rezepte gehören in die Bibliothek der Person, die in dem
-  // Landesverband arbeitet — nicht in die aller. Ohne Rollenangabe bleibt
-  // `lvIds` leer und der Filter lässt alles durch.
+  // Landesverbands-Rezepte gehören in die Bibliothek der Person, die in der
+  // Landesgeschäftsstelle dieses Landesverbands arbeitet — nicht in die aller.
+  // Ohne diese Rolle sind sie nicht in der Bibliothek; vor der Hydratation ist
+  // `lvIds` `null` und der Filter lässt alles durch.
   const allSkills = useMemo(
     () =>
       agentsList
