@@ -42,7 +42,7 @@ const STUB_AGENT_CONFIG = {
  * gefragt wurde. Genau das ist hier die Aussage: diese Turns dürfen kein Modell
  * kosten.
  */
-function makeWorkerPool() {
+function makeAiClient() {
   return {
     processRequest: vi.fn(async () => ({ content: 'keine' })),
   };
@@ -55,7 +55,7 @@ function buildState(overrides: Partial<ChatGraphState> & { userMessage: string }
     threadId: null,
     agentConfig: STUB_AGENT_CONFIG,
     enabledTools: { search: true, web: true, image: true, image_edit: true },
-    aiWorkerPool: makeWorkerPool(),
+    aiClient: makeAiClient(),
     userLocale: 'de-DE',
     attachmentContext: null,
     imageAttachments: [],
@@ -92,12 +92,12 @@ describe('classifierNode — Sharepic-Folgeauftrag vs. image_edit', () => {
   const ADD_INSTRUCTION = 'Und jetzt noch die Uhrzeit 15 Uhr ergänzen';
 
   it('beansprucht auch einen ERGÄNZENDEN Folgeauftrag, ohne das Modell zu fragen', async () => {
-    const pool = makeWorkerPool();
+    const pool = makeAiClient();
     const result = await classifierNode(
       buildState({
         userMessage: ADD_INSTRUCTION,
         lastToolContext: afterSharepic,
-        aiWorkerPool: pool as unknown as ChatGraphState['aiWorkerPool'],
+        aiClient: pool as unknown as ChatGraphState['aiClient'],
       })
     );
     expect(result.intent).toBe('sharepic');
@@ -105,12 +105,12 @@ describe('classifierNode — Sharepic-Folgeauftrag vs. image_edit', () => {
   });
 
   it('beantwortet den Standard-Folgeauftrag deterministisch, ohne das Modell zu fragen', async () => {
-    const pool = makeWorkerPool();
+    const pool = makeAiClient();
     const result = await classifierNode(
       buildState({
         userMessage: 'Mach den Text größer',
         lastToolContext: afterSharepic,
-        aiWorkerPool: pool as unknown as ChatGraphState['aiWorkerPool'],
+        aiClient: pool as unknown as ChatGraphState['aiClient'],
       })
     );
     expect(result.intent).toBe('sharepic');

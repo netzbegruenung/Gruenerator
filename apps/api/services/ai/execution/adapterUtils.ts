@@ -1,8 +1,8 @@
 import { jsonSchema, type ModelMessage, type Tool } from 'ai';
 
-import { decodeBase64OrDataUrl, decodeDataUrl } from '../../utils/dataUrl.js';
+import { decodeBase64OrDataUrl, decodeDataUrl } from '../../../utils/dataUrl.js';
 
-import type { AIRequestData, AIWorkerResult, ContentBlock, ToolCall } from '../types.js';
+import type { AIRequestData, AiResult, ContentBlock, ToolCall } from '../types.js';
 import type { RequestMetadata, ResponseMetadata } from './types.js';
 
 /** The AI SDK's own `Schema` wrapper, as produced by `jsonSchema()`. */
@@ -164,7 +164,7 @@ async function documentToText(c: ContentPart): Promise<string> {
   if (!source) return '';
   if (source.data && source.media_type === 'application/pdf') {
     try {
-      const { ocrService } = await import('../../services/ocrService.js');
+      const { ocrService } = await import('../../ocrService.js');
       const result = await ocrService.extractTextFromBase64PDF(
         source.data,
         source.name || 'unknown.pdf'
@@ -330,7 +330,7 @@ interface SdkTextResult {
 }
 
 /**
- * Turn an SDK result into the `AIWorkerResult` the call sites expect.
+ * Turn an SDK result into the `AiResult` the call sites expect.
  *
  * Written once because the four adapters disagreed on two points and neither
  * disagreement was a decision anyone made:
@@ -357,7 +357,7 @@ export function buildAdapterResult(params: {
   type?: string | undefined;
   requestMetadata?: RequestMetadata | undefined;
   result: SdkTextResult;
-}): AIWorkerResult {
+}): AiResult {
   const { provider, model, requestId, type, requestMetadata = {}, result } = params;
 
   const textContent = result.text || null;

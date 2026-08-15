@@ -41,7 +41,7 @@ import {
 import { getDocPreview } from '../../services/docs/docPreview.js';
 import { shareToPermissionLevel } from '../../services/groups/groupSharePermissions.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
-import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
+import { getAiClient } from '../../utils/getAiClient.js';
 import { createLogger } from '../../utils/logger.js';
 import { ensureDocChatThread } from '../chat/services/threadPersistenceService.js';
 
@@ -690,7 +690,7 @@ export const docsContractRouter = s.router(docsContract, {
       // and parsing whatever came back made this route fail with a 500 whenever
       // the model wrapped its answer in prose or ran out of output budget.
       const docResult = await generateStructured({
-        aiWorkerPool: getAIWorkerPool(args.req),
+        aiClient: getAiClient(args.req),
         req: args.req,
         type: 'doc_generation',
         systemPrompt: DOCUMENT_GENERATION_PROMPT,

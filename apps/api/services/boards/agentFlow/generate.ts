@@ -68,7 +68,7 @@ async function initializeBoardAgentState(
     agentId,
     ...(userId != null && { userId }),
     enabledTools: { search: true, web: true, person: true, examples: true, research: true },
-    aiWorkerPool: getAIService(),
+    aiClient: getAIService(),
     userLocale,
   });
 }

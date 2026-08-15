@@ -165,7 +165,7 @@ function executePlan(plan: ComputePlan, rawUserText: string): ComputeResult | nu
 
 export async function computeNode(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
   const startTime = Date.now();
-  const { messages, aiWorkerPool } = state;
+  const { messages, aiClient } = state;
 
   const lastUserMessage = messages.filter((m) => m.role === 'user').pop();
   const rawUserText = extractMessageText(lastUserMessage?.content);
@@ -177,7 +177,7 @@ export async function computeNode(state: ChatGraphState): Promise<Partial<ChatGr
       ? `${conversationContext}\n\nAktuelle Anfrage: "${rawUserText}"`
       : `Anfrage: "${rawUserText}"`;
 
-    const response = await aiWorkerPool.processRequest(
+    const response = await aiClient.processRequest(
       {
         type: 'chat_intent_classification',
         provider: LANE.provider,

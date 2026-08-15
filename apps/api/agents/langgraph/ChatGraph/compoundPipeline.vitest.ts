@@ -106,7 +106,7 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     threadId: null,
     agentConfig: makeAgentConfig(),
     enabledTools: { search: true, web: true, research: true },
-    aiWorkerPool: {
+    aiClient: {
       processRequest: vi.fn().mockResolvedValue({ content: '{}' }),
     },
     userLocale: 'de-DE',
@@ -236,7 +236,7 @@ describe('Compound Pipeline: @notebook + @skill', () => {
         messages: [
           { role: 'user' as const, content: 'erstelle eine Pressemitteilung über Klimapolitik' },
         ],
-        aiWorkerPool: {
+        aiClient: {
           processRequest: vi.fn().mockResolvedValue({ content: makeQueryRefineResponse() }),
         },
       });
@@ -269,7 +269,7 @@ describe('Compound Pipeline: @notebook + @skill', () => {
       // müssen auf JEDEM dieser Pfade gesetzt sein.
       const state = makeState({
         messages: [{ role: 'user' as const, content: 'Klimapolitik Hamburg' }],
-        aiWorkerPool: {
+        aiClient: {
           processRequest: vi.fn().mockRejectedValue(new Error('LLM timeout')),
         },
       });
@@ -335,7 +335,7 @@ describe('Compound Pipeline: @notebook + @skill', () => {
 
   describe('full pipeline: classify → search → rerank → citations', () => {
     it('processes @hamburg + @pressemitteilung with topic text', async () => {
-      const aiWorkerPool = {
+      const aiClient = {
         processRequest: vi
           .fn()
           // Erste Frage: queryRefineResolver (im Klassifikator)
@@ -352,7 +352,7 @@ describe('Compound Pipeline: @notebook + @skill', () => {
         notebookCollectionIds: ['hamburg'],
         notebookDocumentIds: [],
         agentConfig: makeAgentConfig(),
-        aiWorkerPool,
+        aiClient,
       });
 
       // Step 2: Classify
@@ -396,7 +396,7 @@ describe('Compound Pipeline: @notebook + @skill', () => {
       expect(mockRerank).toHaveBeenCalledTimes(1);
       expect(rerankedState.searchResults!.length).toBeGreaterThanOrEqual(1);
       // Der Verfeinerer ist die einzige Modell-Frage auf diesem Pfad.
-      expect(aiWorkerPool.processRequest).toHaveBeenCalledTimes(1);
+      expect(aiClient.processRequest).toHaveBeenCalledTimes(1);
 
       // Step 6: Build citations
       const citations = buildCitations(searchedState.searchResults!);
@@ -408,7 +408,7 @@ describe('Compound Pipeline: @notebook + @skill', () => {
     });
 
     it('handles empty user text (@hamburg @presse with no topic)', async () => {
-      const aiWorkerPool = {
+      const aiClient = {
         processRequest: vi.fn().mockResolvedValue({ content: '{}' }),
       };
 
@@ -418,7 +418,7 @@ describe('Compound Pipeline: @notebook + @skill', () => {
         notebookCollectionIds: ['hamburg'],
         notebookDocumentIds: [],
         agentConfig: makeAgentConfig(),
-        aiWorkerPool,
+        aiClient,
         searchQuery: null,
       });
 
@@ -454,7 +454,7 @@ describe('Compound Pipeline: @notebook + @skill', () => {
         notebookCollectionIds: ['hamburg'],
         notebookDocumentIds: [],
         agentConfig: makeUniversalAgentConfig(),
-        aiWorkerPool: {
+        aiClient: {
           processRequest: vi.fn().mockResolvedValue({ content: makeQueryRefineResponse() }),
         },
       });
@@ -478,7 +478,7 @@ describe('Compound Pipeline: @notebook + @skill', () => {
         notebookCollectionIds: [],
         notebookDocumentIds: [],
         agentConfig: makeAgentConfig(),
-        aiWorkerPool: {
+        aiClient: {
           processRequest: vi.fn().mockResolvedValue({ content: makeQueryRefineResponse() }),
         },
       });

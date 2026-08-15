@@ -12,8 +12,8 @@
  */
 
 import { createLogger } from '../../utils/logger.js';
-import { type AIWorkerPool } from '../../workers/types.js';
 import { intermediateLane } from '../ai/intermediateLanes.js';
+import { type AiClient } from '../ai/types.js';
 
 /** @see services/ai/intermediateLanes.ts */
 const LANE = intermediateLane('standard');
@@ -44,10 +44,7 @@ Antworte NUR mit JSON:
  * Expand a search query into multiple alternative formulations.
  * Uses the AI worker pool for a fast Mistral-small call.
  */
-export async function expandQuery(
-  query: string,
-  aiWorkerPool: AIWorkerPool
-): Promise<ExpandedQuery> {
+export async function expandQuery(query: string, aiClient: AiClient): Promise<ExpandedQuery> {
   // Check cache first
   const cacheKey = query.toLowerCase().trim();
   const cached = expansionCache.get(cacheKey);
@@ -57,7 +54,7 @@ export async function expandQuery(
   }
 
   try {
-    const response = await aiWorkerPool.processRequest(
+    const response = await aiClient.processRequest(
       {
         type: 'chat_query_expansion',
         provider: LANE.provider,

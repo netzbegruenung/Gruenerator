@@ -44,7 +44,7 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     notebookDocumentIds: [],
     searchSources: ['web'],
     complexity: 'simple',
-    aiWorkerPool: null,
+    aiClient: null,
     // Default to a run_python-capable client (web) so the pandas-guidance
     // assertions below exercise the historical behavior; capability-less
     // clients (mobile/voice) are covered explicitly.

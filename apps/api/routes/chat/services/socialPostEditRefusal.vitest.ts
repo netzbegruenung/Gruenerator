@@ -78,7 +78,7 @@ function runEdit(modelOutput: string, sse: ReturnType<typeof makeSse>['sse']) {
     threadId: 't1',
     userId: 'u1',
     instruction: 'mach den Text empörter',
-    aiWorkerPool: {
+    aiClient: {
       processRequest: () => Promise.resolve({ success: true, content: modelOutput }),
     } as never,
     startTime: 0,

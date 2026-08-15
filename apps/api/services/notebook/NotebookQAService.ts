@@ -69,7 +69,7 @@ import type {
   SearchContext,
   GetSearchContextParams,
 } from './types.js';
-import type { AIWorkerPool } from '../../workers/types.js';
+import type { AiClient } from '../ai/types.js';
 import type {
   EnrichedPersonSearchResult,
   ContentMention,
@@ -116,7 +116,7 @@ export class NotebookQAService {
     question,
     collectionIds,
     requestFilters,
-    aiWorkerPool,
+    aiClient,
     fastMode,
   }: QAMultiCollectionParams): Promise<QAResponse> {
     const startTime = Date.now();
@@ -199,11 +199,7 @@ export class NotebookQAService {
 
     // Fast mode: skip citation processing entirely
     if (fastMode) {
-      const fastAnswer = await this._generateFastDraft(
-        trimmedQuestion,
-        sortedResults,
-        aiWorkerPool
-      );
+      const fastAnswer = await this._generateFastDraft(trimmedQuestion, sortedResults, aiClient);
       return {
         success: true,
         answer: fastAnswer,
@@ -225,7 +221,7 @@ export class NotebookQAService {
 
     // Build references and generate draft
     const referencesMap = buildReferencesMap(sortedResults);
-    const draft = await this._generateDraft(trimmedQuestion, referencesMap, aiWorkerPool, true);
+    const draft = await this._generateDraft(trimmedQuestion, referencesMap, aiClient, true);
 
     // Process citations
     const { renumberedDraft, newReferencesMap } = renumberCitationsInOrder(draft, referencesMap);
@@ -275,7 +271,7 @@ export class NotebookQAService {
     question,
     userId,
     requestFilters,
-    aiWorkerPool,
+    aiClient,
     getCollectionFn,
     getDocumentIdsFn,
     fastMode,
@@ -291,7 +287,7 @@ export class NotebookQAService {
     if (collectionId === 'bundestagsfraktion-system' && !fastMode) {
       const personResult = await this._tryEnrichedPersonSearch(
         trimmedQuestion,
-        aiWorkerPool,
+        aiClient,
         startTime
       );
       if (personResult) {
@@ -427,7 +423,7 @@ export class NotebookQAService {
 
     // Fast mode: skip citation processing entirely
     if (fastMode) {
-      const fastAnswer = await this._generateFastDraft(trimmedQuestion, sorted, aiWorkerPool);
+      const fastAnswer = await this._generateFastDraft(trimmedQuestion, sorted, aiClient);
       return {
         success: true,
         answer: fastAnswer,
@@ -448,7 +444,7 @@ export class NotebookQAService {
 
     // Generate response
     const referencesMap = buildReferencesMap(sorted, { allowCreatedAt: !isSystem });
-    const draft = await this._generateDraft(trimmedQuestion, referencesMap, aiWorkerPool, isSystem);
+    const draft = await this._generateDraft(trimmedQuestion, referencesMap, aiClient, isSystem);
 
     const { renumberedDraft, newReferencesMap } = renumberCitationsInOrder(draft, referencesMap);
     const { cleanDraft, citations, sources } = validateAndInjectCitations(
@@ -980,7 +976,7 @@ export class NotebookQAService {
   private async _generateDraft(
     question: string,
     referencesMap: ReferencesMap,
-    aiWorkerPool: AIWorkerPool,
+    aiClient: AiClient,
     isSystemCollection: boolean
   ): Promise<string> {
     const refKeys = Object.keys(referencesMap);
@@ -1007,7 +1003,7 @@ export class NotebookQAService {
     });
     const userPrompt = `Heutiges Datum: ${today}\n\nFrage: ${question}\n\nGültige Quellen-IDs: ${validIds}\nVerwende AUSSCHLIESSLICH diese IDs für Quellenangaben.\n\nVerfügbare Quellen:\n${refsSummary}`;
 
-    const aiResult = await aiWorkerPool.processRequest({
+    const aiResult = await aiClient.processRequest({
       type: 'qa_draft',
       messages: [{ role: 'user', content: userPrompt }],
       systemPrompt,
@@ -1029,7 +1025,7 @@ export class NotebookQAService {
   private async _generateFastDraft(
     question: string,
     results: ExpandedChunkResult[],
-    aiWorkerPool: AIWorkerPool
+    aiClient: AiClient
   ): Promise<string> {
     const context = results
       .slice(0, 15)
@@ -1057,7 +1053,7 @@ export class NotebookQAService {
     const { system: systemPrompt } = buildFastModePrompt();
     const userPrompt = `Heutiges Datum: ${today}\n\nFrage: ${question}\n\nKontext:\n${context}`;
 
-    const aiResult = await aiWorkerPool.processRequest({
+    const aiResult = await aiClient.processRequest({
       type: 'qa_draft_fast',
       messages: [{ role: 'user', content: userPrompt }],
       systemPrompt,
@@ -1215,7 +1211,7 @@ export class NotebookQAService {
    */
   private async _tryEnrichedPersonSearch(
     question: string,
-    aiWorkerPool: AIWorkerPool,
+    aiClient: AiClient,
     startTime: number
   ): Promise<QAResponse | null> {
     try {
@@ -1236,7 +1232,7 @@ export class NotebookQAService {
 
       // Generate AI summary using the enriched data
       const contextSummary = enrichedService.generateActivitySummary(result);
-      const answer = await this._generatePersonAnswer(question, contextSummary || '', aiWorkerPool);
+      const answer = await this._generatePersonAnswer(question, contextSummary || '', aiClient);
 
       // Build citations from the enriched sources
       const citations = this._buildPersonCitations(contentMentions, drucksachen, aktivitaeten);
@@ -1283,13 +1279,13 @@ export class NotebookQAService {
   private async _generatePersonAnswer(
     question: string,
     contextSummary: string,
-    aiWorkerPool: AIWorkerPool
+    aiClient: AiClient
   ): Promise<string> {
     const systemPrompt = `Du bist ein Experte für die Grüne Bundestagsfraktion. Beantworte Fragen über Abgeordnete basierend auf den bereitgestellten Informationen. Antworte auf Deutsch, präzise und sachlich. Wenn du Informationen aus den Quellen verwendest, zitiere sie mit [1], [2] etc.`;
 
     const userPrompt = `Frage: ${question}\n\nKontext über die Person:\n${contextSummary}`;
 
-    const aiResult = await aiWorkerPool.processRequest({
+    const aiResult = await aiClient.processRequest({
       type: 'qa_draft',
       messages: [{ role: 'user', content: userPrompt }],
       systemPrompt,

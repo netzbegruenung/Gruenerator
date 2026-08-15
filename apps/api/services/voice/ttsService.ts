@@ -2,7 +2,7 @@ import { CompleteAcceptEnum } from '@mistralai/mistralai/sdk/speech';
 
 import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
-import mistralClient, { mistralGlobalClient } from '../../workers/mistralClient.js';
+import mistralClient, { mistralGlobalClient } from '../ai/mistralClient.js';
 
 const log = createLogger('tts');
 

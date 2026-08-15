@@ -9,18 +9,18 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { AIWorkerResult } from '../../workers/types.js';
+import type { AiResult } from '../../services/ai/types.js';
 import type { Request } from 'express';
 
-const processRequest = vi.fn<(...a: unknown[]) => Promise<AIWorkerResult>>();
+const processRequest = vi.fn<(...a: unknown[]) => Promise<AiResult>>();
 const createDocumentWithContent = vi.fn();
 
 vi.mock('../../database/services/PostgresService.js', () => ({
   getPostgresInstance: () => ({ query: vi.fn().mockResolvedValue([]) }),
 }));
 
-vi.mock('../../utils/getAIWorkerPool.js', () => ({
-  getAIWorkerPool: () => ({ processRequest }),
+vi.mock('../../utils/getAiClient.js', () => ({
+  getAiClient: () => ({ processRequest }),
 }));
 
 vi.mock('../../services/docs/DocGenerationService.js', async (importOriginal) => ({
@@ -56,7 +56,7 @@ describe('generateDocument', () => {
     processRequest.mockResolvedValue({
       success: true,
       tool_calls: [{ name: 'create_document', input: DOC }],
-    } as unknown as AIWorkerResult);
+    } as unknown as AiResult);
 
     const res = await generate('Skript zum Thema Niedrigwasser');
 
@@ -76,7 +76,7 @@ describe('generateDocument', () => {
     processRequest.mockResolvedValue({
       success: true,
       content: `Gerne! Hier ist das Dokument:\n\n\`\`\`json\n${JSON.stringify(DOC)}\n\`\`\``,
-    } as unknown as AIWorkerResult);
+    } as unknown as AiResult);
 
     const res = await generate('tiktokskrpt zum Thema Niedrigwasser');
 
@@ -89,11 +89,11 @@ describe('generateDocument', () => {
       .mockResolvedValueOnce({
         success: true,
         content: 'Worum genau soll es in dem Dokument gehen?',
-      } as unknown as AIWorkerResult)
+      } as unknown as AiResult)
       .mockResolvedValueOnce({
         success: true,
         tool_calls: [{ name: 'create_document', input: DOC }],
-      } as unknown as AIWorkerResult);
+      } as unknown as AiResult);
 
     const res = await generate('tiktokskrpt zum Thema Niedrigwasser');
 
@@ -105,7 +105,7 @@ describe('generateDocument', () => {
     processRequest.mockResolvedValue({
       success: true,
       content: 'Ich kann das leider nicht.',
-    } as unknown as AIWorkerResult);
+    } as unknown as AiResult);
 
     const res = await generate('tiktokskrpt zum Thema Niedrigwasser');
 

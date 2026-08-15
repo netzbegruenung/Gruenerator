@@ -58,7 +58,7 @@ Snippet: ${r.snippet || r.content || 'No preview available'}
     );
 
     // AI analyzes snippets and decides which URLs to crawl
-    const crawlDecision = await state.aiWorkerPool.processRequest(
+    const crawlDecision = await state.aiClient.processRequest(
       {
         type: 'crawler_agent',
         systemPrompt: `You are an intelligent web research agent. Based on search snippets, decide which URLs to crawl for full content.

@@ -5,7 +5,7 @@
  * Consolidates the identical updateThreadTitle + first-sentence heuristic
  * that was duplicated across chat controllers.
  *
- * Generates AI-powered German titles using Mistral-small via aiWorkerPool.
+ * Generates AI-powered German titles using Mistral-small via aiClient.
  */
 
 import { eq } from 'drizzle-orm';
@@ -15,7 +15,7 @@ import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { createLogger } from '../../utils/logger.js';
 import { intermediateLane } from '../ai/intermediateLanes.js';
 
-import type { AIWorkerPool } from '../../workers/types.js';
+import type { AiClient } from '../ai/types.js';
 
 /** @see services/ai/intermediateLanes.ts */
 const LANE = intermediateLane('trivial');
@@ -164,7 +164,7 @@ export async function generateThreadTitle(
   threadId: string,
   userMessage: string,
   assistantResponse: string,
-  aiWorkerPool: AIWorkerPool,
+  aiClient: AiClient,
   options?: { imageGenerated?: boolean }
 ): Promise<void> {
   log.info(`[ThreadTitle] generateThreadTitle called`, {
@@ -216,7 +216,7 @@ export async function generateThreadTitle(
     assistantSnippetLen: assistantSnippet.length,
   });
 
-  aiWorkerPool
+  aiClient
     .processRequest(aiRequest, null)
     .then(async (response: { content?: string | null }) => {
       log.info(`[ThreadTitle] AI worker response for ${threadId}:`, {

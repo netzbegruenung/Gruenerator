@@ -22,7 +22,7 @@ import { looksLikeRefusal } from './refusalDetection.js';
 import { parseSocialPostText } from './socialPostService.js';
 
 import type { SSEWriter } from './sseHelpers.js';
-import type { AIWorkerPool } from '../../../workers/types.js';
+import type { AiClient } from '../../../services/ai/types.js';
 import type { Request } from 'express';
 
 const log = createLogger('SocialPostEdit');
@@ -141,7 +141,7 @@ export interface HandleSocialPostEditArgs {
   instruction: string;
   /** Explicitly activated post (card toggle) — overrides recency targeting. */
   postId?: string | null;
-  aiWorkerPool: AIWorkerPool;
+  aiClient: AiClient;
   startTime: number;
   classificationTimeMs?: number;
 }
@@ -170,7 +170,7 @@ async function finishWithText(
  * post to edit, so the message falls through to the sharepic edit path.
  */
 export async function handleSocialPostTextEdit(args: HandleSocialPostEditArgs): Promise<boolean> {
-  const { sse, req, threadId, instruction, aiWorkerPool } = args;
+  const { sse, req, threadId, instruction, aiClient } = args;
 
   try {
     const hit = await findSocialPost(threadId, args.postId ?? null);
@@ -201,7 +201,7 @@ Ziel: ~${info.recommendedChars} Zeichen. Hartes Maximum: ${info.maxChars} Zeiche
 
     const userPrompt = `## AKTUELLER POST\n${post.text}\n\n## ANWEISUNG\n${instruction}`;
 
-    const result = await aiWorkerPool.processRequest(
+    const result = await aiClient.processRequest(
       {
         type: 'social_post_edit',
         systemPrompt,

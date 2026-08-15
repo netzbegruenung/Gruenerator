@@ -61,7 +61,7 @@ function makeState(overrides: Partial<FlyerToSiteState> = {}): FlyerToSiteState 
     req: {
       app: {
         locals: {
-          aiWorkerPool: {
+          aiClient: {
             processRequest: mockProcessRequest(JSON.stringify(validWebsiteContent)),
           },
         },
@@ -108,7 +108,7 @@ describe('generateNode', () => {
       req: {
         app: {
           locals: {
-            aiWorkerPool: {
+            aiClient: {
               processRequest: mockProcessRequest(
                 '```json\n' + JSON.stringify(validWebsiteContent) + '\n```'
               ),
@@ -140,7 +140,7 @@ describe('generateNode', () => {
       req: {
         app: {
           locals: {
-            aiWorkerPool: {
+            aiClient: {
               processRequest: mockProcessRequest(JSON.stringify(contentWith5Themes)),
             },
           },
@@ -168,7 +168,7 @@ describe('generateNode', () => {
       req: {
         app: {
           locals: {
-            aiWorkerPool: {
+            aiClient: {
               processRequest: mockProcessRequest(JSON.stringify(contentWith4Actions)),
             },
           },
@@ -186,7 +186,7 @@ describe('generateNode', () => {
       req: {
         app: {
           locals: {
-            aiWorkerPool: {
+            aiClient: {
               processRequest: mockProcessRequest('not json'),
             },
           },
@@ -207,7 +207,7 @@ describe('generateNode', () => {
       req: {
         app: {
           locals: {
-            aiWorkerPool: {
+            aiClient: {
               processRequest: mockProcessRequest(JSON.stringify(incomplete)),
             },
           },
@@ -228,7 +228,7 @@ describe('generateNode', () => {
       req: {
         app: {
           locals: {
-            aiWorkerPool: {
+            aiClient: {
               processRequest: mockProcessRequest(JSON.stringify(noThemes)),
             },
           },
@@ -251,7 +251,7 @@ describe('generateNode', () => {
         contactInfo: { email: 'flyer@example.de' },
       },
       req: {
-        app: { locals: { aiWorkerPool: { processRequest } } },
+        app: { locals: { aiClient: { processRequest } } },
         headers: {},
       },
     });
@@ -271,7 +271,7 @@ describe('generateNode', () => {
         contactInfo: {},
       },
       req: {
-        app: { locals: { aiWorkerPool: { processRequest } } },
+        app: { locals: { aiClient: { processRequest } } },
         headers: {},
       },
     });
@@ -286,7 +286,7 @@ describe('generateNode', () => {
     const processRequest = mockProcessRequest(JSON.stringify(validWebsiteContent));
     const state = makeState({
       req: {
-        app: { locals: { aiWorkerPool: { processRequest } } },
+        app: { locals: { aiClient: { processRequest } } },
         headers: {},
       },
     });

@@ -11,7 +11,7 @@
 
 import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
-import type { AIWorkerPool } from '../../../workers/types.js';
+import type { AiClient } from '../../../services/ai/types.js';
 import type {
   SearchResult as ChatSearchResult,
   Citation as ChatCitation,
@@ -65,7 +65,7 @@ export interface SearchGraphState {
   messages: ModelMessage[];
   threadId: string | null;
   searchMode: SearchMode;
-  aiWorkerPool: AIWorkerPool;
+  aiClient: AiClient;
   userLocale: UserLocale;
   agentConfig: AgentConfig;
 
@@ -130,7 +130,7 @@ export interface SearchGraphInput {
   messages?: ModelMessage[] | undefined;
   threadId?: string | undefined;
   searchMode: SearchMode;
-  aiWorkerPool: AIWorkerPool;
+  aiClient: AiClient;
   userLocale?: UserLocale | undefined;
   locale?: string | undefined;
 }

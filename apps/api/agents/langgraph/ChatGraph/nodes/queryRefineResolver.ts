@@ -37,7 +37,7 @@
 import { createLogger } from '../../../../utils/logger.js';
 import { intermediateLane } from '../llmConfig.js';
 
-import type { AIWorkerPool } from '../../../../workers/types.js';
+import type { AiClient } from '../../../../services/ai/types.js';
 
 /** @see services/ai/intermediateLanes.ts */
 const LANE = intermediateLane('standard');
@@ -75,7 +75,7 @@ interface RefineArgs {
   userContent: string;
   conversationContext: string | null;
   topicalContext: string | null;
-  aiWorkerPool: AIWorkerPool;
+  aiClient: AiClient;
 }
 
 /**
@@ -87,7 +87,7 @@ export async function refineSearchQuery({
   userContent,
   conversationContext,
   topicalContext,
-  aiWorkerPool,
+  aiClient,
 }: RefineArgs): Promise<RefinedQuery | null> {
   const startTime = Date.now();
   const userMessage =
@@ -97,7 +97,7 @@ export async function refineSearchQuery({
 
   try {
     const response = await withTimeout(
-      aiWorkerPool.processRequest(
+      aiClient.processRequest(
         {
           type: 'chat_intent_classification',
           provider: LANE.provider,

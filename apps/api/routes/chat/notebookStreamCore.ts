@@ -32,7 +32,7 @@ import {
   withLangfuseTrace,
 } from '../../services/telemetry/langfuseTelemetry.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
-import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
+import { getAiClient } from '../../utils/getAiClient.js';
 import { createLogger } from '../../utils/logger.js';
 import { containsPromptLeakage } from '../gruenomat/topicGuard.js';
 
@@ -159,7 +159,7 @@ export async function handleNotebookStream(
     // the worst case is the single-query behaviour of the tiers below.
     let queries = [question];
     if (profile.queryVariants > 1) {
-      const expanded = await expandQuery(question, getAIWorkerPool(req));
+      const expanded = await expandQuery(question, getAiClient(req));
       queries = [expanded.primary, ...expanded.alternatives].slice(0, profile.queryVariants);
       if (queries.length > 1) {
         sse.send('progress_step', {

@@ -3,7 +3,7 @@
  * AI-powered selection of background images for sharepics
  */
 
-import { type AIWorkerPool } from '../../../workers/types.js';
+import { type AiClient } from '../../../services/ai/types.js';
 
 import type { Request } from 'express';
 
@@ -46,7 +46,7 @@ export interface ImageSelectionState {
   // Input parameters
   text: string;
   sharepicType: string;
-  aiWorkerPool: AIWorkerPool;
+  aiClient: AiClient;
   req: Request;
 
   // Core data
@@ -67,7 +67,7 @@ export interface ImageSelectionState {
 export interface ImageSelectionInput {
   text: string;
   sharepicType: string;
-  aiWorkerPool: AIWorkerPool;
+  aiClient: AiClient;
   req: Request;
 }
 

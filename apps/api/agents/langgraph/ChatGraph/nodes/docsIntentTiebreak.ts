@@ -29,7 +29,7 @@
 import { createLogger } from '../../../../utils/logger.js';
 import { intermediateLane } from '../llmConfig.js';
 
-import type { AIWorkerPool } from '../../../../workers/types.js';
+import type { AiClient } from '../../../../services/ai/types.js';
 
 /** @see services/ai/intermediateLanes.ts */
 const LANE = intermediateLane('standard');
@@ -63,7 +63,7 @@ export type DocsTiebreakDecision = 'edit' | 'question' | null;
 interface TiebreakArgs {
   userContent: string;
   conversationContext: string | null;
-  aiWorkerPool: AIWorkerPool;
+  aiClient: AiClient;
 }
 
 /**
@@ -74,7 +74,7 @@ interface TiebreakArgs {
 export async function classifyDocsIntentTiebreak({
   userContent,
   conversationContext,
-  aiWorkerPool,
+  aiClient,
 }: TiebreakArgs): Promise<DocsTiebreakDecision> {
   const startTime = Date.now();
   const userMessage = conversationContext
@@ -83,7 +83,7 @@ export async function classifyDocsIntentTiebreak({
 
   try {
     const response = await withTimeout(
-      aiWorkerPool.processRequest(
+      aiClient.processRequest(
         {
           type: 'chat_intent_classification',
           provider: LANE.provider,

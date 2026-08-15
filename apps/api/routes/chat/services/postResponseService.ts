@@ -12,6 +12,7 @@
 import { intentToolNames } from '@gruenerator/shared/chat-intents';
 
 import { renumberAnswerCitations } from '../../../agents/langgraph/ChatGraph/nodes/citationUtils.js';
+import { type AiClient } from '../../../services/ai/types.js';
 import { upsertThreadRecallPoint } from '../../../services/chat/threadRecallEmbeddingService.js';
 import { generateThreadTags } from '../../../services/chat/threadTagService.js';
 import { generateThreadTitle } from '../../../services/chat/threadTitleService.js';
@@ -22,7 +23,6 @@ import { maybeRecompilePersona } from '../../../services/mem0/personaService.js'
 import { withRetry } from '../../../services/search/searchRetryStrategy.js';
 import { createLogger } from '../../../utils/logger.js';
 import { reportBackgroundError } from '../../../utils/reportBackgroundError.js';
-import { type AIWorkerPool } from '../../../workers/types.js';
 
 import { MAX_SOURCES } from './agenticLoop/loopGuards.js';
 import {
@@ -285,7 +285,7 @@ export interface PersistParams {
   isNewThread: boolean;
   lastUserMessage: ModelMessage;
   processedMeta: ProcessedAttachmentMeta[];
-  aiWorkerPool: AIWorkerPool;
+  aiClient: AiClient;
   requestId: string;
   /** Whether the user has the memory beta feature enabled (profiles.memory_enabled). */
   memoryEnabled: boolean;
@@ -404,7 +404,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
     isNewThread,
     lastUserMessage,
     processedMeta,
-    aiWorkerPool,
+    aiClient,
     requestId,
     memoryEnabled,
     agentId,
@@ -547,7 +547,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
         fullTextPreview: fullText?.slice(0, 100),
         imageGenerated: !!generatedImage,
       });
-      const titlePromise = generateThreadTitle(threadId, userText, fullText, aiWorkerPool, {
+      const titlePromise = generateThreadTitle(threadId, userText, fullText, aiClient, {
         imageGenerated: !!generatedImage,
       }).catch((err) => log.warn('[ChatGraph] Thread title generation failed:', err));
       // Auto-tag from the same first exchange. Triggered here (not only via the

@@ -2,18 +2,14 @@
  * The request/response envelope of the in-process AI service
  * (`services/ai/aiService.ts`).
  *
- * The name still says "worker" for historical reasons: this used to travel over
- * `postMessage` to a `worker_threads` pool. That pool was replaced by an
- * in-process service and its message protocol, instance bookkeeping and config
- * interfaces are gone — what is left here is the payload shape the ~66 call
- * sites and the provider adapters actually share.
+ * The envelope shape is inherited: it used to travel over `postMessage` to a
+ * `worker_threads` pool. That pool was replaced by an in-process service, its
+ * message protocol, instance bookkeeping and config interfaces are gone, and
+ * the names stopped saying "worker" with the 08/2026 rename — what is left here
+ * is the payload shape the ~66 call sites and the provider adapters share.
  */
 
-import type {
-  ProviderName,
-  ProviderOptions,
-  RequestMetadata,
-} from '../services/providers/types.js';
+import type { ProviderName, ProviderOptions, RequestMetadata } from '../providers/types.js';
 
 // ========================================
 // AI Request/Response Types
@@ -118,7 +114,7 @@ export interface AIResponseMetadata {
   [key: string]: unknown;
 }
 
-export interface AIWorkerResult {
+export interface AiResult {
   content: string | null;
   stop_reason?: string | undefined;
   tool_calls?: ToolCall[] | undefined;
@@ -134,18 +130,14 @@ export interface AIWorkerResult {
 // ========================================
 
 /**
- * The contract every consumer types against — `app.locals.aiWorkerPool` and the
+ * The contract every consumer types against — `app.locals.aiClient` and the
  * ~15 test fakes. Import it from HERE, never from an implementation module
  * (see CLAUDE-routing.md).
  */
-export interface AIWorkerPool {
-  processRequest(data: AIRequestData, req?: unknown): Promise<AIWorkerResult>;
+export interface AiClient {
+  processRequest(data: AIRequestData, req?: unknown): Promise<AiResult>;
   shutdown(): Promise<void | PromiseSettledResult<number>[]>;
 }
 
 // Re-export provider types for convenience
-export type {
-  ProviderName,
-  ProviderOptions,
-  RequestMetadata,
-} from '../services/providers/types.js';
+export type { ProviderName, ProviderOptions, RequestMetadata } from '../providers/types.js';

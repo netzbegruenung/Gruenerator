@@ -42,14 +42,14 @@ export interface ProcessedResponse {
   sources: SourceInfo[];
 }
 
-export interface AIWorkerResult {
+export interface AiResult {
   success: boolean;
   content?: string | undefined;
   metadata?: Record<string, unknown> | undefined;
   [key: string]: unknown;
 }
 
-export interface EnhancedAIWorkerResult extends AIWorkerResult {
+export interface EnhancedAiResult extends AiResult {
   metadata?: {
     title?: string | undefined;
     titleSource?: 'extracted' | 'smart' | undefined;

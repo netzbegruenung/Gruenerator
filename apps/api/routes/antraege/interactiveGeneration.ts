@@ -18,7 +18,7 @@ import { env } from '../../config/env.js';
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { getExperimentalSession } from '../../services/chat/ChatMemoryService.js';
-import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
+import { getAiClient } from '../../utils/getAiClient.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type {
@@ -119,8 +119,8 @@ router.post(
       }
 
       // Get AI worker pool
-      const aiWorkerPool = getAIWorkerPool(req);
-      if (!aiWorkerPool) {
+      const aiClient = getAiClient(req);
+      if (!aiClient) {
         log.error(`[interactive][${reqId}] AI worker pool not available`);
         return res.status(503).json({
           status: 'error',
@@ -139,7 +139,7 @@ router.post(
         requestType,
         generatorType: 'antrag',
         locale: locale || req.user?.locale || 'de-DE',
-        aiWorkerPool,
+        aiClient,
         req,
       };
 
@@ -205,8 +205,8 @@ router.post(
       }
 
       // Get AI worker pool
-      const aiWorkerPool = getAIWorkerPool(req);
-      if (!aiWorkerPool) {
+      const aiClient = getAiClient(req);
+      if (!aiClient) {
         log.error(`[interactive][${reqId}] AI worker pool not available`);
         return res.status(503).json({
           status: 'error',
@@ -224,7 +224,7 @@ router.post(
         userId,
         sessionId,
         answers,
-        aiWorkerPool,
+        aiClient,
         req,
       };
 

@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { env } from '../../config/env.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { searxngService as searxngWebSearchService } from '../../services/search/index.js';
-import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
+import { getAiClient } from '../../utils/getAiClient.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type {
@@ -125,7 +125,7 @@ router.post(
           finalResults = (await searxngWebSearchService.generateAISummary(
             searchResults,
             query,
-            getAIWorkerPool(req),
+            getAiClient(req),
             {
               maxResults: searchOptions.maxResults,
             },

@@ -7,7 +7,7 @@
 
 import { StateGraph, Annotation } from '@langchain/langgraph';
 
-import { type AIWorkerPool } from '../../../workers/types.js';
+import { type AiClient } from '../../../services/ai/types.js';
 
 import { loadCatalogNode } from './nodes/LoadCatalogNode.js';
 import { selectImageNode } from './nodes/SelectImageNode.js';
@@ -29,7 +29,7 @@ const ImageSelectionStateAnnotation = Annotation.Root({
   sharepicType: Annotation<string>({
     reducer: (x, y) => y ?? x,
   }),
-  aiWorkerPool: Annotation<AIWorkerPool>({
+  aiClient: Annotation<AiClient>({
     reducer: (x, y) => y ?? x,
   }),
   req: Annotation<Request>({
@@ -95,7 +95,7 @@ export const imageSelectionGraph = createImageSelectionGraph();
  * Execute image selection using the graph
  */
 export async function runImageSelection(input: ImageSelectionInput): Promise<ImageSelectionOutput> {
-  const { text, sharepicType, aiWorkerPool, req } = input;
+  const { text, sharepicType, aiClient, req } = input;
 
   console.log(`[ImageSelectionGraph] Starting image selection for: "${text.substring(0, 50)}..."`);
 
@@ -103,7 +103,7 @@ export async function runImageSelection(input: ImageSelectionInput): Promise<Ima
     const initialState = {
       text,
       sharepicType,
-      aiWorkerPool,
+      aiClient,
       req,
       metadata: {} as SelectionMetadata,
     };

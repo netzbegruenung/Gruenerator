@@ -25,8 +25,8 @@ import { createLogger } from '../../utils/logger.js';
 import { attachImages, clampSections, parseModelJson } from './websiteContent.js';
 import { buildWebsiteSystemPrompt } from './websitePrompt.js';
 
+import type { AiClient } from '../../services/ai/types.js';
 import type { UserProfile } from '../../services/user/types.js';
-import type { AIWorkerPool } from '../../workers/types.js';
 import type { Application, Request } from 'express';
 
 const log = createLogger('texteContract');
@@ -69,8 +69,8 @@ const texteContractRouter = s.router(texteContract, {
       // Kein `provider` auf oberster Ebene: das wählt den Adapter, ohne das
       // Modell mitzuwählen — genau so schickte diese Route einmal einen
       // verdigado-Alias an die Mistral-API. `type: 'website'` wählt beides.
-      const aiWorkerPool = res.app.locals.aiWorkerPool as AIWorkerPool;
-      const result = await aiWorkerPool.processRequest(
+      const aiClient = res.app.locals.aiClient as AiClient;
+      const result = await aiClient.processRequest(
         {
           type: 'website',
           systemPrompt,
@@ -130,7 +130,7 @@ const texteContractRouter = s.router(texteContract, {
         try {
           const picked = await imagePickerService.selectBestImage(
             text,
-            aiWorkerPool,
+            aiClient,
             { maxCandidates: 5 },
             req
           );

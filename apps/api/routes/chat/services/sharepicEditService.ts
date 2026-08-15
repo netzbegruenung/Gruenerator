@@ -45,7 +45,7 @@ import { runSharepicEdit } from './sharepicEditLlm.js';
 
 import type { SharepicVariant } from './sharepicVariantHelpers.js';
 import type { SSEWriter } from './sseHelpers.js';
-import type { AIWorkerPool } from '../../../workers/types.js';
+import type { AiClient } from '../../../services/ai/types.js';
 
 const log = createLogger('SharepicEdit');
 
@@ -417,7 +417,7 @@ export async function applySharepicOpsToCanvas(args: {
   summary: string;
   userId: string;
   sse: SSEWriter;
-  aiWorkerPool: AIWorkerPool;
+  aiClient: AiClient;
   req?: unknown;
 }): Promise<ApplySharepicOpsOutcome> {
   const { canvasId, variantId, canvasType, descriptor, state, operations, summary, userId, sse } =
@@ -430,7 +430,7 @@ export async function applySharepicOpsToCanvas(args: {
     try {
       const selection = await imagePickerService.selectBestImage(
         opsResult.imageQueries[0],
-        args.aiWorkerPool,
+        args.aiClient,
         { sharepicType: descriptor.id },
         args.req
       );
@@ -587,7 +587,7 @@ export interface HandleSharepicEditArgs {
     canvasId?: string | null | undefined;
     canvasType: string;
   } | null;
-  aiWorkerPool: AIWorkerPool;
+  aiClient: AiClient;
   startTime: number;
   classificationTimeMs?: number;
 }
@@ -616,7 +616,7 @@ async function finishWithText(
  * (stream closed) — the router then returns without running stages 2–4.
  */
 export async function handleSharepicEdit(args: HandleSharepicEditArgs): Promise<boolean> {
-  const { sse, req, threadId, userId, instruction, currentSharepic, aiWorkerPool } = args;
+  const { sse, req, threadId, userId, instruction, currentSharepic, aiClient } = args;
 
   try {
     const target = await resolveTarget(threadId, currentSharepic);
@@ -671,7 +671,7 @@ export async function handleSharepicEdit(args: HandleSharepicEditArgs): Promise<
       descriptor,
       snapshot: buildSharepicSnapshot(descriptor, state),
       recentEditSummaries,
-      aiWorkerPool,
+      aiClient,
       req,
     });
 
@@ -695,7 +695,7 @@ export async function handleSharepicEdit(args: HandleSharepicEditArgs): Promise<
       summary,
       userId,
       sse,
-      aiWorkerPool,
+      aiClient,
       req,
     });
 

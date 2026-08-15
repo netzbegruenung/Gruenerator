@@ -14,9 +14,9 @@
 
 import { defaultSettingsMiddleware, generateText, wrapLanguageModel } from 'ai';
 
-import { getGenerationConfig } from '../../services/ai/config.js';
-import { getDefaultModel, getModel, isProviderConfigured } from '../../services/ai/providers.js';
-import ToolHandler from '../../services/tools/index.js';
+import ToolHandler from '../../tools/index.js';
+import { getGenerationConfig } from '../config.js';
+import { getDefaultModel, getModel, isProviderConfigured } from '../providers.js';
 
 import {
   buildAdapterResult,
@@ -25,8 +25,8 @@ import {
   resolveToolChoice,
 } from './adapterUtils.js';
 
-import type { ProviderName } from '../../services/ai/providers.js';
-import type { AIRequestData, AIRequestOptions, AIWorkerResult } from '../types.js';
+import type { ProviderName } from '../providers.js';
+import type { AIRequestData, AIRequestOptions, AiResult } from '../types.js';
 import type { LanguageModel } from 'ai';
 
 /** Injected so tests drive the executor with a fake instead of `vi.mock('ai')`
@@ -119,7 +119,7 @@ export async function execute(
   requestId: string,
   data: AIRequestData,
   deps: ExecuteDeps = defaultDeps
-): Promise<AIWorkerResult> {
+): Promise<AiResult> {
   const { messages, systemPrompt, options = {}, type, metadata: requestMetadata = {} } = data;
 
   if (!isProviderConfigured(provider)) {
