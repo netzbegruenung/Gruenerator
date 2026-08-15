@@ -30,6 +30,10 @@ export const EMBEDDABLE_PATH_PREFIXES: readonly string[] = [
   '/documents/',
   '/gruenerator/',
   '/notebook/',
+  // The office dispatcher (`CollabDocRoute`): text documents, sheets and
+  // presentations all live under this one path and are told apart by
+  // `document_subtype`, so one entry covers all three.
+  '/office/',
   '/studio/canvas/',
   '/texte/',
 ];
