@@ -20,6 +20,7 @@ import { useLastComputeStore } from './lastComputeStore';
 import { usePythonFileStore } from './pythonFileStore';
 import { useReelLiveStore } from './reelLiveStore';
 import { useSharepicLiveStore } from './sharepicLiveStore';
+import { useUserProfileStore } from './userProfileStore';
 
 import type { ChatApiClient } from '../context/ChatContext';
 
@@ -98,6 +99,7 @@ export const PROVIDER_OPTIONS: ProviderOption[] = [
 interface ThreadSettings {
   customSystemPrompt: string | null;
   customEnabledTools: Record<string, boolean> | null;
+  roleRef: { ebene: string; rolle: string } | null;
 }
 
 interface AgentState {
@@ -421,9 +423,23 @@ export const useAgentStore = create<AgentState>()(
             `/api/chat-service/threads/${threadId}/settings`
           );
           if (useAgentStore.getState().currentThreadId !== threadId) return;
+          const roleRef = response.roleRef ?? null;
           set({
             customSystemPrompt: response.customSystemPrompt ?? null,
             customEnabledTools: response.customEnabledTools ?? null,
+            customRoleRef: roleRef,
+            // Die Bezeichnung steht nicht im Thread, sondern in den Rollen der
+            // Person — der Thread merkt sich nur die Referenz. Ist die Rolle
+            // inzwischen gelöscht, bleibt die gespeicherte Bezeichnung als
+            // Anzeige stehen; der Server fängt den fehlenden Treffer ab.
+            ...(roleRef && {
+              threadMode: 'eigener' as const,
+              customRoleName:
+                useUserProfileStore
+                  .getState()
+                  .roles.find((r) => r.ebene === roleRef.ebene && r.rolle === roleRef.rolle)
+                  ?.rolle ?? roleRef.rolle,
+            }),
           });
         } catch (error) {
           // 404 is the normal "thread has no settings row yet" case and falls
@@ -440,10 +456,14 @@ export const useAgentStore = create<AgentState>()(
           }
         }
         const state = useAgentStore.getState();
+        // Eine Katalogrolle hat keinen `customSystemPrompt` — ohne die
+        // `customRoleRef`-Bedingung hätte dieser Reset jeden Rollen-Chat beim
+        // Neuladen in den normalen Chat zurückgeworfen.
         if (
           state.currentThreadId === threadId &&
           state.threadMode === 'eigener' &&
-          !state.customSystemPrompt
+          !state.customSystemPrompt &&
+          !state.customRoleRef
         ) {
           set({ threadMode: 'chat', customRoleName: null, customRoleRef: null });
         }
@@ -457,6 +477,7 @@ export const useAgentStore = create<AgentState>()(
             {
               customSystemPrompt: state.customSystemPrompt,
               customEnabledTools: state.customEnabledTools,
+              roleRef: state.customRoleRef,
             }
           );
           return true;

@@ -703,18 +703,20 @@ function toSources(rows: ThreadToolRow[], limit: number): SearchResult[] {
 export interface ThreadSettings {
   custom_system_prompt: string | null;
   custom_enabled_tools: Record<string, boolean> | null;
+  role_ref: { ebene: string; rolle: string } | null;
 }
 
 export async function getThreadSettings(threadId: string): Promise<ThreadSettings | null> {
   const postgres = getPostgresInstance();
   const result = await postgres.query(
-    `SELECT custom_system_prompt, custom_enabled_tools FROM chat_threads WHERE id = $1`,
+    `SELECT custom_system_prompt, custom_enabled_tools, role_ref FROM chat_threads WHERE id = $1`,
     [threadId]
   );
   if (!result[0]) return null;
   return {
     custom_system_prompt: (result[0].custom_system_prompt as string) || null,
     custom_enabled_tools: (result[0].custom_enabled_tools as Record<string, boolean>) || null,
+    role_ref: (result[0].role_ref as { ebene: string; rolle: string }) || null,
   };
 }
 
@@ -724,6 +726,7 @@ export async function updateThreadSettings(
   settings: {
     customSystemPrompt?: string | null;
     customEnabledTools?: Record<string, boolean> | null;
+    roleRef?: { ebene: string; rolle: string } | null;
   }
 ): Promise<boolean> {
   const postgres = getPostgresInstance();
@@ -740,6 +743,12 @@ export async function updateThreadSettings(
   if (settings.customEnabledTools !== undefined) {
     setClauses.push(`custom_enabled_tools = $${paramIdx}`);
     params.push(settings.customEnabledTools ? JSON.stringify(settings.customEnabledTools) : null);
+    paramIdx++;
+  }
+
+  if (settings.roleRef !== undefined) {
+    setClauses.push(`role_ref = $${paramIdx}`);
+    params.push(settings.roleRef ? JSON.stringify(settings.roleRef) : null);
     paramIdx++;
   }
 

@@ -281,6 +281,30 @@ function useGrueneratorThreadRuntime() {
     }
   }, []);
 
+  // Rollenwechsel MITTEN im Thread: `onThreadCreated` feuert nur beim ersten
+  // Turn, eine danach gewählte Rolle wäre sonst nur im localStorage gelandet
+  // und auf einem anderen Gerät nie aufgetaucht.
+  //
+  // Beim Threadwechsel wird nur der Ausgangswert vermerkt, nie geschrieben:
+  // `currentThreadId` wechselt VOR `loadThreadSettings`, ein Schreiben in
+  // diesem Moment trüge die Rolle des alten Threads in den neuen.
+  const roleSyncRef = useRef<{ threadId: string | null; saved: string | null }>({
+    threadId: null,
+    saved: null,
+  });
+  const currentThreadId = useAgentStore((s) => s.currentThreadId);
+  useEffect(() => {
+    const key = threadMode === 'eigener' && customRoleRef ? JSON.stringify(customRoleRef) : null;
+    if (roleSyncRef.current.threadId !== currentThreadId) {
+      roleSyncRef.current = { threadId: currentThreadId, saved: key };
+      return;
+    }
+    if (roleSyncRef.current.saved === key) return;
+    roleSyncRef.current.saved = key;
+    if (!currentThreadId) return;
+    void useAgentStore.getState().saveThreadSettings(currentThreadId, runtimeApiClientRef.current);
+  }, [currentThreadId, threadMode, customRoleRef]);
+
   const needsCompactionRef = useRef(needsCompaction);
   needsCompactionRef.current = needsCompaction;
   const compactionSummaryRef = useRef(compactionState.summary);
