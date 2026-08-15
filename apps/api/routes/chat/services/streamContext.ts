@@ -750,11 +750,18 @@ export async function buildStreamContext({
   // Katalogrolle mit Baustein (statt frei getippter Persona): das Rezept-
   // Selbstladen im Loop bleibt dann AN — siehe resolveCustomSystemPrompt.
   let roleBausteinActive = false;
+  // Die ganze Rollenliste, nicht nur die referenzierte: der Rezept-Katalog
+  // leitet daraus die Landesverbands-Zuteilung ab, und die gilt in jedem Turn —
+  // auch in einem ohne gewählte Rolle.
+  //
+  // Ein fehlendes Feld wird zur leeren Liste, nicht zu `null`: anders als das
+  // Frontend, das vor der Hydratation ehrlich nichts weiß, hat der Server den
+  // Nutzerdatensatz in der Hand. „Kein Eintrag" ist hier eine Antwort — keine
+  // Rolle, also keine LV-Rezepte.
+  const storedRoles = user.user_defaults?.profile?.roles;
+  const userRoles: UserRole[] = Array.isArray(storedRoles) ? (storedRoles as UserRole[]) : [];
   if (rawRoleRef) {
-    const storedRoles = user.user_defaults?.profile?.roles;
-    const role = Array.isArray(storedRoles)
-      ? findRole(storedRoles as UserRole[], rawRoleRef)
-      : null;
+    const role = findRole(userRoles, rawRoleRef);
     if (!role) {
       log.warn(
         `[${requestId}] roleRef ${rawRoleRef.ebene}/${rawRoleRef.rolle} findet keine ` +
@@ -834,6 +841,7 @@ export async function buildStreamContext({
     clientPlatform: rawPlatform ?? 'web',
     customSystemPrompt,
     roleBausteinActive,
+    userRoles,
     activeSkillMention: rawActiveSkillMention ?? undefined,
     userInstructions,
     contextWindowTokens,

@@ -237,9 +237,10 @@ function AgenturaPage() {
   );
   // Das Landesverbands-Regal ist persönlich: es zeigt die Agenten und Rezepte
   // des eigenen Landesverbands, nicht die aller elf. Die Zuordnung kommt aus
-  // den Profilrollen (Ebene „Land"). Ohne gepflegte Rolle bleibt `lvIds` leer
-  // und der Filter lässt alles durch — niemand verliert Inhalte, nur weil er
-  // sein Profil noch nicht ausgefüllt hat.
+  // der Profilrolle „Mitarbeiter*in Landesgeschäftsstelle" (AT:
+  // Landesorganisation). Ohne diese Rolle bleibt das Regal leer — die Zuteilung
+  // IST der Zugang. Solange die Rollen noch nicht geladen sind, ist `lvIds`
+  // `null` und es wird nicht gefiltert, damit das Regal nicht erst leer steht.
   const lvSystemAgents = useMemo(
     () =>
       systemAgents.filter(
@@ -303,7 +304,7 @@ function AgenturaPage() {
   );
 
   const handleSelectSkill = (skill: AgentListItem) => {
-    void navigate(`/agentura/skill/${encodeURIComponent(skill.mention)}`);
+    void navigate(`/agentura/rezept/${encodeURIComponent(skill.mention)}`);
   };
   const handleSelectAgent = (agent: Agent) => {
     void navigate(`/agentura/agent/${encodeURIComponent(getAgentSlug(agent.identifier))}`);
@@ -376,15 +377,33 @@ function AgenturaPage() {
   // A market aisle renders as one or more sections; only `gruenerator` and `meine`
   // use headed sub-sections, every other aisle is a single unheaded card grid.
   const sectionsFor = (key: AgenturaCategoryKey): MarketSection[] => {
-    if (key === 'empfohlen')
-      return [
-        {
-          key: 'empfohlen',
-          cards: sortAgentEntries(
-            featuredAgents.map((a) => ({ agent: a, isUser: false, editable: false }))
-          ).map(agentCard),
-        },
-      ];
+    if (key === 'empfohlen') {
+      const sections: MarketSection[] = [];
+      // Das eigene Landesverbands-Regal steht ganz oben, nicht erst unter
+      // „Offizielle Grüneratoren": es ist das Einzige auf dieser Seite, das
+      // wirklich nur dieser Person gehört. Wer keine Zuteilung hat, sieht den
+      // Abschnitt gar nicht — dann gäbe es nichts, was „für dich" wäre.
+      const lvAgents = sortAgentEntries(
+        lvSystemAgents.map((a) => ({ agent: a, isUser: false, editable: false }))
+      ).map(agentCard);
+      if (lvAgents.length > 0)
+        sections.push({
+          key: 'empfohlen-lv',
+          heading: lvHeadings.agents,
+          icon: PiMapPin,
+          cards: lvAgents,
+        });
+      sections.push({
+        key: 'empfohlen',
+        // Überschrift nur, wenn das LV-Regal darüber steht — sonst wäre sie eine
+        // Dopplung des Seitentitels.
+        ...(sections.length > 0 && { heading: 'Empfohlen' }),
+        cards: sortAgentEntries(
+          featuredAgents.map((a) => ({ agent: a, isUser: false, editable: false }))
+        ).map(agentCard),
+      });
+      return sections;
+    }
     if (key === 'meine')
       return [
         {
