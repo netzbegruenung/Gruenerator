@@ -15,7 +15,8 @@ import {
 } from '../../recurring-tasks/api';
 import { DELIVERY_LABEL, describeRecurrence } from '../../recurring-tasks/scheduleState';
 
-const ICON_BTN = 'rounded-md p-2 text-secondary-600 transition-colors hover:bg-secondary-600/10';
+/** Grau wie {@link MarketCard} — die Kachel steht in derselben Rasterzeile. */
+const ICON_BTN = 'rounded-md p-2 text-foreground-muted transition-colors hover:bg-hover-alt';
 
 export function RecurringTaskCard({ task }: { task: RecurringTask }) {
   const update = useUpdateRecurringTask();
@@ -28,9 +29,9 @@ export function RecurringTaskCard({ task }: { task: RecurringTask }) {
   });
 
   return (
-    <div className="group flex flex-col gap-sm rounded-lg border border-grey-200 bg-card p-md shadow-xs transition-all duration-300 ease-out hover:border-secondary-600/40 hover:shadow-md dark:border-grey-700">
+    <div className="group flex flex-col gap-sm rounded-lg border border-grey-200 bg-card p-md shadow-xs transition-all duration-300 ease-out hover:border-grey-300 hover:shadow-md dark:border-grey-700 dark:hover:border-grey-600">
       <div className="flex items-start gap-sm">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-secondary-600/10 text-2xl text-secondary-600">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-grey-100 text-2xl text-foreground-heading dark:bg-grey-800">
           <PiRepeat />
         </span>
         <div className="min-w-0 flex-1">
