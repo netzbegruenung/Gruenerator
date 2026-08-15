@@ -5,6 +5,7 @@ import { createStore, useStore, type StoreApi } from 'zustand';
 
 import type { SelectedModel } from '../lib/resolveAutoModel';
 import type { SearchMode, ThreadMode } from '../stores/chatStore';
+import type { RoleRef } from '@gruenerator/contracts';
 
 export interface ChatSurfaceState {
   selectedAgentId: string | null;
@@ -14,7 +15,7 @@ export interface ChatSurfaceState {
   selectedNotebookId: string;
   customSystemPrompt: string | null;
   customRoleName: string | null;
-  customRoleRef: { ebene: string; rolle: string } | null;
+  customRoleRef: RoleRef | null;
 
   setSelectedAgent: (agentId: string | null) => void;
   setThreadMode: (mode: ThreadMode) => void;
@@ -23,7 +24,7 @@ export interface ChatSurfaceState {
   setSelectedNotebook: (id: string) => void;
   setCustomSystemPrompt: (prompt: string | null) => void;
   setCustomRoleName: (name: string | null) => void;
-  setCustomRoleRef: (ref: { ebene: string; rolle: string } | null) => void;
+  setCustomRoleRef: (ref: RoleRef | null) => void;
 }
 
 export type ChatSurfaceStore = StoreApi<ChatSurfaceState>;

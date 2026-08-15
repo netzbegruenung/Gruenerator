@@ -1,4 +1,4 @@
-import { type NotebookDepth, type SearchMode } from '@gruenerator/contracts';
+import { type NotebookDepth, type RoleRef, type SearchMode } from '@gruenerator/contracts';
 import { isApiErrorWithStatus } from '@gruenerator/shared/api';
 import {
   TEXT_MODELS,
@@ -20,6 +20,7 @@ import { useLastComputeStore } from './lastComputeStore';
 import { usePythonFileStore } from './pythonFileStore';
 import { useReelLiveStore } from './reelLiveStore';
 import { useSharepicLiveStore } from './sharepicLiveStore';
+import { useUserProfileStore } from './userProfileStore';
 
 import type { ChatApiClient } from '../context/ChatContext';
 
@@ -98,6 +99,7 @@ export const PROVIDER_OPTIONS: ProviderOption[] = [
 interface ThreadSettings {
   customSystemPrompt: string | null;
   customEnabledTools: Record<string, boolean> | null;
+  roleRef: RoleRef | null;
 }
 
 interface AgentState {
@@ -132,7 +134,13 @@ interface AgentState {
    * und schickt nur Ebene und Bezeichnung. `customSystemPrompt` bleibt für frei
    * eingetippte Rollen, deren Prompt weiterhin per KI entsteht.
    */
-  customRoleRef: { ebene: string; rolle: string } | null;
+  customRoleRef: RoleRef | null;
+  /**
+   * Wer die Rolle zuletzt gesetzt hat. `load` heißt: sie kommt aus den
+   * Thread-Einstellungen und steht dort bereits — ein Zurückschreiben wäre eine
+   * überflüssige Anfrage und im Fehlerfall ein irreführender Hinweis.
+   */
+  roleRefSource: 'user' | 'load';
   customEnabledTools: Record<string, boolean> | null;
   /** Mention key of the active /skill (e.g. 'instagram'). Composer sets this
    *  when a skill mention is inserted; cleared on agent change / new thread.
@@ -169,7 +177,7 @@ interface AgentState {
   incrementMessageCount: () => void;
   setCustomSystemPrompt: (prompt: string | null) => void;
   setCustomRoleName: (name: string | null) => void;
-  setCustomRoleRef: (ref: { ebene: string; rolle: string } | null) => void;
+  setCustomRoleRef: (ref: RoleRef | null) => void;
   setCustomEnabledTools: (tools: Record<string, boolean> | null) => void;
   /** Clear per-thread chat context (skill mention, custom prompt/role/tools,
    *  thread mode) while keeping the selected agent. Used when switching agents
@@ -221,6 +229,7 @@ export const useAgentStore = create<AgentState>()(
       customSystemPrompt: null,
       customRoleName: null,
       customRoleRef: null,
+      roleRefSource: 'load',
       customEnabledTools: null,
       activeSkillMention: null,
       pinnedConnector: null,
@@ -248,6 +257,7 @@ export const useAgentStore = create<AgentState>()(
           customSystemPrompt: null,
           customRoleName: null,
           customRoleRef: null,
+          roleRefSource: 'load',
           customEnabledTools: null,
           threadMode: 'chat',
         }),
@@ -260,6 +270,7 @@ export const useAgentStore = create<AgentState>()(
           customSystemPrompt: null,
           customRoleName: null,
           customRoleRef: null,
+          roleRefSource: 'load',
           customEnabledTools: null,
           threadMode: 'chat',
         }),
@@ -411,7 +422,7 @@ export const useAgentStore = create<AgentState>()(
 
       setCustomRoleName: (name) => set({ customRoleName: name }),
 
-      setCustomRoleRef: (ref) => set({ customRoleRef: ref }),
+      setCustomRoleRef: (ref) => set({ customRoleRef: ref, roleRefSource: 'user' }),
 
       setCustomEnabledTools: (tools) => set({ customEnabledTools: tools }),
 
@@ -421,9 +432,24 @@ export const useAgentStore = create<AgentState>()(
             `/api/chat-service/threads/${threadId}/settings`
           );
           if (useAgentStore.getState().currentThreadId !== threadId) return;
+          const roleRef = response.roleRef ?? null;
           set({
             customSystemPrompt: response.customSystemPrompt ?? null,
             customEnabledTools: response.customEnabledTools ?? null,
+            customRoleRef: roleRef,
+            roleRefSource: 'load' as const,
+            // Die Bezeichnung steht nicht im Thread, sondern in den Rollen der
+            // Person — der Thread merkt sich nur die Referenz. Ist die Rolle
+            // inzwischen gelöscht, bleibt die gespeicherte Bezeichnung als
+            // Anzeige stehen; der Server fängt den fehlenden Treffer ab.
+            ...(roleRef && {
+              threadMode: 'eigener' as const,
+              customRoleName:
+                useUserProfileStore
+                  .getState()
+                  .roles.find((r) => r.ebene === roleRef.ebene && r.rolle === roleRef.rolle)
+                  ?.rolle ?? roleRef.rolle,
+            }),
           });
         } catch (error) {
           // 404 is the normal "thread has no settings row yet" case and falls
@@ -440,12 +466,21 @@ export const useAgentStore = create<AgentState>()(
           }
         }
         const state = useAgentStore.getState();
+        // Eine Katalogrolle hat keinen `customSystemPrompt` — ohne die
+        // `customRoleRef`-Bedingung hätte dieser Reset jeden Rollen-Chat beim
+        // Neuladen in den normalen Chat zurückgeworfen.
         if (
           state.currentThreadId === threadId &&
           state.threadMode === 'eigener' &&
-          !state.customSystemPrompt
+          !state.customSystemPrompt &&
+          !state.customRoleRef
         ) {
-          set({ threadMode: 'chat', customRoleName: null, customRoleRef: null });
+          set({
+            threadMode: 'chat',
+            customRoleName: null,
+            customRoleRef: null,
+            roleRefSource: 'load',
+          });
         }
       },
 
@@ -457,6 +492,7 @@ export const useAgentStore = create<AgentState>()(
             {
               customSystemPrompt: state.customSystemPrompt,
               customEnabledTools: state.customEnabledTools,
+              roleRef: state.customRoleRef,
             }
           );
           return true;

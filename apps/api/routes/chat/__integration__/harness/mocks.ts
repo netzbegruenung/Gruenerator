@@ -153,10 +153,40 @@ export function sharepicEditMock(original: Record<string, unknown>): Record<stri
   };
 }
 
+/**
+ * Die gespeicherten Rollen der Person und der parteiinterne Rollen-Baustein —
+ * die zwei Quellen, aus denen ein Rollen-Turn seinen Systemprompt zieht, und
+ * die einzigen zwei, die in diesem Harness nicht real sein können (Postgres,
+ * Dateisystem).
+ *
+ * Dass die Rollen HIER stehen und nicht im Testnutzer, ist die eigentliche
+ * Zusicherung: liest der Code sie wieder aus der Sitzung (`req.user`), findet
+ * er nichts — genau der Fehler, der den Rollen-Chat stumm auf den Basis-Agenten
+ * fallen ließ.
+ */
+export interface RoleControl {
+  roles: Array<Record<string, unknown>>;
+  bausteine: Record<string, string>;
+}
+export const roleControl: RoleControl = { roles: [], bausteine: {} };
+
+export function userRolesMock(): Record<string, unknown> {
+  return { loadUserRoles: () => Promise.resolve(roleControl.roles) };
+}
+
+export function internalPromptsMock(original: Record<string, unknown>): Record<string, unknown> {
+  return {
+    ...original,
+    getInternalRolePrompt: (key: string) => roleControl.bausteine[key] ?? null,
+  };
+}
+
 export function resetMockControls(): void {
   threadAccess.allow = true;
   sharepicControl.threadHasSharepic = false;
   persistControl.ok = true;
   persistControl.calls.length = 0;
   pipelineStates.clear();
+  roleControl.roles = [];
+  roleControl.bausteine = {};
 }
