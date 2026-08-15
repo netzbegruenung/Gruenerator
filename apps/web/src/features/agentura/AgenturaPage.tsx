@@ -25,11 +25,15 @@ import {
 import { useMemo, type ReactNode } from 'react';
 import {
   PiArrowsDownUp,
+  PiFileText,
   PiMagnifyingGlass,
   PiMapPin,
   PiPlus,
   PiRepeat,
   PiSparkle,
+  PiStar,
+  PiStorefront,
+  PiUsersThree,
 } from 'react-icons/pi';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -51,10 +55,10 @@ import { CapabilityTags } from './components/CapabilityTags';
 import { MarketCard } from './components/MarketCard';
 import { RecurringTaskCard } from './components/RecurringTaskCard';
 import {
-  AGENTURA_CATEGORIES,
   AGENTURA_CATEGORY_ICONS,
   AGENTURA_EMPTY_ICONS,
   DEFAULT_CATEGORY,
+  agenturaCategoriesForPlatform,
   SKILL_CATEGORY_ICONS,
   SKILL_CATEGORY_LABELS,
   SKILL_CATEGORY_ORDER,
@@ -159,9 +163,8 @@ function AgenturaPage() {
   };
 
   // Switching category always pins it explicitly (and clears any active search).
-  // A bare param is resolved dynamically (own agents → "meine", else "empfohlen"),
-  // so we must not drop it — otherwise "Empfohlen" would be unreachable for users
-  // who own agents.
+  // Auch beim Startregal: ohne `?cat=` ist die Adresse nicht die Ansicht, und ein
+  // geteilter Link führte woanders hin als der Klick, aus dem er entstand.
   const selectCategory = (key: AgenturaCategoryKey) => {
     setSearchParams(
       (prev) => {
@@ -357,53 +360,14 @@ function AgenturaPage() {
     });
   const sortSkills = (skills: AgentListItem[]) => sortBy(skills, sort, (s) => s.title);
 
-  // Landesverband agent + skill cards, grouped by region (agents before skills).
-  const lvCards = (): ReactNode[] =>
-    [
-      ...lvSystemAgents.map((agent) => ({
-        region: landesverbandRegion(agent.identifier),
-        order: 0,
-        node: agentCard({ agent, isUser: false, editable: false }),
-      })),
-      ...lvSkills.map((skill) => ({
-        region: landesverbandRegion(skill.identifier),
-        order: 1,
-        node: skillCard(skill),
-      })),
-    ]
-      .sort((a, b) => a.region.localeCompare(b.region) || a.order - b.order)
-      .map((e) => e.node);
-
-  // A market aisle renders as one or more sections; only `gruenerator` and `meine`
-  // use headed sub-sections, every other aisle is a single unheaded card grid.
+  // A market aisle renders as one or more sections; `gruenerator`, `meine` and
+  // `landesverband` use headed sub-sections, every other aisle is a single
+  // unheaded card grid.
+  //
+  // `empfohlen` kommt hier nie an: das Regal ist mobil-only (Registry), und die
+  // Regalliste dieser Seite kommt aus `agenturaCategoriesForPlatform('web')`.
+  // Im Web sind dieselben Karten der erste Abschnitt unter `gruenerator`.
   const sectionsFor = (key: AgenturaCategoryKey): MarketSection[] => {
-    if (key === 'empfohlen') {
-      const sections: MarketSection[] = [];
-      // Das eigene Landesverbands-Regal steht ganz oben, nicht erst unter
-      // „Offizielle Grüneratoren": es ist das Einzige auf dieser Seite, das
-      // wirklich nur dieser Person gehört. Wer keine Zuteilung hat, sieht den
-      // Abschnitt gar nicht — dann gäbe es nichts, was „für dich" wäre.
-      const lvAgents = sortAgentEntries(
-        lvSystemAgents.map((a) => ({ agent: a, isUser: false, editable: false }))
-      ).map(agentCard);
-      if (lvAgents.length > 0)
-        sections.push({
-          key: 'empfohlen-lv',
-          heading: lvHeadings.agents,
-          icon: PiMapPin,
-          cards: lvAgents,
-        });
-      sections.push({
-        key: 'empfohlen',
-        // Überschrift nur, wenn das LV-Regal darüber steht — sonst wäre sie eine
-        // Dopplung des Seitentitels.
-        ...(sections.length > 0 && { heading: 'Empfohlen' }),
-        cards: sortAgentEntries(
-          featuredAgents.map((a) => ({ agent: a, isUser: false, editable: false }))
-        ).map(agentCard),
-      });
-      return sections;
-    }
     if (key === 'meine')
       return [
         {
@@ -411,6 +375,11 @@ function AgenturaPage() {
           cards: sortAgentEntries(
             userAgents.map((a) => ({ agent: a, isUser: true, editable: true }))
           ).map(agentCard),
+          // Greift nur, wenn dieses Regal aus anderem Grund etwas zeigt (geteilte
+          // Grüneratoren). Ist alles leer, steht statt aller Abschnitte der
+          // große Leerzustand mit derselben Aufforderung.
+          emptyHint:
+            'Du hast noch keine eigenen Grüneratoren. Leg deinen ersten über „Neuer Grünerator" an.',
         },
         {
           key: 'meine-recurring',
@@ -431,16 +400,50 @@ function AgenturaPage() {
           emptyHint:
             'Noch keine wiederkehrenden Aufgaben. Lass einen Grünerator regelmäßig automatisch arbeiten (experimentell).',
         },
-      ];
-    if (key === 'gruppen')
-      return [
         {
-          key: 'gruppen',
+          // Kein eigenes Regal mehr: geteilte Grüneratoren sind für die
+          // empfangende Person Teil dessen, womit sie arbeitet, nicht eine
+          // eigene Gattung. Ohne Freigaben erscheint der Abschnitt gar nicht.
+          key: 'meine-gruppen',
+          heading: 'Geteilt mit Gruppen',
+          icon: PiUsersThree,
           cards: sortAgentEntries(
             sharedAgents.map((e) => ({ agent: e.agent, isUser: false, editable: false }))
           ).map(agentCard),
         },
       ];
+    if (key === 'landesverband') {
+      // Das eigene Landesverbands-Regal, getrennt nach Grüneratoren und
+      // Rezepten. Beide nach Region sortiert statt nach Nutzung: bei mehreren
+      // Zuteilungen sollen die Sachen eines Verbands beieinander stehen.
+      const sections: MarketSection[] = [];
+      const byRegion = <T,>(items: T[], identifier: (t: T) => string): T[] =>
+        [...items].sort((a, b) =>
+          landesverbandRegion(identifier(a)).localeCompare(landesverbandRegion(identifier(b)))
+        );
+
+      const agents = byRegion(lvSystemAgents, (a) => a.identifier).map((agent) =>
+        agentCard({ agent, isUser: false, editable: false })
+      );
+      if (agents.length > 0)
+        sections.push({
+          key: 'lv-agents',
+          heading: lvHeadings.agents,
+          icon: PiMapPin,
+          cards: agents,
+        });
+
+      const skills = byRegion(lvSkills, (s) => s.identifier).map(skillCard);
+      if (skills.length > 0)
+        sections.push({
+          key: 'lv-skills',
+          heading: lvHeadings.skills,
+          icon: PiFileText,
+          cards: skills,
+        });
+
+      return sections;
+    }
     if (key === 'community')
       return [
         {
@@ -451,17 +454,35 @@ function AgenturaPage() {
         },
       ];
     if (key === 'gruenerator') {
-      const sections: MarketSection[] = [
-        {
-          key: 'off-agents',
-          cards: sortAgentEntries(
-            generalSystemAgents.map((a) => ({ agent: a, isUser: false, editable: false }))
-          ).map(agentCard),
-        },
-      ];
-      const lv = lvCards();
-      if (lv.length)
-        sections.push({ key: 'off-lv', heading: lvHeadings.agents, icon: PiMapPin, cards: lv });
+      // „Empfohlen" ist der erste Abschnitt statt eines eigenen Regals: es war
+      // eine Auswahl aus genau dieser Menge, und wer sie gesehen hatte, musste
+      // das Regal wechseln, um den Rest zu sehen. Die sechs stehen deshalb oben
+      // und NICHT noch einmal in der Liste darunter — sonst stünde jede zweimal
+      // auf derselben Seite.
+      const featured = sortAgentEntries(
+        featuredAgents.map((a) => ({ agent: a, isUser: false, editable: false }))
+      ).map(agentCard);
+      const featuredIds = new Set(featuredAgents.map((a) => a.identifier));
+      const rest = sortAgentEntries(
+        generalSystemAgents
+          .filter((a) => !featuredIds.has(a.identifier))
+          .map((a) => ({ agent: a, isUser: false, editable: false }))
+      ).map(agentCard);
+
+      const sections: MarketSection[] =
+        featured.length > 0
+          ? [
+              { key: 'off-featured', heading: 'Empfohlen', icon: PiStar, cards: featured },
+              // Ohne die Überschrift läse sich das Raster als Fortsetzung der
+              // Empfehlungen. „Weitere", nicht „Alle": die sechs oben fehlen hier.
+              {
+                key: 'off-agents',
+                heading: 'Weitere Grüneratoren',
+                icon: PiStorefront,
+                cards: rest,
+              },
+            ]
+          : [{ key: 'off-agents', cards: rest }];
       for (const cat of SKILL_CATEGORY_ORDER) {
         const cards = sortSkills(byCategory.get(cat) ?? []).map(skillCard);
         if (cards.length)
@@ -494,39 +515,39 @@ function AgenturaPage() {
   const countFor = (key: AgenturaCategoryKey): number => {
     switch (key) {
       case 'empfohlen':
+        // Mobil-only; im Web zählt diese Auswahl in `gruenerator` mit.
         return featuredAgents.length;
       case 'meine':
-        return userAgents.length + recurringTasks.length;
-      case 'gruppen':
-        return sharedAgents.length;
+        return userAgents.length + recurringTasks.length + sharedAgents.length;
+      case 'landesverband':
+        return lvSystemAgents.length + lvSkills.length;
       case 'community':
         return communityAgents.length;
       case 'gruenerator':
-        return generalSystemAgents.length + lvSystemAgents.length + lvSkills.length + skillTotal;
+        return generalSystemAgents.length + skillTotal;
       case 'favoriten':
         return favoriteAgents.length + favoriteSkills.length;
     }
   };
 
   // "meine" and "community" stay visible even when empty (CTA / empty state);
-  // every other category appears only once it has entries.
+  // every other category appears only once it has entries. Für „Dein
+  // Landesverband" ist das die Zuteilung selbst: ohne Rolle kein Regal.
   const isVisible = (cat: AgenturaCategory): boolean =>
     cat.key === 'meine' || cat.key === 'community' || countFor(cat.key) > 0;
 
-  const visibleCategories = AGENTURA_CATEGORIES.filter(isVisible);
+  const webCategories = useMemo(() => agenturaCategoriesForPlatform('web'), []);
+  const visibleCategories = webCategories.filter(isVisible);
 
-  const requestedCat =
-    catParam && AGENTURA_CATEGORIES.some((c) => c.key === catParam) ? catParam : null;
-  // Once a user owns Grüneratoren, the market opens on "Meine Grüneratoren";
-  // otherwise on "Empfohlen". An explicit ?cat= always wins.
-  const fallbackCat: AgenturaCategoryKey =
-    userAgents.length > 0 && visibleCategories.some((c) => c.key === 'meine')
-      ? 'meine'
-      : DEFAULT_CATEGORY;
+  const requestedCat = catParam && webCategories.some((c) => c.key === catParam) ? catParam : null;
+  // Der Markt öffnet immer auf „Meine Grüneratoren" (`DEFAULT_CATEGORY`), egal
+  // ob jemand schon eigene besitzt. Ein ausdrückliches ?cat= gewinnt — ein
+  // veralteter Link auf ein abgeschafftes Regal (`empfohlen`, `gruppen`) landet
+  // damit ebenfalls hier statt auf einer leeren Seite.
   const activeCat: AgenturaCategoryKey =
     requestedCat && visibleCategories.some((c) => c.key === requestedCat)
       ? requestedCat
-      : (visibleCategories.find((c) => c.key === fallbackCat)?.key ??
+      : (visibleCategories.find((c) => c.key === DEFAULT_CATEGORY)?.key ??
         visibleCategories[0]?.key ??
         DEFAULT_CATEGORY);
 
@@ -545,7 +566,7 @@ function AgenturaPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, allAgentEntries, allSkills, sort, agentFavorites, favorites]);
 
-  const activeCategory = AGENTURA_CATEGORIES.find((c) => c.key === activeCat);
+  const activeCategory = webCategories.find((c) => c.key === activeCat);
   const searching = q.length > 0;
   const sections = searching ? [] : sectionsFor(activeCat);
   const totalCards = searching

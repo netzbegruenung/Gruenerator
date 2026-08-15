@@ -19,12 +19,10 @@ import { type SkillCategory } from './types.js';
  *  shelf reaches mobile only once someone builds it there. */
 export type AgenturaPlatform = 'web' | 'mobile';
 
-const BOTH: readonly AgenturaPlatform[] = ['web', 'mobile'];
-
-/** Every category key the market can show. Skills + Landesverbände no longer have
- *  their own aisles — they live as sub-sections inside `gruenerator`. */
+/** Every category key the market can show. Rezepte haben kein eigenes Regal —
+ *  sie liegen als Unterabschnitte in `gruenerator` bzw. `landesverband`. */
 export type AgenturaCategoryKey =
-  'empfohlen' | 'meine' | 'gruppen' | 'community' | 'gruenerator' | 'favoriten';
+  'empfohlen' | 'meine' | 'landesverband' | 'community' | 'gruenerator' | 'favoriten';
 
 export interface AgenturaCategory {
   key: AgenturaCategoryKey;
@@ -44,23 +42,31 @@ export interface AgenturaCategory {
  */
 export const AGENTURA_CATEGORIES: AgenturaCategory[] = [
   {
+    // Nur noch mobil ein eigenes Regal. Im Web ist „Empfohlen" ein Abschnitt
+    // über den offiziellen Grüneratoren: dieselben sechs Karten, aber ohne
+    // eigenes Regal, aus dem man wieder heraus muss, um den Rest zu sehen.
     key: 'empfohlen',
     label: 'Empfohlen',
     description: 'Beliebte Grüneratoren zum Einstieg — eine Auswahl über alle Regale hinweg.',
-    platforms: BOTH,
+    platforms: ['mobile'],
   },
   {
     key: 'meine',
     label: 'Meine Grüneratoren',
-    description: 'Deine selbst erstellten Grüneratoren und wiederkehrenden Aufgaben.',
+    description:
+      'Deine selbst erstellten Grüneratoren, wiederkehrende Aufgaben und was in deinen Gruppen geteilt wurde.',
     emptyText:
       'Du hast noch keine eigenen Grüneratoren erstellt. Leg deinen ersten über „Neuer Grünerator-Agent" an.',
-    platforms: BOTH,
+    platforms: ['web', 'mobile'],
   },
   {
-    key: 'gruppen',
-    label: 'Geteilt mit Gruppen',
-    description: 'Grüneratoren, die in deinen Gruppen geteilt wurden.',
+    // Erscheint nur mit Zuteilung — die Rolle „Mitarbeiter*in
+    // Landesgeschäftsstelle" (AT: Landesorganisation) IST der Zugang. Ohne sie
+    // wäre das Regal leer, und ein leeres Regal für elf fremde Landesverbände
+    // ist genau das Rauschen, das die Zuteilung abgeschafft hat.
+    key: 'landesverband',
+    label: 'Dein Landesverband',
+    description: 'Die Grüneratoren und Rezepte deines Landesverbands, über deine Rolle zugeteilt.',
   },
   {
     key: 'community',
@@ -68,14 +74,13 @@ export const AGENTURA_CATEGORIES: AgenturaCategory[] = [
     description: 'Öffentlich geteilte Grüneratoren von der Basis.',
     emptyText:
       'Noch keine öffentlichen Grüneratoren. Sei der oder die Erste — teile einen deiner Grüneratoren über „Teilen" und aktiviere „Von der Basis".',
-    platforms: BOTH,
+    platforms: ['web', 'mobile'],
   },
   {
     key: 'gruenerator',
     label: 'Offizielle Grüneratoren',
-    description:
-      'Fertige Grüneratoren, Presse- & Social-Rezepte und Landesverbände von Grünerator.',
-    platforms: BOTH,
+    description: 'Fertige Grüneratoren sowie Presse- & Social-Rezepte von Grünerator.',
+    platforms: ['web', 'mobile'],
   },
   {
     key: 'favoriten',
@@ -84,7 +89,13 @@ export const AGENTURA_CATEGORIES: AgenturaCategory[] = [
   },
 ];
 
-export const DEFAULT_CATEGORY: AgenturaCategoryKey = 'empfohlen';
+/**
+ * Womit der Markt aufmacht. Fest „Meine Grüneratoren", nicht mehr abhängig
+ * davon, ob jemand schon eigene besitzt: eine Startseite, die je nach Bestand
+ * eine andere ist, kann man niemandem erklären — und der leere Zustand dieses
+ * Regals ist genau die Aufforderung, den ersten anzulegen.
+ */
+export const DEFAULT_CATEGORY: AgenturaCategoryKey = 'meine';
 
 /** The shelves a given platform actually shows, in registry order. */
 export function agenturaCategoriesForPlatform(platform: AgenturaPlatform): AgenturaCategory[] {
