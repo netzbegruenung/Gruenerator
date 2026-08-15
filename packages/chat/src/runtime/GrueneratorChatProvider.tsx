@@ -70,6 +70,14 @@ interface GrueneratorChatProviderProps {
   onRequestOpenChat?: () => void;
 }
 
+/**
+ * assistant-ui's message for acting on a thread it never initialized:
+ * `Thread "__LOCALID_x" has status "new", so it cannot generate a title.`
+ * Matched on shape rather than on one full sentence, so the sibling actions the
+ * same error factory produces ("be initialized here", …) are covered too.
+ */
+const UNINITIALIZED_THREAD_RE = /^Thread ".*" has status "new", so it cannot /;
+
 export function GrueneratorChatProvider({
   children,
   userId,
@@ -97,15 +105,21 @@ export function GrueneratorChatProvider({
   // - "Unauthorized": stale cached userId triggers eager initialize() before
   //   useAuth clears the session, then the 401 surfaces after redirect.
   //   onUnauthorized() in chatConfig has already fired the redirect.
+  // - 'has status "new"': assistant-ui's own runEnd hook calls generateTitle()
+  //   unguarded and unawaited (RemoteThreadListHookInstanceManager). When
+  //   adapter.initialize() rejected, the optimistic "regular" status rolls back
+  //   to "new" and that call throws into nowhere. Nothing is lost — the server
+  //   names the thread on turn persistence — so the report is pure noise.
   useEffect(() => {
     const handler = (event: PromiseRejectionEvent) => {
       if (!(event.reason instanceof Error)) return;
       // Narrowed from a bare message-string match: that suppressed ANY error
       // whose text happened to read "Thread not found" or "Unauthorized",
       // including future genuine ones, and hid them from monitoring too.
-      // Only the two typed cases this hook exists for are swallowed.
+      // Only the typed cases this hook exists for are swallowed.
       const isStaleThread = isApiErrorWithStatus(event.reason, 404);
-      if (isStaleThread || isUnauthorizedError(event.reason)) {
+      const isUninitializedThread = UNINITIALIZED_THREAD_RE.test(event.reason.message);
+      if (isStaleThread || isUninitializedThread || isUnauthorizedError(event.reason)) {
         event.preventDefault();
         console.warn(
           `[ThreadList] Suppressed unhandled "${event.reason.message}" rejection`,

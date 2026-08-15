@@ -34,6 +34,7 @@ import { createChatApiClient } from '../context/ChatContext';
 import { ChatRuntimeReadyProvider } from '../context/ChatRuntimeReadyContext';
 import { ExternalThreadProvider } from '../context/ExternalThreadContext';
 import { useChatCollaboration } from '../hooks/useChatCollaboration';
+import { adoptRejection } from '../lib/adoptRejection';
 import { getDefaultAgent } from '../lib/agents';
 import { handleDictationError } from '../lib/dictationErrorHandler';
 import { notifyError } from '../lib/notify';
@@ -413,9 +414,19 @@ function ThreadTitleEffect() {
     if (messageCount >= 2 && currentThreadId && titleTriggeredRef.current !== currentThreadId) {
       try {
         const state = aui.threadListItem.getState();
-        if (!state.title) {
+        // A "new" (not yet initialized) entry makes assistant-ui's
+        // generateTitle() reject with `has status "new"` — the store's
+        // currentThreadId can already point at a remote thread while the active
+        // list item is still the local draft. Those threads are named by
+        // assistant-ui's own runEnd trigger and, failing that, by the server on
+        // turn persistence; this effect only covers legacy pre-created
+        // ("regular") threads.
+        if (!state.title && state.status !== 'new') {
           titleTriggeredRef.current = currentThreadId;
-          aui.threadListItem.generateTitle();
+          // Async rejection: a try/catch around the call would not see it.
+          adoptRejection(aui.threadListItem.generateTitle(), (err) => {
+            console.warn('[TitleGen] generateTitle failed:', err);
+          });
         }
       } catch (err: unknown) {
         console.warn('[TitleGen] Thread entry not available (likely deleted):', err);
