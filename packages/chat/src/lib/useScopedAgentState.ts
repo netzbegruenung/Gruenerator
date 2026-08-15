@@ -6,6 +6,7 @@ import { useChatSurfaceContext, type ChatSurfaceState } from '../context/ChatSur
 import { useAgentStore, type SearchMode, type ThreadMode } from '../stores/chatStore';
 
 import type { SelectedModel } from './resolveAutoModel';
+import type { RoleRef } from '@gruenerator/contracts';
 
 const FALLBACK = createStore<ChatSurfaceState>(() => ({
   selectedAgentId: null,
@@ -69,7 +70,7 @@ export function useScopedCustomRoleName(): string | null {
   return useScopedField((s) => s.customRoleName, global);
 }
 
-export function useScopedCustomRoleRef(): { ebene: string; rolle: string } | null {
+export function useScopedCustomRoleRef(): RoleRef | null {
   const global = useAgentStore((s) => s.customRoleRef);
   return useScopedField((s) => s.customRoleRef, global);
 }
@@ -125,9 +126,7 @@ export function useScopedSetCustomRoleName(): (name: string | null) => void {
   return (name) => ctx.store.getState().setCustomRoleName(name);
 }
 
-export function useScopedSetCustomRoleRef(): (
-  ref: { ebene: string; rolle: string } | null
-) => void {
+export function useScopedSetCustomRoleRef(): (ref: RoleRef | null) => void {
   const ctx = useChatSurfaceContext();
   const globalSet = useAgentStore((s) => s.setCustomRoleRef);
   if (!ctx) return globalSet;
