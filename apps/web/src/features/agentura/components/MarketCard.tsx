@@ -4,7 +4,13 @@ import { PiPencilSimple, PiStar, PiStarFill, PiTrash } from 'react-icons/pi';
 
 import { TypeBadge } from './cards';
 
-const ICON_BTN = 'rounded-md p-2 text-secondary-600 transition-colors hover:bg-secondary-600/10';
+/**
+ * Die Marktkacheln tragen bewusst keine grüne Akzentfarbe: auf einer Seite, die
+ * aus nichts als Kacheln besteht, färbt der Akzent nicht mehr das Wichtige ein,
+ * sondern alles. Grün bleibt den Stellen, die eine Entscheidung tragen
+ * (Regal-Pillen, primäre Knöpfe, Detailseiten); die Kachel selbst ist grau.
+ */
+const ICON_BTN = 'rounded-md p-2 text-foreground-muted transition-colors hover:bg-hover-alt';
 
 interface MarketCardProps {
   icon: ReactNode;
@@ -41,10 +47,10 @@ export function MarketCard({
     <InteractiveCard
       label={title}
       onActivate={onSelect}
-      className="group flex cursor-pointer flex-col gap-sm rounded-lg border border-grey-200 bg-card p-md shadow-xs transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-secondary-600/40 hover:shadow-md dark:border-grey-700"
+      className="group flex cursor-pointer flex-col gap-sm rounded-lg border border-grey-200 bg-card p-md shadow-xs transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-grey-300 hover:shadow-md dark:border-grey-700 dark:hover:border-grey-600"
     >
       <div className="flex items-start gap-sm">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-secondary-600/10 text-2xl text-secondary-600">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-grey-100 text-2xl text-foreground-heading dark:bg-grey-800">
           {icon}
         </span>
         <div className="min-w-0 flex-1">
