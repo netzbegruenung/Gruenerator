@@ -2,6 +2,7 @@ import { Dialog, DialogContent, DialogTitle } from '@gruenerator/ui';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
 import RolesSection from './RolesSection';
@@ -48,14 +49,18 @@ function renderSection() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const onOpenChange = vi.fn();
   render(
-    <QueryClientProvider client={queryClient}>
-      <Dialog open onOpenChange={onOpenChange}>
-        <DialogContent>
-          <DialogTitle>Einstellungen</DialogTitle>
-          <RolesSection />
-        </DialogContent>
-      </Dialog>
-    </QueryClientProvider>
+    // Router, weil die Sektion auf die zugeteilten Rezepte und Grüneratoren
+    // verlinkt — ohne ihn wirft `useNavigate` schon beim Rendern.
+    <MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <Dialog open onOpenChange={onOpenChange}>
+          <DialogContent>
+            <DialogTitle>Einstellungen</DialogTitle>
+            <RolesSection />
+          </DialogContent>
+        </Dialog>
+      </QueryClientProvider>
+    </MemoryRouter>
   );
   return { onOpenChange };
 }

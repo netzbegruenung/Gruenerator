@@ -1,17 +1,17 @@
 import type {
-  AIWorkerPool,
-  AIRequestData as AIWorkerPayload,
-  AIWorkerResult,
-} from '../../../workers/types.js';
+  AiClient,
+  AIRequestData as AiRequestPayload,
+  AiResult,
+} from '../../../services/ai/types.js';
 import type { Request, Response } from 'express';
 
-export type { AIWorkerPool, AIWorkerPayload, AIWorkerResult };
+export type { AiClient, AiRequestPayload, AiResult };
 
 export interface SharepicRequest extends Request {
   body: SharepicRequestBody;
   app: Request['app'] & {
     locals: {
-      aiWorkerPool: AIWorkerPool;
+      aiClient: AiClient;
     };
   };
 }

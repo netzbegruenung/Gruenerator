@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 
 import { isProviderConfigured } from '../../ai/providers.js';
 import { isVisionCapable, getAvailableModels } from '../../ai/modelDiscovery.js';
-import { executeProvider } from '../../../workers/providers/index.js';
+import { executeProvider } from '../../ai/execution/index.js';
 
 const HAS_REGOLO = !!process.env.REGOLO_API_KEY;
 
@@ -17,7 +17,7 @@ describe('Vision — unit tests', () => {
     it('returns true for known vision models', () => {
       expect(isVisionCapable('gemma4-31b')).toBe(true);
       expect(isVisionCapable('pixtral-large-latest')).toBe(true);
-      expect(isVisionCapable('qwen3.5-122b')).toBe(true);
+      expect(isVisionCapable('mistral-small-4-119b')).toBe(true);
     });
 
     it('returns false for non-vision models', () => {

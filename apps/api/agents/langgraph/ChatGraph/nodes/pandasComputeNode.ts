@@ -207,7 +207,7 @@ ${isFill ? 'Auftrag' : 'Frage'} der*des Nutzer*in: ${question}${correctionBlock}
 
 Schreibe den Python-Code.`;
 
-    const response = await state.aiWorkerPool.processRequest(
+    const response = await state.aiClient.processRequest(
       {
         type: 'chat_pandas_codegen',
         provider: LANE.provider,

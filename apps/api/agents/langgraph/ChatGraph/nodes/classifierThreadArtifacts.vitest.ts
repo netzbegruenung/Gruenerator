@@ -45,7 +45,7 @@ const DOCUMENT: ThreadToolContext = {
 /** Der Auflöser und die LLM-Stufe teilen sich den Worker-Pool. Unterschieden
  *  wird am Systemprompt — der des Auflösers ist der einzige, der mit „Ein
  *  Gespräch hat mehrere Artefakte erzeugt" beginnt. */
-function makeWorkerPool(editTargetAnswer: string | (() => never)) {
+function makeAiClient(editTargetAnswer: string | (() => never)) {
   const editTargetCalls: string[] = [];
   const processRequest = vi.fn(async (req: { systemPrompt?: string }) => {
     if (req.systemPrompt?.startsWith('Ein Gespräch hat mehrere Artefakte')) {
@@ -69,7 +69,7 @@ function buildState(
     threadId: 'thread-1',
     agentConfig: STUB_AGENT_CONFIG,
     enabledTools: { search: true, web: true, image: true, image_edit: true },
-    aiWorkerPool: pool,
+    aiClient: pool,
     userLocale: 'de-DE',
     attachmentContext: null,
     imageAttachments: [],
@@ -96,7 +96,7 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
   const BOTH = [SHAREPIC, DOCUMENT];
 
   it('trifft das ältere Dokument, wenn der Auflöser darauf zeigt', async () => {
-    const pool = makeWorkerPool('2');
+    const pool = makeAiClient('2');
     const result = await classifierNode(
       buildState({
         userMessage: 'Kürze die Begründung auf die Hälfte',
@@ -111,7 +111,7 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
   });
 
   it('bleibt beim Sharepic, wenn der Auflöser auf das neueste Artefakt zeigt', async () => {
-    const pool = makeWorkerPool('1');
+    const pool = makeAiClient('1');
     const result = await classifierNode(
       buildState({
         userMessage: 'Mach den Text größer',
@@ -126,7 +126,7 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
   it('fällt bei „keines" auf das heutige Verhalten zurück, nicht auf „kein Artefakt"', async () => {
     // Der Auflöser darf einen Folgeauftrag UMLENKEN, nie unterdrücken: sonst
     // verliert eine Fehlantwort des Modells dem Nutzer die Bearbeitung ganz.
-    const pool = makeWorkerPool('0');
+    const pool = makeAiClient('0');
     const result = await classifierNode(
       buildState({
         userMessage: 'Kürze die Begründung auf die Hälfte',
@@ -140,7 +140,7 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
   });
 
   it('fällt zurück, wenn der Auflöser wegbricht', async () => {
-    const pool = makeWorkerPool(() => {
+    const pool = makeAiClient(() => {
       throw new Error('provider down');
     });
     const result = await classifierNode(
@@ -157,7 +157,7 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
   it('fragt gar nicht, wenn die Nachricht kein Bearbeitungsauftrag ist', async () => {
     // Eine neue Sachfrage in einem Thread mit Artefakten: die Antwort wäre
     // „keines" per Konstruktion, der Aufruf also reine Latenz.
-    const pool = makeWorkerPool('1');
+    const pool = makeAiClient('1');
     await classifierNode(
       buildState({
         userMessage: 'Erklär mir den Unterschied zwischen Nationalrat und Bundesrat in Österreich',
@@ -170,7 +170,7 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
   });
 
   it('fragt gar nicht, wenn der Thread nur ein Artefakt hat', async () => {
-    const pool = makeWorkerPool('1');
+    const pool = makeAiClient('1');
     const result = await classifierNode(
       buildState({
         userMessage: 'Mach den Text größer',
@@ -186,7 +186,7 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
   it('ignoriert eine Nummer ausserhalb der Liste, statt zu raten', async () => {
     // „3" bei zwei Artefakten heisst: das Modell hat nicht gewählt. Für es zu
     // raten ist der Weg, auf dem das falsche Artefakt bearbeitet wird.
-    const pool = makeWorkerPool('3');
+    const pool = makeAiClient('3');
     const result = await classifierNode(
       buildState({
         userMessage: 'Kürze die Begründung auf die Hälfte',
@@ -201,7 +201,7 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
   });
 
   it('liest die Nummer auch aus einem Satz', async () => {
-    const pool = makeWorkerPool('Nummer 2.');
+    const pool = makeAiClient('Nummer 2.');
     const result = await classifierNode(
       buildState({
         userMessage: 'Kürze die Begründung auf die Hälfte',

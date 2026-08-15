@@ -101,7 +101,7 @@ async function generateClarifyingQuestions(
 
   console.log(`[SimpleInteractiveGenerator] Generating questions for ${generatorType}...`);
 
-  const result = await state.aiWorkerPool.processRequest(
+  const result = await state.aiClient.processRequest(
     {
       type: 'antrag_question_generation',
       systemPrompt: config.systemPrompt,
@@ -306,7 +306,7 @@ export async function initiateInteractiveGenerator({
   requestType,
   generatorType = 'antrag',
   locale = 'de-DE',
-  aiWorkerPool,
+  aiClient,
   req,
 }: InitiateGeneratorParams): Promise<InitiateGeneratorResult> {
   console.log(`[SimpleInteractiveGenerator] Initiating ${generatorType} session`);
@@ -328,7 +328,7 @@ export async function initiateInteractiveGenerator({
       requestType,
       generatorType,
       locale,
-      aiWorkerPool,
+      aiClient,
       req,
     });
 
@@ -346,7 +346,7 @@ export async function initiateInteractiveGenerator({
         locale,
         questions: [],
         answers: {},
-        aiWorkerPool,
+        aiClient,
         req,
       });
 
@@ -422,7 +422,7 @@ async function generateFinalResult({
   locale = 'de-DE',
   questions = [],
   answers = {},
-  aiWorkerPool,
+  aiClient,
   req,
 }: GenerateFinalResultParams): Promise<GenerationResult> {
   // Format Q&A pairs if present
@@ -510,7 +510,7 @@ async function generateFinalResult({
       : String(msg.content || ''),
   }));
 
-  const generationResult = await aiWorkerPool.processRequest(
+  const generationResult = await aiClient.processRequest(
     {
       type: requestType,
       systemPrompt: assembledPrompt.system,
@@ -551,7 +551,7 @@ export async function continueInteractiveGenerator({
   userId,
   sessionId,
   answers,
-  aiWorkerPool,
+  aiClient,
   req,
 }: ContinueGeneratorParams): Promise<ContinueGeneratorResult> {
   console.log(`[SimpleInteractiveGenerator] Continuing session: ${sessionId}`);
@@ -602,7 +602,7 @@ export async function continueInteractiveGenerator({
       locale: session.locale,
       questions: session.questions,
       answers,
-      aiWorkerPool,
+      aiClient,
       req,
     });
 

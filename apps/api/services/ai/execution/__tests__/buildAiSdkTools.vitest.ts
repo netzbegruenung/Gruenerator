@@ -1,7 +1,7 @@
 import { jsonSchema } from 'ai';
 import { describe, it, expect } from 'vitest';
 
-import ToolHandler from '../../../services/tools/index.js';
+import ToolHandler from '../../../tools/index.js';
 import { buildAiSdkTools, resolveToolChoice } from '../adapterUtils.js';
 
 // Reproduces the mcpToolNode → prepareToolsPayload → adapter path that silently

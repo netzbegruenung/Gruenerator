@@ -37,7 +37,7 @@
 import { createLogger } from '../../../../utils/logger.js';
 import { intermediateLane } from '../llmConfig.js';
 
-import type { AIWorkerPool } from '../../../../workers/types.js';
+import type { AiClient } from '../../../../services/ai/types.js';
 import type { ChatIntentId } from '@gruenerator/shared/chat-intents';
 
 /** @see services/ai/intermediateLanes.ts */
@@ -140,7 +140,7 @@ Im Zweifel: keine.`;
 interface ResolveArgs {
   userContent: string;
   conversationContext: string | null;
-  aiWorkerPool: AIWorkerPool;
+  aiClient: AiClient;
 }
 
 /**
@@ -151,7 +151,7 @@ interface ResolveArgs {
 export async function resolveGenerationScope({
   userContent,
   conversationContext,
-  aiWorkerPool,
+  aiClient,
 }: ResolveArgs): Promise<GenerationVerdict | null> {
   const startTime = Date.now();
   const userMessage = conversationContext
@@ -160,7 +160,7 @@ export async function resolveGenerationScope({
 
   try {
     const response = await withTimeout(
-      aiWorkerPool.processRequest(
+      aiClient.processRequest(
         {
           type: 'chat_intent_classification',
           provider: LANE.provider,

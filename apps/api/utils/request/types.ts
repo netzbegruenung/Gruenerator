@@ -5,7 +5,7 @@
 /**
  * AI worker result
  */
-export interface AIWorkerResult {
+export interface AiResult {
   success: boolean;
   content?: string | undefined;
   metadata?: {

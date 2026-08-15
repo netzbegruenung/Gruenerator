@@ -6,12 +6,12 @@ import { type Request } from 'express';
 
 import { type UserProfile } from '../../services/user/types.js';
 
+import type { AiClient } from '../../services/ai/types.js';
 import type {
   ImageGenerationStatus,
   ImageGenerationResult,
 } from '../../services/counters/types.js';
 import type { ImageCatalogEntry } from '../../services/image/types.js';
-import type { AIWorkerPool } from '../../workers/types.js';
 import type { ParamsDictionary } from 'express-serve-static-core';
 
 // ============================================================================
@@ -25,7 +25,7 @@ export interface AuthenticatedRequest<P = ParamsDictionary> extends Request<P> {
   user?: UserProfile | undefined;
   app: Request['app'] & {
     locals: {
-      aiWorkerPool?: AIWorkerPool | undefined;
+      aiClient?: AiClient | undefined;
     };
   };
 }

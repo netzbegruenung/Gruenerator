@@ -195,12 +195,6 @@ const MODEL_ENERGY: Readonly<Record<string, EnergyCoefficients>> = {
     mWhFixed: 13.26,
     basis: 'bound',
   },
-  'qwen3.5-122b': {
-    mWhPerOutputToken: 4.519,
-    mWhPerInputToken: 0.0287,
-    mWhFixed: 13.26,
-    basis: 'bound',
-  },
   'pixtral-large-latest': {
     mWhPerOutputToken: 4.519,
     mWhPerInputToken: 0.0287,

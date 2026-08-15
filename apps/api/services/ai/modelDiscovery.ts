@@ -10,6 +10,7 @@ import {
   isProviderConfigured,
 } from './providers.js';
 import { scalewayBaseUrl } from './scalewayEndpoint.js';
+import { isExcludedTextModel } from './textModelPolicy.js';
 
 const log = createLogger('modelDiscovery');
 
@@ -29,7 +30,7 @@ interface OpenAIModelsResponse {
   data: Array<{ id: string; object?: string; owned_by?: string }>;
 }
 
-// Mistral Medium 3.5, Gemma 4 and the gpt-oss/qwen families are all reasoning
+// Mistral Medium 3.5, Gemma 4 and gpt-oss are all reasoning
 // models with configurable thinking. `reasoning: true` here flags that; how (or
 // whether) that reasoning is surfaced to the UI depends on the streaming path
 // (SDK fullStream for Mistral; Regolo raw streamer for Regolo's reasoning_content).
@@ -68,8 +69,6 @@ const MODEL_METADATA: Record<string, { name: string; reasoning: boolean; vision:
   'verdigado-pro': { name: 'GPT-OSS 120B', reasoning: true, vision: false },
   'gpt-oss:120b': { name: 'GPT-OSS 120B', reasoning: true, vision: false },
   'openai/gpt-oss-120b': { name: 'GPT-OSS 120B', reasoning: true, vision: false },
-  'qwen3.5-122b': { name: 'Qwen 3.5 122B', reasoning: true, vision: true },
-  'qwen3.6-27b': { name: 'Qwen 3.6 27B', reasoning: true, vision: false },
   'mistral-small-4-119b': { name: 'Mistral Small 4 119B', reasoning: true, vision: true },
   'Llama-3.3-70B-Instruct': { name: 'Llama 3.3 70B', reasoning: false, vision: false },
   'mistral-small3.2': { name: 'Mistral Small 3.2', reasoning: false, vision: false },
@@ -121,7 +120,15 @@ let cacheTimestamp = 0;
 let fetchInProgress: Promise<PlaygroundModel[]> | null = null;
 
 function isExcludedModel(modelId: string): boolean {
-  return EXCLUDE_IDS.has(modelId) || EXCLUDE_PATTERNS.some((p) => p.test(modelId));
+  // `isExcludedTextModel` prüfte bisher nur das Routing. Diese Liste speist den
+  // Modellwähler des Playgrounds und entsteht live aus `/v1/models` — Regolo
+  // bietet die chinesisch trainierten Modelle weiter an, wählbar war also, was
+  // nirgends geroutet werden darf. Dieselbe Funktion, keine zweite Liste.
+  return (
+    EXCLUDE_IDS.has(modelId) ||
+    isExcludedTextModel(modelId) ||
+    EXCLUDE_PATTERNS.some((p) => p.test(modelId))
+  );
 }
 
 function deriveDisplayName(modelId: string): string {
@@ -230,13 +237,9 @@ function fetchModelsForProvider(provider: ProviderName): Promise<PlaygroundModel
 const FALLBACK_MODELS: PlaygroundModel[] = ['mistral-medium-2604', 'mistral-small-latest']
   .map((id) => enrichModel(id, 'mistral'))
   .concat(
-    [
-      'qwen3.5-122b',
-      'mistral-small-4-119b',
-      'Llama-3.3-70B-Instruct',
-      'gpt-oss-120b',
-      'mistral-small3.2',
-    ].map((id) => enrichModel(id, 'regolo')),
+    ['mistral-small-4-119b', 'Llama-3.3-70B-Instruct', 'gpt-oss-120b', 'mistral-small3.2'].map(
+      (id) => enrichModel(id, 'regolo')
+    ),
     [enrichModel('verdigado-pro', 'litellm')]
   );
 

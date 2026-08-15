@@ -14,7 +14,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const mockProcess = vi.fn();
 
-vi.mock('../../workers/mistralClient.js', () => ({
+vi.mock('../ai/mistralClient.js', () => ({
   default: {
     ocr: { process: mockProcess },
   },

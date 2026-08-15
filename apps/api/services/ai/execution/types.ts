@@ -1,7 +1,7 @@
-import type { AIRequestData, AIWorkerResult } from '../types.js';
+import type { AIRequestData, AiResult } from '../types.js';
 
 export interface ProviderAdapter {
-  execute(requestId: string, data: AIRequestData): Promise<AIWorkerResult>;
+  execute(requestId: string, data: AIRequestData): Promise<AiResult>;
 }
 
 export interface ResponseMetadata {

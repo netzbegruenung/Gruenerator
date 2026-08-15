@@ -1,16 +1,12 @@
 import { env } from '../../config/env.js';
-import * as providers from '../../workers/providers/index.js';
 import { AiProviderError, classifyProviderError } from '../providers/providerErrors.js';
 import * as providerFallback from '../providers/providerFallback.js';
 import * as providerSelector from '../providers/providerSelector.js';
 
+import * as providers from './execution/index.js';
+
+import type { AIRequestData, AiResult, AIRequestOptions, AiClient } from './types.js';
 import type { RedisClient } from '../../utils/redis/types.js';
-import type {
-  AIRequestData,
-  AIWorkerResult,
-  AIRequestOptions,
-  AIWorkerPool,
-} from '../../workers/types.js';
 import type { ProviderName, FallbackProviderData } from '../providers/types.js';
 
 /**
@@ -32,7 +28,7 @@ const SHAREPIC_TYPES = [
   'sharepic_veranstaltung',
 ];
 
-class AIService implements AIWorkerPool {
+class AIService implements AiClient {
   /**
    * The one classification point. Everything below throws raw — adapters throw
    * the SDK's `APICallError`, the fallback chain throws an aggregate carrying
@@ -46,10 +42,7 @@ class AIService implements AIWorkerPool {
    * was ever constructed, and every provider failure has been reaching the
    * client as a bare `internal` since.
    */
-  async processRequest(
-    data: AIRequestData,
-    _req?: { user?: { id?: string } }
-  ): Promise<AIWorkerResult> {
+  async processRequest(data: AIRequestData, _req?: { user?: { id?: string } }): Promise<AiResult> {
     const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
     try {
       return await this.executeWithTimeout(requestId, { ...data });
@@ -60,16 +53,13 @@ class AIService implements AIWorkerPool {
     }
   }
 
-  private async executeWithTimeout(
-    requestId: string,
-    data: AIRequestData
-  ): Promise<AIWorkerResult> {
+  private async executeWithTimeout(requestId: string, data: AIRequestData): Promise<AiResult> {
     // Der Aufrufer darf sein eigenes Budget setzen. Der globale Wert ist an der
     // interaktiven Antwort bemessen; ein Nachschritt, der erst nach dem Streamen
     // läuft, hat einen anderen Massstab — dort ist Warten billiger als Ausfall.
     const timeoutMs = data.timeoutMs ?? REQUEST_TIMEOUT_MS;
 
-    return new Promise<AIWorkerResult>((resolve, reject) => {
+    return new Promise<AiResult>((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error(`Request timeout after ${timeoutMs}ms`));
       }, timeoutMs);
@@ -86,7 +76,7 @@ class AIService implements AIWorkerPool {
     });
   }
 
-  private async processAIRequest(requestId: string, data: AIRequestData): Promise<AIWorkerResult> {
+  private async processAIRequest(requestId: string, data: AIRequestData): Promise<AiResult> {
     const { type, options = {}, metadata: requestMetadata = {} } = data;
 
     const selection = providerSelector.selectProviderAndModel({
@@ -142,14 +132,14 @@ class AIService implements AIWorkerPool {
       console.error(`[AIService] Error in processAIRequest for ${requestId}:`, error);
       try {
         const fallbackResult = await this.executeFallback(requestId, type, data);
-        return this.enrichResult({ ...fallbackResult, success: true } as AIWorkerResult, requestId);
+        return this.enrichResult({ ...fallbackResult, success: true } as AiResult, requestId);
       } catch {
         throw error;
       }
     }
   }
 
-  private enrichResult(result: AIWorkerResult, requestId: string): AIWorkerResult {
+  private enrichResult(result: AiResult, requestId: string): AiResult {
     if (result.metadata) {
       return {
         ...result,
@@ -167,7 +157,7 @@ class AIService implements AIWorkerPool {
     requestId: string,
     type: string,
     data: AIRequestData
-  ): Promise<AIWorkerResult> {
+  ): Promise<AiResult> {
     const isSharepicType = SHAREPIC_TYPES.includes(type);
     const fallbackFn = isSharepicType
       ? providerFallback.trySharepicFallbackProviders
@@ -188,7 +178,7 @@ class AIService implements AIWorkerPool {
       } as FallbackProviderData
     );
 
-    return { ...fallbackResult, success: true } as AIWorkerResult;
+    return { ...fallbackResult, success: true } as AiResult;
   }
 
   async shutdown(): Promise<void> {

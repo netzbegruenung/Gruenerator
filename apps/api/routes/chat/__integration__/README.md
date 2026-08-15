@@ -52,7 +52,7 @@ nothing. None of them should be "simplified" away.
 2. **The classifier double delegates to the real `classifierNode`.** Tests opt
    into scripting. Otherwise a test named "sharepic licence" passes without
    `hasExplicitSharepicWord` ever executing.
-3. **The `aiWorkerPool` stub throws on an unscripted request type, and
+3. **The `aiClient` stub throws on an unscripted request type, and
    `assertScriptsConsumed()` throws on a scripted reply nobody asked for.**
    Most phrasings resolve in the classifier's heuristic tiers without any model
    call. Without both halves, a test that scripts an LLM verdict can silently

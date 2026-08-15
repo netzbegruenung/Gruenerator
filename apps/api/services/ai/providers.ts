@@ -12,6 +12,7 @@ import { env } from '../../config/env.js';
 import { withUsageTracking } from '../usage/usageModelMiddleware.js';
 
 import { intermediateLane } from './intermediateLanes.js';
+import { pickHealthyTarget } from './modelSiblings.js';
 import {
   getGreenPTProvider,
   getLiteLLMProvider,
@@ -45,7 +46,7 @@ import type { LanguageModel } from 'ai';
  *
  * When adding a provider, note that most switches below carry a `default`
  * branch, so the compiler will NOT find the sites for you. The exhaustive ones
- * (`Record<ProviderName, …>` in workers/providers/execute.ts and
+ * (`Record<ProviderName, …>` in services/ai/execution/execute.ts and
  * services/ai/modelDiscovery.ts) will; the rest are listed in the PR that
  * introduced this member.
  */
@@ -108,14 +109,19 @@ export function getModel(
   modelId?: string,
   options: RouteOptions = {}
 ): LanguageModel {
+  // Ein zäh vermerktes Paar wird übersprungen statt abgewartet — siehe
+  // services/ai/modelSiblings.ts. Ohne Vermerk ändert sich hier nichts.
+  const healthy = pickHealthyTarget(provider, modelId || getDefaultModel(provider));
+  const lane = healthy ?? { provider, model: modelId };
+
   // Usage is attributed to the upstream that actually serves the request, not
   // to the lane name: with Mistral Medium 3.5 on Scaleway, billing the tokens
   // to "mistral" would make the Scaleway invoice unaccountable.
   const upstream =
-    provider === 'mistral'
-      ? routeMistralModel(modelId || PROVIDER_DEFAULTS.mistral, options).upstream
-      : provider;
-  return withUsageTracking(resolveModel(provider, modelId, options), upstream);
+    lane.provider === 'mistral'
+      ? routeMistralModel(lane.model || PROVIDER_DEFAULTS.mistral, options).upstream
+      : lane.provider;
+  return withUsageTracking(resolveModel(lane.provider, lane.model, options), upstream);
 }
 
 function resolveModel(

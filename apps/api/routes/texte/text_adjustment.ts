@@ -1,7 +1,7 @@
 import express, { type Router, type Request, type Response } from 'express';
 
+import { type AiClient } from '../../services/ai/types.js';
 import { createLogger } from '../../utils/logger.js';
-import { type AIWorkerPool } from '../../workers/types.js';
 
 const log = createLogger('texte/adjustment');
 const router: Router = express.Router();
@@ -21,8 +21,8 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
   }
 
   try {
-    const aiWorkerPool = req.app.locals.aiWorkerPool as AIWorkerPool;
-    const result = await aiWorkerPool.processRequest(
+    const aiClient = req.app.locals.aiClient as AiClient;
+    const result = await aiClient.processRequest(
       {
         type: 'text_adjustment',
         systemPrompt: `Du bist ein hilfreicher Assistent, der eine verbesserte Formulierung für einen gegebenen Textabschnitt basierend auf den vom Benutzer angegebenen Änderungen vorschlägt. Berücksichtige dabei den gesamten Kontext des Textes, um sicherzustellen, dass der geänderte Abschnitt sich nahtlos in den Gesamttext einfügt. Stelle sicher, dass der Vorschlag klar, prägnant und stilistisch konsistent mit dem Originaltext ist.`,

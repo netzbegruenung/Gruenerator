@@ -112,7 +112,7 @@ Ausgezählt am 30.07.2026 über Imports (ohne `node_modules`). Wichtig, weil `pa
 | Bereich | Standard | Ausnahme |
 | --- | --- | --- |
 | **State** | `zustand` — **58** Dateien | `jotai` — **3** Dateien, alle unter `apps/web/src/components/kibo-ui/`. Kein App-State: die vendorten kibo-ui-Komponenten bringen Jotai selbst mit. Für neuen State immer Zustand |
-| **Redis** | `redis` (node-redis) — **5** Dateien, u. a. `utils/redis/client.ts`, `notificationPubSub.ts`, `services/hocuspocus/src/redis.ts` | `ioredis` — **genau 1** Datei: `apps/api/workers/aiWorkerPool.ts`. Die `isReady`-Guard-Regel bezieht sich auf node-redis |
+| **Redis** | `redis` (node-redis) — **5** Dateien, u. a. `utils/redis/client.ts`, `notificationPubSub.ts`, `services/hocuspocus/src/redis.ts` | `ioredis` — **genau 1** Datei: `apps/api/workers/aiClient.ts`. Die `isReady`-Guard-Regel bezieht sich auf node-redis |
 | **Headless UI** | `radix-ui` (unified) — **33** Dateien | Einzelpakete `@radix-ui/react-slider` / `-slot` / `-tooltip` in **8** Dateien; `@base-ui/react` in **1**: `packages/ui/src/components/combobox.tsx`. Neues UI gegen `radix-ui` bauen |
 | **PDF** | `pdf-lib` — **9** Dateien, Erzeugung im Backend | `pdfjs-dist` ist **kein** Duplikat: nur Lesen/OCR in den Scrapern (`scrape-bayern.ts`, `scrape-thueringen.ts`) über den Subpath `pdfjs-dist/legacy/build/pdf.mjs` |
 

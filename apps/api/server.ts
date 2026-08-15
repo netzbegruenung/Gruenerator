@@ -32,6 +32,10 @@ import { shouldSkipBodyParser } from './middleware/bodyParserConfig.js';
 import { createCacheMiddleware } from './middleware/cacheMiddleware.js';
 import { setupRoutes } from './routes.js';
 import { createAIService, type AIService } from './services/ai/aiService.js';
+import {
+  startModelLatencyCleanup,
+  startModelLatencyRollup,
+} from './services/ai/modelLatencyStore.js';
 import { startBoardAgentWorker } from './services/boards/boardAgentWorker.js';
 import { startBoardScheduleWorker } from './services/boards/boardScheduleWorker.js';
 import { startCardDueReminderWorker } from './services/boards/cardDueReminderWorker.js';
@@ -88,6 +92,7 @@ if (skipCluster) {
   startUploadsCleanup();
   startNotificationCleanup();
   startDeepResearchCleanup();
+  startModelLatencyCleanup();
 
   await startWorker();
 } else if (cluster.isPrimary) {
@@ -169,6 +174,7 @@ if (skipCluster) {
   startUploadsCleanup();
   startNotificationCleanup();
   startDeepResearchCleanup();
+  startModelLatencyCleanup();
 
   const { shutdown: _shutdown, registerSignalHandlers } = createMasterShutdownHandler({
     workerTimeout: 10000,
@@ -243,15 +249,15 @@ async function startWorker(): Promise<void> {
   // Initialize AI service (direct AI SDK calls, no worker threads)
   log.debug('Initializing AI service');
   aiService = createAIService(redisClient);
-  app.locals.aiWorkerPool = aiService;
+  app.locals.aiClient = aiService;
 
   // Initialize AI Search Agent
   try {
     const aiSearchAgentModule = (await import('./services/aiSearchAgent.js')) as {
-      setAIWorkerPool?: (pool: unknown) => void;
+      setAiClient?: (pool: unknown) => void;
     };
-    if (typeof aiSearchAgentModule.setAIWorkerPool === 'function') {
-      aiSearchAgentModule.setAIWorkerPool(aiService);
+    if (typeof aiSearchAgentModule.setAiClient === 'function') {
+      aiSearchAgentModule.setAiClient(aiService);
       log.debug('AI Search Agent initialized');
     }
   } catch (error) {
@@ -292,6 +298,10 @@ async function startWorker(): Promise<void> {
     const err = error instanceof Error ? error : new Error(String(error));
     log.warn(`ProfileService init failed: ${err.message}`);
   }
+
+  // Misst mit, wie schnell jedes Modell antwortet, und wärmt die Basislinie aus
+  // den letzten 24 h vor. Braucht die Postgres-Init oben.
+  startModelLatencyRollup();
 
   // Async board agent: drains the agent_tasks queue (@gruenerator delegations).
   // Safe to run in every cluster worker — claiming uses FOR UPDATE SKIP LOCKED.
@@ -738,7 +748,6 @@ async function startWorker(): Promise<void> {
       success: false,
       error: 'Ein Serverfehler ist aufgetreten',
 
-      // eslint-disable-next-line gruenerator/no-raw-error-to-client -- dev-only branch; prod gets `errorMessage`
       message: isDev ? err.message : errorMessage,
       stack: isDev ? err.stack : undefined,
       errorId: `${Date.now()}-${Math.floor(Math.random() * 1000)}`,

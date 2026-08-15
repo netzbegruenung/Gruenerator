@@ -35,7 +35,7 @@ import type { contentExamplesService as ContentExamplesServiceInstance } from '.
 
 let mistralClient: MistralClient | null = null;
 try {
-  const imported = await import('../../workers/mistralClient.js');
+  const imported = await import('../../services/ai/mistralClient.js');
   mistralClient = (imported.default || imported) as MistralClient;
 } catch {
   mistralClient = null;

@@ -6,9 +6,9 @@ export * from './promptProcessor.js';
 
 // Export specific types from simpleInteractiveGenerator to avoid conflicts
 export type {
-  AIWorkerPool,
-  AIWorkerRequest,
-  AIWorkerResponse,
+  AiClient,
+  AiClientRequest,
+  AiClientResponse,
   GeneratedQuestion,
   QuestionGenerationArgs,
   QuestionGenerationResult,
@@ -38,4 +38,4 @@ export type {
 export type { Locale } from './promptAssembly.js';
 
 // Re-export AI worker types from canonical source
-export type { AIRequestData, Tool } from '../../../workers/types.js';
+export type { AIRequestData, Tool } from '../../../services/ai/types.js';

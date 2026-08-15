@@ -44,7 +44,7 @@ export async function extractTextWithMistralOCR(
   try {
     console.log(`[OcrService] Starting Mistral OCR 4 extraction for: ${filePath}`);
 
-    const mod = await import('../../workers/mistralClient.js');
+    const mod = await import('../ai/mistralClient.js');
     const mistralClient: Mistral = mod.default || mod;
 
     const fileBuffer = await fs.readFile(filePath);
@@ -136,7 +136,7 @@ export async function extractBase64WithMistralOCR(
       `[OcrService] Starting Mistral OCR 4 base64 extraction for: ${filename} (~${sizeKB}KB, ${mimeType})`
     );
 
-    const mod = await import('../../workers/mistralClient.js');
+    const mod = await import('../ai/mistralClient.js');
     const mistralClient: Mistral = mod.default || mod;
 
     const dataUri = `data:${mimeType};base64,${base64Data}`;

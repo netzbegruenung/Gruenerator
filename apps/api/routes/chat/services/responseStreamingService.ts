@@ -10,6 +10,7 @@
 import { streamText, type ModelMessage, type LanguageModel } from 'ai';
 
 import { isReasoningCapable } from '../../../services/ai/modelDiscovery.js';
+import { recordSlowVerdict } from '../../../services/ai/modelHealth.js';
 import { clampToModelOutputLimit } from '../../../services/ai/modelOutputLimits.js';
 import {
   isReasoningStreamModel,
@@ -935,8 +936,7 @@ export const streamAndAccumulateWithReasoning = wrapWithCompatCatch(
  * Stream from a primary model with single-step fallback to its sibling on
  * first-token failure. The sibling is set by resolveModel() — for overflow
  * lanes it's the unchosen Verdigado/Regolo partner; for single configs
- * without a sibling, no fallback fires (Qwen "Chinese-only-when-selected"
- * firewall: never auto-route INTO Qwen, never silently auto-route OUT).
+ * without a sibling, no fallback fires.
  *
  * Single-step by design: the fallback's buildStream is invoked directly, not
  * via a recursive streamWithFallback. Do not refactor to recurse.
@@ -974,6 +974,11 @@ export async function streamWithFallback(params: {
     return await buildStream(primary);
   } catch (err) {
     if (!isStreamFailure(err)) throw err;
+
+    // Das Verdikt, das die Messung nicht liefern kann: es kamen gar keine
+    // Tokens. Der nächste Turn wartet dann nicht noch einmal die volle Frist
+    // auf dasselbe Paar.
+    recordSlowVerdict(primary.provider, primary.modelName, err.kind);
 
     const sibling = primary.sibling;
     if (!sibling) {

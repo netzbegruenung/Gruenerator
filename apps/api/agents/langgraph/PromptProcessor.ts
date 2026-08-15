@@ -17,7 +17,7 @@ import {
   extractLocaleFromRequest,
 } from '../../services/localization/index.js';
 import { withErrorHandler, handleValidationError } from '../../utils/errors/index.js';
-import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
+import { getAiClient } from '../../utils/getAiClient.js';
 import {
   MARKDOWN_FORMATTING_INSTRUCTIONS,
   HTML_FORMATTING_INSTRUCTIONS,
@@ -35,7 +35,7 @@ import type { PromptConfig, AIOptions, TemplateContext } from './types/index.js'
 import type { PromptAssemblyState } from './types/promptAssembly.js';
 import type { GenerationStatsService } from '../../database/services/GenerationStatsService/index.js';
 import type { UserProfile } from '../../services/user/types.js';
-import type { AIWorkerResult } from '../../utils/request/types.js';
+import type { AiResult } from '../../utils/request/types.js';
 import type {
   Document as EnrichmentDocument,
   WebSearchSource,
@@ -49,8 +49,8 @@ interface PromptProcessorRequest extends Request {
   user?: UserProfile | undefined;
   app: Request['app'] & {
     locals: {
-      aiWorkerPool: {
-        processRequest: (request: Record<string, unknown>, req: Request) => Promise<AIWorkerResult>;
+      aiClient: {
+        processRequest: (request: Record<string, unknown>, req: Request) => Promise<AiResult>;
       };
     };
   };
@@ -734,7 +734,7 @@ export async function processGraphRequest(
         searchQuery: searchQuery || null,
         examples: [], // TODO: Implement examples from config
         provider,
-        aiWorkerPool: getAIWorkerPool(ppReq),
+        aiClient: getAiClient(ppReq),
         enableNotebookEnrich: useNotebookEnrich ?? config.features?.notebookEnrich ?? false,
       },
       ppReq
@@ -780,10 +780,10 @@ export async function processGraphRequest(
     };
 
     // Process AI request
-    const aiWorkerPool = (ppReq.app.locals as Record<string, unknown>).aiWorkerPool as {
-      processRequest: (request: Record<string, unknown>, req: Request) => Promise<AIWorkerResult>;
+    const aiClient = (ppReq.app.locals as Record<string, unknown>).aiClient as {
+      processRequest: (request: Record<string, unknown>, req: Request) => Promise<AiResult>;
     };
-    const result: AIWorkerResult = await aiWorkerPool.processRequest(
+    const result: AiResult = await aiClient.processRequest(
       {
         type: routeType,
         ...payload,

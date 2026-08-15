@@ -49,6 +49,17 @@ const LegacyNotebookIdRedirect = lazy(() =>
   Promise.resolve({ default: LegacyNotebookIdRedirectComponent })
 );
 
+// Redirect legacy /agentura/skill/:mention → /agentura/rezept/:mention. Das
+// Produkt heißt „Rezept"; „skill" stand nur noch in der URL. Der alte Pfad
+// bleibt für immer — Rezeptlinks werden geteilt (URL-Sonderrecht, CLAUDE.md).
+const LegacySkillMentionRedirectComponent: FC<Record<string, unknown>> = () => {
+  const { mention } = useParams();
+  return createElement(Navigate, { to: `/agentura/rezept/${mention ?? ''}`, replace: true });
+};
+const LegacySkillMentionRedirect = lazy(() =>
+  Promise.resolve({ default: LegacySkillMentionRedirectComponent })
+);
+
 // Redirect legacy /gruppen/:idOrSlug → /projekte/:idOrSlug preserving the param.
 const LegacyGruppenIdRedirectComponent: FC<Record<string, unknown>> = () => {
   const { idOrSlug } = useParams();
@@ -323,11 +334,12 @@ const standardRoutes: RouteConfig[] = [
     : []),
   // EXPERIMENTAL — recurring agent tasks management.
   { path: '/wiederkehrend', component: RecurringTasksPage },
-  // Agentura — the agents & skills marketplace. Detail "product pages" sit
-  // under /agentura/agent/<slug> and /agentura/skill/<mention>; the storefront
+  // Agentura — the agents & recipes marketplace. Detail "product pages" sit
+  // under /agentura/agent/<slug> and /agentura/rezept/<mention>; the storefront
   // is /agentura. Old library links (/agents, /skills) redirect here.
   { path: '/agentura/agent/:slug', component: AgentDetailPage },
-  { path: '/agentura/skill/:mention', component: SkillDetailPage },
+  { path: '/agentura/rezept/:mention', component: SkillDetailPage },
+  { path: '/agentura/skill/:mention', component: LegacySkillMentionRedirect },
   { path: '/agentura', component: AgenturaPage },
   {
     path: '/agents',

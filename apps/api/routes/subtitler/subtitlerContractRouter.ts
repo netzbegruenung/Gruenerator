@@ -46,7 +46,7 @@ import {
 } from '../../services/subtitler/tusService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
-import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
+import { getAiClient } from '../../utils/getAiClient.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
@@ -159,8 +159,8 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
   // ── Processing: transcription ─────────────────────────────────────────────
 
   postProcess: async (args) => {
-    const aiWorkerPool: unknown = args.req.app.locals.aiWorkerPool;
-    const result = await startTranscriptionJob(args.body, aiWorkerPool);
+    const aiClient: unknown = args.req.app.locals.aiClient;
+    const result = await startTranscriptionJob(args.body, aiClient);
     if (result.ok) {
       return {
         status: 202 as const,
@@ -369,7 +369,7 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
 
   generateSocial: async (args) => {
     try {
-      const aiWorkerPool = getAIWorkerPool(args.req);
+      const aiClient = getAiClient(args.req);
       const locale = extractLocaleFromRequest(args.req);
       const systemPrompt = localizePlaceholders(
         'Du bist Social Media Manager für {{partyName}}. Erstelle einen Instagram Reel Beitragstext basierend auf den Untertiteln des Videos. Der Text soll die Kernbotschaft des Videos aufgreifen und in einen ansprechenden Social Media Post umwandeln.',
@@ -389,7 +389,7 @@ Erstelle einen Instagram Reel Beitragstext, der:
         locale
       );
 
-      const result = await aiWorkerPool.processRequest({
+      const result = await aiClient.processRequest({
         type: 'subtitler_social',
         systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],

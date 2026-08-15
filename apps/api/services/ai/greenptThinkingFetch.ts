@@ -33,7 +33,7 @@ import { captureImpact, modelFromRequestBody } from './greenptImpact.js';
  * floor rather than a flag — tracked as follow-up, not solved here.
  *
  * Confirmed live on 06.08.2026: gemma4 ran into a Gateway Timeout on
- * `doc_generation`. `workers/providers/execute.ts` now gives greenpt only one
+ * `doc_generation`. `services/ai/execution/execute.ts` now gives greenpt only one
  * retry instead of two — the identical request was near-certain to time out
  * again, and burning less time on it reaches the provider-fallback chain
  * (`services/ai/aiService.ts`) sooner. That's a latency mitigation, not the

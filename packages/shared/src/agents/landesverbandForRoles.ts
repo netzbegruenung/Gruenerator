@@ -6,6 +6,11 @@
  * LV-Ids, damit dieselbe Antwort jede LV-bezogene Oberfläche steuert: Agentura,
  * Sidebar-Inventar, Rezept-Bibliothek und die Mention-Liste im Composer.
  *
+ * Die Zuteilung ist **ausschließend**: wer keine Landesgeschäftsstellen-Rolle
+ * gepflegt hat, sieht die LV-Agenten und -Rezepte nicht. Sie sind Material
+ * eines bestimmten Landesverbands, kein allgemeiner Bestand — und ein Regal
+ * mit elf fremden Landesverbänden war für alle anderen nur Rauschen.
+ *
  * Bewusst **abgeleitet statt gespeichert**: die Relation LV↔Agent↔Rezept steht
  * schon in `LANDESVERBAENDE` und im `identifier`, den jedes Rezept trägt. Es
  * braucht also weder ein neues Feld im Rezept-Frontmatter noch eine Zeile pro
@@ -16,28 +21,55 @@
  * geteilte Links und `@`/`/`-Mentions in bestehenden Threads für alle auflösen
  * (URL-Sonderrecht, CLAUDE.md).
  */
+import { type RoleBausteinKey, roleBausteinKey } from '../roles/rolesConfig.js';
+
 import { LANDESVERBAENDE } from './landesverbaende.js';
 import { SKILLS } from './skills/index.js';
 import { VISIBLE_SYSTEM_AGENTS, getSystemAgent } from './system.js';
 
 /**
- * Die Felder einer Profilrolle, die dieses Modul liest. Strukturell getippt statt
- * `UserRole` importiert: `roles/types.ts` liegt in einem anderen Teilpaket und
- * soll nicht von den Agenten abhängen (die Abhängigkeit läuft bereits andersherum,
- * `rolesConfig` leitet seine Notebook-Ids aus der LV-Registry ab).
+ * Die Felder einer Profilrolle, die dieses Modul liest. Weiterhin strukturell
+ * getippt statt `UserRole` importiert, damit die Agenten nicht am Rollen-Typ
+ * hängen. Die reine Funktion `roleBausteinKey` kommt trotzdem aus `roles/` —
+ * die Kette `landesverbandForRoles → rolesConfig → landesverbaende` ist
+ * azyklisch, und eine zweite Kopie der Rollen→Baustein-Tabelle wäre genau die
+ * Zweitkopie, die irgendwann auseinanderläuft.
  */
 export interface RoleLandesverbandInput {
   ebene?: string | undefined;
+  rolle?: string | undefined;
   bundesland?: string | undefined;
 }
 
 /**
- * Nur die Landesebene leitet einen Landesverband ab. Kreis- und Ortsverbände
- * geben zwar auch ein Bundesland an, arbeiten aber nicht im Landesverband —
- * ihre Zuordnung wäre eine Vermutung, und bei einer *ausschließenden* Regel
- * kostet eine falsche Vermutung den Zugang zum Material.
+ * Nur die Landesgeschäftsstelle leitet einen Landesverband ab — nicht die
+ * Landtagsfraktion, nicht das MdL-Büro, und erst recht keine Kreis- oder
+ * Ortsverbandsrolle.
+ *
+ * Über den Baustein-Schlüssel statt über Ebene oder Bezeichnung: der Schlüssel
+ * ist der F1-eingefrorene Wert (`ROLE_BAUSTEIN_KEYS`) und trägt die
+ * DE/AT-Unterscheidung bereits, während die Bezeichnung nur ein Anzeigename ist
+ * und die Ebene drei Rollen zusammenfasst.
  */
-const LV_EBENE = 'land';
+const ENTITLING_BAUSTEIN_KEYS: ReadonlySet<RoleBausteinKey> = new Set<RoleBausteinKey>([
+  'landesgeschaeftsstelle',
+  'at-landesorganisation',
+]);
+
+/**
+ * Schaltet diese Rollenbezeichnung einen Landesverband frei? Der Rollen-
+ * Assistent fragt damit, ob er das Angebot des Landesverbands ankündigen darf —
+ * ohne die Regel ein zweites Mal zu formulieren.
+ */
+export function isLandesverbandRolle(ebene: string, rolle: string): boolean {
+  const key = roleBausteinKey(ebene, rolle);
+  return key !== null && ENTITLING_BAUSTEIN_KEYS.has(key);
+}
+
+function isEntitlingRole(role: RoleLandesverbandInput): boolean {
+  if (!role.ebene || !role.rolle) return false;
+  return isLandesverbandRolle(role.ebene, role.rolle);
+}
 
 /** Österreich ist ein Landesverband; Wien, Tirol & Co. sind es nicht. */
 const AT_LANDESVERBAND_ID = 'oesterreich';
@@ -66,26 +98,29 @@ const DISCOVERABLE_LV_IDS: ReadonlySet<string> = new Set(
 
 /**
  * Die Landesverbände dieser Person, in Registry-Reihenfolge. Leeres Ergebnis
- * heißt „keine Zuordnung" — und damit für jeden Aufrufer: **nicht** filtern.
+ * heißt „keine Landesgeschäftsstellen-Rolle" — und damit für jeden Aufrufer:
+ * LV-Inhalte **ausblenden**, nicht durchlassen. Wer noch gar nicht weiß, ob
+ * Rollen vorliegen (Store nicht hydratisiert, Host ohne Profilzugang), schickt
+ * `null` durch die Filter statt einer leeren Liste.
  *
  * Deutsche Rollen ordnen über das Bundesland-Label zu, das per Konstruktion dem
  * `title` der Registry entspricht (`rolesConfig.ts` baut die Auswahlliste daraus).
- * Österreichische Rollen der Ebene „land" ordnen dem einen AT-Verband zu, weil
+ * Die österreichische Landesorganisation ordnet dem einen AT-Verband zu, weil
  * die AT-Bundesländer keine eigenen Landesverbände sind.
  */
 export function landesverbandIdsForRoles(
   roles: readonly RoleLandesverbandInput[],
   userLocale: string
 ): readonly string[] {
-  const landRoles = roles.filter((role) => role.ebene === LV_EBENE);
-  if (landRoles.length === 0) return [];
+  const entitlingRoles = roles.filter(isEntitlingRole);
+  if (entitlingRoles.length === 0) return [];
 
   if (userLocale === 'de-AT') {
     return DISCOVERABLE_LV_IDS.has(AT_LANDESVERBAND_ID) ? [AT_LANDESVERBAND_ID] : [];
   }
 
   const ids = new Set<string>();
-  for (const role of landRoles) {
+  for (const role of entitlingRoles) {
     if (!role.bundesland) continue;
     const id = LV_ID_BY_TITLE.get(role.bundesland);
     if (id !== undefined && DISCOVERABLE_LV_IDS.has(id)) ids.add(id);
@@ -107,15 +142,21 @@ function lvIdForAgentIdentifier(identifier: string): string | null {
 /**
  * Soll dieser Agent bzw. dieses Rezept im Inventar auftauchen?
  *
- * Zwei Durchlassregeln, beide absichtlich:
+ * Drei Regeln, jede absichtlich:
  * - Identifier ohne Landesverband passieren immer — Aufrufer schicken die ganze
  *   Liste durch diesen Filter, statt sie vorher zu zerlegen.
- * - `lvIds` leer heißt „keine Rollenangabe", und dann bleibt alles sichtbar wie
- *   bisher. Ohne diese Regel würde die Einführung der Zuteilung jeder Person
- *   ohne gepflegte Rolle sämtliche LV-Inhalte wegnehmen.
+ * - `lvIds === null` heißt „die Rollen sind noch nicht bekannt" (Store nicht
+ *   hydratisiert, Host ohne Profilzugang). Dann wird nicht gefiltert: eine
+ *   Ladephase darf nichts wegnehmen, was gleich wieder erscheint.
+ * - `lvIds` leer heißt dagegen „geprüft, keine Landesgeschäftsstellen-Rolle" —
+ *   und dann sind LV-Inhalte nicht sichtbar. Die Zuteilung ist der Zugang; ohne
+ *   sie gibt es ihn nicht.
  */
-export function isLvItemVisibleForRoles(identifier: string, lvIds: readonly string[]): boolean {
-  if (lvIds.length === 0) return true;
+export function isLvItemVisibleForRoles(
+  identifier: string,
+  lvIds: readonly string[] | null
+): boolean {
+  if (lvIds === null) return true;
   const lvId = lvIdForAgentIdentifier(identifier);
   if (lvId === null) return true;
   return lvIds.includes(lvId);
@@ -123,11 +164,14 @@ export function isLvItemVisibleForRoles(identifier: string, lvIds: readonly stri
 
 /**
  * Soll dieses Notebook in einem Picker angeboten werden? Gleiche Semantik wie
- * {@link isLvItemVisibleForRoles}: Nicht-LV-Notebooks und der rollenlose Fall
- * passieren immer.
+ * {@link isLvItemVisibleForRoles}: Nicht-LV-Notebooks und der noch unbekannte
+ * Fall passieren immer, die geprüft-rollenlose Person sieht keine LV-Notizbücher.
  */
-export function isLvNotebookVisibleForRoles(notebookId: string, lvIds: readonly string[]): boolean {
-  if (lvIds.length === 0) return true;
+export function isLvNotebookVisibleForRoles(
+  notebookId: string,
+  lvIds: readonly string[] | null
+): boolean {
+  if (lvIds === null) return true;
   const lv = LANDESVERBAENDE.find((entry) => entry.notebookId === notebookId);
   if (!lv) return true;
   return lvIds.includes(lv.id);
@@ -208,11 +252,11 @@ export function landesverbandTitle(lvId: string): string | null {
  * beide Plattformen holen ihre Formulierung hier, statt jede ihre eigene Beugung
  * zu erfinden.
  */
-export function landesverbandHeadings(lvIds: readonly string[]): {
+export function landesverbandHeadings(lvIds: readonly string[] | null): {
   agents: string;
   skills: string;
 } {
-  const titles = lvIds.map(landesverbandTitle).filter((t): t is string => t !== null);
+  const titles = (lvIds ?? []).map(landesverbandTitle).filter((t): t is string => t !== null);
   if (titles.length === 1) {
     return { agents: `Grüne ${titles[0]}`, skills: `Rezepte aus ${titles[0]}` };
   }

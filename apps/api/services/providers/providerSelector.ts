@@ -101,7 +101,7 @@ interface SelectProviderParams {
  *
  * Bei den Anträgen ersetzt das einen bewussten GPT-OSS-Pin mit der Notiz
  * "reasoning handled via reasoningEffort". Auf DIESEM Pfad galt sie nie: der
- * Worker-Pfad (workers/providers/execute.ts) reicht überhaupt keine
+ * Ausführungspfad (services/ai/execution/execute.ts) reicht überhaupt keine
  * Reasoning-Option durch. Im Streaming-Pfad
  * (agents/langgraph/streamingProcessor.ts) gilt sie — der nutzt diese Tabelle
  * und setzt die providerspezifische Option passend zum gewählten Provider.
@@ -158,7 +158,8 @@ const STRUCTURE_MODEL = 'mistral-medium-2604';
 
 /**
  * Gemma 4 lives on Regolo. Naming it explicitly is not optional: the Regolo
- * DEFAULT is `qwen3.5-122b`, and qwen is excluded by policy (AVOID_AS_SYNTH).
+ * DEFAULT kommt aus REGOLO_DEFAULT_MODEL und ist nicht garantiert der,
+ * den diese Lane will.
  *
  * The chat lane now agrees. `gemma-litellm` used to resolve to the slow
  * `verdigado-think` host, which is why this constant had to spell out the

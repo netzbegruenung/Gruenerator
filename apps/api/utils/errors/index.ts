@@ -24,7 +24,7 @@ export {
   SearchError,
   EmbeddingError,
   DatabaseError,
-  AIWorkerError,
+  AiClientError,
   CacheError,
   TimeoutError,
   ResourceError,
@@ -50,7 +50,7 @@ export {
   handleRouteError,
   handleValidationError,
   handleAttachmentError,
-  handleAIWorkerError,
+  handleAiClientError,
   withErrorHandler,
   addCorrelationId,
 } from './routes.js';

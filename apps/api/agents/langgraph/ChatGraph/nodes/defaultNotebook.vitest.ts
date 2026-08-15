@@ -89,7 +89,7 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     threadId: null,
     agentConfig: makeAgentConfig(),
     enabledTools: { search: true },
-    aiWorkerPool: null,
+    aiClient: null,
     userLocale: 'de-DE',
     attachmentContext: null,
     imageAttachments: [],

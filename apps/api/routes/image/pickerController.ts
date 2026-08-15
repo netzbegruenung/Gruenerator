@@ -92,7 +92,7 @@ router.post(
 
       const result = await imagePickerService.selectBestImage(
         text,
-        req.app.locals.aiWorkerPool,
+        req.app.locals.aiClient,
         options,
         req
       );

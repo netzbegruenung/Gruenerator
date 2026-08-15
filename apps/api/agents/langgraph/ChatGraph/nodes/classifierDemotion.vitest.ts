@@ -37,15 +37,15 @@ const STUB_AGENT_CONFIG = {
  * „ich entscheide hier nichts". Damit stammt jedes Verdikt unten aus einer
  * deterministischen Stufe, und das ist die Aussage dieser Datei.
  */
-function makeWorkerPool() {
+function makeAiClient() {
   return { processRequest: vi.fn(async () => ({ content: 'keine' })) };
 }
 
 function buildState(
   overrides: Partial<ChatGraphState> & { userMessage: string }
-): ChatGraphState & { aiWorkerPool: ReturnType<typeof makeWorkerPool> } {
+): ChatGraphState & { aiClient: ReturnType<typeof makeAiClient> } {
   const { userMessage, ...rest } = overrides;
-  const aiWorkerPool = makeWorkerPool();
+  const aiClient = makeAiClient();
   return {
     messages: [{ role: 'user' as const, content: userMessage }],
     threadId: null,
@@ -59,7 +59,7 @@ function buildState(
       image: true,
       image_edit: true,
     },
-    aiWorkerPool,
+    aiClient,
     userLocale: 'de-DE',
     attachmentContext: null,
     imageAttachments: [],
@@ -126,7 +126,7 @@ function buildState(
     responseTimeMs: 0,
     error: null,
     ...rest,
-  } as ChatGraphState & { aiWorkerPool: ReturnType<typeof makeWorkerPool> };
+  } as ChatGraphState & { aiClient: ReturnType<typeof makeAiClient> };
 }
 
 const ORIGINAL_FLAG = process.env.CHAT_AGENT_LOOP;
@@ -171,7 +171,7 @@ describe('Tier 3.5 — demoted band (agentic, LLM skipped)', () => {
     const state = buildState({ userMessage });
     const result = await classifierNode(state);
     expect(result.intent).toBe('agentic');
-    expect(state.aiWorkerPool.processRequest).not.toHaveBeenCalled();
+    expect(state.aiClient.processRequest).not.toHaveBeenCalled();
     // The loop needs no searchQuery, but keep it populated for logging/recall.
     expect(result.searchQuery).toBeTruthy();
     expect(result.reasoning).toMatch(/demotion/i);
@@ -220,7 +220,7 @@ describe('Tier 3.5 — demoted band (agentic, LLM skipped)', () => {
     });
     const result = await classifierNode(state);
     expect(result.intent).toBe('agentic');
-    expect(state.aiWorkerPool.processRequest).not.toHaveBeenCalled();
+    expect(state.aiClient.processRequest).not.toHaveBeenCalled();
   });
 });
 
@@ -231,7 +231,7 @@ describe('Tier 3.5 — NOT demoted (gates preserved)', () => {
     });
     const result = await classifierNode(state);
     expect(result.intent).toBe('social_post');
-    expect(state.aiWorkerPool.processRequest).not.toHaveBeenCalled();
+    expect(state.aiClient.processRequest).not.toHaveBeenCalled();
   });
 
   it('creative writing is never demoted (confident heuristic or LLM, either way not agentic)', async () => {
@@ -249,7 +249,7 @@ describe('Tier 3.5 — NOT demoted (gates preserved)', () => {
     });
     const result = await classifierNode(state);
     expect(result.intent).toBe('chat_history');
-    expect(state.aiWorkerPool.processRequest).not.toHaveBeenCalled();
+    expect(state.aiClient.processRequest).not.toHaveBeenCalled();
   });
 
   it('an AMBIGUOUS chat-recall phrasing goes to the loop, not to a recall', async () => {
@@ -289,7 +289,7 @@ describe('Tier 3.5 — NOT demoted (gates preserved)', () => {
     const state = buildState({ userMessage });
     const result = await classifierNode(state);
     expect(result.intent).toBe('agentic');
-    expect(state.aiWorkerPool.processRequest).not.toHaveBeenCalled();
+    expect(state.aiClient.processRequest).not.toHaveBeenCalled();
   }
 
   it('hotel phrasing demotes straight into the loop', async () => {
@@ -336,14 +336,14 @@ describe('Tier 3.5 — NOT demoted (gates preserved)', () => {
     const state = buildState({ userMessage: 'Mach mir ein Sharepic zu Solarenergie' });
     const result = await classifierNode(state);
     expect(result.intent).toBe('sharepic');
-    expect(state.aiWorkerPool.processRequest).not.toHaveBeenCalled();
+    expect(state.aiClient.processRequest).not.toHaveBeenCalled();
   });
 
   it('greeting stays on the short-message heuristic fast path', async () => {
     const state = buildState({ userMessage: 'Hallo!' });
     const result = await classifierNode(state);
     expect(result.intent).toBe('greeting');
-    expect(state.aiWorkerPool.processRequest).not.toHaveBeenCalled();
+    expect(state.aiClient.processRequest).not.toHaveBeenCalled();
   });
 
   it("flag off: the demoted band keeps the rule table's own verdict", async () => {
@@ -369,7 +369,7 @@ describe('Tier 3.5 — wrapper interactions (URL, edge cases)', () => {
     expect(result.intent).toBe('agentic');
     expect(result.secondaryIntent).toBeNull();
     expect(result.detectedUrls).toHaveLength(1);
-    expect(state.aiWorkerPool.processRequest).not.toHaveBeenCalled();
+    expect(state.aiClient.processRequest).not.toHaveBeenCalled();
   });
 
   it('a pure URL paste (no question) is NOT demoted — it IS the scrape turn', async () => {

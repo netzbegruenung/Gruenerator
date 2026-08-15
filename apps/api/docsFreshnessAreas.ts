@@ -59,7 +59,7 @@ export const AREA_HINTS: Record<string, string> = {
   // scan covered it — but with no hint the PR audit never did, which is the
   // half that matters: the claim drifts in the same PR that moves the routing.
   'ueber-den-gruenerator':
-    'apps/api/services/ai, apps/api/services/usage/energyFootprint.ts, apps/api/workers/providers, apps/api/services/transcription, packages/core/src/models',
+    'apps/api/services/ai, apps/api/services/usage/energyFootprint.ts, apps/api/services/transcription, packages/core/src/models',
   grueneratoren: 'apps/web/src/features/agents, apps/web/src/features/agentura, packages/chat',
   wissen: 'apps/web/src/features/notebook',
   experimente: 'apps/web/src/features/monitor',
@@ -84,7 +84,7 @@ export const AREA_HINTS: Record<string, string> = {
   // "package.json" prefix only matches the root manifest since changed paths are
   // repo-relative.
   [README_FOLDER]:
-    'pnpm-workspace.yaml, package.json, turbo.json, .env.example, apps/api/workers/providers, apps/api/services/ai',
+    'pnpm-workspace.yaml, package.json, turbo.json, .env.example, apps/api/services/ai',
 };
 
 /**

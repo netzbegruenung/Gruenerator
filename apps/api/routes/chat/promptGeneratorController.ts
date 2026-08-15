@@ -1,4 +1,4 @@
-import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
+import { getAiClient } from '../../utils/getAiClient.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -65,11 +65,11 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Description must be under 2000 characters' });
     }
 
-    const aiWorkerPool = getAIWorkerPool(req);
+    const aiClient = getAiClient(req);
 
     log.info(`[PromptGenerator] Generating system prompt for user ${user.id}`);
 
-    const result = await aiWorkerPool.processRequest({
+    const result = await aiClient.processRequest({
       type: 'prompt_generation',
       systemPrompt: META_PROMPT,
       messages: [{ role: 'user', content: description.trim() }],

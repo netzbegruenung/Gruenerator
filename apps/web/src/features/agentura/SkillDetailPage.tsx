@@ -151,7 +151,7 @@ function SkillDetailPage() {
                   skill={other}
                   isFavorite={favorites.includes(other.mention.toLowerCase())}
                   onToggleFavorite={toggleFavorite}
-                  onSelect={(s) => navigate(`/agentura/skill/${encodeURIComponent(s.mention)}`)}
+                  onSelect={(s) => navigate(`/agentura/rezept/${encodeURIComponent(s.mention)}`)}
                 />
               ))}
             </CardGrid>

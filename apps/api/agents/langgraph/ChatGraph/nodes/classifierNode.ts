@@ -497,7 +497,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
   log.info('[Classifier] Starting intent classification');
 
   try {
-    const { messages, aiWorkerPool } = state;
+    const { messages, aiClient } = state;
 
     // Extract user message content (handles both string and AI SDK v6 parts format)
     const lastUserMessage = messages.filter((m) => m.role === 'user').pop();
@@ -655,7 +655,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       const tiebreak = await classifyDocsIntentTiebreak({
         userContent,
         conversationContext,
-        aiWorkerPool,
+        aiClient,
       });
       if (tiebreak === 'edit') {
         const classificationTimeMs = Date.now() - startTime;
@@ -718,7 +718,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       return classifyWithForcedSearch({
         reason: 'DocumentChat',
         docCount: state.documentChatIds.length,
-        aiWorkerPool,
+        aiClient,
         userContent,
         conversationContext,
         topicalContext,
@@ -775,7 +775,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       return classifyWithForcedSearch({
         reason: 'Document',
         docCount: state.documentIds.length,
-        aiWorkerPool,
+        aiClient,
         userContent,
         conversationContext,
         topicalContext,
@@ -791,7 +791,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       return classifyWithForcedSearch({
         reason: 'Wolke',
         docCount: state.wolkeFiles.length,
-        aiWorkerPool,
+        aiClient,
         userContent,
         conversationContext,
         topicalContext,
@@ -808,7 +808,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       return classifyWithForcedSearch({
         reason: 'Connect',
         docCount: state.connectFiles.length,
-        aiWorkerPool,
+        aiClient,
         userContent,
         conversationContext,
         topicalContext,
@@ -851,7 +851,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       return classifyWithForcedSearch({
         reason: 'Notebook',
         docCount: state.notebookIds.length,
-        aiWorkerPool,
+        aiClient,
         userContent,
         conversationContext,
         topicalContext,
@@ -1675,7 +1675,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       const generation = await resolveGenerationScope({
         userContent,
         conversationContext,
-        aiWorkerPool,
+        aiClient,
       });
       if (generation !== null) {
         const resolvedIntent = generation === 'keine' ? 'produktion' : generation.intent;
@@ -1864,7 +1864,7 @@ async function pickThreadArtifact(
   const index = await resolveEditTarget({
     userContent,
     artifacts,
-    aiWorkerPool: state.aiWorkerPool,
+    aiClient: state.aiClient,
   });
   return index == null ? fallback : artifacts[index];
 }
@@ -1876,7 +1876,7 @@ async function pickThreadArtifact(
 async function classifyWithForcedSearch(opts: {
   reason: string;
   docCount: number;
-  aiWorkerPool: ChatGraphState['aiWorkerPool'];
+  aiClient: ChatGraphState['aiClient'];
   userContent: string;
   conversationContext: string | null;
   topicalContext: string | null;
@@ -1888,7 +1888,7 @@ async function classifyWithForcedSearch(opts: {
   const {
     reason,
     docCount,
-    aiWorkerPool,
+    aiClient,
     userContent,
     conversationContext,
     topicalContext,
@@ -1921,7 +1921,7 @@ async function classifyWithForcedSearch(opts: {
     userContent,
     conversationContext,
     topicalContext,
-    aiWorkerPool,
+    aiClient,
   });
   const optimizedQuery = refined?.query || extractSearchTopic(userContent) || userContent;
 

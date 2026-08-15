@@ -36,6 +36,7 @@
  */
 
 import { intermediateLane } from '../../../agents/langgraph/ChatGraph/llmConfig.js';
+import { isModelSlow, recordSlowVerdict } from '../../../services/ai/modelHealth.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { startStepHeartbeat, type SSEWriter } from './sseHelpers.js';
@@ -184,7 +185,7 @@ async function askOne(
   userMessage: string,
   target: LaneTarget
 ): Promise<string> {
-  const response = await state.aiWorkerPool.processRequest(
+  const response = await state.aiClient.processRequest(
     {
       type: step.requestType,
       provider: target.provider,
@@ -243,14 +244,20 @@ async function runStep(
   const ask = (target: LaneTarget): Promise<[string, LaneTarget]> =>
     askOne(step, state, userMessage, target).then((t) => [t, target]);
 
-  const primary: LaneTarget = { provider: LANE.provider, model: LANE.model };
   const sibling = LANE.hedge ?? null;
+  // Gilt der Primär schon als zäh, wird die Frist nicht noch einmal abgesessen:
+  // der Sibling ist dann von Anfang an dran. `getModel` kann das hier nicht
+  // erledigen, weil dieser Pfad über `processRequest` läuft und den Provider
+  // selbst benennt.
+  const vermerkt = sibling != null && isModelSlow(LANE.provider, LANE.model);
+  const primary: LaneTarget =
+    vermerkt && sibling ? sibling : { provider: LANE.provider, model: LANE.model };
 
   let timer: NodeJS.Timeout | null = null;
   try {
     const attempts: Array<Promise<[string, LaneTarget]>> = [ask(primary)];
 
-    if (sibling && step.hedgeAfterMs != null) {
+    if (sibling && !vermerkt && step.hedgeAfterMs != null) {
       const frist = new Promise<void>((resolve) => {
         timer = setTimeout(resolve, step.hedgeAfterMs);
         timer.unref?.();
@@ -265,6 +272,9 @@ async function runStep(
       attempts.push(
         Promise.race([frist.then(() => 'zu langsam' as const), gescheitert]).then((grund) => {
           log.info(`[${step.id}] Primär ${grund} — ${sibling.model} tritt dazu`);
+          if (grund === 'zu langsam') {
+            recordSlowVerdict(LANE.provider, LANE.model, 'Hedge-Frist gerissen');
+          }
           return ask(sibling);
         })
       );

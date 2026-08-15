@@ -1,4 +1,4 @@
-import { getAIWorkerPool } from '../../../../utils/getAIWorkerPool.js';
+import { getAiClient } from '../../../../utils/getAiClient.js';
 import { assemblePromptGraphAsync } from '../../promptAssemblyGraph.js';
 import {
   loadPromptConfig,
@@ -7,8 +7,8 @@ import {
   SimpleTemplateEngine,
 } from '../../PromptProcessor.js';
 
+import type { AiResult } from '../../../../services/ai/types.js';
 import type { EnrichedState } from '../../../../utils/types/requestEnrichment.js';
-import type { AIWorkerResult } from '../../../../workers/types.js';
 import type { PRAgentRequest, SocialPlatformConfig } from '../types.js';
 import type { Request } from 'express';
 
@@ -59,7 +59,7 @@ export async function generatePlatformContent(
         : null,
     });
 
-    const aiResult: AIWorkerResult = await getAIWorkerPool(req).processRequest(
+    const aiResult: AiResult = await getAiClient(req).processRequest(
       {
         type: 'social',
         systemPrompt: promptResult.system,

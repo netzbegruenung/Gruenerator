@@ -29,7 +29,7 @@ export interface CreatedArtifact {
 
 /**
  * Headless wrapper around `runDocGeneration`. Its `req` is only forwarded to
- * `aiWorkerPool.processRequest`, which reads at most `req.user?.id` — a stub
+ * `aiClient.processRequest`, which reads at most `req.user?.id` — a stub
  * fully satisfies it (no Express request exists in the background worker).
  */
 async function createArtifactFromText(
@@ -40,7 +40,7 @@ async function createArtifactFromText(
   const created = await runDocGeneration({
     kind,
     userContent: sourceText,
-    aiWorkerPool: getAIService(),
+    aiClient: getAIService(),
     req: { user: { id: userId } } as unknown as Express.Request,
     userId,
   });

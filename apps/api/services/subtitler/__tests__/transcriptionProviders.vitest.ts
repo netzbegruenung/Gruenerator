@@ -5,7 +5,7 @@
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import fs from 'fs';
-import mistralClient from '../../../workers/mistralClient.js';
+import mistralClient from '../../ai/mistralClient.js';
 
 // Live round-trip (real TTS → real transcription) — billable and network-flaky,
 // so it only runs under the explicit opt-in, not on every `pnpm test` that

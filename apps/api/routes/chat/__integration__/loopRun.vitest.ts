@@ -99,7 +99,7 @@ vi.mock('../services/responseStreamingService.js', async (orig) => {
 
 const { startChatApp, userTurn } = await import('./harness/testApp.js');
 const { runTurn, installNetworkGuard } = await import('./harness/trace.js');
-const { createAiWorkerPoolStub } = await import('./harness/aiWorkerPoolStub.js');
+const { createAiClientStub } = await import('./harness/aiClientStub.js');
 const { createJournalCapture } = await import('./harness/journalCapture.js');
 const { pinChatEnv } = await import('./harness/env.js');
 const { resetThreadStore } = await import('./harness/fakeThreadStore.js');
@@ -113,14 +113,14 @@ const { LOOP_SCENARIOS } = await import('./loopScenarios.js');
 const MAPS_DIR = path.join(import.meta.dirname, 'decisions');
 const UPDATE = process.env.SIM_UPDATE === '1';
 
-const pool = createAiWorkerPoolStub();
+const pool = createAiClientStub();
 const capture = createJournalCapture();
 let app: Awaited<ReturnType<typeof startChatApp>>;
 let restoreNetwork: () => void;
 
 beforeAll(async () => {
   restoreNetwork = installNetworkGuard();
-  app = await startChatApp({ aiWorkerPool: pool, decisionJournal: capture.middleware });
+  app = await startChatApp({ aiClient: pool, decisionJournal: capture.middleware });
   if (UPDATE && !existsSync(MAPS_DIR)) mkdirSync(MAPS_DIR, { recursive: true });
 });
 

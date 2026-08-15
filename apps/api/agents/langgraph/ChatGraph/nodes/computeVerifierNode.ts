@@ -87,7 +87,7 @@ ${entriesText}
 
 Ist das plausibel?`;
 
-    const response = await state.aiWorkerPool.processRequest(
+    const response = await state.aiClient.processRequest(
       {
         type: 'chat_compute_verify',
         provider: LANE.provider,
