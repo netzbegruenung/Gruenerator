@@ -20,12 +20,14 @@
  * must not also match a hypothetical `/texte-admin`.
  *
  * Kept in sync by hand with the `path:` values passed to the `web-viewer`
- * screen in `apps/mobile/components/workplace/GroupContentSection.tsx` and
- * `apps/mobile/app/(fullscreen)/canvas-viewer.tsx`.
+ * screen. Grep for `pathname: '/(fullscreen)/web-viewer'` in `apps/mobile`
+ * before changing this list — every caller there needs an entry, or that
+ * content type silently stops opening.
  */
 export const EMBEDDABLE_PATH_PREFIXES: readonly string[] = [
   '/boards/',
   '/datenbank/',
+  '/documents/',
   '/gruenerator/',
   '/notebook/',
   '/studio/canvas/',
