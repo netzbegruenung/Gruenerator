@@ -6,6 +6,7 @@ import {
 } from '@gruenerator/canvas-editor';
 import { PresenceAvatars, useCollaborators } from '@gruenerator/collab';
 import { type CanvasDocument } from '@gruenerator/contracts';
+import { postToNativeHost } from '@gruenerator/shared';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { EditableTitle } from '@gruenerator/shared/components/EditableTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -19,6 +20,7 @@ import ErrorBoundary from '../../components/ErrorBoundary';
 import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 import { useAuthStore } from '../../stores/authStore';
+import { isEmbedded } from '../../utils/platform';
 import { useTourAutostart } from '../tours/useTourAutostart';
 
 import { CanvasChatDocContext } from './CanvasChatDocContext';
@@ -128,6 +130,13 @@ function CollabCanvasStudioContent() {
   );
 
   const handleCancel = useCallback(() => {
+    if (isEmbedded()) {
+      // The native host pins this WebView to the canvas; navigating to
+      // /workplace inside it would drop the user into app chrome they cannot
+      // leave. Let the host close the screen instead.
+      postToNativeHost({ type: 'CLOSE' });
+      return;
+    }
     void navigate('/workplace');
   }, [navigate]);
 
@@ -143,7 +152,9 @@ function CollabCanvasStudioContent() {
 
   // No isSynced gate: runTour polls for visible anchors anyway, and the tour
   // should also appear when collab sync is slow.
-  useTourAutostart('canvas', !isLoading && !!canvas && canEdit, () => {
+  // Not embedded: the tour paints a full-viewport overlay with its own
+  // controls over a WebView the user cannot navigate away from.
+  useTourAutostart('canvas', !isLoading && !!canvas && canEdit && !isEmbedded(), () => {
     void import('../tours/canvasTour').then((m) => m.startCanvasTour());
   });
 

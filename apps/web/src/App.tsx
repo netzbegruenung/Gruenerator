@@ -21,7 +21,7 @@ import { useHydrateUserProfile } from './hooks/useHydrateUserProfile';
 import { GlobalChatProvider } from './providers/GlobalChatProvider';
 import { type User, useAuthStore } from './stores/authStore';
 import { cleanupDesktopAuth, type DesktopUser, initDesktopAuth } from './utils/desktopAuth';
-import { isDesktopApp } from './utils/platform';
+import { isDesktopApp, isEmbedded } from './utils/platform';
 import './App.css';
 
 function UserProfileHydrationBridge() {
@@ -203,10 +203,15 @@ function App() {
                 unaffected. */}
             <GlobalChatProvider>
               <GlobalBridges />
-              <SettingsDialogHost />
-              <SuspenseWrapper>
-                <AiConsentGate />
-              </SuspenseWrapper>
+              {/* Both open over the whole page. Inside an embedded WebView the
+                  user cannot reach the rest of the app to resolve them, so
+                  they would strand the host on a dialog it never asked for. */}
+              {!isEmbedded() && <SettingsDialogHost />}
+              {!isEmbedded() && (
+                <SuspenseWrapper>
+                  <AiConsentGate />
+                </SuspenseWrapper>
+              )}
               <SuspenseWrapper>
                 {/* <PopupAustriaLaunch /> */}
                 <div id="aria-live-region" aria-live="polite" className="sr-only" />
