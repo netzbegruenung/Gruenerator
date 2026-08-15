@@ -1,4 +1,5 @@
 import { isAiConsentRequiredBody } from '@gruenerator/contracts';
+import { postToNativeHost } from '@gruenerator/shared';
 import {
   createApiClient,
   getApiLocale,
@@ -20,7 +21,7 @@ import { captureAuthIssue } from '../../lib/observability/captureAuthIssue';
 import { sessionDebug } from '../../lib/sessionDebug';
 import { buildLoginUrl, isPublicPage } from '../../utils/authRedirect';
 import { getDesktopToken } from '../../utils/desktopAuth';
-import { isDesktopApp } from '../../utils/platform';
+import { isDesktopApp, isEmbedded } from '../../utils/platform';
 
 // Module-level flag to suppress 401 redirects during logout.
 // Set by authStore.logout() to prevent redirect loops.
@@ -480,6 +481,13 @@ export async function handleUnauthorized(
   if (verdict === 'alive') return 'retry';
   if (verdict === 'dead') {
     if (isPublicPage() || window.location.pathname === '/login') return 'stay';
+    if (isEmbedded()) {
+      // A login screen inside a pinned WebView is a dead end: the host shows
+      // exactly one page and blocks navigation, so the user could neither sign
+      // in nor get back. Hand it to the native host, which owns the session.
+      postToNativeHost({ type: 'SESSION_LOST' });
+      return 'logout';
+    }
     if (!redirectInFlight) {
       redirectInFlight = true;
       performLoginRedirect(source, code);

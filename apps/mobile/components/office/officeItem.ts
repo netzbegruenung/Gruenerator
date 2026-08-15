@@ -7,7 +7,10 @@ type AppRouter = ReturnType<typeof useRouter>;
  * Unified item model for the Office tab, which merges three list sources:
  * `/docs` (docs + sheets + presentations, distinguished by document_subtype),
  * `/api/boards`, and `/api/canvas`. Each item routes to the right full-screen
- * viewer; only `doc` opens the existing editor, the rest are read-only viewers.
+ * screen: `doc` opens the native editor, `presentation` a native read-only
+ * viewer, and `sheet` / `board` / `canvas` the embedded web editor — those
+ * three route through `web-viewer`, which is why their screens are one-line
+ * redirects.
  */
 export type OfficeKind = 'doc' | 'sheet' | 'presentation' | 'board' | 'canvas';
 

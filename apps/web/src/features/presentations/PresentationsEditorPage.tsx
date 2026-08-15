@@ -28,13 +28,15 @@ import {
   FiShare2,
   FiSliders,
 } from 'react-icons/fi';
-import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 
 import { CollaboratorAvatars } from '../../components/editor/CollaboratorAvatars';
 import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import { useAuth } from '../../hooks/useAuth';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
+import { useHostAwareBack } from '../../hooks/useHostAwareBack';
 import { useAuthStore } from '../../stores/authStore';
+import { isEmbedded } from '../../utils/platform';
 import { platformFetch } from '../../utils/platformFetch';
 import { webAppDocsAdapter } from '../docs/docsAdapter';
 import { GuestBadge, GUEST_ANIMALS } from '../docs/GuestBadge';
@@ -56,7 +58,7 @@ const PresentMode = lazyWithRetry(() =>
 
 function PresentationsEditorContent() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+  const handleBack = useHostAwareBack('/office');
   const location = useLocation();
   const adapter = useDocsAdapter();
 
@@ -130,8 +132,9 @@ function PresentationsEditorContent() {
   const autoPresent = searchParams.get('present') === '1';
   const printPdf = searchParams.has('print-pdf');
   // Set by the chat panel's docked preview iframe (ArtifactPanel) — drops the
-  // topbar there, matching DocsEditorPage's `isEmbedded`.
-  const isEmbedded = searchParams.get('embedded') === 'true';
+  // topbar there, matching DocsEditorPage's `isInlineEmbed`. Distinct from
+  // `isEmbedded()` in utils/platform (the mobile WebView host, `embedded=1`).
+  const isInlineEmbed = searchParams.get('embedded') === 'true';
   const [presenting, setPresenting] = useState(autoPresent);
   const [scrollView, setScrollView] = useState(false);
   const [designPanelOpen, setDesignPanelOpen] = useState(false);
@@ -164,9 +167,15 @@ function PresentationsEditorContent() {
   const editorReady = useSyncGate(provider, isSynced);
   const connectionStatus = useDelayedConnectionStatus(isConnected, isLocalLoaded);
 
-  useTourAutostart('presentations', editorReady && !!editorApi && !isGuest && !presenting, () => {
-    void import('../tours/presentationsTour').then((m) => m.startPresentationsTour());
-  });
+  // Not embedded: the tour paints a full-viewport overlay with its own controls
+  // over a WebView the user cannot navigate away from.
+  useTourAutostart(
+    'presentations',
+    editorReady && !!editorApi && !isGuest && !presenting && !isEmbedded(),
+    () => {
+      void import('../tours/presentationsTour').then((m) => m.startPresentationsTour());
+    }
+  );
 
   useEffect(() => {
     if (!authError) return;
@@ -244,11 +253,11 @@ function PresentationsEditorContent() {
 
   return (
     <div className="h-full flex flex-col relative">
-      {!isEmbedded && (
+      {!isInlineEmbed && (
         <EditorTopBar
           title={docData.title}
           connectionStatus={connectionStatus}
-          onBack={isGuest ? undefined : () => navigate('/office')}
+          onBack={isGuest ? undefined : handleBack}
           editable={isEditable}
           onTitleChange={handleTitleChange}
           overflowActions={
