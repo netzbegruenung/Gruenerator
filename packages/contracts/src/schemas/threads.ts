@@ -97,6 +97,8 @@ export const generateTitleResponseSchema = z.object({
   title: z.string().nullable().optional(),
 });
 
+export type GenerateTitleResponse = z.infer<typeof generateTitleResponseSchema>;
+
 export const errorResponseSchema = z.object({
   error: z.string(),
 });

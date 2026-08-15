@@ -8,7 +8,10 @@
  * whose first message was only a pasted attachment.
  */
 
+import { generateTitleResponseSchema, type GenerateTitleResponse } from '@gruenerator/contracts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import type { Request } from 'express';
 
 const query = vi.fn();
 vi.mock('../../database/services/PostgresService.js', () => ({
@@ -38,19 +41,27 @@ vi.mock('../../utils/logger.js', () => ({
 const { threadsContractRouter } = await import('./threadsContractRouter.js');
 
 const THREAD = 'thread-1';
-const req = { user: { id: 'user-1' }, headers: {}, originalUrl: '/x' } as never;
+const req = { user: { id: 'user-1' }, headers: {}, originalUrl: '/x' } as unknown as Request;
 
 /** Ownership lookup first, then the message read — in that order. */
 function withMessages(messages: Array<{ role: string; content: string | null }>) {
   query.mockResolvedValueOnce([{ id: THREAD, user_id: 'user-1' }]).mockResolvedValueOnce(messages);
 }
 
-async function callGenerateTitle() {
+/**
+ * ts-rest hands a handler the full express-shaped args object; a test can only
+ * synthesize the parts this endpoint reads. Hence one boundary cast — and the
+ * body is then parsed with the contract's own schema, so an answer that drifts
+ * from `generateTitleResponseSchema` fails here rather than at a client.
+ */
+async function callGenerateTitle(): Promise<GenerateTitleResponse> {
   const handler = threadsContractRouter.generateTitle as unknown as (args: {
-    req: unknown;
+    req: Request;
     params: { threadId: string };
-  }) => Promise<{ status: number; body: Record<string, unknown> }>;
-  return handler({ req, params: { threadId: THREAD } });
+  }) => Promise<{ status: number; body: unknown }>;
+  const res = await handler({ req, params: { threadId: THREAD } });
+  expect(res.status).toBe(202);
+  return generateTitleResponseSchema.parse(res.body);
 }
 
 beforeEach(() => {
@@ -68,9 +79,9 @@ describe('generateTitle endpoint', () => {
       { role: 'assistant', content: null },
     ]);
 
-    const res = await callGenerateTitle();
+    const body = await callGenerateTitle();
 
-    expect(res.body.status).toBe('skipped');
+    expect(body.status).toBe('skipped');
     expect(generateThreadTitle).not.toHaveBeenCalled();
   });
 
@@ -80,9 +91,9 @@ describe('generateTitle endpoint', () => {
       { role: 'assistant', content: 'Der Haushalt 2027 sieht Mehrausgaben für Radwege vor.' },
     ]);
 
-    const res = await callGenerateTitle();
+    const body = await callGenerateTitle();
 
-    expect(res.body).toMatchObject({ status: 'accepted', title: 'Haushalt 2027' });
+    expect(body).toMatchObject({ status: 'accepted', title: 'Haushalt 2027' });
   });
 
   it('answers with a null title when the thread was renamed meanwhile', async () => {
@@ -92,8 +103,8 @@ describe('generateTitle endpoint', () => {
       { role: 'assistant', content: 'Eine ausreichend lange Antwort auf die Frage.' },
     ]);
 
-    const res = await callGenerateTitle();
+    const body = await callGenerateTitle();
 
-    expect(res.body).toMatchObject({ status: 'accepted', title: null });
+    expect(body).toMatchObject({ status: 'accepted', title: null });
   });
 });
