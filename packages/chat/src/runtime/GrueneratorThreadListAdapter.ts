@@ -8,6 +8,7 @@ import { useAgentStore } from '../stores/chatStore';
 
 import type { ChatApiClient } from '../context/ChatContext';
 import type { RemoteThreadListAdapter, ThreadMessage } from '@assistant-ui/react';
+import type { GenerateTitleResponse } from '@gruenerator/contracts';
 
 interface ApiThread {
   id: string;
@@ -142,9 +143,11 @@ function deriveLocalTitle(messages: readonly ThreadMessage[]): string | null {
   const firstUserMsg = messages.find((m) => m.role === 'user');
   if (!firstUserMsg) return null;
 
+  // flatMap over the discriminated union rather than a hand-written type
+  // predicate: the `p.type === 'text'` branch narrows `p` on its own, so the
+  // part's shape stays owned by assistant-ui instead of being restated here.
   const fullText = firstUserMsg.content
-    .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
-    .map((p) => p.text)
+    .flatMap((p) => (p.type === 'text' ? [p.text] : []))
     .join(' ')
     .trim();
   if (!fullText) return null;
@@ -390,7 +393,7 @@ export function createGrueneratorThreadListAdapter(
         // message consisting only of a pasted attachment carries no text part,
         // and bailing out before this line left the thread unnamed forever.
         try {
-          const res = await apiClient.post<{ title?: string | null }>(
+          const res = await apiClient.post<GenerateTitleResponse>(
             `/api/chat-service/threads/${remoteId}/generate-title`
           );
           if (!localTitle && res?.title) {
