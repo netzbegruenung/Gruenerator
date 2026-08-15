@@ -57,15 +57,16 @@ import {
   FiX,
 } from 'react-icons/fi';
 import { PiSun, PiMoon, PiDesktop } from 'react-icons/pi';
-import { useBeforeUnload, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useBeforeUnload, useParams, useSearchParams } from 'react-router-dom';
 
 import { CollaboratorAvatars } from '../../components/editor/CollaboratorAvatars';
 import useDarkMode from '../../components/hooks/useDarkMode';
 import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import { useAuth } from '../../hooks/useAuth';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
+import { useHostAwareBack } from '../../hooks/useHostAwareBack';
 import { useExportStore, type PdfExportOptions } from '../../stores/core/exportStore';
-import { isDesktopApp } from '../../utils/platform';
+import { isDesktopApp, isEmbedded } from '../../utils/platform';
 import { platformFetch } from '../../utils/platformFetch';
 import { letterheadApi, LETTERHEADS_QUERY_KEY } from '../settings/letterheadApi';
 import { useTourAutostart } from '../tours/useTourAutostart';
@@ -128,9 +129,12 @@ function EditorFAB({
 
 function EditorContent() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+  const handleBack = useHostAwareBack('/office');
   const [searchParams] = useSearchParams();
-  const isEmbedded = searchParams.get('embedded') === 'true';
+  // The chat panel's docked preview iframe (ArtifactPanel). Distinct from
+  // `isEmbedded()` in utils/platform, which is the mobile WebView host and
+  // uses `embedded=1` on the same query key.
+  const isInlineEmbed = searchParams.get('embedded') === 'true';
   const adapter = useDocsAdapter();
   const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
   const { user, isAuthResolved } = useAuth({ lazy: true });
@@ -267,7 +271,9 @@ function EditorContent() {
   // "nodeSize undefined" when the first server state restructures the doc.
   const editorReady = useSyncGate(provider, isSynced);
 
-  useTourAutostart('docs', editorReady && !!docData && !isGuest, () => {
+  // Not embedded: the tour paints a full-viewport overlay with its own controls
+  // over a WebView the user cannot navigate away from.
+  useTourAutostart('docs', editorReady && !!docData && !isGuest && !isEmbedded(), () => {
     void import('../tours/docsTour').then((m) => m.startDocsTour());
   });
 
@@ -649,7 +655,7 @@ function EditorContent() {
 
   return (
     <div className="h-full flex flex-col relative">
-      {isEmbedded ? (
+      {isInlineEmbed ? (
         <EditorFAB
           showDisconnected={showDisconnected}
           sidebarOpen={activeSidebar !== null}
@@ -660,7 +666,7 @@ function EditorContent() {
           dataTour="docs-topbar"
           title={docData.title}
           connectionStatus={connectionStatus}
-          onBack={isGuest ? undefined : () => navigate('/office')}
+          onBack={isGuest ? undefined : handleBack}
           editable={isEditable}
           onTitleChange={handleTitleChange}
           rightActions={
