@@ -15,7 +15,12 @@ const CARD_CLASS =
   'group relative flex flex-row bg-background border border-grey-200 dark:border-grey-700 rounded-md overflow-hidden cursor-pointer transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-md';
 const ICON_BTN = 'rounded-md p-2 text-secondary-600 transition-colors hover:bg-secondary-600/10';
 
-/** Type badge so a card is recognizable as an agent (chat persona) or a skill (template). */
+/**
+ * Type badge so a card is recognizable as an agent (chat persona) or a recipe
+ * (template). `kind` stays `'skill'` — es ist der Registry-Wert, der auch in
+ * `MentionableCategory` und den Mention-Tokens steht; nur die Beschriftung folgt
+ * dem Produkt-Wording.
+ */
 export function TypeBadge({ kind }: { kind: 'agent' | 'skill' }) {
   return kind === 'agent' ? (
     <Badge variant="secondary" className="shrink-0">
@@ -23,7 +28,7 @@ export function TypeBadge({ kind }: { kind: 'agent' | 'skill' }) {
     </Badge>
   ) : (
     <Badge variant="outline" className="shrink-0">
-      Skill
+      Rezept
     </Badge>
   );
 }
