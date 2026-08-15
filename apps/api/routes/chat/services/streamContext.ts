@@ -35,6 +35,7 @@ import {
 } from '../../../services/mem0/index.js';
 import { getCachedPersona } from '../../../services/mem0/personaService.js';
 import { findRole, resolveCustomSystemPrompt } from '../../../services/roles/roleSystemPrompt.js';
+import { loadUserRoles } from '../../../services/roles/userRoles.js';
 import { recordItemUsageSafe } from '../../../services/usage/ItemUsageService.js';
 import { getAiClient } from '../../../utils/getAiClient.js';
 import { NextcloudShareManager } from '../../../utils/integrations/nextcloud/shareManager.js';
@@ -758,8 +759,10 @@ export async function buildStreamContext({
   // Frontend, das vor der Hydratation ehrlich nichts weiß, hat der Server den
   // Nutzerdatensatz in der Hand. „Kein Eintrag" ist hier eine Antwort — keine
   // Rolle, also keine LV-Rezepte.
-  const storedRoles = user.user_defaults?.profile?.roles;
-  const userRoles: UserRole[] = Array.isArray(storedRoles) ? (storedRoles as UserRole[]) : [];
+  //
+  // Gelesen wird aus der Profiltabelle, NICHT aus `user`: das Sitzungsobjekt
+  // führt `user_defaults` gar nicht — siehe `services/roles/userRoles.ts`.
+  const userRoles: UserRole[] = await loadUserRoles(userId);
   if (rawRoleRef) {
     const role = findRole(userRoles, rawRoleRef);
     if (!role) {
