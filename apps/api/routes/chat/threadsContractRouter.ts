@@ -418,7 +418,15 @@ export const threadsContractRouter = s.router(threadsContract, {
       );
 
       const userMsg = messages.find((m) => m.role === 'user');
-      const assistantMsg = messages.find((m) => m.role === 'assistant');
+      // An assistant row with no content yet is the streaming placeholder
+      // (`createPendingAssistantMessage` inserts it with content NULL before the
+      // model runs). Reading it produced the literal string "null" as the
+      // answer, which extractFallbackTitle then rejected — the title request was
+      // spent on nothing. Wait for the real row instead; persistAssistantResponse
+      // names the thread anyway once the turn is finalized.
+      const assistantMsg = messages.find(
+        (m) => m.role === 'assistant' && String(m.content ?? '').trim().length > 0
+      );
 
       if (!userMsg || !assistantMsg) {
         log.warn(
@@ -440,19 +448,24 @@ export const threadsContractRouter = s.router(threadsContract, {
 
       log.info(`[generate-title] Calling generateThreadTitle for ${threadId}`);
 
-      // Fire-and-forget: generates fallback + async AI title.
+      // Awaited only as far as the fallback title (one UPDATE, no model call) so
+      // the answer can carry it: the client shows the title it gets back, which
+      // is how a thread whose first message had no text of its own still gets a
+      // real name in the sidebar without a reload. The AI refinement inside
+      // stays fire-and-forget.
       // (Auto-tagging is triggered backend-side in persistAssistantResponse so
       // it covers every flow, not just this client-driven endpoint.)
-      generateThreadTitle(
+      const title = await generateThreadTitle(
         threadId,
         sanitizeMentionTokens(String(userMsg.content), 'label'),
         String(assistantMsg.content),
         aiClient
       ).catch((err) => {
         log.warn(`[generate-title] Failed for thread ${threadId}:`, err);
+        return null;
       });
 
-      return { status: 202 as const, body: { status: 'accepted' as const } };
+      return { status: 202 as const, body: { status: 'accepted' as const, title } };
     } catch (error) {
       log.error('Error generating thread title:', error);
       return { status: 500 as const, body: { error: 'Failed to generate title' } };

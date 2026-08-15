@@ -10,6 +10,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 /** Titles handed to db.update().set(), in order. */
 const written: string[] = [];
 
+/** Rows the conditional UPDATE reports back. `[]` = another writer had won
+ *  (the thread carries a title nobody asked us to replace). */
+let updateResult: unknown[] = [{ id: 't' }];
+/** Rows the "is this thread still unnamed?" SELECT reports back. */
+let unnamedRows: unknown[] = [{ title: null }];
+
 function makeDb() {
   return {
     update: () => {
@@ -19,7 +25,16 @@ function makeDb() {
           return chain;
         },
         where: () => chain,
+        returning: () => Promise.resolve(updateResult),
         then: (resolve: (v: unknown) => unknown) => Promise.resolve(undefined).then(resolve),
+      };
+      return chain;
+    },
+    select: () => {
+      const chain: Record<string, unknown> = {
+        from: () => chain,
+        where: () => chain,
+        limit: () => Promise.resolve(unnamedRows),
       };
       return chain;
     },
@@ -30,7 +45,7 @@ vi.mock('../../database/services/DrizzleService.js', () => ({
   getDrizzleInstance: () => makeDb(),
 }));
 
-const { extractFallbackTitle, generateThreadTitle, normalizeAiTitle } =
+const { extractFallbackTitle, generateThreadTitle, normalizeAiTitle, threadNeedsTitle } =
   await import('./threadTitleService.js');
 
 /** Minimal AI worker pool that answers with `content`, or rejects if null. */
@@ -44,6 +59,8 @@ function fakePool(content: string | null) {
 
 beforeEach(() => {
   written.length = 0;
+  updateResult = [{ id: 't' }];
+  unnamedRows = [{ title: null }];
 });
 
 describe('extractFallbackTitle', () => {
@@ -186,5 +203,53 @@ describe('generateThreadTitle', () => {
     await generateThreadTitle('t-5', '?', ANSWER, fakePool('Protokolle Juni/Juli'));
 
     expect(written[0]).toBe('Die Protokolle vom 30. Juni und');
+  });
+
+  it('names a thread whose first message was only a pasted attachment', async () => {
+    // The paste path persists an EMPTY user message (the text travels as a file
+    // part), so the answer is the only text there is. Nothing may bail out here
+    // — this used to be the turn after which the thread stayed unnamed forever.
+    const title = await generateThreadTitle('t-6', '', ANSWER, fakePool(null));
+
+    expect(title).toBe('Die Protokolle vom 30. Juni und');
+    expect(written[0]).toBe('Die Protokolle vom 30. Juni und');
+  });
+
+  it('returns the title it wrote, so a route can hand it to the client', async () => {
+    const title = await generateThreadTitle(
+      't-7',
+      'Wie hoch ist die Pendlerpauschale?',
+      ANSWER,
+      fakePool(null)
+    );
+
+    expect(title).toBe(written[0]);
+  });
+
+  it('leaves a thread alone that someone renamed by hand', async () => {
+    // The conditional UPDATE matches nothing → no rows back.
+    updateResult = [];
+
+    const title = await generateThreadTitle(
+      't-8',
+      'Kommunaler Klimaplan 2027',
+      ANSWER,
+      fakePool(null)
+    );
+
+    expect(title).toBeNull();
+  });
+});
+
+describe('threadNeedsTitle', () => {
+  it('is true while the row is unnamed', async () => {
+    unnamedRows = [{ title: null }];
+    expect(await threadNeedsTitle('t-1')).toBe(true);
+  });
+
+  it('is false once the row carries a real title', async () => {
+    // The query itself filters on "unnamed", so a named thread returns no row.
+    unnamedRows = [];
+    expect(await threadNeedsTitle('t-1')).toBe(false);
   });
 });
