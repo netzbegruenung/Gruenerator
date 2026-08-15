@@ -107,6 +107,10 @@ export const API_ENDPOINTS = {
   // Better Auth's native session endpoint; works with both cookies (web)
   // and Bearer tokens (mobile, via the `bearer()` plugin).
   AUTH_GET_SESSION: '/auth/v2/get-session',
+  // Mints a 60s single-use token that turns the app's Bearer session into a
+  // real cookie inside an embedded WebView.
+  // See apps/api/plugins/webViewHandoff.ts.
+  AUTH_WEB_HANDOFF_MINT: '/auth/v2/web-handoff/mint',
   AUTH_MOBILE_LOGOUT: '/auth/mobile/logout',
   AUTH_PROFILE: '/auth/profile',
   AUTH_PROFILE_AVATAR: '/auth/profile/avatar',
