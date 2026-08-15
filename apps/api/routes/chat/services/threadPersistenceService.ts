@@ -5,6 +5,7 @@
  * Wraps PostgreSQL queries for thread CRUD and message storage.
  */
 
+import { type RoleRef } from '@gruenerator/contracts';
 import { generateSlugSuffix } from '@gruenerator/shared/utils';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
@@ -703,7 +704,7 @@ function toSources(rows: ThreadToolRow[], limit: number): SearchResult[] {
 export interface ThreadSettings {
   custom_system_prompt: string | null;
   custom_enabled_tools: Record<string, boolean> | null;
-  role_ref: { ebene: string; rolle: string } | null;
+  role_ref: RoleRef | null;
 }
 
 export async function getThreadSettings(threadId: string): Promise<ThreadSettings | null> {
@@ -716,7 +717,7 @@ export async function getThreadSettings(threadId: string): Promise<ThreadSetting
   return {
     custom_system_prompt: (result[0].custom_system_prompt as string) || null,
     custom_enabled_tools: (result[0].custom_enabled_tools as Record<string, boolean>) || null,
-    role_ref: (result[0].role_ref as { ebene: string; rolle: string }) || null,
+    role_ref: (result[0].role_ref as RoleRef) || null,
   };
 }
 
@@ -726,7 +727,7 @@ export async function updateThreadSettings(
   settings: {
     customSystemPrompt?: string | null;
     customEnabledTools?: Record<string, boolean> | null;
-    roleRef?: { ebene: string; rolle: string } | null;
+    roleRef?: RoleRef | null;
   }
 ): Promise<boolean> {
   const postgres = getPostgresInstance();

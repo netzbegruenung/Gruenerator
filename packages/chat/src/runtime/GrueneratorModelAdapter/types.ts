@@ -18,7 +18,7 @@ import type {
   ReelProcessingData,
 } from '../../types/messageMetadata';
 import type { ChatModelRunResult } from '@assistant-ui/react';
-import type { BahnPayload, NotebookDepth } from '@gruenerator/contracts';
+import type { RoleRef, BahnPayload, NotebookDepth } from '@gruenerator/contracts';
 
 export type GrueneratorMessageMetadata = {
   progress?: ChatProgress;
@@ -71,7 +71,7 @@ export interface GrueneratorAdapterConfig {
   customSystemPrompt?: string | null;
   customRoleName?: string | null;
   /** Verweis auf die gewählte Rolle; der Prompttext bleibt server-seitig. */
-  customRoleRef?: { ebene: string; rolle: string } | null;
+  customRoleRef?: RoleRef | null;
   customEnabledTools?: Record<string, boolean> | null;
   /** Mention key of the active /skill (e.g. 'instagram'). Server appends the
    *  skill's `skillSystemPrompt` to the agent's systemRole when set. */

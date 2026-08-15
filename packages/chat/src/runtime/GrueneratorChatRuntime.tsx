@@ -282,28 +282,19 @@ function useGrueneratorThreadRuntime() {
   }, []);
 
   // Rollenwechsel MITTEN im Thread: `onThreadCreated` feuert nur beim ersten
-  // Turn, eine danach gewählte Rolle wäre sonst nur im localStorage gelandet
-  // und auf einem anderen Gerät nie aufgetaucht.
+  // Turn, eine danach gewählte Rolle wäre sonst nie beim Server gelandet.
   //
-  // Beim Threadwechsel wird nur der Ausgangswert vermerkt, nie geschrieben:
-  // `currentThreadId` wechselt VOR `loadThreadSettings`, ein Schreiben in
-  // diesem Moment trüge die Rolle des alten Threads in den neuen.
-  const roleSyncRef = useRef<{ threadId: string | null; saved: string | null }>({
-    threadId: null,
-    saved: null,
-  });
+  // Gebunden an `roleRefSource`, nicht an `customRoleRef`: den Wert setzt auch
+  // `loadThreadSettings`, und ein Threadwechsel würde sonst genau das
+  // zurückschreiben, was gerade geladen wurde — eine überflüssige Anfrage, im
+  // Fehlerfall mit irreführendem Hinweis.
+  const roleRefSource = useAgentStore((s) => s.roleRefSource);
   const currentThreadId = useAgentStore((s) => s.currentThreadId);
   useEffect(() => {
-    const key = threadMode === 'eigener' && customRoleRef ? JSON.stringify(customRoleRef) : null;
-    if (roleSyncRef.current.threadId !== currentThreadId) {
-      roleSyncRef.current = { threadId: currentThreadId, saved: key };
-      return;
-    }
-    if (roleSyncRef.current.saved === key) return;
-    roleSyncRef.current.saved = key;
-    if (!currentThreadId) return;
+    if (roleRefSource !== 'user' || !currentThreadId) return;
     void useAgentStore.getState().saveThreadSettings(currentThreadId, runtimeApiClientRef.current);
-  }, [currentThreadId, threadMode, customRoleRef]);
+    useAgentStore.setState({ roleRefSource: 'load' });
+  }, [currentThreadId, roleRefSource]);
 
   const needsCompactionRef = useRef(needsCompaction);
   needsCompactionRef.current = needsCompaction;
