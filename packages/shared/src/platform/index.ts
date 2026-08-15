@@ -5,6 +5,8 @@
 
 /// <reference lib="dom" />
 
+export * from './webviewBridge.js';
+
 declare global {
   interface Window {
     __TAURI__?: unknown;

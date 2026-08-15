@@ -194,3 +194,23 @@ describe.skipIf(!dbReachable)('regression e74c3176 — ba_accounts UNIQUE constr
     expect(uniqueColumns).not.toContain('user_id');
   });
 });
+
+describe('web-handoff endpoints are registered', () => {
+  // The mobile app has been calling GET /api/auth/v2/web-handoff since before
+  // the endpoint existed (apps/mobile/app/(fullscreen)/web-viewer.tsx), which
+  // 404'd every embedded group view. These assertions pin that the plugin is
+  // actually wired into the auth instance — a plugin that fails to register
+  // is silent at build time and only shows up as a 404 at runtime.
+  it('exposes the two-step mint endpoint', () => {
+    expect(auth.api).toHaveProperty('webHandoffMint');
+  });
+
+  it('exposes the redeem/redirect endpoint the shipped app already calls', () => {
+    expect(auth.api).toHaveProperty('webHandoff');
+  });
+
+  it('keeps the handoff behind its own path under the auth basePath', () => {
+    expect(auth.api.webHandoff.path).toBe('/web-handoff');
+    expect(auth.api.webHandoffMint.path).toBe('/web-handoff/mint');
+  });
+});

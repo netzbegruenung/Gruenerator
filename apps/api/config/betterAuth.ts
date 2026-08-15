@@ -11,6 +11,7 @@ import pg from 'pg';
 import * as schema from '../database/schema/index.js';
 import { loadConfig } from '../database/services/PostgresService/config.js';
 import { mobileTokenExchange } from '../plugins/mobileTokenExchange.js';
+import { webViewHandoff } from '../plugins/webViewHandoff.js';
 import { setUserLocale } from '../services/localization/localeCache.js';
 import { createLogger } from '../utils/logger.js';
 import { captureAuthIssue } from '../utils/observability/captureAuthIssue.js';
@@ -536,6 +537,9 @@ export const auth = betterAuth({
     }),
     bearer(),
     mobileTokenExchange(),
+    // Hands the mobile Bearer session to an embedded WebView as a real cookie.
+    // Must sit after `bearer()` — it resolves the caller via that plugin.
+    webViewHandoff(),
     // OAuth 2.1 AS (DCR + PKCE) for the authenticated MCP endpoint. Keycloak
     // stays the only IdP: /mcp/authorize rides the existing session, the
     // after-hook resumes the flow post-login. The plugin skips consent unless
