@@ -8,7 +8,7 @@
 import fs from 'fs';
 
 import { createLogger } from '../../utils/logger.js';
-import mistralClient from '../../workers/mistralClient.js';
+import mistralClient from '../ai/mistralClient.js';
 import { type Locale } from '../localization/types.js';
 import { toTranscriptionLanguage } from '../transcription/providerPolicy.js';
 import { buildContextBias } from '../transcription/transcriptionBias.js';

@@ -173,7 +173,7 @@ router.post(
           log.debug(`[PromptRoute] Selecting image for type: ${type}, theme: ${theme}`);
           const imageResult = await ImageSelectionService.selectBestImage(
             theme,
-            req.app.locals.aiWorkerPool,
+            req.app.locals.aiClient,
             { maxCandidates: 5 },
             req
           );

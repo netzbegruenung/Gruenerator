@@ -101,7 +101,7 @@ interface SelectProviderParams {
  *
  * Bei den Anträgen ersetzt das einen bewussten GPT-OSS-Pin mit der Notiz
  * "reasoning handled via reasoningEffort". Auf DIESEM Pfad galt sie nie: der
- * Worker-Pfad (workers/providers/execute.ts) reicht überhaupt keine
+ * Ausführungspfad (services/ai/execution/execute.ts) reicht überhaupt keine
  * Reasoning-Option durch. Im Streaming-Pfad
  * (agents/langgraph/streamingProcessor.ts) gilt sie — der nutzt diese Tabelle
  * und setzt die providerspezifische Option passend zum gewählten Provider.

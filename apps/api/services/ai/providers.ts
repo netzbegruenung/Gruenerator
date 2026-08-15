@@ -46,7 +46,7 @@ import type { LanguageModel } from 'ai';
  *
  * When adding a provider, note that most switches below carry a `default`
  * branch, so the compiler will NOT find the sites for you. The exhaustive ones
- * (`Record<ProviderName, …>` in workers/providers/execute.ts and
+ * (`Record<ProviderName, …>` in services/ai/execution/execute.ts and
  * services/ai/modelDiscovery.ts) will; the rest are listed in the PR that
  * introduced this member.
  */

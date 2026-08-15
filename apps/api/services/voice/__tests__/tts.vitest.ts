@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import mistralClient, { mistralGlobalClient } from '../../../workers/mistralClient.js';
+import mistralClient, { mistralGlobalClient } from '../../ai/mistralClient.js';
 import { CompleteAcceptEnum } from '@mistralai/mistralai/sdk/speech';
 
 const HAS_MISTRAL_KEY = !!process.env.MISTRAL_API_KEY;

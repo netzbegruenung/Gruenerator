@@ -6,7 +6,7 @@
  * generator returned null, and the turn degraded into free prose — which then
  * became the input of the NEXT artifact. Prompting alone cannot prevent that.
  *
- * The AI worker pool cannot do constrained decoding: `AIRequestOptions.
+ * The AI client cannot do constrained decoding: `AIRequestOptions.
  * response_format` is declared but no adapter reads it, so every "JSON mode" in
  * the pool is prompt-only. What the pool CAN do is a forced tool call
  * (`options.tools` + `tool_choice: 'required'`), which several services already
@@ -41,7 +41,7 @@ import { jsonSchema } from 'ai';
 
 import { createLogger } from '../../utils/logger.js';
 
-import type { AIWorkerPool, AIWorkerResult, Tool } from '../../workers/types.js';
+import type { AiClient, AiResult, Tool } from './types.js';
 
 const log = createLogger('GenerateStructured');
 
@@ -72,9 +72,9 @@ const MAX_ECHO_CHARS = 12_000;
 export type StructuredValidation<T> = { ok: true; value: T } | { ok: false; error: string };
 
 export interface GenerateStructuredOptions<T> {
-  aiWorkerPool: AIWorkerPool;
+  aiClient: AiClient;
   req?: unknown;
-  /** Worker request type, e.g. 'doc_generation' — drives model routing. */
+  /** Request type, e.g. 'doc_generation' — drives model routing. */
   type: string;
   systemPrompt: string;
   userContent: string;
@@ -159,10 +159,7 @@ export function jsonCandidatesFromText(text: string): unknown[] {
   return parsed;
 }
 
-function extractToolInput(
-  result: AIWorkerResult,
-  toolName: string
-): Record<string, unknown> | null {
+function extractToolInput(result: AiResult, toolName: string): Record<string, unknown> | null {
   if (result.tool_calls) {
     const match = result.tool_calls.find((c) => c.name === toolName);
     if (match) return match.input;
@@ -179,7 +176,7 @@ export async function generateStructured<T>(
   opts: GenerateStructuredOptions<T>
 ): Promise<GenerateStructuredResult<T>> {
   const {
-    aiWorkerPool,
+    aiClient,
     req,
     type,
     systemPrompt,
@@ -229,7 +226,7 @@ export async function generateStructured<T>(
       : [{ role: 'user', content: userContent }];
 
     try {
-      const result = await aiWorkerPool.processRequest(
+      const result = await aiClient.processRequest(
         {
           type,
           systemPrompt,
@@ -241,7 +238,7 @@ export async function generateStructured<T>(
             temperature: isRepair ? 0 : (opts.temperature ?? 0.4),
           },
         },
-        req as Parameters<AIWorkerPool['processRequest']>[1]
+        req as Parameters<AiClient['processRequest']>[1]
       );
 
       if (!result.success) {

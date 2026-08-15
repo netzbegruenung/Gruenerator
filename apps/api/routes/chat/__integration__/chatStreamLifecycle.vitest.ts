@@ -64,7 +64,7 @@ const { runTurn, assertEventOrder } = await import('./harness/trace.js');
 const { envGuardValues } = await import('./harness/env.js');
 const { threadAccess, persistControl } = await import('./harness/mocks.js');
 const { threads } = await import('./harness/fakeThreadStore.js');
-const { createAiWorkerPoolStub } = await import('./harness/aiWorkerPoolStub.js');
+const { createAiClientStub } = await import('./harness/aiClientStub.js');
 
 const suite = useChatApp();
 
@@ -173,7 +173,7 @@ describe('stream error codes', () => {
     // HTTP 401 belongs to requireAuth, which this harness does not mount. What
     // the ROUTER does is emit a coded error on an otherwise normal stream —
     // that is what the frontend parses.
-    const app = await startChatApp({ user: null, aiWorkerPool: createAiWorkerPoolStub() });
+    const app = await startChatApp({ user: null, aiClient: createAiClientStub() });
     try {
       const res = await postStream(app.baseUrl, greeting());
       const body = await res.text();
@@ -186,7 +186,7 @@ describe('stream error codes', () => {
   });
 
   it('reports provider_unavailable when no worker pool is bound', async () => {
-    const app = await startChatApp({ aiWorkerPool: null });
+    const app = await startChatApp({ aiClient: null });
     try {
       const res = await postStream(app.baseUrl, greeting());
       const body = await res.text();

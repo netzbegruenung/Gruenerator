@@ -39,7 +39,7 @@ vi.mock('../../database/services/NotebookQdrantHelper.js', () => ({
 }));
 vi.mock('../../services/user/ProfileService.js', () => ({ getProfileService: () => ({}) }));
 vi.mock('../../services/monitor/UmfragenService.js', () => ({ lookupUmfragen: vi.fn() }));
-vi.mock('../../utils/getAIWorkerPool.js', () => ({ getAIWorkerPool: () => ({}) }));
+vi.mock('../../utils/getAiClient.js', () => ({ getAiClient: () => ({}) }));
 vi.mock('./mcpMutations.js', () => ({
   addCardDirect: vi.fn(),
   createGroupDirect: vi.fn(),

@@ -11,7 +11,7 @@ import { sheetsContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
-import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
+import { getAiClient } from '../../utils/getAiClient.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
 import { checkDocumentWriteAccess } from '../docs/documentAccess.js';
@@ -103,7 +103,7 @@ export const sheetsContractRouter = s.router(sheetsContract, {
       const { SHEET_GENERATION_PROMPT, parseSheetStructure, createSheetDocument } =
         await import('../../services/sheets/SheetGenerationService.js');
 
-      const genResult = await getAIWorkerPool(args.req).processRequest(
+      const genResult = await getAiClient(args.req).processRequest(
         {
           type: 'doc_generation',
           systemPrompt: SHEET_GENERATION_PROMPT,

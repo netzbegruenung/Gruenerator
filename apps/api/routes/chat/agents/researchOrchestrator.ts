@@ -46,6 +46,7 @@
 import { generateObject, generateText } from 'ai';
 import { z } from 'zod';
 
+import { type AiClient } from '../../../services/ai/types.js';
 import {
   validateCitations,
   stripUngroundedCitations,
@@ -54,7 +55,6 @@ import { crawlAndDistill } from '../../../services/search/CrawlingService.js';
 import { applyMMR } from '../../../services/search/DiversityReranker.js';
 import { createLogger } from '../../../utils/logger.js';
 import { validateUrlForFetch } from '../../../utils/validation/urlSecurity.js';
-import { type AIWorkerPool } from '../../../workers/types.js';
 
 import { executeDirectSearch, executeDirectWebSearch } from './directSearchExecutors.js';
 import { getIntermediateModel } from './providers.js';
@@ -405,7 +405,7 @@ export function researchConfidence(signals: {
 async function readTopSources(
   sources: CollectedSource[],
   question: string,
-  aiWorkerPool?: AIWorkerPool
+  aiClient?: AiClient
 ): Promise<{ sources: CollectedSource[]; pagesRead: number }> {
   const ranked = [...sources].sort((a, b) => b.relevance - a.relevance);
   const seeds: Array<{ url: string; title: string; content: string; relevance: number }> = [];
@@ -446,7 +446,7 @@ async function readTopSources(
       // question is the entire reason to read them rather than trust the teaser.
       mode: 'query-focused',
       targetChars: READER_TARGET_CHARS,
-      ...(aiWorkerPool ? { aiWorkerPool } : {}),
+      ...(aiClient ? { aiClient } : {}),
     });
     const digestByUrl = new Map(
       crawled
@@ -694,7 +694,7 @@ function synthesisFailureAnswer(sources: CollectedSource[]): string {
  * @param params.brief - Optional natural-language research plan, forwarded to
  *   planning and synthesis as orientation. Must NOT be used as a search query —
  *   keyword indexes don't match prose directives.
- * @param params.aiWorkerPool - Lets the page reader distil with a model instead
+ * @param params.aiClient - Lets the page reader distil with a model instead
  *   of lexical scoring alone. Strongly recommended; the reader degrades rather
  *   than fails without it.
  * @param params.maxSources - Sources carried into synthesis (default 20).
@@ -705,7 +705,7 @@ export async function executeResearch(params: {
   brief?: string | null;
   /** The question was inherited from an earlier turn — caps confidence. */
   queryInherited?: boolean;
-  aiWorkerPool?: AIWorkerPool;
+  aiClient?: AiClient;
   maxSources?: number;
   readPages?: boolean;
   userLocale?: string;
@@ -715,7 +715,7 @@ export async function executeResearch(params: {
     question,
     brief,
     queryInherited,
-    aiWorkerPool,
+    aiClient,
     maxSources = DEFAULT_MAX_SOURCES,
     readPages = true,
     userLocale,
@@ -777,7 +777,7 @@ export async function executeResearch(params: {
 
     if (readPages) {
       onProgress?.('Lese die wichtigsten Quellen…');
-      const afterRead = await readTopSources(allSources, question, aiWorkerPool);
+      const afterRead = await readTopSources(allSources, question, aiClient);
       allSources = afterRead.sources;
       pagesRead += afterRead.pagesRead;
     }

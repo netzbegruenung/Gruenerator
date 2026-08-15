@@ -26,7 +26,7 @@ import ImageSelectionService from '../../services/image/ImageSelectionService.js
 import { enhanceWithAttribution } from '../../services/image/index.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
-import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
+import { getAiClient } from '../../utils/getAiClient.js';
 import { createLogger } from '../../utils/logger.js';
 import { safeFetch } from '../../utils/validation/urlSecurity.js';
 
@@ -69,7 +69,7 @@ export const imagePickerContractRouter = s.router(imagePickerContract, {
         options.maxCandidates = maxCandidates;
       }
 
-      const workerPool = getAIWorkerPool(args.req);
+      const workerPool = getAiClient(args.req);
       const result = await imagePickerService.selectBestImage(text, workerPool, options, args.req);
 
       return {

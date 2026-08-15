@@ -1,5 +1,5 @@
 import { extractLocaleFromRequest } from '../../../../services/localization/index.js';
-import { getAIWorkerPool } from '../../../../utils/getAIWorkerPool.js';
+import { getAiClient } from '../../../../utils/getAiClient.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { assemblePromptGraphAsync } from '../../promptAssemblyGraph.js';
 import { LOCALE_CONTEXT, REQUEST_TYPE_DISPLAY_NAMES } from '../types.js';
@@ -75,7 +75,7 @@ Schreibe überwiegend als Fließtext. Nutze Markdown sparsam — nur einzelne **
         'Nutze Markdown sparsam: **fett** nur für Schlüsselbegriffe. Keine Überschriften, keine nummerierten Listen.',
     });
 
-    const aiResult = await getAIWorkerPool(state.req).processRequest(
+    const aiResult = await getAiClient(state.req).processRequest(
       {
         type: 'antrag',
         systemPrompt: promptResult.system,

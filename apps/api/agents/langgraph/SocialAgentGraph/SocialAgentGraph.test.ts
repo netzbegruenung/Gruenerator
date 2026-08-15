@@ -3,7 +3,7 @@
  * Run with: npx tsx apps/api/agents/langgraph/SocialAgentGraph/SocialAgentGraph.test.ts
  *
  * Tests each node individually to identify where content truncation occurs.
- * Uses mock aiWorkerPool to isolate the graph logic from actual AI calls.
+ * Uses mock aiClient to isolate the graph logic from actual AI calls.
  */
 
 import { formatNode } from './nodes/formatNode.js';
@@ -15,7 +15,7 @@ import type { EnrichedState } from '../../../utils/types/requestEnrichment.js';
 
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 
-// Track all aiWorkerPool.processRequest calls
+// Track all aiClient.processRequest calls
 const aiCalls: Array<{
   callIndex: number;
   type: string;
@@ -56,7 +56,7 @@ const mockAiWorkerPool = {
 };
 
 const mockReq = {
-  app: { locals: { aiWorkerPool: mockAiWorkerPool } },
+  app: { locals: { aiClient: mockAiWorkerPool } },
   user: { id: 'test-user' },
   headers: { 'accept-language': 'de-DE' },
   get: (h: string) => (h === 'accept-language' ? 'de-DE' : null),

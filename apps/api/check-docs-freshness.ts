@@ -302,7 +302,7 @@ function buildUserPrompt(docPath: string, content: string): string {
       '- Workspace tables (apps / packages / services) and their counts — compare against the actual `apps/`, `packages/` and `services/` directories.',
       '- Development commands — compare against the `scripts` in the root `package.json`.',
       '- Framework/version claims and badges (React, Vite, Expo, Node, Express, Tailwind) — compare against the relevant `package.json` dependencies.',
-      '- AI provider claims — compare against `apps/api/workers/providers/` and `apps/api/services/ai/`. Providers documented as removed elsewhere must not be advertised.',
+      '- AI provider claims — compare against `apps/api/services/ai/execution/` and `apps/api/services/ai/`. Providers documented as removed elsewhere must not be advertised.',
       '- Environment variable names in the Configuration section — compare against `.env.example`.',
       '- Feature claims that name concrete surfaces or packages — confirm the named feature dir/package exists.',
       '',

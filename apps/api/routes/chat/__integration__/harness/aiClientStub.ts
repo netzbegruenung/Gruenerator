@@ -1,12 +1,8 @@
-import {
-  type AIRequestData,
-  type AIWorkerPool,
-  type AIWorkerResult,
-} from '../../../../workers/types.js';
+import { type AIRequestData, type AiClient, type AiResult } from '../../../../services/ai/types.js';
 
-type Responder = AIWorkerResult | ((data: AIRequestData) => AIWorkerResult);
+type Responder = AiResult | ((data: AIRequestData) => AiResult);
 
-export interface AiWorkerStub extends AIWorkerPool {
+export interface AiClientStub extends AiClient {
   /** Queue one or more replies for a request `type`, consumed in order. */
   script: (type: string, ...replies: Responder[]) => void;
   /**
@@ -31,7 +27,7 @@ export interface AiWorkerStub extends AIWorkerPool {
 }
 
 /**
- * `app.locals.aiWorkerPool` is a genuine DI seam (`getAIWorkerPool` reads
+ * `app.locals.aiClient` is a genuine DI seam (`getAiClient` reads
  * exactly that), and the classifier plus every other in-graph model call goes
  * through `processRequest` — so scripting VERDICTS here replaces the model
  * without touching the AI SDK at all.
@@ -60,7 +56,7 @@ const RESOLVER_DEFAULTS: ReadonlyArray<{ prefix: string; reply: string }> = [
   { prefix: 'Entscheide, ob diese Nachricht ein ARTEFAKT', reply: 'keine' },
 ];
 
-export function createAiWorkerPoolStub(): AiWorkerStub {
+export function createAiClientStub(): AiClientStub {
   const queues = new Map<string, Responder[]>();
   const resolverQueues = new Map<string, string[]>();
   const calls: AIRequestData[] = [];
@@ -80,7 +76,7 @@ export function createAiWorkerPoolStub(): AiWorkerStub {
       ];
       if (leftover.length > 0) {
         throw new Error(
-          `scripted aiWorkerPool replies were never consumed: ` +
+          `scripted aiClient replies were never consumed: ` +
             leftover.map(([type, q]) => `${type} (${q.length} left)`).join(', ') +
             ` — the turn resolved before reaching the model, so this test pinned nothing`
         );
@@ -91,7 +87,7 @@ export function createAiWorkerPoolStub(): AiWorkerStub {
       resolverQueues.clear();
       calls.length = 0;
     },
-    processRequest(data: AIRequestData): Promise<AIWorkerResult> {
+    processRequest(data: AIRequestData): Promise<AiResult> {
       calls.push(data);
       const type = String(data.type);
       // The small resolvers all share the `chat_intent_classification` type, so
@@ -105,13 +101,13 @@ export function createAiWorkerPoolStub(): AiWorkerStub {
       const resolver = RESOLVER_DEFAULTS.find((r) => data.systemPrompt?.startsWith(r.prefix));
       if (resolver) {
         const scripted = resolverQueues.get(resolver.prefix)?.shift();
-        return Promise.resolve({ content: scripted ?? resolver.reply } as AIWorkerResult);
+        return Promise.resolve({ content: scripted ?? resolver.reply } as AiResult);
       }
       const queue = queues.get(type);
       if (!queue || queue.length === 0) {
         const seen = calls.filter((c) => String(c.type) === type).length;
         throw new Error(
-          `unscripted aiWorkerPool.processRequest type=${type} (call #${seen}); ` +
+          `unscripted aiClient.processRequest type=${type} (call #${seen}); ` +
             `scripted types: ${[...queues.keys()].join(', ') || 'none'}`
         );
       }

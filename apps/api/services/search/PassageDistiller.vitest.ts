@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { distillPassages } from './PassageDistiller.js';
 
-import type { AIWorkerPool } from '../../workers/types.js';
+import type { AiClient } from '../ai/types.js';
 
 vi.mock('../../utils/logger.js', () => ({
   createLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() }),
@@ -42,11 +42,11 @@ function rerankRanking(order: string[]) {
   });
 }
 
-function makePool(content = '- Verdichteter Fakt.'): AIWorkerPool {
+function makePool(content = '- Verdichteter Fakt.'): AiClient {
   return {
     processRequest: vi.fn().mockResolvedValue({ content }),
     shutdown: vi.fn(),
-  } as unknown as AIWorkerPool;
+  } as unknown as AiClient;
 }
 
 const ORIGINAL_ENV = { ...process.env };
@@ -213,7 +213,7 @@ describe('distillPassages', () => {
   describe('LLM condensation', () => {
     it('makes no model call when the flag is off', async () => {
       const pool = makePool();
-      const out = await distillPassages({ ...base, text: FOUR_BLOCKS, aiWorkerPool: pool });
+      const out = await distillPassages({ ...base, text: FOUR_BLOCKS, aiClient: pool });
       expect(pool.processRequest).not.toHaveBeenCalled();
       expect(out.llmUsed).toBe(false);
     });
@@ -231,7 +231,7 @@ describe('distillPassages', () => {
         ...base,
         text: FOUR_BLOCKS,
         targetChars: 2000,
-        aiWorkerPool: pool,
+        aiClient: pool,
       });
       expect(pool.processRequest).toHaveBeenCalled();
       expect(out.llmUsed).toBe(true);
@@ -246,12 +246,12 @@ describe('distillPassages', () => {
           .mockResolvedValueOnce({ content: '- Fakt.' })
           .mockRejectedValue(new Error('provider down')),
         shutdown: vi.fn(),
-      } as unknown as AIWorkerPool;
+      } as unknown as AiClient;
       const out = await distillPassages({
         ...base,
         text: FOUR_BLOCKS,
         targetChars: 3000,
-        aiWorkerPool: pool,
+        aiClient: pool,
       });
       expect(out.digest.length).toBeGreaterThan(0);
       expect(out.llmUsed).toBe(true);
@@ -262,11 +262,11 @@ describe('distillPassages', () => {
       const pool = {
         processRequest: vi.fn(() => new Promise(() => {})),
         shutdown: vi.fn(),
-      } as unknown as AIWorkerPool;
+      } as unknown as AiClient;
       const out = await distillPassages({
         ...base,
         text: FOUR_BLOCKS,
-        aiWorkerPool: pool,
+        aiClient: pool,
         timeoutMs: 20,
       });
       expect(out.llmUsed).toBe(false);
@@ -276,7 +276,7 @@ describe('distillPassages', () => {
     it('drops a passage the extractor reports as empty', async () => {
       process.env.CHAT_PASSAGE_DISTILL_LLM = 'true';
       const pool = makePool('-');
-      const out = await distillPassages({ ...base, text: FOUR_BLOCKS, aiWorkerPool: pool });
+      const out = await distillPassages({ ...base, text: FOUR_BLOCKS, aiClient: pool });
       expect(out.llmUsed).toBe(false);
     });
   });
@@ -303,7 +303,7 @@ describe('distillPassages', () => {
         text: FOUR_BLOCKS,
         mode: 'faithful',
         targetChars: 2000,
-        aiWorkerPool: makePool(),
+        aiClient: makePool(),
       });
       expect(out.method).toBe('llm');
       expect(out.keptChunks).toBe(out.totalChunks);
@@ -335,7 +335,7 @@ describe('distillPassages', () => {
         ...base,
         text: FOUR_BLOCKS,
         url: 'https://example.org/a',
-        aiWorkerPool: pool,
+        aiClient: pool,
       });
       expect(out.cache).toBe('hit');
       expect(out.digest).toBe('zwischengespeichert');

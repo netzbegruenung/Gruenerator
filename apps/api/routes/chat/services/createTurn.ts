@@ -143,7 +143,7 @@ export function withConversationContext(brief: string, transcript: string): stri
 export interface CreateTurnOpts {
   sse: SSEWriter;
   classifiedState: ChatGraphState;
-  aiWorkerPool: ChatGraphState['aiWorkerPool'];
+  aiClient: ChatGraphState['aiClient'];
   req: Express.Request;
   actualThreadId?: string;
   userId: string;
@@ -155,7 +155,7 @@ export interface CreateTurnOpts {
 
 /** What the generator needs; deliberately narrower than the turn options. */
 interface GenerateContext {
-  aiWorkerPool: ChatGraphState['aiWorkerPool'];
+  aiClient: ChatGraphState['aiClient'];
   req: Express.Request;
   userId: string;
   userContent: string;
@@ -219,7 +219,7 @@ export async function runCreateTurn<T>(
   spec: ArtifactSpec<T>,
   opts: CreateTurnOpts
 ): Promise<boolean> {
-  const { sse, classifiedState, aiWorkerPool, req, actualThreadId, userId, userContent } = opts;
+  const { sse, classifiedState, aiClient, req, actualThreadId, userId, userContent } = opts;
 
   let streamOpened = false;
   const openStream = (): void => {
@@ -259,7 +259,7 @@ export async function runCreateTurn<T>(
   try {
     const result = await spec.generate(
       {
-        aiWorkerPool,
+        aiClient,
         req,
         userId,
         userContent: enrichedContent,

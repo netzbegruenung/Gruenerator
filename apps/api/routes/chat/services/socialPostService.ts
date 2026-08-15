@@ -132,7 +132,7 @@ Ziel: ~${target} Zeichen. Hartes Maximum: ${hardMax} Zeichen (inklusive Hashtags
 Setze nur Hashtags, die zum Thema gehören. Erfinde KEINE Orts-, Regional- oder Gliederungs-Hashtags (etwa #GrüneBerlin), wenn die Anfrage keinen Ort nennt.`;
 
   const startTime = Date.now();
-  const result = await state.aiWorkerPool.processRequest(
+  const result = await state.aiClient.processRequest(
     {
       type: 'social_post_generation',
       systemPrompt,

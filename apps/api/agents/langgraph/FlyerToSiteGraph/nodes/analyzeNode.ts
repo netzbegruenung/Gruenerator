@@ -4,8 +4,8 @@ import {
 } from '../../../../services/localization/index.js';
 import { createLogger } from '../../../../utils/logger.js';
 
+import type { AiClient } from '../../../../services/ai/types.js';
 import type { RequestWithLocale } from '../../../../services/localization/index.js';
-import type { AIWorkerPool } from '../../../../workers/types.js';
 import type { FlyerAnalysis, FlyerToSiteState } from '../types.js';
 
 const log = createLogger('FlyerToSite:analyze');
@@ -56,8 +56,8 @@ export async function analyzeNode(state: FlyerToSiteState): Promise<Partial<Flye
 
     const userPrompt = `Analysiere diesen Flyer-Text:\n\n${state.extractedText}`;
 
-    const aiWorkerPool = state.req.app.locals.aiWorkerPool as AIWorkerPool;
-    const result = await aiWorkerPool.processRequest(
+    const aiClient = state.req.app.locals.aiClient as AiClient;
+    const result = await aiClient.processRequest(
       {
         type: 'flyer-analysis',
         systemPrompt,

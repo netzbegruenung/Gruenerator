@@ -6,7 +6,7 @@
  *
  * This is the ONLY place usage is recorded. An earlier note here claimed the
  * provider adapters were accounted for separately, inside
- * `AIWorkerPool.processRequest`, and warned against "fixing" the asymmetry —
+ * `AiClient.processRequest`, and warned against "fixing" the asymmetry —
  * that was true of the `worker_threads` pool, which is gone. The adapters now
  * run in this process, on models from `getModel`, and are counted right here.
  * Adding a second recorder for them would double-count.

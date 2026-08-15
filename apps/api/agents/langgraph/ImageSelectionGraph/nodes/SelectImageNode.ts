@@ -11,7 +11,7 @@ import type { ImageSelectionState, CatalogImage, AISelectionResponse } from '../
 export async function selectImageNode(
   state: ImageSelectionState
 ): Promise<Partial<ImageSelectionState>> {
-  const { text, sharepicType, imageCatalog, aiWorkerPool, req } = state;
+  const { text, sharepicType, imageCatalog, aiClient, req } = state;
 
   try {
     if (!imageCatalog || !imageCatalog.images || imageCatalog.images.length === 0) {
@@ -59,7 +59,7 @@ Wähle den besten Hintergrund aus (gib die Nummer an).`;
       `[ImageSelection] AI selecting from ${imageCatalog.images.length} images for: "${text.substring(0, 50)}..."`
     );
 
-    const result = await aiWorkerPool.processRequest(
+    const result = await aiClient.processRequest(
       {
         type: 'image_picker',
         systemPrompt,

@@ -85,8 +85,8 @@ export const AI_LANES = {
   //   services/providers/providerSelector.ts.
   //
   //   Die Anträge saßen auf GPT-OSS mit der Notiz "reasoning is handled via
-  //   reasoningEffort". Auf DIESEM Pfad stimmte das nie: der Worker-Pool
-  //   (workers/providers/execute.ts) reicht keine Reasoning-Option durch. Im
+  //   reasoningEffort". Auf DIESEM Pfad stimmte das nie: der Ausführungspfad
+  //   (services/ai/execution/execute.ts) reicht keine Reasoning-Option durch. Im
   //   Streaming-Pfad (agents/langgraph/streamingProcessor.ts) gilt sie und
   //   wird dort providerspezifisch gesetzt.
   antrag: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },

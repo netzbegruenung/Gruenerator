@@ -32,7 +32,7 @@ const STUB_AGENT_CONFIG = {
 
 /** The LLM tier must never be reached by these cases — a call means the
  *  deterministic gate missed, which is itself the failure. */
-function makeWorkerPool() {
+function makeAiClient() {
   return {
     processRequest: vi.fn(async () => ({
       content: JSON.stringify({ intent: 'direct', reasoning: 'stub', searchQuery: null }),
@@ -46,7 +46,7 @@ function buildState(userMessage: string, overrides: Partial<ChatGraphState> = {}
     threadId: null,
     agentConfig: STUB_AGENT_CONFIG,
     enabledTools: { search: true, web: true, image: true, sharepic: true },
-    aiWorkerPool: makeWorkerPool(),
+    aiClient: makeAiClient(),
     userLocale: 'de-DE',
     attachmentContext: null,
     imageAttachments: [],

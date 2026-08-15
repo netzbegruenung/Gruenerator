@@ -1,4 +1,4 @@
-import mistralClient from '../../../../workers/mistralClient.js';
+import mistralClient from '../../../../services/ai/mistralClient.js';
 
 import type { ArgumentResult } from './argumentsGenerator.js';
 

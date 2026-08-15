@@ -6,7 +6,7 @@
  * the sidebar tag filter and tag-scoped chat search.
  *
  * Uses the intermediate model (regolo/mistral-small) via generateText directly
- * — same approach as compactionService — so no aiWorkerPool plumbing is needed.
+ * — same approach as compactionService — so no aiClient plumbing is needed.
  */
 
 import { generateText } from 'ai';

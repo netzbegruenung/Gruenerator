@@ -1,7 +1,7 @@
 import { detectContentType } from './contentType.js';
 import { extractTitleFromResponse } from './titleUtils.js';
 
-import type { AIWorkerResult, EnhancedAIWorkerResult, FormData } from './types.js';
+import type { AiResult, EnhancedAiResult, FormData } from './types.js';
 
 const SOCIAL_LIKE_TYPES = new Set([
   'instagram',
@@ -52,12 +52,12 @@ export function sanitizeMarkdownForDisplay(text: string): string {
 }
 
 export function processResponseWithTitle(
-  result: AIWorkerResult,
+  result: AiResult,
   routePath: string,
   formData: FormData = {}
-): EnhancedAIWorkerResult {
+): EnhancedAiResult {
   if (!result || !result.success || !result.content) {
-    const output: EnhancedAIWorkerResult = {
+    const output: EnhancedAiResult = {
       success: result.success,
       content: result.content,
     };

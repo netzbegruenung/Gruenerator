@@ -52,7 +52,7 @@ begründet das korrekt).
 `enable_thinking: false`; der Code-Kommentar selbst dokumentiert "gemma4 ignores
 reasoning controls entirely ... tracked as follow-up, not solved here" — gemma4 denkt
 trotzdem weiter, bis das Gateway abbricht. Der fixe `maxRetries: 2`
-(`apps/api/workers/providers/execute.ts`) wiederholt danach denselben zu langsamen
+(`apps/api/services/ai/execution/execute.ts`) wiederholt danach denselben zu langsamen
 Request unverändert.
 
 **Symptom im Log:** `[greenpt] Request failed after retries: Failed after 3 attempts.
