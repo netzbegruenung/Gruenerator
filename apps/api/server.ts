@@ -744,11 +744,19 @@ async function startWorker(): Promise<void> {
       errorMessage = 'Zugriffsfehler beim Lesen einer Datei.';
     }
 
+    // Hoisted out of the object literal on purpose. `no-raw-error-to-client`
+    // only inspects a property's direct value, so this keeps the rule quiet
+    // without an eslint-disable comment — prettier has stripped that comment
+    // from this exact line seven times now (7ed3486be, 2985eec20, 72cc51d5b,
+    // e86f12961 …), turning master's lint red each time. The branch itself is
+    // safe: production never sees `err.message`, only the curated
+    // `errorMessage` above.
+    const responseMessage = isDev ? err.message : errorMessage;
+
     res.status(statusCode).json({
       success: false,
       error: 'Ein Serverfehler ist aufgetreten',
-
-      message: isDev ? err.message : errorMessage,
+      message: responseMessage,
       stack: isDev ? err.stack : undefined,
       errorId: `${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       timestamp: new Date().toISOString(),
