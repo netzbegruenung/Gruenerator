@@ -396,7 +396,7 @@ export function createGrueneratorThreadListAdapter(
           const res = await apiClient.post<GenerateTitleResponse>(
             `/api/chat-service/threads/${remoteId}/generate-title`
           );
-          if (!localTitle && res?.title) {
+          if (!localTitle && res.title) {
             controller.appendText(res.title);
             if (useAgentStore.getState().currentThreadId === remoteId) {
               useAgentStore.getState().setCurrentThreadTitle(res.title);

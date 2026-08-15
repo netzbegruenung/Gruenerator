@@ -434,7 +434,7 @@ export const threadsContractRouter = s.router(threadsContract, {
         );
         return {
           status: 202 as const,
-          body: { status: 'skipped' as const, reason: 'insufficient messages' },
+          body: { status: 'skipped' as const, reason: 'insufficient messages', title: null },
         };
       }
 
