@@ -23,7 +23,7 @@ import { chunkPageForDistill } from './passageChunker.js';
 import { rerankPipeline } from './rerankPipeline.js';
 
 import type { PassageChunk } from './passageChunker.js';
-import type { AIWorkerPool } from '../../workers/types.js';
+import type { AiClient } from '../ai/types.js';
 
 /** @see services/ai/intermediateLanes.ts — `standard`, nicht `heavy`: `condense`
  *  läuft unter `withTimeout` (7 s / 9 s), und ein Überschreiten degradiert still
@@ -52,7 +52,7 @@ export interface DistillArgs {
   /** Cache key. Omit to skip digest caching (the crawl cache is separate). */
   url?: string;
   /** Present ⇒ LLM condensation is possible; absent ⇒ selection only. */
-  aiWorkerPool?: AIWorkerPool | null;
+  aiClient?: AiClient | null;
   /** Force condensation on/off. Defaults to the CHAT_PASSAGE_DISTILL_LLM flag. */
   useLlm?: boolean;
   timeoutMs?: number;
@@ -230,7 +230,7 @@ async function selectChunks(
 async function condense(
   chunk: PassageChunk,
   query: string,
-  pool: AIWorkerPool,
+  pool: AiClient,
   timeoutMs: number
 ): Promise<string | null> {
   try {
@@ -330,7 +330,7 @@ export async function distillPassages(args: DistillArgs): Promise<DistillResult>
     .sort((a, b) => b.score - a.score);
 
   const useLlm =
-    (args.useLlm ?? isDistillLlmEnabled()) && args.aiWorkerPool != null && chunks.length > 1;
+    (args.useLlm ?? isDistillLlmEnabled()) && args.aiClient != null && chunks.length > 1;
 
   // Without condensation the budget is spent on raw text, so only what fits is
   // kept. With it, more passages fit because each shrinks — take a bounded set
@@ -356,11 +356,11 @@ export async function distillPassages(args: DistillArgs): Promise<DistillResult>
   let llmUsed = false;
   let texts = inDocumentOrder.map((e) => e.chunk.text);
 
-  if (useLlm && args.aiWorkerPool) {
+  if (useLlm && args.aiClient) {
     const timeoutMs =
       args.timeoutMs ?? (isFaithful ? DEFAULT_FAITHFUL_TIMEOUT_MS : DEFAULT_SELECT_TIMEOUT_MS * 2);
     const condensed = await Promise.all(
-      inDocumentOrder.map((e) => condense(e.chunk, query, args.aiWorkerPool!, timeoutMs))
+      inDocumentOrder.map((e) => condense(e.chunk, query, args.aiClient!, timeoutMs))
     );
     // Per-passage degradation: a failed call keeps the raw passage rather than
     // losing it. Only claim `llm` if at least one call actually returned facts.

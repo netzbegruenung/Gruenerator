@@ -13,21 +13,21 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { GENERATION_SIGNAL, resolveGenerationScope } from './generationResolver.js';
 
-import type { AIWorkerPool } from '../../../../workers/types.js';
+import type { AiClient } from '../../../../services/ai/types.js';
 
-function poolAnswering(content: string, delayMs = 0): AIWorkerPool {
+function poolAnswering(content: string, delayMs = 0): AiClient {
   return {
     processRequest: vi.fn(
       async () => new Promise((resolve) => setTimeout(() => resolve({ content }), delayMs))
     ),
-  } as unknown as AIWorkerPool;
+  } as unknown as AiClient;
 }
 
 const resolve = (content: string): Promise<unknown> =>
   resolveGenerationScope({
     userContent: 'Mach daraus ein Sharepic',
     conversationContext: null,
-    aiWorkerPool: poolAnswering(content),
+    aiClient: poolAnswering(content),
   });
 
 describe('GENERATION_SIGNAL — das Gitter', () => {
@@ -124,7 +124,7 @@ describe('resolveGenerationScope — der Parser', () => {
       resolveGenerationScope({
         userContent: 'Mach daraus ein Sharepic',
         conversationContext: null,
-        aiWorkerPool: poolAnswering('sharepic', 2500),
+        aiClient: poolAnswering('sharepic', 2500),
       })
     ).resolves.toBeNull();
   });
@@ -134,12 +134,12 @@ describe('resolveGenerationScope — der Parser', () => {
       processRequest: vi.fn(async () => {
         throw new Error('provider down');
       }),
-    } as unknown as AIWorkerPool;
+    } as unknown as AiClient;
     await expect(
       resolveGenerationScope({
         userContent: 'Mach daraus ein Sharepic',
         conversationContext: null,
-        aiWorkerPool: pool,
+        aiClient: pool,
       })
     ).resolves.toBeNull();
   });

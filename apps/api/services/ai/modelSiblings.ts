@@ -1,0 +1,88 @@
+/**
+ * Wohin ausweichen, wenn ein Modell gerade zäh ist.
+ *
+ * Zwei Quellen, in dieser Reihenfolge:
+ *
+ * 1. **Ein belegtes Geschwister** — dasselbe Modell bei einem anderen Anbieter,
+ *    an denselben Prompts gegeneinander gemessen. Gleichwertigkeit ist hier
+ *    nachgewiesen, nicht angenommen.
+ * 2. **Die bestehende Fallback-Kette** (`litellm → regolo → mistral`), die heute
+ *    schon greift, wenn ein Anbieter AUSFÄLLT. Sie ist für Ausfall gebaut und
+ *    nicht für Gleichwertigkeit — ein Qualitätsunterschied ist also möglich.
+ *    Bewusst angenommen: die Alternative ist nicht „dasselbe Modell", sondern
+ *    „minutenlang warten".
+ *
+ * Nie ausgewichen wird auf ein Paar, das selbst als zäh vermerkt ist — sonst
+ * schiebt eine anbieterweite Störung den Verkehr im Kreis.
+ */
+
+import { createLogger } from '../../utils/logger.js';
+
+import { isModelSlow } from './modelHealth.js';
+import { getDefaultModel, isProviderConfigured } from './providers.js';
+
+import type { ProviderName } from './providers.js';
+
+const log = createLogger('modelSiblings');
+
+export interface ModelTarget {
+  provider: ProviderName;
+  model: string;
+}
+
+/**
+ * Gemessen gleichwertige Paare. Ein Eintrag gehört zum MODELL, nicht zur Lane:
+ * `regolo/gemma4-31b` bedient 14 Lanes in `lanes.ts`, den Synth-Slot des
+ * Chat-Loops und die Prüf-Stufe — ein Eintrag deckt sie alle ab.
+ *
+ * `gemma-4-26b-a4b-it` (Scaleway/Paris) gegen `gemma4-31b` (Regolo), gemessen
+ * am 01.08. an den echten Prompts der Zwischenstufen und am 14.08. am echten
+ * Prüf-Prompt: gleiche Inhaltstreue, rund doppelte Geschwindigkeit. Siehe den
+ * Doc-Block bei `heavy` und `pruefung` in intermediateLanes.ts.
+ */
+const MODEL_SIBLINGS: Readonly<Record<string, ModelTarget>> = {
+  'regolo/gemma4-31b': { provider: 'scaleway', model: 'gemma-4-26b-a4b-it' },
+  'scaleway/gemma-4-26b-a4b-it': { provider: 'regolo', model: 'gemma4-31b' },
+};
+
+/** Dieselbe Reihenfolge wie `tryFallbackProviders` in providerFallback.ts. */
+const FALLBACK_CHAIN: readonly ProviderName[] = ['litellm', 'regolo', 'mistral'];
+
+function usable(target: ModelTarget): boolean {
+  return isProviderConfigured(target.provider) && !isModelSlow(target.provider, target.model);
+}
+
+/**
+ * Ein brauchbares Ausweichziel — oder `null`, wenn keins übrig ist. Der
+ * Aufrufer bleibt dann beim Primär: langsam ist besser als gar nicht.
+ */
+export function resolveAlternative(provider: string, model: string): ModelTarget | null {
+  const sibling = MODEL_SIBLINGS[`${provider}/${model}`];
+  if (sibling && usable(sibling)) return sibling;
+
+  for (const candidate of FALLBACK_CHAIN) {
+    if (candidate === provider) continue;
+    const target = { provider: candidate, model: getDefaultModel(candidate) };
+    if (usable(target)) return target;
+  }
+  return null;
+}
+
+/**
+ * Das Paar, an das die Anfrage tatsächlich gehen soll.
+ *
+ * Der eine Konsultationspunkt: beide `getModel`-Implementierungen rufen das im
+ * Kopf, damit ein vermerktes Modell gar nicht erst abgewartet wird. Ohne
+ * Vermerk ändert sich nichts.
+ */
+export function pickHealthyTarget(provider: string, model: string): ModelTarget | null {
+  if (!isModelSlow(provider, model)) return null;
+
+  const alternative = resolveAlternative(provider, model);
+  if (!alternative) return null;
+
+  log.info(
+    `${provider}/${model} gilt als zäh — diese Anfrage geht an ${alternative.provider}/${alternative.model}`
+  );
+  return alternative;
+}

@@ -121,7 +121,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
       research: true,
       image: true,
     },
-    aiWorkerPool: input.aiWorkerPool,
+    aiClient: input.aiClient,
     userLocale: input.userLocale || 'de-DE',
     clientPlatform: input.clientPlatform || 'web',
     lastToolContext: null,
@@ -185,6 +185,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     // Custom system prompt (from thread or user settings)
     customSystemPrompt: input.customSystemPrompt || null,
     roleBausteinActive: input.roleBausteinActive === true,
+    userRoles: input.userRoles ?? [],
 
     // Active skill (drives platform-specific prompt fragment in respondNode)
     activeSkillMention: input.activeSkillMention || null,

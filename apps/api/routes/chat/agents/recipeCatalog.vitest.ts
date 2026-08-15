@@ -24,14 +24,14 @@ beforeEach(() => {
 
 describe('buildRecipeCatalog', () => {
   it('offers the generic recipes to a German user', async () => {
-    const entries = await buildRecipeCatalog({ userLocale: 'de-DE', userId: null });
+    const entries = await buildRecipeCatalog({ userLocale: 'de-DE', userId: null, roles: null });
     const mentions = entries.map((e) => e.mention);
     expect(mentions).toContain('presse');
     expect(mentions).toContain('instagram');
   });
 
   it('keeps de-DE Landesverband recipes away from an Austrian user', async () => {
-    const at = await buildRecipeCatalog({ userLocale: 'de-AT', userId: null });
+    const at = await buildRecipeCatalog({ userLocale: 'de-AT', userId: null, roles: null });
     const mentions = at.map((e) => e.mention);
     // Every LV variant carries audience: 'de-DE'.
     expect(mentions).not.toContain('presse-bayern');
@@ -40,11 +40,46 @@ describe('buildRecipeCatalog', () => {
     expect(mentions).toContain('presse');
   });
 
+  it('hides Landesverband recipes from a user without the Geschäftsstelle role', async () => {
+    // Das Modell darf nicht anbieten, was im Menü gar nicht steht — sonst
+    // schreibt es eine PM „im Stil Grüne Bayern" für jemanden, der das Rezept
+    // nirgends findet.
+    const entries = await buildRecipeCatalog({ userLocale: 'de-DE', userId: null, roles: [] });
+    const mentions = entries.map((e) => e.mention);
+    expect(mentions).not.toContain('presse-bayern');
+    expect(mentions).not.toContain('presse-berlin');
+    expect(mentions).toContain('presse');
+  });
+
+  it('offers only the own Landesverband’s recipes to a Geschäftsstelle role', async () => {
+    const entries = await buildRecipeCatalog({
+      userLocale: 'de-DE',
+      userId: null,
+      roles: [
+        { ebene: 'land', rolle: 'Mitarbeiter*in Landesgeschäftsstelle', bundesland: 'Bayern' },
+      ],
+    });
+    const mentions = entries.map((e) => e.mention);
+    expect(mentions).toContain('presse-bayern');
+    expect(mentions).toContain('insta-bayern');
+    expect(mentions).not.toContain('presse-berlin');
+    expect(mentions).toContain('presse');
+  });
+
+  it('does not unlock Landesverband recipes for the rest of the Landesebene', async () => {
+    const entries = await buildRecipeCatalog({
+      userLocale: 'de-DE',
+      userId: null,
+      roles: [{ ebene: 'land', rolle: 'Mitarbeiter*in Landtagsfraktion', bundesland: 'Bayern' }],
+    });
+    expect(entries.map((e) => e.mention)).not.toContain('presse-bayern');
+  });
+
   it('adds the user’s own learned forms', async () => {
     listTextForms.mockResolvedValue([
       { mention: 'omveinladungen', title: 'OMV-Einladung', kind: 'custom', sharedFromGroup: null },
     ]);
-    const entries = await buildRecipeCatalog({ userLocale: 'de-DE', userId: 'u1' });
+    const entries = await buildRecipeCatalog({ userLocale: 'de-DE', userId: 'u1', roles: null });
     const own = entries.find((e) => e.mention === 'omveinladungen');
     expect(own?.source).toBe('user');
     expect(own?.title).toBe('OMV-Einladung');
@@ -54,7 +89,7 @@ describe('buildRecipeCatalog', () => {
     listTextForms.mockResolvedValue([
       { mention: 'kv-brief', title: 'KV-Brief', kind: 'custom', sharedFromGroup: 'KV Köln' },
     ]);
-    const entries = await buildRecipeCatalog({ userLocale: 'de-DE', userId: 'u1' });
+    const entries = await buildRecipeCatalog({ userLocale: 'de-DE', userId: 'u1', roles: null });
     expect(entries.find((e) => e.mention === 'kv-brief')?.description).toContain('KV Köln');
   });
 
@@ -62,13 +97,13 @@ describe('buildRecipeCatalog', () => {
     listTextForms.mockResolvedValue([
       { mention: 'presse', title: 'Presse', kind: 'preset', sharedFromGroup: null },
     ]);
-    const entries = await buildRecipeCatalog({ userLocale: 'de-DE', userId: 'u1' });
+    const entries = await buildRecipeCatalog({ userLocale: 'de-DE', userId: 'u1', roles: null });
     expect(entries.filter((e) => e.mention === 'presse')).toHaveLength(1);
   });
 
   it('degrades to system recipes when the text-form lookup fails', async () => {
     listTextForms.mockRejectedValue(new Error('db weg'));
-    const entries = await buildRecipeCatalog({ userLocale: 'de-DE', userId: 'u1' });
+    const entries = await buildRecipeCatalog({ userLocale: 'de-DE', userId: 'u1', roles: null });
     expect(entries.length).toBeGreaterThan(0);
     expect(entries.every((e) => e.source === 'system')).toBe(true);
   });

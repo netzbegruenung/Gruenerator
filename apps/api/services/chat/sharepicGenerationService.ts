@@ -22,7 +22,7 @@ import {
 } from '../../services/attachments/index.js';
 import imagePickerService from '../../services/image/ImageSelectionService.js';
 import { parseResponse, type ParserConfig } from '../../utils/campaign/index.js';
-import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
+import { getAiClient } from '../../utils/getAiClient.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type {
@@ -31,7 +31,7 @@ import type {
 } from '../../services/attachments/types.js';
 import type { SharepicImageManager } from '../../services/image/types.js';
 import type { UserProfile } from '../../services/user/types.js';
-import type { AIWorkerPool } from '../../workers/types.js';
+import type { AiClient } from '../ai/types.js';
 import type { Request, Router } from 'express';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -242,7 +242,7 @@ const createImageAttachmentFromFile = async (filename: string): Promise<ImageAtt
 const selectAndPrepareImage = async (
   textContent: string,
   sharepicType: string,
-  aiWorkerPool: AIWorkerPool,
+  aiClient: AiClient,
   req: ExpressRequest | null = null
 ): Promise<{ attachment: ImageAttachment; selection: ImageSelection }> => {
   log.debug(`[SharepicGeneration] Selecting image for ${sharepicType} sharepic`);
@@ -250,7 +250,7 @@ const selectAndPrepareImage = async (
   try {
     const selection = await imagePickerService.selectBestImage(
       textContent,
-      aiWorkerPool,
+      aiClient,
       { sharepicType },
       req
     );
@@ -810,7 +810,7 @@ const generateDreizeilenWithAIImageSharepic = async (
     const { attachment: aiImageAttachment, selection } = await selectAndPrepareImage(
       textForAnalysis,
       'dreizeilen',
-      getAIWorkerPool(expressReq),
+      getAiClient(expressReq),
       expressReq
     );
 
@@ -912,7 +912,7 @@ const generateCampaignSharepic = async (
       }
     });
 
-    const aiResult = await getAIWorkerPool(expressReq).processRequest(
+    const aiResult = await getAiClient(expressReq).processRequest(
       {
         type: `campaign_${campaignTypeId}`,
         systemPrompt: promptConfig?.systemRole || '',

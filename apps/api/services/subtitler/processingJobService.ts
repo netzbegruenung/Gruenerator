@@ -69,7 +69,7 @@ export type StartTranscriptionResult = { ok: true } | { ok: false; code: 404 | 5
  */
 export async function startTranscriptionJob(
   body: ProcessRequest,
-  aiWorkerPool: unknown
+  aiClient: unknown
 ): Promise<StartTranscriptionResult> {
   const {
     uploadId,
@@ -103,7 +103,7 @@ export async function startTranscriptionJob(
     transcribeVideo(
       videoPath,
       subtitlePreference,
-      aiWorkerPool as Parameters<typeof transcribeVideo>[2]
+      aiClient as Parameters<typeof transcribeVideo>[2]
     )
       .then(async (subtitles) => {
         if (!subtitles) throw new Error('Keine Untertitel generiert');

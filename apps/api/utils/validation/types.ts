@@ -52,7 +52,7 @@ export interface SearchParamsInput {
 /**
  * AI worker message
  */
-export interface AIWorkerMessage {
+export interface AiClientMessage {
   role: string;
   content: string;
 }
@@ -60,18 +60,18 @@ export interface AIWorkerMessage {
 /**
  * AI worker request
  */
-export interface AIWorkerRequest {
+export interface AiClientRequest {
   type: string;
-  messages: AIWorkerMessage[];
+  messages: AiClientMessage[];
   [key: string]: unknown;
 }
 
 /**
  * Validated AI worker request
  */
-export interface ValidatedAIWorkerRequest {
+export interface ValidatedAiRequest {
   type: string;
-  messages: AIWorkerMessage[];
+  messages: AiClientMessage[];
   [key: string]: unknown;
 }
 

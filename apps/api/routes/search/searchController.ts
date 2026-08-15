@@ -9,7 +9,7 @@ import { z } from 'zod';
 
 import { env } from '../../config/env.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
-import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
+import { getAiClient } from '../../utils/getAiClient.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type {
@@ -319,7 +319,7 @@ router.post(
         mode: 'normal',
         user_id: userId,
         searchOptions,
-        aiWorkerPool: getAIWorkerPool(req),
+        aiClient: getAiClient(req),
         req,
       };
 
@@ -435,7 +435,7 @@ router.post(
           maxResults: 10,
           language: 'de-DE',
         },
-        aiWorkerPool: getAIWorkerPool(req),
+        aiClient: getAiClient(req),
         req,
       };
 
@@ -553,7 +553,7 @@ router.post(
 
       log.debug(`[Search] Analysis request: ${contents.length} items`);
 
-      const result = await getAIWorkerPool(req).processRequest(
+      const result = await getAiClient(req).processRequest(
         {
           type: 'search_analysis',
           systemPrompt: `Du bist ein Recherche-Assistent, der Suchergebnisse gründlich analysiert.

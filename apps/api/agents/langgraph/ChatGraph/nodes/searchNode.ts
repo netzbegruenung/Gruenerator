@@ -1366,7 +1366,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         let expandedQueries: string[] = [];
         if (!isNotebookScoped) {
           try {
-            const expanded = await expandQuery(query, state.aiWorkerPool);
+            const expanded = await expandQuery(query, state.aiClient);
             if (expanded.alternatives.length > 0) {
               expandedQueries = expanded.alternatives;
               log.info(`[Search] Document query expanded: +${expandedQueries.length} variants`);
@@ -1616,7 +1616,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
             timeout: 8000,
             mode: 'faithful',
             targetChars: SCRAPE_URL_TARGET_CHARS,
-            aiWorkerPool: state.aiWorkerPool,
+            aiClient: state.aiClient,
           });
           results = crawled
             .filter((r) => r.crawled && (r.content || r.fullContent))

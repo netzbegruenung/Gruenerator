@@ -42,7 +42,8 @@ export interface LaneConfig {
 
 const MISTRAL_MEDIUM = 'mistral-medium-2604';
 const VERDIGADO_PRO = 'verdigado-pro';
-/** Gemma 4 — named explicitly because Regolo's DEFAULT is qwen, which policy excludes. */
+/** Gemma 4 — named explicitly because Regolo's DEFAULT comes from the
+ *  environment and is not guaranteed to be this model. */
 const GEMMA_4 = 'gemma4-31b';
 /** Gemma 4 bei GreenPT — welche Gewichte, ist unbelegt (siehe GEMMA_4_GREENPT in
  *  routes/chat/agents/providers.ts). Gewählt ist es dafür, dass es den
@@ -84,8 +85,8 @@ export const AI_LANES = {
   //   services/providers/providerSelector.ts.
   //
   //   Die Anträge saßen auf GPT-OSS mit der Notiz "reasoning is handled via
-  //   reasoningEffort". Auf DIESEM Pfad stimmte das nie: der Worker-Pool
-  //   (workers/providers/execute.ts) reicht keine Reasoning-Option durch. Im
+  //   reasoningEffort". Auf DIESEM Pfad stimmte das nie: der Ausführungspfad
+  //   (services/ai/execution/execute.ts) reicht keine Reasoning-Option durch. Im
   //   Streaming-Pfad (agents/langgraph/streamingProcessor.ts) gilt sie und
   //   wird dort providerspezifisch gesetzt.
   antrag: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },

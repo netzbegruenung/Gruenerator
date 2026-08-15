@@ -3,8 +3,8 @@ import { type AddressInfo } from 'node:net';
 
 import express, { type Application, type RequestHandler } from 'express';
 
+import { type AiClient } from '../../../../services/ai/types.js';
 import { type UserProfile } from '../../../../services/user/types.js';
-import { type AIWorkerPool } from '../../../../workers/types.js';
 import { mountChatGraphContractRouter } from '../../chatGraphContractRouter.js';
 
 import { userMiddleware } from './fakeUser.js';
@@ -24,7 +24,7 @@ export interface ChatAppOptions {
   /** `null` mounts no user middleware at all — the `unauthorized` path. */
   user?: Partial<UserProfile> | null;
   /** `null` leaves `app.locals` empty — the `provider_unavailable` path. */
-  aiWorkerPool?: AIWorkerPool | null;
+  aiClient?: AiClient | null;
   /** Binds a per-request decision journal (see journalCapture.ts). */
   decisionJournal?: RequestHandler;
 }
@@ -42,8 +42,8 @@ export async function startChatApp(options: ChatAppOptions = {}): Promise<ChatAp
   if (options.user !== null) {
     app.use(userMiddleware(options.user ?? {}));
   }
-  if (options.aiWorkerPool !== null) {
-    app.locals.aiWorkerPool = options.aiWorkerPool;
+  if (options.aiClient !== null) {
+    app.locals.aiClient = options.aiClient;
   }
   if (options.decisionJournal) {
     app.use(options.decisionJournal);

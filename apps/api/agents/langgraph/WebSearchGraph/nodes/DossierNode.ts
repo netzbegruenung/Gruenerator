@@ -112,7 +112,7 @@ Verwende dabei Quellenangaben [1], [2], [3] etc. bei wichtigen Aussagen.
 Verfügbare Quellenreferenzen:
 ${refsSummary}`;
 
-    const result = await state.aiWorkerPool.processRequest(
+    const result = await state.aiClient.processRequest(
       {
         type: 'text_adjustment',
         systemPrompt: enhancedSystemPrompt,

@@ -54,7 +54,7 @@ import {
 
 import type { ChatGraphState, UserLocale } from '../../agents/langgraph/ChatGraph/types.js';
 import type { SearchGraphState } from '../../agents/langgraph/SearchGraph/types.js';
-import type { AIWorkerPool } from '../../workers/types.js';
+import type { AiClient } from '../../services/ai/types.js';
 import type { SearchGraphStreamBody } from '@gruenerator/contracts';
 import type { ModelMessage } from 'ai';
 import type { Application } from 'express';
@@ -181,7 +181,7 @@ export const searchGraphContractRouter = s.router(searchGraphContract, {
         messages: normalizedMessages as ModelMessage[],
         threadId: activeThreadId,
         searchMode: searchMode ?? 'web',
-        aiWorkerPool: req.app.locals.aiWorkerPool as AIWorkerPool,
+        aiClient: req.app.locals.aiClient as AiClient,
         userLocale,
       });
 

@@ -42,7 +42,7 @@ function makeState(overrides: Partial<SearchGraphState> = {}): SearchGraphState 
     threadId: null,
     searchMode: 'web',
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    aiWorkerPool: null as any,
+    aiClient: null as any,
     userLocale: 'de-DE',
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     agentConfig: {} as any,

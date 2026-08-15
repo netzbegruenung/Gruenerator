@@ -36,7 +36,7 @@ const STUB_AGENT_CONFIG = {
 
 /** Neutrale Auflöser-Antwort, damit jedes Dokument-Routing unten nur aus den
  *  deterministischen Stufen stammen kann, um die es hier geht. */
-function makeWorkerPool() {
+function makeAiClient() {
   return { processRequest: vi.fn(async () => ({ content: 'keine' })) };
 }
 
@@ -46,7 +46,7 @@ function buildState(userMessage: string, overrides: Partial<ChatGraphState> = {}
     threadId: 'thread-1',
     agentConfig: STUB_AGENT_CONFIG,
     enabledTools: { search: true, web: true },
-    aiWorkerPool: makeWorkerPool(),
+    aiClient: makeAiClient(),
     userLocale: 'de-DE',
     attachmentContext: null,
     imageAttachments: [],

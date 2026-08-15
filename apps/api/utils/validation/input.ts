@@ -10,8 +10,8 @@ import type {
   NumberValidationOptions,
   ValidatedSearchParams,
   SearchParamsInput,
-  ValidatedAIWorkerRequest,
-  AIWorkerRequest,
+  ValidatedAiRequest,
+  AiClientRequest,
 } from './types.js';
 
 /**
@@ -282,12 +282,12 @@ export class InputValidator {
   /**
    * Validate AI worker request parameters
    */
-  static validateAIWorkerRequest(request: AIWorkerRequest): ValidatedAIWorkerRequest {
+  static validateAiClientRequest(request: AiClientRequest): ValidatedAiRequest {
     if (!request || typeof request !== 'object') {
       throw new ValidationError('AI worker request must be an object', 'request', request);
     }
 
-    const validated: ValidatedAIWorkerRequest = { ...request };
+    const validated: ValidatedAiRequest = { ...request };
 
     // Validate type
     if (!request.type || typeof request.type !== 'string') {

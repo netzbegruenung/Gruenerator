@@ -89,7 +89,7 @@ export const loopScript: LoopScript = {
    * A queued response nobody consumed means the turn took a different shape
    * than the scenario claims — split vs. unified, or a synth retry that never
    * happened. Without this the scenario pins a path it never took, which is the
-   * exact failure the aiWorkerPool stub already guards against one layer up.
+   * exact failure the aiClient stub already guards against one layer up.
    */
   assertScriptsConsumed(): void {
     if (queue.length > 0) {

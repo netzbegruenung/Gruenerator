@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const executeProvider = vi.fn();
 
-vi.mock('../../../workers/providers/index.js', () => ({
+vi.mock('../execution/index.js', () => ({
   executeProvider: (...args: unknown[]) => executeProvider(...args),
 }));
 

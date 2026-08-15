@@ -15,7 +15,14 @@
  * second entry — the same precedence `buildSystemMessage` applies for an
  * explicitly picked recipe.
  */
-import { DISABLED_LV_AGENT_IDS, SKILLS, type Skill } from '@gruenerator/shared/agents';
+import {
+  DISABLED_LV_AGENT_IDS,
+  SKILLS,
+  type RoleLandesverbandInput,
+  type Skill,
+  isLvItemVisibleForRoles,
+  landesverbandIdsForRoles,
+} from '@gruenerator/shared/agents';
 
 import { deriveTextFormMention } from '../../../agents/langgraph/ChatGraph/nodes/textFormMention.js';
 import { getInternalSkillPrompt } from '../../../services/skills/internalPrompts.js';
@@ -62,15 +69,30 @@ function ownerIsVisible(identifier: string): boolean {
 export async function buildRecipeCatalog(params: {
   userLocale: string | null;
   userId: string | null;
+  /**
+   * Die Profilrollen der Person. Ohne sie sähe das Modell die LV-Rezepte aller
+   * Landesverbände, während sie in Agentura, Bibliothek und Mention-Menü längst
+   * an die Landesgeschäftsstellen-Rolle gebunden sind — und würde eine
+   * Pressemitteilung „im Stil Grüne Thüringen" anbieten, die es im Menü gar
+   * nicht gibt. `null` heißt hier wie im Frontend „nicht bekannt": dann wird
+   * nicht gefiltert.
+   */
+  roles: readonly RoleLandesverbandInput[] | null;
 }): Promise<RecipeCatalogEntry[]> {
-  const { userLocale, userId } = params;
+  const { userLocale, userId, roles } = params;
+  const lvIds = roles ? landesverbandIdsForRoles(roles, userLocale ?? 'de-DE') : null;
 
   // `SKILLS` is `as const`, so entries without an `audience` key have no such
   // property at all and the union rejects `.audience`. Widen to the declared
   // interface — that is what the field is nominally typed as.
   const allSkills: readonly Skill[] = SKILLS;
   const system: RecipeCatalogEntry[] = allSkills
-    .filter((s) => matchesAudience(s.audience, userLocale) && ownerIsVisible(s.identifier))
+    .filter(
+      (s) =>
+        matchesAudience(s.audience, userLocale) &&
+        ownerIsVisible(s.identifier) &&
+        isLvItemVisibleForRoles(s.identifier, lvIds)
+    )
     .map((s) => ({
       mention: s.mention,
       title: s.title,

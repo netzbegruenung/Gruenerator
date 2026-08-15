@@ -4,7 +4,7 @@
  * These tests verify that the classifierNode correctly routes when
  * multiple resource types are present simultaneously (boards + docs + images).
  *
- * The forced-intent checks return BEFORE hitting the LLM, so aiWorkerPool
+ * The forced-intent checks return BEFORE hitting the LLM, so aiClient
  * is stubbed but never called.
  *
  * Run with: pnpm --filter @gruenerator/api test -- classifierForcedIntent
@@ -45,7 +45,7 @@ function buildState(overrides: Partial<ChatGraphState> & { userMessage: string }
       image: true,
       image_edit: true,
     },
-    aiWorkerPool: null as any,
+    aiClient: null as any,
     userLocale: 'de-DE',
     attachmentContext: null,
     imageAttachments: [],

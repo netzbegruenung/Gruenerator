@@ -76,7 +76,7 @@ import { createSearchTools } from './searchTools.js';
 
 import type { AgentConfig } from './types.js';
 import type { ChatGraphState, SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
-import type { AIWorkerPool } from '../../../workers/types.js';
+import type { AiClient } from '../../../services/ai/types.js';
 import type { SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 import type { SSEWriter } from '../services/sseHelpers.js';
 import type { Request } from 'express';
@@ -222,7 +222,7 @@ function takeSearchImages(result: unknown, loop: LoopContext | undefined): strin
 async function crawlDeepHits(
   mapped: SearchResult[],
   result: unknown,
-  aiWorkerPool: AIWorkerPool | null
+  aiClient: AiClient | null
 ): Promise<{ results: SearchResult[]; crawledCount: number }> {
   const meta = (result ?? {}) as { tier?: unknown; query?: unknown };
   if (meta.tier !== 'tiefenrecherche') return { results: mapped, crawledCount: 0 };
@@ -257,7 +257,7 @@ async function crawlDeepHits(
       // the whole reason to read them rather than trust the snippet.
       mode: 'query-focused',
       targetChars: DEEP_CRAWL_TARGET_CHARS,
-      ...(aiWorkerPool ? { aiWorkerPool } : {}),
+      ...(aiClient ? { aiClient } : {}),
     });
     const byUrl = new Map(crawled.filter((r) => r.crawled && r.content).map((r) => [r.url, r]));
     if (byUrl.size === 0) return { results: mapped, crawledCount: 0 };
@@ -396,7 +396,7 @@ export function buildChatToolCatalog(params: {
         // state of affairs. The date is grounding, not just ranking input.
         ...(typeof r.publishedDate === 'string' ? { publishedDate: r.publishedDate } : {}),
       }));
-      const enriched = await crawlDeepHits(mapped, result, loop?.state.aiWorkerPool ?? null);
+      const enriched = await crawlDeepHits(mapped, result, loop?.state.aiClient ?? null);
       const sources = sourceRegistry.register(
         enriched.results,
         // One cap for the whole batch, sized for the crawled pages. Harmless for
@@ -458,7 +458,7 @@ NUTZE WENN:
           timeout: 8000,
           mode: 'faithful',
           targetChars: CRAWL_DISTILL_TARGET_CHARS,
-          ...(loop?.state.aiWorkerPool ? { aiWorkerPool: loop.state.aiWorkerPool } : {}),
+          ...(loop?.state.aiClient ? { aiClient: loop.state.aiClient } : {}),
         });
         const results: SearchResult[] = crawled
           .filter((r) => r.crawled && (r.content || r.fullContent))

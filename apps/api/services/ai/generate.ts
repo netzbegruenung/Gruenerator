@@ -1,7 +1,7 @@
 /**
  * The typed way to ask a model for something.
  *
- * `AIWorkerPool.processRequest` takes an untyped envelope — `type` is a bare
+ * `AiClient.processRequest` takes an untyped envelope — `type` is a bare
  * string, options carry OpenAI wire names (`max_tokens`, `top_p`), and the
  * result is `{content: string | null, success: boolean, …}` that every one of
  * the ~66 call sites immediately unwraps. That envelope exists because it used
@@ -24,13 +24,12 @@
  * sites a mechanical swap rather than a behavioural risk.
  */
 
-import { executeProvider } from '../../workers/providers/index.js';
-
+import { executeProvider } from './execution/index.js';
 import { laneFallback, laneTarget, resolveLane } from './lanes.js';
 
 import type { LaneId } from './lanes.js';
 import type { ProviderName } from './providers.js';
-import type { AIRequestData, AIRequestOptions, AIWorkerResult, Tool } from '../../workers/types.js';
+import type { AIRequestData, AIRequestOptions, AiResult, Tool } from './types.js';
 
 export interface AiCall {
   /** Routes the request. `resolveLane` accepts any string and logs the ones it
@@ -149,7 +148,7 @@ export interface AiObjectCall<T> extends AiCall {
   label?: string;
 }
 
-function extractToolInput(result: AIWorkerResult, toolName: string): unknown {
+function extractToolInput(result: AiResult, toolName: string): unknown {
   const call = result.tool_calls?.find((c) => c.name === toolName) ?? result.tool_calls?.[0];
   if (call) return call.input;
   for (const block of result.raw_content_blocks ?? []) {
@@ -240,7 +239,7 @@ export interface AiToolsCall extends AiCall {
  * `raw_content_blocks` exists only because the envelope re-packed the SDK's
  * output, and every consumer then had to un-pack it again.
  */
-export function aiTools(call: AiToolsCall): Promise<AIWorkerResult> {
+export function aiTools(call: AiToolsCall): Promise<AiResult> {
   return runWithFallback(call, {
     tools: call.tools,
     ...(call.toolChoice != null && { tool_choice: call.toolChoice }),

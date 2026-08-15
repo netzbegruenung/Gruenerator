@@ -36,7 +36,7 @@ export async function initializeSearchState(input: SearchGraphInput): Promise<Se
     messages: input.messages || [{ role: 'user', content: query }],
     threadId: input.threadId || null,
     searchMode: input.searchMode,
-    aiWorkerPool: input.aiWorkerPool,
+    aiClient: input.aiClient,
     userLocale: (input.userLocale || input.locale || 'de-DE') as UserLocale,
     agentConfig,
 

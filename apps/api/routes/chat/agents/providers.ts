@@ -5,6 +5,7 @@
 
 import { env } from '../../../config/env.js';
 import { isVisionCapable } from '../../../services/ai/modelDiscovery.js';
+import { pickHealthyTarget } from '../../../services/ai/modelSiblings.js';
 import {
   getGreenPTProvider,
   getLiteLLMProvider,
@@ -59,9 +60,6 @@ export { isVisionCapable };
  * single inference slot is busy. The unchosen sibling becomes the
  * first-token-timeout fallback for the chosen side.
  *
- * Chinese-trained models (Qwen) intentionally have NO fallback. The user
- * sees an explicit warning before selecting them; auto-routing in or out
- * would break that informed-consent boundary.
  */
 export type Provider = 'mistral' | 'litellm' | 'regolo' | 'greenpt' | 'scaleway';
 
@@ -75,9 +73,7 @@ export interface ModelConfigSingle {
   /**
    * Optional first-token-timeout fallback (single-step). For Mistral lanes
    * this is typically a Gemma/GPT-OSS overflow lane so a hung Mistral
-   * upstream still produces an answer for the user. Qwen entries
-   * intentionally have NO fallback — the "Chinese-only-when-selected"
-   * informed-consent boundary forbids auto-routing IN or OUT.
+   * upstream still produces an answer for the user.
    */
   fallback?: string;
 }
@@ -522,12 +518,25 @@ export function getModel(
   modelId: string,
   options: RouteOptions = {}
 ): LanguageModel {
+  // Ein zäh vermerktes Paar wird übersprungen statt abgewartet — siehe
+  // services/ai/modelSiblings.ts. Ohne Vermerk ändert sich hier nichts.
+  const healthy = pickHealthyTarget(provider, modelId);
+  const lane = healthy ?? { provider, model: modelId };
+
   // Attribute usage to the upstream that actually served it — the Mistral lane
   // runs on Scaleway. `takeProviderFallback` is deliberately NOT set for that:
   // it drives user-visible "answered on a different model" reporting, and this
   // is the same model on a different upstream, which users should not be shown.
-  const upstream = provider === 'mistral' ? routeMistralModel(modelId, options).upstream : provider;
-  return withUsageTracking(resolveModel(provider, modelId, options), upstream);
+  const upstream =
+    lane.provider === 'mistral' ? routeMistralModel(lane.model, options).upstream : lane.provider;
+  const model = withUsageTracking(resolveModel(lane.provider, lane.model, options), upstream);
+
+  // Ein Gesundheits-Tausch IST ein anderes Modell — anders als der
+  // Scaleway-Upstream oben. Er wird nach `resolveModel` gemeldet, weil das den
+  // Vermerk zurücksetzt, und über denselben Kanal wie der bestehende
+  // First-Token-Fallback: die Anzeige sagt dann, worauf geantwortet wurde.
+  if (healthy) lastFallbackProvider = healthy.provider;
+  return model;
 }
 
 /**
@@ -611,11 +620,11 @@ function resolveModel(
  * function calling with multi-step tool use).
  *
  * test-branch: PERMISSIVE — mistral + litellm (Verdigado, a confirmed
- * tool-caller) + regolo (Gemma-4 / GPT-OSS / Qwen) are all allowed so every
- * model selection can be verified live. The master-bound PR keeps this
- * Mistral-only; promote a provider to prod only after its tool-calling is
- * confirmed here (watch for Regolo GPT-OSS leaking reasoning into content
- * instead of emitting tool_calls).
+ * tool-caller) + regolo (Gemma-4 / GPT-OSS) are all allowed so every model
+ * selection can be verified live. The master-bound PR keeps this Mistral-only;
+ * promote a provider to prod only after its tool-calling is confirmed here
+ * (watch for Regolo GPT-OSS leaking reasoning into content instead of emitting
+ * tool_calls).
  */
 export function isAgenticToolCapable(provider: string, _modelName: string): boolean {
   return provider === 'mistral' || provider === 'litellm' || provider === 'regolo';
@@ -710,7 +719,7 @@ export function getLoopSynthFallbackModel(
  * Gemma lane: `gemma-litellm` now resolves to gemma4-31b on Regolo directly
  * (see GEMMA_4_REGOLO), so the rewrite that used to save that lane from
  * `verdigado-think` is a no-op for it. The guard stays for the lanes it still
- * covers — qwen, gpt-oss, and any agent config naming a think lane by hand.
+ * covers — gpt-oss and any agent config naming a think lane by hand.
  */
 export function loopSynthChoice(
   resolvedModelName: string,
@@ -722,12 +731,18 @@ export function loopSynthChoice(
 }
 
 export function getLoopSynthModel(
-  resolution: { model: LanguageModel; modelName: string },
+  resolution: { model: LanguageModel; modelName: string; provider: string },
   undecided: boolean
-): { model: LanguageModel; name: string } {
+): { model: LanguageModel; name: string; provider: string } {
   const choice = loopSynthChoice(resolution.modelName, undecided);
-  if (choice.provider === null) return { model: resolution.model, name: resolution.modelName };
-  return { model: getModel(choice.provider, choice.model), name: choice.model };
+  if (choice.provider === null) {
+    return { model: resolution.model, name: resolution.modelName, provider: resolution.provider };
+  }
+  return {
+    model: getModel(choice.provider, choice.model),
+    name: choice.model,
+    provider: choice.provider,
+  };
 }
 
 /**

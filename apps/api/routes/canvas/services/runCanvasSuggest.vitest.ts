@@ -11,7 +11,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { runCanvasSuggest } from './runCanvasSuggest.js';
 
 import type { CanvasAiSnapshot } from '@gruenerator/contracts';
-import type { AIWorkerPool } from '../../../workers/types.js';
+import type { AiClient } from '../../../services/ai/types.js';
 
 const TOOL_NAME = 'submit_canvas_suggestions';
 
@@ -31,7 +31,7 @@ function suggestion(op: unknown, id = 's1') {
 
 /** A pool whose successive calls return the given tool payloads in order. */
 function poolReturning(...payloads: unknown[]): {
-  pool: AIWorkerPool;
+  pool: AiClient;
   calls: { messages: { role: string; content: string }[] }[];
 } {
   const calls: { messages: { role: string; content: string }[] }[] = [];
@@ -43,16 +43,16 @@ function poolReturning(...payloads: unknown[]): {
       i++;
       return { success: true, tool_calls: [{ name: TOOL_NAME, input: payload }] };
     }),
-  } as unknown as AIWorkerPool;
+  } as unknown as AiClient;
   return { pool, calls };
 }
 
-function run(pool: AIWorkerPool, supportedOperations: string[]) {
+function run(pool: AiClient, supportedOperations: string[]) {
   return runCanvasSuggest({
     prompt: 'Mach den Text kürzer',
     snapshot: SNAPSHOT,
     capabilities: { supportedOperations },
-    aiWorkerPool: pool,
+    aiClient: pool,
   });
 }
 
@@ -116,7 +116,7 @@ describe('runCanvasSuggest', () => {
   it('surfaces the provider error rather than an empty success', async () => {
     const pool = {
       processRequest: vi.fn(async () => ({ success: false, error: 'upstream 503' })),
-    } as unknown as AIWorkerPool;
+    } as unknown as AiClient;
 
     const result = await run(pool, ['set-text']);
 

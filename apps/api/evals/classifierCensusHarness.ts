@@ -160,7 +160,7 @@ function buildState(
       isSystemDefault: true,
     },
     enabledTools: {},
-    aiWorkerPool: pool,
+    aiClient: pool,
     userLocale: 'de-DE',
     clientPlatform: 'web',
     ...(artifacts[0] ? { lastToolContext: artifacts[0] } : {}),

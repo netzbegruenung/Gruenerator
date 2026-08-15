@@ -5,7 +5,7 @@
 
 import { createLogger } from '../../utils/logger.js';
 
-import type { AIWorkerPool } from '../../workers/types.js';
+import type { AiClient } from '../ai/types.js';
 
 const log = createLogger('TexteIntentService');
 
@@ -266,10 +266,10 @@ export function detectTypeByKeywords(message: string): TextTypeDetectionResult |
  */
 export async function detectTypeWithAI(
   message: string,
-  aiWorkerPool: AIWorkerPool,
+  aiClient: AiClient,
   hint?: { type: string; description: string }
 ): Promise<TextTypeDetectionResult | null> {
-  if (!aiWorkerPool) {
+  if (!aiClient) {
     log.warn('[TexteIntentService] No AI worker pool available');
     return null;
   }
@@ -308,7 +308,7 @@ Antworte NUR mit JSON:
       hint ? `(hint: ${hint.type})` : ''
     );
 
-    const result = await aiWorkerPool.processRequest({
+    const result = await aiClient.processRequest({
       type: 'texte_intent_classification',
       systemPrompt: 'Du bist ein präziser Texttyp-Klassifikator. Antworte NUR mit validem JSON.',
       messages: [{ role: 'user', content: classificationPrompt }],
@@ -357,7 +357,7 @@ Antworte NUR mit JSON:
  */
 export async function detectTextType(
   message: string,
-  aiWorkerPool: AIWorkerPool
+  aiClient: AiClient
 ): Promise<TextTypeDetectionResult> {
   log.debug('[TexteIntentService] Detecting text type for:', message.substring(0, 100));
 
@@ -372,7 +372,7 @@ export async function detectTextType(
     return keywordResult;
   }
 
-  if (aiWorkerPool) {
+  if (aiClient) {
     const hint =
       keywordResult && keywordResult.confidence >= 0.6
         ? {
@@ -389,7 +389,7 @@ export async function detectTextType(
       );
     }
 
-    const aiResult = await detectTypeWithAI(message, aiWorkerPool, hint);
+    const aiResult = await detectTypeWithAI(message, aiClient, hint);
     if (aiResult && aiResult.confidence >= 0.7) {
       log.debug('[TexteIntentService] Using AI detection:', aiResult.detectedType);
       return aiResult;

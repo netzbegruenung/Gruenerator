@@ -1,5 +1,5 @@
 import imagePickerService from '../../../../services/image/ImageSelectionService.js';
-import { getAIWorkerPool } from '../../../../utils/getAIWorkerPool.js';
+import { getAiClient } from '../../../../utils/getAiClient.js';
 import { createLogger } from '../../../../utils/logger.js';
 
 import type { FlyerToSiteState } from '../types.js';
@@ -21,13 +21,13 @@ export async function selectImagesNode(
 
   try {
     const content = { ...state.websiteContent };
-    const aiWorkerPool = getAIWorkerPool(state.req);
+    const aiClient = getAiClient(state.req);
 
     const pickImage = async (text: string): Promise<string> => {
       try {
         const result = await imagePickerService.selectBestImage(
           text,
-          aiWorkerPool,
+          aiClient,
           { maxCandidates: 5 },
           state.req
         );

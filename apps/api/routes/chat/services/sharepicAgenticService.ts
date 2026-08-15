@@ -163,7 +163,7 @@ function buildLoopSystemPrompt(args: {
  * falls through to the next branch.
  */
 export async function handleSharepicAgenticEdit(args: HandleSharepicEditArgs): Promise<boolean> {
-  const { sse, req, threadId, userId, instruction, currentSharepic, aiWorkerPool } = args;
+  const { sse, req, threadId, userId, instruction, currentSharepic, aiClient } = args;
 
   try {
     const target = await resolveTarget(threadId, currentSharepic);
@@ -271,7 +271,7 @@ export async function handleSharepicAgenticEdit(args: HandleSharepicEditArgs): P
             summary: input.summary,
             userId,
             sse,
-            aiWorkerPool,
+            aiClient,
             req,
           });
 

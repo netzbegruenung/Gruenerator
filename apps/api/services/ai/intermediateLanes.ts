@@ -78,7 +78,7 @@
  *
  * Zwei Konsumententypen, die man beim nächsten Verschieben nicht verwechseln
  * darf:
- *   - über `aiWorkerPool.processRequest` → die Fallback-Kette
+ *   - über `aiClient.processRequest` → die Fallback-Kette
  *     (`litellm` → `regolo` → `mistral`, providerFallback.ts) fängt Ausfall UND
  *     leere Antwort ab. GreenPT steht NICHT in der Kette, wäre also selbst
  *     abgesichert, ohne je als Auffangnetz zu dienen.
@@ -110,8 +110,8 @@ export interface IntermediateLaneConfig {
 const REGOLO_SMALL_4 = { provider: 'regolo', model: 'mistral-small-4-119b' } as const;
 
 /** Gemma 4 auf Regolo — dieselben Gewichte, die `TEXT_TYPES` und der Synth-Slot
- *  fahren (TEXT_MODEL in providerSelector.ts). Regolos DEFAULT ist qwen, das
- *  Modell muss also benannt werden. */
+ *  fahren (TEXT_MODEL in providerSelector.ts). Regolos DEFAULT kommt aus der
+ *  Umgebung, das Modell muss also benannt werden. */
 /** Gemma 4 auf Scaleway/Paris, als MoE mit 4B AKTIVEN Parametern — deshalb rund
  *  doppelt so schnell wie das dichte `gemma4-31b`, das diese Stufe bis zum
  *  01.08.2026 auf Regolo fuhr. Braucht zwingend den Client aus

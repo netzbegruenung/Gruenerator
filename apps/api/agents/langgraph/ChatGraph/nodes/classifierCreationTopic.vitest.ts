@@ -38,7 +38,7 @@ const STUB_AGENT_CONFIG = {
   isSystemDefault: true,
 };
 
-function makeWorkerPool() {
+function makeAiClient() {
   return { processRequest: vi.fn(async () => ({ content: 'keine' })) };
 }
 
@@ -50,7 +50,7 @@ function buildState(
     threadId: 'thread-1',
     agentConfig: STUB_AGENT_CONFIG,
     enabledTools: { search: true, web: true, image: true },
-    aiWorkerPool: makeWorkerPool(),
+    aiClient: makeAiClient(),
     userLocale: 'de-DE',
     attachmentContext: null,
     imageAttachments: [],
@@ -86,7 +86,7 @@ describe('classifierNode — creationTopic', () => {
     // Stufe erfindet keins. Das Thema kommt aus `createTopic()` im Router, der
     // auf `resolveReferentialTopic` über denselben Verlauf zurückfällt.
     const state = buildState(SCREENSHOT_THREAD);
-    (state.aiWorkerPool as unknown as { processRequest: unknown }).processRequest = async (req: {
+    (state.aiClient as unknown as { processRequest: unknown }).processRequest = async (req: {
       systemPrompt?: string;
     }) =>
       req.systemPrompt?.startsWith('Entscheide, ob diese Nachricht ein ARTEFAKT')

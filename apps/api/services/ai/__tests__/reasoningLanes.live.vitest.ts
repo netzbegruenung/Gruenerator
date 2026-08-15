@@ -2,7 +2,7 @@
  * Live reasoning check — one case per lane the auto policy can select.
  *
  * These hit the REAL upstreams and are skipped without the matching API key,
- * following the convention in workers/providers/__tests__/regolo.vitest.ts and
+ * following the convention in services/ai/execution/__tests__/regolo.vitest.ts and
  * services/vision/__tests__/vision.vitest.ts.
  *
  *   REGOLO_API_KEY=…  LITELLM_BASE_URL=… LITELLM_API_KEY=…  MISTRAL_API_KEY=… \

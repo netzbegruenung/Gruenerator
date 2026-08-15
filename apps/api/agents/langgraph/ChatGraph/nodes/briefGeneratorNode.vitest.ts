@@ -22,7 +22,7 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     secondaryIntent: null,
     complexity: 'complex',
     searchQuery: 'Klimapolitik',
-    aiWorkerPool: {
+    aiClient: {
       processRequest: vi
         .fn()
         .mockResolvedValue({ content: 'Generated brief about climate policy.' }),
@@ -53,7 +53,7 @@ describe('briefGeneratorNode', () => {
     const state = makeState({ complexity: 'simple' });
     const result = await briefGeneratorNode(state);
     expect(result).toEqual({});
-    expect(state.aiWorkerPool.processRequest).not.toHaveBeenCalled();
+    expect(state.aiClient.processRequest).not.toHaveBeenCalled();
   });
 
   it('skips when intent is not research', async () => {
@@ -66,7 +66,7 @@ describe('briefGeneratorNode', () => {
     const state = makeState();
     const result = await briefGeneratorNode(state);
     expect(result.researchBrief).toBe('Generated brief about climate policy.');
-    expect(state.aiWorkerPool.processRequest).toHaveBeenCalledTimes(1);
+    expect(state.aiClient.processRequest).toHaveBeenCalledTimes(1);
   });
 
   it('truncates individual messages to 800 chars in the prompt', async () => {
@@ -82,7 +82,7 @@ describe('briefGeneratorNode', () => {
     await briefGeneratorNode(state);
 
     // Inspect the user message sent to the LLM
-    const call = (state.aiWorkerPool.processRequest as any).mock.calls[0];
+    const call = (state.aiClient.processRequest as any).mock.calls[0];
     const promptContent = call[0].messages[0].content as string;
 
     // The long message should be truncated to 800 chars
@@ -100,7 +100,7 @@ describe('briefGeneratorNode', () => {
     const state = makeState({ messages: messages as any });
     await briefGeneratorNode(state);
 
-    const call = (state.aiWorkerPool.processRequest as any).mock.calls[0];
+    const call = (state.aiClient.processRequest as any).mock.calls[0];
     const promptContent = call[0].messages[0].content as string;
 
     // Only last 5 messages should appear (messages 4-8)
@@ -119,7 +119,7 @@ describe('briefGeneratorNode', () => {
     const state = makeState({ messages: messages as any });
     await briefGeneratorNode(state);
 
-    const call = (state.aiWorkerPool.processRequest as any).mock.calls[0];
+    const call = (state.aiClient.processRequest as any).mock.calls[0];
     const promptContent = call[0].messages[0].content as string;
 
     // 5 * 800 = 4000 chars of message content + role labels + template text
@@ -129,7 +129,7 @@ describe('briefGeneratorNode', () => {
 
   it('flags briefGenerationFailed and records error when LLM returns empty', async () => {
     const state = makeState({
-      aiWorkerPool: {
+      aiClient: {
         processRequest: vi.fn().mockResolvedValue({ content: '' }),
       } as any,
     });
@@ -144,7 +144,7 @@ describe('briefGeneratorNode', () => {
 
   it('flags briefGenerationFailed and records error on LLM rejection', async () => {
     const state = makeState({
-      aiWorkerPool: {
+      aiClient: {
         processRequest: vi.fn().mockRejectedValue(new Error('LLM timeout')),
       } as any,
     });
@@ -158,7 +158,7 @@ describe('briefGeneratorNode', () => {
   it('truncates generated brief to MAX_BRIEF_LENGTH (500)', async () => {
     const longBrief = 'Z'.repeat(800);
     const state = makeState({
-      aiWorkerPool: {
+      aiClient: {
         processRequest: vi.fn().mockResolvedValue({ content: longBrief }),
       } as any,
     });
@@ -174,7 +174,7 @@ describe('briefGeneratorNode', () => {
 
     await briefGeneratorNode(state);
 
-    const call = (state.aiWorkerPool.processRequest as any).mock.calls[0];
+    const call = (state.aiClient.processRequest as any).mock.calls[0];
     const promptContent = call[0].messages[0].content as string;
 
     expect(promptContent).toContain('Teilfragen:');
@@ -198,7 +198,7 @@ describe('briefGeneratorNode', () => {
 
     await briefGeneratorNode(state);
 
-    const call = (state.aiWorkerPool.processRequest as any).mock.calls[0];
+    const call = (state.aiClient.processRequest as any).mock.calls[0];
     const promptContent = call[0].messages[0].content as string;
 
     expect(promptContent).toContain('Part one. Part two.');

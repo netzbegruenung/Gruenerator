@@ -13,8 +13,8 @@
 import type { ForbiddableArtifact } from './nodes/fastPathGuards.js';
 import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
+import type { AiClient } from '../../../services/ai/types.js';
 import type { SystemMcpKey } from '../../../services/mcp/systemMcpServers.js';
-import type { AIWorkerPool } from '../../../workers/types.js';
 import type {
   WolkeFileRef,
   ConnectFileRef,
@@ -28,6 +28,7 @@ import type {
   ClientPlatform,
   SharepicVariant,
 } from '@gruenerator/contracts';
+import type { RoleLandesverbandInput } from '@gruenerator/shared/agents';
 import type { ModelMessage } from 'ai';
 
 export type { WolkeFileRef, ConnectFileRef, CurrentBoard, SocialPostPayload };
@@ -468,7 +469,7 @@ export interface ChatGraphInput {
    */
   userId?: string | undefined;
   enabledTools: Record<string, boolean>;
-  aiWorkerPool: AIWorkerPool;
+  aiClient: AiClient;
   attachmentContext?: string | undefined;
   imageAttachments?: ImageAttachment[] | undefined;
   threadAttachments?: ThreadAttachment[] | undefined;
@@ -535,6 +536,12 @@ export interface ChatGraphInput {
   clientPlatform?: ClientPlatform | undefined;
   customSystemPrompt?: string | undefined;
   roleBausteinActive?: boolean | undefined;
+  /**
+   * Die Profilrollen der Person. Der Rezept-Katalog leitet daraus ab, welche
+   * Landesverbands-Rezepte das Modell überhaupt kennen darf — dieselbe
+   * Zuteilung, die Agentura und das Mention-Menü anwenden.
+   */
+  userRoles?: readonly RoleLandesverbandInput[] | undefined;
   activeSkillMention?: string | undefined;
   userInstructions?: string | undefined;
   contextWindowTokens?: number | undefined;
@@ -593,7 +600,7 @@ export interface ChatGraphState {
   threadId: string | null;
   agentConfig: AgentConfig;
   enabledTools: Record<string, boolean>;
-  aiWorkerPool: AIWorkerPool;
+  aiClient: AiClient;
   userLocale: UserLocale;
   /** Client shell ('web'/'app') — distinct from `platform`, the social-post target. */
   clientPlatform: ClientPlatform;
@@ -718,6 +725,11 @@ export interface ChatGraphState {
   // not a user-typed prompt. Keeps the loop's recipe self-loading mounted:
   // suppressing recipes protects user personas, not our own role bausteine.
   roleBausteinActive: boolean;
+
+  // Profilrollen der Person. Quelle der Landesverbands-Zuteilung im
+  // Rezept-Katalog: leer heißt „keine Landesgeschäftsstellen-Rolle" und damit
+  // keine LV-Rezepte — dieselbe Regel wie in Agentura und im Mention-Menü.
+  userRoles: readonly RoleLandesverbandInput[];
 
   // Mention key of the active skill (e.g. 'instagram'). When set, respondNode
   // appends the skill's `skillSystemPrompt` as an additive section.

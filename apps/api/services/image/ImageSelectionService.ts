@@ -55,7 +55,7 @@ class ImageSelectionService {
 
   async selectBestImage(
     text: string,
-    aiWorkerPool: unknown,
+    aiClient: unknown,
     options: ImageSelectionOptions = {},
     req: unknown = null
   ): Promise<ImageSelectionResult> {
@@ -71,7 +71,7 @@ class ImageSelectionService {
       const result = await this.imageGraph!.invoke({
         text,
         sharepicType,
-        aiWorkerPool,
+        aiClient,
         req,
       });
 

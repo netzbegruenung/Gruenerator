@@ -15,7 +15,7 @@ import { analyzeTemporality } from '../../../../services/search/TemporalAnalyzer
 import { createLogger } from '../../../../utils/logger.js';
 import { generateResearchQuestions } from '../../WebSearchGraph/utilities/queryOptimizer.js';
 
-import type { AIWorkerPool } from '../../../../workers/types.js';
+import type { AiClient } from '../../../../services/ai/types.js';
 import type { SearchGraphState, QueryType } from '../types.js';
 
 const log = createLogger('SearchGraph:QueryPlanner');
@@ -78,10 +78,10 @@ function formatConversationContext(
 async function reformulateFollowUp(
   rawQuery: string,
   context: string,
-  aiWorkerPool: AIWorkerPool
+  aiClient: AiClient
 ): Promise<string> {
   try {
-    const result = await aiWorkerPool.processRequest(
+    const result = await aiClient.processRequest(
       {
         type: 'text_adjustment',
         systemPrompt: `Schreibe die aktuelle Suchanfrage so um, dass sie eigenständig verständlich ist.
@@ -137,7 +137,7 @@ export async function queryPlannerNode(
 
   let effectiveQuery = rawQuery;
   if (isVagueFollowUp) {
-    effectiveQuery = await reformulateFollowUp(rawQuery, conversationContext, state.aiWorkerPool);
+    effectiveQuery = await reformulateFollowUp(rawQuery, conversationContext, state.aiClient);
     log.info(`[QueryPlanner] Reformulated follow-up: "${rawQuery}" → "${effectiveQuery}"`);
   }
 
@@ -152,7 +152,7 @@ export async function queryPlannerNode(
     // Deep mode: generate 4-5 research questions for multi-angle coverage
     let subQueries: string[] = [];
     try {
-      subQueries = await generateResearchQuestions(rawQuery, state.aiWorkerPool, null);
+      subQueries = await generateResearchQuestions(rawQuery, state.aiClient, null);
       log.info(`[QueryPlanner] Deep mode: generated ${subQueries.length} research questions`);
     } catch (err: unknown) {
       log.warn(
@@ -163,7 +163,7 @@ export async function queryPlannerNode(
     // Fallback: use query expansion
     if (subQueries.length === 0) {
       try {
-        const expanded = await expandQuery(searchTopic, state.aiWorkerPool);
+        const expanded = await expandQuery(searchTopic, state.aiClient);
         subQueries = [searchTopic, ...expanded.alternatives];
       } catch {
         subQueries = [searchTopic];
@@ -183,7 +183,7 @@ export async function queryPlannerNode(
   // Web mode: always generate 2-3 subqueries for multi-angle search
   let subQueries: string[] = [searchTopic];
   try {
-    const expanded = await expandQuery(searchTopic, state.aiWorkerPool);
+    const expanded = await expandQuery(searchTopic, state.aiClient);
     if (expanded.alternatives.length > 0) {
       subQueries = [searchTopic, ...expanded.alternatives];
       log.info(`[QueryPlanner] Web mode: expanded to ${subQueries.length} queries`);

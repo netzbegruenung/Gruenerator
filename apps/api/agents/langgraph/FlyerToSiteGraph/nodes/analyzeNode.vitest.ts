@@ -32,7 +32,7 @@ function makeState(overrides: Partial<FlyerToSiteState> = {}): FlyerToSiteState 
     originalFilename: 'flyer.pdf',
     email: '',
     req: {
-      app: { locals: { aiWorkerPool: { processRequest: mockProcessRequest('') } } },
+      app: { locals: { aiClient: { processRequest: mockProcessRequest('') } } },
       headers: {},
     },
     extractedText: 'Maria Müller, Stadträtin. Klimaschutz und Bildung.',
@@ -78,7 +78,7 @@ describe('analyzeNode', () => {
       req: {
         app: {
           locals: {
-            aiWorkerPool: {
+            aiClient: {
               processRequest: mockProcessRequest(JSON.stringify(analysis)),
             },
           },
@@ -114,7 +114,7 @@ describe('analyzeNode', () => {
       req: {
         app: {
           locals: {
-            aiWorkerPool: {
+            aiClient: {
               processRequest: mockProcessRequest('```json\n' + JSON.stringify(analysis) + '\n```'),
             },
           },
@@ -133,7 +133,7 @@ describe('analyzeNode', () => {
       req: {
         app: {
           locals: {
-            aiWorkerPool: {
+            aiClient: {
               processRequest: mockProcessRequest('This is not valid JSON at all'),
             },
           },
@@ -156,7 +156,7 @@ describe('analyzeNode', () => {
       req: {
         app: {
           locals: {
-            aiWorkerPool: {
+            aiClient: {
               processRequest: mockProcessRequest('AI error', false),
             },
           },
@@ -188,7 +188,7 @@ describe('analyzeNode', () => {
       req: {
         app: {
           locals: {
-            aiWorkerPool: {
+            aiClient: {
               processRequest: mockProcessRequest(JSON.stringify(analysis)),
             },
           },
@@ -208,7 +208,7 @@ describe('analyzeNode', () => {
       req: {
         app: {
           locals: {
-            aiWorkerPool: {
+            aiClient: {
               processRequest: mockProcessRequest('invalid', false),
             },
           },
@@ -226,7 +226,7 @@ describe('analyzeNode', () => {
       req: {
         app: {
           locals: {
-            aiWorkerPool: {
+            aiClient: {
               processRequest: mockProcessRequest(
                 JSON.stringify({
                   name: 'X',

@@ -36,7 +36,7 @@ import {
 import { getCachedPersona } from '../../../services/mem0/personaService.js';
 import { findRole, resolveCustomSystemPrompt } from '../../../services/roles/roleSystemPrompt.js';
 import { recordItemUsageSafe } from '../../../services/usage/ItemUsageService.js';
-import { getAIWorkerPool } from '../../../utils/getAIWorkerPool.js';
+import { getAiClient } from '../../../utils/getAiClient.js';
 import { NextcloudShareManager } from '../../../utils/integrations/nextcloud/shareManager.js';
 import { createLogger } from '../../../utils/logger.js';
 import { captureSseError } from '../../../utils/observability/captureSseError.js';
@@ -166,7 +166,7 @@ type ProcessAttachmentsResult = Awaited<ReturnType<typeof processAttachments>>;
 export interface StreamContext {
   requestId: string;
   userId: string;
-  aiWorkerPool: ReturnType<typeof getAIWorkerPool>;
+  aiClient: ReturnType<typeof getAiClient>;
   notebookIds: string[];
   validMessages: ChatGraphInput['messages'];
   lastUserMessage: ChatGraphInput['messages'][number] | undefined;
@@ -269,9 +269,9 @@ export async function buildStreamContext({
   }
 
   const userId = user.id;
-  const aiWorkerPool = getAIWorkerPool(req);
+  const aiClient = getAiClient(req);
 
-  if (!aiWorkerPool) {
+  if (!aiClient) {
     sse.send('error', {
       error: PROGRESS_MESSAGES.aiUnavailable,
       code: 'provider_unavailable',
@@ -750,11 +750,18 @@ export async function buildStreamContext({
   // Katalogrolle mit Baustein (statt frei getippter Persona): das Rezept-
   // Selbstladen im Loop bleibt dann AN — siehe resolveCustomSystemPrompt.
   let roleBausteinActive = false;
+  // Die ganze Rollenliste, nicht nur die referenzierte: der Rezept-Katalog
+  // leitet daraus die Landesverbands-Zuteilung ab, und die gilt in jedem Turn —
+  // auch in einem ohne gewählte Rolle.
+  //
+  // Ein fehlendes Feld wird zur leeren Liste, nicht zu `null`: anders als das
+  // Frontend, das vor der Hydratation ehrlich nichts weiß, hat der Server den
+  // Nutzerdatensatz in der Hand. „Kein Eintrag" ist hier eine Antwort — keine
+  // Rolle, also keine LV-Rezepte.
+  const storedRoles = user.user_defaults?.profile?.roles;
+  const userRoles: UserRole[] = Array.isArray(storedRoles) ? (storedRoles as UserRole[]) : [];
   if (rawRoleRef) {
-    const storedRoles = user.user_defaults?.profile?.roles;
-    const role = Array.isArray(storedRoles)
-      ? findRole(storedRoles as UserRole[], rawRoleRef)
-      : null;
+    const role = findRole(userRoles, rawRoleRef);
     if (!role) {
       log.warn(
         `[${requestId}] roleRef ${rawRoleRef.ebene}/${rawRoleRef.rolle} findet keine ` +
@@ -789,7 +796,7 @@ export async function buildStreamContext({
       image: true,
       image_edit: true,
     },
-    aiWorkerPool,
+    aiClient,
     attachmentContext: attachmentContext ?? undefined,
     imageAttachments: imageAttachments.length > 0 ? imageAttachments : undefined,
     threadAttachments: previousAttachments.length > 0 ? previousAttachments : undefined,
@@ -834,6 +841,7 @@ export async function buildStreamContext({
     clientPlatform: rawPlatform ?? 'web',
     customSystemPrompt,
     roleBausteinActive,
+    userRoles,
     activeSkillMention: rawActiveSkillMention ?? undefined,
     userInstructions,
     contextWindowTokens,
@@ -899,7 +907,7 @@ export async function buildStreamContext({
     ctx: {
       requestId,
       userId,
-      aiWorkerPool,
+      aiClient,
       notebookIds,
       validMessages,
       lastUserMessage,

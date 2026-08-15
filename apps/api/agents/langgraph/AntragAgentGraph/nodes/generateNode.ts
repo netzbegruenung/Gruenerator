@@ -1,6 +1,6 @@
+import { type AiClient, type Message } from '../../../../services/ai/types.js';
 import { extractLocaleFromRequest } from '../../../../services/localization/index.js';
 import { createLogger } from '../../../../utils/logger.js';
-import { type AIWorkerPool, type Message } from '../../../../workers/types.js';
 import { assemblePromptGraphAsync } from '../../promptAssemblyGraph.js';
 import { LOCALE_CONTEXT, REQUEST_TYPE_DISPLAY_NAMES } from '../types.js';
 
@@ -97,8 +97,8 @@ WICHTIG: Gib nur den finalen deutschen Text aus, keine Erklärungen oder Komment
       request: `Erstelle ${requestTypeDisplay === 'Antrag' ? 'einen ' + requestTypeDisplay : 'eine ' + requestTypeDisplay} zum Thema:\n\n${request.inhalt}${state.gliederung ? `\n\nGremium/Gliederung: ${state.gliederung}` : ''}`,
     });
 
-    const aiWorkerPool = state.req.app.locals.aiWorkerPool as AIWorkerPool;
-    const aiResult = await aiWorkerPool.processRequest(
+    const aiClient = state.req.app.locals.aiClient as AiClient;
+    const aiResult = await aiClient.processRequest(
       {
         type: 'antrag',
         systemPrompt: promptResult.system,

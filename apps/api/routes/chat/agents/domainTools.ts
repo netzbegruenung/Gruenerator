@@ -489,7 +489,7 @@ NUTZE WENN der*die Nutzer*in ${label === 'Präsentation' ? 'eine Präsentation/F
       const created = await runDocGeneration({
         kind,
         userContent: briefWithContext(prompt, state, sourceRegistry),
-        aiWorkerPool: state.aiWorkerPool,
+        aiClient: state.aiClient,
         req,
         userId,
         // The loop's per-call timeout abandons but does not cancel — without
@@ -612,7 +612,7 @@ WICHTIG — PRÜFEN STATT BEHAUPTEN: Das Tool öffnet das erzeugte PDF erneut un
               : pdfKindFromText(prompt);
       const result = await runPdfGeneration({
         userContent,
-        aiWorkerPool: state.aiWorkerPool,
+        aiClient: state.aiClient,
         req,
         userId,
         pdfOptions: {
@@ -702,7 +702,7 @@ NUTZE WENN der*die Nutzer*in ein Board/Kanban zum Thema möchte. ${briefInstruct
       }
       const created = await runBoardGeneration({
         userContent: briefWithContext(prompt, state),
-        aiWorkerPool: state.aiWorkerPool,
+        aiClient: state.aiClient,
         req,
         userId,
         // See makeCreateDocTool — abandoned ≠ cancelled.
