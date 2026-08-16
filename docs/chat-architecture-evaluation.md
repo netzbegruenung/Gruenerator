@@ -216,7 +216,7 @@ Statischer Tool-Katalog + `toolsContext` + `activeTools` · **`AIWorkerPool` zur
 
 - **Deep Agents als zweite Lane, als Loop-Ersatz oder als volles Harness.** Siehe §3.
 - **Den SSE-Stack auf `createUIMessageStream` umbauen.** 34 Event-Typen, ein 1.367-Zeilen-Client-Parser, an assistant-ui gekoppelt, mit live gewachsener Interleaving-Logik. Das ist eine mehrwöchige Neuschreibung, kein Transport-Tausch. Vernünftige Variante: *neue* Event-Typen als `data-*`-Parts, kein Big Bang.
-- **`generateStructured.ts` abschaffen.** Gerechtfertigt, solange der `AIWorkerPool` steht.
+- **`generateStructured.ts` abschaffen.** ~~Gerechtfertigt, solange der `AIWorkerPool` steht.~~ **Entschieden am 16.08.2026 (Phase C/C2):** das Modul ist weg, seine Semantik nicht — sie lebt jetzt in `aiObject` (`services/ai/generate.ts`). Der Beleg aus dem C-Bericht bleibt gültig und war der Grund für genau diese Richtung: `validate` ist ein semantisches Gatter, dessen Meldung die Reparaturrunde treibt, und dafür hat weder `generateObject` (in ai@7.0.58 selbst deprecated) noch `Output.object()` noch `experimental_repairText` einen Slot. Zusammengelegt wurde also nicht die Semantik weg, sondern die zweite Form: `aiObject` und `generateStructured` implementierten dasselbe Muster nebeneinander, und der schwächere Zweitpfad (`parseText`) ließ in Produktion das Leerfolien-Gatter der Präsentation still ausfallen.
 - **`runPassWithFallback` und `providerFallback.ts` ersetzen.** Kein SDK-Äquivalent, verifiziert.
 - **`TokenCounter`/`CHARS_PER_TOKEN` ersetzen.** Das `ai`-Paket liefert keinen Tokenizer.
 - **`withRetry`/`CircuitBreaker` ersetzen.** Werden auch für Nicht-LLM-Aufrufe genutzt (DB-Schreibvorgänge, SearXNG).

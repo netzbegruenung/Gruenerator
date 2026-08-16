@@ -16,8 +16,10 @@
  *
  * MIGRATION STATE, measured 16.08.2026: 62 `processRequest` calls in 55
  * production files still take the envelope (count and method in `types.ts`).
- * `generateTaskList` (services/boards/agentFlow/artifactGen.ts) is the only one
- * that has moved. This is a per-call-site migration, not a flag day.
+ * Moved so far: `generateTaskList` (services/boards/agentFlow/artifactGen.ts)
+ * and the seven structured-creation call sites that used to go through
+ * `generateStructured` (artifactGeneration, docsContractRouter,
+ * runCanvasSuggest). This is a per-call-site migration, not a flag day.
  *
  * IMPORTANT — one engine, two faces. This does NOT reimplement generation: the
  * call itself is `executeProvider`, the same function `processRequest` reaches.
