@@ -40,12 +40,7 @@ import {
   resolveModel,
   type ResolvedModelTuple,
 } from '../responseStreamingService.js';
-import {
-  PROGRESS_MESSAGES,
-  sendChatWarning,
-  startResponseHeartbeat,
-  type SSEWriter,
-} from '../sseHelpers.js';
+import { sendChatWarning, type SSEWriter } from '../sseHelpers.js';
 import {
   getRecentThreadSources,
   getRecentToolSteps,
@@ -64,8 +59,9 @@ import { createTurnClocks, resolveBudget } from './loopBudget.js';
 import { runAgenticLoop, type LoopMode } from './loopEngine.js';
 import { createToolLoopGuards, MAX_SOURCES } from './loopGuards.js';
 import { materialDominatesTurn, resolveLoopMode } from './loopMode.js';
+import { createAnswerEmitter } from './loopSse.js';
 import { buildToolObservationReplay, spliceToolReplay } from './mcpReplay.js';
-import { createOpeningDedupe, stripDuplicatedOpening } from './openingDedupe.js';
+import { stripDuplicatedOpening } from './openingDedupe.js';
 import { createRecipeRegistry } from './recipeRegistry.js';
 import { rewritesSuppliedText } from './routing.js';
 import { createSourceRegistry, withResearchedSources } from './sourceRegistry.js';
@@ -208,79 +204,16 @@ export async function streamAgenticResponse(params: {
     },
   });
   const steps: PersistedStep[] = [];
-  let text = '';
-  // Planner narration sentences buffered since the last tool call started, so
-  // wrapTools can drain + associate them with the tool they announced. Split
-  // mode only; unified narration flows through the answer text via onText.
-  const narrationBuffer: string[] = [];
-  // Split mode's FIRST narration sentence — the model's stated plan, per
-  // GATHER_SUFFIX's instruction to name the whole set of intended artifacts up
-  // front — crosses into the real answer text as soon as a tool ACTUALLY runs,
-  // so it appears as message prose before the first tool card. Held back until
-  // then on purpose: on a steps=0 turn the "plan" announces work that never
-  // happens, and the synth then writes the whole answer anyway — streaming it
-  // there was pure duplication surface. `openingEmitted` is what the synth
-  // prompt and the dedupe key on: only a SHOWN opening must not be restated.
-  // Both stay null/false in unified mode (no onNarration there) and on any
-  // turn where the model never narrated.
-  let openingSentence: string | null = null;
-  let openingEmitted = false;
-  const emitOpeningBeforeTool = (): void => {
-    if (openingSentence == null || openingEmitted) return;
-    openingEmitted = true;
-    endSynthHeartbeat();
-    startResponse();
-    text += `${openingSentence} `;
-    sse.send('text_delta', { text: `${openingSentence} ` });
-  };
-  const takeNarration = (): string | null => {
-    // Called at every tool START (wrapTools) — the first call is the moment
-    // "a tool actually runs" becomes true, so the held-back opening streams
-    // here, before the tool card it announces.
-    emitOpeningBeforeTool();
-    if (narrationBuffer.length === 0) return null;
-    const joined = narrationBuffer.join(' ').trim();
-    narrationBuffer.length = 0;
-    return joined || null;
-  };
-  let responseStarted = false;
+  const emitter = createAnswerEmitter(sse);
   let resolution: Awaited<ReturnType<typeof resolveModel>> | null = null;
   let mcpCatalog: McpCatalog | null = null;
   let systemCatalog: McpCatalog | null = null;
   let toolReplayMessages: ModelMessage[] = [];
   let mode: LoopMode = 'unified';
   let synthName = '';
-  // Declared out here so the finally can disarm it on every exit path.
-  let stopSynthHeartbeat: (() => void) | null = null;
-  const endSynthHeartbeat = (): void => {
-    stopSynthHeartbeat?.();
-    stopSynthHeartbeat = null;
-  };
   // Time the (un-budgeted) MCP tool-mount so a slow connector shows up in the
   // end-of-turn line instead of looking like an unexplained multi-second hang.
   let mcpMountMs = 0;
-
-  const startResponse = (): void => {
-    if (responseStarted) return;
-    responseStarted = true;
-    sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
-  };
-
-  const emitAnswerDelta = (delta: string): void => {
-    // Real content replaces the heartbeat as the UI's proof of progress.
-    endSynthHeartbeat();
-    startResponse();
-    text += delta;
-    sse.send('text_delta', { text: delta });
-  };
-  // Deterministic guard for the opening-sentence invariant (see openingDedupe):
-  // the prompt tells the synth the opening is already on screen, this enforces
-  // it when the model restates it anyway. `openingSentence` is read via getter
-  // because it is only assigned once the gather phase narrates.
-  const answerDedupe = createOpeningDedupe(
-    () => (openingEmitted ? openingSentence : null),
-    emitAnswerDelta
-  );
 
   // Computed BEFORE the model is resolved: the same number decides the lane
   // (precise + reasoning on) and, further down, whether the writer gives up the
@@ -503,8 +436,8 @@ export async function streamAgenticResponse(params: {
       // through the whole gather phase → return null so no (all-0) offsets are
       // recorded, and reload falls back to the legacy cards-first layout.
       // Reads `mode` lazily: it's finalized (line below) before the loop runs.
-      getTextOffset: () => (mode === 'unified' ? text.length : null),
-      takeNarration,
+      getTextOffset: () => (mode === 'unified' ? emitter.text.length : null),
+      takeNarration: () => emitter.takeNarration(),
       ...(toolLabels.size > 0
         ? {
             titleFor: (name: string) => {
@@ -646,8 +579,8 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
       // Gated on openingEmitted, not openingSentence: an opening that was held
       // back (steps=0) was never shown, and telling the synth otherwise would
       // make it SKIP its own first sentence.
-      const openingNote = openingEmitted
-        ? `\n\nHINWEIS: Deine Antwort beginnt bereits mit diesem Satz, der dem*der Nutzer*in schon angezeigt wird: "${openingSentence}" — was du jetzt schreibst, wird DIREKT dahinter angehängt. Wiederhole diesen Satz NICHT und kündige die Erstellung NICHT ein zweites Mal an; führe nahtlos mit dem Ergebnis fort.`
+      const openingNote = emitter.openingEmitted
+        ? `\n\nHINWEIS: Deine Antwort beginnt bereits mit diesem Satz, der dem*der Nutzer*in schon angezeigt wird: "${emitter.openingSentence}" — was du jetzt schreibst, wird DIREKT dahinter angehängt. Wiederhole diesen Satz NICHT und kündige die Erstellung NICHT ein zweites Mal an; führe nahtlos mit dem Ergebnis fort.`
         : '';
       const honestyNote =
         sources.trim().length === 0 && !producedArtifact && !mcpRan
@@ -742,7 +675,7 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
       // the lastToolContext sheet-edit follow-up (QA 08/2026). Split mode is
       // unaffected: there the hook runs before synthesis, while `text` is
       // still empty.
-      if (kind === 'sheet' && MARKDOWN_TABLE_RE.test(text)) {
+      if (kind === 'sheet' && MARKDOWN_TABLE_RE.test(emitter.text)) {
         log.info(
           '[Agentic] create_sheet not called — answer already carries an inline table, skipping forced generation'
         );
@@ -775,7 +708,7 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
       // the generation tool). The `already` check above keeps it idempotent.
       // A forced generation is "a tool actually runs" too — the held-back
       // opening streams before its card, same as a planner-issued call.
-      emitOpeningBeforeTool();
+      emitter.emitOpeningBeforeTool();
       sse.send('tool_step_start', { stepId, toolName, args });
       let result: unknown;
       try {
@@ -857,7 +790,7 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
       synthModel: synth.model,
       ...(synthFallback && { synthFallbackModel: synthFallback.model }),
       onSynthStart: () => {
-        stopSynthHeartbeat = startResponseHeartbeat(sse);
+        emitter.startSynthHeartbeat();
       },
       onSynthFallback: () => {
         // Stillstand ist das Verdikt, das die Messung nicht liefert: es kam
@@ -943,7 +876,7 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
       // holds the head of the answer only while a duplicate is still possible,
       // then streams normally; in unified mode (no narrated opening) it is a
       // pure passthrough from the first delta.
-      onText: (delta) => answerDedupe.push(delta),
+      onText: (delta) => emitter.pushAnswer(delta),
       onReasoning: (delta) => sse.send('reasoning_delta', { text: delta }),
       // Split-gather narration: the planner's inter-tool prose, sentence-wise.
       // The FIRST sentence — the model's opening plan — crosses into the real
@@ -954,28 +887,21 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
       // next tool_step_start to stamp onto its card, and sent live on its own
       // SSE event. Repeating the opening line per tool call would be noise the
       // tool card already carries.
-      onNarration: (s) => {
-        if (openingSentence == null) {
-          openingSentence = s;
-          return;
-        }
-        narrationBuffer.push(s);
-        sse.send('gather_narration', { text: s });
-      },
+      onNarration: (s) => emitter.handleNarration(s),
       validateAnswer: createAnswerValidator(),
     });
-    answerDedupe.flush();
+    emitter.flush();
 
     if (loopResult.replacedStreamed) {
       // The validation retry replaced an answer that was already on the wire.
       // Same replacement channel the citation clamp uses: `completion` swaps
       // the streamed deltas for the corrected text, and the recorded offsets
       // (which index into the discarded stream) are dropped.
-      const prefix = openingEmitted ? `${openingSentence} ` : '';
-      text =
-        prefix + stripDuplicatedOpening(loopResult.text, openingEmitted ? openingSentence : null);
+      const shownOpening = emitter.openingEmitted ? emitter.openingSentence : null;
+      const prefix = shownOpening ? `${shownOpening} ` : '';
+      emitter.setText(prefix + stripDuplicatedOpening(loopResult.text, shownOpening));
       for (const s of steps) delete s.textOffset;
-      sse.send('completion', { text, citations: sourceRegistry.getCitations() });
+      sse.send('completion', { text: emitter.text, citations: sourceRegistry.getCitations() });
     }
 
     // Edit + compound-generation guarantees now run inside afterGather in BOTH
@@ -983,42 +909,39 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
     // post-loop net is needed here. The hooks are idempotent via
     // editorEditsSummary / the `already` artifact check.
 
-    if (text.trim().length === 0) {
+    if (emitter.text.trim().length === 0) {
       // An edit that succeeded but left the model silent must NOT surface the
       // generic "no answer" error (observed live: 5 slides created, chat said
       // "keine Antwort gefunden"). Confirm the edit instead.
-      text = finalState.editorEditsSummary
-        ? `Erledigt — ${finalState.editorEditsSummary}.`
-        : 'Ich konnte dazu leider keine passende Antwort finden. Magst du deine Frage anders formulieren?';
       // Replacement text invalidates offsets recorded against the streamed
       // (whitespace-only) text — drop them so reload keeps cards-first.
       for (const s of steps) delete s.textOffset;
-      startResponse();
-      sse.send('text_delta', { text });
+      emitter.replaceAndStream(
+        finalState.editorEditsSummary
+          ? `Erledigt — ${finalState.editorEditsSummary}.`
+          : 'Ich konnte dazu leider keine passende Antwort finden. Magst du deine Frage anders formulieren?'
+      );
     }
   } catch (err) {
     // Anything the dedupe still holds is real answer text — release it before
     // the outcome logic reads `text`.
-    answerDedupe.flush();
+    emitter.flush();
     const msg = err instanceof Error ? err.message : String(err);
     const aborted =
       err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError');
     log.warn(`[Agentic] loop ${aborted ? 'stopped (budget/abort)' : 'failed'}: ${msg}`);
-    const outcome = resolveAbortOutcome({ text, aborted });
+    const outcome = resolveAbortOutcome({ text: emitter.text, aborted });
     if (outcome?.mode === 'replace') {
-      text = outcome.delta;
       for (const s of steps) delete s.textOffset;
-      startResponse();
-      sse.send('text_delta', { text });
+      emitter.replaceAndStream(outcome.delta);
     } else if (outcome?.mode === 'append') {
       // The half answer stays — it is real work and dropping it helps nobody —
       // but it must not PASS as a finished one. APPEND, never replace: recorded
       // textOffsets index into the prefix and stay valid this way.
-      text += outcome.delta;
-      sse.send('text_delta', { text: outcome.delta });
+      emitter.appendAndStream(outcome.delta);
     }
   } finally {
-    endSynthHeartbeat();
+    emitter.endSynthHeartbeat();
     if (mcpCatalog) await mcpCatalog.close();
     if (systemCatalog) await systemCatalog.close();
     if (resolution?.releaseSlot) await resolution.releaseSlot();
@@ -1028,15 +951,14 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
   // the answer stays whatever the model wrote, it just cannot leave the defect
   // out. Runs before the citation clamp so the note is part of the text the
   // `completion` event may replace.
-  const pdfNote = pdfProblemNote(steps, text);
+  const pdfNote = pdfProblemNote(steps, emitter.text);
   if (pdfNote) {
     log.info('[Agentic] PDF self-check problems not mentioned by the answer — appending them');
-    text += pdfNote;
-    sse.send('text_delta', { text: pdfNote });
+    emitter.appendAndStream(pdfNote);
   }
 
   const finalized = finalizeAnswerText({
-    text,
+    text: emitter.text,
     sourceCount: sourceRegistry.size,
     stepCount: steps.length,
     seenTexts: [
@@ -1052,13 +974,13 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
   // Assigned unconditionally: a stripped artefact delivery changes the answer
   // WITHOUT earning a `completion` — the removal is silent, the text still has
   // to be the one that gets persisted.
-  text = finalized.text;
+  emitter.setText(finalized.text);
   if (finalized.replaced) {
     // Offset-drift protection: the clamp rewrote the answer text, so every
     // recorded textOffset now points into a stale position. Drop them — reload
     // then falls back to the cards-first layout instead of mis-interleaving.
     for (const s of steps) delete s.textOffset;
-    sse.send('completion', { text, citations: sourceRegistry.getCitations() });
+    sse.send('completion', { text: emitter.text, citations: sourceRegistry.getCitations() });
   }
 
   // Per-turn tool-outcome breakdown so a silent connector failure is visible in
@@ -1094,13 +1016,13 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
       mode === 'split' ? ` planner=${loopPlannerModelName()} synth=${synthName}` : ''
     } intent=${finalState.intent} steps=${steps.length} sources=${sourceRegistry.size}${
       sourceRegistry.carriedSize > 0 ? `(carried=${sourceRegistry.carriedSize})` : ''
-    } chars=${text.length}${
+    } chars=${emitter.text.length}${
       mcpMountMs > 0 ? ` mcpMountMs=${mcpMountMs}` : ''
     }${failedTools}${mcpContent}`
   );
 
   return {
-    fullText: text,
+    fullText: emitter.text,
     steps,
     citations: sourceRegistry.getCitations(),
     // MAX_SOURCES, not 10: this is what gets persisted and what a later turn
