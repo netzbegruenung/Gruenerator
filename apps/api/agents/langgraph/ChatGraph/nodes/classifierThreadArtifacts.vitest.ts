@@ -1,6 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 
-import { classifierNode } from './classifierNode.js';
+const executeProvider = vi.fn();
+vi.mock('../../../../services/ai/execution/index.js', () => ({
+  executeProvider: (...args: unknown[]) => executeProvider(...args),
+}));
+
+const { classifierNode } = await import('./classifierNode.js');
 
 import type { ChatGraphState, SearchIntent, ThreadToolContext } from '../types.js';
 
@@ -47,29 +52,31 @@ const DOCUMENT: ThreadToolContext = {
  *  Gespräch hat mehrere Artefakte erzeugt" beginnt. */
 function makeAiClient(editTargetAnswer: string | (() => never)) {
   const editTargetCalls: string[] = [];
-  const processRequest = vi.fn(async (req: { systemPrompt?: string }) => {
-    if (req.systemPrompt?.startsWith('Ein Gespräch hat mehrere Artefakte')) {
-      editTargetCalls.push(req.systemPrompt);
-      if (typeof editTargetAnswer === 'function') editTargetAnswer();
-      return { content: editTargetAnswer };
+  executeProvider.mockReset();
+  executeProvider.mockImplementation(
+    async (_provider: string, _id: string, req: { systemPrompt?: string }) => {
+      if (req.systemPrompt?.startsWith('Ein Gespräch hat mehrere Artefakte')) {
+        editTargetCalls.push(req.systemPrompt);
+        if (typeof editTargetAnswer === 'function') editTargetAnswer();
+        return { content: editTargetAnswer, success: true, stop_reason: 'stop' };
+      }
+      return {
+        content: JSON.stringify({ intent: 'direct', reasoning: 'LLM-Stufe', searchQuery: null }),
+        success: true,
+        stop_reason: 'stop',
+      };
     }
-    return {
-      content: JSON.stringify({ intent: 'direct', reasoning: 'LLM-Stufe', searchQuery: null }),
-    };
-  });
-  return { processRequest, editTargetCalls };
+  );
+  return { editTargetCalls };
 }
 
-function buildState(
-  overrides: Partial<ChatGraphState> & { userMessage: string; pool: { processRequest: unknown } }
-): ChatGraphState {
-  const { userMessage, pool, ...rest } = overrides;
+function buildState(overrides: Partial<ChatGraphState> & { userMessage: string }): ChatGraphState {
+  const { userMessage, ...rest } = overrides;
   return {
     messages: [{ role: 'user' as const, content: userMessage }],
     threadId: 'thread-1',
     agentConfig: STUB_AGENT_CONFIG,
     enabledTools: { search: true, web: true, image: true, image_edit: true },
-    aiClient: pool,
     userLocale: 'de-DE',
     attachmentContext: null,
     imageAttachments: [],
@@ -102,7 +109,6 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
         userMessage: 'Kürze die Begründung auf die Hälfte',
         lastToolContext: SHAREPIC,
         threadArtifacts: BOTH,
-        pool,
       })
     );
     expect(pool.editTargetCalls).toHaveLength(1);
@@ -117,7 +123,6 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
         userMessage: 'Mach den Text größer',
         lastToolContext: SHAREPIC,
         threadArtifacts: BOTH,
-        pool,
       })
     );
     expect(result.intent).toBe('sharepic');
@@ -132,7 +137,6 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
         userMessage: 'Kürze die Begründung auf die Hälfte',
         lastToolContext: DOCUMENT,
         threadArtifacts: [DOCUMENT, SHAREPIC],
-        pool,
       })
     );
     expect(result.intent).toBe('modify_doc');
@@ -148,7 +152,6 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
         userMessage: 'Kürze die Begründung auf die Hälfte',
         lastToolContext: DOCUMENT,
         threadArtifacts: [DOCUMENT, SHAREPIC],
-        pool,
       })
     );
     expect(result.intent).toBe('modify_doc');
@@ -163,7 +166,6 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
         userMessage: 'Erklär mir den Unterschied zwischen Nationalrat und Bundesrat in Österreich',
         lastToolContext: SHAREPIC,
         threadArtifacts: BOTH,
-        pool,
       })
     );
     expect(pool.editTargetCalls).toHaveLength(0);
@@ -176,7 +178,6 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
         userMessage: 'Mach den Text größer',
         lastToolContext: SHAREPIC,
         threadArtifacts: [SHAREPIC],
-        pool,
       })
     );
     expect(pool.editTargetCalls).toHaveLength(0);
@@ -192,7 +193,6 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
         userMessage: 'Kürze die Begründung auf die Hälfte',
         lastToolContext: DOCUMENT,
         threadArtifacts: [DOCUMENT, SHAREPIC],
-        pool,
       })
     );
     expect(pool.editTargetCalls).toHaveLength(1);
@@ -207,7 +207,6 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
         userMessage: 'Kürze die Begründung auf die Hälfte',
         lastToolContext: SHAREPIC,
         threadArtifacts: BOTH,
-        pool,
       })
     );
     expect(result.intent).toBe('modify_doc');

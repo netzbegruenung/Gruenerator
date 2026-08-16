@@ -10,14 +10,10 @@
  * - > 12,000 chars:  Map-reduce (split → parallel summarize → combine)
  */
 
+import { aiText } from '../../../../services/ai/generate.js';
 import { createLogger } from '../../../../utils/logger.js';
-import { intermediateLane } from '../llmConfig.js';
 
-import type { AiClient } from '../../../../services/ai/types.js';
 import type { ChatGraphState } from '../types.js';
-
-/** @see services/ai/intermediateLanes.ts */
-const LANE = intermediateLane('heavy');
 
 const log = createLogger('ChatGraph:Summarize');
 
@@ -66,32 +62,15 @@ Regeln:
 /**
  * Single-pass summarization for short/medium documents.
  */
-async function singlePassSummarize(
-  aiClient: AiClient,
-  title: string,
-  text: string
-): Promise<string> {
-  const response = await aiClient.processRequest(
-    {
-      type: 'chat_summarize',
-      provider: LANE.provider,
-      systemPrompt: SINGLE_PASS_PROMPT,
-      messages: [
-        {
-          role: 'user',
-          content: `Dokument: "${title}"\n\n${text}`,
-        },
-      ],
-      options: {
-        model: LANE.model,
-        max_tokens: 1200,
-        temperature: 0.2,
-      },
-    },
-    null
-  );
-
-  return (response.content || '').trim();
+async function singlePassSummarize(title: string, text: string): Promise<string> {
+  return aiText({
+    lane: 'chat_summarize',
+    pinned: 'heavy',
+    system: SINGLE_PASS_PROMPT,
+    prompt: `Dokument: "${title}"\n\n${text}`,
+    maxOutputTokens: 1200,
+    temperature: 0.2,
+  });
 }
 
 /**
@@ -116,11 +95,7 @@ function splitIntoSegments(text: string): string[] {
  * Map-reduce summarization for long documents.
  * Splits into segments, summarizes each in parallel, then combines.
  */
-async function mapReduceSummarize(
-  aiClient: AiClient,
-  title: string,
-  text: string
-): Promise<string> {
+async function mapReduceSummarize(title: string, text: string): Promise<string> {
   const segments = splitIntoSegments(text);
   log.info(`[Summarize] Map-reduce: ${segments.length} segments from ${text.length} chars`);
 
@@ -128,26 +103,14 @@ async function mapReduceSummarize(
   const mapResults = await Promise.all(
     segments.map(async (segment, i) => {
       try {
-        const response = await aiClient.processRequest(
-          {
-            type: 'chat_summarize_map',
-            provider: LANE.provider,
-            systemPrompt: MAP_PROMPT,
-            messages: [
-              {
-                role: 'user',
-                content: `Abschnitt ${i + 1}/${segments.length} von "${title}":\n\n${segment}`,
-              },
-            ],
-            options: {
-              model: LANE.model,
-              max_tokens: 400,
-              temperature: 0.2,
-            },
-          },
-          null
-        );
-        return (response.content || '').trim();
+        return await aiText({
+          lane: 'chat_summarize_map',
+          pinned: 'heavy',
+          system: MAP_PROMPT,
+          prompt: `Abschnitt ${i + 1}/${segments.length} von "${title}":\n\n${segment}`,
+          maxOutputTokens: 400,
+          temperature: 0.2,
+        });
       } catch (error: unknown) {
         log.warn(
           `[Summarize] Map segment ${i + 1} failed: ${error instanceof Error ? (error instanceof Error ? error.message : String(error)) : String(error)}`
@@ -170,34 +133,21 @@ async function mapReduceSummarize(
   // Reduce phase: combine segment summaries
   const combinedInput = validSummaries.map((s, i) => `### Teil ${i + 1}\n${s}`).join('\n\n');
 
-  const response = await aiClient.processRequest(
-    {
-      type: 'chat_summarize_reduce',
-      provider: LANE.provider,
-      systemPrompt: REDUCE_PROMPT,
-      messages: [
-        {
-          role: 'user',
-          content: `Dokument: "${title}"\n\nTeilzusammenfassungen:\n\n${combinedInput}`,
-        },
-      ],
-      options: {
-        model: LANE.model,
-        max_tokens: 1200,
-        temperature: 0.2,
-      },
-    },
-    null
-  );
-
-  return (response.content || '').trim();
+  return aiText({
+    lane: 'chat_summarize_reduce',
+    pinned: 'heavy',
+    system: REDUCE_PROMPT,
+    prompt: `Dokument: "${title}"\n\nTeilzusammenfassungen:\n\n${combinedInput}`,
+    maxOutputTokens: 1200,
+    temperature: 0.2,
+  });
 }
 
 /**
  * Fallback: summarize conversation history when no documents are available.
  */
 async function summarizeConversation(state: ChatGraphState): Promise<string> {
-  const { messages, aiClient } = state;
+  const { messages } = state;
 
   const recentMessages = messages.slice(-10);
   if (recentMessages.length === 0) {
@@ -220,27 +170,14 @@ async function summarizeConversation(state: ChatGraphState): Promise<string> {
     })
     .join('\n\n');
 
-  const response = await aiClient.processRequest(
-    {
-      type: 'chat_summarize_conversation',
-      provider: LANE.provider,
-      systemPrompt: CONVERSATION_SUMMARY_PROMPT,
-      messages: [
-        {
-          role: 'user',
-          content: conversationText,
-        },
-      ],
-      options: {
-        model: LANE.model,
-        max_tokens: 800,
-        temperature: 0.2,
-      },
-    },
-    null
-  );
-
-  return (response.content || '').trim();
+  return aiText({
+    lane: 'chat_summarize_conversation',
+    pinned: 'heavy',
+    system: CONVERSATION_SUMMARY_PROMPT,
+    prompt: conversationText,
+    maxOutputTokens: 800,
+    temperature: 0.2,
+  });
 }
 
 /**
@@ -262,7 +199,6 @@ export async function summarizeNode(state: ChatGraphState): Promise<Partial<Chat
   let docRetrievalFailed = false;
 
   try {
-    const { aiClient } = state;
     const userId = state.agentConfig.userId;
     const docIds = [...(state.documentChatIds || []), ...(state.documentIds || [])];
 
@@ -300,11 +236,11 @@ export async function summarizeNode(state: ChatGraphState): Promise<Partial<Chat
 
             let summary: string;
             if (text.length <= SINGLE_PASS_THRESHOLD) {
-              summary = await singlePassSummarize(aiClient, title, text);
+              summary = await singlePassSummarize(title, text);
             } else if (text.length <= MAP_REDUCE_THRESHOLD) {
-              summary = await singlePassSummarize(aiClient, title, text);
+              summary = await singlePassSummarize(title, text);
             } else {
-              summary = await mapReduceSummarize(aiClient, title, text);
+              summary = await mapReduceSummarize(title, text);
             }
 
             summaries.push(`## ${title}\n\n${summary}`);
@@ -340,9 +276,9 @@ export async function summarizeNode(state: ChatGraphState): Promise<Partial<Chat
       let summary: string;
 
       if (text.length <= MAP_REDUCE_THRESHOLD) {
-        summary = await singlePassSummarize(aiClient, 'Angehängtes Dokument', text);
+        summary = await singlePassSummarize('Angehängtes Dokument', text);
       } else {
-        summary = await mapReduceSummarize(aiClient, 'Angehängtes Dokument', text);
+        summary = await mapReduceSummarize('Angehängtes Dokument', text);
       }
 
       const summaryTimeMs = Date.now() - startTime;
@@ -370,8 +306,8 @@ export async function summarizeNode(state: ChatGraphState): Promise<Partial<Chat
         );
         const summary =
           userText.length <= MAP_REDUCE_THRESHOLD
-            ? await singlePassSummarize(aiClient, 'Eingefügter Text', userText)
-            : await mapReduceSummarize(aiClient, 'Eingefügter Text', userText);
+            ? await singlePassSummarize('Eingefügter Text', userText)
+            : await mapReduceSummarize('Eingefügter Text', userText);
 
         const summaryTimeMs = Date.now() - startTime;
         return { summaryContext: summary, summaryTimeMs };

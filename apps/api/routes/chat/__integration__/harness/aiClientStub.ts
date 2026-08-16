@@ -27,10 +27,12 @@ export interface AiClientStub extends AiClient {
 }
 
 /**
- * `app.locals.aiClient` is a genuine DI seam (`getAiClient` reads
- * exactly that), and the classifier plus every other in-graph model call goes
- * through `processRequest` — so scripting VERDICTS here replaces the model
- * without touching the AI SDK at all.
+ * `app.locals.aiClient` is a genuine DI seam (`getAiClient` reads exactly
+ * that) — but it is no longer the only door. Call sites are moving onto the
+ * typed facade, which reaches `executeProvider` directly and never looks at
+ * `app.locals`; `executeProviderStub` above routes that door into this same
+ * script, so a scripted VERDICT still replaces the model whichever way the
+ * call site asks.
  *
  * An unscripted type THROWS on purpose. The classifier resolves most phrasings
  * in its heuristic tiers without a model call; when a phrasing later drifts
@@ -56,12 +58,41 @@ const RESOLVER_DEFAULTS: ReadonlyArray<{ prefix: string; reply: string }> = [
   { prefix: 'Entscheide, ob diese Nachricht ein ARTEFAKT', reply: 'keine' },
 ];
 
+/**
+ * The stub the facade's door hands to. Set by `createAiClientStub`, read by
+ * `executeProviderStub` — one per suite, and a suite has one stub.
+ */
+let active: AiClientStub | null = null;
+
+/**
+ * The OTHER door, and the reason this file is no longer enough on its own.
+ *
+ * `aiText`/`aiObject`/`aiTools` never touch `app.locals.aiClient`; they call
+ * `executeProvider` directly. As call sites move onto the facade, scripting
+ * only `processRequest` stops covering them — silently: the classifier's
+ * resolvers then attempt a REAL provider, fail for want of an API key, and
+ * fall through to a heuristic tier, so the test asserts a path it never took.
+ *
+ * Integration files mock `services/ai/execution/index.js` with this, which
+ * routes both doors into the same script.
+ */
+export function executeProviderStub(
+  _provider: string,
+  _requestId: string,
+  data: AIRequestData
+): Promise<AiResult> {
+  if (!active) {
+    throw new Error('executeProviderStub: no aiClient stub has been created for this suite');
+  }
+  return active.processRequest(data);
+}
+
 export function createAiClientStub(): AiClientStub {
   const queues = new Map<string, Responder[]>();
   const resolverQueues = new Map<string, string[]>();
   const calls: AIRequestData[] = [];
 
-  return {
+  const stub: AiClientStub = {
     calls,
     script(type: string, ...replies: Responder[]): void {
       queues.set(type, [...(queues.get(type) ?? []), ...replies]);
@@ -118,4 +149,7 @@ export function createAiClientStub(): AiClientStub {
       return Promise.resolve();
     },
   };
+
+  active = stub;
+  return stub;
 }

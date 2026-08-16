@@ -25,16 +25,12 @@
  *     task type, so it inherits the worker pool's provider fallback.
  */
 
+import { aiText } from '../../../../services/ai/generate.js';
 import { createLogger } from '../../../../utils/logger.js';
-import { intermediateLane } from '../llmConfig.js';
 
 import { renderArtifactChoices } from './artifactInventory.js';
 
-import type { AiClient } from '../../../../services/ai/types.js';
 import type { ThreadToolContext } from '../types.js';
-
-/** @see services/ai/intermediateLanes.ts */
-const LANE = intermediateLane('standard');
 
 const log = createLogger('ChatGraph:EditTarget');
 
@@ -59,7 +55,6 @@ interface ResolveArgs {
   userContent: string;
   /** Newest first, as `listThreadArtifacts` returns them. */
   artifacts: ThreadToolContext[];
-  aiClient: AiClient;
 }
 
 /**
@@ -70,7 +65,6 @@ interface ResolveArgs {
 export async function resolveEditTarget({
   userContent,
   artifacts,
-  aiClient,
 }: ResolveArgs): Promise<number | null> {
   if (artifacts.length < 2) return null;
   const startTime = Date.now();
@@ -79,25 +73,18 @@ export async function resolveEditTarget({
 
   try {
     const response = await withTimeout(
-      aiClient.processRequest(
-        {
-          type: 'chat_intent_classification',
-          provider: LANE.provider,
-          systemPrompt: RESOLVE_PROMPT,
-          messages: [
-            {
-              role: 'user',
-              content: `Artefakte (1 = zuletzt erzeugt):\n${list}\n\nFolgeauftrag: "${userContent}"`,
-            },
-          ],
-          options: { model: LANE.model, max_tokens: 8, temperature: 0 },
-        },
-        null
-      ),
+      aiText({
+        lane: 'chat_intent_classification',
+        pinned: 'standard',
+        system: RESOLVE_PROMPT,
+        prompt: `Artefakte (1 = zuletzt erzeugt):\n${list}\n\nFolgeauftrag: "${userContent}"`,
+        maxOutputTokens: 8,
+        temperature: 0,
+      }),
       RESOLVE_TIMEOUT_MS
     );
 
-    const index = parseIndex(response.content, artifacts.length);
+    const index = parseIndex(response, artifacts.length);
     const elapsedMs = Date.now() - startTime;
     // Resolve the artifact before logging it. Reading `artifacts[index].kind`
     // straight out of the log template made the range check unfalsifiable: with

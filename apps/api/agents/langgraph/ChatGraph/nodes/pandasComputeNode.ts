@@ -12,8 +12,8 @@
  */
 
 import { isTabularAttachment } from '../../../../routes/chat/services/attachmentProcessingService.js';
+import { aiText } from '../../../../services/ai/generate.js';
 import { createLogger } from '../../../../utils/logger.js';
-import { intermediateLane } from '../llmConfig.js';
 
 import { lastUserText } from './classifierHeuristics.js';
 
@@ -27,8 +27,6 @@ const log = createLogger('ChatGraph:PandasCompute');
 // decision on its own — it pinned Mistral Medium here while `computeNode` sat
 // on the shared intermediate model. One place now; the stage carries the
 // rationale and the measurement.
-const LANE = intermediateLane('compute');
-
 const CODEGEN_PROMPT = `Du bist ein Python/pandas-Codegenerator. Im Browser läuft ein Python-Interpreter, in dem die Tabelle der*des Nutzer*in bereits als pandas-DataFrame \`df\` vorgeladen ist (pandas ist als \`pd\` importiert).
 
 Antworte AUSSCHLIESSLICH mit einem JSON-Objekt dieser Form:
@@ -207,23 +205,17 @@ ${isFill ? 'Auftrag' : 'Frage'} der*des Nutzer*in: ${question}${correctionBlock}
 
 Schreibe den Python-Code.`;
 
-    const response = await state.aiClient.processRequest(
-      {
-        type: 'chat_pandas_codegen',
-        provider: LANE.provider,
-        systemPrompt: isFill ? FILL_PROMPT : CODEGEN_PROMPT,
-        messages: [{ role: 'user', content: userMessage }],
-        options: {
-          model: LANE.model,
-          max_tokens: isFill ? 1500 : 500,
-          temperature: 0.1,
-          response_format: { type: 'json_object' },
-        },
-      },
-      null
-    );
+    const content = await aiText({
+      lane: 'chat_pandas_codegen',
+      pinned: 'compute',
+      system: isFill ? FILL_PROMPT : CODEGEN_PROMPT,
+      prompt: userMessage,
+      maxOutputTokens: isFill ? 1500 : 500,
+      temperature: 0.1,
+      json: true,
+    });
 
-    const parsed = parseCodegenResponse(response.content || '');
+    const parsed = parseCodegenResponse(content);
     const code = parsed.code.slice(0, isFill ? MAX_FILL_CODE_CHARS : MAX_CODE_CHARS);
     // Escape valve: the model judged the question unrelated to the table —
     // fall through to the normal pipeline instead of running pointless code.

@@ -9,6 +9,11 @@ import { createLogger } from '../utils/logger.js';
 import { createCache, type LRUCache } from '../utils/redis/index.js';
 import { InputValidator, ValidationError, simpleHash } from '../utils/validation/index.js';
 
+import { aiText } from './ai/generate.js';
+
+/** Gepinnt, nicht geroutet: `search_enhancement` hat keine Zeile in `AI_LANES`. */
+const ENHANCEMENT_TARGET = { provider: 'mistral', model: 'mistral-medium-2604' } as const;
+
 const log = createLogger('AISearchAgent');
 
 // =============================================================================
@@ -344,7 +349,7 @@ class AISearchAgent {
         throw new Error('Request object required for AI worker access');
       }
 
-      const enhancementResult = await this.callAiClient(query, contentType, options, req);
+      const enhancementResult = await this.callAiClient(query, contentType, options);
       const enhancement = this.parseAIResponse(enhancementResult, query);
 
       if (useCache && enhancement.success) {
@@ -367,9 +372,8 @@ class AISearchAgent {
   private async callAiClient(
     query: string,
     contentType: string,
-    options: EnhanceQueryOptions,
-    req: ExpressRequest
-  ): Promise<AiResult> {
+    options: EnhanceQueryOptions
+  ): Promise<string> {
     try {
       const validQuery = InputValidator.validateSearchQuery(query);
       const validContentType = InputValidator.validateContentType(contentType);
@@ -379,27 +383,14 @@ class AISearchAgent {
 
       log.debug('Calling AI worker for query enhancement');
 
-      const result = await req.app.locals.aiClient.processRequest(
-        {
-          type: 'search_enhancement',
-          systemPrompt: systemPrompt,
-          messages: [
-            {
-              role: 'user',
-              content: userContent,
-            },
-          ],
-          options: {
-            model: 'mistral-medium-2604',
-            max_tokens: 1000,
-            temperature: 0.3,
-            provider: 'mistral',
-          },
-        },
-        req
-      );
-
-      return result;
+      return await aiText({
+        lane: 'search_enhancement',
+        system: systemPrompt,
+        prompt: userContent,
+        pinned: ENHANCEMENT_TARGET,
+        maxOutputTokens: 1000,
+        temperature: 0.3,
+      });
     } catch (error) {
       if (error instanceof ValidationError) {
         log.error(`AI worker input validation failed: ${error.message}`);
@@ -484,13 +475,13 @@ Antworte NUR mit diesem JSON (keine Markdown-Blöcke):
   /**
    * Parse and validate AI response
    */
-  private parseAIResponse(aiResult: AiResult, originalQuery: string): EnhancementResult {
+  private parseAIResponse(answer: string, originalQuery: string): EnhancementResult {
     try {
-      if (!aiResult || !aiResult.success || !aiResult.content) {
+      if (!answer) {
         throw new Error('Invalid AI worker response');
       }
 
-      let content = aiResult.content.trim();
+      let content = answer.trim();
 
       if (content.startsWith('```json')) {
         content = content
@@ -531,8 +522,11 @@ Antworte NUR mit diesem JSON (keine Markdown-Blöcke):
         source: 'ai_enhanced',
         metadata: {
           timestamp: new Date().toISOString(),
-          aiProvider: aiResult.metadata?.provider || 'bedrock',
-          model: aiResult.metadata?.model || 'haiku',
+          // Der Pin IST die Antwort auf beide Fragen. Vorher stand hier die
+          // Antwort-Metadaten mit dem Rückfall `bedrock`/`haiku` — ein Anbieter,
+          // den dieses Repo in Produktion nicht nutzt (CLAUDE.md).
+          aiProvider: ENHANCEMENT_TARGET.provider,
+          model: ENHANCEMENT_TARGET.model,
         },
       };
     } catch (error) {

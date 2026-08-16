@@ -1,4 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+
+vi.mock('../services/ai/execution/index.js', () => ({
+  executeProvider: async (...args: unknown[]) => {
+    const { censusExecuteProvider } = await import('./classifierCensusHarness.js');
+    return censusExecuteProvider(...(args as Parameters<typeof censusExecuteProvider>));
+  },
+}));
 
 import { runClassifierCensus } from './classifierCensusHarness.js';
 

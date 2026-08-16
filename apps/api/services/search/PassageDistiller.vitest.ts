@@ -1,8 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { distillPassages } from './PassageDistiller.js';
+const executeProvider = vi.fn();
+vi.mock('../ai/execution/index.js', () => ({
+  executeProvider: (...args: unknown[]) => executeProvider(...args),
+}));
 
-import type { AiClient } from '../ai/types.js';
+const { distillPassages } = await import('./PassageDistiller.js');
 
 vi.mock('../../utils/logger.js', () => ({
   createLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() }),
@@ -42,11 +45,11 @@ function rerankRanking(order: string[]) {
   });
 }
 
-function makePool(content = '- Verdichteter Fakt.'): AiClient {
-  return {
-    processRequest: vi.fn().mockResolvedValue({ content }),
-    shutdown: vi.fn(),
-  } as unknown as AiClient;
+/** The condenser answers with `content`. `condense: true` is what switches the
+ *  LLM stage on — it replaced the presence of an injected client. */
+function answering(content = '- Verdichteter Fakt.') {
+  executeProvider.mockResolvedValue({ content, success: true, stop_reason: 'stop' });
+  return { condense: true as const };
 }
 
 const ORIGINAL_ENV = { ...process.env };
@@ -212,13 +215,12 @@ describe('distillPassages', () => {
 
   describe('LLM condensation', () => {
     it('makes no model call when the flag is off', async () => {
-      const pool = makePool();
-      const out = await distillPassages({ ...base, text: FOUR_BLOCKS, aiClient: pool });
-      expect(pool.processRequest).not.toHaveBeenCalled();
+      const out = await distillPassages({ ...base, text: FOUR_BLOCKS, ...answering() });
+      expect(executeProvider).not.toHaveBeenCalled();
       expect(out.llmUsed).toBe(false);
     });
 
-    it('makes no model call without a pool, even with the flag on', async () => {
+    it('makes no model call unless the caller asked to condense, flag on or not', async () => {
       process.env.CHAT_PASSAGE_DISTILL_LLM = 'true';
       const out = await distillPassages({ ...base, text: FOUR_BLOCKS });
       expect(out.llmUsed).toBe(false);
@@ -226,32 +228,27 @@ describe('distillPassages', () => {
 
     it('condenses each kept passage when enabled', async () => {
       process.env.CHAT_PASSAGE_DISTILL_LLM = 'true';
-      const pool = makePool('- Beitragssatz 2027: 3,6 %.');
       const out = await distillPassages({
         ...base,
         text: FOUR_BLOCKS,
         targetChars: 2000,
-        aiClient: pool,
+        ...answering('- Beitragssatz 2027: 3,6 %.'),
       });
-      expect(pool.processRequest).toHaveBeenCalled();
+      expect(executeProvider).toHaveBeenCalled();
       expect(out.llmUsed).toBe(true);
       expect(out.digest).toContain('3,6 %');
     });
 
     it('falls back to the raw passage when a call fails, without throwing', async () => {
       process.env.CHAT_PASSAGE_DISTILL_LLM = 'true';
-      const pool = {
-        processRequest: vi
-          .fn()
-          .mockResolvedValueOnce({ content: '- Fakt.' })
-          .mockRejectedValue(new Error('provider down')),
-        shutdown: vi.fn(),
-      } as unknown as AiClient;
+      executeProvider
+        .mockResolvedValueOnce({ content: '- Fakt.', success: true, stop_reason: 'stop' })
+        .mockRejectedValue(new Error('provider down'));
       const out = await distillPassages({
         ...base,
         text: FOUR_BLOCKS,
         targetChars: 3000,
-        aiClient: pool,
+        condense: true,
       });
       expect(out.digest.length).toBeGreaterThan(0);
       expect(out.llmUsed).toBe(true);
@@ -259,14 +256,11 @@ describe('distillPassages', () => {
 
     it('keeps the selection result when every call times out', async () => {
       process.env.CHAT_PASSAGE_DISTILL_LLM = 'true';
-      const pool = {
-        processRequest: vi.fn(() => new Promise(() => {})),
-        shutdown: vi.fn(),
-      } as unknown as AiClient;
+      executeProvider.mockImplementation(() => new Promise(() => {}));
       const out = await distillPassages({
         ...base,
         text: FOUR_BLOCKS,
-        aiClient: pool,
+        condense: true,
         timeoutMs: 20,
       });
       expect(out.llmUsed).toBe(false);
@@ -275,8 +269,7 @@ describe('distillPassages', () => {
 
     it('drops a passage the extractor reports as empty', async () => {
       process.env.CHAT_PASSAGE_DISTILL_LLM = 'true';
-      const pool = makePool('-');
-      const out = await distillPassages({ ...base, text: FOUR_BLOCKS, aiClient: pool });
+      const out = await distillPassages({ ...base, text: FOUR_BLOCKS, ...answering('-') });
       expect(out.llmUsed).toBe(false);
     });
   });
@@ -303,7 +296,7 @@ describe('distillPassages', () => {
         text: FOUR_BLOCKS,
         mode: 'faithful',
         targetChars: 2000,
-        aiClient: makePool(),
+        ...answering(),
       });
       expect(out.method).toBe('llm');
       expect(out.keptChunks).toBe(out.totalChunks);
@@ -330,17 +323,16 @@ describe('distillPassages', () => {
         method: 'cross-encoder',
         llmUsed: true,
       });
-      const pool = makePool();
       const out = await distillPassages({
         ...base,
         text: FOUR_BLOCKS,
         url: 'https://example.org/a',
-        aiClient: pool,
+        ...answering(),
       });
       expect(out.cache).toBe('hit');
       expect(out.digest).toBe('zwischengespeichert');
       expect(rerankPipeline).not.toHaveBeenCalled();
-      expect(pool.processRequest).not.toHaveBeenCalled();
+      expect(executeProvider).not.toHaveBeenCalled();
     });
 
     it('writes on a miss', async () => {

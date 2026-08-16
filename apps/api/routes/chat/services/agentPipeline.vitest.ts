@@ -12,10 +12,14 @@
 
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-import { _resetModelHealthForTests } from '../../../services/ai/modelHealth.js';
-import { getPipelineAgent } from '../agents/pipelines/index.js';
+const executeProvider = vi.fn();
+vi.mock('../../../services/ai/execution/index.js', () => ({
+  executeProvider: (...args: unknown[]) => executeProvider(...args),
+}));
 
-import { resolveOriginalText, runAgentPipeline } from './agentPipeline.js';
+const { _resetModelHealthForTests } = await import('../../../services/ai/modelHealth.js');
+const { getPipelineAgent } = await import('../agents/pipelines/index.js');
+const { resolveOriginalText, runAgentPipeline } = await import('./agentPipeline.js');
 
 import type { ThreadAttachment } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { PipelineAgent } from '../agents/pipelines/index.js';
@@ -40,18 +44,21 @@ function fakePool(answers: Record<string, string | null>) {
     provider: string;
     model: string;
   }> = [];
-  const processRequest = vi.fn(async (req: Record<string, unknown>) => {
-    const messages = req.messages as Array<{ content: string }>;
-    calls.push({
-      type: String(req.type),
-      systemPrompt: String(req.systemPrompt),
-      userMessage: messages[0]?.content ?? '',
-      provider: String(req.provider),
-      model: String((req.options as { model?: string } | undefined)?.model),
-    });
-    return { content: answers[String(req.type)] ?? null };
-  });
-  return { calls, pool: { processRequest } };
+  executeProvider.mockReset();
+  executeProvider.mockImplementation(
+    async (provider: string, _id: string, req: Record<string, unknown>) => {
+      const messages = req.messages as Array<{ content: string }>;
+      calls.push({
+        type: String(req.type),
+        systemPrompt: String(req.systemPrompt),
+        userMessage: messages[0]?.content ?? '',
+        provider,
+        model: String((req.options as { model?: string } | undefined)?.model),
+      });
+      return { content: answers[String(req.type)] ?? null, success: true, stop_reason: 'stop' };
+    }
+  );
+  return { calls };
 }
 
 function fakeSse(): {
@@ -78,10 +85,10 @@ function run(
   overrides: { produced?: string; original?: string } = {}
 ) {
   const { sse, sent } = fakeSse();
-  const { calls, pool } = fakePool(answers);
+  const { calls } = fakePool(answers);
   const promise = runAgentPipeline({
     pipeline: ES,
-    state: { aiClient: pool } as never,
+    state: {} as never,
     sse: sse as never,
     produced: overrides.produced ?? FASSUNG,
     original: overrides.original ?? ORIGINAL,
@@ -210,18 +217,20 @@ describe('runAgentPipeline', () => {
       // Nur der ERSTE Schritt hängt; der zweite antwortet sofort, damit die
       // Kette nach dem Freigeben zu Ende läuft.
       const holder: { release?: () => void } = {};
-      const pool = {
-        processRequest: vi.fn(async (req: Record<string, unknown>) => {
-          if (String(req.type) !== RUECK_TYPE) return { content: 'FREIGABE' };
+      executeProvider.mockReset();
+      executeProvider.mockImplementation(
+        async (_p: string, _id: string, req: Record<string, unknown>) => {
+          if (String(req.type) !== RUECK_TYPE)
+            return { content: 'FREIGABE', success: true, stop_reason: 'stop' };
           await new Promise<void>((resolve) => {
             holder.release = resolve;
           });
-          return { content: 'Fachdeutsch.' };
-        }),
-      };
+          return { content: 'Fachdeutsch.', success: true, stop_reason: 'stop' };
+        }
+      );
       const promise = runAgentPipeline({
         pipeline: ES,
-        state: { aiClient: pool } as never,
+        state: {} as never,
         sse: sse as never,
         produced: FASSUNG,
         original: ORIGINAL,
@@ -264,23 +273,24 @@ describe('runAgentPipeline — Sibling bei Langsamkeit', () => {
 
   /** Ein Pool, dessen Antwort je Provider verschieden ausfällt. */
   function poolNachProvider(handler: (provider: string, type: string) => Promise<string | null>): {
-    pool: { processRequest: ReturnType<typeof vi.fn> };
     calls: Array<{ provider: string; type: string }>;
   } {
     const calls: Array<{ provider: string; type: string }> = [];
-    const processRequest = vi.fn(async (req: Record<string, unknown>) => {
-      const provider = String(req.provider);
-      const type = String(req.type);
-      calls.push({ provider, type });
-      return { content: await handler(provider, type) };
-    });
-    return { pool: { processRequest }, calls };
+    executeProvider.mockReset();
+    executeProvider.mockImplementation(
+      async (provider: string, _id: string, req: Record<string, unknown>) => {
+        const type = String(req.type);
+        calls.push({ provider, type });
+        return { content: await handler(provider, type), success: true, stop_reason: 'stop' };
+      }
+    );
+    return { calls };
   }
 
-  const laufe = (pool: { processRequest: ReturnType<typeof vi.fn> }) =>
+  const laufe = () =>
     runAgentPipeline({
       pipeline: ES,
-      state: { aiClient: pool } as never,
+      state: {} as never,
       sse: fakeSse().sse as never,
       produced: FASSUNG,
       original: ORIGINAL,
@@ -289,8 +299,8 @@ describe('runAgentPipeline — Sibling bei Langsamkeit', () => {
   it('ruft den Sibling NICHT, wenn der Primär rechtzeitig antwortet', async () => {
     // Der teuerste Fehlgriff wäre ein Hedge, der immer feuert: jeder Schritt
     // kostete dann zwei Aufrufe, in Tokens wie in CO₂.
-    const { pool, calls } = poolNachProvider(async () => 'Fertig.');
-    await laufe(pool);
+    const { calls } = poolNachProvider(async () => 'Fertig.');
+    await laufe();
 
     expect(calls.map((c) => c.provider)).toEqual(['regolo', 'regolo']);
   });
@@ -298,12 +308,12 @@ describe('runAgentPipeline — Sibling bei Langsamkeit', () => {
   it('lässt den Sibling gewinnen, wenn der Primär über die Frist hinaus schweigt', async () => {
     vi.useFakeTimers();
     try {
-      const { pool, calls } = poolNachProvider(async (provider) => {
+      const { calls } = poolNachProvider(async (provider) => {
         // Der Primär antwortet nie — der langsame Lauf vom 14.08. im Extrem.
         if (provider === 'regolo') return new Promise<string>(() => {});
         return 'Vom Sibling.';
       });
-      const promise = laufe(pool);
+      const promise = laufe();
 
       // Vor der Frist (30 s für die Rückübersetzung) darf nichts passieren.
       await vi.advanceTimersByTimeAsync(20_000);
@@ -328,15 +338,15 @@ describe('runAgentPipeline — Sibling bei Langsamkeit', () => {
     // schon bewiesen hat.
     vi.useFakeTimers();
     try {
-      const stumm = poolNachProvider(async (provider) =>
+      poolNachProvider(async (provider) =>
         provider === 'regolo' ? new Promise<string>(() => {}) : 'Vom Sibling.'
       );
-      const ersterLauf = laufe(stumm.pool);
+      const ersterLauf = laufe();
       await vi.advanceTimersByTimeAsync(300_000);
       await ersterLauf;
 
       const zweiter = poolNachProvider(async () => 'Vom Sibling.');
-      await laufe(zweiter.pool);
+      await laufe();
 
       // Kein Tick auf der Uhr, und Regolo wurde gar nicht erst gefragt.
       expect(zweiter.calls.map((c) => c.provider)).toEqual(['scaleway', 'scaleway']);
@@ -350,16 +360,22 @@ describe('runAgentPipeline — Sibling bei Langsamkeit', () => {
     // wäre eine halbe Minute geschenkt.
     vi.useFakeTimers();
     try {
-      const { pool, calls } = poolNachProvider(async (provider) =>
-        provider === 'regolo' ? null : 'Vom Sibling.'
+      // NUR der Sibling antwortet: der Primär fällt aus, und mit ihm die
+      // generische Ausfallkette hinter ihm (litellm → mistral). Sonst finge die
+      // Kette den Schritt ab, bevor der Hedge überhaupt drankäme — was sie in
+      // Produktion auch tut, hier aber den Prüfgegenstand verdeckt.
+      const { calls } = poolNachProvider(async (provider) =>
+        provider === 'scaleway' ? 'Vom Sibling.' : null
       );
-      const promise = laufe(pool);
+      const promise = laufe();
       await vi.advanceTimersByTimeAsync(0);
 
       // Ohne einen einzigen Tick auf der Uhr: beide Schritte sind schon durch,
-      // je Schritt Primär und dann sofort der Sibling.
+      // je Schritt Primär, dessen Ausfallkette — und dann sofort der Sibling.
       expect(calls.filter((c) => c.type === RUECK_TYPE).map((c) => c.provider)).toEqual([
         'regolo',
+        'litellm',
+        'mistral',
         'scaleway',
       ]);
       expect(await promise).toContain('Vom Sibling.');

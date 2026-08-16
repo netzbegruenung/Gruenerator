@@ -12,11 +12,7 @@
  */
 
 import { createLogger } from '../../utils/logger.js';
-import { intermediateLane } from '../ai/intermediateLanes.js';
-import { type AiClient } from '../ai/types.js';
-
-/** @see services/ai/intermediateLanes.ts */
-const LANE = intermediateLane('standard');
+import { aiText } from '../ai/generate.js';
 
 const log = createLogger('QueryExpansion');
 
@@ -42,9 +38,10 @@ Antworte NUR mit JSON:
 
 /**
  * Expand a search query into multiple alternative formulations.
- * Uses the AI worker pool for a fast Mistral-small call.
+ * Runs on the `standard` intermediate stage — short output, but user-visible
+ * latency (see services/ai/intermediateLanes.ts).
  */
-export async function expandQuery(query: string, aiClient: AiClient): Promise<ExpandedQuery> {
+export async function expandQuery(query: string): Promise<ExpandedQuery> {
   // Check cache first
   const cacheKey = query.toLowerCase().trim();
   const cached = expansionCache.get(cacheKey);
@@ -54,23 +51,17 @@ export async function expandQuery(query: string, aiClient: AiClient): Promise<Ex
   }
 
   try {
-    const response = await aiClient.processRequest(
-      {
-        type: 'chat_query_expansion',
-        provider: LANE.provider,
-        systemPrompt: EXPANSION_PROMPT,
-        messages: [{ role: 'user', content: `Suchanfrage: "${query}"` }],
-        options: {
-          model: LANE.model,
-          max_tokens: 100,
-          temperature: 0.3,
-          response_format: { type: 'json_object' },
-        },
-      },
-      null
-    );
+    const content = await aiText({
+      lane: 'chat_query_expansion',
+      pinned: 'standard',
+      system: EXPANSION_PROMPT,
+      prompt: `Suchanfrage: "${query}"`,
+      maxOutputTokens: 100,
+      temperature: 0.3,
+      json: true,
+    });
 
-    const parsed = parseExpansionResponse(response.content || '');
+    const parsed = parseExpansionResponse(content);
     const result: ExpandedQuery = {
       primary: query,
       alternatives: parsed,
