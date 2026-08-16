@@ -183,7 +183,7 @@ describe('NON_SEARCH_INTENTS — Politik des Heuristik-Tisches, keine Dispositio
   it('deckt sich mit keiner Vereinigung von Dispositionen', () => {
     // Die Messung, die den Kopfkommentar der Menge trägt: `prose` und
     // `artifact` ganz, `anchor` und `gated` je zur Hälfte, dazu ein einzelnes
-    // `umfragen` aus `loop`. Wer daraus eine Ableitung machen will, ändert
+    // `umfragen` — seit Phase L aus `retired`. Wer daraus eine Ableitung will, ändert
     // Verhalten — der Test sagt, wieviel.
     //
     // Dass `artifact` vollständig drinsteht und `gated` bis auf drei, hat einen
