@@ -19,10 +19,12 @@ const AGENTIC = new Set([
   'mcp',
   'summary',
   'hilfe',
-  'umfragen',
   'image',
   'agentic',
 ]);
+// `umfragen` steht hier und NICHT in AGENTIC oben — genau die Lage nach seiner
+// Stilllegung: als Verdikt erzeugt es niemand mehr, aber ein aus einem alten
+// Thread zurückgereichter `intent: 'umfragen'` muss weiterhin in die Schleife.
 const SYSTEM_TOOLS = new Set(['umfragen', 'hilfe']);
 
 const base: TurnPlanInput = {
@@ -48,6 +50,7 @@ const base: TurnPlanInput = {
   hasNamedBoard: false,
   isSharepicRefinement: false,
   pipelineForceIntent: null,
+  mentionPinnedTool: null,
 };
 
 const plan = (o: Partial<TurnPlanInput>) => decideTurnPlan({ ...base, ...o });
@@ -264,5 +267,65 @@ describe('decideTurnPlan — Endgültigkeit des Intents', () => {
     expect(p.runAgentic).toBe(false);
     expect(p.intent).toBe('web');
     expect(p.backfillSearchQuery).toBe(true);
+  });
+});
+
+describe('decideTurnPlan — ein per Erwähnung gepinntes Werkzeug', () => {
+  /** So kommt `@umfragen` seit der Stilllegung seines Intents hier an. */
+  const pinned = {
+    intent: 'agentic' as ChatIntentId,
+    forcedTool: true,
+    mentionPinnedTool: 'umfragen',
+  };
+
+  it('kommt in die Schleife, obwohl `forcedTool` sie sonst killt', () => {
+    expect(plan(pinned).runAgentic).toBe(true);
+    // Beweis, dass der PIN es tut und nicht der Intent: derselbe Turn ohne ihn
+    // fällt auf den Einzeldurchlauf — und dort über den Auffang auf `search`.
+    const withoutPin = plan({ ...pinned, mentionPinnedTool: null });
+    expect(withoutPin.runAgentic).toBe(false);
+    expect(withoutPin.intent).toBe('search');
+  });
+
+  // Beide Hälften von `mustLoop`: `agentic` hat in `executeIntentPipeline`
+  // keinen Zweig, ein ausgesperrter Turn landete also auf der Dokumentensuche.
+  // Vor der Stilllegung trug `umfragen` das über SYSTEM_TOOL_INTENTS.
+  it('auch mit ausgeschalteter Schleife', () => {
+    const p = plan({ ...pinned, loopEnabled: false });
+    expect(p.runAgentic).toBe(true);
+    expect(p.intent).toBe('agentic');
+  });
+
+  it('auch mit gewählter Wissenssammlung', () => {
+    expect(plan({ ...pinned, hasSelectedNotebook: true }).runAgentic).toBe(true);
+  });
+
+  // Die Notausschalter, die AUCH `mustLoop` nicht aufhebt, bleiben stehen —
+  // sonst hätte der Pin mehr Macht als der Intent, den er ersetzt.
+  it('ein Bildanhang sperrt ihn trotzdem aus', () => {
+    const p = plan({ ...pinned, hasImageAttachments: true });
+    expect(p.runAgentic).toBe(false);
+    expect(p.intent).toBe('search');
+  });
+
+  it('ein Pipeline-Agent vetot ihn trotzdem', () => {
+    const p = plan({ ...pinned, pipelineForceIntent: 'produktion' });
+    expect(p.lane).toBe('pipeline');
+    expect(p.runAgentic).toBe(false);
+  });
+
+  // `@bundestag` pinnt ebenfalls ein Werkzeug, trägt aber einen Intent MIT
+  // eigenem Executor. Für ihn darf sich nichts ändern: `forcedLane: 'loop'`
+  // hebt nur den forcedTool-Notausschalter auf, nicht das Gate — mit
+  // ausgeschalteter Schleife bleibt er beim Einzeldurchlauf.
+  it('lässt `@bundestag` unverändert beim Einzeldurchlauf, wenn die Schleife aus ist', () => {
+    const p = plan({
+      intent: 'bundestag',
+      forcedTool: true,
+      mentionPinnedTool: 'bundestag',
+      loopEnabled: false,
+    });
+    expect(p.runAgentic).toBe(false);
+    expect(p.intent).toBe('bundestag');
   });
 });

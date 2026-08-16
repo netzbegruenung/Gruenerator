@@ -28,7 +28,6 @@ import type {
   SharepicVariant,
 } from '@gruenerator/contracts';
 import type { RoleLandesverbandInput } from '@gruenerator/shared/agents';
-import type { ChatIntentId } from '@gruenerator/shared/chat-intents';
 import type { ModelMessage } from 'ai';
 
 export type { WolkeFileRef, ConnectFileRef, CurrentBoard, SocialPostPayload };
@@ -1006,14 +1005,18 @@ export interface ChatGraphState {
   // hint. Null = run over all enabled servers.
   mcpServerScope?: string | null | undefined;
 
-  // Der Intent, den eine @-Erwähnung dieses Turns festgezurrt hat. Gesetzt von
-  // `forcedIntentStage` neben `mcpServerScope` und aus demselben Grund: der
-  // Loop muss wissen, was die Person GEWÄHLT hat, und `state.intent` allein
-  // sagt das nicht — ein Klassifikator-Verdikt sieht dort genauso aus.
+  // Das WERKZEUG, das eine @-Erwähnung dieses Turns festgezurrt hat. Gesetzt von
+  // `forcedIntentStage` neben `mcpServerScope` und aus demselben Grund: der Loop
+  // muss wissen, was die Person GEWÄHLT hat, und `state.intent` allein sagt das
+  // nicht — ein Klassifikator-Verdikt sieht dort genauso aus.
   //
-  // Der Loop liest es, um den ersten Werkzeugaufruf beim Namen zu nennen statt
-  // nur „irgendeines" zu verlangen. Null/abwesend = niemand hat gewählt.
-  mentionPinnedIntent?: ChatIntentId | null | undefined;
+  // Zwei Leser, beide im Loop: der erste Werkzeugaufruf wird beim NAMEN genannt
+  // statt nur „irgendeiner" verlangt (`pinnedFirstTool`), und der Pin selbst
+  // zwingt den Turn in die Schleife (`turnPlan`) — dort und nur dort gibt es
+  // Werkzeuge. Ein Werkzeugname und keine `ChatIntentId`, damit eine Erwähnung
+  // eine Fähigkeit festzurren kann, deren Intent stillgelegt ist (`@umfragen`).
+  // Null/abwesend = niemand hat gewählt.
+  mentionPinnedTool?: string | null | undefined;
 
   // The first-party MANAGED connectors this turn mounts (`bahn`, `wetter`,
   // `gesetze`, …). Set by the vocabulary trigger in the router, or by an

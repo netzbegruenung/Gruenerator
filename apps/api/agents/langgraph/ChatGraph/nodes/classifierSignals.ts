@@ -26,7 +26,8 @@ import type { SearchIntent, SearchSource } from '../types.js';
  * Dispositions-Achse abgeleitet.
  *
  * Gemessen gegen sie deckt sie sich auch nicht: `anchor` nur zur Hälfte,
- * `gated` zur Hälfte, dazu `umfragen` aus `loop`. Sechs Mitglieder
+ * `gated` zur Hälfte, dazu `umfragen` — seit der Stilllegung aus `retired`, vor
+ * Phase L aus `loop`. Sechs Mitglieder
  * (`image_edit`, `create_recurring_task`, `modify_doc`, `modify_board`, `mcp`,
  * `umfragen`) kann `heuristicClassify` gar nicht liefern — sie sind wirkungslos,
  * aber harmlos.
@@ -82,16 +83,17 @@ export const NON_SEARCH_INTENTS: ReadonlySet<ChatIntentId> = new Set([
  * intents must keep the rest of the ladder so their gates, HITL and fixed UX
  * contracts stay intact.
  *
- * Eine echte Teilmenge der `loop`-Disposition, aber NICHT sie: `research`,
- * `umfragen` und `agentic` sind ausgenommen, und jede Ausnahme sagt etwas
- * anderes. Demotion ersetzt das Verdikt durch `agentic` — wo das Verdikt selbst
- * noch etwas steuert, ist der Tausch also ein Verlust:
- *  - `umfragen` steht in `SYSTEM_TOOL_INTENTS`; sein Verdikt montiert das
- *    Umfragen-Tool im Loop. Als `agentic` fände der Planer es nicht vor.
+ * Eine echte Teilmenge der `loop`-Disposition, aber NICHT sie: `research` und
+ * `agentic` sind ausgenommen, und jede Ausnahme sagt etwas anderes. Demotion
+ * ersetzt das Verdikt durch `agentic` — wo das Verdikt selbst noch etwas
+ * steuert, ist der Tausch also ein Verlust:
  *  - `research` behält seinen eigenen Namen bis ins Residual und damit den
  *    Werkzeug-Zwang aus `NAMED_RETRIEVAL_INTENTS`; früh zu `agentic` zu
  *    wechseln gäbe genau den auf.
  *  - `agentic` ist das Ziel der Demotion.
+ * `umfragen` war bis Phase L die dritte Ausnahme („sein Verdikt montiert das
+ * Werkzeug"). Der Intent ist stillgelegt (`retired`), das Werkzeug hängt jetzt
+ * am Erwähnungs-Pin — die Ausnahme ist damit gegenstandslos, nicht gestrichen.
  * `dispositionSets.vitest.ts` nagelt diese Differenz fest — wer sie ändert,
  * ändert eine Aussage.
  */

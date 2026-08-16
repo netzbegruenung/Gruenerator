@@ -43,6 +43,15 @@ export interface LoopScenario {
   backendFailures?: number;
   mustDecide?: Array<{ point: DecisionPointId; chose: string }>;
   /**
+   * Der `toolChoice` des ERSTEN Planer-Schritts, als Name oder `'required'`.
+   *
+   * Die einzige Stelle, an der ein BENANNTER erster Aufruf beobachtbar wird: die
+   * Entscheidungskarte zeigt nur, welches Werkzeug lief, und das steht im Skript
+   * ohnehin. Ohne diese Zusicherung liesse sich der Werkzeug-Pin ausbauen, ohne
+   * dass ein Integrationstest es merkt.
+   */
+  firstToolChoice?: string;
+  /**
    * Exact number of times a branch was taken. The only honest assertion for
    * `search_concurrency`: which of several parallel calls loses the race is an
    * await-interleaving artefact, but HOW MANY are deferred is a property of the
@@ -240,6 +249,7 @@ export const LOOP_SCENARIOS: readonly LoopScenario[] = [
       { text: GERMAN_ANSWER },
     ],
     mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
+    firstToolChoice: 'bundestag',
   },
   {
     id: 'mention-dokumente-einzeln',
@@ -249,5 +259,21 @@ export const LOOP_SCENARIOS: readonly LoopScenario[] = [
     body: { forcedTools: ['search'] },
     streams: [],
     mustDecide: [{ point: 'router.run_agentic', chose: 'single_pass' }],
+  },
+  {
+    id: 'mention-umfragen-loop',
+    category: 'mention-lane',
+    note: 'Keine Modellannahme: `@umfragen` traegt keinen Intent mehr (er ist stillgelegt), sondern zurrt ueber die Registry das WERKZEUG fest. Der Turn laeuft deshalb als `agentic` — und dass er ueberhaupt in die Schleife kommt, entscheidet allein der Pin. Der PolitPro-Abruf ist gestubbt wie jedes andere Suchbackend.',
+    prompt: 'Wie stehen die Gruenen aktuell in Umfragen?',
+    body: { forcedTools: ['umfragen'] },
+    streams: [{ calls: [{ tool: 'umfragen', args: { topic: '' } }] }, { text: GERMAN_ANSWER }],
+    mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
+    // Der benannte erste Aufruf, den `agentic` allein nicht mehr hergaebe: kein
+    // Werkzeug heisst `agentic`, und aus NAMED_RETRIEVAL_INTENTS ist es
+    // ausgenommen. Nur der Pin traegt das hier.
+    firstToolChoice: 'umfragen',
+    // Der Auffang, den der Pin verhindert: ohne ihn faellt `agentic` auf
+    // `search` — eine Dokumentensuche statt PolitPro.
+    notReached: ['router.intent_override'],
   },
 ];

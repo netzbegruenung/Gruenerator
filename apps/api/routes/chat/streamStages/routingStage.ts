@@ -108,6 +108,7 @@ export function runRoutingStage({
     intent: proposedIntent,
     lastUserText,
     forcedTool: !!forcedTool,
+    mentionPinnedTool: classifiedState.mentionPinnedTool ?? null,
     isCompound,
     // A chosen notebook keeps the turn single-pass, on EVERY agent — only
     // `searchNode` retrieves notebook content, and no loop tool can address a

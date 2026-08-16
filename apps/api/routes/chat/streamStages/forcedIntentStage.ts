@@ -14,7 +14,11 @@
 import { promises as fsPromises } from 'node:fs';
 import nodePath from 'node:path';
 
-import { isIntentAllowedForLocale, type ChatIntentId } from '@gruenerator/shared/chat-intents';
+import {
+  isIntentAllowedForLocale,
+  pinnedToolForMention,
+  type ChatIntentId,
+} from '@gruenerator/shared/chat-intents';
 
 import { createLogger } from '../../../utils/logger.js';
 import { extractCompoundTopic } from '../services/compoundTopicExtractor.js';
@@ -38,7 +42,21 @@ interface PinContext {
 }
 
 interface PinRoute {
+  /**
+   * Der `forcedTools`-Token, den diese Zeile erkennt, und zugleich der
+   * Schlüssel, unter dem die Registry ihren Werkzeug-Pin führt. Default: der
+   * Intent-Name — die beiden fallen nur auseinander, wenn eine Erwähnung einen
+   * stillgelegten Intent überlebt hat (`@umfragen` → Intent `agentic`).
+   */
+  token?: string;
   intent: ChatIntentId;
+  /**
+   * Der Intent, dessen Locale-Zielgruppe das Gitter fragt. Default: `intent`.
+   * Getrennt aus demselben Grund wie `token`: nach einer Stilllegung sagt der
+   * ausführende Intent (`agentic`, immer `'all'`) nichts mehr über die Reichweite
+   * der Quelle, die die Erwähnung meint.
+   */
+  localeIntent?: ChatIntentId;
   /** Erkennt den Token. Default: der Intent-Name selbst. */
   matches?: (ctx: PinContext) => boolean;
   /** Sonderfelder, die dieser Eintrag ausser dem Intent setzt. */
@@ -83,7 +101,18 @@ const PIN_ROUTES: readonly PinRoute[] = [
   { intent: 'abgeordnetenwatch' },
   { intent: 'bundestag' },
   { intent: 'hilfe' },
-  { intent: 'umfragen' },
+  /**
+   * `@umfragen` — der erste Eintrag, dessen Intent stillgelegt ist.
+   *
+   * Die Zeile bleibt, weil der Token bleibt: er steht in ausgelieferten
+   * Composern und in jedem persistierten `@[Umfragen](tool:umfragen)` alter
+   * Threads (F0). Was sich ändert, ist nur, worauf er zeigt — nicht mehr auf das
+   * Verdikt `umfragen`, sondern über die Registry (`pinsTool`) auf das
+   * gleichnamige LOOP-WERKZEUG. `agentic` heisst hier „kein Intent trägt diesen
+   * Turn"; genau daran erkennt `turnPlan`, dass ihn nur die Schleife ausführen
+   * kann.
+   */
+  { token: 'umfragen', intent: 'agentic', localeIntent: 'umfragen' },
   {
     intent: 'mcp',
     matches: (ctx) => !!ctx.forcedTools?.includes('mcp') || !!ctx.mcpScopedToken,
@@ -205,16 +234,22 @@ export async function runForcedIntentStage({
   const firedGroups = new Set<string>();
   for (const route of PIN_ROUTES) {
     if (route.group && firedGroups.has(route.group)) continue;
+    const token = route.token ?? route.intent;
     const matched = route.matches
       ? route.matches(pinContext)
-      : forcedTools?.includes(route.intent) === true;
+      : forcedTools?.includes(token) === true;
     if (!matched) continue;
-    if (!isIntentAllowedForLocale(route.intent, initialState.userLocale)) continue;
+    if (!isIntentAllowedForLocale(route.localeIntent ?? route.intent, initialState.userLocale))
+      continue;
     classifiedState.intent = route.intent;
     // Was die Person GEWÄHLT hat — `intent` allein sagt das nicht, ein Verdikt
     // des Klassifikators sieht dort genauso aus. Der Loop nennt damit seinen
-    // ersten Werkzeugaufruf beim Namen.
-    classifiedState.mentionPinnedIntent = route.intent;
+    // ersten Werkzeugaufruf beim Namen und lässt den Turn überhaupt erst hinein.
+    //
+    // Unbedingt zugewiesen, auch wenn die Registry für diesen Token nichts
+    // führt: bei mehreren Erwähnungen gewinnt die LETZTE, und eine Erwähnung
+    // ohne eigenes Werkzeug muss den Pin der vorherigen damit auch löschen.
+    classifiedState.mentionPinnedTool = pinnedToolForMention(token);
     forcedTool = true;
     if (route.group) firedGroups.add(route.group);
     route.onPin?.(pinContext);
@@ -235,6 +270,11 @@ export async function runForcedIntentStage({
   // clamped back to `gruendlich`.
   if (forcedTools?.includes('deepresearch')) {
     classifiedState.intent = 'research';
+    // Diese Erwähnung war das letzte Wort — ein Werkzeug-Pin aus der Tabelle
+    // oben ist damit nicht mehr gemeint. (Vorher tat das die Prüfung
+    // `pinned !== intent` in `pinnedFirstTool`; seit der Pin ein Werkzeugname
+    // ist und nicht mehr der Intent, muss der Löschende sagen, dass er löscht.)
+    classifiedState.mentionPinnedTool = null;
     classifiedState.deepResearchRequested = true;
     classifiedState.explicitDeepRequest = true;
     forcedTool = true;
@@ -277,6 +317,10 @@ export async function runForcedIntentStage({
       } else {
         classifiedState.intent = forced;
       }
+      // Wie beim @deepresearch-Zweig: die Such-/Bild-/Sharepic-Familie
+      // überschreibt den Intent, also ist ein Werkzeug-Pin von oben überholt.
+      // `@umfragen @recherche` heisst Recherche, nicht PolitPro.
+      classifiedState.mentionPinnedTool = null;
       forcedTool = true;
       log.info(
         `[ChatGraph] Intent forced via @tool mention: forced="${forced}", resolved="${classifiedState.intent}"`
