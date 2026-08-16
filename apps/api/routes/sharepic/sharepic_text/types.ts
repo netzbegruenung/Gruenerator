@@ -1,19 +1,10 @@
-import type {
-  AiClient,
-  AIRequestData as AiRequestPayload,
-  AiResult,
-} from '../../../services/ai/types.js';
+import type { AIRequestData as AiRequestPayload, AiResult } from '../../../services/ai/types.js';
 import type { Request, Response } from 'express';
 
-export type { AiClient, AiRequestPayload, AiResult };
+export type { AiRequestPayload, AiResult };
 
 export interface SharepicRequest extends Request {
   body: SharepicRequestBody;
-  app: Request['app'] & {
-    locals: {
-      aiClient: AiClient;
-    };
-  };
 }
 
 export interface SharepicRequestBody {

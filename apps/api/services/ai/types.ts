@@ -1,20 +1,15 @@
 /**
- * The request/response envelope of the in-process AI service
- * (`services/ai/aiService.ts`).
+ * Die Nutzlast, die `services/ai/generate.ts` und die Provider-Adapter teilen.
  *
- * The envelope shape is inherited: it used to travel over `postMessage` to a
- * `worker_threads` pool. That pool was replaced by an in-process service, its
- * message protocol, instance bookkeeping and config interfaces are gone, and
- * the names stopped saying "worker" with the 08/2026 rename — what is left here
- * is the payload shape the call sites and the provider adapters share.
+ * Die Form ist geerbt: sie reiste einmal per `postMessage` zu einem
+ * `worker_threads`-Pool. Der Pool wurde zu einem Dienst im Prozess, der Dienst
+ * zur typisierten Fassade — geblieben ist diese Nutzlast, weil
+ * `executeProvider` sie nimmt.
  *
- * How many call sites, measured 16.08.2026, because the number decides whether
- * anyone can retire this: **62 `processRequest` calls in 55 production files**,
- * plus 32 test files carrying an `AiClient` fake. They reach the service through
- * `app.locals.aiClient` (`utils/getAiClient.ts`), not by importing `aiService.ts`
- * — which is why grepping the module's importers finds four files and badly
- * understates it. `services/ai/generate.ts` is the typed replacement; retiring
- * the envelope is those 62 call sites, not a deletion.
+ * Was hier NICHT mehr steht, seit die letzte der 62 Aufrufstellen umgezogen
+ * ist: `AiClient`, der Vertrag mit `processRequest`. Es gibt keinen zweiten Weg
+ * zum Modell mehr und entsprechend nichts, wogegen ein Aufrufer typisieren
+ * müsste — `aiText`/`aiObject`/`aiTools` sind die Schnittstelle.
  */
 
 import type { ProviderName, ProviderOptions, RequestMetadata } from '../providers/types.js';
@@ -136,16 +131,6 @@ export interface AiResult {
 // ========================================
 // Service Interface
 // ========================================
-
-/**
- * The contract every consumer types against — `app.locals.aiClient` and the
- * ~15 test fakes. Import it from HERE, never from an implementation module
- * (see CLAUDE-routing.md).
- */
-export interface AiClient {
-  processRequest(data: AIRequestData, req?: unknown): Promise<AiResult>;
-  shutdown(): Promise<void | PromiseSettledResult<number>[]>;
-}
 
 // Re-export provider types for convenience
 export type { ProviderName, ProviderOptions, RequestMetadata } from '../providers/types.js';

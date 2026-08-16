@@ -45,7 +45,6 @@ function buildState(overrides: Partial<ChatGraphState> & { userMessage: string }
       image: true,
       image_edit: true,
     },
-    aiClient: null as any,
     userLocale: 'de-DE',
     attachmentContext: null,
     imageAttachments: [],

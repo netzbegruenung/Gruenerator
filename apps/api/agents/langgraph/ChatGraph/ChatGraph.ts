@@ -121,7 +121,6 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
       research: true,
       image: true,
     },
-    aiClient: input.aiClient,
     userLocale: input.userLocale || 'de-DE',
     clientPlatform: input.clientPlatform || 'web',
     lastToolContext: null,

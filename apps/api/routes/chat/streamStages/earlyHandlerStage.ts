@@ -64,7 +64,6 @@ export interface EarlyHandlerStageParams {
   fixedTextBase: FixedTextBase;
   actualThreadId: string | undefined;
   userId: string;
-  aiClient: StreamContext['aiClient'];
   lastUserMessage: StreamContext['lastUserMessage'];
   lastUserTextNoMentions: string;
   imageAttachments: StreamContext['imageAttachments'];
@@ -94,7 +93,6 @@ export async function runEarlyHandlerStage({
   fixedTextBase,
   actualThreadId,
   userId,
-  aiClient,
   lastUserMessage,
   lastUserTextNoMentions,
   imageAttachments,
@@ -324,7 +322,6 @@ export async function runEarlyHandlerStage({
         userId,
         instruction: editText,
         currentSharepic: rawCurrentSharepic ?? null,
-        aiClient,
         startTime: initialState.startTime,
         ...(classifiedState.classificationTimeMs != null && {
           classificationTimeMs: classifiedState.classificationTimeMs,

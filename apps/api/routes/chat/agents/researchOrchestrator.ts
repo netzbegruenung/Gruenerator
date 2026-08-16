@@ -46,7 +46,6 @@
 import { generateObject, generateText } from 'ai';
 import { z } from 'zod';
 
-import { type AiClient } from '../../../services/ai/types.js';
 import {
   validateCitations,
   stripUngroundedCitations,
@@ -405,8 +404,7 @@ export function researchConfidence(signals: {
  */
 async function readTopSources(
   sources: CollectedSource[],
-  question: string,
-  aiClient?: AiClient
+  question: string
 ): Promise<{ sources: CollectedSource[]; pagesRead: number }> {
   const ranked = [...sources].sort((a, b) => b.relevance - a.relevance);
   const seeds: Array<{ url: string; title: string; content: string; relevance: number }> = [];
@@ -447,7 +445,11 @@ async function readTopSources(
       // question is the entire reason to read them rather than trust the teaser.
       mode: 'query-focused',
       targetChars: READER_TARGET_CHARS,
-      ...(aiClient ? { aiClient } : {}),
+      // Hiess bis zur Fassaden-Migration `...(aiClient ? { aiClient } : {})`:
+      // der Destillierer las den Client auf seine ANWESENHEIT, nicht auf seinen
+      // Inhalt. `app.locals.aiClient` war immer gesetzt, der Zweig also immer
+      // wahr — was er meinte, steht jetzt da.
+      condense: true,
     });
     const digestByUrl = new Map(
       crawled
@@ -695,9 +697,6 @@ function synthesisFailureAnswer(sources: CollectedSource[]): string {
  * @param params.brief - Optional natural-language research plan, forwarded to
  *   planning and synthesis as orientation. Must NOT be used as a search query —
  *   keyword indexes don't match prose directives.
- * @param params.aiClient - Lets the page reader distil with a model instead
- *   of lexical scoring alone. Strongly recommended; the reader degrades rather
- *   than fails without it.
  * @param params.maxSources - Sources carried into synthesis (default 20).
  * @param params.readPages - Set false to skip the read stage (search-only run).
  */
@@ -706,7 +705,6 @@ export async function executeResearch(params: {
   brief?: string | null;
   /** The question was inherited from an earlier turn — caps confidence. */
   queryInherited?: boolean;
-  aiClient?: AiClient;
   maxSources?: number;
   readPages?: boolean;
   userLocale?: string;
@@ -716,7 +714,6 @@ export async function executeResearch(params: {
     question,
     brief,
     queryInherited,
-    aiClient,
     maxSources = DEFAULT_MAX_SOURCES,
     readPages = true,
     userLocale,
@@ -778,7 +775,7 @@ export async function executeResearch(params: {
 
     if (readPages) {
       onProgress?.('Lese die wichtigsten Quellen…');
-      const afterRead = await readTopSources(allSources, question, aiClient);
+      const afterRead = await readTopSources(allSources, question);
       allSources = afterRead.sources;
       pagesRead += afterRead.pagesRead;
     }

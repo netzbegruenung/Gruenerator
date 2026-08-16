@@ -15,7 +15,6 @@ vi.mock('../../ai/generate.js', () => ({ aiText: (...args: unknown[]) => aiText(
 vi.mock('../../../routes/chat/services/intentExecutionService.js', () => ({
   runDocGeneration: vi.fn(),
 }));
-vi.mock('../../ai/aiService.js', () => ({ getAIService: () => ({}) }));
 
 const { generateTaskList } = await import('./artifactGen.js');
 
