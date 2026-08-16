@@ -10,8 +10,6 @@ import type {
   NumberValidationOptions,
   ValidatedSearchParams,
   SearchParamsInput,
-  ValidatedAiRequest,
-  AiClientRequest,
 } from './types.js';
 
 /**
@@ -277,70 +275,6 @@ export class InputValidator {
       message: 'An unexpected error occurred',
       code: 'INTERNAL_ERROR',
     };
-  }
-
-  /**
-   * Validate AI worker request parameters
-   */
-  static validateAiClientRequest(request: AiClientRequest): ValidatedAiRequest {
-    if (!request || typeof request !== 'object') {
-      throw new ValidationError('AI worker request must be an object', 'request', request);
-    }
-
-    const validated: ValidatedAiRequest = { ...request };
-
-    // Validate type
-    if (!request.type || typeof request.type !== 'string') {
-      throw new ValidationError('AI worker request type is required', 'type', request.type);
-    }
-
-    // Validate messages array
-    if (!Array.isArray(request.messages)) {
-      throw new ValidationError('Messages must be an array', 'messages', request.messages);
-    }
-
-    if (request.messages.length === 0) {
-      throw new ValidationError('Messages cannot be empty', 'messages', request.messages.length);
-    }
-
-    // Validate each message
-    validated.messages = request.messages.map((msg, index) => {
-      if (!msg || typeof msg !== 'object') {
-        throw new ValidationError(`Message at index ${index} must be an object`, 'messages', msg);
-      }
-
-      if (!msg.role || !msg.content) {
-        throw new ValidationError(
-          `Message at index ${index} must have role and content`,
-          'messages',
-          msg
-        );
-      }
-
-      if (typeof msg.content !== 'string' || msg.content.trim().length === 0) {
-        throw new ValidationError(
-          `Message content at index ${index} must be non-empty string`,
-          'messages',
-          msg.content
-        );
-      }
-
-      if (msg.content.length > 50000) {
-        // Reasonable limit
-        throw new ValidationError(
-          `Message content at index ${index} too long`,
-          'messages',
-          msg.content.length
-        );
-      }
-
-      return {
-        role: msg.role,
-        content: msg.content.trim(),
-      };
-    });
-
-    return validated;
   }
 }
 

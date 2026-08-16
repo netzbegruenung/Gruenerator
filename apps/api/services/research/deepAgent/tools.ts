@@ -400,7 +400,6 @@ export function createResearchTools(ctx: ToolContext) {
               // the agent went looking for.
               mode: fokus ? 'query-focused' : 'faithful',
               targetChars: CRAWL_TARGET_CHARS,
-              ...(ctx.aiClient ? { aiClient: ctx.aiClient as never } : {}),
             }
           );
           const page = crawled[0];

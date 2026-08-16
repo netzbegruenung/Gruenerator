@@ -25,10 +25,6 @@ vi.mock('../../services/chat/threadTitleService.js', () => ({
   threadNeedsTitle: (...args: unknown[]) => threadNeedsTitle(...args) as unknown,
 }));
 
-vi.mock('../../utils/getAiClient.js', () => ({
-  getAiClient: () => ({ processRequest: vi.fn() }),
-}));
-
 // The router imports the groups module, which pulls in better-auth — and
 // better-auth calls zod 4's `.meta()`, which the repo's deliberate zod 3 pin
 // does not have. Unrelated to this endpoint; cut the import chain.

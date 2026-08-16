@@ -50,9 +50,6 @@ vi.mock('../../database/services/NotebookQdrantHelper.js', () => ({
 vi.mock('../../services/search/QueryExpansionService.js', () => ({
   expandQuery: (...args: unknown[]) => expandQuery(...args),
 }));
-vi.mock('../../utils/getAiClient.js', () => ({
-  getAiClient: () => ({ processRequest: vi.fn() }),
-}));
 
 const { handleNotebookStream } = await import('./notebookStreamCore.js');
 

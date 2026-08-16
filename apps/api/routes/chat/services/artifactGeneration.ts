@@ -94,7 +94,6 @@ function abandonedBeforeCommit(signal: AbortSignal | undefined, what: string): b
  */
 export async function runPdfGeneration(opts: {
   userContent: string;
-  aiClient: ChatGraphState['aiClient'];
   req: Express.Request;
   userId: string;
   pdfOptions?: PdfGenerationOptions;
@@ -192,7 +191,6 @@ export async function runPdfGeneration(opts: {
 export async function runDocGeneration(opts: {
   kind: 'presentation' | 'sheet' | 'document';
   userContent: string;
-  aiClient: ChatGraphState['aiClient'];
   req: Express.Request;
   userId: string;
   /** Invoked ONCE, after the model produced a parseable structure but BEFORE
@@ -372,7 +370,6 @@ export interface CreatedBoard {
  */
 export async function runBoardGeneration(opts: {
   userContent: string;
-  aiClient: ChatGraphState['aiClient'];
   req: Express.Request;
   userId: string;
   /** Invoked ONCE after a parseable structure but BEFORE the DB write — same

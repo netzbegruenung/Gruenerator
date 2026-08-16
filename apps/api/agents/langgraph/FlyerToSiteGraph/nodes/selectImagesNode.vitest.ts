@@ -40,7 +40,7 @@ function makeState(overrides: Partial<FlyerToSiteState> = {}): FlyerToSiteState 
     pdfBuffer: Buffer.from(''),
     originalFilename: 'flyer.pdf',
     email: '',
-    req: { app: { locals: { aiClient: {} } } },
+    req: { app: { locals: {} } },
     extractedText: 'text',
     extractionResult: null,
     extractTimeMs: 0,

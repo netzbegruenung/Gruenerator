@@ -4,7 +4,7 @@
  * Am 14.08.2026 antwortete `regolo/gemma4-31b` mit 3,7 tok/s statt der bis
  * dahin notierten ~76. Keine Sicherung schlug an: das Modell war nie STILL, es
  * rann. Die Fristen im Repo (`createIdleDeadline`, die Zeitsperren in
- * `aiService`) messen alle Schweigen, und die Fallback-Kette in `aiService`
+ * die Fassade) messen alle Schweigen, und die Fallback-Kette in `generate.ts`
  * feuert nur bei Fehler oder leerem Inhalt. Langsamkeit hatte keinen Detektor.
  *
  * Dieses Register ist der Detektor plus das Gedächtnis dazu. Ohne Gedächtnis

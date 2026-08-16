@@ -37,7 +37,6 @@ import { getCachedPersona } from '../../../services/mem0/personaService.js';
 import { findRole, resolveCustomSystemPrompt } from '../../../services/roles/roleSystemPrompt.js';
 import { loadUserRoles } from '../../../services/roles/userRoles.js';
 import { recordItemUsageSafe } from '../../../services/usage/ItemUsageService.js';
-import { getAiClient } from '../../../utils/getAiClient.js';
 import { NextcloudShareManager } from '../../../utils/integrations/nextcloud/shareManager.js';
 import { createLogger } from '../../../utils/logger.js';
 import { captureSseError } from '../../../utils/observability/captureSseError.js';
@@ -167,7 +166,6 @@ type ProcessAttachmentsResult = Awaited<ReturnType<typeof processAttachments>>;
 export interface StreamContext {
   requestId: string;
   userId: string;
-  aiClient: ReturnType<typeof getAiClient>;
   notebookIds: string[];
   validMessages: ChatGraphInput['messages'];
   lastUserMessage: ChatGraphInput['messages'][number] | undefined;
@@ -270,18 +268,6 @@ export async function buildStreamContext({
   }
 
   const userId = user.id;
-  const aiClient = getAiClient(req);
-
-  if (!aiClient) {
-    sse.send('error', {
-      error: PROGRESS_MESSAGES.aiUnavailable,
-      code: 'provider_unavailable',
-      retryable: true,
-    });
-    sse.end();
-    return { done: true };
-  }
-
   if ((clientMessages as unknown[]).length === 0) {
     sse.send('error', { error: PROGRESS_MESSAGES.messagesRequired, code: 'invalid_request' });
     sse.end();
@@ -799,7 +785,6 @@ export async function buildStreamContext({
       image: true,
       image_edit: true,
     },
-    aiClient,
     attachmentContext: attachmentContext ?? undefined,
     imageAttachments: imageAttachments.length > 0 ? imageAttachments : undefined,
     threadAttachments: previousAttachments.length > 0 ? previousAttachments : undefined,
@@ -910,7 +895,6 @@ export async function buildStreamContext({
     ctx: {
       requestId,
       userId,
-      aiClient,
       notebookIds,
       validMessages,
       lastUserMessage,

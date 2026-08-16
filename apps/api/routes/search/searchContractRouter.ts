@@ -20,7 +20,6 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { env } from '../../config/env.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
-import { getAiClient } from '../../utils/getAiClient.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type {
@@ -130,7 +129,6 @@ export const searchContractRouter = s.router(searchContract, {
         mode: 'normal',
         user_id: userId,
         searchOptions,
-        aiClient: getAiClient(req),
         req,
       };
 

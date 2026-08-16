@@ -2,7 +2,7 @@
  * Streaming Processor - SSE variant of processGraphRequest
  *
  * Reuses all prompt assembly infrastructure from PromptProcessor.ts
- * but replaces aiClient.processRequest() with streamText()
+ * but replaces the one-shot call with streamText()
  * for real-time token-by-token delivery via Server-Sent Events.
  */
 
@@ -18,7 +18,6 @@ import {
 } from '../../services/localization/index.js';
 import { selectProviderAndModel } from '../../services/providers/providerSelector.js';
 import { type ProviderOptions } from '../../services/providers/types.js';
-import { getAiClient } from '../../utils/getAiClient.js';
 import { createLogger } from '../../utils/logger.js';
 import { enrichRequest } from '../../utils/requestEnrichment.js';
 
@@ -191,7 +190,6 @@ export async function processGraphRequestStreaming(
         searchQuery: searchQuery || null,
         examples: [],
         provider,
-        aiClient: getAiClient(req),
         enableNotebookEnrich: useNotebookEnrich ?? config.features?.notebookEnrich ?? false,
       },
       req

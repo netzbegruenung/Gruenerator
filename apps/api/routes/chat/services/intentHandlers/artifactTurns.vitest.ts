@@ -51,7 +51,6 @@ const {
 const baseOpts = {
   sse: { send: vi.fn(), end: vi.fn() },
   classifiedState: { messages: [], creationTopic: null } as unknown as ChatGraphState,
-  aiClient: {} as ChatGraphState['aiClient'],
   req: {} as Express.Request,
   userId: 'u1',
   userContent: 'Thema',

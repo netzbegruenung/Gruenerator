@@ -34,7 +34,6 @@ export interface CreateIntentStageParams {
   sse: SSEWriter;
   req: Request;
   classifiedState: ChatGraphState;
-  aiClient: StreamContext['aiClient'];
   cleanupPending: CleanupPending;
   actualThreadId: string | undefined;
   userId: string;
@@ -51,7 +50,6 @@ export async function runCreateIntentStage({
   sse,
   req,
   classifiedState,
-  aiClient,
   cleanupPending,
   actualThreadId,
   userId,
@@ -70,7 +68,6 @@ export async function runCreateIntentStage({
   const createTurnBase = {
     sse,
     classifiedState,
-    aiClient,
     req,
     ...(actualThreadId != null && { actualThreadId }),
     userId,

@@ -93,11 +93,6 @@ function makeSse(): { sse: never; events: RecordedEvent[] } {
   return { sse: sse as never, events };
 }
 
-/** The model answered, but with something no parser accepts. */
-const garbageWorkerPool = {
-  processRequest: vi.fn().mockResolvedValue({ success: true, content: 'kein JSON, nur Prosa' }),
-} as never;
-
 const classifiedState = {
   startTime: Date.now(),
   classificationTimeMs: 5,
@@ -108,7 +103,6 @@ const req = {} as never;
 
 const baseOpts = {
   classifiedState,
-  aiClient: garbageWorkerPool,
   req,
   actualThreadId: 'thread-1',
   userId: 'user-1',

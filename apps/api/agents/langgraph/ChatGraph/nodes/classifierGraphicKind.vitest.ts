@@ -1,7 +1,21 @@
 import { describe, it, expect, vi } from 'vitest';
 
+/**
+ * Der Klassifikator ruft das Modell über `executeProvider` — nicht mehr über
+ * einen `aiClient` im Zustand. Die Attrappe muss deshalb an dieser Tür stehen;
+ * eine im Zustand hinterlegte wäre eine, die nichts abfängt: der echte Provider
+ * würde versucht, am fehlenden API-Key scheitern und die Entscheidung in eine
+ * heuristische Stufe zurückfallen lassen — grün gemeldet, nichts geprüft.
+ *
+ * `keine` heisst bei jedem der kleinen Auflöser „ich entscheide hier nichts".
+ */
+const executeProvider = vi.fn(async () => ({ content: 'keine' }));
+vi.mock('../../../../services/ai/execution/index.js', () => ({
+  executeProvider: (...args: unknown[]) => executeProvider(...args),
+}));
+
 import { isAmbiguousGraphicRequest } from './classifierHeuristics.js';
-import { classifierNode } from './classifierNode.js';
+const { classifierNode } = await import('./classifierNode.js');
 
 import type { ChatGraphState, SearchIntent } from '../types.js';
 
@@ -30,23 +44,12 @@ const STUB_AGENT_CONFIG = {
   isSystemDefault: true,
 };
 
-/** The LLM tier must never be reached by these cases — a call means the
- *  deterministic gate missed, which is itself the failure. */
-function makeAiClient() {
-  return {
-    processRequest: vi.fn(async () => ({
-      content: JSON.stringify({ intent: 'direct', reasoning: 'stub', searchQuery: null }),
-    })),
-  };
-}
-
 function buildState(userMessage: string, overrides: Partial<ChatGraphState> = {}): ChatGraphState {
   return {
     messages: [{ role: 'user' as const, content: userMessage }],
     threadId: null,
     agentConfig: STUB_AGENT_CONFIG,
     enabledTools: { search: true, web: true, image: true, sharepic: true },
-    aiClient: makeAiClient(),
     userLocale: 'de-DE',
     attachmentContext: null,
     imageAttachments: [],
