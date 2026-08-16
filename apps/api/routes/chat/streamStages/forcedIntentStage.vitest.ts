@@ -71,6 +71,24 @@ describe('eine einzelne Erwähnung zurrt ihren Intent fest', () => {
     const { state } = await run(['hilfe'], { state: { searchQuery: 'Sharepics erstellen' } });
     expect(state.searchQuery).toBe('Sharepics erstellen');
   });
+
+  // `intent` allein sagt nicht, dass jemand GEWÄHLT hat — ein Verdikt des
+  // Klassifikators sieht dort genauso aus. Der Loop braucht den Unterschied,
+  // um seinen ersten Werkzeugaufruf beim Namen nennen zu dürfen.
+  it('hält fest, dass eine Erwähnung den Intent gesetzt hat', async () => {
+    const { state } = await run(['umfragen']);
+    expect(state.mentionPinnedIntent).toBe('umfragen');
+  });
+
+  it('setzt die Markierung nicht ohne Erwähnung', async () => {
+    const { state } = await run([]);
+    expect(state.mentionPinnedIntent).toBeUndefined();
+  });
+
+  it('die Markierung folgt dem letzten Treffer, nicht dem ersten', async () => {
+    const { state } = await run(['bundestag', 'chart']);
+    expect(state.mentionPinnedIntent).toBe('chart');
+  });
 });
 
 describe('Reihenfolge bei mehreren Erwähnungen', () => {

@@ -46,7 +46,11 @@ import {
   rehydrateCarriedSources,
   wrapAssembledTools,
 } from './catalogAssembly.js';
-import { isMcpCapabilityQuestion, shouldForceFirstToolCall } from './forceFirstToolCall.js';
+import {
+  isMcpCapabilityQuestion,
+  pinnedFirstTool,
+  shouldForceFirstToolCall,
+} from './forceFirstToolCall.js';
 import { createTurnClocks, resolveBudget } from './loopBudget.js';
 import { runAgenticLoop, type LoopMode } from './loopEngine.js';
 import { createAfterGather } from './loopGuarantees.js';
@@ -336,6 +340,21 @@ export async function streamAgenticResponse(
       materialHeavy,
     });
 
+    // WELCHES Werkzeug der erste Schritt ruft, wenn eine @-Erwähnung eines
+    // benannt hat. `required` allein garantiert nur irgendeinen Aufruf — und der
+    // Erwähnungstext ist zu diesem Zeitpunkt aus der Nachricht entfernt, das
+    // Modell kann die Wahl also gar nicht mehr sehen.
+    const firstToolName = forceFirstToolCall
+      ? pinnedFirstTool({
+          pinnedIntent: finalState.mentionPinnedIntent ?? null,
+          intent: finalState.intent,
+          isMounted: (name) => name in wrapped,
+        })
+      : null;
+    if (firstToolName) {
+      log.info(`[Agentic] @-Erwähnung verlangt ${firstToolName} als ersten Werkzeugaufruf`);
+    }
+
     // The synth phase emits nothing between the last tool result and the first
     // answer token. Until this guard existed a lane that stalled there took the
     // whole turn down: no text, no error, no heartbeat, for the full 120s wall
@@ -365,6 +384,7 @@ export async function streamAgenticResponse(
       tools: wrapped,
       toolSystem,
       forceFirstToolCall,
+      firstToolName,
       // Turns "the web is now allowed" into "the web runs". Only when the tool
       // is actually mounted — a restricted agent without web_search must not be
       // forced into a tool it doesn't have.

@@ -33,7 +33,10 @@ import {
   AGENTIC_INTENTS,
   NAMED_RETRIEVAL_INTENTS,
 } from '../../../../routes/chat/services/agenticLoop/intents.js';
-import { decideRunAgentic } from '../../../../routes/chat/services/agenticLoop/routing.js';
+import {
+  decideRunAgentic,
+  type AgenticDecisionInput,
+} from '../../../../routes/chat/services/agenticLoop/routing.js';
 import { SYSTEM_TOOL_INTENTS } from '../../../../services/mcp/systemMcpServers.js';
 import {
   DEMOTABLE_HEURISTIC_INTENTS,
@@ -43,17 +46,31 @@ import {
 
 const sorted = (s: Iterable<string>): string[] => [...s].sort();
 
-/** Eine Sachfrage, damit nur der Intent den Unterschied macht. */
+/**
+ * Eine Sachfrage, damit nur der Intent den Unterschied macht.
+ *
+ * Vollständig statt sparsam, und `satisfies` statt `as const`: die Fixture
+ * führte nach der Trennung von `mustLoop`/`forcedLoop` noch das abgelöste
+ * `isMcpTurn` mit sich und blieb trotzdem grün, weil ein fehlendes Feld
+ * `undefined` und damit falsch ist. `*.vitest.ts` steht ausserhalb des
+ * Typecheck-Scopes (`apps/api/tsconfig.json`), also fällt so eine Drift sonst
+ * nirgends auf — die Annotation ist hier das einzige Prüfmittel.
+ */
 const BASE = {
   intent: 'produktion',
   lastUserText: 'Wie hat Robert Habeck abgestimmt?',
   agenticIntents: AGENTIC_INTENTS,
   loopEnabled: true,
+  forcedTool: false,
+  mustLoop: false,
+  forcedLoop: false,
   isCompound: false,
   hasSelectedNotebook: false,
-  isMcpTurn: false,
+  secondaryIntent: null,
+  compoundGeneration: false,
+  isPdfFillRequest: false,
   hasImageAttachments: false,
-} as const;
+} satisfies AgenticDecisionInput;
 
 describe('die Achse selbst', () => {
   it('ordnet jedem Intent genau eine Disposition zu', () => {

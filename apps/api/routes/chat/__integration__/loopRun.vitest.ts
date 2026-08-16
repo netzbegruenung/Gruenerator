@@ -83,6 +83,18 @@ vi.mock('../agents/directSearch.js', async (orig) => {
 // reads them from there — so this reaches the loop without threading anything
 // through the router. Partial spread: `tool`, `isStepCount`,
 // `convertToModelMessages` and the rest must stay real.
+// Der Bundestag-/Abgeordnetenwatch-Abruf, aus demselben Grund wie
+// `directSearch` oben: nur das BACKEND wird ersetzt. Die Werkzeugdefinition, das
+// Locale-Gitter am Katalog und der `searchNode`-Zweig bleiben echt — sonst
+// prueft der Flip-Test eine erfundene Welt statt der Montage, um die es geht.
+vi.mock('../../../services/bundestag/BundestagEnrichedService.js', async (orig) => {
+  const { fakeBundestagService } = await import('./harness/searchBackendStub.js');
+  return {
+    ...((await orig()) as Record<string, unknown>),
+    getBundestagEnrichedService: fakeBundestagService,
+  };
+});
+
 vi.mock('ai', async (orig) => {
   const { fakeLoopStreamText, fakeLoopGenerateText } = await import('./harness/loopScript.js');
   return {
@@ -159,7 +171,10 @@ describe('loop decision maps', () => {
     // scenario reaches `done` — the loop returns empty and the caller's honest
     // no-answer fallback writes the text — so every scenario here keeps the
     // harness's most important rail (`trace.error === null`) armed.
-    const { trace } = await runTurn(app.baseUrl, { messages: [userTurn(scenario.prompt)] });
+    const { trace } = await runTurn(app.baseUrl, {
+      messages: [userTurn(scenario.prompt)],
+      ...scenario.body,
+    });
 
     // A queued stream nobody consumed means the turn took a different shape than
     // the scenario claims — unified instead of split, or a retry that never
