@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { shouldForceFirstToolCall } from './forceFirstToolCall.js';
+import { pinnedFirstTool, shouldForceFirstToolCall } from './forceFirstToolCall.js';
 
 const base = {
   researchBanned: false,
@@ -83,5 +83,55 @@ describe('shouldForceFirstToolCall', () => {
     it('und der Selbstwiderspruch der LLM-Stufe ebenso', () => {
       expect(force({ classifierContradictedResearch: true, materialHeavy: true })).toBe(true);
     });
+  });
+});
+
+describe('pinnedFirstTool', () => {
+  /** Die Werkzeuge, die `buildChatToolCatalog` im Loop tatsächlich montiert —
+   *  soweit sie hier zählen. `hilfe` steht bewusst NICHT darin: sein Werkzeug
+   *  heisst `gruenerator_docs_search`. */
+  const MOUNTED = new Set([
+    'bundestag',
+    'abgeordnetenwatch',
+    'umfragen',
+    'gruenerator_docs_search',
+  ]);
+  const isMounted = (name: string) => MOUNTED.has(name);
+
+  it('nennt das Werkzeug, wenn eine Erwähnung den Intent festgezurrt hat', () => {
+    expect(pinnedFirstTool({ pinnedIntent: 'umfragen', intent: 'umfragen', isMounted })).toBe(
+      'umfragen'
+    );
+  });
+
+  it('schweigt ohne Erwähnung — ein Klassifikator-Verdikt ist keine Wahl', () => {
+    expect(pinnedFirstTool({ pinnedIntent: null, intent: 'umfragen', isMounted })).toBe(null);
+  });
+
+  it('schweigt, wenn eine spätere Stufe den Intent umgeschrieben hat', () => {
+    expect(pinnedFirstTool({ pinnedIntent: 'umfragen', intent: 'produktion', isMounted })).toBe(
+      null
+    );
+  });
+
+  // Die Locale-Gitter in `buildChatToolCatalog` lassen die beiden DE-only-
+  // Werkzeuge für de-AT weg. Ein Zwang auf ein nicht montiertes Werkzeug bräche
+  // den Aufruf — hier bleibt es bei `required`.
+  it('schweigt, wenn das Werkzeug für diesen Turn gar nicht montiert ist', () => {
+    expect(
+      pinnedFirstTool({ pinnedIntent: 'umfragen', intent: 'umfragen', isMounted: () => false })
+    ).toBe(null);
+  });
+
+  // `hilfe` montiert `gruenerator_docs_search`, `mcp` ist überhaupt kein
+  // einzelnes Werkzeug. Die Regel greift nur, wo der Name trägt — der
+  // Montage-Test ist genau das, was sie dort schweigen lässt.
+  it('schweigt, wo das Werkzeug nicht wie der Intent heisst', () => {
+    expect(pinnedFirstTool({ pinnedIntent: 'hilfe', intent: 'hilfe', isMounted })).toBe(null);
+    expect(pinnedFirstTool({ pinnedIntent: 'mcp', intent: 'mcp', isMounted })).toBe(null);
+  });
+
+  it('schweigt für einen Intent, dessen Zwang nicht in die Schleife führt', () => {
+    expect(pinnedFirstTool({ pinnedIntent: 'examples', intent: 'examples', isMounted })).toBe(null);
   });
 });
