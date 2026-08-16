@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ALL_CHAT_INTENTS,
   CHAT_INTENTS,
+  DISPOSITION_BY_INTENT,
   FORCED_LANE_BY_INTENT,
   forcedLaneOf,
   forcesLoopLane,
@@ -19,6 +20,15 @@ import {
  * Commit, der ihn vornimmt.
  */
 const IS_MCP_TURN_BEFORE = ['mcp', 'umfragen', 'hilfe'] as const;
+
+/**
+ * Die Erweiterung vom 16.08.2026. Die drei oben MÜSSEN in die Schleife
+ * (`executeIntentPipeline` hat keinen Zweig für sie); diese zwei HABEN einen
+ * Einzeldurchlauf-Executor und tragen `loop`, weil eine Erwähnung dort besser
+ * bedient ist. Der Unterschied ist der Grund, warum `mustLoop` und `forcedLoop`
+ * im Entscheider getrennt sind.
+ */
+const FORCED_LOOP_ADDED = ['bundestag', 'abgeordnetenwatch'] as const;
 
 describe('forcedLane totality', () => {
   it('describes every intent in the wire enum, and no others', () => {
@@ -41,15 +51,26 @@ describe('forcedLane totality', () => {
   });
 });
 
-describe('the loop lane matches the router enumeration it replaced', () => {
-  it('same three intents, no more', () => {
-    expect([...intentsWithForcedLane('loop')].sort()).toEqual([...IS_MCP_TURN_BEFORE].sort());
+describe('the loop lane', () => {
+  it('is the old router enumeration plus exactly the two flipped sources', () => {
+    expect([...intentsWithForcedLane('loop')].sort()).toEqual(
+      [...IS_MCP_TURN_BEFORE, ...FORCED_LOOP_ADDED].sort()
+    );
   });
 
-  it('forcesLoopLane agrees with the old literal for every intent', () => {
-    const before = new Set<string>(IS_MCP_TURN_BEFORE);
+  it('changed for nobody else', () => {
+    const loop = new Set<string>([...IS_MCP_TURN_BEFORE, ...FORCED_LOOP_ADDED]);
     for (const id of searchIntentSchema.options) {
-      expect(forcesLoopLane(id)).toBe(before.has(id));
+      expect(forcesLoopLane(id)).toBe(loop.has(id));
+    }
+  });
+
+  // Der Flip gilt der ERWÄHNUNG, nicht dem Verdikt. Ein Prosa-Turn, den der
+  // Klassifikator auf `bundestag` setzt, lief schon vorher im Loop (die
+  // `loop`-Disposition öffnet das Gate) — er ist von dieser Achse unberührt.
+  it('lässt die Disposition der geflippten Intents in Ruhe', () => {
+    for (const id of FORCED_LOOP_ADDED) {
+      expect(DISPOSITION_BY_INTENT[id]).toBe('loop');
     }
   });
 });
