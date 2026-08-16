@@ -268,6 +268,22 @@ Zusatzfalle: die Postgres-Tabellen `notebook_collections`/`notebook_collection_d
 
 ---
 
+## 11. Endstand des Sanierungsprogramms
+
+**Der Phasenplan aus §8 ist abgearbeitet** (Phasen A–J, PRs #2677–#2693). Was oben als Bestandsaufnahme steht, beschreibt damit den Zustand VOR dem Programm; dieser Abschnitt hält fest, was heute gilt.
+
+**Ein Aufrufweg zum Modell.** `services/ai/generate.ts` (`aiText`/`aiObject`/`aiTools` → `executeProvider`), geroutet über `AI_LANES`. Der zweite Weg ist gelöscht, nicht deprecated: `aiService.ts`, `AiClient`, `utils/getAiClient.ts` und `app.locals.aiClient` gibt es nicht mehr. Die letzte stille Umroutung — eine Prompt-Config, die per `options.model` die Tabelle übergeht — ist mit ihr entfallen; `promptConfigRouting.vitest.ts` bewacht das über alle Configs. Wer die Tabelle umgehen muss, sagt das mit `AiCall.pinned` im Code.
+
+**Ein Turn-Entscheider.** `decideTurnPlan` (`routes/chat/services/agenticLoop/turnPlan.ts`) beantwortet „wie läuft dieser Turn, unter welchem Intent" in einer Funktion; `plan.intent` ist danach endgültig, niemand schreibt ihn nach. Vorher lag die Antwort auf drei Schichten, die sich gegenseitig korrigierten — und genau in den Nähten dazwischen sassen die letzten zwei Fehler des Programms (Pipeline-Zwang vs. System-Tool-Auffang; Loop-Schalter vs. `agentic_to_search`).
+
+**Registry-Rollout.** `@gruenerator/shared/chat-intents` trägt die Intents samt Dispositions-Achse. Die Regel dabei ist eine Unterscheidung, keine Umzugsquote: was eine Eigenschaft des Intents ist, wird abgeleitet (`AGENTIC_INTENTS`, `NAMED_RETRIEVAL_INTENTS`, `NO_RETRIEVAL_VERDICTS`); was die Politik eines Konsumenten ist, bleibt bei ihm — typisiert und mit der gemessenen Abweichung im Kopfkommentar (`NON_SEARCH_INTENTS`, `DEMOTABLE_HEURISTIC_INTENTS`). `INTENT_HANDLER_PATHS` ist die erschöpfende Karte „welcher Zweig führt welches Verdikt aus"; ein neuer Intent bricht dort den Build.
+
+**Die Monolithen.** `chatGraphContractRouter.ts` 2562 → 456 Z. (Stufen in `streamStages/`), `agenticRespondService.ts` 1845 → 571 Z., `intentExecutionService.ts` 1640 → 40 Z. (reine Fassade; Inhalt in `intentHandlers/`), `responseStage.ts` 559 → 234 Z. `classifierNode.ts` liegt weiter bei rund 1960 Z., aber ohne die 27k-Zeichen-LLM-Stufe: die Tiers entscheiden deterministisch, und die verbliebenen Modellaufrufe sind kleine, benannte Auflöser.
+
+**Was bewusst offen bleibt:** die kompilierten LangGraph-Graphen haben weiterhin null Aufrufer (§2), die Recherche-Maschinen sind nicht zu einer zusammengelegt (§8 Phase 4), und die Notebook-Befunde aus §9 sind unangetastet. Deep Agents bleibt abgelehnt (§3), das AI SDK v7 weiter der Hebel (§4).
+
+---
+
 ## Verwandte Dokumente
 
 - `documentation/docs/intern/chat-tool-loop-plan.md` — Entwurf des agentischen Tool-Loops
