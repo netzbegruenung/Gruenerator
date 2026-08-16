@@ -29,6 +29,81 @@ import type { StreamContext } from '../services/streamContext.js';
 
 const log = createLogger('chatGraphContractRouter');
 
+/** Was eine Zeile der Tabelle unten vom laufenden Turn wissen muss. */
+interface PinContext {
+  forcedTools: string[] | undefined;
+  /** `mcp:<serverId>`, einmal gesucht statt je Zeile. */
+  mcpScopedToken: string | undefined;
+  classifiedState: ChatGraphState;
+}
+
+interface PinRoute {
+  intent: ChatIntentId;
+  /** Erkennt den Token. Default: der Intent-Name selbst. */
+  matches?: (ctx: PinContext) => boolean;
+  /** Sonderfelder, die dieser Eintrag ausser dem Intent setzt. */
+  onPin?: (ctx: PinContext) => void;
+  /** Strukturierte Felder für die Logzeile dieses Eintrags. */
+  logContext?: (ctx: PinContext) => Record<string, unknown>;
+  /** `mcp` als einziger: sein Werkzeug bekommt die Frage aus dem Verlauf. */
+  backfillQuery?: false;
+  /**
+   * Exklusive Gruppe — der erste Treffer gewinnt, spätere Mitglieder ruhen.
+   * Die Gruppe hält das `break` der alten `SIMPLE_FORCED_INTENTS`-Schleife
+   * fest: `@beispiele @diagramm` ergibt `examples`, nicht `chart`.
+   */
+  group?: 'simple';
+}
+
+/**
+ * Die Erwähnungen, deren ganzer Effekt „diesen Intent festzurren" ist — als
+ * EINE Tabelle statt als Kette gleichförmiger if-Blöcke, von denen jeder
+ * denselben Nachtrag der Suchanfrage nochmal ausschrieb. Keiner von ihnen
+ * steht in `TOOL_PRIORITY` unten (das ist die Such-/Bild-/Sharepic-Familie),
+ * deshalb werden sie hier aufgelöst.
+ *
+ * **Die Reihenfolge ist Verhalten, nicht Kosmetik.** Ein Turn kann mehrere
+ * Erwähnungen tragen; jeder Treffer überschreibt den vorherigen, der LETZTE
+ * gewinnt. `@notion @beispiele` ergibt deshalb `examples` — mit gesetztem
+ * `mcpServerScope`. Wer eine Zeile verschiebt, ändert genau solche Fälle.
+ *
+ * Das Locale-Gitter läuft für ALLE Zeilen. Für die meisten ist es ein
+ * No-op (`audience: 'all'`); für die beiden DE-only-Quellen ist es der
+ * Grund, warum ein AT-Turn beim herabgestuften Verdikt des Klassifikators
+ * bleibt, statt leere Daten abzurufen.
+ *
+ * `wetter` stand in dieser Tabelle und trug eine Verfügbarkeitsprüfung mit
+ * sich — eine erzwungene Erwähnung musste dieselbe Latte reissen wie der
+ * Klassifikator, sonst umging sie die Degradierung. Beides ist weg:
+ * `@wetter` ist heute eine Konnektor-Erwähnung (`mcp:system-wetter`) und
+ * läuft über die `mcp`-Zeile, und die Verfügbarkeitsfrage wird an der
+ * Montage beantwortet.
+ */
+const PIN_ROUTES: readonly PinRoute[] = [
+  { intent: 'abgeordnetenwatch' },
+  { intent: 'bundestag' },
+  { intent: 'hilfe' },
+  { intent: 'umfragen' },
+  {
+    intent: 'mcp',
+    matches: (ctx) => !!ctx.forcedTools?.includes('mcp') || !!ctx.mcpScopedToken,
+    // Das erzwungene Flag lässt die Schleife auch laufen, wenn
+    // `enabledTools.mcp` aus ist; der agentische mcpCatalog ist ein
+    // sicherer No-op, wenn die Person keine Server verbunden hat.
+    onPin: (ctx) => {
+      ctx.classifiedState.mcpServerScope = ctx.mcpScopedToken ? ctx.mcpScopedToken.slice(4) : null;
+    },
+    logContext: (ctx) => ({ scope: ctx.classifiedState.mcpServerScope ?? 'all' }),
+    backfillQuery: false,
+  },
+  { intent: 'examples', group: 'simple' },
+  { intent: 'pressemitteilung_examples', group: 'simple' },
+  { intent: 'chat_history', group: 'simple' },
+  { intent: 'social_post', group: 'simple' },
+  { intent: 'chart', group: 'simple' },
+  { intent: 'compute', group: 'simple' },
+];
+
 export interface ForcedIntentStageParams {
   sse: SSEWriter;
   classifiedState: ChatGraphState;
@@ -121,77 +196,18 @@ export async function runForcedIntentStage({
   // scopes the tool-loop to that one server. Bare `mcp` (legacy @mcp tokens in
   // old threads; no mention emits it anymore) still runs unscoped over all
   // enabled servers for back-compat.
-  const mcpScopedToken = forcedTools?.find((t) => t.startsWith('mcp:'));
-
-  /**
-   * Die Erwähnungen, deren ganzer Effekt „diesen Intent festzurren" ist — als
-   * EINE Tabelle statt als Kette gleichförmiger if-Blöcke, von denen jeder
-   * denselben Nachtrag der Suchanfrage nochmal ausschrieb. Keiner von ihnen
-   * steht in `TOOL_PRIORITY` unten (das ist die Such-/Bild-/Sharepic-Familie),
-   * deshalb werden sie hier aufgelöst.
-   *
-   * **Die Reihenfolge ist Verhalten, nicht Kosmetik.** Ein Turn kann mehrere
-   * Erwähnungen tragen; jeder Treffer überschreibt den vorherigen, der LETZTE
-   * gewinnt. `@notion @beispiele` ergibt deshalb `examples` — mit gesetztem
-   * `mcpServerScope`. Wer eine Zeile verschiebt, ändert genau solche Fälle.
-   *
-   * Das Locale-Gitter läuft für ALLE Zeilen. Für die meisten ist es ein
-   * No-op (`audience: 'all'`); für die beiden DE-only-Quellen ist es der
-   * Grund, warum ein AT-Turn beim herabgestuften Verdikt des Klassifikators
-   * bleibt, statt leere Daten abzurufen.
-   *
-   * `wetter` stand in dieser Tabelle und trug eine Verfügbarkeitsprüfung mit
-   * sich — eine erzwungene Erwähnung musste dieselbe Latte reissen wie der
-   * Klassifikator, sonst umging sie die Degradierung. Beides ist weg:
-   * `@wetter` ist heute eine Konnektor-Erwähnung (`mcp:system-wetter`) und
-   * läuft über die `mcp`-Zeile, und die Verfügbarkeitsfrage wird an der
-   * Montage beantwortet.
-   */
-  const PIN_ROUTES: ReadonlyArray<{
-    intent: ChatIntentId;
-    /** Erkennt den Token. Default: der Intent-Name selbst. */
-    matches?: () => boolean;
-    /** Sonderfelder, die dieser Eintrag ausser dem Intent setzt. */
-    onPin?: () => void;
-    /** Strukturierte Felder für die Logzeile dieses Eintrags. */
-    logContext?: () => Record<string, unknown>;
-    /** `mcp` als einziger: sein Werkzeug bekommt die Frage aus dem Verlauf. */
-    backfillQuery?: false;
-    /**
-     * Exklusive Gruppe — der erste Treffer gewinnt, spätere Mitglieder ruhen.
-     * Die Gruppe hält das `break` der alten `SIMPLE_FORCED_INTENTS`-Schleife
-     * fest: `@beispiele @diagramm` ergibt `examples`, nicht `chart`.
-     */
-    group?: 'simple';
-  }> = [
-    { intent: 'abgeordnetenwatch' },
-    { intent: 'bundestag' },
-    { intent: 'hilfe' },
-    { intent: 'umfragen' },
-    {
-      intent: 'mcp',
-      matches: () => !!forcedTools?.includes('mcp') || !!mcpScopedToken,
-      // Das erzwungene Flag lässt die Schleife auch laufen, wenn
-      // `enabledTools.mcp` aus ist; der agentische mcpCatalog ist ein
-      // sicherer No-op, wenn die Person keine Server verbunden hat.
-      onPin: () => {
-        classifiedState.mcpServerScope = mcpScopedToken ? mcpScopedToken.slice(4) : null;
-      },
-      logContext: () => ({ scope: classifiedState.mcpServerScope ?? 'all' }),
-      backfillQuery: false,
-    },
-    { intent: 'examples', group: 'simple' },
-    { intent: 'pressemitteilung_examples', group: 'simple' },
-    { intent: 'chat_history', group: 'simple' },
-    { intent: 'social_post', group: 'simple' },
-    { intent: 'chart', group: 'simple' },
-    { intent: 'compute', group: 'simple' },
-  ];
+  const pinContext: PinContext = {
+    forcedTools,
+    mcpScopedToken: forcedTools?.find((t) => t.startsWith('mcp:')),
+    classifiedState,
+  };
 
   const firedGroups = new Set<string>();
   for (const route of PIN_ROUTES) {
     if (route.group && firedGroups.has(route.group)) continue;
-    const matched = route.matches ? route.matches() : forcedTools?.includes(route.intent) === true;
+    const matched = route.matches
+      ? route.matches(pinContext)
+      : forcedTools?.includes(route.intent) === true;
     if (!matched) continue;
     if (!isIntentAllowedForLocale(route.intent, initialState.userLocale)) continue;
     classifiedState.intent = route.intent;
@@ -201,9 +217,9 @@ export async function runForcedIntentStage({
     classifiedState.mentionPinnedIntent = route.intent;
     forcedTool = true;
     if (route.group) firedGroups.add(route.group);
-    route.onPin?.();
+    route.onPin?.(pinContext);
     if (route.backfillQuery !== false) backfillSearchQuery();
-    const context = route.logContext?.();
+    const context = route.logContext?.(pinContext);
     if (context) log.info(`[ChatGraph] Intent forced to "${route.intent}" via @-mention`, context);
     else log.info(`[ChatGraph] Intent forced to "${route.intent}" via @-mention`);
   }
