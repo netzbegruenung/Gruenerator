@@ -62,9 +62,9 @@ import { detectTaskShape } from './agents/taskShape.js';
 import {
   streamAgenticResponse,
   isAgenticLoopEnabled,
-  AGENTIC_INTENTS,
 } from './services/agenticLoop/agenticRespondService.js';
 import { stripOutOfRangeCitations } from './services/agenticLoop/citationStrip.js';
+import { AGENTIC_INTENTS } from './services/agenticLoop/intents.js';
 import { MAX_SOURCES } from './services/agenticLoop/loopGuards.js';
 import {
   compoundGenerationKind,
