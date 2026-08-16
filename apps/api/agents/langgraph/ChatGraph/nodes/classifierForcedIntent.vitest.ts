@@ -4,7 +4,7 @@
  * These tests verify that the classifierNode correctly routes when
  * multiple resource types are present simultaneously (boards + docs + images).
  *
- * The forced-intent checks return BEFORE hitting the LLM, so aiClient
+ * The forced-intent checks return BEFORE hitting the LLM, so the model door
  * is stubbed but never called.
  *
  * Run with: pnpm --filter @gruenerator/api test -- classifierForcedIntent

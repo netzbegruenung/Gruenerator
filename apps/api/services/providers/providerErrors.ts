@@ -7,7 +7,7 @@
  * class and status (only strings survive `postMessage`): the worker classified
  * before posting, the pool rebuilt an `AiProviderError`. There is no boundary to
  * cross any more, so classification happens at the outer edge of each way into
- * the engine — `processRequest` in `services/ai/aiService.ts` and `NoAnswerError`
+ * the engine — `NoAnswerError`
  * in `services/ai/generate.ts`. Everything below them throws raw.
  */
 
@@ -94,8 +94,8 @@ export function classifyProviderError(error: unknown): ProviderErrorInfo {
  * Typed provider failure. Downstream consumers (retry layers, SSE error
  * emitters) branch on `code`/`retryable` instead of parsing message strings.
  *
- * Constructed only at an entry boundary — `processRequest`
- * (`services/ai/aiService.ts`) and `NoAnswerError` (`services/ai/generate.ts`),
+ * Constructed only at an entry boundary — `NoAnswerError`
+ * (`services/ai/generate.ts`),
  * which is a subclass so `instanceof AiProviderError` holds for both. Keep
  * `cause` populated: the original error is what carries the status code, and
  * callers that log it want the real stack, not this wrapper's.

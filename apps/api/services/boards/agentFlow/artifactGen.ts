@@ -29,7 +29,7 @@ export interface CreatedArtifact {
 
 /**
  * Headless wrapper around `runDocGeneration`. Its `req` is only forwarded to
- * `aiClient.processRequest`, which reads at most `req.user?.id` — a stub
+ * den alten Umschlag, which read at most `req.user?.id` — a stub
  * fully satisfies it (no Express request exists in the background worker).
  */
 async function createArtifactFromText(

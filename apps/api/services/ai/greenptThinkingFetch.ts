@@ -36,7 +36,7 @@ import { captureImpact, modelFromRequestBody } from './greenptImpact.js';
  * `doc_generation`. `services/ai/execution/execute.ts` now gives greenpt only one
  * retry instead of two — the identical request was near-certain to time out
  * again, and burning less time on it reaches the provider-fallback chain
- * (`services/ai/aiService.ts`) sooner. That's a latency mitigation, not the
+ * (`services/ai/generate.ts`) sooner. That's a latency mitigation, not the
  * output-budget floor above — the underlying cause is still open.
  */
 export const greenptFetchWithThinkingDisabled: typeof fetch = async (input, init) => {

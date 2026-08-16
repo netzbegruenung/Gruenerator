@@ -2,7 +2,7 @@
  * Streaming Processor - SSE variant of processGraphRequest
  *
  * Reuses all prompt assembly infrastructure from PromptProcessor.ts
- * but replaces aiClient.processRequest() with streamText()
+ * but replaces the one-shot call with streamText()
  * for real-time token-by-token delivery via Server-Sent Events.
  */
 
