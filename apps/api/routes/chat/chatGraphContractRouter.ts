@@ -10,9 +10,16 @@
  * the SSE stream itself is opaque from ts-rest's perspective.
  *
  * The handlers are kept thin:
- * - `stream` builds the request context (./services/streamContext) and then
- *   runs Stages 1–4 (classify → intent → response → persist) inline.
+ * - `stream` builds the request context (./services/streamContext), then runs
+ *   the turn stages from ./streamStages in order. This file sequences them and
+ *   owns only what spans the whole turn: the placeholder-row cleanup and the
+ *   error catch. Each stage either hands its outputs to the next or reports
+ *   `handled` — meaning it already wrote the whole SSE response.
  * - `resume` delegates wholesale to ./services/resumePipeline.
+ *
+ * Stage order is the wire contract: the SSE events they emit must not be
+ * reordered or deduplicated. ./__integration__ mounts this router for real and
+ * asserts exactly that.
  */
 
 import { chatGraphContract } from '@gruenerator/contracts';
@@ -148,8 +155,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         sse,
       });
 
-      let forcedTool: boolean = false;
-
       // The turn-wide half of the two early-exit paths. `forcedTool` is NOT in
       // here: it is still being decided while these are already in scope, so
       // every suspend passes the current value at the call site.
@@ -183,6 +188,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         `[ChatGraph] forcedTools received: ${JSON.stringify(forcedTools)}, classifier intent: ${classifiedState.intent}`
       );
 
+      // === Mention-forced intents (plus image_edit style + rehydration) ===
       const {
         isCompound,
         forcedTool: mentionForcedTool,
@@ -199,7 +205,9 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         imageAttachments,
         actualThreadId,
       });
-      forcedTool = mentionForcedTool;
+      // Still a `let`: the sharepic-refinement branch below is the one later
+      // stage that can also pin the intent.
+      let forcedTool = mentionForcedTool;
 
       // === Early handler branches (reel / app gate / social post / sharepic edit) ===
       const early = await runEarlyHandlerStage({
