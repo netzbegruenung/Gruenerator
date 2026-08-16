@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { shouldForceFirstToolCall } from './agenticRespondService.js';
+import { shouldForceFirstToolCall } from './forceFirstToolCall.js';
 
 const base = {
   researchBanned: false,
