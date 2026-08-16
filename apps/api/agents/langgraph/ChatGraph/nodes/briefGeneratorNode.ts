@@ -9,13 +9,10 @@
  * All other queries pass through unchanged.
  */
 
+import { aiText } from '../../../../services/ai/generate.js';
 import { createLogger } from '../../../../utils/logger.js';
-import { intermediateLane } from '../llmConfig.js';
 
 import type { ChatGraphState } from '../types.js';
-
-/** @see services/ai/intermediateLanes.ts */
-const LANE = intermediateLane('standard');
 
 const log = createLogger('ChatGraph:BriefGenerator');
 
@@ -63,7 +60,7 @@ export async function briefGeneratorNode(state: ChatGraphState): Promise<Partial
   );
 
   try {
-    const { messages, searchQuery, subQueries, aiClient } = state;
+    const { messages, searchQuery, subQueries } = state;
 
     const recentMessages = messages.slice(-MAX_CONVERSATION_MESSAGES);
     const conversationSummary = recentMessages
@@ -83,22 +80,16 @@ Erkannte Suchquery: ${searchQuery || 'keine'}${subQueriesText}
 
 Erstelle einen klaren, fokussierten Recherche-Auftrag.`;
 
-    const response = await aiClient.processRequest(
-      {
-        type: 'chat_research_brief',
-        provider: LANE.provider,
-        systemPrompt: BRIEF_PROMPT,
-        messages: [{ role: 'user', content: userMessage }],
-        options: {
-          model: LANE.model,
-          max_tokens: 200,
-          temperature: 0.2,
-        },
-      },
-      null
-    );
+    const answer = await aiText({
+      lane: 'chat_research_brief',
+      pinned: 'standard',
+      system: BRIEF_PROMPT,
+      prompt: userMessage,
+      maxOutputTokens: 200,
+      temperature: 0.2,
+    });
 
-    const brief = (response.content || '').trim().slice(0, MAX_BRIEF_LENGTH);
+    const brief = answer.slice(0, MAX_BRIEF_LENGTH);
     const timeMs = Date.now() - startTime;
 
     if (!brief) {
