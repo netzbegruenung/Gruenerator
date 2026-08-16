@@ -87,7 +87,7 @@ interface SelectProviderParams {
  * Gründen:
  *
  *  - STRUCTURE_TYPES treiben das Modell durch einen ERZWUNGENEN TOOL-CALL
- *    (generateStructured), und GPT-OSS macht keinen. Ein PDF ist in Produktion
+ *    (aiObject), und GPT-OSS macht keinen. Ein PDF ist in Produktion
  *    zweimal mit `stop_reason=stop` und Prosa statt Tool-Call gescheitert; der
  *    Repo sperrt dieses Modell bereits als Synth-Lane wegen "verified
  *    tool-call fail" (AVOID_AS_SYNTH, routes/chat/agents/autoPolicy.ts).
@@ -179,7 +179,7 @@ const TEXT_MODEL = 'gemma4-31b';
  * gemessen am 03.08.2026 gegen die echten Prompts, Schemata und Validatoren
  * (langes PDF, 14-Folien-Deck) rief Mistral das Tool in keinem einzigen Lauf
  * auf. Es schrieb das JSON als Prosa und lief in `finish_reason=length` —
- * gerettet hat es nur der Text-Fallback in generateStructured, und der nur in
+ * gerettet hat es nur der Text-Fallback in aiObject, und der nur in
  * 2 von 4 Läufen. Mit größerem Budget wird es schlechter statt besser: bei
  * 12.000 Tokens 187 s, bei 16.000 Tokens 248 s, beide Male in Wiederholung
  * degeneriert (Tool-Name ```jsonljsonljsonljsonl). Auf der Mistral-API wie auf

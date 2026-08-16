@@ -29,7 +29,7 @@ export const KNOWN_AGENTIC_BUGS: readonly KnownAgenticBug[] = [
     status: 'fixed',
     symptom:
       'Ein 12-Karten-Board trifft mistral-medium-2604s 16384-Token-Ceiling und ein erzwungener Tool-Call ohne verwertbares Ergebnis (stop_reason=tool_use) lief in die generische Fehlermeldung statt in die Repair-Logik.',
-    fix: 'generateStructured.ts erkennt diesen Fall jetzt zusätzlich (noToolDespiteForced) und behandelt ihn wie stop_reason=length — Repair-dann-Torso-Pfad statt generischer Fehler.',
+    fix: 'aiObject (services/ai/generate.ts) erkennt diesen Fall jetzt zusätzlich (noToolDespiteForced) und behandelt ihn wie stop_reason=length — Repair-dann-Torso-Pfad statt generischer Fehler.',
   },
   {
     id: 3,
