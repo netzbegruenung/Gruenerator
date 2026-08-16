@@ -318,7 +318,10 @@ export function buildChatToolCatalog(params: {
   // No `direct_response` — the loop simply answers without a tool call when no
   // tool is needed (toolChoice stays 'auto').
   const base = createSearchTools(agentConfig, {
-    ...(loop?.state.userLocale != null && { userLocale: loop.state.userLocale }),
+    // Unconditional, not a conditional spread: WHICH collections this turn may
+    // search now hangs on the locale, so "no loop state" has to resolve to an
+    // explicit `null` (→ the German default) rather than to an absent property.
+    userLocale: loop?.state.userLocale ?? null,
     // Whether the model may actually spend the deep engine when it asks for
     // `tiefe: 'tiefenrecherche'`. Comes from the user's own words, not from the
     // model's judgement — see resolveSearchTier.

@@ -39,8 +39,13 @@ type WebSearchTool = {
   ) => Promise<unknown>;
 };
 
-function webSearchTool(options?: Parameters<typeof createSearchTools>[1]): WebSearchTool {
-  return createSearchTools(AGENT, options).web_search as unknown as WebSearchTool;
+// `userLocale` is required on the factory (see CreateSearchToolsOptions), but
+// nothing in this file is about the locale — these cases only exercise the
+// web_search arguments. So the helper supplies the neutral one and lets a case
+// override it along with anything else.
+function webSearchTool(options?: Partial<Parameters<typeof createSearchTools>[1]>): WebSearchTool {
+  return createSearchTools(AGENT, { userLocale: null, ...options })
+    .web_search as unknown as WebSearchTool;
 }
 
 const TOOL_OPTS = { toolCallId: 'c1', messages: [] };
