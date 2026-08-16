@@ -50,32 +50,6 @@ export interface SearchParamsInput {
 }
 
 /**
- * AI worker message
- */
-export interface AiClientMessage {
-  role: string;
-  content: string;
-}
-
-/**
- * AI worker request
- */
-export interface AiClientRequest {
-  type: string;
-  messages: AiClientMessage[];
-  [key: string]: unknown;
-}
-
-/**
- * Validated AI worker request
- */
-export interface ValidatedAiRequest {
-  type: string;
-  messages: AiClientMessage[];
-  [key: string]: unknown;
-}
-
-/**
  * Path sanitization options
  */
 export interface PathSanitizationOptions {
