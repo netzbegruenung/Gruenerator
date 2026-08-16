@@ -19,6 +19,7 @@ import {
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+import { aiText } from '../../services/ai/generate.js';
 import {
   BOARD_GENERATION_PROMPT,
   createBoardDocument,
@@ -36,7 +37,6 @@ import {
   type QueryRunner,
 } from '../../services/docs/CollaborativeDocumentService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
-import { getAiClient } from '../../utils/getAiClient.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
 import { ensureDocChatThread } from '../chat/services/threadPersistenceService.js';
@@ -290,17 +290,14 @@ export const boardsContractRouter = s.router(boardsContract, {
         };
       }
 
-      const aiResult = await getAiClient(args.req).processRequest(
-        {
-          type: 'board_generation',
-          systemPrompt: BOARD_GENERATION_PROMPT,
-          messages: [{ role: 'user', content: description.trim() }],
-          options: { temperature: 0.7 },
-        },
-        args.req
-      );
+      const generated = await aiText({
+        lane: 'board_generation',
+        system: BOARD_GENERATION_PROMPT,
+        prompt: description.trim(),
+        temperature: 0.7,
+      });
 
-      if (!aiResult.success || !aiResult.content) {
+      if (!generated) {
         const fallback = await createBoardDocument('Neues Board', userId);
         return {
           status: 201 as const,
@@ -308,7 +305,7 @@ export const boardsContractRouter = s.router(boardsContract, {
         };
       }
 
-      const structure = parseBoardStructure(aiResult.content);
+      const structure = parseBoardStructure(generated);
       if (!structure) {
         const fallback = await createBoardDocument('Neues Board', userId);
         return {

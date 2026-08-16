@@ -50,7 +50,6 @@ import { applyReelOps, validateReelOps } from './reelEditOps.js';
 
 import type { SSEWriter } from './sseHelpers.js';
 import type { ClientPlatform } from '../../../agents/langgraph/ChatGraph/types.js';
-import type { AiClient } from '../../../services/ai/types.js';
 import type { Locale } from '../../../services/localization/types.js';
 import type { ReelPickerProject } from '@gruenerator/contracts';
 
@@ -97,7 +96,6 @@ export async function buildReelContextBlock(
 
 export interface HandleReelEditArgs {
   sse: SSEWriter;
-  req: unknown;
   threadId: string;
   userId: string;
   instruction: string;
@@ -105,7 +103,6 @@ export interface HandleReelEditArgs {
   reelUpload: { uploadId: string; filename: string } | null;
   userLocale: Locale;
   clientPlatform: ClientPlatform;
-  aiClient: AiClient;
   startTime: number;
   classificationTimeMs?: number;
 }
@@ -263,7 +260,7 @@ async function listRecentEditSummaries(threadId: string): Promise<string[]> {
  * running stages 2–4. Returns false to fall through to the other branches.
  */
 export async function handleReelEdit(args: HandleReelEditArgs): Promise<boolean> {
-  const { sse, req, threadId, userId, instruction, currentReel, reelUpload, aiClient } = args;
+  const { sse, threadId, userId, instruction, currentReel, reelUpload } = args;
 
   try {
     // ── 1. Upload path: kick off auto-transcription, end the turn ──────────
@@ -392,8 +389,6 @@ export async function handleReelEdit(args: HandleReelEditArgs): Promise<boolean>
       instruction,
       segments: promptSegments,
       recentEditSummaries,
-      aiClient,
-      req,
     });
 
     if (!editResult.ok) {

@@ -671,8 +671,6 @@ export async function handleSharepicEdit(args: HandleSharepicEditArgs): Promise<
       descriptor,
       snapshot: buildSharepicSnapshot(descriptor, state),
       recentEditSummaries,
-      aiClient,
-      req,
     });
 
     if (!editResult.ok) {

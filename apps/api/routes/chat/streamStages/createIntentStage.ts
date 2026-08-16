@@ -172,8 +172,6 @@ export async function runCreateIntentStage({
     const created = await handleRecurringTaskCreation({
       sse,
       classifiedState,
-      aiClient,
-      req,
       ...(actualThreadId != null && { actualThreadId }),
       userId,
       userContent: lastUserText as string,
