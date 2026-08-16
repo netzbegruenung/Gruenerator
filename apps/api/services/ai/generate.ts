@@ -128,8 +128,11 @@ function fallbackFor(call: AiCall): readonly ProviderName[] {
  * 0.35 catch-all, which is not what `processRequest` does: it hands `type`
  * through untouched and lets the selector route on a copy.
  */
-function toEnvelope(call: AiCall, extra: Partial<AIRequestOptions> = {}): AIRequestData {
-  const model = targetFor(call).model;
+function toEnvelope(
+  call: AiCall,
+  model: string | null,
+  extra: Partial<AIRequestOptions> = {}
+): AIRequestData {
   const options: AIRequestOptions = {
     ...extra,
     ...(call.temperature != null && { temperature: call.temperature }),
@@ -166,9 +169,16 @@ async function runWithFallback(call: AiCall, extra: Partial<AIRequestOptions> = 
   const requestId = `gen_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
   let lastError: Error | undefined;
 
-  for (const provider of chain) {
+  for (const [index, provider] of chain.entries()) {
+    // The primary answers on the target's model; every fallback answers on its
+    // OWN default — the rule `providerFallback.getFallbackModelForProvider`
+    // applies. Carrying the primary's model down the chain instead would post
+    // `gemma4` at LiteLLM and `mistral-small-4-119b` at Mistral: each fallback
+    // would fail on an unknown model, so the chain would look like failover and
+    // never once catch anything.
+    const model = index === 0 ? target.model : null;
     try {
-      const result = await executeProvider(provider, requestId, toEnvelope(call, extra));
+      const result = await executeProvider(provider, requestId, toEnvelope(call, model, extra));
       if (result.content || result.stop_reason === 'tool_use') return result;
       lastError = new Error(`Empty response from ${provider}`);
     } catch (error) {
