@@ -19,16 +19,25 @@ import {
  * was ein Turn beobachten könnte. Ein späterer Flip ändert es SICHTBAR, in dem
  * Commit, der ihn vornimmt.
  */
-const IS_MCP_TURN_BEFORE = ['mcp', 'umfragen', 'hilfe'] as const;
+const IS_MCP_TURN_BEFORE = ['mcp', 'hilfe'] as const;
 
 /**
- * Die Erweiterung vom 16.08.2026. Die drei oben MÜSSEN in die Schleife
+ * Die Erweiterung vom 16.08.2026. Die beiden oben MÜSSEN in die Schleife
  * (`executeIntentPipeline` hat keinen Zweig für sie); diese zwei HABEN einen
  * Einzeldurchlauf-Executor und tragen `loop`, weil eine Erwähnung dort besser
  * bedient ist. Der Unterschied ist der Grund, warum `mustLoop` und `forcedLoop`
  * im Entscheider getrennt sind.
  */
 const FORCED_LOOP_ADDED = ['bundestag', 'abgeordnetenwatch'] as const;
+
+/**
+ * `umfragen` stand als dritter in `IS_MCP_TURN_BEFORE` und ist der erste
+ * Abgang der Achse: sein Intent ist stillgelegt, seine Erwähnung zurrt das
+ * WERKZEUG fest (`IntentMention.pinsTool`). Was ihn in die Schleife bringt,
+ * steht deshalb nicht mehr hier, sondern im Pin — `turnPlan.vitest.ts` hält es.
+ * Diese Karte darf nichts über ihn behaupten, weil niemand ihn mehr festzurrt.
+ */
+const FORCED_LOOP_REMOVED = ['umfragen'] as const;
 
 describe('forcedLane totality', () => {
   it('describes every intent in the wire enum, and no others', () => {
@@ -71,6 +80,18 @@ describe('the loop lane', () => {
   it('lässt die Disposition der geflippten Intents in Ruhe', () => {
     for (const id of FORCED_LOOP_ADDED) {
       expect(DISPOSITION_BY_INTENT[id]).toBe('loop');
+    }
+  });
+
+  // Der Abgang ist kein Verlust an Fähigkeit, sondern ein Ortswechsel: die
+  // Erwähnung gibt es weiter, sie zurrt nur das Werkzeug statt des Verdikts.
+  it('lässt den stillgelegten Intent los, ohne seine Erwähnung fallenzulassen', () => {
+    for (const id of FORCED_LOOP_REMOVED) {
+      expect(forcesLoopLane(id)).toBe(false);
+      expect(DISPOSITION_BY_INTENT[id]).toBe('retired');
+      expect(CHAT_INTENTS[id].availability).toBe('retired');
+      const mention = 'mention' in CHAT_INTENTS[id] ? CHAT_INTENTS[id].mention : null;
+      expect(mention?.pinsTool).toBe(id);
     }
   });
 });

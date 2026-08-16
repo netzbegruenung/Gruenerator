@@ -194,6 +194,24 @@ describe('toolMentionables derived from the intent registry', () => {
     expect(resolveMentionable('formular')?.identifier).toBe('pdf-erstellen');
   });
 
+  // Der Filter über `availability: 'retired'` liesse `@umfragen` sonst
+  // verschwinden — sein Intent ist stillgelegt, die Fähigkeit nicht. Beide
+  // Hälften zählen: die Erwähnung bleibt im Picker, UND sie schickt weiterhin
+  // denselben Token auf den Draht (F0 — er steckt in alten Threads).
+  it('bietet eine stillgelegte Erwähnung weiter an, wenn sie ein Werkzeug pinnt', () => {
+    const umfragen = toolMentionables.find((m) => m.mention === 'umfragen');
+    expect(umfragen?.identifier).toBe('umfragen');
+    expect(resolveMentionable('umfragen')?.identifier).toBe('umfragen');
+  });
+
+  // Die Gegenprobe: die fünf verwalteten Connectoren sind ohne Werkzeug-Pin
+  // stillgelegt und tauchen deshalb NICHT auf.
+  it('lässt stillgelegte Erwähnungen ohne Pin draussen', () => {
+    const slugs = toolMentionables.map((m) => m.mention);
+    expect(slugs).not.toContain('bahn');
+    expect(slugs).not.toContain('news');
+  });
+
   it('resolves the forced-tool identifier the router branches on', () => {
     // These four are the ones whose identifier is NOT the intent id — the
     // pairing the registry exists to write down.

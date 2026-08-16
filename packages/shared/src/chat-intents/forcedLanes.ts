@@ -46,10 +46,12 @@ export type ForcedLane =
 /**
  * Zwei Gründe, `loop` zu tragen, und sie sind nicht derselbe.
  *
- * `mcp`/`umfragen`/`hilfe` MÜSSEN in die Schleife: `executeIntentPipeline` hat
- * für sie gar keinen Zweig, ein Einzeldurchlauf liesse den Turn ohne
- * Ausführenden. Diese Tatsache heisst im Entscheider `mustLoop` und trägt dort
- * mehr als diese Achse (bedingungsloses Gate, Notizbuch-Ausnahme).
+ * `mcp`/`hilfe` MÜSSEN in die Schleife: `executeIntentPipeline` hat für sie gar
+ * keinen Zweig, ein Einzeldurchlauf liesse den Turn ohne Ausführenden. Diese
+ * Tatsache heisst im Entscheider `mustLoop` und trägt dort mehr als diese Achse
+ * (bedingungsloses Gate, Notizbuch-Ausnahme). `umfragen` stand hier als dritter
+ * und ist stillgelegt — sein Turn kommt über den Werkzeug-Pin in die Schleife,
+ * nicht über diese Karte.
  *
  * `bundestag`/`abgeordnetenwatch` HABEN einen Einzeldurchlauf-Executor
  * (`searchNode`), und er bleibt der Weg für Prosa-Turns mit ausgeschalteter
@@ -62,29 +64,6 @@ export type ForcedLane =
 export const FORCED_LANE_BY_INTENT: Record<ChatIntentId, ForcedLane> = {
   // ── loop, weil es sonst niemanden gäbe ────────────────────────────────────
   mcp: 'loop',
-  /**
-   * Stilllegungs-Kandidat, gemessen am 16.08.2026 und BEWUSST vertagt.
-   *
-   * Aus Prosa entsteht dieses Verdikt nicht: `umfragen` steht im `Exclude<>`
-   * der Schlüsselwortkarte (`classifierHeuristics.ts`), eine Intent-wählende
-   * LLM-Stufe gibt es nicht mehr, der Zensus zählt 0 von 167, und zehn
-   * umfrageförmige Fragen ergaben `web` (2) bzw. `direct` (8) — keine einzige
-   * `umfragen`. Die Prosa-Seite verlöre also nichts.
-   *
-   * Was heute noch fehlt, ist der Weg für die ERWÄHNUNG. `@umfragen` müsste
-   * nach der Stilllegung auf `agentic` zeigen, und damit fiele alles weg, was
-   * den Turn heute trägt: `agentic` ist aus `NAMED_RETRIEVAL_INTENTS`
-   * ausgenommen (es ist der Auffangwert), also gäbe es keinen Werkzeugzwang
-   * mehr; `pinnedFirstTool` greift nicht, weil kein Werkzeug `agentic` heisst;
-   * und mit ausgeschalteter Schleife fiele der Turn über `fallbackIntentFor`
-   * auf `search` — eine Dokumentensuche statt PolitPro.
-   *
-   * Der fehlende Baustein ist genau der, den das Zielbild ohnehin braucht: eine
-   * Erwähnung muss ein WERKZEUG festzurren können, ohne dafür einen Intent zu
-   * bemühen. `mentionPinnedIntent` (siehe `ChatGraphState`) ist der Keim davon.
-   * Arbeitsauftrag an Phase L, nicht an diese Welle.
-   */
-  umfragen: 'loop',
   hilfe: 'loop',
 
   // ── loop, weil die Erwähnung dort besser bedient ist ──────────────────────
@@ -132,6 +111,14 @@ export const FORCED_LANE_BY_INTENT: Record<ChatIntentId, ForcedLane> = {
   // Stillgelegt (`availability: 'retired'`): nichts erzeugt diese Verdikte, und
   // keine Erwähnung emittiert sie. Der Eintrag existiert nur, weil die Karte
   // total ist — siehe die Begründung an `Disposition` `'retired'`.
+  //
+  // `umfragen` steht mit ihnen, aber sein Eintrag ist NICHT wirkungslos-per-
+  // Definition: `@umfragen` gibt es weiter, es zurrt nur kein Verdikt mehr fest,
+  // sondern das Werkzeug (`IntentMention.pinsTool`). Der Turn läuft als
+  // `agentic`, und was ihn in die Schleife zwingt, ist der Pin — siehe
+  // `turnPlan.ts`. Stünde hier `loop`, wäre das eine Aussage über einen Intent,
+  // den niemand mehr festzurrt.
+  umfragen: 'single-pass',
   bahn: 'single-pass',
   reise: 'single-pass',
   hotel: 'single-pass',
