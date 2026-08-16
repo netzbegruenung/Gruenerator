@@ -12,7 +12,7 @@
  * `passthrough`, so callers need no try/catch and no fallback of their own.
  */
 
-import { intermediateLane } from '../../services/ai/intermediateLanes.js';
+import { aiText } from '../../services/ai/generate.js';
 import { createLogger } from '../../utils/logger.js';
 import { withTimeout } from '../../utils/withTimeout.js';
 
@@ -23,12 +23,6 @@ import { chunkPageForDistill } from './passageChunker.js';
 import { rerankPipeline } from './rerankPipeline.js';
 
 import type { PassageChunk } from './passageChunker.js';
-import type { AiClient } from '../ai/types.js';
-
-/** @see services/ai/intermediateLanes.ts — `standard`, nicht `heavy`: `condense`
- *  läuft unter `withTimeout` (7 s / 9 s), und ein Überschreiten degradiert still
- *  auf den lexikalischen Scorer statt zu scheitern. */
-const LANE = intermediateLane('standard');
 
 const log = createLogger('Distill');
 
@@ -51,8 +45,16 @@ export interface DistillArgs {
   targetChars: number;
   /** Cache key. Omit to skip digest caching (the crawl cache is separate). */
   url?: string;
-  /** Present ⇒ LLM condensation is possible; absent ⇒ selection only. */
-  aiClient?: AiClient | null;
+  /**
+   * true ⇒ LLM condensation is possible; false/absent ⇒ selection only.
+   *
+   * Was `aiClient?: AiClient | null` and read for its PRESENCE, not its
+   * contents — the DI parameter had quietly become a feature gate. The facade
+   * has no client to pass, so the gate says what it means now; every call site
+   * that used to hand over a client says `condense: true` and every one that
+   * conditionally omitted it keeps that condition.
+   */
+  condense?: boolean;
   /** Force condensation on/off. Defaults to the CHAT_PASSAGE_DISTILL_LLM flag. */
   useLlm?: boolean;
   timeoutMs?: number;
@@ -226,38 +228,31 @@ async function selectChunks(
   return { scores: chunks.map((_, i) => result.scores.get(i) ?? 0), method: 'cross-encoder' };
 }
 
-/** Condenses one passage to bullet facts. Returns null on any failure. */
+/**
+ * Condenses one passage to bullet facts. Returns null on any failure.
+ *
+ * Stufe `standard`, nicht `heavy` (services/ai/intermediateLanes.ts): der Aufruf
+ * läuft unter `withTimeout` (7 s / 9 s), und ein Überschreiten degradiert still
+ * auf den lexikalischen Scorer statt zu scheitern.
+ */
 async function condense(
   chunk: PassageChunk,
   query: string,
-  pool: AiClient,
   timeoutMs: number
 ): Promise<string | null> {
   try {
-    const response = await withTimeout(
-      pool.processRequest(
-        {
-          type: 'chat_passage_extract',
-          provider: LANE.provider,
-          systemPrompt: EXTRACTOR_PROMPT,
-          messages: [
-            {
-              role: 'user',
-              content: `<frage>${query || 'Fasse den Ausschnitt zusammen.'}</frage>\n<ausschnitt>${chunk.text}</ausschnitt>`,
-            },
-          ],
-          options: {
-            model: LANE.model,
-            max_tokens: LLM_MAX_TOKENS,
-            temperature: 0.1,
-          },
-        },
-        null
-      ),
+    const facts = await withTimeout(
+      aiText({
+        lane: 'chat_passage_extract',
+        pinned: 'standard',
+        system: EXTRACTOR_PROMPT,
+        prompt: `<frage>${query || 'Fasse den Ausschnitt zusammen.'}</frage>\n<ausschnitt>${chunk.text}</ausschnitt>`,
+        maxOutputTokens: LLM_MAX_TOKENS,
+        temperature: 0.1,
+      }),
       timeoutMs,
       'PassageDistiller:condense'
     );
-    const facts = (response.content || '').trim();
     // "-" is the prompt's "nothing usable here" signal.
     if (!facts || facts === '-') return null;
     return facts;
@@ -330,7 +325,7 @@ export async function distillPassages(args: DistillArgs): Promise<DistillResult>
     .sort((a, b) => b.score - a.score);
 
   const useLlm =
-    (args.useLlm ?? isDistillLlmEnabled()) && args.aiClient != null && chunks.length > 1;
+    (args.useLlm ?? isDistillLlmEnabled()) && args.condense === true && chunks.length > 1;
 
   // Without condensation the budget is spent on raw text, so only what fits is
   // kept. With it, more passages fit because each shrinks — take a bounded set
@@ -356,11 +351,11 @@ export async function distillPassages(args: DistillArgs): Promise<DistillResult>
   let llmUsed = false;
   let texts = inDocumentOrder.map((e) => e.chunk.text);
 
-  if (useLlm && args.aiClient) {
+  if (useLlm) {
     const timeoutMs =
       args.timeoutMs ?? (isFaithful ? DEFAULT_FAITHFUL_TIMEOUT_MS : DEFAULT_SELECT_TIMEOUT_MS * 2);
     const condensed = await Promise.all(
-      inDocumentOrder.map((e) => condense(e.chunk, query, args.aiClient!, timeoutMs))
+      inDocumentOrder.map((e) => condense(e.chunk, query, timeoutMs))
     );
     // Per-passage degradation: a failed call keeps the raw passage rather than
     // losing it. Only claim `llm` if at least one call actually returned facts.
