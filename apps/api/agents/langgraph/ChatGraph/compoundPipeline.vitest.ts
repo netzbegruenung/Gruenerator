@@ -65,11 +65,23 @@ vi.mock('../../../utils/logger.js', () => ({
 
 // ─── Imports (after mocks) ─────────────────────────────────────────────
 
-import { initializeChatState } from './ChatGraph.js';
-import { classifierNode } from './nodes/classifierNode.js';
-import { searchNode, buildCitations } from './nodes/searchNode.js';
-import { rerankNode } from './nodes/rerankNode.js';
-import { extractCompoundTopic } from '../../../routes/chat/services/compoundTopicExtractor.js';
+const executeProvider = vi.fn();
+vi.mock('../../../services/ai/execution/index.js', () => ({
+  executeProvider: (...args: unknown[]) => executeProvider(...args),
+}));
+
+const { initializeChatState } = await import('./ChatGraph.js');
+const { classifierNode } = await import('./nodes/classifierNode.js');
+const { searchNode, buildCitations } = await import('./nodes/searchNode.js');
+const { rerankNode } = await import('./nodes/rerankNode.js');
+const { extractCompoundTopic } =
+  await import('../../../routes/chat/services/compoundTopicExtractor.js');
+
+/** Das Modell antwortet auf jeden Versuch mit `content`. */
+function answering(content: string) {
+  executeProvider.mockReset();
+  executeProvider.mockResolvedValue({ content, success: true, stop_reason: 'stop' });
+}
 import type { ChatGraphState, SearchResult, GatherSource } from './types.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
 
@@ -106,9 +118,6 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     threadId: null,
     agentConfig: makeAgentConfig(),
     enabledTools: { search: true, web: true, research: true },
-    aiClient: {
-      processRequest: vi.fn().mockResolvedValue({ content: '{}' }),
-    },
     userLocale: 'de-DE',
     attachmentContext: null,
     imageAttachments: [],
@@ -226,6 +235,8 @@ describe('Compound Pipeline: @notebook + @skill', () => {
     mockSelectAndCrawlTopUrls.mockImplementation(async (results: any[]) =>
       results.map((r: any) => ({ ...r, crawled: false }))
     );
+    // Der Verfeinerer ist auf diesen Pfaden die einzige Modell-Frage.
+    answering(makeQueryRefineResponse());
   });
 
   // ── Classifier behavior for compound queries ──────────────────────
@@ -236,9 +247,6 @@ describe('Compound Pipeline: @notebook + @skill', () => {
         messages: [
           { role: 'user' as const, content: 'erstelle eine Pressemitteilung über Klimapolitik' },
         ],
-        aiClient: {
-          processRequest: vi.fn().mockResolvedValue({ content: makeQueryRefineResponse() }),
-        },
       });
 
       const result = await classifierNode(state);
@@ -269,9 +277,6 @@ describe('Compound Pipeline: @notebook + @skill', () => {
       // müssen auf JEDEM dieser Pfade gesetzt sein.
       const state = makeState({
         messages: [{ role: 'user' as const, content: 'Klimapolitik Hamburg' }],
-        aiClient: {
-          processRequest: vi.fn().mockRejectedValue(new Error('LLM timeout')),
-        },
       });
 
       const result = await classifierNode(state);
@@ -335,13 +340,8 @@ describe('Compound Pipeline: @notebook + @skill', () => {
 
   describe('full pipeline: classify → search → rerank → citations', () => {
     it('processes @hamburg + @pressemitteilung with topic text', async () => {
-      const aiClient = {
-        processRequest: vi
-          .fn()
-          // Erste Frage: queryRefineResolver (im Klassifikator)
-          .mockResolvedValueOnce({ content: makeQueryRefineResponse() })
-          .mockResolvedValue({ content: '{}' }),
-      };
+      // Erste Frage: queryRefineResolver (im Klassifikator)
+      answering(makeQueryRefineResponse());
 
       // Step 1: Initialize state (simulates controller)
       const state = makeState({
@@ -352,7 +352,6 @@ describe('Compound Pipeline: @notebook + @skill', () => {
         notebookCollectionIds: ['hamburg'],
         notebookDocumentIds: [],
         agentConfig: makeAgentConfig(),
-        aiClient,
       });
 
       // Step 2: Classify
@@ -396,7 +395,7 @@ describe('Compound Pipeline: @notebook + @skill', () => {
       expect(mockRerank).toHaveBeenCalledTimes(1);
       expect(rerankedState.searchResults!.length).toBeGreaterThanOrEqual(1);
       // Der Verfeinerer ist die einzige Modell-Frage auf diesem Pfad.
-      expect(aiClient.processRequest).toHaveBeenCalledTimes(1);
+      expect(executeProvider).toHaveBeenCalledTimes(1);
 
       // Step 6: Build citations
       const citations = buildCitations(searchedState.searchResults!);
@@ -408,9 +407,7 @@ describe('Compound Pipeline: @notebook + @skill', () => {
     });
 
     it('handles empty user text (@hamburg @presse with no topic)', async () => {
-      const aiClient = {
-        processRequest: vi.fn().mockResolvedValue({ content: '{}' }),
-      };
+      answering('{}');
 
       const state = makeState({
         messages: [{ role: 'user' as const, content: '' }],
@@ -418,7 +415,6 @@ describe('Compound Pipeline: @notebook + @skill', () => {
         notebookCollectionIds: ['hamburg'],
         notebookDocumentIds: [],
         agentConfig: makeAgentConfig(),
-        aiClient,
         searchQuery: null,
       });
 
@@ -454,9 +450,6 @@ describe('Compound Pipeline: @notebook + @skill', () => {
         notebookCollectionIds: ['hamburg'],
         notebookDocumentIds: [],
         agentConfig: makeUniversalAgentConfig(),
-        aiClient: {
-          processRequest: vi.fn().mockResolvedValue({ content: makeQueryRefineResponse() }),
-        },
       });
 
       const result = await classifierNode(state);
@@ -478,9 +471,6 @@ describe('Compound Pipeline: @notebook + @skill', () => {
         notebookCollectionIds: [],
         notebookDocumentIds: [],
         agentConfig: makeAgentConfig(),
-        aiClient: {
-          processRequest: vi.fn().mockResolvedValue({ content: makeQueryRefineResponse() }),
-        },
       });
 
       const result = await classifierNode(state);

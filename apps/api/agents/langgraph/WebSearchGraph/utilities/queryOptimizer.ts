@@ -3,10 +3,8 @@
  * Handles query enhancement and research question generation
  */
 
+import { aiText } from '../../../../services/ai/generate.js';
 import { parseAIJsonResponse } from '../../../../services/search/index.js';
-
-import type { AiClient } from '../../../../services/ai/types.js';
-import type { Request } from 'express';
 
 /**
  * Optimize search query with German synonym expansion
@@ -39,11 +37,7 @@ export function optimizeSearchQuery(query: string): string {
 /**
  * Generate research questions for deep mode using AI
  */
-export async function generateResearchQuestions(
-  originalQuery: string,
-  aiClient: AiClient,
-  req: Request | null
-): Promise<string[]> {
+export async function generateResearchQuestions(originalQuery: string): Promise<string[]> {
   try {
     const researchSystemPrompt = `Du bist ein Recherche-Experte. Generiere 4-5 strategische Forschungsfragen für eine umfassende Webrecherche.
 
@@ -60,26 +54,18 @@ Antworte ausschließlich im JSON-Format: {"research_questions":["Frage 1","Frage
 
 Fokussiere dich auf externe Quellen und verschiedene Perspektiven.`;
 
-    const result = await aiClient.processRequest(
-      {
-        type: 'text_adjustment',
-        systemPrompt: researchSystemPrompt,
-        messages: [{ role: 'user', content: researchPrompt }],
-        options: {
-          provider: 'litellm',
-          model: 'verdigado-pro',
-          max_tokens: 300,
-          temperature: 0.3,
-        },
-      },
-      req
-    );
+    const result = await aiText({
+      lane: 'text_adjustment',
+      system: researchSystemPrompt,
+      prompt: researchPrompt,
+      pinned: { provider: 'litellm', model: 'verdigado-pro' },
+      maxOutputTokens: 300,
+      temperature: 0.3,
+    });
 
-    if (result.success && result.content) {
-      const parsed = parseAIJsonResponse(result.content, {}) as { research_questions?: string[] };
-      if (parsed.research_questions && Array.isArray(parsed.research_questions)) {
-        return parsed.research_questions.slice(0, 5);
-      }
+    const parsed = parseAIJsonResponse(result, {}) as { research_questions?: string[] };
+    if (parsed.research_questions && Array.isArray(parsed.research_questions)) {
+      return parsed.research_questions.slice(0, 5);
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);

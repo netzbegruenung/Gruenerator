@@ -123,11 +123,7 @@ export async function runSocialPostBranch(opts: {
       } as ChatGraphState;
     }
     const { generateSocialPostText } = await import('../socialPostService.js');
-    const post = await generateSocialPostText({
-      state: textState,
-      urlContext,
-      ...(opts.req && { req: opts.req }),
-    });
+    const post = await generateSocialPostText({ state: textState, urlContext });
     postBuffer.send('social_post_complete', {
       message: `${post.platform === 'generic' ? 'Social-Media' : post.platform}-Post erstellt`,
       post,

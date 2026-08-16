@@ -11,24 +11,30 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 
-import { GENERATION_SIGNAL, resolveGenerationScope } from './generationResolver.js';
+const executeProvider = vi.fn();
+vi.mock('../../../../services/ai/execution/index.js', () => ({
+  executeProvider: (...args: unknown[]) => executeProvider(...args),
+}));
 
-import type { AiClient } from '../../../../services/ai/types.js';
+const { GENERATION_SIGNAL, resolveGenerationScope } = await import('./generationResolver.js');
 
-function poolAnswering(content: string, delayMs = 0): AiClient {
-  return {
-    processRequest: vi.fn(
-      async () => new Promise((resolve) => setTimeout(() => resolve({ content }), delayMs))
-    ),
-  } as unknown as AiClient;
+function answering(content: string, delayMs = 0): void {
+  executeProvider.mockReset();
+  executeProvider.mockImplementation(
+    () =>
+      new Promise((resolve) =>
+        setTimeout(() => resolve({ content, success: true, stop_reason: 'stop' }), delayMs)
+      )
+  );
 }
 
-const resolve = (content: string): Promise<unknown> =>
-  resolveGenerationScope({
+const resolve = (content: string): Promise<unknown> => {
+  answering(content);
+  return resolveGenerationScope({
     userContent: 'Mach daraus ein Sharepic',
     conversationContext: null,
-    aiClient: poolAnswering(content),
   });
+};
 
 describe('GENERATION_SIGNAL — das Gitter', () => {
   it.each([
@@ -120,26 +126,22 @@ describe('resolveGenerationScope — der Parser', () => {
   });
 
   it('fällt bei Zeitüberschreitung auf null', async () => {
+    answering('sharepic', 2500);
     await expect(
       resolveGenerationScope({
         userContent: 'Mach daraus ein Sharepic',
         conversationContext: null,
-        aiClient: poolAnswering('sharepic', 2500),
       })
     ).resolves.toBeNull();
   });
 
   it('fällt bei einem Provider-Fehler auf null', async () => {
-    const pool = {
-      processRequest: vi.fn(async () => {
-        throw new Error('provider down');
-      }),
-    } as unknown as AiClient;
+    executeProvider.mockReset();
+    executeProvider.mockRejectedValue(new Error('provider down'));
     await expect(
       resolveGenerationScope({
         userContent: 'Mach daraus ein Sharepic',
         conversationContext: null,
-        aiClient: pool,
       })
     ).resolves.toBeNull();
   });

@@ -1,20 +1,31 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { computeVerifierNode, parseVerifierResponse } from './computeVerifierNode.js';
-
-import type { ChatGraphState, ComputeData } from '../types.js';
-
 vi.mock('../../../../utils/logger.js', () => ({
   createLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() }),
 }));
 
+const executeProvider = vi.fn();
+vi.mock('../../../../services/ai/execution/index.js', () => ({
+  executeProvider: (...args: unknown[]) => executeProvider(...args),
+}));
+
+const { computeVerifierNode, parseVerifierResponse } = await import('./computeVerifierNode.js');
+
+import type { ChatGraphState, ComputeData } from '../types.js';
+
+/** The request envelope of call `i`. */
+function requestAt(i: number) {
+  return (executeProvider.mock.calls[i] as [string, string, Record<string, any>])[2];
+}
+
 function makeState(llmContent: string): ChatGraphState {
+  executeProvider.mockReset();
+  executeProvider.mockResolvedValue({ content: llmContent, success: true, stop_reason: 'stop' });
   return {
     messages: [{ role: 'user', content: 'wie hoch ist der gesamtumsatz?' }],
     // Retrieval rewrite — the verifier must judge against the RAW question.
     searchQuery: 'Gesamtumsatz Unternehmen Statistik Bericht',
     pandasLastCode: 'print("Gesamtumsatz:", df["Umsatz"].sum())',
-    aiClient: { processRequest: vi.fn().mockResolvedValue({ content: llmContent }) },
   } as unknown as ChatGraphState;
 }
 
@@ -54,8 +65,7 @@ describe('computeVerifierNode', () => {
       plausible: false,
       hint: 'Umsatz doppelt hergeleitet',
     });
-    const call = (state.aiClient as unknown as { processRequest: ReturnType<typeof vi.fn> })
-      .processRequest.mock.calls[0][0];
+    const call = requestAt(0);
     // RAW user question, not the retrieval rewrite in searchQuery.
     expect(call.messages[0].content).toContain('wie hoch ist der gesamtumsatz?');
     expect(call.messages[0].content).not.toContain('Statistik Bericht');
@@ -66,9 +76,7 @@ describe('computeVerifierNode', () => {
 
   it('fails open when the LLM call throws', async () => {
     const state = makeState('');
-    (
-      state.aiClient as unknown as { processRequest: ReturnType<typeof vi.fn> }
-    ).processRequest.mockRejectedValue(new Error('down'));
+    executeProvider.mockRejectedValue(new Error('down'));
     expect(await computeVerifierNode(state, RESULT)).toEqual({ plausible: true });
   });
 
@@ -76,17 +84,14 @@ describe('computeVerifierNode', () => {
     const state = makeState('{"plausible": false}');
     (state as { pandasLastCode?: string }).pandasLastCode = undefined;
     expect(await computeVerifierNode(state, RESULT)).toEqual({ plausible: true });
-    expect(
-      (state.aiClient as unknown as { processRequest: ReturnType<typeof vi.fn> }).processRequest
-    ).not.toHaveBeenCalled();
+    expect(executeProvider).not.toHaveBeenCalled();
   });
 
   it('falls back to searchQuery when there is no user message', async () => {
     const state = makeState('{"plausible": true}');
     (state as unknown as { messages: unknown[] }).messages = [];
     expect(await computeVerifierNode(state, RESULT)).toEqual({ plausible: true });
-    const call = (state.aiClient as unknown as { processRequest: ReturnType<typeof vi.fn> })
-      .processRequest.mock.calls[0][0];
+    const call = requestAt(0);
     expect(call.messages[0].content).toContain('Gesamtumsatz Unternehmen Statistik Bericht');
   });
 });

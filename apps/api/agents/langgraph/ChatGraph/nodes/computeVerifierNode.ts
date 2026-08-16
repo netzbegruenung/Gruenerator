@@ -12,15 +12,12 @@
  * the verifier must never block a working answer.
  */
 
+import { aiText } from '../../../../services/ai/generate.js';
 import { createLogger } from '../../../../utils/logger.js';
-import { intermediateLane } from '../llmConfig.js';
 
 import { lastUserText } from './pandasComputeNode.js';
 
 import type { ChatGraphState, ComputeData } from '../types.js';
-
-/** @see services/ai/intermediateLanes.ts */
-const LANE = intermediateLane('compute');
 
 const log = createLogger('ChatGraph:ComputeVerifier');
 
@@ -87,23 +84,17 @@ ${entriesText}
 
 Ist das plausibel?`;
 
-    const response = await state.aiClient.processRequest(
-      {
-        type: 'chat_compute_verify',
-        provider: LANE.provider,
-        systemPrompt: VERIFIER_PROMPT,
-        messages: [{ role: 'user', content: userMessage }],
-        options: {
-          model: LANE.model,
-          max_tokens: 200,
-          temperature: 0,
-          response_format: { type: 'json_object' },
-        },
-      },
-      null
-    );
+    const content = await aiText({
+      lane: 'chat_compute_verify',
+      pinned: 'compute',
+      system: VERIFIER_PROMPT,
+      prompt: userMessage,
+      maxOutputTokens: 200,
+      temperature: 0,
+      json: true,
+    });
 
-    const verdict = parseVerifierResponse(response.content || '');
+    const verdict = parseVerifierResponse(content);
     if (!verdict.plausible) {
       log.info(`[ComputeVerifier] Implausible result: ${verdict.hint ?? '(no hint)'}`);
     }

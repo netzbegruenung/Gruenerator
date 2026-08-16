@@ -1,4 +1,5 @@
-import { type AiClient, type Message } from '../../../../services/ai/types.js';
+import { aiText } from '../../../../services/ai/generate.js';
+import { type Message } from '../../../../services/ai/types.js';
 import { extractLocaleFromRequest } from '../../../../services/localization/index.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { assemblePromptGraphAsync } from '../../promptAssemblyGraph.js';
@@ -97,22 +98,13 @@ WICHTIG: Gib nur den finalen deutschen Text aus, keine Erklärungen oder Komment
       request: `Erstelle ${requestTypeDisplay === 'Antrag' ? 'einen ' + requestTypeDisplay : 'eine ' + requestTypeDisplay} zum Thema:\n\n${request.inhalt}${state.gliederung ? `\n\nGremium/Gliederung: ${state.gliederung}` : ''}`,
     });
 
-    const aiClient = state.req.app.locals.aiClient as AiClient;
-    const aiResult = await aiClient.processRequest(
-      {
-        type: 'antrag',
-        systemPrompt: promptResult.system,
-        messages: promptResult.messages as unknown as Message[],
-        options: {
-          temperature: 0.5,
-          top_p: 0.9,
-        },
-      },
-      state.req
-    );
-
-    const resultData = aiResult.data as Record<string, unknown> | undefined;
-    let generatedContent = aiResult.content || (resultData?.content as string) || '';
+    let generatedContent = await aiText({
+      lane: 'antrag',
+      system: promptResult.system,
+      messages: promptResult.messages as unknown as Message[],
+      temperature: 0.5,
+      topP: 0.9,
+    });
 
     // LLMs (especially Magistral) often wrap markdown output in ```markdown fences.
     // Strip them server-side before streaming — the frontend stripWrappingCodeFence

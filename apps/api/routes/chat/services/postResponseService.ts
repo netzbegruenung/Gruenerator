@@ -407,7 +407,6 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
     isNewThread,
     lastUserMessage,
     processedMeta,
-    aiClient,
     requestId,
     memoryEnabled,
     agentId,
@@ -566,7 +565,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
         fullTextPreview: fullText?.slice(0, 100),
         imageGenerated: !!generatedImage,
       });
-      const titlePromise = generateThreadTitle(threadId, userText, fullText, aiClient, {
+      const titlePromise = generateThreadTitle(threadId, userText, fullText, {
         imageGenerated: !!generatedImage,
       }).catch((err) => log.warn('[ChatGraph] Thread title generation failed:', err));
       // Auto-tag from the same first exchange. Triggered here (not only via the

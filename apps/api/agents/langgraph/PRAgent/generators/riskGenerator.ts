@@ -1,10 +1,8 @@
-import { getAiClient } from '../../../../utils/getAiClient.js';
+import { aiText } from '../../../../services/ai/generate.js';
 import { MARKDOWN_FORMATTING_INSTRUCTIONS } from '../../../../utils/prompt/index.js';
 import { assemblePromptGraphAsync } from '../../promptAssemblyGraph.js';
 
-import type { AiResult } from '../../../../services/ai/types.js';
 import type { EnrichedState } from '../../../../utils/types/requestEnrichment.js';
-import type { Request } from 'express';
 
 /**
  * Generates risk analysis: counter-arguments from political opponents
@@ -14,8 +12,7 @@ export async function generateRiskAnalysis(
   enrichedState: EnrichedState,
   framing: string,
   socialContent: Record<string, string>,
-  pressRelease: string,
-  req: Request
+  pressRelease: string
 ): Promise<string> {
   console.log('[PR Agent] Generating risk analysis');
 
@@ -51,18 +48,11 @@ Analysiere diese Kommunikation auf Risiken und bereite Counter-Speech vor.`;
     formatting: MARKDOWN_FORMATTING_INSTRUCTIONS,
   });
 
-  const aiResult: AiResult = await getAiClient(req).processRequest(
-    {
-      type: 'social',
-      systemPrompt: promptResult.system,
-      messages: promptResult.messages,
-      options: {
-        temperature: 0.6,
-        top_p: 0.85,
-      },
-    },
-    req
-  );
-
-  return aiResult.content || '';
+  return aiText({
+    lane: 'social',
+    system: promptResult.system,
+    messages: promptResult.messages,
+    temperature: 0.6,
+    topP: 0.85,
+  });
 }

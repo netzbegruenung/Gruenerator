@@ -12,9 +12,10 @@
 import { jsonSchema } from 'ai';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 
+import { aiTools } from '../../../services/ai/generate.js';
 import { createLogger } from '../../../utils/logger.js';
 
-import type { AiClient, AiResult, Tool } from '../../../services/ai/types.js';
+import type { AiResult, Tool } from '../../../services/ai/types.js';
 import type { z } from 'zod';
 
 const log = createLogger('toolForcedEdit');
@@ -33,8 +34,6 @@ export interface RunToolForcedEditParams<T> {
   instruction: string;
   /** Log prefix, e.g. '[reel_edit]'. */
   logPrefix: string;
-  aiClient: AiClient;
-  req?: unknown;
   maxAttempts?: number;
 }
 
@@ -60,8 +59,6 @@ export async function runToolForcedEdit<T>({
   systemPrompt,
   instruction,
   logPrefix,
-  aiClient,
-  req,
   maxAttempts = DEFAULT_MAX_ATTEMPTS,
 }: RunToolForcedEditParams<T>): Promise<ToolForcedEditResult<T>> {
   const userMessage =
@@ -82,21 +79,14 @@ export async function runToolForcedEdit<T>({
   let lastError = '';
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const result = await aiClient.processRequest(
-        {
-          type: 'canvas_ai_suggest',
-          systemPrompt,
-          messages: [{ role: 'user', content: userMessage }],
-          options: { tools: [tool], tool_choice: 'required', temperature: 0.2 },
-        },
-        req
-      );
-
-      if (!result.success) {
-        lastError = result.error || 'AI request failed';
-        log.warn(`${logPrefix} attempt ${attempt} provider error: ${lastError}`);
-        continue;
-      }
+      const result = await aiTools({
+        lane: 'canvas_ai_suggest',
+        system: systemPrompt,
+        prompt: userMessage,
+        tools: [tool],
+        toolChoice: 'required',
+        temperature: 0.2,
+      });
 
       const toolInput = extractToolCall(result, toolName);
       if (!toolInput) {

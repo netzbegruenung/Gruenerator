@@ -36,7 +36,9 @@
  */
 
 import { intermediateLane } from '../../../agents/langgraph/ChatGraph/llmConfig.js';
+import { aiText } from '../../../services/ai/generate.js';
 import { isModelSlow, recordSlowVerdict } from '../../../services/ai/modelHealth.js';
+import { type ProviderName } from '../../../services/ai/providers.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { startStepHeartbeat, type SSEWriter } from './sseHelpers.js';
@@ -177,32 +179,24 @@ function carriedOriginalText(state: MaterialState): string {
 }
 
 /** Ein Ziel der Lane: Primär oder Sibling. */
-type LaneTarget = { provider: string; model: string };
+type LaneTarget = { provider: ProviderName; model: string };
 
 async function askOne(
   step: PipelineStep,
-  state: ChatGraphState,
   userMessage: string,
   target: LaneTarget
 ): Promise<string> {
-  const response = await state.aiClient.processRequest(
-    {
-      type: step.requestType,
-      provider: target.provider,
-      systemPrompt: step.systemPrompt,
-      // GENAU eine Nachricht, und in ihr steht nur, was `buildUserMessage`
-      // hineingelegt hat. Kein `state.messages`, kein Verlauf, keine Anhänge.
-      messages: [{ role: 'user', content: userMessage }],
-      ...(step.timeoutMs != null && { timeoutMs: step.timeoutMs }),
-      options: {
-        model: target.model,
-        max_tokens: step.maxTokens,
-        temperature: step.temperature ?? 0.2,
-      },
-    },
-    null
-  );
-  const text = (response.content || '').trim();
+  const text = await aiText({
+    lane: step.requestType,
+    pinned: target,
+    system: step.systemPrompt,
+    // GENAU eine Nachricht, und in ihr steht nur, was `buildUserMessage`
+    // hineingelegt hat. Kein `state.messages`, kein Verlauf, keine Anhänge.
+    prompt: userMessage,
+    ...(step.timeoutMs != null && { timeoutMs: step.timeoutMs }),
+    maxOutputTokens: step.maxTokens,
+    temperature: step.temperature ?? 0.2,
+  });
   // Als Ablehnung und nicht als leeres Ergebnis: im Wettlauf unten soll eine
   // leere Antwort den Sibling nicht daran hindern, noch zu gewinnen.
   if (!text) throw new Error(`${target.provider}/${target.model}: leere Antwort`);
@@ -242,7 +236,7 @@ async function runStep(
 ): Promise<string | null> {
   const start = Date.now();
   const ask = (target: LaneTarget): Promise<[string, LaneTarget]> =>
-    askOne(step, state, userMessage, target).then((t) => [t, target]);
+    askOne(step, userMessage, target).then((t) => [t, target]);
 
   const sibling = LANE.hedge ?? null;
   // Gilt der Primär schon als zäh, wird die Frist nicht noch einmal abgesessen:

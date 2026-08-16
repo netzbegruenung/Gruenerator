@@ -9,13 +9,10 @@
  * for up to maxSearches iterations before falling through to respond.
  */
 
+import { aiText } from '../../../../services/ai/generate.js';
 import { createLogger } from '../../../../utils/logger.js';
-import { intermediateLane } from '../llmConfig.js';
 
 import type { ChatGraphState } from '../types.js';
-
-/** @see services/ai/intermediateLanes.ts */
-const LANE = intermediateLane('standard');
 
 const log = createLogger('ChatGraph:QualityGate');
 
@@ -42,7 +39,7 @@ oder
  */
 export async function qualityGateNode(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
   const startTime = Date.now();
-  const { searchResults, searchQuery, searchCount, maxSearches, aiClient, researchBrief } = state;
+  const { searchResults, searchQuery, searchCount, maxSearches, researchBrief } = state;
 
   // Skip quality check if we've already used max searches or have few results
   if (searchCount >= maxSearches) {
@@ -87,28 +84,17 @@ export async function qualityGateNode(state: ChatGraphState): Promise<Partial<Ch
       .map((r, i) => `[${i + 1}] ${r.title}: ${r.content.slice(0, 150)}`)
       .join('\n');
 
-    const response = await aiClient.processRequest(
-      {
-        type: 'chat_quality_gate',
-        provider: LANE.provider,
-        systemPrompt: QUALITY_PROMPT,
-        messages: [
-          {
-            role: 'user',
-            content: `Suchanfrage: "${searchQuery}"${researchBrief ? `\nRecherche-Kontext: ${researchBrief}` : ''}\n\nErgebnisse:\n${resultsSummary}`,
-          },
-        ],
-        options: {
-          model: LANE.model,
-          max_tokens: 80,
-          temperature: 0.0,
-          response_format: { type: 'json_object' },
-        },
-      },
-      null
-    );
+    const content = await aiText({
+      lane: 'chat_quality_gate',
+      pinned: 'standard',
+      system: QUALITY_PROMPT,
+      prompt: `Suchanfrage: "${searchQuery}"${researchBrief ? `\nRecherche-Kontext: ${researchBrief}` : ''}\n\nErgebnisse:\n${resultsSummary}`,
+      maxOutputTokens: 80,
+      temperature: 0.0,
+      json: true,
+    });
 
-    const parsed = parseQualityResponse(response.content || '');
+    const parsed = parseQualityResponse(content);
     const qualityAssessmentTimeMs = Date.now() - startTime;
 
     if (parsed) {

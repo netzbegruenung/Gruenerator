@@ -3,6 +3,7 @@
  * Generates comprehensive research dossier (deep mode only)
  */
 
+import { aiText } from '../../../../services/ai/generate.js';
 import {
   extractLocaleFromRequest,
   localizePlaceholders,
@@ -112,27 +113,17 @@ Verwende dabei Quellenangaben [1], [2], [3] etc. bei wichtigen Aussagen.
 Verfügbare Quellenreferenzen:
 ${refsSummary}`;
 
-    const result = await state.aiClient.processRequest(
-      {
-        type: 'text_adjustment',
-        systemPrompt: enhancedSystemPrompt,
-        messages: [{ role: 'user', content: enhancedUserPrompt }],
-        options: {
-          provider: 'litellm',
-          model: 'verdigado-pro',
-          temperature: 0.3,
-        },
-      },
-      state.req as RequestWithLocale
-    );
-
-    if (!result.success) {
-      throw new Error(result.error);
-    }
+    const result = await aiText({
+      lane: 'text_adjustment',
+      system: enhancedSystemPrompt,
+      prompt: enhancedUserPrompt,
+      pinned: { provider: 'litellm', model: 'verdigado-pro' },
+      temperature: 0.3,
+    });
 
     // Process the AI response for citations
     const { cleanDraft, citations, sources, errors } = validateAndInjectCitations(
-      result.content || '',
+      result,
       referencesMap as ReferencesMap
     );
 

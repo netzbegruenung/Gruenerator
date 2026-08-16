@@ -16,7 +16,6 @@ import { getPostgresInstance } from '../../database/services/PostgresService.js'
 import { deleteThreadRecallPoint } from '../../services/chat/threadRecallEmbeddingService.js';
 import { generateThreadTitle, threadNeedsTitle } from '../../services/chat/threadTitleService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
-import { getAiClient } from '../../utils/getAiClient.js';
 import { createLogger } from '../../utils/logger.js';
 import { toIsoString } from '../../utils/toIsoString.js';
 import { getPostgresAndCheckMembership } from '../auth/groups/index.js';
@@ -450,14 +449,6 @@ export const threadsContractRouter = s.router(threadsContract, {
         };
       }
 
-      let aiClient;
-      try {
-        aiClient = getAiClient(args.req);
-      } catch {
-        log.error(`[generate-title] AI worker pool not available!`);
-        return { status: 503 as const, body: { error: 'AI worker pool not available' } };
-      }
-
       log.info(`[generate-title] Calling generateThreadTitle for ${threadId}`);
 
       // Awaited only as far as the fallback title (one UPDATE, no model call) so
@@ -470,8 +461,7 @@ export const threadsContractRouter = s.router(threadsContract, {
       const title = await generateThreadTitle(
         threadId,
         sanitizeMentionTokens(String(userMsg.content), 'label'),
-        String(assistantMsg.content),
-        aiClient
+        String(assistantMsg.content)
       ).catch((err) => {
         log.warn(`[generate-title] Failed for thread ${threadId}:`, err);
         return null;

@@ -1,5 +1,4 @@
 import imagePickerService from '../../../../services/image/ImageSelectionService.js';
-import { getAiClient } from '../../../../utils/getAiClient.js';
 import { createLogger } from '../../../../utils/logger.js';
 
 import type { FlyerToSiteState } from '../types.js';
@@ -21,16 +20,10 @@ export async function selectImagesNode(
 
   try {
     const content = { ...state.websiteContent };
-    const aiClient = getAiClient(state.req);
 
     const pickImage = async (text: string): Promise<string> => {
       try {
-        const result = await imagePickerService.selectBestImage(
-          text,
-          aiClient,
-          { maxCandidates: 5 },
-          state.req
-        );
+        const result = await imagePickerService.selectBestImage(text, { maxCandidates: 5 });
         return `/api/image-picker/stock-image/${result.selectedImage.filename}`;
       } catch (err) {
         log.warn('Image picker failed', { error: (err as Error).message });
