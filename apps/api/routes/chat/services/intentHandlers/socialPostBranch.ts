@@ -31,8 +31,12 @@ export async function runSocialPostBranch(opts: {
   threadId: string | null;
 }): Promise<{
   state: ChatGraphState;
-  /** `null` = the sharepic half rejected; the loop keeps whatever it had. */
-  sharepicVariants: SharepicVariant[] | null;
+  /** Empty when the sharepic half rejected — NOT "leave the caller's value
+   *  alone". This branch only ever runs as the FIRST iteration of the intent
+   *  loop (`secondaryIntent` is only ever null, `examples` or `scrape_url`, so
+   *  no sharepic iteration can precede it), so there is no earlier value to
+   *  preserve. */
+  sharepicVariants: SharepicVariant[];
   socialPost: SocialPostPayload | null;
   socialPostRefused: boolean;
   socialPostRefusalIsPolicy: boolean;
@@ -181,7 +185,7 @@ export async function runSocialPostBranch(opts: {
     postBuffer.flush(sse);
   }
 
-  let sharepicVariants: SharepicVariant[] | null = null;
+  let sharepicVariants: SharepicVariant[] = [];
   if (variantsSettled.status === 'fulfilled') {
     sharepicVariants = refusedText ? [] : variantsSettled.value;
   } else if (!refusedText) {
