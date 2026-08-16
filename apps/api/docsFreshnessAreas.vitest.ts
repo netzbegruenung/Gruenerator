@@ -116,9 +116,11 @@ describe('foldersForChangedFiles', () => {
   });
 
   it('does not claim a sibling whose name merely starts with a hint path', () => {
-    // `apps/api/services/aiSearchAgent.ts` is a real file sitting next to the
-    // `services/ai` directory. A bare startsWith would pull chat/,
-    // ueber-den-gruenerator/ and readme/ into the audit every time it is edited.
+    // `apps/api/services/aiSearchAgent.ts` sat next to the `services/ai`
+    // directory until it was deleted as a dead service (16.08.2026) — it was
+    // the repo's only such collision. A bare startsWith would pull chat/,
+    // ueber-den-gruenerator/ and readme/ into the audit every time such a
+    // sibling is edited, so the boundary check outlives its example.
     expect(foldersForChangedFiles(['apps/api/services/aiSearchAgent.ts'])).toEqual([]);
     // …while the directory itself still matches.
     expect(foldersForChangedFiles(['apps/api/services/ai/providers.ts'])).toContain('chat');

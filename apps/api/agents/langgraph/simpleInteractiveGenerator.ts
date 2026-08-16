@@ -19,6 +19,7 @@ import {
   getExperimentalSession,
   updateExperimentalSession,
 } from '../../services/chat/ChatMemoryService.js';
+import { localizePlaceholders } from '../../services/localization/index.js';
 import { enrichRequest } from '../../utils/requestEnrichment.js';
 
 import { assemblePromptGraphAsync } from './promptAssemblyGraph.js';
@@ -106,11 +107,22 @@ async function generateClarifyingQuestions(
     };
   };
 
-  const userPrompt = SimpleTemplateEngine.render(config.generationPrompt, {
-    inhalt: state.inhalt,
-    requestType: state.requestType,
-    searchSummary: 'Keine Suchergebnisse verfügbar.',
-  });
+  // `{{partyName}}` steht in beiden Rückfragen-Configs, und `SimpleTemplateEngine`
+  // löst nur auf, was DIESER Aufrufer mitgibt — der Parteiname gehört nicht
+  // dazu, er hängt am Locale. Erst lokalisieren, dann rendern: umgekehrt hätte
+  // der Template-Engine den Platzhalter schon zu '' geleert, bevor der
+  // Localizer ihn sieht. Den Systemprompt rendert ohnehin niemand, dort las das
+  // Modell `{{partyName}}` bis hierher wörtlich.
+  const locale: Locale = state.locale === 'de-AT' ? 'de-AT' : 'de-DE';
+
+  const userPrompt = SimpleTemplateEngine.render(
+    localizePlaceholders(config.generationPrompt, locale),
+    {
+      inhalt: state.inhalt,
+      requestType: state.requestType,
+      searchSummary: 'Keine Suchergebnisse verfügbar.',
+    }
+  );
 
   const tools = [config.toolSchema];
 
@@ -120,7 +132,7 @@ async function generateClarifyingQuestions(
 
   const result = await aiTools({
     lane: 'antrag_question_generation',
-    system: config.systemPrompt,
+    system: localizePlaceholders(config.systemPrompt, locale),
     prompt: userPrompt,
     tools: tools as Tool[],
     ...(toolChoice != null && { toolChoice }),
