@@ -13,6 +13,7 @@
 import { texteContract, websiteContentSchema } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { aiText } from '../../services/ai/generate.js';
 import imagePickerService from '../../services/image/ImageSelectionService.js';
 import {
   extractLocaleFromRequest,
@@ -66,42 +67,22 @@ const texteContractRouter = s.router(texteContract, {
         extractLocaleFromRequest(req)
       );
 
-      // Kein `provider` auf oberster Ebene: das wählt den Adapter, ohne das
-      // Modell mitzuwählen — genau so schickte diese Route einmal einen
-      // verdigado-Alias an die Mistral-API. `type: 'website'` wählt beides.
-      const aiClient = res.app.locals.aiClient as AiClient;
-      const result = await aiClient.processRequest(
-        {
-          type: 'website',
-          systemPrompt,
-          messages: [
-            {
-              role: 'user' as const,
-              content: `Erstelle eine professionelle Landing-Page für folgende Person:\n\n${body.description}`,
-            },
-          ],
-          options: { temperature: 0.7 },
-        },
-        req
-      );
-
-      if (!result.success) {
-        log.error('[website] AI-Worker meldet Fehler: %s', result.error);
-        return {
-          status: 500 as const,
-          body: {
-            error: 'Fehler bei der Erstellung der Website-Inhalte',
-            details: result.error ?? 'Unbekannter Fehler',
-          },
-        };
-      }
+      // Kein Pin: `lane: 'website'` wählt Adapter UND Modell. Ein `provider`
+      // auf oberster Ebene wählte nur den Adapter — genau so schickte diese
+      // Route einmal einen verdigado-Alias an die Mistral-API.
+      const content = await aiText({
+        lane: 'website',
+        system: systemPrompt,
+        prompt: `Erstelle eine professionelle Landing-Page für folgende Person:\n\n${body.description}`,
+        temperature: 0.7,
+      });
 
       let raw: unknown;
       try {
-        raw = parseModelJson(result.content ?? '');
+        raw = parseModelJson(content);
       } catch (parseError) {
         log.error('[website] JSON nicht lesbar: %s', (parseError as Error).message);
-        log.debug('[website] Rohantwort: %s', (result.content ?? '').slice(0, 500));
+        log.debug('[website] Rohantwort: %s', content.slice(0, 500));
         return {
           status: 500 as const,
           body: {
@@ -126,6 +107,9 @@ const texteContractRouter = s.router(texteContract, {
         };
       }
 
+      // Der Bildwähler nimmt noch den Client: seine eigene Aufrufstelle
+      // (`image_picker`) zieht mit der nächsten Gruppe um.
+      const aiClient = res.app.locals.aiClient as AiClient;
       const withImages = await attachImages(clampSections(parsed.data), async (text) => {
         try {
           const picked = await imagePickerService.selectBestImage(
@@ -141,13 +125,9 @@ const texteContractRouter = s.router(texteContract, {
         }
       });
 
-      return {
-        status: 200 as const,
-        body: {
-          json: withImages,
-          ...(result.metadata ? { metadata: result.metadata as Record<string, unknown> } : {}),
-        },
-      };
+      // `metadata` bleibt weg: die Fassade gibt den Text zurück, und das Feld
+      // ist im Schema optional mit dem Vermerk, dass es niemand liest.
+      return { status: 200 as const, body: { json: withImages } };
     } catch (error) {
       log.error('[website] Fehler für %s:', userId(req), error);
       return {
