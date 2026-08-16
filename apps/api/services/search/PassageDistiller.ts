@@ -48,7 +48,7 @@ export interface DistillArgs {
   /**
    * true ⇒ LLM condensation is possible; false/absent ⇒ selection only.
    *
-   * Was `aiClient?: AiClient | null` and read for its PRESENCE, not its
+   * Was `aiClient?: AiClient | null` (der Typ ist mit Welle 3 weg) and read for its PRESENCE, not its
    * contents — the DI parameter had quietly become a feature gate. The facade
    * has no client to pass, so the gate says what it means now; every call site
    * that used to hand over a client says `condense: true` and every one that

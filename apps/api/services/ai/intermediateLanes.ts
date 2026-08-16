@@ -57,7 +57,7 @@
  *    24b-Modell 2 braucht. Bei 0,811 mWh/Token frisst das den Standortvorteil
  *    vollständig auf (~65× mehr Energie pro Aufruf als das 24b).
  *    `reasoning_effort: "low"` wird angenommen und ignoriert, `"none"`
- *    abgelehnt. Schlimmer noch: leerer `content` ist für `aiService` KEIN
+ *    abgelehnt. Schlimmer noch: leerer `content` ist für die Fassade KEIN
  *    Fehler, sondern löst die volle Fallback-Kette aus — jeder Auflöser-Aufruf
  *    zahlte also GreenPT-Roundtrip PLUS Kette und risse jedes Zeitbudget.
  *    Dieselbe Falle steht schon zweimal im Repo: `services/mem0/config.ts`
@@ -78,7 +78,7 @@
  *
  * Zwei Konsumententypen, die man beim nächsten Verschieben nicht verwechseln
  * darf:
- *   - über `aiClient.processRequest` → die Fallback-Kette
+ *   - über `aiText`/`aiObject`/`aiTools` → die Fallback-Kette
  *     (`litellm` → `regolo` → `mistral`, providerFallback.ts) fängt Ausfall UND
  *     leere Antwort ab. GreenPT steht NICHT in der Kette, wäre also selbst
  *     abgesichert, ohne je als Auffangnetz zu dienen.
@@ -206,7 +206,7 @@ export const INTERMEDIATE_LANES = {
    * bekommt einen Client, der `reasoning_effort: 'none'` erzwingt
    * (scalewayThinkingFetch.ts). Ohne den antwortet dieses Modell mit LEEREM
    * `content` — auch bei max_tokens 1500, nach 5386 Zeichen Reasoning. Leerer
-   * Inhalt ist für `aiService` kein Fehler, sondern startet die Fallback-Kette;
+   * Inhalt ist für die Fassade kein Fehler, sondern startet die Fallback-Kette;
    * `classifyDeliverable` mit seinen 20 Token stirbt zuerst.
    *
    * mem0 folgt dieser Stufe NICHT mehr: `services/mem0/config.ts` band

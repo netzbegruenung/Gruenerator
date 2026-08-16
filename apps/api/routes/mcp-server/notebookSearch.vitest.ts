@@ -21,10 +21,6 @@ vi.mock('../../database/services/NotebookQdrantHelper.js', () => ({
   },
 }));
 
-vi.mock('../../utils/getAiClient.js', () => ({
-  getAiClient: () => ({ processRequest: vi.fn() }),
-}));
-
 vi.mock('../../services/user/ProfileService.js', () => ({
   getProfileService: () => ({ getProfileById: vi.fn() }),
 }));

@@ -412,7 +412,6 @@ describe('makeCreateDocTool (compound presentation/sheet fat tool)', () => {
       ...baseState,
       intent: 'create_presentation',
       agentConfig: { userId: 'u1' },
-      aiClient: {},
       createdDocument: null,
       ...over,
     }) as unknown as ChatGraphState;
@@ -505,7 +504,6 @@ describe('makeCreateBoardTool (compound board fat tool)', () => {
       ...baseState,
       intent: 'agentic',
       agentConfig: { userId: 'u1' },
-      aiClient: {},
       createdBoard: null,
       ...over,
     }) as unknown as ChatGraphState;
@@ -585,7 +583,6 @@ describe('artifact briefs carry the conversation', () => {
     ({
       ...baseState,
       agentConfig: { userId: 'u1' },
-      aiClient: {},
       createdDocument: null,
       createdBoard: null,
       messages,

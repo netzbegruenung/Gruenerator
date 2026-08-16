@@ -159,8 +159,7 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
   // ── Processing: transcription ─────────────────────────────────────────────
 
   postProcess: async (args) => {
-    const aiClient: unknown = args.req.app.locals.aiClient;
-    const result = await startTranscriptionJob(args.body, aiClient);
+    const result = await startTranscriptionJob(args.body);
     if (result.ok) {
       return {
         status: 202 as const,

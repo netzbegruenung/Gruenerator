@@ -16,7 +16,6 @@ import { Sentry } from '../../lib/sentry.js';
 import { lookupUmfragen } from '../../services/monitor/UmfragenService.js';
 import { notebookQAService } from '../../services/notebook/NotebookQAService.js';
 import { getProfileService } from '../../services/user/ProfileService.js';
-import { getAiClient } from '../../utils/getAiClient.js';
 import { createLogger } from '../../utils/logger.js';
 import {
   executeDirectExamplesSearch,
@@ -311,7 +310,7 @@ export interface McpServerBuildOptions {
   scopes: Set<string>;
   /** Nur beim Schlüssel-Weg gesetzt — trägt die Landesverbands-Freigabe. */
   apiKey?: McpAuthContext['apiKey'];
-  /** The live Express request — carries app.locals.aiClient and req.user. */
+  /** The live Express request — carries req.user. */
   req: Request;
 }
 
@@ -645,7 +644,6 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
         const created = await runDocGeneration({
           kind,
           userContent: prompt,
-          aiClient: getAiClient(req),
           req,
           userId,
         });
@@ -668,7 +666,6 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
       guarded('create_board', async ({ prompt }) => {
         const created = await runBoardGeneration({
           userContent: prompt,
-          aiClient: getAiClient(req),
           req,
           userId,
         });

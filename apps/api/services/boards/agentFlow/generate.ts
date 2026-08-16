@@ -16,7 +16,6 @@ import {
 import { createSearchTools } from '../../../routes/chat/agents/searchTools.js';
 import { resolveModel } from '../../../routes/chat/services/responseStreamingService.js';
 import { createLogger } from '../../../utils/logger.js';
-import { getAIService } from '../../ai/aiService.js';
 
 const log = createLogger('boardAgentGenerate');
 
@@ -68,7 +67,6 @@ async function initializeBoardAgentState(
     agentId,
     ...(userId != null && { userId }),
     enabledTools: { search: true, web: true, person: true, examples: true, research: true },
-    aiClient: getAIService(),
     userLocale,
   });
 }

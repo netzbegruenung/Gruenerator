@@ -3,9 +3,9 @@
  * AI decides which URLs to crawl for full content
  */
 
+import { aiText } from '../../../../services/ai/generate.js';
 import { parseAIJsonResponse } from '../../../../services/search/index.js';
 
-import type { RequestWithUser } from '../../../../utils/redis/types.js';
 import type { WebSearchState, CrawlDecision } from '../types.js';
 
 /**
@@ -58,10 +58,13 @@ Snippet: ${r.snippet || r.content || 'No preview available'}
     );
 
     // AI analyzes snippets and decides which URLs to crawl
-    const crawlDecision = await state.aiClient.processRequest(
-      {
-        type: 'crawler_agent',
-        systemPrompt: `You are an intelligent web research agent. Based on search snippets, decide which URLs to crawl for full content.
+    const crawlDecision = await aiText({
+      lane: 'crawler_agent',
+      // litellm/verdigado-pro stand bisher als `options.provider`/`options.model`
+      // im Umschlag. `crawler_agent` hat keine Zeile in `AI_LANES`; ohne Pin
+      // liefe der Aufruf auf `default` (Mistral Medium) statt hier.
+      pinned: { provider: 'litellm', model: 'verdigado-pro' },
+      system: `You are an intelligent web research agent. Based on search snippets, decide which URLs to crawl for full content.
 
 Evaluation criteria:
 - RELEVANCE: How directly does the snippet address the query?
@@ -73,10 +76,7 @@ Evaluation criteria:
 Select up to ${maxCrawls} URLs maximum that would provide the most value.
 Prioritize quality over quantity - fewer high-quality sources are better than many mediocre ones.`,
 
-        messages: [
-          {
-            role: 'user',
-            content: `Query: "${state.query}"
+      prompt: `Query: "${state.query}"
 Mode: ${state.mode} research
 
 Available search results:
@@ -96,21 +96,9 @@ Respond with JSON:
   ],
   "reasoning": "Overall strategy for this query and why these sources were chosen"
 }`,
-          },
-        ],
-        options: {
-          provider: 'litellm',
-          model: 'verdigado-pro',
-          max_tokens: 600,
-          temperature: 0.1,
-        },
-      },
-      state.req as RequestWithUser
-    );
-
-    if (!crawlDecision.success) {
-      throw new Error(`AI crawler agent failed: ${crawlDecision.error}`);
-    }
+      maxOutputTokens: 600,
+      temperature: 0.1,
+    });
 
     // Parse AI decision with fallback
     const fallbackDecision = {
@@ -136,10 +124,7 @@ Respond with JSON:
       selections: CrawlSelection[];
       reasoning: string;
     }
-    const decision = parseAIJsonResponse(
-      crawlDecision.content || '',
-      fallbackDecision
-    ) as CrawlDecisionResult;
+    const decision = parseAIJsonResponse(crawlDecision, fallbackDecision) as CrawlDecisionResult;
 
     const crawlDecisions: CrawlDecision[] = decision.selections.map((sel) => ({
       url: sel.url,

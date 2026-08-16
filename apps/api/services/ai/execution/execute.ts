@@ -165,7 +165,7 @@ export async function execute(
       // reasoning internally until the gateway times out (see
       // services/ai/greenptThinkingFetch.ts) — retrying the identical request
       // rarely helps. One retry instead of two reaches the existing
-      // provider-fallback chain (services/ai/aiService.ts) faster, while still
+      // provider-fallback chain (services/ai/generate.ts) faster, while still
       // covering genuinely transient failures.
       maxRetries: provider === 'greenpt' ? 1 : 2,
       ...(tools != null && { tools }),
@@ -177,7 +177,7 @@ export async function execute(
     const message = error instanceof Error ? error.message : String(error);
     console.error(`[${provider} ${requestId}] Request failed after retries: ${message}`);
     // Thrown raw on purpose: classification happens once, at the boundary in
-    // `services/ai/aiService.ts`.
+    // `NoAnswerError` (services/ai/generate.ts).
     throw error;
   }
 }

@@ -1,18 +1,14 @@
-import type { AiClient, AiResult } from '../../services/ai/types.js';
+import type { AiResult } from '../../services/ai/types.js';
 import type { Request } from 'express';
 
 // Note: User type is provided by Express.User through global type augmentation in types/express.d.ts
 // The Request.user property is already defined there with the proper UserProfileShape
 
-export interface SharepicRequest extends Request {
-  app: Request['app'] & {
-    locals: {
-      aiClient?: AiClient;
-    };
-  };
-}
+// Der `app.locals`-Zuschnitt hier hatte genau einen Zweck: `aiClient` zu
+// typisieren. Ohne ihn ist es wieder ein gewöhnlicher Request.
+export type SharepicRequest = Request;
 
-export type { AiClient, AiResult };
+export type { AiResult };
 
 export interface SharepicColors {
   background: string;

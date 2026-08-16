@@ -68,8 +68,7 @@ export type StartTranscriptionResult = { ok: true } | { ok: false; code: 404 | 5
  * transcription in the background (unawaited), and returns immediately.
  */
 export async function startTranscriptionJob(
-  body: ProcessRequest,
-  aiClient: unknown
+  body: ProcessRequest
 ): Promise<StartTranscriptionResult> {
   const {
     uploadId,
@@ -100,11 +99,7 @@ export async function startTranscriptionJob(
       return { ok: false, code: 404, error: 'Video nicht gefunden' };
     }
 
-    transcribeVideo(
-      videoPath,
-      subtitlePreference,
-      aiClient as Parameters<typeof transcribeVideo>[2]
-    )
+    transcribeVideo(videoPath, subtitlePreference)
       .then(async (subtitles) => {
         if (!subtitles) throw new Error('Keine Untertitel generiert');
         markUploadAsProcessed(uploadId);

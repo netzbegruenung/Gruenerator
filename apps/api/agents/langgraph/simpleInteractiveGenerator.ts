@@ -13,7 +13,7 @@
  * 3. Call with generatorType: '{type}'
  */
 
-import { aiTools, type AiToolsCall } from '../../services/ai/generate.js';
+import { aiText, aiTools, type AiToolsCall } from '../../services/ai/generate.js';
 import {
   setExperimentalSession,
   getExperimentalSession,
@@ -26,7 +26,6 @@ import { assemblePromptGraphAsync } from './promptAssemblyGraph.js';
 import { loadPromptConfig, SimpleTemplateEngine } from './PromptProcessor.js';
 
 import type {
-  AIRequestData,
   Tool,
   GeneratedQuestion,
   QuestionGenerationArgs,
@@ -332,7 +331,6 @@ export async function initiateInteractiveGenerator({
   requestType,
   generatorType = 'antrag',
   locale = 'de-DE',
-  aiClient,
   req,
 }: InitiateGeneratorParams): Promise<InitiateGeneratorResult> {
   console.log(`[SimpleInteractiveGenerator] Initiating ${generatorType} session`);
@@ -354,7 +352,6 @@ export async function initiateInteractiveGenerator({
       requestType,
       generatorType,
       locale,
-      aiClient,
       req,
     });
 
@@ -372,7 +369,6 @@ export async function initiateInteractiveGenerator({
         locale,
         questions: [],
         answers: {},
-        aiClient,
         req,
       });
 
@@ -448,7 +444,6 @@ async function generateFinalResult({
   locale = 'de-DE',
   questions = [],
   answers = {},
-  aiClient,
   req,
 }: GenerateFinalResultParams): Promise<GenerationResult> {
   // Format Q&A pairs if present
@@ -536,38 +531,21 @@ async function generateFinalResult({
       : String(msg.content || ''),
   }));
 
-  const generationResult = await aiClient.processRequest(
-    {
-      type: requestType,
-      systemPrompt: assembledPrompt.system,
-      messages: simpleMessages,
-      options: {
-        max_tokens: config.options?.max_tokens || 4000,
-        temperature: config.options?.temperature || 0.3,
-        ...(assembledPrompt.tools?.length &&
-          assembledPrompt.tools.length > 0 && {
-            tools: assembledPrompt.tools,
-          }),
-      },
-    } as AIRequestData,
-    req
-  );
+  // `assembledPrompt.tools` ist hier immer leer: der `PromptContext` oben
+  // kennt kein `tools`-Feld, und der Assembly-Graph reicht nur durch, was der
+  // Aufrufer mitgibt. Der Zweig, der die Werkzeuge in den Umschlag legte, war
+  // deshalb nie erreichbar und ist mit ihm entfallen.
+  const content = await aiText({
+    lane: requestType,
+    system: assembledPrompt.system,
+    messages: simpleMessages,
+    maxOutputTokens: config.options?.max_tokens || 4000,
+    temperature: config.options?.temperature || 0.3,
+  });
 
-  if (!generationResult.success) {
-    throw new Error('Generation failed: ' + generationResult.error);
-  }
+  console.log(`[SimpleInteractiveGenerator] Generation completed: ${content.length} chars`);
 
-  console.log(
-    `[SimpleInteractiveGenerator] Generation completed: ${generationResult.content?.length || 0} chars`
-  );
-
-  const result: GenerationResult = {
-    content: generationResult.content || '',
-    ...(generationResult.metadata?.usage != null
-      ? { metadata: { usage: generationResult.metadata.usage } }
-      : {}),
-  };
-  return result;
+  return { content };
 }
 
 /**
@@ -577,7 +555,6 @@ export async function continueInteractiveGenerator({
   userId,
   sessionId,
   answers,
-  aiClient,
   req,
 }: ContinueGeneratorParams): Promise<ContinueGeneratorResult> {
   console.log(`[SimpleInteractiveGenerator] Continuing session: ${sessionId}`);
@@ -628,7 +605,6 @@ export async function continueInteractiveGenerator({
       locale: session.locale,
       questions: session.questions,
       answers,
-      aiClient,
       req,
     });
 

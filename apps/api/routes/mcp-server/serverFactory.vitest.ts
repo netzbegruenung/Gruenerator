@@ -13,7 +13,6 @@ vi.mock('../../services/notebook/NotebookQAService.js', () => ({
 vi.mock('../../database/services/NotebookQdrantHelper.js', () => ({
   NotebookQdrantHelper: class {},
 }));
-vi.mock('../../utils/getAiClient.js', () => ({ getAiClient: () => ({}) }));
 vi.mock('../../services/user/ProfileService.js', () => ({
   getProfileService: () => ({ getProfileById: vi.fn() }),
 }));

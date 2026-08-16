@@ -11,7 +11,7 @@
  *   nackt, max_tokens=1500   → content EMPTY, 5386 chars reasoning, finish=length
  *   reasoning_effort=none    → content 880 chars, 0 reasoning, finish=stop, 1.36s
  *
- * An empty answer is NOT an error for `aiService`: it triggers the whole
+ * Eine leere Antwort ist für die Fassade kein Fehler: sie startet die ganze
  * fallback chain. So without this wrapper the cheap lane would cost a full
  * Scaleway round trip PLUS the chain, on every call.
  *

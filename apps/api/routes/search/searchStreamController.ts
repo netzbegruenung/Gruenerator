@@ -43,7 +43,6 @@ import type {
   EnrichedResult,
 } from '../../agents/langgraph/WebSearchGraph/types.js';
 import type { AuthenticatedRequest } from '../../middleware/types.js';
-import type { AiClient } from '../../services/ai/types.js';
 import type { ReferencesMap, ExpandedChunkResult } from '../../services/search/types.js';
 import type { Response } from 'express';
 
@@ -231,7 +230,6 @@ export async function streamNormalSearch(req: AuthenticatedRequest, res: Respons
       mode: 'normal',
       user_id: userId,
       searchOptions,
-      aiClient: req.app.locals.aiClient as AiClient,
       req,
       metadata: { startTime, searchMode: 'normal' },
       subqueries: null,
@@ -424,7 +422,6 @@ export async function streamDeepSearch(req: AuthenticatedRequest, res: Response)
       mode: 'deep',
       user_id: userId,
       searchOptions: { maxResults: 10, language: 'de-DE' },
-      aiClient: req.app.locals.aiClient as AiClient,
       req,
       metadata: { startTime, searchMode: 'deep' },
       subqueries: null,

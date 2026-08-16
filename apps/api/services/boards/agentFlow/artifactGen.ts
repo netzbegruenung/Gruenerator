@@ -15,7 +15,6 @@
  */
 import { runDocGeneration } from '../../../routes/chat/services/intentExecutionService.js';
 import { createLogger } from '../../../utils/logger.js';
-import { getAIService } from '../../ai/aiService.js';
 import { aiText } from '../../ai/generate.js';
 
 import { TASK_LIST_PROMPT, parseTaskList, type GeneratedTask } from './taskListParse.js';
@@ -30,7 +29,7 @@ export interface CreatedArtifact {
 
 /**
  * Headless wrapper around `runDocGeneration`. Its `req` is only forwarded to
- * `aiClient.processRequest`, which reads at most `req.user?.id` — a stub
+ * den alten Umschlag, which read at most `req.user?.id` — a stub
  * fully satisfies it (no Express request exists in the background worker).
  */
 async function createArtifactFromText(
@@ -41,7 +40,6 @@ async function createArtifactFromText(
   const created = await runDocGeneration({
     kind,
     userContent: sourceText,
-    aiClient: getAIService(),
     req: { user: { id: userId } } as unknown as Express.Request,
     userId,
   });

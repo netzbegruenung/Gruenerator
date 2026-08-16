@@ -6,9 +6,6 @@ export * from './promptProcessor.js';
 
 // Export specific types from simpleInteractiveGenerator to avoid conflicts
 export type {
-  AiClient,
-  AiClientRequest,
-  AiClientResponse,
   GeneratedQuestion,
   QuestionGenerationArgs,
   QuestionGenerationResult,

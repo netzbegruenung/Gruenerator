@@ -1,8 +1,8 @@
-import { type AIRequestData, type AiClient, type AiResult } from '../../../../services/ai/types.js';
+import { type AIRequestData, type AiResult } from '../../../../services/ai/types.js';
 
 type Responder = AiResult | ((data: AIRequestData) => AiResult);
 
-export interface AiClientStub extends AiClient {
+export interface ProviderStub {
   /** Queue one or more replies for a request `type`, consumed in order. */
   script: (type: string, ...replies: Responder[]) => void;
   /**
@@ -24,16 +24,11 @@ export interface AiClientStub extends AiClient {
   assertScriptsConsumed: () => void;
   calls: AIRequestData[];
   reset: () => void;
+  /** Was `executeProviderStub` an den Skript-Vorrat weiterreicht. */
+  respond: (data: AIRequestData) => Promise<AiResult>;
 }
 
 /**
- * `app.locals.aiClient` is a genuine DI seam (`getAiClient` reads exactly
- * that) — but it is no longer the only door. Call sites are moving onto the
- * typed facade, which reaches `executeProvider` directly and never looks at
- * `app.locals`; `executeProviderStub` above routes that door into this same
- * script, so a scripted VERDICT still replaces the model whichever way the
- * call site asks.
- *
  * An unscripted type THROWS on purpose. The classifier resolves most phrasings
  * in its heuristic tiers without a model call; when a phrasing later drifts
  * into the LLM tier, this stub says so by name instead of quietly attempting a
@@ -59,22 +54,19 @@ const RESOLVER_DEFAULTS: ReadonlyArray<{ prefix: string; reply: string }> = [
 ];
 
 /**
- * The stub the facade's door hands to. Set by `createAiClientStub`, read by
- * `executeProviderStub` — one per suite, and a suite has one stub.
+ * Set by `createProviderStub`, read by `executeProviderStub` — one per suite,
+ * and a suite has one stub.
  */
-let active: AiClientStub | null = null;
+let active: ProviderStub | null = null;
 
 /**
- * The OTHER door, and the reason this file is no longer enough on its own.
+ * Die einzige Tür, seit `app.locals.aiClient` weg ist.
  *
- * `aiText`/`aiObject`/`aiTools` never touch `app.locals.aiClient`; they call
- * `executeProvider` directly. As call sites move onto the facade, scripting
- * only `processRequest` stops covering them — silently: the classifier's
- * resolvers then attempt a REAL provider, fail for want of an API key, and
- * fall through to a heuristic tier, so the test asserts a path it never took.
- *
- * Integration files mock `services/ai/execution/index.js` with this, which
- * routes both doors into the same script.
+ * `aiText`/`aiObject`/`aiTools` rufen `executeProvider` direkt. Integrationsdateien
+ * ersetzen `services/ai/execution/index.js` durch diese Funktion — wer sie
+ * vergisst, versucht einen ECHTEN Provider, scheitert am fehlenden API-Key und
+ * fällt in eine heuristische Stufe zurück: der Test prüft dann einen Weg, den er
+ * nie gegangen ist.
  */
 export function executeProviderStub(
   _provider: string,
@@ -82,17 +74,17 @@ export function executeProviderStub(
   data: AIRequestData
 ): Promise<AiResult> {
   if (!active) {
-    throw new Error('executeProviderStub: no aiClient stub has been created for this suite');
+    throw new Error('executeProviderStub: no provider stub has been created for this suite');
   }
-  return active.processRequest(data);
+  return active.respond(data);
 }
 
-export function createAiClientStub(): AiClientStub {
+export function createProviderStub(): ProviderStub {
   const queues = new Map<string, Responder[]>();
   const resolverQueues = new Map<string, string[]>();
   const calls: AIRequestData[] = [];
 
-  const stub: AiClientStub = {
+  const stub: ProviderStub = {
     calls,
     script(type: string, ...replies: Responder[]): void {
       queues.set(type, [...(queues.get(type) ?? []), ...replies]);
@@ -107,7 +99,7 @@ export function createAiClientStub(): AiClientStub {
       ];
       if (leftover.length > 0) {
         throw new Error(
-          `scripted aiClient replies were never consumed: ` +
+          `scripted provider replies were never consumed: ` +
             leftover.map(([type, q]) => `${type} (${q.length} left)`).join(', ') +
             ` — the turn resolved before reaching the model, so this test pinned nothing`
         );
@@ -118,7 +110,7 @@ export function createAiClientStub(): AiClientStub {
       resolverQueues.clear();
       calls.length = 0;
     },
-    processRequest(data: AIRequestData): Promise<AiResult> {
+    respond(data: AIRequestData): Promise<AiResult> {
       calls.push(data);
       const type = String(data.type);
       // The small resolvers all share the `chat_intent_classification` type, so
@@ -138,15 +130,12 @@ export function createAiClientStub(): AiClientStub {
       if (!queue || queue.length === 0) {
         const seen = calls.filter((c) => String(c.type) === type).length;
         throw new Error(
-          `unscripted aiClient.processRequest type=${type} (call #${seen}); ` +
+          `unscripted provider call type=${type} (call #${seen}); ` +
             `scripted types: ${[...queues.keys()].join(', ') || 'none'}`
         );
       }
       const reply = queue.shift() as Responder;
       return Promise.resolve(typeof reply === 'function' ? reply(data) : reply);
-    },
-    shutdown(): Promise<void> {
-      return Promise.resolve();
     },
   };
 

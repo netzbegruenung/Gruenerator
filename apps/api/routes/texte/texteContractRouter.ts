@@ -26,7 +26,6 @@ import { createLogger } from '../../utils/logger.js';
 import { attachImages, clampSections, parseModelJson } from './websiteContent.js';
 import { buildWebsiteSystemPrompt } from './websitePrompt.js';
 
-import type { AiClient } from '../../services/ai/types.js';
 import type { UserProfile } from '../../services/user/types.js';
 import type { Application, Request } from 'express';
 
