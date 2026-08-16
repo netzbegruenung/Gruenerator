@@ -204,6 +204,17 @@ describe('toolMentionables derived from the intent registry', () => {
     expect(resolveMentionable('umfragen')?.identifier).toBe('umfragen');
   });
 
+  // Zweiter Grund, dieselbe Regel: `@pressemitteilungen` pinnt ein Werkzeug UND
+  // lädt ein Rezept. Der Draht-Token bleibt `pressemitteilung_examples`, so
+  // steht er in jedem persistierten `@[Pressemitteilungen](tool:…)` (F0) — der
+  // Alias `pm` löst auf denselben Eintrag auf.
+  it('bietet eine stillgelegte Erwähnung weiter an, wenn sie ein Rezept lädt', () => {
+    const pm = toolMentionables.find((m) => m.mention === 'pressemitteilungen');
+    expect(pm?.identifier).toBe('pressemitteilung_examples');
+    expect(resolveMentionable('pressemitteilungen')?.identifier).toBe('pressemitteilung_examples');
+    expect(resolveMentionable('pm')?.identifier).toBe('pressemitteilung_examples');
+  });
+
   // Die Gegenprobe: die fünf verwalteten Connectoren sind ohne Werkzeug-Pin
   // stillgelegt und tauchen deshalb NICHT auf.
   it('lässt stillgelegte Erwähnungen ohne Pin draussen', () => {

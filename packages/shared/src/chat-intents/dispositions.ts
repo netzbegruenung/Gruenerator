@@ -65,7 +65,9 @@ import { type ChatIntentId } from './index.js';
  *                Dokumente, darüber per_doc_bullets) und eigene Degradierung
  *                auf `search` bei ≤1 Doc-Quelle
  *   examples     @beispiele · Ziel der App-Herabstufung von social_post
- *   pressemitteilung_examples  @pressemitteilungen/@pm · eigene Karte
+ *   pressemitteilung_examples  STILLGELEGT (Phase L): die Karte hängt am
+ *                Werkzeug, nicht am Verdikt; @pressemitteilungen/@pm zurrt
+ *                Werkzeug UND Rezept `presse` fest
  *   abgeordnetenwatch  @-Mention · Locale-Gitter am Werkzeug · degradeTo
  *   bundestag          @-Mention · Locale-Gitter am Werkzeug · degradeTo
  *   umfragen     STILLGELEGT (Phase L): @umfragen zurrt jetzt das Werkzeug fest
@@ -122,7 +124,6 @@ export const DISPOSITION_BY_INTENT: Record<ChatIntentId, Disposition> = {
   search: 'loop',
   web: 'loop',
   examples: 'loop',
-  pressemitteilung_examples: 'loop',
   abgeordnetenwatch: 'loop',
   bundestag: 'loop',
   // ── D6 retired — als verwaltete Connectoren aus der Intent-Achse ausgezogen.
@@ -140,6 +141,12 @@ export const DISPOSITION_BY_INTENT: Record<ChatIntentId, Disposition> = {
   // zuletzt nur noch die Erwähnung, und die zurrt heute das Werkzeug direkt fest
   // (`IntentMention.pinsTool`). Zensus 0/167 vor der Stilllegung.
   umfragen: 'retired',
+  // Und derselbe Weg noch einmal, mit einem zweiten Halt: `@pressemitteilungen`
+  // zurrt nicht nur das PM-Beispiel-WERKZEUG fest, sondern lädt auch das REZEPT
+  // `presse` (`IntentMention.activatesSkill`). Genau die Zweiteilung war der
+  // Grund, warum der Intent nichts mehr trug: das Werkzeug hing im Katalog, die
+  // Textsorte im Rezept, und übrig blieb `kinds.push('press')` plus eine Karte.
+  pressemitteilung_examples: 'retired',
   /** Der Auffangwert selbst. Seit #2269 der Residualwert der LLM-Stufe. */
   agentic: 'loop',
 

@@ -1,0 +1,16 @@
+# mention-pressemitteilungen-loop — mention-lane
+# Simulated decision map. Regenerate with SIM_UPDATE=1.
+# A green diff proves the BRANCHES ran as scripted. It proves nothing
+# about what a real model would have done.
+
+## turn 0: "Schreib eine PM zum Heizungsgesetz."
+router.run_agentic               = loop                           forcedLoop=true forcedTool=true gateOpen=true hasImageAttachments=false hasManagedSources=false hasOwnMaterial=false hasSelectedNotebook=false inLoopSet=true intent=agentic isCompound=false isPdfFillRequest=false loopEnabled=true mustLoop=true secondaryAllowed=true selfContained=false unsourcedWriting=true
+router.intent_override           = (not reached)
+router.implicit_recipe           = (not reached)
+router.persistent_action_gate    = (not reached)
+classifier.tier                  = tier3.5_loop_demotion          confidence=0.75 demotable=true effectiveConfidence=0.75 heuristicIntent=produktion selfContained=false
+respond.answer_format            = research_expanded              complexity=moderate intent=agentic retrievalExpected=true sourceCount=0 synthesisMode=none taskShape=none
+loop.tool_guard                  = (none)
+loop.synth_verdict               = accepted                       textLength=135
+-- wire --
+intent=agentic agentic=true tools=[gruenerator_pressemitteilung_examples] warnings=[] interrupts=0 confirmActions=[] documentCreated=false sharepicGenerated=false answerChars=135
