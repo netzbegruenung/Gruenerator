@@ -26,13 +26,8 @@
  *     resilience surface.
  */
 
+import { aiText } from '../../../../services/ai/generate.js';
 import { createLogger } from '../../../../utils/logger.js';
-import { intermediateLane } from '../llmConfig.js';
-
-import type { AiClient } from '../../../../services/ai/types.js';
-
-/** @see services/ai/intermediateLanes.ts */
-const LANE = intermediateLane('standard');
 
 const log = createLogger('ChatGraph:DocsTiebreak');
 
@@ -63,7 +58,6 @@ export type DocsTiebreakDecision = 'edit' | 'question' | null;
 interface TiebreakArgs {
   userContent: string;
   conversationContext: string | null;
-  aiClient: AiClient;
 }
 
 /**
@@ -74,7 +68,6 @@ interface TiebreakArgs {
 export async function classifyDocsIntentTiebreak({
   userContent,
   conversationContext,
-  aiClient,
 }: TiebreakArgs): Promise<DocsTiebreakDecision> {
   const startTime = Date.now();
   const userMessage = conversationContext
@@ -83,24 +76,18 @@ export async function classifyDocsIntentTiebreak({
 
   try {
     const response = await withTimeout(
-      aiClient.processRequest(
-        {
-          type: 'chat_intent_classification',
-          provider: LANE.provider,
-          systemPrompt: TIEBREAK_PROMPT,
-          messages: [{ role: 'user', content: userMessage }],
-          options: {
-            model: LANE.model,
-            max_tokens: 16,
-            temperature: 0,
-          },
-        },
-        null
-      ),
+      aiText({
+        lane: 'chat_intent_classification',
+        pinned: 'standard',
+        system: TIEBREAK_PROMPT,
+        prompt: userMessage,
+        maxOutputTokens: 16,
+        temperature: 0,
+      }),
       TIEBREAK_TIMEOUT_MS
     );
 
-    const decision = normalizeDecision(response.content);
+    const decision = normalizeDecision(response);
     const elapsedMs = Date.now() - startTime;
     log.info(
       `[DocsTiebreak] ${decision ?? 'unrecognized'} in ${elapsedMs}ms — "${userContent.slice(0, 60)}"`
