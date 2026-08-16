@@ -1,29 +1,25 @@
 /**
  * Deep Research Counter
  *
- * Tracks daily usage of Linkup's deep-research endpoint per user in Redis.
- * This is the most expensive call in the product (Linkup bills per deep
- * research, not per search) — the daily quota is a hard 1-per-user gate,
- * reset at midnight.
+ * Tracks daily usage of the `@deepresearch` engines per user in Redis, against
+ * one key per user and day, reset at midnight. This is the most expensive call
+ * in the product, so the gate has the same shape as the image one.
+ *
+ * The counter is the mechanism only — it does not know the product's allowance.
+ * That number lives in exactly one place, `routes/chat/services/deepResearchQuota.ts`,
+ * because both engines meter through this same key and a per-engine limit made
+ * the verdict depend on which engine happened to ask.
  */
 
 import type { RedisClient, DeepResearchStatus, DeepResearchResult } from './types.js';
-
-const DEFAULT_DAILY_RESEARCHES = 1;
 
 export class DeepResearchCounter {
   private redis: RedisClient;
   private dailyLimit: number;
 
-  /**
-   * `dailyLimit` is a parameter because the two paths behind `@deepresearch`
-   * cost very different amounts. Linkup's `sourcedAnswer` (the fallback) is
-   * billed per deep research and stays at one per day; the research agent only
-   * ever buys ordinary searches plus at most two `deep` ones, so it is allowed
-   * three. Both share ONE Redis key on purpose — a user cannot spend their
-   * agent runs and then still get a free sourcedAnswer.
-   */
-  constructor(redisClient: RedisClient, dailyLimit: number = DEFAULT_DAILY_RESEARCHES) {
+  /** `dailyLimit` is required on purpose: a default here would be a second
+   *  allowance living next to the one in `deepResearchQuota.ts`. */
+  constructor(redisClient: RedisClient, dailyLimit: number) {
     this.redis = redisClient;
     this.dailyLimit = dailyLimit;
   }
