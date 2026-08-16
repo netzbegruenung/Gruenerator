@@ -497,7 +497,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
   log.info('[Classifier] Starting intent classification');
 
   try {
-    const { messages, aiClient } = state;
+    const { messages } = state;
 
     // Extract user message content (handles both string and AI SDK v6 parts format)
     const lastUserMessage = messages.filter((m) => m.role === 'user').pop();
@@ -652,11 +652,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       // phrasings the regex can't ("mach das knackiger", "polish this",
       // "kannst du das anders?", "ja, mach das" as a follow-up). Hard 800ms
       // timeout, fail-safe to chat path. See docsIntentTiebreak.ts.
-      const tiebreak = await classifyDocsIntentTiebreak({
-        userContent,
-        conversationContext,
-        aiClient,
-      });
+      const tiebreak = await classifyDocsIntentTiebreak({ userContent, conversationContext });
       if (tiebreak === 'edit') {
         const classificationTimeMs = Date.now() - startTime;
         log.info(`[Classifier] Live document edit (LLM tiebreak) → edit_current_doc`);
@@ -718,7 +714,6 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       return classifyWithForcedSearch({
         reason: 'DocumentChat',
         docCount: state.documentChatIds.length,
-        aiClient,
         userContent,
         conversationContext,
         topicalContext,
@@ -775,7 +770,6 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       return classifyWithForcedSearch({
         reason: 'Document',
         docCount: state.documentIds.length,
-        aiClient,
         userContent,
         conversationContext,
         topicalContext,
@@ -791,7 +785,6 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       return classifyWithForcedSearch({
         reason: 'Wolke',
         docCount: state.wolkeFiles.length,
-        aiClient,
         userContent,
         conversationContext,
         topicalContext,
@@ -808,7 +801,6 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       return classifyWithForcedSearch({
         reason: 'Connect',
         docCount: state.connectFiles.length,
-        aiClient,
         userContent,
         conversationContext,
         topicalContext,
@@ -851,7 +843,6 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       return classifyWithForcedSearch({
         reason: 'Notebook',
         docCount: state.notebookIds.length,
-        aiClient,
         userContent,
         conversationContext,
         topicalContext,
@@ -1672,11 +1663,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       GENERATION_SIGNAL.test(userContent) &&
       !isNegatedArtifactRequest(userContent, GENERATION_SIGNAL)
     ) {
-      const generation = await resolveGenerationScope({
-        userContent,
-        conversationContext,
-        aiClient,
-      });
+      const generation = await resolveGenerationScope({ userContent, conversationContext });
       if (generation !== null) {
         const resolvedIntent = generation === 'keine' ? 'produktion' : generation.intent;
         log.info(`[Classifier] Generation scope → ${resolvedIntent} (LLM tier skipped)`);
@@ -1861,11 +1848,7 @@ async function pickThreadArtifact(
     isSharepicEditInstruction(userContent);
   if (!looksReferential) return fallback;
 
-  const index = await resolveEditTarget({
-    userContent,
-    artifacts,
-    aiClient: state.aiClient,
-  });
+  const index = await resolveEditTarget({ userContent, artifacts });
   return index == null ? fallback : artifacts[index];
 }
 
@@ -1876,7 +1859,6 @@ async function pickThreadArtifact(
 async function classifyWithForcedSearch(opts: {
   reason: string;
   docCount: number;
-  aiClient: ChatGraphState['aiClient'];
   userContent: string;
   conversationContext: string | null;
   topicalContext: string | null;
@@ -1888,7 +1870,6 @@ async function classifyWithForcedSearch(opts: {
   const {
     reason,
     docCount,
-    aiClient,
     userContent,
     conversationContext,
     topicalContext,
@@ -1917,12 +1898,7 @@ async function classifyWithForcedSearch(opts: {
   // here, so these turns stop being kicked out of the agentic loop by
   // `decideRunAgentic`'s secondary kill-switch. A document/notebook turn now
   // reaches the loop, where the model can actually call the retrieval tools.
-  const refined = await refineSearchQuery({
-    userContent,
-    conversationContext,
-    topicalContext,
-    aiClient,
-  });
+  const refined = await refineSearchQuery({ userContent, conversationContext, topicalContext });
   const optimizedQuery = refined?.query || extractSearchTopic(userContent) || userContent;
 
   log.info(

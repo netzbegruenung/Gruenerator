@@ -13,8 +13,8 @@
  * instead of surfacing a fabricated figure.
  */
 
+import { aiText } from '../../../../services/ai/generate.js';
 import { createLogger } from '../../../../utils/logger.js';
-import { intermediateLane } from '../llmConfig.js';
 
 import { extractMessageText, formatConversationHistory } from './classifierHeuristics.js';
 import {
@@ -28,9 +28,6 @@ import {
 } from './computeEngine.js';
 
 import type { ChatGraphState } from '../types.js';
-
-/** @see services/ai/intermediateLanes.ts */
-const LANE = intermediateLane('compute');
 
 const log = createLogger('ChatGraph:Compute');
 
@@ -165,7 +162,7 @@ function executePlan(plan: ComputePlan, rawUserText: string): ComputeResult | nu
 
 export async function computeNode(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
   const startTime = Date.now();
-  const { messages, aiClient } = state;
+  const { messages } = state;
 
   const lastUserMessage = messages.filter((m) => m.role === 'user').pop();
   const rawUserText = extractMessageText(lastUserMessage?.content);
@@ -177,29 +174,22 @@ export async function computeNode(state: ChatGraphState): Promise<Partial<ChatGr
       ? `${conversationContext}\n\nAktuelle Anfrage: "${rawUserText}"`
       : `Anfrage: "${rawUserText}"`;
 
-    const response = await aiClient.processRequest(
-      {
-        type: 'chat_intent_classification',
-        provider: LANE.provider,
-        systemPrompt: buildExtractionPrompt(todayISO),
-        messages: [{ role: 'user', content: userContent }],
-        options: {
-          model: LANE.model,
-          // Kein `max_tokens`: seit der Plan eine Konsistenzprüfung tragen kann,
-          // hat er keine vorhersagbare Länge mehr — er listet jede
-          // nachrechenbare Angabe des Materials. Ein abgeschnittener Plan wäre
-          // ein STILLER Verlust: das JSON endet einfach, und die weggefallenen
-          // Zeilen sehen aus wie Zeilen, die stimmen. Provider und
-          // Kontextfenster sind der Backstop — dieselbe Regel wie auf allen
-          // Antwortpfaden (PR #2002).
-          temperature: 0,
-          response_format: { type: 'json_object' },
-        },
-      },
-      null
-    );
+    // Kein `maxOutputTokens`: seit der Plan eine Konsistenzprüfung tragen kann,
+    // hat er keine vorhersagbare Länge mehr — er listet jede nachrechenbare
+    // Angabe des Materials. Ein abgeschnittener Plan wäre ein STILLER Verlust:
+    // das JSON endet einfach, und die weggefallenen Zeilen sehen aus wie Zeilen,
+    // die stimmen. Provider und Kontextfenster sind der Backstop — dieselbe
+    // Regel wie auf allen Antwortpfaden (PR #2002).
+    const content = await aiText({
+      lane: 'chat_intent_classification',
+      pinned: 'compute',
+      system: buildExtractionPrompt(todayISO),
+      prompt: userContent,
+      temperature: 0,
+      json: true,
+    });
 
-    const plan = parsePlan(response.content || '');
+    const plan = parsePlan(content);
     if (!plan) {
       log.warn('[Compute] Could not parse plan — returning null result');
       return { computedResult: null, computedResultTimeMs: Date.now() - startTime };

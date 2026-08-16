@@ -34,13 +34,8 @@
  *     at the call site rather than hidden here.
  */
 
+import { aiText } from '../../../../services/ai/generate.js';
 import { createLogger } from '../../../../utils/logger.js';
-import { intermediateLane } from '../llmConfig.js';
-
-import type { AiClient } from '../../../../services/ai/types.js';
-
-/** @see services/ai/intermediateLanes.ts */
-const LANE = intermediateLane('standard');
 
 const log = createLogger('ChatGraph:QueryRefine');
 
@@ -75,7 +70,6 @@ interface RefineArgs {
   userContent: string;
   conversationContext: string | null;
   topicalContext: string | null;
-  aiClient: AiClient;
 }
 
 /**
@@ -87,7 +81,6 @@ export async function refineSearchQuery({
   userContent,
   conversationContext,
   topicalContext,
-  aiClient,
 }: RefineArgs): Promise<RefinedQuery | null> {
   const startTime = Date.now();
   const userMessage =
@@ -97,25 +90,19 @@ export async function refineSearchQuery({
 
   try {
     const response = await withTimeout(
-      aiClient.processRequest(
-        {
-          type: 'chat_intent_classification',
-          provider: LANE.provider,
-          systemPrompt: REFINE_PROMPT,
-          messages: [{ role: 'user', content: userMessage }],
-          options: {
-            model: LANE.model,
-            max_tokens: 200,
-            temperature: 0.1,
-            response_format: { type: 'json_object' },
-          },
-        },
-        null
-      ),
+      aiText({
+        lane: 'chat_intent_classification',
+        pinned: 'standard',
+        system: REFINE_PROMPT,
+        prompt: userMessage,
+        maxOutputTokens: 200,
+        temperature: 0.1,
+        json: true,
+      }),
       REFINE_TIMEOUT_MS
     );
 
-    const refined = parseRefined(response.content);
+    const refined = parseRefined(response);
     const elapsedMs = Date.now() - startTime;
     if (refined == null) {
       log.warn(`[QueryRefine] Unusable output in ${elapsedMs}ms — falling back to heuristic`);
