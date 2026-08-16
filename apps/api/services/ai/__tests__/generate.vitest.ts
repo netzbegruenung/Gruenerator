@@ -3,7 +3,7 @@
  * the seam that matters: `generate.ts` must compose the SAME engine
  * `processRequest` uses, not reimplement generation next to it.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { AiProviderError } from '../../providers/providerErrors.js';
 
@@ -141,6 +141,63 @@ describe('aiText', () => {
 
     expect(error).toBeInstanceOf(NoAnswerError);
     expect((error as Error).cause).toBe(boom);
+  });
+});
+
+/**
+ * `processRequest` puts a wall clock over every call (`executeWithTimeout`).
+ * The envelope has no timeout field, so migrating call sites carry that
+ * expectation silently — a facade without it would drop their only ceiling
+ * against a hung provider.
+ */
+describe('the wall clock', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  const hang = () => new Promise(() => undefined);
+
+  it('gives up on a provider that never answers', async () => {
+    executeProvider.mockImplementation(hang);
+
+    const failed = aiText({ lane: 'qa_draft', prompt: 'x' }).catch((e: unknown) => e as Error);
+    await vi.advanceTimersByTimeAsync(120_000);
+
+    const error = await failed;
+    expect(error).toBeInstanceOf(NoAnswerError);
+    expect(error.message).toContain('Request timeout after 120000ms');
+  });
+
+  it('covers the whole chain, not one attempt', async () => {
+    // A per-attempt budget would let a three-provider chain run three times as
+    // long as the caller allowed.
+    executeProvider.mockRejectedValueOnce(new Error('503')).mockImplementation(hang);
+
+    const failed = aiText({ lane: 'antrag', prompt: 'x' }).catch((e: unknown) => e as Error);
+    await vi.advanceTimersByTimeAsync(120_000);
+
+    expect((await failed).message).toContain('Request timeout');
+    expect(executeProvider).toHaveBeenCalledTimes(2);
+  });
+
+  it('lets a caller name its own budget', async () => {
+    // `agentPipeline` runs after the stream has closed; waiting is cheaper than
+    // failing there, and its steps say so.
+    executeProvider.mockImplementation(hang);
+
+    const failed = aiText({ lane: 'qa_draft', prompt: 'x', timeoutMs: 240_000 }).catch(
+      (e: unknown) => e as Error
+    );
+    await vi.advanceTimersByTimeAsync(120_000);
+    await vi.advanceTimersByTimeAsync(120_000);
+
+    expect((await failed).message).toContain('Request timeout after 240000ms');
+  });
+
+  it('does not fire once the answer is in', async () => {
+    const answer = await aiText({ lane: 'qa_draft', prompt: 'x' });
+
+    expect(answer).toBe('Antwort');
+    expect(vi.getTimerCount()).toBe(0);
   });
 });
 
