@@ -25,7 +25,7 @@ pnpm build:web                # Build web only
 pnpm typecheck                # TS check all packages
 pnpm lint                     # ESLint all packages
 pnpm format:check             # Prettier check
-pnpm ci                       # Full CI: typecheck + lint + format:check + test
+pnpm run ci                   # Full CI: typecheck + lint + format:check + test
 pnpm test                     # All tests
 ```
 
