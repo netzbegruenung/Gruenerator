@@ -32,7 +32,7 @@
  */
 
 import { getSystemAgent } from '@gruenerator/shared/agents';
-import { type ChatIntentId } from '@gruenerator/shared/chat-intents';
+import { type ChatIntentId, intentsWithDisposition } from '@gruenerator/shared/chat-intents';
 
 import { getPipelineAgent } from './pipelines/index.js';
 
@@ -252,14 +252,20 @@ const DEFAULT_ENTRY: AutoEntry = { modelId: GEMMA, reasoning: graded('off', 'off
 /**
  * Intents with no inherent task shape. Only these may be overridden by an
  * agent's `autoRoutingHint`; a `create_sheet` turn stays on the tool lane no
- * matter which agent is active. `greeting` is listed because it was part of
- * `direct` when this set was written — an agent that pins a lane for voice
- * consistency should keep getting it on "Hallo" too.
+ * matter which agent is active.
+ *
+ * ABGELEITET: die `prose`-Disposition plus `agentic`. „Keine eigene
+ * Aufgabenform" ist genau, was `prose` sagt (kein Werkzeug, Einzelpfad) —
+ * `greeting` stand hier bisher mit der Begründung, es sei einmal Teil von
+ * `direct` gewesen, und ist über die Ableitung ohne Sonderfall dabei. `agentic`
+ * kommt hinzu, weil es der AUFFANGWERT ist: der Planer wählt die Werkzeuge
+ * erst, also gibt das Verdikt selbst noch keine Form vor.
+ *
+ * Die Ableitung ist die Aussage: ein künftiger `prose`-Intent ist automatisch
+ * überschreibbar, statt dass jemand daran denken muss.
  */
-const HINT_OVERRIDABLE: ReadonlySet<ChatIntentId> = new Set([
-  'produktion',
-  'direct',
-  'greeting',
+const HINT_OVERRIDABLE: ReadonlySet<ChatIntentId> = new Set<ChatIntentId>([
+  ...intentsWithDisposition('prose'),
   'agentic',
 ]);
 

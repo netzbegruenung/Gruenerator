@@ -25,7 +25,7 @@ pnpm build:web                # Build web only
 pnpm typecheck                # TS check all packages
 pnpm lint                     # ESLint all packages
 pnpm format:check             # Prettier check
-pnpm ci                       # Full CI: typecheck + lint + format:check + test
+pnpm run ci                   # Full CI: typecheck + lint + format:check + test
 pnpm test                     # All tests
 ```
 
@@ -214,10 +214,10 @@ Konsequenzen:
 - `typecheck` **und** `lint` tragen `dependsOn: ["^typecheck"]`. Bei `lint` sieht die Kante falsch aus, ist es aber nicht: ESLint läuft hier voll typ-bewusst (`projectService` + `no-floating-promises`/`no-unsafe-*` in `packages/eslint-config/base.js`) und liest dieselben fremden Quellen. `^lint` genügt nicht, weil die Hälfte der Zwischenpakete (`canvas-editor`, `collab`, `docs`, `presentations`, `sheets`, `voice`, `wolke`, `sites-design`) gar kein `lint`-Skript hat und die Hash-Kette dort abreißen würde — `typecheck` haben sie alle.
 - Wer eine `^`-Kante entfernen will, weil sie „nur serialisiert": vorher den Hash messen (`turbo run <task> --dry=json`, Feld `hash`), nicht bloß prüfen, ob der Task isoliert grün läuft. `--only` beweist nur, dass die Reihenfolge egal ist, nichts über die Korrektheit des Caches.
 
-**Check-Budget.** `pnpm ci` fasst typecheck/lint/test in **einen** Turbo-Aufruf, danach `format:check` (Prettier läuft mit `--cache --cache-strategy content`: 19,6 s → 4,1 s warm). Auf einem M5/10 Kerne kostet ein kalter Voll-Typecheck ~64 s, ein kalter Voll-Lint ~287 s (`web` 287 s, `api` 281 s, `mobile` 236 s dominieren), die Testsuite ~114 s. Bei ~5 parallelen Agenten auf 16 GB bleibt es trotzdem bei:
+**Check-Budget.** `pnpm run ci` fasst typecheck/lint/test in **einen** Turbo-Aufruf, danach `format:check` (Prettier läuft mit `--cache --cache-strategy content`: 19,6 s → 4,1 s warm). Auf einem M5/10 Kerne kostet ein kalter Voll-Typecheck ~64 s, ein kalter Voll-Lint ~287 s (`web` 287 s, `api` 281 s, `mobile` 236 s dominieren), die Testsuite ~114 s. Bei ~5 parallelen Agenten auf 16 GB bleibt es trotzdem bei:
 
 - Während der Arbeit paketweise: `pnpm --filter @gruenerator/<pkg> exec tsc --noEmit`, `npx eslint <dateien>`, `npx vitest run <eine.vitest.ts>`.
-- Voll-Check (`pnpm ci`) **einmal am Ende**, in einem Worktree — nicht als Zwischenstand, nicht als Statusbericht.
+- Voll-Check (`pnpm run ci`, **nie** `pnpm ci` — pnpms eingebauter `ci`-Stub bricht mit `ERR_PNPM_CI_NOT_IMPLEMENTED` ab, und zwar mit Exit-Code 0: sieht aus wie grün, hat nichts geprüft) **einmal am Ende**, in einem Worktree — nicht als Zwischenstand, nicht als Statusbericht.
 - Nie ganze Test-Verzeichnisse (`vitest run routes/chat agents/langgraph …` = 113 Dateien / 275 s / ~9 Forks).
 - `--force` nur nach Änderungen an Build-Outputs geteilter Pakete, dann mit `--filter`. Nie als Reflex am Ende.
 

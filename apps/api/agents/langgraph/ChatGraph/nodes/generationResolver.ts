@@ -36,6 +36,7 @@
 
 import { aiText } from '../../../../services/ai/generate.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { withTimeout } from '../../../../utils/withTimeout.js';
 
 import type { ChatIntentId } from '@gruenerator/shared/chat-intents';
 
@@ -162,7 +163,8 @@ export async function resolveGenerationScope({
         maxOutputTokens: 16,
         temperature: 0,
       }),
-      RESOLVE_TIMEOUT_MS
+      RESOLVE_TIMEOUT_MS,
+      'Generation scope'
     );
 
     const verdict = parseKind(response);
@@ -212,20 +214,4 @@ function parseKind(raw: string | undefined | null): GenerationVerdict | null {
   // von `max_tokens: 16`, das ist also keine Randform.
   consider(at('keine?'), 'keine');
   return best === null ? null : (best as { verdict: GenerationVerdict }).verdict;
-}
-
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`Generation scope timeout after ${ms}ms`)), ms);
-    promise.then(
-      (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      },
-      (err) => {
-        clearTimeout(timer);
-        reject(err);
-      }
-    );
-  });
 }

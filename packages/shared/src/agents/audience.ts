@@ -37,6 +37,24 @@ export function isAgentVisibleForLocale(agent: Agent, userLocale: string): boole
 }
 
 /**
+ * The same gate for a RECIPE (`Skill.audience`), which is a bare tag rather
+ * than an `Agent`.
+ *
+ * Two differences from {@link isAgentVisibleForLocale}, both load-bearing for
+ * its callers: the locale may be `null` ("not known yet" on the backend, where
+ * it arrives from the request) and then means `'de-DE'`, and `audience` is
+ * matched as a string because the recipe frontmatter is not typed to the
+ * audience union. Behaviour for the values that overlap is identical.
+ */
+export function matchesRecipeAudience(
+  audience: string | undefined,
+  userLocale: string | null
+): boolean {
+  if (!audience || audience === 'all') return true;
+  return audience === (userLocale || 'de-DE');
+}
+
+/**
  * Should this agent be offered on the given platform?
  *
  * - `webOnly: true` → hidden on `'mobile'`, visible on `'web'`.

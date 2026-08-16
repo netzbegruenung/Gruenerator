@@ -27,6 +27,7 @@
 
 import { aiText } from '../../../../services/ai/generate.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { withTimeout } from '../../../../utils/withTimeout.js';
 
 import { renderArtifactChoices } from './artifactInventory.js';
 
@@ -81,7 +82,8 @@ export async function resolveEditTarget({
         maxOutputTokens: 8,
         temperature: 0,
       }),
-      RESOLVE_TIMEOUT_MS
+      RESOLVE_TIMEOUT_MS,
+      'Edit target'
     );
 
     const index = parseIndex(response, artifacts.length);
@@ -120,20 +122,4 @@ function parseIndex(raw: string | undefined | null, count: number): number | nul
   const n = Number.parseInt(match[0], 10);
   if (!Number.isFinite(n) || n < 1 || n > count) return null;
   return n - 1;
-}
-
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`Edit target timeout after ${ms}ms`)), ms);
-    promise.then(
-      (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      },
-      (err) => {
-        clearTimeout(timer);
-        reject(err);
-      }
-    );
-  });
 }

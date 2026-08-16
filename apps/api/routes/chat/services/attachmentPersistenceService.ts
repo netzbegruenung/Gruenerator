@@ -126,7 +126,8 @@ export async function saveThreadAttachment(params: SaveAttachmentParams): Promis
   if (isImage && imageData) {
     // Vision-describe the image once, in the background, and store it as the
     // attachment summary — this is what gives later text-only turns a memory of
-    // the image (formatThreadAttachmentsContext surfaces it as "FRÜHERE BILDER").
+    // the image (respondNode's `formatThreadAttachmentsContext` surfaces it as
+    // "FRÜHERE BILDER").
     generateImageSummary(attachmentId, imageData, mimeType).catch((err) => {
       reportBackgroundError(err, { job: 'attachment-image-summary', attachmentId });
     });
@@ -444,34 +445,4 @@ export async function deleteThreadAttachments(threadId: string): Promise<void> {
   await postgres.query(`DELETE FROM chat_thread_attachments WHERE thread_id = $1`, [threadId]);
 
   log.info(`[AttachmentPersistence] Deleted all attachments for thread ${threadId}`);
-}
-
-/**
- * Format thread attachments as context for the system message.
- * Used when building the response to include previous document context.
- */
-export function formatThreadAttachmentsContext(attachments: ThreadAttachment[]): string {
-  if (attachments.length === 0) {
-    return '';
-  }
-
-  // Prefer the full extracted text (so a file stays chattable across turns);
-  // fall back to the short summary only for legacy rows without stored text.
-  const docs = attachments
-    .filter((a) => !a.isImage && (a.extractedText || a.summary))
-    .map((a, i) => `${i + 1}. **${a.name}**:\n${a.extractedText ?? a.summary}`)
-    .join('\n\n');
-
-  if (!docs) {
-    return '';
-  }
-
-  return `
-
-## FRÜHERE DOKUMENTE IN DIESEM GESPRÄCH
-
-${docs}
-
----
-Nutze diese Dokumentinhalte wenn der Nutzer sich darauf bezieht (z.B. "das PDF", "das Dokument", etc.).`;
 }

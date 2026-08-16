@@ -73,6 +73,7 @@ import {
   CHAT_HISTORY_DIRECT,
   CHAT_HISTORY_KEYWORDS,
   CURRENT_THREAD_REFERENCE,
+  DEMOTABLE_HEURISTIC_INTENTS,
   NON_SEARCH_INTENTS,
   NO_RETRIEVAL_VERDICTS,
   looksLikeDocsHelpQuestion,
@@ -97,20 +98,18 @@ import type { ChatGraphState, GatherSource, SearchIntent } from '../types.js';
 
 const log = createLogger('ChatGraph:Classifier');
 
-/** Heuristic verdicts eligible for loop demotion (Tier 3.5): the retrieval
- *  family only — every member is in AGENTIC_INTENTS and none is platform-
- *  gated. Generation intents (sharepic, social_post, image, ...) and
- *  interrupt/confirm intents must keep the LLM tier so their gates, HITL and
- *  fixed UX contracts stay intact. */
-const DEMOTABLE_HEURISTIC_INTENTS: ReadonlySet<ChatIntentId> = new Set([
+/**
+ * Verdicts the compare upgrade may rewrite when ≥2 doc sources meet a compare
+ * verb. Other intents (image, summary, modify_doc, ...) are user-driven and
+ * must not be silently rerouted.
+ *
+ * Consumer policy, not an intent property — and at module scope because it was
+ * being rebuilt on every classification call.
+ */
+const COMPARE_UPGRADEABLE: ReadonlySet<ChatIntentId> = new Set([
   'search',
-  'web',
-  'examples',
-  'pressemitteilung_examples',
-  'compare',
-  'abgeordnetenwatch',
-  'bundestag',
-]);
+  'research',
+] as const satisfies readonly ChatIntentId[]);
 
 // Content-creation agent (öffentlichkeitsarbeit) routing heuristics.
 // Module-scope so V8 doesn't recompile per classification call. Hoisted out
@@ -186,11 +185,9 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   });
 
   // Upgrade search/research → 'compare' when the user explicitly asks for a
-  // comparison and ≥2 doc sources are in play. Other intents (image, summary,
-  // modify_doc, ...) are user-driven and shouldn't be silently rerouted.
+  // comparison and ≥2 doc sources are in play (see COMPARE_UPGRADEABLE).
   const lastUserMessage = state.messages.filter((m) => m.role === 'user').pop();
   const userText = extractMessageText(lastUserMessage?.content);
-  const COMPARE_UPGRADEABLE: ReadonlySet<SearchIntent> = new Set(['search', 'research']);
   let intent = result.intent ?? state.intent;
   if (
     intent &&

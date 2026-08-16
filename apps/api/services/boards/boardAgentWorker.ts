@@ -62,7 +62,15 @@ Wähle "sheet" oder "presentation" NUR bei ausdrücklicher Bitte um dieses Forma
 
 // Intents that produce a non-text artifact (image/sharepic/chart) the board
 // agent can't deliver as a document — answered with a short explanation instead.
-const UNSUPPORTED_INTENTS = new Set<SearchIntent>(['image', 'image_edit', 'sharepic', 'chart']);
+// Eine Aussage über diese FLÄCHE, nicht über die Intents: `social_post` und
+// `artifact` tragen dieselbe Disposition und sind bewusst nicht dabei, weil sie
+// als Text bzw. als Dokument ankommen.
+const UNSUPPORTED_INTENTS: ReadonlySet<SearchIntent> = new Set([
+  'image',
+  'image_edit',
+  'sharepic',
+  'chart',
+] as const satisfies readonly SearchIntent[]);
 
 // Safety net for the @-mention path: even when the classifier picks "comment",
 // the model can return a long, structured answer. Comments render as plain text

@@ -180,12 +180,6 @@ export async function runEarlyHandlerStage({
   // sibling intent instead of a redirect: the post text is a plain chat
   // answer the app renders fine.
   if (initialState.clientPlatform === 'app') {
-    if (
-      classifiedState.secondaryIntent === 'sharepic' ||
-      classifiedState.secondaryIntent === 'social_post'
-    ) {
-      classifiedState.secondaryIntent = null;
-    }
     if (classifiedState.intent === 'social_post') {
       classifiedState.intent = 'examples';
       log.info('[ChatGraph] social_post on app — downgraded to examples (text-only post)');

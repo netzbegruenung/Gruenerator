@@ -137,10 +137,8 @@ export async function runPersistStage({
     });
   }
 
-  // === Stage 4c: Handle save_as_doc (primary or secondary intent) ===
-  const isSaveAsDoc =
-    classifiedState.intent === 'save_as_doc' || classifiedState.secondaryIntent === 'save_as_doc';
-  if (isSaveAsDoc && fullText) {
+  // === Stage 4c: Handle save_as_doc ===
+  if (classifiedState.intent === 'save_as_doc' && fullText) {
     const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
     // Same transcript builder the other create turns use, so "speicher das
     // als Dokument" and "mach ein PDF draus" see the same thread. It used to
