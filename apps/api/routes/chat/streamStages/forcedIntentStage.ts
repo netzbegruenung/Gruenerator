@@ -106,122 +106,97 @@ export async function runForcedIntentStage({
     log.info('[ChatGraph] Intent forced to "image_edit" via @bildbearbeiten mention');
   }
 
-  // @abgeordnetenwatch hard-pins the German MP transparency intent. It is not
-  // part of TOOL_PRIORITY (that list is search/image/sharepic tools), so it's
-  // resolved here. DE-only source: for de-AT users, ignore the force and keep
-  // the classifier's (already downgraded) intent so we never fetch empty data.
-  const abgeordnetenwatchForced = !!forcedTools?.includes('abgeordnetenwatch');
-  if (
-    abgeordnetenwatchForced &&
-    isIntentAllowedForLocale('abgeordnetenwatch', initialState.userLocale)
-  ) {
-    classifiedState.intent = 'abgeordnetenwatch';
-    forcedTool = true;
-    // The classifier may have returned a non-search intent (e.g. 'direct')
-    // and left searchQuery empty — pull the user's message in as the query.
-    if ((!classifiedState.searchQuery || !classifiedState.searchQuery.trim()) && lastUserMessage) {
-      const userText = lastUserTextNoMentions.trim();
-      if (userText) classifiedState.searchQuery = userText;
-    }
-    log.info('[ChatGraph] Intent forced to "abgeordnetenwatch" via @abgeordnetenwatch mention');
-  }
-
-  // @bundestag hard-pins the DIP document/speech intent — same rules as
-  // @abgeordnetenwatch above (not in TOOL_PRIORITY, DE-only source).
-  const bundestagForced = !!forcedTools?.includes('bundestag');
-  if (bundestagForced && isIntentAllowedForLocale('bundestag', initialState.userLocale)) {
-    classifiedState.intent = 'bundestag';
-    forcedTool = true;
-    if ((!classifiedState.searchQuery || !classifiedState.searchQuery.trim()) && lastUserMessage) {
-      const userText = lastUserTextNoMentions.trim();
-      if (userText) classifiedState.searchQuery = userText;
-    }
-    log.info('[ChatGraph] Intent forced to "bundestag" via @bundestag mention');
-  }
-
-  // @doku hard-pins the documentation intent. Not in TOOL_PRIORITY (that
-  // list is the search/image/sharepic family), so it is resolved here. Not
-  // locale-gated: the docs describe the product itself and apply to DE and
-  // AT alike. The searchQuery backfill matters more here than for the
-  // sources above — the docs tool searches the user's text verbatim, so an
+  // The classifier may have returned a non-search intent (e.g. 'direct') and
+  // left searchQuery empty — pull the user's message in as the query. It
+  // matters most for `hilfe`, whose docs tool searches the text verbatim: an
   // empty query would search nothing at all.
-  if (forcedTools?.includes('hilfe')) {
-    classifiedState.intent = 'hilfe';
-    forcedTool = true;
-    if ((!classifiedState.searchQuery || !classifiedState.searchQuery.trim()) && lastUserMessage) {
-      const userText = lastUserTextNoMentions.trim();
-      if (userText) classifiedState.searchQuery = userText;
-    }
-    log.info('[ChatGraph] Intent forced to "hilfe" via @doku mention');
-  }
-
-  // @umfragen hard-pins the poll intent — same shape as @doku above, and for
-  // the same reason: without this branch the mention put `umfragen` into
-  // forcedTools and then fell through EVERY resolver (it is in neither
-  // TOOL_PRIORITY nor createRoutes nor a branch of its own), so the turn
-  // depended entirely on the classifier happening to pick `umfragen` by
-  // itself — the silent no-op the `hilfe` comment above warns about.
-  // Not locale-gated: PolitPro covers the Austrian parliaments too.
-  if (forcedTools?.includes('umfragen')) {
-    classifiedState.intent = 'umfragen';
-    forcedTool = true;
-    if ((!classifiedState.searchQuery || !classifiedState.searchQuery.trim()) && lastUserMessage) {
-      const userText = lastUserTextNoMentions.trim();
-      if (userText) classifiedState.searchQuery = userText;
-    }
-    log.info('[ChatGraph] Intent forced to "umfragen" via @umfragen mention');
-  }
+  const backfillSearchQuery = (): void => {
+    if (classifiedState.searchQuery && classifiedState.searchQuery.trim()) return;
+    if (!lastUserMessage) return;
+    const userText = lastUserTextNoMentions.trim();
+    if (userText) classifiedState.searchQuery = userText;
+  };
 
   // A per-server mention (@notion/@brevo) arrives as `mcp:<serverId>` and
   // scopes the tool-loop to that one server. Bare `mcp` (legacy @mcp tokens in
   // old threads; no mention emits it anymore) still runs unscoped over all
-  // enabled servers for back-compat. Not in TOOL_PRIORITY, so resolved here;
-  // the forced flag lets the loop run even if enabledTools.mcp is off, and
-  // the agentic mcpCatalog no-ops safely when the user has no servers.
+  // enabled servers for back-compat.
   const mcpScopedToken = forcedTools?.find((t) => t.startsWith('mcp:'));
-  const mcpForced = !!forcedTools?.includes('mcp') || !!mcpScopedToken;
-  if (mcpForced) {
-    classifiedState.intent = 'mcp';
-    classifiedState.mcpServerScope = mcpScopedToken ? mcpScopedToken.slice(4) : null;
-    forcedTool = true;
-    log.info('[ChatGraph] Intent forced to "mcp" via mention', {
-      scope: classifiedState.mcpServerScope ?? 'all',
-    });
-  }
 
-  // Mentions whose forced tool IS the intent name and whose only extra need
-  // is a query backfill — the shape `hilfe` and `umfragen` spell out above.
-  // Kept as a table rather than seven more if-blocks; anything needing a
-  // locale gate, a scope or a style variant stays an explicit branch.
-  //
-  // The pipeline each one reaches differs (`examples` and
-  // `pressemitteilung_examples` run in the search node, the rest in the
-  // loop), but forcing the intent is the same act for all of them.
-  //
-  // `wetter` was in this table and carried an availability guard with it —
-  // a forced mention had to clear the same bar the classifier applied, or it
-  // bypassed the degrade. Both are gone: `@wetter` is now a connector
-  // mention (`mcp:system-wetter`), handled by the scoped-MCP branch above,
-  // and the availability question is answered at the mount.
-  const SIMPLE_FORCED_INTENTS = [
-    'examples',
-    'pressemitteilung_examples',
-    'chat_history',
-    'social_post',
-    'chart',
-    'compute',
-  ] as const satisfies readonly ChatIntentId[];
-  for (const candidate of SIMPLE_FORCED_INTENTS) {
-    if (!forcedTools?.includes(candidate)) continue;
-    if (!isIntentAllowedForLocale(candidate, initialState.userLocale)) continue;
-    classifiedState.intent = candidate;
+  /**
+   * Die Erwähnungen, deren ganzer Effekt „diesen Intent festzurren" ist — als
+   * EINE Tabelle statt als Kette gleichförmiger if-Blöcke, von denen jeder
+   * denselben Nachtrag der Suchanfrage nochmal ausschrieb. Keiner von ihnen
+   * steht in `TOOL_PRIORITY` unten (das ist die Such-/Bild-/Sharepic-Familie),
+   * deshalb werden sie hier aufgelöst.
+   *
+   * **Die Reihenfolge ist Verhalten, nicht Kosmetik.** Ein Turn kann mehrere
+   * Erwähnungen tragen; jeder Treffer überschreibt den vorherigen, der LETZTE
+   * gewinnt. `@notion @beispiele` ergibt deshalb `examples` — mit gesetztem
+   * `mcpServerScope`. Wer eine Zeile verschiebt, ändert genau solche Fälle.
+   *
+   * Das Locale-Gitter läuft für ALLE Zeilen. Für die meisten ist es ein
+   * No-op (`audience: 'all'`); für die beiden DE-only-Quellen ist es der
+   * Grund, warum ein AT-Turn beim herabgestuften Verdikt des Klassifikators
+   * bleibt, statt leere Daten abzurufen.
+   *
+   * `wetter` stand in dieser Tabelle und trug eine Verfügbarkeitsprüfung mit
+   * sich — eine erzwungene Erwähnung musste dieselbe Latte reissen wie der
+   * Klassifikator, sonst umging sie die Degradierung. Beides ist weg:
+   * `@wetter` ist heute eine Konnektor-Erwähnung (`mcp:system-wetter`) und
+   * läuft über die `mcp`-Zeile, und die Verfügbarkeitsfrage wird an der
+   * Montage beantwortet.
+   */
+  const PIN_ROUTES: ReadonlyArray<{
+    intent: ChatIntentId;
+    /** Erkennt den Token. Default: der Intent-Name selbst. */
+    matches?: () => boolean;
+    /** Sonderfelder, die dieser Eintrag ausser dem Intent setzt. */
+    onPin?: () => void;
+    /** `mcp` als einziger: sein Werkzeug bekommt die Frage aus dem Verlauf. */
+    backfillQuery?: false;
+    /**
+     * Exklusive Gruppe — der erste Treffer gewinnt, spätere Mitglieder ruhen.
+     * Die Gruppe hält das `break` der alten `SIMPLE_FORCED_INTENTS`-Schleife
+     * fest: `@beispiele @diagramm` ergibt `examples`, nicht `chart`.
+     */
+    group?: 'simple';
+  }> = [
+    { intent: 'abgeordnetenwatch' },
+    { intent: 'bundestag' },
+    { intent: 'hilfe' },
+    { intent: 'umfragen' },
+    {
+      intent: 'mcp',
+      matches: () => !!forcedTools?.includes('mcp') || !!mcpScopedToken,
+      // Das erzwungene Flag lässt die Schleife auch laufen, wenn
+      // `enabledTools.mcp` aus ist; der agentische mcpCatalog ist ein
+      // sicherer No-op, wenn die Person keine Server verbunden hat.
+      onPin: () => {
+        classifiedState.mcpServerScope = mcpScopedToken ? mcpScopedToken.slice(4) : null;
+      },
+      backfillQuery: false,
+    },
+    { intent: 'examples', group: 'simple' },
+    { intent: 'pressemitteilung_examples', group: 'simple' },
+    { intent: 'chat_history', group: 'simple' },
+    { intent: 'social_post', group: 'simple' },
+    { intent: 'chart', group: 'simple' },
+    { intent: 'compute', group: 'simple' },
+  ];
+
+  const firedGroups = new Set<string>();
+  for (const route of PIN_ROUTES) {
+    if (route.group && firedGroups.has(route.group)) continue;
+    const matched = route.matches ? route.matches() : forcedTools?.includes(route.intent) === true;
+    if (!matched) continue;
+    if (!isIntentAllowedForLocale(route.intent, initialState.userLocale)) continue;
+    classifiedState.intent = route.intent;
     forcedTool = true;
-    if ((!classifiedState.searchQuery || !classifiedState.searchQuery.trim()) && lastUserMessage) {
-      const userText = lastUserTextNoMentions.trim();
-      if (userText) classifiedState.searchQuery = userText;
-    }
-    log.info(`[ChatGraph] Intent forced to "${candidate}" via @-mention`);
-    break;
+    if (route.group) firedGroups.add(route.group);
+    route.onPin?.();
+    if (route.backfillQuery !== false) backfillSearchQuery();
+    log.info(`[ChatGraph] Intent forced to "${route.intent}" via @-mention`);
   }
 
   // @deepresearch — a VARIANT of `research`, routed like one, but the only
