@@ -672,3 +672,16 @@ export {
   GROUNDABLE_PROSE_INTENTS,
   isGroundableProse,
 } from './dispositions.js';
+
+/**
+ * Die Lane-Achse für ERZWUNGENE Turns. Aus demselben Grund hier re-exportiert
+ * wie die Dispositionen: ein zweiter Importpfad wäre die erste Gelegenheit für
+ * eine zweite Wahrheit.
+ */
+export {
+  type ForcedLane,
+  FORCED_LANE_BY_INTENT,
+  forcedLaneOf,
+  forcesLoopLane,
+  intentsWithForcedLane,
+} from './forcedLanes.js';
