@@ -28,6 +28,7 @@
 
 import { aiText } from '../../../../services/ai/generate.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { withTimeout } from '../../../../utils/withTimeout.js';
 
 const log = createLogger('ChatGraph:DocsTiebreak');
 
@@ -84,7 +85,8 @@ export async function classifyDocsIntentTiebreak({
         maxOutputTokens: 16,
         temperature: 0,
       }),
-      TIEBREAK_TIMEOUT_MS
+      TIEBREAK_TIMEOUT_MS,
+      'Tiebreak'
     );
 
     const decision = normalizeDecision(response);
@@ -116,20 +118,4 @@ function normalizeDecision(raw: string | undefined | null): DocsTiebreakDecision
   if (editIdx === -1) return 'question';
   if (questionIdx === -1) return 'edit';
   return editIdx < questionIdx ? 'edit' : 'question';
-}
-
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`Tiebreak timeout after ${ms}ms`)), ms);
-    promise.then(
-      (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      },
-      (err) => {
-        clearTimeout(timer);
-        reject(err);
-      }
-    );
-  });
 }
