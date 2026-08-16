@@ -4,6 +4,7 @@
  * Handles URL detection, attachment processing, web search, and document aggregation
  */
 
+import { aiText } from '../services/ai/generate.js';
 import { processAndBuildAttachments } from '../services/attachments/index.js';
 import { extractUrlsFromContent, filterNewUrls, getUrlDomain } from '../services/content/index.js';
 import { extractLocaleFromRequest } from '../services/localization/index.js';
@@ -237,7 +238,12 @@ class RequestEnricher {
     requestData: Record<string, unknown>,
     options: Partial<EnrichmentOptions>
   ): Promise<{ preAnswer: string; timeMs: number } | null> {
-    if (!options.enableNotebookEnrich || !options.aiClient) {
+    // Der Client stand hier als zweite Bedingung — nicht als Abhängigkeit,
+    // sondern als Anwesenheitsprüfung. Beide Aufrufer, die
+    // `enableNotebookEnrich` überhaupt setzen (`PromptProcessor`,
+    // `streamingProcessor`), reichen ihn bedingungslos mit; der Schalter ist
+    // die Fahne, nicht die Verdrahtung.
+    if (!options.enableNotebookEnrich) {
       return null;
     }
 
@@ -269,14 +275,15 @@ class RequestEnricher {
         `🎯 [NotebookEnrich] Generating preliminary draft for: "${theme.substring(0, 50)}..."`
       );
 
-      const result = await options.aiClient.processRequest({
-        type: 'notebook_enrich',
-        messages: [{ role: 'user', content: userPrompt }],
-        systemPrompt,
-        options: { max_tokens: 500, temperature: 0.4, top_p: 0.9 },
+      const content = await aiText({
+        lane: 'notebook_enrich',
+        prompt: userPrompt,
+        system: systemPrompt,
+        maxOutputTokens: 500,
+        temperature: 0.4,
+        topP: 0.9,
       });
 
-      const content = result.content || '';
       if (!content || content.length < 20) {
         console.log('🎯 [NotebookEnrich] Result too short or empty, skipping');
         return null;
