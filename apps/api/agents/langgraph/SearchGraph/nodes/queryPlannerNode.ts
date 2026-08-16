@@ -163,7 +163,7 @@ export async function queryPlannerNode(
     // Fallback: use query expansion
     if (subQueries.length === 0) {
       try {
-        const expanded = await expandQuery(searchTopic, state.aiClient);
+        const expanded = await expandQuery(searchTopic);
         subQueries = [searchTopic, ...expanded.alternatives];
       } catch {
         subQueries = [searchTopic];
@@ -183,7 +183,7 @@ export async function queryPlannerNode(
   // Web mode: always generate 2-3 subqueries for multi-angle search
   let subQueries: string[] = [searchTopic];
   try {
-    const expanded = await expandQuery(searchTopic, state.aiClient);
+    const expanded = await expandQuery(searchTopic);
     if (expanded.alternatives.length > 0) {
       subQueries = [searchTopic, ...expanded.alternatives];
       log.info(`[QueryPlanner] Web mode: expanded to ${subQueries.length} queries`);

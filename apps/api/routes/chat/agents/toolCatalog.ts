@@ -461,7 +461,7 @@ NUTZE WENN:
           timeout: 8000,
           mode: 'faithful',
           targetChars: CRAWL_DISTILL_TARGET_CHARS,
-          ...(loop?.state.aiClient ? { aiClient: loop.state.aiClient } : {}),
+          ...(loop?.state.aiClient ? { condense: true } : {}),
         });
         const results: SearchResult[] = crawled
           .filter((r) => r.crawled && (r.content || r.fullContent))
