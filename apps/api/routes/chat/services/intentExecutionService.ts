@@ -56,6 +56,7 @@ import {
 } from './createTurn.js';
 import { failCreation, rememberArtifact, streamTextInChunks } from './createTurnHelpers.js';
 import { runDeepAgentTurn } from './deepAgentTurn.js';
+import { checkDeepResearchQuota, deepResearchQuotaSpentMessage } from './deepResearchQuota.js';
 import { runDeepResearchTurn } from './deepResearchTurn.js';
 import { emitEditorOperations, planEditorOps } from './editorOpsCore.js';
 import { finishEditTurn } from './editTurnCompletion.js';
@@ -1384,26 +1385,35 @@ export async function executeIntentPipeline(opts: {
         // halves of the turn — retrieval and synthesis — and must therefore skip
         // everything below, not just the search node: reranking reorders
         // `searchResults`, and a finished answer's [N] point at the original
-        // order. For both, `null` means "not served" (quota spent, no key,
-        // failed run) and falls through to the next one, with the warning
-        // already sent.
+        // order. For both, `null` means "not served" (no key, failed run) and
+        // falls through to the next one, with the warning already sent.
+
+        // The shared daily allowance is settled HERE, once, for both engines:
+        // they meter through one Redis key, and a per-engine limit against a
+        // shared key made the verdict depend on which engine happened to run.
+        let allowanceGone = false;
+        const deepUserId = searchInputState.agentConfig?.userId ?? '';
+        // No userId means no meter — both engines refuse on their own for that
+        // reason, and asking the counter would fail closed and mis-report it as
+        // a spent allowance.
+        if (searchInputState.deepResearchRequested === true && deepUserId.length > 0) {
+          const quota = await checkDeepResearchQuota(deepUserId);
+          if (!quota.canResearch) {
+            sendChatWarning(sse, 'deep_research_quota_spent', deepResearchQuotaSpentMessage(quota));
+            allowanceGone = true;
+          }
+        }
 
         // First the agent, whenever it can run at all: it answers with a DOCUMENT
         // rather than a dossier, so on success there is nothing to rerank and no
         // source list to emit — only the short summary it put in
         // `deepResearchAnswer`.
-        let allowanceGone = false;
-        if (searchInputState.deepResearchRequested === true) {
-          const outcome = await runDeepAgentTurn({ state: searchInputState, sse });
-          if (outcome.kind === 'served') {
-            finalState = { ...searchInputState, ...outcome.state } as ChatGraphState;
+        if (searchInputState.deepResearchRequested === true && !allowanceGone) {
+          const report = await runDeepAgentTurn({ state: searchInputState, sse });
+          if (report) {
+            finalState = { ...searchInputState, ...report } as ChatGraphState;
             continue;
           }
-          // Both engines meter through one Redis key, the agent's limit being
-          // the higher one. A spent agent allowance therefore also exceeds the
-          // dossier path's — skipping it saves a doomed call and, more to the
-          // point, a second warning naming a different number.
-          allowanceGone = outcome.kind === 'quota_spent';
         }
 
         // Then Linkup's one-shot dossier, the path that always existed.

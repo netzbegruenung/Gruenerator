@@ -6,7 +6,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  *
  * Almost every case below is therefore about what happens when something goes
  * wrong — and specifically about the quota, which must be charged if and only if
- * the user actually got a report.
+ * the user actually got a report. Whether an allowance EXISTS is not this
+ * module's question any more; the caller settles that for both engines, and
+ * `deepResearchQuota.vitest.ts` covers it.
  */
 
 // Typed returns rather than bare `vi.fn()`: the forwarding mocks below hand
@@ -14,8 +16,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // unsafe return the type-aware lint rules reject.
 const runDeepAgentResearch = vi.fn<(...args: unknown[]) => Promise<unknown>>();
 const createDocumentWithContent = vi.fn<(...args: unknown[]) => Promise<{ id: string }>>();
-const checkLimit = vi.fn();
-const incrementCount = vi.fn();
+const chargeDeepResearch = vi.fn<(userId: string) => Promise<void>>();
 let linkupService: unknown = {};
 const envMock = {
   SCALEWAY_API_KEY: 'sk-test',
@@ -31,16 +32,11 @@ vi.mock('../../../services/docs/DocGenerationService.js', () => ({
 vi.mock('../../../services/search/LinkupService.js', () => ({
   getLinkupService: () => linkupService,
 }));
-vi.mock('../../../services/counters/index.js', () => ({
-  DeepResearchCounter: class {
-    checkLimit = checkLimit;
-    incrementCount = incrementCount;
-    getTimeUntilReset = () => '5h 0m';
-  },
+vi.mock('./deepResearchQuota.js', () => ({
+  chargeDeepResearch: (userId: string) => chargeDeepResearch(userId),
 }));
-vi.mock('../../../utils/redis/index.js', () => ({ redisClient: { isReady: true } }));
 
-const { runDeepAgentTurn, _resetDeepAgentCounterForTests } = await import('./deepAgentTurn.js');
+const { runDeepAgentTurn } = await import('./deepAgentTurn.js');
 
 function makeSse() {
   const sent: { event: string; payload: unknown }[] = [];
@@ -80,22 +76,19 @@ const run = (sse: ReturnType<typeof makeSse>, state: object = STATE) =>
     sse: sse as unknown as Parameters<typeof runDeepAgentTurn>[0]['sse'],
   });
 
-/** Unwraps a `served` outcome, failing loudly on any other — the state a
- *  non-served case carries is `undefined`, which would silently pass a
- *  `toBeTruthy` further down. */
+/** Unwraps a served patch, failing loudly on `null` — which would otherwise
+ *  slip past a `toBeTruthy` on one of its fields further down. */
 async function runServed(sse: ReturnType<typeof makeSse>, state: object = STATE) {
-  const outcome = await run(sse, state);
-  if (outcome.kind !== 'served') throw new Error(`erwartet: served, war: ${outcome.kind}`);
-  return outcome.state;
+  const patch = await run(sse, state);
+  if (!patch) throw new Error('erwartet: ein Zustands-Patch, war: null');
+  return patch;
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
-  _resetDeepAgentCounterForTests();
   envMock.SCALEWAY_API_KEY = 'sk-test';
   linkupService = {};
-  checkLimit.mockResolvedValue({ canResearch: true, count: 0, limit: 3, remaining: 3 });
-  incrementCount.mockResolvedValue({ success: true });
+  chargeDeepResearch.mockResolvedValue();
   createDocumentWithContent.mockResolvedValue({ id: 'doc-42' });
   runDeepAgentResearch.mockResolvedValue(GOOD_RESULT);
 });
@@ -105,7 +98,7 @@ describe('gates — each one falls through to the old path', () => {
     envMock.SCALEWAY_API_KEY = '';
     const sse = makeSse();
 
-    expect(await run(sse)).toEqual({ kind: 'not_served' });
+    expect(await run(sse)).toBeNull();
     expect(runDeepAgentResearch).not.toHaveBeenCalled();
     // The old path is about to answer — a gate must not narrate its own absence.
     expect(sse.sent).toHaveLength(0);
@@ -113,48 +106,24 @@ describe('gates — each one falls through to the old path', () => {
 
   it('does nothing without Linkup, the floor under the search tools', async () => {
     linkupService = null;
-    expect(await run(makeSse())).toEqual({ kind: 'not_served' });
+    expect(await run(makeSse())).toBeNull();
     expect(runDeepAgentResearch).not.toHaveBeenCalled();
   });
 
   it('does nothing without a question', async () => {
-    expect(await run(makeSse(), { ...STATE, searchQuery: '   ' })).toEqual({ kind: 'not_served' });
+    expect(await run(makeSse(), { ...STATE, searchQuery: '   ' })).toBeNull();
     expect(runDeepAgentResearch).not.toHaveBeenCalled();
   });
 
   it('does nothing without a userId, since the run could not be metered', async () => {
-    expect(await run(makeSse(), { ...STATE, agentConfig: {} })).toEqual({ kind: 'not_served' });
+    expect(await run(makeSse(), { ...STATE, agentConfig: {} })).toBeNull();
     expect(runDeepAgentResearch).not.toHaveBeenCalled();
-  });
-
-  /**
-   * The one gate that does NOT hand over to the old path. Both engines meter
-   * through a single Redis key, the agent's limit being the higher one — so a
-   * spent agent allowance is necessarily over the dossier path's limit too. Its
-   * warning would name a different number and contradict the one just sent.
-   */
-  it('reports a spent quota as such, so the sibling engine is not tried', async () => {
-    checkLimit.mockResolvedValue({ canResearch: false, count: 3, limit: 3, remaining: 0 });
-    const sse = makeSse();
-
-    expect(await run(sse)).toEqual({ kind: 'quota_spent' });
-    expect(runDeepAgentResearch).not.toHaveBeenCalled();
-    expect(sse.events()).toContain('warning');
-  });
-
-  it('names the agent limit in the warning, not the dossier path’s', async () => {
-    checkLimit.mockResolvedValue({ canResearch: false, count: 3, limit: 3, remaining: 0 });
-    const sse = makeSse();
-
-    await run(sse);
-
-    expect(JSON.stringify(sse.payloadOf('warning'))).toContain('3× pro Tag');
   });
 
   it('stays handed-over on a failed run — nothing was charged, so allowance remains', async () => {
     runDeepAgentResearch.mockResolvedValue(null);
 
-    expect(await run(makeSse())).toEqual({ kind: 'not_served' });
+    expect(await run(makeSse())).toBeNull();
   });
 });
 
@@ -210,9 +179,8 @@ describe('success', () => {
       order.push('document');
       return { id: 'doc-42' };
     });
-    incrementCount.mockImplementation(async () => {
+    chargeDeepResearch.mockImplementation(async () => {
       order.push('quota');
-      return { success: true };
     });
 
     await run(makeSse());
@@ -270,8 +238,8 @@ describe('failure', () => {
     runDeepAgentResearch.mockResolvedValue(null);
     const sse = makeSse();
 
-    expect(await run(sse)).toEqual({ kind: 'not_served' });
-    expect(incrementCount).not.toHaveBeenCalled();
+    expect(await run(sse)).toBeNull();
+    expect(chargeDeepResearch).not.toHaveBeenCalled();
     expect(createDocumentWithContent).not.toHaveBeenCalled();
     expect(sse.events()).toContain('warning');
   });
@@ -279,24 +247,16 @@ describe('failure', () => {
   it('leaves the quota untouched when the agent throws', async () => {
     runDeepAgentResearch.mockRejectedValue(new Error('boom'));
 
-    expect(await run(makeSse())).toEqual({ kind: 'not_served' });
-    expect(incrementCount).not.toHaveBeenCalled();
+    expect(await run(makeSse())).toBeNull();
+    expect(chargeDeepResearch).not.toHaveBeenCalled();
   });
 
   it('leaves the quota untouched when the document cannot be created', async () => {
     createDocumentWithContent.mockRejectedValue(new Error('db down'));
     const sse = makeSse();
 
-    expect(await run(sse)).toEqual({ kind: 'not_served' });
-    expect(incrementCount).not.toHaveBeenCalled();
+    expect(await run(sse)).toBeNull();
+    expect(chargeDeepResearch).not.toHaveBeenCalled();
     expect(sse.events()).toContain('warning');
-  });
-
-  it('still delivers the report when only the quota increment fails', async () => {
-    incrementCount.mockRejectedValue(new Error('redis weg'));
-
-    const patch = await runServed(makeSse());
-
-    expect(patch.deepResearchAnswer).toBeTruthy();
   });
 });
