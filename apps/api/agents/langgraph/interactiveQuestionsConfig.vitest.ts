@@ -17,6 +17,8 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { LOCALE_MAPPINGS } from '../../services/localization/LocalizationService.js';
+
 import { loadPromptConfig } from './PromptProcessor.js';
 
 /** Was `generateClarifyingQuestions` an Konfiguration überhaupt anfasst. */
@@ -54,11 +56,28 @@ describe.each(GENERATOR_TYPES)('interactive_questions_%s', (type) => {
     expect(prompts).not.toMatch(/IMMER JSON ausgeben/i);
   });
 
-  it('nennt nur Platzhalter, die der Aufrufer auch füllt', () => {
-    // `SimpleTemplateEngine.render(config.generationPrompt, {inhalt, requestType,
-    // searchSummary})` — alles andere bleibt als Literal im Prompt stehen.
-    const supplied = new Set(['inhalt', 'requestType', 'searchSummary', 'partyName']);
-    const used = [...(config.generationPrompt ?? '').matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1]);
+  /**
+   * BEIDE Prompts, nicht nur der gerenderte.
+   *
+   * Die erste Fassung dieser Prüfung sah nur `generationPrompt` — und übersah
+   * damit prompt ein neu eingeführtes `{{partyName}}` im `systemPrompt`, den
+   * `SimpleTemplateEngine` gar nicht anfasst. Ein Wächter, der nur den halben
+   * Prompt liest, deckt die Hälfte der Fehler zu.
+   */
+  it.each([
+    ['systemPrompt', () => config.systemPrompt],
+    ['generationPrompt', () => config.generationPrompt],
+  ])('%s nennt nur Platzhalter, die jemand auflöst', (_field, read) => {
+    // `localizePlaceholders` (Locale-Werte) läuft über beide, danach rendert
+    // `SimpleTemplateEngine` den generationPrompt mit den Werten des Aufrufers.
+    // Alles andere bliebe wörtlich stehen bzw. würde zu '' geleert.
+    const supplied = new Set([
+      ...Object.keys(LOCALE_MAPPINGS['de-DE']),
+      'inhalt',
+      'requestType',
+      'searchSummary',
+    ]);
+    const used = [...(read() ?? '').matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1]);
     expect(used.filter((v) => !supplied.has(v))).toEqual([]);
   });
 });
