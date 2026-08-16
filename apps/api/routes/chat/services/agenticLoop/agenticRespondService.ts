@@ -72,8 +72,6 @@ import type { Request } from 'express';
 
 const log = createLogger('AgenticRespond');
 
-export { isAgenticLoopEnabled } from './flags.js';
-
 /**
  * Abbruch-Ausgang und Trunkierungs-Notiz liegen seit 13.08.2026 in
  * `../turnAbortOutcome.js`, weil der Single-Pass-Pfad dieselbe Antwort braucht
