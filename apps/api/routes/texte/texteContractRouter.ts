@@ -107,17 +107,9 @@ const texteContractRouter = s.router(texteContract, {
         };
       }
 
-      // Der Bildwähler nimmt noch den Client: seine eigene Aufrufstelle
-      // (`image_picker`) zieht mit der nächsten Gruppe um.
-      const aiClient = res.app.locals.aiClient as AiClient;
       const withImages = await attachImages(clampSections(parsed.data), async (text) => {
         try {
-          const picked = await imagePickerService.selectBestImage(
-            text,
-            aiClient,
-            { maxCandidates: 5 },
-            req
-          );
+          const picked = await imagePickerService.selectBestImage(text, { maxCandidates: 5 });
           return `/api/image-picker/stock-image/${picked.selectedImage.filename}`;
         } catch (err) {
           log.warn('[website] Bildwahl fehlgeschlagen: %s', (err as Error).message);

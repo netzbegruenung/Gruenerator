@@ -428,12 +428,9 @@ export async function applySharepicOpsToCanvas(args: {
   // Resolve stock-photo queries server-side (dreizeilen background).
   if (opsResult.imageQueries.length > 0 && descriptor.backgroundImage) {
     try {
-      const selection = await imagePickerService.selectBestImage(
-        opsResult.imageQueries[0],
-        args.aiClient,
-        { sharepicType: descriptor.id },
-        args.req
-      );
+      const selection = await imagePickerService.selectBestImage(opsResult.imageQueries[0], {
+        sharepicType: descriptor.id,
+      });
       const filename = selection.selectedImage.filename;
       opsResult.patch[descriptor.backgroundImage.stateKey] =
         `/api/image-picker/stock-image/${encodeURIComponent(filename)}`;
