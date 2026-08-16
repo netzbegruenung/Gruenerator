@@ -1,11 +1,10 @@
 /**
  * What the model gets to know about the user's own past work.
  *
- * Two paths: the flag-gated recall tool loop owns the whole `chat_history`
- * turn, and — for everyone else — a best-effort enrichment pass that injects
- * relevant past chats, office documents and reels as context. The Space roster
- * is always surfaced when the thread is filed in one, so the model knows what
- * it could search even when no recall pass ran.
+ * A best-effort enrichment pass that injects relevant past chats, office
+ * documents and reels as context. The Space roster is always surfaced when the
+ * thread is filed in one, so the model knows what it could search even when no
+ * recall pass ran.
  */
 
 import { createLogger } from '../../../utils/logger.js';
@@ -21,13 +20,7 @@ import {
   recallReels,
   rerankRecall,
 } from '../services/pastChatRecallService.js';
-import {
-  handleRecallToolLoop,
-  isChatRecallLoopEnabled,
-} from '../services/recallToolLoopService.js';
 import { sendChatWarning, type SSEWriter } from '../services/sseHelpers.js';
-
-import { type CleanupPending, type MaybeHandled } from './types.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { StreamContext } from '../services/streamContext.js';
@@ -40,7 +33,6 @@ const EXTERNAL_CONTEXT_TIMEOUT_MS = 3_000;
 export interface RecallStageParams {
   sse: SSEWriter;
   classifiedState: ChatGraphState;
-  cleanupPending: CleanupPending;
   actualThreadId: string | undefined;
   userId: string;
   lastUserMessage: StreamContext['lastUserMessage'];
@@ -48,44 +40,16 @@ export interface RecallStageParams {
   memoryEnabled: boolean;
 }
 
+/** Enriches `classifiedState` in place; never owns the turn. */
 export async function runRecallStage({
   sse,
   classifiedState,
-  cleanupPending,
   actualThreadId,
   userId,
   lastUserMessage,
   isNewThread,
   memoryEnabled,
-}: RecallStageParams): Promise<MaybeHandled> {
-  // === Recall tool-loop (flag-gated) ===
-  // For the chat_history intent, let the model search + read the user's own
-  // content on demand (size-probed) instead of pre-injecting everything.
-  // Handles the whole turn; when off, falls through to the deterministic
-  // chat_history branch in executeIntentPipeline below.
-  if (
-    classifiedState.intent === 'chat_history' &&
-    isChatRecallLoopEnabled() &&
-    actualThreadId &&
-    lastUserMessage
-  ) {
-    const handled = await handleRecallToolLoop({
-      sse,
-      threadId: actualThreadId,
-      userId,
-      instruction: (extractTextContent(lastUserMessage.content) as string) || '',
-      query:
-        classifiedState.searchQuery ||
-        (extractTextContent(lastUserMessage.content) as string) ||
-        '',
-      startTime: Date.now(),
-    });
-    if (handled) {
-      await cleanupPending(true);
-      return { handled: true, result: { status: 200 as const, body: undefined } };
-    }
-  }
-
+}: RecallStageParams): Promise<void> {
   // === Chat history context enrichment ===
   // Explicit: the user referenced a past conversation (classifier/regex).
   // Proactive: first turn of a new thread — surface a relevant past chat so
@@ -169,5 +133,4 @@ export async function runRecallStage({
       classifiedState.chatHistoryContext = `${spaceScope.rosterBlock}\n\n${existing}`;
     }
   }
-  return { handled: false };
 }

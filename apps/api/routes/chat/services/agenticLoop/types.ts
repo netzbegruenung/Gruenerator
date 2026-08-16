@@ -8,9 +8,8 @@
 
 /**
  * One executed tool step, persisted on the assistant message as `toolCalls` and
- * rehydrated by the frontend thread-reload conversion. Shape matches what the
- * sharepic loop already persists (see sharepicAgenticService) so the existing
- * tool-ui renderers and `threadMessageConversion` keep working unchanged.
+ * rehydrated by the frontend thread-reload conversion. Shape is what the
+ * tool-ui renderers and `threadMessageConversion` already expect.
  */
 export interface PersistedStep {
   toolCallId: string;

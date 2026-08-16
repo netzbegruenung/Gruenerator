@@ -20,11 +20,6 @@ import {
   isReelEditInstruction,
 } from '../services/reelEditService.js';
 import {
-  handleSharepicAgenticEdit,
-  isChatToolLoopEnabled,
-} from '../services/sharepicAgenticService.js';
-import { hasSharepicEditVerb, isShortAffirmation } from '../services/sharepicEditHeuristics.js';
-import {
   handleSharepicEdit,
   isSharepicEditInstruction,
   threadHasSharepic,
@@ -301,34 +296,19 @@ export async function runEarlyHandlerStage({
     !universalEditForced
   ) {
     const editText = lastUserTextNoMentions.replace(/@sharepic\b/gi, ' ').trim();
-    // With an explicitly activated sharepic (Sharepic-Modus) AND the tool
-    // loop on, an edit verb alone is enough — the loop can answer with
-    // plain text when the message turns out not to be sharepic-related,
-    // so over-triggering is cheap. The strict verb+noun check stays the
-    // bar for the tool-forced single-call path.
-    const sharepicModeRelaxed =
-      isChatToolLoopEnabled() &&
-      rawCurrentSharepic != null &&
-      !!editText &&
-      (hasSharepicEditVerb(editText) || isShortAffirmation(editText));
     const candidate = !editText
       ? null
       : isSharepicEditInstruction(editText)
         ? 'edit-instruction'
         : isSharepicRefinement(editText)
           ? 'refinement'
-          : sharepicModeRelaxed
-            ? 'sharepic-mode-relaxed'
-            : null;
-    // EVERY lane must prove there is something to edit. `refinement` always
+          : null;
+    // BOTH lanes must prove there is something to edit. `refinement` always
     // did; `edit-instruction` never did, and that asymmetry was a hole, not
     // a nuance: on a thread with no sharepic the handler declined, the turn
     // fell through, and the pipeline then CREATED a sharepic about the edit
     // instruction ("Mach den Text im Sharepic größer" became a sharepic
-    // whose topic was that sentence). One check, all three lanes.
-    // sharepicModeRelaxed keeps its own rawCurrentSharepic requirement —
-    // an explicitly activated sharepic is stronger evidence than "the
-    // thread has one somewhere".
+    // whose topic was that sentence). One check, both lanes.
     const sharepicTrigger =
       candidate && (rawCurrentSharepic != null || (await threadHasSharepic(actualThreadId)))
         ? candidate
@@ -343,11 +323,7 @@ export async function runEarlyHandlerStage({
       log.info(
         `[ChatGraph] sharepic edit branch via ${sharepicTrigger}: ${JSON.stringify(editText.slice(0, 80))}`
       );
-      // CHAT_TOOL_LOOP swaps the executor, not the routing: same entry
-      // condition and fallthrough semantics, but the edit runs as a small
-      // agentic tool loop instead of one structured call.
-      const editHandler = isChatToolLoopEnabled() ? handleSharepicAgenticEdit : handleSharepicEdit;
-      const handled = await editHandler({
+      const handled = await handleSharepicEdit({
         sse,
         req,
         threadId: actualThreadId,

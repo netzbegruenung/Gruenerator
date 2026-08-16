@@ -91,36 +91,3 @@ export function isSharepicEditInstruction(text: string): boolean {
   if (isVerificationQuestion(text)) return false;
   return EDIT_VERB_PATTERN.test(text) && EDIT_NOUN_PATTERN.test(text);
 }
-
-/**
- * Relaxed check for the active Sharepic-Modus: with a variant explicitly
- * marked "Im Chat bearbeiten", an edit verb alone is enough intent signal
- * ("setze ein", "mach das rein") — requiring a noun too is what made the
- * mode feel deaf. Used only on the agentic-loop path, which can answer with
- * plain text when the message turns out not to be sharepic-related.
- */
-export function hasSharepicEditVerb(text: string): boolean {
-  if (NEW_VARIANTS_PATTERN.test(text)) return false;
-  if (isVerificationQuestion(text)) return false;
-  return EDIT_VERB_PATTERN.test(text);
-}
-
-// The trailing group is bounded rather than `*`: unbounded, it backtracks
-// exponentially on "jo so mach so mach …" (38 ms at 163 characters, doubling
-// every 16 — CodeQL js/redos). `isShortAffirmation` caps the input at 40
-// characters, where the head costs 2 and every repetition at least 3, so 13 is
-// past anything reachable and the bound is unobservable — but the cap now lives
-// in the pattern too, instead of only in its one caller.
-const AFFIRMATION_PATTERN =
-  /^(ja|yes|yep|jup|jo|ok(ay)?|passt( so)?|gerne?|genau( so)?|perfekt|super|top|mach( das| es)?( so)?|so umsetzen|setz(e)?( das)?( so)? um|übernimm( das)?|übernehmen|einsetzen|bitte)([.!,\s]+(ja|yes|ok(ay)?|passt|gerne?|genau|bitte|mach( das| es)?( so)?|so|um(setzen)?|das)){0,13}[.!\s]*$/iu;
-
-/**
- * Short confirmations ("ja", "yes", "mach das so") right after the assistant
- * proposed an edit. Only consulted in active Sharepic-Modus on the loop path —
- * the loop sees the prior assistant reply, so it can apply what was proposed.
- */
-export function isShortAffirmation(text: string): boolean {
-  const trimmed = text.trim();
-  if (trimmed.length === 0 || trimmed.length > 40) return false;
-  return AFFIRMATION_PATTERN.test(trimmed);
-}
