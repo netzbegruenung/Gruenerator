@@ -116,7 +116,6 @@ export async function runEarlyHandlerStage({
     const uploadText = (extractTextContent(lastUserMessage.content) || '').trim();
     const handled = await handleReelEdit({
       sse,
-      req,
       threadId: actualThreadId,
       userId,
       instruction: uploadText,
@@ -124,7 +123,6 @@ export async function runEarlyHandlerStage({
       reelUpload: rawReelUpload,
       userLocale: initialState.userLocale || 'de-DE',
       clientPlatform: initialState.clientPlatform,
-      aiClient,
       startTime: initialState.startTime,
       ...(classifiedState.classificationTimeMs != null && {
         classificationTimeMs: classifiedState.classificationTimeMs,
@@ -156,7 +154,6 @@ export async function runEarlyHandlerStage({
     if (reelText && (isReelEditInstruction(reelText) || reelModeRelaxed)) {
       const handled = await handleReelEdit({
         sse,
-        req,
         threadId: actualThreadId,
         userId,
         instruction: reelText,
@@ -164,7 +161,6 @@ export async function runEarlyHandlerStage({
         reelUpload: null,
         userLocale: initialState.userLocale || 'de-DE',
         clientPlatform: initialState.clientPlatform,
-        aiClient,
         startTime: initialState.startTime,
         ...(classifiedState.classificationTimeMs != null && {
           classificationTimeMs: classifiedState.classificationTimeMs,
@@ -261,12 +257,10 @@ export async function runEarlyHandlerStage({
       );
       const handled = await handleSocialPostTextEdit({
         sse,
-        req,
         threadId: actualThreadId,
         userId,
         instruction: editText,
         postId: rawCurrentSocialPost?.postId ?? null,
-        aiClient,
         startTime: initialState.startTime,
         ...(classifiedState.classificationTimeMs != null && {
           classificationTimeMs: classifiedState.classificationTimeMs,

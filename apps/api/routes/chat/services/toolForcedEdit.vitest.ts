@@ -8,22 +8,41 @@
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
-import { runToolForcedEdit } from './toolForcedEdit.js';
+// Attrappiert wird die Maschine, nicht der Client: der Treiber ruft `aiTools`,
+// und das geht direkt auf `executeProvider`.
+const executeProvider = vi.fn();
+vi.mock('../../../services/ai/execution/index.js', () => ({
+  executeProvider: (...args: unknown[]) => executeProvider(...args),
+}));
 
-import type { AiClient } from '../../../services/ai/types.js';
+const { runToolForcedEdit } = await import('./toolForcedEdit.js');
 
 const schema = z.object({ summary: z.string(), count: z.number() });
 
-function makePool(results: unknown[]): {
-  pool: AiClient;
-  processRequest: ReturnType<typeof vi.fn>;
-} {
-  const processRequest = vi.fn();
-  for (const r of results) {
-    if (r instanceof Error) processRequest.mockRejectedValueOnce(r);
-    else processRequest.mockResolvedValueOnce(r);
-  }
-  return { pool: { processRequest } as unknown as AiClient, processRequest };
+/** Primär der Lane `canvas_ai_suggest` (siehe `AI_LANES`) — der Beginn jedes Versuchs. */
+const PRIMARY = 'mistral';
+
+/**
+ * Ein Eintrag je VERSUCH des Treibers, nicht je Provider-Aufruf.
+ *
+ * Ein `Error` lässt die ganze Ausfallkette dieses Versuchs scheitern — das ist,
+ * was ein Provider-Fehler auf der Fassade bedeutet: erst wenn auch der letzte
+ * Anbieter nichts liefert, wirft sie. Ein Versuch beginnt immer beim Primär,
+ * daran werden sie gezählt.
+ */
+function attempts(outcomes: unknown[]) {
+  executeProvider.mockReset();
+  let index = -1;
+  executeProvider.mockImplementation((provider: string) => {
+    if (provider === PRIMARY) index += 1;
+    const outcome = outcomes[Math.min(index, outcomes.length - 1)];
+    return outcome instanceof Error ? Promise.reject(outcome) : Promise.resolve(outcome);
+  });
+}
+
+/** Wie oft der Treiber es versucht hat. */
+function attemptCount(): number {
+  return executeProvider.mock.calls.filter((c) => c[0] === PRIMARY).length;
 }
 
 const base = {
@@ -37,23 +56,30 @@ const base = {
 
 describe('runToolForcedEdit', () => {
   it('returns the parsed edit from tool_calls', async () => {
-    const { pool, processRequest } = makePool([
-      { success: true, tool_calls: [{ name: 'apply_edit', input: { summary: 'ok', count: 2 } }] },
+    attempts([
+      {
+        success: true,
+        stop_reason: 'tool_use',
+        tool_calls: [{ name: 'apply_edit', input: { summary: 'ok', count: 2 } }],
+      },
     ]);
 
-    const result = await runToolForcedEdit({ ...base, aiClient: pool });
+    const result = await runToolForcedEdit(base);
 
     expect(result).toEqual({ ok: true, edit: { summary: 'ok', count: 2 } });
-    expect(processRequest).toHaveBeenCalledTimes(1);
-    const [request] = processRequest.mock.calls[0];
-    expect(request.options.tool_choice).toBe('required');
-    expect(request.options.tools[0].name).toBe('apply_edit');
+    expect(attemptCount()).toBe(1);
+    const envelope = executeProvider.mock.calls[0][2] as {
+      options: { tool_choice: string; tools: Array<{ name: string }> };
+    };
+    expect(envelope.options.tool_choice).toBe('required');
+    expect(envelope.options.tools[0].name).toBe('apply_edit');
   });
 
   it('also reads a tool call from raw_content_blocks', async () => {
-    const { pool } = makePool([
+    attempts([
       {
         success: true,
+        stop_reason: 'tool_use',
         raw_content_blocks: [
           { type: 'text', text: 'hm' },
           { type: 'tool_use', name: 'apply_edit', input: { summary: 'ok', count: 1 } },
@@ -61,65 +87,73 @@ describe('runToolForcedEdit', () => {
       },
     ]);
 
-    await expect(runToolForcedEdit({ ...base, aiClient: pool })).resolves.toEqual({
+    await expect(runToolForcedEdit(base)).resolves.toEqual({
       ok: true,
       edit: { summary: 'ok', count: 1 },
     });
   });
 
   it('ignores a tool call for a different tool', async () => {
-    const { pool } = makePool([
+    attempts([
       {
         success: true,
-        tool_calls: [{ name: 'something_else', input: { summary: 'x', count: 1 } }],
-      },
-      {
-        success: true,
+        stop_reason: 'tool_use',
         tool_calls: [{ name: 'something_else', input: { summary: 'x', count: 1 } }],
       },
     ]);
 
-    const result = await runToolForcedEdit({ ...base, aiClient: pool });
+    const result = await runToolForcedEdit(base);
     expect(result).toEqual({ ok: false, error: 'No tool call in response' });
   });
 
   it('retries once after a provider error and succeeds', async () => {
-    const { pool, processRequest } = makePool([
-      { success: false, error: 'upstream 503' },
-      { success: true, tool_calls: [{ name: 'apply_edit', input: { summary: 'ok', count: 3 } }] },
+    attempts([
+      new Error('upstream 503'),
+      {
+        success: true,
+        stop_reason: 'tool_use',
+        tool_calls: [{ name: 'apply_edit', input: { summary: 'ok', count: 3 } }],
+      },
     ]);
 
-    const result = await runToolForcedEdit({ ...base, aiClient: pool });
+    const result = await runToolForcedEdit(base);
 
     expect(result).toEqual({ ok: true, edit: { summary: 'ok', count: 3 } });
-    expect(processRequest).toHaveBeenCalledTimes(2);
+    expect(attemptCount()).toBe(2);
   });
 
   it('reports a schema mismatch after exhausting attempts', async () => {
-    const bad = { success: true, tool_calls: [{ name: 'apply_edit', input: { summary: 42 } }] };
-    const { pool, processRequest } = makePool([bad, bad]);
+    attempts([
+      {
+        success: true,
+        stop_reason: 'tool_use',
+        tool_calls: [{ name: 'apply_edit', input: { summary: 42 } }],
+      },
+    ]);
 
-    const result = await runToolForcedEdit({ ...base, aiClient: pool });
+    const result = await runToolForcedEdit(base);
 
-    expect(processRequest).toHaveBeenCalledTimes(2);
+    expect(attemptCount()).toBe(2);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toContain('Schema mismatch');
   });
 
   it('survives a thrown request and reports the message', async () => {
-    const { pool } = makePool([new Error('boom'), new Error('boom')]);
+    attempts([new Error('boom')]);
 
-    const result = await runToolForcedEdit({ ...base, aiClient: pool });
+    const result = await runToolForcedEdit(base);
 
-    expect(result).toEqual({ ok: false, error: 'boom' });
+    // Die Meldung ist die der Fassade und ZITIERT den letzten Anbieterfehler —
+    // vorher war sie identisch mit ihm, weil `processRequest` ihn durchreichte.
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain('boom');
   });
 
   it('honours a custom maxAttempts', async () => {
-    const bad = { success: false, error: 'nope' };
-    const { pool, processRequest } = makePool([bad, bad, bad]);
+    attempts([new Error('nope')]);
 
-    await runToolForcedEdit({ ...base, aiClient: pool, maxAttempts: 3 });
+    await runToolForcedEdit({ ...base, maxAttempts: 3 });
 
-    expect(processRequest).toHaveBeenCalledTimes(3);
+    expect(attemptCount()).toBe(3);
   });
 });

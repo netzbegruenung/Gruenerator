@@ -102,7 +102,6 @@ describe('sharepicTextContractRouter', () => {
       } as never);
 
       expect(generateUnifiedTexts).toHaveBeenCalledWith(
-        req,
         'simple',
         expect.objectContaining({ count: expected })
       );
@@ -119,7 +118,7 @@ describe('sharepicTextContractRouter', () => {
       body: { thema: 'X', userLocale: 'de-AT', _campaignPrompt: { systemRole: 'übernommen' } },
     } as never);
 
-    const passed = generateUnifiedTexts.mock.calls[0][2] as Record<string, unknown>;
+    const passed = generateUnifiedTexts.mock.calls[0][1] as Record<string, unknown>;
     // Sonst schaltete der Handler auf `info_at` um und antwortete mit
     // introline/text/accent — anderen Feldern, als der Vertrag als 200 zusagt.
     expect(passed).not.toHaveProperty('userLocale');
@@ -152,8 +151,7 @@ describe('sharepicTextContractRouter', () => {
       expect(res.status).toBe(200);
       expect(res.body).toMatchObject({ success: true, [mainKey]: main });
 
-      const [, passedType, passedBody] = generateUnifiedTexts.mock.calls[0] as [
-        unknown,
+      const [passedType, passedBody] = generateUnifiedTexts.mock.calls[0] as [
         string,
         Record<string, unknown>,
       ];
@@ -176,7 +174,6 @@ describe('sharepicTextContractRouter', () => {
 
       expect(analyzeSlideCount).toHaveBeenCalledWith(req, 'Klimaschutz', '');
       expect(generateUnifiedTexts).toHaveBeenCalledWith(
-        req,
         'slider',
         expect.objectContaining({ count: 5 })
       );
@@ -194,7 +191,6 @@ describe('sharepicTextContractRouter', () => {
 
       expect(analyzeSlideCount).not.toHaveBeenCalled();
       expect(generateUnifiedTexts).toHaveBeenCalledWith(
-        req,
         'slider',
         expect.objectContaining({ count: 4 })
       );

@@ -2,7 +2,8 @@
  * SelectImageNode - AI-powered image selection from catalog
  */
 
-import type { RequestWithUser } from '../../../../utils/redis/types.js';
+import { aiText } from '../../../../services/ai/generate.js';
+
 import type { ImageSelectionState, CatalogImage, AISelectionResponse } from '../types.js';
 
 /**
@@ -11,7 +12,7 @@ import type { ImageSelectionState, CatalogImage, AISelectionResponse } from '../
 export async function selectImageNode(
   state: ImageSelectionState
 ): Promise<Partial<ImageSelectionState>> {
-  const { text, sharepicType, imageCatalog, aiClient, req } = state;
+  const { text, sharepicType, imageCatalog } = state;
 
   try {
     if (!imageCatalog || !imageCatalog.images || imageCatalog.images.length === 0) {
@@ -59,25 +60,19 @@ Wähle den besten Hintergrund aus (gib die Nummer an).`;
       `[ImageSelection] AI selecting from ${imageCatalog.images.length} images for: "${text.substring(0, 50)}..."`
     );
 
-    const result = await aiClient.processRequest(
-      {
-        type: 'image_picker',
-        systemPrompt,
-        messages: [{ role: 'user', content: userPrompt }],
-        options: {
-          temperature: 0.6,
-          max_tokens: 200,
-        },
-      },
-      req as RequestWithUser
-    );
+    const content = await aiText({
+      lane: 'image_picker',
+      system: systemPrompt,
+      prompt: userPrompt,
+      temperature: 0.6,
+      maxOutputTokens: 200,
+    });
 
     // Debug logging to see exact AI response
-    console.log(`[ImageSelection] Raw AI response:`, result.content);
-    console.log(`[ImageSelection] Response type:`, typeof result.content);
+    console.log(`[ImageSelection] Raw AI response:`, content);
 
     // Extract JSON from markdown code blocks if present
-    let contentToParse = result.content || '';
+    let contentToParse = content;
 
     // Check for markdown code block wrapper
     if (contentToParse.includes('```')) {

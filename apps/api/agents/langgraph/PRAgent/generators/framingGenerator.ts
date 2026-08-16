@@ -1,20 +1,15 @@
-import { getAiClient } from '../../../../utils/getAiClient.js';
+import { aiText } from '../../../../services/ai/generate.js';
 import { MARKDOWN_FORMATTING_INSTRUCTIONS } from '../../../../utils/prompt/index.js';
 import { assemblePromptGraphAsync } from '../../promptAssemblyGraph.js';
 
-import type { AiResult } from '../../../../services/ai/types.js';
 import type { EnrichedState } from '../../../../utils/types/requestEnrichment.js';
 import type { ContentExample } from '../../types/promptAssembly.js';
 import type { PRAgentRequest } from '../types.js';
-import type { Request } from 'express';
 
 /**
  * Generates strategic framing: narrative, values, audiences, wording
  */
-export async function generateStrategicFraming(
-  enrichedState: EnrichedState,
-  req: Request
-): Promise<string> {
+export async function generateStrategicFraming(enrichedState: EnrichedState): Promise<string> {
   console.log('[PR Agent] Generating strategic framing');
 
   const request = enrichedState.request as PRAgentRequest;
@@ -52,18 +47,11 @@ Entwickle das strategische Framing für dieses Thema.`;
     formatting: MARKDOWN_FORMATTING_INSTRUCTIONS,
   });
 
-  const aiResult: AiResult = await getAiClient(req).processRequest(
-    {
-      type: 'social',
-      systemPrompt: promptResult.system,
-      messages: promptResult.messages,
-      options: {
-        temperature: 0.7,
-        top_p: 0.9,
-      },
-    },
-    req
-  );
-
-  return aiResult.content || '';
+  return aiText({
+    lane: 'social',
+    system: promptResult.system,
+    messages: promptResult.messages,
+    temperature: 0.7,
+    topP: 0.9,
+  });
 }

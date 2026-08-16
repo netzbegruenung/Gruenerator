@@ -3,10 +3,6 @@
  * AI-powered selection of background images for sharepics
  */
 
-import { type AiClient } from '../../../services/ai/types.js';
-
-import type { Request } from 'express';
-
 /**
  * Individual image from catalog
  */
@@ -46,8 +42,6 @@ export interface ImageSelectionState {
   // Input parameters
   text: string;
   sharepicType: string;
-  aiClient: AiClient;
-  req: Request;
 
   // Core data
   imageCatalog?: ImageCatalog | undefined;
@@ -67,8 +61,6 @@ export interface ImageSelectionState {
 export interface ImageSelectionInput {
   text: string;
   sharepicType: string;
-  aiClient: AiClient;
-  req: Request;
 }
 
 /**

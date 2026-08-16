@@ -37,7 +37,6 @@ import { getNotebookStats } from '../../services/notebook/notebookStatsService.j
 import { recordItemUsageSafe } from '../../services/usage/ItemUsageService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
-import { getAiClient } from '../../utils/getAiClient.js';
 import { createLogger } from '../../utils/logger.js';
 import { fromParam, type NotebookId } from '../../utils/types/branded.js';
 import { highlightSnippet, truncateSnippet } from '../research/researchController.js';
@@ -208,7 +207,6 @@ export const notebookContractRouter = s.router(notebookContract, {
         question,
         collectionIds: collectionIds || getDefaultMultiCollectionIds(),
         requestFilters: filters,
-        aiClient: getAiClient(args.req),
         fastMode,
       });
 
@@ -252,7 +250,6 @@ export const notebookContractRouter = s.router(notebookContract, {
         question,
         userId,
         requestFilters: filters,
-        aiClient: getAiClient(args.req),
         getCollectionFn: async (id: string) => {
           const systemConfig = getSystemCollectionConfig(id);
           if (systemConfig) return null;
@@ -578,7 +575,6 @@ export const notebookContractRouter = s.router(notebookContract, {
         question,
         userId: collection.user_id,
         requestFilters: filters,
-        aiClient: getAiClient(args.req),
         getCollectionFn: async () => collection,
         getDocumentIdsFn: async (id: string) => {
           const docs = await notebookHelper.getCollectionDocuments(id);

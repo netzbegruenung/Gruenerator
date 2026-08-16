@@ -5,6 +5,7 @@
 
 import { createRecurringTaskBodySchema, type ScheduleRecurrence } from '@gruenerator/contracts';
 
+import { aiText } from '../../../../services/ai/generate.js';
 import { createRecurringTask } from '../../../../services/recurringTasks/recurringTasksRepository.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { failCreation, streamTextInChunks } from '../createTurnHelpers.js';
@@ -89,30 +90,23 @@ function describeRecurrence(rec: ScheduleRecurrence): string {
 export async function handleRecurringTaskCreation(opts: {
   sse: SSEWriter;
   classifiedState: ChatGraphState;
-  aiClient: ChatGraphState['aiClient'];
-  req: Express.Request;
   actualThreadId?: string;
   userId: string;
   userContent: string;
   agentId?: string | null;
   userLocale: 'de-DE' | 'de-AT';
 }): Promise<boolean> {
-  const { sse, classifiedState, aiClient, req, actualThreadId, userId, userContent } = opts;
+  const { sse, classifiedState, actualThreadId, userId, userContent } = opts;
 
   try {
-    const genResult = await aiClient.processRequest(
-      {
-        type: 'doc_generation',
-        systemPrompt: RECURRING_EXTRACTION_PROMPT,
-        messages: [{ role: 'user', content: userContent }],
-        options: { temperature: 0.2 },
-      },
-      req as Express.Request & { user?: { id?: string }; sessionID?: string }
-    );
-    if (!genResult.success || !genResult.content) {
-      log.warn(
-        `[ChatGraph] Recurring task extraction produced nothing: ${genResult.error ?? 'no content'}`
-      );
+    const generated = await aiText({
+      lane: 'doc_generation',
+      system: RECURRING_EXTRACTION_PROMPT,
+      prompt: userContent,
+      temperature: 0.2,
+    });
+    if (!generated) {
+      log.warn('[ChatGraph] Recurring task extraction produced nothing: no content');
       return failCreation(
         sse,
         actualThreadId,
@@ -121,7 +115,7 @@ export async function handleRecurringTaskCreation(opts: {
       );
     }
 
-    const parsed = parseExtractedJson(genResult.content) as Record<string, unknown>;
+    const parsed = parseExtractedJson(generated) as Record<string, unknown>;
     const candidate = {
       title: parsed.title,
       instruction: parsed.instruction,
