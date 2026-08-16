@@ -164,15 +164,15 @@ function extractIntents() {
 
 /**
  * Intents marked `availability: 'retired'` in the registry (see CHAT_INTENTS),
- * MINUS those whose mention pins a tool.
+ * MINUS those whose mention pins a tool or activates a recipe.
  *
  * The exception is what keeps the rule honest. Retiring an intent normally means
  * the capability moved somewhere that has no @-trigger at all (the five managed
  * connectors), so documenting it would advertise something that no longer
- * answers. A mention carrying `pinsTool` is the other case: the verdict died,
- * the capability did not — the same token now reaches a loop tool. `@umfragen`
- * is the first of these, and dropping it from the article would hide a
- * capability the picker still offers.
+ * answers. A mention carrying `pinsTool`/`activatesSkill` is the other case: the
+ * verdict died, the capability did not — the same token now reaches a loop tool
+ * or a recipe. `@umfragen` and `@pressemitteilungen` are those, and dropping
+ * them from the article would hide capabilities the picker still offers.
  */
 function extractRetiredIntents() {
   const sf = parse(SRC.chatIntents);
@@ -191,7 +191,8 @@ function extractRetiredIntents() {
     if (!id || !value || !ts.isObjectLiteralExpression(value)) continue;
     if (stringProp(value, 'availability') !== 'retired') continue;
     const mention = objectProp(value, 'mention');
-    if (mention && stringProp(mention, 'pinsTool')) continue;
+    if (mention && (stringProp(mention, 'pinsTool') || stringProp(mention, 'activatesSkill')))
+      continue;
     retired.add(id);
   }
   return retired;

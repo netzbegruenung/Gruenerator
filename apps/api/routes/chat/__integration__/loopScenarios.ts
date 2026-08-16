@@ -52,6 +52,16 @@ export interface LoopScenario {
    */
   firstToolChoice?: string;
   /**
+   * Ein Textstück, das im Systemtext des ersten Planer-Schritts stehen MUSS.
+   *
+   * Gegenstück zu `firstToolChoice` für die zweite Hälfte einer umgehängten
+   * Erwähnung: der Pin sagt, WORAUS der Turn holt, das Rezept sagt, WIE er
+   * schreibt — und Letzteres ist sonst nirgends beobachtbar, weil die
+   * Entscheidungskarte den Systemtext nicht rendert. Der Rezepttext selbst ist
+   * parteiintern und in der Prüfung gedoppelt (`internalPromptsMock`).
+   */
+  systemIncludes?: string;
+  /**
    * Exact number of times a branch was taken. The only honest assertion for
    * `search_concurrency`: which of several parallel calls loses the race is an
    * await-interleaving artefact, but HOW MANY are deferred is a property of the
@@ -274,6 +284,31 @@ export const LOOP_SCENARIOS: readonly LoopScenario[] = [
     firstToolChoice: 'umfragen',
     // Der Auffang, den der Pin verhindert: ohne ihn faellt `agentic` auf
     // `search` — eine Dokumentensuche statt PolitPro.
+    notReached: ['router.intent_override'],
+  },
+  {
+    id: 'mention-pressemitteilungen-loop',
+    category: 'mention-lane',
+    note: 'Keine Modellannahme: dieselbe Bauform wie `@umfragen`, plus die zweite Haelfte von Phase L — die Erwaehnung zurrt nicht nur das WERKZEUG fest, sie laedt auch das REZEPT `presse` (`activatesSkill`). Der stillgelegte Intent trug die Textsorte nie; `respondNode` gab ihm die generische SEARCH_GUIDANCE. Der PM-Abruf ist gestubbt wie jedes andere Suchbackend.',
+    prompt: 'Schreib eine PM zum Heizungsgesetz.',
+    body: { forcedTools: ['pressemitteilung_examples'] },
+    streams: [
+      {
+        calls: [
+          { tool: 'gruenerator_pressemitteilung_examples', args: { query: 'Heizungsgesetz' } },
+        ],
+      },
+      { text: GERMAN_ANSWER },
+    ],
+    mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
+    // Wie bei `@umfragen`: `agentic` allein gaebe den benannten ersten Aufruf
+    // nicht her. Dass hier der PM- und nicht der Social-Beispiel-Abruf steht,
+    // ist der ganze Unterschied, den der Pin traegt.
+    firstToolChoice: 'gruenerator_pressemitteilung_examples',
+    // Die zweite Haelfte: das Rezept `presse` steht im Systemtext des Loops.
+    // `buildSystemMessage` ueberschreibt den Block mit dem Titel des Rezepts —
+    // ohne `activatesSkill` faende der Turn hier gar keins.
+    systemIncludes: '## AKTIVE PLATTFORM: Pressemitteilung',
     notReached: ['router.intent_override'],
   },
 ];

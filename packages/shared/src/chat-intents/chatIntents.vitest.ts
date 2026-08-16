@@ -9,6 +9,8 @@ import {
   isIntentAllowedForLocale,
   degradeTargetForLocale,
   intentToolNames,
+  pinnedToolForMention,
+  skillForMention,
   type ChatIntentId,
 } from './index.js';
 
@@ -183,12 +185,13 @@ describe('locale rules', () => {
     }
   });
 
-  it('a retired intent keeps a mention only if that mention pins a tool', () => {
+  it('a retired intent keeps a mention only if that mention pins something else', () => {
     // The picker filters on this too, but the registry is where the mistake
     // would be made: leaving a plain `mention` on a retired entry puts a token
-    // on the wire that the router no longer resolves. A mention with `pinsTool`
-    // is the one exception and not a loophole — it resolves to a LOOP TOOL
-    // rather than to the dead verdict (`@umfragen`, Phase L).
+    // on the wire that the router no longer resolves. Two exceptions, and
+    // neither is a loophole: `pinsTool` resolves to a LOOP TOOL (`@umfragen`),
+    // `activatesSkill` to a RECIPE (`@pressemitteilungen`) — both instead of
+    // the dead verdict.
     for (const intent of ALL_CHAT_INTENTS) {
       if (intent.availability !== 'retired') continue;
       // `ChatIntentDefinition` declares `mention` only on the variant that has
@@ -197,10 +200,34 @@ describe('locale rules', () => {
       const mention = 'mention' in intent ? intent.mention : null;
       if (!mention) continue;
       expect(
-        mention.pinsTool,
+        mention.pinsTool ?? mention.activatesSkill,
         `${intent.id} is retired and its mention pins nothing — the token would resolve to nowhere`
       ).toBeTruthy();
     }
+  });
+});
+
+describe('skillForMention', () => {
+  // Der Draht-Token, nicht die Intent-Kennung: `@pressemitteilungen` emittiert
+  // weiterhin `pressemitteilung_examples` (F0, so steht es in alten Threads),
+  // während der gleichnamige Intent stillgelegt ist.
+  it('löst den persistierten PM-Token auf das Presse-Rezept auf', () => {
+    expect(skillForMention('pressemitteilung_examples')).toBe('presse');
+  });
+
+  it('gibt null für eine Erwähnung ohne Rezept — und das heisst NICHT „lösche"', () => {
+    expect(skillForMention('bundestag')).toBe(null);
+    expect(skillForMention('umfragen')).toBe(null);
+  });
+
+  // Die beiden Achsen kreuzen sich genau einmal, und das ist die Aussage von
+  // Phase L: eine Erwähnung kann Werkzeug UND Textsorte tragen, ohne dass ein
+  // Intent dazwischensteht.
+  it('trägt für @pressemitteilungen beides', () => {
+    expect(pinnedToolForMention('pressemitteilung_examples')).toBe(
+      'gruenerator_pressemitteilung_examples'
+    );
+    expect(skillForMention('pressemitteilung_examples')).toBe('presse');
   });
 });
 
