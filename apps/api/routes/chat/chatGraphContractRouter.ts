@@ -40,22 +40,15 @@ import {
   buildSharepicConfirmation,
   buildSharepicsWithoutPostConfirmation,
 } from './services/artifactConfirmations.js';
-import { extractArtifactFromResponse } from './services/artifactExtraction.js';
 import { injectImageAttachments } from './services/attachmentProcessingService.js';
-import { extractChartFromResponse, emitConfirmAction } from './services/confirmActionService.js';
 import { pruneMessages, applyCompaction } from './services/contextPruningService.js';
-import { buildCreateTurnContext } from './services/createTurn.js';
-import {
-  generateAndCreateDocument,
-  executeIntentPipeline,
-} from './services/intentExecutionService.js';
+import { executeIntentPipeline } from './services/intentExecutionService.js';
 import { estimateRequestTokens, extractTextContent } from './services/messageHelpers.js';
 import {
   stripFabricatedArtifactDelivery,
   stripFabricatedSystemClaims,
 } from './services/outputSanity.js';
 import { createPendingAssistantWriter } from './services/pendingAssistantWriter.js';
-import { persistAssistantResponse } from './services/postResponseService.js';
 import {
   resolveModel,
   buildMessagesForAI,
@@ -63,12 +56,7 @@ import {
   streamWithFallback,
 } from './services/responseStreamingService.js';
 import { runChatGraphResume } from './services/resumePipeline.js';
-import {
-  createSSEStream,
-  PROGRESS_MESSAGES,
-  sseInternalError,
-  sendChatWarning,
-} from './services/sseHelpers.js';
+import { createSSEStream, PROGRESS_MESSAGES, sseInternalError } from './services/sseHelpers.js';
 import { buildStreamContext } from './services/streamContext.js';
 import {
   discardPendingAssistantIfEmpty,
@@ -76,12 +64,14 @@ import {
 } from './services/threadPersistenceService.js';
 import { turnMaterialChars } from './services/turnMaterial.js';
 import { runActionGateStage } from './streamStages/actionGateStage.js';
+import { runArtifactEmitStage } from './streamStages/artifactEmitStage.js';
 import { runClarificationStage } from './streamStages/clarificationStage.js';
 import { runClassifyStage } from './streamStages/classifyStage.js';
 import { runComputeInterruptStage } from './streamStages/computeInterruptStage.js';
 import { runCreateIntentStage } from './streamStages/createIntentStage.js';
 import { runEarlyHandlerStage } from './streamStages/earlyHandlerStage.js';
 import { runForcedIntentStage } from './streamStages/forcedIntentStage.js';
+import { runPersistStage } from './streamStages/persistStage.js';
 import { runRecallStage } from './streamStages/recallStage.js';
 import { runRoutingStage } from './streamStages/routingStage.js';
 import { runSharepicTopicStage } from './streamStages/sharepicTopicStage.js';
@@ -96,47 +86,6 @@ const log = createLogger('chatGraphContractRouter');
 /** Content of the row that keeps a failed turn's sources for the retry. */
 const RESEARCH_KEPT_ON_FAILURE_TEXT =
   'Die Antwort konnte nicht erzeugt werden. Die recherchierten Quellen sind gespeichert — ein erneuter Versuch nutzt sie weiter.';
-
-/** Cap on how much gathered reference material rides in a doc/board edit — keeps
- *  the docs-AI system prompt bounded. Matches the single-pass edit ref cap. */
-const EDIT_REFERENCE_CHAR_CAP = 8000;
-
-/** A prior assistant turn must be at least this long to count as the edit's
- *  reference material — skips the brief "Ich passe das Dokument an…" confirmation
- *  and lands on the earlier turn that actually holds the content. */
-const EDIT_REFERENCE_SUBSTANTIVE_THRESHOLD = 200;
-
-/** Render the loop's gathered sources into a reference block for a compound-edit
- *  turn — the material the docs/boards AI composes the insert from (title +
- *  content per source). Empty-content sources are dropped (they'd otherwise leak
- *  a bare title placeholder and waste the budget). */
-function renderReferenceFromResults(results: ChatGraphState['searchResults']): string {
-  const block = results
-    .filter((r) => (r.content ?? '').trim())
-    .map((r) => `${r.title ?? 'Quelle'}\n${(r.content ?? '').trim()}`)
-    .join('\n\n---\n\n');
-  return block.length > EDIT_REFERENCE_CHAR_CAP ? block.slice(0, EDIT_REFERENCE_CHAR_CAP) : block;
-}
-
-/** Reference material for a doc/board edit trigger (shared by the doc + board
- *  branches). compoundEdit uses this turn's freshly-gathered sources; a plain
- *  single-pass edit uses the prior substantive assistant turn. */
-function buildEditReferenceContent(
-  compoundEdit: boolean,
-  searchResults: ChatGraphState['searchResults'],
-  validMessages: ModelMessage[],
-  lastUserMessage: ModelMessage | undefined
-): string {
-  if (compoundEdit) return renderReferenceFromResults(searchResults);
-  const lastUserIdx = lastUserMessage ? validMessages.indexOf(lastUserMessage) : -1;
-  const priorMessages = lastUserIdx > 0 ? validMessages.slice(0, lastUserIdx) : [];
-  const prev =
-    [...priorMessages]
-      .reverse()
-      .map((m) => (m.role === 'assistant' ? extractTextContent(m.content) : ''))
-      .find((t) => t.trim().length >= EDIT_REFERENCE_SUBSTANTIVE_THRESHOLD) ?? '';
-  return prev.length > EDIT_REFERENCE_CHAR_CAP ? prev.slice(0, EDIT_REFERENCE_CHAR_CAP) : prev;
-}
 
 const s = initServer();
 
@@ -844,229 +793,51 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         });
       }
 
-      // === Stage 3b: Extract chart data from response (if chart intent) ===
-      if (finalState.intent === 'chart') {
-        const chartData = extractChartFromResponse(fullText);
-        if (chartData) {
-          sse.send('chart_data', { chart: chartData });
-          log.info(
-            `[ChatGraph] Chart data extracted: ${chartData.type} with ${chartData.data.length} points`
-          );
-        }
-      }
-
-      // === Stage 3b': Extract generic artifact (HTML/SVG) from response ===
-      // Explicit `artifact` intent → surface any valid block. Any other intent
-      // → auto-detect, but only a *complete* HTML/SVG document (not an
-      // illustrative snippet), so a normal answer with an example ```html block
-      // doesn't spuriously dock a panel. Skip `chart` (own ```chart fence).
-      if (finalState.intent !== 'chart') {
-        const artifact = extractArtifactFromResponse(fullText, {
-          isArtifactIntent: finalState.intent === 'artifact',
-        });
-        if (artifact) {
-          sse.send('artifact', { artifact });
-          log.info(
-            `[ChatGraph] Artifact extracted: ${artifact.type} (${artifact.content.length} chars)`
-          );
-        }
-      }
-
-      // === Stage 3c: Live document edit trigger (docs editor surface only) ===
-      // For edit_current_doc intent, emit a `trigger_doc_edit` SSE event with
-      // the user's prompt + selection flag. The docs-editor frontend dispatches
-      // this into BlockNote's AIExtension.invokeAI(), which runs the existing
-      // /api/docs/ai pipeline (tool calls → applyDocumentOperations → Yjs sync).
-      // ChatGraph never edits the doc itself — it just classifies and forwards.
-      //
-      // Reference content channel: short referential commands like "füge dies
-      // ein" or "im dokument einfügen" point at the previous assistant turn
-      // (the rewritten Antrag the chat produced earlier). BlockNote AI sees
-      // only the document — not chat history. We forward the prior substantive
-      // assistant message as a SEPARATE `referenceContent` field; it lands in
-      // the docs-AI route's *system prompt* as labeled instructional context,
-      // never concatenated into userPrompt (an earlier attempt did that and
-      // the model inserted the wrapper text verbatim into the document).
-      //
-      // "Substantive" = ≥200 chars, which skips the brief edit-confirmation
-      // ("Ich passe das Dokument an…") that respondNode itself just emitted
-      // and lands on the earlier turn that actually contains the content.
-      // compoundEdit (research + edit) forces this even when the intent isn't
-      // edit_current_doc: the research loop just ran, and its gathered sources
-      // become the reference material (instead of a prior assistant turn).
-      // NOTE: the CANVAS (sharepic editor) also rides this path — it sets
-      // customEnabledTools.edit_current_doc and sends currentDocument.id = docKey,
-      // so a canvas edit dispatches trigger_doc_edit here too (its handler calls
-      // /api/canvas/ai-suggest). Don't add doc-only assumptions under this branch
-      // without also checking resolveEditorSurfaceKind !== 'canvas'.
-      if (
-        !editToolLoop &&
-        (finalState.intent === 'edit_current_doc' || (compoundEdit && editTarget === 'doc')) &&
-        rawCurrentDocument?.id
-      ) {
-        const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
-        const referenceContent = buildEditReferenceContent(
-          compoundEdit,
-          finalState.searchResults,
-          validMessages as ModelMessage[],
-          lastUserMessage as ModelMessage | undefined
-        );
-        const hasSelection = !!rawCurrentDocument.selectionText;
-        sse.send('trigger_doc_edit', {
-          targetDocumentId: rawCurrentDocument.id,
-          userPrompt: lastUserText,
-          useSelection: hasSelection,
-          ...(referenceContent.trim() ? { referenceContent } : {}),
-        });
-        log.info(
-          `[ChatGraph] Emitted trigger_doc_edit for doc ${rawCurrentDocument.id} (selection: ${hasSelection}, compoundEdit: ${compoundEdit}, refContentChars: ${referenceContent.length})`
-        );
-      }
-
-      // === Stage 3d: Live board edit trigger (boards editor surface only) ===
-      // For edit_current_board intent, emit a `trigger_board_action` SSE event
-      // with the user's prompt. The boards-editor frontend calls POST
-      // /api/boards/:id/ai to plan operations, then applies them to the live
-      // Yjs board. ChatGraph never edits the board itself — classify + forward.
-      if (
-        !editToolLoop &&
-        (finalState.intent === 'edit_current_board' || (compoundEdit && editTarget === 'board')) &&
-        rawCurrentBoard?.id
-      ) {
-        const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
-        const referenceContent = buildEditReferenceContent(
-          compoundEdit,
-          finalState.searchResults,
-          validMessages as ModelMessage[],
-          lastUserMessage as ModelMessage | undefined
-        );
-        sse.send('trigger_board_action', {
-          targetBoardId: rawCurrentBoard.id,
-          userPrompt: lastUserText,
-          ...(referenceContent.trim() ? { referenceContent } : {}),
-        });
-        log.info(
-          `[ChatGraph] Emitted trigger_board_action for board ${rawCurrentBoard.id} (compoundEdit: ${compoundEdit}, refContentChars: ${referenceContent.length})`
-        );
-      }
+      // === Stages 3b–3d: chart / artifact / editor-surface triggers ===
+      runArtifactEmitStage({
+        sse,
+        finalState,
+        fullText,
+        validMessages,
+        lastUserMessage,
+        compoundEdit,
+        editTarget,
+        editToolLoop,
+        rawCurrentDocument,
+        rawCurrentBoard,
+      });
 
       // === Stage 4: Persist & complete ===
-      // Stop the placeholder writer BEFORE persist: its final throttle write
-      // must not race the finalize UPDATE (both write the same row).
-      await cleanupPending(false);
-      // Kicked off here but awaited only after sse.end(): the client already
-      // has the full response, so a slow Postgres write must not delay the
-      // done event. persistAssistantResponse catches its own errors.
-      const persistPromise = persistAssistantResponse({
-        threadId: actualThreadId!,
-        userId,
-        fullText,
+      return await runPersistStage({
+        sse,
+        req,
         finalState,
         classifiedState,
+        cleanupPending,
+        fullText,
+        actualThreadId,
+        userId,
+        aiClient,
+        requestId,
+        validMessages,
+        lastUserMessage,
+        processedMeta,
+        isNewThread,
+        memoryEnabled,
+        memoryRetrieveTimeMs,
         generatedImage,
         sharepicVariants,
         socialPost,
         createdDocument,
-        isNewThread,
-        lastUserMessage: lastUserMessage as ModelMessage,
-        processedMeta,
-        aiClient,
-        requestId,
-        memoryEnabled,
-        ...(agentId != null && { agentId }),
-        ...(agenticSteps != null && { agenticSteps }),
-        ...(langfuseTraceId != null && { traceId: langfuseTraceId }),
-        ...(pendingId != null && { pendingMessageId: pendingId }),
-        ...(userMessageId != null && { userMessageId }),
+        createdBoard,
+        agenticSteps,
+        langfuseTraceId,
+        pendingId,
+        userMessageId,
+        agentId,
+        rawDocMentionIds,
+        rawBoardIds,
       });
-
-      // === Stage 4b: Emit confirm_action for intents that need user approval ===
-      if (actualThreadId && classifiedState.intent !== 'save_as_doc') {
-        await emitConfirmAction({
-          sse,
-          actualThreadId,
-          userId,
-          fullText,
-          finalState,
-          classifiedState,
-          ...(rawDocMentionIds != null && { rawDocMentionIds }),
-          ...(rawBoardIds != null && { rawBoardIds }),
-        });
-      }
-
-      // === Stage 4c: Handle save_as_doc (primary or secondary intent) ===
-      const isSaveAsDoc =
-        classifiedState.intent === 'save_as_doc' ||
-        classifiedState.secondaryIntent === 'save_as_doc';
-      if (isSaveAsDoc && fullText) {
-        const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
-        // Same transcript builder the other create turns use, so "speicher das
-        // als Dokument" and "mach ein PDF draus" see the same thread. It used to
-        // be a hand-rolled `slice(-4)` here and nothing at all there. The answer
-        // being saved is generated in THIS turn and is not in `validMessages`
-        // yet, so it is appended.
-        const conversationContext = [
-          buildCreateTurnContext(validMessages),
-          `assistant: ${fullText.slice(0, 3000)}`,
-        ]
-          .filter((part) => part.trim())
-          .join('\n');
-
-        await generateAndCreateDocument({
-          sse,
-          classifiedState,
-          aiClient,
-          req,
-          ...(actualThreadId != null && { actualThreadId }),
-          userId,
-          userContent: lastUserText,
-          subtypeOverride: classifiedState.documentSubtype,
-          conversationContext,
-          intent: 'save_as_doc',
-          skipTerminate: true,
-        });
-      }
-
-      const totalTimeMs = Date.now() - finalState.startTime;
-      sse.send('done', {
-        ...(actualThreadId != null && { threadId: actualThreadId }),
-        citations: finalState.citations,
-        generatedImage,
-        // Compound board turn: boards render from these `done` fields (no card
-        // SSE), mirroring the single-pass @board-erstellen handler.
-        ...(createdBoard != null && {
-          boardId: createdBoard.boardId,
-          boardGeneratedStructure: createdBoard.boardGeneratedStructure,
-        }),
-        metadata: {
-          intent: finalState.intent,
-          searchCount: finalState.searchCount || 0,
-          totalTimeMs,
-          ...(finalState.classificationTimeMs != null && {
-            classificationTimeMs: finalState.classificationTimeMs,
-          }),
-          ...(finalState.searchTimeMs != null && { searchTimeMs: finalState.searchTimeMs }),
-          ...(finalState.imageTimeMs != null && { imageTimeMs: finalState.imageTimeMs }),
-          ...(finalState.summaryTimeMs != null && { summaryTimeMs: finalState.summaryTimeMs }),
-          ...(memoryRetrieveTimeMs > 0 && { memoryRetrieveTimeMs }),
-          ...(langfuseTraceId != null && { traceId: langfuseTraceId }),
-        },
-      });
-
-      log.info(`[ChatGraph] Complete: ${fullText.length} chars in ${totalTimeMs}ms`);
-      // Await BEFORE ending the stream: the client keeps reading until the
-      // stream closes, so a warning emitted here still reaches it. Previously
-      // this ran after sse.end() and a failed persist had no way to be
-      // reported — the turn looked perfect live and was gone on reload.
-      const persistOutcome = await persistPromise;
-      if (persistOutcome.discarded) sendChatWarning(sse, 'turn_discarded');
-      else if (!persistOutcome.ok) sendChatWarning(sse, 'persist_failed');
-      sse.end();
-      // Safety net: if persist finalized (or skipped) but the placeholder is
-      // still an empty streaming row (e.g. persist bailed on its own guard),
-      // drop it so it can't read as an interrupted turn.
-      if (pendingId) await discardPendingAssistantIfEmpty(pendingId).catch(() => {});
-      return { status: 200 as const, body: undefined };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       const errorStack = error instanceof Error ? error.stack : undefined;
