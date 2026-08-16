@@ -6,15 +6,11 @@
   "options": {
     "max_tokens": 200,
     "temperature": 0.8,
-    "top_p": 1.0,
-    "provider": "mistral",
-    "model": "mistral-large-2512"
+    "top_p": 1.0
   },
   "alternativesOptions": {
     "max_tokens": 800,
     "temperature": 0.85,
-    "top_p": 1.0,
-    "provider": "mistral",
-    "model": "mistral-large-2512"
+    "top_p": 1.0
   }
 }
