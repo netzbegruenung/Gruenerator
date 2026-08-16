@@ -17,8 +17,6 @@ import { CONTENT_INTEGRITY_EDIT_RULES } from '../../../services/contentPolicy.js
 
 import { runToolForcedEdit } from './toolForcedEdit.js';
 
-import type { AiClient } from '../../../services/ai/types.js';
-
 export const SHAREPIC_EDIT_TOOL_NAME = 'apply_sharepic_edit';
 
 export interface RunSharepicEditArgs {
@@ -27,8 +25,6 @@ export interface RunSharepicEditArgs {
   snapshot: CanvasAiSnapshot;
   /** Summaries of the most recent prior edits, newest first (pronoun context). */
   recentEditSummaries: string[];
-  aiClient: AiClient;
-  req?: unknown;
 }
 
 export type RunSharepicEditResult =
@@ -264,7 +260,7 @@ export function buildSystemPrompt(
 }
 
 export async function runSharepicEdit(args: RunSharepicEditArgs): Promise<RunSharepicEditResult> {
-  const { instruction, descriptor, snapshot, recentEditSummaries, aiClient, req } = args;
+  const { instruction, descriptor, snapshot, recentEditSummaries } = args;
 
   return runToolForcedEdit({
     toolName: SHAREPIC_EDIT_TOOL_NAME,
@@ -273,7 +269,5 @@ export async function runSharepicEdit(args: RunSharepicEditArgs): Promise<RunSha
     systemPrompt: buildSystemPrompt(descriptor, snapshot, recentEditSummaries),
     instruction,
     logPrefix: '[sharepic_edit]',
-    aiClient,
-    ...(req !== undefined && { req }),
   });
 }

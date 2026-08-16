@@ -11,8 +11,6 @@ import { formatTimeWithFraction, type SubtitleSegment } from '@gruenerator/share
 
 import { runToolForcedEdit } from './toolForcedEdit.js';
 
-import type { AiClient } from '../../../services/ai/types.js';
-
 export const REEL_EDIT_TOOL_NAME = 'apply_reel_subtitle_edit';
 
 export interface RunReelEditArgs {
@@ -20,8 +18,6 @@ export interface RunReelEditArgs {
   segments: SubtitleSegment[];
   /** Summaries of the most recent prior edits, newest first (pronoun context). */
   recentEditSummaries: string[];
-  aiClient: AiClient;
-  req?: unknown;
 }
 
 export type RunReelEditResult = { ok: true; edit: ReelEditResponse } | { ok: false; error: string };
@@ -75,7 +71,7 @@ function buildSystemPrompt(segments: SubtitleSegment[], recentEditSummaries: str
 }
 
 export async function runReelEdit(args: RunReelEditArgs): Promise<RunReelEditResult> {
-  const { instruction, segments, recentEditSummaries, aiClient, req } = args;
+  const { instruction, segments, recentEditSummaries } = args;
 
   return runToolForcedEdit({
     toolName: REEL_EDIT_TOOL_NAME,
@@ -84,7 +80,5 @@ export async function runReelEdit(args: RunReelEditArgs): Promise<RunReelEditRes
     systemPrompt: buildSystemPrompt(segments, recentEditSummaries),
     instruction,
     logPrefix: '[reel_edit]',
-    aiClient,
-    ...(req !== undefined && { req }),
   });
 }
