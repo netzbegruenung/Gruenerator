@@ -67,9 +67,13 @@ export const DECISION_POINTS = {
     branches: ['presse', 'instagram', 'facebook', 'linkedin', 'twitter', 'reel', 'wahlpruefstein'],
   },
 
-  /** "…aber erstelle kein Dokument." — the negative-action gate. */
+  /** "…aber erstelle kein Dokument." — the negative-action gate.
+   *  `dropped_secondary` stood here for the secondary-intent half of the gate.
+   *  It was removed with its call site: `secondaryIntent` can only be null,
+   *  `examples` or `scrape_url` since the 27k classifier tier went away, and
+   *  none of those is a key in `forbiddenBy`. No snapshot ever recorded it. */
   'router.persistent_action_gate': {
-    branches: ['allowed', 'dropped_secondary', 'demoted_primary_to_produktion'],
+    branches: ['allowed', 'demoted_primary_to_produktion'],
   },
 
   /** Which classifier tier produced the verdict. */

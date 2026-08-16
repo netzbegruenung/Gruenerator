@@ -121,10 +121,10 @@ export function getModel(
     lane.provider === 'mistral'
       ? routeMistralModel(lane.model || PROVIDER_DEFAULTS.mistral, options).upstream
       : lane.provider;
-  return withUsageTracking(resolveModel(lane.provider, lane.model, options), upstream);
+  return withUsageTracking(instantiateModel(lane.provider, lane.model, options), upstream);
 }
 
-function resolveModel(
+function instantiateModel(
   provider: ProviderName | string,
   modelId?: string,
   options: RouteOptions = {}
