@@ -28,6 +28,7 @@ import type {
   SharepicVariant,
 } from '@gruenerator/contracts';
 import type { RoleLandesverbandInput } from '@gruenerator/shared/agents';
+import type { ChatIntentId } from '@gruenerator/shared/chat-intents';
 import type { ModelMessage } from 'ai';
 
 export type { WolkeFileRef, ConnectFileRef, CurrentBoard, SocialPostPayload };
@@ -1004,6 +1005,15 @@ export interface ChatGraphState {
   // set by a `@notion`/`@brevo` mention (router) or a conservative classifier
   // hint. Null = run over all enabled servers.
   mcpServerScope?: string | null | undefined;
+
+  // Der Intent, den eine @-Erwähnung dieses Turns festgezurrt hat. Gesetzt von
+  // `forcedIntentStage` neben `mcpServerScope` und aus demselben Grund: der
+  // Loop muss wissen, was die Person GEWÄHLT hat, und `state.intent` allein
+  // sagt das nicht — ein Klassifikator-Verdikt sieht dort genauso aus.
+  //
+  // Der Loop liest es, um den ersten Werkzeugaufruf beim Namen zu nennen statt
+  // nur „irgendeines" zu verlangen. Null/abwesend = niemand hat gewählt.
+  mentionPinnedIntent?: ChatIntentId | null | undefined;
 
   // The first-party MANAGED connectors this turn mounts (`bahn`, `wetter`,
   // `gesetze`, …). Set by the vocabulary trigger in the router, or by an

@@ -646,8 +646,27 @@ export interface AgenticDecisionInput {
   lastUserText: string;
   /** An @tool mention pinned a deterministic single-pass tool. */
   forcedTool: boolean;
-  /** `mcp` turns are "forced" via @<server> but still belong in the loop. */
-  isMcpTurn: boolean;
+  /**
+   * Dieser Intent hat GAR KEINEN Einzeldurchlauf-Executor —
+   * `executeIntentPipeline` hat für ihn keinen Zweig (`mcp` plus
+   * `SYSTEM_TOOL_INTENTS`). Ein Turn, den ein Notausschalter draussen hielte,
+   * hätte niemanden, der ihn ausführt; deshalb öffnet dieses Flag das Gate
+   * bedingungslos und hebt auch die Notizbuch-Sperre auf.
+   */
+  mustLoop: boolean;
+  /**
+   * Der Intent trägt `forcedLane: 'loop'` — ein Zwang auf ihn gehört in die
+   * Schleife, nicht in den Einzeldurchlauf.
+   *
+   * Getrennt von {@link mustLoop}, weil das zwei verschiedene Tatsachen sind
+   * und sie ab dem ersten Flip auseinanderfallen: `bundestag` HAT einen
+   * Einzeldurchlauf-Executor (er bleibt der Weg für Prosa-Turns mit
+   * ausgeschalteter Schleife), aber eine @-Erwähnung ist dort schlechter
+   * bedient. Zusammengelegt bekäme so ein Intent still auch das
+   * bedingungslose Gate und die Notizbuch-Ausnahme — und eine gewählte
+   * Wissenssammlung bliebe ungelesen.
+   */
+  forcedLoop: boolean;
   /**
    * The vocabulary trigger named at least one first-party connector for this
    * turn (`managedSourceTrigger`).
@@ -753,17 +772,25 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
   // `mcp` is the ONLY executor for its turns (the legacy mcpToolNode was removed),
   // so it always enters the loop — independent of CHAT_AGENT_LOOP and of inLoopSet.
   // The single-pass kill-switches below (compound / image / secondary) still apply.
-  const gateOpen = p.isMcpTurn || (p.loopEnabled && inLoopSet);
-  // The MCP exception is the same one `forcedTool` gets, and for the same
-  // reason: no turn in the `isMcpTurn` set has a single-pass executor —
-  // intentExecutionService has no branch for `mcp`, `umfragen` or `hilfe` — so
-  // keeping one out of the loop would leave it with nobody to run it. An
-  // unsearched notebook is the lesser loss against a turn that does nothing.
+  const gateOpen = p.mustLoop || (p.loopEnabled && inLoopSet);
+  // Zwei Ausnahmen aus zwei Gründen, die lange derselbe waren.
+  //
+  // `mustLoop`: kein Turn dieser Menge hat einen Einzeldurchlauf-Executor —
+  // intentExecutionService hat keinen Zweig für `mcp`, `umfragen` oder
+  // `hilfe`. Einen davon draussen zu halten liesse ihn ohne Ausführenden. Eine
+  // ungelesene Wissenssammlung ist der kleinere Verlust gegen einen Turn, der
+  // gar nichts tut — deshalb hebt dieses Flag auch die Notizbuch-Sperre auf.
+  //
+  // `forcedLoop`: die Person hat den Intent per Erwähnung gesetzt, und für
+  // diesen Intent heisst das „lauf im Loop" statt „hefte ein deterministisches
+  // Einzelwerkzeug an". Es hebt NUR den forcedTool-Notausschalter auf; das
+  // Gate und die Notizbuch-Sperre bleiben, weil ein Intent mit eigenem
+  // Executor beides nicht braucht.
   const runAgentic =
     gateOpen &&
-    (!p.forcedTool || p.isMcpTurn) &&
+    (!p.forcedTool || p.forcedLoop) &&
     !p.isCompound &&
-    (!p.hasSelectedNotebook || p.isMcpTurn) &&
+    (!p.hasSelectedNotebook || p.mustLoop) &&
     secondaryAllowed &&
     !p.hasImageAttachments;
   recordDecision('router.run_agentic', runAgentic ? 'loop' : 'single_pass', {
@@ -772,7 +799,8 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
       loopEnabled: p.loopEnabled,
       inLoopSet,
       gateOpen,
-      isMcpTurn: p.isMcpTurn,
+      mustLoop: p.mustLoop,
+      forcedLoop: p.forcedLoop,
       hasManagedSources: p.hasManagedSources === true,
       isCompound: p.isCompound,
       hasSelectedNotebook: p.hasSelectedNotebook,

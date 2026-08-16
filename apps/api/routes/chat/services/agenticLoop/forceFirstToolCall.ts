@@ -3,6 +3,8 @@
  * Werkzeugaufruf ABVERLANGT wird — und die Fähigkeitsfrage, die genau das
  * verhindert.
  */
+import { forcesLoopLane } from '@gruenerator/shared/chat-intents';
+
 import { NAMED_RETRIEVAL_INTENTS } from './intents.js';
 import { looksLikeExplicitResearchOrder } from './routing.js';
 
@@ -84,6 +86,42 @@ export function shouldForceFirstToolCall(input: {
   // erfundenen Aussage über den Nutzer aus dem Modellgedächtnis. Ein Intent,
   // dessen ganzer Zweck das Abrufen ist, darf nicht nichts abrufen.
   return NAMED_RETRIEVAL_INTENTS.has(input.intent ?? '');
+}
+
+/**
+ * WELCHES Werkzeug der erste Schritt rufen muss — oder `null`, wenn die Wahl
+ * beim Planer bleibt.
+ *
+ * `toolChoice: 'required'` garantiert nur IRGENDEINEN Aufruf. Für einen Turn,
+ * den eine @-Erwähnung in die Schleife geschoben hat, ist das zu wenig: der
+ * Erwähnungstext wird vor dem Modell entfernt (`sanitizeMessageMentions`), das
+ * Modell sieht die Wahl also gar nicht und greift zur generischen Suche. Genau
+ * dieses Argument steht schon an `guards.emptyResultFallback` — dort ist es der
+ * Grund, das Ausweich-Werkzeug zu benennen statt es zu erbitten.
+ *
+ * Die Regel braucht keine gepflegte Zuordnung Intent→Werkzeug: für die Intents,
+ * um die es geht, HEISST das Werkzeug wie der Intent (`bundestag`,
+ * `abgeordnetenwatch`, `umfragen`). Wo das nicht zutrifft, greift die Regel
+ * nicht und es bleibt bei `required` — `hilfe` etwa montiert
+ * `gruenerator_docs_search`, und `mcp` ist überhaupt kein einzelnes Werkzeug.
+ *
+ * Der Montage-Test ist nicht optional: die Locale-Gitter in `buildChatToolCatalog`
+ * lassen `bundestag`/`abgeordnetenwatch` für de-AT weg, und ein Zwang auf ein
+ * nicht montiertes Werkzeug bricht den Aufruf.
+ */
+export function pinnedFirstTool(input: {
+  /** Der von einer Erwähnung festgezurrte Intent (`mentionPinnedIntent`). */
+  pinnedIntent: string | null;
+  /** Der Intent, unter dem der Turn tatsächlich läuft. */
+  intent: string | null | undefined;
+  isMounted: (toolName: string) => boolean;
+}): string | null {
+  const pinned = input.pinnedIntent;
+  // Eine spätere Stufe darf den Intent umgeschrieben haben; dann war die
+  // Erwähnung nicht das letzte Wort und ihr Werkzeug ist nicht mehr gemeint.
+  if (!pinned || pinned !== input.intent) return null;
+  if (!forcesLoopLane(pinned)) return null;
+  return input.isMounted(pinned) ? pinned : null;
 }
 
 // A "what can this connector do?" question. When the turn is scoped to one MCP
