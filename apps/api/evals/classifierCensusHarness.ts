@@ -128,22 +128,38 @@ const RESOLVER_DEFAULTS: ReadonlyArray<{ prefix: string; reply: string }> = [
  * einzelnen Konstante abzuhängen: ein wieder wachsender Taxonomie-Prompt fällt
  * auf, egal wie er heisst.
  */
-function makeCountingPool(counts: { calls: number; maxPromptChars: number }) {
-  return {
-    processRequest: async (req: { systemPrompt?: string }) => {
-      counts.calls += 1;
-      counts.maxPromptChars = Math.max(counts.maxPromptChars, req.systemPrompt?.length ?? 0);
-      const resolver = RESOLVER_DEFAULTS.find((r) => req.systemPrompt?.startsWith(r.prefix));
-      return { content: resolver?.reply ?? 'keine' };
-    },
-  };
+export const censusCounts = { calls: 0, maxPromptChars: 0 };
+
+/**
+ * Das Modell, das dieser Zensus stellt.
+ *
+ * Hängt über `vi.mock` an `executeProvider` statt als Client im State: die
+ * Auflöser rufen seit dem Fassaden-Umzug `aiText`, und die Fassade hat keinen
+ * Client, den man hineinlegen könnte. Der Seam ist damit derselbe, den auch die
+ * Knoten-Tests benutzen — eine Ebene tiefer, sonst unverändert.
+ */
+export function censusExecuteProvider(
+  _provider: string,
+  _requestId: string,
+  data: { systemPrompt?: string }
+): Promise<{ content: string; success: true; stop_reason: string }> {
+  censusCounts.calls += 1;
+  censusCounts.maxPromptChars = Math.max(
+    censusCounts.maxPromptChars,
+    data.systemPrompt?.length ?? 0
+  );
+  const resolver = RESOLVER_DEFAULTS.find((r) => data.systemPrompt?.startsWith(r.prefix));
+  return Promise.resolve({
+    content: resolver?.reply ?? 'keine',
+    success: true as const,
+    stop_reason: 'stop',
+  });
 }
 
 function buildState(
   userMessage: string,
   history: ModelMessage[],
-  artifacts: ThreadToolContext[],
-  pool: unknown
+  artifacts: ThreadToolContext[]
 ): ChatGraphState {
   return {
     messages: [...history, { role: 'user', content: userMessage }],
@@ -160,7 +176,6 @@ function buildState(
       isSystemDefault: true,
     },
     enabledTools: {},
-    aiClient: pool,
     userLocale: 'de-DE',
     clientPlatform: 'web',
     ...(artifacts[0] ? { lastToolContext: artifacts[0] } : {}),
@@ -229,8 +244,9 @@ export interface CensusRun {
  *     Geraten wird hier nichts, ausgewiesen schon.
  */
 export async function runClassifierCensus(): Promise<CensusRun> {
-  const counts = { calls: 0, maxPromptChars: 0 };
-  const pool = makeCountingPool(counts);
+  const counts = censusCounts;
+  counts.calls = 0;
+  counts.maxPromptChars = 0;
   const turns: CensusTurn[] = [];
 
   for (const entry of loadCorpus()) {
@@ -252,7 +268,7 @@ export async function runClassifierCensus(): Promise<CensusRun> {
       let intent: string;
       try {
         const result = await runWithDecisionJournal(journal, () =>
-          classifierNode(buildState(prompt, history, artifacts, pool))
+          classifierNode(buildState(prompt, history, artifacts))
         );
         intent = String(result.intent ?? '?');
       } catch (err) {
