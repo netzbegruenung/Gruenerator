@@ -59,13 +59,10 @@ describe('generateTitle', () => {
     expect(apiClient.post).toHaveBeenCalledWith(
       '/api/chat-service/threads/thread-paste/generate-title'
     );
-    // No local title to send — writing "Neue Unterhaltung" here would overwrite
-    // the very title the backend just generated.
-    expect(apiClient.patch).not.toHaveBeenCalled();
     expect(title).toBe('Haushalt 2027');
   });
 
-  it('uses the typed text and still triggers the backend refinement', async () => {
+  it('shows the typed text at once but never writes a title itself', async () => {
     const apiClient = makeApiClient({ status: 'accepted', title: 'Pendlerpauschale' });
     const adapter = createGrueneratorThreadListAdapter(apiClient, 'chat');
 
@@ -76,10 +73,10 @@ describe('generateTitle', () => {
     );
 
     expect(title).toBe('Wie hoch ist die Pendlerpauschale');
-    expect(apiClient.patch).toHaveBeenCalledWith('/api/chat-service/threads', {
-      threadId: 'thread-typed',
-      title: 'Wie hoch ist die Pendlerpauschale',
-    });
+    // Generated titles have a single writer, the server. A PATCH from here looks
+    // exactly like a manual rename to the server's conditional write and would
+    // lock its own AI refinement out. Only `rename()` may PATCH.
+    expect(apiClient.patch).not.toHaveBeenCalled();
     expect(apiClient.post).toHaveBeenCalledOnce();
   });
 
