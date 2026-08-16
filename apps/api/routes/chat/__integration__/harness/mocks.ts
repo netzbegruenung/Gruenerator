@@ -68,7 +68,6 @@ export function attachmentPersistenceMock(
     deleteThreadAttachments: vi.fn(() => Promise.resolve()),
     generateAttachmentSummary: vi.fn(() => Promise.resolve('')),
     generateImageSummary: vi.fn(() => Promise.resolve('')),
-    formatThreadAttachmentsContext: () => '',
   };
 }
 

@@ -1,4 +1,5 @@
 import { searchIntentSchema } from '@gruenerator/contracts';
+import { intentsWithDisposition } from '@gruenerator/shared/chat-intents';
 import { describe, it, expect } from 'vitest';
 
 import { isReasoningCapable } from '../../../services/ai/modelDiscovery.js';
@@ -303,6 +304,28 @@ describe('autoPolicy — agent routing hint', () => {
   it('does NOT override an intent that already has a task shape', () => {
     const sel = resolveAutoSelection({ intent: 'create_sheet', agentId: CREATIVE_AGENT });
     expect(sel.modelId).toBe('mistral-medium-3.5');
+  });
+
+  it('überschreibbar sind genau die prose-Dispositionen plus agentic', () => {
+    // HINT_OVERRIDABLE wird seit dem Registry-Rollout aus der Dispositions-Achse
+    // abgeleitet statt aufgezählt. Diese Zusicherung ist der Ort, an dem die
+    // Ableitung als AUSSAGE lesbar ist: „keine eigene Aufgabenform" ist genau,
+    // was `prose` heisst, und `agentic` kommt als Auffangwert dazu.
+    //
+    // Geprüft über den PRECISE-Hint, weil der creative-Zweig seit der
+    // Lane-Faltung wirkungslos ist (siehe oben) — precise hebt auf
+    // mistral-medium-3.5 und macht die Grenze damit sichtbar.
+    const overridable = ALL_INTENTS.filter(
+      (intent) =>
+        resolveAutoSelection({ intent, agentId: PRECISE_AGENT }).modelId !==
+        resolveAutoSelection({ intent }).modelId
+    );
+    const expected = [...intentsWithDisposition('prose'), 'agentic'].filter(
+      // Der Hint kann nur etwas ändern, wo die Vorgabe nicht ohnehin die
+      // Zielspur ist.
+      (intent) => resolveAutoSelection({ intent }).modelId !== 'mistral-medium-3.5'
+    );
+    expect([...overridable].sort()).toEqual([...expected].sort());
   });
 
   it('leaves the reasoning grading untouched', () => {

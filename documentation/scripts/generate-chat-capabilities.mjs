@@ -53,18 +53,18 @@ const SRC = {
   chatIntents: 'packages/shared/src/chat-intents/index.ts',
   userTools: 'packages/shared/src/agents/userTools.ts',
   systemMcp: 'apps/api/services/mcp/systemMcpServers.ts',
-  // CONTROLLER_HANDLED_INTENTS says how each intent is handled and flags the
-  // young ones EXPERIMENTAL, which makes it a better source for "is this
+  // INTENT_HANDLER_PATHS says how each intent is handled and flags the young
+  // ones EXPERIMENTAL, which makes it a better source for "is this
   // experimental?" than the enum's free-floating comments.
   //
-  // It is ALSO annotated `Record<SearchIntent, string>`, and this comment used
-  // to claim TypeScript forces it to cover every intent. It does not:
-  // `apps/api/tsconfig.json` excludes `**/*.vitest.ts`, so tsc never sees this
-  // file. Coverage is enforced by the test's runtime loop over
-  // `searchIntentSchema.options`, and by
-  // scripts/check-unenforced-exhaustive-maps.mjs, which fails CI if that loop
-  // is ever dropped.
-  intentNotes: 'apps/api/agents/langgraph/ChatGraph/intentPipeline.vitest.ts',
+  // It sat in `intentPipeline.vitest.ts` as `CONTROLLER_HANDLED_INTENTS` until
+  // the intent-registry rollout, and its `Record<SearchIntent, string>` was
+  // decoration there: `apps/api/tsconfig.json` excludes `**/*.vitest.ts`, so
+  // tsc never saw the file (the case that motivated
+  // scripts/check-unenforced-exhaustive-maps.mjs). It is a production module
+  // now, so the compiler enforces coverage — and the test's runtime loop over
+  // `searchIntentSchema.options` stays as the readable second belt.
+  intentNotes: 'apps/api/agents/langgraph/ChatGraph/intentHandlerPaths.ts',
   // The Rezepte (`@presse`, `@instagram`, …). index.generated.ts is itself
   // built from the skills' frontmatter, so it is already pure data.
   skills: 'packages/shared/src/agents/skills/index.generated.ts',
@@ -183,13 +183,13 @@ function extractRetiredIntents() {
   return retired;
 }
 
-/** Intents whose entry in CONTROLLER_HANDLED_INTENTS is marked EXPERIMENTAL. */
+/** Intents whose entry in INTENT_HANDLER_PATHS is marked EXPERIMENTAL. */
 function extractExperimentalIntents() {
   const sf = parse(SRC.intentNotes);
-  const decl = unwrap(findDeclaration(sf, 'CONTROLLER_HANDLED_INTENTS'));
+  const decl = unwrap(findDeclaration(sf, 'INTENT_HANDLER_PATHS'));
   if (!decl || !ts.isObjectLiteralExpression(decl)) {
     throw new Error(
-      `${SRC.intentNotes}: CONTROLLER_HANDLED_INTENTS not found as an object literal. ` +
+      `${SRC.intentNotes}: INTENT_HANDLER_PATHS not found as an object literal. ` +
         `It is the source for the "experimentell" badge; update generate-chat-capabilities.mjs.`
     );
   }

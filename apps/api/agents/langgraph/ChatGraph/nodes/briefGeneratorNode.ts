@@ -12,6 +12,8 @@
 import { aiText } from '../../../../services/ai/generate.js';
 import { createLogger } from '../../../../utils/logger.js';
 
+import { extractMessageText } from './classifierHeuristics.js';
+
 import type { ChatGraphState } from '../types.js';
 
 const log = createLogger('ChatGraph:BriefGenerator');
@@ -28,20 +30,6 @@ Antworte NUR mit dem Recherche-Auftrag, ohne Einleitung oder Erklärung.`;
 
 const MAX_CONVERSATION_MESSAGES = 5;
 const MAX_BRIEF_LENGTH = 500;
-
-/**
- * Extract text content from a message, handling both string and parts format.
- */
-function extractMessageText(content: unknown): string {
-  if (typeof content === 'string') return content;
-  if (Array.isArray(content)) {
-    return content
-      .filter((p) => p && typeof p === 'object' && (p as Record<string, unknown>).type === 'text')
-      .map((p) => (p as { text: string }).text)
-      .join('');
-  }
-  return String(content || '');
-}
 
 /**
  * Brief generator node implementation.
