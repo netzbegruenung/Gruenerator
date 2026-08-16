@@ -2,9 +2,9 @@
  * The two "may this turn do that?" gates, enforced once each.
  *
  * Both exist because the intents they guard have many doors (Tier-3 heuristic,
- * Tier-4 LLM, the malformed-JSON recovery, secondaryIntent) and only some of
- * them ever checked. Enforcing here, after the edit branches have had their
- * chance and before anything mounts a tool, is what lets every door stay dumb.
+ * the malformed-JSON recovery) and only some of them ever checked. Enforcing
+ * here, after the edit branches have had their chance and before anything
+ * mounts a tool, is what lets every door stay dumb.
  */
 
 import {
@@ -54,9 +54,9 @@ export async function runActionGateStage({
   // A sharepic is legitimate in exactly two situations: the user named one,
   // or the thread already has one to edit — and both edit lanes above have
   // had their chance at the second. Enforcing it HERE, once, is what let the
-  // classifier lose five regexes: every door (Tier-3 heuristic, Tier-4 LLM,
-  // the malformed-JSON recovery in classifierParsing, secondaryIntent) ends
-  // up passing through this line, so none of them needs its own gate.
+  // classifier lose five regexes: every door (Tier-3 heuristic, the
+  // malformed-JSON recovery in classifierParsing) ends up passing through
+  // this line, so none of them needs its own gate.
   // Placed before compoundKind so an unlicensed turn cannot mount the fat
   // tool either.
   const sharepicLicensed =
@@ -64,10 +64,6 @@ export async function runActionGateStage({
     initialState.agentConfig?.identifier === 'gruenerator-sharepic' ||
     hasExplicitSharepicWord(lastUserTextNoMentions);
 
-  if (classifiedState.secondaryIntent === 'sharepic' && !sharepicLicensed) {
-    log.info('[ChatGraph] Dropping unlicensed sharepic secondaryIntent');
-    classifiedState.secondaryIntent = null;
-  }
   if (classifiedState.intent === 'sharepic' && !sharepicLicensed) {
     if (actualThreadId && (await threadHasSharepic(actualThreadId))) {
       // Sharepic-shaped, and there IS one — but the edit lanes declined it
@@ -98,11 +94,11 @@ export async function runActionGateStage({
   // === Negative action constraints: one gate for "may this turn persist?" ===
   // Same shape as the sharepic licence above, same reason: the artifact
   // intents have many doors (Tier-2.7 lastToolContext, Tier-3 heuristics,
-  // the Tier-4 LLM, its malformed-JSON recovery, secondaryIntent) and only
-  // the Tier-3 ones ever checked for negation. Enforcing it here, once,
-  // means a door that forgets cannot leak. Demoting to `direct` (rather than
-  // a fixed reply) is deliberate: the user asked for an ANSWER and forbade
-  // the artifact — they should get the answer.
+  // the malformed-JSON recovery) and only the Tier-3 ones ever checked for
+  // negation. Enforcing it here, once, means a door that forgets cannot
+  // leak. Demoting to `direct` (rather than a fixed reply) is deliberate:
+  // the user asked for an ANSWER and forbade the artifact — they should get
+  // the answer.
   const forbiddenBy: Partial<Record<string, ForbiddableArtifact>> = {
     save_as_doc: 'document',
     modify_doc: 'document',
@@ -113,19 +109,6 @@ export async function runActionGateStage({
     modify_board: 'board',
     image: 'image',
   };
-  const secondaryFamily = forbiddenBy[classifiedState.secondaryIntent ?? ''];
-  if (
-    secondaryFamily &&
-    forbidsPersistentAction(lastUserTextNoMentions, ARTIFACT_NOUN_BY_KIND[secondaryFamily])
-  ) {
-    log.info(
-      `[ChatGraph] Turn forbids ${secondaryFamily} action → dropping secondaryIntent ${classifiedState.secondaryIntent}`
-    );
-    recordDecision('router.persistent_action_gate', 'dropped_secondary', {
-      inputs: { family: secondaryFamily, secondaryIntent: classifiedState.secondaryIntent },
-    });
-    classifiedState.secondaryIntent = null;
-  }
   const primaryFamily = forbiddenBy[classifiedState.intent];
   if (primaryFamily) {
     const forbidden = forbidsPersistentAction(
