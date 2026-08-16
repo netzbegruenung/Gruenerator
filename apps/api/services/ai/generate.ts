@@ -3,17 +3,21 @@
  *
  * `AiClient.processRequest` takes an untyped envelope — `type` is a bare
  * string, options carry OpenAI wire names (`max_tokens`, `top_p`), and the
- * result is `{content: string | null, success: boolean, …}` that every one of
- * the ~66 call sites immediately unwraps. That envelope exists because it used
- * to be serialised across a `worker_threads` boundary. There is no boundary any
- * more, so there is no reason to keep packing.
+ * result is `{content: string | null, success: boolean, …}` that every call site
+ * immediately unwraps. That envelope exists because it used to be serialised
+ * across a `worker_threads` boundary. There is no boundary any more, so there is
+ * no reason to keep packing.
  *
  * These three functions are what the call sites actually do, named:
  *
- *   aiText    prompt in, string out                      (~29 sites)
- *   aiObject  schema in, typed value out                 (~26 sites, none of
- *             which validate anything today)
- *   aiTools   real tool calling, raw SDK result out      (~7 sites)
+ *   aiText    prompt in, string out
+ *   aiObject  schema in, typed value out
+ *   aiTools   real tool calling, raw SDK result out
+ *
+ * MIGRATION STATE, measured 16.08.2026: 62 `processRequest` calls in 55
+ * production files still take the envelope (count and method in `types.ts`).
+ * `generateTaskList` (services/boards/agentFlow/artifactGen.ts) is the only one
+ * that has moved. This is a per-call-site migration, not a flag day.
  *
  * IMPORTANT — one engine, two faces. This does NOT reimplement generation: the
  * call itself is `executeProvider`, the same function `processRequest` reaches.

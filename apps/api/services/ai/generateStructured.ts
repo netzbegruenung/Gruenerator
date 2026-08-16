@@ -6,12 +6,10 @@
  * generator returned null, and the turn degraded into free prose — which then
  * became the input of the NEXT artifact. Prompting alone cannot prevent that.
  *
- * The AI client cannot do constrained decoding: `AIRequestOptions.
- * response_format` is declared but no adapter reads it, so every "JSON mode" in
- * the pool is prompt-only. What the pool CAN do is a forced tool call
- * (`options.tools` + `tool_choice: 'required'`), which several services already
- * use as de-facto structured output — see runSharepicEdit (sharepicEditLlm.ts)
- * and runCanvasSuggest. This is that pattern, generalized, plus two additions:
+ * The mechanism is a forced tool call (`options.tools` + `tool_choice:
+ * 'required'`), which several services already use as de-facto structured
+ * output — see runSharepicEdit (sharepicEditLlm.ts) and runCanvasSuggest. This
+ * is that pattern, generalized, plus two additions:
  *
  *  - a REPAIR turn: the invalid output and the concrete validation error are
  *    fed back at temperature 0 ("field X missing — return it corrected"), which
@@ -35,6 +33,35 @@
  *    but its `parseText` was the bare parser — so whenever the provider
  *    answered with prose (the common case on the model this ran on) the
  *    quality gate was silently skipped and the empty deck shipped.
+ *
+ * ── Why not the SDK's `generateObject` ──────────────────────────────────────
+ * Reviewed 16.08.2026 against the installed `ai` (7.0.37; `apps/api` declares
+ * ^7.0.58). Two SDK facts, both checked in `node_modules/ai/dist/index.d.ts`
+ * rather than recalled:
+ *
+ *  - `experimental_repairText` DOES exist here, so version is not the obstacle.
+ *    Its contract is. It is `({text, error: JSONParseError |
+ *    TypeValidationError}) => Promise<string | null>`: it sees the raw text and
+ *    repairs it so JSON parsing succeeds. It never sees a well-formed object
+ *    that a SEMANTIC gate rejected, and it cannot take another model turn.
+ *  - `generateObject` itself is marked `@deprecated Use generateText with an
+ *    output setting instead` in this version, so it is not the migration target
+ *    it looks like.
+ *
+ * That is the whole reason this module stays. `validate` here is not a schema
+ * check — it rejects on grounds a schema cannot express (a deck whose slides are
+ * empty, an editor operation the canvas cannot perform) and its MESSAGE is fed
+ * back as the repair prompt. Neither `generateObject` nor `Output.object()` has
+ * a slot for a complaint about a schema-perfect but wrong answer. `viaLaxParser`
+ * compounds it: the callers' existing normalizing parsers run on both transports
+ * so the two cannot drift, which a schema-validated return value would undo.
+ *
+ * What IS a real duplicate, and the actual consolidation target: `aiObject` in
+ * `services/ai/generate.ts` implements this same forced-tool-call + validate +
+ * repair pattern against the lane registry. It has no production callers; this
+ * module has three (artifactGeneration, docsContractRouter, runCanvasSuggest)
+ * plus the text-fallback machinery they depend on. Merging means moving that
+ * machinery into `aiObject`, not deleting either — a change of its own.
  */
 
 import { jsonSchema } from 'ai';
