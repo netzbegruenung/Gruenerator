@@ -1,11 +1,10 @@
 /**
  * Shared terminal step for the edit/loop turn services.
  *
- * sharepicEditService, reelEditService, socialPostEditService,
- * sharepicAgenticService and recallToolLoopService each ended a turn the same
- * way: emit the reply, emit `done`, persist the assistant message with one
- * retry, touch the thread, warn on a failed persist, close the stream. Five
- * copies of a sequence whose retry policy and warning behaviour must not drift
+ * sharepicEditService, reelEditService and socialPostEditService each ended a
+ * turn the same way: emit the reply, emit `done`, persist the assistant message
+ * with one retry, touch the thread, warn on a failed persist, close the stream.
+ * Copies of a sequence whose retry policy and warning behaviour must not drift
  * — a silent persist failure lets state and history diverge.
  */
 

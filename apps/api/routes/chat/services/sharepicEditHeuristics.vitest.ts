@@ -4,8 +4,6 @@ import {
   asksForNewArtifact,
   isSharepicEditInstruction,
   isVerificationQuestion,
-  hasSharepicEditVerb,
-  isShortAffirmation,
 } from './sharepicEditHeuristics.js';
 
 /**
@@ -41,16 +39,14 @@ describe('isVerificationQuestion', () => {
   });
 
   it('closes every door into the edit branch, not just one', () => {
-    // These carry a real edit VERB and NOUN, so without the guard both
-    // predicates fire and a question about what the assistant did becomes an
+    // This carries a real edit VERB and NOUN, so without the guard the
+    // predicate fires and a question about what the assistant did becomes an
     // order to do more of it. The refinement door is covered in
     // sharepicRefinement.vitest.ts — a fix that shuts one of two doors is the
     // bug this suite already knows about.
     expect(isSharepicEditInstruction('Hast du den Text wirklich geändert?')).toBe(false);
-    expect(hasSharepicEditVerb('Stimmt das, oder hast du das geändert?')).toBe(false);
     // …while the same words as an instruction stay an instruction.
     expect(isSharepicEditInstruction('Ändere den Text')).toBe(true);
-    expect(hasSharepicEditVerb('ändere das')).toBe(true);
   });
 });
 
@@ -123,35 +119,5 @@ describe('isSharepicEditInstruction', () => {
   it('never fires on fresh-deck requests', () => {
     expect(isSharepicEditInstruction('mach mir ein neues karussell')).toBe(false);
     expect(isSharepicEditInstruction('erstelle einen neuen slider über klimaschutz')).toBe(false);
-  });
-});
-
-describe('hasSharepicEditVerb (relaxed Sharepic-Modus check)', () => {
-  it('fires on verb-only instructions that lack a noun', () => {
-    expect(hasSharepicEditVerb('setz das bitte um')).toBe(true);
-    expect(hasSharepicEditVerb('ändere das entsprechend')).toBe(true);
-  });
-
-  it('stays quiet on plain questions and fresh-variant requests', () => {
-    expect(hasSharepicEditVerb('was bedeutet das?')).toBe(false);
-    expect(hasSharepicEditVerb('drei varianten bitte')).toBe(false);
-  });
-});
-
-describe('isShortAffirmation', () => {
-  it('matches confirmations of a proposed edit', () => {
-    expect(isShortAffirmation('yes')).toBe(true);
-    expect(isShortAffirmation('ja')).toBe(true);
-    expect(isShortAffirmation('Ja, mach das so!')).toBe(true);
-    expect(isShortAffirmation('ok, so umsetzen')).toBe(true);
-    expect(isShortAffirmation('passt')).toBe(true);
-  });
-
-  it('rejects questions, content and long messages', () => {
-    expect(isShortAffirmation('ja aber was bedeutet das für die farbe?')).toBe(false);
-    expect(isShortAffirmation('was steht im wahlprogramm?')).toBe(false);
-    expect(
-      isShortAffirmation('ja ich finde wir sollten dann auch noch über den hintergrund sprechen')
-    ).toBe(false);
   });
 });

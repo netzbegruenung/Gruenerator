@@ -255,14 +255,9 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
 
       // === Routing: agentic loop or single pass, and which editor variant ===
-      const {
-        runAgentic,
-        compoundEdit,
-        editTarget,
-        editToolLoop,
-        pipelineAgent,
-        pipelineOriginal,
-      } = runRoutingStage({
+      // `plan` ist die EINE Turn-Entscheidung (siehe agenticLoop/turnPlan.ts);
+      // der Intent darin ist endgültig, hier wird nichts mehr umgeschrieben.
+      const { plan, pipelineAgent, pipelineOriginal } = runRoutingStage({
         sse,
         classifiedState,
         requestId,
@@ -281,18 +276,16 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         mentionBoardIds: mentionTokenFields.boardIds,
       });
 
-      // === Recall: chat_history tool loop, else past-work context enrichment ===
-      const recall = await runRecallStage({
+      // === Recall: past-work context enrichment ===
+      await runRecallStage({
         sse,
         classifiedState,
-        cleanupPending,
         actualThreadId,
         userId,
         lastUserMessage,
         isNewThread,
         memoryEnabled,
       });
-      if (recall.handled) return recall.result;
 
       // === HITL: clarification, then the run-then-answer compute interrupt ===
       const clarification = await runClarificationStage({
@@ -329,7 +322,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         userId,
         lastUserMessage,
         forcedTools,
-        runAgentic,
+        runAgentic: plan.runAgentic,
         agentId,
         rawDocMentionIds,
         rawDocumentChatIds,
@@ -355,7 +348,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         cleanupPending,
         pendingId,
         pendingWriter,
-        runAgentic,
+        runAgentic: plan.runAgentic,
         pipelineAgent,
         pipelineOriginal,
         requestId,
@@ -393,9 +386,9 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         fullText,
         validMessages,
         lastUserMessage,
-        compoundEdit,
-        editTarget,
-        editToolLoop,
+        compoundEdit: plan.compoundEdit,
+        editTarget: plan.editTarget,
+        editToolLoop: plan.editToolLoop,
         rawCurrentDocument,
         rawCurrentBoard,
       });
