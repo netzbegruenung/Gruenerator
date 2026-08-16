@@ -7,7 +7,8 @@ import { notifyWarning } from '../lib/notify';
 import { useAgentStore } from '../stores/chatStore';
 
 import type { ChatApiClient } from '../context/ChatContext';
-import type { RemoteThreadListAdapter } from '@assistant-ui/react';
+import type { RemoteThreadListAdapter, ThreadMessage } from '@assistant-ui/react';
+import type { GenerateTitleResponse } from '@gruenerator/contracts';
 
 interface ApiThread {
   id: string;
@@ -128,6 +129,33 @@ function isExternal(remoteId: string) {
 
 // Threads whose title side effects (PATCH + generate-title POST) already ran.
 const titleGeneratedFor = new Set<string>();
+
+/**
+ * First-sentence title from the opening user message, or null when that message
+ * carries no text of its own.
+ *
+ * Null is a real answer, not a failure: pasted text travels as a file part
+ * (GrueneratorAttachmentAdapter), so a paste-and-send turn has no text part at
+ * all. Naming it "Neue Unterhaltung" here looked like a title and stopped the
+ * server from ever supplying a real one — the caller asks the backend instead.
+ */
+function deriveLocalTitle(messages: readonly ThreadMessage[]): string | null {
+  const firstUserMsg = messages.find((m) => m.role === 'user');
+  if (!firstUserMsg) return null;
+
+  // flatMap over the discriminated union rather than a hand-written type
+  // predicate: the `p.type === 'text'` branch narrows `p` on its own, so the
+  // part's shape stays owned by assistant-ui instead of being restated here.
+  const fullText = firstUserMsg.content
+    .flatMap((p) => (p.type === 'text' ? [p.text] : []))
+    .join(' ')
+    .trim();
+  if (!fullText) return null;
+
+  const sentenceEnd = fullText.search(/[.!?]/);
+  const title = sentenceEnd > 0 ? fullText.slice(0, sentenceEnd) : fullText;
+  return title.length > 50 ? title.slice(0, 47) + '...' : title;
+}
 
 export function createGrueneratorThreadListAdapter(
   apiClient: ChatApiClient,
@@ -337,47 +365,48 @@ export function createGrueneratorThreadListAdapter(
         });
       }
 
-      return createAssistantStream((controller) => {
-        const firstUserMsg = messages.find((m) => m.role === 'user');
-        if (!firstUserMsg) {
-          controller.appendText('Neue Unterhaltung');
-          return;
-        }
-
-        const textParts = firstUserMsg.content
-          .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
-          .map((p) => p.text);
-        const fullText = textParts.join(' ').trim();
-
-        if (!fullText) {
-          controller.appendText('Neue Unterhaltung');
-          return;
-        }
-
-        const sentenceEnd = fullText.search(/[.!?]/);
-        let title = sentenceEnd > 0 ? fullText.slice(0, sentenceEnd) : fullText;
-        if (title.length > 50) {
-          title = title.slice(0, 47) + '...';
-        }
-        controller.appendText(title);
+      return createAssistantStream(async (controller) => {
+        const localTitle = deriveLocalTitle(messages);
 
         // Both assistant-ui's built-in runEnd trigger (fires for lazily
         // initialized threads) and ThreadTitleEffect (kept for legacy
         // pre-created threads) may call this — run the side effects once.
-        if (titleGeneratedFor.has(remoteId)) return;
+        if (titleGeneratedFor.has(remoteId)) {
+          if (localTitle) controller.appendText(localTitle);
+          return;
+        }
         titleGeneratedFor.add(remoteId);
 
-        if (useAgentStore.getState().currentThreadId === remoteId) {
-          useAgentStore.getState().setCurrentThreadTitle(title);
+        // Shown immediately so the sidebar is not blank while the request runs —
+        // but deliberately NOT written to the database. Generated titles have
+        // exactly one writer, the server; a PATCH from here was
+        // indistinguishable from a manual rename and made the server's own
+        // conditional writes lose (the placeholder overwrote a real title, and
+        // the AI refinement was then locked out entirely). `rename()` still
+        // PATCHes — that one really is the user speaking.
+        if (localTitle) {
+          controller.appendText(localTitle);
+          if (useAgentStore.getState().currentThreadId === remoteId) {
+            useAgentStore.getState().setCurrentThreadTitle(localTitle);
+          }
         }
 
-        apiClient
-          .patch('/api/chat-service/threads', { threadId: remoteId, title })
-          .catch((err) => console.error('[TitleGen] PATCH fallback title FAILED:', err));
-
-        apiClient
-          .post(`/api/chat-service/threads/${remoteId}/generate-title`)
-          .catch((err) => console.error('[TitleGen] POST generate-title FAILED:', err));
+        // Runs even without a local title — that is the whole point. A first
+        // message consisting only of a pasted attachment carries no text part,
+        // and bailing out before this line left the thread unnamed forever.
+        try {
+          const res = await apiClient.post<GenerateTitleResponse>(
+            `/api/chat-service/threads/${remoteId}/generate-title`
+          );
+          if (!localTitle && res.title) {
+            controller.appendText(res.title);
+            if (useAgentStore.getState().currentThreadId === remoteId) {
+              useAgentStore.getState().setCurrentThreadTitle(res.title);
+            }
+          }
+        } catch (err) {
+          console.error('[TitleGen] POST generate-title FAILED:', err);
+        }
       });
     },
   };
