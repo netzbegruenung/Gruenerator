@@ -54,6 +54,7 @@ import {
 import { crawlAndDistill } from '../../../services/search/CrawlingService.js';
 import { applyMMR } from '../../../services/search/DiversityReranker.js';
 import { createLogger } from '../../../utils/logger.js';
+import { jaccard } from '../../../utils/setSimilarity.js';
 import { validateUrlForFetch } from '../../../utils/validation/urlSecurity.js';
 
 import { executeDirectSearch, executeDirectWebSearch } from './directSearchExecutors.js';
@@ -900,13 +901,6 @@ function textShingles(text: string): Set<string> {
   const shingles = new Set<string>();
   for (let i = 0; i + 3 <= words.length; i++) shingles.add(words.slice(i, i + 3).join(' '));
   return shingles;
-}
-
-function jaccard(a: Set<string>, b: Set<string>): number {
-  if (a.size === 0 || b.size === 0) return 0;
-  let shared = 0;
-  for (const s of a) if (b.has(s)) shared++;
-  return shared / (a.size + b.size - shared);
 }
 
 export interface DedupedSources {
