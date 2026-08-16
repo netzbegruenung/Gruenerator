@@ -27,7 +27,7 @@ export async function plannerNode(state: WebSearchState): Promise<Partial<WebSea
       };
     } else if (state.mode === 'deep') {
       // Deep mode: generate strategic research questions using AI
-      const subqueries = await generateResearchQuestions(state.query, state.aiClient, state.req);
+      const subqueries = await generateResearchQuestions(state.query);
       return {
         subqueries,
         metadata: {

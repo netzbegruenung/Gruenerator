@@ -34,14 +34,10 @@
  * exists for.
  */
 
+import { aiText } from '../../../../services/ai/generate.js';
 import { createLogger } from '../../../../utils/logger.js';
-import { intermediateLane } from '../llmConfig.js';
 
-import type { AiClient } from '../../../../services/ai/types.js';
 import type { ChatIntentId } from '@gruenerator/shared/chat-intents';
-
-/** @see services/ai/intermediateLanes.ts */
-const LANE = intermediateLane('standard');
 
 const log = createLogger('ChatGraph:GenerationScope');
 
@@ -140,7 +136,6 @@ Im Zweifel: keine.`;
 interface ResolveArgs {
   userContent: string;
   conversationContext: string | null;
-  aiClient: AiClient;
 }
 
 /**
@@ -151,7 +146,6 @@ interface ResolveArgs {
 export async function resolveGenerationScope({
   userContent,
   conversationContext,
-  aiClient,
 }: ResolveArgs): Promise<GenerationVerdict | null> {
   const startTime = Date.now();
   const userMessage = conversationContext
@@ -160,20 +154,18 @@ export async function resolveGenerationScope({
 
   try {
     const response = await withTimeout(
-      aiClient.processRequest(
-        {
-          type: 'chat_intent_classification',
-          provider: LANE.provider,
-          systemPrompt: RESOLVE_PROMPT,
-          messages: [{ role: 'user', content: userMessage }],
-          options: { model: LANE.model, max_tokens: 16, temperature: 0 },
-        },
-        null
-      ),
+      aiText({
+        lane: 'chat_intent_classification',
+        pinned: 'standard',
+        system: RESOLVE_PROMPT,
+        prompt: userMessage,
+        maxOutputTokens: 16,
+        temperature: 0,
+      }),
       RESOLVE_TIMEOUT_MS
     );
 
-    const verdict = parseKind(response.content);
+    const verdict = parseKind(response);
     log.info(
       `[GenerationScope] "${userContent.slice(0, 40)}" → ${
         verdict === null ? 'unlesbar' : verdict === 'keine' ? 'keine' : verdict.intent

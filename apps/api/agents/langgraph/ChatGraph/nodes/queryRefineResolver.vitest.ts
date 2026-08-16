@@ -1,9 +1,13 @@
 import { describe, it, expect, vi } from 'vitest';
 
-import { classifierNode } from './classifierNode.js';
-import { refineSearchQuery } from './queryRefineResolver.js';
+const executeProvider = vi.fn();
+vi.mock('../../../../services/ai/execution/index.js', () => ({
+  executeProvider: (...args: unknown[]) => executeProvider(...args),
+}));
 
-import type { AiClient } from '../../../../services/ai/types.js';
+const { classifierNode } = await import('./classifierNode.js');
+const { refineSearchQuery } = await import('./queryRefineResolver.js');
+
 import type { ChatGraphState } from '../types.js';
 
 /**
@@ -43,33 +47,35 @@ const STUB_AGENT_CONFIG = {
 };
 
 /** Antwortet als Modell mit `content`, oder wirft, wenn eine Funktion kommt. */
-function makePool(reply: string | (() => never) | (() => Promise<never>)) {
-  const processRequest = vi.fn(async () => {
+function answering(reply: string | (() => never) | (() => Promise<never>)) {
+  executeProvider.mockReset();
+  executeProvider.mockImplementation(async () => {
     if (typeof reply === 'function') return reply();
-    return { content: reply };
+    return { content: reply, success: true, stop_reason: 'stop' };
   });
-  return { processRequest } as unknown as AiClient & {
-    processRequest: ReturnType<typeof vi.fn>;
-  };
+}
+
+/** Die Anfrage-Hülle des Aufrufs `i`. */
+function requestAt(i: number) {
+  return (executeProvider.mock.calls[i] as [string, string, Record<string, any>])[2];
 }
 
 async function refine(reply: string | (() => never), userContent = 'Fass mir das zusammen') {
+  answering(reply);
   return refineSearchQuery({
     userContent,
     conversationContext: null,
     topicalContext: null,
-    aiClient: makePool(reply),
   });
 }
 
 /** Ein Turn mit @notebook-Mention — eine der fünf erzwungenen Suchen. */
-function buildForcedSearchState(userMessage: string, pool: AiClient): ChatGraphState {
+function buildForcedSearchState(userMessage: string): ChatGraphState {
   return {
     messages: [{ role: 'user' as const, content: userMessage }],
     threadId: null,
     agentConfig: STUB_AGENT_CONFIG,
     enabledTools: {},
-    aiClient: pool,
     userLocale: 'de-DE',
     clientPlatform: 'web',
     notebookIds: ['nb-1'],
@@ -166,8 +172,8 @@ describe('refineSearchQuery — wann er ablehnt, und was der Turn dann sucht', (
     it(`lehnt ab: ${label}`, async () => {
       expect(await refine(reply, MESSAGE)).toBeNull();
 
-      const pool = makePool(reply);
-      const result = await classifierNode(buildForcedSearchState(MESSAGE, pool));
+      answering(reply);
+      const result = await classifierNode(buildForcedSearchState(MESSAGE));
       expect(result.intent).toBe('search');
       expect(result.searchQuery).toBe(FALLBACK_QUERY);
       expect(result.subQueries).toBeNull();
@@ -185,7 +191,8 @@ describe('refineSearchQuery — wann er ablehnt, und was der Turn dann sucht', (
     const echoed = `{"query": "${'sehr lange Anfrage '.repeat(15)}"}`;
     expect(await refine(echoed, MESSAGE)).toBeNull();
 
-    const result = await classifierNode(buildForcedSearchState(MESSAGE, makePool(echoed)));
+    answering(echoed);
+    const result = await classifierNode(buildForcedSearchState(MESSAGE));
     expect(result.searchQuery).toBe(FALLBACK_QUERY);
   });
 
@@ -195,7 +202,8 @@ describe('refineSearchQuery — wann er ablehnt, und was der Turn dann sucht', (
     };
     expect(await refine(boom, MESSAGE)).toBeNull();
 
-    const result = await classifierNode(buildForcedSearchState(MESSAGE, makePool(boom)));
+    answering(boom);
+    const result = await classifierNode(buildForcedSearchState(MESSAGE));
     expect(result.intent).toBe('search');
     expect(result.searchQuery).toBe(FALLBACK_QUERY);
   });
@@ -206,9 +214,7 @@ describe('refineSearchQuery — wann er ablehnt, und was der Turn dann sucht', (
     // befragt wird — und nicht bloss `userContent` durchfällt — zeigt nur eine
     // Formulierung, die die Heuristik tatsächlich zerlegt.
     const message = 'Formuliere eine Rede über Verkehrswende';
-    const result = await classifierNode(
-      buildForcedSearchState(message, makePool('kein JSON hier'))
-    );
+    const result = await classifierNode(buildForcedSearchState(message));
     expect(result.searchQuery).toBe('Verkehrswende');
     expect(result.searchQuery).not.toBe(message);
   });
@@ -218,7 +224,8 @@ describe('refineSearchQuery — wann er ablehnt, und was der Turn dann sucht', (
     // Turn muss trotzdem eine nicht-leere Anfrage tragen — die Suche läuft
     // ohnehin, die einzige Frage ist, ob sie mit oder ohne Anfrage läuft.
     const vague = 'Fass das mal zusammen';
-    const result = await classifierNode(buildForcedSearchState(vague, makePool('kein JSON hier')));
+    answering('kein JSON hier');
+    const result = await classifierNode(buildForcedSearchState(vague));
     expect(result.intent).toBe('search');
     expect(result.searchQuery).toBeTruthy();
   });
@@ -229,14 +236,13 @@ describe('refineSearchQuery — was er dem Modell schickt', () => {
     // Der Grund, warum es diesen Auflöser gibt: die Aufrufstelle schickte
     // 27.6k Zeichen Werkzeug-Taxonomie los, um eine Suchzeichenkette zu
     // bekommen, und verwarf das Intent-Verdikt danach hartkodiert.
-    const pool = makePool('{"query": "Wärmeplanung"}');
+    answering('{"query": "Wärmeplanung"}');
     await refineSearchQuery({
       userContent: 'Fass mir das zusammen',
       conversationContext: null,
       topicalContext: null,
-      aiClient: pool,
     });
-    const sent = pool.processRequest.mock.calls[0]?.[0] as { systemPrompt?: string };
+    const sent = requestAt(0) as { systemPrompt?: string };
     expect(sent.systemPrompt).toContain('Du formulierst Suchanfragen');
     expect(sent.systemPrompt?.length).toBeLessThan(1_500);
   });
@@ -245,14 +251,13 @@ describe('refineSearchQuery — was er dem Modell schickt', () => {
     // Beide Felder kamen aus der alten Aufrufstelle mit. Fielen sie still weg,
     // verlöre „und was steht da zum Zeitplan?" seinen Bezug — und der Test, der
     // nur den Rückgabewert prüft, bliebe grün.
-    const pool = makePool('{"query": "Zeitplan"}');
+    answering('{"query": "Zeitplan"}');
     await refineSearchQuery({
       userContent: 'Und was steht da zum Zeitplan?',
       conversationContext: 'Vorher ging es um die Wärmeplanung.',
       topicalContext: 'Thema: kommunale Wärmeplanung',
-      aiClient: pool,
     });
-    const sent = pool.processRequest.mock.calls[0]?.[0] as {
+    const sent = requestAt(0) as {
       messages?: Array<{ content: string }>;
     };
     const userMessage = sent.messages?.[0]?.content ?? '';

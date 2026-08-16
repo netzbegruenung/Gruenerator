@@ -1,8 +1,24 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { briefGeneratorNode } from './briefGeneratorNode.js';
+const executeProvider = vi.fn();
+vi.mock('../../../../services/ai/execution/index.js', () => ({
+  executeProvider: (...args: unknown[]) => executeProvider(...args),
+}));
+
+const { briefGeneratorNode } = await import('./briefGeneratorNode.js');
 
 import type { ChatGraphState } from '../types.js';
+
+/** The request envelope of call `i`. */
+function requestAt(i: number) {
+  return (executeProvider.mock.calls[i] as [string, string, Record<string, any>])[2];
+}
+
+/** The provider answers with `content` on every attempt. */
+function answering(content: string) {
+  executeProvider.mockReset();
+  executeProvider.mockResolvedValue({ content, success: true, stop_reason: 'stop' });
+}
 
 vi.mock('../../../../utils/logger.js', () => ({
   createLogger: () => ({
@@ -22,11 +38,6 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     secondaryIntent: null,
     complexity: 'complex',
     searchQuery: 'Klimapolitik',
-    aiClient: {
-      processRequest: vi
-        .fn()
-        .mockResolvedValue({ content: 'Generated brief about climate policy.' }),
-    },
     // Required state fields with defaults
     searchResults: [],
     citations: [],
@@ -46,6 +57,8 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
   } as unknown as ChatGraphState;
 }
 
+beforeEach(() => answering('Generated brief about climate policy.'));
+
 // ─── Tests ─────────────────────────────────────────────────────────────────
 
 describe('briefGeneratorNode', () => {
@@ -53,7 +66,7 @@ describe('briefGeneratorNode', () => {
     const state = makeState({ complexity: 'simple' });
     const result = await briefGeneratorNode(state);
     expect(result).toEqual({});
-    expect(state.aiClient.processRequest).not.toHaveBeenCalled();
+    expect(executeProvider).not.toHaveBeenCalled();
   });
 
   it('skips when intent is not research', async () => {
@@ -66,7 +79,7 @@ describe('briefGeneratorNode', () => {
     const state = makeState();
     const result = await briefGeneratorNode(state);
     expect(result.researchBrief).toBe('Generated brief about climate policy.');
-    expect(state.aiClient.processRequest).toHaveBeenCalledTimes(1);
+    expect(executeProvider).toHaveBeenCalledTimes(1);
   });
 
   it('truncates individual messages to 800 chars in the prompt', async () => {
@@ -82,7 +95,7 @@ describe('briefGeneratorNode', () => {
     await briefGeneratorNode(state);
 
     // Inspect the user message sent to the LLM
-    const call = (state.aiClient.processRequest as any).mock.calls[0];
+    const call = [requestAt(0)];
     const promptContent = call[0].messages[0].content as string;
 
     // The long message should be truncated to 800 chars
@@ -100,7 +113,7 @@ describe('briefGeneratorNode', () => {
     const state = makeState({ messages: messages as any });
     await briefGeneratorNode(state);
 
-    const call = (state.aiClient.processRequest as any).mock.calls[0];
+    const call = [requestAt(0)];
     const promptContent = call[0].messages[0].content as string;
 
     // Only last 5 messages should appear (messages 4-8)
@@ -119,7 +132,7 @@ describe('briefGeneratorNode', () => {
     const state = makeState({ messages: messages as any });
     await briefGeneratorNode(state);
 
-    const call = (state.aiClient.processRequest as any).mock.calls[0];
+    const call = [requestAt(0)];
     const promptContent = call[0].messages[0].content as string;
 
     // 5 * 800 = 4000 chars of message content + role labels + template text
@@ -128,13 +141,13 @@ describe('briefGeneratorNode', () => {
   });
 
   it('flags briefGenerationFailed and records error when LLM returns empty', async () => {
-    const state = makeState({
-      aiClient: {
-        processRequest: vi.fn().mockResolvedValue({ content: '' }),
-      } as any,
-    });
+    // Nur Leerraum: eine WIRKLICH leere Antwort kommt hier gar nicht mehr an —
+    // die Kette wertet sie als Ausfall und wirft (siehe Test darunter). Was
+    // diesen Zweig noch erreicht, ist eine Antwort, die erst nach dem Trimmen
+    // leer ist.
+    answering('   ');
 
-    const result = await briefGeneratorNode(state);
+    const result = await briefGeneratorNode(makeState());
     expect(result.briefGenerationFailed).toBe(true);
     expect(result.researchBrief).toBeUndefined();
     expect(result.searchErrors).toEqual([
@@ -143,25 +156,23 @@ describe('briefGeneratorNode', () => {
   });
 
   it('flags briefGenerationFailed and records error on LLM rejection', async () => {
-    const state = makeState({
-      aiClient: {
-        processRequest: vi.fn().mockRejectedValue(new Error('LLM timeout')),
-      } as any,
-    });
+    executeProvider.mockReset();
+    executeProvider.mockRejectedValue(new Error('LLM timeout'));
 
-    const result = await briefGeneratorNode(state);
+    const result = await briefGeneratorNode(makeState());
     expect(result.briefGenerationFailed).toBe(true);
     expect(result.researchBrief).toBeUndefined();
-    expect(result.searchErrors).toEqual([{ source: 'briefGenerator', message: 'LLM timeout' }]);
+    // Die Fassade wirft, nachdem die ganze Kette durch ist; die Meldung nennt
+    // Lane und Ursache statt nur der Ursache.
+    expect(result.searchErrors).toEqual([
+      { source: 'briefGenerator', message: expect.stringContaining('LLM timeout') },
+    ]);
   });
 
   it('truncates generated brief to MAX_BRIEF_LENGTH (500)', async () => {
     const longBrief = 'Z'.repeat(800);
-    const state = makeState({
-      aiClient: {
-        processRequest: vi.fn().mockResolvedValue({ content: longBrief }),
-      } as any,
-    });
+    answering(longBrief);
+    const state = makeState();
 
     const result = await briefGeneratorNode(state);
     expect(result.researchBrief!.length).toBeLessThanOrEqual(500);
@@ -174,7 +185,7 @@ describe('briefGeneratorNode', () => {
 
     await briefGeneratorNode(state);
 
-    const call = (state.aiClient.processRequest as any).mock.calls[0];
+    const call = [requestAt(0)];
     const promptContent = call[0].messages[0].content as string;
 
     expect(promptContent).toContain('Teilfragen:');
@@ -198,7 +209,7 @@ describe('briefGeneratorNode', () => {
 
     await briefGeneratorNode(state);
 
-    const call = (state.aiClient.processRequest as any).mock.calls[0];
+    const call = [requestAt(0)];
     const promptContent = call[0].messages[0].content as string;
 
     expect(promptContent).toContain('Part one. Part two.');

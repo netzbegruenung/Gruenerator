@@ -8,6 +8,11 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 
+vi.mock('../../../services/ai/execution/index.js', async () => {
+  const { executeProviderStub } = await import('./harness/aiClientStub.js');
+  return { executeProvider: executeProviderStub };
+});
+
 vi.mock('../../../database/services/PostgresService.js', async () => {
   const { postgresMock } = await import('./harness/mocks.js');
   return postgresMock();

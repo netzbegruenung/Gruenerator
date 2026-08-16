@@ -13,8 +13,7 @@ import { type CommentBlock } from '@gruenerator/contracts';
 
 import { type AgentTask } from '../../database/schema/agentTasks.js';
 import { createLogger } from '../../utils/logger.js';
-import { getAIService } from '../ai/aiService.js';
-import { intermediateLane } from '../ai/intermediateLanes.js';
+import { aiText } from '../ai/generate.js';
 import { createDocumentWithContent } from '../docs/DocGenerationService.js';
 import { createNotification } from '../notifications/NotificationService.js';
 
@@ -39,9 +38,6 @@ import { inheritBoardSharingToDocument } from './boardSharingService.js';
 import { linkAgentDocumentToCard } from './cardDocumentService.js';
 
 import type { SearchIntent } from '../../agents/langgraph/ChatGraph/index.js';
-
-/** @see services/ai/intermediateLanes.ts */
-const LANE = intermediateLane('heavy');
 
 const log = createLogger('boardAgentWorker');
 
@@ -396,19 +392,16 @@ async function processTask(task: AgentTask): Promise<void> {
  */
 async function classifyDeliverable(taskText: string): Promise<DeliverableKind> {
   try {
-    const response = await getAIService().processRequest({
-      type: 'chat_intent_classification',
-      provider: LANE.provider,
-      systemPrompt: DELIVERABLE_PROMPT,
-      messages: [{ role: 'user', content: taskText }],
-      options: {
-        model: LANE.model,
-        max_tokens: 20,
-        temperature: 0,
-        response_format: { type: 'json_object' },
-      },
+    const content = await aiText({
+      lane: 'chat_intent_classification',
+      pinned: 'heavy',
+      system: DELIVERABLE_PROMPT,
+      prompt: taskText,
+      maxOutputTokens: 20,
+      temperature: 0,
+      json: true,
     });
-    const match = (response.content || '').match(/\{[\s\S]*\}/);
+    const match = content.match(/\{[\s\S]*\}/);
     const parsed = JSON.parse(match?.[0] || '{}') as { format?: unknown };
     const format = parsed.format;
     if (

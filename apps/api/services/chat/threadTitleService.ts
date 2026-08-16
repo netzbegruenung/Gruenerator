@@ -13,12 +13,7 @@ import { and, eq, isNull, or } from 'drizzle-orm';
 import { chatThreads } from '../../database/schema/chat.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { createLogger } from '../../utils/logger.js';
-import { intermediateLane } from '../ai/intermediateLanes.js';
-
-import type { AiClient } from '../ai/types.js';
-
-/** @see services/ai/intermediateLanes.ts */
-const LANE = intermediateLane('trivial');
+import { aiText } from '../ai/generate.js';
 
 const log = createLogger('ThreadTitle');
 
@@ -217,7 +212,6 @@ export async function generateThreadTitle(
   threadId: string,
   userMessage: string,
   assistantResponse: string,
-  aiClient: AiClient,
   options?: { imageGenerated?: boolean }
 ): Promise<string | null> {
   log.info(`[ThreadTitle] generateThreadTitle called`, {
@@ -249,38 +243,28 @@ export async function generateThreadTitle(
   const userSnippet = userMessage.slice(0, 300);
   const assistantSnippet = assistantResponse.slice(0, 500);
 
-  const aiRequest = {
-    type: 'chat_thread_title',
-    provider: LANE.provider,
-    systemPrompt: TITLE_PROMPT,
-    messages: [
-      {
-        role: 'user',
-        content: `Nutzerfrage: ${userSnippet}\nAntwort: ${assistantSnippet}`,
-      },
-    ],
-    options: {
-      model: LANE.model,
-      // 80 chars of German title tokenize well past 30 — that cap cut answers
-      // off mid-title (finish_reason=length), which the provider chain then
-      // read as an empty response and failed over for nothing.
-      max_tokens: 64,
-      temperature: 0.3,
-    },
-  };
   log.info(`[ThreadTitle] Sending AI worker request for ${threadId}`, {
     userSnippetLen: userSnippet.length,
     assistantSnippetLen: assistantSnippet.length,
   });
 
-  aiClient
-    .processRequest(aiRequest, null)
-    .then(async (response: { content?: string | null }) => {
+  aiText({
+    lane: 'chat_thread_title',
+    pinned: 'trivial',
+    system: TITLE_PROMPT,
+    prompt: `Nutzerfrage: ${userSnippet}\nAntwort: ${assistantSnippet}`,
+    // 80 chars of German title tokenize well past 30 — that cap cut answers
+    // off mid-title (finish_reason=length), which the provider chain then
+    // read as an empty response and failed over for nothing.
+    maxOutputTokens: 64,
+    temperature: 0.3,
+  })
+    .then(async (content: string) => {
       log.info(`[ThreadTitle] AI worker response for ${threadId}:`, {
-        rawContent: response?.content,
-        type: typeof response?.content,
+        rawContent: content,
+        type: typeof content,
       });
-      const aiTitle = normalizeAiTitle(response.content);
+      const aiTitle = normalizeAiTitle(content);
 
       if (aiTitle) {
         // `fallback` as `replacing`: this is the one overwrite that is allowed
@@ -289,7 +273,7 @@ export async function generateThreadTitle(
         log.info(`[ThreadTitle] AI title written to DB for ${threadId}: "${aiTitle}"`);
       } else {
         log.warn(
-          `[ThreadTitle] AI title rejected (value=${JSON.stringify(response.content)}), keeping fallback`
+          `[ThreadTitle] AI title rejected (value=${JSON.stringify(content)}), keeping fallback`
         );
       }
     })
