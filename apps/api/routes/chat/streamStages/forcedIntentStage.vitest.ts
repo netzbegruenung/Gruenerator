@@ -52,7 +52,8 @@ describe('eine einzelne Erwähnung zurrt ihren Intent fest', () => {
     // `@umfragen` ist die Ausnahme und steht deshalb unten mit eigenem Test:
     // sein Intent ist stillgelegt, der Token zeigt auf `agentic` + Werkzeug-Pin.
     ['examples', 'examples'],
-    ['pressemitteilung_examples', 'pressemitteilung_examples'],
+    // `@pressemitteilungen` steht aus demselben Grund unten: stillgelegter
+    // Intent, Token zeigt auf `agentic` + Werkzeug-Pin + Rezept.
     ['chat_history', 'chat_history'],
     ['social_post', 'social_post'],
     ['chart', 'chart'],
@@ -125,6 +126,42 @@ describe('@umfragen — Erwähnung ohne Intent', () => {
     const { state } = await run(['umfragen', 'deepresearch']);
     expect(state.intent).toBe('research');
     expect(state.mentionPinnedTool).toBe(null);
+  });
+});
+
+describe('@pressemitteilungen — Erwähnung ohne Intent, mit Rezept', () => {
+  // Zweiter Fall derselben Bauform, mit dem Unterschied, um den es in Phase L
+  // geht: die Erwähnung zurrt nicht nur ein WERKZEUG fest, sie lädt auch die
+  // TEXTSORTE. Der stillgelegte Intent trug immer nur das Erste.
+  it('setzt `agentic`, zurrt das PM-Werkzeug fest und lädt das Rezept', async () => {
+    const { state, forcedTool } = await run(['pressemitteilung_examples']);
+    expect(state.intent).toBe('agentic');
+    expect(state.mentionPinnedTool).toBe('gruenerator_pressemitteilung_examples');
+    expect(state.activeSkillMention).toBe('presse');
+    expect(forcedTool).toBe(true);
+  });
+
+  // Der Unterschied zum Werkzeug-Pin, und er ist Absicht: `activeSkillMention`
+  // kann aus der ausdrücklichen Rezeptwahl im Composer stammen. Eine Erwähnung
+  // überschreibt sie nicht — wer `/instagram` gewählt hat und `@pm` tippt, will
+  // die PM-Beispiele, nicht eine andere Textsorte.
+  it('überschreibt eine schon gewählte Textform nicht', async () => {
+    const { state } = await run(['pressemitteilung_examples'], {
+      state: { activeSkillMention: 'instagram' },
+    });
+    expect(state.activeSkillMention).toBe('instagram');
+    expect(state.mentionPinnedTool).toBe('gruenerator_pressemitteilung_examples');
+  });
+
+  // Und sie LÖSCHT es auch nicht, anders als der Werkzeug-Pin: `@pm @recherche`
+  // nimmt den Pin zurück (die Such-Familie überschreibt den Intent), die
+  // Textsorte bleibt stehen — die Person will immer noch eine PM, nur mit
+  // Recherche darunter.
+  it('eine spätere Erwähnung ohne Rezept löscht das Rezept nicht', async () => {
+    const { state } = await run(['pressemitteilung_examples', 'research']);
+    expect(state.intent).toBe('research');
+    expect(state.mentionPinnedTool).toBe(null);
+    expect(state.activeSkillMention).toBe('presse');
   });
 });
 

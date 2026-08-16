@@ -41,7 +41,7 @@ export const INTENT_HANDLER_PATHS: Record<SearchIntent, string> = {
   web: 'handled via search branch (intent !== direct)',
   examples: 'handled via search branch (intent !== direct)',
   pressemitteilung_examples:
-    'handled via search branch — landesverbaende press release templates, same path as examples',
+    'RETIRED as a verdict (availability: retired) — the landesverbaende press-release templates live on as the loop tool gruenerator_pressemitteilung_examples. @pressemitteilungen/@pm pins that TOOL (IntentMention.pinsTool) and loads the presse recipe (IntentMention.activatesSkill), running the turn as `agentic`. The searchNode arm that pushed the `press` kind is gone with it',
   abgeordnetenwatch:
     'handled via search branch (intent !== direct) — searchNode case calls EnrichedPoliticianService (Abgeordnetenwatch API)',
   bundestag:
