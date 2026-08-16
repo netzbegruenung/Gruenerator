@@ -3,7 +3,6 @@
  */
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
-import type { AiClient } from '../../services/ai/types.js';
 
 // ============================================================================
 // Request Types
@@ -272,12 +271,4 @@ export interface RedisJobData {
 // Express Extended Types
 // ============================================================================
 
-export interface SubtitlerRequest extends AuthenticatedRequest {
-  app: {
-    locals: {
-      aiClient?: AiClient | undefined;
-    };
-  } & AuthenticatedRequest['app'];
-}
-
-export type { AiClient };
+export type SubtitlerRequest = AuthenticatedRequest;

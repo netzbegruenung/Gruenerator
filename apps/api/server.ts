@@ -31,7 +31,6 @@ import { requireAuth } from './middleware/authMiddleware.js';
 import { shouldSkipBodyParser } from './middleware/bodyParserConfig.js';
 import { createCacheMiddleware } from './middleware/cacheMiddleware.js';
 import { setupRoutes } from './routes.js';
-import { createAIService, type AIService } from './services/ai/aiService.js';
 import {
   startModelLatencyCleanup,
   startModelLatencyRollup,
@@ -59,8 +58,6 @@ const __dirname = path.dirname(__filename);
 
 const log = createLogger('Server');
 const _numCPUs = os.cpus().length;
-
-let aiService: AIService | null = null;
 
 const isDev = env.NODE_ENV !== 'production';
 const workerCount = env.WORKER_COUNT;
@@ -245,11 +242,6 @@ async function startWorker(): Promise<void> {
     res.setTimeout(config.responseTimeout);
     next();
   });
-
-  // Initialize AI service (direct AI SDK calls, no worker threads)
-  log.debug('Initializing AI service');
-  aiService = createAIService(redisClient);
-  app.locals.aiClient = aiService;
 
   // Initialize Temporary Image Storage
   try {
@@ -769,9 +761,7 @@ async function startWorker(): Promise<void> {
 
   // Worker shutdown handler
   const shutdownHandler = createWorkerShutdownHandler({
-    resources: [aiService, redisClient, { shutdown: () => shutdownLangfuseTelemetry() }].filter(
-      Boolean
-    ),
+    resources: [redisClient, { shutdown: () => shutdownLangfuseTelemetry() }].filter(Boolean),
     server,
     logger: log,
   });

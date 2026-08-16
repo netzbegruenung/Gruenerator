@@ -10,7 +10,6 @@ import { fileURLToPath } from 'url';
 
 import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
-import { type AiClient } from '../ai/types.js';
 import { type Locale } from '../localization/types.js';
 import { GREENPT_STT_MODEL } from '../transcription/greenptListen.js';
 import { chooseProvider, type TranscriptionProvider } from '../transcription/providerPolicy.js';
@@ -99,7 +98,6 @@ async function transcribeWithProvider(
 async function transcribeVideo(
   videoPath: string,
   subtitlePreference: string = 'manual',
-  aiClient?: AiClient,
   locale: Locale = 'de-DE'
 ): Promise<string> {
   try {
@@ -164,4 +162,3 @@ async function transcribeVideo(
 
 export { transcribeVideo, transcribeWithProvider };
 export type { TranscriptionResult };
-export type { AiClient } from '../ai/types.js';

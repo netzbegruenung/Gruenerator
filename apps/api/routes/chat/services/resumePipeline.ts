@@ -29,7 +29,6 @@ import {
   buildAiTelemetry,
   withLangfuseTrace,
 } from '../../../services/telemetry/langfuseTelemetry.js';
-import { getAiClient } from '../../../utils/getAiClient.js';
 import { createLogger } from '../../../utils/logger.js';
 import { getContextWindow } from '../agents/providers.js';
 
@@ -154,14 +153,6 @@ export async function runChatGraphResume({
       .filter((m) => m.mimeType === 'application/pdf' && m.fileData != null)
       .map((m) => ({ name: m.name, data: m.fileData as string }));
 
-    const aiClient = getAiClient(req);
-    if (!aiClient) {
-      return sseFail(sse, PROGRESS_MESSAGES.aiUnavailable, {
-        code: 'provider_unavailable',
-        retryable: true,
-      });
-    }
-
     log.info(
       `[ChatGraph:Resume] Thread ${threadId}, ${
         resumeInput.kind === 'ask_human'
@@ -205,7 +196,6 @@ export async function runChatGraphResume({
       const tryCorrectionRound = async (errorText: string): Promise<boolean> => {
         const retries = classifiedState.pandasComputeRetries ?? 0;
         if (retries >= 1) return false;
-        classifiedState.aiClient = aiClient;
         const { pythonCode, computeFailed } = await pandasComputeNode(classifiedState, {
           ...(classifiedState.pandasLastCode != null && {
             previousCode: classifiedState.pandasLastCode,
@@ -279,7 +269,6 @@ export async function runChatGraphResume({
           (classifiedState.pandasComputeRetries ?? 0) < 1 &&
           classifiedState.pandasLastCode
         ) {
-          classifiedState.aiClient = aiClient;
           const verdict = await computeVerifierNode(classifiedState, payload);
           if (!verdict.plausible) {
             const hint =

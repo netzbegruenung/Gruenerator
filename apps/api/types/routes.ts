@@ -7,7 +7,6 @@
 
 // Note: Request, Response types are augmented in types/express.d.ts
 // - Request has user, session, subdomain, siteData, mobileAuth
-// - Express.Locals has aiClient
 // These augmentations are automatically available when importing from 'express'
 
 // ============================================================================

@@ -13,7 +13,6 @@ export interface ToolContext {
   locale: ResearchLocale;
   /** Every source the run saw, in first-seen order — the report's source list. */
   sources: Map<string, SourceRef>;
-  aiClient?: unknown;
   /** Absent when nothing is in reach; the notebook tool is then not registered. */
   notebooks?: NotebookScope;
   /**

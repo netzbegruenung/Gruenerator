@@ -15,7 +15,6 @@
  */
 import { runDocGeneration } from '../../../routes/chat/services/intentExecutionService.js';
 import { createLogger } from '../../../utils/logger.js';
-import { getAIService } from '../../ai/aiService.js';
 import { aiText } from '../../ai/generate.js';
 
 import { TASK_LIST_PROMPT, parseTaskList, type GeneratedTask } from './taskListParse.js';
@@ -41,7 +40,6 @@ async function createArtifactFromText(
   const created = await runDocGeneration({
     kind,
     userContent: sourceText,
-    aiClient: getAIService(),
     req: { user: { id: userId } } as unknown as Express.Request,
     userId,
   });

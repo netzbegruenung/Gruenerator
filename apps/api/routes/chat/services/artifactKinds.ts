@@ -68,7 +68,6 @@ export const PDF_SPEC: ArtifactSpec<CreatePdfResult> = {
   generate: (ctx, onCommit) =>
     runPdfGeneration({
       userContent: ctx.userContent,
-      aiClient: ctx.aiClient,
       req: ctx.req,
       userId: ctx.userId,
       pdfOptions: {
@@ -110,7 +109,6 @@ export const BOARD_SPEC: ArtifactSpec<CreatedBoard> = {
   generate: (ctx, onCommit) =>
     runBoardGeneration({
       userContent: ctx.userContent,
-      aiClient: ctx.aiClient,
       req: ctx.req,
       userId: ctx.userId,
       onCommit,
@@ -153,7 +151,6 @@ export function makeDocumentSpec(opts: {
     generate: (ctx, onCommit) =>
       runDocGeneration({
         kind: 'document',
-        aiClient: ctx.aiClient,
         req: ctx.req,
         userId: ctx.userId,
         userContent: ctx.userContent,

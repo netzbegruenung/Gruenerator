@@ -13,7 +13,6 @@
 import type { ForbiddableArtifact } from './nodes/fastPathGuards.js';
 import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
-import type { AiClient } from '../../../services/ai/types.js';
 import type { SystemMcpKey } from '../../../services/mcp/systemMcpServers.js';
 import type {
   WolkeFileRef,
@@ -469,7 +468,6 @@ export interface ChatGraphInput {
    */
   userId?: string | undefined;
   enabledTools: Record<string, boolean>;
-  aiClient: AiClient;
   attachmentContext?: string | undefined;
   imageAttachments?: ImageAttachment[] | undefined;
   threadAttachments?: ThreadAttachment[] | undefined;
@@ -600,7 +598,6 @@ export interface ChatGraphState {
   threadId: string | null;
   agentConfig: AgentConfig;
   enabledTools: Record<string, boolean>;
-  aiClient: AiClient;
   userLocale: UserLocale;
   /** Client shell ('web'/'app') — distinct from `platform`, the social-post target. */
   clientPlatform: ClientPlatform;

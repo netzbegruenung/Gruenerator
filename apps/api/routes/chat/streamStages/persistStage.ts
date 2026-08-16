@@ -40,7 +40,6 @@ export interface PersistStageParams {
   fullText: string;
   actualThreadId: string | undefined;
   userId: string;
-  aiClient: StreamContext['aiClient'];
   requestId: string;
   validMessages: StreamContext['validMessages'];
   lastUserMessage: StreamContext['lastUserMessage'];
@@ -75,7 +74,6 @@ export async function runPersistStage({
   fullText,
   actualThreadId,
   userId,
-  aiClient,
   requestId,
   validMessages,
   lastUserMessage,
@@ -116,7 +114,6 @@ export async function runPersistStage({
     isNewThread,
     lastUserMessage: lastUserMessage as ModelMessage,
     processedMeta,
-    aiClient,
     requestId,
     memoryEnabled,
     ...(agentId != null && { agentId }),
@@ -160,7 +157,6 @@ export async function runPersistStage({
     await generateAndCreateDocument({
       sse,
       classifiedState,
-      aiClient,
       req,
       ...(actualThreadId != null && { actualThreadId }),
       userId,
