@@ -18,7 +18,7 @@
  * Pipeline-Agent, PDF-Formularlage), wird als Feld hereingereicht statt hier
  * geholt. `decisionJournal` ist der einzige Zusatz und selbst ein Blatt.
  */
-import { type ChatIntentId } from '@gruenerator/shared/chat-intents';
+import { type ChatIntentId, forcesLoopLane } from '@gruenerator/shared/chat-intents';
 
 import { recordDecision } from '../../../../utils/decisionJournal.js';
 
@@ -194,8 +194,13 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
   // Board-Demotion auf `agentic` zieht, war nie ein MCP-Turn, und ein
   // Pipeline-Zwang macht aus `hilfe` kein `produktion`, das noch Werkzeuge
   // erwartet — dieses Gate soll die Schleife für die ERWÄHNUNG erzwingen.
-  const isMcpTurn =
-    proposedIntent === 'mcp' || proposedIntent === 'umfragen' || proposedIntent === 'hilfe';
+  //
+  // Die Aufzählung stand hier als Literal (`mcp | umfragen | hilfe`) und ist
+  // jetzt die `forcedLane`-Achse der Intent-Registry. Gleiche Menge, gleiche
+  // Antwort — aber die Frage „wo läuft ein festgezurrter Turn?" wird dort
+  // beantwortet, wo auch die Erwähnung selbst beschrieben ist, statt in einem
+  // Router-Literal, das niemand liest, der einen Intent stilllegen will.
+  const isMcpTurn = forcesLoopLane(proposedIntent);
 
   // ── 1. Editor-Fläche ──────────────────────────────────────────────────────
   // Editor-Seitenleisten (docs/sheets/presentations/boards) BEARBEITEN das
