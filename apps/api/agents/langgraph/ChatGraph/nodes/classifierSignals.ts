@@ -25,16 +25,24 @@ import type { SearchIntent, SearchSource } from '../types.js';
  * Tisches, keine Eigenschaft der Intents — und wird deshalb nicht aus der
  * Dispositions-Achse abgeleitet.
  *
- * Gemessen gegen sie deckt sie sich auch nicht: `artifact` ohne `social_post`,
- * `anchor` nur zur Hälfte, `gated` zur Hälfte, dazu `umfragen` aus `loop`.
- * Sechs Mitglieder (`image_edit`, `create_recurring_task`, `modify_doc`,
- * `modify_board`, `mcp`, `umfragen`) kann `heuristicClassify` gar nicht
- * liefern — sie sind wirkungslos, aber harmlos. Die zwei Lücken, die WIRKEN,
- * sind `social_post` und `summary`: beide sind vom Tisch erreichbar und stehen
- * nicht drin, zahlen also den Mehr-Themen-Abschlag wie eine Suche. Bestehendes
- * Verhalten, hier notiert statt stillschweigend mitgeschleppt.
+ * Gemessen gegen sie deckt sie sich auch nicht: `anchor` nur zur Hälfte,
+ * `gated` zur Hälfte, dazu `umfragen` aus `loop`. Sechs Mitglieder
+ * (`image_edit`, `create_recurring_task`, `modify_doc`, `modify_board`, `mcp`,
+ * `umfragen`) kann `heuristicClassify` gar nicht liefern — sie sind wirkungslos,
+ * aber harmlos.
  *
- * `ReadonlySet<ChatIntentId>` statt `Set<string>`: die 18 Literale waren ohne
+ * `social_post` und `summary` fehlten und zahlten deshalb den
+ * Mehr-Themen-Abschlag wie eine Suche. Gemessen wirkt er nur bei `summary`, und
+ * dort ganz: das Verdikt sitzt mit 0,85 exakt auf der Schwelle, ein zweites
+ * Glied kostet 0,30, und der Turn fällt an der Tier-3-Rückgabe vorbei. „Fass
+ * unser Gespräch hier im Chat zusammen und nenne die wichtigsten offenen
+ * Punkte" wurde so von Tier 3.8 zu `produktion` umgedeutet — die
+ * Zusammenfassung aus dem Gedächtnis statt aus dem Zusammenfassungs-Zweig.
+ * `social_post` liegt mit 0,80 ohnehin unter der Schwelle und ändert keinen
+ * Ausgang; es steht mit drin, weil die Menge sonst eine Aussage über den Tisch
+ * macht, die für die Hälfte seiner Erzeugungs-Verdikte nicht gilt.
+ *
+ * `ReadonlySet<ChatIntentId>` statt `Set<string>`: die Literale waren ohne
  * Typschutz, ein Tippfehler wäre schlicht nie Mitglied geworden.
  */
 export const NON_SEARCH_INTENTS: ReadonlySet<ChatIntentId> = new Set([
@@ -48,6 +56,8 @@ export const NON_SEARCH_INTENTS: ReadonlySet<ChatIntentId> = new Set([
   'image_edit',
   'chart',
   'artifact',
+  'social_post',
+  'summary',
   'compute',
   'save_as_doc',
   'create_sheet',
@@ -175,6 +185,33 @@ export function detectDocumentSubtype(text: string): DocSubtype | null {
  * zu feuern. Ein neuer prose-Intent ist ab jetzt automatisch Mitglied.
  */
 export const NO_RETRIEVAL_VERDICTS: ReadonlySet<string> = intentsWithDisposition('prose');
+
+/** Ab dieser Länge ist der Block unter der Anweisung Material, kein Nachsatz. */
+const PASTED_BODY_MIN_CHARS = 120;
+
+/**
+ * Die Nachricht trägt ihren Gegenstand selbst: eine Anweisung, ein Umbruch,
+ * darunter der eingefügte Text („Fasse diese Bürgeranfrage zusammen:\n\n…").
+ *
+ * Gebraucht, weil die zwei bestehenden Antworten auf „liegt Material vor?" den
+ * Fall beide nicht sehen. `turnCarriesOwnMaterial` misst die GESAMTLÄNGE gegen
+ * `NOUN_TRIGGER_MAX_LENGTH` (500) — die drei Einfüge-Fälle des Korpus liegen mit
+ * 309–489 Zeichen darunter. Und die Materialprüfung des `summary`-Rückstufers
+ * zählt nur Anhänge und Dokumentzeilen, die eine eingefügte Bürgeranfrage nicht
+ * hat. Ohne diese Regel wird genau ihr Text zur WEB-SUCHANFRAGE — im
+ * Sicherheits-Korpus samt der eingebetteten Injektions-Nutzlast.
+ *
+ * Bewusst formunabhängig (nur Umbruch + Länge): das Erkennungszeichen ist der
+ * abgesetzte Block, nicht das Anführungszeichen oder der Doppelpunkt. Ein
+ * zweiter Absatz mit eigener Bitte („… zusammen.\n\nMir ist wichtig, dass …")
+ * wird dabei mitgenommen — das ist die Richtung, in die der Rückstufer
+ * ausdrücklich irren soll: ein falsches Behalten ist das alte Verhalten, eine
+ * falsche Rückstufung zerlegt ein funktionierendes Feature.
+ */
+export function carriesPastedBody(text: string): boolean {
+  const at = (text ?? '').indexOf('\n');
+  return at >= 0 && text.slice(at).trim().length >= PASTED_BODY_MIN_CHARS;
+}
 
 /**
  * Phrases that reference the user's earlier work — a past conversation with the
