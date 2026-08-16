@@ -1,4 +1,4 @@
-import { getAiClient } from '../../../../utils/getAiClient.js';
+import { aiText } from '../../../../services/ai/generate.js';
 import { assemblePromptGraphAsync } from '../../promptAssemblyGraph.js';
 import {
   loadPromptConfig,
@@ -7,21 +7,17 @@ import {
   SimpleTemplateEngine,
 } from '../../PromptProcessor.js';
 
-import type { AiResult } from '../../../../services/ai/types.js';
 import type { EnrichedState } from '../../../../utils/types/requestEnrichment.js';
 import type { PRAgentRequest, SocialPlatformConfig } from '../types.js';
-import type { Request } from 'express';
 
 /**
  * Generates content for a specific platform using existing config
  * @param platform - Platform ID (instagram, facebook, pressemitteilung)
  * @param enrichedState - Pre-enriched request with documents, knowledge, etc.
- * @param req - Express request object
  */
 export async function generatePlatformContent(
   platform: string,
-  enrichedState: EnrichedState,
-  req: Request
+  enrichedState: EnrichedState
 ): Promise<string> {
   console.log(`[PR Agent] Generating ${platform} content`);
 
@@ -59,21 +55,15 @@ export async function generatePlatformContent(
         : null,
     });
 
-    const aiResult: AiResult = await getAiClient(req).processRequest(
-      {
-        type: 'social',
-        systemPrompt: promptResult.system,
-        messages: promptResult.messages,
-        options: {
-          max_tokens: platformConfig.maxLength * 2,
-          temperature: socialConfig.options?.temperature || 0.6,
-          top_p: platformConfig.top_p || 0.9,
-        },
-      },
-      req
-    );
+    const content = await aiText({
+      lane: 'social',
+      system: promptResult.system,
+      messages: promptResult.messages,
+      maxOutputTokens: platformConfig.maxLength * 2,
+      temperature: socialConfig.options?.temperature || 0.6,
+      topP: platformConfig.top_p || 0.9,
+    });
 
-    const content = aiResult.content || '';
     console.log(
       `[PR Agent] ${platform} content generated: length=${content.length}, preview="${content.substring(0, 200)}"`
     );

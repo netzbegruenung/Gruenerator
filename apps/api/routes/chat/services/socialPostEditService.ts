@@ -14,6 +14,7 @@ import { SOCIAL_PLATFORM_INFO, type SocialPostToolResult } from '@gruenerator/co
 
 import { rubricForPlatform } from '../../../agents/langgraph/ChatGraph/nodes/socialMediaComposerNode.js';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
+import { aiText } from '../../../services/ai/generate.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
@@ -22,8 +23,6 @@ import { looksLikeRefusal } from './refusalDetection.js';
 import { parseSocialPostText } from './socialPostService.js';
 
 import type { SSEWriter } from './sseHelpers.js';
-import type { AiClient } from '../../../services/ai/types.js';
-import type { Request } from 'express';
 
 const log = createLogger('SocialPostEdit');
 
@@ -135,13 +134,11 @@ async function updatePostOnMessage(
 
 export interface HandleSocialPostEditArgs {
   sse: SSEWriter;
-  req?: Request;
   threadId: string;
   userId: string;
   instruction: string;
   /** Explicitly activated post (card toggle) — overrides recency targeting. */
   postId?: string | null;
-  aiClient: AiClient;
   startTime: number;
   classificationTimeMs?: number;
 }
@@ -170,7 +167,7 @@ async function finishWithText(
  * post to edit, so the message falls through to the sharepic edit path.
  */
 export async function handleSocialPostTextEdit(args: HandleSocialPostEditArgs): Promise<boolean> {
-  const { sse, req, threadId, instruction, aiClient } = args;
+  const { sse, threadId, instruction } = args;
 
   try {
     const hit = await findSocialPost(threadId, args.postId ?? null);
@@ -201,21 +198,19 @@ Ziel: ~${info.recommendedChars} Zeichen. Hartes Maximum: ${info.maxChars} Zeiche
 
     const userPrompt = `## AKTUELLER POST\n${post.text}\n\n## ANWEISUNG\n${instruction}`;
 
-    const result = await aiClient.processRequest(
-      {
-        type: 'social_post_edit',
-        systemPrompt,
-        messages: [{ role: 'user', content: userPrompt }],
-        options: { temperature: 0.5 },
-      },
-      req as (Request & { user?: { id?: string }; sessionID?: string }) | null
-    );
+    const edited = await aiText({
+      lane: 'social_post_edit',
+      system: systemPrompt,
+      prompt: userPrompt,
+      temperature: 0.5,
+    });
 
-    if (!result.success || !result.content) {
-      sse.send('social_post_edit_error', {
-        postId: post.postId,
-        error: result.error || 'Empty edit response',
-      });
+    // `aiText` throws when nothing answered — that lands in the catch below.
+    // What it does NOT throw on is an answer that carried a tool call and no
+    // prose; that arrives here as an empty string and belongs on the gentler
+    // "say it differently" path, not on the generic failure message.
+    if (!edited) {
+      sse.send('social_post_edit_error', { postId: post.postId, error: 'Empty edit response' });
       await finishWithText(
         args,
         'Die Textänderung hat leider nicht geklappt. Magst du sie anders formulieren?'
@@ -223,14 +218,14 @@ Ziel: ~${info.recommendedChars} Zeichen. Hartes Maximum: ${info.maxChars} Zeiche
       return true;
     }
 
-    const parsed = parseSocialPostText(result.content);
+    const parsed = parseSocialPostText(edited);
 
     // A decline is not an edit. Without this the refusal string itself was
     // persisted as the new version — "I'm sorry, but I can't help with that."
     // replaced a perfectly good post, and the chat still reported success.
     // Checked on the raw content too: a refusal ending in a stray hashtag
     // would otherwise reach the gate already stripped.
-    if (looksLikeRefusal(result.content) || looksLikeRefusal(parsed.text)) {
+    if (looksLikeRefusal(edited) || looksLikeRefusal(parsed.text)) {
       log.info(
         `[SocialPostEdit] ${post.postId} — model declined the instruction; ` +
           `post left at v${post.version ?? 1}, no version written`

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import type { FlyerAnalysis, FlyerToSiteState } from '../types.js';
 
@@ -18,12 +18,30 @@ vi.mock('../../../../utils/logger.js', () => ({
   }),
 }));
 
+// Der Knoten geht über `aiText`, und das ruft `executeProvider` direkt — der
+// Client in `req.app.locals` ist auf diesem Pfad nicht mehr beteiligt.
+const executeProvider = vi.fn();
+vi.mock('../../../../services/ai/execution/index.js', () => ({
+  executeProvider: (...args: unknown[]) => executeProvider(...args),
+}));
+
 const { generateNode } = await import('./generateNode.js');
 
 // ─── Helpers ─────────────────────────────────────────────────
 
-function mockProcessRequest(content: string, success = true) {
-  return vi.fn().mockResolvedValue({ success, content, error: success ? undefined : content });
+/** Das Modell antwortet mit `content`. */
+function answering(content: string) {
+  executeProvider.mockReset();
+  executeProvider.mockResolvedValue({ success: true, content, stop_reason: 'stop' });
+  return executeProvider;
+}
+
+/** Der Envelope, den der erste Provider-Aufruf bekam — `(provider, id, data)`. */
+function envelope(provider: typeof executeProvider) {
+  return provider.mock.calls[0][2] as {
+    systemPrompt: string;
+    messages: Array<{ content: string }>;
+  };
 }
 
 const validWebsiteContent = {
@@ -58,16 +76,7 @@ function makeState(overrides: Partial<FlyerToSiteState> = {}): FlyerToSiteState 
     pdfBuffer: Buffer.from(''),
     originalFilename: 'flyer.pdf',
     email: 'fallback@example.de',
-    req: {
-      app: {
-        locals: {
-          aiClient: {
-            processRequest: mockProcessRequest(JSON.stringify(validWebsiteContent)),
-          },
-        },
-      },
-      headers: {},
-    },
+    req: { app: { locals: {} }, headers: {} },
     extractedText: 'Some text',
     extractionResult: null,
     extractTimeMs: 100,
@@ -86,6 +95,10 @@ function makeState(overrides: Partial<FlyerToSiteState> = {}): FlyerToSiteState 
 // ─── Tests ───────────────────────────────────────────────────
 
 describe('generateNode', () => {
+  beforeEach(() => {
+    answering(JSON.stringify(validWebsiteContent));
+  });
+
   it('returns error when flyerAnalysis is null', async () => {
     const result = await generateNode(makeState({ flyerAnalysis: null }));
 
@@ -104,20 +117,8 @@ describe('generateNode', () => {
   });
 
   it('strips markdown code blocks from AI response', async () => {
-    const state = makeState({
-      req: {
-        app: {
-          locals: {
-            aiClient: {
-              processRequest: mockProcessRequest(
-                '```json\n' + JSON.stringify(validWebsiteContent) + '\n```'
-              ),
-            },
-          },
-        },
-        headers: {},
-      },
-    });
+    answering('```json\n' + JSON.stringify(validWebsiteContent) + '\n```');
+    const state = makeState();
 
     const result = await generateNode(state);
     expect(result.websiteContent).toBeDefined();
@@ -136,18 +137,8 @@ describe('generateNode', () => {
       ],
     };
 
-    const state = makeState({
-      req: {
-        app: {
-          locals: {
-            aiClient: {
-              processRequest: mockProcessRequest(JSON.stringify(contentWith5Themes)),
-            },
-          },
-        },
-        headers: {},
-      },
-    });
+    answering(JSON.stringify(contentWith5Themes));
+    const state = makeState();
 
     const result = await generateNode(state);
     expect(result.websiteContent!.themes).toHaveLength(3);
@@ -164,36 +155,16 @@ describe('generateNode', () => {
       ],
     };
 
-    const state = makeState({
-      req: {
-        app: {
-          locals: {
-            aiClient: {
-              processRequest: mockProcessRequest(JSON.stringify(contentWith4Actions)),
-            },
-          },
-        },
-        headers: {},
-      },
-    });
+    answering(JSON.stringify(contentWith4Actions));
+    const state = makeState();
 
     const result = await generateNode(state);
     expect(result.websiteContent!.actions).toHaveLength(3);
   });
 
   it('errors when AI returns invalid JSON', async () => {
-    const state = makeState({
-      req: {
-        app: {
-          locals: {
-            aiClient: {
-              processRequest: mockProcessRequest('not json'),
-            },
-          },
-        },
-        headers: {},
-      },
-    });
+    answering('not json');
+    const state = makeState();
 
     const result = await generateNode(state);
     expect(result.websiteContent).toBeNull();
@@ -203,18 +174,8 @@ describe('generateNode', () => {
   it('errors when required fields are missing', async () => {
     const incomplete = { hero: { heading: 'Hi', text: 'Yo' } };
 
-    const state = makeState({
-      req: {
-        app: {
-          locals: {
-            aiClient: {
-              processRequest: mockProcessRequest(JSON.stringify(incomplete)),
-            },
-          },
-        },
-        headers: {},
-      },
-    });
+    answering(JSON.stringify(incomplete));
+    const state = makeState();
 
     const result = await generateNode(state);
     expect(result.websiteContent).toBeNull();
@@ -224,18 +185,8 @@ describe('generateNode', () => {
   it('errors when themes array is empty', async () => {
     const noThemes = { ...validWebsiteContent, themes: [] };
 
-    const state = makeState({
-      req: {
-        app: {
-          locals: {
-            aiClient: {
-              processRequest: mockProcessRequest(JSON.stringify(noThemes)),
-            },
-          },
-        },
-        headers: {},
-      },
-    });
+    answering(JSON.stringify(noThemes));
+    const state = makeState();
 
     const result = await generateNode(state);
     expect(result.websiteContent).toBeNull();
@@ -243,57 +194,41 @@ describe('generateNode', () => {
   });
 
   it('uses contactInfo email over state email', async () => {
-    const processRequest = mockProcessRequest(JSON.stringify(validWebsiteContent));
+    const provider = answering(JSON.stringify(validWebsiteContent));
     const state = makeState({
       email: 'state@example.de',
       flyerAnalysis: {
         ...defaultAnalysis,
         contactInfo: { email: 'flyer@example.de' },
       },
-      req: {
-        app: { locals: { aiClient: { processRequest } } },
-        headers: {},
-      },
     });
 
     await generateNode(state);
 
-    const call = processRequest.mock.calls[0][0];
-    expect(call.systemPrompt).toContain('flyer@example.de');
+    expect(envelope(provider).systemPrompt).toContain('flyer@example.de');
   });
 
   it('falls back to state email when contactInfo has no email', async () => {
-    const processRequest = mockProcessRequest(JSON.stringify(validWebsiteContent));
+    const provider = answering(JSON.stringify(validWebsiteContent));
     const state = makeState({
       email: 'state@example.de',
       flyerAnalysis: {
         ...defaultAnalysis,
         contactInfo: {},
       },
-      req: {
-        app: { locals: { aiClient: { processRequest } } },
-        headers: {},
-      },
     });
 
     await generateNode(state);
 
-    const call = processRequest.mock.calls[0][0];
-    expect(call.systemPrompt).toContain('state@example.de');
+    expect(envelope(provider).systemPrompt).toContain('state@example.de');
   });
 
   it('includes themes and slogans in user prompt', async () => {
-    const processRequest = mockProcessRequest(JSON.stringify(validWebsiteContent));
-    const state = makeState({
-      req: {
-        app: { locals: { aiClient: { processRequest } } },
-        headers: {},
-      },
-    });
+    const provider = answering(JSON.stringify(validWebsiteContent));
 
-    await generateNode(state);
+    await generateNode(makeState());
 
-    const userMessage = processRequest.mock.calls[0][0].messages[0].content;
+    const userMessage = envelope(provider).messages[0].content;
     expect(userMessage).toContain('Klimaschutz');
     expect(userMessage).toContain('Bildung');
     expect(userMessage).toContain('Gemeinsam für morgen');

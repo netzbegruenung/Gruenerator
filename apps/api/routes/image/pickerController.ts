@@ -90,12 +90,7 @@ router.post(
         `[ImagePicker API] Request for text: "${text.substring(0, 50)}..." (type: ${type || 'not specified'})`
       );
 
-      const result = await imagePickerService.selectBestImage(
-        text,
-        req.app.locals.aiClient,
-        options,
-        req
-      );
+      const result = await imagePickerService.selectBestImage(text, options);
 
       const response: ImageSelectResponse = {
         success: true,

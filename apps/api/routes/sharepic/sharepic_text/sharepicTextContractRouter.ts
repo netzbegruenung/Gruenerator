@@ -87,7 +87,7 @@ type RunResult =
   | { status: 400 | 500; body: { success: false; error: string } };
 
 async function run(req: Request, type: string, body: SharepicTextBody): Promise<RunResult> {
-  const result = await generateUnifiedTexts(req as SharepicRequest, type, toUnifiedBody(body));
+  const result = await generateUnifiedTexts(type, toUnifiedBody(body));
 
   if (!result.success) {
     log.warn(`[${type}] ${result.status}: ${result.error}`);

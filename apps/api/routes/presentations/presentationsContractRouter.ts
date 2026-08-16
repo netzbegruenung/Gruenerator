@@ -11,8 +11,8 @@
 import { isPresentationBrand, presentationsContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { aiText } from '../../services/ai/generate.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
-import { getAiClient } from '../../utils/getAiClient.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
 import { checkDocumentWriteAccess } from '../docs/documentAccess.js';
@@ -113,20 +113,14 @@ export const presentationsContractRouter = s.router(presentationsContract, {
         createPresentationDocument,
       } = await import('../../services/presentations/PresentationGenerationService.js');
 
-      const genResult = await getAiClient(args.req).processRequest(
-        {
-          type: 'doc_generation',
-          systemPrompt: PRESENTATION_GENERATION_PROMPT,
-          messages: [{ role: 'user', content: description }],
-          options: { temperature: 0.4 },
-        },
-        args.req
-      );
+      const generated = await aiText({
+        lane: 'doc_generation',
+        system: PRESENTATION_GENERATION_PROMPT,
+        prompt: description,
+        temperature: 0.4,
+      });
 
-      const structure =
-        genResult.success && genResult.content
-          ? parsePresentationStructure(genResult.content)
-          : null;
+      const structure = generated ? parsePresentationStructure(generated) : null;
       if (!structure) {
         return { status: 500 as const, body: { error: 'Failed to generate presentation' } };
       }

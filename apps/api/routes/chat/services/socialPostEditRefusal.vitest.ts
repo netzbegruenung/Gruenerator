@@ -18,6 +18,13 @@ vi.mock('../../../agents/langgraph/ChatGraph/nodes/socialMediaComposerNode.js', 
   rubricForPlatform: () => '## RUBRIK',
 }));
 
+// Der Sitz der Attrappe ist die Maschine, nicht der Client: der Editier-Pfad
+// geht über `aiText`, und das ruft `executeProvider` direkt.
+const executeProvider = vi.fn();
+vi.mock('../../../services/ai/execution/index.js', () => ({
+  executeProvider: (...args: unknown[]) => executeProvider(...args),
+}));
+
 const { handleSocialPostTextEdit, SOCIAL_EDIT_REFUSAL_TEXT } =
   await import('./socialPostEditService.js');
 
@@ -73,14 +80,12 @@ function makeSse() {
 }
 
 function runEdit(modelOutput: string, sse: ReturnType<typeof makeSse>['sse']) {
+  executeProvider.mockResolvedValue({ content: modelOutput, success: true, stop_reason: 'stop' });
   return handleSocialPostTextEdit({
     sse: sse as never,
     threadId: 't1',
     userId: 'u1',
     instruction: 'mach den Text empörter',
-    aiClient: {
-      processRequest: () => Promise.resolve({ success: true, content: modelOutput }),
-    } as never,
     startTime: 0,
   });
 }
@@ -97,6 +102,7 @@ describe('handleSocialPostTextEdit — model declines', () => {
   // mock itself, which it then calls as a teardown hook.
   beforeEach(() => {
     query.mockReset();
+    executeProvider.mockReset();
   });
 
   it('does NOT write a version when the model refuses', async () => {

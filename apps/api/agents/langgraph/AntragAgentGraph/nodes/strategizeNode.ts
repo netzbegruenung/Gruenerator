@@ -1,5 +1,5 @@
+import { aiText } from '../../../../services/ai/generate.js';
 import { extractLocaleFromRequest } from '../../../../services/localization/index.js';
-import { getAiClient } from '../../../../utils/getAiClient.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { assemblePromptGraphAsync } from '../../promptAssemblyGraph.js';
 import { LOCALE_CONTEXT, REQUEST_TYPE_DISPLAY_NAMES } from '../types.js';
@@ -75,21 +75,14 @@ Schreibe überwiegend als Fließtext. Nutze Markdown sparsam — nur einzelne **
         'Nutze Markdown sparsam: **fett** nur für Schlüsselbegriffe. Keine Überschriften, keine nummerierten Listen.',
     });
 
-    const aiResult = await getAiClient(state.req).processRequest(
-      {
-        type: 'antrag',
-        systemPrompt: promptResult.system,
-        messages: promptResult.messages,
-        options: {
-          max_tokens: 800,
-          temperature: 0.5,
-          top_p: 0.9,
-        },
-      },
-      state.req
-    );
-
-    const strategy = aiResult.content || '';
+    const strategy = await aiText({
+      lane: 'antrag',
+      system: promptResult.system,
+      messages: promptResult.messages,
+      maxOutputTokens: 800,
+      temperature: 0.5,
+      topP: 0.9,
+    });
 
     const strategyTimeMs = Date.now() - startTime;
     log.debug(`[strategizeNode] Strategy generated in ${strategyTimeMs}ms`);
