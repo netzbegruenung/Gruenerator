@@ -18,13 +18,13 @@ import { randomUUID } from 'node:crypto';
 import { SOCIAL_PLATFORM_INFO, type SocialPostPayload } from '@gruenerator/contracts';
 
 import { buildSocialMediaSystemPrompt } from '../../../agents/langgraph/ChatGraph/nodes/socialMediaComposerNode.js';
+import { aiText } from '../../../services/ai/generate.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { extractTextContent } from './messageHelpers.js';
 import { looksLikeToolCallLeak } from './outputSanity.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
-import type { Request } from 'express';
 
 const log = createLogger('SocialPostService');
 
@@ -88,9 +88,8 @@ export async function generateSocialPostText(opts: {
   state: ChatGraphState;
   /** Crawled pages from URLs the user pasted — the factual basis of the post. */
   urlContext?: ChatGraphState['searchResults'];
-  req?: Request;
 }): Promise<SocialPostPayload> {
-  const { state, urlContext, req } = opts;
+  const { state, urlContext } = opts;
   const platform = state.platform ?? 'generic';
   const info = SOCIAL_PLATFORM_INFO[platform];
 
@@ -132,21 +131,21 @@ Ziel: ~${target} Zeichen. Hartes Maximum: ${hardMax} Zeichen (inklusive Hashtags
 Setze nur Hashtags, die zum Thema gehören. Erfinde KEINE Orts-, Regional- oder Gliederungs-Hashtags (etwa #GrüneBerlin), wenn die Anfrage keinen Ort nennt.`;
 
   const startTime = Date.now();
-  const result = await state.aiClient.processRequest(
-    {
-      type: 'social_post_generation',
-      systemPrompt,
-      messages: [{ role: 'user', content: userText }],
-      options: { temperature: 0.7 },
-    },
-    req as (Request & { user?: { id?: string }; sessionID?: string }) | null
-  );
+  const content = await aiText({
+    lane: 'social_post_generation',
+    system: systemPrompt,
+    prompt: userText,
+    temperature: 0.7,
+  });
 
-  if (!result.success || !result.content) {
-    throw new Error(result.error || 'Social post generation returned no content');
+  // `aiText` throws when nothing answered, but not when the model answered
+  // with a tool call and no prose — that arrives as an empty string, and an
+  // empty post would ship as a blank card.
+  if (!content) {
+    throw new Error('Social post generation returned no content');
   }
 
-  const parsed = parseSocialPostText(result.content);
+  const parsed = parseSocialPostText(content);
 
   // A leaked tool call is worse than no post: it ships internal prompt
   // structure into a widget the user is meant to publish from. Throwing puts

@@ -266,12 +266,10 @@ export async function runEarlyHandlerStage({
       );
       const handled = await handleSocialPostTextEdit({
         sse,
-        req,
         threadId: actualThreadId,
         userId,
         instruction: editText,
         postId: rawCurrentSocialPost?.postId ?? null,
-        aiClient,
         startTime: initialState.startTime,
         ...(classifiedState.classificationTimeMs != null && {
           classificationTimeMs: classifiedState.classificationTimeMs,
