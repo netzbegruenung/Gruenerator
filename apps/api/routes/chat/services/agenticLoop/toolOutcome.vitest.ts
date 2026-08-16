@@ -1,10 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import {
-  buildMcpOutcomeNote,
-  buildToolFailureNote,
-  mcpHasFailure,
-} from './agenticRespondService.js';
+import { buildMcpOutcomeNote, buildToolFailureNote, mcpHasFailure } from './toolOutcome.js';
 import { readMcpResult } from './types.js';
 
 import type { PersistedStep } from './types.js';
