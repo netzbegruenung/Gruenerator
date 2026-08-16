@@ -3,7 +3,7 @@
  * the seam that matters: `generate.ts` must compose the SAME engine
  * `processRequest` uses, not reimplement generation next to it.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { AiProviderError } from '../../providers/providerErrors.js';
 
@@ -13,7 +13,7 @@ vi.mock('../execution/index.js', () => ({
   executeProvider: (...args: unknown[]) => executeProvider(...args),
 }));
 
-const { aiText, aiObject, aiTools, NoAnswerError } = await import('../generate.js');
+const { aiText, aiTools, NoAnswerError } = await import('../generate.js');
 
 /** What the fake was asked to run: provider and the request envelope. */
 function callAt(i: number) {
@@ -43,6 +43,17 @@ describe('aiText', () => {
 
   it('sends an unknown lane down the default lane rather than failing', async () => {
     await aiText({ lane: 'brandneu', prompt: 'x' });
+    expect(callAt(0).provider).toBe('mistral');
+  });
+
+  it('hands the engine the request type, not the lane it resolved to', async () => {
+    // The type decides sampling as well as routing, and the sampling table
+    // (services/ai/config.ts) knows names AI_LANES does not: `web_search_summary`
+    // is 0.2 there. Substituting the resolved lane would sample it at the 0.35
+    // catch-all — a silent re-tuning of every unrouted call site that migrates.
+    await aiText({ lane: 'web_search_summary', prompt: 'x' });
+
+    expect(callAt(0).data.type).toBe('web_search_summary');
     expect(callAt(0).provider).toBe('mistral');
   });
 
@@ -91,6 +102,20 @@ describe('aiText', () => {
     expect(callAt(1).provider).toBe('litellm');
   });
 
+  it('lets each fallback answer on its own default model', async () => {
+    // `providerFallback.getFallbackModelForProvider` is the rule: the primary's
+    // model belongs to the primary. Posting `gemma4-31b` at LiteLLM would make
+    // every fallback attempt fail on an unknown model, i.e. a failover chain
+    // that can never catch anything.
+    executeProvider.mockResolvedValueOnce({ content: '', success: true });
+    executeProvider.mockResolvedValueOnce(answered('Vom Fallback'));
+
+    await aiText({ lane: 'antrag', prompt: 'x' });
+
+    expect(callAt(0).data.options.model).toBe('gemma4-31b');
+    expect(callAt(1).data.options).not.toHaveProperty('model');
+  });
+
   it('falls over when one throws', async () => {
     executeProvider.mockRejectedValueOnce(new Error('503'));
     executeProvider.mockResolvedValueOnce(answered('Vom Fallback'));
@@ -116,6 +141,115 @@ describe('aiText', () => {
 
     expect(error).toBeInstanceOf(NoAnswerError);
     expect((error as Error).cause).toBe(boom);
+  });
+});
+
+/**
+ * `processRequest` puts a wall clock over every call (`executeWithTimeout`).
+ * The envelope has no timeout field, so migrating call sites carry that
+ * expectation silently — a facade without it would drop their only ceiling
+ * against a hung provider.
+ */
+describe('the wall clock', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  const hang = () => new Promise(() => undefined);
+
+  it('gives up on a provider that never answers', async () => {
+    executeProvider.mockImplementation(hang);
+
+    const failed = aiText({ lane: 'qa_draft', prompt: 'x' }).catch((e: unknown) => e as Error);
+    await vi.advanceTimersByTimeAsync(120_000);
+
+    const error = await failed;
+    expect(error).toBeInstanceOf(NoAnswerError);
+    expect(error.message).toContain('Request timeout after 120000ms');
+  });
+
+  it('covers the whole chain, not one attempt', async () => {
+    // A per-attempt budget would let a three-provider chain run three times as
+    // long as the caller allowed.
+    executeProvider.mockRejectedValueOnce(new Error('503')).mockImplementation(hang);
+
+    const failed = aiText({ lane: 'antrag', prompt: 'x' }).catch((e: unknown) => e as Error);
+    await vi.advanceTimersByTimeAsync(120_000);
+
+    expect((await failed).message).toContain('Request timeout');
+    expect(executeProvider).toHaveBeenCalledTimes(2);
+  });
+
+  it('lets a caller name its own budget', async () => {
+    // `agentPipeline` runs after the stream has closed; waiting is cheaper than
+    // failing there, and its steps say so.
+    executeProvider.mockImplementation(hang);
+
+    const failed = aiText({ lane: 'qa_draft', prompt: 'x', timeoutMs: 240_000 }).catch(
+      (e: unknown) => e as Error
+    );
+    await vi.advanceTimersByTimeAsync(120_000);
+    await vi.advanceTimersByTimeAsync(120_000);
+
+    expect((await failed).message).toContain('Request timeout after 240000ms');
+  });
+
+  it('does not fire once the answer is in', async () => {
+    const answer = await aiText({ lane: 'qa_draft', prompt: 'x' });
+
+    expect(answer).toBe('Antwort');
+    expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+/**
+ * The family that cannot be routed: a `type` with no row in `AI_LANES` whose
+ * provider and model were chosen by the caller against measurements in
+ * `intermediateLanes.ts`. Without this the facade answers them on `default` and
+ * logs each one as somebody's oversight.
+ */
+describe('pinned targets', () => {
+  it('takes provider and model from the named intermediate stage', async () => {
+    await aiText({ lane: 'chat_intent_classification', pinned: 'standard', prompt: 'x' });
+
+    expect(callAt(0).provider).toBe('regolo');
+    expect(callAt(0).data.options.model).toBe('mistral-small-4-119b');
+  });
+
+  it('takes a literal pair for the call sites that name one', async () => {
+    await aiText({
+      lane: 'text_adjustment',
+      pinned: { provider: 'litellm', model: 'verdigado-pro' },
+      prompt: 'x',
+    });
+
+    expect(callAt(0).provider).toBe('litellm');
+    expect(callAt(0).data.options.model).toBe('verdigado-pro');
+  });
+
+  it('does not report an unrouted type as an oversight', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    await aiText({ lane: 'chat_summarize_map', pinned: 'heavy', prompt: 'x' });
+
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('keeps the request type for sampling even though routing is bypassed', async () => {
+    await aiText({ lane: 'chat_rerank', pinned: 'trivial', prompt: 'x' });
+
+    expect(callAt(0).data.type).toBe('chat_rerank');
+  });
+
+  it('still fails over, on the generic chain and each provider’s own model', async () => {
+    executeProvider.mockResolvedValueOnce({ content: '', success: true });
+    executeProvider.mockResolvedValueOnce(answered('Vom Fallback'));
+
+    await aiText({ lane: 'chat_quality_gate', pinned: 'standard', prompt: 'x' });
+
+    expect(callAt(0).provider).toBe('regolo');
+    expect(callAt(1).provider).toBe('litellm');
+    expect(callAt(1).data.options).not.toHaveProperty('model');
   });
 });
 
@@ -177,110 +311,6 @@ describe('provider failures arrive typed', () => {
     expect(error).toBeInstanceOf(AiProviderError);
     expect(error.code).toBe('unknown');
     expect(error.retryable).toBe(false);
-  });
-});
-
-describe('aiObject', () => {
-  const base = {
-    lane: 'website' as const,
-    prompt: 'Baue die Seite',
-    schema: { type: 'object' },
-    toolName: 'build_site',
-    toolDescription: 'Baut die Seite',
-  };
-
-  const toolCall = (input: unknown) => ({
-    content: null,
-    success: true,
-    stop_reason: 'tool_use',
-    tool_calls: [{ id: 'c1', name: 'build_site', input }],
-  });
-
-  it('forces the tool call', async () => {
-    executeProvider.mockResolvedValue(toolCall({ hero: 'x' }));
-
-    await aiObject({ ...base, validate: (v) => ({ ok: true, value: v as { hero: string } }) });
-
-    expect(callAt(0).data.options.tool_choice).toBe('required');
-    expect(callAt(0).data.options.tools[0].name).toBe('build_site');
-  });
-
-  it('returns the validated value', async () => {
-    executeProvider.mockResolvedValue(toolCall({ hero: 'Titel' }));
-
-    const result = await aiObject<{ hero: string }>({
-      ...base,
-      validate: (v) => ({ ok: true, value: v as { hero: string } }),
-    });
-
-    expect(result).toEqual({ ok: true, data: { hero: 'Titel' } });
-  });
-
-  it('repairs once, quoting the concrete complaint, at temperature 0', async () => {
-    // The reason this is a forced tool call rather than generateObject: the
-    // rejection is semantic, not schematic — the object parses fine, its
-    // contents are wrong for the context.
-    executeProvider.mockResolvedValueOnce(toolCall({ kind: 'rotate' }));
-    executeProvider.mockResolvedValueOnce(toolCall({ kind: 'setText' }));
-
-    let seen = 0;
-    const result = await aiObject<{ kind: string }>({
-      ...base,
-      validate: (v) => {
-        seen += 1;
-        const value = v as { kind: string };
-        return value.kind === 'setText'
-          ? { ok: true, value }
-          : { ok: false, error: 'Erlaubt sind ausschließlich: setText' };
-      },
-    });
-
-    expect(seen).toBe(2);
-    expect(result).toEqual({ ok: true, data: { kind: 'setText' } });
-
-    const repair = callAt(1).data;
-    expect(repair.options.temperature).toBe(0);
-    expect(JSON.stringify(repair.messages)).toContain('Erlaubt sind ausschließlich: setText');
-  });
-
-  it('gives up with the last complaint after the attempt budget', async () => {
-    executeProvider.mockResolvedValue(toolCall({ kind: 'rotate' }));
-
-    const result = await aiObject({
-      ...base,
-      validate: () => ({ ok: false as const, error: 'nicht erlaubt' }),
-    });
-
-    expect(result).toEqual({ ok: false, error: 'nicht erlaubt' });
-  });
-
-  it('reads a tool call out of raw_content_blocks too', async () => {
-    executeProvider.mockResolvedValue({
-      content: null,
-      success: true,
-      stop_reason: 'tool_use',
-      raw_content_blocks: [{ type: 'tool_use', name: 'build_site', input: { hero: 'y' } }],
-    });
-
-    const result = await aiObject<{ hero: string }>({
-      ...base,
-      validate: (v) => ({ ok: true, value: v as { hero: string } }),
-    });
-
-    expect(result).toEqual({ ok: true, data: { hero: 'y' } });
-  });
-
-  it('falls back to prose parsing when the model ignores the tool', async () => {
-    // Keeps this a strict superset of the prompt-and-parse it replaces.
-    executeProvider.mockResolvedValue(answered('{"hero":"aus Prosa"}'));
-
-    const result = await aiObject<{ hero: string }>({
-      ...base,
-      validate: (v) => ({ ok: true, value: v as { hero: string } }),
-      parseText: (t) => JSON.parse(t) as { hero: string },
-    });
-
-    expect(result).toEqual({ ok: true, data: { hero: 'aus Prosa' } });
   });
 });
 
