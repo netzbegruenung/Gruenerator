@@ -10,7 +10,8 @@
  * callers and is gone, so the node went with it — but the two prompt helpers
  * below are very much live: `socialPostService` uses
  * `buildSocialMediaSystemPrompt`, `socialPostEditService` uses
- * `rubricForPlatform`.
+ * `craftGuidanceForPlatform` (das intern erst bei fehlendem Rezept auf
+ * `rubricForPlatform` zurückfällt).
  */
 
 import { SKILLS } from '@gruenerator/shared/agents';
@@ -18,6 +19,8 @@ import { SKILLS } from '@gruenerator/shared/agents';
 import { CONTENT_INTEGRITY_RULES } from '../../../../services/contentPolicy.js';
 import { getInternalSkillPrompt } from '../../../../services/skills/internalPrompts.js';
 import { formatGermanDate } from '../../../../utils/stringUtils.js';
+
+import { detectSocialPlatform } from './classifierHeuristics.js';
 
 import type { ChatGraphState, SocialExampleItem, SocialTextPlatform } from '../types.js';
 
@@ -143,7 +146,13 @@ export function craftGuidanceForPlatform(
       ? activeSkillMention
       : (platform ?? null);
   const recipe = mention ? getInternalSkillPrompt(mention) : null;
-  return recipe ? `## PLATTFORM-HANDWERK\n\n${recipe}` : rubricForPlatform(platform);
+  if (recipe) return `## PLATTFORM-HANDWERK\n\n${recipe}`;
+  // Der Auffang nimmt die Familie der gewählten Textform mit: wer `insta-berlin`
+  // wählt auf einer Instanz OHNE ausgerolltes `INTERN_CONTENT_DIR` und dabei
+  // keine Plattform benennt, soll die Instagram-Rubrik bekommen und nicht die
+  // generische. Derselbe Detektor wie in der Klassifikation, damit es dafür
+  // keine zweite Namensheuristik gibt.
+  return rubricForPlatform(platform ?? (mention ? detectSocialPlatform(mention) : null));
 }
 
 const PLATFORM_LABELS: Record<SocialTextPlatform, string> = {
