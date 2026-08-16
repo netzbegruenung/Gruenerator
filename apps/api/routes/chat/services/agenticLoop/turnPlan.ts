@@ -137,13 +137,14 @@ function fallbackIntentFor(
 ): { intent: ChatIntentId; backfillSearchQuery: boolean } {
   let next = intent;
   let backfillSearchQuery = false;
-  // KEINE automatisierte Abdeckung mehr, und das ist eine Aussage über die
-  // Erreichbarkeit, nicht über den Aufwand: `agentic` entstand entweder bei
-  // Tier 3.5 (das mit ausgeschaltetem Loop gar nicht erst demotiert) oder als
-  // Auffangwert der LLM-Stufe (gelöscht). Innerhalb eines Requests können
-  // Klassifikator und Router den Schalter also nicht mehr verschieden sehen.
-  // Was bleibt, ist der WIEDERAUFNAHME-Pfad: ein gespeicherter `agentic`-
-  // Intent, der nach einem Deploy mit umgelegtem Schalter fortgesetzt wird.
+  // Dies IST der Opt-out-Pfad, nicht bloss ein Wiederaufnahme-Rest. Tier 3.5
+  // demotiert ein Prosa-Verdikt seit dem 16.08.2026 unabhängig von
+  // CHAT_AGENT_LOOP, gerade damit ein abruf-förmiger Turn hier ankommt und
+  // sucht, statt beim Klassifikator als `produktion` — also als Antwort aus dem
+  // Gedächtnis — liegenzubleiben. Mit ausgeschalteter Schleife ist dieser Zweig
+  // deshalb der Normalfall. Dazu weiterhin der WIEDERAUFNAHME-Pfad: ein
+  // gespeicherter `agentic`-Intent, der nach einem Deploy mit umgelegtem
+  // Schalter fortgesetzt wird.
   if (next === 'agentic') {
     recordDecision('router.intent_override', 'agentic_to_search', {
       inputs: { intentBefore: 'agentic', runAgentic: false },
