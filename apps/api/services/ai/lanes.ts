@@ -110,7 +110,7 @@ export const AI_LANES = {
   //   selecting a matching model.
   website: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
 
-  // — Artefakte über erzwungene Tool-Calls (generateStructured). These had no
+  // — Artefakte über erzwungene Tool-Calls (aiObject). These had no
   //   lane at all, so both tables put them on `default` — GPT-OSS, which
   //   answers a forced tool call with prose. That killed a PDF generation in
   //   production: two attempts, both stop_reason=stop, no tool call.
@@ -237,6 +237,14 @@ export function providerForModel(modelName = ''): ProviderName {
 }
 
 /**
+ * Failover order for everything that is not a sharepic — the chain
+ * `providerFallback.tryFallbackProviders` runs by default. Exported because a
+ * PINNED call has no lane row to derive it from (see `AiCall.pinned` in
+ * `generate.ts`) and must not be routed through `resolveLane` to get one.
+ */
+export const GENERIC_FALLBACK: readonly ProviderName[] = ['litellm', 'regolo', 'mistral'];
+
+/**
  * Failover order after the primary. Two chains, matching what
  * `providerFallback` runs today: sharepics lead with Mistral because short
  * creative German is what it is best at, everything else leads with the
@@ -246,6 +254,6 @@ export function laneFallback(lane: LaneId): readonly ProviderName[] {
   const primary = AI_LANES[lane].provider;
   const chain = lane.startsWith('sharepic_')
     ? (['mistral', 'litellm', 'regolo'] as const)
-    : (['litellm', 'regolo', 'mistral'] as const);
+    : GENERIC_FALLBACK;
   return chain.filter((p) => p !== primary);
 }
