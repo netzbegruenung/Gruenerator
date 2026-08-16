@@ -2,7 +2,6 @@ import { generateText } from 'ai';
 
 import { getIntermediateModel } from '../../../../services/ai/providers.js';
 import { extractLocaleFromRequest } from '../../../../services/localization/index.js';
-import { getAiClient } from '../../../../utils/getAiClient.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { enrichRequest } from '../../../../utils/requestEnrichment.js';
 import { searchArgumentsFromNotebooks } from '../../PRAgent/generators/argumentsGenerator.js';
@@ -33,7 +32,6 @@ export async function researchNode(state: AntragAgentState): Promise<Partial<Ant
     const partySearchTerm = locale === 'de-AT' ? 'Die Grünen Österreich' : 'Bündnis 90 Die Grünen';
     const shouldWebSearch = state.features.useWebSearchTool;
     const webSearchQuery = shouldWebSearch ? `${state.inhalt} ${partySearchTerm} Politik` : null;
-    const aiClient = state.req ? getAiClient(state.req) : undefined;
 
     log.debug(`[researchNode] Web search: ${shouldWebSearch ? 'yes' : 'no'}`);
 
@@ -53,7 +51,6 @@ export async function researchNode(state: AntragAgentState): Promise<Partial<Ant
           enableUrls: true,
           enableWebSearch: shouldWebSearch,
           webSearchQuery,
-          aiClient,
           selectedDocumentIds: state.selectedDocumentIds,
           selectedTextIds: state.selectedTextIds,
           searchQuery: state.searchQuery,

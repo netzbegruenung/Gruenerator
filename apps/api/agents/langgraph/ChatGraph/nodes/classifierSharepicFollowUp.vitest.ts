@@ -1,6 +1,20 @@
 import { describe, it, expect, vi } from 'vitest';
 
-import { classifierNode } from './classifierNode.js';
+/**
+ * Der Klassifikator ruft das Modell über `executeProvider` — nicht mehr über
+ * einen `aiClient` im Zustand. Die Attrappe muss deshalb an dieser Tür stehen;
+ * eine im Zustand hinterlegte wäre eine, die nichts abfängt: der echte Provider
+ * würde versucht, am fehlenden API-Key scheitern und die Entscheidung in eine
+ * heuristische Stufe zurückfallen lassen — grün gemeldet, nichts geprüft.
+ *
+ * `keine` heisst bei jedem der kleinen Auflöser „ich entscheide hier nichts".
+ */
+const executeProvider = vi.fn(async () => ({ content: 'keine' }));
+vi.mock('../../../../services/ai/execution/index.js', () => ({
+  executeProvider: (...args: unknown[]) => executeProvider(...args),
+}));
+
+const { classifierNode } = await import('./classifierNode.js');
 
 import type { ChatGraphState, SearchIntent } from '../types.js';
 
@@ -37,17 +51,6 @@ const STUB_AGENT_CONFIG = {
   isSystemDefault: true,
 };
 
-/**
- * Ein Pool, der auf jede Frage neutral antwortet — und mitzählt, ob überhaupt
- * gefragt wurde. Genau das ist hier die Aussage: diese Turns dürfen kein Modell
- * kosten.
- */
-function makeAiClient() {
-  return {
-    processRequest: vi.fn(async () => ({ content: 'keine' })),
-  };
-}
-
 function buildState(overrides: Partial<ChatGraphState> & { userMessage: string }): ChatGraphState {
   const { userMessage, ...rest } = overrides;
   return {
@@ -55,7 +58,6 @@ function buildState(overrides: Partial<ChatGraphState> & { userMessage: string }
     threadId: null,
     agentConfig: STUB_AGENT_CONFIG,
     enabledTools: { search: true, web: true, image: true, image_edit: true },
-    aiClient: makeAiClient(),
     userLocale: 'de-DE',
     attachmentContext: null,
     imageAttachments: [],
@@ -92,29 +94,25 @@ describe('classifierNode — Sharepic-Folgeauftrag vs. image_edit', () => {
   const ADD_INSTRUCTION = 'Und jetzt noch die Uhrzeit 15 Uhr ergänzen';
 
   it('beansprucht auch einen ERGÄNZENDEN Folgeauftrag, ohne das Modell zu fragen', async () => {
-    const pool = makeAiClient();
     const result = await classifierNode(
       buildState({
         userMessage: ADD_INSTRUCTION,
         lastToolContext: afterSharepic,
-        aiClient: pool as unknown as ChatGraphState['aiClient'],
       })
     );
     expect(result.intent).toBe('sharepic');
-    expect(pool.processRequest).not.toHaveBeenCalled();
+    expect(executeProvider).not.toHaveBeenCalled();
   });
 
   it('beantwortet den Standard-Folgeauftrag deterministisch, ohne das Modell zu fragen', async () => {
-    const pool = makeAiClient();
     const result = await classifierNode(
       buildState({
         userMessage: 'Mach den Text größer',
         lastToolContext: afterSharepic,
-        aiClient: pool as unknown as ChatGraphState['aiClient'],
       })
     );
     expect(result.intent).toBe('sharepic');
-    expect(pool.processRequest).not.toHaveBeenCalled();
+    expect(executeProvider).not.toHaveBeenCalled();
   });
 
   it('beansprucht mit angehängtem Bild NICHT auf sharepic', async () => {

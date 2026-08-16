@@ -7,7 +7,6 @@ import { analyzeSlideCount } from '../../routes/sharepic/sharepic_text/sliderSma
 import { generateUnifiedTexts } from '../../routes/sharepic/sharepic_text/unifiedHandler.js';
 import { createLogger } from '../../utils/logger.js';
 
-import type { SharepicRequest } from '../../routes/sharepic/sharepic_text/types.js';
 import type { Request } from 'express';
 
 const log = createLogger('SliderGeneration');
@@ -40,8 +39,7 @@ export async function generateSliderDeckForChat(
   req: Request,
   args: { thema: string; details?: string }
 ): Promise<{ slides: SliderSlide[] }> {
-  const sharepicReq = req as SharepicRequest;
-  const contentSlides = await analyzeSlideCount(sharepicReq, args.thema, args.details ?? '');
+  const contentSlides = await analyzeSlideCount(args.thema, args.details ?? '');
   const count = contentSlides + 2;
 
   log.info(`[SliderGeneration] Generating ${count} slides for "${args.thema.slice(0, 60)}"`);

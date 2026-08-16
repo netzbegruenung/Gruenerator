@@ -22,7 +22,7 @@ import path from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../../services/ai/execution/index.js', async () => {
-  const { executeProviderStub } = await import('./harness/aiClientStub.js');
+  const { executeProviderStub } = await import('./harness/providerStub.js');
   return { executeProvider: executeProviderStub };
 });
 
@@ -81,7 +81,7 @@ vi.mock('../services/responseStreamingService.js', async (orig) => {
 
 const { startChatApp, userTurn } = await import('./harness/testApp.js');
 const { runTurn, installNetworkGuard } = await import('./harness/trace.js');
-const { createAiClientStub } = await import('./harness/aiClientStub.js');
+const { createProviderStub } = await import('./harness/providerStub.js');
 const { pinChatEnv } = await import('./harness/env.js');
 const { resetThreadStore } = await import('./harness/fakeThreadStore.js');
 const { resetMockControls } = await import('./harness/mocks.js');
@@ -90,7 +90,7 @@ const { decisionLogMiddleware } = await import('../../../utils/decisionLog.js');
 const { readDecisionJournal, mergeJournals } = await import('../../../evals/decisionLog.js');
 const { renderDecisionMap } = await import('../../../evals/renderDecisionMap.js');
 
-const pool = createAiClientStub();
+const pool = createProviderStub();
 let logDir: string;
 let app: Awaited<ReturnType<typeof startChatApp>>;
 let restoreNetwork: () => void;
@@ -106,7 +106,7 @@ beforeAll(async () => {
     CHAT_DECISION_LOG_DIR: logDir,
   });
   if (!middleware) throw new Error('decision log middleware should have been constructed');
-  app = await startChatApp({ aiClient: pool, decisionJournal: middleware });
+  app = await startChatApp({ decisionJournal: middleware });
 });
 
 afterAll(async () => {

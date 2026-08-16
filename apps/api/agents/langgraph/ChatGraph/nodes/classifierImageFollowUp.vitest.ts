@@ -1,6 +1,20 @@
 import { describe, it, expect, vi } from 'vitest';
 
-import { classifierNode } from './classifierNode.js';
+/**
+ * Der Klassifikator ruft das Modell über `executeProvider` — nicht mehr über
+ * einen `aiClient` im Zustand. Die Attrappe muss deshalb an dieser Tür stehen;
+ * eine im Zustand hinterlegte wäre eine, die nichts abfängt: der echte Provider
+ * würde versucht, am fehlenden API-Key scheitern und die Entscheidung in eine
+ * heuristische Stufe zurückfallen lassen — grün gemeldet, nichts geprüft.
+ *
+ * `keine` heisst bei jedem der kleinen Auflöser „ich entscheide hier nichts".
+ */
+const executeProvider = vi.fn(async () => ({ content: 'keine' }));
+vi.mock('../../../../services/ai/execution/index.js', () => ({
+  executeProvider: (...args: unknown[]) => executeProvider(...args),
+}));
+
+const { classifierNode } = await import('./classifierNode.js');
 
 import type { ChatGraphState, SearchIntent } from '../types.js';
 
@@ -35,23 +49,17 @@ const STUB_AGENT_CONFIG = {
   isSystemDefault: true,
 };
 
-function makeAiClient() {
-  return { processRequest: vi.fn(async () => ({ content: 'keine' })) };
-}
-
 function buildState(
   overrides: Partial<ChatGraphState> & {
     userMessage: string;
-    pool?: ReturnType<typeof makeAiClient>;
   }
 ): ChatGraphState {
-  const { userMessage, pool, ...rest } = overrides;
+  const { userMessage, ...rest } = overrides;
   return {
     messages: [{ role: 'user' as const, content: userMessage }],
     threadId: null,
     agentConfig: STUB_AGENT_CONFIG,
     enabledTools: { search: true, web: true, image: true, image_edit: true },
-    aiClient: pool ?? makeAiClient(),
     userLocale: 'de-DE',
     attachmentContext: null,
     imageAttachments: [],
@@ -88,12 +96,11 @@ describe('classifierNode — Bild-Folgeauftrag', () => {
     'Nochmal, aber abends',
     'bearbeite das Bild',
   ])('beansprucht "%s" als Bildbearbeitung, ohne das Modell zu fragen', async (text) => {
-    const pool = makeAiClient();
     const result = await classifierNode(
-      buildState({ userMessage: text, lastToolContext: afterImage, pool })
+      buildState({ userMessage: text, lastToolContext: afterImage })
     );
     expect(result.intent).toBe('image_edit');
-    expect(pool.processRequest).not.toHaveBeenCalled();
+    expect(executeProvider).not.toHaveBeenCalled();
   });
 
   it('lässt einen NEUEN Bildauftrag durch, statt ihn als Bearbeitung zu nehmen', async () => {

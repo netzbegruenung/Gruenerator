@@ -1,6 +1,20 @@
 import { describe, it, expect, vi } from 'vitest';
 
-import { classifierNode } from './classifierNode.js';
+/**
+ * Der Klassifikator ruft das Modell über `executeProvider` — nicht mehr über
+ * einen `aiClient` im Zustand. Die Attrappe muss deshalb an dieser Tür stehen;
+ * eine im Zustand hinterlegte wäre eine, die nichts abfängt: der echte Provider
+ * würde versucht, am fehlenden API-Key scheitern und die Entscheidung in eine
+ * heuristische Stufe zurückfallen lassen — grün gemeldet, nichts geprüft.
+ *
+ * `keine` heisst bei jedem der kleinen Auflöser „ich entscheide hier nichts".
+ */
+const executeProvider = vi.fn(async () => ({ content: 'keine' }));
+vi.mock('../../../../services/ai/execution/index.js', () => ({
+  executeProvider: (...args: unknown[]) => executeProvider(...args),
+}));
+
+const { classifierNode } = await import('./classifierNode.js');
 
 import type { ChatGraphState, SearchIntent } from '../types.js';
 
@@ -27,17 +41,12 @@ const STUB_AGENT_CONFIG = {
   isSystemDefault: true,
 };
 
-function makeAiClient() {
-  return { processRequest: vi.fn(async () => ({ content: 'keine' })) };
-}
-
 function buildState(userMessage: string, overrides: Partial<ChatGraphState> = {}): ChatGraphState {
   return {
     messages: [{ role: 'user' as const, content: userMessage }],
     threadId: 'thread-1',
     agentConfig: STUB_AGENT_CONFIG,
     enabledTools: { search: true, web: true },
-    aiClient: makeAiClient(),
     userLocale: 'de-DE',
     attachmentContext: null,
     imageAttachments: [],

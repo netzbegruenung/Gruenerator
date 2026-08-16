@@ -46,7 +46,7 @@ export const SHAREPIC_FALLBACK_CHAIN: ProviderName[] = ['mistral', 'litellm', 'r
  * The error thrown once every provider in a chain has failed.
  *
  * `cause` is the point: the last provider error is the one carrying the status
- * code, and the classifier at the `aiService` boundary walks the cause chain to
+ * code, and `NoAnswerError` walks the cause chain to
  * find it. Interpolating it into the message — as this used to — turned a
  * structured `APICallError` (429, 503, …) into prose, so a rate limit reached
  * the client as a generic `internal` error with no retry hint.

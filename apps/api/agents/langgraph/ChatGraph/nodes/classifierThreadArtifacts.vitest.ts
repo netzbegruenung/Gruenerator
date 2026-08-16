@@ -47,10 +47,10 @@ const DOCUMENT: ThreadToolContext = {
   label: 'Antrag Straßenbäume',
 };
 
-/** Der Auflöser und die LLM-Stufe teilen sich den Worker-Pool. Unterschieden
- *  wird am Systemprompt — der des Auflösers ist der einzige, der mit „Ein
- *  Gespräch hat mehrere Artefakte erzeugt" beginnt. */
-function makeAiClient(editTargetAnswer: string | (() => never)) {
+/** Alle Auflöser gehen durch dieselbe Tür (`executeProvider`). Unterschieden
+ *  wird am Systemprompt — der des Bearbeitungsziel-Auflösers ist der einzige,
+ *  der mit „Ein Gespräch hat mehrere Artefakte erzeugt" beginnt. */
+function scriptEditTarget(editTargetAnswer: string | (() => never)) {
   const editTargetCalls: string[] = [];
   executeProvider.mockReset();
   executeProvider.mockImplementation(
@@ -103,7 +103,7 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
   const BOTH = [SHAREPIC, DOCUMENT];
 
   it('trifft das ältere Dokument, wenn der Auflöser darauf zeigt', async () => {
-    const pool = makeAiClient('2');
+    const pool = scriptEditTarget('2');
     const result = await classifierNode(
       buildState({
         userMessage: 'Kürze die Begründung auf die Hälfte',
@@ -117,7 +117,7 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
   });
 
   it('bleibt beim Sharepic, wenn der Auflöser auf das neueste Artefakt zeigt', async () => {
-    const pool = makeAiClient('1');
+    const pool = scriptEditTarget('1');
     const result = await classifierNode(
       buildState({
         userMessage: 'Mach den Text größer',
@@ -131,7 +131,7 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
   it('fällt bei „keines" auf das heutige Verhalten zurück, nicht auf „kein Artefakt"', async () => {
     // Der Auflöser darf einen Folgeauftrag UMLENKEN, nie unterdrücken: sonst
     // verliert eine Fehlantwort des Modells dem Nutzer die Bearbeitung ganz.
-    const pool = makeAiClient('0');
+    const pool = scriptEditTarget('0');
     const result = await classifierNode(
       buildState({
         userMessage: 'Kürze die Begründung auf die Hälfte',
@@ -144,7 +144,7 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
   });
 
   it('fällt zurück, wenn der Auflöser wegbricht', async () => {
-    const pool = makeAiClient(() => {
+    const pool = scriptEditTarget(() => {
       throw new Error('provider down');
     });
     const result = await classifierNode(
@@ -160,7 +160,7 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
   it('fragt gar nicht, wenn die Nachricht kein Bearbeitungsauftrag ist', async () => {
     // Eine neue Sachfrage in einem Thread mit Artefakten: die Antwort wäre
     // „keines" per Konstruktion, der Aufruf also reine Latenz.
-    const pool = makeAiClient('1');
+    const pool = scriptEditTarget('1');
     await classifierNode(
       buildState({
         userMessage: 'Erklär mir den Unterschied zwischen Nationalrat und Bundesrat in Österreich',
@@ -172,7 +172,7 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
   });
 
   it('fragt gar nicht, wenn der Thread nur ein Artefakt hat', async () => {
-    const pool = makeAiClient('1');
+    const pool = scriptEditTarget('1');
     const result = await classifierNode(
       buildState({
         userMessage: 'Mach den Text größer',
@@ -187,7 +187,7 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
   it('ignoriert eine Nummer ausserhalb der Liste, statt zu raten', async () => {
     // „3" bei zwei Artefakten heisst: das Modell hat nicht gewählt. Für es zu
     // raten ist der Weg, auf dem das falsche Artefakt bearbeitet wird.
-    const pool = makeAiClient('3');
+    const pool = scriptEditTarget('3');
     const result = await classifierNode(
       buildState({
         userMessage: 'Kürze die Begründung auf die Hälfte',
@@ -201,7 +201,7 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
   });
 
   it('liest die Nummer auch aus einem Satz', async () => {
-    const pool = makeAiClient('Nummer 2.');
+    const pool = scriptEditTarget('Nummer 2.');
     const result = await classifierNode(
       buildState({
         userMessage: 'Kürze die Begründung auf die Hälfte',

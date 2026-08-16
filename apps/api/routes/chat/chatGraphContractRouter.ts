@@ -89,7 +89,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // below was written against (requestId is already in scope from above).
       const {
         userId,
-        aiClient,
         notebookIds,
         validMessages,
         lastUserMessage,
@@ -219,7 +218,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         fixedTextBase,
         actualThreadId,
         userId,
-        aiClient,
         lastUserMessage,
         lastUserTextNoMentions,
         imageAttachments,
@@ -316,7 +314,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         sse,
         req,
         classifiedState,
-        aiClient,
         cleanupPending,
         actualThreadId,
         userId,
@@ -403,7 +400,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         fullText,
         actualThreadId,
         userId,
-        aiClient,
         requestId,
         validMessages,
         lastUserMessage,

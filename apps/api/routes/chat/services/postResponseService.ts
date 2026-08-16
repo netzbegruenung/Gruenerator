@@ -12,7 +12,6 @@
 import { intentToolNames } from '@gruenerator/shared/chat-intents';
 
 import { renumberAnswerCitations } from '../../../agents/langgraph/ChatGraph/nodes/citationUtils.js';
-import { type AiClient } from '../../../services/ai/types.js';
 import { upsertThreadRecallPoint } from '../../../services/chat/threadRecallEmbeddingService.js';
 import { generateThreadTags } from '../../../services/chat/threadTagService.js';
 import {
@@ -288,7 +287,6 @@ export interface PersistParams {
   isNewThread: boolean;
   lastUserMessage: ModelMessage;
   processedMeta: ProcessedAttachmentMeta[];
-  aiClient: AiClient;
   requestId: string;
   /** Whether the user has the memory beta feature enabled (profiles.memory_enabled). */
   memoryEnabled: boolean;

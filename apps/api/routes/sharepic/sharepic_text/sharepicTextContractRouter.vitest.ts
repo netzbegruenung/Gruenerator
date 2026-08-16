@@ -172,7 +172,7 @@ describe('sharepicTextContractRouter', () => {
         body: { thema: 'Klimaschutz', smartCount: true },
       } as never);
 
-      expect(analyzeSlideCount).toHaveBeenCalledWith(req, 'Klimaschutz', '');
+      expect(analyzeSlideCount).toHaveBeenCalledWith('Klimaschutz', '');
       expect(generateUnifiedTexts).toHaveBeenCalledWith(
         'slider',
         expect.objectContaining({ count: 5 })

@@ -76,7 +76,6 @@ export async function handlePdfCreation(
 export async function generateAndCreateDocument(opts: {
   sse: SSEWriter;
   classifiedState: ChatGraphState;
-  aiClient: ChatGraphState['aiClient'];
   req: Express.Request;
   actualThreadId?: string;
   userId: string;
@@ -107,9 +106,9 @@ async function contributeDocumentToOpenTurn(
   spec: ReturnType<typeof makeDocumentSpec>,
   opts: CreateTurnOpts
 ): Promise<boolean> {
-  const { sse, aiClient, req, userId, userContent, actualThreadId } = opts;
+  const { sse, req, userId, userContent, actualThreadId } = opts;
   try {
-    const doc = await spec.generate({ aiClient, req, userId, userContent }, () => {});
+    const doc = await spec.generate({ req, userId, userContent }, () => {});
     if (!doc) return false;
 
     emitArtifactResult(sse, spec, doc);

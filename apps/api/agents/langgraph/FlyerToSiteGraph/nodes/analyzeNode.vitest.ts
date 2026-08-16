@@ -18,12 +18,32 @@ vi.mock('../../../../utils/logger.js', () => ({
   }),
 }));
 
+/**
+ * Der Knoten ruft `aiText`, und das erreicht `executeProvider` — nicht mehr
+ * `req.app.locals.aiClient`. Die Attrappe steht deshalb an dieser Tür.
+ *
+ * `aiText` liefert einen String und WIRFT, wo der Umschlag `{success:false}`
+ * zurückgab: eine leere Antwort ist keine Antwort, und die Fassade probiert die
+ * Kette durch, bevor sie aufgibt. Deshalb heisst der Fehlerfall hier
+ * `mockRejectedValue`, nicht `{success:false}`.
+ */
+const executeProvider = vi.fn();
+vi.mock('../../../../services/ai/execution/index.js', () => ({
+  executeProvider: (...args: unknown[]) => executeProvider(...args),
+}));
+
 const { analyzeNode } = await import('./analyzeNode.js');
 
 // ─── Helpers ─────────────────────────────────────────────────
 
-function mockProcessRequest(content: string, success = true) {
-  return vi.fn().mockResolvedValue({ success, content, error: success ? undefined : content });
+/** Ein Modell, das `content` antwortet — oder, mit `success: false`, keins,
+ *  das antwortet: die Fassade sieht dort eine leere Antwort auf jedem Glied der
+ *  Kette und wirft. */
+function scriptModel(content: string, success = true): void {
+  executeProvider.mockReset();
+  executeProvider.mockResolvedValue(
+    success ? { content, success: true } : { content: null, success: true }
+  );
 }
 
 function makeState(overrides: Partial<FlyerToSiteState> = {}): FlyerToSiteState {
@@ -32,7 +52,7 @@ function makeState(overrides: Partial<FlyerToSiteState> = {}): FlyerToSiteState 
     originalFilename: 'flyer.pdf',
     email: '',
     req: {
-      app: { locals: { aiClient: { processRequest: mockProcessRequest('') } } },
+      app: { locals: {} },
       headers: {},
     },
     extractedText: 'Maria Müller, Stadträtin. Klimaschutz und Bildung.',
@@ -74,18 +94,8 @@ describe('analyzeNode', () => {
       rawDescription: 'Ich bin Maria Müller, Stadträtin in Musterstadt.',
     };
 
-    const state = makeState({
-      req: {
-        app: {
-          locals: {
-            aiClient: {
-              processRequest: mockProcessRequest(JSON.stringify(analysis)),
-            },
-          },
-        },
-        headers: {},
-      },
-    });
+    scriptModel(JSON.stringify(analysis));
+    const state = makeState();
 
     const result = await analyzeNode(state);
 
@@ -110,37 +120,16 @@ describe('analyzeNode', () => {
       rawDescription: 'Beschreibung',
     };
 
-    const state = makeState({
-      req: {
-        app: {
-          locals: {
-            aiClient: {
-              processRequest: mockProcessRequest('```json\n' + JSON.stringify(analysis) + '\n```'),
-            },
-          },
-        },
-        headers: {},
-      },
-    });
+    scriptModel('```json\n' + JSON.stringify(analysis) + '\n```');
+    const state = makeState();
 
     const result = await analyzeNode(state);
     expect(result.flyerAnalysis!.name).toBe('Test');
   });
 
   it('falls back to raw text when AI returns invalid JSON', async () => {
-    const state = makeState({
-      extractedText: 'Flyer text here',
-      req: {
-        app: {
-          locals: {
-            aiClient: {
-              processRequest: mockProcessRequest('This is not valid JSON at all'),
-            },
-          },
-        },
-        headers: {},
-      },
-    });
+    scriptModel('This is not valid JSON at all');
+    const state = makeState({ extractedText: 'Flyer text here' });
 
     const result = await analyzeNode(state);
 
@@ -151,19 +140,8 @@ describe('analyzeNode', () => {
   });
 
   it('falls back to raw text when AI request fails', async () => {
-    const state = makeState({
-      extractedText: 'Some flyer text',
-      req: {
-        app: {
-          locals: {
-            aiClient: {
-              processRequest: mockProcessRequest('AI error', false),
-            },
-          },
-        },
-        headers: {},
-      },
-    });
+    scriptModel('AI error', false);
+    const state = makeState({ extractedText: 'Some flyer text' });
 
     const result = await analyzeNode(state);
 
@@ -183,19 +161,8 @@ describe('analyzeNode', () => {
       rawDescription: '',
     };
 
-    const state = makeState({
-      extractedText: 'Original OCR text',
-      req: {
-        app: {
-          locals: {
-            aiClient: {
-              processRequest: mockProcessRequest(JSON.stringify(analysis)),
-            },
-          },
-        },
-        headers: {},
-      },
-    });
+    scriptModel(JSON.stringify(analysis));
+    const state = makeState({ extractedText: 'Original OCR text' });
 
     const result = await analyzeNode(state);
     expect(result.flyerAnalysis!.rawDescription).toBe('Original OCR text');
@@ -203,48 +170,27 @@ describe('analyzeNode', () => {
 
   it('truncates very long extractedText in fallback to 2000 chars', async () => {
     const longText = 'a'.repeat(5000);
-    const state = makeState({
-      extractedText: longText,
-      req: {
-        app: {
-          locals: {
-            aiClient: {
-              processRequest: mockProcessRequest('invalid', false),
-            },
-          },
-        },
-        headers: {},
-      },
-    });
+    scriptModel('invalid', false);
+    const state = makeState({ extractedText: longText });
 
     const result = await analyzeNode(state);
     expect(result.flyerAnalysis!.rawDescription).toHaveLength(2000);
   });
 
   it('records analyzeTimeMs', async () => {
-    const state = makeState({
-      req: {
-        app: {
-          locals: {
-            aiClient: {
-              processRequest: mockProcessRequest(
-                JSON.stringify({
-                  name: 'X',
-                  politicalRole: '',
-                  region: '',
-                  themes: [],
-                  slogans: [],
-                  contactInfo: {},
-                  keyMessages: [],
-                  rawDescription: 'desc',
-                })
-              ),
-            },
-          },
-        },
-        headers: {},
-      },
-    });
+    scriptModel(
+      JSON.stringify({
+        name: 'X',
+        politicalRole: '',
+        region: '',
+        themes: [],
+        slogans: [],
+        contactInfo: {},
+        keyMessages: [],
+        rawDescription: 'desc',
+      })
+    );
+    const state = makeState();
 
     const result = await analyzeNode(state);
     expect(result.analyzeTimeMs).toBeGreaterThanOrEqual(0);
