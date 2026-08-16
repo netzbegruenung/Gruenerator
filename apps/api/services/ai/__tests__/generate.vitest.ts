@@ -145,6 +145,58 @@ describe('aiText', () => {
 });
 
 /**
+ * The family that cannot be routed: a `type` with no row in `AI_LANES` whose
+ * provider and model were chosen by the caller against measurements in
+ * `intermediateLanes.ts`. Without this the facade answers them on `default` and
+ * logs each one as somebody's oversight.
+ */
+describe('pinned targets', () => {
+  it('takes provider and model from the named intermediate stage', async () => {
+    await aiText({ lane: 'chat_intent_classification', pinned: 'standard', prompt: 'x' });
+
+    expect(callAt(0).provider).toBe('regolo');
+    expect(callAt(0).data.options.model).toBe('mistral-small-4-119b');
+  });
+
+  it('takes a literal pair for the call sites that name one', async () => {
+    await aiText({
+      lane: 'text_adjustment',
+      pinned: { provider: 'litellm', model: 'verdigado-pro' },
+      prompt: 'x',
+    });
+
+    expect(callAt(0).provider).toBe('litellm');
+    expect(callAt(0).data.options.model).toBe('verdigado-pro');
+  });
+
+  it('does not report an unrouted type as an oversight', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    await aiText({ lane: 'chat_summarize_map', pinned: 'heavy', prompt: 'x' });
+
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('keeps the request type for sampling even though routing is bypassed', async () => {
+    await aiText({ lane: 'chat_rerank', pinned: 'trivial', prompt: 'x' });
+
+    expect(callAt(0).data.type).toBe('chat_rerank');
+  });
+
+  it('still fails over, on the generic chain and each provider’s own model', async () => {
+    executeProvider.mockResolvedValueOnce({ content: '', success: true });
+    executeProvider.mockResolvedValueOnce(answered('Vom Fallback'));
+
+    await aiText({ lane: 'chat_quality_gate', pinned: 'standard', prompt: 'x' });
+
+    expect(callAt(0).provider).toBe('regolo');
+    expect(callAt(1).provider).toBe('litellm');
+    expect(callAt(1).data.options).not.toHaveProperty('model');
+  });
+});
+
+/**
  * The route layer branches on `code`/`retryable`, never on the message. A
  * failure that arrives here as a plain `Error` reaches the client as a bare
  * `internal`, which is exactly what the retired worker pool left behind — so
