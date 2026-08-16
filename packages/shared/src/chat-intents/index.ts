@@ -41,12 +41,18 @@ export type IntentAudience = 'de-DE' | 'de-AT' | 'all';
  * hidden in production builds.
  *
  * `'retired'` is different in kind: the capability still EXISTS, it is simply no
- * longer reached through an intent. Nothing produces the verdict, nothing routes
- * it, and no picker offers it — but the enum value has to stay, because
- * `searchIntentSchema` is a wire contract that shipped clients parse (and this
- * registry is a TOTAL `Record<SearchIntent, …>`, so an entry cannot be deleted
- * without deleting the enum value first). Retired entries are the difference
- * between "we removed a feature" and "we moved it somewhere better".
+ * longer reached through an intent. Nothing produces the verdict and nothing
+ * routes it — but the enum value has to stay, because `searchIntentSchema` is a
+ * wire contract that shipped clients parse (and this registry is a TOTAL
+ * `Record<SearchIntent, …>`, so an entry cannot be deleted without deleting the
+ * enum value first). Retired entries are the difference between "we removed a
+ * feature" and "we moved it somewhere better".
+ *
+ * Whether a picker still offers it depends on WHERE it moved. The five managed
+ * connectors kept no mention at all — vocabulary selects them. `umfragen` moved
+ * into the loop as a TOOL and keeps its `@umfragen`, which now pins that tool
+ * (`IntentMention.pinsTool`) instead of forcing the dead verdict. So: a retired
+ * intent is offered iff its mention pins something else.
  */
 export type IntentAvailability = 'always' | 'system-mcp' | 'web-only' | 'dev-only' | 'retired';
 
@@ -73,6 +79,23 @@ export interface IntentMention {
    * `create_pdf`).
    */
   forcedTool?: string;
+  /**
+   * Das LOOP-WERKZEUG, das diese Erwähnung festzurrt — der Name, den der erste
+   * Schritt des Planers rufen MUSS (`pinnedFirstTool`).
+   *
+   * Der Grund, warum es das gibt: `toolChoice: 'required'` verlangt nur
+   * irgendeinen Aufruf, und der Erwähnungstext ist vor dem Modell entfernt
+   * (`sanitizeMessageMentions`) — es sieht die Wahl gar nicht und greift zur
+   * generischen Suche.
+   *
+   * Der Pin hängt bewusst am WERKZEUG und nicht am Intent. Nur so kann eine
+   * Erwähnung eine Fähigkeit festzurren, deren Intent stillgelegt ist:
+   * `@umfragen` trägt `pinsTool: 'umfragen'`, während der gleichnamige Intent
+   * `availability: 'retired'` ist. Wo eine Erwähnung KEIN einzelnes Werkzeug
+   * meint, bleibt das Feld leer — `@doku` montiert `gruenerator_docs_search`
+   * über seinen Intent, und `@notion` ist ein ganzer Server.
+   */
+  pinsTool?: string;
 }
 
 interface IntentBase {
@@ -289,6 +312,7 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
       description: 'Abstimmungen & Nebentätigkeiten von Abgeordneten',
       avatar: '🗳️',
       backgroundColor: '#4B5563',
+      pinsTool: 'abgeordnetenwatch',
     },
   },
   bundestag: {
@@ -304,6 +328,7 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
       description: 'Drucksachen, Reden & Gesetzgebung aus dem Bundestag',
       avatar: '🏛️',
       backgroundColor: '#4B5563',
+      pinsTool: 'bundestag',
     },
   },
   // ── Retired: moved to the managed-connector path ─────────────────────────
@@ -352,13 +377,28 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
     audience: 'de-DE',
     availability: 'retired',
   },
-  // PolitPro covers the Nationalrat and all nine Austrian Länder as fully as
-  // the German parliaments — hence `'all'` plus `localeSourced`.
+  // Stillgelegt als VERDIKT, lebendig als WERKZEUG — der erste Eintrag dieser
+  // Art und deshalb ausführlich.
+  //
+  // Erzeugt hat diesen Intent zuletzt niemand mehr: er stand im `Exclude<>` der
+  // Schlüsselwortkarte (`classifierHeuristics.ts`), eine intent-wählende
+  // LLM-Stufe gibt es nicht mehr, und der Zensus zählte 0 von 167 (Messung
+  // 16.08.2026, Phase K). Der einzige lebende Pfad war die Erwähnung — und die
+  // braucht ihn nicht: `pinsTool` zurrt das PolitPro-Werkzeug im Loop fest, der
+  // es ohnehin breit montiert (`toolCatalog.ts`). Was der Intent zusätzlich tat
+  // — den Turn in die Schleife zwingen und den ersten Aufruf benennen — leistet
+  // der Pin selbst (`turnPlan.ts`, `pinnedFirstTool`).
+  //
+  // `audience: 'all'` bleibt und ist nicht Dekoration: das Locale-Gitter in
+  // `forcedIntentStage` fragt weiterhin diesen Eintrag, weil PolitPro den
+  // Nationalrat und alle neun österreichischen Länder so vollständig abdeckt
+  // wie die deutschen Parlamente — daher auch `localeSourced`.
   umfragen: {
     id: 'umfragen',
     category: 'retrieval',
     audience: 'all',
     localeSourced: true,
+    availability: 'retired',
     mention: {
       slug: 'umfragen',
       title: 'Umfragen',
@@ -366,6 +406,7 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
       avatar: '📊',
       backgroundColor: '#F59E0B',
       promptTemplate: 'Suche aktuelle Umfragen zu ',
+      pinsTool: 'umfragen',
     },
   },
   // Describes the PRODUCT, which is the same in both countries.
@@ -611,6 +652,31 @@ export function forcedToolFor(intent: ChatIntentDefinition): string {
   if (intent.category === 'artifact' && intent.forcedTool) return intent.forcedTool;
   return intent.id;
 }
+
+/**
+ * `forcedTools`-Token → das Werkzeug, das diese Erwähnung festzurrt.
+ *
+ * Aus den Erwähnungen abgeleitet statt im Router aufgezählt, damit der Pin
+ * genau dort steht, wo die Erwähnung beschrieben ist. `null` heisst „diese
+ * Erwähnung meint kein einzelnes Werkzeug" und ist der Normalfall — sie LÖSCHT
+ * dann auch einen früheren Pin desselben Turns (`forcedIntentStage`), weil bei
+ * mehreren Erwähnungen die letzte gewinnt.
+ *
+ * Nimmt den Draht-Token und nicht die Intent-Kennung: die beiden fallen
+ * auseinander, sobald eine Erwähnung einen stillgelegten Intent überlebt
+ * (`@umfragen` → Token `umfragen`, Intent `agentic`).
+ */
+export function pinnedToolForMention(forcedTool: string): string | null {
+  return PINNED_TOOL_BY_MENTION.get(forcedTool) ?? null;
+}
+
+const PINNED_TOOL_BY_MENTION: ReadonlyMap<string, string> = new Map(
+  allIntentMentions().flatMap(({ intent, mention }) =>
+    mention.pinsTool
+      ? ([[mention.forcedTool ?? forcedToolFor(intent), mention.pinsTool]] as const)
+      : []
+  )
+);
 
 /** Whether the intent may run for a user in this locale. */
 export function isIntentAllowedForLocale(

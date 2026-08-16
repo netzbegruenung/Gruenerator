@@ -115,6 +115,11 @@ export interface TurnPlanInput {
   isSharepicRefinement: boolean;
   /** Der erzwungene Intent des Pipeline-Agenten, oder null. */
   pipelineForceIntent: ChatIntentId | null;
+  /**
+   * Das Werkzeug, das eine @-Erwähnung festgezurrt hat (`mentionPinnedTool`).
+   * Der zweite Weg in die Schleife neben der `forcedLane`-Achse — siehe unten.
+   */
+  mentionPinnedTool: string | null;
 }
 
 /**
@@ -207,8 +212,25 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
   //  - `forcedLoop` — eine Erwähnung dieses Intents gehört in die Schleife.
   //    Das ist die `forcedLane`-Achse der Registry, und nur sie darf ein Intent
   //    tragen, der einen eigenen Executor HAT.
-  const mustLoop = proposedIntent === 'mcp' || p.systemToolIntents.has(proposedIntent);
-  const forcedLoop = forcesLoopLane(proposedIntent);
+  //
+  // Ein per Erwähnung gepinntes WERKZEUG beantwortet beide Fragen noch einmal,
+  // ohne einen Intent zu bemühen — genau dafür gibt es den Pin:
+  //
+  //  - Es gehört in die Schleife, denn dort und nur dort existieren Werkzeuge.
+  //    Der Pin IST die Wahl der Person, also darf er denselben Notausschalter
+  //    aufheben wie die Achse.
+  //  - Trägt kein Intent den Turn (`agentic` hat in `executeIntentPipeline`
+  //    keinen Zweig), kann ihn NUR die Schleife ausführen. Ohne diese Hälfte
+  //    fiele `@umfragen` mit ausgeschalteter Schleife oder gewählter
+  //    Wissenssammlung über `fallbackIntentFor` auf `search` — eine
+  //    Dokumentensuche statt PolitPro, und damit schlechter als vor der
+  //    Stilllegung des Intents.
+  const pinnedTool = p.mentionPinnedTool;
+  const mustLoop =
+    proposedIntent === 'mcp' ||
+    p.systemToolIntents.has(proposedIntent) ||
+    (pinnedTool != null && proposedIntent === 'agentic');
+  const forcedLoop = forcesLoopLane(proposedIntent) || pinnedTool != null;
 
   // ── 1. Editor-Fläche ──────────────────────────────────────────────────────
   // Editor-Seitenleisten (docs/sheets/presentations/boards) BEARBEITEN das

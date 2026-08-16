@@ -49,7 +49,8 @@ describe('eine einzelne Erwähnung zurrt ihren Intent fest', () => {
     ['abgeordnetenwatch', 'abgeordnetenwatch'],
     ['bundestag', 'bundestag'],
     ['hilfe', 'hilfe'],
-    ['umfragen', 'umfragen'],
+    // `@umfragen` ist die Ausnahme und steht deshalb unten mit eigenem Test:
+    // sein Intent ist stillgelegt, der Token zeigt auf `agentic` + Werkzeug-Pin.
     ['examples', 'examples'],
     ['pressemitteilung_examples', 'pressemitteilung_examples'],
     ['chat_history', 'chat_history'],
@@ -75,19 +76,55 @@ describe('eine einzelne Erwähnung zurrt ihren Intent fest', () => {
   // `intent` allein sagt nicht, dass jemand GEWÄHLT hat — ein Verdikt des
   // Klassifikators sieht dort genauso aus. Der Loop braucht den Unterschied,
   // um seinen ersten Werkzeugaufruf beim Namen nennen zu dürfen.
-  it('hält fest, dass eine Erwähnung den Intent gesetzt hat', async () => {
-    const { state } = await run(['umfragen']);
-    expect(state.mentionPinnedIntent).toBe('umfragen');
+  it('hält das gewählte WERKZEUG fest, nicht bloss den Intent', async () => {
+    const { state } = await run(['bundestag']);
+    expect(state.mentionPinnedTool).toBe('bundestag');
   });
 
   it('setzt die Markierung nicht ohne Erwähnung', async () => {
     const { state } = await run([]);
-    expect(state.mentionPinnedIntent).toBeUndefined();
+    expect(state.mentionPinnedTool).toBeUndefined();
   });
 
-  it('die Markierung folgt dem letzten Treffer, nicht dem ersten', async () => {
+  // Kein `pinsTool` in der Registry heisst „diese Erwähnung meint kein einzelnes
+  // Werkzeug" — und weil bei mehreren Erwähnungen die letzte gewinnt, muss sie
+  // den Pin der vorherigen auch LÖSCHEN.
+  it('eine Erwähnung ohne eigenes Werkzeug löscht den vorherigen Pin', async () => {
     const { state } = await run(['bundestag', 'chart']);
-    expect(state.mentionPinnedIntent).toBe('chart');
+    expect(state.intent).toBe('chart');
+    expect(state.mentionPinnedTool).toBe(null);
+  });
+});
+
+describe('@umfragen — Erwähnung ohne Intent', () => {
+  // Der Intent ist stillgelegt (`availability: 'retired'`), der Draht-Token
+  // bleibt: er steckt in ausgelieferten Composern und in jedem persistierten
+  // `@[Umfragen](tool:umfragen)` alter Threads (F0).
+  it('setzt `agentic` und zurrt das PolitPro-Werkzeug fest', async () => {
+    const { state, forcedTool } = await run(['umfragen']);
+    expect(state.intent).toBe('agentic');
+    expect(state.mentionPinnedTool).toBe('umfragen');
+    expect(forcedTool).toBe(true);
+  });
+
+  it('trägt die Suchanfrage nach wie vor der Stilllegung', async () => {
+    const { state } = await run(['umfragen']);
+    expect(state.searchQuery).toBe('Wie ist die Lage?');
+  });
+
+  // `@umfragen @recherche`: die Such-Familie überschreibt den Intent, also ist
+  // der Werkzeug-Pin überholt. Vorher tat das die Prüfung `pinned !== intent`
+  // in `pinnedFirstTool`; jetzt löscht der Überschreibende ausdrücklich.
+  it('eine spätere Suchklassen-Erwähnung löscht den Pin', async () => {
+    const { state } = await run(['umfragen', 'research']);
+    expect(state.intent).toBe('research');
+    expect(state.mentionPinnedTool).toBe(null);
+  });
+
+  it('@deepresearch ebenso', async () => {
+    const { state } = await run(['umfragen', 'deepresearch']);
+    expect(state.intent).toBe('research');
+    expect(state.mentionPinnedTool).toBe(null);
   });
 });
 
@@ -153,9 +190,13 @@ describe('Locale-Gitter der beiden DE-only-Quellen', () => {
     }
   );
 
+  // Das Gitter fragt weiterhin die Zielgruppe der QUELLE (`localeIntent:
+  // 'umfragen'`) und nicht die des ausführenden `agentic` — sonst wäre es für
+  // jede stillgelegte Erwähnung still ein No-op.
   it('@umfragen gilt auch in Österreich — PolitPro deckt den Nationalrat ab', async () => {
     const { state } = await run(['umfragen'], { userLocale: 'de-AT' });
-    expect(state.intent).toBe('umfragen');
+    expect(state.intent).toBe('agentic');
+    expect(state.mentionPinnedTool).toBe('umfragen');
   });
 });
 

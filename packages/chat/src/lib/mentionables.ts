@@ -438,10 +438,14 @@ function buildToolMentionables(): Mentionable[] {
   };
   return (
     allIntentMentions()
-      // A retired intent has no route left — offering it would put a token on the
-      // wire the router no longer resolves. Belt and braces: retired entries drop
-      // their `mention` too, so `allIntentMentions()` already skips them.
-      .filter(({ intent }) => intent.availability !== 'retired')
+      // A retired intent has no route left — offering it would put a token on
+      // the wire the router no longer resolves. Unless the mention pins a TOOL
+      // instead of the verdict (`pinsTool`): then the token still resolves, it
+      // simply reaches a loop tool rather than an intent. `@umfragen` is that
+      // case — the intent died, the capability did not.
+      .filter(
+        ({ intent, mention }) => intent.availability !== 'retired' || mention.pinsTool != null
+      )
       .filter(({ intent }) => intent.availability !== 'web-only' || typeof document !== 'undefined')
       .map(({ intent, mention }) => {
         const icon = TOOL_MENTION_ICONS[mention.slug];

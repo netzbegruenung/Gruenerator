@@ -366,6 +366,7 @@ export async function streamAgenticResponse(
       loopDemotedFromRetrieval: finalState.loopDemotedFromRetrieval === true,
       classifierContradictedResearch: finalState.classifierContradictedResearch === true,
       materialHeavy,
+      pinnedTool: finalState.mentionPinnedTool ?? null,
     });
 
     // WELCHES Werkzeug der erste Schritt ruft, wenn eine @-Erwähnung eines
@@ -374,8 +375,7 @@ export async function streamAgenticResponse(
     // Modell kann die Wahl also gar nicht mehr sehen.
     const firstToolName = forceFirstToolCall
       ? pinnedFirstTool({
-          pinnedIntent: finalState.mentionPinnedIntent ?? null,
-          intent: finalState.intent,
+          pinnedTool: finalState.mentionPinnedTool ?? null,
           isMounted: (name) => name in wrapped,
         })
       : null;
