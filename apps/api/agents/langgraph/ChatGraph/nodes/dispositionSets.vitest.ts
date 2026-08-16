@@ -32,7 +32,7 @@ import {
 import {
   AGENTIC_INTENTS,
   NAMED_RETRIEVAL_INTENTS,
-} from '../../../../routes/chat/services/agenticLoop/agenticRespondService.js';
+} from '../../../../routes/chat/services/agenticLoop/intents.js';
 import { decideRunAgentic } from '../../../../routes/chat/services/agenticLoop/routing.js';
 import { NO_RETRIEVAL_VERDICTS } from './classifierSignals.js';
 

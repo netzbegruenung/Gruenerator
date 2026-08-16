@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
-import { buildToolUsageBlock, materialDominatesTurn } from './agenticRespondService.js';
+import { materialDominatesTurn } from './loopMode.js';
+import { buildToolUsageBlock } from './toolUsageBlock.js';
 
 describe('buildToolUsageBlock', () => {
   const block = buildToolUsageBlock(6);
