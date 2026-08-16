@@ -3,7 +3,6 @@
  */
 
 import { type ContentExample } from '../../agents/langgraph/types/promptAssembly.js';
-import { type AiClient } from '../../services/ai/types.js';
 import { type ClaudeTool } from '../../services/tools/types.js';
 
 export type Locale = 'de-DE' | 'de-AT';
@@ -27,7 +26,6 @@ export interface EnrichmentOptions {
   selectedTextIds?: string[] | undefined;
   searchQuery?: string | null | undefined;
   provider?: string | undefined;
-  aiClient?: AiClient | undefined;
   req?: unknown | undefined;
   enableNotebookEnrich?: boolean | undefined;
   notebookEnrichPrompt?: string | undefined;

@@ -4,7 +4,6 @@ import { z } from 'zod';
 import { env } from '../../config/env.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { searxngService as searxngWebSearchService } from '../../services/search/index.js';
-import { getAiClient } from '../../utils/getAiClient.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type {
@@ -122,15 +121,9 @@ router.post(
         log.debug(`[web-search] Generating AI summary for ${searchResults.results.length} results`);
 
         try {
-          finalResults = (await searxngWebSearchService.generateAISummary(
-            searchResults,
-            query,
-            getAiClient(req),
-            {
-              maxResults: searchOptions.maxResults,
-            },
-            req
-          )) as FormattedSearchResults;
+          finalResults = (await searxngWebSearchService.generateAISummary(searchResults, query, {
+            maxResults: searchOptions.maxResults,
+          })) as FormattedSearchResults;
         } catch (summaryError) {
           log.warn(`[web-search] AI summary generation failed:`, (summaryError as Error).message);
           finalResults = {

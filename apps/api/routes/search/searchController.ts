@@ -9,7 +9,7 @@ import { z } from 'zod';
 
 import { env } from '../../config/env.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
-import { getAiClient } from '../../utils/getAiClient.js';
+import { aiText } from '../../services/ai/generate.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type {
@@ -24,7 +24,6 @@ import type {
   GrundsatzResult,
   Citation,
   Source,
-  SearchMetadata,
 } from '../../agents/langgraph/WebSearchGraph/types.js';
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 
@@ -150,7 +149,6 @@ interface AnalyzeResponse {
   analysis?: string;
   sourceRecommendations?: SourceRecommendation[];
   claudeSourceTitles?: string[];
-  metadata?: SearchMetadata;
   error?: string;
   details?: string;
 }
@@ -319,7 +317,6 @@ router.post(
         mode: 'normal',
         user_id: userId,
         searchOptions,
-        aiClient: getAiClient(req),
         req,
       };
 
@@ -435,7 +432,6 @@ router.post(
           maxResults: 10,
           language: 'de-DE',
         },
-        aiClient: getAiClient(req),
         req,
       };
 
@@ -553,10 +549,9 @@ router.post(
 
       log.debug(`[Search] Analysis request: ${contents.length} items`);
 
-      const result = await getAiClient(req).processRequest(
-        {
-          type: 'search_analysis',
-          systemPrompt: `Du bist ein Recherche-Assistent, der Suchergebnisse gründlich analysiert.
+      const analysis = await aiText({
+        lane: 'search_analysis',
+        system: `Du bist ein Recherche-Assistent, der Suchergebnisse gründlich analysiert.
 
 Deine Aufgabe ist es, die Inhalte der gefundenen Webseiten zu analysieren und eine detaillierte Zusammenfassung zu erstellen:
 - Nutze ALLE verfügbaren Quellen für deine Analyse
@@ -586,39 +581,31 @@ Format deiner Antwort:
 6. Nach zwei Leerzeilen: "###USED_SOURCES_START###"
 7. Auflistung der verwendeten Quellen: "QUELLE: [Titel]"
 8. "###USED_SOURCES_END###"`,
-          messages: [
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'text',
-                  text: `Erstelle eine ausführliche Zusammenfassung der folgenden Suchergebnisse. Nutze möglichst alle Quellen und liste am Ende die verwendeten Quellen auf:
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: `Erstelle eine ausführliche Zusammenfassung der folgenden Suchergebnisse. Nutze möglichst alle Quellen und liste am Ende die verwendeten Quellen auf:
           ${JSON.stringify(contents, null, 2)}`,
-                },
-              ],
-            },
-          ],
-          options: {
-            temperature: 0.7,
+              },
+            ],
           },
-        },
-        req
-      );
+        ],
+        temperature: 0.7,
+      });
 
-      if (!result.success) {
-        throw new Error(result.error);
-      }
+      const { mainText, sourceRecommendations, usedSourceTitles } = parseAnalysisResponse(analysis);
 
-      const { mainText, sourceRecommendations, usedSourceTitles } = parseAnalysisResponse(
-        result.content ?? ''
-      );
-
+      // Das `metadata`-Feld der Antwort ist mit dem Umschlag entfallen: es trug
+      // Provider, Modell, requestId und Tokenzahlen des Laufs nach außen, und
+      // gelesen hat es niemand — weder `apps/web` noch `packages/shared/src/search`.
       return res.json({
         status: 'success',
         analysis: mainText,
         sourceRecommendations,
         claudeSourceTitles: usedSourceTitles,
-        ...(result.metadata ? { metadata: result.metadata } : {}),
       });
     } catch (error) {
       log.error('[Search] Analysis error:', error);
