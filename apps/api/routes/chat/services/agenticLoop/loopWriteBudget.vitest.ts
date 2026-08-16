@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 
-import { pdfProblemNote, resolveAbortOutcome, TRUNCATION_NOTE } from './agenticRespondService.js';
+import { resolveAbortOutcome, TRUNCATION_NOTE } from './agenticRespondService.js';
+import { pdfProblemNote } from './synthVerdicts.js';
 import { runAgenticLoop, type LoopDeps, type LoopEngineParams } from './loopEngine.js';
 import { DEFAULT_LOOP_BUDGET, type PersistedStep } from './types.js';
 
