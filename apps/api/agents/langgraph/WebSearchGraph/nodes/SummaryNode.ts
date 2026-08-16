@@ -3,11 +3,11 @@
  * Generates AI summary using enriched results (normal mode only)
  */
 
+import { aiText } from '../../../../services/ai/generate.js';
 import { validateAndInjectCitations } from '../../../../services/search/index.js';
 import { extractKeyParagraphs } from '../utilities/contentExtractor.js';
 
 import type { ReferencesMap } from '../../../../services/search/types.js';
-import type { RequestWithUser } from '../../../../utils/redis/types.js';
 import type { WebSearchState } from '../types.js';
 
 /**
@@ -117,24 +117,14 @@ ${referencesText}
 
 Crawl-Statistik: ${state.crawlMetadata?.crawledUrls || 0} erfolgreich gecrawlt`;
 
-    const result = await state.aiClient.processRequest(
-      {
-        type: 'web_search_summary',
-        systemPrompt,
-        messages: [{ role: 'user', content: userPrompt }],
-        options: {
-          provider: 'litellm',
-          model: 'verdigado-pro',
-          max_tokens: 500,
-          temperature: 0.2,
-        },
-      },
-      state.req as RequestWithUser
-    );
-
-    if (!result.success) {
-      throw new Error(result.error);
-    }
+    const result = await aiText({
+      lane: 'web_search_summary',
+      system: systemPrompt,
+      prompt: userPrompt,
+      pinned: { provider: 'litellm', model: 'verdigado-pro' },
+      maxOutputTokens: 500,
+      temperature: 0.2,
+    });
 
     // Build references map for citation validation
     const referencesMap: ReferencesMap = {};
@@ -156,7 +146,7 @@ Crawl-Statistik: ${state.crawlMetadata?.crawledUrls || 0} erfolgreich gecrawlt`;
 
     // Process the AI response for citations
     const { cleanDraft, citations, sources, errors } = validateAndInjectCitations(
-      result.content || '',
+      result,
       referencesMap as ReferencesMap
     );
 

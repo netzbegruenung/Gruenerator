@@ -10,12 +10,12 @@
  * Replaces the simpler queryOptimizerNode.
  */
 
+import { aiText } from '../../../../services/ai/generate.js';
 import { expandQuery } from '../../../../services/search/QueryExpansionService.js';
 import { analyzeTemporality } from '../../../../services/search/TemporalAnalyzer.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { generateResearchQuestions } from '../../WebSearchGraph/utilities/queryOptimizer.js';
 
-import type { AiClient } from '../../../../services/ai/types.js';
 import type { SearchGraphState, QueryType } from '../types.js';
 
 const log = createLogger('SearchGraph:QueryPlanner');
@@ -75,38 +75,26 @@ function formatConversationContext(
 /**
  * Reformulate a vague follow-up query using conversation context.
  */
-async function reformulateFollowUp(
-  rawQuery: string,
-  context: string,
-  aiClient: AiClient
-): Promise<string> {
+async function reformulateFollowUp(rawQuery: string, context: string): Promise<string> {
   try {
-    const result = await aiClient.processRequest(
-      {
-        type: 'text_adjustment',
-        systemPrompt: `Schreibe die aktuelle Suchanfrage so um, dass sie eigenständig verständlich ist.
+    const result = await aiText({
+      lane: 'text_adjustment',
+      system: `Schreibe die aktuelle Suchanfrage so um, dass sie eigenständig verständlich ist.
 Beziehe den Gesprächskontext ein. Antworte NUR mit der reformulierten Anfrage, nichts anderes.
 
 Gesprächsverlauf:
 ${context}`,
-        messages: [{ role: 'user', content: `Aktuelle Anfrage: "${rawQuery}"` }],
-        options: {
-          provider: 'litellm',
-          // What this has always run on: the litellm adapter used to ignore
-          // `model` outright and substitute the verdigado default. `mistral-small`
-          // is not a verdigado alias — it appears nowhere else in the repo — so
-          // naming it here only ever described a request that was never sent.
-          model: 'verdigado-pro',
-          max_tokens: 80,
-          temperature: 0.0,
-        },
-      },
-      null
-    );
-    if (result.success && result.content) {
-      const reformulated: string = result.content.replace(/^["']|["']$/g, '').trim();
-      if (reformulated.length > 3) return reformulated;
-    }
+      prompt: `Aktuelle Anfrage: "${rawQuery}"`,
+      // What this has always run on: the litellm adapter used to ignore
+      // `model` outright and substitute the verdigado default. `mistral-small`
+      // is not a verdigado alias — it appears nowhere else in the repo — so
+      // naming it here only ever described a request that was never sent.
+      pinned: { provider: 'litellm', model: 'verdigado-pro' },
+      maxOutputTokens: 80,
+      temperature: 0.0,
+    });
+    const reformulated = result.replace(/^["']|["']$/g, '').trim();
+    if (reformulated.length > 3) return reformulated;
   } catch (err: unknown) {
     log.warn(
       `[QueryPlanner] Follow-up reformulation failed: ${err instanceof Error ? err.message : err}`
@@ -137,7 +125,7 @@ export async function queryPlannerNode(
 
   let effectiveQuery = rawQuery;
   if (isVagueFollowUp) {
-    effectiveQuery = await reformulateFollowUp(rawQuery, conversationContext, state.aiClient);
+    effectiveQuery = await reformulateFollowUp(rawQuery, conversationContext);
     log.info(`[QueryPlanner] Reformulated follow-up: "${rawQuery}" → "${effectiveQuery}"`);
   }
 
@@ -152,7 +140,7 @@ export async function queryPlannerNode(
     // Deep mode: generate 4-5 research questions for multi-angle coverage
     let subQueries: string[] = [];
     try {
-      subQueries = await generateResearchQuestions(rawQuery, state.aiClient, null);
+      subQueries = await generateResearchQuestions(rawQuery);
       log.info(`[QueryPlanner] Deep mode: generated ${subQueries.length} research questions`);
     } catch (err: unknown) {
       log.warn(
