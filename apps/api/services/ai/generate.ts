@@ -38,6 +38,7 @@
  * there.
  */
 
+import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 import { AiProviderError, classifyProviderError } from '../providers/providerErrors.js';
 
@@ -73,6 +74,14 @@ export interface AiCall {
   temperature?: number;
   maxOutputTokens?: number;
   topP?: number;
+  /**
+   * Wall clock for the whole call, fallback chain included. Defaults to
+   * `env.REQUEST_TIMEOUT` (120 s), which is measured against an interactive
+   * answer. A step that runs AFTER the stream has closed has a different
+   * yardstick — there, waiting is cheaper than failing — and says so; see
+   * `agentPipeline`'s `step.timeoutMs`.
+   */
+  timeoutMs?: number;
   /**
    * Provider and model the CALLER chose, instead of the routing table.
    *
@@ -208,15 +217,7 @@ function toEnvelope(
   };
 }
 
-/**
- * Run one request on the lane's provider, then down its fallback chain.
- *
- * "Empty counts as failure" is deliberate and matches `providerFallback`: a
- * provider that answers with nothing has not answered, and the next one should
- * get a turn. When the whole chain is spent, `NoAnswerError` classifies the last
- * failure — see there for why this path has to do that itself.
- */
-async function runWithFallback(call: AiCall, extra: Partial<AIRequestOptions> = {}) {
+async function runChain(call: AiCall, extra: Partial<AIRequestOptions>): Promise<AiResult> {
   const target = targetFor(call);
   const chain: ProviderName[] = [
     target.provider,
@@ -244,6 +245,50 @@ async function runWithFallback(call: AiCall, extra: Partial<AIRequestOptions> = 
   }
 
   throw new NoAnswerError(String(call.lane), { cause: lastError });
+}
+
+/**
+ * Run one request on the lane's provider, then down its fallback chain, under a
+ * wall clock.
+ *
+ * "Empty counts as failure" is deliberate and matches `providerFallback`: a
+ * provider that answers with nothing has not answered, and the next one should
+ * get a turn. When the whole chain is spent, `NoAnswerError` classifies the last
+ * failure — see there for why this path has to do that itself.
+ *
+ * The clock covers the WHOLE chain, not one attempt, because that is what
+ * `processRequest` does (`executeWithTimeout` in `aiService.ts`) and because a
+ * per-attempt budget would let a three-provider chain run three times as long as
+ * the caller allowed. Every migrating call site brings this expectation with it:
+ * the envelope has no timeout field of its own, so the 120 s default (`env
+ * .REQUEST_TIMEOUT`) is the only thing standing between a hung provider and a
+ * turn that never ends — a facade without it would drop that ceiling silently.
+ *
+ * Like there, the timer does NOT cancel the provider request: `generateText`
+ * gets no signal, so the HTTP call keeps running after this rejects.
+ */
+async function runWithFallback(call: AiCall, extra: Partial<AIRequestOptions> = {}) {
+  const timeoutMs = call.timeoutMs ?? env.REQUEST_TIMEOUT;
+  let timer: NodeJS.Timeout | undefined;
+
+  try {
+    return await Promise.race([
+      runChain(call, extra),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () =>
+            reject(
+              new NoAnswerError(String(call.lane), {
+                cause: new Error(`Request timeout after ${timeoutMs}ms`),
+              })
+            ),
+          timeoutMs
+        );
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 /**
