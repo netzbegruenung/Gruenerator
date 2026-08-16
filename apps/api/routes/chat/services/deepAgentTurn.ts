@@ -17,11 +17,11 @@
  *    to feed and no `[N]` to reconcile — the report carries its own numbered
  *    `## Quellen` list, and the chat message is a short summary plus the link.
  * 3. **The quota is charged only on success.** A run that produces nothing costs
- *    the user minutes; it must not also cost them their allowance.
+ *    the user minutes; it must not also cost them their allowance. Whether there
+ *    IS an allowance is decided by the caller — see `deepResearchQuota.ts`.
  */
 
 import { env } from '../../../config/env.js';
-import { DeepResearchCounter } from '../../../services/counters/index.js';
 import { createDocumentWithContent } from '../../../services/docs/DocGenerationService.js';
 import { runDeepAgentResearch } from '../../../services/research/deepAgent/index.js';
 import { buildNotebookScope } from '../../../services/research/deepAgent/notebookScope.js';
@@ -30,6 +30,7 @@ import { DEFAULT_BUDGET } from '../../../services/research/deepAgent/types.js';
 import { getLinkupService } from '../../../services/search/LinkupService.js';
 import { createLogger } from '../../../utils/logger.js';
 
+import { chargeDeepResearch } from './deepResearchQuota.js';
 import { sendChatWarning } from './sseHelpers.js';
 
 import type { SSEWriter } from './sseHelpers.js';
@@ -39,62 +40,26 @@ import type { ResearchLogStep } from '@gruenerator/contracts';
 
 const log = createLogger('DeepAgentTurn');
 
-/**
- * Runs per user per day.
- *
- * Three rather than the sourcedAnswer path's one: this agent never touches
- * Linkup's per-prompt research endpoint and caps `deep` searches at two, so a
- * run costs cents. Both paths share one Redis key, so the allowance cannot be
- * spent twice.
- */
-const DAILY_LIMIT = 3;
-
 /** The subtype a generated report is filed under. `docs` is the neutral one. */
 const REPORT_SUBTYPE = 'docs';
 
 /** Keep-alive spacing while the agent works. Well under any proxy idle timeout. */
 const RESEARCH_HEARTBEAT_MS = 20_000;
 
-let counter: DeepResearchCounter | null = null;
-async function getCounter(): Promise<DeepResearchCounter> {
-  if (!counter) {
-    const { redisClient } = await import('../../../utils/redis/index.js');
-    counter = new DeepResearchCounter(redisClient, DAILY_LIMIT);
-  }
-  return counter;
-}
-
-/** Test seam: the module-level counter would otherwise survive between cases. */
-export function _resetDeepAgentCounterForTests(): void {
-  counter = null;
-}
-
 function toLogSteps(steps: ResearchStep[]): ResearchLogStep[] {
   return steps.map((s) => ({ id: s.id, label: s.label, status: s.status }));
 }
 
 /**
- * What the caller does next.
- *
- * Three outcomes rather than `state | null`, because "I could not serve this"
- * and "nobody can serve this" need different follow-ups. Both engines behind
- * `@deepresearch` meter through ONE Redis key with different limits (agent 3,
- * `sourcedAnswer` 1). So once the agent's allowance is gone the count is at
- * least 3, which is also over the old path's limit of 1 — that path can never
- * succeed, and letting it try only produces a second, contradictory warning
- * naming the wrong number. `quota_spent` says so out loud.
+ * Returns a state patch on success and `null` in every case where the turn
+ * should fall through to the sourcedAnswer path — no key, no question, no
+ * meterable user, or a failed run. The shared allowance is NOT one of those
+ * cases: the caller settles it once for both engines before either starts.
  */
-export type DeepAgentOutcome =
-  | { kind: 'served'; state: Partial<ChatGraphState> }
-  | { kind: 'quota_spent' }
-  | { kind: 'not_served' };
-
-const NOT_SERVED: DeepAgentOutcome = { kind: 'not_served' };
-
 export async function runDeepAgentTurn(params: {
   state: ChatGraphState;
   sse: SSEWriter;
-}): Promise<DeepAgentOutcome> {
+}): Promise<Partial<ChatGraphState> | null> {
   const { state, sse } = params;
 
   const question = state.searchQuery?.trim() ?? '';
@@ -102,38 +67,23 @@ export async function runDeepAgentTurn(params: {
 
   if (!env.SCALEWAY_API_KEY) {
     log.info('[DeepAgent] Kein SCALEWAY_API_KEY — der alte Pfad übernimmt');
-    return NOT_SERVED;
+    return null;
   }
   // Linkup is the floor under the search tools: GreenPT is optional and refuses
   // under load, so without Linkup a run would spend minutes finding nothing.
   if (!getLinkupService()) {
     log.info('[DeepAgent] Kein LINKUP_API_KEY — der alte Pfad übernimmt');
-    return NOT_SERVED;
+    return null;
   }
   if (question.length === 0) {
     log.warn('[DeepAgent] Keine Recherchefrage — der alte Pfad übernimmt');
-    return NOT_SERVED;
+    return null;
   }
   // No user means no meter, and an unmetered multi-minute run is worse than a
   // cheaper answer.
   if (!userId) {
     log.warn('[DeepAgent] Keine userId — nicht abrechenbar, der alte Pfad übernimmt');
-    return NOT_SERVED;
-  }
-
-  const quotaCounter = await getCounter();
-  const quota = await quotaCounter.checkLimit(userId);
-  if (!quota.canResearch) {
-    log.info(`[DeepAgent] Kontingent aufgebraucht (${quota.count}/${quota.limit}) für ${userId}`);
-    sendChatWarning(
-      sse,
-      'deep_research_quota_spent',
-      `Die Tiefenrecherche ist für heute aufgebraucht (${quota.limit}× pro Tag, neu in ${quotaCounter.getTimeUntilReset()}). Ich habe stattdessen normal recherchiert.`
-    );
-    // Not `not_served`: the sibling engine shares this key with a LOWER limit,
-    // so it is out of allowance too. Its warning would name a different number
-    // and contradict the one just sent.
-    return { kind: 'quota_spent' };
+    return null;
   }
 
   const logId = `research-${Date.now()}`;
@@ -193,7 +143,7 @@ export async function runDeepAgentTurn(params: {
     sendChatWarning(sse, 'deep_agent_failed');
     // Nothing was charged, so the old path still has whatever allowance the
     // shared key leaves it — let it try.
-    return NOT_SERVED;
+    return null;
   }
 
   let document;
@@ -210,7 +160,7 @@ export async function runDeepAgentTurn(params: {
     log.error(`[DeepAgent] Dokument konnte nicht angelegt werden: ${String(error)}`);
     sse.send('research_log_update', { id: logId, status: 'failed' });
     sendChatWarning(sse, 'deep_agent_failed');
-    return NOT_SERVED;
+    return null;
   }
 
   // Closes the loop for the registry: a finished run points at the document its
@@ -221,11 +171,7 @@ export async function runDeepAgentTurn(params: {
   const url = `/office/${document.id}`;
 
   // Counted only now: a run without a document must not cost the allowance.
-  // swallow-ok — the report exists either way, and losing it to a Redis hiccup
-  // would be the worse trade.
-  await quotaCounter.incrementCount(userId).catch((error: unknown) => {
-    log.error(`[DeepAgent] Kontingent konnte nicht verbucht werden: ${String(error)}`);
-  });
+  await chargeDeepResearch(userId);
 
   sse.send('research_log_update', {
     id: logId,
@@ -249,13 +195,10 @@ export async function runDeepAgentTurn(params: {
     : '';
 
   return {
-    kind: 'served',
-    state: {
-      // Reuses the field the old path sets, so everything downstream already
-      // knows "an answer exists, do not synthesise again".
-      deepResearchAnswer: `${result.summary}${note}`,
-      searchCount: result.sources.length,
-      searchTimeMs: Date.now() - started,
-    },
+    // Reuses the field the old path sets, so everything downstream already
+    // knows "an answer exists, do not synthesise again".
+    deepResearchAnswer: `${result.summary}${note}`,
+    searchCount: result.sources.length,
+    searchTimeMs: Date.now() - started,
   };
 }
