@@ -6,7 +6,15 @@
  * `worker_threads` pool. That pool was replaced by an in-process service, its
  * message protocol, instance bookkeeping and config interfaces are gone, and
  * the names stopped saying "worker" with the 08/2026 rename — what is left here
- * is the payload shape the ~66 call sites and the provider adapters share.
+ * is the payload shape the call sites and the provider adapters share.
+ *
+ * How many call sites, measured 16.08.2026, because the number decides whether
+ * anyone can retire this: **62 `processRequest` calls in 55 production files**,
+ * plus 32 test files carrying an `AiClient` fake. They reach the service through
+ * `app.locals.aiClient` (`utils/getAiClient.ts`), not by importing `aiService.ts`
+ * — which is why grepping the module's importers finds four files and badly
+ * understates it. `services/ai/generate.ts` is the typed replacement; retiring
+ * the envelope is those 62 call sites, not a deletion.
  */
 
 import type { ProviderName, ProviderOptions, RequestMetadata } from '../providers/types.js';
