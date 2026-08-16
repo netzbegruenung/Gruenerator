@@ -18,7 +18,6 @@ import { env } from '../../config/env.js';
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { getExperimentalSession } from '../../services/chat/ChatMemoryService.js';
-import { getAiClient } from '../../utils/getAiClient.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type {
@@ -118,16 +117,6 @@ router.post(
         });
       }
 
-      // Get AI worker pool
-      const aiClient = getAiClient(req);
-      if (!aiClient) {
-        log.error(`[interactive][${reqId}] AI worker pool not available`);
-        return res.status(503).json({
-          status: 'error',
-          message: 'AI-Dienst nicht verfügbar',
-        });
-      }
-
       log.debug(
         `[interactive][${reqId}][PID:${process.pid}] Initiating for user ${userId}: ${requestType}`
       );
@@ -139,7 +128,6 @@ router.post(
         requestType,
         generatorType: 'antrag',
         locale: locale || req.user?.locale || 'de-DE',
-        aiClient,
         req,
       };
 
@@ -204,16 +192,6 @@ router.post(
         });
       }
 
-      // Get AI worker pool
-      const aiClient = getAiClient(req);
-      if (!aiClient) {
-        log.error(`[interactive][${reqId}] AI worker pool not available`);
-        return res.status(503).json({
-          status: 'error',
-          message: 'AI-Dienst nicht verfügbar',
-        });
-      }
-
       log.debug(
         `[interactive][${reqId}][PID:${process.pid}] Continuing session ${sessionId} for user ${userId}`
       );
@@ -224,7 +202,6 @@ router.post(
         userId,
         sessionId,
         answers,
-        aiClient,
         req,
       };
 
