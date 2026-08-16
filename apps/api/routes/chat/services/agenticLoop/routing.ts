@@ -670,10 +670,12 @@ export interface AgenticDecisionInput {
   /** The turn carries a selected notebook (`notebookIds`), whatever the agent.
    *  Stays single-pass because `searchNode` is the ONLY place that retrieves
    *  notebook content: `gruenerator_search` takes `collection` as a closed
-   *  `z.enum(ALL_COLLECTIONS)` (searchTools.ts) — eight fixed party corpora, no
-   *  parameter that could address a user or Landesverband notebook. In the loop
-   *  the classifier's `gatherSources: ['notebook-search']` is read by nobody and
-   *  the chosen notebook is silently answered around.
+   *  `z.enum(ALL_COLLECTIONS)` (searchTools.ts), which addresses SYSTEM
+   *  collections by key — since that list is derived, every Landesverband is
+   *  among them, but there is still no parameter that could address a USER
+   *  notebook. In the loop the classifier's `gatherSources:
+   *  ['notebook-search']` is read by nobody and the chosen notebook is
+   *  silently answered around.
    *  `isCompound` covered only the NAMED-agent half of this; the universal agent
    *  reached the loop unguarded. Separate flag rather than a widened
    *  `isCompound`, because that name means "gather-then-apply pipeline" and
