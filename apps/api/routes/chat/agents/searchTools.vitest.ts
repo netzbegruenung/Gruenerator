@@ -29,6 +29,21 @@ function defaultCollection(tools: ReturnType<typeof createSearchTools>): unknown
   return (schema.parse({ query: 'test' }) as { collection?: unknown }).collection;
 }
 
+/**
+ * Can the model name this collection at all? Asked through the schema's own
+ * validation rather than by reaching into zod's internals — the wrapping of
+ * `.optional().default()` around the enum is an implementation detail, "does
+ * this argument validate" is the behaviour that matters.
+ */
+function canName(tools: ReturnType<typeof createSearchTools>, collection: string): boolean {
+  const schema = (
+    tools.gruenerator_search as {
+      inputSchema: { safeParse: (v: unknown) => { success: boolean } };
+    }
+  ).inputSchema;
+  return schema.safeParse({ query: 'test', collection }).success;
+}
+
 describe('createSearchTools — locale-aware default collection', () => {
   it('defaults an Austrian user to the Austrian collection', () => {
     expect(defaultCollection(createSearchTools(AGENT, { userLocale: 'de-AT' }))).toBe(
@@ -42,8 +57,12 @@ describe('createSearchTools — locale-aware default collection', () => {
     );
   });
 
-  it('keeps the previous behaviour when no locale is passed', () => {
-    expect(defaultCollection(createSearchTools(AGENT))).toBe('deutschland');
+  it('keeps the previous behaviour when the caller has no locale', () => {
+    // `userLocale` is required but nullable on purpose: a caller without one
+    // has to say so. It used to be optional, and it was then forgotten in the
+    // board-agent path — invisibly, because an absent property and a
+    // deliberate "no locale" looked identical.
+    expect(defaultCollection(createSearchTools(AGENT, { userLocale: null }))).toBe('deutschland');
   });
 
   it('lets an explicit agent restriction win over the locale', () => {
@@ -74,6 +93,18 @@ describe('createSearchTools — locale-aware default collection', () => {
     expect(defaultCollection(createSearchTools(AGENT, { userLocale: 'en-US' }))).toBe(
       'deutschland'
     );
+  });
+
+  it('leaves an Austrian caller able to reach the Austrian corpus', () => {
+    // The regression a required `userLocale` now prevents: with the collection
+    // list locale-filtered, a caller that omits the locale does not merely get
+    // the wrong DEFAULT — `oesterreich` is not in its enum at all, so an
+    // Austrian task cannot name it even explicitly.
+    expect(canName(createSearchTools(AGENT, { userLocale: 'de-AT' }), 'oesterreich')).toBe(true);
+    expect(canName(createSearchTools(AGENT, { userLocale: null }), 'oesterreich')).toBe(false);
+    // The mirror image: a German caller keeps the German corpora.
+    expect(canName(createSearchTools(AGENT, { userLocale: 'de-DE' }), 'hessen')).toBe(true);
+    expect(canName(createSearchTools(AGENT, { userLocale: 'de-AT' }), 'hessen')).toBe(false);
   });
 });
 

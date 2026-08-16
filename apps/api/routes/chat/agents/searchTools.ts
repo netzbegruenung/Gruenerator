@@ -157,13 +157,19 @@ function describeCollections(keys: readonly string[]): string {
 
 export interface CreateSearchToolsOptions {
   /**
-   * Whose collections to search when the model names none. Without it every
-   * turn defaulted to `deutschland` — an AT user asking about Austria searched
-   * the German corpus and got 0 hits (observed live). An explicit
-   * `toolRestrictions.defaultCollection` still wins: that is a deliberate
-   * per-agent decision, this is only the fallback.
+   * Whose collections these tools may search, and which one they default to.
+   * An explicit `toolRestrictions.defaultCollection` still wins: that is a
+   * deliberate per-agent decision, this is only the fallback.
+   *
+   * REQUIRED, though it accepts `null` — a caller with genuinely no locale has
+   * to write `userLocale: null` and mean it. Optional, it was forgotten exactly
+   * once and the omission was invisible: the board agent never passed one, and
+   * while the collection list mixed both countries that only cost an AT board
+   * task the right DEFAULT. The moment the list became locale-filtered, the
+   * same omission would have removed the Austrian corpora from it altogether.
+   * "Forgotten" and "deliberately absent" must not look the same.
    */
-  userLocale?: string | null;
+  userLocale: string | null;
   /**
    * When set, restrict the returned search tools to the agent's user-selected
    * capabilities (USER_SELECTABLE_TOOLS keys: `search` → gruenerator_search,
@@ -336,7 +342,7 @@ async function searchCollectionOrBundle(params: {
  */
 export function createSearchTools(
   agentConfig: AgentConfig,
-  options: CreateSearchToolsOptions = {}
+  options: CreateSearchToolsOptions
 ): ToolSet {
   const restrictions = agentConfig.toolRestrictions;
 
@@ -369,7 +375,9 @@ export function createSearchTools(
   // AT user grounds in Austrian examples. Without this an AT user on a generic
   // agent got German social/press posts as style templates on the loop path
   // while the single-pass path got it right — `gruene_at_documents` exists.
-  // Callers that pass no locale (e.g. the board agent) keep `undefined`.
+  // A caller that passes no locale keeps `undefined`. Both real callers now do
+  // pass one — the board agent was the exception until the collection list
+  // became locale-filtered and its omission stopped being survivable.
   const examplesCountry =
     restrictions?.examplesCountry ?? (options.userLocale === 'de-AT' ? 'AT' : undefined);
   // Landesverband scope for example searches — derived from the agent so an LV
