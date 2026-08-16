@@ -13,7 +13,6 @@ const __dirname = dirname(__filename);
 import { stripRoleBlock } from '@gruenerator/shared/roles';
 
 import { aiText } from '../../services/ai/generate.js';
-import { laneTarget, resolveLane } from '../../services/ai/lanes.js';
 import {
   localizePromptObject,
   extractLocaleFromRequest,
@@ -758,21 +757,14 @@ export async function processGraphRequest(
       console.log(`[promptProcessor] Instructions (customPrompt):`, enrichedState.instructions);
     }
 
-    // Eine Prompt-Config, die ein `model` nennt, gewinnt über die Routing-Tabelle
-    // — so war es im Selektor (`model = options.model || <Tabellenwert>`), und so
-    // bleibt es hier, weil eine Migration den Transportweg tauscht und nicht die
-    // Zuordnung. Der `provider` der Config kam dagegen NIE an: für einen
-    // gerouteten Typ überschrieb ihn der passende else-if-Zweig, und nur das
-    // Modell blieb stehen. Deshalb der Tabellen-Provider plus Config-Modell.
+    // Hier stand die Brücke, über die eine Prompt-Config die Routing-Tabelle
+    // übergehen konnte: `options.model` gewann, so wie es im alten Selektor
+    // (`model = options.model || <Tabellenwert>`) gewonnen hatte. Sie ist weg,
+    // und mit ihr das Feld aus den Configs — welches Modell eine Lane bedient,
+    // steht ab jetzt ausschliesslich in `AI_LANES`. Wer wirklich an der Tabelle
+    // vorbei muss, sagt das mit `AiCall.pinned` im Code, wo es zu sehen ist.
+    // `promptConfigRouting.vitest.ts` bewacht die Grenze über ALLE Configs.
     //
-    // Betroffen ist heute genau eine Config: `antrag_simple.json` steht auf
-    // `gpt-oss:120b`, während `AI_LANES.antrag_simple` Gemma 4 auf Regolo sagt.
-    // Das ist ein Befund, kein Feature — siehe PR-Beschreibung.
-    const configModel = typeof aiOptions.model === 'string' ? aiOptions.model : null;
-    const pinned = configModel
-      ? { provider: laneTarget(resolveLane(routeType)).provider, model: configModel }
-      : null;
-
     // Zwei Felder des alten Umschlags sind hier ersatzlos entfallen, weil sie
     // nie ankamen: `promptResult.tools` ist immer leer (keine Prompt-Config
     // trägt `tools`, und der Assembly-Graph reicht nur durch, was der Aufrufer
@@ -787,7 +779,6 @@ export async function processGraphRequest(
         lane: routeType,
         system: promptResult.system,
         messages: promptResult.messages,
-        ...(pinned != null && { pinned }),
         ...(aiOptions.max_tokens != null && { maxOutputTokens: aiOptions.max_tokens }),
         ...(aiOptions.temperature != null && { temperature: aiOptions.temperature }),
         ...(typeof aiOptions.top_p === 'number' && { topP: aiOptions.top_p }),
