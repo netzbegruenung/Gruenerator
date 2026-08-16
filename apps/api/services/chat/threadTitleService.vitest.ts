@@ -45,16 +45,22 @@ vi.mock('../../database/services/DrizzleService.js', () => ({
   getDrizzleInstance: () => makeDb(),
 }));
 
+const executeProvider = vi.fn();
+vi.mock('../ai/execution/index.js', () => ({
+  executeProvider: (...args: unknown[]) => executeProvider(...args),
+}));
+
 const { extractFallbackTitle, generateThreadTitle, normalizeAiTitle, threadNeedsTitle } =
   await import('./threadTitleService.js');
 
-/** Minimal AI worker pool that answers with `content`, or rejects if null. */
-function fakePool(content: string | null) {
-  return {
-    processRequest: vi.fn(() =>
-      content === null ? Promise.reject(new Error('lane down')) : Promise.resolve({ content })
-    ),
-  } as never;
+/** Das Modell antwortet mit `content` — oder die ganze Kette fällt aus (`null`). */
+function answering(content: string | null) {
+  executeProvider.mockReset();
+  if (content === null) {
+    executeProvider.mockRejectedValue(new Error('lane down'));
+    return;
+  }
+  executeProvider.mockResolvedValue({ content, success: true, stop_reason: 'stop' });
 }
 
 beforeEach(() => {
@@ -158,11 +164,11 @@ describe('generateThreadTitle', () => {
     'und die Standortfrage der neuen Kita.';
 
   it('derives the fallback from the question, not from the answer', async () => {
+    answering('Protokolle Juni/Juli');
     await generateThreadTitle(
       't-1',
       'Fasse die Protokolle vom 30. Juni und 1. Juli zusammen',
-      ANSWER,
-      fakePool('Protokolle Juni/Juli')
+      ANSWER
     );
 
     expect(written[0]).toBe('Fasse die Protokolle vom 30.');
@@ -170,37 +176,31 @@ describe('generateThreadTitle', () => {
   });
 
   it('upgrades the fallback once the AI title arrives', async () => {
-    await generateThreadTitle(
-      't-2',
-      'Wie hoch ist die Pendlerpauschale?',
-      ANSWER,
-      fakePool('"Pendlerpauschale Höhe"')
-    );
+    answering('"Pendlerpauschale Höhe"');
+    await generateThreadTitle('t-2', 'Wie hoch ist die Pendlerpauschale?', ANSWER);
 
     await vi.waitFor(() => expect(written).toHaveLength(2));
     expect(written[1]).toBe('Pendlerpauschale Höhe');
   });
 
   it('keeps the fallback when the AI answers with a sentence', async () => {
-    await generateThreadTitle(
-      't-3',
-      'Wie hoch ist die Pendlerpauschale?',
-      ANSWER,
-      fakePool('Hier ist ein passender Titel für diese Konversation über die Pendlerpauschale')
-    );
+    answering('Hier ist ein passender Titel für diese Konversation über die Pendlerpauschale');
+    await generateThreadTitle('t-3', 'Wie hoch ist die Pendlerpauschale?', ANSWER);
 
     await vi.waitFor(() => expect(written).toHaveLength(1));
     expect(written[0]).toBe('Wie hoch ist die');
   });
 
   it('keeps the fallback when the AI lane fails', async () => {
-    await generateThreadTitle('t-4', 'Kommunaler Klimaplan 2027', ANSWER, fakePool(null));
+    answering(null);
+    await generateThreadTitle('t-4', 'Kommunaler Klimaplan 2027', ANSWER);
 
     await vi.waitFor(() => expect(written).toEqual(['Kommunaler Klimaplan 2027']));
   });
 
   it('falls back to the answer when the question carries no usable text', async () => {
-    await generateThreadTitle('t-5', '?', ANSWER, fakePool('Protokolle Juni/Juli'));
+    answering('Protokolle Juni/Juli');
+    await generateThreadTitle('t-5', '?', ANSWER);
 
     expect(written[0]).toBe('Die Protokolle vom 30. Juni und');
   });
@@ -209,19 +209,15 @@ describe('generateThreadTitle', () => {
     // The paste path persists an EMPTY user message (the text travels as a file
     // part), so the answer is the only text there is. Nothing may bail out here
     // — this used to be the turn after which the thread stayed unnamed forever.
-    const title = await generateThreadTitle('t-6', '', ANSWER, fakePool(null));
+    answering(null);
+    const title = await generateThreadTitle('t-6', '', ANSWER);
 
     expect(title).toBe('Die Protokolle vom 30. Juni und');
     expect(written[0]).toBe('Die Protokolle vom 30. Juni und');
   });
 
   it('returns the title it wrote, so a route can hand it to the client', async () => {
-    const title = await generateThreadTitle(
-      't-7',
-      'Wie hoch ist die Pendlerpauschale?',
-      ANSWER,
-      fakePool(null)
-    );
+    const title = await generateThreadTitle('t-7', 'Wie hoch ist die Pendlerpauschale?', ANSWER);
 
     expect(title).toBe(written[0]);
   });
@@ -230,12 +226,7 @@ describe('generateThreadTitle', () => {
     // The conditional UPDATE matches nothing → no rows back.
     updateResult = [];
 
-    const title = await generateThreadTitle(
-      't-8',
-      'Kommunaler Klimaplan 2027',
-      ANSWER,
-      fakePool(null)
-    );
+    const title = await generateThreadTitle('t-8', 'Kommunaler Klimaplan 2027', ANSWER);
 
     expect(title).toBeNull();
   });
