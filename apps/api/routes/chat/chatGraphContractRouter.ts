@@ -110,7 +110,6 @@ import {
   getSpaceRecallScope,
 } from './services/pastChatRecallService.js';
 import { createPendingAssistantWriter } from './services/pendingAssistantWriter.js';
-import { pipelineStateStore } from './services/pipelineStateStore.js';
 import { APP_REDIRECT_TEXTS, NO_SHAREPIC_TO_EDIT_TEXT } from './services/platformGating.js';
 import { persistAssistantResponse } from './services/postResponseService.js';
 import { handleRecallToolLoop, isChatRecallLoopEnabled } from './services/recallToolLoopService.js';
@@ -154,18 +153,21 @@ import {
   PROGRESS_MESSAGES,
   sseInternalError,
   sendChatWarning,
-  type SSEEventPayloads,
 } from './services/sseHelpers.js';
 import { buildStreamContext } from './services/streamContext.js';
 import {
-  createMessage,
   discardPendingAssistantIfEmpty,
   getLastGeneratedImageUrl,
   persistSourcesOnFailure,
-  touchThread,
 } from './services/threadPersistenceService.js';
 import { turnMaterialChars } from './services/turnMaterial.js';
 import { runClassifyStage } from './streamStages/classifyStage.js';
+import {
+  finishTurnWithFixedText,
+  suspendTurn,
+  type FixedTextBase,
+  type SuspendTurnBase,
+} from './streamStages/turnEnd.js';
 
 import type { ChatGraphState, CreatedDocument } from '../../agents/langgraph/ChatGraph/types.js';
 import type { ModelMessage } from 'ai';
@@ -324,104 +326,38 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
 
       let forcedTool: boolean = false;
 
-      /**
-       * Suspend the turn: tell the client what it must do, park everything the
-       * resume endpoint needs in Redis, then close cleanly.
-       *
-       * The 14-field requestContext has to stay in lockstep with what
-       * resumePipeline reads back out. Three hand-maintained copies of it
-       * guaranteed a new field would eventually land in only two.
-       *
-       * `threadId` is required, not optional: the store builds its Redis key by
-       * string concatenation, so a missing id used to write everything into the
-       * shared `pipeline_state:undefined` key — and emit an interrupt the client
-       * could never resume, dead-ending the turn.
-       */
-      const suspendTurn = async (
-        threadId: string,
-        interrupt: SSEEventPayloads['interrupt']
-      ): Promise<{ status: 200; body: undefined }> => {
-        sse.send('interrupt', interrupt);
-
-        await pipelineStateStore.store(threadId, {
-          classifiedState,
-          requestContext: {
-            userId,
-            agentId: agentId ?? 'gruenerator-universal',
-            enabledTools: enabledTools ?? {},
-            ...(modelId != null && { modelId }),
-            actualThreadId: threadId,
-            isNewThread,
-            processedMeta,
-            userMessageId,
-            imageAttachments,
-            memoryContext,
-            memoryRetrieveTimeMs,
-            validMessages,
-            forcedTool,
-            ...(rawDocumentIds != null && { rawDocumentIds }),
-          },
-        });
-
-        sse.send('done', {
-          threadId,
-          citations: [],
-          interrupted: true,
-          metadata: {
-            intent: classifiedState.intent,
-            searchCount: 0,
-            totalTimeMs: Date.now() - initialState.startTime,
-            classificationTimeMs: classifiedState.classificationTimeMs,
-            searchTimeMs: 0,
-          },
-        });
-
-        // Interrupt turn — nothing streamed; drop the empty placeholder (the
-        // resume path persists its own message).
-        await cleanupPending(true);
-        sse.end();
-        return { status: 200 as const, body: undefined };
+      // The turn-wide half of the two early-exit paths. `forcedTool` is NOT in
+      // here: it is still being decided while these are already in scope, so
+      // every suspend passes the current value at the call site.
+      const suspendBase: SuspendTurnBase = {
+        sse,
+        classifiedState,
+        cleanupPending,
+        userId,
+        agentId,
+        enabledTools,
+        modelId,
+        isNewThread,
+        processedMeta,
+        userMessageId,
+        imageAttachments,
+        memoryContext,
+        memoryRetrieveTimeMs,
+        validMessages,
+        rawDocumentIds,
+        startTime: initialState.startTime,
+      };
+      const fixedTextBase: FixedTextBase = {
+        sse,
+        cleanupPending,
+        actualThreadId,
+        classifiedState,
+        startTime: initialState.startTime,
       };
 
       log.info(
         `[ChatGraph] forcedTools received: ${JSON.stringify(forcedTools)}, classifier intent: ${classifiedState.intent}`
       );
-
-      /**
-       * End the turn with a fixed sentence — no model call. For the cases where
-       * the honest answer is known in advance (this surface can't do it; there
-       * is nothing here to edit), so paying a generation to phrase it would
-       * only add latency and a chance to phrase it wrongly.
-       */
-      const finishTurnWithFixedText = async (
-        text: string,
-        intent: NonNullable<ChatGraphState['intent']>
-      ): Promise<{ status: 200; body: undefined }> => {
-        sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
-        sse.send('text_delta', { text });
-        sse.send('done', {
-          threadId: actualThreadId ?? null,
-          citations: [],
-          metadata: {
-            intent,
-            searchCount: 0,
-            totalTimeMs: Date.now() - initialState.startTime,
-            classificationTimeMs: classifiedState.classificationTimeMs,
-            searchTimeMs: 0,
-          },
-        });
-        if (actualThreadId) {
-          try {
-            await createMessage(actualThreadId, 'assistant', text, { intent });
-            await touchThread(actualThreadId);
-          } catch (err) {
-            log.error('[ChatGraph] Failed to persist fixed-text turn:', err);
-          }
-        }
-        await cleanupPending(true);
-        sse.end();
-        return { status: 200 as const, body: undefined };
-      };
 
       // === Compound query detection ===
       const isCompound = notebookIds.length > 0 && !!agentId && agentId !== 'gruenerator-universal';
@@ -825,7 +761,11 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         }
         if (classifiedState.intent === 'sharepic') {
           log.info('[ChatGraph] Sharepic intent on app — redirecting to web');
-          return await finishTurnWithFixedText(APP_REDIRECT_TEXTS.sharepic, 'sharepic');
+          return await finishTurnWithFixedText({
+            ...fixedTextBase,
+            text: APP_REDIRECT_TEXTS.sharepic,
+            intent: 'sharepic',
+          });
         }
       }
 
@@ -1054,7 +994,11 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           recordDecision('router.intent_override', 'sharepic_unlicensed_fixed_text', {
             inputs: { intentBefore: 'sharepic', sharepicLicensed, threadHasSharepic: false },
           });
-          return await finishTurnWithFixedText(NO_SHAREPIC_TO_EDIT_TEXT, 'sharepic');
+          return await finishTurnWithFixedText({
+            ...fixedTextBase,
+            text: NO_SHAREPIC_TO_EDIT_TEXT,
+            intent: 'sharepic',
+          });
         }
       }
 
@@ -1572,13 +1516,18 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           },
         });
 
-        return suspendTurn(actualThreadId, {
-          interruptType: 'clarification',
-          question: classifiedState.clarificationQuestion!,
-          ...(classifiedState.clarificationOptions != null && {
-            options: classifiedState.clarificationOptions,
-          }),
+        return suspendTurn({
+          ...suspendBase,
+          forcedTool,
           threadId: actualThreadId,
+          interrupt: {
+            interruptType: 'clarification',
+            question: classifiedState.clarificationQuestion!,
+            ...(classifiedState.clarificationOptions != null && {
+              options: classifiedState.clarificationOptions,
+            }),
+            threadId: actualThreadId,
+          },
         });
       }
 
@@ -1679,11 +1628,16 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             args: { code: pythonCode },
           });
 
-          return suspendTurn(actualThreadId, {
-            interruptType: 'client_tool',
-            toolName: 'run_python',
-            args: { code: pythonCode },
+          return suspendTurn({
+            ...suspendBase,
+            forcedTool,
             threadId: actualThreadId,
+            interrupt: {
+              interruptType: 'client_tool',
+              toolName: 'run_python',
+              args: { code: pythonCode },
+              threadId: actualThreadId,
+            },
           });
         }
         // Codegen failed — continue with the normal pipeline (prompt guidance
@@ -1859,11 +1813,16 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             args: { question, options },
           });
 
-          return suspendTurn(actualThreadId, {
-            interruptType: 'clarification',
-            question,
-            options,
+          return suspendTurn({
+            ...suspendBase,
+            forcedTool,
             threadId: actualThreadId,
+            interrupt: {
+              interruptType: 'clarification',
+              question,
+              options,
+              threadId: actualThreadId,
+            },
           });
         }
       }
