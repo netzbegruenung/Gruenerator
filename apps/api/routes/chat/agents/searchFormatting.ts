@@ -7,9 +7,15 @@
  */
 
 /**
- * Extract domain from URL.
+ * Domain as a DISPLAY LABEL: `www.` stripped, `'unknown'` where the URL will
+ * not parse — a string that always renders.
+ *
+ * Not the same function as `extractDomain` in `ChatGraph/nodes/citationUtils.ts`,
+ * which keeps `www.` and returns `undefined` on failure so a citation without a
+ * parseable URL carries no domain rather than a fake one. Both are right for
+ * their side; sharing the name was the only problem.
  */
-export function extractDomain(url: string): string {
+export function extractDomainLabel(url: string): string {
   try {
     const urlObj = new URL(url);
     return urlObj.hostname.replace('www.', '');
