@@ -73,6 +73,7 @@ import { withInstructionHierarchy } from '../untrustedContent.js';
 import { stripOutOfRangeCitations } from './citationStrip.js';
 import { isMcpReplayEnabled } from './flags.js';
 import { NAMED_RETRIEVAL_INTENTS } from './intents.js';
+import { createTurnClocks, resolveBudget } from './loopBudget.js';
 import {
   runAgenticLoop,
   SYNTH_CUTOFF_RETRY_SUFFIX,
@@ -90,11 +91,9 @@ import {
 } from './routing.js';
 import { createSourceRegistry, withResearchedSources } from './sourceRegistry.js';
 import {
-  DEFAULT_LOOP_BUDGET,
   NEAR_DUPLICATE_EXEMPT_TOOLS,
   TOOL_TIMEOUT_OVERRIDES_MS,
   readMcpResult,
-  type LoopBudget,
   type PersistedStep,
 } from './types.js';
 import { wrapToolsForLoop } from './wrapTools.js';
@@ -165,17 +164,6 @@ const NON_REPLAYABLE_ACTION_TOOLS: ReadonlySet<string> = new Set([
   'generate_image',
   'sharepic',
 ]);
-
-function resolveBudget(): LoopBudget {
-  const maxSteps = Number(process.env.CHAT_AGENT_LOOP_MAX_STEPS) || DEFAULT_LOOP_BUDGET.maxSteps;
-  const wallClockMs =
-    Number(process.env.CHAT_AGENT_LOOP_BUDGET_MS) || DEFAULT_LOOP_BUDGET.wallClockMs;
-  // The ceiling must stay above the tool budget, or raising the latter via env
-  // would put the hard abort BACK inside the tool phase — the very ordering
-  // this split exists to prevent.
-  const hardCapMs = Math.max(DEFAULT_LOOP_BUDGET.hardCapMs, wallClockMs * 2);
-  return { ...DEFAULT_LOOP_BUDGET, maxSteps, wallClockMs, hardCapMs };
-}
 
 /**
  * Abbruch-Ausgang und Trunkierungs-Notiz liegen seit 13.08.2026 in
@@ -1197,16 +1185,10 @@ export async function streamAgenticResponse(params: {
     const toolSystem = withInstructionHierarchy(
       `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned, mode === 'unified', Object.keys(wrapped))}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${renderRecipeCatalog(recipeCatalog)}`
     );
-    // The turn budget is now SOFT: it strips the tools via `forceFinish` (see
-    // below) instead of aborting the stream. Only the absolute ceiling aborts —
-    // it is a hang guard, not a pace.
-    const withRequest = (signal: AbortSignal): AbortSignal =>
-      reqSignal ? AbortSignal.any([reqSignal, signal]) : signal;
-    const abortSignal = withRequest(AbortSignal.timeout(budget.hardCapMs));
-    // Split mode's writer gets a FRESH ceiling. Sharing the turn's would mean a
-    // 60s artifact generation is billed to the sentence that comes after it.
-    const writeAbortSignal = withRequest(AbortSignal.timeout(budget.hardCapMs));
-    const toolBudgetDeadline = Date.now() + budget.wallClockMs;
+    const { abortSignal, writeAbortSignal, toolBudgetDeadline } = createTurnClocks(
+      budget,
+      reqSignal
+    );
 
     // Synthesizer system (split mode): the selected model has no tools, so the
     // gathered numbered sources are injected into its context for [N] citing.
