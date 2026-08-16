@@ -83,4 +83,15 @@ describe('craftGuidanceForPlatform — das Rezept gewinnt', () => {
     // Eine Textform aus einer anderen Familie färbt den Auffang nicht ein.
     expect(craftGuidanceForPlatform(null, 'presse')).toBe(rubricForPlatform(null));
   });
+
+  // Und der Auffang hält dieselbe Reihenfolge wie der Rezept-Zweig darüber.
+  // Kehrte er sie um, hinge die Priorität zwischen Wahl und Erkennung daran,
+  // ob gerade ein Rezept ausgerollt ist — der unangenehmste Bug-Typ, weil er
+  // sich zwischen Dev und Produktion unterschiedlich verhält.
+  it('die ausdrückliche Wahl schlägt die erkannte Plattform auch im Auffang', () => {
+    expect(craftGuidanceForPlatform('instagram', 'facebook')).toBe(rubricForPlatform('facebook'));
+    expect(craftGuidanceForPlatform('linkedin', 'insta-berlin')).toBe(
+      rubricForPlatform('instagram')
+    );
+  });
 });

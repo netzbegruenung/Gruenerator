@@ -147,12 +147,16 @@ export function craftGuidanceForPlatform(
       : (platform ?? null);
   const recipe = mention ? getInternalSkillPrompt(mention) : null;
   if (recipe) return `## PLATTFORM-HANDWERK\n\n${recipe}`;
-  // Der Auffang nimmt die Familie der gewählten Textform mit: wer `insta-berlin`
-  // wählt auf einer Instanz OHNE ausgerolltes `INTERN_CONTENT_DIR` und dabei
-  // keine Plattform benennt, soll die Instagram-Rubrik bekommen und nicht die
-  // generische. Derselbe Detektor wie in der Klassifikation, damit es dafür
-  // keine zweite Namensheuristik gibt.
-  return rubricForPlatform(platform ?? (mention ? detectSocialPlatform(mention) : null));
+  // Der Auffang nimmt die Familie der gewählten Textform mit — und zwar in
+  // DERSELBEN Reihenfolge wie oben, sonst kehrt ausgerechnet der Fallback die
+  // Priorität um: wer `/facebook` gewählt hat und „Insta-Post" schreibt, bekäme
+  // sonst die Instagram-Rubrik, während der Rezept-Zweig darüber Facebook nimmt.
+  // Betrifft nur Instanzen ohne ausgerolltes `INTERN_CONTENT_DIR` (in Produktion
+  // gibt es zu jeder Social-Textform ein Rezept), ist aber genau die Sorte
+  // Abweichung, die man später als Fehler im Detektor sucht.
+  // Derselbe Detektor wie in der Klassifikation, damit es dafür keine zweite
+  // Namensheuristik gibt.
+  return rubricForPlatform(mention ? (detectSocialPlatform(mention) ?? platform) : platform);
 }
 
 const PLATFORM_LABELS: Record<SocialTextPlatform, string> = {
