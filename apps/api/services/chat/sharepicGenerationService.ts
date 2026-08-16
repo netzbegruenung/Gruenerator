@@ -22,8 +22,8 @@ import {
 } from '../../services/attachments/index.js';
 import imagePickerService from '../../services/image/ImageSelectionService.js';
 import { parseResponse, type ParserConfig } from '../../utils/campaign/index.js';
-import { getAiClient } from '../../utils/getAiClient.js';
 import { createLogger } from '../../utils/logger.js';
+import { aiText } from '../ai/generate.js';
 
 import type {
   ImageAttachment as AttachmentsImageAttachment,
@@ -79,7 +79,8 @@ interface CampaignConfig {
     systemRole?: string;
     requestTemplate?: string;
     singleItemTemplate?: string;
-    options?: Record<string, unknown>;
+    /** Nur Sampling. Über Provider/Modell entscheidet `AI_LANES`, nicht die Config. */
+    options?: { max_tokens?: number; temperature?: number; top_p?: number };
   };
   responseParser?: ParserConfig;
 }
@@ -902,24 +903,20 @@ const generateCampaignSharepic = async (
       }
     });
 
-    const aiResult = await getAiClient(expressReq).processRequest(
-      {
-        type: `campaign_${campaignTypeId}`,
-        systemPrompt: promptConfig?.systemRole || '',
-        messages: [{ role: 'user', content: requestText }],
-        options: promptConfig?.options,
-      },
-      expressReq
-    );
+    const sampling = promptConfig?.options ?? {};
+    const aiResult = await aiText({
+      lane: `campaign_${campaignTypeId}`,
+      system: promptConfig?.systemRole || '',
+      prompt: requestText,
+      ...(sampling.max_tokens != null && { maxOutputTokens: sampling.max_tokens }),
+      ...(sampling.temperature != null && { temperature: sampling.temperature }),
+      ...(sampling.top_p != null && { topP: sampling.top_p }),
+    });
 
-    if (!aiResult?.content) {
-      throw new Error('AI response empty or invalid');
-    }
-
-    log.debug(`[Campaign] Raw AI response (${aiResult.content.length} chars)`);
+    log.debug(`[Campaign] Raw AI response (${aiResult.length} chars)`);
 
     try {
-      textData = parseResponse(aiResult.content, campaignConfig.responseParser) as TextData;
+      textData = parseResponse(aiResult, campaignConfig.responseParser) as TextData;
       log.debug(`[Campaign] Parsed text data:`, textData);
     } catch (parseError) {
       log.error(`[Campaign] Parser error:`, parseError);

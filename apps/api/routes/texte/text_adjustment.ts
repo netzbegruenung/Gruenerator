@@ -1,6 +1,6 @@
 import express, { type Router, type Request, type Response } from 'express';
 
-import { type AiClient } from '../../services/ai/types.js';
+import { aiText } from '../../services/ai/generate.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('texte/adjustment');
@@ -21,15 +21,10 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
   }
 
   try {
-    const aiClient = req.app.locals.aiClient as AiClient;
-    const result = await aiClient.processRequest(
-      {
-        type: 'text_adjustment',
-        systemPrompt: `Du bist ein hilfreicher Assistent, der eine verbesserte Formulierung für einen gegebenen Textabschnitt basierend auf den vom Benutzer angegebenen Änderungen vorschlägt. Berücksichtige dabei den gesamten Kontext des Textes, um sicherzustellen, dass der geänderte Abschnitt sich nahtlos in den Gesamttext einfügt. Stelle sicher, dass der Vorschlag klar, prägnant und stilistisch konsistent mit dem Originaltext ist.`,
-        messages: [
-          {
-            role: 'user',
-            content: `Hier ist der gesamte Text:
+    const suggestion = await aiText({
+      lane: 'text_adjustment',
+      system: `Du bist ein hilfreicher Assistent, der eine verbesserte Formulierung für einen gegebenen Textabschnitt basierend auf den vom Benutzer angegebenen Änderungen vorschlägt. Berücksichtige dabei den gesamten Kontext des Textes, um sicherzustellen, dass der geänderte Abschnitt sich nahtlos in den Gesamttext einfügt. Stelle sicher, dass der Vorschlag klar, prägnant und stilistisch konsistent mit dem Originaltext ist.`,
+      prompt: `Hier ist der gesamte Text:
 
 "${fullText}"
 
@@ -38,20 +33,10 @@ Der Benutzer möchte folgenden Abschnitt ändern: "${originalText}"
 Die gewünschte Änderung lautet: "${modification}"
 
 Bitte schlage eine verbesserte Version des Abschnitts vor, die die gewünschten Änderungen berücksichtigt und sich nahtlos in den Gesamttext einfügt. Gib nur den reinen Textvorschlag für den zu ändernden Abschnitt ohne Einleitungen oder andere Formatierungen zurück.`,
-          },
-        ],
-        options: {
-          temperature: 0.5,
-        },
-      },
-      req
-    );
+      temperature: 0.5,
+    });
 
-    if (result.success) {
-      res.json({ suggestions: [(result.content ?? '').trim()] });
-    } else {
-      throw new Error(result.error);
-    }
+    res.json({ suggestions: [suggestion] });
   } catch (error) {
     log.error('Fehler bei der KI-Anfrage:', error);
     res.status(500).json({
