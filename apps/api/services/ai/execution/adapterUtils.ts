@@ -19,7 +19,7 @@ type SdkSchema = ReturnType<typeof jsonSchema>;
  * like an unreliable model; it is our own double wrap.
  *
  * Callers are genuinely split about which shape they hand over —
- * `generateStructured` and `toolForcedEdit` wrap before calling, the MCP
+ * `toolForcedEdit` wraps before calling, `aiObject` and the MCP
  * catalogs pass raw JSON Schema — so this detects instead of demanding one.
  * `isSchema` is internal to @ai-sdk/provider-utils (not re-exported by `ai`),
  * hence the mirrored predicate; checked against ai@7.0.37.
