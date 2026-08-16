@@ -17,7 +17,12 @@
  * requested "für Instagram und Facebook" must not silently get one platform's
  * length limit.
  */
-import { DISABLED_LV_AGENT_IDS, SKILLS, type Skill } from '@gruenerator/shared/agents';
+import {
+  DISABLED_LV_AGENT_IDS,
+  SKILLS,
+  matchesRecipeAudience,
+  type Skill,
+} from '@gruenerator/shared/agents';
 
 import { NOUN_TRIGGER_MAX_LENGTH } from '../../../agents/langgraph/ChatGraph/nodes/analyzedMessage.js';
 import {
@@ -70,11 +75,6 @@ const RECIPE_WORDS = [
  *  recordDecision call site, so the two lists cannot drift silently). */
 export type ImplicitRecipeMention = (typeof RECIPE_WORDS)[number][0];
 
-function matchesAudience(audience: string | undefined, userLocale: string | null): boolean {
-  if (!audience || audience === 'all') return true;
-  return audience === (userLocale || 'de-DE');
-}
-
 /**
  * The recipe mention this text unambiguously asks for, or null. Null means
  * "leave the turn alone" — ambiguity, negation, meta, transformation, or
@@ -112,7 +112,7 @@ export function deriveImplicitRecipeMention(
 
     const skill = allSkills.find((s) => s.mention === mention);
     if (!skill) continue;
-    if (!matchesAudience(skill.audience, userLocale)) continue;
+    if (!matchesRecipeAudience(skill.audience, userLocale)) continue;
     if (DISABLED_LV_AGENT_IDS.has(skill.identifier)) continue;
     hits.push(mention);
   }

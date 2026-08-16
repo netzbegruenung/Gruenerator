@@ -62,7 +62,7 @@ import { getIntermediateModel } from './providers.js';
 import {
   truncateText,
   deduplicateByUrl,
-  extractDomain,
+  extractDomainLabel,
   relevanceLabelToScore,
 } from './searchFormatting.js';
 
@@ -1052,7 +1052,7 @@ function finalizeResearchResult(params: {
       ? 'low'
       : researchConfidence({
           sources: citations.length,
-          domains: new Set(citations.map((c) => c.domain || extractDomain(c.url))).size,
+          domains: new Set(citations.map((c) => c.domain || extractDomainLabel(c.url))).size,
           answerLength: answer.trim().length,
           queryInherited,
         });

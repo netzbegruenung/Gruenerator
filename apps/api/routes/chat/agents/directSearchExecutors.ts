@@ -31,7 +31,7 @@ import { resolveSearchPlan, type SearchTier } from '../../../services/search/sea
 import { searxngService } from '../../../services/search/SearxngService.js';
 import { createLogger } from '../../../utils/logger.js';
 
-import { extractDomain, formatRelevance, truncateText } from './searchFormatting.js';
+import { extractDomainLabel, formatRelevance, truncateText } from './searchFormatting.js';
 
 import type { QdrantFilter } from '../../../database/services/QdrantService/types.js';
 import type { DocumentResult } from '../../../services/BaseSearchService/types.js';
@@ -666,7 +666,7 @@ export async function executeDirectWebSearch(params: {
           title: decodeHtmlEntities(r.title) || 'Unbekannt',
           url: r.url,
           snippet: truncateText(decodeHtmlEntities(r.description ?? ''), snippetChars),
-          domain: extractDomain(r.url),
+          domain: extractDomainLabel(r.url),
           // GreenPT carries no date at all, so recency ranking scores nothing
           // for these hits. Null rather than invented: `resolveSourceDate`
           // treats an unparseable value as a real signal.
@@ -733,7 +733,7 @@ export async function executeDirectWebSearch(params: {
         title: decodeHtmlEntities(r.name) || 'Unbekannt',
         url: r.url,
         snippet: truncateText(decodeHtmlEntities(r.content), snippetChars),
-        domain: extractDomain(r.url),
+        domain: extractDomainLabel(r.url),
         // Was hard-coded `null`, so `recencyBoost`/`resolveSourceDate` scored
         // nothing for web hits — the one source type where freshness matters
         // most. Normalised rather than passed through: a value the ranking
@@ -741,9 +741,9 @@ export async function executeDirectWebSearch(params: {
         publishedDate: normalizePublishedDate(r.date),
       }));
       const linkupImages = imageEntries.slice(0, MAX_IMAGE_HITS).map((r) => ({
-        title: decodeHtmlEntities(r.name) || extractDomain(r.url) || 'Bild',
+        title: decodeHtmlEntities(r.name) || extractDomainLabel(r.url) || 'Bild',
         url: r.url,
-        domain: extractDomain(r.url),
+        domain: extractDomainLabel(r.url),
       }));
       log.info(
         `[Direct Web Search] Linkup returned ${linkupFormatted.length} results${linkupImages.length > 0 ? ` + ${linkupImages.length} images` : ''} for "${query}"`
@@ -806,7 +806,7 @@ export async function executeDirectWebSearch(params: {
         title: result.title || 'Unbekannt',
         url: result.url,
         snippet: truncateText(result.content || result.snippet || '', 300),
-        domain: result.domain || extractDomain(result.url),
+        domain: result.domain || extractDomainLabel(result.url),
         publishedDate: result.publishedDate || null,
       }));
 
