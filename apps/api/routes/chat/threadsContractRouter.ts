@@ -14,7 +14,7 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { deleteThreadRecallPoint } from '../../services/chat/threadRecallEmbeddingService.js';
-import { generateThreadTitle } from '../../services/chat/threadTitleService.js';
+import { generateThreadTitle, threadNeedsTitle } from '../../services/chat/threadTitleService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAiClient } from '../../utils/getAiClient.js';
 import { createLogger } from '../../utils/logger.js';
@@ -435,6 +435,18 @@ export const threadsContractRouter = s.router(threadsContract, {
         return {
           status: 202 as const,
           body: { status: 'skipped' as const, reason: 'insufficient messages', title: null },
+        };
+      }
+
+      // A thread the user has named is finished business. Safe to check here
+      // now that generated titles have a single writer: the client no longer
+      // PATCHes its own heuristic title, so a title in this row really is one
+      // somebody chose.
+      if (!(await threadNeedsTitle(threadId))) {
+        log.info(`[generate-title] Skipping — thread ${threadId} is already named`);
+        return {
+          status: 202 as const,
+          body: { status: 'skipped' as const, reason: 'already named', title: null },
         };
       }
 

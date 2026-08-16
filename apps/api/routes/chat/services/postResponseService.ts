@@ -546,7 +546,14 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
     // happen when the first message carries no text of its own (pasted text
     // travels as an attachment). Ask the row instead: an unnamed thread gets a
     // title here, on every turn, no matter which client wrote it.
-    const needsSeeding = isNewThread || (await threadNeedsTitle(threadId));
+    // A failed lookup must not take the turn down with it: the message is
+    // already persisted at this point, and a missing title is a cosmetic loss.
+    const needsSeeding =
+      isNewThread ||
+      (await threadNeedsTitle(threadId).catch((err) => {
+        log.warn('[ChatGraph] Title-needed lookup failed, falling back to isNewThread:', err);
+        return false;
+      }));
     log.info(
       `[ChatGraph] Title generation check: isNewThread=${isNewThread}, needsSeeding=${needsSeeding}, hasLastUserMessage=${!!lastUserMessage}, threadId=${threadId}`
     );

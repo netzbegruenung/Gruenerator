@@ -19,8 +19,10 @@ vi.mock('../../database/services/PostgresService.js', () => ({
 }));
 
 const generateThreadTitle = vi.fn();
+const threadNeedsTitle = vi.fn();
 vi.mock('../../services/chat/threadTitleService.js', () => ({
   generateThreadTitle: (...args: unknown[]) => generateThreadTitle(...args) as unknown,
+  threadNeedsTitle: (...args: unknown[]) => threadNeedsTitle(...args) as unknown,
 }));
 
 vi.mock('../../utils/getAiClient.js', () => ({
@@ -67,6 +69,7 @@ async function callGenerateTitle(): Promise<GenerateTitleResponse> {
 beforeEach(() => {
   query.mockReset();
   generateThreadTitle.mockReset().mockResolvedValue('Haushalt 2027');
+  threadNeedsTitle.mockReset().mockResolvedValue(true);
 });
 
 describe('generateTitle endpoint', () => {
@@ -94,6 +97,21 @@ describe('generateTitle endpoint', () => {
     const body = await callGenerateTitle();
 
     expect(body).toMatchObject({ status: 'accepted', title: 'Haushalt 2027' });
+  });
+
+  it('leaves a thread alone that somebody has named', async () => {
+    // Only reachable because the client no longer PATCHes its own heuristic
+    // title: a title in this row is now genuinely one somebody chose.
+    threadNeedsTitle.mockResolvedValue(false);
+    withMessages([
+      { role: 'user', content: 'Frage' },
+      { role: 'assistant', content: 'Eine ausreichend lange Antwort auf die Frage.' },
+    ]);
+
+    const body = await callGenerateTitle();
+
+    expect(body).toMatchObject({ status: 'skipped', title: null });
+    expect(generateThreadTitle).not.toHaveBeenCalled();
   });
 
   it('answers with a null title when the thread was renamed meanwhile', async () => {

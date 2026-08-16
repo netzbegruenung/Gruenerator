@@ -377,16 +377,18 @@ export function createGrueneratorThreadListAdapter(
         }
         titleGeneratedFor.add(remoteId);
 
+        // Shown immediately so the sidebar is not blank while the request runs —
+        // but deliberately NOT written to the database. Generated titles have
+        // exactly one writer, the server; a PATCH from here was
+        // indistinguishable from a manual rename and made the server's own
+        // conditional writes lose (the placeholder overwrote a real title, and
+        // the AI refinement was then locked out entirely). `rename()` still
+        // PATCHes — that one really is the user speaking.
         if (localTitle) {
           controller.appendText(localTitle);
           if (useAgentStore.getState().currentThreadId === remoteId) {
             useAgentStore.getState().setCurrentThreadTitle(localTitle);
           }
-          // Only a real title is worth writing. Sending a placeholder here used
-          // to overwrite the server's generated title with "Neue Unterhaltung".
-          apiClient
-            .patch('/api/chat-service/threads', { threadId: remoteId, title: localTitle })
-            .catch((err) => console.error('[TitleGen] PATCH fallback title FAILED:', err));
         }
 
         // Runs even without a local title — that is the whole point. A first
