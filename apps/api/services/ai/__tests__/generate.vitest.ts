@@ -46,6 +46,17 @@ describe('aiText', () => {
     expect(callAt(0).provider).toBe('mistral');
   });
 
+  it('hands the engine the request type, not the lane it resolved to', async () => {
+    // The type decides sampling as well as routing, and the sampling table
+    // (services/ai/config.ts) knows names AI_LANES does not: `web_search_summary`
+    // is 0.2 there. Substituting the resolved lane would sample it at the 0.35
+    // catch-all — a silent re-tuning of every unrouted call site that migrates.
+    await aiText({ lane: 'web_search_summary', prompt: 'x' });
+
+    expect(callAt(0).data.type).toBe('web_search_summary');
+    expect(callAt(0).provider).toBe('mistral');
+  });
+
   it('turns a prompt into a single user turn', async () => {
     await aiText({ lane: 'qa_draft', system: 'Sei knapp.', prompt: 'Frage' });
 

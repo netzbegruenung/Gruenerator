@@ -108,21 +108,39 @@ export class NoAnswerError extends AiProviderError {
   }
 }
 
-function toEnvelope(call: AiCall, extra: Partial<AIRequestOptions> = {}): AIRequestData {
-  const lane = resolveLane(call.lane);
-  const target = laneTarget(lane, { model: call.model });
+function targetFor(call: AiCall): { provider: ProviderName; model: string | null } {
+  const routed = laneTarget(resolveLane(call.lane), { model: call.model });
+  return { provider: call.provider ?? routed.provider, model: routed.model };
+}
 
+function fallbackFor(call: AiCall): readonly ProviderName[] {
+  return laneFallback(resolveLane(call.lane));
+}
+
+/**
+ * The engine's request shape.
+ *
+ * `type` is the caller's own string, NOT the resolved lane. Routing is only one
+ * of two things the type decides: `getGenerationConfig` (services/ai/config.ts)
+ * keys sampling off it too, and it knows names `AI_LANES` does not —
+ * `web_search_summary` is 0.2 there, `crawler_agent` 0.1, `chat_rerank` 0.
+ * Sending the resolved lane would silently sample every unrouted type at the
+ * 0.35 catch-all, which is not what `processRequest` does: it hands `type`
+ * through untouched and lets the selector route on a copy.
+ */
+function toEnvelope(call: AiCall, extra: Partial<AIRequestOptions> = {}): AIRequestData {
+  const model = targetFor(call).model;
   const options: AIRequestOptions = {
     ...extra,
     ...(call.temperature != null && { temperature: call.temperature }),
     ...(call.maxOutputTokens != null && { max_tokens: call.maxOutputTokens }),
     ...(call.topP != null && { top_p: call.topP }),
     ...(call.json === true && { response_format: { type: 'json_object' as const } }),
-    ...(target.model != null && { model: target.model }),
+    ...(model != null && { model }),
   };
 
   return {
-    type: lane,
+    type: call.lane,
     ...(call.system != null && { systemPrompt: call.system }),
     messages: call.messages ?? [{ role: 'user' as const, content: call.prompt ?? '' }],
     options,
@@ -139,9 +157,11 @@ function toEnvelope(call: AiCall, extra: Partial<AIRequestOptions> = {}): AIRequ
  * failure — see there for why this path has to do that itself.
  */
 async function runWithFallback(call: AiCall, extra: Partial<AIRequestOptions> = {}) {
-  const lane = resolveLane(call.lane);
-  const primary = call.provider ?? laneTarget(lane, { model: call.model }).provider;
-  const chain: ProviderName[] = [primary, ...laneFallback(lane).filter((p) => p !== primary)];
+  const target = targetFor(call);
+  const chain: ProviderName[] = [
+    target.provider,
+    ...fallbackFor(call).filter((p) => p !== target.provider),
+  ];
 
   const requestId = `gen_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
   let lastError: Error | undefined;
