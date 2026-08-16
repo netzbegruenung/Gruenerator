@@ -28,27 +28,34 @@
  * which drives every routed lane through BOTH and asserts the same
  * provider/model, so migrating a routed call site is a mechanical swap.
  *
- * What that parity does NOT cover, and what therefore is NOT a mechanical swap:
- * a `type` with no row in `AI_LANES`. `resolveLane` sends it to `default` and
- * logs it — correct for a type nobody routed, wrong for the ~7 call sites that
- * pass `chat_intent_classification` together with an explicit provider/model
- * from `intermediateLanes.ts`. Those pin their target on purpose; the facade
- * has no way to say so and would log every one of them as an oversight. Giving
- * it one is the prerequisite for migrating that family.
+ * What that parity does NOT cover: a `type` with no row in `AI_LANES`.
+ * `resolveLane` sends it to `default` and logs it — correct for a type nobody
+ * routed, wrong for the 17 call sites that name a stage in
+ * `intermediateLanes.ts` and the 6 that pin a literal provider/model. Those say
+ * so with `AiCall.pinned`, which routes past the table without the warning; see
+ * there.
  */
 
 import { AiProviderError, classifyProviderError } from '../providers/providerErrors.js';
 
 import { executeProvider } from './execution/index.js';
-import { laneFallback, laneTarget, resolveLane } from './lanes.js';
+import { intermediateLane } from './intermediateLanes.js';
+import { GENERIC_FALLBACK, laneFallback, laneTarget, resolveLane } from './lanes.js';
 
+import type { IntermediateLaneId } from './intermediateLanes.js';
 import type { LaneId } from './lanes.js';
 import type { ProviderName } from './providers.js';
 import type { AIRequestData, AIRequestOptions, AiResult, Tool } from './types.js';
 
 export interface AiCall {
-  /** Routes the request. `resolveLane` accepts any string and logs the ones it
-   *  does not know, so a dynamic caller stays possible. */
+  /**
+   * What kind of request this is.
+   *
+   * It reaches the engine verbatim — sampling (`services/ai/config.ts`) is keyed
+   * off it — and, unless `pinned` says otherwise, it also picks the row in
+   * `AI_LANES` that routes the call. `resolveLane` accepts any string and logs
+   * the ones it does not know, so a dynamic caller stays possible.
+   */
   lane: LaneId | string;
   system?: string;
   /** The single-user-turn case, which is most of them. */
@@ -59,10 +66,29 @@ export interface AiCall {
   temperature?: number;
   maxOutputTokens?: number;
   topP?: number;
-  /** Playground / mobile / agent-config escape hatch. Everything else should
-   *  let the lane decide. */
-  provider?: ProviderName;
-  model?: string;
+  /**
+   * Provider and model the CALLER chose, instead of the routing table.
+   *
+   * The lane registry answers "who writes this kind of text". A large family of
+   * call sites is not asking that: the resolvers, the summarizer, the compute
+   * nodes and the quality gate name a stage in
+   * `services/ai/intermediateLanes.ts` — the registry that decides who does the
+   * small work that never reaches a reader — and that decision was made against
+   * measurements recorded there, not against a lane. They pass a `type` with no
+   * row in `AI_LANES`, so without this field the facade would send every one of
+   * them to `default` and log it as an oversight.
+   *
+   * A stage id is the form to prefer, because it names the decision. The
+   * `{provider, model}` pair is for the four call sites that pin a literal
+   * (litellm/verdigado-pro on `text_adjustment`, mistral on
+   * `search_enhancement`) and for `agentPipeline`, which picks its target at
+   * runtime from a stage plus its hedge.
+   *
+   * Pinning replaces the ROUTING decision only. The type still drives sampling,
+   * and the failover chain still runs — on each provider's own default model,
+   * which is what `processRequest` does for a pinned call today.
+   */
+  pinned?: IntermediateLaneId | { provider: ProviderName; model: string };
   /** Feeds the platform-specific sampling table (`services/ai/config.ts`). */
   platforms?: readonly string[];
   /**
@@ -108,13 +134,32 @@ export class NoAnswerError extends AiProviderError {
   }
 }
 
+/**
+ * Provider and model for this call — the only place the two ways of choosing
+ * them meet.
+ *
+ * `MAIN_LLM_OVERRIDE` reaches a pinned call as well, and it takes the MODEL
+ * only: the pin keeps its provider. That is not a design, it is what happens
+ * today — `selectProviderAndModel` lets the override win on both fields, and
+ * `aiService` then runs `data.provider || selection.provider`, so the pinned
+ * adapter survives and the model does not. Deviating here would make the
+ * operator hatch mean two different things depending on which door was used.
+ */
 function targetFor(call: AiCall): { provider: ProviderName; model: string | null } {
-  const routed = laneTarget(resolveLane(call.lane), { model: call.model });
-  return { provider: call.provider ?? routed.provider, model: routed.model };
+  if (call.pinned == null) return laneTarget(resolveLane(call.lane));
+
+  const pin = typeof call.pinned === 'string' ? intermediateLane(call.pinned) : call.pinned;
+  return { provider: pin.provider, model: process.env.MAIN_LLM_OVERRIDE || pin.model };
 }
 
+/**
+ * A pinned call has no lane row to read a chain off, and asking `resolveLane`
+ * for one would produce the "nobody routed this" warning the pin exists to
+ * answer. It gets the generic chain — the one `tryFallbackProviders` runs by
+ * default, and the one every pinned type reaches through `aiService` today.
+ */
 function fallbackFor(call: AiCall): readonly ProviderName[] {
-  return laneFallback(resolveLane(call.lane));
+  return call.pinned == null ? laneFallback(resolveLane(call.lane)) : GENERIC_FALLBACK;
 }
 
 /**
