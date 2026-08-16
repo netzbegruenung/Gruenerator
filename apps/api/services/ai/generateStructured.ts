@@ -35,9 +35,12 @@
  *    quality gate was silently skipped and the empty deck shipped.
  *
  * ── Why not the SDK's `generateObject` ──────────────────────────────────────
- * Reviewed 16.08.2026 against the installed `ai` (7.0.37; `apps/api` declares
- * ^7.0.58). Two SDK facts, both checked in `node_modules/ai/dist/index.d.ts`
- * rather than recalled:
+ * Reviewed 16.08.2026 against **ai@7.0.58** — the version `pnpm-lock.yaml`
+ * resolves for `apps/api` (specifier ^7.0.58), i.e. what CI and production
+ * install. Read out of that package's `dist/index.d.ts`, not recalled. (A local
+ * `node_modules` can lag the lockfile and served 7.0.37 while this was written;
+ * both facts below are identical in the two, but the lockfile is the version
+ * that counts.) Two SDK facts:
  *
  *  - `experimental_repairText` DOES exist here, so version is not the obstacle.
  *    Its contract is. It is `({text, error: JSONParseError |
