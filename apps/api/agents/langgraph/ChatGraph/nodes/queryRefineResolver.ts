@@ -36,6 +36,7 @@
 
 import { aiText } from '../../../../services/ai/generate.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { withTimeout } from '../../../../utils/withTimeout.js';
 
 const log = createLogger('ChatGraph:QueryRefine');
 
@@ -99,7 +100,8 @@ export async function refineSearchQuery({
         temperature: 0.1,
         json: true,
       }),
-      REFINE_TIMEOUT_MS
+      REFINE_TIMEOUT_MS,
+      'Query refine'
     );
 
     const refined = parseRefined(response);
@@ -155,20 +157,4 @@ function parseRefined(raw: string | undefined | null): RefinedQuery | null {
 
   // One "sub"-query is the query again, not a decomposition.
   return { query, subQueries: subQueries.length > 1 ? subQueries : null };
-}
-
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`Query refine timeout after ${ms}ms`)), ms);
-    promise.then(
-      (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      },
-      (err) => {
-        clearTimeout(timer);
-        reject(err);
-      }
-    );
-  });
 }
