@@ -2,6 +2,13 @@
  * Loop feature flag in a zero-import module so the classifier (agents layer)
  * can read it without pulling in the respond service (which imports ChatGraph
  * nodes → import cycle).
+ *
+ * Der Zyklusbrecher bleibt nötig, und `routing.ts` ist NICHT sein natürlicher
+ * Ort: dessen Kopfkommentar verspricht Reinheit (keine Express-, keine
+ * Umgebungs-Abhängigkeit), damit die Entscheidungstabelle isoliert prüfbar
+ * bleibt. Ein `process.env`-Zugriff dort nähme genau das zurück. Beide Leser —
+ * Klassifikator und `routingStage` — importieren deshalb von hier; der
+ * Durchreich-Export über `agenticRespondService` ist entfallen.
  */
 export function isAgenticLoopEnabled(): boolean {
   // Default ON. The loop is the path where a factual turn actually calls a
