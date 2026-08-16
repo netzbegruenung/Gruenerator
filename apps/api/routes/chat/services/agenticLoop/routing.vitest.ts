@@ -129,7 +129,8 @@ describe('decideRunAgentic', () => {
     intent: 'search',
     lastUserText: 'Was steht im Programm zum Klimaschutz?',
     forcedTool: false,
-    isMcpTurn: false,
+    mustLoop: false,
+    forcedLoop: false,
     isCompound: false,
     hasSelectedNotebook: false,
     secondaryIntent: null as string | null,
@@ -238,7 +239,24 @@ describe('decideRunAgentic', () => {
 
   it('forced @tool stays single-pass — except mcp (connector pick)', () => {
     expect(decide({ forcedTool: true })).toBe(false);
-    expect(decide({ intent: 'mcp', forcedTool: true, isMcpTurn: true })).toBe(true);
+    expect(decide({ intent: 'mcp', forcedTool: true, mustLoop: true, forcedLoop: true })).toBe(
+      true
+    );
+  });
+
+  // Die beiden Flags waren dasselbe Literal und beantworten verschiedene Fragen.
+  // Der Unterschied ist erst sichtbar, seit ein Intent MIT eigenem Executor
+  // `forcedLane: 'loop'` tragen kann: seine Erwähnung darf in die Schleife, aber
+  // das Gate und die Notizbuch-Sperre gelten weiter.
+  it('forcedLoop hebt nur den Werkzeug-Notausschalter auf, nicht das Gate', () => {
+    const forcedBundestag = { intent: 'bundestag', forcedTool: true, forcedLoop: true };
+    expect(decide(forcedBundestag)).toBe(true);
+    // Ohne Schleife bleibt es beim Einzeldurchlauf — anders als bei `mustLoop`,
+    // wo es gar keinen gäbe.
+    expect(decide({ ...forcedBundestag, loopEnabled: false })).toBe(false);
+    // Eine gewählte Wissenssammlung liest nur `searchNode`; `forcedLoop` darf
+    // sie nicht übergehen.
+    expect(decide({ ...forcedBundestag, hasSelectedNotebook: true })).toBe(false);
   });
 
   it('multi-intent / notebook-compound / attachments stay single-pass', () => {
@@ -267,10 +285,11 @@ describe('decideRunAgentic', () => {
   });
 
   it('still lets an MCP turn with a notebook into the loop', () => {
-    // The same exception `forcedTool` gets: nothing in the isMcpTurn set has a
-    // single-pass executor, so holding it back would leave the turn with nobody
-    // to run it. An unsearched notebook beats a turn that does nothing.
-    expect(decide({ intent: 'mcp', isMcpTurn: true, hasSelectedNotebook: true })).toBe(true);
+    // Die Ausnahme hängt an `mustLoop`, nicht an `forcedLoop`: nichts in dieser
+    // Menge hat einen Einzeldurchlauf-Executor, ein Zurückhalten liesse den Turn
+    // ohne Ausführenden. Eine ungelesene Sammlung schlägt einen Turn, der nichts
+    // tut.
+    expect(decide({ intent: 'mcp', mustLoop: true, hasSelectedNotebook: true })).toBe(true);
   });
 
   it('respects the flag', () => {
@@ -415,7 +434,8 @@ describe('decideRunAgentic — battle-test prompts', () => {
     intent: 'direct',
     lastUserText: '',
     forcedTool: false,
-    isMcpTurn: false,
+    mustLoop: false,
+    forcedLoop: false,
     isCompound: false,
     hasSelectedNotebook: false,
     secondaryIntent: null as string | null,

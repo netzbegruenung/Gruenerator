@@ -195,12 +195,20 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
   // Pipeline-Zwang macht aus `hilfe` kein `produktion`, das noch Werkzeuge
   // erwartet — dieses Gate soll die Schleife für die ERWÄHNUNG erzwingen.
   //
-  // Die Aufzählung stand hier als Literal (`mcp | umfragen | hilfe`) und ist
-  // jetzt die `forcedLane`-Achse der Intent-Registry. Gleiche Menge, gleiche
-  // Antwort — aber die Frage „wo läuft ein festgezurrter Turn?" wird dort
-  // beantwortet, wo auch die Erwähnung selbst beschrieben ist, statt in einem
-  // Router-Literal, das niemand liest, der einen Intent stilllegen will.
-  const isMcpTurn = forcesLoopLane(proposedIntent);
+  // Das Literal (`mcp | umfragen | hilfe`) beantwortete ZWEI Fragen auf einmal,
+  // die nur deshalb dieselbe Antwort hatten, weil dieselben drei Intents beide
+  // Male gemeint waren. Sie fallen ab dem ersten Flip auseinander:
+  //
+  //  - `mustLoop` — für diesen Intent gibt es GAR KEINEN Einzeldurchlauf.
+  //    `mcp` steht ausdrücklich daneben statt in `systemToolIntents`: die
+  //    Menge dort beschreibt die nativen Domain-Werkzeuge, und ein `mcp`-Turn
+  //    ohne Schleife fiele über `fallbackIntentFor` auf `web` — eine Websuche
+  //    statt des gewählten Konnektors.
+  //  - `forcedLoop` — eine Erwähnung dieses Intents gehört in die Schleife.
+  //    Das ist die `forcedLane`-Achse der Registry, und nur sie darf ein Intent
+  //    tragen, der einen eigenen Executor HAT.
+  const mustLoop = proposedIntent === 'mcp' || p.systemToolIntents.has(proposedIntent);
+  const forcedLoop = forcesLoopLane(proposedIntent);
 
   // ── 1. Editor-Fläche ──────────────────────────────────────────────────────
   // Editor-Seitenleisten (docs/sheets/presentations/boards) BEARBEITEN das
@@ -313,7 +321,8 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
         intent,
         lastUserText: p.lastUserText,
         forcedTool: p.forcedTool,
-        isMcpTurn,
+        mustLoop,
+        forcedLoop,
         hasManagedSources: p.hasManagedSources,
         isCompound: p.isCompound,
         hasSelectedNotebook: p.hasSelectedNotebook,
