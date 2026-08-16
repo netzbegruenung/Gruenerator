@@ -15,14 +15,25 @@
  *             which validate anything today)
  *   aiTools   real tool calling, raw SDK result out      (~7 sites)
  *
- * IMPORTANT — one engine, two faces. This does NOT reimplement generation. It
- * composes the same pieces `processRequest` uses: `resolveLane` + `laneTarget`
- * for routing, `executeProvider` for the call, `laneFallback` for failover. A
- * request made through `aiText` and the same request made through
- * `processRequest` run the identical code path, so the old face and the new one
- * cannot drift while both exist. That is the property that makes migrating call
- * sites a mechanical swap rather than a behavioural risk.
+ * IMPORTANT — one engine, two faces. This does NOT reimplement generation: the
+ * call itself is `executeProvider`, the same function `processRequest` reaches.
+ * Routing is where the two faces differ, and the difference is deliberate —
+ * `resolveLane`/`laneTarget`/`laneFallback` read the table in `lanes.ts`, while
+ * `processRequest` reads the if/else chain in `providers/providerSelector.ts`.
+ * The two are held in step by the parity test in `__tests__/lanes.vitest.ts`,
+ * which drives every routed lane through BOTH and asserts the same
+ * provider/model, so migrating a routed call site is a mechanical swap.
+ *
+ * What that parity does NOT cover, and what therefore is NOT a mechanical swap:
+ * a `type` with no row in `AI_LANES`. `resolveLane` sends it to `default` and
+ * logs it — correct for a type nobody routed, wrong for the ~7 call sites that
+ * pass `chat_intent_classification` together with an explicit provider/model
+ * from `intermediateLanes.ts`. Those pin their target on purpose; the facade
+ * has no way to say so and would log every one of them as an oversight. Giving
+ * it one is the prerequisite for migrating that family.
  */
+
+import { AiProviderError, classifyProviderError } from '../providers/providerErrors.js';
 
 import { executeProvider } from './execution/index.js';
 import { laneFallback, laneTarget, resolveLane } from './lanes.js';
@@ -55,12 +66,25 @@ export interface AiCall {
 /**
  * Fails after the lane's primary and its whole fallback chain.
  *
- * `cause` carries the last provider error, which is what holds the status code
- * — the classifier at the `aiService` boundary walks the chain to find it.
+ * An `AiProviderError`, because `code`/`retryable` is what the route layer
+ * branches on (`sseHelpers` distinguishes rate limit / provider down / bad
+ * request / retryable). `processRequest` classifies at its own boundary in
+ * `aiService.ts`; nothing on THIS path runs through it, so without classifying
+ * here a call site migrated onto the facade would trade a typed error for a
+ * bare `internal` — the same regression the retired `worker_threads` pool left
+ * behind when it took the only `AiProviderError` construction site with it.
+ *
+ * `cause` stays the last provider error: it is what holds the status code the
+ * classifier walks the chain to find, and callers that log it want the real
+ * stack rather than this wrapper's.
  */
-export class NoAnswerError extends Error {
+export class NoAnswerError extends AiProviderError {
   constructor(lane: string, options?: ErrorOptions) {
-    super(`No provider produced an answer for lane "${lane}"`, options);
+    super(
+      `No provider produced an answer for lane "${lane}"`,
+      classifyProviderError(options?.cause),
+      options
+    );
     this.name = 'NoAnswerError';
   }
 }
@@ -91,8 +115,8 @@ function toEnvelope(call: AiCall, extra: Partial<AIRequestOptions> = {}): AIRequ
  *
  * "Empty counts as failure" is deliberate and matches `providerFallback`: a
  * provider that answers with nothing has not answered, and the next one should
- * get a turn. Errors are thrown raw — classification happens at the boundary in
- * `aiService`, and callers of this module get it via that same path.
+ * get a turn. When the whole chain is spent, `NoAnswerError` classifies the last
+ * failure — see there for why this path has to do that itself.
  */
 async function runWithFallback(call: AiCall, extra: Partial<AIRequestOptions> = {}) {
   const lane = resolveLane(call.lane);
