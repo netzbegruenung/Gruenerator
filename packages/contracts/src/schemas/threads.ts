@@ -91,7 +91,13 @@ export const threadSettingsResponseSchema = z.object({
 export const generateTitleResponseSchema = z.object({
   status: z.enum(['accepted', 'skipped']),
   reason: z.string().optional(),
+  /** The title that reached the database, so the caller can show it right away.
+   *  Null — never absent — when nothing was written: no usable text yet, the
+   *  thread was renamed meanwhile, or the request was skipped. */
+  title: z.string().nullable(),
 });
+
+export type GenerateTitleResponse = z.infer<typeof generateTitleResponseSchema>;
 
 export const errorResponseSchema = z.object({
   error: z.string(),

@@ -15,7 +15,10 @@ import { renumberAnswerCitations } from '../../../agents/langgraph/ChatGraph/nod
 import { type AiClient } from '../../../services/ai/types.js';
 import { upsertThreadRecallPoint } from '../../../services/chat/threadRecallEmbeddingService.js';
 import { generateThreadTags } from '../../../services/chat/threadTagService.js';
-import { generateThreadTitle } from '../../../services/chat/threadTitleService.js';
+import {
+  generateThreadTitle,
+  threadNeedsTitle,
+} from '../../../services/chat/threadTitleService.js';
 import { shouldAttemptExtractionThisTurn } from '../../../services/mem0/extractionThrottle.js';
 import { shouldExtractMemories } from '../../../services/mem0/gatekeeperService.js';
 import { getMem0Instance } from '../../../services/mem0/index.js';
@@ -535,10 +538,26 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
 
     await touchThread(threadId);
 
+    // `isNewThread` alone is the wrong gate: it is only true when the client
+    // sent NO threadId, and the web client creates the thread up front via
+    // `initialize()` (POST /threads, title NULL) — so for every browser chat it
+    // is false and this whole block used to be dead. The title then hung
+    // entirely on the client's own generate-title call, which silently does not
+    // happen when the first message carries no text of its own (pasted text
+    // travels as an attachment). Ask the row instead: an unnamed thread gets a
+    // title here, on every turn, no matter which client wrote it.
+    // A failed lookup must not take the turn down with it: the message is
+    // already persisted at this point, and a missing title is a cosmetic loss.
+    const needsSeeding =
+      isNewThread ||
+      (await threadNeedsTitle(threadId).catch((err) => {
+        log.warn('[ChatGraph] Title-needed lookup failed, falling back to isNewThread:', err);
+        return false;
+      }));
     log.info(
-      `[ChatGraph] Title generation check: isNewThread=${isNewThread}, hasLastUserMessage=${!!lastUserMessage}, threadId=${threadId}`
+      `[ChatGraph] Title generation check: isNewThread=${isNewThread}, needsSeeding=${needsSeeding}, hasLastUserMessage=${!!lastUserMessage}, threadId=${threadId}`
     );
-    if (isNewThread && lastUserMessage) {
+    if (needsSeeding && lastUserMessage) {
       const userText = extractTextContent(lastUserMessage.content);
       log.info(`[ChatGraph] Triggering title generation for ${threadId}`, {
         userTextLen: userText?.length ?? 0,
@@ -561,8 +580,8 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
       Promise.allSettled([titlePromise, tagsPromise])
         .then(() => upsertThreadRecallPoint(threadId))
         .catch((err) => log.warn('[ChatGraph] Thread recall embedding failed:', err));
-    } else if (!isNewThread) {
-      log.info(`[ChatGraph] Skipping title generation — not a new thread (threadId=${threadId})`);
+    } else if (!needsSeeding) {
+      log.info(`[ChatGraph] Skipping title generation — already named (threadId=${threadId})`);
     } else if (!lastUserMessage) {
       log.warn(`[ChatGraph] Skipping title generation — no lastUserMessage (threadId=${threadId})`);
     }

@@ -14,7 +14,7 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { deleteThreadRecallPoint } from '../../services/chat/threadRecallEmbeddingService.js';
-import { generateThreadTitle } from '../../services/chat/threadTitleService.js';
+import { generateThreadTitle, threadNeedsTitle } from '../../services/chat/threadTitleService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAiClient } from '../../utils/getAiClient.js';
 import { createLogger } from '../../utils/logger.js';
@@ -418,7 +418,15 @@ export const threadsContractRouter = s.router(threadsContract, {
       );
 
       const userMsg = messages.find((m) => m.role === 'user');
-      const assistantMsg = messages.find((m) => m.role === 'assistant');
+      // An assistant row with no content yet is the streaming placeholder
+      // (`createPendingAssistantMessage` inserts it with content NULL before the
+      // model runs). Reading it produced the literal string "null" as the
+      // answer, which extractFallbackTitle then rejected — the title request was
+      // spent on nothing. Wait for the real row instead; persistAssistantResponse
+      // names the thread anyway once the turn is finalized.
+      const assistantMsg = messages.find(
+        (m) => m.role === 'assistant' && String(m.content ?? '').trim().length > 0
+      );
 
       if (!userMsg || !assistantMsg) {
         log.warn(
@@ -426,7 +434,19 @@ export const threadsContractRouter = s.router(threadsContract, {
         );
         return {
           status: 202 as const,
-          body: { status: 'skipped' as const, reason: 'insufficient messages' },
+          body: { status: 'skipped' as const, reason: 'insufficient messages', title: null },
+        };
+      }
+
+      // A thread the user has named is finished business. Safe to check here
+      // now that generated titles have a single writer: the client no longer
+      // PATCHes its own heuristic title, so a title in this row really is one
+      // somebody chose.
+      if (!(await threadNeedsTitle(threadId))) {
+        log.info(`[generate-title] Skipping — thread ${threadId} is already named`);
+        return {
+          status: 202 as const,
+          body: { status: 'skipped' as const, reason: 'already named', title: null },
         };
       }
 
@@ -440,19 +460,24 @@ export const threadsContractRouter = s.router(threadsContract, {
 
       log.info(`[generate-title] Calling generateThreadTitle for ${threadId}`);
 
-      // Fire-and-forget: generates fallback + async AI title.
+      // Awaited only as far as the fallback title (one UPDATE, no model call) so
+      // the answer can carry it: the client shows the title it gets back, which
+      // is how a thread whose first message had no text of its own still gets a
+      // real name in the sidebar without a reload. The AI refinement inside
+      // stays fire-and-forget.
       // (Auto-tagging is triggered backend-side in persistAssistantResponse so
       // it covers every flow, not just this client-driven endpoint.)
-      generateThreadTitle(
+      const title = await generateThreadTitle(
         threadId,
         sanitizeMentionTokens(String(userMsg.content), 'label'),
         String(assistantMsg.content),
         aiClient
       ).catch((err) => {
         log.warn(`[generate-title] Failed for thread ${threadId}:`, err);
+        return null;
       });
 
-      return { status: 202 as const, body: { status: 'accepted' as const } };
+      return { status: 202 as const, body: { status: 'accepted' as const, title } };
     } catch (error) {
       log.error('Error generating thread title:', error);
       return { status: 500 as const, body: { error: 'Failed to generate title' } };
