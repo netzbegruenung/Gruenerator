@@ -13,7 +13,10 @@
  * `rubricForPlatform`.
  */
 
+import { SKILLS } from '@gruenerator/shared/agents';
+
 import { CONTENT_INTEGRITY_RULES } from '../../../../services/contentPolicy.js';
+import { getInternalSkillPrompt } from '../../../../services/skills/internalPrompts.js';
 import { formatGermanDate } from '../../../../utils/stringUtils.js';
 
 import type { ChatGraphState, SocialExampleItem, SocialTextPlatform } from '../types.js';
@@ -88,13 +91,59 @@ Ein guter Social-Media-Post folgt einer klaren Struktur:
 
 Falls die Plattform nicht explizit benannt ist, schreibe als Default für **Instagram** (längere Caption mit mehr Hashtags).`;
 
-/** Exported for the social_post generation + text-edit services. */
+/**
+ * Der AUFFANG. Steht hier im öffentlichen Repo, weil er generisches Handwerk
+ * ist — kein Korpuswissen, keine Gegner-Frames — und weil ohne ihn eine Instanz
+ * ohne ausgerolltes `INTERN_CONTENT_DIR` gar keine Formvorgabe hätte.
+ *
+ * Er ist NICHT die Wahrheit über unsere Posts, und war es nie: gemessen gegen
+ * die Rezepte (korpusgestützt, im privaten Repo) widerspricht er ihnen. Instagram
+ * steht hier bei 800–1500 Zeichen, im Korpus liegt das Zielband bei 350–750 mit
+ * Median 530; LinkedIn steht hier bei 600–1200, im Rezept bei maximal 600. Dazu
+ * fehlt ihm die AT-Gabelung (Doppelpunkt statt Stern, eigenes Vokabular), die
+ * jedes Rezept mitbringt. Deshalb gewinnt das Rezept, wo es eines gibt.
+ */
 export function rubricForPlatform(platform: SocialTextPlatform | null): string {
   if (platform === 'instagram') return INSTAGRAM_RUBRIC;
   if (platform === 'facebook') return FACEBOOK_RUBRIC;
   if (platform === 'twitter') return TWITTER_RUBRIC;
   if (platform === 'linkedin') return LINKEDIN_RUBRIC;
   return GENERIC_RUBRIC;
+}
+
+/** Die Rezepte, die für einen Social-Post-Turn überhaupt in Frage kommen. */
+const SOCIAL_SKILL_MENTIONS: ReadonlySet<string> = new Set(
+  SKILLS.filter((s) => s.skillCategory === 'social').map((s) => s.mention)
+);
+
+/**
+ * Das Handwerk für diesen Turn: REZEPT vor eingebauter Rubrik.
+ *
+ * Zwei Wege hinein, und der erste war bis hierher eine stille Fallgrube: wer im
+ * Composer `/instagram` wählt, setzt `activeSkillMention` — aber der
+ * Social-Post-Zweig baut seinen Systemtext hier und nicht in
+ * `buildSystemMessage`, und las das Feld nie. Die ausdrückliche Wahl fiel
+ * ersatzlos weg, während dieselbe Wahl auf einem `produktion`-Turn wirkte.
+ *
+ * Der zweite Weg ist die erkannte Plattform. Die Rezept-Erwähnungen heissen wie
+ * die Plattformen (`instagram`, `facebook`, `twitter`, `linkedin`), also trägt
+ * schon „Schreib einen Insta-Post zu X" das Rezept herein.
+ *
+ * `SOCIAL_SKILL_MENTIONS` ist das Gitter dazwischen: eine ausdrücklich gewählte
+ * Textform aus einer anderen Familie (`/presse`) darf einen Social-Turn nicht
+ * umwidmen. Die LV-Varianten (`insta-berlin` …) stehen bewusst mit drin — sie
+ * sind dieselbe Textsorte, nur enger.
+ */
+export function craftGuidanceForPlatform(
+  platform: SocialTextPlatform | null,
+  activeSkillMention?: string | null
+): string {
+  const mention =
+    activeSkillMention && SOCIAL_SKILL_MENTIONS.has(activeSkillMention)
+      ? activeSkillMention
+      : (platform ?? null);
+  const recipe = mention ? getInternalSkillPrompt(mention) : null;
+  return recipe ? `## PLATTFORM-HANDWERK\n\n${recipe}` : rubricForPlatform(platform);
 }
 
 const PLATFORM_LABELS: Record<SocialTextPlatform, string> = {
@@ -118,7 +167,7 @@ function formatExample(ex: SocialExampleItem, idx: number): string {
  * bodies when fullBody=true was passed to searchExamples).
  */
 export function buildSocialMediaSystemPrompt(state: ChatGraphState): string {
-  const { agentConfig, examplesResult, platform } = state;
+  const { agentConfig, examplesResult, platform, activeSkillMention } = state;
   const examples = (examplesResult?.social ?? []).slice(0, 6);
 
   const today = formatGermanDate();
@@ -136,7 +185,7 @@ export function buildSocialMediaSystemPrompt(state: ChatGraphState): string {
 
 Heutiges Datum: ${today}${platformNote}
 
-${rubricForPlatform(platform)}${examplesBlock}
+${craftGuidanceForPlatform(platform, activeSkillMention)}${examplesBlock}
 
 ## SCHREIBAUFTRAG
 
