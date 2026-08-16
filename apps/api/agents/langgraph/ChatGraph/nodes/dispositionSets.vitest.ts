@@ -163,9 +163,9 @@ describe('NON_SEARCH_INTENTS — Politik des Heuristik-Tisches, keine Dispositio
     // `umfragen` aus `loop`. Wer daraus eine Ableitung machen will, ändert
     // Verhalten — der Test sagt, wieviel.
     //
-    // `artifact` wurde am 16.08.2026 vollständig (`social_post` kam hinzu) und
-    // `gated` verlor `summary`. Was die beiden verband, war der
-    // Mehr-Themen-Abschlag: er gilt nur für Abrufe, und die zwei zahlten ihn.
+    // Dass `artifact` vollständig drinsteht und `gated` bis auf drei, hat einen
+    // Grund: der Mehr-Themen-Abschlag gilt nur für Abrufe, und `social_post` wie
+    // `summary` sind keine.
     const missing = (d: Parameters<typeof intentsWithDisposition>[0]) =>
       sorted([...intentsWithDisposition(d)].filter((id) => !NON_SEARCH_INTENTS.has(id)));
 
