@@ -229,7 +229,7 @@ export async function executeIntentPipeline(opts: {
         threadId: opts.threadId ?? null,
       });
       finalState = result.state;
-      if (result.sharepicVariants) sharepicVariants = result.sharepicVariants;
+      sharepicVariants = result.sharepicVariants;
       socialPost = result.socialPost;
       if (result.socialPostRefused) {
         socialPostRefused = true;

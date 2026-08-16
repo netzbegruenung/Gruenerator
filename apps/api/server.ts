@@ -251,20 +251,6 @@ async function startWorker(): Promise<void> {
   aiService = createAIService(redisClient);
   app.locals.aiClient = aiService;
 
-  // Initialize AI Search Agent
-  try {
-    const aiSearchAgentModule = (await import('./services/aiSearchAgent.js')) as {
-      setAiClient?: (pool: unknown) => void;
-    };
-    if (typeof aiSearchAgentModule.setAiClient === 'function') {
-      aiSearchAgentModule.setAiClient(aiService);
-      log.debug('AI Search Agent initialized');
-    }
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error(String(error));
-    log.warn(`AI Search Agent init failed: ${err.message}`);
-  }
-
   // Initialize Temporary Image Storage
   try {
     const { default: TemporaryImageStorage } =
