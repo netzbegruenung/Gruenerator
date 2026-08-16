@@ -6,8 +6,6 @@
 import { StateGraph, Annotation } from '@langchain/langgraph';
 import { type Request } from 'express';
 
-import { type AiClient } from '../../../services/ai/types.js';
-
 import { aggregatorNode } from './nodes/AggregatorNode.js';
 import { contentEnricherNode } from './nodes/ContentEnricherNode.js';
 import { dossierNode } from './nodes/DossierNode.js';
@@ -50,9 +48,6 @@ const SearchState = Annotation.Root({
   }),
   searchOptions: Annotation<SearchOptions>({
     reducer: (x, y) => ({ ...x, ...y }),
-  }),
-  aiClient: Annotation<AiClient>({
-    reducer: (x, y) => y ?? x,
   }),
   req: Annotation<Request>({
     reducer: (x, y) => y ?? x,
@@ -178,14 +173,7 @@ export const webSearchGraph = createWebSearchGraph();
  * Execute web search using the graph
  */
 export async function runWebSearch(input: WebSearchInput): Promise<WebSearchOutput> {
-  const {
-    query,
-    mode = 'normal',
-    user_id = 'anonymous',
-    searchOptions = {},
-    aiClient,
-    req,
-  } = input;
+  const { query, mode = 'normal', user_id = 'anonymous', searchOptions = {}, req } = input;
 
   console.log(`[WebSearchGraph] Starting ${mode} search for: "${query}"`);
 
@@ -195,7 +183,6 @@ export async function runWebSearch(input: WebSearchInput): Promise<WebSearchOutp
       mode,
       user_id,
       searchOptions,
-      aiClient,
       req,
       metadata: {
         startTime: Date.now(),

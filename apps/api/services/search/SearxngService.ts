@@ -6,6 +6,7 @@
 import crypto from 'crypto';
 
 import { env } from '../../config/env.js';
+import { aiText } from '../ai/generate.js';
 
 import type {
   SearxngSearchOptions,
@@ -16,7 +17,6 @@ import type {
   CacheEntry,
   ServiceStatus,
 } from './types.js';
-import type { AiClient } from '../ai/types.js';
 
 const LOG_LEVEL = env.LOG_LEVEL;
 const isDebug = LOG_LEVEL === 'debug';
@@ -47,8 +47,6 @@ interface RedisClientLike {
   del: (keys: string | string[]) => Promise<number>;
   ping: () => Promise<string>;
 }
-
-export type { AiClient };
 
 class SearxngService {
   private baseUrl: string;
@@ -282,9 +280,7 @@ class SearxngService {
   async generateAISummary(
     searchResults: FormattedSearchResults,
     originalQuery: string,
-    aiClient: AiClient,
-    _summaryOptions: Record<string, unknown> = {},
-    req: unknown = null
+    _summaryOptions: Record<string, unknown> = {}
   ): Promise<FormattedSearchResultsWithSummary> {
     if (!searchResults.results || searchResults.results.length === 0) {
       return {
@@ -297,27 +293,18 @@ class SearxngService {
       };
     }
 
-    if (!aiClient) {
-      if (isVerbose) console.warn('[SearXNG] No AI worker pool for summary');
-      return {
-        ...searchResults,
-        summary: {
-          text: 'AI-Zusammenfassung nicht verfügbar.',
-          generated: false,
-          error: 'No AI worker pool available',
-        },
-      };
-    }
-
     try {
       const contentForSummary = this.prepareContentForSummary(searchResults.results, originalQuery);
 
-      const summaryRequest = {
-        type: 'web_search_summary',
-        messages: [
-          {
-            role: 'user',
-            content: `Du bist ein hilfreicher Assistent, der basierend auf Webinhalten fundierte Antworten gibt. Beantworte die folgende Frage oder das Anliegen des Nutzers direkt und umfassend, basierend auf den bereitgestellten Informationen. Die Quellen dienen als Hintergrundinformationen - du sollst eine echte, durchdachte Antwort geben, keine bloße Zusammenfassung.
+      if (isVerbose) console.log(`[SearXNG] Generating AI summary`);
+
+      // Zwei Fehlerzweige sind einer geworden: `aiText` wirft, wo der Umschlag
+      // `{success:false}` zurückgab. Der Aufrufer sah beide ohnehin als
+      // `generated: false` — nur der Text lautet jetzt in beiden Fällen
+      // „Fehler beim Generieren der Zusammenfassung."
+      const summary = await aiText({
+        lane: 'web_search_summary',
+        prompt: `Du bist ein hilfreicher Assistent, der basierend auf Webinhalten fundierte Antworten gibt. Beantworte die folgende Frage oder das Anliegen des Nutzers direkt und umfassend, basierend auf den bereitgestellten Informationen. Die Quellen dienen als Hintergrundinformationen - du sollst eine echte, durchdachte Antwort geben, keine bloße Zusammenfassung.
 
 Frage/Anliegen: "${originalQuery}"
 
@@ -325,40 +312,20 @@ Verfügbare Informationen:
 ${contentForSummary}
 
 Gib eine direkte, hilfreiche Antwort auf die Frage des Nutzers. Nutze die Informationen, um fundierte Erkenntnisse zu liefern, erkläre Zusammenhänge und gib praktische Hinweise wo sinnvoll.`,
-          },
-        ],
-        options: {
-          max_tokens: 1000,
-          temperature: 0.3,
+        maxOutputTokens: 1000,
+        temperature: 0.3,
+      });
+
+      return {
+        ...searchResults,
+        summary: {
+          text: summary,
+          generated: true,
+          timestamp: new Date().toISOString(),
+          wordCount: summary.split(/\s+/).length,
+          basedOnResults: searchResults.results.length,
         },
       };
-
-      if (isVerbose) console.log(`[SearXNG] Generating AI summary`);
-
-      const aiResponse = await aiClient.processRequest(summaryRequest, req);
-
-      if (aiResponse.success && aiResponse.content) {
-        return {
-          ...searchResults,
-          summary: {
-            text: aiResponse.content.trim(),
-            generated: true,
-            timestamp: new Date().toISOString(),
-            wordCount: aiResponse.content.trim().split(/\s+/).length,
-            basedOnResults: searchResults.results.length,
-          },
-        };
-      } else {
-        if (isVerbose) console.warn('[SearXNG] Summary generation failed:', aiResponse.error);
-        return {
-          ...searchResults,
-          summary: {
-            text: 'Zusammenfassung konnte nicht generiert werden.',
-            generated: false,
-            error: aiResponse.error || 'Unknown error',
-          },
-        };
-      }
     } catch (error: unknown) {
       const errMsg = error instanceof Error ? error.message : String(error);
       console.error('[SearXNG] Error generating summary:', errMsg);
