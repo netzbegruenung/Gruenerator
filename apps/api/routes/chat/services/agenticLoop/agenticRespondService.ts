@@ -36,14 +36,6 @@ import { imageDeliveryNote } from '../../agents/searchImageHarvest.js';
 import { buildChatToolCatalog } from '../../agents/toolCatalog.js';
 import { extractTextContent } from '../messageHelpers.js';
 import {
-  containsBrokenJsonPayload,
-  defersToSearchDespiteSources,
-  deniesSearchAbilityDespiteSearching,
-  looksCutOff,
-  stripFabricatedArtifactDelivery,
-  stripFabricatedSystemClaims,
-} from '../outputSanity.js';
-import {
   mistralReasoningOption,
   resolveModel,
   type ResolvedModelTuple,
@@ -66,16 +58,10 @@ import { turnMaterialChars } from '../turnMaterial.js';
 import { withInstructionHierarchy } from '../untrustedContent.js';
 
 import { ARTIFACT_TOOL_NAMES, buildArtifactNotes } from './artifactNotes.js';
-import { stripOutOfRangeCitations } from './citationStrip.js';
 import { isMcpReplayEnabled } from './flags.js';
 import { isMcpCapabilityQuestion, shouldForceFirstToolCall } from './forceFirstToolCall.js';
 import { createTurnClocks, resolveBudget } from './loopBudget.js';
-import {
-  runAgenticLoop,
-  SYNTH_CUTOFF_RETRY_SUFFIX,
-  SYNTH_INVALID_JSON_RETRY_SUFFIX,
-  type LoopMode,
-} from './loopEngine.js';
+import { runAgenticLoop, type LoopMode } from './loopEngine.js';
 import { createToolLoopGuards, MAX_SOURCES } from './loopGuards.js';
 import { materialDominatesTurn, resolveLoopMode } from './loopMode.js';
 import { buildToolObservationReplay, spliceToolReplay } from './mcpReplay.js';
@@ -83,6 +69,7 @@ import { createOpeningDedupe, stripDuplicatedOpening } from './openingDedupe.js'
 import { createRecipeRegistry } from './recipeRegistry.js';
 import { rewritesSuppliedText } from './routing.js';
 import { createSourceRegistry, withResearchedSources } from './sourceRegistry.js';
+import { createAnswerValidator, finalizeAnswerText, pdfProblemNote } from './synthVerdicts.js';
 import { buildMcpOutcomeNote, buildToolFailureNote, mcpHasFailure } from './toolOutcome.js';
 import { buildToolUsageBlock } from './toolUsageBlock.js';
 import {
@@ -155,38 +142,6 @@ const NON_REPLAYABLE_ACTION_TOOLS: ReadonlySet<string> = new Set([
  * über diesen Namen importieren.
  */
 export { TRUNCATION_NOTE, resolveAbortOutcome, type AbortOutcome } from '../turnAbortOutcome.js';
-
-/**
- * What the PDF self-check found, if the answer failed to mention it.
- *
- * `create_pdf` reopens the file it just wrote and reports real defects — a
- * missing text layer, an untagged structure, deleted characters. Both the tool
- * description and its result `note` order the model to pass them on. Live it
- * did not: characters had been dropped from the title and the chat said the PDF
- * was fine. An accessibility check the model may quietly skip is not a check,
- * so the finding is appended by the turn itself.
- *
- * Suppressed when the answer already says it, matched on the problem's own
- * first words rather than on keywords — a paraphrase counts as having said it,
- * and repeating ourselves reads as a second, unrelated defect.
- */
-export function pdfProblemNote(steps: PersistedStep[], answer: string): string {
-  const problems = steps
-    .filter((s) => s.toolName === 'create_pdf')
-    .flatMap((s): unknown[] => {
-      const raw = s.result?.['probleme'];
-      return Array.isArray(raw) ? (raw as unknown[]) : [];
-    })
-    .filter((p): p is string => typeof p === 'string' && p.trim().length > 0);
-  if (problems.length === 0) return '';
-  const lower = answer.toLowerCase();
-  const unmentioned = problems.filter((p) => {
-    const opener = p.toLowerCase().split(/\s+/).slice(0, 4).join(' ');
-    return !lower.includes(opener);
-  });
-  if (unmentioned.length === 0) return '';
-  return `\n\n_Hinweis aus der PDF-Selbstprüfung:_\n${unmentioned.map((p) => `- ${p}`).join('\n')}`;
-}
 
 export interface AgenticResponseOutcome {
   fullText: string;
@@ -1007,14 +962,7 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
         narrationBuffer.push(s);
         sse.send('gather_narration', { text: s });
       },
-      // Output-integrity check on the accepted split answer: broken JSON and
-      // mid-sentence cut-offs earn ONE silent synth retry (loopEngine). Both
-      // shapes shipped verbatim in the 2026-08 QA run.
-      validateAnswer: (t) => {
-        if (containsBrokenJsonPayload(t)) return SYNTH_INVALID_JSON_RETRY_SUFFIX;
-        if (looksCutOff(t)) return SYNTH_CUTOFF_RETRY_SUFFIX;
-        return null;
-      },
+      validateAnswer: createAnswerValidator(),
     });
     answerDedupe.flush();
 
@@ -1087,69 +1035,25 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
     sse.send('text_delta', { text: pdfNote });
   }
 
-  // The synth model sometimes cites numbers the registry can't back ("[4]…[9]"
-  // with 3 sources). Strip out-of-range markers and, if anything changed, push
-  // the corrected answer via `completion` — the frontend replaces the streamed
-  // deltas with it (same channel the notebook flow uses).
-  // Invented internal filenames ("SecureComms_Override.log") must not survive
-  // into the answer — they read as a leak. Checked against everything the model
-  // legitimately saw, so real attachment names pass through.
-  const sanity = stripFabricatedSystemClaims(text, [
-    // A name the user typed themselves is not one the model invented.
-    finalState.lastUserTextNoMentions ?? '',
-    sourceRegistry.renderAll(),
-    finalState.attachmentContext ?? '',
-    finalState.currentDocument?.title ?? '',
-  ]);
-  if (sanity.fabricated.length > 0) {
-    log.warn(
-      `[Agentic] Removed fabricated internal file claim(s): ${sanity.fabricated.join(', ')}`
-    );
-    text = sanity.text;
-  }
-
-  // Same guarantee as the single-pass funnel: no typed-out file, no invented
-  // artefact path. The allowlist carries this turn's and the thread's real ids,
-  // so the `/boards/<id>` the board note ASKS the model to print survives.
-  const delivery = stripFabricatedArtifactDelivery(text, knownArtifactRefs(finalState));
-  if (delivery.removed.length > 0) {
-    log.warn(`[Agentic] Removed fabricated artefact delivery: ${delivery.removed.join(', ')}`);
-    text = delivery.text;
-  }
-
-  if (
-    defersToSearchDespiteSources(text, { sources: sourceRegistry.size, toolCalls: steps.length })
-  ) {
-    log.warn(
-      `[Agentic] Answer recommends a search although ${sourceRegistry.size} source(s) were gathered in ${steps.length} step(s) — synth ignored its source block`
-    );
-  }
-
-  if (
-    deniesSearchAbilityDespiteSearching(text, {
-      sources: sourceRegistry.size,
-      toolCalls: steps.length,
-    })
-  ) {
-    log.warn(
-      `[Agentic] Answer denies being able to search although ${steps.length} step(s) gathered ${sourceRegistry.size} source(s) — synth prompt read as a capability limit`
-    );
-  }
-
-  // The server half of the truncation cross-check (see looksCutOff). Logged
-  // with the LAST 60 chars, because "where does it end" is the only question a
-  // truncation report ever asks, and matching that tail against the screenshot
-  // settles server-vs-client immediately.
-  if (text.length > 0 && looksCutOff(text)) {
-    log.warn(
-      `[Agentic] answer ends mid-sentence after ${text.length} chars — ` +
-        `tail: ${JSON.stringify(text.slice(-60))}`
-    );
-  }
-
-  const clamp = stripOutOfRangeCitations(text, sourceRegistry.size);
-  if (clamp.changed || sanity.fabricated.length > 0) {
-    text = clamp.text;
+  const finalized = finalizeAnswerText({
+    text,
+    sourceCount: sourceRegistry.size,
+    stepCount: steps.length,
+    seenTexts: [
+      // A name the user typed themselves is not one the model invented.
+      finalState.lastUserTextNoMentions ?? '',
+      sourceRegistry.renderAll(),
+      finalState.attachmentContext ?? '',
+      finalState.currentDocument?.title ?? '',
+    ],
+    knownArtifactRefs: knownArtifactRefs(finalState),
+  });
+  for (const warning of finalized.warnings) log.warn(warning);
+  // Assigned unconditionally: a stripped artefact delivery changes the answer
+  // WITHOUT earning a `completion` — the removal is silent, the text still has
+  // to be the one that gets persisted.
+  text = finalized.text;
+  if (finalized.replaced) {
     // Offset-drift protection: the clamp rewrote the answer text, so every
     // recorded textOffset now points into a stale position. Drop them — reload
     // then falls back to the cards-first layout instead of mis-interleaving.
