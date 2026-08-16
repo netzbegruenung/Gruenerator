@@ -5,6 +5,8 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+import { AiProviderError } from '../../providers/providerErrors.js';
+
 const executeProvider = vi.fn();
 
 vi.mock('../execution/index.js', () => ({
@@ -99,6 +101,67 @@ describe('aiText', () => {
 
     expect(error).toBeInstanceOf(NoAnswerError);
     expect((error as Error).cause).toBe(boom);
+  });
+});
+
+/**
+ * The route layer branches on `code`/`retryable`, never on the message. A
+ * failure that arrives here as a plain `Error` reaches the client as a bare
+ * `internal`, which is exactly what the retired worker pool left behind — so
+ * these assert the classification, not just that something was thrown.
+ */
+describe('provider failures arrive typed', () => {
+  const failWith = (error: unknown) => {
+    executeProvider.mockRejectedValue(error);
+    return aiText({ lane: 'qa_draft', prompt: 'x' }).catch((e: unknown) => e as AiProviderError);
+  };
+
+  it('is an AiProviderError, so callers can branch without parsing strings', async () => {
+    const error = await failWith(Object.assign(new Error('nope'), { statusCode: 503 }));
+    expect(error).toBeInstanceOf(AiProviderError);
+  });
+
+  it('classifies a rate limit as retryable', async () => {
+    const error = await failWith(Object.assign(new Error('Too Many Requests'), { status: 429 }));
+
+    expect(error.code).toBe('rate_limited');
+    expect(error.retryable).toBe(true);
+    expect(error.statusCode).toBe(429);
+  });
+
+  it('classifies a provider outage as retryable', async () => {
+    const error = await failWith(Object.assign(new Error('Bad Gateway'), { statusCode: 502 }));
+
+    expect(error.code).toBe('provider_unavailable');
+    expect(error.retryable).toBe(true);
+  });
+
+  it('classifies a rejected request as not retryable', async () => {
+    const error = await failWith(Object.assign(new Error('Bad Request'), { statusCode: 400 }));
+
+    expect(error.code).toBe('invalid_request');
+    expect(error.retryable).toBe(false);
+  });
+
+  it('reads the status through the cause chain the adapters wrap', async () => {
+    const inner = Object.assign(new Error('upstream'), { statusCode: 429 });
+    const error = await failWith(new Error('adapter failed', { cause: inner }));
+
+    expect(error.code).toBe('rate_limited');
+  });
+
+  it('classifies an all-empty chain as unknown rather than mislabelling it', async () => {
+    // Nobody threw — every provider answered with nothing. That is a failure,
+    // but not a provider fault, so it must not claim to be retryable.
+    executeProvider.mockResolvedValue({ content: '', success: true });
+
+    const error = await aiText({ lane: 'qa_draft', prompt: 'x' }).catch(
+      (e: unknown) => e as AiProviderError
+    );
+
+    expect(error).toBeInstanceOf(AiProviderError);
+    expect(error.code).toBe('unknown');
+    expect(error.retryable).toBe(false);
   });
 });
 
