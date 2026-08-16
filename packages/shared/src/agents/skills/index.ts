@@ -21,10 +21,13 @@
  * Ordering is governed by the `order` frontmatter field; ties break
  * alphabetically by `mention`.
  */
+import { type LvEbene } from '../types.js';
+
 import { SKILLS } from './index.generated.js';
+import { type SystemSkill } from './types.js';
 
 export { SKILLS };
-export type { SystemSkill } from './types.js';
+export type { SystemSkill };
 
 /**
  * Recipes that were split or renamed after shipping — the F1 escape hatch, with
@@ -35,21 +38,20 @@ export type { SystemSkill } from './types.js';
  * mobile binaries, persisted sidebar favourites and old threads still send the
  * retired mention, so it keeps resolving.
  *
- * They resolve to the Fraktion — not because that level is the default (there
- * is none, the user picks), but because the retired recipe covered both and the
- * Fraktion outweighs the Partei in each corpus behind them by a factor of 7 to
- * 17.
+ * They all resolve to the Partei — not because that level ranks first (there is
+ * no default, the user picks), but because it is the level the recipe is
+ * actually offered to: `landesverbandForRoles` unlocks Landesverband material
+ * for the Landesgeschäftsstelle alone, and the same choice governs each PR
+ * agent's `defaultRecipeMention`. A retired mention has to land somewhere, and
+ * landing anywhere else would contradict both.
  *
- * `presse-berlin` is the exception and points at the Partei: its retired text
- * described the Landesverband alone — the 858 Fraktions-Dokumente next to it
- * had never been analysed. Continuity is what this map is for, so it keeps
- * handing back what those threads used to get. Entfernen frühestens 2027-08.
+ * Entfernen frühestens 2027-08.
  */
 const LEGACY_SKILL_MENTIONS: Readonly<Record<string, string>> = {
-  'presse-hessen': 'presse-hessen-fraktion',
-  'presse-mv': 'presse-mv-fraktion',
-  'presse-bayern': 'presse-bayern-fraktion',
-  'presse-sachsen-anhalt': 'presse-sachsen-anhalt-fraktion',
+  'presse-hessen': 'presse-hessen-partei',
+  'presse-mv': 'presse-mv-partei',
+  'presse-bayern': 'presse-bayern-partei',
+  'presse-sachsen-anhalt': 'presse-sachsen-anhalt-partei',
   'presse-berlin': 'presse-berlin-partei',
 };
 
@@ -64,4 +66,22 @@ const mentionMap = new Map<string, string>(
 
 export function resolveSkillMention(alias: string): string | null {
   return mentionMap.get(canonicalSkillMention(alias).toLowerCase()) ?? null;
+}
+
+const ebeneMap = new Map<string, LvEbene>(
+  (SKILLS as readonly SystemSkill[]).flatMap((skill) =>
+    skill.lvEbene ? [[skill.mention.toLowerCase(), skill.lvEbene] as const] : []
+  )
+);
+
+/**
+ * Die Landesverbands-Ebene eines Rezepts, oder `null` für alles ohne
+ * Ebenentrennung (generische Rezepte, einstufige Landesverbände, unbekannte
+ * Kennungen). Zurückgezogene Kennungen laufen über {@link canonicalSkillMention},
+ * damit ein alter Thread dieselbe Ebene trifft wie sein Nachfolger.
+ *
+ * Die API schneidet damit die PM-Beispielsuche zu (`narrowLvScopeToEbene`).
+ */
+export function lvEbeneForSkillMention(mention: string): LvEbene | null {
+  return ebeneMap.get(canonicalSkillMention(mention).toLowerCase()) ?? null;
 }

@@ -8,6 +8,7 @@ backgroundColor: '#316049'
 mention: 'presse-hessen-fraktion'
 skillCategory: presse
 audience: 'de-DE'
+lvEbene: 'fraktion'
 promptTemplate: 'Schreibe eine Pressemitteilung der GRÜNEN Landtagsfraktion Hessen zum Thema: '
 order: 63
 ---

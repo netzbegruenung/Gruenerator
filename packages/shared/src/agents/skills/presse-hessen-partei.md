@@ -8,6 +8,7 @@ backgroundColor: '#316049'
 mention: 'presse-hessen-partei'
 skillCategory: presse
 audience: 'de-DE'
+lvEbene: 'partei'
 promptTemplate: 'Schreibe eine Pressemitteilung der GRÜNEN Hessen zum Thema: '
 order: 63
 ---

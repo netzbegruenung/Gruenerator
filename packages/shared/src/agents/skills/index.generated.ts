@@ -118,6 +118,7 @@ export const SKILLS = [
     skillCategory: 'presse',
     audience: 'de-DE',
     promptTemplate: 'Schreibe eine Pressemitteilung der Grünen Fraktion Berlin zum Thema: ',
+    lvEbene: 'fraktion',
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-berlin',
@@ -131,6 +132,7 @@ export const SKILLS = [
     skillCategory: 'presse',
     audience: 'de-DE',
     promptTemplate: 'Schreibe eine Pressemitteilung der Berliner GRÜNEN zum Thema: ',
+    lvEbene: 'partei',
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-berlin',
@@ -181,6 +183,7 @@ export const SKILLS = [
     audience: 'de-DE',
     promptTemplate:
       'Schreibe eine Pressemitteilung der GRÜNEN Landtagsfraktion Mecklenburg-Vorpommern zum Thema: ',
+    lvEbene: 'fraktion',
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-mecklenburg-vorpommern',
@@ -194,6 +197,7 @@ export const SKILLS = [
     skillCategory: 'presse',
     audience: 'de-DE',
     promptTemplate: 'Schreibe eine Pressemitteilung der GRÜNEN Mecklenburg-Vorpommern zum Thema: ',
+    lvEbene: 'partei',
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-mecklenburg-vorpommern',
@@ -267,6 +271,7 @@ export const SKILLS = [
     skillCategory: 'presse',
     audience: 'de-DE',
     promptTemplate: 'Schreibe eine Pressemitteilung der Landtags-Grünen Bayern zum Thema: ',
+    lvEbene: 'fraktion',
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-bayern',
@@ -280,6 +285,7 @@ export const SKILLS = [
     skillCategory: 'presse',
     audience: 'de-DE',
     promptTemplate: 'Schreibe eine Pressemitteilung der bayerischen GRÜNEN zum Thema: ',
+    lvEbene: 'partei',
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-hessen',
@@ -293,6 +299,7 @@ export const SKILLS = [
     skillCategory: 'presse',
     audience: 'de-DE',
     promptTemplate: 'Schreibe eine Pressemitteilung der GRÜNEN Landtagsfraktion Hessen zum Thema: ',
+    lvEbene: 'fraktion',
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-hessen',
@@ -306,6 +313,7 @@ export const SKILLS = [
     skillCategory: 'presse',
     audience: 'de-DE',
     promptTemplate: 'Schreibe eine Pressemitteilung der GRÜNEN Hessen zum Thema: ',
+    lvEbene: 'partei',
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-at',
@@ -344,6 +352,7 @@ export const SKILLS = [
     audience: 'de-DE',
     promptTemplate:
       'Schreibe eine Pressemitteilung der grünen Landtagsfraktion Sachsen-Anhalt zum Thema: ',
+    lvEbene: 'fraktion',
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-sachsen-anhalt',
@@ -358,6 +367,7 @@ export const SKILLS = [
     audience: 'de-DE',
     promptTemplate:
       'Schreibe eine Pressemitteilung von BÜNDNIS 90/DIE GRÜNEN Sachsen-Anhalt zum Thema: ',
+    lvEbene: 'partei',
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-saarland',

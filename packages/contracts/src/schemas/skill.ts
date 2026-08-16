@@ -41,6 +41,21 @@ export const skillFrontmatterSchema = z.object({
   promptTemplate: z.string().min(1).optional(),
   isSystemDefault: z.boolean().optional(),
   /**
+   * Für welche Ebene eines Landesverbands dieses Rezept schreibt — Partei
+   * (Landesverband) oder Fraktion. Steuert den Ausschnitt der PM-Beispielsuche.
+   *
+   * Der Korpus führt Fraktions-PMs unter demselben LV-Code mit `-F`-Suffix
+   * (`HE` neben `HE-F`), der Ausschnitt steht aber am AGENTEN und umfasst beide.
+   * Ohne diese Angabe holt sich ein Partei-Rezept in seinem ersten Arbeitsschritt
+   * überwiegend Fraktionsvorlagen — in Hessen stehen 166 Partei- gegen 2.073
+   * Fraktions-PMs, die Erdung liefe also gegen den Text, den das Rezept verlangt.
+   *
+   * Nur für Landesverbände mit beiden Ebenen im Korpus. Fehlt das Feld, bleibt
+   * der volle LV-Ausschnitt stehen — richtig für einstufige Verbände
+   * (Brandenburg, Saarland, Thüringen) und für alles außerhalb der Presse.
+   */
+  lvEbene: z.enum(['partei', 'fraktion']).optional(),
+  /**
    * Numeric ordering hint for the generated SKILLS array. Lower wins. Ties
    * break alphabetically by `mention`. When omitted, the skill sorts after
    * everything with an explicit order, then alphabetically within its

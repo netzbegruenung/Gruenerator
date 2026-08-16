@@ -24,7 +24,7 @@ import {
   executeDirectPressemitteilungExamples,
   executeDirectWebSearch,
 } from './directSearch.js';
-import { resolveExamplesLvScope } from './lvScope.js';
+import { lvEbeneForMentions, narrowLvScopeToEbene, resolveExamplesLvScope } from './lvScope.js';
 
 import type { DirectSearchResult } from './directSearch.js';
 import type { AgentConfig } from './types.js';
@@ -206,6 +206,17 @@ export interface CreateSearchToolsOptions {
    * check is skipped.
    */
   userText?: string | null;
+  /**
+   * Die Rezepte, die in diesem Turn gelten — als Thunk, nicht als Wert: der
+   * Werkzeugsatz wird einmal zu Turn-Beginn gebaut, das Rezept wählt der Loop
+   * aber erst mitten im Turn über `rezept_laden`. Ein Wert wäre zum
+   * Bauzeitpunkt immer leer.
+   *
+   * Gelesen wird nur die Landesverbands-Ebene daraus, und nur von der
+   * PM-Beispielsuche. Ohne den Thunk bliebe der Ebenen-Zuschnitt auf den
+   * einstufigen Pfad beschränkt.
+   */
+  activeRecipeMentions?: () => readonly (string | null | undefined)[];
 }
 
 /**
@@ -409,6 +420,17 @@ export function createSearchTools(
   // press tool pulls PMs from all LVs and mimics the wrong one (e.g. a
   // Brandenburg agent producing a Hessen press release).
   const examplesLvScope = resolveExamplesLvScope(agentConfig);
+  /**
+   * Derselbe Ausschnitt, zugeschnitten auf die Ebene des aktiven Rezepts —
+   * erst beim Aufruf ausgewertet, weil das Rezept mitten im Turn dazukommen
+   * kann. Nur die PM-Suche nutzt ihn: Social-Beispiele liegen in einer
+   * Sammlung ohne `landesverband`-Feld.
+   */
+  const pressLvScope = (): string | readonly string[] | undefined =>
+    narrowLvScopeToEbene(
+      examplesLvScope,
+      lvEbeneForMentions(options.activeRecipeMentions?.() ?? [])
+    );
 
   log.debug(
     `[Tools] Creating tools for ${agentConfig.identifier}: collections=${allowedCollections.join(',')}, default=${defaultCollection}, personSearch=disabled, examplesCountry=${examplesCountry || 'all'}`
@@ -507,9 +529,10 @@ NICHT FÜR: Social-Media-Posts (nutze gruenerator_examples_search), allgemeine R
     }),
     execute: async ({ query }) => {
       try {
+        const lvScope = pressLvScope();
         const results = await executeDirectPressemitteilungExamples({
           query,
-          ...(examplesLvScope !== undefined && { lvScope: examplesLvScope }),
+          ...(lvScope !== undefined && { lvScope }),
           ...(examplesCountry && { country: examplesCountry }),
         });
         return results;

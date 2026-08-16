@@ -11,7 +11,12 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { SKILLS, canonicalSkillMention, resolveSkillMention } from './index.js';
+import {
+  SKILLS,
+  canonicalSkillMention,
+  lvEbeneForSkillMention,
+  resolveSkillMention,
+} from './index.js';
 
 const RETIRED = [
   'presse-hessen',
@@ -27,6 +32,16 @@ describe('canonicalSkillMention', () => {
 
     expect(canonical).not.toBe(retired);
     expect(SKILLS.map((s) => s.mention)).toContain(canonical);
+  });
+
+  it('points every retired mention at the Partei level', () => {
+    // Die Ebene, die die Rollenzuteilung freischaltet: LV-Material bekommt
+    // allein die Landesgeschäftsstelle. Dieselbe Wahl steht als
+    // `defaultRecipeMention` an jedem der fünf PR-Agenten — beide zusammen
+    // oder gar nicht, sonst widersprechen sich Alias und Vorwahl.
+    for (const retired of RETIRED) {
+      expect(canonicalSkillMention(retired)).toBe(`${retired}-partei`);
+    }
   });
 
   it('leaves a live mention alone', () => {
@@ -59,4 +74,30 @@ describe('the Partei/Fraktion split', () => {
       expect(pair[0]?.description).not.toBe(pair[1]?.description);
     }
   );
+
+  /**
+   * Ohne `lvEbene` schneidet die API die PM-Beispielsuche nicht zu, und ein
+   * Partei-Rezept erdet sich im überwiegend fraktionären Korpus seines
+   * Landesverbands. Das fällt nirgends auf — der Text kommt heraus, nur im
+   * falschen Register.
+   */
+  it.each(['hessen', 'mv', 'bayern', 'sachsen-anhalt', 'berlin'])(
+    '%s nennt seine Ebene an beiden Rezepten',
+    (lv) => {
+      expect(lvEbeneForSkillMention(`presse-${lv}-partei`)).toBe('partei');
+      expect(lvEbeneForSkillMention(`presse-${lv}-fraktion`)).toBe('fraktion');
+    }
+  );
+
+  it('gibt für alles ohne Ebenentrennung null zurück', () => {
+    // Einstufige Landesverbände und generische Rezepte: der volle Ausschnitt
+    // ist dort richtig, nicht bloß geduldet.
+    expect(lvEbeneForSkillMention('presse-brandenburg')).toBeNull();
+    expect(lvEbeneForSkillMention('presse')).toBeNull();
+    expect(lvEbeneForSkillMention('gibtsnicht')).toBeNull();
+  });
+
+  it('führt eine zurückgezogene Kennung auf dieselbe Ebene wie ihren Nachfolger', () => {
+    expect(lvEbeneForSkillMention('presse-hessen')).toBe('partei');
+  });
 });
