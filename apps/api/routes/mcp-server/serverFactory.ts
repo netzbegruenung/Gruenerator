@@ -69,11 +69,16 @@ const log = createLogger('McpServerFactory');
 /**
  * Derived from the canonical config, NOT from the chat catalog.
  *
- * `ALL_COLLECTIONS` is the chat agent's allow-list — eight entries, tuned for
- * what a chat agent should reach by default. Using it here silently hid twelve
- * `mcpExposed` collections, every Landesverband among them, from a surface
- * whose whole job is exposure. v1 has served them from `/api/v1/collections`
- * all along, so v2 was the narrower of the two.
+ * `ALL_COLLECTIONS` is the chat agent's allow-list. It used to be eight
+ * hand-written entries, and using it here silently hid twelve `mcpExposed`
+ * collections, every Landesverband among them, from a surface whose whole job
+ * is exposure. v1 had served them from `/api/v1/collections` all along, so v2
+ * was the narrower of the two.
+ *
+ * The chat list has since been derived from this same config for exactly that
+ * reason (the loop could not search a Landesverband either). The two stay
+ * separate anyway: this surface is not locale-filtered and does not bundle
+ * Austria behind one key, both of which that list does for the chat client.
  */
 const SEARCH_COLLECTIONS = getMcpExposedCollections()
   .map((c) => c.key)

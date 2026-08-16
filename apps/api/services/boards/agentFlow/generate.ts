@@ -167,14 +167,21 @@ export async function generateFromState(
       model: resolution.model,
       system: systemMessage,
       messages: [taskMessage],
-      tools: createSearchTools(
-        agentConfig,
+      tools: createSearchTools(agentConfig, {
+        // The board flow has known the locale all along — `runFlow` derives it
+        // from the task and threads it into the chat state — it just never
+        // reached the search tools. That was survivable while the collection
+        // list mixed both countries; now that it is locale-filtered, omitting
+        // it would silently hand an Austrian board task the German corpora.
+        // It also fixes the older half of the same gap: the default collection
+        // was `deutschland` for an AT board task even before the filter.
+        userLocale: finalState.userLocale,
         // Only restrict when the agent has a non-empty selection; an empty/absent
         // list means "no per-agent narrowing", not "no tools at all".
-        opts.restrictToAgentTools && agentConfig.enabledTools?.length
+        ...(opts.restrictToAgentTools && agentConfig.enabledTools?.length
           ? { enabledToolKeys: agentConfig.enabledTools }
-          : {}
-      ),
+          : {}),
+      }),
       stopWhen: isStepCount(MAX_TOOL_STEPS),
       maxOutputTokens: opts.longForm
         ? Math.max(agentConfig.params.max_tokens, MIN_DOCUMENT_TOKENS)
