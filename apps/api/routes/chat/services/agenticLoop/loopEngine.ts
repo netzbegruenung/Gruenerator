@@ -159,7 +159,11 @@ export function buildPrepareStep(
    * in both branches, and in the plain `{}` one — hence the `system` override
    * appearing where previously nothing was returned.
    */
-  extraSystem: () => string = () => ''
+  extraSystem: () => string = () => '',
+  /** Names the tool the FIRST step must call, when an @-mention pinned one
+   *  (see {@link pinnedFirstTool}). Only consulted while `forceFirstToolCall`
+   *  holds — the research ban vetoes both, and it vetoes first. */
+  firstToolName: string | null = null
 ): ({ stepNumber }: { stepNumber: number }) => {
   toolChoice?: 'none' | 'required' | { type: 'tool'; toolName: string };
   system?: string;
@@ -175,7 +179,13 @@ export function buildPrepareStep(
     // the first step so it actually hits the server. Gated off for the first
     // scope turn (clarification allowed) and meta questions by the caller.
     if (forceFirstToolCall && stepNumber === 0) {
-      return { toolChoice: 'required' as const, ...(extra && { system: `${baseSystem}${extra}` }) };
+      // Eine @-Erwähnung hat ein Werkzeug benannt: `required` liesse das Modell
+      // stattdessen die generische Suche rufen — den Erwähnungstext sieht es
+      // gar nicht mehr.
+      const choice = firstToolName
+        ? ({ type: 'tool' as const, toolName: firstToolName } as const)
+        : ('required' as const);
+      return { toolChoice: choice, ...(extra && { system: `${baseSystem}${extra}` }) };
     }
     if (stepNumber > 0) {
       const toolName = forcedTool();
@@ -334,6 +344,8 @@ export interface LoopEngineParams {
   forceFinish: () => boolean;
   /** Force a tool call on the first step (explicit-scope MCP follow-ups). */
   forceFirstToolCall?: boolean;
+  /** Names the tool that first step must call, when an @-mention pinned one. */
+  firstToolName?: string | null;
   /** Names a specific tool the next step must call — used to turn the "web is
    *  now allowed" permission after an empty internal search into an actual
    *  fallback. Evaluated per step; null leaves the choice to the model. */
@@ -421,7 +433,8 @@ async function streamWithTools(
       p.forceFinish,
       p.forceFirstToolCall ?? false,
       p.forcedToolForStep,
-      p.getRecipeBlock
+      p.getRecipeBlock,
+      p.firstToolName ?? null
     ),
     experimental_repairToolCall: repairToolCall,
     ...phaseTelemetry('unified'),
@@ -472,7 +485,8 @@ async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
         p.forceFinish,
         p.forceFirstToolCall ?? false,
         p.forcedToolForStep,
-        p.getRecipeBlock
+        p.getRecipeBlock,
+        p.firstToolName ?? null
       ),
       experimental_repairToolCall: repairToolCall,
       ...phaseTelemetry('gather'),
