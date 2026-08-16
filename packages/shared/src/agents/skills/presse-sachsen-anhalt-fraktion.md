@@ -8,6 +8,7 @@ backgroundColor: '#316049'
 mention: 'presse-sachsen-anhalt-fraktion'
 skillCategory: presse
 audience: 'de-DE'
+lvEbene: 'fraktion'
 promptTemplate: 'Schreibe eine Pressemitteilung der grünen Landtagsfraktion Sachsen-Anhalt zum Thema: '
 order: 65
 ---

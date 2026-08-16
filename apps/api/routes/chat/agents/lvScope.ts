@@ -20,6 +20,8 @@
  * an LV notebook still grounds in the right LV.
  */
 
+import { type LvEbene, lvEbeneForSkillMention } from '@gruenerator/shared/agents';
+
 import { COLLECTION_MAP } from '../../../config/collectionMap.js';
 import { getCollectionDefaultFilter } from '../../../config/systemCollectionsConfig.js';
 
@@ -74,4 +76,49 @@ export function resolveExamplesLvScope(
     ? scope.notebookCollectionIds
     : scope?.defaultNotebookCollectionIds;
   return deriveLvFromCollections(collections);
+}
+
+/** Fraktions-PMs liegen im Korpus unter dem LV-Code mit `-F`-Suffix. */
+const FRAKTION_SUFFIX = '-F';
+
+/**
+ * Schneidet einen LV-Ausschnitt auf eine Ebene zu (`['HE','HE-F']` + Fraktion →
+ * `['HE-F']`).
+ *
+ * Nötig, weil der Ausschnitt am AGENTEN hängt und beide Ebenen umfasst, das
+ * Rezept aber für eine geschrieben ist. Ohne den Zuschnitt erdet sich die
+ * hessische Partei-PM in einem Korpus aus 166 Partei- und 2.073 Fraktions-PMs,
+ * holt also überwiegend das Gegenteil dessen, was sie nachahmen soll.
+ *
+ * Trifft die Ebene keinen Code, bleibt der volle Ausschnitt stehen: ein
+ * einstufiger Landesverband (Brandenburg, Saarland, Thüringen) führt nur den
+ * Basiscode, und gar keine Vorlagen wären schlechter als ebenenfremde.
+ */
+export function narrowLvScopeToEbene(
+  scope: string | readonly string[] | undefined,
+  ebene: LvEbene | null | undefined
+): string | readonly string[] | undefined {
+  if (scope === undefined || !ebene) return scope;
+  const codes = typeof scope === 'string' ? [scope] : [...scope];
+  const wanted = codes.filter((code) =>
+    ebene === 'fraktion' ? code.endsWith(FRAKTION_SUFFIX) : !code.endsWith(FRAKTION_SUFFIX)
+  );
+  return wanted.length === 0 ? scope : wanted;
+}
+
+/**
+ * Die Ebene, die für diesen Turn gilt — die erste, die eines der aktiven
+ * Rezepte nennt. Mehrere Rezepte pro Turn sind erlaubt
+ * (`MAX_RECIPES_PER_TURN`), aber nur eines davon ist ein LV-Presserezept;
+ * nennt keines eine Ebene, wird nicht zugeschnitten.
+ */
+export function lvEbeneForMentions(
+  mentions: readonly (string | null | undefined)[]
+): LvEbene | null {
+  for (const mention of mentions) {
+    if (!mention) continue;
+    const ebene = lvEbeneForSkillMention(mention);
+    if (ebene) return ebene;
+  }
+  return null;
 }
