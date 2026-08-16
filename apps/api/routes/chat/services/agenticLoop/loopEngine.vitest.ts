@@ -39,6 +39,41 @@ describe('buildPrepareStep — forceFirstToolCall', () => {
     // maxSteps=1 → step 0 is the last step → toolChoice:'none' + finish system
     expect(prep({ stepNumber: 0 })).toEqual({ toolChoice: 'none', system: 'sysSUFF' });
   });
+
+  // Eine @-Erwähnung hat ein Werkzeug benannt. `required` würde nur IRGENDEINEN
+  // Aufruf garantieren — und der Erwähnungstext ist zu diesem Zeitpunkt aus der
+  // Nachricht entfernt, das Modell sieht die Wahl also nicht mehr.
+  it('nennt das erwähnte Werkzeug auf Schritt 0 statt nur "required"', () => {
+    const prep = buildPrepareStep(
+      'sys',
+      'suffix',
+      5,
+      never,
+      true,
+      undefined,
+      undefined,
+      'bundestag'
+    );
+    expect(prep({ stepNumber: 0 })).toEqual({
+      toolChoice: { type: 'tool', toolName: 'bundestag' },
+    });
+    // Danach entscheidet wieder der Planer.
+    expect(prep({ stepNumber: 1 })).toEqual({});
+  });
+
+  it('ohne den Zwang wirkt der Name gar nicht — der Bann vetot zuerst', () => {
+    const prep = buildPrepareStep(
+      'sys',
+      'suffix',
+      5,
+      never,
+      false,
+      undefined,
+      undefined,
+      'bundestag'
+    );
+    expect(prep({ stepNumber: 0 })).toEqual({});
+  });
 });
 
 describe('buildPrepareStep — forced fallback tool', () => {

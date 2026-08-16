@@ -153,6 +153,8 @@ export async function runForcedIntentStage({
     matches?: () => boolean;
     /** Sonderfelder, die dieser Eintrag ausser dem Intent setzt. */
     onPin?: () => void;
+    /** Strukturierte Felder für die Logzeile dieses Eintrags. */
+    logContext?: () => Record<string, unknown>;
     /** `mcp` als einziger: sein Werkzeug bekommt die Frage aus dem Verlauf. */
     backfillQuery?: false;
     /**
@@ -175,6 +177,7 @@ export async function runForcedIntentStage({
       onPin: () => {
         classifiedState.mcpServerScope = mcpScopedToken ? mcpScopedToken.slice(4) : null;
       },
+      logContext: () => ({ scope: classifiedState.mcpServerScope ?? 'all' }),
       backfillQuery: false,
     },
     { intent: 'examples', group: 'simple' },
@@ -192,11 +195,17 @@ export async function runForcedIntentStage({
     if (!matched) continue;
     if (!isIntentAllowedForLocale(route.intent, initialState.userLocale)) continue;
     classifiedState.intent = route.intent;
+    // Was die Person GEWÄHLT hat — `intent` allein sagt das nicht, ein Verdikt
+    // des Klassifikators sieht dort genauso aus. Der Loop nennt damit seinen
+    // ersten Werkzeugaufruf beim Namen.
+    classifiedState.mentionPinnedIntent = route.intent;
     forcedTool = true;
     if (route.group) firedGroups.add(route.group);
     route.onPin?.();
     if (route.backfillQuery !== false) backfillSearchQuery();
-    log.info(`[ChatGraph] Intent forced to "${route.intent}" via @-mention`);
+    const context = route.logContext?.();
+    if (context) log.info(`[ChatGraph] Intent forced to "${route.intent}" via @-mention`, context);
+    else log.info(`[ChatGraph] Intent forced to "${route.intent}" via @-mention`);
   }
 
   // @deepresearch — a VARIANT of `research`, routed like one, but the only
