@@ -30,7 +30,7 @@ export type CleanupPending = (discard: boolean) => Promise<void>;
  * A stage that may own the whole turn: `handled: true` means it already wrote
  * the SSE response and the router returns immediately.
  */
-export type MaybeHandled<T = Record<string, never>> =
+export type MaybeHandled<T = Record<never, never>> =
   ({ handled: false } & T) | { handled: true; result: StreamHandlerResult };
 
 /** The turn's classified state — `initialState` plus the classifier's verdict. */

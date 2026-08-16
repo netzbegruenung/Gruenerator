@@ -32,7 +32,6 @@ import {
 } from '../../services/telemetry/langfuseTelemetry.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
-import { withTimeout } from '../../utils/withTimeout.js';
 
 import { streamAgenticResponse } from './services/agenticLoop/agenticRespondService.js';
 import { stripOutOfRangeCitations } from './services/agenticLoop/citationStrip.js';
@@ -66,19 +65,8 @@ import {
   stripFabricatedArtifactDelivery,
   stripFabricatedSystemClaims,
 } from './services/outputSanity.js';
-import {
-  recallPastChats,
-  recallOfficeDocuments,
-  recallReels,
-  rerankRecall,
-  formatPastChatsBlock,
-  formatOfficeDocsBlock,
-  formatReelsBlock,
-  getSpaceRecallScope,
-} from './services/pastChatRecallService.js';
 import { createPendingAssistantWriter } from './services/pendingAssistantWriter.js';
 import { persistAssistantResponse } from './services/postResponseService.js';
-import { handleRecallToolLoop, isChatRecallLoopEnabled } from './services/recallToolLoopService.js';
 import { resolveReferentialTopic } from './services/referentialTopic.js';
 import {
   resolveModel,
@@ -105,6 +93,7 @@ import { runActionGateStage } from './streamStages/actionGateStage.js';
 import { runClassifyStage } from './streamStages/classifyStage.js';
 import { runEarlyHandlerStage } from './streamStages/earlyHandlerStage.js';
 import { runForcedIntentStage } from './streamStages/forcedIntentStage.js';
+import { runRecallStage } from './streamStages/recallStage.js';
 import { runRoutingStage } from './streamStages/routingStage.js';
 import { suspendTurn, type FixedTextBase, type SuspendTurnBase } from './streamStages/turnEnd.js';
 
@@ -117,9 +106,6 @@ const log = createLogger('chatGraphContractRouter');
 /** Content of the row that keeps a failed turn's sources for the retry. */
 const RESEARCH_KEPT_ON_FAILURE_TEXT =
   'Die Antwort konnte nicht erzeugt werden. Die recherchierten Quellen sind gespeichert — ein erneuter Versuch nutzt sie weiter.';
-
-/** Cap best-effort past-chat recall so it never delays the user-facing stream. */
-const EXTERNAL_CONTEXT_TIMEOUT_MS = 3_000;
 
 /** Cap on how much gathered reference material rides in a doc/board edit — keeps
  *  the docs-AI system prompt bounded. Matches the single-pass edit ref cap. */
@@ -388,122 +374,18 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         mentionBoardIds: mentionTokenFields.boardIds,
       });
 
-      // === Recall tool-loop (flag-gated) ===
-      // For the chat_history intent, let the model search + read the user's own
-      // content on demand (size-probed) instead of pre-injecting everything.
-      // Handles the whole turn; when off, falls through to the deterministic
-      // chat_history branch in executeIntentPipeline below.
-      if (
-        classifiedState.intent === 'chat_history' &&
-        isChatRecallLoopEnabled() &&
-        actualThreadId &&
-        lastUserMessage
-      ) {
-        const handled = await handleRecallToolLoop({
-          sse,
-          threadId: actualThreadId,
-          userId,
-          instruction: (extractTextContent(lastUserMessage.content) as string) || '',
-          query:
-            classifiedState.searchQuery ||
-            (extractTextContent(lastUserMessage.content) as string) ||
-            '',
-          startTime: Date.now(),
-        });
-        if (handled) {
-          await cleanupPending(true);
-          return { status: 200 as const, body: undefined };
-        }
-      }
-
-      // === Chat history context enrichment ===
-      // Explicit: the user referenced a past conversation (classifier/regex).
-      // Proactive: first turn of a new thread — surface a relevant past chat so
-      // the assistant can continue with continuity, gated on the same
-      // memory_enabled toggle as mem0. The `chat_history` tool handles its own
-      // retrieval, so skip the proactive pass for it.
-      const explicitRecall =
-        classifiedState.searchSources?.includes('chat_history') && !!classifiedState.searchQuery;
-      const proactiveRecall =
-        isNewThread &&
-        memoryEnabled &&
-        !!lastUserMessage &&
-        classifiedState.intent !== 'chat_history';
-
-      // Space scope: when the thread is filed in a Space, recall is restricted to
-      // that Space's chats and the model is told which threads it can search.
-      const spaceScope = actualThreadId
-        ? await getSpaceRecallScope(actualThreadId, userId).catch((err: unknown) => {
-            // Was a bare noop — the Space roster silently vanished and recall
-            // widened to all chats without anyone noticing.
-            log.warn(`[ChatGraph] Space recall scope failed: ${err}`);
-            return null;
-          })
-        : null;
-
-      if (explicitRecall || proactiveRecall) {
-        try {
-          const recallQuery =
-            classifiedState.searchQuery ||
-            (lastUserMessage
-              ? (extractTextContent(lastUserMessage.content) as string).slice(0, 200)
-              : '');
-          if (recallQuery.trim()) {
-            // Fetch chats + office content + reels, then cross-source rerank to
-            // the few most relevant — all inside the best-effort timeout.
-            const recalled = await withTimeout(
-              (async () => {
-                const [chatResults, officeDocs, reels] = await Promise.all([
-                  recallPastChats(userId, recallQuery, {
-                    ...(actualThreadId != null && { excludeThreadId: actualThreadId }),
-                    limit: 3,
-                    ...(spaceScope && { threadIds: spaceScope.threadIds }),
-                  }),
-                  recallOfficeDocuments(userId, recallQuery, 3),
-                  recallReels(userId, recallQuery, 3),
-                ]);
-                return rerankRecall(recallQuery, chatResults, officeDocs, 4, reels);
-              })(),
-              EXTERNAL_CONTEXT_TIMEOUT_MS,
-              'past-work recall'
-            ).catch(
-              () =>
-                ({ chats: [], officeDocs: [], reels: [] }) as Awaited<
-                  ReturnType<typeof rerankRecall>
-                >
-            );
-            const blocks = [
-              spaceScope?.rosterBlock ?? '',
-              recalled.chats.length > 0 ? formatPastChatsBlock(recalled.chats) : '',
-              formatOfficeDocsBlock(recalled.officeDocs),
-              formatReelsBlock(recalled.reels),
-            ].filter(Boolean);
-            if (blocks.length > 0) {
-              classifiedState.chatHistoryContext = blocks.join('\n\n');
-              log.info(
-                `[ChatGraph] Injected recall: ${recalled.chats.length} chats, ${recalled.officeDocs.length} docs, ${recalled.reels.length} reels for "${recallQuery}" (${explicitRecall ? 'explicit' : 'proactive'})`
-              );
-            }
-          }
-        } catch (err) {
-          // An EXPLICIT recall request ("was haben wir letzte Woche besprochen")
-          // that finds nothing because the search broke must not read as "there
-          // was nothing". Proactive recall is best-effort and stays quiet.
-          log.warn(`[ChatGraph] Past-chat recall failed: ${err}`);
-          if (explicitRecall) sendChatWarning(sse, 'recall_degraded');
-        }
-      }
-
-      // Always surface the Space roster when filed in a Space, even if no recall
-      // pass ran (so the model knows it can search the Space's chats on demand).
-      if (spaceScope) {
-        const existing = classifiedState.chatHistoryContext;
-        if (!existing) {
-          classifiedState.chatHistoryContext = spaceScope.rosterBlock;
-        } else if (!existing.includes(spaceScope.rosterBlock)) {
-          classifiedState.chatHistoryContext = `${spaceScope.rosterBlock}\n\n${existing}`;
-        }
-      }
+      // === Recall: chat_history tool loop, else past-work context enrichment ===
+      const recall = await runRecallStage({
+        sse,
+        classifiedState,
+        cleanupPending,
+        actualThreadId,
+        userId,
+        lastUserMessage,
+        isNewThread,
+        memoryEnabled,
+      });
+      if (recall.handled) return recall.result;
 
       // === HITL: Check if clarification is needed ===
       // `actualThreadId` is part of the gate, not an assertion inside it: a
