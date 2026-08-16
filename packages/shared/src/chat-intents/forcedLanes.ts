@@ -62,6 +62,28 @@ export type ForcedLane =
 export const FORCED_LANE_BY_INTENT: Record<ChatIntentId, ForcedLane> = {
   // ── loop, weil es sonst niemanden gäbe ────────────────────────────────────
   mcp: 'loop',
+  /**
+   * Stilllegungs-Kandidat, gemessen am 16.08.2026 und BEWUSST vertagt.
+   *
+   * Aus Prosa entsteht dieses Verdikt nicht: `umfragen` steht im `Exclude<>`
+   * der Schlüsselwortkarte (`classifierHeuristics.ts`), eine Intent-wählende
+   * LLM-Stufe gibt es nicht mehr, der Zensus zählt 0 von 167, und zehn
+   * umfrageförmige Fragen ergaben `web` (2) bzw. `direct` (8) — keine einzige
+   * `umfragen`. Die Prosa-Seite verlöre also nichts.
+   *
+   * Was heute noch fehlt, ist der Weg für die ERWÄHNUNG. `@umfragen` müsste
+   * nach der Stilllegung auf `agentic` zeigen, und damit fiele alles weg, was
+   * den Turn heute trägt: `agentic` ist aus `NAMED_RETRIEVAL_INTENTS`
+   * ausgenommen (es ist der Auffangwert), also gäbe es keinen Werkzeugzwang
+   * mehr; `pinnedFirstTool` greift nicht, weil kein Werkzeug `agentic` heisst;
+   * und mit ausgeschalteter Schleife fiele der Turn über `fallbackIntentFor`
+   * auf `search` — eine Dokumentensuche statt PolitPro.
+   *
+   * Der fehlende Baustein ist genau der, den das Zielbild ohnehin braucht: eine
+   * Erwähnung muss ein WERKZEUG festzurren können, ohne dafür einen Intent zu
+   * bemühen. `mentionPinnedIntent` (siehe `ChatGraphState`) ist der Keim davon.
+   * Arbeitsauftrag an Phase L, nicht an diese Welle.
+   */
   umfragen: 'loop',
   hilfe: 'loop',
 
