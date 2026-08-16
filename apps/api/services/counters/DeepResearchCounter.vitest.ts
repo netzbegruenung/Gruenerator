@@ -45,7 +45,10 @@ describe('DeepResearchCounter', () => {
 
   beforeEach(() => {
     redis = new FakeRedis();
-    counter = new DeepResearchCounter(redis);
+    // A limit of one keeps every assertion below about the mechanism (fail
+    // closed, TTL once, no double increment) rather than about the product's
+    // allowance, which lives in `deepResearchQuota.ts`.
+    counter = new DeepResearchCounter(redis, 1);
   });
 
   it('allows the first deep research of the day', async () => {
