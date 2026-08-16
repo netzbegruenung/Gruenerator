@@ -239,26 +239,30 @@ describe('decideTurnPlan — Endgültigkeit des Intents', () => {
     expect(LOOP_ONLY).not.toContain(p.intent);
   });
 
-  // ── ANGENAGELTER BEFUND, kein Sollzustand ────────────────────────────────
-  //
-  // Der System-Tool-Auffang prüft den VORGESCHLAGENEN Intent, der
-  // Pipeline-Zwang schreibt aber vorher um. Trifft beides zusammen, gewinnt
-  // der Auffang und macht aus dem erzwungenen `produktion` ein `web` — er
-  // nimmt dem Pipeline-Agenten also genau die Festlegung zurück, für die das
-  // Veto existiert („Übertragen ist reine Textarbeit am mitgelieferten
-  // Material").
+  // Der System-Tool-Auffang prüfte den VORGESCHLAGENEN Intent, der
+  // Pipeline-Zwang schreibt aber vorher um. Trafen beide zusammen, gewann der
+  // Auffang und machte aus dem erzwungenen `produktion` ein `web` — er nahm dem
+  // Pipeline-Agenten also genau die Festlegung zurück, für die sein Veto
+  // existiert („Übertragen ist reine Textarbeit am mitgelieferten Material").
   //
   // Erreichbar: Tier 2.9 vergibt `hilfe` allein nach Formulierung, unabhängig
   // vom Agenten — „wie erstelle ich ein Sharepic?" auf dem
   // Einfache-Sprache-Agenten genügt.
-  //
-  // Diese Phase überträgt Verhalten unverändert, also bleibt es. Der Test
-  // hängt es an den Nagel, damit die Korrektur eine sichtbare Änderung ist
-  // und kein stiller Nebeneffekt.
-  it('BEFUND: der System-Tool-Auffang überschreibt den Pipeline-Zwang', () => {
+  it('der Pipeline-Zwang überlebt den System-Tool-Auffang', () => {
     const p = plan({ intent: 'hilfe', pipelineForceIntent: 'produktion' });
     expect(p.lane).toBe('pipeline');
     expect(p.runAgentic).toBe(false);
+    expect(p.intent).toBe('produktion');
+    // Der Nachtrag hängt am Auffang: ohne Umschreibung auf `web` gibt es auch
+    // keine leergeräumte Suchanfrage nachzutragen.
+    expect(p.backfillSearchQuery).toBe(false);
+  });
+
+  // Die Gegenprobe — ohne Pipeline-Zwang greift der Auffang unverändert.
+  it('ohne Pipeline-Zwang bleibt der System-Tool-Auffang unberührt', () => {
+    const p = plan({ intent: 'hilfe', hasImageAttachments: true });
+    expect(p.runAgentic).toBe(false);
     expect(p.intent).toBe('web');
+    expect(p.backfillSearchQuery).toBe(true);
   });
 });
