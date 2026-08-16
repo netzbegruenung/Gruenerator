@@ -27,11 +27,7 @@ import {
 import { sanitizeMentionTokens } from '@gruenerator/shared/utils';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
-import {
-  classifierNode,
-  pandasComputeNode,
-  buildSystemMessage,
-} from '../../agents/langgraph/ChatGraph/index.js';
+import { pandasComputeNode, buildSystemMessage } from '../../agents/langgraph/ChatGraph/index.js';
 import { knownArtifactRefs } from '../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
 import {
   isSheetFillRequest,
@@ -58,7 +54,6 @@ import { withTimeout } from '../../utils/withTimeout.js';
 
 import { deriveImplicitRecipeMention } from './agents/implicitRecipe.js';
 import { getPipelineAgent } from './agents/pipelines/index.js';
-import { detectTaskShape } from './agents/taskShape.js';
 import {
   streamAgenticResponse,
   isAgenticLoopEnabled,
@@ -170,6 +165,7 @@ import {
   touchThread,
 } from './services/threadPersistenceService.js';
 import { turnMaterialChars } from './services/turnMaterial.js';
+import { runClassifyStage } from './streamStages/classifyStage.js';
 
 import type { ChatGraphState, CreatedDocument } from '../../agents/langgraph/ChatGraph/types.js';
 import type { ModelMessage } from 'ai';
@@ -319,29 +315,12 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       const lastUserTextNoMentions = sanitizeMentionTokens(lastUserTextRaw, 'remove');
 
       // === Stage 1: Classify ===
-      const classifiedState = {
-        ...initialState,
-        ...(await classifierNode(initialState)),
-      } as ChatGraphState;
-      classifiedState.lastUserTextNoMentions = lastUserTextNoMentions;
-      // Third routing signal next to intent and complexity: the output
-      // contract the user attached to the turn (JSON/code, "genau N Sätze").
-      // The previous assistant answer feeds the sticky case — a short edit
-      // follow-up after a code/JSON answer carries no format signal of its own.
-      classifiedState.taskShape = detectTaskShape(lastUserTextNoMentions, {
-        lastAssistantText:
-          [...validMessages]
-            .reverse()
-            .filter((m) => m.role === 'assistant')
-            .map((m) => extractTextContent(m.content))
-            .find((t) => t.trim().length > 0) ?? null,
+      const classifiedState = await runClassifyStage({
+        initialState,
+        validMessages,
+        lastUserTextNoMentions,
+        sse,
       });
-      if (classifiedState.taskShape) {
-        log.info(`[ChatGraph] taskShape=${classifiedState.taskShape} detected`);
-      }
-      // The heuristic fallback produces a materially worse turn (no
-      // multi-source search, no metadata filters) that used to look normal.
-      if (classifiedState.classifierDegraded) sendChatWarning(sse, 'classifier_degraded');
 
       let forcedTool: boolean = false;
 

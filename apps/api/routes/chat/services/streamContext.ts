@@ -156,7 +156,7 @@ export function inlineMaterialAttachment(
 // yet" and mint a fresh one.
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-type StreamBody = ServerInferRequest<typeof chatGraphContract.stream>['body'];
+export type StreamBody = ServerInferRequest<typeof chatGraphContract.stream>['body'];
 type SSEStream = ReturnType<typeof createSSEStream>;
 type ProcessAttachmentsResult = Awaited<ReturnType<typeof processAttachments>>;
 
