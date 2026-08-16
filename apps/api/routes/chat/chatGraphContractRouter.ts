@@ -46,14 +46,7 @@ import { extractChartFromResponse, emitConfirmAction } from './services/confirmA
 import { pruneMessages, applyCompaction } from './services/contextPruningService.js';
 import { buildCreateTurnContext } from './services/createTurn.js';
 import {
-  handleBoardCreation,
-  handleSheetCreation,
-  handleSheetEdit,
-  handlePresentationCreation,
-  handlePdfCreation,
-  handleRecurringTaskCreation,
   generateAndCreateDocument,
-  handleShareDoc,
   executeIntentPipeline,
 } from './services/intentExecutionService.js';
 import { estimateRequestTokens, extractTextContent } from './services/messageHelpers.js';
@@ -63,7 +56,6 @@ import {
 } from './services/outputSanity.js';
 import { createPendingAssistantWriter } from './services/pendingAssistantWriter.js';
 import { persistAssistantResponse } from './services/postResponseService.js';
-import { resolveReferentialTopic } from './services/referentialTopic.js';
 import {
   resolveModel,
   buildMessagesForAI,
@@ -71,7 +63,6 @@ import {
   streamWithFallback,
 } from './services/responseStreamingService.js';
 import { runChatGraphResume } from './services/resumePipeline.js';
-import { isSharepicTopicMissing } from './services/sharepicVariantHelpers.js';
 import {
   createSSEStream,
   PROGRESS_MESSAGES,
@@ -88,11 +79,13 @@ import { runActionGateStage } from './streamStages/actionGateStage.js';
 import { runClarificationStage } from './streamStages/clarificationStage.js';
 import { runClassifyStage } from './streamStages/classifyStage.js';
 import { runComputeInterruptStage } from './streamStages/computeInterruptStage.js';
+import { runCreateIntentStage } from './streamStages/createIntentStage.js';
 import { runEarlyHandlerStage } from './streamStages/earlyHandlerStage.js';
 import { runForcedIntentStage } from './streamStages/forcedIntentStage.js';
 import { runRecallStage } from './streamStages/recallStage.js';
 import { runRoutingStage } from './streamStages/routingStage.js';
-import { suspendTurn, type FixedTextBase, type SuspendTurnBase } from './streamStages/turnEnd.js';
+import { runSharepicTopicStage } from './streamStages/sharepicTopicStage.js';
+import { type FixedTextBase, type SuspendTurnBase } from './streamStages/turnEnd.js';
 
 import type { ChatGraphState, CreatedDocument } from '../../agents/langgraph/ChatGraph/types.js';
 import type { ModelMessage } from 'ai';
@@ -408,188 +401,34 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       });
       if (computeInterrupt.handled) return computeInterrupt.result;
 
-      // === Artifact-creating turns (@board/dokument/sheet/praesentation/pdf) ===
-      // Every branch had the same shape — gate on the forced tool or the
-      // classified intent, resolve the referential topic, call the handler,
-      // discard the placeholder row, return. Five copies of that is how the pdf
-      // branch ended up as the only one missing `await cleanupPending(true)`.
-      const createTurnBase = {
+      // === Artifact-creating turns, then the sharepic-topic HITL gate ===
+      const created = await runCreateIntentStage({
         sse,
+        req,
         classifiedState,
         aiClient,
-        req,
-        ...(actualThreadId != null && { actualThreadId }),
+        cleanupPending,
+        actualThreadId,
         userId,
-      };
-      /** What the artifact is ABOUT. A referential follow-up ("mach eine
-       *  Tabelle dazu") names no subject, so the classifier resolves one against
-       *  the history; `resolveReferentialTopic` covers the turns that never
-       *  reached the LLM. The material to build FROM is separate and comes from
-       *  runCreateTurn's transcript + source briefing. */
-      const createTopic = (): string =>
-        classifiedState.creationTopic ||
-        resolveReferentialTopic(
-          lastUserMessage ? extractTextContent(lastUserMessage.content) : '',
-          classifiedState.messages ?? []
-        ).text;
+        lastUserMessage,
+        forcedTools,
+        runAgentic,
+        agentId,
+        rawDocMentionIds,
+        rawDocumentChatIds,
+      });
+      if (created.handled) return created.result;
 
-      const createRoutes: Array<{
-        forcedTool: string;
-        /** Classifier intent that also triggers it (the @-tool-only branches
-         *  predate the create_* intents and have none). */
-        intent?: string;
-        /** Compound turns let the loop call the fat tool instead. */
-        skipOnAgentic: boolean;
-        run: () => Promise<boolean>;
-      }> = [
-        {
-          forcedTool: 'board-erstellen',
-          skipOnAgentic: false,
-          // Board still takes the raw message: it resolves the topic itself.
-          run: () => handleBoardCreation({ ...createTurnBase, lastUserMessage }),
-        },
-        {
-          forcedTool: 'dokument-erstellen',
-          skipOnAgentic: false,
-          run: () =>
-            generateAndCreateDocument({
-              ...createTurnBase,
-              userContent: createTopic(),
-              intent: 'produktion',
-            }),
-        },
-        {
-          forcedTool: 'sheet-erstellen',
-          intent: 'create_sheet',
-          skipOnAgentic: true,
-          run: () => handleSheetCreation({ ...createTurnBase, userContent: createTopic() }),
-        },
-        {
-          forcedTool: 'praesentation-erstellen',
-          intent: 'create_presentation',
-          skipOnAgentic: true,
-          run: () => handlePresentationCreation({ ...createTurnBase, userContent: createTopic() }),
-        },
-        {
-          forcedTool: 'pdf-erstellen',
-          intent: 'create_pdf',
-          skipOnAgentic: true,
-          run: () =>
-            handlePdfCreation({
-              ...createTurnBase,
-              userContent: createTopic(),
-              userLocale: classifiedState.userLocale === 'de-AT' ? 'de-AT' : 'de-DE',
-            }),
-        },
-      ];
-
-      for (const route of createRoutes) {
-        if (route.skipOnAgentic && runAgentic) continue;
-        const triggered =
-          forcedTools?.includes(route.forcedTool) === true ||
-          (route.intent != null && classifiedState.intent === route.intent);
-        if (!triggered) continue;
-        if (await route.run()) {
-          await cleanupPending(true);
-          return { status: 200 as const, body: undefined };
-        }
-      }
-
-      // === edit_sheet intent (Tier 2.7 follow-up on a chat-created sheet) ===
-      // handleSheetEdit always owns the turn once dispatched (mirrors
-      // runCreateTurn's contract) — no fall-through to the normal pipeline.
-      if (!runAgentic && classifiedState.intent === 'edit_sheet') {
-        const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
-        await handleSheetEdit({
-          sse,
-          classifiedState,
-          ...(actualThreadId != null && { actualThreadId }),
-          userId,
-          userContent: lastUserText as string,
-        });
-        await cleanupPending(true);
-        return { status: 200 as const, body: undefined };
-      }
-
-      // === EXPERIMENTAL: create_recurring_task intent ===
-      // Falls through to the normal pipeline if extraction fails.
-      if (!runAgentic && classifiedState.intent === 'create_recurring_task') {
-        const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
-        const created = await handleRecurringTaskCreation({
-          sse,
-          classifiedState,
-          aiClient,
-          req,
-          ...(actualThreadId != null && { actualThreadId }),
-          userId,
-          userContent: lastUserText as string,
-          agentId: agentId ?? null,
-          userLocale: classifiedState.userLocale === 'de-AT' ? 'de-AT' : 'de-DE',
-        });
-        if (created) {
-          await cleanupPending(true);
-          return { status: 200 as const, body: undefined };
-        }
-      }
-
-      // === Handle share_doc intent ===
-      if (classifiedState.intent === 'share_doc' && actualThreadId) {
-        const handled = await handleShareDoc({
-          sse,
-          classifiedState,
-          actualThreadId,
-          userId,
-          ...(lastUserMessage != null && { lastUserMessage }),
-          ...(rawDocMentionIds != null && { rawDocMentionIds }),
-          ...(rawDocumentChatIds != null && { rawDocumentChatIds }),
-        });
-        if (handled) {
-          await cleanupPending(true);
-          return { status: 200 as const, body: undefined };
-        }
-      }
-
-      // === HITL: Sharepic without a topic → ask before generating ===
-      // Unlike the generic clarification above this fires even for forced @sharepic,
-      // because a bare "@sharepic" / "zitat sharepic" has the intent but no subject.
-      if (classifiedState.intent === 'sharepic' && actualThreadId && !sharepicRefinement) {
-        const sharepicText = lastUserTextNoMentions;
-        // Ask only when the THREAD has no subject either. "Jetzt noch ein
-        // normales sharepic" carries none of its own, but the turn before it
-        // does — and runSharepicGeneration resolves exactly that. Asking here
-        // would throw away a topic the pipeline already knows. Both resolution
-        // paths count, in the order the generator tries them.
-        const topicResolvable =
-          !!classifiedState.creationTopic ||
-          resolveReferentialTopic(sharepicText as string, classifiedState.messages ?? []).inherited;
-        if (isSharepicTopicMissing(sharepicText as string) && !topicResolvable) {
-          log.info('[ChatGraph] Sharepic topic missing — asking user for the topic');
-
-          const stepId = `clarify_${Date.now()}`;
-          const question = 'Zu welchem Thema soll ich das Sharepic erstellen?';
-          const options = ['Klimaschutz', 'Soziale Gerechtigkeit', 'Verkehrswende', 'Artenschutz'];
-
-          sse.sendRaw('thinking_step', {
-            stepId,
-            toolName: 'ask_human',
-            title: 'Stelle Klärungsfrage...',
-            status: 'in_progress',
-            args: { question, options },
-          });
-
-          return suspendTurn({
-            ...suspendBase,
-            forcedTool,
-            threadId: actualThreadId,
-            interrupt: {
-              interruptType: 'clarification',
-              question,
-              options,
-              threadId: actualThreadId,
-            },
-          });
-        }
-      }
+      const sharepicTopic = await runSharepicTopicStage({
+        sse,
+        classifiedState,
+        suspendBase,
+        forcedTool,
+        actualThreadId,
+        sharepicRefinement,
+        lastUserTextNoMentions,
+      });
+      if (sharepicTopic.handled) return sharepicTopic.result;
 
       // === Stage 2 + 3: Response generation ===
       type PipelineResult = Awaited<ReturnType<typeof executeIntentPipeline>>;
