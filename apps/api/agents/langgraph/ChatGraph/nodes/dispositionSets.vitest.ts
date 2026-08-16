@@ -158,17 +158,21 @@ describe('DEMOTABLE_HEURISTIC_INTENTS — loop MINUS drei, und jede Ausnahme sag
 
 describe('NON_SEARCH_INTENTS — Politik des Heuristik-Tisches, keine Disposition', () => {
   it('deckt sich mit keiner Vereinigung von Dispositionen', () => {
-    // Die Messung, die den Kopfkommentar der Menge trägt: `artifact` ohne
-    // `social_post`, `anchor` und `gated` je zur Hälfte, dazu ein einzelnes
+    // Die Messung, die den Kopfkommentar der Menge trägt: `prose` und
+    // `artifact` ganz, `anchor` und `gated` je zur Hälfte, dazu ein einzelnes
     // `umfragen` aus `loop`. Wer daraus eine Ableitung machen will, ändert
     // Verhalten — der Test sagt, wieviel.
+    //
+    // `artifact` wurde am 16.08.2026 vollständig (`social_post` kam hinzu) und
+    // `gated` verlor `summary`. Was die beiden verband, war der
+    // Mehr-Themen-Abschlag: er gilt nur für Abrufe, und die zwei zahlten ihn.
     const missing = (d: Parameters<typeof intentsWithDisposition>[0]) =>
       sorted([...intentsWithDisposition(d)].filter((id) => !NON_SEARCH_INTENTS.has(id)));
 
     expect(missing('prose')).toEqual([]);
-    expect(missing('artifact')).toEqual(['social_post']);
+    expect(missing('artifact')).toEqual([]);
     expect(missing('anchor')).toEqual(['edit_current_board', 'edit_current_doc', 'edit_sheet']);
-    expect(missing('gated')).toEqual(['chat_history', 'hilfe', 'scrape_url', 'summary']);
+    expect(missing('gated')).toEqual(['chat_history', 'hilfe', 'scrape_url']);
   });
 
   it('trägt keinen Intent, den es nicht gibt', () => {

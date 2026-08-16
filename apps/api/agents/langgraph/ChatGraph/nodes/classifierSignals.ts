@@ -25,16 +25,24 @@ import type { SearchIntent, SearchSource } from '../types.js';
  * Tisches, keine Eigenschaft der Intents — und wird deshalb nicht aus der
  * Dispositions-Achse abgeleitet.
  *
- * Gemessen gegen sie deckt sie sich auch nicht: `artifact` ohne `social_post`,
- * `anchor` nur zur Hälfte, `gated` zur Hälfte, dazu `umfragen` aus `loop`.
- * Sechs Mitglieder (`image_edit`, `create_recurring_task`, `modify_doc`,
- * `modify_board`, `mcp`, `umfragen`) kann `heuristicClassify` gar nicht
- * liefern — sie sind wirkungslos, aber harmlos. Die zwei Lücken, die WIRKEN,
- * sind `social_post` und `summary`: beide sind vom Tisch erreichbar und stehen
- * nicht drin, zahlen also den Mehr-Themen-Abschlag wie eine Suche. Bestehendes
- * Verhalten, hier notiert statt stillschweigend mitgeschleppt.
+ * Gemessen gegen sie deckt sie sich auch nicht: `anchor` nur zur Hälfte,
+ * `gated` zur Hälfte, dazu `umfragen` aus `loop`. Sechs Mitglieder
+ * (`image_edit`, `create_recurring_task`, `modify_doc`, `modify_board`, `mcp`,
+ * `umfragen`) kann `heuristicClassify` gar nicht liefern — sie sind wirkungslos,
+ * aber harmlos.
  *
- * `ReadonlySet<ChatIntentId>` statt `Set<string>`: die 18 Literale waren ohne
+ * `social_post` und `summary` fehlten und zahlten deshalb den
+ * Mehr-Themen-Abschlag wie eine Suche. Gemessen wirkt er nur bei `summary`, und
+ * dort ganz: das Verdikt sitzt mit 0,85 exakt auf der Schwelle, ein zweites
+ * Glied kostet 0,30, und der Turn fällt an der Tier-3-Rückgabe vorbei. „Fass
+ * unser Gespräch hier im Chat zusammen und nenne die wichtigsten offenen
+ * Punkte" wurde so von Tier 3.8 zu `produktion` umgedeutet — die
+ * Zusammenfassung aus dem Gedächtnis statt aus dem Zusammenfassungs-Zweig.
+ * `social_post` liegt mit 0,80 ohnehin unter der Schwelle und ändert keinen
+ * Ausgang; es steht mit drin, weil die Menge sonst eine Aussage über den Tisch
+ * macht, die für die Hälfte seiner Erzeugungs-Verdikte nicht gilt.
+ *
+ * `ReadonlySet<ChatIntentId>` statt `Set<string>`: die Literale waren ohne
  * Typschutz, ein Tippfehler wäre schlicht nie Mitglied geworden.
  */
 export const NON_SEARCH_INTENTS: ReadonlySet<ChatIntentId> = new Set([
@@ -48,6 +56,8 @@ export const NON_SEARCH_INTENTS: ReadonlySet<ChatIntentId> = new Set([
   'image_edit',
   'chart',
   'artifact',
+  'social_post',
+  'summary',
   'compute',
   'save_as_doc',
   'create_sheet',
