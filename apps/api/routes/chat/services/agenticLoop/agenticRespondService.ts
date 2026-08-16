@@ -83,6 +83,21 @@ export { isAgenticLoopEnabled } from './flags.js';
  */
 export { TRUNCATION_NOTE, resolveAbortOutcome, type AbortOutcome } from '../turnAbortOutcome.js';
 
+/**
+ * The three collaborators the orchestration itself is ABOUT: which model runs,
+ * what is mounted, and how the loop is driven. Injected so the decisions in
+ * between — mode choice, verdict retry, budget, catalog degradation — can be
+ * tested without a model, a database or a connector (same pattern as
+ * `loopEngine`'s `LoopDeps`).
+ */
+export interface AgenticRespondDeps {
+  resolveModel: typeof resolveModel;
+  assembleToolCatalog: typeof assembleToolCatalog;
+  runAgenticLoop: typeof runAgenticLoop;
+}
+
+const defaultDeps: AgenticRespondDeps = { resolveModel, assembleToolCatalog, runAgenticLoop };
+
 export interface AgenticResponseOutcome {
   fullText: string;
   steps: PersistedStep[];
@@ -96,24 +111,27 @@ export interface AgenticResponseOutcome {
  * the caller): a hard failure with no streamed text degrades to a short German
  * apology so the turn still persists and closes cleanly.
  */
-export async function streamAgenticResponse(params: {
-  finalState: ChatGraphState;
-  systemMessage: string;
-  messages: ModelMessage[];
-  modelId?: string;
-  requestId: string;
-  sse: SSEWriter;
-  reqSignal?: AbortSignal;
-  /** Express request — required by the sharepic fat tool (compound turns). */
-  req?: Request;
-  threadId?: string | null;
-  /** The thread's tool memory, already read by `buildStreamContext` for the
-   *  classifier's artifact list. Both reads below project the SAME rows, so
-   *  taking them from here turns three round trips per loop turn into one.
-   *  Null (absent, or the shared read failed) falls back to reading here, which
-   *  keeps each failure as narrow as it was before. */
-  toolHistory?: ThreadToolHistory | null;
-}): Promise<AgenticResponseOutcome> {
+export async function streamAgenticResponse(
+  params: {
+    finalState: ChatGraphState;
+    systemMessage: string;
+    messages: ModelMessage[];
+    modelId?: string;
+    requestId: string;
+    sse: SSEWriter;
+    reqSignal?: AbortSignal;
+    /** Express request — required by the sharepic fat tool (compound turns). */
+    req?: Request;
+    threadId?: string | null;
+    /** The thread's tool memory, already read by `buildStreamContext` for the
+     *  classifier's artifact list. Both reads below project the SAME rows, so
+     *  taking them from here turns three round trips per loop turn into one.
+     *  Null (absent, or the shared read failed) falls back to reading here, which
+     *  keeps each failure as narrow as it was before. */
+    toolHistory?: ThreadToolHistory | null;
+  },
+  deps: AgenticRespondDeps = defaultDeps
+): Promise<AgenticResponseOutcome> {
   const {
     finalState,
     systemMessage,
@@ -149,7 +167,7 @@ export async function streamAgenticResponse(params: {
   const carriedMaterialChars = turnMaterialChars(finalState);
 
   try {
-    resolution = await resolveModel(
+    resolution = await deps.resolveModel(
       {
         provider: agentConfig.provider as string,
         model: agentConfig.model,
@@ -166,7 +184,7 @@ export async function streamAgenticResponse(params: {
       }
     );
 
-    const assembled = await assembleToolCatalog({
+    const assembled = await deps.assembleToolCatalog({
       state: finalState,
       sourceRegistry,
       sse,
@@ -326,7 +344,7 @@ export async function streamAgenticResponse(params: {
     // clock — users read that as "it just aborts".
     const synthFallback = mode === 'split' ? getLoopSynthFallbackModel(synth.name) : null;
 
-    const loopResult = await runAgenticLoop({
+    const loopResult = await deps.runAgenticLoop({
       mode,
       plannerModel: mode === 'split' ? getLoopPlannerModel() : resolution.model,
       synthModel: synth.model,
