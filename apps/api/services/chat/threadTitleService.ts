@@ -8,7 +8,7 @@
  * Generates AI-powered German titles using Mistral-small via aiClient.
  */
 
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull, or } from 'drizzle-orm';
 
 import { chatThreads } from '../../database/schema/chat.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
@@ -23,14 +23,63 @@ const LANE = intermediateLane('trivial');
 const log = createLogger('ThreadTitle');
 
 /**
- * Update a thread's title in the database.
+ * Titles that mean "not named yet". A thread created up front by the client's
+ * `initialize()` carries NULL; `buildStreamContext` writes the placeholder when
+ * the first message has no text of its own (e.g. only a pasted attachment).
  */
-export async function updateThreadTitleInDB(threadId: string, title: string): Promise<void> {
+const PLACEHOLDER_TITLES = ['Neue Unterhaltung', 'Neuer Chat'];
+
+/** Match a row that nobody has deliberately named. */
+function unnamedCondition() {
+  return or(
+    isNull(chatThreads.title),
+    eq(chatThreads.title, ''),
+    ...PLACEHOLDER_TITLES.map((t) => eq(chatThreads.title, t))
+  );
+}
+
+/**
+ * Does this thread still need a generated title?
+ *
+ * The gate for the server-side title pass. Reading the row is what makes that
+ * pass safe to run on EVERY turn instead of only the first one.
+ */
+export async function threadNeedsTitle(threadId: string): Promise<boolean> {
   const db = getDrizzleInstance();
-  await db
+  const rows = await db
+    .select({ title: chatThreads.title })
+    .from(chatThreads)
+    .where(and(eq(chatThreads.id, threadId), unnamedCondition()))
+    .limit(1);
+  return rows.length > 0;
+}
+
+/**
+ * Write a generated title — but only while nobody has named the thread by hand.
+ *
+ * Two writers race here: this service and the user's own rename (`PATCH
+ * /api/chat-service/threads`). An unconditional UPDATE let a late AI title
+ * overwrite a rename the user had just typed. `replacing` is the escape hatch
+ * for the one legitimate overwrite: the AI title replacing the fallback that
+ * the same run wrote seconds earlier.
+ *
+ * Returns the title if it landed, null if another writer had won.
+ */
+export async function updateThreadTitleInDB(
+  threadId: string,
+  title: string,
+  replacing?: string | null
+): Promise<string | null> {
+  const db = getDrizzleInstance();
+  const claim = replacing
+    ? or(unnamedCondition(), eq(chatThreads.title, replacing))
+    : unnamedCondition();
+  const rows = await db
     .update(chatThreads)
     .set({ title, updated_at: new Date() })
-    .where(eq(chatThreads.id, threadId));
+    .where(and(eq(chatThreads.id, threadId), claim))
+    .returning({ id: chatThreads.id });
+  return rows.length > 0 ? title : null;
 }
 
 // Salutations that often start a German letter/email/post and make a poor
@@ -159,6 +208,10 @@ Nutzerfrage: "Setz mir einen Timer auf 10 Minuten" → Timer setzen`;
 /**
  * Generate a thread title: writes fallback immediately, then fires off an AI call
  * to generate a better title asynchronously.
+ *
+ * Returns the fallback that reached the database, so a caller answering a
+ * request can hand the client the title the sidebar will actually show. Null
+ * means no title was written — no usable text, or the thread was renamed.
  */
 export async function generateThreadTitle(
   threadId: string,
@@ -166,7 +219,7 @@ export async function generateThreadTitle(
   assistantResponse: string,
   aiClient: AiClient,
   options?: { imageGenerated?: boolean }
-): Promise<void> {
+): Promise<string | null> {
   log.info(`[ThreadTitle] generateThreadTitle called`, {
     threadId,
     userMessageLen: userMessage?.length ?? 0,
@@ -181,11 +234,15 @@ export async function generateThreadTitle(
 
   if (!fallback || fallback.length <= 3) {
     log.warn(`[ThreadTitle] Skipping — fallback is null/too short (${JSON.stringify(fallback)})`);
-    return;
+    return null;
   }
 
   // Write fallback title immediately so sidebar has a name right away
-  await updateThreadTitleInDB(threadId, fallback);
+  const written = await updateThreadTitleInDB(threadId, fallback);
+  if (!written) {
+    log.info(`[ThreadTitle] Thread ${threadId} was already named — leaving it alone`);
+    return null;
+  }
   log.info(`[ThreadTitle] Fallback title written to DB for ${threadId}: "${fallback}"`);
 
   // Fire-and-forget AI title generation
@@ -226,7 +283,9 @@ export async function generateThreadTitle(
       const aiTitle = normalizeAiTitle(response.content);
 
       if (aiTitle) {
-        await updateThreadTitleInDB(threadId, aiTitle);
+        // `fallback` as `replacing`: this is the one overwrite that is allowed
+        // — our own fallback from a moment ago, never a manual rename.
+        await updateThreadTitleInDB(threadId, aiTitle, fallback);
         log.info(`[ThreadTitle] AI title written to DB for ${threadId}: "${aiTitle}"`);
       } else {
         log.warn(
@@ -237,4 +296,6 @@ export async function generateThreadTitle(
     .catch((err: unknown) => {
       log.warn(`[ThreadTitle] AI worker FAILED for ${threadId}, keeping fallback:`, err);
     });
+
+  return fallback;
 }
