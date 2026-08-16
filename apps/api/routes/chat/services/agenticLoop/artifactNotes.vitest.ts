@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { buildArtifactNotes } from './agenticRespondService.js';
+import { buildArtifactNotes } from './artifactNotes.js';
 
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
 

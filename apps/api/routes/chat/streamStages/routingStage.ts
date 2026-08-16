@@ -21,10 +21,8 @@ import { recordDecision } from '../../../utils/decisionJournal.js';
 import { createLogger } from '../../../utils/logger.js';
 import { deriveImplicitRecipeMention } from '../agents/implicitRecipe.js';
 import { getPipelineAgent } from '../agents/pipelines/index.js';
-import {
-  AGENTIC_INTENTS,
-  isAgenticLoopEnabled,
-} from '../services/agenticLoop/agenticRespondService.js';
+import { isAgenticLoopEnabled } from '../services/agenticLoop/agenticRespondService.js';
+import { AGENTIC_INTENTS } from '../services/agenticLoop/intents.js';
 import {
   compoundGenerationKind,
   decideEditToolLoop,
