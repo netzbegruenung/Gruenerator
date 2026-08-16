@@ -183,16 +183,23 @@ describe('locale rules', () => {
     }
   });
 
-  it('no retired intent still offers a mention', () => {
+  it('a retired intent keeps a mention only if that mention pins a tool', () => {
     // The picker filters on this too, but the registry is where the mistake
-    // would be made: leaving a `mention` on a retired entry puts a token on the
-    // wire that the router no longer resolves.
+    // would be made: leaving a plain `mention` on a retired entry puts a token
+    // on the wire that the router no longer resolves. A mention with `pinsTool`
+    // is the one exception and not a loophole — it resolves to a LOOP TOOL
+    // rather than to the dead verdict (`@umfragen`, Phase L).
     for (const intent of ALL_CHAT_INTENTS) {
       if (intent.availability !== 'retired') continue;
       // `ChatIntentDefinition` declares `mention` only on the variant that has
       // one, so the narrowing has to happen here — same `'mention' in i` idiom
       // as `allIntentMentions()`.
-      expect('mention' in intent, `${intent.id} is retired but still has a mention`).toBe(false);
+      const mention = 'mention' in intent ? intent.mention : null;
+      if (!mention) continue;
+      expect(
+        mention.pinsTool,
+        `${intent.id} is retired and its mention pins nothing — the token would resolve to nowhere`
+      ).toBeTruthy();
     }
   });
 });
