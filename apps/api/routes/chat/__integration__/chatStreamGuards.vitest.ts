@@ -12,7 +12,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../../services/ai/execution/index.js', async () => {
-  const { executeProviderStub } = await import('./harness/aiClientStub.js');
+  const { executeProviderStub } = await import('./harness/providerStub.js');
   return { executeProvider: executeProviderStub };
 });
 

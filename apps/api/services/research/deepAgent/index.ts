@@ -113,7 +113,6 @@ export async function runDeepAgentResearch(
     // Cuts a waiting tool (the GreenPT spacing gate, a retry pause) short with
     // the research clock instead of letting it outlive its own run.
     signal: researchSignal,
-    ...(params.aiClient ? { aiClient: params.aiClient } : {}),
     ...(params.notebookScope ? { notebooks: params.notebookScope } : {}),
     onStep: (label, status) => {
       let id = stepIds.get(label);

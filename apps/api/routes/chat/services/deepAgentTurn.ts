@@ -123,7 +123,6 @@ export async function runDeepAgentTurn(params: {
       // Cutting at `hardMs` here is what turned a finished body of research
       // into a fragment on 11.08.2026.
       signal: AbortSignal.timeout(DEFAULT_BUDGET.hardMs + DEFAULT_BUDGET.wrapUpMs),
-      ...(state.aiClient ? { aiClient: state.aiClient } : {}),
       ...(notebookScope ? { notebookScope } : {}),
       userId,
       progress: {

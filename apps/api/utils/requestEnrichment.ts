@@ -8,7 +8,6 @@ import { aiText } from '../services/ai/generate.js';
 import { processAndBuildAttachments } from '../services/attachments/index.js';
 import { extractUrlsFromContent, filterNewUrls, getUrlDomain } from '../services/content/index.js';
 import { extractLocaleFromRequest } from '../services/localization/index.js';
-import { type SearxngAiClient } from '../services/search/index.js';
 
 import { getErrorMessage } from './errors/index.js';
 
@@ -409,7 +408,7 @@ class RequestEnricher {
     // Web search enrichment (if enabled)
     if (enableWebSearch && webSearchQuery) {
       enrichmentTasks.push(
-        this.performWebSearch(webSearchQuery, options.aiClient, options.req)
+        this.performWebSearch(webSearchQuery)
           .then((result) => ({
             type: 'websearch' as const,
             knowledge: result.knowledge,
@@ -720,11 +719,7 @@ class RequestEnricher {
   /**
    * Perform web search and generate summary
    */
-  async performWebSearch(
-    searchQuery: string,
-    aiClient: EnrichmentOptions['aiClient'],
-    req: unknown
-  ): Promise<WebSearchResult> {
+  async performWebSearch(searchQuery: string): Promise<WebSearchResult> {
     const searxngService = await getSearxngWebSearchService();
     if (!searxngService) {
       console.log('🎯 [RequestEnricher] Web search skipped: service not available');
@@ -746,18 +741,10 @@ class RequestEnricher {
 
       // Try to generate AI summary
       try {
-        if (aiClient) {
-          const summary = await searxngService.generateAISummary(
-            searchResults,
-            searchQuery,
-            aiClient as SearxngAiClient,
-            {},
-            req
-          );
+        const summary = await searxngService.generateAISummary(searchResults, searchQuery, {});
 
-          if (summary?.summary?.generated && summary.summary.text) {
-            knowledge.push(`HINTERGRUNDWISSEN (Websuche):\n${summary.summary.text.trim()}`);
-          }
+        if (summary?.summary?.generated && summary.summary.text) {
+          knowledge.push(`HINTERGRUNDWISSEN (Websuche):\n${summary.summary.text.trim()}`);
         }
       } catch (summaryError) {
         console.log('🎯 [RequestEnricher] AI summary failed:', getErrorMessage(summaryError));

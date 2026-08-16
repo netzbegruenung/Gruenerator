@@ -5,7 +5,6 @@
 
 // Export SearXNG Service (singleton instance)
 export { searxngService, default as SearxngServiceClass } from './SearxngService.js';
-export { type AiClient as SearxngAiClient } from './SearxngService.js';
 
 // Export SearchResultProcessor utilities
 export {

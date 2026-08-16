@@ -15,7 +15,6 @@ import type {
   ValidationResult,
   WebSearchInput,
 } from './types.js';
-import type { AiClient } from '../../../services/ai/types.js';
 import type { Request } from 'express';
 
 // Type verification tests - these should all compile without errors
@@ -30,7 +29,6 @@ const _testInput: WebSearchInput = {
     language: 'de-DE',
     categories: 'general', // String, not array
   },
-  aiClient: {} as unknown as AiClient,
   req: {} as unknown as Request,
 };
 

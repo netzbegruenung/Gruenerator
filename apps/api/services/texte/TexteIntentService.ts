@@ -4,8 +4,7 @@
  */
 
 import { createLogger } from '../../utils/logger.js';
-
-import type { AiClient } from '../ai/types.js';
+import { aiText } from '../ai/generate.js';
 
 const log = createLogger('TexteIntentService');
 
@@ -266,14 +265,8 @@ export function detectTypeByKeywords(message: string): TextTypeDetectionResult |
  */
 export async function detectTypeWithAI(
   message: string,
-  aiClient: AiClient,
   hint?: { type: string; description: string }
 ): Promise<TextTypeDetectionResult | null> {
-  if (!aiClient) {
-    log.warn('[TexteIntentService] No AI worker pool available');
-    return null;
-  }
-
   const typeDescriptions = Object.entries(TEXT_TYPE_MAPPINGS)
     .map(([name, mapping]) => `- ${name}: ${mapping.description}`)
     .join('\n');
@@ -308,23 +301,17 @@ Antworte NUR mit JSON:
       hint ? `(hint: ${hint.type})` : ''
     );
 
-    const result = await aiClient.processRequest({
-      type: 'texte_intent_classification',
-      systemPrompt: 'Du bist ein präziser Texttyp-Klassifikator. Antworte NUR mit validem JSON.',
-      messages: [{ role: 'user', content: classificationPrompt }],
-      options: {
-        max_tokens: 150,
-        temperature: 0.2,
-      },
+    const answer = await aiText({
+      lane: 'texte_intent_classification',
+      system: 'Du bist ein präziser Texttyp-Klassifikator. Antworte NUR mit validem JSON.',
+      prompt: classificationPrompt,
+      maxOutputTokens: 150,
+      temperature: 0.2,
     });
 
-    if (!result.content) {
-      throw new Error('AI classification failed: no content returned');
-    }
-
-    const jsonMatch = result.content.match(/\{[\s\S]*\}/);
+    const jsonMatch = answer.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      log.warn('[TexteIntentService] Could not parse AI response:', result.content);
+      log.warn('[TexteIntentService] Could not parse AI response:', answer);
       return null;
     }
 
@@ -355,10 +342,7 @@ Antworte NUR mit JSON:
  * Medium-confidence keyword (0.60–0.79): pass as hint to AI for confirmation
  * Low-confidence or no match: pure AI detection
  */
-export async function detectTextType(
-  message: string,
-  aiClient: AiClient
-): Promise<TextTypeDetectionResult> {
+export async function detectTextType(message: string): Promise<TextTypeDetectionResult> {
   log.debug('[TexteIntentService] Detecting text type for:', message.substring(0, 100));
 
   const keywordResult = detectTypeByKeywords(message);
@@ -372,28 +356,26 @@ export async function detectTextType(
     return keywordResult;
   }
 
-  if (aiClient) {
-    const hint =
-      keywordResult && keywordResult.confidence >= 0.6
-        ? {
-            type: keywordResult.detectedType,
-            description: TEXT_TYPE_MAPPINGS[keywordResult.detectedType]?.description || '',
-          }
-        : undefined;
+  const hint =
+    keywordResult && keywordResult.confidence >= 0.6
+      ? {
+          type: keywordResult.detectedType,
+          description: TEXT_TYPE_MAPPINGS[keywordResult.detectedType]?.description || '',
+        }
+      : undefined;
 
-    if (hint) {
-      log.debug(
-        '[TexteIntentService] Medium-confidence keyword, sending hint to AI:',
-        hint.type,
-        keywordResult!.confidence
-      );
-    }
+  if (hint) {
+    log.debug(
+      '[TexteIntentService] Medium-confidence keyword, sending hint to AI:',
+      hint.type,
+      keywordResult!.confidence
+    );
+  }
 
-    const aiResult = await detectTypeWithAI(message, aiClient, hint);
-    if (aiResult && aiResult.confidence >= 0.7) {
-      log.debug('[TexteIntentService] Using AI detection:', aiResult.detectedType);
-      return aiResult;
-    }
+  const aiResult = await detectTypeWithAI(message, hint);
+  if (aiResult && aiResult.confidence >= 0.7) {
+    log.debug('[TexteIntentService] Using AI detection:', aiResult.detectedType);
+    return aiResult;
   }
 
   // If AI is unavailable but we have a medium-confidence keyword, use it as best-effort

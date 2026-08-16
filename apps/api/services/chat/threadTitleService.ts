@@ -5,7 +5,7 @@
  * Consolidates the identical updateThreadTitle + first-sentence heuristic
  * that was duplicated across chat controllers.
  *
- * Generates AI-powered German titles using Mistral-small via aiClient.
+ * Generates AI-powered German titles using Mistral-small via `aiText`.
  */
 
 import { and, eq, isNull, or } from 'drizzle-orm';

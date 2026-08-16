@@ -6,7 +6,7 @@
  *  1. `reasoning_effort: 'none'`. Gemma 4 26B-A4B denkt per Default und
  *     antwortet dann mit LEEREM `content` (gemessen 01.08.2026: leer auch bei
  *     max_tokens 1500, nach 5386 Zeichen Reasoning). Leerer Inhalt ist für
- *     `aiService` kein Fehler, sondern startet die Fallback-Kette — der Ausfall
+ *     die Fassade kein Fehler, sondern startet die Fallback-Kette — der Ausfall
  *     wäre also teuer UND unsichtbar.
  *  2. `KNOWN` in services/ai/execution/index.ts. Das ist ein Array, kein Record:
  *     ein fehlender Provider ist kein Typfehler, sondern eine stille

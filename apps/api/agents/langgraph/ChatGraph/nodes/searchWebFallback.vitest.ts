@@ -46,7 +46,6 @@ function buildState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     enabledTools: { search: true, web: true },
     // Query expansion is best-effort and wrapped in try/catch — a pool that
     // rejects exercises exactly the path a slow lane would take.
-    aiClient: { processRequest: vi.fn(async () => Promise.reject(new Error('no pool'))) },
     userLocale: 'de-DE',
     intent: 'search' as SearchIntent,
     searchQuery: 'Klimaschutz Programm',

@@ -10,7 +10,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../../services/ai/execution/index.js', async () => {
-  const { executeProviderStub } = await import('./harness/aiClientStub.js');
+  const { executeProviderStub } = await import('./harness/providerStub.js');
   return { executeProvider: executeProviderStub };
 });
 
@@ -69,7 +69,7 @@ const { runTurn, assertEventOrder } = await import('./harness/trace.js');
 const { envGuardValues } = await import('./harness/env.js');
 const { threadAccess, persistControl } = await import('./harness/mocks.js');
 const { threads } = await import('./harness/fakeThreadStore.js');
-const { createAiClientStub } = await import('./harness/aiClientStub.js');
+const { createProviderStub } = await import('./harness/providerStub.js');
 
 const suite = useChatApp();
 
@@ -178,7 +178,8 @@ describe('stream error codes', () => {
     // HTTP 401 belongs to requireAuth, which this harness does not mount. What
     // the ROUTER does is emit a coded error on an otherwise normal stream —
     // that is what the frontend parses.
-    const app = await startChatApp({ user: null, aiClient: createAiClientStub() });
+    createProviderStub();
+    const app = await startChatApp({ user: null });
     try {
       const res = await postStream(app.baseUrl, greeting());
       const body = await res.text();
@@ -190,19 +191,11 @@ describe('stream error codes', () => {
     }
   });
 
-  it('reports provider_unavailable when no worker pool is bound', async () => {
-    const app = await startChatApp({ aiClient: null });
-    try {
-      const res = await postStream(app.baseUrl, greeting());
-      const body = await res.text();
-
-      expect(res.status).toBe(200);
-      expect(body).toContain('"code":"provider_unavailable"');
-      expect(body).toContain('"retryable":true');
-    } finally {
-      await app.close();
-    }
-  });
+  // Der `provider_unavailable`-Fall des Stream-Einstiegs ist ersatzlos entfallen.
+  // Er prüfte, dass ein nicht gebundener `app.locals.aiClient` einen kodierten
+  // SSE-Fehler erzeugt; diese Bindung gibt es nicht mehr, und damit auch kein
+  // "kein Client vorhanden" mehr. Provider-Ausfälle heissen jetzt `NoAnswerError`
+  // und entstehen dort, wo wirklich gerufen wird — nicht im Vorfeld.
 
   it('rejects a schema-invalid body at the contract layer', async () => {
     const res = await postStream(suite.baseUrl(), { messages: [] });

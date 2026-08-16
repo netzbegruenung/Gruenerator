@@ -11,12 +11,34 @@
  * NICHT demotiert" — und wo eine Stufe danach entscheidet, wird jetzt SIE
  * geprüft (der Live-Quellen-Auflöser an seinem Systemprompt).
  *
+ * Acht `expect(state.aiClient.processRequest).not.toHaveBeenCalled()` sind mit
+ * dem `aiClient` gefallen, und sie fehlen nicht: die Attrappe lag im Zustand,
+ * der Klassifikator ruft aber `executeProvider` — die Zusicherung konnte gar
+ * nicht fehlschlagen. An der echten Tür gemessen ist sie schlicht falsch, denn
+ * die kleinen Auflöser LAUFEN hier. Was sie sagen wollte, sagt jetzt der
+ * Aufbau: jeder Auflöser antwortet „keine", hat also keine Meinung — jedes
+ * Verdikt unten stammt damit zwingend aus einer deterministischen Stufe.
+ *
  * The prompts run against the REAL heuristics — several are verbatim from the
  * live battle-test sessions that motivated the demotion.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { classifierNode } from './classifierNode.js';
+/**
+ * Der Klassifikator ruft das Modell über `executeProvider` — nicht mehr über
+ * einen `aiClient` im Zustand. Die Attrappe muss deshalb an dieser Tür stehen;
+ * eine im Zustand hinterlegte wäre eine, die nichts abfängt: der echte Provider
+ * würde versucht, am fehlenden API-Key scheitern und die Entscheidung in eine
+ * heuristische Stufe zurückfallen lassen — grün gemeldet, nichts geprüft.
+ *
+ * `keine` heisst bei jedem der kleinen Auflöser „ich entscheide hier nichts".
+ */
+const executeProvider = vi.fn(async () => ({ content: 'keine' }));
+vi.mock('../../../../services/ai/execution/index.js', () => ({
+  executeProvider: (...args: unknown[]) => executeProvider(...args),
+}));
+
+const { classifierNode } = await import('./classifierNode.js');
 
 import type { ChatGraphState, SearchIntent } from '../types.js';
 
@@ -32,20 +54,8 @@ const STUB_AGENT_CONFIG = {
   isSystemDefault: true,
 };
 
-/**
- * Neutrale Auflöser-Antwort: „keine" heisst bei jedem der drei kleinen Auflöser
- * „ich entscheide hier nichts". Damit stammt jedes Verdikt unten aus einer
- * deterministischen Stufe, und das ist die Aussage dieser Datei.
- */
-function makeAiClient() {
-  return { processRequest: vi.fn(async () => ({ content: 'keine' })) };
-}
-
-function buildState(
-  overrides: Partial<ChatGraphState> & { userMessage: string }
-): ChatGraphState & { aiClient: ReturnType<typeof makeAiClient> } {
+function buildState(overrides: Partial<ChatGraphState> & { userMessage: string }): ChatGraphState {
   const { userMessage, ...rest } = overrides;
-  const aiClient = makeAiClient();
   return {
     messages: [{ role: 'user' as const, content: userMessage }],
     threadId: null,
@@ -59,7 +69,6 @@ function buildState(
       image: true,
       image_edit: true,
     },
-    aiClient,
     userLocale: 'de-DE',
     attachmentContext: null,
     imageAttachments: [],
@@ -126,7 +135,7 @@ function buildState(
     responseTimeMs: 0,
     error: null,
     ...rest,
-  } as ChatGraphState & { aiClient: ReturnType<typeof makeAiClient> };
+  } as ChatGraphState;
 }
 
 const ORIGINAL_FLAG = process.env.CHAT_AGENT_LOOP;
@@ -171,7 +180,6 @@ describe('Tier 3.5 — demoted band (agentic, LLM skipped)', () => {
     const state = buildState({ userMessage });
     const result = await classifierNode(state);
     expect(result.intent).toBe('agentic');
-    expect(state.aiClient.processRequest).not.toHaveBeenCalled();
     // The loop needs no searchQuery, but keep it populated for logging/recall.
     expect(result.searchQuery).toBeTruthy();
     expect(result.reasoning).toMatch(/demotion/i);
@@ -220,7 +228,6 @@ describe('Tier 3.5 — demoted band (agentic, LLM skipped)', () => {
     });
     const result = await classifierNode(state);
     expect(result.intent).toBe('agentic');
-    expect(state.aiClient.processRequest).not.toHaveBeenCalled();
   });
 });
 
@@ -231,7 +238,6 @@ describe('Tier 3.5 — NOT demoted (gates preserved)', () => {
     });
     const result = await classifierNode(state);
     expect(result.intent).toBe('social_post');
-    expect(state.aiClient.processRequest).not.toHaveBeenCalled();
   });
 
   it('creative writing is never demoted (confident heuristic or LLM, either way not agentic)', async () => {
@@ -249,7 +255,6 @@ describe('Tier 3.5 — NOT demoted (gates preserved)', () => {
     });
     const result = await classifierNode(state);
     expect(result.intent).toBe('chat_history');
-    expect(state.aiClient.processRequest).not.toHaveBeenCalled();
   });
 
   it('an AMBIGUOUS chat-recall phrasing goes to the loop, not to a recall', async () => {
@@ -289,7 +294,6 @@ describe('Tier 3.5 — NOT demoted (gates preserved)', () => {
     const state = buildState({ userMessage });
     const result = await classifierNode(state);
     expect(result.intent).toBe('agentic');
-    expect(state.aiClient.processRequest).not.toHaveBeenCalled();
   }
 
   it('hotel phrasing demotes straight into the loop', async () => {
@@ -336,14 +340,12 @@ describe('Tier 3.5 — NOT demoted (gates preserved)', () => {
     const state = buildState({ userMessage: 'Mach mir ein Sharepic zu Solarenergie' });
     const result = await classifierNode(state);
     expect(result.intent).toBe('sharepic');
-    expect(state.aiClient.processRequest).not.toHaveBeenCalled();
   });
 
   it('greeting stays on the short-message heuristic fast path', async () => {
     const state = buildState({ userMessage: 'Hallo!' });
     const result = await classifierNode(state);
     expect(result.intent).toBe('greeting');
-    expect(state.aiClient.processRequest).not.toHaveBeenCalled();
   });
 
   it("flag off: the demoted band keeps the rule table's own verdict", async () => {
@@ -369,7 +371,6 @@ describe('Tier 3.5 — wrapper interactions (URL, edge cases)', () => {
     expect(result.intent).toBe('agentic');
     expect(result.secondaryIntent).toBeNull();
     expect(result.detectedUrls).toHaveLength(1);
-    expect(state.aiClient.processRequest).not.toHaveBeenCalled();
   });
 
   it('a pure URL paste (no question) is NOT demoted — it IS the scrape turn', async () => {

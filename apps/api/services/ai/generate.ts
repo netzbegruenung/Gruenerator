@@ -1,12 +1,12 @@
 /**
- * The typed way to ask a model for something.
+ * The typed way to ask a model for something. Seit dem 16.08.2026 der einzige.
  *
- * `AiClient.processRequest` takes an untyped envelope — `type` is a bare
- * string, options carry OpenAI wire names (`max_tokens`, `top_p`), and the
- * result is `{content: string | null, success: boolean, …}` that every call site
- * immediately unwraps. That envelope exists because it used to be serialised
- * across a `worker_threads` boundary. There is no boundary any more, so there is
- * no reason to keep packing.
+ * Der Vorgänger nahm einen untypisierten Umschlag — `type` als bare string,
+ * OpenAI-Drahtnamen in den Optionen (`max_tokens`, `top_p`), ein Ergebnis
+ * `{content, success, …}`, das jede Aufrufstelle sofort wieder auspackte. Er
+ * existierte, weil er einmal über eine `worker_threads`-Grenze serialisiert
+ * wurde. Die Grenze fiel, das Packen blieb, und mit Welle 3 ist auch das weg:
+ * `AiClient`, `aiService.ts` und `app.locals.aiClient` gibt es nicht mehr.
  *
  * These three functions are what the call sites actually do, named:
  *
@@ -14,28 +14,25 @@
  *   aiObject  schema in, typed value out
  *   aiTools   real tool calling, raw SDK result out
  *
- * MIGRATION STATE, measured 16.08.2026: 62 `processRequest` calls in 55
- * production files still take the envelope (count and method in `types.ts`).
- * Moved so far: `generateTaskList` (services/boards/agentFlow/artifactGen.ts)
- * and the seven structured-creation call sites that used to go through
- * `generateStructured` (artifactGeneration, docsContractRouter,
- * runCanvasSuggest). This is a per-call-site migration, not a flag day.
+ * IMPORTANT — this does NOT reimplement generation: the call itself is
+ * `executeProvider`, dieselbe Funktion, die der Umschlag erreichte. Geroutet
+ * wird über die Tabelle in `lanes.ts` (`resolveLane`/`laneTarget`/
+ * `laneFallback`).
  *
- * IMPORTANT — one engine, two faces. This does NOT reimplement generation: the
- * call itself is `executeProvider`, the same function `processRequest` reaches.
- * Routing is where the two faces differ, and the difference is deliberate —
- * `resolveLane`/`laneTarget`/`laneFallback` read the table in `lanes.ts`, while
- * `processRequest` reads the if/else chain in `providers/providerSelector.ts`.
- * The two are held in step by the parity test in `__tests__/lanes.vitest.ts`,
- * which drives every routed lane through BOTH and asserts the same
- * provider/model, so migrating a routed call site is a mechanical swap.
+ * `providers/providerSelector.ts` — die if/else-Kette, die die Tabelle ersetzt
+ * hat — läuft noch, aber nur noch als PRÜFMITTEL: der Paritätstest in
+ * `__tests__/lanes.vitest.ts` fährt jede geroutete Lane durch beide und
+ * verlangt dasselbe Paar. Er ist das Netz unter einem Umbau der Tabelle, und er
+ * fährt beide mit LEEREN Optionen — was eine Prompt-Config an `model` mitbringt,
+ * sieht er nicht. Dafür gibt es `promptConfigModelPin.vitest.ts` und
+ * `promptConfigRouting.vitest.ts`.
  *
- * What that parity does NOT cover: a `type` with no row in `AI_LANES`.
- * `resolveLane` sends it to `default` and logs it — correct for a type nobody
- * routed, wrong for the 17 call sites that name a stage in
- * `intermediateLanes.ts` and the 6 that pin a literal provider/model. Those say
- * so with `AiCall.pinned`, which routes past the table without the warning; see
- * there.
+ * Was die Parität ebenfalls nicht abdeckt: ein `type` ohne Zeile in `AI_LANES`.
+ * `resolveLane` schickt ihn auf `default` und protokolliert das — richtig für
+ * einen Typ, den niemand geroutet hat, falsch für die Aufrufstellen, die eine
+ * Stufe aus `intermediateLanes.ts` oder ein Provider/Modell-Paar hart benennen.
+ * Die sagen das mit `AiCall.pinned` und routen an der Tabelle vorbei, ohne die
+ * Warnung; siehe dort.
  */
 
 import { env } from '../../config/env.js';
@@ -102,7 +99,7 @@ export interface AiCall {
    *
    * Pinning replaces the ROUTING decision only. The type still drives sampling,
    * and the failover chain still runs — on each provider's own default model,
-   * which is what `processRequest` does for a pinned call today.
+   * wie es der Umschlag für einen gepinnten Aufruf tat.
    */
   pinned?: IntermediateLaneId | { provider: ProviderName; model: string };
   /** Feeds the platform-specific sampling table (`services/ai/config.ts`). */
@@ -129,11 +126,11 @@ export interface AiCall {
  *
  * An `AiProviderError`, because `code`/`retryable` is what the route layer
  * branches on (`sseHelpers` distinguishes rate limit / provider down / bad
- * request / retryable). `processRequest` classifies at its own boundary in
- * `aiService.ts`; nothing on THIS path runs through it, so without classifying
- * here a call site migrated onto the facade would trade a typed error for a
- * bare `internal` — the same regression the retired `worker_threads` pool left
- * behind when it took the only `AiProviderError` construction site with it.
+ * request / retryable). Der Umschlag klassifizierte an seiner eigenen Grenze; seit er weg ist, ist
+ * dies die einzige Stelle, an der ein Provider-Fehler zu einem typisierten wird
+ * — ohne sie käme jeder Ausfall als nacktes `internal` beim Client an, dieselbe
+ * Regression, die der stillgelegte `worker_threads`-Pool hinterliess, als er
+ * die einzige `AiProviderError`-Konstruktion mitnahm.
  *
  * `cause` stays the last provider error: it is what holds the status code the
  * classifier walks the chain to find, and callers that log it want the real
@@ -160,11 +157,10 @@ export class NoAnswerError extends AiProviderError {
  * them meet.
  *
  * `MAIN_LLM_OVERRIDE` reaches a pinned call as well, and it takes the MODEL
- * only: the pin keeps its provider. That is not a design, it is what happens
- * today — `selectProviderAndModel` lets the override win on both fields, and
- * `aiService` then runs `data.provider || selection.provider`, so the pinned
- * adapter survives and the model does not. Deviating here would make the
- * operator hatch mean two different things depending on which door was used.
+ * only: the pin keeps its provider. Das ist kein Entwurf, sondern das Verhalten,
+ * das der Umschlag hatte — `selectProviderAndModel` liess das Override auf
+ * beiden Feldern gewinnen, danach entschied `data.provider || selection.provider`
+ * über den Adapter, sodass der Pin den Adapter behielt und das Modell nicht.
  */
 function targetFor(call: AiCall): { provider: ProviderName; model: string | null } {
   if (call.pinned == null) return laneTarget(resolveLane(call.lane));
@@ -177,7 +173,7 @@ function targetFor(call: AiCall): { provider: ProviderName; model: string | null
  * A pinned call has no lane row to read a chain off, and asking `resolveLane`
  * for one would produce the "nobody routed this" warning the pin exists to
  * answer. It gets the generic chain — the one `tryFallbackProviders` runs by
- * default, and the one every pinned type reaches through `aiService` today.
+ * default, und die, die jeder gepinnte Typ über den Umschlag erreichte.
  */
 function fallbackFor(call: AiCall): readonly ProviderName[] {
   return call.pinned == null ? laneFallback(resolveLane(call.lane)) : GENERIC_FALLBACK;
@@ -191,8 +187,7 @@ function fallbackFor(call: AiCall): readonly ProviderName[] {
  * keys sampling off it too, and it knows names `AI_LANES` does not —
  * `web_search_summary` is 0.2 there, `crawler_agent` 0.1, `chat_rerank` 0.
  * Sending the resolved lane would silently sample every unrouted type at the
- * 0.35 catch-all, which is not what `processRequest` does: it hands `type`
- * through untouched and lets the selector route on a copy.
+ * 0.35 catch-all.
  */
 function toEnvelope(
   call: AiCall,
@@ -256,8 +251,8 @@ async function runChain(call: AiCall, extra: Partial<AIRequestOptions>): Promise
  * get a turn. When the whole chain is spent, `NoAnswerError` classifies the last
  * failure — see there for why this path has to do that itself.
  *
- * The clock covers the WHOLE chain, not one attempt, because that is what
- * `processRequest` does (`executeWithTimeout` in `aiService.ts`) and because a
+ * The clock covers the WHOLE chain, not one attempt, because that is what der Umschlag tat
+ * (`executeWithTimeout`) und weil eine
  * per-attempt budget would let a three-provider chain run three times as long as
  * the caller allowed. Every migrating call site brings this expectation with it:
  * the envelope has no timeout field of its own, so the 120 s default (`env
@@ -530,7 +525,7 @@ export async function aiObject<T>(call: AiObjectCall<T>): Promise<StructuredResu
       );
     } catch (e) {
       // The whole provider chain is spent — `runWithFallback` throws where
-      // `processRequest` used to answer `{success: false}`. Another attempt may
+      // der Umschlag `{success: false}` antwortete. Another attempt may
       // still find a provider that has recovered.
       lastError = e instanceof Error ? e.message : String(e);
       log.error(`[${label}] attempt ${attempt} threw: ${lastError}`);

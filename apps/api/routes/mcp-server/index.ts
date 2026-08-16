@@ -130,7 +130,7 @@ router.post('/', async (req, res) => {
     return;
   }
 
-  // aiClient's privacy counter reads only req.user.id — no need for a
+  // Der Privatsphäre-Zähler liest nur req.user.id — no need for a
   // full profile load per call (the augmentation types req.user as UserProfile).
   const reqWithUser = req as unknown as { user?: { id: string } };
   reqWithUser.user ??= { id: authCtx.userId };
