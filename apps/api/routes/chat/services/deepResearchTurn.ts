@@ -8,8 +8,9 @@
  *
  * 1. **It is the most expensive call in the product.** `depth: 'deep'` plus a
  *    synthesis pass, 15–30s. So it is reachable only by the explicit mention and
- *    capped at one per user per day — the same shape as the image gate, because
- *    it is the same kind of problem.
+ *    capped per user per day — the same shape as the image gate, because it is
+ *    the same kind of problem. The cap itself lives in `deepResearchQuota.ts`,
+ *    shared with the agent engine that sits in front of this one.
  * 2. **The answer already exists.** Nothing downstream may re-synthesise it: a
  *    model run over a finished text costs a second LLM pass, paraphrases what we
  *    paid for, and renumbers citations it does not understand.
@@ -26,11 +27,11 @@
 // source-ordering logic below is exactly what needs a unit test.
 import { buildCitations } from '../../../agents/langgraph/ChatGraph/nodes/citationUtils.js';
 import { SOURCE_PREFIX } from '../../../agents/langgraph/ChatGraph/types.js';
-import { DeepResearchCounter } from '../../../services/counters/index.js';
 import { getLinkupService } from '../../../services/search/LinkupService.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { stripOutOfRangeCitations } from './agenticLoop/citationStrip.js';
+import { chargeDeepResearch } from './deepResearchQuota.js';
 import { sendChatWarning } from './sseHelpers.js';
 
 import type { SSEWriter } from './sseHelpers.js';
@@ -38,20 +39,6 @@ import type { ChatGraphState, SearchResult } from '../../../agents/langgraph/Cha
 import type { LinkupSource } from '../../../services/search/LinkupService.js';
 
 const log = createLogger('DeepResearch');
-
-/**
- * Lazy, so importing this module does not touch Redis. Eager construction ran a
- * client connection at import time, which both slows every consumer of the module
- * and makes the pure ordering logic below untestable.
- */
-let counter: DeepResearchCounter | null = null;
-async function getCounter(): Promise<DeepResearchCounter> {
-  if (!counter) {
-    const { redisClient } = await import('../../../utils/redis/index.js');
-    counter = new DeepResearchCounter(redisClient);
-  }
-  return counter;
-}
 
 /**
  * Hard ceiling on sources handed to the registry.
@@ -116,11 +103,12 @@ export function toRegistryOrderedSources(sources: LinkupSource[]): SearchResult[
  * Run the gated dossier path.
  *
  * Returns a state patch when the dossier was produced, and `null` in every case
- * where the turn should fall through to the ordinary research path — quota spent,
- * no API key, no user, or a failed call. Falling through is deliberate: a user who
- * asked for depth still gets a researched answer, one tier down, rather than an
- * error. The caller has already set `explicitDeepRequest`, so that fallback lands
- * on `tiefenrecherche` rather than being clamped.
+ * where the turn should fall through to the ordinary research path — no API key,
+ * no user, or a failed call. Falling through is deliberate: a user who asked for
+ * depth still gets a researched answer, one tier down, rather than an error. The
+ * caller has already set `explicitDeepRequest`, so that fallback lands on
+ * `tiefenrecherche` rather than being clamped. The daily allowance is not one of
+ * these cases: the caller settles it for both engines before either starts.
  *
  * On success the caller MUST skip both the search node and the rerank node —
  * reranking reorders `searchResults`, which is exactly the coupling above.
@@ -149,20 +137,6 @@ export async function runDeepResearchTurn(params: {
     return null;
   }
 
-  const deepResearchCounter = await getCounter();
-  const quota = await deepResearchCounter.checkLimit(userId);
-  if (!quota.canResearch) {
-    log.info(
-      `[DeepResearch] Quota spent for user ${userId} (${quota.count}/${quota.limit}) — falling through to gründlich`
-    );
-    sendChatWarning(
-      sse,
-      'deep_research_quota_spent',
-      `Die Tiefenrecherche ist für heute aufgebraucht (1× pro Tag, neu in ${deepResearchCounter.getTimeUntilReset()}). Ich habe stattdessen normal recherchiert.`
-    );
-    return null;
-  }
-
   sse.send('search_start', {
     message: 'Tiefenrecherche läuft — Linkup liest mehrere Quellen (dauert bis zu 30s)…',
   });
@@ -183,14 +157,8 @@ export async function runDeepResearchTurn(params: {
     return null;
   }
 
-  // Counted only now: a failed call must not cost the user their one per day.
-  // swallow-ok: the dossier exists either way — a lost increment costs us one
-  // extra call at worst, losing the dossier over a Redis hiccup costs the user.
-  await deepResearchCounter.incrementCount(userId).catch((error: unknown) => {
-    log.error(
-      `[DeepResearch] Could not record the call against the quota: ${error instanceof Error ? error.message : String(error)}`
-    );
-  });
+  // Counted only now: a failed call must not cost the user a run.
+  await chargeDeepResearch(userId);
 
   const searchResults = toRegistryOrderedSources(result.sources);
   const citations = buildCitations(searchResults);
