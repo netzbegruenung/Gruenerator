@@ -127,7 +127,7 @@ export interface CreatePdfResult {
  * The error carries the issue PATHS, not just the message: the old log read
  * "structure rejected: Required", which named no field and left a production
  * failure undiagnosable. The paths also drive the repair turn in
- * generateStructured.
+ * aiObject (services/ai/generate.ts).
  */
 export function validatePdfStructure(
   input: unknown
@@ -145,7 +145,7 @@ export function validatePdfStructure(
 // fenced / braced) and then validated it, returning a bare `null` on failure.
 // That null is why a rejection on the text transport reached the repair turn as
 // "Kein Tool-Aufruf in der Antwort" instead of the offending field. The
-// extraction now lives in generateStructured (jsonCandidatesFromText), which
+// extraction now lives in services/ai/structuredParsing.ts (jsonCandidatesFromText), which
 // feeds `validatePdfStructure` above — one gate for both transports.
 
 /**

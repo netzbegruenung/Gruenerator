@@ -6,7 +6,7 @@
  * 1. An explicit `temperature: 0` must survive. Three adapters read their
  *    options with `||`, so a caller asking for greedy decoding got the
  *    provider default instead — silently, because 0 is falsy. `queryPlannerNode`
- *    asks for 0.0 and was sampled at 0.7; `generateStructured` runs its repair
+ *    asks for 0.0 and was sampled at 0.7; `aiObject` runs its repair
  *    turn at 0 deliberately and was likewise sampled at 0.7 on every
  *    litellm-routed lane. Its own test asserts `temperature: 0` at the pool
  *    boundary and is green — the value was destroyed one layer below it.

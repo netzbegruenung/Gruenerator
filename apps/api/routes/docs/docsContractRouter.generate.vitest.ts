@@ -12,15 +12,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AiResult } from '../../services/ai/types.js';
 import type { Request } from 'express';
 
-const processRequest = vi.fn<(...a: unknown[]) => Promise<AiResult>>();
+const executeProvider = vi.fn<(...a: unknown[]) => Promise<AiResult>>();
 const createDocumentWithContent = vi.fn();
 
 vi.mock('../../database/services/PostgresService.js', () => ({
   getPostgresInstance: () => ({ query: vi.fn().mockResolvedValue([]) }),
 }));
 
-vi.mock('../../utils/getAiClient.js', () => ({
-  getAiClient: () => ({ processRequest }),
+vi.mock('../../services/ai/execution/index.js', () => ({
+  executeProvider: (...args: unknown[]) => executeProvider(...args),
 }));
 
 vi.mock('../../services/docs/DocGenerationService.js', async (importOriginal) => ({
@@ -44,7 +44,7 @@ const generate = (description: string) =>
 const DOC = { title: 'Niedrigwasser', subtype: 'blank', content: '<h1>Niedrigwasser</h1>' };
 
 beforeEach(() => {
-  processRequest.mockReset();
+  executeProvider.mockReset();
   createDocumentWithContent.mockReset();
   createDocumentWithContent.mockImplementation((title: string) =>
     Promise.resolve({ id: 'doc-1', title, content: DOC.content })
@@ -53,8 +53,9 @@ beforeEach(() => {
 
 describe('generateDocument', () => {
   it('accepts a tool call', async () => {
-    processRequest.mockResolvedValue({
+    executeProvider.mockResolvedValue({
       success: true,
+      stop_reason: 'tool_use',
       tool_calls: [{ name: 'create_document', input: DOC }],
     } as unknown as AiResult);
 
@@ -67,13 +68,13 @@ describe('generateDocument', () => {
       'blank',
       'user-1'
     );
-    expect(processRequest.mock.calls[0][0]).toMatchObject({
+    expect(executeProvider.mock.calls[0][2]).toMatchObject({
       options: { tool_choice: 'required' },
     });
   });
 
   it('recovers JSON wrapped in prose instead of failing with a 500', async () => {
-    processRequest.mockResolvedValue({
+    executeProvider.mockResolvedValue({
       success: true,
       content: `Gerne! Hier ist das Dokument:\n\n\`\`\`json\n${JSON.stringify(DOC)}\n\`\`\``,
     } as unknown as AiResult);
@@ -85,24 +86,25 @@ describe('generateDocument', () => {
   });
 
   it('repairs an unusable first answer instead of failing the request', async () => {
-    processRequest
+    executeProvider
       .mockResolvedValueOnce({
         success: true,
         content: 'Worum genau soll es in dem Dokument gehen?',
       } as unknown as AiResult)
       .mockResolvedValueOnce({
         success: true,
+        stop_reason: 'tool_use',
         tool_calls: [{ name: 'create_document', input: DOC }],
       } as unknown as AiResult);
 
     const res = await generate('tiktokskrpt zum Thema Niedrigwasser');
 
     expect(res.status).toBe(201);
-    expect(processRequest).toHaveBeenCalledTimes(2);
+    expect(executeProvider).toHaveBeenCalledTimes(2);
   });
 
   it('reports a 500 only when every attempt failed', async () => {
-    processRequest.mockResolvedValue({
+    executeProvider.mockResolvedValue({
       success: true,
       content: 'Ich kann das leider nicht.',
     } as unknown as AiResult);
@@ -117,6 +119,6 @@ describe('generateDocument', () => {
     const res = await generate('hi');
 
     expect(res.status).toBe(400);
-    expect(processRequest).not.toHaveBeenCalled();
+    expect(executeProvider).not.toHaveBeenCalled();
   });
 });
