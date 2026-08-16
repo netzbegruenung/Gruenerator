@@ -1,6 +1,6 @@
 import prompts from '../../../prompts/sharepic/index.js';
+import { aiText } from '../../../services/ai/generate.js';
 import { CONTENT_INTEGRITY_BULLETS } from '../../../services/contentPolicy.js';
-import { getAiClient } from '../../../utils/getAiClient.js';
 import { createLogger } from '../../../utils/logger.js';
 import { replaceTemplate } from '../../../utils/sharepic/template.js';
 import {
@@ -211,11 +211,9 @@ export type UnifiedTextResult =
 
 /**
  * Core of the unified sharepic text generation, extracted from the Express
- * handler so the chat pipeline can call it without an HTTP round-trip. `req`
- * is only used for worker-pool access (`getAiClient`).
+ * handler so the chat pipeline can call it without an HTTP round-trip.
  */
 export async function generateUnifiedTexts(
-  req: SharepicRequest,
   type: string,
   body: UnifiedTextBody
 ): Promise<UnifiedTextResult> {
@@ -258,8 +256,12 @@ export async function generateUnifiedTexts(
     count === 1
       ? promptConfig.singleItemTemplate || promptConfig.requestTemplate || ''
       : promptConfig.alternativesTemplate || promptConfig.requestTemplate || '';
-  const options =
-    count === 1 ? promptConfig.options : promptConfig.alternativesOptions || promptConfig.options;
+  // `Record<string, unknown>` aus der JSON-Config, hier einmal in die Felder
+  // gelesen, die die Fassade kennt. `model` ist der einzige, der die Routing-
+  // Entscheidung berührt — siehe beim Aufruf.
+  const options = (
+    count === 1 ? promptConfig.options : promptConfig.alternativesOptions || promptConfig.options
+  ) as { temperature?: number; max_tokens?: number; top_p?: number; model?: string } | undefined;
 
   const requestContent = replaceTemplate(template, {
     thema: thema || '',
@@ -280,23 +282,22 @@ export async function generateUnifiedTexts(
     attempts++;
 
     try {
-      const result = await getAiClient(req).processRequest(
-        {
-          type: `sharepic_${type}`,
-          systemPrompt,
-          messages: [{ role: 'user', content: requestContent }],
-          options,
-        },
-        req
-      );
-
-      if (!result.success) {
-        lastError = result.error || 'AI request failed';
-        log.warn(`[${type}] Attempt ${attempts} AI error:`, lastError);
-        continue;
-      }
-
-      const content = result.content || '';
+      const content = await aiText({
+        lane: `sharepic_${type}`,
+        system: systemPrompt,
+        prompt: requestContent,
+        ...(options?.temperature != null && { temperature: options.temperature }),
+        ...(options?.max_tokens != null && { maxOutputTokens: options.max_tokens }),
+        ...(options?.top_p != null && { topP: options.top_p }),
+        // Nennt die Prompt-Config ein Modell, gewinnt es — so wie
+        // `options.model` im Selektor gegen die Tabelle gewann. Betrifft
+        // heute `simple.json` (Mistral Large statt Medium) und jede
+        // Kampagnen-Config, die es ihr gleichtut. Der Anbieter ist derselbe,
+        // den der Selektor für jede Sharepic-Zeile wählt.
+        ...(options?.model != null && {
+          pinned: { provider: 'mistral' as const, model: options.model },
+        }),
+      });
       log.debug(`[${type}] Raw AI response (${content.length} chars):\n${content}`);
 
       // The model declined under SHAREPIC_SAFETY_RULES. Fail immediately —
@@ -448,7 +449,7 @@ export async function handleUnifiedRequest(
   res: Response,
   type: string
 ): Promise<void> {
-  const result = await generateUnifiedTexts(req, type, req.body);
+  const result = await generateUnifiedTexts(type, req.body);
 
   if (!result.success) {
     res.status(result.status).json({ success: false, error: result.error });

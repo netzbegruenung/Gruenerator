@@ -55,9 +55,7 @@ class ImageSelectionService {
 
   async selectBestImage(
     text: string,
-    aiClient: unknown,
-    options: ImageSelectionOptions = {},
-    req: unknown = null
+    options: ImageSelectionOptions = {}
   ): Promise<ImageSelectionResult> {
     await this.initialize();
 
@@ -68,12 +66,7 @@ class ImageSelectionService {
         `[ImageSelectionService] Using LangGraph for image selection: "${text.substring(0, 50)}..."`
       );
 
-      const result = await this.imageGraph!.invoke({
-        text,
-        sharepicType,
-        aiClient,
-        req,
-      });
+      const result = await this.imageGraph!.invoke({ text, sharepicType });
 
       if (result.error) {
         throw new Error(result.error);
