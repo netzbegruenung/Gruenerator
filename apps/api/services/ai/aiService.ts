@@ -39,8 +39,10 @@ class AIService implements AiClient {
    *
    * The `worker_threads` pool used to do this after rebuilding the error from a
    * postMessage payload; when it went, so did the only place `AiProviderError`
-   * was ever constructed, and every provider failure has been reaching the
-   * client as a bare `internal` since.
+   * was ever constructed, and provider failures reached the client as a bare
+   * `internal` until this boundary replaced it. It is no longer the only one:
+   * `NoAnswerError` in `services/ai/generate.ts` classifies the same way for the
+   * typed facade, which does not pass through here.
    */
   async processRequest(data: AIRequestData, _req?: { user?: { id?: string } }): Promise<AiResult> {
     const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;

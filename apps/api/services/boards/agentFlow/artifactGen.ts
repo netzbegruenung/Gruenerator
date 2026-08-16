@@ -16,6 +16,7 @@
 import { runDocGeneration } from '../../../routes/chat/services/intentExecutionService.js';
 import { createLogger } from '../../../utils/logger.js';
 import { getAIService } from '../../ai/aiService.js';
+import { aiText } from '../../ai/generate.js';
 
 import { TASK_LIST_PROMPT, parseTaskList, type GeneratedTask } from './taskListParse.js';
 
@@ -57,22 +58,27 @@ export const createPresentationFromText = (sourceText: string, userId: string) =
 
 export type { GeneratedTask };
 
-/** Generate a task list from (already-researched) prose. Returns [] on failure. */
-export async function generateTaskList(
-  sourceText: string,
-  userId: string
-): Promise<GeneratedTask[]> {
+/**
+ * Generate a task list from (already-researched) prose. Returns [] on failure.
+ *
+ * Through the typed facade rather than `processRequest`: this is the module's
+ * own model call, so nothing downstream needs the envelope. `doc_generation` is
+ * a routed lane, which is what makes the swap mechanical — the parity test in
+ * `services/ai/__tests__/lanes.vitest.ts` pins both tables to the same target.
+ * The `userId` parameter went with it: `processRequest` reads at most
+ * `req.user?.id`, and nothing on this path did.
+ */
+export async function generateTaskList(sourceText: string): Promise<GeneratedTask[]> {
   try {
-    const result = await getAIService().processRequest(
-      {
-        type: 'doc_generation',
-        systemPrompt: TASK_LIST_PROMPT,
-        messages: [{ role: 'user', content: sourceText }],
-        options: { temperature: 0.3, max_tokens: 2000, response_format: { type: 'json_object' } },
-      },
-      { user: { id: userId } }
-    );
-    return result.success && result.content ? parseTaskList(result.content) : [];
+    const content = await aiText({
+      lane: 'doc_generation',
+      system: TASK_LIST_PROMPT,
+      prompt: sourceText,
+      temperature: 0.3,
+      maxOutputTokens: 2000,
+      json: true,
+    });
+    return parseTaskList(content);
   } catch (err) {
     log.warn(`Task list generation failed: ${err instanceof Error ? err.message : String(err)}`);
     return [];

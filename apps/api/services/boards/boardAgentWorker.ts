@@ -256,7 +256,7 @@ async function processTask(task: AgentTask): Promise<void> {
 
     if (deliverable === 'tasks') {
       const researched = await research();
-      const tasks = await generateTaskList(researched || task.task_text, task.requested_by);
+      const tasks = await generateTaskList(researched || task.task_text);
       if (tasks.length === 0) throw new Error('Der Agent konnte keine Aufgaben ableiten');
 
       // Place new cards in the source card's column (fallback: first column).
