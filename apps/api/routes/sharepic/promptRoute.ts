@@ -4,7 +4,7 @@
  * Bypasses the complex chat flow for direct, no-followup generation
  */
 
-import { Router, type Request, type Response } from 'express';
+import { Router, type Response } from 'express';
 import { z } from 'zod';
 
 import { requireAuth } from '../../middleware/authMiddleware.js';
@@ -15,8 +15,6 @@ import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { generateUnifiedTexts, toSharepicTextWireBody } from './sharepic_text/unifiedHandler.js';
-
-import type { SharepicRequest } from './sharepic_text/types.js';
 
 const log = createLogger('promptRoute');
 const router = Router();
@@ -149,7 +147,7 @@ router.post(
       // Mock-`res` um `handleUnifiedRequest`, das `req.body` mutieren und den
       // Statuscode als `_statusCode` in den Antwortrumpf schmuggeln musste,
       // um ihn hinter der `json()`-Fassade wieder herauszubekommen.
-      const result = await generateUnifiedTexts(req as Request as SharepicRequest, type, {
+      const result = await generateUnifiedTexts(type, {
         thema: theme,
         details: trimmedPrompt,
         name: userName,
@@ -171,12 +169,9 @@ router.post(
       if (TYPES_REQUIRING_IMAGE.includes(type)) {
         try {
           log.debug(`[PromptRoute] Selecting image for type: ${type}, theme: ${theme}`);
-          const imageResult = await ImageSelectionService.selectBestImage(
-            theme,
-            req.app.locals.aiClient,
-            { maxCandidates: 5 },
-            req
-          );
+          const imageResult = await ImageSelectionService.selectBestImage(theme, {
+            maxCandidates: 5,
+          });
 
           if (imageResult?.selectedImage) {
             selectedImage = {

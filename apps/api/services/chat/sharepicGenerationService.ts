@@ -31,7 +31,6 @@ import type {
 } from '../../services/attachments/types.js';
 import type { SharepicImageManager } from '../../services/image/types.js';
 import type { UserProfile } from '../../services/user/types.js';
-import type { AiClient } from '../ai/types.js';
 import type { Request, Router } from 'express';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -241,19 +240,12 @@ const createImageAttachmentFromFile = async (filename: string): Promise<ImageAtt
 
 const selectAndPrepareImage = async (
   textContent: string,
-  sharepicType: string,
-  aiClient: AiClient,
-  req: ExpressRequest | null = null
+  sharepicType: string
 ): Promise<{ attachment: ImageAttachment; selection: ImageSelection }> => {
   log.debug(`[SharepicGeneration] Selecting image for ${sharepicType} sharepic`);
 
   try {
-    const selection = await imagePickerService.selectBestImage(
-      textContent,
-      aiClient,
-      { sharepicType },
-      req
-    );
+    const selection = await imagePickerService.selectBestImage(textContent, { sharepicType });
 
     log.debug(
       `[SharepicGeneration] Selected image: ${selection.selectedImage.filename} (confidence: ${selection.confidence})`
@@ -809,9 +801,7 @@ const generateDreizeilenWithAIImageSharepic = async (
       `${mainSlogan.line1 || ''} ${mainSlogan.line2 || ''} ${mainSlogan.line3 || ''}`.trim();
     const { attachment: aiImageAttachment, selection } = await selectAndPrepareImage(
       textForAnalysis,
-      'dreizeilen',
-      getAiClient(expressReq),
-      expressReq
+      'dreizeilen'
     );
 
     const mockFile = convertToBuffer(aiImageAttachment);

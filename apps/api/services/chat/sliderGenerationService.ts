@@ -46,7 +46,7 @@ export async function generateSliderDeckForChat(
 
   log.info(`[SliderGeneration] Generating ${count} slides for "${args.thema.slice(0, 60)}"`);
 
-  const result = await generateUnifiedTexts(sharepicReq, 'slider', {
+  const result = await generateUnifiedTexts('slider', {
     thema: args.thema,
     details: args.details ?? '',
     count,

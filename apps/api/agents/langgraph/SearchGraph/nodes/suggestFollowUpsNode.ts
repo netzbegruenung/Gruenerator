@@ -5,6 +5,7 @@
  * These are displayed as clickable suggestion buttons below the answer.
  */
 
+import { aiText } from '../../../../services/ai/generate.js';
 import { parseAIJsonResponse } from '../../../../services/search/index.js';
 import { createLogger } from '../../../../utils/logger.js';
 
@@ -36,35 +37,22 @@ export async function suggestFollowUpsNode(
       .map((r) => r.title)
       .join(', ');
 
-    const result = await state.aiClient.processRequest(
-      {
-        type: 'text_adjustment',
-        systemPrompt: SUGGEST_SYSTEM_PROMPT,
-        messages: [
-          {
-            role: 'user',
-            content: `Suchanfrage: "${state.searchQuery}"\nGefundene Themen: ${topTitles}`,
-          },
-        ],
-        options: {
-          provider: 'litellm',
-          // See queryPlannerNode: `mistral-small` was never sent — the adapter
-          // substituted the verdigado default. This names what actually runs.
-          model: 'verdigado-pro',
-          max_tokens: 150,
-          temperature: 0.5,
-        },
-      },
-      null
-    );
+    const result = await aiText({
+      lane: 'text_adjustment',
+      system: SUGGEST_SYSTEM_PROMPT,
+      prompt: `Suchanfrage: "${state.searchQuery}"\nGefundene Themen: ${topTitles}`,
+      // See queryPlannerNode: `mistral-small` was never sent — the adapter
+      // substituted the verdigado default. This names what actually runs.
+      pinned: { provider: 'litellm', model: 'verdigado-pro' },
+      maxOutputTokens: 150,
+      temperature: 0.5,
+    });
 
-    if (result.success && result.content) {
-      const parsed = parseAIJsonResponse(result.content, {}) as { suggestions?: string[] };
-      if (parsed.suggestions && Array.isArray(parsed.suggestions)) {
-        const suggestions = parsed.suggestions.slice(0, 3);
-        log.info(`[SuggestFollowUps] Generated ${suggestions.length} suggestions`);
-        return { followUpSuggestions: suggestions };
-      }
+    const parsed = parseAIJsonResponse(result, {}) as { suggestions?: string[] };
+    if (parsed.suggestions && Array.isArray(parsed.suggestions)) {
+      const suggestions = parsed.suggestions.slice(0, 3);
+      log.info(`[SuggestFollowUps] Generated ${suggestions.length} suggestions`);
+      return { followUpSuggestions: suggestions };
     }
 
     log.warn('[SuggestFollowUps] Failed to parse suggestions, using empty');

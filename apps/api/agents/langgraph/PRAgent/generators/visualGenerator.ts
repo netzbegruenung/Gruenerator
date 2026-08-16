@@ -1,10 +1,8 @@
-import { getAiClient } from '../../../../utils/getAiClient.js';
+import { aiText } from '../../../../services/ai/generate.js';
 import { MARKDOWN_FORMATTING_INSTRUCTIONS } from '../../../../utils/prompt/index.js';
 import { assemblePromptGraphAsync } from '../../promptAssemblyGraph.js';
 
-import type { AiResult } from '../../../../services/ai/types.js';
 import type { EnrichedState } from '../../../../utils/types/requestEnrichment.js';
-import type { Request } from 'express';
 
 /**
  * Generates visual briefing: image ideas and timing recommendations
@@ -12,8 +10,7 @@ import type { Request } from 'express';
 export async function generateVisualBriefing(
   enrichedState: EnrichedState,
   framing: string,
-  socialContent: Record<string, string>,
-  req: Request
+  socialContent: Record<string, string>
 ): Promise<string> {
   console.log('[PR Agent] Generating visual briefing');
 
@@ -53,18 +50,11 @@ Entwickle visuelle Empfehlungen und Timing-Strategie für diese Kampagne.`;
     formatting: MARKDOWN_FORMATTING_INSTRUCTIONS,
   });
 
-  const aiResult: AiResult = await getAiClient(req).processRequest(
-    {
-      type: 'social',
-      systemPrompt: promptResult.system,
-      messages: promptResult.messages,
-      options: {
-        temperature: 0.8,
-        top_p: 0.9,
-      },
-    },
-    req
-  );
-
-  return aiResult.content || '';
+  return aiText({
+    lane: 'social',
+    system: promptResult.system,
+    messages: promptResult.messages,
+    temperature: 0.8,
+    topP: 0.9,
+  });
 }

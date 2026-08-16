@@ -58,13 +58,13 @@ export async function processAutomatischPR(
       req
     );
 
-    const framingPromise = generateStrategicFraming(enrichedState, req);
+    const framingPromise = generateStrategicFraming(enrichedState);
 
     const socialPlatforms = ['instagram', 'facebook'];
     const socialPromises = socialPlatforms.map((platform) =>
-      generatePlatformContent(platform, enrichedState, req)
+      generatePlatformContent(platform, enrichedState)
     );
-    const pressPromise = generatePlatformContent('pressemitteilung', enrichedState, req);
+    const pressPromise = generatePlatformContent('pressemitteilung', enrichedState);
 
     const sharepicPromises = Array.from({ length: 3 }, (_, i) =>
       generateSharepicForChat(req as ExpressRequest, 'dreizeilen', {
@@ -97,8 +97,8 @@ export async function processAutomatischPR(
     }));
 
     const [riskAnalysis, visualBriefing] = await Promise.all([
-      generateRiskAnalysis(enrichedState, framing, socialContent, pressRelease as string, req),
-      generateVisualBriefing(enrichedState, framing, socialContent, req),
+      generateRiskAnalysis(enrichedState, framing, socialContent, pressRelease as string),
+      generateVisualBriefing(enrichedState, framing, socialContent),
     ]);
 
     const formattedResult = formatPRAgentResponse({
@@ -194,7 +194,7 @@ export async function processStrategyGeneration(
 
     // 3. PARALLEL: Generate framing + search arguments
     const [framing, args] = await Promise.all([
-      generateStrategicFraming(enrichedState, req),
+      generateStrategicFraming(enrichedState),
       searchArgumentsFromNotebooks(requestData.inhalt, {
         limit: 10,
         threshold: 0.35,
@@ -319,7 +319,7 @@ export async function processProductionGeneration(
 
     // 3. PARALLEL: Generate selected platforms
     const platformPromises = approvedPlatforms.map((platform) =>
-      generatePlatformContent(platform, enrichedState, req)
+      generatePlatformContent(platform, enrichedState)
     );
 
     // 4. PARALLEL: Generate sharepics (3x)
@@ -354,14 +354,12 @@ export async function processProductionGeneration(
         enrichedState,
         strategyData.framing || '',
         generatedContent as Record<string, string>,
-        (generatedContent.pressemitteilung || '') as string,
-        req
+        (generatedContent.pressemitteilung || '') as string
       ),
       generateVisualBriefing(
         enrichedState,
         strategyData.framing || '',
-        generatedContent as Record<string, string>,
-        req
+        generatedContent as Record<string, string>
       ),
     ]);
 

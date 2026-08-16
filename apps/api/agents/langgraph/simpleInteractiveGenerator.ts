@@ -13,6 +13,7 @@
  * 3. Call with generatorType: '{type}'
  */
 
+import { aiTools, type AiToolsCall } from '../../services/ai/generate.js';
 import {
   setExperimentalSession,
   getExperimentalSession,
@@ -72,6 +73,20 @@ async function getSearxngService(): Promise<SearxngService | null> {
 }
 
 /**
+ * A prompt config's `tool_choice`, in the facade's closed union.
+ *
+ * The configs spell Mistral's `any`, which `resolveToolChoice` has always
+ * folded into `auto` — reproduced here rather than passed through, because the
+ * facade types the field. `null` means the config said nothing, and the
+ * adapters read that as `none`: the tool is offered but must not be called.
+ */
+function toolChoiceFromConfig(raw: unknown): AiToolsCall['toolChoice'] | null {
+  if (raw == null) return null;
+  if (raw === 'required' || raw === 'none' || raw === 'auto') return raw;
+  return 'auto';
+}
+
+/**
  * Generate clarifying questions using AI based on user input only
  */
 async function generateClarifyingQuestions(
@@ -101,18 +116,17 @@ async function generateClarifyingQuestions(
 
   console.log(`[SimpleInteractiveGenerator] Generating questions for ${generatorType}...`);
 
-  const result = await state.aiClient.processRequest(
-    {
-      type: 'antrag_question_generation',
-      systemPrompt: config.systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
-      options: {
-        ...config.options,
-        tools,
-      },
-    } as AIRequestData,
-    state.req
-  );
+  const toolChoice = toolChoiceFromConfig(config.options?.tool_choice);
+
+  const result = await aiTools({
+    lane: 'antrag_question_generation',
+    system: config.systemPrompt,
+    prompt: userPrompt,
+    tools: tools as Tool[],
+    ...(toolChoice != null && { toolChoice }),
+    ...(config.options?.max_tokens != null && { maxOutputTokens: config.options.max_tokens }),
+    ...(config.options?.temperature != null && { temperature: config.options.temperature }),
+  });
 
   if (result.tool_calls && result.tool_calls.length > 0) {
     const toolCall = result.tool_calls[0];

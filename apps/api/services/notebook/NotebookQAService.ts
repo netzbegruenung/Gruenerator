@@ -37,6 +37,7 @@ import {
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { checkNotebookAccess } from '../../routes/notebook/notebookAccess.js';
 import { createLogger } from '../../utils/logger.js';
+import { aiText } from '../ai/generate.js';
 import { getEnrichedPersonSearchService } from '../bundestag/index.js';
 import { DocumentSearchService } from '../document-services/index.js';
 import { queryIntentService } from '../QueryIntentService/QueryIntentService.js';
@@ -69,7 +70,6 @@ import type {
   SearchContext,
   GetSearchContextParams,
 } from './types.js';
-import type { AiClient } from '../ai/types.js';
 import type {
   EnrichedPersonSearchResult,
   ContentMention,
@@ -116,7 +116,6 @@ export class NotebookQAService {
     question,
     collectionIds,
     requestFilters,
-    aiClient,
     fastMode,
   }: QAMultiCollectionParams): Promise<QAResponse> {
     const startTime = Date.now();
@@ -199,7 +198,7 @@ export class NotebookQAService {
 
     // Fast mode: skip citation processing entirely
     if (fastMode) {
-      const fastAnswer = await this._generateFastDraft(trimmedQuestion, sortedResults, aiClient);
+      const fastAnswer = await this._generateFastDraft(trimmedQuestion, sortedResults);
       return {
         success: true,
         answer: fastAnswer,
@@ -221,7 +220,7 @@ export class NotebookQAService {
 
     // Build references and generate draft
     const referencesMap = buildReferencesMap(sortedResults);
-    const draft = await this._generateDraft(trimmedQuestion, referencesMap, aiClient, true);
+    const draft = await this._generateDraft(trimmedQuestion, referencesMap, true);
 
     // Process citations
     const { renumberedDraft, newReferencesMap } = renumberCitationsInOrder(draft, referencesMap);
@@ -271,7 +270,6 @@ export class NotebookQAService {
     question,
     userId,
     requestFilters,
-    aiClient,
     getCollectionFn,
     getDocumentIdsFn,
     fastMode,
@@ -285,11 +283,7 @@ export class NotebookQAService {
 
     // Try enriched person search for bundestagsfraktion collection (skip in fast mode)
     if (collectionId === 'bundestagsfraktion-system' && !fastMode) {
-      const personResult = await this._tryEnrichedPersonSearch(
-        trimmedQuestion,
-        aiClient,
-        startTime
-      );
+      const personResult = await this._tryEnrichedPersonSearch(trimmedQuestion, startTime);
       if (personResult) {
         const extractedName =
           'extractedName' in personResult.metadata
@@ -423,7 +417,7 @@ export class NotebookQAService {
 
     // Fast mode: skip citation processing entirely
     if (fastMode) {
-      const fastAnswer = await this._generateFastDraft(trimmedQuestion, sorted, aiClient);
+      const fastAnswer = await this._generateFastDraft(trimmedQuestion, sorted);
       return {
         success: true,
         answer: fastAnswer,
@@ -444,7 +438,7 @@ export class NotebookQAService {
 
     // Generate response
     const referencesMap = buildReferencesMap(sorted, { allowCreatedAt: !isSystem });
-    const draft = await this._generateDraft(trimmedQuestion, referencesMap, aiClient, isSystem);
+    const draft = await this._generateDraft(trimmedQuestion, referencesMap, isSystem);
 
     const { renumberedDraft, newReferencesMap } = renumberCitationsInOrder(draft, referencesMap);
     const { cleanDraft, citations, sources } = validateAndInjectCitations(
@@ -976,7 +970,6 @@ export class NotebookQAService {
   private async _generateDraft(
     question: string,
     referencesMap: ReferencesMap,
-    aiClient: AiClient,
     isSystemCollection: boolean
   ): Promise<string> {
     const refKeys = Object.keys(referencesMap);
@@ -1003,19 +996,13 @@ export class NotebookQAService {
     });
     const userPrompt = `Heutiges Datum: ${today}\n\nFrage: ${question}\n\nGültige Quellen-IDs: ${validIds}\nVerwende AUSSCHLIESSLICH diese IDs für Quellenangaben.\n\nVerfügbare Quellen:\n${refsSummary}`;
 
-    const aiResult = await aiClient.processRequest({
-      type: 'qa_draft',
-      messages: [{ role: 'user', content: userPrompt }],
-      systemPrompt,
-      options: { temperature: 0.2, top_p: 0.8 },
+    return aiText({
+      lane: 'qa_draft',
+      prompt: userPrompt,
+      system: systemPrompt,
+      temperature: 0.2,
+      topP: 0.8,
     });
-
-    return (
-      aiResult.content ||
-      (Array.isArray(aiResult.raw_content_blocks)
-        ? aiResult.raw_content_blocks.map((b) => b.text || '').join('')
-        : '')
-    );
   }
 
   /**
@@ -1024,8 +1011,7 @@ export class NotebookQAService {
    */
   private async _generateFastDraft(
     question: string,
-    results: ExpandedChunkResult[],
-    aiClient: AiClient
+    results: ExpandedChunkResult[]
   ): Promise<string> {
     const context = results
       .slice(0, 15)
@@ -1053,19 +1039,13 @@ export class NotebookQAService {
     const { system: systemPrompt } = buildFastModePrompt();
     const userPrompt = `Heutiges Datum: ${today}\n\nFrage: ${question}\n\nKontext:\n${context}`;
 
-    const aiResult = await aiClient.processRequest({
-      type: 'qa_draft_fast',
-      messages: [{ role: 'user', content: userPrompt }],
-      systemPrompt,
-      options: { temperature: 0.3, top_p: 0.9 },
+    return aiText({
+      lane: 'qa_draft_fast',
+      prompt: userPrompt,
+      system: systemPrompt,
+      temperature: 0.3,
+      topP: 0.9,
     });
-
-    return (
-      aiResult.content ||
-      (Array.isArray(aiResult.raw_content_blocks)
-        ? aiResult.raw_content_blocks.map((b) => b.text || '').join('')
-        : '')
-    );
   }
 
   /**
@@ -1211,7 +1191,6 @@ export class NotebookQAService {
    */
   private async _tryEnrichedPersonSearch(
     question: string,
-    aiClient: AiClient,
     startTime: number
   ): Promise<QAResponse | null> {
     try {
@@ -1232,7 +1211,7 @@ export class NotebookQAService {
 
       // Generate AI summary using the enriched data
       const contextSummary = enrichedService.generateActivitySummary(result);
-      const answer = await this._generatePersonAnswer(question, contextSummary || '', aiClient);
+      const answer = await this._generatePersonAnswer(question, contextSummary || '');
 
       // Build citations from the enriched sources
       const citations = this._buildPersonCitations(contentMentions, drucksachen, aktivitaeten);
@@ -1276,28 +1255,18 @@ export class NotebookQAService {
   /**
    * Generate AI answer for person query using enriched context
    */
-  private async _generatePersonAnswer(
-    question: string,
-    contextSummary: string,
-    aiClient: AiClient
-  ): Promise<string> {
+  private async _generatePersonAnswer(question: string, contextSummary: string): Promise<string> {
     const systemPrompt = `Du bist ein Experte für die Grüne Bundestagsfraktion. Beantworte Fragen über Abgeordnete basierend auf den bereitgestellten Informationen. Antworte auf Deutsch, präzise und sachlich. Wenn du Informationen aus den Quellen verwendest, zitiere sie mit [1], [2] etc.`;
 
     const userPrompt = `Frage: ${question}\n\nKontext über die Person:\n${contextSummary}`;
 
-    const aiResult = await aiClient.processRequest({
-      type: 'qa_draft',
-      messages: [{ role: 'user', content: userPrompt }],
-      systemPrompt,
-      options: { temperature: 0.3, top_p: 0.9 },
+    return aiText({
+      lane: 'qa_draft',
+      prompt: userPrompt,
+      system: systemPrompt,
+      temperature: 0.3,
+      topP: 0.9,
     });
-
-    return (
-      aiResult.content ||
-      (Array.isArray(aiResult.raw_content_blocks)
-        ? aiResult.raw_content_blocks.map((b) => b.text || '').join('')
-        : '')
-    );
   }
 
   /**

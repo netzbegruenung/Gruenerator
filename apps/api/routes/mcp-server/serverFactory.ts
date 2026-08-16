@@ -606,7 +606,6 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
               collectionId: id,
               question: query,
               userId,
-              aiClient: getAiClient(req),
               // Both are REQUIRED for user collections — the service throws
               // without them. Passing the already-fetched row mirrors
               // notebookContractRouter and hands the access decision to
