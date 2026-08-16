@@ -3,19 +3,17 @@
  * Werkzeugaufruf ABVERLANGT wird — und die Fähigkeitsfrage, die genau das
  * verhindert.
  */
-import { forcesLoopLane } from '@gruenerator/shared/chat-intents';
-
 import { NAMED_RETRIEVAL_INTENTS } from './intents.js';
 import { looksLikeExplicitResearchOrder } from './routing.js';
 
 /**
  * Darf der Loop dem Planer einen Werkzeugaufruf ABVERLANGEN (`toolChoice: required`)?
  *
- * Fünf Wege sind über die Zeit hier eingezogen, jeder aus einem eigenen Live-
- * Ausfall — die Kommentare an den Zweigen nennen sie. Herausgezogen, weil eine
- * fünfstellige Oder-Kette mit acht Eingaben mitten in einer 1.700-Zeilen-Funktion
- * nicht prüfbar ist: bis hierher gab es keinen einzigen Test darauf, welcher Weg
- * bei welchem Turn feuert.
+ * Sechs Wege sind über die Zeit hier eingezogen, jeder aus einem eigenen Live-
+ * Ausfall oder — beim Werkzeug-Pin — aus einer Stilllegung; die Kommentare an den
+ * Zweigen nennen sie. Herausgezogen, weil eine mehrstellige Oder-Kette mit neun
+ * Eingaben mitten in einer 1.700-Zeilen-Funktion nicht prüfbar ist: bis hierher
+ * gab es keinen einzigen Test darauf, welcher Weg bei welchem Turn feuert.
  */
 export function shouldForceFirstToolCall(input: {
   researchBanned: boolean;
@@ -29,11 +27,20 @@ export function shouldForceFirstToolCall(input: {
   /** Der Turn bringt seinen Stoff selbst mit — dieselbe Zahl, die dem SCHREIBER
    *  den Werkzeugkatalog entzieht (`materialDominatesTurn`). */
   materialHeavy: boolean;
+  /** Eine @-Erwähnung hat ein Werkzeug benannt (`mentionPinnedTool`). */
+  pinnedTool: string | null;
 }): boolean {
   // Der Bann vetoed alles. `toolChoice: 'required'` ist kein Vorschlag, den das
   // Modell gegen den Satz des Nutzers abwägen kann — unter „ohne neue Recherche"
   // sind die verbleibenden Werkzeuge die falschen.
   if (input.researchBanned) return false;
+
+  // Fünfter Weg: die Person hat ein Werkzeug BENANNT. Er steht neben dem
+  // Intent-Weg unten und nicht in ihm, weil ein Pin keinen Intent mehr braucht —
+  // `@umfragen` läuft seit der Stilllegung als `agentic`, und `agentic` ist aus
+  // `NAMED_RETRIEVAL_INTENTS` ausgenommen (es IST der Auffangwert). Ohne diesen
+  // Zweig verlöre genau diese Erwähnung den Werkzeugzwang, den sie vorher hatte.
+  if (input.pinnedTool != null) return true;
 
   // MCP mit gesetztem Server-Scope: eine Fähigkeitsfrage (WS-5 beschreibt die
   // Werkzeuge) braucht keinen Aufruf, alles andere schon.
@@ -99,28 +106,29 @@ export function shouldForceFirstToolCall(input: {
  * dieses Argument steht schon an `guards.emptyResultFallback` — dort ist es der
  * Grund, das Ausweich-Werkzeug zu benennen statt es zu erbitten.
  *
- * Die Regel braucht keine gepflegte Zuordnung Intent→Werkzeug: für die Intents,
- * um die es geht, HEISST das Werkzeug wie der Intent (`bundestag`,
- * `abgeordnetenwatch`, `umfragen`). Wo das nicht zutrifft, greift die Regel
- * nicht und es bleibt bei `required` — `hilfe` etwa montiert
- * `gruenerator_docs_search`, und `mcp` ist überhaupt kein einzelnes Werkzeug.
+ * WELCHES Werkzeug gemeint ist, steht in der Registry an der Erwähnung
+ * (`IntentMention.pinsTool`) und kommt als `mentionPinnedTool` hier an — diese
+ * Funktion entscheidet nur noch, ob der Pin auch trägt. Erwähnungen ohne
+ * einzelnes Zielwerkzeug pinnen nichts und bleiben bei `required`: `@doku`
+ * montiert `gruenerator_docs_search` über seinen Intent, `@notion` ist ein
+ * ganzer Server.
  *
  * Der Montage-Test ist nicht optional: die Locale-Gitter in `buildChatToolCatalog`
  * lassen `bundestag`/`abgeordnetenwatch` für de-AT weg, und ein Zwang auf ein
  * nicht montiertes Werkzeug bricht den Aufruf.
+ *
+ * Dass eine spätere Stufe die Wahl überholt haben kann, prüft diese Funktion
+ * NICHT mehr — das tat sie, solange der Pin ein Intent war und sich mit
+ * `state.intent` vergleichen liess. Wer den Intent überschreibt, löscht den Pin
+ * jetzt ausdrücklich (`forcedIntentStage`).
  */
 export function pinnedFirstTool(input: {
-  /** Der von einer Erwähnung festgezurrte Intent (`mentionPinnedIntent`). */
-  pinnedIntent: string | null;
-  /** Der Intent, unter dem der Turn tatsächlich läuft. */
-  intent: string | null | undefined;
+  /** Das von einer Erwähnung festgezurrte Werkzeug (`mentionPinnedTool`). */
+  pinnedTool: string | null;
   isMounted: (toolName: string) => boolean;
 }): string | null {
-  const pinned = input.pinnedIntent;
-  // Eine spätere Stufe darf den Intent umgeschrieben haben; dann war die
-  // Erwähnung nicht das letzte Wort und ihr Werkzeug ist nicht mehr gemeint.
-  if (!pinned || pinned !== input.intent) return null;
-  if (!forcesLoopLane(pinned)) return null;
+  const pinned = input.pinnedTool;
+  if (!pinned) return null;
   return input.isMounted(pinned) ? pinned : null;
 }
 

@@ -254,6 +254,14 @@ export function getSystemMcpSources(): SystemMcpSource[] {
  * they no longer need an intent to force the loop (`managedSourceKeys` does
  * that). The enum VALUES stay in `searchIntentSchema` (F0: shipped clients parse
  * them), they are simply never produced.
+ *
+ * `umfragen` is retired too (Phase L) and stays here anyway, which is the one
+ * entry that needs explaining. Nothing PRODUCES it any more — `@umfragen` pins
+ * the tool and runs the turn as `agentic` — but a thread persisted before the
+ * change can still hand a saved `intent: 'umfragen'` back to the router, and
+ * this set is what keeps such a turn in the loop where its tool actually is.
+ * Reading the old form tolerantly costs one line; dropping it would strand
+ * exactly those turns in `searchNode`, which no longer has a branch for them.
  */
 export const SYSTEM_TOOL_INTENTS: ReadonlySet<SearchIntent> = new Set([
   'umfragen',

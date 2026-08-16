@@ -52,7 +52,7 @@ export const INTENT_HANDLER_PATHS: Record<SearchIntent, string> = {
   hotel:
     'RETIRED as a verdict — the trivago hotel-search tools are a managed connector, reached through the vocabulary trigger rather than through an intent',
   umfragen:
-    'EXPERIMENTAL native domain tool — forces the agentic loop; toolCatalog mounts makeUmfragenTool (PolitPro Sonntagsfrage + Meinungsbild); router degrades a killed loop turn to web',
+    'RETIRED as a verdict (availability: retired) — the PolitPro Sonntagsfrage/Meinungsbild tool lives on in the loop, mounted broadly by toolCatalog. @umfragen now pins that TOOL (IntentMention.pinsTool) and runs the turn as `agentic`, so no tier produces this intent any more',
   hilfe:
     'native domain tool — forces the agentic loop (isMcpTurn in router, so an @doku-forced turn still enters it); toolCatalog mounts makeDocsSearchTool (in-process BM25 over the generated docs index) and respondNode injects the docs page map; router degrades a killed loop turn to web',
   wetter:

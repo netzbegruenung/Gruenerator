@@ -141,3 +141,20 @@ export function fakeBundestagService(): { search: (query: string) => Promise<unk
     },
   };
 }
+
+/**
+ * Der PolitPro-Abruf hinter dem `umfragen`-Werkzeug — dasselbe Prinzip wie beim
+ * DIP oben: nur das BACKEND wird ersetzt. Werkzeugdefinition, Quellen-Registry
+ * und die Montage im Katalog bleiben echt, sonst prüfte der Pin-Test eine
+ * erfundene Welt statt der Kette, um die es geht.
+ */
+export function fakeLookupUmfragen(
+  topic: string,
+  bundesland?: string,
+  _locale?: string
+): Promise<string | null> {
+  record('umfragenLookup', topic || (bundesland ?? ''));
+  return Promise.resolve(
+    `Sonntagsfrage${bundesland ? ` ${bundesland}` : ''}: Grüne 15 %, SPD 16 %, CDU/CSU 27 %.`
+  );
+}
