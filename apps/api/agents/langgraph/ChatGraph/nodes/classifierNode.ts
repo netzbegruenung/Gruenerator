@@ -67,6 +67,7 @@ import {
   isAmbiguousGraphicRequest,
 } from './classifierHeuristics.js';
 import {
+  carriesPastedBody,
   detectComplexity,
   detectDocumentSubtype,
   detectSearchSources,
@@ -263,11 +264,17 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   // all. Reading it too narrowly downgraded "fasse die Datei zusammen" — with
   // the file right there — to a web search. Err toward keeping `summary`: a
   // false keep is the old behaviour, a false downgrade breaks a working feature.
+  //
+  // `carriesPastedBody` ist derselbe Satz für den Fall, in dem das Material gar
+  // keinen Anhang hat, weil es EINGEFÜGT wurde. Ohne ihn wird der eingefügte
+  // Text selbst zur Web-Suchanfrage (`downgradedSearchQuery = userText`) — im
+  // Sicherheits-Korpus die Bürgeranfrage samt ihrer Injektions-Nutzlast.
   const hasMaterialToSummarise =
     documentSources.length > 0 ||
     !!state.attachmentContext ||
     (state.imageAttachments?.length ?? 0) > 0 ||
-    (state.pdfFormAttachments?.length ?? 0) > 0;
+    (state.pdfFormAttachments?.length ?? 0) > 0 ||
+    carriesPastedBody(userText);
   if (intent === 'summary' && !hasMaterialToSummarise && !CURRENT_THREAD_REFERENCE.test(userText)) {
     if (detectedUrls.length > 0) {
       // The page IS the material. Not `summary` (that intent skips the search
