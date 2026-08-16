@@ -27,39 +27,18 @@ import { env } from '../../../config/env.js';
 import { type ExpressRequest as SharepicExpressRequest } from '../../../services/chat/sharepicGenerationService.js';
 import { createRecurringTask } from '../../../services/recurringTasks/recurringTasksRepository.js';
 import { resolveSearchTier, resolveTier } from '../../../services/search/searchDepth.js';
-import {
-  formatSheetAsContext,
-  loadSheetState,
-} from '../../../services/sheets/SheetGenerationService.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
-import { checkDocumentWriteAccess } from '../../docs/documentAccess.js';
-import { generateSheetOperations } from '../../sheets/sheetAiService.js';
 
 import { needsThreadGrounding } from './agenticLoop/routing.js';
 import { renderSourceLines, withResearchedSources } from './agenticLoop/sourceRegistry.js';
 import { resolveSharepicAuthorName } from './artifactGeneration.js';
-import {
-  BOARD_SPEC,
-  makeDocumentSpec,
-  PDF_SPEC,
-  PRESENTATION_SPEC,
-  SHEET_SPEC,
-} from './artifactKinds.js';
 import { CONFIRM_ACTION_CONFIG } from './confirmActionService.js';
-import {
-  buildCreateTurnContext,
-  emitArtifactResult,
-  runCreateTurn,
-  SHAREPIC_CONTEXT_CHARS,
-  type CreateTurnOpts,
-} from './createTurn.js';
-import { failCreation, rememberArtifact, streamTextInChunks } from './createTurnHelpers.js';
+import { buildCreateTurnContext, SHAREPIC_CONTEXT_CHARS } from './createTurn.js';
+import { failCreation, streamTextInChunks } from './createTurnHelpers.js';
 import { runDeepAgentTurn } from './deepAgentTurn.js';
 import { checkDeepResearchQuota, deepResearchQuotaSpentMessage } from './deepResearchQuota.js';
 import { runDeepResearchTurn } from './deepResearchTurn.js';
-import { emitEditorOperations, planEditorOps } from './editorOpsCore.js';
-import { finishEditTurn } from './editTurnCompletion.js';
 import { extractTextContent } from './messageHelpers.js';
 import {
   recallPastChats,
@@ -175,143 +154,16 @@ export {
   runPdfGeneration,
 } from './artifactGeneration.js';
 
-/**
- * @board-erstellen. Unlike the others the topic is derived here: the board
- * branch predates the router-side resolution and still receives the raw
- * message.
- */
-export async function handleBoardCreation(
-  opts: Omit<CreateTurnOpts, 'userContent'> & { lastUserMessage: ModelMessage | undefined }
-): Promise<boolean> {
-  const lastUserText = opts.lastUserMessage ? extractTextContent(opts.lastUserMessage.content) : '';
-  // A referential follow-up ("mach ein Board davon") names no subject; the
-  // classifier resolved one against the history, with the heuristic as fallback
-  // for turns that never reached the LLM.
-  const userContent =
-    opts.classifiedState.creationTopic ||
-    resolveReferentialTopic(lastUserText, opts.classifiedState.messages ?? []).text;
-  return runCreateTurn(BOARD_SPEC, { ...opts, userContent });
-}
-
-/**
- * create_sheet / @sheet-erstellen. Shape and SSE contract live in
- * runCreateTurn + SHEET_SPEC; this keeps the call-site name stable.
- */
-export async function handleSheetCreation(opts: CreateTurnOpts): Promise<boolean> {
-  return runCreateTurn(SHEET_SPEC, opts);
-}
-
-/**
- * edit_sheet — Tier-2.7 follow-up on a chat-created sheet ("mach die erste
- * Zeile fett"). Plans typed ops with the same planner the in-editor AI
- * assistant uses (generateSheetOperations) and hands them to the client as an
- * `editor_operations` SSE event, same shape as the agentic loop's edit tool
- * (editorTools.ts). No server-side op execution here — only the client's live
- * Univer instance computes styles/formulas correctly; ArtifactPanel relays
- * the event into the docked sheet-editor iframe via postMessage, which
- * applies it through the same applySheetOperations() the in-editor assistant
- * uses. If the sheet isn't open anywhere, the client's existing "no handler
- * registered" fallback tells the user to open it — there is deliberately no
- * second, less-correct execution path for that case.
- */
-export async function handleSheetEdit(opts: {
-  sse: SSEWriter;
-  classifiedState: ChatGraphState;
-  actualThreadId?: string;
-  userId: string;
-  userContent: string;
-}): Promise<boolean> {
-  const { sse, classifiedState, actualThreadId, userId, userContent } = opts;
-  const sheetId = classifiedState.sheetEditId;
-
-  sse.send('response_start', { message: 'Bearbeite Tabelle...' });
-
-  const fail = async (text: string): Promise<boolean> => {
-    sse.send('text_delta', { text });
-    await finishEditTurn({
-      sse,
-      threadId: actualThreadId ?? null,
-      text,
-      intent: 'edit_sheet',
-      persistLabel: 'editSheet:persist',
-      logPrefix: '[SheetEdit]',
-      startTime: classifiedState.startTime,
-      classificationTimeMs: classifiedState.classificationTimeMs,
-      streamed: true,
-    });
-    return true;
-  };
-
-  if (!sheetId) {
-    return fail(
-      'Ich konnte die Tabelle nicht zuordnen. Öffne sie kurz, dann kann ich sie bearbeiten.'
-    );
-  }
-
-  if (!(await checkDocumentWriteAccess(sheetId, userId))) {
-    return fail('Du hast keine Bearbeitungsrechte für diese Tabelle.');
-  }
-
-  const state = await loadSheetState(sheetId, userId);
-  if (!state) {
-    return fail('Ich konnte die Tabelle nicht finden — vielleicht wurde sie gelöscht.');
-  }
-
-  const planned = await planEditorOps({
-    log,
-    logLabel: '[SheetEdit]',
-    plan: () =>
-      generateSheetOperations({
-        userPrompt: userContent,
-        sheetContext: formatSheetAsContext(state),
-        referenceContent: null,
-      }),
-  });
-
-  if (!planned.ok) {
-    return fail(
-      planned.reason === 'planning_failed'
-        ? 'Die Änderung an der Tabelle konnte nicht geplant werden. Versuch es bitte noch einmal.'
-        : 'Ich konnte daraus keine konkrete Tabellen-Änderung ableiten. Beschreib bitte genauer, was sich ändern soll.'
-    );
-  }
-
-  const { operations, summary } = planned;
-  const responseText = `Ich habe die Änderung an **"${state.title}"** vorbereitet (${summary}).`;
-  streamTextInChunks(sse, responseText);
-
-  emitEditorOperations(sse, 'sheet', sheetId, operations, summary);
-  log.info(`[SheetEdit] planned ${operations.length} op(s) for sheet ${sheetId}`);
-
-  if (actualThreadId) {
-    await rememberArtifact(actualThreadId, 'sheet', sheetId, state.title);
-  }
-
-  await finishEditTurn({
-    sse,
-    threadId: actualThreadId ?? null,
-    text: responseText,
-    intent: 'edit_sheet',
-    persistLabel: 'editSheet:persist',
-    logPrefix: '[SheetEdit]',
-    startTime: classifiedState.startTime,
-    classificationTimeMs: classifiedState.classificationTimeMs,
-    streamed: true,
-  });
-  return true;
-}
-
-/** create_presentation / @praesentation-erstellen. */
-export async function handlePresentationCreation(opts: CreateTurnOpts): Promise<boolean> {
-  return runCreateTurn(PRESENTATION_SPEC, opts);
-}
-
-/** create_pdf / @pdf-erstellen — produces a finished, downloadable file. */
-export async function handlePdfCreation(
-  opts: CreateTurnOpts & { userLocale: 'de-DE' | 'de-AT' }
-): Promise<boolean> {
-  return runCreateTurn(PDF_SPEC, opts);
-}
+// The thin handlers naming an artifact spec, plus the two document modes, moved
+// to intentHandlers/. Re-exported so the contract router keeps one import site.
+export {
+  generateAndCreateDocument,
+  handleBoardCreation,
+  handlePdfCreation,
+  handlePresentationCreation,
+  handleSheetCreation,
+} from './intentHandlers/artifactTurns.js';
+export { handleSheetEdit } from './intentHandlers/sheetEdit.js';
 
 // ── EXPERIMENTAL: create_recurring_task ────────────────────────────────────────
 
@@ -501,70 +353,6 @@ export async function handleRecurringTaskCreation(opts: {
       `[ChatGraph] Recurring task creation failed: ${err instanceof Error ? err.message : String(err)}`
     );
     return failCreation(sse, actualThreadId, 'create_recurring_task', RECURRING_TASK_FAILURE_TEXT);
-  }
-}
-
-/**
- * Document creation, in two genuinely different modes.
- *
- * The default mode OWNS the turn and is an ordinary entry in the artifact
- * table. `skipTerminate` (save_as_doc) does NOT: it writes the card and text
- * into a stream its caller already opened and will close, so it deliberately
- * emits no `done`, persists no message and returns false on failure to let the
- * caller decide. Keeping the fork explicit at the top beats the previous
- * version, where `if (!skipTerminate)` was threaded through 167 lines.
- */
-export async function generateAndCreateDocument(opts: {
-  sse: SSEWriter;
-  classifiedState: ChatGraphState;
-  aiClient: ChatGraphState['aiClient'];
-  req: Express.Request;
-  actualThreadId?: string;
-  userId: string;
-  userContent: string;
-  subtypeOverride?: string | null;
-  conversationContext?: string;
-  intent: string;
-  skipTerminate?: boolean;
-}): Promise<boolean> {
-  const spec = makeDocumentSpec({
-    intent: opts.intent,
-    subtypeOverride: opts.subtypeOverride ?? null,
-    ...(opts.conversationContext != null && { conversationContext: opts.conversationContext }),
-  });
-  if (!opts.skipTerminate) return runCreateTurn(spec, opts);
-  return contributeDocumentToOpenTurn(spec, opts);
-}
-
-/**
- * save_as_doc: contribute a document to a turn somebody else owns.
- *
- * Emits the same text + card as the owning path so the chat looks identical,
- * remembers the artifact (this path never reaches persistAssistantResponse's
- * deriveToolContext, so without it the follow-up edit gate has no target), and
- * then stops — no `done`, no message, no `sse.end()`.
- */
-async function contributeDocumentToOpenTurn(
-  spec: ReturnType<typeof makeDocumentSpec>,
-  opts: CreateTurnOpts
-): Promise<boolean> {
-  const { sse, aiClient, req, userId, userContent, actualThreadId } = opts;
-  try {
-    const doc = await spec.generate({ aiClient, req, userId, userContent }, () => {});
-    if (!doc) return false;
-
-    emitArtifactResult(sse, spec, doc);
-    log.info(`[ChatGraph] Document created (${spec.intent}): "${doc.title}" (${doc.documentId})`);
-
-    const contextKind =
-      typeof spec.contextKind === 'function' ? spec.contextKind(doc) : spec.contextKind;
-    await rememberArtifact(actualThreadId, contextKind, doc.documentId, doc.title);
-    return true;
-  } catch (err) {
-    log.error(
-      `[ChatGraph] Document creation failed (${spec.intent}): ${err instanceof Error ? err.message : String(err)}`
-    );
-    return false;
   }
 }
 
