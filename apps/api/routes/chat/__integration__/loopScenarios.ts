@@ -37,6 +37,8 @@ export interface LoopScenario {
    * different shape than the scenario claims.
    */
   streams: ScriptedResponse[];
+  /** Extra request-body fields — `forcedTools` for an @-mention, above all. */
+  body?: Record<string, unknown>;
   /** Make the first N search-backend calls fail, for the failure-cap branches. */
   backendFailures?: number;
   mustDecide?: Array<{ point: DecisionPointId; chose: string }>;
@@ -219,5 +221,33 @@ export const LOOP_SCENARIOS: readonly LoopScenario[] = [
       { text: GERMAN_ANSWER },
     ],
     decisionCounts: [{ point: 'loop.tool_guard', chose: 'search_concurrency', count: 1 }],
+  },
+  // ── @-Erwähnung auf der Loop-Lane ────────────────────────────────────────
+  // Das PAAR, das den Flip vom 16.08.2026 belegt. `@bundestag` lief bis dahin
+  // als Einzeldurchlauf, weil `forcedTool` im Entscheider ein Loop-Notausschalter
+  // war; jetzt trägt der Intent `forcedLane: 'loop'` und die Erwähnung kommt hier
+  // an. Das Gegenstück daneben zeigt, dass der Notausschalter für alle anderen
+  // Erwähnungen unverändert gilt — ohne es wäre nicht zu sehen, ob der Flip
+  // gezielt war oder das Gate ganz aufgegangen ist.
+  {
+    id: 'mention-bundestag-loop',
+    category: 'mention-lane',
+    note: 'Keine Modellannahme: `@bundestag` zurrt den Intent deterministisch fest (forcedIntentStage), und `forcedLane: loop` entscheidet die Lane. Der DIP-Abruf ist gestubbt wie jedes andere Suchbackend — was hier zaehlt, ist dass das Domain-Werkzeug ueberhaupt montiert ist und laeuft.',
+    prompt: 'Was liegt zum Heizungsgesetz vor?',
+    body: { forcedTools: ['bundestag'] },
+    streams: [
+      { calls: [{ tool: 'bundestag', args: { query: 'Heizungsgesetz' } }] },
+      { text: GERMAN_ANSWER },
+    ],
+    mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
+  },
+  {
+    id: 'mention-dokumente-einzeln',
+    category: 'mention-lane',
+    note: 'Gegenstueck: `@dokumente` (Intent `search`) traegt `forcedLane: single-pass`, der Notausschalter greift also weiter. Beweist, dass der Flip die beiden Quellen meint und nicht das Gate allgemein geoeffnet hat.',
+    prompt: 'Was liegt zum Heizungsgesetz vor?',
+    body: { forcedTools: ['search'] },
+    streams: [],
+    mustDecide: [{ point: 'router.run_agentic', chose: 'single_pass' }],
   },
 ];

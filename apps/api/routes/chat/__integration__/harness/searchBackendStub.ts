@@ -99,3 +99,45 @@ export function fakeExecuteDirectPressemitteilungExamples(params: {
     ok ? { query: params.query, examples: [] } : { error: 'fehlgeschlagen', examples: [] }
   );
 }
+
+/**
+ * Der DIP-Abruf hinter dem `bundestag`-Werkzeug — dasselbe Prinzip wie oben:
+ * nur das BACKEND wird ersetzt. Werkzeugdefinition, Locale-Gitter am Katalog
+ * und der `searchNode`-Zweig bleiben echt, sonst prüfte ein Flip-Test eine
+ * erfundene Welt statt der Montage, um die es geht.
+ */
+export function fakeBundestagService(): { search: (query: string) => Promise<unknown> } {
+  return {
+    search(query: string): Promise<unknown> {
+      record('bundestagSearch', query);
+      return Promise.resolve({
+        kind: 'topic',
+        topic: {
+          hits: [
+            {
+              docType: 'Drucksache',
+              docId: 'bt-1',
+              entityType: 'Antrag',
+              title: `Antrag zu ${query}`,
+              abstract: `Beratungsstand im DIP zu ${query}.`,
+              dokumentnummer: '21/1234',
+              date: '2026-05-04',
+              wahlperiode: 21,
+              score: 0.9,
+            },
+          ],
+          speeches: [],
+          documents: [],
+          vorgaenge: [],
+        },
+        notes: [],
+        metadata: {
+          query,
+          extractedName: null,
+          matchedDokumentnummer: null,
+          fetchTimeMs: 1,
+        },
+      });
+    },
+  };
+}

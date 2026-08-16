@@ -44,21 +44,30 @@ export type ForcedLane =
   | 'pipeline';
 
 /**
- * Der Stand vom 16.08.2026: exakt die drei Intents, die der Entscheider bisher
- * als `isMcpTurn` aufzählte, tragen `loop`.
+ * Zwei Gründe, `loop` zu tragen, und sie sind nicht derselbe.
  *
- * Sie tun es nicht, weil eine Erwähnung sie dorthin schöbe, sondern weil
- * `executeIntentPipeline` für sie gar keinen Zweig hat (`SYSTEM_TOOL_INTENTS`
- * plus `mcp`) — ein Einzeldurchlauf liesse den Turn ohne Ausführenden. Der
- * Unterschied wird ab dem ersten Flip sichtbar: ein Intent MIT
- * Einzeldurchlauf-Executor kann `loop` tragen, weil die Erwähnung ihn dort
- * besser bedient, nicht weil es sonst niemanden gäbe.
+ * `mcp`/`umfragen`/`hilfe` MÜSSEN in die Schleife: `executeIntentPipeline` hat
+ * für sie gar keinen Zweig, ein Einzeldurchlauf liesse den Turn ohne
+ * Ausführenden. Diese Tatsache heisst im Entscheider `mustLoop` und trägt dort
+ * mehr als diese Achse (bedingungsloses Gate, Notizbuch-Ausnahme).
+ *
+ * `bundestag`/`abgeordnetenwatch` HABEN einen Einzeldurchlauf-Executor
+ * (`searchNode`), und er bleibt der Weg für Prosa-Turns mit ausgeschalteter
+ * Schleife. Sie tragen `loop`, weil eine ERWÄHNUNG dort besser bedient ist: der
+ * Einzeldurchlauf ruft genau eine Suche und schreibt darüber, während die
+ * Schleife nachfassen, mit anderen Quellen kombinieren und bei leerem Ergebnis
+ * ausweichen kann. Genau dafür ist das eine eigene Achse — `forcedLane: 'loop'`
+ * hebt NUR den forcedTool-Notausschalter auf.
  */
 export const FORCED_LANE_BY_INTENT: Record<ChatIntentId, ForcedLane> = {
-  // ── loop ──────────────────────────────────────────────────────────────────
+  // ── loop, weil es sonst niemanden gäbe ────────────────────────────────────
   mcp: 'loop',
   umfragen: 'loop',
   hilfe: 'loop',
+
+  // ── loop, weil die Erwähnung dort besser bedient ist ──────────────────────
+  bundestag: 'loop',
+  abgeordnetenwatch: 'loop',
 
   // ── pipeline — eigene Erstellroute, dispatcht auf den forcedTool-String ────
   save_as_doc: 'pipeline',
@@ -72,8 +81,6 @@ export const FORCED_LANE_BY_INTENT: Record<ChatIntentId, ForcedLane> = {
   search: 'single-pass',
   examples: 'single-pass',
   pressemitteilung_examples: 'single-pass',
-  abgeordnetenwatch: 'single-pass',
-  bundestag: 'single-pass',
   chat_history: 'single-pass',
   image: 'single-pass',
   image_edit: 'single-pass',
