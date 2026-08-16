@@ -72,4 +72,15 @@ describe('craftGuidanceForPlatform — das Rezept gewinnt', () => {
     expect(craftGuidanceForPlatform('linkedin', null)).toBe(rubricForPlatform('linkedin'));
     expect(craftGuidanceForPlatform(null, null)).toBe(rubricForPlatform(null));
   });
+
+  // Der Auffang muss die Familie der gewählten Textform mitnehmen, sonst
+  // bekommt eine Instanz ohne ausgerolltes INTERN_CONTENT_DIR für
+  // `/insta-berlin` ohne Plattformnennung die generische Rubrik — also
+  // ausgerechnet die 800–1500-Zeichen-Ansage statt der Instagram-Form.
+  it('leitet die Auffang-Rubrik aus der gewählten Textform ab', () => {
+    expect(craftGuidanceForPlatform(null, 'insta-berlin')).toBe(rubricForPlatform('instagram'));
+    expect(craftGuidanceForPlatform(null, 'linkedin')).toBe(rubricForPlatform('linkedin'));
+    // Eine Textform aus einer anderen Familie färbt den Auffang nicht ein.
+    expect(craftGuidanceForPlatform(null, 'presse')).toBe(rubricForPlatform(null));
+  });
 });
