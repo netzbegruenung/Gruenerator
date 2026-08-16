@@ -94,6 +94,16 @@ vi.mock('../../../services/bundestag/BundestagEnrichedService.js', async (orig) 
     getBundestagEnrichedService: fakeBundestagService,
   };
 });
+// PolitPro hinter dem `umfragen`-Werkzeug, aus demselben Grund. Es ist der
+// Werkzeug-Pin, den `mention-umfragen-loop` prueft: der Intent dahinter ist
+// stillgelegt, die Montage im Katalog bleibt echt.
+vi.mock('../../../services/monitor/UmfragenService.js', async (orig) => {
+  const { fakeLookupUmfragen } = await import('./harness/searchBackendStub.js');
+  return {
+    ...((await orig()) as Record<string, unknown>),
+    lookupUmfragen: fakeLookupUmfragen,
+  };
+});
 
 vi.mock('ai', async (orig) => {
   const { fakeLoopStreamText, fakeLoopGenerateText } = await import('./harness/loopScript.js');
@@ -219,6 +229,18 @@ describe('loop decision maps', () => {
             .map((e) => e.chose)
             .join(', ') || '(not reached)')
       ).toBe(expected.count);
+    }
+
+    if (scenario.firstToolChoice) {
+      const choice = loopScript.calls[0]?.toolChoice;
+      const named =
+        choice && typeof choice === 'object' && 'toolName' in choice
+          ? (choice as { toolName: string }).toolName
+          : choice;
+      expect(
+        named,
+        `${scenario.id}: der erste Planer-Schritt sollte ${scenario.firstToolChoice} verlangen`
+      ).toBe(scenario.firstToolChoice);
     }
 
     for (const point of scenario.notReached ?? []) {

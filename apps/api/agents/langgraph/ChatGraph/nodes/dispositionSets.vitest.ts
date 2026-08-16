@@ -156,18 +156,24 @@ describe('DEMOTABLE_HEURISTIC_INTENTS — loop MINUS drei, und jede Ausnahme sag
     }
   });
 
-  it('lässt genau research, umfragen und agentic aus', () => {
+  it('lässt genau research und agentic aus', () => {
     // Der Rest der Aussage — und der Grund, warum diese Menge NICHT abgeleitet
-    // wird. Jede der drei Ausnahmen hat ihren eigenen Grund:
-    //  - `umfragen` steht in SYSTEM_TOOL_INTENTS: sein Verdikt montiert das
-    //    Werkzeug. Als `agentic` fände der Planer es nicht vor.
+    // wird. Jede der beiden Ausnahmen hat ihren eigenen Grund:
     //  - `research` behält seinen Namen bis ins Residual und damit den Zwang
     //    aus NAMED_RETRIEVAL_INTENTS.
     //  - `agentic` IST das Ziel der Demotion.
+    //
+    // `umfragen` war die dritte, mit der Begründung „sein Verdikt montiert das
+    // Werkzeug". Die trug schon vorher nicht (der Katalog montiert es breit,
+    // `toolCatalog.ts`) und ist mit der Stilllegung des Intents gegenstandslos:
+    // er hat keine `loop`-Disposition mehr, die Menge kann ihn gar nicht mehr
+    // auslassen. In SYSTEM_TOOL_INTENTS steht er weiterhin — als tolerantes
+    // Weiterlesen eines aus einem alten Thread zurückgereichten Verdikts.
     const notDemotable = [...intentsWithDisposition('loop')].filter(
       (id) => !DEMOTABLE_HEURISTIC_INTENTS.has(id)
     );
-    expect(sorted(notDemotable)).toEqual(['agentic', 'research', 'umfragen']);
+    expect(sorted(notDemotable)).toEqual(['agentic', 'research']);
+    expect(dispositionOf('umfragen')).toBe('retired');
     expect(SYSTEM_TOOL_INTENTS.has('umfragen')).toBe(true);
     expect(NAMED_RETRIEVAL_INTENTS.has('research')).toBe(true);
   });
@@ -177,7 +183,7 @@ describe('NON_SEARCH_INTENTS — Politik des Heuristik-Tisches, keine Dispositio
   it('deckt sich mit keiner Vereinigung von Dispositionen', () => {
     // Die Messung, die den Kopfkommentar der Menge trägt: `prose` und
     // `artifact` ganz, `anchor` und `gated` je zur Hälfte, dazu ein einzelnes
-    // `umfragen` aus `loop`. Wer daraus eine Ableitung machen will, ändert
+    // `umfragen` — seit Phase L aus `retired`. Wer daraus eine Ableitung will, ändert
     // Verhalten — der Test sagt, wieviel.
     //
     // Dass `artifact` vollständig drinsteht und `gated` bis auf drei, hat einen

@@ -49,7 +49,7 @@ bundestag                         0  loop
 bahn                              0  retired
 reise                             0  retired
 hotel                             0  retired
-umfragen                          0  loop
+umfragen                          0  retired
 hilfe                             0  gated
 wetter                            0  retired
 news                              0  retired

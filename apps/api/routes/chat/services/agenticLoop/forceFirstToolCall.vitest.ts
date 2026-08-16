@@ -1,3 +1,8 @@
+import {
+  allIntentMentions,
+  pinnedToolForMention,
+  CHAT_INTENTS,
+} from '@gruenerator/shared/chat-intents';
 import { describe, it, expect } from 'vitest';
 
 import { pinnedFirstTool, shouldForceFirstToolCall } from './forceFirstToolCall.js';
@@ -12,6 +17,7 @@ const base = {
   loopDemotedFromRetrieval: false,
   classifierContradictedResearch: false,
   materialHeavy: false,
+  pinnedTool: null as string | null,
 };
 
 const force = (over: Partial<typeof base> = {}) => shouldForceFirstToolCall({ ...base, ...over });
@@ -27,6 +33,7 @@ describe('shouldForceFirstToolCall', () => {
       ['ausdrücklicher Rechercheauftrag', { lastUserText: 'Recherchiere das bitte.' }],
       ['benannter Abruf-Intent', { intent: 'web' }],
       ['Selbstwiderspruch der LLM-Stufe', { classifierContradictedResearch: true }],
+      ['ein per Erwähnung gepinntes Werkzeug', { pinnedTool: 'umfragen' }],
     ])('%s', (_name, over) => {
       expect(force(over)).toBe(true);
       expect(force({ ...over, researchBanned: true })).toBe(false);
@@ -84,6 +91,20 @@ describe('shouldForceFirstToolCall', () => {
       expect(force({ classifierContradictedResearch: true, materialHeavy: true })).toBe(true);
     });
   });
+
+  describe('der Werkzeug-Pin trägt ohne Intent', () => {
+    // Der Punkt der ganzen Entkopplung: `@umfragen` läuft seit der Stilllegung
+    // als `agentic`, und `agentic` ist aus NAMED_RETRIEVAL_INTENTS ausgenommen.
+    // Ohne den Pin-Zweig hätte diese Erwähnung ihren Werkzeugzwang verloren.
+    it('erzwingt den Aufruf für einen `agentic`-Turn mit gepinntem Werkzeug', () => {
+      expect(force({ intent: 'agentic', pinnedTool: 'umfragen' })).toBe(true);
+      expect(force({ intent: 'agentic', pinnedTool: null })).toBe(false);
+    });
+
+    it('sticht auch eigenes Material — der Pin ist eine ausdrückliche Wahl', () => {
+      expect(force({ intent: 'agentic', pinnedTool: 'umfragen', materialHeavy: true })).toBe(true);
+    });
+  });
 });
 
 describe('pinnedFirstTool', () => {
@@ -98,40 +119,45 @@ describe('pinnedFirstTool', () => {
   ]);
   const isMounted = (name: string) => MOUNTED.has(name);
 
-  it('nennt das Werkzeug, wenn eine Erwähnung den Intent festgezurrt hat', () => {
-    expect(pinnedFirstTool({ pinnedIntent: 'umfragen', intent: 'umfragen', isMounted })).toBe(
-      'umfragen'
-    );
+  it('nennt das Werkzeug, das die Erwähnung festgezurrt hat', () => {
+    expect(pinnedFirstTool({ pinnedTool: 'umfragen', isMounted })).toBe('umfragen');
   });
 
   it('schweigt ohne Erwähnung — ein Klassifikator-Verdikt ist keine Wahl', () => {
-    expect(pinnedFirstTool({ pinnedIntent: null, intent: 'umfragen', isMounted })).toBe(null);
-  });
-
-  it('schweigt, wenn eine spätere Stufe den Intent umgeschrieben hat', () => {
-    expect(pinnedFirstTool({ pinnedIntent: 'umfragen', intent: 'produktion', isMounted })).toBe(
-      null
-    );
+    expect(pinnedFirstTool({ pinnedTool: null, isMounted })).toBe(null);
   });
 
   // Die Locale-Gitter in `buildChatToolCatalog` lassen die beiden DE-only-
   // Werkzeuge für de-AT weg. Ein Zwang auf ein nicht montiertes Werkzeug bräche
   // den Aufruf — hier bleibt es bei `required`.
   it('schweigt, wenn das Werkzeug für diesen Turn gar nicht montiert ist', () => {
-    expect(
-      pinnedFirstTool({ pinnedIntent: 'umfragen', intent: 'umfragen', isMounted: () => false })
-    ).toBe(null);
+    expect(pinnedFirstTool({ pinnedTool: 'bundestag', isMounted: () => false })).toBe(null);
+  });
+});
+
+describe('die Registry entscheidet, welche Erwähnung ein Werkzeug pinnt', () => {
+  // Der Pin ersetzt die frühere Regel „das Werkzeug heisst wie der Intent". Der
+  // Test hängt deshalb an der Registry und nicht an einer zweiten Liste hier:
+  // wer `pinsTool` setzt oder wegnimmt, ändert eine Aussage über den Loop.
+  it('drei Erwähnungen pinnen ein Werkzeug — und nur die', () => {
+    const pinned = allIntentMentions()
+      .filter(({ mention }) => mention.pinsTool != null)
+      .map(({ mention }) => mention.pinsTool)
+      .sort();
+    expect(pinned).toEqual(['abgeordnetenwatch', 'bundestag', 'umfragen']);
   });
 
-  // `hilfe` montiert `gruenerator_docs_search`, `mcp` ist überhaupt kein
-  // einzelnes Werkzeug. Die Regel greift nur, wo der Name trägt — der
-  // Montage-Test ist genau das, was sie dort schweigen lässt.
-  it('schweigt, wo das Werkzeug nicht wie der Intent heisst', () => {
-    expect(pinnedFirstTool({ pinnedIntent: 'hilfe', intent: 'hilfe', isMounted })).toBe(null);
-    expect(pinnedFirstTool({ pinnedIntent: 'mcp', intent: 'mcp', isMounted })).toBe(null);
+  it('`@umfragen` pinnt sein Werkzeug, obwohl sein Intent stillgelegt ist', () => {
+    expect(pinnedToolForMention('umfragen')).toBe('umfragen');
+    expect(CHAT_INTENTS.umfragen.availability).toBe('retired');
   });
 
-  it('schweigt für einen Intent, dessen Zwang nicht in die Schleife führt', () => {
-    expect(pinnedFirstTool({ pinnedIntent: 'examples', intent: 'examples', isMounted })).toBe(null);
+  // `@doku` montiert `gruenerator_docs_search`, `@dokumente` ist die
+  // Dokumentensuche des Einzeldurchlaufs, `@notion` ein ganzer Server. Keine
+  // von ihnen meint EIN Werkzeug — sie bleiben bei `required`.
+  it('schweigt, wo eine Erwähnung kein einzelnes Werkzeug meint', () => {
+    expect(pinnedToolForMention('hilfe')).toBe(null);
+    expect(pinnedToolForMention('search')).toBe(null);
+    expect(pinnedToolForMention('examples')).toBe(null);
   });
 });

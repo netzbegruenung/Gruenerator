@@ -48,6 +48,14 @@ import { type ChatIntentId } from './index.js';
  * in `decideRunAgentic` ein Loop-Kill-Switch. Ein erwähnbarer Intent steuert
  * also sehr wohl noch etwas, auch wenn seine Lane `loop` heisst.
  *
+ * **Der Blocker ist seit Phase L nicht mehr absolut.** Eine Erwähnung kann ein
+ * WERKZEUG festzurren statt eines Intents (`IntentMention.pinsTool`); der Pin
+ * trägt dann selbst, was vorher der Intent trug — er hebt den Loop-Kill-Switch
+ * auf und benennt den ersten Werkzeugaufruf. `umfragen` ist so gefallen und
+ * steht unten mit dem Ergebnis. Was den Blocker weiterhin echt macht, ist alles
+ * ANDERE, was am Verdikt hängt: ein eigenes Gitter, eine eigene UX-Stufe, ein
+ * degradeTo-Ziel oder eine Statuszeile, die niemand sonst schreibt.
+ *
  *   research     vom Auftrag ausgenommen · @recherche + Variante @deepresearch
  *   agentic      IST der Auffangwert (`fallbackIntentFor`: agentic → search)
  *   search       @dokumente · Ziel eben jenes Auffangs
@@ -60,9 +68,12 @@ import { type ChatIntentId } from './index.js';
  *   pressemitteilung_examples  @pressemitteilungen/@pm · eigene Karte
  *   abgeordnetenwatch  @-Mention · Locale-Gitter am Werkzeug · degradeTo
  *   bundestag          @-Mention · Locale-Gitter am Werkzeug · degradeTo
- *   umfragen     @umfragen · SYSTEM_TOOL_INTENTS · `isMcpTurn` erzwingt den
- *                Loop an forcedTool vorbei
- *   hilfe        @doku/@hilfe/@anleitung · dito · eigener Tier-2.9-Zweig
+ *   umfragen     STILLGELEGT (Phase L): @umfragen zurrt jetzt das Werkzeug fest
+ *                statt des Intents — der einzige, bei dem die Erwähnung das
+ *                Einzige war, was ihn am Leben hielt
+ *   hilfe        @doku/@hilfe/@anleitung · SYSTEM_TOOL_INTENTS · eigener
+ *                Tier-2.9-Zweig · sein Werkzeug heisst nicht wie er
+ *                (`gruenerator_docs_search`)
  *   summary      @zusammenfassung · eigene SSE-Stufe `summarizing`
  *   mcp          Katalog wird intent-gegattert montiert, nicht breit
  *   image        `generate_image` intent-gegattert (Kosten/Kontingent)
@@ -114,7 +125,6 @@ export const DISPOSITION_BY_INTENT: Record<ChatIntentId, Disposition> = {
   pressemitteilung_examples: 'loop',
   abgeordnetenwatch: 'loop',
   bundestag: 'loop',
-  umfragen: 'loop',
   // ── D6 retired — als verwaltete Connectoren aus der Intent-Achse ausgezogen.
   // Sie standen hier als `loop` mit der Begründung, der Auflöser wähle nur die
   // Quelle und der Turn gehe ohnehin an den Planer. Genau das war das Argument,
@@ -125,6 +135,11 @@ export const DISPOSITION_BY_INTENT: Record<ChatIntentId, Disposition> = {
   hotel: 'retired',
   wetter: 'retired',
   news: 'retired',
+  // Stillgelegt auf demselben Weg, aber aus dem anderen Grund: `umfragen` ist
+  // kein Connector geworden, sondern schlicht ein LOOP-WERKZEUG. Der Intent trug
+  // zuletzt nur noch die Erwähnung, und die zurrt heute das Werkzeug direkt fest
+  // (`IntentMention.pinsTool`). Zensus 0/167 vor der Stilllegung.
+  umfragen: 'retired',
   /** Der Auffangwert selbst. Seit #2269 der Residualwert der LLM-Stufe. */
   agentic: 'loop',
 
