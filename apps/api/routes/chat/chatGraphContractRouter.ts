@@ -276,18 +276,16 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         mentionBoardIds: mentionTokenFields.boardIds,
       });
 
-      // === Recall: chat_history tool loop, else past-work context enrichment ===
-      const recall = await runRecallStage({
+      // === Recall: past-work context enrichment ===
+      await runRecallStage({
         sse,
         classifiedState,
-        cleanupPending,
         actualThreadId,
         userId,
         lastUserMessage,
         isNewThread,
         memoryEnabled,
       });
-      if (recall.handled) return recall.result;
 
       // === HITL: clarification, then the run-then-answer compute interrupt ===
       const clarification = await runClarificationStage({
