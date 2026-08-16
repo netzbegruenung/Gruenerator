@@ -41,7 +41,6 @@ import {
   type UnifiedTextBody,
 } from './unifiedHandler.js';
 
-import type { SharepicRequest } from './types.js';
 import type { Application, Request } from 'express';
 
 const log = createLogger('sharepicTextContract');
@@ -167,11 +166,7 @@ export const sharepicTextContractRouter = s.router(sharepicTextContract, {
     // `analyzeSlideCount` is the reusable half: it picks 1–3 content slides,
     // and cover + last bring the deck to 3–5.
     const count = body.smartCount
-      ? (await analyzeSlideCount(
-          args.req as SharepicRequest,
-          body.thema ?? '',
-          body.details ?? ''
-        )) + 2
+      ? (await analyzeSlideCount(body.thema ?? '', body.details ?? '')) + 2
       : clampCount(body.count);
 
     const r = await run(args.req, 'slider', { ...body, count });

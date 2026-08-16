@@ -734,7 +734,6 @@ export async function processGraphRequest(
         searchQuery: searchQuery || null,
         examples: [], // TODO: Implement examples from config
         provider,
-        aiClient: getAiClient(ppReq),
         enableNotebookEnrich: useNotebookEnrich ?? config.features?.notebookEnrich ?? false,
       },
       ppReq

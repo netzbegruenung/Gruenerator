@@ -1,4 +1,4 @@
-import { getAiClient } from '../../utils/getAiClient.js';
+import { aiText } from '../../services/ai/generate.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -65,25 +65,14 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Description must be under 2000 characters' });
     }
 
-    const aiClient = getAiClient(req);
-
     log.info(`[PromptGenerator] Generating system prompt for user ${user.id}`);
 
-    const result = await aiClient.processRequest({
-      type: 'prompt_generation',
-      systemPrompt: META_PROMPT,
-      messages: [{ role: 'user', content: description.trim() }],
-      options: {
-        temperature: 0.7,
-      },
+    const systemPrompt = await aiText({
+      lane: 'prompt_generation',
+      system: META_PROMPT,
+      prompt: description.trim(),
+      temperature: 0.7,
     });
-
-    if (!result.success) {
-      log.error('[PromptGenerator] AI generation failed:', result.error);
-      return res.status(500).json({ error: 'Failed to generate system prompt' });
-    }
-
-    const systemPrompt = (result.content || '').trim();
 
     if (!systemPrompt) {
       return res.status(500).json({ error: 'Empty response from AI' });
