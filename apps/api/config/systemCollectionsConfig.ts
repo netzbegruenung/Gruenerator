@@ -296,6 +296,12 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     qdrantCollection: 'kommunalwiki_documents',
     name: 'KommunalWiki',
     description: 'Fachwissen zur Kommunalpolitik (Heinrich-Böll-Stiftung)',
+    // German Kommunalpolitik — Gemeindeordnungen, Ratsarbeit, kommunale
+    // Haushalte. Austria has its own municipal law, so this is not a shared
+    // corpus. Declared now because the loop's collection list is locale-filtered
+    // on this field (`collectionsForLocale`, routes/chat/agents/searchTools.ts);
+    // it was previously undeclared only because nothing read it.
+    country: 'DE',
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
@@ -346,6 +352,9 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     qdrantCollection: 'boell_stiftung_documents',
     name: 'Heinrich-Böll-Stiftung',
     description: 'Analysen, Dossiers und Atlanten der Heinrich-Böll-Stiftung',
+    // Same reasoning as `kommunalwiki`: a German foundation's output, declared
+    // so the locale filter has something to read.
+    country: 'DE',
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [

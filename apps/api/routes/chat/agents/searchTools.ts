@@ -8,11 +8,17 @@
 import { tool, type ToolSet } from 'ai';
 import { z } from 'zod';
 
+import { NOTEBOOK_GATE } from '../../../config/notebookCollectionMap.js';
+import {
+  getCanonicalByKey,
+  getMcpExposedCollections,
+} from '../../../config/systemCollectionsConfig.js';
 import { normalizeDomainList } from '../../../services/search/domainFilters.js';
 import { createDeepTierBudget, SEARCH_TIERS } from '../../../services/search/searchDepth.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import {
+  deduplicateByUrl,
   executeDirectSearch,
   executeDirectExamplesSearch,
   executeDirectPressemitteilungExamples,
@@ -20,26 +26,134 @@ import {
 } from './directSearch.js';
 import { resolveExamplesLvScope } from './lvScope.js';
 
+import type { DirectSearchResult } from './directSearch.js';
 import type { AgentConfig } from './types.js';
 
 const log = createLogger('searchTools');
 
-export const ALL_COLLECTIONS = [
-  'deutschland',
-  'oesterreich',
-  'bundestagsfraktion',
-  'kommunalwiki',
-  'examples',
-  'gruene-de',
-  'gruene-at',
-  'boell-stiftung',
-] as const;
+/**
+ * Every system collection the loop may search — derived from the canonical
+ * config, not hand-maintained.
+ *
+ * It used to be eight literals, and the eight were the whole problem: every
+ * Landesverband was missing, so an agent BOUND to one ("Öffentlichkeitsarbeit
+ * Hessen", `defaultNotebookIds: ['hessen-notebook']` → collection `hessen`)
+ * could not reach its own corpus from inside the loop. `searchNode` resolves
+ * that binding via `defaultNotebookCollectionIds`; the loop never sees it, and
+ * `collection` here is a closed enum with no key to name. Measured live: a
+ * "Pressemitteilung im Stil Grüne Hessen" searched `gruene-de` instead — the
+ * gruene.de website scrape — and the Hessen documents were only ever consulted
+ * as press-release STYLE examples via `gruenerator_pressemitteilung_examples`.
+ *
+ * The MCP server hit the identical wall and fixed it the same way (see
+ * SEARCH_COLLECTIONS in routes/mcp-server/serverFactory.ts: using this list
+ * there "silently hid twelve mcpExposed collections, every Landesverband among
+ * them"). This is the other half of that finding.
+ *
+ * `mcpExposed` is the right filter, not `agentOnly`: it already excludes the
+ * dormant corpora (`satzungen`, whose scraper is gone) and the deliberately
+ * hidden Landesverband (`sachsen`), which a bare "not agent-only" test would
+ * have let back in. `dropHiddenCollections` then applies the INSTANCE policy —
+ * Qdrant is shared across instances, so a notebook this instance does not offer
+ * must not become an ambient source just because the model can name its key
+ * (`isNotebookOfferedUnder` is documented as exactly this gate).
+ *
+ * That gate REMOVES one collection the eight literals used to allow:
+ * `boell-stiftung`, whose notebook is `channel: 'internal'` while production
+ * serves only `stable`. So on production the loop could cite Böll sources for a
+ * notebook the instance does not serve — the literal list had no way to know.
+ * Losing it there is the policy being applied, not a regression; on an instance
+ * that serves `internal` the collection is present as before.
+ *
+ * `examples` is excluded outright: the social-media templates are not a
+ * research corpus and have their own tools (`gruenerator_examples_search`,
+ * `gruenerator_pressemitteilung_examples`) with their own country and
+ * Landesverband scoping. The MCP catalog drops it from its search enum for the
+ * same reason.
+ */
+export const ALL_COLLECTIONS: readonly string[] = NOTEBOOK_GATE.dropHiddenCollections(
+  getMcpExposedCollections()
+    .map((c) => c.key)
+    .filter((key) => key !== 'examples')
+);
 
 /** Austria is a first-class audience, not a toggle on a German default. */
 const LOCALE_DEFAULT_COLLECTION: Record<string, string> = {
   'de-AT': 'oesterreich',
   'de-DE': 'deutschland',
 };
+
+const LOCALE_COUNTRY: Record<string, 'DE' | 'AT'> = {
+  'de-AT': 'AT',
+  'de-DE': 'DE',
+};
+
+/**
+ * Collection keys that stand for MORE than one corpus.
+ *
+ * Austria is one audience with two scrapes behind it — `oesterreich`
+ * (`oesterreich_gruene_documents`: the programmes) and `gruene-at`
+ * (`gruene_at_documents`: the website). The single-pass path has always
+ * searched both together (`getSupplementaryCollectionsForLocale` in searchNode
+ * returns `['gruene-at']` next to the `oesterreich` locale default), and an AT
+ * user has exactly ONE notebook. Making the model choose between the two would
+ * be a distinction it has no basis to make — and choosing wrong costs the whole
+ * corpus. So AT is a single key here, and the fan-out happens on execution.
+ *
+ * Members other than the head are hidden from the enum: `gruene-at` is reached
+ * only through `oesterreich`.
+ */
+const COLLECTION_BUNDLES: Record<string, readonly string[]> = {
+  oesterreich: ['oesterreich', 'gruene-at'],
+};
+
+const BUNDLED_MEMBERS: ReadonlySet<string> = new Set(
+  Object.entries(COLLECTION_BUNDLES).flatMap(([head, members]) => members.filter((m) => m !== head))
+);
+
+/**
+ * The collections a turn may search, narrowed to the user's country.
+ *
+ * Austria is a first-class audience, not a toggle: an AT user has no business
+ * being offered twelve German Landesverbände, and a DE user none of the
+ * Austrian corpora. This is the rule the single-pass path has always applied
+ * (`getSupplementaryCollectionsForLocale`); the loop simply never had it,
+ * because its list was eight hard-coded keys with both countries mixed in.
+ *
+ * A collection with NO declared `country` shows in both locales. That is the
+ * deliberate direction to be wrong in: an over-offered collection costs one
+ * irrelevant search, while a silently dropped one is unnameable and therefore
+ * invisible — which is the exact failure this whole change is undoing.
+ */
+export function collectionsForLocale(locale: string | null | undefined): readonly string[] {
+  const country = LOCALE_COUNTRY[locale ?? 'de-DE'] ?? 'DE';
+  return ALL_COLLECTIONS.filter((key) => {
+    if (BUNDLED_MEMBERS.has(key)) return false;
+    const declared = getCanonicalByKey(key)?.country;
+    return declared === undefined || declared === country;
+  });
+}
+
+/**
+ * One `key: what is in it` line per collection, for the `collection` enum's
+ * description. The texts are the canonical ones from SYSTEM_COLLECTIONS — the
+ * same strings the notebook UI and the MCP catalog show — so there is exactly
+ * one place to fix a wrong one.
+ *
+ * A key with no canonical entry cannot occur through ALL_COLLECTIONS (it is
+ * derived from that very config), only through a hand-written per-agent
+ * `allowedCollections`. Such a key degrades to its bare name rather than
+ * disappearing: it is still a valid enum value, and hiding it from the
+ * description would make it unreachable in practice.
+ */
+function describeCollections(keys: readonly string[]): string {
+  return keys
+    .map((key) => {
+      const description = getCanonicalByKey(key)?.description;
+      return description ? `- ${key}: ${description}` : `- ${key}`;
+    })
+    .join('\n');
+}
 
 export interface CreateSearchToolsOptions {
   /**
@@ -167,6 +281,52 @@ function institutionNamed(host: string, haystack: string): boolean {
 }
 
 /**
+ * Run one search, fanning a bundle key out over its members.
+ *
+ * For an ordinary key this is `executeDirectSearch` verbatim. For a bundle
+ * (`oesterreich`) the members are searched in parallel and merged by score, so
+ * the model sees one collection and one ranked list — the fact that Austria's
+ * material sits in two Qdrant collections is ours to know, not the planner's.
+ *
+ * The merge deliberately re-ranks across members rather than interleaving: the
+ * scores come from the same embedding model and the same hybrid weights, so
+ * they are comparable, and a fixed interleave would hand half the budget to
+ * whichever corpus happens to be thinner on the topic.
+ */
+async function searchCollectionOrBundle(params: {
+  query: string;
+  collection: string;
+  limit: number;
+}): Promise<DirectSearchResult> {
+  const { query, collection, limit } = params;
+  const members = COLLECTION_BUNDLES[collection];
+  if (!members) return executeDirectSearch({ query, collection, limit });
+
+  // Each member is asked for the full limit; the merge below is what narrows.
+  const parts = await Promise.all(
+    members.map((member) => executeDirectSearch({ query, collection: member, limit }))
+  );
+  const merged = deduplicateByUrl(
+    parts.flatMap((p) => p.results),
+    (r) => r.url
+  )
+    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+    .slice(0, limit)
+    .map((r, i) => ({ ...r, rank: i + 1 }));
+
+  return {
+    collection,
+    query,
+    searchMode: parts[0]?.searchMode ?? 'hybrid',
+    resultsCount: merged.length,
+    results: merged,
+    // A bundle fails only when EVERY member failed; one dead corpus next to a
+    // live one is a partial result, not an error.
+    ...(parts.every((p) => p.error) ? { error: true } : {}),
+  };
+}
+
+/**
  * Creates search tools dynamically based on agent configuration.
  * This enables per-agent restrictions on collections (e.g., Austrian agent
  * can only search Austrian collections).
@@ -186,9 +346,15 @@ export function createSearchTools(
   // search and grant the deep engine unboundedly.
   const deepBudget = createDeepTierBudget();
 
+  // An explicit per-agent list is a deliberate decision and is taken verbatim;
+  // otherwise the turn gets what its LOCALE can use. Not `ALL_COLLECTIONS`,
+  // which mixes both countries: offering an AT user twelve German
+  // Landesverbände is noise, and offering a DE user the Austrian corpora is the
+  // mirror image of the AT-as-a-toggle bug `LOCALE_DEFAULT_COLLECTION` exists
+  // to prevent.
   const allowedCollections: readonly string[] = restrictions?.allowedCollections?.length
     ? restrictions.allowedCollections
-    : ALL_COLLECTIONS;
+    : collectionsForLocale(options.userLocale);
 
   const localeDefault = options.userLocale
     ? LOCALE_DEFAULT_COLLECTION[options.userLocale]
@@ -219,13 +385,17 @@ export function createSearchTools(
   const tools: ToolSet = {};
 
   tools.gruenerator_search = tool({
-    description: `Durchsuche grüne Parteiprogramme, Positionen und Beschlüsse.
+    description: `Durchsuche grüne Parteiprogramme, Positionen und Beschlüsse — bundesweit sowie je Landesverband.
 
 NUTZE WENN:
 - Fragen zu grünen Positionen ("Was sagen die Grünen zu...")
 - Politische Standpunkte oder Beschlüsse benötigt
 - Zitate aus Parteiprogrammen gewünscht
 - Grüne Politik/Programmatik gefragt
+- Inhalte eines bestimmten Landesverbands gebraucht werden (eigene Sammlung je LV)
+- Es um Kommunalpolitik geht — Gemeinderat, Stadtrat, Kreistag, kommunaler Haushalt, Gemeindeordnung: dafür ist \`kommunalwiki\` die einschlägige Sammlung
+
+Geht es um einen konkreten Landesverband, durchsuche dessen Sammlung UND die bundesweite Programmatik (\`deutschland\`).
 
 NICHT FÜR: Aktuelle Nachrichten, Personen-Infos, allgemeine Web-Suche`,
     inputSchema: z.object({
@@ -234,7 +404,13 @@ NICHT FÜR: Aktuelle Nachrichten, Personen-Infos, allgemeine Web-Suche`,
         .enum(allowedCollections as [string, ...string[]])
         .optional()
         .default(defaultCollection)
-        .describe(`Sammlung: ${allowedCollections.join(', ')}`),
+        // The bare key list this used to be ("Sammlung: deutschland, …,
+        // gruene-de, …") carried no semantics, and the keys mislead on their
+        // own: `gruene-de` reads like "die Grünen (DE)" but is the gruene.de
+        // WEBSITE scrape, while the programmes live under `deutschland`. A
+        // planner asked for "Grüne Hessen" duly picked `gruene-de` and cited
+        // five web pages. The descriptions already exist in SYSTEM_COLLECTIONS.
+        .describe(`Sammlung — wähle nach Inhalt:\n${describeCollections(allowedCollections)}`),
       limit: z.number().optional().default(5).describe('Maximale Anzahl Ergebnisse'),
     }),
     execute: async ({ query, collection, limit }) => {
@@ -248,8 +424,7 @@ NICHT FÜR: Aktuelle Nachrichten, Personen-Infos, allgemeine Web-Suche`,
             query,
           };
         }
-        const results = await executeDirectSearch({ query, collection, limit });
-        return results;
+        return await searchCollectionOrBundle({ query, collection, limit });
       } catch (error) {
         log.error('Direct search error:', error);
         return { error: 'Suche fehlgeschlagen', results: [], collection, query };
