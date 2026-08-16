@@ -13,7 +13,7 @@ vi.mock('../execution/index.js', () => ({
   executeProvider: (...args: unknown[]) => executeProvider(...args),
 }));
 
-const { aiText, aiObject, aiTools, NoAnswerError } = await import('../generate.js');
+const { aiText, aiTools, NoAnswerError } = await import('../generate.js');
 
 /** What the fake was asked to run: provider and the request envelope. */
 function callAt(i: number) {
@@ -254,110 +254,6 @@ describe('provider failures arrive typed', () => {
     expect(error).toBeInstanceOf(AiProviderError);
     expect(error.code).toBe('unknown');
     expect(error.retryable).toBe(false);
-  });
-});
-
-describe('aiObject', () => {
-  const base = {
-    lane: 'website' as const,
-    prompt: 'Baue die Seite',
-    schema: { type: 'object' },
-    toolName: 'build_site',
-    toolDescription: 'Baut die Seite',
-  };
-
-  const toolCall = (input: unknown) => ({
-    content: null,
-    success: true,
-    stop_reason: 'tool_use',
-    tool_calls: [{ id: 'c1', name: 'build_site', input }],
-  });
-
-  it('forces the tool call', async () => {
-    executeProvider.mockResolvedValue(toolCall({ hero: 'x' }));
-
-    await aiObject({ ...base, validate: (v) => ({ ok: true, value: v as { hero: string } }) });
-
-    expect(callAt(0).data.options.tool_choice).toBe('required');
-    expect(callAt(0).data.options.tools[0].name).toBe('build_site');
-  });
-
-  it('returns the validated value', async () => {
-    executeProvider.mockResolvedValue(toolCall({ hero: 'Titel' }));
-
-    const result = await aiObject<{ hero: string }>({
-      ...base,
-      validate: (v) => ({ ok: true, value: v as { hero: string } }),
-    });
-
-    expect(result).toEqual({ ok: true, data: { hero: 'Titel' } });
-  });
-
-  it('repairs once, quoting the concrete complaint, at temperature 0', async () => {
-    // The reason this is a forced tool call rather than generateObject: the
-    // rejection is semantic, not schematic — the object parses fine, its
-    // contents are wrong for the context.
-    executeProvider.mockResolvedValueOnce(toolCall({ kind: 'rotate' }));
-    executeProvider.mockResolvedValueOnce(toolCall({ kind: 'setText' }));
-
-    let seen = 0;
-    const result = await aiObject<{ kind: string }>({
-      ...base,
-      validate: (v) => {
-        seen += 1;
-        const value = v as { kind: string };
-        return value.kind === 'setText'
-          ? { ok: true, value }
-          : { ok: false, error: 'Erlaubt sind ausschließlich: setText' };
-      },
-    });
-
-    expect(seen).toBe(2);
-    expect(result).toEqual({ ok: true, data: { kind: 'setText' } });
-
-    const repair = callAt(1).data;
-    expect(repair.options.temperature).toBe(0);
-    expect(JSON.stringify(repair.messages)).toContain('Erlaubt sind ausschließlich: setText');
-  });
-
-  it('gives up with the last complaint after the attempt budget', async () => {
-    executeProvider.mockResolvedValue(toolCall({ kind: 'rotate' }));
-
-    const result = await aiObject({
-      ...base,
-      validate: () => ({ ok: false as const, error: 'nicht erlaubt' }),
-    });
-
-    expect(result).toEqual({ ok: false, error: 'nicht erlaubt' });
-  });
-
-  it('reads a tool call out of raw_content_blocks too', async () => {
-    executeProvider.mockResolvedValue({
-      content: null,
-      success: true,
-      stop_reason: 'tool_use',
-      raw_content_blocks: [{ type: 'tool_use', name: 'build_site', input: { hero: 'y' } }],
-    });
-
-    const result = await aiObject<{ hero: string }>({
-      ...base,
-      validate: (v) => ({ ok: true, value: v as { hero: string } }),
-    });
-
-    expect(result).toEqual({ ok: true, data: { hero: 'y' } });
-  });
-
-  it('falls back to prose parsing when the model ignores the tool', async () => {
-    // Keeps this a strict superset of the prompt-and-parse it replaces.
-    executeProvider.mockResolvedValue(answered('{"hero":"aus Prosa"}'));
-
-    const result = await aiObject<{ hero: string }>({
-      ...base,
-      validate: (v) => ({ ok: true, value: v as { hero: string } }),
-      parseText: (t) => JSON.parse(t) as { hero: string },
-    });
-
-    expect(result).toEqual({ ok: true, data: { hero: 'aus Prosa' } });
   });
 });
 

@@ -36,16 +36,21 @@
  * there.
  */
 
+import { createLogger } from '../../utils/logger.js';
 import { AiProviderError, classifyProviderError } from '../providers/providerErrors.js';
 
 import { executeProvider } from './execution/index.js';
 import { intermediateLane } from './intermediateLanes.js';
 import { GENERIC_FALLBACK, laneFallback, laneTarget, resolveLane } from './lanes.js';
+import { jsonCandidatesFromText } from './structuredParsing.js';
 
 import type { IntermediateLaneId } from './intermediateLanes.js';
 import type { LaneId } from './lanes.js';
 import type { ProviderName } from './providers.js';
+import type { StructuredValidation } from './structuredParsing.js';
 import type { AIRequestData, AIRequestOptions, AiResult, Tool } from './types.js';
+
+const log = createLogger('AiObject');
 
 export interface AiCall {
   /**
@@ -125,8 +130,13 @@ export interface AiCall {
  */
 export class NoAnswerError extends AiProviderError {
   constructor(lane: string, options?: ErrorOptions) {
+    // The last provider's own message is quoted, not just carried as `cause`:
+    // this string is what a caller logs and what `aiObject` reports back as its
+    // failure, and "no provider answered" alone says nothing about which of a
+    // 503, a rejected request and a rate limit it was.
+    const reason = options?.cause instanceof Error ? `: ${options.cause.message}` : '';
     super(
-      `No provider produced an answer for lane "${lane}"`,
+      `No provider produced an answer for lane "${lane}"${reason}`,
       classifyProviderError(options?.cause),
       options
     );
@@ -251,43 +261,91 @@ export async function aiText(call: AiCall): Promise<string> {
 export type StructuredResult<T> = { ok: true; data: T } | { ok: false; error: string };
 
 export interface AiObjectCall<T> extends AiCall {
-  /** Shown to the model. Keep it LOOSE — strict schemas make gpt-oss and
-   *  mistral produce nothing at all rather than something imperfect. */
+  /** Shown to the model. Keep it LOOSE — strict provider schema modes reject
+   *  `default`, and gpt-oss/mistral handle deeply nested unions poorly. The
+   *  strictness lives in `validate`. */
   schema: Record<string, unknown>;
   toolName: string;
   toolDescription: string;
-  /** Where strictness belongs. Runs after the schema and can reject on grounds
-   *  a schema cannot express — "this operation is not in the editor's
-   *  capability list" — and its message drives the repair turn. */
-  validate: (input: unknown) => { ok: true; value: T } | { ok: false; error: string };
-  /** Last resort when a provider ignores the tool and answers in prose, so this
-   *  path stays a strict superset of the prompt-and-parse it replaces. */
-  parseText?: (text: string) => T | null;
+  /**
+   * The single gate. Runs on the tool call AND on JSON recovered from a text
+   * answer — see "One validator, two transports" above.
+   */
+  validate: (input: unknown) => StructuredValidation<T>;
   attempts?: number;
+  /** Log prefix, e.g. 'pdf'. Defaults to the tool name. */
   label?: string;
 }
 
+/**
+ * The tool call by NAME, in either transport the adapters produce.
+ *
+ * Deliberately not "whatever the first tool call was": a call for a different
+ * tool is a wrong answer, and letting it through would hand the caller's
+ * `validate` an object from another schema instead of triggering the repair
+ * turn that names the problem.
+ */
 function extractToolInput(result: AiResult, toolName: string): unknown {
-  const call = result.tool_calls?.find((c) => c.name === toolName) ?? result.tool_calls?.[0];
+  const call = result.tool_calls?.find((c) => c.name === toolName);
   if (call) return call.input;
   for (const block of result.raw_content_blocks ?? []) {
-    if (block.type === 'tool_use' && (!block.name || block.name === toolName)) return block.input;
+    if (block.type === 'tool_use' && block.name === toolName && block.input) return block.input;
   }
   return null;
 }
 
 /**
+ * Above this the previous attempt is NOT echoed back into the repair turn.
+ *
+ * The old code truncated the echo to 2000 chars and then asked for a complete
+ * document — so the model saw its own output ending mid-block and "corrected"
+ * the truncation. Showing nothing and naming the error is the honest version.
+ */
+const MAX_ECHO_CHARS = 12_000;
+
+/**
+ * Structured creation is deterministic-ish but not greedy. Explicit here rather
+ * than left to `getGenerationConfig`, whose catch-all is 0.35 and whose
+ * `doc_generation`/`board_generation` rows do not exist — the artifact call
+ * sites have run at 0.4 since they were written.
+ */
+const DEFAULT_TEMPERATURE = 0.4;
+
+/**
  * A validated object, via a forced tool call.
  *
- * A forced tool call rather than the SDK's `generateObject`, for one reason
- * that matters: `validate` is a semantic gate, not a schema check. The real
- * failure mode at the call sites is a schema-perfect object whose contents are
- * wrong for the context — an editor operation the canvas cannot perform. The
- * repair turn quotes that concrete complaint back to the model, which
- * `Output.object` has no slot for and `repairText` cannot do either, since it
- * repairs malformed JSON rather than a well-formed wrong answer.
+ * Background: artifact generators used to prompt for JSON and parse whatever
+ * came back. When the model omitted a required field the parse failed, the
+ * generator returned null, and the turn degraded into free prose — which then
+ * became the input of the NEXT artifact. Prompting alone cannot prevent that.
  *
- * Repairs run at temperature 0: the first attempt was creative enough.
+ * A forced tool call (`tools` + `tool_choice: 'required'`) rather than the SDK's
+ * `generateObject`, for one reason that matters: `validate` is a SEMANTIC gate,
+ * not a schema check. The real failure mode at the call sites is a
+ * schema-perfect object whose contents are wrong for the context — a deck whose
+ * slides are empty, an editor operation the canvas cannot perform. The repair
+ * turn quotes that concrete complaint back to the model at temperature 0, which
+ * `Output.object()` has no slot for and `experimental_repairText` cannot do
+ * either: reviewed 16.08.2026 against ai@7.0.58, its contract is `({text,
+ * error}) => Promise<string | null>` — it repairs raw text so the JSON parse
+ * succeeds and never sees a well-formed wrong answer, and it cannot take
+ * another model turn. `generateObject` is itself marked deprecated there.
+ *
+ * ── One validator, two transports ───────────────────────────────────────────
+ * The tool call and the text answer are TRANSPORTS of the same payload; they
+ * differ only in how the candidate object is obtained. Both therefore run
+ * through the caller's `validate`.
+ *
+ * This used to be two paths — `validate` for the tool call and a separate
+ * `parseText` for prose — and they drifted, in both directions that matter:
+ *  - the text path returned a bare `null`, so a rejection there was reported as
+ *    "no tool call in the answer" and the repair turn never learned the actual
+ *    field error. A PDF generation died in production this way — the model sent
+ *    `caption: null` twice and was never told;
+ *  - the presentation generator's `validate` rejects decks with EMPTY SLIDES,
+ *    but its `parseText` was the bare parser — so whenever the provider answered
+ *    with prose (the common case on the model this ran on) the quality gate was
+ *    silently skipped and the empty deck shipped.
  */
 export async function aiObject<T>(call: AiObjectCall<T>): Promise<StructuredResult<T>> {
   const attempts = call.attempts ?? 2;
@@ -297,49 +355,148 @@ export async function aiObject<T>(call: AiObjectCall<T>): Promise<StructuredResu
     description: call.toolDescription,
     input_schema: call.schema,
   };
+  const opening: AIRequestData['messages'] = call.messages ?? [
+    { role: 'user', content: call.prompt ?? '' },
+  ];
 
   let lastError = '';
-  let lastRaw: unknown = null;
+  let lastRaw = '';
+  /** Best structure recovered from a CUT-OFF answer, used only if every attempt
+   *  was cut off (see the return at the bottom). */
+  let truncatedFallback: T | null = null;
 
   for (let attempt = 1; attempt <= attempts; attempt++) {
-    const isRepair = attempt > 1;
+    const isRepair = attempt > 1 && lastError !== '';
     const messages: AIRequestData['messages'] = isRepair
       ? [
-          { role: 'user', content: call.prompt ?? '' },
-          { role: 'assistant', content: JSON.stringify(lastRaw ?? {}) },
+          ...opening,
+          // Echo the rejected attempt so the model corrects rather than
+          // rewrites — but only when it fits whole (see MAX_ECHO_CHARS).
+          ...(lastRaw && lastRaw.length <= MAX_ECHO_CHARS
+            ? [{ role: 'assistant' as const, content: lastRaw }]
+            : []),
           {
-            role: 'user',
+            role: 'user' as const,
             content:
               `Deine Ausgabe war ungültig: ${lastError}\n\n` +
               `Gib sie korrigiert und VOLLSTÄNDIG erneut über das Tool ${call.toolName} aus. ` +
-              `Lass kein Pflichtfeld weg und kürze den Inhalt nicht.`,
+              'Lass kein Pflichtfeld weg und kürze den Inhalt nicht.',
           },
         ]
-      : (call.messages ?? [{ role: 'user', content: call.prompt ?? '' }]);
+      : opening;
 
-    const result = await runWithFallback(
-      { ...call, messages },
-      {
-        tools: [tool],
-        tool_choice: 'required',
-        ...(isRepair && { temperature: 0 }),
+    try {
+      const result = await runWithFallback(
+        {
+          ...call,
+          messages,
+          // A repair runs deterministically — creativity already failed once.
+          temperature: isRepair ? 0 : (call.temperature ?? DEFAULT_TEMPERATURE),
+        },
+        { tools: [tool], tool_choice: 'required' }
+      );
+
+      const toolInput = extractToolInput(result, call.toolName);
+      const transport = toolInput != null ? 'tool call' : 'text';
+      const candidates =
+        toolInput != null ? [toolInput] : jsonCandidatesFromText(result.content ?? '');
+
+      // The provider ran out of output budget mid-structure. What comes back is
+      // a TORSO, and the lax parsers normalize rather than reject — they drop
+      // the malformed tail and hand back what parsed, which then ships as a
+      // deck missing its last slides or a document missing its second half.
+      // Live on 03.08.2026: 4096 tokens exhausted, "recovered from text",
+      // success reported. Treat it as a rejection so the repair turn happens.
+      //
+      // `stop_reason === 'length'` misses one shape of the same failure: with
+      // `tool_choice: 'required'` (always set above), a provider that cuts the
+      // tool call's argument JSON off mid-stream can still report a "tool call"
+      // finish reason (mapped to stop_reason 'tool_use', see adapterUtils.ts) —
+      // the SDK just can't parse the truncated arguments, so `toolInput` is null
+      // AND there's no text to fall back to (`candidates` empty). That reads as
+      // "no tool call, no JSON" and hit the generic unhelpful error instead of
+      // the repair-then-torso path below. Live on 06.08.2026: board_generation,
+      // stop_reason=tool_use.
+      //
+      // Gated on stop_reason === 'tool_use' specifically (not just "no
+      // candidates"), so a model that genuinely ignored the tool and wrote
+      // unrelated prose — a real rejection, not a truncation — still falls
+      // through to the generic error a few lines down instead of being mistaken
+      // for a cut-off tool call.
+      const noToolDespiteForced =
+        toolInput == null && candidates.length === 0 && result.stop_reason === 'tool_use';
+      const truncated = result.stop_reason === 'length' || noToolDespiteForced;
+
+      let rejection = '';
+      let rejected = '';
+      for (const candidate of candidates) {
+        const validated = call.validate(candidate);
+        if (validated.ok) {
+          if (truncated) {
+            // Keep it as a last resort — see the fallback return below. Half a
+            // document the user can finish beats no document at all, but only
+            // after the repair attempt had its chance.
+            if (!truncatedFallback) truncatedFallback = validated.value;
+            log.warn(
+              `[${label}] attempt ${attempt}: structure parsed but the answer was CUT OFF ` +
+                `(stop_reason=length) — retrying for a complete one`
+            );
+            break;
+          }
+          if (toolInput == null) {
+            log.info(`[${label}] attempt ${attempt}: no tool call, recovered from text`);
+          }
+          return { ok: true, data: validated.value };
+        }
+        // Report the FIRST candidate that parsed: with prose around the JSON the
+        // bare body fails to parse and the fenced block is the real answer.
+        if (!rejection) {
+          rejection = validated.error;
+          rejected = JSON.stringify(candidate);
+        }
       }
-    );
 
-    const toolInput = extractToolInput(result, call.toolName);
-    if (toolInput != null) {
-      const checked = call.validate(toolInput);
-      if (checked.ok) return { ok: true, data: checked.value };
-      lastError = checked.error;
-      lastRaw = toolInput;
-      console.warn(`[aiObject ${label}] attempt ${attempt} rejected: ${checked.error}`);
-      continue;
+      if (truncated) {
+        // Echoing a cut-off draft back would make the model "correct" the cut
+        // (see MAX_ECHO_CHARS); naming the cause and asking for less is what
+        // actually fits inside the budget.
+        lastError =
+          'Die Ausgabe wurde abgeschnitten (Token-Limit erreicht) und war deshalb unvollständig';
+        lastRaw = '';
+        continue;
+      }
+
+      if (rejection) {
+        lastError = rejection;
+        lastRaw = rejected;
+        log.warn(
+          `[${label}] attempt ${attempt} rejected (${transport}): ${lastError}\n` +
+            `  raw: ${rejected.slice(0, 600)}`
+        );
+        continue;
+      }
+
+      lastError = 'Kein Tool-Aufruf und kein verwertbares JSON in der Antwort';
+      lastRaw = '';
+      log.warn(
+        `[${label}] attempt ${attempt}: ${lastError} (stop_reason=${result.stop_reason ?? 'unknown'})`
+      );
+    } catch (e) {
+      // The whole provider chain is spent — `runWithFallback` throws where
+      // `processRequest` used to answer `{success: false}`. Another attempt may
+      // still find a provider that has recovered.
+      lastError = e instanceof Error ? e.message : String(e);
+      log.error(`[${label}] attempt ${attempt} threw: ${lastError}`);
     }
+  }
 
-    // No tool call at all — some providers answer in prose under pressure.
-    const parsed = call.parseText?.(result.content ?? '');
-    if (parsed != null) return { ok: true, data: parsed };
-    lastError = lastError || 'Modell hat das Tool nicht aufgerufen';
+  // Every attempt was cut off, but one of them parsed. Ship it: half a document
+  // the person can finish beats none at all — the same call `createPdfDocument`
+  // already makes for its own repair round ("deliver the file and disclose the
+  // problem"). The WARN above is what makes it findable afterwards.
+  if (truncatedFallback) {
+    log.warn(`[${label}] all attempts were cut off — using the last complete-parsing torso`);
+    return { ok: true, data: truncatedFallback };
   }
 
   return { ok: false, error: lastError || 'unbekannter Fehler' };

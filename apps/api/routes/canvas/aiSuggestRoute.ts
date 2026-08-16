@@ -9,7 +9,6 @@ import { canvasAiContract } from '@gruenerator/contracts';
 import { initServer, createExpressEndpoints } from '@ts-rest/express';
 
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
-import { getAiClient } from '../../utils/getAiClient.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { runCanvasSuggest } from './services/runCanvasSuggest.js';
@@ -22,7 +21,6 @@ const s = initServer();
 
 export const canvasAiContractRouter = s.router(canvasAiContract, {
   suggest: async (args) => {
-    const { req } = args;
     const { prompt, snapshot, capabilities, referenceContent } = args.body;
 
     const result = await runCanvasSuggest({
@@ -32,8 +30,6 @@ export const canvasAiContractRouter = s.router(canvasAiContract, {
       // Ground the suggestion in the chat loop's gathered research (compound
       // "recherchiere X und bau es ins Sharepic ein" turns).
       ...(referenceContent ? { contextHints: { prose: referenceContent } } : {}),
-      aiClient: getAiClient(req),
-      req,
     });
 
     if (result.ok) {
