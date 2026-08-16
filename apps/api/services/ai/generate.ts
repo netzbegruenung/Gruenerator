@@ -23,9 +23,10 @@
  * hat — läuft noch, aber nur noch als PRÜFMITTEL: der Paritätstest in
  * `__tests__/lanes.vitest.ts` fährt jede geroutete Lane durch beide und
  * verlangt dasselbe Paar. Er ist das Netz unter einem Umbau der Tabelle, und er
- * fährt beide mit LEEREN Optionen — was eine Prompt-Config an `model` mitbringt,
- * sieht er nicht. Dafür gibt es `promptConfigModelPin.vitest.ts` und
- * `promptConfigRouting.vitest.ts`.
+ * fährt beide mit LEEREN Optionen — eine Prompt-Config, die ein `model` mit-
+ * brächte, sähe er nicht. Genau deshalb bringt keine mehr eines mit:
+ * `promptConfigRouting.vitest.ts` verbietet `model` und `provider` in allen
+ * Configs.
  *
  * Was die Parität ebenfalls nicht abdeckt: ein `type` ohne Zeile in `AI_LANES`.
  * `resolveLane` schickt ihn auf `default` und protokolliert das — richtig für
