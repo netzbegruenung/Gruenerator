@@ -12,14 +12,32 @@
  * the prompt's own enum line. What is left never talks to a model.
  */
 
-import { intentsWithDisposition } from '@gruenerator/shared/chat-intents';
+import { type ChatIntentId, intentsWithDisposition } from '@gruenerator/shared/chat-intents';
 
 import type { SearchIntent, SearchSource } from '../types.js';
 
 /**
- * Intents that don't trigger search/retrieval — used to skip query optimization.
+ * Verdicte des HEURISTIK-TISCHES, für die keine Suchanfrage optimiert wird.
+ *
+ * Beides an dem Wort „Heuristik-Tisch": die Menge wird ausschliesslich gegen
+ * `heuristic.intent` geprüft (zweimal in `classifierNode`, Tier 3), nie gegen
+ * das Ergebnis des Turns. Sie beschreibt damit eine POLITIK dieses einen
+ * Tisches, keine Eigenschaft der Intents — und wird deshalb nicht aus der
+ * Dispositions-Achse abgeleitet.
+ *
+ * Gemessen gegen sie deckt sie sich auch nicht: `artifact` ohne `social_post`,
+ * `anchor` nur zur Hälfte, `gated` zur Hälfte, dazu `umfragen` aus `loop`.
+ * Sechs Mitglieder (`image_edit`, `create_recurring_task`, `modify_doc`,
+ * `modify_board`, `mcp`, `umfragen`) kann `heuristicClassify` gar nicht
+ * liefern — sie sind wirkungslos, aber harmlos. Die zwei Lücken, die WIRKEN,
+ * sind `social_post` und `summary`: beide sind vom Tisch erreichbar und stehen
+ * nicht drin, zahlen also den Mehr-Themen-Abschlag wie eine Suche. Bestehendes
+ * Verhalten, hier notiert statt stillschweigend mitgeschleppt.
+ *
+ * `ReadonlySet<ChatIntentId>` statt `Set<string>`: die 18 Literale waren ohne
+ * Typschutz, ein Tippfehler wäre schlicht nie Mitglied geworden.
  */
-export const NON_SEARCH_INTENTS = new Set([
+export const NON_SEARCH_INTENTS: ReadonlySet<ChatIntentId> = new Set([
   'produktion',
   // Deprecated as a verdict, still reachable via the heuristic hint — and that
   // means "no retrieval", same as before.
@@ -45,7 +63,37 @@ export const NON_SEARCH_INTENTS = new Set([
   // is no Qdrant query to optimize. They are managed connectors now and never
   // appear as an intent, so there is nothing left for this list to exclude.
   'umfragen',
-]);
+] as const satisfies readonly ChatIntentId[]);
+
+/**
+ * Heuristic verdicts eligible for loop demotion (Tier 3.5): the retrieval
+ * family only — every member is in AGENTIC_INTENTS and none is platform-gated.
+ * Generation intents (sharepic, social_post, image, ...) and interrupt/confirm
+ * intents must keep the rest of the ladder so their gates, HITL and fixed UX
+ * contracts stay intact.
+ *
+ * Eine echte Teilmenge der `loop`-Disposition, aber NICHT sie: `research`,
+ * `umfragen` und `agentic` sind ausgenommen, und jede Ausnahme sagt etwas
+ * anderes. Demotion ersetzt das Verdikt durch `agentic` — wo das Verdikt selbst
+ * noch etwas steuert, ist der Tausch also ein Verlust:
+ *  - `umfragen` steht in `SYSTEM_TOOL_INTENTS`; sein Verdikt montiert das
+ *    Umfragen-Tool im Loop. Als `agentic` fände der Planer es nicht vor.
+ *  - `research` behält seinen eigenen Namen bis ins Residual und damit den
+ *    Werkzeug-Zwang aus `NAMED_RETRIEVAL_INTENTS`; früh zu `agentic` zu
+ *    wechseln gäbe genau den auf.
+ *  - `agentic` ist das Ziel der Demotion.
+ * `dispositionSets.vitest.ts` nagelt diese Differenz fest — wer sie ändert,
+ * ändert eine Aussage.
+ */
+export const DEMOTABLE_HEURISTIC_INTENTS: ReadonlySet<ChatIntentId> = new Set([
+  'search',
+  'web',
+  'examples',
+  'pressemitteilung_examples',
+  'compare',
+  'abgeordnetenwatch',
+  'bundestag',
+] as const satisfies readonly ChatIntentId[]);
 
 /**
  * Document subtypes the chat may assign.
