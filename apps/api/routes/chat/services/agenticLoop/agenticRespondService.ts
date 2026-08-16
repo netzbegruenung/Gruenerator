@@ -49,17 +49,19 @@ import {
 import { isMcpCapabilityQuestion, shouldForceFirstToolCall } from './forceFirstToolCall.js';
 import { createTurnClocks, resolveBudget } from './loopBudget.js';
 import { runAgenticLoop, type LoopMode } from './loopEngine.js';
+import { createAfterGather } from './loopGuarantees.js';
 import { MAX_SOURCES } from './loopGuards.js';
 import { materialDominatesTurn, resolveLoopMode } from './loopMode.js';
 import { createAnswerEmitter } from './loopSse.js';
 import { spliceToolReplay } from './mcpReplay.js';
 import { stripDuplicatedOpening } from './openingDedupe.js';
 import { rewritesSuppliedText } from './routing.js';
-import { createSourceRegistry, withResearchedSources } from './sourceRegistry.js';
+import { createSourceRegistry } from './sourceRegistry.js';
 import { buildConnectorNotes, buildSynthSystem, type SynthPromptContext } from './synthPrompt.js';
 import { createAnswerValidator, finalizeAnswerText, pdfProblemNote } from './synthVerdicts.js';
 import { buildToolUsageBlock } from './toolUsageBlock.js';
-import { readMcpResult, type PersistedStep } from './types.js';
+import { logTurnSummary } from './turnSummary.js';
+import { type PersistedStep } from './types.js';
 
 import type {
   ChatGraphState,
@@ -71,21 +73,6 @@ import type { Request } from 'express';
 const log = createLogger('AgenticRespond');
 
 export { isAgenticLoopEnabled } from './flags.js';
-
-/** Compound generation kind → the catalog key of its fat tool (for the
- *  guaranteed post-gather generation fallback). */
-const COMPOUND_TOOL_FOR: Record<string, string> = {
-  sharepic: 'sharepic',
-  presentation: 'create_presentation',
-  sheet: 'create_sheet',
-  document: 'create_document',
-  board: 'create_board',
-  pdf: 'create_pdf',
-};
-
-/** A GFM table: header row followed by a delimiter row. Used to recognise that
- *  a "Tabelle"-turn was already answered inline in chat. */
-const MARKDOWN_TABLE_RE = /^\s*\|.+\|\s*\r?\n\s*\|(?:\s*:?-+:?\s*\|)+\s*$/m;
 
 /**
  * Abbruch-Ausgang und Trunkierungs-Notiz liegen seit 13.08.2026 in
@@ -306,129 +293,18 @@ export async function streamAgenticResponse(params: {
         : { model: resolution.model, name: resolution.modelName, provider: resolution.provider };
     synthName = synth.name;
 
-    // The compound turn's whole point is the artifact — but the split planner
-    // unreliably calls the generation fat tool (it treats the turn as pure
-    // research and stops). GUARANTEE it: after gather, if the planner produced
-    // no artifact, invoke the mounted generation tool directly with the
-    // researched sources as the brief. The synth then announces it.
-    const lastUserAsk = (): string => {
-      const lastUser = [...messages].reverse().find((m) => m.role === 'user');
-      return typeof lastUser?.content === 'string'
-        ? lastUser.content
-        : (lastUser?.content ?? [])
-            .map((part) => (part.type === 'text' ? part.text : ''))
-            .join(' ')
-            .trim();
-    };
-
-    // Compound generation guarantee (spawns a NEW artefact). Idempotent via the
-    // `already` check, so it is safe to call both inside afterGather (split,
-    // BEFORE synth so the synth can confirm it) AND as a post-loop net for
-    // unified mode, where afterGather never runs (loopEngine returns early).
-    const forceCompoundGeneration = async (): Promise<void> => {
-      const kind = finalState.compoundGenerationKind;
-      if (!kind) return;
-      const already =
-        finalState.generatedImage != null ||
-        (finalState.sharepicVariants?.length ?? 0) > 0 ||
-        finalState.createdDocument != null ||
-        finalState.createdBoard != null;
-      if (already) return; // planner already created it
-      // The model's own inline answer can BE the deliverable. In unified mode
-      // this hook runs AFTER the stream, so when a "Tabelle"-turn was answered
-      // with a markdown table in chat, spawning a spreadsheet on top duplicates
-      // the answer — and the unwanted artifact then hijacks the NEXT turn via
-      // the lastToolContext sheet-edit follow-up (QA 08/2026). Split mode is
-      // unaffected: there the hook runs before synthesis, while `text` is
-      // still empty.
-      if (kind === 'sheet' && MARKDOWN_TABLE_RE.test(emitter.text)) {
-        log.info(
-          '[Agentic] create_sheet not called — answer already carries an inline table, skipping forced generation'
-        );
-        return;
-      }
-      const toolName = COMPOUND_TOOL_FOR[kind];
-      const genTool = tools[toolName] as
-        | { execute?: (input: unknown, opts: { toolCallId: string }) => Promise<unknown> }
-        | undefined;
-      if (!genTool?.execute) return;
-      // The brief stays the bare ask: the doc/PDF tools append the source block
-      // themselves (withResearchedSources), so enriching it here would emit the
-      // sources twice. `sharepic`/`board` have no registry of their own, so they
-      // still get the enriched form.
-      const userAsk = lastUserAsk();
-      const selfSourcing = kind !== 'sharepic' && kind !== 'board';
-      const brief = selfSourcing
-        ? userAsk
-        : withResearchedSources(userAsk, sourceRegistry.renderAll());
-      // Both arg shapes: doc/board tools read `prompt`, sharepic reads `text`.
-      const args = { prompt: brief, text: brief };
-      const stepId = 'forced-generation';
-      log.info(`[Agentic] ${toolName} not called — forcing compound generation`);
-      // Emit the same tool_step_start/result SSE + persisted step a planner-issued
-      // call would, so a forced generation is a first-class tool step in the
-      // trace, the UI tool-card, and the persisted history — NOT an invisible
-      // out-of-band side effect. It bypasses the loop GUARDS on purpose: the
-      // fallback is intentional and must fire even when the loop already spent its
-      // failure/search budget (exactly the turns where the planner never reached
-      // the generation tool). The `already` check above keeps it idempotent.
-      // A forced generation is "a tool actually runs" too — the held-back
-      // opening streams before its card, same as a planner-issued call.
-      emitter.emitOpeningBeforeTool();
-      sse.send('tool_step_start', { stepId, toolName, args });
-      let result: unknown;
-      try {
-        result = await genTool.execute(args, { toolCallId: stepId });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        log.warn(`[Agentic] forced ${toolName} failed: ${message}`);
-        result = { error: message };
-      }
-      const resultRecord =
-        result && typeof result === 'object' && !Array.isArray(result)
-          ? (result as Record<string, unknown>)
-          : { value: result };
-      const ok = resultRecord.error == null;
-      sse.send('tool_step_result', { stepId, toolName, ok, result: resultRecord });
-      steps.push({ toolCallId: stepId, toolName, args, result: resultRecord });
-    };
-
-    const afterGather = async (): Promise<void> => {
-      // (a) Editor-surface edit guarantee: an edit_current_* turn MUST edit the
-      //     open artefact. The split planner unreliably calls edit_document
-      //     (observed live: steps=0 on most sheet/deck edits) — force it here,
-      //     BEFORE synth, so editorEditsSummary is set and the synth confirms the
-      //     change instead of writing empty text (→ fallback) or a false refusal.
-      if (
-        finalState.editToolSurface &&
-        (finalState.intent === 'edit_current_doc' ||
-          finalState.intent === 'edit_current_board' ||
-          finalState.compoundEdit === true) &&
-        !finalState.editorEditsSummary
-      ) {
-        const editTool = tools['edit_document'] as
-          | { execute?: (input: unknown, opts: { toolCallId: string }) => Promise<unknown> }
-          | undefined;
-        const userAsk = lastUserAsk();
-        if (editTool?.execute && userAsk) {
-          const sourcesBlock = sourceRegistry.renderReference();
-          const instruction = sourcesBlock
-            ? `${userAsk}\n\nRecherchierte Quellen dazu:\n${sourcesBlock}`
-            : userAsk;
-          log.info('[Agentic] planner skipped edit_document — forcing edit before synth');
-          try {
-            await editTool.execute({ instruction }, { toolCallId: 'forced-edit' });
-          } catch (err) {
-            log.warn(
-              `[Agentic] forced edit_document failed: ${err instanceof Error ? err.message : String(err)}`
-            );
-          }
-        }
-      }
-
-      // (b) Compound generation guarantee (spawns a NEW artefact).
-      await forceCompoundGeneration();
-    };
+    const afterGather = createAfterGather({
+      state: finalState,
+      messages,
+      tools,
+      sourceRegistry,
+      sse,
+      recordStep: (step) => steps.push(step),
+      emitOpeningBeforeTool: () => emitter.emitOpeningBeforeTool(),
+      answerText: () => emitter.text,
+      onInfo: (m) => log.info(m),
+      onWarn: (m) => log.warn(m),
+    });
 
     // Die fünf Wege dahinter stehen in `shouldForceFirstToolCall` — samt der
     // Live-Ausfälle, die jeden einzelnen erzwungen haben.
@@ -649,43 +525,19 @@ export async function streamAgenticResponse(params: {
     sse.send('completion', { text: emitter.text, citations: sourceRegistry.getCitations() });
   }
 
-  // Per-turn tool-outcome breakdown so a silent connector failure is visible in
-  // the summary line, not only in the per-tool [Tool] logs above.
-  const mcpSteps = steps.filter((s) => s.serverName);
-  // ALL steps, not just connectors: this line used to filter on `serverName`
-  // first, so a turn in which `documents` and `scrape_url` both failed logged
-  // `steps=6 sources=26` and nothing else. The one place that could have shown
-  // the failure showed the same as a clean run.
-  const failedSteps = steps.filter((s) => !readMcpResult(s.result).ok);
-  const failedTools =
-    failedSteps.length > 0
-      ? ` failedTools=[${failedSteps
-          .map((s) => `${s.serverName ? `${s.serverName}:` : ''}${s.toolName}`)
-          .join(', ')}]`
-      : '';
-  // The relay-visibility line: for every connector step, how many chars its
-  // result actually carried into the synth. `=0ch` next to a synth that claims
-  // "no data / no access" pinpoints an empty service result vs a relay/synth bug
-  // WITHOUT re-running — the gap that hid the Tally/Sally "kein Zugriff" issue.
-  const mcpContent =
-    mcpSteps.length > 0
-      ? ` mcpContent=[${mcpSteps
-          .map((s) => {
-            const v = readMcpResult(s.result);
-            const tag = s.serverName ? `${s.serverName}:${s.toolName}` : s.toolName;
-            return v.ok ? `${tag}=${v.content.length}ch` : `${tag}=ERR`;
-          })
-          .join(', ')}]`
-      : '';
-  log.info(
-    `[Agentic] model=${resolution?.modelName ?? agentConfig.model} mode=${mode}${
-      mode === 'split' ? ` planner=${loopPlannerModelName()} synth=${synthName}` : ''
-    } intent=${finalState.intent} steps=${steps.length} sources=${sourceRegistry.size}${
-      sourceRegistry.carriedSize > 0 ? `(carried=${sourceRegistry.carriedSize})` : ''
-    } chars=${emitter.text.length}${
-      mcpMountMs > 0 ? ` mcpMountMs=${mcpMountMs}` : ''
-    }${failedTools}${mcpContent}`
-  );
+  logTurnSummary({
+    modelName: resolution?.modelName ?? agentConfig.model,
+    mode,
+    plannerName: mode === 'split' ? loopPlannerModelName() : null,
+    synthName,
+    intent: finalState.intent,
+    steps,
+    sourceCount: sourceRegistry.size,
+    carriedCount: sourceRegistry.carriedSize,
+    answerChars: emitter.text.length,
+    mcpMountMs,
+    onInfo: (m) => log.info(m),
+  });
 
   return {
     fullText: emitter.text,
