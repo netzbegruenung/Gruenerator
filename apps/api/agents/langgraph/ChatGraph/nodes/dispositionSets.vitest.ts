@@ -34,7 +34,12 @@ import {
   NAMED_RETRIEVAL_INTENTS,
 } from '../../../../routes/chat/services/agenticLoop/intents.js';
 import { decideRunAgentic } from '../../../../routes/chat/services/agenticLoop/routing.js';
-import { NO_RETRIEVAL_VERDICTS } from './classifierSignals.js';
+import { SYSTEM_TOOL_INTENTS } from '../../../../services/mcp/systemMcpServers.js';
+import {
+  DEMOTABLE_HEURISTIC_INTENTS,
+  NON_SEARCH_INTENTS,
+  NO_RETRIEVAL_VERDICTS,
+} from './classifierSignals.js';
 
 const sorted = (s: Iterable<string>): string[] => [...s].sort();
 
@@ -122,6 +127,57 @@ describe('AGENTIC_INTENTS — halb abgeleitet, halb Aussage', () => {
     // Geld kostet (`image`). Wer die Liste ändert, ändert eine Aussage.
     const extras = [...AGENTIC_INTENTS].filter((id: ChatIntentId) => dispositionOf(id) !== 'loop');
     expect(sorted(extras)).toEqual(['hilfe', 'image', 'mcp', 'summary']);
+  });
+});
+
+describe('DEMOTABLE_HEURISTIC_INTENTS — loop MINUS drei, und jede Ausnahme sagt etwas', () => {
+  it('ist eine echte Teilmenge der loop-Disposition', () => {
+    // Demotion tauscht das Verdikt gegen `agentic`. Etwas zu demotieren, dessen
+    // Werkzeugwahl NICHT der Planer trifft, hiesse seine Ausführung wegzuwerfen.
+    for (const id of DEMOTABLE_HEURISTIC_INTENTS) {
+      expect(dispositionOf(id), `${id} ist nicht loop`).toBe('loop');
+    }
+  });
+
+  it('lässt genau research, umfragen und agentic aus', () => {
+    // Der Rest der Aussage — und der Grund, warum diese Menge NICHT abgeleitet
+    // wird. Jede der drei Ausnahmen hat ihren eigenen Grund:
+    //  - `umfragen` steht in SYSTEM_TOOL_INTENTS: sein Verdikt montiert das
+    //    Werkzeug. Als `agentic` fände der Planer es nicht vor.
+    //  - `research` behält seinen Namen bis ins Residual und damit den Zwang
+    //    aus NAMED_RETRIEVAL_INTENTS.
+    //  - `agentic` IST das Ziel der Demotion.
+    const notDemotable = [...intentsWithDisposition('loop')].filter(
+      (id) => !DEMOTABLE_HEURISTIC_INTENTS.has(id)
+    );
+    expect(sorted(notDemotable)).toEqual(['agentic', 'research', 'umfragen']);
+    expect(SYSTEM_TOOL_INTENTS.has('umfragen')).toBe(true);
+    expect(NAMED_RETRIEVAL_INTENTS.has('research')).toBe(true);
+  });
+});
+
+describe('NON_SEARCH_INTENTS — Politik des Heuristik-Tisches, keine Disposition', () => {
+  it('deckt sich mit keiner Vereinigung von Dispositionen', () => {
+    // Die Messung, die den Kopfkommentar der Menge trägt: `artifact` ohne
+    // `social_post`, `anchor` und `gated` je zur Hälfte, dazu ein einzelnes
+    // `umfragen` aus `loop`. Wer daraus eine Ableitung machen will, ändert
+    // Verhalten — der Test sagt, wieviel.
+    const missing = (d: Parameters<typeof intentsWithDisposition>[0]) =>
+      sorted([...intentsWithDisposition(d)].filter((id) => !NON_SEARCH_INTENTS.has(id)));
+
+    expect(missing('prose')).toEqual([]);
+    expect(missing('artifact')).toEqual(['social_post']);
+    expect(missing('anchor')).toEqual(['edit_current_board', 'edit_current_doc', 'edit_sheet']);
+    expect(missing('gated')).toEqual(['chat_history', 'hilfe', 'scrape_url', 'summary']);
+  });
+
+  it('trägt keinen Intent, den es nicht gibt', () => {
+    // Der eigentliche Gewinn der Typisierung: die 19 Literale standen als
+    // `Set<string>`, ein Tippfehler wäre nie Mitglied geworden und hätte
+    // stillschweigend die Suchanfrage optimiert.
+    for (const id of NON_SEARCH_INTENTS) {
+      expect(dispositionOf(id), `${id} steht nicht in der Registry`).not.toBeNull();
+    }
   });
 });
 
