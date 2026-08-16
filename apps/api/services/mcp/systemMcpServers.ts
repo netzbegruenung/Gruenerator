@@ -258,7 +258,7 @@ export function getSystemMcpSources(): SystemMcpSource[] {
 export const SYSTEM_TOOL_INTENTS: ReadonlySet<SearchIntent> = new Set([
   'umfragen',
   'hilfe',
-] as SearchIntent[]);
+] as const satisfies readonly SearchIntent[]);
 
 /**
  * True when this SOURCE's data only covers Germany.

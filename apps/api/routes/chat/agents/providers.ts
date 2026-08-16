@@ -529,10 +529,10 @@ export function getModel(
   // is the same model on a different upstream, which users should not be shown.
   const upstream =
     lane.provider === 'mistral' ? routeMistralModel(lane.model, options).upstream : lane.provider;
-  const model = withUsageTracking(resolveModel(lane.provider, lane.model, options), upstream);
+  const model = withUsageTracking(instantiateModel(lane.provider, lane.model, options), upstream);
 
   // Ein Gesundheits-Tausch IST ein anderes Modell — anders als der
-  // Scaleway-Upstream oben. Er wird nach `resolveModel` gemeldet, weil das den
+  // Scaleway-Upstream oben. Er wird nach `instantiateModel` gemeldet, weil das den
   // Vermerk zurücksetzt, und über denselben Kanal wie der bestehende
   // First-Token-Fallback: die Anzeige sagt dann, worauf geantwortet wurde.
   if (healthy) lastFallbackProvider = healthy.provider;
@@ -554,7 +554,7 @@ export function getModel(
  */
 let lastFallbackProvider: string | null = null;
 
-/** The provider actually used, if the last resolveModel silently substituted
+/** The provider actually used, if the last instantiateModel silently substituted
  *  one. Read immediately after getModel; null when no substitution happened. */
 export function takeProviderFallback(): string | null {
   const v = lastFallbackProvider;
@@ -562,7 +562,15 @@ export function takeProviderFallback(): string | null {
   return v;
 }
 
-function resolveModel(
+/**
+ * Build the SDK model object for an ALREADY-CHOSEN provider/model pair.
+ *
+ * Was `resolveModel`, which is what `responseStreamingService` calls the
+ * function that decides WHICH model a turn gets (user pick → auto policy →
+ * agent default). Two different questions under one name, in the same call
+ * chain; this one only constructs.
+ */
+function instantiateModel(
   provider: string,
   modelId: string,
   options: RouteOptions = {}
@@ -665,7 +673,7 @@ function loopPlannerChoice(): { provider: Provider; model: string } {
   // until 14.08.2026) killed every agentic turn with "GREENPT_API_KEY
   // environment variable is required" — the loop never reached its first model
   // call. Before the lane moved to GreenPT the same line returned regolo, which
-  // `resolveModel` silently substitutes with Mistral, so the bug was invisible.
+  // `instantiateModel` silently substitutes with Mistral, so the bug was invisible.
   return LOOP_PLANNER_FALLBACK;
 }
 
@@ -746,7 +754,7 @@ export function getLoopSynthModel(
  * Cheap, slot-free check of whether the model that WILL be used (user selection
  * or agent default) can drive the agentic loop. Mistral lanes never acquire an
  * overflow slot, so this can decide the agentic branch before the heavier
- * `resolveModel` runs — without double-acquiring a Verdigado slot.
+ * `instantiateModel` runs — without double-acquiring a Verdigado slot.
  */
 export function selectionIsToolCapable(agentProvider: string, modelId?: string): boolean {
   if (modelId && modelId !== 'mistral' && modelId !== 'auto') {

@@ -22,6 +22,7 @@ import {
   type Skill,
   isLvItemVisibleForRoles,
   landesverbandIdsForRoles,
+  matchesRecipeAudience,
 } from '@gruenerator/shared/agents';
 
 import { deriveTextFormMention } from '../../../agents/langgraph/ChatGraph/nodes/textFormMention.js';
@@ -40,16 +41,6 @@ export interface RecipeCatalogEntry {
   title: string;
   description: string;
   source: 'system' | 'user';
-}
-
-/**
- * Locale gate. `audience` undefined means "all" for backward compatibility —
- * the seven generic recipes carry no tag, the thirteen Landesverband variants
- * are all tagged `de-DE`.
- */
-function matchesAudience(audience: string | undefined, userLocale: string | null): boolean {
-  if (!audience || audience === 'all') return true;
-  return audience === (userLocale || 'de-DE');
 }
 
 /**
@@ -89,7 +80,7 @@ export async function buildRecipeCatalog(params: {
   const system: RecipeCatalogEntry[] = allSkills
     .filter(
       (s) =>
-        matchesAudience(s.audience, userLocale) &&
+        matchesRecipeAudience(s.audience, userLocale) &&
         ownerIsVisible(s.identifier) &&
         isLvItemVisibleForRoles(s.identifier, lvIds)
     )

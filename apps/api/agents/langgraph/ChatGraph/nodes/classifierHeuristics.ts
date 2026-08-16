@@ -40,7 +40,12 @@ import type { ModelMessage } from 'ai';
 
 // Generation intents reachable via the fuzzy keyword fallback (only `image`,
 // via 'grafik'/'illustration'); negated/meta artifact words must not match them.
-const GENERATION_FUZZY_INTENTS = new Set<SearchIntent>(['image']);
+// Politik dieses Rückfalls, keine Eigenschaft der Intents: welche
+// Generierungs-Intents eine unscharfe Stichwortübereinstimmung überhaupt
+// auslösen darf.
+const GENERATION_FUZZY_INTENTS: ReadonlySet<SearchIntent> = new Set([
+  'image',
+] as const satisfies readonly SearchIntent[]);
 
 const log = createLogger('ChatGraph:Classifier');
 
@@ -148,6 +153,12 @@ const SOCIAL_TRIGGER_NOUN_PATTERN = /\b(social\s*media|post|tweet|instagram)\b/i
 /**
  * Keywords for fuzzy matching in heuristic fallback.
  * Maps intents to their trigger keywords.
+ *
+ * Der `Exclude<…>`-Schlüsseltyp ist der Wächter, nicht Zierrat: ein neuer
+ * Intent steht nicht in der Ausschlussliste, wird damit zum PFLICHTfeld dieses
+ * Records und bricht den Build (verifiziert: TS2741). Wer keine Stichwörter
+ * geben will, muss den Intent hier ausdrücklich ausschliessen und begründen —
+ * genau das tun die Zeilen unten. Stillschweigend stichwortlos geht nicht.
  */
 export const INTENT_KEYWORDS: Record<
   Exclude<
