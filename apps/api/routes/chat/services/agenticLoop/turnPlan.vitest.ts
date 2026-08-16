@@ -238,4 +238,27 @@ describe('decideTurnPlan — Endgültigkeit des Intents', () => {
     expect(p.runAgentic).toBe(false);
     expect(LOOP_ONLY).not.toContain(p.intent);
   });
+
+  // ── ANGENAGELTER BEFUND, kein Sollzustand ────────────────────────────────
+  //
+  // Der System-Tool-Auffang prüft den VORGESCHLAGENEN Intent, der
+  // Pipeline-Zwang schreibt aber vorher um. Trifft beides zusammen, gewinnt
+  // der Auffang und macht aus dem erzwungenen `produktion` ein `web` — er
+  // nimmt dem Pipeline-Agenten also genau die Festlegung zurück, für die das
+  // Veto existiert („Übertragen ist reine Textarbeit am mitgelieferten
+  // Material").
+  //
+  // Erreichbar: Tier 2.9 vergibt `hilfe` allein nach Formulierung, unabhängig
+  // vom Agenten — „wie erstelle ich ein Sharepic?" auf dem
+  // Einfache-Sprache-Agenten genügt.
+  //
+  // Diese Phase überträgt Verhalten unverändert, also bleibt es. Der Test
+  // hängt es an den Nagel, damit die Korrektur eine sichtbare Änderung ist
+  // und kein stiller Nebeneffekt.
+  it('BEFUND: der System-Tool-Auffang überschreibt den Pipeline-Zwang', () => {
+    const p = plan({ intent: 'hilfe', pipelineForceIntent: 'produktion' });
+    expect(p.lane).toBe('pipeline');
+    expect(p.runAgentic).toBe(false);
+    expect(p.intent).toBe('web');
+  });
 });
