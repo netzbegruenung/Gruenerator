@@ -63,6 +63,21 @@ describe('aiText', () => {
     });
   });
 
+  it('asks for JSON mode under the wire name the adapter reads', async () => {
+    // `execute.ts` wraps the model in defaultSettingsMiddleware on exactly this
+    // option; a call site that migrates without it drops back to prompt-only
+    // JSON without any signal.
+    await aiText({ lane: 'doc_generation', prompt: 'x', json: true });
+
+    expect(callAt(0).data.options.response_format).toEqual({ type: 'json_object' });
+  });
+
+  it('leaves response_format off when JSON mode was not asked for', async () => {
+    await aiText({ lane: 'doc_generation', prompt: 'x' });
+
+    expect(callAt(0).data.options).not.toHaveProperty('response_format');
+  });
+
   it('falls over to the next provider when one answers with nothing', async () => {
     // Empty counts as failure, same rule providerFallback applies: a provider
     // that says nothing has not answered.

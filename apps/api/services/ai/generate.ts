@@ -61,6 +61,21 @@ export interface AiCall {
   model?: string;
   /** Feeds the platform-specific sampling table (`services/ai/config.ts`). */
   platforms?: readonly string[];
+  /**
+   * Constrained JSON decoding — the wire field, not a prompt request.
+   *
+   * Here rather than left to the caller because the envelope spells it
+   * `response_format: {type:'json_object'}`, and a text call site that migrates
+   * to `aiText` without it silently loses JSON mode: `execute.ts` reads the
+   * option and wraps the model in `defaultSettingsMiddleware`, so dropping it
+   * turns a constrained answer back into "asking nicely in the prompt", which
+   * is what those eight call sites believed they were doing before the adapter
+   * learned to read it.
+   *
+   * Orthogonal to `aiObject`, which forces a TOOL call. Use this when the
+   * caller parses prose-shaped JSON itself.
+   */
+  json?: boolean;
 }
 
 /**
@@ -98,6 +113,7 @@ function toEnvelope(call: AiCall, extra: Partial<AIRequestOptions> = {}): AIRequ
     ...(call.temperature != null && { temperature: call.temperature }),
     ...(call.maxOutputTokens != null && { max_tokens: call.maxOutputTokens }),
     ...(call.topP != null && { top_p: call.topP }),
+    ...(call.json === true && { response_format: { type: 'json_object' as const } }),
     ...(target.model != null && { model: target.model }),
   };
 
