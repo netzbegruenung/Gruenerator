@@ -137,13 +137,14 @@ function fallbackIntentFor(
 ): { intent: ChatIntentId; backfillSearchQuery: boolean } {
   let next = intent;
   let backfillSearchQuery = false;
-  // KEINE automatisierte Abdeckung mehr, und das ist eine Aussage über die
-  // Erreichbarkeit, nicht über den Aufwand: `agentic` entstand entweder bei
-  // Tier 3.5 (das mit ausgeschaltetem Loop gar nicht erst demotiert) oder als
-  // Auffangwert der LLM-Stufe (gelöscht). Innerhalb eines Requests können
-  // Klassifikator und Router den Schalter also nicht mehr verschieden sehen.
-  // Was bleibt, ist der WIEDERAUFNAHME-Pfad: ein gespeicherter `agentic`-
-  // Intent, der nach einem Deploy mit umgelegtem Schalter fortgesetzt wird.
+  // Dies IST der Opt-out-Pfad, nicht bloss ein Wiederaufnahme-Rest. Tier 3.5
+  // demotiert ein Prosa-Verdikt seit dem 16.08.2026 unabhängig von
+  // CHAT_AGENT_LOOP, gerade damit ein abruf-förmiger Turn hier ankommt und
+  // sucht, statt beim Klassifikator als `produktion` — also als Antwort aus dem
+  // Gedächtnis — liegenzubleiben. Mit ausgeschalteter Schleife ist dieser Zweig
+  // deshalb der Normalfall. Dazu weiterhin der WIEDERAUFNAHME-Pfad: ein
+  // gespeicherter `agentic`-Intent, der nach einem Deploy mit umgelegtem
+  // Schalter fortgesetzt wird.
   if (next === 'agentic') {
     recordDecision('router.intent_override', 'agentic_to_search', {
       inputs: { intentBefore: 'agentic', runAgentic: false },
@@ -189,13 +190,12 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
   // `loadManagedMcpCatalog` wendet Länderfilter und Opt-out an der Montage
   // selbst an — ein Ort statt zweier, die sich einig sein mussten.
   //
-  // Beide aus dem VORGESCHLAGENEN Intent, vor jeder Korrektur unten: ein Turn,
-  // den die Board-Demotion auf `agentic` zieht, war nie ein MCP-Turn, und ein
+  // Aus dem VORGESCHLAGENEN Intent, vor jeder Korrektur unten: ein Turn, den die
+  // Board-Demotion auf `agentic` zieht, war nie ein MCP-Turn, und ein
   // Pipeline-Zwang macht aus `hilfe` kein `produktion`, das noch Werkzeuge
-  // erwartet.
+  // erwartet — dieses Gate soll die Schleife für die ERWÄHNUNG erzwingen.
   const isMcpTurn =
     proposedIntent === 'mcp' || proposedIntent === 'umfragen' || proposedIntent === 'hilfe';
-  const isSystemToolIntent = p.systemToolIntents.has(proposedIntent);
 
   // ── 1. Editor-Fläche ──────────────────────────────────────────────────────
   // Editor-Seitenleisten (docs/sheets/presentations/boards) BEARBEITEN das
@@ -321,6 +321,14 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
       }));
 
   // ── 4. Auffang-Intent ─────────────────────────────────────────────────────
+  // Gegen den KORRIGIERTEN Intent, anders als das Gate oben. Der Auffang
+  // beantwortet eine andere Frage — nicht „was hat die Person gemeint", sondern
+  // „kann `executeIntentPipeline` ausführen, was hier steht". Gegen den
+  // Vorschlag gemessen nahm er dem Pipeline-Agenten die Festlegung zurück, für
+  // die dessen Veto überhaupt existiert: `hilfe` + Einfache Sprache ergab ein
+  // erzwungenes `produktion`, das der Auffang zu `web` machte — eine Websuche
+  // für einen Turn, der reine Textarbeit am mitgelieferten Material ist.
+  const isSystemToolIntent = p.systemToolIntents.has(intent);
   const fallback = runAgentic
     ? { intent, backfillSearchQuery: false }
     : fallbackIntentFor(intent, isSystemToolIntent);
