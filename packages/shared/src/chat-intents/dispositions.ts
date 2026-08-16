@@ -31,6 +31,49 @@ import { type ChatIntentId } from './index.js';
  * Gegenbeispiel („dort wählt der Auflöser nur die Quelle") und sind inzwischen
  * `retired`: dieselbe Beobachtung, zu Ende gedacht.
  *
+ * ## Gemessen am 16.08.2026 (`c2fa3f568`): die Loop-Lane trägt keinen weiteren
+ * Stilllegungs-Kandidaten
+ *
+ * Nach der D6-Welle lag nahe, dass noch mehr Intents bloss „Statuszeile plus
+ * erzwungenes Werkzeug" sind. Geprüft wurden die 14 Intents der Loop-Lane
+ * (`intentsWithDisposition('loop')` plus die vier `AGENTIC_EXTRA_IDS` aus
+ * `agenticLoop/intents.ts`) gegen drei Bedingungen: die Lane ist `loop` UND das
+ * Zielwerkzeug hängt breit im Katalog; kein eigenes Gitter und keine eigene UX
+ * VOR der Loop-Wahl; die Statuszeile ist verzichtbar. **Keiner erfüllt alle
+ * drei** — die erwartete Kandidatenfamilie war mit D6 aufgebraucht.
+ *
+ * Die Regel, die das erklärt und beim nächsten Anlauf die Messung spart: **ein
+ * @-Mention ist ein Stilllegungs-Blocker.** `forcedIntentStage` läuft VOR dem
+ * Entscheider (`chatGraphContractRouter`: 196 gegen 260), und `forcedTool` ist
+ * in `decideRunAgentic` ein Loop-Kill-Switch. Ein erwähnbarer Intent steuert
+ * also sehr wohl noch etwas, auch wenn seine Lane `loop` heisst.
+ *
+ *   research     vom Auftrag ausgenommen · @recherche + Variante @deepresearch
+ *   agentic      IST der Auffangwert (`fallbackIntentFor`: agentic → search)
+ *   search       @dokumente · Ziel eben jenes Auffangs
+ *   web          degradeTo-Ziel (bundestag/abgeordnetenwatch) und Auffang für
+ *                umfragen/hilfe samt Query-Nachtrag
+ *   compare      eigenes Quellen-Layout (`pickSynthesisMode`: Tabelle bis 3
+ *                Dokumente, darüber per_doc_bullets) und eigene Degradierung
+ *                auf `search` bei ≤1 Doc-Quelle
+ *   examples     @beispiele · Ziel der App-Herabstufung von social_post
+ *   pressemitteilung_examples  @pressemitteilungen/@pm · eigene Karte
+ *   abgeordnetenwatch  @-Mention · Locale-Gitter am Werkzeug · degradeTo
+ *   bundestag          @-Mention · Locale-Gitter am Werkzeug · degradeTo
+ *   umfragen     @umfragen · SYSTEM_TOOL_INTENTS · `isMcpTurn` erzwingt den
+ *                Loop an forcedTool vorbei
+ *   hilfe        @doku/@hilfe/@anleitung · dito · eigener Tier-2.9-Zweig
+ *   summary      @zusammenfassung · eigene SSE-Stufe `summarizing`
+ *   mcp          Katalog wird intent-gegattert montiert, nicht breit
+ *   image        `generate_image` intent-gegattert (Kosten/Kontingent)
+ *
+ * Das Argument trägt die statische Prüfung oben, NICHT der Zensus:
+ * `classifierCensus.baseline.txt` baut einen Zustand ohne offenes Dokument,
+ * ohne Anhang und ohne @-Erwähnung, eine 0 dort heisst also „vom Korpus nicht
+ * ausgelöst" und nicht „kommt nicht vor". Der Zensus liefert nur die
+ * Häufigkeit — `compare` steht dort bei 0 von 167, weshalb sich ein Umbau
+ * genau dort am wenigsten lohnt.
+ *
  * Total über `ChatIntentId` und bewusst in einer typgeprüften Datei — nicht in
  * der Testdatei daneben. `apps/api/tsconfig.json` schliesst `**\/*.vitest.ts`
  * aus, dort wäre `Record<ChatIntentId, …>` Dekoration statt Prüfung (genau so
