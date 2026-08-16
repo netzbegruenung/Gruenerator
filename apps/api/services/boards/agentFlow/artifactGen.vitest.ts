@@ -1,6 +1,6 @@
 /**
  * `generateTaskList` is the board agent's own model call — the one that does not
- * hand an `AiClient` to somebody else — and the first production caller of the
+ * einen Client an jemanden weiterreichen — and the first production caller of the
  * typed facade. What is worth pinning is the request it makes (routed lane, JSON
  * mode, the sampling the old envelope set) and that a provider failure still
  * degrades to an empty list rather than killing the queued task.
@@ -10,7 +10,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const aiText = vi.fn();
 
 vi.mock('../../ai/generate.js', () => ({ aiText: (...args: unknown[]) => aiText(...args) }));
-// Pulled in for `runDocGeneration`/`getAIService`, neither of which this path
+// Pulled in for `runDocGeneration`, which this path
 // touches — mocked so the module graph stays cheap.
 vi.mock('../../../routes/chat/services/intentExecutionService.js', () => ({
   runDocGeneration: vi.fn(),
