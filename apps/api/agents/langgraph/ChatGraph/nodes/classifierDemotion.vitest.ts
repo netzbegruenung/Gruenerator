@@ -40,6 +40,10 @@ vi.mock('../../../../services/ai/execution/index.js', () => ({
 
 const { classifierNode } = await import('./classifierNode.js');
 
+import { AGENTIC_INTENTS } from '../../../../routes/chat/services/agenticLoop/intents.js';
+import { decideTurnPlan } from '../../../../routes/chat/services/agenticLoop/turnPlan.js';
+import { SYSTEM_TOOL_INTENTS } from '../../../../services/mcp/systemMcpServers.js';
+
 import type { ChatGraphState, SearchIntent } from '../types.js';
 
 const STUB_AGENT_CONFIG = {
@@ -352,12 +356,59 @@ describe('Tier 3.5 — NOT demoted (gates preserved)', () => {
     // 'false' disables in BOTH flag variants (opt-in on the PR branch,
     // default-on on test-branch). Ohne Loop UND ohne LLM-Stufe bleibt genau das
     // übrig, was die Regeltabelle gefunden hat — hier `search`.
+    //
+    // Der Grund, warum das Gate für DIESE Tür bleibt: `search` kann der
+    // Einzeldurchlauf ausführen, `agentic` nicht — es fiele im Entscheider
+    // pauschal auf `search` zurück und aus einem `web` würde eine Qdrant-Suche.
     process.env.CHAT_AGENT_LOOP = 'false';
     const state = buildState({
       userMessage: 'Welche Position haben die Grünen zur Vorratsdatenspeicherung?',
     });
     const result = await classifierNode(state);
     expect(result.intent).toBe('search');
+  });
+
+  it('flag off: ein abruf-förmiger Prosa-Turn degradiert über den Entscheider', async () => {
+    // Die andere Tür. Ohne Schleife blieb ein toolbares `direct` bis zum
+    // Residual liegen und wurde dort `produktion` — eine Nachrichtenfrage, aus
+    // dem Modellgedächtnis beantwortet. Der Klassifikator demotiert jetzt auch
+    // hier, und der `agentic_to_search`-Auffang des Entscheiders macht daraus
+    // eine Suche. Ohne dieses Paar sagten die beiden Schichten Verschiedenes.
+    process.env.CHAT_AGENT_LOOP = 'false';
+    const state = buildState({
+      userMessage: 'Worin unterscheidet sich die deutsche von der österreichischen Atompolitik?',
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('agentic');
+
+    // Mit den ECHTEN Mengen, nicht mit Attrappen: geprüft wird hier die
+    // Übergabe zwischen den zwei Schichten, nicht die Innerei einer davon.
+    const plan = decideTurnPlan({
+      loopEnabled: false,
+      agenticIntents: AGENTIC_INTENTS,
+      systemToolIntents: SYSTEM_TOOL_INTENTS,
+      intent: 'agentic',
+      lastUserText: state.messages[0]!.content as string,
+      forcedTool: false,
+      isCompound: false,
+      hasSelectedNotebook: false,
+      hasManagedSources: false,
+      hasImageAttachments: false,
+      secondaryIntent: null,
+      isPdfFillRequest: false,
+      classifierContradictedResearch: false,
+      hasOwnMaterial: false,
+      enabledTools: null,
+      agentIdentifier: null,
+      hasOpenDocumentId: false,
+      hasOpenBoardId: false,
+      hasOpenBoardSurface: false,
+      hasNamedBoard: false,
+      isSharepicRefinement: false,
+      pipelineForceIntent: null,
+    });
+    expect(plan.runAgentic).toBe(false);
+    expect(plan.intent).toBe('search');
   });
 });
 

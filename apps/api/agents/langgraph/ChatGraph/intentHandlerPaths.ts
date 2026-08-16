@@ -46,18 +46,18 @@ export const INTENT_HANDLER_PATHS: Record<SearchIntent, string> = {
     'handled via search branch (intent !== direct) — searchNode case calls EnrichedPoliticianService (Abgeordnetenwatch API)',
   bundestag:
     'handled via search branch (intent !== direct) — searchNode case calls BundestagEnrichedService (Bundestag MCP / DIP)',
-  bahn: 'EXPERIMENTAL system MCP source — forces the agentic loop (isMcpTurn in router); systemMcpCatalog mounts the Deutsche-Bahn tools; router degrades a killed loop turn to web',
+  bahn: 'RETIRED as a verdict (availability: retired) — the Deutsche-Bahn tools live on as a managed connector, mounted by loadManagedMcpCatalog when the router’s vocabulary trigger names it. No tier produces this intent any more, so nothing here is reachable',
   reise:
-    'EXPERIMENTAL umbrella travel intent — forces the agentic loop; systemMcpCatalog mounts bahn + hotel (trivago) + wetter together; router degrades a killed loop turn to web',
+    'RETIRED as a verdict — was the umbrella that mounted bahn + hotel + wetter together. The vocabulary trigger names each connector directly now, so the umbrella has nothing left to bundle',
   hotel:
-    'EXPERIMENTAL system MCP source — forces the agentic loop; systemMcpCatalog mounts the trivago hotel-search tools; router degrades a killed loop turn to web',
+    'RETIRED as a verdict — the trivago hotel-search tools are a managed connector, reached through the vocabulary trigger rather than through an intent',
   umfragen:
     'EXPERIMENTAL native domain tool — forces the agentic loop; toolCatalog mounts makeUmfragenTool (PolitPro Sonntagsfrage + Meinungsbild); router degrades a killed loop turn to web',
   hilfe:
     'native domain tool — forces the agentic loop (isMcpTurn in router, so an @doku-forced turn still enters it); toolCatalog mounts makeDocsSearchTool (in-process BM25 over the generated docs index) and respondNode injects the docs page map; router degrades a killed loop turn to web',
   wetter:
-    'EXPERIMENTAL system MCP source — forces the agentic loop; systemMcpCatalog mounts the Open-Meteo/DWD tools; router degrades a killed loop turn to web',
-  news: 'EXPERIMENTAL system MCP source — forces the agentic loop; systemMcpCatalog mounts the ARD/tagesschau tools (citations via sourceRegistry); router degrades a killed loop turn to web',
+    'RETIRED as a verdict — the Open-Meteo/DWD tools are a managed connector, reached through the vocabulary trigger rather than through an intent',
+  news: 'RETIRED as a verdict — the ARD/tagesschau tools are a managed connector (citations via sourceRegistry), reached through the vocabulary trigger rather than through an intent',
   summary: 'handled via summary branch in controller',
   chart: 'routes to respond, chart data handled by controller post-response',
   artifact: 'routes to respond, controller extracts HTML/SVG block into an artifact SSE event',
