@@ -102,6 +102,20 @@ describe('aiText', () => {
     expect(callAt(1).provider).toBe('litellm');
   });
 
+  it('lets each fallback answer on its own default model', async () => {
+    // `providerFallback.getFallbackModelForProvider` is the rule: the primary's
+    // model belongs to the primary. Posting `gemma4-31b` at LiteLLM would make
+    // every fallback attempt fail on an unknown model, i.e. a failover chain
+    // that can never catch anything.
+    executeProvider.mockResolvedValueOnce({ content: '', success: true });
+    executeProvider.mockResolvedValueOnce(answered('Vom Fallback'));
+
+    await aiText({ lane: 'antrag', prompt: 'x' });
+
+    expect(callAt(0).data.options.model).toBe('gemma4-31b');
+    expect(callAt(1).data.options).not.toHaveProperty('model');
+  });
+
   it('falls over when one throws', async () => {
     executeProvider.mockRejectedValueOnce(new Error('503'));
     executeProvider.mockResolvedValueOnce(answered('Vom Fallback'));
