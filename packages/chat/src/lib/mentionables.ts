@@ -439,12 +439,17 @@ function buildToolMentionables(): Mentionable[] {
   return (
     allIntentMentions()
       // A retired intent has no route left — offering it would put a token on
-      // the wire the router no longer resolves. Unless the mention pins a TOOL
-      // instead of the verdict (`pinsTool`): then the token still resolves, it
-      // simply reaches a loop tool rather than an intent. `@umfragen` is that
-      // case — the intent died, the capability did not.
+      // the wire the router no longer resolves. Unless the mention pins
+      // something ELSE than the verdict: a loop tool (`pinsTool`) or a recipe
+      // (`activatesSkill`). Dann löst der Token weiterhin auf, er erreicht nur
+      // kein Verdikt mehr. `@umfragen` ist der eine Fall,
+      // `@pressemitteilungen` der andere — beide Male starb der Intent, nicht
+      // die Fähigkeit.
       .filter(
-        ({ intent, mention }) => intent.availability !== 'retired' || mention.pinsTool != null
+        ({ intent, mention }) =>
+          intent.availability !== 'retired' ||
+          mention.pinsTool != null ||
+          mention.activatesSkill != null
       )
       .filter(({ intent }) => intent.availability !== 'web-only' || typeof document !== 'undefined')
       .map(({ intent, mention }) => {

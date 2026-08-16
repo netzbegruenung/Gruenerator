@@ -184,7 +184,6 @@ export const INTENT_KEYWORDS: Record<
     | 'modify_board'
     | 'edit_current_board'
     | 'share_doc'
-    | 'pressemitteilung_examples'
     // scrape_url is detected by URL presence in the message (extractUrls), not keywords.
     | 'scrape_url'
     // artifact is detected by a dedicated pattern (noun + create imperative), not keywords.
@@ -213,6 +212,11 @@ export const INTENT_KEYWORDS: Record<
     | 'wetter'
     | 'news'
     | 'umfragen'
+    // Ebenfalls stillgelegt, aber nie keyword-klassifiziert gewesen: die
+    // PM-Beispiele hingen immer an einer Erwähnung bzw. am Zweig für
+    // Inhalte-Agenten. `@pressemitteilungen` zurrt heute Werkzeug und Rezept
+    // fest (`pinsTool`/`activatesSkill`), das Verdikt gibt es nicht mehr.
+    | 'pressemitteilung_examples'
     // hilfe is detected by the dedicated instructional-question gate
     // (looksLikeDocsHelpQuestion, classifier Tier 2.9). Bare keywords like
     // "hilfe"/"anleitung" would hijack content queries ("hilf mir bei ...").

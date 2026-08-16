@@ -51,8 +51,10 @@ export type IntentAudience = 'de-DE' | 'de-AT' | 'all';
  * Whether a picker still offers it depends on WHERE it moved. The five managed
  * connectors kept no mention at all — vocabulary selects them. `umfragen` moved
  * into the loop as a TOOL and keeps its `@umfragen`, which now pins that tool
- * (`IntentMention.pinsTool`) instead of forcing the dead verdict. So: a retired
- * intent is offered iff its mention pins something else.
+ * (`IntentMention.pinsTool`) instead of forcing the dead verdict.
+ * `pressemitteilung_examples` moved in two pieces — Werkzeug plus Rezept
+ * (`IntentMention.activatesSkill`) — und behält `@pressemitteilungen`/`@pm`.
+ * So: a retired intent is offered iff its mention pins something else.
  */
 export type IntentAvailability = 'always' | 'system-mcp' | 'web-only' | 'dev-only' | 'retired';
 
@@ -96,6 +98,26 @@ export interface IntentMention {
    * über seinen Intent, und `@notion` ist ein ganzer Server.
    */
   pinsTool?: string;
+  /**
+   * Das REZEPT, das diese Erwähnung lädt — der `mention`-Schlüssel eines
+   * Eintrags aus `agents/skills` (z. B. `'presse'`), gesetzt als
+   * `activeSkillMention`.
+   *
+   * Der zweite Halt für eine Erwähnung, deren Intent stillgelegt ist: `pinsTool`
+   * sagt, WORAUS der Turn seine Beispiele holt, dieses Feld sagt, WIE er
+   * danach schreibt. `@pressemitteilungen` braucht beides — der stillgelegte
+   * Intent `pressemitteilung_examples` trug den Textsorten-Teil ohnehin nie
+   * (`respondNode` gab ihm die generische `SEARCH_GUIDANCE`), er lag immer schon
+   * im Rezept `presse`.
+   *
+   * Anders als `pinsTool` löscht ein späterer Treffer ohne dieses Feld NICHTS:
+   * `activeSkillMention` kann aus der ausdrücklichen Rezeptwahl im Composer
+   * stammen, und die gehört nicht einer Erwähnung, die zufällig danach steht.
+   * Aus demselben Grund überschreibt die Erwähnung eine schon gesetzte Wahl
+   * nicht — wer `/instagram` gewählt hat und `@pm` tippt, will die Beispiele,
+   * nicht eine andere Textsorte.
+   */
+  activatesSkill?: string;
 }
 
 interface IntentBase {
@@ -285,11 +307,20 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
       backgroundColor: '#D97706',
     },
   },
+  /**
+   * Stillgelegt (Phase L). Der Intent trug zuletzt drei Dinge: eine eigene
+   * Werkzeugkarte, `kinds.push('press')` im geteilten `examples`-Zweig des
+   * Suchknotens — und seine Erwähnung. Die Textsorte trug er NIE; sie liegt im
+   * Rezept `presse`, das der Einzeldurchlauf über `defaultRecipeMention`
+   * ohnehin lädt. `@pressemitteilungen` holt beides jetzt direkt: das Werkzeug
+   * über `pinsTool`, das Rezept über `activatesSkill`.
+   */
   pressemitteilung_examples: {
     id: 'pressemitteilung_examples',
     category: 'retrieval',
     audience: 'all',
     localeSourced: true,
+    availability: 'retired',
     uiTool: 'gruenerator_pressemitteilung_examples',
     mention: {
       slug: 'pressemitteilungen',
@@ -298,6 +329,8 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
       description: 'Echte PMs der Landesverbände als Vorlage',
       avatar: '📰',
       backgroundColor: '#4B5563',
+      pinsTool: 'gruenerator_pressemitteilung_examples',
+      activatesSkill: 'presse',
     },
   },
   abgeordnetenwatch: {
@@ -674,6 +707,25 @@ const PINNED_TOOL_BY_MENTION: ReadonlyMap<string, string> = new Map(
   allIntentMentions().flatMap(({ intent, mention }) =>
     mention.pinsTool
       ? ([[mention.forcedTool ?? forcedToolFor(intent), mention.pinsTool]] as const)
+      : []
+  )
+);
+
+/**
+ * `forcedTools`-Token → das Rezept, das diese Erwähnung lädt.
+ *
+ * Gegenstück zu `pinnedToolForMention`, mit einem Unterschied, der Verhalten
+ * ist: `null` heisst hier „diese Erwähnung meint kein Rezept", NICHT „lösche
+ * das gewählte". Siehe `IntentMention.activatesSkill`.
+ */
+export function skillForMention(forcedTool: string): string | null {
+  return SKILL_BY_MENTION.get(forcedTool) ?? null;
+}
+
+const SKILL_BY_MENTION: ReadonlyMap<string, string> = new Map(
+  allIntentMentions().flatMap(({ intent, mention }) =>
+    mention.activatesSkill
+      ? ([[mention.forcedTool ?? forcedToolFor(intent), mention.activatesSkill]] as const)
       : []
   )
 );

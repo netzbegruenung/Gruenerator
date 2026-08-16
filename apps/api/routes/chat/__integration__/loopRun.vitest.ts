@@ -52,6 +52,14 @@ vi.mock('../services/postResponseService.js', async (orig) => {
   const { postResponseMock } = await import('./harness/mocks.js');
   return postResponseMock((await orig()) as Record<string, unknown>);
 });
+vi.mock('../../../services/user/textFormRepository.js', async (orig) => {
+  const { textFormMock } = await import('./harness/mocks.js');
+  return textFormMock((await orig()) as Record<string, unknown>);
+});
+vi.mock('../../../services/skills/internalPrompts.js', async (orig) => {
+  const { internalPromptsMock } = await import('./harness/mocks.js');
+  return internalPromptsMock((await orig()) as Record<string, unknown>);
+});
 vi.mock('../services/pipelineStateStore.js', async () => {
   const { pipelineStateStoreMock } = await import('./harness/mocks.js');
   return pipelineStateStoreMock();
@@ -241,6 +249,13 @@ describe('loop decision maps', () => {
         named,
         `${scenario.id}: der erste Planer-Schritt sollte ${scenario.firstToolChoice} verlangen`
       ).toBe(scenario.firstToolChoice);
+    }
+
+    if (scenario.systemIncludes) {
+      expect(
+        loopScript.calls[0]?.system ?? '',
+        `${scenario.id}: der Systemtext des ersten Planer-Schritts sollte "${scenario.systemIncludes}" enthalten`
+      ).toContain(scenario.systemIncludes);
     }
 
     for (const point of scenario.notReached ?? []) {

@@ -28,6 +28,23 @@ export function postgresMock(): Record<string, unknown> {
   };
 }
 
+/**
+ * Die gelernte Textform („Texte anlernen") — DB-gestützt und erst erreichbar,
+ * seit eine Erwähnung ein Rezept setzen kann (`@pressemitteilungen`, Phase L).
+ * `null` ist der Normalfall: die Person hat für diese Textform nichts angelernt,
+ * und `buildSystemMessage` nimmt dann den Standard-Rezepttext.
+ *
+ * Ohne diesen Doppelgänger schlägt der Postgres-Backstop oben zu, und zwar erst
+ * in `respondNode` — der Turn bricht dann mit einem generischen SSE-Fehler ab,
+ * lange nachdem die Entscheidung gefallen ist, um die es im Szenario geht.
+ */
+export function textFormMock(original: Record<string, unknown>): Record<string, unknown> {
+  return {
+    ...original,
+    getTextFormForInjection: () => Promise.resolve(null),
+  };
+}
+
 export interface ThreadAccessControl {
   allow: boolean;
 }
@@ -173,10 +190,23 @@ export function userRolesMock(): Record<string, unknown> {
   return { loadUserRoles: () => Promise.resolve(roleControl.roles) };
 }
 
+/**
+ * Der REZEPT-Text, den das öffentliche Repo bewusst nicht hat: `internalPrompts`
+ * liest ihn zur Laufzeit aus `INTERN_CONTENT_DIR`, und in einer Prüfung ist das
+ * Verzeichnis nie da. Ohne Doppelgänger wäre „das Rezept wirkt" gar nicht
+ * beobachtbar — `buildSystemMessage` lässt den Block bei `null` schlicht weg,
+ * und ein Szenario sähe keinen Unterschied zwischen „geladen" und „vergessen".
+ *
+ * Der Inhalt ist Markierung, kein Prompt: geprüft wird, DASS ein Rezept den
+ * Systemtext erreicht, nicht was darin steht.
+ */
+export const INTERNAL_SKILL_PROMPT_MARKER = 'REZEPTTEXT-AUS-DEM-INTERNEN-REPO';
+
 export function internalPromptsMock(original: Record<string, unknown>): Record<string, unknown> {
   return {
     ...original,
     getInternalRolePrompt: (key: string) => roleControl.bausteine[key] ?? null,
+    getInternalSkillPrompt: (mention: string) => `${INTERNAL_SKILL_PROMPT_MARKER} (${mention})`,
   };
 }
 
