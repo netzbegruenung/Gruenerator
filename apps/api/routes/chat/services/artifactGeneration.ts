@@ -3,7 +3,7 @@
  *
  * Extracted from intentExecutionService so the per-kind descriptor table
  * (artifactKinds.ts) can reference them without an import cycle. Each core
- * runs the model through generateStructured, validates, writes the artifact and
+ * runs the model through `aiObject`, validates, writes the artifact and
  * returns a descriptor — or null when the model produced nothing usable. NO
  * SSE, NO persistence, NO turn ownership: those live in runCreateTurn for the
  * single-pass path and in the loop's fat tools for the compound path, which is
@@ -102,12 +102,11 @@ export async function runPdfGeneration(opts: {
   /** See {@link abandonedBeforeCommit}. */
   abandoned?: AbortSignal;
 }): Promise<CreatePdfResult | null> {
-  const { userContent, aiClient, req, userId, onCommit } = opts;
-  const reqWithUser = req as Express.Request & { user?: { id?: string }; sessionID?: string };
+  const { userContent, userId, onCommit } = opts;
   const { PDF_GENERATION_PROMPT, validatePdfStructure, createPdfDocument } =
     await import('../../../services/pdf/PdfGenerationService.js');
   const { PDF_DOCUMENT_TOOL_SCHEMA } = await import('../../../services/pdf/pdfDocument.js');
-  const { generateStructured } = await import('../../../services/ai/generateStructured.js');
+  const { aiObject } = await import('../../../services/ai/generate.js');
 
   const pdfOptions = opts.pdfOptions ?? {};
   const directive =
@@ -120,19 +119,17 @@ export async function runPdfGeneration(opts: {
   // Shared by the first pass and the repair below, which differ only in their
   // user content, temperature and attempt budget.
   const pdfCall = {
-    aiClient,
-    req: reqWithUser,
-    type: 'doc_generation' as const,
-    systemPrompt: PDF_GENERATION_PROMPT,
+    lane: 'doc_generation' as const,
+    system: PDF_GENERATION_PROMPT,
     toolName: 'create_pdf_document',
     toolDescription: 'Erzeugt ein fertiges PDF-Dokument aus Titel und Inhaltsblöcken.',
     schema: PDF_DOCUMENT_TOOL_SCHEMA,
     validate: validatePdfStructure,
   };
 
-  const generated = await generateStructured({
+  const generated = await aiObject({
     ...pdfCall,
-    userContent: `${directive}${userContent}`,
+    prompt: `${directive}${userContent}`,
     temperature: 0.5,
     label: 'pdf',
   });
@@ -174,9 +171,9 @@ export async function runPdfGeneration(opts: {
     // once. `createPdfDocument` owns WHEN this is called (only for findings a
     // rewrite can fix) and whether the result is kept (only if it improved).
     regenerate: async (problems) => {
-      const repaired = await generateStructured({
+      const repaired = await aiObject({
         ...pdfCall,
-        userContent:
+        prompt:
           `${directive}${userContent}\n\n` +
           `Dein vorheriger Entwurf hatte diese Mängel:\n` +
           `${problems.map((p) => `- ${p}`).join('\n')}\n\n` +
@@ -212,13 +209,13 @@ export async function runDocGeneration(opts: {
   /** kind 'document' only: prior exchange save_as_doc turns into a document. */
   conversationContext?: string;
 }): Promise<CreatedDocument | null> {
-  const { kind, userContent, aiClient, req, userId, onCommit } = opts;
+  const { kind, userContent, req, userId, onCommit } = opts;
   const reqWithUser = req as Express.Request & {
     user?: { id?: string; locale?: string };
     sessionID?: string;
   };
-  const { generateStructured, viaLaxParser, withContent } =
-    await import('../../../services/ai/generateStructured.js');
+  const { aiObject } = await import('../../../services/ai/generate.js');
+  const { viaLaxParser, withContent } = await import('../../../services/ai/structuredParsing.js');
 
   if (kind === 'presentation') {
     const {
@@ -232,12 +229,10 @@ export async function runDocGeneration(opts: {
       parsePresentationStructure,
       'title oder slides fehlen'
     );
-    const generated = await generateStructured({
-      aiClient,
-      req: reqWithUser,
-      type: 'doc_generation',
-      systemPrompt: PRESENTATION_GENERATION_PROMPT,
-      userContent,
+    const generated = await aiObject({
+      lane: 'doc_generation',
+      system: PRESENTATION_GENERATION_PROMPT,
+      prompt: userContent,
       toolName: 'create_presentation',
       toolDescription: 'Erzeugt die Folienstruktur der Präsentation.',
       schema: PRESENTATION_TOOL_SCHEMA,
@@ -277,12 +272,10 @@ export async function runDocGeneration(opts: {
   if (kind === 'sheet') {
     const { SHEET_GENERATION_PROMPT, SHEET_TOOL_SCHEMA, parseSheetStructure, createSheetDocument } =
       await import('../../../services/sheets/SheetGenerationService.js');
-    const generated = await generateStructured({
-      aiClient,
-      req: reqWithUser,
-      type: 'doc_generation',
-      systemPrompt: SHEET_GENERATION_PROMPT,
-      userContent,
+    const generated = await aiObject({
+      lane: 'doc_generation',
+      system: SHEET_GENERATION_PROMPT,
+      prompt: userContent,
       toolName: 'create_sheet',
       toolDescription: 'Erzeugt die Tabellenstruktur (Blätter, Spalten, Zeilen).',
       schema: SHEET_TOOL_SCHEMA,
@@ -319,12 +312,10 @@ export async function runDocGeneration(opts: {
     ? `Konversationskontext:\n${opts.conversationContext}\n\nAktuelle Anfrage: ${userContent}`
     : userContent;
 
-  const generated = await generateStructured({
-    aiClient,
-    req: reqWithUser,
-    type: 'doc_generation',
-    systemPrompt: DOCUMENT_GENERATION_PROMPT + subtypeHint,
-    userContent: userMessage,
+  const generated = await aiObject({
+    lane: 'doc_generation',
+    system: DOCUMENT_GENERATION_PROMPT + subtypeHint,
+    prompt: userMessage,
     toolName: 'create_document',
     toolDescription: 'Erzeugt das Dokument als HTML mit Titel und subtype.',
     schema: DOCUMENT_TOOL_SCHEMA,
@@ -391,7 +382,7 @@ export async function runBoardGeneration(opts: {
   /** See {@link abandonedBeforeCommit}. */
   abandoned?: AbortSignal;
 }): Promise<CreatedBoard | null> {
-  const { userContent, aiClient, req, userId, onCommit } = opts;
+  const { userContent, userId, onCommit } = opts;
   const {
     BOARD_GENERATION_PROMPT,
     BOARD_TOOL_SCHEMA,
@@ -399,15 +390,13 @@ export async function runBoardGeneration(opts: {
     parseBoardStructure,
     postProcessBoardStructure,
   } = await import('../../../services/boards/BoardService.js');
-  const { generateStructured, viaLaxParser } =
-    await import('../../../services/ai/generateStructured.js');
+  const { aiObject } = await import('../../../services/ai/generate.js');
+  const { viaLaxParser } = await import('../../../services/ai/structuredParsing.js');
 
-  const generated = await generateStructured({
-    aiClient,
-    req: req as Express.Request & { user?: { id?: string }; sessionID?: string },
-    type: 'board_generation',
-    systemPrompt: BOARD_GENERATION_PROMPT,
-    userContent,
+  const generated = await aiObject({
+    lane: 'board_generation',
+    system: BOARD_GENERATION_PROMPT,
+    prompt: userContent,
     toolName: 'create_board',
     toolDescription: 'Erzeugt die Board-Struktur aus Spalten und Aufgabenkarten.',
     schema: BOARD_TOOL_SCHEMA,

@@ -41,7 +41,7 @@ describe('buildAiSdkTools', () => {
   });
 
   /**
-   * `generateStructured` and `toolForcedEdit` hand over an ALREADY wrapped
+   * `toolForcedEdit` hands over an ALREADY wrapped
    * `input_schema`. Wrapping it a second time here used to send the provider
    * `{"jsonSchema": {…}}` as the parameter schema — no `type`, no `properties`.
    * Live on 02.08.2026 the model followed that shape faithfully and answered

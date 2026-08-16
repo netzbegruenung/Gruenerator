@@ -4,14 +4,14 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { jsonCandidatesFromText } from '../ai/generateStructured.js';
+import { jsonCandidatesFromText } from '../ai/structuredParsing.js';
 
 import { createPdfDocument, validatePdfStructure } from './PdfGenerationService.js';
 
 /**
  * These used to run through `parsePdfStructure`, which did extraction AND
  * validation in one swallow-the-error step. The two halves are now separate —
- * `jsonCandidatesFromText` (generateStructured) pulls the JSON out, this gate
+ * `jsonCandidatesFromText` (structuredParsing.ts) pulls the JSON out, this gate
  * judges it — so the cases are asserted through the pair.
  */
 const firstValid = (text: string): ReturnType<typeof validatePdfStructure> => {

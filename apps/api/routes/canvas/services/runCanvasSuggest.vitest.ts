@@ -8,10 +8,15 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { runCanvasSuggest } from './runCanvasSuggest.js';
+const executeProvider = vi.fn();
+
+vi.mock('../../../services/ai/execution/index.js', () => ({
+  executeProvider: (...args: unknown[]) => executeProvider(...args),
+}));
+
+const { runCanvasSuggest } = await import('./runCanvasSuggest.js');
 
 import type { CanvasAiSnapshot } from '@gruenerator/contracts';
-import type { AiClient } from '../../../services/ai/types.js';
 
 const TOOL_NAME = 'submit_canvas_suggestions';
 
@@ -29,42 +34,52 @@ function suggestion(op: unknown, id = 's1') {
   return { id, title: `Vorschlag ${id}`, operations: [op] };
 }
 
-/** A pool whose successive calls return the given tool payloads in order. */
-function poolReturning(...payloads: unknown[]): {
-  pool: AiClient;
+/** Successive attempts return the given tool payloads in order. */
+function answering(...payloads: unknown[]): {
   calls: { messages: { role: string; content: string }[] }[];
 } {
   const calls: { messages: { role: string; content: string }[] }[] = [];
   let i = 0;
-  const pool = {
-    processRequest: vi.fn(async (request: { messages: { role: string; content: string }[] }) => {
+  executeProvider.mockImplementation(
+    (
+      _provider: string,
+      _id: string,
+      request: { messages: { role: string; content: string }[] }
+    ) => {
       calls.push({ messages: request.messages });
       const payload = payloads[Math.min(i, payloads.length - 1)];
       i++;
-      return { success: true, tool_calls: [{ name: TOOL_NAME, input: payload }] };
-    }),
-  } as unknown as AiClient;
-  return { pool, calls };
+      return Promise.resolve({
+        content: null,
+        success: true,
+        stop_reason: 'tool_use',
+        tool_calls: [{ name: TOOL_NAME, input: payload }],
+      });
+    }
+  );
+  return { calls };
 }
 
-function run(pool: AiClient, supportedOperations: string[]) {
+function run(supportedOperations: string[]) {
   return runCanvasSuggest({
     prompt: 'Mach den Text kürzer',
     snapshot: SNAPSHOT,
     capabilities: { supportedOperations },
-    aiClient: pool,
   });
 }
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  executeProvider.mockReset();
+});
 
 describe('runCanvasSuggest', () => {
   it('drops operations this canvas does not support', async () => {
-    const { pool } = poolReturning({
+    answering({
       suggestions: [{ id: 's1', title: 'Gemischt', operations: [setText, removeElement] }],
     });
 
-    const result = await run(pool, ['set-text']);
+    const result = await run(['set-text']);
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -74,11 +89,11 @@ describe('runCanvasSuggest', () => {
   });
 
   it('drops a suggestion left with no operations at all', async () => {
-    const { pool } = poolReturning({
+    answering({
       suggestions: [suggestion(setText, 'keep'), suggestion(removeElement, 'drop')],
     });
 
-    const result = await run(pool, ['set-text']);
+    const result = await run(['set-text']);
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -87,12 +102,12 @@ describe('runCanvasSuggest', () => {
 
   it('repairs once when nothing supported survives, naming the supported kinds', async () => {
     // First response is entirely unsupported; the repair turn returns a usable one.
-    const { pool, calls } = poolReturning(
+    const { calls } = answering(
       { suggestions: [suggestion(removeElement)] },
       { suggestions: [suggestion(setText)] }
     );
 
-    const result = await run(pool, ['set-text']);
+    const result = await run(['set-text']);
 
     expect(result.ok).toBe(true);
     expect(calls).toHaveLength(2);
@@ -104,9 +119,9 @@ describe('runCanvasSuggest', () => {
   });
 
   it('repairs exactly once on a schema violation, then gives up', async () => {
-    const { pool, calls } = poolReturning({ suggestions: 'not-an-array' });
+    const { calls } = answering({ suggestions: 'not-an-array' });
 
-    const result = await run(pool, ['set-text']);
+    const result = await run(['set-text']);
 
     expect(result.ok).toBe(false);
     // Two attempts total: the original plus one repair. Not more.
@@ -114,11 +129,9 @@ describe('runCanvasSuggest', () => {
   });
 
   it('surfaces the provider error rather than an empty success', async () => {
-    const pool = {
-      processRequest: vi.fn(async () => ({ success: false, error: 'upstream 503' })),
-    } as unknown as AiClient;
+    executeProvider.mockRejectedValue(new Error('upstream 503'));
 
-    const result = await run(pool, ['set-text']);
+    const result = await run(['set-text']);
 
     expect(result.ok).toBe(false);
     if (result.ok) return;

@@ -22,11 +22,8 @@ import { docsContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
-import {
-  generateStructured,
-  viaLaxParser,
-  withContent,
-} from '../../services/ai/generateStructured.js';
+import { aiObject } from '../../services/ai/generate.js';
+import { viaLaxParser, withContent } from '../../services/ai/structuredParsing.js';
 import {
   softDeleteCollaborativeDocument,
   updateCollaborativeDocument,
@@ -41,7 +38,6 @@ import {
 import { getDocPreview } from '../../services/docs/docPreview.js';
 import { shareToPermissionLevel } from '../../services/groups/groupSharePermissions.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
-import { getAiClient } from '../../utils/getAiClient.js';
 import { createLogger } from '../../utils/logger.js';
 import { ensureDocChatThread } from '../chat/services/threadPersistenceService.js';
 
@@ -689,12 +685,10 @@ export const docsContractRouter = s.router(docsContract, {
       // forced tool call + repair turn + truncation handling. Prompting for JSON
       // and parsing whatever came back made this route fail with a 500 whenever
       // the model wrapped its answer in prose or ran out of output budget.
-      const docResult = await generateStructured({
-        aiClient: getAiClient(args.req),
-        req: args.req,
-        type: 'doc_generation',
-        systemPrompt: DOCUMENT_GENERATION_PROMPT,
-        userContent: description.trim(),
+      const docResult = await aiObject({
+        lane: 'doc_generation',
+        system: DOCUMENT_GENERATION_PROMPT,
+        prompt: description.trim(),
         toolName: 'create_document',
         toolDescription: 'Erzeugt das Dokument als HTML mit Titel und subtype.',
         schema: DOCUMENT_TOOL_SCHEMA,
