@@ -94,6 +94,9 @@ export const NON_SEARCH_INTENTS: ReadonlySet<ChatIntentId> = new Set([
  * `umfragen` war bis Phase L die dritte Ausnahme („sein Verdikt montiert das
  * Werkzeug"). Der Intent ist stillgelegt (`retired`), das Werkzeug hängt jetzt
  * am Erwähnungs-Pin — die Ausnahme ist damit gegenstandslos, nicht gestrichen.
+ * `pressemitteilung_examples` stand umgekehrt MIT in der Menge und ist mit
+ * derselben Stilllegung herausgefallen: eine `retired`-Disposition kann keine
+ * Teilmenge von `loop` sein.
  * `dispositionSets.vitest.ts` nagelt diese Differenz fest — wer sie ändert,
  * ändert eine Aussage.
  */
@@ -101,7 +104,6 @@ export const DEMOTABLE_HEURISTIC_INTENTS: ReadonlySet<ChatIntentId> = new Set([
   'search',
   'web',
   'examples',
-  'pressemitteilung_examples',
   'compare',
   'abgeordnetenwatch',
   'bundestag',

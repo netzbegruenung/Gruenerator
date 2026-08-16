@@ -938,38 +938,39 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // search node fires before respondNode.
     const agentWantsExamples =
       Array.isArray(state.agentConfig.enabledTools) &&
-      (state.agentConfig.enabledTools.includes('examples') ||
-        state.agentConfig.enabledTools.includes('pressemitteilung_examples')) &&
+      state.agentConfig.enabledTools.includes('examples') &&
       state.agentConfig.alwaysSearchesExamples === true;
     // For content-creation agents, the noun alone is enough — typical prompts
-    // are bare noun-phrases like "PM zu X" or "Tweet zur Verkehrswende"
-    // without an explicit creation verb. PMs and social-media posts live in
-    // different Qdrant collections, so split them into two intents and use
-    // secondaryIntent for mixed prompts ("Tweet UND PM zu X") so the search
-    // node can fan out.
+    // are bare noun-phrases like "Tweet zur Verkehrswende" without an explicit
+    // creation verb.
+    //
+    // Der PM-Arm ist mit dem Verdikt weg. Er lautete „wantsPm ?
+    // pressemitteilung_examples : social_post" plus `secondaryIntent:
+    // 'examples'` für gemischte Aufforderungen („Tweet UND PM zu X"). Gemessen
+    // erreichte er genau EINEN ausgelieferten Agenten: `alwaysSearchesExamples`
+    // steht nur auf `gruenerator-ricarda-lang` (Tweets, `enabledTools:
+    // ['examples']`, Sammlung `ricarda_lang_tweets`) — die LV-PR-Agenten, die
+    // `pressemitteilung_examples` in `enabledTools` führen, setzen das Flag
+    // nicht. Das Feld ist auch nirgends einstellbar (kein UI, keine Spalte).
+    // Eine PM-Aufforderung an den Tweet-Agenten fällt jetzt in die normale
+    // Klassifikation und schreibt mit dem Rezept `presse`, statt LV-PMs gegen
+    // eine Tweet-Sammlung zu suchen.
     if (agentWantsExamples && userContent.length > 0) {
-      const wantsPm = PM_NOUN_PATTERN.test(userContent);
-      const wantsSocial = SOCIAL_NOUN_PATTERN.test(userContent);
-      if (wantsPm || wantsSocial) {
-        // Social-only prompts route to `social_post` (text; a sharepic half
-        // only when the message names one). Mixed PM+social prompts keep the
-        // dual-search behavior.
-        const primary: SearchIntent = wantsPm ? 'pressemitteilung_examples' : 'social_post';
-        const secondary: SearchIntent | null = wantsPm && wantsSocial ? 'examples' : null;
+      if (SOCIAL_NOUN_PATTERN.test(userContent)) {
         // Platform hint for the social composer/generator. Null when
         // unspecified → generic rubric.
         const platform = detectSocialPlatform(userContent);
         log.info(
-          `[Classifier] Content-creation agent (${state.agentConfig.identifier}) → primary=${primary}${secondary ? `, secondary=${secondary}` : ''}${platform ? `, platform=${platform}` : ''}`
+          `[Classifier] Content-creation agent (${state.agentConfig.identifier}) → social_post${platform ? `, platform=${platform}` : ''}`
         );
         return {
-          intent: primary,
-          secondaryIntent: secondary,
+          intent: 'social_post',
+          secondaryIntent: null,
           platform,
           searchSources: [],
           searchQuery: extractSearchTopic(userContent) || userContent,
           detectedFilters: null,
-          reasoning: `Agent ${state.agentConfig.identifier} requires ${primary}${secondary ? ` + ${secondary}` : ''} grounding for content creation`,
+          reasoning: `Agent ${state.agentConfig.identifier} requires social_post grounding for content creation`,
           hasTemporal: temporal.hasTemporal,
           complexity,
           classificationTimeMs: Date.now() - startTime,

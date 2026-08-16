@@ -43,7 +43,7 @@ search                            0  loop
 web                               6  loop
 scrape_url                        0  gated
 examples                          0  loop
-pressemitteilung_examples         0  loop
+pressemitteilung_examples         0  retired
 abgeordnetenwatch                 0  loop
 bundestag                         0  loop
 bahn                              0  retired

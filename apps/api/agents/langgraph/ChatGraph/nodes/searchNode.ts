@@ -1636,20 +1636,17 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         break;
       }
 
-      case 'pressemitteilung_examples':
       case 'social_post': // combined post grounds its text half on social examples
       case 'examples': {
-        // Build kinds from intent + secondaryIntent. The dual SearchIntent
-        // surface stays so postResponseService picks the right tool name (and
-        // therefore the right UI card); the *data fetch* is unified.
-        const kinds: ExampleKind[] = [];
-        if (intent === 'pressemitteilung_examples') kinds.push('press');
-        if (
-          intent === 'examples' ||
-          intent === 'social_post' ||
-          state.secondaryIntent === 'examples'
-        )
-          kinds.push('social');
+        // Nur noch `social`. Die zweite Sorte, `press`, war der ganze
+        // Executor-Anteil des stillgelegten `pressemitteilung_examples` — sie
+        // hing exklusiv an diesem Verdikt. Das PM-Werkzeug im Loop
+        // (`gruenerator_pressemitteilung_examples`) holt dieselben Daten über
+        // `executeDirectPressemitteilungExamples`, und `@pressemitteilungen`
+        // zurrt es fest. Mit dem Verdikt fiel auch der einzige Erzeuger von
+        // `secondaryIntent === 'examples'` weg (der Zweig für Inhalte-Agenten
+        // im Klassifikator), deshalb steht hier keine Fächerung mehr.
+        const kinds: ExampleKind[] = ['social'];
 
         const country =
           agentConfig.toolRestrictions?.examplesCountry ||
@@ -1704,7 +1701,11 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
           relevance: e.relevance,
           ...(e.url && { url: e.url }),
         }));
-        // Press items have URLs → citations; social posts don't.
+        // Press items have URLs → citations; social posts don't. Seit dieser
+        // Pfad nur noch `social` anfordert, ist der Zweig leer — die Abfrage
+        // bleibt stehen, weil sie die Eigenschaft der DATEN beschreibt und
+        // nicht die der angeforderten Sorte, und `searchExamples` dieselbe
+        // Antwortform auch dem PM-Werkzeug im Loop liefert.
         citations = (unified.byKind.press ?? []).length > 0 ? buildCitations(results) : [];
 
         // Stash the rich kind-segmented shape on state so postResponseService

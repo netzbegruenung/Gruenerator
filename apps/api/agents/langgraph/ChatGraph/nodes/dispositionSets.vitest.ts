@@ -169,6 +169,11 @@ describe('DEMOTABLE_HEURISTIC_INTENTS — loop MINUS drei, und jede Ausnahme sag
     // er hat keine `loop`-Disposition mehr, die Menge kann ihn gar nicht mehr
     // auslassen. In SYSTEM_TOOL_INTENTS steht er weiterhin — als tolerantes
     // Weiterlesen eines aus einem alten Thread zurückgereichten Verdikts.
+    //
+    // Umgekehrt bei `pressemitteilung_examples`: der stand MIT in der Menge und
+    // ist mit derselben Stilllegung herausgefallen. Beide Male ändert sich die
+    // Mitgliedschaft, ohne dass jemand die Menge angefasst hätte — genau das
+    // prüft der erste Test oben.
     const notDemotable = [...intentsWithDisposition('loop')].filter(
       (id) => !DEMOTABLE_HEURISTIC_INTENTS.has(id)
     );

@@ -17,6 +17,7 @@ import nodePath from 'node:path';
 import {
   isIntentAllowedForLocale,
   pinnedToolForMention,
+  skillForMention,
   type ChatIntentId,
 } from '@gruenerator/shared/chat-intents';
 
@@ -126,7 +127,21 @@ const PIN_ROUTES: readonly PinRoute[] = [
     backfillQuery: false,
   },
   { intent: 'examples', group: 'simple' },
-  { intent: 'pressemitteilung_examples', group: 'simple' },
+  /**
+   * `@pressemitteilungen`/`@pm` — dieselbe Bauform wie `@umfragen`, plus das
+   * Rezept. Der Token bleibt (persistiert als `tool:pressemitteilung_examples`),
+   * er zeigt nur woandershin: `pinsTool` auf das PM-Beispiel-Werkzeug,
+   * `activatesSkill` auf `presse`. Die Textsorte kam nie aus dem Intent.
+   *
+   * Bleibt in der `simple`-Gruppe: `@pm @beispiele` ergibt weiterhin PM, nicht
+   * Social — die Gruppe entscheidet das, nicht die Zeilenreihenfolge.
+   */
+  {
+    token: 'pressemitteilung_examples',
+    intent: 'agentic',
+    localeIntent: 'pressemitteilung_examples',
+    group: 'simple',
+  },
   { intent: 'chat_history', group: 'simple' },
   { intent: 'social_post', group: 'simple' },
   { intent: 'chart', group: 'simple' },
@@ -250,6 +265,11 @@ export async function runForcedIntentStage({
     // führt: bei mehreren Erwähnungen gewinnt die LETZTE, und eine Erwähnung
     // ohne eigenes Werkzeug muss den Pin der vorherigen damit auch löschen.
     classifiedState.mentionPinnedTool = pinnedToolForMention(token);
+    // Das Rezept dagegen NUR setzen, nie löschen und nie überschreiben: es kann
+    // aus der ausdrücklichen Wahl im Composer stammen (`/presse`, `/instagram`),
+    // und die gehört nicht einer Erwähnung, die zufällig danach steht.
+    const skill = skillForMention(token);
+    if (skill && !classifiedState.activeSkillMention) classifiedState.activeSkillMention = skill;
     forcedTool = true;
     if (route.group) firedGroups.add(route.group);
     route.onPin?.(pinContext);
