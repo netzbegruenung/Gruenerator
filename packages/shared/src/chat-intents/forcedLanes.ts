@@ -81,7 +81,6 @@ export const FORCED_LANE_BY_INTENT: Record<ChatIntentId, ForcedLane> = {
   research: 'single-pass',
   search: 'single-pass',
   examples: 'single-pass',
-  pressemitteilung_examples: 'single-pass',
   chat_history: 'single-pass',
   image: 'single-pass',
   image_edit: 'single-pass',
@@ -119,6 +118,9 @@ export const FORCED_LANE_BY_INTENT: Record<ChatIntentId, ForcedLane> = {
   // `turnPlan.ts`. Stünde hier `loop`, wäre das eine Aussage über einen Intent,
   // den niemand mehr festzurrt.
   umfragen: 'single-pass',
+  // Dasselbe für `@pressemitteilungen`: der Pin zwingt den Turn in die
+  // Schleife, nicht diese Zeile.
+  pressemitteilung_examples: 'single-pass',
   bahn: 'single-pass',
   reise: 'single-pass',
   hotel: 'single-pass',

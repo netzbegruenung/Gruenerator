@@ -9,9 +9,13 @@
  *   2. via the active notebook/collection scope — the same `landesverband` that
  *      document search already derives from a collection's default filter.
  *
- * This is the single source of truth so every PM-example path (the ChatGraph
- * search node AND the AI-SDK `gruenerator_pressemitteilung_examples` tool used
- * by the board agent) applies the LV identically. The agent's own scope always
+ * This is the single source of truth so every PM-example path applies the LV
+ * identically. Seit der Stilllegung von `pressemitteilung_examples` ist das nur
+ * noch EIN Pfad — das AI-SDK-Werkzeug `gruenerator_pressemitteilung_examples`,
+ * das `@pressemitteilungen` im Loop festzurrt und der Board-Agent ebenfalls
+ * ruft; der PM-Arm im ChatGraph-Suchknoten ist mit dem Verdikt weg. Die Quelle
+ * bleibt geteilt, weil der Suchknoten sie für die SOCIAL-Beispiele
+ * weiterbenutzt. The agent's own scope always
  * wins; the collection-derived scope is a fallback so a generic agent bound to
  * an LV notebook still grounds in the right LV.
  */

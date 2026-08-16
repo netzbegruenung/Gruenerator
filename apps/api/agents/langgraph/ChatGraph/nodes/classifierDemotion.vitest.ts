@@ -406,6 +406,10 @@ describe('Tier 3.5 — NOT demoted (gates preserved)', () => {
       hasNamedBoard: false,
       isSharepicRefinement: false,
       pipelineForceIntent: null,
+      // Keine Erwähnung in diesem Turn. Ausgeschrieben, weil das Feld den
+      // `agentic_to_search`-Auffang darunter überhaupt erst zur Frage macht:
+      // ein Pin würde den Turn in die Schleife zwingen statt ihn zu degradieren.
+      mentionPinnedTool: null,
     });
     expect(plan.runAgentic).toBe(false);
     expect(plan.intent).toBe('search');
