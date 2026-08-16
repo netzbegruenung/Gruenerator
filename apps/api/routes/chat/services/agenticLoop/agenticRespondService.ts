@@ -18,63 +18,49 @@ import { knownArtifactRefs } from '../../../../agents/langgraph/ChatGraph/nodes/
 import { forbidsNewResearch } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import { recordSlowVerdict } from '../../../../services/ai/modelHealth.js';
 import { createLogger } from '../../../../utils/logger.js';
-import { loadManagedMcpCatalog } from '../../agents/managedMcpCatalog.js';
-import { loadMcpCatalog, type McpCatalog } from '../../agents/mcpCatalog.js';
+import { type McpCatalog } from '../../agents/mcpCatalog.js';
 import {
   getLoopPlannerModel,
   getLoopSynthFallbackModel,
   getLoopSynthModel,
   loopPlannerModelName,
 } from '../../agents/providers.js';
-import {
-  buildRecipeCatalog,
-  renderRecipeCatalog,
-  type RecipeCatalogEntry,
-} from '../../agents/recipeCatalog.js';
-import { makeRecipeTool } from '../../agents/recipeTools.js';
+import { renderRecipeCatalog } from '../../agents/recipeCatalog.js';
 import { imageDeliveryNote } from '../../agents/searchImageHarvest.js';
-import { buildChatToolCatalog } from '../../agents/toolCatalog.js';
 import { extractTextContent } from '../messageHelpers.js';
 import {
   mistralReasoningOption,
   resolveModel,
   type ResolvedModelTuple,
 } from '../responseStreamingService.js';
-import { sendChatWarning, type SSEWriter } from '../sseHelpers.js';
-import {
-  getRecentThreadSources,
-  getRecentToolSteps,
-  type ThreadToolHistory,
-  getThreadLastMcpServer,
-  setThreadLastMcpServer,
-} from '../threadPersistenceService.js';
+import { type SSEWriter } from '../sseHelpers.js';
+import { type ThreadToolHistory } from '../threadPersistenceService.js';
 import { resolveAbortOutcome } from '../turnAbortOutcome.js';
 import { turnMaterialChars } from '../turnMaterial.js';
 import { withInstructionHierarchy } from '../untrustedContent.js';
 
 import { ARTIFACT_TOOL_NAMES, buildArtifactNotes } from './artifactNotes.js';
-import { isMcpReplayEnabled } from './flags.js';
+import {
+  assembleToolCatalog,
+  buildToolReplay,
+  createLoopGuards,
+  rehydrateCarriedSources,
+  wrapAssembledTools,
+} from './catalogAssembly.js';
 import { isMcpCapabilityQuestion, shouldForceFirstToolCall } from './forceFirstToolCall.js';
 import { createTurnClocks, resolveBudget } from './loopBudget.js';
 import { runAgenticLoop, type LoopMode } from './loopEngine.js';
-import { createToolLoopGuards, MAX_SOURCES } from './loopGuards.js';
+import { MAX_SOURCES } from './loopGuards.js';
 import { materialDominatesTurn, resolveLoopMode } from './loopMode.js';
 import { createAnswerEmitter } from './loopSse.js';
-import { buildToolObservationReplay, spliceToolReplay } from './mcpReplay.js';
+import { spliceToolReplay } from './mcpReplay.js';
 import { stripDuplicatedOpening } from './openingDedupe.js';
-import { createRecipeRegistry } from './recipeRegistry.js';
 import { rewritesSuppliedText } from './routing.js';
 import { createSourceRegistry, withResearchedSources } from './sourceRegistry.js';
 import { createAnswerValidator, finalizeAnswerText, pdfProblemNote } from './synthVerdicts.js';
 import { buildMcpOutcomeNote, buildToolFailureNote, mcpHasFailure } from './toolOutcome.js';
 import { buildToolUsageBlock } from './toolUsageBlock.js';
-import {
-  NEAR_DUPLICATE_EXEMPT_TOOLS,
-  TOOL_TIMEOUT_OVERRIDES_MS,
-  readMcpResult,
-  type PersistedStep,
-} from './types.js';
-import { wrapToolsForLoop } from './wrapTools.js';
+import { readMcpResult, type PersistedStep } from './types.js';
 
 import type {
   ChatGraphState,
@@ -101,34 +87,6 @@ const COMPOUND_TOOL_FOR: Record<string, string> = {
 /** A GFM table: header row followed by a delimiter row. Used to recognise that
  *  a "Tabelle"-turn was already answered inline in chat. */
 const MARKDOWN_TABLE_RE = /^\s*\|.+\|\s*\r?\n\s*\|(?:\s*:?-+:?\s*\|)+\s*$/m;
-
-/** Tools counted against the per-turn search budget (loopGuards). */
-const SEARCH_FAMILY_TOOLS: ReadonlySet<string> = new Set([
-  'gruenerator_search',
-  'web_search',
-  'gruenerator_examples_search',
-  'gruenerator_pressemitteilung_examples',
-  'scrape_url',
-]);
-
-/**
- * Tools whose steps are NOT replayed as cross-turn "observations": side-effecting
- * or generative actions that own their own rehydration path (createdDocument /
- * generatedImage / sharepic card metadata) or emit SSE ops (edit_document).
- * Replaying them as tool messages would double-represent the artefact or make the
- * model think content already exists. Every OTHER mounted tool (search, bundestag,
- * umfragen, summarize, personal-data, MCP, system sources) IS replayed.
- */
-const NON_REPLAYABLE_ACTION_TOOLS: ReadonlySet<string> = new Set([
-  'edit_document',
-  'create_document',
-  'create_board',
-  'create_sheet',
-  'create_presentation',
-  'create_pdf',
-  'generate_image',
-  'sharepic',
-]);
 
 /**
  * Abbruch-Ausgang und Trunkierungs-Notiz liegen seit 13.08.2026 in
@@ -186,23 +144,7 @@ export async function streamAgenticResponse(params: {
   const agentConfig = finalState.agentConfig;
 
   const sourceRegistry = createSourceRegistry();
-  const guards = createToolLoopGuards({
-    searchToolNames: SEARCH_FAMILY_TOOLS,
-    // freshSize, NOT size: every guard here budgets THIS turn's research. Once
-    // carried sources became citable they joined `size`, and a follow-up in a
-    // thread with prior research would have been told it had "already found
-    // enough" before running a single search.
-    getSourceCount: () => sourceRegistry.freshSize,
-    // The web is NOT gated behind the internal document search — no exemption
-    // list either, because there is nothing left to be exempt from. Which
-    // retrieval a question needs is the classifier's call, made with the whole
-    // message and the thread in hand. All the loop still does is refuse to let
-    // an internal search that found NOTHING end in an answer from model memory.
-    internalFallback: {
-      requiredTool: 'gruenerator_search',
-      fallbackTool: 'web_search',
-    },
-  });
+  const guards = createLoopGuards(sourceRegistry);
   const steps: PersistedStep[] = [];
   const emitter = createAnswerEmitter(sse);
   let resolution: Awaited<ReturnType<typeof resolveModel>> | null = null;
@@ -238,215 +180,52 @@ export async function streamAgenticResponse(params: {
       }
     );
 
-    const { tools } = buildChatToolCatalog({
-      agentConfig,
+    const assembled = await assembleToolCatalog({
+      state: finalState,
       sourceRegistry,
-      loop: { sse, state: finalState, ...(req && { req }), threadId: threadId ?? null },
+      sse,
+      ...(req && { req }),
+      threadId: threadId ?? null,
     });
-
-    // Phase 2: an `mcp` turn also mounts the user's connected MCP server tools
-    // (dynamicTool) into the same catalog, so the model composes them with the
-    // internal search tools in ONE loop (single-pass, no separate mcp node).
-    //
-    // Demoted `agentic` turns re-mount the thread's sticky server too: an
-    // @mention is stripped from the message text on send, so a follow-up after
-    // a clarifying question ("denk dir was aus") carries NO textual trace of
-    // the mentioned server — chat_threads.last_mcp_server_id is the only
-    // carrier. Without this, the follow-up loses the service entirely.
-    const userId = agentConfig.userId;
-    const mcpMountStart = Date.now();
-    if ((finalState.intent === 'mcp' || finalState.intent === 'agentic') && userId) {
-      // Scope precedence: explicit @mention/name-match > this thread's sticky
-      // last-used server > null (fan out over all connected servers).
-      const explicitScope = finalState.mcpServerScope ?? null;
-      let scope = explicitScope ?? (threadId ? await getThreadLastMcpServer(threadId) : null);
-      // Ordinary agentic turns without a sticky server skip the mount — no
-      // connect overhead and no fan-out for threads that never used MCP.
-      if (finalState.intent === 'mcp' || scope) {
-        mcpCatalog = await loadMcpCatalog({ userId, scope });
-        // A STALE sticky scope (server since deleted) must NOT fake the
-        // "mentioned service is disconnected" notice — that honesty signal is
-        // only for an EXPLICIT mention. mcp turns retry unscoped; agentic turns
-        // just drop the catalog.
-        if (!explicitScope && scope && mcpCatalog.scopedServerMissing) {
-          if (finalState.intent === 'mcp') {
-            mcpCatalog = await loadMcpCatalog({ userId, scope: null });
-            scope = null;
-          } else {
-            await mcpCatalog.close();
-            mcpCatalog = null;
-          }
-        }
-        if (mcpCatalog) {
-          // Remember the server actually used, so the next unscoped turn re-scopes.
-          if (threadId && scope && !mcpCatalog.scopedServerMissing && mcpCatalog.labels.size > 0) {
-            void setThreadLastMcpServer(threadId, scope);
-          }
-          // A server whose tool definitions drifted since approval had its tools
-          // withheld. Say so — otherwise it just looks broken or idle, and the
-          // user never learns there is something to re-check.
-          for (const explanation of mcpCatalog.driftedServers ?? []) {
-            sendChatWarning(sse, 'mcp_tools_drifted', explanation);
-          }
-          Object.assign(tools, mcpCatalog.tools);
-        }
-      }
-    }
-
-    // First-party MANAGED connectors: mounted the same way, from fixed env
-    // configs with no user rows.
-    //
-    // Selection used to be `getSourcesForIntent(intent)` — one source per intent,
-    // three for the `reise` umbrella. It is now a list of KEYS the vocabulary
-    // trigger produced for this turn (`managedSourceKeys`), so a travel turn
-    // simply carries `['bahn','hotel']` and needs no umbrella.
-    //
-    // Mounting is cheap: `loadManagedMcpCatalog` builds the tools from cached
-    // descriptors and opens a connection only when the model actually calls one.
-    // The loader also applies the per-user opt-out and the country filter, so no
-    // caller can forget either.
+    const { tools, recipeCatalog, recipeRegistry, toolLabels } = assembled;
+    mcpCatalog = assembled.mcpCatalog;
+    systemCatalog = assembled.systemCatalog;
+    mcpMountMs = assembled.mcpMountMs;
     const managedKeys = finalState.managedSourceKeys ?? [];
-    if (managedKeys.length > 0) {
-      systemCatalog = await loadManagedMcpCatalog({
-        keys: managedKeys,
-        sse,
-        sourceRegistry,
-        userId: userId ?? null,
-        userLocale: finalState.userLocale,
-      });
-      Object.assign(tools, systemCatalog.tools);
-    }
-    mcpMountMs = Date.now() - mcpMountStart;
 
-    // Self-loading recipes. Mounted async like the MCP catalogs (the user's
-    // learned text forms need a DB read), and only when nothing already
-    // decides the writing form for this turn:
-    //   - `activeSkillMention`: the user picked a recipe deliberately and
-    //     `buildSystemMessage` already injected it. Letting the model pick a
-    //     second one would overrule an explicit choice — same double-injection
-    //     guard `product_knowledge` uses.
-    //   - `customSystemPrompt`: a thread-level prompt replaces the whole
-    //     persona; self-loading a recipe into it would fight the user. A
-    //     CATALOGUE role's baustein is the exception (`roleBausteinActive`):
-    //     that persona is server-authored, and a "Presse & Social-Media" role
-    //     wants the presse recipe rather than being locked out of all of them.
-    const recipeRegistry = createRecipeRegistry();
-    let recipeCatalog: RecipeCatalogEntry[] = [];
-    if (
-      !finalState.activeSkillMention &&
-      (!finalState.customSystemPrompt || finalState.roleBausteinActive) &&
-      finalState.enabledTools?.['rezept_laden'] !== false
-    ) {
-      recipeCatalog = await buildRecipeCatalog({
-        userLocale: finalState.userLocale,
-        userId: userId ?? null,
-        roles: finalState.userRoles,
-      });
-      if (recipeCatalog.length > 0) {
-        tools.rezept_laden = makeRecipeTool({
-          catalog: recipeCatalog,
-          registry: recipeRegistry,
-          userId: userId ?? null,
-        });
-      }
-    }
-
-    // Tool-card labels for BOTH catalogs (user connectors + system sources).
-    const toolLabels = new Map([...(mcpCatalog?.labels ?? []), ...(systemCatalog?.labels ?? [])]);
-
-    // Structured cross-turn replay: feed the model this thread's prior tool
-    // interactions as real tool-call/result messages so a follow-up ("und
-    // morgen?", "mach das nochmal", "trag das jetzt ein") remembers what was
-    // gathered. Covers ALL informational tools (search, bundestag, umfragen,
-    // summarize, personal-data, MCP, system sources) — only side-effecting/
-    // generative actions are skipped (NON_REPLAYABLE_ACTION_TOOLS). Validity-
-    // gated inside buildToolObservationReplay to tools mounted THIS turn.
-    // MCP steps stay behind their rollout flag; search/domain replay is always on.
-    // Defensive: any loader/build error just skips replay — never breaks a turn.
     if (threadId) {
-      try {
-        const catalogNames = new Set(Object.keys(tools));
-        const recent = toolHistory ? toolHistory.toolSteps() : await getRecentToolSteps(threadId);
-        const replayable = recent.filter(
-          (s) =>
-            !NON_REPLAYABLE_ACTION_TOOLS.has(s.toolName) &&
-            (s.serverName ? isMcpReplayEnabled() : true)
-        );
-        toolReplayMessages = buildToolObservationReplay(replayable, catalogNames);
-      } catch (err) {
-        log.warn(`[Agentic] tool replay skipped: ${err instanceof Error ? err.message : err}`);
-      }
+      toolReplayMessages = await buildToolReplay({
+        threadId,
+        tools,
+        toolHistory: toolHistory ?? null,
+        onError: (m) => log.warn(m),
+      });
     }
 
-    // Cross-turn source rehydration: seed the registry with the sources gathered
-    // in the last research turn so a follow-up grounds against research that ran
-    // turns ago — "trag die recherchierten Zahlen ein" (edit surfaces) and
-    // "erstelle ein PDF mit den Originalquellen aus der Recherche" (generation).
-    //
-    // Complements the structured tool replay (buildToolObservationReplay), which
-    // strips the [N] markers and only replays steps whose tool is mounted THIS
-    // turn. This reads the persisted SearchResult[] directly, so the research
-    // survives even when the search tool isn't in the current catalog.
-    //
-    // Seeded BEFORE the loop, so carried sources take the low citation numbers
-    // and this turn's own results continue from there. They are citable — the
-    // single-pass path (carryThreadSourcesIfNeeded) always cited them, and the
-    // split made the same follow-up sourced or unsourced depending on nothing
-    // but whether the turn routed through the loop.
-    //
-    // Weit offen, aber nicht mehr ungetort. Der Grundsatz bleibt: ein Thread,
-    // der gerade etwas nachgeschlagen hat, soll es ein paar Nachrichten später
-    // noch wissen — die Recherche mit dem Turn wegzuwerfen ist das, was einen
-    // Folgeauftrag vergesslich macht. Bounded by getRecentThreadSources itself:
-    // only the most recent assistant messages carrying sources, capped at 10,
-    // snippets already trimmed.
-    //
-    // Die eine Ausnahme ist gemessen: über den 196-Turn-Korpus bekamen genau
-    // zwei Turns hier fremde Recherche unter einen KÜRZUNGSAUFTRAG gelegt, weil
-    // der Einzelpfad `needsThreadGrounding` fragte und der Loop niemanden. Ein
-    // Kürzungsauftrag ist in dem Text gegründet, an dem er arbeitet.
+    // Ein Kürzungsauftrag ist in dem Text gegründet, an dem er arbeitet — nur
+    // deshalb fragt der Loop hier überhaupt erst (siehe rehydrateCarriedSources).
     const askForCarry =
       finalState.lastUserTextNoMentions ??
       extractTextContent(messages[messages.length - 1]?.content ?? '');
     if (threadId && !rewritesSuppliedText(askForCarry)) {
-      try {
-        const carried = toolHistory
-          ? toolHistory.sources()
-          : await getRecentThreadSources(threadId);
-        if (carried.length > 0) {
-          sourceRegistry.seedCarried(carried);
-          log.info(`[Agentic] rehydrated ${carried.length} prior source(s) for grounding`);
-        }
-      } catch (err) {
-        log.warn(
-          `[Agentic] source rehydration skipped: ${err instanceof Error ? err.message : err}`
-        );
-      }
+      await rehydrateCarriedSources({
+        threadId,
+        sourceRegistry,
+        toolHistory: toolHistory ?? null,
+        onInfo: (m) => log.info(m),
+        onError: (m) => log.warn(m),
+      });
     }
 
-    const wrapped = wrapToolsForLoop(tools, {
+    const wrapped = wrapAssembledTools(tools, {
       sse,
       guards,
-      recordStep: (s) => steps.push(s),
+      recordStep: (step) => steps.push(step),
       perCallTimeoutMs: budget.perCallTimeoutMs,
-      perCallTimeoutOverridesMs: TOOL_TIMEOUT_OVERRIDES_MS,
-      nearDuplicateExemptTools: NEAR_DUPLICATE_EXEMPT_TOOLS,
-      // Only unified mode streams answer text WHILE tools run, so its `text`
-      // length is a meaningful per-tool offset. In split mode `text` stays empty
-      // through the whole gather phase → return null so no (all-0) offsets are
-      // recorded, and reload falls back to the legacy cards-first layout.
-      // Reads `mode` lazily: it's finalized (line below) before the loop runs.
+      toolLabels,
+      // Reads `mode` lazily: it's finalized further down, before the loop runs.
       getTextOffset: () => (mode === 'unified' ? emitter.text.length : null),
       takeNarration: () => emitter.takeNarration(),
-      ...(toolLabels.size > 0
-        ? {
-            titleFor: (name: string) => {
-              const label = toolLabels.get(name);
-              return label ? `${label.serverName} · ${label.toolName}…` : undefined;
-            },
-            serverNameFor: (name: string) => toolLabels.get(name)?.serverName,
-          }
-        : {}),
     });
 
     const mcpServerNames = [
