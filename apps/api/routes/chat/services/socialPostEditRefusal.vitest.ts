@@ -14,8 +14,11 @@ vi.mock('../../../services/search/searchRetryStrategy.js', () => ({
   withRetry: (fn: () => Promise<unknown>) => fn(),
 }));
 
+// Nur die Formvorgabe wird gedoppelt: welcher Text sie liefert, ist die Frage
+// von `socialCraftGuidance.vitest.ts`, hier geht es um die Ablehnung.
 vi.mock('../../../agents/langgraph/ChatGraph/nodes/socialMediaComposerNode.js', () => ({
   rubricForPlatform: () => '## RUBRIK',
+  craftGuidanceForPlatform: () => '## RUBRIK',
 }));
 
 // Der Sitz der Attrappe ist die Maschine, nicht der Client: der Editier-Pfad
