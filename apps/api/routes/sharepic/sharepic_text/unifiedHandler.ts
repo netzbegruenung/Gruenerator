@@ -257,11 +257,11 @@ export async function generateUnifiedTexts(
       ? promptConfig.singleItemTemplate || promptConfig.requestTemplate || ''
       : promptConfig.alternativesTemplate || promptConfig.requestTemplate || '';
   // `Record<string, unknown>` aus der JSON-Config, hier einmal in die Felder
-  // gelesen, die die Fassade kennt. `model` ist der einzige, der die Routing-
-  // Entscheidung berührt — siehe beim Aufruf.
+  // gelesen, die die Fassade kennt. Ein `model` ist NICHT dabei: welches Modell
+  // eine Sharepic-Zeile bedient, steht in `AI_LANES` und nirgends sonst.
   const options = (
     count === 1 ? promptConfig.options : promptConfig.alternativesOptions || promptConfig.options
-  ) as { temperature?: number; max_tokens?: number; top_p?: number; model?: string } | undefined;
+  ) as { temperature?: number; max_tokens?: number; top_p?: number } | undefined;
 
   const requestContent = replaceTemplate(template, {
     thema: thema || '',
@@ -289,14 +289,6 @@ export async function generateUnifiedTexts(
         ...(options?.temperature != null && { temperature: options.temperature }),
         ...(options?.max_tokens != null && { maxOutputTokens: options.max_tokens }),
         ...(options?.top_p != null && { topP: options.top_p }),
-        // Nennt die Prompt-Config ein Modell, gewinnt es — so wie
-        // `options.model` im Selektor gegen die Tabelle gewann. Betrifft
-        // heute `simple.json` (Mistral Large statt Medium) und jede
-        // Kampagnen-Config, die es ihr gleichtut. Der Anbieter ist derselbe,
-        // den der Selektor für jede Sharepic-Zeile wählt.
-        ...(options?.model != null && {
-          pinned: { provider: 'mistral' as const, model: options.model },
-        }),
       });
       log.debug(`[${type}] Raw AI response (${content.length} chars):\n${content}`);
 

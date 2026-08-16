@@ -111,11 +111,14 @@ export function foldersForChangedFiles(changedFiles: string[]): string[] {
  * on a path boundary.
  *
  * A bare `startsWith` does not: `apps/api/services/ai` would also claim
- * `apps/api/services/aiSearchAgent.ts`, which is a real file, and every edit to
- * it would drag three doc folders into the audit for nothing. Over-triggering is
- * the mild direction of this bug — the audit is advisory and the agent filters
- * false positives — but it costs one agent run per doc and teaches people to
- * skim past the comment it posts.
+ * `apps/api/services/aiSearchAgent.ts` — the file that made this concrete until
+ * it was deleted (16.08.2026, toter Dienst ohne Aufrufer). Every edit to it
+ * would have dragged three doc folders into the audit for nothing. No tracked
+ * file collides this way today, which is exactly why the boundary check has to
+ * stay: the next `services/ai…`-sibling would reintroduce it silently.
+ * Over-triggering is the mild direction of this bug — the audit is advisory and
+ * the agent filters false positives — but it costs one agent run per doc and
+ * teaches people to skim past the comment it posts.
  */
 function matchesPrefix(changedFile: string, prefix: string): boolean {
   return changedFile === prefix || changedFile.startsWith(`${prefix}/`);
