@@ -31,7 +31,7 @@ export async function generateNode(state: SocialAgentState): Promise<Partial<Soc
   const results = await Promise.all(
     state.platforms.map(async (platform) => {
       try {
-        const content = await generatePlatformContent(platform, enrichedWithStrategy, state.req);
+        const content = await generatePlatformContent(platform, enrichedWithStrategy);
         log.debug(`[generateNode] ${platform} content generated`);
         return { platform, content };
       } catch (error) {

@@ -19,6 +19,7 @@ import fs from 'fs';
 import { subtitlerContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { aiText } from '../../services/ai/generate.js';
 import {
   extractLocaleFromRequest,
   localizePlaceholders,
@@ -46,7 +47,6 @@ import {
 } from '../../services/subtitler/tusService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
-import { getAiClient } from '../../utils/getAiClient.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
@@ -369,7 +369,6 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
 
   generateSocial: async (args) => {
     try {
-      const aiClient = getAiClient(args.req);
       const locale = extractLocaleFromRequest(args.req);
       const systemPrompt = localizePlaceholders(
         'Du bist Social Media Manager für {{partyName}}. Erstelle einen Instagram Reel Beitragstext basierend auf den Untertiteln des Videos. Der Text soll die Kernbotschaft des Videos aufgreifen und in einen ansprechenden Social Media Post umwandeln.',
@@ -389,21 +388,17 @@ Erstelle einen Instagram Reel Beitragstext, der:
         locale
       );
 
-      const result = await aiClient.processRequest({
-        type: 'subtitler_social',
-        systemPrompt,
-        messages: [{ role: 'user', content: userPrompt }],
-        options: { temperature: 0.7 },
+      // `metadata` is no longer populated: the facade returns the text, and the
+      // only consumer (useSocialTextGenerator) reads `content`. The response
+      // field stays in the schema, where it is `nullish`.
+      const content = await aiText({
+        lane: 'subtitler_social',
+        system: systemPrompt,
+        prompt: userPrompt,
+        temperature: 0.7,
       });
 
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-
-      return {
-        status: 200 as const,
-        body: { content: result.content ?? '', metadata: result.metadata },
-      };
+      return { status: 200 as const, body: { content } };
     } catch (error: unknown) {
       log.error('Social media text generation failed:', error);
       return {
