@@ -429,7 +429,7 @@ export function looksLikeCompoundEdit(raw: string): boolean {
  * layers agree on "this sidebar edits the open artifact and must never spawn a
  * NEW one". Keyed on an edit_current_* tool being enabled.
  */
-export function isEditorSurface(enabledTools: Record<string, boolean> | undefined): boolean {
+export function isEditorSurface(enabledTools: Record<string, boolean> | null | undefined): boolean {
   return (
     enabledTools?.['edit_current_doc'] === true || enabledTools?.['edit_current_board'] === true
   );
@@ -563,8 +563,8 @@ const EDITOR_AGENT_KIND: ReadonlyArray<readonly [string, EditorSurfaceKind]> = [
  * every non-editor turn (the common case), so the caller can early-out cheaply.
  */
 export function resolveEditorSurfaceKind(
-  agentIdentifier: string | undefined,
-  enabledTools: Record<string, boolean> | undefined
+  agentIdentifier: string | null | undefined,
+  enabledTools: Record<string, boolean> | null | undefined
 ): EditorSurfaceKind | null {
   if (agentIdentifier) {
     for (const [id, kind] of EDITOR_AGENT_KIND) {
