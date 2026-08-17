@@ -20,6 +20,15 @@ export async function smartChunkDocument(
   text: string,
   options: ChunkingOptions = {}
 ): Promise<Chunk[]> {
+  // ACHTUNG: `maxTokens` und `overlapTokens` sind auf dem aktiven Pfad
+  // WIRKUNGSLOS. Gelesen werden sie nur im catch-Fallback unten; der Normalfall
+  // baut `new LangChainChunker()` ohne Argumente (1600 Zeichen) und ruft
+  // `sentenceRepack` mit dessen Vorgaben (targetChars 1600 / overlapChars 400).
+  // `chunkAndEmbedText` übergibt seit jeher `maxTokens: 400, overlapTokens: 50`
+  // und stellt damit nichts ein. Dass 400 Token × 4 = 1600 Zeichen den
+  // Ist-Zustand trifft, ist Zufall; die Überlappung (200 statt 400) trifft ihn
+  // nicht. Durchreichen ändert also die Retrieval-Qualität und gehört gemessen,
+  // nicht nebenbei in einen Stabilitäts-PR erledigt.
   const { baseMetadata = {} } = options;
 
   // STEP 1: Detect page markers BEFORE any text cleaning
