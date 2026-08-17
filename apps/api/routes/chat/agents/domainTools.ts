@@ -27,6 +27,7 @@ import {
   withResearchedSources,
   type SourceRegistry,
 } from '../services/agenticLoop/sourceRegistry.js';
+import { artifactKind, type ArtifactKindId } from '../services/artifactKindRegistry.js';
 import { buildCreateTurnContext, withConversationContext } from '../services/createTurn.js';
 import {
   pdfKindFromText,
@@ -411,17 +412,19 @@ function briefInstruction(researchBanned: boolean, what: string): string {
     : `Recherchiere ZUERST die Fakten (gruenerator_search), dann übergib ${what} — kein Platzhaltertext.`;
 }
 
-const DOC_LABELS: Record<
-  'presentation' | 'sheet' | 'document',
-  { label: string; artifact: string }
-> = {
-  presentation: {
-    label: 'Präsentation',
-    artifact: 'eine Präsentation (Foliendeck) zu einem Thema',
-  },
-  sheet: { label: 'Tabelle', artifact: 'eine Tabelle/Kalkulation zu einem Thema' },
-  document: { label: 'Dokument', artifact: 'ein Textdokument zu einem Thema' },
+/**
+ * Was der Fabrik an Wortwahl fehlt — der Produktname kommt aus der Registry
+ * (`artifactKind(kind).label`), die Umschreibung der Sache steht hier, weil sie
+ * nur diese Werkzeugbeschreibung braucht.
+ */
+const DOC_ARTIFACT_PHRASE: Record<CreateDocKind, string> = {
+  presentation: 'eine Präsentation (Foliendeck) zu einem Thema',
+  sheet: 'eine Tabelle/Kalkulation zu einem Thema',
+  document: 'ein Textdokument zu einem Thema',
 };
+
+/** Die drei Arten, die dieselbe Fabrik bedient (PDF und Board haben eigene). */
+type CreateDocKind = Extract<ArtifactKindId, 'presentation' | 'sheet' | 'document'>;
 
 /**
  * The full brief for an artifact generator: the thread, then the planner's
@@ -448,7 +451,7 @@ function briefWithContext(
 }
 
 export function makeCreateDocTool(ctx: {
-  kind: 'presentation' | 'sheet' | 'document';
+  kind: CreateDocKind;
   sse: SSEWriter;
   state: ChatGraphState;
   req: Request;
@@ -460,7 +463,8 @@ export function makeCreateDocTool(ctx: {
   researchBanned?: boolean;
 }): Tool {
   const { kind, sse, state, req, sourceRegistry } = ctx;
-  const { label, artifact } = DOC_LABELS[kind];
+  const label = artifactKind(kind).label;
+  const artifact = DOC_ARTIFACT_PHRASE[kind];
   return tool({
     description: `Erstellt ${artifact}.
 

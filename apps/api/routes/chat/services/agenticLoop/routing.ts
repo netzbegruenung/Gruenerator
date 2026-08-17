@@ -14,14 +14,17 @@ import { type ChatIntentId, isGroundableProse } from '@gruenerator/shared/chat-i
 import {
   ARTIFACT_NOUN_BY_KIND,
   CREATION_VERB_RE,
-  creationOrderPattern,
-  dictatesInlineTableColumns,
   forbidsPersistentAction,
   hasExplicitSharepicWord,
   isNegatedArtifactRequest,
-  type ForbiddableArtifact,
 } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import { recordDecision } from '../../../../utils/decisionJournal.js';
+import {
+  ARTIFACT_KINDS,
+  ARTIFACT_NAMING_INTENTS,
+  artifactKind,
+  type ArtifactKindId,
+} from '../artifactKindRegistry.js';
 
 /**
  * The classifier can still drop a factual question into a no-tool verdict —
@@ -339,12 +342,11 @@ export function looksLikeSelfContainedTurn(
 // renamed intent fails the build — it used to compile and silently never match.
 // The Set stays `ReadonlySet<string>` because `decideRunAgentic` takes a plain
 // `intent: string`; narrowing that is a separate change.
-export const COMPOUND_GENERATION_INTENTS: ReadonlySet<ChatIntentId> = new Set([
-  'sharepic',
-  'create_presentation',
-  'create_sheet',
-  'create_pdf',
-] as const satisfies readonly ChatIntentId[]);
+// Abgeleitet aus der Artefakt-Registry (die Einträge mit einem `intent`), statt
+// die vier Namen ein zweites Mal hinzuschreiben. Der `satisfies`-Schutz, den die
+// Literalliste hier trug, sitzt jetzt am Registry-Feld: es ist `ChatIntentId |
+// null` typisiert, ein Tippfehler kompiliert also dort nicht mehr.
+export const COMPOUND_GENERATION_INTENTS: ReadonlySet<ChatIntentId> = ARTIFACT_NAMING_INTENTS;
 
 /**
  * Compound research+generation detector (Phase 3n): a generation turn (sharepic,
@@ -435,35 +437,38 @@ export function isEditorSurface(enabledTools: Record<string, boolean> | null | u
   );
 }
 
-export type CompoundGenerationKind =
-  'sharepic' | 'presentation' | 'sheet' | 'document' | 'board' | 'pdf';
+/**
+ * Which artifact a compound turn is about. The set, the per-kind nouns and the
+ * negation family all live in `artifactKindRegistry` now — see the note there on
+ * why the five hand-written tables became one, and why detection ORDER is a
+ * property of the registry array rather than of the ternary this used to be.
+ */
+export type CompoundGenerationKind = ArtifactKindId;
 
-// `sharepic` is absent on purpose: hasExplicitSharepicWord already refuses a
-// negated ask, so it needs no second guard here.
-const FORBIDDABLE_BY_KIND: Partial<Record<CompoundGenerationKind, ForbiddableArtifact>> = {
-  presentation: 'presentation',
-  sheet: 'sheet',
-  board: 'board',
-  pdf: 'pdf',
-  document: 'document',
-};
-
-// Per-artifact nouns, used to recover the generation KIND from the text when the
-// intent no longer names it (a demoted `agentic` turn, or a `direct` misroute).
-// Paired with a creation verb via creationOrderPattern — the SAME builder the
-// classifier fast paths use, so both word orders are recognised here too and the
-// two layers cannot drift apart on phrasing again.
-const PRESENTATION_CREATE_RE = creationOrderPattern('pr[äa]sentation|presentation|folien?|slides?');
-const SHEET_CREATE_RE = creationOrderPattern('tabelle|kalkulation|spreadsheet|sheet');
-const BOARD_CREATE_RE = creationOrderPattern('board|kanban|aufgabenboard|taskboard');
-const PDF_CREATE_RE = creationOrderPattern(
-  'pdf|briefkopf|antragsformular|anmeldeformular|fragebogen' +
-    '|(?:ausf(?:ü|ue)llbar)[a-zäöü]*\\s+(?:formular|vorlage)',
-  { extraVerbs: 'schreib', forward: 60 }
-);
-const DOCUMENT_CREATE_RE = creationOrderPattern('dokument|schriftst[üu]ck|textdokument|entwurf', {
-  extraVerbs: 'schreib|anleg',
-});
+/**
+ * The generation KIND recovered from the TEXT, in registry (specificity) order.
+ *
+ * `sharepic` is the one kind with no `createPattern`: its vocabulary is
+ * `SHAREPIC_WORD_RE`, and `hasExplicitSharepicWord` carries the negation and
+ * quote guards that a bare noun regex would lose. It sits first in the registry,
+ * which is where it was in the ternary.
+ *
+ * A kind whose pattern matches but whose `extraGuard` fails keeps LOOKING —
+ * `continue`, not `return null`. That is what the ternary did (a sheet ask that
+ * dictates its columns inline falls through to board/pdf/document), and it is
+ * the one place where the rewrite could quietly have changed an answer.
+ */
+function recoverKindFromText(text: string): ArtifactKindId | null {
+  for (const kind of ARTIFACT_KINDS) {
+    const named = kind.createPattern
+      ? kind.createPattern.test(text)
+      : hasExplicitSharepicWord(text) && CREATION_VERB_RE.test(text);
+    if (!named) continue;
+    if (kind.extraGuard && !kind.extraGuard(text)) continue;
+    return kind.id;
+  }
+  return null;
+}
 
 /**
  * The generation KIND a compound turn should mount a fat tool for. Prefers the
@@ -491,10 +496,8 @@ export function compoundGenerationKind(intent: string, raw: string): CompoundGen
   // `null` means "the dispatcher builds it", which is correct and faster.
   if (isCompoundGenerationIntent(intent)) {
     if (!looksLikeCompoundGeneration(t)) return null;
-    if (intent === 'sharepic') return 'sharepic';
-    if (intent === 'create_presentation') return 'presentation';
-    if (intent === 'create_sheet') return 'sheet';
-    if (intent === 'create_pdf') return 'pdf';
+    const named = ARTIFACT_KINDS.find((k) => k.intent === intent);
+    if (named) return named.id;
   }
   if (intent === 'agentic' || intent === 'produktion' || intent === 'direct') {
     // No research gate on this branch, and the asymmetry is the whole point:
@@ -511,30 +514,16 @@ export function compoundGenerationKind(intent: string, raw: string): CompoundGen
     // does not just mount the tool — forceCompoundGeneration GUARANTEES the
     // artifact when the planner skips it.
     //
-    // Order = specificity: the concrete products first, the generic "Dokument"
-    // last (it's the fallback artifact when nothing more specific matches).
-    // pdf before document: "PDF-Dokument" names both nouns but means a PDF.
-    const kind =
-      hasExplicitSharepicWord(t) && CREATION_VERB_RE.test(t)
-        ? 'sharepic'
-        : PRESENTATION_CREATE_RE.test(t)
-          ? 'presentation'
-          : SHEET_CREATE_RE.test(t) && !dictatesInlineTableColumns(t)
-            ? 'sheet'
-            : BOARD_CREATE_RE.test(t)
-              ? 'board'
-              : PDF_CREATE_RE.test(t)
-                ? 'pdf'
-                : DOCUMENT_CREATE_RE.test(t)
-                  ? 'document'
-                  : null;
+    // Order = specificity, and it is the registry's array order — see
+    // `recoverKindFromText`.
+    const kind = recoverKindFromText(t);
     if (kind == null) return null;
     // The router's negative-action gate keys on the classified INTENT, so a kind
     // recovered from the TEXT never passes under it — "erstelle diesmal kein
     // Dokument" on a demoted turn would mount the doc tool, and
     // forceCompoundGeneration would then guarantee the very artifact the user
     // forbade. Re-checked here because this is where the kind first exists.
-    const family = FORBIDDABLE_BY_KIND[kind];
+    const family = artifactKind(kind).forbiddableFamily;
     if (family && forbidsPersistentAction(t, ARTIFACT_NOUN_BY_KIND[family])) return null;
     return kind;
   }

@@ -10,23 +10,14 @@
  * `afterGather` in BEIDEN Modi laufen kann: split ruft es vor der Synthese,
  * unified nach dem Strom.
  */
+import { artifactKind } from '../artifactKindRegistry.js';
+
 import { withResearchedSources, type SourceRegistry } from './sourceRegistry.js';
 
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
 import type { SSEWriter } from '../sseHelpers.js';
 import type { PersistedStep } from './types.js';
 import type { ModelMessage, ToolSet } from 'ai';
-
-/** Compound generation kind → the catalog key of its fat tool (for the
- *  guaranteed post-gather generation fallback). */
-const COMPOUND_TOOL_FOR: Record<string, string> = {
-  sharepic: 'sharepic',
-  presentation: 'create_presentation',
-  sheet: 'create_sheet',
-  document: 'create_document',
-  board: 'create_board',
-  pdf: 'create_pdf',
-};
 
 /** A GFM table: header row followed by a delimiter row. Used to recognise that
  *  a "Tabelle"-turn was already answered inline in chat. */
@@ -96,7 +87,13 @@ export function createAfterGather(p: GuaranteeContext): () => Promise<void> {
       );
       return;
     }
-    const toolName = COMPOUND_TOOL_FOR[kind];
+    // Der Werkzeugname kommt aus der Registry, nicht aus einer eigenen Tabelle:
+    // die hier war `Record<string, string>`, also ergab eine fehlende oder
+    // vertippte Art `undefined` — und diese Zusicherung tat dann still nichts,
+    // ausgerechnet auf dem Pfad, der einspringt, WEIL der Planer schon versagt
+    // hat. `artifactKind` nimmt die Literal-Union, ein Nichtmitglied kompiliert
+    // nicht mehr.
+    const toolName = artifactKind(kind).loopToolName;
     const genTool = p.tools[toolName] as
       { execute?: (input: unknown, opts: { toolCallId: string }) => Promise<unknown> } | undefined;
     if (!genTool?.execute) return;
