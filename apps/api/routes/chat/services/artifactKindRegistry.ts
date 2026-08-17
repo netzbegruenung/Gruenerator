@@ -191,18 +191,6 @@ export function artifactKind(id: ArtifactKindId): ArtifactKind {
 }
 
 /**
- * Build a table that MUST serve every kind. The point is the type, not the
- * function: a `Record<ArtifactKindId, T>` literal cannot omit a kind, so adding
- * a kind to the registry breaks every consumer that has not been taught about
- * it — which is the only way a six-way dispatch stays complete.
- */
-export function byArtifactKind<T>(
-  table: Readonly<Record<ArtifactKindId, T>>
-): Readonly<Record<ArtifactKindId, T>> {
-  return table;
-}
-
-/**
  * Whether a compound (loop) turn hands this kind's job to the generation fat
  * tool instead of letting the single-pass create route build it.
  *
