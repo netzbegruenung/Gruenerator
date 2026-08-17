@@ -174,6 +174,44 @@ export interface GenerationIntent extends IntentBase, Mentionable {
 }
 
 /** Creates a persisted, openable document. */
+/**
+ * Die `forcedTools`-Token der Artefakt-ERSTELLUNG, je Artefaktart.
+ *
+ * **F0.** Diese Strings stehen in persistierten Threads und in ausgelieferten
+ * Mobile-Binaries; sie werden nicht umbenannt, nur additiv erweitert. Genau
+ * deshalb dürfen sie nicht an zwei Stellen stehen — und standen es: die vier
+ * `@…-erstellen`-Erwähnungen sind statische Einträge in
+ * `packages/chat/src/lib/mentionables.ts` (sie tragen eigene `type`- und
+ * `mention`-Felder und kommen NICHT über `allIntentMentions()`), und dieselben
+ * Literale standen ein zweites Mal in der Dispatch-Tabelle des Backends. Zwei
+ * Schreiber eines F0-Tokens sind genau die Lage, in der ein Tippfehler auf einer
+ * Seite eine Erwähnung stumm ins Leere laufen lässt.
+ *
+ * Hier statt in `@gruenerator/contracts`: das Token reist im offenen
+ * `forcedTools`-Array mit, das auch `mcp:<serverId>` und Notizbuch-IDs trägt und
+ * deshalb kein `z.enum` sein KANN. Ein Contract-Enum wäre also ein sechster
+ * Schreiber, der nichts validiert. Diese Datei ist dagegen schon die Heimat
+ * jedes anderen Erwähnungs-Tokens und wird von beiden Seiten importiert.
+ *
+ * `pdf-erstellen` ist die eine Art, die AUCH eine Intent-Erwähnung hat
+ * (`create_pdf.forcedTool`). Das Literal steht hier trotzdem, damit die Menge
+ * ein Literal-Typ bleibt; `chatIntents.vitest.ts` bindet die beiden aneinander,
+ * damit sie nicht auseinanderlaufen.
+ */
+export const ARTIFACT_CREATE_TOKENS = {
+  board: 'board-erstellen',
+  sheet: 'sheet-erstellen',
+  presentation: 'praesentation-erstellen',
+  document: 'dokument-erstellen',
+  pdf: 'pdf-erstellen',
+} as const;
+
+/** Die Artefaktarten, die eine Erstell-Erwähnung haben. */
+export type ArtifactCreateKind = keyof typeof ARTIFACT_CREATE_TOKENS;
+
+/** Die F0-Token selbst, als Literal-Union — Konsumenten nehmen die, nie `string`. */
+export type ArtifactCreateToken = (typeof ARTIFACT_CREATE_TOKENS)[ArtifactCreateKind];
+
 export interface ArtifactIntent extends IntentBase, Mentionable {
   category: 'artifact';
   /**
@@ -181,8 +219,13 @@ export interface ArtifactIntent extends IntentBase, Mentionable {
    * pseudo-id rather than the intent name, which is exactly why it must be
    * written down. `null` means the intent has no create-route entry and is
    * reached only by classification (`create_recurring_task`).
+   *
+   * Typed against {@link ARTIFACT_CREATE_TOKENS} rather than `string`: the set
+   * is F0, and this field was the second writer of it. Narrowing means an entry
+   * here cannot invent a token the create registry has never heard of — which is
+   * the failure this could previously have compiled.
    */
-  forcedTool: string | null;
+  forcedTool: ArtifactCreateToken | null;
   /** Compound turns let the agentic loop call the fat tool instead. */
   skipOnAgentic: boolean;
 }
