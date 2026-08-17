@@ -11,6 +11,11 @@
  */
 
 import {
+  artifactKind,
+  skipsOnAgenticForKind,
+  type ArtifactKindId,
+} from '../services/artifactKindRegistry.js';
+import {
   generateAndCreateDocument,
   handleBoardCreation,
   handlePdfCreation,
@@ -84,24 +89,32 @@ export async function runCreateIntentStage({
       classifiedState.messages ?? []
     ).text;
 
+  /**
+   * The create routes, in DISPATCH order — deliberately not the registry's
+   * detection order. Two rows can both match one turn (`@board-erstellen` on a
+   * turn the classifier called `create_sheet`), and then the first one wins, so
+   * this sequence is behaviour.
+   *
+   * Only the `run` closures are written out here. Everything else — the F0
+   * mention token, the classifier intent, and whether a compound turn hands the
+   * job to the loop instead — is READ from the registries that already declare
+   * it: `ARTIFACT_CREATE_TOKENS` / `CHAT_INTENTS` in
+   * `@gruenerator/shared/chat-intents` for the two intent-bearing columns, and
+   * the artifact-kind registry for the token. They used to be re-typed here,
+   * which made this the second writer of an F0 string set and a third writer of
+   * `skipOnAgentic`.
+   */
   const createRoutes: Array<{
-    forcedTool: string;
-    /** Classifier intent that also triggers it (the @-tool-only branches
-     *  predate the create_* intents and have none). */
-    intent?: string;
-    /** Compound turns let the loop call the fat tool instead. */
-    skipOnAgentic: boolean;
+    kind: ArtifactKindId;
     run: () => Promise<boolean>;
   }> = [
     {
-      forcedTool: 'board-erstellen',
-      skipOnAgentic: false,
+      kind: 'board',
       // Board still takes the raw message: it resolves the topic itself.
       run: () => handleBoardCreation({ ...createTurnBase, lastUserMessage }),
     },
     {
-      forcedTool: 'dokument-erstellen',
-      skipOnAgentic: false,
+      kind: 'document',
       run: () =>
         generateAndCreateDocument({
           ...createTurnBase,
@@ -110,21 +123,15 @@ export async function runCreateIntentStage({
         }),
     },
     {
-      forcedTool: 'sheet-erstellen',
-      intent: 'create_sheet',
-      skipOnAgentic: true,
+      kind: 'sheet',
       run: () => handleSheetCreation({ ...createTurnBase, userContent: createTopic() }),
     },
     {
-      forcedTool: 'praesentation-erstellen',
-      intent: 'create_presentation',
-      skipOnAgentic: true,
+      kind: 'presentation',
       run: () => handlePresentationCreation({ ...createTurnBase, userContent: createTopic() }),
     },
     {
-      forcedTool: 'pdf-erstellen',
-      intent: 'create_pdf',
-      skipOnAgentic: true,
+      kind: 'pdf',
       run: () =>
         handlePdfCreation({
           ...createTurnBase,
@@ -135,10 +142,11 @@ export async function runCreateIntentStage({
   ];
 
   for (const route of createRoutes) {
-    if (route.skipOnAgentic && runAgentic) continue;
+    const { mentionToken, intent } = artifactKind(route.kind);
+    if (skipsOnAgenticForKind(route.kind) && runAgentic) continue;
     const triggered =
-      forcedTools?.includes(route.forcedTool) === true ||
-      (route.intent != null && classifiedState.intent === route.intent);
+      (mentionToken != null && forcedTools?.includes(mentionToken) === true) ||
+      (intent != null && classifiedState.intent === intent);
     if (!triggered) continue;
     if (await route.run()) {
       await cleanupPending(true);

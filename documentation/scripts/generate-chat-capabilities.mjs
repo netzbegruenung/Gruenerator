@@ -87,6 +87,41 @@ function parse(relFile) {
   );
 }
 
+/**
+ * Die F0-Erstell-Token, aus `chat-intents/index.ts` gelesen.
+ *
+ * Nötig, weil `mentionables.ts` seinen `identifier` für die vier
+ * `@…-erstellen`-Einträge nicht mehr als Literal schreibt, sondern als
+ * `ARTIFACT_CREATE_TOKENS.<art>` — die Menge ist F0 und darf nur einen Schreiber
+ * haben. Ein reiner Literal-Leser sieht dort nichts und liesse die vier
+ * Fähigkeiten aus dem Handbuch fallen; genau das ist beim Umbau passiert und
+ * wird unten laut statt still.
+ */
+function readArtifactCreateTokens() {
+  const sf = parse(SRC.chatIntents);
+  const out = {};
+  walk(sf, (node) => {
+    if (!ts.isVariableDeclaration(node)) return;
+    if (!ts.isIdentifier(node.name) || node.name.text !== 'ARTIFACT_CREATE_TOKENS') return;
+    let init = node.initializer;
+    // `{...} as const` → das Objektliteral steckt in der Assertion.
+    while (init && ts.isAsExpression(init)) init = init.expression;
+    if (!init || !ts.isObjectLiteralExpression(init)) return;
+    for (const prop of init.properties) {
+      if (!ts.isPropertyAssignment(prop) || !prop.name) continue;
+      if (!ts.isIdentifier(prop.name) && !ts.isStringLiteral(prop.name)) continue;
+      if (!ts.isStringLiteral(prop.initializer)) continue;
+      out[prop.name.text] = prop.initializer.text;
+    }
+  });
+  if (Object.keys(out).length === 0) {
+    throw new Error(
+      `${SRC.chatIntents}: ARTIFACT_CREATE_TOKENS not extractable — the shape changed.`
+    );
+  }
+  return out;
+}
+
 function stringProp(obj, name) {
   for (const p of obj.properties) {
     if (
@@ -98,6 +133,25 @@ function stringProp(obj, name) {
     ) {
       return p.initializer.text;
     }
+  }
+  return undefined;
+}
+
+/**
+ * Wie {@link stringProp}, aber für `<constName>.key` — aufgelöst über eine
+ * mitgegebene Tabelle. Der NAME der Konstante wird mitgeprüft: sonst löst jedes
+ * `Irgendwas.board` auf, und der Leser bestätigt eine Herkunft, die er nicht
+ * gelesen hat. Alles andere bleibt unauflösbar und wird beim Aufrufer zum
+ * Fehler.
+ */
+function constProp(obj, name, constName, table) {
+  for (const p of obj.properties) {
+    if (!ts.isPropertyAssignment(p) || !p.name || !ts.isIdentifier(p.name)) continue;
+    if (p.name.text !== name) continue;
+    const init = p.initializer;
+    if (!ts.isPropertyAccessExpression(init)) return undefined;
+    if (!ts.isIdentifier(init.expression) || init.expression.text !== constName) return undefined;
+    return table[init.name.text];
   }
   return undefined;
 }
@@ -299,11 +353,24 @@ function extractIntentMentions() {
  */
 function extractMentionables() {
   const sf = parse(SRC.mentionables);
+  const tokens = readArtifactCreateTokens();
   const out = {};
   walk(sf, (node) => {
     if (!ts.isObjectLiteralExpression(node)) return;
-    const identifier = stringProp(node, 'identifier');
     const title = stringProp(node, 'title');
+    const identifier =
+      stringProp(node, 'identifier') ??
+      constProp(node, 'identifier', 'ARTIFACT_CREATE_TOKENS', tokens);
+    // Ein Eintrag MIT Titel und Erwähnung, dessen Kennung nicht auflösbar ist,
+    // ist der eine Fehler, den dieser Leser bisher still beging: er liess ihn
+    // weg, und die Fähigkeit verschwand aus dem Handbuch, ohne dass etwas rot
+    // wurde. Lieber der Build als ein zu kurzes Verzeichnis.
+    if (title && stringProp(node, 'mention') && !identifier) {
+      throw new Error(
+        `${SRC.mentionables}: mentionable "${title}" has an unresolvable \`identifier\` — ` +
+          `only string literals and ARTIFACT_CREATE_TOKENS.<kind> are understood.`
+      );
+    }
     if (!identifier || !title) return;
     const entry = { title };
     const description = stringProp(node, 'description');
