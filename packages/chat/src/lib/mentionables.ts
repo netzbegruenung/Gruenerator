@@ -3,7 +3,11 @@ import {
   isLvItemVisibleForRoles,
   isLvNotebookVisibleForRoles,
 } from '@gruenerator/shared/agents';
-import { allIntentMentions, forcedToolFor } from '@gruenerator/shared/chat-intents';
+import {
+  allIntentMentions,
+  ARTIFACT_CREATE_TOKENS,
+  forcedToolFor,
+} from '@gruenerator/shared/chat-intents';
 import {
   PiFlask,
   PiMagnifyingGlass,
@@ -483,12 +487,20 @@ export interface BoardMentionable {
   slug: string;
 }
 
+/**
+ * Die vier `@…-erstellen`-Einträge sind statisch (sie kommen NICHT über
+ * `allIntentMentions()`), tragen aber F0-Token: der `identifier` ist der String,
+ * den der Parser in `forcedTools` legt und die Erstell-Route auflöst. Er kommt
+ * deshalb aus `ARTIFACT_CREATE_TOKENS` — siehe dort, warum die Menge nur einen
+ * Schreiber haben darf. `mention` (der getippte Slug) ist davon unabhängig und
+ * darf abweichen: `@tabelle-erstellen` löst `sheet-erstellen` aus.
+ */
 export const boardToolMentionables: Mentionable[] = [
   {
     type: 'board',
     category: 'function',
     trigger: '@',
-    identifier: 'board-erstellen',
+    identifier: ARTIFACT_CREATE_TOKENS.board,
     title: 'Board erstellen',
     description: 'Erstellt ein Board aus dem Chatverlauf',
     avatar: '✨',
@@ -531,7 +543,7 @@ export const sheetToolMentionables: Mentionable[] = [
     type: 'sheet',
     category: 'function',
     trigger: '@',
-    identifier: 'sheet-erstellen',
+    identifier: ARTIFACT_CREATE_TOKENS.sheet,
     title: 'Tabelle erstellen',
     description: 'Erstellt eine Tabelle (Spreadsheet) aus dem Chatverlauf',
     avatar: '✨',
@@ -564,7 +576,7 @@ export const presentationToolMentionables: Mentionable[] = [
     type: 'presentation',
     category: 'function',
     trigger: '@',
-    identifier: 'praesentation-erstellen',
+    identifier: ARTIFACT_CREATE_TOKENS.presentation,
     title: 'Präsentation erstellen',
     description: 'Erstellt eine Präsentation (Foliensatz) aus dem Chatverlauf',
     avatar: '🎬',
@@ -579,7 +591,7 @@ export const docToolMentionables: Mentionable[] = [
     type: 'doc',
     category: 'function',
     trigger: '@',
-    identifier: 'dokument-erstellen',
+    identifier: ARTIFACT_CREATE_TOKENS.document,
     title: 'Dokument erstellen',
     description: 'Erstellt ein Dokument aus dem Chatverlauf',
     avatar: '📝',

@@ -31,7 +31,7 @@
  * are layered on separately by `wrapToolsForLoop`.
  */
 import { isIntentAllowedForLocale } from '@gruenerator/shared/chat-intents';
-import { tool, type ToolSet } from 'ai';
+import { tool, type Tool, type ToolSet } from 'ai';
 import { z } from 'zod';
 
 import { lastUserText } from '../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
@@ -44,6 +44,7 @@ import { crawlAndDistill } from '../../../services/search/index.js';
 import { createLogger } from '../../../utils/logger.js';
 import { validateUrlForFetch } from '../../../utils/validation/urlSecurity.js';
 import { isEditorSurface } from '../services/agenticLoop/routing.js';
+import { artifactKind, type ArtifactKindId } from '../services/artifactKindRegistry.js';
 import { withImageProxy } from '../services/searchImagePayload.js';
 
 import {
@@ -723,57 +724,77 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
     // follow-up edits); presentation/sheet/document persist via createdDocument;
     // board renders from the `done` event.
     if (state.compoundGeneration === true && loop.req && !editorSurface) {
+      // Einmal festgehalten statt sechsmal gecastet: die Verengung aus der
+      // Bedingung oben gilt in den Closures unten nicht mehr.
+      const req = loop.req;
       const kind = state.compoundGenerationKind;
-      const enabled = (key: string): boolean => state.enabledTools?.[key] !== false;
       // The generation tools stay mounted under a research ban — only their
       // opening line flips from "Recherchiere ZUERST" to "arbeite mit dem, was
       // im Gespräch steht". Telling the model to search with no search tool
       // mounted is how a turn stalls or invents one.
-      if (kind === 'sharepic' && enabled('sharepic')) {
-        tools.sharepic = makeCreateSharepicTool({
-          sse,
-          state,
-          req: loop.req,
-          threadId: loop.threadId ?? null,
-          researchBanned,
-        });
-      } else if (kind === 'presentation' && enabled('create_presentation')) {
-        tools.create_presentation = makeCreateDocTool({
-          kind: 'presentation',
-          sse,
-          state,
-          req: loop.req,
-          sourceRegistry,
-          researchBanned,
-        });
-      } else if (kind === 'sheet' && enabled('create_sheet')) {
-        tools.create_sheet = makeCreateDocTool({
-          kind: 'sheet',
-          sse,
-          state,
-          req: loop.req,
-          sourceRegistry,
-          researchBanned,
-        });
-      } else if (kind === 'document' && enabled('create_document')) {
-        tools.create_document = makeCreateDocTool({
-          kind: 'document',
-          sse,
-          state,
-          req: loop.req,
-          sourceRegistry,
-          researchBanned,
-        });
-      } else if (kind === 'board' && enabled('create_board')) {
-        tools.create_board = makeCreateBoardTool({ state, req: loop.req, researchBanned });
-      } else if (kind === 'pdf' && enabled('create_pdf')) {
-        tools.create_pdf = makeCreatePdfTool({
-          sse,
-          state,
-          req: loop.req,
-          sourceRegistry,
-          researchBanned,
-        });
+      //
+      // One factory per kind, keyed by the registry's union instead of a chain
+      // of `else if`. The factories genuinely differ — the PDF tool carries the
+      // letterhead/sender/edit inputs, the board tool has no card path — so what
+      // is unified is the LOOKUP, not the construction. The `Record<
+      // ArtifactKindId, …>` is what buys the check: a new kind in the registry
+      // stops compiling here until it has a factory, where the chain would just
+      // have fallen through and mounted nothing at all. A turn like that still
+      // promised the artifact — `forceCompoundGeneration` then looks for a tool
+      // that was never there.
+      const mount: Readonly<Record<ArtifactKindId, () => Tool>> = {
+        sharepic: () =>
+          makeCreateSharepicTool({
+            sse,
+            state,
+            req,
+            threadId: loop.threadId ?? null,
+            researchBanned,
+          }),
+        presentation: () =>
+          makeCreateDocTool({
+            kind: 'presentation',
+            sse,
+            state,
+            req,
+            sourceRegistry,
+            researchBanned,
+          }),
+        sheet: () =>
+          makeCreateDocTool({
+            kind: 'sheet',
+            sse,
+            state,
+            req,
+            sourceRegistry,
+            researchBanned,
+          }),
+        document: () =>
+          makeCreateDocTool({
+            kind: 'document',
+            sse,
+            state,
+            req,
+            sourceRegistry,
+            researchBanned,
+          }),
+        board: () => makeCreateBoardTool({ state, req, researchBanned }),
+        pdf: () =>
+          makeCreatePdfTool({
+            sse,
+            state,
+            req,
+            sourceRegistry,
+            researchBanned,
+          }),
+      };
+      // The catalog key IS the registry's `loopToolName` — the same string
+      // `forceCompoundGeneration` looks the tool up by, so the two cannot drift.
+      if (kind != null) {
+        const { loopToolName } = artifactKind(kind);
+        if (state.enabledTools?.[loopToolName] !== false) {
+          tools[loopToolName] = mount[kind]();
+        }
       }
     }
   }
