@@ -13,6 +13,7 @@
 import type { ForbiddableArtifact } from './nodes/fastPathGuards.js';
 import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
+import type { ArtifactKindId } from '../../../routes/chat/services/artifactKindRegistry.js';
 import type { SystemMcpKey } from '../../../services/mcp/systemMcpServers.js';
 import type {
   WolkeFileRef,
@@ -968,8 +969,10 @@ export interface ChatGraphState {
   // Which generation fat tool to mount — derived from intent OR (for a demoted
   // `agentic` turn) the text noun, so "mach mir eine Tabelle draus" still mounts
   // create_sheet even though the intent is `agentic`, not `create_sheet`.
-  compoundGenerationKind?:
-    'sharepic' | 'presentation' | 'sheet' | 'document' | 'board' | 'pdf' | null;
+  // Die Art selbst ist die Registry-Union, nicht ein zweites handgeschriebenes
+  // Literal: dieses Feld war der siebte Schreiber derselben Menge, und ein hier
+  // fehlender Wert hätte im Katalog stumm kein Werkzeug montiert.
+  compoundGenerationKind?: ArtifactKindId | null;
   // Compound "research + edit the OPEN doc/board" (editor sidebars): runs the
   // research loop, then emits trigger_doc_edit/trigger_board_action with the
   // gathered sources as reference material. Synth writes only a short confirm.
