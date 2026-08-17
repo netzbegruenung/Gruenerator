@@ -8,7 +8,6 @@ import {
   dismissNotification,
   dismissAllNotifications,
   subscribeToUserNotifications,
-  unsubscribeFromUserNotifications,
 } from '../../services/notifications/index.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -38,15 +37,29 @@ router.get('/stream', (req: AuthRequest, res: Response) => {
   res.write(`event: connected\ndata: ${JSON.stringify({ userId })}\n\n`);
   flushRes();
 
+  // Diese Verbindung meldet sich mit IHREM eigenen Rückruf wieder ab, nicht
+  // über die Nutzer-ID — sonst nimmt der erste schließende Tab allen anderen
+  // Tabs derselben Person die Benachrichtigungen mit.
+  let unsubscribe: (() => Promise<void>) | null = null;
+  let closed = false;
+
   subscribeToUserNotifications(userId, (notification) => {
     res.write(`event: notification\ndata: ${JSON.stringify(notification)}\n\n`);
     flushRes();
-  }).catch((err: unknown) => {
-    log.warn('Failed to subscribe to notifications SSE', {
-      userId,
-      error: err instanceof Error ? err.message : String(err),
+  })
+    .then((dispose) => {
+      unsubscribe = dispose;
+      // Schließt der Browser, bevor das Abo stand, käme das `close`-Ereignis
+      // an einem noch leeren `unsubscribe` vorbei und der Rückruf bliebe für
+      // immer in der Menge stehen — samt offenem Redis-Kanal.
+      if (closed) void dispose();
+    })
+    .catch((err: unknown) => {
+      log.warn('Failed to subscribe to notifications SSE', {
+        userId,
+        error: err instanceof Error ? err.message : String(err),
+      });
     });
-  });
 
   const keepAlive = setInterval(() => {
     res.write(':keepalive\n\n');
@@ -54,8 +67,9 @@ router.get('/stream', (req: AuthRequest, res: Response) => {
   }, 30000);
 
   req.on('close', () => {
+    closed = true;
     clearInterval(keepAlive);
-    unsubscribeFromUserNotifications(userId).catch(() => {});
+    void unsubscribe?.();
   });
 });
 
