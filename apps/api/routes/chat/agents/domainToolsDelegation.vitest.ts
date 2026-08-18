@@ -127,6 +127,49 @@ describe('Parlaments-Werkzeuge erreichen ihren Dienst', () => {
     expect(out.sources).toContain('Beispiel Person');
   });
 
+  it('die Mehrdokument-Auffächerung kapert den Abruf nicht mehr', async () => {
+    // Der Regress, gegen den der Kern gezogen wurde: das Werkzeug rief
+    // `searchNode` mit gesetztem Intent erneut auf und nahm dessen Vorrede mit.
+    // Die Auffächerung kehrt VOR dem `switch` zurück, sobald der Turn zwei
+    // abrufbare Dokumentquellen trägt — gemessen fragte ein `@bundestag` die
+    // DIP dann NIE (`dipCalled=0`) und lieferte Dokumenttreffer unter dem Namen
+    // des Bundestags-Werkzeugs zurück.
+    btSearch.mockResolvedValue(DRUCKSACHE);
+
+    const out = (await exec(
+      makeBundestagTool({
+        state: stateWith({
+          documentSources: [
+            { kind: 'document', id: 'aaaaaaaa-1111' },
+            { kind: 'document', id: 'bbbbbbbb-2222' },
+          ],
+        } as Partial<ChatGraphState>),
+        sourceRegistry: createSourceRegistry(),
+      }),
+      { query: 'Wärmepumpe' }
+    )) as { resultCount: number; sources: string };
+
+    expect(btSearch).toHaveBeenCalledWith('Wärmepumpe');
+    expect(out.resultCount).toBeGreaterThan(0);
+    expect(out.sources).toContain('Drucksache 21/123');
+  });
+
+  it('für de-AT kommt die begründete Absage statt leerer Daten', async () => {
+    btSearch.mockResolvedValue(DRUCKSACHE);
+
+    const out = (await exec(
+      makeBundestagTool({
+        state: stateWith({ userLocale: 'de-AT' } as Partial<ChatGraphState>),
+        sourceRegistry: createSourceRegistry(),
+      }),
+      { query: 'Wärmepumpe' }
+    )) as { resultCount: number; sources: string };
+
+    expect(btSearch).not.toHaveBeenCalled();
+    expect(out.resultCount).toBe(1);
+    expect(out.sources).toContain('Nur für Deutschland');
+  });
+
   it('eine Fehlanzeige der DIP reist als ausdrücklicher Eintrag mit', async () => {
     // `standalone` in `buildBundestagResults`: ist die DIP der ganze Turn, IST
     // das ausdrückliche \u201enichts gefunden\u201c die Antwort und muss das Modell
