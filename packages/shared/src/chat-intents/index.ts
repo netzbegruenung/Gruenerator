@@ -216,6 +216,26 @@ export const ARTIFACT_CREATE_TOKENS = {
 /** Die Artefaktarten, die eine Erstell-Erwähnung haben. */
 export type ArtifactCreateKind = keyof typeof ARTIFACT_CREATE_TOKENS;
 
+/**
+ * Rück-Weg Token → Art, für die Stelle, die aus `forcedTools` liest.
+ *
+ * Die Erwähnung MUSS die Art sagen können, sonst leitet der Verbund-Pfad sie
+ * neu aus dem Substantiv im Text ab: `@sheet-erstellen` + „recherchiere X"
+ * ergab eine Tabelle nur, solange das Wort „Tabelle" im Text stand. Ein Pin ist
+ * hier dasselbe Argument wie bei `IntentMention.pinsTool` — die Wahl der Person
+ * steht fest, der Wortlaut ist nur ein Indiz.
+ */
+const KIND_BY_CREATE_TOKEN = new Map<string, ArtifactCreateKind>(
+  (Object.entries(ARTIFACT_CREATE_TOKENS) as Array<[ArtifactCreateKind, string]>).map(
+    ([kind, token]) => [token, kind]
+  )
+);
+
+/** Die Artefaktart, die dieses `forcedTools`-Token festzurrt — sonst `null`. */
+export function artifactKindForCreateToken(token: string): ArtifactCreateKind | null {
+  return KIND_BY_CREATE_TOKEN.get(token) ?? null;
+}
+
 /** Die F0-Token selbst, als Literal-Union — Konsumenten nehmen die, nie `string`. */
 export type ArtifactCreateToken = (typeof ARTIFACT_CREATE_TOKENS)[ArtifactCreateKind];
 
