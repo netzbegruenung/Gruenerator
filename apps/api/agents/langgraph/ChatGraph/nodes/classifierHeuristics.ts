@@ -233,6 +233,17 @@ export const INTENT_KEYWORDS: Record<
   search: ['wahlprogramm', 'beschluss', 'grundsatzprogramm'],
   examples: ['beispiel', 'vorlage', 'tweet', 'instagram', 'social'],
   abgeordnetenwatch: [
+    // Die Verbform steht neben den Substantiven, weil die natürliche Frageform
+    // sie benutzt: "Wie hat die SPD zum Heizungsgesetz abgestimmt?" traf keines
+    // der Substantive, fiel auf `direct@0.50` und wurde deshalb OHNE
+    // `loopDemotedFromRetrieval` demotiert — der Planer rief kein Werkzeug und
+    // antwortete mit dem Ehrlichkeitshinweis (Nightly-Eval 18.08.2026,
+    // `followup-bundestag-scope` t0). Der Fuzzy-Abgleich deckt darüber auch
+    // "gestimmt" ab. "Wie stimmte die FDP…" bleibt bewusst ungedeckt: mit
+    // 'stimmte' in der Liste kippten vier harmlose Sätze mit ("Stimmt die
+    // Aussage, dass…", "stimme den Text auf die Zielgruppe ab", "die Stimmung
+    // stimmte nicht") in einen erzwungenen Abruf. Gemessen, nicht geschätzt.
+    'abgestimmt',
     'abstimmungsverhalten',
     'nebentätigkeit',
     'nebentätigkeiten',
