@@ -11,7 +11,7 @@ vi.mock('../services/ai/execution/index.js', () => ({
 }));
 
 import { runClassifierCensus } from './classifierCensusHarness.js';
-import { CHAT_INTENTS, dispositionOf } from '@gruenerator/shared/chat-intents';
+import { ALL_CHAT_INTENTS, dispositionOf } from '@gruenerator/shared/chat-intents';
 import { renderClassifierCensus } from './renderClassifierCensus.js';
 
 /**
@@ -69,7 +69,12 @@ describe('Klassifikator-Dispositionszählung über den Eval-Korpus', () => {
     // hier fällt, ist die Emission. Wer einen Tier-Zweig so ändert, dass er
     // wieder ein retiredes Verdikt liefert, sieht es hier und nicht in
     // Produktion.
-    const retired = run.turns.filter((t) => CHAT_INTENTS[t.intent]?.availability === 'retired');
+    // `Set<string>`, nicht `Set<ChatIntentId>`: `CensusTurn.intent` traegt auch
+    // `ERR:…`, wenn der Klassifikator geworfen hat.
+    const retiredIds = new Set<string>(
+      ALL_CHAT_INTENTS.filter((i) => i.availability === 'retired').map((i) => i.id)
+    );
+    const retired = run.turns.filter((t) => retiredIds.has(t.intent));
     expect(
       retired.map((t) => `${t.id}: ${t.intent}`),
       'stillgelegte Intents werden wieder erzeugt — die Fähigkeit lebt im Loop, ' +
