@@ -109,9 +109,8 @@ export function shouldForceFirstToolCall(input: {
  * WELCHES Werkzeug gemeint ist, steht in der Registry an der Erwähnung
  * (`IntentMention.pinsTool`) und kommt als `mentionPinnedTool` hier an — diese
  * Funktion entscheidet nur noch, ob der Pin auch trägt. Erwähnungen ohne
- * einzelnes Zielwerkzeug pinnen nichts und bleiben bei `required`: `@doku`
- * montiert `gruenerator_docs_search` über seinen Intent, `@notion` ist ein
- * ganzer Server.
+ * einzelnes Zielwerkzeug pinnen nichts und bleiben bei `required`: `@notion`
+ * ist ein ganzer Server.
  *
  * Der Montage-Test ist nicht optional: die Locale-Gitter in `buildChatToolCatalog`
  * lassen `bundestag`/`abgeordnetenwatch` für de-AT weg, und ein Zwang auf ein

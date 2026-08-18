@@ -94,8 +94,15 @@ export interface IntentMention {
    * Erwähnung eine Fähigkeit festzurren, deren Intent stillgelegt ist:
    * `@umfragen` trägt `pinsTool: 'umfragen'`, während der gleichnamige Intent
    * `availability: 'retired'` ist. Wo eine Erwähnung KEIN einzelnes Werkzeug
-   * meint, bleibt das Feld leer — `@doku` montiert `gruenerator_docs_search`
-   * über seinen Intent, und `@notion` ist ein ganzer Server.
+   * meint, bleibt das Feld leer — `@notion` ist ein ganzer Server.
+   *
+   * `@doku` stand hier als zweites Gegenbeispiel („montiert sein Werkzeug über
+   * seinen Intent"). Das stimmte für die MONTAGE und war für den AUFRUF gerade
+   * falsch: der Doku-Index ist ohnehin breit montiert, nicht intent-gegattert,
+   * der Intent trug also nur die Schleife — und welches Werkzeug in ihr laufen
+   * soll, sagte niemand. `toolChoice: 'required'` verlangt irgendeinen Aufruf,
+   * und der Erwähnungstext ist vor dem Modell entfernt. Jetzt benennt der Pin
+   * ihn.
    */
   pinsTool?: string;
   /**
@@ -497,6 +504,7 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
       description: 'Anleitungen zum Grünerator aus der Doku',
       avatar: '📖',
       backgroundColor: '#0891B2',
+      pinsTool: 'gruenerator_docs_search',
     },
   },
   chat_history: {
