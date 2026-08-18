@@ -14,11 +14,17 @@ import {
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 
-const searchNode = vi.fn<(s: unknown) => Promise<unknown>>();
 const summarizeNode = vi.fn<(s: unknown) => Promise<unknown>>();
 const imageNode = vi.fn<(s: unknown) => Promise<unknown>>();
+// Die beiden Parlaments-Werkzeuge rufen den Kern, nicht den Knoten — deshalb
+// steht die Attrappe hier am Kern. Dass der Kern seinen Dienst wirklich
+// erreicht, prüft `domainToolsDelegation.vitest.ts` am ECHTEN Knoten.
+const retrieveBundestag = vi.fn<(q: string, l: unknown) => Promise<unknown>>();
+const retrieveAbgeordnetenwatch = vi.fn<(q: string, l: unknown) => Promise<unknown>>();
 vi.mock('../../../agents/langgraph/ChatGraph/nodes/searchNode.js', () => ({
-  searchNode: (s: unknown): Promise<unknown> => searchNode(s),
+  retrieveBundestag: (q: string, l: unknown): Promise<unknown> => retrieveBundestag(q, l),
+  retrieveAbgeordnetenwatch: (q: string, l: unknown): Promise<unknown> =>
+    retrieveAbgeordnetenwatch(q, l),
 }));
 vi.mock('../../../agents/langgraph/ChatGraph/nodes/summarizeNode.js', () => ({
   summarizeNode: (s: unknown): Promise<unknown> => summarizeNode(s),
@@ -45,6 +51,7 @@ function fakeSse(sink: SseEvent[]) {
 const baseState = {
   intent: 'search',
   searchQuery: null,
+  userLocale: 'de-DE',
   documentIds: [],
   documentChatIds: [],
 } as unknown as ChatGraphState;
@@ -97,20 +104,18 @@ describe('makeSummaryTool', () => {
 });
 
 describe('makeBundestagTool', () => {
-  beforeEach(() => searchNode.mockReset());
+  beforeEach(() => retrieveBundestag.mockReset());
 
   it('registers results with a raised snippet cap and returns the lean sources shape', async () => {
     const longExcerpt = `Rede zur Klimapolitik. ${'x'.repeat(500)} ENDE`;
-    searchNode.mockResolvedValue({
-      searchResults: [
-        {
-          source: 'bundestag',
-          url: 'https://dip.bundestag.de/x',
-          title: 'Drucksache 21/50 · Antrag',
-          content: longExcerpt,
-        },
-      ],
-    });
+    retrieveBundestag.mockResolvedValue([
+      {
+        source: 'bundestag',
+        url: 'https://dip.bundestag.de/x',
+        title: 'Drucksache 21/50 · Antrag',
+        content: longExcerpt,
+      },
+    ]);
     const sourceRegistry = createSourceRegistry();
     const out = (await exec(
       makeBundestagTool({
@@ -126,23 +131,19 @@ describe('makeBundestagTool', () => {
     expect(out.sources).toContain('[1] Drucksache 21/50 · Antrag');
     expect(sourceRegistry.renderAll()).toContain('ENDE');
     expect(sourceRegistry.size).toBe(1);
-    // searchNode was routed with the bundestag intent + the model's query.
-    expect(searchNode).toHaveBeenCalledWith(
-      expect.objectContaining({ intent: 'bundestag', searchQuery: 'Klima' })
-    );
+    // Der Kern bekommt die Anfrage des Modells und das Locale des Turns.
+    expect(retrieveBundestag).toHaveBeenCalledWith('Klima', 'de-DE');
   });
 
   it('registers the de-AT decline note as a citable source', async () => {
-    searchNode.mockResolvedValue({
-      searchResults: [
-        {
-          source: 'bundestag',
-          url: '',
-          title: 'Nur für Deutschland verfügbar',
-          content: 'Nur für Deutschland.',
-        },
-      ],
-    });
+    retrieveBundestag.mockResolvedValue([
+      {
+        source: 'bundestag',
+        url: '',
+        title: 'Nur für Deutschland verfügbar',
+        content: 'Nur für Deutschland.',
+      },
+    ]);
     const out = (await exec(
       makeBundestagTool({
         state: { ...baseState, intent: 'bundestag' } as ChatGraphState,
@@ -155,7 +156,7 @@ describe('makeBundestagTool', () => {
   });
 
   it('returns an error shape when the search comes back empty', async () => {
-    searchNode.mockResolvedValue({ searchResults: [] });
+    retrieveBundestag.mockResolvedValue([]);
     const out = (await exec(
       makeBundestagTool({
         state: { ...baseState, intent: 'bundestag' } as ChatGraphState,
@@ -169,19 +170,17 @@ describe('makeBundestagTool', () => {
 });
 
 describe('makeAbgeordnetenwatchTool', () => {
-  beforeEach(() => searchNode.mockReset());
+  beforeEach(() => retrieveAbgeordnetenwatch.mockReset());
 
   it('registers results and returns the lean sources shape', async () => {
-    searchNode.mockResolvedValue({
-      searchResults: [
-        {
-          source: 'abgeordnetenwatch',
-          url: 'https://aw.de/p',
-          title: 'Profil',
-          content: 'Stimmte dafür.',
-        },
-      ],
-    });
+    retrieveAbgeordnetenwatch.mockResolvedValue([
+      {
+        source: 'abgeordnetenwatch',
+        url: 'https://aw.de/p',
+        title: 'Profil',
+        content: 'Stimmte dafür.',
+      },
+    ]);
     const sourceRegistry = createSourceRegistry();
     const out = (await exec(
       makeAbgeordnetenwatchTool({
@@ -193,13 +192,11 @@ describe('makeAbgeordnetenwatchTool', () => {
     expect(out.resultCount).toBe(1);
     expect(out.sources).toContain('[1]');
     expect(sourceRegistry.size).toBe(1);
-    expect(searchNode).toHaveBeenCalledWith(
-      expect.objectContaining({ intent: 'abgeordnetenwatch', searchQuery: 'Habeck' })
-    );
+    expect(retrieveAbgeordnetenwatch).toHaveBeenCalledWith('Habeck', 'de-DE');
   });
 
   it('returns an error result when there are no results', async () => {
-    searchNode.mockResolvedValue({ searchResults: [] });
+    retrieveAbgeordnetenwatch.mockResolvedValue([]);
     const out = (await exec(
       makeAbgeordnetenwatchTool({
         state: { ...baseState, intent: 'abgeordnetenwatch' } as ChatGraphState,
