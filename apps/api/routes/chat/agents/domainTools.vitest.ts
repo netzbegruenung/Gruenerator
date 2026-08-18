@@ -625,7 +625,12 @@ describe('artifact briefs carry the conversation', () => {
     });
     const registry = createSourceRegistry();
     registry.register([
-      { title: 'Hitzeaktionsplan', url: 'https://example.at/hap', content: 'Cooling Zones …' },
+      {
+        source: 'documents',
+        title: 'Hitzeaktionsplan',
+        url: 'https://example.at/hap',
+        content: 'Cooling Zones …',
+      },
     ]);
     const state = stateWith([
       { role: 'user', content: 'Was steht im Hitzeaktionsplan?' },
