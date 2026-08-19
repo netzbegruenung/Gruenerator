@@ -270,6 +270,7 @@ async function runScopedLandesverband(
                 updated: result.updated,
                 skipped: result.skipped,
                 errors: result.errors,
+                ...(result.errorMessages.length ? { errorSamples: result.errorMessages } : {}),
                 duration: result.duration,
               },
             ],
