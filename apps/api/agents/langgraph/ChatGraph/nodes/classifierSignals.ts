@@ -506,6 +506,47 @@ export function detectComplexity(query: string): 'simple' | 'moderate' | 'comple
 }
 
 /**
+ * Ein Akteur mit Vor- und Nachnamen, in einem Rahmen, der ihn als Akteur ausweist.
+ *
+ * Die dritte Tür zum DIP-Zweig neben `partyKeywords` und
+ * `bundestagFactionKeywords` — und die, ohne die die Menge asymmetrisch war:
+ * „Recherchiere, wie die SPD beim Heizungsgesetz abgestimmt hat" bekam
+ * `documents+bundestag`, dieselbe Frage nach Renate Künast bekam nichts.
+ * Gemessen am `research`-Verdikt, dem Pfad, auf dem `searchSources` wirklich
+ * gelesen wird (der Loop wählt seine Werkzeuge selbst und liest das Feld nie).
+ *
+ * Gegen den ROHEN Text, nicht gegen die kleingeschriebene Kopie: Grossschreibung
+ * IST hier das Signal. `PERSON_PATTERNS` in `PersonDetectionService` löst
+ * dieselbe Aufgabe, taugt hier aber nicht — es ist async (MP-Cache +
+ * DIP-Abfrage), und sein `/i` macht `[A-ZÄÖÜ]` zu keiner Grossschreibungsprüfung
+ * mehr.
+ *
+ * Zwei Wächter, beide gemessen und nicht geschätzt:
+ *
+ *  - **Der Rahmen ist Pflicht.** Zwei grossgeschriebene Wörter allein treffen im
+ *    Deutschen jedes Nomenpaar. Ein Vorwort oder eine Anrede davor macht daraus
+ *    einen Akteur — zusammen mit der Parlaments-Bedingung an der Aufrufstelle.
+ *  - **Der Name darf keine Institution sein.** „Gesetzentwurf mit Kleiner
+ *    Anfrage" passiert den Rahmen (`mit` + zwei grosse Wörter) und ist keine
+ *    Person. Geprüft werden BEIDE Namensteile, weil der Fehlgriff mal vorne
+ *    („Deutschen Bundestag") und mal hinten sitzt („Kleiner Anfrage").
+ *
+ * Mindestens zwei Namensteile, damit „von Bayern" keine*n Abgeordnete*n ergibt.
+ */
+const PERSON_FRAME =
+  /(?:\b[Ww]ie(?:\s+(?:hat|haben))?|\b[Vv]on|\b[Dd]urch|\b[Mm]it|\b[Aa]bgeordnete[rn]?|\bMdB|\b(?:Dr|Prof)\.)\s+([A-ZÄÖÜ][a-zäöüß]+(?:-[A-ZÄÖÜ][a-zäöüß]+)?)\s+([A-ZÄÖÜ][a-zäöüß]+(?:-[A-ZÄÖÜ][a-zäöüß]+)?)/;
+
+/** Wörter, die im Rahmen stehen können, ohne je ein Personenname zu sein. */
+const NOT_A_NAME =
+  /^(bundestag\w*|bundesrat\w*|drucksache\w*|plenar\w*|plenum|gesetzentw(urf|ürf)\w*|anfrage\w*|antr(a|ä)g\w*|fraktion\w*|ausschuss\w*|partei\w*|regierung\w*|ministerium\w*|union|linke\w*|gr(ü|u)ne\w*|deutsch\w*|kleine\w*|gro(ß|ss)e\w*)$/i;
+
+function namesAPerson(query: string): boolean {
+  const m = PERSON_FRAME.exec(query);
+  if (!m) return false;
+  return !NOT_A_NAME.test(m[1] ?? '') && !NOT_A_NAME.test(m[2] ?? '');
+}
+
+/**
  * Detect whether a query needs multiple search sources (documents + web).
  * Returns an array of search sources to query in parallel.
  * Empty array means single-source mode (backward compatible, uses intent-based routing).
@@ -554,7 +595,10 @@ export function detectSearchSources(query: string, intent: SearchIntent): Search
   // ein Treffer würde eine AT-Frage an den deutschen Bundestag schicken.
   const bundestagFactionKeywords =
     /\b(spd|cdu|csu|afd|fdp|bsw|unionsfraktion|linksfraktion|linkspartei)\b|\b(die|der|den)\s+(linken?|union)\b/i;
-  if ((hasPartyKeywords || bundestagFactionKeywords.test(q)) && parliamentaryKeywords.test(q)) {
+  if (
+    (hasPartyKeywords || bundestagFactionKeywords.test(q) || namesAPerson(query)) &&
+    parliamentaryKeywords.test(q)
+  ) {
     return ['documents', 'bundestag'];
   }
 
