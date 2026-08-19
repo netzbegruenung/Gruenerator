@@ -75,10 +75,25 @@ const UNKNOWN: DeclineReason = {
   remedy: 'die Frage in einem neuen Chat allein an den Server stellen',
 };
 
-/** „a", „a und b", „a, b und c" — die Aufzählung soll sich lesen lassen. */
-function joinDe(parts: string[]): string {
-  if (parts.length <= 1) return parts[0] ?? '';
-  return `${parts.slice(0, -1).join(', ')} und ${parts[parts.length - 1]}`;
+/**
+ * Jeder Grund mit SEINER Abhilfe, nicht zwei getrennte Aufzählungen.
+ *
+ * Zwei Listen nebeneinander gingen unter, sobald eine Abhilfe selbst ein „und"
+ * oder „oder" trägt („Bild entfernen oder die Frage ohne den Bildanhang erneut
+ * stellen"): mit „und" verkettet verschwimmt die Grenze zwischen den Abhilfen,
+ * und die Person weiss nicht mehr, welche zu welchem Grund gehört. Bei EINEM
+ * Grund bleibt der fliessende Satz — die Nummerierung wäre dort Beiwerk.
+ */
+function composeMessage(reasons: DeclineReason[]): string {
+  const only = reasons[0];
+  if (reasons.length === 1 && only) {
+    return `Der gewählte Server wurde nicht befragt — ${only.cause}. Abhilfe: ${only.remedy}.`;
+  }
+  const items = reasons.map((r, i) => `(${i + 1}) ${r.cause} — Abhilfe: ${r.remedy}`).join('; ');
+  return (
+    `Der gewählte Server wurde nicht befragt. Es trafen mehrere Gründe zu, ` +
+    `und sie müssen alle behoben sein: ${items}.`
+  );
 }
 
 /**
@@ -113,23 +128,18 @@ export function reportMcpWithoutLoop(
   hasImageAttachments: boolean
 ): void {
   const reasons = reasonsFor(state, hasImageAttachments);
-  const cause = joinDe(reasons.map((r) => r.cause));
-  const remedy = joinDe(reasons.map((r) => r.remedy));
-  sendChatWarning(
-    sse,
-    'mcp_not_consulted',
-    `Der gewählte Server wurde nicht befragt — ${cause}. Abhilfe: ${remedy}.`
-  );
+  const message = composeMessage(reasons);
+  sendChatWarning(sse, 'mcp_not_consulted', message);
   state.degradationNotes = [
     ...(state.degradationNotes ?? []),
     {
       code: 'mcp_not_consulted',
       modelHint:
         `Der vom Nutzer per @-Erwähnung gewählte MCP-Server wurde für diesen Turn NICHT ` +
-        `befragt: ${cause}. Sag das zu Beginn deiner Antwort ehrlich und nenne den Ausweg ` +
-        `(${remedy}) — vollständig, wenn mehrere Gründe genannt sind. Tu NICHT so, als ` +
-        `hättest du Daten von diesem Server gesehen; wenn du trotzdem etwas beantworten ` +
-        `kannst, kennzeichne es ausdrücklich als Antwort ohne diese Quelle.`,
+        `befragt. ${message} Sag das zu Beginn deiner Antwort ehrlich und nenne JEDEN ` +
+        `genannten Grund samt seiner Abhilfe — eine allein löst den Turn nicht. Tu NICHT ` +
+        `so, als hättest du Daten von diesem Server gesehen; wenn du trotzdem etwas ` +
+        `beantworten kannst, kennzeichne es ausdrücklich als Antwort ohne diese Quelle.`,
     },
   ];
 }

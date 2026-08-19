@@ -91,6 +91,9 @@ describe('reportMcpWithoutLoop', () => {
     // Auch die Abhilfen vollständig — eine allein löst den Turn nicht.
     expect(s.degradationNotes?.[0]?.modelHint).toContain('allgemeinen Chat');
     expect(s.degradationNotes?.[0]?.modelHint).toContain('Bild entfernen');
+    // Jede Abhilfe hinter IHREM Grund: zwei getrennte Aufzählungen verschwimmen,
+    // sobald eine Abhilfe selbst ein „und"/„oder" trägt.
+    expect(message).toMatch(/\(1\).+— Abhilfe: .+; \(2\).+— Abhilfe: /);
   });
 
   // Erreicht heute niemand; der Zweig hält eine künftige vierte Sperre davon
