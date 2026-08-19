@@ -8,7 +8,6 @@ import {
   dismissNotification,
   dismissAllNotifications,
   subscribeToUserNotifications,
-  unsubscribeFromUserNotifications,
 } from '../../services/notifications/index.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -35,27 +34,49 @@ router.get('/stream', (req: AuthRequest, res: Response) => {
 
   const flushRes = () => (res as { flush?: () => void }).flush?.();
 
-  res.write(`event: connected\ndata: ${JSON.stringify({ userId })}\n\n`);
-  flushRes();
+  // Dieselbe Absicherung wie in `sseHelpers.ts`: auf eine beendete oder
+  // zerstörte Antwort zu schreiben ist ein Fehler, kein Sonderfall. Ohne das
+  // Gatter trägt der Rückruf den Fehler bis in die Zustell-Schleife des
+  // Pub/Sub — und mit ihm die Frage, wessen Strom daran schuld war.
+  const writeSse = (payload: string): void => {
+    if (res.writableEnded || res.destroyed) return;
+    res.write(payload);
+    flushRes();
+  };
+
+  writeSse(`event: connected\ndata: ${JSON.stringify({ userId })}\n\n`);
+
+  // Diese Verbindung meldet sich mit IHREM eigenen Rückruf wieder ab, nicht
+  // über die Nutzer-ID — sonst nimmt der erste schließende Tab allen anderen
+  // Tabs derselben Person die Benachrichtigungen mit.
+  let unsubscribe: (() => Promise<void>) | null = null;
+  let closed = false;
 
   subscribeToUserNotifications(userId, (notification) => {
-    res.write(`event: notification\ndata: ${JSON.stringify(notification)}\n\n`);
-    flushRes();
-  }).catch((err: unknown) => {
-    log.warn('Failed to subscribe to notifications SSE', {
-      userId,
-      error: err instanceof Error ? err.message : String(err),
+    writeSse(`event: notification\ndata: ${JSON.stringify(notification)}\n\n`);
+  })
+    .then((dispose) => {
+      unsubscribe = dispose;
+      // Schließt der Browser, bevor das Abo stand, käme das `close`-Ereignis
+      // an einem noch leeren `unsubscribe` vorbei und der Rückruf bliebe für
+      // immer in der Menge stehen — samt offenem Redis-Kanal.
+      if (closed) void dispose();
+    })
+    .catch((err: unknown) => {
+      log.warn('Failed to subscribe to notifications SSE', {
+        userId,
+        error: err instanceof Error ? err.message : String(err),
+      });
     });
-  });
 
   const keepAlive = setInterval(() => {
-    res.write(':keepalive\n\n');
-    flushRes();
+    writeSse(':keepalive\n\n');
   }, 30000);
 
   req.on('close', () => {
+    closed = true;
     clearInterval(keepAlive);
-    unsubscribeFromUserNotifications(userId).catch(() => {});
+    void unsubscribe?.();
   });
 });
 
