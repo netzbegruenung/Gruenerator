@@ -161,6 +161,9 @@ export interface GenericCanvasRef {
   captureCanvas: () => Promise<string | null>;
   /** Lightweight JPEG capture for sending the canvas to vision models. */
   captureCanvasForAi: () => Promise<string | null>;
+  /** Clears this page's element selection — the per-page store lives behind
+   *  CanvasStoreProvider, so the parent editor reaches it through this handle. */
+  deselect: () => void;
   /** Toolbar handlers — called by parent when toolbar is rendered at layout level */
   undo?: () => void;
   redo?: () => void;
@@ -624,6 +627,7 @@ function GenericCanvasWithRef<
       },
       captureCanvasForAi: async () =>
         captureStageImage(stageRef.current, { format: 'jpeg', pixelRatio: 1, quality: 0.85 }),
+      deselect: () => setSelectedElement(null),
       undo,
       redo,
       handleMoveLayer: (dir) => bridgeRef.current?.handleMoveLayer(dir),
@@ -637,7 +641,7 @@ function GenericCanvasWithRef<
       handleBlurChange: (id, blur) => bridgeRef.current?.handleBlurChange(id, blur),
       handleGradientSelect: (gradient) => bridgeRef.current?.handleGradientSelect(gradient),
     }),
-    [undo, redo, elementHandlers.handleFontSizeChange, handleAlign]
+    [undo, redo, elementHandlers.handleFontSizeChange, handleAlign, setSelectedElement]
   );
 
   return (
