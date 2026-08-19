@@ -41,6 +41,7 @@ import { aiText } from '../ai/generate.js';
 import { getEnrichedPersonSearchService } from '../bundestag/index.js';
 import { DocumentSearchService } from '../document-services/index.js';
 import { queryIntentService } from '../QueryIntentService/QueryIntentService.js';
+import { type QdrantFilter } from '../QueryIntentService/types.js';
 import {
   expandResultsToChunks,
   deduplicateResults,
@@ -87,6 +88,34 @@ const log = createLogger('NotebookQAService');
 const documentSearchService = new DocumentSearchService();
 
 /**
+ * Engt eine Suche auf EIN Programm der Sammlung `grundsatz_documents` ein.
+ *
+ * `primary_category` und nicht `title`, und das ist die Reparatur eines
+ * gemessenen Totalausfalls: der Titelfilter setzte einen EXAKTEN Match mit
+ * einem PRÄFIX des gespeicherten Titels ('Grundsatzprogramm 2020' gegen
+ * 'Grundsatzprogramm 2020 – Veränderung schafft Halt'). Am 19.08.2026 live
+ * gegen Qdrant nachgezählt: alle drei Muster trafen 0 von 968 Punkten, jede
+ * programm-namentliche Notizbuch-Frage bekam eine Geisterantwort — während
+ * dieselbe Sammlung der Chat-Oberfläche ungefiltert 90 Treffer lieferte.
+ *
+ * `primary_category` ist in `systemCollectionsConfig` als filterbar deklariert,
+ * in Qdrant indiziert und partitioniert die Sammlung vollständig
+ * (231/402/335 = 968). Der Titel ist Prosa und ändert sich mit dem Untertitel;
+ * die Kategorie ist der stabile Schlüssel.
+ */
+function withProgramFilter(
+  filter: QdrantFilter | undefined,
+  primaryCategory: string | null | undefined
+): QdrantFilter | undefined {
+  if (!primaryCategory) return filter;
+  const clause = { key: 'primary_category', match: { value: primaryCategory } };
+  return {
+    ...(filter ?? {}),
+    must: [...(filter?.must ?? []), clause],
+  } as QdrantFilter;
+}
+
+/**
  * Per-source budget for the fast-mode prompt. Smaller than
  * PROMPT_SOURCE_MAX_CHARS because fast mode packs 15 sources and answers
  * briefly — but still the matched passage, not the chunk's opening.
@@ -131,8 +160,8 @@ export class NotebookQAService {
       collections: detectedScope.collections,
       subcategoryFilters: detectedScope.subcategoryFilters,
       ...(detectedScope.detectedPhrase && { detectedPhrase: detectedScope.detectedPhrase }),
-      ...(detectedScope.documentTitleFilter && {
-        documentTitleFilter: detectedScope.documentTitleFilter,
+      ...(detectedScope.documentCategoryFilter && {
+        documentCategoryFilter: detectedScope.documentCategoryFilter,
       }),
     };
     const effectiveCollectionIds = documentScope.detectedPhrase
@@ -341,8 +370,8 @@ export class NotebookQAService {
       ...(detectedScopeSingle.detectedPhrase && {
         detectedPhrase: detectedScopeSingle.detectedPhrase,
       }),
-      ...(detectedScopeSingle.documentTitleFilter && {
-        documentTitleFilter: detectedScopeSingle.documentTitleFilter,
+      ...(detectedScopeSingle.documentCategoryFilter && {
+        documentCategoryFilter: detectedScopeSingle.documentCategoryFilter,
       }),
     };
     const effectiveFilters: RequestFilters = {
@@ -368,11 +397,12 @@ export class NotebookQAService {
       searchCollection: isSystem ? systemConfig.qdrantCollection : 'documents',
       userId: isSystem ? null : userId,
       documentIds: isSystem ? undefined : documentIds,
-      titleFilter:
+      additionalFilter: withProgramFilter(
+        additionalFilter,
         isSystem && collectionId === 'grundsatz-system'
-          ? documentScope.documentTitleFilter
-          : undefined,
-      additionalFilter,
+          ? documentScope.documentCategoryFilter
+          : undefined
+      ),
       searchParams,
     });
 
@@ -578,8 +608,8 @@ export class NotebookQAService {
       collections: detectedScope.collections,
       subcategoryFilters: detectedScope.subcategoryFilters,
       ...(detectedScope.detectedPhrase && { detectedPhrase: detectedScope.detectedPhrase }),
-      ...(detectedScope.documentTitleFilter && {
-        documentTitleFilter: detectedScope.documentTitleFilter,
+      ...(detectedScope.documentCategoryFilter && {
+        documentCategoryFilter: detectedScope.documentCategoryFilter,
       }),
     };
 
@@ -699,8 +729,8 @@ export class NotebookQAService {
       ...(detectedScopeSingle.detectedPhrase && {
         detectedPhrase: detectedScopeSingle.detectedPhrase,
       }),
-      ...(detectedScopeSingle.documentTitleFilter && {
-        documentTitleFilter: detectedScopeSingle.documentTitleFilter,
+      ...(detectedScopeSingle.documentCategoryFilter && {
+        documentCategoryFilter: detectedScopeSingle.documentCategoryFilter,
       }),
     };
     const effectiveFilters: RequestFilters = {
@@ -733,11 +763,12 @@ export class NotebookQAService {
               searchCollection: isSystem ? systemConfig.qdrantCollection : 'documents',
               userId: isSystem ? null : (userId ?? null),
               documentIds: isSystem ? undefined : documentIds,
-              titleFilter:
+              additionalFilter: withProgramFilter(
+                additionalFilter,
                 isSystem && collectionId === 'grundsatz-system'
-                  ? documentScope.documentTitleFilter
-                  : undefined,
-              additionalFilter,
+                  ? documentScope.documentCategoryFilter
+                  : undefined
+              ),
               searchParams,
             });
 
@@ -830,10 +861,11 @@ export class NotebookQAService {
     }
 
     const searchParams = applyDepthProfile(getSearchParams(collectionId), profile);
-    const titleFilter =
-      collectionId === 'grundsatz-system' ? documentScope.documentTitleFilter : undefined;
     const subcategoryFilter = buildSubcategoryFilter(filters as SubcategoryFilters);
-    const additionalFilter = applyDefaultFilter(collectionId, subcategoryFilter);
+    const additionalFilter = withProgramFilter(
+      applyDefaultFilter(collectionId, subcategoryFilter),
+      collectionId === 'grundsatz-system' ? documentScope.documentCategoryFilter : undefined
+    );
 
     try {
       const resp = await documentSearchService.search({
@@ -848,7 +880,6 @@ export class NotebookQAService {
           searchCollection: config.qdrantCollection,
           recallLimit: searchParams.recallLimit,
           qualityMin: searchParams.qualityMin,
-          titleFilter,
           additionalFilter,
         },
       });
@@ -939,7 +970,6 @@ export class NotebookQAService {
     searchCollection,
     userId,
     documentIds,
-    titleFilter,
     additionalFilter,
     searchParams,
   }: InternalSearchOptions): Promise<SearchResultInput[]> {
@@ -956,7 +986,6 @@ export class NotebookQAService {
         searchCollection,
         recallLimit: searchParams.recallLimit,
         qualityMin: searchParams.qualityMin,
-        titleFilter,
         additionalFilter,
       },
     });
@@ -1064,7 +1093,11 @@ export class NotebookQAService {
       response_time_ms: Date.now() - startTime,
       collections_queried: collectionIds,
       document_scope_detected: documentScope.detectedPhrase || null,
-      document_title_filter: documentScope.documentTitleFilter || null,
+      // Der Drahtname bleibt `document_title_filter` — er steht im
+      // Notizbuch-Contract und ist damit extern eingefroren. Der Wert ist seit
+      // der Reparatur die `primary_category` des gemeinten Programms; die
+      // Diagnose („auf welches Dokument wurde eingegrenzt") ist dieselbe.
+      document_title_filter: documentScope.documentCategoryFilter || null,
       subcategory_filters_applied: Object.keys(filters).length > 0 ? filters : null,
       total_results: totalResults,
       citations_count: citationsCount,

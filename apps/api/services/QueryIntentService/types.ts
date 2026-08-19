@@ -107,8 +107,8 @@ export interface SubcategoryFilters {
 export interface DocumentScope {
   /** Collection IDs to search */
   collections: string[];
-  /** Optional document title filter */
-  documentTitleFilter: string | null;
+  /** Programm-Eingrenzung als `primary_category`-Wert, oder `null` */
+  documentCategoryFilter: string | null;
   /** Detected phrase that triggered this scope */
   detectedPhrase: string | null;
   /** Subcategory filters to apply */
@@ -133,6 +133,10 @@ export interface DocumentScopePattern {
   re: RegExp;
   /** Collection IDs to use when matched */
   collections: string[];
-  /** Optional title filter to apply */
-  titleFilter: string | null;
+  /**
+   * `primary_category`-Wert des gemeinten Dokuments, oder `null` für „ganze
+   * Sammlung". Muss einem Wert entsprechen, den der Scraper wirklich schreibt —
+   * bewacht von `documentScope.vitest.ts`.
+   */
+  primaryCategory: string | null;
 }
