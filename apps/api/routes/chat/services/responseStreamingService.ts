@@ -43,6 +43,7 @@ import {
 } from './sseHelpers.js';
 import { createIdleDeadline, type IdleDeadline } from './streamIdleDeadline.js';
 import { resolveAbortOutcome } from './turnAbortOutcome.js';
+import { TURN_CEILING_MS } from './turnDeadline.js';
 
 const log = createLogger('ResponseStreaming');
 
@@ -496,6 +497,11 @@ class ReasoningBudgetExceededError extends Error {
  */
 export type StreamFailure = FirstTokenTimeoutError | EmptyCompletionError;
 
+/** Nur für den Test der Abbruch-Einstufung: die Einstufung selbst ist die
+ *  Aussage (`turn_ceiling` ist ein Timeout, kein Nutzer-Abbruch), und sie ist
+ *  von aussen sonst nur über einen kompletten Stream-Lauf zu erreichen. */
+export type { AbortCause };
+
 export function isStreamFailure(err: unknown): err is StreamFailure {
   return err instanceof FirstTokenTimeoutError || err instanceof EmptyCompletionError;
 }
@@ -512,16 +518,22 @@ export function isStreamFailure(err: unknown): err is StreamFailure {
  * (falsch etikettiert, aber wenigstens ein Fallback), in Phase 2 als FERTIGE
  * Antwort, die anschliessend als vollständiger Zug gespeichert wurde.
  */
-type AbortCause = 'caller' | 'reasoning_budget' | 'wall_clock' | null;
+type AbortCause = 'caller' | 'turn_ceiling' | 'reasoning_budget' | 'wall_clock' | null;
 
-function abortCause(sources: {
+export function abortCause(sources: {
   caller?: AbortSignal | undefined;
+  turnCeiling?: AbortSignal | undefined;
   reasoningBudget?: AbortSignal | undefined;
   wall: AbortSignal;
 }): AbortCause {
   // Reihenfolge = Vorrang: ein vom Nutzer abgebrochener Zug ist kein Timeout,
   // auch wenn eine Frist im selben Tick mitgefeuert hat.
   if (sources.caller?.aborted) return 'caller';
+  // Die Turn-Decke steht ÜBER dem Denk-Budget, obwohl sie später eingeführt
+  // wurde: das Denk-Budget ist behebbar (derselbe Zug fährt ohne Denken nach),
+  // die Decke ist es nicht. Wer nach der Decke ohne Denken nachfährt, fährt
+  // gegen ein bereits abgebrochenes Signal.
+  if (sources.turnCeiling?.aborted) return 'turn_ceiling';
   if (sources.reasoningBudget?.aborted) return 'reasoning_budget';
   if (sources.wall.aborted) return 'wall_clock';
   return null;
@@ -545,12 +557,29 @@ function isAbortError(err: unknown): boolean {
  * einziges Token ist genau das, was `FirstTokenTimeoutError` beschreibt — also
  * Fallback und klare Meldung statt `code:'internal'`.
  */
-function phase1AbortError(
+export function phase1AbortError(
   cause: AbortCause,
-  budgets: { reasoningBudgetMs?: number | undefined; wallClockMs: number },
+  budgets: {
+    reasoningBudgetMs?: number | undefined;
+    wallClockMs: number;
+    turnCeilingMs?: number | undefined;
+  },
   fallback: () => Error
 ): Error {
   if (cause === 'caller') return new DOMException('Aborted by caller', 'AbortError');
+  // Die Turn-Decke ist ein Timeout, KEIN Nutzer-Abbruch — der Unterschied ist
+  // der ganze Punkt. `'caller'` wirft absichtlich eine nackte `AbortError`, die
+  // kein {@link StreamFailure} ist: sie fliegt an `streamWithFallback` vorbei
+  // bis in den Router-Catch und erreicht den Client als `code:'internal'`. Für
+  // einen abgebrochenen Nutzer ist das richtig (niemand will die Antwort noch),
+  // für eine gerissene Decke wäre es genau die stumme Meldung, gegen die die
+  // Decke gebaut wurde. Als `FirstTokenTimeoutError` läuft sie stattdessen
+  // durch den geordneten Weg: Sibling-Versuch (der am selben, bereits
+  // abgebrochenen Signal sofort zurückkommt), Salvage, und am Ende ein sauberes
+  // `first_token_timeout` mit `retryable: true` statt `internal`.
+  if (cause === 'turn_ceiling') {
+    return new FirstTokenTimeoutError(budgets.turnCeilingMs ?? budgets.wallClockMs);
+  }
   if (cause === 'reasoning_budget') {
     return new ReasoningBudgetExceededError(budgets.reasoningBudgetMs ?? 0);
   }
@@ -588,6 +617,9 @@ async function streamAndAccumulateOrThrow(params: {
   temperature: number;
   sse: SSEWriter;
   signal?: AbortSignal;
+  /** Die Turn-Decke (turnDeadline.ts). Getrennt von `signal`, weil `abortCause`
+   *  einen Nutzer-Abbruch anders einstuft als ein Timeout. */
+  turnSignal?: AbortSignal;
   logPrefix?: string;
   providerOptions?: Parameters<typeof streamText>[0]['providerOptions'];
   telemetry?: Parameters<typeof streamText>[0]['experimental_telemetry'];
@@ -603,6 +635,7 @@ async function streamAndAccumulateOrThrow(params: {
     temperature,
     sse,
     signal,
+    turnSignal,
     logPrefix = '[ChatGraph]',
     providerOptions,
     telemetry,
@@ -625,16 +658,22 @@ async function streamAndAccumulateOrThrow(params: {
   const reasoningBudget = reasoningBudgetMs != null ? createAbortTimer(reasoningBudgetMs) : null;
   const composed = AbortSignal.any([
     ...(signal ? [signal] : []),
+    ...(turnSignal ? [turnSignal] : []),
     deadlineSignal,
     wall.signal,
     ...(reasoningBudget ? [reasoningBudget.signal] : []),
   ]);
   const causeOf = (): AbortCause =>
-    abortCause({ caller: signal, reasoningBudget: reasoningBudget?.signal, wall: wall.signal });
+    abortCause({
+      caller: signal,
+      turnCeiling: turnSignal,
+      reasoningBudget: reasoningBudget?.signal,
+      wall: wall.signal,
+    });
   const abortErrorForPhase1 = (): Error =>
     phase1AbortError(
       causeOf(),
-      { reasoningBudgetMs, wallClockMs },
+      { reasoningBudgetMs, wallClockMs, turnCeilingMs: TURN_CEILING_MS },
       () => new EmptyCompletionError()
     );
 
@@ -774,6 +813,9 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
   temperature: number;
   sse: SSEWriter;
   signal?: AbortSignal;
+  /** Die Turn-Decke (turnDeadline.ts). Getrennt von `signal`, weil `abortCause`
+   *  einen Nutzer-Abbruch anders einstuft als ein Timeout. */
+  turnSignal?: AbortSignal;
   logPrefix?: string;
   firstTokenDeadlineMs?: number;
   wallClockMs?: number;
@@ -788,6 +830,7 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
     temperature,
     sse,
     signal,
+    turnSignal,
     effort,
     logPrefix = '[ChatGraph]',
     firstTokenDeadlineMs = FIRST_TOKEN_DEADLINE_MS,
@@ -808,12 +851,18 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
   const reasoningBudget = createAbortTimer(reasoningBudgetMs);
   const composed = AbortSignal.any([
     ...(signal ? [signal] : []),
+    ...(turnSignal ? [turnSignal] : []),
     deadlineSignal,
     wall.signal,
     reasoningBudget.signal,
   ]);
   const causeOf = (): AbortCause =>
-    abortCause({ caller: signal, reasoningBudget: reasoningBudget.signal, wall: wall.signal });
+    abortCause({
+      caller: signal,
+      turnCeiling: turnSignal,
+      reasoningBudget: reasoningBudget.signal,
+      wall: wall.signal,
+    });
 
   const streamParams: Parameters<typeof streamWithReasoning>[0] = {
     provider,
@@ -1041,11 +1090,23 @@ export async function streamForResolution(params: {
   temperature: number;
   sse: SSEWriter;
   signal?: AbortSignal;
+  /** Die Turn-Decke (turnDeadline.ts). Getrennt von `signal`, weil `abortCause`
+   *  einen Nutzer-Abbruch anders einstuft als ein Timeout. */
+  turnSignal?: AbortSignal;
   logPrefix?: string;
   telemetry?: Parameters<typeof streamText>[0]['experimental_telemetry'];
 }): Promise<string | null> {
-  const { resolution, messages, maxTokens, temperature, sse, signal, logPrefix, telemetry } =
-    params;
+  const {
+    resolution,
+    messages,
+    maxTokens,
+    temperature,
+    sse,
+    signal,
+    turnSignal,
+    logPrefix,
+    telemetry,
+  } = params;
 
   const thinking = thinksOnThisLane(
     resolution.provider,
@@ -1094,6 +1155,7 @@ export async function streamForResolution(params: {
       wallClockMs: THINKING_WALL_CLOCK_MS,
     };
     if (signal) args.signal = signal;
+    if (turnSignal) args.turnSignal = turnSignal;
     if (logPrefix) args.logPrefix = logPrefix;
     // `thinking` is true here, so the setting is one of low/medium/high.
     args.effort = resolution.reasoningEffort as ThinkingEffort;
@@ -1162,6 +1224,7 @@ export async function streamForResolution(params: {
     firstTokenDeadlineMs,
   };
   if (signal) args.signal = signal;
+  if (turnSignal) args.turnSignal = turnSignal;
   if (logPrefix) args.logPrefix = logPrefix;
   if (telemetry) args.telemetry = telemetry;
   // Mistral reasoning models (e.g. Medium 3.5) only think when `reasoningEffort`
