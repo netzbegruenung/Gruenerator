@@ -125,3 +125,29 @@ describe('the axis covers what a mention can actually pin', () => {
     }
   });
 });
+
+describe('the loop lane is the set without a single-pass executor', () => {
+  /**
+   * Die Regel, die Phase N eingeführt hat, als Prüfmittel statt als Kommentar:
+   * ein Intent auf dieser Achse hat keinen Einzeldurchlauf, also MUSS die
+   * Registry sagen, wohin ein Turn ausweicht, den ein Notausschalter aus der
+   * Schleife hält (`fallbackIntentFor` liest genau dieses Feld). Fehlt das
+   * Ziel, gibt es einen Zustand, in dem niemand den Turn ausführt — und der
+   * fällt sonst erst im Betrieb auf, still, über `default: log.warn`.
+   *
+   * `mcp` ist die begründete Ausnahme und steht hier namentlich, damit ein
+   * zweiter Ausnahmefall nicht unbemerkt dazukommt: für ihn wäre eine Websuche
+   * keine Degradierung, sondern eine andere Quelle als die gewählte.
+   */
+  it('every loop-lane intent declares a degradeTo, except mcp', () => {
+    for (const id of intentsWithForcedLane('loop')) {
+      if (id === 'mcp') continue;
+      expect(CHAT_INTENTS[id].degradeTo, `${id} braucht ein degradeTo`).toBeDefined();
+    }
+  });
+
+  it('mcp is the one deliberate exception', () => {
+    expect(forcedLaneOf('mcp')).toBe('loop');
+    expect(CHAT_INTENTS.mcp.degradeTo).toBeUndefined();
+  });
+});
