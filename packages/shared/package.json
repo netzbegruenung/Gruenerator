@@ -244,8 +244,8 @@
     "nanoid": "^6.0.0",
     "react-icons": "^5.7.0",
     "tailwind-merge": "^3.6.0",
-    "yjs": "^13.6.31",
-    "zustand": "^5.0.14"
+    "yjs": "^13.6.32",
+    "zustand": "^5.0.15"
   },
   "devDependencies": {
     "@gruenerator/eslint-config": "workspace:*",

@@ -31,11 +31,11 @@
     "@hocuspocus/server": "^4.4.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "jose": "^6.2.8",
+    "jose": "^6.2.9",
     "pg": "^8.22.0",
     "redis": "^6.1.0",
     "winston": "^3.19.0",
-    "yjs": "^13.6.31"
+    "yjs": "^13.6.32"
   },
   "devDependencies": {
     "@gruenerator/eslint-config": "workspace:*",
