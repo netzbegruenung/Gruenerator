@@ -5,10 +5,10 @@
  * `executeIntentPipeline` hat für `mcp` keinen Zweig, und `searchNode` bricht
  * für diesen Intent ohne Abruf ab. `decideRunAgentic` lässt den Turn deshalb
  * über `mustLoop` bedingungslos ins Gate, aber drei Einzeldurchlauf-Notausschalter
- * greifen auch danach noch: ein Bildanhang, ein Verbund-Agent und ein zweiter
- * Intent. Trifft einer davon, lief der Turn bis hierher stumm als gewöhnliche
- * Antwort aus dem Gedächtnis weiter — mit dem gewählten Server ungefragt und
- * ohne ein Wort darüber.
+ * greifen auch danach noch: ein Verbund-Agent, ein zweiter Intent und ein
+ * Bildanhang. Trifft einer davon, lief der Turn bis hierher stumm als
+ * gewöhnliche Antwort aus dem Gedächtnis weiter — mit dem gewählten Server
+ * ungefragt und ohne ein Wort darüber.
  *
  * Warum kein `degradeTo` auf `web` statt dieser Absage: eine Websuche ist eine
  * ANDERE Quelle als der gemeinte Server, nicht eine schwächere. Für die
@@ -35,25 +35,54 @@ interface DeclineReason {
   remedy: string;
 }
 
-function reasonFor(state: ChatGraphState, hasImageAttachments: boolean): DeclineReason {
-  // Reihenfolge wie in `decideRunAgentic`: der erste zutreffende Notausschalter
-  // ist der, den die Person abstellen kann.
-  if (hasImageAttachments) {
-    return {
-      cause: 'Anfragen an einen verbundenen Server können keine Bildanhänge verarbeiten',
-      remedy: 'Bild entfernen oder die Frage ohne den Bildanhang erneut stellen',
-    };
-  }
-  if (state.isCompound) {
-    return {
-      cause: 'dieser Grünerator-Agent arbeitet mit einer festen Wissenssammlung',
-      remedy: 'die Frage im allgemeinen Chat statt bei diesem Agenten stellen',
-    };
-  }
-  return {
-    cause: 'die Anfrage trägt neben dem Server noch eine zweite Absicht',
-    remedy: 'die Frage auf den Server allein zuschneiden und Weiteres separat fragen',
-  };
+const COMPOUND: DeclineReason = {
+  cause: 'dieser Grünerator-Agent arbeitet mit einer festen Wissenssammlung',
+  remedy: 'die Frage im allgemeinen Chat statt bei diesem Agenten stellen',
+};
+
+const SECONDARY: DeclineReason = {
+  cause: 'die Anfrage trägt neben dem Server noch eine zweite Absicht',
+  remedy: 'die Frage auf den Server allein zuschneiden und Weiteres separat fragen',
+};
+
+const IMAGE: DeclineReason = {
+  cause: 'Anfragen an einen verbundenen Server können keine Bildanhänge verarbeiten',
+  remedy: 'Bild entfernen oder die Frage ohne den Bildanhang erneut stellen',
+};
+
+/**
+ * Auffang, falls die Kette hier ankommt, ohne dass einer der drei Schalter
+ * greift. Heute unerreichbar (die vierte Sperre `hasSelectedNotebook` hebt
+ * `mustLoop` für `mcp` auf, und `forcedLoop` deckt `forcedTool`), aber eine
+ * neue Sperre in `decideRunAgentic` fiele sonst still auf den letzten Grund
+ * der Liste zurück und nennte eine Abhilfe, die nichts ändert.
+ */
+const UNKNOWN: DeclineReason = {
+  cause: 'dieser Turn lief als Einzeldurchlauf, in dem es keine Server-Werkzeuge gibt',
+  remedy: 'die Frage in einem neuen Chat allein an den Server stellen',
+};
+
+/** „a", „a und b", „a, b und c" — die Aufzählung soll sich lesen lassen. */
+function joinDe(parts: string[]): string {
+  if (parts.length <= 1) return parts[0] ?? '';
+  return `${parts.slice(0, -1).join(', ')} und ${parts[parts.length - 1]}`;
+}
+
+/**
+ * ALLE zutreffenden Notausschalter, nicht nur der erste.
+ *
+ * Die Reihenfolge ist die Kurzschluss-Kette aus `decideRunAgentic`
+ * (`!isCompound` → `secondaryAllowed` → `!hasImageAttachments`); welcher davon
+ * dort zuerst greift, ist für die Person aber bedeutungslos — die Kette liefert
+ * so oder so `false`. Nennte die Meldung nur einen von zweien, befolgte sie den
+ * genannten Rat und würde erneut abgewiesen.
+ */
+function reasonsFor(state: ChatGraphState, hasImageAttachments: boolean): DeclineReason[] {
+  const reasons: DeclineReason[] = [];
+  if (state.isCompound) reasons.push(COMPOUND);
+  if (state.secondaryIntent != null) reasons.push(SECONDARY);
+  if (hasImageAttachments) reasons.push(IMAGE);
+  return reasons.length > 0 ? reasons : [UNKNOWN];
 }
 
 /**
@@ -68,7 +97,9 @@ export function reportMcpWithoutLoop(
   state: ChatGraphState,
   hasImageAttachments: boolean
 ): void {
-  const { cause, remedy } = reasonFor(state, hasImageAttachments);
+  const reasons = reasonsFor(state, hasImageAttachments);
+  const cause = joinDe(reasons.map((r) => r.cause));
+  const remedy = joinDe(reasons.map((r) => r.remedy));
   sendChatWarning(
     sse,
     'mcp_not_consulted',
@@ -81,9 +112,9 @@ export function reportMcpWithoutLoop(
       modelHint:
         `Der vom Nutzer per @-Erwähnung gewählte MCP-Server wurde für diesen Turn NICHT ` +
         `befragt: ${cause}. Sag das zu Beginn deiner Antwort ehrlich und nenne den Ausweg ` +
-        `(${remedy}). Tu NICHT so, als hättest du Daten von diesem Server gesehen; wenn du ` +
-        `trotzdem etwas beantworten kannst, kennzeichne es ausdrücklich als Antwort ohne ` +
-        `diese Quelle.`,
+        `(${remedy}) — vollständig, wenn mehrere Gründe genannt sind. Tu NICHT so, als ` +
+        `hättest du Daten von diesem Server gesehen; wenn du trotzdem etwas beantworten ` +
+        `kannst, kennzeichne es ausdrücklich als Antwort ohne diese Quelle.`,
     },
   ];
 }

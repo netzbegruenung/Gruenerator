@@ -55,10 +55,38 @@ describe('reportMcpWithoutLoop', () => {
     expect(warningOf().message).not.toContain('Bildanhänge');
   });
 
-  it('fällt auf den zweiten Intent zurück, wenn weder Bild noch Verbund vorliegt', () => {
+  it('nennt den zweiten Intent, wenn er der greifende Schalter ist', () => {
+    sse.send.mockClear();
+    reportMcpWithoutLoop(sse as never, state({ secondaryIntent: 'image' }), false);
+    expect(warningOf().message).toContain('zweite Absicht');
+  });
+
+  // Die Kurzschluss-Kette in `decideRunAgentic` nennt den ersten greifenden
+  // Schalter, aber abgewiesen wird der Turn von ALLEN. Nennte die Meldung nur
+  // einen, befolgte die Person den Rat und flöge erneut raus.
+  it('nennt alle greifenden Schalter, nicht nur den ersten', () => {
+    sse.send.mockClear();
+    const s = state({ isCompound: true, secondaryIntent: 'image' });
+    reportMcpWithoutLoop(sse as never, s, true);
+
+    const { message } = warningOf();
+    expect(message).toContain('Wissenssammlung');
+    expect(message).toContain('zweite Absicht');
+    expect(message).toContain('Bildanhänge');
+    // Auch die Abhilfen vollständig — eine allein löst den Turn nicht.
+    expect(s.degradationNotes?.[0]?.modelHint).toContain('allgemeinen Chat');
+    expect(s.degradationNotes?.[0]?.modelHint).toContain('Bild entfernen');
+  });
+
+  // Erreicht heute niemand; der Zweig hält eine künftige vierte Sperre davon
+  // ab, still als „zweite Absicht" zu erscheinen.
+  it('rät nicht ins Blaue, wenn kein bekannter Schalter greift', () => {
     sse.send.mockClear();
     reportMcpWithoutLoop(sse as never, state(), false);
-    expect(warningOf().message).toContain('zweite Absicht');
+
+    const { message } = warningOf();
+    expect(message).toContain('Einzeldurchlauf');
+    expect(message).not.toContain('zweite Absicht');
   });
 
   it('hängt an bestehende Degradierungs-Notizen an, statt sie zu ersetzen', () => {
