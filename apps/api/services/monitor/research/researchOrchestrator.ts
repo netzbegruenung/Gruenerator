@@ -47,23 +47,22 @@ import { generateObject, generateText } from 'ai';
 import { z } from 'zod';
 
 import {
-  validateCitations,
-  stripUngroundedCitations,
-} from '../../../services/search/CitationGrounder.js';
-import { crawlAndDistill } from '../../../services/search/CrawlingService.js';
-import { applyMMR } from '../../../services/search/DiversityReranker.js';
-import { createLogger } from '../../../utils/logger.js';
-import { jaccard } from '../../../utils/setSimilarity.js';
-import { validateUrlForFetch } from '../../../utils/validation/urlSecurity.js';
-
-import { executeDirectSearch, executeDirectWebSearch } from './directSearchExecutors.js';
-import { getIntermediateModel } from './providers.js';
+  executeDirectSearch,
+  executeDirectWebSearch,
+} from '../../../routes/chat/agents/directSearchExecutors.js';
+import { getIntermediateModel } from '../../../routes/chat/agents/providers.js';
 import {
   truncateText,
   deduplicateByUrl,
   extractDomainLabel,
   relevanceLabelToScore,
-} from './searchFormatting.js';
+} from '../../../routes/chat/agents/searchFormatting.js';
+import { createLogger } from '../../../utils/logger.js';
+import { jaccard } from '../../../utils/setSimilarity.js';
+import { validateUrlForFetch } from '../../../utils/validation/urlSecurity.js';
+import { validateCitations, stripUngroundedCitations } from '../../search/CitationGrounder.js';
+import { crawlAndDistill } from '../../search/CrawlingService.js';
+import { applyMMR } from '../../search/DiversityReranker.js';
 
 export type ResearchLocale = 'de' | 'at' | 'eu';
 export type ReportShape = 'biographical' | 'comparative' | 'positional' | 'event' | 'general';
