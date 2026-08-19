@@ -140,8 +140,8 @@ export async function searchTemplates(query: string, limit = 15): Promise<Templa
     if (!trimmed || !qdrant.isAvailableSync() || !qdrant.client) return [];
 
     const queryEmbedding = await mistralEmbeddingService.generateEmbedding(trimmed);
-    const searchResult = await qdrant.client.search(COLLECTION_NAME, {
-      vector: queryEmbedding,
+    const searchResult = await qdrant.client.query(COLLECTION_NAME, {
+      query: queryEmbedding,
       filter: {
         must: [
           { key: 'status', match: { value: 'published' } },
@@ -153,7 +153,7 @@ export async function searchTemplates(query: string, limit = 15): Promise<Templa
       with_payload: true,
     });
 
-    const hits = searchResult as unknown as Array<{
+    const hits = searchResult.points as unknown as Array<{
       score: number;
       payload?: { template_id?: string };
     }>;
