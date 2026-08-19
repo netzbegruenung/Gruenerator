@@ -78,7 +78,7 @@
       "@types/node": "^26.2.0",
       "@tanstack/react-query": "^5.101.4",
       "katex": "^0.18.1",
-      "pyodide": "^314.0.2",
+      "pyodide": "^314.0.5",
       "react-dropzone": "^19.1.1",
       "prosemirror-view": "^1.42.2",
       "@blocknote/core": "^0.54.0",
