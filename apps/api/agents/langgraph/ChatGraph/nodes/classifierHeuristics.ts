@@ -488,6 +488,28 @@ export const DOC_MODIFY_PATTERN =
   /(?:^|\W)(aender|änder|bearbeit|ergaenz|ergänz|aktualisier|ueberarbeit|überarbeit|f(?:ü|ue)g(?:e)?\s+\S.{0,40}?\s+(?:hinzu|ein)|einf(?:ü|ue)g|vereinfach|umschreib|schreib\s+\S.{0,40}?\s+(?:um|neu)|kuerz|kürz|erweiter|verläng|verlaenger|ersetz|umformulier|formulier\s+\S.{0,40}?\s+(?:um|neu)|verbesser|korrigier|anpass|pass\s+\S.{0,40}?\s+an|entfern|loesch|lösch|streich|(?:ü|ue)bersetz|mach\s+\S.{0,40}?\s+(?:k(?:ü|ue)rzer|l(?:ä|ae)nger|pr(?:ä|ae)ziser|kompakter|pr(?:ä|ae)gnanter|knackiger|schlagkr(?:ä|ae)ftiger|verst(?:ä|ae)ndlicher|freundlicher|formeller|pers(?:ö|oe)nlicher|fett|kursiv|unterstrichen|durchgestrichen|gr(?:ö|oe)(?:ss|ß)er|kleiner|farbig|bunt(?:er)?)|(?:fett|kursiv|unterstrichen|durchgestrichen|gr(?:ö|oe)(?:ss|ß)er|kleiner|farbig|bunt(?:er)?)\s+mach)/i;
 
 /**
+ * Board mutation verbs — the boards counterpart of {@link DOC_MODIFY_PATTERN}.
+ *
+ * Imperative edit verbs only. Uses `-e`/`-en` imperative/infinitive endings
+ * (NOT bare stems) so participles/nouns in QUESTIONS don't misfire — e.g.
+ * "was wurde geändert/gelöscht/markiert?", "welche Labels gibt es?",
+ * "wie ist es sortiert?" must NOT route to an edit. Noun keywords (label,
+ * status, …) only count when preceded by an edit verb (füge … hinzu /
+ * erstelle / setze … / weise … zu).
+ * Leading `(?<![\p{L}])` (not `\b`) so umlaut-initial verbs (ändere,
+ * überarbeite) match after a space — `\b` fails there since ä/ü aren't ASCII
+ * word chars. `u` flag enables \p{L}.
+ *
+ * Two readers, and they must agree: the classifier's `edit_current_board`
+ * fast-path, and the loop's edit guarantee (`loopGuarantees.createAfterGather`),
+ * which forces `edit_document` when the planner skipped it. A copy in the second
+ * place would drift, and the failure is silent — the turn ends with the generic
+ * "keine passende Antwort" instead of the edit the user asked for.
+ */
+export const BOARD_MODIFY_PATTERN =
+  /(?<![\p{L}])(f(?:ü|ue)ge?\s+\S.{0,40}?\s+hinzu|neue[rs]?\s+(karte|aufgabe|spalte|feld|ansicht)|erstelle\s+\S.{0,40}?\s*(aufgabe|karte|spalte|ansicht|feld)|erstelle\s+(aufgabe|karte|spalte|ansicht|feld)|aktualisiere|(?:ä|ae)ndere|erg(?:ä|ae)nze|(?:ü|ue)berarbeite|vereinfache|(?:um)?strukturiere?|l(?:ö|oe)sche?|entferne|verschiebe|sortiere?|kommentiere|markiere|weise\s+\S.{0,40}?\s+zu\b|setze?\s+\S.{0,40}?\s+(?:f(?:ä|ae)llig|frist|status|zust(?:ä|ae)ndig|als|auf|zu\b)|setze?\s+(f(?:ä|ae)llig|frist|status|zust(?:ä|ae)ndig))/iu;
+
+/**
  * Find intent using fuzzy (Levenshtein-based) matching.
  * Returns the intent if a word matches a keyword with similarity >= threshold.
  */
