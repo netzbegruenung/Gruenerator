@@ -35,8 +35,6 @@ import {
 
 import type { BetterAuthPlugin } from 'better-auth';
 
-const KC_BASE = env.KEYCLOAK_BASE_URL;
-const KC_REALM = env.KEYCLOAK_REALM;
 const KC_CLIENT_ID = env.KEYCLOAK_CLIENT_ID;
 const KC_CLIENT_SECRET = env.KEYCLOAK_CLIENT_SECRET ?? '';
 const KC_ISSUER = keycloakIssuer();
