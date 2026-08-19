@@ -20,7 +20,9 @@
  */
 import {
   type ArtifactCreateKind,
+  CHAT_INTENTS,
   type ChatIntentId,
+  dispositionOf,
   forcesLoopLane,
 } from '@gruenerator/shared/chat-intents';
 
@@ -38,19 +40,55 @@ import {
 } from './routing.js';
 
 /**
- * Wie der Turn ausgeführt wird. Die Reihenfolge ist die Auswertungsreihenfolge:
- * `pipeline` vetos alles, danach gewinnt der spezifischere Loop-Grund.
+ * Die Lane dieses Turns — die eine Achse, an der hängt, WER ihn ausführt.
+ *
+ * Bis Phase N war dieser Typ Dekoration: er nannte fünf Ausführungspfade, und
+ * gelesen hat ihn niemand. Alles hinter dem Entscheider fragte `runAgentic`,
+ * einen Boolean, der dieselbe Entscheidung ein zweites Mal ausdrückte — und
+ * `edit-loop`/`compound-edit` waren ein DRITTES Mal dasselbe, denn `TurnPlan`
+ * führt `editToolLoop`/`compoundEdit` ohnehin als eigene Felder. Drei
+ * Schreibweisen einer Entscheidung sind drei Gelegenheiten, sie auseinander
+ * laufen zu lassen.
+ *
+ * Jetzt trägt die Lane das Vokabular des Zielbilds, `runAgentic` ist aus ihr
+ * ABGELEITET (`lane === 'loop'`), und die beiden Editor-Varianten sind nur noch
+ * das, was sie immer waren: Eigenschaften eines Loop-Turns.
+ *
+ * Die Zuordnung kommt aus der Registry (`dispositionOf`), nicht aus einer
+ * Literalliste — sonst wäre sie die vierte Schreibweise. Was ein Intent
+ * bedeutet, steht in `dispositions.ts`; hier steht nur, welcher Ausführende zu
+ * welcher Bedeutung gehört.
  */
 export type TurnLane =
-  /** Pipeline-Agent (Einfache/Leichte Sprache): eigene Kette, nie die Schleife. */
+  /** Gruss. Kein Werkzeug, kein Material, nichts zu erden. */
+  | 'greeting'
+  /**
+   * Schreibarbeit am gelieferten Material, ohne Werkzeug. Trägt auch den
+   * Pipeline-Agenten (Einfache/Leichte Sprache): der zwingt den Intent auf
+   * `produktion`, und dass eine eigene Kette ihn ausführt, steht in
+   * `pipelineAgent` — das ist eine Eigenschaft des Turns, keine eigene Lane.
+   */
+  | 'produktion'
+  /**
+   * Artefakt mit eigener deterministischer Route — Erzeugung (Bild, Sharepic,
+   * Tabelle, Präsentation, PDF) und die Bearbeitungs-Familie. Disposition
+   * `artifact` oder `anchor`: beides Entscheidungen, die VOR der Antwort
+   * feststehen müssen, weil sie Geld, Kontingent oder einen HITL-Vertrag kosten.
+   */
   | 'pipeline'
-  /** Editor-Seitenleiste mit Werkzeugpfad — die Schleife bearbeitet das offene Artefakt. */
-  | 'edit-loop'
-  /** Recherche, dann Bearbeitung des offenen Dokuments/Boards. */
-  | 'compound-edit'
-  /** Gewöhnliche agentische Schleife. */
+  /** Die agentische Schleife. Alles Werkzeug-/Rezept-Förmige. */
   | 'loop'
-  /** Deterministischer Einzeldurchlauf (`executeIntentPipeline`). */
+  /**
+   * Der Rest-Einzeldurchlauf (`executeIntentPipeline`) — heute vor allem die
+   * Recherche-Familie (`search`/`web`/`research`/`compare`/`examples`) und die
+   * gegatterten Sonderwege (`summary`/`compute`/`chat_history`/`scrape_url`).
+   *
+   * Diese Lane ist das benannte Restproblem, nicht ein Ziel: sie verschwindet
+   * mit der Recherche-Konsolidierung (6 Maschinen → ein Loop-Suchpfad), dem
+   * Folgevorhaben nach N. Solange sie existiert, ist sie der Grund, warum die
+   * Lane-Entscheidung NACH der Intent-Feinwahl fällt statt vor ihr — die
+   * Executoren dahinter unterscheiden sich je Intent.
+   */
   | 'single-pass';
 
 export interface TurnPlan {
@@ -63,8 +101,9 @@ export interface TurnPlan {
   /** `lane` läuft in der agentischen Schleife. Abgeleitet, nicht zweitentschieden. */
   runAgentic: boolean;
   /**
-   * Recherche + Bearbeitung des offenen Artefakts. Steht neben `lane`, weil ein
-   * Turn zugleich `edit-loop` sein kann: `artifactEmitStage` fragt beide.
+   * Recherche + Bearbeitung des offenen Artefakts. Eigenschaft eines
+   * `loop`-Turns, nicht eine eigene Lane: `artifactEmitStage` fragt beide
+   * Editor-Varianten getrennt, und ein Turn kann zugleich `editToolLoop` sein.
    */
   compoundEdit: boolean;
   editToolLoop: boolean;
@@ -137,16 +176,27 @@ export interface TurnPlanInput {
 /**
  * Worauf ein Intent zurückfällt, dem die Schleife verwehrt bleibt.
  *
- * Beide Fälle sind dieselbe Aussage: der Intent bezeichnet eine Ausführung, die
- * es nur IN der Schleife gibt. `agentic` hat in `executeIntentPipeline` gar
+ * Alle drei Fälle sind dieselbe Aussage: der Intent bezeichnet eine Ausführung,
+ * die es nur IN der Schleife gibt. `agentic` hat in `executeIntentPipeline` gar
  * keinen Zweig, die System-Tool-Intents (`umfragen`/`hilfe`) haben dort ihre
- * Werkzeuge nicht. Ein Turn, den ein Notausschalter (Verbund, erzwungenes
- * Werkzeug, Bild-Anhang) draußen hält, muss also woanders hin, statt zu
- * stranden.
+ * Werkzeuge nicht, und seit Phase N gilt das auch für die Parlaments-Abrufe:
+ * ihre dünnen Einzeldurchlauf-Türen sind gefallen, der Kern hängt nur noch am
+ * Loop-Werkzeug. Ein Turn, den ein Notausschalter (Verbund, erzwungenes
+ * Werkzeug, Bild-Anhang, ausgeschaltete Schleife, gewählte Wissenssammlung)
+ * draußen hält, muss also woanders hin, statt zu stranden.
  *
- * Die beiden Prüfungen sind nacheinander, nicht ausschließend — so standen sie
- * im Router. Überschneiden können sie sich nicht: `agentic` ist kein
- * System-Tool-Intent.
+ * Der dritte Fall nennt die beiden Intents NICHT beim Namen — er fragt die
+ * Registry. `forcedLane: 'loop'` heisst ab hier „hat keinen Einzeldurchlauf",
+ * und wohin so ein Turn ausweicht, steht als `degradeTo` schon dort, weil die
+ * Locale-Degradierung dieselbe Frage stellt: eine Quelle ist nicht erreichbar,
+ * die Frage soll trotzdem beantwortet werden. Ein Intent der Achse OHNE
+ * `degradeTo` (heute `mcp`) bleibt bewusst unberührt — für ihn wäre eine
+ * Websuche keine Degradierung, sondern eine andere Antwort als die gewählte
+ * Quelle.
+ *
+ * Die Prüfungen sind nacheinander, nicht ausschließend — so standen sie im
+ * Router. Überschneiden können sie sich nicht: `agentic` ist weder
+ * System-Tool-Intent noch auf der Loop-Achse.
  */
 function fallbackIntentFor(
   intent: ChatIntentId,
@@ -175,7 +225,46 @@ function fallbackIntentFor(
     next = 'web';
     backfillSearchQuery = true;
   }
+  // Der Degradierungsfall der Loop-Achse. `backfillSearchQuery` aus demselben
+  // Grund wie oben: das Ziel ist ein Suchintent, und ein Turn ohne Suchanfrage
+  // suchte nach ''.
+  const degradeTo = forcesLoopLane(next) ? CHAT_INTENTS[next].degradeTo : undefined;
+  if (degradeTo) {
+    recordDecision('router.intent_override', 'loop_only_degraded', {
+      inputs: { intentBefore: next, runAgentic: false, degradeTo },
+    });
+    next = degradeTo;
+    backfillSearchQuery = true;
+  }
   return { intent: next, backfillSearchQuery };
+}
+
+/**
+ * Die Lane zum endgültigen Intent — die Registry beantwortet es, nicht diese
+ * Datei.
+ *
+ * Gefragt wird erst, wenn der Turn NICHT in die Schleife geht; `loop` ist die
+ * Antwort auf das Gate, nicht auf den Intent. Alles danach ist eine Aussage
+ * über die Disposition, also über die Frage „was muss vor der Antwort
+ * feststehen?" — und genau die trennt einen Artefakt-Turn (kostet Geld oder
+ * einen HITL-Vertrag, eigene Route) vom Rest-Einzeldurchlauf.
+ *
+ * `greeting` steht vor der Disposition, weil es innerhalb von `prose` die
+ * Ausnahme ist: es erbt nichts, erdet nichts, hat kein Material. Genau dafür
+ * wurde es abgespalten (siehe `GROUNDABLE_PROSE_INTENTS`).
+ *
+ * Ein Intent ohne Disposition kann es nicht geben — die Karte ist total über
+ * `ChatIntentId` und bricht den Build, sobald jemand einen Intent hinzufügt.
+ * Der `null`-Zweig ist deshalb kein Auffang, sondern die Antwort auf einen
+ * Intent, den die Registry nicht kennt: derselbe Weg wie bisher.
+ */
+function laneFor(runAgentic: boolean, intent: ChatIntentId): TurnLane {
+  if (runAgentic) return 'loop';
+  if (intent === 'greeting') return 'greeting';
+  const disposition = dispositionOf(intent);
+  if (disposition === 'prose') return 'produktion';
+  if (disposition === 'artifact' || disposition === 'anchor') return 'pipeline';
+  return 'single-pass';
 }
 
 /**
@@ -381,21 +470,15 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
     ? { intent, backfillSearchQuery: false }
     : fallbackIntentFor(intent, isSystemToolIntent);
 
-  const lane: TurnLane =
-    p.pipelineForceIntent != null
-      ? 'pipeline'
-      : editToolLoop
-        ? 'edit-loop'
-        : compoundEdit
-          ? 'compound-edit'
-          : runAgentic
-            ? 'loop'
-            : 'single-pass';
+  const lane = laneFor(runAgentic, fallback.intent);
 
   return {
     lane,
     intent: fallback.intent,
-    runAgentic,
+    // Abgeleitet, nicht zweitentschieden: `runAgentic` IST die Loop-Lane. Das
+    // Feld bleibt, weil die Aufrufer eine Ja/Nein-Frage stellen; es kann aber
+    // nicht mehr von der Lane abweichen.
+    runAgentic: lane === 'loop',
     compoundEdit,
     editToolLoop,
     editTarget,

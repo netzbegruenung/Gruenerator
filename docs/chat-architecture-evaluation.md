@@ -270,7 +270,7 @@ Zusatzfalle: die Postgres-Tabellen `notebook_collections`/`notebook_collection_d
 
 ## 11. Endstand des Sanierungsprogramms
 
-**Der Phasenplan aus §8 ist abgearbeitet** (Phasen A–J, PRs #2677–#2693). Was oben als Bestandsaufnahme steht, beschreibt damit den Zustand VOR dem Programm; dieser Abschnitt hält fest, was heute gilt.
+**Der Phasenplan aus §8 ist abgearbeitet** (Phasen A–N, PRs #2677–#2717). Was oben als Bestandsaufnahme steht, beschreibt damit den Zustand VOR dem Programm; dieser Abschnitt hält fest, was heute gilt.
 
 **Ein Aufrufweg zum Modell.** `services/ai/generate.ts` (`aiText`/`aiObject`/`aiTools` → `executeProvider`), geroutet über `AI_LANES`. Der zweite Weg ist gelöscht, nicht deprecated: `aiService.ts`, `AiClient`, `utils/getAiClient.ts` und `app.locals.aiClient` gibt es nicht mehr. Die letzte stille Umroutung — eine Prompt-Config, die per `options.model` die Tabelle übergeht — ist mit ihr entfallen; `promptConfigRouting.vitest.ts` bewacht das über alle Configs. Wer die Tabelle umgehen muss, sagt das mit `AiCall.pinned` im Code.
 
@@ -278,9 +278,31 @@ Zusatzfalle: die Postgres-Tabellen `notebook_collections`/`notebook_collection_d
 
 **Registry-Rollout.** `@gruenerator/shared/chat-intents` trägt die Intents samt Dispositions-Achse. Die Regel dabei ist eine Unterscheidung, keine Umzugsquote: was eine Eigenschaft des Intents ist, wird abgeleitet (`AGENTIC_INTENTS`, `NAMED_RETRIEVAL_INTENTS`, `NO_RETRIEVAL_VERDICTS`); was die Politik eines Konsumenten ist, bleibt bei ihm — typisiert und mit der gemessenen Abweichung im Kopfkommentar (`NON_SEARCH_INTENTS`, `DEMOTABLE_HEURISTIC_INTENTS`). `INTENT_HANDLER_PATHS` ist die erschöpfende Karte „welcher Zweig führt welches Verdikt aus"; ein neuer Intent bricht dort den Build.
 
-**Die Monolithen.** `chatGraphContractRouter.ts` 2562 → 456 Z. (Stufen in `streamStages/`), `agenticRespondService.ts` 1845 → 571 Z., `intentExecutionService.ts` 1640 → 40 Z. (reine Fassade; Inhalt in `intentHandlers/`), `responseStage.ts` 559 → 234 Z. `classifierNode.ts` liegt weiter bei rund 1960 Z., aber ohne die 27k-Zeichen-LLM-Stufe: die Tiers entscheiden deterministisch, und die verbliebenen Modellaufrufe sind kleine, benannte Auflöser.
+**Die Monolithen.** `chatGraphContractRouter.ts` 2562 → 465 Z. (Stufen in `streamStages/`), `agenticRespondService.ts` 1845 → 591 Z., `intentExecutionService.ts` 1640 → 40 Z. (reine Fassade; Inhalt in `intentHandlers/`), `responseStage.ts` 559 → 240 Z. `classifierNode.ts` liegt weiter bei rund 1965 Z., aber ohne die 27k-Zeichen-LLM-Stufe: die Tiers entscheiden deterministisch, und die verbliebenen Modellaufrufe sind kleine, benannte Auflöser.
+
+**Die Lane ist die Achse, an der die Ausführung hängt (Phase N).** `TurnLane` war bis dahin Dekoration — fünf Ausführungspfade, kein Konsument; gelesen wurde der Boolean `runAgentic`, und `edit-loop`/`compound-edit` waren ein drittes Mal dieselbe Aussage, weil `TurnPlan` `editToolLoop`/`compoundEdit` ohnehin als Felder führt. Heute trägt die Lane das Vokabular des Zielbilds (`greeting` / `produktion` / `pipeline` / `loop` / `single-pass`), `runAgentic` ist aus ihr abgeleitet, und die Zuordnung kommt aus der Registry (`dispositionOf`) statt aus Literalen.
+
+**Die Erwähnungen sind von den Intents entkoppelt (K–N).** Eine `@`-Erwähnung zurrt heute ein WERKZEUG fest (`IntentMention.pinsTool`), ein REZEPT (`activatesSkill`) oder eine ARTEFAKTART (`ARTIFACT_CREATE_TOKENS`) — nicht mehr zwingend ein Verdikt. Das war der Grund, warum vorher kein Intent sterben konnte: eine Erwähnung hielt ihn am Leben, auch wenn er sonst nichts mehr steuerte.
+
+**Getötete Verdikte.** Sieben von 41 Intents sind `retired` — nichts erzeugt sie mehr, und keine Erwähnung emittiert sie: `bahn`, `reise`, `hotel`, `wetter`, `news` (als verwaltete Konnektoren aus der Intent-Achse ausgezogen — Quellenwahl ist Montage und braucht kein Verdikt), `umfragen` (Werkzeug-Pin) und `pressemitteilung_examples` (Werkzeug-Pin **und** Rezept). Die Enum-Werte bleiben: `searchIntentSchema` ist F0, ausgelieferte Binaries lesen ihn weiter.
+
+**Was der Klassifikator wirklich noch emittiert.** Über die 167 Turns des adversarialen Korpus fallen **13** verschiedene Verdikte, nicht 41 — und `agentic` allein trägt 107 davon (Tier-3.5-Demotion), `produktion` und `sharepic` je 18. Die Feinunterscheidung, die der Umbau angegriffen hat, leistet also messbar wenig Arbeit; der Zensus (`classifierCensus.baseline.txt`) misst das fortlaufend.
+
+**Die Parlaments-Abrufe haben nur noch eine Tür (N).** `bundestag`/`abgeordnetenwatch` liefen bis 08/2026 doppelt: das Loop-Werkzeug rief `searchNode` mit gesetztem Intent erneut auf und nahm dessen ganze Vorrede mit — was einen echten Fehler verdeckte (`@bundestag` auf einem Turn mit zwei Dokumentquellen fragte die DIP nie). Seit Phase M/N gibt es einen gemeinsamen Kern und **nur** das Loop-Werkzeug; ein Turn, den ein Notausschalter aus der Schleife hält, weicht über `degradeTo` aus der Registry aus, statt still nichts zu tun. `forcedLane: 'loop'` bedeutet seitdem genau eine Sache: kein Einzeldurchlauf. Ein Wächter erzwingt, dass jeder Intent dieser Achse ein Ausweichziel deklariert (`mcp` ist die begründete Ausnahme).
 
 **Was bewusst offen bleibt:** die kompilierten LangGraph-Graphen haben weiterhin null Aufrufer (§2), die Recherche-Maschinen sind nicht zu einer zusammengelegt (§8 Phase 4), und die Notebook-Befunde aus §9 sind unangetastet. Deep Agents bleibt abgelehnt (§3), das AI SDK v7 weiter der Hebel (§4).
+
+**Die Recherche-Konsolidierung ist das benannte Restproblem — und der Grund, warum die Lane-Entscheidung noch NACH der Intent-Feinwahl fällt.** Das Zielbild sieht vier Lanes vor; es gibt eine fünfte, `single-pass`, und sie trägt die Recherche-Familie (`search`/`web`/`research`/`compare`/`examples`) samt der gegatterten Sonderwege (`summary`/`compute`/`chat_history`/`scrape_url`). Solange deren Executoren sich je Intent unterscheiden, MUSS der Intent vor der Lane feststehen. Wer die sechs Recherche-Maschinen zu einem Loop-Suchpfad zusammenlegt, nimmt damit zugleich die letzte Lane und dreht die Reihenfolge um. Zwei Messungen aus Phase K/L, die dabei nicht neu erhoben werden müssen: `summary` wird NICHT zum Rezept (`respondNode` unterdrückt Rezept und gelernte Textform absichtlich — eine Zusammenfassung trägt die Form ihrer Quelle), und `compare` auch nicht (Hochstufung und Degradierung brauchen die Trefferzahl zur Laufzeit).
+
+### Governance: kein neuer Intent für eine neue Fähigkeit
+
+Das Programm hat die Intent-Achse von 41 auf 13 tatsächlich emittierte Verdikte gedrückt, indem es Fähigkeiten verschoben hat, statt sie zu löschen. Diese Richtung hält nur, wenn die Standardantwort auf „wir brauchen etwas Neues" nicht wieder ein Intent ist:
+
+**Eine neue Fähigkeit ist ein Werkzeug oder ein Rezept, plus ein Registry-Eintrag (plus, wenn sie adressierbar sein soll, eine Erwähnung).** Ein Werkzeug für etwas, das geholt oder getan wird; ein Rezept für etwas, das anders geschrieben wird; eine Erwähnung, damit die Person es benennen kann. Alle drei sind Daten, keine Verzweigung.
+
+**Ein neuer Intent nur mit einem Verhaltensanker, der sich nicht ableiten lässt** — ein eigenes deterministisches Gitter VOR der Werkzeugwahl, eine eigene SSE-Stufe, ein Kontingent oder ein HITL-Vertrag, eine Statuszeile, die sonst niemand schreibt. Der Anker gehört in den PR, benannt und begründet. Fehlt er, ist der Intent eine Statuszeile mit Extraschritten: er kostet einen Eintrag in jeder totalen Karte (`DISPOSITION_BY_INTENT`, `FORCED_LANE_BY_INTENT`, `INTENT_HANDLER_PATHS`), einen Zweig im Klassifikator und ein Verdikt, das der Loop danach ohnehin überstimmt.
+
+**Die Gegenprobe vor dem Merge:** Wäre die Fähigkeit auch erreichbar, wenn der Intent fehlte und stattdessen eine Erwähnung das Werkzeug festzurrte? Lautet die Antwort ja, gehört sie in den Loop.
 
 ---
 
