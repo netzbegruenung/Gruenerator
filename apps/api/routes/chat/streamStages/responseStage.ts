@@ -60,6 +60,9 @@ export interface ResponseStageParams {
   /** Whether the turn was allowed to make a sharepic — a post without a
    *  licence is text-only, not a failed sharepic. */
   sharepicLicensed: boolean;
+  /** Die Decke über dem ganzen Zug (turnDeadline.ts). Beide Antwortpfade
+   *  hängen daran, damit der Zug EINE Frist hat und nicht je Phase eine. */
+  turnSignal: AbortSignal;
 }
 
 export interface ResponseStageOutput {
@@ -99,6 +102,7 @@ export async function runResponseStage({
   forcedTool,
   sharepicRefinement,
   sharepicLicensed,
+  turnSignal,
 }: ResponseStageParams): Promise<MaybeHandled<ResponseStageOutput>> {
   // === Stage 2 + 3: Response generation ===
   type PipelineResult = Awaited<ReturnType<typeof executeIntentPipeline>>;
@@ -160,6 +164,7 @@ export async function runResponseStage({
       threadToolHistory,
       lastUserText,
       buildTurnTrace,
+      turnSignal,
     });
     ({
       finalState,
@@ -191,6 +196,7 @@ export async function runResponseStage({
       sharepicRefinement,
       sharepicLicensed,
       buildTurnTrace,
+      turnSignal,
     });
     if (singlePass.handled) return singlePass;
     ({ finalState, generatedImage, sharepicVariants, socialPost, fullText, langfuseTraceId } =

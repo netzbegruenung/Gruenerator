@@ -1,5 +1,10 @@
 import { captureImpact, modelFromRequestBody } from './greenptImpact.js';
 
+export const GREENPT_FETCH_TIMEOUT_MS = (() => {
+  const n = Number.parseInt(process.env.GREENPT_FETCH_TIMEOUT_MS ?? '', 10);
+  return Number.isInteger(n) && n > 0 ? n : 120_000;
+})();
+
 /**
  * GreenPT (api.greenpt.ai) fronts many backends behind one OpenAI-compatible
  * surface. Its thinking lanes (gemma4, glm-5.2, kimi-*, minimax-m2.5,
@@ -38,6 +43,17 @@ import { captureImpact, modelFromRequestBody } from './greenptImpact.js';
  * again, and burning less time on it reaches the provider-fallback chain
  * (`services/ai/generate.ts`) sooner. That's a latency mitigation, not the
  * output-budget floor above — the underlying cause is still open.
+ *
+ * EIGENE FRIST. Der Gateway-Timeout oben ist der Fall, in dem GreenPT die
+ * Verbindung offen hält und nichts schickt. Ohne eigene Frist wartet der Aufruf
+ * dann bis zur Turn-Decke (`routes/chat/services/turnDeadline.ts`, 360 s) oder
+ * — auf Pfaden ohne Zug, etwa Einbettungen — bis undici seine
+ * Vorgabe-Header-Frist zieht. Beides ist zu spät, um noch in die
+ * Provider-Fallback-Kette zu kommen, die genau für diesen Fall existiert.
+ * 120_000 liegt über der gemessenen p99-Antwortzeit eines Zuges (159 s ist die
+ * Zeit des ganzen Zuges, nicht die einer Anfrage) und unter jeder Turn-Decke,
+ * lässt die Kette also noch greifen. Das Signal des Aufrufers bleibt daneben
+ * bestehen — wer zuerst abbricht, gewinnt.
  */
 export const greenptFetchWithThinkingDisabled: typeof fetch = async (input, init) => {
   if (init?.body && typeof init.body === 'string') {
@@ -58,5 +74,8 @@ export const greenptFetchWithThinkingDisabled: typeof fetch = async (input, init
   // Aufrufers geht mit: der Tap hängt am tee-Zweig derselben Antwort und darf
   // die Anfrage nicht überleben.
   const model = modelFromRequestBody(init?.body);
-  return captureImpact(await fetch(input, init), model, init?.signal ?? null);
+  const deadline = AbortSignal.timeout(GREENPT_FETCH_TIMEOUT_MS);
+  const signal = init?.signal ? AbortSignal.any([init.signal, deadline]) : deadline;
+  const response = await fetch(input, { ...init, signal });
+  return captureImpact(response, model, signal);
 };
