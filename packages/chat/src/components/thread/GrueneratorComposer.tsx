@@ -1072,15 +1072,18 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
           ))}
 
         {isPill ? (
-          <div className="flex items-center gap-0.5 px-1.5 py-1">
+          <div className="flex items-center gap-0.5 px-1.5 py-1 max-sm:flex-wrap">
             {hiddenUploadButton}
             {plusMenuNode}
             {slots?.leading}
             {pinnedConnectorChip}
+            {/* Bis `sm` nehmen die Pills per order/basis eine eigene Zeile über
+                der Eingabezeile ein (wie in der Card-Variante) — inline ließen
+                die shrink-0-Pills der Textarea nur wenige Zeichen Breite. */}
             <ComposerMentionPills
               mentions={pillMentions}
               onRemove={removePillMention}
-              className="ml-0.5 flex-nowrap overflow-hidden"
+              className="ml-0.5 max-sm:order-first max-sm:basis-full max-sm:px-1 max-sm:pt-1.5 sm:flex-nowrap sm:overflow-hidden"
             />
             {composerInput}
             {showToolToggles && <SearchDepthToggleSlot />}
