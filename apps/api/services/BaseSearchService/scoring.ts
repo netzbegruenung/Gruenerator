@@ -6,6 +6,7 @@
  */
 
 import { vectorConfig } from '../../config/vectorConfig.js';
+import { jaccard } from '../../utils/setSimilarity.js';
 
 import type { ChunkData, EnhancedScore, HybridMetadata, DocumentResult } from './types.js';
 
@@ -277,18 +278,6 @@ export function applyMMRSelection(
     const set = new Set(tokens);
     tokenCache.set(text, set);
     return set;
-  };
-
-  const jaccard = (aSet: Set<string>, bSet: Set<string>): number => {
-    if (!aSet.size || !bSet.size) return 0;
-
-    let inter = 0;
-    for (const t of aSet) {
-      if (bSet.has(t)) inter++;
-    }
-
-    const union = aSet.size + bSet.size - inter;
-    return union > 0 ? inter / union : 0;
   };
 
   // Greedy MMR selection

@@ -12,6 +12,7 @@
  */
 
 import { createLogger } from '../../utils/logger.js';
+import { jaccard } from '../../utils/setSimilarity.js';
 
 const log = createLogger('DiversityReranker');
 
@@ -36,21 +37,6 @@ function extractBigrams(text: string): Set<string> {
     bigrams.add(`${words[i]}_${words[i + 1]}`);
   }
   return bigrams;
-}
-
-/**
- * Compute Jaccard similarity between two bigram sets.
- */
-function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
-  if (a.size === 0 && b.size === 0) return 0;
-
-  let intersectionSize = 0;
-  for (const item of a) {
-    if (b.has(item)) intersectionSize++;
-  }
-
-  const unionSize = a.size + b.size - intersectionSize;
-  return unionSize === 0 ? 0 : intersectionSize / unionSize;
 }
 
 /**
@@ -92,7 +78,7 @@ export function applyMMR<T extends ScoredResult>(
       // Find maximum similarity to any already-selected result
       let maxSim = 0;
       for (const selBigrams of selectedBigrams) {
-        const sim = jaccardSimilarity(candidateBigrams, selBigrams);
+        const sim = jaccard(candidateBigrams, selBigrams);
         if (sim > maxSim) maxSim = sim;
       }
 
