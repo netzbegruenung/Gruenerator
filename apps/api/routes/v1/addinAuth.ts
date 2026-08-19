@@ -89,11 +89,20 @@ export async function requireAddinAuth(
   // `verifyOAuthResourceRequest` lädt `config/betterAuth.js` erst beim ersten
   // Aufruf nach — der Schlüsselpfad und jeder Test, der ihn anfasst, kommen
   // weiterhin ohne vollständige Auth-Umgebung aus.
-  const claims = await verifyOAuthResourceRequest(req);
-  if (claims) {
-    req.apiKey = contextFromOAuthSession(claims.userId, [...claims.scopes].join(' '));
-    next();
-    return;
+  //
+  // Der Fang bleibt trotzdem stehen, obwohl die Prüfung ein ungültiges Token
+  // schon selbst zu `null` macht: ein kaputter Auth-Stack (fehlgeschlagener
+  // Import, unerreichbare JWKS) darf keine Anfrage abwürgen, die einen gültigen
+  // Zugangsschlüssel dabeihat.
+  try {
+    const claims = await verifyOAuthResourceRequest(req);
+    if (claims) {
+      req.apiKey = contextFromOAuthSession(claims.userId, [...claims.scopes].join(' '));
+      next();
+      return;
+    }
+  } catch (err) {
+    log.warn('OAuth-Prüfung nicht möglich, Rückfall auf den Schlüsselpfad: %s', err);
   }
 
   // Rückfall auf den Schlüsselpfad, obwohl der Präfix fehlt.
