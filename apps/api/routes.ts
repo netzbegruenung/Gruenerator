@@ -83,11 +83,7 @@ import { releasesRouter } from './routes/releases/index.js';
 import { mountResearchContractRouter } from './routes/research/researchContractRouter.js';
 import scannerRouter from './routes/scanner/index.js';
 import { mountGlobalSearchContractRouter } from './routes/search/globalSearchContractRouter.js';
-import {
-  searchController as searchRouter,
-  searchImageProxyRouter,
-  webSearchController as webSearchRouter,
-} from './routes/search/index.js';
+import { searchImageProxyRouter } from './routes/search/index.js';
 import { mountSearchGraphContractRouter } from './routes/search/searchGraphContractRouter.js';
 import { mountShareContractRouter } from './routes/share/shareContractRouter.js';
 import shareFileRouter from './routes/share/shareFileRouter.js';
@@ -948,13 +944,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountVoiceContractRouter(app);
   app.use('/api/voice', voiceRouter);
   app.use('/api/voice/tts', ttsRouter);
-  // searchContractRouter exists but is intentionally NOT mounted yet — the
-  // pilot contract doesn't model the SSE `?stream=true` mode that the frontend
-  // depends on. Activate once streaming is added to the contract.
-  app.use('/api/search', requireAuth, publicReadLimiter, searchRouter);
-  app.use('/api/analyze', requireAuth, publicReadLimiter, searchRouter);
-  // Unified "search everything" over the caller's own content — unrelated to
-  // the web search above. requireAuth runs on the prefix because
+  // Unified "search everything" over the caller's own content. requireAuth runs
+  // on the prefix because
   // createExpressEndpoints registers handlers directly on the app.
   app.use('/api/global-search', requireAuth, authenticatedReadLimiter);
   mountGlobalSearchContractRouter(app);
@@ -976,7 +967,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/unsplash', requireAuth, publicReadLimiter);
   mountUnsplashContractRouter(app);
   app.use('/api/unsplash', unsplashRouter);
-  app.use('/api/web-search', requireAuth, publicReadLimiter, webSearchRouter);
   // Serves a web-search image hit through us so the reader's browser never
   // contacts the source host. requireAuth on the prefix even though every handle
   // is HMAC-signed: the signature says "we returned this URL", not "this caller
