@@ -128,7 +128,11 @@ export function getModel(
 ): LanguageModel {
   // Ein zäh vermerktes Paar wird übersprungen statt abgewartet — siehe
   // services/ai/modelSiblings.ts. Ohne Vermerk ändert sich hier nichts.
-  const healthy = pickHealthyTarget(provider, modelId || getDefaultModel(provider));
+  const healthy = pickHealthyTarget(
+    provider,
+    modelId || getDefaultModel(provider),
+    options.acceptTarget
+  );
   const lane = healthy ?? { provider, model: modelId };
 
   // Usage is attributed to the upstream that actually serves the request, not
