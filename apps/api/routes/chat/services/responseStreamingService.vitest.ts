@@ -5,6 +5,21 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 const mockStreamText = vi.fn();
 vi.mock('ai', () => ({
   streamText: (...args: unknown[]) => mockStreamText(...args),
+  // `classifyProviderError` (providerErrors.js) asks the SDK first — without
+  // this the upstream-error classification would crash on `undefined.isInstance`.
+  APICallError: class APICallError extends Error {
+    static isInstance(err: unknown): boolean {
+      return err instanceof APICallError;
+    }
+    statusCode: number | undefined;
+    isRetryable: boolean;
+    constructor({ message, statusCode }: { message: string; statusCode?: number }) {
+      super(message);
+      this.name = 'APICallError';
+      this.statusCode = statusCode;
+      this.isRetryable = statusCode == null ? false : statusCode >= 500 || statusCode === 429;
+    }
+  },
 }));
 
 const mockResolveModelTuple = vi.fn();
@@ -60,6 +75,11 @@ vi.mock('../../../utils/logger.js', () => ({
 
 const { ReasoningStreamUnavailableError } =
   await import('../../../services/ai/regoloReasoningStream.js');
+
+/** Aus dem 'ai'-Mock oben — dieselbe Klasse, die `classifyProviderError` prüft. */
+const { APICallError } = (await import('ai')) as unknown as {
+  APICallError: new (init: { message: string; statusCode?: number }) => Error;
+};
 
 const {
   resolveModel,
@@ -596,6 +616,139 @@ describe('streamWithFallback', () => {
     const result = await resultPromise;
     expect(result).toBe('Antwort nach langem Denken');
     expect(sse.events.some((e) => e.event === 'reasoning_delta')).toBe(true);
+    expect(sse.events.some((e) => e.event === 'fallback')).toBe(false);
+  });
+});
+
+// ─── Upstream-Fehler vor dem ersten Token ───────────────────────────────────
+
+/**
+ * Ein 429/5xx vor dem ersten Token flog bis 19.08.2026 ROH an
+ * `streamWithFallback` vorbei: kein StreamFailure, also kein Sibling-Versuch,
+ * keine Salvage — der Zug erreichte den Client als `code:'internal'`, obwohl
+ * der zweite Host hätte antworten können. So endete ein Bürgeranfragen-Zug mit
+ * „Antwort konnte nicht generiert werden".
+ *
+ * Die Gegenprobe ist genauso wichtig: ein 4xx trägt denselben Payload zum
+ * Sibling und bekäme dieselbe Absage, und ein Abbruch ist überhaupt kein
+ * Upstream-Fehler — `classifyProviderError` stuft beide Abbruch-Arten als
+ * `retryable` ein, also hinge ohne den Abbruch-Vorrang ein Sibling-Lauf an
+ * jedem abgebrochenen Zug.
+ */
+function apiError(statusCode: number) {
+  return new APICallError({ message: `upstream ${statusCode}`, statusCode });
+}
+
+describe('Upstream-Fehler vor dem ersten Token', () => {
+  const withSibling = () =>
+    makeResolution({ sibling: { provider: 'mistral', model: 'mistral-medium-2604' } });
+
+  it('löst den Sibling-Fallback aus und meldet upstream_error', async () => {
+    mockStreamText
+      .mockReturnValueOnce(streamOf([{ type: 'error', error: apiError(503) }]))
+      .mockReturnValueOnce(streamOf([{ type: 'text-delta', text: 'vom Sibling' }]));
+    const sse = makeSse();
+
+    const result = await runStream(withSibling(), sse);
+
+    expect(result).toBe('vom Sibling');
+    const fallback = sse.events.find((e) => e.event === 'fallback');
+    expect(fallback).toBeDefined();
+    expect((fallback!.data as { reason: string }).reason).toBe('upstream_error');
+  });
+
+  it('gilt auch für ein Anfragelimit (429)', async () => {
+    mockStreamText
+      .mockReturnValueOnce(streamOf([{ type: 'error', error: apiError(429) }]))
+      .mockReturnValueOnce(streamOf([{ type: 'text-delta', text: 'vom Sibling' }]));
+    const sse = makeSse();
+
+    expect(await runStream(withSibling(), sse)).toBe('vom Sibling');
+    expect(sse.events.some((e) => e.event === 'fallback')).toBe(true);
+  });
+
+  it('versucht bei einem 4xx KEINEN Sibling — derselbe Payload, dieselbe Absage', async () => {
+    mockStreamText.mockReturnValueOnce(streamOf([{ type: 'error', error: apiError(400) }]));
+    const sse = makeSse();
+
+    await expect(runStream(withSibling(), sse)).rejects.toThrow('upstream 400');
+    expect(sse.events.some((e) => e.event === 'fallback')).toBe(false);
+  });
+
+  it('meldet provider_unavailable, wenn auch der Sibling stirbt', async () => {
+    mockStreamText
+      .mockReturnValueOnce(streamOf([{ type: 'error', error: apiError(503) }]))
+      .mockReturnValueOnce(streamOf([{ type: 'error', error: apiError(502) }]));
+    const sse = makeSse();
+
+    const result = await runStream(withSibling(), sse);
+
+    expect(result).toBeNull();
+    const error = sse.events.find((e) => e.event === 'error');
+    expect((error!.data as { code: string }).code).toBe('provider_unavailable');
+    expect(sse.isEnded()).toBe(true);
+  });
+
+  it('lässt einen Fehler NACH dem ersten Token unverändert — kein Token-Replay', async () => {
+    mockStreamText.mockReturnValueOnce(
+      streamOf([
+        { type: 'text-delta', text: 'Anfang ' },
+        { type: 'error', error: apiError(503) },
+      ])
+    );
+    const sse = makeSse();
+
+    const result = await runStream(withSibling(), sse);
+
+    expect(result).toBeNull();
+    expect(sse.events.some((e) => e.event === 'fallback')).toBe(false);
+    const error = sse.events.find((e) => e.event === 'error');
+    expect((error!.data as { code: string }).code).toBe('stream_interrupted');
+  });
+
+  it('der Roh-Reasoning-Pfad fällt bei 503 ebenfalls auf den Sibling', async () => {
+    mockStreamWithReasoning.mockImplementationOnce(() => {
+      throw new ReasoningStreamUnavailableError('regolo', 503, 'upstream down');
+    });
+    mockStreamText.mockReturnValueOnce(streamOf([{ type: 'text-delta', text: 'vom Sibling' }]));
+    const sse = makeSse();
+
+    const result = await runStream(
+      makeResolution({
+        model: { provider: 'regolo', model: 'gemma4-31b' },
+        provider: 'regolo',
+        modelName: 'gemma4-31b',
+        reasoningEffort: 'medium',
+        // Sibling BEWUSST ohne Roh-Reasoning-Pfad: sonst liefe der zweite
+        // Versuch im Mock erneut über streamWithReasoning statt über das SDK.
+        sibling: { provider: 'scaleway', model: 'gemma-4-26b-a4b-it' },
+      }),
+      sse
+    );
+
+    expect(result).toBe('vom Sibling');
+    const fallback = sse.events.find((e) => e.event === 'fallback');
+    expect((fallback!.data as { reason: string }).reason).toBe('upstream_error');
+  });
+
+  it('der Roh-Reasoning-Pfad fällt bei 400 NICHT auf den Sibling', async () => {
+    mockStreamWithReasoning.mockImplementationOnce(() => {
+      throw new ReasoningStreamUnavailableError('regolo', 400, 'bad payload');
+    });
+    const sse = makeSse();
+
+    await expect(
+      runStream(
+        makeResolution({
+          model: { provider: 'regolo', model: 'gemma4-31b' },
+          provider: 'regolo',
+          modelName: 'gemma4-31b',
+          reasoningEffort: 'medium',
+          sibling: { provider: 'mistral', model: 'mistral-medium-2604' },
+        }),
+        sse
+      )
+    ).rejects.toThrow(/400/);
     expect(sse.events.some((e) => e.event === 'fallback')).toBe(false);
   });
 });
