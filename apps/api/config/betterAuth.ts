@@ -158,6 +158,65 @@ async function syncLocaleFromProvider(userId: string, providerId: string): Promi
   }
 }
 
+/**
+ * Der MCP-Autorisierungsserver, vor `betterAuth()` gebaut, weil sein Typ eine
+ * Zurechtrückung braucht.
+ *
+ * `better-call` schreibt `OpenAPIParameter.schema.items` als
+ * `items?: { type: OpenAPISchemaType }` — ohne `| undefined`, anders als die
+ * Nachbarfelder `format` und `description`. Der OpenAPI-Block von
+ * `/oauth2/authorize` in `@better-auth/oauth-provider` ist eine Vereinigung von
+ * Objektliteralen, von denen nur einige `items` tragen; TypeScript normalisiert
+ * die übrigen zu `items?: undefined`. Unter unserem
+ * `exactOptionalPropertyTypes: true` ist das keine gültige Belegung mehr —
+ * Projekten ohne die Option fällt es nicht auf.
+ *
+ * Es geht dabei um eine Beschreibung für die OpenAPI-Ausgabe, nicht um
+ * Laufzeitverhalten. Der Fehler bleibt aber nicht bei sich: solange er steht,
+ * fällt der ganze `auth`-Typ auf `Auth<BetterAuthOptions>` zurück und
+ * `BetterAuthUser` verliert **sämtliche** `additionalFields` (`is_admin`,
+ * `locale`, `first_name`, …) — still, ohne dass irgendetwas rot würde. Ein
+ * `@ts-expect-error` an der Stelle hilft deshalb nicht, es unterdrückt nur die
+ * Meldung und lässt den Schaden stehen.
+ *
+ * Die Behauptung zielt darum auf genau das kaputte Feld: `endpoints` wird auf
+ * die Form geweitet, die `BetterAuthPlugin` verlangt. Alles andere am Plugin
+ * und die Inferenz der übrigen Optionen bleiben unangetastet. Preis ist, dass
+ * die Endpunkte dieses Plugins in `auth.api` nur noch generisch typisiert sind
+ * — die eine Stelle, die darauf angewiesen ist, steht in `server.ts` und sagt
+ * es dort. Streichbar, sobald `items` upstream ein `| undefined` bekommt.
+ */
+const rawMcpPlugin = mcp({
+  loginPage: MCP_LOGIN_PAGE,
+  consentPage: MCP_CONSENT_PAGE,
+  resource: MCP_RESOURCE_URL,
+  // Alles, was ausgestellt werden darf — nicht nur die MCP-Rechte. Fehlt
+  // `chat:completions` hier, weist der Server die Anfrage des Excel-Add-ins als
+  // unbekannten Scope ab.
+  scopes: [...MCP_OAUTH_SCOPES_SUPPORTED],
+  // Was ein frisch registrierter Client bekommt. Bewusst enger als `scopes` —
+  // siehe die Begründung an der Konstante.
+  clientRegistrationDefaultScopes: [...MCP_CLIENT_REGISTRATION_SCOPES],
+  accessTokenExpiresIn: 3600,
+  refreshTokenExpiresIn: 60 * 60 * 24 * 30,
+  // 1.7 schaltet die dynamische Registrierung nicht mehr mit `mcp()` mit ein;
+  // ohne diese zwei Flaggen antwortet `/oauth2/register` mit 403 und kein
+  // MCP-Konnektor kommt mehr durch die Erstverbindung.
+  allowDynamicClientRegistration: true,
+  allowUnauthenticatedClientRegistration: true,
+  // Der Standard ist `true` und verlangt für jede angefragte Ressource eine
+  // Zeile in `ba_oauth_client_resources`. Die aus 1.6 übernommenen Clients
+  // haben keine — die Verknüpfung entsteht erst bei einer Registrierung unter
+  // 1.7 —, sie liefen sonst am Token-Endpunkt auf `invalid_target`. Es gibt
+  // genau eine Ressource, also kostet das Abschalten hier keine Trennschärfe.
+  enforcePerClientResources: false,
+});
+
+const mcpPlugin = {
+  ...rawMcpPlugin,
+  endpoints: rawMcpPlugin.endpoints as unknown as NonNullable<BetterAuthPlugin['endpoints']>,
+};
+
 // One-shot config snapshot at module load — answers "what URL did the
 // container actually pick up?" without requiring a request to fire.
 log.info(
@@ -632,48 +691,9 @@ export const auth = betterAuth({
     webViewHandoff(),
     // OAuth 2.1 AS (DCR + PKCE) for the authenticated MCP endpoint. Keycloak
     // stays the only IdP: /oauth2/authorize rides the existing session, the
-    // after-hook resumes the flow post-login. The plugin skips consent unless
-    // `prompt=consent` — the shim in server.ts forces it.
-    mcp({
-      loginPage: MCP_LOGIN_PAGE,
-      consentPage: MCP_CONSENT_PAGE,
-      resource: MCP_RESOURCE_URL,
-      // Alles, was ausgestellt werden darf — nicht nur die MCP-Rechte.
-      // Fehlt `chat:completions` hier, weist der Server die Anfrage des
-      // Excel-Add-ins als unbekannten Scope ab.
-      scopes: [...MCP_OAUTH_SCOPES_SUPPORTED],
-      // Was ein frisch registrierter Client bekommt. Bewusst enger als
-      // `scopes` — siehe die Begründung an der Konstante.
-      clientRegistrationDefaultScopes: [...MCP_CLIENT_REGISTRATION_SCOPES],
-      accessTokenExpiresIn: 3600,
-      refreshTokenExpiresIn: 60 * 60 * 24 * 30,
-      // 1.7 schaltet die dynamische Registrierung nicht mehr mit `mcp()` mit
-      // ein; ohne diese zwei Flaggen antwortet `/oauth2/register` mit 403 und
-      // kein MCP-Konnektor kommt mehr durch die Erstverbindung.
-      allowDynamicClientRegistration: true,
-      allowUnauthenticatedClientRegistration: true,
-      // Der Standard ist `true` und verlangt für jede angefragte Ressource
-      // eine Zeile in `ba_oauth_client_resources`. Die aus 1.6 übernommenen
-      // Clients haben keine — die Verknüpfung entsteht erst bei einer
-      // Registrierung unter 1.7 —, sie liefen sonst am Token-Endpunkt auf
-      // `invalid_target`. Es gibt genau eine Ressource, also kostet das
-      // Abschalten hier keine Trennschärfe.
-      enforcePerClientResources: false,
-      // Die einzige Behauptung in dieser Datei, und sie sitzt an einer echten
-      // Paketgrenze. `better-call` schreibt `OpenAPIParameter.schema.items`
-      // als `items?: { type: OpenAPISchemaType }` — ohne `| undefined`,
-      // anders als die Nachbarfelder `format` und `description`. Der
-      // OpenAPI-Block von `/oauth2/authorize` in `@better-auth/oauth-provider`
-      // ist eine Vereinigung von Objektliteralen, von denen nur einige `items`
-      // tragen; TypeScript normalisiert die übrigen zu `items?: undefined`.
-      // Unter unserem `exactOptionalPropertyTypes: true` ist das keine gültige
-      // Belegung mehr — für Projekte ohne die Option fällt es nicht auf.
-      //
-      // Es geht also um eine Beschreibung für die OpenAPI-Ausgabe, nicht um
-      // Laufzeitverhalten: das Plugin-Objekt ist genau das, was `betterAuth()`
-      // erwartet. Ersatzlos streichen lässt es sich, sobald `items` upstream
-      // ein `| undefined` bekommt.
-    }) as unknown as BetterAuthPlugin,
+    // after-hook resumes the flow post-login. Die Zustimmungsseite steuert ab
+    // 1.7 das Plugin selbst — der Shim in `server.ts` ist deshalb entfallen.
+    mcpPlugin,
     // Client ID Metadata Documents: MCP 2026-07-28 verlangt sie normativ.
     // Der Node-Transport bringt die geforderte Härtung mit (DNS einmal
     // auflösen, Adresse an die Verbindung pinnen, Weiterleitungen nicht
