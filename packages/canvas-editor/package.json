@@ -42,15 +42,15 @@
     "@iconify-json/flowbite": "^1.2.7",
     "@iconify-json/heroicons": "^1.2.3",
     "@iconify-json/iconoir": "^1.2.11",
-    "@iconify-json/lucide": "^1.2.123",
+    "@iconify-json/lucide": "^1.2.124",
     "@iconify-json/ri": "^1.2.10",
     "@iconify-json/tabler": "^1.2.38",
     "@iconify/react": "^6.0.2",
     "@iconify/utils": "^3.1.4",
     "@tanstack/react-query": "^5.101.4",
     "clsx": "^2.1.1",
-    "immer": "^11.1.16",
-    "konva": "^10.3.0",
+    "immer": "^11.1.18",
+    "konva": "^10.3.1",
     "pptxgenjs": "^4.0.1",
     "qrcode.react": "^4.2.0",
     "radix-ui": "^1.6.6",
@@ -59,15 +59,15 @@
     "recharts": "3.10.1",
     "tailwind-merge": "^3.6.0",
     "use-image": "^1.1.4",
-    "yjs": "^13.6.31",
-    "zustand": "^5.0.14"
+    "yjs": "^13.6.32",
+    "zustand": "^5.0.15"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.3.2",
-    "@types/react": "19.2.17",
+    "@types/react": "19.2.18",
     "@types/react-dom": "^19.2.4",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   },
   "peerDependencies": {
     "@tanstack/react-query": "^5.0.0",
