@@ -489,13 +489,26 @@ function isCompoundGenerationIntent(intent: string): boolean {
   return COMPOUND_GENERATION_INTENTS.has(intent as ChatIntentId);
 }
 
-export function compoundGenerationKind(intent: string, raw: string): CompoundGenerationKind | null {
+export function compoundGenerationKind(
+  intent: string,
+  raw: string,
+  /**
+   * Die von einer `@…-erstellen`-Erwähnung festgezurrte Art. Schlägt beide
+   * Ableitungen — den Intent und das Substantiv —, weil sie eine WAHL ist und
+   * die beiden anderen nur Indizien sind. Was sie NICHT verschiebt, sind die
+   * Gitter darum: ob der Turn überhaupt ein Verbund ist, entscheidet weiterhin
+   * das Recherchesignal (benannter Intent) bzw. der Erstell-Auftrag und das
+   * Verbot (demotierter Turn).
+   */
+  pinnedKind: ArtifactKindId | null = null
+): CompoundGenerationKind | null {
   const t = (raw ?? '').trim();
   // A NAMED generation intent has a single-pass dispatcher of its own, so only a
   // turn that ALSO carries a research signal is lifted into the loop; without it
   // `null` means "the dispatcher builds it", which is correct and faster.
   if (isCompoundGenerationIntent(intent)) {
     if (!looksLikeCompoundGeneration(t)) return null;
+    if (pinnedKind) return pinnedKind;
     const named = ARTIFACT_KINDS.find((k) => k.intent === intent);
     if (named) return named.id;
   }
@@ -516,8 +529,14 @@ export function compoundGenerationKind(intent: string, raw: string): CompoundGen
     //
     // Order = specificity, and it is the registry's array order — see
     // `recoverKindFromText`.
-    const kind = recoverKindFromText(t);
+    const kind = pinnedKind ?? recoverKindFromText(t);
     if (kind == null) return null;
+    // Die Erwähnung liefert das SUBSTANTIV, das dem Text fehlt — aber nicht den
+    // Auftrag. `looksLikeCompoundGeneration` verlangt beides (Substantiv UND
+    // Recherchesignal); mit Pin ist die Substantiv-Hälfte schon beantwortet, die
+    // andere bleibt. Sonst garantierte ein `@pdf-erstellen` auf „Was steht im
+    // PDF?" ein PDF — `forceCompoundGeneration` baut die Art, die hier steht.
+    if (pinnedKind && !RESEARCH_SIGNAL_RE.test(t) && recoverKindFromText(t) == null) return null;
     // The router's negative-action gate keys on the classified INTENT, so a kind
     // recovered from the TEXT never passes under it — "erstelle diesmal kein
     // Dokument" on a demoted turn would mount the doc tool, and

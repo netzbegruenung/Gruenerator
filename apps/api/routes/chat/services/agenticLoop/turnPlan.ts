@@ -18,7 +18,11 @@
  * Pipeline-Agent, PDF-Formularlage), wird als Feld hereingereicht statt hier
  * geholt. `decisionJournal` ist der einzige Zusatz und selbst ein Blatt.
  */
-import { type ChatIntentId, forcesLoopLane } from '@gruenerator/shared/chat-intents';
+import {
+  type ArtifactCreateKind,
+  type ChatIntentId,
+  forcesLoopLane,
+} from '@gruenerator/shared/chat-intents';
 
 import { recordDecision } from '../../../../utils/decisionJournal.js';
 
@@ -120,6 +124,14 @@ export interface TurnPlanInput {
    * Der zweite Weg in die Schleife neben der `forcedLane`-Achse — siehe unten.
    */
   mentionPinnedTool: string | null;
+  /**
+   * Die von einer `@…-erstellen`-Erwähnung festgezurrte Artefaktart
+   * (`mentionPinnedArtifactKind`). Schlägt die Substantiv-Ableitung, nicht die
+   * Verbund-Gitter: OB der Turn ein Verbund ist, entscheidet weiterhin das
+   * Recherchesignal bzw. der Erstell-Auftrag — die Erwähnung sagt nur, WAS
+   * gebaut würde.
+   */
+  mentionPinnedArtifactKind: ArtifactCreateKind | null;
 }
 
 /**
@@ -254,7 +266,7 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
   // gewonnen, damit „mach mir eine Tabelle draus" das Tabellen-Werkzeug montiert.
   const compoundKind =
     !p.forcedTool && !p.isSharepicRefinement && !editorSurface
-      ? compoundGenerationKind(proposedIntent, p.lastUserText)
+      ? compoundGenerationKind(proposedIntent, p.lastUserText, p.mentionPinnedArtifactKind)
       : null;
 
   // Verbund „recherchiere UND bau es ins offene Dokument ein". Dieselben
