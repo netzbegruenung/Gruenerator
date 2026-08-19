@@ -2,23 +2,25 @@ name: Canvas-Editor
 
 # Eigener Workflow statt eines Jobs in ci.yml — dieselbe Begruendung wie bei
 # a11y.yml: die Lane braucht einen Playwright-Browser und einen laufenden
-# Dev-Server. In ci.yml gehaengt wuerde sie jeden PR verlangsamen, auch die,
-# die den Editor nicht anfassen. Deshalb pfad-gefiltert.
+# Dev-Server.
 #
 # Was sie prueft, kann keine der bestehenden Lanes pruefen: die Resize-Geometrie
 # entsteht erst aus Konvas Transformer, echten Zeigerereignissen und echtem
 # Layout. Die node-vitest-Lane deckt die Arithmetik ab, aber sie muss die
 # Konva-Skalierung annehmen — und genau in dieser Annahme sass der Fehler, den
-# dieser Workflow ab jetzt festhaelt (Path-Formen wuchsen beim Verkleinern).
+# dieser Workflow festhaelt (Path-Formen wuchsen beim Verkleinern).
+#
+# ABSICHTLICH NUR MANUELL. Der frueher hier stehende pull_request-Trigger
+# (pfad-gefiltert auf packages/canvas-editor/**) lief bei jeder Editor-Aenderung
+# mit und kostete jedes Mal Minuten fuer eine Geometrie, die sich fast nie
+# aendert — am 19.08.2026 haengte er sich zudem 18 Minuten in apt-get fest und
+# lief ins Timeout, ohne den Test je erreicht zu haben. Vor Aenderungen an
+# primitives/ (Transformer, shapeTransform, GenericCanvasElement) von Hand
+# starten:
+#
+#   gh workflow run canvas.yml --ref <branch>
 
 on:
-  pull_request:
-    branches: [master, main]
-    paths:
-      - 'packages/canvas-editor/**'
-      - 'apps/web/tests/e2e/canvas-shape-resize.spec.ts'
-      - 'apps/web/tests/e2e/harness/**'
-      - '.github/workflows/canvas.yml'
   workflow_dispatch:
 
 permissions:
@@ -55,8 +57,29 @@ jobs:
 
       # Nur Chromium: geprueft wird Konvas Geometrie ueber der Canvas-2D-API,
       # nicht das Rendering-Verhalten einzelner Engines.
+      - name: Playwright-Version ermitteln
+        id: playwright
+        run: |
+          echo "version=$(node -p "require('./apps/web/node_modules/@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Playwright-Browser aus dem Cache
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ steps.playwright.outputs.version }}-chromium
+
+      # Bewusst OHNE --with-deps: das ruft apt-get auf, und der Ubuntu-Mirror der
+      # Runner haengte am 19.08.2026 reproduzierbar (zweimal, 18 und 8 Minuten,
+      # jeweils stumm nach "noble-security InRelease"). Das Runner-Image bringt
+      # Chromiums Systembibliotheken bereits mit — der apt-Lauf war die ganze
+      # Zeit ueber nur Ballast. Bleibt Chromium irgendwann doch eine Bibliothek
+      # schuldig, ist `playwright install-deps chromium` als eigener Schritt der
+      # richtige Ort, nicht die Kopplung an den Browser-Download.
       - name: Playwright-Browser
-        run: pnpm --filter @gruenerator/web exec playwright install --with-deps chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 5
+        run: pnpm --filter @gruenerator/web exec playwright install chromium
 
       - name: Build shared packages
         run: pnpm build:shared
