@@ -130,6 +130,20 @@ export class PostgresService {
         );
       }
 
+      // better-auth 1.7 prep: stamp `ba_accounts.issuer` on legacy rows. Not
+      // marker-guarded — 1.6.x keeps writing rows without it until the upgrade
+      // lands, so this has to catch stragglers on every boot.
+      try {
+        const { backfillAccountIssuer } =
+          await import('../../../services/migrations/backfillAccountIssuer.js');
+        await backfillAccountIssuer();
+      } catch (error) {
+        console.warn(
+          '[PostgresService] ⚠️ Account issuer backfill skipped:',
+          (error as Error).message
+        );
+      }
+
       try {
         const { backfillNotebookAudience } =
           await import('../../../services/migrations/backfillNotebookAudience.js');
