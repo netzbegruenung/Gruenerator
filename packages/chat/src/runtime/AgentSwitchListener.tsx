@@ -3,7 +3,10 @@
 import { useAui } from '@assistant-ui/react';
 import { useEffect, useRef } from 'react';
 
+import { getDefaultAgent } from '../lib/agents';
 import { useAgentStore } from '../stores/chatStore';
+
+import { getThreadAgentId } from './GrueneratorThreadListAdapter';
 
 export function AgentSwitchListener() {
   const aui = useAui();
@@ -18,11 +21,20 @@ export function AgentSwitchListener() {
     if (prevRef.current === selectedAgentId) return;
     prevRef.current = selectedAgentId;
 
-    // Agent restored from a thread deep link (ChatThreadRouting) — not a
-    // user-initiated switch. Consume the flag and keep the loaded thread.
-    if (useAgentStore.getState().suppressAgentSwitchReset) {
-      useAgentStore.setState({ suppressAgentSwitchReset: false });
-      return;
+    // Agent restored from the thread we just opened (ChatThreadRouting sets it
+    // from the thread row after the switch) — not a user-initiated switch, so
+    // the thread must stay. Checked structurally against the open thread rather
+    // than via a "suppress once" flag: that flag was only consumed when the
+    // agent actually changed, so a restore that happened to be a no-op left it
+    // latched and swallowed the user's NEXT real agent switch.
+    const state = aui.threads.getState();
+    const mainRemoteId =
+      state.threadItems.find((t) => t.id === state.mainThreadId)?.remoteId ?? null;
+    if (mainRemoteId) {
+      const threadAgentId = getThreadAgentId(mainRemoteId);
+      const threadAgent =
+        threadAgentId && threadAgentId !== getDefaultAgent() ? threadAgentId : null;
+      if (threadAgent === selectedAgentId) return;
     }
 
     // A deselect-to-null while in thread view is the side effect of opening an

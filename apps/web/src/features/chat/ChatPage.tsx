@@ -32,7 +32,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
 import { useDocumentTitle } from '@/components/hooks/useDocumentTitle';
@@ -108,7 +108,6 @@ function ChatPage() {
   // `slug` comes from /agents/:slug, `threadSlug` from /chat/:threadSlug.
   const { slug, threadSlug } = useParams<{ slug?: string; threadSlug?: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
   // False while the lazy assistant-ui runtime chunk is still loading (or in the
   // Suspense fallback on a cold direct load of /chat). Gating the runtime-using
   // content below on it keeps useAui() from running outside the provider —
@@ -365,18 +364,25 @@ function ChatPage() {
 
   const handleNavigate = useCallback((path: string) => navigate(path), [navigate]);
 
-  const isAgentsPath = location.pathname.startsWith('/agents/');
   const handleNavigateToThread = useCallback(
-    (slugPath: string, opts: { replace: boolean }) => {
-      // Canonicalizing /agents/:slug → /chat/<slug> replaces so Back leaves
-      // the agent page instead of bouncing between the two URLs.
-      void navigate(`/chat/${slugPath}`, { replace: opts.replace || isAgentsPath });
+    (slugPath: string) => {
+      // Always a replace: this only ever canonicalizes the URL for a thread the
+      // runtime is already on (a draft that just minted, a generated title).
+      // Clicking a thread is the only thing that pushes, so Back walks the
+      // threads the user actually visited and can never replay an oscillation.
+      void navigate(`/chat/${slugPath}`, { replace: true });
     },
-    [navigate, isAgentsPath]
+    [navigate]
   );
   const handleThreadGone = useCallback(() => {
     // Land on the new-chat hero, not on whatever thread is still current.
     useAgentStore.getState().setChatViewMode('overview');
+    void navigate('/chat', { replace: true });
+  }, [navigate]);
+  const handleLeaveThread = useCallback(() => {
+    // The runtime moved to a fresh draft on its own (agent switch). The thread
+    // still exists, so this is not "gone" — just follow it out of the thread
+    // URL and leave the view mode alone: the draft is where the user types next.
     void navigate('/chat', { replace: true });
   }, [navigate]);
 
@@ -395,6 +401,7 @@ function ChatPage() {
           threadSlug={threadSlug ?? null}
           onNavigateToThread={handleNavigateToThread}
           onThreadGone={handleThreadGone}
+          onLeaveThread={handleLeaveThread}
           onOpenNotebookThread={handleNavigate}
         />
       )}

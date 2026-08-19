@@ -66,8 +66,8 @@ interface GrueneratorChatProviderProps {
    * the app never injects runtime-dependent UI into the Suspense fallback.
    */
   threadListPortalSlotId?: string;
-  /** Invoked when the user clicks the global thread-list portal (e.g. navigate to /chat). */
-  onRequestOpenChat?: () => void;
+  /** Host router. Lets the thread list open a thread by navigating to its URL. */
+  onNavigate?: (path: string, opts?: { replace?: boolean }) => void;
 }
 
 export function GrueneratorChatProvider({
@@ -80,7 +80,7 @@ export function GrueneratorChatProvider({
   activePath,
   enabledModelIds,
   threadListPortalSlotId,
-  onRequestOpenChat,
+  onNavigate,
 }: GrueneratorChatProviderProps) {
   // Sync config store during render (before any hooks read from it).
   // useEffect runs AFTER render, which creates a race: providerApiClient
@@ -140,7 +140,7 @@ export function GrueneratorChatProvider({
           onExternalThreadClick={onExternalThreadClick}
           activePath={activePath}
           threadListPortalSlotId={threadListPortalSlotId}
-          onRequestOpenChat={onRequestOpenChat}
+          onNavigate={onNavigate}
         >
           {children}
         </GrueneratorChatRuntimeProvider>

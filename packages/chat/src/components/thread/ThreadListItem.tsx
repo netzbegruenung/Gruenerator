@@ -19,14 +19,12 @@ import {
 } from 'lucide-react';
 import { type MouseEvent, useCallback, useState, useSyncExternalStore } from 'react';
 
+import { useChatNavigation } from '../../context/ChatNavigationContext';
 import { useExternalThread } from '../../context/ExternalThreadContext';
+import { adoptAuiAction } from '../../lib/auiAsync';
+import { buildThreadPath } from '../../lib/threadPath';
 import { cn } from '../../lib/utils';
-import {
-  getThreadType,
-  getNotebookCollectionId,
-  getThreadTags,
-  subscribeThreadTags,
-} from '../../runtime/GrueneratorThreadListAdapter';
+import { getThreadTags, subscribeThreadTags } from '../../runtime/GrueneratorThreadListAdapter';
 import { useAgentStore } from '../../stores/chatStore';
 import useChatPinsStore, { useIsChatPinned } from '../../stores/useChatPinsStore';
 
@@ -34,19 +32,54 @@ import { EditTagsDialog } from './EditTagsDialog';
 import { MoveToSpaceDialog } from './MoveToSpaceDialog';
 import { ShareThreadDialog } from './ShareThreadDialog';
 
-function useSafeThreadAction(action: 'delete' | 'switchTo' | 'archive' | 'unarchive') {
+function useSafeThreadAction(action: 'delete' | 'archive' | 'unarchive') {
   const aui = useAui();
   return useCallback(
     (e: MouseEvent) => {
+      // The primitive's built-in call is fire-and-forget, so a rejection (the
+      // thread was already removed elsewhere) would surface as an unhandled
+      // rejection. Suppress it and re-issue with a catch — synchronously, see
+      // adoptAuiAction for why the old microtask deferral was a bug.
       e.preventDefault();
-      Promise.resolve()
-        .then(() => aui.threadListItem[action]())
-        .catch((err) => {
-          console.warn(`[ThreadList] ${action} failed (thread likely already removed):`, err);
-        });
+      adoptAuiAction(aui.threadListItem[action](), (err) => {
+        console.warn(`[ThreadList] ${action} failed (thread likely already removed):`, err);
+      });
     },
     [aui, action]
   );
+}
+
+/**
+ * Opening a thread is a navigation, not a runtime call: the URL is the single
+ * source of truth and ChatThreadRouting performs the switch from it. Doing both
+ * raced — the click's switch and the URL's switch cancelled each other, which
+ * is what made rapid clicks flicker between two threads.
+ */
+function useOpenThread(remoteId: string | null | undefined, title: string | null | undefined) {
+  const aui = useAui();
+  const nav = useChatNavigation();
+  const threadPath = remoteId ? buildThreadPath(remoteId, title ?? null) : null;
+
+  const onClick = useCallback(
+    (e: MouseEvent) => {
+      // Leave new-tab / new-window / "open in background" to the browser.
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      useAgentStore.getState().setChatViewMode('thread');
+      if (nav && threadPath) {
+        nav.navigate(threadPath);
+        return;
+      }
+      // Host without a router (mobile drives selection itself): switch directly.
+      useAgentStore.getState().setPendingInitialAssistantMessage(null);
+      adoptAuiAction(aui.threadListItem.switchTo(), (err) => {
+        console.warn('[ThreadList] switchTo failed (thread likely already removed):', err);
+      });
+    },
+    [aui, nav, threadPath]
+  );
+
+  return { threadPath, onClick };
 }
 
 function ExternalThreadItem() {
@@ -79,8 +112,8 @@ function ExternalThreadItem() {
 }
 
 export function GrueneratorThreadListItem() {
-  const { externalId, remoteId } = useAuiState((s) => s.threadListItem);
-  const baseSwitchTo = useSafeThreadAction('switchTo');
+  const { externalId, remoteId, title } = useAuiState((s) => s.threadListItem);
+  const { threadPath, onClick: handleOpen } = useOpenThread(remoteId, title);
   const handleArchive = useSafeThreadAction('archive');
   const handleDelete = useSafeThreadAction('delete');
   const [shareOpen, setShareOpen] = useState(false);
@@ -93,36 +126,10 @@ export function GrueneratorThreadListItem() {
     () => getThreadTags(remoteId ?? ''),
     () => getThreadTags(remoteId ?? '')
   );
-  const ctx = useExternalThread();
   const isPinned = useIsChatPinned(remoteId);
   const togglePin = useCallback(() => {
     if (remoteId) useChatPinsStore.getState().togglePin(remoteId);
   }, [remoteId]);
-  const handleSwitch = useCallback(
-    (e: MouseEvent) => {
-      // Notebook threads navigate to the notebook page instead of opening in chat
-      if (remoteId) {
-        const threadType = getThreadType(remoteId);
-        if (threadType === 'notebook') {
-          const collectionId = getNotebookCollectionId(remoteId);
-          if (collectionId && ctx?.onClick) {
-            const path = collectionId.endsWith('-system')
-              ? `/gruene-${collectionId.replace('-system', '')}?thread=${remoteId}`
-              : `/notebook/${collectionId}?thread=${remoteId}`;
-            ctx.onClick(path);
-            return;
-          }
-        }
-      }
-      const store = useAgentStore.getState();
-      // Explicit thread pick: drop queued auto-send state so a stale persisted
-      // value can't make AutoMessageSender hijack the switch into a new thread.
-      store.setPendingInitialAssistantMessage(null);
-      store.setChatViewMode('thread');
-      baseSwitchTo(e);
-    },
-    [baseSwitchTo, remoteId, ctx]
-  );
 
   if (externalId) {
     return <ExternalThreadItem />;
@@ -137,16 +144,26 @@ export function GrueneratorThreadListItem() {
           'data-[active]:bg-secondary-100 dark:data-[active]:bg-secondary-800/60 data-[active]:font-medium'
         )}
       >
-        <ThreadListItemPrimitive.Trigger
-          onClick={handleSwitch}
-          className="flex min-w-0 flex-1 items-center text-left"
-        >
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm">
-              <ThreadListItemPrimitive.Title fallback="Neue Unterhaltung" />
-            </p>
-          </div>
-        </ThreadListItemPrimitive.Trigger>
+        {/* A real link, so the row carries its destination: middle-click and
+            ⌘-click open a tab, and hovering shows where it goes. */}
+        {threadPath ? (
+          <a href={threadPath} onClick={handleOpen} className="flex min-w-0 flex-1 items-center">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm">
+                <ThreadListItemPrimitive.Title fallback="Neue Unterhaltung" />
+              </p>
+            </div>
+          </a>
+        ) : (
+          // Draft row: no server-side thread yet, so there is nothing to link to.
+          <ThreadListItemPrimitive.Trigger className="flex min-w-0 flex-1 items-center text-left">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm">
+                <ThreadListItemPrimitive.Title fallback="Neue Unterhaltung" />
+              </p>
+            </div>
+          </ThreadListItemPrimitive.Trigger>
+        )}
 
         <ThreadListItemMorePrimitive.Root>
           <ThreadListItemMorePrimitive.Trigger
@@ -236,18 +253,10 @@ export function GrueneratorThreadListItem() {
 }
 
 export function GrueneratorArchivedThreadListItem() {
-  const baseSwitchTo = useSafeThreadAction('switchTo');
+  const { remoteId, title } = useAuiState((s) => s.threadListItem);
+  const { threadPath, onClick: handleOpen } = useOpenThread(remoteId, title);
   const handleUnarchive = useSafeThreadAction('unarchive');
   const handleDelete = useSafeThreadAction('delete');
-  const handleSwitch = useCallback(
-    (e: MouseEvent) => {
-      const store = useAgentStore.getState();
-      store.setPendingInitialAssistantMessage(null);
-      store.setChatViewMode('thread');
-      baseSwitchTo(e);
-    },
-    [baseSwitchTo]
-  );
 
   return (
     <ThreadListItemPrimitive.Root
@@ -257,16 +266,23 @@ export function GrueneratorArchivedThreadListItem() {
         'data-[active]:bg-secondary-100 dark:data-[active]:bg-secondary-800/60 data-[active]:font-medium data-[active]:opacity-100'
       )}
     >
-      <ThreadListItemPrimitive.Trigger
-        onClick={handleSwitch}
-        className="flex min-w-0 flex-1 items-center text-left"
-      >
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm">
-            <ThreadListItemPrimitive.Title fallback="Neue Unterhaltung" />
-          </p>
-        </div>
-      </ThreadListItemPrimitive.Trigger>
+      {threadPath ? (
+        <a href={threadPath} onClick={handleOpen} className="flex min-w-0 flex-1 items-center">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm">
+              <ThreadListItemPrimitive.Title fallback="Neue Unterhaltung" />
+            </p>
+          </div>
+        </a>
+      ) : (
+        <ThreadListItemPrimitive.Trigger className="flex min-w-0 flex-1 items-center text-left">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm">
+              <ThreadListItemPrimitive.Title fallback="Neue Unterhaltung" />
+            </p>
+          </div>
+        </ThreadListItemPrimitive.Trigger>
+      )}
 
       <ThreadListItemMorePrimitive.Root>
         <ThreadListItemMorePrimitive.Trigger
