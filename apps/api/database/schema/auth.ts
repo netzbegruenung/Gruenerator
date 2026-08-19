@@ -1,5 +1,5 @@
 import { type InferSelectModel, relations } from 'drizzle-orm';
-import { index, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
+import { index, pgTable, text, timestamp, unique, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
 import { profiles } from './core.js';
 
@@ -51,11 +51,11 @@ export const ba_accounts = pgTable(
     account_id: text('account_id').notNull(),
     provider_id: text('provider_id').notNull(),
     /**
-     * better-auth 1.7 keys external accounts on (issuer, accountId). Nullable
-     * while 1.6.x is still writing rows without it; `backfillAccountIssuer`
-     * stamps stragglers on every boot until the upgrade lands.
+     * better-auth 1.7 keys external accounts on (issuer, accountId).
+     * `backfillAccountIssuer` stempelt Altbestand beim Start;
+     * `merge_ba_accounts_unique_index.sql` zieht danach NOT NULL nach.
      */
-    issuer: text('issuer'),
+    issuer: text('issuer').notNull(),
     access_token: text('access_token'),
     refresh_token: text('refresh_token'),
     access_token_expires_at: timestamp('access_token_expires_at', { withTimezone: true }),
@@ -66,7 +66,10 @@ export const ba_accounts = pgTable(
   },
   (table) => ({
     userIdx: index('idx_ba_accounts_user').on(table.user_id),
-    issuerAccountIdx: index('idx_ba_accounts_issuer_account').on(table.issuer, table.account_id),
+    issuerAccountUnique: uniqueIndex('ba_accounts_issuer_account_uidx').on(
+      table.issuer,
+      table.account_id
+    ),
     userProviderUnique: unique('ba_accounts_user_provider_unique').on(
       table.user_id,
       table.provider_id
