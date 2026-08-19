@@ -94,6 +94,25 @@ export function ChatThreadRouting({
       return;
     }
 
+    // Already on the thread the URL names? Then there is nothing to switch, and
+    // asking anyway is not free: `_startSwitchToThread` bumps the generation
+    // counter — cancelling any in-flight switch — BEFORE it discovers, via
+    // `if (this._mainThreadId === data.id) return`, that it has no work to do.
+    // This is the main path, not an edge case: minting a thread and its later
+    // generated title each rewrite the URL for the thread that is already open.
+    // Read the runtime's own main thread, not the store mirror, so a stale id
+    // can never suppress a real switch.
+    const settled = aui.threads.getState();
+    const settledRemoteId =
+      settled.threadItems.find((t) => t.id === settled.mainThreadId)?.remoteId ?? null;
+    if (
+      settledRemoteId &&
+      (suffix ? getThreadSlugSuffix(settledRemoteId) === suffix : settledRemoteId === threadSlug)
+    ) {
+      useAgentStore.getState().setChatViewMode('thread');
+      return;
+    }
+
     let cancelled = false;
     void (async () => {
       try {
