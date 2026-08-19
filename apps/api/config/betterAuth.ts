@@ -23,6 +23,7 @@ import { redisClient } from '../utils/redis/client.js';
 import { USER_ADDITIONAL_FIELDS } from './betterAuthUserFields.js';
 import { ALLOWED_DOMAINS } from './domains.js';
 import { env } from './env.js';
+import { keycloakIssuer } from './keycloakIssuer.js';
 import { mapKeycloakProfileToUser } from './mapKeycloakProfileToUser.js';
 import {
   MCP_CLIENT_REGISTRATION_SCOPES,
@@ -38,7 +39,8 @@ const KC_BASE = env.KEYCLOAK_BASE_URL;
 const KC_REALM = env.KEYCLOAK_REALM;
 const KC_CLIENT_ID = env.KEYCLOAK_CLIENT_ID;
 const KC_CLIENT_SECRET = env.KEYCLOAK_CLIENT_SECRET ?? '';
-const DISCOVERY_URL = `${KC_BASE}/realms/${KC_REALM}/.well-known/openid-configuration`;
+const KC_ISSUER = keycloakIssuer();
+const DISCOVERY_URL = `${KC_ISSUER}/.well-known/openid-configuration`;
 
 const log = createLogger('BetterAuth');
 
@@ -64,6 +66,22 @@ function keycloakProvider(id: string, idpHint: string) {
     clientId: KC_CLIENT_ID,
     clientSecret: KC_CLIENT_SECRET,
     discoveryUrl: DISCOVERY_URL,
+    /**
+     * Ohne diesen Wert bricht `genericOAuth.init()` beim Start ab, sobald die
+     * Discovery nicht erreichbar ist — 1.7 registriert einen Provider nicht
+     * mehr, dessen `issuer` es nicht kennt, weil der Teil des Kontoschlüssels
+     * ist („Provider initialization stopped to keep its account issuer
+     * stable"). Das war unter 1.6 nicht so: dort wurde die Discovery erst bei
+     * der ersten Anmeldung geholt.
+     *
+     * Ausdrücklich gesetzt heisst also zweierlei: der Start hängt nicht mehr
+     * an Keycloaks Erreichbarkeit, und der Wert ist derselbe, den
+     * `backfillAccountIssuer` in den Altbestand schreibt — statt „was die
+     * Discovery gerade zurückgibt". Die Discovery wird weiterhin geholt und
+     * liefert Endpunkte und JWKS, sie ist nur nicht mehr die einzige Quelle
+     * für die Identität.
+     */
+    accountIssuer: KC_ISSUER,
     scopes: ['openid', 'profile', 'email', 'offline_access'],
     authorizationUrlParams: { kc_idp_hint: idpHint },
     mapProfileToUser: (profile: Record<string, unknown>) =>

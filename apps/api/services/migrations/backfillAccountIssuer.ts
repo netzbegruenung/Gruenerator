@@ -16,19 +16,13 @@
  * Runs after PostgresService finishes its SQL migrations.
  */
 
-import { env } from '../../config/env.js';
+import { keycloakIssuer } from '../../config/keycloakIssuer.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('backfillAccountIssuer');
 
-/**
- * The OIDC issuer every Keycloak provider id resolves to. Mirrors the
- * `DISCOVERY_URL` in `config/betterAuth.ts`, minus the well-known suffix.
- */
-export function keycloakIssuer(): string {
-  return `${env.KEYCLOAK_BASE_URL.replace(/\/$/, '')}/realms/${env.KEYCLOAK_REALM}`;
-}
+export { keycloakIssuer };
 
 export async function backfillAccountIssuer(): Promise<void> {
   const issuer = keycloakIssuer();
