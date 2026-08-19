@@ -1610,11 +1610,11 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       // }
 
       // `research` is no longer a separate engine — it is this path at a deeper
-      // tier. It used to call executeResearch, which handed the whole question
-      // to Linkup `depth=deep, outputType=sourcedAnswer`: LINKUP wrote the
-      // answer, we rendered it in a card, and the model only framed it in two
-      // sentences. Retrieval and answer-writing are separated again, so every
-      // [N] in a research answer is now backed by our own source registry.
+      // tier. It used to hand the whole question to Linkup `depth=deep,
+      // outputType=sourcedAnswer`: LINKUP wrote the answer, we rendered it in a
+      // card, and the model only framed it in two sentences. Retrieval and
+      // answer-writing are separated again, so every [N] in a research answer is
+      // now backed by our own source registry.
       case 'research':
       case 'web': {
         // The brief is a fallback only: it orients the synthesis LLM, but a

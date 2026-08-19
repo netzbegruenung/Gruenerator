@@ -20,16 +20,16 @@ import {
 import { generateObject, generateText } from 'ai';
 import { z } from 'zod';
 
-import { executeResearch } from '../../routes/chat/agents/directSearch.js';
 import { toError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
 import { getMonitorModel } from '../ai/providers.js';
 
+import { executeResearch } from './research/researchOrchestrator.js';
 import { TOPIC_NAMES } from './types.js';
 
+import type { ResearchCitation, ResearchResult } from './research/researchOrchestrator.js';
 import type { KeywordEntry, MonitorLocale, MonitorSnapshot, TopicScore } from './types.js';
-import type { ResearchCitation, ResearchResult } from '../../routes/chat/agents/directSearch.js';
 
 const log = createLogger('HotTopic');
 
