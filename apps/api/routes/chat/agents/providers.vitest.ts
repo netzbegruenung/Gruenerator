@@ -10,8 +10,18 @@ import {
   prefersUnifiedLoop,
   resolveModelTuple,
 } from './providers.js';
+import { LOOP_SYNTH_FALLBACK, LOOP_SYNTH_PRIMARY, mayWriteAnswer } from './autoPolicy.js';
 
-const WRITER_MODELS = new Set(['gemma4-31b', 'verdigado-pro']);
+/**
+ * Die Lanes, die eine Nutzer-Antwort schreiben dürfen.
+ *
+ * `verdigado-pro` stand hier bis 19.08.2026 und war ein Irrtum, den der Name
+ * gedeckt hat: am LiteLLM-Proxy nachgemessen antwortet der Alias mit
+ * `model: "gpt-oss:120b-ctx128k"` — also mit genau dem Modell, das
+ * AVOID_AS_SYNTH ausschliesst. Die Ausweichkette bei zähem Primär zeigte
+ * damit auf ein Verbots-Modell.
+ */
+const WRITER_MODELS = new Set(['gemma4-31b', 'mistral-medium-2604']);
 
 describe('prefersUnifiedLoop (unified vs planner/executor split)', () => {
   it('Mistral (fast native tool-caller) runs the unified single-model loop', () => {
@@ -80,9 +90,33 @@ describe('split-mode model policy (getLoopSynthModel / loopPlannerModelName)', (
   });
 
   it('an explicit fast model selection is honored verbatim (no swap)', () => {
-    const choice = loopSynthChoice('verdigado-pro', false);
+    // gemma4-31b statt verdigado-pro: die Aussage des Tests ist „eine bewusste
+    // Wahl wird nicht umgeschrieben", und dafür braucht es eine Lane, die
+    // schreiben DARF. verdigado-pro ist seit der Proxy-Messung vom 19.08.2026
+    // keine mehr — siehe WRITER_MODELS.
+    const choice = loopSynthChoice('gemma4-31b', false);
     expect(choice.provider).toBeNull();
-    expect(choice.model).toBe('verdigado-pro');
+    expect(choice.model).toBe('gemma4-31b');
+  });
+
+  it('verdigado-pro schreibt nie die Antwort — der Alias ist gpt-oss', () => {
+    // Am Proxy gemessen (19.08.2026): der Alias antwortet mit
+    // `model: "gpt-oss:120b-ctx128k"`, und die Probe zeigt den Ausfallgrund
+    // gleich mit — `content: ""` bei gefuelltem `reasoning`. Im Abnahmelauf
+    // landete Planer-Text als Nutzer-Antwort („We will call gruenerator_search
+    // …"). Der Name verraet das Modell nicht, deshalb dieser Test.
+    for (const undecided of [true, false]) {
+      const choice = loopSynthChoice('verdigado-pro', undecided);
+      expect(choice.model).not.toBe('verdigado-pro');
+      expect(WRITER_MODELS.has(choice.model)).toBe(true);
+    }
+    expect(mayWriteAnswer({ model: 'verdigado-pro' })).toBe(false);
+  });
+
+  it('der erklaerte Synth-Ausweich ist selbst policy-konform', () => {
+    // Er war es nicht: LOOP_SYNTH_FALLBACK zeigte auf litellm/verdigado-pro.
+    expect(mayWriteAnswer({ model: LOOP_SYNTH_FALLBACK.model })).toBe(true);
+    expect(mayWriteAnswer({ model: LOOP_SYNTH_PRIMARY.model })).toBe(true);
   });
 
   it('never routes a Chinese model into the synth slot', () => {

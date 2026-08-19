@@ -26,6 +26,7 @@ import { createLogger } from '../../../utils/logger.js';
 
 import {
   AVOID_AS_SYNTH,
+  mayWriteAnswer,
   LOOP_PLANNER_PRIMARY,
   LOOP_PLANNER_SELFHOSTED,
   LOOP_PLANNER_FALLBACK,
@@ -677,6 +678,17 @@ function loopSynthWriterChoice(): { provider: Provider; model: string } {
   return isProviderConfigured('regolo') ? LOOP_SYNTH_PRIMARY : LOOP_SYNTH_FALLBACK;
 }
 
+/**
+ * Das Veto, das die antwortschreibenden Slots der Ausweichkette mitgeben.
+ *
+ * AVOID_AS_SYNTH entschied bis 19.08.2026 nur, WELCHES Modell ein Slot wählt.
+ * Wurde dieses Modell danach als zäh vermerkt, suchte `modelSiblings` einen
+ * Ersatz — ohne die Regel noch einmal zu lesen — und landete auf
+ * `litellm/verdigado-pro`, hinter dem am Proxy `gpt-oss:120b-ctx128k` liegt.
+ * Genau das Modell also, das die Regel für diesen Zweck ausschliesst.
+ */
+const synthTargetAllowed = mayWriteAnswer;
+
 /** Human-readable planner model name (for the [Agentic] log line). */
 export function loopPlannerModelName(): string {
   return loopPlannerChoice().model;
@@ -702,7 +714,15 @@ export function getLoopSynthFallbackModel(
 ): { model: LanguageModel; name: string } | null {
   const p = loopPlannerChoice();
   if (p.model === synthName) return null;
-  return { model: getModel(p.provider, p.model), name: p.model };
+  // Diese Lane SCHREIBT hier die Nutzer-Antwort, sie plant nicht. Ein
+  // Planer-Ausweich, den der Synth-Slot ablehnt, ist deshalb auch hier keiner:
+  // `loopPlannerChoice` endet ohne GreenPT/Regolo auf litellm/verdigado-pro
+  // (= gpt-oss), dessen Planer-Text sonst als Antwort beim Menschen landet.
+  if (!synthTargetAllowed(p)) return null;
+  return {
+    model: getModel(p.provider, p.model, { acceptTarget: synthTargetAllowed }),
+    name: p.model,
+  };
 }
 
 /**
@@ -740,7 +760,7 @@ export function getLoopSynthModel(
     return { model: resolution.model, name: resolution.modelName, provider: resolution.provider };
   }
   return {
-    model: getModel(choice.provider, choice.model),
+    model: getModel(choice.provider, choice.model, { acceptTarget: synthTargetAllowed }),
     name: choice.model,
     provider: choice.provider,
   };
