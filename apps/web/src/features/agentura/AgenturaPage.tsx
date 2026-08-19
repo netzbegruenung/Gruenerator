@@ -617,7 +617,10 @@ function AgenturaPage() {
         </div>
       </section>
 
-      <div className="mb-lg flex items-end justify-between gap-md">
+      {/* Auf Mobil stapeln Titelblock und Steuerleiste: in einer geteilten Zeile
+          quetscht die shrink-0-Steuerleiste den Titel auf wenige Zeichen und die
+          Beschreibung bricht Wort für Wort um. */}
+      <div className="mb-lg flex flex-col gap-sm sm:flex-row sm:items-end sm:justify-between sm:gap-md">
         <div className="min-w-0">
           <div className="flex items-center gap-sm">
             <h2 className="m-0 truncate text-xl font-semibold text-foreground-heading">{title}</h2>
@@ -627,7 +630,7 @@ function AgenturaPage() {
           </div>
           {description && <p className="mt-xs text-sm text-foreground-muted">{description}</p>}
         </div>
-        <div className="flex shrink-0 items-center gap-sm">
+        <div className="flex flex-wrap items-center gap-sm sm:shrink-0">
           <Select value={sort} onValueChange={(v) => updateParam('sort', v, 'empfohlen')}>
             <SelectTrigger aria-label="Sortierung" className="h-11 w-auto gap-xs">
               <PiArrowsDownUp aria-hidden="true" className="h-4 w-4 text-foreground-muted" />
