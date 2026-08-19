@@ -43,6 +43,7 @@ interface SyncResult {
   updated: number;
   skipped: number;
   errors: number;
+  errorSamples?: string[];
   fetchErrors?: number;
 }
 
@@ -269,6 +270,7 @@ async function runScopedLandesverband(
                 updated: result.updated,
                 skipped: result.skipped,
                 errors: result.errors,
+                ...(result.errorMessages.length ? { errorSamples: result.errorMessages } : {}),
                 duration: result.duration,
               },
             ],
@@ -304,6 +306,7 @@ async function runScopedLandesverband(
     skipped: result.skipped,
     fetchErrors: 0,
     errors: result.errors,
+    errorSamples: result.errorMessages,
   };
 }
 
@@ -380,6 +383,9 @@ async function executeSyncRun(
     log.info(
       `Content sync completed: ${lockKey} — stored=${result.stored} updated=${result.updated} skipped=${result.skipped} errors=${result.errors} (${Math.round(durationMs / 1000)}s)`
     );
+    if (result.errorSamples?.length) {
+      log.warn(`Content sync errors: ${lockKey} — ${result.errorSamples.join(' | ')}`);
+    }
 
     return {
       status: 200,
@@ -391,6 +397,7 @@ async function executeSyncRun(
         updated: result.updated,
         skipped: result.skipped,
         errors: result.errors,
+        ...(result.errorSamples?.length ? { errorSamples: result.errorSamples } : {}),
         fetchErrors: result.fetchErrors ?? 0,
         durationMs,
       },

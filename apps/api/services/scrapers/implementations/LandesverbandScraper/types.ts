@@ -73,6 +73,12 @@ export interface ContentPathResult {
   skipped: number;
   /** Number of errors encountered */
   errors: number;
+  /**
+   * Messages behind `errors`, capped. The count alone never left the server —
+   * only `console.error` carried the reason, so a red count in the CI-Bericht
+   * could only be diagnosed by reading prod logs within their retention window.
+   */
+  errorMessages: string[];
   /** Total vectors created */
   totalVectors: number;
   /** Skip reasons with counts */
@@ -103,6 +109,12 @@ export interface SourceResult {
   skipped: number;
   /** Number of errors encountered */
   errors: number;
+  /**
+   * Messages behind `errors`, capped. The count alone never left the server —
+   * only `console.error` carried the reason, so a red count in the CI-Bericht
+   * could only be diagnosed by reading prod logs within their retention window.
+   */
+  errorMessages: string[];
   /** Total vectors created */
   totalVectors: number;
   /** Results by content type */
@@ -149,6 +161,8 @@ export interface LandesverbandFullResult {
   skipped: number;
   /** Total errors encountered */
   errors: number;
+  /** Messages behind `errors`, capped. See ContentPathResult.errorMessages. */
+  errorMessages: string[];
   /** Total vectors created */
   totalVectors: number;
   /** Results by source ID */

@@ -147,8 +147,15 @@ jobs:
           CONTENT_SYNC_EMAIL: ${{ vars.CONTENT_SYNC_EMAIL }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
+      # Das Hochladen ist reine Telemetrie für den Sammel-Digest — die Synchronisation
+      # selbst ist zu diesem Zeitpunkt schon durch. Ohne diesen Schalter reißt ein
+      # Aussetzer des Artefakt-Blobspeichers einen Lauf rot, der `success: true` und
+      # 0 Fehler gemeldet hat (so am 16.08.2026 bei LV SL: 443 Byte JSON, Upload
+      # nach 134 s abgebrochen). Fällt der Upload aus, fehlt diese Quelle im Digest —
+      # das ist der billigere Schaden als ein Fehlalarm plus Fehler-Mail.
       - name: Upload summary
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: sync-summary-lv-${{ matrix.lv }}
@@ -210,8 +217,15 @@ jobs:
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
           CONTENT_SYNC_API_URL: ${{ vars.NOTEBOOK_API_URL || 'https://gruenerator.eu' }}
 
+      # Das Hochladen ist reine Telemetrie für den Sammel-Digest — die Synchronisation
+      # selbst ist zu diesem Zeitpunkt schon durch. Ohne diesen Schalter reißt ein
+      # Aussetzer des Artefakt-Blobspeichers einen Lauf rot, der `success: true` und
+      # 0 Fehler gemeldet hat (so am 16.08.2026 bei LV SL: 443 Byte JSON, Upload
+      # nach 134 s abgebrochen). Fällt der Upload aus, fehlt diese Quelle im Digest —
+      # das ist der billigere Schaden als ein Fehlalarm plus Fehler-Mail.
       - name: Upload summary
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: sync-summary-source-${{ matrix.source }}
@@ -340,6 +354,25 @@ jobs:
               echo "### ❌ Failed Sources"
               echo ""
               echo "$FAILED_SOURCES"
+              echo ""
+            fi
+
+            # Eine Quelle kann `status: success` melden und trotzdem an einzelnen
+            # Dokumenten scheitern — genau diese Fälle waren bisher nur als nackte
+            # Zahl sichtbar, der Grund stand allein im Prod-Log. `errorSamples` ist
+            # eine serverseitig gedeckelte Stichprobe, deshalb der Hinweis, wenn
+            # mehr Fehler gezählt als Meldungen mitgeschickt wurden.
+            ERROR_DETAILS=$(jq -r '
+              .sources[] | select((.errorSamples // []) | length > 0)
+              | "- **\(.name)** (\(.errors) Fehler"
+                + (if (.errorSamples | length) < .errors then ", \(.errorSamples | length) davon gezeigt" else "" end)
+                + "):\n"
+                + ([.errorSamples[] | "  - `" + . + "`"] | join("\n"))
+            ' "$SUMMARY_FILE")
+            if [ -n "$ERROR_DETAILS" ]; then
+              echo "### ⚠️ Fehler im Einzelnen"
+              echo ""
+              echo "$ERROR_DETAILS"
               echo ""
             fi
 
