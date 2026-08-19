@@ -75,16 +75,50 @@ function keycloakProvider(id: string, idpHint: string) {
  * unparseable, because a missing cookie domain would make Better Auth issue a
  * host-only cookie and log every subdomain user out.
  */
+const PARENT_COOKIE_DOMAIN = '.gruenerator.eu';
+
 function deriveCookieDomain(baseUrl: string | null): string {
-  const FALLBACK = '.gruenerator.eu';
-  if (baseUrl == null || baseUrl === '') return FALLBACK;
+  if (baseUrl == null || baseUrl === '') return PARENT_COOKIE_DOMAIN;
   try {
     return `.${new URL(baseUrl).hostname}`;
   } catch {
     log.warn('[BetterAuth] BETTER_AUTH_URL=%s is not a URL — cookie domain falls back', baseUrl);
-    return FALLBACK;
+    return PARENT_COOKIE_DOMAIN;
   }
 }
+
+const rawCookieDomain =
+  env.NODE_ENV === 'production'
+    ? (env.COOKIE_DOMAIN ?? deriveCookieDomain(env.BETTER_AUTH_URL ?? null))
+    : null;
+
+// For the cookie's Domain attribute a leading dot is meaningless (RFC 6265
+// ignores it), so an explicit COOKIE_DOMAIN was free to omit it. The prefix
+// derivation below is string-exact — `beta.gruenerator.eu` must not yield
+// `ba-eta` — so normalize to the dotted form once.
+const cookieDomain =
+  rawCookieDomain == null || rawCookieDomain.startsWith('.')
+    ? rawCookieDomain
+    : `.${rawCookieDomain}`;
+
+/**
+ * Narrowing the cookie DOMAIN per instance is not enough — the cookie NAME must
+ * differ too. A browser that holds both prod's `.gruenerator.eu` cookie and
+ * beta's `.beta.gruenerator.eu` cookie sends BOTH to beta under the same name;
+ * RFC 6265 leaves the order of same-named cookies effectively unspecified, so
+ * which token Better Auth reads flips between requests. Observed 19.08.2026 on
+ * beta: a fresh, live session 401ed on the first store lookup after the 300s
+ * cookie-cache window (`session_not_found` on token A, ten seconds later on
+ * token B — one of them prod's), tearing a healthy user down. An instance on
+ * the parent domain keeps the plain `ba` prefix; every narrower instance gets
+ * one derived from its subdomain (`.beta.gruenerator.eu` → `ba-beta`), so the
+ * parent-domain cookie can never shadow it. Changing the prefix logs that
+ * instance's users out once.
+ */
+export const SESSION_COOKIE_PREFIX =
+  cookieDomain == null || cookieDomain === PARENT_COOKIE_DOMAIN
+    ? 'ba'
+    : `ba-${cookieDomain.slice(1).split('.')[0]}`;
 
 const pgConfig = loadConfig();
 const pool = new pg.Pool(pgConfig);
@@ -362,7 +396,7 @@ export const auth = betterAuth({
     ipAddress: {
       ipAddressHeaders: ['x-forwarded-for', 'x-real-ip'],
     },
-    cookiePrefix: 'ba',
+    cookiePrefix: SESSION_COOKIE_PREFIX,
     database: {
       generateId: false,
     },
@@ -383,15 +417,13 @@ export const auth = betterAuth({
     // parent domain again. That fallback is deliberately soft for the notebook
     // gate it was built for; for cookie scope the same softness points the wrong
     // way. COOKIE_DOMAIN stays as the explicit override.
-    crossSubDomainCookies: (() => {
-      const config: { enabled: boolean; domain?: string } = {
-        enabled: true,
-      };
-      if (env.NODE_ENV === 'production') {
-        config.domain = env.COOKIE_DOMAIN ?? deriveCookieDomain(env.BETTER_AUTH_URL ?? null);
-      }
-      return config;
-    })(),
+    //
+    // The domain alone does not isolate instances — see SESSION_COOKIE_PREFIX
+    // above for why the cookie name is derived from the same value.
+    crossSubDomainCookies: {
+      enabled: true,
+      ...(cookieDomain != null ? { domain: cookieDomain } : {}),
+    },
   },
 
   // Database hooks emit one line per meaningful auth event. The previous
