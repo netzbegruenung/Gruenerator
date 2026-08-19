@@ -219,3 +219,26 @@ export function resetMockControls(): void {
   roleControl.roles = [];
   roleControl.bausteine = {};
 }
+
+/**
+ * `config/betterAuth.js` als Attrappe.
+ *
+ * Ungemockt baut das Modul beim Import einen Postgres-Pool auf UND initialisiert
+ * die better-auth-Plugins — und seit 1.7 schreibt `mcp()` dabei in die Datenbank
+ * (`seedResources` legt die Zeile in `ba_oauth_resources` an) und `genericOAuth`
+ * holt die Keycloak-Discovery. Beides läuft in `runPluginInit` ohne Aufrufer,
+ * der darauf wartet; ohne erreichbare Datenbank landet es als unbehandelte
+ * Ablehnung im Lauf und färbt die ganze Suite rot, obwohl jeder einzelne Test
+ * grün ist. Unter 1.6 gab es an dieser Stelle keinen Seitenaffekt.
+ *
+ * Diese Spur prüft hier nichts: die Fälle kommen über `fakeUser` herein.
+ */
+export const betterAuthModule = () => ({
+  SESSION_COOKIE_PREFIX: 'ba',
+  auth: {
+    api: {
+      getSession: () => Promise.resolve(null),
+    },
+    $context: Promise.resolve({}),
+  },
+});

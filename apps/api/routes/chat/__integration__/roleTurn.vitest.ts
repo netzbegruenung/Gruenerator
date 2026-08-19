@@ -24,6 +24,10 @@ vi.mock('../../../database/services/PostgresService.js', async () => {
   const { postgresMock } = await import('./harness/mocks.js');
   return postgresMock();
 });
+vi.mock('../../../config/betterAuth.js', async () => {
+  const { betterAuthModule } = await import('./harness/mocks.js');
+  return betterAuthModule();
+});
 vi.mock('../services/threadPersistenceService.js', async () => {
   return await import('./harness/fakeThreadStore.js');
 });
