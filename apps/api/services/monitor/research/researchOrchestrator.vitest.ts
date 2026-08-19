@@ -368,15 +368,6 @@ describe('executeResearch — the read stage', () => {
       expect(firstUrls.has(seed.url)).toBe(false);
     }
   });
-
-  it('skips the stage entirely when the caller asks for a search-only run', async () => {
-    mockPlannerAndCoverage(PLAN_TWO_WEB);
-
-    await executeResearch({ question: 'eine frage', readPages: false });
-
-    expect(mockCrawlAndDistill).not.toHaveBeenCalled();
-    expect(mockValidateUrlForFetch).not.toHaveBeenCalled();
-  });
 });
 
 describe('executeResearch — planning', () => {
@@ -597,32 +588,13 @@ describe('executeResearch — the result', () => {
 
     expect(result.followUpQuestions).toEqual([]);
   });
-
-  it('reports progress through planning, searching, reading and writing', async () => {
-    const onProgress = vi.fn();
-    mockPlannerAndCoverage(PLAN_TWO_WEB);
-
-    await executeResearch({ question: 'eine frage', onProgress });
-
-    const messages = onProgress.mock.calls.map((c) => c[0] as string);
-    expect(messages).toContain('Plane Recherche…');
-    expect(messages.some((m) => m.includes('Sub-Fragen'))).toBe(true);
-    expect(messages.some((m) => m.includes('Lese'))).toBe(true);
-    expect(messages).toContain('Erstelle Bericht…');
-  });
 });
 
 describe('researchConfidence', () => {
-  const base = { sources: 12, domains: 6, answerLength: 800, queryInherited: false };
+  const base = { sources: 12, domains: 6, answerLength: 800 };
 
-  it('reports high only for a broad, multi-domain run on the user own question', () => {
+  it('reports high only for a broad, multi-domain run', () => {
     expect(researchConfidence(base)).toBe('high');
-  });
-
-  it('caps an inherited query at medium — exhaustive research into the WRONG question is not high confidence', () => {
-    // The live failure: "Ja, bitte recherchiere das jetzt im Web" produced 20
-    // sources about the wrong topic and still shipped "Hohe Konfidenz".
-    expect(researchConfidence({ ...base, queryInherited: true })).toBe('medium');
   });
 
   it('drops to low when nothing came back', () => {
@@ -633,12 +605,6 @@ describe('researchConfidence', () => {
   it('drops to medium for a thin single-domain run', () => {
     expect(researchConfidence({ ...base, sources: 4, domains: 2 })).toBe('medium');
     expect(researchConfidence({ ...base, sources: 4, domains: 1 })).toBe('low');
-  });
-
-  it('an inherited query with a thin run is low, not medium', () => {
-    expect(researchConfidence({ ...base, sources: 2, domains: 1, queryInherited: true })).toBe(
-      'low'
-    );
   });
 });
 

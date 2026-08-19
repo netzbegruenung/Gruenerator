@@ -14,13 +14,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const mockExecuteDirectSearch = vi.fn();
 const mockExecuteDirectWebSearch = vi.fn();
 const mockExecuteDirectExamplesSearch = vi.fn();
-const mockExecuteResearch = vi.fn();
 
 vi.mock('../../../../routes/chat/agents/directSearch.js', () => ({
   executeDirectSearch: (...args: any[]) => mockExecuteDirectSearch(...args),
   executeDirectWebSearch: (...args: any[]) => mockExecuteDirectWebSearch(...args),
   executeDirectExamplesSearch: (...args: any[]) => mockExecuteDirectExamplesSearch(...args),
-  executeResearch: (...args: any[]) => mockExecuteResearch(...args),
 }));
 
 const mockSelectAndCrawlTopUrls = vi.fn();
