@@ -243,6 +243,13 @@ export interface RouteOptions {
    * reasoningEffort`). Forces the Mistral API — see {@link routeMistralModel}.
    */
   needsReasoning?: boolean;
+  /**
+   * Veto des Aufrufers gegen ein AUSWEICH-Ziel. Greift nur, wenn das Primär als
+   * zäh vermerkt ist und die Kette in `modelSiblings` ein Ersatzpaar sucht —
+   * das Primär selbst wählt der Aufrufer ohnehin. Zweck: eine Slot-Regel, die
+   * eine Ebene höher fällt (z. B. AVOID_AS_SYNTH), gilt auch für den Ausweich.
+   */
+  acceptTarget?: (target: { provider: string; model: string }) => boolean;
 }
 
 /**
