@@ -131,10 +131,14 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
     [navigate]
   );
 
-  // Clicking the global thread-list portal opens the chat surface.
-  const openChat = useCallback(() => {
-    if (!location.pathname.startsWith('/chat')) void navigate('/chat');
-  }, [location.pathname, navigate]);
+  // Router access for the chat package — the thread list opens a thread by
+  // navigating to its URL, which works the same on /chat and off it.
+  const handleChatNavigate = useCallback(
+    (path: string, opts?: { replace?: boolean }) => {
+      void navigate(path, { replace: opts?.replace ?? false });
+    },
+    [navigate]
+  );
 
   // Warm the chat-runtime chunk as soon as the user is authenticated so per-route
   // chat surfaces (and the thread-list portal) render against a loaded runtime.
@@ -350,7 +354,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
       activePath={location.pathname}
       enabledModelIds={enabledModelIds}
       threadListPortalSlotId={PORTAL_SLOT_ID}
-      onRequestOpenChat={openChat}
+      onNavigate={handleChatNavigate}
     >
       <TooltipProvider>
         {children}

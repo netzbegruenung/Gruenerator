@@ -65,14 +65,22 @@ const ChatInnerReady: React.FC = () => {
   useEffect(() => {
     const { pendingMessage, pendingDraft, pendingInitialAssistantMessage } =
       useAgentStore.getState();
-    // A pending message means another surface queued content for /chat; don't
-    // clobber it by switching threads. On /chat flip straight to the thread
-    // view so AutoMessageSender (which only lives in the thread) consumes it;
-    // on /workplace the queuing surface navigates to /chat itself.
-    if (pendingMessage || pendingDraft || pendingInitialAssistantMessage) {
-      if (onChat) useAgentStore.getState().setChatViewMode('thread');
+    const hasPending = !!(pendingMessage || pendingDraft || pendingInitialAssistantMessage);
+    // On /chat the URL owns which thread is active — bare /chat means "draft",
+    // and ChatThreadRouting establishes it. Switching from this mount effect too
+    // cancelled whatever switch was in flight (assistant-ui's switches are
+    // last-call-wins), and the hero remounts on every Back out of a thread, so a
+    // quick click could land back here instead of on the thread. The only piece
+    // still ours is the hand-off of queued content: AutoMessageSender lives in
+    // the thread view, so flip to it. ChatPage already resets the agent context
+    // for a bare /chat.
+    if (onChat) {
+      if (hasPending) useAgentStore.getState().setChatViewMode('thread');
       return;
     }
+    // A pending message means another surface queued content for /chat; don't
+    // clobber it by switching threads — that surface navigates to /chat itself.
+    if (hasPending) return;
     useAgentStore.getState().resetChatContext();
     void aui.threads.switchToNewThread();
   }, [aui, onChat]);
