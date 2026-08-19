@@ -167,6 +167,7 @@ export function useImageStudioCanvas(
 
         case 'profilbild':
         case 'simple':
+        case 'slider':
           break;
       }
 
