@@ -27,6 +27,64 @@ describe('shouldForceFirstToolCall', () => {
     expect(force()).toBe(false);
   });
 
+  /**
+   * Die Klasse „antwortet aus dem Gedächtnis" — festgehalten, nicht repariert.
+   *
+   * In den Abnahmeläufen vom 19.08.2026 rissen vier Szenarien wiederholt an
+   * `grounded` (`ground-verbrenner-premise`, `false-premise-1`,
+   * `adv-tempo30-not-compute`, `adv-imperative-vs-question-2`) — mal rot, mal
+   * grün, was wie Streuung aussah. Das Gitter davor ist aber vollständig
+   * deterministisch:
+   *
+   *   1. Die Heuristik gibt ein PROSA-Verdikt (`direct`) — kein Abruf-Verdikt.
+   *   2. `looksLikeToolableQuestion` erkennt trotzdem eine echte Frage, der
+   *      Turn wird nach `agentic` demotiert (Tier 3.5).
+   *   3. `loopDemotedFromRetrieval` bleibt dabei FALSE — die Flagge trägt
+   *      `DEMOTABLE_HEURISTIC_INTENTS.has('direct')`, und `direct` steht dort
+   *      nicht (classifierNode.ts, Tier 3.5).
+   *   4. `agentic` ist aus `NAMED_RETRIEVAL_INTENTS` ausgenommen — es IST der
+   *      Auffangwert.
+   *
+   * ⇒ kein Weg feuert, `toolChoice` bleibt offen, und OB gesucht wird,
+   * entscheidet allein der Planer. Die Streuung sitzt also nicht im Gitter,
+   * sondern dahinter: das Gitter ist eindeutig, es überlässt die Wahl nur dem
+   * Modell.
+   *
+   * Das ist bewusst so — der Kommentar am `loopDemotedFromRetrieval`-Zweig
+   * sagt ausdrücklich, ein `direct`, das bloss werkzeugfähig aussah, setze die
+   * Flagge nicht. Dieser Test hält den Stand fest, damit eine spätere Änderung
+   * daran sichtbar wird, statt als Eval-Streuung durchzugehen.
+   */
+  describe('demotiertes Prosa-Verdikt: das Gitter erzwingt nichts', () => {
+    const demotedFromProse = {
+      intent: 'agentic',
+      loopDemotedFromRetrieval: false,
+      classifierContradictedResearch: false,
+    };
+
+    it.each([
+      ['Warum haben die Grünen das Verbrenner-Aus ab 2035 abgelehnt?'],
+      ['Was bringt Tempo 30 in der Innenstadt für die Verkehrssicherheit?'],
+      ['Zeig mir die wichtigsten Argumente für ein Tempolimit'],
+    ])('%s', (lastUserText) => {
+      expect(force({ ...demotedFromProse, lastUserText })).toBe(false);
+    });
+
+    it('ein Abruf-VERDIKT vor der Demotion erzwingt dagegen sehr wohl', () => {
+      // Der Unterschied zur Klasse oben, an einer Stelle: die Heuristik hat
+      // `abgeordnetenwatch` benannt (in DEMOTABLE_HEURISTIC_INTENTS), also
+      // setzt Tier 3.5 die Flagge. `followup-bundestag-scope` läuft hier
+      // durch — sein Ausfall liegt hinter diesem Gitter, nicht in ihm.
+      expect(
+        force({
+          intent: 'agentic',
+          loopDemotedFromRetrieval: true,
+          lastUserText: 'Wie hat die SPD zum Heizungsgesetz abgestimmt?',
+        })
+      ).toBe(true);
+    });
+  });
+
   describe('der Recherche-Bann sticht alles', () => {
     it.each([
       ['Demotion aus einem Abruf-Verdikt', { loopDemotedFromRetrieval: true }],

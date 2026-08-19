@@ -14,6 +14,15 @@
  *
  * Nie ausgewichen wird auf ein Paar, das selbst als zäh vermerkt ist — sonst
  * schiebt eine anbieterweite Störung den Verkehr im Kreis.
+ *
+ * Und nie auf ein Modell, das der AUFRUFER für seinen Zweck ausschliesst:
+ * `isAcceptable` reicht diese Frage von oben herein. Ohne sie war die Kette
+ * blind — der Loop-Synth-Slot lehnt gpt-oss ausdrücklich ab (AVOID_AS_SYNTH in
+ * autoPolicy.ts), aber die Ausweichkette landete bei zähem Primär auf
+ * `litellm/verdigado-pro`, hinter dem am Proxy genau dieses Modell liegt. Die
+ * Verbots-Entscheidung fiel eine Ebene HÖHER und wurde hier nie erneut
+ * gestellt. Das Prädikat kommt als Argument statt als Import, damit diese
+ * Datei die Policy-Ebene nicht kennen muss.
  */
 
 import { createLogger } from '../../utils/logger.js';
@@ -56,14 +65,18 @@ function usable(target: ModelTarget): boolean {
  * Ein brauchbares Ausweichziel — oder `null`, wenn keins übrig ist. Der
  * Aufrufer bleibt dann beim Primär: langsam ist besser als gar nicht.
  */
-export function resolveAlternative(provider: string, model: string): ModelTarget | null {
+export function resolveAlternative(
+  provider: string,
+  model: string,
+  isAcceptable: (target: ModelTarget) => boolean = () => true
+): ModelTarget | null {
   const sibling = MODEL_SIBLINGS[`${provider}/${model}`];
-  if (sibling && usable(sibling)) return sibling;
+  if (sibling && usable(sibling) && isAcceptable(sibling)) return sibling;
 
   for (const candidate of FALLBACK_CHAIN) {
     if (candidate === provider) continue;
     const target = { provider: candidate, model: getDefaultModel(candidate) };
-    if (usable(target)) return target;
+    if (usable(target) && isAcceptable(target)) return target;
   }
   return null;
 }
@@ -75,10 +88,14 @@ export function resolveAlternative(provider: string, model: string): ModelTarget
  * Kopf, damit ein vermerktes Modell gar nicht erst abgewartet wird. Ohne
  * Vermerk ändert sich nichts.
  */
-export function pickHealthyTarget(provider: string, model: string): ModelTarget | null {
+export function pickHealthyTarget(
+  provider: string,
+  model: string,
+  isAcceptable?: (target: ModelTarget) => boolean
+): ModelTarget | null {
   if (!isModelSlow(provider, model)) return null;
 
-  const alternative = resolveAlternative(provider, model);
+  const alternative = resolveAlternative(provider, model, isAcceptable);
   if (!alternative) return null;
 
   log.info(

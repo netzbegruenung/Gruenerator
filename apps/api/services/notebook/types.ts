@@ -147,7 +147,6 @@ export interface InternalSearchOptions {
   searchCollection: string;
   userId: string | null;
   documentIds?: string[] | undefined;
-  titleFilter?: string | undefined;
   additionalFilter?: QdrantFilter | undefined;
   searchParams: SearchParams;
 }
@@ -159,7 +158,8 @@ export interface DocumentScope {
   detectedPhrase?: string | undefined;
   collections: string[];
   subcategoryFilters: Record<string, string | string[] | undefined>;
-  documentTitleFilter?: string | undefined;
+  /** `primary_category` des gemeinten Programms — siehe `withProgramFilter`. */
+  documentCategoryFilter?: string | undefined;
 }
 
 /**

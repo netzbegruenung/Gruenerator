@@ -305,7 +305,10 @@ describe('Pin und Streamer stellen dieselbe Frage', () => {
       surface: 'notebook',
       complexity: 'complex',
     });
-    expect(mockGetModel.mock.calls.at(-1)?.[2]).toEqual({ needsReasoning: true });
+    // `toMatchObject`, nicht `toEqual`: die Aussage dieses Tests ist der PIN.
+    // Im selben Options-Objekt reist seit 19.08.2026 auch das Ausweich-Veto
+    // (`acceptTarget`) mit — es hat eigene Tests weiter unten.
+    expect(mockGetModel.mock.calls.at(-1)?.[2]).toMatchObject({ needsReasoning: true });
   });
 
   it('pinnt NICHT, wenn der Zug auf dieser Lane gar nicht denkt (low)', async () => {
@@ -314,7 +317,33 @@ describe('Pin und Streamer stellen dieselbe Frage', () => {
       surface: 'notebook',
       complexity: 'simple',
     });
-    expect(mockGetModel.mock.calls.at(-1)?.[2]).toEqual({ needsReasoning: false });
+    expect(mockGetModel.mock.calls.at(-1)?.[2]).toMatchObject({ needsReasoning: false });
+  });
+
+  /**
+   * Das Ausweich-Veto reist mit — sonst greift es genau dort nicht, wo der
+   * Ausfall beobachtet wurde.
+   *
+   * Am Proxy nachgemessen (19.08.2026) liegt hinter `litellm/verdigado-pro`
+   * das Modell `gpt-oss:120b-ctx128k`, das `AVOID_AS_SYNTH` vom Schreiben der
+   * Antwort ausschliesst. `resolveModel` wählt die Lane, die die Antwort
+   * schreibt; wird sie als zäh vermerkt, sucht `modelSiblings` ein Ersatzpaar
+   * und fand ohne dieses Veto genau jenes Modell. Im Abnahmelauf landete
+   * dadurch Planer-Text beim Menschen („We will call gruenerator_search …").
+   */
+  it('gibt der Ausweichkette das Veto gegen ein nicht-schreibfähiges Modell mit', async () => {
+    mockResolveModelTuple.mockResolvedValue(null);
+    await resolveModel(agentConfig, undefined, 'req_test', {
+      surface: 'notebook',
+      complexity: 'simple',
+    });
+    const accept = mockGetModel.mock.calls.at(-1)?.[2]?.acceptTarget as
+      ((t: { model: string }) => boolean) | undefined;
+    expect(accept).toBeTypeOf('function');
+    expect(accept?.({ model: 'verdigado-pro' })).toBe(false);
+    expect(accept?.({ model: 'gpt-oss:120b-ctx128k' })).toBe(false);
+    expect(accept?.({ model: 'gemma4-31b' })).toBe(true);
+    expect(accept?.({ model: 'mistral-medium-2604' })).toBe(true);
   });
 
   it('nimmt bei low NICHT den Reasoning-Pfad — sonst hinge er über einem Host, den der Pin nicht umgestellt hat', async () => {
