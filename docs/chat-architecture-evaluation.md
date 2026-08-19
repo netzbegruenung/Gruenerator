@@ -42,16 +42,16 @@ Der Pool ruft in seinen Adaptern selbst wieder `generateText` aus `ai` auf und �
 
 | # | Implementierung | Lebender Aufrufer |
 |---|---|---|
-| 1 | `routes/chat/agents/researchOrchestrator.ts` (1139 Z.) | **nur** `services/monitor/HotTopicPipeline.ts:164` (Tagesbriefing) |
+| 1 | `services/monitor/research/researchOrchestrator.ts` | **nur** `services/monitor/HotTopicPipeline.ts` (Tagesbriefing) — seit R2 liegt die Datei deshalb beim Monitor statt unter `routes/chat/agents/` |
 | 2 | Linkup-Stufen im agentischen Loop (`services/search/searchDepth.ts`, `agenticLoop/sourceRegistry.ts`) | **die lebende Chat-Recherche** |
 | 3 | `agents/langgraph/SearchGraph/` | `/api/search-graph` — ruft die **Nodes einzeln** auf, nicht den Graphen |
-| 4 | `agents/langgraph/WebSearchGraph/` | `runWebSearch()` für `/api/search`; zusätzlich node-weise nachgebaut in `searchStreamController.ts` und `deepResearchNodeLegacy` |
+| 4 | `agents/langgraph/WebSearchGraph/` | **nur noch node-weise** aus dem SearchGraph-Tiefenmodus. `runWebSearch()`, der kompilierte Graph, `/api/search` und `searchStreamController.ts` sind mit R2 gelöscht |
 
-Der Chat hat die Recherche mit PR #2137 auf die Websuche-Stufen umgestellt; das `research`-Tool wurde aus `searchTools.ts:257-263` entfernt, der Intent fällt in `searchNode.ts:1359-1360` in den `web`-Zweig. `researchOrchestrator.ts` ist damit aus dem interaktiven Chat heraus — wer ihn „ersetzen" will, verbessert einen Batch-Job.
+Der Chat hat die Recherche mit PR #2137 auf die Websuche-Stufen umgestellt; das `research`-Tool wurde aus `searchTools.ts` entfernt, der Intent fällt in `searchNode.ts` in den `web`-Zweig. `researchOrchestrator.ts` ist damit aus dem interaktiven Chat heraus — wer ihn „ersetzen" will, verbessert einen Batch-Job. R2 hat daraus die Konsequenz gezogen: die Datei liegt beim Monitor, ihr Kopfkommentar sagt es, und die Parameter, die nur der Chat-Pfad übergab (`brief`, `queryInherited`, `readPages`, `onProgress`), sind weg.
 
 ### 2.3 Tote kompilierte Graphen
 
-`chatGraph.invoke()` und `runSearchGraph()` haben **repoweit null Produktionsaufrufer**. Die Router rufen stattdessen die einzelnen Node-Funktionen von Hand in Reihe (`intentExecutionService.ts`, `chatGraphContractRouter.ts`, zusammen ~3.500 Zeilen imperative Verzweigung). Ebenfalls tot: `apps/api/routes/search/searchContractRouter.ts` (gebaut, absichtlich nicht gemountet, nirgends importiert) und `ChatGraph/llmConfig.ts`s `getAgentLLM`/`createReactAgent`.
+`chatGraph.invoke()` und `runSearchGraph()` haben **repoweit null Produktionsaufrufer**. Die Router rufen stattdessen die einzelnen Node-Funktionen von Hand in Reihe (`intentExecutionService.ts`, `chatGraphContractRouter.ts`, zusammen ~3.500 Zeilen imperative Verzweigung). Ebenfalls tot war `apps/api/routes/search/searchContractRouter.ts` (gebaut, absichtlich nicht gemountet, nirgends importiert) — mit R2 gelöscht. Weiterhin tot: `ChatGraph/llmConfig.ts`s `getAgentLLM`/`createReactAgent`.
 
 **Beleg dafür, dass der Graph nie lief:** `ChatStateAnnotation` in `ChatGraph.ts` ist gegenüber dem lebenden `ChatGraphState` (`ChatGraph/types.ts:518-868`) um ~25 Felder zurückgeblieben. Liefe der Graph, verlöre er sie bei jedem Übergang.
 
@@ -59,9 +59,9 @@ Der Chat hat die Recherche mit PR #2137 auf die Websuche-Stufen umgestellt; das 
 
 ### 2.4 Drei Unterfragen-Planer, zwei Zitat-Syntaxen
 
-Planer: `researchOrchestrator.planResearchDeep` · `SearchGraph/nodes/queryPlannerNode.ts` · `WebSearchGraph/nodes/PlannerNode.ts`. **Nur der erste** weist die LLM an, den Entitätsnamen in jede Unterfrage zu tragen — der dokumentierte Fix, nachdem „Mona Neubauer / Herkunft" zufällige Bachelorarbeiten zurückgab. Der Fix wurde nie portiert.
+Planer: `researchOrchestrator.planResearchDeep` (jetzt unter `services/monitor/research/`) · `SearchGraph/nodes/queryPlannerNode.ts` · `WebSearchGraph/nodes/PlannerNode.ts`. **Nur der erste** weist die LLM an, den Entitätsnamen in jede Unterfrage zu tragen — der dokumentierte Fix, nachdem „Mona Neubauer / Herkunft" zufällige Bachelorarbeiten zurückgab. Der Fix wurde nie portiert.
 
-Zitate: `[N]` positional-append im `agenticLoop/sourceRegistry.ts` (stabil über Tool-Calls) · `[N]` pro Call neu nummeriert im `researchOrchestrator` · `[cite:N]` in `SearchGraph` und den Exportern. `HotTopicPipeline.ts:281-285` muss `applyCiteMarkers` laufen lassen, damit der Frontend-Renderer überhaupt etwas anzeigt. Genau diese Kollision ist der Grund, warum `research` nie in `AGENTIC_INTENTS` durfte — dokumentiert in `agenticLoop/agenticRespondService.ts:74-79`.
+Zitate: `[N]` positional-append im `agenticLoop/sourceRegistry.ts` (stabil über Tool-Calls) · `[N]` pro Call neu nummeriert im `researchOrchestrator` · `[cite:N]` in `SearchGraph` und den Exportern. `HotTopicPipeline.ts` muss `applyCiteMarkers` laufen lassen, damit der Frontend-Renderer überhaupt etwas anzeigt. Genau diese Kollision ist der Grund, warum `research` nie in `AGENTIC_INTENTS` durfte — dokumentiert in `agenticLoop/agenticRespondService.ts:74-79`.
 
 ### 2.5 Intents in acht Kopien
 
