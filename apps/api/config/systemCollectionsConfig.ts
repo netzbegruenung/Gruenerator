@@ -42,6 +42,13 @@ export interface FilterableField<F extends FilterableFieldName = FilterableField
   valueLabels?: ValueLabelsFor<F>;
   // Backend-only facet (themes/persons): in the notebook UI, out of the MCP catalog.
   mcpHidden?: boolean;
+  /**
+   * Manual research only — `notebookContractRouter.getFilters`, which feeds the
+   * notebook CHAT surface, skips it. Set on facets whose values are only usable
+   * when you can see and pick them from a list, not when a chat turn silently
+   * carries them along.
+   */
+  researchOnly?: boolean;
 }
 
 export interface DefaultFilter {
@@ -182,11 +189,18 @@ const THEMES_FIELD: FilterableField<'themes'> = {
   mcpHidden: true,
 };
 
+/**
+ * Research-only: the value vocabulary is raw NER output, so it needs the manual
+ * search's visible chip list to be usable at all. In the chat filter menu it
+ * offered names that mostly say "this document mentions someone", and a chosen
+ * one then narrowed every following answer invisibly.
+ */
 const PERSONS_FIELD: FilterableField<'persons'> = {
   field: 'persons',
   label: 'Person',
   type: 'keyword',
   mcpHidden: true,
+  researchOnly: true,
 };
 
 export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {

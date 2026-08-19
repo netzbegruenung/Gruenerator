@@ -20,8 +20,16 @@ import { classifyArticlesBatched, extractPersons } from '../nlp/nlpClient.js';
 
 const log = createLogger('notebookEnrichment');
 
-/** Bump to force re-enrichment of all docs after a tagging-algorithm change. */
-const NLP_VERSION = 2;
+/**
+ * Bump to force re-enrichment of all docs after a tagging-algorithm change.
+ *
+ * 3 (08/2026): person extraction trims role words off the NER span, folds
+ * genitives and bare surnames into the full name, and drops single-token
+ * leftovers. Without this bump the change would only reach documents indexed
+ * from now on — the person blocklist landed in 08/2026 without one, and 124
+ * documents still carried "Unsplash" as a person weeks later.
+ */
+const NLP_VERSION = 3;
 /** Per-mille noun-frequency floor for including a topic in `themes`. */
 const THEME_MIN_SCORE = 30;
 /** Cap themes per doc to bound facet noise on long programmatic docs. */

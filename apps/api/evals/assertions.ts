@@ -38,10 +38,25 @@ export function producedContent(trace: ChatTrace): string {
   return trace.generatedText.join('\n\n');
 }
 
-/** Bracketed citation numbers, e.g. [3] or [3, 7] → [3,7]. */
+/**
+ * Bracketed citation numbers, e.g. [3] or [3, 7] → [3,7].
+ *
+ * ZWEI Drahtformen, und die zweite hat im R2-Abnahmelauf wie ein Produktfehler
+ * ausgesehen: `nb-at-locale` lieferte 2.204 Zeichen Antwort mit ZEHN Zitaten im
+ * `completion`-Payload und meldete trotzdem „no [N] citation markers". Das
+ * Notizbuch setzt seine Marker sehr wohl — nur als `[cite:N]`.
+ * `validateAndInjectCitations` (SearchResultProcessor.ts) schreibt jedes
+ * gültige `[N]` in genau diese Form um, und die Oberfläche rendert sie
+ * (CitationTextRenderer als Chip, useNotebookChatBridge zurück nach `[N]`).
+ * Die Chat-Oberfläche schickt dagegen `[N]`.
+ *
+ * Die Prüfung kannte nur die Chat-Form und meldete deshalb Rot für eine
+ * richtig belegte Antwort. Beide Formen zählen als Marker; die Zahl ist
+ * dieselbe, nur das Präfix nicht.
+ */
 function bracketedCiteNumbers(text: string): number[] {
   const nums: number[] = [];
-  for (const m of text.matchAll(/\[(\d+(?:\s*,\s*\d+)*)\]/g)) {
+  for (const m of text.matchAll(/\[(?:cite:)?(\d+(?:\s*,\s*\d+)*)\]/g)) {
     for (const n of m[1].split(/\s*,\s*/)) nums.push(Number(n));
   }
   return nums;

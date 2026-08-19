@@ -1,25 +1,30 @@
 # Blockliste für die Personen-Erkennung (NLP-Service)
 #
 # Diese Namen werden bei der Personen-Extraktion verworfen
-# (siehe analyzer.py -> PERSON_BLOCKLIST / extract_persons_batch).
+# (siehe analyzer.py -> PERSON_BLOCKLIST / _is_blocked).
 #
 # Format:
 #   - ein Name pro Zeile, Schreibweise egal (gematcht wird case-insensitiv)
-#   - gematcht wird der VOLLSTÄNDIGE erkannte Name, nicht ein Teil davon.
-#     spaCy erkennt je nach Fließtext mal "Vincent Willock", mal nur "Willock" –
-#     wer beide Formen ausschließen will, trägt beide als eigene Zeile ein.
-#     Nachnamen bewusst nur dann einzeln eintragen, wenn kein*e Politiker*in
+#   - ein Eintrag blockt jeden Kandidaten, der ihn als vollständige Tokenfolge
+#     ENTHÄLT. Eine Zeile "unsplash" nimmt also auch "Unsplash Gemeinsame" mit —
+#     die NER klebt an eine Bildquelle gern das nächste großgeschriebene Wort.
+#     Nachnamen deshalb nur dann einzeln eintragen, wenn kein*e Politiker*in
 #     denselben Nachnamen trägt: die Zeile blockt ihn sonst überall mit.
 #   - Leerzeilen und Zeilen, die mit '#' beginnen, werden ignoriert
 #
+# Für einzelne Nachnamen, die nur ohne Vornamen auftauchen, braucht es hier
+# meist gar keinen Eintrag: `_canonical_names` verwirft jeden Ein-Wort-Namen,
+# der sich keinem Vollnamen zuordnen lässt.
+#
 # Zwei Arten von Einträgen, bitte im jeweiligen Abschnitt ergänzen:
-#   1. Keine Personen  – Marken, Portale, Agenturen, die die NER fälschlich
-#      als PER taggt. Kommen fast immer aus Bildunterschriften ("Foto: … / Unsplash").
+#   1. Keine Personen  – Marken, Portale, Agenturen, Dokumentgattungen, die die
+#      NER fälschlich als PER taggt. Kommen fast immer aus Bildunterschriften
+#      ("Foto: … / Unsplash") oder aus PDF-Briefköpfen.
 #   2. Mitarbeitende   – reale Personen, die nur als Urheber*in einer Seite
 #      auftauchen (Fotograf*innen, Redaktion, Webteam) und deshalb keine
 #      inhaltlich erwähnten Personen sind.
 
-# --- 1. Keine Personen: Bildquellen, Plattformen, Agenturen ---
+# --- 1a. Keine Personen: Bildquellen und Agenturen ---
 unsplash
 pexels
 pixabay
@@ -32,9 +37,28 @@ imago
 dpa
 canva
 flickr
+freepik
+photocase
+colourbox
 wikimedia
 wikimedia commons
 creative commons
+
+# --- 1b. Keine Personen: Plattformen ---
+facebook
+instagram
+mastodon
+bluesky
+linkedin
+youtube
+whatsapp
+telegram
+
+# --- 1c. Keine Personen: Organisationen ---
+# Stand im Facet als eigene "Person": "Heinrich-Böll-Stiftung Inhalt- Methode-".
+# Funktions- und Dokumentwörter gehören NICHT hierher, sondern in
+# person_stop_tokens.txt — die beenden einen Namen, statt ihn zu verwerfen.
+heinrich-böll-stiftung
 
 # --- 2. Mitarbeitende / Urheber*innen (händisch gepflegt) ---
 # Grüne Berlin – Fotograf
