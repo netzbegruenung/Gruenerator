@@ -61,6 +61,21 @@ describe('reportMcpWithoutLoop', () => {
     expect(warningOf().message).toContain('zweite Absicht');
   });
 
+  // Der haeufigste Weg aus der Schleife: `mcp` traegt die Disposition `gated`,
+  // steht also nicht in `NO_RETRIEVAL_VERDICTS` — ein eingefuegter Link setzt
+  // `scrape_url` als zweiten Intent, ohne dass die Person etwas Zweites gefragt
+  // haette. „Weiteres separat fragen" waere hier ein Rat ins Leere.
+  it('nennt den eingefügten Link, statt ihn als zweite Absicht auszugeben', () => {
+    sse.send.mockClear();
+    const s = state({ secondaryIntent: 'scrape_url' });
+    reportMcpWithoutLoop(sse as never, s, false);
+
+    const { message } = warningOf();
+    expect(message).toContain('Link');
+    expect(message).not.toContain('zweite Absicht');
+    expect(s.degradationNotes?.[0]?.modelHint).toContain('Link weglassen');
+  });
+
   // Die Kurzschluss-Kette in `decideRunAgentic` nennt den ersten greifenden
   // Schalter, aber abgewiesen wird der Turn von ALLEN. Nennte die Meldung nur
   // einen, befolgte die Person den Rat und flöge erneut raus.
