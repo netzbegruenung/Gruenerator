@@ -18,6 +18,7 @@ import {
   streamWithReasoning,
   type ThinkingEffort,
 } from '../../../services/ai/regoloReasoningStream.js';
+import { classifyProviderError } from '../../../services/providers/providerErrors.js';
 import { createLogger } from '../../../utils/logger.js';
 import {
   resolveAutoSelection,
@@ -492,10 +493,41 @@ class ReasoningBudgetExceededError extends Error {
 }
 
 /**
+ * Der Upstream hat vor dem ersten Antworttext mit einem Fehler geantwortet —
+ * 429, 5xx, abgerissene Verbindung.
+ *
+ * Bis hierher flog so ein Fehler ROH an `streamWithFallback` vorbei: er ist
+ * kein {@link StreamFailure}, also griff weder der Sibling-Versuch noch die
+ * Salvage, und der Zug erreichte den Client als `code:'internal'` — obwohl der
+ * zweite Host die Antwort hätte schreiben können. Das war am 19.08.2026 der
+ * Weg, auf dem ein Bürgeranfragen-Zug mit „Antwort konnte nicht generiert
+ * werden" endete.
+ *
+ * Nur RETRYABLE Fehler werden hierher übersetzt (siehe
+ * {@link classifyProviderError}): ein 4xx trägt denselben Payload zum Sibling
+ * und bekäme dieselbe Absage, und ein Abbruch ist gar kein Upstream-Fehler.
+ */
+class UpstreamProviderError extends Error {
+  readonly kind: FallbackReason = 'upstream_error';
+  readonly statusCode: number | null;
+  constructor(cause: unknown) {
+    const info = classifyProviderError(cause);
+    super(
+      `Upstream failed before the first token (${info.code}${
+        info.statusCode != null ? ` ${info.statusCode}` : ''
+      })`,
+      { cause }
+    );
+    this.name = 'UpstreamProviderError';
+    this.statusCode = info.statusCode ?? null;
+  }
+}
+
+/**
  * Sentinel error thrown when the primary model fails to produce output AND
  * no text_delta has been emitted yet. Caller catches this to trigger fallback.
  */
-export type StreamFailure = FirstTokenTimeoutError | EmptyCompletionError;
+export type StreamFailure = FirstTokenTimeoutError | EmptyCompletionError | UpstreamProviderError;
 
 /** Nur für den Test der Abbruch-Einstufung: die Einstufung selbst ist die
  *  Aussage (`turn_ceiling` ist ein Timeout, kein Nutzer-Abbruch), und sie ist
@@ -503,7 +535,27 @@ export type StreamFailure = FirstTokenTimeoutError | EmptyCompletionError;
 export type { AbortCause };
 
 export function isStreamFailure(err: unknown): err is StreamFailure {
-  return err instanceof FirstTokenTimeoutError || err instanceof EmptyCompletionError;
+  return (
+    err instanceof FirstTokenTimeoutError ||
+    err instanceof EmptyCompletionError ||
+    err instanceof UpstreamProviderError
+  );
+}
+
+/**
+ * Was Phase 1 aus einem UPSTREAM-Fehler macht (nicht aus einem Abbruch — den
+ * beantwortet {@link phase1AbortError}).
+ *
+ * Der Abbruch-Vorrang ist der springende Punkt: `classifyProviderError` stuft
+ * `AbortError`/`TimeoutError` als retryable ein, also würde ein Nutzer-Abbruch
+ * oder eine gerissene Uhr ohne diese Abfrage einen Sibling-Lauf starten — für
+ * eine Anfrage, die niemand mehr will bzw. deren Frist schon abgelaufen ist.
+ * Deshalb: erst fragen, ob überhaupt abgebrochen wurde, dann klassifizieren.
+ */
+function phase1UpstreamError(err: unknown, cause: AbortCause): unknown {
+  if (isStreamFailure(err) || err instanceof ReasoningBudgetExceededError) return err;
+  if (cause !== null || isAbortError(err)) return err;
+  return classifyProviderError(err).retryable ? new UpstreamProviderError(err) : err;
 }
 
 /**
@@ -738,7 +790,9 @@ async function streamAndAccumulateOrThrow(params: {
     wall.clear();
     reasoningBudget?.clear();
     stopHeartbeat();
-    throw err;
+    // Ein Upstream-Fehler VOR dem ersten Token ist der eine Fall, in dem der
+    // Sibling noch etwas ausrichten kann — beim Nutzer steht noch nichts.
+    throw phase1UpstreamError(err, causeOf());
   }
 
   // Phase 2 — visible text is on the wire; just drain. Errors here can't
@@ -1193,7 +1247,15 @@ export async function streamForResolution(params: {
         resolution.provider !== 'mistral' ||
         !(err instanceof ReasoningStreamUnavailableError)
       ) {
-        throw err;
+        // Kein zweiter Versuch auf DIESER Lane — aber der Sibling ist noch
+        // offen: `ReasoningStreamUnavailableError` heisst laut eigener Doku,
+        // dass der Upstream nie geantwortet hat, und Phase 2 wirft hier gar
+        // nicht (sie gibt `null` zurück), also ist garantiert noch kein
+        // Antworttext beim Nutzer. Ohne diese Übersetzung flog ein 503 der
+        // Regolo-Denk-Lane roh am Fallback vorbei bis in den Router-Catch.
+        // `null` als Abbruch-Grund: ein echter Abbruch hat den Phase-1-Catch
+        // des Streamers oben schon in einen Abbruch-Fehler übersetzt.
+        throw phase1UpstreamError(err, null);
       } else {
         // Den Grund des Upstreams MITSCHREIBEN, nicht deuten: die frühere
         // Fassung meldete pauschal „reasoning unavailable", und ein 400 wegen
