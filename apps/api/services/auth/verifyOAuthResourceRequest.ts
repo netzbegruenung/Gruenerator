@@ -46,14 +46,24 @@ let actions: Promise<ResourceClientActions> | null = null;
  * der ihn anfasst — an einer vollständigen Auth-Umgebung. Deshalb erst beim
  * ersten Aufruf laden und danach festhalten.
  */
-async function getActions(): Promise<ResourceClientActions> {
-  actions ??= (async () => {
-    const [{ oauthProviderResourceClient }, { auth }] = await Promise.all([
-      import('@better-auth/oauth-provider/resource-client'),
-      import('../../config/betterAuth.js'),
-    ]);
-    return oauthProviderResourceClient(auth).getActions() as unknown as ResourceClientActions;
-  })();
+async function loadActions(): Promise<ResourceClientActions> {
+  const [{ oauthProviderResourceClient }, { auth }] = await Promise.all([
+    import('@better-auth/oauth-provider/resource-client'),
+    import('../../config/betterAuth.js'),
+  ]);
+  return oauthProviderResourceClient(auth).getActions() as unknown as ResourceClientActions;
+}
+
+function getActions(): Promise<ResourceClientActions> {
+  // Der Merker darf nur einen ERFOLGREICHEN Ladevorgang festhalten. Ein
+  // abgelehntes Promise stehen zu lassen hiesse: ein einziger vorübergehender
+  // Fehler beim Laden legt den OAuth-Weg für die Lebensdauer des Prozesses
+  // still, und zwar lautlos — jeder weitere Aufruf bekäme dieselbe alte
+  // Ablehnung zurück, ohne es noch einmal zu versuchen.
+  actions ??= loadActions().catch((err: unknown) => {
+    actions = null;
+    throw err;
+  });
   return actions;
 }
 

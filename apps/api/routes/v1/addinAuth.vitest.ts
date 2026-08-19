@@ -30,18 +30,29 @@ vi.mock('../../database/services/DrizzleService.js', () => ({
   }),
 }));
 
-/** Was `getMcpSession` liefert; null = Token unbekannt, Fehler = Auth-Stack kaputt. */
-let mcpSession: { userId: string; scopes: string } | null = null;
-const getMcpSession = vi.fn(() => Promise.resolve(mcpSession));
+/**
+ * Was die Token-Prüfung liefert; null = Token ungültig oder keins dabei.
+ *
+ * Seit better-auth 1.7 gibt es keine `getMcpSession` mehr: das Zugriffstoken
+ * ist ein signiertes JWT und wird gegen die JWKS geprüft. Der Rückgabewert ist
+ * deshalb kein Sitzungsobjekt, sondern die geprüften Claims — die Scopes als
+ * Menge, wie `verifyOAuthResourceRequest` sie aufbereitet.
+ */
+let oauthClaims: { userId: string; scopes: string } | null = null;
+const verifyOAuthResourceRequest = vi.fn(() =>
+  Promise.resolve(
+    oauthClaims === null
+      ? null
+      : {
+          userId: oauthClaims.userId,
+          scopes: new Set(oauthClaims.scopes.split(' ').filter(Boolean)),
+          clientId: 'test-client',
+        }
+  )
+);
 
-vi.mock('../../config/betterAuth.js', () => ({
-  auth: {
-    api: {
-      get getMcpSession() {
-        return getMcpSession;
-      },
-    },
-  },
+vi.mock('../../services/auth/verifyOAuthResourceRequest.js', () => ({
+  verifyOAuthResourceRequest: (...a: unknown[]) => verifyOAuthResourceRequest(...(a as [])),
 }));
 
 const { requireAddinAuth, contextFromOAuthSession } = await import('./addinAuth.js');
@@ -66,8 +77,8 @@ afterAll(async () => {
 
 beforeEach(() => {
   apiKeyRow = null;
-  mcpSession = null;
-  getMcpSession.mockClear();
+  oauthClaims = null;
+  verifyOAuthResourceRequest.mockClear();
 });
 
 function probe(authorization?: string): Promise<Response> {
@@ -109,7 +120,7 @@ describe('requireAddinAuth', () => {
   });
 
   it('lässt ein gültiges OAuth-Token durch', async () => {
-    mcpSession = { userId: 'user-1', scopes: 'chat:completions offline_access' };
+    oauthClaims = { userId: 'user-1', scopes: 'chat:completions offline_access' };
 
     const res = await probe('Bearer oauth-token');
     expect(res.status).toBe(200);
@@ -132,7 +143,7 @@ describe('requireAddinAuth', () => {
     const res = await probe('Bearer gru_abc');
 
     expect(res.status).toBe(200);
-    expect(getMcpSession).not.toHaveBeenCalled();
+    expect(verifyOAuthResourceRequest).not.toHaveBeenCalled();
   });
 
   it('akzeptiert weiterhin einen Schlüssel ohne Präfix', async () => {
@@ -180,7 +191,7 @@ describe('requireAddinAuth', () => {
   });
 
   it('fällt auf den Schlüsselpfad zurück, wenn der Auth-Stack wirft', async () => {
-    getMcpSession.mockRejectedValueOnce(new Error('Auth-Stack nicht verfügbar'));
+    verifyOAuthResourceRequest.mockRejectedValueOnce(new Error('Auth-Stack nicht verfügbar'));
     apiKeyRow = {
       id: 'key-4',
       user_id: 'user-5',
