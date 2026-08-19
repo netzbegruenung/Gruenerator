@@ -1,46 +1,27 @@
 /**
- * The research agent: plan → search → READ → assess → synthesise.
+ * Monitor-Engine. Nicht die Chat-Recherche. Wiedervorlage nur bei Monitor-Umbau.
  *
- * What this is now, and what it was. Until 08.2026 this module contained three
- * pipelines stacked on top of each other, of which only the top one ever ran:
+ * Der einzige Aufrufer ist die Tagesbriefing-Pipeline (`HotTopicPipeline`). Im
+ * Chat ist Recherche seit #2137 die obere Stufe von `web_search` — wer hier
+ * einen Chat-Aufrufer ergänzen will, liest vorher `docs/CLAUDE-chat.md`: die
+ * Stufenleiter hat den Zwei-Türen-Entwurf bewusst ersetzt.
  *
- * 1. A Linkup short-circuit at the very top. With `LINKUP_API_KEY` set — which
- *    is every production deployment — `executeResearch` returned Linkup's own
- *    `sourcedAnswer` dossier and nothing below it executed. Planner, fan-out,
- *    refinement, synthesis: dead code in production.
- * 2. A regex planner (`planResearch`) and a template synthesiser that glued
- *    snippets together, both dating from before we trusted a model to plan.
- * 3. The LLM path that actually carried the quality.
+ * Ablauf: plan → search → READ → assess → synthesise.
  *
- * Only (3) survives, and it gained the stage all three were missing: **nobody
- * ever read a page.** Every answer was written from search-result snippets — a
- * few hundred characters per source — while the loop's `tiefenrecherche` tier
- * had been reading and distilling full pages since #2227. The research path,
- * the one whose entire purpose is depth, was the shallowest reader in the
- * product.
+ * ── Die Lese-Stufe ist ein kontext-isolierter Subagent, kein eingebauter Crawl ──
  *
- * ── The read stage is a context-quarantined subagent, not an inlined crawl ──
+ * `readTopSources` reicht jede Seite an `crawlAndDistill`, das sie holt und in
+ * einem SEPARATEN Durchgang mit billigem Modell auf die Passagen eindampft, die
+ * die Frage beantworten. Die Rohseite erreicht weder den Kontext dieser Funktion
+ * noch den des Synthetisierers — zurück kommt ein Destillat. Genau darum geht
+ * es: eine 60k-Zeichen-Seite müsste sonst entweder blind gekürzt werden (die
+ * Antwort geht verloren) oder ganz mitgeführt (sie verdrängt die neun anderen
+ * Quellen). Erst die Isolation macht zwölf gelesene Seiten bezahlbar.
  *
- * `readTopSources` hands each page to `crawlAndDistill`, which fetches it and
- * runs a SEPARATE cheap-model pass that keeps only the passages answering the
- * question. The raw page never enters this function's context, let alone the
- * synthesiser's — what comes back is a digest. That is the whole point: a 60k
- * character page would otherwise have to be either truncated blindly (losing the
- * answer) or carried whole (crowding out the other nine sources). Isolating the
- * read is what makes reading twelve pages affordable at all.
- *
- * The cheap lane doing the reading is deliberate. `heavy` (Gemma 4 26B-A4B on
- * Scaleway) carries a 262k window and was being fed ~3k characters of snippets;
- * the constraint was never the model's capacity, it was that the pipeline threw
- * the text away before the window was reached.
- *
- * ── Who calls this ──
- *
- * The Monitor's daily briefing (`HotTopicPipeline`) — and, since #2137, nobody
- * in the chat: there, research IS the upper tier of `web_search`, so the answer
- * and every `[N]` in it stay ours. Do not re-add a chat caller without reading
- * `docs/CLAUDE-chat.md` first; the two-doors design is what the tier ladder
- * replaced.
+ * Dass die billige Bahn liest, ist Absicht. `heavy` (Gemma 4 26B-A4B auf
+ * Scaleway) trägt ein 262k-Fenster und bekam ~3k Zeichen Snippets vorgesetzt;
+ * die Grenze war nie die Kapazität des Modells, sondern dass die Pipeline den
+ * Text wegwarf, bevor das Fenster überhaupt erreicht war.
  */
 
 import { generateObject, generateText } from 'ai';
@@ -236,11 +217,9 @@ interface CollectedSource {
  */
 async function planResearchDeep(
   question: string,
-  defaultLocale: ResearchLocale,
-  brief?: string | null
+  defaultLocale: ResearchLocale
 ): Promise<DeepPlan | null> {
   const aiModel = getIntermediateModel('heavy');
-  const briefLine = brief ? `\nKontext-Briefing: ${brief}` : '';
 
   try {
     const result = await generateObject({
@@ -265,7 +244,7 @@ Aufgabe: Zerlege die Nutzerfrage in Sub-Fragen, die zusammen das Thema gut abdec
   * 'general' als Default
 
 Gib NUR JSON zurück, das dem Schema entspricht.`,
-      prompt: `Nutzerfrage: ${question}${briefLine}\n\nDefault-Land: ${defaultLocale}`,
+      prompt: `Nutzerfrage: ${question}\n\nDefault-Land: ${defaultLocale}`,
       temperature: 0.2,
     });
 
@@ -370,11 +349,9 @@ export function researchConfidence(signals: {
   sources: number;
   domains: number;
   answerLength: number;
-  queryInherited: boolean;
 }): 'high' | 'medium' | 'low' {
-  const { sources, domains, answerLength, queryInherited } = signals;
+  const { sources, domains, answerLength } = signals;
   if (sources === 0 || answerLength < 80) return 'low';
-  if (queryInherited) return sources >= 3 && domains >= 2 ? 'medium' : 'low';
   if (sources >= 8 && domains >= 4) return 'high';
   if (sources >= 3 && domains >= 2) return 'medium';
   return 'low';
@@ -615,10 +592,9 @@ async function synthesizeReport(params: {
   question: string;
   sources: CollectedSource[];
   strategy: string;
-  brief?: string | null;
   reportShape: ReportShape;
 }): Promise<string> {
-  const { question, sources, strategy, brief, reportShape } = params;
+  const { question, sources, strategy, reportShape } = params;
   const aiModel = getIntermediateModel('heavy');
 
   const shapeTemplate: Record<ReportShape, string> = {
@@ -654,13 +630,9 @@ Regeln:
     )
     .join('\n\n');
 
-  const userContent = brief
-    ? `Frage: ${question}\n\nRecherche-Auftrag (zur Orientierung beim Synthetisieren — nicht als Quelle zitieren):\n${brief}\n\nQuellen:\n${sourcesText}`
-    : `Frage: ${question}\n\nQuellen:\n${sourcesText}`;
-
   const result = await generateText({
     model: aiModel,
-    messages: [{ role: 'user', content: userContent }],
+    messages: [{ role: 'user', content: `Frage: ${question}\n\nQuellen:\n${sourcesText}` }],
     system: systemPrompt,
     temperature: 0.2,
   });
@@ -693,34 +665,20 @@ function synthesisFailureAnswer(sources: CollectedSource[]): string {
  *
  * @param params.question - The research question. Also the basis for the search
  *   queries, via the planner's sub-questions.
- * @param params.brief - Optional natural-language research plan, forwarded to
- *   planning and synthesis as orientation. Must NOT be used as a search query —
- *   keyword indexes don't match prose directives.
  * @param params.maxSources - Sources carried into synthesis (default 20).
- * @param params.readPages - Set false to skip the read stage (search-only run).
+ * @param params.userLocale - Steers the planner's default country. The Monitor
+ *   does not pass it yet, so an AT briefing plans as 'de' — the seam is here
+ *   when that gets wired up.
  */
 export async function executeResearch(params: {
   question: string;
-  brief?: string | null;
-  /** The question was inherited from an earlier turn — caps confidence. */
-  queryInherited?: boolean;
   maxSources?: number;
-  readPages?: boolean;
   userLocale?: string;
-  onProgress?: (message: string) => void;
 }): Promise<ResearchResult> {
-  const {
-    question,
-    brief,
-    queryInherited,
-    maxSources = DEFAULT_MAX_SOURCES,
-    readPages = true,
-    userLocale,
-    onProgress,
-  } = params;
+  const { question, maxSources = DEFAULT_MAX_SOURCES, userLocale } = params;
 
   // Defense in depth: refuse an empty question. Without this the planner
-  // hallucinates topics from context bias (locale, brief).
+  // hallucinates topics from context bias (locale).
   if (!question || !question.trim()) {
     log.warn('[Research] Refusing to run with empty question');
     return {
@@ -737,10 +695,8 @@ export async function executeResearch(params: {
     userLocale === 'de-AT' ? 'at' : userLocale === 'de-EU' ? 'eu' : 'de';
 
   log.info(`[Research] Start: "${truncateText(question, 100)}"`);
-  onProgress?.('Plane Recherche…');
   const plan =
-    (await planResearchDeep(question, defaultLocale, brief)) ??
-    fallbackPlan(question, defaultLocale);
+    (await planResearchDeep(question, defaultLocale)) ?? fallbackPlan(question, defaultLocale);
 
   let allSources: CollectedSource[] = [];
   const allSearchSteps: ResearchResult['searchSteps'] = [];
@@ -755,11 +711,6 @@ export async function executeResearch(params: {
   // was written up anyway, with the gap known and unfilled.
   while (round < MAX_SEARCH_ROUNDS && searchesSpent < MAX_SUB_SEARCHES) {
     round += 1;
-    onProgress?.(
-      round === 1
-        ? `Suche zu ${currentPlan.subQuestions.length} Sub-Fragen…`
-        : `Vertiefe Recherche (Runde ${round})…`
-    );
 
     const result = await executeRound(currentPlan, allSources.length + 1);
     searchesSpent += result.searchSteps.length;
@@ -772,12 +723,9 @@ export async function executeResearch(params: {
       `[Research] Runde ${round}: ${result.sources.length} Treffer, ${allSources.length} Quellen gesamt`
     );
 
-    if (readPages) {
-      onProgress?.('Lese die wichtigsten Quellen…');
-      const afterRead = await readTopSources(allSources, question);
-      allSources = afterRead.sources;
-      pagesRead += afterRead.pagesRead;
-    }
+    const afterRead = await readTopSources(allSources, question);
+    allSources = afterRead.sources;
+    pagesRead += afterRead.pagesRead;
 
     if (round >= MAX_SEARCH_ROUNDS || searchesSpent >= MAX_SUB_SEARCHES) break;
 
@@ -830,8 +778,6 @@ export async function executeResearch(params: {
   log.info(
     `[Research] Synthese: ${limitedSources.length} Quellen (${pagesRead} gelesen), Form ${plan.reportShape}, ${round} Runde(n), ${searchesSpent} Teilsuchen`
   );
-  onProgress?.('Erstelle Bericht…');
-
   let answer: string;
   let synthesised = true;
   if (limitedSources.length === 0) {
@@ -843,7 +789,6 @@ export async function executeResearch(params: {
         question,
         sources: limitedSources,
         strategy,
-        ...(brief !== undefined ? { brief } : {}),
         reportShape: plan.reportShape,
       });
     } catch (error) {
@@ -860,7 +805,6 @@ export async function executeResearch(params: {
     answer,
     limitedSources,
     searchSteps: allSearchSteps,
-    queryInherited: queryInherited === true,
     validateGrounding: synthesised,
   });
 }
@@ -986,10 +930,9 @@ function finalizeResearchResult(params: {
   answer: string;
   limitedSources: CollectedSource[];
   searchSteps: ResearchResult['searchSteps'];
-  queryInherited: boolean;
   validateGrounding: boolean;
 }): ResearchResult {
-  const { limitedSources, searchSteps, queryInherited } = params;
+  const { limitedSources, searchSteps } = params;
   let { answer } = params;
   let grounded = true;
 
@@ -1050,7 +993,6 @@ function finalizeResearchResult(params: {
           sources: citations.length,
           domains: new Set(citations.map((c) => c.domain || extractDomainLabel(c.url))).size,
           answerLength: answer.trim().length,
-          queryInherited,
         });
 
   log.info(`[Research] Fertig: ${citations.length} Zitate, Konfidenz ${confidence}`);

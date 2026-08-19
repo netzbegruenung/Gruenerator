@@ -7,7 +7,6 @@ vi.mock('../../../../routes/chat/agents/directSearch.js', () => ({
   executeDirectSearch: (...a: unknown[]) => executeDirectSearch(...a),
   executeDirectExamplesSearch: vi.fn(),
   executeDirectWebSearch: (...a: unknown[]) => executeDirectWebSearch(...a),
-  executeResearch: vi.fn(),
 }));
 
 const { searchNode } = await import('./searchNode.js');

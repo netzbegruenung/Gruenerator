@@ -663,11 +663,8 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
 
   // The separate `research` tool is gone: it was a second door into a different
   // engine (Linkup depth=deep + sourcedAnswer, i.e. LINKUP wrote the answer)
-  // reachable by the word "recherchiere" alone, and it exposed a `depth` choice
-  // that `executeResearch` discarded before Linkup ever saw it. Recherche is now
-  // the upper two tiers of `web_search`, so the answer — and every [N] in it —
-  // stays ours. `executeResearch` itself lives on for the Monitor's daily
-  // briefing (HotTopicPipeline), which genuinely wants a ready-made report.
+  // reachable by the word "recherchiere" alone. Recherche is now the upper two
+  // tiers of `web_search`, so the answer — and every [N] in it — stays ours.
 
   // `direct_response` used to be mounted here behind an `includeDirectResponse`
   // flag: a router escape hatch from the days of `toolChoice: 'required'`, where
