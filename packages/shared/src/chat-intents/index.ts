@@ -517,6 +517,14 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
     id: 'hilfe',
     category: 'retrieval',
     audience: 'all',
+    // Wohin ein `hilfe`-Turn ausweicht, den ein Notausschalter aus der Schleife
+    // hält. Die Antwort war dieselbe, stand aber nur als Zweig im Entscheider
+    // (`SYSTEM_TOOL_INTENTS` → `web`) — der greift für `hilfe` weiterhin zuerst,
+    // dieses Feld ändert also nichts am Ablauf. Es macht die Registry
+    // vollständig: seit Phase N heisst `forcedLane: 'loop'` „hat keinen
+    // Einzeldurchlauf", und für jeden Intent auf der Achse muss hier stehen,
+    // wohin er stattdessen geht. `forcedLanes.vitest.ts` bewacht das.
+    degradeTo: 'web',
     mention: {
       slug: 'doku',
       aliases: ['hilfe', 'anleitung'],

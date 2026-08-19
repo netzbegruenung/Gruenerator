@@ -44,29 +44,42 @@ export type ForcedLane =
   | 'pipeline';
 
 /**
- * Zwei Gründe, `loop` zu tragen, und sie sind nicht derselbe.
+ * Seit Phase N trägt `loop` nur noch EINEN Grund: für diese Intents gibt es
+ * keinen Einzeldurchlauf.
  *
- * `mcp`/`hilfe` MÜSSEN in die Schleife: `executeIntentPipeline` hat für sie gar
+ * `mcp`/`hilfe` war das immer schon — `executeIntentPipeline` hat für sie gar
  * keinen Zweig, ein Einzeldurchlauf liesse den Turn ohne Ausführenden. Diese
  * Tatsache heisst im Entscheider `mustLoop` und trägt dort mehr als diese Achse
  * (bedingungsloses Gate, Notizbuch-Ausnahme). `umfragen` stand hier als dritter
  * und ist stillgelegt — sein Turn kommt über den Werkzeug-Pin in die Schleife,
  * nicht über diese Karte.
  *
- * `bundestag`/`abgeordnetenwatch` HABEN einen Einzeldurchlauf-Executor
- * (`searchNode`), und er bleibt der Weg für Prosa-Turns mit ausgeschalteter
- * Schleife. Sie tragen `loop`, weil eine ERWÄHNUNG dort besser bedient ist: der
- * Einzeldurchlauf ruft genau eine Suche und schreibt darüber, während die
- * Schleife nachfassen, mit anderen Quellen kombinieren und bei leerem Ergebnis
- * ausweichen kann. Genau dafür ist das eine eigene Achse — `forcedLane: 'loop'`
- * hebt NUR den forcedTool-Notausschalter auf.
+ * `bundestag`/`abgeordnetenwatch` HATTEN einen Einzeldurchlauf-Executor in
+ * `searchNode` und tragen `loop` seit Phase K, weil eine ERWÄHNUNG dort besser
+ * bedient ist: der Einzeldurchlauf ruft genau eine Suche und schreibt darüber,
+ * während die Schleife nachfassen, mit anderen Quellen kombinieren und bei
+ * leerem Ergebnis ausweichen kann. Nachdem der Loop-Pfad sich bewährt hatte,
+ * ist die dünne Tür in Phase N gefallen; der gemeinsame Kern (`retrieveBundestag`
+ * /`retrieveAbgeordnetenwatch`) hängt jetzt nur noch am Loop-Werkzeug.
+ *
+ * Damit beantwortet die Achse zwei Fragen, die vorher auseinanderfielen: wohin
+ * ein ERZWUNGENER Turn geht, UND wer keinen Einzeldurchlauf hat. Der Entscheider
+ * nutzt beides — `forcedLane: 'loop'` hebt weiterhin nur den
+ * forcedTool-Notausschalter auf, und wenn ein anderer Notausschalter greift,
+ * degradiert `fallbackIntentFor` über das `degradeTo` der Registry, statt den
+ * Turn stranden zu lassen.
+ *
+ * **Wer hier einen Intent einträgt, trägt ihm ein `degradeTo` nach** — sonst
+ * gibt es einen Zustand (Notausschalter greift), in dem niemand den Turn
+ * ausführt. `mcp` ist die begründete Ausnahme: für ihn wäre eine Websuche keine
+ * Degradierung, sondern eine andere Quelle als die gewählte.
  */
 export const FORCED_LANE_BY_INTENT: Record<ChatIntentId, ForcedLane> = {
-  // ── loop, weil es sonst niemanden gäbe ────────────────────────────────────
+  // ── loop — es gibt keinen Einzeldurchlauf für sie ─────────────────────────
+  // Die ersten beiden hatten nie einen; die beiden darunter haben ihn in
+  // Phase N verloren, nachdem der Loop-Pfad sich bewährt hatte.
   mcp: 'loop',
   hilfe: 'loop',
-
-  // ── loop, weil die Erwähnung dort besser bedient ist ──────────────────────
   bundestag: 'loop',
   abgeordnetenwatch: 'loop',
 

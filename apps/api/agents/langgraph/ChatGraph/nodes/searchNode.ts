@@ -375,21 +375,25 @@ function buildBundestagResults(enriched: BtEnrichedResult, standalone = true): S
 /**
  * Der Kern der beiden Parlaments-Abrufe: Dienst fragen, Ergebnis aufbereiten.
  *
- * Zwei Türen führen hierher — der Einzeldurchlauf über den `case`-Zweig unten
- * und das Loop-Werkzeug über `domainTools`. Bis 08/2026 ging die zweite DURCH
- * die erste: `makeBundestagTool` rief `searchNode` mit gesetztem Intent erneut
- * auf und nahm damit dessen ganze Vorrede mit. Zwei davon kehren VOR dem
- * `switch` zurück — die Mehrdokument-Auffächerung und die Mehrquellen-Suche —,
- * und die erste hat den Abruf gekapert: ein `@bundestag` auf einem Turn mit
- * zwei Dokumentquellen fragte die DIP nie, sondern lieferte Dokumenttreffer
- * unter dem Namen des Bundestags-Werkzeugs zurück (gemessen: `dipCalled=0`).
+ * EINE Tür führt hierher — das Loop-Werkzeug über `domainTools`. Bis 08/2026
+ * waren es zwei, und die zweite ging DURCH die erste: `makeBundestagTool` rief
+ * `searchNode` mit gesetztem Intent erneut auf und nahm damit dessen ganze
+ * Vorrede mit. Zwei Zweige darin kehren VOR dem `switch` zurück — die
+ * Mehrdokument-Auffächerung und die Mehrquellen-Suche —, und die erste hat den
+ * Abruf gekapert: ein `@bundestag` auf einem Turn mit zwei Dokumentquellen
+ * fragte die DIP nie, sondern lieferte Dokumenttreffer unter dem Namen des
+ * Bundestags-Werkzeugs zurück (gemessen: `dipCalled=0`).
  *
  * Die Vorrede ist für einen Zustand aus dem Klassifikator gebaut, nicht für
- * eine vom Planer geschriebene Suchanfrage. Deshalb ruft das Werkzeug jetzt den
- * Kern und nicht mehr den Knoten. Was dabei wegfällt, ist die referenzielle
- * Auflösung der Anfrage — sie verlangt ein Recherche-VERB ohne eigenes Subjekt
- * ("recherchier das mal"), was ein Suchbegriff aus dem Werkzeug-Parameter per
- * Konstruktion nicht ist.
+ * eine vom Planer geschriebene Suchanfrage. Deshalb rief das Werkzeug erst den
+ * Kern statt des Knotens — und in Phase N fiel die Einzeldurchlauf-Tür ganz.
+ * Ein Turn, den ein Notausschalter aus der Schleife hält, weicht seitdem über
+ * die Registry aus (`degradeTo`, siehe `fallbackIntentFor`) und landet nicht
+ * mehr in einem `case`-Zweig, den nur noch der Ausnahmefall erreichte.
+ *
+ * Was mit der alten Tür wegfiel, ist die referenzielle Auflösung der Anfrage —
+ * sie verlangt ein Recherche-VERB ohne eigenes Subjekt ("recherchier das mal"),
+ * was ein Suchbegriff aus dem Werkzeug-Parameter per Konstruktion nicht ist.
  */
 export async function retrieveBundestag(
   query: string,
@@ -398,7 +402,9 @@ export async function retrieveBundestag(
   const startTime = Date.now();
   // DE-only source: for AT users return a graceful decline instead of empty
   // data. Der Loop gattert schon an der Montage (`toolCatalog`), der
-  // Klassifikator degradiert AT auf `web` — das hier ist die dritte Tür.
+  // Klassifikator degradiert AT auf `web` — das hier ist die letzte Zusicherung,
+  // und seit dem Fall der Einzeldurchlauf-Tür der einzige Punkt, den keine
+  // Aufrufform umgeht.
   if (!isIntentAllowedForLocale('bundestag', locale)) {
     return [
       {
@@ -1575,18 +1581,6 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       //   citations = buildCitations(results);
       //   break;
       // }
-
-      case 'abgeordnetenwatch': {
-        results = await retrieveAbgeordnetenwatch(searchQuery || '', state.userLocale);
-        citations = buildCitations(results);
-        break;
-      }
-
-      case 'bundestag': {
-        results = await retrieveBundestag(searchQuery || '', state.userLocale);
-        citations = buildCitations(results);
-        break;
-      }
 
       // `research` is no longer a separate engine — it is this path at a deeper
       // tier. It used to call executeResearch, which handed the whole question
