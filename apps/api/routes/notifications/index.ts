@@ -34,8 +34,17 @@ router.get('/stream', (req: AuthRequest, res: Response) => {
 
   const flushRes = () => (res as { flush?: () => void }).flush?.();
 
-  res.write(`event: connected\ndata: ${JSON.stringify({ userId })}\n\n`);
-  flushRes();
+  // Dieselbe Absicherung wie in `sseHelpers.ts`: auf eine beendete oder
+  // zerstörte Antwort zu schreiben ist ein Fehler, kein Sonderfall. Ohne das
+  // Gatter trägt der Rückruf den Fehler bis in die Zustell-Schleife des
+  // Pub/Sub — und mit ihm die Frage, wessen Strom daran schuld war.
+  const writeSse = (payload: string): void => {
+    if (res.writableEnded || res.destroyed) return;
+    res.write(payload);
+    flushRes();
+  };
+
+  writeSse(`event: connected\ndata: ${JSON.stringify({ userId })}\n\n`);
 
   // Diese Verbindung meldet sich mit IHREM eigenen Rückruf wieder ab, nicht
   // über die Nutzer-ID — sonst nimmt der erste schließende Tab allen anderen
@@ -44,8 +53,7 @@ router.get('/stream', (req: AuthRequest, res: Response) => {
   let closed = false;
 
   subscribeToUserNotifications(userId, (notification) => {
-    res.write(`event: notification\ndata: ${JSON.stringify(notification)}\n\n`);
-    flushRes();
+    writeSse(`event: notification\ndata: ${JSON.stringify(notification)}\n\n`);
   })
     .then((dispose) => {
       unsubscribe = dispose;
@@ -62,8 +70,7 @@ router.get('/stream', (req: AuthRequest, res: Response) => {
     });
 
   const keepAlive = setInterval(() => {
-    res.write(':keepalive\n\n');
-    flushRes();
+    writeSse(':keepalive\n\n');
   }, 30000);
 
   req.on('close', () => {

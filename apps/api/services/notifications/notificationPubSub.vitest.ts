@@ -65,6 +65,40 @@ describe('notificationPubSub', () => {
     expect(tabC).toHaveBeenCalledTimes(1);
   });
 
+  it('reißt bei einem defekten Strom die Geschwister nicht mit', async () => {
+    // `res.write()` auf eine bereits beendete Antwort wirft. Lief das durch
+    // einen try/catch um die GANZE Schleife, bekam kein danach iterierter Tab
+    // die Meldung — obwohl seine Verbindung völlig in Ordnung ist.
+    const tabA = vi.fn();
+    const broken = vi.fn(() => {
+      throw new Error('write after end');
+    });
+    const tabC = vi.fn();
+
+    await subscribeToUserNotifications(USER, tabA);
+    await subscribeToUserNotifications(USER, broken);
+    await subscribeToUserNotifications(USER, tabC);
+
+    expect(() => publish({ id: 'n1' })).not.toThrow();
+
+    expect(tabA).toHaveBeenCalledTimes(1);
+    expect(broken).toHaveBeenCalledTimes(1);
+    expect(tabC).toHaveBeenCalledTimes(1);
+  });
+
+  it('trennt kaputte Nutzlast von kaputtem Strom', async () => {
+    // Ein unlesbares Payload darf gar nicht erst zugestellt werden — und der
+    // Fehler gehört nicht als „Zustellung fehlgeschlagen" protokolliert.
+    const tab = vi.fn();
+    await subscribeToUserNotifications(USER, tab);
+
+    expect(() => listeners.get(CHANNEL)?.('{kein json')).not.toThrow();
+    expect(tab).not.toHaveBeenCalled();
+
+    publish({ id: 'n1' });
+    expect(tab).toHaveBeenCalledTimes(1);
+  });
+
   it('abonniert den Redis-Kanal genau einmal', async () => {
     await subscribeToUserNotifications(USER, vi.fn());
     await subscribeToUserNotifications(USER, vi.fn());
