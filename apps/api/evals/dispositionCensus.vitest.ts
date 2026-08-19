@@ -11,7 +11,7 @@ vi.mock('../services/ai/execution/index.js', () => ({
 }));
 
 import { runClassifierCensus } from './classifierCensusHarness.js';
-import { dispositionOf } from '@gruenerator/shared/chat-intents';
+import { ALL_CHAT_INTENTS, dispositionOf } from '@gruenerator/shared/chat-intents';
 import { renderClassifierCensus } from './renderClassifierCensus.js';
 
 /**
@@ -61,6 +61,24 @@ describe('Klassifikator-Dispositionszählung über den Eval-Korpus', () => {
     expect(
       unknown.map((t) => `${t.id}: ${t.intent}`),
       'Verdikte ohne Disposition — Klassifikator-Fehler oder uneingeordneter Intent'
+    ).toEqual([]);
+
+    // Ein stillgelegter Intent hat keinen Erzeuger mehr — das ist die Aussage
+    // der Stilllegung, und ohne diese Zeile ist sie nur einmal gemessen statt
+    // bewacht. Der Enum-Wert BLEIBT (Wire-Vertrag, persistierte Threads); was
+    // hier fällt, ist die Emission. Wer einen Tier-Zweig so ändert, dass er
+    // wieder ein retiredes Verdikt liefert, sieht es hier und nicht in
+    // Produktion.
+    // `Set<string>`, nicht `Set<ChatIntentId>`: `CensusTurn.intent` traegt auch
+    // `ERR:…`, wenn der Klassifikator geworfen hat.
+    const retiredIds = new Set<string>(
+      ALL_CHAT_INTENTS.filter((i) => i.availability === 'retired').map((i) => i.id)
+    );
+    const retired = run.turns.filter((t) => retiredIds.has(t.intent));
+    expect(
+      retired.map((t) => `${t.id}: ${t.intent}`),
+      'stillgelegte Intents werden wieder erzeugt — die Fähigkeit lebt im Loop, ' +
+        'das Verdikt soll es nicht mehr geben'
     ).toEqual([]);
 
     // Der Korpus muss vollständig gelaufen sein; eine halbe Messung ist keine.

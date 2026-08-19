@@ -311,4 +311,20 @@ export const LOOP_SCENARIOS: readonly LoopScenario[] = [
     systemIncludes: '## AKTIVE PLATTFORM: Pressemitteilung',
     notReached: ['router.intent_override'],
   },
+  {
+    id: 'mention-doku-loop',
+    category: 'mention-lane',
+    note: 'Keine Modellannahme: `@doku` zurrt jetzt das Doku-Werkzeug fest. Der Intent `hilfe` BLEIBT (Tier 2.9 erzeugt ihn aus Prosa und haelt Anleitungsfragen von den Erzeugungs-Verdikten fern) — was die Erwaehnung dazugewinnt, ist der BENANNTE erste Aufruf: der Doku-Index ist ohnehin breit montiert, der Intent trug also nur die Schleife, und welches Werkzeug in ihr laufen soll, sagte niemand. Der Wortlaut faellt ABSICHTLICH durch `looksLikeDocsHelpQuestion` — so traegt allein die Erwaehnung den Turn, und die Seitenkarte im Systemtext beweist den Pin statt das Gitter.',
+    prompt: 'Ich komme mit den Notizbuechern nicht weiter.',
+    body: { forcedTools: ['hilfe'] },
+    streams: [
+      { calls: [{ tool: 'gruenerator_docs_search', args: { query: 'Notizbuch anlegen' } }] },
+      { text: GERMAN_ANSWER },
+    ],
+    mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
+    firstToolChoice: 'gruenerator_docs_search',
+    // Die Seitenkarte haengt seit diesem PR am PIN statt am Intent. Sie ist kein
+    // Rezepttext — nur ihre Aktivierungsbedingung hat gewechselt.
+    systemIncludes: '## GRÜNERATOR-DOKUMENTATION',
+  },
 ];

@@ -29,6 +29,7 @@ import type {
   SharepicVariant,
 } from '@gruenerator/contracts';
 import type { RoleLandesverbandInput } from '@gruenerator/shared/agents';
+import type { ArtifactCreateKind } from '@gruenerator/shared/chat-intents';
 import type { ModelMessage } from 'ai';
 
 export type { WolkeFileRef, ConnectFileRef, CurrentBoard, SocialPostPayload };
@@ -1020,6 +1021,17 @@ export interface ChatGraphState {
   // eine Fähigkeit festzurren kann, deren Intent stillgelegt ist (`@umfragen`).
   // Null/abwesend = niemand hat gewählt.
   mentionPinnedTool?: string | null | undefined;
+
+  // Die ARTEFAKTART, die eine `@…-erstellen`-Erwähnung dieses Turns festgezurrt
+  // hat. Zweite Hälfte desselben Gedankens wie `mentionPinnedTool`, für die eine
+  // Erwähnungsfamilie, die kein Werkzeug benennt, sondern eine Art.
+  //
+  // Warum sie nötig ist: keines der fünf Token setzt `forcedTool`, weil ein
+  // Verbund-Turn („recherchiere X und mach eine Tabelle daraus") gerade NICHT
+  // die direkte Erstellroute nehmen soll. Ohne diesen Pin leitet `turnPlan` die
+  // Art dann neu aus dem Substantiv im Text ab — `@sheet-erstellen` ergab eine
+  // Tabelle also nur, solange das Wort „Tabelle" auch dastand.
+  mentionPinnedArtifactKind?: ArtifactCreateKind | null | undefined;
 
   // The first-party MANAGED connectors this turn mounts (`bahn`, `wetter`,
   // `gesetze`, …). Set by the vocabulary trigger in the router, or by an

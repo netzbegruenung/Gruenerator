@@ -2,7 +2,7 @@
  * Domain intent tools for the agentic chat loop (Phase 2b).
  *
  * `summary`, `bundestag` and `abgeordnetenwatch` were single-pass intents whose
- * executors (`summarizeNode`, `searchNode`) already end a turn with a streamed
+ * executors (`summarizeNode`, die Abruf-Kerne) already end a turn with a streamed
  * text answer written over gathered data — the "loop-shaped" criteria. Each one
  * becomes a thin tool the ONE streamText loop can call (and compose with the
  * search family): the tool runs the SAME node the single-pass path ran and
@@ -19,7 +19,10 @@ import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
 import { imageNode } from '../../../agents/langgraph/ChatGraph/nodes/imageNode.js';
-import { searchNode } from '../../../agents/langgraph/ChatGraph/nodes/searchNode.js';
+import {
+  retrieveAbgeordnetenwatch,
+  retrieveBundestag,
+} from '../../../agents/langgraph/ChatGraph/nodes/searchNode.js';
 import { summarizeNode } from '../../../agents/langgraph/ChatGraph/nodes/summarizeNode.js';
 import { relatedDocsPages, searchDocs } from '../../../services/docs/docsIndex.js';
 import { lookupUmfragen } from '../../../services/monitor/UmfragenService.js';
@@ -77,13 +80,18 @@ NUTZE WENN der*die Nutzer*in um eine Zusammenfassung bittet ("fasse zusammen", "
 
 /**
  * `bundestag`: official DIP documentation (Drucksachen, Plenarprotokolle,
- * speeches, people, Vorgänge) via `searchNode`'s bundestag branch. Behaves like
+ * speeches, people, Vorgänge) via `retrieveBundestag`. Behaves like
  * the search family: registers the flat results into the source registry and
  * returns the lean `{ resultCount, sources }` — the numbered snippet block is
  * the model's grounding, the citations footer shows the documents. Speech
  * excerpts run up to ~600 chars upstream, so registration raises the snippet
- * cap to 700 to keep them intact. DE-only — `searchNode` returns a graceful
- * decline for de-AT.
+ * cap to 700 to keep them intact. DE-only — der Kern liefert für de-AT eine
+ * begründete Absage statt leerer Daten.
+ *
+ * Ruft `retrieveBundestag` und nicht mehr `searchNode`: die Vorrede des Knotens
+ * ist für einen Zustand aus dem Klassifikator gebaut und kehrt bei zwei
+ * Dokumentquellen VOR dem `switch` zurück — der Abruf wurde dort gekapert.
+ * Begründung am Kern.
  */
 export function makeBundestagTool(ctx: {
   state: ChatGraphState;
@@ -100,8 +108,7 @@ NICHT für das Abstimmungsverhalten oder die Nebentätigkeiten einer konkreten P
       query: z.string().min(1).describe('Suchbegriff: Person, Thema oder Drucksachennummer'),
     }),
     execute: async ({ query }) => {
-      const result = await searchNode({ ...state, intent: 'bundestag', searchQuery: query });
-      const results = (result.searchResults ?? []) as SearchResult[];
+      const results = await retrieveBundestag(query, state.userLocale);
       if (results.length === 0) {
         return { resultCount: 0, sources: '', error: 'Keine passenden Bundestags-Daten gefunden.' };
       }
@@ -113,8 +120,8 @@ NICHT für das Abstimmungsverhalten oder die Nebentätigkeiten einer konkreten P
 
 /**
  * `abgeordnetenwatch`: mandate and voting data (voting record, side jobs,
- * mandates) via `searchNode`'s abgeordnetenwatch branch. Same shape as
- * `bundestag`: register → lean `{ resultCount, sources }`. DE-only.
+ * mandates) via `retrieveAbgeordnetenwatch`. Same shape as `bundestag`:
+ * register → lean `{ resultCount, sources }`. DE-only.
  */
 export function makeAbgeordnetenwatchTool(ctx: {
   state: ChatGraphState;
@@ -129,12 +136,7 @@ NUTZE WENN nach dem Abstimmungsverhalten, den Nebentätigkeiten oder dem Mandat 
       query: z.string().min(1).describe('Name der*des Abgeordneten oder ein Thema'),
     }),
     execute: async ({ query }) => {
-      const result = await searchNode({
-        ...state,
-        intent: 'abgeordnetenwatch',
-        searchQuery: query,
-      });
-      const results = (result.searchResults ?? []) as SearchResult[];
+      const results = await retrieveAbgeordnetenwatch(query, state.userLocale);
       if (results.length === 0) {
         return { resultCount: 0, sources: '', error: 'Keine passenden Mandatsdaten gefunden.' };
       }

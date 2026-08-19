@@ -139,7 +139,7 @@ describe('die Registry entscheidet, welche Erwähnung ein Werkzeug pinnt', () =>
   // Der Pin ersetzt die frühere Regel „das Werkzeug heisst wie der Intent". Der
   // Test hängt deshalb an der Registry und nicht an einer zweiten Liste hier:
   // wer `pinsTool` setzt oder wegnimmt, ändert eine Aussage über den Loop.
-  it('vier Erwähnungen pinnen ein Werkzeug — und nur die', () => {
+  it('fünf Erwähnungen pinnen ein Werkzeug — und nur die', () => {
     const pinned = allIntentMentions()
       .filter(({ mention }) => mention.pinsTool != null)
       .map(({ mention }) => mention.pinsTool)
@@ -147,6 +147,7 @@ describe('die Registry entscheidet, welche Erwähnung ein Werkzeug pinnt', () =>
     expect(pinned).toEqual([
       'abgeordnetenwatch',
       'bundestag',
+      'gruenerator_docs_search',
       'gruenerator_pressemitteilung_examples',
       'umfragen',
     ]);
@@ -157,12 +158,16 @@ describe('die Registry entscheidet, welche Erwähnung ein Werkzeug pinnt', () =>
     expect(CHAT_INTENTS.umfragen.availability).toBe('retired');
   });
 
-  // `@doku` montiert `gruenerator_docs_search`, `@dokumente` ist die
-  // Dokumentensuche des Einzeldurchlaufs, `@notion` ein ganzer Server. Keine
-  // von ihnen meint EIN Werkzeug — sie bleiben bei `required`.
+  // `@doku` stand hier, bis gemessen war, dass der Intent nur die Schleife trug
+  // und den Aufruf niemand benannte — der Doku-Index ist ohnehin breit montiert.
+  // `@dokumente` ist die Dokumentensuche des Einzeldurchlaufs, `@notion` ein
+  // ganzer Server: die meinen wirklich kein EINZELNES Werkzeug.
   it('schweigt, wo eine Erwähnung kein einzelnes Werkzeug meint', () => {
-    expect(pinnedToolForMention('hilfe')).toBe(null);
     expect(pinnedToolForMention('search')).toBe(null);
     expect(pinnedToolForMention('examples')).toBe(null);
+  });
+
+  it('`@doku` pinnt den Doku-Index', () => {
+    expect(pinnedToolForMention('hilfe')).toBe('gruenerator_docs_search');
   });
 });

@@ -94,8 +94,15 @@ export interface IntentMention {
    * Erwähnung eine Fähigkeit festzurren, deren Intent stillgelegt ist:
    * `@umfragen` trägt `pinsTool: 'umfragen'`, während der gleichnamige Intent
    * `availability: 'retired'` ist. Wo eine Erwähnung KEIN einzelnes Werkzeug
-   * meint, bleibt das Feld leer — `@doku` montiert `gruenerator_docs_search`
-   * über seinen Intent, und `@notion` ist ein ganzer Server.
+   * meint, bleibt das Feld leer — `@notion` ist ein ganzer Server.
+   *
+   * `@doku` stand hier als zweites Gegenbeispiel („montiert sein Werkzeug über
+   * seinen Intent"). Das stimmte für die MONTAGE und war für den AUFRUF gerade
+   * falsch: der Doku-Index ist ohnehin breit montiert, nicht intent-gegattert,
+   * der Intent trug also nur die Schleife — und welches Werkzeug in ihr laufen
+   * soll, sagte niemand. `toolChoice: 'required'` verlangt irgendeinen Aufruf,
+   * und der Erwähnungstext ist vor dem Modell entfernt. Jetzt benennt der Pin
+   * ihn.
    */
   pinsTool?: string;
   /**
@@ -208,6 +215,26 @@ export const ARTIFACT_CREATE_TOKENS = {
 
 /** Die Artefaktarten, die eine Erstell-Erwähnung haben. */
 export type ArtifactCreateKind = keyof typeof ARTIFACT_CREATE_TOKENS;
+
+/**
+ * Rück-Weg Token → Art, für die Stelle, die aus `forcedTools` liest.
+ *
+ * Die Erwähnung MUSS die Art sagen können, sonst leitet der Verbund-Pfad sie
+ * neu aus dem Substantiv im Text ab: `@sheet-erstellen` + „recherchiere X"
+ * ergab eine Tabelle nur, solange das Wort „Tabelle" im Text stand. Ein Pin ist
+ * hier dasselbe Argument wie bei `IntentMention.pinsTool` — die Wahl der Person
+ * steht fest, der Wortlaut ist nur ein Indiz.
+ */
+const KIND_BY_CREATE_TOKEN = new Map<string, ArtifactCreateKind>(
+  (Object.entries(ARTIFACT_CREATE_TOKENS) as Array<[ArtifactCreateKind, string]>).map(
+    ([kind, token]) => [token, kind]
+  )
+);
+
+/** Die Artefaktart, die dieses `forcedTools`-Token festzurrt — sonst `null`. */
+export function artifactKindForCreateToken(token: string): ArtifactCreateKind | null {
+  return KIND_BY_CREATE_TOKEN.get(token) ?? null;
+}
 
 /** Die F0-Token selbst, als Literal-Union — Konsumenten nehmen die, nie `string`. */
 export type ArtifactCreateToken = (typeof ARTIFACT_CREATE_TOKENS)[ArtifactCreateKind];
@@ -497,6 +524,7 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
       description: 'Anleitungen zum Grünerator aus der Doku',
       avatar: '📖',
       backgroundColor: '#0891B2',
+      pinsTool: 'gruenerator_docs_search',
     },
   },
   chat_history: {
