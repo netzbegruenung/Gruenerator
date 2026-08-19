@@ -10,14 +10,32 @@
  * `afterGather` in BEIDEN Modi laufen kann: split ruft es vor der Synthese,
  * unified nach dem Strom.
  */
+import {
+  BOARD_MODIFY_PATTERN,
+  DOC_MODIFY_PATTERN,
+} from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { artifactKind } from '../artifactKindRegistry.js';
 
 import { withResearchedSources, type SourceRegistry } from './sourceRegistry.js';
 
+import type { EditorSurfaceKind } from './routing.js';
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
 import type { SSEWriter } from '../sseHelpers.js';
 import type { PersistedStep } from './types.js';
 import type { ModelMessage, ToolSet } from 'ai';
+
+/**
+ * Nennt die Bitte selbst eine Bearbeitung? Dieselben Muster, die der
+ * Klassifikator für seine `edit_current_*`-Schnellbahn benutzt — bewusst
+ * geteilt statt kopiert, denn die Zusicherung springt genau dann ein, wenn die
+ * Schnellbahn NICHT gefeuert hat (der Klassifikator kehrte früher zurück, oder
+ * der Turn kam als `agentic`/`produktion` heraus). Zwei Muster, die
+ * auseinanderdriften, hiessen: Werkzeug montiert, niemand ruft es, und der Turn
+ * endet mit „keine passende Antwort" statt mit der Änderung.
+ */
+function askNamesAnEdit(surface: EditorSurfaceKind, ask: string): boolean {
+  return surface === 'board' ? BOARD_MODIFY_PATTERN.test(ask) : DOC_MODIFY_PATTERN.test(ask);
+}
 
 /** A GFM table: header row followed by a delimiter row. Used to recognise that
  *  a "Tabelle"-turn was already answered inline in chat. */
@@ -144,17 +162,28 @@ export function createAfterGather(p: GuaranteeContext): () => Promise<void> {
     //     (observed live: steps=0 on most sheet/deck edits) — force it here,
     //     BEFORE synth, so editorEditsSummary is set and the synth confirms the
     //     change instead of writing empty text (→ fallback) or a false refusal.
+    //     Der Intent ist NICHT das Kriterium, sondern nur eines von dreien: das
+    //     Werkzeug hängt an der FLÄCHE, nicht am Intent, und der Klassifikator
+    //     verfehlt seine `edit_current_*`-Schnellbahn regelmässig (live am
+    //     19.08.2026: „Erstelle eine Aufgabe …" auf einem offenen Board kam als
+    //     `agentic` heraus, der Planer rief nichts, steps=0 — und der*die
+    //     Nutzer*in bekam „keine passende Antwort" auf eine glasklare Bitte).
+    //     Also fragt die Zusicherung zusätzlich den TEXT, mit genau den Mustern
+    //     der Schnellbahn: eine reine Frage ans Board („wie viele Aufgaben sind
+    //     offen?") trifft keines davon und löst weiterhin keine Änderung aus.
+    const editSurface = p.state.editToolSurface;
+    const userAsk = lastUserAsk();
     if (
-      p.state.editToolSurface &&
+      editSurface &&
       (p.state.intent === 'edit_current_doc' ||
         p.state.intent === 'edit_current_board' ||
-        p.state.compoundEdit === true) &&
+        p.state.compoundEdit === true ||
+        askNamesAnEdit(editSurface, userAsk)) &&
       !p.state.editorEditsSummary
     ) {
       const editTool = p.tools['edit_document'] as
         | { execute?: (input: unknown, opts: { toolCallId: string }) => Promise<unknown> }
         | undefined;
-      const userAsk = lastUserAsk();
       if (editTool?.execute && userAsk) {
         const sourcesBlock = p.sourceRegistry.renderReference();
         const instruction = sourcesBlock
