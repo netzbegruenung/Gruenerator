@@ -11,7 +11,32 @@
  * number and offending path.
  */
 import { notebookDepthSchema } from '@gruenerator/contracts';
+import { DISPOSITION_BY_INTENT } from '@gruenerator/shared/chat-intents';
 import { z } from 'zod';
+
+/**
+ * Die Intent-Namen, die ein Turn heute überhaupt noch tragen kann.
+ *
+ * `routing` war ein `z.string()` — und genau deshalb prüfte das Korpus bis
+ * 19.08.2026 sieben Szenarien gegen `bahn`/`wetter`/`news`/`hotel`/`reise`/
+ * `umfragen`. Diese Intents sind seit dem Registry-Umbau `availability:
+ * 'retired'`: der Klassifikator kann sie nicht mehr erzeugen, der Turn läuft
+ * als `agentic` und ruft das richtige WERKZEUG. Die Erwartung war also nicht
+ * mehr zu erfüllen, und ein Prüfmittel, das für eine Umbenennung genauso rot
+ * meldet wie für einen echten Werkzeug-Fehlgriff, hat aufgehört zu
+ * unterscheiden.
+ *
+ * Als abgeleitete Menge und nicht als Literalliste, damit die nächste
+ * Stilllegung das Korpus beim Laden rot macht statt erst im Live-Lauf.
+ */
+export const LIVE_INTENT_IDS = Object.entries(DISPOSITION_BY_INTENT)
+  .filter(([, disposition]) => disposition !== 'retired')
+  .map(([id]) => id);
+
+const liveIntentSchema = z.string().refine((v) => LIVE_INTENT_IDS.includes(v), {
+  message:
+    'unknown or retired intent — the classifier can no longer produce it; assert the tool call instead',
+});
 
 /** One captured SSE frame (`event: <name>\ndata: <json>`). */
 export interface SseEvent {
@@ -115,10 +140,11 @@ export type RubricName = z.infer<typeof rubricNameSchema>;
  *  is one that never runs. */
 export const evalExpectSchema = z
   .object({
-    /** Exact `intent` value on the intent event. */
-    routing: z.string().optional(),
+    /** Exact `intent` value on the intent event. Muss ein LEBENDER Intent sein
+     *  — siehe LIVE_INTENT_IDS. */
+    routing: liveIntentSchema.optional(),
     /** Intents this turn must NOT resolve to (e.g. follow-up must not fall to direct). */
-    routingNot: z.array(z.string()).optional(),
+    routingNot: z.array(liveIntentSchema).optional(),
     /** intent event must carry `agentic: true`. */
     demoted: z.boolean().optional(),
     toolsMustInclude: z.array(z.string()).optional(),
@@ -254,6 +280,19 @@ export const evalScenarioSchema = z
     /** Needs connected MCP servers (evals/tools/setupMcpServers.ts) — skipped
      *  unless EVAL_MCP=1 so it doesn't pollute the default run's baseline. */
     mcpLane: z.boolean().optional(),
+    /**
+     * Braucht die SYSTEM-MCP-Server (bahn/wetter/news/hotel), die der Server
+     * über `SYSTEM_MCP_*_URL` mountet — nicht die vom Nutzer verbundenen.
+     * Übersprungen ohne EVAL_SYSTEM_MCP=1.
+     *
+     * Eigene Lane, weil das Fehlen dieser Server eine Aussage über die
+     * UMGEBUNG ist und keine über den Code: ohne sie weicht der Loop
+     * folgerichtig auf `web_search` aus und das Szenario meldet rot, ohne dass
+     * sich am Verhalten etwas geändert hätte. Im Lauf vom 18.08.2026 waren das
+     * vier von zwanzig Fehlschlägen — dauerhaftes Rauschen unter jeder
+     * Vorher/Nachher-Differenz.
+     */
+    systemMcpLane: z.boolean().optional(),
     /** Notebook surface. Skipped unless EVAL_NOTEBOOK=1 so these don't move the
      *  default run's baseline. No seeding tool needed — the scenarios query
      *  SYSTEM_COLLECTIONS, which every populated backend already has. */
@@ -278,6 +317,9 @@ export const evalCaseSchema = z
     modelId: z.string().optional(),
     expect: evalExpectSchema,
     knownFailure: z.boolean().optional(),
+    /** Siehe evalScenarioSchema.systemMcpLane. Als einziges Lane-Flag auch auf
+     *  der Altform, weil die vier system-mcp-Szenarien dort liegen. */
+    systemMcpLane: z.boolean().optional(),
   })
   .strict();
 export type EvalCase = z.infer<typeof evalCaseSchema>;
