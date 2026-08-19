@@ -90,12 +90,12 @@ export const LV_PR_AGENTS: Agent[] = LV_PR_SPECS.map((spec) => ({
   openingQuestions: buildLvPrOpeningQuestions(spec),
   locale: 'de-DE',
   author: 'Grünerator',
+  // Kein 'web'/'scrape' — siehe lvBuergerAgents: die LV-Agenten arbeiten aus
+  // dem Landesverbands-Notizbuch und den Partei-Korpora, nicht aus dem Netz.
   enabledTools: [
     'search',
-    'web',
     'examples',
     'pressemitteilung_examples',
-    'scrape',
     'image',
     'memory',
     'memory_save',

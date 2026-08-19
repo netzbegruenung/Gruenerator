@@ -340,6 +340,30 @@ async function searchCollectionOrBundle(params: {
  * Note: Returns ToolSet; type safety is maintained through runtime validation in
  * execute functions (Zod version conflicts in the monorepo prevent tighter types).
  */
+/**
+ * May this agent reach the open web at all?
+ *
+ * Two vocabularies share the `enabledTools` array and both have to be honoured:
+ * the USER_SELECTABLE_TOOLS keys (`web`, plus the persisted legacy `research`)
+ * that the agent picker writes, and the raw TOOL NAMES (`web_search`) that the
+ * editor agents declare in their frontmatter. Reading only the first set would
+ * silently cut the editor agents off the web.
+ *
+ * An agent that declares no `enabledTools` at all keeps everything — absence is
+ * "not configured", not "nothing allowed"; user-created agents and the universal
+ * agent rely on that.
+ *
+ * Unlike {@link SearchToolOptions.enabledToolKeys} (which gates the whole search
+ * family for recurring/board runs) this answers the single web question, so the
+ * chat catalog can drop `web_search`/`scrape_url` while keeping
+ * `gruenerator_search` and the example corpora mounted.
+ */
+export function agentAllowsWebSearch(agentConfig: Pick<AgentConfig, 'enabledTools'>): boolean {
+  const declared = agentConfig.enabledTools;
+  if (!declared) return true;
+  return declared.some((key) => key === 'web' || key === 'research' || key === 'web_search');
+}
+
 export function createSearchTools(
   agentConfig: AgentConfig,
   options: CreateSearchToolsOptions
