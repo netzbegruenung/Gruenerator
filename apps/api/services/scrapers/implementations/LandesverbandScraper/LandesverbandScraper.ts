@@ -92,6 +92,20 @@ const LANDESVERBAENDE_ARCHIVE_COLLECTION = 'landesverbaende_archive';
 const ARTICLE_CONCURRENCY = 6;
 
 /**
+ * Fehlertexte sind eine Stichprobe, kein Protokoll: bei einem Totalausfall
+ * würde eine Liste je Inhaltspfad sonst tausende Zeilen tragen und über den
+ * Job-Status in Redis landen. Die Zahl `errors` bleibt ungedeckelt und exakt.
+ */
+const MAX_ERROR_SAMPLES = 25;
+
+function addErrorSamples(target: { errorMessages: string[] }, ...messages: string[]): void {
+  for (const message of messages) {
+    if (target.errorMessages.length >= MAX_ERROR_SAMPLES) return;
+    target.errorMessages.push(message);
+  }
+}
+
+/**
  * Main scraper class - orchestrates all modules
  * Reduced from 1,139 lines to ~400 lines through modularization
  */
@@ -192,6 +206,7 @@ export class LandesverbandScraper extends BaseScraper {
       updated: 0,
       skipped: 0,
       errors: 0,
+      errorMessages: [],
       totalVectors: 0,
       skipReasons: {},
       newArticles: [],
@@ -343,6 +358,7 @@ export class LandesverbandScraper extends BaseScraper {
             `[Landesverband] ✗ PDF error in ${source.id} (${pdf.url}): ${errorMessage}`
           );
           result.errors++;
+          addErrorSamples(result, `PDF ${pdf.url}: ${errorMessage}`);
         }
       }
     } else if (contentPath.wolkeShare) {
@@ -358,6 +374,7 @@ export class LandesverbandScraper extends BaseScraper {
           `[Landesverband] Wolke share list failed for ${source.id} (${shareLink}): ${msg}`
         );
         result.errors++;
+        addErrorSamples(result, `Wolke-Share ${shareLink}: ${msg}`);
         return result;
       }
 
@@ -441,6 +458,7 @@ export class LandesverbandScraper extends BaseScraper {
           const msg = error instanceof Error ? error.message : 'Unknown error';
           console.error(`[Landesverband] ✗ Wolke error in ${source.id} (${file.url}): ${msg}`);
           result.errors++;
+          addErrorSamples(result, `Wolke ${file.url}: ${msg}`);
         }
       }
     } else {
@@ -588,6 +606,7 @@ export class LandesverbandScraper extends BaseScraper {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           console.error(`[Landesverband] ✗ Error in ${source.id} (${url}): ${errorMessage}`);
           result.errors++;
+          addErrorSamples(result, `${url}: ${errorMessage}`);
         }
       });
       await parallelLimit(tasks, ARTICLE_CONCURRENCY);
@@ -622,6 +641,7 @@ export class LandesverbandScraper extends BaseScraper {
       updated: 0,
       skipped: 0,
       errors: 0,
+      errorMessages: [],
       totalVectors: 0,
       contentTypes: {},
       newArticles: [],
@@ -637,6 +657,7 @@ export class LandesverbandScraper extends BaseScraper {
       result.updated += pathResult.updated;
       result.skipped += pathResult.skipped;
       result.errors += pathResult.errors;
+      addErrorSamples(result, ...pathResult.errorMessages);
       result.totalVectors += pathResult.totalVectors;
       // Accumulate into the per-type bucket: a source can have several paths of the
       // same content type (e.g. multiple `beschluss` PDF archives + Wolke shares),
@@ -647,6 +668,7 @@ export class LandesverbandScraper extends BaseScraper {
         existing.updated += pathResult.updated;
         existing.skipped += pathResult.skipped;
         existing.errors += pathResult.errors;
+        addErrorSamples(existing, ...pathResult.errorMessages);
         existing.totalVectors += pathResult.totalVectors;
         existing.newArticles.push(...pathResult.newArticles);
         for (const [reason, count] of Object.entries(pathResult.skipReasons)) {
@@ -734,6 +756,9 @@ export class LandesverbandScraper extends BaseScraper {
       // Counted as a hard error so the caller's "did anything happen?" gate
       // (`stored + updated + errors > 0`) fires and someone actually gets told.
       errors: lvFilterMatchedNothing ? 1 : 0,
+      errorMessages: lvFilterMatchedNothing
+        ? [`Kein Quelleintrag für landesverband="${landesverband}" in diesem Build`]
+        : [],
       totalVectors: 0,
       bySource: {},
       duration: 0,
@@ -781,10 +806,12 @@ export class LandesverbandScraper extends BaseScraper {
         totalResult.updated += outcome.result.updated;
         totalResult.skipped += outcome.result.skipped;
         totalResult.errors += outcome.result.errors;
+        addErrorSamples(totalResult, ...outcome.result.errorMessages);
         totalResult.totalVectors += outcome.result.totalVectors;
         totalResult.bySource[outcome.sourceId] = outcome.result;
       } else {
         totalResult.errors++;
+        addErrorSamples(totalResult, `${outcome.sourceId}: ${outcome.error ?? 'Unknown error'}`);
       }
     }
 
