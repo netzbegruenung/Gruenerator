@@ -229,6 +229,7 @@ export async function buildStreamContext({
     wolkeFiles: rawWolkeFiles,
     connectFiles: rawConnectFiles,
     currentDocument: rawCurrentDocument,
+    currentBoard: rawCurrentBoard,
     customSystemPrompt: rawCustomSystemPrompt,
     roleRef: rawRoleRef,
     roleName: rawRoleName,
@@ -825,6 +826,11 @@ export async function buildStreamContext({
           selectionText: rawCurrentDocument.selectionText ?? null,
         }
       : undefined,
+    // Live board of the boards-editor sidebar. Without it the graph state has
+    // no board, so the classifier's edit_current_board fast-path never fires and
+    // the loop's `edit_document` tool aborts with "Es ist kein Board geöffnet" —
+    // the router only ever read `currentBoard` off the raw body.
+    currentBoard: rawCurrentBoard ?? undefined,
     userLocale: user.locale ?? 'de-DE',
     clientPlatform: rawPlatform ?? 'web',
     customSystemPrompt,
