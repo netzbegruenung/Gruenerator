@@ -1,9 +1,12 @@
+import { cimd } from '@better-auth/cimd';
+import { fetchClientMetadataResource } from '@better-auth/cimd/node';
 import { drizzleAdapter } from '@better-auth/drizzle-adapter';
+import { mcp } from '@better-auth/mcp';
 import { betterAuth } from 'better-auth';
 import { createAuthMiddleware } from 'better-auth/api';
-import { mcp } from 'better-auth/plugins';
 import { bearer } from 'better-auth/plugins/bearer';
 import { genericOAuth } from 'better-auth/plugins/generic-oauth';
+import { jwt } from 'better-auth/plugins/jwt';
 import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
@@ -22,12 +25,14 @@ import { ALLOWED_DOMAINS } from './domains.js';
 import { env } from './env.js';
 import { mapKeycloakProfileToUser } from './mapKeycloakProfileToUser.js';
 import {
+  MCP_CLIENT_REGISTRATION_SCOPES,
   MCP_CONSENT_PAGE,
-  MCP_DEFAULT_SCOPE,
   MCP_LOGIN_PAGE,
   MCP_OAUTH_SCOPES_SUPPORTED,
   MCP_RESOURCE_URL,
 } from './mcpServer.js';
+
+import type { BetterAuthPlugin } from 'better-auth';
 
 const KC_BASE = env.KEYCLOAK_BASE_URL;
 const KC_REALM = env.KEYCLOAK_REALM;
@@ -346,6 +351,47 @@ export const auth = betterAuth({
         return null;
       }
     },
+    // Neu und verpflichtend seit 1.7. Für Einmalwerte (Verifikations-Codes)
+    // gedacht; `GETDEL` erledigt das in einem Schritt, ohne das Fenster
+    // zwischen Lesen und Löschen, in dem ein zweiter Prozess denselben Wert
+    // noch einmal bekäme. Fehlerbehandlung wie bei `get`: mit
+    // `verification.storeInDatabase: true` ist Postgres der Rückfall.
+    getAndDelete: async (key) => {
+      try {
+        const value = await redisClient.getDel(`ba:${key}`);
+        return value ?? null;
+      } catch (err) {
+        log.warn(
+          'secondaryStorage.getAndDelete failed for ba:%s — falling back to DB: %s',
+          key,
+          err
+        );
+        return null;
+      }
+    },
+    // Neu und verpflichtend seit 1.7: die Ratenbegrenzung (`storage:
+    // 'secondary-storage'` weiter unten) zählt darüber. `INCR` + `EXPIRE` in
+    // einem Lua-Skript, weil beides zusammen atomar sein muss: als zwei
+    // Aufrufe kann der Prozess dazwischen sterben und der Zähler bliebe ohne
+    // Ablauf stehen — dieser Eimer wäre dann dauerhaft dicht. Das `if` sorgt
+    // dafür, dass nur die Anlage die Frist setzt, spätere Zählschritte sie
+    // also nicht verlängern.
+    increment: async (key, ttl) => {
+      try {
+        const count = await redisClient.eval(
+          "local c = redis.call('INCR', KEYS[1]) if c == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end return c",
+          { keys: [`ba:${key}`], arguments: [String(ttl)] }
+        );
+        return typeof count === 'number' ? count : Number(count);
+      } catch (err) {
+        // Bewusst durchlassen statt die Anfrage zu killen: ein totes Redis
+        // legte sonst jeden ratenbegrenzten Endpunkt lahm. 0 heisst „unter
+        // jedem Limit"; der Schutz fällt für die Dauer der Störung weg, was
+        // die Fehlerzeile sichtbar macht.
+        log.error('secondaryStorage.increment failed for ba:%s — rate limit open: %s', key, err);
+        return 0;
+      }
+    },
     set: async (key, value, ttl) => {
       try {
         if (ttl) {
@@ -514,7 +560,13 @@ export const auth = betterAuth({
   // code). Benign replay/expiry codes are skipped to keep bot noise out.
   hooks: {
     after: createAuthMiddleware(async (ctx) => {
-      if (!ctx.path.startsWith('/oauth2/callback')) return;
+      // 1.7 macht aus jedem genericOAuth-Provider einen echten
+      // Social-Provider: der Rückweg heißt jetzt `/callback/:id`, nicht
+      // mehr `/oauth2/callback/:id` — dieser Pfad gehört ab 1.7 dem
+      // OAuth-Provider-Plugin. Bliebe das Präfix stehen, feuerte dieser
+      // Haken nie wieder und die stillen Callback-Fehler wären erneut
+      // unsichtbar, ohne dass irgendetwas rot würde.
+      if (!ctx.path.startsWith('/callback/')) return;
       const location = ctx.context.responseHeaders?.get('location');
       if (location == null) return;
       let code: string | null = null;
@@ -559,6 +611,12 @@ export const auth = betterAuth({
   },
 
   plugins: [
+    // Pflicht ab 1.7, nicht Kür: der Autorisierungsserver signiert Access- und
+    // ID-Token damit und veröffentlicht die Schlüssel unter
+    // `/api/auth/v2/jwks`. Das ersetzt das alte Modell „opakes Token +
+    // Datenbank-Nachschlag" — Ressourcenserver prüfen jetzt gegen JWKS, was
+    // auch der Grund ist, warum `getMcpSession` ersatzlos entfallen ist.
+    jwt(),
     genericOAuth({
       config: [
         keycloakProvider('keycloak-netzbegruenung', 'netzbegruenung'),
@@ -573,32 +631,57 @@ export const auth = betterAuth({
     // Must sit after `bearer()` — it resolves the caller via that plugin.
     webViewHandoff(),
     // OAuth 2.1 AS (DCR + PKCE) for the authenticated MCP endpoint. Keycloak
-    // stays the only IdP: /mcp/authorize rides the existing session, the
+    // stays the only IdP: /oauth2/authorize rides the existing session, the
     // after-hook resumes the flow post-login. The plugin skips consent unless
     // `prompt=consent` — the shim in server.ts forces it.
     mcp({
       loginPage: MCP_LOGIN_PAGE,
+      consentPage: MCP_CONSENT_PAGE,
       resource: MCP_RESOURCE_URL,
-      oidcConfig: {
-        // required by OIDCOptions' type; the plugin overrides it anyway
-        loginPage: MCP_LOGIN_PAGE,
-        requirePKCE: true,
-        // Alles, was ausgestellt werden darf — nicht nur die MCP-Rechte.
-        // Fehlt `chat:completions` hier, weist der Server die Anfrage des
-        // Excel-Add-ins als unbekannten Scope ab.
-        scopes: [...MCP_OAUTH_SCOPES_SUPPORTED],
-        defaultScope: MCP_DEFAULT_SCOPE,
-        accessTokenExpiresIn: 3600,
-        refreshTokenExpiresIn: 60 * 60 * 24 * 30,
-        consentPage: MCP_CONSENT_PAGE,
-        metadata: { scopes_supported: MCP_OAUTH_SCOPES_SUPPORTED },
-      },
-      // Read by getMCPProviderMetadata (AS metadata merge) but missing from
-      // MCPOptions in better-auth 1.6.23 — spread-cast around the type lag.
-      ...({ metadata: { scopes_supported: MCP_OAUTH_SCOPES_SUPPORTED } } as unknown as Record<
-        string,
-        never
-      >),
+      // Alles, was ausgestellt werden darf — nicht nur die MCP-Rechte.
+      // Fehlt `chat:completions` hier, weist der Server die Anfrage des
+      // Excel-Add-ins als unbekannten Scope ab.
+      scopes: [...MCP_OAUTH_SCOPES_SUPPORTED],
+      // Was ein frisch registrierter Client bekommt. Bewusst enger als
+      // `scopes` — siehe die Begründung an der Konstante.
+      clientRegistrationDefaultScopes: [...MCP_CLIENT_REGISTRATION_SCOPES],
+      accessTokenExpiresIn: 3600,
+      refreshTokenExpiresIn: 60 * 60 * 24 * 30,
+      // 1.7 schaltet die dynamische Registrierung nicht mehr mit `mcp()` mit
+      // ein; ohne diese zwei Flaggen antwortet `/oauth2/register` mit 403 und
+      // kein MCP-Konnektor kommt mehr durch die Erstverbindung.
+      allowDynamicClientRegistration: true,
+      allowUnauthenticatedClientRegistration: true,
+      // Der Standard ist `true` und verlangt für jede angefragte Ressource
+      // eine Zeile in `ba_oauth_client_resources`. Die aus 1.6 übernommenen
+      // Clients haben keine — die Verknüpfung entsteht erst bei einer
+      // Registrierung unter 1.7 —, sie liefen sonst am Token-Endpunkt auf
+      // `invalid_target`. Es gibt genau eine Ressource, also kostet das
+      // Abschalten hier keine Trennschärfe.
+      enforcePerClientResources: false,
+      // Die einzige Behauptung in dieser Datei, und sie sitzt an einer echten
+      // Paketgrenze. `better-call` schreibt `OpenAPIParameter.schema.items`
+      // als `items?: { type: OpenAPISchemaType }` — ohne `| undefined`,
+      // anders als die Nachbarfelder `format` und `description`. Der
+      // OpenAPI-Block von `/oauth2/authorize` in `@better-auth/oauth-provider`
+      // ist eine Vereinigung von Objektliteralen, von denen nur einige `items`
+      // tragen; TypeScript normalisiert die übrigen zu `items?: undefined`.
+      // Unter unserem `exactOptionalPropertyTypes: true` ist das keine gültige
+      // Belegung mehr — für Projekte ohne die Option fällt es nicht auf.
+      //
+      // Es geht also um eine Beschreibung für die OpenAPI-Ausgabe, nicht um
+      // Laufzeitverhalten: das Plugin-Objekt ist genau das, was `betterAuth()`
+      // erwartet. Ersatzlos streichen lässt es sich, sobald `items` upstream
+      // ein `| undefined` bekommt.
+    }) as unknown as BetterAuthPlugin,
+    // Client ID Metadata Documents: MCP 2026-07-28 verlangt sie normativ.
+    // Der Node-Transport bringt die geforderte Härtung mit (DNS einmal
+    // auflösen, Adresse an die Verbindung pinnen, Weiterleitungen nicht
+    // folgen) — genau das, was sich nicht durch Umwickeln von `fetch`
+    // nachbauen lässt.
+    cimd({
+      fetchClientMetadataResource,
+      metadataProfile: 'mcp-2026-07-28',
     }),
   ],
 });

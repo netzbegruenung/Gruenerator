@@ -50,7 +50,14 @@ export function mapKeycloakProfileToUser(
     // When Keycloak sends no email, the key is absent and Better Auth stores NULL.
     ...(email !== null && { email }),
     emailVerified: (profile.email_verified as boolean) ?? false,
-    image: (profile.picture as string) || null,
+    // Gleiche Bedingung wie bei `email`: better-auth 1.7 typisiert
+    // `OAuthMappedUser.image` als `string`, und unter
+    // `exactOptionalPropertyTypes` ist `null` dort keine Belegung. Der Schlüssel
+    // entfällt, wenn Keycloak kein Bild schickt — was am Anlegepunkt dasselbe
+    // Ergebnis hat (Spalte bleibt NULL), und `mapProfileToUser` läuft nur dort.
+    ...(typeof profile.picture === 'string' && profile.picture.length > 0
+      ? { image: profile.picture }
+      : {}),
     locale,
     authSource: `${idpHint}-login`,
   };
