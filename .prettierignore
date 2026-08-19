@@ -57,3 +57,10 @@ apps/api/services/docs/docsIndex.generated.ts
 # `toMatchAriaSnapshot` verglichen. Dieselbe Lage wie oben: formatiert Prettier
 # sie, laufen sie beim nächsten Snapshot-Update wieder auseinander.
 apps/web/tests/e2e/**/*-snapshots/
+
+# Lauf-Artefakte des Chat-Evals — gitignored (apps/api/evals/.gitignore), aber
+# Prettier liest nur diese Datei. Ohne den Eintrag bricht `pnpm run ci` bei
+# jedem, der den Eval lokal einmal laufen liess, an einer Datei ab, die gar
+# nicht ins Repo gehört.
+apps/api/evals/last-run.json
+apps/api/evals/judge-verdicts.json

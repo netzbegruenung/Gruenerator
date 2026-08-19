@@ -26,6 +26,7 @@ export function normalize(line: EvalCase | EvalScenario): EvalScenario {
     category: line.category,
     ...(line.modelId ? { modelId: line.modelId } : {}),
     ...(line.knownFailure ? { knownFailure: true } : {}),
+    ...(line.systemMcpLane ? { systemMcpLane: true } : {}),
     turns: [{ prompt: line.prompt, expect: line.expect ?? {} }],
   };
 }
@@ -79,6 +80,8 @@ export interface CorpusFilter {
   slow: boolean;
   mcp: boolean;
   notebook: boolean;
+  /** Szenarien, die die SYSTEM-MCP-Server brauchen (SYSTEM_MCP_*_URL). */
+  systemMcp: boolean;
 }
 
 /** Glob evals/corpus/*.jsonl plus the legacy single-file corpus, then filter. */
@@ -108,6 +111,7 @@ export function loadCorpus(here: string, opts: CorpusFilter): EvalScenario[] {
   return scenarios.filter((s) => {
     if (s.slow && !opts.slow) return false;
     if (s.mcpLane && !opts.mcp) return false;
+    if (s.systemMcpLane && !opts.systemMcp) return false;
     if (s.notebookLane && !opts.notebook) return false;
     if (!opts.filter) return true;
     return opts.filter
