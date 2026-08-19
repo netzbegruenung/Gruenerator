@@ -16,7 +16,11 @@
  * Env:
  *   EVAL_BASE_URL   backend base (default http://localhost:3001)
  *   EVAL_BYPASS_TOKEN  x-dev-auth-bypass token (required unless the backend is open)
- *   EVAL_MODEL_ID   force a model lane for every case (e.g. 'mistral' / 'gemma-4')
+ *   EVAL_MODEL_ID   pin a model lane for every case (e.g. 'gemma-4').
+ *                   ACHTUNG: 'mistral' und 'auto' pinnen NICHT — `resolveModel`
+ *                   behandelt beide als „auto", der Lauf misst dann die
+ *                   Auto-Policy. Eine echte Mistral-Lane heisst
+ *                   'mistral-medium-3.5'. Siehe README, Abschnitt „Run".
  *   EVAL_FILTER     only run cases whose id/category contains this substring
  *   EVAL_SLOW=1     include scenarios tagged `slow` (golden long threads)
  *   EVAL_NOTEBOOK=1 include notebook-surface scenarios (tagged `notebookLane`)
