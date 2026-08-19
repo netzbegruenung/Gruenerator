@@ -541,7 +541,20 @@ export function detectSearchSources(query: string, intent: SearchIntent): Search
   // the nominative and quietly missed every declined form.
   const parliamentaryKeywords =
     /\b(drucksache\w*|drs\.?|plenar\w*|plenum|gesetzentw(urf|ürf)\w*|gesetzgebungsverfahren\w*|bundestagsdebatte\w*|debattiert|kleine anfrage\w*|große anfrage\w*|abgestimmt|beratungsstand\w*|antrag im bundestag|im bundestag (debattiert|beschlossen|eingebracht|beraten))\b/i;
-  if (hasPartyKeywords && parliamentaryKeywords.test(q)) {
+  // Fremdfraktionen öffnen denselben Zweig. Bewusst NICHT in `partyKeywords`:
+  // der Satz oben schaltet vier weitere Zweige, und in jedem von ihnen stünde
+  // `documents` — unsere eigenen Sammlungen — als Fundstelle für eine Frage über
+  // eine andere Partei. „Wie hat die SPD abgestimmt" braucht das Parlamentsprotokoll,
+  // nicht unser Wahlprogramm.
+  //
+  // Der Zuschnitt folgt der Quelle, die er aufsperrt: aufgenommen ist, was im
+  // Bundestag Fraktion war oder ist — die DIP reicht über die laufende
+  // Wahlperiode zurück, deshalb stehen FDP und BSW mit drin. Österreichische
+  // Parteien gehören nicht hierher: zur DIP gibt es für sie kein Gegenstück,
+  // ein Treffer würde eine AT-Frage an den deutschen Bundestag schicken.
+  const bundestagFactionKeywords =
+    /\b(spd|cdu|csu|afd|fdp|bsw|unionsfraktion|linksfraktion|linkspartei)\b|\b(die|der|den)\s+(linken?|union)\b/i;
+  if ((hasPartyKeywords || bundestagFactionKeywords.test(q)) && parliamentaryKeywords.test(q)) {
     return ['documents', 'bundestag'];
   }
 

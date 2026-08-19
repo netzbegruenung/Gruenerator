@@ -200,6 +200,63 @@ describe('detectSearchSources', () => {
     ).toEqual([]);
   });
 
+  it('pairs DIP for a foreign faction, not just our own', () => {
+    // `partyKeywords` kennt nur uns, deshalb blieb „Wie hat die SPD abgestimmt"
+    // im Einquellen-Modus und erreichte die DIP nie — obwohl das
+    // Abstimmungsverhalten AUSSCHLIESSLICH dort steht.
+    for (const q of [
+      'Wie hat die SPD zum Heizungsgesetz abgestimmt?',
+      'Wie hat die CDU zur Frauenquote abgestimmt?',
+      'Was steht in der Drucksache der AfD zur Kindergrundsicherung?',
+      'Wie war der Stand des Gesetzentwurfs der FDP?',
+      'Wie hat die Linke zum Heizungsgesetz abgestimmt?',
+      'Wie hat die Union zum Heizungsgesetz abgestimmt?',
+    ]) {
+      expect(detectSearchSources(q, 'search')).toEqual(['documents', 'bundestag']);
+    }
+  });
+
+  it('lets a foreign faction open ONLY the DIP branch', () => {
+    // Die Fremdfraktionen stehen bewusst nicht in `partyKeywords`: sonst
+    // schaltete jede SPD-Frage auch die drei anderen Zweige frei und suchte
+    // unsere eigenen Sammlungen nach der Haltung einer anderen Partei ab.
+    //
+    // Die Anfragen hier meiden `partyKeywords` bewusst — der Satz führt neben
+    // `grüne` auch INHALTSwörter (`position`, `programm`, `beschluss`,
+    // `antrag`, `fraktion`), die schon heute unabhängig vom genannten Akteur
+    // greifen. „Die aktuelle POSITION der SPD" ist deshalb auch ohne diesen
+    // Zweig `documents+web`, und würde die Abgrenzung nicht messen.
+    for (const q of [
+      'Was ist die aktuelle Haltung der SPD zum Klimaschutz?',
+      'Zeig mir ein Beispiel für einen Instagram-Post der CDU.',
+      'Was sagt die FDP zum Kohleausstieg?',
+    ]) {
+      expect(detectSearchSources(q, 'search')).toEqual([]);
+    }
+  });
+
+  it('does NOT send Austrian parties to the German DIP', () => {
+    // Zur DIP gibt es für sie kein Gegenstück — ein Treffer wäre eine
+    // AT-Frage, die im deutschen Bundestag nachgeschlagen wird.
+    for (const q of [
+      'Wie hat die ÖVP zum Heizungsgesetz abgestimmt?',
+      'Wie hat die FPÖ abgestimmt und was steht in der Drucksache?',
+      'Wie war der Stand des Gesetzentwurfs der NEOS?',
+    ]) {
+      expect(detectSearchSources(q, 'search')).toEqual([]);
+    }
+  });
+
+  it('does NOT pair DIP for a non-party actor', () => {
+    for (const q of [
+      'Wie hat Siemens zum Heizungsgesetz abgestimmt?',
+      'Wie hat der DFB abgestimmt?',
+      'Worüber wurde auf der letzten BDK abgestimmt?',
+    ]) {
+      expect(detectSearchSources(q, 'search')).toEqual([]);
+    }
+  });
+
   it('prefers DIP over web when both a process and temporal wording appear', () => {
     // Both branches match; the parliamentary one is checked first because the
     // named Drucksache is the more specific request.
