@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 
 import {
   ALL_COLLECTIONS,
+  agentAllowsWebSearch,
   collectionsForLocale,
   createSearchTools,
   namedByUser,
@@ -250,5 +251,40 @@ describe('namedByUser — user narrowing vs. invented narrowing', () => {
   it('reads the German names that share no word with their domain', () => {
     expect(namedByUser('destatis.de', 'Zahlen vom Statistischen Bundesamt bitte')).toBe(true);
     expect(namedByUser('parlament.gv.at', 'was sagt der Nationalrat dazu?')).toBe(true);
+  });
+});
+
+/**
+ * The web gate for corpus-bound agents. Two vocabularies share `enabledTools`:
+ * the picker's abstract keys (`web`, legacy `research`) and the editor agents'
+ * raw tool names (`web_search`). Reading only the first set would cut the
+ * editor agents off the web — that is what these pin.
+ */
+describe('agentAllowsWebSearch — corpus-bound agents keep off the open web', () => {
+  const withTools = (enabledTools?: string[]): Pick<AgentConfig, 'enabledTools'> =>
+    ({ enabledTools }) as Pick<AgentConfig, 'enabledTools'>;
+
+  it('keeps the web when the agent declares nothing at all', () => {
+    expect(agentAllowsWebSearch(withTools())).toBe(true);
+  });
+
+  it('honours the picker key', () => {
+    expect(agentAllowsWebSearch(withTools(['search', 'web']))).toBe(true);
+  });
+
+  it('honours the persisted legacy "research" key', () => {
+    expect(agentAllowsWebSearch(withTools(['research']))).toBe(true);
+  });
+
+  it('honours the editor agents’ raw tool name', () => {
+    expect(agentAllowsWebSearch(withTools(['gruenerator_search', 'web_search']))).toBe(true);
+  });
+
+  it('closes the web for an agent that declares tools but no web capability', () => {
+    expect(agentAllowsWebSearch(withTools(['search', 'memory', 'self_review']))).toBe(false);
+  });
+
+  it('treats an empty declaration as "nothing allowed", not as "unconfigured"', () => {
+    expect(agentAllowsWebSearch(withTools([]))).toBe(false);
   });
 });

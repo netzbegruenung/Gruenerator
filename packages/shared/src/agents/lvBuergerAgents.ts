@@ -4,7 +4,8 @@ import type { Agent } from './types.js';
 
 // ─── Per-LV "Bürger*innenanfragen"-Agents ───
 // Schwester-Generator zu LV_PR_AGENTS, aber für Bürger*innen-Service statt
-// Pressearbeit: Der Agent recherchiert (gruenerator_search + web_search → die
+// Pressearbeit: Der Agent recherchiert (gruenerator_search im LV-Notizbuch und
+// den Partei-Korpora, KEINE Websuche → die
 // Treffer erscheinen als Recherche-Karten im Chat) und formuliert eine
 // versandfertige Antwort-E-Mail (Anrede → Dank → Antwort → weiterführende
 // Links). Wiederverwendet die bestehenden LV-Notebooks via defaultNotebookIds.
@@ -58,7 +59,12 @@ export const LV_BUERGER_AGENTS: Agent[] = LV_BUERGER_SPECS.map((spec) => {
     openingQuestions: buildLvBuergerOpeningQuestions(spec),
     locale: isAT ? 'de-AT' : 'de-DE',
     author: 'Grünerator',
-    enabledTools: ['search', 'web', 'scrape', 'memory', 'self_review'],
+    // Kein 'web'/'scrape': der Agent antwortet aus dem Landesverbands-Notizbuch
+    // und den Partei-Korpora, nicht aus dem offenen Netz. Das ist jetzt ein
+    // echtes Gate (agentAllowsWebSearch in searchTools.ts), keine reine
+    // Deklaration — vorher war die Liste hier wirkungslos und der Agent
+    // recherchierte trotzdem im Web.
+    enabledTools: ['search', 'memory', 'self_review'],
     // Versandfertige E-Mail: konkrete Artikel-URLs müssen inline im Text stehen
     // (Quellen-Karten reisen nicht mit dem kopierten Text mit). Schaltet die
     // URL-Injektion in den Modell-Kontext frei (respondNode).

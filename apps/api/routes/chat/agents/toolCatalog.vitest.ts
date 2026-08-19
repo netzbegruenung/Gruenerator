@@ -14,11 +14,15 @@ import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.j
 // the wrong field and silently registered nothing.
 const searchExec = vi.hoisted(() => vi.fn<(i: unknown, o: unknown) => Promise<unknown>>());
 const webExec = vi.hoisted(() => vi.fn<(i: unknown, o: unknown) => Promise<unknown>>());
-vi.mock('./searchTools.js', () => ({
+vi.mock('./searchTools.js', async (importOriginal) => ({
   createSearchTools: () => ({
     gruenerator_search: { description: 'd', inputSchema: {}, execute: searchExec },
     web_search: { description: 'd', inputSchema: {}, execute: webExec },
   }),
+  // Real implementation: the catalog's web gate is what the tests below assert,
+  // so stubbing it would make them prove nothing.
+  agentAllowsWebSearch: (await importOriginal<typeof import('./searchTools.js')>())
+    .agentAllowsWebSearch,
 }));
 
 const validateUrlForFetch = vi.fn<(u: string) => Promise<unknown>>();
@@ -648,6 +652,50 @@ describe('research ban (forbidsNewResearch → no search tools)', () => {
   it('mounts the full catalog for an ordinary turn', () => {
     const names = catalogFor('Recherchiere die aktuellen Zahlen zum Radverkehr.');
     expect(names).toContain('gruenerator_search');
+    expect(names).toContain('web_search');
+    expect(names).toContain('scrape_url');
+  });
+});
+
+/**
+ * Corpus-bound agents (the Landesverband families) declare no web capability.
+ * Their prompt said so all along, but the catalog mounted `web_search` for
+ * every agent regardless — so the model searched the open web anyway. Only the
+ * two web doors close; the party corpora stay reachable.
+ */
+describe('agent web capability (agentAllowsWebSearch → no web doors)', () => {
+  function catalogForAgent(enabledTools?: string[]): string[] {
+    const state = {
+      lastUserTextNoMentions: 'Was sagt der Landesverband zur Stadtentwicklung?',
+      messages: [{ role: 'user', content: 'Was sagt der Landesverband zur Stadtentwicklung?' }],
+      enabledTools: {},
+    } as unknown as ChatGraphState;
+    const { toolNames } = buildChatToolCatalog({
+      agentConfig: { identifier: 'lv-test', enabledTools } as unknown as AgentConfig,
+      sourceRegistry: createSourceRegistry(),
+      loop: { sse: { send: () => {}, sendRaw: () => {}, end: () => {} } as never, state },
+    });
+    return toolNames;
+  }
+
+  it('unmounts both web doors for an agent without web capability', () => {
+    const names = catalogForAgent(['search', 'memory', 'self_review']);
+    expect(names).not.toContain('web_search');
+    expect(names).not.toContain('scrape_url');
+  });
+
+  it('keeps the party corpora reachable — no web is not no search', () => {
+    expect(catalogForAgent(['search', 'memory', 'self_review'])).toContain('gruenerator_search');
+  });
+
+  it('leaves an agent declaring raw tool names untouched', () => {
+    const names = catalogForAgent(['gruenerator_search', 'web_search']);
+    expect(names).toContain('web_search');
+    expect(names).toContain('scrape_url');
+  });
+
+  it('leaves an agent without any declaration untouched', () => {
+    const names = catalogForAgent();
     expect(names).toContain('web_search');
     expect(names).toContain('scrape_url');
   });
