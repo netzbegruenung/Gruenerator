@@ -104,9 +104,8 @@ const FEATURE_BY_PREFIX: ReadonlyArray<readonly [string, UsageFeature]> = (
     ['/api/protokoll', 'subtitler'],
     ['/api/process', 'subtitler'],
 
-    ['/api/search', 'search'],
     ['/api/search-graph', 'search'],
-    ['/api/web-search', 'search'],
+    ['/api/search-image', 'search'],
     ['/api/global-search', 'search'],
     ['/api/research', 'search'],
     ['/api/crawl-url', 'search'],
@@ -123,7 +122,6 @@ const FEATURE_BY_PREFIX: ReadonlyArray<readonly [string, UsageFeature]> = (
     ['/api/generate-content-title', 'texte'],
     ['/api/text-forms', 'texte'],
     ['/api/vision', 'texte'],
-    ['/api/analyze', 'texte'],
     ['/api/scanner', 'texte'],
     ['/api/email', 'texte'],
     ['/api/reisekosten', 'texte'],

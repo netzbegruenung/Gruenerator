@@ -26,7 +26,6 @@ export {
   itemUsageContract,
   userUsageContract,
   transparencyContract,
-  searchContract,
   globalSearchContract,
   researchContract,
   chatGraphContract,
@@ -103,7 +102,6 @@ export * from './schemas/content.js';
 export * from './schemas/itemUsage.js';
 export * from './schemas/userUsage.js';
 export * from './schemas/transparency.js';
-export * from './schemas/search.js';
 export * from './schemas/globalSearch.js';
 export * from './schemas/research.js';
 export * from './schemas/chatGraph.js';

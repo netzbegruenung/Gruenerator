@@ -124,7 +124,6 @@ function toWebSearchState(state: SearchGraphState): WebSearchState {
     crawlMetadata: {},
     finalResults: null,
     summary: null,
-    dossier: null,
     success: null,
     error: null,
   };

@@ -7,8 +7,8 @@
  * `getCitations()` projects citations in the SAME order with the SAME ids.
  *
  * Critically it does NOT delegate numbering to `buildCitations` — that function
- * groups by document, re-sorts by relevance and caps at 8, none of which
- * preserve the incremental order the model cited against. Instead we project
+ * groups by document, re-sorts by relevance and caps at `MAX_SOURCES` (20),
+ * none of which preserve the incremental order the model cited against. Instead we project
  * each already-numbered result individually (reusing `buildCitations` per item
  * for the projection shape only) and stamp the registry index as the id. Empty-
  * content results are skipped at register time so a numbered snippet always maps
