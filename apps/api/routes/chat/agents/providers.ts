@@ -517,7 +517,16 @@ export function getModel(
 ): LanguageModel {
   // Ein zäh vermerktes Paar wird übersprungen statt abgewartet — siehe
   // services/ai/modelSiblings.ts. Ohne Vermerk ändert sich hier nichts.
-  const healthy = pickHealthyTarget(provider, modelId);
+  //
+  // `acceptTarget` MUSS hier durchgereicht werden. Dies ist die ZWEITE
+  // `getModel`-Tür neben der in `services/ai/providers.ts`, und es ist die, die
+  // der ganze Chat-Pfad benutzt (`responseStreamingService`, der Synth-Slot,
+  // `getLoopSynthFallbackModel`). Nur an der anderen Tür gesetzt, wurde das
+  // Veto still verworfen und die Ausweichkette landete weiter auf
+  // `litellm/verdigado-pro` (= gpt-oss am Proxy) — der Fix hätte nichts
+  // bewirkt, und ein Test, der bloss das übergebene Options-Objekt prüft,
+  // hätte es nicht gemerkt.
+  const healthy = pickHealthyTarget(provider, modelId, options.acceptTarget);
   const lane = healthy ?? { provider, model: modelId };
 
   // Attribute usage to the upstream that actually served it — the Mistral lane

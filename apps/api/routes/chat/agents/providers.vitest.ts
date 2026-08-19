@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 import {
   AVAILABLE_MODELS,
@@ -262,5 +262,42 @@ describe('resolveModelTuple — size-aware overflow routing', () => {
     });
     expect(tuple!.provider).toBe('mistral');
     expect(tuple!.contextWindow).toBe(262_144);
+  });
+});
+
+/**
+ * Beide `getModel`-Türen müssen das Ausweich-Veto durchreichen.
+ *
+ * Es gibt ZWEI: die in `services/ai/providers.ts` und diese hier in
+ * `routes/chat/agents/providers.ts` — und die zweite ist die, die der ganze
+ * Chat-Pfad benutzt (`responseStreamingService`, Synth-Slot,
+ * `getLoopSynthFallbackModel`). Beim ersten Anlauf am 19.08.2026 war nur die
+ * erste gepatcht; das Veto reiste im Options-Objekt mit und wurde hier still
+ * verworfen. Der Fix bewirkte nichts.
+ *
+ * Warum der bestehende Test das nicht sah: er prüfte das an `getModel`
+ * ÜBERGEBENE Options-Objekt gegen eine Attrappe — also den Aufruf, nicht die
+ * Wirkung. Dieser Test greift deshalb an `pickHealthyTarget`, der Stelle, an
+ * der das Veto ankommen muss.
+ */
+describe('das Ausweich-Veto überlebt die zweite getModel-Tür', () => {
+  it('reicht acceptTarget an pickHealthyTarget durch', async () => {
+    const seen: unknown[] = [];
+    vi.doMock('../../../services/ai/modelSiblings.js', () => ({
+      pickHealthyTarget: (_p: string, _m: string, isAcceptable?: unknown) => {
+        seen.push(isAcceptable);
+        return null;
+      },
+    }));
+    vi.resetModules();
+    const fresh = await import('./providers.js');
+    const veto = (t: { model: string }) => t.model !== 'verdigado-pro';
+
+    fresh.getModel('regolo', 'gemma4-31b', { acceptTarget: veto });
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toBe(veto);
+    vi.doUnmock('../../../services/ai/modelSiblings.js');
+    vi.resetModules();
   });
 });
