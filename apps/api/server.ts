@@ -441,20 +441,20 @@ async function startWorker(): Promise<void> {
         });
   const { betterAuthHandler } = await import('./routes/auth/betterAuthHandler.js');
 
-  // MCP OAuth: the `mcp` plugin skips the consent page unless the query is
-  // EXACTLY `prompt=consent` — a malicious DCR client could send `prompt=none`
-  // to mint a token silently. Rewrite every other value (append would loop on
-  // duplicated/empty prompt params). Must run before the catch-all handler.
-  app.get('/api/auth/v2/mcp/authorize', (req, res, next) => {
-    if (req.query.prompt === 'consent') {
-      next();
-      return;
-    }
-    const url = new URL(req.originalUrl, 'http://placeholder');
-    url.searchParams.delete('prompt');
-    url.searchParams.append('prompt', 'consent');
-    res.redirect(302, `${url.pathname}${url.search}`);
-  });
+  // Hier stand bis better-auth 1.7 ein Shim auf `/api/auth/v2/mcp/authorize`,
+  // der jede Anfrage auf `prompt=consent` umschrieb: 1.6 sprang ohne diesen
+  // Parameter an der Zustimmungsseite vorbei, ein bösartig registrierter
+  // DCR-Client konnte mit `prompt=none` still ein Token ziehen.
+  //
+  // 1.7 macht das selbst und besser. `/oauth2/authorize` sucht die passende
+  // Zeile in `oauthConsent` und schickt zur Zustimmungsseite, sobald sie fehlt
+  // oder die angefragten Scopes, Claims oder Ressourcen nicht abdeckt;
+  // `prompt=none` wird dann mit `consent_required` beantwortet statt mit einem
+  // Token. Der Shim erzwang die Seite dagegen bei JEDEM Durchlauf, auch beim
+  // wiederholten Verbinden eines längst zugestimmten Clients.
+  //
+  // Er darf nicht zurückkommen: der Pfad heisst ab 1.7 `/oauth2/authorize`,
+  // ein Shim auf dem alten Pfad liefe wirkungslos mit und sähe wie Schutz aus.
 
   app.all('/api/auth/v2/*splat', betterAuthIpLimiter, (req, res, next) => {
     if (!req.headers['x-forwarded-for'] && !req.headers['x-real-ip']) {
@@ -466,8 +466,14 @@ async function startWorker(): Promise<void> {
   // OAuth discovery at the ORIGIN ROOT (RFC 8414/9728) — Better Auth serves
   // these only under its basePath, but clients resolve them at the root.
   {
-    const { oAuthDiscoveryMetadata, oAuthProtectedResourceMetadata } =
-      await import('better-auth/plugins');
+    // 1.7 hat `oAuthDiscoveryMetadata`/`oAuthProtectedResourceMetadata` aus
+    // `better-auth/plugins` entfernt. Für den Autorisierungsserver gibt es
+    // einen formgleichen Ersatz; die Ressourcen-Metadaten liefert jetzt der
+    // Ressourcen-Client als Objekt, das wir selbst in eine Antwort verpacken.
+    const { metadataResponse, oauthProviderAuthServerMetadata } =
+      await import('@better-auth/oauth-provider');
+    const { oauthProviderResourceClient } =
+      await import('@better-auth/oauth-provider/resource-client');
     const { fromNodeHeaders } = await import('better-auth/node');
     const { auth } = await import('./config/betterAuth.js');
     const serveWellKnown =
@@ -487,13 +493,25 @@ async function startWorker(): Promise<void> {
           next(err);
         }
       };
+    // Der Helfer verlangt ein `auth` mit `api.getOAuthServerConfig`. Das
+    // Plugin registriert diesen Endpunkt (Pfad
+    // `/.well-known/oauth-authorization-server`), aber die Endpunkt-Typen des
+    // Plugins erreichen `auth.api` nicht — siehe die Unterdrückung in
+    // `config/betterAuth.ts`, die dieselbe Wurzel hat. Deshalb hier eine
+    // Behauptung über genau das eine Feld statt über das ganze Objekt.
+    const authWithServerConfig = auth as unknown as Parameters<
+      typeof oauthProviderAuthServerMetadata
+    >[0];
     app.get(
       ['/.well-known/oauth-authorization-server', '/.well-known/oauth-authorization-server/*splat'],
-      serveWellKnown(oAuthDiscoveryMetadata(auth))
+      serveWellKnown(oauthProviderAuthServerMetadata(authWithServerConfig))
     );
+    const resourceActions = oauthProviderResourceClient(auth).getActions();
     app.get(
       ['/.well-known/oauth-protected-resource', '/.well-known/oauth-protected-resource/*splat'],
-      serveWellKnown(oAuthProtectedResourceMetadata(auth))
+      serveWellKnown(async () =>
+        metadataResponse(await resourceActions.getProtectedResourceMetadata())
+      )
     );
   }
 
