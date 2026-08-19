@@ -54,7 +54,9 @@ export const greenptFetchWithThinkingDisabled: typeof fetch = async (input, init
     }
   }
   // Doubles as the impact tap: this is the last point where GreenPT's
-  // sustainability figures still exist — see greenptImpact.ts.
+  // sustainability figures still exist — see greenptImpact.ts. Das Signal des
+  // Aufrufers geht mit: der Tap hängt am tee-Zweig derselben Antwort und darf
+  // die Anfrage nicht überleben.
   const model = modelFromRequestBody(init?.body);
-  return captureImpact(await fetch(input, init), model);
+  return captureImpact(await fetch(input, init), model, init?.signal ?? null);
 };

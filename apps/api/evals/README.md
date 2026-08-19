@@ -65,13 +65,33 @@ against the deployed test env (matrix over both lanes, judge blocking,
 per-lane baselines) — triggered manually via `workflow_dispatch`, not on a
 schedule.
 
+**`EVAL_MODEL_ID=mistral` pins nothing — it means AUTO.** `resolveModel`
+(`routes/chat/services/responseStreamingService.ts`) treats `mistral` as a
+synonym for `auto` alongside the empty value, so that arm measures whatever the
+auto policy picks per intent (mostly the split gemma lane, `mistral-medium-3.5`
+only where the policy chooses it). The `gemma-4` arm _is_ pinned. So the matrix
+reads "auto vs pinned gemma-4", not "Mistral vs Gemma" — worth knowing before
+reading a per-lane baseline as a statement about Mistral. For an actually pinned
+Mistral lane, send `mistral-medium-3.5`. Cost 18.08.2026: half a nightly run,
+spent on the wrong conclusion.
+
+**A run without `INTERN_CONTENT_DIR` measures a different product.** The API
+loads recipe and persona prompt text from disk at runtime
+(`services/skills/internalPrompts.ts`); without the directory every agent falls
+back to a generic persona and the backend says so once per agent at boot
+(`ERROR [AgentLoader] No internal systemRole for "…"`). The routing assertions
+still mean what they say — intent, tools, latency, thread identity do not depend
+on persona text. Everything about ANSWER QUALITY does: `topic:… not covered`,
+the judge's `groundedness` and `german_quality` verdicts, refusal wording. Check
+the backend's boot log before reading those as product findings.
+
 ## Env
 
 | var                         | default                 | purpose                                     |
 | --------------------------- | ----------------------- | ------------------------------------------- |
 | `EVAL_BASE_URL`             | `http://localhost:3001` | backend base                                |
 | `EVAL_BYPASS_TOKEN`         | —                       | `x-dev-auth-bypass` header                  |
-| `EVAL_MODEL_ID`             | auto                    | force a model lane for every case           |
+| `EVAL_MODEL_ID`             | auto                    | pin a lane; `mistral`/`auto` mean AUTO      |
 | `EVAL_FILTER`               | —                       | run only ids/categories containing this     |
 | `EVAL_SLOW=1`               | —                       | include `"slow"` (golden long) scenarios    |
 | `EVAL_MCP=1`                | —                       | include `"mcpLane"` scenarios (needs setup) |
