@@ -861,6 +861,35 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // mention above already routed the request.
 
     if (hasAttachmentContext && userContent.length > 0) {
+      // Agent-bound default notebooks (or a deliberate composer pick): the
+      // attachment is working material (e.g. a pasted citizen email), but the
+      // answer must still be grounded in the notebook. `produktion` would skip
+      // the search stage entirely (intentExecutionService), so the mandatory
+      // research step of notebook-bound agents would silently never run. The
+      // topic for the query refiner lives in the attachment, not in the typed
+      // instruction ("Antworte auf diese E-Mail: …"), so pass an excerpt as
+      // topical context.
+      const defaultNotebookScopeCount =
+        (state.defaultNotebookCollectionIds?.length ?? 0) +
+        (state.defaultNotebookDocumentIds?.length ?? 0);
+      if (defaultNotebookScopeCount > 0) {
+        return classifyWithForcedSearch({
+          reason: 'AttachmentDefaultNotebook',
+          docCount: defaultNotebookScopeCount,
+          userContent,
+          conversationContext,
+          topicalContext: [
+            topicalContext,
+            `- Inhalt der hochgeladenen Datei: "${extractAttachmentTopicHint(state.attachmentContext!)}"`,
+          ]
+            .filter(Boolean)
+            .join('\n'),
+          temporal,
+          complexity,
+          startTime,
+        });
+      }
+
       log.info(
         `[Classifier] File attachment detected (${state.attachmentContext!.length} chars), forcing produktion intent`
       );
@@ -1804,6 +1833,17 @@ function extractDocumentTopicHint(
   const title = currentDocument.title?.trim();
   if (title) return `"${title}" — ${excerpt}`;
   return excerpt || 'das geöffnete Dokument';
+}
+
+/**
+ * Excerpt of an attachment's text for the query refiner. The typed user
+ * message of an attachment turn often carries no topic at all ("Antworte auf
+ * diese E-Mail: …") — the subject lives in the attachment. Mirrors
+ * extractDocumentTopicHint, minus the markdown stripping (attachments arrive
+ * as plain extracted text).
+ */
+function extractAttachmentTopicHint(attachmentContext: string): string {
+  return attachmentContext.replace(/\s+/g, ' ').trim().slice(0, 300);
 }
 
 /**
