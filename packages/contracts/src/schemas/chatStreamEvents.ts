@@ -103,6 +103,12 @@ export const chatWarningCodeSchema = z.enum([
   // them, so its tools were withheld this turn (rug pull). Distinct from
   // `mcp_unreachable`: the server answered fine, we declined to trust it.
   'mcp_tools_drifted',
+  // Ein `mcp`-Turn (@<server>) lief NICHT in der Schleife, wo die Werkzeuge des
+  // Servers montiert werden — ein Einzeldurchlauf-Notausschalter (Bildanhang,
+  // Verbund-Agent, zweiter Intent) hat ihn draussen gehalten. Weder `unreachable`
+  // noch `drifted`: der Server ist gesund, wir haben ihn nur nicht gefragt.
+  // Anders als die uebrigen Konnektor-Codes kann die Person das abstellen.
+  'mcp_not_consulted',
   // Compute
   'compute_failed',
   // Provider / privacy
