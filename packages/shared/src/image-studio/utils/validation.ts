@@ -205,6 +205,7 @@ export function validateCanvasInput(
 
     case 'profilbild':
     case 'simple':
+    case 'slider':
       break;
   }
 
