@@ -11,7 +11,7 @@ import { generateObject, generateText } from 'ai';
 import { z } from 'zod';
 
 import { createLogger } from '../../utils/logger.js';
-import { getModel, getPreferredMonitorProvider } from '../ai/providers.js';
+import { getMonitorModel } from '../ai/providers.js';
 
 import type { MonitorArticle } from './types.js';
 
@@ -62,7 +62,7 @@ async function extractFacts(
 
   try {
     const result = await generateObject({
-      model: getModel(getPreferredMonitorProvider()),
+      model: getMonitorModel(),
       schema: ExtractionResultSchema,
       system: `Du extrahierst Fakten aus deutschsprachigen Nachrichtenartikeln über ${entityLabel}.
 
@@ -105,7 +105,7 @@ async function synthesize(entityLabel: string, facts: ExtractedFact[]): Promise<
 
   try {
     const result = await generateText({
-      model: getModel(getPreferredMonitorProvider()),
+      model: getMonitorModel(),
       system: `Du bist ein*e neutrale*r Medienanalyst*in. Schreibe auf Deutsch mit Genderstern (*).
 
 Politischer Kontext (Stand März 2026):
@@ -129,6 +129,10 @@ Regeln:
       maxOutputTokens: 2000,
     });
 
+    // Leerer Text ist kein SDK-Fehler, aber einer für uns: ein Modell, das sein
+    // ganzes Ausgabebudget in einen Denkblock steckt, liefert `''` und käme
+    // sonst still als „Briefing" durch. Der catch unten hat die Heuristik.
+    if (!result.text.trim()) throw new Error('leere Antwort vom Modell');
     log.info(`Synthesize: ${result.text.split(/\s+/).length} words`);
     return result.text;
   } catch (error) {
@@ -222,7 +226,7 @@ async function analyzeAttacks(
 
   try {
     const result = await generateObject({
-      model: getModel(getPreferredMonitorProvider()),
+      model: getMonitorModel(),
       schema: RiskAnalysisSchema,
       system: `Du bist ein*e politische*r Risikoanalyst*in für Bündnis 90/Die Grünen.
 
@@ -322,7 +326,7 @@ async function extractDigestFacts(articles: DigestArticle[]): Promise<ExtractedF
 
   try {
     const result = await generateObject({
-      model: getModel(getPreferredMonitorProvider()),
+      model: getMonitorModel(),
       schema: ExtractionResultSchema,
       system: `Du extrahierst Kernaussagen aus neuen Inhalten grüner Quellen (Landesverbände, Grünblog, Bundestagsfraktion, KommunalWiki, Böll-Stiftung).
 
@@ -348,7 +352,7 @@ async function synthesizeDigest(facts: ExtractedFact[], articleCount: number): P
     .join('\n');
 
   const result = await generateText({
-    model: getModel(getPreferredMonitorProvider()),
+    model: getMonitorModel(),
     system: `Du fasst neue Inhalte aus grünen Quellen für Parteimitglieder zusammen. Schreibe auf Deutsch mit Genderstern (*).
 
 WICHTIG:
@@ -367,6 +371,9 @@ Regeln:
     maxOutputTokens: 1500,
   });
 
+  // Siehe `synthesize`: leerer Text muss sichtbar scheitern. Gefangen wird das
+  // beim Aufrufer, der den Digest-Lauf ohnehin schon absichert.
+  if (!result.text.trim()) throw new Error('leere Antwort vom Modell');
   log.info(`DigestSynthesize: ${result.text.split(/\s+/).length} words`);
   return result.text;
 }

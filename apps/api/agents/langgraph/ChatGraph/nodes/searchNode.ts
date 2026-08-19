@@ -18,6 +18,7 @@ import {
 } from '../../../../routes/chat/agents/directSearch.js';
 import { resolveExamplesLvScope } from '../../../../routes/chat/agents/lvScope.js';
 import { relevanceLabelToScore } from '../../../../routes/chat/agents/searchFormatting.js';
+import { agentAllowsWebSearch } from '../../../../routes/chat/agents/searchTools.js';
 import { fairShare } from '../../../../routes/chat/services/messageHelpers.js';
 import { resolveReferentialQuery } from '../../../../routes/chat/services/referentialTopic.js';
 import { getEnrichedPoliticianService } from '../../../../services/abgeordnetenwatch/index.js';
@@ -1059,7 +1060,21 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
     // confidently said there is nothing on the topic.
     const singleSourceErrors: SearchErrorEntry[] = [];
 
-    const searchSources = state.searchSources || [];
+    // Agents bound to their own corpus (the Landesverband agents) declare no
+    // web capability. The classifier picks `searchSources` from keyword
+    // heuristics alone and never consults the agent, so without this the
+    // single-pass path searched the open web for an agent whose own prompt
+    // says it has no web access. The loop's equivalent gate lives in
+    // `toolCatalog` (agentAllowsWebSearch).
+    const webAllowed = agentAllowsWebSearch(agentConfig);
+    const searchSources = (state.searchSources || []).filter(
+      (source) => webAllowed || source !== 'web'
+    );
+    if (!webAllowed && (state.searchSources || []).includes('web')) {
+      log.info(
+        `[Search] agent ${agentConfig.identifier} has no web capability — dropping the web source`
+      );
+    }
     const documentSources = state.documentSources || [];
     const retrievableDocSources = documentSources.filter(
       (s) =>
@@ -1295,7 +1310,16 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
     // Single-source mode: existing switch logic (backward compatible).
     // 'compare' degrades to plain search when only one (or zero) doc source
     // is present — the multi-doc fan-out above is its real path.
-    const effectiveIntent = intent === 'compare' ? 'search' : intent;
+    // A web/research INTENT from an agent without web capability degrades to
+    // the internal search rather than going out — otherwise the turn would
+    // reach `executeWebSearch` past the source filter above. Degrading (not
+    // skipping) keeps it answerable from the agent's own corpus.
+    const webCapableIntent = intent === 'research' || intent === 'web';
+    const effectiveIntent =
+      intent === 'compare' ? 'search' : !webAllowed && webCapableIntent ? 'search' : intent;
+    if (!webAllowed && webCapableIntent) {
+      log.info(`[Search] intent=${intent} degraded to search — agent has no web capability`);
+    }
     switch (effectiveIntent) {
       case 'search': {
         // Document chat: search within multi-selected user documents
@@ -1531,7 +1555,10 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         // NOT for a notebook-scoped turn: "search MY documents" is an explicit
         // scope, and silently widening it to the open web would answer a
         // different question than the one asked. There, empty means empty.
-        if (results.length === 0 && !isNotebookScoped && query.length > 0) {
+        // `webAllowed` for the same reason as the scope check: an agent without
+        // web capability must not reach the web through the back door of an
+        // empty internal result set either.
+        if (results.length === 0 && !isNotebookScoped && webAllowed && query.length > 0) {
           log.info('[Search] internal collections returned nothing — falling back to the web');
           const webFallback = await executeWebSearch(query, { tier: webTier, ...webScope });
           if (webFallback.results.length > 0) {

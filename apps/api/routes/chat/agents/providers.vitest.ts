@@ -187,8 +187,8 @@ describe('resolveModelTuple — size-aware overflow routing', () => {
   // Gemma 4 left the overflow scheme on 2026-07-31: Verdigado's Gemma answers
   // in 38s against Regolo's 4s and thinks unstoppably (no flag disables it on
   // that host), so there is no load-balancing decision left to make — see
-  // GEMMA_4_REGOLO. Verdigado stays reachable as the failover ONLY; these pin
-  // that a normal turn never lands there.
+  // GEMMA_4_REGOLO. Seit 19.08.2026 bedient Verdigado diese Lane auch als
+  // Ausweg nicht mehr; diese Fälle halten fest, dass kein Zug dort landet.
   it('always resolves Gemma 4 to Regolo, never to Verdigado', async () => {
     const tuple = await resolveModelTuple('gemma-4', 'req-primary');
     expect(tuple).not.toBeNull();
@@ -206,12 +206,14 @@ describe('resolveModelTuple — size-aware overflow routing', () => {
     expect(tuple!.releaseSlot).toBeUndefined();
   });
 
-  it('fails over to the Verdigado side of the same weights when Regolo hangs', async () => {
+  it('weicht auf die kleinere Schwester bei Scaleway aus, wenn Regolo hängt', async () => {
     const tuple = await resolveModelTuple('gemma-4', 'req-fallback');
-    // Same model family rather than a different writer. Deliberately accepted:
-    // this failover is SLOW (20s to first token) and runs without the Verdigado
-    // slot — see the note on GEMMA_4_REGOLO.
-    expect(tuple!.sibling).toEqual({ provider: 'litellm', model: 'verdigado-think' });
+    // Bis 19.08.2026 stand hier litellm/verdigado-think: 20s bis zum ersten
+    // Token, Denken nicht abschaltbar, und EIN Inferenz-Slot, den sich der
+    // Ausweg mit den GPT-OSS-Lanes teilte — also genau dann belegt, wenn er
+    // gebraucht wird. Der Ausweg darf nicht an derselben Engstelle hängen wie
+    // die Lane, die ihn braucht; siehe GEMMA_4_REGOLO.
+    expect(tuple!.sibling).toEqual({ provider: 'scaleway', model: 'gemma-4-26b-a4b-it' });
   });
 
   it('preferOverflow is a no-op for Gemma 4 now that it is a single lane', async () => {
