@@ -373,6 +373,75 @@ function buildBundestagResults(enriched: BtEnrichedResult, standalone = true): S
 }
 
 /**
+ * Der Kern der beiden Parlaments-Abrufe: Dienst fragen, Ergebnis aufbereiten.
+ *
+ * Zwei Türen führen hierher — der Einzeldurchlauf über den `case`-Zweig unten
+ * und das Loop-Werkzeug über `domainTools`. Bis 08/2026 ging die zweite DURCH
+ * die erste: `makeBundestagTool` rief `searchNode` mit gesetztem Intent erneut
+ * auf und nahm damit dessen ganze Vorrede mit. Zwei davon kehren VOR dem
+ * `switch` zurück — die Mehrdokument-Auffächerung und die Mehrquellen-Suche —,
+ * und die erste hat den Abruf gekapert: ein `@bundestag` auf einem Turn mit
+ * zwei Dokumentquellen fragte die DIP nie, sondern lieferte Dokumenttreffer
+ * unter dem Namen des Bundestags-Werkzeugs zurück (gemessen: `dipCalled=0`).
+ *
+ * Die Vorrede ist für einen Zustand aus dem Klassifikator gebaut, nicht für
+ * eine vom Planer geschriebene Suchanfrage. Deshalb ruft das Werkzeug jetzt den
+ * Kern und nicht mehr den Knoten. Was dabei wegfällt, ist die referenzielle
+ * Auflösung der Anfrage — sie verlangt ein Recherche-VERB ohne eigenes Subjekt
+ * ("recherchier das mal"), was ein Suchbegriff aus dem Werkzeug-Parameter per
+ * Konstruktion nicht ist.
+ */
+export async function retrieveBundestag(
+  query: string,
+  locale: string | null | undefined
+): Promise<SearchResult[]> {
+  const startTime = Date.now();
+  // DE-only source: for AT users return a graceful decline instead of empty
+  // data. Der Loop gattert schon an der Montage (`toolCatalog`), der
+  // Klassifikator degradiert AT auf `web` — das hier ist die dritte Tür.
+  if (!isIntentAllowedForLocale('bundestag', locale)) {
+    return [
+      {
+        source: 'bundestag',
+        title: 'Nur für Deutschland verfügbar',
+        content: intentDeclineNote('bundestag') ?? '',
+        relevance: 1,
+      },
+    ];
+  }
+  const enriched = await getBundestagEnrichedService().search(query);
+  const results = buildBundestagResults(enriched);
+  log.info(
+    `[Search] Bundestag (${enriched.kind}): ${results.length} results in ${Date.now() - startTime}ms`
+  );
+  return results;
+}
+
+/** Schwester von `retrieveBundestag` — gleicher Schnitt, gleiche Begründung. */
+export async function retrieveAbgeordnetenwatch(
+  query: string,
+  locale: string | null | undefined
+): Promise<SearchResult[]> {
+  const startTime = Date.now();
+  if (!isIntentAllowedForLocale('abgeordnetenwatch', locale)) {
+    return [
+      {
+        source: 'abgeordnetenwatch',
+        title: 'Nur für Deutschland verfügbar',
+        content: intentDeclineNote('abgeordnetenwatch') ?? '',
+        relevance: 1,
+      },
+    ];
+  }
+  const enriched = await getEnrichedPoliticianService().search(query);
+  const results = buildAbgeordnetenwatchResults(enriched);
+  log.info(
+    `[Search] Abgeordnetenwatch (${enriched.kind}): ${results.length} results in ${Date.now() - startTime}ms`
+  );
+  return results;
+}
+
+/**
  * Last stop before Qdrant for the collection lists nobody asked for.
  *
  * Qdrant is shared across instances — there is one `QDRANT_URL` — so hiding a
@@ -1508,53 +1577,13 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       // }
 
       case 'abgeordnetenwatch': {
-        // German MP transparency data (votes, Nebentätigkeiten, roll-calls) via
-        // the Abgeordnetenwatch API. DE-only source: for AT users (reachable
-        // here only via a forced @abgeordnetenwatch mention, since the classifier
-        // downgrades AT) return a graceful decline instead of empty data.
-        if (!isIntentAllowedForLocale('abgeordnetenwatch', state.userLocale)) {
-          results = [
-            {
-              source: 'abgeordnetenwatch',
-              title: 'Nur für Deutschland verfügbar',
-              content: intentDeclineNote('abgeordnetenwatch') ?? '',
-              relevance: 1,
-            },
-          ];
-          citations = buildCitations(results);
-          break;
-        }
-        const enriched = await getEnrichedPoliticianService().search(searchQuery || '');
-        results = buildAbgeordnetenwatchResults(enriched);
-        log.info(
-          `[Search] Abgeordnetenwatch (${enriched.kind}): ${results.length} results in ${Date.now() - startTime}ms`
-        );
+        results = await retrieveAbgeordnetenwatch(searchQuery || '', state.userLocale);
         citations = buildCitations(results);
         break;
       }
 
       case 'bundestag': {
-        // Official Bundestag documents (Drucksachen, Plenarreden, Gesetzgebung)
-        // via the Bundestag MCP / DIP. DE-only source: for AT users (reachable
-        // here only via a forced @bundestag mention, since the classifier
-        // downgrades AT) return a graceful decline instead of empty data.
-        if (!isIntentAllowedForLocale('bundestag', state.userLocale)) {
-          results = [
-            {
-              source: 'bundestag',
-              title: 'Nur für Deutschland verfügbar',
-              content: intentDeclineNote('bundestag') ?? '',
-              relevance: 1,
-            },
-          ];
-          citations = buildCitations(results);
-          break;
-        }
-        const enriched = await getBundestagEnrichedService().search(searchQuery || '');
-        results = buildBundestagResults(enriched);
-        log.info(
-          `[Search] Bundestag (${enriched.kind}): ${results.length} results in ${Date.now() - startTime}ms`
-        );
+        results = await retrieveBundestag(searchQuery || '', state.userLocale);
         citations = buildCitations(results);
         break;
       }

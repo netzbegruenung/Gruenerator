@@ -15,6 +15,7 @@ import { promises as fsPromises } from 'node:fs';
 import nodePath from 'node:path';
 
 import {
+  artifactKindForCreateToken,
   isIntentAllowedForLocale,
   pinnedToolForMention,
   skillForMention,
@@ -277,6 +278,20 @@ export async function runForcedIntentStage({
     const context = route.logContext?.(pinContext);
     if (context) log.info(`[ChatGraph] Intent forced to "${route.intent}" via @-mention`, context);
     else log.info(`[ChatGraph] Intent forced to "${route.intent}" via @-mention`);
+  }
+
+  // Die fünf `@…-erstellen`-Token. Sie stehen ABSICHTLICH nicht in der Tabelle
+  // oben: `forcedTool` würde den Turn auf die direkte Erstellroute zwingen, und
+  // ein Verbund („recherchiere X und mach eine Tabelle daraus") soll gerade
+  // durch die Schleife gehen. Was gefehlt hat, ist die ART — ohne sie leitet
+  // `turnPlan` sie neu aus dem Substantiv im Text ab, und `@sheet-erstellen`
+  // ergab eine Tabelle nur, solange das Wort „Tabelle" auch dastand.
+  //
+  // Wie in der Tabelle gewinnt die LETZTE Erwähnung; der Suchbegriff wird NICHT
+  // nachgefüllt (die Erstellrouten lesen den Text selbst).
+  for (const token of forcedTools ?? []) {
+    const kind = artifactKindForCreateToken(token);
+    if (kind) classifiedState.mentionPinnedArtifactKind = kind;
   }
 
   // @deepresearch — a VARIANT of `research`, routed like one, but the only
