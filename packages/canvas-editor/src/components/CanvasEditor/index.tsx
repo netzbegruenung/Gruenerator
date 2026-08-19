@@ -449,6 +449,24 @@ function CanvasEditorInner({
     return await ref.current.captureCanvasForAi();
   }, [currentPageIndex, canvasRefsRef]);
 
+  // Every page, not just the active one: a selection left behind on page 2
+  // keeps its context bar alive after the user scrolls away.
+  const handleDeselectAll = useCallback(() => {
+    canvasRefsRef.current.forEach((ref) => ref.current?.deselect());
+  }, [canvasRefsRef]);
+
+  // The grey work area around the artboard is the natural "click out" target,
+  // and until now nothing happened there: the Konva stage is sized exactly to
+  // the artboard, and templates cover it with a full-bleed, listening
+  // background image, so the stage's own deselect (useCanvasInteractions) never
+  // fires. The guard keeps clicks that bubble up from a page from deselecting.
+  const handleWorkAreaPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (e.target === e.currentTarget) handleDeselectAll();
+    },
+    [handleDeselectAll]
+  );
+
   // The ONLY gallery autosave in this editor, for any page count — a
   // single-page doc is a one-page deck. Per-page useCanvasAutoSave is
   // disabled below (autoSave={false}); its legacy per-type metadata shape
@@ -1023,6 +1041,7 @@ function CanvasEditorInner({
             onEditImage: () => setActiveTab('image-adjust'),
           },
           onDelete: toolbarOnDelete,
+          onDeselect: handleDeselectAll,
         }
       : null;
   const hasContextControls =
@@ -1090,6 +1109,7 @@ function CanvasEditorInner({
         {mobileContextBarElement}
         <div
           ref={pagesContainerRef}
+          onPointerDown={handleWorkAreaPointerDown}
           className={cn(
             'heterogeneous-multipage__pages-container flex flex-col items-center gap-md p-sm pb-lg w-full max-canvas-mobile:gap-sm max-canvas-mobile:p-xs',
             showPageNavigator && 'has-page-navigator'

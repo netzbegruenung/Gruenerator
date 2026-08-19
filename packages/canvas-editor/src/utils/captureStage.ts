@@ -31,6 +31,9 @@ export function withSelectionChromeHidden<T>(stage: Konva.Stage | null, capture:
  * flush), the imperative captureCanvas/captureCanvasForAi handles, and any
  * future export path. Never throws; returns null when the stage is gone
  * (e.g. capture during teardown).
+ *
+ * Hiding the selection chrome is CanvasStage.toDataURL's job — every export
+ * goes through it, so wrapping again here would only be a no-op.
  */
 export function captureStageImage(
   stageApi: CanvasStageRef | null,
@@ -38,10 +41,7 @@ export function captureStageImage(
 ): string | null {
   if (!stageApi) return null;
   try {
-    return withSelectionChromeHidden(
-      stageApi.getStage(),
-      () => stageApi.toDataURL({ format: 'png', pixelRatio: 2, ...options }) ?? null
-    );
+    return stageApi.toDataURL({ format: 'png', pixelRatio: 2, ...options }) ?? null;
   } catch {
     return null;
   }
