@@ -92,11 +92,28 @@ export {
 } from './providerInstances.js';
 
 /**
- * Preferred provider for background monitor generation: litellm (gpt-oss)
- * when configured, Mistral otherwise.
+ * Das Modell, mit dem der Monitor im Hintergrund schreibt.
+ *
+ * Lief bis 19.08.2026 auf litellm/verdigado-pro. Das Problem war nicht die
+ * Qualität, sondern der geteilte Engpass: Verdigado hat EINEN Inferenz-Slot,
+ * und derselbe Host bediente den stündlichen Monitor-Lauf, die GPT-OSS-Lanes
+ * und (bis zum selben Tag) den Ausweg der Chat-Gemma-Lane. Ein Hintergrundlauf
+ * darf einem wartenden Menschen nicht den Ausweichhost wegnehmen — deshalb
+ * zieht der Monitor auf GreenPT um, und die Chat-Lanes behalten Regolo,
+ * Scaleway und Verdigado für sich.
+ *
+ * `mistral-small-3.2-24b` und NICHT `gemma4`, obwohl beide auf GreenPT liegen:
+ * GreenPTs Gemma denkt immer (~5.400 Zeichen, kein Flag schaltet es ab, siehe
+ * `greenptThinkingFetch`), das Denken zählt gegen `maxOutputTokens`, und fünf
+ * der neun Monitor-Aufrufe hier haben eine Decke von 1.500–2.000 — bei der
+ * käme leerer Text zurück. Small denkt nicht und schreibt als
+ * `LOOP_PLANNER_PRIMARY` auf genau diesem Host bereits produktiv.
  */
-export function getPreferredMonitorProvider(): ProviderName {
-  return isProviderConfigured('litellm') ? 'litellm' : 'mistral';
+const MONITOR_GREENPT_MODEL = 'mistral-small-3.2-24b-instruct-2506';
+
+export function getMonitorModel(): LanguageModel {
+  if (isProviderConfigured('greenpt')) return getModel('greenpt', MONITOR_GREENPT_MODEL);
+  return getModel('mistral');
 }
 
 /**
