@@ -13,8 +13,6 @@ interface ChatThreadListPortalProps {
    * rather than re-found by id, so this is unused.
    */
   slotId?: string;
-  /** Invoked when the user clicks the thread list (e.g. navigate to /chat). */
-  onRequestOpen?: () => void;
 }
 
 /**
@@ -30,16 +28,14 @@ interface ChatThreadListPortalProps {
  * callback — synchronous with commit, so the portal follows the slot atomically
  * across per-route remounts (no async MutationObserver lag → no flicker).
  */
-export function ChatThreadListPortal({ onRequestOpen }: ChatThreadListPortalProps) {
+export function ChatThreadListPortal(_props: ChatThreadListPortalProps) {
   const target = useThreadListSlot();
 
   if (!target) return null;
 
-  return createPortal(
-    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- `contents` must stay unboxed for the host slot's layout, so this can't become a real button; ChatThreadList's own items are already keyboard-operable and stop propagation, this only catches clicks on the empty area around them.
-    <div onClick={onRequestOpen} className="contents">
-      <ChatThreadList noScroll />
-    </div>,
-    target
-  );
+  // No wrapper handler here: every row is a link that navigates on its own, on
+  // /chat and off it alike. The wrapper used to catch bubbled row clicks and
+  // navigate to bare /chat, which raced the row's own navigation and made a
+  // click from another page hop through the previously open thread first.
+  return createPortal(<ChatThreadList noScroll />, target);
 }

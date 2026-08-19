@@ -9,9 +9,9 @@
  */
 
 import { localizePlaceholders } from '../../../../services/localization/index.js';
+import { extractKeyParagraphs } from '../../../../services/search/lexicalPassageScore.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { truncateDocument } from '../../ChatGraph/nodes/respondNode.js';
-import { extractKeyParagraphs } from '../../WebSearchGraph/utilities/contentExtractor.js';
 
 import type { SearchGraphState } from '../types.js';
 

@@ -19,9 +19,6 @@ export {
   toClientSource,
   PROMPT_SOURCE_MAX_CHARS,
   groupSourcesByCollection,
-  normalizeSearchResult,
-  dedupeAndDiversify,
-  summarizeReferencesForPrompt,
   parseAIJsonResponse,
 } from './SearchResultProcessor.js';
 
@@ -103,7 +100,6 @@ export type {
   Source,
   ValidationResult,
   FilterOptions,
-  DedupeOptions,
   CollectionConfig,
   CollectionSources,
   SourcesByCollection,

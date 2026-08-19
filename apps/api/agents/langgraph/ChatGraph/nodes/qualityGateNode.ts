@@ -2,11 +2,13 @@
  * Quality Gate Node
  *
  * Lightweight LLM check after reranking to assess whether search results
- * sufficiently cover the user's query. If coverage is insufficient and
- * we haven't exceeded maxSearches, routes back to search with a refined query.
+ * sufficiently cover the user's query. On insufficient coverage it reports a
+ * score and a `refinedQuery`; acting on that is the caller's job.
  *
- * This enables iterative search: the graph can loop search → rerank → qualityGate → search
- * for up to maxSearches iterations before falling through to respond.
+ * The only caller is `searchGraphContractRouter`, and it retries search → rerank
+ * exactly ONCE — a single `if`, not a loop. The gate itself never runs a second
+ * time, so `maxSearches` bounds nothing beyond that one comparison (the executor
+ * nodes set `searchCount` to 1 rather than incrementing it).
  */
 
 import { aiText } from '../../../../services/ai/generate.js';
