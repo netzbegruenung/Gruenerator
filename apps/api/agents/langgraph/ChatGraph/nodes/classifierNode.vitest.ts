@@ -247,6 +247,50 @@ describe('detectSearchSources', () => {
     }
   });
 
+  it('pairs DIP for a NAMED PERSON, like it does for a faction', () => {
+    // Die Menge war asymmetrisch: „wie die SPD abgestimmt hat" bekam die DIP,
+    // dieselbe Frage nach einer Abgeordneten bekam nichts — obwohl das
+    // Abstimmungsverhalten einer PERSON der Fall ist, für den es die Quelle
+    // überhaupt gibt.
+    for (const q of [
+      'Recherchiere, wie Renate Künast beim Heizungsgesetz abgestimmt hat',
+      'Recherchiere die Drucksachen von Ricarda Lang zum Klimaschutz',
+      'Untersuche das Abstimmungsverhalten von Katrin Göring-Eckardt beim Gesetzentwurf',
+      'Recherchiere die Plenardebatte mit Lisa Badum',
+      'Recherchiere Anträge der Abgeordneten Lisa Badum im Bundestag debattiert',
+    ]) {
+      expect(detectSearchSources(q, 'research'), q).toEqual(['documents', 'bundestag']);
+    }
+  });
+
+  it('does NOT read a capitalised NOUN PAIR as a person', () => {
+    // Deutsch schreibt Nomen gross, also trifft „zwei grosse Wörter" allein
+    // jedes Nomenpaar. Der Fehlgriff sitzt mal hinten („mit Kleiner ANFRAGE"),
+    // mal vorne („im DEUTSCHEN Bundestag") — deshalb prüft der Wächter beide
+    // Namensteile, nicht nur einen.
+    for (const q of [
+      'Recherchiere den Gesetzentwurf mit Kleiner Anfrage dazu',
+      'Recherchiere die Drucksache im Deutschen Bundestag zum Klimaschutz',
+      'Recherchiere die Plenardebatte von gestern zum Gesetzentwurf',
+      // Ein einzelner Namensteil ist kein Mensch — sonst wäre jedes Bundesland
+      // hinter einem Vorwort ein*e Abgeordnete*r.
+      'Recherchiere die Drucksache von Bayern zum Gesetzentwurf',
+    ]) {
+      expect(detectSearchSources(q, 'research'), q).toEqual([]);
+    }
+  });
+
+  it('needs the parliamentary wording too — a name alone is not enough', () => {
+    // Die Personen-Tür ist die dritte NEBEN der Parlaments-Bedingung, nicht an
+    // ihrer Stelle. Sonst schickte jede Frage nach einer Person die DIP los.
+    for (const q of [
+      'Recherchiere, was Renate Künast zum Klimaschutz sagt',
+      'Recherchiere die Reise von Ricarda Lang nach Brüssel',
+    ]) {
+      expect(detectSearchSources(q, 'research'), q).toEqual([]);
+    }
+  });
+
   it('does NOT pair DIP for a non-party actor', () => {
     for (const q of [
       'Wie hat Siemens zum Heizungsgesetz abgestimmt?',
