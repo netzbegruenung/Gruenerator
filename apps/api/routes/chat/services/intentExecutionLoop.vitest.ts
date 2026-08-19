@@ -200,6 +200,29 @@ describe('executeIntentPipeline — intent follows the loop', () => {
  * limit against the shared Redis key (agent 3, dossier 1), which made the
  * verdict depend on which engine happened to ask.
  */
+describe('executeIntentPipeline — ein `mcp`-Turn ohne Schleife', () => {
+  // Der Einzeldurchlauf hat für `mcp` keinen Ausführenden: die Werkzeuge des
+  // gewählten Servers gibt es nur in der agentischen Schleife, und `searchNode`
+  // bricht für diesen Intent ohne Abruf ab. Hier zu landen heisst also, dass ein
+  // Notausschalter (Bildanhang, Verbund, zweiter Intent) gegriffen hat.
+  it('sagt ab, statt still `searchNode` für einen Intent ohne Zweig zu rufen', async () => {
+    const { finalState } = await executeIntentPipeline({
+      classifiedState: buildState({ intent: 'mcp' }),
+      sse: sse as never,
+      forcedTool: true,
+      imageAttachments: [{ mimeType: 'image/png', data: 'x' } as never],
+    });
+
+    expect(searchNode).not.toHaveBeenCalled();
+    expect(sse.send.mock.calls.find(([e]) => e === 'warning')?.[1]).toMatchObject({
+      code: 'mcp_not_consulted',
+    });
+    // Die Antwort selbst muss den Grund tragen — sonst liest sich der Turn wie
+    // eine gewöhnliche Auskunft, die den Server einfach nicht erwähnt.
+    expect(finalState.degradationNotes?.at(-1)?.code).toBe('mcp_not_consulted');
+  });
+});
+
 describe('executeIntentPipeline — the shared @deepresearch allowance', () => {
   const deepState = () => buildState({ intent: 'web', deepResearchRequested: true });
 
