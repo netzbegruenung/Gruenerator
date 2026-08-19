@@ -24,7 +24,7 @@ import { executeResearch } from '../../routes/chat/agents/directSearch.js';
 import { toError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
-import { getModel, getPreferredMonitorProvider } from '../ai/providers.js';
+import { getMonitorModel } from '../ai/providers.js';
 
 import { TOPIC_NAMES } from './types.js';
 
@@ -113,7 +113,7 @@ async function deriveTheme(anchor: HotTopicAnchor, keywords: KeywordEntry[]): Pr
 
   try {
     const result = await generateObject({
-      model: getModel(getPreferredMonitorProvider()),
+      model: getMonitorModel(),
       schema: ThemeSchema,
       system: `Du analysierst das dominierende Nachrichtenthema des Tages für das Kommunikationsteam von Bündnis 90/Die Grünen.
 
@@ -187,7 +187,7 @@ async function composeBriefing(
   const country = locale === 'at' ? 'Österreich' : 'Deutschland';
   try {
     const result = await generateText({
-      model: getModel(getPreferredMonitorProvider()),
+      model: getMonitorModel(),
       system: `Du bist ein*e erfahrene*r Medienanalyst*in und schreibst eine kurze KI-Einordnung zum dominierenden Thema des Tages für das Kommunikationsteam von Bündnis 90/Die Grünen.
 
 Schreibe 2-3 kurze Absätze (jeweils 2-3 Sätze) über das Hot Topic. Der Ton ist professionell, analytisch und zugänglich.
@@ -218,6 +218,10 @@ Schreibe die KI-Einordnung zum Hot Topic "${theme.dominantTopic}".`,
       maxOutputTokens: 1500,
     });
 
+    // Leerer Text ist kein Fehler des SDK, aber einer für uns: ein Modell, das
+    // sein ganzes Ausgabebudget in einen Denkblock steckt, liefert `''` und
+    // käme sonst still als „Briefing" durch. Der catch unten hat die Heuristik.
+    if (!result.text.trim()) throw new Error('leere Antwort vom Modell');
     log.info(`composeBriefing: ${result.text.split(/\s+/).length} words`);
     return result.text;
   } catch (error) {
@@ -239,7 +243,7 @@ async function generateTweets(
 ): Promise<MonitorHotTopicAnalysis['tweets']> {
   try {
     const result = await generateObject({
-      model: getModel(getPreferredMonitorProvider()),
+      model: getMonitorModel(),
       schema: TweetsSchema,
       system: `Du schreibst Tweet-Vorschläge für den offiziellen Twitter/X-Account von Bündnis 90/Die Grünen.
 
