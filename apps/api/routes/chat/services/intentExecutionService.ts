@@ -32,6 +32,7 @@ export {
   handlePresentationCreation,
   handleSheetCreation,
 } from './intentHandlers/artifactTurns.js';
+export { reportMcpWithoutLoop } from './intentHandlers/mcpWithoutLoop.js';
 export { carryThreadSourcesIfNeeded, executeIntentPipeline } from './intentHandlers/pipeline.js';
 export { handleRecurringTaskCreation } from './intentHandlers/recurringTask.js';
 export { handleShareDoc } from './intentHandlers/shareDoc.js';

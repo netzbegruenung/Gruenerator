@@ -95,6 +95,48 @@ describe('runAssertions — each failure class we hit live', () => {
     expect(names(rs)['cited']).toBe(true);
   });
 
+  it('cited does NOT read a German date as a bare citation number (live 19.08.2026)', () => {
+    // `followup-vague-mehr` t1: das `m 7.` in „Am 7. November" traf die Regex,
+    // und weil [7] an anderer Stelle eine echte Fußnote ist, galt der Tag als
+    // unmarkiertes Zitat — Rot für eine richtige Antwort.
+    const rs = runAssertions(
+      trace({
+        fullText:
+          'Mindereinnahmen auszugleichen [4, 5]. Am 7. November 2025 beschloss der Bundestag die Verlängerung [7].',
+        sources: 8,
+      }),
+      { cited: true }
+    );
+    expect(names(rs)['cited']).toBe(true);
+  });
+
+  it('cited does NOT read an ordinal before a comma as a bare citation number', () => {
+    const rs = runAssertions(
+      trace({ fullText: 'Die Partei liegt auf Platz 5, dahinter folgt der Rest [5].', sources: 6 }),
+      { cited: true }
+    );
+    expect(names(rs)['cited']).toBe(true);
+  });
+
+  it('cited still catches the real bare-citation shape after both exclusions', () => {
+    const rs = runAssertions(
+      trace({ fullText: 'Das steht so in Quelle 7. Weiter geht es mit [7].', sources: 8 }),
+      { cited: true }
+    );
+    expect(names(rs)['cited']).toBe(false);
+  });
+
+  it.each([
+    ['Punkt', 'Das steht so in Quelle 7. Weiter geht es mit [7].'],
+    ['Semikolon', 'Das steht so in Quelle 7; ferner gilt [7].'],
+    ['Doppelpunkt', 'Das steht so in Quelle 7: dort nachzulesen [7].'],
+  ])('cited catches a bare citation terminated by %s', (_label, fullText) => {
+    // Die Datums- und Ordnungszahl-Ausnahmen dürfen nur ihre eigene Form
+    // ausnehmen — nicht die Satzzeichen, an denen ein bares Zitat wirklich endet.
+    const rs = runAssertions(trace({ fullText, sources: 8 }), { cited: true });
+    expect(names(rs)['cited']).toBe(false);
+  });
+
   it('cited fails when a citation number exceeds the source count', () => {
     const rs = runAssertions(trace({ fullText: 'Aussage [27].', sources: 5 }), { cited: true });
     expect(names(rs)['cited']).toBe(false);

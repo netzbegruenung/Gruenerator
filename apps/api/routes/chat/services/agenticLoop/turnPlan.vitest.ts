@@ -420,6 +420,14 @@ describe('decideTurnPlan — der Degradierungsfall der Loop-Achse', () => {
   // Die Gegenprobe zur Registry-Bedingung: `mcp` steht auf derselben Achse,
   // hat aber kein `degradeTo`. Eine Websuche wäre dort keine Degradierung,
   // sondern eine andere Quelle als die gewählte — also bleibt er unberührt.
+  //
+  // Das ist eine Aussage über den PLAN, nicht das Ende der Geschichte: der
+  // Einzeldurchlauf hat für `mcp` keinen Ausführenden. Dass der Turn deshalb
+  // absagt statt still aus dem Gedächtnis zu antworten, steht in
+  // `intentHandlers/mcpWithoutLoop.ts` und wird dort und in
+  // `intentExecutionLoop.vitest.ts` zugesichert. Wer hier ein `degradeTo`
+  // nachträgt, macht jene Absage tot — und den Turn zu einer Websuche, die
+  // niemand gewählt hat.
   it('mcp degradiert NICHT, weil die Registry kein Ziel nennt', () => {
     const p = plan({ intent: 'mcp', hasImageAttachments: true });
     expect(p.runAgentic).toBe(false);
