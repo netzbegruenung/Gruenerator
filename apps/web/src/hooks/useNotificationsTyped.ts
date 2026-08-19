@@ -9,6 +9,13 @@
 
 import { getContractsClient } from '@gruenerator/shared/api';
 
+// Carries the HTTP status like an axios error does: the global retry policy
+// (App.tsx) and toastApiError read `err.status` to exempt 401/403/404 — a bare
+// Error slips past that check and a failed poll gets retried twice more.
+function httpError(message: string, status: number): Error {
+  return Object.assign(new Error(message), { status });
+}
+
 export async function fetchNotificationsPage(limit: number, offset: number) {
   const client = getContractsClient();
   const result = await client.notifications.list({
@@ -21,7 +28,7 @@ export async function fetchNotificationsPage(limit: number, offset: number) {
     },
   });
   if (result.status !== 200) {
-    throw new Error(`Failed to fetch notifications (HTTP ${result.status})`);
+    throw httpError(`Failed to fetch notifications (HTTP ${result.status})`, result.status);
   }
   return result.body;
 }
@@ -30,7 +37,7 @@ export async function fetchUnreadCount(): Promise<number> {
   const client = getContractsClient();
   const result = await client.notifications.getUnreadCount();
   if (result.status !== 200) {
-    throw new Error(`Failed to fetch unread count (HTTP ${result.status})`);
+    throw httpError(`Failed to fetch unread count (HTTP ${result.status})`, result.status);
   }
   return result.body.count;
 }
@@ -42,7 +49,7 @@ export async function markNotificationAsRead(notificationId: string): Promise<vo
     body: {},
   });
   if (result.status !== 200) {
-    throw new Error(`Failed to mark notification as read (HTTP ${result.status})`);
+    throw httpError(`Failed to mark notification as read (HTTP ${result.status})`, result.status);
   }
 }
 
@@ -53,7 +60,7 @@ export async function dismissNotificationById(notificationId: string): Promise<v
     body: {},
   });
   if (result.status !== 200) {
-    throw new Error(`Failed to dismiss notification (HTTP ${result.status})`);
+    throw httpError(`Failed to dismiss notification (HTTP ${result.status})`, result.status);
   }
 }
 
@@ -61,7 +68,7 @@ export async function dismissAllNotificationsClient(): Promise<void> {
   const client = getContractsClient();
   const result = await client.notifications.dismissAll({ body: {} });
   if (result.status !== 200) {
-    throw new Error(`Failed to dismiss all notifications (HTTP ${result.status})`);
+    throw httpError(`Failed to dismiss all notifications (HTTP ${result.status})`, result.status);
   }
 }
 
@@ -69,7 +76,10 @@ export async function fetchNotificationPreferences() {
   const client = getContractsClient();
   const result = await client.notifications.getPreferences();
   if (result.status !== 200) {
-    throw new Error(`Failed to fetch notification preferences (HTTP ${result.status})`);
+    throw httpError(
+      `Failed to fetch notification preferences (HTTP ${result.status})`,
+      result.status
+    );
   }
   return result.body;
 }
@@ -83,7 +93,10 @@ export async function updateNotificationPreferences(
     body: { category, channels },
   });
   if (result.status !== 200) {
-    throw new Error(`Failed to update notification preferences (HTTP ${result.status})`);
+    throw httpError(
+      `Failed to update notification preferences (HTTP ${result.status})`,
+      result.status
+    );
   }
   return result.body;
 }
@@ -94,7 +107,7 @@ export async function applyNotificationLevel(level: 'low' | 'medium' | 'high') {
     body: { level },
   });
   if (result.status !== 200) {
-    throw new Error(`Failed to apply notification level (HTTP ${result.status})`);
+    throw httpError(`Failed to apply notification level (HTTP ${result.status})`, result.status);
   }
   return result.body;
 }

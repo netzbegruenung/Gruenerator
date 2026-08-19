@@ -32,6 +32,7 @@ const getSessionMock = vi.fn();
 
 vi.mock('../config/betterAuth.js', () => ({
   auth: { api: { getSession: getSessionMock } },
+  SESSION_COOKIE_PREFIX: 'ba',
 }));
 
 // The locale overlay would otherwise hit Redis/Postgres and hang the test.
