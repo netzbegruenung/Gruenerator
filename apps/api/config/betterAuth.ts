@@ -162,29 +162,34 @@ async function syncLocaleFromProvider(userId: string, providerId: string): Promi
  * Der MCP-Autorisierungsserver, vor `betterAuth()` gebaut, weil sein Typ eine
  * Zurechtrückung braucht.
  *
- * `better-call` schreibt `OpenAPIParameter.schema.items` als
- * `items?: { type: OpenAPISchemaType }` — ohne `| undefined`, anders als die
- * Nachbarfelder `format` und `description`. Der OpenAPI-Block von
- * `/oauth2/authorize` in `@better-auth/oauth-provider` ist eine Vereinigung von
- * Objektliteralen, von denen nur einige `items` tragen; TypeScript normalisiert
- * die übrigen zu `items?: undefined`. Unter unserem
- * `exactOptionalPropertyTypes: true` ist das keine gültige Belegung mehr —
- * Projekten ohne die Option fällt es nicht auf.
+ * **Wurzel.** `better-call` führt `zod` als OPTIONALEN Peer. Bei
+ * `@better-auth/mcp` ist `better-call` selbst ein Peer und wird daher aus dem
+ * Kontext von `apps/api` aufgelöst — wo unser bewusster `zod: ^3.24.1`-Pin
+ * gilt. `better-auth` und `@better-auth/core` führen dasselbe Paket als echte
+ * Abhängigkeit mit eigenem zod 4. Im Lockfile stehen deshalb
+ * `better-call@1.4.0(zod@4.4.3)` und `better-call@1.4.0(zod@3.25.76)`
+ * nebeneinander, und TypeScript hält deren `EndpointOptions` für verschieden.
  *
- * Es geht dabei um eine Beschreibung für die OpenAPI-Ausgabe, nicht um
- * Laufzeitverhalten. Der Fehler bleibt aber nicht bei sich: solange er steht,
- * fällt der ganze `auth`-Typ auf `Auth<BetterAuthOptions>` zurück und
- * `BetterAuthUser` verliert **sämtliche** `additionalFields` (`is_admin`,
- * `locale`, `first_name`, …) — still, ohne dass irgendetwas rot würde. Ein
- * `@ts-expect-error` an der Stelle hilft deshalb nicht, es unterdrückt nur die
- * Meldung und lässt den Schaden stehen.
+ * **Warum es nicht bei einer Meldung bleibt.** Solange der Fehler steht, fällt
+ * `betterAuth()` auf seinen Basistyp zurück: `BetterAuthUser` verliert
+ * sämtliche `additionalFields` (`is_admin`, `locale`, `first_name`, …) UND
+ * `auth.api.getSession()` liefert `any` — quer durch `authMiddleware`,
+ * `appLogin`, `resolveUpgradeAuth`, `userProfileContractRouter`,
+ * `OffboardingService`. `tsc` schweigt dazu (`skipLibCheck`), erst ESLints
+ * `no-unsafe-*` macht es sichtbar. Ein `@ts-expect-error` hilft nicht: es
+ * unterdrückt die Meldung und lässt den Schaden stehen.
  *
- * Die Behauptung zielt darum auf genau das kaputte Feld: `endpoints` wird auf
- * die Form geweitet, die `BetterAuthPlugin` verlangt. Alles andere am Plugin
- * und die Inferenz der übrigen Optionen bleiben unangetastet. Preis ist, dass
- * die Endpunkte dieses Plugins in `auth.api` nur noch generisch typisiert sind
- * — die eine Stelle, die darauf angewiesen ist, steht in `server.ts` und sagt
- * es dort. Streichbar, sobald `items` upstream ein `| undefined` bekommt.
+ * **Deshalb die Behauptung, und zwar aufs ganze Plugin.** Gemessen gegen die
+ * Auflösung, die die CI tatsächlich installiert: eine engere Behauptung nur auf
+ * `endpoints` reicht dort NICHT, das `any` bleibt. Preis ist, dass die
+ * Endpunkte dieses Plugins in `auth.api` nur generisch typisiert sind — die
+ * eine Stelle, die einen davon braucht, steht in `server.ts` und sagt es dort.
+ *
+ * **Auflösbar** nur, indem `apps/api` auf zod 4 geht. `pnpm.overrides`
+ * (`better-call>zod`, `@better-auth/mcp>zod`) erreichen optionale Peers nicht,
+ * `packageExtensions` ändern den Lockfile an der Stelle nicht, und
+ * `better-call` direkt in `apps/api` zu deklarieren kippt es ins Gegenteil
+ * (37 von 38 Verweisen auf zod 3) — alles drei gemessen.
  */
 const rawMcpPlugin = mcp({
   loginPage: MCP_LOGIN_PAGE,
@@ -212,10 +217,7 @@ const rawMcpPlugin = mcp({
   enforcePerClientResources: false,
 });
 
-const mcpPlugin = {
-  ...rawMcpPlugin,
-  endpoints: rawMcpPlugin.endpoints as unknown as NonNullable<BetterAuthPlugin['endpoints']>,
-};
+const mcpPlugin = rawMcpPlugin as unknown as BetterAuthPlugin;
 
 // One-shot config snapshot at module load — answers "what URL did the
 // container actually pick up?" without requiring a request to fire.
