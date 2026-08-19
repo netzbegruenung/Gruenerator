@@ -635,10 +635,17 @@ const standardRoutes: RouteConfig[] = [
     path: '/chat/settings',
     component: lazy(() => Promise.resolve({ default: createRedirect('/settings') })),
   },
-  { path: '/chat', component: GrueneratorenBundle.Chat, layoutMode: 'sidebarOnly' },
-  // Thread deep links (Notion-style slug, suffix is the stable key). React
-  // Router ranks the static /chat/settings above this dynamic segment.
-  { path: '/chat/:threadSlug', component: GrueneratorenBundle.Chat, layoutMode: 'sidebarOnly' },
+  // Thread deep links (Notion-style slug, suffix is the stable key) share one
+  // route with bare /chat. Two entries meant RouteComponent's `key={path}`
+  // changed on the /chat ↔ /chat/<slug> hop, tearing down AppProviders,
+  // PageLayout, the sidebar and its thread-list portal on the very first thread
+  // a user opens. React Router ranks the static /chat/settings above this
+  // dynamic segment.
+  {
+    path: '/chat/:threadSlug?',
+    component: GrueneratorenBundle.Chat,
+    layoutMode: 'sidebarOnly',
+  },
   { path: '/voice', component: VoiceAgentPage, layoutMode: 'noChrome' },
   // Apps & Connect Page
   { path: '/apps', component: AppsPage },
