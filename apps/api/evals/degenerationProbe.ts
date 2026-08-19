@@ -77,11 +77,10 @@ async function stageInstructions(stage: Stage): Promise<string | undefined> {
     userLocale: 'de-DE',
   } as never);
   if (stage === 'system') return systemMessage;
-  // Imported HERE, not at module load: `agenticRespondService` transitively
-  // pulls in intentExecutionService → deepAgentTurn → the `deepagents` package,
-  // so a checkout missing that dependency would break the cheaper stages too.
+  // `buildToolUsageBlock` lebt seit dem Arbeitsweise-Refactor in seinem
+  // eigenen, abhängigkeitsarmen Modul — nicht mehr in agenticRespondService.
   const { buildToolUsageBlock } =
-    await import('../routes/chat/services/agenticLoop/agenticRespondService.js');
+    await import('../routes/chat/services/agenticLoop/toolUsageBlock.js');
   const { withInstructionHierarchy } = await import('../routes/chat/services/untrustedContent.js');
   // The exact string production assembles for the unified loop, minus the
   // per-request notes (MCP catalog, carried sources, recipes) that need a live
