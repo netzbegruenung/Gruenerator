@@ -36,6 +36,9 @@ export interface AgenticAnswerParams {
   threadToolHistory: StreamContext['threadToolHistory'];
   lastUserText: string;
   buildTurnTrace: BuildTurnTrace;
+  /** Turn-Decke aus turnDeadline.ts — dieselbe Frist, die auch der
+   *  Einzeldurchlauf bekommt. */
+  turnSignal: AbortSignal;
 }
 
 export interface AgenticAnswer {
@@ -62,6 +65,7 @@ export async function runAgenticAnswer({
   threadToolHistory,
   lastUserText,
   buildTurnTrace,
+  turnSignal,
 }: AgenticAnswerParams): Promise<AgenticAnswer> {
   // Captured inside withLangfuseTrace so the final `done` event can hand the
   // chat-turn trace id to the client for feedback scoring. undefined when
@@ -106,6 +110,7 @@ export async function runAgenticAnswer({
         // Dieselben Zeilen, die buildStreamContext schon gelesen hat.
         // Null heisst nur „nicht vorgelesen" — der Loop liest dann selbst.
         toolHistory: threadToolHistory,
+        reqSignal: turnSignal,
       });
       trace.update({ input: lastUserText, output: result.fullText });
       return result;

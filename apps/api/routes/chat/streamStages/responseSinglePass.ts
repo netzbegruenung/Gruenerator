@@ -77,6 +77,9 @@ export interface SinglePassAnswerParams {
    *  licence is text-only, not a failed sharepic. */
   sharepicLicensed: boolean;
   buildTurnTrace: BuildTurnTrace;
+  /** Turn-Decke aus turnDeadline.ts — dieselbe Frist, die auch der agentische
+   *  Pfad bekommt. Komponiert unten in die Turn-Uhr des Einzeldurchlaufs. */
+  turnSignal: AbortSignal;
 }
 
 export interface SinglePassAnswer {
@@ -106,6 +109,7 @@ export async function runSinglePassAnswer({
   sharepicRefinement,
   sharepicLicensed,
   buildTurnTrace,
+  turnSignal,
 }: SinglePassAnswerParams): Promise<MaybeHandled<SinglePassAnswer>> {
   let fullText: string | null;
   // Captured inside withLangfuseTrace so the final `done` event can hand the
@@ -295,6 +299,7 @@ export async function runSinglePassAnswer({
                 temperature: finalState.agentConfig.params.temperature,
                 sse,
                 logPrefix: '[ChatGraph]',
+                turnSignal,
                 ...(respondTelemetry && { telemetry: respondTelemetry }),
               }),
           });

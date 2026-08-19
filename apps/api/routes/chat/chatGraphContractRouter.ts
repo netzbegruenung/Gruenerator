@@ -35,6 +35,7 @@ import { runChatGraphResume } from './services/resumePipeline.js';
 import { createSSEStream, sseInternalError } from './services/sseHelpers.js';
 import { buildStreamContext } from './services/streamContext.js';
 import { discardPendingAssistantIfEmpty } from './services/threadPersistenceService.js';
+import { createTurnDeadline } from './services/turnDeadline.js';
 import { runActionGateStage } from './streamStages/actionGateStage.js';
 import { runArtifactEmitStage } from './streamStages/artifactEmitStage.js';
 import { runClarificationStage } from './streamStages/clarificationStage.js';
@@ -62,6 +63,11 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
     const sse = createSSEStream(args.res);
     const requestId = `req_${Date.now()}`;
     log.info('[chatGraphContract] stream handler entered, request_id=%s', requestId);
+
+    // Die einzige Frist über dem GANZEN Zug — hier und nicht im Loop, weil
+    // Klassifikation und Suche davor liegen und je eigene, unabhängige
+    // Provider-Fristen mitbringen. Siehe turnDeadline.ts.
+    const turnDeadline = createTurnDeadline(requestId);
 
     // Turn persistence (WP-B): the placeholder assistant row + its streaming
     // writer. Declared in the handler scope (not inside the try) so the outer
@@ -362,6 +368,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         forcedTool,
         sharepicRefinement,
         sharepicLicensed,
+        turnSignal: turnDeadline.signal,
       });
       if (response.handled) return response.result;
       const {
@@ -437,6 +444,8 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       await cleanupPending(true).catch(() => {});
       sseInternalError(sse, error);
       return { status: 200 as const, body: undefined };
+    } finally {
+      turnDeadline.clear();
     }
   },
 
