@@ -11,7 +11,7 @@ import { generateText } from 'ai';
 
 import { createLogger } from '../../utils/logger.js';
 import { getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
-import { getModel, getPreferredMonitorProvider } from '../ai/providers.js';
+import { getMonitorModel } from '../ai/providers.js';
 
 import { EU_GREEN_PARTIES, type EuGreenPartyEntry } from './PolitProService.js';
 
@@ -71,7 +71,7 @@ async function fetchWikipediaExtract(
 async function summarize(entry: EuGreenPartyEntry, articleText: string): Promise<string | null> {
   try {
     const result = await generateText({
-      model: getModel(getPreferredMonitorProvider()),
+      model: getMonitorModel(),
       prompt: `Fasse die folgende Wikipedia-Beschreibung der Partei "${entry.partyLabel}" (${entry.countryName}) sachlich und neutral auf Deutsch zusammen, in 100 bis 140 Wörtern. Gehe auf die politische Ausrichtung, die Geschichte in höchstens einem Satz und die aktuelle Rolle im Land ein. Antworte direkt mit dem Fließtext, ohne Einleitung oder Überschrift.
 
 ${articleText}`,
