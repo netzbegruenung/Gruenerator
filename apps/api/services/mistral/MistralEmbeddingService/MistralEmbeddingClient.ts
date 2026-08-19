@@ -1,6 +1,6 @@
-import { env } from '../../../config/env.js';
-import { parallelLimit } from '../../../utils/parallelLimit.js';
 import mistralClient from '../../ai/mistralClient.js';
+
+import { scheduleEmbedding } from './embeddingScheduler.js';
 
 export interface MistralEmbeddingOptions {
   model?: string;
@@ -14,11 +14,9 @@ export interface RetryableError extends Error {
 
 export class MistralEmbeddingClient {
   private model: string;
-  private maxConcurrentBatches: number;
 
   constructor({ model = 'mistral-embed' }: MistralEmbeddingOptions = {}) {
     this.model = model;
-    this.maxConcurrentBatches = Math.max(1, env.MISTRAL_EMBEDDING_CONCURRENCY);
   }
 
   // Mistral API rejects individual texts exceeding 8192 tokens.
@@ -27,7 +25,17 @@ export class MistralEmbeddingClient {
   private static readonly MAX_TOKENS_PER_TEXT = 8192;
   private static readonly MAX_CHARS_PER_TEXT = Math.floor(8192 * 2.5); // 20480 chars
 
+  /**
+   * Einzelne Einbettung — der interaktive Pfad (Suchanfragen).
+   *
+   * Nur diese Außenkante nimmt sich einen Platz beim Scheduler. `embedOnce`
+   * ist die ungeplante Fassung für Aufrufer, die schon einen Platz halten.
+   */
   async generateEmbedding(text: string): Promise<number[]> {
+    return await scheduleEmbedding('interactive', () => this.embedOnce(text));
+  }
+
+  private async embedOnce(text: string): Promise<number[]> {
     if (!text || typeof text !== 'string') throw new Error('Text required');
 
     const safeText = this.truncateIfNeeded(text);
@@ -51,7 +59,9 @@ export class MistralEmbeddingClient {
     let current = text;
     for (let attempt = 0; attempt < 4; attempt++) {
       try {
-        return await this.generateEmbedding(current);
+        // `embedOnce`, nicht `generateEmbedding`: der Aufrufer hält bereits
+        // einen Scheduler-Platz, ein zweiter wäre ein Selbst-Deadlock.
+        return await this.embedOnce(current);
       } catch (error) {
         const msg = (error as Error).message || '';
         const isTokenLimit = msg.includes('exceeding max') || msg.includes('too many tokens');
@@ -75,9 +85,12 @@ export class MistralEmbeddingClient {
     const MAX_BATCH_SIZE = 16; // Maximum number of texts per batch
     const MAX_TOKENS_PER_BATCH = 8000; // Conservative token limit per batch
 
-    // If batch is small enough, process directly
+    // If batch is small enough, process directly — aber ebenfalls unter der
+    // Prozessgrenze. Ohne den Scheduler hier wäre die Grenze löchrig: gerade
+    // die vielen kleinen Aufrufe (Notizbuch-Aufnahme, OCR-Nachlauf) liefen
+    // ungezählt daran vorbei.
     if (texts.length <= MAX_BATCH_SIZE && this.estimateTotalTokens(texts) <= MAX_TOKENS_PER_BATCH) {
-      return await this.processSingleBatch(texts);
+      return await scheduleEmbedding('bulk', () => this.processSingleBatch(texts));
     }
 
     // Split into smaller batches
@@ -85,29 +98,54 @@ export class MistralEmbeddingClient {
     console.log(
       `[MistralEmbeddingClient] Splitting ${texts.length} texts into ${batches.length} batches`
     );
+    this.warnIfBatchingDegenerated(texts, batches, MAX_BATCH_SIZE);
 
-    // Process batches concurrently with stagger to avoid API burst
-    const STAGGER_MS = 100;
-
-    const tasks = batches.map((batch, i) => async () => {
-      // Stagger by batch index to spread initial launches
-      if (i > 0) {
-        await new Promise((r) => setTimeout(r, STAGGER_MS * i));
-      }
-
-      console.log(
-        `[MistralEmbeddingClient] Processing batch ${i + 1}/${batches.length} (${batch.length} texts)`
-      );
-
-      try {
-        return await this.processSingleBatch(batch);
-      } catch (error) {
-        return await this.processBatchFallback(batch, i, error as Error);
-      }
-    });
-
-    const results = await parallelLimit(tasks, this.maxConcurrentBatches);
+    // Die Nebenläufigkeit gehört dem Prozess, nicht diesem Aufruf — siehe
+    // embeddingScheduler.ts. Früher stand hier ein eigenes
+    // `parallelLimit(tasks, 3)` plus ein `setTimeout(100 * i)` PRO Aufgabe.
+    // Der Schlaf lief innerhalb des belegten Platzes, war also keine
+    // Anlauf-Streuung, sondern eine kumulative Wartezeit: für 697 Batches
+    // Σ(100 ms · i) ÷ 3 ≈ 2 h 15 min, in denen fast nichts passierte.
+    const results = await Promise.all(
+      batches.map((batch, i) =>
+        scheduleEmbedding('bulk', async () => {
+          console.log(
+            `[MistralEmbeddingClient] Processing batch ${i + 1}/${batches.length} (${batch.length} texts)`
+          );
+          try {
+            return await this.processSingleBatch(batch);
+          } catch (error) {
+            return await this.processBatchFallback(batch, i, error as Error);
+          }
+        })
+      )
+    );
     return results.flat();
+  }
+
+  /**
+   * Wenn die Batches im Schnitt fast leer sind, ist nicht das Batching kaputt,
+   * sondern das, was oben hineinreicht: ein einzelner Text darf so groß werden
+   * wie das ganze Batch-Budget, also füllt ein übergroßer Chunk ein Batch
+   * allein. Am 17.08.2026 wurden daraus 697 statt ~125 Batches, und im Log war
+   * nur zu sehen, dass es langsam ist — nicht, warum.
+   */
+  private warnIfBatchingDegenerated(
+    texts: string[],
+    batches: string[][],
+    maxBatchSize: number
+  ): void {
+    if (batches.length < 8) return;
+    const average = texts.length / batches.length;
+    if (average >= maxBatchSize / 4) return;
+
+    const oversized = texts.filter(
+      (t) => t.length > MistralEmbeddingClient.MAX_CHARS_PER_TEXT / 2
+    ).length;
+    console.warn(
+      `[MistralEmbeddingClient] Batches sind entartet: ${average.toFixed(1)} statt bis zu ${maxBatchSize} Texte pro Batch ` +
+        `(${oversized} von ${texts.length} Texten über der halben Einzeltext-Grenze). Die Chunk-Größe stromaufwärts prüfen.`
+    );
   }
 
   private async processSingleBatch(texts: string[]): Promise<number[][]> {
