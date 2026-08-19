@@ -20,6 +20,7 @@ import { Stage, Layer, Group, Rect } from 'react-konva';
 import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
 import type Konva from 'konva';
 
+import { withSelectionChromeHidden } from '../utils/captureStage';
 import { cn } from '../utils/cn';
 
 export interface CanvasStageProps {
@@ -138,12 +139,19 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
           ? stage.find('.canvas-background').filter((node) => node.visible())
           : [];
 
+        // Selection chrome is hidden HERE rather than at the call sites: this is
+        // the single door every export goes through (download, page thumbnails,
+        // auto-save snapshots, the imperative ref handles). Leaving it to the
+        // caller is what let the download bake the Transformer of the selected
+        // element into the PNG.
         const capture = () =>
-          stage.toDataURL({
-            pixelRatio: effectivePixelRatio,
-            mimeType,
-            quality: options.quality,
-          });
+          withSelectionChromeHidden(stage, () =>
+            stage.toDataURL({
+              pixelRatio: effectivePixelRatio,
+              mimeType,
+              quality: options.quality,
+            })
+          );
 
         if (backgroundNodes.length === 0) return capture();
         backgroundNodes.forEach((node) => node.hide());
