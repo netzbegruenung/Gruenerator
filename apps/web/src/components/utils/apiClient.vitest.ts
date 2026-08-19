@@ -18,6 +18,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { REDIRECT_TIMESTAMPS } from '../../features/auth/storageKeys';
 
+// The first test pays the cold import of `apiClient` + `@gruenerator/contracts`
+// + `@gruenerator/shared` + axios for the whole file; the 13 re-imports after it
+// cost ~40 ms each. Measured inside a full `apps/web` run on an idle machine:
+// 1825 ms for that one test, 2235 ms for the file. The green master run
+// 31979142491 needed 7796 ms for the file, i.e. the cold test alone sat just
+// under the 5000 ms default and went over it twice under CI load.
+vi.setConfig({ testTimeout: 20_000 });
+
 vi.mock('axios', async (importOriginal) => {
   const actual = await importOriginal<{ default: AxiosStatic }>();
   return {
