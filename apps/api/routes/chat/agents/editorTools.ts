@@ -50,6 +50,9 @@ export interface EditorToolCtx {
 interface EditSurfaceSpec {
   /** Human artefact noun for messages ("Tabelle" / "Präsentation" / "Board"). */
   noun: string;
+  /** Grammatical gender of {@link noun} — "Board" is neuter, the other two are
+   *  feminine, and the German messages below decline accordingly. */
+  gender: 'f' | 'n';
   /** Model-facing tool description. */
   description: string;
   /** The open artefact for this surface, or null if none is open. */
@@ -72,6 +75,7 @@ interface EditSurfaceSpec {
 const EDIT_SURFACE_SPECS: Partial<Record<EditorSurfaceKind, EditSurfaceSpec>> = {
   sheet: {
     noun: 'Tabelle',
+    gender: 'f',
     description:
       'Bearbeite die aktuell geöffnete Tabelle direkt (Werte, Formeln, Formate). Nutze dies, nachdem du – falls nötig – recherchiert hast, um die Ergebnisse einzutragen. Beschreibe im "instruction"-Feld genau, was geändert werden soll, inkl. der konkreten Zahlen.',
     getTarget: (state) => (state.currentDocument ? { id: state.currentDocument.id } : null),
@@ -84,6 +88,7 @@ const EDIT_SURFACE_SPECS: Partial<Record<EditorSurfaceKind, EditSurfaceSpec>> = 
   },
   presentation: {
     noun: 'Präsentation',
+    gender: 'f',
     description:
       'Bearbeite die aktuell geöffnete Präsentation direkt (Folien hinzufügen/ändern/löschen/verschieben, Layout, Design). Nutze dies, nachdem du – falls nötig – recherchiert hast, um die Inhalte einzuarbeiten. Beschreibe im "instruction"-Feld genau, was geändert werden soll, inkl. der konkreten Inhalte.',
     getTarget: (state) => (state.currentDocument ? { id: state.currentDocument.id } : null),
@@ -99,6 +104,7 @@ const EDIT_SURFACE_SPECS: Partial<Record<EditorSurfaceKind, EditSurfaceSpec>> = 
   },
   board: {
     noun: 'Board',
+    gender: 'n',
     description:
       'Bearbeite das aktuell geöffnete Board direkt (neue Aufgaben, Spalten, Felder oder Ansichten anlegen). Nutze dies, nachdem du – falls nötig – recherchiert hast, um die Ergebnisse einzutragen. Beschreibe im "instruction"-Feld genau, was angelegt werden soll.',
     getTarget: (state) => (state.currentBoard ? { id: state.currentBoard.id } : null),
@@ -134,9 +140,16 @@ export function makeEditArtifactTool(ctx: EditorToolCtx): Tool | null {
       instruction: z.string().min(1).describe(INSTRUCTION_DESC),
     }),
     execute: async ({ instruction }: { instruction: string }) => {
+      const feminine = spec.gender === 'f';
+      const kein = feminine ? 'keine' : 'kein';
+      const relative = feminine ? 'die' : 'das';
+      const anDer = feminine ? 'an der' : 'am';
+
       const target = spec.getTarget(ctx.state);
       if (!target) {
-        return { error: `Es ist keine ${spec.noun} geöffnet, die bearbeitet werden könnte.` };
+        return {
+          error: `Es ist ${kein} ${spec.noun} geöffnet, ${relative} bearbeitet werden könnte.`,
+        };
       }
 
       const referenceContent = ctx.sourceRegistry.renderReference() || null;
@@ -163,13 +176,13 @@ export function makeEditArtifactTool(ctx: EditorToolCtx): Tool | null {
         // so the artefact is never half-touched.
         if (planned.reason === 'planning_failed') {
           return {
-            error: `Die Änderung an der ${spec.noun} konnte nicht geplant werden. Versuche es erneut.`,
+            error: `Die Änderung ${anDer} ${spec.noun} konnte nicht geplant werden. Versuche es erneut.`,
           };
         }
         return {
           ok: true,
           operationCount: 0,
-          note: `Keine Änderung an der ${spec.noun} nötig — es wurde nichts geändert.`,
+          note: `Keine Änderung ${anDer} ${spec.noun} nötig — es wurde nichts geändert.`,
         };
       }
 
@@ -177,7 +190,7 @@ export function makeEditArtifactTool(ctx: EditorToolCtx): Tool | null {
       ctx.appliedOpsLog.push(`${operations.length} Op(s): ${summary}`);
       // Surface a human edit summary onto shared state so the synth prompt makes
       // the model confirm the change (not write empty text or a false refusal).
-      const editNote = `${operations.length} Änderung${operations.length === 1 ? '' : 'en'} an der ${spec.noun} (${summary})`;
+      const editNote = `${operations.length} Änderung${operations.length === 1 ? '' : 'en'} ${anDer} ${spec.noun} (${summary})`;
       ctx.state.editorEditsSummary = ctx.state.editorEditsSummary
         ? `${ctx.state.editorEditsSummary}; ${editNote}`
         : editNote;
