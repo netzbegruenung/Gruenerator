@@ -80,6 +80,7 @@
       "katex": "^0.18.1",
       "pyodide": "^314.0.2",
       "react-dropzone": "^19.1.1",
+      "prosemirror-view": "^1.42.2",
       "@blocknote/core": "^0.54.0",
       "@blocknote/react": "^0.54.0",
       "@blocknote/shadcn": "^0.54.0",
