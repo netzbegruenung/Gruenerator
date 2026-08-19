@@ -70,34 +70,36 @@ describe('decideTurnPlan — die Lanes', () => {
     expect(p.intent).toBe('search');
   });
 
-  it('single-pass: ein Gruss zahlt keinen Loop-Overhead', () => {
+  it('greeting: ein Gruss zahlt keinen Loop-Overhead', () => {
     const p = plan({ intent: 'greeting', lastUserText: 'Hallo!' });
-    expect(p.lane).toBe('single-pass');
+    expect(p.lane).toBe('greeting');
     expect(p.runAgentic).toBe(false);
     expect(p.intent).toBe('greeting');
   });
 
-  it('pipeline: der Pipeline-Agent vetot die Schleife und erzwingt seinen Intent', () => {
+  it('produktion: der Pipeline-Agent vetot die Schleife und erzwingt seinen Intent', () => {
+    // Die Lane sagt, WAS der Turn ist (Schreibarbeit am Material), nicht WER
+    // ihn ausführt. Dass eine eigene Kette es tut, steht in `pipelineAgent`.
     const p = plan({ intent: 'search', pipelineForceIntent: 'produktion' });
-    expect(p.lane).toBe('pipeline');
+    expect(p.lane).toBe('produktion');
     expect(p.runAgentic).toBe(false);
     expect(p.intent).toBe('produktion');
   });
 
-  it('edit-loop: eine Tabellen-Seitenleiste mit offenem Ziel bearbeitet in der Schleife', () => {
+  it('loop (editToolLoop): eine Tabellen-Seitenleiste mit offenem Ziel bearbeitet in der Schleife', () => {
     const p = plan({
       ...sheetSurface,
       intent: 'direct',
       lastUserText: 'trag es in die Tabelle ein',
     });
-    expect(p.lane).toBe('edit-loop');
+    expect(p.lane).toBe('loop');
     expect(p.runAgentic).toBe(true);
     expect(p.editToolLoop).toBe(true);
     expect(p.editToolSurface).toBe('sheet');
     expect(p.editTarget).toBe('doc');
   });
 
-  it('compound-edit: recherchieren UND ins offene Dokument einbauen', () => {
+  it('loop (compoundEdit): recherchieren UND ins offene Dokument einbauen', () => {
     const p = plan({
       // Eine Fläche OHNE Werkzeugpfad (docs) — sonst gewinnt `edit-loop`.
       agentIdentifier: 'gruenerator-docs-editor',
@@ -106,11 +108,49 @@ describe('decideTurnPlan — die Lanes', () => {
       intent: 'edit_current_doc',
       lastUserText: 'Recherchiere die aktuellen Zahlen und füge sie ins Dokument ein',
     });
-    expect(p.lane).toBe('compound-edit');
+    expect(p.lane).toBe('loop');
     expect(p.runAgentic).toBe(true);
     expect(p.compoundEdit).toBe(true);
     expect(p.editToolLoop).toBe(false);
     expect(p.editTarget).toBe('doc');
+  });
+});
+
+describe('decideTurnPlan — die Lane kommt aus der Registry', () => {
+  // Der Grund für diese vier: die Lane hatte bis Phase N keinen Konsumenten und
+  // konnte deshalb beliebig danebenliegen, ohne dass etwas rot wurde. Jetzt
+  // leitet `runAgentic` sich aus ihr ab — eine falsche Lane ist ab hier ein
+  // falscher Ausführungspfad.
+
+  it('pipeline: ein Artefakt-Verdikt im Einzeldurchlauf', () => {
+    // Disposition `artifact` — kostet Kontingent, eigene deterministische Route.
+    const p = plan({ intent: 'sharepic', lastUserText: 'Mach ein Sharepic dazu' });
+    expect(p.runAgentic).toBe(false);
+    expect(p.lane).toBe('pipeline');
+  });
+
+  it('pipeline: auch die Bearbeitungs-Familie (Disposition anchor)', () => {
+    const p = plan({ intent: 'modify_doc', lastUserText: 'Ändere den zweiten Absatz' });
+    expect(p.runAgentic).toBe(false);
+    expect(p.lane).toBe('pipeline');
+  });
+
+  it('produktion: Schreibarbeit am mitgebrachten Material, ohne Pipeline-Agent', () => {
+    const p = plan({
+      intent: 'produktion',
+      lastUserText: 'Schreib mir eine Pressemitteilung dazu',
+      hasOwnMaterial: true,
+    });
+    expect(p.runAgentic).toBe(false);
+    expect(p.lane).toBe('produktion');
+  });
+
+  it('single-pass: die Recherche-Familie, solange sie eigene Executoren hat', () => {
+    // Das benannte Restproblem — diese Lane verschwindet mit der
+    // Recherche-Konsolidierung, nicht vorher.
+    const p = plan({ intent: 'search', hasSelectedNotebook: true });
+    expect(p.runAgentic).toBe(false);
+    expect(p.lane).toBe('single-pass');
   });
 });
 
@@ -154,7 +194,7 @@ describe('decideTurnPlan — die Kippfälle', () => {
       lastUserText: 'Recherchiere die Zahlen und füge sie ins Dokument ein',
       pipelineForceIntent: 'produktion',
     });
-    expect(p.lane).toBe('pipeline');
+    expect(p.lane).toBe('produktion');
     expect(p.runAgentic).toBe(false);
     expect(p.intent).toBe('produktion');
   });
@@ -253,7 +293,7 @@ describe('decideTurnPlan — Endgültigkeit des Intents', () => {
   // Einfache-Sprache-Agenten genügt.
   it('der Pipeline-Zwang überlebt den System-Tool-Auffang', () => {
     const p = plan({ intent: 'hilfe', pipelineForceIntent: 'produktion' });
-    expect(p.lane).toBe('pipeline');
+    expect(p.lane).toBe('produktion');
     expect(p.runAgentic).toBe(false);
     expect(p.intent).toBe('produktion');
     // Der Nachtrag hängt am Auffang: ohne Umschreibung auf `web` gibt es auch
@@ -310,7 +350,7 @@ describe('decideTurnPlan — ein per Erwähnung gepinntes Werkzeug', () => {
 
   it('ein Pipeline-Agent vetot ihn trotzdem', () => {
     const p = plan({ ...pinned, pipelineForceIntent: 'produktion' });
-    expect(p.lane).toBe('pipeline');
+    expect(p.lane).toBe('produktion');
     expect(p.runAgentic).toBe(false);
   });
 

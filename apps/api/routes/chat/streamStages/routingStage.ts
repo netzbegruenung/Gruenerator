@@ -191,10 +191,15 @@ export function runRoutingStage({
   // bereits (Übertragung + Prüfkette). Ein Rezept wäre dort keine Ergänzung,
   // sondern ein zweiter Formatgeber — im Lauf vom 13.08.2026 gewann er, und
   // der Agent bot statt einer Übertragung einen Facebook-Post an.
+  //
+  // Die Bedingung fragt die LANE, nicht drei Einzelfakten: `produktion` heisst
+  // per Definition „kein Loop, Prosa-Verdikt, kein Gruss" — genau die drei
+  // Prüfungen, die hier vorher als `!runAgentic` plus ein Intent-Literalpaar
+  // standen. Ein viertes Prosa-Verdikt bekäme das Rezept damit von selbst,
+  // statt dass jemand daran denken muss, diese Zeile nachzuziehen.
   if (
-    !plan.runAgentic &&
+    plan.lane === 'produktion' &&
     !pipelineAgent &&
-    (classifiedState.intent === 'direct' || classifiedState.intent === 'produktion') &&
     !classifiedState.activeSkillMention &&
     !classifiedState.customSystemPrompt &&
     enabledTools?.['rezept_laden'] !== false
