@@ -7,7 +7,6 @@
  * Implementation is split across:
  * - searchFormatting.ts — utility functions (extractDomainLabel, formatRelevance, truncateText, deduplicateByUrl)
  * - directSearchExecutors.ts — document, examples, and web search executors
- * - researchOrchestrator.ts — Perplexity-style structured research pipeline
  */
 
 export {
@@ -31,7 +30,3 @@ export type {
   PressemitteilungExample,
   DirectWebSearchResult,
 } from './directSearchExecutors.js';
-
-export { executeResearch } from './researchOrchestrator.js';
-
-export type { ResearchCitation, ResearchResult } from './researchOrchestrator.js';
