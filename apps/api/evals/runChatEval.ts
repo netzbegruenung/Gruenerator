@@ -27,6 +27,9 @@
  *                   internalPromptsVerdict)
  *   EVAL_SLOW=1     include scenarios tagged `slow` (golden long threads)
  *   EVAL_NOTEBOOK=1 include notebook-surface scenarios (tagged `notebookLane`)
+ *   EVAL_DEEP_RESEARCH=1  include the real `@deepresearch` runs (tagged
+ *                   `deepResearchLane`). Minutes and money per run, and they
+ *                   spend the shared daily allowance — off by default.
  *   EVAL_SYSTEM_MCP=1  include scenarios that need the SYSTEM MCP servers
  *                   (bahn/wetter/news/hotel; tagged `systemMcpLane`). Ohne die
  *                   `SYSTEM_MCP_*_URL` am Backend weicht der Loop auf
@@ -107,6 +110,7 @@ function selectedCorpus(): EvalScenario[] {
     mcp: process.env.EVAL_MCP === '1',
     notebook: process.env.EVAL_NOTEBOOK === '1',
     systemMcp: process.env.EVAL_SYSTEM_MCP === '1',
+    deepResearch: process.env.EVAL_DEEP_RESEARCH === '1',
   });
 }
 
