@@ -182,6 +182,9 @@ describe('loop decision maps', () => {
       `${scenario.id} needs a model-assumption note`
     ).toBeGreaterThan(0);
 
+    // Nach `beforeEach`, damit die Szenario-Werte die Grundmenge übersteuern.
+    if (scenario.env) pinChatEnv(scenario.env);
+
     searchBackend.failNext = scenario.backendFailures ?? 0;
     loopScript.script(...scenario.streams);
 

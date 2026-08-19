@@ -20,6 +20,7 @@
  */
 import {
   type ArtifactCreateKind,
+  CHAT_INTENTS,
   type ChatIntentId,
   dispositionOf,
   forcesLoopLane,
@@ -175,16 +176,27 @@ export interface TurnPlanInput {
 /**
  * Worauf ein Intent zurückfällt, dem die Schleife verwehrt bleibt.
  *
- * Beide Fälle sind dieselbe Aussage: der Intent bezeichnet eine Ausführung, die
- * es nur IN der Schleife gibt. `agentic` hat in `executeIntentPipeline` gar
+ * Alle drei Fälle sind dieselbe Aussage: der Intent bezeichnet eine Ausführung,
+ * die es nur IN der Schleife gibt. `agentic` hat in `executeIntentPipeline` gar
  * keinen Zweig, die System-Tool-Intents (`umfragen`/`hilfe`) haben dort ihre
- * Werkzeuge nicht. Ein Turn, den ein Notausschalter (Verbund, erzwungenes
- * Werkzeug, Bild-Anhang) draußen hält, muss also woanders hin, statt zu
- * stranden.
+ * Werkzeuge nicht, und seit Phase N gilt das auch für die Parlaments-Abrufe:
+ * ihre dünnen Einzeldurchlauf-Türen sind gefallen, der Kern hängt nur noch am
+ * Loop-Werkzeug. Ein Turn, den ein Notausschalter (Verbund, erzwungenes
+ * Werkzeug, Bild-Anhang, ausgeschaltete Schleife, gewählte Wissenssammlung)
+ * draußen hält, muss also woanders hin, statt zu stranden.
  *
- * Die beiden Prüfungen sind nacheinander, nicht ausschließend — so standen sie
- * im Router. Überschneiden können sie sich nicht: `agentic` ist kein
- * System-Tool-Intent.
+ * Der dritte Fall nennt die beiden Intents NICHT beim Namen — er fragt die
+ * Registry. `forcedLane: 'loop'` heisst ab hier „hat keinen Einzeldurchlauf",
+ * und wohin so ein Turn ausweicht, steht als `degradeTo` schon dort, weil die
+ * Locale-Degradierung dieselbe Frage stellt: eine Quelle ist nicht erreichbar,
+ * die Frage soll trotzdem beantwortet werden. Ein Intent der Achse OHNE
+ * `degradeTo` (heute `mcp`) bleibt bewusst unberührt — für ihn wäre eine
+ * Websuche keine Degradierung, sondern eine andere Antwort als die gewählte
+ * Quelle.
+ *
+ * Die Prüfungen sind nacheinander, nicht ausschließend — so standen sie im
+ * Router. Überschneiden können sie sich nicht: `agentic` ist weder
+ * System-Tool-Intent noch auf der Loop-Achse.
  */
 function fallbackIntentFor(
   intent: ChatIntentId,
@@ -211,6 +223,17 @@ function fallbackIntentFor(
       inputs: { intentBefore: next, runAgentic: false, isSystemToolIntent },
     });
     next = 'web';
+    backfillSearchQuery = true;
+  }
+  // Der Degradierungsfall der Loop-Achse. `backfillSearchQuery` aus demselben
+  // Grund wie oben: das Ziel ist ein Suchintent, und ein Turn ohne Suchanfrage
+  // suchte nach ''.
+  const degradeTo = forcesLoopLane(next) ? CHAT_INTENTS[next].degradeTo : undefined;
+  if (degradeTo) {
+    recordDecision('router.intent_override', 'loop_only_degraded', {
+      inputs: { intentBefore: next, runAgentic: false, degradeTo },
+    });
+    next = degradeTo;
     backfillSearchQuery = true;
   }
   return { intent: next, backfillSearchQuery };

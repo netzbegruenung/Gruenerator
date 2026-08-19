@@ -59,6 +59,9 @@ export const DECISION_POINTS = {
       'agentic_to_search',
       'system_tool_to_web',
       'einfache_sprache_to_produktion',
+      // Der Intent lebt nur noch in der Schleife, und die blieb zu. Ziel steht
+      // als `degradeTo` in der Intent-Registry, nicht hier.
+      'loop_only_degraded',
     ],
   },
 
