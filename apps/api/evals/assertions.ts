@@ -47,16 +47,37 @@ function bracketedCiteNumbers(text: string): number[] {
   return nums;
 }
 
+const MONTHS =
+  'Januar|Februar|März|Maerz|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember';
+
 /** A citation number written as a bare token instead of `[N]` — the "unclean"
  *  case (e.g. "im gebotenen Umfang 20." meaning [20]). Deliberately narrow to
  *  avoid false positives on numbered headings ("### 1. Atomkraft"), list
  *  ordinals ("1. …") and quantities ("1–2 Millionen"): require a LOWERCASE
- *  letter + single space + the number + sentence punctuation, and the number
- *  must itself be a citation elsewhere. Ranges (1–2) and units (20 Mio.) don't
- *  match; headings start with '#'/line-start, not a lowercase letter. */
+ *  letter + single space + the number + a sentence-ending period, and the
+ *  number must itself be a citation elsewhere. Ranges (1–2) and units (20 Mio.)
+ *  don't match; headings start with '#'/line-start, not a lowercase letter.
+ *
+ *  Zwei Formen sahen wie ein bares Zitat aus und sind keins — beide im
+ *  Abnahmelauf vom 19.08.2026 gemessen, beide meldeten Rot für eine richtige
+ *  Antwort:
+ *
+ *  - **Ein deutsches Datum.** „… auszugleichen [4, 5]. Am 7. November 2025
+ *    beschloss der …" — das `m 7.` traf, und weil `[7]` an anderer Stelle eine
+ *    echte Fußnote ist, galt die Tagesangabe als unmarkiertes Zitat
+ *    (`followup-vague-mehr` t1). Daher der Monats-Ausschluss.
+ *  - **Eine Ordnungszahl vor Komma.** „Auf Platz 5, dann folgt …" — dieselbe
+ *    Klasse wie die Listen-Ordnungszahlen, die der Absatz oben schon ausnehmen
+ *    wollte. Daher nur noch der Punkt als Satzzeichen: die Form, die ein bares
+ *    Zitat tatsächlich hat („… in Quelle 7."), und die einzige, für die es
+ *    diese Prüfung gibt. */
 function bareCitationNumbers(text: string, citeNums: Set<number>): number[] {
   const bare: number[] = [];
-  for (const m of text.matchAll(/[a-zäöüß]\s(\d{1,2})(?=[.,;:](?:\s|$))/gu)) {
+  const pattern = new RegExp(
+    String.raw`[a-zäöüß]\s(\d{1,2})\.(?!\s*(?:${MONTHS})\b)(?=\s|$)`,
+    'gu'
+  );
+  for (const m of text.matchAll(pattern)) {
     const n = Number(m[1]);
     if (citeNums.has(n)) bare.push(n);
   }
@@ -337,8 +358,19 @@ export function runAssertions(
     );
   }
 
+  // Ein Thema darf mehrere Schreibweisen haben, getrennt durch `|` — erfüllt
+  // ist es, sobald EINE davon vorkommt. Grund (gemessen 19.08.2026,
+  // `multi-umfragen-position-1`): die Antwort lieferte die verlangte Auskunft
+  // als „In einer **Sonntagsfrage** für Bayern … 13,0 % [1]", und die Prüfung
+  // suchte das Wort „Umfrage", das darin nicht steckt. Sie meldete Rot für eine
+  // richtige Antwort — ein Prüfmittel, das die Verpackung statt der Sache misst.
   for (const topic of expect.topicsCovered ?? []) {
-    const present = trace.fullText.toLowerCase().includes(topic.toLowerCase());
+    const spellings = topic
+      .split('|')
+      .map((t) => t.trim())
+      .filter(Boolean);
+    const haystack = trace.fullText.toLowerCase();
+    const present = spellings.some((s) => haystack.includes(s.toLowerCase()));
     results.push(
       present ? ok(`topic:${topic}`) : fail(`topic:${topic}`, 'not covered in the answer')
     );
