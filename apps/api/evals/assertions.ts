@@ -54,27 +54,33 @@ const MONTHS =
  *  case (e.g. "im gebotenen Umfang 20." meaning [20]). Deliberately narrow to
  *  avoid false positives on numbered headings ("### 1. Atomkraft"), list
  *  ordinals ("1. …") and quantities ("1–2 Millionen"): require a LOWERCASE
- *  letter + single space + the number + a sentence-ending period, and the
- *  number must itself be a citation elsewhere. Ranges (1–2) and units (20 Mio.)
- *  don't match; headings start with '#'/line-start, not a lowercase letter.
+ *  letter + single space + the number + sentence punctuation, and the number
+ *  must itself be a citation elsewhere. Ranges (1–2) and units (20 Mio.) don't
+ *  match; headings start with '#'/line-start, not a lowercase letter.
  *
  *  Zwei Formen sahen wie ein bares Zitat aus und sind keins — beide im
  *  Abnahmelauf vom 19.08.2026 gemessen, beide meldeten Rot für eine richtige
- *  Antwort:
+ *  Antwort. Beide werden **gezielt** ausgenommen, damit die Prüfung sonst
+ *  nichts verliert:
  *
  *  - **Ein deutsches Datum.** „… auszugleichen [4, 5]. Am 7. November 2025
  *    beschloss der …" — das `m 7.` traf, und weil `[7]` an anderer Stelle eine
  *    echte Fußnote ist, galt die Tagesangabe als unmarkiertes Zitat
- *    (`followup-vague-mehr` t1). Daher der Monats-Ausschluss.
+ *    (`followup-vague-mehr` t1). Ausgenommen wird deshalb nur der Punkt, dem
+ *    ein Monatsname folgt — nicht der Punkt an sich.
  *  - **Eine Ordnungszahl vor Komma.** „Auf Platz 5, dann folgt …" — dieselbe
  *    Klasse wie die Listen-Ordnungszahlen, die der Absatz oben schon ausnehmen
- *    wollte. Daher nur noch der Punkt als Satzzeichen: die Form, die ein bares
- *    Zitat tatsächlich hat („… in Quelle 7."), und die einzige, für die es
- *    diese Prüfung gibt. */
+ *    wollte. Ausgenommen wird deshalb nur das Komma.
+ *
+ *  Punkt, Semikolon und Doppelpunkt bleiben erkannt („… in Quelle 7.",
+ *  „… laut Quelle 7; ferner", „… siehe Quelle 7: dort"). Ein früherer Entwurf
+ *  hatte auf den Punkt allein verengt und dabei die Semikolon- und
+ *  Doppelpunkt-Form stillschweigend mit aufgegeben; das war ein Verlust ohne
+ *  Gegenwert, denn weder Datum noch Ordnungszahl treten in diesen Formen auf. */
 function bareCitationNumbers(text: string, citeNums: Set<number>): number[] {
   const bare: number[] = [];
   const pattern = new RegExp(
-    String.raw`[a-zäöüß]\s(\d{1,2})\.(?!\s*(?:${MONTHS})\b)(?=\s|$)`,
+    String.raw`[a-zäöüß]\s(\d{1,2})(?:\.(?!\s*(?:${MONTHS})\b)|[;:])(?=\s|$)`,
     'gu'
   );
   for (const m of text.matchAll(pattern)) {

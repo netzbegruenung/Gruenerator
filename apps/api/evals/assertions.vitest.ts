@@ -126,6 +126,17 @@ describe('runAssertions — each failure class we hit live', () => {
     expect(names(rs)['cited']).toBe(false);
   });
 
+  it.each([
+    ['Punkt', 'Das steht so in Quelle 7. Weiter geht es mit [7].'],
+    ['Semikolon', 'Das steht so in Quelle 7; ferner gilt [7].'],
+    ['Doppelpunkt', 'Das steht so in Quelle 7: dort nachzulesen [7].'],
+  ])('cited catches a bare citation terminated by %s', (_label, fullText) => {
+    // Die Datums- und Ordnungszahl-Ausnahmen dürfen nur ihre eigene Form
+    // ausnehmen — nicht die Satzzeichen, an denen ein bares Zitat wirklich endet.
+    const rs = runAssertions(trace({ fullText, sources: 8 }), { cited: true });
+    expect(names(rs)['cited']).toBe(false);
+  });
+
   it('cited fails when a citation number exceeds the source count', () => {
     const rs = runAssertions(trace({ fullText: 'Aussage [27].', sources: 5 }), { cited: true });
     expect(names(rs)['cited']).toBe(false);
