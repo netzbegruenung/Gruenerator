@@ -101,6 +101,41 @@ describe('sentenceRepack', () => {
     expect(emitted).toBeLessThan(sentences.join(' ').length + chunks.length * OVERLAP * 1.5);
   });
 
+  it('trägt beim Teilen eines übergroßen Chunks die Seitenzahl je Teilstück nach', () => {
+    // Der Chunk aus dem Fall darüber (langer Satz bei nicht leerem Puffer) wird
+    // erst von der Nachbedingung `enforceCeiling` geteilt. Übernähme sie die
+    // Seitenzahl des Ausgangschunks unverändert, lägen alle Teilstücke auf der
+    // Seite, auf der der Chunk BEGINNT — auch die hinter einer `## Seite`-Grenze.
+    // Der lange Satz überspannt die Seitengrenze: „vorne" liegt auf Seite 1,
+    // „hinten" auf Seite 2.
+    const long = `C${'vorne '.repeat(300)}## Seite 2 ${'hinten '.repeat(300)}.`;
+    const text = [
+      '## Seite 1',
+      sentence(300, 'A'),
+      sentence(300, 'B'),
+      long,
+      sentence(300, 'D'),
+    ].join(' ');
+
+    const chunks = sentenceRepack([asChunk(text)]);
+
+    for (const chunk of chunks) {
+      expect(chunk.text.length).toBeLessThanOrEqual(TARGET);
+    }
+
+    // Das Teilstück mit der Grenze selbst beginnt noch auf Seite 1 …
+    const spanning = chunks.find((c) => c.text.includes('## Seite 2'));
+    expect(spanning?.metadata?.page_number).toBe(1);
+
+    // … die dahinter liegenden Teilstücke auf Seite 2. Vor dem Fix trugen auch
+    // sie die Seitenzahl des Chunk-Anfangs.
+    const behind = chunks.filter((c) => c.text.includes('hinten') && c !== spanning);
+    expect(behind.length).toBeGreaterThan(0);
+    for (const chunk of behind) {
+      expect(chunk.metadata?.page_number).toBe(2);
+    }
+  });
+
   it('lässt normalen Fließtext zusammenhängend', () => {
     const text = Array.from({ length: 6 }, (_, i) => `Das ist Satz Nummer ${i}.`).join(' ');
     const chunks = sentenceRepack([asChunk(text)]);

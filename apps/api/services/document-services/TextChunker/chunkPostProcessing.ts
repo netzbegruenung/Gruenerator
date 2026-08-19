@@ -124,8 +124,15 @@ export function sentenceRepack(
         capped.push(entry);
         continue;
       }
+      // Die Seitenzahl je Teilstück neu auflösen statt die des Ausgangschunks
+      // durchzureichen: ein übergroßer Chunk kann eine `## Seite N`-Grenze
+      // überspannen, und dann gehört jedes Teilstück auf die Seite, auf der es
+      // beginnt. Die beiden Übergroß-Zweige unten machen es genauso.
       for (const sub of splitOversizedText(entry.text, entry.start)) {
-        capped.push({ ...sub, page_number: entry.page_number });
+        capped.push({
+          ...sub,
+          page_number: resolvePageNumberForOffset(markers, pageNum, sub.start),
+        });
       }
     }
     return capped;
