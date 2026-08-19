@@ -51,6 +51,7 @@ const base: TurnPlanInput = {
   isSharepicRefinement: false,
   pipelineForceIntent: null,
   mentionPinnedTool: null,
+  mentionPinnedArtifactKind: null,
 };
 
 const plan = (o: Partial<TurnPlanInput>) => decideTurnPlan({ ...base, ...o });
@@ -354,11 +355,11 @@ describe('decideTurnPlan — ein per Erwähnung gepinntes Werkzeug', () => {
     expect(p.runAgentic).toBe(false);
   });
 
-  // `@bundestag` pinnt ebenfalls ein Werkzeug, trägt aber einen Intent MIT
-  // eigenem Executor. Für ihn darf sich nichts ändern: `forcedLane: 'loop'`
-  // hebt nur den forcedTool-Notausschalter auf, nicht das Gate — mit
-  // ausgeschalteter Schleife bleibt er beim Einzeldurchlauf.
-  it('lässt `@bundestag` unverändert beim Einzeldurchlauf, wenn die Schleife aus ist', () => {
+  // `@bundestag` pinnt ebenfalls ein Werkzeug, trägt aber einen Intent auf der
+  // Loop-Achse. `forcedLane: 'loop'` hebt nur den forcedTool-Notausschalter
+  // auf, nicht das Gate — mit ausgeschalteter Schleife bleibt er draussen. Wo
+  // er DANN landet, ist seit Phase N eine andere Antwort: siehe unten.
+  it('lässt `@bundestag` beim ausgeschalteten Loop draussen', () => {
     const p = plan({
       intent: 'bundestag',
       forcedTool: true,
@@ -366,6 +367,62 @@ describe('decideTurnPlan — ein per Erwähnung gepinntes Werkzeug', () => {
       loopEnabled: false,
     });
     expect(p.runAgentic).toBe(false);
+  });
+});
+
+describe('decideTurnPlan — der Degradierungsfall der Loop-Achse', () => {
+  // Die Parlaments-Abrufe haben seit Phase N keine Einzeldurchlauf-Tür mehr:
+  // ihr Kern hängt nur noch am Loop-Werkzeug. Jeder Notausschalter, der so
+  // einen Turn draussen hält, MUSS ihn deshalb umleiten — sonst nennt der Plan
+  // einen Intent, für den `executeIntentPipeline` keinen Zweig hat, und der
+  // Turn strandet still (`default: log.warn`).
+  //
+  // Das Ziel kommt aus der Registry (`degradeTo: 'web'`), nicht aus dieser
+  // Datei. Ein Test je Notausschalter, weil sie an verschiedenen Stellen des
+  // Gates sitzen und einzeln wegbrechen können.
+  const killSwitches: [string, Partial<TurnPlanInput>][] = [
+    ['ausgeschaltete Schleife', { loopEnabled: false }],
+    ['gewählte Wissenssammlung', { hasSelectedNotebook: true }],
+    ['Verbund-Turn', { isCompound: true }],
+    ['Bildanhang', { hasImageAttachments: true }],
+    ['zweiter Intent', { secondaryIntent: 'save_as_doc' }],
+  ];
+
+  for (const intent of ['bundestag', 'abgeordnetenwatch'] as const) {
+    for (const [name, override] of killSwitches) {
+      it(`${intent} + ${name} → web statt ins Leere`, () => {
+        const p = plan({ intent, ...override });
+        expect(p.runAgentic).toBe(false);
+        expect(p.intent).toBe('web');
+        // Der Zielintent sucht — ohne Nachtrag suchte er nach ''.
+        expect(p.backfillSearchQuery).toBe(true);
+      });
+    }
+  }
+
+  it('die Erwähnung ändert daran nichts — auch ein gepinnter Turn degradiert', () => {
+    const p = plan({
+      intent: 'bundestag',
+      forcedTool: true,
+      mentionPinnedTool: 'bundestag',
+      loopEnabled: false,
+    });
+    expect(p.intent).toBe('web');
+  });
+
+  it('mit offener Schleife bleibt der Intent, was er ist', () => {
+    const p = plan({ intent: 'bundestag' });
+    expect(p.runAgentic).toBe(true);
     expect(p.intent).toBe('bundestag');
+    expect(p.backfillSearchQuery).toBe(false);
+  });
+
+  // Die Gegenprobe zur Registry-Bedingung: `mcp` steht auf derselben Achse,
+  // hat aber kein `degradeTo`. Eine Websuche wäre dort keine Degradierung,
+  // sondern eine andere Quelle als die gewählte — also bleibt er unberührt.
+  it('mcp degradiert NICHT, weil die Registry kein Ziel nennt', () => {
+    const p = plan({ intent: 'mcp', hasImageAttachments: true });
+    expect(p.runAgentic).toBe(false);
+    expect(p.intent).toBe('mcp');
   });
 });

@@ -69,6 +69,17 @@ export interface LoopScenario {
    */
   decisionCounts?: Array<{ point: DecisionPointId; chose: string; count: number }>;
   notReached?: DecisionPointId[];
+  /**
+   * Env-Übersteuerungen für DIESES Szenario, auf die gepinnte Grundmenge
+   * gelegt (`pinChatEnv`).
+   *
+   * Existiert für genau eine Frage, die sonst unbeobachtbar bliebe: was ein
+   * Turn tut, dessen Werkzeug nur in der Schleife lebt, wenn die Schleife AUS
+   * ist. Der Zustand ist keine Hypothese — `CHAT_AGENT_LOOP=false` ist ein
+   * ausgelieferter Schalter, und der Einzeldurchlauf-Pfad ist die README-
+   * Pflichtprobe bei jeder searchNode-Berührung.
+   */
+  env?: Record<string, string>;
 }
 
 /** Trips ENGLISH_REFUSAL_RE in `refusalDetection.ts` (`i'm sorry` + `i can't help`). */
@@ -260,6 +271,24 @@ export const LOOP_SCENARIOS: readonly LoopScenario[] = [
     ],
     mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
     firstToolChoice: 'bundestag',
+  },
+  // Der Degradierungsfall, den Phase N erst nötig gemacht hat: die dünne
+  // Einzeldurchlauf-Tür der Parlaments-Abrufe ist gefallen, der Kern hängt nur
+  // noch am Loop-Werkzeug. Mit ausgeschalteter Schleife MUSS der Turn also
+  // umgeleitet werden — vorher lief er in den `case`-Zweig, jetzt liefe er ohne
+  // Umleitung in `default: log.warn` und der Turn täte still nichts.
+  {
+    id: 'mention-bundestag-degradiert',
+    category: 'mention-lane',
+    note: 'Keine Modellannahme: `@bundestag` zurrt den Intent deterministisch fest, und mit `CHAT_AGENT_LOOP=false` haelt das Gate ihn draussen. Was hier zaehlt, ist die Umleitung auf `web` aus der Registry (`degradeTo`) — nicht welches Suchbackend danach antwortet, das ist gestubbt wie ueberall.',
+    prompt: 'Was liegt zum Heizungsgesetz vor?',
+    body: { forcedTools: ['bundestag'] },
+    env: { CHAT_AGENT_LOOP: 'false' },
+    streams: [],
+    mustDecide: [
+      { point: 'router.run_agentic', chose: 'single_pass' },
+      { point: 'router.intent_override', chose: 'loop_only_degraded' },
+    ],
   },
   {
     id: 'mention-dokumente-einzeln',
