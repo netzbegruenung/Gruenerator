@@ -66,6 +66,12 @@ export const contentSyncResultSchema = z.object({
   updated: z.number(),
   skipped: z.number(),
   errors: z.number(),
+  /**
+   * Stichprobe der Meldungen hinter `errors`, serverseitig gedeckelt. Optional,
+   * weil ein Backend-Stand vor diesem Feld schlicht nichts sendet — die Zahl
+   * bleibt die verbindliche Angabe, das hier ist die Diagnosehilfe.
+   */
+  errorSamples: z.array(z.string()).optional(),
   fetchErrors: z.number(),
   durationMs: z.number(),
 });
