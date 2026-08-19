@@ -87,10 +87,19 @@ function deriveCookieDomain(baseUrl: string | null): string {
   }
 }
 
-const cookieDomain =
+const rawCookieDomain =
   env.NODE_ENV === 'production'
     ? (env.COOKIE_DOMAIN ?? deriveCookieDomain(env.BETTER_AUTH_URL ?? null))
     : null;
+
+// For the cookie's Domain attribute a leading dot is meaningless (RFC 6265
+// ignores it), so an explicit COOKIE_DOMAIN was free to omit it. The prefix
+// derivation below is string-exact — `beta.gruenerator.eu` must not yield
+// `ba-eta` — so normalize to the dotted form once.
+const cookieDomain =
+  rawCookieDomain == null || rawCookieDomain.startsWith('.')
+    ? rawCookieDomain
+    : `.${rawCookieDomain}`;
 
 /**
  * Narrowing the cookie DOMAIN per instance is not enough — the cookie NAME must
