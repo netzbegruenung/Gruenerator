@@ -348,6 +348,14 @@ export function runAssertions(
     }
   }
 
+  for (const code of expect.warningsMustInclude ?? []) {
+    results.push(
+      trace.warnings.includes(code)
+        ? ok(`warning:${code}`)
+        : fail(`warning:${code}`, `not emitted; got [${trace.warnings.join(', ') || 'none'}]`)
+    );
+  }
+
   if (expect.grounded) {
     const searchedOk = trace.toolCalls.some((t) => SEARCH_TOOL_RE.test(t.toolName) && t.ok);
     results.push(
