@@ -52,7 +52,10 @@ export function RemoteSelectionOverlay({
       <Group ref={groupRef}>{children}</Group>
       {box && box.width > 0 && box.height > 0 && (
         <>
+          {/* `selection-chrome` keeps a collaborator's outline and name chip
+              out of every export (see utils/captureStage). */}
           <Rect
+            name="selection-chrome"
             x={box.x}
             y={box.y}
             width={box.width}
@@ -63,7 +66,7 @@ export function RemoteSelectionOverlay({
             dash={[6, 4]}
             listening={false}
           />
-          <Label x={box.x} y={box.y - 34} listening={false}>
+          <Label name="selection-chrome" x={box.x} y={box.y - 34} listening={false}>
             <Tag fill={selector.color} cornerRadius={4} />
             <Text text={selector.userName} fontSize={22} fill="#ffffff" padding={6} />
           </Label>
