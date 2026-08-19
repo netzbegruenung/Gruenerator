@@ -257,6 +257,26 @@ export const evalTurnSchema = z
   .object({
     prompt: z.string(),
     expect: evalExpectSchema,
+    /**
+     * Was statt `expect` gilt, wenn der Lauf mit `CHAT_AGENT_LOOP=false` gegen
+     * ein Backend fährt (Operator setzt `EVAL_LOOP_OFF=1` — ein Szenario kann
+     * die Flagge nicht selbst tragen, sie wird backend-seitig zur Request-Zeit
+     * gelesen).
+     *
+     * Gebraucht wegen §5(b) des R2-Abnahme-Berichts: die drei
+     * `search-web`-Erwartungen sind LOOP-GEFORMT. Mit ausgeschalteter Schleife
+     * rissen sie AUSSCHLIESSLICH an `tool:web_search: missing; called: []` —
+     * Erdung und Zitate bestanden. Der Einzeldurchlauf sucht und belegt also
+     * sehr wohl, er tut es nur IM GRAPHEN statt als Werkzeugaufruf, und
+     * `toolsMustInclude` sieht nur Werkzeugaufrufe.
+     *
+     * Die Erwartung beschreibt damit korrekt den Loop-Zustand und taugt
+     * trotzdem nicht als Wächter für den Kill-Switch-Pfad. Statt sie zu
+     * schwächen (was den Loop-Wächter mit aufgäbe) trägt der Turn hier die
+     * WIRKUNGS-Zusicherung für den anderen Zustand: `grounded`/`cited` statt
+     * Werkzeugname.
+     */
+    expectWhenLoopOff: evalExpectSchema.optional(),
     /** Answer to send via /resume if this turn raises a clarification interrupt. */
     onInterrupt: z.object({ resume: z.string() }).strict().optional(),
     /** Prepend N synthetic filler user/assistant pairs to the wire history
@@ -342,6 +362,9 @@ export const evalCaseSchema = z
     /** Model lane to force (e.g. 'mistral' unified vs a split lane). Omit = auto. */
     modelId: z.string().optional(),
     expect: evalExpectSchema,
+    /** Siehe evalTurnSchema.expectWhenLoopOff — die drei search-web-Szenarien
+     *  liegen in der Altform. */
+    expectWhenLoopOff: evalExpectSchema.optional(),
     knownFailure: z.boolean().optional(),
     /** Siehe evalScenarioSchema.systemMcpLane. Als einziges Lane-Flag auch auf
      *  der Altform, weil die vier system-mcp-Szenarien dort liegen. */
