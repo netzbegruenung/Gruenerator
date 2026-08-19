@@ -1,8 +1,6 @@
-import { fromNodeHeaders } from 'better-auth/node';
-
-import { auth } from '../../config/betterAuth.js';
 import { MCP_SCOPES } from '../../config/mcpServer.js';
 import { extractBearer, verifyApiKey } from '../../middleware/apiKeyMiddleware.js';
+import { verifyOAuthResourceRequest } from '../../services/auth/verifyOAuthResourceRequest.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type { Request } from 'express';
@@ -84,18 +82,9 @@ export async function resolveMcpAuth(req: Request): Promise<McpAuthContext | nul
     }
   }
 
-  try {
-    const session = await auth.api.getMcpSession({ headers: fromNodeHeaders(req.headers) });
-    if (session?.userId) {
-      const scopes = new Set(
-        String(session.scopes ?? '')
-          .split(' ')
-          .filter(Boolean)
-      );
-      return { userId: session.userId, scopes, via: 'oauth' };
-    }
-  } catch (err) {
-    log.warn('getMcpSession failed: %s', err);
+  const claims = await verifyOAuthResourceRequest(req);
+  if (claims) {
+    return { userId: claims.userId, scopes: claims.scopes, via: 'oauth' };
   }
 
   return null;
