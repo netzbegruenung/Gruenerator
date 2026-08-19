@@ -58,8 +58,8 @@ export async function vectorSearch(
     }
 
     const hasFilter = Object.keys(sanitizedFilter).length > 0;
-    const searchOptions: Parameters<QdrantClient['search']>[1] = {
-      vector: queryVector,
+    const queryOptions: Parameters<QdrantClient['query']>[1] = {
+      query: queryVector,
       limit: limit,
       with_payload: withPayload,
       with_vector: withVector,
@@ -73,12 +73,12 @@ export async function vectorSearch(
     );
     logger.info(`DEBUG - filter: ${JSON.stringify(sanitizedFilter)}`);
 
-    const results = await client.search(collection, searchOptions);
+    const { points: results } = await client.query(collection, queryOptions);
 
     // If no results, try without threshold to see if it's a threshold issue
     if (results.length === 0) {
-      const noThresholdResults = await client.search(collection, {
-        ...searchOptions,
+      const { points: noThresholdResults } = await client.query(collection, {
+        ...queryOptions,
         score_threshold: 0.0,
         limit: 3,
       });
