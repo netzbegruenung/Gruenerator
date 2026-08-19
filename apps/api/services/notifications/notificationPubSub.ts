@@ -97,16 +97,31 @@ export async function subscribeToUserNotifications(
   try {
     const client = await getSubscriberClient();
     await client.subscribe(channelFor(userId), (message) => {
+      let notification: Notification;
       try {
-        const notification = parseJSON<Notification>(message);
-        // Über eine Kopie laufen: ein Rückruf darf sich beim Zustellen abmelden
-        // (Verbindung bricht mitten in der Schleife), ohne die Iteration zu
-        // beschädigen.
-        for (const cb of [...(subscriptions.get(userId) ?? [])]) {
-          cb(notification);
-        }
+        notification = parseJSON<Notification>(message);
       } catch (err) {
         log.warn('Failed to parse notification message', { userId, error: String(err) });
+        return;
+      }
+
+      // Über eine Kopie laufen: ein Rückruf darf sich beim Zustellen abmelden
+      // (Verbindung bricht mitten in der Schleife), ohne die Iteration zu
+      // beschädigen.
+      for (const cb of [...(subscriptions.get(userId) ?? [])]) {
+        // Jeder Strom für sich. Lag der Fehler in EINEM Rückruf (etwa ein
+        // `res.write` auf eine schon beendete Antwort), riss er vorher — ein
+        // gemeinsamer try/catch um die ganze Schleife — alle danach iterierten
+        // Tabs derselben Person mit, obwohl deren Verbindungen in Ordnung sind.
+        // Genau die soll dieser Pfad erreichen.
+        try {
+          cb(notification);
+        } catch (err) {
+          log.warn('Notification delivery to one stream failed', {
+            userId,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
       }
     });
   } catch (err) {
