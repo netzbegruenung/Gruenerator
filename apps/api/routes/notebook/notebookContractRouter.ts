@@ -103,8 +103,13 @@ export const notebookContractRouter = s.router(notebookContract, {
         };
       }
 
-      const filterableFields = getCollectionFilterableFields(collectionId);
-      if (!filterableFields || filterableFields.length === 0) {
+      // `researchOnly` facets (persons) belong to the manual research surface,
+      // which reads them from `research.filters`. This endpoint only feeds the
+      // notebook chat.
+      const filterableFields = getCollectionFilterableFields(collectionId).filter(
+        (field) => !field.researchOnly
+      );
+      if (filterableFields.length === 0) {
         return {
           status: 200 as const,
           body: { collectionId, collectionName: systemConfig.name, filters: {} },
