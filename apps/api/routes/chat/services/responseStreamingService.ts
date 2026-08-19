@@ -21,6 +21,7 @@ import {
 import { classifyProviderError } from '../../../services/providers/providerErrors.js';
 import { createLogger } from '../../../utils/logger.js';
 import {
+  mayWriteAnswer,
   resolveAutoSelection,
   VERDIGADO_INPUT_LIMIT,
   type Complexity,
@@ -405,6 +406,13 @@ export async function resolveModel(
     // Genau so war es — siehe thinksOnThisLane.
     model: getModel(modelProvider, modelName, {
       needsReasoning: thinksOnThisLane(modelProvider, modelName, reasoningEffort),
+      // Diese Lane schreibt die Antwort. Wird sie als zäh vermerkt, sucht
+      // `modelSiblings` ein Ersatzpaar — und fand dabei bis 19.08.2026
+      // `litellm/verdigado-pro` (= gpt-oss am Proxy), dessen Planer-Text im
+      // Abnahmelauf als Nutzer-Antwort auftauchte („We will call
+      // gruenerator_search …"). Das Veto gilt nur für den AUSWEICH; die
+      // primäre Wahl trifft weiterhin die Policy.
+      acceptTarget: mayWriteAnswer,
     }),
     provider: modelProvider,
     modelName,
@@ -1102,7 +1110,7 @@ export async function streamWithFallback(params: {
     });
 
     const fallbackResolution: ModelResolution = {
-      model: getModel(sibling.provider, sibling.model),
+      model: getModel(sibling.provider, sibling.model, { acceptTarget: mayWriteAnswer }),
       provider: sibling.provider,
       modelName: sibling.model,
       // The turn's task hasn't changed, only the host — keep the policy's
