@@ -91,10 +91,27 @@ describe('Klassifikator-Dispositionszählung über den Eval-Korpus', () => {
           `vor dem Commit lesen.\n\n${rendered}`
       );
     }
+    const baseline = readFileSync(BASELINE_PATH, 'utf8');
+
+    // Erst die Korpusgröße, dann die Tabelle. Wächst der Korpus in einem PR und
+    // hebt ein zweiter die Baseline, dann fällt JEDER Branch, der vor dem
+    // zweiten abgezweigt ist — mit einem vierzigzeiligen Zahlendiff, der wie
+    // eine Routing-Regression aussieht und keine ist (so geschehen bei #2737).
+    // Die Ursache steht in einer einzigen Zahl; sie zuerst zu prüfen macht aus
+    // dem Rätsel eine Anweisung.
+    const baselineTotal = Number(/über (\d+) Turns/.exec(baseline)?.[1] ?? NaN);
+    expect(
+      run.turns.length,
+      `Die Baseline wurde über ${baselineTotal} Turns erzeugt, der Korpus hat ` +
+        `jetzt ${run.turns.length}. Das ist fast immer ein veralteter Branch: ` +
+        'erst `git merge origin/master`, dann erneut messen. Bleibt der ' +
+        'Unterschied, hat dieser PR den Korpus geändert — dann CENSUS_UPDATE=1.'
+    ).toBe(baselineTotal);
+
     expect(
       rendered,
       'Die Klassifikator-Zählung hat sich verschoben. Ist das beabsichtigt? ' +
         'Dann CENSUS_UPDATE=1 — und die Änderung im PR beschreiben.'
-    ).toBe(readFileSync(BASELINE_PATH, 'utf8'));
+    ).toBe(baseline);
   }, 120_000);
 });
