@@ -109,7 +109,7 @@ export interface QueryIntent {
 
 export interface DocumentScope {
   collections: string[];
-  documentTitleFilter: string | null;
+  documentCategoryFilter: string | null;
   detectedPhrase: string | null;
   subcategoryFilters: Record<string, string>;
 }

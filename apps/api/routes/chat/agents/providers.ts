@@ -26,6 +26,7 @@ import { createLogger } from '../../../utils/logger.js';
 
 import {
   AVOID_AS_SYNTH,
+  mayWriteAnswer,
   LOOP_PLANNER_PRIMARY,
   LOOP_PLANNER_SELFHOSTED,
   LOOP_PLANNER_FALLBACK,
@@ -516,7 +517,16 @@ export function getModel(
 ): LanguageModel {
   // Ein zäh vermerktes Paar wird übersprungen statt abgewartet — siehe
   // services/ai/modelSiblings.ts. Ohne Vermerk ändert sich hier nichts.
-  const healthy = pickHealthyTarget(provider, modelId);
+  //
+  // `acceptTarget` MUSS hier durchgereicht werden. Dies ist die ZWEITE
+  // `getModel`-Tür neben der in `services/ai/providers.ts`, und es ist die, die
+  // der ganze Chat-Pfad benutzt (`responseStreamingService`, der Synth-Slot,
+  // `getLoopSynthFallbackModel`). Nur an der anderen Tür gesetzt, wurde das
+  // Veto still verworfen und die Ausweichkette landete weiter auf
+  // `litellm/verdigado-pro` (= gpt-oss am Proxy) — der Fix hätte nichts
+  // bewirkt, und ein Test, der bloss das übergebene Options-Objekt prüft,
+  // hätte es nicht gemerkt.
+  const healthy = pickHealthyTarget(provider, modelId, options.acceptTarget);
   const lane = healthy ?? { provider, model: modelId };
 
   // Attribute usage to the upstream that actually served it — the Mistral lane
@@ -680,6 +690,17 @@ function loopSynthWriterChoice(): { provider: Provider; model: string } {
   return isProviderConfigured('regolo') ? LOOP_SYNTH_PRIMARY : LOOP_SYNTH_FALLBACK;
 }
 
+/**
+ * Das Veto, das die antwortschreibenden Slots der Ausweichkette mitgeben.
+ *
+ * AVOID_AS_SYNTH entschied bis 19.08.2026 nur, WELCHES Modell ein Slot wählt.
+ * Wurde dieses Modell danach als zäh vermerkt, suchte `modelSiblings` einen
+ * Ersatz — ohne die Regel noch einmal zu lesen — und landete auf
+ * `litellm/verdigado-pro`, hinter dem am Proxy `gpt-oss:120b-ctx128k` liegt.
+ * Genau das Modell also, das die Regel für diesen Zweck ausschliesst.
+ */
+const synthTargetAllowed = mayWriteAnswer;
+
 /** Human-readable planner model name (for the [Agentic] log line). */
 export function loopPlannerModelName(): string {
   return loopPlannerChoice().model;
@@ -705,7 +726,15 @@ export function getLoopSynthFallbackModel(
 ): { model: LanguageModel; name: string } | null {
   const p = loopPlannerChoice();
   if (p.model === synthName) return null;
-  return { model: getModel(p.provider, p.model), name: p.model };
+  // Diese Lane SCHREIBT hier die Nutzer-Antwort, sie plant nicht. Ein
+  // Planer-Ausweich, den der Synth-Slot ablehnt, ist deshalb auch hier keiner:
+  // `loopPlannerChoice` endet ohne GreenPT/Regolo auf litellm/verdigado-pro
+  // (= gpt-oss), dessen Planer-Text sonst als Antwort beim Menschen landet.
+  if (!synthTargetAllowed(p)) return null;
+  return {
+    model: getModel(p.provider, p.model, { acceptTarget: synthTargetAllowed }),
+    name: p.model,
+  };
 }
 
 /**
@@ -743,7 +772,7 @@ export function getLoopSynthModel(
     return { model: resolution.model, name: resolution.modelName, provider: resolution.provider };
   }
   return {
-    model: getModel(choice.provider, choice.model),
+    model: getModel(choice.provider, choice.model, { acceptTarget: synthTargetAllowed }),
     name: choice.model,
     provider: choice.provider,
   };

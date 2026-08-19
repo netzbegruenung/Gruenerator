@@ -70,4 +70,51 @@ describe('modelSiblings', () => {
       model: 'verdigado-pro',
     });
   });
+
+  /**
+   * Der Ausweichfall, der am 19.08.2026 auf ein Verbots-Modell zeigte.
+   *
+   * `litellm/verdigado-pro` ist am Proxy `gpt-oss:120b-ctx128k` — das Modell,
+   * das `AVOID_AS_SYNTH` für antwortschreibende Slots ausschliesst. Die Kette
+   * hat diese Entscheidung nie gelesen: sie fiel eine Ebene höher. Die Tests
+   * simulieren den Ausfall (Vermerk statt echter Störung), wie der Auftrag es
+   * verlangt.
+   */
+  describe('Veto des Aufrufers gegen ein Ausweichziel', () => {
+    /** Dieselbe Frage, die `mayWriteAnswer` in autoPolicy.ts stellt. */
+    const mayWriteAnswer = (t: { model: string }): boolean =>
+      !/verdigado-think|verdigado-pro|qwen|gpt-oss/i.test(t.model);
+
+    it('überspringt das Verbots-Modell und nimmt das nächste erlaubte', () => {
+      markSlow('regolo', 'mistral-small-4-119b');
+      expect(resolveAlternative('regolo', 'mistral-small-4-119b', mayWriteAnswer)).toEqual({
+        provider: 'mistral',
+        model: 'mistral-medium-2604',
+      });
+    });
+
+    it('greift auch am belegten Geschwister vorbei', () => {
+      markSlow('litellm', 'verdigado-pro');
+      // Ohne Veto wäre `litellm` das erste Kettenglied für ein zähes Mistral.
+      markSlow('mistral', 'mistral-medium-2604');
+      configured.delete('regolo');
+      configured.delete('scaleway');
+      expect(pickHealthyTarget('mistral', 'mistral-medium-2604', mayWriteAnswer)).toBeNull();
+    });
+
+    it('bleibt beim Primär, wenn jedes Ausweichziel verboten ist', () => {
+      configured.clear();
+      configured.add('litellm');
+      configured.add('regolo');
+      markSlow('regolo', 'gemma4-31b');
+      markSlow('scaleway', 'gemma-4-26b-a4b-it');
+      // Übrig bliebe nur litellm/verdigado-pro — das Veto lehnt es ab.
+      expect(pickHealthyTarget('regolo', 'gemma4-31b', mayWriteAnswer)).toBeNull();
+      // Gegenprobe: OHNE Veto ist es genau das, was die Kette zurückgibt.
+      expect(pickHealthyTarget('regolo', 'gemma4-31b')).toEqual({
+        provider: 'litellm',
+        model: 'verdigado-pro',
+      });
+    });
+  });
 });

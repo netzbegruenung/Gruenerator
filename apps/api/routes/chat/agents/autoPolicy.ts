@@ -504,9 +504,16 @@ export const LOOP_PLANNER_SELFHOSTED = {
 export const LOOP_PLANNER_FALLBACK = { provider: 'litellm' as const, model: 'verdigado-pro' };
 
 /** SYNTH: best German writer, and never a reasoning lane (latency). gemma-4
- *  lives only on regolo; fall back to the always-up litellm lane. */
+ *  lives only on regolo.
+ *
+ *  Der Ausweich ging bis 19.08.2026 auf `litellm/verdigado-pro` — „die
+ *  always-up Lane". Am Proxy nachgemessen liegt hinter diesem Alias
+ *  `gpt-oss:120b-ctx128k`, also genau das Modell, das AVOID_AS_SYNTH unten
+ *  ausschliesst. Der Ausweich zeigte damit auf ein Verbots-Modell. Mistral
+ *  Medium ist die verbleibende immer-erreichbare Lane, die die Policy für
+ *  diesen Zweck zulässt. */
 export const LOOP_SYNTH_PRIMARY = { provider: 'regolo' as const, model: 'gemma4-31b' };
-export const LOOP_SYNTH_FALLBACK = { provider: 'litellm' as const, model: 'verdigado-pro' };
+export const LOOP_SYNTH_FALLBACK = { provider: 'mistral' as const, model: 'mistral-medium-2604' };
 
 /** Models that must NEVER write the loop answer: reasoning/"think" lanes (slow),
  *  gpt-oss (verified tool-call fail / reasoning leak) und die chinesisch
@@ -516,5 +523,27 @@ export const LOOP_SYNTH_FALLBACK = { provider: 'litellm' as const, model: 'verdi
  *  könnte. Any of these in the synth slot is rewritten to the
  *  best-writer lane. Stays active even when the policy chose the model, so a
  *  policy pointing at gemma-litellm (→ verdigado-think) still lands on the
- *  fast gemma4-31b host. */
-export const AVOID_AS_SYNTH = /verdigado-think|qwen|gpt-oss/i;
+ *  fast gemma4-31b host.
+ *
+ *  `verdigado-pro` steht seit 19.08.2026 mit drin, und das ist der Punkt, an
+ *  dem eine Namensprüfung fast versagt hätte: der Name verrät das Modell
+ *  nicht. Am LiteLLM-Proxy nachgemessen antwortet der Alias mit
+ *  `model: "gpt-oss:120b-ctx128k"`, und die Probe zeigt zugleich den
+ *  Ausfallgrund — `content: ""` bei gefülltem `reasoning`, das Denken frisst
+ *  das Token-Budget und der Antwortkanal bleibt leer. Wer den Alias am Proxy
+ *  umhängt, gehört hierher zurück: diese Liste prüft Namen, nicht Modelle. */
+export const AVOID_AS_SYNTH = /verdigado-think|verdigado-pro|qwen|gpt-oss/i;
+
+/**
+ * Darf dieses Modell eine NUTZER-ANTWORT schreiben?
+ *
+ * Dieselbe Frage wie AVOID_AS_SYNTH, nur als Prädikat — damit die Stellen, die
+ * ein Ausweichziel wählen, sie stellen können, ohne die Regex zu kennen. Sie
+ * gilt für jede Lane, die am Ende Prosa an einen Menschen schickt: den
+ * Synth-Slot des Split-Loops, die vereinheitlichte Loop-Lane und die
+ * Einzeldurchlauf-Antwort. Der PLANER ist ausgenommen — der ruft Werkzeuge und
+ * schreibt nichts, was jemand liest.
+ */
+export function mayWriteAnswer(target: { model: string }): boolean {
+  return !AVOID_AS_SYNTH.test(target.model);
+}
