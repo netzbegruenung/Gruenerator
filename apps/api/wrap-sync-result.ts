@@ -53,6 +53,7 @@ interface ApiResponse {
   updated?: number;
   skipped?: number;
   errors?: number;
+  errorSamples?: string[];
   fetchErrors?: number;
   durationMs?: number;
   error?: string;
@@ -81,6 +82,7 @@ async function main() {
         skipped: response.skipped ?? 0,
         fetchErrors: response.fetchErrors ?? 0,
         errors: response.errors ?? 0,
+        ...(response.errorSamples?.length ? { errorSamples: response.errorSamples } : {}),
         duration: durationSec,
         status: 'success',
       }
