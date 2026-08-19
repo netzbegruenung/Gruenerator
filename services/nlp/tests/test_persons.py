@@ -49,12 +49,21 @@ class TestBlocklist:
         docs = [per_doc(make_doc, ["Quelle", "UNSPLASH"], [(1, 2)])]
         assert extract(classifier_over, docs) == []
 
-    def test_blocks_only_the_full_name_not_a_fragment(self, classifier_over, make_doc):
-        # Documented behaviour, and the reason the list matches full names: a
-        # bare surname line would block every politician who shares it. Whoever
-        # wants the fragment gone adds it as its own line.
-        docs = [per_doc(make_doc, ["Willock", "kandidiert"], [(0, 1)])]
-        assert [p["person"] for p in extract(classifier_over, docs)] == ["Willock"]
+    def test_a_multi_token_entry_does_not_block_a_shared_surname(
+        self, classifier_over, make_doc
+    ):
+        # The reason multi-token entries match the whole name: a bare surname
+        # line would block every politician who happens to share it.
+        docs = [per_doc(make_doc, ["Ines", "Willock", "kandidiert"], [(0, 2)])]
+        assert [p["person"] for p in extract(classifier_over, docs)] == ["Ines Willock"]
+
+    def test_a_single_token_entry_also_blocks_the_names_it_is_glued_into(
+        self, classifier_over, make_doc
+    ):
+        # The NER glues the next capitalized word onto an image credit; blocking
+        # only the bare "Unsplash" let "Unsplash Gemeinsame" through (36 docs).
+        docs = [per_doc(make_doc, ["Foto", "Unsplash", "Gemeinsame"], [(1, 3)])]
+        assert extract(classifier_over, docs) == []
 
 
 class TestDocumentFrequency:
@@ -118,11 +127,11 @@ class TestNoiseFilters:
 
     def test_strips_trailing_punctuation_from_names(self, classifier_over, make_doc):
         docs = [
-            per_doc(make_doc, ["Sagte", "Baerbock", "."], [(1, 3)]),
-            per_doc(make_doc, ["Auch", "Baerbock"], [(1, 2)]),
+            per_doc(make_doc, ["Sagte", "Annalena", "Baerbock", "."], [(1, 4)]),
+            per_doc(make_doc, ["Auch", "Annalena", "Baerbock"], [(1, 3)]),
         ]
         result = extract(classifier_over, docs)
-        assert result == [{"person": "Baerbock", "count": 2}]
+        assert result == [{"person": "Annalena Baerbock", "count": 2}]
 
     def test_ignores_non_person_entities(self, classifier_over, make_doc):
         docs = [make_doc(["Berlin", "waechst"], ents=["B-LOC", "O"])]
@@ -130,3 +139,195 @@ class TestNoiseFilters:
 
     def test_no_texts_yields_no_persons(self, classifier_over):
         assert classifier_over([]).extract_persons_batch([]) == []
+
+
+class TestCanonicalisation:
+    """Folding the same person's variants together.
+
+    Measured on the live Qdrant payloads before this pass existed: `Merz` (195
+    documents) sat next to `Friedrich Merz` (385), `Putins` (226) next to
+    `Putin` (256), and a third of all tagged volume was single-token noise.
+    """
+
+    def test_a_bare_surname_folds_into_the_only_matching_full_name(
+        self, classifier_over, make_doc
+    ):
+        docs = [
+            per_doc(make_doc, ["Friedrich", "Merz", "sprach"], [(0, 2)]),
+            per_doc(make_doc, ["Merz", "antwortete"], [(0, 1)]),
+        ]
+        assert extract(classifier_over, docs) == [{"person": "Friedrich Merz", "count": 2}]
+
+    def test_an_ambiguous_surname_is_dropped_rather_than_guessed(
+        self, classifier_over, make_doc
+    ):
+        docs = [
+            per_doc(make_doc, ["Jutta", "Wegner"], [(0, 2)]),
+            per_doc(make_doc, ["Kai", "Wegner"], [(0, 2)]),
+            per_doc(make_doc, ["Wegner", "sagte"], [(0, 1)]),
+        ]
+        assert sorted(p["person"] for p in extract(classifier_over, docs)) == [
+            "Jutta Wegner",
+            "Kai Wegner",
+        ]
+
+    def test_a_surname_without_any_full_name_is_dropped(self, classifier_over, make_doc):
+        # The exit for the biggest noise class: "Link", "Messlatte", "Kitas".
+        docs = [per_doc(make_doc, ["Link", "anklicken"], [(0, 1)])]
+        assert extract(classifier_over, docs) == []
+
+    def test_a_genitive_folds_into_the_base_form(self, classifier_over, make_doc):
+        docs = [
+            per_doc(make_doc, ["Wladimir", "Putin", "sprach"], [(0, 2)]),
+            per_doc(make_doc, ["Wladimir", "Putins", "Krieg"], [(0, 2)]),
+        ]
+        assert extract(classifier_over, docs) == [{"person": "Wladimir Putin", "count": 2}]
+
+    def test_a_genitive_folds_across_the_surname_fold_too(self, classifier_over, make_doc):
+        # "Söders" → "Söder" → "Markus Söder", both passes in one chain.
+        docs = [
+            per_doc(make_doc, ["Markus", "Söder"], [(0, 2)]),
+            per_doc(make_doc, ["Söders", "Politik"], [(0, 1)]),
+        ]
+        assert extract(classifier_over, docs) == [{"person": "Markus Söder", "count": 2}]
+
+    def test_a_name_ending_in_s_survives_without_a_base_form(
+        self, classifier_over, make_doc
+    ):
+        docs = [per_doc(make_doc, ["Cornelia", "Weiss"], [(0, 2)])]
+        assert extract(classifier_over, docs) == [{"person": "Cornelia Weiss", "count": 1}]
+
+    def test_the_same_person_is_counted_once_per_document(self, classifier_over, make_doc):
+        # Both variants in ONE document must not double the document frequency.
+        docs = [
+            per_doc(
+                make_doc,
+                ["Friedrich", "Merz", "sagte", ".", "Merz", "betonte"],
+                [(0, 2), (4, 5)],
+            )
+        ]
+        assert extract(classifier_over, docs) == [{"person": "Friedrich Merz", "count": 1}]
+
+    def test_hyphenation_across_a_line_break_is_one_person(self, classifier_over, make_doc):
+        docs = [
+            per_doc(make_doc, ["Dieter", "Grü-", "newald"], [(0, 3)]),
+            per_doc(make_doc, ["Dieter", "Grünewald"], [(0, 2)]),
+        ]
+        assert extract(classifier_over, docs) == [{"person": "Dieter Grünewald", "count": 2}]
+
+
+class TestEntityTrimming:
+    """Cutting titles and roles off a PER span.
+
+    These need POS tags, so the Docs here set them — that is exactly the
+    information the rule reads. Without POS the trimming is skipped (see
+    `test_a_doc_without_pos_tags_keeps_the_whole_span`), which is what keeps the
+    hand-built Docs elsewhere in this file meaningful.
+    """
+
+    def per_doc_pos(self, make_doc, words, pos, person_spans):
+        ents = ["O"] * len(words)
+        for start, end in person_spans:
+            ents[start] = "B-PER"
+            for i in range(start + 1, end):
+                ents[i] = "I-PER"
+        return make_doc(words, pos=pos, ents=ents)
+
+    def test_cuts_a_role_tail_off_a_letterhead_span(self, classifier_over, make_doc):
+        # Verbatim from a Berlin PDF letterhead; the uncut span stood in the
+        # live facet as its own "person" with 673 documents.
+        doc = self.per_doc_pos(
+            make_doc,
+            ["Werner", "Graf", "Landesvorsitzende", "Kommandantenstr"],
+            ["PROPN", "PROPN", "ADJ", "PROPN"],
+            [(0, 4)],
+        )
+        assert extract(classifier_over, [doc]) == [{"person": "Werner Graf", "count": 1}]
+
+    def test_drops_a_leading_function_word(self, classifier_over, make_doc):
+        doc = self.per_doc_pos(
+            make_doc,
+            ["Verkehrsminister", "Kaweh", "Mansoori"],
+            ["NOUN", "PROPN", "PROPN"],
+            [(0, 3)],
+        )
+        assert extract(classifier_over, [doc]) == [{"person": "Kaweh Mansoori", "count": 1}]
+
+    def test_drops_a_span_that_has_no_proper_noun_at_all(self, classifier_over, make_doc):
+        doc = self.per_doc_pos(make_doc, ["Foto"], ["NOUN"], [(0, 1)])
+        assert extract(classifier_over, [doc]) == []
+
+    def test_keeps_a_surname_particle(self, classifier_over, make_doc):
+        doc = self.per_doc_pos(
+            make_doc,
+            ["Thomas", "von", "Sarnowski"],
+            ["PROPN", "ADP", "PROPN"],
+            [(0, 3)],
+        )
+        assert extract(classifier_over, [doc]) == [
+            {"person": "Thomas von Sarnowski", "count": 1}
+        ]
+
+    def test_keeps_a_double_first_name(self, classifier_over, make_doc):
+        doc = self.per_doc_pos(
+            make_doc,
+            ["Jan", "Philipp", "Albrecht"],
+            ["PROPN", "PROPN", "PROPN"],
+            [(0, 3)],
+        )
+        assert extract(classifier_over, [doc]) == [
+            {"person": "Jan Philipp Albrecht", "count": 1}
+        ]
+
+    def test_strips_a_parliamentary_abbreviation(self, classifier_over, make_doc):
+        # "MdL" is tagged PROPN, so the POS rule alone would keep it.
+        doc = self.per_doc_pos(
+            make_doc,
+            ["Constanze", "Oehlrich", "MdL"],
+            ["PROPN", "PROPN", "PROPN"],
+            [(0, 3)],
+        )
+        assert extract(classifier_over, [doc]) == [
+            {"person": "Constanze Oehlrich", "count": 1}
+        ]
+
+    def test_strips_an_academic_title(self, classifier_over, make_doc):
+        doc = self.per_doc_pos(
+            make_doc,
+            ["Dr.", "Harald", "Terpe"],
+            ["NOUN", "PROPN", "PROPN"],
+            [(0, 3)],
+        )
+        assert extract(classifier_over, [doc]) == [{"person": "Harald Terpe", "count": 1}]
+
+    def test_a_doc_without_pos_tags_keeps_the_whole_span(self, classifier_over, make_doc):
+        doc = per_doc(make_doc, ["Katrin", "Göring-Eckardt"], [(0, 2)])
+        assert extract(classifier_over, [doc]) == [
+            {"person": "Katrin Göring-Eckardt", "count": 1}
+        ]
+
+    def test_a_stop_token_ends_the_name_even_when_tagged_propn(
+        self, classifier_over, make_doc
+    ):
+        # The case the POS rule alone misses: de_core_news_lg tags
+        # "Landesvorsitzende" as ADJ in one sentence of a Berlin WPS letterhead
+        # and as PROPN in the next.
+        doc = self.per_doc_pos(
+            make_doc,
+            ["Werner", "Graf", "Landesvorsitzende", "Landesgeschäftsstelle"],
+            ["PROPN", "PROPN", "PROPN", "PROPN"],
+            [(0, 4)],
+        )
+        assert extract(classifier_over, [doc]) == [{"person": "Werner Graf", "count": 1}]
+
+    def test_a_leading_stop_token_drops_the_whole_candidate(
+        self, classifier_over, make_doc
+    ):
+        doc = self.per_doc_pos(
+            make_doc, ["Wahlprüfsteine", "Dachverband"], ["PROPN", "PROPN"], [(0, 2)]
+        )
+        assert extract(classifier_over, [doc]) == []
+
+    def test_stop_tokens_apply_without_pos_tags_too(self, classifier_over, make_doc):
+        doc = per_doc(make_doc, ["Emily", "Büning", "Platz"], [(0, 3)])
+        assert extract(classifier_over, [doc]) == [{"person": "Emily Büning", "count": 1}]

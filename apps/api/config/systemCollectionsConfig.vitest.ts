@@ -50,6 +50,14 @@ describe('NLP facet injection', () => {
     expect(names).toContain('persons');
   });
 
+  it('marks persons research-only and themes not', () => {
+    // The split the notebook chat relies on — see
+    // routes/notebook/chatFiltersExcludePersons.vitest.ts for the effect.
+    const fields = getSystemCollectionConfig('grundsatz-system')?.filterableFields ?? [];
+    expect(fields.find((f) => f.field === 'persons')?.researchOnly).toBe(true);
+    expect(fields.find((f) => f.field === 'themes')?.researchOnly).toBeUndefined();
+  });
+
   it('excludes examples-system and ricarda from the NLP injection', () => {
     for (const id of ['examples-system', 'ricarda-lang-tweets-system', 'satzungen-system']) {
       const names = fieldNames(id);

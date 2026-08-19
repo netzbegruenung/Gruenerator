@@ -39,12 +39,46 @@ Modell, weil dort Verdrahtung geprüft wird, nicht Modellqualität.
 
 ## Wortlisten
 
-`src/topic_classifier/stopword_nouns.txt` und
-`src/topic_classifier/person_blocklist.txt` werden von Hand gepflegt, ein
-Eintrag pro Zeile, `#` für Kommentare. Beide Dateien liegen bewusst **im
-Paketverzeichnis**: das Dockerfile kopiert `src/` als Ganzes: eine Liste
-außerhalb davon fehlt im Image und fällt erst beim Containerstart auf.
-`tests/test_wordlists.py` prüft beides — das Format und den Ort.
+Drei Dateien unter `src/topic_classifier/`, von Hand gepflegt, ein Eintrag pro
+Zeile, `#` für Kommentare:
+
+| Datei                    | Wirkung                                                                                                                                                                               |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `stopword_nouns.txt`     | Lemmata, die nicht als Schlagwort zählen                                                                                                                                              |
+| `person_blocklist.txt`   | Kandidat ist **keine Person** — der ganze Treffer fällt weg. Ein Eintrag greift, sobald er als vollständige Tokenfolge im Namen vorkommt (`unsplash` nimmt „Unsplash Gemeinsame" mit) |
+| `person_stop_tokens.txt` | Der Name **endet vor** diesem Wort. Einzelne Tokens, für Funktionen („Landesvorsitzende"), Organisationsteile und Adressbestandteile aus PDF-Briefköpfen                              |
+
+Alle drei liegen bewusst **im Paketverzeichnis**: das Dockerfile kopiert `src/`
+als Ganzes, eine Liste außerhalb davon fehlt im Image und fällt erst beim
+Containerstart auf. `tests/test_wordlists.py` prüft Format und Ort.
+
+## Personen-Erkennung
+
+`extract_persons_batch` liefert nicht die rohen PER-Spannen der NER — die sind
+als Filter-Facette unbrauchbar. Gemessen an den Live-Payloads in Qdrant standen
+dort „Werner Graf Landesvorsitzende Wahlprüfsteine" (673 Dokumente),
+„Dieter Grü- newald" neben „Dieter Grünewald", „Putins" neben „Putin",
+„Merz" neben „Friedrich Merz", und ein Drittel des getaggten Volumens waren
+Ein-Wort-Treffer wie „Link" (1938 Dokumente) oder „Messlatte".
+
+Vier Durchgänge, in dieser Reihenfolge:
+
+1. **Spanne beschneiden** (`_name_from_entity`) — Titel und Rollen fallen weg,
+   über `person_stop_tokens.txt` und über die Wortarten. Beides ist nötig:
+   dasselbe Wort taggt das Modell im selben Dokument einmal als `ADJ` und
+   einmal als `PROPN`.
+2. **Schreibweise normalisieren** (`_normalize_surface`) — Silbentrennung aus
+   PDFs zusammenziehen, Satzzeichen an den Rändern abschneiden.
+3. **Blockliste** (`_is_blocked`).
+4. **Varianten zusammenführen** (`_canonical_names`) — Genitiv auf die
+   Grundform, bloßer Nachname auf den einen dazu passenden Vollnamen.
+   Mehrdeutige („Wegner" gibt es als Jutta und als Kai) werden nicht geraten.
+   Was danach noch ein einzelnes Wort ist, fällt weg.
+
+Änderungen hier wirken **nur auf neu getaggte Dokumente**. Die bereits
+geschriebenen Payloads tragen `nlp_version`; erst ein Hochzählen von
+`NLP_VERSION` in `apps/api/services/notebook/notebookEnrichmentService.ts`
+macht sie wieder fällig.
 
 ## Betrieb
 
