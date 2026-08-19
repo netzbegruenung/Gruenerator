@@ -84,6 +84,27 @@ export function modelFromRequestBody(body: unknown): string | null {
 }
 
 /**
+ * Rückfallfrist für den Tap, wenn der Aufrufer KEIN Signal mitgibt.
+ *
+ * Bewusst eine eigene Zahl und keine Kopie der `hardCapMs` des Loops: die wird
+ * dort als `Math.max(300_000, wallClockMs * 2)` gebildet und wächst mit
+ * `CHAT_AGENT_LOOP_BUDGET_MS` mit. Sie hier nachzubilden hiesse, eine Formel aus
+ * `routes/chat` in `services/ai` zu duplizieren — zwei Orte, die dasselbe
+ * entscheiden, driften.
+ *
+ * Zu kurz zu greifen ist die harmlose Richtung: der Tap bricht dann früher ab
+ * als der Turn, und der Preis ist die Nachhaltigkeitszahl dieser einen Anfrage.
+ * Zu lang zu greifen wäre die schädliche — genau der Fall, den diese Frist
+ * verhindert.
+ *
+ * Heute erreicht das niemand: der einzige Aufrufer
+ * (`greenptFetchWithThinkingDisabled`) reicht das Signal der Anfrage durch, und
+ * das ist der Weg, der zählt. Die Frist ist der Gurt für einen künftigen
+ * Aufrufer, der es vergisst.
+ */
+const IMPACT_TAP_CEILING_MS = 300_000;
+
+/**
  * Tap a GreenPT response for its impact figures without disturbing the consumer.
  *
  * `userId`/`feature` are read by the caller BEFORE the request is issued: on a
@@ -93,13 +114,6 @@ export function modelFromRequestBody(body: unknown): string | null {
  * Returns the response the caller should pass on — the original for the
  * buffered path, a re-wrapped one for the streamed path.
  */
-/**
- * Rückfallfrist für den Tap, falls der Aufrufer gar kein Signal mitgibt.
- * Gleich der `hardCapMs` des Loops: der Tap darf die Decke des Turns, an dem er
- * hängt, nie überleben.
- */
-const IMPACT_TAP_CEILING_MS = 300_000;
-
 export function captureImpact(
   response: Response,
   model: string | null,

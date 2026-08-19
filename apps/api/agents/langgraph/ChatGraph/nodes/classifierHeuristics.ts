@@ -1156,12 +1156,35 @@ const FACT_BASED_CONTENT_PATTERN =
 const TOPIC_MARKER_PATTERN = /(?:^|\s)(über|zu|zum|zur|bezüglich|betreffend|thema)(?:\s|$)/i;
 
 /**
+ * „abstimmen" hat im Parteialltag zwei Bedeutungen, und nur eine davon ist ein
+ * Votum: die Fraktion stimmt über ein Gesetz ab — die Pressestelle stimmt einen
+ * Text mit der Fraktion ab. Ohne diese Unterscheidung erzwingt „Haben wir das
+ * Layout schon abgestimmt?" einen Parlaments-Abruf.
+ *
+ * Das Votum fragt nach dem WIE: „Wie hat die SPD … abgestimmt?". Die Absprache
+ * fragt danach, OB etwas erledigt ist („Wurde … abgestimmt?", „Ist … mit der
+ * Fraktion abgestimmt?") — und redet von uns. Deshalb beide Bedingungen:
+ * Frageform `wie hat/haben`, und keine erste Person im Satz.
+ *
+ * Nicht gedeckt bleibt „Wie stimmte die FDP…" — siehe die Stichwortliste oben.
+ */
+const VOTE_VERB_PATTERN = /\b(abgestimmt|gestimmt)\b/i;
+const VOTE_QUESTION_PATTERN = /\bwie\s+(hat|haben)\b[^?]*\b(abgestimmt|gestimmt)\b/i;
+const FIRST_PERSON_PATTERN = /\b(wir|uns|unser\w*)\b/i;
+
+function isVoteQuestion(text: string): boolean {
+  return VOTE_QUESTION_PATTERN.test(text) && !FIRST_PERSON_PATTERN.test(text);
+}
+
+/**
  * Der Tippfehler-Fänger: ein Wort, das einem Intent-Stichwort ähnlich genug
  * sieht. Absichtlich die LETZTE Regel und weit unter der Schwelle — sie rät.
  *
  * Ein verneintes oder gefragtes Artefakt-Wort („keine Grafik", „was ist eine
  * Grafik?") darf nicht auf seinen Generierungs-Intent fuzzy-matchen; deshalb
- * läuft für diese Intents der Wächter über die Stichwortliste selbst.
+ * läuft für diese Intents der Wächter über die Stichwortliste selbst. Für die
+ * Abstimmungs-Verben steht daneben der Bedeutungs-Wächter oben — dieselbe Form
+ * von Fehlgriff, nur aus Wortsinn statt aus Verneinung.
  */
 function fuzzyHit(m: AnalyzedMessage): SearchIntent | null {
   for (const word of m.lower.split(/\s+/).filter((w) => w.length >= 4)) {
@@ -1173,6 +1196,13 @@ function fuzzyHit(m: AnalyzedMessage): SearchIntent | null {
         const nounRe = new RegExp(`\\b(?:${kw.map(escapeRegExp).join('|')})`, 'i');
         if (negatedOrMeta(m.stripped, nounRe)) continue;
       }
+    }
+    if (
+      fuzzyIntent === 'abgeordnetenwatch' &&
+      VOTE_VERB_PATTERN.test(word) &&
+      !isVoteQuestion(m.stripped)
+    ) {
+      continue;
     }
     return fuzzyIntent;
   }

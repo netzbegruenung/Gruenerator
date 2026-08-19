@@ -222,6 +222,36 @@ describe('Tier 3.5 — demoted band (agentic, LLM skipped)', () => {
   );
 
   /**
+   * „abstimmen" heisst im Parteialltag zweierlei, und nur eines ist ein Votum.
+   * Ohne den Bedeutungs-Wächter in `fuzzyHit` erzwang JEDER dieser Sätze einen
+   * Parlaments-Abruf — auch die vier, die bloss eine Absprache meinen.
+   *
+   * Beide Richtungen stehen hier, weil eine allein nichts beweist: eine Liste
+   * nur mit Voten liesse sich mit „immer true" erfüllen, eine nur mit
+   * Absprachen mit „immer false".
+   */
+  const voteSense: [string, boolean][] = [
+    ['Wie hat die SPD zum Heizungsgesetz abgestimmt?', true],
+    ['Wie hat Renate Künast beim Heizungsgesetz abgestimmt?', true],
+    ['Hallo! Wie hat die CDU zur Frauenquote abgestimmt?', true],
+    ['Wie hat die CDU gestimmt?', true],
+    // Das Substantiv trägt die Bedeutung selbst und braucht die Frageform nicht.
+    ['Wie war das Abstimmungsverhalten der Grünen?', true],
+    // …und die Absprache, die genauso klingt:
+    ['Haben wir das Layout schon abgestimmt?', false],
+    ['Wurde der Termin mit dem Kreisverband abgestimmt?', false],
+    ['Ist die Pressemitteilung mit der Fraktion abgestimmt?', false],
+    ['Wir haben das Design abgestimmt, was fehlt noch?', false],
+    // Der Grenzfall: Frageform UND erste Person — die erste Person gewinnt.
+    ['Wie haben wir das im Vorstand abgestimmt?', false],
+  ];
+
+  it.each(voteSense)('Wortsinn: %s → Werkzeugzwang %s', async (userMessage, expectForcedTool) => {
+    const result = await classifierNode(buildState({ userMessage }));
+    expect(Boolean(result.loopDemotedFromRetrieval)).toBe(expectForcedTool);
+  });
+
+  /**
    * The flag the loop reads to require a first tool call. Live failure: "wer
    * ist aktuell Bundeskanzler in Österreich" was classified web@0.80, demoted,
    * and the planner called nothing — the answer was the honesty note itself
