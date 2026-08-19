@@ -17,13 +17,12 @@
  * pro Token: sonst umginge man sie durch wiederholtes Anmelden.
  */
 
-import { fromNodeHeaders } from 'better-auth/node';
-
 import {
   extractBearer,
   verifyApiKey,
   type ApiKeyContext,
 } from '../../middleware/apiKeyMiddleware.js';
+import { verifyOAuthResourceRequest } from '../../services/auth/verifyOAuthResourceRequest.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type { Request, Response, NextFunction } from 'express';
@@ -87,21 +86,14 @@ export async function requireAddinAuth(
     }
   }
 
-  try {
-    // Erst hier geladen, nicht oben im Modul: `config/betterAuth.js` baut beim
-    // Import einen Postgres-Pool auf und löst Keycloak-URLs auf. Statisch
-    // importiert hinge dieser Endpunkt — und jeder Test, der ihn anfasst — an
-    // einer vollständigen Auth-Umgebung, obwohl der Schlüsselpfad davon nichts
-    // braucht. Nach dem ersten Aufruf ist das Modul zwischengespeichert.
-    const { auth } = await import('../../config/betterAuth.js');
-    const session = await auth.api.getMcpSession({ headers: fromNodeHeaders(req.headers) });
-    if (session?.userId) {
-      req.apiKey = contextFromOAuthSession(session.userId, session.scopes ?? null);
-      next();
-      return;
-    }
-  } catch (err) {
-    log.warn('getMcpSession failed: %s', err);
+  // `verifyOAuthResourceRequest` lädt `config/betterAuth.js` erst beim ersten
+  // Aufruf nach — der Schlüsselpfad und jeder Test, der ihn anfasst, kommen
+  // weiterhin ohne vollständige Auth-Umgebung aus.
+  const claims = await verifyOAuthResourceRequest(req);
+  if (claims) {
+    req.apiKey = contextFromOAuthSession(claims.userId, [...claims.scopes].join(' '));
+    next();
+    return;
   }
 
   // Rückfall auf den Schlüsselpfad, obwohl der Präfix fehlt.
