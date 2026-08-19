@@ -22,6 +22,7 @@ import { ChatDensityContext, type ChatDensity } from './chatDensityContext';
 import { CompactionIndicator } from './CompactionIndicator';
 import { GrueneratorComposer } from './GrueneratorComposer';
 import { InlineAttachmentNotice } from './InlineAttachmentNotice';
+import { ThreadLoadingSkeleton } from './ThreadLoadingSkeleton';
 import { UserMessage } from './UserMessage';
 import { WelcomeScreen } from './WelcomeScreen';
 
@@ -160,6 +161,10 @@ export function GrueneratorThread({
                   ? { welcomeQuestion: activeAgent.welcomeQuestion }
                   : {})}
               />
+            </AuiIf>
+
+            <AuiIf condition={(s) => s.thread.isLoading}>
+              <ThreadLoadingSkeleton compact={isCompact} />
             </AuiIf>
 
             <CompactionIndicator />
