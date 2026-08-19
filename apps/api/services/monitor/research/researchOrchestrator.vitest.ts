@@ -12,14 +12,14 @@ vi.mock('ai', () => ({
 
 const mockGetIntermediateModel = vi.fn(() => ({ id: 'mock-model' }));
 
-vi.mock('./providers.js', () => ({
+vi.mock('../../../routes/chat/agents/providers.js', () => ({
   getIntermediateModel: mockGetIntermediateModel,
 }));
 
 const mockExecuteDirectSearch = vi.fn();
 const mockExecuteDirectWebSearch = vi.fn();
 
-vi.mock('./directSearchExecutors.js', () => ({
+vi.mock('../../../routes/chat/agents/directSearchExecutors.js', () => ({
   executeDirectSearch: mockExecuteDirectSearch,
   executeDirectWebSearch: mockExecuteDirectWebSearch,
 }));
@@ -29,7 +29,7 @@ vi.mock('./directSearchExecutors.js', () => ({
 // asserts on what is HANDED OVER and what comes BACK, not on fetching.
 const mockCrawlAndDistill = vi.fn();
 
-vi.mock('../../../services/search/CrawlingService.js', () => ({
+vi.mock('../../search/CrawlingService.js', () => ({
   crawlAndDistill: mockCrawlAndDistill,
 }));
 
@@ -54,14 +54,14 @@ const mockValidateCitations = vi.fn(() => ({
   totalCitations: 0,
 }));
 
-vi.mock('../../../services/search/CitationGrounder.js', () => ({
+vi.mock('../../search/CitationGrounder.js', () => ({
   validateCitations: (...args: unknown[]) =>
     (mockValidateCitations as unknown as (...a: unknown[]) => unknown)(...args),
   stripUngroundedCitations: (text: string) => text,
 }));
 
 const mmrInput: unknown[][] = [];
-vi.mock('../../../services/search/DiversityReranker.js', () => ({
+vi.mock('../../search/DiversityReranker.js', () => ({
   applyMMR: (sources: unknown[]) => {
     mmrInput.push(sources);
     return sources;
