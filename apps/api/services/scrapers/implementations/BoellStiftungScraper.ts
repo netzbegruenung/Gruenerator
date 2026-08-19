@@ -883,8 +883,8 @@ export class BoellStiftungScraper extends BaseScraper {
       filter.must.push({ key: 'primary_category', match: { value: topic } });
     }
 
-    const searchResult = await this.qdrant.client!.search(this.config.collectionName, {
-      vector: queryVector,
+    const searchResult = await this.qdrant.client!.query(this.config.collectionName, {
+      query: queryVector,
       ...(filter.must.length > 0 ? { filter } : {}),
       limit: limit * 3,
       score_threshold: threshold,
@@ -892,7 +892,7 @@ export class BoellStiftungScraper extends BaseScraper {
     });
 
     const articlesMap = new Map<string, BoellArticleResult>();
-    for (const hit of searchResult) {
+    for (const hit of searchResult.points) {
       const payload = hit.payload as Record<string, unknown> | null;
       if (!payload) continue;
       const articleId = String(payload.article_id ?? '');
