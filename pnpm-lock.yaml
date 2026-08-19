@@ -73,6 +73,7 @@ overrides:
   '@blocknote/xl-ai>ai': ^6.0.224
   '@types/node': ^26.2.0
   '@tanstack/react-query': ^5.101.4
+  zustand: 5.0.15
   katex: ^0.18.1
   pyodide: ^314.0.5
   react-dropzone: ^19.1.1
@@ -535,7 +536,7 @@ importers:
         specifier: ^7.18.2
         version: 7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       zustand:
-        specifier: ^5.0.14
+        specifier: 5.0.15
         version: 5.0.15(@types/react@19.2.18)(immer@11.1.18)(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
     devDependencies:
       '@gruenerator/eslint-config':
@@ -767,7 +768,7 @@ importers:
         specifier: ^4.3.1
         version: 4.3.1
       zustand:
-        specifier: ^5.0.14
+        specifier: 5.0.15
         version: 5.0.15(@types/react@19.2.18)(immer@11.1.18)(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3))
     devDependencies:
       '@expo/ngrok':
@@ -835,7 +836,7 @@ importers:
         version: 3.2.2(react@19.2.8)
       '@excalidraw/excalidraw':
         specifier: ^0.18.1
-        version: 0.18.1(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(immer@11.1.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 0.18.1(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(immer@11.1.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
       '@gruenerator/canvas-editor':
         specifier: workspace:*
         version: link:../../packages/canvas-editor
@@ -1039,7 +1040,7 @@ importers:
         version: 3.1.0
       tunnel-rat:
         specifier: ^0.1.2
-        version: 0.1.2(@types/react@19.2.18)(immer@11.1.18)(react@19.2.8)
+        version: 0.1.2(@types/react@19.2.18)(immer@11.1.18)(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
       tus-js-client:
         specifier: ^4.3.1
         version: 4.3.1
@@ -1054,9 +1055,9 @@ importers:
         version: https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz
       y-excalidraw:
         specifier: ^2.0.12
-        version: 2.0.12(@excalidraw/excalidraw@0.18.1(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(immer@11.1.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(yjs@13.6.32)
+        version: 2.0.12(@excalidraw/excalidraw@0.18.1(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(immer@11.1.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8)))(yjs@13.6.32)
       zustand:
-        specifier: ^5.0.14
+        specifier: 5.0.15
         version: 5.0.15(@types/react@19.2.18)(immer@11.1.18)(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
     devDependencies:
       '@axe-core/playwright':
@@ -1326,7 +1327,7 @@ importers:
         specifier: ^13.6.32
         version: 13.6.32
       zustand:
-        specifier: ^5.0.14
+        specifier: 5.0.15
         version: 5.0.15(@types/react@19.2.18)(immer@11.1.18)(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
     devDependencies:
       '@tailwindcss/cli':
@@ -1429,7 +1430,7 @@ importers:
         specifier: ^3.24.1
         version: 3.25.76
       zustand:
-        specifier: ^5.0.3
+        specifier: 5.0.15
         version: 5.0.15(@types/react@19.2.18)(immer@11.1.18)(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
     devDependencies:
       '@testing-library/jest-dom':
@@ -1633,8 +1634,8 @@ importers:
         specifier: ^13.6.32
         version: 13.6.32
       zustand:
-        specifier: ^5.0.0
-        version: 5.0.14(@types/react@19.2.18)(immer@11.1.18)(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
+        specifier: 5.0.15
+        version: 5.0.15(@types/react@19.2.18)(immer@11.1.18)(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
     devDependencies:
       '@types/react':
         specifier: 19.2.18
@@ -1827,7 +1828,7 @@ importers:
         specifier: ^13.6.32
         version: 13.6.32
       zustand:
-        specifier: ^5.0.14
+        specifier: 5.0.15
         version: 5.0.15(@types/react@19.2.18)(immer@11.1.18)(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
     devDependencies:
       '@gruenerator/eslint-config':
@@ -1991,7 +1992,7 @@ importers:
         specifier: ^3.6.0
         version: 3.6.0
       zustand:
-        specifier: ^5.0.14
+        specifier: 5.0.15
         version: 5.0.15(@types/react@19.2.18)(immer@11.1.18)(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
     devDependencies:
       '@gruenerator/eslint-config':
@@ -2159,7 +2160,7 @@ importers:
         specifier: ^19.0.0
         version: 19.2.8
       zustand:
-        specifier: ^5.0.14
+        specifier: 5.0.15
         version: 5.0.15(@types/react@19.2.18)(immer@11.1.18)(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
     devDependencies:
       typescript:
@@ -2190,8 +2191,8 @@ importers:
         specifier: ^5.7.0
         version: 5.7.0(react@19.2.8)
       zustand:
-        specifier: ^5.0.0
-        version: 5.0.14(@types/react@19.2.18)(immer@11.1.18)(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
+        specifier: 5.0.15
+        version: 5.0.15(@types/react@19.2.18)(immer@11.1.18)(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
     devDependencies:
       '@types/react':
         specifier: 19.2.18
@@ -2570,7 +2571,7 @@ packages:
       '@types/react': 19.2.18
       assistant-cloud: ^0.1.31
       react: ^18 || ^19
-      zustand: ^5.0.11
+      zustand: 5.0.15
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -23522,39 +23523,6 @@ packages:
   zod@4.4.3:
     resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
 
-  zustand@4.5.7:
-    resolution: {integrity: sha512-CHOUy7mu3lbD6o6LJLfllpjkzhHXSBlX8B9+qPddUsIfeF5S/UZ5q0kmCsnRqT1UHFQZchNFDDzMbQsuesHWlw==}
-    engines: {node: '>=12.7.0'}
-    peerDependencies:
-      '@types/react': 19.2.18
-      immer: '>=9.0.6'
-      react: '>=16.8'
-    peerDependenciesMeta:
-      '@types/react':
-        optional: true
-      immer:
-        optional: true
-      react:
-        optional: true
-
-  zustand@5.0.14:
-    resolution: {integrity: sha512-/8tAspM5LMPr28b3fwLYrtdj77ECpfZviaP75CMTnwO8ISyaE4GDIG/9rDDYq/cH9D2Xw2A2RXglLInmVBQB/g==}
-    engines: {node: '>=12.20.0'}
-    peerDependencies:
-      '@types/react': 19.2.18
-      immer: '>=9.0.6'
-      react: '>=18.0.0'
-      use-sync-external-store: '>=1.2.0'
-    peerDependenciesMeta:
-      '@types/react':
-        optional: true
-      immer:
-        optional: true
-      react:
-        optional: true
-      use-sync-external-store:
-        optional: true
-
   zustand@5.0.15:
     resolution: {integrity: sha512-MpSEjRiBkA9crSYeOUH32rJC7SVqAbm0Fqcqge/bUi2PPoLcBWKOsG+C8mevmpr8TwXHBVkChbbJiyvkE+i/3A==}
     engines: {node: '>=12.20.0'}
@@ -27977,7 +27945,7 @@ snapshots:
       '@eslint/core': 0.17.0
       levn: 0.4.1
 
-  '@excalidraw/excalidraw@0.18.1(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(immer@11.1.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@excalidraw/excalidraw@0.18.1(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(immer@11.1.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))':
     dependencies:
       '@braintree/sanitize-url': 6.0.2
       '@excalidraw/laser-pointer': 1.3.1
@@ -28011,11 +27979,12 @@ snapshots:
       react-dom: 19.2.8(react@19.2.8)
       roughjs: 4.6.4
       sass: 1.51.0
-      tunnel-rat: 0.1.2(@types/react@19.2.18)(immer@11.1.18)(react@19.2.8)
+      tunnel-rat: 0.1.2(@types/react@19.2.18)(immer@11.1.18)(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
     transitivePeerDependencies:
       - '@types/react'
       - '@types/react-dom'
       - immer
+      - use-sync-external-store
 
   '@excalidraw/laser-pointer@1.3.1': {}
 
@@ -49912,13 +49881,14 @@ snapshots:
     dependencies:
       safe-buffer: 5.2.1
 
-  tunnel-rat@0.1.2(@types/react@19.2.18)(immer@11.1.18)(react@19.2.8):
+  tunnel-rat@0.1.2(@types/react@19.2.18)(immer@11.1.18)(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8)):
     dependencies:
-      zustand: 4.5.7(@types/react@19.2.18)(immer@11.1.18)(react@19.2.8)
+      zustand: 5.0.15(@types/react@19.2.18)(immer@11.1.18)(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
     transitivePeerDependencies:
       - '@types/react'
       - immer
       - react
+      - use-sync-external-store
 
   turbo@2.10.11:
     optionalDependencies:
@@ -51108,9 +51078,9 @@ snapshots:
 
   xtend@4.0.2: {}
 
-  y-excalidraw@2.0.12(@excalidraw/excalidraw@0.18.1(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(immer@11.1.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(yjs@13.6.32):
+  y-excalidraw@2.0.12(@excalidraw/excalidraw@0.18.1(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(immer@11.1.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8)))(yjs@13.6.32):
     dependencies:
-      '@excalidraw/excalidraw': 0.18.1(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(immer@11.1.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@excalidraw/excalidraw': 0.18.1(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(immer@11.1.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
       fractional-indexing: 3.4.0
       yjs: 13.6.32
 
@@ -51228,21 +51198,6 @@ snapshots:
   zod@3.25.76: {}
 
   zod@4.4.3: {}
-
-  zustand@4.5.7(@types/react@19.2.18)(immer@11.1.18)(react@19.2.8):
-    dependencies:
-      use-sync-external-store: 1.6.0(react@19.2.8)
-    optionalDependencies:
-      '@types/react': 19.2.18
-      immer: 11.1.18
-      react: 19.2.8
-
-  zustand@5.0.14(@types/react@19.2.18)(immer@11.1.18)(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8)):
-    optionalDependencies:
-      '@types/react': 19.2.18
-      immer: 11.1.18
-      react: 19.2.8
-      use-sync-external-store: 1.6.0(react@19.2.8)
 
   zustand@5.0.15(@types/react@19.2.18)(immer@11.1.18)(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3)):
     optionalDependencies:
