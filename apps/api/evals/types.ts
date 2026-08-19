@@ -219,6 +219,18 @@ export const evalExpectSchema = z
     retainsPriorSources: z.boolean().optional(),
     /** No scrape_url call errored (model-invented / dead URL). */
     noInventedUrls: z.boolean().optional(),
+    /**
+     * `warning` event codes the turn must emit (search_degraded,
+     * deep_research_quota_spent, unknown_model_id, …).
+     *
+     * The trace has carried `warnings` from the start and NOTHING asserted on
+     * them, so every product-visible degradation was invisible to the corpus.
+     * It is the only handle on a whole class of behaviour: the quota-exhausted
+     * `@deepresearch` turn does not refuse in prose — it warns and then answers
+     * with an ordinary research run, which from the answer text alone is
+     * indistinguishable from a deep run that simply went fast.
+     */
+    warningsMustInclude: z.array(z.string()).optional(),
     /** done surfaced ≥1 citation (grounded). */
     grounded: z.boolean().optional(),
     maxLatencyMs: z.number().optional(),
@@ -297,6 +309,20 @@ export const evalScenarioSchema = z
      *  default run's baseline. No seeding tool needed — the scenarios query
      *  SYSTEM_COLLECTIONS, which every populated backend already has. */
     notebookLane: z.boolean().optional(),
+    /**
+     * Braucht einen echten `@deepresearch`-Lauf. Übersprungen ohne
+     * EVAL_DEEP_RESEARCH=1.
+     *
+     * Eigene Lane, weil ein Lauf Minuten dauert und Geld kostet — der
+     * Rechercheagent kauft gewöhnliche Suchen plus bis zu zwei `deep`-Suchen —
+     * und weil die Tagesration (`DEEP_RESEARCH_DAILY_LIMIT`, 3) geteilt ist:
+     * jeder Default-Lauf würde sie verbrauchen und den nächsten Lauf mit einer
+     * Absage messen statt mit einem Lauf. Der Weg war bis hierher komplett
+     * unbeobachtet (R1 §5: null Szenarien), was ihn zur gefährlichsten Lücke
+     * machte — die Lane existiert, damit „unbeobachtet" zu „auf Abruf messbar"
+     * wird.
+     */
+    deepResearchLane: z.boolean().optional(),
   })
   .strict()
   .refine((s) => s.surface !== 'notebook' || (s.collectionIds?.length ?? 0) > 0, {

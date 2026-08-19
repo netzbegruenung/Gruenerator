@@ -185,6 +185,14 @@ describe('runAssertions — each failure class we hit live', () => {
     ).toBe(true);
   });
 
+  it('warningsMustInclude reads the warning codes the turn emitted', () => {
+    const rs = runAssertions(trace({ warnings: ['deep_research_quota_spent'] }), {
+      warningsMustInclude: ['deep_research_quota_spent', 'search_degraded'],
+    });
+    expect(names(rs)['warning:deep_research_quota_spent']).toBe(true);
+    expect(names(rs)['warning:search_degraded']).toBe(false);
+  });
+
   it('routing + latency assertions', () => {
     const rs = runAssertions(trace({ intent: 'sharepic', latencyMs: 50000 }), {
       routing: 'sharepic',

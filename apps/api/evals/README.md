@@ -43,6 +43,11 @@ EVAL_BASE_URL=https://<test-host> EVAL_BYPASS_TOKEN=<token> EVAL_MODEL_ID=gemma-
 
 # just the multi-turn cases
 EVAL_FILTER=multiturn EVAL_BYPASS_TOKEN=<token> pnpm --filter @gruenerator/api eval:chat
+
+# the real @deepresearch runs — minutes and money each, and they spend the
+# shared daily allowance (DEEP_RESEARCH_DAILY_LIMIT = 3). Off by default.
+EVAL_DEEP_RESEARCH=1 EVAL_FILTER=search-deep EVAL_BYPASS_TOKEN=<token> \
+  pnpm --filter @gruenerator/api eval:chat
 ```
 
 The backend needs `ALLOW_DEV_AUTH_BYPASS=true` + a matching `DEV_AUTH_BYPASS_TOKEN`
@@ -58,7 +63,12 @@ Do run the suite **once with `CHAT_AGENT_LOOP=false`** when you touch the
 single-pass path (source carry, respondNode gating, searchNode fallbacks) — the
 path-independent assertions (`grounded`, `cited`, `retainsPriorSources`) are the
 ones that hold in both configurations, and that lane is otherwise never
-exercised. Run **both lanes** — the sharepic-in-split bug was invisible on
+exercised. `EVAL_FILTER=search-singlepass` is the named subset for that run: the
+`@recherche`/`@dokumente` scenarios take the single-pass path in BOTH flag
+states (`FORCED_LANE_BY_INTENT` maps both intents to `single-pass`), so they are
+the ones whose result is comparable across the two runs. The scenario cannot
+carry the flag itself — `CHAT_AGENT_LOOP` is read by the backend at request
+time, and the harness only posts to a backend somebody else started. Run **both lanes** — the sharepic-in-split bug was invisible on
 Mistral (unified); use `EVAL_MODEL_ID=mistral` and a split lane (e.g. `gemma-4`).
 `.github/workflows/chat-eval-live.yml` ("Chat Eval (Live)") does exactly this
 against the deployed test env (matrix over both lanes, judge blocking,
