@@ -733,6 +733,48 @@ describe('compoundGenerationKind', () => {
     expect(compoundGenerationKind('produktion', 'mach mir daraus eine Tabelle')).toBe('sheet');
   });
 
+  // Der dritte Weg zur Art, und der einzige, der eine WAHL ist statt eines
+  // Indizes: die `@…-erstellen`-Erwähnung. Ohne ihn hing `@sheet-erstellen`
+  // daran, dass das Wort „Tabelle" auch im Text stand (M-Befund §5).
+  describe('die Erwähnung zurrt die Art fest', () => {
+    it('schlägt die Substantiv-Ableitung auf einem demotierten Turn', () => {
+      // Kein Artefakt-Substantiv im Text — vorher: null, kein Werkzeug montiert.
+      expect(
+        compoundGenerationKind('agentic', 'Recherchiere die Zahlen zu Balkonkraftwerken', 'sheet')
+      ).toBe('sheet');
+      // Ein WIDERSPRECHENDES Substantiv verliert gegen die Wahl.
+      expect(
+        compoundGenerationKind('agentic', 'Recherchiere X und mach ein Board dazu', 'sheet')
+      ).toBe('sheet');
+    });
+
+    it('schlägt auch den benannten Intent', () => {
+      expect(
+        compoundGenerationKind(
+          'create_presentation',
+          'Recherchiere X und erstelle eine Präsentation',
+          'sheet'
+        )
+      ).toBe('sheet');
+    });
+
+    it('verschiebt aber KEIN Gitter — die Verbund-Frage bleibt dieselbe', () => {
+      // Benannter Intent ohne Recherchesignal: der Einzeldurchlauf baut es.
+      expect(
+        compoundGenerationKind('create_sheet', 'Erstelle eine Tabelle zu Solarenergie', 'sheet')
+      ).toBe(null);
+      // Demotierter Turn ohne Recherchesignal und ohne Erstell-Auftrag: eine
+      // hängengebliebene Erwähnung darf kein Artefakt garantieren,
+      // `forceCompoundGeneration` täte genau das.
+      expect(compoundGenerationKind('agentic', 'Was steht im PDF?', 'pdf')).toBe(null);
+      expect(compoundGenerationKind('agentic', 'Danke, das war hilfreich.', 'sheet')).toBe(null);
+      // Und ein Verbot bleibt ein Verbot.
+      expect(
+        compoundGenerationKind('agentic', 'Rechne das durch, aber erstelle keine Tabelle.', 'sheet')
+      ).toBe(null);
+    });
+  });
+
   it('returns null for a non-generation turn even with a research signal', () => {
     expect(compoundGenerationKind('search', 'Recherchiere die Position zum Tempolimit')).toBe(null);
     expect(compoundGenerationKind('agentic', 'Wie hat die Fraktion abgestimmt?')).toBe(null);

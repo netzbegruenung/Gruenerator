@@ -257,9 +257,42 @@ describe('Zeilen, die die Tabelle NICHT trägt', () => {
     expect(state.explicitDeepRequest).toBe(true);
   });
 
-  it('@pdf-erstellen zurrt nichts fest — die Erstellroute nimmt den Turn', async () => {
+  it('@pdf-erstellen zurrt keinen INTENT fest — die Erstellroute nimmt den Turn', async () => {
     const { state, forcedTool } = await run(['pdf-erstellen']);
     expect(state.intent).toBe('direct');
     expect(forcedTool).toBe(false);
+  });
+
+  // M-Befund §5. Die fünf Erstell-Token stehen absichtlich nicht in der Tabelle
+  // (`forcedTool` würde den Verbund auf die direkte Erstellroute zwingen), aber
+  // die ART müssen sie sagen können — sonst leitet `turnPlan` sie neu aus dem
+  // Substantiv im Text ab.
+  describe('die Erstell-Erwähnungen zurren ihre ART fest', () => {
+    const CASES = [
+      ['board-erstellen', 'board'],
+      ['sheet-erstellen', 'sheet'],
+      ['praesentation-erstellen', 'presentation'],
+      ['dokument-erstellen', 'document'],
+      ['pdf-erstellen', 'pdf'],
+    ] as const;
+
+    for (const [token, kind] of CASES) {
+      it(`@${token} → ${kind}`, async () => {
+        const { state, forcedTool } = await run([token]);
+        expect(state.mentionPinnedArtifactKind).toBe(kind);
+        // Unverändert: die Art zu nennen ist kein Werkzeugzwang.
+        expect(forcedTool).toBe(false);
+      });
+    }
+
+    it('ohne Erstell-Erwähnung bleibt die Art offen', async () => {
+      const { state } = await run(['bundestag']);
+      expect(state.mentionPinnedArtifactKind ?? null).toBe(null);
+    });
+
+    it('bei mehreren gewinnt die letzte', async () => {
+      const { state } = await run(['sheet-erstellen', 'board-erstellen']);
+      expect(state.mentionPinnedArtifactKind).toBe('board');
+    });
   });
 });

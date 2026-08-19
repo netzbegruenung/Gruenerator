@@ -1610,8 +1610,16 @@ export async function buildSystemMessage(
   // loop — CHITCHAT_RE pins "hilfe"/"was kannst du" to the single-pass path,
   // where `gruenerator_docs_search` does not exist. Complementary to that tool,
   // not redundant: the map lists the pages, the tool retrieves section text.
+  //
+  // Hängt am gepinnten WERKZEUG statt am Intent `hilfe`. Der Intent deckte zwei
+  // verschiedene Fälle in einer Bedingung ab, und nur einer davon brauchte ihn:
+  // die Prosa-Frage kommt aus Tier 2.9, das auf genau diesem Gitter feuert und
+  // deshalb schon vom zweiten Glied getragen wird; die ERWÄHNUNG dagegen kann
+  // jeden Text tragen und ist an ihrer Wahl zu erkennen, nicht am Wortlaut.
   const docsPageMap =
-    !isNeutralTurn && (intent === 'hilfe' || looksLikeDocsHelpQuestion(userQuestion))
+    !isNeutralTurn &&
+    (state.mentionPinnedTool === 'gruenerator_docs_search' ||
+      looksLikeDocsHelpQuestion(userQuestion))
       ? buildDocsPageMap()
       : '';
   if (docsPageMap) log.debug('[Respond] docs page map attached');
