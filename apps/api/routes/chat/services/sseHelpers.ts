@@ -877,6 +877,11 @@ export const CHAT_WARNINGS = {
     severity: 'warning',
     attribution: 'provider',
   },
+  mcp_not_consulted: {
+    message: 'Der gewählte Server wurde für diese Anfrage nicht befragt.',
+    severity: 'warning',
+    attribution: 'user',
+  },
   compute_failed: {
     message: 'Die Berechnung ist fehlgeschlagen — Zahlen in der Antwort sind ungeprüft.',
     severity: 'warning',

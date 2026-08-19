@@ -21,6 +21,7 @@ import { extractTextContent } from '../messageHelpers.js';
 import { PROGRESS_MESSAGES } from '../sseHelpers.js';
 import { getRecentThreadSources } from '../threadPersistenceService.js';
 
+import { reportMcpWithoutLoop } from './mcpWithoutLoop.js';
 import { runChatHistoryBranch } from './recallBranch.js';
 import { runSearchBranch } from './searchBranch.js';
 import { runSharepicGeneration } from './sharepic.js';
@@ -268,6 +269,13 @@ export async function executeIntentPipeline(opts: {
         sse,
         threadId: opts.threadId ?? null,
       });
+    } else if (currentIntent === 'mcp') {
+      // Die Werkzeuge des Servers gibt es nur in der Schleife. Hier zu landen
+      // heisst, dass ein Notausschalter sie draussen gehalten hat — der Turn
+      // sagt das, statt still aus dem Gedächtnis zu antworten. Vor dem
+      // Auffangzweig, der sonst `searchNode` für einen Intent riefe, der dort
+      // `break` ohne Abruf macht.
+      reportMcpWithoutLoop(sse, finalState, imageAttachments.length > 0);
     } else if (
       currentIntent !== 'produktion' &&
       currentIntent !== 'direct' &&
