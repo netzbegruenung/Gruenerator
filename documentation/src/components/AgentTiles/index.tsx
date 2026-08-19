@@ -75,13 +75,34 @@ const TILES: LvTile[] = [
 ];
 
 /**
+ * Die Ebenen, für die ein LV-Presserezept geschrieben sein kann (`LvEbene` in
+ * packages/shared). Ein Verband mit beiden Ebenen im Korpus führt statt eines
+ * `@presse-hessen` die zwei Rezepte `@presse-hessen-partei` und
+ * `@presse-hessen-fraktion`; einstufige Verbände (Brandenburg, Saarland,
+ * Thüringen) behalten die suffixlose Form.
+ */
+const EBENEN = ['partei', 'fraktion'] as const;
+
+/**
+ * Wofür sich die Kachel eines Kürzels zuständig erklärt: die einstufige
+ * Presseform, ihre beiden Ebenen, und Instagram. Insta steht bewusst OHNE
+ * Ebenen darin — es ist heute nicht geteilt, und ein Vorab-Anspruch würde dem
+ * Wächter unten genau den Fall wegnehmen, für den er da ist.
+ */
+function recipesFor(slug: string): string[] {
+  return [
+    `@presse-${slug}`,
+    ...EBENEN.map((ebene) => `@presse-${slug}-${ebene}`),
+    `@insta-${slug}`,
+  ];
+}
+
+/**
  * Fails the docs build when a LV recipe exists in the app but no tile claims
  * it — the direction the hand-written list kept drifting in (Bayern, Hessen,
  * Sachsen-Anhalt and Saarland all gained recipes that the docs never grew).
  */
-const claimed = new Set(
-  TILES.flatMap((t) => (t.recipeSlug ? [`@presse-${t.recipeSlug}`, `@insta-${t.recipeSlug}`] : []))
-);
+const claimed = new Set(TILES.flatMap((t) => (t.recipeSlug ? recipesFor(t.recipeSlug) : [])));
 const unclaimed = [...LV_RECIPES].filter((c) => !claimed.has(c));
 if (unclaimed.length > 0) {
   throw new Error(
@@ -105,9 +126,12 @@ export default function AgentTiles(): React.JSX.Element {
           );
         }
         const Icon = tile.Icon;
-        const presse = `@presse-${tile.recipeSlug}`;
-        const insta = `@insta-${tile.recipeSlug}`;
-        const chips = [presse, insta].filter((c) => LV_RECIPES.has(c));
+        // Aus denselben Namen wie der Anspruch oben, gefiltert auf das, was es
+        // wirklich gibt: ein geteilter Verband zeigt beide Ebenen als eigene
+        // Chips, ein einstufiger seine eine Form.
+        const chips = tile.recipeSlug
+          ? recipesFor(tile.recipeSlug).filter((c) => LV_RECIPES.has(c))
+          : [];
         return (
           <div key={tile.id} className={styles.tile}>
             <div className={styles.head}>
