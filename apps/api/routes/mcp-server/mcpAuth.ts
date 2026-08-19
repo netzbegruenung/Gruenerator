@@ -82,9 +82,15 @@ export async function resolveMcpAuth(req: Request): Promise<McpAuthContext | nul
     }
   }
 
-  const claims = await verifyOAuthResourceRequest(req);
-  if (claims) {
-    return { userId: claims.userId, scopes: claims.scopes, via: 'oauth' };
+  // Der Fang gilt dem kaputten Auth-Stack, nicht dem ungültigen Token: das
+  // macht `verifyOAuthResourceRequest` schon selbst zu `null`.
+  try {
+    const claims = await verifyOAuthResourceRequest(req);
+    if (claims) {
+      return { userId: claims.userId, scopes: claims.scopes, via: 'oauth' };
+    }
+  } catch (err) {
+    log.warn('OAuth-Prüfung nicht möglich: %s', err);
   }
 
   return null;
