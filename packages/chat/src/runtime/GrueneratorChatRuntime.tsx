@@ -31,6 +31,7 @@ import { ChatThreadListPortal } from '../components/ChatThreadListPortal';
 import { grueneratorToolkit } from '../components/tool-ui/GrueneratorToolUIs';
 import { ChatCollaborationProvider } from '../context/ChatCollaborationContext';
 import { createChatApiClient } from '../context/ChatContext';
+import { ChatNavigationProvider } from '../context/ChatNavigationContext';
 import { ChatRuntimeReadyProvider } from '../context/ChatRuntimeReadyContext';
 import { ExternalThreadProvider } from '../context/ExternalThreadContext';
 import { useChatCollaboration } from '../hooks/useChatCollaboration';
@@ -40,7 +41,6 @@ import { notifyError } from '../lib/notify';
 import { chatSuggestions } from '../lib/suggestions';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 import { useAgentStore } from '../stores/chatStore';
-import { usePythonFileStore } from '../stores/pythonFileStore';
 
 import { AgentSwitchListener } from './AgentSwitchListener';
 import { GrueneratorAttachmentAdapter } from './GrueneratorAttachmentAdapter';
@@ -52,23 +52,14 @@ import {
   createGrueneratorThreadListAdapter,
   type ExternalThreadEntry,
 } from './GrueneratorThreadListAdapter';
+import { ThreadDataSyncEffect } from './ThreadDataSyncEffect';
 import { convertToThreadMessageLike, type LoadedMessage } from './threadMessageConversion';
 
 import type { StreamMetadata } from '../hooks/useChatGraphStream';
 
-/** Decode raw base64 (no data-URL prefix) to an ArrayBuffer for the Pyodide worker. */
-function base64ToArrayBuffer(base64: string): ArrayBuffer {
-  const clean = base64.includes(',') ? base64.slice(base64.indexOf(',') + 1) : base64;
-  const binary = atob(clean);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes.buffer;
-}
-
 function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
   const aui = useAui();
   const attachmentAdapter = useMemo(() => new GrueneratorAttachmentAdapter(), []);
-  const loadCompactionState = useAgentStore((s) => s.loadCompactionState);
   const fetchFn = useChatConfigStore((s) => s.fetch);
   const onUnauthorized = useChatConfigStore((s) => s.onUnauthorized);
   const endpoints = useChatConfigStore((s) => s.endpoints);
@@ -93,7 +84,7 @@ function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
           // Fresh draft: no server-side thread yet. assistant-ui's run-start
           // hook calls adapter.initialize() on the first message send, so an
           // abandoned draft never creates an empty "Neue Unterhaltung" row.
-          useAgentStore.getState().setCurrentThread(null);
+          // (currentThreadId is not touched here — see below.)
           const initialMsg = useAgentStore.getState().pendingInitialAssistantMessage;
           if (initialMsg) {
             useAgentStore.getState().setPendingInitialAssistantMessage(null);
@@ -109,8 +100,12 @@ function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
         }
 
         {
-          useAgentStore.getState().setCurrentThread(remoteId);
-
+          // Deliberately does NOT write currentThreadId. MainThreadSyncEffect is
+          // the single steady-state writer, driven by the thread that actually
+          // won the switch. This call was the flicker: load() runs per thread
+          // instance with no idea whether its thread is still wanted, so a slow
+          // response from the thread the user just left landed after the runtime
+          // had settled elsewhere — and the URL then followed the wrong one.
           try {
             const msgs = await apiClient.get<LoadedMessage[]>(
               `${endpoints.messages}?threadId=${remoteId}`
@@ -129,29 +124,11 @@ function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
               useAgentStore.getState().setPendingInitialAssistantMessage(null);
             }
 
-            void loadCompactionState(remoteId, apiClient);
-            void useAgentStore.getState().loadThreadSettings(remoteId, apiClient);
-
-            // Rehydrate the in-browser pandas interpreter: setCurrentThread()
-            // cleared the tabular file store, so re-fetch this thread's persisted
-            // spreadsheet bytes and repopulate it — otherwise "Ausführen" on a
-            // reloaded thread has no `df`. Best-effort; on failure the user just
-            // re-attaches the file.
-            try {
-              const tabular = await apiClient.get<{
-                files: Array<{ name: string; mimeType: string; data: string }>;
-              }>(`/api/chat-service/threads/${remoteId}/tabular-files`);
-              const fileStore = usePythonFileStore.getState();
-              for (const f of tabular.files) {
-                fileStore.setFile({
-                  name: f.name,
-                  mimeType: f.mimeType,
-                  bytes: base64ToArrayBuffer(f.data),
-                });
-              }
-            } catch (rehydrateErr) {
-              console.warn('[History] Tabular file rehydration failed:', rehydrateErr);
-            }
+            // Compaction state, thread settings and the interpreter's tabular
+            // files are loaded by ThreadDataSyncEffect, which keys on the
+            // settled main thread: load() runs once per runtime instance, so
+            // doing it here skipped every revisit and had no way to tell that
+            // its thread had lost a switch race.
 
             return ExportedMessageRepository.fromArray(converted);
           } catch (error) {
@@ -179,7 +156,7 @@ function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
         // Messages are persisted by the backend SSE stream handler
       },
     }),
-    [aui, loadCompactionState, apiClient, endpoints.messages]
+    [aui, apiClient, endpoints.messages]
   );
 
   const adapters = useMemo(
@@ -437,7 +414,7 @@ export function GrueneratorChatRuntimeProvider({
   onExternalThreadClick,
   activePath,
   threadListPortalSlotId,
-  onRequestOpenChat,
+  onNavigate,
 }: {
   children: ReactNode;
   userId: string;
@@ -446,7 +423,8 @@ export function GrueneratorChatRuntimeProvider({
   onExternalThreadClick?: (externalId: string) => void;
   activePath?: string;
   threadListPortalSlotId?: string;
-  onRequestOpenChat?: () => void;
+  /** Host router. Lets the thread list open a thread by navigating to its URL. */
+  onNavigate?: (path: string, opts?: { replace?: boolean }) => void;
 }) {
   const fetchFn = useChatConfigStore((s) => s.fetch);
   const onUnauthorized = useChatConfigStore((s) => s.onUnauthorized);
@@ -509,23 +487,25 @@ export function GrueneratorChatRuntimeProvider({
     [onExternalThreadClick, activePath]
   );
 
+  const navigationCtx = useMemo(() => (onNavigate ? { navigate: onNavigate } : null), [onNavigate]);
+
   return (
     <ChatRuntimeReadyProvider>
       <AssistantRuntimeProvider aui={aui} runtime={runtime}>
-        <ExternalThreadProvider value={externalCtx}>
-          <MainThreadSyncEffect />
-          <ThreadTitleEffect />
-          <AgentSwitchListener />
-          {threadListPortalSlotId && (
-            <ChatThreadListPortal
-              slotId={threadListPortalSlotId}
-              onRequestOpen={onRequestOpenChat}
-            />
-          )}
-          <ChatCollaborationBridge userId={userId} userName={userName}>
-            {children}
-          </ChatCollaborationBridge>
-        </ExternalThreadProvider>
+        <ChatNavigationProvider value={navigationCtx}>
+          <ExternalThreadProvider value={externalCtx}>
+            <MainThreadSyncEffect />
+            {/* After MainThreadSyncEffect: it writes currentThreadId, which the
+              per-thread loads below use as their "still current" guard. */}
+            <ThreadDataSyncEffect />
+            <ThreadTitleEffect />
+            <AgentSwitchListener />
+            {threadListPortalSlotId && <ChatThreadListPortal slotId={threadListPortalSlotId} />}
+            <ChatCollaborationBridge userId={userId} userName={userName}>
+              {children}
+            </ChatCollaborationBridge>
+          </ExternalThreadProvider>
+        </ChatNavigationProvider>
       </AssistantRuntimeProvider>
     </ChatRuntimeReadyProvider>
   );
