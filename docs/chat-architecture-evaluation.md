@@ -59,7 +59,7 @@ Der Chat hat die Recherche mit PR #2137 auf die Websuche-Stufen umgestellt; das 
 
 ### 2.4 Drei Unterfragen-Planer, zwei Zitat-Syntaxen
 
-Planer: `researchOrchestrator.planResearchDeep` · `SearchGraph/nodes/queryPlannerNode.ts` · `WebSearchGraph/nodes/PlannerNode.ts`. **Nur der erste** weist die LLM an, den Entitätsnamen in jede Unterfrage zu tragen — der dokumentierte Fix, nachdem „Mona Neubauer / Herkunft" zufällige Bachelorarbeiten zurückgab. Der Fix wurde nie portiert.
+Planer: `researchOrchestrator.planResearchDeep` · `SearchGraph/nodes/queryPlannerNode.ts` · `WebSearchGraph/nodes/PlannerNode.ts`. **Nur der erste** weist die LLM an, den Entitätsnamen in jede Unterfrage zu tragen — der dokumentierte Fix, nachdem „Mona Neubauer / Herkunft" zufällige Bachelorarbeiten zurückgab. In den `qualityGateNode`-Retry ist er mit R2 portiert (`carryQueryContext`); der SearchGraph-Planer selbst weist es weiterhin nicht an.
 
 Zitate: `[N]` positional-append im `agenticLoop/sourceRegistry.ts` (stabil über Tool-Calls) · `[N]` pro Call neu nummeriert im `researchOrchestrator` · `[cite:N]` in `SearchGraph` und den Exportern. `HotTopicPipeline.ts:281-285` muss `applyCiteMarkers` laufen lassen, damit der Frontend-Renderer überhaupt etwas anzeigt. Genau diese Kollision ist der Grund, warum `research` nie in `AGENTIC_INTENTS` durfte — dokumentiert in `agenticLoop/agenticRespondService.ts:74-79`.
 
