@@ -45,6 +45,19 @@ const SECONDARY: DeclineReason = {
   remedy: 'die Frage auf den Server allein zuschneiden und Weiteres separat fragen',
 };
 
+/**
+ * Der zweite Intent, den die Person NICHT gestellt hat: ein eingefügter Link
+ * setzt `secondaryIntent: 'scrape_url'` von selbst (classifierNode, über der
+ * Summary-Rückstufung), weil `mcp` die Disposition `gated` trägt und damit
+ * nicht in `NO_RETRIEVAL_VERDICTS` steht. Für die Person ist das keine zweite
+ * Absicht, sondern ein Link in ihrer Nachricht — und „Weiteres separat fragen"
+ * wäre ein Rat, dem sie nicht folgen kann, weil sie nichts Zweites gefragt hat.
+ */
+const SCRAPE_URL: DeclineReason = {
+  cause: 'die Anfrage enthält zusätzlich einen Link, der gelesen werden soll',
+  remedy: 'den Link weglassen und ihn getrennt zusammenfassen lassen',
+};
+
 const IMAGE: DeclineReason = {
   cause: 'Anfragen an einen verbundenen Server können keine Bildanhänge verarbeiten',
   remedy: 'Bild entfernen oder die Frage ohne den Bildanhang erneut stellen',
@@ -80,7 +93,9 @@ function joinDe(parts: string[]): string {
 function reasonsFor(state: ChatGraphState, hasImageAttachments: boolean): DeclineReason[] {
   const reasons: DeclineReason[] = [];
   if (state.isCompound) reasons.push(COMPOUND);
-  if (state.secondaryIntent != null) reasons.push(SECONDARY);
+  if (state.secondaryIntent != null) {
+    reasons.push(state.secondaryIntent === 'scrape_url' ? SCRAPE_URL : SECONDARY);
+  }
   if (hasImageAttachments) reasons.push(IMAGE);
   return reasons.length > 0 ? reasons : [UNKNOWN];
 }
