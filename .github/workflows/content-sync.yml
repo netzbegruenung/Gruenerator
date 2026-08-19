@@ -147,8 +147,15 @@ jobs:
           CONTENT_SYNC_EMAIL: ${{ vars.CONTENT_SYNC_EMAIL }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
+      # Das Hochladen ist reine Telemetrie für den Sammel-Digest — die Synchronisation
+      # selbst ist zu diesem Zeitpunkt schon durch. Ohne diesen Schalter reißt ein
+      # Aussetzer des Artefakt-Blobspeichers einen Lauf rot, der `success: true` und
+      # 0 Fehler gemeldet hat (so am 16.08.2026 bei LV SL: 443 Byte JSON, Upload
+      # nach 134 s abgebrochen). Fällt der Upload aus, fehlt diese Quelle im Digest —
+      # das ist der billigere Schaden als ein Fehlalarm plus Fehler-Mail.
       - name: Upload summary
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: sync-summary-lv-${{ matrix.lv }}
@@ -210,8 +217,15 @@ jobs:
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
           CONTENT_SYNC_API_URL: ${{ vars.NOTEBOOK_API_URL || 'https://gruenerator.eu' }}
 
+      # Das Hochladen ist reine Telemetrie für den Sammel-Digest — die Synchronisation
+      # selbst ist zu diesem Zeitpunkt schon durch. Ohne diesen Schalter reißt ein
+      # Aussetzer des Artefakt-Blobspeichers einen Lauf rot, der `success: true` und
+      # 0 Fehler gemeldet hat (so am 16.08.2026 bei LV SL: 443 Byte JSON, Upload
+      # nach 134 s abgebrochen). Fällt der Upload aus, fehlt diese Quelle im Digest —
+      # das ist der billigere Schaden als ein Fehlalarm plus Fehler-Mail.
       - name: Upload summary
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: sync-summary-source-${{ matrix.source }}
