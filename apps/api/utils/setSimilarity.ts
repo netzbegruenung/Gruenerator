@@ -10,7 +10,7 @@
  *   so a pure narrowing ("Vermögensteuer Grüne" vs. "Vermögensteuer Grüne
  *   Abschaffung") scores low here and needs the separate containment check that
  *   lives next to that call site.
- * - `agents/researchOrchestrator.ts` compares **word 3-shingles of a source's
+ * - `services/monitor/research/researchOrchestrator.ts` compares **word 3-shingles of a source's
  *   text** (first 4000 chars), to collapse one document returned twice. Its 0.4
  *   threshold was measured against 26 real sources; containment would be wrong
  *   here, since a four-word snippet has three shingles and is trivially
