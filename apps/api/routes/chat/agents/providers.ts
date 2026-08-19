@@ -175,41 +175,35 @@ const GPT_OSS_OVERFLOW: ModelConfigOverflow = {
  * exactly when it must not run. The slot exists because Verdigado has a single
  * inference slot. A plain single lane sidesteps that inversion.
  *
- * Verdigado is still reachable, but only as the failover below, never as the
- * lane that serves a normal turn. Its conservative context ceiling went with
- * it: on the Regolo path this lane serves the full model context.
+ * Verdigado serves no part of this lane any more — not as primary, and since
+ * 19.08.2026 not as failover either (see the fallback note below).
  */
 const GEMMA_4_REGOLO: ModelConfigSingle = {
   kind: 'single',
   provider: 'regolo',
   model: 'gemma4-31b',
   contextWindow: CTX_FULL,
-  // Verdigado keeps the same weights and stays the failover, so a Regolo
-  // outage answers in the same model family rather than switching writer.
-  // Two costs were weighed and accepted when this was chosen:
-  //   - it is a SLOW failover (20s to first token). The path that uses it is a
-  //     first-token timeout, i.e. the user is already waiting.
-  //   - it runs WITHOUT the Verdigado slot, which the `single` fallback branch
-  //     below avoids for every other lane. A timeout failover is rare enough
-  //     that colliding with a GPT-OSS turn holding the slot means queueing,
-  //     not breakage — but it is a real, deliberate exception to that rule.
-  fallback: 'gemma-4-verdigado',
-};
-
-/**
- * The Verdigado side of Gemma 4, reachable ONLY as the failover above.
- *
- * Not in the user-facing catalog (packages/core/src/models/catalog.ts) and not
- * an auto-policy target: selecting it deliberately would opt into the 38s path.
- * It exists as its own entry because `fallback` resolves through
- * AVAILABLE_MODELS, and every other Gemma id now points at Regolo.
- */
-const GEMMA_4_VERDIGADO: ModelConfigSingle = {
-  kind: 'single',
-  provider: 'litellm',
-  model: 'verdigado-think',
-  // Ollama truncates silently above this — see CTX_VERDIGADO.
-  contextWindow: CTX_VERDIGADO,
+  // Der Ausweichhost war bis 19.08.2026 `gemma-4-verdigado` — dieselben
+  // Gewichte, aber der teuerste denkbare Ausweg: 20s bis zum ersten Token,
+  // Denken nicht abschaltbar, und vor allem EIN einziger Inferenz-Slot, den
+  // sich der Ausweg mit den GPT-OSS-Lanes und (bis zum selben Tag) mit dem
+  // Monitor teilte. Genau diese Verkettung ist am 19.08.2026 sichtbar
+  // geworden: Regolo hustete, der Ausweg fand keinen freien Slot, und der Zug
+  // starb an BEIDEN Lanes mit „Antwort konnte nicht generiert werden".
+  //
+  // Jetzt weicht die Lane auf die kleinere Schwester auf Scaleway aus. Bewusst
+  // abgewogen:
+  //   - 31B → 26B ist ein Qualitätsverlust im (seltenen) Ausweichfall, dafür
+  //     0,4s statt 20s bis zum ersten Token und kein Denken (Scaleway pinnt
+  //     `reasoning_effort:'none'` im Transport, siehe GEMMA_4_26B).
+  //   - kein Slot, der belegt sein kann — der Ausweg hängt nicht mehr an
+  //     derselben Engstelle wie die Lane, die ihn braucht.
+  //   - beide Seiten CTX_FULL. Vorher erbte der Sibling nur provider/model,
+  //     nicht das Kontextfenster: der Prompt wurde gegen Regolos 262k bemessen
+  //     und lief auf Verdigados 120k in eine stille Kürzung.
+  // `streamWithFallback` ist single-step by design — der eigene Fallback der
+  // 26B (`gemma-4-greenpt`) greift auf DIESEM Weg also nicht.
+  fallback: 'gemma-4-26b',
 };
 
 /**
@@ -247,9 +241,8 @@ const GEMMA_4_26B: ModelConfigSingle = {
  * Ausweichweg ist dieser Eintrag deshalb wegen der gemessenen Zahlen unten, nicht
  * wegen einer Identität mit seinem Primär.
  *
- * Not in the user-facing catalog and not an auto-policy target, for the same
- * reason as GEMMA_4_VERDIGADO: picking it deliberately would opt into a
- * behaviour nobody wants as a default. Measured 31.07.2026, three runs against
+ * Not in the user-facing catalog and not an auto-policy target: picking it
+ * deliberately would opt into a behaviour nobody wants as a default. Measured 31.07.2026, three runs against
  * this endpoint: 207 tok/s and 7.3s end to end — fast — but it ALWAYS thinks,
  * ~5,400 characters of it, and no flag stops that. `enable_thinking:false`,
  * `think:false` and `reasoning_effort:'none'` were each probed here: accepted
@@ -367,8 +360,11 @@ AVAILABLE_MODELS['litellm'] = GPT_OSS_OVERFLOW;
 AVAILABLE_MODELS['gpt-oss-regolo'] = GPT_OSS_OVERFLOW;
 AVAILABLE_MODELS['gemma-litellm'] = GEMMA_4_REGOLO;
 AVAILABLE_MODELS['gemma-regolo'] = GEMMA_4_REGOLO;
-// Failover target only — see GEMMA_4_VERDIGADO.
-AVAILABLE_MODELS['gemma-4-verdigado'] = GEMMA_4_VERDIGADO;
+// `gemma-4-verdigado` gab es hier bis 19.08.2026 als reines Failover-Ziel der
+// Gemma-Lane. Es stand nie im User-Katalog, war nie ein Auto-Policy-Ziel und
+// wurde nie persistiert (`streamWithFallback` behält die modelId des
+// Primaries) — mit dem Ausweichwechsel auf `gemma-4-26b` hatte es keinen
+// Aufrufer mehr. Verdigado bleibt über die GPT-OSS-Lanes erreichbar.
 
 /**
  * Get model configuration by user-facing model ID.

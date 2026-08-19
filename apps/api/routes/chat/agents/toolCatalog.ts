@@ -73,7 +73,7 @@ import {
   type PersonalToolCtx,
 } from './personalDataTools.js';
 import { harvestSearchImages, imageDeliveryNote } from './searchImageHarvest.js';
-import { createSearchTools } from './searchTools.js';
+import { agentAllowsWebSearch, createSearchTools } from './searchTools.js';
 
 import type { AgentConfig } from './types.js';
 import type { ChatGraphState, SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -339,6 +339,19 @@ export function buildChatToolCatalog(params: {
     }),
   });
 
+  // Agents bound to their own corpus (the Landesverband agents and their
+  // notebooks) declare no web capability. Their system prompt says so, but a
+  // prompt is not a gate: the catalog mounted `web_search` for every agent, so
+  // the model could — and did — search the open web anyway. Only the web door
+  // closes here; `gruenerator_search` and the example corpora stay mounted.
+  const webAllowed = agentAllowsWebSearch(agentConfig);
+  if (!webAllowed) {
+    delete base.web_search;
+    log.info(
+      `[toolCatalog] agent ${agentConfig.identifier} has no web capability — web_search/scrape_url not mounted`
+    );
+  }
+
   const tools: ToolSet = {};
   for (const [name, def] of Object.entries(base)) {
     if (!CATALOG_TOOLS.has(name) || researchBanned) continue;
@@ -424,7 +437,9 @@ export function buildChatToolCatalog(params: {
   // It belongs to the search family for the ban: reading a page the model picked
   // is new research by any honest reading, and leaving this one door open is
   // exactly how a blocked search reappears as a crawl.
-  if (!researchBanned) {
+  // Same gate as `web_search` above: for an agent without web capability a
+  // crawl is the other door to the same open web.
+  if (!researchBanned && webAllowed) {
     tools.scrape_url = tool({
       description: `Ruft den vollständigen Textinhalt einer oder mehrerer Webseiten ab.
 
