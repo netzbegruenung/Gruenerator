@@ -5,14 +5,15 @@ import { createStore, useStore } from 'zustand';
 import { useChatSurfaceContext, type ChatSurfaceState } from '../context/ChatSurfaceContext';
 import { useAgentStore, type SearchMode, type ThreadMode } from '../stores/chatStore';
 
-import type { SelectedModel } from './resolveAutoModel';
+import { AUTO_MODEL_ID, type SelectedModel } from './resolveAutoModel';
+
 import type { RoleRef } from '@gruenerator/contracts';
 
 const FALLBACK = createStore<ChatSurfaceState>(() => ({
   selectedAgentId: null,
   threadMode: 'chat',
   searchMode: 'web',
-  selectedModel: null,
+  selectedModel: AUTO_MODEL_ID,
   selectedNotebookId: 'gruenerator-notebook',
   customSystemPrompt: null,
   customRoleName: null,
@@ -50,9 +51,9 @@ export function useScopedSearchMode(): SearchMode {
   return useScopedField((s) => s.searchMode, global);
 }
 
-export function useScopedSelectedModel(): SelectedModel | null {
+export function useScopedSelectedModel(): SelectedModel {
   const global = useAgentStore((s) => s.selectedModel);
-  return useScopedField<SelectedModel | null>((s) => s.selectedModel, global);
+  return useScopedField<SelectedModel>((s) => s.selectedModel, global);
 }
 
 export function useScopedSelectedNotebookId(): string {

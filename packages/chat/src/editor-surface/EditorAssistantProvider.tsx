@@ -22,7 +22,6 @@ import { grueneratorToolkit } from '../components/tool-ui/GrueneratorToolUIs';
 import { ChatCollaborationProvider } from '../context/ChatCollaborationContext';
 import { ChatSurfaceProvider, createChatSurfaceStore } from '../context/ChatSurfaceContext';
 import { useChatCollaboration } from '../hooks/useChatCollaboration';
-import { AUTO_MODEL_ID, resolveAutoModel } from '../lib/resolveAutoModel';
 import { GrueneratorAttachmentAdapter } from '../runtime/GrueneratorAttachmentAdapter';
 import {
   createGrueneratorModelAdapter,
@@ -207,7 +206,7 @@ function EditorAssistantReadyHost({
       const tools = adapter.getTools(aiEditEnabledRef.current);
       return {
         agentId: surface.selectedAgentId ?? adapter.agentId,
-        modelId: surface.selectedModel ?? '',
+        modelId: surface.selectedModel,
         enabledTools: tools.enabledTools,
         customEnabledTools: tools.customEnabledTools,
         threadId: threadIdRef.current,
