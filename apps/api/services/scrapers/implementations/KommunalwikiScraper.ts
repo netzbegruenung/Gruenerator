@@ -640,19 +640,16 @@ export class KommunalwikiScraper extends BaseScraper {
     }
 
     const searchParams = {
-      vector: queryVector,
+      query: queryVector,
       limit: limit * 3,
       score_threshold: threshold,
       with_payload: true as const,
       ...(filter.must.length > 0 ? { filter } : {}),
     };
-    const searchResult = await this.qdrant!.client!.search(
-      this.config.collectionName,
-      searchParams
-    );
+    const searchResult = await this.qdrant!.client!.query(this.config.collectionName, searchParams);
 
     const articlesMap = new Map<string, Record<string, unknown>>();
-    for (const hit of searchResult) {
+    for (const hit of searchResult.points) {
       const payload = hit.payload as Record<string, unknown> | null;
       if (!payload) continue;
       const articleId = payload.article_id as string;

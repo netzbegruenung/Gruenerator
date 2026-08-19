@@ -37,17 +37,17 @@ async function main() {
 
     const vector = await mistralEmbeddingService.generateEmbedding(evalCase.query);
     const [approx, exact] = await Promise.all([
-      client.search(config.qdrantCollection, { vector, limit: K, with_payload: false }),
-      client.search(config.qdrantCollection, {
-        vector,
+      client.query(config.qdrantCollection, { query: vector, limit: K, with_payload: false }),
+      client.query(config.qdrantCollection, {
+        query: vector,
         limit: K,
         with_payload: false,
         params: { exact: true },
       }),
     ]);
 
-    const exactIds = new Set(exact.map((p) => String(p.id)));
-    const overlap = approx.filter((p) => exactIds.has(String(p.id))).length;
+    const exactIds = new Set(exact.points.map((p) => String(p.id)));
+    const overlap = approx.points.filter((p) => exactIds.has(String(p.id))).length;
 
     const stats = perCollection.get(config.qdrantCollection) ?? { overlap: 0, total: 0 };
     stats.overlap += overlap;
