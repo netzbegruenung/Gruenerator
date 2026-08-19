@@ -84,24 +84,47 @@ still mean what they say — intent, tools, latency, thread identity do not depe
 on persona text. Everything about ANSWER QUALITY does: `topic:… not covered`,
 the judge's `groundedness` and `german_quality` verdicts, refusal wording. Check
 the backend's boot log before reading those as product findings.
+Der Harness prüft das seit 19.08.2026 selbst und **bricht ab**, wenn das
+Verzeichnis fehlt; `EVAL_ALLOW_GENERIC_PERSONAS=1` erzwingt den Lauf und setzt
+stattdessen eine Warnzeile in den Kopf. Zeigt `EVAL_BASE_URL` auf einen fremden
+Host, kann er nichts sehen und sagt genau das — dann gilt weiter: erst ins
+Boot-Log des Backends schauen.
+
+**Der Messrechner darf während des Laufs nicht schlafen.** Node-Timer stehen im
+Schlaf still, die Wanduhr läuft weiter — ein Zug, der in einen Sleep→DarkWake-
+Zyklus fällt, wird mit dessen voller Dauer gemessen und endet oft in
+`stream: terminated`. Der Lauf vom 18.08.2026 hat sich daran verschluckt: der
+„20,5-Minuten-Stall" (`autolane-saveasdoc-after-research`, 1.229.798 ms) waren
+995 s Schlaf und 235 s Arbeit, und **jeder einzelne** `streamCompleted:
+terminated`-Fehlschlag der gemma-4-Lane war derselbe Effekt — die vermeintlichen
+„14 Szenarien, die nur auf gemma-4 fallen" schrumpfen bereinigt auf fünf. Roh
+las sich das als p95 984.779 ms; schlafbereinigt über alle 319 Züge beider Lanes
+p50 7,9 s · p95 124 s · p99 159 s · max 235 s.
+
+Also vor dem Lauf `caffeinate -dimsu pnpm eval:chat` (macOS) oder den Deckel
+offen lassen. Und hinterher, bei jedem Ausreisser über ~5 Minuten, erst
+`pmset -g log | grep -E "Entering Sleep state|DarkWake|Wake from"` gegen die
+Log-Lücke halten, bevor daraus ein Befund wird.
 
 ## Env
 
-| var                         | default                 | purpose                                     |
-| --------------------------- | ----------------------- | ------------------------------------------- |
-| `EVAL_BASE_URL`             | `http://localhost:3001` | backend base                                |
-| `EVAL_BYPASS_TOKEN`         | —                       | `x-dev-auth-bypass` header                  |
-| `EVAL_MODEL_ID`             | auto                    | pin a lane; `mistral`/`auto` mean AUTO      |
-| `EVAL_FILTER`               | —                       | run only ids/categories containing this     |
-| `EVAL_SLOW=1`               | —                       | include `"slow"` (golden long) scenarios    |
-| `EVAL_MCP=1`                | —                       | include `"mcpLane"` scenarios (needs setup) |
-| `EVAL_CONCURRENCY`          | 1                       | scenarios in parallel (turns stay serial)   |
-| `EVAL_BASELINE`             | `./baseline.json`       | regression baseline (per-lane in CI)        |
-| `EVAL_UPDATE_BASELINE=1`    | —                       | overwrite the baseline with this run        |
-| `EVAL_RECORD_DIR`           | —                       | record raw SSE per turn (E2E fixtures)      |
-| `EVAL_DECISION_DIR`         | —                       | read decision journals back, render maps    |
-| `LITELLM_BASE_URL/_API_KEY` | —                       | judge only (verdigado proxy)                |
-| `EVAL_JUDGE_BLOCKING=1`     | —                       | judge failures set exit code                |
+| var                             | default                 | purpose                                            |
+| ------------------------------- | ----------------------- | -------------------------------------------------- |
+| `EVAL_BASE_URL`                 | `http://localhost:3001` | backend base                                       |
+| `EVAL_BYPASS_TOKEN`             | —                       | `x-dev-auth-bypass` header                         |
+| `EVAL_MODEL_ID`                 | auto                    | pin a lane; `mistral`/`auto` mean AUTO             |
+| `EVAL_FILTER`                   | —                       | run only ids/categories containing this            |
+| `EVAL_SLOW=1`                   | —                       | include `"slow"` (golden long) scenarios           |
+| `EVAL_MCP=1`                    | —                       | include `"mcpLane"` scenarios (needs setup)        |
+| `EVAL_SYSTEM_MCP=1`             | —                       | include `"systemMcpLane"` (bahn/wetter/news/hotel) |
+| `EVAL_ALLOW_GENERIC_PERSONAS=1` | —                       | run without `INTERN_CONTENT_DIR` (warns)           |
+| `EVAL_CONCURRENCY`              | 1                       | scenarios in parallel (turns stay serial)          |
+| `EVAL_BASELINE`                 | `./baseline.json`       | regression baseline (per-lane in CI)               |
+| `EVAL_UPDATE_BASELINE=1`        | —                       | overwrite the baseline with this run               |
+| `EVAL_RECORD_DIR`               | —                       | record raw SSE per turn (E2E fixtures)             |
+| `EVAL_DECISION_DIR`             | —                       | read decision journals back, render maps           |
+| `LITELLM_BASE_URL/_API_KEY`     | —                       | judge only (verdigado proxy)                       |
+| `EVAL_JUDGE_BLOCKING=1`         | —                       | judge failures set exit code                       |
 
 ## Decision maps from a live run
 
@@ -167,6 +190,23 @@ guard), `answerMustNotContain` (payload strings whose presence proves an
 injection was executed). `"knownFailure": true` documents an open bug: the
 scenario runs and reports (🟡) but never fails the baseline — drop the flag once
 fixed.
+
+Zwei Lane-Flags halten Szenarien aus dem Vorgabelauf, deren Rot eine Aussage
+über die UMGEBUNG wäre und keine über den Code: `"mcpLane"` (vom Nutzer
+verbundene MCP-Server, `EVAL_MCP=1`) und `"systemMcpLane"` (die Server-seitigen
+System-Connectoren bahn/wetter/news/hotel, `EVAL_SYSTEM_MCP=1`). Ohne die
+`SYSTEM_MCP_*_URL` am Backend weicht der Loop folgerichtig auf `web_search` aus
+— vier der zwanzig Fehlschläge am 18.08.2026 waren genau das, dauerhaftes
+Rauschen unter jeder Vorher/Nachher-Differenz.
+
+**`routing` nimmt nur LEBENDE Intents.** Der Loader prüft den Wert gegen
+`DISPOSITION_BY_INTENT` und lehnt einen `retired`-Intent mit Datei und Zeile ab.
+Bis 19.08.2026 prüften sieben Szenarien gegen `bahn`/`wetter`/`news`/`hotel`/
+`reise`/`umfragen` — seit dem Registry-Umbau erzeugt der Klassifikator die nicht
+mehr, der Turn läuft als `agentic` und ruft das richtige Werkzeug. Sie liefen
+fachlich richtig und meldeten trotzdem rot. **Der Werkzeug-Aufruf ist die
+Wahrheit, nicht der Intent-Name**: was ein stillgelegter Intent früher zusicherte,
+gehört heute in `toolsMustInclude`/`toolsAnyOf`.
 
 **One green run does not retire a flag.** Measured on the `safety-adversarial`
 lane over four live runs against a local backend: two scenarios passed 4/4, the

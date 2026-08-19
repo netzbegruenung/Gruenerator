@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
 
 import { loadCorpus, parseCorpusText } from './corpus.js';
+import { LIVE_INTENT_IDS } from './types.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -113,12 +114,53 @@ describe('the checked-in corpus', () => {
   // .jsonl therefore fails in CI instead of surviving as a silently-skipped
   // assertion until someone runs the live eval.
   it('validates every line of every corpus file', () => {
-    const all = loadCorpus(HERE, { filter: '', slow: true, mcp: true, notebook: true });
+    const all = loadCorpus(HERE, {
+      filter: '',
+      slow: true,
+      mcp: true,
+      notebook: true,
+      systemMcp: true,
+    });
     expect(all.length).toBeGreaterThan(100);
   });
 
+  /**
+   * Ein stillgelegter Intent im Korpus ist eine Erwartung, die niemand mehr
+   * erfüllen kann — der Klassifikator erzeugt ihn nicht.
+   *
+   * Am 19.08.2026 prüften sieben Szenarien gegen `bahn`/`wetter`/`news`/
+   * `hotel`/`reise`/`umfragen`. Fachlich liefen sie richtig (`tools=[umfragen]`)
+   * und meldeten trotzdem rot. Ein Prüfmittel, das für eine Stilllegung genauso
+   * rot meldet wie für einen echten Werkzeug-Fehlgriff, hat aufgehört zu
+   * unterscheiden. Der Loader lehnt so eine Zeile jetzt ab; dieser Test hält
+   * fest, dass die abgeleitete Menge nicht leer läuft und der abgelöste Wert
+   * nicht zurückkommt.
+   */
+  it('kennt keinen stillgelegten Intent in einer routing-Erwartung', () => {
+    expect(LIVE_INTENT_IDS).toContain('agentic');
+    for (const retired of ['bahn', 'reise', 'hotel', 'wetter', 'news', 'umfragen']) {
+      expect(LIVE_INTENT_IDS).not.toContain(retired);
+    }
+
+    const bad = JSON.stringify({
+      id: 'retired-1',
+      category: 'umfragen',
+      turns: [
+        { prompt: 'Wie stehen die Grünen in den Umfragen?', expect: { routing: 'umfragen' } },
+      ],
+    });
+    expect(() => parseCorpusText(bad, 'demo.jsonl')).toThrow(/routing/);
+    expect(() => parseCorpusText(bad, 'demo.jsonl')).toThrow(/retired/);
+  });
+
   it('has no duplicate scenario ids', () => {
-    const all = loadCorpus(HERE, { filter: '', slow: true, mcp: true, notebook: true });
+    const all = loadCorpus(HERE, {
+      filter: '',
+      slow: true,
+      mcp: true,
+      notebook: true,
+      systemMcp: true,
+    });
     expect(new Set(all.map((s) => s.id)).size).toBe(all.length);
   });
 });
