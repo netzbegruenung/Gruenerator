@@ -9,7 +9,7 @@ import {
   type LoginProvider,
   type LoginProviderId,
 } from '@gruenerator/shared/auth';
-import { type JSX, useState, useEffect, useCallback } from 'react';
+import { type JSX, useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { TRANSPARENCY_NOTICE } from '../../../config/transparencyNotice';
@@ -91,10 +91,16 @@ const LoginPage = ({
   // login page, or right after sign-in), fall back to their preferred start
   // page instead of the hardcoded Workplace Chat tab.
   const startPage = useAuthStore((s) => s.user?.default_startpage);
-  const intendedRedirect =
-    mode === 'required'
-      ? location.pathname
-      : getIntendedRedirect(location, startPagePath(startPage));
+  // Memoized: getIntendedRedirect logs its decision, and running it on every
+  // render prints "[AuthRedirect] …" once per re-render — which reads like
+  // repeated redirects when debugging a logout.
+  const intendedRedirect = useMemo(
+    () =>
+      mode === 'required'
+        ? location.pathname
+        : getIntendedRedirect(location, startPagePath(startPage)),
+    [mode, location, startPage]
+  );
 
   const isMobileApp = isMobileAppContext(location);
 
