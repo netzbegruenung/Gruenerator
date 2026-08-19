@@ -131,4 +131,42 @@ describe('captureImpact', () => {
     expect(captureImpact(response, 'gemma4')).toBe(response);
     expect(recordImpact).not.toHaveBeenCalled();
   });
+
+  /**
+   * Der Tap darf die Anfrage nicht ÜBERLEBEN. `tee()` gibt den Körper erst
+   * frei, wenn beide Zweige fertig sind — ohne diesen Abbruch las der Tap
+   * weiter, während der Aufrufer längst abgebrochen hatte, und hielt die
+   * Verbindung offen. Live gemessen am 18.08.2026: ein Turn lief 1.229 s und
+   * endete erst, als undici von sich aus abbrach.
+   */
+  it('stops tapping when the caller aborts', async () => {
+    let cancelled = false;
+    const never = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('data: {"choices":[]}\n\n'));
+        // …und danach nie wieder etwas: der hängende Anbieter.
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    const controller = new AbortController();
+    const response = new Response(never, {
+      status: 200,
+      headers: { 'content-type': 'text/event-stream' },
+    });
+
+    const passed = captureImpact(response, 'gemma4', controller.signal);
+    // Der Zweig des Aufrufers bleibt lesbar — der Abbruch gilt nur dem Tap.
+    expect(passed.body).not.toBeNull();
+
+    controller.abort();
+    // Ein einzelner abgebrochener tee-Zweig bricht die QUELLE nicht ab — genau
+    // deshalb stört der Abbruch den Aufrufer nicht. Sichtbar wird er erst, wenn
+    // auch der Aufrufer loslässt: dann sind beide Zweige fertig und die
+    // Verbindung fällt. Ohne den Abbruch oben läse der Tap weiter und die
+    // Quelle bliebe für immer offen.
+    await passed.body?.cancel();
+    await vi.waitFor(() => expect(cancelled).toBe(true));
+  });
 });
