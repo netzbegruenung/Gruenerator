@@ -27,7 +27,13 @@ export function normalize(line: EvalCase | EvalScenario): EvalScenario {
     ...(line.modelId ? { modelId: line.modelId } : {}),
     ...(line.knownFailure ? { knownFailure: true } : {}),
     ...(line.systemMcpLane ? { systemMcpLane: true } : {}),
-    turns: [{ prompt: line.prompt, expect: line.expect ?? {} }],
+    turns: [
+      {
+        prompt: line.prompt,
+        expect: line.expect ?? {},
+        ...(line.expectWhenLoopOff ? { expectWhenLoopOff: line.expectWhenLoopOff } : {}),
+      },
+    ],
   };
 }
 
