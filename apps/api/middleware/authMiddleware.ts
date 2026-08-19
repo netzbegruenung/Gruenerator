@@ -10,7 +10,7 @@ import { fromNodeHeaders } from 'better-auth/node';
 import { eq } from 'drizzle-orm';
 import { type Request, type Response, type NextFunction } from 'express';
 
-import { auth, type BetterAuthUser } from '../config/betterAuth.js';
+import { auth, SESSION_COOKIE_PREFIX, type BetterAuthUser } from '../config/betterAuth.js';
 import { env } from '../config/env.js';
 import { ba_sessions } from '../database/schema/auth.js';
 import { getDrizzleInstance } from '../database/services/DrizzleService.js';
@@ -133,6 +133,11 @@ type ResolveResult =
  * production adds (the secure name contains the base name as a substring).
  * Returns the 8-char token prefix — the SAME 8 chars the `session-created`
  * hook logs — so a single `grep token=<8>` reconstructs a session's lifecycle.
+ *
+ * Matches on this instance's SESSION_COOKIE_PREFIX, not on a literal `ba`:
+ * a browser holding sessions for prod AND beta sends the parent-domain cookie
+ * to beta too, and reporting THAT token while Better Auth reads its own makes
+ * the diagnostics blame a "live" session that was never consulted.
  */
 function classifySessionCookies(cookieHeader: string | undefined): {
   token?: string | undefined;
@@ -151,7 +156,7 @@ function classifySessionCookies(cookieHeader: string | undefined): {
     if (eq === -1) continue;
     const name = pair.slice(0, eq);
     const value = pair.slice(eq + 1);
-    if (name.includes('ba.session_token')) {
+    if (name.includes(`${SESSION_COOKIE_PREFIX}.session_token`)) {
       hasSessionToken = true;
       try {
         // Cookie value is `<token>.<signature>`; the DB column stores the
@@ -161,7 +166,7 @@ function classifySessionCookies(cookieHeader: string | undefined): {
       } catch {
         // Malformed cookie value — leave token/prefix undefined.
       }
-    } else if (name.includes('ba.session_data')) {
+    } else if (name.includes(`${SESSION_COOKIE_PREFIX}.session_data`)) {
       sessionDataPresent = true;
     }
   }
