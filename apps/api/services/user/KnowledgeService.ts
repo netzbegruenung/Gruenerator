@@ -342,10 +342,10 @@ class KnowledgeService {
     if (this.qdrant!.isAvailableSync()) {
       try {
         const queryEmbedding = await mistralEmbeddingService.generateEmbedding(query);
-        const searchResult = await this.qdrant!.client!.search(
+        const searchResult = await this.qdrant!.client!.query(
           this.qdrant!.collections.user_knowledge,
           {
-            vector: queryEmbedding,
+            query: queryEmbedding,
             filter: { must: [{ key: 'user_id', match: { value: userId } }] },
             limit: limit * 2,
             score_threshold: threshold,
@@ -354,7 +354,7 @@ class KnowledgeService {
         );
 
         const seen = new Set();
-        const results = searchResult
+        const results = searchResult.points
           .filter((hit) => {
             const p = hit.payload as Record<string, unknown> | null;
             return p && !seen.has(p.knowledge_id) && seen.add(p.knowledge_id);
