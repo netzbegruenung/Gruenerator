@@ -50,6 +50,12 @@ export const ba_accounts = pgTable(
       .references(() => profiles.id, { onDelete: 'cascade' }),
     account_id: text('account_id').notNull(),
     provider_id: text('provider_id').notNull(),
+    /**
+     * better-auth 1.7 keys external accounts on (issuer, accountId). Nullable
+     * while 1.6.x is still writing rows without it; `backfillAccountIssuer`
+     * stamps stragglers on every boot until the upgrade lands.
+     */
+    issuer: text('issuer'),
     access_token: text('access_token'),
     refresh_token: text('refresh_token'),
     access_token_expires_at: timestamp('access_token_expires_at', { withTimezone: true }),
@@ -60,6 +66,7 @@ export const ba_accounts = pgTable(
   },
   (table) => ({
     userIdx: index('idx_ba_accounts_user').on(table.user_id),
+    issuerAccountIdx: index('idx_ba_accounts_issuer_account').on(table.issuer, table.account_id),
     userProviderUnique: unique('ba_accounts_user_provider_unique').on(
       table.user_id,
       table.provider_id
@@ -81,6 +88,26 @@ export const ba_verification = pgTable(
     identifierIdx: index('idx_ba_verification_identifier').on(table.identifier),
   })
 );
+
+/**
+ * Signing keys for the better-auth `jwt()` plugin, which 1.7 requires alongside
+ * `@better-auth/mcp`: it mints the ID/access tokens and serves `/jwks`, which is
+ * how resource servers verify them once the opaque-token lookup is gone.
+ *
+ * Export key MUST stay `jwks` — the plugin's model name; the SQL identifier
+ * follows the `ba_` convention.
+ *
+ * Source-of-truth migration: `database/postgres/migrations/add_better_auth_v17_jwks.sql`
+ */
+export const jwks = pgTable('ba_jwks', {
+  id: text('id').primaryKey(),
+  publicKey: text('public_key').notNull(),
+  privateKey: text('private_key').notNull(),
+  alg: text('alg'),
+  crv: text('crv'),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
 
 /**
  * Drizzle relations for joins. Better Auth's `findOAuthUser` issues a query
@@ -109,3 +136,4 @@ export const ba_sessionsRelations = relations(ba_sessions, ({ one }) => ({
 export type BaSessionRow = InferSelectModel<typeof ba_sessions>;
 export type BaAccountRow = InferSelectModel<typeof ba_accounts>;
 export type BaVerificationRow = InferSelectModel<typeof ba_verification>;
+export type JwksRow = InferSelectModel<typeof jwks>;
