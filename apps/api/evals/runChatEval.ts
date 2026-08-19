@@ -22,8 +22,15 @@
  *                   Auto-Policy. Eine echte Mistral-Lane heisst
  *                   'mistral-medium-3.5'. Siehe README, Abschnitt „Run".
  *   EVAL_FILTER     only run cases whose id/category contains this substring
+ *   EVAL_ALLOW_GENERIC_PERSONAS=1  run even though INTERN_CONTENT_DIR is missing
+ *                   (der Lauf misst dann generische Personas — siehe
+ *                   internalPromptsVerdict)
  *   EVAL_SLOW=1     include scenarios tagged `slow` (golden long threads)
  *   EVAL_NOTEBOOK=1 include notebook-surface scenarios (tagged `notebookLane`)
+ *   EVAL_SYSTEM_MCP=1  include scenarios that need the SYSTEM MCP servers
+ *                   (bahn/wetter/news/hotel; tagged `systemMcpLane`). Ohne die
+ *                   `SYSTEM_MCP_*_URL` am Backend weicht der Loop auf
+ *                   `web_search` aus — rot, ohne Aussage über den Code.
  *   EVAL_CONCURRENCY  scenarios to run in parallel (default 1; turns stay serial)
  *   EVAL_BASELINE   baseline JSON path (default ./evals/baseline.json)
  *   EVAL_UPDATE_BASELINE=1  overwrite the baseline with this run's results
@@ -37,7 +44,7 @@
  * Deterministic assertions only — no model calls here. The LLM-judge pass
  * (eval:judge) consumes the enriched last-run.json this writes.
  */
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -99,6 +106,7 @@ function selectedCorpus(): EvalScenario[] {
     slow: SLOW,
     mcp: process.env.EVAL_MCP === '1',
     notebook: process.env.EVAL_NOTEBOOK === '1',
+    systemMcp: process.env.EVAL_SYSTEM_MCP === '1',
   });
 }
 
@@ -490,6 +498,44 @@ function report(results: CaseResult[]): void {
   if (regressions > 0 || passed < scored.length) process.exitCode = 1;
 }
 
+/**
+ * Laufen die internen Prompts mit — oder misst dieser Lauf ein Produkt ohne sie?
+ *
+ * Rezept- und Persona-Texte liegen nicht im öffentlichen Repo, sondern werden
+ * zur Laufzeit aus `INTERN_CONTENT_DIR` gelesen (siehe
+ * `services/skills/internalPrompts.ts`). Fehlt das Verzeichnis, startet das
+ * Backend trotzdem: jede Persona fällt auf eine generische zurück, und der Lauf
+ * misst ein anderes Produkt, als er zu messen glaubt. Im Lauf vom 18.08.2026
+ * war genau das der Fall — sichtbar nur als ERROR-Zeile im Backend-Log, die
+ * niemand las, während die Qualitätsurteile weiterliefen.
+ *
+ * Der Harness prüft dieselben zwei Orte, die das Backend prüft. Zeigt
+ * EVAL_BASE_URL auf einen fremden Host, kann er GAR NICHTS prüfen — dann sagt
+ * er das, statt eine Entwarnung zu erfinden, die er nicht belegen kann.
+ */
+function internalPromptsVerdict(): { ok: boolean; local: boolean; detail: string } {
+  const local = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/.test(BASE_URL);
+  if (!local) {
+    return {
+      ok: false,
+      local: false,
+      detail: `${BASE_URL} ist ein fremder Host — der Harness sieht dessen Platte nicht`,
+    };
+  }
+  const root =
+    process.env.INTERN_CONTENT_DIR?.trim() || join(HERE, '../../../.external/gruenerator-intern');
+  const agents = join(root, 'agents');
+  let count = 0;
+  try {
+    count = readdirSync(agents).filter((f) => f.endsWith('.md')).length;
+  } catch {
+    return { ok: false, local: true, detail: `kein Verzeichnis unter ${agents}` };
+  }
+  return count > 0
+    ? { ok: true, local: true, detail: `${count} Personas aus ${root}` }
+    : { ok: false, local: true, detail: `${agents} ist leer` };
+}
+
 async function main(): Promise<void> {
   const corpus = selectedCorpus();
   if (corpus.length === 0) {
@@ -498,6 +544,23 @@ async function main(): Promise<void> {
   }
   if (!BYPASS) {
     console.warn('⚠  EVAL_BYPASS_TOKEN not set — requests will likely 401.\n');
+  }
+
+  const personas = internalPromptsVerdict();
+  if (personas.ok) {
+    console.log(`Personas:   intern (${personas.detail})`);
+  } else if (process.env.EVAL_ALLOW_GENERIC_PERSONAS === '1') {
+    console.warn(
+      `⚠  Personas: generisch — Qualitätsurteile nicht belastbar (${personas.detail})\n`
+    );
+  } else {
+    console.error(
+      `✖  INTERN_CONTENT_DIR fehlt oder ist leer (${personas.detail}).\n` +
+        '   Ohne die internen Prompts misst der Lauf generische Personas und generische\n' +
+        '   Rezepte — jedes Qualitätsurteil daraus ist unbelastbar.\n' +
+        '   Setz INTERN_CONTENT_DIR, oder erzwing den Lauf mit EVAL_ALLOW_GENERIC_PERSONAS=1.'
+    );
+    process.exit(1);
   }
 
   // Bounded-concurrency worker pool. Turns within a scenario stay sequential
