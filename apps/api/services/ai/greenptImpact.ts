@@ -84,6 +84,27 @@ export function modelFromRequestBody(body: unknown): string | null {
 }
 
 /**
+ * Rückfallfrist für den Tap, wenn der Aufrufer KEIN Signal mitgibt.
+ *
+ * Bewusst eine eigene Zahl und keine Kopie der `hardCapMs` des Loops: die wird
+ * dort als `Math.max(300_000, wallClockMs * 2)` gebildet und wächst mit
+ * `CHAT_AGENT_LOOP_BUDGET_MS` mit. Sie hier nachzubilden hiesse, eine Formel aus
+ * `routes/chat` in `services/ai` zu duplizieren — zwei Orte, die dasselbe
+ * entscheiden, driften.
+ *
+ * Zu kurz zu greifen ist die harmlose Richtung: der Tap bricht dann früher ab
+ * als der Turn, und der Preis ist die Nachhaltigkeitszahl dieser einen Anfrage.
+ * Zu lang zu greifen wäre die schädliche — genau der Fall, den diese Frist
+ * verhindert.
+ *
+ * Heute erreicht das niemand: der einzige Aufrufer
+ * (`greenptFetchWithThinkingDisabled`) reicht das Signal der Anfrage durch, und
+ * das ist der Weg, der zählt. Die Frist ist der Gurt für einen künftigen
+ * Aufrufer, der es vergisst.
+ */
+const IMPACT_TAP_CEILING_MS = 300_000;
+
+/**
  * Tap a GreenPT response for its impact figures without disturbing the consumer.
  *
  * `userId`/`feature` are read by the caller BEFORE the request is issued: on a
@@ -93,7 +114,12 @@ export function modelFromRequestBody(body: unknown): string | null {
  * Returns the response the caller should pass on — the original for the
  * buffered path, a re-wrapped one for the streamed path.
  */
-export function captureImpact(response: Response, model: string | null): Response {
+export function captureImpact(
+  response: Response,
+  model: string | null,
+  /** Das Abbruchsignal der Anfrage — der Tap endet mit ihr, nicht nach ihr. */
+  signal?: AbortSignal | null
+): Response {
   const userId = getUsageUserId();
   if (!userId || !model || !response.ok) return response;
   const feature = getUsageFeature();
@@ -127,10 +153,25 @@ export function captureImpact(response: Response, model: string | null): Respons
   const [forCaller, forUs] = response.body.tee();
   // The tapped branch MUST be drained to completion — an unread tee branch
   // applies backpressure that would stall the branch the caller is reading.
+  //
+  // …aber es muss auch ENDEN können. `tee()` gibt den Körper erst frei, wenn
+  // BEIDE Zweige fertig sind: solange diese Schleife liest, reisst der Abbruch
+  // des Aufrufers die Verbindung nicht ab. Am 18.08.2026 hing daran ein Turn
+  // 1.229 s (Nightly-Eval, `autolane-saveasdoc-after-research`) und endete erst,
+  // als undici von sich aus abbrach — die 300-s-Decke des Loops konnte nichts
+  // ausrichten, weil sie nur den Zweig des Aufrufers kennt.
+  //
+  // `cancel()` auf einem tee-Zweig lässt den anderen unberührt (der Ursprung
+  // wird nur abgebrochen, wenn BEIDE abbrechen) — die Warnung oben bleibt also
+  // gewahrt. Der Preis ist die Nachhaltigkeitszahl dieser einen Anfrage; die
+  // ist billiger als eine offene Verbindung.
+  const reader = forUs.getReader();
+  const stopTap = (): void => void reader.cancel().catch(() => {});
+  signal?.addEventListener('abort', stopTap, { once: true });
+  const tapCeiling = setTimeout(stopTap, IMPACT_TAP_CEILING_MS);
   void (async () => {
     try {
       const decoder = new TextDecoder();
-      const reader = forUs.getReader();
       // Only the tail can carry the impact event; keep a bounded window rather
       // than the whole answer.
       let tail = '';
@@ -142,6 +183,9 @@ export function captureImpact(response: Response, model: string | null): Respons
       record(parseImpactFromSse(tail + decoder.decode()));
     } catch (error) {
       log.debug('[GreenPT] impact stream tap failed:', error);
+    } finally {
+      clearTimeout(tapCeiling);
+      signal?.removeEventListener('abort', stopTap);
     }
   })();
 
