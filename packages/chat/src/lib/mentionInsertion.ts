@@ -6,6 +6,18 @@ export interface MentionInsertionResult {
 }
 
 /**
+ * The draft seed a mentionable contributes. Recipes and agents carry a
+ * `promptTemplate` ("Schreibe eine Pressemitteilung im Stil … zum Thema: ")
+ * that only restates what the recipe already tells the model — dropping it
+ * keeps the composer empty for the user's own topic. Tool mentions keep their
+ * seed: there it is the query stem the user types into (`@umfragen` →
+ * "Suche aktuelle Umfragen zu ").
+ */
+function seedFor(mentionable: Mentionable): string {
+  return mentionable.category === 'skill' ? '' : (mentionable.promptTemplate ?? '');
+}
+
+/**
  * Compute new text content after a mention is selected.
  * Platform-agnostic — works in both web and React Native.
  */
@@ -20,7 +32,7 @@ export function computeMentionInsertion(
   const before = currentText.slice(0, insertAt);
   const after = mentionStart >= 0 ? currentText.slice(caretPosition) : '';
   const prefix = before.length > 0 && !before.endsWith(' ') && mentionStart < 0 ? ' ' : '';
-  const tmpl = mentionable.promptTemplate ?? '';
+  const tmpl = seedFor(mentionable);
   const newText = `${before}${prefix}${trigger}${mentionable.mention} ${tmpl}${after}`;
   const cursorPosition =
     before.length + prefix.length + mentionable.mention.length + 2 + tmpl.length;
@@ -30,7 +42,7 @@ export function computeMentionInsertion(
 
 /**
  * Pill-mode insertion: the mention itself becomes a composer chip instead of
- * text, so only the optional promptTemplate lands in the textarea. The typed
+ * text, so only the seed from `seedFor` lands in the textarea. The typed
  * `@quer…` trigger span (mentionStart..caretPosition) is removed.
  */
 export function computePillMentionInsertion(
@@ -42,7 +54,7 @@ export function computePillMentionInsertion(
   const insertAt = mentionStart >= 0 ? mentionStart : currentText.length;
   const before = currentText.slice(0, insertAt);
   const after = mentionStart >= 0 ? currentText.slice(caretPosition) : '';
-  const tmpl = mentionable.promptTemplate ?? '';
+  const tmpl = seedFor(mentionable);
   return { newText: `${before}${tmpl}${after}`, cursorPosition: before.length + tmpl.length };
 }
 
