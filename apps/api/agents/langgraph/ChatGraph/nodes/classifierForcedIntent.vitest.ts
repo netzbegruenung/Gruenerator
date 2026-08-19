@@ -311,6 +311,38 @@ describe('Tier 2 — context intents (resource presence only)', () => {
     const result = await classifierNode(state);
     expect(result.intent).toBe('produktion');
   });
+
+  it('file attachment + agent default notebook collections → search', async () => {
+    const state = buildState({
+      userMessage: 'Antworte auf diese E-Mail einer Bürgerin:',
+      attachmentContext:
+        'Sehr geehrte Damen und Herren, wie steht Ihre Partei zur Stadtentwicklung in Pankow?',
+      defaultNotebookCollectionIds: ['berlin'],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('search');
+    expect(result.searchQuery).not.toBeNull();
+  });
+
+  it('file attachment + default notebook document ids → search', async () => {
+    const state = buildState({
+      userMessage: 'was steht dazu in unseren Beschlüssen?',
+      attachmentContext: 'Inhalt der hochgeladenen Datei...',
+      defaultNotebookDocumentIds: ['nb-doc-1'],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('search');
+  });
+
+  it('file attachment + default notebook + summary keywords → summary (tier 2 wins)', async () => {
+    const state = buildState({
+      userMessage: 'fasse die Datei zusammen',
+      attachmentContext: 'Inhalt der hochgeladenen Datei...',
+      defaultNotebookCollectionIds: ['berlin'],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('summary');
+  });
 });
 
 // ── EDGE CASES: Multi-resource combinations ──────────────────────────────
