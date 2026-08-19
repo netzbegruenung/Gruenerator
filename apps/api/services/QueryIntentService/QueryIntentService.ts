@@ -174,7 +174,7 @@ class QueryIntentService {
     if (!q) {
       return {
         collections: getDefaultMultiCollectionIds(),
-        documentTitleFilter: null,
+        documentCategoryFilter: null,
         detectedPhrase: null,
         subcategoryFilters: {},
       };
@@ -187,47 +187,47 @@ class QueryIntentService {
       {
         re: /\b(im\s+)?Grundsatzprogramm(\s+2020)?\b/i,
         collections: ['grundsatz-system'],
-        titleFilter: 'Grundsatzprogramm 2020',
+        primaryCategory: 'Grundsatzprogramm',
       },
       {
         re: /\b(im\s+)?(EU[\s-]?Wahlprogramm|Europawahlprogramm)(\s+2024)?\b/i,
         collections: ['grundsatz-system'],
-        titleFilter: 'EU-Wahlprogramm 2024',
+        primaryCategory: 'Wahlprogramm',
       },
       {
         re: /\b(im\s+)?Regierungsprogramm(\s+2025)?\b/i,
         collections: ['grundsatz-system'],
-        titleFilter: 'Regierungsprogramm 2025',
+        primaryCategory: 'Regierungsprogramm',
       },
       {
         re: /\b((in\s+den\s+)?(Grundsatz)?programmen|Grundsatzprogramme)\b/i,
         collections: ['grundsatz-system'],
-        titleFilter: null,
+        primaryCategory: null,
       },
       {
         re: /\b(Bundestags?fraktion|gruene-?bundestag|grüne-?bundestag)\b/i,
         collections: ['bundestagsfraktion-system'],
-        titleFilter: null,
+        primaryCategory: null,
       },
       {
         re: /\b(KommunalWiki|Kommunalwiki|kommunalwiki)\b/i,
         collections: ['kommunalwiki-system'],
-        titleFilter: null,
+        primaryCategory: null,
       },
       {
         re: /\b(gruene\.de|grüne\.de)\b/i,
         collections: ['gruene-de-system'],
-        titleFilter: null,
+        primaryCategory: null,
       },
       {
         re: /\b(gruene\.at|grüne\.at|Grüne\s+Österreich)\b/i,
         collections: ['gruene-at-system'],
-        titleFilter: null,
+        primaryCategory: null,
       },
       {
         re: /\b(satzung|satzungen|kreisverband|ortsverband)\b/i,
         collections: ['satzungen-system'],
-        titleFilter: null,
+        primaryCategory: null,
       },
     ];
 
@@ -236,7 +236,7 @@ class QueryIntentService {
       if (match) {
         return {
           collections: pattern.collections,
-          documentTitleFilter: pattern.titleFilter,
+          documentCategoryFilter: pattern.primaryCategory,
           detectedPhrase: match[0],
           subcategoryFilters,
         };
@@ -245,7 +245,7 @@ class QueryIntentService {
 
     return {
       collections: getDefaultMultiCollectionIds(),
-      documentTitleFilter: null,
+      documentCategoryFilter: null,
       detectedPhrase: null,
       subcategoryFilters,
     };
