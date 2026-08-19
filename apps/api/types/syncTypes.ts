@@ -6,6 +6,8 @@ export interface SourceGroupResult {
   skipped: number;
   fetchErrors: number;
   errors: number;
+  /** Stichprobe der Meldungen hinter `errors` (leer, wenn keine geliefert wurden). */
+  errorSamples?: string[];
   duration: number;
   status: 'success' | 'failed';
   error?: string;

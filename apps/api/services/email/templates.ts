@@ -484,6 +484,12 @@ export interface ContentSyncSourceResult {
   updated: number;
   skipped: number;
   errors: number;
+  /**
+   * Stichprobe der Meldungen hinter `errors`, serverseitig gedeckelt. `errors`
+   * bleibt die verbindliche Zahl — sind es mehr als hier stehen, sagt die
+   * Zeile das ausdrücklich, damit die Liste nicht als vollständig gelesen wird.
+   */
+  errorSamples?: string[];
   duration: number;
   error?: string;
 }
@@ -535,7 +541,17 @@ export function renderContentSyncTemplate(params: ContentSyncTemplateParams): {
         <td style="padding:8px 12px;border:1px solid #e5e5e5;text-align:right;">${s.skipped}</td>
         <td style="padding:8px 12px;border:1px solid #e5e5e5;text-align:right;${s.errors > 0 ? 'color:#c00;font-weight:700;' : ''}">${s.errors}</td>
         <td style="padding:8px 12px;border:1px solid #e5e5e5;text-align:right;">${s.duration}s</td>
-      </tr>${s.error ? `<tr style="background-color:#fff5f5;"><td colspan="6" style="padding:4px 12px;border:1px solid #e5e5e5;color:#c00;font-size:13px;">Fehler: ${escapeHtml(s.error)}</td></tr>` : ''}`;
+      </tr>${s.error ? `<tr style="background-color:#fff5f5;"><td colspan="6" style="padding:4px 12px;border:1px solid #e5e5e5;color:#c00;font-size:13px;">Fehler: ${escapeHtml(s.error)}</td></tr>` : ''}${
+        s.errorSamples?.length
+          ? `<tr style="background-color:#fff5f5;"><td colspan="6" style="padding:4px 12px;border:1px solid #e5e5e5;color:#c00;font-size:12px;">${
+              s.errorSamples.length < s.errors
+                ? `${s.errorSamples.length} von ${s.errors} Fehlern:`
+                : 'Fehler:'
+            }<ul style="margin:4px 0 0 0;padding-left:18px;">${s.errorSamples
+              .map((m) => `<li style="margin:2px 0;">${escapeHtml(m)}</li>`)
+              .join('')}</ul></td></tr>`
+          : ''
+      }`;
     })
     .join('\n');
 
@@ -606,7 +622,17 @@ export function renderContentSyncTemplate(params: ContentSyncTemplateParams): {
     .map((s) => {
       const icon = s.status === 'success' ? '✓' : '✗';
       const line = `  ${icon} ${s.name}: +${s.stored} neu, ${s.updated} aktualisiert, ${s.skipped} übersprungen, ${s.errors} Fehler (${s.duration}s)`;
-      return s.error ? `${line}\n    Fehler: ${s.error}` : line;
+      const parts = [line];
+      if (s.error) parts.push(`    Fehler: ${s.error}`);
+      if (s.errorSamples?.length) {
+        parts.push(
+          s.errorSamples.length < s.errors
+            ? `    ${s.errorSamples.length} von ${s.errors} Fehlern:`
+            : '    Fehler:',
+          ...s.errorSamples.map((m) => `      - ${m}`)
+        );
+      }
+      return parts.join('\n');
     })
     .join('\n');
 
