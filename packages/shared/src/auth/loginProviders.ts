@@ -121,19 +121,24 @@ export function buildProviderAuthUrl(
 
 /**
  * Initiate Better Auth OAuth sign-in.
- * POSTs to /api/auth/v2/sign-in/oauth2, gets { url }, and redirects.
+ * POSTs to /api/auth/v2/sign-in/social, gets { url }, and redirects.
+ *
+ * Der Endpunkt hat sich mit better-auth 1.7 geaendert (`/sign-in/oauth2` ist
+ * weg, das Feld heisst `provider` statt `providerId`). Das ist unkritisch,
+ * weil dieser Pfad nur der Browser geht und Frontend und Backend zusammen
+ * ausgeliefert werden — Mobile und Desktop gehen ueber `/api/auth/login`.
  */
 export async function signInWithProvider(
   provider: LoginProvider,
   callbackURL: string,
   apiBaseUrl = '/api'
 ): Promise<void> {
-  const response = await fetch(`${apiBaseUrl}/auth/v2/sign-in/oauth2`, {
+  const response = await fetch(`${apiBaseUrl}/auth/v2/sign-in/social`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
     body: JSON.stringify({
-      providerId: provider.betterAuthProviderId,
+      provider: provider.betterAuthProviderId,
       callbackURL,
     }),
   });
