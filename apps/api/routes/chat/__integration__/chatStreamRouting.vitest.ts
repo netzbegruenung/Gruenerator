@@ -183,3 +183,63 @@ describe('context window', () => {
     expect((wideMessages ?? []).length).toBeGreaterThan((narrowMessages ?? []).length);
   });
 });
+
+describe('editor surfaces', () => {
+  /** Minimal live-board projection, the shape the boards sidebar serializes. */
+  const openBoard = {
+    id: 'b1e7c1a4-0000-4000-8000-000000000001',
+    title: 'Kampagne',
+    boardType: 'kanban' as const,
+    fields: [
+      { id: 'title', name: 'Titel', type: 'text' as const, typeOptions: {}, order: 0 },
+      { id: 'status', name: 'Status', type: 'singleSelect' as const, typeOptions: {}, order: 1 },
+    ],
+    rows: [],
+    views: [
+      {
+        id: 'v1',
+        name: 'Kanban',
+        layout: 'kanban' as const,
+        groupByFieldId: 'status',
+        filters: [],
+        sorts: [],
+        fieldSettings: [],
+      },
+    ],
+    groupByFieldId: 'status',
+    statusOptions: [{ id: 'todo', name: 'To-Do', color: 'blue' }],
+    assignableMembers: [],
+  };
+
+  /**
+   * The board sidebar's `currentBoard` has to reach the GRAPH STATE, not just
+   * the raw body. It was read off `args.body` for the legacy trigger path and
+   * never handed to `initializeChatState`, so `state.currentBoard` stayed null:
+   * this fast-path never fired, and the loop's `edit_document` tool aborted
+   * with "Es ist kein Board geöffnet" on every board edit.
+   *
+   * Asserted through the intent rather than the tool because only the
+   * classifier reads `state.currentBoard` this early — a state that carries the
+   * board cannot produce any other intent for this phrasing.
+   */
+  it('carries the open board into the classifier state', async () => {
+    const { trace } = await runTurn(suite.baseUrl(), {
+      messages: [userTurn('Erstelle eine Aufgabe „Plakate bestellen" in To-Do')],
+      agentId: 'gruenerator-boards-editor',
+      enabledTools: { edit_current_board: true },
+      currentBoard: openBoard,
+    });
+
+    expect(trace.intent).toBe('edit_current_board');
+  });
+
+  it('keeps the same phrasing off the board path when no board is open', async () => {
+    const { trace } = await runTurn(suite.baseUrl(), {
+      messages: [userTurn('Erstelle eine Aufgabe „Plakate bestellen" in To-Do')],
+      agentId: 'gruenerator-boards-editor',
+      enabledTools: { edit_current_board: true },
+    });
+
+    expect(trace.intent).not.toBe('edit_current_board');
+  });
+});
