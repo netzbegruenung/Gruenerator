@@ -52,11 +52,11 @@ export default defineConfig({
           // (nested 19.2.3 vs the root 19.2.8) and @radix-ui/react-slot +
           // react-tabs, which every `asChild` trigger goes through.
           //
-          // The pattern is `/radix-ui/`, NOT the `/@radix-ui/` that
-          // packages/chat uses: shadcn components in @gruenerator/ui import from
-          // the `radix-ui` UMBRELLA package, whose name has no `@` and so never
-          // matches the scoped pattern. Left externalized, it Node-resolves its
-          // own @radix-ui/* deps and the inlining never reaches them.
+          // The pattern is `/radix-ui/`, NOT `/@radix-ui/`: shadcn components
+          // in @gruenerator/ui import from the `radix-ui` UMBRELLA package, whose
+          // name has no `@` and so never matches the scoped pattern. Left
+          // externalized, it Node-resolves its own @radix-ui/* deps and the
+          // inlining never reaches them. packages/chat carries the same pattern.
           // Re-check the offender list with:
           //   ls -d node_modules/**/node_modules/react
           server: {

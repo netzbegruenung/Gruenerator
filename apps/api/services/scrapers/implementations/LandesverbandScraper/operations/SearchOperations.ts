@@ -47,8 +47,8 @@ export class SearchOperations {
     if (contentType) filter.must.push({ key: 'content_type', match: { value: contentType } });
 
     // Search Qdrant
-    const searchResult = await this.qdrant.client!.search(this.collectionName, {
-      vector: queryVector,
+    const searchResult = await this.qdrant.client!.query(this.collectionName, {
+      query: queryVector,
       ...(filter.must.length > 0 && { filter }),
       limit: limit * 3, // Get more results for deduplication
       score_threshold: threshold,
@@ -57,7 +57,7 @@ export class SearchOperations {
 
     // Deduplicate by document_id (one result per document)
     const documentsMap = new Map<string, LandesverbandSearchResult>();
-    for (const hit of searchResult) {
+    for (const hit of searchResult.points) {
       if (!hit.payload) continue;
       const payload = hit.payload as Record<string, string>;
       const docId = payload.document_id;

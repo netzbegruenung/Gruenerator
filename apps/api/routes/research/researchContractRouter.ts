@@ -314,8 +314,8 @@ export const researchContractRouter = s.router(researchContract, {
       // Use point IDs as positive examples for recommend
       const positiveIds = sourcePoints.map((p) => p.id);
 
-      const recommendResult = await qdrant.client.recommend(qdrantCollection, {
-        positive: positiveIds,
+      const recommendResult = await qdrant.client.query(qdrantCollection, {
+        query: { recommend: { positive: positiveIds } },
         limit: effectiveLimit * 3, // Over-fetch to account for dedup
         filter: {
           must_not: [{ key: 'source_url', match: { value: sourceUrl } }],
@@ -329,7 +329,7 @@ export const researchContractRouter = s.router(researchContract, {
         { score: number; payload: Record<string, unknown>; id: string | number }
       >();
 
-      for (const point of recommendResult) {
+      for (const point of recommendResult.points) {
         const payload = (point.payload as Record<string, unknown>) || {};
         const url = (payload.source_url as string) || String(point.id);
         const score = point.score ?? 0;
