@@ -299,7 +299,7 @@ export async function runSinglePassAnswer({
                 temperature: finalState.agentConfig.params.temperature,
                 sse,
                 logPrefix: '[ChatGraph]',
-                signal: turnSignal,
+                turnSignal,
                 ...(respondTelemetry && { telemetry: respondTelemetry }),
               }),
           });
