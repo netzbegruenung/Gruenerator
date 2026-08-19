@@ -253,19 +253,20 @@ export const searchGraphContractRouter = s.router(searchGraphContract, {
         return { status: 200 as const, body: undefined };
       }
 
-      // ── Step 4: Quality Gate (with loop) ──
+      // ── Step 4: Quality Gate (one retry) ──
       state = mergeState(
         state,
         (await qualityGateNode(state as unknown as ChatGraphState)) as Partial<SearchGraphState>
       );
 
-      // Quality gate loop
+      // Single retry on a weak score — deliberately not a loop: the gate is not
+      // re-run on the refreshed results, so a second pass has nothing to judge.
       if (
         state.qualityScore > 0 &&
         state.qualityScore < 3 &&
         state.searchCount < state.maxSearches
       ) {
-        log.info(`[SearchGraph] Quality gate loop: score=${state.qualityScore}, retrying search`);
+        log.info(`[SearchGraph] Quality gate: score=${state.qualityScore}, retrying search once`);
         sse.sendRaw('search_start', { message: 'Verfeinere Suche...' });
 
         if (state.searchMode === 'deep') {
