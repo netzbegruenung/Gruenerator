@@ -101,7 +101,12 @@ jobs:
           # Datenpfade beantwortet apiFixtures.ts im Browser.
           VITE_E2E_AUTH_BYPASS: 'true'
           PLAYWRIGHT_JSON_OUTPUT_NAME: a11y-results.json
-        run: pnpm exec playwright test a11y.spec.ts a11y-structure.spec.ts --reporter=github,html,json
+        # notebook-card-click.spec.ts faehrt hier mit, obwohl es kein axe-Lauf
+        # ist: ein Bedienelement, das der Zeiger nicht trifft, ist ein
+        # Bedienbarkeitsfehler, und geprueft werden kann er nur dort, wo es
+        # schon einen Browser mit echtem Layout gibt. Eigene Lane waere ein
+        # zweiter Chromium-Download fuer 1,4 Sekunden Test.
+        run: pnpm exec playwright test a11y.spec.ts a11y-structure.spec.ts notebook-card-click.spec.ts --reporter=github,html,json
 
       # Der Grund fuer diesen Schritt: am 02.08.2026 meldete dieser Job vier
       # Minuten lang "pass" und hatte 22 von 22 Pruefungen uebersprungen. Das
