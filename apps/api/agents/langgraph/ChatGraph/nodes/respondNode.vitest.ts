@@ -142,6 +142,58 @@ describe('limitAttachmentContext — fair per-document split (M1/M3)', () => {
   });
 });
 
+/**
+ * Ein Such-Turn, der zugleich eine bestellte Textform schuldet.
+ *
+ * Live auf beta am 20.08.2026, zwei Turns im selben Thread: `/presse mehr
+ * artenschutz in ludwigshafen` kam als Recherche-Briefing zurueck, das
+ * mention-lose „schreibe eine pressemitteilung …" danach als korrekte
+ * Pressemitteilung. Die ausdrueckliche Wahl war der schwaechere Weg — sie
+ * unterdrueckt `rezept_laden` und legt den Rezepttext an den Anfang des
+ * System-Prompts, weit vor SEARCH_GUIDANCE.
+ */
+describe('getModeGuidance — bestellte Textform auf einem Such-Turn', () => {
+  it('nennt die gewaehlte Textform und sagt, dass sie das Ergebnis ist', () => {
+    const out = getModeGuidance(makeState({ intent: 'search', activeSkillMention: 'presse' }));
+    // Der Name kommt aus der Registry, nicht aus einer Tabelle in respondNode.
+    expect(out).toContain('Pressemitteilung');
+    expect(out).toMatch(/Recherche ist das Mittel/);
+    // Die Recherche-Anweisung bleibt daneben stehen.
+    expect(out).toContain('Recherche-Ergebnisse');
+  });
+
+  it('greift auch auf dem agentischen Pfad (intent=agentic faellt in den default-Zweig)', () => {
+    const out = getModeGuidance(makeState({ intent: 'agentic', activeSkillMention: 'presse' }));
+    expect(out).toMatch(/Recherche ist das Mittel/);
+  });
+
+  it('nimmt den LV-Titel, nicht den generischen', () => {
+    const out = getModeGuidance(
+      makeState({ intent: 'search', activeSkillMention: 'presse-hamburg' })
+    );
+    expect(out).toContain('PM Hamburg');
+  });
+
+  it('schweigt bei einer gewoehnlichen Recherchefrage', () => {
+    const out = getModeGuidance(makeState({ intent: 'search' }));
+    expect(out).not.toMatch(/Recherche ist das Mittel/);
+  });
+
+  // Der Kern des Umbaus: ein GENANNTES Textsorten-Nomen ist keine Bestellung.
+  // Genau diese Formulierungen sind auf den Abruf-Pfaden der Normalfall, und
+  // ein Hinweis darauf liesse das Modell schreiben statt suchen.
+  it('schweigt, wenn die Textsorte nur genannt und nicht bestellt ist', () => {
+    const out = getModeGuidance(
+      makeState({
+        intent: 'search',
+        documentSubtype: 'pressemitteilung',
+        lastUserTextNoMentions: 'Was steht in der Pressemitteilung zum Radentscheid?',
+      })
+    );
+    expect(out).not.toMatch(/Recherche ist das Mittel/);
+  });
+});
+
 describe('getModeGuidance turn-outcome honesty (direct path)', () => {
   it('a direct turn carries the no-research/no-artifact honesty note', () => {
     const out = getModeGuidance(makeState({ intent: 'direct', searchResults: [] }));

@@ -170,6 +170,38 @@ export function rewritesSuppliedText(raw: string): boolean {
   return hasRewriteTarget(t) || REGENERATE_RE.test(t) || CREATIVE_FORM_RE.test(t);
 }
 
+/**
+ * Eine Anschlussfrage, die den Gegenstand des VORIGEN Turns weiterträgt statt
+ * ein eigenes Thema zu eröffnen — „Und die FDP?", „Was ist mit Bayern?".
+ *
+ * Gemessen am Klassifikator (20.08.2026, Zwei-Turn-Sonde auf `classifierNode`):
+ * so ein Turn bekommt `direct@0.25`, wird nach `agentic` demotiert und trägt
+ * `loopDemotedFromRetrieval: false` — das Abruf-Verdikt steht im Turn DAVOR,
+ * nicht in diesem. Der Text allein kann das nicht wissen; deshalb ist diese
+ * Prüfung nur die eine Hälfte, die andere ist der Abrufkontext des Threads
+ * (`shouldForceFirstToolCall`, siebter Weg).
+ *
+ * Die Wortgrenze ist dieselbe wie die des Klassifikators für `isVagueFollowup`
+ * (≤ 8 Wörter): darüber nennt ein Turn sein Thema selbst und braucht diesen Weg
+ * nicht — sein eigenes Verdikt trägt ihn.
+ *
+ * Was hier ausdrücklich NICHT durchkommt, ist die Meta-Anweisung über die vorige
+ * ANTWORT: „fasse das kürzer" ist ebenso rückbezüglich, ebenso kurz und steht
+ * ebenso hinter einem Abruf-Turn — nur ist sie in dem Text gegründet, an dem sie
+ * arbeitet. `rewritesSuppliedText` ist genau dieses Urteil, und es fällt hier
+ * zum zweiten Mal (der Loop fragt es schon für die mitgeführten Quellen).
+ * Höflichkeiten ebenso: ein „Danke!" nach einer Bundestags-Frage darf keine
+ * Nachschlage auslösen.
+ */
+export function isReferentialFollowup(raw: string): boolean {
+  const t = (raw ?? '').trim().replace(GREETING_PREFIX_RE, '');
+  if (t.length === 0) return false;
+  if (CHITCHAT_ONLY_RE.test(t) || CHITCHAT_RE.test(t)) return false;
+  if (rewritesSuppliedText(t)) return false;
+  if (CREATION_VERB_RE.test(t)) return false;
+  return t.split(/\s+/).filter(Boolean).length <= 8;
+}
+
 export function needsThreadGrounding(raw: string): boolean {
   const t = (raw ?? '').trim().replace(GREETING_PREFIX_RE, '');
   if (t.length === 0) return false;

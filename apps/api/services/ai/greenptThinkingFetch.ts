@@ -1,5 +1,23 @@
 import { captureImpact, modelFromRequestBody } from './greenptImpact.js';
 
+/**
+ * How long one GreenPT request may take before its own fetch gives up.
+ *
+ * Worth knowing when reading a slow turn: this is a PROVIDER deadline, but at
+ * 120s it used to be the SHARPEST clock in a chat turn — under the turn ceiling
+ * (`turnDeadline.ts`, 360s), the loop hard cap (`types.ts`, 300s) and the tool
+ * wall clock (120s). It, not any chat policy, decided when a hung request
+ * ended. Live on 20.08.2026 the loop planner (which runs on GreenPT, see
+ * LOOP_PLANNER_PRIMARY) went silent after its last tool returned and the turn
+ * sat here for exactly 120s, finishing in 139.7s.
+ *
+ * Deliberately NOT lowered to fix that: the loop grew its own idle guard
+ * (`gatherIdleDeadlineMs` in loopEngine.ts), which now trips first — around 35s
+ * on a turn without generation tools — and can still answer from what was
+ * gathered. Cutting this value instead would also cap every legitimate
+ * long-streaming GreenPT answer, which is a different and worse failure.
+ * `GREENPT_FETCH_TIMEOUT_MS` overrides it per environment.
+ */
 export const GREENPT_FETCH_TIMEOUT_MS = (() => {
   const n = Number.parseInt(process.env.GREENPT_FETCH_TIMEOUT_MS ?? '', 10);
   return Number.isInteger(n) && n > 0 ? n : 120_000;
