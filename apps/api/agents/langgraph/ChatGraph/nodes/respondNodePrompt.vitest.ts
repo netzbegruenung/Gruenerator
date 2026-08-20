@@ -35,7 +35,8 @@ vi.mock('../../../../services/chat/productKnowledge.js', async (importOriginal) 
   buildProductKnowledgeBlock: async () => '\n\n<<PRODUKTWISSEN>>',
 }));
 
-const { buildSystemMessage } = await import('./respondNode.js');
+const { buildSystemMessage, activePromptBlocks, PROMPT_BLOCK_ORDER } =
+  await import('./respondNode.js');
 
 beforeAll(() => {
   vi.useFakeTimers();
@@ -225,6 +226,43 @@ const CASES: ReadonlyArray<{
     } as unknown as Partial<ChatGraphState>),
   },
   {
+    name: 'custom system prompt — voller materialstapel',
+    state: makeState({
+      customSystemPrompt: 'Du bist eine neutrale Assistenz {{partyName}}.',
+      activeSkillMention: 'instagram',
+      userInstructions: 'Ich bin Pressesprecherin im Landesverband.',
+      memoryContext: 'Mag kurze Antworten.',
+      chatHistoryContext: '## FRÜHERE GESPRÄCHE\n\nEs ging um Verkehr.',
+      boardContext: 'Spalte To Do',
+      sheetContext: '| A1 | B1 |',
+      documentMentionContext: 'Referenziertes Dokument.',
+      attachmentContext: '### Antrag.pdf\n\nDer Antrag fordert ein Tempolimit.',
+      currentDocument: { title: 'Entwurf', markdown: 'Offener Text', selectionText: 'Auswahl' },
+      threadAttachments: [
+        { name: 'Protokoll.pdf', content: 'Beschluss der Fraktion vom 3. Mai.', turn: 1 },
+      ],
+      imageAttachments: [{ name: 'plakat.png', data: '', mimeType: 'image/png' }],
+      summaryContext: 'Kurzfassung des Dokuments.',
+      hasTabularAttachment: true,
+      searchResults: sources,
+      searchQuery: 'tempolimit',
+      searchSources: ['web'],
+      citations: [{ id: 1 }, { id: 2 }],
+      injectionSuspected: true,
+      degradationNotes: [{ step: 'compute', message: 'Berechnung fehlgeschlagen' }],
+    } as unknown as Partial<ChatGraphState>),
+  },
+  {
+    name: 'custom system prompt — pipeline-uebertragung (pinned)',
+    state: makeState({
+      customSystemPrompt: 'Du bist eine neutrale Assistenz {{partyName}}.',
+      pipelineSourceText: 'Der Gemeinderat hat beschlossen …',
+      attachmentContext: '### Alt.pdf\n\nAlter Anhang, muss schweigen.',
+      currentDocument: { title: 'Doc', markdown: 'Inhalt', selectionText: null },
+      documentMentionContext: 'Referenz, muss schweigen.',
+    } as unknown as Partial<ChatGraphState>),
+  },
+  {
     name: 'composer-bypass',
     state: makeState({
       intent: 'pressemitteilung_examples',
@@ -322,5 +360,145 @@ describe('buildSystemMessage — Golden', () => {
       {}
     );
     expect(out).toMatchSnapshot();
+  });
+});
+
+describe('Blockliste — Auswahl und Reihenfolge', () => {
+  it('vergibt jede id genau einmal', () => {
+    expect(new Set(PROMPT_BLOCK_ORDER).size).toBe(PROMPT_BLOCK_ORDER.length);
+  });
+
+  it('liefert für den leeren Zustand genau diese Blöcke', async () => {
+    expect(await activePromptBlocks(makeState())).toEqual([
+      'system-role',
+      'datum',
+      'product-identity',
+      'user-instructions',
+      'intent-guidance',
+      'answer-rules',
+    ]);
+  });
+
+  // Die Reihenfolge ist ein Datum: sie steht in PROMPT_BLOCKS und nirgends
+  // sonst. Kein Zustand darf sie umordnen — er darf nur auslassen.
+  it('ist für jeden Zustand eine Teilfolge der Registry-Reihenfolge', async () => {
+    for (const testCase of CASES) {
+      const active = await activePromptBlocks(testCase.state, testCase.opts ?? {});
+      const positions = active.map((id) => PROMPT_BLOCK_ORDER.indexOf(id));
+      expect(positions, testCase.name).not.toContain(-1);
+      expect(positions, testCase.name).toEqual([...positions].sort((a, b) => a - b));
+    }
+  });
+
+  it('baut beim Composer-Bypass gar nichts zusammen', async () => {
+    const state = makeState({
+      intent: 'pressemitteilung_examples',
+      responseText: 'WÖRTLICH',
+    } as unknown as Partial<ChatGraphState>);
+    expect(await activePromptBlocks(state)).toEqual([]);
+    expect(await buildSystemMessage(state, {})).toBe('WÖRTLICH');
+  });
+
+  it('wählt im Rollen-Chat eine Auswahl ohne die default-eigenen Blöcke', async () => {
+    const active = await activePromptBlocks(
+      makeState({
+        customSystemPrompt: 'Du bist eine neutrale Assistenz.',
+        boardContext: 'Spalte To Do',
+        pipelineSourceText: 'Sollte im Rollen-Chat schweigen.',
+      } as unknown as Partial<ChatGraphState>)
+    );
+    expect(active).toContain('custom-system-prompt');
+    expect(active).toContain('board-context');
+    for (const id of [
+      'system-role',
+      'skill-fragment',
+      'degradation-notes',
+      'product-identity',
+      'product-knowledge',
+      'docs-page-map',
+      'intent-guidance',
+      'pipeline-source-text',
+      'answer-rules',
+      'citation-instruction',
+    ] as const) {
+      expect(active, id).not.toContain(id);
+    }
+  });
+
+  // Ein Übertragungs-Turn hat genau ein Original — die übrigen Material-Blöcke
+  // schweigen, statt danebenzustehen (13.08.2026).
+  it('lässt beim Pipeline-Turn die konkurrierenden Material-Blöcke aus', async () => {
+    const active = await activePromptBlocks(
+      makeState({
+        pipelineSourceText: 'Der Gemeinderat hat beschlossen …',
+        attachmentContext: '### Alt.pdf\n\nAlter Anhang.',
+        currentDocument: { title: 'Doc', markdown: 'Inhalt', selectionText: null },
+        documentMentionContext: 'Referenz.',
+        threadAttachments: [{ name: 'P.pdf', content: 'Früherer Anhang.', turn: 1 }],
+      } as unknown as Partial<ChatGraphState>)
+    );
+    expect(active).toContain('pipeline-source-text');
+    for (const id of [
+      'attachments',
+      'current-document',
+      'document-mention-context',
+      'thread-attachments',
+    ] as const) {
+      expect(active, id).not.toContain(id);
+    }
+  });
+
+  it('hängt die Hierarchie-Regel nur an, wenn fremdes Material im Prompt steht', async () => {
+    expect(await activePromptBlocks(makeState())).not.toContain('instruction-hierarchy');
+    expect(
+      await activePromptBlocks(
+        makeState({ attachmentContext: '### A.pdf\n\nInhalt.' } as Partial<ChatGraphState>)
+      )
+    ).toContain('instruction-hierarchy');
+  });
+
+  it('zitiert nur mit Quellen und warnt nur bei Injektionsverdacht', async () => {
+    const ohne = await activePromptBlocks(makeState());
+    expect(ohne).not.toContain('citation-instruction');
+    expect(ohne).not.toContain('injection-warning');
+
+    const mit = await activePromptBlocks(
+      makeState({
+        intent: 'search',
+        searchResults: sources,
+        searchQuery: 'tempolimit',
+        searchSources: ['web'],
+        citations: [{ id: 1 }, { id: 2 }],
+        injectionSuspected: true,
+      } as unknown as Partial<ChatGraphState>)
+    );
+    expect(mit).toContain('citation-instruction');
+    expect(mit).toContain('injection-warning');
+    expect(mit).toContain('search-context');
+  });
+
+  it('schweigt beim neutralen Zusammenfassungs-Turn zur Produktidentität', async () => {
+    const active = await activePromptBlocks(
+      makeState({ intent: 'summary' } as unknown as Partial<ChatGraphState>)
+    );
+    expect(active).not.toContain('product-identity');
+    expect(active).not.toContain('skill-fragment');
+  });
+
+  // Das Agenten-Standardrezept füllt nur den Einzelpfad; im Loop wählt das
+  // Modell selbst über `rezept_laden`.
+  it('backt das Agenten-Standardrezept nicht in den agentischen Turn', async () => {
+    const state = makeState({
+      agentConfig: {
+        systemRole: 'Du bist der Grünerator-Agent {{partyName}}.',
+        userId: 'u-1',
+        inlineSourceLinks: false,
+        defaultRecipeMention: 'instagram',
+      },
+    } as unknown as Partial<ChatGraphState>);
+    expect(await activePromptBlocks(state, {})).toContain('skill-fragment');
+    expect(await activePromptBlocks(state, { retrievalExpected: true })).not.toContain(
+      'skill-fragment'
+    );
   });
 });
