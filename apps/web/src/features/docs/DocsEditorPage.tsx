@@ -25,7 +25,7 @@ import {
 } from '@gruenerator/docs';
 import { EditorTopBar } from '@gruenerator/shared/components/EditorTopBar';
 import { useMediaQuery } from '@gruenerator/shared/hooks';
-import { Skeleton } from '@gruenerator/ui';
+import { Fab, Skeleton } from '@gruenerator/ui';
 import { WolkeSaveModal, uploadToWolke, useShareLinks } from '@gruenerator/wolke';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -114,16 +114,13 @@ function EditorFAB({
   onToggleSidebar: () => void;
 }) {
   return (
-    <button
-      className={`fixed bottom-6 right-6 w-12 h-12 rounded-full flex items-center justify-center bg-white/85 dark:bg-grey-900/85 backdrop-blur-xl border border-black/8 dark:border-white/10 shadow-lg cursor-pointer z-[150] transition-all hover:bg-white/95 dark:hover:bg-grey-800/95 hover:shadow-xl active:scale-95 [&_svg]:w-[22px] [&_svg]:h-[22px] [&_svg]:text-grey-700 dark:[&_svg]:text-grey-300 ${sidebarOpen ? 'bg-secondary-100 dark:bg-secondary-600/25 border-secondary-400 dark:border-secondary-600 z-[250] [&_svg]:text-secondary-700 dark:[&_svg]:text-secondary-400' : ''}`}
+    <Fab
+      icon={<FiSidebar />}
+      active={sidebarOpen}
+      showDot={showDisconnected}
       onClick={onToggleSidebar}
       aria-label="Seitenleiste ein-/ausblenden"
-    >
-      <FiSidebar />
-      {showDisconnected && (
-        <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full border-[1.5px] border-white/90 dark:border-grey-900/90 bg-red-500" />
-      )}
-    </button>
+    />
   );
 }
 
