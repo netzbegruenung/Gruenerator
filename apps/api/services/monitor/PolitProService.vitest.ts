@@ -34,7 +34,7 @@ vi.mock('../../utils/redis/jsonCache.js', () => ({
   deleteCachedKey: vi.fn(async () => undefined),
 }));
 
-const { EU_GREEN_PARTIES, getEuGreens, getPolitProPolls, getPollsOverview } =
+const { EU_GREEN_PARTIES, getEuGreens, getPolitProPolls, getPollsOverview, POLITPRO_PARLIAMENTS } =
   await import('./PolitProService.js');
 
 const CACHE_KEY = 'monitor:politpro:eu-greens';
@@ -329,6 +329,40 @@ describe('getPollsOverview', () => {
     expect(bayern?.gruene).toBe(14.5);
     // Two institute polls → the date is real and may be shown.
     expect(bayern?.latestPollDate).toBe('2026-08-15');
+  });
+
+  // Pacing exists for the 30 req/min budget, and that budget counts NETWORK
+  // calls. A warm run makes none, so it must not sit out 3 × 4 s — this is a
+  // request-path endpoint. Deliberately NOT wrapped in `runPaced`: under fake
+  // timers an unnecessary sleep would never resolve, so this test would hang
+  // rather than pass quietly.
+  it('returns without any pacing pause when every parliament is cached', async () => {
+    const parliaments = POLITPRO_PARLIAMENTS.filter((p) => p.country === 'DE');
+    for (const p of parliaments) {
+      store.set(`monitor:politpro:v2:${p.id}`, {
+        polls: [
+          { institute: 'Forsa', date: '2026-08-15', parties: { GRÜNE: 14.5 } },
+          { institute: 'INSA', date: '2026-08-08', parties: { GRÜNE: 15 } },
+        ],
+        lastElection: null,
+        average: { GRÜNE: 14.5 },
+        diffs: {},
+        scrapedAt: '2026-08-20T00:00:00.000Z',
+        source: 'politpro',
+        parliament: p.id,
+        trend: {},
+      });
+    }
+    fetchMock.mockImplementation(() => {
+      throw new Error('no upstream call expected on a warm cache');
+    });
+
+    const overview = await getPollsOverview('DE');
+
+    expect(overview.entries).toHaveLength(parliaments.length);
+    expect(fetchMock).not.toHaveBeenCalled();
+    // Nothing left waiting on the clock.
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it('hides the date when only the synthetic weighted trend came back', async () => {
