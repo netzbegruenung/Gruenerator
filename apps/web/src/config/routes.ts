@@ -40,10 +40,18 @@ const createRedirect = (to: string): FC<Record<string, unknown>> => {
 // Redirects for /image-studio/* routes to /studio/*
 const ImageStudioRedirect = lazy(() => Promise.resolve({ default: createRedirect('/studio') }));
 
-// Redirect /notebook/:id → /notebooks/:id preserving the param
-const LegacyNotebookIdRedirectComponent: FC<Record<string, unknown>> = () => {
+// Redirect /notebook/:id → /notebooks/:id preserving the param. Search, hash
+// and state come along: an old link to a notebook conversation carries the
+// thread id in `?thread=`, and dropping it here opened the notebook's start
+// page instead of the conversation.
+export const LegacyNotebookIdRedirectComponent: FC<Record<string, unknown>> = () => {
   const { id } = useParams();
-  return createElement(Navigate, { to: `/notebooks/${id ?? ''}`, replace: true });
+  const location = useLocation();
+  return createElement(Navigate, {
+    to: { pathname: `/notebooks/${id ?? ''}`, search: location.search, hash: location.hash },
+    state: location.state as unknown,
+    replace: true,
+  });
 };
 const LegacyNotebookIdRedirect = lazy(() =>
   Promise.resolve({ default: LegacyNotebookIdRedirectComponent })

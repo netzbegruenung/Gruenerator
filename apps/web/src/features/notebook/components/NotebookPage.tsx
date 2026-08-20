@@ -166,25 +166,26 @@ export const NotebookPageContent = ({
   const setMode = useAgentStore((s) => s.setNotebookDepth);
   const mode = notebookDepthDef(storedDepth).depth;
   const [searchParams, setSearchParams] = useSearchParams();
-  const [threadId, setThreadId] = useState<string | null>(threadIdProp ?? null);
-  const handleThreadCreated = useCallback((newThreadId: string) => {
-    setThreadId(newThreadId);
-  }, []);
-
-  // Strip a stale ?thread= query param once on mount: the chat is no longer
-  // restored from the URL, so leaving the param around just confuses bookmarks.
-  useEffect(() => {
-    if (!searchParams.get('thread')) return;
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete('thread');
-        return next;
-      },
-      { replace: true }
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // `?thread=` names the conversation to open — that is how a thread row in the
+  // sidebar links here, and how a reload finds its way back to what was on
+  // screen. Read once: later edits to the param are this component's own doing.
+  const [urlThreadId] = useState<string | null>(() => searchParams.get('thread'));
+  const [threadId, setThreadId] = useState<string | null>(threadIdProp ?? urlThreadId);
+  const handleThreadCreated = useCallback(
+    (newThreadId: string) => {
+      setThreadId(newThreadId);
+      // Put the fresh conversation in the URL so reloading stays inside it.
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set('thread', newThreadId);
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
 
   const location = useLocation();
   const navState = location.state as {
@@ -241,11 +242,14 @@ export const NotebookPageContent = ({
     return Object.keys(f).length > 0 ? f : undefined;
   }, [isMulti, selectedCollections, getFiltersForCollection]);
 
+  // Two ways to restore a conversation, and they must not both fire: the server
+  // history behind `?thread=` is the complete one, the local cache only knows
+  // what this browser saw. When the URL names a thread, the runtime loads it.
   const { initialMessages, onComplete } = useNotebookChatBridge({
     collections: selectedCollections,
     persistMessages: config.persistMessages,
     freshConversation,
-    resumeFromCache,
+    resumeFromCache: resumeFromCache && !urlThreadId,
   });
 
   const providerCollections = useMemo(
@@ -360,7 +364,10 @@ export const NotebookPageContent = ({
       <CitationPanelProvider>
         <ExtraActionsProvider factory={extraActionsFactory}>
           <ThreadPrimitive.Root className="flex h-full min-h-0 flex-col">
-            <AuiIf condition={(s) => s.thread.isEmpty}>
+            {/* `isLoading` guards the start page while a conversation named by
+                `?thread=` is still being fetched — without it the start page
+                flashes up first and reads as "this conversation is gone". */}
+            <AuiIf condition={(s) => s.thread.isEmpty && !s.thread.isLoading}>
               <div className="flex flex-1 flex-col overflow-y-auto">
                 <NotebookStartpage
                   title={config.startPageTitle}
