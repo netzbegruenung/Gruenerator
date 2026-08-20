@@ -47,8 +47,16 @@ export interface VorlagenCardProps {
  * Round, frosted overlay button on the thumbnail. Permanently visible rather
  * than hover-revealed, so touch users reach like/copy without a long-press, and
  * dark-on-image in both themes so it stays legible over any template artwork.
+ *
+ * Die Deckkraft ist gemessen, nicht geraten: das weiße Glyph erreicht auf der
+ * Füllung über **jedem** Motiv mindestens 5,0:1 (Worst Case weißes Motiv, die
+ * Füllung wird dort zu #6F7170) — das trägt WCAG 1.4.11. Die Ringkante selbst
+ * verschwindet über mitteltonigen Motiven; das ist hingenommen, weil das Glyph
+ * das Bedienelement identifiziert. **Nicht** die Deckkraft erhöhen, um die
+ * Kante zu retten: über dunklen Motiven wird sie dadurch schlechter, nicht
+ * besser. Geliked (primary-500) liegt bei 3,73:1 — Bestand, siehe variables.css.
  */
-const overlayAction =
+export const overlayAction =
   'flex size-[34px] items-center justify-center rounded-full border border-white/20 ' +
   'bg-[#0f1210]/60 text-white backdrop-blur-sm transition-transform ' +
   'hover:scale-110 active:scale-95 disabled:pointer-events-none disabled:opacity-60';

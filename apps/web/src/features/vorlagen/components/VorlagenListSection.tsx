@@ -13,7 +13,8 @@ import { HiDotsVertical } from 'react-icons/hi';
 import { type TemplateAction } from '../hooks/useTemplateActions';
 import { type Template } from '../types';
 
-import VorlagenCard from '@/components/common/Gallery/VorlagenCard';
+import VorlagenCard, { overlayAction } from '@/components/common/Gallery/VorlagenCard';
+import { cn } from '@/utils/cn';
 
 interface VorlagenListSectionProps {
   title: string;
@@ -32,7 +33,7 @@ function CardMenu({ actions }: { actions: TemplateAction[] }) {
           type="button"
           // Stop the click bubbling to the card (which would trigger "open").
           onClick={(e) => e.stopPropagation()}
-          className="flex size-[34px] items-center justify-center rounded-full border border-white/20 bg-[#0f1210]/60 text-white backdrop-blur-sm transition-transform hover:scale-110 hover:bg-[#0f1210]/85 active:scale-95"
+          className={cn(overlayAction, 'hover:bg-[#0f1210]/85')}
           aria-label="Aktionen"
         >
           <HiDotsVertical />
