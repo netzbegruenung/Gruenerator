@@ -20,10 +20,19 @@ const ICON_BTN = 'rounded-md p-2 text-secondary-600 transition-colors hover:bg-s
  * (template). `kind` stays `'skill'` — es ist der Registry-Wert, der auch in
  * `MentionableCategory` und den Mention-Tokens steht; nur die Beschriftung folgt
  * dem Produkt-Wording.
+ *
+ * Beide Varianten sind neutral: der Badge benennt eine Art, er trägt keine
+ * Entscheidung — grün gefüllt hat er sich auf dem gelben Agentura-Feld mit dem
+ * Seitenton gebissen. Unterschieden werden sie über gefüllt (Agent) vs. umrandet
+ * (Rezept), im selben Chip-Idiom wie `CapabilityTags` direkt darunter — die
+ * Farbpaarung samt Dunkelmodus-Begründung steht dort.
  */
 export function TypeBadge({ kind }: { kind: 'agent' | 'skill' }) {
   return kind === 'agent' ? (
-    <Badge variant="secondary" className="shrink-0">
+    <Badge
+      variant="outline"
+      className="shrink-0 border-transparent bg-grey-100 text-foreground-muted dark:bg-grey-800 dark:text-grey-300"
+    >
       Agent
     </Badge>
   ) : (
@@ -218,7 +227,7 @@ export function SharedAgentCard({
           {groups.map((g) => (
             <span
               key={g.id}
-              className="inline-flex items-center rounded-full bg-grey-100 px-2 py-0.5 text-xs text-foreground-muted dark:bg-grey-800"
+              className="inline-flex items-center rounded-full bg-grey-100 px-2 py-0.5 text-xs text-foreground-muted dark:bg-grey-800 dark:text-grey-300"
             >
               {g.name}
             </span>

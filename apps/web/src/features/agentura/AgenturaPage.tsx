@@ -624,7 +624,7 @@ function AgenturaPage() {
         <div className="min-w-0">
           <div className="flex items-center gap-sm">
             <h2 className="m-0 truncate text-xl font-semibold text-foreground-heading">{title}</h2>
-            <span className="shrink-0 rounded-full bg-secondary-600/10 px-2 py-0.5 text-xs font-semibold text-secondary-700 dark:text-secondary-300">
+            <span className="shrink-0 rounded-full bg-grey-100 px-2 py-0.5 text-xs font-semibold text-foreground-muted dark:bg-grey-800 dark:text-grey-300">
               {headerCount}
             </span>
           </div>
