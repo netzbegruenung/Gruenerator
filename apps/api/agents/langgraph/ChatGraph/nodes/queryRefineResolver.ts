@@ -107,7 +107,15 @@ export async function refineSearchQuery({
     const refined = parseRefined(response);
     const elapsedMs = Date.now() - startTime;
     if (refined == null) {
-      log.warn(`[QueryRefine] Unusable output in ${elapsedMs}ms — falling back to heuristic`);
+      // Four different things produce `null` here (no braces, unparseable JSON,
+      // empty query, query over MAX_QUERY_LENGTH) and the old line named none of
+      // them. On 20.08.2026 the fallback then shipped the user's raw instruction
+      // as an embedding query, and nothing in the log said which case it was.
+      log.warn(
+        `[QueryRefine] Unusable output in ${elapsedMs}ms — falling back to heuristic. Rohantwort: ${JSON.stringify(
+          (response ?? '').slice(0, 200)
+        )}`
+      );
       return null;
     }
     log.info(

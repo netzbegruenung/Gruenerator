@@ -1905,8 +1905,13 @@ async function pickThreadArtifact(
 }
 
 /**
- * Helper for the 3 near-identical "force search intent with LLM query optimization" blocks.
- * Used by document chat, document mention, and notebook mention paths.
+ * Helper for the six near-identical "force search intent with LLM query
+ * optimization" blocks: @dokumentchat, @document, @wolke, @connect, @notebook
+ * and the attachment + default-notebook path.
+ *
+ * Everything that must hold for ALL forced-search turns belongs in HERE, not at
+ * the call sites — a field set at one of the six is a field missing from five,
+ * and the header used to count three, so the omission reads as complete.
  */
 async function classifyWithForcedSearch(opts: {
   reason: string;
@@ -1945,6 +1950,15 @@ async function classifyWithForcedSearch(opts: {
   // `detectedFilters` from the deterministic heuristic the catch branch already
   // used. `documentSubtype` and `targetGroupName` are read only by document-
   // CREATION and share paths, which a forced-search turn never reaches.
+  //
+  // `documentSubtype` was briefly set here, so that a search turn could tell
+  // respondNode which Textsorte it owed. It is gone again because the noun it
+  // detects answers "did the user SAY this word", not "did the user ORDER it" —
+  // and on these six paths the retrieval phrasing is the common one: "was steht
+  // in der Pressemitteilung", "fasse den Antrag zusammen". A note built on that
+  // tells the model to WRITE the thing it was asked to FIND. The ordered form
+  // now hangs on the recipe instead (`getOrderedTextFormNote` in respondNode),
+  // which carries its own negation/meta/transformation guards.
   //
   // `secondaryIntent` is the one real behaviour change: it is now always null
   // here, so these turns stop being kicked out of the agentic loop by

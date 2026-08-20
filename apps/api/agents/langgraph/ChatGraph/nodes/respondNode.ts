@@ -1081,6 +1081,44 @@ function getForbiddenActionNote(state: ChatGraphState): string {
 const SEARCH_GUIDANCE =
   '\nDu hast Recherche-Ergebnisse erhalten. Beantworte die Frage primär aus diesen Ergebnissen und zitiere sie inline.';
 
+/**
+ * Eine Recherche-Antwort, die die BESTELLTE Textform vergisst.
+ *
+ * Zwei Turns im selben Thread, beta 20.08.2026:
+ *   `/presse mehr artenschutz in ludwigshafen` → Recherche-Briefing mit Tabelle
+ *   „schreibe eine pressemitteilung …" (ohne Mention) → korrekte Pressemitteilung
+ *
+ * Der Unterschied ist nicht, OB das Rezept im Prompt stand, sondern WO. Bei der
+ * ausdrücklichen Wahl unterdrückt `catalogAssembly` das `rezept_laden`-Werkzeug
+ * (gegen Doppel-Injektion) und der Rezepttext steht ganz oben im System-Prompt,
+ * weit vor SEARCH_GUIDANCE („Beantworte die Frage primär aus diesen
+ * Ergebnissen"). Ohne Mention lädt das Modell dasselbe Rezept selbst als
+ * Werkzeug-Ergebnis, unmittelbar bevor es schreibt — und befolgt es. Die
+ * ausdrückliche Wahl war damit der SCHWÄCHERE der beiden Wege.
+ *
+ * Dieser Hinweis stellt die bestellte Form an der späten Stelle wieder her.
+ *
+ * Er hängt am REZEPT, nicht an einer erkannten Textsorte im Text. „Was steht in
+ * der Pressemitteilung?", „finde unsere Pressemitteilungen zu Windkraft",
+ * „fasse den Antrag zusammen" nennen dieselbe Textsorte und bestellen sie
+ * nicht — und auf den Abruf-Pfaden (@wolke, @document, @dokumentchat,
+ * @notebook) ist genau das der Normalfall. `activeSkillMention` kommt entweder
+ * aus der Composer-Wahl oder aus `deriveImplicitRecipeMention`, das Verneinung,
+ * Meta-Fragen und Umformungs-Aufträge bereits abweist; `defaultRecipeMention`
+ * ist bewusst NICHT gemeint, sonst bekäme jede Sachfrage an einen
+ * LV-Agenten eine Pressemitteilung als Antwort.
+ */
+function getOrderedTextFormNote(state: ChatGraphState): string {
+  const mention = state.activeSkillMention;
+  if (!mention) return '';
+  // Der Anzeigename lebt an genau einer Stelle, der Registry. Eine zweite
+  // Tabelle hier wäre eine Kopie, die beim nächsten Rezept veraltet — und sie
+  // müsste zusätzlich das Genus jedes Namens mitführen. Der Name steht deshalb
+  // in Anführungszeichen statt in einem Artikel.
+  const title = SKILLS.find((s) => s.mention === canonicalSkillMention(mention))?.title ?? mention;
+  return `\nDer*die Nutzer*in hat die Textform „${title}" gewählt. Die Recherche ist das Mittel, nicht das Ergebnis: Liefere den fertigen Text in dieser Form, nicht eine Zusammenfassung der Quellenlage darüber.`;
+}
+
 // Calibration, not fabrication. "Erfinde keine Fakten" already bans inventing;
 // it says nothing about how SURE to sound about something a source itself marks
 // as unresolved. Observed live: a web-researched biography reported a disputed
@@ -1232,9 +1270,9 @@ export function getModeGuidance(state: ChatGraphState): string {
     case 'examples':
     case 'pressemitteilung_examples':
     case 'sharepic':
-      return SEARCH_GUIDANCE;
+      return SEARCH_GUIDANCE + getOrderedTextFormNote(state);
     default:
-      return SEARCH_GUIDANCE;
+      return SEARCH_GUIDANCE + getOrderedTextFormNote(state);
   }
 }
 
@@ -1394,7 +1432,17 @@ function buildAnswerFormatRule(
    * sources. Both are decided before the prompt is written; neither is a guess
    * about the model.
    */
-  retrievalExpected = false
+  retrievalExpected = false,
+  /**
+   * Der Titel der aktiven Textform — oder null, wenn keine im Prompt steht.
+   *
+   * Bewusst der TITEL und nicht `state.activeSkillMention`: Eigentümer ist das
+   * eingesetzte Fragment, nicht die Absicht. `getInternalSkillPrompt` liefert
+   * null, wenn das interne Rezept-Verzeichnis nicht ausgerollt ist — dann
+   * stünde „halte dich an die oben aktive Textform" über einer Stelle, an der
+   * nichts liegt, und die generische Regel fiele ersatzlos weg.
+   */
+  activeTextForm: string | null = null
 ): string {
   // A multi-document turn already has its format prescribed by the comparison /
   // multi-doc block (table, per-doc bullets, grounded prose). A second structure
@@ -1470,6 +1518,29 @@ function buildAnswerFormatRule(
   if (state.taskShape != null) {
     note('own_format', { formatOwner: `task_shape:${state.taskShape}` });
     return 'Form und Umfang gibt der Auftrag der*des Nutzer*in vor — halte dich genau an das dort verlangte Format und füge nichts hinzu, was es nicht vorsieht.';
+  }
+
+  // Der vierte Besitzer, und der einzige, der bis 20.08.2026 keiner war: eine
+  // GEWÄHLTE Textform. Ein Rezept schreibt Aufbau, Länge, Ton und Zitierweise
+  // vollständig vor — dieselbe Achse, die diese Regel sonst bedient.
+  //
+  // Live gemessen: `/presse mehr artenschutz in ludwigshafen` lief als
+  // `agentic` mit `retrievalExpected`, fiel damit in `research_expanded` und
+  // bekam „Bis zu 6 Absätze … gliedere sie mit Überschriften … setze sie als
+  // Aufzählung … hebe Namen, Jahreszahlen und Kennzahlen mit **Fettung**
+  // hervor" — buchstäblich die Form, die dann herauskam: sechs Abschnitte,
+  // Tabelle, Aufzählungen, fettgesetzte Jahreszahlen. Kein Pressetext.
+  //
+  // Das Rezept stand im selben Prompt, nur ganz oben; diese Regel steht unter
+  // ANTWORT-REGELN, also zuletzt. Der Turn danach ohne Mention gelang genau
+  // deshalb: dort holt sich das Modell das Rezept über `rezept_laden` als
+  // Werkzeug-Ergebnis, unmittelbar bevor es schreibt — nach dieser Regel.
+  //
+  // Steht NACH `taskShape`: schreibt die Person im Auftrag selbst eine Form vor
+  // („gib mir ausschließlich drei Sätze"), gewinnt ihr Satz gegen das Rezept.
+  if (activeTextForm) {
+    note('own_format', { formatOwner: `textform:${activeTextForm}` });
+    return 'Form und Umfang gibt die oben aktive Textform vor — halte dich genau an deren Aufbau, Länge und Ton und füge keine Gliederung hinzu, die sie nicht vorsieht.';
   }
 
   if (state.complexity === 'complex') {
@@ -1774,6 +1845,25 @@ ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSu
     }
   }
 
+  // Dieselbe Vokabel wie die Werkzeug-Tür (`[recipeTools] [Rezept] gewählt=…
+  // quelle=…`), damit im Log vergleichbar wird, welcher der beiden Wege ein
+  // Rezept getragen hat. Ohne diese Zeile war die Prompt-Tür stumm: ein Turn
+  // mit ausdrücklicher Wahl sieht im Log exakt aus wie einer ohne, weil die
+  // Wahl `rezept_laden` gerade abhängt (`catalogAssembly`). Genau daran ließ
+  // sich der Ausfall vom 20.08.2026 nicht am Log entscheiden.
+  // Was das Modell wirklich vor sich hat — leer, wenn kein Rezepttext gefunden
+  // wurde. Die Formatregel unten hängt daran, nicht an der blossen Absicht.
+  const activeTextFormTitle = skillFragment
+    ? (userTextForm?.title ?? activeSkill?.title ?? effectiveSkillMention)
+    : null;
+
+  if (effectiveSkillMention) {
+    const quelle = userTextForm ? 'nutzer' : skillFragment ? 'system' : 'fehlt';
+    log.info(
+      `[Rezept] Prompt-Fragment mention=${effectiveSkillMention} quelle=${quelle} gewaehlt=${state.activeSkillMention ? 'ja' : 'agent-standard'}`
+    );
+  }
+
   // What broke in this turn, in the model's own words. A warning event is
   // telemetry only — without this block the model happily presents a degraded
   // turn as a complete one (answering an arithmetic question from memory after
@@ -1798,7 +1888,7 @@ Heutiges Datum: ${today}${localeContext}${platformContext}${productIdentity}${pr
 
 ## ANTWORT-REGELN
 1. ${SCOPE_RULE}
-2. ${buildAnswerFormatRule(state, sourceCount, opts.retrievalExpected ?? false)}
+2. ${buildAnswerFormatRule(state, sourceCount, opts.retrievalExpected ?? false, activeTextFormTitle)}
 3. Antworte auf Deutsch. Sind Quellen fremdsprachig, formuliere SPRACHLICH eigenständig statt wörtlich zu übersetzen — INHALTLICH bleibst du exakt bei der Quelle und ergänzt nichts, was dort nicht steht. Kannst du eine Aussage nicht nachvollziehbar auf Deutsch wiedergeben, lass sie weg statt zu raten
 4. Erfinde keine Fakten oder Quellennamen
 5. Erstelle KEINE Quellenliste/Quellenverzeichnis am Ende — Quellen werden automatisch in der Oberfläche angezeigt
