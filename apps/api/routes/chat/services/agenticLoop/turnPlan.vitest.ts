@@ -461,12 +461,21 @@ describe('decideTurnPlan — die Suchfamilie am Erwähnungs-Pfad (IST vor dem R3
     }
   );
 
-  it('@deepresearch ist am Entscheider nicht von @recherche zu unterscheiden', () => {
-    // Was `forcedIntentStage` für `@deepresearch` setzt, in den Feldern, die
-    // dieser Entscheider überhaupt sieht.
-    const deep = plan({ intent: 'research', forcedTool: true, mentionPinnedTool: null });
-    const recherche = plan({ intent: 'research', forcedTool: true, mentionPinnedTool: null });
-    expect(deep).toEqual(recherche);
-    expect(deep.lane).toBe('single-pass');
+  /**
+   * Und die Kehrseite, als Aussage über die EINGABE statt über das Ergebnis:
+   * `TurnPlanInput` führt kein Feld, das die Tiefenrecherche benennt. Der
+   * Entscheider bekommt für `@deepresearch` genau das, was `forcedIntentStage`
+   * auch für `@recherche` setzt — `intent: 'research'`, `forcedTool: true`,
+   * Werkzeug-Pin gelöscht —, und ein zweiter Aufruf mit denselben Werten wäre
+   * eine Tautologie, kein Beweis.
+   *
+   * Diese Zeile ist deshalb der Beweis: sie fällt in dem Moment, in dem jemand
+   * dem Entscheider das trennende Feld gibt — und genau das MUSS beim Lane-Flip
+   * passieren, sonst reisst er den Dossier-Weg mit.
+   */
+  it('hat am Entscheider kein Feld, das die Tiefenrecherche benennt', () => {
+    expect(Object.keys(base).filter((k) => /deep/i.test(k))).toEqual([]);
+    const deepresearchFields = plan({ intent: 'research', forcedTool: true });
+    expect(deepresearchFields.lane).toBe('single-pass');
   });
 });
