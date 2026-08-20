@@ -95,7 +95,7 @@ describe('shouldForceFirstToolCall', () => {
    * `followup-bundestag-scope`
    *
    *   t0 „Wie hat die SPD zum Heizungsgesetz abgestimmt?"
-   *      → intent=agentic, loopDemotedFromRetrieval=true   (vierter Weg trägt)
+   *      → intent=agentic, loopDemotedFromRetrieval=true   (Demotions-Zweig)
    *   t1 „Und die FDP?"
    *      → intent=agentic, loopDemotedFromRetrieval=false  (bis hier: niemand)
    *
