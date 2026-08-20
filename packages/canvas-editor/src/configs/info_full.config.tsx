@@ -171,6 +171,11 @@ const arrowElement: ImageElementConfig<InfoState> = {
   src: INFO_CONFIG.arrow.src,
   draggable: true,
   opacityStateKey: 'arrowOpacity',
+  // Solange niemand den Pfeil anfasst, folgt er ueber `fromLayout` der Hoehe
+  // der Ueberschrift. Ein Zug schreibt eine absolute Position, die von da an
+  // gewinnt — vorher lebte er nur im Konva-Knoten und war nach dem Neuladen weg.
+  positionStateKey: 'arrowPosition',
+  sizeStateKey: 'arrowSize',
 };
 
 const bodyTextElement = createSecondaryText<InfoState>({
@@ -201,7 +206,7 @@ const baseInfoConfig = createColorTwoTextCanvas({
   defaultBackgroundColor: '#005538',
   textColorMap: TEXT_COLORS,
   calculateLayout,
-  passthroughStateKeys: ['arrowOpacity'],
+  passthroughStateKeys: ['arrowOpacity', 'arrowPosition', 'arrowSize'],
   elements: [sunflowerElement, headerTextElement, arrowElement, bodyTextElement],
   features: { icons: true, shapes: true, illustrations: true },
   getCanvasText: (state) => {

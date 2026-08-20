@@ -11,6 +11,7 @@ import { PillBadge } from '../primitives/PillBadge';
 import { ShapePrimitive } from '../primitives/ShapePrimitive';
 import { ChartPrimitive } from '../primitives/ChartPrimitive';
 import { UserImagePrimitive } from '../primitives/UserImagePrimitive';
+import { type GeometryReporter } from '../hooks/useGeometryReporter';
 import { useIsElementSelected } from '../stores/CanvasStoreProvider';
 import { getIconMapSync } from '../utils/canvasIcons';
 
@@ -153,6 +154,8 @@ interface CanvasRenderLayerProps<
     ) => void;
   };
   getSnapTargets: (id: string) => SnapTarget[];
+  /** Traegt gerenderte Geometrie in die Snap-Ziel-Liste ein. */
+  registerGeometry: GeometryReporter;
   handleSnapChange: (h: boolean, v: boolean) => void;
   setSnapLines: (lines: SnapLine[]) => void;
   stageWidth: number;
@@ -201,6 +204,7 @@ function CanvasRenderLayerInner<
   layout,
   handlers,
   getSnapTargets,
+  registerGeometry,
   handleSnapChange,
   setSnapLines,
   stageWidth,
@@ -222,6 +226,7 @@ function CanvasRenderLayerInner<
           onTextChange={handlers.handleTextChange}
           onFontSizeChange={handlers.handleFontSizeChange}
           onPositionChange={handlers.handleElementPositionChange}
+          onGeometryChange={registerGeometry}
           onImageDragEnd={handlers.handleImageDragEnd}
           onImageTransformEnd={handlers.handleImageTransformEnd}
           onSnapChange={handleSnapChange}
@@ -296,6 +301,12 @@ function CanvasRenderLayerInner<
           onTransformEnd={(nx, ny, ns, nr) =>
             handlers.handleIconTransformEnd(iconId, nx, ny, ns, nr)
           }
+          stageWidth={stageWidth}
+          stageHeight={stageHeight}
+          getSnapTargets={getSnapTargets}
+          onSnapChange={handleSnapChange}
+          onSnapLinesChange={setSnapLines}
+          onGeometryChange={registerGeometry}
         />
       );
     }
@@ -366,6 +377,12 @@ function CanvasRenderLayerInner<
           onTransformEnd={(x: number, y: number, scale: number, rotation: number) =>
             handlers.handleAssetTransformEnd(asset.id, x, y, scale, rotation)
           }
+          stageWidth={stageWidth}
+          stageHeight={stageHeight}
+          getSnapTargets={getSnapTargets}
+          onSnapChange={handleSnapChange}
+          onSnapLinesChange={setSnapLines}
+          onGeometryChange={registerGeometry}
         />
       );
     }
@@ -521,6 +538,7 @@ function CanvasRenderLayerInner<
           onSnapChange={handleSnapChange}
           onSnapLinesChange={setSnapLines}
           snapTargets={getSnapTargets(textItem.id)}
+          onGeometryChange={registerGeometry}
           stageWidth={stageWidth}
           stageHeight={stageHeight}
         />

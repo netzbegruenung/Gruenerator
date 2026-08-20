@@ -13,6 +13,7 @@ import { Text as KonvaText, Transformer } from 'react-konva';
 import { calculateSnapPosition, calculateElementSnapPosition } from '../utils/snapping';
 import { gradientToKonvaProps, type GradientFill } from '../utils/gradientFill';
 
+import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometryReporter';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 
 import type { SnapTarget, SnapLine } from '../utils/snapping';
@@ -62,6 +63,8 @@ export interface CanvasTextProps {
   onSnapChange?: (snapH: boolean, snapV: boolean) => void;
   snapTargets?: SnapTarget[];
   onPositionChange?: (id: string, x: number, y: number, width: number, height: number) => void;
+  /** Meldet die gerenderte Geometrie als Snap-Ziel — unabhaengig davon, ob je gezogen wurde. */
+  onGeometryChange?: GeometryReporter;
   onSnapLinesChange?: (lines: SnapLine[]) => void;
 }
 
@@ -110,6 +113,7 @@ function CanvasTextInner({
   onSnapChange,
   snapTargets,
   onPositionChange,
+  onGeometryChange,
   onSnapLinesChange,
 }: CanvasTextProps) {
   const textRef = useRef<Konva.Text>(null);
@@ -148,6 +152,30 @@ function CanvasTextInner({
       trRef.current.nodes([]);
     }
   }, [selected, isEditing]);
+
+  const reportGeometry = useGeometryReporter(id, onGeometryChange);
+
+  // Nach jedem Layout-Durchgang die tatsaechlich gerenderte Box melden. Bei Text
+  // ist die Hoehe erst nach dem Umbruch bekannt, deshalb vom Knoten gelesen und
+  // nicht aus den Props gerechnet.
+  useEffect(() => {
+    const node = textRef.current;
+    if (!node) return;
+    reportGeometry(node.x(), node.y(), node.width() * node.scaleX(), node.height() * node.scaleY());
+  }, [
+    reportGeometry,
+    text,
+    x,
+    y,
+    width,
+    fontSize,
+    fontFamily,
+    fontStyle,
+    lineHeight,
+    padding,
+    scaleX,
+    scaleY,
+  ]);
 
   const handleDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
