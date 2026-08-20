@@ -101,6 +101,41 @@ describe('imageRenderInputsAreEqual', () => {
     expect(equal).toBe(false);
   });
 
+  it('haelt still, wenn das Layout wandert und eine manuelle Position gewinnt', () => {
+    // Wer den Pfeil einmal verschoben hat, haengt nicht mehr am Layout — ein
+    // Neuzeichnen waere folgenlos, weil `customPosition` die Achse besetzt.
+    const arrowPosition = { x: 90, y: 300 };
+    const equal = imageRenderInputsAreEqual(
+      inputs({ arrowPosition }, layoutWithArrowY(280)),
+      inputs({ arrowPosition }, layoutWithArrowY(360))
+    );
+
+    expect(equal).toBe(true);
+  });
+
+  it('zeichnet trotz Positions-Override neu, wenn das Layout die Groesse aendert', () => {
+    // Die Groesse haengt weiter am Layout — der Override betrifft nur x/y.
+    const arrowPosition = { x: 90, y: 300 };
+    const equal = imageRenderInputsAreEqual(
+      inputs({ arrowPosition }, { arrow: { x: 50, y: 280, width: 60, height: 60 } }),
+      inputs({ arrowPosition }, { arrow: { x: 50, y: 280, width: 90, height: 90 } })
+    );
+
+    expect(equal).toBe(false);
+  });
+
+  it('behandelt eine Nullgroesse nicht als Override', () => {
+    // Der Renderer verwirft {0,0} und faellt aufs Layout zurueck — der
+    // Vergleich muss derselben Regel folgen, sonst friert das Bild ein.
+    const arrowSize = { w: 0, h: 0 };
+    const equal = imageRenderInputsAreEqual(
+      inputs({ arrowSize }, { arrow: { x: 50, y: 280, width: 60, height: 60 } }),
+      inputs({ arrowSize }, { arrow: { x: 50, y: 280, width: 90, height: 90 } })
+    );
+
+    expect(equal).toBe(false);
+  });
+
   it('zeichnet neu bei Auswahl', () => {
     const layout = layoutWithArrowY(280);
     expect(imageRenderInputsAreEqual(inputs({}, layout, false), inputs({}, layout, true))).toBe(

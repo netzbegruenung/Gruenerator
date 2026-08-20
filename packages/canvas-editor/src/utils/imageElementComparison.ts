@@ -10,7 +10,7 @@
  * erzwingt.
  */
 
-import { assertAsPosition } from './stateTypeAssertions';
+import { assertAsPosition, assertAsSize } from './stateTypeAssertions';
 
 import type { ImageElementConfig, LayoutElementResult, LayoutResult } from '../configs/types';
 
@@ -42,6 +42,10 @@ export function imageRenderInputsAreEqual<TState extends Record<string, unknown>
     if (prevOffset.x !== nextOffset.x || prevOffset.y !== nextOffset.y) return false;
   }
 
+  // Ein aktiver Override koppelt die Achse vom Layout ab (siehe Render:
+  // `customPosition?.x ?? resolveValue(config.x, …)`). Unveraendert gesetzte
+  // Overrides merken wir uns, um den Layout-Vergleich unten zu sparen.
+  let positionOverridden = false;
   const positionKey = prev.config.positionStateKey;
   if (positionKey) {
     const prevRaw = prev.state[positionKey];
@@ -51,11 +55,25 @@ export function imageRenderInputsAreEqual<TState extends Record<string, unknown>
       const prevPos = assertAsPosition(prevRaw);
       const nextPos = assertAsPosition(nextRaw);
       if (prevPos.x !== nextPos.x || prevPos.y !== nextPos.y) return false;
+      positionOverridden = true;
     }
   }
 
+  let sizeOverridden = false;
   const sizeKey = prev.config.sizeStateKey;
-  if (sizeKey && prev.state[sizeKey] !== next.state[sizeKey]) return false;
+  if (sizeKey) {
+    const prevRaw = prev.state[sizeKey];
+    const nextRaw = next.state[sizeKey];
+    if ((prevRaw == null) !== (nextRaw == null)) return false;
+    if (prevRaw != null && nextRaw != null) {
+      const prevSize = assertAsSize(prevRaw);
+      const nextSize = assertAsSize(nextRaw);
+      if (prevSize.w !== nextSize.w || prevSize.h !== nextSize.h) return false;
+      // Spiegelt die Gueltigkeitspruefung des Renderers: {0,0} zaehlt nicht
+      // als Override, dort greift wieder das Layout.
+      sizeOverridden = prevSize.w > 0 && prevSize.h > 0;
+    }
+  }
 
   const scaleKey = prev.config.scaleKey;
   if (scaleKey && prev.state[scaleKey] !== next.state[scaleKey]) return false;
@@ -71,10 +89,16 @@ export function imageRenderInputsAreEqual<TState extends Record<string, unknown>
 
   const prevGeometry = geometryOf(prev.layout, prev.config.id);
   const nextGeometry = geometryOf(next.layout, next.config.id);
-  if (prevGeometry?.x !== nextGeometry?.x) return false;
-  if (prevGeometry?.y !== nextGeometry?.y) return false;
-  if (prevGeometry?.width !== nextGeometry?.width) return false;
-  if (prevGeometry?.height !== nextGeometry?.height) return false;
+
+  if (!positionOverridden) {
+    if (prevGeometry?.x !== nextGeometry?.x) return false;
+    if (prevGeometry?.y !== nextGeometry?.y) return false;
+  }
+
+  if (!sizeOverridden) {
+    if (prevGeometry?.width !== nextGeometry?.width) return false;
+    if (prevGeometry?.height !== nextGeometry?.height) return false;
+  }
 
   return true;
 }
