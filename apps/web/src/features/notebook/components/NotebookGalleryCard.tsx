@@ -105,7 +105,14 @@ const NotebookGalleryCard = memo(
             <div className="absolute right-2 top-2 z-10 flex items-center gap-1">
               {action && (
                 // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- fängt nur den Klick/Tastendruck ab, damit er nicht die Karte aktiviert
-                <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                <div
+                  // Same pill as the menu below, but never hidden: the action's
+                  // own colours (grey icon, red when liked) are built for a light
+                  // card, and sit unreadable directly on the pink cover.
+                  className="rounded-full bg-white/85 backdrop-blur-sm dark:bg-black/50"
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
+                >
                   {action}
                 </div>
               )}

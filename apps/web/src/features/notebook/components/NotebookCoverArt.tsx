@@ -39,36 +39,48 @@ export interface NotebookCoverArtProps {
   title: string;
   /** Small line at the bottom, e.g. the author of a community notebook. */
   subtitle?: string;
+  /**
+   * Set when the card carries a permanently visible top-right control (the like
+   * button). The title then flows around a float the size of that control
+   * instead of running underneath it — measured at 300/170/120 px tile widths,
+   * where the button is a fixed ~44×26 px and eats a third of a mobile tile.
+   */
+  reserveTopRight?: boolean;
   className?: string;
 }
 
-const NotebookCoverArt = memo(({ title, subtitle, className }: NotebookCoverArtProps) => (
-  <div
-    className={cn('relative size-full overflow-hidden', className)}
-    // `container-type` is load-bearing, not decoration: the type scale below is
-    // in `cqw`, so the tile keeps its proportions in the narrow scroll row and
-    // in the wide grid alike. Both live in the same style object so neither can
-    // be removed without the other.
-    style={{ background: COVER_BACKGROUND, containerType: 'inline-size' }}
-  >
-    {/* lang="de" is what makes `hyphens: auto` break German compounds. */}
-    <p
-      lang="de"
-      className="absolute right-[7%] top-[8%] m-0 line-clamp-4 hyphens-auto break-words leading-[1.1] text-white"
-      style={{ fontFamily: "'GrueneType', sans-serif", fontSize: titleSize(title), left: '10%' }}
+const NotebookCoverArt = memo(
+  ({ title, subtitle, reserveTopRight, className }: NotebookCoverArtProps) => (
+    <div
+      className={cn('relative size-full overflow-hidden', className)}
+      // `container-type` is load-bearing, not decoration: the type scale below is
+      // in `cqw`, so the tile keeps its proportions in the narrow scroll row and
+      // in the wide grid alike. Both live in the same style object so neither can
+      // be removed without the other.
+      style={{ background: COVER_BACKGROUND, containerType: 'inline-size' }}
     >
-      {title}
-    </p>
-    {subtitle && (
+      {/* Clipped by its own box rather than `line-clamp`: -webkit-box does not
+          flow text around the float below. lang="de" is what makes
+          `hyphens: auto` break German compounds. */}
       <p
-        className="absolute bottom-[7%] right-[7%] m-0 truncate font-bold text-white/90"
-        style={{ fontSize: '5.4cqw', left: '10%' }}
+        lang="de"
+        className="absolute inset-x-[7%] bottom-[24%] top-[8%] m-0 overflow-hidden hyphens-auto break-words leading-[1.1] text-white"
+        style={{ fontFamily: "'GrueneType', sans-serif", fontSize: titleSize(title), left: '10%' }}
       >
-        {subtitle}
+        {reserveTopRight && <span aria-hidden className="float-right h-7 w-12" />}
+        {title}
       </p>
-    )}
-  </div>
-));
+      {subtitle && (
+        <p
+          className="absolute bottom-[7%] right-[7%] m-0 truncate font-bold text-white/90"
+          style={{ fontSize: '5.4cqw', left: '10%' }}
+        >
+          {subtitle}
+        </p>
+      )}
+    </div>
+  )
+);
 NotebookCoverArt.displayName = 'NotebookCoverArt';
 
 export default NotebookCoverArt;

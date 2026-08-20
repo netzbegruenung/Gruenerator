@@ -41,6 +41,15 @@ describe('NotebookCoverArt', () => {
     );
   });
 
+  it('keeps the title clear of a permanently visible top-right control', () => {
+    const withAction = render(<NotebookCoverArt title="Egal" reserveTopRight />);
+    expect(withAction.container.querySelector('p > span[aria-hidden]')).not.toBeNull();
+    withAction.unmount();
+
+    const plain = render(<NotebookCoverArt title="Egal" />);
+    expect(plain.container.querySelector('p > span[aria-hidden]')).toBeNull();
+  });
+
   it('sets a container so the cqw type scale resolves against the tile', () => {
     const { container } = render(<NotebookCoverArt title="Egal" />);
 

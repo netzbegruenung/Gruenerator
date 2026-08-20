@@ -149,7 +149,9 @@ const BasisNotebooks = memo(({ collections }: { collections: NotebookCollection[
           <div key={c.id} className={NOTEBOOK_SCROLL_ITEM}>
             <NotebookGalleryCard
               title={c.name}
-              coverNode={<NotebookCoverArt title={c.name} subtitle={publicNotebookMeta(c)} />}
+              coverNode={
+                <NotebookCoverArt title={c.name} subtitle={publicNotebookMeta(c)} reserveTopRight />
+              }
               accent="pink"
               onActivate={() => void navigate(publicNotebookHref(c))}
               action={
@@ -267,7 +269,13 @@ const EigeneNotebooks = memo(
                   key={c.id}
                   title={c.name}
                   coverNode={
-                    <NotebookCoverArt title={c.name} subtitle={c.description || undefined} />
+                    // Das Aktionsmenü ist auf schmalen Bildschirmen dauerhaft
+                    // sichtbar (max-sm:opacity-100), nicht nur beim Hover.
+                    <NotebookCoverArt
+                      title={c.name}
+                      subtitle={c.description || undefined}
+                      reserveTopRight
+                    />
                   }
                   accent="pink"
                   onActivate={() => onView(c.id)}
