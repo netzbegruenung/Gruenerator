@@ -102,7 +102,7 @@ export function shouldForceFirstToolCall(input: {
   //   t1 „Und die FDP?"
   //      → direct@0.25, demotiert, loopDemotedFromRetrieval=FALSE
   //
-  // t0 trägt der vierte Weg. t1 trug bis hier NIEMAND: das Abruf-Verdikt steht
+  // t0 trägt der Demotions-Zweig. t1 trug bis hier NIEMAND: das Abruf-Verdikt steht
   // im Turn davor, dieser Turn nennt nur noch die Differenz. `agentic` ist der
   // Auffangwert und darf nicht zwingen — deshalb entschied allein der Planer,
   // ob er nachschlägt, und genau das ist die Streuung. Die Korpus-Notiz führte
@@ -112,12 +112,14 @@ export function shouldForceFirstToolCall(input: {
   // Drei Bedingungen, und alle drei sind nötig:
   //  - der Abrufkontext liegt im THREAD (der vorige Turn holte Information),
   //  - der Turn ist der Auffangwert (`agentic`); ein benanntes Abruf-Verdikt
-  //    trägt der sechste Weg, ein demotiertes der vierte,
+  //    trägt der `NAMED_RETRIEVAL_INTENTS`-Zweig, ein demotiertes der
+  //    `loopDemotedFromRetrieval`-Zweig,
   //  - der Text ist eine Anschlussfrage und keine Meta-Anweisung über die
   //    vorige ANTWORT (`isReferentialFollowup`; „fasse das kürzer" ist
   //    ebenfalls kurz und rückbezüglich und darf hier nie ankommen).
   //
-  // Eigenes Material sticht auch hier, aus demselben Grund wie beim vierten Weg.
+  // Eigenes Material sticht auch hier, aus demselben Grund wie beim
+  // Demotions-Zweig.
   if (
     input.priorTurnRetrieved &&
     input.intent === 'agentic' &&

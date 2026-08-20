@@ -317,12 +317,18 @@ export async function buildToolReplay(params: {
 /**
  * Hat dieser Thread zuletzt INFORMATION geholt?
  *
- * Dieselben Schritte, die `buildToolReplay` als Beobachtungen in den Kontext
- * spielt — die Menge ist ausdrücklich die des Replays und keine vierte
- * Werkzeugliste daneben: was als Beobachtung ankommt, ist genau das, worauf
- * eine Anschlussfrage sich beziehen kann. Nur die erzeugenden/wirkenden
- * Werkzeuge zählen nicht (`NON_REPLAYABLE_ACTION_TOOLS`): ein Thread, der ein
- * Sharepic gebaut hat, hat nichts nachgeschlagen.
+ * Dieselbe Werkzeug-Einteilung wie `buildToolReplay` — `NON_REPLAYABLE_ACTION_TOOLS`
+ * ist die eine Liste, an der „geholt" von „gemacht" getrennt wird, und eine
+ * zweite daneben wäre die Sorte Duplikat, die auseinanderläuft. Ein Thread, der
+ * ein Sharepic gebaut hat, hat nichts nachgeschlagen.
+ *
+ * **Nicht** deckungsgleich mit dem, was das Replay tatsächlich einspielt, und das
+ * ist Absicht: `buildToolReplay` engt zusätzlich auf die DIESEN Turn montierten
+ * Werkzeuge ein und hält MCP-Schritte hinter `isMcpReplayEnabled()` zurück. Die
+ * Frage hier ist eine andere — nicht „steht es im Kontext dieses Turns?", sondern
+ * „hat der vorige Turn nachgeschlagen?". Eine Anschlussfrage bezieht sich auf die
+ * vorige ANTWORT; die war in jenen Schritten gegründet, gleichgültig ob sie
+ * diesmal wiedergegeben werden.
  *
  * Gelesen wird die vorhandene Projektion, nicht die Datenbank — der Loop hält
  * `toolHistory` ohnehin schon in der Hand. Ohne Thread (erster Turn) ist die
