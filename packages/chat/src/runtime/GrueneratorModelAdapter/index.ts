@@ -471,6 +471,7 @@ export function createGrueneratorModelAdapter(
       // Only applies in chat mode — search and notebook modes don't use mentions
       let effectiveAgentId = config.agentId;
       let effectiveAgentMention: string | undefined;
+      let typedSkillMention: string | null = null;
       let notebookIds: string[] = [];
       let forcedTools: string[] = [];
       let documentIds: string[] = [];
@@ -499,6 +500,11 @@ export function createGrueneratorModelAdapter(
               effectiveAgentId = parsed.agentId;
               effectiveAgentMention = parsed.agentMention;
             }
+            // A typed skill mention beats the store's ambient activeSkillMention
+            // (which may still carry an earlier turn's choice) — see
+            // buildRequestBody. Popover selects set the store AND produce the
+            // same mention here via the pill prefix, so the two paths agree.
+            typedSkillMention = parsed.skillMention;
             notebookIds = parsed.notebookIds;
             forcedTools = parsed.forcedTools;
             documentIds = parsed.documentIds;
@@ -724,6 +730,7 @@ export function createGrueneratorModelAdapter(
         formattedMessages,
         config,
         effectiveAgentId,
+        typedSkillMention,
         safeCustomEnabledTools,
         extractedAttachments,
         notebookIds,

@@ -71,14 +71,14 @@ describe('computePillMentionInsertion', () => {
 });
 
 describe('buildMentionPrefix', () => {
-  it('joins function mentions with @ and skills with /', () => {
+  it('joins every mention with @ — skills live in the @-namespace', () => {
     expect(
       buildMentionPrefix([
         mentionable({}),
         mentionable({ category: 'skill', mention: 'presse' }),
         mentionable({ mention: 'berlin' }),
       ])
-    ).toBe('@websuche /presse @berlin');
+    ).toBe('@websuche @presse @berlin');
   });
 
   it('round-trips through the same text shape computeMentionInsertion produces', () => {
@@ -88,7 +88,7 @@ describe('buildMentionPrefix', () => {
 });
 
 describe('computeMentionInsertion', () => {
-  it('writes only the token for a recipe, no promptTemplate', () => {
+  it('writes only the @-token for a recipe, no promptTemplate', () => {
     const { newText } = computeMentionInsertion(
       '',
       mentionable({
@@ -99,7 +99,7 @@ describe('computeMentionInsertion', () => {
       -1,
       0
     );
-    expect(newText).toBe('/presse-hessen-partei ');
+    expect(newText).toBe('@presse-hessen-partei ');
   });
 
   it('keeps the query stem of a tool mention', () => {

@@ -39,6 +39,9 @@ export interface BuildRequestBodyParams {
   formattedMessages: FormattedMessage[];
   config: GrueneratorAdapterConfig;
   effectiveAgentId: string | null;
+  /** Skill/Rezept mention typed in the message text (`/presse`, `@presse`) —
+   *  wins over the store's ambient `config.activeSkillMention`. */
+  typedSkillMention: string | null;
   safeCustomEnabledTools: Record<string, boolean> | null | undefined;
   extractedAttachments: ExtractedAttachment[];
   notebookIds: string[];
@@ -153,6 +156,7 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     formattedMessages,
     config,
     effectiveAgentId,
+    typedSkillMention,
     safeCustomEnabledTools,
     extractedAttachments,
     notebookIds,
@@ -270,7 +274,11 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     defaultNotebookId: config.selectedNotebookId || undefined,
     customSystemPrompt: config.customSystemPrompt || undefined,
     initialAssistantMessage: seededInitialAssistantMessage,
-    activeSkillMention: config.activeSkillMention || undefined,
+    // Typed mention first: the store's value is ambient (set on popover select,
+    // may still carry an earlier turn's choice) — what the user wrote in THIS
+    // message is the explicit order. The backend prefers the durable
+    // `skill:`-token anyway; this field is the compat carrier.
+    activeSkillMention: typedSkillMention ?? (config.activeSkillMention || undefined),
   };
 
   if (effectiveMode === 'eigener') {
