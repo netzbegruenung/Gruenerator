@@ -360,30 +360,46 @@ async function fetchFromApi(parliament: string): Promise<FetchOutcome> {
   };
 }
 
+/**
+ * `fromCache` tells the paced overview whether this call cost an upstream
+ * request. Pacing exists for the rate limit, and the rate limit counts network
+ * calls — a Redis hit must not buy a 4 s pause.
+ */
+interface PollsLookup {
+  data: PolitProPollData | null;
+  fromCache: boolean;
+}
+
 export async function getPolitProPolls(
   parliament = 'deutschland'
 ): Promise<PolitProPollData | null> {
+  return (await lookupPolitProPolls(parliament)).data;
+}
+
+async function lookupPolitProPolls(parliament: string): Promise<PollsLookup> {
+  const cachedResult = (data: PolitProPollData | null): PollsLookup => ({ data, fromCache: true });
+
   if (!VALID_PARLIAMENT_IDS.has(parliament)) {
     log.warn(`[getPolitProPolls] Invalid parliament ID: ${parliament}`);
-    return null;
+    return cachedResult(null);
   }
 
   if (!env.POLITPRO_API_KEY) {
     log.warn('[getPolitProPolls] POLITPRO_API_KEY not set, skipping');
-    return null;
+    return cachedResult(null);
   }
 
   const cacheKey = `monitor:politpro:v2:${parliament}`;
   const cached = await getCachedJson(cacheKey, politProPollDataSchema);
-  if (cached) return cached;
+  if (cached) return cachedResult(cached);
 
   const unsupportedKey = `monitor:politpro:unsupported:${parliament}`;
-  if (await getCachedJson(unsupportedKey, unsupportedFlagSchema)) return null;
+  if (await getCachedJson(unsupportedKey, unsupportedFlagSchema)) return cachedResult(null);
 
   // Concurrent misses for the same parliament used to fire the full 3-call
   // fetch each — with 16 Länder mounting at once that is what put us ~96×
   // over the 30 req/min budget.
-  return singleFlight(cacheKey, async () => {
+  const data = await singleFlight(cacheKey, async () => {
     const result = await fetchFromApi(parliament);
 
     if (result === 'unsupported') {
@@ -407,6 +423,8 @@ export async function getPolitProPolls(
     await setLastGood(cacheKey, result.data);
     return result.data;
   });
+
+  return { data, fromCache: false };
 }
 
 // ── EU greens (green-party trend across European parliaments) ────────────────
@@ -718,16 +736,26 @@ async function setLastGood(cacheKey: string, data: unknown): Promise<void> {
 /**
  * Run thunks in paced chunks to stay clear of the 30 req/min API rate limit
  * (the EU batches can coincide with the per-parliament requests).
+ *
+ * `didWork` decides whether the PREVIOUS chunk earned the pause. The rate limit
+ * counts upstream requests, so a chunk served entirely from Redis has nothing
+ * to pace against — without this a fully warm 16-parliament overview still sat
+ * out 3 × 4 s, gating no network traffic at all. Defaults to "always pace", so
+ * the EU batches keep their existing behaviour.
  */
 async function inChunks<T>(
   thunks: Array<() => Promise<T>>,
   size: number,
-  delayMs = 4000
+  delayMs = 4000,
+  didWork: (result: T) => boolean = () => true
 ): Promise<T[]> {
   const results: T[] = [];
+  let pace = false;
   for (let i = 0; i < thunks.length; i += size) {
-    if (i > 0) await sleep(delayMs);
-    results.push(...(await Promise.all(thunks.slice(i, i + size).map((t) => t()))));
+    if (pace) await sleep(delayMs);
+    const chunk = await Promise.all(thunks.slice(i, i + size).map((t) => t()));
+    results.push(...chunk);
+    pace = chunk.some(didWork);
   }
   return results;
 }
@@ -870,33 +898,41 @@ function grueneShare(average: Record<string, number>): number | null {
  * Green share per parliament for the choropleth map, fetched PACED.
  *
  * Replaces 16 parallel `usePolls` calls in the frontend (48 upstream requests
- * in under a second against a 30 req/min budget). Cached rows cost nothing, so
- * only the cold ones are paced; on a warm cache this returns immediately.
+ * in under a second against a 30 req/min budget). Cached parliaments cost
+ * nothing and are not paced, so a warm run returns without any pause; only
+ * chunks that actually went upstream buy the next pause.
  */
 export async function getPollsOverview(
   country: PolitProCountry = 'DE'
 ): Promise<PollsOverviewResponse> {
-  // A cold run is paced and therefore slow (~12 s); without this every viewer
-  // who lands on the map while it runs would start their own paced batch.
+  // A cold run is paced and therefore slow; without this every viewer who lands
+  // on the map while it runs would start their own paced batch.
   return singleFlight(`monitor:politpro:overview:${country}`, async () => {
     const parliaments = POLITPRO_PARLIAMENTS.filter((p) => p.country === country);
 
     const thunks = parliaments.map((p) => async () => {
-      const data = await getPolitProPolls(p.id).catch(() => null);
+      const { data, fromCache } = await lookupPolitProPolls(p.id).catch(() => ({
+        data: null,
+        fromCache: true,
+      }));
       return {
-        parliament: p.id,
-        gruene: data ? grueneShare(data.average) : null,
-        // `polls.length > 1` is the established "real institute polls" test — a
-        // single entry is the synthetic weighted-trend fallback, whose date
-        // would read as a poll date it isn't.
-        latestPollDate: data && data.polls.length > 1 ? (data.polls[0]?.date ?? null) : null,
+        fromCache,
+        entry: {
+          parliament: p.id,
+          gruene: data ? grueneShare(data.average) : null,
+          // `polls.length > 1` is the established "real institute polls" test —
+          // a single entry is the synthetic weighted-trend fallback, whose date
+          // would read as a poll date it isn't.
+          latestPollDate: data && data.polls.length > 1 ? (data.polls[0]?.date ?? null) : null,
+        },
       };
     });
 
-    // 4 parliaments per chunk = 12 upstream calls per 4 s window, comfortably
-    // inside the budget even when the EU batch runs alongside.
-    const entries = await inChunks(thunks, 4);
-    return { entries, fetchedAt: new Date().toISOString() };
+    // 4 parliaments per chunk = up to 12 upstream calls per 4 s window,
+    // comfortably inside the budget even when the EU batch runs alongside.
+    // A chunk that was served from cache does not pace the next one.
+    const results = await inChunks(thunks, 4, 4000, (r) => !r.fromCache);
+    return { entries: results.map((r) => r.entry), fetchedAt: new Date().toISOString() };
   });
 }
 
