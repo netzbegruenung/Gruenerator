@@ -327,7 +327,12 @@ const getCachedAuthEntry = (): { data: AuthData; timestamp: number } | null => {
       const parsed = JSON.parse(cached) as { timestamp?: number; data?: AuthData };
       if (parsed.timestamp && parsed.data) {
         const ageMs = Date.now() - parsed.timestamp;
-        if (ageMs < 5 * 60 * 1000) {
+        // `ageMs >= 0` guards the same clock-skew hole the other persisted
+        // auth timestamps here already guard (`> Date.now()` → drop): after a
+        // backward wall-clock jump a future-dated entry has a negative age and
+        // would satisfy a bare `< 5min` check forever, seeding React Query
+        // with a stale positive that never expires.
+        if (ageMs >= 0 && ageMs < 5 * 60 * 1000) {
           sessionDebug('boot.cache-seed', {
             hit: true,
             ageMs,
