@@ -13,7 +13,8 @@ import { HiDotsVertical } from 'react-icons/hi';
 import { type TemplateAction } from '../hooks/useTemplateActions';
 import { type Template } from '../types';
 
-import VorlagenCard from '@/components/common/Gallery/VorlagenCard';
+import VorlagenCard, { overlayAction } from '@/components/common/Gallery/VorlagenCard';
+import { cn } from '@/utils/cn';
 
 interface VorlagenListSectionProps {
   title: string;
@@ -32,7 +33,7 @@ function CardMenu({ actions }: { actions: TemplateAction[] }) {
           type="button"
           // Stop the click bubbling to the card (which would trigger "open").
           onClick={(e) => e.stopPropagation()}
-          className="flex size-8 items-center justify-center rounded-full bg-background/95 text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-primary-500 hover:text-white"
+          className={cn(overlayAction, 'hover:bg-[#0f1210]/85')}
           aria-label="Aktionen"
         >
           <HiDotsVertical />
@@ -63,7 +64,7 @@ function CardMenu({ actions }: { actions: TemplateAction[] }) {
 }
 
 const GRID_CLASS =
-  'grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-5 max-md:grid-cols-[repeat(auto-fill,minmax(165px,1fr))] max-md:gap-3';
+  'grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-5 max-md:grid-cols-[repeat(auto-fill,minmax(165px,1fr))] max-md:gap-3';
 
 const VorlagenListSection = memo(
   ({ title, items, loading, emptyMessage, getActions, onOpen }: VorlagenListSectionProps) => {
@@ -73,7 +74,7 @@ const VorlagenListSection = memo(
         {loading ? (
           <div className={GRID_CLASS}>
             {['s1', 's2', 's3'].map((k) => (
-              <div key={k} className="aspect-[4/5] animate-pulse rounded-lg bg-background-alt" />
+              <div key={k} className="aspect-[3/4] animate-pulse rounded-lg bg-background-alt" />
             ))}
           </div>
         ) : items.length === 0 ? (
