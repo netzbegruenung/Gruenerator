@@ -18,7 +18,6 @@ import type {
   Source,
   ValidationResult,
   FilterOptions,
-  DedupeOptions,
   CollectionConfig,
   SourcesByCollection,
 } from './types.js';
@@ -513,77 +512,6 @@ export function groupSourcesByCollection(
   }
 
   return sourcesByCollection;
-}
-
-/**
- * Normalize a single search result for consistent processing
- */
-export function normalizeSearchResult(r: Record<string, unknown>): ExpandedChunkResult {
-  const title = (r.title || r.document_title || r.filename || 'Unbenanntes Dokument') as string;
-  const rawSnippet = (r.relevant_content || r.chunk_text || r.content || r.snippet || '') as string;
-  const snippet = rawSnippet.slice(0, 500);
-  const topChunks = r.top_chunks as Array<Record<string, unknown>> | undefined;
-  const top = topChunks?.[0] || ({} as Record<string, unknown>);
-  return {
-    document_id: (r.document_id || '') as string,
-    title,
-    snippet,
-    filename: (r.filename || null) as string | null,
-    similarity: typeof r.similarity_score === 'number' ? r.similarity_score : 0,
-    chunk_index: ((top.chunk_index ?? r.chunk_index) || 0) as number,
-    page_number: (top.page_number ?? null) as number | null,
-    source_url: (r.source_url || r.url || null) as string | null,
-  };
-}
-
-/**
- * Deduplicate and diversify results with per-document limits
- */
-export function dedupeAndDiversify(
-  results: ExpandedChunkResult[],
-  opts: DedupeOptions = {}
-): ExpandedChunkResult[] {
-  const limitPerDoc = opts.limitPerDoc ?? 4;
-  const maxTotal = opts.maxTotal ?? 12;
-
-  const sorted = [...results].sort(
-    (a, b) => b.similarity - a.similarity || String(a.title).localeCompare(String(b.title))
-  );
-
-  const seenPerDoc = new Map<string, number>();
-  const out: ExpandedChunkResult[] = [];
-
-  for (const r of sorted) {
-    const key = r.document_id || r.source_url || r.title;
-    const count = seenPerDoc.get(key) || 0;
-    if (count >= limitPerDoc) continue;
-    seenPerDoc.set(key, count + 1);
-    out.push(r);
-    if (out.length >= maxTotal) break;
-  }
-
-  return out;
-}
-
-/**
- * Summarize references map for AI prompts
- */
-export function summarizeReferencesForPrompt(
-  refMap: ReferencesMap,
-  maxChars: number = 4000
-): string {
-  const lines: string[] = [];
-  for (const id of Object.keys(refMap)) {
-    const ref = refMap[id];
-    const snippet =
-      Array.isArray(ref.snippets) && ref.snippets[0] && Array.isArray(ref.snippets[0])
-        ? String(ref.snippets[0].join(' '))
-        : '';
-    const short = snippet.slice(0, 150).replace(/\s+/g, ' ').trim();
-    lines.push(`${id}. ${ref.title} — "${short}"`);
-  }
-  const joined = lines.join('\n');
-  return joined.length > maxChars ? joined.slice(0, maxChars) : joined;
 }
 
 /**

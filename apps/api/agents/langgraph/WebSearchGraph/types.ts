@@ -80,19 +80,6 @@ export interface CategorizedSources {
 }
 
 /**
- * Deep research dossier
- */
-export interface ResearchDossier {
-  query: string;
-  executiveSummary: string;
-  detailedAnalysis: string;
-  methodology: string;
-  sources: SearchResult[];
-  grundsatzPosition?: string | undefined;
-  recommendations?: string | undefined;
-}
-
-/**
  * Search options for configuring search behavior
  */
 export interface SearchOptions {
@@ -181,57 +168,7 @@ export interface WebSearchState {
   // Output — Annotation<T | null> → T | null
   finalResults: SearchResult[] | null;
   summary: string | null;
-  dossier: ResearchDossier | null;
   metadata: SearchMetadata;
   success: boolean | null;
   error: string | null;
 }
-
-/**
- * Input parameters for runWebSearch
- */
-export interface WebSearchInput {
-  query: string;
-  mode?: 'normal' | 'deep' | undefined;
-  user_id?: string | undefined;
-  searchOptions?: SearchOptions | undefined;
-  req: Request;
-}
-
-/**
- * Normal mode search output
- */
-export interface NormalSearchOutput {
-  status: 'success' | 'error';
-  query: string;
-  results: SearchResult[];
-  summary?: string | undefined;
-  citations: Citation[];
-  citationSources: Source[];
-  metadata: SearchMetadata;
-  message?: string | undefined;
-  error?: string | undefined;
-}
-
-/**
- * Deep research mode output
- */
-export interface DeepSearchOutput {
-  status: 'success' | 'error';
-  dossier: ResearchDossier | null;
-  researchQuestions: string[];
-  searchResults: WebSearchBatch[];
-  sources: SearchResult[];
-  categorizedSources: CategorizedSources;
-  grundsatzResults: GrundsatzResult | null;
-  citations: Citation[];
-  citationSources: Source[];
-  metadata: SearchMetadata;
-  message?: string | undefined;
-  error?: string | undefined;
-}
-
-/**
- * Union type for search output
- */
-export type WebSearchOutput = NormalSearchOutput | DeepSearchOutput;

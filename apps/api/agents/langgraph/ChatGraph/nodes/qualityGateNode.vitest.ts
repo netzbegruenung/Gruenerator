@@ -5,7 +5,7 @@ vi.mock('../../../../services/ai/execution/index.js', () => ({
   executeProvider: (...args: unknown[]) => executeProvider(...args),
 }));
 
-const { qualityGateNode } = await import('./qualityGateNode.js');
+const { qualityGateNode, carryQueryContext } = await import('./qualityGateNode.js');
 
 import type { ChatGraphState, SearchResult } from '../types.js';
 
@@ -84,6 +84,15 @@ describe('qualityGateNode', () => {
     expect(result.searchErrors).toBeUndefined();
   });
 
+  it('prefixes the original query when the refinement is a bare aspect', async () => {
+    // Der dokumentierte Fehler-Modus aus researchOrchestrator: der Bewerter
+    // liefert "Herkunft", die Suche verliert damit den Eigennamen.
+    answering(JSON.stringify({ score: 2, sufficient: false, refinedQuery: 'Herkunft' }));
+
+    const result = await qualityGateNode(makeState({ searchQuery: 'Mona Neubaur' }));
+    expect(result.searchQuery).toBe('Mona Neubaur Herkunft');
+  });
+
   it('returns qualityScore=0 (NOT 3) and records error on parse failure', async () => {
     answering('not json at all');
 
@@ -106,5 +115,28 @@ describe('qualityGateNode', () => {
     expect(result.searchErrors).toEqual([
       { source: 'qualityGate', message: expect.stringContaining('worker pool down') },
     ]);
+  });
+});
+
+describe('carryQueryContext', () => {
+  it('prefixes a bare aspect that names nothing from the original', () => {
+    expect(carryQueryContext('Mona Neubaur', 'Herkunft')).toBe('Mona Neubaur Herkunft');
+  });
+
+  it('leaves a narrowing that already carries the entity alone', () => {
+    expect(carryQueryContext('Mona Neubaur', 'Mona Neubaur Herkunft')).toBe(
+      'Mona Neubaur Herkunft'
+    );
+  });
+
+  it('leaves a deliberate rewrite alone even without a shared term', () => {
+    expect(carryQueryContext('Klimapolitik', 'Vergleich Klimaziele SPD Grüne')).toBe(
+      'Vergleich Klimaziele SPD Grüne'
+    );
+  });
+
+  it('passes the refinement through when the original has no content terms', () => {
+    expect(carryQueryContext('', 'Herkunft')).toBe('Herkunft');
+    expect(carryQueryContext('und der die', 'Herkunft')).toBe('Herkunft');
   });
 });

@@ -219,6 +219,18 @@ export const evalExpectSchema = z
     retainsPriorSources: z.boolean().optional(),
     /** No scrape_url call errored (model-invented / dead URL). */
     noInventedUrls: z.boolean().optional(),
+    /**
+     * `warning` event codes the turn must emit (search_degraded,
+     * deep_research_quota_spent, unknown_model_id, …).
+     *
+     * The trace has carried `warnings` from the start and NOTHING asserted on
+     * them, so every product-visible degradation was invisible to the corpus.
+     * It is the only handle on a whole class of behaviour: the quota-exhausted
+     * `@deepresearch` turn does not refuse in prose — it warns and then answers
+     * with an ordinary research run, which from the answer text alone is
+     * indistinguishable from a deep run that simply went fast.
+     */
+    warningsMustInclude: z.array(z.string()).optional(),
     /** done surfaced ≥1 citation (grounded). */
     grounded: z.boolean().optional(),
     maxLatencyMs: z.number().optional(),
@@ -245,6 +257,26 @@ export const evalTurnSchema = z
   .object({
     prompt: z.string(),
     expect: evalExpectSchema,
+    /**
+     * Was statt `expect` gilt, wenn der Lauf mit `CHAT_AGENT_LOOP=false` gegen
+     * ein Backend fährt (Operator setzt `EVAL_LOOP_OFF=1` — ein Szenario kann
+     * die Flagge nicht selbst tragen, sie wird backend-seitig zur Request-Zeit
+     * gelesen).
+     *
+     * Gebraucht wegen §5(b) des R2-Abnahme-Berichts: die drei
+     * `search-web`-Erwartungen sind LOOP-GEFORMT. Mit ausgeschalteter Schleife
+     * rissen sie AUSSCHLIESSLICH an `tool:web_search: missing; called: []` —
+     * Erdung und Zitate bestanden. Der Einzeldurchlauf sucht und belegt also
+     * sehr wohl, er tut es nur IM GRAPHEN statt als Werkzeugaufruf, und
+     * `toolsMustInclude` sieht nur Werkzeugaufrufe.
+     *
+     * Die Erwartung beschreibt damit korrekt den Loop-Zustand und taugt
+     * trotzdem nicht als Wächter für den Kill-Switch-Pfad. Statt sie zu
+     * schwächen (was den Loop-Wächter mit aufgäbe) trägt der Turn hier die
+     * WIRKUNGS-Zusicherung für den anderen Zustand: `grounded`/`cited` statt
+     * Werkzeugname.
+     */
+    expectWhenLoopOff: evalExpectSchema.optional(),
     /** Answer to send via /resume if this turn raises a clarification interrupt. */
     onInterrupt: z.object({ resume: z.string() }).strict().optional(),
     /** Prepend N synthetic filler user/assistant pairs to the wire history
@@ -297,6 +329,20 @@ export const evalScenarioSchema = z
      *  default run's baseline. No seeding tool needed — the scenarios query
      *  SYSTEM_COLLECTIONS, which every populated backend already has. */
     notebookLane: z.boolean().optional(),
+    /**
+     * Braucht einen echten `@deepresearch`-Lauf. Übersprungen ohne
+     * EVAL_DEEP_RESEARCH=1.
+     *
+     * Eigene Lane, weil ein Lauf Minuten dauert und Geld kostet — der
+     * Rechercheagent kauft gewöhnliche Suchen plus bis zu zwei `deep`-Suchen —
+     * und weil die Tagesration (`DEEP_RESEARCH_DAILY_LIMIT`, 3) geteilt ist:
+     * jeder Default-Lauf würde sie verbrauchen und den nächsten Lauf mit einer
+     * Absage messen statt mit einem Lauf. Der Weg war bis hierher komplett
+     * unbeobachtet (R1 §5: null Szenarien), was ihn zur gefährlichsten Lücke
+     * machte — die Lane existiert, damit „unbeobachtet" zu „auf Abruf messbar"
+     * wird.
+     */
+    deepResearchLane: z.boolean().optional(),
   })
   .strict()
   .refine((s) => s.surface !== 'notebook' || (s.collectionIds?.length ?? 0) > 0, {
@@ -316,6 +362,9 @@ export const evalCaseSchema = z
     /** Model lane to force (e.g. 'mistral' unified vs a split lane). Omit = auto. */
     modelId: z.string().optional(),
     expect: evalExpectSchema,
+    /** Siehe evalTurnSchema.expectWhenLoopOff — die drei search-web-Szenarien
+     *  liegen in der Altform. */
+    expectWhenLoopOff: evalExpectSchema.optional(),
     knownFailure: z.boolean().optional(),
     /** Siehe evalScenarioSchema.systemMcpLane. Als einziges Lane-Flag auch auf
      *  der Altform, weil die vier system-mcp-Szenarien dort liegen. */

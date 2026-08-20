@@ -43,6 +43,21 @@ describe('computePillMentionInsertion', () => {
     expect(cursorPosition).toBe(newText.length);
   });
 
+  it('drops the promptTemplate of a recipe — the chip already says it', () => {
+    const { newText, cursorPosition } = computePillMentionInsertion(
+      '@pm-hes',
+      mentionable({
+        category: 'skill',
+        mention: 'presse-hessen-partei',
+        promptTemplate: 'Schreibe eine Pressemitteilung im Stil Grüne Hessen zum Thema: ',
+      }),
+      0,
+      7
+    );
+    expect(newText).toBe('');
+    expect(cursorPosition).toBe(0);
+  });
+
   it('appends at the end when no trigger was typed (plus-menu path)', () => {
     const { newText, cursorPosition } = computePillMentionInsertion(
       'schon getippt',
@@ -69,5 +84,31 @@ describe('buildMentionPrefix', () => {
   it('round-trips through the same text shape computeMentionInsertion produces', () => {
     const typed = computeMentionInsertion('', mentionable({}), -1, 0).newText;
     expect(`${buildMentionPrefix([mentionable({})])} `).toBe(typed);
+  });
+});
+
+describe('computeMentionInsertion', () => {
+  it('writes only the token for a recipe, no promptTemplate', () => {
+    const { newText } = computeMentionInsertion(
+      '',
+      mentionable({
+        category: 'skill',
+        mention: 'presse-hessen-partei',
+        promptTemplate: 'Schreibe eine Pressemitteilung im Stil Grüne Hessen zum Thema: ',
+      }),
+      -1,
+      0
+    );
+    expect(newText).toBe('/presse-hessen-partei ');
+  });
+
+  it('keeps the query stem of a tool mention', () => {
+    const { newText } = computeMentionInsertion(
+      '',
+      mentionable({ mention: 'umfragen', promptTemplate: 'Suche aktuelle Umfragen zu ' }),
+      -1,
+      0
+    );
+    expect(newText).toBe('@umfragen Suche aktuelle Umfragen zu ');
   });
 });

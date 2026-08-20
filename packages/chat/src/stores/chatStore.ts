@@ -149,14 +149,9 @@ interface AgentState {
   /** Pinned MCP connector (session-scoped, not persisted). Set from the
    *  composer's "Konnektoren" menu; cleared on new thread / new chat. */
   pinnedConnector: PinnedConnector | null;
-  /** Transient (not persisted): set by restoreSelectedAgent so the
-   *  AgentSwitchListener skips its new-thread reset for agent changes that
-   *  come from a thread deep link rather than a user-initiated switch. */
-  suppressAgentSwitchReset: boolean;
   setActiveSkillMention: (mention: string | null) => void;
   setPinnedConnector: (connector: PinnedConnector | null) => void;
   setSelectedAgent: (agentId: string | null) => void;
-  restoreSelectedAgent: (agentId: string | null) => void;
   setSelectedProvider: (provider: Provider) => void;
   setSelectedModel: (model: SelectedModel) => void;
   setCurrentThread: (threadId: string | null) => void;
@@ -233,7 +228,6 @@ export const useAgentStore = create<AgentState>()(
       customEnabledTools: null,
       activeSkillMention: null,
       pinnedConnector: null,
-      suppressAgentSwitchReset: false,
 
       setActiveSkillMention: (mention) => set({ activeSkillMention: mention }),
 
@@ -241,14 +235,6 @@ export const useAgentStore = create<AgentState>()(
 
       setSelectedAgent: (agentId) =>
         set({ selectedAgentId: agentId, activeSkillMention: null, pinnedConnector: null }),
-
-      restoreSelectedAgent: (agentId) =>
-        set({
-          selectedAgentId: agentId,
-          activeSkillMention: null,
-          pinnedConnector: null,
-          suppressAgentSwitchReset: true,
-        }),
 
       resetThreadContext: () =>
         set({
@@ -377,6 +363,10 @@ export const useAgentStore = create<AgentState>()(
           const response = await apiClient.get<CompactionResponse>(
             `/api/chat-service/summarize?threadId=${threadId}`
           );
+          // The user can switch threads while this is in flight; landing a
+          // foreign thread's counters here also mis-drives the title trigger,
+          // which reads messageCount. Same guard loadThreadSettings uses.
+          if (useAgentStore.getState().currentThreadId !== threadId) return;
           set({
             compactionState: response.compactionState,
             messageCount: response.messageCount,
@@ -385,6 +375,7 @@ export const useAgentStore = create<AgentState>()(
           });
         } catch (error) {
           console.error('Failed to load compaction state:', error);
+          if (useAgentStore.getState().currentThreadId !== threadId) return;
           set({
             compactionLoading: false,
             compactionState: { ...DEFAULT_COMPACTION_STATE },
@@ -523,7 +514,7 @@ export const useAgentStore = create<AgentState>()(
           removeItem: (key: string) => mem.delete(key),
         };
       }),
-      version: 16,
+      version: 17,
       migrate: (persisted: unknown, version: number) => {
         const state = persisted as Record<string, unknown>;
         if (version === 0) {
@@ -644,6 +635,13 @@ export const useAgentStore = create<AgentState>()(
             state.notebookDepth = DEFAULT_NOTEBOOK_DEPTH;
           }
         }
+        if (version < 17) {
+          // currentThreadId is no longer persisted: the thread URL is the
+          // restore mechanism. A leftover id was read by getConfig().threadId
+          // during the boot window before the runtime settled, so a first
+          // message could be filed into whatever thread was open last session.
+          delete state.currentThreadId;
+        }
         return state;
       },
       partialize: (state) => ({
@@ -652,7 +650,10 @@ export const useAgentStore = create<AgentState>()(
         // for the active agent; persisting it leaked the last agent into new chats.
         // selectedModel/selectedProvider are session-only too: the picker always
         // starts on 'Automatisch'.
-        currentThreadId: state.currentThreadId,
+        // currentThreadId is NOT persisted either: the thread URL restores the
+        // open conversation, and MainThreadSyncEffect nulled the stored value on
+        // boot anyway — keeping it only left a stale id readable in the window
+        // before the runtime settled.
         selectedNotebookId: state.selectedNotebookId,
         searchMode: state.searchMode,
         notebookDepth: state.notebookDepth,

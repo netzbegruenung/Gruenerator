@@ -514,8 +514,8 @@ export async function executeDirectPressemitteilungExamples(params: {
 /**
  * The chat's single web-retrieval door, at one of three tiers.
  *
- * `tier` replaces the old split between this function and `executeResearch`:
- * "recherchiere" no longer routes to a different engine, it routes here with a
+ * `tier` replaces the old split between this function and a second research
+ * engine: "recherchiere" no longer routes elsewhere, it routes here with a
  * deeper setting. `maxResults` stays an independent override for callers that
  * want a specific count (news widgets, compound turns); the tier only supplies
  * the default.

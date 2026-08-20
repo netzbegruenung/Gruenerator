@@ -1,11 +1,12 @@
 /**
  * Turns a crawled page into the part of it that answers the question.
  *
- * The stage this replaces was positional: `respondNode` handed the model the
- * first 60% and last 40% of a char budget and deleted everything between, and
- * `rerankNode` decided which pages survived at all by scoring their first 1200
- * chars — i.e. a nav bar and a cookie notice. Nothing anywhere asked whether
- * the kept text had anything to do with the query.
+ * Scope: the crawl path only (`CrawlingService`). The positional cuts this was
+ * written against still run elsewhere and are untouched by it —
+ * `respondNode.truncateDocument` keeps the first 60% and last 40% of a char
+ * budget for every source block, and `rerankNode` still scores candidates on
+ * their first `RERANK_EXCERPT_CHARS`. Neither asks whether the kept text has
+ * anything to do with the query; only crawled pages get that treatment here.
  *
  * Contract, relied on by every call site: NEVER throws, NEVER returns an empty
  * digest for non-empty input. Every failure degrades to a head cut labelled
