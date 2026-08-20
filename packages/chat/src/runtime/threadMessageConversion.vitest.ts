@@ -673,6 +673,29 @@ describe('convertNotebookLoadedMessages', () => {
     expect(custom.question).toBe('Was steht zum Klima drin?');
   });
 
+  // An answer can outlive its question: the two are persisted separately, the
+  // answer is kept when the question's write fails, and no question row is
+  // written at all when the text is empty. Taking the row before blindly would
+  // then caption an answer with the previous answer's text.
+  it('skips a preceding answer when looking for the question', () => {
+    const [, , second] = convertNotebookLoadedMessages([
+      { id: 'u1', role: 'user', content: 'Erste Frage?' },
+      { id: 'a1', role: 'assistant', content: 'Erste Antwort.' },
+      { id: 'a2', role: 'assistant', content: 'Zweite Antwort, deren Frage fehlt.' },
+    ]);
+    const custom = second?.metadata?.custom as Record<string, unknown>;
+    expect(custom.question).toBe('Erste Frage?');
+  });
+
+  it('leaves the question empty when no user message precedes the answer at all', () => {
+    const [answer] = convertNotebookLoadedMessages([
+      { id: 'a1', role: 'assistant', content: 'Antwort ohne jede Frage.' },
+      { id: 'a2', role: 'assistant', content: 'Und noch eine.' },
+    ]);
+    const custom = answer?.metadata?.custom as Record<string, unknown>;
+    expect(custom.question).toBe('');
+  });
+
   it('reads an answer without citations as an empty list, not a crash', () => {
     const [answer] = convertNotebookLoadedMessages([
       { id: 'a1', role: 'assistant', content: 'Dazu finde ich nichts.' },
