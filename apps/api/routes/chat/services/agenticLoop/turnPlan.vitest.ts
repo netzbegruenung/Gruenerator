@@ -434,3 +434,39 @@ describe('decideTurnPlan — der Degradierungsfall der Loop-Achse', () => {
     expect(p.intent).toBe('mcp');
   });
 });
+
+/**
+ * Der IST-Stand der Suchfamilie am Erwähnungs-Pfad, festgenagelt VOR dem
+ * Lane-Flip aus Phase R3 — damit der Flip als Diff in Zusicherungen erscheint
+ * und nicht nur als Zeilenänderung in einer Tabelle.
+ *
+ * Und mit ihm der Befund, der den Flip gefährlich macht: `@deepresearch` ist
+ * eine VARIANTE von `research` (`forcedIntentStage` setzt genau denselben
+ * Intent plus `forcedTool`), und der Entscheider bekommt heute kein einziges
+ * Feld, an dem er die beiden unterscheiden könnte. Solange die Familie
+ * `single-pass` trägt, ist das folgenlos — beide bleiben einzeln. Ab dem Flip
+ * wäre es der stille Tod des Dossier-Wegs: seine beiden Engines lesen
+ * `deepResearchRequested` ausschliesslich im Einzeldurchlauf
+ * (`intentHandlers/searchBranch.ts`), ein in die Schleife gehobener Turn liefe
+ * als gewöhnliche Recherche weiter und niemand sähe einen Fehler.
+ */
+describe('decideTurnPlan — die Suchfamilie am Erwähnungs-Pfad (IST vor dem R3-Flip)', () => {
+  it.each(['research', 'search', 'web'] as const)(
+    '%s: eine Erwähnung hält den Turn im Einzeldurchlauf',
+    (intent) => {
+      const p = plan({ intent, forcedTool: true });
+      expect(p.lane).toBe('single-pass');
+      expect(p.runAgentic).toBe(false);
+      expect(p.intent).toBe(intent);
+    }
+  );
+
+  it('@deepresearch ist am Entscheider nicht von @recherche zu unterscheiden', () => {
+    // Was `forcedIntentStage` für `@deepresearch` setzt, in den Feldern, die
+    // dieser Entscheider überhaupt sieht.
+    const deep = plan({ intent: 'research', forcedTool: true, mentionPinnedTool: null });
+    const recherche = plan({ intent: 'research', forcedTool: true, mentionPinnedTool: null });
+    expect(deep).toEqual(recherche);
+    expect(deep.lane).toBe('single-pass');
+  });
+});
