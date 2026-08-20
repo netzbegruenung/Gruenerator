@@ -25,7 +25,7 @@ import {
 } from '@gruenerator/docs';
 import { EditorTopBar } from '@gruenerator/shared/components/EditorTopBar';
 import { useMediaQuery } from '@gruenerator/shared/hooks';
-import { Fab, Skeleton } from '@gruenerator/ui';
+import { Fab, Skeleton, useIsMobile, useScreenCornerReservation } from '@gruenerator/ui';
 import { WolkeSaveModal, uploadToWolke, useShareLinks } from '@gruenerator/wolke';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -103,6 +103,22 @@ const SIDEBAR_TITLES: Record<SidebarPanel, string> = {
   versions: 'Versionen',
   suggestions: 'Änderungen',
 };
+
+// Die Seitenleiste (Chat/Kommentare/Versionen/Änderungen) ist `w-80` und reicht
+// bis zum rechten Viewport-Rand; unter `md` deckt sie ihn ganz. Als eigene
+// Komponente, weil `effectivePanel` erst hinter den Lade- und Fehler-Rückgaben
+// von `EditorContent` feststeht — ein Hook dort verletzte die Rules of Hooks.
+const SIDEBAR_CORNERS = ['top-right', 'bottom-right'] as const;
+
+function SidebarCornerReservation() {
+  const isMobile = useIsMobile();
+  useScreenCornerReservation({
+    corner: SIDEBAR_CORNERS,
+    horizontal: '20rem',
+    blocked: isMobile,
+  });
+  return null;
+}
 
 function EditorFAB({
   showDisconnected,
@@ -1005,6 +1021,8 @@ function EditorContent() {
             <DocAiReviewBar documentId={id!} editor={editor} />
           </div>
         </div>
+
+        {effectivePanel && <SidebarCornerReservation />}
 
         {hasOpenedChat && id && (
           // Mount the chat infra (runtime, Hocuspocus, thread query) outside
