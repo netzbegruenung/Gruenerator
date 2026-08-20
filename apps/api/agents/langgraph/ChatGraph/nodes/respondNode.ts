@@ -516,6 +516,25 @@ const squashWhitespace = (text: string): string => text.replace(/\s+/g, ' ').tri
  * wie bisher eingespielt. Die Wiedereinspielung bleibt also der Rückfall, sie
  * hört nur auf, eine Dopplung zu sein.
  */
+/**
+ * Die einzelnen Dokumentrümpfe, die der Live-Anhangsblock in diesen Prompt trägt.
+ *
+ * Der Block ist aus `### <name> (Volltext-Auszug)`-Abschnitten zusammengesetzt
+ * (`contextEnrichmentService.ts`), getrennt durch `---`; angehängte Referenz-
+ * Abschnitte folgen derselben Form. Wir zerlegen ihn, damit die Dublettenprüfung
+ * auf ganzen Dokumenten arbeitet statt auf Teilstrings: ein `includes()` über den
+ * ganzen Block verschluckt eine kurze gespeicherte Zeile schon dann, wenn ihr Text
+ * zufällig irgendwo in einem völlig anderen Live-Dokument vorkommt — lautlos, ohne
+ * Log und ohne Budget-Warnung.
+ */
+function liveAttachmentBodies(liveAttachmentContext: string): string[] {
+  if (!liveAttachmentContext) return [];
+  return liveAttachmentContext
+    .split(/\n\s*---+\s*\n/)
+    .map((section) => squashWhitespace(section.replace(/^\s*(#{1,6}[^\n]*\n+)+/, '')))
+    .filter(Boolean);
+}
+
 function alreadyVerbatimInConversation(
   extractedText: string | null | undefined,
   conversationText: string
@@ -555,7 +574,20 @@ export function formatThreadAttachmentsContext(
   // text (`sanitizeUIFileParts` strips those parts before conversion) — which
   // is precisely why it could not catch this duplication.
   const emitted = new Set<string>();
-  const liveKey = squashWhitespace(liveAttachmentContext);
+  const liveBodies = liveAttachmentBodies(liveAttachmentContext);
+
+  // Ein Rumpf zählt als schon vorhanden, wenn er einem Live-Dokument gleicht —
+  // oder wenn eine der beiden Seiten in der anderen steckt UND der übereinstimmende
+  // Text lang genug ist, um eine Aussage statt eines Zufalls zu sein (dieselbe
+  // Schwelle wie `alreadyVerbatimInConversation`). Beide Richtungen sind nötig:
+  // gespeichert liegt der volle Text, live kann derselbe Text als Zusammenfassung
+  // oder budget-gekürzt ankommen, also ist mal die eine, mal die andere Seite kürzer.
+  const alsoInLiveBlock = (body: string): boolean =>
+    liveBodies.some((live) => {
+      if (live === body) return true;
+      if (Math.min(live.length, body.length) < DEDUP_MIN_CHARS) return false;
+      return live.includes(body) || body.includes(live);
+    });
 
   const docBlocks = attachments
     // Docs with a documentId were embedded into Qdrant — they come back via
@@ -567,9 +599,7 @@ export function formatThreadAttachmentsContext(
       const body = squashWhitespace(a.extractedText ?? a.summary ?? '');
       if (!body) return false;
       if (emitted.has(body)) return false;
-      // The live block wraps the text in a `### <name> (…)` header, so compare
-      // by containment rather than equality.
-      if (liveKey && liveKey.includes(body)) return false;
+      if (alsoInLiveBlock(body)) return false;
       emitted.add(body);
       return true;
     })
@@ -1534,7 +1564,13 @@ export async function buildSystemMessage(
         // The live block is built independently of the stored rows, and on the
         // turn a file is uploaded it IS one of them. Hand it over so the same
         // text isn't sent twice (measured 20.08.2026: 5794 chars → 11632).
-        attachmentContext
+        //
+        // Bewusst der ROHE Zustandswert, nicht der formatierte Block: der ist
+        // budget-gekürzt (`limitAttachmentContext`) und durch `preventBreakout`
+        // gelaufen. Beides verändert den Text, gegen den wir vergleichen — die
+        // Dublette bliebe dann genau in den Fällen unerkannt, in denen sie am
+        // teuersten ist.
+        state.attachmentContext ?? ''
       );
   const memoryContextFormatted = formatMemoryContext(memoryContext);
   const chatHistoryFormatted = state.chatHistoryContext ? `\n\n${state.chatHistoryContext}` : '';
