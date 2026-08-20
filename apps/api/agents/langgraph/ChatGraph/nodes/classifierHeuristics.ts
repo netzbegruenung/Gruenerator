@@ -544,9 +544,16 @@ export function extractSearchTopic(query: string): string {
   //   2. the noun list is the user's OWN word, so it has to carry the party's
   //      actual Textsorten. `antrag`, `beschluss` and `resolution` were missing.
   //      Longest-first, so `antragstext` is not eaten by `antrag`.
+  //
+  // The noun group ends on `(?![a-zäöüß])` because the alternatives are prefixes
+  // of real words: without it `beschluss` matches inside "Beschlussempfehlung"
+  // and the topic starts at "empfehlung". Longest-first only orders the listed
+  // words against each other; it says nothing about words that are NOT listed.
+  // Failing the whole pattern is the better outcome — the untouched query is the
+  // documented fallback, a truncated noun is a silently wrong search.
   const stripped = query
     .replace(
-      /^(schreib|erstell|formulier|verfass|generier|mach|bereite|entwirf|erstelle|schreibe|formuliere|verfasse)[etn]*\s*(mir\s+)?(bitte\s+)?(darauf\s+basierend\s+|auf\s+dieser\s+basis\s+|auf\s+basis\s+(davon|dessen)\s+|daraus\s+)?(mir\s+)?(bitte\s+)?(eine?[nrms]?\s+)?(kurze[nrms]?\s+|lange[nrms]?\s+|ausführliche[nrms]?\s+)?(pressemitteilung|pressemeldung|pm|antragsentwurf|antragstext|antrag|beschlussvorlage|beschluss|resolution|artikel|beitrag|blogpost|rede|ansprache|statement|argumentation|argumente|faktencheck|analyse|bericht|report|text|entwurf|zusammenfassung|post|tweet)\s*(über das thema|zu dem thema|zum thema|bezüglich|betreffend|über|für|zum|zur|zu)?\s*/i,
+      /^(schreib|erstell|formulier|verfass|generier|mach|bereite|entwirf|erstelle|schreibe|formuliere|verfasse)[etn]*\s*(mir\s+)?(bitte\s+)?(darauf\s+basierend\s+|auf\s+dieser\s+basis\s+|auf\s+basis\s+(davon|dessen)\s+|daraus\s+)?(mir\s+)?(bitte\s+)?(eine?[nrms]?\s+)?(kurze[nrms]?\s+|lange[nrms]?\s+|ausführliche[nrms]?\s+)?(pressemitteilung|pressemeldung|pm|antragsentwurf|antragstext|antrag|beschlussvorlage|beschluss|resolution|artikel|beitrag|blogpost|rede|ansprache|statement|argumentation|argumente|faktencheck|analyse|bericht|report|text|entwurf|zusammenfassung|post|tweet)(?![a-zäöüß])\s*(über das thema|zu dem thema|zum thema|bezüglich|betreffend|über|für|zum|zur|zu)?\s*/i,
       ''
     )
     .trim();
