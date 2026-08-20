@@ -46,7 +46,7 @@ export function ExamplePreview({ agent }: ExamplePreviewProps) {
           {agent.openingQuestions.map((q) => (
             <span
               key={q}
-              className="rounded-full border border-grey-200 bg-background px-sm py-1 text-xs text-foreground-muted dark:border-grey-700 dark:bg-grey-800"
+              className="rounded-full border border-grey-200 bg-background px-sm py-1 text-xs text-foreground-muted dark:border-grey-700 dark:bg-grey-800 dark:text-grey-300"
             >
               {q}
             </span>
