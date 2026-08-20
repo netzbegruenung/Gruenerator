@@ -1380,7 +1380,17 @@ function buildAnswerFormatRule(
    * sources. Both are decided before the prompt is written; neither is a guess
    * about the model.
    */
-  retrievalExpected = false
+  retrievalExpected = false,
+  /**
+   * Der Titel der aktiven Textform — oder null, wenn keine im Prompt steht.
+   *
+   * Bewusst der TITEL und nicht `state.activeSkillMention`: Eigentümer ist das
+   * eingesetzte Fragment, nicht die Absicht. `getInternalSkillPrompt` liefert
+   * null, wenn das interne Rezept-Verzeichnis nicht ausgerollt ist — dann
+   * stünde „halte dich an die oben aktive Textform" über einer Stelle, an der
+   * nichts liegt, und die generische Regel fiele ersatzlos weg.
+   */
+  activeTextForm: string | null = null
 ): string {
   // A multi-document turn already has its format prescribed by the comparison /
   // multi-doc block (table, per-doc bullets, grounded prose). A second structure
@@ -1456,6 +1466,29 @@ function buildAnswerFormatRule(
   if (state.taskShape != null) {
     note('own_format', { formatOwner: `task_shape:${state.taskShape}` });
     return 'Form und Umfang gibt der Auftrag der*des Nutzer*in vor — halte dich genau an das dort verlangte Format und füge nichts hinzu, was es nicht vorsieht.';
+  }
+
+  // Der vierte Besitzer, und der einzige, der bis 20.08.2026 keiner war: eine
+  // GEWÄHLTE Textform. Ein Rezept schreibt Aufbau, Länge, Ton und Zitierweise
+  // vollständig vor — dieselbe Achse, die diese Regel sonst bedient.
+  //
+  // Live gemessen: `/presse mehr artenschutz in ludwigshafen` lief als
+  // `agentic` mit `retrievalExpected`, fiel damit in `research_expanded` und
+  // bekam „Bis zu 6 Absätze … gliedere sie mit Überschriften … setze sie als
+  // Aufzählung … hebe Namen, Jahreszahlen und Kennzahlen mit **Fettung**
+  // hervor" — buchstäblich die Form, die dann herauskam: sechs Abschnitte,
+  // Tabelle, Aufzählungen, fettgesetzte Jahreszahlen. Kein Pressetext.
+  //
+  // Das Rezept stand im selben Prompt, nur ganz oben; diese Regel steht unter
+  // ANTWORT-REGELN, also zuletzt. Der Turn danach ohne Mention gelang genau
+  // deshalb: dort holt sich das Modell das Rezept über `rezept_laden` als
+  // Werkzeug-Ergebnis, unmittelbar bevor es schreibt — nach dieser Regel.
+  //
+  // Steht NACH `taskShape`: schreibt die Person im Auftrag selbst eine Form vor
+  // („gib mir ausschließlich drei Sätze"), gewinnt ihr Satz gegen das Rezept.
+  if (activeTextForm) {
+    note('own_format', { formatOwner: `textform:${activeTextForm}` });
+    return 'Form und Umfang gibt die oben aktive Textform vor — halte dich genau an deren Aufbau, Länge und Ton und füge keine Gliederung hinzu, die sie nicht vorsieht.';
   }
 
   if (state.complexity === 'complex') {
@@ -1756,6 +1789,12 @@ ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSu
   // mit ausdrücklicher Wahl sieht im Log exakt aus wie einer ohne, weil die
   // Wahl `rezept_laden` gerade abhängt (`catalogAssembly`). Genau daran ließ
   // sich der Ausfall vom 20.08.2026 nicht am Log entscheiden.
+  // Was das Modell wirklich vor sich hat — leer, wenn kein Rezepttext gefunden
+  // wurde. Die Formatregel unten hängt daran, nicht an der blossen Absicht.
+  const activeTextFormTitle = skillFragment
+    ? (userTextForm?.title ?? activeSkill?.title ?? effectiveSkillMention)
+    : null;
+
   if (effectiveSkillMention) {
     const quelle = userTextForm ? 'nutzer' : skillFragment ? 'system' : 'fehlt';
     log.info(
@@ -1787,7 +1826,7 @@ Heutiges Datum: ${today}${localeContext}${platformContext}${productIdentity}${pr
 
 ## ANTWORT-REGELN
 1. ${SCOPE_RULE}
-2. ${buildAnswerFormatRule(state, sourceCount, opts.retrievalExpected ?? false)}
+2. ${buildAnswerFormatRule(state, sourceCount, opts.retrievalExpected ?? false, activeTextFormTitle)}
 3. Antworte auf Deutsch. Sind Quellen fremdsprachig, formuliere SPRACHLICH eigenständig statt wörtlich zu übersetzen — INHALTLICH bleibst du exakt bei der Quelle und ergänzt nichts, was dort nicht steht. Kannst du eine Aussage nicht nachvollziehbar auf Deutsch wiedergeben, lass sie weg statt zu raten
 4. Erfinde keine Fakten oder Quellennamen
 5. Erstelle KEINE Quellenliste/Quellenverzeichnis am Ende — Quellen werden automatisch in der Oberfläche angezeigt
