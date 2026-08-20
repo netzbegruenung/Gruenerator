@@ -38,6 +38,12 @@ const searchNode = vi.fn(async () => ({
 }));
 vi.mock('../../../../agents/langgraph/ChatGraph/index.js', () => ({
   briefGeneratorNode: vi.fn(async () => ({})),
+  // Stummel, keine Zweitfassung: der Recherche-Auftrag ist in beiden Dateien
+  // nicht unter Prüfung (`briefGeneratorNode` daneben liefert `{}`), und `false`
+  // sagt genau das. Die eine echte Fassung steht am Knoten und hat dort ihre
+  // eigenen Zusicherungen — hier eine Kopie einzusetzen wäre die dritte, die
+  // dieser Umbau gerade beseitigt hat.
+  wantsResearchBrief: vi.fn(() => false),
   searchNode: () => searchNode(),
   rerankNode: vi.fn(async () => ({})),
   imageNode: vi.fn(),
