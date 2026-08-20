@@ -1,12 +1,6 @@
 import { InteractiveCard, interactiveCardControl } from '@gruenerator/ui';
+import { ExternalLink, Heart, Image as ImageIcon, Link as LinkIcon } from 'lucide-react';
 import { memo, type JSX, type ReactNode } from 'react';
-import {
-  HiHeart,
-  HiOutlineExternalLink,
-  HiOutlineHeart,
-  HiOutlineLink,
-  HiOutlinePhotograph,
-} from 'react-icons/hi';
 
 import { getTemplateFormat } from './templateFormat';
 
@@ -57,9 +51,10 @@ export interface VorlagenCardProps {
  * besser. Geliked (primary-500) liegt bei 3,73:1 — Bestand, siehe variables.css.
  */
 export const overlayAction =
-  'flex size-[34px] items-center justify-center rounded-full border border-white/20 ' +
-  'bg-[#0f1210]/60 text-white backdrop-blur-sm transition-transform ' +
-  'hover:scale-110 active:scale-95 disabled:pointer-events-none disabled:opacity-60';
+  'flex size-[34px] items-center justify-center rounded-full border border-white/[0.16] ' +
+  'bg-[#0f1210]/60 text-white backdrop-blur-sm ' +
+  'transition-[transform,background-color] duration-150 ' +
+  'hover:scale-110 active:scale-[0.94] disabled:pointer-events-none disabled:opacity-60';
 
 /**
  * Gallery card for the Vorlagen-Datenbank. The thumbnail sits contained on a
@@ -105,7 +100,7 @@ const VorlagenCard = memo(
               className="max-h-[88%] max-w-[88%] rounded-sm object-contain"
             />
           ) : (
-            <HiOutlinePhotograph className="size-8 text-grey-400" aria-hidden="true" />
+            <ImageIcon className="size-8 text-grey-400" aria-hidden="true" />
           )}
 
           {hasOverlay && (
@@ -129,11 +124,12 @@ const VorlagenCard = memo(
                   aria-pressed={liked}
                   title={liked ? 'Gefällt mir nicht mehr' : 'Gefällt mir'}
                 >
-                  {liked ? (
-                    <HiHeart className="size-4" aria-hidden="true" />
-                  ) : (
-                    <HiOutlineHeart className="size-4" aria-hidden="true" />
-                  )}
+                  <Heart
+                    className="size-4"
+                    fill={liked ? 'currentColor' : 'none'}
+                    stroke={liked ? 'none' : 'currentColor'}
+                    aria-hidden="true"
+                  />
                 </button>
               )}
               {onOpenExternal && (
@@ -147,7 +143,7 @@ const VorlagenCard = memo(
                   aria-label="Vorlage öffnen"
                   title="Öffnen"
                 >
-                  <HiOutlineExternalLink className="size-4" aria-hidden="true" />
+                  <ExternalLink className="size-4" aria-hidden="true" />
                 </button>
               )}
               {onCopyLink && (
@@ -161,7 +157,7 @@ const VorlagenCard = memo(
                   aria-label="Link kopieren"
                   title="Link kopieren"
                 >
-                  <HiOutlineLink className="size-4" aria-hidden="true" />
+                  <LinkIcon className="size-[15px]" aria-hidden="true" />
                 </button>
               )}
               {menu}
@@ -187,7 +183,7 @@ const VorlagenCard = memo(
                 className="ml-auto flex items-center gap-1 font-medium"
                 title={`${likesCount} mal geliked`}
               >
-                <HiOutlineHeart className="size-3.5 shrink-0" aria-hidden="true" />
+                <Heart className="size-3.5 shrink-0" aria-hidden="true" />
                 {likesCount}
               </span>
             )}
