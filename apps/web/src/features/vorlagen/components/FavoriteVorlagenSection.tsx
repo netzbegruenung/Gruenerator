@@ -10,7 +10,7 @@ import VorlagenCard from '@/components/common/Gallery/VorlagenCard';
 import TemplatePreviewModal from '@/components/common/TemplatePreviewModal';
 
 const GRID_CLASS =
-  'grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-5 max-md:grid-cols-[repeat(auto-fill,minmax(165px,1fr))] max-md:gap-3';
+  'grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-5 max-md:grid-cols-[repeat(auto-fill,minmax(165px,1fr))] max-md:gap-3';
 
 // The gallery card reads a tight subset of fields; map the loosely-typed
 // gallery template onto it (boundary cast for the unknown-typed columns).
