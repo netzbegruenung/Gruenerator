@@ -46,11 +46,7 @@ import {
 } from './artifactInventory.js';
 import { buildCitableSources, MAX_SOURCES, type CitableSource } from './citableSources.js';
 import { lastUserText } from './classifierHeuristics.js';
-import {
-  CLASSIFIER_DOC_SUBTYPES,
-  type DocSubtype,
-  looksLikeDocsHelpQuestion,
-} from './classifierSignals.js';
+import { looksLikeDocsHelpQuestion } from './classifierSignals.js';
 import { deriveTextFormMention } from './textFormMention.js';
 
 import type { ChatGraphState, DocumentSource, SearchResult, ThreadAttachment } from '../types.js';
@@ -1033,44 +1029,42 @@ function getForbiddenActionNote(state: ChatGraphState): string {
 const SEARCH_GUIDANCE =
   '\nDu hast Recherche-Ergebnisse erhalten. Beantworte die Frage primär aus diesen Ergebnissen und zitiere sie inline.';
 
-/** German label per document subtype, for the deliverable note below. */
 /**
- * Registry-gebunden, nicht `Record<string, string>`: ein neuer Eintrag in
- * `CLASSIFIER_DOC_SUBTYPES` bricht hier den Compiler, statt still ohne Label
- * durchzurutschen — dieser Hinweis fällt dann lautlos aus dem Prompt.
- */
-const SUBTYPE_LABELS: Record<DocSubtype, string> = {
-  pressemitteilung: 'eine Pressemitteilung',
-  antrag: 'einen Antrag',
-  protokoll: 'ein Protokoll',
-  redaktionsplan: 'einen Redaktionsplan',
-  checkliste: 'eine Checkliste',
-  einladung: 'eine Einladung',
-  notizen: 'Notizen',
-  tabelle: 'eine Tabelle',
-};
-
-/**
- * A researching turn that was ALSO asked for a document.
+ * Eine Recherche-Antwort, die die BESTELLTE Textform vergisst.
  *
- * Some turns are forced to `search` for HOW they gather, not for what they owe:
- * a notebook-bound agent must research before it writes, so "schreibe darauf
- * basierend einen Antrag …" classifies as `search`. Without this note it gets
- * SEARCH_GUIDANCE alone and answers with a sourced summary — right research,
- * wrong deliverable (live 20.08.2026).
+ * Zwei Turns im selben Thread, beta 20.08.2026:
+ *   `/presse mehr artenschutz in ludwigshafen` → Recherche-Briefing mit Tabelle
+ *   „schreibe eine pressemitteilung …" (ohne Mention) → korrekte Pressemitteilung
  *
- * Fires only when the user NAMED a Textsorte, so an ordinary research question
- * is untouched.
+ * Der Unterschied ist nicht, OB das Rezept im Prompt stand, sondern WO. Bei der
+ * ausdrücklichen Wahl unterdrückt `catalogAssembly` das `rezept_laden`-Werkzeug
+ * (gegen Doppel-Injektion) und der Rezepttext steht ganz oben im System-Prompt,
+ * weit vor SEARCH_GUIDANCE („Beantworte die Frage primär aus diesen
+ * Ergebnissen"). Ohne Mention lädt das Modell dasselbe Rezept selbst als
+ * Werkzeug-Ergebnis, unmittelbar bevor es schreibt — und befolgt es. Die
+ * ausdrückliche Wahl war damit der SCHWÄCHERE der beiden Wege.
+ *
+ * Dieser Hinweis stellt die bestellte Form an der späten Stelle wieder her.
+ *
+ * Er hängt am REZEPT, nicht an einer erkannten Textsorte im Text. „Was steht in
+ * der Pressemitteilung?", „finde unsere Pressemitteilungen zu Windkraft",
+ * „fasse den Antrag zusammen" nennen dieselbe Textsorte und bestellen sie
+ * nicht — und auf den Abruf-Pfaden (@wolke, @document, @dokumentchat,
+ * @notebook) ist genau das der Normalfall. `activeSkillMention` kommt entweder
+ * aus der Composer-Wahl oder aus `deriveImplicitRecipeMention`, das Verneinung,
+ * Meta-Fragen und Umformungs-Aufträge bereits abweist; `defaultRecipeMention`
+ * ist bewusst NICHT gemeint, sonst bekäme jede Sachfrage an einen
+ * LV-Agenten eine Pressemitteilung als Antwort.
  */
-function getDeliverableNote(state: ChatGraphState): string {
-  // `state.documentSubtype` ist `string`, weil die LLM-Stufe hineinschreiben darf.
-  // Der Abgleich gegen die Registry ist die Prüfung, die daraus die Union macht.
-  const subtype: DocSubtype | undefined = CLASSIFIER_DOC_SUBTYPES.find(
-    (candidate) => candidate === state.documentSubtype
-  );
-  const label = subtype ? SUBTYPE_LABELS[subtype] : undefined;
-  if (!label) return '';
-  return `\nDer*die Nutzer*in hat ${label} verlangt. Die Recherche ist das Mittel, nicht das Ergebnis: Liefere den fertigen Text in der passenden Form, nicht eine Zusammenfassung der Quellenlage darüber.`;
+function getOrderedTextFormNote(state: ChatGraphState): string {
+  const mention = state.activeSkillMention;
+  if (!mention) return '';
+  // Der Anzeigename lebt an genau einer Stelle, der Registry. Eine zweite
+  // Tabelle hier wäre eine Kopie, die beim nächsten Rezept veraltet — und sie
+  // müsste zusätzlich das Genus jedes Namens mitführen. Der Name steht deshalb
+  // in Anführungszeichen statt in einem Artikel.
+  const title = SKILLS.find((s) => s.mention === canonicalSkillMention(mention))?.title ?? mention;
+  return `\nDer*die Nutzer*in hat die Textform „${title}" gewählt. Die Recherche ist das Mittel, nicht das Ergebnis: Liefere den fertigen Text in dieser Form, nicht eine Zusammenfassung der Quellenlage darüber.`;
 }
 
 // Calibration, not fabrication. "Erfinde keine Fakten" already bans inventing;
@@ -1224,9 +1218,9 @@ export function getModeGuidance(state: ChatGraphState): string {
     case 'examples':
     case 'pressemitteilung_examples':
     case 'sharepic':
-      return SEARCH_GUIDANCE + getDeliverableNote(state);
+      return SEARCH_GUIDANCE + getOrderedTextFormNote(state);
     default:
-      return SEARCH_GUIDANCE + getDeliverableNote(state);
+      return SEARCH_GUIDANCE + getOrderedTextFormNote(state);
   }
 }
 

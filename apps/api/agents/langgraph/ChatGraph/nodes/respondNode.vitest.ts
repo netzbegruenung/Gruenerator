@@ -143,29 +143,53 @@ describe('limitAttachmentContext — fair per-document split (M1/M3)', () => {
 });
 
 /**
- * Ein Such-Turn, der zugleich ein Dokument schuldet.
+ * Ein Such-Turn, der zugleich eine bestellte Textform schuldet.
  *
- * Live am 20.08.2026: „schreibe darauf basierend einen antrag …" wurde zu
- * `search` gezwungen (richtig — ein notizbuchgebundener Agent muss erst
- * recherchieren) und bekam dann nur SEARCH_GUIDANCE. Ergebnis war eine belegte
- * Zusammenfassung der Quellenlage statt des bestellten Antrags.
+ * Live auf beta am 20.08.2026, zwei Turns im selben Thread: `/presse mehr
+ * artenschutz in ludwigshafen` kam als Recherche-Briefing zurueck, das
+ * mention-lose „schreibe eine pressemitteilung …" danach als korrekte
+ * Pressemitteilung. Die ausdrueckliche Wahl war der schwaechere Weg — sie
+ * unterdrueckt `rezept_laden` und legt den Rezepttext an den Anfang des
+ * System-Prompts, weit vor SEARCH_GUIDANCE.
  */
-describe('getModeGuidance — bestellte Textsorte auf einem Such-Turn', () => {
-  it('sagt dem Modell, dass der fertige Text das Ergebnis ist', () => {
-    const out = getModeGuidance(makeState({ intent: 'search', documentSubtype: 'antrag' }));
-    expect(out).toContain('einen Antrag');
+describe('getModeGuidance — bestellte Textform auf einem Such-Turn', () => {
+  it('nennt die gewaehlte Textform und sagt, dass sie das Ergebnis ist', () => {
+    const out = getModeGuidance(makeState({ intent: 'search', activeSkillMention: 'presse' }));
+    // Der Name kommt aus der Registry, nicht aus einer Tabelle in respondNode.
+    expect(out).toContain('Pressemitteilung');
     expect(out).toMatch(/Recherche ist das Mittel/);
     // Die Recherche-Anweisung bleibt daneben stehen.
     expect(out).toContain('Recherche-Ergebnisse');
   });
 
-  it('schweigt bei einer gewöhnlichen Recherchefrage', () => {
+  it('greift auch auf dem agentischen Pfad (intent=agentic faellt in den default-Zweig)', () => {
+    const out = getModeGuidance(makeState({ intent: 'agentic', activeSkillMention: 'presse' }));
+    expect(out).toMatch(/Recherche ist das Mittel/);
+  });
+
+  it('nimmt den LV-Titel, nicht den generischen', () => {
+    const out = getModeGuidance(
+      makeState({ intent: 'search', activeSkillMention: 'presse-hamburg' })
+    );
+    expect(out).toContain('PM Hamburg');
+  });
+
+  it('schweigt bei einer gewoehnlichen Recherchefrage', () => {
     const out = getModeGuidance(makeState({ intent: 'search' }));
     expect(out).not.toMatch(/Recherche ist das Mittel/);
   });
 
-  it('schweigt bei einer unbekannten Textsorte statt zu raten', () => {
-    const out = getModeGuidance(makeState({ intent: 'search', documentSubtype: 'gibtsnicht' }));
+  // Der Kern des Umbaus: ein GENANNTES Textsorten-Nomen ist keine Bestellung.
+  // Genau diese Formulierungen sind auf den Abruf-Pfaden der Normalfall, und
+  // ein Hinweis darauf liesse das Modell schreiben statt suchen.
+  it('schweigt, wenn die Textsorte nur genannt und nicht bestellt ist', () => {
+    const out = getModeGuidance(
+      makeState({
+        intent: 'search',
+        documentSubtype: 'pressemitteilung',
+        lastUserTextNoMentions: 'Was steht in der Pressemitteilung zum Radentscheid?',
+      })
+    );
     expect(out).not.toMatch(/Recherche ist das Mittel/);
   });
 });
