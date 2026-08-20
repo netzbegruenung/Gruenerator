@@ -1324,6 +1324,26 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
     if (!webAllowed && webCapableIntent) {
       log.info(`[Search] intent=${intent} degraded to search — agent has no web capability`);
     }
+    // ── Die Suchzweige sind seit Phase R3 der AUFFANG, nicht der Regelweg ───
+    //
+    // `FORCED_LANE_BY_INTENT` trägt `research`/`search`/`web` auf der Loop-Achse:
+    // eine Erwähnung führt den Turn in die Schleife, ein Prosa-Verdikt ohnehin
+    // (Tier-3.5-Demotion). Hier landen sie nur noch, wenn ein Notausschalter
+    // greift — gewählte Wissenssammlung, Verbund, Bildanhang, zweiter Intent,
+    // `CHAT_AGENT_LOOP=false` — oder als `@deepresearch`, das den Turn ganz
+    // ersetzt.
+    //
+    // Die Zweige bleiben deshalb stehen, und einer von ihnen MUSS stehen
+    // bleiben: `case 'search'` ist der einzige Ort im ganzen System, der
+    // Notizbuch-Inhalte holt. Kein Loop-Werkzeug kann eine Wissenssammlung
+    // adressieren (`gruenerator_search` nimmt `collection` als geschlossenes
+    // Enum der SYSTEM-Sammlungen), und genau darum hebt `forcedLoop` die
+    // Notizbuch-Sperre nicht auf.
+    //
+    // Was von den übrigen fallen darf, entscheidet kein Lesen, sondern ein
+    // Beweis — dasselbe Muster wie bei `retrieveBundestag` in Phase N: erst
+    // wenn der Zensus und ein Lauf mit `EVAL_FILTER=search-mention` unter
+    // `CHAT_AGENT_LOOP=false` zeigen, welcher Zweig keinen Erzeuger mehr hat.
     switch (effectiveIntent) {
       case 'search': {
         // Document chat: search within multi-selected user documents
@@ -1619,6 +1639,9 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       // card, and the model only framed it in two sentences. Retrieval and
       // answer-writing are separated again, so every [N] in a research answer is
       // now backed by our own source registry.
+      // Auffang-Zweig seit Phase R3 (siehe die Notiz am `switch`): erreichbar
+      // über einen Notausschalter und über `@deepresearch`, dessen Kontingent
+      // und Engines eine Ebene höher in `searchBranch` sitzen.
       case 'research':
       case 'web': {
         // The brief is a fallback only: it orients the synthesis LLM, but a
