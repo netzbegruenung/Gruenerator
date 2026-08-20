@@ -77,6 +77,7 @@ import { agentAllowsWebSearch, createSearchTools } from './searchTools.js';
 
 import type { AgentConfig } from './types.js';
 import type { ChatGraphState, SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
+import type { RecipeRegistry } from '../services/agenticLoop/recipeRegistry.js';
 import type { SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 import type { SSEWriter } from '../services/sseHelpers.js';
 import type { Request } from 'express';
@@ -295,13 +296,20 @@ export function buildChatToolCatalog(params: {
   agentConfig: AgentConfig;
   sourceRegistry: SourceRegistry;
   /**
+   * Die Rezepte, die der Loop in diesem Turn selbst lädt. Nur die PM-Suche
+   * liest sie, und nur deren Landesverbands-Ebene: das Rezept entscheidet, ob
+   * Partei- oder Fraktionsvorlagen die Erdung stellen. Fehlt sie (Tests, der
+   * Board-Agent), bleibt der volle Ausschnitt des Agenten stehen.
+   */
+  recipeRegistry?: Pick<RecipeRegistry, 'mentions'>;
+  /**
    * Live-loop context. Present only on the agentic path; enables the domain
    * tools (summary/bundestag/abgeordnetenwatch) which run existing ChatGraph
    * nodes. Absent in unit tests → search family only.
    */
   loop?: { sse: SSEWriter; state: ChatGraphState; req?: Request; threadId?: string | null };
 }): ChatToolCatalog {
-  const { agentConfig, sourceRegistry, loop } = params;
+  const { agentConfig, sourceRegistry, recipeRegistry, loop } = params;
 
   // "Ohne neue Recherche" is enforced by ABSENCE, not by asking nicely: the
   // search family is simply not built for this turn. Everything else — the
@@ -337,6 +345,13 @@ export function buildChatToolCatalog(params: {
     ...(loop != null && {
       userText: loop.state.lastUserTextNoMentions ?? lastUserText(loop.state),
     }),
+    // Welche Rezepte diesen Turn gelten — die ausdrücklich gewählte Kennung
+    // plus alles, was der Loop selbst nachlädt. Als Thunk, weil das zweite
+    // erst nach dem Bau dieses Katalogs passiert.
+    activeRecipeMentions: () => [
+      loop?.state.activeSkillMention,
+      ...(recipeRegistry?.mentions ?? []),
+    ],
   });
 
   // Agents bound to their own corpus (the Landesverband agents and their

@@ -138,9 +138,12 @@ describe('lvSkillMentionsForRoles', () => {
       [{ ebene: 'land', rolle: LGS, bundesland: 'Bayern' }],
       'de-DE'
     );
-    expect(mentions).toContain('presse-bayern');
+    // Beide Ebenen des eigenen Landesverbands, keine eines fremden.
+    expect(mentions).toContain('presse-bayern-fraktion');
+    expect(mentions).toContain('presse-bayern-partei');
     expect(mentions.every((m) => m === m.toLowerCase())).toBe(true);
-    expect(mentions).not.toContain('presse-berlin');
+    expect(mentions).not.toContain('presse-berlin-fraktion');
+    expect(mentions).not.toContain('presse-berlin-partei');
   });
 
   it('bleibt ohne Geschäftsstellenrolle leer', () => {

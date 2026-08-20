@@ -330,9 +330,17 @@
       "category": "dokumente"
     },
     {
-      "command": "@presse-berlin",
-      "title": "PM Berlin",
-      "description": "Pressemitteilung im Stil Grüne Berlin",
+      "command": "@presse-berlin-fraktion",
+      "title": "PM Berlin (Fraktion)",
+      "description": "Pressemitteilung der Grünen Fraktion Berlin — Abgeordnetenhaus, Ausschüsse, Senatskritik",
+      "avatar": "🐻",
+      "category": "presse",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@presse-berlin-partei",
+      "title": "PM Berlin (Partei)",
+      "description": "Pressemitteilung der Berliner GRÜNEN — AGH-Wahl 2026, Parteitage, Volksinitiativen, Bundespolitik",
       "avatar": "🐻",
       "category": "presse",
       "audience": "de-DE"
@@ -346,9 +354,17 @@
       "audience": "de-DE"
     },
     {
-      "command": "@presse-mv",
-      "title": "PM MV",
-      "description": "Pressemitteilung im Stil Grüne Mecklenburg-Vorpommern",
+      "command": "@presse-mv-fraktion",
+      "title": "PM MV (Fraktion)",
+      "description": "Pressemitteilung der GRÜNEN Landtagsfraktion Mecklenburg-Vorpommern — Anfragen, Anträge, Ausschüsse, Landesregierung",
+      "avatar": "🌊",
+      "category": "presse",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@presse-mv-partei",
+      "title": "PM MV (Partei)",
+      "description": "Pressemitteilung der GRÜNEN Mecklenburg-Vorpommern — Wahlkampf, Spitzenkandidatur, Parteitage, Bundespolitik",
       "avatar": "🌊",
       "category": "presse",
       "audience": "de-DE"
@@ -394,26 +410,34 @@
       "audience": "de-DE"
     },
     {
-      "command": "@presse-bayern",
-      "title": "PM Bayern",
-      "description": "Pressemitteilung im Stil Grüne Bayern",
+      "command": "@presse-bayern-fraktion",
+      "title": "PM Bayern (Fraktion)",
+      "description": "Pressemitteilung der Landtags-Grünen Bayern — Anfragen, Forderungslisten, Staatsregierung",
       "avatar": "🦁",
       "category": "presse",
       "audience": "de-DE"
     },
     {
-      "command": "@presse-hessen",
-      "title": "PM Hessen",
-      "description": "Pressemitteilung im Stil Grüne Hessen",
+      "command": "@presse-bayern-partei",
+      "title": "PM Bayern (Partei)",
+      "description": "Pressemitteilung der bayerischen GRÜNEN — Doppelspitze, Parteitag, Kommunalwahl, Bundesebene",
+      "avatar": "🦁",
+      "category": "presse",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@presse-hessen-fraktion",
+      "title": "PM Hessen (Fraktion)",
+      "description": "Pressemitteilung der GRÜNEN Landtagsfraktion Hessen — Plenum, Ausschuss, Kleine Anfragen, Landesregierung",
       "avatar": "🌳",
       "category": "presse",
       "audience": "de-DE"
     },
     {
-      "command": "@presse-sachsen-anhalt",
-      "title": "PM Sachsen-Anhalt",
-      "description": "Pressemitteilung im Stil Grüne Sachsen-Anhalt",
-      "avatar": "🏭",
+      "command": "@presse-hessen-partei",
+      "title": "PM Hessen (Partei)",
+      "description": "Pressemitteilung des Landesverbands Hessen — Wahlen, Parteitage, Personalien, Bundespolitik",
+      "avatar": "🌳",
       "category": "presse",
       "audience": "de-DE"
     },
@@ -430,6 +454,22 @@
       "title": "PM Saarland",
       "description": "Pressemitteilung im Stil der Saar-Grünen",
       "avatar": "⚒️",
+      "category": "presse",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@presse-sachsen-anhalt-fraktion",
+      "title": "PM Sachsen-Anhalt (Fraktion)",
+      "description": "Pressemitteilung der grünen Landtagsfraktion Sachsen-Anhalt — Landtag, Kleine Anfragen, Landesregierung",
+      "avatar": "🌾",
+      "category": "presse",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@presse-sachsen-anhalt-partei",
+      "title": "PM Sachsen-Anhalt (Partei)",
+      "description": "Pressemitteilung von BÜNDNIS 90/DIE GRÜNEN Sachsen-Anhalt — Landtagswahl 2026, Parteitage, Bundespolitik",
+      "avatar": "🌾",
       "category": "presse",
       "audience": "de-DE"
     },

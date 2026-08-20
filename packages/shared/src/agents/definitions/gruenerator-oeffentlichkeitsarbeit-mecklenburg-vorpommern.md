@@ -1,6 +1,6 @@
 ---
 identifier: gruenerator-oeffentlichkeitsarbeit-mecklenburg-vorpommern
-defaultRecipeMention: 'presse-mv'
+defaultRecipeMention: 'presse-mv-partei'
 autoRoutingHint: creative
 audience: de-DE
 title: Öffentlichkeitsarbeit MV
