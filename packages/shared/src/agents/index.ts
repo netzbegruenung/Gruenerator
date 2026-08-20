@@ -6,6 +6,7 @@ export type {
   AgentParams,
   AgentProvider,
   FewShotExample,
+  LvEbene,
   Skill,
   SkillCategory,
   SkillIcon,
@@ -33,7 +34,12 @@ export {
 
 export { isAdminVisibleSkill } from './skillVisibility.js';
 
-export { SKILLS, resolveSkillMention } from './skills/index.js';
+export {
+  SKILLS,
+  resolveSkillMention,
+  canonicalSkillMention,
+  lvEbeneForSkillMention,
+} from './skills/index.js';
 
 export {
   USER_SELECTABLE_TOOLS,

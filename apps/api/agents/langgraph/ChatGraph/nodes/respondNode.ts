@@ -7,7 +7,7 @@
  * This separation keeps the graph transport-agnostic and testable.
  */
 
-import { SKILLS } from '@gruenerator/shared/agents';
+import { SKILLS, canonicalSkillMention } from '@gruenerator/shared/agents';
 import { type ChatIntentId, isGroundableProse } from '@gruenerator/shared/chat-intents';
 
 import { looksLikeChitchatTurn } from '../../../../routes/chat/services/agenticLoop/routing.js';
@@ -1680,7 +1680,7 @@ ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSu
     state.activeSkillMention ??
     (isWriteEligibleTurn ? (agentConfig.defaultRecipeMention ?? null) : null);
   const activeSkill = effectiveSkillMention
-    ? SKILLS.find((s) => s.mention === effectiveSkillMention)
+    ? SKILLS.find((s) => s.mention === canonicalSkillMention(effectiveSkillMention))
     : undefined;
 
   // Per-user learned writing style ("Texte anlernen") takes precedence over the

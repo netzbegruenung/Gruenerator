@@ -16,7 +16,11 @@ import {
   executeDirectExamplesSearch,
   executeDirectWebSearch,
 } from '../../../../routes/chat/agents/directSearch.js';
-import { resolveExamplesLvScope } from '../../../../routes/chat/agents/lvScope.js';
+import {
+  lvEbeneForMentions,
+  narrowLvScopeToEbene,
+  resolveExamplesLvScope,
+} from '../../../../routes/chat/agents/lvScope.js';
 import { relevanceLabelToScore } from '../../../../routes/chat/agents/searchFormatting.js';
 import { agentAllowsWebSearch } from '../../../../routes/chat/agents/searchTools.js';
 import { fairShare } from '../../../../routes/chat/services/messageHelpers.js';
@@ -1706,15 +1710,29 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         // then fall back to the LV implied by the active notebook/collection scope.
         // The fallback keeps a generic/custom agent bound to an LV notebook from
         // pulling cross-LV examples (the document path already scopes this way).
-        const lvScope = resolveExamplesLvScope(agentConfig, {
-          notebookCollectionIds: state.notebookCollectionIds,
-          defaultNotebookCollectionIds: state.defaultNotebookCollectionIds,
-        });
+        // …und dann auf die Ebene, für die das Rezept dieses Turns geschrieben
+        // ist. Ohne den Zuschnitt umfasst der Ausschnitt beide Ebenen des
+        // Landesverbands, in denen die Fraktion die Partei um ein Vielfaches
+        // überwiegt — ein Partei-Rezept bekäme also überwiegend
+        // Fraktionsvorlagen. `defaultRecipeMention` ist hier der zulässige
+        // Rückfall: dieser Zweig läuft nur für einen Schreib-Intent, also genau
+        // den Fall, in dem `respondNode` gleich dasselbe Rezept einsetzt.
+        const lvEbene = lvEbeneForMentions([
+          state.activeSkillMention,
+          agentConfig.defaultRecipeMention,
+        ]);
+        const lvScope = narrowLvScopeToEbene(
+          resolveExamplesLvScope(agentConfig, {
+            notebookCollectionIds: state.notebookCollectionIds,
+            defaultNotebookCollectionIds: state.defaultNotebookCollectionIds,
+          }),
+          lvEbene
+        );
         // [agent-trace] Confirm the LV scope the examples search will actually use,
         // tied to the resolved agent — undefined here means cross-LV leak.
         log.info(
           `[Search][agent-trace] agent="${agentConfig.identifier}" intent=${intent} ` +
-            `lvScope=${JSON.stringify(lvScope ?? null)} ` +
+            `lvScope=${JSON.stringify(lvScope ?? null)} lvEbene=${lvEbene ?? 'keine'} ` +
             `(agentDefaultFilter=${JSON.stringify(agentConfig.defaultFilter?.landesverband ?? null)}, ` +
             `notebookCollections=${JSON.stringify(state.notebookCollectionIds ?? [])}, ` +
             `defaultNotebookCollections=${JSON.stringify(state.defaultNotebookCollectionIds ?? [])})`

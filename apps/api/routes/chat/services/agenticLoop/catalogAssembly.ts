@@ -119,9 +119,18 @@ export async function assembleToolCatalog(
 ): Promise<AssembledCatalog> {
   const { state, sourceRegistry, sse, req, threadId } = params;
   const agentConfig = state.agentConfig;
+
+  // Vor dem Werkzeugkatalog angelegt, obwohl `rezept_laden` erst weiter unten
+  // hängt: die PM-Beispielsuche liest die Ebene des geladenen Rezepts, um
+  // ihren Landesverbands-Ausschnitt zuzuschneiden, und muss die Registry daher
+  // schon beim Bauen des Katalogs kennen. Der Zugriff selbst passiert erst zur
+  // Aufrufzeit — bis dahin ist die Registry gefüllt.
+  const recipeRegistry = createRecipeRegistry();
+
   const { tools } = deps.buildChatToolCatalog({
     agentConfig,
     sourceRegistry,
+    recipeRegistry,
     loop: { sse, state, ...(req && { req }), threadId },
   });
 
@@ -213,7 +222,6 @@ export async function assembleToolCatalog(
   //     CATALOGUE role's baustein is the exception (`roleBausteinActive`):
   //     that persona is server-authored, and a "Presse & Social-Media" role
   //     wants the presse recipe rather than being locked out of all of them.
-  const recipeRegistry = createRecipeRegistry();
   let recipeCatalog: RecipeCatalogEntry[] = [];
   if (
     !state.activeSkillMention &&
