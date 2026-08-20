@@ -315,6 +315,31 @@ export async function buildToolReplay(params: {
 }
 
 /**
+ * Hat dieser Thread zuletzt INFORMATION geholt?
+ *
+ * Dieselben Schritte, die `buildToolReplay` als Beobachtungen in den Kontext
+ * spielt — die Menge ist ausdrücklich die des Replays und keine vierte
+ * Werkzeugliste daneben: was als Beobachtung ankommt, ist genau das, worauf
+ * eine Anschlussfrage sich beziehen kann. Nur die erzeugenden/wirkenden
+ * Werkzeuge zählen nicht (`NON_REPLAYABLE_ACTION_TOOLS`): ein Thread, der ein
+ * Sharepic gebaut hat, hat nichts nachgeschlagen.
+ *
+ * Gelesen wird die vorhandene Projektion, nicht die Datenbank — der Loop hält
+ * `toolHistory` ohnehin schon in der Hand. Ohne Thread (erster Turn) ist die
+ * Antwort `false`, und das ist richtig: dann gibt es keinen vorigen Turn.
+ */
+export function priorTurnRetrieved(toolHistory: ThreadToolHistory | null | undefined): boolean {
+  if (!toolHistory) return false;
+  try {
+    return toolHistory
+      .toolSteps()
+      .some((s: PersistedStep) => !NON_REPLAYABLE_ACTION_TOOLS.has(s.toolName));
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Cross-turn source rehydration: seed the registry with the sources gathered in
  * the last research turn so a follow-up grounds against research that ran turns
  * ago — "trag die recherchierten Zahlen ein" (edit surfaces) and "erstelle ein

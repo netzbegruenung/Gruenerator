@@ -18,6 +18,7 @@ const base = {
   classifierContradictedResearch: false,
   materialHeavy: false,
   pinnedTool: null as string | null,
+  priorTurnRetrieved: false,
 };
 
 const force = (over: Partial<typeof base> = {}) => shouldForceFirstToolCall({ ...base, ...over });
@@ -73,8 +74,9 @@ describe('shouldForceFirstToolCall', () => {
     it('ein Abruf-VERDIKT vor der Demotion erzwingt dagegen sehr wohl', () => {
       // Der Unterschied zur Klasse oben, an einer Stelle: die Heuristik hat
       // `abgeordnetenwatch` benannt (in DEMOTABLE_HEURISTIC_INTENTS), also
-      // setzt Tier 3.5 die Flagge. `followup-bundestag-scope` läuft hier
-      // durch — sein Ausfall liegt hinter diesem Gitter, nicht in ihm.
+      // setzt Tier 3.5 die Flagge. Das ist der ERSTE Turn von
+      // `followup-bundestag-scope`; sein zweiter trägt die Flagge nicht und
+      // hatte bis zum siebten Weg keinen Träger (siehe unten).
       expect(
         force({
           intent: 'agentic',
@@ -82,6 +84,103 @@ describe('shouldForceFirstToolCall', () => {
           lastUserText: 'Wie hat die SPD zum Heizungsgesetz abgestimmt?',
         })
       ).toBe(true);
+    });
+  });
+
+  /**
+   * Siebter Weg — die rückbezügliche Anschlussfrage nach einem Abruf-Turn.
+   *
+   * Die Eingaben sind gemessen, nicht angenommen: eine Zwei-Turn-Sonde auf
+   * `classifierNode` (20.08.2026, echte Heuristik, Provider abgefangen) gab für
+   * `followup-bundestag-scope`
+   *
+   *   t0 „Wie hat die SPD zum Heizungsgesetz abgestimmt?"
+   *      → intent=agentic, loopDemotedFromRetrieval=true   (vierter Weg trägt)
+   *   t1 „Und die FDP?"
+   *      → intent=agentic, loopDemotedFromRetrieval=false  (bis hier: niemand)
+   *
+   * Damit ist die Streuung dieses Messpunkts erklärt, ohne den Planer-Host zu
+   * bemühen: für t1 wurde `toolChoice: 'required'` nie gesetzt, die Werkzeugwahl
+   * lag allein beim Modell.
+   */
+  describe('die rückbezügliche Anschlussfrage nach einem Abruf-Turn', () => {
+    const followup = {
+      intent: 'agentic',
+      loopDemotedFromRetrieval: false,
+      priorTurnRetrieved: true,
+      lastUserText: 'Und die FDP?',
+    };
+
+    it('erzwingt den Aufruf', () => {
+      expect(force(followup)).toBe(true);
+    });
+
+    it.each([['Und die FDP?'], ['Was ist mit Bayern?'], ['Und wie war das 2021?']])(
+      '%s',
+      (lastUserText) => {
+        expect(force({ ...followup, lastUserText })).toBe(true);
+      }
+    );
+
+    // Der Negativfall, der den Weg überhaupt so eng verankert: eine
+    // Meta-Anweisung über die vorige ANTWORT ist ebenfalls kurz, ebenfalls
+    // rückbezüglich und steht ebenfalls hinter einem Abruf-Turn. Sie ist in dem
+    // Text gegründet, an dem sie arbeitet — ein erzwungener Abruf legte fremde
+    // Recherche unter eine Kürzung.
+    it.each([
+      ['fasse das kürzer'],
+      ['kürze das bitte'],
+      ['nochmal auf englisch'],
+      ['umformulieren bitte'],
+    ])('„%s" nach einem Abruf-Turn erzwingt NICHTS', (lastUserText) => {
+      expect(force({ ...followup, lastUserText })).toBe(false);
+    });
+
+    // Offener Rand, hier festgehalten statt still gelassen: die TRENNBARE Form
+    // („formuliere das um") steht nicht in `REWRITE_TARGET_RE`, nur die
+    // untrennbare („umformulieren"). Sie kommt damit bis hierher durch. Die
+    // Regex zu weiten ist kein Nebenbei-Schritt — `rewritesSuppliedText`
+    // entscheidet auch über die mitgeführten Quellen, und ihre heutige Form ist
+    // über den 196-Turn-Korpus gemessen. Eigener Befund, eigene Messung.
+    it('bekannte Lücke: die trennbare Umformulierungs-Form kommt durch', () => {
+      expect(force({ ...followup, lastUserText: 'formuliere das um' })).toBe(true);
+    });
+
+    it('eine Höflichkeit erzwingt nichts', () => {
+      expect(force({ ...followup, lastUserText: 'Danke!' })).toBe(false);
+      expect(force({ ...followup, lastUserText: 'Okay' })).toBe(false);
+    });
+
+    it('ein Turn mit eigenem Thema braucht diesen Weg nicht', () => {
+      // Über der Wortgrenze: so ein Turn nennt sein Thema selbst, sein eigenes
+      // Verdikt trägt ihn (oder eben nicht — dann ist das eine andere Frage).
+      expect(
+        force({
+          ...followup,
+          lastUserText: 'Erkläre mir bitte ausführlich, wie das Gebäudeenergiegesetz zustande kam',
+        })
+      ).toBe(false);
+    });
+
+    it('ohne Abrufkontext im Thread erzwingt nichts', () => {
+      // Erster Turn eines Threads, oder ein Thread, der bisher nur erzeugt hat.
+      expect(force({ ...followup, priorTurnRetrieved: false })).toBe(false);
+    });
+
+    it('nicht für einen Turn, der gar nicht der Auffangwert ist', () => {
+      // `sharepic`/`image_edit` u. ä. kommen mit ihrem eigenen Verdikt an —
+      // „mach es blauer" nach einer Bundestags-Frage ist keine Nachschlage.
+      expect(force({ ...followup, intent: 'sharepic', lastUserText: 'mach es blauer' })).toBe(
+        false
+      );
+    });
+
+    it('eigenes Material sticht auch hier', () => {
+      expect(force({ ...followup, materialHeavy: true })).toBe(false);
+    });
+
+    it('und der Recherche-Bann sticht ihn ebenfalls', () => {
+      expect(force({ ...followup, researchBanned: true })).toBe(false);
     });
   });
 
