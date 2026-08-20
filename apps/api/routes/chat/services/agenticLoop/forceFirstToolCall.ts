@@ -4,12 +4,12 @@
  * verhindert.
  */
 import { NAMED_RETRIEVAL_INTENTS } from './intents.js';
-import { looksLikeExplicitResearchOrder } from './routing.js';
+import { isReferentialFollowup, looksLikeExplicitResearchOrder } from './routing.js';
 
 /**
  * Darf der Loop dem Planer einen Werkzeugaufruf ABVERLANGEN (`toolChoice: required`)?
  *
- * Sechs Wege sind über die Zeit hier eingezogen, jeder aus einem eigenen Live-
+ * Sieben Wege sind über die Zeit hier eingezogen, jeder aus einem eigenen Live-
  * Ausfall oder — beim Werkzeug-Pin — aus einer Stilllegung; die Kommentare an den
  * Zweigen nennen sie. Herausgezogen, weil eine mehrstellige Oder-Kette mit neun
  * Eingaben mitten in einer 1.700-Zeilen-Funktion nicht prüfbar ist: bis hierher
@@ -29,6 +29,11 @@ export function shouldForceFirstToolCall(input: {
   materialHeavy: boolean;
   /** Eine @-Erwähnung hat ein Werkzeug benannt (`mentionPinnedTool`). */
   pinnedTool: string | null;
+  /** Der Thread hat in Reichweite der Werkzeug-Wiedergabe schon INFORMATION
+   *  geholt (`priorTurnRetrieved` — dieselben Schritte, die als Beobachtungen
+   *  in den Kontext gespielt werden). Der Abrufkontext dieses Turns steht damit
+   *  im Thread, nicht in seinem eigenen Verdikt. */
+  priorTurnRetrieved: boolean;
 }): boolean {
   // Der Bann vetoed alles. `toolChoice: 'required'` ist kein Vorschlag, den das
   // Modell gegen den Satz des Nutzers abwägen kann — unter „ohne neue Recherche"
@@ -85,6 +90,44 @@ export function shouldForceFirstToolCall(input: {
   // Atemzug `direct` — ihre eigene Begründung benannte die Suche, die dann nie
   // lief, und die Antwort war vollständig erfunden.
   if (input.classifierContradictedResearch) return true;
+
+  // Siebter Weg: die rückbezügliche Anschlussfrage nach einem Abruf-Turn.
+  //
+  // Gemessen am 20.08.2026 mit einer Zwei-Turn-Sonde auf `classifierNode`
+  // (`followup-bundestag-scope`, der Messpunkt, der über zwei Abnahmeläufe
+  // fünfmal fünf verschiedene Werkzeugwahlen ergab):
+  //
+  //   t0 „Wie hat die SPD zum Heizungsgesetz abgestimmt?"
+  //      → abgeordnetenwatch@0.65, demotiert, loopDemotedFromRetrieval=TRUE
+  //   t1 „Und die FDP?"
+  //      → direct@0.25, demotiert, loopDemotedFromRetrieval=FALSE
+  //
+  // t0 trägt der Demotions-Zweig. t1 trug bis hier NIEMAND: das Abruf-Verdikt steht
+  // im Turn davor, dieser Turn nennt nur noch die Differenz. `agentic` ist der
+  // Auffangwert und darf nicht zwingen — deshalb entschied allein der Planer,
+  // ob er nachschlägt, und genau das ist die Streuung. Die Korpus-Notiz führte
+  // sie auf den Planer-Host zurück; die Sonde zeigt, dass der Zwang ihn für
+  // diesen Turn nie erreicht hat.
+  //
+  // Drei Bedingungen, und alle drei sind nötig:
+  //  - der Abrufkontext liegt im THREAD (der vorige Turn holte Information),
+  //  - der Turn ist der Auffangwert (`agentic`); ein benanntes Abruf-Verdikt
+  //    trägt der `NAMED_RETRIEVAL_INTENTS`-Zweig, ein demotiertes der
+  //    `loopDemotedFromRetrieval`-Zweig,
+  //  - der Text ist eine Anschlussfrage und keine Meta-Anweisung über die
+  //    vorige ANTWORT (`isReferentialFollowup`; „fasse das kürzer" ist
+  //    ebenfalls kurz und rückbezüglich und darf hier nie ankommen).
+  //
+  // Eigenes Material sticht auch hier, aus demselben Grund wie beim
+  // Demotions-Zweig.
+  if (
+    input.priorTurnRetrieved &&
+    input.intent === 'agentic' &&
+    !input.materialHeavy &&
+    isReferentialFollowup(input.lastUserText)
+  ) {
+    return true;
+  }
 
   // Vierter Weg, der bis zuletzt keinen hatte: der Klassifikator hat einen
   // Recherche-Intent AUSDRÜCKLICH benannt. Live: „Wie komme ich am Montag früh
