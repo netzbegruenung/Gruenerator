@@ -216,3 +216,69 @@ describe('Formatregel — die Suchfamilie fällt an EXTERNAL_RESEARCH_INTENTS au
     expect(prompt).not.toContain(EXPANDED);
   });
 });
+
+/**
+ * Position 2 der Gleichmacher-Liste (R1 §4), zweite Hälfte: `isPolishedContent`
+ * unterdrückt Inline-Zitate für einen erkannten Textsorten-Auftrag — ausser der
+ * Intent ist `search`.
+ *
+ * Der Kommentar an der Zeile sagte „research questions always cite inline",
+ * die Zeile nennt aber nur `search`. Beides zugleich stimmt nicht, und der
+ * Unterschied ist erreichbar: `contentType` wird ausschliesslich von den drei
+ * `produktion.*`-Regeln der Heuristik gesetzt, den Intent überschreibt danach
+ * die Erwähnung (`forcedIntentStage` läuft NACH dem Klassifikator). Also:
+ *
+ *   `@dokumente` + „schreib eine Pressemitteilung über X" → Inline-Zitate
+ *   `@recherche` + derselbe Satz                          → keine
+ *
+ * Festgenagelt statt gleichgemacht: welche der beiden Seiten richtig ist, ist
+ * eine PRODUKTfrage (entscheidet die Erwähnung die Quelle oder auch die Form?),
+ * kein Lane-Problem — und kein Korpus-Szenario beobachtet sie. Die zwei
+ * Erwähnungs-Anker aus R2 stellen Fragen, keine Schreibaufträge, und bleiben
+ * deshalb auf beiden Seiten unberührt.
+ */
+describe('Inline-Zitate — die Textsorte schlägt die Erwähnung, ausser bei @dokumente', () => {
+  const SUPPRESSED = 'setze KEINE Inline-Quellenverweise';
+  const CITE_INLINE = 'als Quellenverweise';
+
+  const withSources = (over: Partial<ChatGraphState>): ChatGraphState =>
+    state({
+      searchResults: [
+        { source: 'gruenerator:test', title: 'Wahlprogramm', content: 'x'.repeat(50) },
+      ],
+      citations: [
+        {
+          id: 1,
+          title: 'Wahlprogramm',
+          url: 'https://example.org/1',
+          snippet: 'x',
+          source: 'gruenerator',
+        },
+      ],
+      ...over,
+    } as Partial<ChatGraphState>);
+
+  it('ein Schreibauftrag unterdrückt die Inline-Marker', async () => {
+    const prompt = await buildSystemMessage(
+      withSources({ intent: 'research', contentType: 'pressemitteilung' })
+    );
+    expect(prompt).toContain(SUPPRESSED);
+    expect(prompt).not.toContain(CITE_INLINE);
+  });
+
+  it('unter search NICHT — dort gewinnt die Frage gegen die Textsorte', async () => {
+    const prompt = await buildSystemMessage(
+      withSources({ intent: 'search', contentType: 'pressemitteilung' })
+    );
+    expect(prompt).toContain(CITE_INLINE);
+    expect(prompt).not.toContain(SUPPRESSED);
+  });
+
+  it('ohne Textsorte zitiert jeder Intent der Familie inline', async () => {
+    for (const intent of ['research', 'search', 'web'] as const) {
+      const prompt = await buildSystemMessage(withSources({ intent, contentType: null }));
+      expect(prompt, intent).toContain(CITE_INLINE);
+      expect(prompt, intent).not.toContain(SUPPRESSED);
+    }
+  });
+});
