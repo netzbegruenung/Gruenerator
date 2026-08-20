@@ -101,6 +101,7 @@ describe('buildRequestBody', () => {
     formattedMessages: [{ id: 'm1', role: 'user', parts: [{ type: 'text', text: 'hallo' }] }],
     config: baseConfig,
     effectiveAgentId: 'agent-x',
+    typedSkillMention: null,
     safeCustomEnabledTools: null,
     extractedAttachments: [],
     notebookIds: [],
@@ -126,6 +127,24 @@ describe('buildRequestBody', () => {
     regenerate: false,
     replaceFromMessageId: undefined,
     ...overrides,
+  });
+
+  it('typed skill mention beats the store, store fills in otherwise', () => {
+    const typed = buildRequestBody(
+      baseParams({
+        typedSkillMention: 'presse',
+        config: { ...baseConfig, activeSkillMention: 'instagram' },
+      })
+    );
+    expect(typed.activeSkillMention).toBe('presse');
+
+    const ambient = buildRequestBody(
+      baseParams({ config: { ...baseConfig, activeSkillMention: 'instagram' } })
+    );
+    expect(ambient.activeSkillMention).toBe('instagram');
+
+    const neither = buildRequestBody(baseParams({}));
+    expect(neither.activeSkillMention).toBeUndefined();
   });
 
   it('search mode → query + searchMode, no enabledTools', () => {

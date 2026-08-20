@@ -836,7 +836,11 @@ export async function buildStreamContext({
     customSystemPrompt,
     roleBausteinActive,
     userRoles,
-    activeSkillMention: rawActiveSkillMention ?? undefined,
+    // Token first, body second — same precedence as every other mention field:
+    // the durable `skill:`-token names what THIS message ordered, the body
+    // field is the store's ambient choice (and the only carrier old clients
+    // have, so it stays honored).
+    activeSkillMention: mentionTokenFields.skillMention ?? rawActiveSkillMention ?? undefined,
     userInstructions,
     contextWindowTokens,
   });
@@ -932,6 +936,8 @@ export interface MentionTokenFields {
   boardIds: string[];
   sheetIds: string[];
   docMentionIds: string[];
+  /** Rezept/Textform aus einem `skill:`-Token — letzter gewinnt. */
+  skillMention: string | null;
 }
 
 function unionIds(a: string[] | null | undefined, b: string[]): string[] {
@@ -963,6 +969,9 @@ function lastUserTextFromClient(clientMessages: unknown): string {
  * derive the routing fields from durable tokens in the last user message.
  * `agent` tokens are skipped — the effective agent still travels via the body
  * (store-selected agent must win, and agent resolution is validated elsewhere).
+ * `skill` tokens carry the chosen Rezept's MENTION; deriving it here is what
+ * keeps the recipe alive on edit-resubmit, where the client parser skips
+ * already-tokenized text and the body field has nothing to fall back on.
  */
 function deriveMentionTokenFields(clientMessages: unknown): MentionTokenFields {
   const fields: MentionTokenFields = {
@@ -971,6 +980,7 @@ function deriveMentionTokenFields(clientMessages: unknown): MentionTokenFields {
     boardIds: [],
     sheetIds: [],
     docMentionIds: [],
+    skillMention: null,
   };
   for (const token of parseMentionTokens(lastUserTextFromClient(clientMessages))) {
     switch (token.type) {
@@ -994,6 +1004,9 @@ function deriveMentionTokenFields(clientMessages: unknown): MentionTokenFields {
         break;
       case 'agent':
         // Deliberately not derived — the body agentId stays authoritative.
+        break;
+      case 'skill':
+        fields.skillMention = token.id;
         break;
       default: {
         const unhandled: never = token.type;
