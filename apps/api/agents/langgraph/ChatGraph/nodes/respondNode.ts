@@ -1699,8 +1699,23 @@ export async function buildSystemMessage(
   // recompute or filter independently here, or the model's [N] markers can
   // drift from the rendered Citation array (the original wolke bug).
   const sourceCount = state.citations.length;
-  // Polished-content suppresses inline citations only when generating output;
-  // research questions always cite inline regardless of contentType heuristics.
+  // Ein erkannter Textsorten-Auftrag (Pressemitteilung, Rede, Artikel) soll als
+  // fertiges Dokument lesbar sein, also ohne [1] im Fliesstext — die Quellen
+  // stehen daneben.
+  //
+  // Der Ausschluss nennt `search` und meinte „eine FRAGE, keine Textbestellung".
+  // Beides trifft sich nur auf einem Weg, und der ist die Erwähnung:
+  // `contentType` setzen ausschliesslich die drei `produktion.*`-Regeln der
+  // Heuristik, den Intent überschreibt danach `forcedIntentStage`. Also trennt
+  // diese Zeile heute zwei Erwähnungen derselben Familie —
+  // `@dokumente` + „schreib eine PM über X" zitiert inline, `@recherche` +
+  // derselbe Satz nicht.
+  //
+  // Bleibt in R3 unangetastet: welche Seite richtig ist, ist eine Produktfrage
+  // (entscheidet eine Erwähnung nur die QUELLE oder auch die FORM?) und keine
+  // Lane-Frage. Beide Seiten stehen als Zusicherung in
+  // `answerFormatOwner.vitest.ts`, damit die Antwort sichtbar wird, wenn sie
+  // jemand gibt.
   const isPolishedContent = !!state.contentType && intent !== 'search';
 
   let citationInstruction = '';
