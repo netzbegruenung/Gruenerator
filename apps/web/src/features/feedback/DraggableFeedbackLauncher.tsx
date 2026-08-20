@@ -7,21 +7,20 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core';
 import { restrictToWindowEdges } from '@dnd-kit/modifiers';
+import {
+  cornerInsetStyle,
+  useCornerClearance,
+  type CornerClearance,
+  type ScreenCorner,
+} from '@gruenerator/ui';
 import { MessageSquare } from 'lucide-react';
 import { useCallback, useId, useRef, useState, type JSX, type RefObject } from 'react';
 
 import { cn } from '@/utils/cn';
 
-export type LauncherCorner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+export type LauncherCorner = ScreenCorner;
 
 const STORAGE_KEY = 'feedback-launcher-corner';
-
-const cornerClasses: Record<LauncherCorner, string> = {
-  'top-left': 'top-4 left-4',
-  'top-right': 'top-4 right-4',
-  'bottom-left': 'bottom-4 left-4',
-  'bottom-right': 'bottom-4 right-4',
-};
 
 const cornerLabels: Record<LauncherCorner, string> = {
   'top-left': 'oben links',
@@ -31,7 +30,7 @@ const cornerLabels: Record<LauncherCorner, string> = {
 };
 
 function isCorner(value: string | null): value is LauncherCorner {
-  return value != null && value in cornerClasses;
+  return value != null && value in cornerLabels;
 }
 
 function loadCorner(fallback: LauncherCorner): LauncherCorner {
@@ -70,6 +69,7 @@ interface DraggableFeedbackLauncherProps {
 interface LauncherButtonProps {
   onOpen: () => void;
   corner: LauncherCorner;
+  clearance: CornerClearance;
   variant: LauncherVariant;
   instructionsId: string;
   onArrowKey: (key: string) => void;
@@ -79,6 +79,7 @@ interface LauncherButtonProps {
 function LauncherButton({
   onOpen,
   corner,
+  clearance,
   variant,
   instructionsId,
   onArrowKey,
@@ -113,19 +114,24 @@ function LauncherButton({
       }}
       aria-label={variant === 'icon' ? 'Feedback geben' : undefined}
       aria-describedby={instructionsId}
-      style={
-        transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined
-      }
+      style={{
+        ...cornerInsetStyle(corner, clearance),
+        ...(transform
+          ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
+          : undefined),
+      }}
       className={cn(
         'feedback-widget-fab fixed z-[1000] flex items-center justify-center rounded-full',
         'bg-primary-600 text-white hover:bg-primary-700 dark:bg-primary-600 dark:hover:bg-primary-500',
-        'shadow-[0_4px_12px_rgba(0,0,0,0.2)] transition-[box-shadow] duration-200 ease-in-out',
+        'shadow-[0_4px_12px_rgba(0,0,0,0.2)] duration-200 ease-in-out',
+        // Die Kanten-Abstände werden animiert, damit der Button sichtbar zur
+        // Seite gleitet, wenn ein Panel aufgeht, statt zu springen.
+        'transition-[box-shadow,top,right,bottom,left]',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500',
         isDragging
           ? 'cursor-grabbing shadow-[0_8px_24px_rgba(0,0,0,0.3)]'
           : 'cursor-pointer hover:shadow-[0_6px_16px_rgba(0,0,0,0.25)]',
-        variant === 'icon' ? 'size-12' : 'px-5 py-3 text-sm font-semibold',
-        cornerClasses[corner]
+        variant === 'icon' ? 'size-12' : 'px-5 py-3 text-sm font-semibold'
       )}
     >
       {variant === 'icon' ? <MessageSquare className="size-5" aria-hidden="true" /> : 'Feedback'}
@@ -137,13 +143,14 @@ export default function DraggableFeedbackLauncher({
   onOpen,
   defaultCorner = 'bottom-right',
   variant = 'text',
-}: DraggableFeedbackLauncherProps): JSX.Element {
+}: DraggableFeedbackLauncherProps): JSX.Element | null {
   const [corner, setCorner] = useState<LauncherCorner>(() => loadCorner(defaultCorner));
   const [announcement, setAnnouncement] = useState('');
   const suppressClickRef = useRef(false);
   const instructionsId = useId();
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  const clearance = useCornerClearance(corner);
 
   const moveToCorner = useCallback((next: LauncherCorner) => {
     setCorner(next);
@@ -191,11 +198,16 @@ export default function DraggableFeedbackLauncher({
     [moveToCorner]
   );
 
+  // Ein Vollbild-Panel an dieser Ecke lässt keinen Platz zum Ausweichen — dann
+  // ist Verschwinden richtiger als eine Pille über fremden Bedienelementen.
+  if (clearance.blocked) return null;
+
   return (
     <DndContext sensors={sensors} modifiers={[restrictToWindowEdges]} onDragEnd={handleDragEnd}>
       <LauncherButton
         onOpen={onOpen}
         corner={corner}
+        clearance={clearance}
         variant={variant}
         instructionsId={instructionsId}
         onArrowKey={handleArrowKey}

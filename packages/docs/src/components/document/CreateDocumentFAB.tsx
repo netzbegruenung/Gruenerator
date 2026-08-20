@@ -6,8 +6,12 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  useMeasuredCornerReservation,
 } from '@gruenerator/ui';
+import { useRef } from 'react';
 import { FiFile, FiGrid, FiPlus } from 'react-icons/fi';
+
+const FAB_CORNER = 'bottom-right';
 
 interface CreateDocumentFABProps {
   onCreateBlank: () => void;
@@ -15,8 +19,17 @@ interface CreateDocumentFABProps {
 }
 
 export function CreateDocumentFAB({ onCreateBlank, onShowGallery }: CreateDocumentFABProps) {
+  const fabRef = useRef<HTMLDivElement>(null);
+
+  // Nur unter `sm` überhaupt sichtbar — die Messung liefert dort 0×0 und meldet
+  // von selbst nichts an, sobald der FAB ausgeblendet ist.
+  useMeasuredCornerReservation(fabRef, { corner: FAB_CORNER, axis: 'vertical' });
+
   return (
-    <div className="hidden max-sm:fixed max-sm:bottom-5 max-sm:right-5 max-sm:z-[100] max-sm:block">
+    <div
+      ref={fabRef}
+      className="hidden max-sm:fixed max-sm:bottom-5 max-sm:right-5 max-sm:z-[100] max-sm:block"
+    >
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
