@@ -19,6 +19,12 @@ export interface NotebookGalleryCardProps {
    */
   coverImage?: string;
   /**
+   * Rendered cover for notebooks that have no designed webp (user notebooks —
+   * see NotebookCoverArt). Takes the same cover-only layout as `coverImage`:
+   * the art carries the title, so there is no footer.
+   */
+  coverNode?: ReactNode;
+  /**
    * Footer actions (a menu trigger). Rendered hover-revealed in the footer; the
    * card stops click propagation around it, so the node only needs to render its
    * own trigger/menu — it won't navigate the card.
@@ -49,6 +55,7 @@ const NotebookGalleryCard = memo(
     metaIcon,
     onActivate,
     coverImage,
+    coverNode,
     menu,
     action,
     accent,
@@ -67,9 +74,10 @@ const NotebookGalleryCard = memo(
       className
     );
 
-    // Cover tiles are just the branded 1:1 image (its title is baked in) — no
-    // footer; the menu floats over the image. Icon tiles keep the title/meta footer.
-    if (coverImage) {
+    // Cover tiles are just the branded 1:1 art (its title is baked in, whether
+    // as a designed webp or rendered by NotebookCoverArt) — no footer; the menu
+    // floats over it. Icon tiles keep the title/meta footer.
+    if (coverImage || coverNode) {
       return (
         <div className={rootClass}>
           {/* One stretched-button tab stop activates the card; the menu/action
@@ -81,19 +89,30 @@ const NotebookGalleryCard = memo(
             className="absolute inset-0 z-0 rounded-[inherit] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-600"
           />
           <div className="aspect-square overflow-hidden bg-grey-50 dark:bg-grey-800/40">
-            <img
-              src={coverImage}
-              alt={title}
-              loading="lazy"
-              decoding="async"
-              className="h-full w-full object-cover"
-            />
+            {coverImage ? (
+              <img
+                src={coverImage}
+                alt={title}
+                loading="lazy"
+                decoding="async"
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              coverNode
+            )}
           </div>
           {(action || menu) && (
             <div className="absolute right-2 top-2 z-10 flex items-center gap-1">
               {action && (
                 // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- fängt nur den Klick/Tastendruck ab, damit er nicht die Karte aktiviert
-                <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                <div
+                  // Same pill as the menu below, but never hidden: the action's
+                  // own colours (grey icon, red when liked) are built for a light
+                  // card, and sit unreadable directly on the pink cover.
+                  className="rounded-full bg-white/85 backdrop-blur-sm dark:bg-black/50"
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
+                >
                   {action}
                 </div>
               )}
