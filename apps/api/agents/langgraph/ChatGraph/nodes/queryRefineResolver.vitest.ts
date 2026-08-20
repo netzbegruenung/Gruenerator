@@ -229,6 +229,35 @@ describe('refineSearchQuery — wann er ablehnt, und was der Turn dann sucht', (
     expect(result.intent).toBe('search');
     expect(result.searchQuery).toBeTruthy();
   });
+
+  /**
+   * Live auf beta am 20.08.2026, und genau der Fall, den der Kommentar oben
+   * beschreibt: der Auflöser fiel aus, und die Heuristik hatte zu dieser
+   * Formulierung nichts zu sagen — die Einbettungssuche bekam
+   * „schreibe darauf basierend einen antrag für mehr hitzeschtutz für alfter",
+   * Tippfehler inklusive.
+   *
+   * Zwei Lücken auf einmal: „darauf basierend" stand nicht in den Füllwörtern,
+   * und „antrag" fehlte in der Nomenliste — obwohl die Liste die Textsorten der
+   * Partei tragen soll.
+   */
+  it('zerlegt eine Antragsbestellung mit Rückverweis auf das Material', async () => {
+    const result = await classifierNode(
+      buildForcedSearchState('Schreibe darauf basierend einen Antrag für mehr Hitzeschutz')
+    );
+    expect(result.searchQuery).toBe('mehr Hitzeschutz');
+  });
+
+  it('kennt die übrigen Antrags-Formen und den Beschluss', async () => {
+    for (const [message, erwartet] of [
+      ['Formuliere einen Antragstext zur Verkehrswende', 'Verkehrswende'],
+      ['Erstelle eine Beschlussvorlage zum Radverkehr', 'Radverkehr'],
+      ['Schreib daraus eine Resolution über Klimaschutz', 'Klimaschutz'],
+    ] as const) {
+      const result = await classifierNode(buildForcedSearchState(message));
+      expect(result.searchQuery, message).toBe(erwartet);
+    }
+  });
 });
 
 describe('refineSearchQuery — was er dem Modell schickt', () => {

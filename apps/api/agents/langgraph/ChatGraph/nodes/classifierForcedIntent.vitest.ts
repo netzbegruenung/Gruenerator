@@ -343,6 +343,40 @@ describe('Tier 2 — context intents (resource presence only)', () => {
     const result = await classifierNode(state);
     expect(result.intent).toBe('summary');
   });
+
+  // Live on beta 20.08.2026: "schreibe darauf basierend einen antrag für mehr
+  // hitzeschtutz für alfter" came back as a sourced research answer. Forcing
+  // `search` is right — a notebook-bound agent must research before it writes —
+  // but nothing carried the ordered Textsorte through to the answer stage.
+  describe('an ordered Textsorte survives the forced search', () => {
+    it('names the document type while still routing to search', async () => {
+      const state = buildState({
+        userMessage: 'schreibe darauf basierend einen Antrag für mehr Hitzeschutz für Alfter',
+        attachmentContext: 'Die Grünen fordern ein Abkühl-Sofortprogramm...',
+        defaultNotebookCollectionIds: ['berlin'],
+      });
+      const result = await classifierNode(state);
+      // The research stage must still run.
+      expect(result.intent).toBe('search');
+      expect(result.searchQuery).not.toBeNull();
+      // …and the answer stage now knows what it owes.
+      expect(result.documentSubtype).toBe('antrag');
+    });
+
+    // The guard against a too-broad predicate: this names no Textsorte, so it
+    // has to behave exactly as it did before.
+    it('leaves a plain reply request untouched', async () => {
+      const state = buildState({
+        userMessage: 'Antworte auf diese E-Mail einer Bürgerin:',
+        attachmentContext:
+          'Sehr geehrte Damen und Herren, wie steht Ihre Partei zur Stadtentwicklung in Pankow?',
+        defaultNotebookCollectionIds: ['berlin'],
+      });
+      const result = await classifierNode(state);
+      expect(result.intent).toBe('search');
+      expect(result.documentSubtype).toBeUndefined();
+    });
+  });
 });
 
 // ── EDGE CASES: Multi-resource combinations ──────────────────────────────
