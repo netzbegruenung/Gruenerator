@@ -42,6 +42,7 @@ import { withInstructionHierarchy } from '../untrustedContent.js';
 import {
   assembleToolCatalog,
   buildToolReplay,
+  priorTurnRetrieved,
   createLoopGuards,
   rehydrateCarriedSources,
   wrapAssembledTools,
@@ -326,7 +327,7 @@ export async function streamAgenticResponse(
       onWarn: (m) => log.warn(m),
     });
 
-    // Die fünf Wege dahinter stehen in `shouldForceFirstToolCall` — samt der
+    // Die sieben Wege dahinter stehen in `shouldForceFirstToolCall` — samt der
     // Live-Ausfälle, die jeden einzelnen erzwungen haben.
     const forceFirstToolCall = shouldForceFirstToolCall({
       researchBanned,
@@ -336,6 +337,7 @@ export async function streamAgenticResponse(
       mcpToolCount: mcpCatalog?.labels.size ?? 0,
       lastUserText,
       loopDemotedFromRetrieval: finalState.loopDemotedFromRetrieval === true,
+      priorTurnRetrieved: priorTurnRetrieved(toolHistory),
       classifierContradictedResearch: finalState.classifierContradictedResearch === true,
       materialHeavy,
       pinnedTool: finalState.mentionPinnedTool ?? null,

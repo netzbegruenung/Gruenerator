@@ -11,6 +11,7 @@ import {
   resolveEditorSurfaceKind,
   decideEditToolLoop,
   type EditToolLoopInput,
+  isReferentialFollowup,
   needsThreadGrounding,
   looksLikeSelfContainedTurn,
   rewritesSuppliedText,
@@ -1010,6 +1011,59 @@ describe('looksLikeUnsourcedWritingOrder', () => {
     ]) {
       expect(unsourced(q), q).toBe(false);
     }
+  });
+});
+
+describe('isReferentialFollowup', () => {
+  /**
+   * Die eine Hälfte des siebten Wegs in `shouldForceFirstToolCall`; die andere
+   * ist der Abrufkontext des Threads. Diese hier urteilt allein über den TEXT:
+   * trägt er den Gegenstand des vorigen Turns weiter, oder eröffnet er ein
+   * eigenes Thema?
+   */
+  it.each([
+    'Und die FDP?',
+    'Was ist mit Bayern?',
+    'Und wie war das 2021?',
+    'Und die Linke?',
+    'Bei den Grünen auch?',
+  ])('Anschlussfrage: %s', (text) => {
+    expect(isReferentialFollowup(text)).toBe(true);
+  });
+
+  // Meta-Anweisungen über die vorige ANTWORT. Sie sind ebenso kurz und ebenso
+  // rückbezüglich — und genau deshalb muss dieses Prädikat sie abweisen, sonst
+  // erzwänge der siebte Weg eine Recherche unter einem Kürzungsauftrag.
+  it.each([
+    'fasse das kürzer',
+    'Mach das kürzer',
+    'Nochmal auf Englisch',
+    'umformulieren bitte',
+    'Schreib mir ein Gedicht dazu',
+  ])('Meta-Anweisung: %s', (text) => {
+    expect(isReferentialFollowup(text)).toBe(false);
+  });
+
+  it.each(['Danke!', 'Okay', 'Passt', 'Wer bist du?'])('Höflichkeit: %s', (text) => {
+    expect(isReferentialFollowup(text)).toBe(false);
+  });
+
+  it('ein Erzeugungsauftrag ist keine Anschlussfrage', () => {
+    expect(isReferentialFollowup('Mach ein Sharepic dazu')).toBe(false);
+    expect(isReferentialFollowup('Erstelle eine Tabelle')).toBe(false);
+  });
+
+  it('über der Wortgrenze nennt ein Turn sein Thema selbst', () => {
+    // Dieselbe Grenze wie `isVagueFollowup` im Klassifikator (≤ 8 Wörter).
+    expect(isReferentialFollowup('Und wie war das bei den Freien Demokraten?')).toBe(true);
+    expect(
+      isReferentialFollowup('Wie hat die FDP im Bundestag zum Gebäudeenergiegesetz abgestimmt?')
+    ).toBe(false);
+  });
+
+  it('leerer Text ist nichts', () => {
+    expect(isReferentialFollowup('')).toBe(false);
+    expect(isReferentialFollowup('   ')).toBe(false);
   });
 });
 
