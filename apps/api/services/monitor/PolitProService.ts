@@ -19,6 +19,7 @@ import {
   type PollData,
   type PollResult,
   type PollsHistoryData,
+  type PollsOverviewResponse,
 } from '@gruenerator/contracts';
 import { z } from 'zod';
 
@@ -30,6 +31,12 @@ const log = createLogger('PolitPro');
 
 const API_BASE_URL = 'https://politpro.eu/api/v1';
 const CACHE_TTL = 12 * 60 * 60;
+/**
+ * A partial answer (trend came through, institute polls and/or history didn't)
+ * gets a short life instead of the full 12 h, so the next request can heal it.
+ * Caching it at CACHE_TTL is what kept Bayern at 4 parties for half a day.
+ */
+const DEGRADED_TTL = 10 * 60;
 // PolitPro stores one history point per week and recommends weekly updates.
 const HISTORY_TTL = 24 * 60 * 60;
 const UNSUPPORTED_TTL = 12 * 60 * 60;
@@ -140,14 +147,41 @@ interface ApiPollHistoryData {
   polls: Array<{ date: string; parties: ApiParty[] }>;
 }
 
-type ApiResult<T> = { ok: true; data: T } | { ok: false; notFound: boolean };
+/**
+ * `rateLimited` exists so a 429 stays distinguishable from "this parliament has
+ * no data". Without it every failure looks the same, and a rate-limited fetch
+ * gets cached as a genuine (empty) answer for the full TTL — which is exactly
+ * what froze eight Länder at `history=false` for 12 h on 20.08.2026.
+ */
+type ApiResult<T> = { ok: true; data: T } | { ok: false; notFound: boolean; rateLimited?: boolean };
+
+/**
+ * A 429 is worth waiting out only if the wait is short: `fetchApi` sits in a
+ * REQUEST path, so parking on the ~60 s the API would like turns a rate limit
+ * into a hung page. Beyond this we give up and let the caller serve last-good
+ * data, which is a better answer than a spinner.
+ */
+const RATE_LIMIT_MAX_WAIT_MS = 5000;
+
+/** `Retry-After` is either delta-seconds or an HTTP-date. Both appear in the wild. */
+function retryAfterMs(header: string | null): number | null {
+  if (!header) return null;
+  const seconds = Number(header);
+  if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000);
+  const date = Date.parse(header);
+  return Number.isNaN(date) ? null : Math.max(0, date - Date.now());
+}
 
 /**
  * GET an official API path. Unknown paths return HTTP 200 with an HTML page,
  * so the body must parse as JSON with a truthy `success` to count as ok.
  */
-async function fetchApi<T>(path: string): Promise<ApiResult<T>> {
-  const failed = (notFound = false): ApiResult<T> => ({ ok: false, notFound });
+async function fetchApi<T>(path: string, attempt = 1): Promise<ApiResult<T>> {
+  const failed = (notFound = false, rateLimited = false): ApiResult<T> => ({
+    ok: false,
+    notFound,
+    rateLimited,
+  });
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
@@ -167,7 +201,16 @@ async function fetchApi<T>(path: string): Promise<ApiResult<T>> {
       if (response.status === 401) {
         log.error(`API rejected POLITPRO_API_KEY (401) for ${path}`);
       } else if (response.status === 429) {
-        log.warn(`API rate limit hit (429) for ${path}`);
+        const wait = retryAfterMs(response.headers.get('retry-after'));
+        if (attempt === 1 && wait != null && wait <= RATE_LIMIT_MAX_WAIT_MS) {
+          log.warn(`API rate limit hit (429) for ${path} — retrying in ${wait}ms`);
+          await sleep(wait);
+          return fetchApi<T>(path, attempt + 1);
+        }
+        log.warn(
+          `API rate limit hit (429) for ${path}${wait != null ? ` (retry-after ${Math.round(wait / 1000)}s — too long to wait)` : ''}`
+        );
+        return failed(false, true);
       } else {
         log.error(`API error ${response.status} for ${path}`);
       }
@@ -220,10 +263,17 @@ function toApiPollResult(poll: ApiInstitutePoll): PollResult {
 const round1 = (n: number): number => Math.round(n * 10) / 10;
 
 /**
+ * A fetch that only got the weighted trend through is still usable, but it is
+ * NOT the full answer: no institute polls, no history line. Marking it lets
+ * `getPolitProPolls` keep it out of the 12 h cache — see DEGRADED_TTL.
+ */
+type FetchOutcome = { status: 'ok' | 'degraded'; data: PolitProPollData } | 'unsupported' | null;
+
+/**
  * Fetch a parliament from the official API.
  * Returns 'unsupported' when the API rejects the parliament code (404).
  */
-async function fetchFromApi(parliament: string): Promise<PolitProPollData | 'unsupported' | null> {
+async function fetchFromApi(parliament: string): Promise<FetchOutcome> {
   const code = PARLIAMENT_API_CODES[parliament];
 
   const trendResult = await fetchApi<ApiTrendData>(`/${code}/trend`);
@@ -280,55 +330,101 @@ async function fetchFromApi(parliament: string): Promise<PolitProPollData | 'uns
     }
   }
 
+  // "Degraded" means a call FAILED, not that the API had nothing to give. A 404
+  // on a sub-resource is a permanent fact about that parliament; treating it as
+  // degraded would re-fetch it every DEGRADED_TTL forever and add load instead
+  // of removing it.
+  const degraded =
+    (!institutesResult.ok && !institutesResult.notFound) ||
+    (!historyResult.ok && !historyResult.notFound);
+
   log.info(
-    `[fetchFromApi] ${parliament}: ${polls.length} polls, ${Object.keys(average).length} parties, history=${historyResult.ok}`
+    `[fetchFromApi] ${parliament}: ${polls.length} polls, ${Object.keys(average).length} parties, history=${historyResult.ok}${degraded ? ' (degraded)' : ''}`
   );
 
   return {
-    polls,
-    lastElection:
-      Object.keys(lastElectionParties).length > 0
-        ? { institute: 'Letzte Wahl', date: '', parties: lastElectionParties }
-        : null,
-    average,
-    diffs,
-    scrapedAt: new Date().toISOString(),
-    source: 'politpro',
-    parliament,
-    trend,
+    status: degraded ? 'degraded' : 'ok',
+    data: {
+      polls,
+      lastElection:
+        Object.keys(lastElectionParties).length > 0
+          ? { institute: 'Letzte Wahl', date: '', parties: lastElectionParties }
+          : null,
+      average,
+      diffs,
+      scrapedAt: new Date().toISOString(),
+      source: 'politpro',
+      parliament,
+      trend,
+    },
   };
+}
+
+/**
+ * `fromCache` tells the paced overview whether this call cost an upstream
+ * request. Pacing exists for the rate limit, and the rate limit counts network
+ * calls — a Redis hit must not buy a 4 s pause.
+ */
+interface PollsLookup {
+  data: PolitProPollData | null;
+  fromCache: boolean;
 }
 
 export async function getPolitProPolls(
   parliament = 'deutschland'
 ): Promise<PolitProPollData | null> {
+  return (await lookupPolitProPolls(parliament)).data;
+}
+
+async function lookupPolitProPolls(parliament: string): Promise<PollsLookup> {
+  const cachedResult = (data: PolitProPollData | null): PollsLookup => ({ data, fromCache: true });
+
   if (!VALID_PARLIAMENT_IDS.has(parliament)) {
     log.warn(`[getPolitProPolls] Invalid parliament ID: ${parliament}`);
-    return null;
+    return cachedResult(null);
   }
 
   if (!env.POLITPRO_API_KEY) {
     log.warn('[getPolitProPolls] POLITPRO_API_KEY not set, skipping');
-    return null;
+    return cachedResult(null);
   }
 
   const cacheKey = `monitor:politpro:v2:${parliament}`;
   const cached = await getCachedJson(cacheKey, politProPollDataSchema);
-  if (cached) return cached;
+  if (cached) return cachedResult(cached);
 
   const unsupportedKey = `monitor:politpro:unsupported:${parliament}`;
-  if (await getCachedJson(unsupportedKey, unsupportedFlagSchema)) return null;
+  if (await getCachedJson(unsupportedKey, unsupportedFlagSchema)) return cachedResult(null);
 
-  const result = await fetchFromApi(parliament);
-  if (result === 'unsupported') {
-    log.warn(`[getPolitProPolls] API does not support "${parliament}" (plan tier?)`);
-    await setCachedJson(unsupportedKey, { unsupported: true }, UNSUPPORTED_TTL);
-    return null;
-  }
-  if (!result) return null;
+  // Concurrent misses for the same parliament used to fire the full 3-call
+  // fetch each — with 16 Länder mounting at once that is what put us ~96×
+  // over the 30 req/min budget.
+  const data = await singleFlight(cacheKey, async () => {
+    const result = await fetchFromApi(parliament);
 
-  await setCachedJson(cacheKey, result, CACHE_TTL);
-  return result;
+    if (result === 'unsupported') {
+      log.warn(`[getPolitProPolls] API does not support "${parliament}" (plan tier?)`);
+      await setCachedJson(unsupportedKey, { unsupported: true }, UNSUPPORTED_TTL);
+      return null;
+    }
+
+    // Nothing at all (the trend call itself failed): week-old numbers beat an
+    // empty panel, and PolitPro only updates weekly anyway.
+    if (!result) return getLastGood(cacheKey, politProPollDataSchema);
+
+    if (result.status === 'degraded') {
+      // Short TTL, and deliberately NOT promoted to last-good: a partial answer
+      // must never overwrite a complete one.
+      await setCachedJson(cacheKey, result.data, DEGRADED_TTL);
+      return result.data;
+    }
+
+    await setCachedJson(cacheKey, result.data, CACHE_TTL);
+    await setLastGood(cacheKey, result.data);
+    return result.data;
+  });
+
+  return { data, fromCache: false };
 }
 
 // ── EU greens (green-party trend across European parliaments) ────────────────
@@ -640,16 +736,26 @@ async function setLastGood(cacheKey: string, data: unknown): Promise<void> {
 /**
  * Run thunks in paced chunks to stay clear of the 30 req/min API rate limit
  * (the EU batches can coincide with the per-parliament requests).
+ *
+ * `didWork` decides whether the PREVIOUS chunk earned the pause. The rate limit
+ * counts upstream requests, so a chunk served entirely from Redis has nothing
+ * to pace against — without this a fully warm 16-parliament overview still sat
+ * out 3 × 4 s, gating no network traffic at all. Defaults to "always pace", so
+ * the EU batches keep their existing behaviour.
  */
 async function inChunks<T>(
   thunks: Array<() => Promise<T>>,
   size: number,
-  delayMs = 4000
+  delayMs = 4000,
+  didWork: (result: T) => boolean = () => true
 ): Promise<T[]> {
   const results: T[] = [];
+  let pace = false;
   for (let i = 0; i < thunks.length; i += size) {
-    if (i > 0) await sleep(delayMs);
-    results.push(...(await Promise.all(thunks.slice(i, i + size).map((t) => t()))));
+    if (pace) await sleep(delayMs);
+    const chunk = await Promise.all(thunks.slice(i, i + size).map((t) => t()));
+    results.push(...chunk);
+    pace = chunk.some(didWork);
   }
   return results;
 }
@@ -777,6 +883,57 @@ export async function getPolitProHistory(
   };
   await setCachedJson(cacheKey, data, HISTORY_TTL);
   return data;
+}
+
+/** Same rule the map has always used client-side: first key that reads "Grüne". */
+function grueneShare(average: Record<string, number>): number | null {
+  for (const [name, percent] of Object.entries(average)) {
+    if (name === 'GRÜNE' || name === 'Grüne' || name.toLowerCase().includes('grüne'))
+      return percent;
+  }
+  return null;
+}
+
+/**
+ * Green share per parliament for the choropleth map, fetched PACED.
+ *
+ * Replaces 16 parallel `usePolls` calls in the frontend (48 upstream requests
+ * in under a second against a 30 req/min budget). Cached parliaments cost
+ * nothing and are not paced, so a warm run returns without any pause; only
+ * chunks that actually went upstream buy the next pause.
+ */
+export async function getPollsOverview(
+  country: PolitProCountry = 'DE'
+): Promise<PollsOverviewResponse> {
+  // A cold run is paced and therefore slow; without this every viewer who lands
+  // on the map while it runs would start their own paced batch.
+  return singleFlight(`monitor:politpro:overview:${country}`, async () => {
+    const parliaments = POLITPRO_PARLIAMENTS.filter((p) => p.country === country);
+
+    const thunks = parliaments.map((p) => async () => {
+      const { data, fromCache } = await lookupPolitProPolls(p.id).catch(() => ({
+        data: null,
+        fromCache: true,
+      }));
+      return {
+        fromCache,
+        entry: {
+          parliament: p.id,
+          gruene: data ? grueneShare(data.average) : null,
+          // `polls.length > 1` is the established "real institute polls" test —
+          // a single entry is the synthetic weighted-trend fallback, whose date
+          // would read as a poll date it isn't.
+          latestPollDate: data && data.polls.length > 1 ? (data.polls[0]?.date ?? null) : null,
+        },
+      };
+    });
+
+    // 4 parliaments per chunk = up to 12 upstream calls per 4 s window,
+    // comfortably inside the budget even when the EU batch runs alongside.
+    // A chunk that was served from cache does not pace the next one.
+    const results = await inChunks(thunks, 4, 4000, (r) => !r.fromCache);
+    return { entries: results.map((r) => r.entry), fetchedAt: new Date().toISOString() };
+  });
 }
 
 export const POLITPRO_PARLIAMENTS = [
