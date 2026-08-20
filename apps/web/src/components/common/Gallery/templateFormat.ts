@@ -9,7 +9,7 @@
  */
 
 export interface TemplateFormat {
-  /** Meta line under the title, e.g. 'Sharepic · 1:1' — or just '1:1' when the type is generic. */
+  /** Meta line under the title, e.g. 'Sharepic · 1:1' — nur '1:1', wenn der Typ nichts Eigenes sagt. */
   formatLabel: string;
   /** Authoring tool / source, derived from the URL. */
   tool: 'Canva' | 'Grünerator' | 'Download' | 'Link';
@@ -96,9 +96,14 @@ export const getTemplateFormat = (item: FormatSource): TemplateFormat => {
     }
   }
 
-  // "Vorlage · 1:1" would say nothing — drop the generic type from the line.
+  const tool = deriveTool(item);
+  // Der Typ kommt nur dazu, wenn er etwas Eigenes sagt. Für die Gallerie-Mehrheit
+  // IST `template_type` die Quelle ("canva"), nicht das Format — dann stünde neben
+  // dem CANVA-Abzeichen noch einmal "Canva · 1:1". Und "Vorlage · 1:1" sagt nichts.
   const isGenericType = preset.typeLabel === DEFAULT_PRESET.typeLabel;
-  const formatLabel = isGenericType ? ratioLabel : `${preset.typeLabel} · ${ratioLabel}`;
+  const repeatsTool = preset.typeLabel.toLowerCase() === tool.toLowerCase();
+  const formatLabel =
+    isGenericType || repeatsTool ? ratioLabel : `${preset.typeLabel} · ${ratioLabel}`;
 
-  return { formatLabel, tool: deriveTool(item) };
+  return { formatLabel, tool };
 };
