@@ -503,20 +503,6 @@ const DEDUP_MIN_CHARS = 500;
 const squashWhitespace = (text: string): string => text.replace(/\s+/g, ' ').trim();
 
 /**
- * Steht der Dokumenttext ohnehin schon wörtlich in der Historie?
- *
- * Gemessen auf test am 13.08.2026: ein eingefügter 10.149-Zeichen-Artikel wird
- * als Anhang gebunden UND bleibt die erste Nutzernachricht. Ab Turn 2 lag er
- * zweimal im Prompt (Basis-Prompt 3.414 → 14.306 Zeichen), die daran zu prüfende
- * Übersetzung nur einmal — 2:1 zugunsten des Ausgangstexts, bei einer Aufgabe,
- * die genau diese beiden gegeneinander lesen soll.
- *
- * Geprüft wird gegen die Nachrichten, die tatsächlich mitgehen: hat die Kürzung
- * die Historie-Kopie entfernt, greift die Gleichheit nicht und der Anhang wird
- * wie bisher eingespielt. Die Wiedereinspielung bleibt also der Rückfall, sie
- * hört nur auf, eine Dopplung zu sein.
- */
-/**
  * Die einzelnen Dokumentrümpfe, die der Live-Anhangsblock in diesen Prompt trägt.
  *
  * Der Block ist aus `### <name> (Volltext-Auszug)`-Abschnitten zusammengesetzt
@@ -535,6 +521,20 @@ function liveAttachmentBodies(liveAttachmentContext: string): string[] {
     .filter(Boolean);
 }
 
+/**
+ * Steht der Dokumenttext ohnehin schon wörtlich in der Historie?
+ *
+ * Gemessen auf test am 13.08.2026: ein eingefügter 10.149-Zeichen-Artikel wird
+ * als Anhang gebunden UND bleibt die erste Nutzernachricht. Ab Turn 2 lag er
+ * zweimal im Prompt (Basis-Prompt 3.414 → 14.306 Zeichen), die daran zu prüfende
+ * Übersetzung nur einmal — 2:1 zugunsten des Ausgangstexts, bei einer Aufgabe,
+ * die genau diese beiden gegeneinander lesen soll.
+ *
+ * Geprüft wird gegen die Nachrichten, die tatsächlich mitgehen: hat die Kürzung
+ * die Historie-Kopie entfernt, greift die Gleichheit nicht und der Anhang wird
+ * wie bisher eingespielt. Die Wiedereinspielung bleibt also der Rückfall, sie
+ * hört nur auf, eine Dopplung zu sein.
+ */
 function alreadyVerbatimInConversation(
   extractedText: string | null | undefined,
   conversationText: string
