@@ -7,10 +7,17 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { server } from '../../../test/msw-server';
 
-import { useMonitorHistory, usePollParliaments } from './useMonitor';
+import {
+  useMonitorHistory,
+  useMonitorSnapshot,
+  usePollParliaments,
+  usePollsOverview,
+} from './useMonitor';
 
 const HISTORY_ENDPOINT = 'http://localhost/api/monitor/history';
 const PARLIAMENTS_ENDPOINT = 'http://localhost/api/monitor/polls/parliaments';
+const LATEST_ENDPOINT = 'http://localhost/api/monitor/latest';
+const OVERVIEW_ENDPOINT = 'http://localhost/api/monitor/polls/overview';
 
 beforeAll(() => {
   setGlobalApiClient(createApiClient({ baseURL: 'http://localhost/api', authMode: 'cookie' }));
@@ -60,6 +67,92 @@ describe('useMonitorHistory (MSW)', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(seenDays).toBe('14');
+  });
+});
+
+describe('useMonitorSnapshot — 404 is an empty state, not an error', () => {
+  afterEach(() => {
+    server.resetHandlers();
+  });
+
+  it('resolves to null and stays out of the error path when no snapshot exists', async () => {
+    // Live on beta 20.08.2026: the hourly refresh never reached that instance,
+    // so this endpoint answered 404 forever. Treated as an error it produced
+    // three requests every five minutes, each with a toast.
+    let calls = 0;
+    server.use(
+      http.get(LATEST_ENDPOINT, () => {
+        calls++;
+        return HttpResponse.json({ error: 'No monitor data available yet' }, { status: 404 });
+      })
+    );
+
+    const { result } = renderHook(() => useMonitorSnapshot(), { wrapper });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toBeNull();
+    expect(result.current.isError).toBe(false);
+    expect(calls).toBe(1);
+  });
+
+  it('still fails loudly on a 500', async () => {
+    server.use(
+      http.get(LATEST_ENDPOINT, () => HttpResponse.json({ error: 'boom' }, { status: 500 }))
+    );
+
+    const { result } = renderHook(() => useMonitorSnapshot(), { wrapper });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+  });
+});
+
+describe('monitor errors carry their HTTP status', () => {
+  afterEach(() => {
+    server.resetHandlers();
+  });
+
+  // The app's global retry guard and the toast filter both branch on
+  // `err.status`. A bare `new Error(...)` leaves it undefined, so neither fires
+  // and every 404 was retried twice and toasted.
+  it('exposes status on the thrown error so the retry/toast guards can read it', async () => {
+    server.use(
+      http.get(PARLIAMENTS_ENDPOINT, () =>
+        HttpResponse.json({ error: 'not found' }, { status: 404 })
+      )
+    );
+
+    const { result } = renderHook(() => usePollParliaments(), { wrapper });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect((result.current.error as { status?: number }).status).toBe(404);
+  });
+});
+
+describe('usePollsOverview (MSW)', () => {
+  afterEach(() => {
+    server.resetHandlers();
+  });
+
+  it('fetches every Bundesland in a single request', async () => {
+    let calls = 0;
+    let seenCountry: string | null = null;
+    server.use(
+      http.get(OVERVIEW_ENDPOINT, ({ request }) => {
+        calls++;
+        seenCountry = new URL(request.url).searchParams.get('country');
+        return HttpResponse.json({
+          entries: [{ parliament: 'bayern', gruene: 14.5, latestPollDate: '2026-08-15' }],
+          fetchedAt: '2026-08-20T00:00:00.000Z',
+        });
+      })
+    );
+
+    const { result } = renderHook(() => usePollsOverview('DE'), { wrapper });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(calls).toBe(1);
+    expect(seenCountry).toBe('DE');
+    expect(result.current.data?.entries[0].gruene).toBe(14.5);
   });
 });
 
