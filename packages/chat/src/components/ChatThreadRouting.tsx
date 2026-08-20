@@ -6,6 +6,7 @@ import { useEffect, useRef } from 'react';
 
 import { getDefaultAgent } from '../lib/agents';
 import { adoptAuiAction, auiPromise } from '../lib/auiAsync';
+import { buildNotebookThreadPath } from '../lib/threadPath';
 import {
   didLastThreadListFetchFail,
   getNotebookCollectionId,
@@ -24,6 +25,14 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export interface ChatThreadRoutingProps {
   /** Current `:threadSlug` URL param (null on plain /chat). */
   threadSlug: string | null;
+  /**
+   * The URL carries a context of its own — an agent (`/agents/:slug`) or a mode
+   * — so a missing thread slug does not mean "no thread": the user is on a
+   * landing page whose URL must survive. Without this, a thread left over from
+   * before had its slug written into the address bar, which navigated the user
+   * away from the agent they had just opened.
+   */
+  landing?: boolean;
   /**
    * Canonicalise the URL for a change the runtime made on its own (a draft that
    * just minted, a generated title). Always a replace — see the file comment.
@@ -61,6 +70,7 @@ export interface ChatThreadRoutingProps {
  */
 export function ChatThreadRouting({
   threadSlug,
+  landing = false,
   onNavigateToThread,
   onThreadGone,
   onLeaveThread,
@@ -146,11 +156,7 @@ export function ChatThreadRouting({
         if (getThreadType(remoteId) === 'notebook') {
           const collectionId = getNotebookCollectionId(remoteId);
           if (collectionId) {
-            onOpenNotebookThread(
-              collectionId.endsWith('-system')
-                ? `/gruene-${collectionId.replace('-system', '')}?thread=${remoteId}`
-                : `/notebook/${collectionId}?thread=${remoteId}`
-            );
+            onOpenNotebookThread(buildNotebookThreadPath(collectionId, remoteId));
             return;
           }
         }
@@ -166,6 +172,18 @@ export function ChatThreadRouting({
 
         await auiPromise(aui.threads.switchToThread(remoteId));
         if (cancelled) return;
+
+        // A switch that lost the race resolves just like one that won:
+        // assistant-ui bumps `_switchGeneration` and the superseded call returns
+        // silently, leaving main on the other thread. Restoring "our" agent then
+        // is actively harmful — AgentSwitchListener skips its structural guard
+        // while main holds no thread and answers the change with a brand-new
+        // thread, wiping the one the newer click just opened. Let that newer
+        // effect run finish the job.
+        const after = aui.threads.getState();
+        const settledAfter =
+          after.threadItems.find((t) => t.id === after.mainThreadId)?.remoteId ?? null;
+        if (settledAfter !== remoteId) return;
 
         // Restore the thread's agent AFTER the switch: AgentSwitchListener then
         // sees a main thread whose agent already matches and skips its "new
@@ -197,10 +215,19 @@ export function ChatThreadRouting({
   const mainTitle = useAuiState(
     (s) => s.threads.threadItems.find((t) => t.id === s.threads.mainThreadId)?.title ?? null
   );
-  const prevRemoteRef = useRef<string | null>(null);
+  // Seeded with whatever main already holds rather than null: on a landing the
+  // two are told apart by exactly this — a thread that was open before this
+  // mounted (prev = main) must not claim the URL, a thread minted from a draft
+  // (prev = null) must. A cold boot still starts at null, main being a draft.
+  const prevRemoteRef = useRef<string | null | undefined>(undefined);
+  if (prevRemoteRef.current === undefined) {
+    const boot = aui.threads.getState();
+    prevRemoteRef.current =
+      boot.threadItems.find((t) => t.id === boot.mainThreadId)?.remoteId ?? null;
+  }
 
   useEffect(() => {
-    const prevRemoteId = prevRemoteRef.current;
+    const prevRemoteId = prevRemoteRef.current ?? null;
     prevRemoteRef.current = mainRemoteId;
 
     const action = reconcileThreadUrl({
@@ -211,12 +238,14 @@ export function ChatThreadRouting({
       suffix,
       prevRemoteId,
       slugStillResolves: suffix ? resolveThreadBySlugSuffix(suffix) != null : false,
+      landing,
     });
 
     if (action.type === 'replace') onNavigateToThread(action.slug);
     else if (action.type === 'leave') onLeaveThread();
     else if (action.type === 'gone') onThreadGone();
   }, [
+    landing,
     mainRemoteId,
     mainTitle,
     threadSlug,
