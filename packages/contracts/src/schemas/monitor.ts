@@ -218,6 +218,36 @@ export const pollParliamentSchema = z.object({
 
 export const pollParliamentsResponseSchema = z.array(pollParliamentSchema);
 
+/**
+ * One map-sized answer per parliament, for the Bundesland choropleth.
+ *
+ * The map needs two numbers per state, not a full poll record — and asking for
+ * the full record 16 times in parallel is what put us ~96× over PolitPro's
+ * 30 req/min budget on 20.08.2026. Server-side this is fetched paced; the shape
+ * stays deliberately narrow so it remains a single cheap request.
+ */
+export const pollsOverviewEntrySchema = z.object({
+  /** PolitPro parliament id, e.g. 'bayern'. */
+  parliament: z.string(),
+  /** Green share in the weighted average; null when the parliament has no data. */
+  gruene: z.number().nullable(),
+  /**
+   * End date of the most recent institute poll. Null when only the weighted
+   * trend was available — the map then hides the date, matching the
+   * `polls.length > 1` rule the per-parliament view already uses.
+   */
+  latestPollDate: z.string().nullable(),
+});
+
+export const pollsOverviewResponseSchema = z.object({
+  entries: z.array(pollsOverviewEntrySchema),
+  fetchedAt: z.string(),
+});
+
+export const pollsOverviewQuerySchema = z.object({
+  country: z.enum(['DE', 'AT']).optional(),
+});
+
 // ── EU greens (green-party trend across European parliaments) ────────────────
 
 export const euGreenResultSchema = z.object({
@@ -525,6 +555,8 @@ export type MonitorBriefingResult = z.infer<typeof monitorBriefingResponseSchema
 export type PollResult = z.infer<typeof pollResultSchema>;
 export type PollData = z.infer<typeof pollDataSchema>;
 export type PollParliament = z.infer<typeof pollParliamentSchema>;
+export type PollsOverviewEntry = z.infer<typeof pollsOverviewEntrySchema>;
+export type PollsOverviewResponse = z.infer<typeof pollsOverviewResponseSchema>;
 export type EuGreenResult = z.infer<typeof euGreenResultSchema>;
 export type EuGreensData = z.infer<typeof euGreensResponseSchema>;
 export type EuGreensHistoryData = z.infer<typeof euGreensHistoryResponseSchema>;
