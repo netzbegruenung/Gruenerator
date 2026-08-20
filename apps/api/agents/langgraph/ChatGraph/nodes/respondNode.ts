@@ -1750,6 +1750,19 @@ ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSu
     }
   }
 
+  // Dieselbe Vokabel wie die Werkzeug-Tür (`[recipeTools] [Rezept] gewählt=…
+  // quelle=…`), damit im Log vergleichbar wird, welcher der beiden Wege ein
+  // Rezept getragen hat. Ohne diese Zeile war die Prompt-Tür stumm: ein Turn
+  // mit ausdrücklicher Wahl sieht im Log exakt aus wie einer ohne, weil die
+  // Wahl `rezept_laden` gerade abhängt (`catalogAssembly`). Genau daran ließ
+  // sich der Ausfall vom 20.08.2026 nicht am Log entscheiden.
+  if (effectiveSkillMention) {
+    const quelle = userTextForm ? 'nutzer' : skillFragment ? 'system' : 'fehlt';
+    log.info(
+      `[Rezept] Prompt-Fragment mention=${effectiveSkillMention} quelle=${quelle} gewaehlt=${state.activeSkillMention ? 'ja' : 'agent-standard'}`
+    );
+  }
+
   // What broke in this turn, in the model's own words. A warning event is
   // telemetry only — without this block the model happily presents a degraded
   // turn as a complete one (answering an arithmetic question from memory after
