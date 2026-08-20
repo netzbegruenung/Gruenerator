@@ -343,6 +343,46 @@ describe('Tier 2 — context intents (resource presence only)', () => {
     const result = await classifierNode(state);
     expect(result.intent).toBe('summary');
   });
+
+  // Ein erzwungener Suchturn entscheidet, WIE er sammelt — nicht, was er
+  // schuldet. `documentSubtype` stand hier kurzzeitig, damit respondNode die
+  // bestellte Textsorte kennt; das Nomen sagt aber nur, dass das Wort FIEL.
+  // Auf genau diesen Pfaden ist die Abruf-Formulierung die haeufige („was steht
+  // in der Pressemitteilung", „fasse den Antrag zusammen"), und ein daraus
+  // gebauter Hinweis liesse das Modell schreiben statt suchen. Die bestellte
+  // Form haengt jetzt am Rezept (`getOrderedTextFormNote`).
+  describe('the forced search carries no Textsorte verdict', () => {
+    it.each([
+      ['attachment + default notebook', { defaultNotebookCollectionIds: ['berlin'] }],
+      ['@notebook', { notebookIds: ['nb-1'] }],
+      ['@document', { documentIds: ['doc-1'] }],
+      ['@dokumentchat', { documentChatIds: ['dc-1'] }],
+    ] as const)('stays a search on the %s path', async (_label, mention) => {
+      const state = buildState({
+        userMessage: 'schreibe darauf basierend einen Antrag für mehr Hitzeschutz für Alfter',
+        attachmentContext: 'Die Grünen fordern ein Abkühl-Sofortprogramm...',
+        ...mention,
+      });
+      const result = await classifierNode(state);
+      expect(result.intent).toBe('search');
+      expect(result.searchQuery).not.toBeNull();
+      expect(result.documentSubtype).toBeUndefined();
+    });
+
+    // Die Gegenprobe, die ein zu breites Praedikat gerissen haette: hier faellt
+    // kein Textsorten-Wort, und der Turn muss sich genauso verhalten wie zuvor.
+    it('leaves a plain reply request untouched', async () => {
+      const state = buildState({
+        userMessage: 'Antworte auf diese E-Mail einer Bürgerin:',
+        attachmentContext:
+          'Sehr geehrte Damen und Herren, wie steht Ihre Partei zur Stadtentwicklung in Pankow?',
+        defaultNotebookCollectionIds: ['berlin'],
+      });
+      const result = await classifierNode(state);
+      expect(result.intent).toBe('search');
+      expect(result.documentSubtype).toBeUndefined();
+    });
+  });
 });
 
 // ── EDGE CASES: Multi-resource combinations ──────────────────────────────

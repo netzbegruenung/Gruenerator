@@ -25,6 +25,15 @@ vi.mock('../../../../services/docs/docsIndex.js', () => ({ buildDocsPageMap: asy
 vi.mock('../../../../services/user/textFormRepository.js', () => ({
   getTextFormForInjection: async () => null,
 }));
+// Der Rezept-Rumpf liegt im privaten Repo und fehlt im Test-Lauf. Er wird hier
+// gestellt, weil die Formatregel am EINGESETZTEN Fragment haengt, nicht an der
+// Erwaehnung — ohne Rumpf gaebe es (richtigerweise) keinen Eigentuemer.
+vi.mock('../../../../services/skills/internalPrompts.js', () => ({
+  getInternalSkillPrompt: (mention: string) =>
+    mention.startsWith('presse')
+      ? 'Aufbau einer Pressemitteilung: Schlagzeile, Zitat, Kontakt.'
+      : null,
+}));
 
 const { buildSystemMessage } = await import('./respondNode.js');
 
@@ -93,5 +102,55 @@ describe('Formatregel — der Auftrag der*des Nutzer*in ist ein Eigentümer', ()
     );
     expect(prompt).toContain('Form und Umfang dieser Antwort sind oben bereits vorgegeben');
     expect(prompt).not.toContain(USER_OWNED);
+  });
+});
+
+/**
+ * Eine gewaehlte Textform ist der vierte Eigentuemer.
+ *
+ * Beta, 20.08.2026: `/presse mehr artenschutz in ludwigshafen` lief als
+ * `agentic` mit `retrievalExpected` und fiel damit in `research_expanded` —
+ * „Bis zu 6 Absaetze … gliedere sie mit Ueberschriften … setze sie als
+ * Aufzaehlung … **Fettung**". Genau das kam heraus, statt einer
+ * Pressemitteilung. Das Rezept stand im selben Prompt, nur ganz oben; diese
+ * Regel steht unter ANTWORT-REGELN, also zuletzt.
+ */
+describe('Formatregel — eine gewaehlte Textform ist ein Eigentuemer', () => {
+  const TEXTFORM_OWNED = 'Form und Umfang gibt die oben aktive Textform vor';
+
+  it('verdraengt die Rechercheform, die den Live-Ausfall erzeugt hat', async () => {
+    const prompt = await buildSystemMessage(state({ activeSkillMention: 'presse' }), {
+      retrievalExpected: true,
+    });
+    expect(prompt).toContain(TEXTFORM_OWNED);
+    expect(prompt).not.toContain('gliedere sie mit');
+    expect(prompt).not.toContain(GENERIC);
+  });
+
+  it('ohne Textform bleibt die Rechercheform stehen', async () => {
+    const prompt = await buildSystemMessage(state(), { retrievalExpected: true });
+    expect(prompt).toContain('gliedere sie mit');
+    expect(prompt).not.toContain(TEXTFORM_OWNED);
+  });
+
+  // Der Rumpf ist die Bedingung, nicht die Absicht: zeigt die Regel auf „oben",
+  // muss oben auch etwas stehen. `getInternalSkillPrompt` liefert fuer ein
+  // nicht ausgerolltes Rezept null.
+  it('schweigt, wenn zur Erwaehnung gar kein Rezepttext gefunden wurde', async () => {
+    const prompt = await buildSystemMessage(state({ activeSkillMention: 'gibtsnicht' }), {
+      retrievalExpected: true,
+    });
+    expect(prompt).not.toContain(TEXTFORM_OWNED);
+    expect(prompt).toContain('gliedere sie mit');
+  });
+
+  // Was die Person in DIESEM Turn schreibt, schlaegt das Rezept.
+  it('ein Formatvertrag im Auftrag gewinnt gegen die Textform', async () => {
+    const prompt = await buildSystemMessage(
+      state({ activeSkillMention: 'presse', taskShape: 'strict_format' }),
+      { retrievalExpected: true }
+    );
+    expect(prompt).toContain(USER_OWNED);
+    expect(prompt).not.toContain(TEXTFORM_OWNED);
   });
 });

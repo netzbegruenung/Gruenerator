@@ -229,6 +229,47 @@ describe('refineSearchQuery — wann er ablehnt, und was der Turn dann sucht', (
     expect(result.intent).toBe('search');
     expect(result.searchQuery).toBeTruthy();
   });
+
+  /**
+   * Live auf beta am 20.08.2026, und genau der Fall, den der Kommentar oben
+   * beschreibt: der Auflöser fiel aus, und die Heuristik hatte zu dieser
+   * Formulierung nichts zu sagen — die Einbettungssuche bekam
+   * „schreibe darauf basierend einen antrag für mehr hitzeschtutz für alfter",
+   * Tippfehler inklusive.
+   *
+   * Zwei Lücken auf einmal: „darauf basierend" stand nicht in den Füllwörtern,
+   * und „antrag" fehlte in der Nomenliste — obwohl die Liste die Textsorten der
+   * Partei tragen soll.
+   */
+  it('zerlegt eine Antragsbestellung mit Rückverweis auf das Material', async () => {
+    const result = await classifierNode(
+      buildForcedSearchState('Schreibe darauf basierend einen Antrag für mehr Hitzeschutz')
+    );
+    expect(result.searchQuery).toBe('mehr Hitzeschutz');
+  });
+
+  it('kennt die übrigen Antrags-Formen und den Beschluss', async () => {
+    for (const [message, erwartet] of [
+      ['Formuliere einen Antragstext zur Verkehrswende', 'Verkehrswende'],
+      ['Erstelle eine Beschlussvorlage zum Radverkehr', 'Radverkehr'],
+      ['Schreib daraus eine Resolution über Klimaschutz', 'Klimaschutz'],
+    ] as const) {
+      const result = await classifierNode(buildForcedSearchState(message));
+      expect(result.searchQuery, message).toBe(erwartet);
+    }
+  });
+
+  /**
+   * Die Nomen der Liste sind Präfixe echter Wörter. Ohne Wortgrenze schneidet
+   * `beschluss` mitten in „Beschlussempfehlung", und die Suche läuft mit
+   * „empfehlung zum Wärmeplan" — schlechter als die unveränderte Anweisung,
+   * und nichts im Log sagt, dass gekürzt wurde.
+   */
+  it('schneidet nicht in ein zusammengesetztes Wort hinein', async () => {
+    const message = 'Erstelle eine Beschlussempfehlung zum Wärmeplan';
+    const result = await classifierNode(buildForcedSearchState(message));
+    expect(result.searchQuery).toBe(message);
+  });
 });
 
 describe('refineSearchQuery — was er dem Modell schickt', () => {
