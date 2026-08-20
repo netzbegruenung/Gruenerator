@@ -271,7 +271,18 @@ export async function summarizeNode(state: ChatGraphState): Promise<Partial<Chat
 
     // Fallback: use raw attachment text if available
     if (state.attachmentContext) {
-      log.info('[Summarize] Using raw attachmentContext as fallback');
+      // Two very different situations reach this line. The ordinary one: the
+      // document was never vectorized (below the 12k threshold), so there was
+      // nothing to retrieve and the raw text IS the document — nothing to
+      // report. The other: Qdrant was asked and failed, and the raw text may be
+      // a TRUNCATED stand-in for what the user asked about. That one has to be
+      // said out loud; until 20.08.2026 both were one INFO line.
+      if (docRetrievalFailed) {
+        log.warn('[Summarize] Document retrieval failed — falling back to the raw attachment text');
+      } else {
+        log.info('[Summarize] Using raw attachmentContext as fallback');
+      }
+
       const text = state.attachmentContext;
       let summary: string;
 
@@ -282,6 +293,22 @@ export async function summarizeNode(state: ChatGraphState): Promise<Partial<Chat
       }
 
       const summaryTimeMs = Date.now() - startTime;
+      if (docRetrievalFailed) {
+        return {
+          summaryContext: summary,
+          summaryTimeMs,
+          // Same append rule as the conversation branch below: the live router
+          // merges node results with a plain spread.
+          degradationNotes: [
+            ...(state.degradationNotes ?? []),
+            {
+              code: 'summary_partial',
+              modelHint:
+                'Das angefragte Dokument konnte nicht vollständig geladen werden. Die Zusammenfassung stützt sich nur auf den unmittelbar angehängten Text und kann Teile des Dokuments auslassen. Weise am Anfang deiner Antwort darauf hin.',
+            },
+          ],
+        };
+      }
       return { summaryContext: summary, summaryTimeMs };
     }
 
