@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 import {
   AVAILABLE_MODELS,
@@ -10,8 +10,18 @@ import {
   prefersUnifiedLoop,
   resolveModelTuple,
 } from './providers.js';
+import { LOOP_SYNTH_FALLBACK, LOOP_SYNTH_PRIMARY, mayWriteAnswer } from './autoPolicy.js';
 
-const WRITER_MODELS = new Set(['gemma4-31b', 'verdigado-pro']);
+/**
+ * Die Lanes, die eine Nutzer-Antwort schreiben dürfen.
+ *
+ * `verdigado-pro` stand hier bis 19.08.2026 und war ein Irrtum, den der Name
+ * gedeckt hat: am LiteLLM-Proxy nachgemessen antwortet der Alias mit
+ * `model: "gpt-oss:120b-ctx128k"` — also mit genau dem Modell, das
+ * AVOID_AS_SYNTH ausschliesst. Die Ausweichkette bei zähem Primär zeigte
+ * damit auf ein Verbots-Modell.
+ */
+const WRITER_MODELS = new Set(['gemma4-31b', 'mistral-medium-2604']);
 
 describe('prefersUnifiedLoop (unified vs planner/executor split)', () => {
   it('Mistral (fast native tool-caller) runs the unified single-model loop', () => {
@@ -80,9 +90,33 @@ describe('split-mode model policy (getLoopSynthModel / loopPlannerModelName)', (
   });
 
   it('an explicit fast model selection is honored verbatim (no swap)', () => {
-    const choice = loopSynthChoice('verdigado-pro', false);
+    // gemma4-31b statt verdigado-pro: die Aussage des Tests ist „eine bewusste
+    // Wahl wird nicht umgeschrieben", und dafür braucht es eine Lane, die
+    // schreiben DARF. verdigado-pro ist seit der Proxy-Messung vom 19.08.2026
+    // keine mehr — siehe WRITER_MODELS.
+    const choice = loopSynthChoice('gemma4-31b', false);
     expect(choice.provider).toBeNull();
-    expect(choice.model).toBe('verdigado-pro');
+    expect(choice.model).toBe('gemma4-31b');
+  });
+
+  it('verdigado-pro schreibt nie die Antwort — der Alias ist gpt-oss', () => {
+    // Am Proxy gemessen (19.08.2026): der Alias antwortet mit
+    // `model: "gpt-oss:120b-ctx128k"`, und die Probe zeigt den Ausfallgrund
+    // gleich mit — `content: ""` bei gefuelltem `reasoning`. Im Abnahmelauf
+    // landete Planer-Text als Nutzer-Antwort („We will call gruenerator_search
+    // …"). Der Name verraet das Modell nicht, deshalb dieser Test.
+    for (const undecided of [true, false]) {
+      const choice = loopSynthChoice('verdigado-pro', undecided);
+      expect(choice.model).not.toBe('verdigado-pro');
+      expect(WRITER_MODELS.has(choice.model)).toBe(true);
+    }
+    expect(mayWriteAnswer({ model: 'verdigado-pro' })).toBe(false);
+  });
+
+  it('der erklaerte Synth-Ausweich ist selbst policy-konform', () => {
+    // Er war es nicht: LOOP_SYNTH_FALLBACK zeigte auf litellm/verdigado-pro.
+    expect(mayWriteAnswer({ model: LOOP_SYNTH_FALLBACK.model })).toBe(true);
+    expect(mayWriteAnswer({ model: LOOP_SYNTH_PRIMARY.model })).toBe(true);
   });
 
   it('never routes a Chinese model into the synth slot', () => {
@@ -228,5 +262,42 @@ describe('resolveModelTuple — size-aware overflow routing', () => {
     });
     expect(tuple!.provider).toBe('mistral');
     expect(tuple!.contextWindow).toBe(262_144);
+  });
+});
+
+/**
+ * Beide `getModel`-Türen müssen das Ausweich-Veto durchreichen.
+ *
+ * Es gibt ZWEI: die in `services/ai/providers.ts` und diese hier in
+ * `routes/chat/agents/providers.ts` — und die zweite ist die, die der ganze
+ * Chat-Pfad benutzt (`responseStreamingService`, Synth-Slot,
+ * `getLoopSynthFallbackModel`). Beim ersten Anlauf am 19.08.2026 war nur die
+ * erste gepatcht; das Veto reiste im Options-Objekt mit und wurde hier still
+ * verworfen. Der Fix bewirkte nichts.
+ *
+ * Warum der bestehende Test das nicht sah: er prüfte das an `getModel`
+ * ÜBERGEBENE Options-Objekt gegen eine Attrappe — also den Aufruf, nicht die
+ * Wirkung. Dieser Test greift deshalb an `pickHealthyTarget`, der Stelle, an
+ * der das Veto ankommen muss.
+ */
+describe('das Ausweich-Veto überlebt die zweite getModel-Tür', () => {
+  it('reicht acceptTarget an pickHealthyTarget durch', async () => {
+    const seen: unknown[] = [];
+    vi.doMock('../../../services/ai/modelSiblings.js', () => ({
+      pickHealthyTarget: (_p: string, _m: string, isAcceptable?: unknown) => {
+        seen.push(isAcceptable);
+        return null;
+      },
+    }));
+    vi.resetModules();
+    const fresh = await import('./providers.js');
+    const veto = (t: { model: string }) => t.model !== 'verdigado-pro';
+
+    fresh.getModel('regolo', 'gemma4-31b', { acceptTarget: veto });
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toBe(veto);
+    vi.doUnmock('../../../services/ai/modelSiblings.js');
+    vi.resetModules();
   });
 });

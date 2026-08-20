@@ -223,11 +223,6 @@ export interface FilterOptions {
   allowCreatedAt?: boolean | undefined;
 }
 
-export interface DedupeOptions {
-  limitPerDoc?: number | undefined;
-  maxTotal?: number | undefined;
-}
-
 export interface CollectionConfig {
   name: string;
   [key: string]: unknown;

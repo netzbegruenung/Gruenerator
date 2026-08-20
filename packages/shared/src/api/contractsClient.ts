@@ -25,7 +25,6 @@ import {
   itemUsageContract,
   userUsageContract,
   transparencyContract,
-  searchContract,
   globalSearchContract,
   researchContract,
   boardsContract,
@@ -251,7 +250,6 @@ const _contentClient = () => initClient(contentContract, CLIENT_OPTS);
 const _itemUsageClient = () => initClient(itemUsageContract, CLIENT_OPTS);
 const _userUsageClient = () => initClient(userUsageContract, CLIENT_OPTS);
 const _transparencyClient = () => initClient(transparencyContract, CLIENT_OPTS);
-const _searchClient = () => initClient(searchContract, CLIENT_OPTS);
 const _globalSearchClient = () => initClient(globalSearchContract, CLIENT_OPTS);
 const _researchClient = () => initClient(researchContract, CLIENT_OPTS);
 const _boardsClient = () => initClient(boardsContract, CLIENT_OPTS);
@@ -320,7 +318,6 @@ export interface ContractsClient {
   itemUsage: ReturnType<typeof _itemUsageClient>;
   userUsage: ReturnType<typeof _userUsageClient>;
   transparency: ReturnType<typeof _transparencyClient>;
-  search: ReturnType<typeof _searchClient>;
   globalSearch: ReturnType<typeof _globalSearchClient>;
   research: ReturnType<typeof _researchClient>;
   boards: ReturnType<typeof _boardsClient>;
@@ -403,7 +400,6 @@ export function getContractsClient(): ContractsClient {
     itemUsage: _itemUsageClient(),
     userUsage: _userUsageClient(),
     transparency: _transparencyClient(),
-    search: _searchClient(),
     globalSearch: _globalSearchClient(),
     research: _researchClient(),
     boards: _boardsClient(),

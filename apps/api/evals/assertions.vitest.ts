@@ -83,6 +83,34 @@ describe('runAssertions — each failure class we hit live', () => {
     expect(names(rs)['cited']).toBe(true);
   });
 
+  it('cited erkennt die Notizbuch-Drahtform [cite:N] (live 19.08.2026)', () => {
+    // `nb-at-locale`: 2.204 Zeichen Antwort, ZEHN Zitate im completion-Payload,
+    // und die Prüfung meldete „no [N] citation markers". Das Notizbuch setzt
+    // seine Marker als `[cite:N]` — `validateAndInjectCitations` schreibt jedes
+    // gültige `[N]` in diese Form um, die Oberfläche rendert sie als Chip. Die
+    // Prüfung kannte nur die Chat-Form `[N]` und meldete Rot für eine richtig
+    // belegte Antwort.
+    const rs = runAssertions(
+      trace({
+        fullText:
+          'Die Grünen Österreich setzen auf den Ausbau der Windkraft [cite:1] und ' +
+          'den Ausstieg aus fossilem Gas [cite:2][cite:3].',
+        sources: 10,
+      }),
+      { cited: true }
+    );
+    expect(names(rs)['cited']).toBe(true);
+  });
+
+  it('cited zählt eine Überzahl auch in der [cite:N]-Form', () => {
+    // Die Zusicherung darf durch die zweite Form nichts verlieren: ein Zitat
+    // jenseits der vorhandenen Quellen bleibt ein Fehlschlag.
+    const rs = runAssertions(trace({ fullText: 'Behauptung [cite:9].', sources: 2 }), {
+      cited: true,
+    });
+    expect(names(rs)['cited']).toBe(false);
+  });
+
   it('cited does NOT false-positive on numbered headings / ordinals / ranges (live multitopic answer)', () => {
     const rs = runAssertions(
       trace({
@@ -183,6 +211,14 @@ describe('runAssertions — each failure class we hit live', () => {
         })
       )['correctsFalsePremise']
     ).toBe(true);
+  });
+
+  it('warningsMustInclude reads the warning codes the turn emitted', () => {
+    const rs = runAssertions(trace({ warnings: ['deep_research_quota_spent'] }), {
+      warningsMustInclude: ['deep_research_quota_spent', 'search_degraded'],
+    });
+    expect(names(rs)['warning:deep_research_quota_spent']).toBe(true);
+    expect(names(rs)['warning:search_degraded']).toBe(false);
   });
 
   it('routing + latency assertions', () => {

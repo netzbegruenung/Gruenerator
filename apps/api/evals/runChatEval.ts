@@ -27,6 +27,11 @@
  *                   internalPromptsVerdict)
  *   EVAL_SLOW=1     include scenarios tagged `slow` (golden long threads)
  *   EVAL_NOTEBOOK=1 include notebook-surface scenarios (tagged `notebookLane`)
+ *   EVAL_LOOP_OFF=1 das Backend läuft mit CHAT_AGENT_LOOP=false — Turns mit
+ *                  `expectWhenLoopOff` prüfen dann jene Zusicherung
+ *   EVAL_DEEP_RESEARCH=1  include the real `@deepresearch` runs (tagged
+ *                   `deepResearchLane`). Minutes and money per run, and they
+ *                   spend the shared daily allowance — off by default.
  *   EVAL_SYSTEM_MCP=1  include scenarios that need the SYSTEM MCP servers
  *                   (bahn/wetter/news/hotel; tagged `systemMcpLane`). Ohne die
  *                   `SYSTEM_MCP_*_URL` am Backend weicht der Loop auf
@@ -72,6 +77,14 @@ const BYPASS = process.env.EVAL_BYPASS_TOKEN ?? '';
 const MODEL_ID = process.env.EVAL_MODEL_ID;
 const FILTER = process.env.EVAL_FILTER ?? '';
 const SLOW = process.env.EVAL_SLOW === '1';
+/**
+ * Der Operator sagt der Auswertung, dass das Backend mit `CHAT_AGENT_LOOP=false`
+ * läuft. Ein Szenario kann das nicht selbst wissen: die Flagge wird
+ * backend-seitig zur Request-Zeit gelesen, der Harness postet nur gegen einen
+ * Server, den jemand anders gestartet hat. Turns mit `expectWhenLoopOff`
+ * prüfen dann diese Zusicherung statt `expect`.
+ */
+const LOOP_OFF = process.env.EVAL_LOOP_OFF === '1';
 const CONCURRENCY = (() => {
   const n = Number.parseInt(process.env.EVAL_CONCURRENCY ?? '', 10);
   return Number.isInteger(n) && n >= 1 ? n : 1;
@@ -107,6 +120,7 @@ function selectedCorpus(): EvalScenario[] {
     mcp: process.env.EVAL_MCP === '1',
     notebook: process.env.EVAL_NOTEBOOK === '1',
     systemMcp: process.env.EVAL_SYSTEM_MCP === '1',
+    deepResearch: process.env.EVAL_DEEP_RESEARCH === '1',
   });
 }
 
@@ -270,7 +284,11 @@ async function runTurn(
     }
   }
 
-  const assertions = runAssertions(trace, turn.expect, scenarioCtx);
+  // §5(b) des R2-Abnahme-Berichts: mit ausgeschalteter Schleife beschreibt
+  // `expect` teils den falschen Zustand. Ein Turn, der das weiss, trägt seine
+  // Wirkungs-Zusicherung für diesen Fall selbst mit.
+  const effectiveExpect = LOOP_OFF && turn.expectWhenLoopOff ? turn.expectWhenLoopOff : turn.expect;
+  const assertions = runAssertions(trace, effectiveExpect, scenarioCtx);
 
   // Thread the context forward.
   if (trace.threadId && !ctx.threadId) ctx.threadId = trace.threadId;
@@ -309,8 +327,8 @@ async function runTurn(
     error: trace.error,
     assertions,
     passed: assertions.every((a) => a.pass),
-    ...(turn.expect.judge ? { judge: turn.expect.judge } : {}),
-    ...(turn.expect.judgeFacts ? { judgeFacts: turn.expect.judgeFacts } : {}),
+    ...(effectiveExpect.judge ? { judge: effectiveExpect.judge } : {}),
+    ...(effectiveExpect.judgeFacts ? { judgeFacts: effectiveExpect.judgeFacts } : {}),
   };
 }
 
