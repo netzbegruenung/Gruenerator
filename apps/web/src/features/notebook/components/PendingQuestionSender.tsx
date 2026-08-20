@@ -35,7 +35,12 @@ export function PendingQuestionSender() {
       } catch (err) {
         console.warn('[PendingQuestionSender] Failed to send question:', err);
       }
-      void navigate(location.pathname, { replace: true, state: null });
+      // Only the router state is being cleared here — keep the query string,
+      // which by now may carry the `?thread=` of the conversation just started.
+      void navigate(
+        { pathname: location.pathname, search: window.location.search },
+        { replace: true, state: null }
+      );
     }, 400);
 
     return () => clearTimeout(timer);
