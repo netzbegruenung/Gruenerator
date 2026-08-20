@@ -819,18 +819,35 @@ export const docsContractRouter = s.router(docsContract, {
       const doc = await getOwnedShareRow(args.params.id, userId);
       if (doc.kind !== 'ok') return doc.response;
 
+      // Same safe default as setShareMode('public'): a freshly-public link is
+      // view-only, otherwise 'public' + 'editor' (the column default) grants any
+      // anonymous visitor write access over the WebSocket guest path.
+      const currentPermission = doc.row.share_permission ?? 'editor';
+      const nextPermission =
+        doc.row.share_mode !== 'public' && currentPermission === 'editor'
+          ? 'viewer'
+          : currentPermission;
+
       await db.query(
         `UPDATE collaborative_documents
-         SET is_public = true, share_mode = 'public', updated_at = CURRENT_TIMESTAMP
+         SET is_public = true,
+             share_mode = 'public',
+             share_permission = $2,
+             permissions = (
+               SELECT COALESCE(jsonb_object_agg(key, value), '{}'::jsonb)
+               FROM jsonb_each(COALESCE(permissions, '{}'::jsonb))
+               WHERE value->>'granted_by' IS DISTINCT FROM $3
+             ),
+             updated_at = CURRENT_TIMESTAMP
          WHERE id = $1`,
-        [args.params.id]
+        [args.params.id, nextPermission, GRANTED_BY_SHARE_LINK]
       );
 
       return {
         status: 200 as const,
         body: {
           is_public: true,
-          share_permission: doc.row.share_permission ?? 'editor',
+          share_permission: nextPermission,
           share_mode: 'public',
         },
       };

@@ -46,6 +46,14 @@ const setSharePermission = (permission: 'viewer' | 'editor', userId = 'owner-1')
     }) => Promise<ShareResult>
   )({ req: req(userId), params: { id: 'doc-1' }, body: { permission } });
 
+const enableSharing = (userId = 'owner-1') =>
+  (
+    docsContractRouter.enableSharing as unknown as (a: {
+      req: Request;
+      params: { id: string };
+    }) => Promise<ShareResult>
+  )({ req: req(userId), params: { id: 'doc-1' } });
+
 const setShareMode = (mode: 'private' | 'authenticated' | 'public', userId = 'owner-1') =>
   (
     docsContractRouter.setShareMode as unknown as (a: {
@@ -118,5 +126,31 @@ describe('setShareMode', () => {
   it('rejects a non-owner with 403', async () => {
     const res = await setShareMode('public', 'stranger-2');
     expect(res.status).toBe(403);
+  });
+});
+
+describe('enableSharing', () => {
+  it('defaults a freshly-public link to viewer and strips auto-grants', async () => {
+    const res = await enableSharing();
+    expect(res.status).toBe(200);
+    expect(res.body.is_public).toBe(true);
+    expect(res.body.share_mode).toBe('public');
+    expect(res.body.share_permission).toBe('viewer');
+    const update = lastUpdate();
+    expect(update?.[1]).toContain('viewer');
+    expect(update?.[0]).toMatch(/jsonb_object_agg/i);
+    expect(update?.[1]).toContain('auto:share_link');
+  });
+
+  it('does not downgrade a document that is already public + editor', async () => {
+    primeDb(ownedRow({ is_public: true, share_mode: 'public', share_permission: 'editor' }));
+    const res = await enableSharing();
+    expect(res.body.share_permission).toBe('editor');
+  });
+
+  it('rejects a non-owner with 403', async () => {
+    const res = await enableSharing('stranger-2');
+    expect(res.status).toBe(403);
+    expect(lastUpdate()).toBeUndefined();
   });
 });
