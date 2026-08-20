@@ -44,8 +44,20 @@ export type ForcedLane =
   | 'pipeline';
 
 /**
- * Seit Phase N trägt `loop` nur noch EINEN Grund: für diese Intents gibt es
- * keinen Einzeldurchlauf.
+ * `loop` trägt wieder ZWEI Gründe, und der Unterschied ist der Grund, warum
+ * `mustLoop` und `forcedLoop` im Entscheider getrennt sind.
+ *
+ * Phase N hatte sie auf einen eingedampft („für diese Intents gibt es keinen
+ * Einzeldurchlauf"), weil nach dem Fall der Parlaments-Türen keiner mehr übrig
+ * war, der einen HATTE. Mit Phase R3 sind es drei: `research`/`search`/`web`
+ * haben ihre Executoren (`intentHandlers/searchBranch.ts` lebt weiter, er
+ * bedient jeden Turn, den ein Notausschalter aus der Schleife hält) und tragen
+ * `loop` trotzdem — weil eine ERWÄHNUNG dort besser bedient ist. Dasselbe
+ * Argument wie bei `bundestag`, nur für die letzte Familie, die es noch nicht
+ * gehört hatte.
+ *
+ * Wer hier einträgt, muss deshalb wieder sagen, WELCHER der beiden Gründe
+ * gemeint ist — die `degradeTo`-Pflicht unten hängt nur am ersten.
  *
  * `mcp`/`hilfe` war das immer schon — `executeIntentPipeline` hat für sie gar
  * keinen Zweig, ein Einzeldurchlauf liesse den Turn ohne Ausführenden. Diese
@@ -69,10 +81,13 @@ export type ForcedLane =
  * degradiert `fallbackIntentFor` über das `degradeTo` der Registry, statt den
  * Turn stranden zu lassen.
  *
- * **Wer hier einen Intent einträgt, trägt ihm ein `degradeTo` nach** — sonst
- * gibt es einen Zustand (Notausschalter greift), in dem niemand den Turn
- * ausführt. `mcp` ist die begründete Ausnahme: für ihn wäre eine Websuche keine
- * Degradierung, sondern eine andere Quelle als die gewählte.
+ * **Wer hier einen Intent OHNE Einzeldurchlauf einträgt, trägt ihm ein
+ * `degradeTo` nach** — sonst gibt es einen Zustand (Notausschalter greift), in
+ * dem niemand den Turn ausführt. `mcp` ist die begründete Ausnahme: für ihn
+ * wäre eine Websuche keine Degradierung, sondern eine andere Quelle als die
+ * gewählte. Für die drei aus R3 gilt die Pflicht NICHT und darf nicht gelten:
+ * sie sind das Ziel der Degradierung, ein `degradeTo` an ihnen liesse einen
+ * ausgesperrten `search`-Turn ein zweites Mal weiterfallen.
  */
 export const FORCED_LANE_BY_INTENT: Record<ChatIntentId, ForcedLane> = {
   // ── loop — es gibt keinen Einzeldurchlauf für sie ─────────────────────────
@@ -83,6 +98,33 @@ export const FORCED_LANE_BY_INTENT: Record<ChatIntentId, ForcedLane> = {
   bundestag: 'loop',
   abgeordnetenwatch: 'loop',
 
+  // ── loop — sie HABEN einen Einzeldurchlauf, die Erwähnung gehört trotzdem
+  //    in die Schleife (Phase R3) ────────────────────────────────────────────
+  //
+  // Die Suchfamilie. Im Loop war sie schon vor dem Flip ununterscheidbar — der
+  // Werkzeugkatalog kennt keinen einzigen Intent-Zweig (R1 §4) —, nur die
+  // Erwähnung nahm sie heraus: `forcedTool` ist in `decideRunAgentic` ein
+  // Loop-Notausschalter, und ohne eine Zeile hier hebt ihn niemand auf.
+  //
+  // Was die Erwähnung damit gewinnt, ist dasselbe wie bei `bundestag`: der
+  // Einzeldurchlauf ruft genau eine Suche und schreibt darüber, die Schleife
+  // kann nachfassen, Quellen mischen und bei leerem Ergebnis ausweichen. Was
+  // sie NICHT verliert, ist die Zielsicherheit — die Erwähnung zurrt zusätzlich
+  // ihr Werkzeug fest (`IntentMention.pinsTool`: `web_search` bzw.
+  // `gruenerator_search`), sonst griffe das Modell zur generischen Suche, weil
+  // der Erwähnungstext vor ihm entfernt wird.
+  //
+  // Kein `degradeTo` an den dreien, und das ist Absicht: sie sind das ZIEL der
+  // Degradierung (`agentic` → `search`, System-Tool → `web`). Ein Ziel, das
+  // selbst weiterfällt, ist kein Ziel.
+  //
+  // `@deepresearch` ist eine Variante von `research` und wäre hier
+  // mitgerissen worden — der Entscheider nimmt es über `deepResearchRequested`
+  // ausdrücklich aus, siehe `decideTurnPlan`.
+  research: 'loop',
+  search: 'loop',
+  web: 'loop',
+
   // ── pipeline — eigene Erstellroute, dispatcht auf den forcedTool-String ────
   save_as_doc: 'pipeline',
   create_sheet: 'pipeline',
@@ -91,8 +133,6 @@ export const FORCED_LANE_BY_INTENT: Record<ChatIntentId, ForcedLane> = {
 
   // ── single-pass ───────────────────────────────────────────────────────────
   // Erwähnbar und heute per Einzeldurchlauf bedient.
-  research: 'single-pass',
-  search: 'single-pass',
   examples: 'single-pass',
   chat_history: 'single-pass',
   image: 'single-pass',
@@ -106,7 +146,6 @@ export const FORCED_LANE_BY_INTENT: Record<ChatIntentId, ForcedLane> = {
   // `sharepic` oben ist das keine Hypothese: die Verfeinerungs-Heuristik in
   // `earlyHandlerStage` setzt `forcedTool` ohne jede Erwähnung.
   compare: 'single-pass',
-  web: 'single-pass',
   scrape_url: 'single-pass',
   artifact: 'single-pass',
   create_recurring_task: 'single-pass',

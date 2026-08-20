@@ -49,6 +49,7 @@ const base: TurnPlanInput = {
   hasOpenBoardSurface: false,
   hasNamedBoard: false,
   isSharepicRefinement: false,
+  deepResearchRequested: false,
   pipelineForceIntent: null,
   mentionPinnedTool: null,
   mentionPinnedArtifactKind: null,
@@ -436,37 +437,103 @@ describe('decideTurnPlan — der Degradierungsfall der Loop-Achse', () => {
 });
 
 /**
- * Der IST-Stand der Suchfamilie am Erwähnungs-Pfad, festgenagelt VOR dem
- * Lane-Flip aus Phase R3 — damit der Flip als Diff in Zusicherungen erscheint
- * und nicht nur als Zeilenänderung in einer Tabelle.
+ * Die Suchfamilie am Erwähnungs-Pfad, nach dem Lane-Flip aus Phase R3.
  *
- * Und mit ihm der Befund, der den Flip gefährlich macht: `@deepresearch` ist
- * eine VARIANTE von `research` (`forcedIntentStage` setzt genau denselben
- * Intent plus `forcedTool`), und der Entscheider bekommt heute kein einziges
- * Feld, an dem er die beiden unterscheiden könnte. Solange die Familie
- * `single-pass` trägt, ist das folgenlos — beide bleiben einzeln. Ab dem Flip
- * wäre es der stille Tod des Dossier-Wegs: seine beiden Engines lesen
- * `deepResearchRequested` ausschliesslich im Einzeldurchlauf
- * (`intentHandlers/searchBranch.ts`), ein in die Schleife gehobener Turn liefe
- * als gewöhnliche Recherche weiter und niemand sähe einen Fehler.
+ * Vor dem Flip stand hier der IST-Stand — `single-pass` für alle drei — und mit
+ * ihm der Befund, der den Flip gefährlich machte: `@deepresearch` ist eine
+ * VARIANTE von `research` (`forcedIntentStage` setzt genau denselben Intent
+ * plus `forcedTool`), und der Entscheider hatte kein Feld, an dem er die beiden
+ * trennen konnte. Genau dieses Feld ist jetzt da.
  */
-describe('decideTurnPlan — die Suchfamilie am Erwähnungs-Pfad (IST vor dem R3-Flip)', () => {
+describe('decideTurnPlan — die Suchfamilie am Erwähnungs-Pfad (nach dem R3-Flip)', () => {
   it.each(['research', 'search', 'web'] as const)(
-    '%s: eine Erwähnung hält den Turn im Einzeldurchlauf',
+    '%s: eine Erwähnung führt den Turn in die Schleife',
     (intent) => {
       const p = plan({ intent, forcedTool: true });
-      expect(p.lane).toBe('single-pass');
-      expect(p.runAgentic).toBe(false);
+      expect(p.lane).toBe('loop');
+      expect(p.runAgentic).toBe(true);
+      // Die Lane wechselt, der Intent nicht — daran hängen Auto-Politik,
+      // Formatregel und die Zitatform, und sie sollen sich NICHT mitbewegen.
       expect(p.intent).toBe(intent);
     }
   );
 
-  it('@deepresearch ist am Entscheider nicht von @recherche zu unterscheiden', () => {
-    // Was `forcedIntentStage` für `@deepresearch` setzt, in den Feldern, die
-    // dieser Entscheider überhaupt sieht.
-    const deep = plan({ intent: 'research', forcedTool: true, mentionPinnedTool: null });
-    const recherche = plan({ intent: 'research', forcedTool: true, mentionPinnedTool: null });
-    expect(deep).toEqual(recherche);
+  /**
+   * Die Ausnahme, und der ganze Grund für `deepResearchRequested` am
+   * Entscheider. Ohne sie liefe der Dossier-Turn als gewöhnliche
+   * Loop-Recherche — lautlos, weil beide Engines und das gemeinsame Kontingent
+   * ausschliesslich im Einzeldurchlauf gelesen werden.
+   */
+  it('@deepresearch bleibt einzeln — der Flip reisst ihn nicht mit', () => {
+    const p = plan({ intent: 'research', forcedTool: true, deepResearchRequested: true });
+    expect(p.lane).toBe('single-pass');
+    expect(p.runAgentic).toBe(false);
+    expect(p.intent).toBe('research');
+  });
+
+  /**
+   * Und die Ausnahme gilt nur ihm: derselbe Turn ohne das Flag ist ein
+   * gewöhnlicher `@recherche`-Turn und geht in die Schleife. Die beiden Fälle
+   * nebeneinander, weil sie in jedem anderen Feld identisch sind.
+   */
+  it('unterscheidet @deepresearch und @recherche an genau diesem einen Feld', () => {
+    const deep = plan({ intent: 'research', forcedTool: true, deepResearchRequested: true });
+    const recherche = plan({ intent: 'research', forcedTool: true });
     expect(deep.lane).toBe('single-pass');
+    expect(recherche.lane).toBe('loop');
+  });
+
+  /**
+   * Die Notizbuch-Sperre, und warum der Flip sie nicht anfasst: `forcedLoop`
+   * hebt NUR den forcedTool-Notausschalter auf, `mustLoop` hebt auch die
+   * Sperre. Ein `@dokumente`-Turn trägt seinen Intent (`search`), also wird
+   * `mustLoop` nicht wahr — der Werkzeug-Pin macht das nur für einen Turn, den
+   * gar kein Intent trägt (`agentic`, siehe `@umfragen`).
+   *
+   * Der Unterschied ist keine Feinheit: nur `searchNode` holt
+   * Notizbuch-Inhalte, kein Loop-Werkzeug kann eine Wissenssammlung
+   * adressieren. Ein in die Schleife gehobener Turn beantwortete die Frage
+   * still an der gewählten Sammlung vorbei.
+   */
+  it('lässt @dokumente mit gewählter Wissenssammlung im Einzeldurchlauf', () => {
+    const p = plan({
+      intent: 'search',
+      forcedTool: true,
+      mentionPinnedTool: 'gruenerator_search',
+      hasSelectedNotebook: true,
+    });
+    expect(p.lane).toBe('single-pass');
+    expect(p.runAgentic).toBe(false);
+    expect(p.intent).toBe('search');
+  });
+
+  it('dasselbe für @recherche — die Sperre kennt keine Quellenart', () => {
+    const p = plan({
+      intent: 'research',
+      forcedTool: true,
+      mentionPinnedTool: 'web_search',
+      hasSelectedNotebook: true,
+    });
+    expect(p.lane).toBe('single-pass');
+  });
+
+  /**
+   * Die übrigen Notausschalter, unverändert: ein Verbund-Turn und ein Turn mit
+   * Bildanhang bleiben einzeln, auch mit Erwähnung und Pin.
+   */
+  it.each([
+    ['Verbund', { isCompound: true }],
+    ['Bildanhang', { hasImageAttachments: true }],
+    ['zweiter Intent', { secondaryIntent: 'image' }],
+    ['Schleife aus', { loopEnabled: false }],
+  ] as const)('%s hält den erwähnten Turn weiterhin einzeln', (_name, over) => {
+    const p = plan({
+      intent: 'search',
+      forcedTool: true,
+      mentionPinnedTool: 'gruenerator_search',
+      ...over,
+    });
+    expect(p.lane).toBe('single-pass');
+    expect(p.intent).toBe('search');
   });
 });

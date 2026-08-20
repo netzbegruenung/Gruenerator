@@ -313,6 +313,14 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
       description: 'Web & Quellen – automatische Suchtiefe',
       avatar: '🔬',
       backgroundColor: '#7C3AED',
+      // Seit dem Lane-Flip (Phase R3) läuft dieser Turn in der Schleife, und
+      // dort ist der Erwähnungstext für das Modell entfernt
+      // (`sanitizeMessageMentions`) — ohne Pin griffe es zur generischen Suche.
+      // Die Suchtiefe kommt NICHT von hier: `web_search` hat `gruendlich` als
+      // Schema-Voreinstellung und klemmt ein angefordertes `standard` dorthin
+      // hoch, also genau die Stufe, die der Intent-Default des
+      // Einzeldurchlaufs gegeben hätte (`resolveSearchTier`).
+      pinsTool: 'web_search',
     },
     // @deepresearch is a VARIANT, not an intent of its own: same class of work,
     // same routing, only the engine and the output shape differ. It must be
@@ -348,6 +356,12 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
       description: 'Parteiprogramme & Beschlüsse durchsuchen',
       avatar: '📄',
       backgroundColor: '#316049',
+      // Zwilling zu `@recherche`, andere Quelle. Hebt die Notizbuch-Sperre
+      // NICHT auf: der Pin macht `mustLoop` nur wahr, wenn kein Intent den Turn
+      // trägt (`intent === 'agentic'`) — hier trägt ihn `search`, also bleibt
+      // ein Turn mit gewählter Wissenssammlung im Einzeldurchlauf, wo als
+      // einziges die Notizbuch-Suche liegt.
+      pinsTool: 'gruenerator_search',
     },
   },
   web: {

@@ -290,12 +290,66 @@ export const LOOP_SCENARIOS: readonly LoopScenario[] = [
       { point: 'router.intent_override', chose: 'loop_only_degraded' },
     ],
   },
+  // Die drei Zugaenge aus Phase R3. Bis dahin stand hier EIN Szenario
+  // (`mention-dokumente-einzeln`) mit der Begruendung „`@dokumente` traegt
+  // `forcedLane: single-pass`, der Notausschalter greift also weiter" — es war
+  // der Gegenbeweis dafuer, dass Phase K nur die Parlaments-Erwaehnungen meinte.
+  // Genau diese Aussage hat der Lane-Flip aufgehoben; sie steht jetzt umgedreht
+  // da, und daneben die drei Grenzen, die er NICHT verschoben hat.
   {
-    id: 'mention-dokumente-einzeln',
+    id: 'mention-dokumente-loop',
     category: 'mention-lane',
-    note: 'Gegenstueck: `@dokumente` (Intent `search`) traegt `forcedLane: single-pass`, der Notausschalter greift also weiter. Beweist, dass der Flip die beiden Quellen meint und nicht das Gate allgemein geoeffnet hat.',
+    note: 'Keine Modellannahme: `@dokumente` zurrt Intent UND Werkzeug deterministisch fest, der erste Aufruf ist damit benannt statt geraten. Die Dokumentensuche ist gestubbt wie jedes andere Suchbackend.',
     prompt: 'Was liegt zum Heizungsgesetz vor?',
     body: { forcedTools: ['search'] },
+    streams: [
+      { calls: [{ tool: 'gruenerator_search', args: { query: 'Heizungsgesetz' } }] },
+      { text: GERMAN_ANSWER },
+    ],
+    mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
+    // Der Pin ist die Haelfte des Flips, die ohne Zusicherung unsichtbar waere:
+    // im Loop ist der Erwaehnungstext fuer das Modell entfernt, ohne Pin griffe
+    // es zur generischen Suche statt zu der Quelle, die die Person gewaehlt hat.
+    firstToolChoice: 'gruenerator_search',
+  },
+  {
+    id: 'mention-recherche-loop',
+    category: 'mention-lane',
+    note: 'Zwilling mit der anderen Quelle: `@recherche` zurrt `web_search` fest. Keine Modellannahme — Erwaehnung und Pin sind deterministisch, die Websuche ist gestubbt.',
+    prompt: 'Was liegt zum Heizungsgesetz vor?',
+    body: { forcedTools: ['research'] },
+    streams: [
+      { calls: [{ tool: 'web_search', args: { query: 'Heizungsgesetz' } }] },
+      { text: GERMAN_ANSWER },
+    ],
+    mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
+    firstToolChoice: 'web_search',
+  },
+  // Die Grenze, an der der Flip haette danebengehen koennen. `@deepresearch`
+  // ist eine VARIANTE von `research` und traegt dessen Registry-Zeile mit; ohne
+  // `deepResearchRequested` am Entscheider waere der Dossier-Weg lautlos
+  // gestorben, weil seine beiden Engines und das gemeinsame Kontingent
+  // ausschliesslich im Einzeldurchlauf gelesen werden.
+  {
+    id: 'mention-deepresearch-einzeln',
+    category: 'mention-lane',
+    note: 'Keine Modellannahme: gemessen wird allein die LANE, und die faellt deterministisch (`@deepresearch` setzt `deepResearchRequested`, der Entscheider nimmt genau das aus der Achse). Welche der beiden Tiefenrecherche-Engines danach greift und was sie liefert, ist hier gleichgueltig und ohne Schluessel ohnehin keine.',
+    prompt: 'Was liegt zum Heizungsgesetz vor?',
+    body: { forcedTools: ['deepresearch'] },
+    streams: [],
+    mustDecide: [{ point: 'router.run_agentic', chose: 'single_pass' }],
+  },
+  // Und die Grenze, die das Produkt am teuersten bezahlt haette: nur
+  // `searchNode` holt Notizbuch-Inhalte, kein Loop-Werkzeug kann eine
+  // Wissenssammlung adressieren. `forcedLoop` hebt den forcedTool-Schalter auf,
+  // die Notizbuch-Sperre NICHT — sonst haette der Turn die Frage still an der
+  // gewaehlten Sammlung vorbei beantwortet.
+  {
+    id: 'mention-dokumente-notizbuch-einzeln',
+    category: 'mention-lane',
+    note: 'Keine Modellannahme: gemessen wird allein die LANE. Der Inhalt der Sammlung ist gleichgueltig — die Sperre haengt an ihrer ANWESENHEIT im Request. Die id muss trotzdem eine echte Systemsammlung sein: `buildStreamContext` filtert unaufloesbare Kennungen weg, ein Platzhalter kaeme also gar nicht am Entscheider an.',
+    prompt: 'Was liegt zum Heizungsgesetz vor?',
+    body: { forcedTools: ['search'], notebookIds: ['gruenerator-notebook'] },
     streams: [],
     mustDecide: [{ point: 'router.run_agentic', chose: 'single_pass' }],
   },

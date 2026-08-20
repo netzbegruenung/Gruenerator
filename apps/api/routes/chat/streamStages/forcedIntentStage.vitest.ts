@@ -116,10 +116,21 @@ describe('@umfragen — Erwähnung ohne Intent', () => {
   // `@umfragen @recherche`: die Such-Familie überschreibt den Intent, also ist
   // der Werkzeug-Pin überholt. Vorher tat das die Prüfung `pinned !== intent`
   // in `pinnedFirstTool`; jetzt löscht der Überschreibende ausdrücklich.
-  it('eine spätere Suchklassen-Erwähnung löscht den Pin', async () => {
+  // Seit dem Lane-Flip (Phase R3) LÖSCHT die Suchklassen-Erwähnung den Pin nicht
+  // mehr, sie ERSETZT ihn durch ihren eigenen — die Aussage ist dieselbe
+  // („`@umfragen @recherche` heisst Recherche, nicht PolitPro"), nur trägt sie
+  // jetzt auch die Quelle. `@deepresearch` bleibt der Fall, der wirklich löscht:
+  // sein Weg hat gar kein Loop-Werkzeug.
+  it('eine spätere Suchklassen-Erwähnung ersetzt den Pin durch ihr eigenes Werkzeug', async () => {
     const { state } = await run(['umfragen', 'research']);
     expect(state.intent).toBe('research');
-    expect(state.mentionPinnedTool).toBe(null);
+    expect(state.mentionPinnedTool).toBe('web_search');
+  });
+
+  it('und mit @dokumente entsprechend die Dokumentensuche', async () => {
+    const { state } = await run(['umfragen', 'search']);
+    expect(state.intent).toBe('search');
+    expect(state.mentionPinnedTool).toBe('gruenerator_search');
   });
 
   it('@deepresearch ebenso', async () => {
@@ -160,7 +171,9 @@ describe('@pressemitteilungen — Erwähnung ohne Intent, mit Rezept', () => {
   it('eine spätere Erwähnung ohne Rezept löscht das Rezept nicht', async () => {
     const { state } = await run(['pressemitteilung_examples', 'research']);
     expect(state.intent).toBe('research');
-    expect(state.mentionPinnedTool).toBe(null);
+    // Das WERKZEUG wechselt (die letzte Erwähnung gewinnt), das REZEPT bleibt —
+    // genau der Unterschied, um den es in Phase L ging.
+    expect(state.mentionPinnedTool).toBe('web_search');
     expect(state.activeSkillMention).toBe('presse');
   });
 });
