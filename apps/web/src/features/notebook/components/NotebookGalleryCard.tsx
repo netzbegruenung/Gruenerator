@@ -81,12 +81,20 @@ const NotebookGalleryCard = memo(
       return (
         <div className={rootClass}>
           {/* One stretched-button tab stop activates the card; the menu/action
-              controls (z-10) stay reachable as their own siblings. */}
+              controls (z-20) stay reachable as their own siblings.
+
+              Das z-10 ist gemessen, nicht dekorativ: `coverNode` (NotebookCoverArt)
+              ist selbst `position: relative` und landet damit in derselben
+              Mal-Ebene wie ein `z-0`-Knopf — in Baumreihenfolge DAHINTER, also
+              darüber. Der Klick auf die Karte traf dann das Cover statt den
+              Knopf und tat nichts (Landesverbände mit `coverImage` blieben heil,
+              weil ein nicht positioniertes <img> eine Ebene tiefer malt).
+              jsdom hat kein Layout — eine RTL-Zusicherung sieht das nie. */}
           <button
             type="button"
             aria-label={title}
             onClick={onActivate}
-            className="absolute inset-0 z-0 rounded-[inherit] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-600"
+            className="absolute inset-0 z-10 rounded-[inherit] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-600"
           />
           <div className="aspect-square overflow-hidden bg-grey-50 dark:bg-grey-800/40">
             {coverImage ? (
@@ -102,7 +110,7 @@ const NotebookGalleryCard = memo(
             )}
           </div>
           {(action || menu) && (
-            <div className="absolute right-2 top-2 z-10 flex items-center gap-1">
+            <div className="absolute right-2 top-2 z-20 flex items-center gap-1">
               {action && (
                 // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- fängt nur den Klick/Tastendruck ab, damit er nicht die Karte aktiviert
                 <div
