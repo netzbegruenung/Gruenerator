@@ -5,6 +5,17 @@ export { cn } from './lib/cn';
 export { useIsMobile } from './hooks/use-mobile';
 export { useIsNarrowerThan, useContainerWidth } from './hooks/use-container-width';
 export {
+  useScreenCornerReservation,
+  useMeasuredCornerReservation,
+  useCornerClearance,
+  cornerInsetStyle,
+  SCREEN_CORNERS,
+  type ScreenCorner,
+  type CornerClearance,
+  type CornerReservation,
+  type MeasuredCornerReservation,
+} from './hooks/use-screen-corner';
+export {
   ResponsiveMenu,
   ResponsiveMenuSection,
   ResponsiveMenuItem,
