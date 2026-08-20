@@ -1,4 +1,4 @@
-import { InteractiveCard, interactiveCardControl } from '@gruenerator/ui';
+import { InteractiveCard } from '@gruenerator/ui';
 import { ExternalLink, Heart, Image as ImageIcon, Link as LinkIcon } from 'lucide-react';
 import { memo, type JSX, type ReactNode } from 'react';
 
@@ -104,12 +104,11 @@ const VorlagenCard = memo(
           )}
 
           {hasOverlay && (
-            <div
-              className={cn(
-                'absolute right-2.5 top-2.5 flex items-center gap-2',
-                interactiveCardControl
-              )}
-            >
+            // z-[2] statt `interactiveCardControl`: dessen `relative` würde das
+            // `absolute` hier aufheben — Tailwind gibt `.relative` NACH `.absolute`
+            // aus, gleiche Spezifität, also gewinnt das Falsche und die Knöpfe
+            // rutschen aus der Ecke in den Bildfluss.
+            <div className="absolute right-2.5 top-2.5 z-[2] flex items-center gap-2">
               {badge != null && <span className="pointer-events-none">{badge}</span>}
               {onToggleLike && (
                 <button
