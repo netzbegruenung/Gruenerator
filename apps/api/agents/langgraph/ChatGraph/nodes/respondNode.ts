@@ -1029,6 +1029,36 @@ function getForbiddenActionNote(state: ChatGraphState): string {
 const SEARCH_GUIDANCE =
   '\nDu hast Recherche-Ergebnisse erhalten. Beantworte die Frage primär aus diesen Ergebnissen und zitiere sie inline.';
 
+/** German label per document subtype, for the deliverable note below. */
+const SUBTYPE_LABELS: Record<string, string> = {
+  pressemitteilung: 'eine Pressemitteilung',
+  antrag: 'einen Antrag',
+  protokoll: 'ein Protokoll',
+  redaktionsplan: 'einen Redaktionsplan',
+  checkliste: 'eine Checkliste',
+  einladung: 'eine Einladung',
+  notizen: 'Notizen',
+  tabelle: 'eine Tabelle',
+};
+
+/**
+ * A researching turn that was ALSO asked for a document.
+ *
+ * Some turns are forced to `search` for HOW they gather, not for what they owe:
+ * a notebook-bound agent must research before it writes, so "schreibe darauf
+ * basierend einen Antrag …" classifies as `search`. Without this note it gets
+ * SEARCH_GUIDANCE alone and answers with a sourced summary — right research,
+ * wrong deliverable (live 20.08.2026).
+ *
+ * Fires only when the user NAMED a Textsorte, so an ordinary research question
+ * is untouched.
+ */
+function getDeliverableNote(state: ChatGraphState): string {
+  const label = state.documentSubtype ? SUBTYPE_LABELS[state.documentSubtype] : undefined;
+  if (!label) return '';
+  return `\nDer*die Nutzer*in hat ${label} verlangt. Die Recherche ist das Mittel, nicht das Ergebnis: Liefere den fertigen Text in der passenden Form, nicht eine Zusammenfassung der Quellenlage darüber.`;
+}
+
 // Calibration, not fabrication. "Erfinde keine Fakten" already bans inventing;
 // it says nothing about how SURE to sound about something a source itself marks
 // as unresolved. Observed live: a web-researched biography reported a disputed
@@ -1180,9 +1210,9 @@ export function getModeGuidance(state: ChatGraphState): string {
     case 'examples':
     case 'pressemitteilung_examples':
     case 'sharepic':
-      return SEARCH_GUIDANCE;
+      return SEARCH_GUIDANCE + getDeliverableNote(state);
     default:
-      return SEARCH_GUIDANCE;
+      return SEARCH_GUIDANCE + getDeliverableNote(state);
   }
 }
 

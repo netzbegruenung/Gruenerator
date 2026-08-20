@@ -863,6 +863,14 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         (state.defaultNotebookCollectionIds?.length ?? 0) +
         (state.defaultNotebookDocumentIds?.length ?? 0);
       if (defaultNotebookScopeCount > 0) {
+        // Forcing `search` decides HOW the turn gathers, not WHAT it owes the
+        // user. "schreibe darauf basierend einen antrag …" (live 20.08.2026)
+        // came back as a sourced research answer: a search turn gets
+        // SEARCH_GUIDANCE, and nothing told it that a document had been ordered.
+        //
+        // Deliberately the narrow noun detector, NOT the broad
+        // `GENERATION_SIGNAL`: "Antworte auf diese E-Mail einer Bürgerin" must
+        // keep behaving exactly as before, and it names no Textsorte.
         return classifyWithForcedSearch({
           reason: 'AttachmentDefaultNotebook',
           docCount: defaultNotebookScopeCount,
@@ -877,6 +885,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
           temporal,
           complexity,
           startTime,
+          documentSubtype: detectDocumentSubtype(userContent),
         });
       }
 
@@ -1918,6 +1927,8 @@ async function classifyWithForcedSearch(opts: {
   complexity: 'simple' | 'moderate' | 'complex';
   startTime: number;
   gatherSources?: GatherSource[];
+  /** Textsorte the user named. The turn still searches; this says what it owes. */
+  documentSubtype?: string | null;
 }): Promise<Partial<ChatGraphState>> {
   const {
     reason,
@@ -1929,6 +1940,7 @@ async function classifyWithForcedSearch(opts: {
     complexity,
     startTime,
     gatherSources,
+    documentSubtype,
   } = opts;
 
   log.info(
@@ -1972,6 +1984,7 @@ async function classifyWithForcedSearch(opts: {
     complexity,
     classificationTimeMs: Date.now() - startTime,
     ...(gatherSources ? { gatherSources } : {}),
+    ...(documentSubtype ? { documentSubtype } : {}),
   };
 }
 

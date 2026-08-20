@@ -142,6 +142,34 @@ describe('limitAttachmentContext — fair per-document split (M1/M3)', () => {
   });
 });
 
+/**
+ * Ein Such-Turn, der zugleich ein Dokument schuldet.
+ *
+ * Live am 20.08.2026: „schreibe darauf basierend einen antrag …" wurde zu
+ * `search` gezwungen (richtig — ein notizbuchgebundener Agent muss erst
+ * recherchieren) und bekam dann nur SEARCH_GUIDANCE. Ergebnis war eine belegte
+ * Zusammenfassung der Quellenlage statt des bestellten Antrags.
+ */
+describe('getModeGuidance — bestellte Textsorte auf einem Such-Turn', () => {
+  it('sagt dem Modell, dass der fertige Text das Ergebnis ist', () => {
+    const out = getModeGuidance(makeState({ intent: 'search', documentSubtype: 'antrag' }));
+    expect(out).toContain('einen Antrag');
+    expect(out).toMatch(/Recherche ist das Mittel/);
+    // Die Recherche-Anweisung bleibt daneben stehen.
+    expect(out).toContain('Recherche-Ergebnisse');
+  });
+
+  it('schweigt bei einer gewöhnlichen Recherchefrage', () => {
+    const out = getModeGuidance(makeState({ intent: 'search' }));
+    expect(out).not.toMatch(/Recherche ist das Mittel/);
+  });
+
+  it('schweigt bei einer unbekannten Textsorte statt zu raten', () => {
+    const out = getModeGuidance(makeState({ intent: 'search', documentSubtype: 'gibtsnicht' }));
+    expect(out).not.toMatch(/Recherche ist das Mittel/);
+  });
+});
+
 describe('getModeGuidance turn-outcome honesty (direct path)', () => {
   it('a direct turn carries the no-research/no-artifact honesty note', () => {
     const out = getModeGuidance(makeState({ intent: 'direct', searchResults: [] }));

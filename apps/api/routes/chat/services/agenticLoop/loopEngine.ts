@@ -28,6 +28,7 @@ import {
 import { buildAiTelemetry } from '../../../../services/telemetry/langfuseTelemetry.js';
 import { recordDecision } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { reportBackgroundError } from '../../../../utils/reportBackgroundError.js';
 import { createControlTokenFilter, stripToolControlTokens } from '../outputSanity.js';
 import { isWholesaleRefusal, refusalLanguage } from '../refusalDetection.js';
 import { createIdleDeadline } from '../streamIdleDeadline.js';
@@ -38,6 +39,7 @@ import {
   DEGENERATION_NOTICE,
   cutLostContent,
 } from './degeneration.js';
+import { DEFAULT_LOOP_BUDGET, TOOL_TIMEOUT_OVERRIDES_MS } from './types.js';
 
 import type { LanguageModel, ModelMessage, ToolSet } from 'ai';
 
@@ -69,6 +71,67 @@ export class SynthStallError extends Error {
 export function isSynthStall(err: unknown): err is SynthStallError {
   return err instanceof SynthStallError;
 }
+
+/**
+ * Headroom on top of the longest tool a turn could legitimately be waiting on:
+ * the model still has to receive the tool result and decide the next step.
+ */
+const GATHER_IDLE_SLACK_MS = 15_000;
+
+/**
+ * How long the GATHER stream may be silent before we call it hung.
+ *
+ * The note on SYNTH_IDLE_DEADLINE_MS explains why this phase went unguarded:
+ * a running tool blocks the iterator, so silence is not evidence of a hang and
+ * a flat 20s would kill legitimate work. That reasoning is right — the fix is
+ * not "no guard" but a budget derived from what can actually block us. The
+ * longest per-call timeout among the tools MOUNTED THIS TURN is exactly that
+ * bound (`create_pdf` may take 90s, `web_search` 20s), so a turn without
+ * generation tools gets a tight window and a turn with them gets a wide one.
+ *
+ * Without any guard the effective deadline was GreenPT's own 120s fetch
+ * timeout: on 20.08.2026 a turn sat silent for exactly 120s after its last
+ * tool returned, and finished in 139.7s.
+ */
+function gatherIdleDeadlineMs(tools: ToolSet): number {
+  const longestTool = Object.keys(tools).reduce(
+    (max, name) =>
+      Math.max(max, TOOL_TIMEOUT_OVERRIDES_MS[name] ?? DEFAULT_LOOP_BUDGET.perCallTimeoutMs),
+    DEFAULT_LOOP_BUDGET.perCallTimeoutMs
+  );
+  return longestTool + GATHER_IDLE_SLACK_MS;
+}
+
+/** The planner accepted the request and then went silent. */
+export class GatherStallError extends Error {
+  constructor(idleMs: number) {
+    super(`Gather stream idle for ${idleMs}ms`);
+    this.name = 'TimeoutError';
+  }
+}
+
+/** Which lane stalled — the whole point of reporting it. `LanguageModel` is
+ *  either the id itself or a provider instance carrying one. */
+function modelLabel(model: LanguageModel): string {
+  return typeof model === 'string' ? model : (model.modelId ?? 'unknown');
+}
+
+/**
+ * Replace the AI SDK's default `onError`, which is a bare `console.error(error)`
+ * — no level, no timestamp, no service, no request id. That is where the naked
+ * `DOMException [TimeoutError]` stack in the 20.08.2026 log came from, printed
+ * one line above our own WARN for the same failure.
+ *
+ * Logging only: every stream here is drained by hand and still surfaces its
+ * errors through the `error` part, so control flow is unchanged.
+ */
+const logStreamError =
+  (phase: string) =>
+  ({ error }: { error: unknown }): void => {
+    log.warn(
+      `[Engine] ${phase} stream error: ${error instanceof Error ? error.message : String(error)}`
+    );
+  };
 
 export type LoopMode = 'unified' | 'split';
 
@@ -438,6 +501,7 @@ async function streamWithTools(
     ),
     experimental_repairToolCall: repairToolCall,
     ...phaseTelemetry('unified'),
+    onError: logStreamError('unified'),
   });
   // Der unified-Pfad hatte gar keine Steuertoken-Säuberung: er schreibt MIT
   // gemounteten Werkzeugen, also genau dort, wo das Chat-Template das Token
@@ -467,6 +531,8 @@ async function streamWithTools(
  *  The stream is consumed in EVERY case (even without onNarration): the AI SDK's
  *  tool loop only advances as the stream is drained. */
 async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
+  const idleMs = gatherIdleDeadlineMs(p.tools);
+  const idle = createIdleDeadline(idleMs, () => new GatherStallError(idleMs));
   try {
     const gatherSystem = `${p.toolSystem}${GATHER_SUFFIX}`;
     const result: Drainable = deps.streamText({
@@ -477,7 +543,9 @@ async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
       stopWhen: isStepCount(p.maxSteps),
       temperature: p.temperature,
       ...(p.maxOutputTokens != null && { maxOutputTokens: p.maxOutputTokens }),
-      abortSignal: p.abortSignal,
+      // Combined so a stalled planner call is torn down, not merely abandoned —
+      // same shape as the synth phase below.
+      abortSignal: AbortSignal.any([p.abortSignal, idle.signal]),
       prepareStep: buildPrepareStep(
         gatherSystem,
         FORCE_FINISH_GATHER_SUFFIX,
@@ -490,13 +558,19 @@ async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
       ),
       experimental_repairToolCall: repairToolCall,
       ...phaseTelemetry('gather'),
+      onError: logStreamError('gather'),
     });
     const chunker = p.onNarration ? createSentenceChunker(p.onNarration) : null;
     const iterator = result.stream[Symbol.asyncIterator]();
     try {
       while (true) {
-        const next = await iterator.next();
+        // Racing the deadline is what makes the stall observable: awaiting
+        // `next()` alone parks here until the PROVIDER gives up.
+        const next = await Promise.race([iterator.next(), idle.deadline]);
         if (next.done) break;
+        // Any part counts as liveness — a tool-call/tool-result pair means the
+        // loop is working, not hanging.
+        idle.touch();
         const part = next.value;
         if (part.type === 'error') throw part.error;
         // text-delta becomes narration (or is drained silently when no
@@ -519,6 +593,18 @@ async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
     // synthesis over whatever was collected rather than failing the whole turn.
     // A genuinely aborted request re-throws in the synthesis stream below.
     log.warn(`[Engine] gather phase error: ${err instanceof Error ? err.message : String(err)}`);
+    // …but degrading silently is how a systematic planner outage stays
+    // invisible. A stall is a health signal about the lane, not a property of
+    // this one turn, so it goes to Glitchtip with the model that produced it.
+    if (err instanceof GatherStallError) {
+      reportBackgroundError(err, {
+        job: 'agentic-gather-stall',
+        model: modelLabel(p.plannerModel),
+        idleMs,
+      });
+    }
+  } finally {
+    idle.clear();
   }
 }
 
@@ -715,6 +801,7 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<LoopResu
       // `writeAbortSignal` deliberately, NOT the turn budget — see its doc.
       abortSignal: AbortSignal.any([p.writeAbortSignal ?? p.abortSignal, idle.signal]),
       ...phaseTelemetry('synth'),
+      onError: logStreamError('synth'),
     });
     try {
       const { text, finishReason } = await drain(result, gate.push, p.onReasoning, idle);
