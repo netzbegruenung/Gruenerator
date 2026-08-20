@@ -121,6 +121,37 @@ export function calculateSnapPosition(
 }
 
 /**
+ * Snap für mittig verankerte Konva-Gruppen (Icons, Assets, Badges).
+ *
+ * Deren `x`/`y` ist der Mittelpunkt, `calculateElementSnapPosition` rechnet aber
+ * mit der linken oberen Ecke. Die Umrechnung stand mehrfach im Code, jedes Mal
+ * mit derselben Gelegenheit, ein `/ 2` zu vergessen.
+ */
+export function calculateCenteredSnapPosition(
+  centerX: number,
+  centerY: number,
+  width: number,
+  height: number,
+  targets: SnapTarget[],
+  stageWidth: number,
+  stageHeight: number,
+  hysteresis?: SnapHysteresis
+): ElementSnapResult {
+  const result = calculateElementSnapPosition(
+    centerX - width / 2,
+    centerY - height / 2,
+    width,
+    height,
+    targets,
+    stageWidth,
+    stageHeight,
+    hysteresis
+  );
+
+  return { ...result, x: result.x + width / 2, y: result.y + height / 2 };
+}
+
+/**
  * Check if two bounding boxes are within proximity for snapping consideration
  * This is a fast pre-check to skip distant elements
  */

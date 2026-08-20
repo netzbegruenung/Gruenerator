@@ -286,7 +286,21 @@ export function useCanvasElementHandlers<
   const handleImageDragEnd = useCallback(
     (id: string, x: number, y: number) => {
       const elementConfig = config.elements.find((e) => e.id === id);
-      if (elementConfig && elementConfig.type === 'image' && elementConfig.offsetKey) {
+      if (!elementConfig || elementConfig.type !== 'image') return;
+
+      // Absolute Position gewinnt, wenn die Vorlage einen Schluessel dafuer
+      // nennt: layoutgebundene Bilder (Pfeil der Info-Vorlage) haben keine
+      // sinnvolle Basis fuer ein Offset, weil sich die Basis mit dem Text
+      // verschiebt. Ohne einen der beiden Schluessel bleibt der Zug fluechtig.
+      if (elementConfig.positionStateKey) {
+        const key = elementConfig.positionStateKey;
+        const next = { ...state, [key]: { x, y } };
+        setState(() => next);
+        saveToHistory(next);
+        return;
+      }
+
+      if (elementConfig.offsetKey) {
         const baseX = resolveValue<number, TState>(elementConfig.x, state, layout);
         const baseY = resolveValue<number, TState>(elementConfig.y, state, layout);
         const newOffset = { x: x - baseX, y: y - baseY };

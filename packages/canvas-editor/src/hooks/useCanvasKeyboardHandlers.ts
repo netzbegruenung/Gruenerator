@@ -1,9 +1,11 @@
 import { useEffect, useRef } from 'react';
 
 import { CanvasClipboard } from '../utils/canvasClipboard';
+import { assertAsPosition } from '../utils/stateTypeAssertions';
 
 import type { OptionalCanvasActions } from './useCanvasElementHandlers';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
+import type { CanvasElementConfig } from '../configs/types';
 import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
 import type { AssetInstance } from '../utils/canvasAssets';
 import type { CircleBadgeInstance } from '../utils/circleBadgeUtils';
@@ -32,6 +34,9 @@ export interface UseCanvasKeyboardHandlersOptions<TState extends Partial<BaseCan
   actions: OptionalCanvasActions;
   setState: (partial: Partial<TState> | ((prev: TState) => TState)) => void;
   setSelectedElement: (id: string | null) => void;
+  /** Config-Elemente der Vorlage — fuer Pfeiltasten an layoutgebundenen Elementen. */
+  elements?: readonly CanvasElementConfig<TState>[];
+  saveToHistory?: (state: TState) => void;
 }
 
 /**
@@ -40,14 +45,18 @@ export interface UseCanvasKeyboardHandlersOptions<TState extends Partial<BaseCan
 export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState>>(
   options: UseCanvasKeyboardHandlersOptions<TState>
 ): void {
-  const { store, state, actions, setState, setSelectedElement } = options;
+  const { store, state, actions, setState, setSelectedElement, elements, saveToHistory } = options;
 
   // Use refs for values that the handler reads but shouldn't trigger re-attachment
   const stateRef = useRef(state);
   const actionsRef = useRef(actions);
+  const elementsRef = useRef(elements);
+  const saveToHistoryRef = useRef(saveToHistory);
   useEffect(() => {
     stateRef.current = state;
     actionsRef.current = actions;
+    elementsRef.current = elements;
+    saveToHistoryRef.current = saveToHistory;
   });
 
   useEffect(() => {
@@ -463,6 +472,34 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
             offset: { x: (balken.offset?.x ?? 0) + dx, y: (balken.offset?.y ?? 0) + dy },
           });
           return;
+        }
+
+        // Config-Elemente der Vorlage (Pfeil, Sonnenblume, Zitatzeichen …).
+        // Sie sind keine Instanz in einer Liste, ihre Position steht im
+        // `positionStateKey`; die aktuelle Lage kommt aus der gemeldeten
+        // Geometrie, damit auch das erste Antippen von der Layout-Position
+        // aus rechnet statt bei 0/0 anzufangen.
+        const elementConfig = elementsRef.current?.find((el) => el.id === selectedElement);
+        const positionKey =
+          elementConfig && (elementConfig.type === 'image' || elementConfig.type === 'text')
+            ? elementConfig.positionStateKey
+            : undefined;
+        if (positionKey) {
+          const stored = (currentState as Record<string, unknown>)[positionKey];
+          const base =
+            stored != null
+              ? assertAsPosition(stored)
+              : store.getState().elementPositions[selectedElement];
+          if (base) {
+            e.preventDefault();
+            const nextPosition = { x: base.x + dx, y: base.y + dy };
+            setState({ [positionKey]: nextPosition } as Partial<TState>);
+            saveToHistoryRef.current?.({
+              ...currentState,
+              [positionKey]: nextPosition,
+            } as TState);
+            return;
+          }
         }
         return;
       }
