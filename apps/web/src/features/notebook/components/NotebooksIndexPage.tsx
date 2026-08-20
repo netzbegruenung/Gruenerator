@@ -17,8 +17,7 @@ import {
   cn,
 } from '@gruenerator/ui';
 import { BarChart3, Flame, Map as MapIcon, Plus, type LucideIcon } from 'lucide-react';
-import { memo, useCallback, useMemo, useState } from 'react';
-import { FiUser } from 'react-icons/fi';
+import { memo, useCallback, useMemo, useState, type ReactNode } from 'react';
 import {
   HiBookOpen,
   HiDotsVertical,
@@ -52,6 +51,7 @@ import {
 } from '../config/notebooksConfig';
 import { usePublicNotebookCollections } from '../hooks/usePublicNotebookCollections';
 
+import NotebookCoverArt from './NotebookCoverArt';
 import NotebookCreateCard from './NotebookCreateCard';
 import NotebookGalleryCard from './NotebookGalleryCard';
 import { NotebookPageContent } from './NotebookPage';
@@ -111,6 +111,8 @@ interface NotebookSearchHit {
   meta?: string;
   icon: IconType;
   coverImage?: string;
+  /** User notebooks have no designed webp — they bring rendered cover art. */
+  coverNode?: ReactNode;
   onActivate: () => void;
 }
 
@@ -147,9 +149,7 @@ const BasisNotebooks = memo(({ collections }: { collections: NotebookCollection[
           <div key={c.id} className={NOTEBOOK_SCROLL_ITEM}>
             <NotebookGalleryCard
               title={c.name}
-              meta={publicNotebookMeta(c)}
-              metaIcon={c.creator_name ? FiUser : undefined}
-              icon={HiBookOpen}
+              coverNode={<NotebookCoverArt title={c.name} subtitle={publicNotebookMeta(c)} />}
               accent="pink"
               onActivate={() => void navigate(publicNotebookHref(c))}
               action={
@@ -251,11 +251,7 @@ const EigeneNotebooks = memo(
                 key={i}
                 className="overflow-hidden rounded-xl border border-grey-200/80 dark:border-grey-700/60"
               >
-                <Skeleton className="aspect-[5/4] rounded-none" />
-                <div className="px-3 py-2.5">
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="mt-1.5 h-3 w-1/2" />
-                </div>
+                <Skeleton className="aspect-square rounded-none" />
               </div>
             ))}
           </div>
@@ -270,8 +266,9 @@ const EigeneNotebooks = memo(
                 <NotebookGalleryCard
                   key={c.id}
                   title={c.name}
-                  meta={c.description || 'Eigenes Notebook'}
-                  icon={NotebookIcon}
+                  coverNode={
+                    <NotebookCoverArt title={c.name} subtitle={c.description || undefined} />
+                  }
                   accent="pink"
                   onActivate={() => onView(c.id)}
                   menu={
@@ -669,8 +666,8 @@ export function NotebooksIndexFooter() {
         hits.push({
           key: `own-${c.id}`,
           title: c.name,
-          meta: c.description || 'Eigenes Notebook',
           icon: NotebookIcon,
+          coverNode: <NotebookCoverArt title={c.name} subtitle={c.description || undefined} />,
           onActivate: () => handleView(c.id),
         });
       }
@@ -680,8 +677,8 @@ export function NotebooksIndexFooter() {
       hits.push({
         key: `basis-${c.id}`,
         title: c.name,
-        meta: publicNotebookMeta(c),
         icon: HiBookOpen,
+        coverNode: <NotebookCoverArt title={c.name} subtitle={publicNotebookMeta(c)} />,
         onActivate: () => void navigate(publicNotebookHref(c)),
       });
     }
@@ -707,6 +704,7 @@ export function NotebooksIndexFooter() {
                   meta={h.meta}
                   icon={h.icon}
                   coverImage={h.coverImage}
+                  coverNode={h.coverNode}
                   accent="pink"
                   onActivate={h.onActivate}
                 />
@@ -761,8 +759,12 @@ export function NotebooksIndexFooter() {
               <div className={NOTEBOOK_SCROLL_ITEM}>
                 <NotebookGalleryCard
                   title="Von der Basis"
-                  meta={`${basisCollections.length} ${basisCollections.length === 1 ? 'öffentliches Notebook' : 'öffentliche Notebooks'}`}
-                  icon={HiUserGroup}
+                  coverNode={
+                    <NotebookCoverArt
+                      title="Von der Basis"
+                      subtitle={`${basisCollections.length} ${basisCollections.length === 1 ? 'öffentliches Notebook' : 'öffentliche Notebooks'}`}
+                    />
+                  }
                   accent="pink"
                   onActivate={() => setOpenCategory((c) => (c === 'basis' ? null : 'basis'))}
                 />
