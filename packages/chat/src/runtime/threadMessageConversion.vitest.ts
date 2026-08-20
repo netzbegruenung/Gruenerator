@@ -4,6 +4,7 @@ import { ATTACHMENT_META_PART_NAME } from '../lib/attachmentMeta';
 import { PASTED_TEXT_ATTACHMENT_NAME, PASTED_TEXT_PREVIEW_PART_NAME } from '../lib/pastedText';
 
 import {
+  convertNotebookLoadedMessages,
   convertToThreadMessageLike,
   PASSTHROUGH_METADATA_FIELDS,
   type LoadedMessage,
@@ -595,5 +596,90 @@ describe('convertToThreadMessageLike — interleaved reload', () => {
       (p): p is ContentPart & { narration?: string } => p.type === 'tool-call'
     );
     expect(card?.narration).toBe('Zuerst prüfe ich das Parteiprogramm.');
+  });
+});
+
+// The notebook surface persists its conversations but had no way to read them
+// back, so every older one opened as a blank start page. These guard the shape
+// the notebook renderer expects: mapped citations for the badges, the raw ones
+// for the fallback, the sources for the panel and the Word export, and the
+// question the answer replied to.
+describe('convertNotebookLoadedMessages', () => {
+  const rawCitation = {
+    index: '2',
+    document_title: 'Grundsatzprogramm',
+    source_url: 'https://example.test/gsp',
+    cited_text: 'Klimaneutral bis 2035.',
+    collection_name: 'Grundsatz',
+    document_id: 'doc_9',
+    chunk_index: 4,
+    similarity_score: 0.82,
+    collection_id: 'grundsatz-system',
+  };
+
+  const rows: LoadedMessage[] = [
+    { id: 'u1', role: 'user', content: 'Was steht zum Klima drin?' },
+    {
+      id: 'a1',
+      role: 'assistant',
+      content: 'Das Programm nennt Klimaneutralität [cite:2].',
+      // Cast because the declared `citations` type describes the chat path's
+      // already-mapped records, while the notebook path stores what its
+      // retrieval returned — raw and snake_case, exactly as written here.
+      metadata: {
+        citations: [rawCitation],
+        sources: [{ id: 'doc_9', title: 'Grundsatzprogramm' }],
+      } as unknown as LoadedMessage['metadata'],
+    },
+  ];
+
+  it('rewrites [cite:N] markers to the [N] form the badge layer matches', () => {
+    const [, answer] = convertNotebookLoadedMessages(rows);
+    expect(answer?.content).toEqual([
+      { type: 'text', text: 'Das Programm nennt Klimaneutralität [2].' },
+    ]);
+  });
+
+  it('maps the stored snake_case citations into the rendered shape', () => {
+    const [, answer] = convertNotebookLoadedMessages(rows);
+    const custom = answer?.metadata?.custom as Record<string, unknown>;
+    expect(custom.citations).toEqual([
+      {
+        id: 2,
+        title: 'Grundsatzprogramm',
+        url: 'https://example.test/gsp',
+        snippet: 'Klimaneutral bis 2035.',
+        citedText: 'Klimaneutral bis 2035.',
+        source: 'Grundsatz',
+        collectionName: 'Grundsatz',
+        documentId: 'doc_9',
+        chunkIndex: 4,
+        similarityScore: 0.82,
+        collectionId: 'grundsatz-system',
+      },
+    ]);
+  });
+
+  it('keeps the raw citations and the sources for the panel and the export', () => {
+    const [, answer] = convertNotebookLoadedMessages(rows);
+    const custom = answer?.metadata?.custom as Record<string, unknown>;
+    expect(custom.rawCitations).toEqual([rawCitation]);
+    expect(custom.sources).toEqual([{ id: 'doc_9', title: 'Grundsatzprogramm' }]);
+  });
+
+  it('recovers the question from the message the answer replied to', () => {
+    const [, answer] = convertNotebookLoadedMessages(rows);
+    const custom = answer?.metadata?.custom as Record<string, unknown>;
+    expect(custom.question).toBe('Was steht zum Klima drin?');
+  });
+
+  it('reads an answer without citations as an empty list, not a crash', () => {
+    const [answer] = convertNotebookLoadedMessages([
+      { id: 'a1', role: 'assistant', content: 'Dazu finde ich nichts.' },
+    ]);
+    const custom = answer?.metadata?.custom as Record<string, unknown>;
+    expect(custom.citations).toEqual([]);
+    expect(custom.sources).toEqual([]);
+    expect(custom.question).toBe('');
   });
 });
