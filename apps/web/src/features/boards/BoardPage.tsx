@@ -1,7 +1,12 @@
 import { getAuthErrorMessage } from '@gruenerator/collab';
 import { DocsProvider } from '@gruenerator/docs';
 import { getContractsClient } from '@gruenerator/shared/api';
-import { ConfirmDialogProvider, Fab } from '@gruenerator/ui';
+import {
+  ConfirmDialogProvider,
+  Fab,
+  useIsMobile,
+  useScreenCornerReservation,
+} from '@gruenerator/ui';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { FiMessageSquare, FiX } from 'react-icons/fi';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -236,6 +241,9 @@ function BoardContent() {
   );
 }
 
+// `w-80` der Assistenten-Leiste, siehe unten.
+const ASSISTANT_PANEL_CORNERS = ['top-right', 'bottom-right'] as const;
+
 function BoardViewContent({
   ydoc,
   isSynced,
@@ -296,6 +304,16 @@ function BoardViewContent({
   const [searchQuery, setSearchQuery] = useState('');
   const [quickFilters, setQuickFilters] = useState<QuickFilter[]>([]);
   const [includeArchived, setIncludeArchived] = useState(false);
+  const isMobile = useIsMobile();
+
+  // Das offene Assistenten-Panel belegt die ganze rechte Kante; unter `md`
+  // deckt es den Bildschirm. Schwebende Nachbarn weichen aus bzw. verschwinden.
+  useScreenCornerReservation({
+    corner: ASSISTANT_PANEL_CORNERS,
+    horizontal: '20rem',
+    blocked: isMobile,
+    active: assistantOpen,
+  });
 
   // Deep-link to a specific card via `?card=<rowId>` (e.g. from an assignment /
   // comment notification). Resolve against ALL rows so quick-filters/archived
