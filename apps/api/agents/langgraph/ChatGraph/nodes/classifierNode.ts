@@ -1910,8 +1910,8 @@ async function pickThreadArtifact(
  * and the attachment + default-notebook path.
  *
  * Everything that must hold for ALL forced-search turns belongs in HERE, not at
- * the call sites. `documentSubtype` was wired at exactly one of the six once,
- * which left the other five reproducing the bug it was meant to fix.
+ * the call sites — a field set at one of the six is a field missing from five,
+ * and the header used to count three, so the omission reads as complete.
  */
 async function classifyWithForcedSearch(opts: {
   reason: string;
@@ -1948,19 +1948,17 @@ async function classifyWithForcedSearch(opts: {
   // Of the six fields the old call kept, two are load-bearing here and both
   // survive: `searchQuery` and `subQueries` come from the resolver,
   // `detectedFilters` from the deterministic heuristic the catch branch already
-  // used. `targetGroupName` is read only by the share path, which a
-  // forced-search turn never reaches.
+  // used. `documentSubtype` and `targetGroupName` are read only by document-
+  // CREATION and share paths, which a forced-search turn never reaches.
   //
-  // `documentSubtype` was in that same sentence until 20.08.2026, and it was
-  // wrong: forcing `search` decides HOW the turn gathers, not WHAT it owes the
-  // user. "schreibe darauf basierend einen antrag …" came back as a sourced
-  // research answer, because a search turn gets SEARCH_GUIDANCE and nothing told
-  // it a document had been ordered. `respondNode` reads the field on this path
-  // now (`getDeliverableNote`).
-  //
-  // Deliberately the narrow noun detector, NOT the broad `GENERATION_SIGNAL`:
-  // "Antworte auf diese E-Mail einer Bürgerin" must keep behaving exactly as
-  // before, and it names no Textsorte.
+  // `documentSubtype` was briefly set here, so that a search turn could tell
+  // respondNode which Textsorte it owed. It is gone again because the noun it
+  // detects answers "did the user SAY this word", not "did the user ORDER it" —
+  // and on these six paths the retrieval phrasing is the common one: "was steht
+  // in der Pressemitteilung", "fasse den Antrag zusammen". A note built on that
+  // tells the model to WRITE the thing it was asked to FIND. The ordered form
+  // now hangs on the recipe instead (`getOrderedTextFormNote` in respondNode),
+  // which carries its own negation/meta/transformation guards.
   //
   // `secondaryIntent` is the one real behaviour change: it is now always null
   // here, so these turns stop being kicked out of the agentic loop by
@@ -1975,8 +1973,6 @@ async function classifyWithForcedSearch(opts: {
     }`
   );
 
-  const documentSubtype = detectDocumentSubtype(userContent);
-
   return {
     intent: 'search',
     searchSources: [],
@@ -1990,7 +1986,6 @@ async function classifyWithForcedSearch(opts: {
     complexity,
     classificationTimeMs: Date.now() - startTime,
     ...(gatherSources ? { gatherSources } : {}),
-    ...(documentSubtype ? { documentSubtype } : {}),
   };
 }
 

@@ -344,27 +344,33 @@ describe('Tier 2 — context intents (resource presence only)', () => {
     expect(result.intent).toBe('summary');
   });
 
-  // Live on beta 20.08.2026: "schreibe darauf basierend einen antrag für mehr
-  // hitzeschtutz für alfter" came back as a sourced research answer. Forcing
-  // `search` is right — a notebook-bound agent must research before it writes —
-  // but nothing carried the ordered Textsorte through to the answer stage.
-  describe('an ordered Textsorte survives the forced search', () => {
-    it('names the document type while still routing to search', async () => {
+  // Ein erzwungener Suchturn entscheidet, WIE er sammelt — nicht, was er
+  // schuldet. `documentSubtype` stand hier kurzzeitig, damit respondNode die
+  // bestellte Textsorte kennt; das Nomen sagt aber nur, dass das Wort FIEL.
+  // Auf genau diesen Pfaden ist die Abruf-Formulierung die haeufige („was steht
+  // in der Pressemitteilung", „fasse den Antrag zusammen"), und ein daraus
+  // gebauter Hinweis liesse das Modell schreiben statt suchen. Die bestellte
+  // Form haengt jetzt am Rezept (`getOrderedTextFormNote`).
+  describe('the forced search carries no Textsorte verdict', () => {
+    it.each([
+      ['attachment + default notebook', { defaultNotebookCollectionIds: ['berlin'] }],
+      ['@notebook', { notebookIds: ['nb-1'] }],
+      ['@document', { documentIds: ['doc-1'] }],
+      ['@dokumentchat', { documentChatIds: ['dc-1'] }],
+    ] as const)('stays a search on the %s path', async (_label, mention) => {
       const state = buildState({
         userMessage: 'schreibe darauf basierend einen Antrag für mehr Hitzeschutz für Alfter',
         attachmentContext: 'Die Grünen fordern ein Abkühl-Sofortprogramm...',
-        defaultNotebookCollectionIds: ['berlin'],
+        ...mention,
       });
       const result = await classifierNode(state);
-      // The research stage must still run.
       expect(result.intent).toBe('search');
       expect(result.searchQuery).not.toBeNull();
-      // …and the answer stage now knows what it owes.
-      expect(result.documentSubtype).toBe('antrag');
+      expect(result.documentSubtype).toBeUndefined();
     });
 
-    // The guard against a too-broad predicate: this names no Textsorte, so it
-    // has to behave exactly as it did before.
+    // Die Gegenprobe, die ein zu breites Praedikat gerissen haette: hier faellt
+    // kein Textsorten-Wort, und der Turn muss sich genauso verhalten wie zuvor.
     it('leaves a plain reply request untouched', async () => {
       const state = buildState({
         userMessage: 'Antworte auf diese E-Mail einer Bürgerin:',
@@ -375,23 +381,6 @@ describe('Tier 2 — context intents (resource presence only)', () => {
       const result = await classifierNode(state);
       expect(result.intent).toBe('search');
       expect(result.documentSubtype).toBeUndefined();
-    });
-
-    // Die Textsorte haengt am erzwungenen Suchpfad, nicht am Anhang-Zweig.
-    // Sie war zuerst an genau EINER der sechs Aufrufstellen verdrahtet — die
-    // uebrigen fuenf erzwingen dieselbe Suche und sind die haeufigeren Wege.
-    it.each([
-      ['@notebook', { notebookIds: ['nb-1'] }],
-      ['@document', { documentIds: ['doc-1'] }],
-      ['@dokumentchat', { documentChatIds: ['dc-1'] }],
-    ] as const)('names the document type on the %s path too', async (_label, mention) => {
-      const state = buildState({
-        userMessage: 'schreibe darauf basierend einen Antrag für mehr Hitzeschutz',
-        ...mention,
-      });
-      const result = await classifierNode(state);
-      expect(result.intent).toBe('search');
-      expect(result.documentSubtype).toBe('antrag');
     });
   });
 });
