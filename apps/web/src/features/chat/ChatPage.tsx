@@ -249,7 +249,11 @@ function ChatPage() {
   const agentParam = hub
     ? null
     : (searchParams.get('agent') ?? (slug ? resolveAgentSlug(slug) : null) ?? resolvedFromSkill);
-  const modeParam = searchParams.get('mode');
+  const rawModeParam = searchParams.get('mode');
+  const modeParam =
+    rawModeParam === 'search' || rawModeParam === 'notebook' || rawModeParam === 'eigener'
+      ? rawModeParam
+      : null;
 
   // When the URL carries an agent/mode param or a thread deep link, jump
   // straight into the thread — otherwise users land on the new-chat hero
@@ -257,12 +261,7 @@ function ChatPage() {
   // For deep links this also keeps the hero's ChatInner (which resets chat
   // context and switches to a new thread on mount) from racing the thread
   // resolution.
-  const effectiveViewMode =
-    agentParam ||
-    threadSlug ||
-    (modeParam && (modeParam === 'search' || modeParam === 'notebook' || modeParam === 'eigener'))
-      ? 'thread'
-      : chatViewMode;
+  const effectiveViewMode = agentParam || threadSlug || modeParam ? 'thread' : chatViewMode;
 
   useDocumentTitle(hub ? hub.name : effectiveViewMode === 'thread' ? currentThreadTitle : null);
 
@@ -313,11 +312,7 @@ function ChatPage() {
         store.resetChatContext();
       }
     }
-    if (
-      modeParam &&
-      (modeParam === 'search' || modeParam === 'notebook' || modeParam === 'eigener') &&
-      store.threadMode !== modeParam
-    ) {
+    if (modeParam && store.threadMode !== modeParam) {
       store.setThreadMode(modeParam);
       store.setChatViewMode('thread');
     }
@@ -400,6 +395,7 @@ function ChatPage() {
       {!hub && (
         <ChatThreadRouting
           threadSlug={threadSlug ?? null}
+          landing={!threadSlug && (!!agentParam || !!modeParam)}
           onNavigateToThread={handleNavigateToThread}
           onThreadGone={handleThreadGone}
           onLeaveThread={handleLeaveThread}

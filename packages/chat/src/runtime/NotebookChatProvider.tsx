@@ -8,8 +8,9 @@ import {
 } from '@assistant-ui/react';
 import { type NotebookDepth } from '@gruenerator/contracts';
 import { VoxtralDictationAdapter } from '@gruenerator/voice';
-import { type ReactNode, useMemo, useCallback, useRef } from 'react';
+import { type ReactNode, useMemo, useCallback, useRef, useState } from 'react';
 
+import { createNotebookHistoryAdapter } from '../adapters/notebookHistoryAdapter';
 import { MarkdownStreamingProvider } from '../context/MarkdownStreamingContext';
 import { handleDictationError } from '../lib/dictationErrorHandler';
 
@@ -184,9 +185,20 @@ function NotebookChatProviderInner({
   );
   const attachmentAdapter = useMemo(() => new GrueneratorAttachmentAdapter(), []);
 
+  // Only the mount value matters: the runtime loads history exactly once, when
+  // it is created. A thread minted later in this session already has its
+  // messages in the runtime, so there is nothing to load for it.
+  const [historyAdapter] = useState(() =>
+    initialThreadId ? createNotebookHistoryAdapter(initialThreadId) : null
+  );
+
   const runtime = useLocalRuntime(adapter, {
     initialMessages,
-    adapters: { dictation: dictationAdapter, attachments: attachmentAdapter },
+    adapters: {
+      dictation: dictationAdapter,
+      attachments: attachmentAdapter,
+      ...(historyAdapter ? { history: historyAdapter } : {}),
+    },
   });
 
   return (

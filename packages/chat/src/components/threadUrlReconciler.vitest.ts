@@ -10,6 +10,7 @@ const base: ThreadUrlState = {
   suffix: null,
   prevRemoteId: null,
   slugStillResolves: false,
+  landing: false,
 };
 
 const state = (over: Partial<ThreadUrlState>): ThreadUrlState => ({ ...base, ...over });
@@ -117,5 +118,54 @@ describe('reconcileThreadUrl', () => {
 
   it('stays silent on bare /chat with a draft', () => {
     expect(reconcileThreadUrl(state({ prevRemoteId: 't1' }))).toEqual({ type: 'none' });
+  });
+
+  describe('on a landing (/agents/:slug, ?mode=…)', () => {
+    // The regression: opening an agent while an older thread was still the
+    // runtime's main rewrote the URL to that thread, which then bounced back to
+    // bare /chat and reset the agent — the user landed on the welcome screen.
+    it('does not claim the URL for a thread that was already open', () => {
+      expect(
+        reconcileThreadUrl(
+          state({
+            mainRemoteId: 'alt',
+            mainSuffix: 'aaa111',
+            mainTitle: 'Alter Chat',
+            prevRemoteId: 'alt',
+            landing: true,
+          })
+        )
+      ).toEqual({ type: 'none' });
+    });
+
+    it('still canonicalises a thread minted right here', () => {
+      expect(
+        reconcileThreadUrl(
+          state({
+            mainRemoteId: 'neu',
+            mainSuffix: 'bbb222',
+            mainTitle: 'Frisch',
+            prevRemoteId: null,
+            landing: true,
+          })
+        )
+      ).toEqual({ type: 'replace', slug: 'frisch-bbb222' });
+    });
+
+    it('leaves a thread URL alone (the landing flag only guards the bare case)', () => {
+      expect(
+        reconcileThreadUrl(
+          state({
+            mainRemoteId: 't1',
+            mainSuffix: 'abc123',
+            mainTitle: 'Neuer Titel',
+            threadSlug: 'chat-abc123',
+            suffix: 'abc123',
+            prevRemoteId: 't1',
+            landing: true,
+          })
+        )
+      ).toEqual({ type: 'replace', slug: 'neuer-titel-abc123' });
+    });
   });
 });
