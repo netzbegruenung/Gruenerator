@@ -58,6 +58,13 @@ if (sentryDsn) {
       /feature named `.+` was not found/, // DuckDuckGo browser internal privacy feature errors
       'invalid origin', // DuckDuckGo iOS WKWebView internal error
       'Invalid call to runtime.sendMessage', // DuckDuckGo iOS content-script messaging — no extension tab in WKWebView
+      // WebKit's WKUserContentController rejects a pending
+      // `webkit.messageHandlers.*` reply with this when the web view is deallocated
+      // first (tab discarded / app backgrounded). The bridge belongs to the iOS
+      // browser's own injected scripts — our only native bridge is
+      // `ReactNativeWebView.postMessage`, which is fire-and-forget and has no reply
+      // to reject. Arrives with no stack and nothing to act on.
+      'The WKWebView was deallocated before the message was delivered',
       'Unable to preload CSS', // stale deploy; recovered via vite:preloadError reload above
     ],
     denyUrls: [
