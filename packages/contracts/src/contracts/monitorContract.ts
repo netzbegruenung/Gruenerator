@@ -40,6 +40,8 @@ import {
   pollDataSchema,
   pollParliamentsResponseSchema,
   pollsHistoryResponseSchema,
+  pollsOverviewQuerySchema,
+  pollsOverviewResponseSchema,
   pollsQuerySchema,
   stateElectionsResponseSchema,
   topicArticlesQuerySchema,
@@ -154,6 +156,18 @@ export const monitorContract = c.router(
         200: pollParliamentsResponseSchema,
       },
       summary: 'Available poll parliaments',
+    },
+
+    /** GET /api/monitor/polls/overview — one green share per parliament, for the map. */
+    pollsOverview: {
+      method: 'GET',
+      path: '/api/monitor/polls/overview',
+      query: pollsOverviewQuerySchema,
+      responses: {
+        200: pollsOverviewResponseSchema,
+        500: monitorErrorResponseSchema,
+      },
+      summary: 'Green share per parliament (choropleth map)',
     },
 
     /** GET /api/monitor/polls/eu-greens/history — weekly green trend per country. */
