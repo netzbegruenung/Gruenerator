@@ -1,7 +1,5 @@
 import { randomUUID } from 'crypto';
 
-import { jwtVerify } from 'jose';
-
 import { createLogger } from './logger.js';
 
 import type {
@@ -20,12 +18,10 @@ const SESSION_CHECK_TIMEOUT_MS = 5000;
 export class AuthService {
   private readonly db: DbQueryFn;
   private readonly redis: RedisLike;
-  private readonly jwtSecret: Uint8Array;
 
   constructor(config: AuthConfig) {
     this.db = config.db;
     this.redis = config.redis;
-    this.jwtSecret = new TextEncoder().encode(config.sessionSecret);
   }
 
   async authenticateConnection(data: AuthenticationData): Promise<AuthenticationResult> {
@@ -35,8 +31,8 @@ export class AuthService {
 
     try {
       if (token) {
-        log.debug(`[Auth] Trying token-based auth`);
-        const result = await this.authenticateByToken(token, documentName);
+        log.debug(`[Auth] Trying bearer-token auth`);
+        const result = await this.authenticateByBearer(token, documentName);
         if (result.authenticated) return result;
       }
 
@@ -156,7 +152,7 @@ export class AuthService {
   ): Promise<{ read?: boolean; write?: boolean } | null> {
     const rows = await this.db(
       `SELECT gcs.permissions FROM group_content_shares gcs
-       INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
+       INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
        WHERE gcs.content_type IN ('collaborative_documents', 'canvas_template')
          AND gcs.content_id = $2
        LIMIT 1`,
@@ -241,6 +237,7 @@ export class AuthService {
        WHERE gcs.content_type = 'chat_threads'
        AND gcs.content_id = $1::uuid
        AND gm.user_id = $2::uuid
+       AND gm.is_active = TRUE
        LIMIT 1`,
       [threadId, userId]
     );
@@ -267,7 +264,7 @@ export class AuthService {
     log.debug(`[Auth-Presence] Checking group presence: ${groupId} for user: ${userId}`);
 
     const membership = await this.db(
-      'SELECT 1 FROM group_memberships WHERE group_id = $1 AND user_id = $2::uuid LIMIT 1',
+      'SELECT 1 FROM group_memberships WHERE group_id = $1 AND user_id = $2::uuid AND is_active = TRUE LIMIT 1',
       [groupId, userId]
     );
 
@@ -411,34 +408,6 @@ export class AuthService {
       userName: (userResult[0]?.display_name as string) || 'Unknown User',
       readOnly,
     };
-  }
-
-  private async authenticateByToken(
-    token: string,
-    documentName: string
-  ): Promise<AuthenticationResult> {
-    try {
-      const { payload } = await jwtVerify(token, this.jwtSecret, {
-        issuer: 'gruenerator-api',
-        audience: 'gruenerator-app',
-      });
-
-      if (!payload.sub) {
-        log.warn(`[Auth-Token] FAILED: Token missing sub claim`);
-        return { authenticated: false, reason: 'Invalid token: missing user ID' };
-      }
-
-      const userId = payload.sub as string;
-      log.debug(`[Auth-Token] HS256 token validated for user: ${userId}`);
-      return this.checkRoomAccess(documentName, userId);
-    } catch (jwtError) {
-      const err = jwtError instanceof Error ? jwtError : new Error(String(jwtError));
-      log.debug(
-        `[Auth-Token] HS256 JWT invalid (${err.message}); falling back to Better Auth bearer lookup`
-      );
-    }
-
-    return this.authenticateByBearer(token, documentName);
   }
 
   private async authenticateByBearer(
