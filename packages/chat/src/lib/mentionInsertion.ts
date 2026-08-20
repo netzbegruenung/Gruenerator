@@ -27,7 +27,9 @@ export function computeMentionInsertion(
   mentionStart: number,
   caretPosition: number
 ): MentionInsertionResult {
-  const trigger = mentionable.category === 'skill' ? '/' : '@';
+  // '@' for skills too: recipes live in the @-namespace now ('/' stays a
+  // legacy input trigger in the parser, but nothing inserts it anymore).
+  const trigger = '@';
   const insertAt = mentionStart >= 0 ? mentionStart : currentText.length;
   const before = currentText.slice(0, insertAt);
   const after = mentionStart >= 0 ? currentText.slice(caretPosition) : '';
@@ -60,13 +62,14 @@ export function computePillMentionInsertion(
 
 /**
  * The plain-text prefix a set of pill mentions contributes at send time —
- * `@websuche @berlin ` / `/presse `. Prepending this to the draft re-enters the
+ * `@websuche @berlin @presse `. Prepending this to the draft re-enters the
  * exact text path a hand-typed mention takes today (`parseAllMentions` →
  * routing + durable `@[Label](type:id)` tokens), so the wire format and the
- * persisted message stay byte-identical to the pre-pill behaviour.
+ * persisted message stay byte-identical to the hand-typed behaviour. Skills
+ * use '@' like everything else since they joined the @-namespace.
  */
 export function buildMentionPrefix(
   mentions: ReadonlyArray<Pick<Mentionable, 'category' | 'mention'>>
 ): string {
-  return mentions.map((m) => `${m.category === 'skill' ? '/' : '@'}${m.mention}`).join(' ');
+  return mentions.map((m) => `@${m.mention}`).join(' ');
 }
