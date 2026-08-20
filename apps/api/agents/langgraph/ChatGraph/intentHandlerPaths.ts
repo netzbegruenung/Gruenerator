@@ -35,10 +35,12 @@ export const INTENT_HANDLER_PATHS: Record<SearchIntent, string> = {
     'DEPRECATED as a verdict — still reachable through the heuristic hint and persisted metadata.intent; treated exactly like produktion everywhere it is read',
   greeting:
     'falls through to response generation like direct, but never carries thread sources, never cites and never enters the agentic loop — decided by GREETING_PREFIX_PATTERN before any LLM runs',
-  research: 'handled via search branch (intent !== direct)',
+  research:
+    'agentic loop (FORCED_LANE_BY_INTENT: loop since R3) — plus the @deepresearch variant, which stays in the search branch because its two engines replace the whole turn; the branch is otherwise the kill-switch fallback',
   compare: 'handled via search branch — multi-document comparison, same path as research',
-  search: 'handled via search branch (intent !== direct)',
-  web: 'handled via search branch (intent !== direct)',
+  search:
+    'agentic loop (FORCED_LANE_BY_INTENT: loop since R3); the search branch is the kill-switch fallback AND the only path that retrieves notebook content — that is why the notebook lock is not lifted by a mention',
+  web: 'agentic loop (FORCED_LANE_BY_INTENT: loop since R3); the search branch is the kill-switch fallback and the target of the system-tool degradation',
   examples: 'handled via search branch (intent !== direct)',
   pressemitteilung_examples:
     'RETIRED as a verdict (availability: retired) — the landesverbaende press-release templates live on as the loop tool gruenerator_pressemitteilung_examples. @pressemitteilungen/@pm pins that TOOL (IntentMention.pinsTool) and loads the presse recipe (IntentMention.activatesSkill), running the turn as `agentic`. The searchNode arm that pushed the `press` kind is gone with it',
