@@ -533,9 +533,27 @@ export function fuzzyMatchIntent(word: string, threshold = 0.75): SearchIntent |
 export function extractSearchTopic(query: string): string {
   // Strip leading task verbs + article/filler words + content type nouns + prepositions
   // Note: preposition alternatives are ordered longest-first to prevent partial matches
+  //
+  // Two gaps closed on 20.08.2026, both visible in one live query — the refiner
+  // had failed, and the fallback handed the embedding search
+  // "schreibe darauf basierend einen antrag für mehr hitzeschtutz für alfter",
+  // typo and all, because nothing in the pattern matched:
+  //   1. `darauf basierend` / `auf dieser basis` are fillers of the same kind as
+  //      "bitte" — they point back at material already in the prompt and say
+  //      nothing about the topic;
+  //   2. the noun list is the user's OWN word, so it has to carry the party's
+  //      actual Textsorten. `antrag`, `beschluss` and `resolution` were missing.
+  //      Longest-first, so `antragstext` is not eaten by `antrag`.
+  //
+  // The noun group ends on `(?![a-zäöüß])` because the alternatives are prefixes
+  // of real words: without it `beschluss` matches inside "Beschlussempfehlung"
+  // and the topic starts at "empfehlung". Longest-first only orders the listed
+  // words against each other; it says nothing about words that are NOT listed.
+  // Failing the whole pattern is the better outcome — the untouched query is the
+  // documented fallback, a truncated noun is a silently wrong search.
   const stripped = query
     .replace(
-      /^(schreib|erstell|formulier|verfass|generier|mach|bereite|entwirf|erstelle|schreibe|formuliere|verfasse)[etn]*\s*(mir\s+)?(bitte\s+)?(eine?[nrms]?\s+)?(kurze[nrms]?\s+|lange[nrms]?\s+|ausführliche[nrms]?\s+)?(pressemitteilung|pressemeldung|pm|artikel|beitrag|blogpost|rede|ansprache|statement|argumentation|argumente|faktencheck|analyse|bericht|report|text|entwurf|zusammenfassung|post|tweet)\s*(über das thema|zu dem thema|zum thema|bezüglich|betreffend|über|zum|zur|zu)?\s*/i,
+      /^(schreib|erstell|formulier|verfass|generier|mach|bereite|entwirf|erstelle|schreibe|formuliere|verfasse)[etn]*\s*(mir\s+)?(bitte\s+)?(darauf\s+basierend\s+|auf\s+dieser\s+basis\s+|auf\s+basis\s+(davon|dessen)\s+|daraus\s+)?(mir\s+)?(bitte\s+)?(eine?[nrms]?\s+)?(kurze[nrms]?\s+|lange[nrms]?\s+|ausführliche[nrms]?\s+)?(pressemitteilung|pressemeldung|pm|antragsentwurf|antragstext|antrag|beschlussvorlage|beschluss|resolution|artikel|beitrag|blogpost|rede|ansprache|statement|argumentation|argumente|faktencheck|analyse|bericht|report|text|entwurf|zusammenfassung|post|tweet)(?![a-zäöüß])\s*(über das thema|zu dem thema|zum thema|bezüglich|betreffend|über|für|zum|zur|zu)?\s*/i,
       ''
     )
     .trim();

@@ -302,6 +302,81 @@ describe('runAgenticLoop — split (planner/executor)', () => {
 
     expect(out.text).toBe('RECOVERED');
   });
+
+  /**
+   * The 20.08.2026 stall: the planner went silent after its last tool returned
+   * and nothing in the loop noticed. The effective deadline was GreenPT's own
+   * 120s fetch timeout — the turn finished in 139.7s.
+   *
+   * Silence is only a hang once nothing could legitimately still be running, so
+   * the window is derived from the longest per-call timeout among the tools
+   * MOUNTED THIS TURN (see `gatherIdleDeadlineMs`).
+   */
+  describe('gather stall guard', () => {
+    it('gives up on a silent planner and still answers from what was gathered', async () => {
+      vi.useFakeTimers();
+      try {
+        const deps: LoopDeps = {
+          generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+          streamText: ((o: StreamOpts) => {
+            if (o.model.id === 'planner') {
+              // Accepts the request, then never yields anything.
+              return {
+                stream: (async function* () {
+                  await new Promise(() => {});
+                })(),
+              } as unknown as ReturnType<LoopDeps['streamText']>;
+            }
+            return streamOf([{ type: 'text-delta', text: 'RECOVERED' }]);
+          }) as unknown as LoopDeps['streamText'],
+        };
+
+        const pending = runAgenticLoop(
+          baseParams({ mode: 'split', abortSignal: new AbortController().signal }),
+          deps
+        );
+        // No tools mounted → the tight window (per-call timeout + slack = 35s).
+        await vi.advanceTimersByTimeAsync(40_000);
+
+        expect((await pending).text).toBe('RECOVERED');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('waits out a slow tool instead of calling it a stall', async () => {
+      vi.useFakeTimers();
+      try {
+        const deps: LoopDeps = {
+          generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+          streamText: ((o: StreamOpts) => {
+            if (o.model.id === 'planner') {
+              // 80s of silence — legitimate while `create_pdf` (90s cap) runs.
+              return streamOf([{ type: 'text-delta', text: 'plane…' }], () =>
+                vi.advanceTimersByTimeAsync(80_000)
+              );
+            }
+            return streamOf([{ type: 'text-delta', text: 'FERTIG' }]);
+          }) as unknown as LoopDeps['streamText'],
+        };
+
+        const pending = runAgenticLoop(
+          baseParams({
+            mode: 'split',
+            // Mounting the generation tool is what buys the wider window.
+            tools: { create_pdf: {} } as unknown as LoopEngineParams['tools'],
+            abortSignal: new AbortController().signal,
+          }),
+          deps
+        );
+        await vi.advanceTimersByTimeAsync(120_000);
+
+        expect((await pending).text).toBe('FERTIG');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
 });
 
 describe('synthMessages — the tool replay must not reach the tool-less synth', () => {

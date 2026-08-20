@@ -14,7 +14,12 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { assembleToolCatalog, wrapAssembledTools, type CatalogDeps } from './catalogAssembly.js';
+import {
+  assembleToolCatalog,
+  priorTurnRetrieved,
+  wrapAssembledTools,
+  type CatalogDeps,
+} from './catalogAssembly.js';
 import { createToolLoopGuards } from './loopGuards.js';
 import { createSourceRegistry } from './sourceRegistry.js';
 import { type PersistedStep } from './types.js';
@@ -348,5 +353,61 @@ describe('wrapAssembledTools — Labels der Verbindungs-Werkzeuge', () => {
     expect(sent[0].data).not.toHaveProperty('title');
     expect(sent[0].data).not.toHaveProperty('serverName');
     expect(steps[0]).not.toHaveProperty('serverName');
+  });
+});
+
+describe('priorTurnRetrieved', () => {
+  /**
+   * Die Thread-Hälfte des siebten Wegs in `shouldForceFirstToolCall`: hat der
+   * vorige Turn etwas GEHOLT, oder nur etwas GEMACHT? Die Trennlinie ist
+   * dieselbe Liste, an der auch das Replay entlangschneidet.
+   */
+  const history = (...toolNames: string[]) => ({
+    artifacts: () => [],
+    toolSteps: () =>
+      toolNames.map((toolName, i): PersistedStep => ({
+        toolCallId: `c${i}`,
+        toolName,
+        args: {},
+        result: {},
+      })),
+    sources: () => [],
+    lastGeneratedImageUrl: () => null,
+  });
+
+  it.each(['gruenerator_search', 'web_search', 'bundestag', 'abgeordnetenwatch', 'umfragen'])(
+    '%s zählt als Abruf',
+    (toolName) => {
+      expect(priorTurnRetrieved(history(toolName))).toBe(true);
+    }
+  );
+
+  it('ein Thread, der nur ERZEUGT hat, hat nichts nachgeschlagen', () => {
+    expect(priorTurnRetrieved(history('sharepic', 'create_document', 'generate_image'))).toBe(
+      false
+    );
+  });
+
+  it('ein Abruf neben einer Erzeugung zählt', () => {
+    expect(priorTurnRetrieved(history('sharepic', 'web_search'))).toBe(true);
+  });
+
+  it('ohne Thread und ohne Schritte ist die Antwort nein', () => {
+    expect(priorTurnRetrieved(null)).toBe(false);
+    expect(priorTurnRetrieved(undefined)).toBe(false);
+    expect(priorTurnRetrieved(history())).toBe(false);
+  });
+
+  it('ein Lesefehler der Projektion darf keinen Turn brechen', () => {
+    expect(
+      priorTurnRetrieved({
+        artifacts: () => [],
+        toolSteps: () => {
+          throw new Error('boom');
+        },
+        sources: () => [],
+        lastGeneratedImageUrl: () => null,
+      })
+    ).toBe(false);
   });
 });
