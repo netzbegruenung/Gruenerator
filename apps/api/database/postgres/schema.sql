@@ -1120,6 +1120,7 @@ CREATE TABLE IF NOT EXISTS chat_thread_attachments (
     summary TEXT,                 -- LLM summary (~200-400 tokens)
     file_data TEXT,               -- Raw bytes (base64), tabular files only — rehydrates the pandas interpreter after reload
     document_id UUID,             -- Qdrant doc id when a large prose doc was embedded — follow-up turns retrieve via RAG
+    content_hash TEXT,            -- md5 of the trimmed extracted text (name+size for binaries) — one row per file per thread
 
     -- Timestamps
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
@@ -1130,6 +1131,11 @@ CREATE INDEX IF NOT EXISTS idx_thread_attachments_thread ON chat_thread_attachme
 CREATE INDEX IF NOT EXISTS idx_thread_attachments_created ON chat_thread_attachments(thread_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_thread_attachments_user ON chat_thread_attachments(user_id);
 CREATE INDEX IF NOT EXISTS idx_thread_attachments_message_id ON chat_thread_attachments(message_id);
+-- Re-sending the same file on a later turn must not create a second row: it
+-- would reach the model twice and pay for a second LLM summary.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_thread_attachments_content
+  ON chat_thread_attachments(thread_id, content_hash)
+  WHERE thread_id IS NOT NULL AND content_hash IS NOT NULL;
 
 -- Chat triggers
 CREATE TRIGGER update_chat_threads_updated_at

@@ -22,6 +22,7 @@ import { visionService } from '../../../services/vision/VisionService.js';
 import { applyContextCap } from '../../../utils/contextCap.js';
 import { createLogger } from '../../../utils/logger.js';
 import { reportBackgroundError } from '../../../utils/reportBackgroundError.js';
+import { generateContentHash } from '../../../utils/validation/hash.js';
 import { getIntermediateModel } from '../agents/providers.js';
 
 import { isTabularAttachment } from './attachmentProcessingService.js';
@@ -38,6 +39,30 @@ const MAX_ATTACHMENTS_IN_CONTEXT = 5;
  * exact). Matches OpenWebUI's dual-mode (small=full, large=RAG). ~5k tokens.
  */
 export const RAG_ATTACHMENT_THRESHOLD_CHARS = 20000;
+
+/**
+ * Content identity of one attachment, within one thread.
+ *
+ * Text documents are identified by their extracted text — the same file pasted
+ * or uploaded twice IS the same document, whatever the client called it. Images
+ * and other binaries have no extracted text, so they fall back to name + size;
+ * that is weaker (two different photos of the same byte length would collide)
+ * but it is scoped to a single thread, and the cost of a false match is one
+ * skipped duplicate rather than lost data.
+ *
+ * Must stay in sync with the backfill expression in
+ * `migrations/chat_thread_attachments_content_hash.sql`.
+ */
+export function attachmentContentHash(params: {
+  extractedText: string | null;
+  name: string;
+  sizeBytes: number;
+}): string {
+  const text = params.extractedText?.trim();
+  return text
+    ? generateContentHash(text)
+    : generateContentHash(`${params.name}:${params.sizeBytes}`);
+}
 
 export interface ThreadAttachment {
   id: string;
@@ -99,11 +124,19 @@ export async function saveThreadAttachment(params: SaveAttachmentParams): Promis
   } = params;
 
   const postgres = getPostgresInstance();
+  const contentHash = attachmentContentHash({ extractedText, name, sizeBytes });
 
+  // ON CONFLICT against the partial unique index on (thread_id, content_hash).
+  // The client re-sends the bytes on any turn whose last user message still
+  // carries the file (edit-resubmit, regenerate, a repeated paste), and without
+  // this each of those turns added a row — which the prompt builder then
+  // injected AGAIN in full, and which paid for its own LLM summary.
   const result = await postgres.query(
     `INSERT INTO chat_thread_attachments
-     (thread_id, message_id, user_id, name, mime_type, size_bytes, is_image, extracted_text, page_count, file_data, document_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+     (thread_id, message_id, user_id, name, mime_type, size_bytes, is_image, extracted_text, page_count, file_data, document_id, content_hash)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+     ON CONFLICT (thread_id, content_hash) WHERE thread_id IS NOT NULL AND content_hash IS NOT NULL
+     DO NOTHING
      RETURNING id`,
     [
       threadId,
@@ -117,8 +150,29 @@ export async function saveThreadAttachment(params: SaveAttachmentParams): Promis
       pageCount ?? null,
       fileData ?? null,
       documentId ?? null,
+      contentHash,
     ]
   );
+
+  // Empty result = the row was already there. Return the existing id and, above
+  // all, do NOT start another summary run for bytes we have already described.
+  if (result.length === 0) {
+    const existing = await postgres.query(
+      `SELECT id FROM chat_thread_attachments WHERE thread_id = $1 AND content_hash = $2 LIMIT 1`,
+      [threadId, contentHash]
+    );
+    const existingId = (existing[0] as { id: string } | undefined)?.id;
+    if (existingId) {
+      log.info(
+        `[AttachmentPersistence] ${name} already stored for thread ${threadId} — reusing ${existingId}`
+      );
+      return existingId;
+    }
+    // Should not happen: DO NOTHING fired but the row is gone. Fall through with
+    // a fresh id rather than throwing in a post-response path.
+    log.warn(`[AttachmentPersistence] Conflict on ${name} but no existing row found`);
+    return randomUUID();
+  }
 
   const attachmentId = (result[0] as { id: string }).id;
   log.info(`[AttachmentPersistence] Saved attachment ${name} for thread ${threadId}`);

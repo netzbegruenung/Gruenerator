@@ -537,7 +537,8 @@ function alreadyVerbatimInConversation(
 export function formatThreadAttachmentsContext(
   attachments: ThreadAttachment[],
   contextWindowTokens?: number,
-  conversationText = ''
+  conversationText = '',
+  liveAttachmentContext = ''
 ): string {
   if (!attachments || attachments.length === 0) {
     return '';
@@ -545,12 +546,33 @@ export function formatThreadAttachmentsContext(
 
   const sections: string[] = [];
 
+  // Every document text already placed in THIS prompt. Seeded with the live
+  // attachment block, then grown as rows are emitted, so the same file cannot
+  // appear twice — neither live-vs-stored nor stored-vs-stored.
+  //
+  // `alreadyVerbatimInConversation` below is a different check and stays: it
+  // compares against the message HISTORY, which never contains the attachment
+  // text (`sanitizeUIFileParts` strips those parts before conversion) — which
+  // is precisely why it could not catch this duplication.
+  const emitted = new Set<string>();
+  const liveKey = squashWhitespace(liveAttachmentContext);
+
   const docBlocks = attachments
     // Docs with a documentId were embedded into Qdrant — they come back via
     // per-query RAG retrieval (searchNode), so don't also dump their full text
     // here (would duplicate and blow the budget). Small docs stay full-context.
     .filter((a) => !a.isImage && !a.documentId && (a.extractedText || a.summary))
     .filter((a) => !alreadyVerbatimInConversation(a.extractedText, conversationText))
+    .filter((a) => {
+      const body = squashWhitespace(a.extractedText ?? a.summary ?? '');
+      if (!body) return false;
+      if (emitted.has(body)) return false;
+      // The live block wraps the text in a `### <name> (…)` header, so compare
+      // by containment rather than equality.
+      if (liveKey && liveKey.includes(body)) return false;
+      emitted.add(body);
+      return true;
+    })
     .map((a, i) => {
       // Tells the model whether it sees the full document or only a digest —
       // otherwise it can't tell an inline full-text extract apart from a
@@ -1508,7 +1530,11 @@ export async function buildSystemMessage(
     : formatThreadAttachmentsContext(
         threadAttachments,
         state.contextWindowTokens,
-        (state.messages ?? []).map((m) => extractTextContent(m.content)).join('\n')
+        (state.messages ?? []).map((m) => extractTextContent(m.content)).join('\n'),
+        // The live block is built independently of the stored rows, and on the
+        // turn a file is uploaded it IS one of them. Hand it over so the same
+        // text isn't sent twice (measured 20.08.2026: 5794 chars → 11632).
+        attachmentContext
       );
   const memoryContextFormatted = formatMemoryContext(memoryContext);
   const chatHistoryFormatted = state.chatHistoryContext ? `\n\n${state.chatHistoryContext}` : '';

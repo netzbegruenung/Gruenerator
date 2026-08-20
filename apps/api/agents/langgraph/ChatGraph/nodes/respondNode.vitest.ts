@@ -537,6 +537,47 @@ describe('formatThreadAttachmentsContext — kein doppelter Ausgangstext', () =>
     );
     expect(out).toContain('FRÜHERE BILDER');
   });
+
+  // Live am 20.08.2026: eine Datei mit 5794 Zeichen erreichte das Modell als
+  // 11588 Zeichen. Zwei Wege dorthin — der Live-Anhang neben der gespeicherten
+  // Zeile, und ab dem dritten Turn zwei gespeicherte Zeilen derselben Datei.
+  // Die Historie-Prüfung darüber konnte beides nicht sehen: `sanitizeUIFileParts`
+  // entfernt die File-Parts, bevor die Historie gebaut wird.
+  describe('derselbe Text nur einmal im Prompt', () => {
+    it('lässt die gespeicherte Zeile weg, wenn der Live-Anhang denselben Text trägt', () => {
+      const live = `### Eingefügter Text.txt (Volltext-Auszug)\n\n${article}`;
+      const out = formatThreadAttachmentsContext([doc(article)], undefined, 'Und weiter?', live);
+      expect(out).toBe('');
+    });
+
+    it('spielt zwei gespeicherte Zeilen derselben Datei nur einmal ein', () => {
+      const out = formatThreadAttachmentsContext(
+        [doc(article), doc(article, { id: 'a2' })],
+        undefined,
+        'Und weiter?'
+      );
+      const treffer = out.match(/Volltext-Auszug/g) ?? [];
+      expect(treffer).toHaveLength(1);
+    });
+
+    it('lässt einen anderen Anhang neben dem Live-Anhang stehen', () => {
+      const other = 'Ein ganz anderes Dokument über Radwege. '.repeat(40);
+      const live = `### Eingefügter Text.txt (Volltext-Auszug)\n\n${article}`;
+      const out = formatThreadAttachmentsContext(
+        [doc(article), doc(other, { id: 'a2', name: 'Radwege.txt' })],
+        undefined,
+        'Und weiter?',
+        live
+      );
+      expect(out).toContain('Radwege.txt');
+      expect(out).not.toContain('Aktionsplan gegen Hitze');
+    });
+
+    it('verhält sich unverändert, wenn kein Live-Anhang übergeben wird', () => {
+      const out = formatThreadAttachmentsContext([doc(article)], undefined, 'Und weiter?');
+      expect(out).toContain('FRÜHERE DOKUMENTE');
+    });
+  });
 });
 
 describe('Pipeline-Turn: genau ein Ausgangstext im Prompt', () => {
