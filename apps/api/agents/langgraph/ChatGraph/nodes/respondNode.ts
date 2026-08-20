@@ -46,7 +46,11 @@ import {
 } from './artifactInventory.js';
 import { buildCitableSources, MAX_SOURCES, type CitableSource } from './citableSources.js';
 import { lastUserText } from './classifierHeuristics.js';
-import { looksLikeDocsHelpQuestion } from './classifierSignals.js';
+import {
+  CLASSIFIER_DOC_SUBTYPES,
+  type DocSubtype,
+  looksLikeDocsHelpQuestion,
+} from './classifierSignals.js';
 import { deriveTextFormMention } from './textFormMention.js';
 
 import type { ChatGraphState, DocumentSource, SearchResult, ThreadAttachment } from '../types.js';
@@ -1030,7 +1034,12 @@ const SEARCH_GUIDANCE =
   '\nDu hast Recherche-Ergebnisse erhalten. Beantworte die Frage primär aus diesen Ergebnissen und zitiere sie inline.';
 
 /** German label per document subtype, for the deliverable note below. */
-const SUBTYPE_LABELS: Record<string, string> = {
+/**
+ * Registry-gebunden, nicht `Record<string, string>`: ein neuer Eintrag in
+ * `CLASSIFIER_DOC_SUBTYPES` bricht hier den Compiler, statt still ohne Label
+ * durchzurutschen — dieser Hinweis fällt dann lautlos aus dem Prompt.
+ */
+const SUBTYPE_LABELS: Record<DocSubtype, string> = {
   pressemitteilung: 'eine Pressemitteilung',
   antrag: 'einen Antrag',
   protokoll: 'ein Protokoll',
@@ -1054,7 +1063,12 @@ const SUBTYPE_LABELS: Record<string, string> = {
  * is untouched.
  */
 function getDeliverableNote(state: ChatGraphState): string {
-  const label = state.documentSubtype ? SUBTYPE_LABELS[state.documentSubtype] : undefined;
+  // `state.documentSubtype` ist `string`, weil die LLM-Stufe hineinschreiben darf.
+  // Der Abgleich gegen die Registry ist die Prüfung, die daraus die Union macht.
+  const subtype: DocSubtype | undefined = CLASSIFIER_DOC_SUBTYPES.find(
+    (candidate) => candidate === state.documentSubtype
+  );
+  const label = subtype ? SUBTYPE_LABELS[subtype] : undefined;
   if (!label) return '';
   return `\nDer*die Nutzer*in hat ${label} verlangt. Die Recherche ist das Mittel, nicht das Ergebnis: Liefere den fertigen Text in der passenden Form, nicht eine Zusammenfassung der Quellenlage darüber.`;
 }

@@ -258,6 +258,18 @@ describe('refineSearchQuery — wann er ablehnt, und was der Turn dann sucht', (
       expect(result.searchQuery, message).toBe(erwartet);
     }
   });
+
+  /**
+   * Die Nomen der Liste sind Präfixe echter Wörter. Ohne Wortgrenze schneidet
+   * `beschluss` mitten in „Beschlussempfehlung", und die Suche läuft mit
+   * „empfehlung zum Wärmeplan" — schlechter als die unveränderte Anweisung,
+   * und nichts im Log sagt, dass gekürzt wurde.
+   */
+  it('schneidet nicht in ein zusammengesetztes Wort hinein', async () => {
+    const message = 'Erstelle eine Beschlussempfehlung zum Wärmeplan';
+    const result = await classifierNode(buildForcedSearchState(message));
+    expect(result.searchQuery).toBe(message);
+  });
 });
 
 describe('refineSearchQuery — was er dem Modell schickt', () => {
