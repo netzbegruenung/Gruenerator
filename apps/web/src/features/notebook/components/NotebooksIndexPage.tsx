@@ -18,6 +18,7 @@ import {
 } from '@gruenerator/ui';
 import { BarChart3, Flame, Map as MapIcon, Plus, type LucideIcon } from 'lucide-react';
 import { memo, useCallback, useMemo, useState } from 'react';
+import { FiUser } from 'react-icons/fi';
 import {
   HiBookOpen,
   HiDotsVertical,
@@ -29,6 +30,7 @@ import {
 import { Link, useNavigate } from 'react-router-dom';
 
 import FavouriteStar from '../../../components/common/FavouriteStar';
+import { LikeButton } from '../../../components/common/LikeButton';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import { NotebookIcon } from '../../../config/icons';
 import { sortToolsByFavourites } from '../../../config/workplaceToolsConfig';
@@ -37,6 +39,7 @@ import useSidebarFavouritesStore from '../../../stores/sidebarFavouritesStore';
 import { getPublicAppOrigin } from '../../../utils/platform';
 import { useNotebookCollections } from '../../auth/hooks/useProfileData';
 import { useGroups } from '../../groups/hooks/useGroups';
+import { useEntityLikes } from '../../likes/hooks/useEntityLikes';
 import { useMonitorSnapshot, usePolls } from '../../monitor/hooks/useMonitor';
 import { useMonitorLocaleParam } from '../../monitor/hooks/useMonitorLocaleParam';
 import { getNotebookConfig } from '../config/notebookPagesConfig';
@@ -115,6 +118,58 @@ const COLLAPSE_THRESHOLD = 3;
 
 const isOwnedCollection = (c: NotebookCollection): boolean =>
   c.access_source == null || c.access_source === 'owned';
+
+// Canonical URL for a community notebook: plural `/notebooks/` with the
+// Notion-style slug, falling back to the raw UUID for legacy pre-backfill rows
+// (NotebookResolver accepts either form).
+const publicNotebookHref = (c: NotebookCollection): string =>
+  `/notebooks/${c.slug_suffix ? buildNotebookSlug(c.name, c.slug_suffix) : c.id}`;
+
+// Author attribution is what distinguishes a community notebook; fall back to
+// its description when the creator has no display name.
+const publicNotebookMeta = (c: NotebookCollection): string | undefined =>
+  c.creator_name ? `von ${c.creator_name}` : (c.description ?? undefined);
+
+/**
+ * "Von der Basis" — publicly listed community notebooks, opened from the
+ * category tile in the notebook row. Likes stay visible (not hover-revealed)
+ * because the count is part of the card's information.
+ */
+const BasisNotebooks = memo(({ collections }: { collections: NotebookCollection[] }) => {
+  const navigate = useNavigate();
+  const { likedIds, toggleLike, isToggling, canLike } = useEntityLikes('notebook');
+
+  return (
+    <section className="mt-md">
+      <SectionHeader title="Von der Basis" />
+      <div className={NOTEBOOK_SCROLL_ROW}>
+        {collections.map((c) => (
+          <div key={c.id} className={NOTEBOOK_SCROLL_ITEM}>
+            <NotebookGalleryCard
+              title={c.name}
+              meta={publicNotebookMeta(c)}
+              metaIcon={c.creator_name ? FiUser : undefined}
+              icon={HiBookOpen}
+              accent="pink"
+              onActivate={() => void navigate(publicNotebookHref(c))}
+              action={
+                <LikeButton
+                  liked={likedIds.has(c.id)}
+                  count={c.likes_count ?? 0}
+                  loading={isToggling(c.id)}
+                  disabled={!canLike}
+                  disabledReason={canLike ? undefined : 'Melde dich an, um zu liken'}
+                  onToggle={() => toggleLike(c.id)}
+                />
+              }
+            />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+});
+BasisNotebooks.displayName = 'BasisNotebooks';
 
 interface EigeneNotebooksProps {
   qaCollections: NotebookCollection[];
@@ -445,7 +500,13 @@ const WissenToolsRow = memo(() => {
 });
 WissenToolsRow.displayName = 'WissenToolsRow';
 
-function NotebooksIndexFooter() {
+/**
+ * The /wissen gallery below the chat surface: notebook row with the expandable
+ * category tiles (Landesverbände, Eigene, Von der Basis), the unified search and
+ * the tool tiles. Exported so it can be rendered on its own in tests — the page
+ * itself drags the whole chat surface in.
+ */
+export function NotebooksIndexFooter() {
   const navigate = useNavigate();
   const locale = useAuthStore((state) => state.locale);
   const isAustrian = locale === 'de-AT';
@@ -491,7 +552,7 @@ function NotebooksIndexFooter() {
           ),
     [isAustrian]
   );
-  const [openCategory, setOpenCategory] = useState<'laender' | 'eigene' | null>(null);
+  const [openCategory, setOpenCategory] = useState<'laender' | 'eigene' | 'basis' | null>(null);
 
   const { query: collectionsQuery, deleteQACollection } = useNotebookCollections({
     isActive: true,
@@ -575,10 +636,16 @@ function NotebooksIndexFooter() {
     [allNotebooks, favouriteIds]
   );
 
-  // "Von der Basis" bekommt keine eigene Reihe mehr, taucht aber in der
-  // vereinten Suche auf (System + eigene + öffentliche Notebooks).
+  // "Von der Basis": öffentlich gelistete Notebooks anderer Nutzer*innen. Sie
+  // haben eine eigene aufklappbare Kategorie-Kachel (wie Landesverbände und
+  // Eigene) und tauchen zusätzlich in der vereinten Suche auf. Eigene Notebooks
+  // fallen raus — die stehen schon unter "Eigene".
   const { data: basisData } = usePublicNotebookCollections({ enabled: true });
-  const basisCollections = useMemo(() => basisData ?? EMPTY_COLLECTIONS, [basisData]);
+  const ownIds = useMemo(() => new Set(qaCollections.map((c) => c.id)), [qaCollections]);
+  const basisCollections = useMemo(
+    () => (basisData ?? EMPTY_COLLECTIONS).filter((c) => !ownIds.has(c.id)),
+    [basisData, ownIds]
+  );
 
   const searchHits = useMemo<NotebookSearchHit[]>(() => {
     if (!trimmed) return [];
@@ -597,7 +664,6 @@ function NotebooksIndexFooter() {
         });
       }
     }
-    const ownIds = new Set(qaCollections.map((c) => c.id));
     for (const c of qaCollections) {
       if (hit(c.name, c.description)) {
         hits.push({
@@ -610,16 +676,13 @@ function NotebooksIndexFooter() {
       }
     }
     for (const c of basisCollections) {
-      if (ownIds.has(c.id) || !hit(c.name, c.description)) continue;
+      if (!hit(c.name, c.description)) continue;
       hits.push({
         key: `basis-${c.id}`,
         title: c.name,
-        meta: c.creator_name ? `von ${c.creator_name}` : (c.description ?? undefined),
+        meta: publicNotebookMeta(c),
         icon: HiBookOpen,
-        onActivate: () =>
-          void navigate(
-            `/notebooks/${c.slug_suffix ? buildNotebookSlug(c.name, c.slug_suffix) : c.id}`
-          ),
+        onActivate: () => void navigate(publicNotebookHref(c)),
       });
     }
     return hits;
@@ -694,6 +757,17 @@ function NotebooksIndexFooter() {
                 />
               </div>
             )}
+            {basisCollections.length > 0 && (
+              <div className={NOTEBOOK_SCROLL_ITEM}>
+                <NotebookGalleryCard
+                  title="Von der Basis"
+                  meta={`${basisCollections.length} ${basisCollections.length === 1 ? 'öffentliches Notebook' : 'öffentliche Notebooks'}`}
+                  icon={HiUserGroup}
+                  accent="pink"
+                  onActivate={() => setOpenCategory((c) => (c === 'basis' ? null : 'basis'))}
+                />
+              </div>
+            )}
             {directAfter.map((nb) => (
               <div key={nb.id} className={NOTEBOOK_SCROLL_ITEM}>
                 <NotebookCard notebook={nb} />
@@ -714,6 +788,10 @@ function NotebooksIndexFooter() {
             ))}
           </div>
         </section>
+      )}
+
+      {!trimmed && openCategory === 'basis' && basisCollections.length > 0 && (
+        <BasisNotebooks collections={basisCollections} />
       )}
 
       {!trimmed && openCategory === 'eigene' && qaCollections.length > 0 && (

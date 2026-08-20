@@ -98,7 +98,7 @@ Im Dialog **„Notebook teilen"** stellst du die **Sichtbarkeit** ein:
 
 ### Auf „Von der Basis" listen
 
-Im Modus **„Mit Anmeldung"** kannst du zusätzlich den Schalter **„Auf ‚Von der Basis' listen"** aktivieren. Dann taucht dein Notebook für andere in der Suche der Wissen-Seite auf — sie durchsucht System-Notebooks, eigene und die so gelisteten öffentlichen Notebooks gemeinsam; einen eigenen Abschnitt „Von der Basis" gibt es nicht mehr. Sobald du den Schalter aktivierst, musst du eine der beiden Aussagen bestätigen:
+Im Modus **„Mit Anmeldung"** kannst du zusätzlich den Schalter **„Auf ‚Von der Basis' listen"** aktivieren. Dann erscheint dein Notebook für andere auf der Wissen-Seite: in der Notebook-Reihe gibt es die Kachel **„Von der Basis"**, die alle so gelisteten Notebooks aufklappt. Zusätzlich taucht es in der Suche der Wissen-Seite auf, die System-Notebooks, eigene und öffentliche Notebooks gemeinsam durchsucht. Sobald du den Schalter aktivierst, musst du eine der beiden Aussagen bestätigen:
 
 - **„Ich besitze die Daten"** — … oder habe die Rechte zur Veröffentlichung; z.&nbsp;B. eigene Texte, Beschlüsse deines Verbands, Material, das du selbst veröffentlichen darfst.
 - **„Daten sind öffentlich verfügbar"** — z.&nbsp;B. offizielle Dokumente, Pressemitteilungen, frei zugängliche Veröffentlichungen.
@@ -120,7 +120,7 @@ Hinter der Karte **„Eigene Notebooks"** auf der Wissen-Seite erscheint jedes d
 ## Häufige Fragen
 
 **Wo schalte ich ein Notebook öffentlich?**
-Nicht mehr in der Erstellung. Öffne das Notebook über **Bearbeiten** und klicke oben rechts auf **„Teilen"**. Wähle im Dialog die Sichtbarkeit **„Mit Anmeldung"** und aktiviere **„Auf ‚Von der Basis' listen"**, damit es in der Suche der Wissen-Seite auffindbar wird.
+Nicht mehr in der Erstellung. Öffne das Notebook über **Bearbeiten** und klicke oben rechts auf **„Teilen"**. Wähle im Dialog die Sichtbarkeit **„Mit Anmeldung"** und aktiviere **„Auf ‚Von der Basis' listen"**, damit es auf der Wissen-Seite unter der Kachel „Von der Basis" und in der Suche auffindbar wird.
 
 **Was passiert mit Dokumenten, wenn ich ein Notebook lösche?**
 Die Dokumente bleiben in deiner persönlichen Dokumenten-Bibliothek erhalten — nur die Sammlung wird gelöscht.
