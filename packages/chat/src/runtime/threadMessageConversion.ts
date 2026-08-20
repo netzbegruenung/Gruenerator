@@ -17,6 +17,7 @@ import {
   type SearchResult,
 } from '../hooks/useChatGraphStream';
 import { ATTACHMENT_META_PART_NAME, type AttachmentMetaData } from '../lib/attachmentMeta';
+import { mapRawCitationsToChat } from '../lib/citationUtils';
 import { isPastedTextAttachment, PASTED_TEXT_PREVIEW_PART_NAME } from '../lib/pastedText';
 import { INTENT_TO_TOOL } from '../lib/toolMappings';
 import { type DocumentCreatedData } from '../types/messageMetadata';
@@ -59,6 +60,9 @@ export interface LoadedMessage {
     searchCount?: number;
     traceId?: string;
     citations?: Citation[];
+    /** Notebook answers only: the collection/document entries the answer drew
+     *  on, persisted beside the citations and read by the sources panel. */
+    sources?: unknown[];
     searchResults?: SearchResult[];
     /** Web-search image hits. The proxy handle on each is minted at LOAD time by
      *  the backend, not stored — see `messagesController`. */
@@ -235,6 +239,46 @@ function buildCustomMetadata(metadata: LoadedMessage['metadata']): Record<string
   }
 
   return custom;
+}
+
+/**
+ * The reload half of the notebook conversation, mirroring what
+ * `NotebookModelAdapter` builds live and `useNotebookChatBridge` rebuilds from
+ * the local cache. Kept separate from `convertToThreadMessageLike` because the
+ * two answer different questions: the chat path infers what a row is from its
+ * metadata, while here every assistant row is known to be a notebook answer.
+ *
+ * Citations arrive raw (snake_case, as the backend stored them) and are mapped
+ * to the shape the badge and sources layers read. `question` has no persisted
+ * home of its own — the Word export takes it as the document heading — so it is
+ * recovered from the user message the answer replied to.
+ */
+export function convertNotebookLoadedMessages(messages: LoadedMessage[]): ThreadMessageLike[] {
+  return messages.map((m, idx) => {
+    const text = extractContent(m.content);
+    if (m.role !== 'assistant') {
+      return { role: 'user' as const, content: [{ type: 'text' as const, text }], id: m.id };
+    }
+
+    // `citations` is one metadata key written by two different producers: the
+    // chat path stores them already mapped, the notebook path stores the raw
+    // snake_case records its retrieval returned. On a notebook thread it is
+    // always the latter, and mapping is what turns them into badges.
+    const rawCitations = (m.metadata?.citations ?? []) as unknown[];
+    const custom: Record<string, unknown> = {
+      citations: mapRawCitationsToChat(rawCitations),
+      rawCitations,
+      sources: m.metadata?.sources ?? [],
+      question: idx > 0 ? extractContent(messages[idx - 1]!.content) : '',
+    };
+
+    return {
+      role: 'assistant' as const,
+      content: [{ type: 'text' as const, text }],
+      id: m.id,
+      metadata: { custom },
+    };
+  });
 }
 
 export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMessageLike[] {

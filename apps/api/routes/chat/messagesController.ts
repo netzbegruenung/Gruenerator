@@ -207,6 +207,11 @@ router.get('/', async (req, res) => {
             ...(typeof meta.searchCount === 'number' && { searchCount: meta.searchCount }),
             ...(typeof meta.traceId === 'string' && { traceId: meta.traceId }),
             ...(Array.isArray(meta.citations) && { citations: meta.citations }),
+            // Notebook answers persist their source list beside the citations
+            // (`notebookStreamController`). It carries the collection/document
+            // entries the answer drew on — the sources panel and the Word export
+            // read it, so a reloaded conversation needs it back.
+            ...(Array.isArray(meta.sources) && { sources: meta.sources }),
             ...(Array.isArray(meta.searchResults) && { searchResults: meta.searchResults }),
             ...(typeof meta.roleName === 'string' && { roleName: meta.roleName }),
             ...(meta.generatedImage && typeof meta.generatedImage === 'object'

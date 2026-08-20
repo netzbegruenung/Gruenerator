@@ -767,6 +767,25 @@ export const getNotebookConfigBySlug = (slug: string): NotebookConfig | undefine
   return Object.values(NOTEBOOK_CONFIGS).find((c) => c.slug === slug);
 };
 
+/**
+ * The page that owns a system collection, e.g. `bayern-system` → the Bayern
+ * notebook. Thread rows know only the collection a conversation ran against,
+ * and for most notebooks the slug happens to be the collection id minus
+ * `-system` — but not for all (`oesterreich-gruene-system` lives at
+ * `/notebooks/oesterreich`), so links must resolve through here rather than
+ * through string surgery.
+ *
+ * Single-collection pages only: a collection that appears solely inside the
+ * multi-source startpage has no page of its own to open.
+ */
+export const getNotebookConfigByCollectionId = (
+  collectionId: string
+): NotebookConfig | undefined => {
+  return Object.values(NOTEBOOK_CONFIGS).find(
+    (c) => c.collectionType === 'single' && c.collections[0]?.id === collectionId
+  );
+};
+
 export const getNotebookPath = (config: { slug: string | null }): string => {
   return config.slug === null ? '/notebooks' : `/notebooks/${config.slug}`;
 };
