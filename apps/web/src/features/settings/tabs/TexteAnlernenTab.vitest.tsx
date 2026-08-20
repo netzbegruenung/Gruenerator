@@ -63,7 +63,10 @@ describe('TexteAnlernenTab — Landesverbands-Rezepte', () => {
     renderTab();
 
     expect(screen.getByText('Rezepte aus Bayern')).toBeInTheDocument();
-    expect(screen.getByText(/@presse-bayern/)).toBeInTheDocument();
+    // Beide Ebenen einzeln: `/@presse-bayern/` traf seit der Aufteilung zwei
+    // Einträge und ließ die Abfrage werfen, statt eine davon zu prüfen.
+    expect(screen.getByText(/@presse-bayern-partei/)).toBeInTheDocument();
+    expect(screen.getByText(/@presse-bayern-fraktion/)).toBeInTheDocument();
     expect(screen.getByText(/@insta-bayern/)).toBeInTheDocument();
   });
 

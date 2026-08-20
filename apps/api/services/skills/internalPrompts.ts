@@ -42,7 +42,18 @@ const DEV_FALLBACK_DIR = resolve(__dirname, '../../../../.external/gruenerator-i
 /** Strips an accidental YAML frontmatter block — the private files carry none. */
 const FRONTMATTER = /^---\r?\n[\s\S]*?\r?\n---\r?\n/;
 
-type Kind = 'skills' | 'agents' | 'rollen';
+/**
+ * A `{{base:<id>}}` marker in a recipe body, replaced with `skills/_base/<id>.md`.
+ *
+ * The craft rules that hold for *every* Grünen press release stood copied into
+ * each of the ten `presse-*` recipes, and had already drifted: the same
+ * "Textsorten-Konstanten" heading carried between 1.1 and 3.1 KB of differing
+ * text. One shared file, composed in here, is the fix — the per-Landesverband
+ * recipe then only carries what is actually specific to it.
+ */
+const BASE_REF = /\{\{base:([a-z0-9-]+)\}\}\n?/g;
+
+type Kind = 'skills' | 'agents' | 'rollen' | 'skills/_base';
 
 const caches = new Map<Kind, Map<string, string>>();
 
@@ -95,7 +106,17 @@ function get(kind: Kind, id: string): string | null {
  * so a changed prompt needs a restart, same as the codegen-backed metadata.
  */
 export function getInternalSkillPrompt(mention: string): string | null {
-  return get('skills', mention);
+  const body = get('skills', mention);
+  if (!body) return null;
+  return body.replace(BASE_REF, (_match, id: string) => {
+    const base = get('skills/_base', id);
+    if (base) return `${base}\n`;
+    // Dropping the marker beats shipping it: the model would otherwise be told
+    // about a block it cannot see. The recipe still works, minus the shared
+    // craft rules — same degradation as a missing directory.
+    log.error(`Recipe ${mention} references missing base block "${id}"`);
+    return '';
+  });
 }
 
 /**

@@ -17,6 +17,7 @@
  */
 import {
   DISABLED_LV_AGENT_IDS,
+  canonicalSkillMention,
   SKILLS,
   type RoleLandesverbandInput,
   type Skill,
@@ -154,7 +155,7 @@ export async function resolveRecipe(params: {
   userId: string | null;
 }): Promise<ResolvedRecipe | null> {
   const { mention, userId } = params;
-  const skill = SKILLS.find((s) => s.mention === mention);
+  const skill = SKILLS.find((s) => s.mention === canonicalSkillMention(mention));
 
   if (userId) {
     const textFormMention = deriveTextFormMention(mention, skill);

@@ -228,6 +228,13 @@ export const SKILL_CATEGORY_LABELS: Record<SkillCategory, string> = {
   sonstiges: 'Sonstiges',
 };
 
+/**
+ * Die Ebene eines Landesverbands, für die ein Rezept geschrieben ist. Partei
+ * meint den Landesverband, Fraktion die Landtagsfraktion — im Korpus getrennt
+ * durch das `-F`-Suffix am LV-Code (`HE` ↔ `HE-F`).
+ */
+export type LvEbene = 'partei' | 'fraktion';
+
 export interface Skill {
   identifier: string;
   title: string;
@@ -242,6 +249,12 @@ export interface Skill {
   isSystemDefault?: boolean;
   /** Locale visibility, same semantics as `AgentAudience` on agents. Undefined ≈ `'all'`. */
   audience?: AgentAudience;
+  /**
+   * Für welche Ebene eines Landesverbands dieses Rezept schreibt. Schneidet die
+   * PM-Beispielsuche zu — ohne die Angabe erdet sich ein Partei-Rezept
+   * überwiegend in Fraktions-PMs. Siehe `skillFrontmatterSchema`.
+   */
+  lvEbene?: LvEbene;
   // NOTE: there is deliberately no `skillSystemPrompt` here. A skill's prompt
   // body is party-internal and lives outside this repo; the API loads it at
   // runtime (apps/api/services/skills/internalPrompts.ts) and serves it to

@@ -315,7 +315,7 @@ export const SYSTEM_AGENT_DEFINITIONS = [
     defaultNotebookIds: ['berlin-notebook'],
     autoRoutingHint: 'creative',
     audience: 'de-DE',
-    defaultRecipeMention: 'presse-berlin',
+    defaultRecipeMention: 'presse-berlin-partei',
     systemRole: '',
   },
   {
@@ -399,7 +399,7 @@ export const SYSTEM_AGENT_DEFINITIONS = [
     defaultNotebookIds: ['mecklenburg-vorpommern-notebook'],
     autoRoutingHint: 'creative',
     audience: 'de-DE',
-    defaultRecipeMention: 'presse-mv',
+    defaultRecipeMention: 'presse-mv-partei',
     systemRole: '',
   },
   {
@@ -525,7 +525,7 @@ export const SYSTEM_AGENT_DEFINITIONS = [
     defaultNotebookIds: ['bayern-notebook'],
     autoRoutingHint: 'creative',
     audience: 'de-DE',
-    defaultRecipeMention: 'presse-bayern',
+    defaultRecipeMention: 'presse-bayern-partei',
     systemRole: '',
   },
   {
@@ -567,7 +567,7 @@ export const SYSTEM_AGENT_DEFINITIONS = [
     defaultNotebookIds: ['sachsen-anhalt-notebook'],
     autoRoutingHint: 'creative',
     audience: 'de-DE',
-    defaultRecipeMention: 'presse-sachsen-anhalt',
+    defaultRecipeMention: 'presse-sachsen-anhalt-partei',
     systemRole: '',
   },
   {
@@ -609,7 +609,7 @@ export const SYSTEM_AGENT_DEFINITIONS = [
     defaultNotebookIds: ['hessen-notebook'],
     autoRoutingHint: 'creative',
     audience: 'de-DE',
-    defaultRecipeMention: 'presse-hessen',
+    defaultRecipeMention: 'presse-hessen-partei',
     systemRole: '',
   },
   {
