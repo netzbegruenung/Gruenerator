@@ -40,7 +40,7 @@ import {
   TOOL_TIMEOUT_OVERRIDES_MS,
   type PersistedStep,
 } from './types.js';
-import { wrapToolsForLoop } from './wrapTools.js';
+import { wrapToolsForLoop, type ToolHooks } from './wrapTools.js';
 
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
 import type { ModelMessage, ToolSet } from 'ai';
@@ -420,6 +420,9 @@ export function wrapAssembledTools(
      *  are recorded, and reload falls back to the legacy cards-first layout. */
     getTextOffset: () => number | null;
     takeNarration: () => string | null;
+    /** Beobachtungspunkt um die Werkzeugausführung — heute die Kostenrechnung
+     *  des Turns. Nicht gesetzt ⇒ Verhalten unverändert. */
+    hooks?: ToolHooks;
   }
 ): ToolSet {
   return wrapToolsForLoop(tools, {
@@ -431,6 +434,7 @@ export function wrapAssembledTools(
     nearDuplicateExemptTools: NEAR_DUPLICATE_EXEMPT_TOOLS,
     getTextOffset: ctx.getTextOffset,
     takeNarration: ctx.takeNarration,
+    ...(ctx.hooks ? { hooks: ctx.hooks } : {}),
     ...(ctx.toolLabels.size > 0
       ? {
           titleFor: (name: string) => {
