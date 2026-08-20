@@ -1,10 +1,17 @@
-import React, { useState, useEffect, useRef, memo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 
+import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometryReporter';
+import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { getAssetById } from '../utils/canvasAssets';
+import { calculateCenteredSnapPosition } from '../utils/snapping';
 
 import type { AssetInstance } from '../utils/canvasAssets';
+import type { SnapLine, SnapTarget } from '../utils/snapping';
 import type Konva from 'konva';
+
+// Assets werden auf eine einheitliche Kantenlaenge normalisiert.
+const TARGET_SIZE = 150;
 
 export interface AssetPrimitiveProps {
   asset: AssetInstance;
@@ -13,6 +20,12 @@ export interface AssetPrimitiveProps {
   onDragEnd: (x: number, y: number) => void;
   onTransformEnd: (x: number, y: number, scale: number, rotation: number) => void;
   draggable?: boolean;
+  stageWidth?: number;
+  stageHeight?: number;
+  getSnapTargets?: (id: string) => SnapTarget[];
+  onSnapChange?: (snapH: boolean, snapV: boolean) => void;
+  onSnapLinesChange?: (lines: SnapLine[]) => void;
+  onGeometryChange?: GeometryReporter;
 }
 
 function AssetPrimitiveInner({
@@ -22,6 +35,12 @@ function AssetPrimitiveInner({
   onDragEnd,
   onTransformEnd,
   draggable = true,
+  stageWidth,
+  stageHeight,
+  getSnapTargets,
+  onSnapChange,
+  onSnapLinesChange,
+  onGeometryChange,
 }: AssetPrimitiveProps) {
   const groupRef = useRef<Konva.Group>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
@@ -50,14 +69,49 @@ function AssetPrimitiveInner({
     }
   }, [isSelected]);
 
-  if (!image) return null;
-
   // Normalize to a consistent target size while maintaining aspect ratio
-  const TARGET_SIZE = 150;
   const maxDim = Math.max(imageSize.width, imageSize.height);
   const baseScale = TARGET_SIZE / maxDim;
   const scaledWidth = imageSize.width * baseScale;
   const scaledHeight = imageSize.height * baseScale;
+
+  const snap = useSnapScheduler({
+    onSnapChange: onSnapChange ?? (() => {}),
+    onSnapLinesChange: onSnapLinesChange ?? (() => {}),
+  });
+
+  // Die Gruppe ist mittig verankert (das Bild traegt offsetX/offsetY).
+  const boxWidth = scaledWidth * asset.scale;
+  const boxHeight = scaledHeight * asset.scale;
+
+  const reportGeometry = useGeometryReporter(asset.id, onGeometryChange);
+  useEffect(() => {
+    reportGeometry(asset.x - boxWidth / 2, asset.y - boxHeight / 2, boxWidth, boxHeight);
+  }, [reportGeometry, asset.x, asset.y, boxWidth, boxHeight]);
+
+  const handleDragMove = useCallback(
+    (e: Konva.KonvaEventObject<DragEvent>) => {
+      if (!stageWidth || !stageHeight) return;
+      const node = e.target as Konva.Group;
+
+      const result = calculateCenteredSnapPosition(
+        node.x(),
+        node.y(),
+        boxWidth,
+        boxHeight,
+        getSnapTargets?.(asset.id) ?? [],
+        stageWidth,
+        stageHeight,
+        snap.hysteresis
+      );
+
+      node.position({ x: result.x, y: result.y });
+      snap.scheduleSnap(result.snapH, result.snapV, result.snapLines);
+    },
+    [asset.id, boxWidth, boxHeight, getSnapTargets, stageWidth, stageHeight, snap]
+  );
+
+  if (!image) return null;
 
   return (
     <>
@@ -78,7 +132,10 @@ function AssetPrimitiveInner({
           e.cancelBubble = true;
           onSelect(asset.id);
         }}
+        onDragStart={snap.onDragStart}
+        onDragMove={handleDragMove}
         onDragEnd={(e) => {
+          snap.onDragEnd();
           onDragEnd(e.target.x(), e.target.y());
         }}
         onTransformEnd={() => {
@@ -156,6 +213,9 @@ export const AssetPrimitive = memo(AssetPrimitiveInner, (prevProps, nextProps) =
   // Compare other props
   if (prevProps.isSelected !== nextProps.isSelected) return false;
   if (prevProps.draggable !== nextProps.draggable) return false;
+  // Die Buehnenmasse gehen in die Snap-Rechnung ein (Formatwechsel).
+  if (prevProps.stageWidth !== nextProps.stageWidth) return false;
+  if (prevProps.stageHeight !== nextProps.stageHeight) return false;
 
   // Callbacks are considered stable
   return true;

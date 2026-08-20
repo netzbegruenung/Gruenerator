@@ -520,6 +520,8 @@ function GenericCanvasWithRef<
     actions,
     setState: setStateWrapper,
     setSelectedElement,
+    elements: config.elements,
+    saveToHistory,
   });
 
   const canvasItems = useMemo(() => buildCanvasItems(config, state), [config, state]);
@@ -664,6 +666,7 @@ function GenericCanvasWithRef<
           layout={layout}
           handlers={elementHandlers}
           getSnapTargets={getSnapTargets}
+          registerGeometry={updateElementPosition}
           handleSnapChange={handleSnapChange}
           setSnapLines={setSnapLines}
           stageWidth={config.canvas.width}
