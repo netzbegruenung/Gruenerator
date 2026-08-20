@@ -12,7 +12,8 @@
  * ids without the downstream ownership/access checks.
  */
 
-export type MentionTokenType = 'tool' | 'mcp' | 'notebook' | 'board' | 'sheet' | 'doc' | 'agent';
+export type MentionTokenType =
+  'tool' | 'mcp' | 'notebook' | 'board' | 'sheet' | 'doc' | 'agent' | 'skill';
 
 export interface MentionToken {
   label: string;
@@ -24,7 +25,10 @@ export interface MentionToken {
   index: number;
 }
 
-const TYPE_ALTERNATION = 'tool|mcp|notebook|board|sheet|doc|agent';
+// `skill` carries the skill's MENTION as id (`skill:presse`), not the owning
+// agent's identifier — skills share agent identifiers, so only the mention
+// names the chosen Rezept unambiguously.
+const TYPE_ALTERNATION = 'tool|mcp|notebook|board|sheet|doc|agent|skill';
 // Label: no ] or newline, bounded. Id: conservative charset, bounded — notably
 // NO ')' so the token always terminates, and ':' allowed for nested identifiers.
 const MENTION_TOKEN_SOURCE = `@\\[([^\\]\\n]{1,80})\\]\\((${TYPE_ALTERNATION}):([A-Za-z0-9:_.\\-]{1,128})\\)`;
