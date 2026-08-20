@@ -9,6 +9,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
@@ -95,9 +96,17 @@ export const chatThreadAttachments = pgTable(
     // Qdrant document id when a large prose doc was chunked+embedded — follow-up
     // turns retrieve it via RAG instead of re-injecting its truncated full text.
     document_id: uuid('document_id'),
+    // md5 over the trimmed extracted text (name + size for binaries). Backed by
+    // a partial UNIQUE index on (thread_id, content_hash): re-sending the same
+    // file on a later turn must not create a second row — it would reach the
+    // model twice and pay for a second summary.
+    content_hash: text('content_hash'),
     created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   },
-  (t) => [index('idx_thread_attachments_message_id').on(t.message_id)]
+  (t) => [
+    index('idx_thread_attachments_message_id').on(t.message_id),
+    uniqueIndex('idx_thread_attachments_content').on(t.thread_id, t.content_hash),
+  ]
 );
 
 /**

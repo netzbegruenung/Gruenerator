@@ -537,6 +537,83 @@ describe('formatThreadAttachmentsContext — kein doppelter Ausgangstext', () =>
     );
     expect(out).toContain('FRÜHERE BILDER');
   });
+
+  // Live am 20.08.2026: eine Datei mit 5794 Zeichen erreichte das Modell als
+  // 11588 Zeichen. Zwei Wege dorthin — der Live-Anhang neben der gespeicherten
+  // Zeile, und ab dem dritten Turn zwei gespeicherte Zeilen derselben Datei.
+  // Die Historie-Prüfung darüber konnte beides nicht sehen: `sanitizeUIFileParts`
+  // entfernt die File-Parts, bevor die Historie gebaut wird.
+  describe('derselbe Text nur einmal im Prompt', () => {
+    it('lässt die gespeicherte Zeile weg, wenn der Live-Anhang denselben Text trägt', () => {
+      const live = `### Eingefügter Text.txt (Volltext-Auszug)\n\n${article}`;
+      const out = formatThreadAttachmentsContext([doc(article)], undefined, 'Und weiter?', live);
+      expect(out).toBe('');
+    });
+
+    it('spielt zwei gespeicherte Zeilen derselben Datei nur einmal ein', () => {
+      const out = formatThreadAttachmentsContext(
+        [doc(article), doc(article, { id: 'a2' })],
+        undefined,
+        'Und weiter?'
+      );
+      const treffer = out.match(/Volltext-Auszug/g) ?? [];
+      expect(treffer).toHaveLength(1);
+    });
+
+    it('lässt einen anderen Anhang neben dem Live-Anhang stehen', () => {
+      const other = 'Ein ganz anderes Dokument über Radwege. '.repeat(40);
+      const live = `### Eingefügter Text.txt (Volltext-Auszug)\n\n${article}`;
+      const out = formatThreadAttachmentsContext(
+        [doc(article), doc(other, { id: 'a2', name: 'Radwege.txt' })],
+        undefined,
+        'Und weiter?',
+        live
+      );
+      expect(out).toContain('Radwege.txt');
+      expect(out).not.toContain('Aktionsplan gegen Hitze');
+    });
+
+    it('verhält sich unverändert, wenn kein Live-Anhang übergeben wird', () => {
+      const out = formatThreadAttachmentsContext([doc(article)], undefined, 'Und weiter?');
+      expect(out).toContain('FRÜHERE DOKUMENTE');
+    });
+
+    // Der Teilstring-Vergleich braucht dieselbe Untergrenze wie die Historie-
+    // Prüfung: eine kurze gespeicherte Notiz kann zufällig irgendwo in einem
+    // völlig anderen Live-Dokument vorkommen. Ohne Schwelle fiele sie lautlos
+    // aus dem Prompt — ohne Log, ohne Budget-Warnung.
+    it('verschluckt keine kurze gespeicherte Zeile, die zufällig im Live-Text steht', () => {
+      const notiz = 'Gesamt: 12,50 €';
+      const live = `### Quartalsbericht.pdf (Volltext-Auszug)\n\n${article} Gesamt: 12,50 € Ende.`;
+      const out = formatThreadAttachmentsContext(
+        [doc(notiz, { name: 'Notiz.txt' })],
+        undefined,
+        'Und weiter?',
+        live
+      );
+      expect(out).toContain('Notiz.txt');
+      expect(out).toContain(notiz);
+    });
+
+    it('erkennt die Dublette auch, wenn der Live-Block gekürzt ankommt', () => {
+      // Der gespeicherte Volltext ist ungekürzt, der Live-Block kann es nicht
+      // sein — deshalb zählt die Überdeckung in beide Richtungen, sobald sie
+      // lang genug ist, um kein Zufall mehr zu sein.
+      const live = `### Eingefügter Text.txt (Volltext-Auszug)\n\n${article.slice(0, 1200)}`;
+      const out = formatThreadAttachmentsContext([doc(article)], undefined, 'Und weiter?', live);
+      expect(out).toBe('');
+    });
+
+    it('erkennt die Dublette, wenn der Live-Block mehrere Dokumente trägt', () => {
+      const other = 'Ein ganz anderes Dokument über Radwege. '.repeat(40);
+      const live = [
+        `### Radwege.txt (Volltext-Auszug)\n\n${other}`,
+        `### Eingefügter Text.txt (Volltext-Auszug)\n\n${article}`,
+      ].join('\n\n---\n\n');
+      const out = formatThreadAttachmentsContext([doc(article)], undefined, 'Und weiter?', live);
+      expect(out).toBe('');
+    });
+  });
 });
 
 describe('Pipeline-Turn: genau ein Ausgangstext im Prompt', () => {
