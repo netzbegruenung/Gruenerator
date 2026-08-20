@@ -376,6 +376,23 @@ describe('Tier 2 — context intents (resource presence only)', () => {
       expect(result.intent).toBe('search');
       expect(result.documentSubtype).toBeUndefined();
     });
+
+    // Die Textsorte haengt am erzwungenen Suchpfad, nicht am Anhang-Zweig.
+    // Sie war zuerst an genau EINER der sechs Aufrufstellen verdrahtet — die
+    // uebrigen fuenf erzwingen dieselbe Suche und sind die haeufigeren Wege.
+    it.each([
+      ['@notebook', { notebookIds: ['nb-1'] }],
+      ['@document', { documentIds: ['doc-1'] }],
+      ['@dokumentchat', { documentChatIds: ['dc-1'] }],
+    ] as const)('names the document type on the %s path too', async (_label, mention) => {
+      const state = buildState({
+        userMessage: 'schreibe darauf basierend einen Antrag für mehr Hitzeschutz',
+        ...mention,
+      });
+      const result = await classifierNode(state);
+      expect(result.intent).toBe('search');
+      expect(result.documentSubtype).toBe('antrag');
+    });
   });
 });
 

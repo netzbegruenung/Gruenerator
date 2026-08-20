@@ -863,14 +863,6 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         (state.defaultNotebookCollectionIds?.length ?? 0) +
         (state.defaultNotebookDocumentIds?.length ?? 0);
       if (defaultNotebookScopeCount > 0) {
-        // Forcing `search` decides HOW the turn gathers, not WHAT it owes the
-        // user. "schreibe darauf basierend einen antrag …" (live 20.08.2026)
-        // came back as a sourced research answer: a search turn gets
-        // SEARCH_GUIDANCE, and nothing told it that a document had been ordered.
-        //
-        // Deliberately the narrow noun detector, NOT the broad
-        // `GENERATION_SIGNAL`: "Antworte auf diese E-Mail einer Bürgerin" must
-        // keep behaving exactly as before, and it names no Textsorte.
         return classifyWithForcedSearch({
           reason: 'AttachmentDefaultNotebook',
           docCount: defaultNotebookScopeCount,
@@ -885,7 +877,6 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
           temporal,
           complexity,
           startTime,
-          documentSubtype: detectDocumentSubtype(userContent),
         });
       }
 
@@ -1914,8 +1905,13 @@ async function pickThreadArtifact(
 }
 
 /**
- * Helper for the 3 near-identical "force search intent with LLM query optimization" blocks.
- * Used by document chat, document mention, and notebook mention paths.
+ * Helper for the six near-identical "force search intent with LLM query
+ * optimization" blocks: @dokumentchat, @document, @wolke, @connect, @notebook
+ * and the attachment + default-notebook path.
+ *
+ * Everything that must hold for ALL forced-search turns belongs in HERE, not at
+ * the call sites. `documentSubtype` was wired at exactly one of the six once,
+ * which left the other five reproducing the bug it was meant to fix.
  */
 async function classifyWithForcedSearch(opts: {
   reason: string;
@@ -1927,8 +1923,6 @@ async function classifyWithForcedSearch(opts: {
   complexity: 'simple' | 'moderate' | 'complex';
   startTime: number;
   gatherSources?: GatherSource[];
-  /** Textsorte the user named. The turn still searches; this says what it owes. */
-  documentSubtype?: string | null;
 }): Promise<Partial<ChatGraphState>> {
   const {
     reason,
@@ -1940,7 +1934,6 @@ async function classifyWithForcedSearch(opts: {
     complexity,
     startTime,
     gatherSources,
-    documentSubtype,
   } = opts;
 
   log.info(
@@ -1955,8 +1948,19 @@ async function classifyWithForcedSearch(opts: {
   // Of the six fields the old call kept, two are load-bearing here and both
   // survive: `searchQuery` and `subQueries` come from the resolver,
   // `detectedFilters` from the deterministic heuristic the catch branch already
-  // used. `documentSubtype` and `targetGroupName` are read only by document-
-  // CREATION and share paths, which a forced-search turn never reaches.
+  // used. `targetGroupName` is read only by the share path, which a
+  // forced-search turn never reaches.
+  //
+  // `documentSubtype` was in that same sentence until 20.08.2026, and it was
+  // wrong: forcing `search` decides HOW the turn gathers, not WHAT it owes the
+  // user. "schreibe darauf basierend einen antrag …" came back as a sourced
+  // research answer, because a search turn gets SEARCH_GUIDANCE and nothing told
+  // it a document had been ordered. `respondNode` reads the field on this path
+  // now (`getDeliverableNote`).
+  //
+  // Deliberately the narrow noun detector, NOT the broad `GENERATION_SIGNAL`:
+  // "Antworte auf diese E-Mail einer Bürgerin" must keep behaving exactly as
+  // before, and it names no Textsorte.
   //
   // `secondaryIntent` is the one real behaviour change: it is now always null
   // here, so these turns stop being kicked out of the agentic loop by
@@ -1970,6 +1974,8 @@ async function classifyWithForcedSearch(opts: {
       refined ? '' : ' (heuristic fallback)'
     }`
   );
+
+  const documentSubtype = detectDocumentSubtype(userContent);
 
   return {
     intent: 'search',
