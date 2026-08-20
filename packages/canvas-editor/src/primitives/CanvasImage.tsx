@@ -16,6 +16,7 @@ import Konva from 'konva';
 import { useRef, useEffect, useCallback, memo } from 'react';
 import { Image as KonvaImage, Transformer } from 'react-konva';
 
+import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometryReporter';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { calculateElementSnapPosition } from '../utils/snapping';
 
@@ -43,6 +44,8 @@ export interface CanvasImageProps {
   onSnapChange?: (snapH: boolean, snapV: boolean) => void;
   snapTargets?: SnapTarget[];
   onPositionChange?: (id: string, x: number, y: number, width: number, height: number) => void;
+  /** Meldet die gerenderte Geometrie als Snap-Ziel — unabhaengig davon, ob je gezogen wurde. */
+  onGeometryChange?: GeometryReporter;
   onSnapLinesChange?: (lines: SnapLine[]) => void;
   listening?: boolean;
   color?: string;
@@ -88,6 +91,7 @@ function CanvasImageInner({
   onSnapChange,
   snapTargets,
   onPositionChange,
+  onGeometryChange,
   onSnapLinesChange,
   listening,
   color,
@@ -118,6 +122,12 @@ function CanvasImageInner({
       imageRef.current.cache();
     }
   }, [image, width, height, color, brightness, grayscale]);
+
+  const reportGeometry = useGeometryReporter(id, onGeometryChange);
+
+  useEffect(() => {
+    reportGeometry(x, y, width, height);
+  }, [reportGeometry, x, y, width, height]);
 
   const handleDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
