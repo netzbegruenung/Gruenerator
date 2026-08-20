@@ -254,6 +254,22 @@ function buildCustomMetadata(metadata: LoadedMessage['metadata']): Record<string
  * recovered from the user message the answer replied to.
  */
 export function convertNotebookLoadedMessages(messages: LoadedMessage[]): ThreadMessageLike[] {
+  /**
+   * The question an answer replied to: the nearest preceding user row, not
+   * simply the row before. An answer can end up without its question —
+   * `notebookStreamController` persists the two separately, keeps the answer
+   * when the question's write fails, and writes no question row at all when the
+   * text is empty. Reading `idx - 1` blindly would then hand the next answer
+   * the *previous answer's* text as its heading.
+   */
+  const questionFor = (idx: number): string => {
+    for (let i = idx - 1; i >= 0; i--) {
+      const row = messages[i]!;
+      if (row.role !== 'assistant') return extractContent(row.content);
+    }
+    return '';
+  };
+
   return messages.map((m, idx) => {
     const text = extractContent(m.content);
     if (m.role !== 'assistant') {
@@ -269,7 +285,7 @@ export function convertNotebookLoadedMessages(messages: LoadedMessage[]): Thread
       citations: mapRawCitationsToChat(rawCitations),
       rawCitations,
       sources: m.metadata?.sources ?? [],
-      question: idx > 0 ? extractContent(messages[idx - 1]!.content) : '',
+      question: questionFor(idx),
     };
 
     return {
