@@ -247,6 +247,29 @@ describe('session-teardown severity', () => {
     expect(stages).not.toContain('redirect-loop');
   });
 
+  it('ignores future-dated redirects left by a backward clock jump', async () => {
+    // The GRUENERATOR-DA shape: two entries written before the wall clock
+    // jumped backwards (laptop resume + NTP correction). `now - ts` is
+    // negative for both, so the old `< WINDOW`-only filter kept them alive
+    // forever and this single, ordinary expiry reported itself as a
+    // 3-redirect loop.
+    const now = Date.now();
+    const { teardown, stages } = await fireTeardown([now + 30_000, now + 60_000]);
+
+    expect(teardown?.level).toBe('warning');
+    expect(stages).not.toContain('redirect-loop');
+    expect(teardown?.extras?.redirectCount).toBe(1);
+  });
+
+  it('still trips on a genuine loop once the future-dated entries are gone', async () => {
+    // Guards the fix against over-correcting: real, in-window redirects must
+    // survive the tighter filter.
+    const now = Date.now();
+    const { stages } = await fireTeardown([now + 60_000, now - 2_000, now - 1_000]);
+
+    expect(stages).toContain('redirect-loop');
+  });
+
   it('tags the teardown by source, probe verdict and 401 code, and splits the fingerprint', async () => {
     const { teardown } = await fireTeardown([]);
 
