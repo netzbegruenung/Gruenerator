@@ -27,8 +27,22 @@ import apiClient from '../../../components/utils/apiClient';
 
 // Collaborative docs/boards share via the full link+group ShareModal (same as
 // the docs/boards overview cards), not the plain copy-link used for other types.
+// The modal reads its API/auth seam from `useDocsAdapter()`, and unlike every
+// other ShareModal call site the Workplace page has no DocsProvider above it —
+// so the provider is bundled into the lazy chunk right here. It must stay
+// *inside* the dynamic import: a static `DocsProvider` import would pull all of
+// @gruenerator/docs into the eagerly-loaded workplace chunk.
 const LazyShareModal = lazy(() =>
-  import('@gruenerator/docs').then((m) => ({ default: m.ShareModal }))
+  import('@gruenerator/docs').then((m) => {
+    const { DocsProvider, ShareModal } = m;
+    const Wrapped = (props: React.ComponentProps<typeof ShareModal>) => (
+      <DocsProvider adapter={webAppDocsAdapter}>
+        <ShareModal {...props} />
+      </DocsProvider>
+    );
+    Wrapped.displayName = 'WorkplaceShareModal';
+    return { default: Wrapped };
+  })
 );
 import { useBoardsTyped } from '../../../hooks/useBoardsTyped';
 import useSidebarFavouritesStore, { useIsFavourite } from '../../../stores/sidebarFavouritesStore';
@@ -40,6 +54,7 @@ import {
   resolveApiAssetUrl,
   shareThumbnailPreviewUrl,
 } from '../../../utils/platform';
+import { webAppDocsAdapter } from '../../docs/docsAdapter';
 import { Lightbox } from '../../image-studio/components/Lightbox';
 import {
   type RecentItem,
