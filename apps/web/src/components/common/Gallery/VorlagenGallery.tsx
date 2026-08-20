@@ -26,6 +26,9 @@ const LOCALE_LABEL: Record<string, string> = {
 
 const DEBOUNCE_DELAY = 500;
 
+const GRID_CLASS =
+  'grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-5 max-md:grid-cols-[repeat(auto-fill,minmax(165px,1fr))] max-md:gap-3';
+
 interface CategoryItem {
   id: string;
   label: string;
@@ -247,7 +250,7 @@ const VorlagenGallery = memo((): JSX.Element => {
   const hasActiveFilters = activeTags.length > 0 || Boolean(activeCategory) || !localeFilter;
 
   return (
-    <div className="mx-auto mt-[60px] max-w-[1200px] flex-col px-lg box-border max-md:mt-0 max-md:px-md max-md:py-lg">
+    <div className="mx-auto mt-[60px] max-w-[1360px] flex-col px-lg box-border max-md:mt-0 max-md:px-md max-md:py-lg">
       <div className="text-center">
         <h1 className="mb-4 text-[2.5rem] font-semibold text-foreground-heading max-md:text-[1.75rem]">
           Vorlagen-Datenbank
@@ -256,11 +259,11 @@ const VorlagenGallery = memo((): JSX.Element => {
           Durchsuche hier Design-Vorlagen für Canva, InDesign und mehr.
         </p>
 
-        <div className="mx-auto mb-xl flex w-full max-w-[760px] flex-wrap items-center justify-center gap-3 px-md box-border max-md:flex-col max-md:items-stretch">
+        <div className="mx-auto mb-xl flex w-full flex-wrap items-center justify-center gap-3 px-md box-border max-md:flex-col max-md:items-stretch">
           {/* Compact, width-limited search field with leading icon. */}
-          <div className="relative h-12 min-w-0 flex-1 max-md:w-full">
+          <div className="relative h-10 w-[400px] max-w-full min-w-0 max-md:w-full">
             <HiMagnifyingGlass
-              className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-foreground/50"
+              className="pointer-events-none absolute left-3.5 top-1/2 size-[1.125rem] -translate-y-1/2 text-foreground/50"
               aria-hidden="true"
             />
             <input
@@ -269,14 +272,14 @@ const VorlagenGallery = memo((): JSX.Element => {
               onChange={(e) => setInputValue(e.target.value)}
               placeholder="Vorlagen durchsuchen..."
               aria-label="Vorlagen durchsuchen"
-              className="h-full w-full rounded-full border-2 border-background-alt bg-background pl-11 pr-12 text-base text-foreground outline-none transition-colors placeholder:text-foreground/50 focus:border-primary-500"
+              className="h-full w-full rounded-full border-2 border-background-alt bg-background pl-10 pr-10 text-base text-foreground outline-none transition-colors placeholder:text-foreground/50 focus:border-primary-500"
             />
             <Popover>
               <PopoverTrigger asChild>
                 <button
                   type="button"
                   className={cn(
-                    'absolute right-1.5 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full border-none bg-transparent text-foreground/60 transition-colors hover:bg-background-alt hover:text-primary-500',
+                    'absolute right-1 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-full border-none bg-transparent text-foreground/60 transition-colors hover:bg-background-alt hover:text-primary-500',
                     (!localeFilter || selectedCategory !== 'all') &&
                       'bg-primary-500/10 text-primary-500'
                   )}
@@ -332,14 +335,14 @@ const VorlagenGallery = memo((): JSX.Element => {
           </div>
           <Button
             variant="brand"
-            size="brand-md"
+            size="brand"
             className="max-md:w-full"
             onClick={() => setShowAddModal(true)}
           >
             <HiPlus className="size-5" />
             Vorlage hinzufügen
           </Button>
-          <Button asChild variant="brand-outline" size="brand-md" className="max-md:w-full">
+          <Button asChild variant="brand-outline" size="brand" className="max-md:w-full">
             <Link to="/vorlagen/meine">Meine Vorlagen</Link>
           </Button>
 
@@ -377,46 +380,56 @@ const VorlagenGallery = memo((): JSX.Element => {
         </div>
       )}
 
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-5 max-md:grid-cols-[repeat(auto-fill,minmax(165px,1fr))] max-md:gap-3">
-        {dataQuery.isLoading && items.length === 0 ? (
-          Array.from({ length: 12 }).map((_, i) => (
-            <div key={i} className="aspect-[4/5] animate-pulse rounded-lg bg-background-alt" />
-          ))
-        ) : dataQuery.error ? (
-          <p className="col-span-full text-center text-error">
-            {dataQuery.error.message || 'Fehler beim Laden'}
-          </p>
-        ) : items.length === 0 ? (
-          <p className="col-span-full text-center">Keine Vorlagen gefunden.</p>
-        ) : (
-          <>
-            {/* Low-friction add tile, inline in the grid. */}
-            <button
-              type="button"
-              onClick={() => setShowAddModal(true)}
-              className="group flex aspect-[4/5] flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-grey-300 bg-transparent text-grey-500 transition-colors hover:border-primary-500 hover:text-primary-500 dark:border-grey-600"
-            >
-              <HiPlus className="size-7" />
-              <span className="text-sm font-medium">Neue Vorlage</span>
-            </button>
-            {items.map((item) => {
-              const itemId = String(item.id);
-              const hasUrl = Boolean(resolveTemplateUrl(item));
-              return (
-                <VorlagenCard
-                  key={itemId}
-                  item={item}
-                  onOpen={() => setPreviewTemplate(item)}
-                  liked={likedIds.has(itemId)}
-                  onToggleLike={canLike ? () => toggleLike(itemId) : undefined}
-                  likeToggling={isLikeToggling(itemId)}
-                  onCopyLink={hasUrl ? () => copyLink(item) : undefined}
-                />
-              );
-            })}
-          </>
-        )}
-      </div>
+      {dataQuery.error ? (
+        <p className="text-center text-error">{dataQuery.error.message || 'Fehler beim Laden'}</p>
+      ) : (
+        <>
+          <div className={GRID_CLASS}>
+            {dataQuery.isLoading && items.length === 0 ? (
+              Array.from({ length: 12 }).map((_, i) => (
+                <div key={i} className="aspect-[3/4] animate-pulse rounded-lg bg-background-alt" />
+              ))
+            ) : (
+              <>
+                {/* Low-friction add tile, inline in the grid. Kept below the
+                    cards' own height so the grid row stretch fills it out. */}
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(true)}
+                  className="flex min-h-[240px] flex-col items-center justify-center gap-3 rounded-lg border-[1.5px] border-dashed border-grey-300 bg-transparent text-base text-grey-500 transition-colors hover:border-primary-500 hover:bg-primary-500/5 hover:text-primary-500 dark:border-grey-600"
+                >
+                  <HiPlus className="size-7" />
+                  <span>Neue Vorlage</span>
+                </button>
+                {items.map((item) => {
+                  const itemId = String(item.id);
+                  const hasUrl = Boolean(resolveTemplateUrl(item));
+                  return (
+                    <VorlagenCard
+                      key={itemId}
+                      item={item}
+                      onOpen={() => setPreviewTemplate(item)}
+                      liked={likedIds.has(itemId)}
+                      onToggleLike={canLike ? () => toggleLike(itemId) : undefined}
+                      likeToggling={isLikeToggling(itemId)}
+                      onCopyLink={hasUrl ? () => copyLink(item) : undefined}
+                    />
+                  );
+                })}
+              </>
+            )}
+          </div>
+
+          {!dataQuery.isLoading && items.length === 0 && (
+            <div className="py-16 text-center">
+              <p className="mb-1 text-[1.0625rem] font-semibold text-foreground-heading">
+                Keine Vorlagen gefunden
+              </p>
+              <p className="text-sm text-foreground/60">Versuche einen anderen Suchbegriff.</p>
+            </div>
+          )}
+        </>
+      )}
 
       {previewTemplate && (
         <TemplatePreviewModal
