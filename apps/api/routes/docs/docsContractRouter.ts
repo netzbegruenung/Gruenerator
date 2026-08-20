@@ -48,7 +48,11 @@ import {
   docListColumns,
   docsAccessWhere,
 } from './constants.js';
-import { checkDocumentAccess, autoGrantSharePermission } from './documentAccess.js';
+import {
+  checkDocumentAccess,
+  autoGrantSharePermission,
+  redactDocumentForReader,
+} from './documentAccess.js';
 
 import type { CollaborativeDocument } from './types.js';
 import type { UserProfile } from '../../services/user/types.js';
@@ -117,7 +121,7 @@ export const docsContractRouter = s.router(docsContract, {
 
       autoGrantSharePermission(document, userId);
 
-      return { status: 200 as const, body: document };
+      return { status: 200 as const, body: redactDocumentForReader(document, userId) };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       log.error('[docsContract.getDocumentById] Error:', error);
@@ -843,11 +847,21 @@ export const docsContractRouter = s.router(docsContract, {
       if (doc.kind !== 'ok') return doc.response;
 
       const { permission } = args.body;
+      // Strip auto-granted link permissions so the new link level takes effect
+      // for everyone on reconnect. Without this, users who opened the link while
+      // it was 'editor' keep their persisted editor entry after a downgrade to
+      // 'viewer' — the column change alone would not revoke their write access.
       await db.query(
         `UPDATE collaborative_documents
-         SET share_permission = $1, updated_at = CURRENT_TIMESTAMP
+         SET share_permission = $1,
+             permissions = (
+               SELECT COALESCE(jsonb_object_agg(key, value), '{}'::jsonb)
+               FROM jsonb_each(COALESCE(permissions, '{}'::jsonb))
+               WHERE value->>'granted_by' IS DISTINCT FROM $3
+             ),
+             updated_at = CURRENT_TIMESTAMP
          WHERE id = $2`,
-        [permission, args.params.id]
+        [permission, args.params.id, GRANTED_BY_SHARE_LINK]
       );
 
       return {
@@ -872,6 +886,15 @@ export const docsContractRouter = s.router(docsContract, {
 
       const { mode } = args.body;
       const isPublic = mode === 'public';
+      const currentPermission = doc.row.share_permission ?? 'editor';
+
+      // A freshly-public link defaults to view-only: 'public' + 'editor' lets any
+      // anonymous visitor write over the WebSocket (guest auth). Enabling public
+      // editing must be a deliberate second action via setSharePermission.
+      const nextPermission =
+        mode === 'public' && doc.row.share_mode !== 'public' && currentPermission === 'editor'
+          ? 'viewer'
+          : currentPermission;
 
       if (mode === 'authenticated') {
         await db.query(
@@ -881,11 +904,13 @@ export const docsContractRouter = s.router(docsContract, {
           [mode, isPublic, args.params.id]
         );
       } else {
-        // Revoke auto-granted permissions when leaving authenticated mode.
+        // Revoke auto-granted link permissions when changing away from / into a
+        // link mode, so the effective link level is re-derived on reconnect.
         await db.query(
           `UPDATE collaborative_documents
            SET share_mode = $1,
                is_public = $2,
+               share_permission = $5,
                permissions = (
                  SELECT COALESCE(jsonb_object_agg(key, value), '{}'::jsonb)
                  FROM jsonb_each(COALESCE(permissions, '{}'::jsonb))
@@ -893,7 +918,7 @@ export const docsContractRouter = s.router(docsContract, {
                ),
                updated_at = CURRENT_TIMESTAMP
            WHERE id = $3`,
-          [mode, isPublic, args.params.id, GRANTED_BY_SHARE_LINK]
+          [mode, isPublic, args.params.id, GRANTED_BY_SHARE_LINK, nextPermission]
         );
       }
 
@@ -901,7 +926,7 @@ export const docsContractRouter = s.router(docsContract, {
         status: 200 as const,
         body: {
           is_public: isPublic,
-          share_permission: doc.row.share_permission ?? 'editor',
+          share_permission: mode === 'authenticated' ? currentPermission : nextPermission,
           share_mode: mode,
         },
       };

@@ -139,3 +139,31 @@ export function autoGrantSharePermission(document: CollaborativeDocument, userId
     console.error('[Docs] Error auto-adding user to permissions:', errMsg);
   });
 }
+
+/**
+ * Strip the collaborator ACL and internal Nextcloud (wolke_*) fields from a
+ * document before returning it to a reader who is neither the owner nor an
+ * editor. Such readers have no need for the full list of collaborator user IDs
+ * or the sync metadata; the frontend `canEdit` check only needs the reader's
+ * own permission entry plus created_by / share_mode / share_permission. Pass
+ * userId === null for anonymous (public-link) readers — their permission map is
+ * dropped entirely.
+ */
+export function redactDocumentForReader<T extends { created_by: string; permissions?: unknown }>(
+  document: T,
+  userId: string | null
+): T {
+  const perms = (document.permissions ?? null) as Record<string, { level?: string }> | null;
+  const ownLevel = userId && perms ? perms[userId]?.level : undefined;
+  const isPrivileged =
+    document.created_by === userId || ownLevel === 'owner' || ownLevel === 'editor';
+  if (isPrivileged) return document;
+
+  const ownEntry = userId && perms ? perms[userId] : undefined;
+  const redacted = { ...document } as Record<string, unknown>;
+  redacted.permissions = ownEntry && userId ? { [userId]: ownEntry } : null;
+  for (const key of Object.keys(redacted)) {
+    if (key.startsWith('wolke_')) delete redacted[key];
+  }
+  return redacted as T;
+}
