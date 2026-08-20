@@ -163,13 +163,18 @@ function sleep(ms: number): Promise<void> {
  * Caches the verdict for 5s to collapse 401 cascades across routes.
  */
 export async function probeSessionVerdict(): Promise<ProbeVerdict> {
-  // Return cached result if recent.
+  // Return cached result if recent. `age >= 0` is not pedantry: a backward
+  // wall-clock jump (sleep/resume + NTP) makes `age` negative, which passes a
+  // bare `< TTL` check forever — pinning whatever verdict was cached before
+  // the jump for the rest of the page's life. Cached 'dead' would then keep
+  // tearing the session down after a successful re-login.
   const now = Date.now();
-  if (lastProbe && now - lastProbe.timestamp < PROBE_CACHE_TTL_MS) {
+  const cachedAgeMs = lastProbe ? now - lastProbe.timestamp : Number.NaN;
+  if (lastProbe && cachedAgeMs >= 0 && cachedAgeMs < PROBE_CACHE_TTL_MS) {
     sessionDebug('probe.start', {
       cached: true,
       cachedVerdict: lastProbe.verdict,
-      cachedAgeMs: now - lastProbe.timestamp,
+      cachedAgeMs,
     });
     return lastProbe.verdict;
   }
@@ -357,12 +362,43 @@ function markBackendDeadSession(): void {
   }
 }
 
+/**
+ * Does `ts` count as a redirect that happened inside the breaker window?
+ *
+ * The `ts <= now` half is the load-bearing one. `now - ts < WINDOW` alone is
+ * ALSO true for every timestamp in the FUTURE, and the counter lives in
+ * sessionStorage — which survives reloads, browser-restart tab restore and
+ * tab duplication. So a single backward jump of the wall clock (a laptop
+ * resuming from sleep and taking an NTP correction, a DST change, a manual
+ * clock fix) freezes every entry written before the jump permanently inside
+ * the window: nothing ages them out, and neither of the two clearers fires
+ * on a dead session (`notifyAuthConfirmed` needs a successful auth, and the
+ * breaker's own reset needs a trip).
+ *
+ * The result is a counter that is pre-armed at 2. The next ordinary session
+ * expiry — one redirect, no loop — reports itself as a 3-redirect loop: the
+ * user is nuked to a bare /login instead of getting the `redirectTo` back,
+ * and GlitchTip records a `redirect-loop` that never looped
+ * (GRUENERATOR-DA). `useAuth` already rejects `> Date.now()` on every other
+ * persisted auth timestamp for exactly this reason; this counter was the one
+ * that did not.
+ */
+function isWithinBreakerWindow(ts: number, now: number): boolean {
+  return Number.isFinite(ts) && ts <= now && now - ts < CIRCUIT_BREAKER_WINDOW_MS;
+}
+
 function performLoginRedirect(source: string, code?: string): void {
   const now = Date.now();
-  const recent = readRedirectTimestamps()
-    .filter((ts) => now - ts < CIRCUIT_BREAKER_WINDOW_MS)
-    .concat(now);
+  const stored = readRedirectTimestamps();
+  const recent = stored.filter((ts) => isWithinBreakerWindow(ts, now)).concat(now);
   writeRedirectTimestamps(recent);
+  // How many stored entries were thrown away, and how far off they were. A
+  // negative age is the clock-skew signature above; a large positive one is an
+  // ordinary expired entry. Without this, a poisoned counter and a real loop
+  // arrive as the same event.
+  const discardedAges = stored
+    .filter((ts) => !isWithinBreakerWindow(ts, now))
+    .map((ts) => now - ts);
 
   const breakerTripped = recent.length >= CIRCUIT_BREAKER_THRESHOLD;
   const probeDetail = lastProbe?.detail ?? 'unknown';
@@ -372,6 +408,7 @@ function performLoginRedirect(source: string, code?: string): void {
     probeDetail,
     redirectCount: recent.length,
     breakerTripped,
+    discardedAges,
   });
   // A session teardown is NEVER benign — this fires on every dead-session
   // redirect, not just circuit-breaker trips, closing the telemetry blind
@@ -431,13 +468,27 @@ function performLoginRedirect(source: string, code?: string): void {
     sessionDebug('breaker.tripped', {
       redirectCount: recent.length,
       windowMs: CIRCUIT_BREAKER_WINDOW_MS,
+      redirectAges: recent.map((ts) => now - ts),
     });
     captureAuthIssue({
       stage: 'redirect-loop',
       cause: new Error(
         `Auth-redirect circuit breaker tripped: ${recent.length} redirects in ${CIRCUIT_BREAKER_WINDOW_MS}ms`
       ),
-      extras: { redirectCount: recent.length, windowMs: CIRCUIT_BREAKER_WINDOW_MS },
+      tags: { 'auth.source': source, 'auth.probe': probeDetail },
+      extras: {
+        redirectCount: recent.length,
+        windowMs: CIRCUIT_BREAKER_WINDOW_MS,
+        // Ages of the redirects that DID count, oldest first. A genuine loop
+        // shows three spread-out ages across page loads; a single redirect
+        // carrying poisoned neighbours shows two near-identical old ones and
+        // a 0.
+        redirectAges: recent.map((ts) => now - ts),
+        discardedAges,
+        source,
+        code,
+        probeDetail,
+      },
     });
     wipeAllAuthCaches();
     clearRedirectTimestamps();
