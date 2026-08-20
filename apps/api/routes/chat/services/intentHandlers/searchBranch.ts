@@ -5,6 +5,7 @@
 
 import {
   briefGeneratorNode,
+  wantsResearchBrief,
   buildCitations,
   rerankNode,
   searchNode,
@@ -145,9 +146,7 @@ export async function runSearchBranch(opts: {
   }
 
   const willGenerateBrief =
-    !reused &&
-    ['complex', 'moderate'].includes(finalState.complexity) &&
-    currentIntent === 'research';
+    !reused && wantsResearchBrief({ ...finalState, intent: currentIntent } as ChatGraphState);
   const briefStepId = willGenerateBrief ? `brief_${Date.now()}` : null;
   if (willGenerateBrief && briefStepId) {
     // brief generator is a silent LLM call (~1–3s); ping so the UI doesn't
