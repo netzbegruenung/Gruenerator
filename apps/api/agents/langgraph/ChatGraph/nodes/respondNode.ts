@@ -1387,6 +1387,26 @@ const ENUMERABLE_CLAUSE =
  * belongs here and was missing: it is what the classifier's Tier-3.5 demotion
  * produces, i.e. the label most loop turns actually carry. Without it a demoted
  * turn could not reach the expanded rule even once the source count was right.
+ *
+ * `search` ist AUSGENOMMEN, und zwar seit die Regel `state.intent === 'research'
+ * || state.intent === 'web'` hiess — die Menge hat den Ausschluss geerbt, nie
+ * begründet. Was sie sagt, sagt ihr Name: EXTERN. `search` bedient die
+ * hauseigenen Dokumente (Programme, Beschlüsse), die drei anderen das offene
+ * Web bzw. den Loop, der beides mischt.
+ *
+ * Der Zweig ist erreichbar und bleibt es (geprüft in
+ * `answerFormatOwner.vitest.ts`, wo die Fälle einzeln stehen): über
+ * `@dokumente`, über `fallbackIntentFor` (`agentic` → `search`, sobald die
+ * Schleife aus ist) und über ein Klassifikator-Verdikt, das ein Notausschalter
+ * einzeln hält. Der Lane-Flip aus Phase R3 ändert daran nichts — er verschiebt
+ * die Lane, nicht den Intent.
+ *
+ * Bekannter Preis, absichtlich nicht in R3 bezahlt: über
+ * `fallbackIntentFor` entscheidet damit ein Deployment-Schalter über die
+ * Antwortform. Derselbe Turn ist mit Schleife `agentic` (Gliederungsregel) und
+ * ohne sie `search` (generischer Satz). Eine Formänderung, die kein
+ * Korpus-Szenario beobachtet, gehört nicht in denselben PR wie ein gemessener
+ * Lane-Wechsel.
  */
 const EXTERNAL_RESEARCH_INTENTS: ReadonlySet<ChatIntentId> = new Set([
   'research',
