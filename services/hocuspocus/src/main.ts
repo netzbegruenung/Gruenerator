@@ -38,7 +38,6 @@ async function main(): Promise<void> {
   const auth = new AuthService({
     db: dbQuery,
     redis,
-    sessionSecret: process.env.SESSION_SECRET || 'fallback-secret-please-change',
   });
 
   // 4. Start Hocuspocus WebSocket server
