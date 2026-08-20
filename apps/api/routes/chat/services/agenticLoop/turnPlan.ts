@@ -79,15 +79,20 @@ export type TurnLane =
   /** Die agentische Schleife. Alles Werkzeug-/Rezept-Förmige. */
   | 'loop'
   /**
-   * Der Rest-Einzeldurchlauf (`executeIntentPipeline`) — heute vor allem die
-   * Recherche-Familie (`search`/`web`/`research`/`compare`/`examples`) und die
-   * gegatterten Sonderwege (`summary`/`compute`/`chat_history`/`scrape_url`).
+   * Der Rest-Einzeldurchlauf (`executeIntentPipeline`).
    *
-   * Diese Lane ist das benannte Restproblem, nicht ein Ziel: sie verschwindet
-   * mit der Recherche-Konsolidierung (6 Maschinen → ein Loop-Suchpfad), dem
-   * Folgevorhaben nach N. Solange sie existiert, ist sie der Grund, warum die
-   * Lane-Entscheidung NACH der Intent-Feinwahl fällt statt vor ihr — die
-   * Executoren dahinter unterscheiden sich je Intent.
+   * Seit Phase R3 ist er nicht mehr der REGELWEG der Recherche-Familie,
+   * sondern ihr Auffang: `research`/`search`/`web` tragen die Loop-Achse, eine
+   * Erwähnung führt sie also in die Schleife. Hier landen sie nur noch, wenn
+   * ein Notausschalter greift — gewählte Wissenssammlung (nur `searchNode`
+   * holt Notizbuch-Inhalte), Verbund, Bildanhang, ein zweiter Intent, oder
+   * `CHAT_AGENT_LOOP=false`. Dazu unverändert die gegatterten Sonderwege
+   * (`summary`/`compute`/`chat_history`/`scrape_url`/`compare`/`examples`) und
+   * `@deepresearch`, dessen Engines den ganzen Turn ersetzen.
+   *
+   * Die Lane bleibt damit das benannte Restproblem, aber ein kleineres: sie ist
+   * der Grund, warum die Lane-Entscheidung NACH der Intent-Feinwahl fällt statt
+   * vor ihr — die Executoren dahinter unterscheiden sich je Intent.
    */
   | 'single-pass';
 
@@ -156,6 +161,23 @@ export interface TurnPlanInput {
   hasNamedBoard: boolean;
   /** Sharepic-Verfeinerung — hält die Verbund-Erzeugung aus dem Weg. */
   isSharepicRefinement: boolean;
+  /**
+   * `@deepresearch` — die einzige Erwähnung, die den GANZEN Turn ersetzt.
+   *
+   * Sie ist eine Variante von `research` (`forcedIntentStage` setzt genau
+   * dessen Intent plus `forcedTool`), und seit dem Lane-Flip trägt `research`
+   * die Loop-Achse. Ohne dieses Feld gäbe es am Entscheider kein einziges
+   * Merkmal, an dem die beiden auseinandergingen — der Dossier-Turn liefe als
+   * gewöhnliche Loop-Recherche, und zwar lautlos: seine beiden Engines
+   * (`runDeepAgentTurn`, `runDeepResearchTurn`) und das gemeinsame Kontingent
+   * hängen an `deepResearchRequested`, das ausschliesslich der Einzeldurchlauf
+   * liest (`intentHandlers/searchBranch.ts`).
+   *
+   * Ein eigenes Feld statt eines Intents, weil es keine andere Antwort auf die
+   * Frage „was ist dieser Turn?" ist, sondern auf „wer führt ihn aus?" — und
+   * genau das ist die Frage dieser Datei.
+   */
+  deepResearchRequested: boolean;
   /** Der erzwungene Intent des Pipeline-Agenten, oder null. */
   pipelineForceIntent: ChatIntentId | null;
   /**
@@ -312,7 +334,9 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
   //    statt des gewählten Konnektors.
   //  - `forcedLoop` — eine Erwähnung dieses Intents gehört in die Schleife.
   //    Das ist die `forcedLane`-Achse der Registry, und nur sie darf ein Intent
-  //    tragen, der einen eigenen Executor HAT.
+  //    tragen, der einen eigenen Executor HAT. Seit Phase R3 tun das drei:
+  //    `research`/`search`/`web`. Genau deshalb steht die `@deepresearch`-
+  //    Ausnahme unten und nicht in der Registry — sie ist kein Intent.
   //
   // Ein per Erwähnung gepinntes WERKZEUG beantwortet beide Fragen noch einmal,
   // ohne einen Intent zu bemühen — genau dafür gibt es den Pin:
@@ -331,7 +355,12 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
     proposedIntent === 'mcp' ||
     p.systemToolIntents.has(proposedIntent) ||
     (pinnedTool != null && proposedIntent === 'agentic');
-  const forcedLoop = forcesLoopLane(proposedIntent) || pinnedTool != null;
+  // Die eine Ausnahme von der Achse, und sie steht hier statt in der Registry,
+  // weil sie kein Intent ist: `@deepresearch` ist eine VARIANTE von `research`
+  // und trägt dessen Zeile mit. Sein Weg ersetzt den ganzen Turn und lebt
+  // ausschliesslich im Einzeldurchlauf — siehe {@link TurnPlanInput.deepResearchRequested}.
+  const forcedLoop =
+    !p.deepResearchRequested && (forcesLoopLane(proposedIntent) || pinnedTool != null);
 
   // ── 1. Editor-Fläche ──────────────────────────────────────────────────────
   // Editor-Seitenleisten (docs/sheets/presentations/boards) BEARBEITEN das

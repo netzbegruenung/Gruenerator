@@ -1,0 +1,16 @@
+# mention-deepresearch-einzeln — mention-lane
+# Simulated decision map. Regenerate with SIM_UPDATE=1.
+# A green diff proves the BRANCHES ran as scripted. It proves nothing
+# about what a real model would have done.
+
+## turn 0: "Was liegt zum Heizungsgesetz vor?"
+router.run_agentic               = single_pass                    forcedLoop=false forcedTool=true gateOpen=true hasImageAttachments=false hasManagedSources=false hasOwnMaterial=false hasSelectedNotebook=false inLoopSet=true intent=research isCompound=false isPdfFillRequest=false loopEnabled=true mustLoop=false secondaryAllowed=true selfContained=false unsourcedWriting=false
+router.intent_override           = (not reached)
+router.implicit_recipe           = (not reached)
+router.persistent_action_gate    = (not reached)
+classifier.tier                  = tier3.5_loop_demotion          confidence=0.5 demotable=true effectiveConfidence=0.5 heuristicIntent=direct selfContained=false
+respond.answer_format            = standard                       complexity=moderate intent=research retrievalExpected=false sourceCount=0 synthesisMode=none taskShape=none
+loop.tool_guard                  = (none)
+loop.synth_verdict               = (not reached)
+-- wire --
+intent=research agentic=false tools=[] warnings=[research_plan_failed] interrupts=0 confirmActions=[] documentCreated=false sharepicGenerated=false answerChars=24
