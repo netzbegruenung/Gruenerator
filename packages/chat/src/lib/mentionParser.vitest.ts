@@ -128,3 +128,47 @@ describe('mentionParser: @bundestag routes to the DIP tool, not the notebook', (
     expect(result.forcedTools).not.toContain('bundestag');
   });
 });
+
+describe('mentionParser: skill mentions carry the recipe, not just the agent', () => {
+  // Regression (live 20.08.2026): a fluently typed `/presse mehr artenschutz…`
+  // routed the agent, stripped the text — and the recipe half never reached the
+  // server, because only the popover select set `activeSkillMention`. The turn
+  // came back as a research briefing instead of a Pressemitteilung.
+  it('/presse sets skillMention alongside the agent routing', () => {
+    const result = parseAllMentions('/presse mehr artenschutz in berlin');
+    expect(result.agentId).toBe('gruenerator-oeffentlichkeitsarbeit');
+    expect(result.agentMention).toBe('presse');
+    expect(result.skillMention).toBe('presse');
+    expect(result.cleanText).toBe('mehr artenschutz in berlin');
+  });
+
+  it('@presse behaves identically — skills live in the @-namespace', () => {
+    const result = parseAllMentions('@presse mehr artenschutz in berlin');
+    expect(result.agentId).toBe('gruenerator-oeffentlichkeitsarbeit');
+    expect(result.skillMention).toBe('presse');
+  });
+
+  it('persists the choice as a durable skill token (mention as id)', () => {
+    for (const text of ['/presse mehr artenschutz', '@presse mehr artenschutz']) {
+      const result = parseAllMentions(text);
+      expect(result.tokenText).toBe('@[Pressemitteilung](skill:presse) mehr artenschutz');
+    }
+  });
+
+  it('last skill mention wins', () => {
+    const result = parseAllMentions('/presse @instagram was ist besser?');
+    expect(result.skillMention).toBe('instagram');
+  });
+
+  it('no skill in the text → skillMention stays null', () => {
+    expect(parseAllMentions('@bundestag was lief zuletzt?').skillMention).toBeNull();
+    expect(parseAllMentions('einfach nur text').skillMention).toBeNull();
+  });
+
+  it('a / that resolves to a non-skill stays inert — no token, no routing', () => {
+    const result = parseAllMentions('/kampagnenplan-berlin was steht hier?');
+    expect(result.boardIds).toHaveLength(0);
+    expect(result.skillMention).toBeNull();
+    expect(result.tokenText).toBe('was steht hier?');
+  });
+});
