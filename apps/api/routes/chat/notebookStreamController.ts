@@ -24,9 +24,25 @@ import {
 
 import type { ModelMessage } from 'ai';
 
+/**
+ * One conversation message on the wire. `content` tolerates both the flat
+ * string every live client sends and an AI-SDK style parts array (defensive —
+ * shipped mobile binaries speak this endpoint). `citations` carries the raw
+ * notebook citations of an earlier assistant answer so the ultra tier can
+ * merge previously cited sources into the new turn (see
+ * notebookHistoryService); loose records, validated structurally there.
+ */
+const notebookStreamMessageSchema = z
+  .object({
+    role: z.string(),
+    content: z.union([z.string(), z.array(z.record(z.unknown()))]),
+    citations: z.array(z.record(z.unknown())).nullish(),
+  })
+  .passthrough();
+
 /** Zod schema for the POST body for notebook streaming */
 const notebookStreamRequestSchema = z.object({
-  messages: z.array(z.unknown()).optional(),
+  messages: z.array(notebookStreamMessageSchema).optional(),
   collectionId: z.string().optional(),
   collectionIds: z.array(z.string()).optional(),
   filters: z.record(z.unknown()).optional(),
