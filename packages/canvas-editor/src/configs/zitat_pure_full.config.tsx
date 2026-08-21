@@ -87,6 +87,7 @@ const sunflowerElement: ImageElementConfig<ZitatPureState> = {
   draggable: true,
   constrainToBounds: false,
   opacity: () => ZITAT_PURE_CONFIG.sunflower.opacity,
+  opacityStateKey: 'sunflowerOpacity',
 };
 
 const quoteMarkElement: ImageElementConfig<ZitatPureState> = {
@@ -150,7 +151,7 @@ const baseZitatPureConfig = createColorTwoTextCanvas({
   defaultBackgroundColor: ZITAT_PURE_CONFIG.background.color,
   textColorMap: FONT_COLORS,
   calculateLayout,
-  passthroughStateKeys: ['namePosition', 'quoteMarkOffset', 'quoteMarkOpacity'],
+  passthroughStateKeys: ['namePosition', 'quoteMarkOffset', 'quoteMarkOpacity', 'sunflowerOpacity'],
   elements: [sunflowerElement, quoteMarkElement, quoteTextElement, nameTextElement],
   features: { icons: true, shapes: true, illustrations: true },
   getCanvasText: (state) => {
