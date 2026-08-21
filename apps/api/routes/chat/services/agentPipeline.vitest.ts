@@ -323,7 +323,7 @@ describe('runAgentPipeline — Sibling bei Langsamkeit', () => {
       await vi.advanceTimersByTimeAsync(300_000);
       const appended = await promise;
 
-      expect(calls.filter((c) => c.provider === 'scaleway')).not.toHaveLength(0);
+      expect(calls.filter((c) => c.provider === 'cortecs')).not.toHaveLength(0);
       expect(appended).toContain('Vom Sibling.');
       // Und nicht als Ausfall verbucht: der Schritt hat geliefert.
       expect(appended).not.toContain('nicht zustande gekommen');
@@ -349,7 +349,7 @@ describe('runAgentPipeline — Sibling bei Langsamkeit', () => {
       await laufe();
 
       // Kein Tick auf der Uhr, und Regolo wurde gar nicht erst gefragt.
-      expect(zweiter.calls.map((c) => c.provider)).toEqual(['scaleway', 'scaleway']);
+      expect(zweiter.calls.map((c) => c.provider)).toEqual(['cortecs', 'cortecs']);
     } finally {
       vi.useRealTimers();
     }
@@ -365,7 +365,7 @@ describe('runAgentPipeline — Sibling bei Langsamkeit', () => {
       // Kette den Schritt ab, bevor der Hedge überhaupt drankäme — was sie in
       // Produktion auch tut, hier aber den Prüfgegenstand verdeckt.
       const { calls } = poolNachProvider(async (provider) =>
-        provider === 'scaleway' ? 'Vom Sibling.' : null
+        provider === 'cortecs' ? 'Vom Sibling.' : null
       );
       const promise = laufe();
       await vi.advanceTimersByTimeAsync(0);
@@ -376,7 +376,7 @@ describe('runAgentPipeline — Sibling bei Langsamkeit', () => {
         'regolo',
         'litellm',
         'mistral',
-        'scaleway',
+        'cortecs',
       ]);
       expect(await promise).toContain('Vom Sibling.');
     } finally {

@@ -32,6 +32,9 @@ vi.mock('@langchain/openai', () => ({
   },
 }));
 
+vi.mock('../../ai/cortecsEndpoint.js', () => ({
+  cortecsBaseUrl: () => 'https://cortecs.example/v1',
+}));
 vi.mock('../../ai/scalewayEndpoint.js', () => ({
   scalewayBaseUrl: () => 'https://scaleway.example/v1',
 }));
@@ -45,9 +48,14 @@ vi.mock('../../ai/providerInstances.js', () => ({
   MISTRAL_API_URL: 'https://mistral.example/v1',
 }));
 
-const envMock: { SCALEWAY_API_KEY?: string; MISTRAL_API_KEY?: string } = {
+const envMock: {
+  SCALEWAY_API_KEY?: string;
+  MISTRAL_API_KEY?: string;
+  CORTECS_API_KEY?: string;
+} = {
   SCALEWAY_API_KEY: 'test-key',
   MISTRAL_API_KEY: 'mistral-test-key',
+  CORTECS_API_KEY: 'cortecs-test-key',
 };
 vi.mock('../../../config/env.js', () => ({
   get env() {
@@ -61,6 +69,7 @@ beforeEach(() => {
   constructed.length = 0;
   envMock.SCALEWAY_API_KEY = 'test-key';
   envMock.MISTRAL_API_KEY = 'mistral-test-key';
+  envMock.CORTECS_API_KEY = 'cortecs-test-key';
   routing.enabled = false; // the deployed default since 08/2026
 });
 
@@ -122,13 +131,13 @@ describe('workerModel', () => {
     expect(configOf(workerModel).modelKwargs).toMatchObject({ parallel_tool_calls: false });
   });
 
-  it('stays on Scaleway whatever the Mistral routing does', () => {
+  it('bleibt auf Cortecs, was auch immer das Mistral-Routing tut', () => {
     // The switch is about Mistral Medium's host, and Gemma is not Mistral. The
-    // worker's reason for sitting here (Scaleway honours `reasoning_effort`,
+    // worker's reason for sitting here (der Host honoriert `reasoning_effort`,
     // see above) is untouched by it — so it must NOT ride along.
-    expect(configOf(workerModel).configuration?.baseURL).toBe('https://scaleway.example/v1');
+    expect(configOf(workerModel).configuration?.baseURL).toBe('https://cortecs.example/v1');
     routing.enabled = true;
-    expect(configOf(workerModel).configuration?.baseURL).toBe('https://scaleway.example/v1');
+    expect(configOf(workerModel).configuration?.baseURL).toBe('https://cortecs.example/v1');
   });
 });
 
@@ -144,7 +153,14 @@ describe('configuration faults', () => {
   });
 
   it('names the missing key instead of failing somewhere inside a run', () => {
+    delete envMock.CORTECS_API_KEY;
+    expect(() => workerModel()).toThrow(/CORTECS_API_KEY/);
+  });
+
+  it('der Worker haengt am Cortecs-Schluessel, nicht mehr am Scaleway-Schluessel', () => {
+    // Nach dem Umzug vom 21.08.2026 die eigentliche Trennlinie: ein
+    // Deployment, das nur noch den alten Schluessel fuehrt, faellt hier auf.
     delete envMock.SCALEWAY_API_KEY;
-    expect(() => workerModel()).toThrow(/SCALEWAY_API_KEY/);
+    expect(() => workerModel()).not.toThrow();
   });
 });

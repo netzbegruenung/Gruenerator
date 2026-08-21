@@ -218,10 +218,11 @@ export function laneTarget(
  */
 export function providerForModel(modelName = ''): ProviderName {
   const name = String(modelName || '').toLowerCase();
-  // Before the generic gemma test below: `gemma-4-26b-a4b-it` is Scaleway's id,
-  // while `gemma4-31b` (no dash after gemma) is Regolo's. An operator who names
-  // the Scaleway one would otherwise land on the wrong host and get a 404.
-  if (name === 'gemma-4-26b-a4b-it') return 'scaleway';
+  // Before the generic gemma test below: `gemma-4-26b-a4b-it` läuft über
+  // Cortecs (seit 21.08.2026, davor Scaleway direkt), while `gemma4-31b` (no
+  // dash after gemma) is Regolo's. An operator who names the first one would
+  // otherwise land on the wrong host and get a 404.
+  if (name === 'gemma-4-26b-a4b-it') return 'cortecs';
   if (
     name.includes('mistral-medium-') ||
     name.includes('mistral-large-') ||

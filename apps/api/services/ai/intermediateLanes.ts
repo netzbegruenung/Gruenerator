@@ -112,11 +112,13 @@ const REGOLO_SMALL_4 = { provider: 'regolo', model: 'mistral-small-4-119b' } as 
 /** Gemma 4 auf Regolo — dieselben Gewichte, die `TEXT_TYPES` und der Synth-Slot
  *  fahren (TEXT_MODEL in providerSelector.ts). Regolos DEFAULT kommt aus der
  *  Umgebung, das Modell muss also benannt werden. */
-/** Gemma 4 auf Scaleway/Paris, als MoE mit 4B AKTIVEN Parametern — deshalb rund
- *  doppelt so schnell wie das dichte `gemma4-31b`, das diese Stufe bis zum
- *  01.08.2026 auf Regolo fuhr. Braucht zwingend den Client aus
- *  `scalewayThinkingFetch.ts`, sonst kommt leerer Inhalt zurück. */
-const GEMMA_4_SCALEWAY = 'gemma-4-26b-a4b-it';
+/** Gemma 4 als MoE mit 4B AKTIVEN Parametern — deshalb rund doppelt so schnell
+ *  wie das dichte `gemma4-31b`, das diese Stufe bis zum 01.08.2026 auf Regolo
+ *  fuhr. Seit 21.08.2026 über Cortecs statt direkt über Scaleway; die Modell-ID
+ *  ist dieselbe, weil Cortecs sie unverändert führt und gemessen an Scaleway
+ *  weitervermittelt. Braucht zwingend den Client aus `cortecsRequestPolicy.ts`,
+ *  sonst kommt leerer Inhalt zurück. */
+const GEMMA_4_MOE = 'gemma-4-26b-a4b-it';
 
 /** Gemma 4 als dichtes 31B auf Regolo — was `heavy` bis zum 01.08.2026 fuhr.
  *  Lebt nur noch in der `pruefung`-Stufe weiter, Begründung dort. */
@@ -196,25 +198,28 @@ export const INTERMEDIATE_LANES = {
    * überdeckt — dieselbe Diagnose wie bei Commit 27b8a205a.
    *
    * PREIS, bewusst angenommen: für dieses Modell existiert kein
-   * Energie-Koeffizient, und Scaleway meldet keinen Verbrauch zurück. `heavy`
-   * fällt damit aus der CO₂-Übersicht (siehe services/usage/energyFootprint.ts).
-   * Das Pariser Netz (24 g/kWh gegen Regolos 270) spricht dafür, dass die reale
-   * Bilanz besser wird — beziffern lässt sie sich nicht mehr. Schätzen aus der
-   * Geschwindigkeit lag im Repo schon einmal um 62 % daneben.
+   * Energie-Koeffizient, und weder Scaleway noch Cortecs melden Verbrauch
+   * zurück. `heavy` fällt damit aus der CO₂-Übersicht (siehe
+   * services/usage/energyFootprint.ts). Das Pariser Netz (24 g/kWh gegen
+   * Regolos 270) spricht dafür, dass die reale Bilanz besser wird — beziffern
+   * lässt sie sich nicht mehr. Schätzen aus der Geschwindigkeit lag im Repo
+   * schon einmal um 62 % daneben.
    *
-   * MUSS mitkommen, wenn diese Stufe erneut umzieht: `provider: 'scaleway'`
+   * MUSS mitkommen, wenn diese Stufe erneut umzieht: `provider: 'cortecs'`
    * bekommt einen Client, der `reasoning_effort: 'none'` erzwingt
-   * (scalewayThinkingFetch.ts). Ohne den antwortet dieses Modell mit LEEREM
+   * (cortecsRequestPolicy.ts). Ohne den antwortet dieses Modell mit LEEREM
    * `content` — auch bei max_tokens 1500, nach 5386 Zeichen Reasoning. Leerer
    * Inhalt ist für die Fassade kein Fehler, sondern startet die Fallback-Kette;
-   * `classifyDeliverable` mit seinen 20 Token stirbt zuerst.
+   * `classifyDeliverable` mit seinen 20 Token stirbt zuerst. Bei Cortecs kommt
+   * hinzu, dass der Pin dort modellabhängig ist: ein Modell, das nicht in der
+   * Whitelist steht, bekommt ihn nicht.
    *
    * mem0 folgt dieser Stufe NICHT mehr: `services/mem0/config.ts` band
    * `REGOLO_BASE_URL` + `REGOLO_API_KEY` fest an den Modellnamen von hier und
    * hätte bei diesem Umzug einen Scaleway-Namen an Regolo geschickt. Es pinnt
    * jetzt explizit — siehe dort.
    */
-  heavy: { provider: 'scaleway', model: GEMMA_4_SCALEWAY },
+  heavy: { provider: 'cortecs', model: GEMMA_4_MOE },
 
   /**
    * Rechnen. Eigene Stufe, weil hier als Einzigem ein Modellfehler als
@@ -281,7 +286,7 @@ export const INTERMEDIATE_LANES = {
    * dessen ein Sibling, den der Aufrufer nach einer Frist PARALLEL dazuschaltet.
    * Gemessen am echten Prüf-Prompt, zwei Läufe: 16,8 s / 15,3 s, vollständige
    * Abdeckungs- und Modalitätstabelle, der fehlende Urheber als MITTEL-Befund.
-   * Der Client aus `scalewayThinkingFetch.ts` kommt über `case 'scaleway'` in
+   * Der Client aus `cortecsRequestPolicy.ts` kommt über `case 'cortecs'` in
    * services/ai/providers.ts von selbst mit.
    *
    * GreenPTs `gemma4` wäre der andere Kandidat und ist es NICHT: welche Gewichte
@@ -292,7 +297,7 @@ export const INTERMEDIATE_LANES = {
   pruefung: {
     provider: 'regolo',
     model: GEMMA_4_REGOLO,
-    hedge: { provider: 'scaleway', model: GEMMA_4_SCALEWAY },
+    hedge: { provider: 'cortecs', model: GEMMA_4_MOE },
   },
 } as const satisfies Record<string, IntermediateLaneConfig>;
 
