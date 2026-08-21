@@ -178,6 +178,27 @@ function collapseAliasDuplicates(results: DocumentResult[]): DocumentResult[] {
 }
 
 /**
+ * Decke für das Übermaß, mit dem Qdrant befragt wird (`limit * 2`).
+ *
+ * Das Übermaß existiert, weil danach noch dedupliziert und auf `limit`
+ * beschnitten wird — ohne es fiele jeder Alias-Dublette ein echter Treffer zum
+ * Opfer. Die Decke begrenzt, was ein einzelner Aufruf kosten darf.
+ *
+ * Sie stand auf 30 und wurde damit bindend, sobald ein Aufrufer mehr als 15
+ * Treffer wollte: der notizbuch-gebundene Chat-Turn fordert seit dem Umstieg
+ * auf das Stufenprofil 40 und hätte stumm 30 bekommen — also weniger, als er
+ * gleich darauf an den Reranker weiterreicht.
+ *
+ * 80 statt 60, damit der grösste heutige Aufrufer (40) sein volles Übermaß
+ * behält. Bei 60 bekäme er 1,5× statt 2×, und die fehlende halbe Portion ist
+ * genau die Reserve, aus der `collapseAliasDuplicates` schöpft — auf den
+ * LV-Sammlungen, wo dieselbe Meldung unter mehreren URLs liegt, ist das kein
+ * Randfall. `chatNotebookDepth.vitest.ts` hält Decke und Stufenprofil
+ * aneinander.
+ */
+const OVERFETCH_CEILING = 80;
+
+/**
  * Execute a direct document search against Qdrant.
  * Replaces the MCP tool call for gruenerator_search.
  */
@@ -259,7 +280,7 @@ export async function executeDirectSearch(params: {
       query,
       userId: undefined,
       options: {
-        limit: Math.min(limit * 2, 30),
+        limit: Math.min(limit * 2, OVERFETCH_CEILING),
         mode: searchMode,
         vectorWeight: searchParams.vectorWeight,
         textWeight: searchParams.textWeight,
@@ -292,7 +313,7 @@ export async function executeDirectSearch(params: {
             query,
             userId: undefined,
             options: {
-              limit: Math.min(limit * 2, 30),
+              limit: Math.min(limit * 2, OVERFETCH_CEILING),
               mode: searchMode,
               vectorWeight: searchParams.vectorWeight,
               textWeight: searchParams.textWeight,
