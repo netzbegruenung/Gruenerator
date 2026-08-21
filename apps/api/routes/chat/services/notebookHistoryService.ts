@@ -190,6 +190,29 @@ export interface CarriedCitationsMergeResult {
   appended: Array<{ id: string; ref: ReferenceData }>;
 }
 
+/**
+ * Trust boundary for carried citations: they arrive in the CLIENT payload, and
+ * a re-cited carried source is persisted into the thread and rendered by
+ * CitationPreview as a plain `<a href>` — threads are shareable, so a hostile
+ * `javascript:` URL would execute for OTHER users. Only http(s) URLs pass;
+ * free-text fields are length-capped (React escapes them, so scheme is the
+ * attack surface — the caps just keep hostile payloads from bloating the
+ * prompt and the persisted thread).
+ */
+function sanitizeCarriedUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return url;
+  } catch {
+    // not a parseable absolute URL — drop it
+  }
+  return null;
+}
+
+const CARRY_TITLE_MAX_CHARS = 300;
+const CARRY_TEXT_MAX_CHARS = 1200;
+
 /** Identity of a cited passage across turns — mirrors the fresh-side dedupe. */
 function carryKey(c: {
   document_id?: string | undefined;
@@ -251,21 +274,29 @@ export function mergeCarriedCitations(
         if (appended.length >= CARRY_MAX_SOURCES) continue;
         maxId++;
         id = String(maxId);
+        const citedText = (citation.cited_text || '').slice(0, CARRY_TEXT_MAX_CHARS);
         const ref: ReferenceData = {
-          title: citation.document_title || citation.title || 'Frühere Quelle',
-          snippets: [[citation.cited_text || '']],
-          ...(citation.cited_text && { chunk_text: citation.cited_text }),
+          title: (citation.document_title || citation.title || 'Frühere Quelle').slice(
+            0,
+            CARRY_TITLE_MAX_CHARS
+          ),
+          snippets: [[citedText]],
+          ...(citedText && { chunk_text: citedText }),
           description: null,
           date: citation.date ?? null,
           source: 'qa_history_carryover',
-          document_id: citation.document_id || '',
-          source_url: citation.source_url || null,
-          filename: citation.filename ?? null,
+          document_id: (citation.document_id || '').slice(0, CARRY_TITLE_MAX_CHARS),
+          source_url: sanitizeCarriedUrl(citation.source_url),
+          filename: citation.filename?.slice(0, CARRY_TITLE_MAX_CHARS) ?? null,
           similarity_score: citation.similarity_score ?? 0,
           chunk_index: citation.chunk_index ?? 0,
           page_number: citation.page_number ?? null,
-          ...(citation.collection_id && { collection_id: citation.collection_id }),
-          ...(citation.collection_name && { collection_name: citation.collection_name }),
+          ...(citation.collection_id && {
+            collection_id: citation.collection_id.slice(0, CARRY_TITLE_MAX_CHARS),
+          }),
+          ...(citation.collection_name && {
+            collection_name: citation.collection_name.slice(0, CARRY_TITLE_MAX_CHARS),
+          }),
         };
         merged[id] = ref;
         keyToId.set(key, id);
