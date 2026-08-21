@@ -37,44 +37,83 @@ Antworte NUR mit JSON:
 { "alternatives": ["alternative 1", "alternative 2"] }`;
 
 /**
+ * Follow-up variant: the question may only make sense against the preceding
+ * conversation ("und in Bayern?"). The model first resolves it into a
+ * standalone query, then produces the same 2 alternatives. Vector search only
+ * ever sees standalone formulations that carry the topic themselves.
+ */
+const CONDENSE_EXPANSION_PROMPT = `Du hilfst bei der Suche in Dokumentensammlungen.
+Gegeben ein Gesprächsverlauf und eine Anschlussfrage:
+1. Formuliere die Anschlussfrage als eigenständige deutsche Suchanfrage um, die ohne den Verlauf verständlich ist. Löse Pronomen und Bezüge ("das", "dazu", "und in ...?") anhand des Verlaufs auf. Ist die Frage bereits eigenständig, übernimm sie unverändert.
+2. Erstelle 2 alternative Formulierungen der eigenständigen Suchanfrage (Synonyme, andere Blickwinkel, nur existierende deutsche Wörter).
+
+Antworte NUR mit JSON:
+{ "standalone": "eigenständige Suchanfrage", "alternatives": ["alternative 1", "alternative 2"] }`;
+
+export interface ExpandQueryOptions {
+  /**
+   * Compact transcript of the recent conversation. When set, the expansion
+   * also resolves the query into a standalone formulation (returned as
+   * `primary`) — and the cache is skipped, since the transcript changes every
+   * turn.
+   */
+  historyContext?: string | undefined;
+}
+
+/**
  * Expand a search query into multiple alternative formulations.
  * Runs on the `standard` intermediate stage — short output, but user-visible
  * latency (see services/ai/intermediateLanes.ts).
  */
-export async function expandQuery(query: string): Promise<ExpandedQuery> {
-  // Check cache first
+export async function expandQuery(
+  query: string,
+  options: ExpandQueryOptions = {}
+): Promise<ExpandedQuery> {
+  const historyContext = options.historyContext?.trim();
+
+  // Check cache first (history turns are never cached — transcript varies)
   const cacheKey = query.toLowerCase().trim();
-  const cached = expansionCache.get(cacheKey);
-  if (cached) {
-    log.debug(`[Expand] Cache hit for: "${query.slice(0, 50)}"`);
-    return cached;
+  if (!historyContext) {
+    const cached = expansionCache.get(cacheKey);
+    if (cached) {
+      log.debug(`[Expand] Cache hit for: "${query.slice(0, 50)}"`);
+      return cached;
+    }
   }
 
   try {
     const content = await aiText({
       lane: 'chat_query_expansion',
       pinned: 'standard',
-      system: EXPANSION_PROMPT,
-      prompt: `Suchanfrage: "${query}"`,
-      maxOutputTokens: 100,
+      system: historyContext ? CONDENSE_EXPANSION_PROMPT : EXPANSION_PROMPT,
+      prompt: historyContext
+        ? `Gesprächsverlauf:\n${historyContext}\n\nAnschlussfrage: "${query}"`
+        : `Suchanfrage: "${query}"`,
+      maxOutputTokens: historyContext ? 200 : 100,
       temperature: 0.3,
       json: true,
     });
 
-    const parsed = parseExpansionResponse(content);
+    const { alternatives, standalone } = parseExpansionResponse(content);
     const result: ExpandedQuery = {
-      primary: query,
-      alternatives: parsed,
+      primary: (historyContext && standalone) || query,
+      alternatives,
     };
 
-    // Cache the result (evict oldest if full)
-    if (expansionCache.size >= MAX_CACHE_SIZE) {
-      const firstKey = expansionCache.keys().next().value;
-      if (firstKey) expansionCache.delete(firstKey);
+    if (!historyContext) {
+      // Cache the result (evict oldest if full)
+      if (expansionCache.size >= MAX_CACHE_SIZE) {
+        const firstKey = expansionCache.keys().next().value;
+        if (firstKey) expansionCache.delete(firstKey);
+      }
+      expansionCache.set(cacheKey, result);
     }
-    expansionCache.set(cacheKey, result);
 
-    log.info(`[Expand] Generated ${parsed.length} alternatives for: "${query.slice(0, 50)}"`);
+    log.info(
+      `[Expand] Generated ${alternatives.length} alternatives${
+        historyContext && standalone ? ` + standalone rewrite` : ''
+      } for: "${query.slice(0, 50)}"`
+    );
     return result;
   } catch (error: unknown) {
     log.warn(
@@ -84,35 +123,43 @@ export async function expandQuery(query: string): Promise<ExpandedQuery> {
   }
 }
 
+interface ParsedExpansion {
+  alternatives: string[];
+  standalone: string | null;
+}
+
 /**
- * Parse the LLM expansion response.
- * Returns an array of alternative queries, or empty array on failure.
+ * Parse the LLM expansion response. Returns the alternatives (empty array on
+ * failure) plus the standalone rewrite when the condense prompt produced one.
  */
-function parseExpansionResponse(content: string): string[] {
+function parseExpansionResponse(content: string): ParsedExpansion {
+  const fromObject = (parsed: { alternatives?: unknown[]; standalone?: unknown }) => {
+    const alternatives = Array.isArray(parsed.alternatives)
+      ? parsed.alternatives
+          .filter((a: unknown): a is string => typeof a === 'string' && a.trim().length > 3)
+          .slice(0, 2)
+      : [];
+    const standalone =
+      typeof parsed.standalone === 'string' && parsed.standalone.trim().length > 3
+        ? parsed.standalone.trim()
+        : null;
+    return { alternatives, standalone };
+  };
+
   try {
-    const parsed = JSON.parse(content) as { alternatives?: unknown[] };
-    if (parsed.alternatives && Array.isArray(parsed.alternatives)) {
-      const filtered: string[] = (parsed.alternatives as unknown[])
-        .filter((a: unknown): a is string => typeof a === 'string' && a.trim().length > 3)
-        .slice(0, 2);
-      return filtered;
-    }
+    return fromObject(JSON.parse(content) as { alternatives?: unknown[]; standalone?: unknown });
   } catch {
     // Try extracting JSON from text
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       try {
-        const parsed = JSON.parse(jsonMatch[0]) as { alternatives?: unknown[] };
-        if (parsed.alternatives && Array.isArray(parsed.alternatives)) {
-          const filtered: string[] = (parsed.alternatives as unknown[])
-            .filter((a: unknown): a is string => typeof a === 'string' && a.trim().length > 3)
-            .slice(0, 2);
-          return filtered;
-        }
+        return fromObject(
+          JSON.parse(jsonMatch[0]) as { alternatives?: unknown[]; standalone?: unknown }
+        );
       } catch {
         // Fall through
       }
     }
   }
-  return [];
+  return { alternatives: [], standalone: null };
 }
