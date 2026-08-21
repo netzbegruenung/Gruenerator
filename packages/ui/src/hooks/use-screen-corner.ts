@@ -166,6 +166,33 @@ export interface MeasuredCornerReservation {
   active?: boolean;
 }
 
+// Fußabdruck eines an einer Ecke verankerten Bedienelements: 1rem Abstand plus
+// ein 3rem-Knopf. Was dieses Quadrat nicht schneidet, steht dort niemandem im
+// Weg — auch wenn es an derselben Kante liegt.
+const CORNER_PROBE_PX = 64;
+
+/**
+ * Deckt das Element die Ecke tatsächlich ab? Die Frage ist nötig, weil
+ * dieselbe Komponente an sehr verschiedenen Orten hängen kann: der
+ * Chat-Composer klebt auf dem Handy an der unteren Kante, sitzt auf dem
+ * Desktop aber zentriert (`max-w-3xl`) weit vor dem rechten Rand — und in
+ * Einstellungen und Dialogen mitten auf der Seite. Ohne diese Prüfung meldete
+ * er überall dieselbe Belegung an und schöbe den Feedback-Button ins Leere.
+ */
+function touchesCorner(rect: DOMRect, corner: ScreenCorner): boolean {
+  const [vertical, horizontal] = corner.split('-') as ['top' | 'bottom', 'left' | 'right'];
+  const probeTop = vertical === 'top' ? 0 : window.innerHeight - CORNER_PROBE_PX;
+  const probeLeft = horizontal === 'left' ? 0 : window.innerWidth - CORNER_PROBE_PX;
+  return (
+    rect.left < probeLeft + CORNER_PROBE_PX &&
+    rect.right > probeLeft &&
+    rect.top < probeTop + CORNER_PROBE_PX &&
+    rect.bottom > probeTop
+  );
+}
+
+const NOTHING: Entry = { vertical: null, horizontal: null, blocked: false };
+
 /**
  * Wie {@link useScreenCornerReservation}, misst die Ausdehnung aber am
  * Element statt sie zu deklarieren. Für Leisten, deren Höhe am Inhalt hängt
@@ -183,7 +210,9 @@ export function useMeasuredCornerReservation(
     if (!active || !element) return undefined;
 
     const corners = key.split('|') as ScreenCorner[];
-    const registration = register(corners, { vertical: null, horizontal: null, blocked });
+    // Eine Anmeldung je Ecke statt einer gemeinsamen: ob das Element eine Ecke
+    // belegt, entscheidet sich für jede einzeln (siehe `touchesCorner`).
+    const registrations = corners.map((corner) => ({ corner, entry: register([corner], NOTHING) }));
 
     // Gemessen wird der Abstand von der Kante bis zur inneren Elementgrenze —
     // dadurch braucht die Anmeldung den eigenen Offset des Elements nicht zu
@@ -192,35 +221,44 @@ export function useMeasuredCornerReservation(
       const rect = element.getBoundingClientRect();
       // Eine per Media-Query ausgeblendete Leiste misst 0×0 — ohne diese
       // Abkürzung läse sich das als "belegt die ganze Kante".
-      if (rect.width === 0 && rect.height === 0) {
-        registration.update({ vertical: null, horizontal: null, blocked });
-        return;
+      const hidden = rect.width === 0 && rect.height === 0;
+
+      for (const { corner, entry } of registrations) {
+        if (hidden || !touchesCorner(rect, corner)) {
+          entry.update(NOTHING);
+          continue;
+        }
+        const [vertical, horizontal] = corner.split('-') as ['top' | 'bottom', 'left' | 'right'];
+        const extent =
+          axis === 'vertical'
+            ? vertical === 'top'
+              ? rect.bottom
+              : window.innerHeight - rect.top
+            : horizontal === 'left'
+              ? rect.right
+              : window.innerWidth - rect.left;
+        const length = `${Math.max(0, Math.round(extent))}px`;
+        entry.update(
+          axis === 'vertical'
+            ? { vertical: length, horizontal: null, blocked }
+            : { vertical: null, horizontal: length, blocked }
+        );
       }
-      const edge = corners[0]?.split('-') ?? [];
-      const extent =
-        axis === 'vertical'
-          ? edge[0] === 'top'
-            ? rect.bottom
-            : window.innerHeight - rect.top
-          : edge[1] === 'left'
-            ? rect.right
-            : window.innerWidth - rect.left;
-      const length = `${Math.max(0, Math.round(extent))}px`;
-      registration.update(
-        axis === 'vertical'
-          ? { vertical: length, horizontal: null, blocked }
-          : { vertical: null, horizontal: length, blocked }
-      );
     };
 
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(element);
     window.addEventListener('resize', measure);
+    // Die eingeblendete Bildschirmtastatur schiebt ein im Fluss liegendes
+    // Element nach oben, ohne seine Box zu ändern — der ResizeObserver schweigt
+    // dabei, und `window.resize` feuert auf iOS nicht.
+    window.visualViewport?.addEventListener('resize', measure);
     return () => {
       observer.disconnect();
       window.removeEventListener('resize', measure);
-      registration.release();
+      window.visualViewport?.removeEventListener('resize', measure);
+      for (const { entry } of registrations) entry.release();
     };
   }, [ref, key, axis, blocked, active]);
 }
