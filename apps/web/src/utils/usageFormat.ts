@@ -64,11 +64,19 @@ export const FUNCTION_ORDER = ['tokens', 'images', 'transcriptions', 'searches']
 export const PROVIDER_LABELS: Record<string, string> = {
   mistral: 'Mistral AI',
   scaleway: 'Scaleway',
-  // Ein Router, kein Rechenzentrum: die Gemma-Lane läuft seit 21.08.2026 über
-  // Cortecs, das die Anfragen gemessen an Scaleway weitervermittelt. Der Name
-  // nennt deshalb beide — wer in der CO₂-Übersicht den Standort sucht, findet
-  // ihn sonst nirgends, weil die Koeffizienten dieser Zeile Scaleways sind.
-  cortecs: 'Cortecs (Scaleway)',
+  // Cortecs ist ein Router, kein Rechenzentrum. Sein Name steht hier NUR für den
+  // Fall, dass der Kopf `x-cortecs-provider` fehlte — sonst trägt die Buchung
+  // den echten Unterauftragnehmer (usageModelMiddleware.ts). Wer diese Zeile in
+  // der Übersicht sieht, sieht eine unvollständige Zuordnung, keinen Standort.
+  cortecs: 'Cortecs (Vermittler)',
+  // Die beiden Endpunkte, die unser Gemma 4 31B real bedienen. Ohne diese
+  // Zeilen stünde in der Übersicht der rohe Routing-Schlüssel. Kein Standort im
+  // Namen: der steckt in den Koeffizienten (energyFootprint.ts), und infercom
+  // sitzt in Luxemburg, während es in Deutschland rechnet — eine Flagge im
+  // Label müsste sich für eins von beidem entscheiden und würde das andere
+  // falsch behaupten.
+  infercom: 'infercom',
+  berget: 'Berget',
   litellm: 'verdigado',
   regolo: 'Regolo / Seeweb',
   greenpt: 'GreenPT',

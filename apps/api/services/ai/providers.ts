@@ -69,9 +69,12 @@ const PROVIDER_DEFAULTS = {
   // `mistral-medium-3.5-128b`, and an unnamed default here would quietly hand
   // the expensive model to a caller that asked for the cheap lane.
   scaleway: 'gemma-4-26b-a4b-it',
-  // Dieselbe ID wie auf Scaleway — Cortecs führt das Modell unverändert, was
-  // den Umzug auf einen Host-Wechsel ohne Modell-Wechsel reduziert.
-  cortecs: 'gemma-4-26b-a4b-it',
+  // Das DICHTE Gemma 4 31B, nicht die MoE-Variante von Scaleway darüber: die
+  // ist über Cortecs seit dem 21.08.2026 unbedienbar (siehe `providerForModel`
+  // in lanes.ts). Benannt statt geerbt aus demselben Grund wie oben — Cortecs
+  // vermittelt einen ganzen Katalog, ein unbenannter Default hier wäre eine
+  // Wette darauf, welches Modell er gerade vorne führt.
+  cortecs: 'gemma-4-31b-it',
 } as const;
 
 /**
