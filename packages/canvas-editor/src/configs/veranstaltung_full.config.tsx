@@ -66,6 +66,8 @@ export interface VeranstaltungFullState {
   beschreibungOpacity?: number;
   titleColor?: string;
   beschreibungColor?: string;
+  eventTitlePosition?: { x: number; y: number };
+  beschreibungPosition?: { x: number; y: number };
   assetInstances: AssetInstance[];
   isDesktop: boolean;
   // Icons & Shapes
@@ -97,6 +99,25 @@ export interface VeranstaltungFullState {
 // ============================================================================
 // ACTIONS TYPE
 // ============================================================================
+
+/**
+ * Uebernimmt die Schluessel, die die Werkzeugleiste an Titel und Beschreibung
+ * schreibt (Deckkraft, Farbe, gezogene Position), aus dem Seed. Fehlende
+ * Schluessel bleiben weg statt als `undefined` im Zustand zu stehen.
+ */
+function carryTextStyling(props: Record<string, unknown>): Partial<VeranstaltungFullState> {
+  const keys = [
+    'eventTitleOpacity',
+    'beschreibungOpacity',
+    'titleColor',
+    'beschreibungColor',
+    'eventTitlePosition',
+    'beschreibungPosition',
+  ];
+  return Object.fromEntries(
+    keys.filter((k) => props[k] != null).map((k) => [k, props[k]])
+  ) as Partial<VeranstaltungFullState>;
+}
 
 export interface VeranstaltungFullActions {
   setEventTitle: (val: string) => void;
@@ -481,6 +502,7 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       opacityStateKey: 'eventTitleOpacity',
       fill: (state: VeranstaltungFullState, _layout: LayoutResult) => state.titleColor ?? '#FFFFFF',
       fillStateKey: 'titleColor',
+      positionStateKey: 'eventTitlePosition',
     },
     // Description
     {
@@ -517,6 +539,7 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       fill: (state: VeranstaltungFullState, _layout: LayoutResult) =>
         state.beschreibungColor ?? '#FFFFFF',
       fillStateKey: 'beschreibungColor',
+      positionStateKey: 'beschreibungPosition',
     },
     // Date circle is now rendered via circleBadgeInstances for text support
   ],
@@ -548,8 +571,10 @@ export const veranstaltungFullConfig: FullCanvasConfig<
         (props.customEventTitleFontSize as number | null | undefined) ?? null,
       customBeschreibungFontSize:
         (props.customBeschreibungFontSize as number | null | undefined) ?? null,
-      eventTitleOpacity: 1,
-      beschreibungOpacity: 1,
+      // Aus den Props statt hart auf 1: dieselbe Begruendung wie bei den
+      // Schriftgroessen darueber. Farbe und gezogene Position standen
+      // ueberhaupt nicht hier und fielen bei jedem Re-Seed weg.
+      ...carryTextStyling(props),
       assetInstances: [],
       isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
       selectedIcons: [],
