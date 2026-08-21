@@ -66,6 +66,30 @@ function CardMenu({ actions }: { actions: TemplateAction[] }) {
 const GRID_CLASS =
   'grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-5 max-md:grid-cols-[repeat(auto-fill,minmax(165px,1fr))] max-md:gap-3';
 
+/**
+ * The lifecycle badge. A private draft carries none — that is the default
+ * state and needs no explaining; everything else does, because "eingereicht"
+ * and "veröffentlicht" used to look identical from here.
+ */
+function StatusBadge({ template }: { template: Template }) {
+  if (template.status === 'pending_review') {
+    return (
+      <Badge className="border-transparent bg-amber-500 text-white shadow-sm">In Prüfung</Badge>
+    );
+  }
+  if (template.status === 'rejected') {
+    return <Badge className="border-transparent bg-error text-white shadow-sm">Abgelehnt</Badge>;
+  }
+  if (template.is_private === false) {
+    return (
+      <Badge className="border-transparent bg-primary-600 text-white shadow-sm">
+        Veröffentlicht
+      </Badge>
+    );
+  }
+  return null;
+}
+
 const VorlagenListSection = memo(
   ({ title, items, loading, emptyMessage, getActions, onOpen }: VorlagenListSectionProps) => {
     return (
@@ -87,13 +111,7 @@ const VorlagenListSection = memo(
                 item={{ ...t, thumbnail_url: t.preview_image_url || t.thumbnail_url }}
                 onOpen={() => onOpen(t)}
                 menu={<CardMenu actions={getActions(t)} />}
-                badge={
-                  t.is_private === false ? (
-                    <Badge className="border-transparent bg-primary-600 text-white shadow-sm">
-                      Öffentlich
-                    </Badge>
-                  ) : null
-                }
+                badge={<StatusBadge template={t} />}
               />
             ))}
           </div>
