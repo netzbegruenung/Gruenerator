@@ -64,6 +64,11 @@ export const FUNCTION_ORDER = ['tokens', 'images', 'transcriptions', 'searches']
 export const PROVIDER_LABELS: Record<string, string> = {
   mistral: 'Mistral AI',
   scaleway: 'Scaleway',
+  // Ein Router, kein Rechenzentrum: die Gemma-Lane läuft seit 21.08.2026 über
+  // Cortecs, das die Anfragen gemessen an Scaleway weitervermittelt. Der Name
+  // nennt deshalb beide — wer in der CO₂-Übersicht den Standort sucht, findet
+  // ihn sonst nirgends, weil die Koeffizienten dieser Zeile Scaleways sind.
+  cortecs: 'Cortecs (Scaleway)',
   litellm: 'verdigado',
   regolo: 'Regolo / Seeweb',
   greenpt: 'GreenPT',
