@@ -25,7 +25,14 @@ const log = createLogger('ChatGraph:Rerank');
 /** Excerpt per candidate handed to the cross-encoder. */
 const RERANK_EXCERPT_CHARS = 1200;
 
-/** Upper bound on survivors. Was the notebook path's hardcoded value. */
+/**
+ * Obergrenze für Überlebende — nur noch im Zweig OHNE Notizbuch-Bezug.
+ *
+ * War einmal die hartcodierte Zahl des Notizbuch-Pfads und galt nach dessen
+ * Vereinheitlichung für beide Zweige. Seit notizbuch-gebundene Turns ihre
+ * Zahlen aus dem Stufenprofil nehmen (`getChatNotebookProfile`), ist sie das
+ * nicht mehr: dort sind es 18, also mehr als hier steht.
+ */
 const RERANK_OUTPUT_CEILING = 12;
 
 function getSourceTag(source: string): string {
@@ -76,8 +83,14 @@ export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGra
   const inputLimit = profile
     ? profile.rerankInput
     : Math.min(MAX_SOURCES, Math.max(rerankCfg.inputLimit, searchResults.length));
-  // Survivors scale with the input: never fewer than configured, never more than
-  // the 12 the notebook path already used before this was unified.
+  // Zwei Zweige, zwei Obergrenzen — und die des einen gilt ausdrücklich nicht
+  // für den anderen:
+  //  - notizbuch-gebunden: `profile.rerankOutput` (18). Liegt ÜBER
+  //    RERANK_OUTPUT_CEILING und soll das auch; die Grenze nach oben ist hier
+  //    `MAX_SOURCES`, siehe chatNotebookDepth.vitest.ts.
+  //  - sonst: die Ausgabe skaliert mit dem Eingang, nie unter dem
+  //    konfigurierten Wert und nie über die 12, die der Notizbuch-Pfad trug,
+  //    bevor er auf das Stufenprofil umgezogen ist.
   const outputLimit = profile
     ? profile.rerankOutput
     : Math.min(RERANK_OUTPUT_CEILING, Math.max(rerankCfg.outputLimit, searchResults.length));
