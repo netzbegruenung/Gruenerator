@@ -525,17 +525,23 @@ export async function resizeCanvas(
 }
 
 /**
- * Mark a canvas as a public, read-only gallery template: any authenticated user
- * may read it (so `cloneCanvas` succeeds for the gallery "use" action), but
+ * Mark a canvas as a read-only gallery template: any authenticated user may
+ * read it (so `cloneCanvas` succeeds for the gallery "use" action), but
  * `share_permission='viewer'` denies write access — the frozen snapshot can be
  * cloned but never edited by others (see `checkDocumentWriteAccess`).
+ *
+ * Only lifts a still-private snapshot. A Vorlage's owner can widen the same
+ * snapshot to `share_mode='public'` through the normal document share dialog;
+ * submitting it to the gallery afterwards must not silently narrow that link
+ * back down to "Anmeldung nötig".
  */
 export async function markCanvasAsGalleryTemplate(id: string): Promise<void> {
   await db.query(
     `UPDATE collaborative_documents
      SET share_mode = 'authenticated', share_permission = 'viewer',
          updated_at = CURRENT_TIMESTAMP
-     WHERE id = $1 AND document_subtype = $2`,
+     WHERE id = $1 AND document_subtype = $2
+       AND COALESCE(share_mode, 'private') = 'private'`,
     [id, CANVAS_SUBTYPE]
   );
 }

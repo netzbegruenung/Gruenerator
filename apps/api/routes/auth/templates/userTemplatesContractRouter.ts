@@ -37,7 +37,10 @@ import {
   UrlValidator,
 } from '../../../services/scrapers/implementations/UrlCrawler/index.js';
 import { createDocFromTemplate } from '../../../services/templates/collaborativeTemplateService.js';
-import { cleanupGrueneratorSnapshot } from '../../../services/templates/grueneratorVorlage.js';
+import {
+  cleanupGrueneratorSnapshot,
+  snapshotCanvasId,
+} from '../../../services/templates/grueneratorVorlage.js';
 import {
   enrichTemplate,
   deleteTemplateVector,
@@ -276,8 +279,7 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
       }
 
       // Freeze an immutable snapshot canvas, decoupled from the working copy, so
-      // later edits to the original don't mutate the published vorlage. Marked
-      // read-only/public so any authenticated user can clone it on "use".
+      // later edits to the original don't mutate the published vorlage.
       const snapshot = await createCanvas(userId, {
         title: `${baseTitle} (Vorlage)`,
         template_type: canvasType,
@@ -286,7 +288,14 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
         page_count: pageCount,
         format,
       });
-      await markCanvasAsGalleryTemplate(snapshot.id);
+      // The snapshot's visibility IS the Vorlage's visibility — cloning it is
+      // what "use this template" does. A private save therefore leaves it
+      // private (createCanvas defaults to share_mode='private'); only a gallery
+      // submission opens it to every logged-in user. Owners widen it further
+      // themselves via the share dialog (Gruppen / Link).
+      if (!keepPrivate) {
+        await markCanvasAsGalleryTemplate(snapshot.id);
+      }
 
       const postgres = getPostgresInstance();
       await postgres.ensureInitialized();
@@ -562,7 +571,7 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
       await postgres.ensureInitialized();
 
       const existingTemplate = await postgres.queryOne(
-        `SELECT user_id, metadata, status FROM user_templates WHERE id = $1 AND type = $2`,
+        `SELECT user_id, metadata, status, content_data FROM user_templates WHERE id = $1 AND type = $2`,
         [id, 'template'],
         TABLE
       );
@@ -606,6 +615,17 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
         const transition = resolveStatusTransition(toStatus(existingTemplate.status), status);
         updateData.status = transition.status;
         updateData.is_private = transition.is_private;
+
+        // Submitting a template that was saved privately must also open its
+        // frozen snapshot — the gallery's "Verwenden" clones that canvas, and a
+        // still-private snapshot would make an approved Vorlage unusable.
+        // Withdrawing deliberately does NOT narrow it again: by then the owner
+        // may have shared the same snapshot with a group or by link, and the
+        // gallery listing is already gone via is_private/status.
+        if (!transition.is_private) {
+          const snapshotId = snapshotCanvasId(existingTemplate.content_data);
+          if (snapshotId) await markCanvasAsGalleryTemplate(snapshotId);
+        }
       }
 
       if (metadata !== undefined) {
