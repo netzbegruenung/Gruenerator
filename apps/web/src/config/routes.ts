@@ -158,6 +158,7 @@ const TexteRedirectToChatComponent: FC<Record<string, unknown>> = () =>
 const TexteRedirectToChat = lazy(() => Promise.resolve({ default: TexteRedirectToChatComponent }));
 const VorlagenGallery = lazy(() => import('../components/common/Gallery'));
 const MeineVorlagenPage = lazy(() => import('../features/vorlagen/MeineVorlagenPage'));
+const GeteilteVorlagePage = lazy(() => import('../features/vorlagen/GeteilteVorlagePage'));
 const AdminDashboardPage = lazy(() => import('../features/admin/AdminDashboardPage'));
 const AdminSkillsPage = lazy(() => import('../features/admin/AdminSkillsPage'));
 const BgstAdminPage = lazy(() => import('../features/admin/bgst/BgstAdminPage'));
@@ -459,6 +460,10 @@ const standardRoutes: RouteConfig[] = [
   { path: '/icon-test', component: IconAnimationTestPage, channel: 'internal' },
   { path: '/vorlagen', component: GrueneratorenBundle.VorlagenListe },
   { path: '/vorlagen/meine', component: MeineVorlagenPage },
+  // Link-shared Vorlage. `public` because the öffentlich mode has to open
+  // without an account; the page itself asks for a login when the link is
+  // the login-gated kind.
+  { path: '/vorlagen/v/:id', component: GeteilteVorlagePage, public: true },
   {
     path: '/datenbank/vorlagen',
     component: lazy(() => Promise.resolve({ default: createRedirect('/vorlagen') })),
