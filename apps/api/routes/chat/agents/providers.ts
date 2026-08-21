@@ -11,6 +11,7 @@ import {
   getLiteLLMProvider,
   getMistralProvider,
   getRegoloProvider,
+  getCortecsProvider,
   getScalewayProvider,
   getScalewayTextProvider,
   isProviderConfigured,
@@ -62,7 +63,7 @@ export { isVisionCapable };
  * first-token-timeout fallback for the chosen side.
  *
  */
-export type Provider = 'mistral' | 'litellm' | 'regolo' | 'greenpt' | 'scaleway';
+export type Provider = 'mistral' | 'litellm' | 'regolo' | 'greenpt' | 'scaleway' | 'cortecs';
 
 const GREENPT_DEFAULT_MODEL = 'mistral-medium-3.5-128b';
 
@@ -208,26 +209,28 @@ const GEMMA_4_REGOLO: ModelConfigSingle = {
 };
 
 /**
- * Gemma 4 26B-A4B on Scaleway — the SMALL side of the Gemma family, and the
+ * Gemma 4 26B-A4B über Cortecs — the SMALL side of the Gemma family, and the
  * lane the auto policy's short/structured turns take.
  *
- * `provider: 'scaleway'` is correct here and would be wrong for Mistral Medium:
+ * `provider: 'cortecs'` is correct here and would be wrong for Mistral Medium:
  * the caveat in services/ai/providers.ts applies to models that need the
  * mistral policy set (`isAgenticToolCapable`, context windows, fallback
  * chains). This lane needs none of it — it writes prose over material that is
- * already in context and calls no tools of its own. Gemma 4 26B is exactly the
- * case that comment names: a model Scaleway serves and Mistral does not
- * publish.
+ * already in context and calls no tools of its own.
  *
- * The host also happens to match the lane's rule that it never thinks:
- * `scalewayThinkingFetch` pins `reasoning_effort: 'none'` on every request, so
- * "reasoning off" is enforced at the transport instead of being requested.
+ * Lief bis 21.08.2026 auf `provider: 'scaleway'`. Der Umzug wechselt den
+ * Vertragspartner, nicht die Hardware: Cortecs vermittelt genau diese Modell-ID
+ * gemessen an Scaleway weiter (Header `x-cortecs-provider`).
+ *
+ * Die Regel der Lane, dass sie nie denkt, hält der Host weiterhin ein:
+ * `cortecsRequestPolicy` pinnt `reasoning_effort: 'none'` für dieses Modell, so
+ * dass „Denken aus" am Transport erzwungen und nicht erbeten wird.
  *
  * Failover is Gemma 4 on GreenPT — same family, second EU host.
  */
 const GEMMA_4_26B: ModelConfigSingle = {
   kind: 'single',
-  provider: 'scaleway',
+  provider: 'cortecs',
   model: 'gemma-4-26b-a4b-it',
   contextWindow: CTX_FULL,
   fallback: 'gemma-4-greenpt',
@@ -486,8 +489,10 @@ export function getContextWindow(
   if (provider === 'litellm') return CTX_VERDIGADO;
   if (provider === 'regolo') return CTX_FULL;
   if (provider === 'greenpt') return CTX_FULL;
-  // Gemma 4 26B-A4B carries 262k on Scaleway's H100 instances (model card).
+  // Gemma 4 26B-A4B carries 262k on Scaleway's H100 instances (model card) —
+  // dieselbe Hardware, die Cortecs für dieses Modell vermittelt.
   if (provider === 'scaleway') return CTX_FULL;
+  if (provider === 'cortecs') return CTX_FULL;
 
   return DEFAULT_CONTEXT_WINDOW;
 }
@@ -621,6 +626,21 @@ function instantiateModel(
         return getRegoloProvider().chat(GEMMA_4_REGOLO.model);
       }
       return getScalewayTextProvider().chat(modelId || GEMMA_4_26B.model);
+    }
+    // Seit 21.08.2026 der Host von Lane A. Dieselbe Ersatzregel wie oben, aus
+    // demselben Grund — und hier zusätzlich, weil Cortecs vorausbezahlt ist:
+    // ein leeres Guthaben antwortet mit 401 wie ein fehlender Schlüssel, nur
+    // eben erst auf der Leitung. Der Schlüsseltest fängt den einen Fall früh
+    // ab, die Fallback-Kette den anderen.
+    case 'cortecs': {
+      if (!env.CORTECS_API_KEY) {
+        log.warn(
+          `CORTECS_API_KEY not set — answering on Regolo Gemma 4 instead (requested "${modelId}")`
+        );
+        lastFallbackProvider = 'regolo';
+        return getRegoloProvider().chat(GEMMA_4_REGOLO.model);
+      }
+      return getCortecsProvider().chat(modelId || GEMMA_4_26B.model);
     }
     case 'anthropic':
       throw new Error('Anthropic provider is not yet implemented');
@@ -806,6 +826,8 @@ export function getProviderName(provider: AgentConfig['provider'] | Provider): s
       return 'GreenPT';
     case 'scaleway':
       return 'Scaleway';
+    case 'cortecs':
+      return 'Cortecs';
     case 'anthropic':
       return 'Anthropic Claude';
     default:
