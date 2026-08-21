@@ -83,7 +83,10 @@ export const useTemplateActions = ({ onEdit }: UseTemplateActionsArgs) => {
 
   const toggleVisibility = useCallback(
     async (t: Template): Promise<void> => {
-      const newIsPrivate = !isPublicOrPending(t);
+      // The action undoes the current state: a public/pending template goes
+      // private, a private one gets submitted. Same predicate as the label —
+      // negating it here would make every button do the opposite of what it says.
+      const newIsPrivate = isPublicOrPending(t);
       try {
         await updateTemplateVisibility(t.id, newIsPrivate);
         toast.success(
