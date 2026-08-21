@@ -1,5 +1,6 @@
 import { type FeedbackPageContext } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
+import { useMediaQuery } from '@gruenerator/shared/hooks';
 import {
   Button,
   Checkbox,
@@ -11,7 +12,6 @@ import {
   DialogTitle,
   Textarea,
   toast,
-  useMediaQuery,
 } from '@gruenerator/ui';
 import { useMutation } from '@tanstack/react-query';
 import { Loader2, Maximize2 } from 'lucide-react';
