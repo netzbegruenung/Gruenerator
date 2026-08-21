@@ -24,6 +24,7 @@ import { getPlaceholder } from '../placeholders';
 import { createShareSection } from '../shareSection';
 
 import { createBaseActions } from './actionFactories';
+import { carryInstanceState } from './carryInstanceState';
 import { makeSectionDefiner } from './defineSection';
 
 import type { CanvasFeatures, CanvasDimensions, IconState } from './baseTypes';
@@ -470,19 +471,12 @@ export function createImageTwoTextCanvas<
         ...carryTextStyling(props),
 
         // Base state
-        assetInstances: [],
         isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
-        selectedIcons: [],
-        iconStates: {},
-        shapeInstances: [],
-        illustrationInstances: [],
-        additionalTexts: [],
-        pillBadgeInstances: [],
-        circleBadgeInstances: [],
-        balkenInstances: [],
-        frameInstances: [],
-        chartInstances: [],
-        userImageInstances: [],
+
+        // Everything the user added to the canvas. These were hard-set to `[]`
+        // here, so a chat edit — which re-seeds through this function with the
+        // full previous state — erased added icons, shapes and texts.
+        ...carryInstanceState(props),
 
         ...Object.fromEntries(
           passthroughStateKeys.filter((k) => k in props).map((k) => [k, props[k]])

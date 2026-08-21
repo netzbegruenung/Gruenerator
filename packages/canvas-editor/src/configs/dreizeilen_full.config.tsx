@@ -52,10 +52,13 @@ import type {
 import type { StockImageAttribution } from '../common/imageSourceTypes';
 import type { BalkenInstance } from '../primitives/BalkenGroup';
 import type { AssetInstance } from '../utils/canvasAssets';
+import type { ChartInstance } from '../utils/chartUtils';
 import type { CircleBadgeInstance } from '../utils/circleBadgeUtils';
+import type { FrameInstance } from '../utils/frameUtils';
 import type { IllustrationInstance } from '../utils/illustrations/types';
 import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { ShapeInstance } from '../utils/shapes';
+import type { UserImageInstance } from '../utils/userImageUtils';
 
 // ============================================================================
 // CONSTANTS
@@ -521,9 +524,11 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
     // Pill Badge & Circle Badge Instances
     pillBadgeInstances: (props.pillBadgeInstances as PillBadgeInstance[] | undefined) ?? [],
     circleBadgeInstances: (props.circleBadgeInstances as CircleBadgeInstance[] | undefined) ?? [],
-    frameInstances: [],
-    chartInstances: [],
-    userImageInstances: [],
+    // Wie die Nachbarn darueber aus den Props: sonst raeumt jede
+    // Chat-Bearbeitung Rahmen, Diagramme und hochgeladene Bilder ab.
+    frameInstances: (props.frameInstances as FrameInstance[] | undefined) ?? [],
+    chartInstances: (props.chartInstances as ChartInstance[] | undefined) ?? [],
+    userImageInstances: (props.userImageInstances as UserImageInstance[] | undefined) ?? [],
 
     // Layer Ordering
     layerOrder: (props.layerOrder as string[] | undefined) ?? [],

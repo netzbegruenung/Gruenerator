@@ -25,6 +25,7 @@ import {
   createFrameActions,
   createUserImageActions,
 } from './factory/actionFactories';
+import { carryInstanceState } from './factory/carryInstanceState';
 import { makeSectionDefiner } from './factory/defineSection';
 import { injectFeatureProps } from './featureInjector';
 import { PLACEHOLDER_TEXT } from './placeholders';
@@ -260,6 +261,8 @@ function createDateCircleTextLines(
 /**
  * Create initial date circle badge instance
  */
+const DATE_CIRCLE_ID = 'date-circle';
+
 function createInitialDateCircleBadge(
   weekday: string,
   date: string,
@@ -267,7 +270,7 @@ function createInitialDateCircleBadge(
 ): CircleBadgeInstance {
   const circleConfig = VERANSTALTUNG_CONFIG.circle;
   return {
-    id: 'date-circle',
+    id: DATE_CIRCLE_ID,
     x: circleConfig.centerX,
     y: circleConfig.centerY,
     radius: circleConfig.radius,
@@ -278,6 +281,31 @@ function createInitialDateCircleBadge(
     opacity: 1,
     textLines: createDateCircleTextLines(weekday, date, time),
   };
+}
+
+/**
+ * Haelt den Datumskreis am Termin, ohne die Bearbeitung wegzuwerfen.
+ *
+ * `createInitialState` baut nicht nur den ersten Zustand: Karten-Render und
+ * Chat-Bearbeitung setzen den vollen alten Zustand hier neu. Ein festes
+ * `[createInitialDateCircleBadge(...)]` verwarf dabei jede Verschiebung, jede
+ * Groessenaenderung und alle selbst hinzugefuegten Kreise. Uebernommen wird
+ * deshalb der bestehende Kreis, ueberschrieben nur die Zeilen aus dem Termin.
+ */
+function carryDateCircleBadges(
+  props: Record<string, unknown>,
+  weekday: string,
+  date: string,
+  time: string
+): CircleBadgeInstance[] {
+  const carried = Array.isArray(props.circleBadgeInstances)
+    ? (props.circleBadgeInstances as CircleBadgeInstance[])
+    : [];
+  if (carried.length === 0) {
+    return [createInitialDateCircleBadge(weekday, date, time)];
+  }
+  const textLines = createDateCircleTextLines(weekday, date, time);
+  return carried.map((badge) => (badge.id === DATE_CIRCLE_ID ? { ...badge, textLines } : badge));
 }
 
 // ============================================================================
@@ -575,20 +603,13 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       // Schriftgroessen darueber. Farbe und gezogene Position standen
       // ueberhaupt nicht hier und fielen bei jedem Re-Seed weg.
       ...carryTextStyling(props),
-      assetInstances: [],
+      // Alles selbst Hinzugefuegte statt hart `[]`: sonst raeumt jede
+      // Chat-Bearbeitung Icons, Formen und Zusatztexte ab. Der Datumskreis
+      // ueberschreibt seinen Schluessel gleich darunter.
+      ...carryInstanceState(props),
       isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
-      selectedIcons: [],
-      iconStates: {},
-      shapeInstances: [],
       selectedShapeId: null,
-      illustrationInstances: [],
-      additionalTexts: [],
-      circleBadgeInstances: [createInitialDateCircleBadge(weekday, date, time)],
-      pillBadgeInstances: [],
-      balkenInstances: [],
-      frameInstances: [],
-      chartInstances: [],
-      userImageInstances: [],
+      circleBadgeInstances: carryDateCircleBadges(props, weekday, date, time),
       imageAttribution:
         (props.imageAttribution as StockImageAttribution | null | undefined) ?? null,
     };
