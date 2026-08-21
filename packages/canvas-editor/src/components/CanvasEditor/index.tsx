@@ -115,6 +115,7 @@ function CanvasEditorInner({
   chromeCenter,
   chromeRight,
   onInvitePeople,
+  onSaveAsTemplate,
   onCollabSnapshot,
   onAutoSaveShareToken,
 }: CanvasEditorProps) {
@@ -822,6 +823,7 @@ function CanvasEditorInner({
         }
       },
       onNavigateToGallery: () => {},
+      onSaveAsTemplate,
       pageCount,
       onDownloadAllZip: downloadAllAsZip,
       onShareAllPages: shareAllPages,
@@ -840,6 +842,7 @@ function CanvasEditorInner({
       multiExportError,
       handleCaptureCanvas,
       handleCaptureCanvasForAi,
+      onSaveAsTemplate,
     ]
   );
 
@@ -936,6 +939,7 @@ function CanvasEditorInner({
       isMultiExporting,
       exportProgress,
       onInvitePeople,
+      onSaveAsTemplate,
     }),
     [
       handleCaptureCanvas,
@@ -951,6 +955,7 @@ function CanvasEditorInner({
       isMultiExporting,
       exportProgress,
       onInvitePeople,
+      onSaveAsTemplate,
     ]
   );
 

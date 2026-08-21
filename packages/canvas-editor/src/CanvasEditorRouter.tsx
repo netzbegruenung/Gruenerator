@@ -149,6 +149,8 @@ export interface ControllableCanvasWrapperProps {
    * this callback. Used by collab hosts to open their invite/permissions dialog.
    */
   onInvitePeople?: () => void;
+  /** Opens the host's "als Vorlage speichern" flow (see CanvasEditorProps). */
+  onSaveAsTemplate?: () => void;
   /** Collab mode: fresh stage render after local edits settle (see CanvasEditorProps). */
   onCollabSnapshot?: (base64: string) => void;
   /**
@@ -179,6 +181,7 @@ export function ControllableCanvasWrapper({
   chromeCenter,
   chromeRight,
   onInvitePeople,
+  onSaveAsTemplate,
   onCollabSnapshot,
   initialShareToken,
   onAutoSaveShareToken,
@@ -480,6 +483,7 @@ export function ControllableCanvasWrapper({
             chromeCenter={chromeCenter}
             chromeRight={chromeRight}
             onInvitePeople={onInvitePeople}
+            onSaveAsTemplate={onSaveAsTemplate}
             onCollabSnapshot={onCollabSnapshot}
             initialShareToken={initialShareToken}
             onAutoSaveShareToken={onAutoSaveShareToken}
