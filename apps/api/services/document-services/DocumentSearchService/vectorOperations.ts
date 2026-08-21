@@ -294,16 +294,34 @@ export async function countVectorsByDocument(
 ): Promise<Map<string, number>> {
   const counts = new Map<string, number>();
 
-  for (const documentId of documentIds) {
-    try {
-      const result = await qdrantOps.client.count('documents', {
-        filter: { must: [{ key: 'document_id', match: { value: documentId } }] },
-        exact: true,
-      });
-      counts.set(documentId, result.count);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      console.warn(`[VectorOperations] Vector count probe failed for ${documentId}: ${message}`);
+  // Batched rather than sequential: a notebook can hold hundreds of documents,
+  // and one round trip each would add up on a path the user is already waiting
+  // on. Batched rather than one big Promise.all for the same reason — a large
+  // notebook must not open hundreds of concurrent connections to Qdrant.
+  const BATCH_SIZE = 10;
+
+  for (let i = 0; i < documentIds.length; i += BATCH_SIZE) {
+    const batch = documentIds.slice(i, i + BATCH_SIZE);
+    const probed = await Promise.all(
+      batch.map(async (documentId) => {
+        try {
+          const result = await qdrantOps.client.count('documents', {
+            filter: { must: [{ key: 'document_id', match: { value: documentId } }] },
+            exact: true,
+          });
+          return { documentId, count: result.count };
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Unknown error';
+          console.warn(
+            `[VectorOperations] Vector count probe failed for ${documentId}: ${message}`
+          );
+          return null;
+        }
+      })
+    );
+
+    for (const entry of probed) {
+      if (entry) counts.set(entry.documentId, entry.count);
     }
   }
 
