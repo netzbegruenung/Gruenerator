@@ -11,7 +11,7 @@ import {
 import { useAuiState } from '@assistant-ui/store';
 import { useMobileKeyboardOffset } from '@gruenerator/shared/hooks';
 import { mcpBrandColor } from '@gruenerator/shared/utils';
-import { cn, useIsMobile } from '@gruenerator/ui';
+import { cn, useIsMobile, useMeasuredCornerReservation } from '@gruenerator/ui';
 import { ArrowUp, Mic, Plug, Square, X } from 'lucide-react';
 import { memo, useEffect, useRef, useState, useCallback, type ClipboardEvent } from 'react';
 import { type IconType } from 'react-icons';
@@ -340,6 +340,8 @@ const INITIAL_MENTION_STATE: MentionState = {
   mentionStart: -1,
 };
 
+const COMPOSER_CORNERS = ['bottom-left', 'bottom-right'] as const;
+
 export const GrueneratorComposer = memo(function GrueneratorComposer({
   isRunning,
   toolbarExtra,
@@ -359,6 +361,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   requireProfileHydration = false,
   enablePastedTextAttachments = false,
 }: GrueneratorComposerProps) {
+  const composerAreaRef = useRef<HTMLDivElement>(null);
   const composerRuntime = useAui().composer;
   const isCompact = useChatDensity() === 'compact';
   const isMobile = useIsMobile();
@@ -392,6 +395,18 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   // `--mobile-keyboard-offset` on `:root`; the surfaces that own the composer's
   // bottom edge shrink themselves by it.
   useMobileKeyboardOffset(textareaRef);
+
+  // Auf dem Handy klebt der Composer an der unteren Kante, und sein
+  // Senden-/Stop-Knopf sitzt genau dort, wo der Feedback-Button verankert ist.
+  // Gemessen statt deklariert, weil die Höhe am Inhalt hängt (bis zu 6 Zeilen,
+  // Anhänge, umbrechende Mention-Pills). Auf breiten Schirmen endet der
+  // zentrierte `max-w-3xl`-Composer weit vor der Ecke und meldet von selbst
+  // nichts an — ebenso in Dialogen und Einstellungen, die denselben Composer
+  // mitten auf der Seite zeigen.
+  useMeasuredCornerReservation(composerAreaRef, {
+    corner: COMPOSER_CORNERS,
+    axis: 'vertical',
+  });
 
   // Composer mount drives lazy fetching of mentionable data (custom agents,
   // boards, docs). The query is deduplicated across consumers via React Query.
@@ -932,7 +947,10 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   );
 
   return (
-    <div className="px-4 pb-[max(0.25rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-[max(1rem,env(safe-area-inset-bottom))] lg:px-8">
+    <div
+      ref={composerAreaRef}
+      className="px-4 pb-[max(0.25rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-[max(1rem,env(safe-area-inset-bottom))] lg:px-8"
+    >
       <ComposerPrimitive.Root
         // Runs before the Root's internal submit handler (composeEventHandlers),
         // so an Enter-submitted draft carries the pills when send() reads it.
