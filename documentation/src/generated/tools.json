@@ -225,6 +225,7 @@
     "/startseite",
     "/subtitler/share/:shareToken",
     "/support",
-    "/testsommer"
+    "/testsommer",
+    "/vorlagen/v/:id"
   ]
 }
