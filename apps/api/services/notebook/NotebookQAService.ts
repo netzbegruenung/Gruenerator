@@ -128,9 +128,15 @@ interface CorpusDocSummary {
 }
 
 interface CorpusStateInspection {
-  state: 'indexing' | 'failed' | 'ready';
+  state: 'indexing' | 'stale' | 'failed' | 'ready';
   indexing: CorpusDocSummary[];
   failed: CorpusDocSummary[];
+  /**
+   * Postgres calls them finished, Qdrant has no points for them. Kept apart
+   * from `failed` because the cause and the remedy differ: these documents
+   * never reported an error, so nothing in the UI ever hinted at a problem.
+   */
+  stale: CorpusDocSummary[];
   ready: CorpusDocSummary[];
   total: number;
 }
@@ -1131,6 +1137,7 @@ export class NotebookQAService {
         corpus_state_detail: {
           indexing_count: corpus.indexing.length,
           failed_count: corpus.failed.length,
+          stale_count: corpus.stale.length,
           ready_count: corpus.ready.length,
           total_count: corpus.total,
         },
@@ -1147,7 +1154,7 @@ export class NotebookQAService {
     userId: string
   ): Promise<CorpusStateInspection> {
     if (documentIds.length === 0) {
-      return { state: 'ready', indexing: [], failed: [], ready: [], total: 0 };
+      return { state: 'ready', indexing: [], failed: [], stale: [], ready: [], total: 0 };
     }
 
     try {
@@ -1166,7 +1173,8 @@ export class NotebookQAService {
 
       const indexing: CorpusDocSummary[] = [];
       const failed: CorpusDocSummary[] = [];
-      const ready: CorpusDocSummary[] = [];
+      const stale: CorpusDocSummary[] = [];
+      const claimedReady: CorpusDocSummary[] = [];
 
       for (const row of rows) {
         const summary: CorpusDocSummary = { id: row.id, title: row.title };
@@ -1175,20 +1183,57 @@ export class NotebookQAService {
         } else if (row.status === 'failed') {
           failed.push(summary);
         } else if (row.status === 'completed' && (row.vector_count ?? 0) > 0) {
-          ready.push(summary);
+          claimedReady.push(summary);
         } else {
           // status='completed' but vector_count=0 — treat as failed for UX purposes
           failed.push(summary);
         }
       }
 
-      const state: CorpusStateInspection['state'] =
-        indexing.length > 0 ? 'indexing' : failed.length > 0 ? 'failed' : 'ready';
+      // `vector_count` only records what indexing reported once; nothing rewrites
+      // it when the points later disappear. Believing it turned a wiped index
+      // into "leider nichts gefunden" — a wrong answer the user could not tell
+      // apart from a genuine miss. We are already on the empty-result path here,
+      // so the probe costs nothing on a normal search.
+      const ready: CorpusDocSummary[] = [];
+      // Own try/catch: if Qdrant is unreachable the whole inspection used to
+      // collapse to an empty 'ready', throwing away the Postgres findings we
+      // already have. Falling back to "trust Postgres" keeps the indexing /
+      // failed messages working during a Qdrant outage.
+      let counts = new Map<string, number>();
+      try {
+        counts = await documentSearchService.countVectorsByDocument(claimedReady.map((d) => d.id));
+      } catch (probeError) {
+        log.warn(`[QA Single] Vektor-Probe übersprungen: ${(probeError as Error).message}`);
+      }
+      for (const doc of claimedReady) {
+        const stored = counts.get(doc.id);
+        // Probe failed (id absent) → keep trusting Postgres rather than
+        // reporting a Qdrant hiccup as missing data.
+        if (stored === 0) stale.push(doc);
+        else ready.push(doc);
+      }
 
-      return { state, indexing, failed, ready, total: rows.length };
+      if (stale.length > 0) {
+        log.error(
+          `[QA Single] ${stale.length}/${rows.length} Dokument(e) haben keine Vektoren in Qdrant, ` +
+            `obwohl Postgres sie als fertig führt: ${stale.map((d) => d.id).join(', ')}`
+        );
+      }
+
+      const state: CorpusStateInspection['state'] =
+        indexing.length > 0
+          ? 'indexing'
+          : stale.length > 0
+            ? 'stale'
+            : failed.length > 0
+              ? 'failed'
+              : 'ready';
+
+      return { state, indexing, failed, stale, ready, total: rows.length };
     } catch (error) {
       log.warn(`[QA Single] _inspectCorpusState failed: ${(error as Error).message}`);
-      return { state: 'ready', indexing: [], failed: [], ready: [], total: 0 };
+      return { state: 'ready', indexing: [], failed: [], stale: [], ready: [], total: 0 };
     }
   }
 
@@ -1202,6 +1247,15 @@ export class NotebookQAService {
         `Die Dokumente in der Sammlung "${collectionName}" werden gerade indexiert ` +
         `(${corpus.ready.length}/${total} bereit). ` +
         `Bitte probier es in ein bis zwei Minuten erneut.`
+      );
+    }
+    if (corpus && corpus.stale.length > 0) {
+      const total = corpus.total || corpus.stale.length;
+      return (
+        `Für ${corpus.stale.length} von ${total} Dokumenten in "${collectionName}" fehlt der ` +
+        `Suchindex — die Dokumente sind noch da, aber nicht durchsuchbar. Das ist ein Fehler auf ` +
+        `unserer Seite und liegt nicht an deiner Frage. Lade die betroffenen Dateien erneut hoch ` +
+        `oder melde dich, damit wir den Index neu aufbauen.`
       );
     }
     if (corpus && corpus.failed.length > 0) {
