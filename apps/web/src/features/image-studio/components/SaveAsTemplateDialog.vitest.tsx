@@ -66,14 +66,14 @@ function setupHandlers(): { current: Record<string, unknown> | null } {
   return captured;
 }
 
-function renderDialog() {
+function renderDialog(open = true) {
   return renderWithProviders(
     <SaveAsTemplateDialog
       canvasId="canvas-1"
       canvasType="dreizeilen"
       initialState={{ headline: 'Hallo' }}
       defaultTitle="Mein Sharepic"
-      open
+      open={open}
       onOpenChange={() => {}}
     />
   );
@@ -104,5 +104,37 @@ describe('SaveAsTemplateDialog', () => {
     await waitFor(() => expect(captured.current).not.toBeNull());
     expect(captured.current).toMatchObject({ visibility: 'submit' });
     expect(await screen.findByText(/wird geprüft/)).toBeInTheDocument();
+  });
+
+  it('zeigt beim erneuten Öffnen wieder das Formular, nicht die alte Erfolgsmeldung', async () => {
+    setupHandlers();
+    const { rerender } = renderDialog();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Für mich speichern' }));
+    expect(await screen.findByText('Vorlage gespeichert.')).toBeInTheDocument();
+
+    rerender(
+      <SaveAsTemplateDialog
+        canvasId="canvas-1"
+        canvasType="dreizeilen"
+        initialState={{ headline: 'Hallo' }}
+        defaultTitle="Mein Sharepic"
+        open={false}
+        onOpenChange={() => {}}
+      />
+    );
+    rerender(
+      <SaveAsTemplateDialog
+        canvasId="canvas-1"
+        canvasType="dreizeilen"
+        initialState={{ headline: 'Hallo' }}
+        defaultTitle="Mein Sharepic"
+        open
+        onOpenChange={() => {}}
+      />
+    );
+
+    expect(await screen.findByRole('button', { name: 'Für mich speichern' })).toBeInTheDocument();
+    expect(screen.queryByText('Vorlage gespeichert.')).not.toBeInTheDocument();
   });
 });

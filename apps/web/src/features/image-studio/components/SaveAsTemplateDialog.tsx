@@ -55,6 +55,19 @@ export function SaveAsTemplateDialog({
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'submitted' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
 
+  // Reopening after a save must offer a fresh form, not the previous success
+  // message — a canvas can yield more than one template (privat, dann
+  // eingereicht). Adjusted during render rather than in an effect so the reset
+  // is visible on the first paint of the reopened dialog.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) {
+      setStatus('idle');
+      setError(null);
+    }
+  }
+
   const save = useCallback(
     async (visibility: 'private' | 'submit') => {
       setStatus('saving');
