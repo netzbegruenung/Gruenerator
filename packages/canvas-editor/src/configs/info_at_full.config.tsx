@@ -77,6 +77,8 @@ const logoElement: ImageElementConfig<InfoAtState> = {
   height: I.logo.height,
   src: I.logo.src,
   draggable: true,
+  opacityStateKey: 'logoOpacity',
+  offsetKey: 'logoOffset',
 };
 
 const introlineElement = createSecondaryText<InfoAtState>({
@@ -123,6 +125,13 @@ const accentElement: TextElementConfig<InfoAtState> = {
   editable: true,
   draggable: true,
   fill: I.accent.color,
+  // Ohne diese vier Schluessel zeigt die Werkzeugleiste Farbe, Schriftgroesse
+  // und Deckkraft an, ohne dass einer der Regler etwas schreibt, und der Zug
+  // am Element verpufft. Die Fabrik-Texte bekommen sie automatisch.
+  fillStateKey: 'accentColor',
+  fontSizeStateKey: 'customAccentFontSize',
+  opacityStateKey: 'accentOpacity',
+  positionStateKey: 'accentPosition',
 };
 
 const baseInfoAtConfig = createColorTwoTextCanvas({
@@ -134,7 +143,15 @@ const baseInfoAtConfig = createColorTwoTextCanvas({
   defaultBackgroundColor: AT.defaultBackgroundColor,
   textColorMap: AT.textColorMap,
   calculateLayout,
-  passthroughStateKeys: ['accent'],
+  passthroughStateKeys: [
+    'accent',
+    'accentColor',
+    'customAccentFontSize',
+    'accentOpacity',
+    'accentPosition',
+    'logoOpacity',
+    'logoOffset',
+  ],
   elements: [logoElement, introlineElement, textElement, accentElement],
   features: { icons: true, shapes: true, illustrations: true },
   getCanvasText: (state) =>
