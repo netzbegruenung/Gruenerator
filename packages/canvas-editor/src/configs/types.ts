@@ -275,6 +275,8 @@ export interface SectionContext {
   captureCanvasImageForAi?: () => Promise<string | null>;
   onDownload?: () => void;
   onNavigateToGallery?: () => void;
+  /** Opens the host's "als Vorlage speichern" flow; the entry hides without it. */
+  onSaveAsTemplate?: () => void;
   /** Font color from layout meta (for text elements) */
   fontColor?: string;
   /** Additional metadata from layout calculations */

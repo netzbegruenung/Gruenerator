@@ -1,21 +1,19 @@
-import { useShareStore, shareApi } from '@gruenerator/shared/share';
+import { shareApi } from '@gruenerator/shared/share';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
   Button,
-  Separator,
   IconButton,
   IconButtonRow,
   Skeleton,
 } from '@gruenerator/ui';
 import { useCallback, useState } from 'react';
-import { FaCheck, FaDownload, FaSave, FaCopy, FaUserPlus } from 'react-icons/fa';
+import { FaCheck, FaDownload, FaSave, FaUserPlus } from 'react-icons/fa';
 import { PiArrowLeft } from 'react-icons/pi';
 import { IoShareOutline } from 'react-icons/io5';
 
-import { useAutoSaveStore, useAutoSaveStoreApi } from '../../stores/useAutoSaveStore';
-import { waitForAutoSave } from '../../stores/waitForAutoSave';
+import { useAutoSaveStoreApi } from '../../stores/useAutoSaveStore';
 
 import { DownloadSection, type CanvasDownloadChoice } from './DownloadSection';
 
@@ -40,6 +38,12 @@ export interface ShareDropdownProps {
    * resolves people/permissions.
    */
   onInvitePeople?: () => void;
+  /**
+   * Optional host-supplied "save as template" action, same contract as
+   * {@link onInvitePeople}: the host owns the document identity a template is
+   * built from, so it also owns the dialog. Hidden when absent.
+   */
+  onSaveAsTemplate?: () => void;
 }
 
 export function ShareDropdown({
@@ -47,7 +51,6 @@ export function ShareDropdown({
   onDownload,
   onNavigateToGallery,
   canvasText,
-  canvasType,
   canvasWidth,
   canvasHeight,
   shareToken,
@@ -57,20 +60,15 @@ export function ShareDropdown({
   isMultiExporting = false,
   exportProgress,
   onInvitePeople,
+  onSaveAsTemplate,
 }: ShareDropdownProps) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<'main' | 'download'>('main');
   const [isSharing, setIsSharing] = useState(false);
   const [shareSuccess, setShareSuccess] = useState(false);
-  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
-  const [templateUrl, setTemplateUrl] = useState<string | null>(null);
-  const [templateError, setTemplateError] = useState<string | null>(null);
-  const [templateCopied, setTemplateCopied] = useState(false);
 
   const autoSaveStoreApi = useAutoSaveStoreApi();
-  const currentShareToken = useAutoSaveStore((s) => s.autoSavedShareToken);
   const canUseNativeShare = typeof navigator !== 'undefined' && 'share' in navigator;
-  const { saveAsTemplate } = useShareStore();
 
   const publishDraftIfNeeded = useCallback(async () => {
     const token = shareToken || autoSaveStoreApi.getState().autoSavedShareToken;
@@ -105,36 +103,6 @@ export function ShareDropdown({
       setIsSharing(false);
     }
   }, [onCaptureCanvas, canvasText, publishDraftIfNeeded]);
-
-  const handleSaveAsTemplate = async () => {
-    setIsSavingTemplate(true);
-    setTemplateError(null);
-    try {
-      let tokenToUse = shareToken || currentShareToken;
-      if (!tokenToUse) {
-        await onCaptureCanvas();
-        await waitForAutoSave(autoSaveStoreApi);
-        tokenToUse = autoSaveStoreApi.getState().autoSavedShareToken;
-      }
-      if (!tokenToUse) throw new Error('Kein Share-Token verfügbar');
-      const result = await saveAsTemplate(tokenToUse, `${canvasType} Vorlage`, 'public');
-      if (result.success) setTemplateUrl(`${window.location.origin}${result.templateUrl}`);
-      else setTemplateError('Vorlage konnte nicht gespeichert werden.');
-    } catch (error) {
-      console.error('Failed to save template:', error);
-      setTemplateError('Vorlage konnte nicht gespeichert werden.');
-    } finally {
-      setIsSavingTemplate(false);
-    }
-  };
-
-  const handleCopyTemplateLink = () => {
-    if (templateUrl) {
-      void navigator.clipboard.writeText(templateUrl);
-      setTemplateCopied(true);
-      setTimeout(() => setTemplateCopied(false), 2000);
-    }
-  };
 
   return (
     <Popover
@@ -210,21 +178,17 @@ export function ShareDropdown({
                 />
               )}
 
-              <IconButton
-                size="sm"
-                icon={
-                  isSavingTemplate ? (
-                    <Skeleton className="size-4 rounded-full" />
-                  ) : templateUrl ? (
-                    <FaCheck />
-                  ) : (
-                    <FaSave />
-                  )
-                }
-                label={templateUrl ? 'Gespeichert' : 'Vorlage'}
-                onClick={templateUrl ? handleCopyTemplateLink : handleSaveAsTemplate}
-                disabled={isSavingTemplate}
-              />
+              {onSaveAsTemplate && (
+                <IconButton
+                  size="sm"
+                  icon={<FaSave />}
+                  label="Vorlage"
+                  onClick={() => {
+                    setOpen(false);
+                    onSaveAsTemplate();
+                  }}
+                />
+              )}
 
               {onInvitePeople && (
                 <IconButton
@@ -238,35 +202,6 @@ export function ShareDropdown({
                 />
               )}
             </IconButtonRow>
-
-            {templateError && (
-              <p className="px-4 pb-3 m-0 text-xs text-red-600 dark:text-red-400">
-                {templateError}
-              </p>
-            )}
-
-            {/* Template link (shown after saving) */}
-            {templateUrl && (
-              <>
-                <Separator />
-                <div className="px-4 py-3 flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={templateUrl}
-                    readOnly
-                    className="flex-1 py-1.5 px-2.5 text-xs text-foreground bg-grey-100 dark:bg-grey-800 border border-grey-200 dark:border-grey-700 rounded-md outline-none cursor-text min-w-0"
-                    onClick={(e) => e.currentTarget.select()}
-                  />
-                  <Button variant="outline" size="sm" onClick={handleCopyTemplateLink}>
-                    {templateCopied ? (
-                      <FaCheck className="size-3" />
-                    ) : (
-                      <FaCopy className="size-3" />
-                    )}
-                  </Button>
-                </div>
-              </>
-            )}
           </>
         )}
       </PopoverContent>
