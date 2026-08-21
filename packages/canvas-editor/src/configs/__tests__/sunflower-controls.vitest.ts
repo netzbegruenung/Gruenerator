@@ -10,12 +10,13 @@ import type { CanvasElementConfig, ImageElementConfig } from '../types';
 type CanvasConfigType = Parameters<typeof loadCanvasConfig>[0];
 
 /**
- * The sunflower is `listening`/`draggable`, so clicking it opens the floating
- * toolbar with an opacity slider. Without `opacityStateKey` the slider's
- * writes were dropped silently — `handleOpacityChange` only writes when the
- * element declares the key, so the control looked live and did nothing.
+ * The sunflower is `listening`/`draggable`, so it can be selected and moved.
+ * Both edits route through a declared state key: `handleOpacityChange` writes
+ * only with `opacityStateKey`, `handleImageDragEnd` only with `offsetKey` (or
+ * `positionStateKey`). Without them the controls look live and drop every
+ * write silently.
  */
-describe('Sonnenblumen-Deckkraft ist einstellbar', () => {
+describe('Sonnenblume ist bearbeitbar', () => {
   // The first dynamic import pulls the whole Konva chain in; pay it once.
   beforeAll(async () => {
     await loadCanvasConfig('zitat-pure');
@@ -66,5 +67,27 @@ describe('Sonnenblumen-Deckkraft ist einstellbar', () => {
     }) as Record<string, unknown>;
 
     expect(seeded.sunflowerOpacity).toBe(0.42);
+  });
+
+  it.each(SUNFLOWER_TEMPLATES)('%s: sunflower drag lands in state', async (id) => {
+    const config = await loadCanvasConfig(id);
+    const sunflower = findSunflower(config.elements as CanvasElementConfig<never>[]);
+
+    // Offset over absolute position: both x and y are constants, so the
+    // element has a stable base to offset from.
+    expect(sunflower.offsetKey).toBe('sunflowerOffset');
+    expect(typeof sunflower.x).toBe('number');
+    expect(typeof sunflower.y).toBe('number');
+  });
+
+  it.each(SUNFLOWER_TEMPLATES)('%s: sunflower drag survives a state re-seed', async (id) => {
+    const config = await loadCanvasConfig(id);
+    const offset = { x: -120, y: 80 };
+    const seeded = config.createInitialState({ sunflowerOffset: offset }) as Record<
+      string,
+      unknown
+    >;
+
+    expect(seeded.sunflowerOffset).toEqual(offset);
   });
 });
