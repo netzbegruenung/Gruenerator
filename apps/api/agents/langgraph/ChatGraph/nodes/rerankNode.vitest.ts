@@ -29,6 +29,7 @@ vi.mock('../../../../services/search/rerankPipeline.js', () => ({
   DEFAULT_RELEVANCE: 0.5,
 }));
 
+import { MAX_SOURCES } from './citableSources.js';
 import { rerankNode } from './rerankNode.js';
 
 import type { ChatGraphState, SearchResult } from '../types.js';
@@ -106,5 +107,62 @@ describe('rerankNode', () => {
     expect(rerankPipelineMock).not.toHaveBeenCalled();
     expect(result.searchResults).toBeUndefined();
     expect(result.rerankFailed).toBeUndefined();
+  });
+
+  // Das Fenster ist die eigentliche Aussage dieses Knotens: es entscheidet,
+  // wie viele Kandidaten der Cross-Encoder überhaupt zu Gesicht bekommt. Vorher
+  // war es an `MAX_SOURCES` (20) geknüpft — die Prompt-Decke — und damit auf
+  // einem notizbuch-gebundenen Turn immer so groß wie das Ergebnis selbst.
+  describe('Fenster', () => {
+    const windowOf = () => {
+      const call = rerankPipelineMock.mock.calls[0]?.[0] as {
+        inputLimit: number;
+        outputLimit: number;
+      };
+      return { inputLimit: call.inputLimit, outputLimit: call.outputLimit };
+    };
+
+    beforeEach(() => {
+      rerankPipelineMock.mockResolvedValue({
+        rankedIndices: [0, 1, 2],
+        scores: new Map([
+          [0, 0.9],
+          [1, 0.8],
+          [2, 0.7],
+        ]),
+        rerankTimeMs: 12,
+      });
+    });
+
+    it('nimmt für ein @erwähntes Notizbuch die Zahlen der Stufe, nicht MAX_SOURCES', async () => {
+      await rerankNode(makeState({ notebookCollectionIds: ['hessen'] }));
+
+      expect(windowOf()).toEqual({ inputLimit: 40, outputLimit: 18 });
+    });
+
+    // Der Fall, für den das hier gebaut wurde: ein LV-Agent bindet sein
+    // Notizbuch über `defaultNotebookIds`, ohne dass jemand es erwähnt hat.
+    it('gilt genauso für einen an ein Notizbuch gebundenen Agenten', async () => {
+      await rerankNode(makeState({ defaultNotebookCollectionIds: ['hessen'] }));
+
+      expect(windowOf()).toEqual({ inputLimit: 40, outputLimit: 18 });
+    });
+
+    // Das Eingabefenster DARF über der Prompt-Decke liegen — genau das war die
+    // Entkopplung. Beschnitten wird erst in `buildCitableSources`.
+    it('lässt das Eingabefenster über MAX_SOURCES hinausgehen', async () => {
+      await rerankNode(makeState({ notebookCollectionIds: ['hessen'] }));
+
+      expect(windowOf().inputLimit).toBeGreaterThan(MAX_SOURCES);
+      // …die Ausgabe aber nicht: sonst fielen Quellen zwischen Reranker und
+      // Prompt still unter den Tisch.
+      expect(windowOf().outputLimit).toBeLessThanOrEqual(MAX_SOURCES);
+    });
+
+    it('lässt Turns ohne Notizbuch-Bezug unverändert', async () => {
+      await rerankNode(makeState({ searchResults: makeResults(6) }));
+
+      expect(windowOf()).toEqual({ inputLimit: 16, outputLimit: 8 });
+    });
   });
 });
