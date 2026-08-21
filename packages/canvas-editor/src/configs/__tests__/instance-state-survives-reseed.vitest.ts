@@ -76,7 +76,7 @@ describe('derived collections keep the instance and refresh only the text', () =
   it('slider pill keeps id and position, follows the label', async () => {
     const config = await loadCanvasConfig('slider');
     const pill = {
-      id: 'pill-guard',
+      id: 'slider-label-pill',
       text: 'Alt',
       x: 123,
       y: 456,
@@ -91,7 +91,7 @@ describe('derived collections keep the instance and refresh only the text', () =
     }) as Record<string, unknown>;
 
     const [result] = state.pillBadgeInstances as Array<Record<string, unknown>>;
-    expect(result.id).toBe('pill-guard');
+    expect(result.id).toBe('slider-label-pill');
     expect(result.x).toBe(123);
     expect(result.y).toBe(456);
     expect(result.scale).toBe(1.4);
@@ -107,6 +107,46 @@ describe('derived collections keep the instance and refresh only the text', () =
     }) as Record<string, unknown>;
 
     expect((state.pillBadgeInstances as unknown[]).length).toBe(1);
+  });
+
+  it('slider leaves a lone hand-added pill alone when the label pill is gone', async () => {
+    const config = await loadCanvasConfig('slider');
+    const own = { id: 'pill-badge-1700000000-1', text: 'Meine Pille', x: 700, y: 900 };
+
+    const state = config.createInitialState({
+      slideVariant: 'cover',
+      label: 'Neu aus dem Chat',
+      pillBadgeInstances: [own],
+    }) as Record<string, unknown>;
+
+    expect(state.pillBadgeInstances).toEqual([own]);
+  });
+
+  it('slider refreshes only the label pill, never its neighbours', async () => {
+    const config = await loadCanvasConfig('slider');
+    const own = { id: 'pill-badge-1700000000-2', text: 'Meine Pille', x: 700, y: 900 };
+    const label = { id: 'slider-label-pill', text: 'Alt', x: 80, y: 120 };
+
+    const state = config.createInitialState({
+      slideVariant: 'cover',
+      label: 'Neu aus dem Chat',
+      pillBadgeInstances: [own, label],
+    }) as Record<string, unknown>;
+
+    const badges = state.pillBadgeInstances as Array<Record<string, unknown>>;
+    expect(badges[0]).toEqual(own);
+    expect(badges[1].text).toBe('Neu aus dem Chat');
+  });
+
+  it('a minted label pill carries the stable id', async () => {
+    const config = await loadCanvasConfig('slider');
+    const state = config.createInitialState({
+      slideVariant: 'cover',
+      label: 'Wusstest du?',
+    }) as Record<string, unknown>;
+
+    const [minted] = state.pillBadgeInstances as Array<Record<string, unknown>>;
+    expect(minted.id).toBe('slider-label-pill');
   });
 
   it('veranstaltung date circle keeps its placement, follows the date', async () => {

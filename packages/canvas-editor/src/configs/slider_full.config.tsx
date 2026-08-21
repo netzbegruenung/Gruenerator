@@ -53,6 +53,9 @@ import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { SliderColorScheme } from '../utils/sliderLayout';
 
 // Default arrow icon ID (HeroIcons chevron-right, resolved via canvasIcons.ts)
+/** Feste Id der Pille, die die Folien-Beschriftung traegt. */
+const SLIDER_LABEL_PILL_ID = 'slider-label-pill';
+
 const ARROW_ICON_ID = 'hi-chevronright';
 
 // ============================================================================
@@ -626,22 +629,29 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
         ? (props.iconStates as Record<string, IconState>)
         : {};
 
-    // Die Pille traegt die Beschriftung der Folie, wird also aus `label` und
-    // dem Farbschema abgeleitet. Neu gebaut wird sie aber nur, wenn noch
-    // keine da ist: Karten-Render und Chat-Bearbeitung laufen ebenfalls durch
-    // diese Funktion, und ein festes Neu-Erzeugen verwarf jede Verschiebung,
-    // jede Groessenaenderung und vergab obendrein eine neue Id.
+    // Die Kopf-Pille traegt die Beschriftung der Folie und wird deshalb aus
+    // `label` und dem Farbschema abgeleitet. Erkannt wird sie an ihrer festen
+    // Id, nicht an ihrer Position in der Liste: entfernt man die Kopf-Pille
+    // und behaelt eine selbst hinzugefuegte, rutscht diese sonst auf Index 0
+    // und bekaeme hier ihren Text ueberschrieben.
+    //
+    // Aeltere Staende kennen die feste Id noch nicht. Dort wird gar nichts
+    // angefasst, weil sich nicht beweisen laesst, welche Pille die Kopf-Pille
+    // ist — Zerstoeren waere der teurere Fehler. Die Farben holt ohnehin
+    // `setColorScheme` fuer alle Pillen nach, und `setLabel` fasst die Pille
+    // im Editor auch heute nicht an.
     const pillBadgeColors = getPillBadgeColorsForScheme(colorScheme);
     const pillText = (props.label as string) || 'Wusstest du?';
     const carriedPills = Array.isArray(props.pillBadgeInstances)
       ? (props.pillBadgeInstances as PillBadgeInstance[])
       : [];
+    const hasLabelPill = carriedPills.some((badge) => badge.id === SLIDER_LABEL_PILL_ID);
     let initialPillBadge: PillBadgeInstance[];
     if (!showPill) {
       initialPillBadge = [];
-    } else if (carriedPills.length > 0) {
-      initialPillBadge = carriedPills.map((badge, index) =>
-        index === 0
+    } else if (hasLabelPill) {
+      initialPillBadge = carriedPills.map((badge) =>
+        badge.id === SLIDER_LABEL_PILL_ID
           ? {
               ...badge,
               text: pillText,
@@ -650,9 +660,12 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
             }
           : badge
       );
+    } else if (carriedPills.length > 0) {
+      initialPillBadge = carriedPills;
     } else {
       initialPillBadge = [
         createPillBadgeInstance(colorScheme === 'tanne-sand' ? 'slider-inverted' : 'slider', {
+          id: SLIDER_LABEL_PILL_ID,
           text: pillText,
           backgroundColor: pillBadgeColors.backgroundColor,
           textColor: pillBadgeColors.textColor,
