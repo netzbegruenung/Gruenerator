@@ -298,12 +298,13 @@ function carryDateCircleBadges(
   date: string,
   time: string
 ): CircleBadgeInstance[] {
-  const carried = Array.isArray(props.circleBadgeInstances)
-    ? (props.circleBadgeInstances as CircleBadgeInstance[])
-    : [];
-  if (carried.length === 0) {
+  // Am Vorhandensein des Schluessels entschieden, nicht an der Laenge: eine
+  // leere Liste heisst "der Kreis wurde entfernt". Neu angelegte Seiten
+  // bringen den Schluessel gar nicht erst mit.
+  if (!Array.isArray(props.circleBadgeInstances)) {
     return [createInitialDateCircleBadge(weekday, date, time)];
   }
+  const carried = props.circleBadgeInstances as CircleBadgeInstance[];
   const textLines = createDateCircleTextLines(weekday, date, time);
   return carried.map((badge) => (badge.id === DATE_CIRCLE_ID ? { ...badge, textLines } : badge));
 }
