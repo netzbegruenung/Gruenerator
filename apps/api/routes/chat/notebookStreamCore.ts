@@ -24,6 +24,7 @@ import {
   validateAndInjectCitations,
   groupSourcesByCollection,
   toClientSource,
+  sourceTextForPrompt,
 } from '../../services/search/index.js';
 import { expandQuery } from '../../services/search/QueryExpansionService.js';
 import {
@@ -36,6 +37,12 @@ import { createLogger } from '../../utils/logger.js';
 import { containsPromptLeakage } from '../gruenomat/topicGuard.js';
 
 import { isProviderConfigured } from './agents/providers.js';
+import {
+  buildRewriteTranscript,
+  mergeCarriedCitations,
+  normalizeNotebookHistory,
+  prepareNotebookHistory,
+} from './services/notebookHistoryService.js';
 import {
   resolveModel,
   streamForResolution,
@@ -151,14 +158,29 @@ export async function handleNotebookStream(
     const question = lastUserMessage.content;
     const t0 = Date.now();
 
+    // Conversation history is an ultra-only capability (profile.history).
+    // Other tiers drop incoming history EXPLICITLY — the chat-mode client has
+    // always sent the full unpruned thread to this endpoint, and before this
+    // gate it was spread into the model messages unbudgeted.
+    const lastUserIdx = messages.lastIndexOf(lastUserMessage);
+    let history = profile.history ? normalizeNotebookHistory(messages.slice(0, lastUserIdx)) : [];
+    if (!profile.history && messages.length > 1) {
+      log.debug(`[Notebook] Dropping ${messages.length - 1} history messages (tier ${depth})`);
+    }
+
     sse.send('search_start', { message: 'Suche in Dokumenten...' });
 
     // Tiers above one variant search several formulations of the question and
     // union the hits. expandQuery degrades to zero alternatives on failure, so
-    // the worst case is the single-query behaviour of the tiers below.
+    // the worst case is the single-query behaviour of the tiers below. With
+    // history present, the same call also resolves the follow-up into a
+    // standalone query ("und in Bayern?" carries no topic for vector search).
     let queries = [question];
     if (profile.queryVariants > 1) {
-      const expanded = await expandQuery(question);
+      const expanded = await expandQuery(
+        question,
+        history.length > 0 ? { historyContext: buildRewriteTranscript(history) } : {}
+      );
       queries = [expanded.primary, ...expanded.alternatives].slice(0, profile.queryVariants);
       if (queries.length > 1) {
         sse.send('progress_step', {
@@ -260,6 +282,27 @@ export async function handleNotebookStream(
           ? buildConcisePromptGrundsatz(searchContext.collectionName || 'Grüne Dokumente').system
           : buildConcisePromptGeneral(searchContext.collectionName || 'Ihre Dokumente').system;
       }
+
+      // Carry over the sources cited in recent answers: their passages join
+      // the references map (deduped, behind the fresh hits) and the history's
+      // old [N] markers are rewritten to the merged numbering. Without this,
+      // an old marker would silently point at whatever source now holds that
+      // number — and "was stand nochmal in Quelle 3?" would have no target.
+      if (history.length > 0) {
+        const carried = mergeCarriedCitations(searchContext.referencesMap, history);
+        searchContext.referencesMap = carried.referencesMap;
+        history = carried.history;
+        if (carried.appended.length > 0) {
+          const carriedLines = carried.appended
+            .map(
+              ({ id, ref }) =>
+                `${id}. [aus früherer Antwort] ${ref.title} — "${sourceTextForPrompt(ref)}"`
+            )
+            .join('\n');
+          searchContext.contextSummary += `\n\nBereits in früheren Antworten zitierte Quellen (weiterhin zitierbar):\n${carriedLines}`;
+          log.debug(`[Notebook] ${carried.appended.length} carried sources appended`);
+        }
+      }
     }
 
     // Apply custom system prompt if provided (e.g. Gruen-O-Mat persona)
@@ -342,9 +385,30 @@ export async function handleNotebookStream(
       ? `<user_question>${question}</user_question>\n\n<retrieved_sources>\n${searchContext.contextSummary}\n</retrieved_sources>`
       : `Frage: ${question}\n\nVerfügbare Quellen:\n${searchContext.contextSummary}`;
 
+    // Trim history at TURN boundaries against the resolved model window —
+    // messages are never cut in the middle (a follow-up may refer to the end
+    // of an answer). The volatile source block stays in the last user message,
+    // so the system+history prefix remains prompt-cache-stable.
+    const { messages: preparedHistory, droppedTurns } = prepareNotebookHistory(
+      history,
+      primaryResolution.contextWindow
+    );
+    let systemPromptFinal = searchContext.systemPrompt;
+    if (droppedTurns > 0) {
+      systemPromptFinal +=
+        '\n\nHinweis: Ältere Nachrichten dieses Gesprächs wurden aus Platzgründen ausgelassen.';
+    }
+    if (history.length > 0) {
+      log.info(
+        `[Notebook] history: ${history.length} messages → ${preparedHistory.length} kept, ${droppedTurns} turns dropped`
+      );
+    }
+
     const aiMessages: ModelMessage[] = [
-      { role: 'system', content: searchContext.systemPrompt },
-      ...messages.slice(0, -1),
+      { role: 'system', content: systemPromptFinal },
+      ...preparedHistory.map(
+        (m): ModelMessage => ({ role: m.role, content: m.content }) as ModelMessage
+      ),
       { role: 'user', content: userContent },
     ];
 
