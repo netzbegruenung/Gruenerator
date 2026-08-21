@@ -140,11 +140,15 @@ export const notebookQAMetadataSchema = z.object({
   collection_id: z.string().optional(),
   collection_name: z.string().optional(),
   sources_count: z.number().optional(),
-  corpus_state: z.enum(['indexing', 'failed', 'ready']).optional(),
+  // 'stale' = Postgres führt die Dokumente als fertig, Qdrant hat keine Punkte
+  // dazu. Additiv ergänzt; ältere Clients kennen den Wert nicht, behandeln ihn
+  // aber wie jeden anderen unbekannten Zustand (niemand verzweigt darauf).
+  corpus_state: z.enum(['indexing', 'stale', 'failed', 'ready']).optional(),
   corpus_state_detail: z
     .object({
       indexing_count: z.number(),
       failed_count: z.number(),
+      stale_count: z.number(),
       ready_count: z.number(),
       total_count: z.number(),
     })
