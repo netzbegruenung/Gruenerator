@@ -166,6 +166,48 @@ describe('derived collections keep the instance and refresh only the text', () =
     expect(minted.id).toBe('slider-label-pill');
   });
 
+  it('a deliberately emptied collection stays empty', () => {
+    const config = configFor('slider');
+
+    const state = config.createInitialState({
+      slideVariant: 'cover',
+      label: 'Wusstest du?',
+      selectedIcons: [],
+      iconStates: {},
+      pillBadgeInstances: [],
+    }) as Record<string, unknown>;
+
+    // Der Pfeil und die Kopf-Pille sind Vorgaben fuer eine neue Folie, keine
+    // Zwangsjacke: wer sie entfernt, bekommt sie beim naechsten Re-Seed nicht
+    // aufgedraengt.
+    expect(state.selectedIcons).toEqual([]);
+    expect(state.iconStates).toEqual({});
+    expect(state.pillBadgeInstances).toEqual([]);
+  });
+
+  it('a fresh cover slide still gets arrow and pill', () => {
+    const config = configFor('slider');
+    const state = config.createInitialState({
+      slideVariant: 'cover',
+      label: 'Wusstest du?',
+    }) as Record<string, unknown>;
+
+    expect((state.selectedIcons as string[]).length).toBe(1);
+    expect((state.pillBadgeInstances as unknown[]).length).toBe(1);
+  });
+
+  it('veranstaltung keeps a deliberately removed date circle removed', () => {
+    const config = configFor('veranstaltung');
+    const state = config.createInitialState({
+      weekday: 'Freitag',
+      date: '31.10.',
+      time: '19:00',
+      circleBadgeInstances: [],
+    }) as Record<string, unknown>;
+
+    expect(state.circleBadgeInstances).toEqual([]);
+  });
+
   it('veranstaltung date circle keeps its placement, follows the date', () => {
     const config = configFor('veranstaltung');
     const badge = {

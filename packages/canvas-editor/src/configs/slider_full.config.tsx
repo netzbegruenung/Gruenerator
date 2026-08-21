@@ -621,13 +621,19 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
     // Der Pfeil ist eine Vorgabe, keine Zwangsjacke: liegt schon eine
     // Icon-Auswahl vor, gilt sie — sonst haette jedes Neu-Setzen die selbst
     // hinzugefuegten Icons durch den blossen Pfeil ersetzt.
-    const carriedIcons = Array.isArray(props.selectedIcons)
-      ? (props.selectedIcons as string[])
-      : [];
-    const carriedIconStates =
-      props.iconStates && typeof props.iconStates === 'object'
-        ? (props.iconStates as Record<string, IconState>)
-        : {};
+    //
+    // Entschieden wird am *Vorhandensein* des Schluessels, nicht an seiner
+    // Laenge: eine leere Auswahl heisst "der Pfeil wurde entfernt" und darf
+    // nicht als "noch nie gesetzt" gelesen werden, sonst kommt er bei jeder
+    // Chat-Bearbeitung zurueck. Die Neuanlage-Pfade in `usePageManager`
+    // reichen nur `defaultNewPageState` und `INHERITABLE_KEYS` durch, also
+    // nie einen Instanz-Schluessel — ein Re-Seed dagegen immer.
+    const iconsSeeded = Array.isArray(props.selectedIcons);
+    const carriedIcons = iconsSeeded ? (props.selectedIcons as string[]) : [];
+    const iconStatesSeeded = !!props.iconStates && typeof props.iconStates === 'object';
+    const carriedIconStates = iconStatesSeeded
+      ? (props.iconStates as Record<string, IconState>)
+      : {};
 
     // Die Kopf-Pille traegt die Beschriftung der Folie und wird deshalb aus
     // `label` und dem Farbschema abgeleitet. Erkannt wird sie an ihrer festen
@@ -645,6 +651,7 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
     const carriedPills = Array.isArray(props.pillBadgeInstances)
       ? (props.pillBadgeInstances as PillBadgeInstance[])
       : [];
+    const pillsSeeded = Array.isArray(props.pillBadgeInstances);
     const hasLabelPill = carriedPills.some((badge) => badge.id === SLIDER_LABEL_PILL_ID);
     let initialPillBadge: PillBadgeInstance[];
     if (!showPill) {
@@ -660,7 +667,8 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
             }
           : badge
       );
-    } else if (carriedPills.length > 0) {
+    } else if (pillsSeeded) {
+      // Aeltere Staende ohne feste Id, oder eine bewusst geloeschte Pille.
       initialPillBadge = carriedPills;
     } else {
       initialPillBadge = [
@@ -715,13 +723,12 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
       // Pille darunter ueberschreiben ihre eigenen Schluessel.
       ...carryInstanceState(props),
       isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
-      selectedIcons: carriedIcons.length > 0 ? carriedIcons : includeArrow ? [ARROW_ICON_ID] : [],
-      iconStates:
-        Object.keys(carriedIconStates).length > 0
-          ? carriedIconStates
-          : includeArrow
-            ? { [ARROW_ICON_ID]: arrowIconState }
-            : {},
+      selectedIcons: iconsSeeded ? carriedIcons : includeArrow ? [ARROW_ICON_ID] : [],
+      iconStates: iconStatesSeeded
+        ? carriedIconStates
+        : includeArrow
+          ? { [ARROW_ICON_ID]: arrowIconState }
+          : {},
       pillBadgeInstances: initialPillBadge,
     };
   },
