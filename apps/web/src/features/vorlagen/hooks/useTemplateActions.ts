@@ -5,6 +5,7 @@ import {
   HiOutlineEye,
   HiOutlineEyeOff,
   HiOutlinePencil,
+  HiOutlineShare,
   HiOutlineTrash,
 } from 'react-icons/hi';
 import { useNavigate } from 'react-router-dom';
@@ -25,6 +26,8 @@ export interface TemplateAction {
 
 interface UseTemplateActionsArgs {
   onEdit: (template: Template) => void;
+  /** Opens the Gruppen-/Link-Freigabe. Omitted where no share dialog is mounted. */
+  onShare?: (template: Template) => void;
 }
 
 const errText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
@@ -40,7 +43,7 @@ const externalUrl = (t: Template): string | undefined =>
 const isPublicOrPending = (t: Template): boolean =>
   t.is_private === false && t.status !== 'rejected';
 
-export const useTemplateActions = ({ onEdit }: UseTemplateActionsArgs) => {
+export const useTemplateActions = ({ onEdit, onShare }: UseTemplateActionsArgs) => {
   const navigate = useNavigate();
   const { query, deleteTemplate, updateTemplateVisibility, updateTemplate } = useUserTemplates({
     isActive: true,
@@ -128,6 +131,16 @@ export const useTemplateActions = ({ onEdit }: UseTemplateActionsArgs) => {
           onClick: () => void openTemplate(t),
         });
       }
+      // Sharing and the gallery are separate acts: this one is immediate and
+      // needs nobody's approval, the one below waits for a review. Only
+      // Grünerator-Vorlagen have a snapshot canvas to hang a link on.
+      if (onShare && isGrueneratorType(t)) {
+        actions.push({
+          label: 'Teilen',
+          icon: HiOutlineShare,
+          onClick: () => onShare(t),
+        });
+      }
       actions.push({
         label: isPublicOrPending(t) ? 'Privat machen' : 'Zur Galerie einreichen',
         icon: isPublicOrPending(t) ? HiOutlineEyeOff : HiOutlineEye,
@@ -141,7 +154,7 @@ export const useTemplateActions = ({ onEdit }: UseTemplateActionsArgs) => {
       });
       return actions;
     },
-    [onEdit, openTemplate, toggleVisibility, remove]
+    [onEdit, onShare, openTemplate, toggleVisibility, remove]
   );
 
   return { query, openTemplate, getActions, updateTemplate };
