@@ -113,6 +113,8 @@ const logoElement: ImageElementConfig<ZitatAtState> = {
   height: Z.logo.height,
   src: AT.logo?.src ?? '',
   draggable: true,
+  opacityStateKey: 'logoOpacity',
+  offsetKey: 'logoOffset',
 };
 
 const baseZitatAtConfig = createImageTwoTextCanvas({
@@ -126,7 +128,7 @@ const baseZitatAtConfig = createImageTwoTextCanvas({
   calculateLayout,
   // See zitat_full: the quote mark's keys are not part of the factory's base
   // state, so they need the passthrough to survive a re-seed.
-  passthroughStateKeys: ['quoteMarkOffset', 'quoteMarkOpacity'],
+  passthroughStateKeys: ['quoteMarkOffset', 'quoteMarkOpacity', 'logoOpacity', 'logoOffset'],
   elements: [quoteMarkElement, quoteTextElement, nameTextElement, logoElement],
   features: { icons: true, shapes: true, illustrations: true },
   // Anders als beim deutschen Zitat kein schwarzer Verlauf für Textkontrast,

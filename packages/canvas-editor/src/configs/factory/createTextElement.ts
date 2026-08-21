@@ -43,10 +43,17 @@ interface TextElementOptions<TState> {
    * State key holding an absolute `{ x, y }` override. When set (e.g. by a
    * chat `update-element` op or a studio drag), it wins over the computed
    * layout position; when absent the element stays auto-laid-out.
+   *
+   * Defaults to `primaryPosition` / `secondaryPosition`. Pass an explicit key
+   * only where one is already persisted (zitat-pure's `namePosition`) — the
+   * element is `draggable`, and without any key `handleElementPositionChange`
+   * drops the drop and the next render pulls x/y back out of the layout.
    */
   positionStateKey?: string;
 }
 
+const PRIMARY_POSITION_KEY = 'primaryPosition';
+const SECONDARY_POSITION_KEY = 'secondaryPosition';
 const PRIMARY_FONT_SIZE_KEY = 'customPrimaryFontSize';
 const PRIMARY_OPACITY_KEY = 'primaryOpacity';
 const PRIMARY_COLOR_KEY = 'primaryColor';
@@ -75,6 +82,7 @@ function buildBaseElement<TState>(
   fontSizeStateKey: string,
   opacityStateKey: string,
   fillStateKey: string,
+  positionStateKey: string,
   fill: FillValue<TState>
 ): TextElementConfig<TState> {
   return {
@@ -98,7 +106,7 @@ function buildBaseElement<TState>(
     opacityStateKey,
     fill,
     fillStateKey,
-    ...(options.positionStateKey ? { positionStateKey: options.positionStateKey } : {}),
+    positionStateKey: options.positionStateKey ?? positionStateKey,
   };
 }
 
@@ -114,6 +122,7 @@ export function createPrimaryText<TState>(
     PRIMARY_FONT_SIZE_KEY,
     PRIMARY_OPACITY_KEY,
     PRIMARY_COLOR_KEY,
+    PRIMARY_POSITION_KEY,
     buildFill<TState>(PRIMARY_COLOR_KEY, options.defaultColor, options.fillFallback)
   );
 }
@@ -130,6 +139,7 @@ export function createSecondaryText<TState>(
     SECONDARY_FONT_SIZE_KEY,
     SECONDARY_OPACITY_KEY,
     SECONDARY_COLOR_KEY,
+    SECONDARY_POSITION_KEY,
     buildFill<TState>(SECONDARY_COLOR_KEY, options.defaultColor, options.fillFallback)
   );
 }
