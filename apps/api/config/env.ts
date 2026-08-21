@@ -195,6 +195,14 @@ const envSchema = z.object({
    * ist unabhängig davon. Siehe services/ai/providerInstances.ts.
    */
   SCALEWAY_MISTRAL_ROUTING: boolFlag(false),
+  // Cortecs Sky Inference — OpenAI-kompatibler Router, seit 21.08.2026 der Host
+  // der Gemma-Lane (`provider: 'cortecs'`). Vermittelt an Unteranbieter und
+  // nennt den gewählten im Header `x-cortecs-provider`; `gemma-4-26b-a4b-it`
+  // ging dort gemessen an Scaleway. VORAUSBEZAHLT: ein leeres Guthaben lässt
+  // JEDE Anfrage mit HTTP 401 scheitern, deshalb ist Auto-Top-up im Cortecs-
+  // Konto Betriebsvoraussetzung und nicht Komfort.
+  CORTECS_API_KEY: z.string().optional(),
+  CORTECS_BASE_URL: z.string().optional(),
   BFL_API_KEY: z.string().optional(),
 
   // ── Web Search Providers ───────────────────────────────────────────────
