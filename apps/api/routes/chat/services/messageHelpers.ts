@@ -51,7 +51,7 @@ export function getPruningBudget(contextWindowTokens?: number): number {
 }
 
 /** Rough chars-per-token for German prose plus JSON scaffolding. */
-const CHARS_PER_TOKEN = 3.5;
+export const CHARS_PER_TOKEN = 3.5;
 
 /**
  * Size estimate for a whole request, used for LANE ROUTING (not for pruning).
