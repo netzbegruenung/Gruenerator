@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 import { loadCanvasConfig } from '../configLoader';
 
@@ -70,8 +70,15 @@ function sentinelFor(key: string): unknown {
 }
 
 describe.each(TEMPLATES)('%s: toolbar controls are wired', (type) => {
-  it('every selectable element declares the keys its controls write to', async () => {
-    const config = await loadCanvasConfig(type);
+  // Loaded once with its own budget: `loadCanvasConfig` pulls in the whole
+  // config chain through a dynamic import, which busts the 5s default test
+  // timeout on a loaded CI runner.
+  let config: Awaited<ReturnType<typeof loadCanvasConfig>>;
+  beforeAll(async () => {
+    config = await loadCanvasConfig(type);
+  }, 60_000);
+
+  it('every selectable element declares the keys its controls write to', () => {
     const missing: string[] = [];
 
     for (const raw of config.elements as ElementLike[]) {
@@ -101,9 +108,7 @@ describe.each(TEMPLATES)('%s: toolbar controls are wired', (type) => {
     expect(missing, `dead controls in ${type}:\n  ${missing.join('\n  ')}`).toEqual([]);
   });
 
-  it('every declared key survives createInitialState', async () => {
-    const config = await loadCanvasConfig(type);
-
+  it('every declared key survives createInitialState', () => {
     const keys = new Set<string>();
     for (const raw of config.elements as ElementLike[]) {
       for (const k of [
