@@ -273,6 +273,44 @@ export async function deleteUserDocuments(
 }
 
 /**
+ * Count the vectors Qdrant actually holds, per document.
+ *
+ * `documents.vector_count` in Postgres records what indexing *reported* once —
+ * nothing rewrites it when the points later go away, so a wiped or partially
+ * restored collection leaves the column looking healthy. Anyone who needs to
+ * tell "the query matched nothing" apart from "there is no index" has to ask
+ * Qdrant itself.
+ *
+ * Documents whose probe fails are left out of the map rather than recorded as
+ * zero — a Qdrant hiccup must not be reported to the user as missing data.
+ *
+ * @param qdrantOps - QdrantOperations instance
+ * @param documentIds - Documents to probe
+ * @returns Map of document id → stored vector count (missing key = probe failed)
+ */
+export async function countVectorsByDocument(
+  qdrantOps: QdrantOperations,
+  documentIds: readonly string[]
+): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+
+  for (const documentId of documentIds) {
+    try {
+      const result = await qdrantOps.client.count('documents', {
+        filter: { must: [{ key: 'document_id', match: { value: documentId } }] },
+        exact: true,
+      });
+      counts.set(documentId, result.count);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      console.warn(`[VectorOperations] Vector count probe failed for ${documentId}: ${message}`);
+    }
+  }
+
+  return counts;
+}
+
+/**
  * Get user's document statistics
  *
  * Retrieves comprehensive statistics about a user's stored vectors:
