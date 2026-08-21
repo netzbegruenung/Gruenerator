@@ -1,4 +1,4 @@
-import { useShareStore, shareApi } from '@gruenerator/shared/share';
+import { shareApi } from '@gruenerator/shared/share';
 import { useCallback, useState, useMemo, useRef, useEffect, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { FaDownload, FaImages, FaSave, FaCheck, FaFileArchive, FaFileImage } from 'react-icons/fa';
@@ -7,7 +7,6 @@ import { IoCheckmarkOutline, IoShareOutline } from 'react-icons/io5';
 import { Skeleton } from '@gruenerator/ui';
 
 import { useAutoSaveStore, useAutoSaveStoreApi } from '../../stores/useAutoSaveStore';
-import { waitForAutoSave } from '../../stores/waitForAutoSave';
 import { SubsectionTabBar } from '../SubsectionTabBar';
 
 export interface GenericShareSectionProps {
@@ -24,6 +23,8 @@ export interface GenericShareSectionProps {
   isMultiExporting?: boolean;
   exportProgress?: { current: number; total: number };
   exportError?: string | null;
+  /** Opens the host's template flow. Without it the "Vorlage" tab is hidden. */
+  onSaveAsTemplate?: () => void;
 }
 
 const iconBtn =
@@ -418,96 +419,24 @@ function DownloadShareSubsection({
   );
 }
 
-function TemplateSubsection({
-  shareToken,
-  onCaptureCanvas,
-  canvasType,
-}: Pick<GenericShareSectionProps, 'shareToken' | 'onCaptureCanvas' | 'canvasType'>) {
-  const [isSaving, setIsSaving] = useState(false);
-  const [templateUrl, setTemplateUrl] = useState<string | null>(null);
-  const { saveAsTemplate } = useShareStore();
-  const autoSaveStoreApi = useAutoSaveStoreApi();
-  const currentShareToken = useAutoSaveStore((s) => s.autoSavedShareToken);
-
-  const handleSaveAsTemplate = async () => {
-    setIsSaving(true);
-
-    try {
-      let tokenToUse = shareToken || currentShareToken;
-
-      if (!tokenToUse) {
-        onCaptureCanvas();
-        await waitForAutoSave(autoSaveStoreApi);
-        tokenToUse = autoSaveStoreApi.getState().autoSavedShareToken;
-      }
-
-      if (!tokenToUse) {
-        throw new Error('Kein Share-Token verfügbar');
-      }
-
-      const result = await saveAsTemplate(tokenToUse, `${canvasType} Vorlage`, 'public');
-      if (result.success) {
-        setTemplateUrl(`${window.location.origin}${result.templateUrl}`);
-      }
-    } catch (error) {
-      console.error('Failed to save template:', error);
-      alert('Fehler beim Speichern der Vorlage');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const copyTemplateLink = () => {
-    if (templateUrl) {
-      void navigator.clipboard.writeText(templateUrl);
-    }
-  };
-
+/**
+ * The template flow itself belongs to the host — it knows the document
+ * identity (canvas id) a template is snapshotted from, which this package
+ * deliberately does not. Rendered only when the host supplies the callback.
+ */
+function TemplateSubsection({ onSaveAsTemplate }: { onSaveAsTemplate: () => void }) {
   return (
     <div className="flex flex-col gap-3">
       <h3 className="text-sm font-semibold text-foreground m-0">Vorlage</h3>
 
-      {!templateUrl ? (
-        <button
-          className={primaryBtn}
-          onClick={handleSaveAsTemplate}
-          disabled={isSaving}
-          type="button"
-        >
-          {isSaving ? (
-            <>
-              <Skeleton className="size-4 rounded-full" />
-              Speichern...
-            </>
-          ) : (
-            <>
-              <FaSave /> Als Vorlage speichern
-            </>
-          )}
-        </button>
-      ) : (
-        <>
-          <div className="flex items-center gap-2 text-sm text-primary-600">
-            <IoCheckmarkOutline />
-            <span>Gespeichert</span>
-          </div>
+      <p className="m-0 text-xs text-foreground-muted">
+        Speichere dieses Sharepic als Vorlage für dich – oder reiche es für die öffentliche
+        Vorlagen-Galerie ein.
+      </p>
 
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-foreground-muted">Link</label>
-            <input
-              type="text"
-              value={templateUrl}
-              readOnly
-              className="w-full py-2 px-3 text-sm text-foreground bg-grey-100 dark:bg-grey-800 border border-grey-200 dark:border-grey-700 rounded-lg outline-none cursor-text"
-              onClick={(e) => e.currentTarget.select()}
-            />
-          </div>
-
-          <button className={secondaryBtn} onClick={copyTemplateLink} type="button">
-            Link kopieren
-          </button>
-        </>
-      )}
+      <button className={primaryBtn} onClick={onSaveAsTemplate} type="button">
+        <FaSave /> Als Vorlage speichern
+      </button>
     </div>
   );
 }
@@ -519,13 +448,13 @@ export function GenericShareSection({
   onDownload,
   onNavigateToGallery,
   canvasText,
-  canvasType,
   pageCount,
   onDownloadAllZip,
   onShareAllPages,
   isMultiExporting,
   exportProgress,
   exportError,
+  onSaveAsTemplate,
 }: GenericShareSectionProps) {
   const subsections = useMemo(
     () => [
@@ -550,18 +479,16 @@ export function GenericShareSection({
           />
         ),
       },
-      {
-        id: 'template',
-        icon: FaSave,
-        label: 'Vorlage',
-        content: (
-          <TemplateSubsection
-            shareToken={shareToken}
-            onCaptureCanvas={onCaptureCanvas}
-            canvasType={canvasType}
-          />
-        ),
-      },
+      ...(onSaveAsTemplate
+        ? [
+            {
+              id: 'template',
+              icon: FaSave,
+              label: 'Vorlage',
+              content: <TemplateSubsection onSaveAsTemplate={onSaveAsTemplate} />,
+            },
+          ]
+        : []),
     ],
     [
       exportedImage,
@@ -570,13 +497,13 @@ export function GenericShareSection({
       onDownload,
       onNavigateToGallery,
       canvasText,
-      canvasType,
       pageCount,
       onDownloadAllZip,
       onShareAllPages,
       isMultiExporting,
       exportProgress,
       exportError,
+      onSaveAsTemplate,
     ]
   );
 
