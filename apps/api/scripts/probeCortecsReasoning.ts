@@ -40,6 +40,29 @@
  * Parameter wird für dieses Modell also gar nicht erst weitergereicht — falsche
  * Werte brechen nicht, richtige wirken nicht.
  *
+ * DENKT ES HEIMLICH UND LIEFERT NUR DEN BLOCK NICHT MIT? Nein. Denk-Tokens
+ * zählen gegen `max_tokens` und werden abgerechnet, lassen sich also nicht
+ * verstecken. Bei `max_tokens: 4000`, drei Läufen je Zeile:
+ *
+ *                            Ausgabe-Tokens      Inhalt   ms
+ *   Cortecs  ohne Parameter  42, 38, 42            138     934
+ *   Cortecs  effort:'none'   42, 42, 41            144    1111
+ *   Cortecs  effort:'high'   42, 42, 41            144    2236
+ *   Mistral  effort:'none'   42, 42, 42            146     757
+ *   Mistral  effort:'high'   1339, 461, 829         38    6142
+ *
+ * Über Cortecs ist die Zahl mit Denk-Bitte exakt die ohne — in 42 Tokens passen
+ * keine 5529 Zeichen Gedanken. Die Gegenprobe zeigt die Gegenprobe: bei Mistral
+ * springt sie auf das 10- bis 30-fache, und der INHALT schrumpft auf 38
+ * Zeichen, weil das Denken das Budget frisst. Die Anfrage erreicht das Modell
+ * also ohne Denk-Auftrag. Das ist die harmlosere der beiden Möglichkeiten —
+ * bei „denkt und wird abgeschnitten" zahlten wir für unsichtbare Tokens.
+ *
+ * UNERKLÄRT: `'high'` braucht über Cortecs doppelt so lange wie `'none'` bei
+ * identischer Token-Zahl. Denken kann das nicht sein. Vermutung, nicht belegt:
+ * Cortecs schickt einmal mit Parameter, kassiert ein 400 und wiederholt ohne.
+ * Von aussen nicht unterscheidbar.
+ *
  * Es ist KEIN globales Verhalten: `mistral-small-2603` bekommt sein Denken über
  * Cortecs sehr wohl (1183 Zeichen im Block, 673 gestreamt). Cortecs pflegt also
  * eine eigene Fähigkeitskarte je Modell, und die für Medium 3.5 ist falsch —
