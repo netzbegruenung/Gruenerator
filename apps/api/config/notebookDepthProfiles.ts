@@ -88,6 +88,33 @@ export function getNotebookDepthProfile(depth: NotebookDepth): NotebookDepthProf
 }
 
 /**
+ * Die Stufe, auf der ein notizbuch-gebundener CHAT-Turn läuft.
+ *
+ * Der Chat hat keinen Tiefen-Regler — die Fläche bietet keinen an, und ein
+ * Agent, der an ein Notizbuch gebunden ist (`defaultNotebookIds`), soll nicht
+ * schlechter suchen als dasselbe Notizbuch über seine eigene Oberfläche. Genau
+ * das war der Fall: `searchNode` holte 10 Kandidaten pro Sammlung und der
+ * Reranker gab 10 davon weiter, während die Notizbuch-Fläche auf ihrer
+ * VOREINGESTELLTEN Stufe („Mittel" = `deep`) 40 holt und 18 durchlässt.
+ *
+ * `deep` und nicht `ultra`: `ultra` kostet drei Formulierungen pro Frage, und
+ * der Chat hat keine Stelle, an der die Person diesen Preis wählen könnte.
+ * Gleichstand mit der Voreinstellung der Notizbuch-Fläche ist die Aussage —
+ * nicht „Chat ist die gründlichste Fläche".
+ *
+ * Als Konstante hier und nicht als Literal an den zwei Lesestellen, damit
+ * `searchNode` und `rerankNode` nicht auseinanderlaufen können: die Zahlen
+ * müssen zusammenpassen (ein Reranker-Fenster unter dem Suchergebnis wirft
+ * bezahlte Treffer weg, eines darüber ist tote Rechnung).
+ */
+export const CHAT_NOTEBOOK_DEPTH: NotebookDepth = 'deep';
+
+/** Das Profil hinter {@link CHAT_NOTEBOOK_DEPTH}. */
+export function getChatNotebookProfile(): NotebookDepthProfile {
+  return PROFILES[CHAT_NOTEBOOK_DEPTH];
+}
+
+/**
  * Widen a collection's search parameters to the tier. `recallLimit` takes the
  * larger of the two so a collection tuned for deeper recall keeps it, and
  * `qualityMin` — the per-collection quality floor, a different axis from the
