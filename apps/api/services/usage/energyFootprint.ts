@@ -226,6 +226,17 @@ const GRID_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
   // Fallback only — GreenPT rows carry measured emissions. Same value as
   // Scaleway because GreenPT runs on Scaleway Paris.
   greenpt: 24,
+  // FALLBACK, nicht der Normalfall. Cortecs ist ein Router ohne eigenen
+  // Standort, und `usageModelMiddleware` bucht deshalb den Unterauftragnehmer
+  // aus dem Antwort-Header (`x-cortecs-provider`) statt der Lane — eine Zeile
+  // mit diesem Schlüssel entsteht also nur, wenn der Header fehlte.
+  //
+  // Der Wert ist dann die beste verfügbare Auskunft und keine Erfindung: für
+  // `gemma-4-26b-a4b-it`, das einzige Modell dieser Lane, nannte der Header am
+  // 21.08.2026 in 8 von 8 Anfragen `scaleway`. Garantiert ist das nicht —
+  // dasselbe Modell hat auch einen Endpunkt bei `aki` (Deutschland, 363
+  // g/kWh), weshalb der Header überhaupt ausgelesen wird.
+  cortecs: 24,
   // Black Forest Labs (image generation) — German mix, and here is the whole
   // chain of what is known and what is not.
   //
@@ -272,7 +283,7 @@ const GRID_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
  * per lane is EVIDENCE, and the bar is a named instrument, not a green
  * self-image:
  *
- *  scaleway/greenpt — Guarantee of Origin, stated in Scaleway's Impact Report
+ *  scaleway/greenpt/cortecs — Guarantee of Origin, stated in Scaleway's Impact Report
  *    2025 alongside its own location-based Scope 2 figure. The strongest case,
  *    and note what Scaleway itself does with it: it holds the GoO AND still
  *    reports location-based. That is the model this table copies.
@@ -302,6 +313,10 @@ const GRID_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
 const MARKET_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
   mistral: 0,
   scaleway: 0,
+  // Erbt Scaleways Instrument, weil es dieselbe Erzeugung ist — siehe die
+  // Header-Messung bei GRID_INTENSITY_G_PER_KWH. Ein Router als solcher trägt
+  // kein eigenes Zertifikat; was zählt, ist wer tatsächlich rechnet.
+  cortecs: 0,
   greenpt: 0,
   litellm: 0,
   regolo: 0,
@@ -348,6 +363,8 @@ const PUE_BY_PROVIDER: Readonly<Record<string, number>> = {
   // explicitly so nobody replaces it with Scaleway's 1,375 fleet average, which
   // includes the non-AI sites.
   scaleway: 1.25,
+  // Derselbe Standort über den Vermittler — siehe oben.
+  cortecs: 1.25,
 };
 
 export interface Footprint {
