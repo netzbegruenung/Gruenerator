@@ -147,11 +147,21 @@ export const SYSTEM_COLLECTION_STANDARD_INDEXES: CollectionSchemaIndex[] = [
 // =============================================================================
 
 export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
+  // Per-user documents. Its `chunk_text`/`title`/`filename`/`user_id` indexes come
+  // from TEXT_SEARCH_INDEXES below, not from this list — so a field that is only
+  // ever filtered (never text-searched) has to be named here or it stays
+  // unindexed. `document_id` is the main filter of every notebook query
+  // (searchOperations.ts drops the `user_id` clause once documentIds is set, so
+  // shared notebooks stay visible) and was missing from both lists: Qdrant read
+  // the payload of all ~33k points per query, 125 ms instead of ~4 ms.
   documents: {
     name: 'documents',
     optimizer: 'large',
     hnsw: 'standard',
-    indexes: [],
+    indexes: [
+      { field: 'document_id', type: 'keyword' },
+      { field: 'source_type', type: 'keyword' },
+    ],
   },
   grundsatz_documents: {
     name: 'grundsatz_documents',
