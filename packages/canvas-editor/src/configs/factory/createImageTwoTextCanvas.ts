@@ -74,6 +74,8 @@ export interface ImageTwoTextStateBase {
   secondaryOpacity?: number;
   primaryColor?: string;
   secondaryColor?: string;
+  primaryPosition?: { x: number; y: number } | null;
+  secondaryPosition?: { x: number; y: number } | null;
 
   // Base state
   assetInstances: AssetInstance[];
@@ -218,6 +220,24 @@ export interface ImageTwoTextOptions<
 // ============================================================================
 // FACTORY FUNCTION
 // ============================================================================
+
+/**
+ * Copies the text-styling keys `createTextElement` wires into every
+ * primary/secondary text (colour, opacity, dragged position) out of the seed
+ * props. Absent keys are omitted rather than carried as an explicit
+ * `undefined`, so the optional state fields stay unset.
+ */
+function carryTextStyling(props: Record<string, unknown>): Record<string, unknown> {
+  const keys = [
+    'primaryColor',
+    'secondaryColor',
+    'primaryOpacity',
+    'secondaryOpacity',
+    'primaryPosition',
+    'secondaryPosition',
+  ];
+  return Object.fromEntries(keys.filter((k) => props[k] != null).map((k) => [k, props[k]]));
+}
 
 export function createImageTwoTextCanvas<
   const TPrimary extends string,
@@ -441,6 +461,13 @@ export function createImageTwoTextCanvas<
         backgroundImageOpacity: (props.backgroundImageOpacity as number | undefined) ?? 1,
         imageAttribution:
           (props.imageAttribution as StockImageAttribution | null | undefined) ?? null,
+
+        // Toolbar-written text styling. Rides along for the same reason as
+        // the font sizes above: card renders and remote-sync re-seeds run
+        // through here, and a key that is neither carried nor listed in
+        // `passthroughStateKeys` is dropped — the colour/opacity slider then
+        // applied live and forgot the change on the next render.
+        ...carryTextStyling(props),
 
         // Base state
         assetInstances: [],

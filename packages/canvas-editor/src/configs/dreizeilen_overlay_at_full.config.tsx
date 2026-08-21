@@ -152,6 +152,13 @@ const accentElement: TextElementConfig<OverlayAtState> = {
   editable: true,
   draggable: true,
   fill: AT.colors.accent,
+  // Ohne diese vier Schluessel zeigt die Werkzeugleiste Farbe, Schriftgroesse
+  // und Deckkraft an, ohne dass einer der Regler etwas schreibt, und der Zug
+  // am Element verpufft. Die Fabrik-Texte bekommen sie automatisch.
+  fillStateKey: 'accentColor',
+  fontSizeStateKey: 'customAccentFontSize',
+  opacityStateKey: 'accentOpacity',
+  positionStateKey: 'accentPosition',
 };
 
 const line3Element: TextElementConfig<OverlayAtState> = {
@@ -172,6 +179,10 @@ const line3Element: TextElementConfig<OverlayAtState> = {
   editable: true,
   draggable: true,
   fill: AT.colors.textOnDark,
+  fillStateKey: 'line3Color',
+  fontSizeStateKey: 'customLine3FontSize',
+  opacityStateKey: 'line3Opacity',
+  positionStateKey: 'line3Position',
 };
 
 const sublineElement = createSecondaryText<OverlayAtState>({
@@ -197,6 +208,10 @@ const logoElement: ImageElementConfig<OverlayAtState> = {
   height: O.logo.height,
   src: O.logo.src,
   draggable: true,
+  opacityStateKey: 'logoOpacity',
+  // Absolute Position statt Offset: x/y kommen aus dem Layout, eine Basis fuer
+  // ein Offset waere damit beweglich.
+  positionStateKey: 'logoPosition',
 };
 
 const baseOverlayAtConfig = createImageTwoTextCanvas({
@@ -205,7 +220,21 @@ const baseOverlayAtConfig = createImageTwoTextCanvas({
   primaryField: { key: 'line1', label: 'Zeile 1' },
   secondaryField: { key: 'subline', label: 'Subline' },
   calculateLayout,
-  passthroughStateKeys: ['accent', 'line3', 'boxColor'],
+  passthroughStateKeys: [
+    'accent',
+    'line3',
+    'boxColor',
+    'accentColor',
+    'customAccentFontSize',
+    'accentOpacity',
+    'accentPosition',
+    'line3Color',
+    'customLine3FontSize',
+    'line3Opacity',
+    'line3Position',
+    'logoOpacity',
+    'logoPosition',
+  ],
   elements: [
     canvasFallbackElement,
     boxElement,
