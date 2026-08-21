@@ -1,5 +1,6 @@
 import { type FeedbackPageContext } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
+import { useMediaQuery } from '@gruenerator/shared/hooks';
 import {
   Button,
   Checkbox,
@@ -18,6 +19,12 @@ import { domToJpeg } from 'modern-screenshot';
 import { useCallback, useState, type JSX } from 'react';
 
 import DraggableFeedbackLauncher, { type LauncherCorner } from './DraggableFeedbackLauncher';
+
+// Unterhalb von Tailwinds `lg:` — Handys und Tablets. Dort ist die Textpille
+// (~110px) breit genug, um Bedienelemente am Rand zu überdecken, und der Platz
+// zum Ausweichen fehlt; das Icon (48px) tut dasselbe auf einem Sechstel der
+// Fläche. Die Einstellung bleibt unangetastet, nur ihre Darstellung schrumpft.
+const COMPACT_LAUNCHER_QUERY = '(width < 64rem)';
 
 interface FeedbackWidgetProps {
   /** Optional scope label sent with the feedback (e.g. a phase or feature name). */
@@ -75,6 +82,7 @@ export default function FeedbackWidget({
   visible = true,
   variant = 'text',
 }: FeedbackWidgetProps): JSX.Element | null {
+  const compactLauncher = useMediaQuery(COMPACT_LAUNCHER_QUERY);
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState('');
   const [screenshot, setScreenshot] = useState<string | null>(null);
@@ -129,7 +137,7 @@ export default function FeedbackWidget({
       <DraggableFeedbackLauncher
         onOpen={handleLauncherClick}
         defaultCorner={position}
-        variant={variant}
+        variant={compactLauncher ? 'icon' : variant}
       />
 
       <Dialog open={open} onOpenChange={setOpen}>
