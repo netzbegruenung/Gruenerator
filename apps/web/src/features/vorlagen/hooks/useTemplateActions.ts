@@ -32,6 +32,14 @@ const errText = (e: unknown): string => (e instanceof Error ? e.message : String
 const externalUrl = (t: Template): string | undefined =>
   t.content_data?.originalUrl || t.external_url || undefined;
 
+/**
+ * "Out of the user's private shelf" — either already in the gallery or waiting
+ * for review. Both are undone by the same action, so a rejected template reads
+ * as private again and offers a fresh submission.
+ */
+const isPublicOrPending = (t: Template): boolean =>
+  t.is_private === false && t.status !== 'rejected';
+
 export const useTemplateActions = ({ onEdit }: UseTemplateActionsArgs) => {
   const navigate = useNavigate();
   const { query, deleteTemplate, updateTemplateVisibility, updateTemplate } = useUserTemplates({
@@ -75,10 +83,16 @@ export const useTemplateActions = ({ onEdit }: UseTemplateActionsArgs) => {
 
   const toggleVisibility = useCallback(
     async (t: Template): Promise<void> => {
-      const newIsPrivate = !t.is_private;
+      const newIsPrivate = !isPublicOrPending(t);
       try {
         await updateTemplateVisibility(t.id, newIsPrivate);
-        toast.success(newIsPrivate ? 'Vorlage ist jetzt privat.' : 'Vorlage wurde veröffentlicht.');
+        toast.success(
+          newIsPrivate
+            ? 'Vorlage ist jetzt privat.'
+            : t.status === 'published'
+              ? 'Vorlage ist veröffentlicht.'
+              : 'Vorlage wurde zur Prüfung eingereicht.'
+        );
       } catch (e) {
         toast.error('Fehler beim Ändern der Sichtbarkeit: ' + errText(e));
       }
@@ -112,8 +126,8 @@ export const useTemplateActions = ({ onEdit }: UseTemplateActionsArgs) => {
         });
       }
       actions.push({
-        label: t.is_private ? 'Veröffentlichen' : 'Privat machen',
-        icon: t.is_private ? HiOutlineEye : HiOutlineEyeOff,
+        label: isPublicOrPending(t) ? 'Privat machen' : 'Zur Galerie einreichen',
+        icon: isPublicOrPending(t) ? HiOutlineEyeOff : HiOutlineEye,
         onClick: () => void toggleVisibility(t),
       });
       actions.push({
