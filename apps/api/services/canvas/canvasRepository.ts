@@ -81,6 +81,14 @@ const CANVAS_SELECT_COLUMNS = `${CANVAS_LIST_SELECT_COLUMNS}, cdoc.initial_state
  * group-shared. Parameter slots: $1 = document_subtype, $2/$3 = userId.
  * Shared with the workplace recent-activity feed so the two surfaces can't
  * drift on who sees which canvases.
+ *
+ * The `NOT EXISTS` tail hides the frozen "… (Vorlage)" snapshots that
+ * `fromCanvas` creates behind every Grünerator-Vorlage: they are owned by the
+ * creator but are an implementation detail of the template, not a document
+ * anyone edits. Matched via `content_data->>'canvasId'` (the snapshot) and
+ * NOT `metadata.source_canvas_id`, which points at the still-live original the
+ * user very much does want to see. Single reads (`getCanvas`, `cloneCanvas`)
+ * use their own queries, so using a template stays unaffected.
  */
 export const CANVAS_ACCESS_WHERE = `
   cd.document_subtype = $1
@@ -95,6 +103,12 @@ export const CANVAS_ACCESS_WHERE = `
         ON gm.group_id = gcs.group_id AND gm.user_id = $2 AND gm.is_active = TRUE
       WHERE gcs.content_type = 'collaborative_documents'
     )
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM user_templates ut
+    WHERE ut.type = 'template'
+      AND ut.template_type = 'gruenerator'
+      AND ut.content_data->>'canvasId' = cd.id::text
   )
 `;
 
@@ -511,17 +525,23 @@ export async function resizeCanvas(
 }
 
 /**
- * Mark a canvas as a public, read-only gallery template: any authenticated user
- * may read it (so `cloneCanvas` succeeds for the gallery "use" action), but
+ * Mark a canvas as a read-only gallery template: any authenticated user may
+ * read it (so `cloneCanvas` succeeds for the gallery "use" action), but
  * `share_permission='viewer'` denies write access — the frozen snapshot can be
  * cloned but never edited by others (see `checkDocumentWriteAccess`).
+ *
+ * Only lifts a still-private snapshot. A Vorlage's owner can widen the same
+ * snapshot to `share_mode='public'` through the normal document share dialog;
+ * submitting it to the gallery afterwards must not silently narrow that link
+ * back down to "Anmeldung nötig".
  */
 export async function markCanvasAsGalleryTemplate(id: string): Promise<void> {
   await db.query(
     `UPDATE collaborative_documents
      SET share_mode = 'authenticated', share_permission = 'viewer',
          updated_at = CURRENT_TIMESTAMP
-     WHERE id = $1 AND document_subtype = $2`,
+     WHERE id = $1 AND document_subtype = $2
+       AND COALESCE(share_mode, 'private') = 'private'`,
     [id, CANVAS_SUBTYPE]
   );
 }

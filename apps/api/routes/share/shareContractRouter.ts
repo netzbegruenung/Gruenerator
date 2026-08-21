@@ -591,6 +591,14 @@ export const shareContractRouter = s.router(sharesContract, {
     }
   },
 
+  /**
+   * @deprecated Legacy `shared_media` template flow. Saving a sharepic as a
+   * Vorlage now goes through `userTemplates.fromCanvas`, which snapshots the
+   * canvas instead of flagging a rendered share — this endpoint has had no
+   * frontend caller since. Kept alive because existing `shared_media`
+   * templates are still readable via `GET /share/templates/:token` and the
+   * `/studio?template=` clone path; remove once those are migrated.
+   */
   saveAsTemplate: async (args) => {
     try {
       const { shareToken } = args.params;

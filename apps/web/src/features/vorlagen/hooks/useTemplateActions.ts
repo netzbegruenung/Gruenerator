@@ -5,6 +5,7 @@ import {
   HiOutlineEye,
   HiOutlineEyeOff,
   HiOutlinePencil,
+  HiOutlineShare,
   HiOutlineTrash,
 } from 'react-icons/hi';
 import { useNavigate } from 'react-router-dom';
@@ -25,6 +26,8 @@ export interface TemplateAction {
 
 interface UseTemplateActionsArgs {
   onEdit: (template: Template) => void;
+  /** Opens the Gruppen-/Link-Freigabe. Omitted where no share dialog is mounted. */
+  onShare?: (template: Template) => void;
 }
 
 const errText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
@@ -32,7 +35,15 @@ const errText = (e: unknown): string => (e instanceof Error ? e.message : String
 const externalUrl = (t: Template): string | undefined =>
   t.content_data?.originalUrl || t.external_url || undefined;
 
-export const useTemplateActions = ({ onEdit }: UseTemplateActionsArgs) => {
+/**
+ * "Out of the user's private shelf" — either already in the gallery or waiting
+ * for review. Both are undone by the same action, so a rejected template reads
+ * as private again and offers a fresh submission.
+ */
+const isPublicOrPending = (t: Template): boolean =>
+  t.is_private === false && t.status !== 'rejected';
+
+export const useTemplateActions = ({ onEdit, onShare }: UseTemplateActionsArgs) => {
   const navigate = useNavigate();
   const { query, deleteTemplate, updateTemplateVisibility, updateTemplate } = useUserTemplates({
     isActive: true,
@@ -75,10 +86,19 @@ export const useTemplateActions = ({ onEdit }: UseTemplateActionsArgs) => {
 
   const toggleVisibility = useCallback(
     async (t: Template): Promise<void> => {
-      const newIsPrivate = !t.is_private;
+      // The action undoes the current state: a public/pending template goes
+      // private, a private one gets submitted. Same predicate as the label —
+      // negating it here would make every button do the opposite of what it says.
+      const newIsPrivate = isPublicOrPending(t);
       try {
         await updateTemplateVisibility(t.id, newIsPrivate);
-        toast.success(newIsPrivate ? 'Vorlage ist jetzt privat.' : 'Vorlage wurde veröffentlicht.');
+        toast.success(
+          newIsPrivate
+            ? 'Vorlage ist jetzt privat.'
+            : t.status === 'published'
+              ? 'Vorlage ist veröffentlicht.'
+              : 'Vorlage wurde zur Prüfung eingereicht.'
+        );
       } catch (e) {
         toast.error('Fehler beim Ändern der Sichtbarkeit: ' + errText(e));
       }
@@ -111,9 +131,19 @@ export const useTemplateActions = ({ onEdit }: UseTemplateActionsArgs) => {
           onClick: () => void openTemplate(t),
         });
       }
+      // Sharing and the gallery are separate acts: this one is immediate and
+      // needs nobody's approval, the one below waits for a review. Only
+      // Grünerator-Vorlagen have a snapshot canvas to hang a link on.
+      if (onShare && isGrueneratorType(t)) {
+        actions.push({
+          label: 'Teilen',
+          icon: HiOutlineShare,
+          onClick: () => onShare(t),
+        });
+      }
       actions.push({
-        label: t.is_private ? 'Veröffentlichen' : 'Privat machen',
-        icon: t.is_private ? HiOutlineEye : HiOutlineEyeOff,
+        label: isPublicOrPending(t) ? 'Privat machen' : 'Zur Galerie einreichen',
+        icon: isPublicOrPending(t) ? HiOutlineEyeOff : HiOutlineEye,
         onClick: () => void toggleVisibility(t),
       });
       actions.push({
@@ -124,7 +154,7 @@ export const useTemplateActions = ({ onEdit }: UseTemplateActionsArgs) => {
       });
       return actions;
     },
-    [onEdit, openTemplate, toggleVisibility, remove]
+    [onEdit, onShare, openTemplate, toggleVisibility, remove]
   );
 
   return { query, openTemplate, getActions, updateTemplate };

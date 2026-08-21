@@ -1,4 +1,4 @@
-import { GRUENERATOR_TEMPLATE_TYPE } from '@gruenerator/contracts';
+import { GRUENERATOR_TEMPLATE_TYPE, type TemplateStatus } from '@gruenerator/contracts';
 
 import { type DocumentItem } from '@/components/common/DocumentOverview';
 
@@ -12,6 +12,8 @@ export interface Template extends DocumentItem {
   title: string;
   description?: string;
   is_private?: boolean;
+  /** Lifecycle: `draft` = privat, `pending_review` = eingereicht, then the admin verdict. */
+  status?: TemplateStatus;
   template_type?: string;
   external_url?: string;
   preview_image_url?: string;
