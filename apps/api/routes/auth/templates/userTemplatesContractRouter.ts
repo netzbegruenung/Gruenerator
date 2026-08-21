@@ -43,6 +43,7 @@ import {
   deleteTemplateVector,
   TEMPLATE_DESCRIPTION_INSTRUCTION,
 } from '../../../services/templates/templateEnrichment.js';
+import { resolveStatusTransition } from '../../../services/templates/templateStatusTransition.js';
 import { visionService } from '../../../services/vision/index.js';
 import { logContractValidationError } from '../../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../../utils/getAuthedUser.js';
@@ -235,8 +236,10 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
       const user = getAuthedUser(args.req);
       const userId = user.id;
       const { canvasId, title, description, tags, preview_image_url } = args.body;
+      // Default 'submit' keeps the pre-visibility behaviour for older clients.
+      const keepPrivate = (args.body.visibility ?? 'submit') === 'private';
 
-      // The caller must be able to read the source canvas they're publishing.
+      // The caller must be able to read the source canvas they're saving.
       const access = await getCanvas(canvasId, userId);
       if (access.kind === 'not_found') {
         return {
@@ -310,9 +313,12 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
         tags: JSON.stringify(mergedTags),
         content_data: JSON.stringify(blueprint),
         metadata: JSON.stringify({ source_canvas_id: canvasId }),
-        is_private: false,
+        is_private: keepPrivate,
         is_example: false,
-        status: 'pending_review',
+        // A private save stays a `draft`: the gallery needs both
+        // `is_private = false` AND `status = 'published'`, and the admin queue
+        // only ever lists `pending_review`.
+        status: keepPrivate ? 'draft' : 'pending_review',
         // Target the creator's locale so the gallery can scope by audience.
         audience: user.locale ?? 'all',
       };
@@ -329,14 +335,16 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
         body: {
           success: true,
           data: { id: String(newTemplate.id) },
-          message: 'Vorlage wurde eingereicht und wird geprüft.',
+          message: keepPrivate
+            ? 'Vorlage wurde für dich gespeichert.'
+            : 'Vorlage wurde eingereicht und wird geprüft.',
         },
       };
     } catch (error) {
       log.error('[userTemplatesContract.fromCanvas] Error:', error);
       return {
         status: 500 as const,
-        body: { success: false, message: 'Fehler beim Veröffentlichen der Vorlage.' },
+        body: { success: false, message: 'Fehler beim Speichern der Vorlage.' },
       };
     }
   },
@@ -547,13 +555,14 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
         content_data,
         metadata,
         is_private,
+        status,
       } = args.body;
 
       const postgres = getPostgresInstance();
       await postgres.ensureInitialized();
 
       const existingTemplate = await postgres.queryOne(
-        `SELECT user_id, metadata FROM user_templates WHERE id = $1 AND type = $2`,
+        `SELECT user_id, metadata, status FROM user_templates WHERE id = $1 AND type = $2`,
         [id, 'template'],
         TABLE
       );
@@ -590,6 +599,15 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
       if (content_data !== undefined) updateData.content_data = content_data;
       if (is_private !== undefined) updateData.is_private = is_private;
 
+      // A requested status change decides `is_private` too — the gallery reads
+      // both columns, so letting them drift is what left "veröffentlichte"
+      // templates stuck as invisible drafts.
+      if (status !== undefined) {
+        const transition = resolveStatusTransition(toStatus(existingTemplate.status), status);
+        updateData.status = transition.status;
+        updateData.is_private = transition.is_private;
+      }
+
       if (metadata !== undefined) {
         const existingMetadata = (existingTemplate.metadata || {}) as Record<string, unknown>;
         updateData.metadata = { ...existingMetadata, ...(metadata || {}) };
@@ -610,7 +628,8 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
         'title' in updateData ||
         'description' in updateData ||
         'tags' in updateData ||
-        'is_private' in updateData
+        'is_private' in updateData ||
+        'status' in updateData
       ) {
         void enrichTemplate(id).catch((e) =>
           log.warn('[userTemplatesContract.update] enrichTemplate failed', e)
