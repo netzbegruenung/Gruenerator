@@ -87,6 +87,7 @@ export interface SliderState extends BaseCanvasState {
   headlineOpacity?: number;
   subtextOpacity?: number;
   subtext2Opacity?: number;
+  sunflowerOpacity?: number;
 
   // Pill badge instances (dynamic, editable)
   pillBadgeInstances: PillBadgeInstance[];
@@ -263,6 +264,7 @@ const sunflowerElement: ImageElementConfig<SliderState> = {
   draggable: true,
   constrainToBounds: false,
   opacity: () => SLIDER_CONFIG.sunflower.opacity,
+  opacityStateKey: 'sunflowerOpacity',
   visible: (state) => state.slideVariant !== 'content',
 };
 
@@ -605,6 +607,12 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
       // Color scheme
       colorScheme,
       backgroundColor: colors.background,
+
+      // Sunflower watermark opacity — must survive re-seeds, the initial state
+      // is a whitelist and would drop it otherwise.
+      ...(typeof props.sunflowerOpacity === 'number'
+        ? { sunflowerOpacity: props.sunflowerOpacity }
+        : {}),
 
       // Font size overrides
       customLabelFontSize: null,
