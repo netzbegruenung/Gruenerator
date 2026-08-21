@@ -59,6 +59,7 @@ export interface ProfilbildFullState extends BaseCanvasState {
   backgroundColor: string;
   imagePosition: { x: number; y: number };
   imageSize: { w: number; h: number };
+  imageOpacity?: number;
 }
 
 type BaseActions = ReturnType<typeof createBaseActions<ProfilbildFullState>>;
@@ -108,8 +109,12 @@ function createProfilbildInitialState(props: Record<string, unknown>): Profilbil
     userImageInstances: [],
     transparentImage,
     backgroundColor,
-    imagePosition: position,
-    imageSize: size,
+    // Aus den Props, nicht aus dem Standard-Layout: Karten-Render und
+    // Remote-Sync laufen durch diese Funktion, und ein fest gesetzter Wert
+    // schob den verschobenen Avatar jedes Mal zurueck in die Mitte.
+    imagePosition: (props.imagePosition as { x: number; y: number } | undefined) ?? position,
+    imageSize: (props.imageSize as { w: number; h: number } | undefined) ?? size,
+    ...(typeof props.imageOpacity === 'number' ? { imageOpacity: props.imageOpacity } : {}),
   };
 }
 
@@ -148,6 +153,7 @@ const avatarElement: ImageElementConfig<ProfilbildFullState> = {
   height: (state) => state.imageSize.h,
   draggable: true,
   transformable: true,
+  opacityStateKey: 'imageOpacity',
 };
 
 // ============================================================================
