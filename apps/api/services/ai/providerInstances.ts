@@ -23,6 +23,8 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 
+import { cortecsBaseUrl } from './cortecsEndpoint.js';
+import { cortecsFetchWithPolicy } from './cortecsRequestPolicy.js';
 import { greenptFetchWithThinkingDisabled } from './greenptThinkingFetch.js';
 import { litellmFetchWithThinkingDisabled } from './litellmThinkingFetch.js';
 import { regoloFetchWithThinkingDisabled } from './regoloThinkingFetch.js';
@@ -64,6 +66,7 @@ let regoloInstance: ReturnType<typeof createOpenAI> | null = null;
 let greenptInstance: ReturnType<typeof createOpenAI> | null = null;
 let scalewayInstance: ReturnType<typeof createOpenAI> | null = null;
 let scalewayTextInstance: ReturnType<typeof createOpenAI> | null = null;
+let cortecsInstance: ReturnType<typeof createOpenAI> | null = null;
 
 /**
  * Mistral. Does NOT throw on a missing key — `createMistral` reads
@@ -210,6 +213,50 @@ export function getScalewayTextProvider(): ReturnType<typeof createOpenAI> {
 }
 
 /**
+ * Cortecs Sky Inference — der Host der Gemma-Lane seit 21.08.2026.
+ *
+ * Tritt an die Stelle von {@link getScalewayTextProvider} für die aktiven
+ * Lanes; der Scaleway-Client bleibt daneben stehen, weil die ruhende
+ * Mistral-Medium-Route ihn weiter braucht.
+ *
+ * WAS DIESER UMZUG IST UND WAS NICHT. Cortecs vermittelt `gemma-4-26b-a4b-it`
+ * gemessen an SCALEWAY (Header `x-cortecs-provider`, 21.08.2026) — dieselben
+ * Gewichte auf derselben Hardware, ein Vermittler davor. Der Wechsel betrifft
+ * also den Vertragspartner, nicht den Verarbeitungsort: für
+ * `services/usage/energyFootprint.ts` und die Datenschutzerklärung bleibt
+ * Paris/DC5 die richtige Auskunft, solange der Header das sagt.
+ *
+ * Wer die Modell-Liste erweitert, prüft den Header nach: die Zuordnung
+ * Modell → Unteranbieter ist Cortecs' Entscheidung, nicht unsere. Elf der 25
+ * Katalogmodelle lagen an dem Tag auf Scaleway, andere auf `mistral`,
+ * `infercom` und `ovh`.
+ *
+ * Der `fetch` trägt zweierlei: den modellabhängigen Denk-Pin und die
+ * Souveränitäts-Weisung (nur Unterauftragnehmer mit Zero Data Retention in der
+ * EU/im EWR), samt Nachprüfung am Antwort-Header. Warum beides dort und nicht
+ * bei den Aufrufern steht — und warum der Filter allein nicht trägt — steht in
+ * cortecsRequestPolicy.ts.
+ *
+ * Wirft ohne Schlüssel, aus demselben Grund wie Regolo und Scaleway: ein
+ * Aufrufer landet nicht durch stille Ersetzung woanders.
+ */
+export function getCortecsProvider(): ReturnType<typeof createOpenAI> {
+  if (!cortecsInstance) {
+    const apiKey = env.CORTECS_API_KEY;
+    if (!apiKey) {
+      throw new Error('CORTECS_API_KEY environment variable is required');
+    }
+    cortecsInstance = createOpenAI({
+      baseURL: cortecsBaseUrl(),
+      apiKey,
+      name: 'cortecs',
+      fetch: cortecsFetchWithPolicy,
+    });
+  }
+  return cortecsInstance;
+}
+
+/**
  * The Mistral models Scaleway serves, keyed by the id the codebase already
  * uses. `mistral-medium-2604` IS "Mistral Medium 3.5" (see
  * services/ai/modelDiscovery.ts); Scaleway publishes the same weights as
@@ -345,6 +392,8 @@ export function isProviderConfigured(provider: string): boolean {
       return !!env.MISTRAL_API_KEY || isScalewayMistralRoutingEnabled();
     case 'scaleway':
       return !!env.SCALEWAY_API_KEY;
+    case 'cortecs':
+      return !!env.CORTECS_API_KEY;
     case 'litellm':
       // The base URL has a default, so only the key is a hard requirement.
       return !!env.LITELLM_API_KEY;
@@ -365,7 +414,7 @@ let logged = false;
 export function logProviderAvailability(): void {
   if (logged) return;
   logged = true;
-  const lanes = ['mistral', 'litellm', 'regolo', 'greenpt', 'scaleway']
+  const lanes = ['mistral', 'litellm', 'regolo', 'greenpt', 'scaleway', 'cortecs']
     .map((p) => `${p}=${isProviderConfigured(p) ? 'ok' : 'not configured'}`)
     .join(' · ');
   log.info(`Provider availability: ${lanes}`);
