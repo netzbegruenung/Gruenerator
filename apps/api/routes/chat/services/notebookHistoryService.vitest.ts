@@ -176,6 +176,49 @@ describe('mergeCarriedCitations', () => {
     const { history: rewritten } = mergeCarriedCitations({}, history);
     expect(rewritten[0]).toEqual(history[0]);
   });
+
+  it('lässt nur http(s)-URLs aus dem Client-Payload durch', () => {
+    // Carry-over-Zitate sind Client-Input; ein re-zitierter Eintrag wird
+    // persistiert und in geteilten Threads als <a href> gerendert.
+    const hostile: NotebookHistoryMessage[] = [
+      {
+        role: 'assistant',
+        content: 'A [1] B [2] C [3]',
+        citations: [
+          {
+            index: '1',
+            document_id: 'd1',
+            cited_text: 'x',
+            source_url: 'javascript:alert(1)',
+          },
+          { index: '2', document_id: 'd2', cited_text: 'y', source_url: 'https://gruene.de/ok' },
+          { index: '3', document_id: 'd3', cited_text: 'z', source_url: 'not a url' },
+        ],
+      },
+    ];
+    const { appended } = mergeCarriedCitations({}, hostile);
+    expect(appended.map((a) => a.ref.source_url)).toEqual([null, 'https://gruene.de/ok', null]);
+  });
+
+  it('deckelt freie Textfelder aus dem Client-Payload', () => {
+    const oversized: NotebookHistoryMessage[] = [
+      {
+        role: 'assistant',
+        content: 'A [1]',
+        citations: [
+          {
+            index: '1',
+            document_id: 'd1',
+            document_title: 'T'.repeat(5000),
+            cited_text: 'P'.repeat(50000),
+          },
+        ],
+      },
+    ];
+    const { appended } = mergeCarriedCitations({}, oversized);
+    expect(appended[0].ref.title.length).toBeLessThanOrEqual(300);
+    expect((appended[0].ref.chunk_text ?? '').length).toBeLessThanOrEqual(1200);
+  });
 });
 
 describe('buildRewriteTranscript', () => {
