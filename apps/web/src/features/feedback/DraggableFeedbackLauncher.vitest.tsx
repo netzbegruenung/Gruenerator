@@ -1,5 +1,6 @@
-import { Fab, useScreenCornerReservation } from '@gruenerator/ui';
+import { Fab, useMeasuredCornerReservation, useScreenCornerReservation } from '@gruenerator/ui';
 import { render, screen } from '@testing-library/react';
+import { useRef } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { axe } from '../../test-utils';
@@ -16,6 +17,35 @@ function Occupant({ horizontal, blocked }: { horizontal?: string; blocked?: bool
     ...(blocked == null ? {} : { blocked }),
   });
   return null;
+}
+
+// Eine Leiste, deren Ausdehnung gemessen statt deklariert wird — wie der
+// Chat-Composer. jsdom liefert für jedes Element 0x0, also wird die Box
+// gestellt; der Callback-Ref läuft vor dem Effekt, der misst.
+function MeasuredBar({ left, right, top }: { left: number; right: number; top: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useMeasuredCornerReservation(ref, {
+    corner: ['bottom-left', 'bottom-right'],
+    axis: 'vertical',
+  });
+  return (
+    <div
+      ref={(el) => {
+        if (el) {
+          const box = {
+            left,
+            right,
+            top,
+            bottom: window.innerHeight - 4,
+            width: right - left,
+            height: window.innerHeight - 4 - top,
+          };
+          el.getBoundingClientRect = () => box as DOMRect;
+        }
+        ref.current = el;
+      }}
+    />
+  );
 }
 
 describe('DraggableFeedbackLauncher', () => {
@@ -87,6 +117,33 @@ describe('DraggableFeedbackLauncher', () => {
     const button = screen.getByRole('button', { name: /Feedback/ });
     expect(button.style.left).toBe('1rem');
     expect(button.style.right).toBe('');
+  });
+
+  // jsdom: 1024x768. Der Composer klebt unten und reicht bis 16px an den
+  // rechten Rand — wie auf dem Handy, wo der Stop-Knopf genau dort sitzt.
+  it('rückt über eine gemessene Leiste, die bis in die Ecke reicht', () => {
+    render(
+      <>
+        <MeasuredBar left={16} right={window.innerWidth - 16} top={700} />
+        <DraggableFeedbackLauncher onOpen={vi.fn()} />
+      </>
+    );
+    const button = screen.getByRole('button', { name: /Feedback/ });
+    // 768 - 700 = 68px belegte Höhe, plus der Grundabstand. jsdom sortiert die
+    // Summanden beim Serialisieren um.
+    expect(button.style.bottom).toBe('calc(68px + 1rem)');
+  });
+
+  it('ignoriert eine Leiste, die vor der Ecke endet', () => {
+    render(
+      <>
+        {/* Der zentrierte `max-w-3xl`-Composer auf dem Desktop: gleiche
+            Unterkante, aber weit weg vom rechten Rand. */}
+        <MeasuredBar left={128} right={896} top={700} />
+        <DraggableFeedbackLauncher onOpen={vi.fn()} />
+      </>
+    );
+    expect(screen.getByRole('button', { name: /Feedback/ }).style.bottom).toBe('1rem');
   });
 
   it('hat keine a11y-Verstöße', async () => {
