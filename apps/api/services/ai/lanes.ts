@@ -223,6 +223,12 @@ export function providerForModel(modelName = ''): ProviderName {
   // dash after gemma) is Regolo's. An operator who names the first one would
   // otherwise land on the wrong host and get a 404.
   if (name === 'gemma-4-26b-a4b-it') return 'cortecs';
+  // Dasselbe für das dichte 31B, seit 21.08.2026 der Primär der `pruefung`-
+  // Stufe. Ohne diese Zeile fällt der Name durch die ganze Kette bis zum
+  // `return 'mistral'` am Ende — es gibt gar keinen generischen gemma-Test —
+  // und ein Operator bekäme einen 404 von einem Anbieter, der das Modell nicht
+  // führt.
+  if (name === 'gemma-4-31b-it') return 'cortecs';
   if (
     name.includes('mistral-medium-') ||
     name.includes('mistral-large-') ||

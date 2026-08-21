@@ -56,8 +56,18 @@ export interface ModelTarget {
  * schlägt `${provider}/${model}` nach, und der Provider heisst jetzt anders.
  */
 const MODEL_SIBLINGS: Readonly<Record<string, ModelTarget>> = {
-  'regolo/gemma4-31b': { provider: 'cortecs', model: 'gemma-4-26b-a4b-it' },
-  'cortecs/gemma-4-26b-a4b-it': { provider: 'regolo', model: 'gemma4-31b' },
+  // Das dichte 31B auf seinen beiden Hosts — dieselben GEWICHTE, nicht nur
+  // dieselbe Familie. Gemessen 21.08.2026 am Prüf-Prompt: Inhaltstreue in 22
+  // Läufen nicht unterscheidbar, Cortecs 210,7 gegen 81,3 tok/s bei 1122 gegen
+  // 129 ms TTFT.
+  'regolo/gemma4-31b': { provider: 'cortecs', model: 'gemma-4-31b-it' },
+  'cortecs/gemma-4-31b-it': { provider: 'regolo', model: 'gemma4-31b' },
+  // `cortecs/gemma-4-26b-a4b-it` stand hier bis zum 21.08.2026 und ist WEG,
+  // nicht vergessen: die Modell-ID ist über Cortecs unbedienbar geworden (der
+  // einzige brauchbare Unterauftragnehmer verschwand aus dem Katalog, der
+  // zweite ist quantisiert). Ein Geschwister, das auf ein totes Ziel zeigt, ist
+  // schlimmer als keins — `pickHealthyTarget` weicht dann von einem trägen
+  // Primär auf einen 404 aus.
 };
 
 /** Dieselbe Reihenfolge wie `tryFallbackProviders` in providerFallback.ts. */

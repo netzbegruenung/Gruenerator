@@ -39,22 +39,32 @@ const SCALEWAY_MEDIUM = 'mistral-medium-3.5-128b';
 const MISTRAL_MEDIUM = 'mistral-medium-2604';
 
 /**
- * Gemma 4 26B-A4B über Cortecs — a MoE with 4B ACTIVE parameters, and the model
- * `INTERMEDIATE_LANES.heavy` already runs for the app's intermediate work.
+ * Gemma 4 31B über Cortecs — dasselbe Modell, das `INTERMEDIATE_LANES.heavy`
+ * für die Zwischenarbeit der App fährt.
  *
- * Lief bis 21.08.2026 direkt auf Scaleway. Cortecs vermittelt genau diese
- * Modell-ID gemessen dorthin zurück (Header `x-cortecs-provider`), die
- * Messungen unten gelten also weiter — es wechselt der Vertragspartner, nicht
- * die Hardware.
+ * ── Warum nicht mehr die 26B-MoE, und warum NICHT GreenPT ──
+ *
+ * Der Worker lief auf `gemma-4-26b-a4b-it`, erst auf Scaleway, dann über
+ * Cortecs. Diese Modell-ID ist über Cortecs am 21.08.2026 unbedienbar geworden
+ * (der einzige brauchbare Unterauftragnehmer verschwand aus dem Katalog, der
+ * zweite ist quantisiert — siehe den Doc-Block bei `heavy`).
+ *
+ * GreenPT, wohin das 26B anderswo ausgewichen ist, kommt für DIESE Rolle nicht
+ * in Frage: sein `gemma4` denkt bei jedem Schritt rund 5.400 Zeichen, und kein
+ * Flag schaltet das ab. Für eine einzelne Antwort ist das bezahlbar, für einen
+ * Loop ruinös — gemessen 10.08.2026 an derselben Frage produzierte der
+ * GreenPT-Worker in 500 s keinen Bericht, während der Vergleichslauf in 156 s
+ * fertig war. Am 21.08.2026 nachgemessen und unverändert: mit und ohne
+ * `reasoning_effort` identisch leerer Inhalt bei 120 Token Budget.
  *
  * This is the same family as the GreenPT worker this replaces, on the host that
- * can actually switch the reasoning off (see `REASONING_OFF`). Measured for the
+ * can actually switch the reasoning off. Measured for the
  * intermediate lane on 01.08.2026: roughly twice as fast as the dense 31B, 12/12
  * on a `max_tokens: 20` classification and 3/3 valid JSON on structured
  * extraction — i.e. it holds a tool-shaped contract, which is the property a
  * worker lives on here.
  */
-const CORTECS_GEMMA = 'gemma-4-26b-a4b-it';
+const CORTECS_GEMMA = 'gemma-4-31b-it';
 
 /**
  * Serial tool calls, for the lane that only ever uses tools one at a time.
@@ -92,29 +102,7 @@ const SERIAL_TOOL_CALLS = { parallel_tool_calls: false } as const;
 const PARALLEL_TOOL_CALLS = { parallel_tool_calls: true } as const;
 
 /**
- * Der Host honoriert `reasoning_effort: 'none'`; GreenPT accepts and ignores it.
- *
- * That asymmetry is the entire reason the worker sits where it sits — auf
- * Cortecs gemessen am 21.08.2026 nachgeprüft und unverändert gültig: mit `none`
- * 477 Zeichen Inhalt bei 120 Token Budget, ohne den Parameter LEERER Inhalt
- * nach 550 Zeichen Denken. GreenPT lieferte am selben Tag bei demselben Budget
- * mit UND ohne Parameter leeren Inhalt — der Wert hat dort nachweislich keine
- * Wirkung. GreenPT's
- * Gemma always emits a reasoning block (~5,400 characters, probed with
- * `enable_thinking:false`, `think:false` and `reasoning_effort:'none'` — all
- * accepted, none effective; the probes are recorded in `chat/agents/providers.ts`).
- * One block per step is affordable for a single answer and ruinous for a loop:
- * measured 10.08.2026 on the same question, the GreenPT worker produced no
- * report inside 500 s while the Scaleway worker finished the run in 156 s.
- *
- * Sent explicitly because this module builds its own `ChatOpenAI` and therefore
- * does NOT get `cortecsRequestPolicy`, which pins the same field at the
- * transport for the AI SDK side of the app.
- */
-const REASONING_OFF = { reasoning_effort: 'none' } as const;
-
-/**
- * Die Souveränitäts-Weisung, von Hand — aus demselben Grund wie REASONING_OFF.
+ * Die Souveränitäts-Weisung, von Hand.
  *
  * Dieses Modul baut sein eigenes `ChatOpenAI` und bekommt deshalb
  * `cortecsRequestPolicy` NICHT, das dieselben Felder für die AI-SDK-Seite der
@@ -198,7 +186,13 @@ export function workerModel(): ChatOpenAI {
     apiKey: requireCortecsKey(),
     temperature: 0.3,
     configuration: { baseURL: cortecsBaseUrl() },
-    modelKwargs: { ...SERIAL_TOOL_CALLS, ...REASONING_OFF, ...SOVEREIGN_ROUTING },
+    // KEIN REASONING_OFF mehr: `gemma-4-31b-it` liegt bei infercom, und das
+    // weist `reasoning_effort` mit HTTP 400 ab ("value must be one of 'low',
+    // 'medium', 'high'"). Der Wert wäre hier ohnehin unnötig — dieses Modell
+    // denkt von sich aus nicht (gemessen 21.08.2026: 420 Zeichen Inhalt, 0
+    // Zeichen Denken, ohne jeden Parameter). Genau deshalb führt die Whitelist
+    // in cortecsRequestPolicy.ts es nicht.
+    modelKwargs: { ...SERIAL_TOOL_CALLS, ...SOVEREIGN_ROUTING },
   });
 }
 

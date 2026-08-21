@@ -69,7 +69,9 @@ describe('cortecs text lane', () => {
     // gemma-4-31b-it läuft bei Cortecs auf infercom und antwortet auf `none`
     // mit HTTP 400 ("value must be one of 'low', 'medium', 'high'"), gemessen
     // am 21.08.2026. Ein Pin hier verwandelte einen teuren Erfolg in einen
-    // harten Fehler.
+    // harten Fehler — und seit dem 21.08.2026 ist das kein hypothetisches
+    // Modell mehr, sondern der Primär der `pruefung`-Stufe: JEDER Prüfbericht
+    // liefe in diesen 400er.
     const sent = await sentBody({ model: 'gemma-4-31b-it', messages: [], max_tokens: 20 });
     const parsed = JSON.parse(String(sent)) as Record<string, unknown>;
     expect(parsed.reasoning_effort).toBeUndefined();
@@ -137,12 +139,25 @@ describe('cortecs text lane', () => {
     expect(gemeldet.fehler).toEqual([]);
   });
 
-  it('heavy und hedge zeigen auf die Cortecs-Lane', () => {
-    const erwartet = { provider: 'cortecs', model: 'gemma-4-26b-a4b-it' };
-    expect(intermediateLane('heavy')).toEqual(erwartet);
-    // Der Ausweich-Partner der Prüf-Stufe. Er zog mit um, weil er dasselbe
-    // Modell fährt — bliebe er auf `scaleway`, liefe die Lane über zwei
-    // Vertragspartner gleichzeitig.
-    expect(intermediateLane('pruefung').hedge).toEqual(erwartet);
+  it('heavy zeigt auf die Cortecs-Lane', () => {
+    // Seit 21.08.2026 das dichte 31B statt der MoE-Variante — nicht wegen der
+    // Qualität, sondern weil das MoE über Cortecs an einen einzigen
+    // Unterauftragnehmer gebunden war und der binnen einer Stunde aus dem
+    // Katalog verschwand. Siehe den Doc-Block bei `heavy`.
+    expect(intermediateLane('heavy')).toEqual({
+      provider: 'cortecs',
+      model: 'gemma-4-31b-it',
+    });
+  });
+
+  it('die Prüf-Stufe liegt auf ZWEI Vertragspartnern, Cortecs voran', () => {
+    // Die ganze Absicht des Hedges: ein Einbruch bei einem Anbieter darf nicht
+    // beide Seiten der Stufe nehmen. Stünden Primär und Ausweich beim selben,
+    // wäre der Hedge ein zweiter Aufruf ohne Absicherung — teurer, nicht
+    // sicherer.
+    const lane = intermediateLane('pruefung');
+    expect(lane).toMatchObject({ provider: 'cortecs', model: 'gemma-4-31b-it' });
+    expect(lane.hedge).toEqual({ provider: 'regolo', model: 'gemma4-31b' });
+    expect(lane.hedge?.provider).not.toBe(lane.provider);
   });
 });

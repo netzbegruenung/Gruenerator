@@ -117,14 +117,19 @@ describe('workerModel', () => {
     const worker = configOf(workerModel);
     const lead = configOf(leadModel);
     expect(worker.model).not.toBe(lead.model);
-    expect(worker.model).toBe('gemma-4-26b-a4b-it');
+    expect(worker.model).toBe('gemma-4-31b-it');
   });
 
-  it('switches reasoning off — the property that decided the host', () => {
-    // GreenPT accepts `reasoning_effort` and ignores it (~5,400 characters of
-    // thinking per step); Scaleway honours it. That asymmetry, not price, is
-    // why the worker sits here.
-    expect(configOf(workerModel).modelKwargs).toMatchObject({ reasoning_effort: 'none' });
+  it('schickt KEIN reasoning_effort — infercom weist den Wert ab', () => {
+    // Die Umkehrung des alten Wächters, und aus gemessenem Grund: dieses Modell
+    // liegt bei infercom, das `reasoning_effort` mit HTTP 400 beantwortet
+    // ("value must be one of 'low', 'medium', 'high'"). Nötig wäre der Wert
+    // ohnehin nicht — das Modell denkt von sich aus nicht.
+    //
+    // Was NICHT zurückkommen darf: GreenPT als Worker-Host. Sein `gemma4`
+    // nimmt den Wert an und ignoriert ihn (~5.400 Zeichen Denken je Schritt),
+    // was für einen Loop ruinös ist — 500 s ohne Bericht gegen 156 s.
+    expect(configOf(workerModel).modelKwargs).not.toHaveProperty('reasoning_effort');
   });
 
   it('does not batch tool calls — a worker never delegates', () => {
@@ -133,8 +138,8 @@ describe('workerModel', () => {
 
   it('bleibt auf Cortecs, was auch immer das Mistral-Routing tut', () => {
     // The switch is about Mistral Medium's host, and Gemma is not Mistral. The
-    // worker's reason for sitting here (der Host honoriert `reasoning_effort`,
-    // see above) is untouched by it — so it must NOT ride along.
+    // worker's reason for sitting here is untouched by it — so it must NOT
+    // ride along.
     expect(configOf(workerModel).configuration?.baseURL).toBe('https://cortecs.example/v1');
     routing.enabled = true;
     expect(configOf(workerModel).configuration?.baseURL).toBe('https://cortecs.example/v1');

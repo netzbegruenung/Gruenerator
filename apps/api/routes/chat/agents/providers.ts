@@ -209,31 +209,48 @@ const GEMMA_4_REGOLO: ModelConfigSingle = {
 };
 
 /**
- * Gemma 4 26B-A4B über Cortecs — the SMALL side of the Gemma family, and the
- * lane the auto policy's short/structured turns take.
+ * Gemma 4 auf GreenPT — the SMALL side of the Gemma family, and the lane the
+ * auto policy's short/structured turns take.
  *
- * `provider: 'cortecs'` is correct here and would be wrong for Mistral Medium:
- * the caveat in services/ai/providers.ts applies to models that need the
- * mistral policy set (`isAgenticToolCapable`, context windows, fallback
- * chains). This lane needs none of it — it writes prose over material that is
- * already in context and calls no tools of its own.
+ * Die Lane braucht nichts aus dem Mistral-Regelwerk (`isAgenticToolCapable`,
+ * Kontextfenster, Fallback-Ketten): sie schreibt Prosa über Material, das schon
+ * im Kontext steht, und ruft keine eigenen Werkzeuge auf.
  *
- * Lief bis 21.08.2026 auf `provider: 'scaleway'`. Der Umzug wechselt den
- * Vertragspartner, nicht die Hardware: Cortecs vermittelt genau diese Modell-ID
- * gemessen an Scaleway weiter (Header `x-cortecs-provider`).
+ * ── WEG VOM 26B ÜBER CORTECS, 21.08.2026 ──
  *
- * Die Regel der Lane, dass sie nie denkt, hält der Host weiterhin ein:
- * `cortecsRequestPolicy` pinnt `reasoning_effort: 'none'` für dieses Modell, so
- * dass „Denken aus" am Transport erzwungen und nicht erbeten wird.
+ * Diese Lane fuhr `gemma-4-26b-a4b-it`, erst direkt auf Scaleway, dann über
+ * Cortecs. Beides ist vorbei: Cortecs hatte für diese Modell-ID genau EINEN
+ * brauchbaren Unterauftragnehmer, und der verschwand an diesem Tag binnen einer
+ * Stunde aus dem Katalog — derselbe Aufruf, der um 15:52 lief, antwortete um
+ * 16:31 mit `No endpoint passed quantization_filter. Details: {scaleway:
+ * Provider not in allowed providers}, {aki: Endpoint uses quantization}`. Der
+ * zweite Endpunkt war quantisiert und fiel durch den Standardfilter.
  *
- * Failover is Gemma 4 on GreenPT — same family, second EU host.
+ * GreenPT war ohnehin schon der Ausweichweg dieser Lane, ist also ein
+ * eingefahrener Pfad und kein neuer.
+ *
+ * WAS MAN DABEI WISSEN MUSS: GreenPTs `gemma4` DENKT IMMER, rund 5.400 Zeichen,
+ * und kein Flag schaltet es ab — `enable_thinking:false`, `think:false` und
+ * `reasoning_effort:'none'` wurden alle drei geprobt, alle drei angenommen und
+ * ignoriert (nachgemessen 21.08.2026: mit und ohne Parameter identisch leerer
+ * Inhalt bei 120 Token Budget). Bei einem knappen Ausgabe-Deckel geht das ganze
+ * Budget in den unsichtbaren Denkblock und `content` kommt LEER zurück.
+ *
+ * Warum das hier trotzdem tragbar ist: die Antwortpfade setzen seit #2002
+ * keinen Ausgabe-Deckel mehr, der Fehlerfall ist also ausser Reichweite. Wer
+ * auf dieser Lane je wieder ein `maxOutputTokens` einführt, holt ihn zurück.
+ * Welche Gewichte `gemma4` trägt, ist im Übrigen unbelegt — siehe den
+ * Doc-Block bei GEMMA_4_GREENPT.
+ *
+ * Failover ist die Gemma-Familie auf Regolo — zweiter EU-Host, und der einzige
+ * verbliebene, der dieses Modell nicht denkend liefert.
  */
 const GEMMA_4_26B: ModelConfigSingle = {
   kind: 'single',
-  provider: 'cortecs',
-  model: 'gemma-4-26b-a4b-it',
+  provider: 'greenpt',
+  model: 'gemma4',
   contextWindow: CTX_FULL,
-  fallback: 'gemma-4-greenpt',
+  fallback: 'gemma-regolo',
 };
 
 /**

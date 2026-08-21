@@ -240,14 +240,14 @@ describe('resolveModelTuple — size-aware overflow routing', () => {
     expect(tuple!.releaseSlot).toBeUndefined();
   });
 
-  it('weicht auf die kleinere Schwester bei Cortecs aus, wenn Regolo hängt', async () => {
+  it('weicht auf die Gemma-Schwester bei GreenPT aus, wenn Regolo hängt', async () => {
     const tuple = await resolveModelTuple('gemma-4', 'req-fallback');
     // Bis 19.08.2026 stand hier litellm/verdigado-think: 20s bis zum ersten
     // Token, Denken nicht abschaltbar, und EIN Inferenz-Slot, den sich der
     // Ausweg mit den GPT-OSS-Lanes teilte — also genau dann belegt, wenn er
     // gebraucht wird. Der Ausweg darf nicht an derselben Engstelle hängen wie
     // die Lane, die ihn braucht; siehe GEMMA_4_REGOLO.
-    expect(tuple!.sibling).toEqual({ provider: 'cortecs', model: 'gemma-4-26b-a4b-it' });
+    expect(tuple!.sibling).toEqual({ provider: 'greenpt', model: 'gemma4' });
   });
 
   it('preferOverflow is a no-op for Gemma 4 now that it is a single lane', async () => {
