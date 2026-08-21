@@ -24,6 +24,7 @@ import { SLIDER_CONFIG, calculateSliderLayout, getSliderColors } from '../utils/
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { createBaseActions } from './factory/actionFactories';
+import { carryInstanceState } from './factory/carryInstanceState';
 import { makeSectionDefiner } from './factory/defineSection';
 import { fromLayout } from './factory/layoutAccessors';
 import { injectFeatureProps } from './featureInjector';
@@ -614,17 +615,50 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
       opacity: 1,
     };
 
-    // Create pill badge instance for cover slides
-    const pillBadgeColors = getPillBadgeColorsForScheme(colorScheme);
-    const initialPillBadge = showPill
-      ? [
-          createPillBadgeInstance(colorScheme === 'tanne-sand' ? 'slider-inverted' : 'slider', {
-            text: (props.label as string) || 'Wusstest du?',
-            backgroundColor: pillBadgeColors.backgroundColor,
-            textColor: pillBadgeColors.textColor,
-          }),
-        ]
+    // Der Pfeil ist eine Vorgabe, keine Zwangsjacke: liegt schon eine
+    // Icon-Auswahl vor, gilt sie — sonst haette jedes Neu-Setzen die selbst
+    // hinzugefuegten Icons durch den blossen Pfeil ersetzt.
+    const carriedIcons = Array.isArray(props.selectedIcons)
+      ? (props.selectedIcons as string[])
       : [];
+    const carriedIconStates =
+      props.iconStates && typeof props.iconStates === 'object'
+        ? (props.iconStates as Record<string, IconState>)
+        : {};
+
+    // Die Pille traegt die Beschriftung der Folie, wird also aus `label` und
+    // dem Farbschema abgeleitet. Neu gebaut wird sie aber nur, wenn noch
+    // keine da ist: Karten-Render und Chat-Bearbeitung laufen ebenfalls durch
+    // diese Funktion, und ein festes Neu-Erzeugen verwarf jede Verschiebung,
+    // jede Groessenaenderung und vergab obendrein eine neue Id.
+    const pillBadgeColors = getPillBadgeColorsForScheme(colorScheme);
+    const pillText = (props.label as string) || 'Wusstest du?';
+    const carriedPills = Array.isArray(props.pillBadgeInstances)
+      ? (props.pillBadgeInstances as PillBadgeInstance[])
+      : [];
+    let initialPillBadge: PillBadgeInstance[];
+    if (!showPill) {
+      initialPillBadge = [];
+    } else if (carriedPills.length > 0) {
+      initialPillBadge = carriedPills.map((badge, index) =>
+        index === 0
+          ? {
+              ...badge,
+              text: pillText,
+              backgroundColor: pillBadgeColors.backgroundColor,
+              textColor: pillBadgeColors.textColor,
+            }
+          : badge
+      );
+    } else {
+      initialPillBadge = [
+        createPillBadgeInstance(colorScheme === 'tanne-sand' ? 'slider-inverted' : 'slider', {
+          text: pillText,
+          backgroundColor: pillBadgeColors.backgroundColor,
+          textColor: pillBadgeColors.textColor,
+        }),
+      ];
+    }
 
     return {
       // Text fields
@@ -662,24 +696,20 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
       // ueberhaupt nicht in dieser Funktion und fielen deshalb still weg.
       ...carrySliderTextStyling(props),
 
-      // Pill badge instances
-      pillBadgeInstances: initialPillBadge,
-
-      // Circle badge, balken, and frame instances
-      circleBadgeInstances: [],
-      balkenInstances: [],
-      frameInstances: [],
-      chartInstances: [],
-      userImageInstances: [],
-
       // Base state
-      assetInstances: [],
+      // Alles selbst Hinzugefuegte statt hart `[]`: sonst raeumt jede
+      // Chat-Bearbeitung Formen, Diagramme und Zusatztexte ab. Pfeil und
+      // Pille darunter ueberschreiben ihre eigenen Schluessel.
+      ...carryInstanceState(props),
       isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
-      selectedIcons: includeArrow ? [ARROW_ICON_ID] : [],
-      iconStates: includeArrow ? { [ARROW_ICON_ID]: arrowIconState } : {},
-      shapeInstances: [],
-      illustrationInstances: [],
-      additionalTexts: [],
+      selectedIcons: carriedIcons.length > 0 ? carriedIcons : includeArrow ? [ARROW_ICON_ID] : [],
+      iconStates:
+        Object.keys(carriedIconStates).length > 0
+          ? carriedIconStates
+          : includeArrow
+            ? { [ARROW_ICON_ID]: arrowIconState }
+            : {},
+      pillBadgeInstances: initialPillBadge,
     };
   },
 
