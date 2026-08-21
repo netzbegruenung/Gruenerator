@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 import { loadCanvasConfig } from '../configLoader';
 import { CARRIED_INSTANCE_KEYS } from '../factory/carryInstanceState';
@@ -52,10 +52,27 @@ function seedFor(key: string): unknown {
   return [{ id: `guard-${key}`, x: 33, y: 44 }];
 }
 
+// Loaded once with its own budget: `loadCanvasConfig` pulls in the whole config
+// chain through a dynamic import, which busts the 5s default test timeout on a
+// loaded CI runner.
+const configs = new Map<CanvasConfigType, Awaited<ReturnType<typeof loadCanvasConfig>>>();
+
+beforeAll(async () => {
+  for (const type of TEMPLATES) {
+    configs.set(type, await loadCanvasConfig(type));
+  }
+}, 120_000);
+
+function configFor(type: CanvasConfigType): Awaited<ReturnType<typeof loadCanvasConfig>> {
+  const config = configs.get(type);
+  if (!config) throw new Error(`config ${type} was not loaded`);
+  return config;
+}
+
 describe('user-added instances survive createInitialState', () => {
   for (const type of TEMPLATES) {
-    it(`${type} keeps every collection it is handed`, async () => {
-      const config = await loadCanvasConfig(type);
+    it(`${type} keeps every collection it is handed`, () => {
+      const config = configFor(type);
       const derived = DERIVED[type] ?? [];
       const seed: Record<string, unknown> = {};
       for (const key of CARRIED_INSTANCE_KEYS) {
@@ -73,8 +90,8 @@ describe('user-added instances survive createInitialState', () => {
 });
 
 describe('derived collections keep the instance and refresh only the text', () => {
-  it('slider pill keeps id and position, follows the label', async () => {
-    const config = await loadCanvasConfig('slider');
+  it('slider pill keeps id and position, follows the label', () => {
+    const config = configFor('slider');
     const pill = {
       id: 'slider-label-pill',
       text: 'Alt',
@@ -99,8 +116,8 @@ describe('derived collections keep the instance and refresh only the text', () =
     expect(result.text).toBe('Neu aus dem Chat');
   });
 
-  it('slider mints a pill for a cover slide that has none', async () => {
-    const config = await loadCanvasConfig('slider');
+  it('slider mints a pill for a cover slide that has none', () => {
+    const config = configFor('slider');
     const state = config.createInitialState({
       slideVariant: 'cover',
       label: 'Wusstest du?',
@@ -109,8 +126,8 @@ describe('derived collections keep the instance and refresh only the text', () =
     expect((state.pillBadgeInstances as unknown[]).length).toBe(1);
   });
 
-  it('slider leaves a lone hand-added pill alone when the label pill is gone', async () => {
-    const config = await loadCanvasConfig('slider');
+  it('slider leaves a lone hand-added pill alone when the label pill is gone', () => {
+    const config = configFor('slider');
     const own = { id: 'pill-badge-1700000000-1', text: 'Meine Pille', x: 700, y: 900 };
 
     const state = config.createInitialState({
@@ -122,8 +139,8 @@ describe('derived collections keep the instance and refresh only the text', () =
     expect(state.pillBadgeInstances).toEqual([own]);
   });
 
-  it('slider refreshes only the label pill, never its neighbours', async () => {
-    const config = await loadCanvasConfig('slider');
+  it('slider refreshes only the label pill, never its neighbours', () => {
+    const config = configFor('slider');
     const own = { id: 'pill-badge-1700000000-2', text: 'Meine Pille', x: 700, y: 900 };
     const label = { id: 'slider-label-pill', text: 'Alt', x: 80, y: 120 };
 
@@ -138,8 +155,8 @@ describe('derived collections keep the instance and refresh only the text', () =
     expect(badges[1].text).toBe('Neu aus dem Chat');
   });
 
-  it('a minted label pill carries the stable id', async () => {
-    const config = await loadCanvasConfig('slider');
+  it('a minted label pill carries the stable id', () => {
+    const config = configFor('slider');
     const state = config.createInitialState({
       slideVariant: 'cover',
       label: 'Wusstest du?',
@@ -149,8 +166,8 @@ describe('derived collections keep the instance and refresh only the text', () =
     expect(minted.id).toBe('slider-label-pill');
   });
 
-  it('veranstaltung date circle keeps its placement, follows the date', async () => {
-    const config = await loadCanvasConfig('veranstaltung');
+  it('veranstaltung date circle keeps its placement, follows the date', () => {
+    const config = configFor('veranstaltung');
     const badge = {
       id: 'date-circle',
       x: 200,
@@ -176,8 +193,8 @@ describe('derived collections keep the instance and refresh only the text', () =
     expect(JSON.stringify(result.textLines)).toContain('Freitag');
   });
 
-  it('veranstaltung leaves other circle badges alone', async () => {
-    const config = await loadCanvasConfig('veranstaltung');
+  it('veranstaltung leaves other circle badges alone', () => {
+    const config = configFor('veranstaltung');
     const own = { id: 'mine', x: 10, y: 20, textLines: [{ text: 'Meins' }] };
 
     const state = config.createInitialState({
