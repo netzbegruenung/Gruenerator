@@ -18,6 +18,7 @@ import {
 import { HiPaintBrush } from 'react-icons/hi2';
 
 import { createBaseActions } from './factory/actionFactories';
+import { carryInstanceState } from './factory/carryInstanceState';
 import { makeSectionDefiner } from './factory/defineSection';
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { BackgroundSection } from '../sidebar/sections';
@@ -95,18 +96,11 @@ function createProfilbildInitialState(props: Record<string, unknown>): Profilbil
 
   return {
     isDesktop: true,
-    assetInstances: [],
-    selectedIcons: [],
-    iconStates: {},
-    shapeInstances: [],
-    illustrationInstances: [],
-    additionalTexts: [],
-    pillBadgeInstances: [],
-    circleBadgeInstances: [],
-    balkenInstances: [],
-    frameInstances: [],
-    chartInstances: [],
-    userImageInstances: [],
+
+    // Alles selbst Hinzugefuegte. Stand hier hart auf `[]`, und weil
+    // Karten-Render und Chat-Bearbeitung durch diese Funktion neu setzen,
+    // waren Icons, Formen und Zusatztexte danach weg.
+    ...carryInstanceState(props),
     transparentImage,
     backgroundColor,
     // Aus den Props, nicht aus dem Standard-Layout: Karten-Render und
