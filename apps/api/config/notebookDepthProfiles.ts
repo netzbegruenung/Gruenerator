@@ -45,6 +45,14 @@ export interface NotebookDepthProfile {
    * the user's wording only, no reformulation.
    */
   queryVariants: number;
+  /**
+   * Whether the tier reads the conversation history. `false` drops incoming
+   * history EXPLICITLY (single-shot, the behaviour every tier had before) —
+   * this is what neutralises the chat-mode client, which has always sent the
+   * full unpruned thread to this endpoint. `true` runs the budgeted path:
+   * turn-granular trimming, carried citations, history-aware query rewrite.
+   */
+  history: boolean;
 }
 
 const PROFILES: Record<NotebookDepth, NotebookDepthProfile> = {
@@ -58,6 +66,7 @@ const PROFILES: Record<NotebookDepth, NotebookDepthProfile> = {
     maxOutputTokens: 20000,
     conciseAnswer: true,
     queryVariants: 1,
+    history: false,
   },
   deep: {
     searchLimit: 40,
@@ -69,6 +78,7 @@ const PROFILES: Record<NotebookDepth, NotebookDepthProfile> = {
     maxOutputTokens: 40000,
     conciseAnswer: false,
     queryVariants: 1,
+    history: false,
   },
   ultra: {
     searchLimit: 60,
@@ -80,6 +90,7 @@ const PROFILES: Record<NotebookDepth, NotebookDepthProfile> = {
     maxOutputTokens: 40000,
     conciseAnswer: false,
     queryVariants: 3,
+    history: true,
   },
 };
 
