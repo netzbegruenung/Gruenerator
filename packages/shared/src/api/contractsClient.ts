@@ -56,6 +56,7 @@ import {
   sharepicTextContract,
   adminVorlagenContract,
   userTemplatesContract,
+  sharedTemplateContract,
   templateInteractionsContract,
   userAgentsContract,
   userAgentsSharingContract,
@@ -281,6 +282,7 @@ const _imageEditClient = () => initClient(imageEditContract, CLIENT_OPTS);
 const _sharepicTextClient = () => initClient(sharepicTextContract, CLIENT_OPTS);
 const _adminVorlagenClient = () => initClient(adminVorlagenContract, CLIENT_OPTS);
 const _userTemplatesClient = () => initClient(userTemplatesContract, CLIENT_OPTS);
+const _sharedTemplateClient = () => initClient(sharedTemplateContract, CLIENT_OPTS);
 const _templateInteractionsClient = () => initClient(templateInteractionsContract, CLIENT_OPTS);
 const _userAgentsClient = () => initClient(userAgentsContract, CLIENT_OPTS);
 const _userAgentsSharingClient = () => initClient(userAgentsSharingContract, CLIENT_OPTS);
@@ -349,6 +351,7 @@ export interface ContractsClient {
   sharepicText: ReturnType<typeof _sharepicTextClient>;
   adminVorlagen: ReturnType<typeof _adminVorlagenClient>;
   userTemplates: ReturnType<typeof _userTemplatesClient>;
+  sharedTemplate: ReturnType<typeof _sharedTemplateClient>;
   templateInteractions: ReturnType<typeof _templateInteractionsClient>;
   userAgents: ReturnType<typeof _userAgentsClient>;
   userAgentsSharing: ReturnType<typeof _userAgentsSharingClient>;
@@ -431,6 +434,7 @@ export function getContractsClient(): ContractsClient {
     sharepicText: _sharepicTextClient(),
     adminVorlagen: _adminVorlagenClient(),
     userTemplates: _userTemplatesClient(),
+    sharedTemplate: _sharedTemplateClient(),
     templateInteractions: _templateInteractionsClient(),
     userAgents: _userAgentsClient(),
     userAgentsSharing: _userAgentsSharingClient(),

@@ -52,8 +52,9 @@ export const userTemplatesContract = c.router(
     },
 
     /**
-     * POST /api/auth/user-templates/from-canvas — publish one of the caller's
-     * canvas sharepics as a public Grünerator-Vorlage (snapshot + review row).
+     * POST /api/auth/user-templates/from-canvas — save one of the caller's
+     * canvas sharepics as a Grünerator-Vorlage (snapshot + bridge row), either
+     * privately or submitted for gallery review (`visibility`).
      */
     fromCanvas: {
       method: 'POST',
@@ -66,7 +67,7 @@ export const userTemplatesContract = c.router(
         404: userTemplatesErrorResponseSchema,
         500: userTemplatesErrorResponseSchema,
       },
-      summary: 'Publish a canvas as a Grünerator-Vorlage',
+      summary: 'Save a canvas as a Grünerator-Vorlage',
     },
 
     /** GET /api/auth/user-templates — the caller's own templates. */

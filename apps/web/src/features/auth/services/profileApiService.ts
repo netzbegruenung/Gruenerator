@@ -643,13 +643,20 @@ export const profileApiService = {
     return { success: response.body.success, message: response.body.message };
   },
 
+  /**
+   * Visibility and lifecycle move together: the gallery only shows rows that
+   * are both public AND `published`, so flipping `is_private` alone left
+   * "veröffentlichte" templates stranded as drafts — invisible to everyone,
+   * including the review queue. The server resolves the actual transition
+   * (an already-published template is not pushed back into review).
+   */
   async updateTemplateVisibility(
     templateId: string | number,
     isPrivate: boolean
   ): Promise<UserTemplateResponse> {
     const response = await getContractsClient().userTemplates.update({
       params: { id: String(templateId) },
-      body: { is_private: isPrivate },
+      body: { is_private: isPrivate, status: isPrivate ? 'draft' : 'pending_review' },
     });
 
     if (response.status !== 200) {

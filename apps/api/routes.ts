@@ -146,6 +146,7 @@ import { mountVideoContractRouter } from './routes/video/videoContractRouter.js'
 import ttsRouter from './routes/voice/ttsController.js';
 import { mountVoiceContractRouter } from './routes/voice/voiceContractRouter.js';
 import voiceRouter from './routes/voice/voiceController.js';
+import { mountSharedTemplateContractRouter } from './routes/vorlagen/sharedTemplateContractRouter.js';
 import { mountRecentActivityContractRouter } from './routes/workplace/recentActivityContractRouter.js';
 import recentActivityRouter from './routes/workplace/recentActivityController.js';
 import * as sharepicGenerationService from './services/chat/sharepicGenerationService.js';
@@ -1057,6 +1058,12 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Direct Canva Connect API (OAuth2 + PKCE). requireAuth is applied per-route
   // inside the router — the OAuth callback must stay public (cookie-less redirect).
   app.use('/api/canva', standardMutationLimiter, canvaApiRouter);
+  // Link-shared Vorlagen. optionalAuth, NOT requireAuth: a Vorlage shared with
+  // share_mode='public' has to open without an account, and the handler
+  // answers 401 itself when the link needs one. Mounted before the legacy
+  // router below (whose only route is /search, so the paths don't overlap).
+  app.use('/api/vorlagen/geteilt', optionalAuth, publicReadLimiter);
+  mountSharedTemplateContractRouter(app);
   // Vorlagen semantic search (chat @vorlagen picker). requireAuth is per-route.
   app.use('/api/vorlagen', authenticatedReadLimiter, vorlagenApiRouter);
   app.use('/api/sites/generate-from-flyer', aiGenerationLimiter, flyerController);
