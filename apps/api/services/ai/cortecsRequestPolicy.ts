@@ -64,7 +64,16 @@ import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('cortecsRequestPolicy');
 
-/** Cortecs-Modelle, für die `reasoning_effort: 'none'` gemessen funktioniert. */
+/**
+ * Cortecs-Modelle, für die `reasoning_effort: 'none'` gemessen funktioniert.
+ *
+ * STAND 21.08.2026: keine aktive Lane fährt dieses Modell mehr über Cortecs —
+ * die ID ist dort unbedienbar geworden, und die Lanes sind auf `gemma-4-31b-it`
+ * bzw. GreenPT ausgewichen. Der Eintrag bleibt trotzdem stehen: er ist die
+ * gemessene Aussage über dieses Modell, und wenn Cortecs den Endpunkt
+ * zurückbringt, muss der Pin sofort wieder greifen. Ohne ihn kommt bei knappem
+ * Budget leerer Inhalt.
+ */
 const REASONING_OFF_MODELS: ReadonlySet<string> = new Set(['gemma-4-26b-a4b-it']);
 
 /**

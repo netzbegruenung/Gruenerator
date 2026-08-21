@@ -237,6 +237,22 @@ const GRID_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
   // dasselbe Modell hat auch einen Endpunkt bei `aki` (Deutschland, 363
   // g/kWh), weshalb der Header überhaupt ausgelesen wird.
   cortecs: 24,
+  // Die Unterauftragnehmer, an die Cortecs für unsere Modelle tatsächlich
+  // vermittelt — sie und nicht `cortecs` landen in der Buchhaltung, seit
+  // `usageModelMiddleware` den Antwort-Header ausliest.
+  //
+  // infercom bedient `gemma-4-31b-it`, den Primär der `pruefung`-Stufe
+  // (10/10 Anfragen am 21.08.2026). Infercom SCS sitzt in Luxemburg und
+  // verarbeitet nach der Cortecs-DPA vom 11.08.2026 in DEUTSCHLAND — daher
+  // derselbe Wert wie litellm/Hetzner und nicht Scaleways 24.
+  infercom: 363, // Deutschland 2024, Umweltbundesamt
+  // berget ist der zweite Endpunkt desselben Modells und antwortet heute nicht,
+  // kann es aber jederzeit. Berget AI AB (Schweden) gibt als
+  // Verarbeitungsort EWR an, ohne ein Land zu nennen; 45 ist Schwedens Wert
+  // (Ember 2024) und damit die günstigste Lesart einer unbestimmten Angabe.
+  // Erring high wäre hier die vorsichtigere Wahl — die Zahl steht deshalb
+  // unter Vorbehalt, bis der Header sie überhaupt einmal nennt.
+  berget: 45,
   // Black Forest Labs (image generation) — German mix, and here is the whole
   // chain of what is known and what is not.
   //
@@ -317,6 +333,11 @@ const MARKET_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
   // Header-Messung bei GRID_INTENSITY_G_PER_KWH. Ein Router als solcher trägt
   // kein eigenes Zertifikat; was zählt, ist wer tatsächlich rechnet.
   cortecs: 0,
+  // KEIN Instrument für infercom und berget: für beide ist uns keine
+  // Herkunftsnachweis- oder EMAS-Erklärung bekannt. Sie fehlen hier bewusst
+  // und fallen damit auf den Standortfaktor zurück — dieselbe Behandlung wie
+  // `bfl`, und aus demselben Grund: ein fremdes Zertifikat ist nicht unseres
+  // zu behaupten.
   greenpt: 0,
   litellm: 0,
   regolo: 0,
@@ -365,6 +386,9 @@ const PUE_BY_PROVIDER: Readonly<Record<string, number>> = {
   scaleway: 1.25,
   // Derselbe Standort über den Vermittler — siehe oben.
   cortecs: 1.25,
+  // Kein PUE für infercom und berget — keiner der beiden veröffentlicht einen.
+  // Die Tabelle fällt dafür auf ihren Standardwert zurück, was ehrlicher ist
+  // als ein von einem anderen Betreiber geliehener Wert.
 };
 
 export interface Footprint {
