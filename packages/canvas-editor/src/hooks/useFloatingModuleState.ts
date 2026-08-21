@@ -76,6 +76,30 @@ function getStateProperty<T>(state: unknown, key: string | undefined): T | undef
 }
 
 /**
+ * Opacity shown in the floating toolbar for a config-declared element.
+ *
+ * State key first, the element's own `opacity` as fallback — the same
+ * precedence `GenericCanvasElement` renders with (`customOpacity ??
+ * config.opacity`). Reading the key exclusively made the slider report 100%
+ * for elements that carry both until the key was first written, so grabbing
+ * it jumped zitat-pure's 6% sunflower to full opacity.
+ */
+export function resolveToolbarOpacity<TState extends Record<string, unknown>>(
+  element: { opacity?: unknown; opacityStateKey?: string },
+  state: TState,
+  layout: LayoutResult
+): number | undefined {
+  const fromState = getStateProperty<number>(state, element.opacityStateKey);
+  if (fromState !== undefined && fromState !== null) return fromState;
+  if (element.opacity === undefined) return undefined;
+  return resolveValue<number | undefined, TState>(
+    element.opacity as number | ((state: TState, layout: LayoutResult) => number | undefined),
+    state,
+    layout
+  );
+}
+
+/**
  * Helper to check if state has array property
  */
 function getStateArray<T>(state: unknown, key: string | undefined): T[] {
@@ -127,7 +151,6 @@ export function useFloatingModuleState<
     const textElement = config.elements.find((e) => e.id === selectedElement && e.type === 'text');
     if (textElement && textElement.type === 'text') {
       const fontSizeStateKey = textElement.fontSizeStateKey as string | undefined;
-      const opacityStateKey = textElement.opacityStateKey as string | undefined;
       const fillStateKey = textElement.fillStateKey as string | undefined;
 
       const currentFontSize =
@@ -138,16 +161,7 @@ export function useFloatingModuleState<
           layout
         ) ||
         24;
-      const currentOpacity = opacityStateKey
-        ? getStateProperty<number>(state, opacityStateKey)
-        : textElement.opacity !== undefined
-          ? resolveValue<number | undefined, TState>(
-              textElement.opacity as
-                number | ((state: TState, layout: LayoutResult) => number | undefined),
-              state,
-              layout
-            )
-          : undefined;
+      const currentOpacity = resolveToolbarOpacity(textElement, state, layout);
       const currentFill = fillStateKey
         ? getStateProperty<string>(state, fillStateKey)
         : textElement.fill !== undefined
@@ -175,19 +189,9 @@ export function useFloatingModuleState<
       (e) => e.id === selectedElement && e.type === 'image'
     );
     if (imageElement && imageElement.type === 'image') {
-      const opacityStateKey = imageElement.opacityStateKey as string | undefined;
       const fillStateKey = imageElement.fillStateKey as string | undefined;
 
-      const currentOpacity = opacityStateKey
-        ? getStateProperty<number>(state, opacityStateKey)
-        : imageElement.opacity !== undefined
-          ? resolveValue<number | undefined, TState>(
-              imageElement.opacity as
-                number | ((state: TState, layout: LayoutResult) => number | undefined),
-              state,
-              layout
-            )
-          : undefined;
+      const currentOpacity = resolveToolbarOpacity(imageElement, state, layout);
 
       // Get fill from state or resolve from config
       let currentFill: string | undefined = undefined;
@@ -216,19 +220,9 @@ export function useFloatingModuleState<
       (e) => e.id === selectedElement && e.type === 'background'
     );
     if (backgroundElement && backgroundElement.type === 'background') {
-      const opacityStateKey = backgroundElement.opacityStateKey as string | undefined;
       const fillStateKey = backgroundElement.fillStateKey as string | undefined;
 
-      const currentOpacity = opacityStateKey
-        ? getStateProperty<number>(state, opacityStateKey)
-        : backgroundElement.opacity !== undefined
-          ? resolveValue<number | undefined, TState>(
-              backgroundElement.opacity as
-                number | ((state: TState, layout: LayoutResult) => number | undefined),
-              state,
-              layout
-            )
-          : undefined;
+      const currentOpacity = resolveToolbarOpacity(backgroundElement, state, layout);
 
       let currentFill: string | undefined = undefined;
       if (fillStateKey) {
