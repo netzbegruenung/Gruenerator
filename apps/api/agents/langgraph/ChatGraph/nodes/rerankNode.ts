@@ -8,6 +8,7 @@
  * Adds source-type tags so the cross-encoder can leverage provenance info.
  */
 
+import { getChatNotebookProfile } from '../../../../config/notebookDepthProfiles.js';
 import { vectorConfig } from '../../../../config/vectorConfig.js';
 import {
   DEFAULT_RELEVANCE,
@@ -62,19 +63,24 @@ export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGra
   // from `searchResults.length` makes that impossible by construction and needs
   // no `tier` field on ChatGraphState.
   //
-  // MAX_SOURCES is the ceiling on what can reach the prompt at all, so scoring
-  // beyond it would be work whose result is discarded — and it keeps a wide
-  // multi-source fan-out from running away.
-  const inputLimit = Math.min(
-    MAX_SOURCES,
-    Math.max(isNotebookScoped ? MAX_SOURCES : rerankCfg.inputLimit, searchResults.length)
-  );
+  // Für notizbuch-gebundene Turns kommen beide Zahlen aus dem Stufenprofil
+  // (`CHAT_NOTEBOOK_DEPTH`), dieselbe Quelle, aus der `searchNode` seine
+  // Kandidatenzahl nimmt. Das ist die Entkopplung, die dieser Zweig gebraucht
+  // hat: `MAX_SOURCES` beantwortet die Frage „wie viele Quellen passen in den
+  // Prompt", nicht „wie viele Kandidaten darf der Cross-Encoder bewerten". Als
+  // Eingabefenster gelesen deckelte es die Auswahl auf die Größe des
+  // Ergebnisses — 10 Kandidaten hinein, 10 hinaus, also gar keine Auswahl. Das
+  // Fenster darf über MAX_SOURCES liegen; die Prompt-Decke zieht danach
+  // `buildCitableSources`, und `rerankOutput` (18) bleibt darunter.
+  const profile = isNotebookScoped ? getChatNotebookProfile() : null;
+  const inputLimit = profile
+    ? profile.rerankInput
+    : Math.min(MAX_SOURCES, Math.max(rerankCfg.inputLimit, searchResults.length));
   // Survivors scale with the input: never fewer than configured, never more than
   // the 12 the notebook path already used before this was unified.
-  const outputLimit = Math.min(
-    RERANK_OUTPUT_CEILING,
-    Math.max(rerankCfg.outputLimit, searchResults.length)
-  );
+  const outputLimit = profile
+    ? profile.rerankOutput
+    : Math.min(RERANK_OUTPUT_CEILING, Math.max(rerankCfg.outputLimit, searchResults.length));
 
   if (searchResults.length <= 2) {
     log.info(`[Rerank] Skipping — only ${searchResults.length} results`);
