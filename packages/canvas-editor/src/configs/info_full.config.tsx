@@ -141,6 +141,10 @@ const sunflowerElement: ImageElementConfig<InfoState> = {
   height: INFO_CONFIG.sunflower.size,
   src: INFO_CONFIG.sunflower.src,
   draggable: true,
+  opacityStateKey: 'sunflowerOpacity',
+  // Offset statt absoluter Position: die Basis ist eine Konstante, kein
+  // Layoutwert — dieselbe Wahl wie bei der Sonnenblume der Zitat-Vorlage.
+  offsetKey: 'sunflowerOffset',
 };
 
 const headerTextElement = createPrimaryText<InfoState>({
@@ -206,7 +210,13 @@ const baseInfoConfig = createColorTwoTextCanvas({
   defaultBackgroundColor: '#005538',
   textColorMap: TEXT_COLORS,
   calculateLayout,
-  passthroughStateKeys: ['arrowOpacity', 'arrowPosition', 'arrowSize'],
+  passthroughStateKeys: [
+    'arrowOpacity',
+    'arrowPosition',
+    'arrowSize',
+    'sunflowerOpacity',
+    'sunflowerOffset',
+  ],
   elements: [sunflowerElement, headerTextElement, arrowElement, bodyTextElement],
   features: { icons: true, shapes: true, illustrations: true },
   getCanvasText: (state) => {

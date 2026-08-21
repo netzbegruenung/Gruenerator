@@ -87,6 +87,9 @@ export interface SliderState extends BaseCanvasState {
   headlineOpacity?: number;
   subtextOpacity?: number;
   subtext2Opacity?: number;
+  headlinePosition?: { x: number; y: number };
+  subtextPosition?: { x: number; y: number };
+  subtext2Position?: { x: number; y: number };
   sunflowerOpacity?: number;
   sunflowerOffset?: { x: number; y: number };
 
@@ -241,6 +244,30 @@ const calculateLayout = (state: SliderState): LayoutResult => {
 // ELEMENTS
 // ============================================================================
 
+/**
+ * Uebernimmt die Schluessel, die die Werkzeugleiste an den drei Textelementen
+ * schreibt (Farbe, Deckkraft, gezogene Position), aus dem Seed. Fehlende
+ * Schluessel bleiben weg statt als `undefined` im Zustand zu stehen.
+ */
+function carrySliderTextStyling(props: Record<string, unknown>): Partial<SliderState> {
+  const keys = [
+    'labelColor',
+    'headlineColor',
+    'subtextColor',
+    'subtext2Color',
+    'labelOpacity',
+    'headlineOpacity',
+    'subtextOpacity',
+    'subtext2Opacity',
+    'headlinePosition',
+    'subtextPosition',
+    'subtext2Position',
+  ];
+  return Object.fromEntries(
+    keys.filter((k) => props[k] != null).map((k) => [k, props[k]])
+  ) as Partial<SliderState>;
+}
+
 const backgroundElement: BackgroundElementConfig<SliderState> = {
   id: 'background',
   type: 'background',
@@ -290,6 +317,7 @@ const headlineTextElement: TextElementConfig<SliderState> = {
   opacityStateKey: 'headlineOpacity',
   fill: (state) => getSliderColors(state.colorScheme).headlineText,
   fillStateKey: 'headlineColor',
+  positionStateKey: 'headlinePosition',
 };
 
 const subtextTextElement: TextElementConfig<SliderState> = {
@@ -312,6 +340,7 @@ const subtextTextElement: TextElementConfig<SliderState> = {
   opacityStateKey: 'subtextOpacity',
   fill: (state) => getSliderColors(state.colorScheme).subtextText,
   fillStateKey: 'subtextColor',
+  positionStateKey: 'subtextPosition',
 };
 
 const subtext2TextElement: TextElementConfig<SliderState> = {
@@ -334,6 +363,7 @@ const subtext2TextElement: TextElementConfig<SliderState> = {
   opacityStateKey: 'subtext2Opacity',
   fill: (state) => getSliderColors(state.colorScheme).subtextText,
   fillStateKey: 'subtext2Color',
+  positionStateKey: 'subtext2Position',
   visible: (state) => state.slideVariant === 'content',
 };
 
@@ -620,10 +650,17 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
         : {}),
 
       // Font size overrides
-      customLabelFontSize: null,
-      customHeadlineFontSize: null,
-      customSubtextFontSize: null,
-      customSubtext2FontSize: null,
+      // Aus den Props, nicht hart genullt: Karten-Render und Remote-Sync
+      // laufen durch diese Funktion, ein fester Wert verwarf jede per Regler
+      // gesetzte Schriftgroesse beim naechsten Render.
+      customLabelFontSize: (props.customLabelFontSize as number | null | undefined) ?? null,
+      customHeadlineFontSize: (props.customHeadlineFontSize as number | null | undefined) ?? null,
+      customSubtextFontSize: (props.customSubtextFontSize as number | null | undefined) ?? null,
+      customSubtext2FontSize: (props.customSubtext2FontSize as number | null | undefined) ?? null,
+
+      // Farbe, Deckkraft und gezogene Position der drei Texte. Sie standen
+      // ueberhaupt nicht in dieser Funktion und fielen deshalb still weg.
+      ...carrySliderTextStyling(props),
 
       // Pill badge instances
       pillBadgeInstances: initialPillBadge,
