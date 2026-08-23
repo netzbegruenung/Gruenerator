@@ -356,4 +356,14 @@ export const LOOP_SCENARIOS: readonly LoopScenario[] = [
     // Rezepttext — nur ihre Aktivierungsbedingung hat gewechselt.
     systemIncludes: '## GRÜNERATOR-DOKUMENTATION',
   },
+  {
+    id: 'anhang-zusammenfassung-loop',
+    category: 'mention-lane',
+    note: 'Keine Modellannahme: der Turn haengt an zwei Gittern, die beide ohne das Modell entscheiden. Ein Dokument am Turn (`documentChatIds`) plus eine Zusammenfassungs-Bitte zwingen den ersten Aufruf auf `summarize` — das ist der achte Weg in `shouldForceFirstToolCall` und der zweite Grund in `pinnedFirstTool`. Gemessener Ausfall am 23.08.2026: dasselbe Prompt, ein vektorisiertes 21.785-Zeichen-PDF, und der Planer rief `media`/`find_content` und fasste ein fremdes Konto-Dokument zusammen. Das Skript gibt dem Planer NUR den `summarize`-Aufruf; griffe er daneben, bliebe ein Stream unverbraucht und der Lauf faellt.',
+    prompt: 'fasse das pdf zusammen',
+    body: { documentChatIds: ['doc-1'] },
+    streams: [{ calls: [{ tool: 'summarize', args: {} }] }, { text: GERMAN_ANSWER }],
+    mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
+    firstToolChoice: 'summarize',
+  },
 ];
