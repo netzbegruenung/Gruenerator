@@ -57,6 +57,34 @@ describe('buildDocumentSources — Beschriftungen', () => {
     expect(source!.label).toBe('Grundlagenpapier.docx');
   });
 
+  /**
+   * Ein Anhang, der in DIESEM Turn hochgeladen wurde, steht in keiner
+   * `threadAttachments`-Zeile — die entsteht erst nach der Antwort. Vor der
+   * Karte hiess das gerade hochgeladene PDF in Quellen und Werkzeugen
+   * „Dokument 1".
+   */
+  it('nimmt den Namen aus der Karte, wenn der Anhang aus DIESEM Turn stammt', () => {
+    const id = '939e2f06-f0b6-4cd0-a637-d6941a3390a1';
+    const [source] = buildDocumentSources({
+      ...EMPTY,
+      documentChatIds: [id],
+      threadAttachments: [],
+      documentChatLabels: { [id]: 'Beschlusspapier.pdf' },
+    });
+    expect(source!.label).toBe('Beschlusspapier.pdf');
+  });
+
+  it('lässt den frischen Namen gewinnen, wenn beide Quellen dieselbe id kennen', () => {
+    const id = '61f23708-516b-48c9-b977-404610b77bf2';
+    const [source] = buildDocumentSources({
+      ...EMPTY,
+      documentChatIds: [id],
+      threadAttachments: [attachment({ name: 'Alt.docx', documentId: id })],
+      documentChatLabels: { [id]: 'Neu.pdf' },
+    });
+    expect(source!.label).toBe('Neu.pdf');
+  });
+
   it('zählt durch, wenn kein Name bekannt ist — über die Arten hinweg', () => {
     // Zwei Quellen dürfen nicht dieselbe Beschriftung tragen: die Liste im
     // Prompt ist das Einzige, worüber das Modell sie auseinanderhält.

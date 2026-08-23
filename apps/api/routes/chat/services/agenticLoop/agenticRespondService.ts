@@ -15,6 +15,7 @@
 import { type ModelMessage } from 'ai';
 
 import { knownArtifactRefs } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
+import { isSummaryAsk } from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { forbidsNewResearch } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import { recordSlowVerdict } from '../../../../services/ai/modelHealth.js';
 import { createLogger } from '../../../../utils/logger.js';
@@ -39,12 +40,14 @@ import { resolveAbortOutcome } from '../turnAbortOutcome.js';
 import { turnMaterialChars } from '../turnMaterial.js';
 import { withInstructionHierarchy } from '../untrustedContent.js';
 
+import { ATTACHED_DOCS_TOOL, retrievableAttachedSources } from './attachedDocuments.js';
 import {
   assembleToolCatalog,
   buildToolReplay,
   priorTurnRetrieved,
   createLoopGuards,
   rehydrateCarriedSources,
+  seedAttachedDocuments,
   wrapAssembledTools,
 } from './catalogAssembly.js';
 import {
@@ -230,6 +233,24 @@ export async function streamAgenticResponse(
       });
     }
 
+    // Angehängte Dokumente EINMAL vorab abrufen — unbedingt, nicht auf Verdacht.
+    // Begründung an `seedAttachedDocuments`; kurz: die Entscheidung, ob ein Turn
+    // sein eigenes Dokument braucht, lag beim Planer und ging schief.
+    // Nach der Rehydrierung, damit die Anhänge dieses Turns hinter der
+    // mitgeführten Recherche numeriert werden und deren Zitatnummern stabil
+    // bleiben.
+    toolReplayMessages = [
+      ...toolReplayMessages,
+      ...(await seedAttachedDocuments({
+        state: finalState,
+        sourceRegistry,
+        toolName: ATTACHED_DOCS_TOOL,
+        isMounted: ATTACHED_DOCS_TOOL in tools,
+        onInfo: (m) => log.info(m),
+        onError: (m) => log.warn(m),
+      })),
+    ];
+
     const wrapped = wrapAssembledTools(tools, {
       sse,
       guards,
@@ -333,7 +354,13 @@ export async function streamAgenticResponse(
       onWarn: (m) => log.warn(m),
     });
 
-    // Die sieben Wege dahinter stehen in `shouldForceFirstToolCall` — samt der
+    // Beide Werte fliessen in ZWEI Entscheidungen (ob ein Werkzeug abverlangt
+    // wird, und welches) — einmal berechnet, damit die zwei nicht auseinander-
+    // laufen können.
+    const hasAttachedDocuments = retrievableAttachedSources(finalState).length > 0;
+    const summaryAsk = isSummaryAsk(lastUserText);
+
+    // Die acht Wege dahinter stehen in `shouldForceFirstToolCall` — samt der
     // Live-Ausfälle, die jeden einzelnen erzwungen haben.
     const forceFirstToolCall = shouldForceFirstToolCall({
       researchBanned,
@@ -347,6 +374,8 @@ export async function streamAgenticResponse(
       classifierContradictedResearch: finalState.classifierContradictedResearch === true,
       materialHeavy,
       pinnedTool: finalState.mentionPinnedTool ?? null,
+      hasAttachedDocuments,
+      summaryAsk,
     });
 
     // WELCHES Werkzeug der erste Schritt ruft, wenn eine @-Erwähnung eines
@@ -356,11 +385,13 @@ export async function streamAgenticResponse(
     const firstToolName = forceFirstToolCall
       ? pinnedFirstTool({
           pinnedTool: finalState.mentionPinnedTool ?? null,
+          hasAttachedDocuments,
+          summaryAsk,
           isMounted: (name) => name in wrapped,
         })
       : null;
     if (firstToolName) {
-      log.info(`[Agentic] @-Erwähnung verlangt ${firstToolName} als ersten Werkzeugaufruf`);
+      log.info(`[Agentic] ${firstToolName} ist als erster Werkzeugaufruf festgelegt`);
     }
 
     // The synth phase emits nothing between the last tool result and the first
