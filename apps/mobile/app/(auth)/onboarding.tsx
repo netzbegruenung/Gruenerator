@@ -1,12 +1,17 @@
 import { useAuthStore } from '@gruenerator/shared/stores';
 import { router } from 'expo-router';
-import { type ComponentType, useRef, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
+import { type ComponentType, useEffect, useRef, useState } from 'react';
+import { View, Text, Pressable, StyleSheet, Dimensions, useColorScheme } from 'react-native';
 import PagerView, {
   type PagerViewOnPageScrollEvent,
   type PagerViewOnPageSelectedEvent,
 } from 'react-native-pager-view';
-import { useSharedValue } from 'react-native-reanimated';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '../../components/common';
@@ -20,9 +25,10 @@ import { OnboardingDots } from '../../components/onboarding/OnboardingDots';
 import { OnboardingFinale } from '../../components/onboarding/OnboardingFinale';
 import { OnboardingIntro } from '../../components/onboarding/OnboardingIntro';
 import { OnboardingSlide } from '../../components/onboarding/OnboardingSlide';
+import { useReduceMotion } from '../../hooks/useAccessibilityPreferences';
 import { useOnboardingStore } from '../../stores/onboardingStore';
 import { spacing, lightTheme, darkTheme, BODY_FONT } from '../../theme';
-import { COLOUR_MESH } from '../../theme/chatBackgrounds';
+import { REGENBOGEN_MESH } from '../../theme/chatBackgrounds';
 
 interface Slide {
   title: string;
@@ -62,13 +68,22 @@ const SLIDES: Slide[] = [
 /** The carousel's pages: the five above, plus the closing "Bereit?". */
 const PAGE_COUNT = SLIDES.length + 1;
 
+const SCREEN_HEIGHT = Dimensions.get('window').height;
+
 /**
  * Two phases on one screen: an opening that asks nothing but "Beginnen", then
  * the carousel, ending on the sign-in.
  *
- * They share a mount, and that is the point — one mesh is laid under both, so
- * the opening does not hand over to a second screen with its own background.
- * What changes when "Beginnen" is tapped is what stands on the colour.
+ * They share a mount, and that is the point — one band of colour is laid under
+ * both, so the opening does not hand over to a second screen with its own
+ * background. What changes when "Beginnen" is tapped is what stands on the
+ * colour.
+ *
+ * The band rises into place on mount, exactly as `.sp-sunrise` does on the web
+ * start page: 2.4s, the same easing, from a fifth of a screen lower and from
+ * nothing. It lives here rather than in `OnboardingIntro` because it has to
+ * outlive that screen — restarting the rise when the carousel appears would
+ * read as the page reloading.
  */
 export default function OnboardingScreen() {
   const colorScheme = useColorScheme();
@@ -77,6 +92,21 @@ export default function OnboardingScreen() {
   const completeOnboarding = useOnboardingStore((s) => s.completeOnboarding);
 
   const [started, setStarted] = useState(false);
+
+  const rise = useSharedValue(0);
+  const reduceMotion = useReduceMotion();
+  useEffect(() => {
+    rise.value = reduceMotion
+      ? 1
+      : withTiming(1, { duration: 2400, easing: Easing.bezier(0.22, 1, 0.36, 1) });
+  }, [rise, reduceMotion]);
+  const riseStyle = useAnimatedStyle(() => ({
+    opacity: rise.value,
+    // Web lifts the band's centre from 82 % to 52 % of the viewport; 30 % of a
+    // phone's height is the same move.
+    transform: [{ translateY: (1 - rise.value) * 0.3 * SCREEN_HEIGHT }],
+  }));
+
   const pagerRef = useRef<PagerView>(null);
   const [index, setIndex] = useState(0);
   // Continuous page position (index + scroll offset) so the dots track the swipe
@@ -114,7 +144,9 @@ export default function OnboardingScreen() {
 
   return (
     <View style={styles.container}>
-      <MeshSurface mesh={COLOUR_MESH} id="onboarding" />
+      <Animated.View style={[StyleSheet.absoluteFill, riseStyle]} pointerEvents="none">
+        <MeshSurface mesh={REGENBOGEN_MESH} id="onboarding" />
+      </Animated.View>
 
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         {!started ? (
