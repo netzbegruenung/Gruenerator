@@ -340,6 +340,27 @@ jobs:
             if [ "$FETCH_ERRORS" -gt 0 ]; then echo "| Unreachable pages | $FETCH_ERRORS |"; fi
             if [ "$ERRORS" -gt 0 ]; then echo "| **Errors** | **$ERRORS** |"; fi
             echo ""
+
+            # Auslesen (PDF.js, bei Scans Mistral-OCR pro Seite) ist der teure
+            # Teil des Laufs und in New/Updated/Skipped unsichtbar: ein vor der
+            # Extraktion übersprungenes Dokument zählt dort wie ein danach
+            # übersprungenes, kostet aber nichts. "Read for nothing" ist die
+            # Zahl, an der man sieht, ob die Fingerprint-Gatter greifen — sie
+            # sollte über die Läufe gegen 0 gehen.
+            if [ "$(jq -r 'has("extraction")' "$SUMMARY_FILE")" = "true" ]; then
+              echo "### Extraction"
+              echo ""
+              echo "| Metric | Documents | Pages |"
+              echo "|--------|----------:|------:|"
+              jq -r '.extraction | "| Read this run | \(.documents) | \(.pages) |"' "$SUMMARY_FILE"
+              jq -r '.extraction | "| …of that via paid OCR | \(.ocrDocuments) | \(.ocrPages) |"' "$SUMMARY_FILE"
+              jq -r '.extraction | "| Read for nothing (text unchanged) | \(.redundant) | — |"' "$SUMMARY_FILE"
+              jq -r '.extraction.skipped | "| Not read — gated | \(.not_modified + .same_bytes + .freshly_indexed) | — |"' "$SUMMARY_FILE"
+              echo ""
+              jq -r '.extraction.skipped | "Gates: \(.not_modified) × HTTP 304 · \(.same_bytes) × identical bytes · \(.freshly_indexed) × freshly indexed"' "$SUMMARY_FILE"
+              echo ""
+            fi
+
             echo "### Per Source"
             echo ""
             echo "| Source | Status | New | Updated | Skipped | Unreachable | Errors | Duration |"
@@ -508,6 +529,9 @@ jobs:
             echo ""
             echo "**Date:** $(date -d "$TIMESTAMP" '+%d.%m.%Y %H:%M UTC' 2>/dev/null || echo "$TIMESTAMP")"
             echo "**Duration:** ${DURATION}s | **New:** +${STORED} | **Errors:** ${ERRORS}"
+            if [ "$(jq -r 'has("extraction")' "$SUMMARY_FILE")" = "true" ]; then
+              jq -r '.extraction | "**Read:** \(.documents) docs / \(.pages) pages (OCR: \(.ocrDocuments)/\(.ocrPages)) | **For nothing:** \(.redundant) | **Gated:** \(.skipped.not_modified + .skipped.same_bytes + .skipped.freshly_indexed)"' "$SUMMARY_FILE"
+            fi
           } >> $GITHUB_STEP_SUMMARY
 
       - name: Update content stats page
