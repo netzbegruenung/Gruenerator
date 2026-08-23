@@ -257,11 +257,11 @@ const TranskriptionPage = () => {
   // `state.text` unconditionally, so downloading a Protokoll handed you the raw
   // transcript — complete with unresolved [speaker_N] markers.
   const handleDownloadMd = useCallback(() => {
-    downloadFile(getActiveContent(), `${getTitle()}.md`, 'text/markdown');
+    void downloadFile(getActiveContent(), `${getTitle()}.md`, 'text/markdown');
   }, [getActiveContent, getTitle]);
 
   const handleDownloadTxt = useCallback(() => {
-    downloadFile(getActiveContent(), `${getTitle()}.txt`, 'text/plain');
+    void downloadFile(getActiveContent(), `${getTitle()}.txt`, 'text/plain');
   }, [getActiveContent, getTitle]);
 
   // .srt is the one export that ignores the toggle: subtitles are timecoded
@@ -273,7 +273,7 @@ const TranskriptionPage = () => {
           `${i + 1}\n${formatSRTTime(seg.start)} --> ${formatSRTTime(seg.end)}\n${seg.text.trim()}\n`
       )
       .join('\n');
-    downloadFile(srt, `${getTitle()}.srt`, 'text/srt');
+    void downloadFile(srt, `${getTitle()}.srt`, 'text/srt');
   }, [state.segments, getTitle]);
 
   // Both server-side generators accept Markdown directly (contentParser detects

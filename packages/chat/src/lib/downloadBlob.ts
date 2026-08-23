@@ -1,18 +1,16 @@
 /**
- * Trigger a browser download for in-memory bytes (base64 or Blob) — the same
- * objectURL + synthetic <a download> pattern as apps/web's downloadFile util,
- * local to packages/chat so message components stay app-independent.
+ * Handing in-memory bytes to the user.
+ *
+ * `downloadBlob` lived here as a second copy of the same objectURL +
+ * synthetic-`<a download>` pattern that `apps/web` and the canvas editor also
+ * carried. It now comes from `@gruenerator/shared`, which additionally knows
+ * that the anchor does nothing inside the mobile app's WebView. The chat UI is
+ * not reachable through that WebView today — this is de-duplication, not a fix
+ * — but a third divergent copy is how the first two got it wrong.
  */
-export function downloadBlob(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
+import { downloadBlob } from '@gruenerator/shared';
+
+export { downloadBlob };
 
 export function base64ToBlob(base64: string, mimeType: string): Blob {
   const binary = atob(base64);
@@ -21,8 +19,12 @@ export function base64ToBlob(base64: string, mimeType: string): Blob {
   return new Blob([bytes], { type: mimeType });
 }
 
-export function downloadBase64(base64: string, filename: string, mimeType: string): void {
-  downloadBlob(base64ToBlob(base64, mimeType), filename);
+export async function downloadBase64(
+  base64: string,
+  filename: string,
+  mimeType: string
+): Promise<void> {
+  await downloadBlob(base64ToBlob(base64, mimeType), filename);
 }
 
 const MIME_BY_EXTENSION: Record<string, string> = {
