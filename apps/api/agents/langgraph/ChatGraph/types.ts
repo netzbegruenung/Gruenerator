@@ -520,6 +520,7 @@ export interface ChatGraphInput {
   documentIds?: string[] | undefined;
   textIds?: string[] | undefined;
   documentChatIds?: string[] | undefined;
+  documentChatLabels?: Record<string, string> | undefined;
   boardIds?: string[] | undefined;
   sheetIds?: string[] | undefined;
   docMentionIds?: string[] | undefined;
@@ -666,6 +667,14 @@ export interface ChatGraphState {
 
   // Document chat scoping (from @dokumentchat multi-select)
   documentChatIds: string[];
+  // Dateiname je vektorisiertem Dokument dieses Turns (documentId → Name).
+  //
+  // Ein Anhang, der in DIESEM Turn hochgeladen wurde, steht noch in keiner
+  // `threadAttachments`-Zeile — die entsteht erst nach der Antwort. Ohne diese
+  // Karte fällt `buildDocumentSources` auf „Dokument 1" zurück, und der Name,
+  // den der*die Nutzer*in gerade hochgeladen hat, taucht weder in den Quellen
+  // noch in `dokumente_lesen` auf.
+  documentChatLabels?: Record<string, string> | undefined;
 
   // Board context (from @board mentions)
   boardIds: string[];

@@ -113,6 +113,16 @@ vi.mock('../../../services/monitor/UmfragenService.js', async (orig) => {
   };
 });
 
+// Der Dokument-Abruf hinter Seed, `dokumente_lesen` und `summarize` — dieselbe
+// Begründung wie beim DIP und bei PolitPro: nur das Backend, nicht die Kette.
+vi.mock('../../../services/document-services/DocumentSearchService/index.js', async (orig) => {
+  const { fakeQdrantDocumentService } = await import('./harness/searchBackendStub.js');
+  return {
+    ...((await orig()) as Record<string, unknown>),
+    getQdrantDocumentService: fakeQdrantDocumentService,
+  };
+});
+
 vi.mock('ai', async (orig) => {
   const { fakeLoopStreamText, fakeLoopGenerateText } = await import('./harness/loopScript.js');
   return {

@@ -100,6 +100,22 @@ export interface SourceRegistry {
    */
   seedCarried(results: SearchResult[]): void;
   /**
+   * Der Vorab-Abruf der angehängten Dokumente (`seedAttachedDocuments`).
+   *
+   * Zitierbar und in der Numerierung wie jede andere Quelle dieses Turns — der
+   * Schreiber soll sie belegen können. Aber NICHT die Recherche des Planers:
+   * die Wächter budgetieren gegen `freshSize`, und beide Stellen, die das tun,
+   * urteilen über SEIN Verhalten. `emptyResultFallback` erzwingt die Websuche
+   * genau dann, wenn die interne Suche gelaufen und leer geblieben ist — mit
+   * den geseedeten Passagen im Zähler bliebe sie aus, obwohl der Planer nichts
+   * gefunden hat. Und `checkSearchBudget` deckelt bei `MAX_SOURCES` (20): zwölf
+   * geseedete Chunks nähmen 60 % davon weg, bevor der erste Aufruf läuft.
+   *
+   * Findet der Planer denselben Chunk später selbst, zählt er ab dann als seine
+   * Recherche — dieselbe Regel wie bei `prior`.
+   */
+  seedAttached(results: SearchResult[]): string;
+  /**
    * A per-turn OUTCOME line: a write happened, a confirmation was requested, a
    * lookup came back empty. The split-mode synth sees no tool returns, so this
    * is its only channel for "what actually happened" — but it is NOT a source.
@@ -113,9 +129,11 @@ export interface SourceRegistry {
   note(title: string, content: string): void;
   /** Prior-turn sources currently seeded (drives the honesty note). */
   readonly carriedSize: number;
-  /** Sources gathered in THIS turn. The loop guards budget against this, not
-   *  `size` — counting carried sources as research would tell a follow-up it had
-   *  "already found enough internal documents" and block the web search. */
+  /** Was der PLANER diesen Turn selbst geholt hat. Die Wächter budgetieren
+   *  dagegen, nicht gegen `size` — weder mitgeführte Recherche (`prior`) noch
+   *  der Vorab-Abruf der Anhänge (`seeded`) sind seine Arbeit. Zählte man sie
+   *  mit, bekäme ein Folge-Turn gesagt, er habe „schon genug gefunden", und die
+   *  Websuche bliebe aus. */
   readonly freshSize: number;
   /** All accumulated results (capped) for persistence/UI — this turn's first, so
    *  a long carry can never push fresh research out of the capped slice. */
@@ -215,6 +233,9 @@ interface Entry {
   result: SearchResult;
   cap: number;
   prior: boolean;
+  /** Aus dem Vorab-Abruf der Anhänge, nicht aus einem Werkzeugaufruf des
+   *  Planers. Zitierbar wie jede Quelle, aber aus `freshSize` heraus. */
+  seeded: boolean;
 }
 
 export function createSourceRegistry(): SourceRegistry {
@@ -226,7 +247,7 @@ export function createSourceRegistry(): SourceRegistry {
   /** Returns the 1-based number of the entry, whether newly added or already
    *  present. A search that re-finds a carried source must still SHOW it to the
    *  model — under its established number, not as a second chip for one URL. */
-  const add = (r: SearchResult, cap: number, prior: boolean): number | null => {
+  const add = (r: SearchResult, cap: number, prior: boolean, seeded = false): number | null => {
     if (!r || typeof r !== 'object') return null;
     // Skip empty-content results: buildCitations drops them, so numbering
     // them here would desync the model's [N] from done.citations.
@@ -241,9 +262,12 @@ export function createSourceRegistry(): SourceRegistry {
       // Re-found by a search THIS turn: it is no longer only prior research,
       // so it drops the marker and starts counting toward `freshSize`.
       if (entry && !prior) entry.prior = false;
+      // Dasselbe für den Vorab-Abruf: hat der Planer denselben Chunk selbst
+      // gefunden, ist er ab jetzt seine Recherche und zählt für die Wächter.
+      if (entry && !seeded) entry.seeded = false;
       return existing;
     }
-    entries.push({ result: r, cap, prior });
+    entries.push({ result: r, cap, prior, seeded });
     indexByKey.set(key, entries.length);
     return entries.length;
   };
@@ -263,6 +287,17 @@ export function createSourceRegistry(): SourceRegistry {
     },
     seedCarried(results) {
       for (const r of results) add(r, SNIPPET_CHARS, true);
+    },
+    seedAttached(results) {
+      const lines: string[] = [];
+      const emitted = new Set<number>();
+      for (const r of results) {
+        const index = add(r, SNIPPET_CHARS, false, true);
+        if (index === null || emitted.has(index)) continue;
+        emitted.add(index);
+        lines.push(snippetLine(index, r, SNIPPET_CHARS));
+      }
+      return lines.join('\n');
     },
     note(title, content) {
       const line = `${(title || 'Vorgang').trim()} — ${(content ?? '').replace(/\s+/g, ' ').trim()}`;
@@ -389,7 +424,7 @@ export function createSourceRegistry(): SourceRegistry {
       return entries.filter((e) => e.prior).length;
     },
     get freshSize() {
-      return entries.filter((e) => !e.prior).length;
+      return entries.filter((e) => !e.prior && !e.seeded).length;
     },
   };
 }
