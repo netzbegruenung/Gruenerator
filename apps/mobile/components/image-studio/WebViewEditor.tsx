@@ -5,7 +5,6 @@ import { StyleSheet, View, Platform, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
-
 import { secureStorage } from '../../services/storage';
 import {
   decideNavigation,

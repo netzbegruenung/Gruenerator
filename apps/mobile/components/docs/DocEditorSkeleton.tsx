@@ -3,7 +3,6 @@ import { View, StyleSheet, useColorScheme } from 'react-native';
 import { lightTheme, darkTheme, spacing } from '../../theme';
 import { SkeletonBar, SkeletonGroup, SkeletonLines, skeletonStyles } from '../common/Skeleton';
 
-
 // Placeholder paragraph layout (line width %) — a title bar followed by a few
 // blocks of body lines, approximating a document while it connects/syncs.
 const LINES = ['62%', '100%', '94%', '88%', '70%', '100%', '91%', '55%'] as const;

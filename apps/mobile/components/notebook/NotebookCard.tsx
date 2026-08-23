@@ -11,7 +11,6 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-
 import { useLayout } from '../../hooks/useLayout';
 import {
   colors,

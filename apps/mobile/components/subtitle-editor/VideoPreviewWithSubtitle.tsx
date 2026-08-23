@@ -9,7 +9,6 @@ import { VideoView, useVideoPlayer } from 'expo-video';
 import { useMemo, useEffect, useState } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 
-
 import { secureStorage } from '../../services/storage';
 import { colors, spacing, borderRadius } from '../../theme';
 import { SkeletonBar, SkeletonGroup } from '../common/Skeleton';

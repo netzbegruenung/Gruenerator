@@ -204,7 +204,6 @@ export default function GalleryScreen() {
     );
   };
 
-
   // The grid is empty while it loads, so the placeholder goes where the cards
   // go — through `ListEmptyComponent` — and the header and filter tabs above it
   // stay reachable instead of being swallowed by a full-screen spinner. Same

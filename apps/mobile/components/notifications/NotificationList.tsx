@@ -11,7 +11,6 @@ import {
   useColorScheme,
 } from 'react-native';
 
-
 import { useNotifications, type AppNotification } from '../../hooks/useNotifications';
 import { colors, spacing, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 import { actionUrlToRoute } from '../../utils/actionUrl';

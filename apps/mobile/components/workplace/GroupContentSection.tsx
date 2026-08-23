@@ -3,7 +3,6 @@ import { useRouter } from 'expo-router';
 import { memo, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, useColorScheme } from 'react-native';
 
-
 import { useGroupContent, type GroupContentItem } from '../../hooks/useGroupContent';
 import {
   colors,
