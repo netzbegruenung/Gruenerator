@@ -17,13 +17,14 @@ import {
   TouchableOpacity,
   StyleSheet,
   useColorScheme,
-  ActivityIndicator,
   Alert,
   RefreshControl,
 } from 'react-native';
 
+
 import { secureStorage } from '../../services/storage';
 import { colors, spacing, lightTheme, darkTheme, BODY_FONT } from '../../theme';
+import { SkeletonBar, SkeletonGroup } from '../common/Skeleton';
 
 interface ProjectListProps {
   onSelectProject: (project: Project) => void;
@@ -196,10 +197,28 @@ export function ProjectList({
 
   const renderEmpty = () => {
     if (isLoading && !initialFetchComplete) {
+      // The card as `renderProject` draws it: the 80x60 thumbnail well on the
+      // left, title and date beside it.
       return (
-        <View style={styles.emptyContainer}>
-          <ActivityIndicator size="large" color={colors.primary[600]} />
-        </View>
+        <>
+          {[0, 1, 2].map((i) => (
+            <View
+              key={i}
+              style={[
+                styles.projectCard,
+                { backgroundColor: theme.card, borderColor: theme.cardBorder },
+              ]}
+            >
+              <SkeletonGroup on="card" style={styles.skeletonCard}>
+                <SkeletonBar width={80} height={60} radius={8} />
+                <View style={styles.skeletonInfo}>
+                  <SkeletonBar width={(['66%', '48%', '74%'] as const)[i]} height={15} />
+                  <SkeletonBar width="34%" height={11} />
+                </View>
+              </SkeletonGroup>
+            </View>
+          ))}
+        </>
       );
     }
 
@@ -326,6 +345,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     overflow: 'hidden',
   },
+  skeletonCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.medium,
+    flex: 1,
+    margin: spacing.medium,
+  },
+  skeletonInfo: { flex: 1, gap: 6 },
   thumbnailContainer: {
     width: 80,
     height: 60,
