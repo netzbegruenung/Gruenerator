@@ -22,6 +22,7 @@ import { SYSTEM_TOOL_INTENTS } from '../../../services/mcp/systemMcpServers.js';
 import { recordDecision } from '../../../utils/decisionJournal.js';
 import { createLogger } from '../../../utils/logger.js';
 import { deriveImplicitRecipeMention } from '../agents/implicitRecipe.js';
+import { preferredLvRecipeMention } from '../agents/lvRecipePreference.js';
 import { getPipelineAgent } from '../agents/pipelines/index.js';
 import { isAgenticLoopEnabled } from '../services/agenticLoop/flags.js';
 import { AGENTIC_INTENTS } from '../services/agenticLoop/intents.js';
@@ -197,11 +198,17 @@ export function runRoutingStage({
   // Prüfungen, die hier vorher als `!runAgentic` plus ein Intent-Literalpaar
   // standen. Ein viertes Prosa-Verdikt bekäme das Rezept damit von selbst,
   // statt dass jemand daran denken muss, diese Zeile nachzuziehen.
+  //
+  // Ein server-eigener Rollen-Baustein zählt dabei NICHT als Custom-Prompt —
+  // dieselbe Ausnahme, die `catalogAssembly` für das Rezept-Selbstladen im
+  // Loop macht: eine Katalogrolle „Presse & Social-Media" will das
+  // Presse-Rezept, statt von allen ausgesperrt zu sein. Der Antwortknoten
+  // hängt das Fragment im Baustein-Zweig entsprechend an (respondNode).
   if (
     plan.lane === 'produktion' &&
     !pipelineAgent &&
     !classifiedState.activeSkillMention &&
-    !classifiedState.customSystemPrompt &&
+    (!classifiedState.customSystemPrompt || classifiedState.roleBausteinActive === true) &&
     enabledTools?.['rezept_laden'] !== false
   ) {
     const implicitRecipe = deriveImplicitRecipeMention(
@@ -209,11 +216,23 @@ export function runRoutingStage({
       classifiedState.userLocale ?? null
     );
     if (implicitRecipe) {
-      recordDecision('router.implicit_recipe', implicitRecipe, {
-        inputs: { intent: classifiedState.intent },
+      // Der Matcher liefert bewusst nur generische Mentions (ein nacktes
+      // Plattformwort trägt keine Region). Die Region kommt aus dem Kontext:
+      // LV-PR-Agent oder genau EINE Landesverbands-Rolle → deren Variante.
+      const lvVariant = preferredLvRecipeMention({
+        mention: implicitRecipe,
+        agentIdentifier: classifiedState.agentConfig?.identifier ?? null,
+        roles: classifiedState.userRoles ?? null,
+        userLocale: classifiedState.userLocale ?? null,
       });
-      log.info(`[${requestId}] implicit recipe on single-pass: @${implicitRecipe}`);
-      classifiedState.activeSkillMention = implicitRecipe;
+      recordDecision('router.implicit_recipe', implicitRecipe, {
+        inputs: { intent: classifiedState.intent, ...(lvVariant && { lvVariant }) },
+      });
+      log.info(
+        `[${requestId}] implicit recipe on single-pass: @${lvVariant ?? implicitRecipe}` +
+          (lvVariant ? ` (LV-Vorzug statt @${implicitRecipe})` : '')
+      );
+      classifiedState.activeSkillMention = lvVariant ?? implicitRecipe;
     }
   }
 

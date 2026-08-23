@@ -60,6 +60,7 @@ import { materialDominatesTurn, resolveLoopMode } from './loopMode.js';
 import { createAnswerEmitter } from './loopSse.js';
 import { spliceToolReplay } from './mcpReplay.js';
 import { stripDuplicatedOpening } from './openingDedupe.js';
+import { type RecipeRegistry } from './recipeRegistry.js';
 import { rewritesSuppliedText } from './routing.js';
 import { createSourceRegistry } from './sourceRegistry.js';
 import { buildConnectorNotes, buildSynthSystem, type SynthPromptContext } from './synthPrompt.js';
@@ -160,6 +161,10 @@ export async function streamAgenticResponse(
   let toolReplayMessages: ModelMessage[] = [];
   let mode: LoopMode = 'unified';
   let synthName = '';
+  // Außerhalb des try, damit die Attribution nach dem Loop noch erreichbar ist
+  // — auch wenn der Loop selbst abgebrochen wurde (das Rezept war dann
+  // trotzdem im Prompt).
+  let loadedRecipeRegistry: RecipeRegistry | null = null;
   // Time the (un-budgeted) MCP tool-mount so a slow connector shows up in the
   // end-of-turn line instead of looking like an unexplained multi-second hang.
   let mcpMountMs = 0;
@@ -195,6 +200,7 @@ export async function streamAgenticResponse(
       threadId: threadId ?? null,
     });
     const { tools, recipeCatalog, recipeRegistry, toolLabels } = assembled;
+    loadedRecipeRegistry = recipeRegistry;
     mcpCatalog = assembled.mcpCatalog;
     systemCatalog = assembled.systemCatalog;
     mcpMountMs = assembled.mcpMountMs;
@@ -590,6 +596,12 @@ export async function streamAgenticResponse(
     for (const s of steps) delete s.textOffset;
     sse.send('completion', { text: emitter.text, citations: sourceRegistry.getCitations() });
   }
+
+  // Nachvollziehbarkeit: selbst geladene Rezepte (`rezept_laden`) gewinnen —
+  // war die Wahl explizit (@presse), ist die Registry gar nicht montiert und
+  // der Wert aus `buildSystemMessage` bleibt stehen.
+  const loadedRecipes = loadedRecipeRegistry?.summaries() ?? [];
+  if (loadedRecipes.length > 0) finalState.usedRecipes = [...loadedRecipes];
 
   logTurnSummary({
     modelName: resolution?.modelName ?? agentConfig.model,
