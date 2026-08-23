@@ -31,6 +31,7 @@ import { ImageGenerationFrame } from '../ImageGenerationFrame';
 import { showsImageGenerationFrame } from '../imageGenerationView';
 import { MemoryIndicator } from '../MemoryIndicator';
 import { SearchImagesSection } from '../SearchImagesSection';
+import { SharepicVariantCard } from '../SharepicVariantCard';
 import { SocialPostCard } from '../SocialPostCard';
 
 import { AgentBadge } from './AgentBadge';
@@ -71,6 +72,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
   const computeData = metadata.computeData;
   const chartData = metadata.chartData;
   const socialPostData = metadata.socialPostData;
+  const sharepicData = metadata.sharepicData;
   const bahnData = metadata.bahnData;
   const artifactData = metadata.artifactData;
   const searchImages = metadata.searchImages;
@@ -174,6 +176,12 @@ export const AssistantMessage = memo(function AssistantMessage() {
           {!isStreaming && chartData && <ChatChartCard data={chartData} theme={theme} />}
           {!isStreaming && artifactData && <ArtifactCard artifact={artifactData} theme={theme} />}
           {!isStreaming && bahnData && <BahnCard data={bahnData} theme={theme} />}
+          {/* Same precedence as web: the combined post draws its own sharepic
+            column, and a generated image already IS the picture — the card
+            would put a second one under it. */}
+          {sharepicData && !generatedImage && !socialPostData && (
+            <SharepicVariantCard data={sharepicData} theme={theme} />
+          )}
           {/* Placeholder frame while the KI image is still being generated, in the
             slot the picture itself will occupy — web puts both above the answer,
             mobile has always shown generated images below it, and a placeholder
