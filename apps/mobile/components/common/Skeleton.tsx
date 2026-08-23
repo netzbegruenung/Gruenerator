@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { createContext, useContext, useEffect } from 'react';
 import { View, StyleSheet, useColorScheme } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -9,7 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { useReduceMotion } from '../../hooks/useAccessibilityPreferences';
-import { lightTheme, darkTheme } from '../../theme';
+import { colors, lightTheme, darkTheme } from '../../theme';
 
 import type { ReactNode } from 'react';
 import type { DimensionValue, StyleProp, ViewStyle } from 'react-native';
@@ -65,14 +65,33 @@ export function useSkeletonPulse() {
   return useAnimatedStyle(() => ({ opacity: pulse.value }));
 }
 
-/** The colour the bars are painted in — `theme.surface`, one step off the page. */
+/**
+ * What the skeleton is lying on. It has to be said, because the bars are drawn
+ * one step off their ground and the two grounds are different colours: in dark
+ * mode a card is painted in `theme.surface` itself (`useSurfaceStyles`), so a
+ * `theme.surface` bar on a card is an invisible bar.
+ */
+export type SkeletonSurface = 'background' | 'card';
+
+const SurfaceContext = createContext<SkeletonSurface>('background');
+
+/**
+ * The colour the bars are painted in — one step off whichever ground the
+ * enclosing `SkeletonGroup` was told it sits on.
+ */
 export function useSkeletonColor(): string {
   const colorScheme = useColorScheme();
-  return (colorScheme === 'dark' ? darkTheme : lightTheme).surface;
+  const surface = useContext(SurfaceContext);
+  const isDark = colorScheme === 'dark';
+
+  if (surface === 'card') return isDark ? colors.grey[800] : colors.grey[100];
+  return (isDark ? darkTheme : lightTheme).surface;
 }
 
 interface SkeletonGroupProps {
   children: ReactNode;
+  /** The ground the bars sit on. `'card'` wherever the drawing is inside one. */
+  on?: SkeletonSurface;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -80,18 +99,20 @@ interface SkeletonGroupProps {
  * Wraps a drawing of bars: pulses them together, keeps them out of the
  * accessibility tree, and lets touches through to whatever is underneath.
  */
-export function SkeletonGroup({ children, style }: SkeletonGroupProps) {
+export function SkeletonGroup({ children, on = 'background', style }: SkeletonGroupProps) {
   const pulseStyle = useSkeletonPulse();
 
   return (
-    <Animated.View
-      style={[style, pulseStyle]}
-      pointerEvents="none"
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
-    >
-      {children}
-    </Animated.View>
+    <SurfaceContext.Provider value={on}>
+      <Animated.View
+        style={[style, pulseStyle]}
+        pointerEvents="none"
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      >
+        {children}
+      </Animated.View>
+    </SurfaceContext.Provider>
   );
 }
 
@@ -197,6 +218,7 @@ interface SkeletonRowsProps {
   /** Whether each row carries a second, shorter line under the title. */
   meta?: boolean;
   gap?: number;
+  on?: SkeletonSurface;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -206,13 +228,14 @@ export function SkeletonRows({
   leading = 44,
   meta = true,
   gap = 0,
+  on = 'background',
   style,
 }: SkeletonRowsProps) {
   // Ragged, so the block does not read as a table. Cycled, so any count works.
   const titleWidths = ['72%', '54%', '81%', '63%'] as const;
 
   return (
-    <SkeletonGroup style={[{ gap }, style]}>
+    <SkeletonGroup on={on} style={[{ gap }, style]}>
       {Array.from({ length: count }).map((_, i) => (
         <View key={i} style={rowStyles.row}>
           {leading > 0 ? <SkeletonCircle size={leading} /> : null}
@@ -237,6 +260,7 @@ interface SkeletonTilesProps {
   radius?: number;
   /** A caption bar under each tile, as a card with a title would have. */
   caption?: boolean;
+  on?: SkeletonSurface;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -249,13 +273,14 @@ export function SkeletonTiles({
   aspectRatio = 1,
   radius = 12,
   caption = false,
+  on = 'background',
   style,
 }: SkeletonTilesProps) {
   const width: DimensionValue =
     itemWidth ?? (`${(100 - (columns - 1) * 2) / columns}%` as DimensionValue);
 
   return (
-    <SkeletonGroup style={[rowStyles.grid, { gap }, style]}>
+    <SkeletonGroup on={on} style={[rowStyles.grid, { gap }, style]}>
       {Array.from({ length: count }).map((_, i) => (
         <View key={i} style={{ width, gap: 8 }}>
           <SkeletonBar width="100%" aspectRatio={aspectRatio} radius={radius} />
