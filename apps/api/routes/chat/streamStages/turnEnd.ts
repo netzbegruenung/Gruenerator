@@ -2,7 +2,7 @@
  * The two ways a turn ends before the response stage: suspended for the client
  * to act on, or answered with a fixed sentence.
  *
- * Both are shared by several stages (the app gate, the sharepic licence, both
+ * Both are shared by several stages (the reel gate, the sharepic licence, both
  * HITL gates, the client-tool interrupt), which is why they are plain functions
  * with explicit parameters rather than closures over the router's locals.
  */

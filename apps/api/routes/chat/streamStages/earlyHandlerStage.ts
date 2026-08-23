@@ -2,8 +2,8 @@
  * The handler branches that can own the whole turn before the response stage.
  *
  * Order is the contract here, and every branch documents why it sits where it
- * does: reel upload → reel edit → app gate → reel context → social-post text
- * edit → sharepic edit → sharepic refinement. Several of them share an
+ * does: reel upload → reel edit → reel context → social-post text edit →
+ * sharepic edit → sharepic refinement. Several of them share an
  * EDIT_NOUN_PATTERN, so moving one past another silently rehomes turns.
  *
  * Each branch either declines (falls through) or writes the whole SSE response
@@ -12,7 +12,6 @@
 
 import { createLogger } from '../../../utils/logger.js';
 import { extractTextContent } from '../services/messageHelpers.js';
-import { APP_REDIRECT_TEXTS } from '../services/platformGating.js';
 import {
   buildReelContextBlock,
   handleReelEdit,
@@ -35,7 +34,6 @@ import {
 } from '../services/socialPostEditService.js';
 import { type SSEWriter } from '../services/sseHelpers.js';
 
-import { finishTurnWithFixedText, type FixedTextBase } from './turnEnd.js';
 import {
   type CleanupPending,
   type InitialState,
@@ -61,7 +59,6 @@ export interface EarlyHandlerStageParams {
   classifiedState: ChatGraphState;
   initialState: InitialState;
   cleanupPending: CleanupPending;
-  fixedTextBase: FixedTextBase;
   actualThreadId: string | undefined;
   userId: string;
   lastUserMessage: StreamContext['lastUserMessage'];
@@ -90,7 +87,6 @@ export async function runEarlyHandlerStage({
   classifiedState,
   initialState,
   cleanupPending,
-  fixedTextBase,
   actualThreadId,
   userId,
   lastUserMessage,
@@ -171,32 +167,6 @@ export async function runEarlyHandlerStage({
     }
   }
 
-  // === App gate: sharepic UI is web-only ===
-  // The app renders neither sharepic_complete nor the combined-post card,
-  // so these turns would generate into the void. Placed before the edit/
-  // refinement branches and BOTH HITL interrupts — an interrupt stored
-  // with a sharepic intent would resume past this gate (resumePipeline
-  // has no platform check). social_post degrades to its text-only
-  // sibling intent instead of a redirect: the post text is a plain chat
-  // answer the app renders fine.
-  if (initialState.clientPlatform === 'app') {
-    if (classifiedState.intent === 'social_post') {
-      classifiedState.intent = 'examples';
-      log.info('[ChatGraph] social_post on app — downgraded to examples (text-only post)');
-    }
-    if (classifiedState.intent === 'sharepic') {
-      log.info('[ChatGraph] Sharepic intent on app — redirecting to web');
-      return {
-        handled: true,
-        result: await finishTurnWithFixedText({
-          ...fixedTextBase,
-          text: APP_REDIRECT_TEXTS.sharepic,
-          intent: 'sharepic',
-        }),
-      };
-    }
-  }
-
   // === Reel context: transcript for non-edit turns ===
   // With a reel attached, every turn the edit branch did NOT claim gets
   // the subtitle transcript injected as attachment context, so the normal
@@ -229,10 +199,8 @@ export async function runEarlyHandlerStage({
   // combined post (rawCurrentSocialPost, which may set both), text-ish
   // instructions edit the post and sharepic-noun instructions still fall
   // through to the sharepic path. Declines (returns false) when the
-  // thread has no editable post. Skipped on the app, which can't render
-  // the combined-post card or its update events.
+  // thread has no editable post.
   if (
-    initialState.clientPlatform !== 'app' &&
     actualThreadId &&
     lastUserMessage &&
     imageAttachments.length === 0 &&
@@ -270,11 +238,8 @@ export async function runEarlyHandlerStage({
   // sharepic the thread already produced. Applies structured operations to
   // the (lazily minted) canvas document and updates the card in place —
   // see sharepicEditService. Falls through to the legacy text-regeneration
-  // refinement below when no editable target exists. Skipped on the app,
-  // which can't render sharepic updates — edit-y phrases there run through
-  // the normal pipeline instead.
+  // refinement below when no editable target exists.
   if (
-    initialState.clientPlatform !== 'app' &&
     actualThreadId &&
     lastUserMessage &&
     imageAttachments.length === 0 &&
@@ -340,7 +305,6 @@ export async function runEarlyHandlerStage({
   // narrow case rather than the common one.
   let sharepicRefinement: SharepicRefinement | undefined;
   if (
-    initialState.clientPlatform !== 'app' &&
     actualThreadId &&
     lastUserMessage &&
     imageAttachments.length === 0 &&

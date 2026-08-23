@@ -74,8 +74,7 @@ const { userTurn } = await import('./harness/testApp.js');
 const { runTurn } = await import('./harness/trace.js');
 const { respond } = await import('./harness/respondScript.js');
 const { sharepicControl } = await import('./harness/mocks.js');
-const { NO_SHAREPIC_TO_EDIT_TEXT, APP_REDIRECT_TEXTS } =
-  await import('../services/platformGating.js');
+const { NO_SHAREPIC_TO_EDIT_TEXT } = await import('../services/platformGating.js');
 
 const suite = useChatApp();
 
@@ -225,13 +224,22 @@ describe('negative action constraints', () => {
 });
 
 describe('platform gating', () => {
-  it('redirects a sharepic request from the app instead of generating', async () => {
+  // The app used to get a fixed "nur in der Web-Version" text here. The gate is
+  // gone, so what needs guarding is the opposite: that `platform: 'app'` no
+  // longer diverts the turn. Asserted against the identical web turn above,
+  // which lands on `sharepic` — a redirect would show up as any other intent, a
+  // silent drop as a missing licence.
+  //
+  // Says nothing about whether the app can DRAW the result: that is the client's
+  // business, ships on its own clock, and a routing test that claimed to know it
+  // would be wrong for whichever window the two merges leave open.
+  it('lets a sharepic request from the app reach the sharepic path', async () => {
     const { trace } = await runTurn(suite.baseUrl(), {
       messages: [userTurn('Erstelle ein Sharepic zur Windkraft')],
       platform: 'app',
     });
 
-    expect(trace.fullText).toContain(APP_REDIRECT_TEXTS.sharepic.slice(0, 40));
-    expect(trace.sharepicGenerated).toBe(false);
+    expect(trace.intent).toBe('sharepic');
+    expect(trace.fullText).not.toContain('nur in der Web-Version');
   });
 });
