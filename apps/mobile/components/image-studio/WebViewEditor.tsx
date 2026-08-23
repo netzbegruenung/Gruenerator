@@ -126,6 +126,10 @@ export function WebViewEditor({ initialData, onSave, onCancel }: WebViewEditorPr
         // Optimization flags
         decelerationRate="normal"
         allowsInlineMediaPlayback={true}
+        // The canvas editor focuses its text inputs from code (it mounts a
+        // textarea over the shape). iOS defaults this to `true`, which
+        // suppresses the keyboard for exactly that case — see web-viewer.tsx.
+        keyboardDisplayRequiresUserAction={false}
         scrollEnabled={false} // Canvas usually handles its own scrolling/panning
       />
     </View>
