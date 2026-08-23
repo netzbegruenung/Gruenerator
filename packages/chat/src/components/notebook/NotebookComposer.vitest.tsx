@@ -6,7 +6,8 @@
  * have been reachable by nobody. Second, the active tier is readable without
  * opening the menu: before this it was invisible everywhere in the UI, so
  * nothing on screen distinguished an answer built from one search from one built
- * from three.
+ * from three. The tier now shows as its own icon rather than as a word, so the
+ * accessible name is the only place its identity is spelled out.
  */
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -39,14 +40,16 @@ function renderComposer(mode: NotebookDepth, onModeChange = vi.fn()) {
 }
 
 describe('NotebookComposer — depth control', () => {
-  it('shows the active tier without opening the menu', async () => {
+  it('carries the active tier in the trigger, not as a word', () => {
     renderComposer('ultra');
-    expect(screen.getByText('Ultra')).toBeInTheDocument();
+    // The label is gone from the pill; the accessible name is what still names
+    // the tier, so dropping it would leave the setting unreadable entirely.
+    expect(screen.getByRole('button', { name: /Suchtiefe: Ultra/ })).toBeInTheDocument();
+    expect(screen.queryByText('Ultra')).not.toBeInTheDocument();
   });
 
   it('names the active tier in the trigger label for screen readers', () => {
     renderComposer('deep');
-    // The visible pill is one word; the accessible name has to say what it is.
     expect(screen.getByRole('button', { name: /Suchtiefe: Mittel/ })).toBeInTheDocument();
   });
 
