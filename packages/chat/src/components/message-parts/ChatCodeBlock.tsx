@@ -278,7 +278,9 @@ function CodeOutput({ output }: { output: CodeExecutionResult }) {
           {files.map((file) => (
             <button
               key={file.name}
-              onClick={() => downloadBase64(file.base64, file.name, mimeFromFilename(file.name))}
+              onClick={() =>
+                void downloadBase64(file.base64, file.name, mimeFromFilename(file.name))
+              }
               className="flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1 text-xs text-foreground transition-colors hover:border-primary/50 hover:bg-primary/10"
             >
               <FileDown className="h-3.5 w-3.5 text-primary" />
