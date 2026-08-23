@@ -1,11 +1,16 @@
 import { parseWebViewMessage } from '@gruenerator/shared';
-import { useRef, useEffect, useState, useCallback } from 'react';
+import * as WebBrowser from 'expo-web-browser';
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { StyleSheet, View, ActivityIndicator, Text, Platform, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
 import { useTheme } from '../../hooks/useTheme';
 import { secureStorage } from '../../services/storage';
+import {
+  decideNavigation,
+  WEBVIEW_ORIGIN_WHITELIST,
+} from '../../services/webview/navigationPolicy';
 import { receiveDownload } from '../../services/webview/receiveDownload';
 import { colors, BODY_FONT } from '../../theme';
 
@@ -99,12 +104,55 @@ export function WebViewEditor({ initialData, onSave, onCancel }: WebViewEditorPr
     [initialData, authToken, onSave, onCancel]
   );
 
-  // Inject token into localStorage before page loads
+  // The same containment the pinned `web-viewer` screen has. This screen is the
+  // app's second WebView and had none of it: any link the editor rendered would
+  // have navigated this view somewhere else, with no chrome and no way back.
+  // See `navigationPolicy.ts` for why the gate — and not `originWhitelist` —
+  // is what actually holds.
+  const policy = useMemo(
+    () => ({
+      origin: new URL(WEB_APP_URL).origin,
+      allowedPathPrefixes: [WEB_EDITOR_PATH],
+    }),
+    []
+  );
+
+  const openExternally = useCallback((url: string) => {
+    void WebBrowser.openBrowserAsync(url).catch((err: unknown) =>
+      console.warn('[WebViewEditor] failed to open external URL', err)
+    );
+  }, []);
+
+  const handleShouldStartLoad = useCallback(
+    (request: { url: string; isTopFrame?: boolean }) => {
+      const decision = decideNavigation(request, policy);
+      if (decision === 'external') openExternally(request.url);
+      return decision === 'allow';
+    },
+    [policy, openExternally]
+  );
+
+  const handleOpenWindow = useCallback(
+    (event: { nativeEvent: { targetUrl: string } }) => {
+      const url = event.nativeEvent.targetUrl;
+      if (decideNavigation({ url, isTopFrame: true }, policy) === 'external') {
+        openExternally(url);
+      }
+    },
+    [policy, openExternally]
+  );
+
+  // Inject token into localStorage before page loads.
+  //
+  // `JSON.stringify` rather than quoting it by hand: the token is an opaque
+  // string from the server, and building JavaScript source out of it with bare
+  // quotes means one apostrophe would end the string and run the rest as code.
   const injectedJavaScript = `
     (function() {
       try {
-        if ('${authToken}') {
-          window.localStorage.setItem('auth_token', '${authToken}');
+        var token = ${JSON.stringify(authToken ?? '')};
+        if (token) {
+          window.localStorage.setItem('auth_token', token);
         }
         // Signal that native environment is present
         window.isNativeApp = true;
@@ -140,6 +188,20 @@ export function WebViewEditor({ initialData, onSave, onCancel }: WebViewEditorPr
             <Text style={[styles.loadingText, { color: theme.textSecondary }]}>Lade Editor...</Text>
           </View>
         )}
+        // — containment, the same set as `web-viewer.tsx` —
+        onShouldStartLoadWithRequest={handleShouldStartLoad}
+        onOpenWindow={handleOpenWindow}
+        // Everything, on purpose: a URL that fails this list is handed to
+        // `Linking.openURL` and the gate above is never asked. The reasoning
+        // is written out at `WEBVIEW_ORIGIN_WHITELIST`.
+        originWhitelist={WEBVIEW_ORIGIN_WHITELIST}
+        setSupportMultipleWindows={false}
+        javaScriptCanOpenWindowsAutomatically={false}
+        allowsBackForwardNavigationGestures={false}
+        allowsLinkPreview={false}
+        allowFileAccess={false}
+        allowFileAccessFromFileURLs={false}
+        allowUniversalAccessFromFileURLs={false}
         // Optimization flags
         decelerationRate="normal"
         allowsInlineMediaPlayback={true}
