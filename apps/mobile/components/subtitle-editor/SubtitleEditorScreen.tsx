@@ -33,6 +33,7 @@ import { useSubtitleEditorStore } from '../../stores/subtitleEditorStore';
 import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 import { DraggableSplitView } from '../common/DraggableSplitView';
 import { CategoryBar, InlineBar } from '../common/editor-toolbar';
+import { SkeletonBar, SkeletonGroup, SkeletonRows } from '../common/Skeleton';
 
 import { StyleControl, PositionControl } from './controls';
 import { SubtitleTimeline } from './SubtitleTimeline';
@@ -265,13 +266,27 @@ export function SubtitleEditorScreen({
   }, []);
 
   if (isLoadingProject) {
+    // The split the editor opens in: the 9:16 preview above, the subtitle
+    // timeline below. Both halves are laid out before the project arrives.
     return (
-      <View
-        style={[styles.container, styles.loadingContainer, { backgroundColor: theme.background }]}
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: theme.background }]}
+        edges={['top']}
       >
-        <ActivityIndicator size="large" color={colors.primary[600]} />
-        <Text style={[styles.loadingText, { color: theme.text }]}>Projekt wird geladen...</Text>
-      </View>
+        <View style={styles.previewSection}>
+          <SkeletonGroup style={styles.previewSkeleton}>
+            <SkeletonBar width="100%" height="100%" radius={borderRadius.large} />
+          </SkeletonGroup>
+        </View>
+        <View style={styles.timelineSection}>
+          <View style={[styles.timelineHeader, { borderBottomColor: theme.border }]}>
+            <SkeletonGroup>
+              <SkeletonBar width={140} height={15} />
+            </SkeletonGroup>
+          </View>
+          <SkeletonRows count={5} leading={0} />
+        </View>
+      </SafeAreaView>
     );
   }
 
@@ -281,6 +296,9 @@ export function SubtitleEditorScreen({
         style={[styles.container, { backgroundColor: theme.background }]}
         edges={['top']}
       >
+        {/* Deliberately still a spinner: what loads behind it is the export
+            progress screen, and an export is an operation with its own progress
+            bar, not a surface whose layout could be promised. */}
         <Suspense
           fallback={
             <View style={[styles.container, styles.loadingContainer]}>
@@ -452,11 +470,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.medium,
   },
-  loadingText: {
-    fontFamily: BODY_FONT,
-    fontSize: 16,
-    fontWeight: '500',
-  },
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -470,6 +483,13 @@ const styles = StyleSheet.create({
     fontFamily: BODY_FONT,
     fontSize: 13,
     flex: 1,
+  },
+  // Mirrors `VideoPreviewWithSubtitle`'s own container, which is what will
+  // stand here once the project has loaded.
+  previewSkeleton: {
+    width: '100%',
+    aspectRatio: 9 / 16,
+    maxHeight: 280,
   },
   previewSection: {
     flex: 1,

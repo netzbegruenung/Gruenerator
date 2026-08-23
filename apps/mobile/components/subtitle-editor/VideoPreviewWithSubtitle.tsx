@@ -7,10 +7,12 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useEvent } from 'expo';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { useMemo, useEffect, useState } from 'react';
-import { View, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
+
 
 import { secureStorage } from '../../services/storage';
 import { colors, spacing, borderRadius } from '../../theme';
+import { SkeletonBar, SkeletonGroup } from '../common/Skeleton';
 
 import { SubtitleOverlay } from './SubtitleOverlay';
 
@@ -68,9 +70,7 @@ export function VideoPreviewWithSubtitle({
   return (
     <View style={styles.container}>
       {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary[600]} />
-        </View>
+        <VideoFrameSkeleton />
       ) : (
         <>
           <VideoPlayer
@@ -87,6 +87,19 @@ export function VideoPreviewWithSubtitle({
         </>
       )}
     </View>
+  );
+}
+
+/**
+ * The frame is already the right size — the container is a fixed 9:16 box — so
+ * what is missing is only the picture. A pulsing fill says that it is coming;
+ * a spinner in the same box said an operation was running.
+ */
+function VideoFrameSkeleton() {
+  return (
+    <SkeletonGroup style={styles.loadingContainer}>
+      <SkeletonBar width="100%" height="100%" radius={0} />
+    </SkeletonGroup>
   );
 }
 
@@ -112,11 +125,7 @@ function VideoPlayer({ source, onTogglePlayback, isPlaying }: VideoPlayerProps) 
   }, [isPlaying, player]);
 
   if (!source) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary[600]} />
-      </View>
-    );
+    return <VideoFrameSkeleton />;
   }
 
   return (
