@@ -17,9 +17,11 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
+import { WebViewSkeleton } from '../../components/webview/WebViewSkeleton';
 import { mintWebViewHandoff } from '../../services/webview/handoff';
 import {
   CANVAS_MENUBAR_GRADIENT_STOPS,
+  embeddedSurfaceShape,
   hostDrawsHeader,
   statusBarTint,
 } from '../../services/webview/hostChrome';
@@ -197,6 +199,20 @@ export default function WebViewerScreen() {
     );
   }
 
+  // Both waits below show the same thing: the mint of the handoff URL, and the
+  // page load that follows it. The surfaces that draw their own header get a
+  // skeleton of that header and their body — until the page paints, the host is
+  // showing nothing else. The rest are a different page every time and keep the
+  // spinner; see `embeddedSurfaceShape`.
+  const shape = embeddedSurfaceShape(path);
+  const placeholder = shape ? (
+    <WebViewSkeleton shape={shape} />
+  ) : (
+    <View style={styles.loading}>
+      <ActivityIndicator color={colors.primary[600]} />
+    </View>
+  );
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       {/* The `(fullscreen)` group hides the status bar for its read-only
@@ -239,9 +255,7 @@ export default function WebViewerScreen() {
           <Text style={[styles.errorText, { color: theme.textSecondary }]}>{error}</Text>
         </View>
       ) : targetUrl === null ? (
-        <View style={styles.loading}>
-          <ActivityIndicator color={colors.primary[600]} />
-        </View>
+        placeholder
       ) : (
         <>
           <WebView
@@ -292,7 +306,7 @@ export default function WebViewerScreen() {
           />
           {loading && (
             <View style={styles.loadingOverlay} pointerEvents="none">
-              <ActivityIndicator color={colors.primary[600]} />
+              {placeholder}
             </View>
           )}
         </>
@@ -326,14 +340,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 21,
   },
+  // No centring here any more: the placeholder inside brings its own layout —
+  // `styles.loading` centres the spinner, the skeleton fills the box.
   loadingOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.01)',
   },
 });
