@@ -44,6 +44,36 @@ export default [
     },
   },
   {
+    // The board is the biggest surface the mobile app embeds in its pinned
+    // WebView (`EMBEDDABLE_PATH_PREFIXES` in
+    // apps/api/plugins/webViewHandoffRedirect.ts). Embedded, `RouteComponent`
+    // forces `noChrome` on every route, so a navigation to a hub renders a
+    // page with no navigation and no way back — the user is stuck until they
+    // hit the host's close button. Three such navigations existed here.
+    //
+    // The way out of an embeddable surface is `useHostAwareBack`, which asks
+    // the host to close instead. Actions that only make sense outside the app
+    // (`/chat` from a card) belong behind `isEmbedded()`.
+    //
+    // Scoped to the board rather than to every embeddable surface: a feature
+    // directory holds its hub as well as its editor, and for the others the
+    // two are not separable by glob. PublicBoardPage is out — `/boards/public/:id`
+    // is a share link rendered without chrome anyway, never opened by the app.
+    files: ['src/features/boards/**/*.{ts,tsx}'],
+    ignores: ['src/features/boards/PublicBoardPage.tsx'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "CallExpression[callee.name='navigate'] > Literal[value=/^\\/(workplace|office|notebooks|chat|studio|arbeiten)?$/]",
+          message:
+            'Diese Fläche kann in der Mobile-App eingebettet sein — eingebettet ist ein Hub-Pfad eine Sackgasse ohne Navigation. useHostAwareBack() benutzen, oder die Aktion hinter isEmbedded() verbergen.',
+        },
+      ],
+    },
+  },
+  {
     ignores: ['build/**', 'dist/**', 'public/**', 'scripts/**'],
   },
 ];

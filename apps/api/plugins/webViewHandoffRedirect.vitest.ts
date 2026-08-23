@@ -1,6 +1,67 @@
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { describe, expect, it } from 'vitest';
 
-import { validateRedirectTarget } from './webViewHandoffRedirect.js';
+import {
+  EMBEDDABLE_PATH_PREFIXES,
+  SHIPPED_BINARY_ONLY_PREFIXES,
+  validateRedirectTarget,
+} from './webViewHandoffRedirect.js';
+
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
+const MOBILE_DIR = path.join(REPO_ROOT, 'apps/mobile');
+
+const SKIP_DIRS = new Set(['node_modules', 'ios', 'android', '.expo', 'dist', 'build']);
+
+function sourceFiles(dir: string, out: string[] = []): string[] {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (SKIP_DIRS.has(entry.name) || entry.name.startsWith('.')) continue;
+      sourceFiles(full, out);
+      continue;
+    }
+    // `withFileTypes` reports a dangling symlink as neither — `apps/mobile/ios`
+    // is full of them (CocoaPods), which is why that directory is skipped
+    // outright, but be defensive rather than throw mid-walk.
+    if (!entry.isFile()) {
+      try {
+        if (!statSync(full).isFile()) continue;
+      } catch {
+        continue;
+      }
+    }
+    if (/\.tsx?$/.test(entry.name)) out.push(full);
+  }
+  return out;
+}
+
+/**
+ * Every `path:` the app hands to the `web-viewer` screen.
+ *
+ * Template holes (`${item.id}`) become a literal `x`: the id never decides
+ * whether a path is allowlisted, the prefix does, and substituting keeps the
+ * result something `validateRedirectTarget` can actually judge.
+ */
+function mobileWebViewPaths(): { file: string; path: string }[] {
+  const found: { file: string; path: string }[] = [];
+  const callSite =
+    /pathname:\s*'\/\(fullscreen\)\/web-viewer'[\s\S]{0,400}?path:\s*(?:`([^`]*)`|'([^']*)')/g;
+
+  for (const file of sourceFiles(MOBILE_DIR)) {
+    const source = readFileSync(file, 'utf-8');
+    for (const match of source.matchAll(callSite)) {
+      const raw = match[1] ?? match[2] ?? '';
+      found.push({
+        file: path.relative(REPO_ROOT, file),
+        path: raw.replace(/\$\{[^}]*\}/g, 'x'),
+      });
+    }
+  }
+  return found;
+}
 
 describe('validateRedirectTarget', () => {
   describe('accepts', () => {
@@ -16,24 +77,6 @@ describe('validateRedirectTarget', () => {
       ['/office/1', 'office dispatcher — docs, sheets and presentations'],
     ])('%s — %s', (input) => {
       expect(validateRedirectTarget(input)).toEqual({ ok: true, path: input });
-    });
-
-    // The allowlist is hand-maintained against the mobile callers, and one
-    // entry was already missed once (/documents/, shipped in
-    // GroupContentSection.tsx long before this endpoint existed). Pin every
-    // path the app actually opens, so a new caller without an entry fails here
-    // rather than as a 400 on a device.
-    it.each([
-      ['/boards/1'],
-      ['/gruenerator/slug'],
-      ['/notebook/1'],
-      ['/texte/1'],
-      ['/datenbank/vorlagen?selected=1'],
-      ['/documents/1'],
-      ['/office/1'],
-      ['/studio/canvas/1'],
-    ])('covers the live mobile caller %s', (input) => {
-      expect(validateRedirectTarget(input).ok).toBe(true);
     });
   });
 
@@ -87,5 +130,58 @@ describe('validateRedirectTarget', () => {
       ok: false,
       reason: 'not-allowlisted',
     });
+  });
+});
+
+/**
+ * The allowlist against the callers it is supposed to describe.
+ *
+ * It used to be kept in sync by hand, and this file used to hold a hand-typed
+ * copy of the caller list to check it — a third copy of the same knowledge,
+ * which is one more place to forget. One entry had already been missed once
+ * (`/documents/`, shipped in `GroupContentSection.tsx` long before this
+ * endpoint existed), and a miss shows up on a device as a 400, not here.
+ */
+describe('EMBEDDABLE_PATH_PREFIXES vs. the mobile callers', () => {
+  const callers = mobileWebViewPaths();
+
+  it('finds the call sites at all', () => {
+    // Without this the two assertions below pass vacuously the day someone
+    // renames the route or reformats the `router.push` calls — an empty list
+    // satisfies "every caller is allowlisted" perfectly.
+    expect(callers.length).toBeGreaterThanOrEqual(8);
+    expect(new Set(callers.map((c) => c.file)).size).toBeGreaterThanOrEqual(3);
+  });
+
+  it('accepts every path the app opens', () => {
+    const rejected = callers
+      .filter((c) => !validateRedirectTarget(c.path).ok)
+      .map((c) => `${c.path} (${c.file})`);
+
+    expect(rejected).toEqual([]);
+  });
+
+  it('has no entry without a caller', () => {
+    // A prefix nobody opens is dead surface area on a security boundary: it
+    // widens what a stolen handoff token can be pointed at, for nothing.
+    // Deliberate survivors live in SHIPPED_BINARY_ONLY_PREFIXES.
+    const unused = EMBEDDABLE_PATH_PREFIXES.filter(
+      (prefix) =>
+        !SHIPPED_BINARY_ONLY_PREFIXES.includes(prefix) &&
+        !callers.some((c) => c.path.startsWith(prefix))
+    );
+
+    expect(unused).toEqual([]);
+  });
+
+  it('keeps the shipped-binary entries inside the allowlist', () => {
+    // The exemption list is only meaningful for prefixes that are actually in
+    // the allowlist — an entry that drifted out of it exempts nothing and
+    // silently stops covering the old binaries it was written for.
+    const orphaned = SHIPPED_BINARY_ONLY_PREFIXES.filter(
+      (prefix) => !EMBEDDABLE_PATH_PREFIXES.includes(prefix)
+    );
+
+    expect(orphaned).toEqual([]);
   });
 });

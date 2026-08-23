@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { decideNavigation, type NavigationPolicy } from './navigationPolicy';
+import {
+  decideNavigation,
+  WEBVIEW_ORIGIN_WHITELIST,
+  type NavigationPolicy,
+} from './navigationPolicy';
 
 const POLICY: NavigationPolicy = {
   origin: 'https://gruenerator.eu',
@@ -86,5 +90,55 @@ describe('decideNavigation', () => {
     // Android omits fields iOS supplies; the safe reading is "this is a
     // navigation", so the policy applies rather than being skipped.
     expect(decideNavigation({ url: 'https://gruenerator.eu/workplace' }, POLICY)).toBe('block');
+  });
+});
+
+/**
+ * The whitelist value itself, because it looks like a mistake.
+ *
+ * `['*']` on a screen whose whole purpose is containment invites a tightening
+ * that silently disables the gate: react-native-webview hands a URL that fails
+ * the whitelist to `Linking.openURL` WITHOUT calling
+ * `onShouldStartLoadWithRequest`. This test re-implements the library's
+ * matcher (`WebViewShared.tsx`) so the trap is visible in our own suite rather
+ * than only in a comment.
+ */
+describe('WEBVIEW_ORIGIN_WHITELIST', () => {
+  // Verbatim from react-native-webview's WebViewShared.tsx.
+  const extractOrigin = (url: string): string => {
+    const result = /^[A-Za-z][A-Za-z0-9+\-.]+:(\/\/)?[^/]*/.exec(url);
+    return result === null ? '' : result[0];
+  };
+  const toRegex = (entry: string): string =>
+    `^${entry
+      .replace(/[|\\{}()[\]^$+*?.]/g, '\\$&')
+      .replace(/-/g, '\\x2d')
+      .replace(/\\\*/g, '.*')}`;
+  const passes = (whitelist: readonly string[], url: string): boolean =>
+    ['about:blank', ...whitelist].map(toRegex).some((r) => new RegExp(r).test(extractOrigin(url)));
+
+  const HANDOFF = 'https://gruenerator.eu/api/auth/v2/web-handoff?ott=x&redirect=/boards/1';
+
+  it('lets our own URLs reach the gate', () => {
+    expect(passes(WEBVIEW_ORIGIN_WHITELIST, HANDOFF)).toBe(true);
+    expect(passes(WEBVIEW_ORIGIN_WHITELIST, 'https://gruenerator.eu/studio/canvas/1')).toBe(true);
+  });
+
+  it('lets foreign URLs reach the gate too, so decideNavigation decides', () => {
+    // Not a hole: `decideNavigation` sends these to the in-app browser itself,
+    // and drops `intent:` entirely. Handing them to the library instead would
+    // mean `Linking.openURL('intent://…')` — an arbitrary Android activity.
+    expect(passes(WEBVIEW_ORIGIN_WHITELIST, 'https://evil.com/x')).toBe(true);
+    expect(passes(WEBVIEW_ORIGIN_WHITELIST, 'intent://scan/#Intent;end')).toBe(true);
+    expect(at('intent://scan/#Intent;end')).toBe('block');
+  });
+
+  it('shows why the obvious tightening is wrong', () => {
+    // The shipped value. It matched nothing, so EVERY navigation — including
+    // the handoff that opens the page — went to the system browser.
+    expect(passes(['https://gruenerator.eu/*'], HANDOFF)).toBe(false);
+    // And dropping the `/*` is not the fix either: the compiled pattern is an
+    // unanchored prefix, so a look-alike domain passes.
+    expect(passes(['https://gruenerator.eu'], 'https://gruenerator.eu.evil.com/x')).toBe(true);
   });
 });
