@@ -58,7 +58,7 @@ describe('seedAttachedDocuments', () => {
 
   beforeEach(() => fanout.mockReset());
 
-  it('trägt die Treffer als EIGENE Recherche ein, nicht als frühere', async () => {
+  it('trägt die Treffer zitierbar ein, aber nicht als frühere Recherche', async () => {
     fanout.mockResolvedValue({
       perSourceResults: { 'doc-1': [hit] },
       searchedCollections: [],
@@ -67,11 +67,48 @@ describe('seedAttachedDocuments', () => {
 
     const { sourceRegistry } = await run(stateWith());
 
-    // `seedCarried` würde `prior` setzen: Ehrlichkeitshinweis „frühere
-    // Recherche" und ausgenommen von `freshSize`. Ein Dokument, das gerade
-    // hochgeladen wurde, ist keine Alt-Recherche.
-    expect(sourceRegistry.freshSize).toBe(1);
+    // `seedCarried` würde `prior` setzen — Ehrlichkeitshinweis „frühere
+    // Recherche". Ein Dokument, das gerade hochgeladen wurde, ist keine
+    // Alt-Recherche, also steht es in `size` und ist zitierbar.
+    expect(sourceRegistry.size).toBe(1);
     expect(sourceRegistry.carriedSize).toBe(0);
+  });
+
+  /**
+   * Der Vorab-Abruf ist nicht die Arbeit des Planers, und beide Wächter, die
+   * gegen `freshSize` budgetieren, urteilen über genau die.
+   *
+   * `emptyResultFallback` erzwingt die Websuche, wenn die interne Suche lief
+   * und leer blieb — mit den geseedeten Passagen im Zähler bliebe sie aus.
+   * `checkSearchBudget` deckelt bei `MAX_SOURCES` (20): zwölf geseedete Chunks
+   * nähmen 60 % weg, bevor der erste Aufruf läuft.
+   */
+  it('zählt nicht als Recherche des Planers', async () => {
+    fanout.mockResolvedValue({
+      perSourceResults: { 'doc-1': [hit] },
+      searchedCollections: [],
+      errors: [],
+    });
+
+    const { sourceRegistry } = await run(stateWith());
+
+    expect(sourceRegistry.freshSize).toBe(0);
+  });
+
+  it('zählt ab dem Moment mit, in dem der Planer denselben Chunk selbst findet', async () => {
+    fanout.mockResolvedValue({
+      perSourceResults: { 'doc-1': [hit] },
+      searchedCollections: [],
+      errors: [],
+    });
+
+    const { sourceRegistry } = await run(stateWith());
+    sourceRegistry.register([hit]);
+
+    // Dieselbe Regel wie bei `prior`: wiedergefunden heisst gefunden — und
+    // unter DERSELBEN Nummer, nicht als zweiter Chip.
+    expect(sourceRegistry.freshSize).toBe(1);
+    expect(sourceRegistry.size).toBe(1);
   });
 
   it('zeigt dem Planer den Abruf als Werkzeug-Paar', async () => {
@@ -107,14 +144,14 @@ describe('seedAttachedDocuments', () => {
     // Ohne Montage darf der Replay nicht auf ein Werkzeug zeigen, das es diesen
     // Turn nicht gibt — die Quellen bleiben trotzdem.
     expect(replay).toEqual([]);
-    expect(sourceRegistry.freshSize).toBe(1);
+    expect(sourceRegistry.size).toBe(1);
   });
 
   it('rührt einen Turn ohne angehängte Dokumente nicht an', async () => {
     const { replay, sourceRegistry } = await run(stateWith({ documentSources: [] }));
 
     expect(replay).toEqual([]);
-    expect(sourceRegistry.freshSize).toBe(0);
+    expect(sourceRegistry.size).toBe(0);
     expect(fanout).not.toHaveBeenCalled();
   });
 
@@ -124,7 +161,7 @@ describe('seedAttachedDocuments', () => {
     const { replay, sourceRegistry } = await run(stateWith());
 
     expect(replay).toEqual([]);
-    expect(sourceRegistry.freshSize).toBe(0);
+    expect(sourceRegistry.size).toBe(0);
   });
 
   it('reisst den Turn nicht mit, wenn der Abruf scheitert', async () => {

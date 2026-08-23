@@ -49,6 +49,7 @@ import {
   retrievableAttachedSources,
   retrieveAttachedDocuments,
   SLICE_DEFAULT_CHARS,
+  SLICE_REGISTER_CHARS,
 } from '../services/agenticLoop/attachedDocuments.js';
 import { isEditorSurface } from '../services/agenticLoop/routing.js';
 import { artifactKind, type ArtifactKindId } from '../services/artifactKindRegistry.js';
@@ -692,10 +693,13 @@ NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summar
             };
           }
           // Eine ausdrückliche Nachlese verdient mehr Platz als ein Suchtreffer
-          // — dieselbe Begründung wie an expand_attachment. Eine Passagensuche
-          // bleibt beim Standardmass.
+          // — dieselbe Begründung wie an expand_attachment. Der Deckel kommt aus
+          // `attachedDocuments`, wo auch die Scheibengrenze davon abgeleitet
+          // ist: die beiden Zahlen dürfen nicht auseinanderlaufen, sonst
+          // verliert die Scheibe ihr Ende. Eine Passagensuche bleibt beim
+          // Standardmass.
           const sources = readSlice
-            ? sourceRegistry.register(results, { snippetChars: EXPAND_ATTACHMENT_SNIPPET_CHARS })
+            ? sourceRegistry.register(results, { snippetChars: SLICE_REGISTER_CHARS })
             : sourceRegistry.register(results);
           if (!sources) return { error: 'Konnte die angehängten Dokumente nicht lesen.' };
           return { resultCount: results.length, sources };

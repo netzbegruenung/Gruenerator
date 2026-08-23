@@ -6,6 +6,8 @@ import {
   retrievableAttachedSources,
   retrieveAttachedDocuments,
   SLICE_DEFAULT_CHARS,
+  SLICE_MAX_CHARS,
+  SLICE_REGISTER_CHARS,
 } from './attachedDocuments.js';
 
 import type {
@@ -129,8 +131,36 @@ describe('readAttachedDocumentSlice', () => {
     expect(result?.title).toBe('Beschlusspapier.pdf');
     // Der Wegweiser ist der einzige Weg, auf dem das Modell erfährt, dass noch
     // etwas kommt — ohne ihn hält es die Scheibe für das ganze Dokument.
-    expect(result?.content).toContain(`Weiter mit abschnitt.von=${SLICE_DEFAULT_CHARS}`);
+    expect(result?.content).toContain(`weiter mit abschnitt.von=${SLICE_DEFAULT_CHARS}`);
     expect(result?.content).toContain('von 25000');
+  });
+
+  /**
+   * Gekappt wird immer der Schwanz — in `applyContextCap` und in der
+   * gemeinsamen Schrumpfung von `renderAll`. Stünde der Wegweiser am Ende, wäre
+   * er genau in den Fällen weg, für die er gebaut ist.
+   */
+  it('stellt den Wegweiser voran, wo keine Kappung ihn erwischt', async () => {
+    fullText.mockResolvedValue({ documents: [{ id: 'doc-1', fullText: 'x'.repeat(25_000) }] });
+
+    const [result] = await readAttachedDocumentSlice(stateWith(), sources, { from: 0 });
+    expect(result?.content.startsWith('[Zeichen 0–')).toBe(true);
+  });
+
+  /**
+   * Die Scheibe muss in das passen, was `sourceRegistry.register` durchlässt.
+   * Lag sie darüber (40.000 gegen 12.000), bekam das Modell 12k Text, las im
+   * Wegweiser aber „Zeichen 0–40000" und übersprang beim Weiterlesen still 28k.
+   */
+  it('bleibt mitsamt Wegweiser unter dem Registrierungs-Deckel', async () => {
+    fullText.mockResolvedValue({ documents: [{ id: 'doc-1', fullText: 'x'.repeat(200_000) }] });
+
+    const [result] = await readAttachedDocumentSlice(stateWith(), sources, {
+      from: 0,
+      chars: 999_999,
+    });
+    expect(SLICE_MAX_CHARS).toBeLessThan(SLICE_REGISTER_CHARS);
+    expect((result?.content ?? '').length).toBeLessThanOrEqual(SLICE_REGISTER_CHARS);
   });
 
   it('markiert das Ende, statt einen Wegweiser ins Leere zu setzen', async () => {
@@ -138,7 +168,7 @@ describe('readAttachedDocumentSlice', () => {
 
     const [result] = await readAttachedDocumentSlice(stateWith(), sources, { from: 500 });
     expect(result?.content).toContain('Ende des Dokuments');
-    expect(result?.content).not.toContain('Weiter mit');
+    expect(result?.content).not.toContain('weiter mit');
   });
 
   it('deckelt eine geratene Zeichenzahl, statt die Lane zu sprengen', async () => {
@@ -148,8 +178,9 @@ describe('readAttachedDocumentSlice', () => {
       from: 0,
       chars: 999_999,
     });
-    // 40k Deckel (SLICE_MAX_CHARS) plus der Wegweiser.
-    expect((result?.content ?? '').replace(/\n\n\[…].*$/s, '')).toHaveLength(40_000);
+    expect((result?.content ?? '').replace(/^\[Zeichen[^\]]*]\n\n/, '')).toHaveLength(
+      SLICE_MAX_CHARS
+    );
   });
 
   it('überspringt Dokumente ohne Text und hinter dem Ende', async () => {
