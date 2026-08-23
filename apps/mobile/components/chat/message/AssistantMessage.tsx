@@ -36,6 +36,7 @@ import { AssistantTextPart } from './AssistantTextPart';
 import { BranchPicker } from './BranchPicker';
 import { MessageCitationsContext } from './citationContext';
 import { resolveMessageAgent, shouldShowAgentBadge } from './messageAgent';
+import { MessageErrorBanner } from './MessageErrorBanner';
 import { messageLayout } from './messageLayout';
 import { HiddenReasoningPart } from './ReasoningBlock';
 import { AssistantToolCallPartWithNarration } from './ToolCallPart';
@@ -150,6 +151,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
             <MessagePrimitive.Parts components={partsComponents} />
           </ToolGroupScope>
         </MessageCitationsContext.Provider>
+        <MessageErrorBanner theme={theme} />
         {/* Mirrors web's AssistantMessage: compute/chart cards appear once the
             stream is done — during streaming the progress affordance owns the
             space and the metadata may still be partial. */}
