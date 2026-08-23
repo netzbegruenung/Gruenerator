@@ -16,11 +16,15 @@
  * The PDF entry opens the print tab and says so. It is the one format whose
  * delivery is a browser dialog rather than a file, and a silent new tab reads
  * as a bug.
+ *
+ * Inside the mobile app's WebView the PDF entry is gone. There is no second
+ * window there — the host disables them — so the print view would be loaded
+ * over the editor in the one WebView we have, with no chrome and no way back.
  */
 
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { axe } from '../../test-utils';
 
@@ -47,6 +51,16 @@ const downloadBlob = vi.fn();
 vi.mock('../../utils/downloadFile', () => ({
   downloadBlob: (...args: unknown[]): void => void downloadBlob(...args),
 }));
+
+function setNativeHost() {
+  (window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView = {
+    postMessage: vi.fn(),
+  };
+}
+
+afterEach(() => {
+  delete (window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView;
+});
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -145,6 +159,24 @@ describe('PresentationExportMenu', () => {
       expect.stringContaining('nicht gefunden'),
       expect.anything()
     );
+  });
+
+  it('drops the PDF entry inside the app WebView and keeps PowerPoint', async () => {
+    // PowerPoint stays: it goes through the download bridge, which the host
+    // does answer.
+    setNativeHost();
+    render(<PresentationExportMenu documentId="deck-1" title="Haushalt 2027" />);
+    await openMenu();
+    expect(screen.queryByRole('menuitem', { name: /Als PDF/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /Als PowerPoint/ })).toBeInTheDocument();
+  });
+
+  it('renders nothing at all when neither format is available', async () => {
+    // A guest in the WebView. Does not occur today — the handoff mints a real
+    // session — but an empty menu is a worse answer than no menu.
+    setNativeHost();
+    render(<PresentationExportMenu documentId="deck-1" title="Haushalt 2027" isGuest />);
+    expect(screen.queryByRole('button', { name: 'Herunterladen' })).not.toBeInTheDocument();
   });
 
   it('has no accessibility violations', async () => {
