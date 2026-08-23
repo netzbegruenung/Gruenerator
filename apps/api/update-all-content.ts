@@ -41,6 +41,7 @@ import {
   loadLandesverbandContacts,
 } from './config/landesverbaendeConfig.js';
 import { sendContentSyncEmail } from './services/email/emailService.js';
+import { drainExtractionStats } from './services/scrapers/extractionRecorder.js';
 import { getAbgeordnetenwatchScraperService } from './services/scrapers/implementations/AbgeordnetenwatchScraper/index.js';
 import { boellStiftungScraperService } from './services/scrapers/implementations/BoellStiftungScraper.js';
 import { bundestagScraperService } from './services/scrapers/implementations/BundestagScraper/index.js';
@@ -552,6 +553,8 @@ async function main() {
     { stored: 0, updated: 0, skipped: 0, fetchErrors: 0, errors: 0 }
   );
 
+  const extraction = drainExtractionStats();
+
   const failed = results.filter((r) => r.status === 'failed');
   const succeeded = results.filter((r) => r.status === 'success');
 
@@ -564,6 +567,17 @@ async function main() {
   console.log(`  Skipped:    ${totals.skipped}`);
   if (totals.fetchErrors > 0) console.log(`  Unreachable:${totals.fetchErrors}`);
   if (totals.errors > 0) console.log(`  Errors:     ${totals.errors}`);
+  console.log('----------------------------------------');
+  console.log(
+    `  Ausgelesen: ${extraction.documents} Dok. / ${extraction.pages} S. ` +
+      `(davon OCR: ${extraction.ocrDocuments} / ${extraction.ocrPages})`
+  );
+  console.log(`  Umsonst:    ${extraction.redundant} (ausgelesen, Text unverändert)`);
+  console.log(
+    `  Gespart:    ${extraction.skipped.not_modified} (304) | ` +
+      `${extraction.skipped.same_bytes} (gleiche Bytes) | ` +
+      `${extraction.skipped.freshly_indexed} (frisch)`
+  );
   console.log('========================================\n');
 
   if (totals.stored > 0) {
@@ -598,6 +612,7 @@ async function main() {
       fetchErrors: totals.fetchErrors,
       errors: totals.errors,
     },
+    extraction,
     totalDuration: Math.round((Date.now() - syncStart) / 1000),
   };
 
@@ -637,6 +652,7 @@ async function main() {
             totalDuration: summary.totalDuration,
             sources: summary.sources,
             totals: summary.totals,
+            extraction: summary.extraction,
             runUrl,
             dryRun: args.dryRun,
           });

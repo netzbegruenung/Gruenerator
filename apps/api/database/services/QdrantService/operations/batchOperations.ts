@@ -85,6 +85,33 @@ export async function batchDelete(
 }
 
 /**
+ * Patch payload fields on every point matching a filter, leaving vectors and all
+ * other payload keys untouched.
+ *
+ * Used to backfill bookkeeping fields (file fingerprints, ETags) onto points
+ * whose content did not change — a full re-upsert would mean re-embedding, which
+ * is exactly the cost the fingerprint exists to avoid.
+ */
+export async function setPayload(
+  client: QdrantClient,
+  collection: string,
+  payload: Record<string, unknown>,
+  filter: QdrantFilter
+): Promise<void> {
+  try {
+    await client.setPayload(collection, {
+      payload,
+      filter: filter as Schemas['Filter'],
+      wait: true,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.error(`Set payload failed: ${message}`);
+    throw new Error(`Set payload failed: ${message}`);
+  }
+}
+
+/**
  * Scroll through documents with filter
  */
 export async function scrollDocuments(
