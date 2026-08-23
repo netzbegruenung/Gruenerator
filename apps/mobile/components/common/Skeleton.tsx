@@ -118,7 +118,7 @@ export function SkeletonGroup({ children, on = 'background', style }: SkeletonGr
 
 interface SkeletonBarProps {
   width?: DimensionValue;
-  height?: number;
+  height?: DimensionValue;
   /**
    * Derive the height from the width instead of setting it — for a tile whose
    * shape is known but whose size is not, because the width is a percentage.
