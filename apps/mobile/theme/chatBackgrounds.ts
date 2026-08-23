@@ -96,15 +96,40 @@ function cloud(
 }
 
 /**
+ * The Regenbogen: five pastels fanned across the middle of the screen, and what
+ * the onboarding wears from the opening screen through to the last slide.
+ *
+ * Ported from `.sp-sunrise` in the web start page's `startpage-hero.css` — the
+ * same backdrop `/login` wears — because that is the screen a first-time user
+ * met before they ever installed the app. Same five colours, same 44 % × 56 %
+ * ellipses at 10/30/50/70/90 %, same 0.34 alpha reaching zero at 0.70 of the
+ * radius. The falloff completing inside the frame is what makes it a band at
+ * mid-height rather than a wash, and the band is where the headline sits.
+ *
+ * Deliberately *not* one of the `mesh`/`nebel`/`dunst` presets. Those are
+ * tuned to leave a composer legible on a working screen and read pale on an
+ * empty one; this screen has one sentence and one button on it and can carry
+ * the full fan.
+ *
+ * Dark mode goes through `darkMesh` like every other mesh, rather than copying
+ * web's flat dim to 0.09 — the app already has an answer for what a coloured
+ * ground becomes after dark, and a second one would drift.
+ */
+export const REGENBOGEN_MESH: MeshPreset = {
+  base: '#FDFAF7',
+  layers: [
+    cloud('#F08291', 0.1, 0.52, 0.44, 0.56, 0.34, 0.7),
+    cloud('#F3C36E', 0.3, 0.52, 0.44, 0.56, 0.34, 0.7),
+    cloud('#92CD8D', 0.5, 0.52, 0.44, 0.56, 0.34, 0.7),
+    cloud('#7EB0E6', 0.7, 0.52, 0.44, 0.56, 0.34, 0.7),
+    cloud('#B38DDB', 0.9, 0.52, 0.44, 0.56, 0.34, 0.7),
+  ],
+};
+
+/**
  * Round 1 of the mesh backgrounds, and the strongest of the three: no white
  * veil, so the colour reaches the middle of the screen and the composer sits on
  * tinted ground.
- *
- * Named rather than written straight into the table below because it has a
- * second job: it is also what the onboarding wears, from the opening screen
- * through to the last slide. The onboarding is not a chat background and must
- * not become a fourth entry in a table the settings picker reads — but it is
- * the same paint, and one definition is what keeps it that way.
  */
 export const COLOUR_MESH: MeshPreset = {
   base: '#FCF9F4',

@@ -1,18 +1,16 @@
-import { Image as BrandImage } from 'expo-image';
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  useColorScheme,
-  type ImageSourcePropType,
-} from 'react-native';
+import { useEffect, type ReactNode } from 'react';
+import { Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+  type SharedValue,
+} from 'react-native-reanimated';
 
+import { useReduceMotion } from '../../hooks/useAccessibilityPreferences';
 import { darkTheme, lightTheme, spacing, borderRadius, BODY_FONT } from '../../theme';
 import { LegalNotice } from '../auth/LegalNotice';
-
-/* eslint-disable @typescript-eslint/no-require-imports */
-const BRAND_LOGO = require('../../assets/images/sonnenblume.png') as ImageSourcePropType;
 
 const HEADLINE = 'Bereit für KI, die die Welt nicht brennen sehen will?';
 
@@ -25,32 +23,80 @@ const HEADLINE = 'Bereit für KI, die die Welt nicht brennen sehen will?';
  * that carries the legal notices, which have no business sliding past under a
  * pair of dots.
  *
- * The background is not painted here. `onboarding.tsx` lays the mesh under both
- * phases so that tapping "Beginnen" changes what is on the colour, not the
- * colour itself.
+ * Claim, button and notices arrive in sequence rather than at once, over the
+ * colour band that is still rising behind them (that part is
+ * `onboarding.tsx`'s, because the band outlives this screen). The staging is
+ * the whole difference between a screen that appears and one that opens; it is
+ * short (about a second all told) and it plays once.
+ *
+ * No mark of any kind. The band is unmistakably ours, and a sunflower over it
+ * only competes with the one sentence this screen exists to deliver.
  */
 export function OnboardingIntro({ onStart }: { onStart: () => void }) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+  const reduceMotion = useReduceMotion();
+
+  // One clock for the cascade; each piece reads it with its own delay.
+  const enter = useSharedValue(0);
+  useEffect(() => {
+    enter.value = reduceMotion ? 1 : withTiming(1, { duration: 1500, easing: Easing.linear });
+  }, [enter, reduceMotion]);
 
   return (
     <View style={styles.root}>
       <View style={styles.hero}>
-        <BrandImage source={BRAND_LOGO} style={styles.logo} contentFit="contain" />
-        <Text style={[styles.headline, { color: theme.text }]}>{HEADLINE}</Text>
-        <Pressable
-          testID="onboarding-start"
-          onPress={onStart}
-          style={({ pressed }) => [styles.pill, { opacity: pressed ? 0.92 : 1 }]}
-          accessibilityRole="button"
-        >
-          <Text style={styles.pillText}>Beginnen</Text>
-        </Pressable>
+        <Staged progress={enter} at={0} lift={22}>
+          <Text style={[styles.headline, { color: theme.text }]}>{HEADLINE}</Text>
+        </Staged>
+
+        <Staged progress={enter} at={0.22} lift={22}>
+          <Pressable
+            testID="onboarding-start"
+            onPress={onStart}
+            style={({ pressed }) => [styles.pill, { opacity: pressed ? 0.92 : 1 }]}
+            accessibilityRole="button"
+          >
+            <Text style={styles.pillText}>Beginnen</Text>
+          </Pressable>
+        </Staged>
       </View>
 
-      <LegalNotice color={theme.textSecondary} />
+      <Staged progress={enter} at={0.42} lift={10}>
+        <LegalNotice color={theme.textSecondary} />
+      </Staged>
     </View>
   );
+}
+
+/**
+ * One step of the cascade: fades and lifts into place over the fifth of the
+ * clock that starts at `at`.
+ *
+ * A shared clock with offsets rather than a `withDelay` per piece, because the
+ * pieces have to keep their order even when the screen mounts mid-animation —
+ * and because reduce-motion then needs to short-circuit exactly one value.
+ */
+function Staged({
+  progress,
+  at,
+  lift,
+  children,
+}: {
+  progress: SharedValue<number>;
+  /** Where in the clock (0…1) this piece starts. */
+  at: number;
+  /** How far below its resting place it begins, in points. */
+  lift: number;
+  children: ReactNode;
+}) {
+  const style = useAnimatedStyle(() => {
+    const t = Math.min(1, Math.max(0, (progress.value - at) / 0.4));
+    // Ease the piece itself; the clock is linear so the offsets stay honest.
+    const eased = 1 - Math.pow(1 - t, 3);
+    return { opacity: eased, transform: [{ translateY: (1 - eased) * lift }] };
+  });
+  return <Animated.View style={[styles.staged, style]}>{children}</Animated.View>;
 }
 
 const styles = StyleSheet.create({
@@ -64,17 +110,17 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.large,
+    gap: spacing.medium,
   },
-  logo: {
-    width: 72,
-    height: 72,
+  staged: {
+    alignSelf: 'stretch',
+    alignItems: 'center',
   },
   headline: {
     fontFamily: 'Raleway_700Bold',
     fontSize: 30,
     lineHeight: 38,
-    letterSpacing: -0.4,
+    letterSpacing: -0.5,
     textAlign: 'center',
     maxWidth: 340,
   },
@@ -84,16 +130,16 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: '100%',
     maxWidth: 320,
-    minHeight: 54,
+    minHeight: 56,
     paddingHorizontal: spacing.large,
     borderRadius: borderRadius.full,
     backgroundColor: '#ffffff',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.14,
-    shadowRadius: 20,
-    elevation: 5,
-    marginTop: spacing.small,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.16,
+    shadowRadius: 24,
+    elevation: 6,
+    marginTop: spacing.medium,
   },
   pillText: {
     fontFamily: BODY_FONT,
