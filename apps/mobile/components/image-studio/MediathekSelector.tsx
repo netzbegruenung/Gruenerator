@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fetchMediathekImage } from '../../services/imageStudio';
 import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
 import { SharedMediaImage } from '../common/SharedMediaImage';
+import { SkeletonTiles } from '../common/Skeleton';
 
 const NUM_COLUMNS = 3;
 const ITEM_GAP = spacing.xsmall;
@@ -166,11 +167,15 @@ export function MediathekSelector({ visible, onClose, onImageSelect }: Mediathek
         </View>
 
         {isLoading && mediathekImages.length === 0 ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.primary[600]} />
-            <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
-              Lade Mediathek...
-            </Text>
+          <View style={styles.listContent}>
+    <SkeletonTiles
+      count={NUM_COLUMNS * 3}
+      itemWidth={itemSize}
+      columns={NUM_COLUMNS}
+      gap={ITEM_GAP}
+      aspectRatio={1}
+      radius={borderRadius.medium}
+    />
           </View>
         ) : (
           <FlatList
@@ -229,15 +234,6 @@ const styles = StyleSheet.create({
   },
   infoText: {
     ...typography.caption,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    ...typography.body,
-    marginTop: spacing.medium,
   },
   listContent: {
     padding: spacing.medium,

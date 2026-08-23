@@ -18,6 +18,8 @@ import {
 
 import { fetchStockImageForMobile } from '../../services/imageSourceService';
 import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
+import { SkeletonTiles } from '../common/Skeleton';
+
 
 import { UnsplashAttribution } from './UnsplashAttribution';
 
@@ -155,11 +157,17 @@ export function StockImagesGrid({ onImageSelected }: StockImagesGridProps) {
       </ScrollView>
 
       {isLoading && images.length === 0 ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary[600]} />
-          <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
-            Lade Stock-Bilder...
-          </Text>
+        // The grid it will be: same tile size, same gap. The overlay spinner on
+        // a tapped tile stays a spinner — that one is a download in progress.
+        <View style={styles.listContent}>
+    <SkeletonTiles
+      count={NUM_COLUMNS * 3}
+      itemWidth={itemSize}
+      columns={NUM_COLUMNS}
+      gap={ITEM_GAP}
+      aspectRatio={1}
+      radius={borderRadius.medium}
+    />
         </View>
       ) : (
         <FlatList
@@ -205,16 +213,6 @@ const styles = StyleSheet.create({
   categoryLabel: {
     ...typography.caption,
     fontWeight: '600',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: spacing.xxlarge,
-  },
-  loadingText: {
-    ...typography.body,
-    marginTop: spacing.medium,
   },
   listContent: {
     paddingBottom: spacing.xxlarge,
