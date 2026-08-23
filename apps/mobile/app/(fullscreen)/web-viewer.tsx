@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
 import { mintWebViewHandoff } from '../../services/webview/handoff';
+import { hostDrawsHeader } from '../../services/webview/hostChrome';
 import {
   decideNavigation,
   WEBVIEW_ORIGIN_WHITELIST,
@@ -37,6 +38,14 @@ export default function WebViewerScreen() {
   const handleClose = useCallback(() => {
     router.back();
   }, [router]);
+
+  // Evaluated on the raw param rather than `normalizedPath`, so that a path we
+  // would refuse to open anyway cannot silently claim the immersive layout.
+  //
+  // The error view is the exception: it replaces the page, so the page's own
+  // back button goes with it. Only the dismiss gesture would be left, and an
+  // expired session is the worst moment to make someone guess at one.
+  const drawHeader = error !== null || hostDrawsHeader(path ?? '');
 
   const normalizedPath = useMemo(() => {
     if (!path) return '/';
@@ -138,23 +147,29 @@ export default function WebViewerScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-      <View
-        style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: theme.border }]}
-      >
-        <Pressable
-          onPress={handleClose}
-          hitSlop={12}
-          style={styles.closeButton}
-          accessibilityRole="button"
-          accessibilityLabel="Schließen"
+      {drawHeader ? (
+        <View
+          style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: theme.border }]}
         >
-          <Ionicons name="close" size={24} color={theme.text} />
-        </Pressable>
-        <Text style={[styles.title, { color: theme.text }]} numberOfLines={1}>
-          {title || 'Web'}
-        </Text>
-        <View style={styles.closeButton} />
-      </View>
+          <Pressable
+            onPress={handleClose}
+            hitSlop={12}
+            style={styles.closeButton}
+            accessibilityRole="button"
+            accessibilityLabel="Schließen"
+          >
+            <Ionicons name="close" size={24} color={theme.text} />
+          </Pressable>
+          <Text style={[styles.title, { color: theme.text }]} numberOfLines={1}>
+            {title || 'Web'}
+          </Text>
+          <View style={styles.closeButton} />
+        </View>
+      ) : (
+        // Only the status-bar inset. The page draws the bar itself and carries
+        // both the title and the way out; see `hostDrawsHeader`.
+        <View style={{ height: insets.top }} />
+      )}
 
       {error !== null ? (
         <View style={styles.loading}>
