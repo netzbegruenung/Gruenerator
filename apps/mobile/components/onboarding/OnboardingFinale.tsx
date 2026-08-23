@@ -54,7 +54,7 @@ export function OnboardingFinale({
 
         {signedIn ? (
           <Button onPress={onDone} style={styles.done}>
-            Login
+            Fertig
           </Button>
         ) : (
           <LoginPanel onSuccess={onDone} />
