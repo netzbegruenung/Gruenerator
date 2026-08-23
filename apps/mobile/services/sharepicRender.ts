@@ -114,7 +114,16 @@ function armIdleUnmount(): void {
   if (idleTimer !== null) clearTimeout(idleTimer);
   idleTimer = setTimeout(() => {
     idleTimer = null;
-    if (!pending()) setDemanded(false);
+    if (pending()) return;
+    // Dropping demand is what makes the host stop drawing its WebView, so the
+    // page we were talking to goes away with it. Forgetting that here is the
+    // whole point: a stale `hostReady` would let the next render be posted into
+    // a dead ref, where it is neither delivered nor refused — it would sit
+    // until the 20s timeout while the fresh page waits, already announced, with
+    // nothing to do.
+    hostReady = false;
+    postToPage = null;
+    setDemanded(false);
   }, IDLE_UNMOUNT_MS);
 }
 

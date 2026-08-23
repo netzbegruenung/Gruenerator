@@ -213,4 +213,26 @@ describe('host demand', () => {
     await vi.advanceTimersByTimeAsync(60_000);
     expect(__sharepicRenderState().demanded).toBe(false);
   });
+
+  it('forgets the page when it lets the host go', async () => {
+    connectHost();
+    const first = renderSharepic('a:v0', 'zitat', {});
+    reply(posted[0]!.requestId);
+    await first;
+
+    await vi.advanceTimersByTimeAsync(60_000);
+    // Dropping demand unmounts the WebView. Believing otherwise would post the
+    // next render into a dead ref, where it waits out the full timeout instead
+    // of being drawn by the page that is booting right then.
+    expect(__sharepicRenderState().hostReady).toBe(false);
+
+    posted = [];
+    const second = renderSharepic('b:v0', 'info', {});
+    expect(posted).toHaveLength(0);
+
+    connectHost();
+    expect(posted).toHaveLength(1);
+    reply(posted[0]!.requestId, 'drawn by the new page');
+    await expect(second).resolves.toBe('drawn by the new page');
+  });
 });

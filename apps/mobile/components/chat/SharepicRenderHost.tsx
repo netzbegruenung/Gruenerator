@@ -37,15 +37,34 @@ const STAGE_HEIGHT = 1500;
 export function SharepicRenderHost() {
   const demanded = useRenderHostDemand();
   const webViewRef = useRef<WebView>(null);
-  const [targetUrl, setTargetUrl] = useState<string | null>(null);
   /** Bumped to re-mint the handoff after the session is lost. */
   const [attempt, setAttempt] = useState(0);
 
+  /**
+   * Which WebView life this is.
+   *
+   * A handoff URL is single-use and lives 60 seconds, so it belongs to exactly
+   * one boot. Tying the minted URL to a session key rather than keeping a bare
+   * `targetUrl` is what stops the previous one from being reused for the frame
+   * between demand returning and the fresh mint landing — that reuse loads a
+   * logged-out page.
+   */
+  const session = demanded ? `mount-${attempt}` : 'idle';
+  const [minted, setMinted] = useState<{ session: string; url: string | null }>({
+    session,
+    url: null,
+  });
+  // Adjusting during render rather than in an effect: this state derives from
+  // `session`, and an effect would leave the old URL readable for a frame.
+  if (minted.session !== session) {
+    setMinted({ session, url: null });
+  }
+
   useEffect(() => {
-    if (!demanded) {
-      setTargetUrl(null);
-      return;
-    }
+    // The service already forgot the page when it let demand go
+    // (`armIdleUnmount`) — it has to, because it is the one that decides, and a
+    // host belief outliving the WebView costs the next render its full timeout.
+    if (!demanded) return;
     let cancelled = false;
     // `?embedded=1` puts the web app in its chrome-less mode. The render page
     // shows nothing anyway, but the switch also suppresses the login redirect
@@ -55,7 +74,7 @@ export function SharepicRenderHost() {
     // call sites as source text, and cannot see through a template hole.
     void mintWebViewHandoff('/mobile-render?embedded=1')
       .then((url) => {
-        if (!cancelled) setTargetUrl(url);
+        if (!cancelled) setMinted({ session, url });
       })
       .catch((error: unknown) => {
         if (cancelled) return;
@@ -66,7 +85,7 @@ export function SharepicRenderHost() {
     return () => {
       cancelled = true;
     };
-  }, [demanded, attempt]);
+  }, [demanded, attempt, session]);
 
   useEffect(() => {
     return () => unregisterRenderHost();
@@ -84,8 +103,8 @@ export function SharepicRenderHost() {
     const outcome = handleRenderHostMessage(event.nativeEvent.data);
     if (outcome === 'session-lost') {
       // Mint a fresh handoff and try again. The queued renders survive — the
-      // service put the in-flight one back at the front.
-      setTargetUrl(null);
+      // service put the in-flight one back at the front. Bumping the attempt
+      // changes the session key, which drops the spent URL on the next render.
       setAttempt((n) => n + 1);
     }
   }, []);
@@ -101,6 +120,7 @@ export function SharepicRenderHost() {
     );
   }, []);
 
+  const targetUrl = minted.session === session ? minted.url : null;
   if (!demanded || targetUrl === null) return null;
 
   return (
