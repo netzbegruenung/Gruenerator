@@ -16,6 +16,7 @@ import { memo, useMemo, useState } from 'react';
 import { View } from 'react-native';
 
 import { useTheme } from '../../../hooks/useTheme';
+import { ArtifactCard } from '../ArtifactCard';
 import { BahnCard } from '../BahnCard';
 import { ChatChartCard } from '../ChatChartCard';
 import { ChatStatusLine } from '../ChatStatusLine';
@@ -65,6 +66,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
   const chartData = metadata.chartData;
   const socialPostData = metadata.socialPostData;
   const bahnData = metadata.bahnData;
+  const artifactData = metadata.artifactData;
 
   // Which Grünerator wrote this. `getCustomAgentMentionables()` is a plain read
   // of the module-level catalogue `useMentionablesSync` fills, so it re-resolves
@@ -143,6 +145,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
             space and the metadata may still be partial. */}
         {!isStreaming && computeData && <ComputeCard data={computeData} theme={theme} />}
         {!isStreaming && chartData && <ChatChartCard data={chartData} theme={theme} />}
+        {!isStreaming && artifactData && <ArtifactCard artifact={artifactData} theme={theme} />}
         {!isStreaming && bahnData && <BahnCard data={bahnData} theme={theme} />}
         {generatedImage && <GeneratedImageDisplay image={generatedImage} theme={theme} />}
         {confirmAction && <ConfirmActionCard action={confirmAction} theme={theme} />}
