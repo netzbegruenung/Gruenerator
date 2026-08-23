@@ -28,9 +28,22 @@ describe('toOfficeItems', () => {
     expect('thumbnailUrl' in item).toBe(true);
   });
 
-  it('keeps a real thumbnail', () => {
+  it('keeps an absolute thumbnail untouched', () => {
     const [item] = toOfficeItems([], [{ ...canvas, thumbnail_url: 'https://x/y.png' }]);
     expect(item.thumbnailUrl).toBe('https://x/y.png');
+  });
+
+  it('resolves an origin-relative thumbnail against the web origin', () => {
+    // What the API actually sends (thumbnailUrl.ts mints these relative on
+    // purpose). Unresolved, <Image> loads nothing AND the placeholder branch is
+    // skipped because the field is set — the card just stays blank.
+    const [item] = toOfficeItems(
+      [],
+      [{ ...canvas, thumbnail_url: '/api/thumbs/canvas/c1/v1?sig=abc&w=400&fmt=webp' }]
+    );
+    expect(item.thumbnailUrl).toBe(
+      'https://gruenerator.eu/api/thumbs/canvas/c1/v1?sig=abc&w=400&fmt=webp'
+    );
   });
 
   it('never gives a board a thumbnail', () => {
