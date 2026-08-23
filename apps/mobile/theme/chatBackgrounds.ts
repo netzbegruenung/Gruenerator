@@ -96,6 +96,28 @@ function cloud(
 }
 
 /**
+ * Round 1 of the mesh backgrounds, and the strongest of the three: no white
+ * veil, so the colour reaches the middle of the screen and the composer sits on
+ * tinted ground.
+ *
+ * Named rather than written straight into the table below because it has a
+ * second job: it is also what the onboarding wears, from the opening screen
+ * through to the last slide. The onboarding is not a chat background and must
+ * not become a fourth entry in a table the settings picker reads — but it is
+ * the same paint, and one definition is what keeps it that way.
+ */
+export const COLOUR_MESH: MeshPreset = {
+  base: '#FCF9F4',
+  layers: [
+    cloud('#FDF7ED', 0.5, 0, 1.1, 0.55, 1, 0.6),
+    cloud('#D7D5F3', 0.82, 1, 0.85, 0.55, 0.9, 0.58),
+    cloud('#C7E4D7', 0.92, 0.58, 0.95, 0.65, 0.95, 0.62),
+    cloud('#F4EEBA', 0.44, 0.82, 1.0, 0.7, 0.85, 0.6),
+    cloud('#F8CDC5', 0.12, 0.24, 1.2, 0.8, 0.95, 0.62),
+  ],
+};
+
+/**
  * The mesh chat backgrounds, ported 1:1 from the design document
  * (claude.ai/design, "Grünerator Mobile"), where each is a CSS `background` of
  * several `radial-gradient()`s over a flat colour.
@@ -122,20 +144,7 @@ function cloud(
  * paint order, bottom-first, so each reads as the inverse of its CSS source.
  */
 export const CHAT_BACKGROUND_MESHES: Partial<Record<ChatBackground, MeshPreset>> = {
-  /**
-   * Round 1. The strongest of the three: no white veil, so the colour reaches
-   * the middle of the screen and the composer sits on tinted ground.
-   */
-  mesh: {
-    base: '#FCF9F4',
-    layers: [
-      cloud('#FDF7ED', 0.5, 0, 1.1, 0.55, 1, 0.6),
-      cloud('#D7D5F3', 0.82, 1, 0.85, 0.55, 0.9, 0.58),
-      cloud('#C7E4D7', 0.92, 0.58, 0.95, 0.65, 0.95, 0.62),
-      cloud('#F4EEBA', 0.44, 0.82, 1.0, 0.7, 0.85, 0.6),
-      cloud('#F8CDC5', 0.12, 0.24, 1.2, 0.8, 0.95, 0.62),
-    ],
-  },
+  mesh: COLOUR_MESH,
 
   /**
    * Round 2, variant 2a. The same four colours spread wider and weaker, with a
