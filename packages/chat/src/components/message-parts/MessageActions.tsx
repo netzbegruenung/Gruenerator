@@ -25,6 +25,7 @@ import { HiOutlineDocumentText } from 'react-icons/hi';
 import { useExtraActions } from '../../context/ExtraActionsContext';
 import { useRegenerateMessage } from '../../hooks/useRegenerateMessage';
 // import { MessageTTSButton } from './MessageTTSButton';
+import { downloadBlob } from '../../lib/downloadBlob';
 import { formatSourcesMarkdown } from '../../lib/formatSourcesMarkdown';
 import {
   buildDocumentActions,
@@ -48,17 +49,6 @@ import type { ReactNode } from 'react';
 interface DocumentActionUi {
   icon: ReactNode;
   run: () => Promise<void>;
-}
-
-function downloadBlob(blob: Blob, filename: string): void {
-  const url = window.URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  window.URL.revokeObjectURL(url);
 }
 
 interface MessageActionsProps {
@@ -111,7 +101,7 @@ export const MessageActions = memo(function MessageActions({
       });
 
       if (!response.ok) throw new Error(`Export failed (HTTP ${response.status})`);
-      downloadBlob(
+      await downloadBlob(
         await response.blob(),
         filenameFromDisposition(response.headers.get('Content-Disposition'), 'docx')
       );
@@ -136,7 +126,7 @@ export const MessageActions = memo(function MessageActions({
       });
 
       if (!response.ok) throw new Error(`Export failed (HTTP ${response.status})`);
-      downloadBlob(
+      await downloadBlob(
         await response.blob(),
         filenameFromDisposition(response.headers.get('Content-Disposition'), 'pdf')
       );
