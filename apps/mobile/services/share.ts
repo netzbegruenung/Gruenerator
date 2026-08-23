@@ -81,6 +81,16 @@ const MIME_BY_EXTENSION: Record<string, string> = {
   txt: 'text/plain',
   md: 'text/markdown',
   png: 'image/png',
+  // The exports an embedded editor produces: canvas ZIPs, presentation decks,
+  // document exports. Without an entry each fell back to
+  // application/octet-stream, which iOS cannot route to any app.
+  zip: 'application/zip',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  odt: 'application/vnd.oasis.opendocument.text',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  webp: 'image/webp',
 };
 
 export function mimeFromFileName(name: string): string {
@@ -96,12 +106,17 @@ export function mimeFromFileName(name: string): string {
 export async function shareBytesAsFile(
   bytes: Uint8Array,
   fileName: string,
-  dialogTitle = 'Datei teilen'
+  dialogTitle = 'Datei teilen',
+  /**
+   * Overrides the extension-derived type. The WebView bridge carries the real
+   * MIME from the page, which beats guessing from a name the page also chose.
+   */
+  mimeType?: string
 ): Promise<void> {
   const file = new File(Paths.cache, fileName);
   file.write(bytes);
   try {
-    await shareFile(file.uri, { mimeType: mimeFromFileName(fileName), dialogTitle });
+    await shareFile(file.uri, { mimeType: mimeType ?? mimeFromFileName(fileName), dialogTitle });
   } finally {
     file.delete();
   }
