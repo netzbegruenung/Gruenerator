@@ -1,14 +1,6 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useMemo, useState } from 'react';
-import {
-  View,
-  Text,
-  Pressable,
-  TextInput,
-  StyleSheet,
-  ActivityIndicator,
-  useColorScheme,
-} from 'react-native';
+import { View, Text, Pressable, TextInput, StyleSheet, useColorScheme } from 'react-native';
 
 import { useNotebookLikes } from '../../hooks/notebook/useNotebookLikes';
 import { usePublicNotebookCollections } from '../../hooks/notebook/usePublicNotebookCollections';
@@ -22,7 +14,7 @@ import {
   BODY_FONT,
 } from '../../theme';
 
-import { NotebookCard, useNotebookGrid } from './NotebookCard';
+import { NotebookCard, NotebookCardSkeleton, useNotebookGrid } from './NotebookCard';
 
 /**
  * "Von der Basis" — public community notebooks (web's VonDerBasisSection). Reuses
@@ -74,7 +66,9 @@ export function CommunityNotebooksSection({
         </View>
       )}
       {isLoading ? (
-        <ActivityIndicator color={colors.primary[600]} style={styles.loading} />
+        <View style={notebookGrid.container}>
+          <NotebookCardSkeleton count={4} itemStyle={notebookGrid.item} />
+        </View>
       ) : filtered.length === 0 ? (
         <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
           Keine Treffer für &ldquo;{query}&rdquo;
@@ -153,9 +147,6 @@ const styles = StyleSheet.create({
     fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '500',
-  },
-  loading: {
-    paddingVertical: spacing.large,
   },
   emptyText: {
     ...typography.bodySmall,
