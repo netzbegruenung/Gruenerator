@@ -4,7 +4,13 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { hostDrawsHeader, SELF_CHROMED_PATH_PREFIXES } from './hostChrome';
+import {
+  CANVAS_MENUBAR_GRADIENT,
+  CANVAS_MENUBAR_GRADIENT_STOPS,
+  hostDrawsHeader,
+  SELF_CHROMED_PATH_PREFIXES,
+  statusBarTint,
+} from './hostChrome';
 
 describe('hostDrawsHeader', () => {
   it('stands back where the page brings its own bar', () => {
@@ -74,4 +80,53 @@ describe('every self-chromed surface has a way out', () => {
       expect(fs.readFileSync(absolute, 'utf8')).toContain('useHostAwareBack(');
     }
   );
+});
+
+describe('statusBarTint', () => {
+  it('tints only the canvas band', () => {
+    expect(statusBarTint('/studio/canvas/abc')).toEqual(CANVAS_MENUBAR_GRADIENT);
+    expect(statusBarTint('/boards/abc')).toBeNull();
+    expect(statusBarTint('/office/abc')).toBeNull();
+    expect(statusBarTint('/notebooks/abc')).toBeNull();
+  });
+
+  it('judges by the pathname', () => {
+    expect(statusBarTint('/studio/canvas/abc?page=2')).toEqual(CANVAS_MENUBAR_GRADIENT);
+    expect(statusBarTint('/studio/canvas-archiv/abc')).toBeNull();
+  });
+});
+
+/**
+ * The gradient is a web design token wearing a second hat. Redesign the editor
+ * menu bar and the band above it would keep the old colours — a seam nobody
+ * notices in a diff, because the two values live in different languages in
+ * different packages. So the CSS is read here and compared.
+ */
+describe('the canvas band matches the editor menu bar', () => {
+  const CSS = path.join(REPO_ROOT, 'packages/canvas-editor/src/styles/variables.css');
+
+  it('parses the same stops out of variables.css', () => {
+    const css = fs.readFileSync(CSS, 'utf8');
+
+    const deepGreen = /--editor-green-deep:\s*(#[0-9a-fA-F]{6})/.exec(css)?.[1];
+    const gradient = /--editor-menubar-gradient:\s*linear-gradient\(([^;]*)\);/.exec(css)?.[1];
+    expect(deepGreen, 'variables.css no longer declares --editor-green-deep').toBeDefined();
+    expect(gradient, 'variables.css no longer declares --editor-menubar-gradient').toBeDefined();
+
+    // `90deg, var(--editor-green-deep) 0%, #3E7D63 55%, #6BA88C 100%`
+    const [angle, ...stops] = (gradient as string).split(',').map((part) => part.trim());
+    expect(angle, 'the bar is no longer a left-to-right gradient').toBe('90deg');
+
+    const colours = stops.map((stop) =>
+      (stop.split(/\s+/)[0] ?? '').replace('var(--editor-green-deep)', deepGreen as string)
+    );
+    const positions = stops.map(
+      (stop) => Number((stop.split(/\s+/)[1] ?? '').replace('%', '')) / 100
+    );
+
+    expect(colours.map((c) => c.toUpperCase())).toEqual(
+      CANVAS_MENUBAR_GRADIENT.map((c) => c.toUpperCase())
+    );
+    expect(positions).toEqual([...CANVAS_MENUBAR_GRADIENT_STOPS]);
+  });
 });
