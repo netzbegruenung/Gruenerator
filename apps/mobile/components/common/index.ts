@@ -9,6 +9,8 @@ export {
   SkeletonBar,
   SkeletonCircle,
   SkeletonLines,
+  SkeletonRows,
+  SkeletonTiles,
   useSkeletonPulse,
   useSkeletonColor,
   skeletonStyles,
