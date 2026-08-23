@@ -49,6 +49,13 @@ describe('detectCountryProvider', () => {
   it('reads the region subtag, not any "at" in the tag', () => {
     expect(detectCountryProvider('de-Latn-DE', 'Europe/Berlin')).toBe('gruenes-netz');
   });
+
+  // Mit Skript-Subtag rutscht die Region auf die dritte Stelle. Selten, aber
+  // wer sie dort verpasst, hält ein österreichisches Telefon für ein deutsches.
+  it('findet die region auch hinter einem skript-subtag', () => {
+    expect(detectCountryProvider('de-Latn-AT', 'Europe/Berlin')).toBe('gruene-oesterreich');
+    expect(detectCountryProvider('de-Latn-DE', 'Europe/Berlin')).toBe('gruenes-netz');
+  });
 });
 
 describe('orderedProviders', () => {
