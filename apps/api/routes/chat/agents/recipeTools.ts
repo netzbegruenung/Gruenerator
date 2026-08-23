@@ -22,8 +22,16 @@ export function makeRecipeTool(params: {
   catalog: readonly RecipeCatalogEntry[];
   registry: RecipeRegistry;
   userId: string | null;
+  /**
+   * LV-Vorzug für generische Mentions (`preferredLvRecipeMention`, injizierbar
+   * für Tests): wählt das Modell `presse`, obwohl die Person genau einen
+   * Landesverband vertritt (oder der Agent einer ist), wird dessen Variante
+   * geladen. Deterministisch hier statt als Katalog-Bitte ans Modell — die
+   * kleinen Loop-Modelle greifen sonst zuverlässig zur generischen Zeile.
+   */
+  preferLv?: (mention: string) => string | null;
 }): Tool {
-  const { catalog, registry, userId } = params;
+  const { catalog, registry, userId, preferLv } = params;
   const mentions = catalog.map((e) => e.mention);
 
   return tool({
@@ -39,30 +47,34 @@ NICHT für Recherche, Rückfragen, Zusammenfassungen oder normalen Fließtext oh
         .describe('Kennung des Rezepts aus der Liste VERFÜGBARE REZEPTE'),
     }),
     execute: async ({ rezept }: { rezept: string }) => {
-      if (registry.has(rezept)) {
+      // Der LV-Vorzug greift VOR dem Duplikat-Check: sonst registrierte der
+      // zweite Aufruf von `presse` die Variante ein zweites Mal.
+      const lvVariant = preferLv?.(rezept) ?? null;
+      const effective = lvVariant ?? rezept;
+      if (registry.has(effective)) {
         // Re-calling a tool it already called is a known model failure mode,
         // not an edge case. Report the state instead of stacking a second block.
-        return { geladen: true, rezept, hinweis: 'War in diesem Turn bereits geladen.' };
+        return { geladen: true, rezept: effective, hinweis: 'War in diesem Turn bereits geladen.' };
       }
 
-      const resolved = await resolveRecipe({ mention: rezept, userId });
+      const resolved = await resolveRecipe({ mention: effective, userId });
       if (!resolved) {
         // Loud on purpose. `getInternalSkillPrompt` returns null when
         // SKILLS_INTERN_DIR was never rolled out — on the single-pass path
         // that silently degrades to the agent's base role, which is a
         // tolerable outage. As a tool result it must NOT read as success, or
         // the model announces "Rezept geladen" and then writes generically.
-        log.warn(`[Rezept] nicht verfügbar: ${rezept}`);
+        log.warn(`[Rezept] nicht verfügbar: ${effective}`);
         return {
           geladen: false,
-          rezept,
+          rezept: effective,
           grund:
             'Für dieses Rezept liegen keine Schreibvorgaben vor. Schreibe den Text ohne Rezept und weise NICHT darauf hin, dass ein Rezept fehlt.',
         };
       }
 
       const outcome = registry.register({
-        mention: rezept,
+        mention: effective,
         title: resolved.title,
         body: resolved.body,
         source: resolved.source,
@@ -71,18 +83,22 @@ NICHT für Recherche, Rückfragen, Zusammenfassungen oder normalen Fließtext oh
       if (outcome === 'full') {
         return {
           geladen: false,
-          rezept,
+          rezept: effective,
           grund: `Es sind bereits ${registry.size} Rezepte geladen (${registry.mentions.join(', ')}). Schreibe mit diesen.`,
         };
       }
 
-      log.info(`[Rezept] gewählt=${rezept} quelle=${resolved.source}`);
+      log.info(
+        `[Rezept] gewählt=${effective} quelle=${resolved.source}` +
+          (lvVariant ? ` (LV-Vorzug statt ${rezept})` : '')
+      );
       return {
         geladen: true,
-        rezept,
+        rezept: effective,
         titel: resolved.title,
-        hinweis:
-          'Die Schreibvorgaben stehen dir ab jetzt zur Verfügung. Halte dich beim Schreiben daran.',
+        hinweis: lvVariant
+          ? `Statt der generischen Vorlage wurde die Landesverbands-Variante „${resolved.title}" geladen. Halte dich beim Schreiben daran.`
+          : 'Die Schreibvorgaben stehen dir ab jetzt zur Verfügung. Halte dich beim Schreiben daran.',
       };
     },
   });

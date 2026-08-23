@@ -167,6 +167,9 @@ export interface StreamMetadata {
   searchTimeMs?: number;
   /** Langfuse trace id for this turn — target for thumbs up/down feedback scoring. */
   traceId?: string;
+  /** Rezept-Attribution: welche Schreibvorgabe(n) diesen Turn geformt haben —
+   *  Titel + Mention, dezent unter der Antwort ausgewiesen (AssistantMessage). */
+  recipesUsed?: { mention: string; title: string; source?: 'system' | 'user' }[];
 }
 
 export interface ChatMessage {

@@ -13,6 +13,7 @@
  * Die Lader werden injiziert (`CatalogDeps`), damit die Montage ohne DB, ohne
  * Netz und ohne echte MCP-Server prüfbar ist.
  */
+import { preferredLvRecipeMention } from '../../agents/lvRecipePreference.js';
 import { loadManagedMcpCatalog as loadManagedMcpCatalogReal } from '../../agents/managedMcpCatalog.js';
 import { loadMcpCatalog as loadMcpCatalogReal, type McpCatalog } from '../../agents/mcpCatalog.js';
 import {
@@ -238,6 +239,18 @@ export async function assembleToolCatalog(
         catalog: recipeCatalog,
         registry: recipeRegistry,
         userId: userId ?? null,
+        // Wählt das Modell die generische Zeile (`presse`, `instagram`),
+        // obwohl der Agent ein LV-PR-Agent ist oder die Person genau einen
+        // Landesverband vertritt, lädt das Tool deterministisch dessen
+        // Variante — die kleinen Loop-Modelle greifen sonst zuverlässig zur
+        // generischen Vorlage, obwohl die LV-Zeile im Katalog steht.
+        preferLv: (mention) =>
+          preferredLvRecipeMention({
+            mention,
+            agentIdentifier: agentConfig.identifier ?? null,
+            roles: state.userRoles ?? null,
+            userLocale: state.userLocale ?? null,
+          }),
       });
     }
   }
