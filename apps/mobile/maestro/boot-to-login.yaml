@@ -29,7 +29,7 @@ appId: de.gruenerator.app
 
 # Only now is the carousel there, first page first.
 - extendedWaitUntil:
-    visible: 'Willkommen in der Grünerator App'
+    visible: 'KI speziell für Grüne'
     timeout: 10000
 
 - tapOn:
@@ -70,4 +70,4 @@ appId: de.gruenerator.app
     visible:
       id: 'login-open'
     timeout: 30000
-- assertNotVisible: 'Willkommen in der Grünerator App'
+- assertNotVisible: 'KI speziell für Grüne'

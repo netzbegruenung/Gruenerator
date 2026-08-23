@@ -110,7 +110,7 @@ export function LoginPanel({
         ) : (
           <>
             <Ionicons name="lock-closed" size={18} color="#111111" />
-            <Text style={styles.pillText}>Anmelden</Text>
+            <Text style={styles.pillText}>Login</Text>
           </>
         )}
       </Pressable>

@@ -6,7 +6,7 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
-import { spacing, lightTheme, darkTheme, BODY_FONT } from '../../theme';
+import { spacing, lightTheme, darkTheme } from '../../theme';
 import { LoginPanel } from '../auth/LoginPanel';
 import { Button } from '../common';
 
@@ -51,15 +51,10 @@ export function OnboardingFinale({
     <View style={styles.slide}>
       <Animated.View style={[styles.inner, enter]}>
         <Text style={[styles.title, { color: theme.text }]}>Bereit?</Text>
-        <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-          {signedIn
-            ? 'Das war die Tour. Viel Freude beim Grünerieren.'
-            : 'Melde dich mit deinem Grünen Zugang an — den Rest kennst du jetzt.'}
-        </Text>
 
         {signedIn ? (
           <Button onPress={onDone} style={styles.done}>
-            Fertig
+            Login
           </Button>
         ) : (
           <LoginPanel onSuccess={onDone} />
@@ -85,14 +80,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Raleway_700Bold',
     fontSize: 34,
     textAlign: 'center',
-  },
-  subtitle: {
-    fontFamily: BODY_FONT,
-    fontSize: 16,
-    lineHeight: 24,
-    textAlign: 'center',
     marginBottom: spacing.medium,
-    maxWidth: 320,
   },
   done: {
     alignSelf: 'center',

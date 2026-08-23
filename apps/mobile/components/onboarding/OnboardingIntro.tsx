@@ -62,9 +62,11 @@ export function OnboardingIntro({ onStart }: { onStart: () => void }) {
         </Staged>
       </View>
 
-      <Staged progress={enter} at={0.42} lift={10}>
-        <LegalNotice color={theme.textSecondary} />
-      </Staged>
+      <View style={styles.notice}>
+        <Staged progress={enter} at={0.42} lift={10}>
+          <LegalNotice color={theme.textSecondary} />
+        </Staged>
+      </View>
     </View>
   );
 }
@@ -103,14 +105,25 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     paddingHorizontal: spacing.large,
-    paddingBottom: spacing.medium,
-    gap: spacing.large,
   },
   hero: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.medium,
+  },
+  // Taken out of the flow on purpose. In the flow it is a sibling of `hero`,
+  // so `hero` ends where the notices begin and centring inside it puts the
+  // claim about 50pt above the middle of the screen — visibly high, and the
+  // taller the notices the higher it goes.
+  notice: {
+    position: 'absolute',
+    // Not 0: an absolutely placed child is laid out against the border box
+    // here, so it would otherwise lose the root's own horizontal padding and
+    // sit wider than everything above it.
+    left: spacing.large,
+    right: spacing.large,
+    bottom: spacing.medium,
   },
   staged: {
     alignSelf: 'stretch',

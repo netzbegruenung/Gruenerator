@@ -1,6 +1,6 @@
 import { useAuthStore } from '@gruenerator/shared/stores';
 import { router } from 'expo-router';
-import { type ComponentType, useEffect, useRef, useState } from 'react';
+import { type ComponentType, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Dimensions, useColorScheme } from 'react-native';
 import PagerView, {
   type PagerViewOnPageScrollEvent,
@@ -12,10 +12,10 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '../../components/common';
-import { MeshSurface } from '../../components/common/MeshSurface';
+import { SunriseBackground } from '../../components/common/SunriseBackground';
 import { ChatIllustration } from '../../components/onboarding/illustrations/ChatIllustration';
 import { DocsIllustration } from '../../components/onboarding/illustrations/DocsIllustration';
 import { NotebookIllustration } from '../../components/onboarding/illustrations/NotebookIllustration';
@@ -28,7 +28,6 @@ import { OnboardingSlide } from '../../components/onboarding/OnboardingSlide';
 import { useReduceMotion } from '../../hooks/useAccessibilityPreferences';
 import { useOnboardingStore } from '../../stores/onboardingStore';
 import { spacing, lightTheme, darkTheme, BODY_FONT } from '../../theme';
-import { REGENBOGEN_MESH } from '../../theme/chatBackgrounds';
 
 interface Slide {
   title: string;
@@ -38,9 +37,14 @@ interface Slide {
 
 const SLIDES: Slide[] = [
   {
-    title: 'Willkommen in der Grünerator App',
+    // Not a second welcome — the opening screen has already done that, and
+    // saying it twice is what made this slide read as filler. It answers the
+    // question the opening asks instead, in the words the product already uses
+    // for it (web's "KI Speziell für Grüne" section and its own line about
+    // where the processing happens).
+    title: 'KI speziell für Grüne',
     subtitle:
-      'Alles für deine grüne Arbeit – erstellen, recherchieren und organisieren, direkt auf deinem Smartphone.',
+      'Deine Inhalte werden sicher und klimaschonend in Europa verarbeitet. Faschismusfrei, versprochen!',
     Illustration: WelcomeIllustration,
   },
   {
@@ -68,52 +72,68 @@ const SLIDES: Slide[] = [
 /** The carousel's pages: the five above, plus the closing "Bereit?". */
 const PAGE_COUNT = SLIDES.length + 1;
 
-const SCREEN_HEIGHT = Dimensions.get('window').height;
+const SCREEN_WIDTH = Dimensions.get('window').width;
+
+/** How long the opening screen takes to hand over to the carousel. */
+const HANDOFF_MS = 520;
 
 /**
  * Two phases on one screen: an opening that asks nothing but "Beginnen", then
  * the carousel, ending on the sign-in.
  *
- * They share a mount, and that is the point — one band of colour is laid under
- * both, so the opening does not hand over to a second screen with its own
- * background. What changes when "Beginnen" is tapped is what stands on the
- * colour.
+ * One background under both, and it is the app's own start screen's
+ * ({@link SunriseBackground} — the person's chosen preset, with its own
+ * entrance). Laid once at this level rather than per phase, so "Beginnen"
+ * changes what stands on the colour and not the colour itself.
  *
- * The band rises into place on mount, exactly as `.sp-sunrise` does on the web
- * start page: 2.4s, the same easing, from a fifth of a screen lower and from
- * nothing. It lives here rather than in `OnboardingIntro` because it has to
- * outlive that screen — restarting the rise when the carousel appears would
- * read as the page reloading.
+ * That handover is a move, not a cut: the opening slides left and fades while
+ * the carousel comes in from the right, both driven by one clock so they cannot
+ * drift apart. The opening stays mounted underneath afterwards — hidden from
+ * touch and from screen readers — because unmounting a view mid-tween is what
+ * makes a transition flicker.
  */
 export default function OnboardingScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const user = useAuthStore((s) => s.user);
   const completeOnboarding = useOnboardingStore((s) => s.completeOnboarding);
+  const reduceMotion = useReduceMotion();
+  // Not a `SafeAreaView` wrapping both layers: the layers are absolutely
+  // placed so they can sit on top of each other during the handover, and an
+  // absolutely placed child is laid out against the border box — it would
+  // ignore the padding a SafeAreaView adds, and "Überspringen" would end up
+  // under the status bar. Each layer takes the insets itself.
+  const insets = useSafeAreaInsets();
 
   const [started, setStarted] = useState(false);
-
-  const rise = useSharedValue(0);
-  const reduceMotion = useReduceMotion();
-  useEffect(() => {
-    rise.value = reduceMotion
-      ? 1
-      : withTiming(1, { duration: 2400, easing: Easing.bezier(0.22, 1, 0.36, 1) });
-  }, [rise, reduceMotion]);
-  const riseStyle = useAnimatedStyle(() => ({
-    opacity: rise.value,
-    // Web lifts the band's centre from 82 % to 52 % of the viewport; 30 % of a
-    // phone's height is the same move.
-    transform: [{ translateY: (1 - rise.value) * 0.3 * SCREEN_HEIGHT }],
-  }));
-
   const pagerRef = useRef<PagerView>(null);
   const [index, setIndex] = useState(0);
   // Continuous page position (index + scroll offset) so the dots track the swipe
   // gesture smoothly rather than snapping on page change.
   const progress = useSharedValue(0);
+  // 0 = the opening screen has the stage, 1 = the carousel has it.
+  const handoff = useSharedValue(0);
 
   const isFinale = index === PAGE_COUNT - 1;
+
+  const safeArea = { paddingTop: insets.top, paddingBottom: insets.bottom };
+
+  const introStyle = useAnimatedStyle(() => ({
+    opacity: 1 - handoff.value,
+    transform: [{ translateX: -handoff.value * SCREEN_WIDTH * 0.28 }],
+  }));
+  const tourStyle = useAnimatedStyle(() => ({
+    opacity: handoff.value,
+    transform: [{ translateX: (1 - handoff.value) * SCREEN_WIDTH * 0.32 }],
+  }));
+
+  const begin = () => {
+    setStarted(true);
+    // eslint-disable-next-line react-hooks/immutability -- Reanimated shared value API
+    handoff.value = reduceMotion
+      ? 1
+      : withTiming(1, { duration: HANDOFF_MS, easing: Easing.out(Easing.cubic) });
+  };
 
   const handleScroll = (e: PagerViewOnPageScrollEvent) => {
     progress.value = e.nativeEvent.position + e.nativeEvent.offset;
@@ -144,75 +164,76 @@ export default function OnboardingScreen() {
 
   return (
     <View style={styles.container}>
-      <Animated.View style={[StyleSheet.absoluteFill, riseStyle]} pointerEvents="none">
-        <MeshSurface mesh={REGENBOGEN_MESH} id="onboarding" />
+      <SunriseBackground />
+
+      <Animated.View
+        style={[StyleSheet.absoluteFill, safeArea, introStyle]}
+        pointerEvents={started ? 'none' : 'auto'}
+        accessibilityElementsHidden={started}
+        importantForAccessibility={started ? 'no-hide-descendants' : 'auto'}
+      >
+        <OnboardingIntro onStart={begin} />
       </Animated.View>
 
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        {!started ? (
-          <OnboardingIntro onStart={() => setStarted(true)} />
-        ) : (
-          <>
-            <View style={styles.skipRow}>
-              {!isFinale && (
-                <Pressable
-                  testID="onboarding-skip"
-                  onPress={finish}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                >
-                  <Text style={[styles.skipText, { color: theme.textSecondary }]}>
-                    Überspringen
-                  </Text>
-                </Pressable>
-              )}
-            </View>
+      {started && (
+        <Animated.View style={[StyleSheet.absoluteFill, safeArea, tourStyle]}>
+          <View style={styles.skipRow}>
+            {!isFinale && (
+              <Pressable
+                testID="onboarding-skip"
+                onPress={finish}
+                hitSlop={8}
+                accessibilityRole="button"
+              >
+                <Text style={[styles.skipText, { color: theme.textSecondary }]}>Überspringen</Text>
+              </Pressable>
+            )}
+          </View>
 
-            <PagerView
-              ref={pagerRef}
-              style={styles.pager}
-              initialPage={0}
-              onPageScroll={handleScroll}
-              onPageSelected={handleSelected}
-            >
-              {SLIDES.map((slide, i) => (
-                <View key={slide.title} style={styles.page}>
-                  <OnboardingSlide
-                    index={i}
-                    progress={progress}
-                    Illustration={slide.Illustration}
-                    title={slide.title}
-                    subtitle={slide.subtitle}
-                  />
-                </View>
-              ))}
-              <View key="finale" style={styles.page}>
-                <OnboardingFinale
-                  index={SLIDES.length}
+          <PagerView
+            ref={pagerRef}
+            style={styles.pager}
+            initialPage={0}
+            onPageScroll={handleScroll}
+            onPageSelected={handleSelected}
+          >
+            {SLIDES.map((slide, i) => (
+              <View key={slide.title} style={styles.page}>
+                <OnboardingSlide
+                  index={i}
                   progress={progress}
-                  signedIn={user !== null}
-                  onDone={finishAfterLogin}
+                  Illustration={slide.Illustration}
+                  title={slide.title}
+                  subtitle={slide.subtitle}
                 />
               </View>
-            </PagerView>
+            ))}
+            <View key="finale" style={styles.page}>
+              <OnboardingFinale
+                index={SLIDES.length}
+                progress={progress}
+                signedIn={user !== null}
+                onDone={finishAfterLogin}
+              />
+            </View>
+          </PagerView>
 
-            <View style={styles.footer}>
-              <OnboardingDots count={PAGE_COUNT} progress={progress} />
-              {/* No button on the last page — it carries its own call to
+          <View style={styles.footer}>
+            <OnboardingDots count={PAGE_COUNT} progress={progress} />
+            {/* No button on the last page — it carries its own call to
                   action, and a second one under it would compete with the
                   sign-in. The slot keeps its height so the pager above does not
                   grow by a button's worth the moment that page settles. */}
-              {isFinale ? (
-                <View style={styles.ctaPlaceholder} />
-              ) : (
-                <Button onPress={handleNext} style={styles.cta}>
-                  Weiter
-                </Button>
-              )}
-            </View>
-          </>
-        )}
-      </SafeAreaView>
+            {isFinale ? (
+              <View style={styles.ctaPlaceholder} />
+            ) : (
+              <Button onPress={handleNext} style={styles.cta}>
+                Weiter
+              </Button>
+            )}
+          </View>
+        </Animated.View>
+      )}
     </View>
   );
 }
