@@ -25,6 +25,12 @@ export default function WebViewerScreen() {
   const [targetUrl, setTargetUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Also what Android's hardware back does: nothing here intercepts it, so it
+  // pops this route rather than walking the WebView's history. That is the
+  // behaviour we want — the screen is pinned to one page, so "back" can only
+  // mean "leave it" — and it is left unwired on purpose. A `BackHandler` that
+  // forwarded to the WebView would have to know whether the embedded page has
+  // a dialog open, which it cannot.
   const handleClose = useCallback(() => {
     router.back();
   }, [router]);
@@ -181,9 +187,22 @@ export default function WebViewerScreen() {
             allowsBackForwardNavigationGestures={false}
             // iOS long-press peek renders an arbitrary URL outside the gate.
             allowsLinkPreview={false}
+            // Not set, deliberately: `mediaCapturePermissionGrantType` and
+            // `allowsInlineMediaPlayback`. No embeddable surface calls
+            // getUserMedia, uses `capture=` or renders a `<video>` — granting
+            // camera access up front on a screen built for containment would
+            // buy nothing. Revisit when a surface here needs either.
             allowFileAccess={false}
             allowFileAccessFromFileURLs={false}
             allowUniversalAccessFromFileURLs={false}
+            // The editors open their text inputs from code: the canvas editor
+            // mounts a textarea over the shape and focuses it, the board does
+            // the same for a new card and for comments. iOS defaults this to
+            // `true`, which means a focus the user did not trigger by tapping
+            // an input does NOT raise the keyboard — the caret blinks and
+            // nothing can be typed. Everything this screen shows is an editor,
+            // so the default is wrong here.
+            keyboardDisplayRequiresUserAction={false}
           />
           {loading && (
             <View style={styles.loadingOverlay} pointerEvents="none">

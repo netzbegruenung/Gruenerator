@@ -465,6 +465,10 @@ export const CardDetailPanel = memo(function CardDetailPanel({
     useAgentStore.getState().setPendingDraft(text);
     useAgentStore.getState().setChatViewMode('thread');
     onOpenChange(false);
+    // The button below is hidden when embedded, so this cannot be reached from
+    // the app's WebView — the guard is at the render site because the action
+    // should not be offered there at all, not merely fail when pressed.
+
     void navigate('/chat');
   }, [row, title, description, dueDate, onOpenChange, navigate]);
 
