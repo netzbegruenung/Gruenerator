@@ -23,7 +23,6 @@ import {
   View,
   Text,
   Pressable,
-  ActivityIndicator,
   ScrollView,
   StyleSheet,
   TextInput,
@@ -31,6 +30,7 @@ import {
 
 import { colors, spacing, borderRadius, chatType } from '../../theme';
 import { BottomSheet } from '../common/BottomSheet';
+import { SkeletonRows } from '../common/Skeleton';
 
 import type { Theme } from '../../theme/colors';
 
@@ -108,7 +108,7 @@ function Status({
   hint: string;
   theme: Theme;
 }) {
-  if (loading) return <ActivityIndicator style={styles.status} color={colors.primary[500]} />;
+  if (loading) return <SkeletonRows count={4} leading={32} meta={false} />;
   if (!empty) return null;
   return <Text style={[styles.hint, { color: theme.textSecondary }]}>{hint}</Text>;
 }
@@ -474,9 +474,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     paddingHorizontal: spacing.medium,
     paddingBottom: spacing.small,
-  },
-  status: {
-    paddingVertical: spacing.medium,
   },
   hint: {
     ...chatType.chatSecondary,
