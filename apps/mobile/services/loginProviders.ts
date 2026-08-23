@@ -50,7 +50,15 @@ export type AuthSource = (typeof PROVIDER_SOURCE)[LoginProviderId];
  * every provider stays one tap away under "Weitere Anbieter".
  */
 export function detectCountryProvider(locale: string, timeZone: string): CountryProviderId {
-  const region = locale.toLowerCase().split(/[-_]/)[1] ?? '';
+  // Nicht schlicht das zweite Teilstück: ein Skript-Subtag schiebt sich dazwischen
+  // (`de-Latn-AT`), und dann wäre die Region „latn". Gesucht ist die Form einer
+  // Region — zwei Buchstaben oder die dreistellige UN-M49-Zahl.
+  const region =
+    locale
+      .toLowerCase()
+      .split(/[-_]/)
+      .slice(1)
+      .find((subtag) => /^[a-z]{2}$/.test(subtag) || /^\d{3}$/.test(subtag)) ?? '';
   const austrian = region === 'at' || timeZone === 'Europe/Vienna';
   return austrian ? 'gruene-oesterreich' : 'gruenes-netz';
 }
