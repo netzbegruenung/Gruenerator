@@ -12,6 +12,7 @@ import path from 'node:path';
 
 import { env } from './config/env.js';
 import { sendContentSyncEmail } from './services/email/emailService.js';
+import { mergeExtractionStats } from './services/scrapers/extractionRecorder.js';
 import { type SyncSummary } from './types/syncTypes.js';
 
 function parseArgs(): { dir: string; noEmail: boolean } {
@@ -67,6 +68,7 @@ async function main() {
       fetchErrors: allSources.reduce((sum, s) => sum + (s.fetchErrors ?? 0), 0),
       errors: allSources.reduce((sum, s) => sum + s.errors, 0),
     },
+    extraction: mergeExtractionStats(partials.map((p) => p.extraction)),
     totalDuration: Math.max(...partials.map((p) => p.totalDuration)),
   };
 
@@ -101,6 +103,7 @@ async function main() {
           sources: merged.sources,
           totals: merged.totals,
           dryRun: merged.dryRun,
+          extraction: merged.extraction,
         };
         if (runUrl != null) {
           params.runUrl = runUrl;

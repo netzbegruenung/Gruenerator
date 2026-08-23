@@ -507,6 +507,20 @@ export interface ContentSyncTemplateParams {
     skipped: number;
     errors: number;
   };
+  /**
+   * Was das Auslesen gekostet hat. Optional: der in-process-Sync-Router baut
+   * dieselben Params ohne Zähler.
+   */
+  extraction?:
+    | {
+        documents: number;
+        pages: number;
+        ocrDocuments: number;
+        ocrPages: number;
+        redundant: number;
+        skipped: { not_modified: number; same_bytes: number; freshly_indexed: number };
+      }
+    | undefined;
   runUrl?: string | undefined;
   dryRun: boolean;
 }
@@ -515,7 +529,7 @@ export function renderContentSyncTemplate(params: ContentSyncTemplateParams): {
   html: string;
   text: string;
 } {
-  const { sources, totals, totalDuration, runUrl, dryRun } = params;
+  const { sources, totals, totalDuration, runUrl, dryRun, extraction } = params;
 
   const hasFailures = totals.failed > 0 || totals.errors > 0;
   const statusIcon = hasFailures ? '⚠️' : '✅';
@@ -555,6 +569,45 @@ export function renderContentSyncTemplate(params: ContentSyncTemplateParams): {
     })
     .join('\n');
 
+  // Dokumente auslesen (PDF.js, bei Scans Mistral-OCR pro Seite) ist der teure
+  // Teil des Syncs, und in stored/updated/skipped ist er unsichtbar: ein vor der
+  // Extraktion übersprungenes Dokument und ein danach übersprungenes zählen dort
+  // gleich, kosten aber sehr verschieden. Deshalb der eigene Block — „Umsonst"
+  // ist die Zahl, an der man sieht, ob die Fingerprint-Gatter greifen.
+  const extractionBlock = extraction
+    ? `
+    <h2 style="margin:0 0 12px 0;font-size:16px;color:#333333;">Ausgelesen</h2>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin-bottom:24px;font-size:14px;">
+      <tr>
+        <td style="padding:6px 0;color:#555555;">Dokumente ausgelesen</td>
+        <td style="padding:6px 0;color:#333333;font-weight:600;text-align:right;">${extraction.documents} (${extraction.pages} Seiten)</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 0;color:#555555;">davon per OCR (kostenpflichtig)</td>
+        <td style="padding:6px 0;color:#333333;text-align:right;">${extraction.ocrDocuments} (${extraction.ocrPages} Seiten)</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 0;color:#555555;">Umsonst ausgelesen (Text unver&auml;ndert)</td>
+        <td style="padding:6px 0;color:${extraction.redundant > 0 ? '#c60' : '#333333'};font-weight:${extraction.redundant > 0 ? '700' : '400'};text-align:right;">${extraction.redundant}</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 0;color:#555555;">Nicht ausgelesen (Gatter)</td>
+        <td style="padding:6px 0;color:${PRIMARY_COLOR};font-weight:700;text-align:right;">${
+          extraction.skipped.not_modified +
+          extraction.skipped.same_bytes +
+          extraction.skipped.freshly_indexed
+        }</td>
+      </tr>
+      <tr>
+        <td style="padding:2px 0 6px 0;color:#888888;font-size:12px;" colspan="2">
+          304 unver&auml;ndert: ${extraction.skipped.not_modified} &middot;
+          gleiche Bytes: ${extraction.skipped.same_bytes} &middot;
+          frisch indexiert: ${extraction.skipped.freshly_indexed}
+        </td>
+      </tr>
+    </table>`
+    : '';
+
   const content = `
     <h1 style="margin:0 0 8px 0;font-size:20px;color:#333333;">${statusIcon} ${title}</h1>
     <p style="margin:0 0 24px 0;font-size:14px;color:#888888;">${dateStr} &middot; Dauer: ${totalDuration}s</p>
@@ -581,6 +634,8 @@ export function renderContentSyncTemplate(params: ContentSyncTemplateParams): {
         <td style="padding:6px 0;color:${totals.errors > 0 ? '#c00' : '#333333'};font-weight:${totals.errors > 0 ? '700' : '400'};text-align:right;">${totals.errors}</td>
       </tr>
     </table>
+
+    ${extractionBlock}
 
     <h2 style="margin:0 0 12px 0;font-size:16px;color:#333333;">Details pro Quelle</h2>
     <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:24px;">
@@ -636,6 +691,14 @@ export function renderContentSyncTemplate(params: ContentSyncTemplateParams): {
     })
     .join('\n');
 
+  const extractionText = extraction
+    ? `
+Ausgelesen: ${extraction.documents} Dokumente / ${extraction.pages} Seiten (davon OCR: ${extraction.ocrDocuments} / ${extraction.ocrPages})
+Umsonst ausgelesen (Text unverändert): ${extraction.redundant}
+Nicht ausgelesen: ${extraction.skipped.not_modified} (304), ${extraction.skipped.same_bytes} (gleiche Bytes), ${extraction.skipped.freshly_indexed} (frisch)
+`
+    : '';
+
   const text = `${statusIcon} ${title}
 ${dateStr} · Dauer: ${totalDuration}s
 
@@ -644,7 +707,7 @@ Neue Dokumente: +${totals.stored}
 Aktualisiert: ${totals.updated}
 Übersprungen: ${totals.skipped}
 Fehler: ${totals.errors}
-
+${extractionText}
 Details:
 ${sourceLines}
 ${runUrl ? `\nWorkflow-Log: ${runUrl}` : ''}
