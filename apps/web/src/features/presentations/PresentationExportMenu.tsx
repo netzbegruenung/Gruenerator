@@ -68,7 +68,7 @@ export function PresentationExportMenu({
         {},
         { responseType: 'blob' }
       );
-      downloadBlob(res.data as Blob, `${title?.trim() || 'Praesentation'}.pptx`);
+      await downloadBlob(res.data as Blob, `${title?.trim() || 'Praesentation'}.pptx`);
       toast.success('PowerPoint-Datei erstellt', { id: pending });
     } catch (err) {
       const status = (err as { response?: { status?: number } }).response?.status;
