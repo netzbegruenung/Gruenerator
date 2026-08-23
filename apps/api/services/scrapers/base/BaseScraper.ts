@@ -182,6 +182,14 @@ export abstract class BaseScraper {
       maxRetries?: number;
       userAgent?: string;
       headers?: Record<string, string>;
+      /**
+       * Statuscodes außerhalb von 2xx, die als Erfolg durchgereicht statt als
+       * Fehler wiederholt werden. Für bedingte GETs nötig: `304 Not Modified`
+       * ist die gewünschte Antwort, `response.ok` ist dabei aber false, und
+       * ohne diese Liste würde der Retry-Zweig sie dreimal neu anfragen und am
+       * Ende werfen.
+       */
+      acceptStatus?: number[];
     } = {}
   ): Promise<Response> {
     const {
@@ -189,6 +197,7 @@ export abstract class BaseScraper {
       maxRetries = 3,
       userAgent = 'Gruenerator-Bot/1.0',
       headers = {},
+      acceptStatus = [],
     } = options;
 
     const fetchAttempt = async (retries: number): Promise<Response> => {
@@ -209,7 +218,7 @@ export abstract class BaseScraper {
 
         clearTimeout(timeoutId);
 
-        if (!response.ok) {
+        if (!response.ok && !acceptStatus.includes(response.status)) {
           throw new Error(`HTTP ${response.status}`);
         }
 
