@@ -42,6 +42,7 @@ import {
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
+import { isEmbedded } from '../../../utils/platform';
 import { PhosphorIcon } from '../../agents/icons/PhosphorIcon';
 import { AgentRunButton } from '../aiColumns/AgentRunButton';
 import { useBoardActivity } from '../hooks/useBoardActivity';
@@ -1027,15 +1028,21 @@ export const CardDetailPanel = memo(function CardDetailPanel({
 
         {/* ============ FIXED FOOTER ============ */}
         <div className="shrink-0 flex items-center gap-1 border-t border-grey-200 dark:border-grey-700 px-3 py-2.5 sm:px-4">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="size-10 sm:size-9"
-            onClick={handleDiscussInChat}
-            title="Im Chat besprechen"
-          >
-            <FiMessageSquare size={16} />
-          </Button>
+          {/* Not embedded: the WebView is pinned to this board, so `/chat`
+              would render as a chrome-less page with no way back — and the
+              draft it hands over lives in a web-side store the app's own chat
+              screen never reads, so the jump would lose the text either way. */}
+          {!isEmbedded() && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="size-10 sm:size-9"
+              onClick={handleDiscussInChat}
+              title="Im Chat besprechen"
+            >
+              <FiMessageSquare size={16} />
+            </Button>
+          )}
           {boardId && (
             <Button
               variant="ghost"
