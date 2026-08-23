@@ -34,6 +34,10 @@ export function shouldForceFirstToolCall(input: {
    *  in den Kontext gespielt werden). Der Abrufkontext dieses Turns steht damit
    *  im Thread, nicht in seinem eigenen Verdikt. */
   priorTurnRetrieved: boolean;
+  /** Der Turn hat angehängte Dokumente (`retrievableAttachedSources`). */
+  hasAttachedDocuments?: boolean;
+  /** Die Nachricht bittet um eine Zusammenfassung (`isSummaryAsk`). */
+  summaryAsk?: boolean;
 }): boolean {
   // Der Bann vetoed alles. `toolChoice: 'required'` ist kein Vorschlag, den das
   // Modell gegen den Satz des Nutzers abwägen kann — unter „ohne neue Recherche"
@@ -46,6 +50,14 @@ export function shouldForceFirstToolCall(input: {
   // `NAMED_RETRIEVAL_INTENTS` ausgenommen (es IST der Auffangwert). Ohne diesen
   // Zweig verlöre genau diese Erwähnung den Werkzeugzwang, den sie vorher hatte.
   if (input.pinnedTool != null) return true;
+
+  // Achter Weg: eine Zusammenfassung eines ANGEHÄNGTEN Dokuments. Steht neben
+  // dem Intent-Weg unten, weil der Intent hier nicht verlässlich ist — der
+  // Klassifikator schiebt Dokument-Turns nach `search`, kann aber auch `summary`
+  // oder `agentic` schreiben, und `agentic` ist aus `NAMED_RETRIEVAL_INTENTS`
+  // ausgenommen. Welches Werkzeug es sein muss, steht in `pinnedFirstTool`:
+  // `summarize` liest den Volltext, alles andere sieht nur Passagen.
+  if (input.hasAttachedDocuments && input.summaryAsk) return true;
 
   // MCP mit gesetztem Server-Scope: eine Fähigkeitsfrage (WS-5 beschreibt die
   // Werkzeuge) braucht keinen Aufruf, alles andere schon.
@@ -167,11 +179,26 @@ export function shouldForceFirstToolCall(input: {
 export function pinnedFirstTool(input: {
   /** Das von einer Erwähnung festgezurrte Werkzeug (`mentionPinnedTool`). */
   pinnedTool: string | null;
+  /** Der Turn hat angehängte Dokumente (`retrievableAttachedSources`). */
+  hasAttachedDocuments?: boolean;
+  /** Die Nachricht bittet um eine Zusammenfassung (`isSummaryAsk`). */
+  summaryAsk?: boolean;
   isMounted: (toolName: string) => boolean;
 }): string | null {
   const pinned = input.pinnedTool;
-  if (!pinned) return null;
-  return input.isMounted(pinned) ? pinned : null;
+  if (pinned) return input.isMounted(pinned) ? pinned : null;
+
+  // Zweiter Grund, ein Werkzeug zu BENENNEN: „fasse das PDF zusammen" mit einem
+  // angehängten Dokument. Der Vorab-Seed hat die Passagen geholt, die zur Frage
+  // ähnlich sind — für eine Zusammenfassung ist das der falsche Stoff: sie soll
+  // aus dem VOLLTEXT entstehen, und das kann nur `summarize`
+  // (getMultipleDocumentsFullText, Map-Reduce). Ohne den Pin überlässt
+  // `toolChoice: 'required'` die Wahl dem Planer — der am 23.08.2026 `media`
+  // rief und ein fremdes Dokument zusammenfasste.
+  if (input.hasAttachedDocuments && input.summaryAsk && input.isMounted('summarize')) {
+    return 'summarize';
+  }
+  return null;
 }
 
 // A "what can this connector do?" question. When the turn is scoped to one MCP

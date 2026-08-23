@@ -184,6 +184,7 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     connectFiles: state.connectFiles ?? [],
     threadAttachments: state.threadAttachments ?? [],
     currentDocument: state.currentDocument ?? null,
+    documentChatLabels: state.documentChatLabels ?? {},
   });
 
   // Upgrade search/research → 'compare' when the user explicitly asks for a
