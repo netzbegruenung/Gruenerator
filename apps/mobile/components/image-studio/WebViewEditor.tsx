@@ -1,18 +1,18 @@
 import { parseWebViewMessage } from '@gruenerator/shared';
 import * as WebBrowser from 'expo-web-browser';
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
-import { StyleSheet, View, ActivityIndicator, Text, Platform, Alert } from 'react-native';
+import { StyleSheet, View, Platform, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
-import { useTheme } from '../../hooks/useTheme';
 import { secureStorage } from '../../services/storage';
 import {
   decideNavigation,
   WEBVIEW_ORIGIN_WHITELIST,
 } from '../../services/webview/navigationPolicy';
 import { receiveDownload } from '../../services/webview/receiveDownload';
-import { colors, BODY_FONT } from '../../theme';
+import { colors } from '../../theme';
+import { WebViewSkeleton } from '../webview/WebViewSkeleton';
 
 // Determine the web editor URL based on environment
 // In dev: Use local IP for Android, localhost for iOS
@@ -34,7 +34,6 @@ interface WebViewEditorProps {
 export function WebViewEditor({ initialData, onSave, onCancel }: WebViewEditorProps) {
   const webViewRef = useRef<WebView>(null);
   const insets = useSafeAreaInsets();
-  const theme = useTheme();
   const [_isReady, setIsReady] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
 
@@ -163,10 +162,13 @@ export function WebViewEditor({ initialData, onSave, onCancel }: WebViewEditorPr
     true;
   `;
 
+  // Both waits are the same surface: `/mobile-editor` renders `MasterCanvasEditor`,
+  // the very editor `/studio/canvas/` shows, so it gets that skeleton — a menu
+  // bar, the stage, the tool row.
   if (!authToken && __DEV__ === false) {
     return (
-      <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
-        <ActivityIndicator size="large" color={theme.textGreen} />
+      <View style={styles.loadingContainer}>
+        <WebViewSkeleton shape="canvas" />
       </View>
     );
   }
@@ -183,9 +185,8 @@ export function WebViewEditor({ initialData, onSave, onCancel }: WebViewEditorPr
         domStorageEnabled={true}
         startInLoadingState={true}
         renderLoading={() => (
-          <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
-            <ActivityIndicator size="large" color={theme.textGreen} />
-            <Text style={[styles.loadingText, { color: theme.textSecondary }]}>Lade Editor...</Text>
+          <View style={styles.loadingContainer}>
+            <WebViewSkeleton shape="canvas" />
           </View>
         )}
         // — containment, the same set as `web-viewer.tsx` —
@@ -223,15 +224,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'transparent',
   },
+  // The skeleton inside fills the box and paints its own background; nothing
+  // left to centre.
   loadingContainer: {
     ...StyleSheet.absoluteFill,
-    justifyContent: 'center',
-    alignItems: 'center',
     zIndex: 100,
-  },
-  loadingText: {
-    marginTop: 16,
-    fontFamily: BODY_FONT,
-    fontSize: 16,
   },
 });

@@ -19,6 +19,7 @@ import {
 } from '../../services/documentPicker';
 import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
 import { BottomSheet } from '../common/BottomSheet';
+import { SkeletonRows } from '../common/Skeleton';
 
 import type { Theme } from '../../theme/colors';
 import type {
@@ -174,15 +175,17 @@ export function DocumentBrowserSheet({
         </View>
       )}
 
-      {isLoading || uploading ? (
+      {uploading ? (
+        // An upload is a handler running, not a surface arriving — it keeps its
+        // spinner and its label. Only the browse below gets a skeleton.
         <View style={styles.loading}>
           <ActivityIndicator size="large" color={theme.textGreen} />
-          {uploading && (
-            <Text style={[styles.loadingLabel, { color: theme.textSecondary }]}>
-              Wird hochgeladen…
-            </Text>
-          )}
+          <Text style={[styles.loadingLabel, { color: theme.textSecondary }]}>
+            Wird hochgeladen…
+          </Text>
         </View>
+      ) : isLoading ? (
+        <SkeletonRows count={6} leading={32} meta={false} />
       ) : level.type === 'root' ? (
         <RootLevel
           collections={collections}
