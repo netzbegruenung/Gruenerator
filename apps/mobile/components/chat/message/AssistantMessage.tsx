@@ -13,9 +13,10 @@ import {
   type StatusPartLike,
 } from '@gruenerator/chat';
 import { memo, useMemo, useState } from 'react';
-import { View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { useTheme } from '../../../hooks/useTheme';
+import { chatType, spacing } from '../../../theme';
 import { ArtifactCard } from '../ArtifactCard';
 import { BahnCard } from '../BahnCard';
 import { ChatChartCard } from '../ChatChartCard';
@@ -70,6 +71,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
   const bahnData = metadata.bahnData;
   const artifactData = metadata.artifactData;
   const searchImages = metadata.searchImages;
+  const interrupted = metadata.interrupted;
 
   // Which Grünerator wrote this. `getCustomAgentMentionables()` is a plain read
   // of the module-level catalogue `useMentionablesSync` fills, so it re-resolves
@@ -152,6 +154,14 @@ export const AssistantMessage = memo(function AssistantMessage() {
           </ToolGroupScope>
         </MessageCitationsContext.Provider>
         <MessageErrorBanner theme={theme} />
+        {/* A turn whose row was still `streaming` when the thread reloaded. The
+            partial text renders normally above — it is worth reading, it just
+            must not look finished. */}
+        {interrupted && (
+          <Text style={[styles.interrupted, { color: theme.textSecondary }]}>
+            Antwort wurde unterbrochen
+          </Text>
+        )}
         {/* Mirrors web's AssistantMessage: compute/chart cards appear once the
             stream is done — during streaming the progress affordance owns the
             space and the metadata may still be partial. */}
@@ -179,4 +189,12 @@ export const AssistantMessage = memo(function AssistantMessage() {
       />
     </MessagePrimitive.Root>
   );
+});
+
+const styles = StyleSheet.create({
+  interrupted: {
+    ...chatType.chatMeta,
+    marginTop: spacing.xxsmall,
+    fontStyle: 'italic',
+  },
 });
