@@ -34,6 +34,10 @@ export const LV_PR_SPECS = [
     title: 'Saarland',
     codes: 'SL',
     notebook: 'saarland-notebook',
+    // Das Saarland hat als einziger Template-LV eigene Rezepte
+    // (`presse-saarland`, `insta-saarland`) — der Default muss sie nennen,
+    // sonst schreibt der eigene LV-Agent nach der generischen Vorlage.
+    recipe: 'presse-saarland',
     themes:
       'Strukturwandel und Industrie (Stahl, Automobil), Energiewende, Mobilität und ÖPNV (Saarbahn), Bildung, Gesundheit und Krankenhäuser, Grenzregion zu Frankreich',
   },
@@ -54,6 +58,8 @@ export const LV_PR_SPECS = [
   title: string;
   codes: string | readonly string[];
   notebook: string;
+  /** LV-eigenes Presserezept, falls vorhanden; sonst gilt das generische. */
+  recipe?: string;
   themes: string;
 }>;
 
@@ -77,7 +83,7 @@ export const LV_PR_AGENTS: Agent[] = LV_PR_SPECS.map((spec) => ({
   title: `Öffentlichkeitsarbeit (${spec.title})`,
   description: `Erstellt Pressemitteilungen und Social-Media-Inhalte für die Grünen ${spec.title} — mit regionaler Verankerung und LV-spezifischen Vorlagen.`,
   systemRole: '',
-  defaultRecipeMention: 'presse',
+  defaultRecipeMention: 'recipe' in spec ? spec.recipe : 'presse',
   avatar: '📢',
   backgroundColor: '#316049',
   tags: ['Presse', 'Social Media', 'PR', 'Kommunikation', 'Grüne', spec.title],
