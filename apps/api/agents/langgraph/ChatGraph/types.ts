@@ -734,6 +734,14 @@ export interface ChatGraphState {
   // appends the skill's `skillSystemPrompt` as an additive section.
   activeSkillMention: string | null;
 
+  // Nachvollziehbarkeit: die Rezepte, die diesen Turn tatsächlich geformt
+  // haben. Gesetzt von `buildSystemMessage` (Prompt-Tür: explizite/implizite
+  // Mention oder Agent-Default) bzw. vom Loop aus der Rezept-Registry
+  // (`rezept_laden`). Wandert in die `done`-Metadaten und die persistierte
+  // Nachricht, damit die Oberfläche dezent ausweisen kann, welche
+  // Schreibvorgabe galt.
+  usedRecipes?: { mention: string; title: string; source: 'system' | 'user' }[];
+
   // User profile instructions (from profiles.custom_prompt, additive to all modes)
   userInstructions: string | null;
 

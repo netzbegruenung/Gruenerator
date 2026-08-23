@@ -189,6 +189,9 @@ export async function runPersistStage({
       ...(finalState.summaryTimeMs != null && { summaryTimeMs: finalState.summaryTimeMs }),
       ...(memoryRetrieveTimeMs > 0 && { memoryRetrieveTimeMs }),
       ...(langfuseTraceId != null && { traceId: langfuseTraceId }),
+      // Dezente Rezept-Attribution: welche Schreibvorgabe diesen Turn geformt
+      // hat (Prompt-Tür oder `rezept_laden`). Titel + Mention, nie der Text.
+      ...(finalState.usedRecipes?.length && { recipesUsed: finalState.usedRecipes }),
     },
   });
 
