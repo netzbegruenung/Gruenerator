@@ -118,19 +118,31 @@ export async function collectWolkeShareFiles(
   return { client, files };
 }
 
+/** What one share file cost to read — see `extractionRecorder.ts`. */
+export interface WolkeExtraction {
+  text: string;
+  /** Extractor label; 'plain-read' for txt/md, which costs nothing. */
+  method: string;
+  pages: number;
+}
+
 /**
  * Download a share file and extract its text (Mistral OCR for binary documents,
- * plain read for txt/md). Returns '' on empty extraction.
+ * plain read for txt/md). Returns an empty `text` on empty extraction.
+ *
+ * The method and page count travel with the text because the caller reports
+ * them: for a txt/md read there is nothing to bill, for an OCR'd scan there is
+ * one line item per page.
  */
 export async function extractWolkeFileText(
   client: NextcloudApiClient,
   file: WolkeShareFile
-): Promise<string> {
+): Promise<WolkeExtraction> {
   const { buffer } = await client.downloadFile(file.href);
   const lower = file.name.toLowerCase();
 
   if (TEXT_EXTENSIONS.some((ext) => lower.endsWith(ext))) {
-    return buffer.toString('utf-8');
+    return { text: buffer.toString('utf-8'), method: 'plain-read', pages: 0 };
   }
 
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
@@ -138,7 +150,11 @@ export async function extractWolkeFileText(
   try {
     await fs.writeFile(tempPath, buffer);
     const result = await ocrService.extractTextFromDocument(tempPath);
-    return result.text || '';
+    return {
+      text: result.text || '',
+      method: result.extractionMethod || result.method || 'unknown',
+      pages: result.pageCount ?? 0,
+    };
   } finally {
     try {
       await fs.unlink(tempPath);
