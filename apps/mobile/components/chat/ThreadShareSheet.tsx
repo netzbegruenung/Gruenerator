@@ -1,10 +1,11 @@
 import { useThreadSharing } from '@gruenerator/chat';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { memo, useCallback, useMemo, useState } from 'react';
-import { View, Text, Pressable, ActivityIndicator, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 
 import { colors, spacing, borderRadius, chatType } from '../../theme';
 import { BottomSheet } from '../common/BottomSheet';
+import { SkeletonRows } from '../common/Skeleton';
 
 import { buildShareableGroups, type ShareableGroup } from './threadActionsView';
 
@@ -88,7 +89,7 @@ export const ThreadShareSheet = memo(function ThreadShareSheet({
       <Text style={[styles.title, { color: theme.text }]}>Mit Gruppe teilen</Text>
 
       {loading ? (
-        <ActivityIndicator style={styles.loading} color={colors.primary[500]} />
+        <SkeletonRows count={4} leading={36} meta={false} />
       ) : groups.length === 0 ? (
         <Text style={[styles.empty, { color: theme.textSecondary }]}>
           Du bist in keiner Gruppe. Gruppen findest du im Profil.
@@ -117,9 +118,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     paddingHorizontal: spacing.medium,
     paddingBottom: spacing.small,
-  },
-  loading: {
-    paddingVertical: spacing.large,
   },
   empty: {
     ...chatType.chatSecondary,

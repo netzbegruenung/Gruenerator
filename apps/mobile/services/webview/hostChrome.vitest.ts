@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CANVAS_MENUBAR_GRADIENT,
   CANVAS_MENUBAR_GRADIENT_STOPS,
+  embeddedSurfaceShape,
   hostDrawsHeader,
   SELF_CHROMED_PATH_PREFIXES,
   statusBarTint,
@@ -128,5 +129,39 @@ describe('the canvas band matches the editor menu bar', () => {
       CANVAS_MENUBAR_GRADIENT.map((c) => c.toUpperCase())
     );
     expect(positions).toEqual([...CANVAS_MENUBAR_GRADIENT_STOPS]);
+  });
+});
+
+/**
+ * The loading skeleton draws whatever this returns. A new self-chromed surface
+ * that nobody gave a shape would quietly get a spinner over an empty screen —
+ * the exact state the skeletons were added to remove — so the two lists are
+ * tied together here rather than trusted to stay in step.
+ */
+describe('embeddedSurfaceShape', () => {
+  it('gives every self-chromed surface a shape', () => {
+    for (const prefix of SELF_CHROMED_PATH_PREFIXES) {
+      expect(embeddedSurfaceShape(`${prefix}abc-123`), `${prefix} has no skeleton`).not.toBeNull();
+    }
+  });
+
+  it('names them apart — the three do not look alike', () => {
+    expect(embeddedSurfaceShape('/boards/abc')).toBe('board');
+    expect(embeddedSurfaceShape('/office/abc')).toBe('office');
+    expect(embeddedSurfaceShape('/studio/canvas/abc')).toBe('canvas');
+  });
+
+  it('promises nothing for a page whose layout it does not know', () => {
+    expect(embeddedSurfaceShape('/notebooks/abc')).toBeNull();
+    expect(embeddedSurfaceShape('/texte/abc')).toBeNull();
+    expect(embeddedSurfaceShape('/gruenerator/mein-agent')).toBeNull();
+    expect(embeddedSurfaceShape('/datenbank/vorlagen?selected=abc')).toBeNull();
+    expect(embeddedSurfaceShape('')).toBeNull();
+  });
+
+  it('judges by the pathname, and does not let a neighbour borrow the prefix', () => {
+    expect(embeddedSurfaceShape('/boards/abc?tab=archiv')).toBe('board');
+    expect(embeddedSurfaceShape('/boards-admin/abc')).toBeNull();
+    expect(embeddedSurfaceShape('/studio/canvas-archiv/abc')).toBeNull();
   });
 });

@@ -128,10 +128,14 @@ function RootLayout() {
             headerShown: false,
           }}
         />
+        {/* No header: the screen is its own stage — sunflower, claim, sign-in,
+            notices, and an "Abbrechen" of its own at the foot. A stack header
+            over that is a second title for one page and a second way out of it.
+            Still a modal, so the swipe-down stays. */}
         <Stack.Screen
           name="(auth)/login"
           options={{
-            title: 'Anmelden',
+            headerShown: false,
             presentation: 'modal',
           }}
         />
