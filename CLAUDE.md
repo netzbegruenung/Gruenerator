@@ -73,6 +73,8 @@ Scrapers in `apps/api/services/scrapers/`. Automated via GitHub Actions (`conten
 
 **NEVER full rescrape** (`--force` on all). Only targeted subsets (e.g. PDFs via `reprocess-pdfs.ts`). `satzungen_documents` is dormant — exclude.
 
+**PDFs werden pro Datei nur einmal ausgelesen.** Die Dedup-Kette hing lange am Hash des *extrahierten Texts* — der liegt aber erst nach Download, PDF.js-Parse und (bei Scans) einem seitenweise abgerechneten Mistral-OCR-Lauf vor, sodass jedes unveränderte PDF in jedem nächtlichen Lauf voll bezahlt und erst danach als „unchanged" verworfen wurde. Davor stehen jetzt zwei Gatter aus `services/scrapers/utils/binaryFingerprint.ts`: ein bedingter GET (`If-None-Match`/`If-Modified-Since` → 304 spart schon den Download) und ein SHA-256 über die rohen Bytes gegen den gespeicherten `file_hash`. **Wer ein drittes Gatter baut, muss das Nachtragen mitbauen:** ein PDF mit unverändertem Text schreibt keine Punkte, also persistiert nur der `unchanged`-Zweig (`DocumentProcessor.#refreshExtraPayload` bzw. `ProgramPdfScraper.#persistFingerprint`) den Fingerprint — ohne ihn bliebe jeder Punkt für immer ohne `file_hash` und das Gatter griffe nie. Aus demselben Grund gilt ein Punkt **ohne** gespeicherten `file_hash` als unbekannt, nicht als unverändert: er wird genau einmal ausgelesen und trägt danach seinen Hash.
+
 ### Authentication
 
 Keycloak OIDC via Passport.js. Multiple IdPs (.de, .at, .eu). Sessions in Redis.

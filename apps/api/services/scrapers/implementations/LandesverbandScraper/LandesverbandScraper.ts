@@ -32,6 +32,11 @@ import { sendLvSyncNotificationEmail } from '../../../email/emailService.js';
 import { mistralEmbeddingService } from '../../../mistral/index.js';
 import { ocrService } from '../../../OcrService/index.js';
 import { BaseScraper } from '../../base/BaseScraper.js';
+import {
+  conditionalHeaders,
+  fingerprintResponse,
+  isSameFile,
+} from '../../utils/binaryFingerprint.js';
 import { collectWolkeShareFiles, extractWolkeFileText } from '../../utils/wolkeShareHandler.js';
 
 import { ContentExtractor } from './extractors/ContentExtractor.js';
@@ -69,6 +74,34 @@ const RECHECK_AFTER_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
  * to the RECHECK_AFTER_MS window, so unknown-age content is still re-checked.
  */
 const RECHECK_MAX_CONTENT_AGE_MS = 2 * 365 * 24 * 60 * 60 * 1000; // ~2 years
+
+/**
+ * Layer-1 freshness gate. True when the caller should skip the document entirely.
+ * Skips an already-indexed URL when EITHER:
+ *   - its content was published more than RECHECK_MAX_CONTENT_AGE_MS ago
+ *     (settled history — never re-fetched once indexed), OR
+ *   - it was last indexed within RECHECK_AFTER_MS (recently re-checked).
+ * Missing, timestamp-less (legacy), or stale recent points return false so the
+ * caller re-fetches. What the re-fetch then costs is decided one layer down: for
+ * PDFs by the file fingerprint (before extraction), for HTML pages by the
+ * DocumentProcessor content-hash diff (before embedding).
+ */
+function isFreshlyIndexed(payload: Record<string, unknown> | null): boolean {
+  if (!payload) return false;
+
+  const publishedAt = payload.published_at as string | undefined;
+  if (publishedAt) {
+    const contentAge = Date.now() - new Date(publishedAt).getTime();
+    if (Number.isFinite(contentAge) && contentAge > RECHECK_MAX_CONTENT_AGE_MS) {
+      return true;
+    }
+  }
+
+  const indexedAt = payload.indexed_at as string | undefined;
+  if (!indexedAt) return false;
+  const age = Date.now() - new Date(indexedAt).getTime();
+  return Number.isFinite(age) && age >= 0 && age < RECHECK_AFTER_MS;
+}
 
 /**
  * Cold archive collection for documents past their source's maxAgeYears. Stale
@@ -285,14 +318,38 @@ export class LandesverbandScraper extends BaseScraper {
       for (let i = 0; i < toProcess.length; i++) {
         const pdf = toProcess[i];
         try {
-          if (!forceUpdate && (await this.#isFreshlyIndexed(pdf.url, targetCollection))) {
+          const stored = forceUpdate ? null : await this.#storedPayload(pdf.url, targetCollection);
+          if (isFreshlyIndexed(stored)) {
             result.skipped++;
             continue;
           }
 
-          const response = await this.#fetchUrl(pdf.url);
+          // Layer 2: bedingter GET. Bestätigt der Server den gespeicherten ETag
+          // bzw. Last-Modified mit 304, entfällt schon der Download.
+          const response = await this.#fetchUrl(pdf.url, {
+            headers: conditionalHeaders(stored),
+            acceptStatus: [304],
+          });
+
+          if (response.status === 304) {
+            result.skipped++;
+            result.skipReasons['unchanged'] = (result.skipReasons['unchanged'] || 0) + 1;
+            continue;
+          }
+
           const arrayBuffer = await response.arrayBuffer();
           const pdfBuffer = Buffer.from(arrayBuffer);
+
+          // Layer 3: Byte-Fingerprint. Server ohne brauchbare Validatoren liefern
+          // die Datei erneut aus; identische Bytes heißen aber, dass Extraktion
+          // (bei gescannten PDFs ein seitenweise abgerechneter OCR-Lauf) und
+          // Einbettung nichts Neues ergeben könnten.
+          const fingerprint = fingerprintResponse(pdfBuffer, response);
+          if (isSameFile(stored, fingerprint)) {
+            result.skipped++;
+            result.skipReasons['unchanged'] = (result.skipReasons['unchanged'] || 0) + 1;
+            continue;
+          }
 
           const rawFilename =
             new URL(pdf.url).pathname.replace(/\/$/, '').split('/').pop() || 'document';
@@ -332,7 +389,8 @@ export class LandesverbandScraper extends BaseScraper {
               categories: [],
             },
             targetCollection,
-            source.maxAgeYears
+            source.maxAgeYears,
+            fingerprint
           );
 
           if (storeResult.stored) {
@@ -570,7 +628,7 @@ export class LandesverbandScraper extends BaseScraper {
       const tasks = toProcess.map((url) => async (): Promise<void> => {
         const n = ++processed;
         try {
-          if (!forceUpdate && (await this.#isFreshlyIndexed(url, targetCollection))) {
+          if (!forceUpdate && isFreshlyIndexed(await this.#storedPayload(url, targetCollection))) {
             result.skipped++;
             return;
           }
@@ -975,11 +1033,15 @@ export class LandesverbandScraper extends BaseScraper {
   /**
    * Fetch URL with retry logic and timeout
    */
-  async #fetchUrl(url: string): Promise<Response> {
+  async #fetchUrl(
+    url: string,
+    options: { headers?: Record<string, string>; acceptStatus?: number[] } = {}
+  ): Promise<Response> {
     return this.fetchWithRetry(url, {
       timeout: this.timeout,
       maxRetries: this.maxRetries,
       userAgent: this.userAgent,
+      ...options,
     });
   }
 
@@ -1019,40 +1081,21 @@ export class LandesverbandScraper extends BaseScraper {
   }
 
   /**
-   * Layer-1 freshness gate. Returns true when the caller should skip the fetch.
-   * Skips an already-indexed URL when EITHER:
-   *   - its content was published more than RECHECK_MAX_CONTENT_AGE_MS ago
-   *     (settled history — never re-fetched once indexed), OR
-   *   - it was last indexed within RECHECK_AFTER_MS (recently re-checked).
-   * Missing, timestamp-less (legacy), or stale recent points return false so the
-   * caller re-fetches and lets the DocumentProcessor content-hash diff decide on
-   * re-embed.
+   * Payload of one already-stored chunk for this URL, or null when the URL has
+   * never been indexed. Read once per document and handed to both the freshness
+   * gate and the file-fingerprint gate, so a re-check still costs one scroll.
    */
-  async #isFreshlyIndexed(url: string, targetCollection: string): Promise<boolean> {
+  async #storedPayload(
+    url: string,
+    targetCollection: string
+  ): Promise<Record<string, unknown> | null> {
     const points = await scrollDocuments(
       this.qdrantClient,
       targetCollection,
       { must: [{ key: 'source_url', match: { value: url } }] },
       { limit: 1, withPayload: true, withVector: false }
     );
-    if (points.length === 0) return false;
-    const payload = points[0].payload;
-
-    // Settled history (published > 2 years ago) does not change in place, so we
-    // never re-fetch it regardless of when it was last re-checked. This keeps
-    // the per-run re-fetch set bounded to recent/living content.
-    const publishedAt = payload?.published_at as string | undefined;
-    if (publishedAt) {
-      const contentAge = Date.now() - new Date(publishedAt).getTime();
-      if (Number.isFinite(contentAge) && contentAge > RECHECK_MAX_CONTENT_AGE_MS) {
-        return true;
-      }
-    }
-
-    const indexedAt = payload?.indexed_at as string | undefined;
-    if (!indexedAt) return false;
-    const age = Date.now() - new Date(indexedAt).getTime();
-    return Number.isFinite(age) && age >= 0 && age < RECHECK_AFTER_MS;
+    return points.length > 0 ? points[0].payload : null;
   }
 
   /**
@@ -1061,7 +1104,7 @@ export class LandesverbandScraper extends BaseScraper {
    *
    * The DocumentProcessor age filter only rejects new content at ingestion.
    * Documents indexed before a source's window was tightened linger forever:
-   * #isFreshlyIndexed never re-fetches settled history (published > 2y ago) and
+   * isFreshlyIndexed never re-fetches settled history (published > 2y ago) and
    * dedup only ever touches URLs that are re-encountered. Sachsen-Anhalt, for
    * example, was scraped under the 10-year default before its 5-year cap was
    * set, so 2016–2020 documents stayed in the live collection and surfaced in
