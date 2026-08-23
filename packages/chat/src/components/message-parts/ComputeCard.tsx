@@ -88,13 +88,13 @@ export function ComputeCard({ data }: { data: ComputeData }) {
     // serve them directly, no server dependency (asset storage, retention).
     const local = useComputeExportStore.getState().files[file.name];
     if (local) {
-      downloadBase64(local, file.name, mimeFromFilename(file.name));
+      await downloadBase64(local, file.name, mimeFromFilename(file.name));
       return;
     }
     // Reloaded thread: fetch the stored asset with the authenticated fetch.
     const blob = await fetchAssetBlob(file.url);
     if (blob) {
-      downloadBlob(blob, file.name);
+      await downloadBlob(blob, file.name);
     } else {
       setUnavailable((prev) => new Set(prev).add(file.url));
     }
