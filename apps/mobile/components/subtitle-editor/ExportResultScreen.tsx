@@ -143,17 +143,21 @@ export function ExportScreen({
 
   const handleSaveToGallery = useCallback(async () => {
     if (!videoUri) return;
-    // Write-only: saving only, never reading the library.
-    const { status: permStatus } = await MediaLibrary.requestPermissionsAsync(true);
-    if (permStatus !== 'granted') {
-      Alert.alert(
-        'Galerie-Berechtigung',
-        'Bitte erlaube den Zugriff auf die Galerie, um das Video zu speichern.'
-      );
-      return;
-    }
 
+    // Die Berechtigungsfrage steht mit im try: sie kann selbst werfen, und ein
+    // Fehlschlag davor wäre sonst eine unbehandelte Rejection statt einer
+    // Meldung.
     try {
+      // Write-only: saving only, never reading the library.
+      const { status: permStatus } = await MediaLibrary.requestPermissionsAsync(true);
+      if (permStatus !== 'granted') {
+        Alert.alert(
+          'Galerie-Berechtigung',
+          'Bitte erlaube den Zugriff auf die Galerie, um das Video zu speichern.'
+        );
+        return;
+      }
+
       const asset = await MediaLibrary.Asset.create(videoUri);
       setSavedToGallery(true);
       alertSavedToGallery(asset.id, 'Das Video wurde in der Galerie gespeichert.');
