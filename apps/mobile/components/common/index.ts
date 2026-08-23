@@ -13,6 +13,7 @@ export {
   SkeletonTiles,
   useSkeletonPulse,
   useSkeletonColor,
+  type SkeletonSurface,
   skeletonStyles,
 } from './Skeleton';
 export { MicButton } from './MicButton';
