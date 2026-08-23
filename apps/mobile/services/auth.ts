@@ -7,6 +7,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { getErrorMessage } from '../utils/errors';
 
 import { getGlobalApiClient, API_ENDPOINTS } from './api';
+import { type AuthSource } from './loginProviders';
 import { secureStorage } from './storage';
 
 import type { ProfileUpdateBody } from '@gruenerator/contracts';
@@ -16,8 +17,10 @@ WebBrowser.maybeCompleteAuthSession();
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/api';
 
-export type AuthSource =
-  'gruenerator-login' | 'gruenes-netz-login' | 'netzbegruenung-login' | 'gruene-oesterreich-login';
+// Derived from the provider table rather than spelled out again — see
+// `loginProviders.ts` for why it is defined over there. Re-exported so the
+// callers that have always imported it from here keep working.
+export type { AuthSource };
 
 export const REDIRECT_URI = makeRedirectUri({
   scheme: 'gruenerator',
