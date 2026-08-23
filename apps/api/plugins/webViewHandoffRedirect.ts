@@ -39,6 +39,12 @@ export const EMBEDDABLE_PATH_PREFIXES: readonly string[] = [
   '/office/',
   '/studio/canvas/',
   '/texte/',
+  // No trailing slash, and that is the rule rather than an oversight: an entry
+  // that ends in `/` matches a prefix (a resource id follows), one that does not
+  // must match the whole path. The offscreen sharepic renderer takes no
+  // parameters, so a prefix entry here would also open a future
+  // `/mobile-render-admin`.
+  '/mobile-render',
 ];
 
 /**
@@ -113,7 +119,15 @@ export function validateRedirectTarget(
   // meaningful if the string it matched is the string the browser will use.
   if (pathOnly.split('/').includes('..')) return { ok: false, reason: 'traversal' };
 
-  if (!allowedPrefixes.some((prefix) => pathOnly.startsWith(prefix))) {
+  // Entries ending in `/` are prefixes (an id follows); the rest are exact
+  // paths. Without the distinction every parameterless route would also license
+  // its own longer neighbours — `/mobile-render` would open
+  // `/mobile-render-admin` — which is the same segment-boundary bug the
+  // trailing slashes above exist to avoid.
+  const licensed = allowedPrefixes.some((prefix) =>
+    prefix.endsWith('/') ? pathOnly.startsWith(prefix) : pathOnly === prefix
+  );
+  if (!licensed) {
     return { ok: false, reason: 'not-allowlisted' };
   }
 

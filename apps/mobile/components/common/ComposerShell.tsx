@@ -109,6 +109,8 @@ interface ComposerShellProps {
   style?: StyleProp<ViewStyle>;
   /** Above the box — attachment chips, mention suggestions. */
   aboveBox?: React.ReactNode;
+  /** Below the box — the KI-VO reminder. */
+  belowBox?: React.ReactNode;
   /** The text input. Supplied by the controller, which owns the text state. */
   input: React.ReactNode;
   /** Far-left control — plus menu or settings button. */
@@ -125,6 +127,7 @@ export function ComposerShell({
   minHeight = COMPOSER_CARD_MIN_HEIGHT,
   style,
   aboveBox,
+  belowBox,
   input,
   leading,
   toolbarExtra,
@@ -161,6 +164,7 @@ export function ComposerShell({
           </View>
         </View>
       )}
+      {belowBox}
     </View>
   );
 }
