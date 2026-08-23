@@ -21,7 +21,6 @@ import {
   RefreshControl,
 } from 'react-native';
 
-
 import { secureStorage } from '../../services/storage';
 import { colors, spacing, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 import { SkeletonBar, SkeletonGroup } from '../common/Skeleton';

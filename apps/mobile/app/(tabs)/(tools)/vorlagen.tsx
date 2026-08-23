@@ -254,7 +254,6 @@ export default function VorlagenScreen() {
     [categories]
   );
 
-
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       {categories.length > 0 && (

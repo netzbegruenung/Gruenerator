@@ -20,7 +20,6 @@ import { fetchStockImageForMobile } from '../../services/imageSourceService';
 import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
 import { SkeletonTiles } from '../common/Skeleton';
 
-
 import { UnsplashAttribution } from './UnsplashAttribution';
 
 import type { StockImage } from '@gruenerator/shared/image-studio';
@@ -160,14 +159,14 @@ export function StockImagesGrid({ onImageSelected }: StockImagesGridProps) {
         // The grid it will be: same tile size, same gap. The overlay spinner on
         // a tapped tile stays a spinner — that one is a download in progress.
         <View style={styles.listContent}>
-    <SkeletonTiles
-      count={NUM_COLUMNS * 3}
-      itemWidth={itemSize}
-      columns={NUM_COLUMNS}
-      gap={ITEM_GAP}
-      aspectRatio={1}
-      radius={borderRadius.medium}
-    />
+          <SkeletonTiles
+            count={NUM_COLUMNS * 3}
+            itemWidth={itemSize}
+            columns={NUM_COLUMNS}
+            gap={ITEM_GAP}
+            aspectRatio={1}
+            radius={borderRadius.medium}
+          />
         </View>
       ) : (
         <FlatList

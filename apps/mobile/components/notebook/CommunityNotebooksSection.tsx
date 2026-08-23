@@ -1,13 +1,6 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useMemo, useState } from 'react';
-import {
-  View,
-  Text,
-  Pressable,
-  TextInput,
-  StyleSheet,
-  useColorScheme,
-} from 'react-native';
+import { View, Text, Pressable, TextInput, StyleSheet, useColorScheme } from 'react-native';
 
 import { useNotebookLikes } from '../../hooks/notebook/useNotebookLikes';
 import { usePublicNotebookCollections } from '../../hooks/notebook/usePublicNotebookCollections';

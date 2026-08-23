@@ -3,7 +3,6 @@ import { View, StyleSheet, useColorScheme } from 'react-native';
 import { lightTheme, darkTheme, spacing } from '../../theme';
 import { SkeletonBar, SkeletonCircle, SkeletonGroup, SkeletonLines } from '../common/Skeleton';
 
-
 import type { EmbeddedSurfaceShape } from '../../services/webview/hostChrome';
 
 /**
@@ -21,7 +20,11 @@ import type { EmbeddedSurfaceShape } from '../../services/webview/hostChrome';
  * guess the content.
  */
 
-const CARD_HEIGHTS = [[54, 78, 40], [66, 48], [40, 62, 50]] as const;
+const CARD_HEIGHTS = [
+  [54, 78, 40],
+  [66, 48],
+  [40, 62, 50],
+] as const;
 const DOC_LINES = ['100%', '92%', '97%', '61%', '100%', '88%'] as const;
 
 /** Back arrow — title — a couple of trailing controls. Every one of them has it. */

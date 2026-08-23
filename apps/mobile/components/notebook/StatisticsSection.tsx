@@ -1,6 +1,5 @@
 import { View, Text, StyleSheet } from 'react-native';
 
-
 import { TOPIC_COLORS, TOPIC_LABELS, isTopicCategory } from '../../config/topicConfig';
 import { useNotebookStats, type TopicCount } from '../../hooks/notebook/useNotebookStats';
 import { spacing, borderRadius, BODY_FONT } from '../../theme';

@@ -168,14 +168,14 @@ export function MediathekSelector({ visible, onClose, onImageSelect }: Mediathek
 
         {isLoading && mediathekImages.length === 0 ? (
           <View style={styles.listContent}>
-    <SkeletonTiles
-      count={NUM_COLUMNS * 3}
-      itemWidth={itemSize}
-      columns={NUM_COLUMNS}
-      gap={ITEM_GAP}
-      aspectRatio={1}
-      radius={borderRadius.medium}
-    />
+            <SkeletonTiles
+              count={NUM_COLUMNS * 3}
+              itemWidth={itemSize}
+              columns={NUM_COLUMNS}
+              gap={ITEM_GAP}
+              aspectRatio={1}
+              radius={borderRadius.medium}
+            />
           </View>
         ) : (
           <FlatList

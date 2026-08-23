@@ -235,29 +235,25 @@ export default function AgentsScreen() {
     // of a shelf that never needed the network.
     body = agentGroup(featuredAgents);
   } else if (shelf === 'meine') {
-    body = isLoading ? (
-      shelfSkeleton
-    ) : error ? (
-      emptyNote('Deine Grüneratoren konnten nicht geladen werden.')
-    ) : userAgents.length > 0 ? (
-      agentGroup(userAgents)
-    ) : (
-      emptyNote(
-        'Du hast noch keine eigenen Grüneratoren. Anlegen geht am Rechner — hier findest du sie danach wieder.'
-      )
-    );
+    body = isLoading
+      ? shelfSkeleton
+      : error
+        ? emptyNote('Deine Grüneratoren konnten nicht geladen werden.')
+        : userAgents.length > 0
+          ? agentGroup(userAgents)
+          : emptyNote(
+              'Du hast noch keine eigenen Grüneratoren. Anlegen geht am Rechner — hier findest du sie danach wieder.'
+            );
   } else if (shelf === 'community') {
-    body = publicLoading ? (
-      shelfSkeleton
-    ) : publicError ? (
-      emptyNote('Die Grüneratoren von der Basis konnten nicht geladen werden.')
-    ) : communityAgents.length > 0 ? (
-      agentGroup(communityAgents)
-    ) : (
-      // Only says "none yet" once we know: a request still in flight or a failed
-      // one is not an empty shelf.
-      emptyNote('Noch keine öffentlich geteilten Grüneratoren von der Basis.')
-    );
+    body = publicLoading
+      ? shelfSkeleton
+      : publicError
+        ? emptyNote('Die Grüneratoren von der Basis konnten nicht geladen werden.')
+        : communityAgents.length > 0
+          ? agentGroup(communityAgents)
+          : // Only says "none yet" once we know: a request still in flight or a failed
+            // one is not an empty shelf.
+            emptyNote('Noch keine öffentlich geteilten Grüneratoren von der Basis.');
   } else {
     // "Offizielle": the flat 30-item list this screen used to be, now split into
     // the sub-sections web has — general agents, Landesverbände, then recipes.
