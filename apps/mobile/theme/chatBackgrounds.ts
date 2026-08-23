@@ -96,53 +96,6 @@ function cloud(
 }
 
 /**
- * The Regenbogen: five pastels fanned across the middle of the screen, and what
- * the onboarding wears from the opening screen through to the last slide.
- *
- * Ported from `.sp-sunrise` in the web start page's `startpage-hero.css` — the
- * same backdrop `/login` wears — because that is the screen a first-time user
- * met before they ever installed the app. Same five colours, same 44 % × 56 %
- * ellipses at 10/30/50/70/90 %, same 0.34 alpha reaching zero at 0.70 of the
- * radius. The falloff completing inside the frame is what makes it a band at
- * mid-height rather than a wash, and the band is where the headline sits.
- *
- * Deliberately *not* one of the `mesh`/`nebel`/`dunst` presets. Those are
- * tuned to leave a composer legible on a working screen and read pale on an
- * empty one; this screen has one sentence and one button on it and can carry
- * the full fan.
- *
- * Dark mode goes through `darkMesh` like every other mesh, rather than copying
- * web's flat dim to 0.09 — the app already has an answer for what a coloured
- * ground becomes after dark, and a second one would drift.
- */
-export const REGENBOGEN_MESH: MeshPreset = {
-  base: '#FDFAF7',
-  layers: [
-    cloud('#F08291', 0.1, 0.52, 0.44, 0.56, 0.34, 0.7),
-    cloud('#F3C36E', 0.3, 0.52, 0.44, 0.56, 0.34, 0.7),
-    cloud('#92CD8D', 0.5, 0.52, 0.44, 0.56, 0.34, 0.7),
-    cloud('#7EB0E6', 0.7, 0.52, 0.44, 0.56, 0.34, 0.7),
-    cloud('#B38DDB', 0.9, 0.52, 0.44, 0.56, 0.34, 0.7),
-  ],
-};
-
-/**
- * Round 1 of the mesh backgrounds, and the strongest of the three: no white
- * veil, so the colour reaches the middle of the screen and the composer sits on
- * tinted ground.
- */
-export const COLOUR_MESH: MeshPreset = {
-  base: '#FCF9F4',
-  layers: [
-    cloud('#FDF7ED', 0.5, 0, 1.1, 0.55, 1, 0.6),
-    cloud('#D7D5F3', 0.82, 1, 0.85, 0.55, 0.9, 0.58),
-    cloud('#C7E4D7', 0.92, 0.58, 0.95, 0.65, 0.95, 0.62),
-    cloud('#F4EEBA', 0.44, 0.82, 1.0, 0.7, 0.85, 0.6),
-    cloud('#F8CDC5', 0.12, 0.24, 1.2, 0.8, 0.95, 0.62),
-  ],
-};
-
-/**
  * The mesh chat backgrounds, ported 1:1 from the design document
  * (claude.ai/design, "Grünerator Mobile"), where each is a CSS `background` of
  * several `radial-gradient()`s over a flat colour.
@@ -169,7 +122,20 @@ export const COLOUR_MESH: MeshPreset = {
  * paint order, bottom-first, so each reads as the inverse of its CSS source.
  */
 export const CHAT_BACKGROUND_MESHES: Partial<Record<ChatBackground, MeshPreset>> = {
-  mesh: COLOUR_MESH,
+  /**
+   * Round 1. The strongest of the three: no white veil, so the colour reaches
+   * the middle of the screen and the composer sits on tinted ground.
+   */
+  mesh: {
+    base: '#FCF9F4',
+    layers: [
+      cloud('#FDF7ED', 0.5, 0, 1.1, 0.55, 1, 0.6),
+      cloud('#D7D5F3', 0.82, 1, 0.85, 0.55, 0.9, 0.58),
+      cloud('#C7E4D7', 0.92, 0.58, 0.95, 0.65, 0.95, 0.62),
+      cloud('#F4EEBA', 0.44, 0.82, 1.0, 0.7, 0.85, 0.6),
+      cloud('#F8CDC5', 0.12, 0.24, 1.2, 0.8, 0.95, 0.62),
+    ],
+  },
 
   /**
    * Round 2, variant 2a. The same four colours spread wider and weaker, with a
