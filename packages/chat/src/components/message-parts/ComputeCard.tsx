@@ -131,7 +131,7 @@ export function ComputeCard({ data }: { data: ComputeData }) {
             className="max-w-full rounded border border-border"
           />
           <button
-            onClick={() => downloadBase64(figure, `diagramm-${i + 1}.png`, 'image/png')}
+            onClick={() => void downloadBase64(figure, `diagramm-${i + 1}.png`, 'image/png')}
             className="absolute right-2 top-2 rounded-md border border-border bg-background/90 p-1.5 text-foreground-muted opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
             aria-label={`Diagramm ${i + 1} herunterladen`}
           >
@@ -165,7 +165,7 @@ export function ComputeCard({ data }: { data: ComputeData }) {
           {data.files?.map((file) => (
             <button
               key={file.name}
-              onClick={() => downloadBase64(file.b64, file.name, mimeFromFilename(file.name))}
+              onClick={() => void downloadBase64(file.b64, file.name, mimeFromFilename(file.name))}
               className={CHIP_CLASS}
             >
               <FileDown className="h-3.5 w-3.5 text-primary" />
