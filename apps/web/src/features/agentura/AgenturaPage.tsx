@@ -75,7 +75,6 @@ import type { IconType } from 'react-icons';
 import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
 import PageContainer from '@/components/common/PageContainer';
 import { getAgentIcon } from '@/components/layout/Sidebar/sidebarAgentConfig';
-import { getToolGradient } from '@/config/toolTheme';
 import { useFirstName } from '@/hooks/useFirstName';
 import useAgentFavoritesStore from '@/stores/agentFavoritesStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -587,7 +586,7 @@ function AgenturaPage() {
     : (activeCategory?.emptyText ?? 'Hier ist gerade nichts vorhanden.');
 
   return (
-    <PageContainer maxWidth="lg" noPadTop bgClassName={getToolGradient('agents')}>
+    <PageContainer maxWidth="lg" noPadTop>
       <WorkplaceHero title={firstName ? `Deine Grüneratoren, ${firstName}` : 'Deine Grüneratoren'}>
         <div className="relative mx-auto max-w-[520px]">
           <PiMagnifyingGlass className="pointer-events-none absolute left-md top-1/2 h-4 w-4 -translate-y-1/2 text-foreground-muted" />
