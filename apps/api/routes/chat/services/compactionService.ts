@@ -14,6 +14,7 @@ import { upsertThreadRecallPoint } from '../../../services/chat/threadRecallEmbe
 import { createLogger } from '../../../utils/logger.js';
 import { getIntermediateModel } from '../agents/providers.js';
 
+import { renderCarryBlock, selectCarriedLongForm } from './compactionCarry.js';
 import { getKeepRecent, KEEP_RECENT, SUMMARY_MAX_TOKENS } from './compactionConfig.js';
 
 const log = createLogger('CompactionService');
@@ -175,7 +176,7 @@ Halte die Zusammenfassung kompakt aber informativ (max. 400 Wörter). Schreibe i
  * This prepends the compaction summary to the system message and returns
  * only recent messages, reducing context window usage for long conversations.
  */
-export function prepareMessagesWithCompaction<T extends { role: string }>(
+export function prepareMessagesWithCompaction<T extends { role: string; content?: unknown }>(
   messages: T[],
   compactionState: CompactionState,
   baseSystemMessage: string,
@@ -188,6 +189,22 @@ export function prepareMessagesWithCompaction<T extends { role: string }>(
     };
   }
 
+  // Filter to only keep recent messages (excluding system messages which are handled separately)
+  const keepRecent = getKeepRecent(contextWindowTokens);
+  const nonSystemMessages = messages.filter((m) => m.role !== 'system');
+  const recentMessages = nonSystemMessages.slice(-keepRecent);
+  const droppedMessages = nonSystemMessages.slice(
+    0,
+    nonSystemMessages.length - recentMessages.length
+  );
+
+  // The summary paraphrases what falls away — which is right for conversation
+  // and wrong for a produced text. Note that the drop is wider than the summary
+  // covers: `compactedUpToMessageId` records where the summary ended, but the
+  // slice above is a fixed COUNT, so everything between the two is replaced by
+  // nothing at all. See compactionCarry.ts.
+  const carriedLongForm = selectCarriedLongForm(droppedMessages, recentMessages);
+
   // Enhance system message with summary
   const enhancedSystemMessage = `${baseSystemMessage}
 
@@ -196,18 +213,14 @@ export function prepareMessagesWithCompaction<T extends { role: string }>(
 Das folgende ist eine Zusammenfassung des bisherigen Gesprächsverlaufs. Nutze diese Informationen als Kontext für deine Antworten:
 
 ${compactionState.summary}
-
+${carriedLongForm ? `\n${renderCarryBlock(carriedLongForm)}\n` : ''}
 ---
 Die folgenden Nachrichten sind die aktuellsten im Gespräch.`;
 
-  // Filter to only keep recent messages (excluding system messages which are handled separately)
-  const keepRecent = getKeepRecent(contextWindowTokens);
-  const nonSystemMessages = messages.filter((m) => m.role !== 'system');
-  const recentMessages = nonSystemMessages.slice(-keepRecent);
-
   log.debug(
     `[Compaction] Prepared messages: ${nonSystemMessages.length} original -> ${recentMessages.length} recent ` +
-      `(summary: ${compactionState.summary.length} chars)`
+      `(summary: ${compactionState.summary.length} chars` +
+      `${carriedLongForm ? `, carried long-form: ${carriedLongForm.length} chars` : ''})`
   );
 
   return {
