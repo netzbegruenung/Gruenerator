@@ -31,6 +31,11 @@ import {
   type ThreadToolHistory,
 } from '../threadPersistenceService.js';
 
+import {
+  attachedDocsQuery,
+  retrievableAttachedSources,
+  retrieveAttachedDocuments,
+} from './attachedDocuments.js';
 import { isMcpReplayEnabled } from './flags.js';
 import { createToolLoopGuards } from './loopGuards.js';
 import { buildToolObservationReplay } from './mcpReplay.js';
@@ -437,6 +442,97 @@ export async function rehydrateCarriedSources(params: {
     params.onError(
       `[Agentic] source rehydration skipped: ${err instanceof Error ? err.message : err}`
     );
+  }
+}
+
+/**
+ * Up-front-Seed: die angehängten Dokumente EINMAL abrufen, bevor der Planer
+ * seinen ersten Zug macht.
+ *
+ * Warum unbedingt und nicht auf Verdacht: die Frage „braucht dieser Turn das
+ * angehängte Dokument?" lag bisher beim Planer, und er hat sie falsch
+ * beantwortet — live am 23.08.2026 rief er `media`/`find_content` und fasste
+ * ein fremdes Konto-Dokument zusammen, während das gerade hochgeladene PDF
+ * unberührt in Qdrant lag. Ein Fan-out über ein bis drei Dokumente ist billiger
+ * als eine Antwort über den falschen Text.
+ *
+ * Zwei Kanäle, weil Planer und Schreiber getrennte Kontexte haben:
+ *  - Der SCHREIBER liest die Registry über `renderAll()`. Eingetragen wird über
+ *    `seedAttached()` — zitierbar und in dieser Turn-Numerierung, aber aus
+ *    `freshSize` heraus, weil die Wächter damit über die Arbeit des PLANERS
+ *    urteilen (Begründung an der Methode). Weder `seedCarried()` (das hiesse
+ *    „frühere Recherche", was ein frisch hochgeladenes Dokument nicht ist) noch
+ *    `register()` (das hiesse „der Planer hat gesucht", was er nicht hat).
+ *  - Der PLANER sieht die Registry nie. Er bekommt das Ergebnis als
+ *    tool-call/tool-result-Paar in denselben Replay-Strom, den
+ *    `buildToolObservationReplay` für frühere Turns baut — sonst weiss er nicht,
+ *    dass die Dokumente schon gelesen sind, und sucht weiter.
+ *
+ * Gibt die Replay-Nachrichten zurück; der Aufrufer hängt sie an
+ * `toolReplayMessages`. Fehler brechen den Turn nie ab.
+ */
+export async function seedAttachedDocuments(params: {
+  state: ChatGraphState;
+  sourceRegistry: SourceRegistry;
+  /** Namen des Werkzeugs, unter dem der Abruf dem Planer gezeigt wird — nur
+   *  wenn es diesen Turn auch montiert ist, sonst zeigt der Replay auf ein
+   *  Werkzeug, das es nicht gibt. */
+  toolName: string;
+  isMounted: boolean;
+  onInfo: (message: string) => void;
+  onError: (message: string) => void;
+}): Promise<ModelMessage[]> {
+  try {
+    const sources = retrievableAttachedSources(params.state);
+    if (sources.length === 0) return [];
+
+    const query = attachedDocsQuery(params.state);
+    if (!query) return [];
+
+    const results = await retrieveAttachedDocuments(params.state, query, { sources });
+    if (results.length === 0) {
+      params.onInfo(
+        `[Agentic] Vorab-Abruf über ${sources.length} angehängte(s) Dokument(e) ohne Treffer`
+      );
+      return [];
+    }
+
+    const block = params.sourceRegistry.seedAttached(results);
+    params.onInfo(
+      `[Agentic] ${results.length} Passage(n) aus ${sources.length} angehängten Dokument(en) vorab abgerufen`
+    );
+    if (!params.isMounted) return [];
+
+    const toolCallId = `seed-attached-${params.state.agentConfig.userId ?? 'anon'}`;
+    return [
+      {
+        role: 'assistant',
+        content: [
+          {
+            type: 'tool-call' as const,
+            toolCallId,
+            toolName: params.toolName,
+            input: { query },
+          },
+        ],
+      },
+      {
+        role: 'tool',
+        content: [
+          {
+            type: 'tool-result' as const,
+            toolCallId,
+            toolName: params.toolName,
+            output: { type: 'text' as const, value: block },
+          },
+        ],
+      },
+    ];
+  } catch (err) {
+    params.onError(
+      `[Agentic] Vorab-Abruf der Anhänge übersprungen: ${err instanceof Error ? err.message : err}`
+    );
+    return [];
   }
 }
 
