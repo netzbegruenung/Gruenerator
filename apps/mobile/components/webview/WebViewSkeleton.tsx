@@ -1,13 +1,7 @@
 import { View, StyleSheet, useColorScheme } from 'react-native';
 
 import { lightTheme, darkTheme, spacing } from '../../theme';
-import {
-  SkeletonBar,
-  SkeletonCircle,
-  SkeletonGroup,
-  SkeletonLines,
-  useSkeletonColor,
-} from '../common/Skeleton';
+import { SkeletonBar, SkeletonCircle, SkeletonGroup, SkeletonLines } from '../common/Skeleton';
 
 
 import type { EmbeddedSurfaceShape } from '../../services/webview/hostChrome';
@@ -69,10 +63,11 @@ function OfficeBody() {
 
 /** Menu bar, a stage in the middle, the tool row along the bottom. */
 function CanvasBody() {
-  const color = useSkeletonColor();
   return (
     <View style={styles.stageArea}>
-      <View style={[styles.stage, { backgroundColor: color }]} />
+      {/* The studio centres a square-ish stage; `aspectRatio` keeps it that way
+          on every screen without the skeleton having to measure anything. */}
+      <SkeletonBar width="100%" aspectRatio={1} radius={10} />
       <View style={styles.tools}>
         {Array.from({ length: 5 }).map((_, i) => (
           <SkeletonCircle key={i} size={36} />
@@ -124,9 +119,6 @@ const styles = StyleSheet.create({
     padding: spacing.medium,
     gap: spacing.medium,
   },
-  // The studio centres a square-ish stage; `aspectRatio` keeps it that way on
-  // every screen without the skeleton having to measure anything.
-  stage: { width: '100%', aspectRatio: 1, borderRadius: 10 },
   tools: {
     flexDirection: 'row',
     justifyContent: 'center',
