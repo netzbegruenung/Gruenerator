@@ -877,8 +877,13 @@ Der Nutzer ist in Österreich. Beachte:
  * Platform context for the system prompt. The mobile app can't render a few
  * web-only surfaces; without this the model happily offers them ("Soll ich die
  * Untertitel anpassen?") and the deterministic router gates read as abrupt.
- * Sharepics were on this list until the app learned to render them — when a
- * feature ships on the app, its gate and its bullet here go together.
+ *
+ * Sharepics used to be on this list. They left together with their gate, which
+ * is the rule: a feature's gate and its bullet here go together, or one of them
+ * outlives the limitation it describes. The app-side renderer that earns the
+ * removal ships separately, so between the two merges the app is told nothing
+ * about sharepics while it still cannot draw one — deliberate, and the reason
+ * the gate went first.
  */
 function formatPlatformContext(platform: string | undefined): string {
   if (platform === 'app') {
