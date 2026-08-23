@@ -13,6 +13,7 @@ import {
   scrollDocuments,
   batchDelete,
   batchUpsert,
+  setPayload,
 } from '../../../../../database/services/QdrantService/operations/batchOperations.js';
 import { chunkQualityService } from '../../../../ChunkQualityService/index.js';
 import { buildEmbeddingTexts, smartChunkDocument } from '../../../../document-services/index.js';
@@ -89,15 +90,18 @@ export class DocumentProcessor {
       }
     );
 
-    const existing =
-      existingPoints.length > 0
-        ? {
-            content_hash: existingPoints[0].payload.content_hash as string,
-            indexed_at: existingPoints[0].payload.indexed_at as string,
-          }
-        : null;
+    const existingPayload = existingPoints.length > 0 ? existingPoints[0].payload : null;
+    const existing = existingPayload !== null;
 
-    if (existing && existing.content_hash === contentHash) {
+    if (existingPayload && existingPayload.content_hash === contentHash) {
+      // Der Text ist gleich — die Buchhaltung des Aufrufers (Datei-Fingerprint,
+      // ETag) kann es trotzdem nicht sein: beim ersten Lauf nach dem Deploy hat
+      // der Punkt noch gar keinen Fingerprint, und ein neu vergebener ETag
+      // ändert sich auch bei unverändertem Text. Würden wir hier nur
+      // zurückkehren, bliebe der Punkt für immer ohne Fingerprint und die Datei
+      // würde in jedem Lauf neu heruntergeladen und ausgelesen — genau der
+      // Aufwand, den der Fingerprint einspart.
+      await this.#refreshExtraPayload(targetCollection, url, extraPayload, existingPayload);
       return { stored: false, reason: 'unchanged' };
     }
 
@@ -189,7 +193,29 @@ export class DocumentProcessor {
       stored: true,
       chunks: chunks.length,
       vectors: points.length,
-      updated: !!existing,
+      updated: existing,
     };
+  }
+
+  /**
+   * Write back only those `extraPayload` keys whose stored value differs.
+   * Nothing to patch → no Qdrant call, so the common steady-state re-check stays
+   * a single scroll.
+   */
+  async #refreshExtraPayload(
+    targetCollection: string,
+    url: string,
+    extraPayload: Record<string, unknown> | undefined,
+    existingPayload: Record<string, unknown>
+  ): Promise<void> {
+    if (!extraPayload) return;
+    const patch = Object.fromEntries(
+      Object.entries(extraPayload).filter(([key, value]) => existingPayload[key] !== value)
+    );
+    if (Object.keys(patch).length === 0) return;
+
+    await setPayload(this.qdrantClient, targetCollection, patch, {
+      must: [{ key: 'source_url', match: { value: url } }],
+    });
   }
 }
