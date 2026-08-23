@@ -27,6 +27,7 @@ import { ConfirmActionCard } from '../ConfirmActionCard';
 import { DocumentCreatedCard } from '../DocumentCreatedCard';
 import { GeneratedImageDisplay } from '../GeneratedImageDisplay';
 import { MemoryIndicator } from '../MemoryIndicator';
+import { SearchImagesSection } from '../SearchImagesSection';
 import { SocialPostCard } from '../SocialPostCard';
 
 import { AgentBadge } from './AgentBadge';
@@ -67,6 +68,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
   const socialPostData = metadata.socialPostData;
   const bahnData = metadata.bahnData;
   const artifactData = metadata.artifactData;
+  const searchImages = metadata.searchImages;
 
   // Which Grünerator wrote this. `getCustomAgentMentionables()` is a plain read
   // of the module-level catalogue `useMentionablesSync` fills, so it re-resolves
@@ -135,6 +137,14 @@ export const AssistantMessage = memo(function AssistantMessage() {
         {/* Above the prose, like web: when a turn produced a post, the post is
             the answer and the surrounding text is commentary on it. */}
         {socialPostData && <SocialPostCard post={socialPostData} theme={theme} />}
+        {/* Above the answer, like web: on a turn that found pictures they are the
+            first thing the reader looks at, and a gallery that follows a
+            thousand words is a gallery nobody scrolls to. Held back while the
+            turn streams — the hit list is replaced wholesale by each search, so
+            a mid-loop render would shuffle tiles under the reader's thumb. */}
+        {!isStreaming && searchImages && searchImages.length > 0 && (
+          <SearchImagesSection images={searchImages} theme={theme} />
+        )}
         <MessageCitationsContext.Provider value={citationCtx}>
           <ToolGroupScope>
             <MessagePrimitive.Parts components={partsComponents} />
