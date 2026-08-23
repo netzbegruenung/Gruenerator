@@ -20,6 +20,7 @@ import { useDocsEditorBridgeStore } from '../../stores/docsEditorBridgeStore';
 import { lightTheme, darkTheme, colors, BODY_FONT } from '../../theme';
 import { BottomSheet } from '../common/BottomSheet';
 import { DocPreview } from '../common/DocPreview';
+import { SkeletonGroup, SkeletonLines, SkeletonRows } from '../common/Skeleton';
 
 interface Props {
   visible: boolean;
@@ -176,9 +177,11 @@ export function NativeVersionHistorySheet({ visible, onClose, documentId, canEdi
       {(previewLoading || preview) && (
         <View style={styles.previewSection}>
           {previewLoading ? (
-            <View style={styles.previewBox}>
-              <ActivityIndicator size="small" color={colors.primary[600]} />
-            </View>
+            // The preview box is already 140 dp tall; what is missing is the
+            // document inside it.
+            <SkeletonGroup style={[styles.previewBox, styles.previewSkeleton]}>
+              <SkeletonLines widths={['84%', '96%', '71%', '90%', '58%']} gap={9} />
+            </SkeletonGroup>
           ) : preview ? (
             <>
               <DocPreview content={preview.html} style={styles.previewBox} />
@@ -207,9 +210,7 @@ export function NativeVersionHistorySheet({ visible, onClose, documentId, canEdi
       )}
 
       {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color={colors.primary[600]} />
-        </View>
+        <SkeletonRows count={4} leading={0} style={styles.list} />
       ) : snapshots.length === 0 ? (
         <View style={styles.loadingContainer}>
           <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
@@ -286,6 +287,7 @@ const styles = StyleSheet.create({
   saveBtnText: { fontFamily: BODY_FONT, fontSize: 14, fontWeight: '600' },
 
   previewSection: { paddingHorizontal: 20, paddingBottom: 12, gap: 10 },
+  previewSkeleton: { padding: 14, overflow: 'hidden' },
   previewBox: {
     height: 140,
     borderRadius: 10,
