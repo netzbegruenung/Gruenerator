@@ -71,9 +71,14 @@ export const GroupContentSection = memo(function GroupContentSection({
           return;
         }
         case 'notebook':
+          // `/notebooks/`, not the singular `/notebook/`: the latter is a
+          // legacy route that immediately redirects to this one client-side.
+          // The WebView pins its policy to the path it was opened with, so
+          // after the redirect the URL no longer matches that prefix — a full
+          // reload of the page we are showing would be blocked by our own gate.
           router.push({
             pathname: '/(fullscreen)/web-viewer',
-            params: { path: `/notebook/${item.id}`, title: item.title },
+            params: { path: `/notebooks/${item.id}`, title: item.title },
           });
           return;
         case 'agent':

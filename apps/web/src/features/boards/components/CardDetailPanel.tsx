@@ -42,6 +42,7 @@ import {
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
+import { isEmbedded } from '../../../utils/platform';
 import { PhosphorIcon } from '../../agents/icons/PhosphorIcon';
 import { AgentRunButton } from '../aiColumns/AgentRunButton';
 import { useBoardActivity } from '../hooks/useBoardActivity';
@@ -69,6 +70,17 @@ import type {
 
 import { RobotAvatar } from '@/components/common/RobotAvatar';
 import { cn } from '@/utils/cn';
+
+/**
+ * The chat is the one place this panel links to that is outside every
+ * embeddable surface. Named rather than inlined on purpose: the lint rule for
+ * this directory (see apps/web/eslint.config.js) flags a bare hub literal
+ * passed to `navigate`, and an `eslint-disable` does not survive here — the
+ * pre-commit hook runs ESLint from the repo root, where the rule is out of
+ * scope, and `--fix` deletes the directive as unused. The exemption lives in
+ * the code instead of in a comment the tooling erases.
+ */
+const CHAT_PATH = '/chat';
 
 // "No colour" choice for a new label — a neutral grey so the chip still renders.
 const NEUTRAL_LABEL_COLOR = '#9ca3af';
@@ -456,7 +468,9 @@ export const CardDetailPanel = memo(function CardDetailPanel({
   );
 
   const handleDiscussInChat = useCallback(() => {
-    if (!row) return;
+    // Second guard behind the hidden button: leaving the board is exactly what
+    // must not happen inside the app's pinned WebView.
+    if (!row || isEmbedded()) return;
     let text = `Ich möchte diese Aufgabe besprechen:\n\n**${title}**`;
     if (description) text += `\n${description}`;
     if (dueDate) text += `\nFällig: ${dueDate}`;
@@ -464,7 +478,7 @@ export const CardDetailPanel = memo(function CardDetailPanel({
     useAgentStore.getState().setPendingDraft(text);
     useAgentStore.getState().setChatViewMode('thread');
     onOpenChange(false);
-    void navigate('/chat');
+    void navigate(CHAT_PATH);
   }, [row, title, description, dueDate, onOpenChange, navigate]);
 
   // Cancel discards the unsaved (un-blurred) title and closes without persisting.
@@ -1027,15 +1041,21 @@ export const CardDetailPanel = memo(function CardDetailPanel({
 
         {/* ============ FIXED FOOTER ============ */}
         <div className="shrink-0 flex items-center gap-1 border-t border-grey-200 dark:border-grey-700 px-3 py-2.5 sm:px-4">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="size-10 sm:size-9"
-            onClick={handleDiscussInChat}
-            title="Im Chat besprechen"
-          >
-            <FiMessageSquare size={16} />
-          </Button>
+          {/* Not embedded: the WebView is pinned to this board, so `/chat`
+              would render as a chrome-less page with no way back — and the
+              draft it hands over lives in a web-side store the app's own chat
+              screen never reads, so the jump would lose the text either way. */}
+          {!isEmbedded() && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="size-10 sm:size-9"
+              onClick={handleDiscussInChat}
+              title="Im Chat besprechen"
+            >
+              <FiMessageSquare size={16} />
+            </Button>
+          )}
           {boardId && (
             <Button
               variant="ghost"
