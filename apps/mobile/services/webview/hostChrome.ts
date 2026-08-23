@@ -71,3 +71,43 @@ export function statusBarTint(path: string): readonly string[] | null {
   const pathname = path.split('?')[0] ?? '';
   return pathname.startsWith('/studio/canvas/') ? CANVAS_MENUBAR_GRADIENT : null;
 }
+
+/**
+ * The shape of the surface behind the WebView, for the loading placeholder.
+ *
+ * A skeleton is a promise about the layout, so it may only be drawn where the
+ * layout is actually known. For the self-chromed surfaces it is: each one is a
+ * single page with a fixed frame, described where its prefix is listed above.
+ * Everything else that reaches this screen is a different page every time — a
+ * notebook, a text, a generator form, the template catalogue — and shares
+ * nothing but the host header. Those get `null` and keep a plain spinner;
+ * inventing a body for them would promise a layout and then break it.
+ *
+ * `/office/` is one shape although the path serves three editors: `CollabDocRoute`
+ * picks text, sheet or presentation by `document_subtype`, which is not in the
+ * URL. What is certain either way is the shared `EditorTopBar` and a body
+ * beneath it, so that is all the skeleton claims.
+ */
+export type EmbeddedSurfaceShape = 'board' | 'office' | 'canvas';
+
+/**
+ * Prefix → shape. Keyed by the same strings as `SELF_CHROMED_PATH_PREFIXES`;
+ * `hostChrome.vitest.ts` fails if a prefix is added there without a shape here,
+ * which is the way a new surface would otherwise silently fall back to a
+ * spinner over an empty screen.
+ */
+const SURFACE_SHAPES: Record<string, EmbeddedSurfaceShape> = {
+  '/boards/': 'board',
+  '/office/': 'office',
+  '/studio/canvas/': 'canvas',
+};
+
+/**
+ * Which skeleton to draw for this path, or `null` for "draw none — we do not
+ * know this page's layout". Takes the raw `path` param, query string and all.
+ */
+export function embeddedSurfaceShape(path: string): EmbeddedSurfaceShape | null {
+  const pathname = path.split('?')[0] ?? '';
+  const prefix = SELF_CHROMED_PATH_PREFIXES.find((p) => pathname.startsWith(p));
+  return prefix ? (SURFACE_SHAPES[prefix] ?? null) : null;
+}
