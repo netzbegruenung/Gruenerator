@@ -75,6 +75,33 @@ const NON_REPLAYABLE_ACTION_TOOLS: ReadonlySet<string> = new Set([
   'sharepic',
 ]);
 
+/**
+ * Tools that are EINMALIGES GERÜST: informational, but only for the turn that
+ * produced the text. Replaying them is pure loss.
+ *
+ * The examples corpora hand the model six FULL press releases (`body` is the
+ * reconstructed document, not a snippet) so it can imitate their register. That
+ * job is done the moment the draft exists — a follow-up ("kürze das", "prüfe
+ * kritisch") works on the DRAFT, and the templates behind it are no longer
+ * needed. The artefact the follow-up does need is the assistant's own text,
+ * which travels in the ordinary message history.
+ *
+ * Deliberately a second set rather than a widening of the action list above:
+ * these tools have no side effect and no rehydration path, so the reason to
+ * skip them is different and must not be read as "informational tools may be
+ * dropped when they get big". Every other informational tool still replays.
+ *
+ * Measured 23.08.2026 on a four-turn press-release thread: the replay of
+ * `gruenerator_pressemitteilung_examples` serialised to 78.044 characters and
+ * hit the 500-char action cap — the model received the opening fragment of
+ * example #1 as invalid JSON and never saw the other five. Neither the full
+ * payload nor that fragment is worth carrying.
+ */
+const ONE_SHOT_SCAFFOLD_TOOLS: ReadonlySet<string> = new Set([
+  'gruenerator_examples_search',
+  'gruenerator_pressemitteilung_examples',
+]);
+
 /** The loaders the assembly reaches out through. Injected so the mounting order
  *  is testable without a database, a network or a real MCP server. */
 export interface CatalogDeps {
@@ -298,8 +325,9 @@ export function createLoopGuards(
  * interactions as real tool-call/result messages so a follow-up ("und morgen?",
  * "mach das nochmal", "trag das jetzt ein") remembers what was gathered. Covers
  * ALL informational tools (search, bundestag, umfragen, summarize,
- * personal-data, MCP, system sources) — only side-effecting/generative actions
- * are skipped (NON_REPLAYABLE_ACTION_TOOLS). Validity-gated inside
+ * personal-data, MCP, system sources) — skipped are side-effecting/generative
+ * actions (NON_REPLAYABLE_ACTION_TOOLS) and one-shot scaffolding
+ * (ONE_SHOT_SCAFFOLD_TOOLS). Validity-gated inside
  * buildToolObservationReplay to tools mounted THIS turn. MCP steps stay behind
  * their rollout flag; search/domain replay is always on.
  *
@@ -318,7 +346,9 @@ export async function buildToolReplay(params: {
       : await getRecentToolSteps(params.threadId);
     const replayable = recent.filter(
       (s: PersistedStep) =>
-        !NON_REPLAYABLE_ACTION_TOOLS.has(s.toolName) && (s.serverName ? isMcpReplayEnabled() : true)
+        !NON_REPLAYABLE_ACTION_TOOLS.has(s.toolName) &&
+        !ONE_SHOT_SCAFFOLD_TOOLS.has(s.toolName) &&
+        (s.serverName ? isMcpReplayEnabled() : true)
     );
     return buildToolObservationReplay(replayable, catalogNames);
   } catch (err) {
