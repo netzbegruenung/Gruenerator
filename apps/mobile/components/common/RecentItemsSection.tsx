@@ -2,7 +2,6 @@ import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ioni
 import { Image } from 'expo-image';
 import { useState } from 'react';
 import {
-  ActivityIndicator,
   Pressable,
   StyleSheet,
   Text,
@@ -19,6 +18,7 @@ import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from 
 import { gridColumns } from '../../theme/layout';
 
 import { DocPreview } from './DocPreview';
+import { SkeletonRows, SkeletonTiles } from './Skeleton';
 import { type ViewMode } from './ViewModeToggle';
 
 const GAP = spacing.small;
@@ -71,7 +71,7 @@ export function RecentItemsSection({
   title: string;
   items: RecentItem[];
   isLoading?: boolean;
-  /** Hue for the thumbnail placeholders and the spinner — pass the tab's own. */
+  /** Hue for the thumbnail placeholders — pass the tab's own. */
   accent?: string;
   style?: StyleProp<ViewStyle>;
   viewMode?: ViewMode;
@@ -87,20 +87,33 @@ export function RecentItemsSection({
   const columns = gridColumns(gridWidth, MIN_CARD, GAP);
   const cardWidth = Math.floor((gridWidth - GAP * (columns - 1)) / columns);
 
+  const isList = viewMode === 'list';
+
+  // The view mode is already decided when the items are still on their way, and
+  // so is `cardWidth` — so the placeholder can be the real arrangement: the
+  // 4:3 cards at their measured width, or the 48-dp rows of the list.
   if (isLoading) {
     return (
       <View style={[styles.section, style]}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>{title}</Text>
-        <View style={styles.loadingRow}>
-          <ActivityIndicator color={accent} />
-        </View>
+        {isList ? (
+          <SkeletonRows count={4} leading={48} gap={spacing.xxsmall} />
+        ) : (
+          <SkeletonTiles
+            count={columns * 2}
+            itemWidth={cardWidth}
+            columns={columns}
+            gap={GAP}
+            aspectRatio={4 / 3}
+            radius={borderRadius.large}
+            caption
+          />
+        )}
       </View>
     );
   }
 
   if (items.length === 0) return null;
-
-  const isList = viewMode === 'list';
 
   return (
     <View style={[styles.section, style]}>
@@ -194,10 +207,6 @@ const styles = StyleSheet.create({
     fontFamily: BODY_FONT,
     fontSize: 16,
     fontWeight: '700',
-  },
-  loadingRow: {
-    paddingVertical: spacing.large,
-    alignItems: 'center',
   },
   grid: {
     flexDirection: 'row',
