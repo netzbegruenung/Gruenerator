@@ -135,17 +135,21 @@ export default function PushedContentScreen() {
 
   const handleSaveToGallery = useCallback(async () => {
     if (!localUri) return;
-    // Write-only: saving only, never reading the library.
-    const { status } = await MediaLibrary.requestPermissionsAsync(true);
-    if (status !== 'granted') {
-      Alert.alert(
-        'Galerie-Berechtigung',
-        `Bitte erlaube den Zugriff auf die Galerie, um ${isVideo ? 'das Video' : 'das Bild'} zu speichern.`
-      );
-      return;
-    }
 
+    // Die Berechtigungsfrage steht mit im try: sie kann selbst werfen, und ein
+    // Fehlschlag davor wäre sonst eine unbehandelte Rejection statt einer
+    // Meldung.
     try {
+      // Write-only: saving only, never reading the library.
+      const { status } = await MediaLibrary.requestPermissionsAsync(true);
+      if (status !== 'granted') {
+        Alert.alert(
+          'Galerie-Berechtigung',
+          `Bitte erlaube den Zugriff auf die Galerie, um ${isVideo ? 'das Video' : 'das Bild'} zu speichern.`
+        );
+        return;
+      }
+
       const asset = await MediaLibrary.Asset.create(localUri);
       setSavedToGallery(true);
       alertSavedToGallery(
