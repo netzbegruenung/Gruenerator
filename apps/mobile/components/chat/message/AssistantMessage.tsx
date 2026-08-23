@@ -26,6 +26,7 @@ import { ConfirmActionCard } from '../ConfirmActionCard';
 import { DocumentCreatedCard } from '../DocumentCreatedCard';
 import { GeneratedImageDisplay } from '../GeneratedImageDisplay';
 import { MemoryIndicator } from '../MemoryIndicator';
+import { SharepicVariantCard } from '../SharepicVariantCard';
 import { SocialPostCard } from '../SocialPostCard';
 
 import { AgentBadge } from './AgentBadge';
@@ -64,6 +65,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
   const computeData = metadata.computeData;
   const chartData = metadata.chartData;
   const socialPostData = metadata.socialPostData;
+  const sharepicData = metadata.sharepicData;
   const bahnData = metadata.bahnData;
 
   // Which Grünerator wrote this. `getCustomAgentMentionables()` is a plain read
@@ -144,6 +146,12 @@ export const AssistantMessage = memo(function AssistantMessage() {
         {!isStreaming && computeData && <ComputeCard data={computeData} theme={theme} />}
         {!isStreaming && chartData && <ChatChartCard data={chartData} theme={theme} />}
         {!isStreaming && bahnData && <BahnCard data={bahnData} theme={theme} />}
+        {/* Same precedence as web: the combined post draws its own sharepic
+            column, and a generated image already IS the picture — the card
+            would put a second one under it. */}
+        {sharepicData && !generatedImage && !socialPostData && (
+          <SharepicVariantCard data={sharepicData} theme={theme} />
+        )}
         {generatedImage && <GeneratedImageDisplay image={generatedImage} theme={theme} />}
         {confirmAction && <ConfirmActionCard action={confirmAction} theme={theme} />}
         {createdDocument && <DocumentCreatedCard document={createdDocument} theme={theme} />}
