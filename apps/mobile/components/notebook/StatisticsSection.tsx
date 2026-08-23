@@ -1,8 +1,10 @@
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+
 
 import { TOPIC_COLORS, TOPIC_LABELS, isTopicCategory } from '../../config/topicConfig';
 import { useNotebookStats, type TopicCount } from '../../hooks/notebook/useNotebookStats';
-import { colors, spacing, borderRadius, BODY_FONT } from '../../theme';
+import { spacing, borderRadius, BODY_FONT } from '../../theme';
+import { SkeletonBar, SkeletonGroup } from '../common/Skeleton';
 
 import type { Theme } from '../../theme/colors';
 
@@ -134,7 +136,27 @@ export function StatisticsSection({
       <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
 
       {isLoading || !stats ? (
-        <ActivityIndicator color={colors.primary[600]} style={styles.loader} />
+        // Two of the three stat cards are always there (the third depends on the
+        // sample size, so the skeleton does not claim it), then the topic bar.
+        <View style={styles.body}>
+          <View style={styles.statRow}>
+            {[0, 1].map((i) => (
+              <View
+                key={i}
+                style={[
+                  styles.statCard,
+                  { backgroundColor: theme.card, borderColor: theme.cardBorder },
+                ]}
+              >
+                <SkeletonGroup on="card" style={styles.statCardSkeleton}>
+                  <SkeletonBar width="55%" height={11} />
+                  <SkeletonBar width="72%" height={18} radius={5} />
+                </SkeletonGroup>
+              </View>
+            ))}
+          </View>
+          <SkeletonBar height={14} radius={7} />
+        </View>
       ) : (
         <View style={styles.body}>
           <View style={styles.statRow}>
@@ -177,9 +199,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Raleway_700Bold',
     fontSize: 16,
   },
-  loader: {
-    paddingVertical: spacing.large,
-  },
   body: {
     gap: spacing.medium,
   },
@@ -194,6 +213,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.small,
     borderRadius: borderRadius.large,
     borderWidth: 1,
+  },
+  statCardSkeleton: {
+    gap: 2,
   },
   statLabel: {
     fontFamily: BODY_FONT,
