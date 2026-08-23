@@ -20,6 +20,7 @@ import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-c
 import { enableFreeze } from 'react-native-screens';
 
 import { AiConsentGate } from '../components/auth/AiConsentGate';
+import { SharepicRenderHost } from '../components/chat/SharepicRenderHost';
 import { DomWarmup } from '../components/common/DomWarmup';
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import { AppDrawer } from '../components/navigation';
@@ -185,6 +186,11 @@ function RootLayout() {
                     editor), so the first document a user opens doesn't pay for
                     the WebView boot. Retires itself. */}
                 {user ? <DomWarmup /> : null}
+                {/* Zeichnet Sharepics für den Chat in einer versteckten WebView
+                    — die App kann Konva nicht selbst rendern. Mountet sich nur,
+                    solange es etwas zu zeichnen gibt (`useRenderHostDemand`),
+                    und räumt sich danach wieder ab. */}
+                {user ? <SharepicRenderHost /> : null}
                 {/* Art.-9-Einwilligung. Ganz zuletzt und über allem, damit sie
                     auch über dem Einstellungen-Sheet steht — ein Widerruf dort
                     muss sofort wieder fragen, sonst liefe die App weiter ohne

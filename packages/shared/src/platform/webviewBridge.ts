@@ -13,6 +13,12 @@
  * the user a file — all three are impossible inside a WebView pinned to one
  * page. See `isEmbedded()` in `apps/web/src/utils/platform.ts`.
  *
+ * The render messages run the other way, and for the mirrored reason: the app
+ * cannot draw a sharepic. That picture is produced by Konva in a DOM, and there
+ * is no server-side renderer — so the host hands the canvas description to a
+ * hidden page and gets a PNG back. `parseHostMessage` is that direction's
+ * parser, with the same discipline.
+ *
  * Hand-written rather than a zod schema. NOT because the file is
  * dependency-free — it is not: `apps/mobile` imports it through the
  * `@gruenerator/shared` root barrel, which pulls in `./api` → contracts → zod,
@@ -39,6 +45,17 @@
  * assume it fits.
  */
 export const WEBVIEW_DOWNLOAD_MAX_BASE64_LENGTH = 12 * 1024 * 1024;
+
+/**
+ * Bumped when a message shape changes so an older peer can no longer read it.
+ *
+ * Load-bearing because the two sides ship on different clocks: the render
+ * WebView points at the DEPLOYED web app, so a phone carrying last month's
+ * binary talks to today's page. The page announces this number in
+ * `RENDER_HOST_READY`; a host that does not recognise it declines to send work
+ * rather than waiting out a timeout on replies it cannot parse.
+ */
+export const WEBVIEW_PROTOCOL_VERSION = 1;
 
 /** Sent by the embedded page to its native host. */
 export type WebViewOutboundMessage =
@@ -71,9 +88,52 @@ export type WebViewOutboundMessage =
       mime: string;
       /** Base64 payload WITHOUT the `data:<mime>;base64,` prefix. */
       data: string;
+    }
+  | {
+      /**
+       * The render page has mounted and its fonts are loaded. Until this
+       * arrives the host holds requests back — a canvas rendered before
+       * `document.fonts` settles comes out in fallback type, and a wrong
+       * picture is worse than a late one.
+       */
+      type: 'RENDER_HOST_READY';
+      protocolVersion: number;
+    }
+  | {
+      /** A finished render, answering exactly one `RENDER_REQUEST`. */
+      type: 'RENDER_RESULT';
+      requestId: string;
+      /** PNG data URL, as produced by the canvas capture. */
+      image: string;
+    }
+  | {
+      /**
+       * A render that produced no image. `reason` is for the log, not for the
+       * user — the host decides what to show and whether to retry.
+       */
+      type: 'RENDER_ERROR';
+      requestId: string;
+      reason: string;
     };
 
 export type WebViewOutboundMessageType = WebViewOutboundMessage['type'];
+
+/** Sent by the native host into the embedded page. */
+export type WebViewInboundMessage = {
+  /**
+   * Render one sharepic variant offscreen and post the result back.
+   *
+   * `canvasType` and `initialProps` are the same two values the web app hands
+   * its own preview renderer — which is the whole point of doing this in a
+   * WebView instead of natively: one renderer, nothing to drift.
+   */
+  type: 'RENDER_REQUEST';
+  requestId: string;
+  canvasType: string;
+  initialProps: Record<string, unknown>;
+};
+
+export type WebViewInboundMessageType = WebViewInboundMessage['type'];
 
 /**
  * A `DOWNLOAD_FILE` filename becomes a path on the host (`new File(Paths.cache, …)`),
@@ -191,5 +251,65 @@ export function parseWebViewMessage(raw: unknown): WebViewOutboundMessage | null
     // download.
     return { type: 'DOWNLOAD_FILE', filename, mime, data };
   }
+  if (type === 'RENDER_HOST_READY') {
+    const protocolVersion = (candidate as { protocolVersion?: unknown }).protocolVersion;
+    if (typeof protocolVersion !== 'number' || !Number.isFinite(protocolVersion)) return null;
+    return { type: 'RENDER_HOST_READY', protocolVersion };
+  }
+  if (type === 'RENDER_RESULT') {
+    const requestId = (candidate as { requestId?: unknown }).requestId;
+    const image = (candidate as { image?: unknown }).image;
+    if (typeof requestId !== 'string' || requestId.length === 0) return null;
+    if (typeof image !== 'string' || image.length === 0) return null;
+    // Same ceiling as a download, and for the same reason: this is a string
+    // channel, and an oversized payload stalls it rather than failing cleanly.
+    // Rejected, never truncated — half an image is not a smaller image, and the
+    // host's error path already knows how to retry.
+    if (image.length > WEBVIEW_DOWNLOAD_MAX_BASE64_LENGTH) return null;
+    return { type: 'RENDER_RESULT', requestId, image };
+  }
+  if (type === 'RENDER_ERROR') {
+    const requestId = (candidate as { requestId?: unknown }).requestId;
+    const reason = (candidate as { reason?: unknown }).reason;
+    if (typeof requestId !== 'string' || requestId.length === 0) return null;
+    if (typeof reason !== 'string') return null;
+    return { type: 'RENDER_ERROR', requestId, reason };
+  }
   return null;
+}
+
+/**
+ * Parses a message received by an embedded page from its host.
+ *
+ * The mirror of `parseWebViewMessage`, and needed for the same reason turned
+ * around: a page listening on `window.message` hears every frame on the origin,
+ * not only the host that embedded it.
+ */
+export function parseHostMessage(raw: unknown): WebViewInboundMessage | null {
+  let candidate: unknown = raw;
+  if (typeof raw === 'string') {
+    try {
+      candidate = JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+  if (typeof candidate !== 'object' || candidate === null) return null;
+  if ((candidate as { type?: unknown }).type !== 'RENDER_REQUEST') return null;
+  const requestId = (candidate as { requestId?: unknown }).requestId;
+  const canvasType = (candidate as { canvasType?: unknown }).canvasType;
+  const initialProps = (candidate as { initialProps?: unknown }).initialProps;
+  if (typeof requestId !== 'string' || requestId.length === 0) return null;
+  if (typeof canvasType !== 'string' || canvasType.length === 0) return null;
+  // An array would satisfy `typeof === 'object'` and then spread into the
+  // canvas config as numeric keys.
+  if (typeof initialProps !== 'object' || initialProps === null || Array.isArray(initialProps)) {
+    return null;
+  }
+  return {
+    type: 'RENDER_REQUEST',
+    requestId,
+    canvasType,
+    initialProps: initialProps as Record<string, unknown>,
+  };
 }

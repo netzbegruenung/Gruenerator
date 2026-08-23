@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   isSafeDownloadFilename,
+  parseHostMessage,
   parseWebViewMessage,
   sanitizeDownloadFilename,
   WEBVIEW_DOWNLOAD_MAX_BASE64_LENGTH,
@@ -178,5 +179,91 @@ describe('sanitizeDownloadFilename', () => {
     ]) {
       expect(isSafeDownloadFilename(sanitizeDownloadFilename(raw)), raw).toBe(true);
     }
+  });
+});
+
+describe('parseWebViewMessage — render replies', () => {
+  it('accepts the ready announcement with its protocol version', () => {
+    expect(parseWebViewMessage({ type: 'RENDER_HOST_READY', protocolVersion: 1 })).toEqual({
+      type: 'RENDER_HOST_READY',
+      protocolVersion: 1,
+    });
+  });
+
+  it('accepts a result and an error, each keyed to its request', () => {
+    expect(
+      parseWebViewMessage({
+        type: 'RENDER_RESULT',
+        requestId: 'r1',
+        image: 'data:image/png;base64,AA',
+      })
+    ).toEqual({ type: 'RENDER_RESULT', requestId: 'r1', image: 'data:image/png;base64,AA' });
+    expect(
+      parseWebViewMessage({ type: 'RENDER_ERROR', requestId: 'r1', reason: 'capture timed out' })
+    ).toEqual({ type: 'RENDER_ERROR', requestId: 'r1', reason: 'capture timed out' });
+  });
+
+  it('rejects an oversized image rather than truncating it', () => {
+    const image = 'a'.repeat(WEBVIEW_DOWNLOAD_MAX_BASE64_LENGTH + 1);
+    expect(parseWebViewMessage({ type: 'RENDER_RESULT', requestId: 'r1', image })).toBeNull();
+  });
+
+  it('drops fields the host did not ask for', () => {
+    expect(
+      parseWebViewMessage({
+        type: 'RENDER_RESULT',
+        requestId: 'r1',
+        image: 'x',
+        evil: true,
+      })
+    ).toEqual({ type: 'RENDER_RESULT', requestId: 'r1', image: 'x' });
+  });
+
+  it.each([
+    [{ type: 'RENDER_RESULT', image: 'x' }, 'result without a request id'],
+    [{ type: 'RENDER_RESULT', requestId: 'r1' }, 'result without an image'],
+    [{ type: 'RENDER_RESULT', requestId: 'r1', image: '' }, 'empty image'],
+    [{ type: 'RENDER_RESULT', requestId: 'r1', image: 42 }, 'non-string image'],
+    [{ type: 'RENDER_ERROR', requestId: 'r1' }, 'error without a reason'],
+    [{ type: 'RENDER_ERROR', reason: 'boom' }, 'error without a request id'],
+    [{ type: 'RENDER_HOST_READY' }, 'ready without a version'],
+    [{ type: 'RENDER_HOST_READY', protocolVersion: '1' }, 'non-numeric version'],
+  ])('rejects %j — %s', (input, _reason) => {
+    expect(parseWebViewMessage(input)).toBeNull();
+  });
+});
+
+describe('parseHostMessage', () => {
+  const request = {
+    type: 'RENDER_REQUEST',
+    requestId: 'r1',
+    canvasType: 'zitat',
+    initialProps: { headline: 'Windkraft' },
+  };
+
+  it('accepts a render request in both wire forms', () => {
+    expect(parseHostMessage(request)).toEqual(request);
+    expect(parseHostMessage(JSON.stringify(request))).toEqual(request);
+  });
+
+  it('reconstructs rather than passing the candidate through', () => {
+    expect(parseHostMessage({ ...request, authToken: 'secret' })).toEqual(request);
+  });
+
+  it('rejects an outbound message — the two directions are not interchangeable', () => {
+    expect(parseHostMessage({ type: 'CLOSE' })).toBeNull();
+  });
+
+  it.each([
+    [{ ...request, requestId: undefined }, 'no request id'],
+    [{ ...request, canvasType: '' }, 'empty canvas type'],
+    [{ ...request, initialProps: undefined }, 'no props'],
+    // An array satisfies `typeof === 'object'` and would spread into the canvas
+    // config as numeric keys.
+    [{ ...request, initialProps: [] }, 'array instead of a props object'],
+    [{ ...request, initialProps: null }, 'null props'],
+    ['not json', 'unparseable string'],
+  ])('rejects %j — %s', (input, _reason) => {
+    expect(parseHostMessage(input)).toBeNull();
   });
 });
