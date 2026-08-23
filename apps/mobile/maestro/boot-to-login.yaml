@@ -4,8 +4,8 @@
 # the `e2e-test` build profile. It is not a trivial smoke test: it covers splash
 # dismissal (gated on fonts AND the rehydrated onboarding flag — `app/_layout.tsx`
 # returns null until both settle, so a regression there hangs on a blank screen),
-# PagerView mount, the onboarding→login redirect, and safe-area layout on two
-# screens.
+# the opening screen, PagerView mount, the onboarding→login redirect, the login
+# screen's provider disclosure, and safe-area layout on three screens.
 appId: de.gruenerator.app
 ---
 - launchApp:
@@ -15,8 +15,22 @@ appId: de.gruenerator.app
 # Splash must actually hand over. A blank screen here means fontsLoaded /
 # hasHydratedOnboarding never resolved.
 - extendedWaitUntil:
-    visible: 'Willkommen in der Grünerator App'
+    visible:
+      id: 'onboarding-start'
     timeout: 30000
+
+# The opening screen carries the claim and the notices, and nothing else.
+- assertVisible: 'Bereit für KI, die die Welt nicht brennen sehen will?'
+- assertNotVisible:
+    id: 'onboarding-skip'
+
+- tapOn:
+    id: 'onboarding-start'
+
+# Only now is the carousel there, first page first.
+- extendedWaitUntil:
+    visible: 'KI speziell für Grüne'
+    timeout: 10000
 
 - tapOn:
     id: 'onboarding-skip'
@@ -28,18 +42,26 @@ appId: de.gruenerator.app
     timeout: 10000
 - assertVisible: 'KI, die die Welt nicht brennen sehen will.'
 
+# No country question any more: one Anmelden button, everyone else behind the
+# disclosure. Which provider comes first depends on the device, so the flow
+# asserts that all four are reachable rather than naming the primary.
+- assertNotVisible:
+    id: 'login-provider-gruenerator'
 - tapOn:
-    id: 'login-open'
+    id: 'login-providers-toggle'
 - assertVisible:
-    id: 'login-source-detected'
+    id: 'login-provider-gruenes-netz'
 - assertVisible:
-    id: 'login-source-other'
+    id: 'login-provider-gruene-oesterreich'
 - assertVisible:
-    id: 'login-source-netzbegruenung'
+    id: 'login-provider-netzbegruenung'
+- assertVisible:
+    id: 'login-provider-gruenerator'
 
-- tapOn: 'Zurück'
-- assertVisible:
-    id: 'login-open'
+- tapOn:
+    id: 'login-providers-toggle'
+- assertNotVisible:
+    id: 'login-provider-gruenerator'
 
 # Onboarding is done for good — a relaunch goes straight to login.
 - launchApp:
@@ -48,4 +70,4 @@ appId: de.gruenerator.app
     visible:
       id: 'login-open'
     timeout: 30000
-- assertNotVisible: 'Willkommen in der Grünerator App'
+- assertNotVisible: 'KI speziell für Grüne'
