@@ -892,7 +892,9 @@ describe('toolCatalog dokumente_lesen', () => {
 
     expect(out.resultCount).toBe(1);
     expect(out.sources).toContain('Anfang.');
-    expect(out.sources).toContain('Weiter mit abschnitt.von=');
+    // Der Wegweiser steht vor dem Text, nicht dahinter: gekappt wird der
+    // Schwanz, und am Ende wäre er genau dann weg, wenn er gebraucht wird.
+    expect(out.sources).toContain('[Zeichen 0–10000 von 30008 — weiter mit abschnitt.von=10000]');
     expect(fanout).not.toHaveBeenCalled();
   });
 

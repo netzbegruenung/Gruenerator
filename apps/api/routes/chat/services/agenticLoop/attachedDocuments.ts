@@ -34,8 +34,27 @@ export const ATTACHED_DOCS_TOOL = 'dokumente_lesen';
 
 export const SLICE_DEFAULT_CHARS = 10_000;
 
-/** Obergrenze je Aufruf, damit ein geratenes `zeichen: 999999` nicht die Lane sprengt. */
-export const SLICE_MAX_CHARS = 40_000;
+/**
+ * Was von einer Volltext-Scheibe wirklich beim Modell ankommt: die Kappung in
+ * `sourceRegistry.register`. Steht hier statt am Werkzeug, weil sie die
+ * Obergrenze der Scheibe BESTIMMT — eine Scheibe, die grösser ist als das, was
+ * registriert wird, verliert stillschweigend ihr Ende.
+ */
+export const SLICE_REGISTER_CHARS = 12_000;
+
+/** Platz für den Wegweiser, der mit im selben Feld steht. */
+const SLICE_HINT_RESERVE = 400;
+
+/**
+ * Obergrenze je Aufruf, damit ein geratenes `zeichen: 999999` nicht die Lane
+ * sprengt — und, wichtiger, damit der Wegweiser nicht lügt.
+ *
+ * Sie ist vom Registrierungs-Deckel ABGELEITET, nicht frei gewählt. Stand sie
+ * darüber (40.000 gegen 12.000), schnitt `applyContextCap` den Rest ab: das
+ * Modell bekam 12k Text, läse im Wegweiser aber „Zeichen 0–40000" und
+ * übersprünge beim Weiterlesen still 28k.
+ */
+export const SLICE_MAX_CHARS = SLICE_REGISTER_CHARS - SLICE_HINT_RESERVE;
 
 /**
  * Welche der normalisierten Dokumentquellen dieses Turns wirklich ein
@@ -128,18 +147,21 @@ export async function readAttachedDocumentSlice(
     const slice = text.slice(from, from + chars);
     if (!slice) continue;
     const end = from + slice.length;
-    // Die Randnotiz ist der einzige Weg, auf dem das Modell erfährt, dass noch
-    // etwas kommt — ohne sie liest es eine Scheibe und hält sie für das Ganze.
-    const more =
+    // Der Wegweiser ist der einzige Weg, auf dem das Modell erfährt, dass noch
+    // etwas kommt — ohne ihn liest es eine Scheibe und hält sie für das Ganze.
+    //
+    // Er steht VORN, nicht hinten: gekappt wird immer der Schwanz (in
+    // `applyContextCap` und in der gemeinsamen Schrumpfung von `renderAll`,
+    // sobald mehrere Quellen um dasselbe Budget konkurrieren). Am Ende wäre er
+    // genau in den Fällen weg, für die er gebaut ist.
+    const marker =
       end < text.length
-        ? `\n\n[…] Zeichen ${from}–${end} von ${text.length}. Weiter mit abschnitt.von=${end}.`
-        : from > 0
-          ? `\n\n(Zeichen ${from}–${end} von ${text.length} — Ende des Dokuments.)`
-          : '';
+        ? `[Zeichen ${from}–${end} von ${text.length} — weiter mit abschnitt.von=${end}]`
+        : `[Zeichen ${from}–${end} von ${text.length} — Ende des Dokuments]`;
     results.push({
       source: `documentchat:${doc.id}`,
       title: labelById.get(doc.id) ?? 'Dokument',
-      content: `${slice}${more}`,
+      content: `${marker}\n\n${slice}`,
       relevance: 1,
       documentSourceId: doc.id,
     });

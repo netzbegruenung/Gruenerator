@@ -457,10 +457,12 @@ export async function rehydrateCarriedSources(params: {
  * als eine Antwort über den falschen Text.
  *
  * Zwei Kanäle, weil Planer und Schreiber getrennte Kontexte haben:
- *  - Der SCHREIBER liest die Registry über `renderAll()` — dafür genügt
- *    `register()`. Ausdrücklich NICHT `seedCarried()`: das markiert Einträge als
- *    `prior` (Ehrlichkeitshinweis „frühere Recherche", ausgenommen von
- *    `freshSize`), und ein gerade hochgeladenes Dokument ist keine Alt-Recherche.
+ *  - Der SCHREIBER liest die Registry über `renderAll()`. Eingetragen wird über
+ *    `seedAttached()` — zitierbar und in dieser Turn-Numerierung, aber aus
+ *    `freshSize` heraus, weil die Wächter damit über die Arbeit des PLANERS
+ *    urteilen (Begründung an der Methode). Weder `seedCarried()` (das hiesse
+ *    „frühere Recherche", was ein frisch hochgeladenes Dokument nicht ist) noch
+ *    `register()` (das hiesse „der Planer hat gesucht", was er nicht hat).
  *  - Der PLANER sieht die Registry nie. Er bekommt das Ergebnis als
  *    tool-call/tool-result-Paar in denselben Replay-Strom, den
  *    `buildToolObservationReplay` für frühere Turns baut — sonst weiss er nicht,
@@ -495,7 +497,7 @@ export async function seedAttachedDocuments(params: {
       return [];
     }
 
-    const block = params.sourceRegistry.register(results);
+    const block = params.sourceRegistry.seedAttached(results);
     params.onInfo(
       `[Agentic] ${results.length} Passage(n) aus ${sources.length} angehängten Dokument(en) vorab abgerufen`
     );
