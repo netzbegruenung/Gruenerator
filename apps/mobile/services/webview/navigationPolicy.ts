@@ -12,6 +12,34 @@
  * `onShouldStartLoadWithRequest` actually stops a navigation.
  */
 
+/**
+ * The `originWhitelist` the pinned WebView passes — deliberately everything.
+ *
+ * Counter-intuitive on a screen built for containment, and load-bearing. Read
+ * `createOnShouldStartLoadWithRequest` in react-native-webview's
+ * `WebViewShared.tsx`: a URL that fails the whitelist is passed to
+ * `Linking.openURL` and `shouldStart` is set to `false` — **the
+ * `onShouldStartLoadWithRequest` handler is never called at all**. The
+ * whitelist does not merely fail to block; it pre-empts the thing that does.
+ *
+ * Narrowing it is also a trap that looks correct. The whitelist is matched
+ * against `extractOrigin(url)`, which yields `https://gruenerator.eu` — no
+ * trailing slash. A natural-looking `'https://gruenerator.eu/*'` compiles to
+ * `^https://gruenerator\.eu/.*`, needs that slash, and therefore matches
+ * nothing: every navigation escapes to the system browser. That is exactly
+ * what shipped on 15.08.2026 and what made canvases open in Chrome.
+ * Dropping the `/*` trades one flaw for another — the compiled pattern is an
+ * unanchored prefix, so `https://gruenerator.eu.evil.com` passes it too.
+ *
+ * So the whitelist cannot express what we need in either direction, and the
+ * only safe setting is the one that always hands the decision to
+ * `decideNavigation` below, which compares origins exactly and knows that
+ * `intent:` must be dropped rather than forwarded to the system.
+ */
+// Mutable `string[]` rather than `readonly`: that is what the WebView prop
+// takes, and a `readonly` array does not assign to it.
+export const WEBVIEW_ORIGIN_WHITELIST: string[] = ['*'];
+
 /** What the host should do with a navigation the WebView is about to start. */
 export type NavigationDecision =
   /** Let the WebView navigate. */
