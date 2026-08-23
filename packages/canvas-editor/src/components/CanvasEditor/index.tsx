@@ -23,6 +23,7 @@
  * - useToolbarHandlers     — bundled toolbar actions for the active page
  */
 
+import { downloadDataUrl } from '@gruenerator/shared';
 import React, { useCallback, useRef, useMemo, useEffect, useState, Suspense } from 'react';
 
 import { Skeleton } from '@gruenerator/ui';
@@ -553,12 +554,7 @@ function CanvasEditorInner({
       });
       if (dataUrl) {
         const ext = format === 'jpeg' ? 'jpg' : format;
-        const link = document.createElement('a');
-        link.href = dataUrl;
-        link.download = `gruenerator-seite-${currentPageIndex + 1}.${ext}`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        downloadDataUrl(dataUrl, `gruenerator-seite-${currentPageIndex + 1}.${ext}`);
         onDownload?.(dataUrl);
       }
     },
@@ -813,12 +809,7 @@ function CanvasEditorInner({
         if (ref?.current) {
           const dataUrl = await ref.current.captureCanvas();
           if (dataUrl) {
-            const link = document.createElement('a');
-            link.href = dataUrl;
-            link.download = `gruenerator-slider-seite-${currentPageIndex + 1}.png`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            downloadDataUrl(dataUrl, `gruenerator-slider-seite-${currentPageIndex + 1}.png`);
           }
         }
       },
