@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  isSafeDownloadFilename,
   parseWebViewMessage,
+  sanitizeDownloadFilename,
   WEBVIEW_DOWNLOAD_MAX_BASE64_LENGTH,
   type WebViewOutboundMessage,
 } from './webviewBridge.js';
@@ -125,5 +127,56 @@ describe('parseWebViewMessage — DOWNLOAD_FILE', () => {
   it('accepts a payload exactly at the cap', () => {
     const exact = 'A'.repeat(WEBVIEW_DOWNLOAD_MAX_BASE64_LENGTH);
     expect(parseWebViewMessage(download({ data: exact }))).not.toBeNull();
+  });
+});
+
+describe('sanitizeDownloadFilename', () => {
+  it('leaves an ordinary name alone', () => {
+    expect(sanitizeDownloadFilename('Haushalt 2027.pptx')).toBe('Haushalt 2027.pptx');
+  });
+
+  it('turns a path separator into a dash instead of dropping it', () => {
+    // The case from the review: a document titled `Protokoll 12/2026` is
+    // ordinary, and its filename used to be rejected wholesale by the host —
+    // silently, because posting a message is not a round trip.
+    expect(sanitizeDownloadFilename('Protokoll 12/2026.docx')).toBe('Protokoll 12-2026.docx');
+    expect(sanitizeDownloadFilename('An\\Aus.odt')).toBe('An-Aus.odt');
+  });
+
+  it('strips control characters', () => {
+    expect(sanitizeDownloadFilename('Titel\u0007mit\u0000Steuerzeichen.csv')).toBe(
+      'TitelmitSteuerzeichen.csv'
+    );
+  });
+
+  it('falls back when nothing usable is left', () => {
+    expect(sanitizeDownloadFilename('...')).toBe('Download');
+    expect(sanitizeDownloadFilename('   ')).toBe('Download');
+    expect(sanitizeDownloadFilename('/')).toBe('-');
+  });
+
+  it('keeps the extension when it has to cut', () => {
+    // A `.pptx` that lost its suffix opens in nothing.
+    const long = `${'a'.repeat(400)}.pptx`;
+    const result = sanitizeDownloadFilename(long);
+    expect(result).toHaveLength(255);
+    expect(result.endsWith('.pptx')).toBe(true);
+  });
+
+  it('produces something the host actually accepts', () => {
+    // The point of the whole exercise: sanitize is the caller-side repair for
+    // exactly the predicate the host applies. If the two ever disagree, the
+    // export fails without a visible error.
+    for (const raw of [
+      'Protokoll 12/2026.docx',
+      'An\\Aus.odt',
+      'Titel\u0007mit\u0000Steuerzeichen.csv',
+      '...',
+      '   ',
+      `${'a'.repeat(400)}.pptx`,
+      'Sitzung 12/2026.pptx',
+    ]) {
+      expect(isSafeDownloadFilename(sanitizeDownloadFilename(raw)), raw).toBe(true);
+    }
   });
 });

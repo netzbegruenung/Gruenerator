@@ -23,6 +23,7 @@ import { parseDataUrl } from '../utils/dataUrl.js';
 import {
   hasNativeHost,
   postToNativeHost,
+  sanitizeDownloadFilename,
   WEBVIEW_DOWNLOAD_MAX_BASE64_LENGTH,
 } from './webviewBridge.js';
 
@@ -60,7 +61,19 @@ function clickAnchor(href: string, filename: string, revoke: boolean): void {
 
 function postToHost(base64: string, mime: string, filename: string): void {
   if (exceedsNativeLimit(base64)) throw new NativeDownloadTooLargeError();
-  postToNativeHost({ type: 'DOWNLOAD_FILE', filename, mime, data: base64 });
+  // Sanitised here rather than at each call site: most filenames are built
+  // from a user-typed title (`${docData.title}.docx`), and a title with a `/`
+  // in it — `Protokoll 12/2026` — is ordinary. The host's parser rejects the
+  // whole message for such a name, and since posting is not a round trip the
+  // export would fail without anything to show for it. Two call sites already
+  // sanitise (`toXlsxFilename`, the board's `slug()`); the rest cannot forget
+  // now.
+  postToNativeHost({
+    type: 'DOWNLOAD_FILE',
+    filename: sanitizeDownloadFilename(filename),
+    mime,
+    data: base64,
+  });
 }
 
 /**
