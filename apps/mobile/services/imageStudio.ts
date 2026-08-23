@@ -148,7 +148,14 @@ export async function base64ToFileUri(
 /**
  * Save a base64 image to the device gallery
  */
-export async function saveImageToGallery(base64Data: string): Promise<boolean> {
+export async function saveImageToGallery(
+  base64Data: string,
+  /**
+   * Name for the temp file the gallery asset is created from. Without it every
+   * image is written as `.png`, which mislabels a JPEG or WebP export.
+   */
+  filename?: string
+): Promise<boolean> {
   try {
     // Write-only: saving only, never reading the library.
     const { status } = await MediaLibrary.requestPermissionsAsync(true);
@@ -161,7 +168,9 @@ export async function saveImageToGallery(base64Data: string): Promise<boolean> {
     }
 
     // Create temp file
-    const fileUri = await base64ToFileUri(base64Data);
+    const fileUri = filename
+      ? await base64ToFileUri(base64Data, filename)
+      : await base64ToFileUri(base64Data);
 
     // Save to gallery (SDK 56 class-based API — saveToLibraryAsync now throws)
     await MediaLibrary.Asset.create(fileUri);

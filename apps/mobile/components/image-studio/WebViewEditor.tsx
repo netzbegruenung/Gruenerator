@@ -1,10 +1,12 @@
+import { parseWebViewMessage } from '@gruenerator/shared';
 import { useRef, useEffect, useState, useCallback } from 'react';
-import { StyleSheet, View, ActivityIndicator, Text, Platform } from 'react-native';
+import { StyleSheet, View, ActivityIndicator, Text, Platform, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
 import { useTheme } from '../../hooks/useTheme';
 import { secureStorage } from '../../services/storage';
+import { receiveDownload } from '../../services/webview/receiveDownload';
 import { colors, BODY_FONT } from '../../theme';
 
 // Determine the web editor URL based on environment
@@ -71,6 +73,21 @@ export function WebViewEditor({ initialData, onSave, onCancel }: WebViewEditorPr
 
           case 'LOG':
             break;
+
+          // The canvas editor's own download button, which this screen also
+          // hosts. Routed through the shared parser rather than this file's
+          // hand-rolled shape check — the payload carries a filename that
+          // becomes a path, so it gets the real validation.
+          case 'DOWNLOAD_FILE': {
+            const message = parseWebViewMessage(event.nativeEvent.data);
+            if (message?.type === 'DOWNLOAD_FILE') {
+              void receiveDownload(message).catch((err: unknown) => {
+                console.warn('[WebViewEditor] download failed', err);
+                Alert.alert('Fehler', 'Die Datei konnte nicht gespeichert werden.');
+              });
+            }
+            break;
+          }
 
           default:
             break;
