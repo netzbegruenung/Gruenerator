@@ -5,7 +5,15 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, ActivityIndicator, useColorScheme } from 'react-native';
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  ActivityIndicator,
+  useColorScheme,
+  Alert,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
@@ -19,6 +27,7 @@ import {
   decideNavigation,
   WEBVIEW_ORIGIN_WHITELIST,
 } from '../../services/webview/navigationPolicy';
+import { receiveDownload } from '../../services/webview/receiveDownload';
 import { colors, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 
 const WEB_BASE = 'https://gruenerator.eu';
@@ -156,15 +165,25 @@ export default function WebViewerScreen() {
     (event: WebViewMessageEvent) => {
       const message = parseWebViewMessage(event.nativeEvent.data);
       if (message === null) return;
-      // Both messages mean the same thing for the host: this screen is done.
-      // SESSION_LOST additionally tells the user why, since the page cannot
-      // show a login screen from inside a pinned WebView.
+      // CLOSE and SESSION_LOST both mean the same thing for the host: this
+      // screen is done. SESSION_LOST additionally tells the user why, since the
+      // page cannot show a login screen from inside a pinned WebView.
       if (message.type === 'SESSION_LOST') {
         setError('Deine Sitzung ist abgelaufen. Bitte melde dich neu an.');
         return;
       }
       if (message.type === 'CLOSE') {
         handleClose();
+        return;
+      }
+      if (message.type === 'DOWNLOAD_FILE') {
+        // Deliberately NOT setError: that swaps the WebView for the error view
+        // and takes unsaved editor state with it. A failed download is worth an
+        // alert, not the loss of the document.
+        void receiveDownload(message).catch((err: unknown) => {
+          console.warn('[WebViewer] download failed', err);
+          Alert.alert('Fehler', 'Die Datei konnte nicht gespeichert werden.');
+        });
       }
     },
     [handleClose]

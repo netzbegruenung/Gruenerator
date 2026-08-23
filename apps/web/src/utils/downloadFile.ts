@@ -1,20 +1,18 @@
 /**
- * Hand a Blob to the browser as a file download.
+ * Handing a file to the user.
  *
- * The anchor is appended before clicking: Firefox ignores a synthetic click on
- * a detached node.
+ * The implementation moved to `@gruenerator/shared` so that the canvas editor
+ * and the chat package share it: all three used to carry their own copy, and
+ * none of the copies knew that a synthetic `<a download>` click does nothing
+ * inside the mobile app's WebView. Re-exported from here so existing importers
+ * keep their path.
+ *
+ * Both functions are async now — the native path has to read the bytes out.
+ * Callers that do not sequence anything afterwards may `void` the result.
  */
-export function downloadBlob(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
-export function downloadFile(content: string, filename: string, mime: string): void {
-  downloadBlob(new Blob([content], { type: mime }), filename);
-}
+export {
+  downloadBlob,
+  downloadDataUrl,
+  downloadFile,
+  NativeDownloadTooLargeError,
+} from '@gruenerator/shared';

@@ -66,6 +66,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 import { useHostAwareBack } from '../../hooks/useHostAwareBack';
 import { useExportStore, type PdfExportOptions } from '../../stores/core/exportStore';
+import { downloadBlob } from '../../utils/downloadFile';
 import { isDesktopApp, isEmbedded } from '../../utils/platform';
 import { platformFetch } from '../../utils/platformFetch';
 import { letterheadApi, LETTERHEADS_QUERY_KEY } from '../settings/letterheadApi';
@@ -407,12 +408,7 @@ function EditorContent() {
         await import('@blocknote/xl-docx-exporter');
       const exporter = new DOCXExporter(editor.schema, docxDefaultSchemaMappings);
       const blob = await exporter.toBlob(editor.document);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${docData.title || 'Dokument'}.docx`;
-      link.click();
-      window.URL.revokeObjectURL(url);
+      await downloadBlob(blob, `${docData.title || 'Dokument'}.docx`);
       setShowActionsMenu(false);
     } catch (error) {
       console.error('Export failed:', error);
@@ -523,12 +519,7 @@ function EditorContent() {
       const { ODTExporter, odtDefaultSchemaMappings } = await import('@blocknote/xl-odt-exporter');
       const exporter = new ODTExporter(editor.schema, odtDefaultSchemaMappings);
       const blob = await exporter.toODTDocument(editor.document);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${docData.title || 'Dokument'}.odt`;
-      link.click();
-      window.URL.revokeObjectURL(url);
+      await downloadBlob(blob, `${docData.title || 'Dokument'}.odt`);
       setShowActionsMenu(false);
     } catch (error) {
       console.error('ODT export failed:', error);
