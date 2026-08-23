@@ -13,13 +13,13 @@ import {
   StyleSheet,
   FlatList,
   Pressable,
-  ActivityIndicator,
   useColorScheme,
   useWindowDimensions,
   RefreshControl,
   Alert,
 } from 'react-native';
 
+import { SkeletonTiles } from '../../../../components/common';
 import { SharedMediaImage } from '../../../../components/common/SharedMediaImage';
 import { shareImage } from '../../../../services/imageStudio';
 import {
@@ -204,14 +204,22 @@ export default function GalleryScreen() {
     );
   };
 
-  if (isLoading && filteredShares.length === 0) {
-    return (
-      <View style={[styles.container, styles.centered, { backgroundColor: theme.background }]}>
-        <ActivityIndicator size="large" color={colors.primary[600]} />
-        <Text style={[styles.loadingText, { color: theme.textSecondary }]}>Lade Galerie...</Text>
-      </View>
-    );
-  }
+
+  // The grid is empty while it loads, so the placeholder goes where the cards
+  // go — through `ListEmptyComponent` — and the header and filter tabs above it
+  // stay reachable instead of being swallowed by a full-screen spinner. Same
+  // tile size, gap and action-row height as `renderItem`.
+  const gridSkeleton = (
+    <SkeletonTiles
+      count={numColumns * 3}
+      itemWidth={itemSize}
+      columns={numColumns}
+      gap={ITEM_GAP}
+      aspectRatio={1}
+      radius={borderRadius.medium}
+      caption
+    />
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -269,7 +277,7 @@ export default function GalleryScreen() {
         numColumns={numColumns}
         contentContainerStyle={styles.listContent}
         columnWrapperStyle={styles.columnWrapper}
-        ListEmptyComponent={renderEmpty}
+        ListEmptyComponent={isLoading && filteredShares.length === 0 ? gridSkeleton : renderEmpty}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -285,10 +293,6 @@ export default function GalleryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  centered: {
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   header: {
     flexDirection: 'row',
@@ -406,9 +410,5 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.primary[600],
     fontWeight: '600',
-  },
-  loadingText: {
-    ...typography.body,
-    marginTop: spacing.medium,
   },
 });
