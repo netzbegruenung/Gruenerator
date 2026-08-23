@@ -1,5 +1,6 @@
 import { parseWebViewMessage } from '@gruenerator/shared';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as WebBrowser from 'expo-web-browser';
@@ -9,7 +10,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
 import { mintWebViewHandoff } from '../../services/webview/handoff';
-import { hostDrawsHeader } from '../../services/webview/hostChrome';
+import {
+  CANVAS_MENUBAR_GRADIENT_STOPS,
+  hostDrawsHeader,
+  statusBarTint,
+} from '../../services/webview/hostChrome';
 import {
   decideNavigation,
   WEBVIEW_ORIGIN_WHITELIST,
@@ -17,6 +22,31 @@ import {
 import { colors, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 
 const WEB_BASE = 'https://gruenerator.eu';
+
+/**
+ * The strip the status bar sits in, painted so that it reads as the top of the
+ * page's own header rather than as a band the host bolted on.
+ */
+function StatusBarBand({
+  height,
+  tint,
+  fallback,
+}: {
+  height: number;
+  tint: readonly string[] | null;
+  fallback: string;
+}) {
+  if (tint === null) return <View style={{ height, backgroundColor: fallback }} />;
+  return (
+    <LinearGradient
+      colors={tint as [string, string, ...string[]]}
+      locations={CANVAS_MENUBAR_GRADIENT_STOPS as unknown as [number, number, ...number[]]}
+      start={{ x: 0, y: 0.5 }}
+      end={{ x: 1, y: 0.5 }}
+      style={{ height }}
+    />
+  );
+}
 
 export default function WebViewerScreen() {
   const { path, title } = useLocalSearchParams<{ path?: string; title?: string }>();
@@ -46,6 +76,10 @@ export default function WebViewerScreen() {
   // back button goes with it. Only the dismiss gesture would be left, and an
   // expired session is the worst moment to make someone guess at one.
   const drawHeader = error !== null || hostDrawsHeader(path ?? '');
+
+  // `null` means "paint it in the theme background", which is what board and
+  // office headers sit on anyway.
+  const tint = drawHeader ? null : statusBarTint(path ?? '');
 
   const normalizedPath = useMemo(() => {
     if (!path) return '/';
@@ -146,7 +180,15 @@ export default function WebViewerScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+      {/* The `(fullscreen)` group hides the status bar for its read-only
+          viewers. An editor is not one: it is worked in for minutes, and on a
+          device with a cutout its band is reserved whether or not the clock is
+          in it. `hidden={false}` is explicit because expo-status-bar merges
+          props down the tree and would otherwise keep the group's `hidden`. */}
+      <StatusBar
+        hidden={false}
+        style={tint !== null || colorScheme === 'dark' ? 'light' : 'dark'}
+      />
       {drawHeader ? (
         <View
           style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: theme.border }]}
@@ -166,9 +208,11 @@ export default function WebViewerScreen() {
           <View style={styles.closeButton} />
         </View>
       ) : (
-        // Only the status-bar inset. The page draws the bar itself and carries
-        // both the title and the way out; see `hostDrawsHeader`.
-        <View style={{ height: insets.top }} />
+        // Only the status-bar band. The page draws the bar itself and carries
+        // both the title and the way out; see `hostDrawsHeader`. `insets.top`
+        // is the honest number on every device: the status bar where there is
+        // no cutout, the cutout where it is taller (34.33 dp on a Galaxy S24).
+        <StatusBarBand height={insets.top} tint={tint} fallback={theme.background} />
       )}
 
       {error !== null ? (

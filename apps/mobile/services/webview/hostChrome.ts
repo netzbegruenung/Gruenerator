@@ -40,3 +40,34 @@ export function hostDrawsHeader(path: string): boolean {
   const pathname = path.split('?')[0] ?? '';
   return !SELF_CHROMED_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
+
+/**
+ * The canvas editor's menu bar is a horizontal gradient, not a flat colour, so
+ * the status-bar band above it has to be one too — a single green would seam
+ * against it on the right, where the bar has already run to `#6BA88C`.
+ *
+ * Copied from `--editor-menubar-gradient` in the canvas editor's
+ * `variables.css`, which is where it belongs: it is a web design token, and
+ * that file stays its one source. `hostChrome.vitest.ts` reads the CSS and
+ * fails if the two drift apart, so this is checked duplication rather than the
+ * kind that quietly rots.
+ */
+export const CANVAS_MENUBAR_GRADIENT = ['#00553B', '#3E7D63', '#6BA88C'] as const;
+
+/** Where the three stops sit — `55%` in the CSS. */
+export const CANVAS_MENUBAR_GRADIENT_STOPS = [0, 0.55, 1] as const;
+
+/**
+ * The colours the host paints behind the status bar, or `null` for "the plain
+ * theme background".
+ *
+ * Only the canvas editor needs a tint: board and office draw their headers on
+ * the ordinary page background, which is what the host already uses. The status
+ * bar itself stays visible on every self-chromed surface — on a device with a
+ * cutout that band is reserved anyway (34.33 dp on a Galaxy S24, against a
+ * 24 dp status bar), so hiding it buys nothing and costs the clock.
+ */
+export function statusBarTint(path: string): readonly string[] | null {
+  const pathname = path.split('?')[0] ?? '';
+  return pathname.startsWith('/studio/canvas/') ? CANVAS_MENUBAR_GRADIENT : null;
+}
