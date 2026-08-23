@@ -14,13 +14,12 @@ import {
 
 import { useLayout } from '../../hooks/useLayout';
 import { type RecentItem, type RecentItemType } from '../../hooks/useRecentActivity';
+import { resolveWebUrl } from '../../services/webOrigin';
 import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 import { gridColumns } from '../../theme/layout';
 
 import { DocPreview } from './DocPreview';
 import { type ViewMode } from './ViewModeToggle';
-
-const WEB_ORIGIN = 'https://gruenerator.eu';
 
 const GAP = spacing.small;
 
@@ -109,14 +108,7 @@ export function RecentItemsSection({
       <View style={isList ? styles.list : styles.grid}>
         {items.map((item) => {
           const key = `${item.type}-${item.id}`;
-          // The backend returns an origin-relative thumbnail path (e.g.
-          // /api/share/<token>/thumbnail). That resolves against the origin on web,
-          // but mobile has no base origin — prefix WEB_ORIGIN so <Image> can load it.
-          const thumbUri = item.thumbnailUrl
-            ? item.thumbnailUrl.startsWith('http')
-              ? item.thumbnailUrl
-              : `${WEB_ORIGIN}${item.thumbnailUrl}`
-            : null;
+          const thumbUri = resolveWebUrl(item.thumbnailUrl) ?? null;
           const hasThumb =
             !!thumbUri &&
             (item.type === 'image' || item.type === 'video' || item.type === 'canvas') &&
