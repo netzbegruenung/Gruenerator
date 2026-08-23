@@ -1,3 +1,5 @@
+import { type ExtractionStats } from '../services/scrapers/extractionRecorder.js';
+
 export interface SourceGroupResult {
   id: string;
   name: string;
@@ -28,5 +30,11 @@ export interface SyncSummary {
     fetchErrors: number;
     errors: number;
   };
+  /**
+   * Was das Auslesen der Dokumente in diesem Lauf gekostet hat, und was die
+   * Fingerprint-Gatter davor abgefangen haben. Optional, weil ältere
+   * Teil-Summaries (Matrix-Artefakte) das Feld nicht tragen.
+   */
+  extraction?: ExtractionStats;
   totalDuration: number;
 }

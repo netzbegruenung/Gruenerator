@@ -33,6 +33,11 @@ import { mistralEmbeddingService } from '../../../mistral/index.js';
 import { ocrService } from '../../../OcrService/index.js';
 import { BaseScraper } from '../../base/BaseScraper.js';
 import {
+  recordExtraction,
+  recordExtractionSkip,
+  recordRedundantExtraction,
+} from '../../extractionRecorder.js';
+import {
   conditionalHeaders,
   fingerprintResponse,
   isSameFile,
@@ -321,6 +326,7 @@ export class LandesverbandScraper extends BaseScraper {
           const stored = forceUpdate ? null : await this.#storedPayload(pdf.url, targetCollection);
           if (isFreshlyIndexed(stored)) {
             result.skipped++;
+            recordExtractionSkip('freshly_indexed');
             continue;
           }
 
@@ -334,6 +340,7 @@ export class LandesverbandScraper extends BaseScraper {
           if (response.status === 304) {
             result.skipped++;
             result.skipReasons['unchanged'] = (result.skipReasons['unchanged'] || 0) + 1;
+            recordExtractionSkip('not_modified');
             continue;
           }
 
@@ -348,6 +355,7 @@ export class LandesverbandScraper extends BaseScraper {
           if (isSameFile(stored, fingerprint)) {
             result.skipped++;
             result.skipReasons['unchanged'] = (result.skipReasons['unchanged'] || 0) + 1;
+            recordExtractionSkip('same_bytes');
             continue;
           }
 
@@ -365,6 +373,10 @@ export class LandesverbandScraper extends BaseScraper {
 
             const result = await ocrService.extractTextFromDocument(tempPath);
             text = result.text || '';
+            recordExtraction({
+              method: result.extractionMethod || result.method,
+              pages: result.pageCount,
+            });
 
             this.log(
               `OcrService extracted ${text.length} chars from ${filename} (${result.extractionMethod || 'unknown'})`
@@ -407,6 +419,8 @@ export class LandesverbandScraper extends BaseScraper {
             result.skipped++;
             result.skipReasons[storeResult.reason || 'unknown'] =
               (result.skipReasons[storeResult.reason || 'unknown'] || 0) + 1;
+            // Ausgelesen und danach doch unverändert — kein Gatter hat gegriffen.
+            if (storeResult.reason === 'unchanged') recordRedundantExtraction();
           }
 
           await this.delay(this.crawlDelay);
@@ -481,11 +495,14 @@ export class LandesverbandScraper extends BaseScraper {
             if (existing.length > 0 && existing[0].payload?.wolke_etag === file.etag) {
               result.skipped++;
               result.skipReasons['unchanged'] = (result.skipReasons['unchanged'] || 0) + 1;
+              recordExtractionSkip('not_modified');
               continue;
             }
           }
 
-          const text = await extractWolkeFileText(client, file);
+          const extraction = await extractWolkeFileText(client, file);
+          recordExtraction({ method: extraction.method, pages: extraction.pages });
+          const text = extraction.text;
           const title = file.name.replace(/\.[^.]+$/, '');
           const storeResult = await this.documentProcessor.processAndStoreDocument(
             source,
@@ -509,6 +526,7 @@ export class LandesverbandScraper extends BaseScraper {
             result.skipped++;
             result.skipReasons[storeResult.reason || 'unknown'] =
               (result.skipReasons[storeResult.reason || 'unknown'] || 0) + 1;
+            if (storeResult.reason === 'unchanged') recordRedundantExtraction();
           }
 
           await this.delay(this.crawlDelay);
@@ -1007,6 +1025,10 @@ export class LandesverbandScraper extends BaseScraper {
       await fs.writeFile(tempPath, buffer);
       const ocrResult = await ocrService.extractTextFromDocument(tempPath);
       text = ocrResult.text || '';
+      recordExtraction({
+        method: ocrResult.extractionMethod || ocrResult.method,
+        pages: ocrResult.pageCount,
+      });
     } finally {
       try {
         await fs.unlink(tempPath);

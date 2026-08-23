@@ -32,6 +32,11 @@ import { chunkQualityService } from '../../ChunkQualityService/index.js';
 import { smartChunkDocument, buildEmbeddingTexts } from '../../document-services/index.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
 import { BaseScraper } from '../base/BaseScraper.js';
+import {
+  recordExtraction,
+  recordExtractionSkip,
+  recordRedundantExtraction,
+} from '../extractionRecorder.js';
 import { recordSyncEvent, toExcerpt } from '../syncEventRecorder.js';
 import {
   conditionalHeaders,
@@ -307,6 +312,7 @@ export class ProgramPdfScraper extends BaseScraper {
 
       const download = await this.#downloadPdf(doc.pdfUrl, gateOn);
       if ('notModified' in download) {
+        recordExtractionSkip('not_modified');
         return { stored: false, reason: 'unchanged' };
       }
       tempPath = download.tempPath;
@@ -314,10 +320,12 @@ export class ProgramPdfScraper extends BaseScraper {
       // Byte-gleiche Datei → die Extraktion (PDF.js, bei Bedarf Mistral-OCR pro
       // Seite) und die Einbettung würden dasselbe Ergebnis erneut erzeugen.
       if (gateOn && isSameFile(gateOn, download.fingerprint)) {
+        recordExtractionSkip('same_bytes');
         return { stored: false, reason: 'unchanged' };
       }
 
       const extraction = await this.#extractText(tempPath);
+      recordExtraction({ method: extraction.method, pages: extraction.pageCount });
 
       if (!extraction.text || extraction.text.length < 1000) {
         return { stored: false, reason: 'too_short' };
@@ -327,6 +335,7 @@ export class ProgramPdfScraper extends BaseScraper {
 
       if (gateOn && gateOn.content_hash === contentHash) {
         await this.#persistFingerprint(doc.documentId, download.fingerprint, gateOn);
+        recordRedundantExtraction();
         return { stored: false, reason: 'unchanged' };
       }
 
