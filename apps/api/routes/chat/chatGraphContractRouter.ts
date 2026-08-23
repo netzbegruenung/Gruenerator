@@ -214,14 +214,13 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // stage that can also pin the intent.
       let forcedTool = mentionForcedTool;
 
-      // === Early handler branches (reel / app gate / social post / sharepic edit) ===
+      // === Early handler branches (reel / social post / sharepic edit) ===
       const early = await runEarlyHandlerStage({
         sse,
         req,
         classifiedState,
         initialState,
         cleanupPending,
-        fixedTextBase,
         actualThreadId,
         userId,
         lastUserMessage,
