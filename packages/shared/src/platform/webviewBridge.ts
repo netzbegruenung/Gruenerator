@@ -95,6 +95,40 @@ export function isSafeDownloadFilename(value: string): boolean {
   return value.replace(/\./g, '').trim().length > 0;
 }
 
+const MAX_FILENAME_LENGTH = 255;
+
+/**
+ * Turns whatever a caller wants to name a file into something
+ * `isSafeDownloadFilename` accepts.
+ *
+ * Collapses rather than rejects, deliberately: the names that reach here are
+ * built from user-typed titles (`${docData.title}.docx`), and a document
+ * called `Protokoll 12/2026` is ordinary. Rejecting it would fail the export
+ * on the host — and fail it silently, because a posted message is not a
+ * round trip and the web side never learns the host dropped it.
+ *
+ * The strict predicate stays: this is the caller-side repair, the host still
+ * checks what it actually receives.
+ */
+export function sanitizeDownloadFilename(raw: string, fallback = 'Download'): string {
+  // Path separators become a dash rather than vanishing, so `12/2026` stays
+  // readable as `12-2026` instead of collapsing to `122026`.
+  const flattened = raw.replace(/[/\\]/g, '-');
+  // eslint-disable-next-line no-control-regex
+  const cleaned = flattened.replace(/[\u0000-\u001f\u007f]/g, '').trim();
+  // A name made only of dots addresses a directory, never a file.
+  if (cleaned.replace(/\./g, '').trim().length === 0) return fallback;
+  if (cleaned.length <= MAX_FILENAME_LENGTH) return cleaned;
+
+  // Over-long: keep the extension, cut the stem — a `.pptx` that lost its
+  // suffix opens in nothing.
+  const dot = cleaned.lastIndexOf('.');
+  if (dot <= 0) return cleaned.slice(0, MAX_FILENAME_LENGTH);
+  const extension = cleaned.slice(dot);
+  const stemBudget = Math.max(1, MAX_FILENAME_LENGTH - extension.length);
+  return cleaned.slice(0, stemBudget) + extension;
+}
+
 interface ReactNativeWebViewHost {
   postMessage: (message: string) => void;
 }
