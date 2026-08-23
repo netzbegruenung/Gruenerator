@@ -39,7 +39,13 @@ function sourceFiles(dir: string, out: string[] = []): string[] {
 }
 
 /**
- * Every `path:` the app hands to the `web-viewer` screen.
+ * Every path the app asks the handoff to open.
+ *
+ * Two shapes, because there are two ways in. Most surfaces go through the
+ * `web-viewer` screen and name their path in its route params. The offscreen
+ * sharepic renderer does not — it is a bare WebView with no chrome and no
+ * route, so it mints its handoff directly. Scanning only the first shape would
+ * report the second as an allowlist entry nobody opens.
  *
  * Template holes (`${item.id}`) become a literal `x`: the id never decides
  * whether a path is allowlisted, the prefix does, and substituting keeps the
@@ -47,17 +53,24 @@ function sourceFiles(dir: string, out: string[] = []): string[] {
  */
 function mobileWebViewPaths(): { file: string; path: string }[] {
   const found: { file: string; path: string }[] = [];
-  const callSite =
-    /pathname:\s*'\/\(fullscreen\)\/web-viewer'[\s\S]{0,400}?path:\s*(?:`([^`]*)`|'([^']*)')/g;
+  const patterns = [
+    /pathname:\s*'\/\(fullscreen\)\/web-viewer'[\s\S]{0,400}?path:\s*(?:`([^`]*)`|'([^']*)')/g,
+    // Direct callers. Only literal arguments are readable here; `web-viewer`
+    // passes a computed variable and is covered by the pattern above.
+    /mintWebViewHandoff\(\s*(?:`([^`$]*)`|'([^']*)')/g,
+  ];
 
   for (const file of sourceFiles(MOBILE_DIR)) {
     const source = readFileSync(file, 'utf-8');
-    for (const match of source.matchAll(callSite)) {
-      const raw = match[1] ?? match[2] ?? '';
-      found.push({
-        file: path.relative(REPO_ROOT, file),
-        path: raw.replace(/\$\{[^}]*\}/g, 'x'),
-      });
+    for (const callSite of patterns) {
+      for (const match of source.matchAll(callSite)) {
+        const raw = match[1] ?? match[2] ?? '';
+        if (raw.length === 0) continue;
+        found.push({
+          file: path.relative(REPO_ROOT, file),
+          path: raw.replace(/\$\{[^}]*\}/g, 'x'),
+        });
+      }
     }
   }
   return found;
@@ -75,6 +88,8 @@ describe('validateRedirectTarget', () => {
       ['/gruenerator/mein-slug', 'agent slug'],
       ['/documents/1', 'shared documents'],
       ['/office/1', 'office dispatcher — docs, sheets and presentations'],
+      ['/mobile-render', 'offscreen sharepic renderer — an exact entry, no id'],
+      ['/mobile-render?embedded=1', 'exact entry still allows the embedded switch'],
     ])('%s — %s', (input) => {
       expect(validateRedirectTarget(input)).toEqual({ ok: true, path: input });
     });
@@ -114,6 +129,11 @@ describe('validateRedirectTarget', () => {
       ['/logout', 'not-allowlisted'],
       // A prefix must not match a sibling route that merely starts the same.
       ['/texte-admin/1', 'not-allowlisted'],
+      // Same boundary, enforced the other way: an entry without a trailing
+      // slash is an exact path, so it licenses neither a longer sibling nor a
+      // child segment.
+      ['/mobile-render-admin', 'not-allowlisted'],
+      ['/mobile-render/secret', 'not-allowlisted'],
       // The query string must not be able to fake a prefix match.
       ['/admin?x=/studio/canvas/1', 'not-allowlisted'],
     ])('%s → %s', (input, reason) => {
@@ -151,6 +171,10 @@ describe('EMBEDDABLE_PATH_PREFIXES vs. the mobile callers', () => {
     // satisfies "every caller is allowlisted" perfectly.
     expect(callers.length).toBeGreaterThanOrEqual(8);
     expect(new Set(callers.map((c) => c.file)).size).toBeGreaterThanOrEqual(3);
+    // Both shapes, named explicitly: the direct-mint pattern was added for a
+    // single caller, and a regex that quietly stops matching it would take the
+    // renderer's allowlist entry out of scope without failing anything.
+    expect(callers.some((c) => c.path.startsWith('/mobile-render'))).toBe(true);
   });
 
   it('accepts every path the app opens', () => {
@@ -168,7 +192,11 @@ describe('EMBEDDABLE_PATH_PREFIXES vs. the mobile callers', () => {
     const unused = EMBEDDABLE_PATH_PREFIXES.filter(
       (prefix) =>
         !SHIPPED_BINARY_ONLY_PREFIXES.includes(prefix) &&
-        !callers.some((c) => c.path.startsWith(prefix))
+        !callers.some((c) =>
+          prefix.endsWith('/')
+            ? c.path.startsWith(prefix)
+            : (c.path.split('?', 1)[0] ?? '') === prefix
+        )
     );
 
     expect(unused).toEqual([]);

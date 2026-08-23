@@ -14,6 +14,16 @@ export {
 // Confirm/reject flow for chat-proposed actions (shared POST; platform cards render around it)
 export { confirmChatAction, type ConfirmActionOutcome } from './lib/confirmAction';
 
+// Sharepic variants. The app cannot draw one — it borrows the web renderer
+// through a hidden WebView (`services/sharepicRender.ts`) — but the data and
+// the live edit state are plain stores, so both platforms read the same ones.
+export { type SharepicData, type SharepicVariant } from './hooks/useChatGraphStream';
+export {
+  useSharepicLiveStore,
+  type SharepicLiveEntry,
+  type ActiveSharepic,
+} from './stores/sharepicLiveStore';
+
 // Context & API Client
 export {
   chatFetch,
