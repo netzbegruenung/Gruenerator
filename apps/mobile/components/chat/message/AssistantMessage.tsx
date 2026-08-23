@@ -27,6 +27,8 @@ import { ComputeCard } from '../ComputeCard';
 import { ConfirmActionCard } from '../ConfirmActionCard';
 import { DocumentCreatedCard } from '../DocumentCreatedCard';
 import { GeneratedImageDisplay } from '../GeneratedImageDisplay';
+import { ImageGenerationFrame } from '../ImageGenerationFrame';
+import { showsImageGenerationFrame } from '../imageGenerationView';
 import { MemoryIndicator } from '../MemoryIndicator';
 import { SearchImagesSection } from '../SearchImagesSection';
 import { SocialPostCard } from '../SocialPostCard';
@@ -169,6 +171,17 @@ export const AssistantMessage = memo(function AssistantMessage() {
         {!isStreaming && chartData && <ChatChartCard data={chartData} theme={theme} />}
         {!isStreaming && artifactData && <ArtifactCard artifact={artifactData} theme={theme} />}
         {!isStreaming && bahnData && <BahnCard data={bahnData} theme={theme} />}
+        {/* Placeholder frame while the KI image is still being generated, in the
+            slot the picture itself will occupy — web puts both above the answer,
+            mobile has always shown generated images below it, and a placeholder
+            somewhere else would make the image jump when it lands.
+
+            The intent half of the gate is load-bearing: sharepics and combined
+            social posts pass through the same `generating_image` stage and draw
+            their own cards. */}
+        {showsImageGenerationFrame({ isStreaming, generatedImage, progress }) && (
+          <ImageGenerationFrame theme={theme} />
+        )}
         {generatedImage && <GeneratedImageDisplay image={generatedImage} theme={theme} />}
         {confirmAction && <ConfirmActionCard action={confirmAction} theme={theme} />}
         {createdDocument && <DocumentCreatedCard document={createdDocument} theme={theme} />}
