@@ -23,6 +23,8 @@ import {
 import { useDebouncedCallback } from '../../hooks/useDebounced';
 import { fetchUnsplashImageForMobile } from '../../services/imageSourceService';
 import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
+import { SkeletonTiles } from '../common/Skeleton';
+
 
 import { UnsplashAttribution } from './UnsplashAttribution';
 
@@ -185,8 +187,15 @@ export function UnsplashSearchTab({ onImageSelected }: UnsplashSearchTabProps) {
       )}
 
       {isLoadingSearch && searchResults.length === 0 ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary[600]} />
+        <View style={styles.listContent}>
+    <SkeletonTiles
+      count={NUM_COLUMNS * 3}
+      itemWidth={itemSize}
+      columns={NUM_COLUMNS}
+      gap={ITEM_GAP}
+      aspectRatio={1}
+      radius={borderRadius.medium}
+    />
         </View>
       ) : (
         searchResults.length > 0 && (
@@ -228,12 +237,6 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: '#dc2626',
     marginBottom: spacing.small,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: spacing.xxlarge,
   },
   listContent: {
     paddingBottom: spacing.xxlarge,
