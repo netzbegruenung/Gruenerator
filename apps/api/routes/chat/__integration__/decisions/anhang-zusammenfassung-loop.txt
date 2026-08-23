@@ -1,0 +1,16 @@
+# anhang-zusammenfassung-loop — mention-lane
+# Simulated decision map. Regenerate with SIM_UPDATE=1.
+# A green diff proves the BRANCHES ran as scripted. It proves nothing
+# about what a real model would have done.
+
+## turn 0: "fasse das pdf zusammen"
+router.run_agentic               = loop                           forcedLoop=false forcedTool=false gateOpen=true hasImageAttachments=false hasManagedSources=false hasOwnMaterial=false hasSelectedNotebook=false inLoopSet=true intent=search isCompound=false isPdfFillRequest=false loopEnabled=true mustLoop=false secondaryAllowed=true selfContained=false unsourcedWriting=false
+router.intent_override           = (not reached)
+router.implicit_recipe           = (not reached)
+router.persistent_action_gate    = (not reached)
+classifier.tier                  = (not reached)
+respond.answer_format            = brief                          complexity=simple intent=search retrievalExpected=true sourceCount=0 synthesisMode=none taskShape=none
+loop.tool_guard                  = (none)
+loop.synth_verdict               = accepted                       textLength=135
+-- wire --
+intent=search agentic=true tools=[summarize] warnings=[] interrupts=0 confirmActions=[] documentCreated=false sharepicGenerated=false answerChars=135

@@ -43,6 +43,14 @@ import {
 import { crawlAndDistill } from '../../../services/search/index.js';
 import { createLogger } from '../../../utils/logger.js';
 import { validateUrlForFetch } from '../../../utils/validation/urlSecurity.js';
+import {
+  ATTACHED_DOCS_TOOL,
+  readAttachedDocumentSlice,
+  retrievableAttachedSources,
+  retrieveAttachedDocuments,
+  SLICE_DEFAULT_CHARS,
+  SLICE_REGISTER_CHARS,
+} from '../services/agenticLoop/attachedDocuments.js';
 import { isEditorSurface } from '../services/agenticLoop/routing.js';
 import { artifactKind, type ArtifactKindId } from '../services/artifactKindRegistry.js';
 import { withImageProxy } from '../services/searchImagePayload.js';
@@ -536,7 +544,7 @@ NUTZE WENN:
 - Eine Auslassungs-Meldung oder ein "(Ausschnitt, weitere Inhalte über Suche verfügbar)"-Hinweis eine Datei nennt, die du für die Antwort brauchst
 - Ein Dateivergleich mit dem bisher gezeigten Auszug erkennbar unvollständig wäre
 
-Übergib den exakten Dateinamen. Funktioniert nur für Anhänge aus früheren Turns dieses Gesprächs, nicht für Dateien, die gerade erst in dieser Nachricht hochgeladen wurden.`,
+Übergib den exakten Dateinamen. Funktioniert nur für Anhänge aus früheren Turns dieses Gesprächs — für Dateien aus DIESER Nachricht gibt es ${ATTACHED_DOCS_TOOL}.`,
       inputSchema: z.object({
         attachmentName: z
           .string()
@@ -550,7 +558,7 @@ NUTZE WENN:
           return {
             error:
               `Keine Datei namens "${attachmentName}" aus einem früheren Turn gefunden. ` +
-              `In dieser Nachricht neu hochgeladene Dateien lassen sich derzeit nicht gezielt nachladen.`,
+              `Für Dateien, die in DIESER Nachricht hochgeladen wurden, gibt es ${ATTACHED_DOCS_TOOL}.`,
           };
         }
 
@@ -614,6 +622,90 @@ NUTZE WENN:
   if (loop) {
     const { sse, state } = loop;
     tools.summarize = makeSummaryTool({ sse, state });
+
+    // dokumente_lesen: gezielte Frage an die Dokumente, die an DIESEN Turn
+    // hängen. Gegated an den Dokumenten selbst, nicht an einer Konfiguration
+    // daneben — LobeHub montiert sein Gegenstück nur, wenn der Agent zufällig
+    // eine Wissensdatenbank konfiguriert hat, und dann kann das Modell eine
+    // gerade hochgeladene Datei nicht mehr befragen. Genau die Bauform, die uns
+    // den Ausfall vom 23.08.2026 eingebracht hat.
+    //
+    // Der Vorab-Seed (seedAttachedDocuments) hat die Passagen zur häufigsten
+    // Frage schon geholt; dieses Werkzeug ist das Nachfassen, wenn er
+    // danebengriff.
+    const attachedSources = retrievableAttachedSources(state);
+    if (attachedSources.length > 0) {
+      const mehrere = attachedSources.length > 1;
+      tools[ATTACHED_DOCS_TOOL] = tool({
+        description: `Durchsucht die Dokumente, die in diesem Gespräch angehängt sind${mehrere ? ` (${attachedSources.map((s) => s.label).join(', ')})` : ` („${attachedSources[0]!.label}")`}, oder liest sie abschnittsweise im Volltext.
+
+NUTZE WENN eine Frage sich auf eine angehängte Datei bezieht und die bereits gezeigten Passagen nicht ausreichen.
+
+- Für eine gezielte Frage: \`query\` mit einem präzisen Suchbegriff.
+- Wenn die Frage keinen brauchbaren Suchbegriff hergibt (z. B. „was steht am Anfang", „lies weiter"): \`abschnitt\` mit \`von\` als Zeichenposition — die Antwort sagt dir, wo du weiterlesen kannst.${mehrere ? '\n- `dateiname` grenzt auf eine der Dateien ein.' : ''}
+
+NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summarize\`, das den vollständigen Text verarbeitet statt einzelner Passagen.`,
+        inputSchema: z.object({
+          query: z.string().optional().describe('Präziser Suchbegriff für die Passagensuche'),
+          dateiname: z
+            .string()
+            .optional()
+            .describe('Exakter Name einer der angehängten Dateien, um darauf einzugrenzen'),
+          abschnitt: z
+            .object({
+              von: z.number().describe('Zeichenposition, ab der gelesen wird (0 = Anfang)'),
+              zeichen: z
+                .number()
+                .optional()
+                .describe(`Wie viele Zeichen (Standard ${SLICE_DEFAULT_CHARS})`),
+            })
+            .optional()
+            .describe('Volltext abschnittsweise lesen statt suchen'),
+        }),
+        execute: async ({ query, dateiname, abschnitt }) => {
+          const scoped = dateiname
+            ? attachedSources.filter((s) => s.label.toLowerCase() === dateiname.toLowerCase())
+            : attachedSources;
+          if (scoped.length === 0) {
+            return {
+              error:
+                `Keine angehängte Datei namens "${dateiname}". Verfügbar: ` +
+                attachedSources.map((s) => s.label).join(', '),
+            };
+          }
+
+          // Weder Suchbegriff noch Abschnitt: bei genau einer Datei ist der
+          // Anfang die ehrlichere Antwort als eine Ähnlichkeitssuche nach der
+          // Frage selbst — die trifft bei „worum geht es hier" nur Zufälliges.
+          const readSlice = abschnitt != null || (!query && scoped.length === 1);
+          const results = readSlice
+            ? await readAttachedDocumentSlice(state, scoped, {
+                from: abschnitt?.von ?? 0,
+                ...(abschnitt?.zeichen != null && { chars: abschnitt.zeichen }),
+              })
+            : await retrieveAttachedDocuments(state, query ?? '', { sources: scoped });
+
+          if (results.length === 0) {
+            return {
+              error: readSlice
+                ? 'Kein Text an dieser Stelle — das Dokument ist wohl kürzer.'
+                : `Keine passende Passage gefunden. Mit abschnitt.von=0 lässt sich der Text von vorn lesen.`,
+            };
+          }
+          // Eine ausdrückliche Nachlese verdient mehr Platz als ein Suchtreffer
+          // — dieselbe Begründung wie an expand_attachment. Der Deckel kommt aus
+          // `attachedDocuments`, wo auch die Scheibengrenze davon abgeleitet
+          // ist: die beiden Zahlen dürfen nicht auseinanderlaufen, sonst
+          // verliert die Scheibe ihr Ende. Eine Passagensuche bleibt beim
+          // Standardmass.
+          const sources = readSlice
+            ? sourceRegistry.register(results, { snippetChars: SLICE_REGISTER_CHARS })
+            : sourceRegistry.register(results);
+          if (!sources) return { error: 'Konnte die angehängten Dokumente nicht lesen.' };
+          return { resultCount: results.length, sources };
+        },
+      });
+    }
     // Broad mounting stops at the border. The classifier already degrades
     // `bundestag`/`abgeordnetenwatch` to `web` for de-AT users — but that only
     // rewrote `state.intent`, while this catalog handed the model the tools
