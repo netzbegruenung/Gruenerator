@@ -196,6 +196,15 @@ export { joinWolkePath, wolkeParentPath, isWolkeRoot } from './lib/wolkePath';
 
 // useMessageTTS excluded — imports @gruenerator/voice (web-only)
 
+// Day-separator labels. Pure calendar logic (no React, no DOM) so mobile draws
+// the same rule web does — "Heute"/"Gestern"/date, and only where the calendar
+// day actually changes — instead of re-deriving it and drifting.
+export {
+  buildDaySeparatorLabels,
+  dayLabel,
+  type DatedEntry,
+} from './components/message-parts/messageTimestampLabels';
+
 // Citation Utils
 export { mapRawCitationsToChat, resolveCitations } from './lib/citationUtils';
 
