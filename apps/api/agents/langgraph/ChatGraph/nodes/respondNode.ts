@@ -874,9 +874,11 @@ Der Nutzer ist in Österreich. Beachte:
 }
 
 /**
- * Platform context for the system prompt. The mobile app can't render several
- * web-only surfaces; without this the model happily offers them ("Soll ich dir
- * ein Sharepic machen?") and the deterministic router gates read as abrupt.
+ * Platform context for the system prompt. The mobile app can't render a few
+ * web-only surfaces; without this the model happily offers them ("Soll ich die
+ * Untertitel anpassen?") and the deterministic router gates read as abrupt.
+ * Sharepics were on this list until the app learned to render them — when a
+ * feature ships on the app, its gate and its bullet here go together.
  */
 function formatPlatformContext(platform: string | undefined): string {
   if (platform === 'app') {
@@ -885,7 +887,7 @@ function formatPlatformContext(platform: string | undefined): string {
 ## PLATTFORMKONTEXT: APP
 
 Der*die Nutzer*in schreibt aus der Grünerator-App (Mobil). Dort sind einige Funktionen nicht verfügbar:
-- Sharepics erstellen/bearbeiten und Reel-Untertitel bearbeiten gehen nur in der Web-Version (gruenerator.eu im Browser)
+- Reel-Untertitel bearbeiten geht nur in der Web-Version (gruenerator.eu im Browser)
 - PDF-Formulare ausfüllen geht auch hier; die fertige Datei wird über „Teilen" bereitgestellt (keinen Link ausgeben)
 - Excel-/CSV-Vorlagen ausfüllen geht NICHT in der App (dafür braucht es den Browser-Interpreter der Web-Version)
 - Wenn danach gefragt wird: kurz erklären, dass das in der App noch nicht geht, und auf die Web-Version verweisen

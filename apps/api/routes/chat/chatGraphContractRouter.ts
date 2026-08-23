@@ -221,7 +221,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         classifiedState,
         initialState,
         cleanupPending,
-        fixedTextBase,
         actualThreadId,
         userId,
         lastUserMessage,
