@@ -17,6 +17,7 @@ import {
   executeDirectExamplesSearch,
   executeDirectWebSearch,
 } from '../../../../routes/chat/agents/directSearch.js';
+import { roleAwareDefaultRecipeMention } from '../../../../routes/chat/agents/lvRecipePreference.js';
 import {
   lvEbeneForMentions,
   narrowLvScopeToEbene,
@@ -1734,10 +1735,16 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         // überwiegt — ein Partei-Rezept bekäme also überwiegend
         // Fraktionsvorlagen. `defaultRecipeMention` ist hier der zulässige
         // Rückfall: dieser Zweig läuft nur für einen Schreib-Intent, also genau
-        // den Fall, in dem `respondNode` gleich dasselbe Rezept einsetzt.
+        // den Fall, in dem `respondNode` gleich dasselbe Rezept einsetzt —
+        // deshalb derselbe LV-bewusste Rückfall wie dort
+        // (`roleAwareDefaultRecipeMention`), sonst misst die Ebene ein anderes
+        // Rezept als das, mit dem gleich geschrieben wird.
         const lvEbene = lvEbeneForMentions([
           state.activeSkillMention,
-          agentConfig.defaultRecipeMention,
+          roleAwareDefaultRecipeMention(agentConfig, {
+            userRoles: state.userRoles,
+            userLocale: state.userLocale,
+          }),
         ]);
         const lvScope = narrowLvScopeToEbene(
           resolveExamplesLvScope(agentConfig, {
