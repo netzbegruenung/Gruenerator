@@ -9,7 +9,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
 import { mintWebViewHandoff } from '../../services/webview/handoff';
-import { decideNavigation } from '../../services/webview/navigationPolicy';
+import {
+  decideNavigation,
+  WEBVIEW_ORIGIN_WHITELIST,
+} from '../../services/webview/navigationPolicy';
 import { colors, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 
 const WEB_BASE = 'https://gruenerator.eu';
@@ -177,8 +180,13 @@ export default function WebViewerScreen() {
             // — containment —
             onShouldStartLoadWithRequest={handleShouldStartLoad}
             onOpenWindow={handleOpenWindow}
-            // Second line of defence only; the gate above is what blocks.
-            originWhitelist={[`${WEB_BASE}/*`]}
+            // Everything, on purpose — and the reason is written out at
+            // WEBVIEW_ORIGIN_WHITELIST. Short version: a URL that fails this
+            // list is handed to `Linking.openURL` and the gate above is never
+            // asked. `${WEB_BASE}/*` matched nothing (the list is compared to
+            // an origin, which has no trailing slash), so from 15.08.2026 every
+            // navigation here left for the system browser.
+            originWhitelist={WEBVIEW_ORIGIN_WHITELIST}
             // Android defaults to true, which lets target="_blank" spawn a
             // second WebView we do not control.
             setSupportMultipleWindows={false}
