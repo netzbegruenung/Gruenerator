@@ -149,6 +149,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
 
     // Document chat scoping (from @dokumentchat multi-select)
     documentChatIds: input.documentChatIds || [],
+    documentChatLabels: input.documentChatLabels ?? {},
 
     // Board context (from @board mentions, populated by controller)
     boardIds: input.boardIds || [],

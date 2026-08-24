@@ -14,6 +14,16 @@ export {
 // Confirm/reject flow for chat-proposed actions (shared POST; platform cards render around it)
 export { confirmChatAction, type ConfirmActionOutcome } from './lib/confirmAction';
 
+// Sharepic variants. The app cannot draw one — it borrows the web renderer
+// through a hidden WebView (`services/sharepicRender.ts`) — but the data and
+// the live edit state are plain stores, so both platforms read the same ones.
+export { type SharepicData, type SharepicVariant } from './hooks/useChatGraphStream';
+export {
+  useSharepicLiveStore,
+  type SharepicLiveEntry,
+  type ActiveSharepic,
+} from './stores/sharepicLiveStore';
+
 // Context & API Client
 export {
   chatFetch,
@@ -195,6 +205,15 @@ export {
 export { joinWolkePath, wolkeParentPath, isWolkeRoot } from './lib/wolkePath';
 
 // useMessageTTS excluded — imports @gruenerator/voice (web-only)
+
+// Day-separator labels. Pure calendar logic (no React, no DOM) so mobile draws
+// the same rule web does — "Heute"/"Gestern"/date, and only where the calendar
+// day actually changes — instead of re-deriving it and drifting.
+export {
+  buildDaySeparatorLabels,
+  dayLabel,
+  type DatedEntry,
+} from './components/message-parts/messageTimestampLabels';
 
 // Citation Utils
 export { mapRawCitationsToChat, resolveCitations } from './lib/citationUtils';

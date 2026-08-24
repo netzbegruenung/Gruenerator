@@ -55,7 +55,7 @@ Der Chat hat die Recherche mit PR #2137 auf die Websuche-Stufen umgestellt; das 
 
 **Beleg dafür, dass der Graph nie lief:** `ChatStateAnnotation` in `ChatGraph.ts` ist gegenüber dem lebenden `ChatGraphState` (`ChatGraph/types.ts:518-868`) um ~25 Felder zurückgeblieben. Liefe der Graph, verlöre er sie bei jedem Übergang.
 
-> Wer „wir sind ein LangGraph-Projekt" annimmt, liegt für den Chat-Pfad falsch. Live ist LangGraph in fünf *anderen* Graphen (`FlyerToSiteGraph`, `AntragAgentGraph`, `SocialAgentGraph`, `ImageSelectionGraph`, `WebSearchGraph`).
+> Wer „wir sind ein LangGraph-Projekt" annimmt, liegt für den Chat-Pfad falsch. Live ist LangGraph in vier *anderen* Graphen (`FlyerToSiteGraph`, `AntragAgentGraph`, `ImageSelectionGraph`, `WebSearchGraph`). `SocialAgentGraph` stand hier als fünfter und war es bei der Niederschrift (29.07.2026) auch. Er verlor seinen einzigen Aufrufer am 10.08.2026, als `routes/texte/social.ts` den Agent-Mode-Zweig abgab (35181109d0), und ist jetzt entfernt.
 
 ### 2.4 Drei Unterfragen-Planer, zwei Zitat-Syntaxen
 

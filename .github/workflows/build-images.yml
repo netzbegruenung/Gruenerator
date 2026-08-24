@@ -456,7 +456,13 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v7
         with:
-          context: ./documentation
+          # Repo root, not ./documentation: the build installs from the
+          # workspace's pnpm-lock.yaml, which only exists here. The narrower
+          # context had no lockfile at all, so npm re-resolved every build.
+          # `documentation/Dockerfile.dockerignore` keeps this context small —
+          # BuildKit prefers it over the root `.dockerignore`, which excludes
+          # `documentation/` and would drop the very source being built.
+          context: .
           file: documentation/Dockerfile
           push: true
           # Always rebuild the static site from scratch. The Docusaurus output is

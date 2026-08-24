@@ -12,6 +12,7 @@ import { Alert, Platform } from 'react-native';
 
 import { getErrorMessage } from '../utils/errors';
 
+import { alertSavedToGallery } from './gallery';
 import { shareFile } from './share';
 
 import type { Share } from '@gruenerator/shared/share';
@@ -148,7 +149,14 @@ export async function base64ToFileUri(
 /**
  * Save a base64 image to the device gallery
  */
-export async function saveImageToGallery(base64Data: string): Promise<boolean> {
+export async function saveImageToGallery(
+  base64Data: string,
+  /**
+   * Name for the temp file the gallery asset is created from. Without it every
+   * image is written as `.png`, which mislabels a JPEG or WebP export.
+   */
+  filename?: string
+): Promise<boolean> {
   try {
     // Write-only: saving only, never reading the library.
     const { status } = await MediaLibrary.requestPermissionsAsync(true);
@@ -161,10 +169,14 @@ export async function saveImageToGallery(base64Data: string): Promise<boolean> {
     }
 
     // Create temp file
-    const fileUri = await base64ToFileUri(base64Data);
+    const fileUri = filename
+      ? await base64ToFileUri(base64Data, filename)
+      : await base64ToFileUri(base64Data);
 
-    // Save to gallery (SDK 56 class-based API — saveToLibraryAsync now throws)
-    await MediaLibrary.Asset.create(fileUri);
+    // Save to gallery (SDK 56 class-based API — saveToLibraryAsync now throws).
+    // `asset.id` is the MediaStore content URI on Android — the only handle
+    // that lets the success alert offer a way into the gallery.
+    const asset = await MediaLibrary.Asset.create(fileUri);
 
     // Clean up temp file
     const file = new File(Paths.cache, fileUri.split('/').pop() || '');
@@ -174,7 +186,7 @@ export async function saveImageToGallery(base64Data: string): Promise<boolean> {
       // Ignore cleanup errors - file deletion is non-critical
     }
 
-    Alert.alert('Gespeichert', 'Das Bild wurde in der Galerie gespeichert.');
+    alertSavedToGallery(asset.id, 'Das Bild wurde in der Galerie gespeichert.');
     return true;
   } catch (error: unknown) {
     console.error('[ImageStudioService] saveImageToGallery error:', getErrorMessage(error));

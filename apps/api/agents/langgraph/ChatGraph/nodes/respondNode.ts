@@ -10,6 +10,7 @@
 import { SKILLS, canonicalSkillMention } from '@gruenerator/shared/agents';
 import { type ChatIntentId, isGroundableProse } from '@gruenerator/shared/chat-intents';
 
+import { roleAwareDefaultRecipeMention } from '../../../../routes/chat/agents/lvRecipePreference.js';
 import { looksLikeChitchatTurn } from '../../../../routes/chat/services/agenticLoop/routing.js';
 import {
   extractTextContent,
@@ -873,9 +874,16 @@ Der Nutzer ist in Österreich. Beachte:
 }
 
 /**
- * Platform context for the system prompt. The mobile app can't render several
- * web-only surfaces; without this the model happily offers them ("Soll ich dir
- * ein Sharepic machen?") and the deterministic router gates read as abrupt.
+ * Platform context for the system prompt. The mobile app can't render a few
+ * web-only surfaces; without this the model happily offers them ("Soll ich die
+ * Untertitel anpassen?") and the deterministic router gates read as abrupt.
+ *
+ * Sharepics used to be on this list. They left together with their gate, which
+ * is the rule: a feature's gate and its bullet here go together, or one of them
+ * outlives the limitation it describes. The app-side renderer that earns the
+ * removal ships separately, so between the two merges the app is told nothing
+ * about sharepics while it still cannot draw one — deliberate, and the reason
+ * the gate went first.
  */
 function formatPlatformContext(platform: string | undefined): string {
   if (platform === 'app') {
@@ -884,7 +892,7 @@ function formatPlatformContext(platform: string | undefined): string {
 ## PLATTFORMKONTEXT: APP
 
 Der*die Nutzer*in schreibt aus der Grünerator-App (Mobil). Dort sind einige Funktionen nicht verfügbar:
-- Sharepics erstellen/bearbeiten und Reel-Untertitel bearbeiten gehen nur in der Web-Version (gruenerator.eu im Browser)
+- Reel-Untertitel bearbeiten geht nur in der Web-Version (gruenerator.eu im Browser)
 - PDF-Formulare ausfüllen geht auch hier; die fertige Datei wird über „Teilen" bereitgestellt (keinen Link ausgeben)
 - Excel-/CSV-Vorlagen ausfüllen geht NICHT in der App (dafür braucht es den Browser-Interpreter der Web-Version)
 - Wenn danach gefragt wird: kurz erklären, dass das in der App noch nicht geht, und auf die Web-Version verweisen
@@ -1757,33 +1765,6 @@ export async function buildSystemMessage(
       : '';
   if (docsPageMap) log.debug('[Respond] docs page map attached');
 
-  // Custom system prompt: replaces the entire agent prompt when set.
-  //
-  // Auch dieser Zweig muss lokalisieren. Der Meta-Prompt in
-  // `promptGeneratorController` verlangt {{partyName}} wörtlich im erzeugten
-  // Rollen-Prompt und verspricht dort, er werde „automatisch lokalisiert" —
-  // eingelöst wurde das aber nur für `agentConfig.systemRole` weiter unten, und
-  // dieser Zweig kehrt vorher zurück. Jede per KI erzeugte Rolle schickte die
-  // geschweiften Klammern deshalb roh ans Modell.
-  if (state.customSystemPrompt) {
-    const customSystemPrompt = localizePlaceholders(
-      state.customSystemPrompt,
-      (state.userLocale as Locale) || 'de-DE'
-    );
-    return `${customSystemPrompt}
-Heutiges Datum: ${today}${localeContext}${platformContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${artifactInventory}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}${hasSources ? `\n${citationInstruction}` : ''}
-
-${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSuspected ? INJECTION_WARNING_NOTE : ''}`;
-  }
-
-  // Use a neutral, non-partisan system role for document summaries
-  const NEUTRAL_SUMMARY_ROLE =
-    'Du bist ein hilfreicher Assistent, der Dokumente objektiv und neutral zusammenfasst. ' +
-    'Deine Zusammenfassungen sind sachlich, unparteiisch und geben den Inhalt des Dokuments ' +
-    'korrekt wieder — unabhängig vom politischen Kontext.';
-  const rawSystemRole = isNeutralTurn ? NEUTRAL_SUMMARY_ROLE : agentConfig.systemRole;
-  const systemRole = localizePlaceholders(rawSystemRole, (state.userLocale as Locale) || 'de-DE');
-
   // Active-skill prompt fragment: appended when the user's chat composer had a
   // /skill mention active for this turn. Each platform skill carries its own
   // spec (Insta 600 chars, Twitter 280, PM structure …) so the agent's base
@@ -1793,7 +1774,9 @@ ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSu
   // text form, e.g. `presse-berlin`) fills in — but only on the single-pass
   // path: on the agentic branch (`retrievalExpected`) the loop mounts
   // `rezept_laden` and the model picks the recipe itself; baking one in here
-  // would double-inject and overrule that choice.
+  // would double-inject and overrule that choice. Der Rückfall ist LV-bewusst
+  // (`roleAwareDefaultRecipeMention`): ein generischer Default wird für eine
+  // Person mit genau einer Landesverbands-Rolle zur Variante dieses Verbands.
   //
   // Single-pass is a necessary condition, not a sufficient one: chitchat and
   // help turns ("was kannst du?", "hilfe") also run single-pass with a
@@ -1802,6 +1785,14 @@ ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSu
   // formatting would waste the token bilanz this fallback exists to protect,
   // so they are excluded the same way `isProductMetaQuestion`/`docsPageMap`
   // already special-case them above.
+  //
+  // VOR dem `customSystemPrompt`-Zweig berechnet, weil auch der ein Fragment
+  // bekommen kann: ein server-eigener Rollen-Baustein (Katalogrolle) ist keine
+  // Nutzer-Persona — eine gewählte oder implizit erkannte Mention
+  // (routingStage) gehört dort hinein, sonst schreibt die aktivierte Rolle
+  // jede Textsorte formlos. Das ist dieselbe Ausnahme, die `catalogAssembly`
+  // für `rezept_laden` im Loop macht. Frei getippte Personas bleiben ohne
+  // Fragment, und der Agent-Default gilt in beiden Custom-Fällen nie.
   const isWriteEligibleTurn =
     !opts.retrievalExpected &&
     !isNeutralTurn &&
@@ -1809,9 +1800,17 @@ ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSu
     !looksLikeChitchatTurn(userQuestion) &&
     !isProductMetaQuestion(userQuestion) &&
     !docsPageMap;
-  const effectiveSkillMention =
-    state.activeSkillMention ??
-    (isWriteEligibleTurn ? (agentConfig.defaultRecipeMention ?? null) : null);
+  const effectiveSkillMention = state.customSystemPrompt
+    ? state.roleBausteinActive
+      ? (state.activeSkillMention ?? null)
+      : null
+    : (state.activeSkillMention ??
+      (isWriteEligibleTurn
+        ? roleAwareDefaultRecipeMention(agentConfig, {
+            userRoles: state.userRoles,
+            userLocale: state.userLocale,
+          })
+        : null));
   const activeSkill = effectiveSkillMention
     ? SKILLS.find((s) => s.mention === canonicalSkillMention(effectiveSkillMention))
     : undefined;
@@ -1863,6 +1862,49 @@ ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSu
       `[Rezept] Prompt-Fragment mention=${effectiveSkillMention} quelle=${quelle} gewaehlt=${state.activeSkillMention ? 'ja' : 'agent-standard'}`
     );
   }
+
+  // Nachvollziehbarkeit: nur was WIRKLICH im Prompt steht, wird ausgewiesen —
+  // Absicht ohne gefundenen Rezepttext (`quelle=fehlt`) bleibt draußen. Auf
+  // Loop-Turns überschreibt die Registry diesen Wert, wenn das Modell selbst
+  // lädt (`agenticRespondService`).
+  if (skillFragment && effectiveSkillMention) {
+    state.usedRecipes = [
+      {
+        mention: canonicalSkillMention(effectiveSkillMention),
+        title: activeTextFormTitle ?? effectiveSkillMention,
+        source: userTextForm ? 'user' : 'system',
+      },
+    ];
+  }
+
+  // Custom system prompt: replaces the entire agent prompt when set.
+  //
+  // Auch dieser Zweig muss lokalisieren. Der Meta-Prompt in
+  // `promptGeneratorController` verlangt {{partyName}} wörtlich im erzeugten
+  // Rollen-Prompt und verspricht dort, er werde „automatisch lokalisiert" —
+  // eingelöst wurde das aber nur für `agentConfig.systemRole` weiter unten, und
+  // dieser Zweig kehrt vorher zurück. Jede per KI erzeugte Rolle schickte die
+  // geschweiften Klammern deshalb roh ans Modell.
+  if (state.customSystemPrompt) {
+    const customSystemPrompt = localizePlaceholders(
+      state.customSystemPrompt,
+      (state.userLocale as Locale) || 'de-DE'
+    );
+    // `skillFragment` ist hier nur bei aktiver Katalogrolle gefüllt (siehe
+    // Berechnung oben): das Rezept bestimmt die FORM, der Baustein die Rolle.
+    return `${customSystemPrompt}${skillFragment}
+Heutiges Datum: ${today}${localeContext}${platformContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${artifactInventory}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}${hasSources ? `\n${citationInstruction}` : ''}
+
+${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSuspected ? INJECTION_WARNING_NOTE : ''}`;
+  }
+
+  // Use a neutral, non-partisan system role for document summaries
+  const NEUTRAL_SUMMARY_ROLE =
+    'Du bist ein hilfreicher Assistent, der Dokumente objektiv und neutral zusammenfasst. ' +
+    'Deine Zusammenfassungen sind sachlich, unparteiisch und geben den Inhalt des Dokuments ' +
+    'korrekt wieder — unabhängig vom politischen Kontext.';
+  const rawSystemRole = isNeutralTurn ? NEUTRAL_SUMMARY_ROLE : agentConfig.systemRole;
+  const systemRole = localizePlaceholders(rawSystemRole, (state.userLocale as Locale) || 'de-DE');
 
   // What broke in this turn, in the model's own words. A warning event is
   // telemetry only — without this block the model happily presents a degraded

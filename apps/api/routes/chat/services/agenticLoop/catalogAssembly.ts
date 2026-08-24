@@ -13,6 +13,7 @@
  * Die Lader werden injiziert (`CatalogDeps`), damit die Montage ohne DB, ohne
  * Netz und ohne echte MCP-Server prüfbar ist.
  */
+import { preferredLvRecipeMention } from '../../agents/lvRecipePreference.js';
 import { loadManagedMcpCatalog as loadManagedMcpCatalogReal } from '../../agents/managedMcpCatalog.js';
 import { loadMcpCatalog as loadMcpCatalogReal, type McpCatalog } from '../../agents/mcpCatalog.js';
 import {
@@ -30,6 +31,12 @@ import {
   type ThreadToolHistory,
 } from '../threadPersistenceService.js';
 
+import {
+  ATTACHED_DOC_SNIPPET_CHARS,
+  attachedDocsQuery,
+  retrievableAttachedSources,
+  retrieveAttachedDocuments,
+} from './attachedDocuments.js';
 import { isMcpReplayEnabled } from './flags.js';
 import { createToolLoopGuards } from './loopGuards.js';
 import { buildToolObservationReplay } from './mcpReplay.js';
@@ -72,6 +79,33 @@ const NON_REPLAYABLE_ACTION_TOOLS: ReadonlySet<string> = new Set([
   'create_pdf',
   'generate_image',
   'sharepic',
+]);
+
+/**
+ * Tools that are EINMALIGES GERÜST: informational, but only for the turn that
+ * produced the text. Replaying them is pure loss.
+ *
+ * The examples corpora hand the model six FULL press releases (`body` is the
+ * reconstructed document, not a snippet) so it can imitate their register. That
+ * job is done the moment the draft exists — a follow-up ("kürze das", "prüfe
+ * kritisch") works on the DRAFT, and the templates behind it are no longer
+ * needed. The artefact the follow-up does need is the assistant's own text,
+ * which travels in the ordinary message history.
+ *
+ * Deliberately a second set rather than a widening of the action list above:
+ * these tools have no side effect and no rehydration path, so the reason to
+ * skip them is different and must not be read as "informational tools may be
+ * dropped when they get big". Every other informational tool still replays.
+ *
+ * Measured 23.08.2026 on a four-turn press-release thread: the replay of
+ * `gruenerator_pressemitteilung_examples` serialised to 78.044 characters and
+ * hit the 500-char action cap — the model received the opening fragment of
+ * example #1 as invalid JSON and never saw the other five. Neither the full
+ * payload nor that fragment is worth carrying.
+ */
+const ONE_SHOT_SCAFFOLD_TOOLS: ReadonlySet<string> = new Set([
+  'gruenerator_examples_search',
+  'gruenerator_pressemitteilung_examples',
 ]);
 
 /** The loaders the assembly reaches out through. Injected so the mounting order
@@ -238,6 +272,18 @@ export async function assembleToolCatalog(
         catalog: recipeCatalog,
         registry: recipeRegistry,
         userId: userId ?? null,
+        // Wählt das Modell die generische Zeile (`presse`, `instagram`),
+        // obwohl der Agent ein LV-PR-Agent ist oder die Person genau einen
+        // Landesverband vertritt, lädt das Tool deterministisch dessen
+        // Variante — die kleinen Loop-Modelle greifen sonst zuverlässig zur
+        // generischen Vorlage, obwohl die LV-Zeile im Katalog steht.
+        preferLv: (mention) =>
+          preferredLvRecipeMention({
+            mention,
+            agentIdentifier: agentConfig.identifier ?? null,
+            roles: state.userRoles ?? null,
+            userLocale: state.userLocale ?? null,
+          }),
       });
     }
   }
@@ -285,8 +331,9 @@ export function createLoopGuards(
  * interactions as real tool-call/result messages so a follow-up ("und morgen?",
  * "mach das nochmal", "trag das jetzt ein") remembers what was gathered. Covers
  * ALL informational tools (search, bundestag, umfragen, summarize,
- * personal-data, MCP, system sources) — only side-effecting/generative actions
- * are skipped (NON_REPLAYABLE_ACTION_TOOLS). Validity-gated inside
+ * personal-data, MCP, system sources) — skipped are side-effecting/generative
+ * actions (NON_REPLAYABLE_ACTION_TOOLS) and one-shot scaffolding
+ * (ONE_SHOT_SCAFFOLD_TOOLS). Validity-gated inside
  * buildToolObservationReplay to tools mounted THIS turn. MCP steps stay behind
  * their rollout flag; search/domain replay is always on.
  *
@@ -305,7 +352,9 @@ export async function buildToolReplay(params: {
       : await getRecentToolSteps(params.threadId);
     const replayable = recent.filter(
       (s: PersistedStep) =>
-        !NON_REPLAYABLE_ACTION_TOOLS.has(s.toolName) && (s.serverName ? isMcpReplayEnabled() : true)
+        !NON_REPLAYABLE_ACTION_TOOLS.has(s.toolName) &&
+        !ONE_SHOT_SCAFFOLD_TOOLS.has(s.toolName) &&
+        (s.serverName ? isMcpReplayEnabled() : true)
     );
     return buildToolObservationReplay(replayable, catalogNames);
   } catch (err) {
@@ -394,6 +443,97 @@ export async function rehydrateCarriedSources(params: {
     params.onError(
       `[Agentic] source rehydration skipped: ${err instanceof Error ? err.message : err}`
     );
+  }
+}
+
+/**
+ * Up-front-Seed: die angehängten Dokumente EINMAL abrufen, bevor der Planer
+ * seinen ersten Zug macht.
+ *
+ * Warum unbedingt und nicht auf Verdacht: die Frage „braucht dieser Turn das
+ * angehängte Dokument?" lag bisher beim Planer, und er hat sie falsch
+ * beantwortet — live am 23.08.2026 rief er `media`/`find_content` und fasste
+ * ein fremdes Konto-Dokument zusammen, während das gerade hochgeladene PDF
+ * unberührt in Qdrant lag. Ein Fan-out über ein bis drei Dokumente ist billiger
+ * als eine Antwort über den falschen Text.
+ *
+ * Zwei Kanäle, weil Planer und Schreiber getrennte Kontexte haben:
+ *  - Der SCHREIBER liest die Registry über `renderAll()`. Eingetragen wird über
+ *    `seedAttached()` — zitierbar und in dieser Turn-Numerierung, aber aus
+ *    `freshSize` heraus, weil die Wächter damit über die Arbeit des PLANERS
+ *    urteilen (Begründung an der Methode). Weder `seedCarried()` (das hiesse
+ *    „frühere Recherche", was ein frisch hochgeladenes Dokument nicht ist) noch
+ *    `register()` (das hiesse „der Planer hat gesucht", was er nicht hat).
+ *  - Der PLANER sieht die Registry nie. Er bekommt das Ergebnis als
+ *    tool-call/tool-result-Paar in denselben Replay-Strom, den
+ *    `buildToolObservationReplay` für frühere Turns baut — sonst weiss er nicht,
+ *    dass die Dokumente schon gelesen sind, und sucht weiter.
+ *
+ * Gibt die Replay-Nachrichten zurück; der Aufrufer hängt sie an
+ * `toolReplayMessages`. Fehler brechen den Turn nie ab.
+ */
+export async function seedAttachedDocuments(params: {
+  state: ChatGraphState;
+  sourceRegistry: SourceRegistry;
+  /** Namen des Werkzeugs, unter dem der Abruf dem Planer gezeigt wird — nur
+   *  wenn es diesen Turn auch montiert ist, sonst zeigt der Replay auf ein
+   *  Werkzeug, das es nicht gibt. */
+  toolName: string;
+  isMounted: boolean;
+  onInfo: (message: string) => void;
+  onError: (message: string) => void;
+}): Promise<ModelMessage[]> {
+  try {
+    const sources = retrievableAttachedSources(params.state);
+    if (sources.length === 0) return [];
+
+    const query = attachedDocsQuery(params.state);
+    if (!query) return [];
+
+    const results = await retrieveAttachedDocuments(params.state, query, { sources });
+    if (results.length === 0) {
+      params.onInfo(
+        `[Agentic] Vorab-Abruf über ${sources.length} angehängte(s) Dokument(e) ohne Treffer`
+      );
+      return [];
+    }
+
+    const block = params.sourceRegistry.seedAttached(results, ATTACHED_DOC_SNIPPET_CHARS);
+    params.onInfo(
+      `[Agentic] ${results.length} Passage(n) aus ${sources.length} angehängten Dokument(en) vorab abgerufen`
+    );
+    if (!params.isMounted) return [];
+
+    const toolCallId = `seed-attached-${params.state.agentConfig.userId ?? 'anon'}`;
+    return [
+      {
+        role: 'assistant',
+        content: [
+          {
+            type: 'tool-call' as const,
+            toolCallId,
+            toolName: params.toolName,
+            input: { query },
+          },
+        ],
+      },
+      {
+        role: 'tool',
+        content: [
+          {
+            type: 'tool-result' as const,
+            toolCallId,
+            toolName: params.toolName,
+            output: { type: 'text' as const, value: block },
+          },
+        ],
+      },
+    ];
+  } catch (err) {
+    params.onError(
+      `[Agentic] Vorab-Abruf der Anhänge übersprungen: ${err instanceof Error ? err.message : err}`
+    );
+    return [];
   }
 }
 

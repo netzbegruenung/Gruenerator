@@ -2,7 +2,6 @@ import {
   type BoardDocument,
   type CanvasDocument,
   type CanvasListItem,
-  type PresentationContentResponse,
 } from '@gruenerator/contracts';
 import { apiRequest, getContractsClient } from '@gruenerator/shared/api';
 
@@ -13,10 +12,15 @@ import { DEV_BOARDS, DEV_CANVASES, DEV_FIXTURES_ENABLED } from '../devFixtures';
  * the /docs list (DOCS_ONLY_SUBTYPES excludes them), so the Office tab fetches
  * them from their own endpoints and merges.
  *
- * Only the LIST endpoints are left. Boards, sheets and canvas now open in the
- * embedded WebView, which loads the real editor over live collab — their
- * snapshot-decoding content endpoints had no caller once the native read-only
- * viewers went. Presentations still render natively from a snapshot.
+ * Only the LIST endpoints are left, plus `fetchCanvas` for the Studio tab.
+ * Boards, sheets, canvas and presentations all open in the embedded WebView,
+ * which loads the real editor over live collab — their snapshot-decoding
+ * content endpoints lost their callers with the native read-only viewers.
+ *
+ * `GET /api/presentations/:id/content` stays on the server even though nothing
+ * in this repository calls it any more: builds shipped up to 08/2026 still ask
+ * for it, and the app store version is not this checkout. F0 in the
+ * frozen-level taxonomy — see `CLAUDE.md`.
  */
 export const officeApi = {
   fetchBoards(): Promise<BoardDocument[]> {
@@ -44,9 +48,5 @@ export const officeApi = {
 
   fetchCanvas(id: string): Promise<CanvasDocument> {
     return apiRequest<CanvasDocument>('get', `/canvas/${id}`);
-  },
-
-  fetchPresentationContent(id: string): Promise<PresentationContentResponse> {
-    return apiRequest<PresentationContentResponse>('get', `/presentations/${id}/content`);
   },
 };

@@ -27,6 +27,7 @@ import { secureStorage } from '../../services/storage';
 import { useDocsEditorBridgeStore } from '../../stores/docsEditorBridgeStore';
 import { lightTheme, darkTheme, colors, BODY_FONT } from '../../theme';
 import { BottomSheet } from '../common/BottomSheet';
+import { SkeletonBar, SkeletonCircle, SkeletonGroup } from '../common/Skeleton';
 
 import type { Theme } from '../../theme/colors';
 
@@ -214,8 +215,22 @@ function PermissionsSheet({
       </View>
 
       {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color={colors.primary[600]} />
+        // The first section is three fixed options — `SHARE_MODE_CONFIG` — so
+        // its shape is known before the document's sharing state arrives. The
+        // sections under it depend on that state and are not drawn.
+        <View style={styles.permSection}>
+          <SkeletonGroup>
+            <SkeletonBar width={72} height={12} style={styles.permSkeletonLabel} />
+            {SHARE_MODE_CONFIG.map((opt) => (
+              <View key={opt.mode} style={[styles.permOption, styles.permSkeletonRow]}>
+                <SkeletonCircle size={20} />
+                <View style={styles.permOptionContent}>
+                  <SkeletonBar width="34%" height={14} />
+                  <SkeletonBar width="62%" height={11} style={styles.permSkeletonDesc} />
+                </View>
+              </View>
+            ))}
+          </SkeletonGroup>
         </View>
       ) : (
         <ScrollView showsVerticalScrollIndicator={false}>
@@ -689,8 +704,6 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   title: { fontFamily: BODY_FONT, fontSize: 18, fontWeight: '700', flex: 1, textAlign: 'center' },
-  loadingContainer: { padding: 40, alignItems: 'center' },
-
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -747,6 +760,9 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   permOptionContent: { flex: 1 },
+  permSkeletonLabel: { marginBottom: 8 },
+  permSkeletonRow: { paddingHorizontal: 12 },
+  permSkeletonDesc: { marginTop: 4 },
   permOptionLabel: { fontFamily: BODY_FONT, fontSize: 14, fontWeight: '500' },
   permOptionDesc: { fontFamily: BODY_FONT, fontSize: 12 },
   permToggle: {

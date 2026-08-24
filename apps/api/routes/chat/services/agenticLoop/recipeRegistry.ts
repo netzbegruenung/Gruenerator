@@ -33,6 +33,13 @@ export interface LoadedRecipe {
 
 export type RegisterOutcome = 'registered' | 'duplicate' | 'full';
 
+/** Attribution eines geladenen Rezepts — alles außer dem Prompttext. */
+export interface RecipeSummary {
+  mention: string;
+  title: string;
+  source: 'system' | 'user';
+}
+
 export interface RecipeRegistry {
   /**
    * Idempotent per mention. A second call for the same recipe is a no-op
@@ -46,6 +53,9 @@ export interface RecipeRegistry {
   readonly mentions: readonly string[];
   /** The system-prompt block, or '' when nothing was loaded. */
   render(): string;
+  /** Für die Turn-Attribution (`usedRecipes`): was geladen wurde, OHNE den
+   *  parteiinternen Prompttext — das Ergebnis wird persistiert und gestreamt. */
+  summaries(): readonly RecipeSummary[];
 }
 
 /**
@@ -76,6 +86,13 @@ export function createRecipeRegistry(maxRecipes: number = MAX_RECIPES_PER_TURN):
     },
     get mentions() {
       return [...loaded.keys()];
+    },
+    summaries() {
+      return [...loaded.values()].map(({ mention, title, source }) => ({
+        mention,
+        title,
+        source,
+      }));
     },
     render() {
       if (loaded.size === 0) return '';

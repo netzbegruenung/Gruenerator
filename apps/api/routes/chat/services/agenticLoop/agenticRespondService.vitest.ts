@@ -50,7 +50,7 @@ const EMPTY_CATALOG = {
   mcpCatalog: null,
   systemCatalog: null,
   recipeCatalog: [],
-  recipeRegistry: { render: () => '', register: () => {}, size: 0 },
+  recipeRegistry: { render: () => '', register: () => {}, size: 0, summaries: () => [] },
   toolLabels: new Map<string, { serverName: string; toolName: string }>(),
   mcpMountMs: 0,
 };

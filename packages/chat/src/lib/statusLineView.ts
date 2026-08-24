@@ -8,7 +8,7 @@
 // render (`progress.steps` is always set, so `StreamingStatusLine` always picks
 // `ProgressTracker`). One of those gates, `intent !== 'direct'`, suppressed the
 // label for every turn that answers without searching — i.e. most of them, and
-// all of them on mobile, where web search is off.
+// at the time nearly all of them on mobile, which had web search forced off.
 
 import type { ProgressStage, ProgressStep } from '../hooks/useChatGraphStream';
 

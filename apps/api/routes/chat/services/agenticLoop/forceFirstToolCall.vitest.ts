@@ -19,6 +19,8 @@ const base = {
   materialHeavy: false,
   pinnedTool: null as string | null,
   priorTurnRetrieved: false,
+  hasAttachedDocuments: false,
+  summaryAsk: false,
 };
 
 const force = (over: Partial<typeof base> = {}) => shouldForceFirstToolCall({ ...base, ...over });
@@ -26,6 +28,30 @@ const force = (over: Partial<typeof base> = {}) => shouldForceFirstToolCall({ ..
 describe('shouldForceFirstToolCall', () => {
   it('erzwingt nichts, wenn kein Weg zutrifft', () => {
     expect(force()).toBe(false);
+  });
+
+  // Achter Weg. Der gemessene Ausfall (23.08.2026): ein 21.785-Zeichen-PDF war
+  // vektorisiert, `attachmentContext` genullt, und der Planer beantwortete
+  // „fasse das pdf zusammen" aus `media`/`find_content` — mit einem fremden
+  // Konto-Dokument. Beide Bedingungen zusammen, nicht einzeln.
+  it('erzwingt einen Aufruf, wenn ein angehängtes Dokument zusammengefasst werden soll', () => {
+    expect(force({ hasAttachedDocuments: true, summaryAsk: true })).toBe(true);
+  });
+
+  it('erzwingt nichts bei einer Zusammenfassung OHNE angehängtes Dokument', () => {
+    expect(force({ hasAttachedDocuments: false, summaryAsk: true })).toBe(false);
+  });
+
+  it('erzwingt nichts bei einem Dokument ohne Zusammenfassungs-Bitte', () => {
+    expect(force({ hasAttachedDocuments: true, summaryAsk: false })).toBe(false);
+  });
+
+  // Der Bann vetoed alles — auch diesen Weg. „ohne neue Recherche" heisst nicht
+  // „stattdessen halt zusammenfassen".
+  it('weicht dem Recherche-Bann, auch mit Dokument und Zusammenfassungs-Bitte', () => {
+    expect(force({ researchBanned: true, hasAttachedDocuments: true, summaryAsk: true })).toBe(
+      false
+    );
   });
 
   /**
@@ -289,6 +315,67 @@ describe('pinnedFirstTool', () => {
   // den Aufruf — hier bleibt es bei `required`.
   it('schweigt, wenn das Werkzeug für diesen Turn gar nicht montiert ist', () => {
     expect(pinnedFirstTool({ pinnedTool: 'bundestag', isMounted: () => false })).toBe(null);
+  });
+
+  // Für eine Zusammenfassung ist `summarize` das einzig richtige Werkzeug: es
+  // liest den VOLLTEXT (getMultipleDocumentsFullText, Map-Reduce). Der
+  // Vorab-Seed hat nur die zur Frage ähnlichen Passagen geholt — bei „fasse
+  // zusammen" ist das der falsche Stoff.
+  it('nennt summarize, wenn ein angehängtes Dokument zusammengefasst werden soll', () => {
+    expect(
+      pinnedFirstTool({
+        pinnedTool: null,
+        hasAttachedDocuments: true,
+        summaryAsk: true,
+        isMounted: (n) => n === 'summarize',
+      })
+    ).toBe('summarize');
+  });
+
+  it('lässt die Wahl beim Planer, wenn nur eine der beiden Bedingungen trägt', () => {
+    const isSummarizeMounted = (n: string) => n === 'summarize';
+    expect(
+      pinnedFirstTool({
+        pinnedTool: null,
+        hasAttachedDocuments: true,
+        summaryAsk: false,
+        isMounted: isSummarizeMounted,
+      })
+    ).toBe(null);
+    expect(
+      pinnedFirstTool({
+        pinnedTool: null,
+        hasAttachedDocuments: false,
+        summaryAsk: true,
+        isMounted: isSummarizeMounted,
+      })
+    ).toBe(null);
+  });
+
+  // Derselbe Montage-Test wie für den Erwähnungs-Pin: ein Zwang auf ein nicht
+  // montiertes Werkzeug bricht den Aufruf.
+  it('schweigt, wenn summarize diesen Turn nicht montiert ist', () => {
+    expect(
+      pinnedFirstTool({
+        pinnedTool: null,
+        hasAttachedDocuments: true,
+        summaryAsk: true,
+        isMounted: () => false,
+      })
+    ).toBe(null);
+  });
+
+  // Die Erwähnung ist die ausdrückliche Wahl der Person und schlägt die
+  // abgeleitete.
+  it('lässt der Erwähnung den Vortritt vor dem Zusammenfassungs-Pin', () => {
+    expect(
+      pinnedFirstTool({
+        pinnedTool: 'umfragen',
+        hasAttachedDocuments: true,
+        summaryAsk: true,
+        isMounted,
+      })
+    ).toBe('umfragen');
   });
 });
 

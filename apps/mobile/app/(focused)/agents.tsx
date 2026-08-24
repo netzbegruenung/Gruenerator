@@ -23,17 +23,16 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  ActivityIndicator,
   TextInput,
   useColorScheme,
 } from 'react-native';
 
 import { agentIcon } from '../../components/chat/sidebarIcons';
-import { ChipGroup, ListGroup, ListRow } from '../../components/common';
+import { ChipGroup, ListGroup, ListRow, SkeletonRows } from '../../components/common';
 import { ScreenScaffold } from '../../components/navigation/ScreenScaffold';
 import { usePublicUserAgents } from '../../hooks/agents/usePublicUserAgents';
 import { useUserAgents } from '../../hooks/agents/useUserAgents';
-import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../theme';
+import { spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 import { routeWithParams } from '../../types/routes';
 
 /** How many agents the "Empfohlen" shelf shows before it stops being a shortcut. */
@@ -192,6 +191,14 @@ export default function AgentsScreen() {
     </View>
   );
 
+  // What a shelf of agents looks like before it arrives: the same `ListGroup`
+  // card, the same rows with their round badge and two lines.
+  const shelfSkeleton = (
+    <ListGroup>
+      <SkeletonRows count={6} leading={44} on="card" />
+    </ListGroup>
+  );
+
   const emptyNote = (text: string): ReactNode => (
     <View style={styles.empty}>
       <Ionicons name="sparkles-outline" size={40} color={theme.textSecondary} />
@@ -228,29 +235,25 @@ export default function AgentsScreen() {
     // of a shelf that never needed the network.
     body = agentGroup(featuredAgents);
   } else if (shelf === 'meine') {
-    body = isLoading ? (
-      <ActivityIndicator color={colors.primary[600]} style={styles.loader} />
-    ) : error ? (
-      emptyNote('Deine Grüneratoren konnten nicht geladen werden.')
-    ) : userAgents.length > 0 ? (
-      agentGroup(userAgents)
-    ) : (
-      emptyNote(
-        'Du hast noch keine eigenen Grüneratoren. Anlegen geht am Rechner — hier findest du sie danach wieder.'
-      )
-    );
+    body = isLoading
+      ? shelfSkeleton
+      : error
+        ? emptyNote('Deine Grüneratoren konnten nicht geladen werden.')
+        : userAgents.length > 0
+          ? agentGroup(userAgents)
+          : emptyNote(
+              'Du hast noch keine eigenen Grüneratoren. Anlegen geht am Rechner — hier findest du sie danach wieder.'
+            );
   } else if (shelf === 'community') {
-    body = publicLoading ? (
-      <ActivityIndicator color={colors.primary[600]} style={styles.loader} />
-    ) : publicError ? (
-      emptyNote('Die Grüneratoren von der Basis konnten nicht geladen werden.')
-    ) : communityAgents.length > 0 ? (
-      agentGroup(communityAgents)
-    ) : (
-      // Only says "none yet" once we know: a request still in flight or a failed
-      // one is not an empty shelf.
-      emptyNote('Noch keine öffentlich geteilten Grüneratoren von der Basis.')
-    );
+    body = publicLoading
+      ? shelfSkeleton
+      : publicError
+        ? emptyNote('Die Grüneratoren von der Basis konnten nicht geladen werden.')
+        : communityAgents.length > 0
+          ? agentGroup(communityAgents)
+          : // Only says "none yet" once we know: a request still in flight or a failed
+            // one is not an empty shelf.
+            emptyNote('Noch keine öffentlich geteilten Grüneratoren von der Basis.');
   } else {
     // "Offizielle": the flat 30-item list this screen used to be, now split into
     // the sub-sections web has — general agents, Landesverbände, then recipes.
@@ -411,9 +414,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.6,
     paddingHorizontal: spacing.xsmall,
-  },
-  loader: {
-    paddingTop: spacing.xlarge,
   },
   empty: {
     alignItems: 'center',

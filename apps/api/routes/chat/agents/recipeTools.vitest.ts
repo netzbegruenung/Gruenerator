@@ -89,6 +89,60 @@ describe('rezept_laden', () => {
     expect(registry.size).toBe(2);
   });
 
+  /**
+   * Der LV-Vorzug: wählt das Modell die generische Zeile, obwohl die Person
+   * genau einen Landesverband vertritt, lädt das Tool deterministisch dessen
+   * Variante — samt ehrlicher Rückmeldung, WAS geladen wurde.
+   */
+  it('loads the Landesverband variant when preferLv redirects a generic pick', async () => {
+    resolveRecipe.mockResolvedValue({ title: 'PM Hessen (Partei)', body: 'LV.', source: 'system' });
+    const registry = createRecipeRegistry();
+    const tool = makeRecipeTool({
+      catalog: CATALOG,
+      registry,
+      userId: 'u1',
+      preferLv: (m) => (m === 'presse' ? 'presse-hessen-partei' : null),
+    });
+
+    const out = await call(tool, 'presse');
+
+    expect(resolveRecipe).toHaveBeenCalledWith({ mention: 'presse-hessen-partei', userId: 'u1' });
+    expect(out.geladen).toBe(true);
+    expect(out.rezept).toBe('presse-hessen-partei');
+    expect(out.hinweis).toContain('Landesverbands-Variante');
+    expect(registry.has('presse-hessen-partei')).toBe(true);
+    expect(registry.has('presse')).toBe(false);
+  });
+
+  it('stays idempotent across the redirect — a second generic pick does not stack', async () => {
+    resolveRecipe.mockResolvedValue({ title: 'PM Hessen (Partei)', body: 'LV.', source: 'system' });
+    const registry = createRecipeRegistry();
+    const tool = makeRecipeTool({
+      catalog: CATALOG,
+      registry,
+      userId: 'u1',
+      preferLv: (m) => (m === 'presse' ? 'presse-hessen-partei' : null),
+    });
+
+    await call(tool, 'presse');
+    const second = await call(tool, 'presse');
+
+    expect(second.geladen).toBe(true);
+    expect(resolveRecipe).toHaveBeenCalledTimes(1);
+    expect(registry.size).toBe(1);
+  });
+
+  it('exposes what was loaded for the turn attribution (summaries)', async () => {
+    const registry = createRecipeRegistry();
+    await call(makeRecipeTool({ catalog: CATALOG, registry, userId: 'u1' }), 'instagram');
+
+    expect(registry.summaries()).toEqual([
+      { mention: 'instagram', title: 'Instagram', source: 'system' },
+    ]);
+    // Der Prompttext bleibt drin (render), aber nie in der Attribution.
+    expect(JSON.stringify(registry.summaries())).not.toContain('Max 600.');
+  });
+
   it('closes the input schema over the catalogue so no unknown recipe can be named', () => {
     const registry = createRecipeRegistry();
     const tool = makeRecipeTool({ catalog: CATALOG, registry, userId: 'u1' });

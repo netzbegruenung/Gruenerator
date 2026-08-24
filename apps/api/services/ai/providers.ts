@@ -25,6 +25,7 @@ import {
   routeMistralModel,
 } from './providerInstances.js';
 import { regoloTextDefault } from './textModelPolicy.js';
+import { withWireSafeToolCallIds } from './toolCallIds.js';
 
 import type { IntermediateLaneId } from './intermediateLanes.js';
 import type { RouteOptions } from './providerInstances.js';
@@ -155,7 +156,14 @@ export function getModel(
     lane.provider === 'mistral'
       ? routeMistralModel(lane.model || PROVIDER_DEFAULTS.mistral, options).upstream
       : lane.provider;
-  return withUsageTracking(instantiateModel(lane.provider, lane.model, options), upstream);
+  // Werkzeug-Aufruf-IDs werden erst hier leitungsfähig gemacht — siehe
+  // ./toolCallIds.ts. Beide `getModel`-Türen tun das; wer eine dritte baut,
+  // muss es mitbauen, sonst kippt der erste wiederabgespielte Aufruf die
+  // Anfrage mit einem 400 des Mistral-Validators.
+  return withUsageTracking(
+    withWireSafeToolCallIds(instantiateModel(lane.provider, lane.model, options)),
+    upstream
+  );
 }
 
 function instantiateModel(
