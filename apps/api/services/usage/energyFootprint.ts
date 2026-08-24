@@ -116,6 +116,26 @@ const MODEL_ENERGY: Readonly<Record<string, EnergyCoefficients>> = {
     mWhFixed: 0,
     basis: 'measured',
   },
+  // Cortecs' `gemma-4-31b-it` — DIESELBEN Gewichte wie `gemma4-31b` eine Zeile
+  // höher, nur unter der Kennung des Routers. Seit dem Cortecs-Umzug ist das
+  // die ID, die `heavy` und `pruefung` tatsächlich senden und die die
+  // Buchhaltung als `model` führt (usageModelMiddleware.ts nimmt
+  // `wrapped.modelId`); ohne diesen Eintrag fielen beide Stufen still auf
+  // „nicht abgedeckt". Denselben Koeffizienten unter zwei IDs zu führen ist
+  // hier schon die Regel — `verdigado-think` unten tut es aus demselben Grund.
+  //
+  // Der Host ist ein anderer als der der Messung, und das ist bewusst
+  // hingenommen: was der Koeffizient trägt, sind die Gewichte, und den
+  // Rechenzentrums-Unterschied rechnet `pueFor(provider)` getrennt heraus —
+  // die Middleware bucht dafür den aufgelösten Upstream (`infercom`/`berget`),
+  // nicht den Router-Namen. Der GPU-Unterschied bleibt unkorrigiert, genau wie
+  // bei `verdigado-think`.
+  'gemma-4-31b-it': {
+    mWhPerOutputToken: 0.722,
+    mWhPerInputToken: 0.0085,
+    mWhFixed: 0,
+    basis: 'measured',
+  },
   // `gemma-4-26b-a4b-it` (Scaleway, die `heavy`-Stufe seit 01.08.2026) fehlt
   // hier BEWUSST und bleibt „nicht abgedeckt". Es ist eine andere Architektur
   // als das 31B — MoE mit 4B aktiven Parametern —, der Koeffizient des 31B gilt
