@@ -119,12 +119,6 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "Beim Grünerieren kannst du selbst wählen, welches KI-Modell deine Texte erstellt. Jedes Modell hat eigene Stärken – von besonders kreativ bis besonders schnell. Standardmäßig übernimmt der Grünerator…"
   },
   {
-    "url": "/docs/chat/social-media-post",
-    "title": "Social-Media-Post erstellen",
-    "category": "Chat",
-    "lead": "Du kannst dir im KI-Chat einen kompletten Social-Media-Post in einem Schritt erstellen lassen: Posttext und passende Sharepic-Grafik zusammen, in einer Karte."
-  },
-  {
     "url": "/docs/chat/was-kann-ich-fragen",
     "title": "Was kann ich fragen?",
     "category": "Chat",
@@ -272,7 +266,7 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
     "title": "Wie nachhaltig ist der Grünerator?",
     "category": "Über den Grünerator",
-    "lead": "{/ Modell-Stand aus dem Code (bei Änderungen dort auch hier nachziehen):"
+    "lead": "{/ Welches Modell wo läuft, steht NICHT mehr in dieser Datei: rendert src/generated/models.json, und das liest scripts/generate-models.mjs aus dem Routing-Code selbst (AVAILABLEMODELS, INTERMEDIATELA…"
   },
   {
     "url": "/docs/ueber-den-gruenerator/notebook",
@@ -892,46 +886,6 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#verfügbare-modelle",
     "category": "Chat",
     "text": "Du wählst eine Größe, kein Herstellermodell – dieselben drei Stufen, die du auch in der Chrome-Erweiterung und im Excel-Add-in findest. Klein – Am schnellsten, für kurze Aufgaben. Vollständig quelloffen und selbst gehostet auf europäischen Servern. Mittel – Eine gute Mischung aus Tempo und Qualität, besonders für Kreativtexte. Open-Source-Modell auf europäischen Servern. Ultra – Die beste Qualität, für Recherche und lange Aufgaben. Läuft auf EU-Servern (Mistral AI, Frankreich). Welches Modell hinter einer Stufe steckt, kann sich ändern, wenn ein besseres verfügbar wird – die Stufe bleibt. Welche Anbieter aktuell dahinterstehen, steht jederzeit in der Datenschutzerklärung. Für die Bildgenerierung kommen eigene Modelle zum Einsatz (u. a. Flux von Black Forest Labs, Deutschland). Auch hier gilt: Verarbeitung auf europäischen Servern."
-  },
-  {
-    "url": "/docs/chat/social-media-post",
-    "pageTitle": "Social-Media-Post erstellen",
-    "heading": "Social-Media-Post erstellen",
-    "anchor": "",
-    "category": "Chat",
-    "text": "Du kannst dir im KI-Chat einen kompletten Social-Media-Post in einem Schritt erstellen lassen: Posttext und passende Sharepic-Grafik zusammen, in einer Karte. Diese Funktion ist noch in der Erprobung. Verhalten und Ergebnisse können sich ändern, und nicht alles funktioniert schon zuverlässig. Prüfe Text und Grafik vor der Veröffentlichung immer selbst."
-  },
-  {
-    "url": "/docs/chat/social-media-post",
-    "pageTitle": "Social-Media-Post erstellen",
-    "heading": "Grafik-Variante gezielt anfragen",
-    "anchor": "#grafik-variante-gezielt-anfragen",
-    "category": "Chat",
-    "text": "Ohne weitere Angabe bekommst du die Standard-Varianten zur Auswahl. Du kannst aber auch direkt eine bestimmte Variante anfragen — nenne einfach eines der Stichwörter im Text. Die Tabelle wird direkt aus dem Code erzeugt und zeigt genau die Stichwörter, auf die der Chat tatsächlich reagiert: dreizeilen: dreizeiler, dreizeilen, drei zeilen, 3 zeilen, slogan, dreibalken, drei balken, balken zitat: zitat…, quote(s), spruch…, spruchbild, zitatbild, aussage, statement info: info…, fakten, faktencheck, information…, erklär…, erklaer… slider: slider(s), karussell(s), carousel(s), slide(s), folien, insta slide(s) Beispiel: „Erstelle ein Zitat-Sharepic zu Artenschutz\" liefert direkt die Zitat-Variante. Ein Slider (mehrseitiges Insta-Karussell) ist ein eigenständiges Format und wird nur auf ausdrückliche Anfrage erzeugt — nicht als Teil der Standard-Varianten. Frag ihn z. B. mit „… als Karussell\" an."
-  },
-  {
-    "url": "/docs/chat/social-media-post",
-    "pageTitle": "Social-Media-Post erstellen",
-    "heading": "Gut zu wissen",
-    "anchor": "#gut-zu-wissen",
-    "category": "Chat",
-    "text": "Die drei Sharepic-Varianten und der Text gehören zusammen: Öffnest du eine Variante im Studio, bleibt genau deren Inhalt erhalten. Änderungen im Chat und im Studio arbeiten am selben Dokument — du kannst also im Chat vorbereiten und im Studio feinschleifen."
-  },
-  {
-    "url": "/docs/chat/social-media-post",
-    "pageTitle": "Social-Media-Post erstellen",
-    "heading": "So geht's",
-    "anchor": "#so-gehts",
-    "category": "Chat",
-    "text": "Beschreibe im Chat einfach, was du brauchst — zum Beispiel: Erstelle einen Instagram-Post mit Sharepic zu mehr Klimaschutz Der Grünerator erzeugt daraufhin eine Karte mit: Posttext — fertige Caption inklusive Hashtags und Zeichenzähler (passend zum Kanal, z. B. Instagram) Sharepic-Vorschau — dazu drei Varianten zur Auswahl: Dreizeiler, Zitat und Info"
-  },
-  {
-    "url": "/docs/chat/social-media-post",
-    "pageTitle": "Social-Media-Post erstellen",
-    "heading": "Was du mit der Karte machen kannst",
-    "anchor": "#was-du-mit-der-karte-machen-kannst",
-    "category": "Chat",
-    "text": "Variante wählen: Klicke eine der drei Miniaturen an, um die Vorschau umzuschalten. Text kopieren: Über das Kopieren-Symbol übernimmst du die Caption direkt in die Zwischenablage. Herunterladen: Lädt die gewählte Sharepic-Variante als Bild herunter. Im Studio öffnen: Öffnet die Grafik im Sharepic-Studio, wo du Text, Farben und Layout weiter anpassen kannst. Im Chat bearbeiten: Beschreibe Änderungen einfach als Nachricht (z. B. „mach den Zitat-Text kürzer\" oder „anderer Hintergrund\") — der Grünerator passt Text oder Grafik direkt an. Nenne den Kanal in deiner Anfrage (Instagram, Facebook, LinkedIn …), damit Tonalität, Länge und Hashtags dazu passen."
   },
   {
     "url": "/docs/chat/was-kann-ich-fragen",
@@ -1819,7 +1773,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Verwalten, pausieren, trennen",
     "anchor": "#verwalten-pausieren-trennen",
     "category": "Integrationen",
-    "text": "In der Sektion Verbunden siehst du alle deine Dienste mit Status (Verbunden / Pausiert / Nicht autorisiert). Dort kannst du jeden Konnektor: per Schalter pausieren (bleibt verbunden, wird im Chat aber nicht genutzt), testen (zeigt die verfügbaren Werkzeuge des Servers), oder löschen — gespeicherte Zugangsdaten werden dabei entfernt. Die bereitgestellten Dienste stehen in einer eigenen Sektion darüber und zeigen Verfügbar bzw. Ausgeschaltet. Für sie gibt es Schalter und Test, aber kein Löschen. Zugangsdaten (Tokens) werden verschlüsselt auf EU-Servern gespeichert und ausschließlich für deine eigenen Chat-Anfragen verwendet. Der Zugriff auf einen Dienst erfolgt immer mit deinem Konto und dessen Berechtigungen — andere Nutzer*innen sehen deine Verbindungen nicht."
+    "text": "In der Sektion Verbunden siehst du alle deine Dienste mit Status (Verbunden / Pausiert / Nicht autorisiert). Dort kannst du jeden Konnektor: per Schalter pausieren (bleibt verbunden, wird im Chat aber nicht genutzt), testen (zeigt die verfügbaren Werkzeuge des Servers), oder entfernen — gespeicherte Zugangsdaten werden dabei gelöscht. Die bereitgestellten Dienste stehen in einer eigenen Sektion darüber und zeigen Verfügbar bzw. Ausgeschaltet. Für sie gibt es Schalter und Test, aber kein Löschen. Zugangsdaten (Tokens) werden verschlüsselt auf EU-Servern gespeichert und ausschließlich für deine eigenen Chat-Anfragen verwendet. Der Zugriff auf einen Dienst erfolgt immer mit deinem Konto und dessen Berechtigungen — andere Nutzer*innen sehen deine Verbindungen nicht."
   },
   {
     "url": "/docs/integrationen/mcp-was-kann-ich-fragen",
@@ -2131,7 +2085,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Auf dem Handy",
     "anchor": "#auf-dem-handy",
     "category": "Office",
-    "text": "In der App kannst du Boards ansehen, aber nicht bearbeiten. Zum Verschieben von Karten und zum Einrichten von Grünerator-Spalten brauchst du die Web- oder Desktop-Version."
+    "text": "In der App öffnet ein Board den vollen Editor — dieselbe Oberfläche wie im Browser, nur ohne Menüleiste drumherum. Karten verschieben, Spalten anlegen, Grünerator-Spalten einrichten: alles geht direkt vom Handy aus."
   },
   {
     "url": "/docs/office/boards",
@@ -2571,7 +2525,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Black Forest Labs (Freiburg) — Bilder aus der EU",
     "anchor": "#black-forest-labs-freiburg--bilder-aus-der-eu",
     "category": "Über den Grünerator",
-    "text": "Black Forest Labs aus Freiburg entwickelt die FLUX-Bildmodelle. Der Grünerator nutzt ausschließlich den EU-Endpunkt (api.eu.bfl.ai) mit flux-2-pro — die Bilderzeugung läuft damit im europäischen Strommix, der deutlich CO₂-ärmer ist als der US-amerikanische, wo die meisten Bild-KIs rechnen."
+    "text": "Black Forest Labs aus Freiburg entwickelt die FLUX-Bildmodelle. Der Grünerator nutzt ausschließlich den EU-Endpunkt (api.eu.bfl.ai) mit den FLUX-2-Modellen — die Bilderzeugung läuft damit im europäischen Strommix, der deutlich CO₂-ärmer ist als der US-amerikanische, wo die meisten Bild-KIs rechnen."
   },
   {
     "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
@@ -2587,7 +2541,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "GreenPT — Dokumente und Ausweichweg",
     "anchor": "#greenpt--dokumente-und-ausweichweg",
     "category": "Über den Grünerator",
-    "text": "GreenPT rechnet ausschließlich in EU-Rechenzentren mit 100 % erneuerbarer Energie — in Paris sowie in Helsinki (je zur Hälfte Wasser- und Windkraft) — und nennt konkrete Effizienzwerte: PUE 1,25 (Branchenschnitt: 1,55) und ein Wasserverbrauch (WUE) von 0,25 statt branchenüblicher 1,8. Beim Grünerator schreibt GreenPTs Gemma 4 (gemma4) alle erzeugten Dateien: PDFs, Präsentationen, Tabellen und Dokumente. Das ist keine Verlegenheitslösung, sondern gemessen: Am 03.08.2026 gegen die echten Prompts und Vorlagen rief das große Standardmodell das nötige Werkzeug in keinem einzigen Lauf sauber auf und lief in Wiederholungen fest, GreenPTs Gemma 4 in zehn von zehn Läufen — und dabei drei- bis viermal schneller. Dazu ist GreenPT der Ausweichweg für die Transkription, wenn Voxtral nicht antwortet. Als frei wählbare Chat-Lane ist GreenPT im Code fertig verdrahtet, im Modellwähler aber noch nicht freigeschaltet — deshalb steht sie oben nicht bei den drei wählbaren Lanes."
+    "text": "GreenPT rechnet ausschließlich in EU-Rechenzentren mit 100 % erneuerbarer Energie — in Paris sowie in Helsinki (je zur Hälfte Wasser- und Windkraft) — und nennt konkrete Effizienzwerte: PUE 1,25 (Branchenschnitt: 1,55) und ein Wasserverbrauch (WUE) von 0,25 statt branchenüblicher 1,8. Beim Grünerator schreibt GreenPTs Gemma 4 (gemma4) alle erzeugten Dateien: PDFs, Präsentationen, Tabellen und Dokumente. Das ist keine Verlegenheitslösung, sondern gemessen: Am 03.08.2026 gegen die echten Prompts und Vorlagen rief das große Standardmodell das nötige Werkzeug in keinem einzigen Lauf sauber auf und lief in Wiederholungen fest, GreenPTs Gemma 4 in zehn von zehn Läufen — und dabei drei- bis viermal schneller. Dazu plant hier das kleine Modell, das im Chat die Werkzeuge auswählt und aufruft, und GreenPT ist der Ausweichweg für die Transkription, wenn Voxtral nicht antwortet. Als frei wählbare Chat-Lane ist GreenPT im Code fertig verdrahtet, im Modellwähler aber noch nicht freigeschaltet — deshalb steht sie oben nicht bei den drei wählbaren Lanes."
   },
   {
     "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
@@ -2595,7 +2549,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Grünes Hosting: Wasserkraft statt Kohlestrom",
     "anchor": "#grünes-hosting-wasserkraft-statt-kohlestrom",
     "category": "Über den Grünerator",
-    "text": "Der Grünerator selbst — Web-Oberfläche, Datenbanken, Suche — läuft bei Hetzner in Deutschland. Hetzner betreibt seine deutschen Standorte nach eigenen Angaben mit 100 % Wasserkraft, ist EMAS- und ISO-14001-zertifiziert und erreicht mit einem durchschnittlichen PUE-Wert von 1,13 eine überdurchschnittliche Energieeffizienz (je näher an 1,0, desto weniger Strom geht für Kühlung und Infrastruktur verloren). Gegenüber dem deutschen Durchschnitts-Strommix spart das laut Hetzner rund 77.000 Tonnen CO₂ pro Jahr. Auch die selbst gehosteten Open-Source-Modelle, die netzbegrünung e.V. und die verdigado eG für den Grünerator betreiben, laufen auf dieser Wasserkraft-Infrastruktur — heute vor allem GPT-OSS 120B. Gemma 4 lief dort ebenfalls, wird aber seit dem 31.07.2026 bei Regolo in Italien bedient. Der Grund war Tempo: Die selbst gehostete Variante denkt vor jeder Antwort nach, und kein Schalter stellte das ab — rund zwei Drittel ihrer Ausgabe gingen in einen Denkblock, den niemand angefordert hatte. Dieselben Gewichte antworten bei Regolo neunmal schneller. Die verdigado-Instanz bleibt als Ausweichweg stehen, falls Regolo ausfällt."
+    "text": "Der Grünerator selbst — Web-Oberfläche, Datenbanken, Suche — läuft bei Hetzner in Deutschland. Hetzner betreibt seine deutschen Standorte nach eigenen Angaben mit 100 % Wasserkraft, ist EMAS- und ISO-14001-zertifiziert und erreicht mit einem durchschnittlichen PUE-Wert von 1,13 eine überdurchschnittliche Energieeffizienz (je näher an 1,0, desto weniger Strom geht für Kühlung und Infrastruktur verloren). Gegenüber dem deutschen Durchschnitts-Strommix spart das laut Hetzner rund 77.000 Tonnen CO₂ pro Jahr. Auch die selbst gehosteten Open-Source-Modelle, die netzbegrünung e.V. und die verdigado eG für den Grünerator betreiben, laufen auf dieser Wasserkraft-Infrastruktur — heute vor allem GPT-OSS 120B. Gemma 4 lief dort ebenfalls, wird aber seit dem 31.07.2026 bei Regolo in Italien bedient. Der Grund war Tempo: Die selbst gehostete Variante denkt vor jeder Antwort nach, und kein Schalter stellte das ab — rund zwei Drittel ihrer Ausgabe gingen in einen Denkblock, den niemand angefordert hatte. Dieselben Gewichte antworten bei Regolo neunmal schneller. Als Ausweichweg diente die verdigado-Instanz noch bis zum 19.08.2026. Seitdem nicht mehr: Sie hat einen einzigen Inferenz-Platz, den sie…"
   },
   {
     "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
@@ -2603,7 +2557,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Intelligentes Routing: nur so viel KI wie nötig",
     "anchor": "#intelligentes-routing-nur-so-viel-ki-wie-nötig",
     "category": "Über den Grünerator",
-    "text": "Der Grünerator schickt nicht jede Anfrage an das größte verfügbare Modell. Stattdessen entscheidet ein kompaktes Einordnungs-Modell (Mistral Small 4 bei Regolo) zuerst, was überhaupt gebraucht wird: eine einfache Antwort, eine Recherche, ein Dokument, ein Bild. Auch innerhalb einer Antwort ist die Arbeit geteilt: Ein kleines, schnelles Modell übernimmt das Planen und Aufrufen von Werkzeugen (Suche, Notebooks, Dokumente), und ein kompaktes 31-Milliarden-Modell schreibt den Text. Das große Standardmodell kommt nur dort zum Einsatz, wo seine Qualität wirklich gebraucht wird. So bleibt der Energieverbrauch pro Anfrage niedrig, ohne dass die Qualität leidet."
+    "text": "Der Grünerator schickt nicht jede Anfrage an das größte verfügbare Modell. Stattdessen entscheidet ein kompaktes Einordnungs-Modell zuerst, was überhaupt gebraucht wird: eine einfache Antwort, eine Recherche, ein Dokument, ein Bild. Auch innerhalb einer Antwort ist die Arbeit geteilt: Ein kleines, schnelles Modell übernimmt das Planen und Aufrufen von Werkzeugen (Suche, Notebooks, Dokumente), und ein kompaktes 31-Milliarden-Modell schreibt den Text. Das große Standardmodell kommt nur dort zum Einsatz, wo seine Qualität wirklich gebraucht wird. So bleibt der Energieverbrauch pro Anfrage niedrig, ohne dass die Qualität leidet."
   },
   {
     "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
@@ -2611,7 +2565,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Mistral AI (Frankreich) — Transparenz-Vorreiter",
     "anchor": "#mistral-ai-frankreich--transparenz-vorreiter",
     "category": "Über den Grünerator",
-    "text": "Mistral AI vermarktet sich nicht als Öko-Anbieter, hat aber als erstes KI-Unternehmen überhaupt eine vollständige, unabhängig geprüfte Lebenszyklus-Analyse eines eigenen Modells veröffentlicht — erstellt mit der französischen Umweltagentur ADEME und Carbone 4, peer-reviewed nach ISO 14040/44. Die Zahlen machen KI-Umweltkosten erstmals konkret vergleichbar: Eine typische Antwort (400 Token) verursacht etwa 1,14 g CO₂e und 45 ml Wasser. Mistral setzt sich zudem für einen verbindlichen globalen Umweltstandard für KI ein. Dazu kommt der französische Strommix, der zu den CO₂-ärmsten Europas gehört. Beim Grünerator liefert Mistral das Standardmodell (mistral-medium-2604), die Werkzeug-Planung, die Embeddings für Suche und Notebooks sowie die Transkription mit Voxtral."
+    "text": "Mistral AI vermarktet sich nicht als Öko-Anbieter, hat aber als erstes KI-Unternehmen überhaupt eine vollständige, unabhängig geprüfte Lebenszyklus-Analyse eines eigenen Modells veröffentlicht — erstellt mit der französischen Umweltagentur ADEME und Carbone 4, peer-reviewed nach ISO 14040/44. Die Zahlen machen KI-Umweltkosten erstmals konkret vergleichbar: Eine typische Antwort (400 Token) verursacht etwa 1,14 g CO₂e und 45 ml Wasser. Mistral setzt sich zudem für einen verbindlichen globalen Umweltstandard für KI ein. Dazu kommt der französische Strommix, der zu den CO₂-ärmsten Europas gehört. Beim Grünerator liefert Mistral das Standardmodell, die Embeddings für Suche und Notebooks sowie die Transkription mit Voxtral."
   },
   {
     "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
@@ -2643,7 +2597,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Sparsame Modelle statt Größenwahn",
     "anchor": "#sparsame-modelle-statt-größenwahn",
     "category": "Über den Grünerator",
-    "text": "Die größten kommerziellen KI-Modelle brauchen für jede einzelne Antwort ein Vielfaches der Energie eines kompakten Modells. Der Grünerator setzt deshalb bewusst auf kleine und mittlere Modelle — vom 31-Milliarden-Parameter-Modell Gemma 4 bis zum mittelgroßen Mistral Medium. Das sind die Modelle, die tatsächlich im Einsatz sind: Aufgabe | Modell | Läuft bei | ----------------------------------------- | -------------------------------------------------- | ---------------------------------------------- | Chat & Texte (Standard) | Mistral Medium 3.5 (mistral-medium-2604) | Mistral AI 🇫🇷 | Kreativtexte, Antworten schreiben | Gemma 4 — 31 Mrd. Parameter (gemma4-31b) | Regolo 🇮🇹 (Ausweichweg verdigado 🇩🇪) | Lange Dokumente zusammenfassen | Gemma 4 — 26 Mrd. Parameter (gemma-4-26b-a4b-it) | Scaleway 🇫🇷 (Paris) | Dokumente, Präsentationen, PDFs, Tabellen | Gemma 4 (gemma4) | GreenPT 🇪🇺 | Schnelle Antworten | GPT-OSS 120B (gpt-oss-120b) | verdigado 🇩🇪 / Regolo 🇮🇹 | Anfragen einordnen, Zwischenschritte | Mistral Small 4 (mistral-small-4-119b) | Regolo 🇮🇹 | Werkzeuge planen und aufrufen | Mistral Small (mistral-small-latest) | Mistral AI 🇫🇷 | Bilder verstehen | Gemma 4…"
+    "text": "Die größten kommerziellen KI-Modelle brauchen für jede einzelne Antwort ein Vielfaches der Energie eines kompakten Modells. Der Grünerator setzt deshalb bewusst auf kleine und mittlere Modelle — vom 31-Milliarden-Parameter-Modell Gemma 4 bis zum mittelgroßen Mistral Medium. Diese Tabelle wird direkt aus dem Routing-Code erzeugt und zeigt daher genau die Modelle, die gerade tatsächlich im Einsatz sind: Im Chat selbst stehen drei Größen zur Wahl — Klein, Mittel und Ultra; welche Modelle dahinterstehen, sind die ersten drei Zeilen oben. Kein einziges dieser Modelle spielt in der Größenklasse der energiehungrigsten Frontier-Modelle — und für die Aufgaben im politischen Alltag reicht das nicht nur, es ist oft sogar die bessere Wahl, weil kleinere Modelle schneller antworten."
   },
   {
     "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
@@ -2691,7 +2645,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wie wir Emissionen berechnen",
     "anchor": "#wie-wir-emissionen-berechnen",
     "category": "Über den Grünerator",
-    "text": "Emissionen sind Energie mal Kohlenstoffintensität des Stroms. Dafür gibt es zwei anerkannte Methoden, und das GHG-Protokoll verlangt ausdrücklich beide. Wir weisen seit August 2026 auch beide aus: die standortbasierte Zahl mit dem realen Strommix am Rechenzentrumsstandort ist unsere Bilanz und die Zahl, die überall groß steht. Die marktbasierte Zahl, die den bezogenen Ökostrom anrechnet, bildet das günstige Ende der angezeigten Spanne. Nie eine ohne die andere. Das ist bewusst die strengere Variante, und wir folgen damit GreenPT selbst: Der Anbieter wirbt mit 100 % erneuerbarer Energie und rechnet seine Emissionen trotzdem nicht auf null, sondern nutzt stündliche Netzdaten je Standort. Ein Ökostromvertrag ändert nichts daran, welcher Strom im selben Moment physisch durch die Leitung fließt. Die grüne Beschaffung bleibt richtig und wirksam — sie ist nur kein Rabatt auf die Bilanz. Wir rechnen mit diesen Werten (Jahresmittel 2024, nur Verbrennungsemissionen): Standort | g CO₂/kWh | Quelle | ----------------------------------- | --------- | ------------------------------------------------ | Scaleway (Paris) | 24 | Scaleway Impact Report 2025, eigene Scope-2-Zahl | Frankreich…"
+    "text": "Emissionen sind Energie mal Kohlenstoffintensität des Stroms. Dafür gibt es zwei anerkannte Methoden, und das GHG-Protokoll verlangt ausdrücklich beide. Wir weisen seit August 2026 auch beide aus: die standortbasierte Zahl mit dem realen Strommix am Rechenzentrumsstandort ist unsere Bilanz und die Zahl, die überall groß steht. Die marktbasierte Zahl, die den bezogenen Ökostrom anrechnet, bildet das günstige Ende der angezeigten Spanne. Nie eine ohne die andere. Das ist bewusst die strengere Variante, und wir folgen damit GreenPT selbst: Der Anbieter wirbt mit 100 % erneuerbarer Energie und rechnet seine Emissionen trotzdem nicht auf null, sondern nutzt stündliche Netzdaten je Standort. Ein Ökostromvertrag ändert nichts daran, welcher Strom im selben Moment physisch durch die Leitung fließt. Die grüne Beschaffung bleibt richtig und wirksam — sie ist nur kein Rabatt auf die Bilanz. Wir rechnen mit diesen Werten (Jahresmittel 2024, nur Verbrennungsemissionen): Standort | g CO₂/kWh | Quelle | --------------------------------------------- | --------- | ------------------------------------------------ | Scaleway (Paris) | 24 | Scaleway Impact Report 2025, eigene Scope-2-Zahl |…"
   },
   {
     "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
@@ -3075,7 +3029,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 4: Überprüfen und erstellen",
     "anchor": "#schritt-4-überprüfen-und-erstellen",
     "category": "Wissen",
-    "text": "Im dritten Schritt („Überprüfen — Alles bereit zum Erstellen?\") siehst du eine Zusammenfassung: Name, Beschreibung, die Anzahl der Dokumente (eigene, aus der Wolke, aus Docs) und deine Labels. Klicke unten rechts auf „Notebook erstellen\". Der Button bleibt deaktiviert, solange noch kein Name eingetragen oder kein Dokument hochgeladen ist. Nach dem Speichern landest du wieder in der Notebook-Übersicht und siehst eine Erfolgsmeldung. Beim Erstellen ist dein Notebook privat. Ob und für wen es sichtbar wird, legst du danach im „Teilen\"-Menü fest — siehe unten."
+    "text": "Im dritten Schritt („Überprüfen — Alles bereit zum Erstellen?\") siehst du eine Zusammenfassung: Name, Beschreibung, die Anzahl der Dokumente (eigene, aus der Wolke, aus Docs) und deine Labels. Klicke unten rechts auf „Notebook erstellen\". Der Button bleibt deaktiviert, solange noch kein Name eingetragen oder kein Dokument hochgeladen ist. Nach dem Speichern siehst du eine Erfolgsmeldung und landest direkt im Bearbeiten-Bereich deines neuen Notebooks — dort kannst du sofort weitere Dokumente ergänzen oder das Teilen einstellen. Beim Erstellen ist dein Notebook privat. Ob und für wen es sichtbar wird, legst du danach im „Teilen\"-Menü fest — siehe unten."
   },
   {
     "url": "/docs/wissen/eigenes-notebook-erstellen",

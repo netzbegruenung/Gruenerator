@@ -158,11 +158,6 @@ export const QUICK_TASKS: QuickTask[] = [
     to: '/docs/chat/was-kann-ich-fragen',
   },
   {
-    label: 'Social-Media-Post mit Sharepic',
-    description: 'Text und Bild für Instagram & Co. in einem Schritt erstellen.',
-    to: '/docs/chat/social-media-post',
-  },
-  {
     label: 'Gemeinsam an einem Dokument arbeiten',
     description: 'Texte in Echtzeit zu mehreren schreiben, teilen und versionieren.',
     to: '/docs/office/dokumente',
