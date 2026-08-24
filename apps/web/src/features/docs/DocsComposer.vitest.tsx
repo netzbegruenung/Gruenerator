@@ -78,6 +78,21 @@ describe('DocsComposer — Frage statt Auftrag', () => {
     expect(navigate).not.toHaveBeenCalledWith('/chat');
   });
 
+  // Radix focuses Cancel on open, and the dialog is reached by pressing Enter
+  // in the composer — so the key that opened it must not also answer it.
+  it('does nothing when Enter is pressed again right away', async () => {
+    const { onGenerate, user } = setup();
+
+    await user.type(screen.getByLabelText('Erstellen oder suchen'), QUESTION);
+    await user.click(screen.getByRole('button', { name: 'Erstellen' }));
+    await screen.findByRole('alertdialog');
+    await user.keyboard('{Enter}');
+
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    expect(onGenerate).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalledWith('/chat');
+  });
+
   it('leaves a plain create request alone', async () => {
     const { onGenerate, user } = setup();
 
