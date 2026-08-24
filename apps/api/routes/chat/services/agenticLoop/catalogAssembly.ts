@@ -32,6 +32,7 @@ import {
 } from '../threadPersistenceService.js';
 
 import {
+  ATTACHED_DOC_SNIPPET_CHARS,
   attachedDocsQuery,
   retrievableAttachedSources,
   retrieveAttachedDocuments,
@@ -497,7 +498,7 @@ export async function seedAttachedDocuments(params: {
       return [];
     }
 
-    const block = params.sourceRegistry.seedAttached(results);
+    const block = params.sourceRegistry.seedAttached(results, ATTACHED_DOC_SNIPPET_CHARS);
     params.onInfo(
       `[Agentic] ${results.length} Passage(n) aus ${sources.length} angehängten Dokument(en) vorab abgerufen`
     );

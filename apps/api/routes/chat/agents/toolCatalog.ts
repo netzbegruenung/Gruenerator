@@ -44,6 +44,7 @@ import { crawlAndDistill } from '../../../services/search/index.js';
 import { createLogger } from '../../../utils/logger.js';
 import { validateUrlForFetch } from '../../../utils/validation/urlSecurity.js';
 import {
+  ATTACHED_DOC_SNIPPET_CHARS,
   ATTACHED_DOCS_TOOL,
   readAttachedDocumentSlice,
   retrievableAttachedSources,
@@ -696,11 +697,16 @@ NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summar
           // — dieselbe Begründung wie an expand_attachment. Der Deckel kommt aus
           // `attachedDocuments`, wo auch die Scheibengrenze davon abgeleitet
           // ist: die beiden Zahlen dürfen nicht auseinanderlaufen, sonst
-          // verliert die Scheibe ihr Ende. Eine Passagensuche bleibt beim
-          // Standardmass.
+          // verliert die Scheibe ihr Ende.
+          //
+          // Auch die Passagensuche liegt über dem Standardmass, und zwar auf
+          // demselben Wert wie der Vorab-Abruf: beide fragen dieselben Anhänge
+          // mit derselben Bauform ab, und ein Deckel, der sich zwischen Seed und
+          // Werkzeug unterscheidet, macht dasselbe Ergebnis je nach Aufrufer
+          // unterschiedlich lang.
           const sources = readSlice
             ? sourceRegistry.register(results, { snippetChars: SLICE_REGISTER_CHARS })
-            : sourceRegistry.register(results);
+            : sourceRegistry.register(results, { snippetChars: ATTACHED_DOC_SNIPPET_CHARS });
           if (!sources) return { error: 'Konnte die angehängten Dokumente nicht lesen.' };
           return { resultCount: results.length, sources };
         },
