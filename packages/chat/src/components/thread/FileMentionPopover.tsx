@@ -52,8 +52,16 @@ export function FileMentionPopover({
   const [searchResults, setSearchResults] = useState<DocumentSearchResult[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const { collections, documents, texts, loadingCollections, loadingContent, searchInCollection } =
-    useFileMentionData(visible);
+  const {
+    collections,
+    documents,
+    texts,
+    loadingCollections,
+    loadingContent,
+    collectionsFailed,
+    contentFailed,
+    searchInCollection,
+  } = useFileMentionData(visible);
 
   const collabDocs = useDocMentionables();
 
@@ -230,6 +238,10 @@ export function FileMentionPopover({
                       <Skeleton className="h-8 w-full" />
                       <Skeleton className="h-8 w-full" />
                     </div>
+                  ) : collectionsFailed ? (
+                    <p className="p-3 text-sm text-destructive">
+                      Notizbücher konnten nicht geladen werden.
+                    </p>
                   ) : collections.length > 0 ? (
                     <CommandGroup heading="Notizbücher">
                       {collections.map((collection) => (
@@ -257,6 +269,10 @@ export function FileMentionPopover({
                       <Skeleton className="h-8 w-full" />
                       <Skeleton className="h-8 w-full" />
                     </div>
+                  ) : contentFailed ? (
+                    <p className="p-3 text-sm text-destructive">
+                      Dokumente konnten nicht geladen werden.
+                    </p>
                   ) : documents.length > 0 ? (
                     <CommandGroup heading="Letzte Dokumente">
                       {documents.slice(0, 10).map((doc) => (
@@ -273,8 +289,9 @@ export function FileMentionPopover({
                     </CommandGroup>
                   ) : null}
 
-                  {/* Section 3: Saved Texts */}
-                  {loadingContent ? null : texts.length > 0 ? (
+                  {/* Section 3: Saved Texts — same query as section 2, so its
+                      failure is already reported there; no second error row. */}
+                  {loadingContent || contentFailed ? null : texts.length > 0 ? (
                     <CommandGroup heading="Gespeicherte Texte">
                       {texts.slice(0, 10).map((text) => (
                         <CommandItem
