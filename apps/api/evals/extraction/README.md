@@ -17,8 +17,9 @@ Gezählt wird, wie viele davon **wortgetreu** im extrahierten Text stehen.
 | Mistral OCR, `tableFormat: 'html'`  | Chat-Anhang → Zusammenfassung                             |  16 219 |        **3 / 16** |
 | Mistral OCR, **ohne** `tableFormat` | — nirgends                                                |  17 871 |       **16 / 16** |
 
-Beide produktiv genutzten Wege verlieren die Tabelle. Der Weg, der sie vollständig
-liefert, ist der einzige, der nicht benutzt wird.
+Beide zum Messzeitpunkt produktiv genutzten Wege verlieren die Tabelle; der Weg, der
+sie vollständig liefert, wurde nirgends benutzt. #2828 hat das für Chat-Anhänge
+gedreht — siehe „Was daraus folgt".
 
 ### PDF.js: 10 von 16 — und die Regel dahinter ist exakt
 
@@ -84,19 +85,20 @@ Tabelle erkennbar.
 
 ## Was daraus folgt
 
-Zwei Schritte, in dieser Reihenfolge:
+Für **Chat-Anhänge erledigt** durch #2828, und zwar auf beiden Ebenen: `tableFormat`
+fällt weg (3/16 → 16/16), und der bereits extrahierte OCR-Text wird als `knownText`
+an die Indizierung durchgereicht, statt dieselbe Datei ein zweites Mal durch PDF.js
+zu schicken. Ein Text pro Datei — derselbe, den das Modell im Anhang liest.
 
-1. **`tableFormat: 'html'` aus `mistralIntegration.ts` entfernen** (zwei Aufrufe).
-   Einzeilig, ohne Gegenrechnung: 3/16 → 16/16 auf dem Anhang-Pfad. Der Text wird
-   dabei um ~1 650 Zeichen länger — das sind die drei Tabellen, die heute fehlen.
-2. **Die Weiche zur Indizierung neu bewerten.** Sie wählt PDF.js, sobald ein PDF
-   text-nativ ist (`Parseability check: PARSEABLE`), und das ist die Entscheidung,
-   die den Chunks 10/16 beschert. Für Dokumente mit Tabellen ist sie falsch. Das
-   ist die größere Änderung und braucht eine eigene Abwägung: PDF.js ist umsonst
-   und schnell (440 ms), OCR kostet und dauert (1 314 ms).
+**Offen bleibt der Dokument-Upload außerhalb des Chats.** `processUploadedDocument`
+in `fileProcessing.ts` liest die Datei von der Platte neu ein und hat keinen
+OCR-Text zur Hand; es ruft `extractTextFromFile` ohne `knownText`, landet über den
+Parseability-Check bei PDF.js — und damit wieder bei 10/16. Für diesen Pfad steht
+die Abwägung noch aus: PDF.js ist umsonst und schnell (440 ms), OCR kostet und
+dauert (1 314 ms).
 
-Ein Reranker hilft hier nichts — was in der Extraktion zerfällt, stellt keine
-Rangfolge wieder her.
+Ein Reranker hilft in keinem der Fälle — was in der Extraktion zerfällt, stellt
+keine Rangfolge wieder her.
 
 ## Reproduzieren
 
