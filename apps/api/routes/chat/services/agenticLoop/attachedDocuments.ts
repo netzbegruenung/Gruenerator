@@ -68,7 +68,18 @@ export const SLICE_MAX_CHARS = SLICE_REGISTER_CHARS - SLICE_HINT_RESERVE;
  *
  * Live am 24.08.2026 ist genau die Breite ausgefallen: die Frage nach den
  * Löschfristen brauchte die Tabelle auf Seite 5 UND den Abschnitt „Allgemeiner
- * Hinweis zur Löschung" auf Seite 4; die Antwort nannte vier von zehn Fristen.
+ * Hinweis zur Löschung" auf Seite 4; die Antwort nannte vier Fristen. Der
+ * Nenner „von zehn", der hier stand, war falsch gezählt: die Quelle führt ACHT
+ * Tabellenzeilen und im Fliesstext davor vier weitere Fristen.
+ *
+ * Nachgemessen mit 6000 am selben Dokument (Testinstanz, 24.08.2026, 20:27):
+ * acht von acht Tabellenzeilen plus alle vier aus dem Fliesstext — und das,
+ * obwohl der Deckel 52 % wegschnitt (12 532 → 6000). Beide Stellen kamen durch,
+ * weil die verfeinerte Anfrage („Löschfristen", Top-Score 0.813 gegen 0.703 im
+ * Zusammenfassungs-Turn) die richtigen Chunks nach oben sortierte, BEVOR
+ * gekappt wurde. Die Breite trägt also — aber sie trägt auf der Sortierung.
+ * Wer den Deckel senkt, nimmt nicht Zeichen weg, sondern der Rangfolge ihren
+ * Spielraum, und der Ausfall sieht dann wieder aus wie ein Modellfehler.
  *
  * Unter der ausdrücklichen Nachlese (`SLICE_REGISTER_CHARS`, 12 000) — die liest
  * das Modell auf Ansage, hier ruft ungefragt der Seed. Drei Anhänge kommen auf
