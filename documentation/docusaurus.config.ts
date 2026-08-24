@@ -108,7 +108,15 @@ const config: Config = {
           { from: '/docs/gruenerieren/was-kann-ich-fragen', to: '/docs/chat/was-kann-ich-fragen' },
           { from: '/docs/gruenerieren/dateien-hinzufuegen', to: '/docs/chat/dateien-hinzufuegen' },
           { from: '/docs/gruenerieren/ki-modelle', to: '/docs/chat/ki-modelle' },
-          { from: '/docs/gruenerieren/social-media-post', to: '/docs/chat/social-media-post' },
+          // social-media-post.mdx was removed — its topic now lives in
+          // "Was kann ich fragen?". Both spellings keep resolving: the URL was
+          // cited to users in chat and is compiled into shipped mobile
+          // binaries (SOCIAL_POST_DOC_URL), which no deploy can update.
+          {
+            from: '/docs/gruenerieren/social-media-post',
+            to: '/docs/chat/was-kann-ich-fragen',
+          },
+          { from: '/docs/chat/social-media-post', to: '/docs/chat/was-kann-ich-fragen' },
           // websuche.md was removed — its topic now lives in "Was kann ich fragen?".
           { from: '/docs/gruenerieren/websuche', to: '/docs/chat/was-kann-ich-fragen' },
           // agents/* → grueneratoren/*
