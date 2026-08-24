@@ -27,6 +27,8 @@ export interface SearchOptions {
   useRRF?: boolean | undefined;
   rrfK?: number | undefined;
   recallLimit?: number | undefined;
+  /** Siehe `MMROptions.rerankChunks` — von hier durchgereicht. */
+  rerankChunks?: boolean | undefined;
   [key: string]: unknown;
 }
 
@@ -339,4 +341,10 @@ export interface MMROptions {
   applyMMR?: boolean | undefined;
   mmrLambda?: number | undefined;
   dossierMode?: boolean | undefined;
+  /**
+   * Chunks vor der Gruppierung durch den Cross-Encoder schicken. Opt-in: die
+   * Gruppierungsfunktion bedient alle Sammlungen, und nur der Anhang-Pfad hat
+   * danach keine zweite Rerank-Stufe mehr, die es nachholen könnte.
+   */
+  rerankChunks?: boolean | undefined;
 }
