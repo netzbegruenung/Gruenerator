@@ -34,12 +34,16 @@ describe('hasReachableForm', () => {
     expect(hasReachableForm({ threadAttachments: [attachment({ hasFileData: true })] })).toBe(true);
   });
 
-  it('sagt ja zum Formular DIESES Turns, auch ohne Thread-Anhänge', () => {
+  it('sagt ja zu JEDEM PDF dieses Turns, auch einem ungeprüften', () => {
     // Auf dem allerersten Turn („hier ist mein Formular") steht in der DB noch
-    // nichts — dafür gibt es `pdfFormAttachments` überhaupt.
+    // nichts — dafür gibt es `pdfFormAttachments` überhaupt. Die Liste ist
+    // ungefiltert (streamContext), diese Hälfte also bewusst nicht streng: die
+    // Bytes liegen vor, `read_pdf_form` prüft selbst und meldet `fieldCount: 0`.
+    // Festgehalten, damit die Ungleichheit der beiden Hälften eine Zusicherung
+    // hat und nicht nur einen Kommentar.
     expect(
       hasReachableForm({
-        pdfFormAttachments: [{ name: 'Antrag.pdf', data: 'AAAA' }],
+        pdfFormAttachments: [{ name: 'Irgendein.pdf', data: 'AAAA' }],
         threadAttachments: [],
       })
     ).toBe(true);
