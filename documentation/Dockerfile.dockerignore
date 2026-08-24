@@ -1,0 +1,46 @@
+# =============================================================================
+# Build context for the Docusaurus image.
+#
+# BuildKit prefers `<dockerfile>.dockerignore` over the root `.dockerignore`
+# and uses it INSTEAD of it — so the big exclusions are repeated here. The
+# reason for a separate file: the root one excludes `documentation/` outright
+# (labelled "old documentation site"), which is exactly the source this image
+# builds. Editing the shared file would drag 2.4 MB of docs into the context of
+# five other images that have no use for them.
+# =============================================================================
+
+# Everything the docs build never reads. `apps/` and `packages/` are excluded
+# wholesale: documentation/ declares no workspace dependency and reaches
+# outside its own directory nowhere — only the workspace manifests below are
+# needed so `pnpm install --frozen-lockfile` can resolve.
+apps/
+packages/
+services/
+aws/
+documentation-archive/
+scripts/
+
+node_modules/
+**/node_modules/
+**/build/
+**/.docusaurus/
+**/dist/
+**/.turbo/
+**/.cache/
+**/coverage/
+**/*.tsbuildinfo
+
+**/.env
+**/.env.*
+!**/.env.example
+**/secrets/
+**/*.pem
+**/*.key
+
+.git/
+.github/
+.vscode/
+.idea/
+**/.DS_Store
+**/*.log
+**/tmp/
