@@ -57,12 +57,27 @@ const MISTRAL_MEDIUM = 'mistral-medium-2604';
  * fertig war. Am 21.08.2026 nachgemessen und unverändert: mit und ohne
  * `reasoning_effort` identisch leerer Inhalt bei 120 Token Budget.
  *
- * This is the same family as the GreenPT worker this replaces, on the host that
- * can actually switch the reasoning off. Measured for the
- * intermediate lane on 01.08.2026: roughly twice as fast as the dense 31B, 12/12
- * on a `max_tokens: 20` classification and 3/3 valid JSON on structured
- * extraction — i.e. it holds a tool-shaped contract, which is the property a
- * worker lives on here.
+ * Dass dieses Modell von sich aus nicht denkt, ist gemessen (21.08.2026: 420
+ * Zeichen Inhalt, 0 Zeichen Denken, ohne jeden Parameter) — es braucht den
+ * Reasoning-Pin also gar nicht, und es bekäme ihn hier auch nicht: infercom
+ * weist `reasoning_effort` mit HTTP 400 ab, siehe den Kommentar an
+ * `modelKwargs` in `workerModel`.
+ *
+ * ── UNGEPRÜFT: die Werkzeug-Treue dieser Rolle ──
+ *
+ * Hier stand bis 24.08.2026 „roughly twice as fast as the dense 31B … 12/12 on
+ * a `max_tokens: 20` classification and 3/3 valid JSON" — Zahlen vom
+ * 01.08.2026, erhoben an der 26B-MoE. Sie sind mit dem Modellwechsel nicht
+ * mitgewandert: der Vergleich „doppelt so schnell wie das dichte 31B" ist
+ * gegenstandslos, seit DIESES das dichte 31B IST.
+ *
+ * Für das dichte 31B in der Worker-Rolle liegen diese Zahlen NICHT vor. Was
+ * vorliegt, ist die `pruefung`-Messung (Inhaltstreue in 22 Läufen nicht von
+ * Regolo unterscheidbar) und ein Live-Lauf der gebauten Kette — beides sagt
+ * nichts über wohlgeformte Tool-Calls unter knappem Budget, und genau das ist
+ * die Eigenschaft, von der ein Worker hier lebt. `scripts/probeCortecs.ts`
+ * misst sie (Tool-Call und `json_object`); wer sie braucht, lässt es laufen,
+ * statt sich auf diesen Absatz zu verlassen.
  */
 const CORTECS_GEMMA = 'gemma-4-31b-it';
 
