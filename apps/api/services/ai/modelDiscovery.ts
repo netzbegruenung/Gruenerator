@@ -1,6 +1,7 @@
 import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 
+import { cortecsBaseUrl } from './cortecsEndpoint.js';
 import {
   type ProviderName,
   LITELLM_DEFAULT_BASE_URL,
@@ -105,6 +106,7 @@ const CATEGORY_NAMES: Record<ProviderName, string> = {
   regolo: 'Regolo',
   greenpt: 'GreenPT',
   scaleway: 'Scaleway',
+  cortecs: 'Cortecs',
 };
 
 const CAT_ORDER: Record<string, number> = {
@@ -227,6 +229,10 @@ const PROVIDER_ENDPOINTS: Record<
     url: () => `${scalewayBaseUrl()}/models`,
     getApiKey: () => env.SCALEWAY_API_KEY ?? null,
   },
+  cortecs: {
+    url: () => `${cortecsBaseUrl()}/models`,
+    getApiKey: () => env.CORTECS_API_KEY ?? null,
+  },
 };
 
 function fetchModelsForProvider(provider: ProviderName): Promise<PlaygroundModel[]> {
@@ -244,10 +250,11 @@ const FALLBACK_MODELS: PlaygroundModel[] = ['mistral-medium-2604', 'mistral-smal
   );
 
 async function discoverModels(): Promise<PlaygroundModel[]> {
-  // `greenpt` and `scaleway` are deliberately absent, not forgotten: this list
-  // feeds the Playground's model picker, and both are backend-only lanes
-  // (scaleway serves the `heavy` intermediate stage). They keep their
-  // PROVIDER_ENDPOINTS entry so adding them here is a one-word change.
+  // `greenpt`, `scaleway` und `cortecs` sind bewusst abwesend, nicht vergessen:
+  // diese Liste speist die Modellauswahl im Playground, und alle drei sind
+  // reine Backend-Lanes (cortecs bedient seit 21.08.2026 die `heavy`-Stufe,
+  // vorher scaleway). Ihr PROVIDER_ENDPOINTS-Eintrag bleibt, damit das
+  // Aufnehmen ein Ein-Wort-Eingriff ist.
   const providers: ProviderName[] = ['mistral', 'litellm', 'regolo'];
   const results = await Promise.allSettled(
     providers.filter((p) => isProviderConfigured(p)).map((p) => fetchModelsForProvider(p))

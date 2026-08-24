@@ -44,14 +44,30 @@ export interface ModelTarget {
  * `regolo/gemma4-31b` bedient 14 Lanes in `lanes.ts`, den Synth-Slot des
  * Chat-Loops und die Prüf-Stufe — ein Eintrag deckt sie alle ab.
  *
- * `gemma-4-26b-a4b-it` (Scaleway/Paris) gegen `gemma4-31b` (Regolo), gemessen
- * am 01.08. an den echten Prompts der Zwischenstufen und am 14.08. am echten
- * Prüf-Prompt: gleiche Inhaltstreue, rund doppelte Geschwindigkeit. Siehe den
- * Doc-Block bei `heavy` und `pruefung` in intermediateLanes.ts.
+ * `gemma-4-26b-a4b-it` (über Cortecs, vermittelt nach Scaleway/Paris) gegen
+ * `gemma4-31b` (Regolo), gemessen am 01.08. an den echten Prompts der
+ * Zwischenstufen und am 14.08. am echten Prüf-Prompt: gleiche Inhaltstreue,
+ * rund doppelte Geschwindigkeit. Siehe den Doc-Block bei `heavy` und
+ * `pruefung` in intermediateLanes.ts.
+ *
+ * Der Schlüssel trägt den LANE-Namen, nicht den Verarbeitungsort: seit dem
+ * Umzug auf Cortecs am 21.08.2026 lautet er `cortecs/…`. Ein hier stehen
+ * gebliebener `scaleway/…`-Schlüssel würde nie mehr getroffen — `pickHealthyTarget`
+ * schlägt `${provider}/${model}` nach, und der Provider heisst jetzt anders.
  */
 const MODEL_SIBLINGS: Readonly<Record<string, ModelTarget>> = {
-  'regolo/gemma4-31b': { provider: 'scaleway', model: 'gemma-4-26b-a4b-it' },
-  'scaleway/gemma-4-26b-a4b-it': { provider: 'regolo', model: 'gemma4-31b' },
+  // Das dichte 31B auf seinen beiden Hosts — dieselben GEWICHTE, nicht nur
+  // dieselbe Familie. Gemessen 21.08.2026 am Prüf-Prompt: Inhaltstreue in 22
+  // Läufen nicht unterscheidbar, Cortecs 210,7 gegen 81,3 tok/s bei 1122 gegen
+  // 129 ms TTFT.
+  'regolo/gemma4-31b': { provider: 'cortecs', model: 'gemma-4-31b-it' },
+  'cortecs/gemma-4-31b-it': { provider: 'regolo', model: 'gemma4-31b' },
+  // `cortecs/gemma-4-26b-a4b-it` stand hier bis zum 21.08.2026 und ist WEG,
+  // nicht vergessen: die Modell-ID ist über Cortecs unbedienbar geworden (der
+  // einzige brauchbare Unterauftragnehmer verschwand aus dem Katalog, der
+  // zweite ist quantisiert). Ein Geschwister, das auf ein totes Ziel zeigt, ist
+  // schlimmer als keins — `pickHealthyTarget` weicht dann von einem trägen
+  // Primär auf einen 404 aus.
 };
 
 /** Dieselbe Reihenfolge wie `tryFallbackProviders` in providerFallback.ts. */
