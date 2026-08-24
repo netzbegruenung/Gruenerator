@@ -11,7 +11,10 @@ Gezählt wird, wie viele davon **wortgetreu** im extrahierten Text stehen.
 
 ## Ist-Stand
 
-| Weg                                 | wo im Produkt                                             | Zeichen | Zellen wortgetreu |
+Die Spalte „wo im Produkt" nennt den Stand **am Messtag** — #2828 hat die letzten
+beiden Zeilen seither getauscht (siehe „Was daraus folgt").
+
+| Weg                                 | wo im Produkt (24.08.2026)                                | Zeichen | Zellen wortgetreu |
 | ----------------------------------- | --------------------------------------------------------- | ------: | ----------------: |
 | PDF.js direkt                       | Indizierung → **Qdrant-Chunks** → alles, was zitiert wird |  18 601 |       **10 / 16** |
 | Mistral OCR, `tableFormat: 'html'`  | Chat-Anhang → Zusammenfassung                             |  16 219 |        **3 / 16** |
@@ -118,3 +121,6 @@ pnpm --filter @gruenerator/api exec tsx evals/extraction/compareExtractors.ts /p
 
 Die Zeichenzahlen 18 601 und 16 219 stimmen mit dem überein, was das Backend im
 Betrieb protokolliert — der Nachbau ist also der echte Pfad, keine Annäherung.
+`extractWithPdfJs.ts` baut dafür nur die Zusammensetzung nach und importiert den
+Formatierungsschritt (`applyMarkdownFormatting`) aus dem Produktionsmodul; auf
+dieser Fixture ändert er nichts, siehe die Begründung im Kopf der Datei.

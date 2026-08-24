@@ -67,7 +67,7 @@ async function main(): Promise<void> {
   console.log(`PDF: ${path}`);
 
   bericht(
-    'PDF.js direkt — was heute in Qdrant landet',
+    'PDF.js direkt — Dokument-Upload ausserhalb des Chats',
     await extractWithPdfJs(new Uint8Array(bytes))
   );
 
@@ -77,10 +77,10 @@ async function main(): Promise<void> {
   }
 
   bericht(
-    "Mistral OCR mit tableFormat:'html' — heutiger Anhang-Pfad",
+    "Mistral OCR mit tableFormat:'html' — Anhang-Pfad VOR #2828",
     await mistralOcr(bytes, 'html')
   );
-  bericht('Mistral OCR OHNE tableFormat — Tabellen inline', await mistralOcr(bytes));
+  bericht('Mistral OCR OHNE tableFormat — Anhang-Pfad seit #2828', await mistralOcr(bytes));
 }
 
 await main();
