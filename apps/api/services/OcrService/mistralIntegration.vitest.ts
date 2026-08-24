@@ -3,7 +3,7 @@
  *
  * Verifies:
  * - Correct document type selection (image vs document URL)
- * - SDK-typed request construction (camelCase, tableFormat)
+ * - SDK-typed request construction (camelCase)
  * - Response parsing with OCR 4 typed fields (usageInfo.pagesProcessed)
  * - Error handling
  *
@@ -26,7 +26,7 @@ vi.mock('fs', () => ({
   },
 }));
 
-import { extractTextWithMistralOCR } from './mistralIntegration.js';
+import { extractBase64WithMistralOCR, extractTextWithMistralOCR } from './mistralIntegration.js';
 
 const getMediaType = (ext: string) => {
   const map: Record<string, string> = {
@@ -63,8 +63,29 @@ describe('extractTextWithMistralOCR', () => {
     expect(req.model).toBe('mistral-ocr-4-0');
     expect(req.document.type).toBe('document_url');
     expect(req.document.documentUrl).toMatch(/^data:application\/pdf;base64,/);
-    expect(req.tableFormat).toBe('html');
     expect(req.includeImageBase64).toBe(false);
+  });
+
+  /**
+   * Wächter gegen einen stillen Datenverlust, nicht gegen einen Tippfehler.
+   *
+   * Mit `tableFormat` legt Mistral die Tabelle in `page.tables[]` und lässt im
+   * Markdown nur einen Verweis (`[tbl-0.html](tbl-0.html)`) zurück — und
+   * `page.markdown` ist alles, was unten gelesen wird. Gemessen am 24.08.2026
+   * an einer Seite mit der Löschfristen-Tabelle: mit der Option 202 Zeichen
+   * ohne eine einzige Zelle, ohne sie 632 Zeichen samt vollständiger Tabelle.
+   *
+   * Die Option kam am 01.03.2026 in bester Absicht herein („for OCR 3's
+   * improved table extraction") und fiel niemandem auf: die Zeichenzahl sinkt
+   * bloss, das Dokument sieht weiterhin extrahiert aus. Wer sie wiederhaben
+   * will, liest zuerst `page.tables` ein.
+   */
+  it('fordert kein tableFormat an — sonst fehlt die Tabelle im Markdown', async () => {
+    mockProcess.mockResolvedValue(makeOcrResponse());
+
+    await extractTextWithMistralOCR('/tmp/test.pdf', getMediaType);
+
+    expect(mockProcess.mock.calls[0][0]).not.toHaveProperty('tableFormat');
   });
 
   it('sends image_url for image files', async () => {
@@ -186,5 +207,64 @@ describe('extractTextWithMistralOCR', () => {
     await expect(extractTextWithMistralOCR('/tmp/test.pdf', getMediaType)).rejects.toThrow(
       'Mistral OCR extraction failed: API rate limit exceeded'
     );
+  });
+});
+
+/**
+ * Der Einstieg, an dem der Fehler aus #2818 tatsächlich hing: Chat-Anhänge
+ * kommen als base64 und nehmen nie den Weg über die Platte. Die Datei hatte für
+ * diese Funktion bis dahin keine einzige Zusicherung — der Wächter gegen
+ * `tableFormat` wäre also ausgerechnet für den gemeldeten Pfad blind gewesen.
+ */
+describe('extractBase64WithMistralOCR', () => {
+  const base64 = Buffer.from('fake-file-content').toString('base64');
+
+  it('fordert kein tableFormat an — sonst fehlt die Tabelle im Markdown', async () => {
+    mockProcess.mockResolvedValue(makeOcrResponse());
+
+    await extractBase64WithMistralOCR(base64, 'datenschutz.pdf', 'application/pdf');
+
+    expect(mockProcess.mock.calls[0][0]).not.toHaveProperty('tableFormat');
+  });
+
+  it('sends document_url for PDF attachments', async () => {
+    mockProcess.mockResolvedValue(makeOcrResponse());
+
+    await extractBase64WithMistralOCR(base64, 'datenschutz.pdf', 'application/pdf');
+
+    const req = mockProcess.mock.calls[0][0];
+    expect(req.model).toBe('mistral-ocr-4-0');
+    expect(req.document.type).toBe('document_url');
+    expect(req.document.documentUrl).toBe(`data:application/pdf;base64,${base64}`);
+    expect(req.includeImageBase64).toBe(false);
+  });
+
+  it('sends image_url for image attachments', async () => {
+    mockProcess.mockResolvedValue(makeOcrResponse());
+
+    await extractBase64WithMistralOCR(base64, 'foto.png', 'image/png');
+
+    const req = mockProcess.mock.calls[0][0];
+    expect(req.document.type).toBe('image_url');
+    expect(req.document.imageUrl).toMatch(/^data:image\/png;base64,/);
+  });
+
+  it('returns the joined pages as ExtractionResult', async () => {
+    mockProcess.mockResolvedValue(makeOcrResponse());
+
+    const result = await extractBase64WithMistralOCR(base64, 'datenschutz.pdf', 'application/pdf');
+
+    expect(result.text).toContain('# Page 1');
+    expect(result.text).toContain('## Page 2');
+    expect(result.method).toBe('mistral-ocr');
+    expect(result.pageCount).toBe(2);
+  });
+
+  it('wraps API errors with context', async () => {
+    mockProcess.mockRejectedValue(new Error('API rate limit exceeded'));
+
+    await expect(
+      extractBase64WithMistralOCR(base64, 'datenschutz.pdf', 'application/pdf')
+    ).rejects.toThrow('Mistral OCR extraction failed: API rate limit exceeded');
   });
 });

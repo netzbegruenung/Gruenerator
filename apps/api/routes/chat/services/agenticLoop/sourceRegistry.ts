@@ -166,7 +166,25 @@ export interface SourceRegistry {
   readonly size: number;
 }
 
+/**
+ * Was zwei Treffer zu DERSELBEN Quelle macht.
+ *
+ * Für gruppierte Dokumenttreffer ist das die Dokument-ID, und nur sie. Der
+ * Inhaltsanfang darf hier nicht hinein: eine Suche liefert je Dokument EINEN
+ * Treffer aus den besten Chunks dieser Anfrage (`groupAndRankHybridResults`),
+ * und die wechseln von Turn zu Turn. Live am 24.08.2026 belegte eine einzige
+ * angehängte PDF darum zwei Quellenplätze — einmal mitgeführt, einmal frisch —
+ * und bekam zwei Zitatnummern für eine Datei.
+ *
+ * Der `chunkIndex` bleibt aus demselben Grund draussen, obwohl er danebensteht:
+ * er benennt den besten Chunk DIESER Anfrage, nicht das Dokument.
+ *
+ * Ohne Dokument-ID bleibt es beim Inhaltsanfang. Er steht dort nicht aus
+ * Bequemlichkeit, sondern weil Treffer ganz ohne `url` sonst alle auf `'::'`
+ * kollabieren würden.
+ */
 function resultKey(r: SearchResult): string {
+  if (r.documentId) return `doc::${r.collectionId ?? ''}::${r.documentId}`;
   return `${r.url ?? ''}::${r.title ?? ''}::${(r.content ?? '').slice(0, 80)}`;
 }
 
@@ -270,6 +288,12 @@ export function createSourceRegistry(): SourceRegistry {
       // A tool with longer prose may re-find a source registered under the
       // default cap — widen rather than show it truncated.
       if (entry && cap > entry.cap) entry.cap = cap;
+      // Ein mitgeführter Dokumenttreffer trägt die besten Chunks der FRÜHEREN
+      // Anfrage. Wird dasselbe Dokument diesen Turn neu abgerufen, ist der neue
+      // Inhalt der zur aktuellen Frage passende — sonst behielte der Eintrag
+      // Passagen, die niemand mehr gesucht hat. Nur diese Richtung: frisch
+      // ersetzt mitgeführt, nie umgekehrt.
+      if (entry && entry.prior && !prior) entry.result = r;
       // Re-found by a search THIS turn: it is no longer only prior research,
       // so it drops the marker and starts counting toward `freshSize`.
       if (entry && !prior) entry.prior = false;

@@ -57,7 +57,9 @@ Der/die Nutzer*in hat Dokumente ausgewählt und dazu eine Nachricht geschrieben.
 - Lass Aufgabenanweisungen weg ("fasse zusammen", "schreib mir daraus", "erkläre mir").
 - Behalte Eigennamen, Zahlen und Fachbegriffe unverändert. Korrigiere sie NICHT.
 - Nennt die Nachricht mehrere klar verschiedene Themen, gib sie einzeln als Unterfragen an.
-- Ist die Nachricht so allgemein, dass es kein Thema gibt ("fass das zusammen"), gib den Kern der Nachricht als Anfrage zurück.
+- Nennt die Nachricht selbst ein Thema, gilt dieses — auch wenn daneben ein Rückverweis-Wort steht. "Zeig mir die Kontaktdaten" heisst Kontaktdaten, gleich worum es vorher ging.
+- Nennt sie KEIN eigenes Thema und zeigt mit "das", "dies", "davon", "dazu" oder "darin" auf den GESPRÄCHSVERLAUF zurück, setze dessen Thema als Anfrage ein — nicht das Dokument als Ganzes. Nach einem Turn über Löschfristen heisst "kannst du das wörtlich zitieren?" also: Löschfristen.
+- Ist die Nachricht so allgemein, dass es kein Thema gibt ("fass das zusammen"), und gibt auch der Verlauf keines her, gib den Kern der Nachricht als Anfrage zurück.
 
 Antworte NUR mit JSON:
 {"query": "…", "subQueries": ["…", "…"] | null}`;

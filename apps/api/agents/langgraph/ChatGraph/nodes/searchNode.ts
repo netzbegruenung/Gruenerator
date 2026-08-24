@@ -890,6 +890,11 @@ export async function executeMultiDocFanout(
           content: r.relevant_content || '',
           url: r.source_url || undefined,
           relevance: r.similarity_score ?? 0.5,
+          // Der stabile Schlüssel, unter dem die Quellenregistrierung denselben
+          // Anhang über Turns hinweg wiedererkennt. Fehlte er, unterschied sie
+          // mitgeführten und frischen Treffer nur am Inhaltsanfang — und der
+          // wechselt mit jeder Anfrage.
+          documentId: r.document_id || src.id,
           documentSourceId: src.id,
         }));
         return [src.id, results];
