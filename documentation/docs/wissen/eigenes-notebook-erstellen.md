@@ -78,7 +78,7 @@ Im zweiten Schritt („Details — Wie soll dein Notebook heißen?") passt du de
 
 Im dritten Schritt („Überprüfen — Alles bereit zum Erstellen?") siehst du eine Zusammenfassung: Name, Beschreibung, die Anzahl der Dokumente (eigene, aus der Wolke, aus Docs) und deine Labels.
 
-Klicke unten rechts auf **„Notebook erstellen"**. Der Button bleibt deaktiviert, solange noch kein Name eingetragen oder kein Dokument hochgeladen ist. Nach dem Speichern landest du wieder in der Notebook-Übersicht und siehst eine Erfolgsmeldung.
+Klicke unten rechts auf **„Notebook erstellen"**. Der Button bleibt deaktiviert, solange noch kein Name eingetragen oder kein Dokument hochgeladen ist. Nach dem Speichern siehst du eine Erfolgsmeldung und landest direkt im **Bearbeiten**-Bereich deines neuen Notebooks — dort kannst du sofort weitere Dokumente ergänzen oder das Teilen einstellen.
 
 :::note[Veröffentlichen kommt später]
 Beim Erstellen ist dein Notebook **privat**. Ob und für wen es sichtbar wird, legst du danach im **„Teilen"**-Menü fest — siehe unten.
