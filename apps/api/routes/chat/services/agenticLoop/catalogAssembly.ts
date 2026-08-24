@@ -472,6 +472,23 @@ export async function rehydrateCarriedSources(params: {
  * Gibt die Replay-Nachrichten zurück; der Aufrufer hängt sie an
  * `toolReplayMessages`. Fehler brechen den Turn nie ab.
  */
+/**
+ * Was der Vorab-Abruf hinterlässt — zwei getrennte Aussagen, die nicht dasselbe
+ * sind: `replay` ist das synthetische Werkzeug-Paar für den PLANER (leer, wenn
+ * das Werkzeug diesen Turn nicht montiert ist), `delivered` sagt, ob überhaupt
+ * Passagen in die Quellenregistry gegangen sind.
+ *
+ * Getrennt, weil `shouldForceFirstToolCall` die zweite Frage stellt und die
+ * erste sie falsch beantwortet: ein nicht montiertes Werkzeug liefert einen
+ * leeren Replay, obwohl der Schreiber seine Quellen längst hat.
+ */
+export interface SeededAttachedDocuments {
+  replay: ModelMessage[];
+  delivered: boolean;
+}
+
+const NOTHING_SEEDED: SeededAttachedDocuments = { replay: [], delivered: false };
+
 export async function seedAttachedDocuments(params: {
   state: ChatGraphState;
   sourceRegistry: SourceRegistry;
@@ -482,58 +499,61 @@ export async function seedAttachedDocuments(params: {
   isMounted: boolean;
   onInfo: (message: string) => void;
   onError: (message: string) => void;
-}): Promise<ModelMessage[]> {
+}): Promise<SeededAttachedDocuments> {
   try {
     const sources = retrievableAttachedSources(params.state);
-    if (sources.length === 0) return [];
+    if (sources.length === 0) return NOTHING_SEEDED;
 
     const query = attachedDocsQuery(params.state);
-    if (!query) return [];
+    if (!query) return NOTHING_SEEDED;
 
     const results = await retrieveAttachedDocuments(params.state, query, { sources });
     if (results.length === 0) {
       params.onInfo(
         `[Agentic] Vorab-Abruf über ${sources.length} angehängte(s) Dokument(e) ohne Treffer`
       );
-      return [];
+      return NOTHING_SEEDED;
     }
 
     const block = params.sourceRegistry.seedAttached(results, ATTACHED_DOC_SNIPPET_CHARS);
     params.onInfo(
       `[Agentic] ${results.length} Passage(n) aus ${sources.length} angehängten Dokument(en) vorab abgerufen`
     );
-    if (!params.isMounted) return [];
+    if (!params.isMounted) return { replay: [], delivered: true };
 
     const toolCallId = `seed-attached-${params.state.agentConfig.userId ?? 'anon'}`;
-    return [
-      {
-        role: 'assistant',
-        content: [
-          {
-            type: 'tool-call' as const,
-            toolCallId,
-            toolName: params.toolName,
-            input: { query },
-          },
-        ],
-      },
-      {
-        role: 'tool',
-        content: [
-          {
-            type: 'tool-result' as const,
-            toolCallId,
-            toolName: params.toolName,
-            output: { type: 'text' as const, value: block },
-          },
-        ],
-      },
-    ];
+    return {
+      delivered: true,
+      replay: [
+        {
+          role: 'assistant',
+          content: [
+            {
+              type: 'tool-call' as const,
+              toolCallId,
+              toolName: params.toolName,
+              input: { query },
+            },
+          ],
+        },
+        {
+          role: 'tool',
+          content: [
+            {
+              type: 'tool-result' as const,
+              toolCallId,
+              toolName: params.toolName,
+              output: { type: 'text' as const, value: block },
+            },
+          ],
+        },
+      ],
+    };
   } catch (err) {
     params.onError(
       `[Agentic] Vorab-Abruf der Anhänge übersprungen: ${err instanceof Error ? err.message : err}`
     );
-    return [];
+    return NOTHING_SEEDED;
   }
 }
 

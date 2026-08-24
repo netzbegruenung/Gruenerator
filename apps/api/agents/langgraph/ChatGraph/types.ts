@@ -436,6 +436,10 @@ export interface ThreadAttachment {
    *  retrieve it via RAG instead of re-injecting truncated full text. */
   documentId: string | null;
   summary: string | null;
+  /** Ob die Originalbytes des Anhangs gespeichert sind (`file_data`). Für PDFs
+   *  ist das gleichbedeutend mit „beim Upload als ausfüllbares Formular
+   *  erkannt" — siehe die DB-seitige ThreadAttachment. */
+  hasFileData: boolean;
   createdAt: Date;
 }
 
