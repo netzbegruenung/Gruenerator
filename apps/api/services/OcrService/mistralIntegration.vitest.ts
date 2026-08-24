@@ -3,7 +3,7 @@
  *
  * Verifies:
  * - Correct document type selection (image vs document URL)
- * - SDK-typed request construction (camelCase, tableFormat)
+ * - SDK-typed request construction (camelCase)
  * - Response parsing with OCR 4 typed fields (usageInfo.pagesProcessed)
  * - Error handling
  *
@@ -63,8 +63,29 @@ describe('extractTextWithMistralOCR', () => {
     expect(req.model).toBe('mistral-ocr-4-0');
     expect(req.document.type).toBe('document_url');
     expect(req.document.documentUrl).toMatch(/^data:application\/pdf;base64,/);
-    expect(req.tableFormat).toBe('html');
     expect(req.includeImageBase64).toBe(false);
+  });
+
+  /**
+   * Wächter gegen einen stillen Datenverlust, nicht gegen einen Tippfehler.
+   *
+   * Mit `tableFormat` legt Mistral die Tabelle in `page.tables[]` und lässt im
+   * Markdown nur einen Verweis (`[tbl-0.html](tbl-0.html)`) zurück — und
+   * `page.markdown` ist alles, was unten gelesen wird. Gemessen am 24.08.2026
+   * an einer Seite mit der Löschfristen-Tabelle: mit der Option 202 Zeichen
+   * ohne eine einzige Zelle, ohne sie 632 Zeichen samt vollständiger Tabelle.
+   *
+   * Die Option kam am 01.03.2026 in bester Absicht herein („for OCR 3's
+   * improved table extraction") und fiel niemandem auf: die Zeichenzahl sinkt
+   * bloss, das Dokument sieht weiterhin extrahiert aus. Wer sie wiederhaben
+   * will, liest zuerst `page.tables` ein.
+   */
+  it('fordert kein tableFormat an — sonst fehlt die Tabelle im Markdown', async () => {
+    mockProcess.mockResolvedValue(makeOcrResponse());
+
+    await extractTextWithMistralOCR('/tmp/test.pdf', getMediaType);
+
+    expect(mockProcess.mock.calls[0][0]).not.toHaveProperty('tableFormat');
   });
 
   it('sends image_url for image files', async () => {
