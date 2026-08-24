@@ -436,10 +436,19 @@ describe('toolCatalog expand_attachment (M4)', () => {
   });
 
   it('queries the vector store scoped to the attachment for a large (vectorized) attachment', async () => {
+    // Eine Antwort, ein Dokument: `search()` gruppiert die Chunks vor der
+    // Rückgabe nach `document_id` (`groupAndRankHybridResults`), und gefiltert
+    // wird hier auf genau eine Datei. Die frühere Fassung dieses Tests liess
+    // zwei Treffer für dieselbe Datei kommen — einen Zustand, den die Suche
+    // nicht erzeugt.
     documentSearch.mockResolvedValue({
       results: [
-        { title: 'Groß.pdf', relevant_content: 'Mehr Inhalt', similarity_score: 0.7 },
-        { title: 'Groß.pdf', relevant_content: 'Noch mehr Inhalt', similarity_score: 0.6 },
+        {
+          document_id: 'doc-123',
+          title: 'Groß.pdf',
+          relevant_content: 'Mehr Inhalt',
+          similarity_score: 0.7,
+        },
       ],
     });
     const { execute, sourceRegistry } = catalogWithAttachments([
@@ -451,8 +460,46 @@ describe('toolCatalog expand_attachment (M4)', () => {
     expect(documentSearch).toHaveBeenCalledTimes(1);
     const call = documentSearch.mock.calls[0]?.[0] as { filters?: { documentIds?: string[] } };
     expect(call.filters?.documentIds).toEqual(['doc-123']);
-    expect(out.resultCount).toBe(2);
-    expect(sourceRegistry.size).toBe(2);
+    expect(out.resultCount).toBe(1);
+    expect(sourceRegistry.size).toBe(1);
+  });
+
+  /**
+   * Der Befund aus dem Review zu PR #2827: Nachladen ist ein zweiter Weg zu
+   * derselben Datei. Ohne `documentId` an den hier gebauten Treffern fällt er
+   * auf den Inhalts-Schlüssel zurück, findet den mitgeführten Eintrag nicht und
+   * legt einen zweiten Quellenplatz an — also genau die Verdopplung aus #2817,
+   * nur über den Werkzeugpfad statt über den Fan-out.
+   */
+  it('lädt in den mitgeführten Eintrag derselben Datei nach, statt einen zweiten anzulegen', async () => {
+    documentSearch.mockResolvedValue({
+      results: [
+        {
+          document_id: 'doc-123',
+          title: 'Groß.pdf',
+          relevant_content: 'Frisch nachgeladener Abschnitt',
+          similarity_score: 0.7,
+        },
+      ],
+    });
+    const { execute, sourceRegistry } = catalogWithAttachments([
+      { id: 'a2', name: 'Groß.pdf', extractedText: null, documentId: 'doc-123' },
+    ]);
+    // Was der Vorturn hinterlassen hat: dieselbe Datei, anderer Inhaltsanfang.
+    sourceRegistry.seedCarried([
+      {
+        source: 'documentchat:doc-123',
+        title: 'Groß.pdf',
+        content: 'Abschnitt aus dem Vorturn',
+        relevance: 0.6,
+        documentId: 'doc-123',
+      },
+    ]);
+    expect(sourceRegistry.size).toBe(1);
+
+    await execute({ attachmentName: 'Groß.pdf' }, { toolCallId: 'c1' });
+
+    expect(sourceRegistry.size).toBe(1);
   });
 
   it('errors when a matched attachment has neither vectorized id nor extracted text', async () => {
