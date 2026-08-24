@@ -10,6 +10,7 @@ import {
   TextInput,
   StyleSheet,
   ActivityIndicator,
+  useColorScheme,
 } from 'react-native';
 
 import {
@@ -44,8 +45,16 @@ export function DocumentBrowserSheet({
   onSelect,
   onDismiss,
 }: DocumentBrowserSheetProps) {
-  const { collections, documents, texts, loadingCollections, loadingContent, searchInCollection } =
-    useFileMentionData(visible);
+  const {
+    collections,
+    documents,
+    texts,
+    loadingCollections,
+    loadingContent,
+    collectionsFailed,
+    contentFailed,
+    searchInCollection,
+  } = useFileMentionData(visible);
 
   const queryClient = useQueryClient();
   const refetchContent = useCallback(() => {
@@ -191,6 +200,7 @@ export function DocumentBrowserSheet({
           collections={collections}
           documents={documents}
           texts={texts}
+          failed={collectionsFailed || contentFailed}
           theme={theme}
           onSelectCollection={(c) => setLevel({ type: 'collection', id: c.id, name: c.name })}
           onSelectDoc={handleDocSelect}
@@ -234,6 +244,7 @@ function RootLevel({
   collections,
   documents,
   texts,
+  failed,
   theme,
   onSelectCollection,
   onSelectDoc,
@@ -242,20 +253,34 @@ function RootLevel({
   collections: NotebookCollectionItem[];
   documents: { id: string; title: string; sourceType?: string }[];
   texts: { id: string; title: string }[];
+  /** A request failed. Without this an outage renders as "you have no files". */
+  failed: boolean;
   theme: Theme;
   onSelectCollection: (c: NotebookCollectionItem) => void;
   onSelectDoc: (doc: { id: string; title: string; sourceType?: string }) => void;
   onUpload: () => void;
 }) {
+  const isDark = useColorScheme() === 'dark';
+  // Same contrast-aware pair as MessageErrorBanner — error[500] fails AA on
+  // either ground.
+  const errorTint = isDark ? colors.error[400] : colors.error[700];
   const isEmpty = collections.length === 0 && documents.length === 0 && texts.length === 0;
 
   if (isEmpty) {
     return (
       <View style={styles.emptyState}>
-        <Ionicons name="document-text-outline" size={48} color={theme.textSecondary} />
-        <Text style={[styles.emptyTitle, { color: theme.text }]}>Keine Dokumente vorhanden</Text>
+        <Ionicons
+          name={failed ? 'alert-circle-outline' : 'document-text-outline'}
+          size={48}
+          color={failed ? errorTint : theme.textSecondary}
+        />
+        <Text style={[styles.emptyTitle, { color: failed ? errorTint : theme.text }]}>
+          {failed ? 'Dokumente konnten nicht geladen werden.' : 'Keine Dokumente vorhanden'}
+        </Text>
         <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
-          Lade ein Dokument hoch, um es im Chat zu referenzieren
+          {failed
+            ? 'Bitte versuche es später erneut.'
+            : 'Lade ein Dokument hoch, um es im Chat zu referenzieren'}
         </Text>
         <Pressable
           onPress={onUpload}

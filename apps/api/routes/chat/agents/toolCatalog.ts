@@ -566,6 +566,7 @@ NUTZE WENN:
         // Vectorized (large) doc: pull a much bigger sample than the fan-out's
         // per-source share via a fresh, uncapped-relative-to-fanout query.
         if (attachment.documentId) {
+          const attachmentDocumentId = attachment.documentId;
           const documentSearchService = (
             await import('../../../services/document-services/DocumentSearchService/index.js')
           ).getQdrantDocumentService();
@@ -574,7 +575,7 @@ NUTZE WENN:
             query,
             userId: agentConfig.userId,
             options: { limit: EXPAND_ATTACHMENT_CHUNK_LIMIT, mode: 'hybrid', threshold: 0.15 },
-            filters: { documentIds: [attachment.documentId] },
+            filters: { documentIds: [attachmentDocumentId] },
           });
           const results: SearchResult[] = (response.results || []).map((r) => ({
             source: `attachment:${attachment.id}`,
@@ -582,6 +583,12 @@ NUTZE WENN:
             content: r.relevant_content || '',
             ...(r.source_url ? { url: r.source_url } : {}),
             relevance: r.similarity_score ?? 0.5,
+            // Derselbe Schlüssel wie im Fan-out (`searchNode.ts:889`). Ohne ihn
+            // fällt dieses Werkzeug auf den Inhalts-Schlüssel zurück und legt
+            // für die schon mitgeführte Datei einen ZWEITEN Quellenplatz an —
+            // also genau die Verdopplung, gegen die der Schlüssel gebaut ist,
+            // nur über den Nachlade-Pfad.
+            documentId: r.document_id || attachmentDocumentId,
           }));
           if (results.length === 0) {
             return { error: `Konnte keine weiteren Inhalte aus "${attachmentName}" laden.` };

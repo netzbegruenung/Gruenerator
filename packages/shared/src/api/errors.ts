@@ -20,6 +20,12 @@ export class UnauthorizedError extends Error {
  * Duck-typed 401 check. NOT a bare `instanceof`: the shared package ships under
  * dual `src`/`dist` export conditions, so two module instances can coexist and
  * `instanceof` would miss the other realm's class. Match on name/status instead.
+ *
+ * The `status` arm also covers a raw `AxiosError` — axios copies the response
+ * status onto the error in its constructor — which is how mobile's mentionable
+ * sync distinguishes an anonymous 401 from a wrong path. That is an axios
+ * internal, so `errors.vitest.ts` pins it against a real client rather than
+ * trusting it to survive the next bump.
  */
 export function isUnauthorizedError(err: unknown): boolean {
   if (err instanceof UnauthorizedError) return true;
