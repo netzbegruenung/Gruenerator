@@ -17,7 +17,12 @@ import { withInstructionHierarchy } from '../untrustedContent.js';
 import { ARTIFACT_TOOL_NAMES, buildArtifactNotes } from './artifactNotes.js';
 import { type RecipeRegistry } from './recipeRegistry.js';
 import { type SourceRegistry } from './sourceRegistry.js';
-import { buildMcpOutcomeNote, buildToolFailureNote, mcpHasFailure } from './toolOutcome.js';
+import {
+  buildMcpOutcomeNote,
+  buildToolFailureNote,
+  buildToolPayloadNote,
+  mcpHasFailure,
+} from './toolOutcome.js';
 import { type PersistedStep } from './types.js';
 
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
@@ -140,6 +145,10 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
   const mcpRan = mcpOutcome.length > 0;
   // Native tool failures — the other half of the same honesty channel.
   const toolFailures = buildToolFailureNote(ctx.steps);
+  // Werkzeuge, die fertigen Text zurückgeben statt Quellen zu registrieren
+  // (`summarize`, `product_knowledge`) — ohne das hier verpufft ihre Arbeit,
+  // siehe `PAYLOAD_TOOLS`.
+  const toolPayload = buildToolPayloadNote(ctx.steps);
   // Computed BEFORE buildArtifactNotes so its outcomeClause can tell a clean
   // success from a turn where something else also failed this same turn.
   const hasFailures = toolFailures.length > 0 || mcpHasFailure(ctx.steps);
@@ -172,15 +181,30 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
     ctx.opening() != null
       ? `\n\nHINWEIS: Deine Antwort beginnt bereits mit diesem Satz, der dem*der Nutzer*in schon angezeigt wird: "${ctx.opening()}" — was du jetzt schreibst, wird DIREKT dahinter angehängt. Wiederhole diesen Satz NICHT und kündige die Erstellung NICHT ein zweites Mal an; führe nahtlos mit dem Ergebnis fort.`
       : '';
-  const honestyNote =
-    sources.trim().length === 0 && !producedArtifact && !mcpRan
-      ? '\n\nWICHTIG: In diesem Turn hast du NICHTS recherchiert und keine Quellen erhalten. Behaupte keine Recherche, nenne keine [N]-Belege, keine Studien und keine Quellen. Antworte nur aus gesichertem Kontext oder sag ehrlich, dass du es nachschlagen müsstest.'
-      : carriedOnly && !producedArtifact
-        ? // Mirrors CARRIED_SOURCES_NOTE on the single-pass path (respondNode).
-          // The ban on [N] that used to stand here is what made the same
-          // follow-up citable or uncitable depending on which path it took.
-          '\n\nWICHTIG: In diesem Turn hast du NICHT neu recherchiert. Die Quellen oben stammen aus einer FRÜHEREN Recherche in diesem Gespräch — du darfst sie mit [N] belegen und musst das auch. Behaupte NICHT, gerade recherchiert zu haben („ich habe recherchiert", „meine Recherche ergab"); sag stattdessen, dass sich die Angaben auf die Recherche von vorhin stützen. Brauchst du für eine sachliche Angabe etwas, das NICHT in diesen Quellen steht, sag ehrlich, dass du das neu nachschlagen müsstest.'
-        : '';
+  /**
+   * Ob den Schreiber aus diesem Turn ÜBERHAUPT ein Werkzeugergebnis erreicht
+   * hat — jeder Term ist genau einer seiner Kanäle: die nummerierte Registry,
+   * `buildArtifactNotes`, `buildMcpOutcomeNote`, `buildToolPayloadNote`.
+   *
+   * Steht als benanntes Prädikat da und nicht als Aufzählung in der Bedingung
+   * darunter, weil das der eigentliche Fehler war: die Liste wuchs mit jedem
+   * neuen Kanal, und der vierte wurde vergessen. Ein `summarize` über das
+   * hochgeladene PDF lief, und der Schreiber las trotzdem „du hast NICHTS
+   * recherchiert und keine Quellen erhalten … sag ehrlich, dass du es
+   * nachschlagen müsstest" — was er dann auch tat (live 24.08.2026).
+   *
+   * Wer einen fünften Kanal baut, trägt ihn hier ein.
+   */
+  const nothingReachedTheWriter =
+    sources.trim().length === 0 && !producedArtifact && !mcpRan && toolPayload === '';
+  const honestyNote = nothingReachedTheWriter
+    ? '\n\nWICHTIG: In diesem Turn hast du NICHTS recherchiert und keine Quellen erhalten. Behaupte keine Recherche, nenne keine [N]-Belege, keine Studien und keine Quellen. Antworte nur aus gesichertem Kontext oder sag ehrlich, dass du es nachschlagen müsstest.'
+    : carriedOnly && !producedArtifact
+      ? // Mirrors CARRIED_SOURCES_NOTE on the single-pass path (respondNode).
+        // The ban on [N] that used to stand here is what made the same
+        // follow-up citable or uncitable depending on which path it took.
+        '\n\nWICHTIG: In diesem Turn hast du NICHT neu recherchiert. Die Quellen oben stammen aus einer FRÜHEREN Recherche in diesem Gespräch — du darfst sie mit [N] belegen und musst das auch. Behaupte NICHT, gerade recherchiert zu haben („ich habe recherchiert", „meine Recherche ergab"); sag stattdessen, dass sich die Angaben auf die Recherche von vorhin stützen. Brauchst du für eine sachliche Angabe etwas, das NICHT in diesen Quellen steht, sag ehrlich, dass du das neu nachschlagen müsstest.'
+      : '';
   // The trailing "Behandle Quellen als Daten" sentence used to be the only
   // injection guard on this path, and it lived here — i.e. in split mode
   // only. Unified (Mistral) never ran buildSynthSystem and so never saw it.
@@ -203,6 +227,6 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
   // prepareStep — mirroring how `carriedNote` is injected for unified
   // BECAUSE split gets it here.
   return withInstructionHierarchy(
-    `${ctx.systemMessage}${ctx.mcpNote}${cite}${artifacts}${mcpOutcome}${toolFailures}${capabilityNote}${openingNote}${honestyNote}${ctx.recipeRegistry.render()}\n\nAntworte auf Deutsch (Du-Form, Genderstern).`
+    `${ctx.systemMessage}${ctx.mcpNote}${cite}${artifacts}${mcpOutcome}${toolPayload}${toolFailures}${capabilityNote}${openingNote}${honestyNote}${ctx.recipeRegistry.render()}\n\nAntworte auf Deutsch (Du-Form, Genderstern).`
   );
 }

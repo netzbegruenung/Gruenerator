@@ -62,6 +62,17 @@ export interface LoopScenario {
    */
   systemIncludes?: string;
   /**
+   * Ein Textstück, das im Systemtext des SCHREIBERS stehen MUSS (split: der
+   * letzte Aufruf des Turns).
+   *
+   * Eigenes Feld statt `systemIncludes`, weil Planer und Schreiber getrennte
+   * Kontexte haben und genau dazwischen der Ausfall vom 24.08.2026 sass: der
+   * `summarize`-Digest ging an den Planer, der Schreiber sah ihn nie — und
+   * bekam obendrein die Zeile „du hast NICHTS recherchiert" zu lesen. Ein
+   * Prädikat, das nur den ersten Schritt anschaut, kann das nicht sehen.
+   */
+  synthSystemIncludes?: string;
+  /**
    * Exact number of times a branch was taken. The only honest assertion for
    * `search_concurrency`: which of several parallel calls loses the race is an
    * await-interleaving artefact, but HOW MANY are deferred is a property of the
@@ -365,5 +376,9 @@ export const LOOP_SCENARIOS: readonly LoopScenario[] = [
     streams: [{ calls: [{ tool: 'summarize', args: {} }] }, { text: GERMAN_ANSWER }],
     mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
     firstToolChoice: 'summarize',
+    // Die zweite Haelfte desselben Turns: `summarize` registriert keine Quellen,
+    // sein Digest erreicht den Schreiber also nur ueber diesen Block. Ohne ihn
+    // war die teure Map-Reduce ueber den Volltext umsonst.
+    synthSystemIncludes: 'ERGEBNISSE EIGENER WERKZEUGE IN DIESEM TURN',
   },
 ];
