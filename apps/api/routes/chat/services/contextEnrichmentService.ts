@@ -319,6 +319,7 @@ export async function enrichContext(opts: {
       for (const att of largeDocAttachments) {
         try {
           const buffer = Buffer.from(att.data, 'base64');
+          const attMeta = processedMeta.find((m) => m.name === att.name && !m.isImage);
           const result = await processFileUpload(
             pgService,
             qdrantService,
@@ -330,7 +331,11 @@ export async function enrichContext(opts: {
               size: buffer.length,
             },
             att.name,
-            'documentchat'
+            'documentchat',
+            // Der Text von oben, nicht noch einmal extrahiert. Sonst laufen zwei
+            // Ketten über dieselbe Datei und die Zitate stehen auf einer anderen
+            // Fassung als der, die das Modell als Anhang liest.
+            attMeta?.extractedText
           );
 
           initialState.documentChatIds.push(result.id);
@@ -348,8 +353,7 @@ export async function enrichContext(opts: {
           // 57.215-char .docx produced two "Stored 59 vectors" lines per turn,
           // eight document ids over four turns, and `documentChatIds` grew by
           // two per turn because `getThreadAttachments` handed every copy back.
-          const meta = processedMeta.find((m) => m.name === att.name && !m.isImage);
-          if (meta) meta.documentId = result.id;
+          if (attMeta) attMeta.documentId = result.id;
           sse.send('document_indexed', {
             documentId: result.id,
             title: result.title,
