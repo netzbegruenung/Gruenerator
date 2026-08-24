@@ -17,6 +17,16 @@ import type {
 
 /**
  * Process a file upload (handles extraction and processing)
+ *
+ * `knownText` überspringt die Extraktion. Der Chat-Pfad hat den Text zu diesem
+ * Zeitpunkt bereits (`processAttachments` → `extractTextFromBase64`), und ohne
+ * diesen Parameter lief dieselbe Datei zweimal durch zwei VERSCHIEDENE Ketten:
+ * Mistral OCR für Anhang und Zusammenfassung, PDF.js für die Indizierung —
+ * denn `extractTextFromDocument` prüft die Direkt-Lesbarkeit vorweg und
+ * `extractTextFromBase64` tut das nicht. Zitiert wurde immer die PDF.js-Fassung,
+ * weil nur sie in Qdrant landet, und die plättet Tabellen in eine durchgehende
+ * Zeile (gemessen 24.08.2026: Zeilengrenzen der Löschfristen-Tabelle komplett
+ * verloren). Ein Text pro Datei — derselbe, den das Modell im Anhang liest.
  */
 export async function processFileUpload(
   postgresDocumentService: PostgresDocumentServiceLike,
@@ -24,11 +34,12 @@ export async function processFileUpload(
   userId: string,
   file: UploadedFile,
   title: string,
-  sourceType: string = 'manual'
+  sourceType: string = 'manual',
+  knownText?: string | null
 ): Promise<FileUploadResult> {
   console.log(`[DocumentProcessingService] Processing file upload: ${title}`);
 
-  const extractedText = await extractTextFromFile(file);
+  const extractedText = knownText?.trim() ? knownText : await extractTextFromFile(file);
 
   if (!extractedText || extractedText.trim().length === 0) {
     throw new Error('No text could be extracted from the document');

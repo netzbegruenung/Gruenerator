@@ -9,7 +9,7 @@ import {
   syncUserNotebooks,
   type MentionableFetch,
 } from '@gruenerator/chat';
-import { getGlobalApiClient } from '@gruenerator/shared/api';
+import { getGlobalApiClient, stripApiPrefix } from '@gruenerator/shared/api';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
@@ -31,12 +31,19 @@ import { useEffect, useMemo } from 'react';
 
 const STALE_TIME = 60_000;
 
-/** The sync layer's `get` contract, backed by mobile's shared axios client. */
+/**
+ * The sync layer's `get` contract, backed by mobile's shared axios client.
+ *
+ * The shared sync layer spells full `/api/...` paths — web's chat ApiClient has
+ * no base URL, so it must. Mobile's axios client already carries `/api` in its
+ * `baseURL` (`EXPO_PUBLIC_API_URL`), so the same path would concatenate to
+ * `/api/api/boards`. Stripping here keeps one spelling in the shared module.
+ */
 function useMentionableFetch(): MentionableFetch {
   return useMemo(
     () =>
       async <T>(path: string): Promise<T> => {
-        const res = await getGlobalApiClient().get<T>(path);
+        const res = await getGlobalApiClient().get<T>(stripApiPrefix(path));
         return res.data;
       },
     []

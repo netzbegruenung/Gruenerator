@@ -14,15 +14,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { FileMentionPopover } from './FileMentionPopover';
 
+const mentionData = {
+  collections: [] as unknown[],
+  documents: [] as unknown[],
+  texts: [] as unknown[],
+  loadingCollections: false,
+  loadingContent: false,
+  collectionsFailed: false,
+  contentFailed: false,
+};
+
 vi.mock('../../hooks/useFileMentionData', () => ({
-  useFileMentionData: () => ({
-    collections: [],
-    documents: [],
-    texts: [],
-    loadingCollections: false,
-    loadingContent: false,
-    searchInCollection: vi.fn(),
-  }),
+  useFileMentionData: () => ({ ...mentionData, searchInCollection: vi.fn() }),
 }));
 
 vi.mock('../../hooks/useMentionablesQuery', () => ({
@@ -33,10 +36,16 @@ const onSelect = vi.fn();
 const onDismiss = vi.fn();
 const onUploadFile = vi.fn();
 
+function renderPopover() {
+  return render(<FileMentionPopover visible onSelect={onSelect} onDismiss={onDismiss} />);
+}
+
 beforeEach(() => {
   onSelect.mockReset();
   onDismiss.mockReset();
   onUploadFile.mockReset();
+  mentionData.collectionsFailed = false;
+  mentionData.contentFailed = false;
 });
 
 describe('FileMentionPopover upload row', () => {
@@ -66,5 +75,34 @@ describe('FileMentionPopover upload row', () => {
 
     expect(await screen.findByPlaceholderText('Suchen...')).toBeInTheDocument();
     expect(screen.queryByText('Fotos & Dateien hochladen')).toBeNull();
+  });
+});
+
+describe('FileMentionPopover error states', () => {
+  it('names the failure instead of rendering an empty menu', async () => {
+    mentionData.collectionsFailed = true;
+    mentionData.contentFailed = true;
+    renderPopover();
+
+    expect(
+      await screen.findByText('Notizbücher konnten nicht geladen werden.')
+    ).toBeInTheDocument();
+    expect(screen.getByText('Dokumente konnten nicht geladen werden.')).toBeInTheDocument();
+  });
+
+  it('reports the shared query once — texts and documents come from the same call', async () => {
+    mentionData.contentFailed = true;
+    renderPopover();
+
+    expect(await screen.findAllByText('Dokumente konnten nicht geladen werden.')).toHaveLength(1);
+    expect(screen.queryByText('Notizbücher konnten nicht geladen werden.')).toBeNull();
+  });
+
+  it('says nothing about errors when both queries succeeded', async () => {
+    renderPopover();
+
+    expect(await screen.findByPlaceholderText('Suchen...')).toBeInTheDocument();
+    expect(screen.queryByText('Dokumente konnten nicht geladen werden.')).toBeNull();
+    expect(screen.queryByText('Notizbücher konnten nicht geladen werden.')).toBeNull();
   });
 });
