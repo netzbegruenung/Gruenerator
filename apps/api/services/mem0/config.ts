@@ -16,6 +16,8 @@ import { REGOLO_BASE_URL } from '../ai/providers.js';
 import { regoloFetchWithThinkingDisabled } from '../ai/regoloThinkingFetch.js';
 import { MistralEmbeddingService } from '../mistral/MistralEmbeddingService/MistralEmbeddingService.js';
 
+import { withRemovedSearchCompat } from './qdrantSearchCompat.js';
+
 import type { MemoryConfig } from 'mem0ai/oss';
 
 /**
@@ -158,6 +160,10 @@ class LiteLLMAdapter {
 /**
  * Create a configured Qdrant client for mem0.
  * Uses the existing connection logic which properly handles basic auth via headers.
+ *
+ * Der Client geht durch `withRemovedSearchCompat()`, weil mem0s Qdrant-Store
+ * noch `client.search()` ruft — seit `@qdrant/js-client-rest@1.19.0` entfernt.
+ * Siehe `qdrantSearchCompat.ts` für die vollständige Begründung.
  */
 function createMem0QdrantClient() {
   const url = env.QDRANT_URL || 'http://localhost:6333';
@@ -165,13 +171,15 @@ function createMem0QdrantClient() {
   const basicAuthUsername = env.QDRANT_BASIC_AUTH_USERNAME;
   const basicAuthPassword = env.QDRANT_BASIC_AUTH_PASSWORD;
 
-  return createQdrantClient({
-    url,
-    apiKey,
-    ...(basicAuthUsername ? { basicAuthUsername } : {}),
-    ...(basicAuthPassword ? { basicAuthPassword } : {}),
-    timeout: 60000,
-  });
+  return withRemovedSearchCompat(
+    createQdrantClient({
+      url,
+      apiKey,
+      ...(basicAuthUsername ? { basicAuthUsername } : {}),
+      ...(basicAuthPassword ? { basicAuthPassword } : {}),
+      timeout: 60000,
+    })
+  );
 }
 
 /**
