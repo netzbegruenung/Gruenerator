@@ -38,6 +38,9 @@ export function shouldForceFirstToolCall(input: {
   hasAttachedDocuments?: boolean;
   /** Die Nachricht bittet um eine Zusammenfassung (`isSummaryAsk`). */
   summaryAsk?: boolean;
+  /** Der Vorab-Abruf hat für DIESEN Turn Passagen aus den angehängten
+   *  Dokumenten in die Quellenregistry gelegt (`seedAttachedDocuments`). */
+  attachedSeedDelivered?: boolean;
 }): boolean {
   // Der Bann vetoed alles. `toolChoice: 'required'` ist kein Vorschlag, den das
   // Modell gegen den Satz des Nutzers abwägen kann — unter „ohne neue Recherche"
@@ -147,6 +150,38 @@ export function shouldForceFirstToolCall(input: {
   // Degradierung auf `web` — und dann steps=0 sources=0, Antwort samt einer
   // erfundenen Aussage über den Nutzer aus dem Modellgedächtnis. Ein Intent,
   // dessen ganzer Zweck das Abrufen ist, darf nicht nichts abrufen.
+  //
+  // …es sei denn, für diesen Turn ist bereits abgerufen worden. Der Vorab-Seed
+  // holt die Passagen der angehängten Dokumente, BEVOR der Planer seinen ersten
+  // Zug macht, und legt sie dem Schreiber als zitierbare Quellen hin. Damit ist
+  // die Bedingung dieses Zweigs erfüllt — es wird nicht nichts abgerufen — und
+  // der Zwang fordert nur noch einen Aufruf um des Aufrufs willen. Dasselbe
+  // Argument wie bei `materialHeavy` an den zwei Zweigen darüber; es ist bloss
+  // ein anderer Kanal, über den der Stoff hereinkommt (Quellenregistry statt
+  // Nachrichten), weshalb `materialHeavy` ihn nicht sieht.
+  //
+  // Zwei Live-Ausfälle, beide mit demselben Bau: Zwang + nichts Sinnvolles mehr
+  // zu rufen = der Planer greift daneben.
+  //  - 23.08.2026: `media` gerufen, ein FREMDES Dokument zusammengefasst. Damals
+  //    mit einem Pin behandelt (`pinnedFirstTool` → `summarize`) — der deckt
+  //    genau die Zusammenfassungsfrage ab.
+  //  - 24.08.2026, Thread 4517d0d9, „erstelle daraus eine tabelle": keine
+  //    Zusammenfassungsfrage, also kein Pin, also freie Wahl unter `required` —
+  //    `read_pdf_form` auf eine Datenschutzerklärung, ein Schritt und rund 4 s
+  //    von 13,6 s für „Es ist kein PDF-Formular angehängt".
+  //
+  // Der Zwang fällt weg, die Möglichkeit bleibt: `toolChoice` ist dann `auto`,
+  // der Planer DARF weiter nachfassen (`dokumente_lesen` mit einer anderen
+  // Frage, `summarize` für den Volltext), er muss es nur nicht mehr blind.
+  //
+  // Bewusst NUR an diesem Zweig. Die drei Zweige darüber, die auch noch feuern
+  // könnten, meinen etwas anderes als „hol den Stoff dieses Turns":
+  // `looksLikeExplicitResearchOrder` ist ein ausdrücklicher Auftrag („recherchiere
+  // dazu aktuelle Zahlen" ist mit Passagen aus dem Anhang NICHT erledigt),
+  // `classifierContradictedResearch` ist ein Widerspruch im Verdikt, und die
+  // beiden Material-Zweige prüfen ihre eigene Bedingung bereits selbst.
+  if (input.attachedSeedDelivered) return false;
+
   return NAMED_RETRIEVAL_INTENTS.has(input.intent ?? '');
 }
 
