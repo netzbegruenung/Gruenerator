@@ -19,6 +19,7 @@ import { getErrorMessage } from '../../utils/errors/handlers.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { buildMem0Config, isMem0Available, validateMem0Environment } from './config.js';
+import { recordMem0Failure, recordMem0Success } from './mem0Health.js';
 
 import type { Mem0Message, Mem0Memory, Mem0MemoryMetadata, Mem0HistoryRecord } from './types.js';
 
@@ -181,9 +182,16 @@ export class Mem0Service {
       } else {
         log.info(`[Mem0] Added ${addedMemories.length} memories for user ${userId}`);
       }
+      recordMem0Success('add');
       return addedMemories;
     } catch (error) {
-      log.warn(`[Mem0] Error adding memories for user ${userId}: ${getErrorMessage(error)}`);
+      // error, nicht warn: hier landet auch ein Totalausfall des Vektorspeichers
+      // (mem0s `addToVectorStore` holt ungeschuetzt Dedupe-Nachbarn, bevor die
+      // Extraktion laeuft). Der Turn laeuft trotzdem weiter — genau deshalb
+      // braucht es die laute Zeile UND den Zaehler, siehe mem0Health.ts.
+      const message = getErrorMessage(error);
+      recordMem0Failure('add', message);
+      log.error(`[Mem0] Error adding memories for user ${userId}: ${message}`);
       return [];
     }
   }
@@ -230,9 +238,15 @@ export class Mem0Service {
         `[Mem0] Found ${memories.length} relevant memories (${allMemories.length - memories.length} filtered below threshold) for user ${userId}`
       );
 
+      recordMem0Success('search');
       return memories;
     } catch (error) {
-      log.warn(`[Mem0] Error searching memories for user ${userId}: ${getErrorMessage(error)}`);
+      // error, nicht warn: ein leeres Ergebnis und ein toter Vektorspeicher
+      // sahen im Log identisch aus — genau daran blieb #2807 fuenf Tage lang
+      // unbemerkt.
+      const message = getErrorMessage(error);
+      recordMem0Failure('search', message);
+      log.error(`[Mem0] Error searching memories for user ${userId}: ${message}`);
       return [];
     }
   }
