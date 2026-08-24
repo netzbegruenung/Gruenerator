@@ -241,13 +241,18 @@ const config: Config = {
       },
       items: [
         // The main areas mirror the app; docSidebar items highlight the
-        // active area and swap the sidebar to it.
-        ...SECTIONS.filter((s) => s.navbar === 'direct').map((s) => ({
-          type: 'docSidebar' as const,
-          sidebarId: s.sidebarId,
-          label: s.label,
-          position: 'left' as const,
-        })),
+        // active area and swap the sidebar to it. `navbarOrder` pulls single
+        // entries to the front; the rest keep the order they have in
+        // sections.ts, which is also the startpage's.
+        ...SECTIONS.filter((s) => s.navbar === 'direct')
+          .slice()
+          .sort((a, b) => (a.navbarOrder ?? Infinity) - (b.navbarOrder ?? Infinity))
+          .map((s) => ({
+            type: 'docSidebar' as const,
+            sidebarId: s.sidebarId,
+            label: s.label,
+            position: 'left' as const,
+          })),
         {
           type: 'dropdown',
           label: 'Mehr',
