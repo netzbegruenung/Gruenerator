@@ -29,18 +29,29 @@ describe('mem0HealthSnapshot', () => {
   it('unterscheidet einen leeren Treffer von einem Ausfall', () => {
     // Der Fall, der #2807 verdeckt hat: beide liefern nach aussen `[]`.
     recordMem0Success('search');
-    recordMem0Failure('search', 'this.client.search is not a function');
+    recordMem0Failure('search');
 
     const row = mem0HealthSnapshot().find((r) => r.operation === 'search');
     expect(row).toMatchObject({ ok: 1, failed: 1 });
-    expect(row?.lastError).toBe('this.client.search is not a function');
     expect(row?.lastErrorAt).toEqual(expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/));
+  });
+
+  it('traegt keine Fehlermeldung nach draussen', () => {
+    // `/health` ist unauthentifiziert (server.ts, kein requireAuth). Eine rohe
+    // error.message dort auszugeben, waere ein Leck — das redis.error-Feld
+    // direkt daneben laeuft aus genau dem Grund durch toUserFacingMessage().
+    // Hier ist die Antwort nicht Filtern, sondern Nichterheben: das WAS steht
+    // im log.error, das OB und WANN hier.
+    recordMem0Failure('search');
+
+    const row = mem0HealthSnapshot()[0];
+    expect(Object.keys(row ?? {}).sort()).toEqual(['failed', 'lastErrorAt', 'ok', 'operation']);
   });
 
   it('haelt Lesen und Schreiben auseinander', () => {
     // Beide Pfade starben an derselben Zeile, aber sie koennen auch einzeln
     // ausfallen — ein gemeinsamer Zaehler wuerde das verwischen.
-    recordMem0Failure('add', 'boom');
+    recordMem0Failure('add');
     recordMem0Success('search');
 
     expect(mem0HealthSnapshot().map((r) => [r.operation, r.ok, r.failed])).toEqual(
@@ -49,12 +60,6 @@ describe('mem0HealthSnapshot', () => {
         ['search', 1, 0],
       ])
     );
-  });
-
-  it('kappt eine ausufernde Fehlermeldung', () => {
-    recordMem0Failure('search', 'x'.repeat(1000));
-
-    expect(mem0HealthSnapshot()[0]?.lastError).toHaveLength(300);
   });
 
   it('leert die Zaehler nur auf ausdrueckliches drain', () => {
@@ -69,12 +74,13 @@ describe('mem0HealthSnapshot', () => {
     expect(mem0HealthSnapshot()[0]?.ok).toBe(0);
   });
 
-  it('behaelt die letzte Fehlermeldung ueber ein drain hinweg', () => {
+  it('behaelt den Zeitpunkt des letzten Ausfalls ueber ein drain hinweg', () => {
     // Ein geleerter Zaehler heisst „seitdem nichts passiert", nicht „nie etwas
     // passiert" — die Spur des letzten Ausfalls muss das Fenster ueberdauern.
-    recordMem0Failure('add', 'boom');
-    mem0HealthSnapshot({ drain: true });
+    recordMem0Failure('add');
+    const at = mem0HealthSnapshot({ drain: true })[0]?.lastErrorAt;
 
-    expect(mem0HealthSnapshot()[0]).toMatchObject({ failed: 0, lastError: 'boom' });
+    expect(at).toEqual(expect.stringMatching(/^\d{4}/));
+    expect(mem0HealthSnapshot()[0]).toMatchObject({ failed: 0, lastErrorAt: at });
   });
 });
