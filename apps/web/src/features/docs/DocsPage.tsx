@@ -134,6 +134,9 @@ export function DocumentsContent({
   scope,
   officeToolStrip = false,
   heroTitle,
+  heroSubtitle,
+  composerPlaceholder,
+  composerSubmitIcon,
 }: {
   showRecents?: boolean;
   scope?: OfficeScope;
@@ -145,6 +148,11 @@ export function DocumentsContent({
   /** Overrides the hero heading (the firstName is appended when present). Used by
    * the /office hub so it doesn't show the generic workplace welcome. */
   heroTitle?: string;
+  /** Optional line under the hero heading. */
+  heroSubtitle?: string;
+  /** Static composer placeholder instead of the rotating create examples. */
+  composerPlaceholder?: string;
+  composerSubmitIcon?: 'arrow' | 'search';
 }) {
   const adapter = useDocsAdapter();
   const navigate = useNavigate();
@@ -633,6 +641,7 @@ export function DocumentsContent({
                 ? `Willkommen im Grünerator Workplace, ${firstName}`
                 : 'Willkommen im Grünerator Workplace'
         }
+        subtitle={heroSubtitle}
       >
         <DocsComposer
           items={composerItems}
@@ -644,6 +653,8 @@ export function DocumentsContent({
           onGenerate={handleComposerCreate}
           onSelectTemplate={handleComposerTemplate}
           onImport={handleComposerImport}
+          placeholder={composerPlaceholder}
+          submitIcon={composerSubmitIcon}
         />
       </WorkplaceHero>
 
@@ -893,7 +904,12 @@ export function DocumentsContent({
 export const DocsHome = () => (
   <ErrorBoundary>
     <DocsProvider adapter={webAppDocsAdapter}>
-      <DocumentsContent showRecents={false} />
+      <DocumentsContent
+        showRecents={false}
+        heroSubtitle="Hier erstellst und durchsuchst du Inhalte. Zum Chatten wechselst du oben in den Tab „Chat“."
+        composerPlaceholder="Inhalte durchsuchen oder neu erstellen …"
+        composerSubmitIcon="search"
+      />
     </DocsProvider>
   </ErrorBoundary>
 );
