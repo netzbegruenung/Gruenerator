@@ -109,6 +109,33 @@ describe('buildSynthSystem — Quellenblock', () => {
     // wahr im Buchstaben und falsch in der Sache.
     expect(prompt).not.toContain('hast du NICHTS recherchiert');
   });
+
+  /**
+   * Der vierte Kanal, und der, an dem die Aufzählung riss: `summarize` fuhr
+   * Map-Reduce über das hochgeladene PDF, und der Schreiber las trotzdem, er
+   * habe nichts erhalten (live 24.08.2026).
+   */
+  it('schweigt zur Recherche, wenn ein Werkzeug Nutzlast statt Quellen lieferte', () => {
+    const steps: PersistedStep[] = [
+      { toolName: 'summarize', result: { summary: 'Der Beschluss regelt …' } } as never,
+    ];
+    const prompt = buildSynthSystem('', ctx({ steps }));
+    expect(prompt).not.toContain('hast du NICHTS recherchiert');
+    expect(prompt).toContain('Der Beschluss regelt …');
+  });
+
+  it('lässt den Hinweis stehen, wenn dasselbe Werkzeug NICHTS lieferte', () => {
+    const steps: PersistedStep[] = [
+      {
+        toolName: 'summarize',
+        result: { error: 'Kein Text zum Zusammenfassen gefunden' },
+      } as never,
+    ];
+    const prompt = buildSynthSystem('', ctx({ steps }));
+    // Ein Fehlschlag ist kein Ergebnis — sonst schaltete ein gescheiterter
+    // Aufruf die Ehrlichkeit ab, statt sie zu erübrigen.
+    expect(prompt).toContain('hast du NICHTS recherchiert');
+  });
 });
 
 describe('buildSynthSystem — Eröffnungssatz und Rezept', () => {
