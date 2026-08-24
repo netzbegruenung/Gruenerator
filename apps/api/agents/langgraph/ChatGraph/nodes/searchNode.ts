@@ -840,7 +840,14 @@ const FANOUT_MIN_CHUNKS_PER_SOURCE = 3;
 export async function executeMultiDocFanout(
   query: string,
   sources: DocumentSource[],
-  agentConfig: AgentConfig
+  agentConfig: AgentConfig,
+  /**
+   * `rerankChunks`: Chunks vor der Gruppierung durch den Cross-Encoder. Opt-in
+   * und nicht der Standard, weil der Einzelpfad danach ohnehin `rerankNode`
+   * fährt — dort wäre es eine zweite Stufe für dasselbe Geld. Gesetzt wird es
+   * vom Loop-Anhang-Pfad, dem einzigen ohne solche zweite Stufe.
+   */
+  opts?: { rerankChunks?: boolean }
 ): Promise<MultiDocFanoutResult> {
   const perSourceLimit = fairShare(
     FANOUT_CHUNK_BUDGET,
@@ -870,6 +877,7 @@ export async function executeMultiDocFanout(
             limit: perSourceLimit,
             mode: 'hybrid',
             threshold: 0.15,
+            ...(opts?.rerankChunks === true && { rerankChunks: true }),
           },
           filters: {
             documentIds: [src.id],
