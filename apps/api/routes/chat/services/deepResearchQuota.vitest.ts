@@ -44,7 +44,7 @@ const runDeepAgentResearch = vi.fn<(...args: unknown[]) => Promise<unknown>>();
 const linkupDeepResearch = vi.fn<(...args: unknown[]) => Promise<unknown>>();
 
 vi.mock('../../../utils/redis/index.js', () => ({ redisClient: fakeRedis }));
-vi.mock('../../../config/env.js', () => ({ env: { SCALEWAY_API_KEY: 'sk-test' } }));
+vi.mock('../../../config/env.js', () => ({ env: { CORTECS_API_KEY: 'sk-test' } }));
 vi.mock('../../../services/research/deepAgent/index.js', () => ({
   runDeepAgentResearch: (...args: unknown[]) => runDeepAgentResearch(...args),
 }));

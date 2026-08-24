@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest';
 
+import { INTERMEDIATE_LANES } from '../../ai/intermediateLanes.js';
 import {
   emissionsFromEnergy,
   estimateFootprint,
   estimateImageFootprint,
   gridIntensityFor,
+  hasEnergyCoefficients,
   pueFor,
   referenceFootprint,
 } from '../energyFootprint.js';
@@ -354,5 +356,50 @@ describe('pueFor', () => {
     // so moving the constant fails one obvious test instead of an arithmetic
     // assertion three describes away.
     expect(pueFor('litellm')).toBe(1.12);
+  });
+});
+
+/**
+ * Der Befund, der diesen Block ausgelöst hat: die Cortecs-Stufen senden
+ * `gemma-4-31b-it`, die Buchhaltung führt genau diese ID als `model`
+ * (`wrapped.modelId` in usageModelMiddleware.ts) — und die Koeffiziententabelle
+ * kannte nur Regolos `gemma4-31b`. Beide Stufen wären still als „nicht
+ * abgedeckt" gelaufen, ohne dass irgendetwas rot geworden wäre: eine fehlende
+ * Zeile liefert `null`, und `null` sieht aus wie eine ehrlich unbezifferte Lane.
+ *
+ * Der Test hängt deshalb an INTERMEDIATE_LANES statt an einer Liste von IDs —
+ * wer die Lane auf einen neuen Modellnamen umhängt, kommt hier vorbei.
+ */
+describe('die Modell-IDs, die die Cortecs-Stufen wirklich senden', () => {
+  const cortecsLanes = Object.entries(INTERMEDIATE_LANES).filter(
+    ([, cfg]) => cfg.provider === 'cortecs'
+  );
+
+  it('deckt jede Cortecs-Stufe ab, statt sie als unbeziffert durchzureichen', () => {
+    expect(cortecsLanes.length).toBeGreaterThan(0);
+    for (const [id, cfg] of cortecsLanes) {
+      expect(hasEnergyCoefficients(cfg.model), `Stufe ${id} (${cfg.model})`).toBe(true);
+    }
+  });
+
+  it('bewertet dieselben Gewichte unter beiden IDs gleich', () => {
+    // `gemma-4-31b-it` (Cortecs) und `gemma4-31b` (Regolo) sind dasselbe dichte
+    // 31B — modelSiblings.ts paart sie deshalb. Zwei Zahlen für ein Modell
+    // wären ein Sprung in der CO₂-Anzeige, sobald eine Lane den Host wechselt.
+    // Der Provider ist hier bewusst derselbe: den Standort-Unterschied trägt
+    // `pueFor`, nicht der Koeffizient.
+    const usage = { provider: 'regolo', inputTokens: 1000, outputTokens: 500, requests: 1 };
+    const cortecs = estimateFootprint({ ...usage, model: 'gemma-4-31b-it' });
+    const regolo = estimateFootprint({ ...usage, model: 'gemma4-31b' });
+    expect(cortecs).not.toBeNull();
+    expect(cortecs?.energyWms).toBe(regolo?.energyWms);
+    expect(cortecs?.basis).toBe('measured');
+  });
+
+  it('lässt die MoE-Variante weiter bewusst unbeziffert', () => {
+    // Andere Architektur (4B aktive Parameter), nie gemessen — die Lücke ist
+    // dokumentierte Absicht. Stünde sie hier auf `true`, hätte jemand den
+    // 31B-Koeffizienten daraufgelegt, und genau davor warnt die Tabelle.
+    expect(hasEnergyCoefficients('gemma-4-26b-a4b-it')).toBe(false);
   });
 });

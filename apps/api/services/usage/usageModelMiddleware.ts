@@ -21,6 +21,7 @@
 import { wrapLanguageModel } from 'ai';
 
 import { getUsageFeature, getUsageUserId } from '../../utils/usageContext.js';
+import { resolveCortecsUpstream } from '../ai/cortecsRequestPolicy.js';
 import { recordModelSample } from '../ai/modelHealth.js';
 
 import { recordTokenUsage } from './UsageTrackingService.js';
@@ -40,6 +41,30 @@ function tokenCount(value: unknown): number {
   if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
   if (isRecord(value) && typeof value.total === 'number') return value.total;
   return 0;
+}
+
+/**
+ * Der Provider, unter dem eine Anfrage verbucht wird.
+ *
+ * Für alle Lanes ist das der Name, unter dem das Modell gebaut wurde. Für
+ * `cortecs` NICHT: das ist ein Router, und die Buchhaltung führt den Upstream —
+ * dasselbe Muster, nach dem Scaleway-geroutetes Mistral Medium unter
+ * `scaleway` landet. Ohne diese Auflösung stünde der CO₂-Koeffizient dieser
+ * Lane auf einer Zusage statt auf dem Messwert, der bei jeder Antwort im
+ * Header mitkommt.
+ *
+ * Der Rückfall auf den Lane-Namen ist Absicht: kam kein Header, ist `cortecs`
+ * die ehrlichere Auskunft als ein geratener Standort.
+ *
+ * NUR für die Buchhaltung, nicht für die Gesundheitsproben — siehe unten.
+ */
+function effectiveProvider(provider: string, response: unknown): string {
+  if (provider !== 'cortecs') return provider;
+  const headers =
+    typeof response === 'object' && response !== null
+      ? (response as { headers?: unknown }).headers
+      : null;
+  return resolveCortecsUpstream(headers) ?? provider;
 }
 
 function extractUsage(usage: unknown): { inputTokens: number; outputTokens: number } {
@@ -65,6 +90,15 @@ export function withUsageTracking(model: LanguageModel, provider: string): Langu
       const startedAt = Date.now();
       const result = await doGenerate();
       const usage = extractUsage(result.usage);
+      const upstream = effectiveProvider(provider, result.response);
+      // LANE-Name, nicht Upstream: `isModelSlow` und `pickHealthyTarget` fragen
+      // unter `cortecs/<modell>` nach (agentPipeline.ts, modelSiblings.ts), und
+      // der Schlüssel ist `provider/model`. Unter dem Upstream verbucht, läge
+      // die Probe unter `infercom/...` — ein Schlüssel, den niemand liest, und
+      // die Zäh-Erkennung dieser Lanes wäre still tot. Sie taugt hier ohnehin
+      // nur auf Lane-Ebene: welchen Unterauftragnehmer der Router nimmt,
+      // entscheiden nicht wir, handeln können wir nur durch den Wechsel auf den
+      // Regolo-Sibling — und der hängt am Lane-Namen.
       recordModelSample({
         provider,
         model: wrapped.modelId,
@@ -72,7 +106,7 @@ export function withUsageTracking(model: LanguageModel, provider: string): Langu
         durationMs: Date.now() - startedAt,
       });
       if (userId) {
-        recordTokenUsage({ provider, model: wrapped.modelId, feature, userId, ...usage });
+        recordTokenUsage({ provider: upstream, model: wrapped.modelId, feature, userId, ...usage });
       }
       return result;
     },
@@ -82,6 +116,10 @@ export function withUsageTracking(model: LanguageModel, provider: string): Langu
       const feature = getUsageFeature();
       const startedAt = Date.now();
       const { stream, ...rest } = await doStream();
+      // Beim Streaming liegen die Header VOR dem ersten Chunk (gemessen
+      // 21.08.2026 gegen Cortecs), lassen sich hier also schon auflösen — der
+      // `finish`-Chunk unten kommt Sekunden später.
+      const upstream = effectiveProvider(provider, (rest as { response?: unknown }).response);
       let firstTextAt: number | null = null;
 
       const tap = new TransformStream<unknown, unknown>({
@@ -90,6 +128,7 @@ export function withUsageTracking(model: LanguageModel, provider: string): Langu
             if (firstTextAt === null && chunk.type === 'text-delta') firstTextAt = Date.now();
             if (chunk.type === 'finish') {
               const usage = extractUsage(chunk.usage);
+              // Lane-Name, aus demselben Grund wie oben.
               recordModelSample({
                 provider,
                 model: wrapped.modelId,
@@ -98,7 +137,13 @@ export function withUsageTracking(model: LanguageModel, provider: string): Langu
                 ttftMs: firstTextAt === null ? null : firstTextAt - startedAt,
               });
               if (userId) {
-                recordTokenUsage({ provider, model: wrapped.modelId, feature, userId, ...usage });
+                recordTokenUsage({
+                  provider: upstream,
+                  model: wrapped.modelId,
+                  feature,
+                  userId,
+                  ...usage,
+                });
               }
             }
           }
