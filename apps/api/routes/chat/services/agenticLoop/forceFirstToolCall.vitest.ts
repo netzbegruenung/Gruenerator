@@ -21,6 +21,7 @@ const base = {
   priorTurnRetrieved: false,
   hasAttachedDocuments: false,
   summaryAsk: false,
+  attachedSeedDelivered: false,
 };
 
 const force = (over: Partial<typeof base> = {}) => shouldForceFirstToolCall({ ...base, ...over });
@@ -272,6 +273,77 @@ describe('shouldForceFirstToolCall', () => {
 
     it('und der Selbstwiderspruch der LLM-Stufe ebenso', () => {
       expect(force({ classifierContradictedResearch: true, materialHeavy: true })).toBe(true);
+    });
+  });
+
+  /**
+   * Der Vorab-Seed ist ein Abruf. Der Zweig, der Abruf-Intents zwingt, will
+   * genau verhindern, dass ein solcher Turn NICHTS abruft — ist der Seed
+   * gelaufen, ist seine Bedingung erfüllt und der Zwang fordert nur noch einen
+   * Aufruf um des Aufrufs willen.
+   *
+   * Gemessen am 24.08.2026, Thread 4517d0d9: „erstelle daraus eine tabelle" zu
+   * einer angehängten Datenschutzerklärung. Keine Zusammenfassungsfrage, also
+   * kein Pin — der Planer wählte unter `required` frei und rief `read_pdf_form`.
+   */
+  describe('der gelaufene Vorab-Seed entzieht dem Abruf-Intent den Zwang', () => {
+    it('Dokument-Turn OHNE Seed-Treffer sucht', () => {
+      expect(force({ intent: 'search', hasAttachedDocuments: true })).toBe(true);
+    });
+
+    it('derselbe Turn MIT geseedeten Passagen sucht nicht', () => {
+      expect(
+        force({ intent: 'search', hasAttachedDocuments: true, attachedSeedDelivered: true })
+      ).toBe(false);
+    });
+
+    // Die Zusammenfassung steht VOR diesem Zweig und bleibt unberührt: sie
+    // braucht den Volltext, und den holt nur `summarize` — die geseedeten
+    // Passagen sind dafür der falsche Stoff.
+    it('die Zusammenfassungsbitte sticht den Seed', () => {
+      expect(
+        force({
+          intent: 'search',
+          hasAttachedDocuments: true,
+          attachedSeedDelivered: true,
+          summaryAsk: true,
+        })
+      ).toBe(true);
+    });
+
+    // „Recherchiere dazu aktuelle Zahlen" ist mit Passagen aus dem Anhang nicht
+    // erledigt — derselbe Vorrang wie beim eigenen Material darüber.
+    it('ein ausdrücklicher Recherche-Auftrag sticht den Seed', () => {
+      expect(
+        force({
+          intent: 'search',
+          hasAttachedDocuments: true,
+          attachedSeedDelivered: true,
+          lastUserText: 'Recherchiere ergänzend dazu.',
+        })
+      ).toBe(true);
+    });
+
+    it('der Selbstwiderspruch der LLM-Stufe ebenso', () => {
+      expect(
+        force({
+          intent: 'search',
+          hasAttachedDocuments: true,
+          attachedSeedDelivered: true,
+          classifierContradictedResearch: true,
+        })
+      ).toBe(true);
+    });
+
+    it('und eine @-Erwähnung, die ein Werkzeug benennt, ebenso', () => {
+      expect(
+        force({
+          intent: 'search',
+          hasAttachedDocuments: true,
+          attachedSeedDelivered: true,
+          pinnedTool: 'umfragen',
+        })
+      ).toBe(true);
     });
   });
 

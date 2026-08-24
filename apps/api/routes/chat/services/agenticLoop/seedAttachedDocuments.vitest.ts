@@ -54,7 +54,7 @@ describe('seedAttachedDocuments', () => {
       onInfo: () => {},
       onError: () => {},
       ...over,
-    }).then((replay) => ({ replay, sourceRegistry }));
+    }).then((seeded) => ({ ...seeded, sourceRegistry }));
   };
 
   beforeEach(() => fanout.mockReset());
@@ -160,18 +160,24 @@ describe('seedAttachedDocuments', () => {
       errors: [],
     });
 
-    const { replay, sourceRegistry } = await run(stateWith(), { isMounted: false });
+    const { replay, delivered, sourceRegistry } = await run(stateWith(), { isMounted: false });
 
     // Ohne Montage darf der Replay nicht auf ein Werkzeug zeigen, das es diesen
     // Turn nicht gibt — die Quellen bleiben trotzdem.
     expect(replay).toEqual([]);
     expect(sourceRegistry.size).toBe(1);
+    // …und `delivered` bleibt wahr. Es beantwortet eine andere Frage als der
+    // Replay: `shouldForceFirstToolCall` fragt, ob der Stoff da IST, nicht ob
+    // der Planer ihn als Werkzeugaufruf zu sehen bekommt. Am leeren Replay
+    // abgelesen würde der Zwang hier fälschlich wieder zuschlagen.
+    expect(delivered).toBe(true);
   });
 
   it('rührt einen Turn ohne angehängte Dokumente nicht an', async () => {
-    const { replay, sourceRegistry } = await run(stateWith({ documentSources: [] }));
+    const { replay, delivered, sourceRegistry } = await run(stateWith({ documentSources: [] }));
 
     expect(replay).toEqual([]);
+    expect(delivered).toBe(false);
     expect(sourceRegistry.size).toBe(0);
     expect(fanout).not.toHaveBeenCalled();
   });
@@ -179,9 +185,11 @@ describe('seedAttachedDocuments', () => {
   it('bleibt still, wenn der Abruf nichts findet', async () => {
     fanout.mockResolvedValue({ perSourceResults: {}, searchedCollections: [], errors: [] });
 
-    const { replay, sourceRegistry } = await run(stateWith());
+    const { replay, delivered, sourceRegistry } = await run(stateWith());
 
     expect(replay).toEqual([]);
+    // Kein Treffer heisst kein Stoff — der Zwang muss hier greifen.
+    expect(delivered).toBe(false);
     expect(sourceRegistry.size).toBe(0);
   });
 
@@ -193,9 +201,10 @@ describe('seedAttachedDocuments', () => {
     fanout.mockResolvedValue({ perSourceResults: null });
     const onError = vi.fn();
 
-    const { replay } = await run(stateWith(), { onError });
+    const { replay, delivered } = await run(stateWith(), { onError });
 
     expect(replay).toEqual([]);
+    expect(delivered).toBe(false);
     expect(onError).toHaveBeenCalledOnce();
   });
 });
