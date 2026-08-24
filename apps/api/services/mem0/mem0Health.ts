@@ -25,13 +25,20 @@
  * einem Pfad, der gerade beweisen soll, dass er ohne Fremdsysteme auskommt.
  */
 
-/** Die Pfade, die still ausfallen können. Verwaltung (get/delete) wirft sichtbar. */
+/**
+ * Die Pfade, die still ausfallen können.
+ *
+ * Nicht dabei ist die Verwaltung (`updateMemory`, `deleteMemory`, `deleteAll`,
+ * `getMemoryHistory`): die fängt zwar ebenso ab, liefert dem Aufrufer aber
+ * `null`/`false` — ein Wert, der sich von einem Erfolg unterscheidet. `search`
+ * und `add` liefern `[]`, und das ist von „nichts gefunden" nicht zu trennen.
+ * Genau diese Ununterscheidbarkeit zählt hier mit, nicht das Abfangen an sich.
+ */
 export type Mem0Operation = 'search' | 'add';
 
 interface Counter {
   ok: number;
   failed: number;
-  lastError: string | null;
   lastErrorAt: string | null;
 }
 
@@ -40,7 +47,7 @@ const counters = new Map<Mem0Operation, Counter>();
 function counterFor(operation: Mem0Operation): Counter {
   let entry = counters.get(operation);
   if (!entry) {
-    entry = { ok: 0, failed: 0, lastError: null, lastErrorAt: null };
+    entry = { ok: 0, failed: 0, lastErrorAt: null };
     counters.set(operation, entry);
   }
   return entry;
@@ -51,11 +58,26 @@ export function recordMem0Success(operation: Mem0Operation): void {
   counterFor(operation).ok++;
 }
 
-/** Ein Durchlauf, der in den catch gelaufen ist. */
-export function recordMem0Failure(operation: Mem0Operation, message: string): void {
+/**
+ * Ein Durchlauf, der in den catch gelaufen ist.
+ *
+ * Ohne die Fehlermeldung, mit Absicht: `/health` ist unauthentifiziert (siehe
+ * `server.ts`, kein `requireAuth`), und eine rohe `error.message` traegt
+ * Interna nach draussen — das `redis.error`-Feld direkt daneben laeuft aus
+ * genau dem Grund durch `toUserFacingMessage()`.
+ *
+ * Diesen Weg hier zu gehen waere aber falsch herum: `toUserFacingMessage`
+ * kollabiert alles Unbekannte auf eine generische deutsche Satzschablone, und
+ * damit waere `this.client.search is not a function` — der ganze Zweck des
+ * Zaehlers — zu „Da ist etwas schiefgegangen" geworden.
+ *
+ * Also die Arbeitsteilung sauber ziehen: das WAS steht im `log.error` neben
+ * der Nutzer-ID, das OB und WANN steht hier. `/health` beantwortet „arbeitet
+ * das Gedaechtnis?", nicht „woran ist es gestorben?".
+ */
+export function recordMem0Failure(operation: Mem0Operation): void {
   const entry = counterFor(operation);
   entry.failed++;
-  entry.lastError = message.slice(0, 300);
   entry.lastErrorAt = new Date().toISOString();
 }
 
@@ -63,7 +85,6 @@ export interface Mem0HealthRow {
   operation: Mem0Operation;
   ok: number;
   failed: number;
-  lastError: string | null;
   lastErrorAt: string | null;
 }
 

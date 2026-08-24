@@ -145,6 +145,12 @@ export class Mem0Service {
           // Non-fatal, but a real silent-extraction failure: the SDK couldn't
           // parse the LLM output, so 0 memories were saved. Surface at warn (not
           // debug) so an unhealthy extraction model is visible in normal logs.
+          // Zaehlt als Ausfall, nicht als leeres Ergebnis: hier wurden 0
+          // Erinnerungen gespeichert, WEIL das Extraktionsmodell unlesbar
+          // geantwortet hat. Liefe das am Zaehler vorbei, waere ein dauerhaft
+          // kaputtes Modell wieder weder ok noch failed — genau die Blindheit,
+          // gegen die mem0Health.ts geschrieben ist.
+          recordMem0Failure('add');
           log.warn(
             `[Mem0] ${errName} from mem0ai SDK — extraction parse failed, 0 memories saved for user ${userId}`
           );
@@ -189,9 +195,8 @@ export class Mem0Service {
       // (mem0s `addToVectorStore` holt ungeschuetzt Dedupe-Nachbarn, bevor die
       // Extraktion laeuft). Der Turn laeuft trotzdem weiter — genau deshalb
       // braucht es die laute Zeile UND den Zaehler, siehe mem0Health.ts.
-      const message = getErrorMessage(error);
-      recordMem0Failure('add', message);
-      log.error(`[Mem0] Error adding memories for user ${userId}: ${message}`);
+      recordMem0Failure('add');
+      log.error(`[Mem0] Error adding memories for user ${userId}: ${getErrorMessage(error)}`);
       return [];
     }
   }
@@ -244,9 +249,8 @@ export class Mem0Service {
       // error, nicht warn: ein leeres Ergebnis und ein toter Vektorspeicher
       // sahen im Log identisch aus — genau daran blieb #2807 fuenf Tage lang
       // unbemerkt.
-      const message = getErrorMessage(error);
-      recordMem0Failure('search', message);
-      log.error(`[Mem0] Error searching memories for user ${userId}: ${message}`);
+      recordMem0Failure('search');
+      log.error(`[Mem0] Error searching memories for user ${userId}: ${getErrorMessage(error)}`);
       return [];
     }
   }
