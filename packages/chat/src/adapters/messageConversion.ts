@@ -24,6 +24,12 @@ export interface LoadedMessage {
       domain?: string;
     }>;
     searchResults?: Array<{ title: string; url: string; snippet?: string }>;
+    /**
+     * Web-search image hits. `proxyUrl` is minted fresh by the backend on every
+     * load (the persisted row holds none — a signed handle expires, the row does
+     * not), so a reloaded thread can still show thumbnails rather than links.
+     */
+    searchImages?: Array<{ title: string; url: string; domain: string; proxyUrl?: string }>;
     generatedImage?: { url: string; prompt?: string; [key: string]: unknown };
     toolCalls?: PersistedToolCall[];
     senderId?: string;
@@ -124,6 +130,13 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): Converted
       if (m.metadata?.roleName) custom.roleName = m.metadata.roleName;
       if (m.metadata?.interrupted) custom.interrupted = true;
       if (m.metadata?.citations) custom.citations = m.metadata.citations;
+      // Keep in step with PASSTHROUGH_METADATA_FIELDS in
+      // runtime/threadMessageConversion.ts — that is the same contract, written
+      // out as a list with a guard test; this converter states it by hand and
+      // has drifted from it before. A field the live stream writes onto `custom`
+      // but this loop does not rebuild renders once and then vanishes on the
+      // next thread switch, silently and only on mobile.
+      if (m.metadata?.searchImages) custom.searchImages = m.metadata.searchImages;
       if (m.metadata?.generatedImage) custom.generatedImage = m.metadata.generatedImage;
       if (m.metadata?.intent || m.metadata?.traceId)
         custom.streamMetadata = {

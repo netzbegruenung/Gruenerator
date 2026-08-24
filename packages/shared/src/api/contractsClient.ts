@@ -115,8 +115,12 @@ const BINARY_RESPONSE_PATHS = new Set<string>(['/api/exports/docx', '/api/export
  * production. Dev happened to work because `baseURL` was `''`
  * there (no VITE_API_BASE_URL set), which masked the issue through
  * 4 sessions of contract migration.
+ *
+ * Exported because the same reconciliation is needed anywhere a path written
+ * for a base-less client is handed to an axios client whose `baseURL` already
+ * ends in `/api` — mobile's mentionable sync is the second such bridge.
  */
-function stripApiPrefix(path: string): string {
+export function stripApiPrefix(path: string): string {
   return path.startsWith('/api/') ? path.slice(4) : path;
 }
 

@@ -520,6 +520,7 @@ export interface ChatGraphInput {
   documentIds?: string[] | undefined;
   textIds?: string[] | undefined;
   documentChatIds?: string[] | undefined;
+  documentChatLabels?: Record<string, string> | undefined;
   boardIds?: string[] | undefined;
   sheetIds?: string[] | undefined;
   docMentionIds?: string[] | undefined;
@@ -666,6 +667,14 @@ export interface ChatGraphState {
 
   // Document chat scoping (from @dokumentchat multi-select)
   documentChatIds: string[];
+  // Dateiname je vektorisiertem Dokument dieses Turns (documentId → Name).
+  //
+  // Ein Anhang, der in DIESEM Turn hochgeladen wurde, steht noch in keiner
+  // `threadAttachments`-Zeile — die entsteht erst nach der Antwort. Ohne diese
+  // Karte fällt `buildDocumentSources` auf „Dokument 1" zurück, und der Name,
+  // den der*die Nutzer*in gerade hochgeladen hat, taucht weder in den Quellen
+  // noch in `dokumente_lesen` auf.
+  documentChatLabels?: Record<string, string> | undefined;
 
   // Board context (from @board mentions)
   boardIds: string[];
@@ -733,6 +742,14 @@ export interface ChatGraphState {
   // Mention key of the active skill (e.g. 'instagram'). When set, respondNode
   // appends the skill's `skillSystemPrompt` as an additive section.
   activeSkillMention: string | null;
+
+  // Nachvollziehbarkeit: die Rezepte, die diesen Turn tatsächlich geformt
+  // haben. Gesetzt von `buildSystemMessage` (Prompt-Tür: explizite/implizite
+  // Mention oder Agent-Default) bzw. vom Loop aus der Rezept-Registry
+  // (`rezept_laden`). Wandert in die `done`-Metadaten und die persistierte
+  // Nachricht, damit die Oberfläche dezent ausweisen kann, welche
+  // Schreibvorgabe galt.
+  usedRecipes?: { mention: string; title: string; source: 'system' | 'user' }[];
 
   // User profile instructions (from profiles.custom_prompt, additive to all modes)
   userInstructions: string | null;

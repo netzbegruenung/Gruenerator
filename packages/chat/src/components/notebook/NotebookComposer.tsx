@@ -115,6 +115,7 @@ function NotebookSettingsDropdown({
     : 0;
   const hasActiveBadge = categoryActiveCount > 0 || sourceActiveCount > 0;
   const activeDepth = notebookDepthDef(mode);
+  const ActiveDepthIcon = DEPTH_ICONS[activeDepth.icon];
 
   return (
     <DropdownMenu>
@@ -126,10 +127,11 @@ function NotebookSettingsDropdown({
             mode ? `Suchtiefe & Filter — Suchtiefe: ${activeDepth.label}` : 'Filter & Quellen'
           }
         >
-          <LuSettings2 className="h-4 w-4" />
           {/* The tier used to be invisible until you opened the menu, so nothing
-              on screen said whether an answer came from one search or three. */}
-          {mode && <span className="text-xs font-medium">{activeDepth.label}</span>}
+              on screen said whether an answer came from one search or three.
+              Its own icon carries that now — the tier name sat next to the
+              settings glyph and made the pill wider than the composer needs. */}
+          {mode ? <ActiveDepthIcon className="h-4 w-4" /> : <LuSettings2 className="h-4 w-4" />}
           {hasActiveBadge && (
             <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-white">
               {categoryActiveCount + sourceActiveCount}

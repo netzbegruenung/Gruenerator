@@ -1,7 +1,7 @@
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
 import { memo, useCallback } from 'react';
-import { View, Text, StyleSheet, Pressable, ActivityIndicator, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, Pressable, useColorScheme } from 'react-native';
 
 import { useGroupContent, type GroupContentItem } from '../../hooks/useGroupContent';
 import {
@@ -14,6 +14,7 @@ import {
   type Theme,
   BODY_FONT,
 } from '../../theme';
+import { SkeletonBar, SkeletonGroup } from '../common/Skeleton';
 
 interface GroupContentSectionProps {
   groupId: string;
@@ -71,9 +72,14 @@ export const GroupContentSection = memo(function GroupContentSection({
           return;
         }
         case 'notebook':
+          // `/notebooks/`, not the singular `/notebook/`: the latter is a
+          // legacy route that immediately redirects to this one client-side.
+          // The WebView pins its policy to the path it was opened with, so
+          // after the redirect the URL no longer matches that prefix — a full
+          // reload of the page we are showing would be blocked by our own gate.
           router.push({
             pathname: '/(fullscreen)/web-viewer',
-            params: { path: `/notebook/${item.id}`, title: item.title },
+            params: { path: `/notebooks/${item.id}`, title: item.title },
           });
           return;
         case 'agent':
@@ -112,15 +118,26 @@ export const GroupContentSection = memo(function GroupContentSection({
   );
 
   if (isPending) {
+    // Three rows in the shape `ContentRow` draws — the same bordered card, the
+    // same 38-dp icon well. Which sections will have items is not known yet, so
+    // the skeleton stays under the one heading that is always there.
     return (
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>Inhalte</Text>
-        <View style={styles.loadingRow}>
-          <ActivityIndicator color={colors.primary[600]} />
-          <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
-            Geteilte Inhalte werden geladen…
-          </Text>
-        </View>
+        {[0, 1, 2].map((i) => (
+          <View
+            key={i}
+            style={[styles.row, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
+          >
+            <SkeletonGroup on="card" style={styles.skeletonRow}>
+              <SkeletonBar width={38} height={38} radius={borderRadius.medium} />
+              <View style={styles.skeletonText}>
+                <SkeletonBar width={(['68%', '52%', '76%'] as const)[i]} height={14} />
+                <SkeletonBar width="30%" height={11} />
+              </View>
+            </SkeletonGroup>
+          </View>
+        ))}
       </View>
     );
   }
@@ -245,6 +262,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: spacing.medium,
   },
+  skeletonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.medium,
+    flex: 1,
+  },
+  skeletonText: { flex: 1, gap: 4 },
   iconWrapper: {
     width: 38,
     height: 38,
@@ -255,14 +279,6 @@ const styles = StyleSheet.create({
   rowBody: { flex: 1, gap: 2 },
   rowTitle: { ...typography.body, fontWeight: '600' },
   rowSubtitle: { fontFamily: BODY_FONT, fontSize: 12 },
-  loadingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.small,
-    paddingVertical: spacing.medium,
-    paddingHorizontal: spacing.xsmall,
-  },
-  loadingText: { ...typography.bodySmall },
   errorRow: {
     flexDirection: 'row',
     alignItems: 'center',

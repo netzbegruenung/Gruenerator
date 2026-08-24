@@ -18,6 +18,7 @@ import {
   routeMistralModel,
 } from '../../../services/ai/providerInstances.js';
 import { regoloTextDefault } from '../../../services/ai/textModelPolicy.js';
+import { withWireSafeToolCallIds } from '../../../services/ai/toolCallIds.js';
 import {
   tryAcquireVerdigadoSlot,
   releaseVerdigadoSlot,
@@ -584,7 +585,14 @@ export function getModel(
   // is the same model on a different upstream, which users should not be shown.
   const upstream =
     lane.provider === 'mistral' ? routeMistralModel(lane.model, options).upstream : lane.provider;
-  const model = withUsageTracking(instantiateModel(lane.provider, lane.model, options), upstream);
+  // Werkzeug-Aufruf-IDs werden erst hier leitungsfähig gemacht — siehe
+  // services/ai/toolCallIds.ts. Das ist die Tür, die der ganze Chat-Pfad
+  // benutzt, und damit die, über die der Wiederabspieler seine persistierten
+  // `tc_…`-IDs auf die Leitung schickt.
+  const model = withUsageTracking(
+    withWireSafeToolCallIds(instantiateModel(lane.provider, lane.model, options)),
+    upstream
+  );
 
   // Ein Gesundheits-Tausch IST ein anderes Modell — anders als der
   // Scaleway-Upstream oben. Er wird nach `instantiateModel` gemeldet, weil das den

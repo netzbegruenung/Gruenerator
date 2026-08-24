@@ -165,6 +165,11 @@ export const AssistantMessage = memo(function AssistantMessage() {
   );
   const additionalSources = custom?.additionalSources as AdditionalSource[] | undefined;
   const searchImages = custom?.searchImages;
+  // Rezept-Attribution: dezente Zeile unter der Antwort, damit nachvollziehbar
+  // ist, welche Schreibvorgabe galt (z.B. das LV-Presserezept statt des
+  // generischen). Kommt live über `done.metadata.recipesUsed` und auf Reload
+  // aus der persistierten Nachricht (threadMessageConversion).
+  const recipesUsed = custom?.streamMetadata?.recipesUsed;
 
   const actionsMetadata = useMemo(() => {
     if (!custom) return undefined;
@@ -358,6 +363,12 @@ export const AssistantMessage = memo(function AssistantMessage() {
               additionalSources={additionalSources}
               {...(showActions ? { open: sourcesOpen, onOpenChange: setSourcesOpen } : {})}
             />
+          )}
+
+          {!isStreaming && recipesUsed && recipesUsed.length > 0 && (
+            <p className="mt-1 text-xs text-foreground-muted">
+              Rezept: {recipesUsed.map((r) => r.title).join(' · ')}
+            </p>
           )}
 
           {!isStreaming && custom?.progress?.memoryContext && (

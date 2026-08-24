@@ -73,6 +73,10 @@ Scrapers in `apps/api/services/scrapers/`. Automated via GitHub Actions (`conten
 
 **NEVER full rescrape** (`--force` on all). Only targeted subsets (e.g. PDFs via `reprocess-pdfs.ts`). `satzungen_documents` is dormant — exclude.
 
+**PDFs werden pro Datei nur einmal ausgelesen.** Die Dedup-Kette hing lange am Hash des *extrahierten Texts* — der liegt aber erst nach Download, PDF.js-Parse und (bei Scans) einem seitenweise abgerechneten Mistral-OCR-Lauf vor, sodass jedes unveränderte PDF in jedem nächtlichen Lauf voll bezahlt und erst danach als „unchanged" verworfen wurde. Davor stehen jetzt zwei Gatter aus `services/scrapers/utils/binaryFingerprint.ts`: ein bedingter GET (`If-None-Match`/`If-Modified-Since` → 304 spart schon den Download) und ein SHA-256 über die rohen Bytes gegen den gespeicherten `file_hash`. **Wer ein drittes Gatter baut, muss das Nachtragen mitbauen:** ein PDF mit unverändertem Text schreibt keine Punkte, also persistiert nur der `unchanged`-Zweig (`DocumentProcessor.#refreshExtraPayload` bzw. `ProgramPdfScraper.#persistFingerprint`) den Fingerprint — ohne ihn bliebe jeder Punkt für immer ohne `file_hash` und das Gatter griffe nie. Aus demselben Grund gilt ein Punkt **ohne** gespeicherten `file_hash` als unbekannt, nicht als unverändert: er wird genau einmal ausgelesen und trägt danach seinen Hash.
+
+**Ob die Gatter greifen, steht im Sync-Bericht, nicht in `stored/updated/skipped`.** Dort zählt ein vor der Extraktion übersprungenes Dokument wie ein danach übersprungenes — kosten tun sie sehr verschieden. `services/scrapers/extractionRecorder.ts` zählt deshalb getrennt: was ausgelesen wurde (mit Seitenzahl und OCR-Anteil), was *umsonst* ausgelesen wurde (Text danach unverändert — die Zahl, die gegen 0 gehen soll), und was welches Gatter abgefangen hat. Gezählt wird an den Scraper-Aufrufstellen, **nicht** in `OcrService`: derselbe Dienst bedient Chat-Uploads und Notizbuch-Ingest, die im langlebigen API-Prozess sonst als Sync-Arbeit mitzählten. Der Puffer muss gedrained werden (wie bei `syncEventRecorder`), sonst trägt ein Lauf seine Zahlen in den Bericht des nächsten.
+
 ### Authentication
 
 Keycloak OIDC via Passport.js. Multiple IdPs (.de, .at, .eu). Sessions in Redis.
@@ -104,6 +108,24 @@ Mistral AI (primary, EU), self-hosted GPT-OSS/Gemma via LiteLLM/verdigado, Seewe
 - **Regular merge only** (not squash). `test-branch` is long-lived; squash breaks commit identity.
 - **PR merges require admin.** `gh pr merge` fails — ask user to merge via GitHub UI.
 - **Worktree weg, sobald alles gepusht ist** — nicht erst nach dem Merge. Ein offener PR braucht kein lokales Verzeichnis, er lebt auf `origin`. Kriterium: `git status --porcelain` **und** `git log @{u}..` beide leer → `git worktree remove <pfad>` (Branch bleibt stehen). Nach dem Merge zusätzlich `git branch -d <br> && git worktree prune`. Nie `--force`, nie fremde Worktrees — andere Agenten arbeiten parallel.
+
+### Nebenbefunde werden Issues, nicht Prosa
+
+**Ein Fehler, der bei anderer Arbeit auffällt, wird als GitHub-Issue abgelegt** — nicht nur im Chat erwähnt, nicht nur als Kommentar im Code, nicht in `/docs/` (gitignored). Der Chat ist weg, sobald das Fenster zu ist; ein Issue überlebt den Kontext und ist der Ort, an dem andere Agenten und Menschen danach suchen.
+
+Gilt für alles, was ohne Zutun auffällt: ein 404 in einem mitgelesenen Log, ein `ContextCap`-Deckel, der mehr wegschneidet als gedacht, eine Zahl in der Antwort, die nicht zur Quelle passt.
+
+Das Issue trägt die **Belege, nicht die Vermutung**. Konkret:
+
+- **Die Logzeilen im Original**, mit Zeitstempel und Zahlen, nicht nacherzählt. `cap hit: 13790 → 1500 chars (12290 dropped, 89%)` ist der Befund; „die Kürzung ist zu hart" ist es nicht.
+- **Die Stelle im Code** als `datei.ts:zeile` — nach dem Nachsehen, nicht nach dem Vermuten. Die Logs sagen *dass* etwas passiert; erst der Code sagt *warum*.
+- **Die Reproduktion**, soweit bekannt: welches Dokument, welche Frage, welcher Thread.
+- **Was ungeprüft ist, steht als ungeprüft da.** „Mistral OCR hätte die Tabelle vermutlich sauber — die beiden Texte wurden nicht verglichen" ist eine brauchbare Aussage; dieselbe Vermutung als Tatsache geschrieben schickt die nächste Person in die falsche Richtung.
+- **Die Falle beim Reparieren**, wenn du eine gesehen hast. Beim Nachsehen fällt oft auf, dass die naheliegende Reparatur nicht wirkt — das ist das Wertvollste am Befund und geht sonst verloren.
+
+Beispiele: #2817 (doppelte Quelle — der Deckel ist nicht der Kern, der Schlüssel ist es), #2818 (zwei PDF-Extraktoren), #2819 (QueryRefine verliert das Thema — der Kontext fehlt nicht, die Prompt-Regel).
+
+Was **kein** Issue braucht: was du im selben Zug reparierst, und was schon eins hat (`gh issue list --search`).
 
 ### Agent-Skills & versionsgenaue Doku
 
@@ -214,10 +236,25 @@ Konsequenzen:
 - `typecheck` **und** `lint` tragen `dependsOn: ["^typecheck"]`. Bei `lint` sieht die Kante falsch aus, ist es aber nicht: ESLint läuft hier voll typ-bewusst (`projectService` + `no-floating-promises`/`no-unsafe-*` in `packages/eslint-config/base.js`) und liest dieselben fremden Quellen. `^lint` genügt nicht, weil die Hälfte der Zwischenpakete (`canvas-editor`, `collab`, `docs`, `presentations`, `sheets`, `voice`, `wolke`, `sites-design`) gar kein `lint`-Skript hat und die Hash-Kette dort abreißen würde — `typecheck` haben sie alle.
 - Wer eine `^`-Kante entfernen will, weil sie „nur serialisiert": vorher den Hash messen (`turbo run <task> --dry=json`, Feld `hash`), nicht bloß prüfen, ob der Task isoliert grün läuft. `--only` beweist nur, dass die Reihenfolge egal ist, nichts über die Korrektheit des Caches.
 
-**Check-Budget.** `pnpm run ci` fasst typecheck/lint/test in **einen** Turbo-Aufruf, danach `format:check` (Prettier läuft mit `--cache --cache-strategy content`: 19,6 s → 4,1 s warm). Auf einem M5/10 Kerne kostet ein kalter Voll-Typecheck ~64 s, ein kalter Voll-Lint ~287 s (`web` 287 s, `api` 281 s, `mobile` 236 s dominieren), die Testsuite ~114 s. Bei ~5 parallelen Agenten auf 16 GB bleibt es trotzdem bei:
+**Check-Budget.** Auf einem M5/10 Kerne kostet ein kalter Voll-Typecheck ~64 s, ein kalter Voll-Lint ~287 s (`web` 287 s, `api` 281 s, `mobile` 236 s dominieren), die Testsuite ~114 s, `format:check` warm ~4 s (Prettier cacht mit `--cache --cache-strategy content`). Der Engpass ist aber nicht die Zeit, sondern der Speicher: bei ~5 parallelen Agenten auf 16 GB gilt:
 
 - Während der Arbeit paketweise: `pnpm --filter @gruenerator/<pkg> exec tsc --noEmit`, `npx eslint <dateien>`, `npx vitest run <eine.vitest.ts>`.
-- Voll-Check (`pnpm run ci`, **nie** `pnpm ci` — pnpms eingebauter `ci`-Stub bricht mit `ERR_PNPM_CI_NOT_IMPLEMENTED` ab, und zwar mit Exit-Code 0: sieht aus wie grün, hat nichts geprüft) **einmal am Ende**, in einem Worktree — nicht als Zwischenstand, nicht als Statusbericht.
+- **`pnpm run ci` gar nicht — auch nicht einmal am Ende.** Das Skript ist `check:internal && check:overlays && turbo run typecheck lint test && format:check`: der mittlere Teil fährt typecheck, lint und Tests in **einem** Turbo-Aufruf gleichzeitig hoch. Bei ~5 parallelen Agenten auf 16 GB ist das der zuverlässigste Weg in den Swap, und der OOM-Abbruch sieht hinterher aus wie ein Testfehler. Stattdessen die Schritte **einzeln nacheinander**, jeder abgewartet, bevor der nächste startet:
+
+  ```bash
+  pnpm check:internal && pnpm check:overlays   # ~5 s, nicht weglassen
+  pnpm typecheck                                # turbo, --concurrency=3
+  pnpm lint
+  pnpm test
+  pnpm format:check
+  ```
+
+  Wo `--filter <pkg>` reicht, weil nur ein Paket berührt ist, ist es die bessere Wahl.
+
+  Ein grüner Lokal-Lauf beweist ohnehin weniger, als er aussieht: der `Guards`-Job der CI fährt neun Skripte, von denen diese Liste nur zwei kennt. Die Entscheidung fällt auf dem PR, auf einer Maschine, die niemand sonst benutzt — dorthin gehört der Voll-Lauf.
+
+  (**Nie `pnpm ci`** ohne `run` — das ist ein pnpm-Builtin, bricht mit `ERR_PNPM_CI_NOT_IMPLEMENTED` ab und liefert dabei Exit-Code 0: sieht aus wie grün, hat nichts geprüft.)
+
 - Nie ganze Test-Verzeichnisse (`vitest run routes/chat agents/langgraph …` = 113 Dateien / 275 s / ~9 Forks).
 - `--force` nur nach Änderungen an Build-Outputs geteilter Pakete, dann mit `--filter`. Nie als Reflex am Ende.
 

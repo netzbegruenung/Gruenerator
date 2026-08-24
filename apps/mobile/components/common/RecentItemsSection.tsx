@@ -2,7 +2,6 @@ import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ioni
 import { Image } from 'expo-image';
 import { useState } from 'react';
 import {
-  ActivityIndicator,
   Pressable,
   StyleSheet,
   Text,
@@ -14,13 +13,13 @@ import {
 
 import { useLayout } from '../../hooks/useLayout';
 import { type RecentItem, type RecentItemType } from '../../hooks/useRecentActivity';
+import { resolveWebUrl } from '../../services/webOrigin';
 import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 import { gridColumns } from '../../theme/layout';
 
 import { DocPreview } from './DocPreview';
+import { SkeletonRows, SkeletonTiles } from './Skeleton';
 import { type ViewMode } from './ViewModeToggle';
-
-const WEB_ORIGIN = 'https://gruenerator.eu';
 
 const GAP = spacing.small;
 
@@ -72,7 +71,7 @@ export function RecentItemsSection({
   title: string;
   items: RecentItem[];
   isLoading?: boolean;
-  /** Hue for the thumbnail placeholders and the spinner — pass the tab's own. */
+  /** Hue for the thumbnail placeholders — pass the tab's own. */
   accent?: string;
   style?: StyleProp<ViewStyle>;
   viewMode?: ViewMode;
@@ -88,20 +87,33 @@ export function RecentItemsSection({
   const columns = gridColumns(gridWidth, MIN_CARD, GAP);
   const cardWidth = Math.floor((gridWidth - GAP * (columns - 1)) / columns);
 
+  const isList = viewMode === 'list';
+
+  // The view mode is already decided when the items are still on their way, and
+  // so is `cardWidth` — so the placeholder can be the real arrangement: the
+  // 4:3 cards at their measured width, or the 48-dp rows of the list.
   if (isLoading) {
     return (
       <View style={[styles.section, style]}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>{title}</Text>
-        <View style={styles.loadingRow}>
-          <ActivityIndicator color={accent} />
-        </View>
+        {isList ? (
+          <SkeletonRows count={4} leading={48} gap={spacing.xxsmall} />
+        ) : (
+          <SkeletonTiles
+            count={columns * 2}
+            itemWidth={cardWidth}
+            columns={columns}
+            gap={GAP}
+            aspectRatio={4 / 3}
+            radius={borderRadius.large}
+            caption
+          />
+        )}
       </View>
     );
   }
 
   if (items.length === 0) return null;
-
-  const isList = viewMode === 'list';
 
   return (
     <View style={[styles.section, style]}>
@@ -109,14 +121,7 @@ export function RecentItemsSection({
       <View style={isList ? styles.list : styles.grid}>
         {items.map((item) => {
           const key = `${item.type}-${item.id}`;
-          // The backend returns an origin-relative thumbnail path (e.g.
-          // /api/share/<token>/thumbnail). That resolves against the origin on web,
-          // but mobile has no base origin — prefix WEB_ORIGIN so <Image> can load it.
-          const thumbUri = item.thumbnailUrl
-            ? item.thumbnailUrl.startsWith('http')
-              ? item.thumbnailUrl
-              : `${WEB_ORIGIN}${item.thumbnailUrl}`
-            : null;
+          const thumbUri = resolveWebUrl(item.thumbnailUrl) ?? null;
           const hasThumb =
             !!thumbUri &&
             (item.type === 'image' || item.type === 'video' || item.type === 'canvas') &&
@@ -202,10 +207,6 @@ const styles = StyleSheet.create({
     fontFamily: BODY_FONT,
     fontSize: 16,
     fontWeight: '700',
-  },
-  loadingRow: {
-    paddingVertical: spacing.large,
-    alignItems: 'center',
   },
   grid: {
     flexDirection: 'row',

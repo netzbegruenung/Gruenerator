@@ -1143,6 +1143,17 @@ const SHARE_DOC_TRIGGER_PATTERN =
 const SUMMARY_KEYWORDS_PATTERN =
   /\b(fass[e]?\s+(?:\S[^.!?\n]{0,60}?\s+)?zusammen\b|zusammenfass|zusammenfassung|kurzfassung|überblick\s+erstell)/i;
 
+/**
+ * „Fasse das zusammen" — dieselbe Vokabel, die den `summary`-Auflöser auslöst.
+ *
+ * Exportiert, damit der Loop den Zusammenfassungs-Turn erkennen kann, ohne die
+ * Regex ein zweites Mal zu schreiben: eine Kopie wäre genau die Bauform, an der
+ * die Klassifikator-Taxonomie schon einmal auseinandergelaufen ist.
+ */
+export function isSummaryAsk(text: string): boolean {
+  return SUMMARY_KEYWORDS_PATTERN.test(text);
+}
+
 const CHART_TYPE_NOUN_PATTERN =
   /\b(diagramm|balkendiagramm|kreisdiagramm|liniendiagramm|tortendiagramm|chart|graph)\b/i;
 const CHART_CREATE_IMPERATIVE_PATTERN =

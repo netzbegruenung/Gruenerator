@@ -16,6 +16,7 @@ import withAuthRequired from '../../components/common/LoginRequired/withAuthRequ
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import { useBoardsTyped } from '../../hooks/useBoardsTyped';
+import { useHostAwareBack } from '../../hooks/useHostAwareBack';
 import useUserDefaults from '../../hooks/useUserDefaults';
 import { useAuthStore } from '../../stores/authStore';
 import { webAppDocsAdapter } from '../docs/docsAdapter';
@@ -97,10 +98,15 @@ function BoardContent() {
     []
   );
 
+  // Deleting the board we are looking at has to leave this page, and where
+  // "away" is depends on the host: in the app's WebView `/workplace` is not a
+  // way out but a chrome-less dead end (`RouteComponent` forces `noChrome`
+  // while embedded), reachable only via the host's own close button.
+  const leaveBoard = useHostAwareBack('/workplace');
   const handleDelete = useCallback(() => {
     if (!id) return;
-    deleteBoard.mutate(id, { onSuccess: () => void navigate('/workplace') });
-  }, [deleteBoard, id, navigate]);
+    deleteBoard.mutate(id, { onSuccess: leaveBoard });
+  }, [deleteBoard, id, leaveBoard]);
   const handleArchiveToggle = useCallback(() => {
     if (!id) return;
     const willArchive = !board || !isBoardArchived(board);

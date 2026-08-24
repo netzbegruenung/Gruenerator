@@ -16,6 +16,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import {
   assembleToolCatalog,
+  buildToolReplay,
   priorTurnRetrieved,
   wrapAssembledTools,
   type CatalogDeps,
@@ -409,5 +410,61 @@ describe('priorTurnRetrieved', () => {
         lastGeneratedImageUrl: () => null,
       })
     ).toBe(false);
+  });
+});
+
+/**
+ * Was ein Folge-Turn von den Werkzeugen des vorigen wiedersieht.
+ *
+ * Die Beispiel-Korpora sind EINMALIGES GERÜST: sechs volle Pressemitteilungen,
+ * damit der erste Entwurf den Ton trifft. Ab dem zweiten Turn arbeitet der
+ * Nutzer am ENTWURF, nicht an den Vorlagen — die dann bloss das Fenster füllen
+ * (live 78.044 Zeichen, am 500er-Cap zu einem JSON-Bruchstück zerschnitten).
+ */
+describe('buildToolReplay — was wiederkommt und was nicht', () => {
+  function step(toolName: string, id = toolName): PersistedStep {
+    return { toolCallId: id, toolName, args: {}, result: { ok: true } };
+  }
+
+  const catalog = {
+    gruenerator_search: {},
+    web_search: {},
+    gruenerator_examples_search: {},
+    gruenerator_pressemitteilung_examples: {},
+    create_document: {},
+  } as unknown as ToolSet;
+
+  async function replayFor(steps: PersistedStep[]): Promise<string[]> {
+    const messages = await buildToolReplay({
+      threadId: 't1',
+      tools: catalog,
+      toolHistory: { toolSteps: () => steps } as never,
+      onError: () => {},
+    });
+    const assistant = messages.find((m) => m.role === 'assistant');
+    if (!assistant || !Array.isArray(assistant.content)) return [];
+    return assistant.content.map((part) => (part as { toolName: string }).toolName);
+  }
+
+  it('lässt die Beispiel-Korpora draussen, echte Recherche aber drin', async () => {
+    const names = await replayFor([
+      step('gruenerator_pressemitteilung_examples'),
+      step('gruenerator_examples_search'),
+      step('gruenerator_search'),
+      step('web_search'),
+    ]);
+    expect(names).toEqual(['gruenerator_search', 'web_search']);
+  });
+
+  it('baut gar keinen Block, wenn NUR Gerüst-Werkzeuge liefen', async () => {
+    // Der Testlauf vom 23.08.: ein Turn, der ausschliesslich Vorlagen holte.
+    // Vorher stand hier ein abgeschnittenes JSON-Bruchstück im Kontext.
+    expect(await replayFor([step('gruenerator_pressemitteilung_examples')])).toEqual([]);
+  });
+
+  it('schliesst erzeugende Aktionen weiterhin aus', async () => {
+    expect(await replayFor([step('create_document'), step('gruenerator_search')])).toEqual([
+      'gruenerator_search',
+    ]);
   });
 });

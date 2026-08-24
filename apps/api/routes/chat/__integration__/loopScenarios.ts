@@ -62,6 +62,17 @@ export interface LoopScenario {
    */
   systemIncludes?: string;
   /**
+   * Ein Textstück, das im Systemtext des SCHREIBERS stehen MUSS (split: der
+   * letzte Aufruf des Turns).
+   *
+   * Eigenes Feld statt `systemIncludes`, weil Planer und Schreiber getrennte
+   * Kontexte haben und genau dazwischen der Ausfall vom 24.08.2026 sass: der
+   * `summarize`-Digest ging an den Planer, der Schreiber sah ihn nie — und
+   * bekam obendrein die Zeile „du hast NICHTS recherchiert" zu lesen. Ein
+   * Prädikat, das nur den ersten Schritt anschaut, kann das nicht sehen.
+   */
+  synthSystemIncludes?: string;
+  /**
    * Exact number of times a branch was taken. The only honest assertion for
    * `search_concurrency`: which of several parallel calls loses the race is an
    * await-interleaving artefact, but HOW MANY are deferred is a property of the
@@ -355,5 +366,19 @@ export const LOOP_SCENARIOS: readonly LoopScenario[] = [
     // Die Seitenkarte haengt seit diesem PR am PIN statt am Intent. Sie ist kein
     // Rezepttext — nur ihre Aktivierungsbedingung hat gewechselt.
     systemIncludes: '## GRÜNERATOR-DOKUMENTATION',
+  },
+  {
+    id: 'anhang-zusammenfassung-loop',
+    category: 'mention-lane',
+    note: 'Keine Modellannahme: der Turn haengt an zwei Gittern, die beide ohne das Modell entscheiden. Ein Dokument am Turn (`documentChatIds`) plus eine Zusammenfassungs-Bitte zwingen den ersten Aufruf auf `summarize` — das ist der achte Weg in `shouldForceFirstToolCall` und der zweite Grund in `pinnedFirstTool`. Gemessener Ausfall am 23.08.2026: dasselbe Prompt, ein vektorisiertes 21.785-Zeichen-PDF, und der Planer rief `media`/`find_content` und fasste ein fremdes Konto-Dokument zusammen. Das Skript gibt dem Planer NUR den `summarize`-Aufruf; griffe er daneben, bliebe ein Stream unverbraucht und der Lauf faellt.',
+    prompt: 'fasse das pdf zusammen',
+    body: { documentChatIds: ['doc-1'] },
+    streams: [{ calls: [{ tool: 'summarize', args: {} }] }, { text: GERMAN_ANSWER }],
+    mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
+    firstToolChoice: 'summarize',
+    // Die zweite Haelfte desselben Turns: `summarize` registriert keine Quellen,
+    // sein Digest erreicht den Schreiber also nur ueber diesen Block. Ohne ihn
+    // war die teure Map-Reduce ueber den Volltext umsonst.
+    synthSystemIncludes: 'ERGEBNISSE EIGENER WERKZEUGE IN DIESEM TURN',
   },
 ];

@@ -19,6 +19,7 @@ import type { Tool } from 'ai';
 const noopRegistry: SourceRegistry = {
   register: () => '',
   seedCarried: () => {},
+  seedAttached: () => '',
   note: () => {},
   getResults: () => [],
   renderAll: () => '',

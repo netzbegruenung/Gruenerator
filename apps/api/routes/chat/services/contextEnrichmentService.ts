@@ -282,9 +282,20 @@ export async function enrichContext(opts: {
   // 12k chars ≈ 3k tokens — comfortably inside the 20k-char attachment budget
   // FLOOR (ATTACHMENT_LIMITS.TOTAL_BUDGET_CHARS; window-derived above it), so
   // typical pastes and small uploads take the inline path that works in every
-  // executor. Attachments ABOVE the threshold still hit the loop gap — known
-  // follow-up: the loop needs a document-chat retrieval (up-front seed or tool)
-  // before this threshold can protect texts of arbitrary size.
+  // executor.
+  //
+  // Die Loop-Lücke ist seit dem 24.08.2026 zu: `seedAttachedDocuments` ruft die
+  // Anhänge vor dem ersten Zug des Planers ab, `dokumente_lesen` lässt ihn
+  // nachfassen (beides über `agenticLoop/attachedDocuments.ts`). Oberhalb der
+  // Schwelle ist der Text damit kein verlorener Text mehr, sondern ein
+  // abgerufener — die Zahl entscheidet über Kosten, nicht über Verfügbarkeit.
+  //
+  // Was BLEIBT: sie ist geraten und niemand erfährt davon. Die Nachbarn machen
+  // es anders — LobeHub injiziert Chat-Anhänge immer vollständig (gar keine
+  // Schwelle), Open WebUI stellt der Person einen Schalter je Datei daneben
+  // („Using Entire Document" vs. „Using Focused Retrieval"). Ein solcher
+  // Schalter wäre die ehrlichere Antwort als diese Konstante; er braucht UI im
+  // Composer, ein Feld im Contract und eine eigene Budget-Grenze.
   const SMALL_DOC_VECTORIZATION_THRESHOLD = 12_000;
 
   const largeDocAttachments = docAttachments.filter((att) => {
@@ -308,6 +319,7 @@ export async function enrichContext(opts: {
       for (const att of largeDocAttachments) {
         try {
           const buffer = Buffer.from(att.data, 'base64');
+          const attMeta = processedMeta.find((m) => m.name === att.name && !m.isImage);
           const result = await processFileUpload(
             pgService,
             qdrantService,
@@ -319,18 +331,29 @@ export async function enrichContext(opts: {
               size: buffer.length,
             },
             att.name,
-            'documentchat'
+            'documentchat',
+            // Der Text von oben, nicht noch einmal extrahiert. Sonst laufen zwei
+            // Ketten über dieselbe Datei und die Zitate stehen auf einer anderen
+            // Fassung als der, die das Modell als Anhang liest.
+            attMeta?.extractedText
           );
 
           initialState.documentChatIds.push(result.id);
+          // Der Dateiname überlebt `processedMeta` nicht — die Karte auf dem
+          // Zustand ist der einzige Weg, auf dem er den Turn übersteht. Ohne sie
+          // heisst der gerade hochgeladene Anhang in Quellen und Werkzeugen
+          // „Dokument 1" (buildDocumentSources, fallbackLabel).
+          initialState.documentChatLabels = {
+            ...(initialState.documentChatLabels ?? {}),
+            [result.id]: att.name,
+          };
           // Hand the id to the persistence step that runs AFTER the answer.
           // Without it, `saveThreadAttachmentsFromMeta` embeds the very same
           // bytes a second time under a second id — measured 13.08.2026: one
           // 57.215-char .docx produced two "Stored 59 vectors" lines per turn,
           // eight document ids over four turns, and `documentChatIds` grew by
           // two per turn because `getThreadAttachments` handed every copy back.
-          const meta = processedMeta.find((m) => m.name === att.name && !m.isImage);
-          if (meta) meta.documentId = result.id;
+          if (attMeta) attMeta.documentId = result.id;
           sse.send('document_indexed', {
             documentId: result.id,
             title: result.title,

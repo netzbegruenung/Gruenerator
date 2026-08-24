@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 
+import { alertSavedToGallery } from '../../services/gallery';
 import { copyToClipboard } from '../../services/share';
 import { useSubtitleEditorStore } from '../../stores/subtitleEditorStore';
 import {
@@ -30,6 +31,7 @@ import {
   darkTheme,
   BODY_FONT,
 } from '../../theme';
+import { getErrorMessage } from '../../utils/errors';
 import { Button } from '../common/Button';
 
 import type { ExportStatus } from '../../hooks/useSubtitleExport';
@@ -141,10 +143,30 @@ export function ExportScreen({
 
   const handleSaveToGallery = useCallback(async () => {
     if (!videoUri) return;
-    const { status: permStatus } = await MediaLibrary.requestPermissionsAsync(true);
-    if (permStatus !== 'granted') return;
-    await MediaLibrary.Asset.create(videoUri);
-    setSavedToGallery(true);
+
+    // Die Berechtigungsfrage steht mit im try: sie kann selbst werfen, und ein
+    // Fehlschlag davor wäre sonst eine unbehandelte Rejection statt einer
+    // Meldung.
+    try {
+      // Write-only: saving only, never reading the library.
+      const { status: permStatus } = await MediaLibrary.requestPermissionsAsync(true);
+      if (permStatus !== 'granted') {
+        Alert.alert(
+          'Galerie-Berechtigung',
+          'Bitte erlaube den Zugriff auf die Galerie, um das Video zu speichern.'
+        );
+        return;
+      }
+
+      const asset = await MediaLibrary.Asset.create(videoUri);
+      setSavedToGallery(true);
+      alertSavedToGallery(asset.id, 'Das Video wurde in der Galerie gespeichert.');
+    } catch (error: unknown) {
+      // Without this the save fails silently and the button just stays as it
+      // was — the same dead-button shape the download bridge had.
+      console.error('[ExportScreen] Save to gallery failed:', getErrorMessage(error));
+      Alert.alert('Fehler', 'Das Video konnte nicht gespeichert werden.');
+    }
   }, [videoUri]);
 
   const handleShare = useCallback(async () => {

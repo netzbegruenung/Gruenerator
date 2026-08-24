@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+import { ATTACHED_DOC_SNIPPET_CHARS } from '../services/agenticLoop/attachedDocuments.js';
 import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 
 import { buildChatToolCatalog } from './toolCatalog.js';
@@ -34,12 +35,22 @@ vi.mock('../../../services/search/index.js', () => ({
   crawlAndDistill: (seeds: unknown, q: unknown, opts: unknown) => crawlAndDistill(seeds, q, opts),
 }));
 
+const fanout = vi.hoisted(() => vi.fn<(...a: unknown[]) => Promise<unknown>>());
+vi.mock('../../../agents/langgraph/ChatGraph/nodes/searchNode.js', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  executeMultiDocFanout: (...a: unknown[]) => fanout(...a),
+}));
+
+const documentFullText = vi.hoisted(() => vi.fn<(...a: unknown[]) => Promise<unknown>>());
 const documentSearch = vi.hoisted(() => vi.fn<(args: unknown) => Promise<unknown>>());
 vi.mock(
   '../../../services/document-services/DocumentSearchService/index.js',
   async (importOriginal) => ({
     ...(await importOriginal<Record<string, unknown>>()),
-    getQdrantDocumentService: () => ({ search: documentSearch }),
+    getQdrantDocumentService: () => ({
+      search: documentSearch,
+      getMultipleDocumentsFullText: documentFullText,
+    }),
   })
 );
 
@@ -425,10 +436,19 @@ describe('toolCatalog expand_attachment (M4)', () => {
   });
 
   it('queries the vector store scoped to the attachment for a large (vectorized) attachment', async () => {
+    // Eine Antwort, ein Dokument: `search()` gruppiert die Chunks vor der
+    // Rückgabe nach `document_id` (`groupAndRankHybridResults`), und gefiltert
+    // wird hier auf genau eine Datei. Die frühere Fassung dieses Tests liess
+    // zwei Treffer für dieselbe Datei kommen — einen Zustand, den die Suche
+    // nicht erzeugt.
     documentSearch.mockResolvedValue({
       results: [
-        { title: 'Groß.pdf', relevant_content: 'Mehr Inhalt', similarity_score: 0.7 },
-        { title: 'Groß.pdf', relevant_content: 'Noch mehr Inhalt', similarity_score: 0.6 },
+        {
+          document_id: 'doc-123',
+          title: 'Groß.pdf',
+          relevant_content: 'Mehr Inhalt',
+          similarity_score: 0.7,
+        },
       ],
     });
     const { execute, sourceRegistry } = catalogWithAttachments([
@@ -440,8 +460,46 @@ describe('toolCatalog expand_attachment (M4)', () => {
     expect(documentSearch).toHaveBeenCalledTimes(1);
     const call = documentSearch.mock.calls[0]?.[0] as { filters?: { documentIds?: string[] } };
     expect(call.filters?.documentIds).toEqual(['doc-123']);
-    expect(out.resultCount).toBe(2);
-    expect(sourceRegistry.size).toBe(2);
+    expect(out.resultCount).toBe(1);
+    expect(sourceRegistry.size).toBe(1);
+  });
+
+  /**
+   * Der Befund aus dem Review zu PR #2827: Nachladen ist ein zweiter Weg zu
+   * derselben Datei. Ohne `documentId` an den hier gebauten Treffern fällt er
+   * auf den Inhalts-Schlüssel zurück, findet den mitgeführten Eintrag nicht und
+   * legt einen zweiten Quellenplatz an — also genau die Verdopplung aus #2817,
+   * nur über den Werkzeugpfad statt über den Fan-out.
+   */
+  it('lädt in den mitgeführten Eintrag derselben Datei nach, statt einen zweiten anzulegen', async () => {
+    documentSearch.mockResolvedValue({
+      results: [
+        {
+          document_id: 'doc-123',
+          title: 'Groß.pdf',
+          relevant_content: 'Frisch nachgeladener Abschnitt',
+          similarity_score: 0.7,
+        },
+      ],
+    });
+    const { execute, sourceRegistry } = catalogWithAttachments([
+      { id: 'a2', name: 'Groß.pdf', extractedText: null, documentId: 'doc-123' },
+    ]);
+    // Was der Vorturn hinterlassen hat: dieselbe Datei, anderer Inhaltsanfang.
+    sourceRegistry.seedCarried([
+      {
+        source: 'documentchat:doc-123',
+        title: 'Groß.pdf',
+        content: 'Abschnitt aus dem Vorturn',
+        relevance: 0.6,
+        documentId: 'doc-123',
+      },
+    ]);
+    expect(sourceRegistry.size).toBe(1);
+
+    await execute({ attachmentName: 'Groß.pdf' }, { toolCallId: 'c1' });
+
+    expect(sourceRegistry.size).toBe(1);
   });
 
   it('errors when a matched attachment has neither vectorized id nor extracted text', async () => {
@@ -790,5 +848,171 @@ describe('toolCatalog image hits', () => {
     expect(out.bilder).toBeUndefined();
     expect(send.mock.calls.some(([name]) => name === 'search_images')).toBe(false);
     expect(state.webImageResults).toBeUndefined();
+  });
+});
+
+/**
+ * `dokumente_lesen` — das Nachfass-Werkzeug für die Dokumente DIESES Turns.
+ *
+ * Gegated an den Dokumenten selbst, nicht an einer Konfiguration daneben: das
+ * ist der Unterschied zu LobeHub, dessen Gegenstück nur montiert wird, wenn der
+ * Agent zufällig eine Wissensdatenbank hat — und das Modell eine gerade
+ * hochgeladene Datei dann nicht mehr befragen kann.
+ */
+describe('toolCatalog dokumente_lesen', () => {
+  beforeEach(() => {
+    fanout.mockReset();
+    documentFullText.mockReset();
+  });
+
+  function catalogWithDocs(documentSources: unknown[]) {
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    const state = {
+      intent: 'search',
+      documentSources,
+      searchQuery: 'Radverkehr',
+      agentConfig: { userId: 'u1' },
+    } as unknown as ChatGraphState;
+    const { tools, toolNames } = buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry,
+      loop: { sse, state },
+    });
+    return { tools, toolNames, sourceRegistry };
+  }
+
+  const pdf = { kind: 'document_chat', id: 'doc-1', label: 'Beschlusspapier.pdf' };
+
+  it('ist montiert, sobald ein Dokument am Turn hängt', () => {
+    expect(catalogWithDocs([pdf]).toolNames).toContain('dokumente_lesen');
+  });
+
+  it('fehlt ohne angehängte Dokumente', () => {
+    expect(catalogWithDocs([]).toolNames).not.toContain('dokumente_lesen');
+  });
+
+  it('fehlt, wenn nur ein Notizbuch im Spiel ist', () => {
+    const { toolNames } = catalogWithDocs([{ kind: 'notebook', id: 'berlin', label: 'Berlin' }]);
+    expect(toolNames).not.toContain('dokumente_lesen');
+  });
+
+  it('sucht mit `query` über den Fan-out und trägt die Treffer als Quellen ein', async () => {
+    fanout.mockResolvedValue({
+      perSourceResults: {
+        'doc-1': [
+          {
+            source: 'documentchat:doc-1',
+            title: 'Beschlusspapier.pdf',
+            content: 'Der Radverkehr wird ausgebaut.',
+            relevance: 0.9,
+          },
+        ],
+      },
+      searchedCollections: [],
+      errors: [],
+    });
+    const { tools, sourceRegistry } = catalogWithDocs([pdf]);
+
+    const out = (await execOf(tools.dokumente_lesen)(
+      { query: 'Radverkehr' },
+      { toolCallId: 'c1' }
+    )) as { resultCount: number; sources: string };
+
+    expect(out.resultCount).toBe(1);
+    expect(sourceRegistry.size).toBe(1);
+    expect(out.sources).toContain('Der Radverkehr wird ausgebaut.');
+    expect(documentFullText).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Suchmodus und Vorab-Abruf fragen dieselben Anhänge über dieselbe Bauform ab.
+   * Liefen sie mit verschiedenen Deckeln, wäre dasselbe Ergebnis je nach
+   * Aufrufer unterschiedlich lang — und welcher gewinnt, hinge daran, wer
+   * zuerst registriert.
+   */
+  it('gibt der Passagensuche denselben Platz wie dem Vorab-Abruf', async () => {
+    const long = 'z'.repeat(ATTACHED_DOC_SNIPPET_CHARS - 100);
+    fanout.mockResolvedValue({
+      perSourceResults: {
+        'doc-1': [
+          {
+            source: 'documentchat:doc-1',
+            title: 'Beschlusspapier.pdf',
+            content: long,
+            relevance: 0.9,
+          },
+        ],
+      },
+      searchedCollections: [],
+      errors: [],
+    });
+    const { tools } = catalogWithDocs([pdf]);
+
+    const out = (await execOf(tools.dokumente_lesen)(
+      { query: 'Radverkehr' },
+      { toolCallId: 'c1' }
+    )) as { sources: string };
+
+    expect(out.sources).toContain(long);
+  });
+
+  it('liest mit `abschnitt` den Volltext in Scheiben', async () => {
+    documentFullText.mockResolvedValue({
+      documents: [{ id: 'doc-1', fullText: `Anfang. ${'x'.repeat(30_000)}` }],
+    });
+    const { tools } = catalogWithDocs([pdf]);
+
+    const out = (await execOf(tools.dokumente_lesen)(
+      { abschnitt: { von: 0 } },
+      { toolCallId: 'c1' }
+    )) as { resultCount: number; sources: string };
+
+    expect(out.resultCount).toBe(1);
+    expect(out.sources).toContain('Anfang.');
+    // Der Wegweiser steht vor dem Text, nicht dahinter: gekappt wird der
+    // Schwanz, und am Ende wäre er genau dann weg, wenn er gebraucht wird.
+    expect(out.sources).toContain('[Zeichen 0–10000 von 30008 — weiter mit abschnitt.von=10000]');
+    expect(fanout).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Ohne Suchbegriff UND ohne Abschnitt bei genau einer Datei: der Anfang ist
+   * die ehrlichere Antwort als eine Ähnlichkeitssuche nach der Frage selbst —
+   * die trifft bei „worum geht es hier" nur Zufälliges.
+   */
+  it('liest den Anfang, wenn weder Suchbegriff noch Abschnitt kommen', async () => {
+    documentFullText.mockResolvedValue({ documents: [{ id: 'doc-1', fullText: 'Kurzer Text.' }] });
+    const { tools } = catalogWithDocs([pdf]);
+
+    const out = (await execOf(tools.dokumente_lesen)({}, { toolCallId: 'c1' })) as {
+      sources: string;
+    };
+
+    expect(out.sources).toContain('Kurzer Text.');
+    expect(fanout).not.toHaveBeenCalled();
+  });
+
+  it('grenzt über `dateiname` ein und sagt es, wenn der Name nicht passt', async () => {
+    const zweite = { kind: 'document_chat', id: 'doc-2', label: 'Antrag.docx' };
+    fanout.mockResolvedValue({ perSourceResults: {}, searchedCollections: [], errors: [] });
+    const { tools } = catalogWithDocs([pdf, zweite]);
+
+    await execOf(tools.dokumente_lesen)(
+      { query: 'Rad', dateiname: 'Antrag.docx' },
+      { toolCallId: 'c1' }
+    );
+    const [, sources] = fanout.mock.calls[0] as [string, { id: string }[]];
+    expect(sources.map((s) => s.id)).toEqual(['doc-2']);
+
+    const out = (await execOf(tools.dokumente_lesen)(
+      { query: 'Rad', dateiname: 'gibtsnicht.pdf' },
+      { toolCallId: 'c2' }
+    )) as { error: string };
+    // Die Fehlermeldung nennt, was es GIBT — sonst rät das Modell weiter.
+    expect(out.error).toContain('Beschlusspapier.pdf');
+    expect(out.error).toContain('Antrag.docx');
   });
 });

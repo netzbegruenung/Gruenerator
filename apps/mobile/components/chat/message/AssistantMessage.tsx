@@ -12,10 +12,12 @@ import {
   type Citation,
   type StatusPartLike,
 } from '@gruenerator/chat';
-import { memo, useMemo, useState } from 'react';
-import { View } from 'react-native';
+import { Fragment, memo, useMemo, useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { useTheme } from '../../../hooks/useTheme';
+import { chatType, spacing } from '../../../theme';
+import { ArtifactCard } from '../ArtifactCard';
 import { BahnCard } from '../BahnCard';
 import { ChatChartCard } from '../ChatChartCard';
 import { ChatStatusLine } from '../ChatStatusLine';
@@ -25,7 +27,11 @@ import { ComputeCard } from '../ComputeCard';
 import { ConfirmActionCard } from '../ConfirmActionCard';
 import { DocumentCreatedCard } from '../DocumentCreatedCard';
 import { GeneratedImageDisplay } from '../GeneratedImageDisplay';
+import { ImageGenerationFrame } from '../ImageGenerationFrame';
+import { showsImageGenerationFrame } from '../imageGenerationView';
 import { MemoryIndicator } from '../MemoryIndicator';
+import { SearchImagesSection } from '../SearchImagesSection';
+import { SharepicVariantCard } from '../SharepicVariantCard';
 import { SocialPostCard } from '../SocialPostCard';
 
 import { AgentBadge } from './AgentBadge';
@@ -34,6 +40,8 @@ import { AssistantTextPart } from './AssistantTextPart';
 import { BranchPicker } from './BranchPicker';
 import { MessageCitationsContext } from './citationContext';
 import { resolveMessageAgent, shouldShowAgentBadge } from './messageAgent';
+import { MessageDaySeparator } from './MessageDaySeparator';
+import { MessageErrorBanner } from './MessageErrorBanner';
 import { messageLayout } from './messageLayout';
 import { HiddenReasoningPart } from './ReasoningBlock';
 import { AssistantToolCallPartWithNarration } from './ToolCallPart';
@@ -64,7 +72,11 @@ export const AssistantMessage = memo(function AssistantMessage() {
   const computeData = metadata.computeData;
   const chartData = metadata.chartData;
   const socialPostData = metadata.socialPostData;
+  const sharepicData = metadata.sharepicData;
   const bahnData = metadata.bahnData;
+  const artifactData = metadata.artifactData;
+  const searchImages = metadata.searchImages;
+  const interrupted = metadata.interrupted;
 
   // Which Grünerator wrote this. `getCustomAgentMentionables()` is a plain read
   // of the module-level catalogue `useMentionablesSync` fills, so it re-resolves
@@ -114,54 +126,100 @@ export const AssistantMessage = memo(function AssistantMessage() {
   }, [message.content]);
 
   return (
-    <MessagePrimitive.Root style={[messageLayout.row, messageLayout.assistantRow]}>
-      <View style={messageLayout.assistantContent}>
-        {shouldShowAgentBadge(agent, getDefaultAgent()) && (
-          <AgentBadge agent={agent} theme={theme} />
-        )}
-        <ChatStatusLine
-          isStreaming={isStreaming}
-          hasOwnDetail={hasOwnDetail}
-          textLength={messageText.length}
-          stepAfterText={stepAfterText}
-          progress={progress}
-          theme={theme}
-          toolStatus={toolStatus}
-          reasoningText={reasoningText}
-          sources={statusSources}
-        />
-        {/* Above the prose, like web: when a turn produced a post, the post is
+    <Fragment>
+      <MessageDaySeparator />
+      <MessagePrimitive.Root style={[messageLayout.row, messageLayout.assistantRow]}>
+        <View style={messageLayout.assistantContent}>
+          {shouldShowAgentBadge(agent, getDefaultAgent()) && (
+            <AgentBadge agent={agent} theme={theme} />
+          )}
+          <ChatStatusLine
+            isStreaming={isStreaming}
+            hasOwnDetail={hasOwnDetail}
+            textLength={messageText.length}
+            stepAfterText={stepAfterText}
+            progress={progress}
+            theme={theme}
+            toolStatus={toolStatus}
+            reasoningText={reasoningText}
+            sources={statusSources}
+          />
+          {/* Above the prose, like web: when a turn produced a post, the post is
             the answer and the surrounding text is commentary on it. */}
-        {socialPostData && <SocialPostCard post={socialPostData} theme={theme} />}
-        <MessageCitationsContext.Provider value={citationCtx}>
-          <ToolGroupScope>
-            <MessagePrimitive.Parts components={partsComponents} />
-          </ToolGroupScope>
-        </MessageCitationsContext.Provider>
-        {/* Mirrors web's AssistantMessage: compute/chart cards appear once the
+          {socialPostData && <SocialPostCard post={socialPostData} theme={theme} />}
+          {/* Above the answer, like web: on a turn that found pictures they are the
+            first thing the reader looks at, and a gallery that follows a
+            thousand words is a gallery nobody scrolls to. Held back while the
+            turn streams — the hit list is replaced wholesale by each search, so
+            a mid-loop render would shuffle tiles under the reader's thumb. */}
+          {!isStreaming && searchImages && searchImages.length > 0 && (
+            <SearchImagesSection images={searchImages} theme={theme} />
+          )}
+          <MessageCitationsContext.Provider value={citationCtx}>
+            <ToolGroupScope>
+              <MessagePrimitive.Parts components={partsComponents} />
+            </ToolGroupScope>
+          </MessageCitationsContext.Provider>
+          <MessageErrorBanner theme={theme} />
+          {/* A turn whose row was still `streaming` when the thread reloaded. The
+            partial text renders normally above — it is worth reading, it just
+            must not look finished. */}
+          {interrupted && (
+            <Text style={[styles.interrupted, { color: theme.textSecondary }]}>
+              Antwort wurde unterbrochen
+            </Text>
+          )}
+          {/* Mirrors web's AssistantMessage: compute/chart cards appear once the
             stream is done — during streaming the progress affordance owns the
             space and the metadata may still be partial. */}
-        {!isStreaming && computeData && <ComputeCard data={computeData} theme={theme} />}
-        {!isStreaming && chartData && <ChatChartCard data={chartData} theme={theme} />}
-        {!isStreaming && bahnData && <BahnCard data={bahnData} theme={theme} />}
-        {generatedImage && <GeneratedImageDisplay image={generatedImage} theme={theme} />}
-        {confirmAction && <ConfirmActionCard action={confirmAction} theme={theme} />}
-        {createdDocument && <DocumentCreatedCard document={createdDocument} theme={theme} />}
-        {citations && citations.length > 0 && (
-          <CitationsFooter citations={citations} theme={theme} onSelect={setSelectedCitation} />
-        )}
-        {!isStreaming && progress?.memoryContext && (
-          <MemoryIndicator memoryContext={progress.memoryContext} theme={theme} />
-        )}
-      </View>
-      <BranchPicker theme={theme} />
-      <AssistantActionBar theme={theme} messageText={messageText} metadata={metadata} />
-      <CitationDetailSheet
-        citation={selectedCitation}
-        theme={theme}
-        onClose={() => setSelectedCitation(null)}
-        fetchFullText={fetchFullText}
-      />
-    </MessagePrimitive.Root>
+          {!isStreaming && computeData && <ComputeCard data={computeData} theme={theme} />}
+          {!isStreaming && chartData && <ChatChartCard data={chartData} theme={theme} />}
+          {!isStreaming && artifactData && <ArtifactCard artifact={artifactData} theme={theme} />}
+          {!isStreaming && bahnData && <BahnCard data={bahnData} theme={theme} />}
+          {/* Same precedence as web: the combined post draws its own sharepic
+            column, and a generated image already IS the picture — the card
+            would put a second one under it. */}
+          {sharepicData && !generatedImage && !socialPostData && (
+            <SharepicVariantCard data={sharepicData} theme={theme} />
+          )}
+          {/* Placeholder frame while the KI image is still being generated, in the
+            slot the picture itself will occupy — web puts both above the answer,
+            mobile has always shown generated images below it, and a placeholder
+            somewhere else would make the image jump when it lands.
+
+            The intent half of the gate is load-bearing: sharepics and combined
+            social posts pass through the same `generating_image` stage and draw
+            their own cards. */}
+          {showsImageGenerationFrame({ isStreaming, generatedImage, progress }) && (
+            <ImageGenerationFrame theme={theme} />
+          )}
+          {generatedImage && <GeneratedImageDisplay image={generatedImage} theme={theme} />}
+          {confirmAction && <ConfirmActionCard action={confirmAction} theme={theme} />}
+          {createdDocument && <DocumentCreatedCard document={createdDocument} theme={theme} />}
+          {citations && citations.length > 0 && (
+            <CitationsFooter citations={citations} theme={theme} onSelect={setSelectedCitation} />
+          )}
+          {!isStreaming && progress?.memoryContext && (
+            <MemoryIndicator memoryContext={progress.memoryContext} theme={theme} />
+          )}
+        </View>
+        <BranchPicker theme={theme} />
+        <AssistantActionBar theme={theme} messageText={messageText} metadata={metadata} />
+        <CitationDetailSheet
+          citation={selectedCitation}
+          theme={theme}
+          onClose={() => setSelectedCitation(null)}
+          fetchFullText={fetchFullText}
+        />
+      </MessagePrimitive.Root>
+    </Fragment>
   );
+});
+
+const styles = StyleSheet.create({
+  interrupted: {
+    ...chatType.chatMeta,
+    marginTop: spacing.xxsmall,
+    fontStyle: 'italic',
+  },
 });
