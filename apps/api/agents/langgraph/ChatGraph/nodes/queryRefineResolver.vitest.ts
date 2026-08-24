@@ -306,4 +306,47 @@ describe('refineSearchQuery — was er dem Modell schickt', () => {
     expect(userMessage).toContain('Vorher ging es um die Wärmeplanung.');
     expect(userMessage).toContain('Und was steht da zum Zeitplan?');
   });
+
+  /**
+   * Der Kontext war schon immer da (Test darüber) — was fehlte, war die Ansage,
+   * ihn zu BENUTZEN. Live am 24.08.2026 wurde „kannst du das wörtlich zitieren?"
+   * nach einem Turn über Löschfristen zu „Wortwörtliche Zitate aus der
+   * Datenschutzerklärung des GRÜNERATOR vom 09.07.2026": „das" landete auf dem
+   * Dokument statt auf dem Thema. Bei 16 Chunks traf die Suche trotzdem, bei
+   * einem grossen Dokument trifft sie nichts Bestimmtes — und der Ausfall sieht
+   * dann nach einem Retrieval-Problem aus.
+   *
+   * Was dieser Test kann und was nicht: er hält fest, dass die Regel beim Modell
+   * ANKOMMT. Ob das Modell sie befolgt, kann hier niemand prüfen — der Anbieter
+   * ist eine Attrappe. Der Verhaltensbeweis ist ein Live-Lauf.
+   */
+  it('sagt dem Modell, dass Rückverweise auf den Verlauf aufzulösen sind', async () => {
+    answering('{"query": "Löschfristen"}');
+    await refineSearchQuery({
+      userContent: 'kannst du das wörtlich zitieren?',
+      conversationContext: 'GESPRÄCHSVERLAUF:\nNutzer: Welche Löschfristen nennt das PDF?',
+      topicalContext: null,
+    });
+    const systemPrompt = (requestAt(0) as { systemPrompt?: string }).systemPrompt ?? '';
+    expect(systemPrompt).toContain('GESPRÄCHSVERLAUF');
+    expect(systemPrompt).toMatch(/"das"/);
+  });
+
+  /**
+   * Die Gegenprobe zur Regel darüber. „fass das zusammen" OHNE erkennbares
+   * Vorthema muss weiter beim Kern der Nachricht landen — sonst tauscht man
+   * einen Ausfall gegen den anderen, und zwar unbemerkt, weil beide Regeln
+   * dieselbe Formulierung („das") ansprechen.
+   */
+  it('behält die Regel für Nachrichten ganz ohne Thema', async () => {
+    answering('{"query": "Zusammenfassung"}');
+    await refineSearchQuery({
+      userContent: 'fass das zusammen',
+      conversationContext: null,
+      topicalContext: null,
+    });
+    const systemPrompt = (requestAt(0) as { systemPrompt?: string }).systemPrompt ?? '';
+    expect(systemPrompt).toContain('gibt auch der Verlauf keines her');
+    expect(systemPrompt).toContain('Kern der Nachricht');
+  });
 });
