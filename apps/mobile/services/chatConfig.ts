@@ -3,15 +3,14 @@ import { router } from 'expo-router';
 
 import { getErrorMessage } from '../utils/errors';
 
+import { resolveChatUrl } from './chatApiUrl';
 import { secureStorage } from './storage';
-
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu';
 
 let cachedApiClient: ChatApiClient | null = null;
 
 async function mobileFetch(url: string, options?: RequestInit): Promise<Response> {
   const token = await secureStorage.getToken();
-  const absoluteUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`;
+  const absoluteUrl = resolveChatUrl(url);
 
   return fetch(absoluteUrl, {
     ...options,
