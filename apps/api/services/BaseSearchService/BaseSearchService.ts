@@ -19,6 +19,7 @@ import {
   simpleHash as hashString,
 } from '../../utils/validation/index.js';
 import { mistralEmbeddingService } from '../mistral/index.js';
+import { rerankPipeline } from '../search/rerankPipeline.js';
 import { normalizeQuery, containsNormalized } from '../text/index.js';
 
 import {
@@ -57,6 +58,29 @@ import type {
   BaseSearchServiceOptions,
   MMROptions,
 } from './types.js';
+
+/**
+ * Unter dieser Poolgrösse lohnt der Cross-Encoder nicht — `rerankPipeline`
+ * überspringt bei ≤2 ohnehin, und bei drei Chunks entscheidet der Deckel je
+ * Dokument (10) sowieso nichts weg.
+ */
+const CHUNK_RERANK_MIN_POOL = 3;
+
+/**
+ * Wie viele Chunks der Cross-Encoder je Suche zu sehen bekommt.
+ *
+ * Drei Mal `CONTENT_MAX_CHUNKS_PER_DOC` (10), damit die Bewertung die
+ * Vorauswahl wirklich umsortieren kann statt sie nur zu bestätigen. Nach oben
+ * begrenzt, weil eine Anfrage sonst mit der Dokumentlänge wächst: ein
+ * 100-seitiges PDF liegt bei ~200 Chunks, und `RERANK_TIMEOUT_MS` sind 8 s für
+ * den ganzen Aufruf.
+ *
+ * Der Standard-`RERANK_INPUT_LIMIT` (16) passt hier nicht: er ist für
+ * DOKUMENT-Kandidaten gedacht. Live am 24.08.2026 hatte ein einzelnes
+ * 8-Seiten-PDF exakt 16 Chunks — die Decke wäre schon bei einer Datei bindend
+ * gewesen.
+ */
+const CHUNK_RERANK_POOL_MAX = 30;
 
 // Re-export SearchError for backward compatibility
 export { SearchError };
@@ -248,6 +272,7 @@ export class BaseSearchService {
       const results = await this.groupAndRankHybridResults(chunks, options.limit ?? 10, query, {
         applyMMR: true,
         mmrLambda: 0.7,
+        ...(options.rerankChunks === true && { rerankChunks: true }),
       });
 
       // Build response
@@ -716,6 +741,82 @@ export class BaseSearchService {
    * Group and rank hybrid search results
    * @protected
    */
+
+  /**
+   * Cross-Encoder auf die CHUNKS — vor der Gruppierung.
+   *
+   * Danach gibt es nichts mehr zu reranken: die Gruppierung verschmilzt alle
+   * Chunks eines Dokuments zu EINEM Treffer, und `rerankPipeline` überspringt
+   * bei zwei oder weniger Items. Ein Turn mit einem angehängten PDF hat genau
+   * ein Item — deshalb hat der Loop-Pfad nie einen Cross-Encoder gesehen,
+   * obwohl `rerankPipeline` seit Langem im Haus ist.
+   *
+   * Was hier bewertet wird, entscheidet, welche Chunks `slice(0, maxN)`
+   * überleben und in welcher Reihenfolge sie im Treffer stehen — und weil der
+   * Registry-Deckel den Schwanz abschneidet, ist die Reihenfolge die Auswahl.
+   * Live am 24.08.2026: 16 Chunks, die Frage nach den Löschfristen, und die
+   * Tabelle mit den acht Zeilen landete nicht vorn.
+   *
+   * Bewusst NICHT auf dem gruppierten Treffer: `rerankNode` schneidet
+   * Kandidaten auf `RERANK_EXCERPT_CHARS` (1200), ein 15 000 Zeichen langer
+   * Dokument-Treffer würde also wieder nach seinem Kopf beurteilt. Genau das
+   * hat `firstRelevantOffset` in #2289 widerlegt (3219/9966/8673).
+   *
+   * Rückfall ist überall das heutige Verhalten: `null` heisst „nach Kosinus
+   * sortieren wie bisher". `rerankPipeline` wirft nicht — bei Regolo-Ausfall
+   * kommt die Eingabereihenfolge zurück, und die Kosinus-Reihenfolge ist genau
+   * das.
+   */
+  protected async scoreChunksByCrossEncoder(
+    chunks: TransformedChunk[],
+    query: string
+  ): Promise<Map<number, number> | null> {
+    if (!query.trim() || chunks.length <= CHUNK_RERANK_MIN_POOL) return null;
+
+    // Grösser als der Pool ist keine Option: was nicht bewertet wird, müsste im
+    // selben Sortierschritt gegen bewertete Chunks antreten, und die zwei
+    // Skalen sind nicht vergleichbar. Über der Decke bleibt es deshalb bei der
+    // Vorauswahl nach Kosinus — dieselbe, die heute schon bei 10 zuschlägt,
+    // nur drei Mal so weit.
+    const pool = chunks
+      .map((chunk, index) => ({
+        index,
+        data: this.extractChunkData(chunk),
+        // Der Dokumenttitel, nicht der des Chunks — den gibt es nicht. Bei
+        // einem einzelnen Anhang ist er für alle gleich und trägt nichts bei;
+        // bei mehreren gibt er dem Encoder, aus welcher Datei die Stelle kommt.
+        title: this.extractDocumentTitle(chunk),
+      }))
+      .sort((a, b) => (b.data.similarity || 0) - (a.data.similarity || 0))
+      .slice(0, CHUNK_RERANK_POOL_MAX);
+
+    const { rankedIndices, scores, failed } = await rerankPipeline({
+      query,
+      items: pool.map((entry) => ({
+        title: entry.title ?? '',
+        // Ungekürzt: ein Chunk ist ~1400 Zeichen, der Encoder sieht ihn ganz.
+        content: entry.data.text ?? '',
+        relevance: entry.data.similarity ?? undefined,
+      })),
+      // Bewerten, nicht auswählen: die Auswahl trifft danach `maxChunksPerDocument`
+      // je Dokument. Ein `outputLimit` hier würde quer über alle Dokumente
+      // schneiden und bei mehreren Anhängen eines ganz verschwinden lassen.
+      inputLimit: pool.length,
+      outputLimit: pool.length,
+      minRelevance: 0,
+      applyDiversity: false,
+    });
+
+    if (failed || rankedIndices.length === 0) return null;
+
+    const byChunkIndex = new Map<number, number>();
+    for (const [poolIndex, entry] of pool.entries()) {
+      const score = scores.get(poolIndex);
+      if (score != null) byChunkIndex.set(entry.index, score);
+    }
+    return byChunkIndex.size > 0 ? byChunkIndex : null;
+  }
+
   async groupAndRankHybridResults(
     chunks: TransformedChunk[],
     limit: number,
@@ -726,8 +827,16 @@ export class BaseSearchService {
     const normQuery = normalizeQuery(query);
     const isShortQuery = (query || '').trim().split(/\s+/).filter(Boolean).length <= 2;
 
+    // Opt-in, weil `groupAndRankHybridResults` von Anhängen, Notizbüchern,
+    // Grundsatz- und LV-Sammlungen gemeinsam benutzt wird. Notizbuch und
+    // Recherche reranken danach ohnehin auf Dokumentebene; der Anhang-Pfad ist
+    // der einzige, bei dem das nichts bringt, weil dort nur EIN Dokument steht.
+    const rerankScores = options.rerankChunks
+      ? await this.scoreChunksByCrossEncoder(chunks, query)
+      : null;
+
     // Group chunks by document with hybrid metadata
-    for (const chunk of chunks) {
+    for (const [poolIndex, chunk] of chunks.entries()) {
       const docId = this.extractDocumentId(chunk);
 
       if (!documentMap.has(docId)) {
@@ -765,11 +874,14 @@ export class BaseSearchService {
       const hasTerm = normQuery ? containsNormalized(chunkData.text, normQuery) : false;
       const isTOC = looksLikeTOC(chunkData.text);
       const inHeader = chunkData.content_type === 'heading';
+      // Der Cross-Encoder ersetzt die Basis, nicht die Zuschläge: er urteilt
+      // besser über Relevanz, weiss aber nichts über Inhaltsverzeichnisse. Die
+      // Begriffs-Boni bleiben als Gleichstand-Entscheider stehen — sie sind
+      // gegen die Blindheit des Bi-Encoders für exakte Treffer gebaut und
+      // damit teilweise redundant, aber 0,12 kippt keine echte Rangfolge.
+      const base = rerankScores?.get(poolIndex) ?? chunkData.similarity ?? 0;
       const adjusted =
-        (chunkData.similarity || 0) +
-        (hasTerm ? 0.12 : 0) +
-        (hasTerm && inHeader ? 0.06 : 0) -
-        (isTOC ? 0.08 : 0);
+        base + (hasTerm ? 0.12 : 0) + (hasTerm && inHeader ? 0.06 : 0) - (isTOC ? 0.08 : 0);
 
       chunkData.similarity_adjusted = adjusted;
       chunkData.has_term = hasTerm;
