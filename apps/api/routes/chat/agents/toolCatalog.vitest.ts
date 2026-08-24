@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+import { ATTACHED_DOC_SNIPPET_CHARS } from '../services/agenticLoop/attachedDocuments.js';
 import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 
 import { buildChatToolCatalog } from './toolCatalog.js';
@@ -877,6 +878,38 @@ describe('toolCatalog dokumente_lesen', () => {
     expect(sourceRegistry.size).toBe(1);
     expect(out.sources).toContain('Der Radverkehr wird ausgebaut.');
     expect(documentFullText).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Suchmodus und Vorab-Abruf fragen dieselben Anhänge über dieselbe Bauform ab.
+   * Liefen sie mit verschiedenen Deckeln, wäre dasselbe Ergebnis je nach
+   * Aufrufer unterschiedlich lang — und welcher gewinnt, hinge daran, wer
+   * zuerst registriert.
+   */
+  it('gibt der Passagensuche denselben Platz wie dem Vorab-Abruf', async () => {
+    const long = 'z'.repeat(ATTACHED_DOC_SNIPPET_CHARS - 100);
+    fanout.mockResolvedValue({
+      perSourceResults: {
+        'doc-1': [
+          {
+            source: 'documentchat:doc-1',
+            title: 'Beschlusspapier.pdf',
+            content: long,
+            relevance: 0.9,
+          },
+        ],
+      },
+      searchedCollections: [],
+      errors: [],
+    });
+    const { tools } = catalogWithDocs([pdf]);
+
+    const out = (await execOf(tools.dokumente_lesen)(
+      { query: 'Radverkehr' },
+      { toolCallId: 'c1' }
+    )) as { sources: string };
+
+    expect(out.sources).toContain(long);
   });
 
   it('liest mit `abschnitt` den Volltext in Scheiben', async () => {
