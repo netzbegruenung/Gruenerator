@@ -54,6 +54,7 @@ import {
 } from '../services/agenticLoop/attachedDocuments.js';
 import { isEditorSurface } from '../services/agenticLoop/routing.js';
 import { artifactKind, type ArtifactKindId } from '../services/artifactKindRegistry.js';
+import { hasReachableForm } from '../services/pdfFormAvailability.js';
 import { withImageProxy } from '../services/searchImagePayload.js';
 
 import {
@@ -842,13 +843,9 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
     //
     // Not narrowed to `pdfFormAttachments`: that would take the form away one
     // turn after it was uploaded, which is the regression this comment used to
-    // guard against.
-    const hasPdfInThread =
-      (state.pdfFormAttachments?.length ?? 0) > 0 ||
-      (state.threadAttachments ?? []).some(
-        (a) => a.mimeType === 'application/pdf' && a.hasFileData
-      );
-    if (hasPdfInThread && state.enabledTools?.['pdf_form'] !== false) {
+    // guard against. The predicate itself lives in `hasReachableForm` — the
+    // routing stage asks the same question and used to answer it differently.
+    if (hasReachableForm(state) && state.enabledTools?.['pdf_form'] !== false) {
       const pdfCtx = { state, sse, threadId: loop.threadId ?? null };
       tools.read_pdf_form = makeReadPdfFormTool(pdfCtx);
       tools.fill_pdf_form = makeFillPdfFormTool(pdfCtx);
