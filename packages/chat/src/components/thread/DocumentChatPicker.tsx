@@ -26,7 +26,11 @@ interface DocumentChatPickerProps {
 
 export function DocumentChatPicker({ visible, onConfirm, onDismiss }: DocumentChatPickerProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const { data, isLoading: loadingContent } = useCombinedContentQuery(visible);
+  const {
+    data,
+    isLoading: loadingContent,
+    isError: contentFailed,
+  } = useCombinedContentQuery(visible);
   const documents = data?.documents ?? [];
   const texts = data?.texts ?? [];
 
@@ -130,8 +134,16 @@ export function DocumentChatPicker({ visible, onConfirm, onDismiss }: DocumentCh
                 )}
 
                 {documents.length === 0 && texts.length === 0 && (
-                  <div className="p-4 text-center text-sm text-foreground-muted">
-                    Keine Dokumente vorhanden
+                  <div
+                    className={
+                      contentFailed
+                        ? 'p-4 text-center text-sm text-destructive'
+                        : 'p-4 text-center text-sm text-foreground-muted'
+                    }
+                  >
+                    {contentFailed
+                      ? 'Dokumente konnten nicht geladen werden.'
+                      : 'Keine Dokumente vorhanden'}
                   </div>
                 )}
               </>
