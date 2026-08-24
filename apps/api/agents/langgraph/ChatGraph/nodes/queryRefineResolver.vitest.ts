@@ -349,4 +349,25 @@ describe('refineSearchQuery — was er dem Modell schickt', () => {
     expect(systemPrompt).toContain('gibt auch der Verlauf keines her');
     expect(systemPrompt).toContain('Kern der Nachricht');
   });
+
+  /**
+   * Die zweite Gegenprobe, aus dem Review zu PR #2826: die Regel darf eine
+   * eigenständige Frage nicht auf den Vorturn umbiegen. „Zeig mir die
+   * Kontaktdaten" nach einem Turn über Löschfristen sucht Kontaktdaten — die
+   * Vorrangregel steht deshalb VOR der Rückverweis-Regel und nennt den Fall
+   * beim Namen. Die frühere Fassung führte blosse Artikel („die/der/dem") als
+   * Auslöser, die in praktisch jedem deutschen Satz vorkommen.
+   */
+  it('stellt das eigene Thema der Nachricht über den Rückverweis', async () => {
+    answering('{"query": "Kontaktdaten"}');
+    await refineSearchQuery({
+      userContent: 'Zeig mir die Kontaktdaten in der Datenschutzerklärung',
+      conversationContext: 'GESPRÄCHSVERLAUF:\nNutzer: Welche Löschfristen nennt das PDF?',
+      topicalContext: null,
+    });
+    const systemPrompt = (requestAt(0) as { systemPrompt?: string }).systemPrompt ?? '';
+    expect(systemPrompt).toContain('Nennt die Nachricht selbst ein Thema, gilt dieses');
+    // Und der Auslöser ist kein blosser Artikel mehr.
+    expect(systemPrompt).not.toMatch(/"die\/der\/dem"/);
+  });
 });
