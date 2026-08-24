@@ -39,6 +39,7 @@ import { startBoardAgentWorker } from './services/boards/boardAgentWorker.js';
 import { startBoardScheduleWorker } from './services/boards/boardScheduleWorker.js';
 import { startCardDueReminderWorker } from './services/boards/cardDueReminderWorker.js';
 import { startUploadsCleanup } from './services/cleanup/uploadsCleanupService.js';
+import { mem0HealthSnapshot } from './services/mem0/mem0Health.js';
 import { startNotificationCleanup } from './services/notifications/notificationCleanupService.js';
 import { startRecurringTaskWorker } from './services/recurringTasks/recurringTaskWorker.js';
 import { startDeepResearchCleanup } from './services/research/deepAgent/resumableRuns.js';
@@ -519,6 +520,11 @@ async function startWorker(): Promise<void> {
   app.get('/health', async (req: Request, res: Response) => {
     const redisHealth = await checkRedisHealth();
 
+    // mem0 geht in den Bericht, aber NICHT in den Status: das Gedaechtnis ist
+    // abschaltbar (profiles.memory_enabled) und faellt bewusst leise aus, ein
+    // toter Vektorspeicher darf den Worker nicht aus dem Lastverteiler nehmen.
+    // Gemeldet wird es trotzdem, weil genau diese Leise #2807 fuenf Tage lang
+    // verdeckt hat. Ohne `drain` — mehrere Abfrager teilen sich den Zaehler.
     res.status(redisHealth.connected ? 200 : 503).json({
       status: redisHealth.connected ? 'healthy' : 'degraded',
       timestamp: new Date().toISOString(),
@@ -526,6 +532,7 @@ async function startWorker(): Promise<void> {
       uptime: process.uptime(),
       services: {
         redis: redisHealth,
+        mem0: mem0HealthSnapshot(),
       },
     });
   });
