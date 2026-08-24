@@ -27,10 +27,7 @@ import { ChatOpenAI } from '@langchain/openai';
 
 import { env } from '../../../config/env.js';
 import { cortecsBaseUrl } from '../../ai/cortecsEndpoint.js';
-import {
-  cortecsFetchWithPolicy,
-  SOVEREIGN_ZDR_PROVIDERS,
-} from '../../ai/cortecsRequestPolicy.js';
+import { cortecsFetchWithPolicy, SOVEREIGN_ZDR_PROVIDERS } from '../../ai/cortecsRequestPolicy.js';
 import { isScalewayMistralRoutingEnabled, MISTRAL_API_URL } from '../../ai/providerInstances.js';
 import { scalewayBaseUrl } from '../../ai/scalewayEndpoint.js';
 
