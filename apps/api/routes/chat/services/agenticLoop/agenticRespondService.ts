@@ -239,17 +239,15 @@ export async function streamAgenticResponse(
     // Nach der Rehydrierung, damit die Anhänge dieses Turns hinter der
     // mitgeführten Recherche numeriert werden und deren Zitatnummern stabil
     // bleiben.
-    toolReplayMessages = [
-      ...toolReplayMessages,
-      ...(await seedAttachedDocuments({
-        state: finalState,
-        sourceRegistry,
-        toolName: ATTACHED_DOCS_TOOL,
-        isMounted: ATTACHED_DOCS_TOOL in tools,
-        onInfo: (m) => log.info(m),
-        onError: (m) => log.warn(m),
-      })),
-    ];
+    const seeded = await seedAttachedDocuments({
+      state: finalState,
+      sourceRegistry,
+      toolName: ATTACHED_DOCS_TOOL,
+      isMounted: ATTACHED_DOCS_TOOL in tools,
+      onInfo: (m) => log.info(m),
+      onError: (m) => log.warn(m),
+    });
+    toolReplayMessages = [...toolReplayMessages, ...seeded.replay];
 
     const wrapped = wrapAssembledTools(tools, {
       sse,
@@ -404,6 +402,7 @@ export async function streamAgenticResponse(
       pinnedTool: finalState.mentionPinnedTool ?? null,
       hasAttachedDocuments,
       summaryAsk,
+      attachedSeedDelivered: seeded.delivered,
     });
 
     // WELCHES Werkzeug der erste Schritt ruft, wenn eine @-Erwähnung eines
