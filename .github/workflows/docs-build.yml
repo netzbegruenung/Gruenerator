@@ -90,6 +90,14 @@ jobs:
       - name: Check reference.json is in sync with its sources
         run: pnpm --filter @gruenerator/documentation reference:check
 
+      # Which model serves which task, at which host — read out of the routing
+      # code itself. Same reasoning as reference.json: pure facts, no
+      # hand-written half, so staleness is the only failure mode. A lane that
+      # moves host without a regenerate would leave the sustainability page
+      # claiming the wrong country.
+      - name: Check models.json is in sync with the routing code
+        run: pnpm --filter @gruenerator/documentation models:check
+
       - name: Build docs (fails on unknown UiLabel ids)
         run: pnpm --filter @gruenerator/documentation build
 
