@@ -109,6 +109,24 @@ Mistral AI (primary, EU), self-hosted GPT-OSS/Gemma via LiteLLM/verdigado, Seewe
 - **PR merges require admin.** `gh pr merge` fails — ask user to merge via GitHub UI.
 - **Worktree weg, sobald alles gepusht ist** — nicht erst nach dem Merge. Ein offener PR braucht kein lokales Verzeichnis, er lebt auf `origin`. Kriterium: `git status --porcelain` **und** `git log @{u}..` beide leer → `git worktree remove <pfad>` (Branch bleibt stehen). Nach dem Merge zusätzlich `git branch -d <br> && git worktree prune`. Nie `--force`, nie fremde Worktrees — andere Agenten arbeiten parallel.
 
+### Nebenbefunde werden Issues, nicht Prosa
+
+**Ein Fehler, der bei anderer Arbeit auffällt, wird als GitHub-Issue abgelegt** — nicht nur im Chat erwähnt, nicht nur als Kommentar im Code, nicht in `/docs/` (gitignored). Der Chat ist weg, sobald das Fenster zu ist; ein Issue überlebt den Kontext und ist der Ort, an dem andere Agenten und Menschen danach suchen.
+
+Gilt für alles, was ohne Zutun auffällt: ein 404 in einem mitgelesenen Log, ein `ContextCap`-Deckel, der mehr wegschneidet als gedacht, eine Zahl in der Antwort, die nicht zur Quelle passt.
+
+Das Issue trägt die **Belege, nicht die Vermutung**. Konkret:
+
+- **Die Logzeilen im Original**, mit Zeitstempel und Zahlen, nicht nacherzählt. `cap hit: 13790 → 1500 chars (12290 dropped, 89%)` ist der Befund; „die Kürzung ist zu hart" ist es nicht.
+- **Die Stelle im Code** als `datei.ts:zeile` — nach dem Nachsehen, nicht nach dem Vermuten. Die Logs sagen *dass* etwas passiert; erst der Code sagt *warum*.
+- **Die Reproduktion**, soweit bekannt: welches Dokument, welche Frage, welcher Thread.
+- **Was ungeprüft ist, steht als ungeprüft da.** „Mistral OCR hätte die Tabelle vermutlich sauber — die beiden Texte wurden nicht verglichen" ist eine brauchbare Aussage; dieselbe Vermutung als Tatsache geschrieben schickt die nächste Person in die falsche Richtung.
+- **Die Falle beim Reparieren**, wenn du eine gesehen hast. Beim Nachsehen fällt oft auf, dass die naheliegende Reparatur nicht wirkt — das ist das Wertvollste am Befund und geht sonst verloren.
+
+Beispiele: #2817 (doppelte Quelle — der Deckel ist nicht der Kern, der Schlüssel ist es), #2818 (zwei PDF-Extraktoren), #2819 (QueryRefine verliert das Thema — der Kontext fehlt nicht, die Prompt-Regel).
+
+Was **kein** Issue braucht: was du im selben Zug reparierst, und was schon eins hat (`gh issue list --search`).
+
 ### Agent-Skills & versionsgenaue Doku
 
 **Bevor du Code gegen eine Library änderst (AI SDK, Tailwind v4, LangGraph, Drizzle, Zod, Qdrant, Expo, Tiptap, Better Auth, Linkup, …): erst die versionsgenaue Quelle lesen, nicht aus dem Gedächtnis schreiben.** Welche Skill bzw. welches `llms.txt` — und die Fallen dabei — stehen in `docs/CLAUDE-agent-docs.md`. Ein Tool-Call ist billiger als ein Debug-Zyklus an einer umbenannten API.
@@ -218,10 +236,25 @@ Konsequenzen:
 - `typecheck` **und** `lint` tragen `dependsOn: ["^typecheck"]`. Bei `lint` sieht die Kante falsch aus, ist es aber nicht: ESLint läuft hier voll typ-bewusst (`projectService` + `no-floating-promises`/`no-unsafe-*` in `packages/eslint-config/base.js`) und liest dieselben fremden Quellen. `^lint` genügt nicht, weil die Hälfte der Zwischenpakete (`canvas-editor`, `collab`, `docs`, `presentations`, `sheets`, `voice`, `wolke`, `sites-design`) gar kein `lint`-Skript hat und die Hash-Kette dort abreißen würde — `typecheck` haben sie alle.
 - Wer eine `^`-Kante entfernen will, weil sie „nur serialisiert": vorher den Hash messen (`turbo run <task> --dry=json`, Feld `hash`), nicht bloß prüfen, ob der Task isoliert grün läuft. `--only` beweist nur, dass die Reihenfolge egal ist, nichts über die Korrektheit des Caches.
 
-**Check-Budget.** `pnpm run ci` fasst typecheck/lint/test in **einen** Turbo-Aufruf, danach `format:check` (Prettier läuft mit `--cache --cache-strategy content`: 19,6 s → 4,1 s warm). Auf einem M5/10 Kerne kostet ein kalter Voll-Typecheck ~64 s, ein kalter Voll-Lint ~287 s (`web` 287 s, `api` 281 s, `mobile` 236 s dominieren), die Testsuite ~114 s. Bei ~5 parallelen Agenten auf 16 GB bleibt es trotzdem bei:
+**Check-Budget.** Auf einem M5/10 Kerne kostet ein kalter Voll-Typecheck ~64 s, ein kalter Voll-Lint ~287 s (`web` 287 s, `api` 281 s, `mobile` 236 s dominieren), die Testsuite ~114 s, `format:check` warm ~4 s (Prettier cacht mit `--cache --cache-strategy content`). Der Engpass ist aber nicht die Zeit, sondern der Speicher: bei ~5 parallelen Agenten auf 16 GB gilt:
 
 - Während der Arbeit paketweise: `pnpm --filter @gruenerator/<pkg> exec tsc --noEmit`, `npx eslint <dateien>`, `npx vitest run <eine.vitest.ts>`.
-- Voll-Check (`pnpm run ci`, **nie** `pnpm ci` — pnpms eingebauter `ci`-Stub bricht mit `ERR_PNPM_CI_NOT_IMPLEMENTED` ab, und zwar mit Exit-Code 0: sieht aus wie grün, hat nichts geprüft) **einmal am Ende**, in einem Worktree — nicht als Zwischenstand, nicht als Statusbericht.
+- **`pnpm run ci` gar nicht — auch nicht einmal am Ende.** Das Skript ist `check:internal && check:overlays && turbo run typecheck lint test && format:check`: der mittlere Teil fährt typecheck, lint und Tests in **einem** Turbo-Aufruf gleichzeitig hoch. Bei ~5 parallelen Agenten auf 16 GB ist das der zuverlässigste Weg in den Swap, und der OOM-Abbruch sieht hinterher aus wie ein Testfehler. Stattdessen die Schritte **einzeln nacheinander**, jeder abgewartet, bevor der nächste startet:
+
+  ```bash
+  pnpm check:internal && pnpm check:overlays   # ~5 s, nicht weglassen
+  pnpm typecheck                                # turbo, --concurrency=3
+  pnpm lint
+  pnpm test
+  pnpm format:check
+  ```
+
+  Wo `--filter <pkg>` reicht, weil nur ein Paket berührt ist, ist es die bessere Wahl.
+
+  Ein grüner Lokal-Lauf beweist ohnehin weniger, als er aussieht: der `Guards`-Job der CI fährt neun Skripte, von denen diese Liste nur zwei kennt. Die Entscheidung fällt auf dem PR, auf einer Maschine, die niemand sonst benutzt — dorthin gehört der Voll-Lauf.
+
+  (**Nie `pnpm ci`** ohne `run` — das ist ein pnpm-Builtin, bricht mit `ERR_PNPM_CI_NOT_IMPLEMENTED` ab und liefert dabei Exit-Code 0: sieht aus wie grün, hat nichts geprüft.)
+
 - Nie ganze Test-Verzeichnisse (`vitest run routes/chat agents/langgraph …` = 113 Dateien / 275 s / ~9 Forks).
 - `--force` nur nach Änderungen an Build-Outputs geteilter Pakete, dann mit `--filter`. Nie als Reflex am Ende.
 
