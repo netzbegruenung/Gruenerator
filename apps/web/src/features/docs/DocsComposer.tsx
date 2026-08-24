@@ -513,10 +513,16 @@ export function DocsComposer({
               Frage der Chat. Dein Text wird dorthin übernommen, abgeschickt wird er erst von dir.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {/* Radix focuses the Cancel button when the dialog opens, so the
+              non-committal option has to sit there: the dialog is reached by
+              pressing Enter in the composer, and a second Enter must not be
+              able to do the thing the dialog is asking about. Both real
+              choices are Actions — they close the dialog either way. */}
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => chatAsk && create(chatAsk)}>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction variant="outline" onClick={() => chatAsk && create(chatAsk)}>
               Trotzdem erstellen
-            </AlertDialogCancel>
+            </AlertDialogAction>
             <AlertDialogAction onClick={() => chatAsk && runChatHandoff(chatAsk)}>
               Im Chat fragen
             </AlertDialogAction>
