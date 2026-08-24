@@ -3,17 +3,19 @@ sidebar_position: 4
 title: Wie nachhaltig ist der Grünerator?
 ---
 
-{/*
-Modell-Stand aus dem Code (bei Änderungen dort auch hier nachziehen):
+import { ModelTable } from '@site/src/components/ModelTable';
 
-- apps/api/routes/chat/agents/providers.ts (AVAILABLE_MODELS, VISION_MODEL, LOOP_PLANNER__, LOOP_SYNTH__)
-- apps/api/services/ai/providers.ts (INTERMEDIATE_MODEL, PROVIDER_DEFAULTS)
-- apps/api/services/flux/FluxImageService.ts (BFL EU-Endpunkt, flux-2-pro)
-- apps/api/services/flux/RegoloImageService.ts (Qwen-Image)
-- apps/api/services/transcription/providerPolicy.ts (TRANSCRIPTION_CHAIN: voxtral -> greenpt)
-- apps/api/services/providers/providerSelector.ts (ARTIFACT_PROVIDER — PDF/Präsentation/Sheet/Dokument)
-- packages/core/src/models/catalog.ts (die im Chat wählbaren Lanes)
-- apps/api/services/mistral/MistralEmbeddingService/ (mistral-embed)
+{/*
+Welches Modell wo läuft, steht NICHT mehr in dieser Datei: <ModelTable /> rendert
+src/generated/models.json, und das liest scripts/generate-models.mjs aus dem
+Routing-Code selbst (AVAILABLE_MODELS, INTERMEDIATE_LANES, LOOP_PLANNER_PRIMARY,
+ARTIFACT_MODEL, VISION_MODEL, MODEL_OPTIONS, TRANSCRIPTION_CHAIN). Umzug einer
+Lane -> `pnpm --filter @gruenerator/documentation models:generate`; `models:check`
+bricht die CI, wenn es jemand vergisst. Neues Modell ohne lesbaren Namen: eine
+Zeile in MODEL_LABELS, der Generator sagt welche.
+
+Weiter von Hand gepflegt (Messwerte, keine Routing-Fakten):
+
 - apps/api/services/usage/energyFootprint.ts (Energie-Koeffizienten, Netzintensitäten)
 - apps/web/src/utils/usageFormat.ts (Darstellung: Einheiten, Rundung, Vergleichsrechnung)
 - apps/web/src/features/settings/tabs/UsageTab.tsx (Nutzung-Tab — zeigt bewusst KEINEN eigenen Fußabdruck)
@@ -34,31 +36,21 @@ Der Grünerator selbst — Web-Oberfläche, Datenbanken, Suche — läuft bei **
 
 Auch die **selbst gehosteten Open-Source-Modelle**, die netzbegrünung e.V. und die verdigado eG für den Grünerator betreiben, laufen auf dieser Wasserkraft-Infrastruktur — heute vor allem GPT-OSS 120B.
 
-Gemma 4 lief dort ebenfalls, wird aber seit dem 31.07.2026 bei Regolo in Italien bedient. Der Grund war Tempo: Die selbst gehostete Variante denkt vor jeder Antwort nach, und kein Schalter stellte das ab — rund zwei Drittel ihrer Ausgabe gingen in einen Denkblock, den niemand angefordert hatte. Dieselben Gewichte antworten bei Regolo neunmal schneller. Die verdigado-Instanz bleibt als Ausweichweg stehen, falls Regolo ausfällt.
+Gemma 4 lief dort ebenfalls, wird aber seit dem 31.07.2026 bei Regolo in Italien bedient. Der Grund war Tempo: Die selbst gehostete Variante denkt vor jeder Antwort nach, und kein Schalter stellte das ab — rund zwei Drittel ihrer Ausgabe gingen in einen Denkblock, den niemand angefordert hatte. Dieselben Gewichte antworten bei Regolo neunmal schneller.
+
+Als Ausweichweg diente die verdigado-Instanz noch bis zum 19.08.2026. Seitdem nicht mehr: Sie hat einen einzigen Inferenz-Platz, den sie sich mit den GPT-OSS-Lanes teilte — als Regolo an diesem Tag hustete, war der Ausweg belegt und beide Wege standen still. Der Ausweichweg ist heute das kleinere Gemma 4 mit 26 Mrd. Parametern bei **Scaleway in Paris**, das nicht an derselben Engstelle hängt.
 
 ## Sparsame Modelle statt Größenwahn
 
-Die größten kommerziellen KI-Modelle brauchen für jede einzelne Antwort ein Vielfaches der Energie eines kompakten Modells. Der Grünerator setzt deshalb bewusst auf **kleine und mittlere Modelle** — vom 31-Milliarden-Parameter-Modell Gemma 4 bis zum mittelgroßen Mistral Medium. Das sind die Modelle, die tatsächlich im Einsatz sind:
+Die größten kommerziellen KI-Modelle brauchen für jede einzelne Antwort ein Vielfaches der Energie eines kompakten Modells. Der Grünerator setzt deshalb bewusst auf **kleine und mittlere Modelle** — vom 31-Milliarden-Parameter-Modell Gemma 4 bis zum mittelgroßen Mistral Medium. Diese Tabelle wird direkt aus dem Routing-Code erzeugt und zeigt daher genau die Modelle, die gerade tatsächlich im Einsatz sind:
 
-| Aufgabe                                   | Modell                                             | Läuft bei                                      |
-| ----------------------------------------- | -------------------------------------------------- | ---------------------------------------------- |
-| Chat & Texte (Standard)                   | Mistral Medium 3.5 (`mistral-medium-2604`)         | Mistral AI 🇫🇷                                  |
-| Kreativtexte, Antworten schreiben         | Gemma 4 — 31 Mrd. Parameter (`gemma4-31b`)         | Regolo 🇮🇹 (Ausweichweg verdigado 🇩🇪)           |
-| Lange Dokumente zusammenfassen            | Gemma 4 — 26 Mrd. Parameter (`gemma-4-26b-a4b-it`) | Scaleway 🇫🇷 (Paris)                            |
-| Dokumente, Präsentationen, PDFs, Tabellen | Gemma 4 (`gemma4`)                                 | GreenPT 🇪🇺                                     |
-| Schnelle Antworten                        | GPT-OSS 120B (`gpt-oss-120b`)                      | verdigado 🇩🇪 / Regolo 🇮🇹                       |
-| Anfragen einordnen, Zwischenschritte      | Mistral Small 4 (`mistral-small-4-119b`)           | Regolo 🇮🇹                                      |
-| Werkzeuge planen und aufrufen             | Mistral Small (`mistral-small-latest`)             | Mistral AI 🇫🇷                                  |
-| Bilder verstehen                          | Gemma 4 (`gemma4-31b`), Pixtral Large              | Regolo 🇮🇹 / Mistral AI 🇫🇷                      |
-| Bilder erzeugen & bearbeiten              | FLUX 2 Pro (`flux-2-pro`), Qwen-Image              | Black Forest Labs 🇩🇪 (EU-Endpunkt) / Regolo 🇮🇹 |
-| Untertitel & Transkription                | Voxtral, Ausweichweg `green-s-pro`                 | Mistral AI 🇫🇷 / GreenPT 🇪🇺                     |
-| Suche & Notebooks (Embeddings)            | `mistral-embed`                                    | Mistral AI 🇫🇷                                  |
+<ModelTable />
 
-Im Chat selbst stehen drei Lanes zur Wahl — **Klein** (GPT-OSS 120B bei verdigado), **Mittel** (Gemma 4 bei Regolo) und **Ultra** (Mistral Medium 3.5). Kein einziges dieser Modelle spielt in der Größenklasse der energiehungrigsten Frontier-Modelle — und für die Aufgaben im politischen Alltag reicht das nicht nur, es ist oft sogar die bessere Wahl, weil kleinere Modelle schneller antworten.
+Im Chat selbst stehen drei Größen zur Wahl — **Klein**, **Mittel** und **Ultra**; welche Modelle dahinterstehen, sind die ersten drei Zeilen oben. Kein einziges dieser Modelle spielt in der Größenklasse der energiehungrigsten Frontier-Modelle — und für die Aufgaben im politischen Alltag reicht das nicht nur, es ist oft sogar die bessere Wahl, weil kleinere Modelle schneller antworten.
 
 ## Intelligentes Routing: nur so viel KI wie nötig
 
-Der Grünerator schickt nicht jede Anfrage an das größte verfügbare Modell. Stattdessen entscheidet ein **kompaktes Einordnungs-Modell** (Mistral Small 4 bei Regolo) zuerst, was überhaupt gebraucht wird: eine einfache Antwort, eine Recherche, ein Dokument, ein Bild.
+Der Grünerator schickt nicht jede Anfrage an das größte verfügbare Modell. Stattdessen entscheidet ein **kompaktes Einordnungs-Modell** zuerst, was überhaupt gebraucht wird: eine einfache Antwort, eine Recherche, ein Dokument, ein Bild.
 
 Auch innerhalb einer Antwort ist die Arbeit geteilt: Ein **kleines, schnelles Modell** übernimmt das Planen und Aufrufen von Werkzeugen (Suche, Notebooks, Dokumente), und ein **kompaktes 31-Milliarden-Modell** schreibt den Text. Das große Standardmodell kommt nur dort zum Einsatz, wo seine Qualität wirklich gebraucht wird. So bleibt der Energieverbrauch pro Anfrage niedrig, ohne dass die Qualität leidet.
 
@@ -72,15 +64,15 @@ Auch innerhalb einer Antwort ist die Arbeit geteilt: Ein **kleines, schnelles Mo
 
 **[GreenPT](https://greenpt.com/sustainability)** rechnet ausschließlich in EU-Rechenzentren mit **100 % erneuerbarer Energie** — in Paris sowie in Helsinki (je zur Hälfte Wasser- und Windkraft) — und nennt konkrete Effizienzwerte: PUE 1,25 (Branchenschnitt: 1,55) und ein Wasserverbrauch (WUE) von 0,25 statt branchenüblicher 1,8.
 
-Beim Grünerator schreibt GreenPTs Gemma 4 (`gemma4`) alle **erzeugten Dateien**: PDFs, Präsentationen, Tabellen und Dokumente. Das ist keine Verlegenheitslösung, sondern gemessen: Am 03.08.2026 gegen die echten Prompts und Vorlagen rief das große Standardmodell das nötige Werkzeug in keinem einzigen Lauf sauber auf und lief in Wiederholungen fest, GreenPTs Gemma 4 in zehn von zehn Läufen — und dabei drei- bis viermal schneller. Dazu ist GreenPT der **Ausweichweg** für die Transkription, wenn Voxtral nicht antwortet. Als frei wählbare Chat-Lane ist GreenPT im Code fertig verdrahtet, im Modellwähler aber noch nicht freigeschaltet — deshalb steht sie oben nicht bei den drei wählbaren Lanes.
+Beim Grünerator schreibt GreenPTs Gemma 4 (`gemma4`) alle **erzeugten Dateien**: PDFs, Präsentationen, Tabellen und Dokumente. Das ist keine Verlegenheitslösung, sondern gemessen: Am 03.08.2026 gegen die echten Prompts und Vorlagen rief das große Standardmodell das nötige Werkzeug in keinem einzigen Lauf sauber auf und lief in Wiederholungen fest, GreenPTs Gemma 4 in zehn von zehn Läufen — und dabei drei- bis viermal schneller. Dazu plant hier das kleine Modell, das im Chat die Werkzeuge auswählt und aufruft, und GreenPT ist der **Ausweichweg** für die Transkription, wenn Voxtral nicht antwortet. Als frei wählbare Chat-Lane ist GreenPT im Code fertig verdrahtet, im Modellwähler aber noch nicht freigeschaltet — deshalb steht sie oben nicht bei den drei wählbaren Lanes.
 
 ### Mistral AI (Frankreich) — Transparenz-Vorreiter
 
-**[Mistral AI](https://mistral.ai/news/our-contribution-to-a-global-environmental-standard-for-ai/)** vermarktet sich nicht als Öko-Anbieter, hat aber als erstes KI-Unternehmen überhaupt eine **vollständige, unabhängig geprüfte Lebenszyklus-Analyse** eines eigenen Modells veröffentlicht — erstellt mit der französischen Umweltagentur ADEME und Carbone 4, peer-reviewed nach ISO 14040/44. Die Zahlen machen KI-Umweltkosten erstmals konkret vergleichbar: Eine typische Antwort (400 Token) verursacht etwa **1,14 g CO₂e und 45 ml Wasser**. Mistral setzt sich zudem für einen verbindlichen globalen Umweltstandard für KI ein. Dazu kommt der französische Strommix, der zu den CO₂-ärmsten Europas gehört. Beim Grünerator liefert Mistral das Standardmodell (`mistral-medium-2604`), die Werkzeug-Planung, die Embeddings für Suche und Notebooks sowie die Transkription mit Voxtral.
+**[Mistral AI](https://mistral.ai/news/our-contribution-to-a-global-environmental-standard-for-ai/)** vermarktet sich nicht als Öko-Anbieter, hat aber als erstes KI-Unternehmen überhaupt eine **vollständige, unabhängig geprüfte Lebenszyklus-Analyse** eines eigenen Modells veröffentlicht — erstellt mit der französischen Umweltagentur ADEME und Carbone 4, peer-reviewed nach ISO 14040/44. Die Zahlen machen KI-Umweltkosten erstmals konkret vergleichbar: Eine typische Antwort (400 Token) verursacht etwa **1,14 g CO₂e und 45 ml Wasser**. Mistral setzt sich zudem für einen verbindlichen globalen Umweltstandard für KI ein. Dazu kommt der französische Strommix, der zu den CO₂-ärmsten Europas gehört. Beim Grünerator liefert Mistral das Standardmodell, die Embeddings für Suche und Notebooks sowie die Transkription mit Voxtral.
 
 ### Black Forest Labs (Freiburg) — Bilder aus der EU
 
-**[Black Forest Labs](https://bfl.ai/)** aus Freiburg entwickelt die FLUX-Bildmodelle. Der Grünerator nutzt ausschließlich den **EU-Endpunkt** (`api.eu.bfl.ai`) mit `flux-2-pro` — die Bilderzeugung läuft damit im europäischen Strommix, der deutlich CO₂-ärmer ist als der US-amerikanische, wo die meisten Bild-KIs rechnen.
+**[Black Forest Labs](https://bfl.ai/)** aus Freiburg entwickelt die FLUX-Bildmodelle. Der Grünerator nutzt ausschließlich den **EU-Endpunkt** (`api.eu.bfl.ai`) mit den FLUX-2-Modellen — die Bilderzeugung läuft damit im europäischen Strommix, der deutlich CO₂-ärmer ist als der US-amerikanische, wo die meisten Bild-KIs rechnen.
 
 ## Wie wir rechnen
 
@@ -131,7 +123,7 @@ Bei Scaleway müssen wir nicht auf den Landesdurchschnitt ausweichen: Der Impact
 
 Dazu kommt die Effizienz des Rechenzentrums selbst (PUE — wie viel Strom zusätzlich für Kühlung und Infrastruktur draufgeht). GreenPTs Messwerte enthalten einen PUE von 1,25; wo unsere Anbieter besser sind, rechnen wir die Differenz gut: Hetzner gibt 1,12 an, Seeweb unter 1,20.
 
-**Ein Glücksfall für die Genauigkeit:** GreenPT rechnet selbst bei Scaleway in Paris („Every GreenPT request runs on Scaleway's 100 % renewable-powered compute in Paris"), und Scaleway stellt sämtliche KI-Server in ein einziges Rechenzentrum — DC5, PUE 1,25. Unsere Gemma-4-Lane läuft ebenfalls dort. Für sie ist unsere Messung also **keine Übertragung auf fremde Hardware**, sondern dieselbe Maschinenklasse im selben Gebäude. Für alle anderen Lanes — unser Standardmodell Mistral Medium bei Mistral in Frankreich, GPT-OSS bei verdigado, die Regolo-Modelle in Italien — bleibt es eine Übertragung; dort ist das „≈" wörtlich zu nehmen. (Mistral Medium lief bis August 2026 ebenfalls über Scaleway; wir haben es wegen fehlerhafter Antworten dieses Anbieters wieder direkt zu Mistral gelegt.)
+**Ein Glücksfall für die Genauigkeit:** GreenPT rechnet selbst bei Scaleway in Paris („Every GreenPT request runs on Scaleway's 100 % renewable-powered compute in Paris"), und Scaleway stellt sämtliche KI-Server in ein einziges Rechenzentrum — DC5, PUE 1,25. Unsere Gemma-4-Lane für lange Dokumente läuft ebenfalls dort. Für sie ist unsere Messung also **keine Übertragung auf fremde Hardware**, sondern dieselbe Maschinenklasse im selben Gebäude. Für alle anderen Lanes — unser Standardmodell Mistral Medium bei Mistral in Frankreich, GPT-OSS bei verdigado, die Regolo-Modelle in Italien — bleibt es eine Übertragung; dort ist das „≈" wörtlich zu nehmen. (Mistral Medium lief bis August 2026 ebenfalls über Scaleway; wir haben es wegen fehlerhafter Antworten dieses Anbieters wieder direkt zu Mistral gelegt.)
 
 Eine Unschärfe bleibt und sei benannt: Der deutsche Wert des Umweltbundesamts ist verbrauchsbasiert (Stromimporte eingerechnet), die französische und italienische Zahl sind erzeugungsbasiert. Italien importiert viel französischen Atomstrom, sein verbrauchsbasierter Wert läge also **unter** 270. Der Fehler geht damit zu Lasten Italiens, nicht zu seinen Gunsten.
 
