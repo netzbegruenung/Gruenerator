@@ -16,7 +16,7 @@ export const COLLAPSE_THRESHOLD = 600;
 export const COLLAPSED_LINES = 10;
 
 /** Public documentation for the experimental feature. */
-export const SOCIAL_POST_DOC_URL = 'https://doku.gruenerator.eu/docs/chat/social-media-post';
+export const SOCIAL_POST_DOC_URL = 'https://doku.gruenerator.eu/docs/chat/was-kann-ich-fragen';
 
 export interface PostSegment {
   text: string;
