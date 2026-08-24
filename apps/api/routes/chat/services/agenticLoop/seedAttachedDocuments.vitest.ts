@@ -10,6 +10,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+import { ATTACHED_DOC_SNIPPET_CHARS } from './attachedDocuments.js';
 import { seedAttachedDocuments } from './catalogAssembly.js';
 import { createSourceRegistry } from './sourceRegistry.js';
 
@@ -57,6 +58,26 @@ describe('seedAttachedDocuments', () => {
   };
 
   beforeEach(() => fanout.mockReset());
+
+  /**
+   * Der Deckel ist die Retrieval-Qualität dieses Turns: was hier abgeschnitten
+   * wird, sieht der Schreiber nie. Beim Standardmass von 1500 blieb von einem
+   * angehängten Dokument nach dem Anheben des Ausschnitts genau ein Chunk übrig
+   * — Tiefe statt Breite, während die Frage nach den Löschfristen beides
+   * brauchte.
+   */
+  it('gibt dem Anhang mehr Platz als einem gewöhnlichen Suchtreffer', async () => {
+    const long = 'y'.repeat(ATTACHED_DOC_SNIPPET_CHARS - 100);
+    fanout.mockResolvedValue({
+      perSourceResults: { 'doc-1': [{ ...hit, content: long }] },
+      searchedCollections: [],
+      errors: [],
+    });
+
+    const { sourceRegistry } = await run(stateWith());
+
+    expect(sourceRegistry.renderAll()).toContain(long);
+  });
 
   it('trägt die Treffer zitierbar ein, aber nicht als frühere Recherche', async () => {
     fanout.mockResolvedValue({

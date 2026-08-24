@@ -382,7 +382,31 @@ const envSchema = z.object({
   SCORING_MAX_FINAL_SCORE: z.coerce.number().default(1.0),
 
   // ── Content excerpts ───────────────────────────────────────────────────
-  CONTENT_MAX_EXCERPT_LENGTH: numStr(300),
+  /**
+   * Wie viel von JEDEM getroffenen Chunk in `relevant_content` landet
+   * (`extractRelevantExcerpt` / `extractMatchedExcerpt` in `BaseSearchService`).
+   *
+   * Gemessen am aktiven Pfad: indexiert wird mit `maxTokens: 400`
+   * (`TextChunker`), ein Chunk ist damit rund 1400 Zeichen — live an einem
+   * 8-Seiten-PDF 21 118 Zeichen auf 16 Chunks, also 1320 im Schnitt. 300 gab dem
+   * Modell also ein Fünftel der Einheit zurück, die wir eingebettet, gesucht und
+   * bewertet haben.
+   *
+   * Das ist derselbe Fehler, den `SNIPPET_CHARS` in `sourceRegistry.ts` eine
+   * Ebene höher schon hinter sich hat: dort stand 320 unter der Chunk-Größe,
+   * "numerische und tabellarische Antworten landeten knapp hinter dem Schnitt",
+   * und das Modell meldete "dazu steht nichts in den Quellen". Live am
+   * 24.08.2026 wieder, eine Ebene tiefer: die Frage nach den Löschfristen traf
+   * die Tabelle mit acht Zeilen, und das 300-Zeichen-Fenster schnitt sie nach
+   * der zweiten ab.
+   *
+   * 1500 deckt einen ganzen Chunk — für kürzere Chunks ist die Kappung damit
+   * wirkungslos, sie schneidet nur noch, was wirklich zu lang ist. Die
+   * Anzeige-Pfade haben eigene, engere Deckel und wachsen NICHT mit
+   * (`highlightSnippet` 400, Notizbuch-Sammlungen 200, Recherche 500,
+   * `line-clamp-3` in der Dokumentübersicht).
+   */
+  CONTENT_MAX_EXCERPT_LENGTH: numStr(1500),
   CONTENT_EXCERPT_SENTENCE_BOUNDARY: z.coerce.number().default(0.7),
   CONTENT_MAX_CHUNKS_PER_DOC: numStr(10),
 
