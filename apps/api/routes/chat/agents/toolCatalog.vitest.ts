@@ -385,6 +385,69 @@ describe('toolCatalog scrape_url', () => {
   });
 });
 
+/**
+ * Die Formularwerkzeuge dürfen nur erscheinen, wenn ein FORMULAR erreichbar ist.
+ * Ob ein PDF eines ist, entscheidet der Upload (`isFillablePdf`) und hinterlässt
+ * die Antwort als `file_data` — `hasFileData` ist genau diese Spalte.
+ *
+ * Ohne das Gitter montete jedes PDF im Thread zwei Werkzeuge, die nicht
+ * gelingen KONNTEN: `getThreadPdfFiles` filtert auf `file_data IS NOT NULL` und
+ * lieferte nichts, das Werkzeug meldete „Es ist kein PDF-Formular angehängt" —
+ * während eines angehängt war. Live am 24.08.2026 kostete das einen Loop-Schritt
+ * auf einer Datenschutzerklärung.
+ */
+describe('toolCatalog: Formularwerkzeuge hängen am Formular, nicht am MIME-Typ', () => {
+  const catalogFor = (state: Record<string, unknown>) => {
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    const { toolNames } = buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry,
+      loop: { sse, state: { intent: 'search', ...state } as unknown as ChatGraphState },
+    });
+    return toolNames;
+  };
+
+  const pdf = (over: Record<string, unknown> = {}) => ({
+    id: 'a1',
+    name: 'Datenschutzerklaerung.pdf',
+    mimeType: 'application/pdf',
+    hasFileData: false,
+    ...over,
+  });
+
+  it('lässt sie weg, wenn das PDF beim Upload als Nicht-Formular erkannt wurde', () => {
+    const names = catalogFor({ threadAttachments: [pdf()] });
+    expect(names).not.toContain('read_pdf_form');
+    expect(names).not.toContain('fill_pdf_form');
+  });
+
+  it('montiert sie für ein PDF aus einem FRÜHEREN Turn, dessen Bytes liegen', () => {
+    // Die Regression, gegen die das Gitter nicht schiessen darf: ein Formular,
+    // das im Upload-Turn kam, steht später nur noch in `threadAttachments`.
+    const names = catalogFor({ threadAttachments: [pdf({ hasFileData: true })] });
+    expect(names).toContain('read_pdf_form');
+    expect(names).toContain('fill_pdf_form');
+  });
+
+  it('montiert sie für ein Formular DIESES Turns', () => {
+    const names = catalogFor({
+      pdfFormAttachments: [{ name: 'Antrag.pdf', data: 'AAAA' }],
+      threadAttachments: [],
+    });
+    expect(names).toContain('read_pdf_form');
+  });
+
+  it('lässt sie weg, wenn gar kein PDF im Spiel ist', () => {
+    const names = catalogFor({
+      threadAttachments: [pdf({ mimeType: 'text/plain', hasFileData: true })],
+    });
+    expect(names).not.toContain('read_pdf_form');
+  });
+});
+
 describe('toolCatalog expand_attachment (M4)', () => {
   beforeEach(() => {
     documentSearch.mockReset();
