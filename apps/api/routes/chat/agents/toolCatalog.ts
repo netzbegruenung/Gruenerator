@@ -54,6 +54,7 @@ import {
 } from '../services/agenticLoop/attachedDocuments.js';
 import { isEditorSurface } from '../services/agenticLoop/routing.js';
 import { artifactKind, type ArtifactKindId } from '../services/artifactKindRegistry.js';
+import { hasReachableForm } from '../services/pdfFormAvailability.js';
 import { withImageProxy } from '../services/searchImagePayload.js';
 
 import {
@@ -824,14 +825,30 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
       tools.notebooks = makeNotebooksTool(personalCtx);
     }
 
-    // PDF form tools, mounted only when a PDF is actually in play: this turn's
-    // attachments, or one from an earlier turn (threadAttachments carries no
-    // bytes, but tells us a PDF exists — the tool resolves the bytes and reports
-    // honestly if the stored form turned out not to be fillable).
-    const hasPdfInThread =
-      (state.pdfFormAttachments?.length ?? 0) > 0 ||
-      (state.threadAttachments ?? []).some((a) => a.mimeType === 'application/pdf');
-    if (hasPdfInThread && state.enabledTools?.['pdf_form'] !== false) {
+    // PDF form tools. `hasReachableForm` is strict for earlier turns and
+    // deliberately permissive for this one — the scope note lives at the
+    // predicate, not here, so the two cannot drift.
+    //
+    // `hasFileData` is the load-bearing half. It used to be `mimeType` alone,
+    // with the reasoning that threadAttachments carries no bytes and the tool
+    // could report honestly if the stored form turned out not to be fillable.
+    // That was true while nobody knew better at mount time — but the upload path
+    // decides the very same question and records the answer: a PDF that
+    // `isFillablePdf` rejects never gets `file_data`
+    // (attachmentProcessingService), and `getThreadPdfFiles` filters on exactly
+    // that column. Mounting an EARLIER turn's PDF on mimeType therefore offered
+    // two tools that COULD NOT succeed — not even the honest report, since
+    // `resolvePdf` never got bytes to probe. The failure was not free: forced to
+    // open with a tool call (shouldForceFirstToolCall) the planner reached for
+    // `read_pdf_form` on a Datenschutzerklärung and spent a step on "Es ist kein
+    // PDF-Formular angehängt" — while a PDF plainly was (live 24.08.2026,
+    // thread 4517d0d9).
+    //
+    // Not narrowed to `pdfFormAttachments`: that would take the form away one
+    // turn after it was uploaded, which is the regression this comment used to
+    // guard against. The predicate itself lives in `hasReachableForm` — the
+    // routing stage asks the same question and used to answer it differently.
+    if (hasReachableForm(state) && state.enabledTools?.['pdf_form'] !== false) {
       const pdfCtx = { state, sse, threadId: loop.threadId ?? null };
       tools.read_pdf_form = makeReadPdfFormTool(pdfCtx);
       tools.fill_pdf_form = makeFillPdfFormTool(pdfCtx);
