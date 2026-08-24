@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 
-import { buildMcpOutcomeNote, buildToolFailureNote, mcpHasFailure } from './toolOutcome.js';
+import {
+  buildMcpOutcomeNote,
+  buildToolFailureNote,
+  buildToolPayloadNote,
+  mcpHasFailure,
+} from './toolOutcome.js';
 import { readMcpResult } from './types.js';
 
 import type { PersistedStep } from './types.js';
@@ -179,5 +184,72 @@ describe('mcpHasFailure', () => {
     expect(mcpHasFailure([step({ serverName: 'Tally', result: { error: 'no workspace' } })])).toBe(
       true
     );
+  });
+});
+
+describe('buildToolPayloadNote', () => {
+  it('reicht den Digest von summarize an den Schreiber durch', () => {
+    const note = buildToolPayloadNote([
+      step({ toolName: 'summarize', result: { summary: 'Der Beschluss regelt die KI-Nutzung.' } }),
+    ]);
+    expect(note).toContain('ERGEBNISSE EIGENER WERKZEUGE IN DIESEM TURN:');
+    expect(note).toContain('Der Beschluss regelt die KI-Nutzung.');
+    // Der Satz, der den beobachteten Ausfall benennt: das Modell fragte zurück,
+    // welches Dokument gemeint sei, während der Digest fertig vorlag.
+    expect(note).toContain('Sag NIEMALS, dir liege kein Dokument');
+  });
+
+  /**
+   * Eine benannte Liste, keine Pauschalregel. Wer registriert, trägt seine
+   * Nutzlast schon im Quellenblock — eine zweite Kopie verdoppelte sie im
+   * Prompt.
+   */
+  it('schweigt zu Werkzeugen, die ihre Treffer registrieren', () => {
+    expect(
+      buildToolPayloadNote([
+        step({ toolName: 'web_search', result: { resultCount: 3, sources: '[1] …' } }),
+        step({ toolName: 'dokumente_lesen', result: { resultCount: 1, sources: '[2] …' } }),
+      ])
+    ).toBe('');
+  });
+
+  it('überlässt Fehlschläge und Leerlauf dem Fehler-Hinweis', () => {
+    expect(buildToolPayloadNote([])).toBe('');
+    expect(
+      buildToolPayloadNote([step({ toolName: 'summarize', result: { error: 'kein Text' } })])
+    ).toBe('');
+    expect(buildToolPayloadNote([step({ toolName: 'summarize', result: { summary: '  ' } })])).toBe(
+      ''
+    );
+  });
+
+  it('lässt einen gleichnamigen Konnektor bei buildMcpOutcomeNote', () => {
+    expect(
+      buildToolPayloadNote([
+        step({ serverName: 'Fremd', toolName: 'summarize', result: { summary: 'fremd' } }),
+      ])
+    ).toBe('');
+  });
+
+  /**
+   * Derselbe Deckel wie bei den Konnektor-Inhalten, und aus demselben Grund:
+   * die Regel im Block verlangt, nichts Relevantes wegzulassen. Ein früh
+   * abgeschnittener Digest macht daraus die Anweisung, eine halbe
+   * Zusammenfassung als ganze auszugeben.
+   */
+  it('deckelt eine übergrosse Nutzlast, statt den Prompt zu sprengen', () => {
+    const note = buildToolPayloadNote([
+      step({ toolName: 'summarize', result: { summary: 'x'.repeat(40_000) } }),
+    ]);
+    expect(note.length).toBeLessThan(30_000);
+  });
+
+  it('nimmt mehrere Nutzlast-Werkzeuge desselben Turns mit', () => {
+    const note = buildToolPayloadNote([
+      step({ toolName: 'summarize', result: { summary: 'Digest' } }),
+      step({ toolName: 'product_knowledge', result: { knowledge: 'Der Grünerator kann …' } }),
+    ]);
+    expect(note).toContain('Digest');
+    expect(note).toContain('Der Grünerator kann …');
   });
 });
