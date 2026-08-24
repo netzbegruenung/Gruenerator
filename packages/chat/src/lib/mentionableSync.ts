@@ -15,6 +15,8 @@
  * fetched, so a caller can also render it.
  */
 
+import { isUnauthorizedError } from '@gruenerator/shared/api';
+
 import {
   setBoardMentionables,
   setCustomAgents,
@@ -78,8 +80,8 @@ export function slugifyMention(value: string): string {
 /** The user's own plus saved custom agents, deduplicated by id (own wins). */
 export async function syncCustomAgents(get: MentionableFetch): Promise<CustomAgentMentionable[]> {
   const [ownPrompts, savedPrompts] = await Promise.all([
-    get<{ prompts?: CustomAgentMentionable[] }>('/auth/custom_prompts'),
-    get<{ prompts?: CustomAgentMentionable[] }>('/auth/saved_prompts'),
+    get<{ prompts?: CustomAgentMentionable[] }>('/api/auth/custom_prompts'),
+    get<{ prompts?: CustomAgentMentionable[] }>('/api/auth/saved_prompts'),
   ]);
   const seenIds = new Set<string>();
   const merged: CustomAgentMentionable[] = [];
@@ -142,9 +144,15 @@ export async function syncDocs(get: MentionableFetch): Promise<DocListItem[]> {
 }
 
 export async function syncUserNotebooks(get: MentionableFetch): Promise<UserNotebookListItem[]> {
+  // Only a 401 resolves to an empty list — web doesn't gate this query on auth,
+  // so anonymous users must stay quiet. A blanket catch here hid a wrong path
+  // (`/auth/...` without the `/api` prefix every sibling carries) indefinitely.
   const res = await get<{ collections?: UserNotebookListItem[] }>(
-    '/auth/notebook-collections'
-  ).catch(() => ({ collections: [] }));
+    '/api/auth/notebook-collections'
+  ).catch((err: unknown) => {
+    if (isUnauthorizedError(err)) return { collections: [] };
+    throw err;
+  });
   const list = Array.isArray(res?.collections) ? res.collections : [];
   setUserNotebookMentionables(
     list.map((n) => ({ id: n.id, title: n.name, slug: slugifyMention(n.name) }))
