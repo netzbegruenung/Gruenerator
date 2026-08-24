@@ -825,8 +825,9 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
       tools.notebooks = makeNotebooksTool(personalCtx);
     }
 
-    // PDF form tools, mounted only when a FORM is actually in play: this turn's
-    // attachments, or one from an earlier turn whose bytes were kept.
+    // PDF form tools. `hasReachableForm` is strict for earlier turns and
+    // deliberately permissive for this one — the scope note lives at the
+    // predicate, not here, so the two cannot drift.
     //
     // `hasFileData` is the load-bearing half. It used to be `mimeType` alone,
     // with the reasoning that threadAttachments carries no bytes and the tool
@@ -835,11 +836,13 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
     // decides the very same question and records the answer: a PDF that
     // `isFillablePdf` rejects never gets `file_data`
     // (attachmentProcessingService), and `getThreadPdfFiles` filters on exactly
-    // that column. Mounting on mimeType therefore offered two tools that COULD
-    // NOT succeed, and the failure was not free: forced to open with a tool call
-    // (shouldForceFirstToolCall) the planner reached for `read_pdf_form` on a
-    // Datenschutzerklärung and spent a step on "Es ist kein PDF-Formular
-    // angehängt" — while a PDF plainly was (live 24.08.2026, thread 4517d0d9).
+    // that column. Mounting an EARLIER turn's PDF on mimeType therefore offered
+    // two tools that COULD NOT succeed — not even the honest report, since
+    // `resolvePdf` never got bytes to probe. The failure was not free: forced to
+    // open with a tool call (shouldForceFirstToolCall) the planner reached for
+    // `read_pdf_form` on a Datenschutzerklärung and spent a step on "Es ist kein
+    // PDF-Formular angehängt" — while a PDF plainly was (live 24.08.2026,
+    // thread 4517d0d9).
     //
     // Not narrowed to `pdfFormAttachments`: that would take the form away one
     // turn after it was uploaded, which is the regression this comment used to
