@@ -291,6 +291,24 @@ describe('createSourceRegistry', () => {
       expect(reg.renderReference()).toMatch(/\[1\] ONLY/);
     });
   });
+
+  /**
+   * Ein angehängtes Dokument steht meist allein und IST die Frage — es hat
+   * mehr Platz verdient als ein Suchtreffer unter zwanzig. Der Deckel kommt
+   * deshalb vom Aufrufer; ohne Angabe bleibt es beim Standardmass.
+   */
+  it('nimmt für den Anhang-Seed den Deckel des Aufrufers', () => {
+    const reg = createSourceRegistry();
+    const long = 'x'.repeat(5_000);
+    const block = reg.seedAttached([result({ title: 'Anhang', content: long })], 6_000);
+    expect(block).toContain(long);
+  });
+
+  it('bleibt ohne Angabe beim Standardmass', () => {
+    const reg = createSourceRegistry();
+    const block = reg.seedAttached([result({ title: 'Anhang', content: 'x'.repeat(5_000) })]);
+    expect(block.length).toBeLessThan(2_000);
+  });
 });
 
 /**

@@ -57,6 +57,27 @@ const SLICE_HINT_RESERVE = 400;
 export const SLICE_MAX_CHARS = SLICE_REGISTER_CHARS - SLICE_HINT_RESERVE;
 
 /**
+ * Wie viel von einer PASSAGENSUCHE über die angehängten Dokumente beim Modell
+ * ankommt — für den Vorab-Abruf und für `dokumente_lesen` im Suchmodus.
+ *
+ * Über dem Standardmass von 1500, weil ein angehängtes Dokument kein Suchtreffer
+ * unter vielen ist: es ist das, wonach gefragt wurde, und es steht meist allein.
+ * 1500 reichen nach dem Anheben des Ausschnitts (`CONTENT_MAX_EXCERPT_LENGTH`)
+ * für genau EINEN ganzen Chunk — der Deckel tauschte damit Breite gegen Tiefe,
+ * statt beides zu geben. 6000 sind rund vier ganze Chunks.
+ *
+ * Live am 24.08.2026 ist genau die Breite ausgefallen: die Frage nach den
+ * Löschfristen brauchte die Tabelle auf Seite 5 UND den Abschnitt „Allgemeiner
+ * Hinweis zur Löschung" auf Seite 4; die Antwort nannte vier von zehn Fristen.
+ *
+ * Unter der ausdrücklichen Nachlese (`SLICE_REGISTER_CHARS`, 12 000) — die liest
+ * das Modell auf Ansage, hier ruft ungefragt der Seed. Drei Anhänge kommen auf
+ * 18 000 und bleiben damit im Blockbudget von 38 000 (`sourceRegistry`), das
+ * darüber ohnehin klassenbewusst schrumpft.
+ */
+export const ATTACHED_DOC_SNIPPET_CHARS = 6_000;
+
+/**
  * Welche der normalisierten Dokumentquellen dieses Turns wirklich ein
  * angehängtes Dokument sind.
  *
