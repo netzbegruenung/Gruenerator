@@ -505,7 +505,10 @@ export function DocsComposer({
       )}
 
       <AlertDialog open={chatAsk !== null} onOpenChange={(o) => !o && setChatAsk(null)}>
-        <AlertDialogContent size="sm">
+        {/* Default size, not `sm`: that one is 320px wide and its footer is a
+            hard `grid-cols-2`, built for two short buttons. The third would
+            wrap into a row of its own, left-aligned beside empty space. */}
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Das klingt nach einer Frage</AlertDialogTitle>
             <AlertDialogDescription>
