@@ -37,6 +37,14 @@ import type { Citation, SearchResult } from '../../../../agents/langgraph/ChatGr
  * (top_k 3 / 30 items) and let the chunk size do the limiting.
  *
  * Tools with longer prose can still raise it per registration (`snippetChars`).
+ *
+ * Nachtrag 24.08.2026: „1500 covers a whole chunk" stimmte hier, aber nicht am
+ * Eingang — die Suche hatte jeden Chunk vorher auf `CONTENT_MAX_EXCERPT_LENGTH`
+ * = 300 Zeichen geschnitten, also kam nie ein ganzer Chunk an, den diese Zahl
+ * hätte abdecken können. Gemessen: 21 118 Zeichen Dokument → 3000 (10 × 300)
+ * → 1500, macht 7 %. Der untere Deckel steht jetzt bei 1500 und wird von
+ * `searchExcerptBudget.vitest.ts` an der Chunk-Größe festgehalten. Wer diese
+ * Zahl hier ändert, prüft die andere mit — allein wirkt keine von beiden.
  */
 const SNIPPET_CHARS = 1500;
 
@@ -113,8 +121,11 @@ export interface SourceRegistry {
    *
    * Findet der Planer denselben Chunk später selbst, zählt er ab dann als seine
    * Recherche — dieselbe Regel wie bei `prior`.
+   *
+   * `snippetChars` deckelt wie bei `register` — der Aufrufer reicht
+   * `ATTACHED_DOC_SNIPPET_CHARS` durch; ohne Angabe gilt das Standardmass.
    */
-  seedAttached(results: SearchResult[]): string;
+  seedAttached(results: SearchResult[], snippetChars?: number): string;
   /**
    * A per-turn OUTCOME line: a write happened, a confirmation was requested, a
    * lookup came back empty. The split-mode synth sees no tool returns, so this
@@ -288,14 +299,15 @@ export function createSourceRegistry(): SourceRegistry {
     seedCarried(results) {
       for (const r of results) add(r, SNIPPET_CHARS, true);
     },
-    seedAttached(results) {
+    seedAttached(results, snippetChars) {
+      const cap = snippetChars ?? SNIPPET_CHARS;
       const lines: string[] = [];
       const emitted = new Set<number>();
       for (const r of results) {
-        const index = add(r, SNIPPET_CHARS, false, true);
+        const index = add(r, cap, false, true);
         if (index === null || emitted.has(index)) continue;
         emitted.add(index);
-        lines.push(snippetLine(index, r, SNIPPET_CHARS));
+        lines.push(snippetLine(index, r, cap));
       }
       return lines.join('\n');
     },
