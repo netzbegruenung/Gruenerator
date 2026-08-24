@@ -18,7 +18,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 interface CapturedConfig {
   model: string;
   modelKwargs?: Record<string, unknown>;
-  configuration?: { baseURL?: string };
+  configuration?: { baseURL?: string; fetch?: unknown };
   apiKey?: string;
 }
 
@@ -63,6 +63,10 @@ vi.mock('../../../config/env.js', () => ({
   },
 }));
 
+// Echt, nicht attrappiert: models.ts importiert aus demselben Modul ohnehin
+// die Anbieterliste, und der Test will die IDENTITÄT der Funktion prüfen —
+// eine Attrappe würde genau die Aussage aushöhlen.
+const { cortecsFetchWithPolicy } = await import('../../ai/cortecsRequestPolicy.js');
 const { leadModel, workerModel } = await import('./models.js');
 
 beforeEach(() => {
@@ -134,6 +138,26 @@ describe('workerModel', () => {
 
   it('does not batch tool calls — a worker never delegates', () => {
     expect(configOf(workerModel).modelKwargs).toMatchObject({ parallel_tool_calls: false });
+  });
+
+  it('hängt die Souveränitäts-Nachprüfung in den Transport', () => {
+    // Der Kommentar im Modul behauptete, die Nachprüfung am Antwort-Header sei
+    // hier „mangels `fetch`-Haken" nicht zu haben. `ChatOpenAI` reicht
+    // `configuration.fetch` aber an den OpenAI-Client durch, und ohne sie liefe
+    // ausgerechnet der Pfad mit den MEISTEN Modellaufrufen als einziger
+    // ungeprüft — bei einem Filter, der fail-open ist, ist das die teuerste
+    // Stelle für eine Lücke.
+    expect(configOf(workerModel).configuration?.fetch).toBe(cortecsFetchWithPolicy);
+  });
+
+  it('trägt die Weisung ZUSÄTZLICH im Anfrage-Body', () => {
+    // Doppelt, und mit Absicht: der Haken setzt dieselben Felder deckungsgleich,
+    // aber die Weisung gehört in den Body, wo sie im Diff steht. Fällt der Haken
+    // je weg, verliert man dann nur die Nachprüfung, nicht die Weisung selbst.
+    expect(configOf(workerModel).modelKwargs).toMatchObject({
+      eu_native: true,
+      allow_zero_data_retention: true,
+    });
   });
 
   it('bleibt auf Cortecs, was auch immer das Mistral-Routing tut', () => {

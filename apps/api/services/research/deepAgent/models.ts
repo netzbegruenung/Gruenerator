@@ -27,7 +27,10 @@ import { ChatOpenAI } from '@langchain/openai';
 
 import { env } from '../../../config/env.js';
 import { cortecsBaseUrl } from '../../ai/cortecsEndpoint.js';
-import { SOVEREIGN_ZDR_PROVIDERS } from '../../ai/cortecsRequestPolicy.js';
+import {
+  cortecsFetchWithPolicy,
+  SOVEREIGN_ZDR_PROVIDERS,
+} from '../../ai/cortecsRequestPolicy.js';
 import { isScalewayMistralRoutingEnabled, MISTRAL_API_URL } from '../../ai/providerInstances.js';
 import { scalewayBaseUrl } from '../../ai/scalewayEndpoint.js';
 
@@ -113,8 +116,15 @@ const PARALLEL_TOOL_CALLS = { parallel_tool_calls: true } as const;
  *
  * Die Liste steht bewusst dort und wird hier importiert: zwei Kopien würden
  * driften, und die abweichende wäre die, die niemand prüft. Was diese Felder
- * NICHT leisten, steht ebenfalls dort — der Filter ist fail-open, und die
- * Nachprüfung am Antwort-Header fehlt auf diesem Pfad mangels `fetch`-Haken.
+ * NICHT leisten, steht ebenfalls dort: der Filter ist fail-open, ein Tippfehler
+ * oder ein umbenannter Anbieter schaltet ihn lautlos ab.
+ *
+ * Genau deshalb hängt der Worker zusätzlich `cortecsFetchWithPolicy` ein. Hier
+ * stand, die Nachprüfung am Antwort-Header sei auf diesem Pfad „mangels
+ * `fetch`-Haken" nicht zu haben — das stimmte nicht: `ChatOpenAI` reicht
+ * `configuration.fetch` an den OpenAI-Client durch. Ohne sie liefe ausgerechnet
+ * der Lauf mit den MEISTEN Modellaufrufen als einziger ungeprüft, also dort, wo
+ * ein unwirksamer Filter am teuersten ist.
  */
 const SOVEREIGN_ROUTING = {
   eu_native: true,
@@ -185,7 +195,12 @@ export function workerModel(): ChatOpenAI {
     model: CORTECS_GEMMA,
     apiKey: requireCortecsKey(),
     temperature: 0.3,
-    configuration: { baseURL: cortecsBaseUrl() },
+    // Der `fetch` trägt die Nachprüfung am Antwort-Header (siehe
+    // SOVEREIGN_ROUTING oben). Er setzt die Weisungsfelder auch selbst und
+    // deckungsgleich; `modelKwargs` bleibt trotzdem stehen, damit die Weisung
+    // im Anfrage-Body steht, wo sie hingehört, und nicht erst am Transport
+    // entsteht — wer den Haken je entfernt, verliert dann nur die Nachprüfung.
+    configuration: { baseURL: cortecsBaseUrl(), fetch: cortecsFetchWithPolicy },
     // KEIN REASONING_OFF mehr: `gemma-4-31b-it` liegt bei infercom, und das
     // weist `reasoning_effort` mit HTTP 400 ab ("value must be one of 'low',
     // 'medium', 'high'"). Der Wert wäre hier ohnehin unnötig — dieses Modell

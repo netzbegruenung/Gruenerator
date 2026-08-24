@@ -55,6 +55,8 @@ function tokenCount(value: unknown): number {
  *
  * Der Rückfall auf den Lane-Namen ist Absicht: kam kein Header, ist `cortecs`
  * die ehrlichere Auskunft als ein geratener Standort.
+ *
+ * NUR für die Buchhaltung, nicht für die Gesundheitsproben — siehe unten.
  */
 function effectiveProvider(provider: string, response: unknown): string {
   if (provider !== 'cortecs') return provider;
@@ -89,8 +91,16 @@ export function withUsageTracking(model: LanguageModel, provider: string): Langu
       const result = await doGenerate();
       const usage = extractUsage(result.usage);
       const upstream = effectiveProvider(provider, result.response);
+      // LANE-Name, nicht Upstream: `isModelSlow` und `pickHealthyTarget` fragen
+      // unter `cortecs/<modell>` nach (agentPipeline.ts, modelSiblings.ts), und
+      // der Schlüssel ist `provider/model`. Unter dem Upstream verbucht, läge
+      // die Probe unter `infercom/...` — ein Schlüssel, den niemand liest, und
+      // die Zäh-Erkennung dieser Lanes wäre still tot. Sie taugt hier ohnehin
+      // nur auf Lane-Ebene: welchen Unterauftragnehmer der Router nimmt,
+      // entscheiden nicht wir, handeln können wir nur durch den Wechsel auf den
+      // Regolo-Sibling — und der hängt am Lane-Namen.
       recordModelSample({
-        provider: upstream,
+        provider,
         model: wrapped.modelId,
         outputTokens: usage.outputTokens,
         durationMs: Date.now() - startedAt,
@@ -118,8 +128,9 @@ export function withUsageTracking(model: LanguageModel, provider: string): Langu
             if (firstTextAt === null && chunk.type === 'text-delta') firstTextAt = Date.now();
             if (chunk.type === 'finish') {
               const usage = extractUsage(chunk.usage);
+              // Lane-Name, aus demselben Grund wie oben.
               recordModelSample({
-                provider: upstream,
+                provider,
                 model: wrapped.modelId,
                 outputTokens: usage.outputTokens,
                 durationMs: Date.now() - startedAt,

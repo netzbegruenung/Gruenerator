@@ -66,7 +66,23 @@ describe('Cortecs-Nutzung wird dem echten Unterauftragnehmer zugeschrieben', () 
   it('bucht scaleway, wenn der Header das sagt — nicht cortecs', async () => {
     await laufen({ 'x-cortecs-provider': 'scaleway' });
     expect(gebucht[0]?.provider).toBe('scaleway');
-    expect(gemessen[0]?.provider).toBe('scaleway');
+  });
+
+  it('lässt die GESUNDHEITSPROBE unter dem Lane-Namen stehen', async () => {
+    // Hier stand bis 24.08.2026 `toBe('scaleway')` und hat damit einen Fehler
+    // festgeschrieben: die Probe wanderte mit der Buchung auf den Upstream,
+    // aber `isModelSlow` (agentPipeline.ts) und `pickHealthyTarget`
+    // (modelSiblings.ts) fragen unter `cortecs/<modell>` — der Schlüssel ist
+    // `provider/model`. Geschrieben unter `infercom/...`, gelesen unter
+    // `cortecs/...`: die Zäh-Erkennung von `heavy` und `pruefung` wäre still
+    // tot gewesen, ohne dass irgendetwas rot wird.
+    //
+    // Die beiden Empfänger wollen verschiedene Dinge, und das ist der Punkt:
+    // die Buchhaltung den Standort (CO₂), die Gesundheit die Lane (nur die
+    // lässt sich auf den Regolo-Sibling umschalten).
+    await laufen({ 'x-cortecs-provider': 'scaleway' });
+    expect(gemessen[0]?.provider).toBe('cortecs');
+    expect(gebucht[0]?.provider).toBe('scaleway');
   });
 
   it('bucht den abweichenden Unterauftragnehmer, wenn Cortecs anders vermittelt', async () => {
