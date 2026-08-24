@@ -117,10 +117,16 @@ export async function retrieveAttachedDocuments(
   const sources = opts?.sources ?? retrievableAttachedSources(state);
   if (sources.length === 0 || !query) return [];
 
+  // Der einzige Abrufweg im Chat, bei dem nach der Gruppierung keine zweite
+  // Rerank-Stufe mehr kommt: der Einzelpfad fährt `rerankNode`, Notizbuch und
+  // Recherche reranken auf Dokumentebene — hier steht danach EIN Treffer, und
+  // `rerankPipeline` überspringt bei ≤2 Items. Ohne das hier hat der Anhang-Pfad
+  // nie einen Cross-Encoder gesehen.
   const fanout: MultiDocFanoutResult = await executeMultiDocFanout(
     query,
     sources,
-    state.agentConfig
+    state.agentConfig,
+    { rerankChunks: true }
   );
   const flat = Object.values(fanout.perSourceResults).flat();
   flat.sort((a, b) => (b.relevance || 0) - (a.relevance || 0));
