@@ -181,9 +181,17 @@ export function leadModel(): ChatOpenAI {
  *
  * It used to be `leadModel()` verbatim unless an env var named GreenPT, so in
  * practice both roles ran Mistral Medium: there was no cheap lane at all, only
- * the appearance of one. Gemma 26B-A4B keeps the worker on the host and family
- * that already work, with reasoning pinned off, and leaves the expensive lane to
- * the role that needs its tool discipline.
+ * the appearance of one. Gemma hält den Worker in der Familie, die schon
+ * funktioniert, und lässt die teure Lane der Rolle, die ihre Werkzeug-Disziplin
+ * braucht.
+ *
+ * WELCHES Gemma, steht im Modulkopf („Warum nicht mehr die 26B-MoE") und nicht
+ * hier: es ist das dichte `gemma-4-31b-it` über Cortecs, nicht mehr die
+ * 26B-MoE. Hier stand bis 24.08.2026 die MoE „mit gepinntem Reasoning" — beide
+ * Hälften waren zu dem Zeitpunkt schon falsch, und der Kommentar direkt an
+ * `modelKwargs` unten sagte das Gegenteil. Ein Satz weniger an dieser Stelle
+ * ist die Reparatur: die Modellwahl hat genau einen Ort, an dem sie begründet
+ * wird.
  *
  * Serial tool calls: a worker never delegates, so it has nothing to batch.
  */
