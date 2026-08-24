@@ -4,8 +4,8 @@
  * A second model surface next to `services/ai/providerInstances.ts` on purpose:
  * `deepagents` runs on LangChain, the rest of the app on the AI SDK, and there
  * is no bridge between the two tool protocols. Only the plumbing is shared —
- * base URL, key and the model ids — so a Scaleway project change still happens
- * in one place (`scalewayEndpoint.ts`).
+ * base URL, key and the model ids — so ein Host-Wechsel weiterhin an einer
+ * Stelle passiert (`cortecsEndpoint.ts` bzw. `scalewayEndpoint.ts`).
  *
  * Both lanes are OpenAI-compatible, so `ChatOpenAI` serves both. Measured
  * 10.08.2026 through this exact wrapper, one tool-call round trip each:
@@ -26,6 +26,8 @@
 import { ChatOpenAI } from '@langchain/openai';
 
 import { env } from '../../../config/env.js';
+import { cortecsBaseUrl } from '../../ai/cortecsEndpoint.js';
+import { cortecsFetchWithPolicy, SOVEREIGN_ZDR_PROVIDERS } from '../../ai/cortecsRequestPolicy.js';
 import { isScalewayMistralRoutingEnabled, MISTRAL_API_URL } from '../../ai/providerInstances.js';
 import { scalewayBaseUrl } from '../../ai/scalewayEndpoint.js';
 
@@ -37,17 +39,47 @@ const SCALEWAY_MEDIUM = 'mistral-medium-3.5-128b';
 const MISTRAL_MEDIUM = 'mistral-medium-2604';
 
 /**
- * Gemma 4 26B-A4B on Scaleway — a MoE with 4B ACTIVE parameters, and the model
- * `INTERMEDIATE_LANES.heavy` already runs for the app's intermediate work.
+ * Gemma 4 31B über Cortecs — dasselbe Modell, das `INTERMEDIATE_LANES.heavy`
+ * für die Zwischenarbeit der App fährt.
  *
- * This is the same family as the GreenPT worker this replaces, on the host that
- * can actually switch the reasoning off (see `REASONING_OFF`). Measured for the
- * intermediate lane on 01.08.2026: roughly twice as fast as the dense 31B, 12/12
- * on a `max_tokens: 20` classification and 3/3 valid JSON on structured
- * extraction — i.e. it holds a tool-shaped contract, which is the property a
- * worker lives on here.
+ * ── Warum nicht mehr die 26B-MoE, und warum NICHT GreenPT ──
+ *
+ * Der Worker lief auf `gemma-4-26b-a4b-it`, erst auf Scaleway, dann über
+ * Cortecs. Diese Modell-ID ist über Cortecs am 21.08.2026 unbedienbar geworden
+ * (der einzige brauchbare Unterauftragnehmer verschwand aus dem Katalog, der
+ * zweite ist quantisiert — siehe den Doc-Block bei `heavy`).
+ *
+ * GreenPT, wohin das 26B anderswo ausgewichen ist, kommt für DIESE Rolle nicht
+ * in Frage: sein `gemma4` denkt bei jedem Schritt rund 5.400 Zeichen, und kein
+ * Flag schaltet das ab. Für eine einzelne Antwort ist das bezahlbar, für einen
+ * Loop ruinös — gemessen 10.08.2026 an derselben Frage produzierte der
+ * GreenPT-Worker in 500 s keinen Bericht, während der Vergleichslauf in 156 s
+ * fertig war. Am 21.08.2026 nachgemessen und unverändert: mit und ohne
+ * `reasoning_effort` identisch leerer Inhalt bei 120 Token Budget.
+ *
+ * Dass dieses Modell von sich aus nicht denkt, ist gemessen (21.08.2026: 420
+ * Zeichen Inhalt, 0 Zeichen Denken, ohne jeden Parameter) — es braucht den
+ * Reasoning-Pin also gar nicht, und es bekäme ihn hier auch nicht: infercom
+ * weist `reasoning_effort` mit HTTP 400 ab, siehe den Kommentar an
+ * `modelKwargs` in `workerModel`.
+ *
+ * ── UNGEPRÜFT: die Werkzeug-Treue dieser Rolle ──
+ *
+ * Hier stand bis 24.08.2026 „roughly twice as fast as the dense 31B … 12/12 on
+ * a `max_tokens: 20` classification and 3/3 valid JSON" — Zahlen vom
+ * 01.08.2026, erhoben an der 26B-MoE. Sie sind mit dem Modellwechsel nicht
+ * mitgewandert: der Vergleich „doppelt so schnell wie das dichte 31B" ist
+ * gegenstandslos, seit DIESES das dichte 31B IST.
+ *
+ * Für das dichte 31B in der Worker-Rolle liegen diese Zahlen NICHT vor. Was
+ * vorliegt, ist die `pruefung`-Messung (Inhaltstreue in 22 Läufen nicht von
+ * Regolo unterscheidbar) und ein Live-Lauf der gebauten Kette — beides sagt
+ * nichts über wohlgeformte Tool-Calls unter knappem Budget, und genau das ist
+ * die Eigenschaft, von der ein Worker hier lebt. `scripts/probeCortecs.ts`
+ * misst sie (Tool-Call und `json_object`); wer sie braucht, lässt es laufen,
+ * statt sich auf diesen Absatz zu verlassen.
  */
-const SCALEWAY_GEMMA = 'gemma-4-26b-a4b-it';
+const CORTECS_GEMMA = 'gemma-4-31b-it';
 
 /**
  * Serial tool calls, for the lane that only ever uses tools one at a time.
@@ -85,21 +117,32 @@ const SERIAL_TOOL_CALLS = { parallel_tool_calls: false } as const;
 const PARALLEL_TOOL_CALLS = { parallel_tool_calls: true } as const;
 
 /**
- * Scaleway honours `reasoning_effort: 'none'`; GreenPT accepts and ignores it.
+ * Die Souveränitäts-Weisung, von Hand.
  *
- * That asymmetry is the entire reason the worker sits on Scaleway. GreenPT's
- * Gemma always emits a reasoning block (~5,400 characters, probed with
- * `enable_thinking:false`, `think:false` and `reasoning_effort:'none'` — all
- * accepted, none effective; the probes are recorded in `chat/agents/providers.ts`).
- * One block per step is affordable for a single answer and ruinous for a loop:
- * measured 10.08.2026 on the same question, the GreenPT worker produced no
- * report inside 500 s while the Scaleway worker finished the run in 156 s.
+ * Dieses Modul baut sein eigenes `ChatOpenAI` und bekommt deshalb
+ * `cortecsRequestPolicy` NICHT, das dieselben Felder für die AI-SDK-Seite der
+ * App am Transport setzt. Ohne sie liefe ausgerechnet der Lauf mit den meisten
+ * Modellaufrufen ohne Einschränkung durch den Router — und nach Ziffer 2.11
+ * der DPA gilt eine unbeschränkte Konfiguration als Zustimmung zu jedem künftig
+ * aufgenommenen Unterauftragnehmer.
  *
- * Sent explicitly because this module builds its own `ChatOpenAI` and therefore
- * does NOT get `scalewayThinkingFetch`, which pins the same field at the
- * transport for the AI SDK side of the app.
+ * Die Liste steht bewusst dort und wird hier importiert: zwei Kopien würden
+ * driften, und die abweichende wäre die, die niemand prüft. Was diese Felder
+ * NICHT leisten, steht ebenfalls dort: der Filter ist fail-open, ein Tippfehler
+ * oder ein umbenannter Anbieter schaltet ihn lautlos ab.
+ *
+ * Genau deshalb hängt der Worker zusätzlich `cortecsFetchWithPolicy` ein. Hier
+ * stand, die Nachprüfung am Antwort-Header sei auf diesem Pfad „mangels
+ * `fetch`-Haken" nicht zu haben — das stimmte nicht: `ChatOpenAI` reicht
+ * `configuration.fetch` an den OpenAI-Client durch. Ohne sie liefe ausgerechnet
+ * der Lauf mit den MEISTEN Modellaufrufen als einziger ungeprüft, also dort, wo
+ * ein unwirksamer Filter am teuersten ist.
  */
-const REASONING_OFF = { reasoning_effort: 'none' } as const;
+const SOVEREIGN_ROUTING = {
+  eu_native: true,
+  allow_zero_data_retention: true,
+  allowed_providers: SOVEREIGN_ZDR_PROVIDERS,
+} as const;
 
 /**
  * The lead agent: plans, delegates, and writes the final report.
@@ -153,19 +196,38 @@ export function leadModel(): ChatOpenAI {
  *
  * It used to be `leadModel()` verbatim unless an env var named GreenPT, so in
  * practice both roles ran Mistral Medium: there was no cheap lane at all, only
- * the appearance of one. Gemma 26B-A4B keeps the worker on the host and family
- * that already work, with reasoning pinned off, and leaves the expensive lane to
- * the role that needs its tool discipline.
+ * the appearance of one. Gemma hält den Worker in der Familie, die schon
+ * funktioniert, und lässt die teure Lane der Rolle, die ihre Werkzeug-Disziplin
+ * braucht.
+ *
+ * WELCHES Gemma, steht im Modulkopf („Warum nicht mehr die 26B-MoE") und nicht
+ * hier: es ist das dichte `gemma-4-31b-it` über Cortecs, nicht mehr die
+ * 26B-MoE. Hier stand bis 24.08.2026 die MoE „mit gepinntem Reasoning" — beide
+ * Hälften waren zu dem Zeitpunkt schon falsch, und der Kommentar direkt an
+ * `modelKwargs` unten sagte das Gegenteil. Ein Satz weniger an dieser Stelle
+ * ist die Reparatur: die Modellwahl hat genau einen Ort, an dem sie begründet
+ * wird.
  *
  * Serial tool calls: a worker never delegates, so it has nothing to batch.
  */
 export function workerModel(): ChatOpenAI {
   return new ChatOpenAI({
-    model: SCALEWAY_GEMMA,
-    apiKey: requireScalewayKey(),
+    model: CORTECS_GEMMA,
+    apiKey: requireCortecsKey(),
     temperature: 0.3,
-    configuration: { baseURL: scalewayBaseUrl() },
-    modelKwargs: { ...SERIAL_TOOL_CALLS, ...REASONING_OFF },
+    // Der `fetch` trägt die Nachprüfung am Antwort-Header (siehe
+    // SOVEREIGN_ROUTING oben). Er setzt die Weisungsfelder auch selbst und
+    // deckungsgleich; `modelKwargs` bleibt trotzdem stehen, damit die Weisung
+    // im Anfrage-Body steht, wo sie hingehört, und nicht erst am Transport
+    // entsteht — wer den Haken je entfernt, verliert dann nur die Nachprüfung.
+    configuration: { baseURL: cortecsBaseUrl(), fetch: cortecsFetchWithPolicy },
+    // KEIN REASONING_OFF mehr: `gemma-4-31b-it` liegt bei infercom, und das
+    // weist `reasoning_effort` mit HTTP 400 ab ("value must be one of 'low',
+    // 'medium', 'high'"). Der Wert wäre hier ohnehin unnötig — dieses Modell
+    // denkt von sich aus nicht (gemessen 21.08.2026: 420 Zeichen Inhalt, 0
+    // Zeichen Denken, ohne jeden Parameter). Genau deshalb führt die Whitelist
+    // in cortecsRequestPolicy.ts es nicht.
+    modelKwargs: { ...SERIAL_TOOL_CALLS, ...SOVEREIGN_ROUTING },
   });
 }
 
@@ -176,8 +238,18 @@ function requireScalewayKey(): string {
   return apiKey;
 }
 
-/** Same rule for the lead's other host. The worker keeps needing the Scaleway
- *  key either way — it runs Gemma, which is not affected by the switch. */
+/** Dasselbe für den Worker-Host. Cortecs ist vorausbezahlt: ein leeres Guthaben
+ *  sieht auf der Leitung aus wie ein falscher Schlüssel (HTTP 401) und ist von
+ *  hier aus nicht unterscheidbar — der Lauf bricht dann mit dem Anbieterfehler
+ *  ab, nicht mit dieser Meldung. */
+function requireCortecsKey(): string {
+  const apiKey = env.CORTECS_API_KEY;
+  if (!apiKey) throw new Error('CORTECS_API_KEY is required for the deep research agent');
+  return apiKey;
+}
+
+/** Same rule for the lead's other host. The worker keeps needing its own key
+ *  either way — it runs Gemma, which is not affected by the switch. */
 function requireMistralKey(): string {
   const apiKey = env.MISTRAL_API_KEY;
   if (!apiKey) throw new Error('MISTRAL_API_KEY is required for the deep research lead agent');

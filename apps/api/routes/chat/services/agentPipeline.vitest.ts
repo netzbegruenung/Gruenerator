@@ -302,7 +302,7 @@ describe('runAgentPipeline — Sibling bei Langsamkeit', () => {
     const { calls } = poolNachProvider(async () => 'Fertig.');
     await laufe();
 
-    expect(calls.map((c) => c.provider)).toEqual(['regolo', 'regolo']);
+    expect(calls.map((c) => c.provider)).toEqual(['cortecs', 'cortecs']);
   });
 
   it('lässt den Sibling gewinnen, wenn der Primär über die Frist hinaus schweigt', async () => {
@@ -310,20 +310,20 @@ describe('runAgentPipeline — Sibling bei Langsamkeit', () => {
     try {
       const { calls } = poolNachProvider(async (provider) => {
         // Der Primär antwortet nie — der langsame Lauf vom 14.08. im Extrem.
-        if (provider === 'regolo') return new Promise<string>(() => {});
+        if (provider === 'cortecs') return new Promise<string>(() => {});
         return 'Vom Sibling.';
       });
       const promise = laufe();
 
       // Vor der Frist (30 s für die Rückübersetzung) darf nichts passieren.
       await vi.advanceTimersByTimeAsync(20_000);
-      expect(calls.map((c) => c.provider)).toEqual(['regolo']);
+      expect(calls.map((c) => c.provider)).toEqual(['cortecs']);
 
       // Reichlich: der zweite Schritt hat seine eigene, längere Frist.
       await vi.advanceTimersByTimeAsync(300_000);
       const appended = await promise;
 
-      expect(calls.filter((c) => c.provider === 'scaleway')).not.toHaveLength(0);
+      expect(calls.filter((c) => c.provider === 'regolo')).not.toHaveLength(0);
       expect(appended).toContain('Vom Sibling.');
       // Und nicht als Ausfall verbucht: der Schritt hat geliefert.
       expect(appended).not.toContain('nicht zustande gekommen');
@@ -339,7 +339,7 @@ describe('runAgentPipeline — Sibling bei Langsamkeit', () => {
     vi.useFakeTimers();
     try {
       poolNachProvider(async (provider) =>
-        provider === 'regolo' ? new Promise<string>(() => {}) : 'Vom Sibling.'
+        provider === 'cortecs' ? new Promise<string>(() => {}) : 'Vom Sibling.'
       );
       const ersterLauf = laufe();
       await vi.advanceTimersByTimeAsync(300_000);
@@ -348,8 +348,8 @@ describe('runAgentPipeline — Sibling bei Langsamkeit', () => {
       const zweiter = poolNachProvider(async () => 'Vom Sibling.');
       await laufe();
 
-      // Kein Tick auf der Uhr, und Regolo wurde gar nicht erst gefragt.
-      expect(zweiter.calls.map((c) => c.provider)).toEqual(['scaleway', 'scaleway']);
+      // Kein Tick auf der Uhr, und der Primär wurde gar nicht erst gefragt.
+      expect(zweiter.calls.map((c) => c.provider)).toEqual(['regolo', 'regolo']);
     } finally {
       vi.useRealTimers();
     }
@@ -361,22 +361,38 @@ describe('runAgentPipeline — Sibling bei Langsamkeit', () => {
     vi.useFakeTimers();
     try {
       // NUR der Sibling antwortet: der Primär fällt aus, und mit ihm die
-      // generische Ausfallkette hinter ihm (litellm → mistral). Sonst finge die
-      // Kette den Schritt ab, bevor der Hedge überhaupt drankäme — was sie in
-      // Produktion auch tut, hier aber den Prüfgegenstand verdeckt.
-      const { calls } = poolNachProvider(async (provider) =>
-        provider === 'scaleway' ? 'Vom Sibling.' : null
-      );
+      // generische Ausfallkette hinter ihm. Sonst finge die Kette den Schritt
+      // ab, bevor der Hedge überhaupt drankäme — was sie in Produktion auch
+      // tut, hier aber den Prüfgegenstand verdeckt.
+      //
+      // Unterschieden wird über die REIHENFOLGE und nicht über den
+      // Providernamen: seit dem 21.08.2026 ist `regolo` beides — Ausweich
+      // dieser Stufe UND zweiter Eintrag der generischen Kette. Der Mock sieht
+      // das Modell nicht (`req.model` ist auf diesem Pfad leer), das es sonst
+      // auseinanderhielte.
+      //
+      // Genau darin liegt übrigens der verbliebene Wert des Hedges: die Kette
+      // fragt Regolo mit dessen Standardmodell, der Hedge mit `gemma4-31b`,
+      // dem Modell, für das diese Stufe ausgewählt wurde.
+      const PRIMAER_UND_KETTE = 4; // cortecs → litellm → regolo → mistral
+      let rueckAufrufe = 0;
+      const { calls } = poolNachProvider(async (_provider, type) => {
+        if (type !== RUECK_TYPE) return null;
+        rueckAufrufe += 1;
+        return rueckAufrufe > PRIMAER_UND_KETTE ? 'Vom Sibling.' : null;
+      });
       const promise = laufe();
       await vi.advanceTimersByTimeAsync(0);
 
       // Ohne einen einzigen Tick auf der Uhr: beide Schritte sind schon durch,
       // je Schritt Primär, dessen Ausfallkette — und dann sofort der Sibling.
-      expect(calls.filter((c) => c.type === RUECK_TYPE).map((c) => c.provider)).toEqual([
-        'regolo',
+      const rueck = calls.filter((c) => c.type === RUECK_TYPE);
+      expect(rueck.map((c) => c.provider)).toEqual([
+        'cortecs',
         'litellm',
+        'regolo',
         'mistral',
-        'scaleway',
+        'regolo',
       ]);
       expect(await promise).toContain('Vom Sibling.');
     } finally {
