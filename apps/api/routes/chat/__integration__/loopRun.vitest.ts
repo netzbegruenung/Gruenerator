@@ -271,6 +271,13 @@ describe('loop decision maps', () => {
       ).toContain(scenario.systemIncludes);
     }
 
+    if (scenario.synthSystemIncludes) {
+      expect(
+        loopScript.calls[loopScript.calls.length - 1]?.system ?? '',
+        `${scenario.id}: der Systemtext des Schreibers sollte "${scenario.synthSystemIncludes}" enthalten`
+      ).toContain(scenario.synthSystemIncludes);
+    }
+
     for (const point of scenario.notReached ?? []) {
       expect(
         journal.entries.filter((e) => e.point === point).map((e) => e.chose),
