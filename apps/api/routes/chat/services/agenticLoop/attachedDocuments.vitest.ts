@@ -111,6 +111,21 @@ describe('retrieveAttachedDocuments', () => {
     expect(fanout).toHaveBeenCalledTimes(1);
   });
 
+  /**
+   * Der Anhang-Pfad ist der einzige, der den Cross-Encoder selbst bestellen
+   * muss: nach der Gruppierung steht hier EIN Treffer, und `rerankPipeline`
+   * überspringt bei ≤2 Items. Fällt dieses Argument weg, verliert der Pfad
+   * seine Bewertung, ohne dass irgendetwas rot wird.
+   */
+  it('bestellt das Chunk-Reranking mit', async () => {
+    fanout.mockResolvedValue({ perSourceResults: {}, searchedCollections: [], errors: [] });
+    const state = stateWith({ documentSources: [src('document_chat', 'a')] });
+
+    await retrieveAttachedDocuments(state, 'Löschfristen');
+
+    expect(fanout.mock.calls[0]?.[3]).toEqual({ rerankChunks: true });
+  });
+
   it('ruft ohne Dokumente und ohne Abfrage gar nichts ab', async () => {
     await expect(retrieveAttachedDocuments(stateWith(), 'x')).resolves.toEqual([]);
     const state = stateWith({ documentSources: [src('document_chat', 'a')] });
