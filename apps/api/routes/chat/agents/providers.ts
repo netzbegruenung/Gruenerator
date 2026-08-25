@@ -4,6 +4,11 @@
  */
 
 import { env } from '../../../config/env.js';
+import {
+  GEMMA_31B_ON_CORTECS,
+  GEMMA_31B_ON_REGOLO,
+  GEMMA_31B_PRIMARY,
+} from '../../../services/ai/gemmaHosts.js';
 import { isVisionCapable } from '../../../services/ai/modelDiscovery.js';
 import { pickHealthyTarget } from '../../../services/ai/modelSiblings.js';
 import {
@@ -45,6 +50,21 @@ const log = createLogger('chatProviders');
 
 const LITELLM_DEFAULT_MODEL = 'verdigado-pro';
 
+/**
+ * Wohin ein Zug mit Bildern geht, wenn die gewählte Lane keine Bilder kann.
+ *
+ * BLEIBT AUF REGOLO, obwohl alle anderen Gemma-Lanes am 25.08.2026 auf Cortecs
+ * gezogen sind (services/ai/gemmaHosts.ts). Das ist kein Übersehen: ob die
+ * Cortecs-Endpunkte (infercom, berget) Bildteile überhaupt annehmen, ist
+ * UNGEPRÜFT — es ist eine Frage an den Endpunkt, nicht an das Modell, und
+ * Gemma 4 kann Bilder auf beiden Seiten. Bis jemand einen echten Bild-Turn
+ * gegen beide Endpunkte gefahren hat, ist Regolo der belegte Weg.
+ *
+ * Hängt zusammen mit dem `vision: false` von `gemma-4-31b-it` in
+ * modelDiscovery.ts: solange das dort so steht, schickt die Bild-Weiche in
+ * responseStreamingService.ts Bild-Züge ohnehin auf den Regolo-Sibling. Wer
+ * das eine aufhebt, hebt das andere mit auf — und probt vorher.
+ */
 export const VISION_MODEL = {
   provider: 'regolo' as const,
   model: env.VISION_DEFAULT_MODEL || 'gemma4-31b',
@@ -183,8 +203,8 @@ const GPT_OSS_OVERFLOW: ModelConfigOverflow = {
  */
 const GEMMA_4_REGOLO: ModelConfigSingle = {
   kind: 'single',
-  provider: 'regolo',
-  model: 'gemma4-31b',
+  provider: GEMMA_31B_ON_REGOLO.provider,
+  model: GEMMA_31B_ON_REGOLO.model,
   contextWindow: CTX_FULL,
   // Der Ausweichhost war bis 19.08.2026 `gemma-4-verdigado` — dieselben
   // Gewichte, aber der teuerste denkbare Ausweg: 20s bis zum ersten Token,
@@ -270,11 +290,25 @@ const GEMMA_4_REGOLO: ModelConfigSingle = {
  */
 const GEMMA_4_31B_CORTECS: ModelConfigSingle = {
   kind: 'single',
-  provider: 'cortecs',
-  model: 'gemma-4-31b-it',
+  provider: GEMMA_31B_ON_CORTECS.provider,
+  model: GEMMA_31B_ON_CORTECS.model,
   contextWindow: CTX_FULL,
   fallback: 'gemma-regolo',
 };
+
+/**
+ * Die Gemma-Antwortlane — welcher der beiden Hosts sie schreibt, entscheidet
+ * `services/ai/gemmaHosts.ts` und sonst nichts.
+ *
+ * Beide Konfigurationen oben bleiben registriert, weil beide Kennungen
+ * auflösbar bleiben müssen (`gemma-regolo`, `gemma-4-26b`) und weil jede die
+ * Ausweichseite der anderen ist. Was hier ausgewählt wird, ist nur, welche von
+ * beiden die Lane-Namen bedient, die der Chat tatsächlich benutzt.
+ */
+const GEMMA_ANSWER_LANE: ModelConfigSingle =
+  GEMMA_31B_PRIMARY.provider === GEMMA_31B_ON_CORTECS.provider
+    ? GEMMA_4_31B_CORTECS
+    : GEMMA_4_REGOLO;
 
 /**
  * GreenPTs `gemma4`. Seit 21.08.2026 OHNE Aufrufer: es war der Ausweichweg der
@@ -374,7 +408,7 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
 
   // Overflow lanes — Verdigado primary, Regolo on overflow when slot is busy.
   'gpt-oss': GPT_OSS_OVERFLOW,
-  'gemma-4': GEMMA_4_REGOLO,
+  'gemma-4': GEMMA_ANSWER_LANE,
   // Der Name lügt seit 21.08.2026 und bleibt trotzdem: F0/F1 — er steckt in
   // persistierten Thread-Zuständen. Dahinter liegt das DICHTE 31B über Cortecs,
   // siehe GEMMA_4_31B_CORTECS. Kein Auto-Policy-Ziel mehr (in `gemma-litellm`
@@ -399,7 +433,7 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
  * umhängen, ohne dass ein ausgeliefertes Bundle davon weiß.
  */
 AVAILABLE_MODELS['gruenerator-small'] = GPT_OSS_OVERFLOW;
-AVAILABLE_MODELS['gruenerator-medium'] = GEMMA_4_REGOLO;
+AVAILABLE_MODELS['gruenerator-medium'] = GEMMA_ANSWER_LANE;
 AVAILABLE_MODELS['gruenerator-ultra'] = AVAILABLE_MODELS['mistral-medium-3.5'];
 
 // Legacy IDs from persisted client state and DB. All point to the new overflow
@@ -407,7 +441,7 @@ AVAILABLE_MODELS['gruenerator-ultra'] = AVAILABLE_MODELS['mistral-medium-3.5'];
 // release cycle once chatStore migration v8 has propagated.
 AVAILABLE_MODELS['litellm'] = GPT_OSS_OVERFLOW;
 AVAILABLE_MODELS['gpt-oss-regolo'] = GPT_OSS_OVERFLOW;
-AVAILABLE_MODELS['gemma-litellm'] = GEMMA_4_REGOLO;
+AVAILABLE_MODELS['gemma-litellm'] = GEMMA_ANSWER_LANE;
 AVAILABLE_MODELS['gemma-regolo'] = GEMMA_4_REGOLO;
 // `gemma-4-verdigado` gab es hier bis 19.08.2026 als reines Failover-Ziel der
 // Gemma-Lane. Es stand nie im User-Katalog, war nie ein Auto-Policy-Ziel und

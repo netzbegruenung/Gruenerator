@@ -10,6 +10,13 @@ import {
   prefersUnifiedLoop,
   resolveModelTuple,
 } from './providers.js';
+import {
+  GEMMA_31B_ALTERNATE,
+  GEMMA_31B_ON_CORTECS,
+  GEMMA_31B_ON_REGOLO,
+  GEMMA_31B_PRIMARY,
+} from '../../../services/ai/gemmaHosts.js';
+
 import { LOOP_SYNTH_FALLBACK, LOOP_SYNTH_PRIMARY, mayWriteAnswer } from './autoPolicy.js';
 
 /**
@@ -21,7 +28,11 @@ import { LOOP_SYNTH_FALLBACK, LOOP_SYNTH_PRIMARY, mayWriteAnswer } from './autoP
  * AVOID_AS_SYNTH ausschliesst. Die Ausweichkette bei zähem Primär zeigte
  * damit auf ein Verbots-Modell.
  */
-const WRITER_MODELS = new Set(['gemma4-31b', 'mistral-medium-2604']);
+const WRITER_MODELS = new Set([
+  GEMMA_31B_ON_REGOLO.model,
+  GEMMA_31B_ON_CORTECS.model,
+  'mistral-medium-2604',
+]);
 
 describe('prefersUnifiedLoop (unified vs planner/executor split)', () => {
   it('Mistral (fast native tool-caller) runs the unified single-model loop', () => {
@@ -206,7 +217,18 @@ describe('getModelConfig', () => {
     expect(getModelConfig('litellm')).toBe(getModelConfig('gpt-oss'));
     expect(getModelConfig('gpt-oss-regolo')).toBe(getModelConfig('gpt-oss'));
     expect(getModelConfig('gemma-litellm')).toBe(getModelConfig('gemma-4'));
-    expect(getModelConfig('gemma-regolo')).toBe(getModelConfig('gemma-4'));
+    // `gemma-regolo` ist seit dem 25.08.2026 NICHT mehr dasselbe Objekt wie
+    // `gemma-4`: die Antwortlane liegt auf Cortecs, und dieser Alias ist die
+    // ausdrücklich Regolo benennende Kennung — zugleich das Ausweichziel der
+    // Cortecs-Seite. Zwei Kennungen, die verschiedene Hosts MEINEN, dürfen
+    // nicht auf dieselbe Konfiguration zeigen, sonst zeigt der Ausweg auf sich
+    // selbst. Was der Alias garantieren muss, ist nur: er löst auf, und er
+    // meint Regolo.
+    expect(getModelConfig('gemma-regolo')).not.toBeNull();
+    expect(getModelConfig('gemma-regolo')).toMatchObject({
+      provider: GEMMA_31B_ON_REGOLO.provider,
+      model: GEMMA_31B_ON_REGOLO.model,
+    });
   });
 
   it('returns null for unknown model', () => {
@@ -223,13 +245,22 @@ describe('resolveModelTuple — size-aware overflow routing', () => {
   // that host), so there is no load-balancing decision left to make — see
   // GEMMA_4_REGOLO. Seit 19.08.2026 bedient Verdigado diese Lane auch als
   // Ausweg nicht mehr; diese Fälle halten fest, dass kein Zug dort landet.
-  it('always resolves Gemma 4 to Regolo, never to Verdigado', async () => {
+  it('resolves Gemma 4 to the zentral gewählten Host, never to Verdigado', async () => {
     const tuple = await resolveModelTuple('gemma-4', 'req-primary');
     expect(tuple).not.toBeNull();
-    expect(tuple!.provider).toBe('regolo');
-    expect(tuple!.model).toBe('gemma4-31b');
-    // Regolo is hosted, so the lane reports the full model context instead of
-    // Verdigado's conservative silent-truncation ceiling.
+    // Gegen `GEMMA_31B_PRIMARY` und nicht gegen einen abgetippten Namen: WER
+    // Gemma bedient, ist seit dem 25.08.2026 eine Zeile in
+    // services/ai/gemmaHosts.ts. Ein Test, der den Host hier wiederholt, macht
+    // aus einem Einzeiler-Wechsel wieder eine Suche — und das ist genau das,
+    // was die Zentralisierung beseitigt hat.
+    expect(tuple!.provider).toBe(GEMMA_31B_PRIMARY.provider);
+    expect(tuple!.model).toBe(GEMMA_31B_PRIMARY.model);
+    // Was NICHT vom Host abhängt und deshalb hart steht: Verdigado bedient
+    // diese Lane nie, weder als Primär noch als Ausweg.
+    expect(tuple!.provider).not.toBe('litellm');
+    expect(tuple!.sibling?.provider).not.toBe('litellm');
+    // Beide Hosts sind gehostet und melden das volle Modellfenster statt
+    // Verdigados vorsichtiger Stille-Kürzungs-Decke.
     expect(tuple!.contextWindow).toBe(262_144);
   });
 
@@ -255,13 +286,22 @@ describe('resolveModelTuple — size-aware overflow routing', () => {
     // sitzt das Qualitätsgefälle genau dort, wo niemand es misst. Das MODELL
     // ist deshalb identisch mit `gemma-4`, nur der ANBIETER ist ein anderer;
     // wäre auch der gleich, wäre es kein Ausweg.
-    expect(tuple!.sibling).toEqual({ provider: 'cortecs', model: 'gemma-4-31b-it' });
-    expect(tuple!.provider).toBe('regolo');
+    //
+    // Am 25.08.2026 haben Primär und Ausweich die Plätze getauscht — Cortecs
+    // schreibt, Regolo weicht aus (Messreihe in services/ai/gemmaHosts.ts).
+    // Die Aussage dieses Tests ist davon unberührt und wird deshalb aus den
+    // Konstanten gebaut: gleiches MODELL, anderer ANBIETER.
+    expect(tuple!.provider).toBe(GEMMA_31B_PRIMARY.provider);
+    expect(tuple!.sibling).toEqual({
+      provider: GEMMA_31B_ALTERNATE.provider,
+      model: GEMMA_31B_ALTERNATE.model,
+    });
+    expect(tuple!.sibling!.provider).not.toBe(tuple!.provider);
   });
 
   it('preferOverflow is a no-op for Gemma 4 now that it is a single lane', async () => {
     const tuple = await resolveModelTuple('gemma-4', 'req-overflow', { preferOverflow: true });
-    expect(tuple!.provider).toBe('regolo');
+    expect(tuple!.provider).toBe(GEMMA_31B_PRIMARY.provider);
     expect(tuple!.contextWindow).toBe(262_144);
   });
 

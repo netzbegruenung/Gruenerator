@@ -34,6 +34,8 @@
 import { getSystemAgent } from '@gruenerator/shared/agents';
 import { type ChatIntentId, intentsWithDisposition } from '@gruenerator/shared/chat-intents';
 
+import { GEMMA_31B_PRIMARY } from '../../../services/ai/gemmaHosts.js';
+
 import { getPipelineAgent } from './pipelines/index.js';
 
 import type { SearchIntent } from '@gruenerator/contracts';
@@ -503,16 +505,26 @@ export const LOOP_PLANNER_SELFHOSTED = {
 };
 export const LOOP_PLANNER_FALLBACK = { provider: 'litellm' as const, model: 'verdigado-pro' };
 
-/** SYNTH: best German writer, and never a reasoning lane (latency). gemma-4
- *  lives only on regolo.
+/** SYNTH: best German writer, and never a reasoning lane (latency).
+ *
+ *  Host und Modellname kommen aus `services/ai/gemmaHosts.ts` — dort steht die
+ *  eine Entscheidung, wer Gemma 4 bedient, samt Messreihe. Hier stand bis zum
+ *  25.08.2026 `regolo` fest verdrahtet, mit dem Zusatz „gemma-4 lives only on
+ *  regolo"; das gilt seit dem Cortecs-Anschluss nicht mehr, und die doppelte
+ *  Notiz war genau die Art Drift, die der zentrale Wechselpunkt beendet.
  *
  *  Der Ausweich ging bis 19.08.2026 auf `litellm/verdigado-pro` — „die
  *  always-up Lane". Am Proxy nachgemessen liegt hinter diesem Alias
  *  `gpt-oss:120b-ctx128k`, also genau das Modell, das AVOID_AS_SYNTH unten
  *  ausschliesst. Der Ausweich zeigte damit auf ein Verbots-Modell. Mistral
  *  Medium ist die verbleibende immer-erreichbare Lane, die die Policy für
- *  diesen Zweck zulässt. */
-export const LOOP_SYNTH_PRIMARY = { provider: 'regolo' as const, model: 'gemma4-31b' };
+ *  diesen Zweck zulässt — und bleibt es bewusst: der ANDERE Gemma-Host wäre
+ *  qualitativ die nähere Wahl, teilt aber mit dem Primär die Modellfamilie.
+ *  Wenn Gemma selbst das Problem ist, hilft nur eine andere Familie. */
+export const LOOP_SYNTH_PRIMARY = {
+  provider: GEMMA_31B_PRIMARY.provider,
+  model: GEMMA_31B_PRIMARY.model,
+};
 export const LOOP_SYNTH_FALLBACK = { provider: 'mistral' as const, model: 'mistral-medium-2604' };
 
 /** Models that must NEVER write the loop answer: reasoning/"think" lanes (slow),
