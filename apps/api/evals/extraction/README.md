@@ -11,40 +11,41 @@ Gezählt wird, wie viele davon **wortgetreu** im extrahierten Text stehen.
 
 ## Ist-Stand
 
-Die Spalte „wo im Produkt" nennt den Stand **am Messtag** — #2828 hat die letzten
-beiden Zeilen seither getauscht (siehe „Was daraus folgt").
+Die Spalte „wo im Produkt" nennt den Stand nach #2828 (Chat-Anhang auf OCR-Text)
+und #2830 (geometrie-basierte Zusammensetzung in PDF.js).
 
-| Weg                                 | wo im Produkt (24.08.2026)                                | Zeichen | Zellen wortgetreu |
-| ----------------------------------- | --------------------------------------------------------- | ------: | ----------------: |
-| PDF.js direkt                       | Indizierung → **Qdrant-Chunks** → alles, was zitiert wird |  18 601 |       **10 / 16** |
-| Mistral OCR, `tableFormat: 'html'`  | Chat-Anhang → Zusammenfassung                             |  16 219 |        **3 / 16** |
-| Mistral OCR, **ohne** `tableFormat` | — nirgends                                                |  17 871 |       **16 / 16** |
+| Weg                                 | wo im Produkt                                              | Zeichen | Zellen wortgetreu |
+| ----------------------------------- | ---------------------------------------------------------- | ------: | ----------------: |
+| PDF.js direkt (geometrie-Join)      | Dokument-Upload → Indizierung → **Qdrant-Chunks**          |  17 500 |       **16 / 16** |
+| Mistral OCR, **ohne** `tableFormat` | Chat-Anhang → Zusammenfassung + `knownText` an Indizierung |  17 871 |       **16 / 16** |
+| Mistral OCR, `tableFormat: 'html'`  | — nirgends mehr                                            |  16 219 |        **3 / 16** |
 
-Beide zum Messzeitpunkt produktiv genutzten Wege verlieren die Tabelle; der Weg, der
-sie vollständig liefert, wurde nirgends benutzt. #2828 hat das für Chat-Anhänge
-gedreht — siehe „Was daraus folgt".
-
-### PDF.js: 10 von 16 — und die Regel dahinter ist exakt
+### PDF.js vor #2830: 10 von 16 — und die Regel dahinter war exakt
 
 pdfjs gibt jeden Binde- und Gedankenstrich als **eigenes Text-Item** aus.
-`pdfOperations.ts` setzt die Items mit `.join(' ')` zusammen. Daraus folgt
+`pdfOperations.ts` setzte die Items mit `.join(' ')` zusammen. Daraus folgte
 zellenweise, ohne Ausnahme:
 
 > Zelle **mit** Strich → zerlegt. Zelle **ohne** Strich → wortgetreu.
 
-Sechs der sechzehn Zellen enthalten einen Strich, und genau diese sechs fehlen.
-Das ist keine Beobachtung an Stichproben, sondern in
-[`tableExtraction.vitest.ts`](./tableExtraction.vitest.ts) als Zusicherung
-festgeschrieben.
+Sechs der sechzehn Zellen enthalten einen Strich, und genau diese sechs fehlten
+(`KI - Anfragen`, `Server - Logs`); dazu brachen Wörter an Layout-Umbrüchen auf
+(`Dat en`, `Missbra uchserkennung`, `Zwe i - Faktor - Authentifizierung`).
 
-Zwei weitere Schäden desselben Ursprungs:
+**Seit #2830 entscheidet die Geometrie** (`services/OcrService/textItemJoin.ts`):
+beginnt das nächste Item dort, wo das vorige endet (`transform[4] + width`),
+wird nahtlos angefügt; Zeilenwechsel (`hasEOL`) werden zu `\n`, sodass jede
+Tabellenzeile auf einer eigenen Zeile steht und `applyMarkdownFormatting`
+erstmals auf echten Zeilen arbeitet (Überschriften-Erkennung greift). Ergebnis
+auf der Fixture: **16 / 16**, festgeschrieben in
+[`tableExtraction.vitest.ts`](./tableExtraction.vitest.ts).
 
-- **Gesperrt gesetzte Spaltenköpfe werden buchstabenweise zerlegt.** Aus
-  `Datenart  Speicherdauer` wird `D a t e n a r t   S p e i c h e r d a u e r`.
-  Kein Volltextfilter und keine Einbettung erkennt das wieder — die Tabelle hat
-  im Index effektiv keine Überschrift.
-- **Wörter brechen an Layout-Umbrüchen auf**: `Dat en`, `Missbra uchserkennung`,
-  `Zwe i - Faktor - Authentifizierung`.
+**Verbleibender Mangel:** gesperrt gesetzte Spaltenköpfe. Aus
+`Datenart  Speicherdauer` wird weiterhin `D a t e n a r t S p e i c h e r d a u e r` —
+pdfjs baut diese Leerzeichen bereits **innerhalb** eines einzelnen Text-Items in
+`str` ein, da ist auf Item-Ebene nichts mehr zu entscheiden. Kein Volltextfilter
+und keine Einbettung erkennt das wieder — die Tabelle hat im Index effektiv
+keine Überschrift. Auch als Zusicherung festgenagelt.
 
 ### Mistral OCR mit `tableFormat: 'html'`: 3 von 16
 
@@ -70,8 +71,9 @@ drei tote Verweise: `tbl-0.html`, `tbl-1.html`, `tbl-2.html`.
 
 ## Soll-Stand
 
-**16 von 16.** Erreicht, indem `tableFormat` schlicht **weggelassen** wird — dann
-setzt Mistral OCR die Tabelle inline als Markdown:
+**16 von 16 — auf beiden produktiven Wegen erreicht.** Bei Mistral OCR, indem
+`tableFormat` schlicht **weggelassen** wird — dann kommt die Tabelle inline als
+Markdown:
 
 ```
 |  Datenart | Speicherdauer  |
@@ -84,7 +86,8 @@ setzt Mistral OCR die Tabelle inline als Markdown:
 
 Korrekte Bindestriche, korrekter Gedankenstrich, lesbare Spaltenköpfe, und die
 Struktur bleibt als Markdown-Tabelle erhalten — also auch für ein Modell als
-Tabelle erkennbar.
+Tabelle erkennbar. Mistral bleibt der einzige Weg mit **lesbaren Spaltenköpfen**;
+PDF.js liefert die 16 Zellen ohne Tabellen-Markup und mit gesperrten Köpfen.
 
 ## Was daraus folgt
 
@@ -93,12 +96,12 @@ fällt weg (3/16 → 16/16), und der bereits extrahierte OCR-Text wird als `know
 an die Indizierung durchgereicht, statt dieselbe Datei ein zweites Mal durch PDF.js
 zu schicken. Ein Text pro Datei — derselbe, den das Modell im Anhang liest.
 
-**Offen bleibt der Dokument-Upload außerhalb des Chats.** `processUploadedDocument`
-in `fileProcessing.ts` liest die Datei von der Platte neu ein und hat keinen
-OCR-Text zur Hand; es ruft `extractTextFromFile` ohne `knownText`, landet über den
-Parseability-Check bei PDF.js — und damit wieder bei 10/16. Für diesen Pfad steht
-die Abwägung noch aus: PDF.js ist umsonst und schnell (440 ms), OCR kostet und
-dauert (1 314 ms).
+Für den **Dokument-Upload außerhalb des Chats** erledigt durch #2830:
+`processUploadedDocument` landet über den Parseability-Check weiter bei PDF.js
+(umsonst, ~440 ms), aber die geometrie-basierte Zusammensetzung liefert dort
+jetzt ebenfalls 16/16. **Rückwirkend repariert das nichts** — was vor #2830 in
+Qdrant indiziert wurde, liegt dort in der zerlegten Fassung; erst eine
+Neu-Indizierung der betroffenen Dokumente ändert bestehende Notizbücher.
 
 Ein Reranker hilft in keinem der Fälle — was in der Extraktion zerfällt, stellt
 keine Rangfolge wieder her.
@@ -119,8 +122,8 @@ pnpm --filter @gruenerator/api exec tsx evals/extraction/compareExtractors.ts
 pnpm --filter @gruenerator/api exec tsx evals/extraction/compareExtractors.ts /pfad/zur.pdf
 ```
 
-Die Zeichenzahlen 18 601 und 16 219 stimmen mit dem überein, was das Backend im
-Betrieb protokolliert — der Nachbau ist also der echte Pfad, keine Annäherung.
-`extractWithPdfJs.ts` baut dafür nur die Zusammensetzung nach und importiert den
-Formatierungsschritt (`applyMarkdownFormatting`) aus dem Produktionsmodul; auf
-dieser Fixture ändert er nichts, siehe die Begründung im Kopf der Datei.
+Die Zeichenzahl stimmt mit dem überein, was das Backend im Betrieb protokolliert
+(`PDF.js extraction completed: … characters`) — der Nachbau ist also der echte
+Pfad, keine Annäherung. `extractWithPdfJs.ts` importiert Zusammensetzung
+(`textItemJoin.ts`) und Formatierung (`applyMarkdownFormatting`) aus den
+Produktionsmodulen und baut nur die Seitenschleife nach.
