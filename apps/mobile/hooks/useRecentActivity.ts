@@ -5,8 +5,7 @@ import { useCallback } from 'react';
 import { Linking } from 'react-native';
 
 import { DEV_FIXTURES_ENABLED, DEV_RECENT_ACTIVITY } from '../services/devFixtures';
-
-const WEB_ORIGIN = 'https://gruenerator.eu';
+import { WEB_ORIGIN } from '../services/webOrigin';
 
 export type RecentItemType = 'doc' | 'board' | 'image' | 'video' | 'presentation' | 'canvas';
 
