@@ -22,6 +22,13 @@ export function logTurnSummary(input: {
   carriedCount: number;
   answerChars: number;
   mcpMountMs: number;
+  /**
+   * Wie viele Werkzeuge am Turn-ENDE noch zurückgestellt waren (toolScope.ts).
+   * `0` heisst: die Gruppe stand offen oder das Modell hat sie geladen. Das ist
+   * die eine Zahl, an der sich im Betrieb ablesen lässt, ob das Tor zu oft oder
+   * zu selten schliesst — ohne sie ist das Zurückstellen unbeobachtbar.
+   */
+  deferredTools: number;
   onInfo: (message: string) => void;
 }): void {
   // Per-turn tool-outcome breakdown so a silent connector failure is visible in
@@ -59,6 +66,6 @@ export function logTurnSummary(input: {
       input.carriedCount > 0 ? `(carried=${input.carriedCount})` : ''
     } chars=${input.answerChars}${
       input.mcpMountMs > 0 ? ` mcpMountMs=${input.mcpMountMs}` : ''
-    }${failedTools}${mcpContent}`
+    }${input.deferredTools > 0 ? ` deferred=${input.deferredTools}` : ''}${failedTools}${mcpContent}`
   );
 }

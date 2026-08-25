@@ -76,6 +76,147 @@ describe('buildPrepareStep — forceFirstToolCall', () => {
   });
 });
 
+describe('buildPrepareStep — welche Werkzeuge mitgehen', () => {
+  const never = () => false;
+  const scope = () => ['gruenerator_search', 'meine_inhalte_laden'];
+
+  it('lässt den Aufruf unverändert, solange nichts zurückgestellt ist', () => {
+    // `undefined` ist das Verhalten vor toolScope.ts — kein `activeTools`-Feld,
+    // also schickt das SDK den ganzen montierten Katalog.
+    const prep = buildPrepareStep('sys', 'suffix', 5, never, false, undefined, undefined, null);
+    expect(prep({ stepNumber: 0 })).toEqual({});
+  });
+
+  it('schneidet auf JEDEM Zweig, auch auf dem Schlussschritt', () => {
+    // `toolChoice: 'none'` unterdrückt den AUFRUF, nicht die Definitionen: ohne
+    // das Feld hier zahlt der Schlussschritt den vollen Katalog noch einmal.
+    const prep = buildPrepareStep(
+      'sys',
+      'SUFF',
+      1,
+      never,
+      false,
+      undefined,
+      undefined,
+      null,
+      scope
+    );
+    expect(prep({ stepNumber: 0 })).toEqual({
+      toolChoice: 'none',
+      system: 'sysSUFF',
+      activeTools: ['gruenerator_search', 'meine_inhalte_laden'],
+    });
+  });
+
+  it('schneidet auch, wenn ein Werkzeug erzwungen wird', () => {
+    const prep = buildPrepareStep(
+      'sys',
+      'suffix',
+      5,
+      never,
+      true,
+      () => 'web_search',
+      undefined,
+      'bundestag',
+      scope
+    );
+    // Beide benannten Werkzeuge hängen sich an den Umfang an — siehe
+    // "ein benanntes Werkzeug geht immer mit".
+    expect(prep({ stepNumber: 0 })).toEqual({
+      toolChoice: { type: 'tool', toolName: 'bundestag' },
+      activeTools: ['gruenerator_search', 'meine_inhalte_laden', 'bundestag'],
+    });
+    expect(prep({ stepNumber: 1 })).toEqual({
+      toolChoice: { type: 'tool', toolName: 'web_search' },
+      activeTools: ['gruenerator_search', 'meine_inhalte_laden', 'web_search'],
+    });
+  });
+
+  it('liest den Umfang bei JEDEM Schritt neu — ein Lader wirkt sofort', () => {
+    // Der Getter ist der Punkt: ruft das Modell in Schritt 0 den Lader, muss
+    // Schritt 1 die geöffnete Gruppe sehen. Ein eingefangenes Array wäre blind.
+    let offen = false;
+    const prep = buildPrepareStep(
+      'sys',
+      'suffix',
+      5,
+      never,
+      false,
+      undefined,
+      undefined,
+      null,
+      () => (offen ? undefined : ['gruenerator_search', 'meine_inhalte_laden'])
+    );
+    expect(prep({ stepNumber: 0 })).toEqual({
+      activeTools: ['gruenerator_search', 'meine_inhalte_laden'],
+    });
+    offen = true;
+    expect(prep({ stepNumber: 1 })).toEqual({});
+  });
+});
+
+describe('buildPrepareStep — ein benanntes Werkzeug geht immer mit', () => {
+  const never = () => false;
+  // Der Umfang zeigt `documents` nicht. Wird es trotzdem benannt, muss die
+  // Definition mit — sonst verlangt derselbe Schritt einen Aufruf und liefert
+  // das Werkzeug nicht mit.
+  const eng = () => ['gruenerator_search', 'meine_inhalte_laden'];
+
+  it('hängt das erwähnte Werkzeug an den Umfang an', () => {
+    const prep = buildPrepareStep(
+      'sys',
+      'suffix',
+      5,
+      never,
+      true,
+      undefined,
+      undefined,
+      'documents',
+      eng
+    );
+    expect(prep({ stepNumber: 0 })).toEqual({
+      toolChoice: { type: 'tool', toolName: 'documents' },
+      activeTools: ['gruenerator_search', 'meine_inhalte_laden', 'documents'],
+    });
+  });
+
+  it('hängt das erzwungene Ausweich-Werkzeug an den Umfang an', () => {
+    const prep = buildPrepareStep(
+      'sys',
+      'suffix',
+      5,
+      never,
+      false,
+      () => 'documents',
+      undefined,
+      null,
+      eng
+    );
+    expect(prep({ stepNumber: 1 })).toEqual({
+      toolChoice: { type: 'tool', toolName: 'documents' },
+      activeTools: ['gruenerator_search', 'meine_inhalte_laden', 'documents'],
+    });
+  });
+
+  it('dupliziert nicht, wenn das Werkzeug ohnehin mitgeht', () => {
+    const prep = buildPrepareStep(
+      'sys',
+      'suffix',
+      5,
+      never,
+      false,
+      () => 'gruenerator_search',
+      undefined,
+      null,
+      eng
+    );
+    expect(prep({ stepNumber: 1 })).toEqual({
+      toolChoice: { type: 'tool', toolName: 'gruenerator_search' },
+      activeTools: ['gruenerator_search', 'meine_inhalte_laden'],
+    });
+  });
+});
+
 describe('buildPrepareStep — forced fallback tool', () => {
   const never = () => false;
 
