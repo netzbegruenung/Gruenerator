@@ -44,6 +44,11 @@ const SRC = {
   chatProviders: 'apps/api/routes/chat/agents/providers.ts',
   autoPolicy: 'apps/api/routes/chat/agents/autoPolicy.ts',
   intermediate: 'apps/api/services/ai/intermediateLanes.ts',
+  // Wer Gemma 4 bedient, steht seit dem 25.08.2026 nur noch hier; die
+  // Lane-Konfigurationen in `chatProviders` leiten Provider, Modellname,
+  // Kontextfenster und Ausweich-Kennung daraus ab. Ohne diese Quelle liest
+  // der Generator dort Property-Zugriffe auf einen Namen, den er nicht kennt.
+  gemmaHosts: 'apps/api/services/ai/gemmaHosts.ts',
   selector: 'apps/api/services/providers/providerSelector.ts',
   transcription: 'apps/api/services/transcription/providerPolicy.ts',
   voxtral: 'apps/api/services/voice/mistralVoiceService.ts',
@@ -74,6 +79,10 @@ const MODEL_LABELS = {
   'pixtral-large-latest': 'Pixtral Large',
   'mistral-embed': 'Mistral Embed',
   'gemma4-31b': 'Gemma 4 (31 Mrd.)',
+  // Dieselben Gewichte, Cortecs' Kennung — deshalb DERSELBE lesbare Name.
+  // Für Leser*innen der Tabelle ist das ein Modell auf zwei Hosts, und genau
+  // so soll es dort stehen.
+  'gemma-4-31b-it': 'Gemma 4 (31 Mrd.)',
   'gemma-4-26b-a4b-it': 'Gemma 4 (26 Mrd., MoE)',
   gemma4: 'Gemma 4',
   'gpt-oss-120b': 'GPT-OSS 120B',
@@ -153,7 +162,25 @@ function resolveString(sf, node, seen = new Set()) {
   if (ts.isIdentifier(n)) {
     if (seen.has(n.text)) return undefined;
     seen.add(n.text);
-    return resolveString(sf, findDeclaration(sf, n.text), seen);
+    // Erst in der eigenen Datei, dann in den QUERVERWEIS-Quellen (heute:
+    // gemmaHosts.ts). Ohne den zweiten Schritt liest der Generator ein
+    // `GEMMA_31B_PRIMARY`, findet nichts, und die Lane fällt stillschweigend
+    // aus der Tabelle — was als „Modell nicht dokumentiert" endet, nicht als
+    // Fehler.
+    const own = findDeclaration(sf, n.text);
+    if (own) return resolveString(sf, own, seen);
+    for (const cross of crossFileSources) {
+      const found = findDeclaration(cross, n.text);
+      if (found) return resolveString(cross, found, seen);
+    }
+    return undefined;
+  }
+  // `GEMMA_31B_PRIMARY.provider` — ein Feld eines benannten Objekts, das auch
+  // in einer anderen Datei stehen darf.
+  if (ts.isPropertyAccessExpression(n) && ts.isIdentifier(n.name)) {
+    const obj = resolveObjectLiteral(sf, n.expression);
+    if (obj) return resolveString(sf, objectEntries(obj).get(n.name.text), seen);
+    return undefined;
   }
   if (
     ts.isBinaryExpression(n) &&
@@ -163,6 +190,35 @@ function resolveString(sf, node, seen = new Set()) {
     return resolveString(sf, n.right, seen);
   }
   return undefined;
+}
+
+/**
+ * Quellen, in denen nach einem Namen gesucht wird, der in der aktuellen Datei
+ * nicht deklariert ist. Wird von `generate()` gefüllt, bevor irgendetwas
+ * aufgelöst wird.
+ */
+const crossFileSources = [];
+
+/**
+ * Das Objektliteral hinter einem Ausdruck — ein Literal selbst, ein Name in
+ * dieser Datei, oder ein Name aus einer Querverweis-Quelle. Alias-Ketten
+ * (`const A = B`) werden verfolgt.
+ */
+function resolveObjectLiteral(sf, node, seen = new Set()) {
+  let n = unwrap(node);
+  if (!n) return undefined;
+  if (ts.isIdentifier(n)) {
+    if (seen.has(n.text)) return undefined;
+    seen.add(n.text);
+    const own = findDeclaration(sf, n.text);
+    if (own) return resolveObjectLiteral(sf, own, seen);
+    for (const cross of crossFileSources) {
+      const found = findDeclaration(cross, n.text);
+      if (found) return resolveObjectLiteral(cross, found, seen);
+    }
+    return undefined;
+  }
+  return ts.isObjectLiteralExpression(n) ? n : undefined;
 }
 
 /**
@@ -234,7 +290,13 @@ function readAvailableModels(sf) {
     if (ts.isIdentifier(n)) {
       if (seen.has(`id:${n.text}`)) return undefined;
       seen.add(`id:${n.text}`);
-      return resolveConfig(findDeclaration(sf, n.text), seen);
+      const own = findDeclaration(sf, n.text);
+      if (own) return resolveConfig(own, seen);
+      for (const cross of crossFileSources) {
+        const found = findDeclaration(cross, n.text);
+        if (found) return resolveConfig(found, seen);
+      }
+      return undefined;
     }
     // `AVAILABLE_MODELS['gruenerator-ultra'] = AVAILABLE_MODELS['mistral-medium-3.5']`
     if (ts.isElementAccessExpression(n)) {
@@ -295,6 +357,11 @@ function fromRegistry(models, id, roleForFallback = 'fallback') {
 // ── The table ───────────────────────────────────────────────────────────────
 
 function generate() {
+  // VOR allem anderen: `chatProviders` und `intermediateLanes` greifen auf
+  // Namen zu, die in dieser Datei stehen.
+  crossFileSources.length = 0;
+  crossFileSources.push(parse(SRC.gemmaHosts));
+
   const chat = parse(SRC.chatProviders);
   const policy = parse(SRC.autoPolicy);
   const lanes = parse(SRC.intermediate);

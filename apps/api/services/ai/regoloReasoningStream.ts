@@ -21,9 +21,9 @@
 
 import { env } from '../../config/env.js';
 
-import { recordModelSample } from './modelHealth.js';
 import { cortecsBaseUrl } from './cortecsEndpoint.js';
 import { assertSovereignUpstream, SOVEREIGN_ZDR_PROVIDERS } from './cortecsRequestPolicy.js';
+import { recordModelSample } from './modelHealth.js';
 import { isScalewayMistralRoutingEnabled, SCALEWAY_MISTRAL_MODELS } from './providerInstances.js';
 import { scalewayBaseUrl } from './scalewayEndpoint.js';
 
