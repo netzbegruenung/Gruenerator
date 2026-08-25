@@ -10,6 +10,7 @@ import { getAgentSlug, getVisibleSystemAgentsForLocale } from '@gruenerator/shar
 import { foldUmlauts } from '@gruenerator/shared/utils';
 
 import { getDirectMenuItems, getFooterLinks } from '../../components/layout/Header/menuData';
+import { CURRENT_INSTANCE } from '../../config/instance';
 import FAVOURITE_ITEMS from '../../config/sidebarFavouritesConfig';
 
 import { getToolCatalog } from './toolCatalog';
@@ -107,7 +108,7 @@ export function buildFeatureIndex({
     });
   }
 
-  for (const agent of getVisibleSystemAgentsForLocale(locale)) {
+  for (const agent of getVisibleSystemAgentsForLocale(locale, CURRENT_INSTANCE)) {
     push({
       id: `agent-${agent.identifier}`,
       title: agent.title,

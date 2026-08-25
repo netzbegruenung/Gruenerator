@@ -93,6 +93,8 @@ export {
   getHubMemberAgentIds,
 } from './landesverbandHubs.js';
 
+export { isSkillOfferedIn, type SkillInstanceView } from './skillInstances.js';
+
 export {
   DEFAULT_AGENT_ICON,
   SUGGESTED_AGENT_ICONS,

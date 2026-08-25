@@ -79,6 +79,48 @@ describe('buildRecipeCatalog', () => {
     expect(entries.map((e) => e.mention)).not.toContain('presse-bayern-fraktion');
   });
 
+  // Die Rollen-Tür allein genügt hier nicht: eine Landesgeschäftsstellen-Rolle
+  // aus der Zeit vor der Verengung trägt ihren Anspruch weiter, und `null`
+  // („noch nicht bekannt") filtert bewusst gar nicht. Die Instanz-Tür sitzt
+  // davor.
+  it('drops Landesverband recipes on an instance that does not carry them', async () => {
+    const entries = await buildRecipeCatalog({
+      userLocale: 'de-DE',
+      userId: null,
+      roles: [
+        { ebene: 'land', rolle: 'Mitarbeiter*in Landesgeschäftsstelle', bundesland: 'Bayern' },
+      ],
+      instanceId: 'bgst',
+    });
+    const mentions = entries.map((e) => e.mention);
+    expect(mentions).not.toContain('presse-bayern-fraktion');
+    expect(mentions).not.toContain('insta-bayern');
+    expect(mentions).toContain('presse');
+  });
+
+  it('drops a recipe the instance names, and keeps its category siblings', async () => {
+    const entries = await buildRecipeCatalog({
+      userLocale: 'de-DE',
+      userId: null,
+      roles: null,
+      instanceId: 'bgst',
+    });
+    const mentions = entries.map((e) => e.mention);
+    expect(mentions).not.toContain('reel');
+    expect(mentions).toContain('instagram');
+    expect(mentions).toContain('facebook');
+  });
+
+  it('leaves the generic catalogue untouched on production', async () => {
+    const entries = await buildRecipeCatalog({
+      userLocale: 'de-DE',
+      userId: null,
+      roles: null,
+      instanceId: 'production',
+    });
+    expect(entries.map((e) => e.mention)).toContain('reel');
+  });
+
   it('adds the user’s own learned forms', async () => {
     listTextForms.mockResolvedValue([
       { mention: 'omveinladungen', title: 'OMV-Einladung', kind: 'custom', sharedFromGroup: null },
