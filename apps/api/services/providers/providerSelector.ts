@@ -3,6 +3,7 @@
  * Handles routing between Mistral, LiteLLM, and other providers
  */
 
+import { GEMMA_31B_PRIMARY } from '../ai/gemmaHosts.js';
 import { intermediateLane } from '../ai/intermediateLanes.js';
 
 import type {
@@ -97,7 +98,7 @@ interface SelectProviderParams {
  *    beste Deutsch schreibt, und das ist Gemma 4 — deshalb sitzt es schon im
  *    Synth-Slot des Chat-Loops (LOOP_SYNTH_PRIMARY) und in der Gemma-Lane der
  *    Auto-Policy.
- *    → regolo/gemma4-31b.
+ *    → das dichte Gemma 4 31B, Host laut services/ai/gemmaHosts.ts.
  *
  * Bei den Anträgen ersetzt das einen bewussten GPT-OSS-Pin mit der Notiz
  * "reasoning handled via reasoningEffort". Auf DIESEM Pfad galt sie nie: der
@@ -157,18 +158,20 @@ const TEXT_TYPES: ReadonlySet<string> = new Set([
 const STRUCTURE_MODEL = 'mistral-medium-2604';
 
 /**
- * Gemma 4 lives on Regolo. Naming it explicitly is not optional: the Regolo
- * DEFAULT kommt aus REGOLO_DEFAULT_MODEL und ist nicht garantiert der,
- * den diese Lane will.
+ * Gemma 4, dichtes 31B — Host und Modellname kommen aus
+ * `services/ai/gemmaHosts.ts`.
  *
- * The chat lane now agrees. `gemma-litellm` used to resolve to the slow
- * `verdigado-think` host, which is why this constant had to spell out the
- * Regolo pair; it points at these same weights on Regolo now (see
- * GEMMA_4_REGOLO in routes/chat/agents/providers.ts). The two paths no longer
- * disagree about where Gemma 4 runs.
+ * Diese Datei ist nur noch das Prüfmittel des Paritätstests in
+ * `services/ai/__tests__/lanes.vitest.ts` (siehe CLAUDE.md). Genau deshalb
+ * darf sie den Host NICHT ein zweites Mal notieren: der Test fährt beide
+ * Tabellen gegeneinander, und ein hier zurückgebliebener `'regolo'` würde bei
+ * jedem Anbieterwechsel als Paritätsbruch erscheinen, obwohl niemand die
+ * Lane-Zuordnung angefasst hat. Bewacht wird die Zuordnung — WELCHE Typen
+ * Gemma bekommen —, nicht der Vertragspartner. Der wird eine Ebene höher
+ * einmal entschieden.
  */
-const TEXT_PROVIDER = 'regolo';
-const TEXT_MODEL = 'gemma4-31b';
+const TEXT_PROVIDER = GEMMA_31B_PRIMARY.provider;
+const TEXT_MODEL = GEMMA_31B_PRIMARY.model;
 
 /**
  * PDF, Präsentation, Sheet und Dokument — Gemma 4 auf GreenPT statt Mistral

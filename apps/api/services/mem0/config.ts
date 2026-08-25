@@ -33,6 +33,22 @@ import type { MemoryConfig } from 'mem0ai/oss';
  * folgen — also folgt er ihr nicht mehr. Wer das Modell hier wechselt, wechselt
  * es bewusst und prüft die JSON-Extraktion (der defensive Parser unten existiert,
  * weil Reasoning-Modelle das JSON in Chain-of-Thought wickeln).
+ *
+ * ── 25.08.2026: warum das hier NICHT mit auf Cortecs gezogen ist ──
+ *
+ * Alle übrigen Gemma-Primäre liegen seit diesem Tag auf Cortecs
+ * (services/ai/gemmaHosts.ts). Diese Stelle bleibt, und zwar aus demselben
+ * Grund, aus dem sie 2026-08-01 aufhörte, einer Lane zu folgen: der Adapter
+ * baut seinen Client aus `REGOLO_BASE_URL` + `REGOLO_API_KEY` +
+ * `regoloFetchWithThinkingDisabled`. Ein Umzug ist deshalb ein
+ * TRANSPORT-Wechsel (andere Basis-URL, anderer Schlüssel, und statt der
+ * Denk-Abschaltung die Souveränitäts-Weisung aus cortecsRequestPolicy.ts),
+ * nicht das Umhängen eines Modellnamens.
+ *
+ * Der Preis eines unbedachten Umzugs steht direkt darunter: scheitert die
+ * JSON-Extraktion, liefert der Adapter still `{"facts": [], "memory": []}`.
+ * Das Gedächtnis hörte dann auf zu arbeiten, ohne dass irgendwo ein Fehler
+ * erscheint. Erst messen, dann ziehen.
  */
 const LANE = { provider: 'regolo' as const, model: 'gemma4-31b' };
 
