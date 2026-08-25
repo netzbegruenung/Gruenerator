@@ -10,10 +10,16 @@
  * steht als Skript daneben (`compareExtractors.ts`).
  *
  * Die Zusicherungen unten bilden ZWEI Sachen ab, deutlich getrennt:
- *   1. was schon gut ist (die Werte-Spalte kommt unbeschädigt an), und
- *   2. den Mangel aus #2818, absichtlich festgenagelt. Wird die Extraktion
- *      repariert, schlagen genau diese Zusicherungen fehl — das ist ihr Zweck.
- *      Dann die Erwartung auf `EXPECTED_ROWS` umstellen und den Block löschen.
+ *   1. den Stand seit #2830: die Items werden geometrie-basiert zusammengesetzt
+ *      (`textItemJoin.ts`), alle 16 Zellen kommen wortgetreu an, jede
+ *      Tabellenzeile steht auf einer eigenen Zeile; und
+ *   2. den verbleibenden Mangel, absichtlich festgenagelt: gesperrt gesetzte
+ *      Spaltenköpfe. pdfjs baut deren Leerzeichen bereits INNERHALB eines
+ *      einzelnen Text-Items in `str` ein — zwischen den Items ist nichts mehr
+ *      zu entscheiden, keine Join-Logik kann das reparieren. Wird DAS einmal
+ *      behoben (anderer Extraktor, Glyphen-Ebene), schlägt genau dieser Block
+ *      fehl — dann die Erwartung auf `EXPECTED_HEADERS` umstellen und den
+ *      Block löschen.
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -41,55 +47,47 @@ describe('Tabellen-Extraktion aus einer echten PDF', () => {
     ).toBe(PDFJS_CHARS);
   });
 
-  it('trennt heil von zerlegt exakt entlang der Striche', () => {
-    // Die Regel, die der ganze Befund ist: pdfjs gibt jeden Binde- und
-    // Gedankenstrich als eigenes Text-Item aus, `join(' ')` macht daraus ` - `.
-    // Also gilt zellenweise — für Beschriftungen wie für Werte gleichermassen:
-    // Zelle MIT Strich → zerlegt, Zelle OHNE Strich → wortgetreu.
-    const zellen = EXPECTED_ROWS.flatMap((r) => [r.datenart, r.speicherdauer]);
-    const [mitStrich, ohneStrich] = [
-      zellen.filter((z) => /[-–]/.test(z)),
-      zellen.filter((z) => !/[-–]/.test(z)),
-    ];
-
-    expect(mitStrich).toHaveLength(6);
-    expect(ohneStrich).toHaveLength(10);
-
-    for (const zelle of ohneStrich) {
-      expect(text, `unerwartet beschädigt: ${zelle}`).toContain(zelle);
-    }
-    for (const zelle of mitStrich) {
-      expect(text, `unerwartet heil: ${zelle}`).not.toContain(zelle);
+  it('liefert alle 16 Zellen wortgetreu', () => {
+    // Der Kern von #2830: pdfjs gibt Binde- und Gedankenstriche als eigene
+    // Text-Items aus; das alte `join(' ')` machte daraus ` - ` und zerlegte
+    // damit exakt die sechs Zellen mit Strich. Die geometrie-basierte
+    // Zusammensetzung fügt Items nahtlos, wenn das nächste dort beginnt, wo
+    // das vorige endet — seither überleben alle Zellen, mit wie ohne Strich.
+    for (const zelle of EXPECTED_ROWS.flatMap((r) => [r.datenart, r.speicherdauer])) {
+      expect(text, `Zelle beschädigt: ${zelle}`).toContain(zelle);
     }
   });
 
-  describe('Mangel #2818 — festgenagelt, nicht gewünscht', () => {
-    it('padded jeden Bindestrich in der Beschriftungs-Spalte mit Leerzeichen', () => {
-      // `join(' ')` über die Text-Items: pdfjs gibt den Bindestrich als eigenes
-      // Item aus, das Zusammensetzen macht daraus ` - `.
-      expect(text).toContain('KI - Anfragen bei KI - Dienstleistern');
-      expect(text).toContain('Audio - /Videotranskription (Regolo)');
-      expect(text).toContain('Echtzeit - Sprachdialog (Mikrofon - /TTS - Stream)');
-      expect(text).toContain('Server - Logs');
+  it('stellt jede Tabellenzeile auf eine eigene Zeile', () => {
+    // Zeilenwechsel kommen als `hasEOL`-Items und werden zu `\n` — vorher war
+    // die ganze Seite EIN Einzeiler. Damit steht jede Zeile der Tabelle als
+    // `Datenart Speicherdauer` beisammen, für Chunking wie für ein Modell lesbar.
+    for (const r of EXPECTED_ROWS) {
+      expect(text).toContain(`\n${r.datenart} ${r.speicherdauer}\n`);
+    }
+  });
 
-      // …und damit steht KEINE der vier korrekten Beschriftungen im Text.
-      const zerlegt = EXPECTED_ROWS.filter((r) => !text.includes(r.datenart));
-      expect(zerlegt.map((r) => r.datenart)).toEqual([
-        'KI-Anfragen bei KI-Dienstleistern',
-        'Audio-/Videotranskription (Regolo)',
-        'Echtzeit-Sprachdialog (Mikrofon-/TTS-Stream)',
-        'Server-Logs',
-      ]);
-    });
+  it("repariert die früheren Wort-Zerlegungen des join(' ')", () => {
+    // Die Artefakte aus #2818, an denen der Befund hing — alle vom selben
+    // Ursprung, alle mit der Zusammensetzung verschwunden.
+    expect(text).not.toContain('KI - Anfragen');
+    expect(text).not.toContain('Server - Logs');
+    expect(text).not.toContain('Dat en');
+    expect(text).not.toContain('Missbra uchserkennung');
+    expect(text).toContain('Zwei-Faktor-Authentifizierung');
+    expect(text).toContain('Missbrauchserkennung');
+  });
 
-    it('zerlegt die Spaltenköpfe buchstabenweise', () => {
-      // Der Kopf ist im PDF gesperrt gesetzt; pdfjs gibt jede Glyphe einzeln aus.
-      // Ergebnis: ein Kopf, den weder eine Volltextsuche noch eine Einbettung
-      // als „Datenart" wiedererkennt.
-      expect(text).toContain(EXPECTED_HEADERS.map((h) => h.split('').join(' ')).join('   '));
+  describe('verbleibender Mangel — festgenagelt, nicht gewünscht', () => {
+    it('lässt gesperrt gesetzte Spaltenköpfe buchstabenweise zerlegt', () => {
+      // Der Kopf ist im PDF gesperrt gesetzt; pdfjs liefert ihn als EIN Item
+      // mit den Leerzeichen bereits in `str` („D a t e n a r t"). Das ist der
+      // Ebene der Item-Zusammensetzung nicht zugänglich. Ergebnis: ein Kopf,
+      // den weder eine Volltextsuche noch eine Einbettung als „Datenart"
+      // wiedererkennt — die Tabelle hat im Index effektiv keine Überschrift.
+      expect(text).toContain(EXPECTED_HEADERS.map((h) => h.split('').join(' ')).join(' '));
 
-      // Der Kopf steht damit nirgends als zusammenhängendes Wort ÜBER der
-      // Tabelle. („Speicherdauer" kommt weiter unten im Fliesstext vor — deshalb
+      // („Speicherdauer" kommt weiter unten im Fliesstext vor — deshalb
       // wird hier auf die Fundstelle geprüft, nicht auf das blosse Vorkommen.)
       const tabelle = text.slice(
         text.indexOf('Übersicht der wichtigsten Speicherfristen'),
@@ -99,11 +97,6 @@ describe('Tabellen-Extraktion aus einer echten PDF', () => {
         expect(tabelle, `Spaltenkopf unerwartet intakt: ${header}`).not.toContain(header);
       }
     });
-
-    it('trennt Wörter innerhalb von Fließtext an Zeilenumbrüchen des Layouts', () => {
-      expect(text).toContain('Dat en');
-      expect(text).toContain('Missbra uchserkennung');
-    });
   });
 
   describe('was NICHT die Extraktion verschuldet', () => {
@@ -111,7 +104,7 @@ describe('Tabellen-Extraktion aus einer echten PDF', () => {
       // Gegenprobe zu den zusammengelaufenen Wörtern in einer Modellantwort
       // („Benutzerprofilebis zur Löschung"). Die stehen so NICHT im Chunk —
       // das Modell hat den Spaltenabstand beim Zitieren verschluckt.
-      expect(text).toContain('Benutzerprofile   bis zur Löschung durch die Nutzer*in');
+      expect(text).toContain('Benutzerprofile bis zur Löschung durch die Nutzer*in');
       expect(text).not.toContain('Benutzerprofilebis');
       expect(text).not.toContain('anschließendgelöscht');
       expect(text).not.toContain('Dienstleisternmax');
