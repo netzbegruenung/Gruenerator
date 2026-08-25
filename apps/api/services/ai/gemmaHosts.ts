@@ -2,7 +2,7 @@
  * Wer das dichte Gemma 4 31B bedient — die EINE Stelle, die das entscheidet.
  *
  * Gemma 4 schreibt das beste Deutsch im System und trägt deshalb fast alles,
- * was ein Nutzer als Text zu sehen bekommt: die 16 Textlanes in `lanes.ts`
+ * was ein Nutzer als Text zu sehen bekommt: die 15 Textlanes in `lanes.ts`
  * (Antrag, Rede, Social, Leichte Sprache …), die Antwortlane des Chats, den
  * Synth-Slot des agentischen Loops und die Stufen `heavy` und `pruefung` der
  * Zwischenarbeit. Bis zum 25.08.2026 stand der Host an JEDER dieser Stellen
@@ -34,32 +34,46 @@
  * also gewinnt der Durchsatz. Inhaltstreue war in 22 Läufen nicht
  * unterscheidbar. Die Sekunde Anlauf ist der Preis und wird bezahlt.
  *
- * Dazu die Verfügbarkeit, die den Ausschlag gab: Cortecs führt das Modell bei
- * ZWEI Endpunkten (infercom, berget), Regolo bei genau einem. Am 14.08.2026
- * antwortete Regolos `gemma4-31b` mit 3,7 tok/s statt der sonst gemessenen
- * ~76 — Regolo selbst war gesund, es war dieses eine Modell dort. Ein
- * Prüfbericht, der ruhig 36 s braucht, brauchte 218 s.
+ * ── Was die Redundanz angeht: sie liegt NICHT bei Cortecs ──
+ *
+ * Cortecs führt das Modell bei genau EINEM Endpunkt (infercom).
+ * `berget` stand hier bis zum 25.08.2026 als zweiter — das ist live widerlegt:
+ * `GET /v1/models` nennt für `gemma-4-31b-it` nur noch `providers:
+ * ['infercom']`, und berget taucht in KEINEM der 16 Katalog-Modelle mehr auf.
+ * Erzwingen lässt es sich auch nicht: `allowed_providers: ['berget']` antwortet
+ * `{berget: Endpoint uses quantization}`, und `allow_quantization: true` hebt
+ * das nicht auf — auch nicht mit `eu_native`/`allow_zero_data_retention` auf
+ * false. Einen API-Weg zu den „inference settings", auf die die Fehlermeldung
+ * verweist, gibt es nicht (alle geprüften Pfade 404).
+ *
+ * Cortecs ist damit selbst ein Ein-Endpunkt-Host, und vorausbezahlt dazu. Die
+ * Reserve dieser Lane ist deshalb ausschliesslich `GEMMA_31B_ALTERNATE` —
+ * dieselben Gewichte bei Regolo, eine Ebene über dem Router. Dass es die
+ * braucht, zeigte der 14.08.2026: Regolos `gemma4-31b` antwortete mit 3,7
+ * tok/s statt der sonst gemessenen ~76, Regolo selbst war gesund, es war
+ * dieses eine Modell dort — ein Prüfbericht, der ruhig 36 s braucht, brauchte
+ * 218 s. Genau derselbe Ausfall ist auf infercom möglich, und dann trägt
+ * Regolo.
  *
  * ── Was der Wechsel MITNIMMT, und was nicht ──
  *
- *  - **Kein Denken mehr auf der Chat-Antwortlane.** `isReasoningStreamModel`
- *    ist Regolo-spezifisch (`regoloReasoningStream.ts`), und der SDK-Pfad
- *    setzt `providerOptions` nur für Mistral. Über Cortecs bekommt das Modell
- *    also gar kein `reasoning_effort` — was gut ist: infercom weist den
- *    Parameter mit HTTP 400 ab, weshalb die Whitelist in
- *    `cortecsRequestPolicy.ts` dieses Modell bewusst nicht führt. Das Modell
- *    denkt von sich aus nicht (gemessen 21.08.2026: 420 Zeichen Inhalt, 0
- *    Zeichen Denken, ohne jeden Parameter). Verloren geht nichts: die
- *    Pipeline-Lane stand seit dem 14.08.2026 ohnehin auf `reasoning: 'off'`,
- *    weil das Denken auf Regolo in KEINEM gemessenen Lauf durchkam (siehe
- *    PIPELINE_LANE in routes/chat/agents/autoPolicy.ts).
- *  - **Bilder bleiben auf Regolo.** `gemma-4-31b-it` steht in
- *    `modelDiscovery.ts` mit `vision: false` — nicht weil Gemma 4 keine Bilder
- *    kann, sondern weil UNGEPRÜFT ist, ob die Cortecs-Endpunkte Bildteile
- *    annehmen. `isVisionCapable` ist damit falsch, der Sibling (Regolo) ist
- *    es nicht, und die Bild-Weiche in `responseStreamingService.ts` tauscht
- *    innerhalb der Lane auf den geprüften Host. Wer das aufhebt, probt vorher
- *    einen echten Bild-Turn gegen infercom UND berget.
+ *  - **Denken bleibt, über einen anderen Hebel.** Der Host nimmt kein
+ *    `reasoning_effort` an, das etwas bewirkt — die gradierten Werte gehen
+ *    durch und ändern nichts, `none` wird mit 400 abgelehnt. Was wirkt, ist
+ *    `chat_template_kwargs.enable_thinking`, und zwar in beide Richtungen.
+ *    Verdrahtet ist das in `regoloReasoningStream.ts`, wo auch die Messreihe
+ *    steht; die 14 Intents der Auto-Policy, die auf dieser Lane denken,
+ *    behalten ihr Verhalten. Ohne diesen Einbau wäre ihr `reasoning: 'low'`
+ *    ein stiller No-Op geworden — der Wächter in `autoPolicy.vitest.ts` hat
+ *    genau das abgefangen.
+ *  - **Bilder bleiben auf Regolo, und das ist jetzt gemessen.** Der Katalog
+ *    behauptet Bildfähigkeit (`input_modalities: ['text','image']`, Tag
+ *    `Image`); ein echter Bild-Turn gegen infercom antwortet am 25.08.2026
+ *    mit **HTTP 500** (`unexpected_error`). `gemma-4-31b-it` steht in
+ *    `modelDiscovery.ts` deshalb mit `vision: false`, die Bild-Weiche in
+ *    `responseStreamingService.ts` tauscht innerhalb der Lane auf den
+ *    Regolo-Sibling. Der Katalog ist hier keine Quelle — er beschreibt die
+ *    Gewichte, nicht den Endpunkt.
  *  - **Der CO₂-Ausweis bleibt.** `gemma-4-31b-it` erbt in
  *    `energyFootprint.ts` die gemessenen Koeffizienten des 31B — dieselben
  *    Gewichte, dieselbe Architektur. Das ist derselbe Schluss wie bei
@@ -92,7 +106,9 @@ export interface GemmaHost {
 export const GEMMA_31B_ON_REGOLO: GemmaHost = { provider: 'regolo', model: 'gemma4-31b' };
 
 /** Dieselben Gewichte über Cortecs, vermittelt an infercom (Luxemburg,
- *  Verarbeitung Deutschland) mit `berget` als zweitem Endpunkt. */
+ *  Verarbeitung Deutschland) — seit dem 25.08.2026 der einzige Endpunkt, den
+ *  der Katalog für dieses Modell führt. Kleineres Kontextfenster als Regolo
+ *  (128k gegen 262k, siehe CTX_CORTECS in routes/chat/agents/providers.ts). */
 export const GEMMA_31B_ON_CORTECS: GemmaHost = { provider: 'cortecs', model: 'gemma-4-31b-it' };
 
 /**

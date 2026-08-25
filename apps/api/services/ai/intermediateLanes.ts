@@ -220,9 +220,12 @@ export const INTERMEDIATE_LANES = {
    * Endpunkt war quantisiert und fiel durch den Standardfilter, `scaleway
    * direkt` lief zur selben Zeit einwandfrei.
    *
-   * Das dichte 31B liegt bei infercom UND berget, hat also eine Reserve. Der
-   * Preis ist der dokumentierte: die MoE-Variante antwortete rund doppelt so
-   * schnell. Bezahlt wird er für Verfügbarkeit.
+   * Das dichte 31B lag zu diesem Zeitpunkt bei infercom UND berget. Das gilt
+   * seit dem 25.08.2026 nicht mehr — der Katalog führt nur noch `infercom`,
+   * und berget ist nicht erzwingbar (siehe services/ai/gemmaHosts.ts). Die
+   * Reserve dieser Stufe ist damit allein der Regolo-Hedge unten, nicht der
+   * Router. Der Preis der MoE-Ablösung ist der dokumentierte: sie antwortete
+   * rund doppelt so schnell. Bezahlt wird er für Verfügbarkeit.
    *
    * KEIN Denk-Pin für dieses Modell — und das ist kein Versäumnis: infercom
    * weist `reasoning_effort` mit HTTP 400 ab, weshalb die Whitelist in
@@ -329,10 +332,11 @@ export const INTERMEDIATE_LANES = {
    * Der Ausweich ist deshalb kein Reservemodell, sondern derselbe Prüfer auf
    * einem anderen Vertragspartner: der Aufrufer schaltet ihn nach einer Frist
    * PARALLEL dazu. Dass Primär und Ausweich bei verschiedenen Anbietern liegen,
-   * ist die ganze Absicht — ein Einbruch nimmt sonst beide Seiten. Cortecs hat
-   * für dieses Modell zusätzlich `berget` als zweiten Endpunkt in der
-   * Hinterhand, Regolo hat für seines genau einen Host; das war der Ausfallweg
-   * vom 14.08.
+   * ist die ganze Absicht — ein Einbruch nimmt sonst beide Seiten. Dass Cortecs
+   * `berget` als zweiten Endpunkt in der Hinterhand habe, stand hier bis zum
+   * 25.08.2026 und ist widerlegt (siehe services/ai/gemmaHosts.ts): BEIDE
+   * Seiten hängen an genau einem Host. Umso mehr zählt, dass es zwei
+   * Vertragspartner sind — das war der Ausfallweg vom 14.08.
    *
    * GreenPTs `gemma4` wäre der dritte Kandidat und ist es NICHT: welche
    * Gewichte es trägt, ist unbelegt (siehe GEMMA_4_GREENPT in

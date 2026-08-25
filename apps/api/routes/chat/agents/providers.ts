@@ -55,10 +55,10 @@ const LITELLM_DEFAULT_MODEL = 'verdigado-pro';
  *
  * BLEIBT AUF REGOLO, obwohl alle anderen Gemma-Lanes am 25.08.2026 auf Cortecs
  * gezogen sind (services/ai/gemmaHosts.ts). Das ist kein Übersehen: ob die
- * Cortecs-Endpunkte (infercom, berget) Bildteile überhaupt annehmen, ist
- * UNGEPRÜFT — es ist eine Frage an den Endpunkt, nicht an das Modell, und
- * Gemma 4 kann Bilder auf beiden Seiten. Bis jemand einen echten Bild-Turn
- * gegen beide Endpunkte gefahren hat, ist Regolo der belegte Weg.
+ * Cortecs-Endpunkt (infercom) Bildteile annimmt, ist GEMESSEN und die Antwort
+ * ist nein: ein echter Bild-Turn am 25.08.2026 endet in HTTP 500
+ * (`unexpected_error`), obwohl der Katalog `input_modalities: ['text','image']`
+ * behauptet. Es ist eine Frage an den Endpunkt, nicht an das Modell.
  *
  * Hängt zusammen mit dem `vision: false` von `gemma-4-31b-it` in
  * modelDiscovery.ts: solange das dort so steht, schickt die Bild-Weiche in
@@ -160,6 +160,23 @@ const CTX_FULL = 262_144;
  * and measure the lane you are raising.
  */
 const CTX_VERDIGADO = 120_000;
+
+/**
+ * Was Cortecs für `gemma-4-31b-it` tatsächlich führt.
+ *
+ * Aus dem Katalog gelesen, nicht aus dem Modell abgeleitet: `GET /v1/models`
+ * meldet am 25.08.2026 `context_size: 128000` (und `max_output_tokens:
+ * 128000`). Die GEWICHTE tragen mehr — bei Regolo laufen dieselben mit 262k —,
+ * aber was zählt, ist was der Endpunkt annimmt.
+ *
+ * Bis zu diesem Tag meldete `getContextWindow('cortecs')` CTX_FULL. Das war
+ * genau der Fehler, den der Kommentar bei GEMMA_4_REGOLO für Verdigado
+ * beschreibt und der dort abgestellt wurde: der Prompt wird gegen 262k
+ * bemessen und läuft auf einem 128k-Endpunkt in eine stille Kürzung. Solange
+ * Cortecs nur Ausweich und Zwischenstufe war, traf es kleine Prompts; als
+ * Primär der Antwortlane trifft es die grössten.
+ */
+const CTX_CORTECS = 128_000;
 
 const GPT_OSS_OVERFLOW: ModelConfigOverflow = {
   kind: 'overflow',
@@ -268,16 +285,27 @@ const GEMMA_4_REGOLO: ModelConfigSingle = {
  *     dem Nutzer Prosa schreibt, teuer und unsichtbar zugleich.
  *
  * Das dichte 31B über Cortecs hat keinen der beiden Nachteile: dieselben
- * Gewichte wie der Primär (also gar kein Gefälle), es denkt von sich aus nicht
- * (gemessen 21.08.2026: 420 Zeichen Inhalt, 0 Zeichen Denken, ohne jeden
- * Parameter), und es liegt bei ZWEI Endpunkten (infercom, berget) statt bei
- * einem. Dieselben Gewichte fahren seit demselben Tag auch `heavy` und
+ * Gewichte wie der Primär (also gar kein Gefälle) und es denkt von sich aus
+ * nicht (gemessen 21.08.2026: 420 Zeichen Inhalt, 0 Zeichen Denken, ohne jeden
+ * Parameter) — anschalten lässt es sich über
+ * `chat_template_kwargs.enable_thinking`, siehe regoloReasoningStream.ts.
+ *
+ * Die dritte Begründung, die hier bis zum 25.08.2026 stand — „es liegt bei ZWEI
+ * Endpunkten (infercom, berget) statt bei einem" — ist WEG, weil sie nicht mehr
+ * stimmt: der Katalog führt für dieses Modell nur noch `infercom`, und berget
+ * ist über `allowed_providers` nicht erzwingbar (`Endpoint uses quantization`,
+ * auch mit `allow_quantization: true`). Cortecs ist für uns also ebenfalls ein
+ * Ein-Endpunkt-Host; die Reserve dieser Lane ist der Regolo-Ausweich, nicht der
+ * Router. Dieselben Gewichte fahren seit demselben Tag auch `heavy` und
  * `pruefung` in services/ai/intermediateLanes.ts — dort steht die Messreihe
  * (TTFT 1122 ms, 210,7 tok/s).
  *
- * KEIN Denk-Pin für dieses Modell, und das ist kein Versäumnis: infercom weist
- * `reasoning_effort` mit HTTP 400 ab, weshalb die Whitelist in
- * services/ai/cortecsRequestPolicy.ts es bewusst nicht führt.
+ * KEIN Denk-Pin für dieses Modell — aber nicht aus dem Grund, der hier bis zum
+ * 25.08.2026 stand. Live nachgemessen nimmt infercom `reasoning_effort` in den
+ * gradierten Stufen an und IGNORIERT es; abgelehnt (HTTP 400) wird nur `none`.
+ * Ein Pin wäre also wirkungslos oder ein Fehler. Der Hebel, der wirkt, heisst
+ * `chat_template_kwargs.enable_thinking` und sitzt im Denk-Strom
+ * (services/ai/regoloReasoningStream.ts) — Messreihe dort.
  *
  * PREIS, bewusst angenommen: Cortecs ist VORAUSBEZAHLT. Ein leeres Guthaben
  * antwortet mit HTTP 401 wie ein fehlender Schlüssel — dann fällt der Ausweg
@@ -292,7 +320,10 @@ const GEMMA_4_31B_CORTECS: ModelConfigSingle = {
   kind: 'single',
   provider: GEMMA_31B_ON_CORTECS.provider,
   model: GEMMA_31B_ON_CORTECS.model,
-  contextWindow: CTX_FULL,
+  // Das kleinere der beiden Fenster, und das ist der Preis des Hosts: der
+  // Ausweich auf Regolo trägt 262k, dieser Endpunkt 128k. Wer hier CTX_FULL
+  // hinschreibt, bekommt keine Fehlermeldung, sondern eine stille Kürzung.
+  contextWindow: CTX_CORTECS,
   fallback: 'gemma-regolo',
 };
 
@@ -414,7 +445,10 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
   // siehe GEMMA_4_31B_CORTECS. Kein Auto-Policy-Ziel mehr (in `gemma-litellm`
   // gefaltet am 07.08.2026 — siehe autoPolicy.ts), backend-only wie
   // `mistral-small-4`: nicht in MODEL_OPTIONS, also greift es niemand von Hand.
-  // Sein einziger echter Aufrufer ist der Ausweich-Zeiger von GEMMA_4_REGOLO.
+  // Seit dem 25.08.2026 ist es nicht mehr bloss ein Ausweich-Zeiger: dieselbe
+  // Konfiguration bedient über GEMMA_ANSWER_LANE auch `gemma-4`,
+  // `gemma-litellm` und `gruenerator-medium`. Der Ausweich-Zeiger zeigt jetzt
+  // andersherum — von hier auf `gemma-regolo`.
   'gemma-4-26b': GEMMA_4_31B_CORTECS,
   // Ohne Aufrufer seit 21.08.2026 — siehe GEMMA_4_GREENPT.
   'gemma-4-greenpt': GEMMA_4_GREENPT,
@@ -568,10 +602,10 @@ export function getContextWindow(
   if (provider === 'litellm') return CTX_VERDIGADO;
   if (provider === 'regolo') return CTX_FULL;
   if (provider === 'greenpt') return CTX_FULL;
-  // Gemma 4 26B-A4B carries 262k on Scaleway's H100 instances (model card) —
-  // dieselbe Hardware, die Cortecs für dieses Modell vermittelt.
+  // Gemma 4 26B-A4B carries 262k on Scaleway's H100 instances (model card).
   if (provider === 'scaleway') return CTX_FULL;
-  if (provider === 'cortecs') return CTX_FULL;
+  // NICHT CTX_FULL, obwohl die Gewichte mehr tragen — siehe CTX_CORTECS.
+  if (provider === 'cortecs') return CTX_CORTECS;
 
   return DEFAULT_CONTEXT_WINDOW;
 }

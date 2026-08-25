@@ -158,10 +158,16 @@ describe('getContextWindow', () => {
   it('returns correct context window for known models', () => {
     expect(getContextWindow('mistral-large')).toBe(262_144);
     expect(getContextWindow('gpt-oss')).toBe(120_000);
-    // Gemma 4 reports the FULL window since it moved off Verdigado — the 64k
-    // ceiling was Ollama's silent-truncation guard, and nothing routes there
-    // for this lane any more.
-    expect(getContextWindow('gemma-4')).toBe(262_144);
+    // Gemma 4 meldet seit dem 25.08.2026 die 128k des Cortecs-Endpunkts, nicht
+    // die 262k der Gewichte: `GET /v1/models` gibt für `gemma-4-31b-it`
+    // `context_size: 128000` an. Was der Endpunkt annimmt, zählt — eine zu
+    // grosse Zahl hier ist keine Fehlermeldung, sondern eine stille Kürzung.
+    // Die 64k-Decke davor war Ollamas Kürzungs-Schutz auf Verdigado; dorthin
+    // routet diese Lane nicht mehr.
+    expect(getContextWindow('gemma-4')).toBe(128_000);
+    // Der Regolo-Ausweich derselben Gewichte trägt weiterhin das volle Fenster
+    // — die beiden Seiten dieser Lane sind hier NICHT gleich gross.
+    expect(getContextWindow('gemma-regolo')).toBe(262_144);
     expect(getContextWindow('regolo')).toBe(262_144);
   });
 
@@ -259,9 +265,12 @@ describe('resolveModelTuple — size-aware overflow routing', () => {
     // diese Lane nie, weder als Primär noch als Ausweg.
     expect(tuple!.provider).not.toBe('litellm');
     expect(tuple!.sibling?.provider).not.toBe('litellm');
-    // Beide Hosts sind gehostet und melden das volle Modellfenster statt
-    // Verdigados vorsichtiger Stille-Kürzungs-Decke.
-    expect(tuple!.contextWindow).toBe(262_144);
+    // Das Fenster folgt dem HOST, nicht den Gewichten: Cortecs' Endpunkt
+    // führt 128k (Katalog), Regolos 262k. Genau diese Asymmetrie war der
+    // Fehler, den der Verdigado-Ausweich schon einmal hatte — der Prompt wurde
+    // gegen das grössere Fenster bemessen und lief auf dem kleineren in eine
+    // stille Kürzung.
+    expect(tuple!.contextWindow).toBe(128_000);
   });
 
   it('takes no Verdigado slot for Gemma 4', async () => {
@@ -302,7 +311,7 @@ describe('resolveModelTuple — size-aware overflow routing', () => {
   it('preferOverflow is a no-op for Gemma 4 now that it is a single lane', async () => {
     const tuple = await resolveModelTuple('gemma-4', 'req-overflow', { preferOverflow: true });
     expect(tuple!.provider).toBe(GEMMA_31B_PRIMARY.provider);
-    expect(tuple!.contextWindow).toBe(262_144);
+    expect(tuple!.contextWindow).toBe(128_000);
   });
 
   it('preferOverflow is a no-op for single lanes', async () => {
