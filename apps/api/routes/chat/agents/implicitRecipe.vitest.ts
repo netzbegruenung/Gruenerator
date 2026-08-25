@@ -114,3 +114,27 @@ describe('deriveImplicitRecipeMention', () => {
     ).toBe(null);
   });
 });
+
+describe('deriveImplicitRecipeMention — Instanz-Tür', () => {
+  // Ein Rezept, das die Instanz nicht anbietet, darf auch nicht implizit
+  // zünden: der Turn schriebe sonst nach Vorgaben, die im Menü fehlen und die
+  // niemand wieder abwählen kann.
+  it('zündet reel nicht, wo die Instanz es ausblendet', () => {
+    expect(deriveImplicitRecipeMention('Schreib mir ein Reel zum Deutschlandticket', 'de-DE')).toBe(
+      'reel'
+    );
+    expect(
+      deriveImplicitRecipeMention('Schreib mir ein Reel zum Deutschlandticket', 'de-DE', 'bgst')
+    ).toBe(null);
+  });
+
+  it('lässt die übrigen Plattformwörter dort unberührt', () => {
+    expect(
+      deriveImplicitRecipeMention(
+        'Schreib mir eine Pressemitteilung zum Radentscheid',
+        'de-DE',
+        'bgst'
+      )
+    ).toBe('presse');
+  });
+});

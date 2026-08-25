@@ -21,6 +21,8 @@ import { skillFrontmatterSchema, type SkillFrontmatter } from '@gruenerator/cont
 import chokidar from 'chokidar';
 import matter from 'gray-matter';
 
+import { INSTANCES, isInstanceId } from '../src/instances/index.js';
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SKILLS_DIR = resolve(__dirname, '../src/agents/skills');
 const OUT_PATH = resolve(SKILLS_DIR, 'index.generated.ts');
@@ -61,6 +63,28 @@ function detectDuplicates(skills: readonly ParsedSkill[]): void {
     }
     seen.set(skill.frontmatter.mention, skill.filename);
   }
+}
+
+/**
+ * `instances` is a plain string array in the contract — contracts must not
+ * import shared, so the schema cannot narrow it to `InstanceId` there. The
+ * narrowing happens here instead, and it has to be a hard stop: a typo'd id
+ * matches no instance, so the recipe would exist nowhere while looking
+ * perfectly configured in review.
+ */
+function detectUnknownInstances(skills: readonly ParsedSkill[]): void {
+  const offenders = skills.flatMap((s) =>
+    (s.frontmatter.instances ?? [])
+      .filter((id) => !isInstanceId(id))
+      .map((id) => `  · ${s.filename}: "${id}"`)
+  );
+  if (offenders.length === 0) return;
+  throw new Error(
+    `[build-skills] Unknown instance id in ${offenders.length} entry/entries:\n` +
+      offenders.join('\n') +
+      `\n\nKnown ids: ${INSTANCES.map((i) => i.id).join(', ')}` +
+      ` (packages/shared/src/instances/index.ts)`
+  );
 }
 
 /**
@@ -120,6 +144,7 @@ function emit(skills: readonly ParsedSkill[]): string {
 function build(): void {
   const parsed = parseAll();
   detectDuplicates(parsed);
+  detectUnknownInstances(parsed);
   detectPromptBodies(parsed);
   const sorted = sortSkills(parsed);
   writeFileSync(OUT_PATH, emit(sorted));

@@ -10,6 +10,7 @@ import {
   getVisibleSystemAgentsForLocale,
   isAdminVisibleSkill,
   isLvItemVisibleForRoles,
+  isSkillOfferedIn,
   type Agent,
 } from '@gruenerator/shared/agents';
 import { sortByUsage, type UsageMap } from '@gruenerator/shared/utils';
@@ -37,6 +38,7 @@ import {
 } from 'react-icons/pi';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
+import { CURRENT_INSTANCE } from '../../config/instance';
 import {
   useDeleteUserAgent,
   usePublicUserAgents,
@@ -209,13 +211,15 @@ function AgenturaPage() {
   const hiddenSkillMentions = useHiddenSkillMentions();
 
   // All skills available to this locale (unfiltered by search), minus any an
-  // admin hid from discovery on this deployment.
+  // admin hid from discovery on this deployment and minus what this instance
+  // does not carry at all.
   const allSkills = useMemo(
     () =>
       agentsList.filter(
         (s) =>
           (s.audience === undefined || s.audience === 'all' || s.audience === userLocale) &&
-          isAdminVisibleSkill(s.mention, hiddenSkillMentions)
+          isAdminVisibleSkill(s.mention, hiddenSkillMentions) &&
+          isSkillOfferedIn(s, CURRENT_INSTANCE)
       ),
     [userLocale, hiddenSkillMentions]
   );
@@ -230,7 +234,9 @@ function AgenturaPage() {
 
   const systemAgents = useMemo(() => {
     const sharedIds = new Set(sharedAgents.map((e) => e.agent.identifier));
-    return getVisibleSystemAgentsForLocale(userLocale).filter((a) => !sharedIds.has(a.identifier));
+    return getVisibleSystemAgentsForLocale(userLocale, CURRENT_INSTANCE).filter(
+      (a) => !sharedIds.has(a.identifier)
+    );
   }, [userLocale, sharedAgents]);
 
   const generalSystemAgents = useMemo(

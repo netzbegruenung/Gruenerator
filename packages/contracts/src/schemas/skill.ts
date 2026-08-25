@@ -56,6 +56,20 @@ export const skillFrontmatterSchema = z.object({
    */
   lvEbene: z.enum(['partei', 'fraktion']).optional(),
   /**
+   * Die Instanzen, auf denen dieses Rezept ANGEBOTEN wird. Fehlt das Feld, gilt
+   * es überall — der Normalfall, den kein Rezept deklarieren muss.
+   *
+   * Gedacht für Rezepte, die nur einem Deployment gehören (Bundesgeschäfts-
+   * stelle). Die Gegenrichtung — eine Instanz wirft ein geteiltes Rezept weg —
+   * steht als `hide.skillMentions` an der Instanz; warum die beiden Hälften auf
+   * verschiedenen Seiten sitzen, steht im Kopf von `shared/src/instances`.
+   *
+   * `z.string()` statt eines `z.enum` über die Instanz-Ids, weil contracts nicht
+   * auf shared zeigen darf. Die Verengung macht `build-skills.ts` gegen die
+   * Instanz-Registry — dieselbe Arbeitsteilung wie bei `identifier`.
+   */
+  instances: z.array(z.string().min(1)).nonempty().optional(),
+  /**
    * Numeric ordering hint for the generated SKILLS array. Lower wins. Ties
    * break alphabetically by `mention`. When omitted, the skill sorts after
    * everything with an explicit order, then alphabetically within its
