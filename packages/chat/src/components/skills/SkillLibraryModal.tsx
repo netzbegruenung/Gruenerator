@@ -1,6 +1,10 @@
 'use client';
 
-import { isAdminVisibleSkill, isLvItemVisibleForRoles } from '@gruenerator/shared/agents';
+import {
+  isAdminVisibleSkill,
+  isLvItemVisibleForRoles,
+  isSkillOfferedIn,
+} from '@gruenerator/shared/agents';
 import { X, Star, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { PiSparkle } from 'react-icons/pi';
@@ -11,6 +15,7 @@ import { agentsList, SKILL_CATEGORY_LABELS, type SkillCategory } from '../../lib
 import {
   agentToMentionable,
   getCustomAgentMentionables,
+  getMentionInstance,
   type Mentionable,
 } from '../../lib/mentionables';
 import { useSkillFavoritesStore } from '../../stores/skillFavoritesStore';
@@ -41,6 +46,7 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
         .filter(
           (s) =>
             isAdminVisibleSkill(s.mention, hiddenSkillMentions) &&
+            isSkillOfferedIn(s, getMentionInstance()) &&
             isLvItemVisibleForRoles(s.identifier, lvIds)
         ),
     [hiddenSkillMentions, lvIds]

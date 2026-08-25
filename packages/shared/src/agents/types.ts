@@ -255,6 +255,12 @@ export interface Skill {
    * überwiegend in Fraktions-PMs. Siehe `skillFrontmatterSchema`.
    */
   lvEbene?: LvEbene;
+  /**
+   * Die Instanzen, auf denen dieses Rezept angeboten wird. Fehlt = überall.
+   * Ausgewertet von `agents/skillInstances.ts`; `build-skills.ts` prüft die
+   * Werte gegen die Instanz-Registry. Siehe `skillFrontmatterSchema`.
+   */
+  instances?: readonly string[];
   // NOTE: there is deliberately no `skillSystemPrompt` here. A skill's prompt
   // body is party-internal and lives outside this repo; the API loads it at
   // runtime (apps/api/services/skills/internalPrompts.ts) and serves it to

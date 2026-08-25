@@ -20,6 +20,8 @@ import {
   PiBank,
 } from 'react-icons/pi';
 
+import { CURRENT_INSTANCE } from '../../../config/instance';
+
 import type { IconType } from 'react-icons';
 
 /**
@@ -73,7 +75,7 @@ export interface DefaultAgentEntry {
  * Order follows array order in `SYSTEM_AGENTS`.
  */
 export function getDefaultAgentEntries(userLocale: string): readonly DefaultAgentEntry[] {
-  return getVisibleSystemAgentsForLocale(userLocale)
+  return getVisibleSystemAgentsForLocale(userLocale, CURRENT_INSTANCE)
     .filter((a) => a.pinnedToSidebar === true)
     .map((a) => ({
       key: `default-${a.identifier.replace(/^gruenerator-/, '')}`,
@@ -103,7 +105,7 @@ export function getPinnedAgentIds(userLocale: string): ReadonlySet<string> {
 export function getVisibleSystemAgents(userLocale: string): readonly Agent[] {
   const pinned = getPinnedAgentIds(userLocale);
   const hubMembers = getHubMemberAgentIds();
-  return getVisibleSystemAgentsForLocale(userLocale).filter(
+  return getVisibleSystemAgentsForLocale(userLocale, CURRENT_INSTANCE).filter(
     (a) => !pinned.has(a.identifier) && !hubMembers.has(a.identifier)
   );
 }

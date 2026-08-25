@@ -22,11 +22,14 @@ import {
   type RoleLandesverbandInput,
   type Skill,
   isLvItemVisibleForRoles,
+  isSkillOfferedIn,
   landesverbandIdsForRoles,
   matchesRecipeAudience,
 } from '@gruenerator/shared/agents';
+import { type InstanceId } from '@gruenerator/shared/instances';
 
 import { deriveTextFormMention } from '../../../agents/langgraph/ChatGraph/nodes/textFormMention.js';
+import { CURRENT_INSTANCE } from '../../../config/instance.js';
 import { getInternalSkillPrompt } from '../../../services/skills/internalPrompts.js';
 import {
   getTextFormForInjection,
@@ -70,8 +73,16 @@ export async function buildRecipeCatalog(params: {
    * nicht gefiltert.
    */
   roles: readonly RoleLandesverbandInput[] | null;
+  /**
+   * Die Instanz, deren Rezept-Auswahl gilt. Das Modell darf nur laden, was die
+   * Oberfläche auch anbietet — sonst schlägt es eine Textform vor, die im
+   * Mention-Menü gar nicht steht. Der `rezept_laden`-Enum wird aus dieser Liste
+   * gebaut und erbt die Verengung darum von selbst.
+   */
+  instanceId?: InstanceId;
 }): Promise<RecipeCatalogEntry[]> {
   const { userLocale, userId, roles } = params;
+  const instanceId = params.instanceId ?? CURRENT_INSTANCE;
   const lvIds = roles ? landesverbandIdsForRoles(roles, userLocale ?? 'de-DE') : null;
 
   // `SKILLS` is `as const`, so entries without an `audience` key have no such
@@ -83,6 +94,7 @@ export async function buildRecipeCatalog(params: {
       (s) =>
         matchesRecipeAudience(s.audience, userLocale) &&
         ownerIsVisible(s.identifier) &&
+        isSkillOfferedIn(s, instanceId) &&
         isLvItemVisibleForRoles(s.identifier, lvIds)
     )
     .map((s) => ({

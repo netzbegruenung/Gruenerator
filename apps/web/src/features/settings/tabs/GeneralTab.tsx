@@ -1,4 +1,5 @@
 import { type FeedbackButtonMode, type StartPage } from '@gruenerator/contracts';
+import { getPinnedLocale } from '@gruenerator/shared/instances';
 import { Button, toast } from '@gruenerator/ui';
 import { type QueryClient } from '@tanstack/react-query';
 import { Rocket, RotateCcw } from 'lucide-react';
@@ -14,6 +15,7 @@ import {
   PiTextT,
 } from 'react-icons/pi';
 
+import { CURRENT_INSTANCE } from '../../../config/instance';
 import { AccountIdentityRow, DeleteAccountSection } from '../components/AccountSection';
 import SettingsRow from '../components/SettingsRow';
 import { useSettingsDialogStore } from '../settingsDialogStore';
@@ -64,6 +66,7 @@ const GeneralTab = () => {
   const [, , themePreference, , setThemePreference] = useDarkMode();
   const locale = useAuthStore((s) => s.locale);
   const updateLocale = useAuthStore((s) => s.updateLocale);
+  const pinnedLocale = getPinnedLocale(CURRENT_INSTANCE);
   const startPage = useAuthStore((s) => s.user?.default_startpage ?? 'chat');
   const updateStartPage = useAuthStore((s) => s.updateStartPage);
   const feedbackButton = useAuthStore((s) => s.user?.feedback_button ?? 'text');
@@ -97,25 +100,32 @@ const GeneralTab = () => {
           </div>
         </SettingsRow>
 
-        <SettingsRow id="allgemein.sprache">
-          <div className="flex gap-xxs">
-            {LOCALE_OPTIONS.map(({ value, flag, label }) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => void updateLocale(value)}
-                className={cn(
-                  'flex size-8 items-center justify-center rounded-md text-lg transition-all',
-                  locale === value ? 'bg-primary-500/10 opacity-100' : 'opacity-40 hover:opacity-70'
-                )}
-                aria-label={label}
-                title={label}
-              >
-                {flag}
-              </button>
-            ))}
-          </div>
-        </SettingsRow>
+        {/* An instance that pins its locale offers no switch: the other
+            country's notebooks, agents and recipes are not deployed there, so
+            switching would empty the app rather than translate it. */}
+        {pinnedLocale === null && (
+          <SettingsRow id="allgemein.sprache">
+            <div className="flex gap-xxs">
+              {LOCALE_OPTIONS.map(({ value, flag, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => void updateLocale(value)}
+                  className={cn(
+                    'flex size-8 items-center justify-center rounded-md text-lg transition-all',
+                    locale === value
+                      ? 'bg-primary-500/10 opacity-100'
+                      : 'opacity-40 hover:opacity-70'
+                  )}
+                  aria-label={label}
+                  title={label}
+                >
+                  {flag}
+                </button>
+              ))}
+            </div>
+          </SettingsRow>
+        )}
 
         <SettingsRow id="allgemein.startseite">
           <div className="flex rounded-lg border border-grey-200 p-0.5 dark:border-grey-700">
