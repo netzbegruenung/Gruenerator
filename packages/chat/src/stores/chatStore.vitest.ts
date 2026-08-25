@@ -3,16 +3,21 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { useAgentStore } from './chatStore';
 
 /**
- * Was `setCurrentThread` mit Skill-Mention und angeheftetem Konnektor macht.
+ * Wer Skill-Mention und angehefteten Konnektor über Thread-Übergänge trägt.
  *
- * Der erste Send eines neuen Chats LEGT den Thread an (lazy initialize bzw.
- * `onThreadCreated` aus dem SSE-Stream) — beide münden in
- * `setCurrentThread(neueId)`. Das ist eine Fortsetzung desselben Gesprächs,
- * kein Wechsel: Ein auf der Startseite angehefteter Konnektor starb hier mit
- * dem ersten gestreamten Antwort-Event, der Chip verschwand aus dem Chat und
- * jede Folgefrage verlor ihren MCP-Scope. Dasselbe traf das gewählte Rezept
- * (`activeSkillMention`) — der Fall, den es schon einmal bei den handgetippten
- * /skill-Mentions gab.
+ * Der erste Send eines neuen Chats LEGT den Thread an (lazy `initialize()`
+ * bzw. `onThreadCreated` aus dem SSE-Stream) — diese Münz-Stellen rufen
+ * `mintThreadFromDraft`: eine Fortsetzung desselben Gesprächs, kein Wechsel.
+ * Vorher lief das über `setCurrentThread`, dessen pauschales Abräumen den auf
+ * der Startseite angehefteten Konnektor mit dem ersten gestreamten
+ * Antwort-Event tötete — Chip weg, Folgefragen ohne MCP-Scope. Dasselbe traf
+ * das gewählte Rezept (bekannt vom handgetippten /skill, #2755).
+ *
+ * `setCurrentThread` bleibt der Navigations-Schreiber (Sidebar/URL-Sync) und
+ * räumt WEITERHIN bedingungslos ab — auch bei `null → id`: Der Wechsel vom
+ * verlassenen Entwurf in einen bereits existierenden Thread sieht für den
+ * Store identisch aus wie das Münzen, und ein dort vergessener Pin darf nicht
+ * in einen fremden Thread lecken.
  */
 
 const PINNED = { id: 'system-gesetze', label: 'Gesetze' };
@@ -26,25 +31,35 @@ beforeEach(() => {
   });
 });
 
-describe('setCurrentThread', () => {
+describe('mintThreadFromDraft', () => {
   it('behält Konnektor und Rezept, wenn der Entwurf zum Thread wird', () => {
-    useAgentStore.getState().setCurrentThread('thread-neu');
+    useAgentStore.getState().mintThreadFromDraft('thread-neu');
 
     const state = useAgentStore.getState();
     expect(state.pinnedConnector).toEqual(PINNED);
     expect(state.activeSkillMention).toBe('presse');
   });
 
-  it('setzt den restlichen Thread-Zustand beim Anlegen trotzdem zurück', () => {
-    useAgentStore.getState().setCurrentThread('thread-neu');
+  it('setzt den restlichen Thread-Zustand beim Münzen trotzdem zurück', () => {
+    useAgentStore.getState().mintThreadFromDraft('thread-neu');
 
     const state = useAgentStore.getState();
     expect(state.currentThreadId).toBe('thread-neu');
     expect(state.messageCount).toBe(0);
     expect(state.currentThreadTitle).toBeNull();
   });
+});
 
-  it('räumt beide beim Wechsel in einen ANDEREN Thread ab', () => {
+describe('setCurrentThread', () => {
+  it('räumt auch bei Entwurf → existierendem Thread ab (Sidebar-Klick, kein Münzen)', () => {
+    useAgentStore.getState().setCurrentThread('thread-fremd');
+
+    const state = useAgentStore.getState();
+    expect(state.pinnedConnector).toBeNull();
+    expect(state.activeSkillMention).toBeNull();
+  });
+
+  it('räumt beim Wechsel zwischen zwei Threads ab', () => {
     useAgentStore.setState({ currentThreadId: 'thread-alt' });
 
     useAgentStore.getState().setCurrentThread('thread-anderer');
@@ -54,7 +69,7 @@ describe('setCurrentThread', () => {
     expect(state.activeSkillMention).toBeNull();
   });
 
-  it('räumt beide beim Verlassen in den Entwurf ab (neuer Chat)', () => {
+  it('räumt beim Verlassen in den Entwurf ab (neuer Chat)', () => {
     useAgentStore.setState({ currentThreadId: 'thread-alt' });
 
     useAgentStore.getState().setCurrentThread(null);
