@@ -29,6 +29,7 @@
       "zod": "^3.24.1",
       "better-auth>zod": "^4.3.6",
       "@better-auth/core>zod": "^4.3.6",
+      "@better-auth/oauth-provider>zod": "^4.3.6",
       "knip>zod": "^4.3.6",
       "deepagents>zod": "^4.3.6",
       "@types/express-serve-static-core": "^5.0.0",

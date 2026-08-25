@@ -23,7 +23,8 @@
  *      DB is unreachable.
  *
  *   3. Mobile OAuth Set-Cookie drop (branch fix/mobile-auth-cookie-forwarding).
- *      `auth.api.signInWithOAuth2(...)` called without `asResponse: true`
+ *      `auth.api.signInSocial(...)` (bis better-auth 1.7: `signInWithOAuth2`)
+ *      called without `asResponse: true`
  *      silently drops Better Auth's state + PKCE cookies, so the Keycloak
  *      round-trip comes back without `__Secure-ba.state`. Better Auth then
  *      treats the callback as a `state_mismatch` replay and redirects to
@@ -192,6 +193,25 @@ describe.skipIf(!dbReachable)('regression e74c3176 — ba_accounts UNIQUE constr
 
   it('UNIQUE index does NOT include user_id (would block realm-migration relink)', () => {
     expect(uniqueColumns).not.toContain('user_id');
+  });
+
+  // better-auth 1.7 schlüsselt externe Konten auf `(issuer, accountId)`. Der
+  // Index dazu entsteht in `merge_ba_accounts_unique_index.sql`, und zwar erst,
+  // wenn `backfillAccountIssuer` die Spalte gefüllt hat — die Migration läuft
+  // VOR den Backfills, greift also planmäßig erst beim übernächsten Start.
+  //
+  // Deshalb nicht „der Index existiert", sondern die Bedingung, die zu jedem
+  // Zeitpunkt gelten muss: sobald `issuer` NOT NULL ist, ist der Backfill durch
+  // und der Index muss stehen. Fehlte er dann, legte der Server bei jeder
+  // Anmeldung eine weitere Kontozeile an, statt die vorhandene zu finden — ohne
+  // dass irgendetwas fehlschlüge.
+  it('sobald issuer NOT NULL ist, deckt ein UNIQUE index ihn ab', async () => {
+    const { rows } = await pool.query<{ is_nullable: string }>(
+      `SELECT is_nullable FROM information_schema.columns
+        WHERE table_name = 'ba_accounts' AND column_name = 'issuer'`
+    );
+    if (rows[0]?.is_nullable !== 'NO') return;
+    expect(uniqueColumns).toContain('issuer');
   });
 });
 
