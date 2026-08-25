@@ -266,7 +266,7 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
     "title": "Wie nachhaltig ist der Grünerator?",
     "category": "Über den Grünerator",
-    "lead": "{/ Welches Modell wo läuft, steht NICHT mehr in dieser Datei: rendert src/generated/models.json, und das liest scripts/generate-models.mjs aus dem Routing-Code selbst (AVAILABLEMODELS, INTERMEDIATELA…"
+    "lead": "{/ Welches Modell wo läuft, steht NICHT in dieser Datei — und seit dem 25.08.2026 auch nicht mehr, WELCHER ANBIETER WELCHE AUFGABE hat: und rendern beide src/generated/models.json, und das liest scri…"
   },
   {
     "url": "/docs/ueber-den-gruenerator/notebook",
@@ -2525,7 +2525,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Black Forest Labs (Freiburg) — Bilder aus der EU",
     "anchor": "#black-forest-labs-freiburg--bilder-aus-der-eu",
     "category": "Über den Grünerator",
-    "text": "Black Forest Labs aus Freiburg entwickelt die FLUX-Bildmodelle. Der Grünerator nutzt ausschließlich den EU-Endpunkt (api.eu.bfl.ai) mit den FLUX-2-Modellen — die Bilderzeugung läuft damit im europäischen Strommix, der deutlich CO₂-ärmer ist als der US-amerikanische, wo die meisten Bild-KIs rechnen."
+    "text": "Black Forest Labs aus Freiburg entwickelt die FLUX-Bildmodelle. Der Grünerator nutzt ausschließlich den EU-Endpunkt (api.eu.bfl.ai) — die Bilderzeugung läuft damit im europäischen Strommix, der deutlich CO₂-ärmer ist als der US-amerikanische, wo die meisten Bild-KIs rechnen."
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Cortecs — der Vermittler, und die ehrliche Lücke",
+    "anchor": "#cortecs--der-vermittler-und-die-ehrliche-lücke",
+    "category": "Über den Grünerator",
+    "text": "Cortecs ist kein Rechenzentrum, sondern ein Vermittler: Jede Anfrage bekommt die Weisung mit, nur bei in der EU ansässigen Anbietern mit Zero Data Retention zu rechnen, und die Antwort nennt, wer es tatsächlich getan hat. Heute ist das Infercom SCS (Luxemburg, Verarbeitung in Deutschland). Hier ist die Bilanz schlechter belegt als bei allen anderen auf dieser Seite, und das soll so dastehen: Weder Cortecs noch Infercom veröffentlichen einen PUE-Wert oder eine Angabe zum Strombezug. Wir rechnen deshalb mit dem deutschen Strommix (363 g CO₂e/kWh, Umweltbundesamt 2024) — der vorsichtigen Lesart, nicht der günstigen. Ein Ökostrom-Nachweis würde diese Zahl senken; solange keiner vorliegt, steht sie so in der Rechnung."
   },
   {
     "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
@@ -2541,7 +2549,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "GreenPT — Dokumente und Ausweichweg",
     "anchor": "#greenpt--dokumente-und-ausweichweg",
     "category": "Über den Grünerator",
-    "text": "GreenPT rechnet ausschließlich in EU-Rechenzentren mit 100 % erneuerbarer Energie — in Paris sowie in Helsinki (je zur Hälfte Wasser- und Windkraft) — und nennt konkrete Effizienzwerte: PUE 1,25 (Branchenschnitt: 1,55) und ein Wasserverbrauch (WUE) von 0,25 statt branchenüblicher 1,8. Beim Grünerator schreibt GreenPTs Gemma 4 (gemma4) alle erzeugten Dateien: PDFs, Präsentationen, Tabellen und Dokumente. Das ist keine Verlegenheitslösung, sondern gemessen: Am 03.08.2026 gegen die echten Prompts und Vorlagen rief das große Standardmodell das nötige Werkzeug in keinem einzigen Lauf sauber auf und lief in Wiederholungen fest, GreenPTs Gemma 4 in zehn von zehn Läufen — und dabei drei- bis viermal schneller. Dazu plant hier das kleine Modell, das im Chat die Werkzeuge auswählt und aufruft, und GreenPT ist der Ausweichweg für die Transkription, wenn Voxtral nicht antwortet. Als frei wählbare Chat-Lane ist GreenPT im Code fertig verdrahtet, im Modellwähler aber noch nicht freigeschaltet — deshalb steht sie oben nicht bei den drei wählbaren Lanes."
+    "text": "GreenPT rechnet ausschließlich in EU-Rechenzentren mit 100 % erneuerbarer Energie — in Paris sowie in Helsinki (je zur Hälfte Wasser- und Windkraft) — und nennt konkrete Effizienzwerte: PUE 1,25 (Branchenschnitt: 1,55) und ein Wasserverbrauch (WUE) von 0,25 statt branchenüblicher 1,8. Dass die erzeugten Dateien hier laufen, ist keine Verlegenheitslösung, sondern gemessen: Am 03.08.2026 gegen die echten Prompts und Vorlagen rief das große Standardmodell das nötige Werkzeug in keinem einzigen Lauf sauber auf und lief in Wiederholungen fest, GreenPTs Modell in zehn von zehn Läufen — und dabei drei- bis viermal schneller. Als frei wählbare Chat-Lane ist GreenPT im Code fertig verdrahtet, im Modellwähler aber noch nicht freigeschaltet — deshalb steht sie oben nicht bei den drei wählbaren Lanes."
   },
   {
     "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
@@ -2549,7 +2557,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Grünes Hosting: Wasserkraft statt Kohlestrom",
     "anchor": "#grünes-hosting-wasserkraft-statt-kohlestrom",
     "category": "Über den Grünerator",
-    "text": "Der Grünerator selbst — Web-Oberfläche, Datenbanken, Suche — läuft bei Hetzner in Deutschland. Hetzner betreibt seine deutschen Standorte nach eigenen Angaben mit 100 % Wasserkraft, ist EMAS- und ISO-14001-zertifiziert und erreicht mit einem durchschnittlichen PUE-Wert von 1,13 eine überdurchschnittliche Energieeffizienz (je näher an 1,0, desto weniger Strom geht für Kühlung und Infrastruktur verloren). Gegenüber dem deutschen Durchschnitts-Strommix spart das laut Hetzner rund 77.000 Tonnen CO₂ pro Jahr. Auch die selbst gehosteten Open-Source-Modelle, die netzbegrünung e.V. und die verdigado eG für den Grünerator betreiben, laufen auf dieser Wasserkraft-Infrastruktur — heute vor allem GPT-OSS 120B. Gemma 4 lief dort ebenfalls, wird aber seit dem 31.07.2026 bei Regolo in Italien bedient. Der Grund war Tempo: Die selbst gehostete Variante denkt vor jeder Antwort nach, und kein Schalter stellte das ab — rund zwei Drittel ihrer Ausgabe gingen in einen Denkblock, den niemand angefordert hatte. Dieselben Gewichte antworten bei Regolo neunmal schneller. Als Ausweichweg diente die verdigado-Instanz noch bis zum 19.08.2026. Seitdem nicht mehr: Sie hat einen einzigen Inferenz-Platz, den sie…"
+    "text": "Der Grünerator selbst — Web-Oberfläche, Datenbanken, Suche — läuft bei Hetzner in Deutschland. Hetzner betreibt seine deutschen Standorte nach eigenen Angaben mit 100 % Wasserkraft, ist EMAS- und ISO-14001-zertifiziert und erreicht mit einem durchschnittlichen PUE-Wert von 1,13 eine überdurchschnittliche Energieeffizienz (je näher an 1,0, desto weniger Strom geht für Kühlung und Infrastruktur verloren). Gegenüber dem deutschen Durchschnitts-Strommix spart das laut Hetzner rund 77.000 Tonnen CO₂ pro Jahr. Auch die selbst gehosteten Open-Source-Modelle, die netzbegrünung e.V. und die verdigado eG für den Grünerator betreiben, laufen auf dieser Wasserkraft-Infrastruktur. Nicht jede Aufgabe bleibt dort. Die selbst gehostete Instanz hat einen einzigen Inferenz-Platz, den sich alle Anfragen teilen — für Aufgaben, bei denen jemand auf die Antwort wartet, ist das die Engstelle. Solche Lanes liegen bei externen EU-Anbietern, und welche das gerade sind, steht in der Tabelle oben. Diese Zuordnung ändert sich mehrmals im Jahr; die Nachhaltigkeitsfrage tut es nicht, denn sie hängt am Anbieter und seinem Strommix, nicht am Modell."
   },
   {
     "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
@@ -2557,7 +2565,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Intelligentes Routing: nur so viel KI wie nötig",
     "anchor": "#intelligentes-routing-nur-so-viel-ki-wie-nötig",
     "category": "Über den Grünerator",
-    "text": "Der Grünerator schickt nicht jede Anfrage an das größte verfügbare Modell. Stattdessen entscheidet ein kompaktes Einordnungs-Modell zuerst, was überhaupt gebraucht wird: eine einfache Antwort, eine Recherche, ein Dokument, ein Bild. Auch innerhalb einer Antwort ist die Arbeit geteilt: Ein kleines, schnelles Modell übernimmt das Planen und Aufrufen von Werkzeugen (Suche, Notebooks, Dokumente), und ein kompaktes 31-Milliarden-Modell schreibt den Text. Das große Standardmodell kommt nur dort zum Einsatz, wo seine Qualität wirklich gebraucht wird. So bleibt der Energieverbrauch pro Anfrage niedrig, ohne dass die Qualität leidet."
+    "text": "Der Grünerator schickt nicht jede Anfrage an das größte verfügbare Modell. Stattdessen entscheidet ein kompaktes Einordnungs-Modell zuerst, was überhaupt gebraucht wird: eine einfache Antwort, eine Recherche, ein Dokument, ein Bild. Auch innerhalb einer Antwort ist die Arbeit geteilt: Ein kleines, schnelles Modell übernimmt das Planen und Aufrufen von Werkzeugen (Suche, Notebooks, Dokumente), ein kompaktes Modell schreibt den Text. Das große Standardmodell kommt nur dort zum Einsatz, wo seine Qualität wirklich gebraucht wird. So bleibt der Energieverbrauch pro Anfrage niedrig, ohne dass die Qualität leidet."
   },
   {
     "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
@@ -2565,7 +2573,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Mistral AI (Frankreich) — Transparenz-Vorreiter",
     "anchor": "#mistral-ai-frankreich--transparenz-vorreiter",
     "category": "Über den Grünerator",
-    "text": "Mistral AI vermarktet sich nicht als Öko-Anbieter, hat aber als erstes KI-Unternehmen überhaupt eine vollständige, unabhängig geprüfte Lebenszyklus-Analyse eines eigenen Modells veröffentlicht — erstellt mit der französischen Umweltagentur ADEME und Carbone 4, peer-reviewed nach ISO 14040/44. Die Zahlen machen KI-Umweltkosten erstmals konkret vergleichbar: Eine typische Antwort (400 Token) verursacht etwa 1,14 g CO₂e und 45 ml Wasser. Mistral setzt sich zudem für einen verbindlichen globalen Umweltstandard für KI ein. Dazu kommt der französische Strommix, der zu den CO₂-ärmsten Europas gehört. Beim Grünerator liefert Mistral das Standardmodell, die Embeddings für Suche und Notebooks sowie die Transkription mit Voxtral."
+    "text": "Mistral AI vermarktet sich nicht als Öko-Anbieter, hat aber als erstes KI-Unternehmen überhaupt eine vollständige, unabhängig geprüfte Lebenszyklus-Analyse eines eigenen Modells veröffentlicht — erstellt mit der französischen Umweltagentur ADEME und Carbone 4, peer-reviewed nach ISO 14040/44. Die Zahlen machen KI-Umweltkosten erstmals konkret vergleichbar: Eine typische Antwort (400 Token) verursacht etwa 1,14 g CO₂e und 45 ml Wasser. Mistral setzt sich zudem für einen verbindlichen globalen Umweltstandard für KI ein. Dazu kommt der französische Strommix, der zu den CO₂-ärmsten Europas gehört."
   },
   {
     "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
@@ -2589,7 +2597,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Regolo (Seeweb, Italien) — 100 % erneuerbar",
     "anchor": "#regolo-seeweb-italien--100--erneuerbar",
     "category": "Über den Grünerator",
-    "text": "Regolo betreibt seine GPU-Server nach eigenen Angaben mit 100 % erneuerbarer Energie, verzichtet auf Wasserkühlung und führt Hardware im Kreislauf (wiederverwenden, aufarbeiten, recyceln). Das Unternehmen ist ISO-14001-zertifiziert, Qualified Supporter der Green Web Foundation und arbeitet nach dem europäischen DNSH-Prinzip („Do No Significant Harm\", EU-Taxonomie) — alles in europäischen Rechenzentren, mit Zero Data Retention. Beim Grünerator übernimmt Regolo die Anfragen-Einordnung (mistral-small-4-119b), das Schreiben von Antworten (gemma4-31b), das Bildmodell Qwen-Image und dient als Überlauf für die selbst gehosteten Modelle. Transkription lief hier bis Juli 2026 ebenfalls; Regolos eigene Hinweise begrenzten sie auf zwei Minuten pro Datei, und an einem 180-Sekunden-Ausschnitt wiederholte das Modell tatsächlich einen ganzen Satz. Seitdem läuft Transkription über Voxtral und GreenPT, die beide ohne diese Einschränkung arbeiten."
+    "text": "Regolo betreibt seine GPU-Server nach eigenen Angaben mit 100 % erneuerbarer Energie, verzichtet auf Wasserkühlung und führt Hardware im Kreislauf (wiederverwenden, aufarbeiten, recyceln). Das Unternehmen ist ISO-14001-zertifiziert, Qualified Supporter der Green Web Foundation und arbeitet nach dem europäischen DNSH-Prinzip („Do No Significant Harm\", EU-Taxonomie) — alles in europäischen Rechenzentren, mit Zero Data Retention. Transkription lief hier bis Juli 2026 ebenfalls; Regolos eigene Hinweise begrenzten sie auf zwei Minuten pro Datei, und an einem 180-Sekunden-Ausschnitt wiederholte das Modell tatsächlich einen ganzen Satz. Seitdem läuft sie über Anbieter ohne diese Einschränkung."
   },
   {
     "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
@@ -2597,7 +2605,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Sparsame Modelle statt Größenwahn",
     "anchor": "#sparsame-modelle-statt-größenwahn",
     "category": "Über den Grünerator",
-    "text": "Die größten kommerziellen KI-Modelle brauchen für jede einzelne Antwort ein Vielfaches der Energie eines kompakten Modells. Der Grünerator setzt deshalb bewusst auf kleine und mittlere Modelle — vom 31-Milliarden-Parameter-Modell Gemma 4 bis zum mittelgroßen Mistral Medium. Diese Tabelle wird direkt aus dem Routing-Code erzeugt und zeigt daher genau die Modelle, die gerade tatsächlich im Einsatz sind: Im Chat selbst stehen drei Größen zur Wahl — Klein, Mittel und Ultra; welche Modelle dahinterstehen, sind die ersten drei Zeilen oben. Kein einziges dieser Modelle spielt in der Größenklasse der energiehungrigsten Frontier-Modelle — und für die Aufgaben im politischen Alltag reicht das nicht nur, es ist oft sogar die bessere Wahl, weil kleinere Modelle schneller antworten."
+    "text": "Die größten kommerziellen KI-Modelle brauchen für jede einzelne Antwort ein Vielfaches der Energie eines kompakten Modells. Der Grünerator setzt deshalb bewusst auf kleine und mittlere Modelle — kein einziges davon spielt in der Größenklasse der Frontier-Modelle. Welche es gerade genau sind, ändert sich mehrmals im Jahr; diese Tabelle wird direkt aus dem Routing-Code erzeugt und zeigt deshalb immer den aktuellen Stand, nicht den von Hand nachgepflegten: Im Chat selbst stehen drei Größen zur Wahl — Klein, Mittel und Ultra; welche Modelle dahinterstehen, sind die ersten drei Zeilen oben. Kein einziges dieser Modelle spielt in der Größenklasse der energiehungrigsten Frontier-Modelle — und für die Aufgaben im politischen Alltag reicht das nicht nur, es ist oft sogar die bessere Wahl, weil kleinere Modelle schneller antworten."
   },
   {
     "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
