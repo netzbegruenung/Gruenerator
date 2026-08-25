@@ -1,6 +1,5 @@
 import { Router, type Request, type Response } from 'express';
 
-import { NOTEBOOK_GATE } from '../../config/notebookCollectionMap.js';
 import {
   getMcpExposedCollections,
   type FilterableField,
@@ -26,33 +25,30 @@ export interface SerializedCollection {
   filterableFields: SerializedFilterableField[];
 }
 
-// Strips the -system id, backend tuning fields, and mcpHidden facets — and the
-// collections this instance does not offer. Qdrant is shared across
-// deployments, so without the gate this catalog would advertise a Landesverband
-// collection that the same instance hides in every one of its own surfaces.
+// Strips the -system id, backend tuning fields, and mcpHidden facets.
+//
+// Not filtered by the instance policy: `mcpExposed` is what decides whether a
+// collection reaches MCP at all, and `hide` is curation for the surfaces that
+// *offer* content rather than a gate on one named by an external client. See
+// the note on `SEARCH_COLLECTIONS` in `routes/mcp-server/serverFactory.ts`.
 export function serializeMcpCatalog(): SerializedCollection[] {
-  const offered = new Set(
-    NOTEBOOK_GATE.dropHiddenCollections(getMcpExposedCollections().map((c) => c.key))
-  );
-  return getMcpExposedCollections()
-    .filter((c) => offered.has(c.key))
-    .map((c) => ({
-      key: c.key,
-      qdrantCollection: c.qdrantCollection,
-      displayName: c.name,
-      description: c.description,
-      ...(c.country ? { country: c.country } : {}),
-      includeInDefaultSearch: c.includeInDefaultSearch ?? false,
-      ...(c.defaultFilter ? { defaultFilter: c.defaultFilter } : {}),
-      filterableFields: c.filterableFields
-        .filter((f) => !f.mcpHidden)
-        .map((f) => ({
-          field: f.field,
-          label: f.label,
-          type: f.type,
-          ...(f.valueLabels ? { valueLabels: f.valueLabels } : {}),
-        })),
-    }));
+  return getMcpExposedCollections().map((c) => ({
+    key: c.key,
+    qdrantCollection: c.qdrantCollection,
+    displayName: c.name,
+    description: c.description,
+    ...(c.country ? { country: c.country } : {}),
+    includeInDefaultSearch: c.includeInDefaultSearch ?? false,
+    ...(c.defaultFilter ? { defaultFilter: c.defaultFilter } : {}),
+    filterableFields: c.filterableFields
+      .filter((f) => !f.mcpHidden)
+      .map((f) => ({
+        field: f.field,
+        label: f.label,
+        type: f.type,
+        ...(f.valueLabels ? { valueLabels: f.valueLabels } : {}),
+      })),
+  }));
 }
 
 const router: Router = Router();
