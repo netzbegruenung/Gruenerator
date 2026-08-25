@@ -252,7 +252,7 @@ function useGrueneratorThreadRuntime() {
   runtimeApiClientRef.current = runtimeApiClient;
 
   const onThreadCreated = useCallback((newThreadId: string) => {
-    useAgentStore.getState().setCurrentThread(newThreadId);
+    useAgentStore.getState().mintThreadFromDraft(newThreadId);
     const state = useAgentStore.getState();
     if (state.threadMode === 'eigener' && (state.customSystemPrompt || state.customRoleRef)) {
       void state.saveThreadSettings(newThreadId, runtimeApiClientRef.current);
