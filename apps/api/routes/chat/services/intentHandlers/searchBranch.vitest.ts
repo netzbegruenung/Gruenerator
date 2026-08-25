@@ -48,10 +48,12 @@ vi.mock('../../../../agents/langgraph/ChatGraph/index.js', () => ({
   buildCitations: vi.fn(() => []),
 }));
 
-// Hits Postgres otherwise; the reuse path has its own reasoning and is not
-// what this file is about.
+// Hits Postgres otherwise. Defaults to null (no reuse); the reuse test
+// below overrides it for one case.
+const getKeptResearchForRetry = vi.fn(async (): Promise<unknown> => null);
 vi.mock('../threadPersistenceService.js', () => ({
-  getKeptResearchForRetry: vi.fn(async () => null),
+  getKeptResearchForRetry: (threadId: string, query: string) =>
+    getKeptResearchForRetry(threadId, query),
 }));
 
 const { runSearchBranch } = await import('./searchBranch.js');
@@ -94,6 +96,8 @@ beforeEach(() => {
   searchNode.mockClear();
   briefGeneratorNode.mockClear();
   briefGeneratorNode.mockResolvedValue({});
+  getKeptResearchForRetry.mockClear();
+  getKeptResearchForRetry.mockResolvedValue(null);
   sse.send.mockClear();
 });
 
@@ -206,6 +210,31 @@ describe('runSearchBranch — intent follows the loop, not the primary verdict',
     expect(searchNode).toHaveBeenCalledTimes(1);
     expect(searchNode.mock.calls[0]?.[0]?.intent).toBe('research');
     expect(searchNode.mock.calls[0]?.[0]?.researchBrief).toBe('Auftrag');
+  });
+
+  /**
+   * The reused branch rebuilds searchInputState the same way the brief path
+   * did — from finalState, dropping the override. searchNode is skipped here
+   * by design, so the observable signal is the RETURNED state: it feeds the
+   * synthesis half of the turn and must carry the loop intent.
+   */
+  it('keeps the loop intent when reusing kept research sources', async () => {
+    getKeptResearchForRetry.mockResolvedValue({
+      searchResults: [{ source: 'web', title: 'Behalten', content: 'k', url: 'https://kept/1' }],
+    });
+
+    const result = await runSearchBranch({
+      state: state({ intent: 'web', threadId: 't1' } as Partial<ChatGraphState>),
+      currentIntent: 'research',
+      sse: sse as never,
+      forcedTool: false,
+      priorIntentResults: [],
+    });
+
+    expect(searchNode).not.toHaveBeenCalled();
+    expect(briefGeneratorNode).not.toHaveBeenCalled();
+    expect(result.state.intent).toBe('research');
+    expect(result.state.searchResults.map((r) => r.url)).toEqual(['https://kept/1']);
   });
 
   it('keeps the loop intent for the search even on a primary research turn with a brief', async () => {
