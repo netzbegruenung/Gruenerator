@@ -1,8 +1,11 @@
+import { resolveStoredImageUrl } from '@gruenerator/shared/media-library/shareUrl';
 import { Badge } from '@gruenerator/ui';
 import { useState } from 'react';
 import { HiCheck, HiX, HiExternalLink } from 'react-icons/hi';
 
 import type { AdminVorlage } from '../hooks/useAdminVorlagen';
+
+import { resolveApiAssetUrl } from '@/utils/platform';
 
 const dateFormat: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short', year: 'numeric' };
 
@@ -29,10 +32,12 @@ const VorlagenReviewCard = ({
 }: VorlagenReviewCardProps) => {
   const [imageError, setImageError] = useState(false);
 
-  const thumbnailUrl =
-    vorlage.thumbnail_url && vorlage.thumbnail_url.startsWith('http')
-      ? vorlage.thumbnail_url
-      : null;
+  // Selbst hochgeladene Bilder stehen als `/share/<token>` in der Datenbank.
+  // Das `startsWith('http')`-Gitter hat sie hier komplett verworfen — die
+  // Freigabe-Warteschlange zeigte für sie nur das Platzhalter-Emoji (#2845).
+  const thumbnailUrl = resolveApiAssetUrl(
+    resolveStoredImageUrl(vorlage.thumbnail_url) ?? undefined
+  );
 
   const typeLabel = TEMPLATE_TYPE_LABELS[vorlage.template_type] || vorlage.template_type;
   const rejectionReason = vorlage.metadata?.rejection_reason as string | undefined;
