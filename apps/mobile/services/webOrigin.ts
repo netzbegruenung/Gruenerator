@@ -16,11 +16,14 @@
  * `Linking.openURL`). Diese Herkunft ist NICHT `EXPO_PUBLIC_API_URL`: die
  * Variable schliesst `/api` ein und zeigt lokal auf eine Emulator-Adresse — ein
  * Teilen-Link daraus war unter `…/api/notebooks/…` und ausserhalb des Emulators
- * gar nicht aufloesbar (#2841). Bewusst ein Literal ohne Env-Schalter: ein
- * geteilter Link ist fuer jemand anderen, also immer die Produktions-Herkunft.
+ * gar nicht aufloesbar (#2841). Bewusst ohne Env-Schalter: ein geteilter Link
+ * ist fuer jemand anderen, also immer die Produktions-Herkunft — die eine
+ * Konstante aus `@gruenerator/shared` statt eines eigenen Literals (#2855).
  * `services/apiBaseConvention.vitest.ts` bewacht die Trennung.
  */
-export const WEB_ORIGIN = 'https://gruenerator.eu';
+import { PRODUCTION_WEB_ORIGIN } from '@gruenerator/shared/instances';
+
+export const WEB_ORIGIN = PRODUCTION_WEB_ORIGIN;
 
 /**
  * Absolute URL for something the API returned. Absolute inputs (and `data:` /
