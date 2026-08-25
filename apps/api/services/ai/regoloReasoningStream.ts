@@ -22,6 +22,8 @@
 import { env } from '../../config/env.js';
 
 import { recordModelSample } from './modelHealth.js';
+import { cortecsBaseUrl } from './cortecsEndpoint.js';
+import { assertSovereignUpstream, SOVEREIGN_ZDR_PROVIDERS } from './cortecsRequestPolicy.js';
 import { isScalewayMistralRoutingEnabled, SCALEWAY_MISTRAL_MODELS } from './providerInstances.js';
 import { scalewayBaseUrl } from './scalewayEndpoint.js';
 
@@ -81,6 +83,40 @@ const REGOLO_REASONING_MODELS = new Set([
 const LITELLM_REASONING_MODELS = new Set(['verdigado-think', 'verdigado-pro']);
 
 /**
+ * Cortecs-Modelle, die uns Denken streamen — und der Hebel dafür ist ein
+ * ANDERER als bei Regolo.
+ *
+ * Gemessen 25.08.2026 live gegen api.cortecs.ai (`gemma-4-31b-it`, identischer
+ * Prompt, max_tokens 1500, Zeichen Reasoning / Zeichen Inhalt):
+ *
+ *   nichts                                  0 / 1005
+ *   reasoning_effort: 'low' | 'medium' | 'high'
+ *                                           0 / 1005   ← HTTP 200, wirkungslos
+ *   reasoning_effort: 'none'                HTTP 400    ← „value must be one of
+ *                                                          'low','medium','high'"
+ *   chat_template_kwargs.enable_thinking=true
+ *                                        1387 / 1335   ← der Hebel, der wirkt
+ *   chat_template_kwargs.enable_thinking=false
+ *                                           0 / 1013   ← und er schaltet auch ab
+ *
+ * Zwei Dinge, die im Repo bis zu diesem Tag falsch standen und deshalb hier
+ * ausdrücklich gerade gerückt werden:
+ *
+ *  1. „infercom weist `reasoning_effort` mit HTTP 400 ab" — genau umgekehrt.
+ *     Die gradierten Werte gehen durch und tun nichts, `none` ist der
+ *     abgelehnte. Ein Modell, das einen Parameter annimmt und ignoriert, ist
+ *     die teuerste Sorte Fehler: er sieht wie ein funktionierender Regler aus.
+ *  2. Diese Lane könne über Cortecs nicht denken. Sie kann — nur nicht über
+ *     den Hebel, den Regolo benutzt.
+ *
+ * Der Wert wird deshalb NICHT aus `effort` abgeleitet: `enable_thinking` ist
+ * binär, und dieses Modul zu erreichen heisst bereits „denken an". Eine Stufe
+ * hineinzulesen, die der Upstream nicht anbietet, ist derselbe Fehler wie bei
+ * Regolos Gemma (low/medium/high → 2533/2589/2412 Zeichen, also Rauschen).
+ */
+const CORTECS_REASONING_MODELS = new Set(['gemma-4-31b-it']);
+
+/**
  * Mistral Medium 3.5 on Scaleway, when Scaleway is configured.
  *
  * The `mistral` lane is the odd one out: Scaleway is an UPSTREAM, not a
@@ -109,6 +145,7 @@ function scalewayReasoningModel(model: string): string | null {
 export function isReasoningStreamModel(provider: string, model: string): boolean {
   if (provider === 'regolo') return REGOLO_REASONING_MODELS.has(model);
   if (provider === 'litellm') return LITELLM_REASONING_MODELS.has(model);
+  if (provider === 'cortecs') return CORTECS_REASONING_MODELS.has(model);
   if (provider === 'mistral') return scalewayReasoningModel(model) !== null;
   return false;
 }
@@ -188,6 +225,26 @@ function resolveConfig(
       bodyExtras: { ...effortExtra },
     };
   }
+  if (provider === 'cortecs') {
+    return {
+      endpoint: `${cortecsBaseUrl()}/chat/completions`,
+      apiKey: env.CORTECS_API_KEY,
+      // `effortExtra` bewusst NICHT gespreizt: gradierte Werte sind auf diesem
+      // Host wirkungslos und `none` wird mit 400 abgelehnt (Messreihe oben).
+      //
+      // Die drei Souveränitäts-Felder MÜSSEN hier stehen und sind keine
+      // Dopplung: dieser Pfad ist ein Roh-`fetch` und läuft NICHT durch
+      // `cortecsFetchWithPolicy`. Ohne sie wäre ausgerechnet der Denk-Pfad der
+      // eine, auf dem die ZDR-/EU-Weisung stillschweigend fehlt — und weil der
+      // Filter fail-open ist, würde das von aussen wie ein wirksamer aussehen.
+      bodyExtras: {
+        chat_template_kwargs: { enable_thinking: true },
+        eu_native: true,
+        allow_zero_data_retention: true,
+        allowed_providers: SOVEREIGN_ZDR_PROVIDERS,
+      },
+    };
+  }
   if (provider === 'mistral') {
     const scalewayModel = scalewayReasoningModel(model);
     if (!scalewayModel) return null;
@@ -248,6 +305,13 @@ export async function* streamWithReasoning(
     const body = await response.text().catch(() => '');
     throw new ReasoningStreamUnavailableError(params.provider, response.status, body);
   }
+
+  // Dieselbe Nachprüfung, die `cortecsFetchWithPolicy` auf dem SDK-Pfad macht.
+  // Sie steht hier ein zweites Mal, weil dieser Pfad roh fetcht: der
+  // `allowed_providers`-Filter ist fail-open, also ist die Prüfung im
+  // Nachhinein das Einzige, was einen unerlaubten Unterauftragnehmer überhaupt
+  // sichtbar macht.
+  if (params.provider === 'cortecs') assertSovereignUpstream(response);
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();

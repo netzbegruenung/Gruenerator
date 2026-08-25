@@ -43,22 +43,23 @@ const MODEL_METADATA: Record<string, { name: string; reasoning: boolean; vision:
   'mistral-small-latest': { name: 'Mistral Small', reasoning: false, vision: false },
   'mistral-small-2503': { name: 'Mistral Small (Vision)', reasoning: false, vision: true },
   'gemma4-31b': { name: 'Gemma 4 31B', reasoning: true, vision: true },
-  // DASSELBE Modell über Cortecs (infercom/berget) — der Primär aller
+  // DASSELBE Modell über Cortecs (infercom) — der Primär aller
   // Gemma-Lanes seit 25.08.2026, siehe services/ai/gemmaHosts.ts. Zwei Flags,
   // die absichtlich vom Zwilling darüber abweichen:
   //
-  //   `reasoning: false` — es denkt auf diesem Host von sich aus nicht
-  //   (gemessen 21.08.2026: 420 Zeichen Inhalt, 0 Zeichen Denken, ohne jeden
-  //   Parameter), und einschalten kann man es nicht: infercom weist
-  //   `reasoning_effort` mit HTTP 400 ab, weshalb cortecsRequestPolicy.ts es
-  //   bewusst nicht auf die Whitelist nimmt.
+  //   `reasoning: false` — es denkt auf diesem Host OHNE Flag nicht (gemessen
+  //   21.08. und 25.08.2026: 0 Zeichen Denken im Baseline). Dieses Feld
+  //   beschreibt genau das und nicht mehr; angeschaltet wird über
+  //   `chat_template_kwargs.enable_thinking` im Denk-Strom, den
+  //   `isReasoningStreamModel` gesondert führt.
   //
-  //   `vision: false` — und das ist eine VORSICHTSANGABE, keine Aussage über
-  //   Gemma 4. Ob die Cortecs-Endpunkte Bildteile annehmen, ist ungeprüft.
-  //   Falsch hier heisst: die Bild-Weiche in responseStreamingService.ts sieht
-  //   den vision-fähigen Sibling (Regolo) und tauscht innerhalb der Lane
-  //   dorthin — ein geprüfter Pfad statt einer Wette, und sie protokolliert es.
-  //   Auf `true` erst nach einem echten Bild-Turn gegen infercom UND berget.
+  //   `vision: false` — GEMESSEN, nicht vorsichtshalber: ein echter Bild-Turn
+  //   gegen infercom antwortet am 25.08.2026 mit HTTP 500 (`unexpected_error`),
+  //   obwohl der Katalog `input_modalities: ['text','image']` und den Tag
+  //   `Image` führt. Der Katalog beschreibt die Gewichte, nicht den Endpunkt.
+  //   Folge: die Bild-Weiche in responseStreamingService.ts sieht den
+  //   vision-fähigen Sibling (Regolo) und tauscht innerhalb der Lane dorthin —
+  //   ein geprüfter Pfad, und sie protokolliert es.
   'gemma-4-31b-it': { name: 'Gemma 4 31B', reasoning: false, vision: false },
   // Scaleway's Gemma 4, MoE with 4B active parameters — the `heavy` stage.
   // `reasoning: true` is the honest flag (it thinks by DEFAULT), which is
