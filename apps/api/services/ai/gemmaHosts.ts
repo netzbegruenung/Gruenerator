@@ -98,34 +98,69 @@ import { type ProviderName } from './providers.js';
 export interface GemmaHost {
   readonly provider: ProviderName;
   readonly model: string;
+  /**
+   * Was der ENDPUNKT annimmt, nicht was die Gewichte tragen. Die beiden Hosts
+   * sind hier nicht gleich gross, und eine zu grosse Zahl ist keine
+   * Fehlermeldung, sondern eine stille Kürzung.
+   */
+  readonly contextWindow: number;
+  /**
+   * Die Kennung in `AVAILABLE_MODELS` (routes/chat/agents/providers.ts), die
+   * GENAU diesen Host meint — nicht die Lane, die gerade primär ist.
+   *
+   * Sie steht hier, damit die Antwortlane ihren Ausweich-Zeiger ableiten kann,
+   * statt ihn ein zweites Mal zu behaupten. F0/F1: `gemma-4-26b` heisst so aus
+   * historischen Gründen und meint das dichte 31B über Cortecs; umbenannt wird
+   * nichts, der Name steckt in persistierten Thread-Zuständen.
+   */
+  readonly laneId: string;
 }
 
 /** Regolos Kennung für das dichte 31B. Auch `REGOLO_TEXT_DEFAULT` in
  *  `textModelPolicy.ts` — das ist Regolos EIGENER Standard und bleibt bei
  *  Regolo, egal wo der Primär gerade liegt. */
-export const GEMMA_31B_ON_REGOLO: GemmaHost = { provider: 'regolo', model: 'gemma4-31b' };
+export const GEMMA_31B_ON_REGOLO: GemmaHost = {
+  provider: 'regolo',
+  model: 'gemma4-31b',
+  contextWindow: 262_144,
+  laneId: 'gemma-regolo',
+};
 
 /** Dieselben Gewichte über Cortecs, vermittelt an infercom (Luxemburg,
  *  Verarbeitung Deutschland) — seit dem 25.08.2026 der einzige Endpunkt, den
- *  der Katalog für dieses Modell führt. Kleineres Kontextfenster als Regolo
- *  (128k gegen 262k, siehe CTX_CORTECS in routes/chat/agents/providers.ts). */
-export const GEMMA_31B_ON_CORTECS: GemmaHost = { provider: 'cortecs', model: 'gemma-4-31b-it' };
+ *  der Katalog für dieses Modell führt.
+ *
+ *  128k statt Regolos 262k: `GET /v1/models` meldet für `gemma-4-31b-it`
+ *  `context_size: 128000`. Die Gewichte tragen mehr, der Endpunkt nimmt es
+ *  nicht an. */
+export const GEMMA_31B_ON_CORTECS: GemmaHost = {
+  provider: 'cortecs',
+  model: 'gemma-4-31b-it',
+  contextWindow: 128_000,
+  laneId: 'gemma-4-26b',
+};
 
 /**
- * DER WECHSELPUNKT. Wer Gemma 4 primär bedient.
+ * DER WECHSELPUNKT. Diese beiden Zeilen, und sonst nichts.
  *
- * Ein Anbieterwechsel ist diese eine Zeile plus die daneben. Was danach zu
- * prüfen ist, damit der Wechsel nicht still halb wirkt:
+ * Sie müssen die beiden Seiten desselben Paares sein — der Ausweich ist
+ * absichtlich ein anderer VERTRAGSPARTNER und kein Reservemodell, sonst nimmt
+ * ein Einbruch beide Seiten. Ein Wechsel heisst: die zwei Zuweisungen tauschen.
+ *
+ * Bewusst KEIN `PRIMARY === X ? … : …`: der Doku-Generator
+ * (`documentation/scripts/generate-models.mjs`) liest diese Datei per AST, um
+ * die öffentliche Modell-Tabelle zu erzeugen, und ein Ternär ist für ihn nicht
+ * auswertbar. Zwei benannte Zuweisungen sind ohnehin das, was man beim Lesen
+ * sehen will.
+ *
+ * Was nach einem Wechsel zu prüfen ist:
  *   1. `modelDiscovery.ts` — trägt der neue Modellname Vision-/Reasoning-Flags?
  *      Ohne Eintrag ist `isVisionCapable` falsch und die Bild-Weiche greift.
  *   2. `energyFootprint.ts` — hat der neue Modellname einen Koeffizienten?
  *      Ohne ihn fällt die grösste Lane aus der CO₂-Übersicht.
- *   3. `modelSiblings.ts` — das Paar dort wird aus diesen Konstanten gebaut,
- *      es muss nichts nachgezogen werden.
+ *   3. `regoloReasoningStream.ts` — kennt der neue Host einen Denk-Hebel, und
+ *      welchen? Die drei Hosts benutzen drei verschiedene.
+ *   4. `modelSiblings.ts` und die Lane-Konfigurationen ziehen von selbst mit.
  */
 export const GEMMA_31B_PRIMARY: GemmaHost = GEMMA_31B_ON_CORTECS;
-
-/** Der andere Host — Ausweich, Hedge und Geschwister-Ziel der
- *  Gesundheitsumschaltung. Immer die Gegenseite von `GEMMA_31B_PRIMARY`. */
-export const GEMMA_31B_ALTERNATE: GemmaHost =
-  GEMMA_31B_PRIMARY === GEMMA_31B_ON_CORTECS ? GEMMA_31B_ON_REGOLO : GEMMA_31B_ON_CORTECS;
+export const GEMMA_31B_ALTERNATE: GemmaHost = GEMMA_31B_ON_REGOLO;

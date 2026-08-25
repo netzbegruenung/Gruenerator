@@ -65,8 +65,18 @@ const MODEL_SIBLINGS: Readonly<Record<string, ModelTarget>> = {
   // dieselbe Familie. Gemessen 21.08.2026 am Prüf-Prompt: Inhaltstreue in 22
   // Läufen nicht unterscheidbar, Cortecs 210,7 gegen 81,3 tok/s bei 1122 gegen
   // 129 ms TTFT.
-  [`${GEMMA_31B_ON_REGOLO.provider}/${GEMMA_31B_ON_REGOLO.model}`]: GEMMA_31B_ON_CORTECS,
-  [`${GEMMA_31B_ON_CORTECS.provider}/${GEMMA_31B_ON_CORTECS.model}`]: GEMMA_31B_ON_REGOLO,
+  // Ausdrücklich auf `{provider, model}` projiziert und nicht der ganze
+  // `GemmaHost`: der trägt seit dem 25.08.2026 auch `contextWindow` und
+  // `laneId`, und ein `ModelTarget` mit Extra-Feldern reist von hier aus
+  // ungefragt in jeden Aufrufer weiter.
+  [`${GEMMA_31B_ON_REGOLO.provider}/${GEMMA_31B_ON_REGOLO.model}`]: {
+    provider: GEMMA_31B_ON_CORTECS.provider,
+    model: GEMMA_31B_ON_CORTECS.model,
+  },
+  [`${GEMMA_31B_ON_CORTECS.provider}/${GEMMA_31B_ON_CORTECS.model}`]: {
+    provider: GEMMA_31B_ON_REGOLO.provider,
+    model: GEMMA_31B_ON_REGOLO.model,
+  },
   // `cortecs/gemma-4-26b-a4b-it` stand hier bis zum 21.08.2026 und ist WEG,
   // nicht vergessen: die Modell-ID ist über Cortecs unbedienbar geworden (der
   // einzige brauchbare Unterauftragnehmer verschwand aus dem Katalog, der

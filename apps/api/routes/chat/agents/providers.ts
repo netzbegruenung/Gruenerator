@@ -5,6 +5,7 @@
 
 import { env } from '../../../config/env.js';
 import {
+  GEMMA_31B_ALTERNATE,
   GEMMA_31B_ON_CORTECS,
   GEMMA_31B_ON_REGOLO,
   GEMMA_31B_PRIMARY,
@@ -66,8 +67,19 @@ const LITELLM_DEFAULT_MODEL = 'verdigado-pro';
  * das eine aufhebt, hebt das andere mit auf — und probt vorher.
  */
 export const VISION_MODEL = {
-  provider: 'regolo' as const,
-  model: env.VISION_DEFAULT_MODEL || 'gemma4-31b',
+  // IMMER Gemma 4 31B — dasselbe Modell, das alle Textlanes fahren, abgeleitet
+  // aus derselben Quelle. Ein hier abgetippter Modellname würde beim nächsten
+  // Modellwechsel zurückbleiben und die Bild-Weiche stillschweigend auf ein
+  // anderes Modell zeigen lassen.
+  //
+  // Der HOST ist auf Regolo festgenagelt und folgt bewusst NICHT
+  // `GEMMA_31B_PRIMARY`: der Cortecs-Endpunkt beantwortet einen echten
+  // Bild-Turn mit HTTP 500 (gemessen 25.08.2026), obwohl sein Katalog
+  // `input_modalities: ['text','image']` behauptet. Bildfähigkeit ist eine
+  // Eigenschaft des ENDPUNKTS, nicht der Gewichte — und Regolo ist die Seite,
+  // auf der sie belegt ist.
+  provider: GEMMA_31B_ON_REGOLO.provider,
+  model: env.VISION_DEFAULT_MODEL || GEMMA_31B_ON_REGOLO.model,
 };
 
 export { getIntermediateModel } from '../../../services/ai/providers.js';
@@ -161,23 +173,6 @@ const CTX_FULL = 262_144;
  */
 const CTX_VERDIGADO = 120_000;
 
-/**
- * Was Cortecs für `gemma-4-31b-it` tatsächlich führt.
- *
- * Aus dem Katalog gelesen, nicht aus dem Modell abgeleitet: `GET /v1/models`
- * meldet am 25.08.2026 `context_size: 128000` (und `max_output_tokens:
- * 128000`). Die GEWICHTE tragen mehr — bei Regolo laufen dieselben mit 262k —,
- * aber was zählt, ist was der Endpunkt annimmt.
- *
- * Bis zu diesem Tag meldete `getContextWindow('cortecs')` CTX_FULL. Das war
- * genau der Fehler, den der Kommentar bei GEMMA_4_REGOLO für Verdigado
- * beschreibt und der dort abgestellt wurde: der Prompt wird gegen 262k
- * bemessen und läuft auf einem 128k-Endpunkt in eine stille Kürzung. Solange
- * Cortecs nur Ausweich und Zwischenstufe war, traf es kleine Prompts; als
- * Primär der Antwortlane trifft es die grössten.
- */
-const CTX_CORTECS = 128_000;
-
 const GPT_OSS_OVERFLOW: ModelConfigOverflow = {
   kind: 'overflow',
   primary: { provider: 'litellm', model: 'verdigado-pro' },
@@ -222,7 +217,7 @@ const GEMMA_4_REGOLO: ModelConfigSingle = {
   kind: 'single',
   provider: GEMMA_31B_ON_REGOLO.provider,
   model: GEMMA_31B_ON_REGOLO.model,
-  contextWindow: CTX_FULL,
+  contextWindow: GEMMA_31B_ON_REGOLO.contextWindow,
   // Der Ausweichhost war bis 19.08.2026 `gemma-4-verdigado` — dieselben
   // Gewichte, aber der teuerste denkbare Ausweg: 20s bis zum ersten Token,
   // Denken nicht abschaltbar, und vor allem EIN einziger Inferenz-Slot, den
@@ -245,7 +240,7 @@ const GEMMA_4_REGOLO: ModelConfigSingle = {
   //     und lief auf Verdigados 120k in eine stille Kürzung.
   // `streamWithFallback` ist single-step by design — der eigene Fallback des
   // Ausweichs (`gemma-regolo`) greift auf DIESEM Weg also nicht.
-  fallback: 'gemma-4-26b',
+  fallback: GEMMA_31B_ON_CORTECS.laneId,
 };
 
 /**
@@ -323,8 +318,8 @@ const GEMMA_4_31B_CORTECS: ModelConfigSingle = {
   // Das kleinere der beiden Fenster, und das ist der Preis des Hosts: der
   // Ausweich auf Regolo trägt 262k, dieser Endpunkt 128k. Wer hier CTX_FULL
   // hinschreibt, bekommt keine Fehlermeldung, sondern eine stille Kürzung.
-  contextWindow: CTX_CORTECS,
-  fallback: 'gemma-regolo',
+  contextWindow: GEMMA_31B_ON_CORTECS.contextWindow,
+  fallback: GEMMA_31B_ON_REGOLO.laneId,
 };
 
 /**
@@ -336,10 +331,16 @@ const GEMMA_4_31B_CORTECS: ModelConfigSingle = {
  * Ausweichseite der anderen ist. Was hier ausgewählt wird, ist nur, welche von
  * beiden die Lane-Namen bedient, die der Chat tatsächlich benutzt.
  */
-const GEMMA_ANSWER_LANE: ModelConfigSingle =
-  GEMMA_31B_PRIMARY.provider === GEMMA_31B_ON_CORTECS.provider
-    ? GEMMA_4_31B_CORTECS
-    : GEMMA_4_REGOLO;
+const GEMMA_ANSWER_LANE: ModelConfigSingle = {
+  kind: 'single',
+  provider: GEMMA_31B_PRIMARY.provider,
+  model: GEMMA_31B_PRIMARY.model,
+  contextWindow: GEMMA_31B_PRIMARY.contextWindow,
+  // Der Ausweich ist der ANDERE Host — abgeleitet, nicht behauptet. Ein zweites
+  // Mal hingeschriebener Kennungsname wäre genau die Stelle, an der ein
+  // Host-Wechsel den Ausweg auf sich selbst zeigen liesse.
+  fallback: GEMMA_31B_ALTERNATE.laneId,
+};
 
 /**
  * GreenPTs `gemma4`. Seit 21.08.2026 OHNE Aufrufer: es war der Ausweichweg der
@@ -604,8 +605,10 @@ export function getContextWindow(
   if (provider === 'greenpt') return CTX_FULL;
   // Gemma 4 26B-A4B carries 262k on Scaleway's H100 instances (model card).
   if (provider === 'scaleway') return CTX_FULL;
-  // NICHT CTX_FULL, obwohl die Gewichte mehr tragen — siehe CTX_CORTECS.
-  if (provider === 'cortecs') return CTX_CORTECS;
+  // NICHT CTX_FULL, obwohl die Gewichte mehr tragen: der Cortecs-Endpunkt
+  // führt 128k (Katalog). Die Zahl steht bei GEMMA_31B_ON_CORTECS, damit ein
+  // Host-Wechsel sie nicht hier vergisst.
+  if (provider === 'cortecs') return GEMMA_31B_ON_CORTECS.contextWindow;
 
   return DEFAULT_CONTEXT_WINDOW;
 }
