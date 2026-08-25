@@ -14,7 +14,7 @@ import {
   toast,
 } from '@gruenerator/ui';
 import { useMutation } from '@tanstack/react-query';
-import { Loader2, Maximize2 } from 'lucide-react';
+import { Info, Loader2, Maximize2 } from 'lucide-react';
 import { domToJpeg } from 'modern-screenshot';
 import { useCallback, useState, type JSX } from 'react';
 
@@ -106,7 +106,7 @@ export default function FeedbackWidget({
       return res.body;
     },
     onSuccess: () => {
-      toast.success('Danke für dein Feedback!');
+      toast.success('Danke! Dein Feedback ist angekommen.');
       setOpen(false);
       setMessage('');
       setScreenshot(null);
@@ -147,17 +147,31 @@ export default function FeedbackWidget({
           className="sm:max-w-2xl"
         >
           <DialogHeader>
-            <DialogTitle>Feedback geben</DialogTitle>
+            <DialogTitle>Feedback an die Entwicklung</DialogTitle>
             <DialogDescription>
               Was ist dir aufgefallen? Automatisch mitgesendet werden die aktuelle Seite (URL),
               Browser-Informationen und – falls verfügbar – ein Screenshot.
             </DialogDescription>
           </DialogHeader>
 
+          {/* Der Knopf schwebt auf jeder Seite, auch über dem Chat — viele
+              tippen hier hinein, als wäre es ein weiteres Chatfenster. Der
+              Hinweis sagt vor dem Schreiben, wo der Text landet und dass hier
+              keine Antwort kommt. */}
+          <div className="flex items-start gap-2 rounded-md border border-border bg-muted/60 px-3 py-2 text-sm text-muted-foreground">
+            <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+            <p>
+              <span className="font-medium text-foreground">Das hier ist kein Chat:</span> Deine
+              Nachricht geht per E-Mail an die Entwicklung und wird von einem Menschen gelesen. Eine
+              Antwort kommt nicht hier, sondern bei Rückfragen per E-Mail. Fragen an die KI stellst
+              du im Chat.
+            </p>
+          </div>
+
           <Textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="Dein Feedback…"
+            placeholder="Dein Feedback an die Entwicklung…"
             rows={5}
             autoFocus
           />
