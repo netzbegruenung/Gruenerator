@@ -52,7 +52,7 @@ export interface HybridSearchResult extends VectorSearchResult {
 export interface HybridSearchMetadata {
   vectorResults: number;
   textResults: number;
-  fusionMethod: 'RRF' | 'weighted';
+  fusionMethod: 'RRF' | 'weighted' | 'rrf-server';
   vectorWeight: number;
   textWeight: number;
   dynamicThreshold: number;

@@ -61,9 +61,19 @@ export interface CollectionConfig {
     size: number;
     distance: 'Cosine';
   };
+  sparse_vectors?: Record<string, { modifier?: 'idf'; index?: { on_disk?: boolean } }>;
   optimizers_config?: OptimizerConfig;
   hnsw_config?: HnswConfig;
 }
+
+/**
+ * Name of the BM25 sparse vector on every collection. The dense vector stays
+ * unnamed (`''`) for backward compatibility with all existing points and the
+ * legacy search API. NOTE: Qdrant can only declare sparse vectors at
+ * createCollection time — existing collections need the copy migration in
+ * `scripts/migrate-bm25-sparse.ts`, updateCollection cannot add them.
+ */
+export const BM25_SPARSE_VECTOR_NAME = 'bm25';
 
 // =============================================================================
 // Optimizer Presets
@@ -551,6 +561,9 @@ export function getCollectionConfig(
     vectors: {
       size: vectorSize,
       distance: 'Cosine',
+    },
+    sparse_vectors: {
+      [BM25_SPARSE_VECTOR_NAME]: { modifier: 'idf' },
     },
   };
 

@@ -5,6 +5,8 @@
 
 import { type QdrantClient, type Schemas } from '@qdrant/js-client-rest';
 
+import { BM25_SPARSE_VECTOR_NAME } from '../../../../config/qdrantCollectionsSchema.js';
+import { encodeBm25Document } from '../../../../services/text/bm25.js';
 import { createLogger } from '../../../../utils/logger.js';
 
 import type {
@@ -25,6 +27,74 @@ interface QdrantPoint {
   payload: Record<string, unknown>;
 }
 
+type NamedVectorPoint = Omit<QdrantPoint, 'vector'> & {
+  vector: Record<string, number[] | { indices: number[]; values: number[] }>;
+};
+
+const bm25SupportCache = new Map<string, boolean>();
+
+/**
+ * Whether a collection declares the `bm25` sparse vector. Upserting a named
+ * sparse vector into a collection without it fails hard, so callers must gate
+ * on this until every collection is migrated. Positive AND negative results
+ * are cached; the negative cache entry is cleared by the migration script's
+ * process (fresh processes re-check), which is acceptable because migration
+ * requires a restart-free re-check only in the long-lived API — after
+ * migrating, restart or wait for natural process recycling.
+ */
+export async function collectionSupportsBm25(
+  client: QdrantClient,
+  collection: string
+): Promise<boolean> {
+  const cached = bm25SupportCache.get(collection);
+  if (cached !== undefined) return cached;
+  try {
+    const info = await client.getCollection(collection);
+    const sparseVectors = (info.config?.params as Record<string, unknown> | undefined)?.[
+      'sparse_vectors'
+    ] as Record<string, unknown> | undefined;
+    const supported = Boolean(sparseVectors?.[BM25_SPARSE_VECTOR_NAME]);
+    bm25SupportCache.set(collection, supported);
+    return supported;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Attach a BM25 sparse vector derived from `payload.chunk_text` alongside the
+ * (unnamed) dense vector. Points without chunk_text stay dense-only — Qdrant
+ * accepts both shapes in the same collection, and search degrades gracefully.
+ * The collection must declare the `bm25` sparse vector (all collections
+ * created via COLLECTION_SCHEMAS do; older ones need the copy migration).
+ */
+export function withBm25Vector(point: QdrantPoint): QdrantPoint | NamedVectorPoint {
+  const chunkText = point.payload?.chunk_text;
+  if (typeof chunkText !== 'string' || chunkText.length === 0) return point;
+
+  const sparse = encodeBm25Document(chunkText);
+  if (sparse.indices.length === 0) return point;
+
+  return {
+    ...point,
+    vector: { '': point.vector, [BM25_SPARSE_VECTOR_NAME]: sparse },
+  };
+}
+
+/**
+ * Convenience for callers that upsert via `client.upsert` directly: attaches
+ * BM25 sparse vectors when the collection supports them, else returns the
+ * points unchanged.
+ */
+export async function enrichPointsWithBm25(
+  client: QdrantClient,
+  collection: string,
+  points: QdrantPoint[]
+): Promise<Array<QdrantPoint | NamedVectorPoint>> {
+  const supported = await collectionSupportsBm25(client, collection);
+  return supported ? points.map(withBm25Vector) : points;
+}
+
 /**
  * Batch upsert points to collection with retry logic
  */
@@ -37,11 +107,14 @@ export async function batchUpsert(
   const { wait = true, maxRetries = 3 } = options;
   let lastError: Error | null = null;
 
+  const supportsBm25 = await collectionSupportsBm25(client, collection);
+  const enrichedPoints = supportsBm25 ? points.map(withBm25Vector) : points;
+
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       await client.upsert(collection, {
         wait: wait,
-        points: points,
+        points: enrichedPoints,
       });
 
       logger.info(`Batch upserted ${points.length} points to ${collection}`);
