@@ -11,6 +11,7 @@
  */
 import { describe, it, expect } from 'vitest';
 
+import { GEMMA_31B_PRIMARY } from '../../ai/gemmaHosts.js';
 import { selectProviderAndModel } from '../providerSelector.js';
 
 describe('selectProviderAndModel — provider and model agree', () => {
@@ -96,7 +97,7 @@ describe('selectProviderAndModel — provider and model agree', () => {
    * A lane that resolves to the bare Regolo default is a policy breach, not a
    * style choice — hence the explicit model assertion on every type.
    */
-  it('routes finished texts to Gemma 4 on Regolo, never to the Regolo default', () => {
+  it('routes finished texts to Gemma 4 on its zentral gewählten Host, never to the Regolo default', () => {
     const textTypes = [
       'antrag',
       'antrag_simple',
@@ -117,8 +118,14 @@ describe('selectProviderAndModel — provider and model agree', () => {
 
     for (const type of textTypes) {
       const { provider, model } = selectProviderAndModel({ type, env: {} });
-      expect(provider, type).toBe('regolo');
-      expect(model, type).toBe('gemma4-31b');
+      // Gegen `GEMMA_31B_PRIMARY`, nicht gegen einen abgetippten Host: welcher
+      // Vertragspartner Gemma bedient, steht seit dem 25.08.2026 in
+      // services/ai/gemmaHosts.ts und nur dort.
+      expect(provider, type).toBe(GEMMA_31B_PRIMARY.provider);
+      expect(model, type).toBe(GEMMA_31B_PRIMARY.model);
+      // Die eigentliche Aussage des Tests, host-unabhängig: diese Lanes
+      // benennen ihr Modell und fallen NIE in den Regolo-Umgebungs-Default —
+      // dort stand `qwen3.5-122b`.
       expect(model, type).not.toMatch(/qwen/);
     }
   });
