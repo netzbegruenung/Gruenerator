@@ -443,6 +443,28 @@ export interface LoopEngineParams {
   validateAnswer?: (text: string) => string | null;
 }
 
+/**
+ * Why the returned answer is not the first synth pass — carried OUT of the loop
+ * purely so the turn summary can name it.
+ *
+ * Without it the strongest change this loop makes to what a human reads (a
+ * whole answer swapped for another) is indistinguishable from a plain turn in
+ * the operational logs: `recordDecision` writes to the development-only journal
+ * (`utils/decisionLog.ts` bails out when no directory is configured), so on test
+ * and production those entries do not exist at all.
+ */
+export type AnswerReplacement =
+  /** Split: the invalid pass never reached the client, the retry took its place. */
+  | 'validation_retry'
+  /** Split: the invalid pass was already on the wire when the retry replaced it. */
+  | 'validation_retry_streamed'
+  /** Split: the retry did not recover, the trimmed prefix replaces the streamed spam. */
+  | 'degeneration_trim'
+  /** Unified: the trimmed prefix replaces the streamed spam. */
+  | 'unified_degeneration'
+  /** Either mode: a foreign-language refusal swapped for the canned German one. */
+  | 'refusal_swap';
+
 /** How `runAgenticLoop`'s answer relates to what was already streamed. */
 export interface LoopResult {
   text: string;
@@ -453,6 +475,8 @@ export interface LoopResult {
    * invalid pass, not this text.
    */
   replacedStreamed?: boolean;
+  /** Set whenever `text` is not what the first pass wrote. Log-only. */
+  replacement?: AnswerReplacement;
 }
 
 export async function runAgenticLoop(
@@ -520,7 +544,7 @@ async function streamWithTools(
     // trimmed the returned text back to the healthy prefix, and the caller's
     // `completion` replace (the same channel the split validation retry uses)
     // swaps what the client shows and what gets persisted.
-    return { text, replacedStreamed: true };
+    return { text, replacedStreamed: true, replacement: 'unified_degeneration' };
   }
   return { text };
 }
@@ -896,17 +920,33 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<LoopResu
       });
       return null;
     }
+    const streamed = first.isOpen();
     recordDecision('loop.synth_verdict', 'invalid_replaced', {
-      inputs: { retryTextLength: retry.text.length, alreadyStreamed: first.isOpen() },
+      inputs: { retryTextLength: retry.text.length, alreadyStreamed: streamed },
     });
-    if (!first.isOpen()) {
+    // The one path here that changes the answer a human reads the MOST — a whole
+    // answer swapped for another — was the only silent one: every neighbour logs
+    // (both retry failures, the decline, the tool-plan leak) while the SUCCESS
+    // wrote nothing outside the development-only decision journal. From the
+    // operational log a swapped turn then looked exactly like an ordinary one;
+    // ruling it out took a stopwatch (a second synth pass costs ~10s), which
+    // stops working as soon as a retry is fast or a first pass is slow.
+    log.warn(
+      `[Engine] validation retry replaced the answer (${first.text.length} → ${retry.text.length} chars, ` +
+        `${streamed ? 'already streamed — client sees a completion replace' : 'not yet streamed — swapped silently'})`
+    );
+    if (!streamed) {
       // The invalid pass never reached the client — swap it silently.
       first.discard();
       p.onText(retry.text);
-      return { text: retry.text };
+      return { text: retry.text, replacement: 'validation_retry' };
     }
     // The invalid pass is already on the wire; the caller must replace it.
-    return { text: retry.text, replacedStreamed: true };
+    return {
+      text: retry.text,
+      replacedStreamed: true,
+      replacement: 'validation_retry_streamed',
+    };
   };
 
   p.onSynthStart?.();
@@ -930,7 +970,7 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<LoopResu
       inputs: { refusalLanguage: lang },
     });
     p.onText(SYNTH_REFUSAL_TEXT);
-    return { text: SYNTH_REFUSAL_TEXT };
+    return { text: SYNTH_REFUSAL_TEXT, replacement: 'refusal_swap' };
   }
   if (!looksLikeToolPlanLeak(first.text, toolNames)) {
     // A degenerate pass earns the retry even when the trim left NOTHING — spam
@@ -954,7 +994,7 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<LoopResu
     if (first.finishReason === DEGENERATE_FINISH_REASON && spamReachedWire) {
       // The retry didn't recover, so the trimmed text stands — but the wire
       // still carries the degenerate tail drain cut off. Replace it.
-      return { text: first.text, replacedStreamed: true };
+      return { text: first.text, replacedStreamed: true, replacement: 'degeneration_trim' };
     }
     return { text: first.text };
   }

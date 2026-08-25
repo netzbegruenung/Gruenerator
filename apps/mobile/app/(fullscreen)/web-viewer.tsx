@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
 import { WebViewSkeleton } from '../../components/webview/WebViewSkeleton';
+import { WEB_ORIGIN } from '../../services/webOrigin';
 import { mintWebViewHandoff } from '../../services/webview/handoff';
 import {
   CANVAS_MENUBAR_GRADIENT_STOPS,
@@ -31,8 +32,6 @@ import {
 } from '../../services/webview/navigationPolicy';
 import { receiveDownload } from '../../services/webview/receiveDownload';
 import { colors, lightTheme, darkTheme, BODY_FONT } from '../../theme';
-
-const WEB_BASE = 'https://gruenerator.eu';
 
 /**
  * The strip the status bar sits in, painted so that it reads as the top of the
@@ -130,7 +129,7 @@ export default function WebViewerScreen() {
   // to the system browser, i.e. it escalates instead of blocking.
   const policy = useMemo(
     () => ({
-      origin: WEB_BASE,
+      origin: WEB_ORIGIN,
       allowedPathPrefixes: [normalizedPath.split('?')[0] ?? '/'],
     }),
     [normalizedPath]
@@ -275,7 +274,7 @@ export default function WebViewerScreen() {
             // Everything, on purpose — and the reason is written out at
             // WEBVIEW_ORIGIN_WHITELIST. Short version: a URL that fails this
             // list is handed to `Linking.openURL` and the gate above is never
-            // asked. `${WEB_BASE}/*` matched nothing (the list is compared to
+            // asked. `${WEB_ORIGIN}/*` matched nothing (the list is compared to
             // an origin, which has no trailing slash), so from 15.08.2026 every
             // navigation here left for the system browser.
             originWhitelist={WEBVIEW_ORIGIN_WHITELIST}

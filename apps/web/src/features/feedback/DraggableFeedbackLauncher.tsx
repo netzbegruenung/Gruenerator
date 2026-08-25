@@ -13,7 +13,7 @@ import {
   type CornerClearance,
   type ScreenCorner,
 } from '@gruenerator/ui';
-import { MessageSquare } from 'lucide-react';
+import { Megaphone } from 'lucide-react';
 import { useCallback, useId, useRef, useState, type JSX, type RefObject } from 'react';
 
 import { cn } from '@/utils/cn';
@@ -113,6 +113,10 @@ function LauncherButton({
         }
       }}
       aria-label={variant === 'icon' ? 'Feedback geben' : undefined}
+      // Sprechblase und Wort „Feedback" allein lasen sich wie ein zweites
+      // Chatfenster; Megafon und Titel sagen schon vor dem Klick, wohin der
+      // Text geht.
+      title="Feedback an die Entwicklung senden"
       aria-describedby={instructionsId}
       style={{
         ...cornerInsetStyle(corner, clearance),
@@ -134,7 +138,7 @@ function LauncherButton({
         variant === 'icon' ? 'size-12' : 'px-5 py-3 text-sm font-semibold'
       )}
     >
-      {variant === 'icon' ? <MessageSquare className="size-5" aria-hidden="true" /> : 'Feedback'}
+      {variant === 'icon' ? <Megaphone className="size-5" aria-hidden="true" /> : 'Feedback'}
     </button>
   );
 }

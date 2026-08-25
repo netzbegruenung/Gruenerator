@@ -21,6 +21,9 @@ import {
   stripRoleBlock,
   ROLE_PROMPT_VERSION,
   searchMdBs,
+  offeredEbenen,
+  offeredRollen,
+  isCustomRolleOffered,
 } from '@gruenerator/shared/roles';
 import {
   Button,
@@ -178,6 +181,18 @@ export default function RolesSection() {
   const rollenMap = isAustrian ? AT_ROLLEN : DE_ROLLEN;
   const bundeslaender = isAustrian ? AT_BUNDESLAENDER : DE_BUNDESLAENDER;
 
+  // Was diese Instanz anbietet — nur für den Assistenten. Die Listen oben
+  // bleiben vollständig, weil die Bestandsrollen ihr Ebenen-Label daraus holen:
+  // eine gefilterte Liste ließe eine Rolle, die vor der Verengung entstand,
+  // ohne Beschriftung dastehen. Angebot ist nicht Zugang (siehe
+  // `instanceRoleOffer.ts`).
+  const wizardEbenen = useMemo(() => offeredEbenen(ebenen, CURRENT_INSTANCE), [ebenen]);
+  const customRolleOffered = isCustomRolleOffered(CURRENT_INSTANCE);
+  // Bei genau einer angebotenen Ebene ist die Frage „Auf welcher Ebene bist du
+  // aktiv?" keine Frage mehr — der Schritt entfällt und darf auch über „Zurück"
+  // nicht erreichbar sein.
+  const ebeneStepOffered = wizardEbenen.length > 1;
+
   // Die Combobox filtert die Einträge selbst; sie bekommt deshalb die Namen und
   // nicht die Konfiguration.
   const bundeslandNamen = useMemo(() => bundeslaender.map((bl) => bl.label), [bundeslaender]);
@@ -214,6 +229,11 @@ export default function RolesSection() {
   const [wizCustomRolle, setWizCustomRolle] = useState('');
   const [wizAbgeordnete, setWizAbgeordnete] = useState('');
   const [wizInstructions, setWizInstructions] = useState('');
+
+  const wizardRollen = useMemo(
+    () => (wizEbene ? offeredRollen(wizEbene, rollenMap[wizEbene] ?? [], CURRENT_INSTANCE) : []),
+    [wizEbene, rollenMap]
+  );
 
   /**
    * Was die gewählte Rolle freischaltet — einmal am Ende des Assistenten, nicht
@@ -272,18 +292,26 @@ export default function RolesSection() {
       instanceDefaultRole !== undefined &&
       (rollenMap[instanceDefaultRole.ebeneId] ?? []).includes(instanceDefaultRole.rolle);
 
-    if (suggestDefault) {
-      setWizEbene(instanceDefaultRole.ebeneId);
+    // Zwei Wege, den Ebene-Schritt zu überspringen, und beide enden gleich: die
+    // Instanz schlägt eine Rolle vor, oder sie bietet ohnehin nur eine Ebene an.
+    const presetEbene = suggestDefault
+      ? instanceDefaultRole.ebeneId
+      : wizardEbenen.length === 1
+        ? wizardEbenen[0].id
+        : null;
+
+    if (presetEbene) {
+      setWizEbene(presetEbene);
       setWizBundesland(null);
-      setWizRolle(instanceDefaultRole.rolle);
-      setWizardStep(NEEDS_BUNDESLAND.has(instanceDefaultRole.ebeneId) ? 'bundesland' : 'rolle');
+      setWizRolle(suggestDefault ? instanceDefaultRole.rolle : null);
+      setWizardStep(NEEDS_BUNDESLAND.has(presetEbene) ? 'bundesland' : 'rolle');
     } else {
       setWizardStep('ebene');
       setWizEbene(null);
       setWizBundesland(null);
       setWizRolle(null);
     }
-  }, [roles.length, instanceDefaultRole, rollenMap]);
+  }, [roles.length, instanceDefaultRole, rollenMap, wizardEbenen]);
 
   const cancelAddRole = useCallback(() => {
     setAddingRole(false);
@@ -319,19 +347,23 @@ export default function RolesSection() {
     if (wizGliederung.trim()) setWizardStep('rolle');
   }, [wizGliederung]);
 
-  const handleWizStepBack = useCallback(() => {
-    if (wizardStep === 'instructions') {
-      setWizardStep('rolle');
-    } else if (wizardStep === 'rolle') {
-      if (wizEbene && NEEDS_LOCAL_NAME.has(wizEbene)) setWizardStep('gliederung');
-      else if (wizEbene && NEEDS_BUNDESLAND.has(wizEbene)) setWizardStep('bundesland');
-      else setWizardStep('ebene');
-    } else if (wizardStep === 'gliederung') {
-      setWizardStep('bundesland');
-    } else if (wizardStep === 'bundesland') {
-      setWizardStep('ebene');
+  // Der Schritt hinter „Zurück", oder null, wenn es keinen gibt — dann bleibt
+  // der Knopf weg, statt auf einen übersprungenen Ebene-Schritt zu zeigen.
+  const wizardBackStep = useMemo((): WizardStep | null => {
+    if (wizardStep === 'instructions') return 'rolle';
+    if (wizardStep === 'rolle') {
+      if (wizEbene && NEEDS_LOCAL_NAME.has(wizEbene)) return 'gliederung';
+      if (wizEbene && NEEDS_BUNDESLAND.has(wizEbene)) return 'bundesland';
+      return ebeneStepOffered ? 'ebene' : null;
     }
-  }, [wizardStep, wizEbene]);
+    if (wizardStep === 'gliederung') return 'bundesland';
+    if (wizardStep === 'bundesland') return ebeneStepOffered ? 'ebene' : null;
+    return null;
+  }, [wizardStep, wizEbene, ebeneStepOffered]);
+
+  const handleWizStepBack = useCallback(() => {
+    if (wizardBackStep) setWizardStep(wizardBackStep);
+  }, [wizardBackStep]);
 
   const handleWizSelectRolle = useCallback((rolle: string) => {
     setWizRolle(rolle);
@@ -559,7 +591,7 @@ export default function RolesSection() {
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
-  const renderWizardBack = (
+  const renderWizardBack = !wizardBackStep ? null : (
     <button
       type="button"
       onClick={handleWizStepBack}
@@ -603,7 +635,7 @@ export default function RolesSection() {
             </div>
             <p className="text-sm text-grey-500 -mt-md">Auf welcher Ebene bist du aktiv?</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-sm">
-              {ebenen.map((e) => (
+              {wizardEbenen.map((e) => (
                 <SelectCard
                   key={e.id}
                   icon={e.icon}
@@ -682,21 +714,22 @@ export default function RolesSection() {
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-sm">
-              {wizEbene &&
-                (rollenMap[wizEbene] || []).map((rolle) => (
-                  <SelectCard
-                    key={rolle}
-                    label={rolle}
-                    selected={wizRolle === rolle}
-                    onClick={() => handleWizSelectRolle(rolle)}
-                  />
-                ))}
-              <SelectCard
-                label="Sonstige"
-                description="Eigene Rolle eingeben"
-                selected={wizRolle === 'custom'}
-                onClick={() => setWizRolle('custom')}
-              />
+              {wizardRollen.map((rolle) => (
+                <SelectCard
+                  key={rolle}
+                  label={rolle}
+                  selected={wizRolle === rolle}
+                  onClick={() => handleWizSelectRolle(rolle)}
+                />
+              ))}
+              {customRolleOffered && (
+                <SelectCard
+                  label="Sonstige"
+                  description="Eigene Rolle eingeben"
+                  selected={wizRolle === 'custom'}
+                  onClick={() => setWizRolle('custom')}
+                />
+              )}
             </div>
 
             {wizRolle === 'custom' && (

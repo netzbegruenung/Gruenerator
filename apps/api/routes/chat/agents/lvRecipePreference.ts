@@ -31,10 +31,14 @@ import {
   DISABLED_LV_AGENT_IDS,
   LANDESVERBAENDE,
   SKILLS,
+  isSkillOfferedIn,
   landesverbandIdsForRoles,
   type RoleLandesverbandInput,
   type Skill,
 } from '@gruenerator/shared/agents';
+import { type InstanceId } from '@gruenerator/shared/instances';
+
+import { CURRENT_INSTANCE } from '../../../config/instance.js';
 
 /** Rezept-Familie je generischer Mention — nur Familien MIT LV-Varianten. */
 const LV_FAMILY_BY_GENERIC_MENTION: Readonly<Record<string, string>> = {
@@ -50,8 +54,17 @@ export function preferredLvRecipeMention(params: {
   /** Profilrollen der Person; greifen nur auf Nicht-LV-Agenten. */
   roles?: readonly RoleLandesverbandInput[] | null;
   userLocale: string | null;
+  /**
+   * Die Instanz, auf der der Turn läuft. Ein Deployment ohne Landesverbands-
+   * Inhalte darf ein generisches Rezept nicht auf eine Variante umbiegen, die
+   * es nicht führt — das ist die eine Tür, die das Rollen-Gate der Oberfläche
+   * nicht abdeckt: eine Bestandsrolle aus der Zeit vor der Verengung trägt
+   * ihren Landesverbands-Anspruch weiter.
+   */
+  instanceId?: InstanceId;
 }): string | null {
   const { mention, agentIdentifier, roles, userLocale } = params;
+  const instanceId = params.instanceId ?? CURRENT_INSTANCE;
   if (!mention) return null;
   const family = LV_FAMILY_BY_GENERIC_MENTION[mention.toLowerCase()];
   if (!family) return null;
@@ -74,7 +87,11 @@ export function preferredLvRecipeMention(params: {
   // widen to the declared interface (same move as recipeCatalog).
   const allSkills: readonly Skill[] = SKILLS;
   const candidates = allSkills.filter(
-    (s) => s.identifier === ownerId && s.skillCategory === family && s.lvEbene !== 'fraktion'
+    (s) =>
+      s.identifier === ownerId &&
+      s.skillCategory === family &&
+      s.lvEbene !== 'fraktion' &&
+      isSkillOfferedIn(s, instanceId)
   );
   if (candidates.length !== 1) return null;
   const preferred = candidates[0]?.mention ?? null;

@@ -168,3 +168,43 @@ describe('roleAwareDefaultRecipeMention', () => {
     ).toBeNull();
   });
 });
+
+describe('preferredLvRecipeMention — Instanz-Tür', () => {
+  // Die drei automatischen Türen laufen hier zusammen, und diese ist die
+  // einzige, die eine Bestandsrolle nicht selbst schließt: wer die
+  // Landesgeschäftsstellen-Rolle vor der Verengung angelegt hat, trägt sie
+  // weiter — die Instanz muss die Umleitung trotzdem verweigern.
+  it('biegt nicht auf eine Variante um, die die Instanz nicht führt', () => {
+    expect(
+      preferredLvRecipeMention({
+        mention: 'presse',
+        roles: [lgs('Bayern')],
+        userLocale: 'de-DE',
+        instanceId: 'bgst',
+      })
+    ).toBeNull();
+  });
+
+  it('biegt auf Instanzen mit Landesverbänden weiterhin um', () => {
+    expect(
+      preferredLvRecipeMention({
+        mention: 'presse',
+        roles: [lgs('Bayern')],
+        userLocale: 'de-DE',
+        instanceId: 'production',
+      })
+    ).toBe('presse-bayern-partei');
+  });
+
+  it('gilt auch auf dem LV-Agenten selbst', () => {
+    expect(
+      preferredLvRecipeMention({
+        mention: 'presse',
+        agentIdentifier: 'gruenerator-oeffentlichkeitsarbeit-bayern',
+        roles: null,
+        userLocale: 'de-DE',
+        instanceId: 'bgst',
+      })
+    ).toBeNull();
+  });
+});

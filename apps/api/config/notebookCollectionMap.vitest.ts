@@ -11,10 +11,11 @@
  *   hidden  — gone from discovery and from implicit search, direct link resolves
  *   blocked — not reachable at all
  *
- * The registry deliberately holds no instance that hides anything yet (`bgst`
- * starts empty), so the tiers are exercised through `createNotebookGate(view)`
- * with a policy view instead — the same code path production takes, just without
- * waiting for a deployment to make the bug reachable.
+ * The tiers are exercised through `createNotebookGate(view)` with a synthetic
+ * policy view — the same code path production takes, and the only way to cover
+ * `block`, which no registered instance uses. The registered bgst selection is
+ * asserted separately at the bottom, so the mechanism and the deployment that
+ * relies on it are both guarded.
  */
 import { INSTANCES, getInstance, type InstancePolicyView } from '@gruenerator/shared/instances';
 import {
@@ -32,7 +33,7 @@ import {
   isNotebookResolvable,
 } from './notebookCollectionMap.js';
 
-/** An instance that curates away the Landesverbände — the bgst case, once decided. */
+/** An instance that curates away the Landesverbände — this is the bgst case. */
 const HIDES_LANDESEBENE: InstancePolicyView = {
   channels: ['stable'],
   hide: { notebookCategories: ['landesebene'] },
@@ -181,5 +182,31 @@ describe('notebook gate — bound to this process', () => {
     expect(isNotebookResolvable('')).toBe(false);
     // A collection key is not a notebook id.
     expect(isNotebookImplicitlySearchable('deutschland')).toBe(false);
+  });
+});
+
+describe('notebook gate — the registered bgst instance', () => {
+  const gate = createNotebookGate(getInstance('bgst'));
+
+  // Nicht über eine Id-Liste: ein dreizehnter Landesverband erbt die Regel,
+  // ohne dass jemand diese Datei anfasst.
+  it('drops every Landesverband and Austrian collection from implicit search', () => {
+    const searchable = new Set(gate.implicitSearchCollectionIds());
+    for (const nb of NOTEBOOK_REGISTRY) {
+      if (nb.category !== 'landesebene' && nb.category !== 'oesterreich') continue;
+      const collection = NOTEBOOK_COLLECTION_MAP[nb.id];
+      if (!collection) continue;
+      expect(searchable, `${nb.id} → ${collection}`).not.toContain(collection);
+    }
+  });
+
+  it('keeps the Bundesverband notebook it is the only instance to offer', () => {
+    expect(gate.isImplicitlySearchable('gruene-notebook')).toBe(true);
+  });
+
+  // hide, nicht block: ein von anderswo geteilter Link darf nicht 404en.
+  it('still resolves a hidden Landesverband notebook by direct link', () => {
+    expect(gate.isResolvable('berlin-notebook')).toBe(true);
+    expect(gate.isImplicitlySearchable('berlin-notebook')).toBe(false);
   });
 });

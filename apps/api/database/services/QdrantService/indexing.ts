@@ -8,6 +8,7 @@ import { type QdrantClient } from '@qdrant/js-client-rest';
 import { createLogger } from '../../../utils/logger.js';
 import { generatePointId } from '../../../utils/validation/index.js';
 
+import { enrichPointsWithBm25 } from './operations/batchOperations.js';
 import { chunkToNumericId, stringToNumericId } from './utils.js';
 
 import type {
@@ -102,7 +103,7 @@ export async function indexDocumentChunks(
     });
 
     await client.upsert(collectionName, {
-      points: points,
+      points: await enrichPointsWithBm25(client, collectionName, points),
     });
 
     log.debug(`Indexed ${chunks.length} chunks for document ${documentId}`);
@@ -155,7 +156,7 @@ export async function indexGrundsatzChunks(
     });
 
     await client.upsert(collectionName, {
-      points: points,
+      points: await enrichPointsWithBm25(client, collectionName, points),
     });
 
     log.debug(`Indexed ${chunks.length} grundsatz chunks for document ${documentId}`);
@@ -202,7 +203,7 @@ export async function indexBundestagContent(
     }));
 
     await client.upsert(collectionName, {
-      points: points,
+      points: await enrichPointsWithBm25(client, collectionName, points),
     });
 
     log.debug(`Indexed ${chunks.length} chunks for bundestag URL: ${url}`);
@@ -249,7 +250,7 @@ export async function indexGrueneDeContent(
     }));
 
     await client.upsert(collectionName, {
-      points: points,
+      points: await enrichPointsWithBm25(client, collectionName, points),
     });
 
     log.debug(`Indexed ${chunks.length} chunks for gruene.de URL: ${url}`);
@@ -296,7 +297,7 @@ export async function indexGrueneAtContent(
     }));
 
     await client.upsert(collectionName, {
-      points: points,
+      points: await enrichPointsWithBm25(client, collectionName, points),
     });
 
     log.debug(`Indexed ${chunks.length} chunks for gruene.at URL: ${url}`);
@@ -342,7 +343,7 @@ export async function indexContentExample(
     };
 
     await client.upsert(collectionName, {
-      points: [point],
+      points: await enrichPointsWithBm25(client, collectionName, [point]),
     });
 
     log.debug(`Indexed content example ${exampleId}`);
@@ -402,7 +403,7 @@ export async function indexSocialMediaExample(
     };
 
     await client.upsert(collectionName, {
-      points: [point],
+      points: await enrichPointsWithBm25(client, collectionName, [point]),
     });
 
     const countryInfo = metadata.country ? ` (${metadata.country})` : '';
@@ -458,7 +459,9 @@ export async function indexUserTemplate(
       },
     };
 
-    await client.upsert(collectionName, { points: [point] });
+    await client.upsert(collectionName, {
+      points: await enrichPointsWithBm25(client, collectionName, [point]),
+    });
 
     log.debug(`Indexed user template ${templateId}`);
     return { success: true };

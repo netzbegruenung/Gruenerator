@@ -3,12 +3,17 @@ import { getContractsClient } from '@gruenerator/shared/api';
 import { buildNotebookSlug } from '@gruenerator/shared/utils';
 import { useCallback } from 'react';
 
-const WEB_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu';
+import { WEB_ORIGIN } from '../../services/webOrigin';
 
 /**
  * User-notebook sharing via the contracted `notebookSharing` endpoints. Imperative
  * (called from the actions sheet, not rendered): list the user's groups, share to a
  * group, and build a pretty share URL (resolve → slug, never a bare UUID).
+ *
+ * Der Link zeigt auf die WEB-Herkunft, nicht auf `EXPO_PUBLIC_API_URL` (#2841):
+ * die Variable schliesst `/api` ein, und lokal ist ihr Wert eine Emulator-Adresse
+ * (`http://10.0.2.2:3001/api`), die ausserhalb des Emulators niemand aufloest —
+ * ein geteilter Link ist per Definition fuer jemand anderen.
  */
 export function useNotebookSharing() {
   const listGroups = useCallback(async (): Promise<NotebookUserGroup[]> => {
@@ -29,7 +34,7 @@ export function useNotebookSharing() {
       params: { slugOrId: id },
     });
     if (result.status !== 200) return null;
-    return `${WEB_URL}/notebooks/${buildNotebookSlug(name, result.body.slug_suffix)}`;
+    return `${WEB_ORIGIN}/notebooks/${buildNotebookSlug(name, result.body.slug_suffix)}`;
   }, []);
 
   return { listGroups, shareToGroup, getShareUrl };
