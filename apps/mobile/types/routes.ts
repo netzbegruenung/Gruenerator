@@ -63,7 +63,8 @@ export interface ModalRouteParams {
   };
   '/(fullscreen)/subtitle-editor': {
     projectId: string;
-    projectData: string;
+    /** Full project as JSON (reel tool's fast path); absent → fetched by id. */
+    projectData?: string;
     /** '1' opens the share/export sheet immediately (ReelReadyScreen "Teilen"). */
     openShare?: string;
   };
