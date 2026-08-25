@@ -1,3 +1,4 @@
+import { resolveStoredImageUrl } from '@gruenerator/shared/media-library/shareUrl';
 import { InteractiveCard } from '@gruenerator/ui';
 import { ExternalLink, Heart, Image as ImageIcon, Link as LinkIcon } from 'lucide-react';
 import { memo, type JSX, type ReactNode } from 'react';
@@ -5,6 +6,7 @@ import { memo, type JSX, type ReactNode } from 'react';
 import { getTemplateFormat } from './templateFormat';
 
 import { cn } from '@/utils/cn';
+import { resolveApiAssetUrl } from '@/utils/platform';
 
 interface VorlagenCardItem {
   id: string | number;
@@ -75,6 +77,10 @@ const VorlagenCard = memo(
     likeToggling = false,
   }: VorlagenCardProps): JSX.Element => {
     const format = getTemplateFormat(item);
+    // Selbst hochgeladene Vorlagenbilder liegen als `/share/<token>` in der
+    // Datenbank — die Seiten-URL, nicht die Datei. Ungefiltert liefert der
+    // SPA-Fallback dafür HTML und die Kachel bleibt leer (#2845).
+    const thumbnailUrl = resolveApiAssetUrl(resolveStoredImageUrl(item.thumbnail_url) ?? undefined);
     const title = item.title || 'Unbenannte Vorlage';
     const likesCount = typeof item.likes_count === 'number' ? item.likes_count : 0;
     const hasOverlay = Boolean(badge || menu || onToggleLike || onOpenExternal || onCopyLink);
@@ -92,9 +98,9 @@ const VorlagenCard = memo(
       >
         {/* Square neutral stage — the thumbnail is contained, never cropped. */}
         <div className="relative flex aspect-square w-full items-center justify-center overflow-hidden bg-background-alt">
-          {item.thumbnail_url ? (
+          {thumbnailUrl ? (
             <img
-              src={item.thumbnail_url}
+              src={thumbnailUrl}
               alt={title}
               loading="lazy"
               className="max-h-[88%] max-w-[88%] rounded-sm object-contain"

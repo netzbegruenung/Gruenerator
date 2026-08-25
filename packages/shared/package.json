@@ -166,6 +166,12 @@
       "import": "./dist/media-library/contentOrigin.js",
       "default": "./dist/media-library/contentOrigin.js"
     },
+    "./media-library/shareUrl": {
+      "development": "./src/media-library/shareUrl.ts",
+      "types": "./src/media-library/shareUrl.ts",
+      "import": "./dist/media-library/shareUrl.js",
+      "default": "./dist/media-library/shareUrl.js"
+    },
     "./components/EditorTopBar": {
       "development": "./src/components/EditorTopBar/index.ts",
       "types": "./src/components/EditorTopBar/index.ts",
