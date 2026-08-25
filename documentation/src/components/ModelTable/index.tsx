@@ -1,33 +1,6 @@
 import React from 'react';
 
-import manifestJson from '@site/src/generated/models.json';
-
-type Role = 'primary' | 'fallback' | 'overflow';
-
-interface ModelEntry {
-  /** The model id exactly as the code spells it. */
-  model: string;
-  /** The same id, trimmed for display. */
-  code: string;
-  label: string;
-  provider: string;
-  host: string;
-  flag: string;
-  role: Role;
-}
-
-interface Row {
-  id: string;
-  task: string;
-  models: ModelEntry[];
-}
-
-interface Manifest {
-  rows: Row[];
-  hosts: string[];
-}
-
-const manifest = manifestJson as unknown as Manifest;
+import { manifest, type ModelEntry, type Role } from '@site/src/components/modelsManifest';
 
 /** German wording for the two non-primary roles. */
 const ROLE_LABEL: Record<Exclude<Role, 'primary'>, string> = {
