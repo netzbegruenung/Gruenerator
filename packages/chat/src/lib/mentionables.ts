@@ -2,6 +2,7 @@ import {
   isAdminVisibleSkill,
   isLvItemVisibleForRoles,
   isLvNotebookVisibleForRoles,
+  isSkillOfferedIn,
 } from '@gruenerator/shared/agents';
 import {
   allIntentMentions,
@@ -36,7 +37,6 @@ import {
   PiChartLine,
   PiCalculator,
 } from '@gruenerator/shared/icons';
-import { DEFAULT_INSTANCE_ID, type InstanceId } from '@gruenerator/shared/instances';
 import { NOTEBOOK_ICONS } from '@gruenerator/shared/notebook-icons';
 import {
   NOTEBOOK_REGISTRY,
@@ -47,6 +47,7 @@ import {
 import { mcpBrandColor, slugifyName } from '@gruenerator/shared/utils';
 
 import { agentsList, type AgentListItem, type SkillCategory } from './agents';
+import { getMentionInstance } from './instanceState';
 
 export type MentionableType =
   | 'agent'
@@ -83,6 +84,11 @@ export interface Mentionable {
   icon?: React.ComponentType<{ className?: string }>;
   /** Locale visibility (skills/agents): de-DE / de-AT / all. Undefined ≈ all. */
   audience?: 'de-DE' | 'de-AT' | 'all';
+  /**
+   * Instances offering this recipe. Undefined ≈ all of them — evaluated by
+   * `isSkillOfferedIn`, see `shared/src/agents/skillInstances.ts`.
+   */
+  instances?: readonly string[];
   /**
    * Name of the group a recipe was shared from. Set only on recipes that
    * reached the user through a group share — the UI lists those separately so
@@ -156,6 +162,7 @@ export function agentToMentionable(agent: AgentListItem): Mentionable {
     isSystemDefault: agent.isSystemDefault,
     ...(agent.iconKey ? { iconKey: agent.iconKey } : {}),
     ...(agent.audience ? { audience: agent.audience } : {}),
+    ...(agent.instances ? { instances: agent.instances } : {}),
     ...(icon ? { icon } : {}),
   };
 }
@@ -201,16 +208,11 @@ export function getMentionLocale(): string {
   return mentionLocale;
 }
 
-// Which instance the host app runs as — decides which notebooks the picker
-// offers. Injected exactly like the locale above, because this package is built
-// into the web bundle and the React Native binary alike and neither shares a way
-// to read it. Defaults to the conservative production selection, so a host that
-// never calls the setter behaves as it did before instances existed.
-let mentionInstance: InstanceId = DEFAULT_INSTANCE_ID;
-
-export function setMentionInstance(instanceId: InstanceId): void {
-  mentionInstance = instanceId;
-}
+// Which instance the host app runs as — decides which notebooks and recipes the
+// picker offers. Lives in `instanceState.ts` (see the note there on why it is
+// not in this file) and is re-exported here, where every caller already looks
+// for it.
+export { getMentionInstance, setMentionInstance } from './instanceState';
 
 // Rezept `mention`s an admin hid from discovery on this deployment
 // (admin_hidden_skills). Set by `useHiddenSkillMentions` — same pattern as
@@ -237,12 +239,21 @@ export function setMentionLandesverbaende(lvIds: readonly string[] | null): void
   mentionLandesverbaende = lvIds;
 }
 
-/** Agent/skill mentionables visible for the current locale, minus admin-hidden Rezepte. */
+/**
+ * Agent/skill mentionables visible for the current locale, minus admin-hidden
+ * Rezepte and minus what this instance does not offer.
+ *
+ * Two different questions, both answered here: `isAdminVisibleSkill` is the
+ * per-deployment override an admin toggles at runtime, `isSkillOfferedIn` is
+ * what the instance carries by construction. Discovery only — `resolveMentionable`
+ * stays unfiltered so an existing @mention keeps resolving.
+ */
 export function getAgentMentionables(): Mentionable[] {
   return agentMentionables.filter(
     (m) =>
       (m.audience === undefined || m.audience === 'all' || m.audience === mentionLocale) &&
       isAdminVisibleSkill(m.mention, hiddenSkillMentions) &&
+      isSkillOfferedIn(m, getMentionInstance()) &&
       isLvItemVisibleForRoles(m.identifier, mentionLandesverbaende)
   );
 }
@@ -288,7 +299,7 @@ export function visibleNotebookMentionables(): Mentionable[] {
   return notebookMentionables.filter(
     (m) =>
       allowed.has(m.identifier) &&
-      isNotebookOfferedIn(m.identifier, mentionInstance) &&
+      isNotebookOfferedIn(m.identifier, getMentionInstance()) &&
       isLvNotebookVisibleForRoles(m.identifier, mentionLandesverbaende)
   );
 }
