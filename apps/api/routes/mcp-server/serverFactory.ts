@@ -7,7 +7,6 @@ import { buildSourceRef } from '@gruenerator/shared/utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
-import { NOTEBOOK_GATE } from '../../config/notebookCollectionMap.js';
 import {
   getCanonicalByKey,
   getMcpExposedCollections,
@@ -80,18 +79,19 @@ const log = createLogger('McpServerFactory');
  * separate anyway: this surface is not locale-filtered and does not bundle
  * Austria behind one key, both of which that list does for the chat client.
  *
- * The instance gate applies all the same: Qdrant is shared across deployments,
- * so a collection this instance hides would otherwise stay searchable — and
- * citable — through MCP, which is the one surface where nobody would look for
- * it. `searchTools.ts` gates the chat list the same way.
+ * Deliberately NOT gated by the instance policy either, though `searchTools.ts`
+ * gates the chat list. `hide` is curation, not access: it takes content out of
+ * galleries, pickers and *implicit* search while a directly named target keeps
+ * resolving — and an MCP client naming a collection is naming it, not
+ * discovering it. Keeping a deployment's content out of MCP entirely is what
+ * `mcpExposed: false` on the collection is for. Gating here would also have
+ * dropped `gruene` from production's published enum, which external clients
+ * have searched since v1.
  */
-const SEARCH_COLLECTIONS = [
-  ...NOTEBOOK_GATE.dropHiddenCollections(
-    getMcpExposedCollections()
-      .map((c) => c.key)
-      .filter((key) => key !== 'examples')
-  ),
-].sort() as [string, ...string[]];
+const SEARCH_COLLECTIONS = getMcpExposedCollections()
+  .map((c) => c.key)
+  .filter((key) => key !== 'examples')
+  .sort() as [string, ...string[]];
 
 let notebookHelperSingleton: NotebookQdrantHelper | null = null;
 function notebookHelper(): NotebookQdrantHelper {
