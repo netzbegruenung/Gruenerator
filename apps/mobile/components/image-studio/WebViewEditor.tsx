@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
 import { secureStorage } from '../../services/storage';
+import { WEB_ORIGIN } from '../../services/webOrigin';
 import {
   decideNavigation,
   WEBVIEW_ORIGIN_WHITELIST,
@@ -18,12 +19,10 @@ import { WebViewSkeleton } from '../webview/WebViewSkeleton';
 // In dev: Use local IP for Android, localhost for iOS
 const WEB_EDITOR_PATH = '/mobile-editor';
 const DEV_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
-const PROD_URL = 'https://gruenerator.eu';
 
-// You can override this via .env in a real app
 const WEB_APP_URL = __DEV__
   ? `http://${DEV_HOST}:5173${WEB_EDITOR_PATH}`
-  : `${PROD_URL}${WEB_EDITOR_PATH}`;
+  : `${WEB_ORIGIN}${WEB_EDITOR_PATH}`;
 
 interface WebViewEditorProps {
   initialData: Record<string, unknown>;
