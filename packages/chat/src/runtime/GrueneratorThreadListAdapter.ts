@@ -285,7 +285,7 @@ export function createGrueneratorThreadListAdapter(
         threadTypeCache.set(result.id, threadMode);
         threadAgentCache.set(result.id, effectiveAgentId);
         cacheThreadSlug(result.id, result.slugSuffix);
-        useAgentStore.getState().setCurrentThread(result.id);
+        useAgentStore.getState().mintThreadFromDraft(result.id);
         return { remoteId: result.id, externalId: undefined };
       })().finally(() => {
         pendingInit = null;
