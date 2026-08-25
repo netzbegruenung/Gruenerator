@@ -58,6 +58,7 @@ import {
   filterEmptyAssistantMessages,
   sanitizeUIFileParts,
 } from './messageHelpers.js';
+import { selectPdfFormAttachments } from './pdfFormAvailability.js';
 import { type createSSEStream, PROGRESS_MESSAGES } from './sseHelpers.js';
 import { canAccessThread } from './threadAccessService.js';
 import {
@@ -653,12 +654,11 @@ export async function buildStreamContext({
     docAttachments.some((a) => isTabularAttachment(a.name, a.type)) ||
     previousAttachments.some((a) => isTabularAttachment(a.name, a.mimeType));
 
-  // Raw bytes of this turn's PDFs, for the PDF form tools. Kept unfiltered here
-  // (the AcroForm probe happens in the tool, which reports "no fillable fields"
-  // to the model) — attachmentProcessing already decided what gets PERSISTED.
-  const pdfFormAttachments = docAttachments
-    .filter((a) => a.type === 'application/pdf')
-    .map((a) => ({ name: a.name, data: a.data }));
+  // Raw bytes of this turn's FILLABLE PDFs, for the PDF form tools. Filtered on
+  // the AcroForm verdict attachmentProcessing already computed (`pdfIsFillable`)
+  // — no second probe here, and a non-form PDF no longer mounts
+  // read_pdf_form/fill_pdf_form on its upload turn (#2835).
+  const pdfFormAttachments = selectPdfFormAttachments(docAttachments, processedMeta);
 
   // Large prose attachments from earlier turns were embedded into Qdrant — route
   // their document ids through the existing document-chat retrieval fan-out so
