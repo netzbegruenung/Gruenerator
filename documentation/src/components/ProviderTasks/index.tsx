@@ -1,31 +1,6 @@
 import React from 'react';
 
-import manifestJson from '@site/src/generated/models.json';
-
-type Role = 'primary' | 'fallback' | 'overflow';
-
-interface ModelEntry {
-  model: string;
-  code: string;
-  label: string;
-  provider: string;
-  host: string;
-  flag: string;
-  role: Role;
-}
-
-interface Row {
-  id: string;
-  task: string;
-  models: ModelEntry[];
-}
-
-interface Manifest {
-  rows: Row[];
-  hosts: string[];
-}
-
-const manifest = manifestJson as unknown as Manifest;
+import { manifest, type Role } from '@site/src/components/modelsManifest';
 
 /** Rolle → Zusatz hinter der Aufgabe. `primary` bekommt keinen. */
 const ROLE_SUFFIX: Record<Exclude<Role, 'primary'>, string> = {
