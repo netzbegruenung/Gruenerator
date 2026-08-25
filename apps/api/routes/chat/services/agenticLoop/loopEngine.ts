@@ -226,15 +226,41 @@ export function buildPrepareStep(
   /** Names the tool the FIRST step must call, when an @-mention pinned one
    *  (see {@link pinnedFirstTool}). Only consulted while `forceFirstToolCall`
    *  holds — the research ban vetoes both, and it vetoes first. */
-  firstToolName: string | null = null
+  firstToolName: string | null = null,
+  /**
+   * Welche Werkzeuge dieser Schritt MITSCHICKT, oder `undefined` für alle
+   * montierten (siehe toolScope.ts). Ein GETTER, aus demselben Grund wie
+   * `extraSystem`: die Menge wächst mitten im Lauf, wenn das Modell einen Lader
+   * ruft. Ein einmal eingefangenes Array wäre der Stand von Schritt 0.
+   */
+  activeTools: () => readonly string[] | undefined = () => undefined
 ): ({ stepNumber }: { stepNumber: number }) => {
   toolChoice?: 'none' | 'required' | { type: 'tool'; toolName: string };
   system?: string;
+  activeTools?: readonly string[];
 } {
   return ({ stepNumber }) => {
     const extra = extraSystem();
+    const active = activeTools();
+    // Auf JEDEM Zweig, nicht nur dem letzten: `toolChoice: 'none'` unterdrückt
+    // den Aufruf, nicht die Definitionen — der Katalog wird auch auf dem
+    // Schlussschritt mitgeschickt und bezahlt.
+    const scope = active ? { activeTools: active } : {};
+    /**
+     * Ein BENANNTES Werkzeug muss mitgehen, auch wenn der Umfang es
+     * zurückgestellt hat — sonst verlangt derselbe Schritt einen Aufruf und
+     * schickt die Definition dazu nicht mit. Die Absicherung sitzt hier und
+     * nicht nur bei `createToolScope`, weil jeder künftige Zwang durch diesen
+     * Trichter läuft: `forcedTool`, `firstToolName`, was danach kommt.
+     */
+    const withTool = (name: string): typeof scope =>
+      active && !active.includes(name) ? { activeTools: [...active, name] } : scope;
     if (stepNumber >= maxSteps - 1 || forceFinish()) {
-      return { toolChoice: 'none' as const, system: `${baseSystem}${extra}${finishSuffix}` };
+      return {
+        toolChoice: 'none' as const,
+        system: `${baseSystem}${extra}${finishSuffix}`,
+        ...scope,
+      };
     }
     // Explicit-scope MCP FOLLOW-UP: the small planner otherwise answers from
     // prose without ever calling the connector (observed: intent=mcp steps=0,
@@ -248,7 +274,11 @@ export function buildPrepareStep(
       const choice = firstToolName
         ? ({ type: 'tool' as const, toolName: firstToolName } as const)
         : ('required' as const);
-      return { toolChoice: choice, ...(extra && { system: `${baseSystem}${extra}` }) };
+      return {
+        toolChoice: choice,
+        ...(extra && { system: `${baseSystem}${extra}` }),
+        ...(firstToolName ? withTool(firstToolName) : scope),
+      };
     }
     if (stepNumber > 0) {
       const toolName = forcedTool();
@@ -258,9 +288,10 @@ export function buildPrepareStep(
         return {
           toolChoice: { type: 'tool' as const, toolName },
           ...(extra && { system: `${baseSystem}${extra}` }),
+          ...withTool(toolName),
         };
     }
-    return extra ? { system: `${baseSystem}${extra}` } : {};
+    return extra ? { system: `${baseSystem}${extra}`, ...scope } : { ...scope };
   };
 }
 
@@ -407,6 +438,12 @@ export interface LoopEngineParams {
   forceFinish: () => boolean;
   /** Force a tool call on the first step (explicit-scope MCP follow-ups). */
   forceFirstToolCall?: boolean;
+  /**
+   * Welche der montierten Werkzeuge mitgeschickt werden — `undefined` heisst
+   * alle, also das Verhalten vor `toolScope.ts`. Getter: eine zurückgestellte
+   * Gruppe kann sich mitten im Lauf öffnen.
+   */
+  activeTools?: () => readonly string[] | undefined;
   /** Names the tool that first step must call, when an @-mention pinned one. */
   firstToolName?: string | null;
   /** Names a specific tool the next step must call — used to turn the "web is
@@ -497,7 +534,8 @@ async function streamWithTools(
       p.forceFirstToolCall ?? false,
       p.forcedToolForStep,
       p.getRecipeBlock,
-      p.firstToolName ?? null
+      p.firstToolName ?? null,
+      p.activeTools
     ),
     experimental_repairToolCall: repairToolCall,
     ...phaseTelemetry('unified'),
@@ -554,7 +592,8 @@ async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
         p.forceFirstToolCall ?? false,
         p.forcedToolForStep,
         p.getRecipeBlock,
-        p.firstToolName ?? null
+        p.firstToolName ?? null,
+        p.activeTools
       ),
       experimental_repairToolCall: repairToolCall,
       ...phaseTelemetry('gather'),
