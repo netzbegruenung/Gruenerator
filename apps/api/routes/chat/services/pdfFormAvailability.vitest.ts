@@ -34,16 +34,15 @@ describe('hasReachableForm', () => {
     expect(hasReachableForm({ threadAttachments: [attachment({ hasFileData: true })] })).toBe(true);
   });
 
-  it('sagt ja zu JEDEM PDF dieses Turns, auch einem ungeprüften', () => {
+  it('sagt ja zu einem PDF dieses Turns — die Liste ist bereits gefiltert', () => {
     // Auf dem allerersten Turn („hier ist mein Formular") steht in der DB noch
-    // nichts — dafür gibt es `pdfFormAttachments` überhaupt. Die Liste ist
-    // ungefiltert (streamContext), diese Hälfte also bewusst nicht streng: die
-    // Bytes liegen vor, `read_pdf_form` prüft selbst und meldet `fieldCount: 0`.
-    // Festgehalten, damit die Ungleichheit der beiden Hälften eine Zusicherung
-    // hat und nicht nur einen Kommentar.
+    // nichts — dafür gibt es `pdfFormAttachments` überhaupt. Seit #2835 baut
+    // `processAttachments` die Liste am Ort seiner AcroForm-Prüfung
+    // (`pdfFormCandidates`), also nur aus bestandenen PDFs; das Prädikat darf
+    // ihr vertrauen. Zusicherungen dazu: attachmentProcessingService.vitest.ts.
     expect(
       hasReachableForm({
-        pdfFormAttachments: [{ name: 'Irgendein.pdf', data: 'AAAA' }],
+        pdfFormAttachments: [{ name: 'Formular.pdf', data: 'AAAA' }],
         threadAttachments: [],
       })
     ).toBe(true);

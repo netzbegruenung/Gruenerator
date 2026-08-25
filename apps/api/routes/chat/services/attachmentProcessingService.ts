@@ -138,14 +138,30 @@ export async function processAttachments(
   attachmentContext: string;
   imageAttachments: ImageAttachment[];
   processedMeta: ProcessedAttachmentMeta[];
+  /** Dieses Turns Kandidaten für die PDF-Formularwerkzeuge (`streamContext` →
+   *  `pdfFormAttachments`): nur PDFs, deren AcroForm-Prüfung Felder gefunden
+   *  hat. Am Ort des Urteils gebaut — gleiches Objekt wie die Prüfung —, damit
+   *  keine zweite Liste per Name oder Position gepaart werden muss (beides über
+   *  Namenskollisionen bzw. das client-gesendete `isImage`-Flag angreifbar,
+   *  Review auf #2862). Bewusst OHNE den Grössendeckel der Persistenz: ein
+   *  übergrosses Formular ist in DIESEM Turn ausfüllbar, die Bytes liegen im
+   *  Request. NICHT nach Redis persistieren (Multi-MB base64) — siehe
+   *  pipelineStateStore. */
+  pdfFormCandidates: Array<{ name: string; data: string }>;
 }> {
   if (!attachments || attachments.length === 0) {
-    return { attachmentContext: '', imageAttachments: [], processedMeta: [] };
+    return {
+      attachmentContext: '',
+      imageAttachments: [],
+      processedMeta: [],
+      pdfFormCandidates: [],
+    };
   }
 
   const imageAttachments: ImageAttachment[] = [];
   const documentTexts: string[] = [];
   const processedMeta: ProcessedAttachmentMeta[] = [];
+  const pdfFormCandidates: Array<{ name: string; data: string }> = [];
 
   for (const attachment of attachments) {
     if (IMAGE_MIME_TYPES.has(attachment.type)) {
@@ -170,13 +186,19 @@ export async function processAttachments(
       // still get full-text context, just no reload-compute.
       const rawBytes = Math.floor((attachment.data.length * 3) / 4);
       const isTabular = isTabularAttachment(attachment.name, attachment.type);
-      // Fillable PDFs are stored too (see MAX_PDF_BYTES_PERSISTED) so
-      // fill_pdf_form can reach the document on later turns.
-      const keepPdf =
+      // The AcroForm probe runs for EVERY PDF, not only the persistable ones:
+      // a positive verdict makes this attachment a form-tool candidate for THIS
+      // turn (#2835). Storage (see MAX_PDF_BYTES_PERSISTED) additionally
+      // applies the size cap, so fill_pdf_form can reach the document on later
+      // turns.
+      const pdfIsFillable =
         !isTabular &&
         attachment.type === 'application/pdf' &&
-        rawBytes <= MAX_PDF_BYTES_PERSISTED &&
         (await isFillablePdf(Buffer.from(attachment.data, 'base64')));
+      if (pdfIsFillable) {
+        pdfFormCandidates.push({ name: attachment.name, data: attachment.data });
+      }
+      const keepPdf = pdfIsFillable && rawBytes <= MAX_PDF_BYTES_PERSISTED;
       const persistedData =
         (isTabular && rawBytes <= MAX_TABULAR_BYTES_PERSISTED) || keepPdf
           ? attachment.data
@@ -259,6 +281,7 @@ export async function processAttachments(
     attachmentContext: documentTexts.join('\n\n---\n\n'),
     imageAttachments,
     processedMeta,
+    pdfFormCandidates,
   };
 }
 
