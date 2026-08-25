@@ -610,6 +610,7 @@ export async function buildStreamContext({
     attachmentContext: derivedAttachmentContext,
     imageAttachments,
     processedMeta,
+    pdfFormCandidates,
   } = await processAttachments(effectiveAttachments, requestId);
 
   // Merge any client-injected context (e.g. docs editor markdown + selection)
@@ -653,12 +654,13 @@ export async function buildStreamContext({
     docAttachments.some((a) => isTabularAttachment(a.name, a.type)) ||
     previousAttachments.some((a) => isTabularAttachment(a.name, a.mimeType));
 
-  // Raw bytes of this turn's PDFs, for the PDF form tools. Kept unfiltered here
-  // (the AcroForm probe happens in the tool, which reports "no fillable fields"
-  // to the model) — attachmentProcessing already decided what gets PERSISTED.
-  const pdfFormAttachments = docAttachments
-    .filter((a) => a.type === 'application/pdf')
-    .map((a) => ({ name: a.name, data: a.data }));
+  // Raw bytes of this turn's FILLABLE PDFs, for the PDF form tools — built by
+  // attachmentProcessing at the site of its AcroForm probe (#2835), so a
+  // non-form PDF never mounts read_pdf_form/fill_pdf_form on its upload turn.
+  // Deliberately NOT derived from `docAttachments` here: any pairing against a
+  // second list (by name or position) is attackable via name collisions or the
+  // client-sent `isImage` flag.
+  const pdfFormAttachments = pdfFormCandidates;
 
   // Large prose attachments from earlier turns were embedded into Qdrant — route
   // their document ids through the existing document-chat retrieval fan-out so
