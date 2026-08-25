@@ -5,6 +5,7 @@ import { getErrorMessage } from '../utils/errors';
 
 import { resolveChatUrl } from './chatApiUrl';
 import { secureStorage } from './storage';
+import { WEB_ORIGIN } from './webOrigin';
 
 let cachedApiClient: ChatApiClient | null = null;
 
@@ -80,7 +81,7 @@ export function configureMobileChat(): void {
   useChatConfigStore.getState().configure({
     fetch: mobileFetch,
     onUnauthorized: mobileOnUnauthorized,
-    docsBaseUrl: 'https://gruenerator.eu',
+    docsBaseUrl: WEB_ORIGIN,
     onEditInDocs: mobileEditInDocs,
     platform: 'app',
   });
