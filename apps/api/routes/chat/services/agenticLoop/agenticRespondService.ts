@@ -171,6 +171,9 @@ export async function streamAgenticResponse(
   // Time the (un-budgeted) MCP tool-mount so a slow connector shows up in the
   // end-of-turn line instead of looking like an unexplained multi-second hang.
   let mcpMountMs = 0;
+  // Am Turn-ENDE gelesen, nicht beim Montieren: ein Lader-Aufruf mitten im Lauf
+  // soll sich in der Zahl niederschlagen. Deshalb ein Getter und keine Zahl.
+  let readDeferredCount: () => number = () => 0;
 
   // Computed BEFORE the model is resolved: the same number decides the lane
   // (precise + reasoning on) and, further down, whether the writer gives up the
@@ -207,6 +210,7 @@ export async function streamAgenticResponse(
     mcpCatalog = assembled.mcpCatalog;
     systemCatalog = assembled.systemCatalog;
     mcpMountMs = assembled.mcpMountMs;
+    readDeferredCount = () => assembled.toolScope.deferredToolNames().length;
     const managedKeys = finalState.managedSourceKeys ?? [];
 
     if (threadId) {
@@ -421,6 +425,10 @@ export async function streamAgenticResponse(
       },
       tools: wrapped,
       toolSystem,
+      // Der Katalog ist vollständig montiert; welcher Schritt was davon
+      // mitschickt, entscheidet der Umfang (toolScope.ts). Getter, weil ein
+      // Lader die Menge mitten im Lauf erweitern kann.
+      activeTools: () => assembled.toolScope.activeTools(),
       forceFirstToolCall,
       firstToolName,
       // Turns "the web is now allowed" into "the web runs". Only when the tool
@@ -616,6 +624,7 @@ export async function streamAgenticResponse(
     carriedCount: sourceRegistry.carriedSize,
     answerChars: emitter.text.length,
     mcpMountMs,
+    deferredTools: readDeferredCount(),
     onInfo: (m) => log.info(m),
   });
 

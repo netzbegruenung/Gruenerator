@@ -28,6 +28,7 @@ import {
 import { TOOL_TIMEOUT_OVERRIDES_MS, type PersistedStep } from './types.js';
 import { createSourceRegistry } from './sourceRegistry.js';
 import { createToolLoopGuards } from './loopGuards.js';
+import { createToolScope } from './toolScope.js';
 
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
 import type { SSEWriter } from '../sseHelpers.js';
@@ -53,6 +54,11 @@ const EMPTY_CATALOG = {
   recipeRegistry: { render: () => '', register: () => {}, size: 0, summaries: () => [] },
   toolLabels: new Map<string, { serverName: string; toolName: string }>(),
   mcpMountMs: 0,
+  // Der ECHTE Umfang, nicht eine Attrappe: er ist der Wert, den der Turn zum
+  // Loop durchreicht (`activeTools`) und am Ende ins Protokoll schreibt. Eine
+  // Attrappe hier hätte genau die Naht verloren, die diese Datei prüft — mit
+  // leerem Katalog stellt er ohnehin nichts zurück.
+  toolScope: createToolScope({ toolNames: [], userText: '' }),
 };
 
 function fakeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
