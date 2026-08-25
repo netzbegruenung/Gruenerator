@@ -4,6 +4,7 @@
  */
 
 import { applyMarkdownFormatting } from './textFormatting.js';
+import { joinPdfTextItems, type PdfTextItem } from './textItemJoin.js';
 
 import type {
   PDFInfo,
@@ -86,11 +87,8 @@ export async function canExtractTextDirectly(
         const page = await pdfDoc.getPage(pageNum);
         // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- pdfjs-dist untyped
         const textContent = await page.getTextContent();
-        const textItems = textContent.items as Array<{ str?: string }>;
-        const pageText = textItems
-          .map((item: { str?: string }) => item.str || '')
-          .join(' ')
-          .trim();
+        const textItems = textContent.items as PdfTextItem[];
+        const pageText = joinPdfTextItems(textItems);
 
         if (pageText.length > 10) {
           pagesWithText++;
@@ -231,9 +229,8 @@ export async function extractPageTextDirectly(
     const textContent = await page.getTextContent();
 
     // Extract text items with proper spacing
-    const items = textContent.items as Array<{ str?: string }>;
-    const textItems: string[] = items.map((item: { str?: string }) => item.str || '');
-    const rawText = textItems.join(' ').trim();
+    const items = textContent.items as PdfTextItem[];
+    const rawText = joinPdfTextItems(items);
 
     // Apply markdown formatting
     const formattedText = applyMarkdownFormattingFn(rawText);
@@ -291,11 +288,8 @@ export async function extractTextFromBase64PDF(
         const page = await pdfDoc.getPage(pageNum);
         // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- pdfjs-dist untyped
         const textContent = await page.getTextContent();
-        const textItems = textContent.items as Array<{ str?: string }>;
-        const pageText = textItems
-          .map((item: { str?: string }) => item.str || '')
-          .join(' ')
-          .trim();
+        const textItems = textContent.items as PdfTextItem[];
+        const pageText = joinPdfTextItems(textItems);
 
         if (pageText) {
           allPageTexts.push(applyMarkdownFormatting(pageText));

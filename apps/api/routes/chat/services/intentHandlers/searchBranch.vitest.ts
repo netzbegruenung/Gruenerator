@@ -30,15 +30,16 @@ vi.mock('../deepResearchQuota.js', () => ({
   deepResearchQuotaSpentMessage: (q: { limit: number }) => `Kontingent (${q.limit}) aufgebraucht`,
 }));
 
-const searchNode = vi.fn(async () => ({
+const searchNode = vi.fn(async (_state: ChatGraphState) => ({
   searchResults: [{ source: 'web', title: 'Treffer', content: 'x', url: 'https://a.test/1' }],
   citations: [],
   searchCount: 1,
   searchTimeMs: 1,
 }));
+const briefGeneratorNode = vi.fn(async (_state: ChatGraphState): Promise<unknown> => ({}));
 vi.mock('../../../../agents/langgraph/ChatGraph/index.js', () => ({
-  briefGeneratorNode: vi.fn(async () => ({})),
-  searchNode: () => searchNode(),
+  briefGeneratorNode: (s: ChatGraphState) => briefGeneratorNode(s),
+  searchNode: (s: ChatGraphState) => searchNode(s),
   rerankNode: vi.fn(async () => ({})),
   imageNode: vi.fn(),
   imageEditNode: vi.fn(),
@@ -47,10 +48,12 @@ vi.mock('../../../../agents/langgraph/ChatGraph/index.js', () => ({
   buildCitations: vi.fn(() => []),
 }));
 
-// Hits Postgres otherwise; the reuse path has its own reasoning and is not
-// what this file is about.
+// Hits Postgres otherwise. Defaults to null (no reuse); the reuse test
+// below overrides it for one case.
+const getKeptResearchForRetry = vi.fn(async (): Promise<unknown> => null);
 vi.mock('../threadPersistenceService.js', () => ({
-  getKeptResearchForRetry: vi.fn(async () => null),
+  getKeptResearchForRetry: (threadId: string, query: string) =>
+    getKeptResearchForRetry(threadId, query),
 }));
 
 const { runSearchBranch } = await import('./searchBranch.js');
@@ -91,6 +94,10 @@ beforeEach(() => {
     resetIn: '5 Stunden',
   });
   searchNode.mockClear();
+  briefGeneratorNode.mockClear();
+  briefGeneratorNode.mockResolvedValue({});
+  getKeptResearchForRetry.mockClear();
+  getKeptResearchForRetry.mockResolvedValue(null);
   sse.send.mockClear();
 });
 
@@ -175,6 +182,72 @@ describe('runSearchBranch — deep-research cascade', () => {
     expect(searchNode).not.toHaveBeenCalled();
     expect(sse.send).not.toHaveBeenCalled();
     expect(result.servedWholeTurn).toBe(false);
+  });
+});
+
+describe('runSearchBranch — intent follows the loop, not the primary verdict', () => {
+  /**
+   * Regression for #2856: on a secondary research iteration the state still
+   * carries the classifier's PRIMARY intent. The brief gate fired on
+   * currentIntent, but the node got the primary state and skipped silently
+   * (progress ping without a brief) — and the rebuild after it dropped the
+   * `intent: currentIntent` override, so searchNode switched on the primary
+   * branch again: the documented double-Linkup-search live bug.
+   */
+  it('generates the brief on a secondary research iteration and hands its result to the search', async () => {
+    briefGeneratorNode.mockResolvedValue({ researchBrief: 'Auftrag' });
+
+    await runSearchBranch({
+      state: state({ intent: 'web', complexity: 'moderate' } as Partial<ChatGraphState>),
+      currentIntent: 'research',
+      sse: sse as never,
+      forcedTool: false,
+      priorIntentResults: [],
+    });
+
+    expect(briefGeneratorNode).toHaveBeenCalledTimes(1);
+    expect(briefGeneratorNode.mock.calls[0]?.[0]?.intent).toBe('research');
+    expect(searchNode).toHaveBeenCalledTimes(1);
+    expect(searchNode.mock.calls[0]?.[0]?.intent).toBe('research');
+    expect(searchNode.mock.calls[0]?.[0]?.researchBrief).toBe('Auftrag');
+  });
+
+  /**
+   * The reused branch rebuilds searchInputState the same way the brief path
+   * did — from finalState, dropping the override. searchNode is skipped here
+   * by design, so the observable signal is the RETURNED state: it feeds the
+   * synthesis half of the turn and must carry the loop intent.
+   */
+  it('keeps the loop intent when reusing kept research sources', async () => {
+    getKeptResearchForRetry.mockResolvedValue({
+      searchResults: [{ source: 'web', title: 'Behalten', content: 'k', url: 'https://kept/1' }],
+    });
+
+    const result = await runSearchBranch({
+      state: state({ intent: 'web', threadId: 't1' } as Partial<ChatGraphState>),
+      currentIntent: 'research',
+      sse: sse as never,
+      forcedTool: false,
+      priorIntentResults: [],
+    });
+
+    expect(searchNode).not.toHaveBeenCalled();
+    expect(briefGeneratorNode).not.toHaveBeenCalled();
+    expect(result.state.intent).toBe('research');
+    expect(result.state.searchResults.map((r) => r.url)).toEqual(['https://kept/1']);
+  });
+
+  it('keeps the loop intent for the search even on a primary research turn with a brief', async () => {
+    await runSearchBranch({
+      state: state({ complexity: 'complex' } as Partial<ChatGraphState>),
+      currentIntent: 'research',
+      sse: sse as never,
+      forcedTool: false,
+      priorIntentResults: [],
+    });
+
+    expect(briefGeneratorNode).toHaveBeenCalledTimes(1);
+    expect(searchNode.mock.calls[0]?.[0]?.intent).toBe('research');
   });
 });
 

@@ -1,4 +1,5 @@
 import { apiRequest } from '@gruenerator/shared/api';
+import { resolveStoredImageUrl } from '@gruenerator/shared/media-library/shareUrl';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/api';
 
@@ -28,12 +29,14 @@ export interface TemplateCategory {
   label: string;
 }
 
-const getPublicImageUrl = (relativePath: string | undefined): string | null => {
-  if (!relativePath) return null;
-  return relativePath.startsWith('http')
-    ? relativePath
-    : `${API_BASE_URL}/api/templates/images/${relativePath}`;
-};
+/**
+ * Ein gespeichertes Vorlagenbild ist entweder ein absolutes gecrawltes
+ * `og:image` oder die `/share/<token>`-Seiten-URL, die der Web-Dialog beim
+ * Hochladen gesichert hat. Für die zweite Sorte muss die Vorschau-Variante her
+ * — `API_BASE_URL` enthält das `/api`-Präfix bereits.
+ */
+const getPublicImageUrl = (storedUrl: string | undefined): string | null =>
+  resolveStoredImageUrl(storedUrl, { baseUrl: API_BASE_URL, width: 400 });
 
 export async function fetchVorlagen(params?: { templateType?: string }): Promise<Template[]> {
   try {
@@ -72,7 +75,8 @@ export async function fetchVorlagen(params?: { templateType?: string }): Promise
         title: t.title as string,
         description: t.description as string | undefined,
         template_type: t.template_type as string | undefined,
-        thumbnail_url: images[0]?.url || null,
+        thumbnail_url:
+          getPublicImageUrl(t.thumbnail_url as string | undefined) || images[0]?.url || null,
         canvaUrl: (t.canvaurl || t.canva_url) as string | undefined,
         external_url: (t.external_url || t.canvaurl || t.canva_url) as string | undefined,
         tags,

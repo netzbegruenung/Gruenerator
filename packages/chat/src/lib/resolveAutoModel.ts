@@ -13,7 +13,7 @@ export type AutoModelId = typeof AUTO_MODEL_ID;
 export const AUTO_MODEL_OPTION = {
   id: AUTO_MODEL_ID,
   name: 'Automatisch',
-  description: 'Wählt je Aufgabe das passende Modell',
+  description: 'Wählt je Aufgabe das Modell',
   /**
    * Steht im aufgeklappten Wähler neben dem Namen. Hier und nicht je Plattform
    * als Literal, weil es sonst zwei Stellen wären, die auseinanderlaufen —

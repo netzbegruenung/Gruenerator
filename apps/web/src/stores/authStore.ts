@@ -11,10 +11,12 @@ import {
   setApiLocale,
   registerAiConsentRequiredHandler,
 } from '@gruenerator/shared/api';
+import { getPinnedLocale } from '@gruenerator/shared/instances';
 import { toast } from '@gruenerator/ui';
 import { create } from 'zustand';
 
 import apiClient, { setLoggingOutFlag } from '../components/utils/apiClient';
+import { CURRENT_INSTANCE } from '../config/instance';
 import { INSTANT_AUTH_CACHE, LOGIN_INTENT, LOGOUT_TIMESTAMP } from '../features/auth/storageKeys';
 import { authClient } from '../lib/authClient';
 import { sessionDebug } from '../lib/sessionDebug';
@@ -119,6 +121,20 @@ function detectBrowserLocale(): SupportedLocale {
   return 'de-DE';
 }
 
+/**
+ * The locale this app actually runs in: the instance's pin if it has one,
+ * otherwise the user's stored preference, otherwise the browser guess.
+ *
+ * The pin outranks the stored value on purpose. An instance that pins its
+ * locale does not deploy the other country's notebooks, agents and recipes, so
+ * honouring a `de-AT` profile there would not translate the app — it would
+ * empty it, and the settings switch that produced the value is gone too, which
+ * would leave no way back. `GeneralTab` hides the switch from the same source.
+ */
+function effectiveLocale(stored?: string | null): SupportedLocale {
+  return getPinnedLocale(CURRENT_INSTANCE) ?? (stored as SupportedLocale) ?? detectBrowserLocale();
+}
+
 // Storage key aliases. The literals live in `features/auth/storageKeys.ts` so every
 // read/write site shares the same string — see that file for the rationale.
 const LOGOUT_TIMESTAMP_KEY = LOGOUT_TIMESTAMP;
@@ -170,12 +186,11 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   selectedMessageColor: '#008939', // Default Klee
 
   // Locale/language preference
-  locale: detectBrowserLocale(),
+  locale: effectiveLocale(),
 
   // Main actions
   setAuthState: (data: AuthStateData) => {
-    const userLocale: SupportedLocale =
-      (data.user?.locale as SupportedLocale) || detectBrowserLocale();
+    const userLocale: SupportedLocale = effectiveLocale(data.user?.locale);
     // Let every API client advertise the profile locale from here on. Until
     // this point the header carries the browser guess, which is wrong for an
     // AT user on a German-language browser.
@@ -245,7 +260,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     // No profile any more — fall back to the browser guess, in the store and on
     // the wire alike, so the next (anonymous) request stops claiming the old
     // user's locale.
-    const browserLocaleOnLogout = detectBrowserLocale();
+    const browserLocaleOnLogout = effectiveLocale();
     setApiLocale(browserLocaleOnLogout);
 
     // Reset store to default state

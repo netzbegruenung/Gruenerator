@@ -24,14 +24,13 @@ import {
   type GroupSummary,
 } from '../../services/docs/docsShareApi';
 import { secureStorage } from '../../services/storage';
+import { WEB_ORIGIN } from '../../services/webOrigin';
 import { useDocsEditorBridgeStore } from '../../stores/docsEditorBridgeStore';
 import { lightTheme, darkTheme, colors, BODY_FONT } from '../../theme';
 import { BottomSheet } from '../common/BottomSheet';
 import { SkeletonBar, SkeletonCircle, SkeletonGroup } from '../common/Skeleton';
 
 import type { Theme } from '../../theme/colors';
-
-const DOCS_BASE_URL = 'https://gruenerator.eu';
 
 const SHARE_MODE_CONFIG: Array<{
   mode: ShareMode;
@@ -412,7 +411,7 @@ export function NativeShareModal({
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [templateSaved, setTemplateSaved] = useState(false);
 
-  const shareUrl = `${DOCS_BASE_URL}/office/${documentId}`;
+  const shareUrl = `${WEB_ORIGIN}/office/${documentId}`;
 
   const handleCopyLink = useCallback(async () => {
     await Clipboard.setStringAsync(shareUrl);

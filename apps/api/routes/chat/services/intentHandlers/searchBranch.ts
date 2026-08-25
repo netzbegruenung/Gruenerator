@@ -137,8 +137,10 @@ export async function runSearchBranch(opts: {
     log.info(
       `[Research] Reusing ${reused.searchResults.length} source(s) kept from the failed attempt — skipping the repeat Linkup run`
     );
+    // Rebuild on searchInputState, not finalState — the latter would drop
+    // the `intent: currentIntent` override from above.
     searchInputState = {
-      ...finalState,
+      ...searchInputState,
       searchResults: reused.searchResults,
       citations: buildCitations(reused.searchResults),
     } as ChatGraphState;
@@ -158,8 +160,13 @@ export async function runSearchBranch(opts: {
       title: 'Plane Recherche…',
       status: 'in_progress',
     });
-    const briefResult = await briefGeneratorNode(finalState);
-    searchInputState = { ...finalState, ...briefResult } as ChatGraphState;
+    // The node must see the LOOP intent: it re-checks `state.intent ===
+    // 'research'` internally, so handing it finalState on a secondary
+    // research iteration made it skip silently — progress ping, no brief.
+    // And spreading from finalState dropped the `intent: currentIntent`
+    // override, re-triggering the double-search bug documented above.
+    const briefResult = await briefGeneratorNode(searchInputState);
+    searchInputState = { ...searchInputState, ...briefResult } as ChatGraphState;
     // The flag was set all along but only read by runChatGraph, which has
     // no callers — so a deep-research turn silently degraded to a flat
     // search while the progress copy still promised deep research.

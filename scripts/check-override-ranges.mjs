@@ -16,6 +16,52 @@
 // Version liegt UNTER dem geforderten Bereich. Nach oben zeigende Overrides
 // sind hier Absicht (die Security-Bumps wie `undici: >=8.5.0` erzwingen
 // bewusst eine höhere Major als die Abhängigen deklarieren).
+//
+// ── Gelesen werden `dependencies` UND `peerDependencies` (auch optionale) ──
+//
+// Ein Bereich, den ein Paket als (optionale) peerDependency deklariert, ist
+// derselbe Vertrag wie eine dependency — er stand hier nur nicht drin. Genau
+// dort lag #2807: `mem0ai@3.1.6` deklariert `@qdrant/js-client-rest` als
+// optionale peerDependency `^1.18.0`, und der Check sah den Bereich nie.
+// pnpm warnt an dieser Stelle auch nicht, weil es nur UNERFÜLLTE peers meldet.
+//
+// Der Zusatz ist zugleich die einzige brauchbare Antwort auf „Bumps nach
+// oben": sechs unbegrenzte `>=`-Overrides standen am 25.08.2026 auf einer
+// höheren Major als ihre untere Schranke, und nur bei einem war das ein
+// Fehler — `>=7.29.4` auf dem systemjs-Plugin hatte 8.0.1 in eine geschlossene
+// 7er-Babel-Familie geholt. Sichtbar wurde genau dieser eine, weil er als
+// einziger einen deklarierten Bereich nach UNTEN verletzte (peer
+// `@babel/core: ^8.0.0` gegen installiertes 7.29.7). Das Override trägt
+// seitdem `<8`. Die anderen fünf sind gewollte Security-Bumps.
+//
+// ── Was dieser Check NICHT sehen kann ──
+//
+// Die zweite Hälfte von #2807 bleibt unsichtbar, und zwar bauartbedingt: dort
+// lag die installierte Version IM Bereich (`1.19.0` erfüllt `^1.18.0`) und
+// brach trotzdem die API — `QdrantClient.search()` war ersatzlos weg. „Im
+// Bereich" ist der Normalfall; ein Versionsvergleich kann das nicht von einem
+// gesunden Zustand unterscheiden. Der Vergleich umzudrehen hilft nicht: über
+// den ganzen Baum gemessen liegen 83 installierte Versionen ÜBER dem, was ein
+// Abhängiger deklariert, und nahezu alle davon sind unsere eigenen,
+// beabsichtigten Security-Bumps.
+//
+// Diese Ausfallart fängt nur ein Rauchtest, der den echten Fremdcode gegen das
+// echte Objekt fährt — Vorbild: `apps/api/services/mem0/qdrantSearchCompat.vitest.ts`
+// (seit #2810), inklusive Kanarienvogel auf dem installierten Client.
+//
+// Die Nähte, an denen wir einem Fremdpaket ein lebendes Objekt hereinreichen,
+// auf dem es dann Methoden ruft (erhoben am 25.08.2026):
+//   1. mem0ai ← `@qdrant/js-client-rest`-Client  (services/mem0/config.ts,
+//      optionaler peer `^1.18.0`) — der Fall von #2807, mit Rauchtest gedeckt.
+//   2. mem0ai ← `LiteLLMAdapter` / `MistralEmbeddingsAdapter` (dieselbe Datei,
+//      `provider: 'langchain'`). Handgeschriebene, nicht von einer
+//      LangChain-Basisklasse abgeleitete Attrappen: ruft mem0 eine Methode
+//      mehr, gibt es keinen Compiler, der das meldet. Ungedeckt.
+//   3. @better-auth/drizzle-adapter ← drizzle-Instanz (config/betterAuth.ts),
+//      optionaler peer `drizzle-orm ^0.45.2` — Caret auf 0.x, also minor-eng.
+//   4. drizzle-orm ← `pg`-Pool (database/services/DrizzleService.ts),
+//      optionaler peer `pg >=8` — nach oben offen, die gleiche Bauform wie 1.
+// Wer eine fünfte baut, gehört in diese Liste.
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -102,15 +148,21 @@ for (const dir of dependentDirs) {
   } catch {
     continue;
   }
-  const deps = manifest.dependencies ?? {};
+  // peerDependencies zuerst, damit eine gleichnamige dependency gewinnt: wer
+  // beides deklariert, meint den engeren dependency-Bereich.
+  const declared = { ...(manifest.peerDependencies ?? {}), ...(manifest.dependencies ?? {}) };
+  const isPeer = (name) =>
+    name in (manifest.peerDependencies ?? {}) && !(name in (manifest.dependencies ?? {}));
   for (const target of targets) {
-    const range = deps[target];
+    const range = declared[target];
     if (!range || !semver.validRange(range)) continue;
     const installed = resolveFrom(dir, target);
     if (!installed || !semver.ltr(installed, range)) continue;
     if (!violations.has(target)) violations.set(target, []);
     violations.get(target).push({
       dependent: `${manifest.name ?? dir}@${manifest.version ?? '?'}`,
+      dependentName: manifest.name ?? null,
+      kind: isPeer(target) ? 'peer' : 'dep',
       range,
       installed,
     });
@@ -124,8 +176,21 @@ if (violations.size > 0) {
       `\n✖ pnpm.overrides["${target}"] = "${overrides[target]}" hält ${target}@${hits[0].installed} fest,` +
         ` unter dem, was Abhängige fordern:`
     );
-    for (const hit of hits) console.error(`    ${hit.dependent} braucht ${hit.range}`);
+    for (const hit of hits)
+      console.error(
+        `    ${hit.dependent} braucht ${hit.range}${hit.kind === 'peer' ? ' (peerDependency)' : ''}`
+      );
     console.error(`    → Override auf einen Bereich heben, der ${needed} erfüllt.`);
+    // Der Abhängige kann selbst override-erzwungen sein — dann ist das Heben
+    // des Ziels der falsche Weg herum. So lag der Babel-Fall: ein unbegrenztes
+    // `>=7.29.4` auf dem systemjs-Plugin holte 8.0.1 in eine 7er-Familie.
+    for (const forced of [...new Set(hits.map((h) => h.dependentName))]) {
+      if (forced && forced in overrides)
+        console.error(
+          `    ⚠ ${forced} steht selbst in den overrides ("${overrides[forced]}") —` +
+            ` prüfe erst, ob DIESES Override zu weit nach oben reicht.`
+        );
+    }
   }
   console.error(
     '\nEin Override, der unter den geforderten Bereich zurückfällt, bricht erst' +
@@ -135,4 +200,7 @@ if (violations.size > 0) {
   process.exit(1);
 }
 
-console.log(`✓ Overrides erfüllen die deklarierten Bereiche (${targets.length} Pakete geprüft)`);
+console.log(
+  `✓ Overrides erfüllen die deklarierten Bereiche in dependencies und peerDependencies` +
+    ` (${targets.length} Pakete geprüft)`
+);
