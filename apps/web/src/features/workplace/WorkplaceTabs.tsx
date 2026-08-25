@@ -47,7 +47,7 @@ const WorkplaceTabs = memo(({ active }: { active: WorkplaceTab }) => {
         role="tablist"
         data-tour="workplace-tabs"
         className={cn(
-          'pointer-events-auto inline-flex gap-0.5 rounded-full p-[3px]',
+          'pointer-events-auto inline-flex gap-0.5 rounded-full p-1',
           'border border-white/50 bg-[rgba(246,246,244,.6)]',
           'backdrop-blur-[16px] backdrop-saturate-[1.6]',
           'shadow-[0_4px_20px_rgba(31,63,51,.10),inset_0_1px_0_rgba(255,255,255,.6)]',
@@ -65,7 +65,7 @@ const WorkplaceTabs = memo(({ active }: { active: WorkplaceTab }) => {
               aria-selected={isActive}
               aria-current={isActive ? 'page' : undefined}
               className={cn(
-                'relative select-none rounded-full px-4 py-1 text-[13.5px] font-medium transition-colors',
+                'relative select-none rounded-full px-8 py-[5px] text-[15px] font-medium transition-colors',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
                 isActive
                   ? cn('font-semibold', ACTIVE_TEXT[tab.id])
