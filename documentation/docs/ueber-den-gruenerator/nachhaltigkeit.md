@@ -48,7 +48,7 @@ Die größten kommerziellen KI-Modelle brauchen für jede einzelne Antwort ein V
 
 <ModelTable />
 
-Im Chat selbst stehen drei Größen zur Wahl — **Klein**, **Mittel** und **Ultra**; welche Modelle dahinterstehen, sind die ersten drei Zeilen oben. Kein einziges dieser Modelle spielt in der Größenklasse der energiehungrigsten Frontier-Modelle — und für die Aufgaben im politischen Alltag reicht das nicht nur, es ist oft sogar die bessere Wahl, weil kleinere Modelle schneller antworten.
+Im Chat selbst stehen drei Größen zur Wahl — **Klein**, **Mittel** und **Ultra**; welche Modelle dahinterstehen, sind die ersten drei Zeilen oben. Für die Aufgaben im politischen Alltag reicht das nicht nur — es ist oft sogar die bessere Wahl, weil kleinere Modelle schneller antworten.
 
 ## Intelligentes Routing: nur so viel KI wie nötig
 
