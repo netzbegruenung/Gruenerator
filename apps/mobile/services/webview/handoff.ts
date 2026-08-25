@@ -11,8 +11,7 @@
  */
 
 import { getGlobalApiClient, API_ENDPOINTS } from '../api';
-
-const WEB_BASE = 'https://gruenerator.eu';
+import { WEB_ORIGIN } from '../webOrigin';
 
 interface HandoffMintResponse {
   token: string;
@@ -38,5 +37,5 @@ export async function mintWebViewHandoff(targetPath: string): Promise<string> {
   }
 
   const params = new URLSearchParams({ ott: token, redirect: targetPath });
-  return `${WEB_BASE}/api/auth/v2/web-handoff?${params.toString()}`;
+  return `${WEB_ORIGIN}/api/auth/v2/web-handoff?${params.toString()}`;
 }

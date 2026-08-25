@@ -160,6 +160,14 @@ export interface InstanceDefinition {
   heroGreeting?: string;
 }
 
+/**
+ * Public origin of the production instance — the fallback for links handed to
+ * someone else (share links, invite links, webview handoffs) when no runtime
+ * origin is available. The one name for what used to be five (#2855); mobile
+ * re-exports it as `WEB_ORIGIN` in `apps/mobile/services/webOrigin.ts`.
+ */
+export const PRODUCTION_WEB_ORIGIN = 'https://gruenerator.eu';
+
 export const INSTANCES = [
   {
     id: 'production',

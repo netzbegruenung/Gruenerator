@@ -1,3 +1,4 @@
+import { PRODUCTION_WEB_ORIGIN } from '../instances/index.js';
 import { buildGroupSlug } from '../utils/slug.js';
 
 export const ALLOWED_LINK_ICONS = [
@@ -115,7 +116,7 @@ export const getGroupInitials = (name: string | null | undefined): string => {
 };
 
 export const buildGroupInviteUrl = (joinToken: string): string =>
-  `https://gruenerator.eu/join-group/${joinToken}`;
+  `${PRODUCTION_WEB_ORIGIN}/join-group/${joinToken}`;
 
 /**
  * Path to a group's page. Uses the Notion-style slug when the suffix is known,

@@ -9,10 +9,10 @@ import {
   unregisterRenderHost,
   useRenderHostDemand,
 } from '../../services/sharepicRender';
+import { WEB_ORIGIN } from '../../services/webOrigin';
 import { mintWebViewHandoff } from '../../services/webview/handoff';
 import { decideNavigation } from '../../services/webview/navigationPolicy';
 
-const WEB_BASE = 'https://gruenerator.eu';
 const RENDER_PATH = '/mobile-render';
 
 /**
@@ -114,7 +114,7 @@ export function SharepicRenderHost() {
   const handleShouldStartLoad = useCallback((request: { url: string; isTopFrame?: boolean }) => {
     return (
       decideNavigation(request, {
-        origin: WEB_BASE,
+        origin: WEB_ORIGIN,
         allowedPathPrefixes: [RENDER_PATH],
       }) === 'allow'
     );
