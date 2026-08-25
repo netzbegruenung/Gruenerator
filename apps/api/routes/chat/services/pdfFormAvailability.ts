@@ -23,13 +23,13 @@
  *
  *  - `threadAttachments` (frühere Turns): `hasFileData` ist das Urteil von
  *    `isFillablePdf`, nachgelesen aus der Datenbank.
- *  - `pdfFormAttachments` (dieser Turn): seit #2835 in `streamContext` auf
- *    dasselbe Urteil GEFILTERT — `attachmentProcessing` reicht seine
- *    AcroForm-Prüfung als `pdfIsFillable` weiter, statt sie nur für die
- *    Persistenz zu verwenden. Die Liste existiert überhaupt nur, weil
- *    `threadAttachments` erst nach dem Turn geschrieben wird: auf dem
- *    allerersten Turn („hier ist mein Formular") hätte die strenge Hälfte
- *    sonst nichts zu lesen.
+ *  - `pdfFormAttachments` (dieser Turn): seit #2835 baut `processAttachments`
+ *    die Liste selbst, am Ort seiner AcroForm-Prüfung (`pdfFormCandidates`) —
+ *    nur PDFs mit gefundenen Feldern, ohne dass eine zweite Liste per Name
+ *    oder Position gepaart werden müsste (beides angreifbar, Review auf
+ *    #2862). Die Liste existiert überhaupt nur, weil `threadAttachments` erst
+ *    nach dem Turn geschrieben wird: auf dem allerersten Turn („hier ist mein
+ *    Formular") hätte die strenge Hälfte sonst nichts zu lesen.
  *
  * Ganz deckungsgleich sind die Wege nicht: die Persistenz kennt zusätzlich
  * einen Grössendeckel (`MAX_PDF_BYTES_PERSISTED`), die Turn-Liste bewusst
@@ -43,8 +43,6 @@
  */
 import { type ThreadAttachment } from '../../../agents/langgraph/ChatGraph/types.js';
 
-import { type ProcessedAttachmentMeta } from './attachmentProcessingService.js';
-
 export function hasReachableForm(state: {
   pdfFormAttachments?: Array<{ name: string; data: string }> | undefined;
   threadAttachments?: ThreadAttachment[] | undefined;
@@ -53,33 +51,4 @@ export function hasReachableForm(state: {
   return (state.threadAttachments ?? []).some(
     (a) => a.mimeType === 'application/pdf' && a.hasFileData
   );
-}
-
-/**
- * Dieses Turns Kandidaten für die Formularwerkzeuge: nur PDFs, deren
- * Upload-Prüfung (`pdfIsFillable`, attachmentProcessingService) Formularfelder
- * gefunden hat. Bewusst OHNE den Grössendeckel der Persistenz — die Bytes
- * liegen im Request. Von `streamContext` beim Bau des Turn-States gerufen.
- */
-export function selectPdfFormAttachments(
-  docAttachments: Array<{ name: string; type: string; data: string }>,
-  processedMeta: ProcessedAttachmentMeta[]
-): Array<{ name: string; data: string }> {
-  // Positionsweise gepaart, nicht über einen Namens-Lookup: `processAttachments`
-  // erzeugt pro Anhang genau einen Meta-Eintrag in Eingabereihenfolge, die
-  // Dokument-Metas stehen also wie `docAttachments` (Bilder herausgefiltert;
-  // `inlineMaterial` wird erst DANACH angehängt und stört die Indizes nicht).
-  // Ein reiner Namensvergleich liesse bei zwei gleichnamigen PDFs das
-  // Nicht-Formular das Urteil des Formulars erben. Der Namensabgleich bleibt
-  // als Sicherung: bricht die Ordnung, fällt das PDF raus (fail-closed),
-  // statt ein fremdes Urteil zu übernehmen.
-  const docMeta = processedMeta.filter((m) => !m.isImage);
-  return docAttachments
-    .filter(
-      (a, i) =>
-        a.type === 'application/pdf' &&
-        docMeta[i]?.name === a.name &&
-        docMeta[i]?.pdfIsFillable === true
-    )
-    .map((a) => ({ name: a.name, data: a.data }));
 }
