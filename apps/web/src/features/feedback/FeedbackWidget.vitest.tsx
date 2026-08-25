@@ -1,8 +1,12 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { renderWithProviders, screen } from '../../test-utils';
 
 import FeedbackWidget from './FeedbackWidget';
+
+// Der Screenshot läuft beim Öffnen im Hintergrund; in jsdom gibt es nichts zu
+// zeichnen, und der echte Aufruf würde den Test nur mit Warnungen fluten.
+vi.mock('modern-screenshot', () => ({ domToJpeg: () => Promise.resolve(null) }));
 
 const originalWidth = window.innerWidth;
 
@@ -32,5 +36,20 @@ describe('FeedbackWidget', () => {
     setViewportWidth(1280);
     renderWithProviders(<FeedbackWidget variant="icon" />);
     expect(screen.getByRole('button', { name: 'Feedback geben' })).toBeInTheDocument();
+  });
+
+  // Der Knopf schwebt auch über dem Chat — ohne diesen Satz tippen Leute ihn
+  // an, als wäre der Dialog ein weiteres Chatfenster.
+  it('sagt im Dialog, dass die Nachricht an die Entwicklung geht und keine Antwort kommt', async () => {
+    setViewportWidth(1280);
+    const { user } = renderWithProviders(<FeedbackWidget variant="text" />);
+
+    await user.click(screen.getByRole('button', { name: /^Feedback$/ }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toHaveTextContent('Feedback an die Entwicklung');
+    expect(dialog).toHaveTextContent(/kein Chat/);
+    expect(dialog).toHaveTextContent(/an die Entwicklung des Grünerators/);
+    expect(dialog).toHaveTextContent(/keine Antwort/);
   });
 });
