@@ -115,6 +115,30 @@ describe('selectPdfFormAttachments', () => {
     expect(selectPdfFormAttachments([form], [meta({ name: 'Antrag.pdf' })])).toEqual([]);
   });
 
+  it('erbt das Urteil nicht über eine Namenskollision', () => {
+    // Zwei gleichnamige PDFs im selben Turn, nur das erste ist ein Formular:
+    // das Urteil gilt pro Position, nicht pro Name — sonst reproduzierte eine
+    // Namenskollision genau den Fehlschluss, den der Filter schliessen soll
+    // (Review-Befund auf #2862).
+    const picked = selectPdfFormAttachments(
+      [form, { name: 'Antrag.pdf', type: 'application/pdf', data: 'ZG9j' }],
+      [
+        meta({ name: 'Antrag.pdf', pdfIsFillable: true }),
+        meta({ name: 'Antrag.pdf', pdfIsFillable: false }),
+      ]
+    );
+    expect(picked).toEqual([{ name: 'Antrag.pdf', data: 'Zm9ybQ==' }]);
+  });
+
+  it('fällt bei gebrochener Meta-Ordnung auf „kein Formular" zurück (fail-closed)', () => {
+    // Passt die Position nicht zum Namen, wird kein fremdes Urteil geerbt.
+    const picked = selectPdfFormAttachments(
+      [form],
+      [meta({ name: 'Anderes.pdf', pdfIsFillable: true })]
+    );
+    expect(picked).toEqual([]);
+  });
+
   it('lässt sich von einem gleichnamigen Nicht-PDF nicht täuschen', () => {
     const picked = selectPdfFormAttachments(
       [{ name: 'Antrag.pdf', type: 'text/plain', data: 'dHh0' }],

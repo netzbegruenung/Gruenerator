@@ -65,10 +65,21 @@ export function selectPdfFormAttachments(
   docAttachments: Array<{ name: string; type: string; data: string }>,
   processedMeta: ProcessedAttachmentMeta[]
 ): Array<{ name: string; data: string }> {
-  const fillable = new Set(
-    processedMeta.filter((m) => m.pdfIsFillable === true).map((m) => m.name)
-  );
+  // Positionsweise gepaart, nicht über einen Namens-Lookup: `processAttachments`
+  // erzeugt pro Anhang genau einen Meta-Eintrag in Eingabereihenfolge, die
+  // Dokument-Metas stehen also wie `docAttachments` (Bilder herausgefiltert;
+  // `inlineMaterial` wird erst DANACH angehängt und stört die Indizes nicht).
+  // Ein reiner Namensvergleich liesse bei zwei gleichnamigen PDFs das
+  // Nicht-Formular das Urteil des Formulars erben. Der Namensabgleich bleibt
+  // als Sicherung: bricht die Ordnung, fällt das PDF raus (fail-closed),
+  // statt ein fremdes Urteil zu übernehmen.
+  const docMeta = processedMeta.filter((m) => !m.isImage);
   return docAttachments
-    .filter((a) => a.type === 'application/pdf' && fillable.has(a.name))
+    .filter(
+      (a, i) =>
+        a.type === 'application/pdf' &&
+        docMeta[i]?.name === a.name &&
+        docMeta[i]?.pdfIsFillable === true
+    )
     .map((a) => ({ name: a.name, data: a.data }));
 }
