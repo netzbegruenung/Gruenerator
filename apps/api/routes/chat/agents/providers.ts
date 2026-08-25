@@ -235,9 +235,26 @@ const GEMMA_4_REGOLO: ModelConfigSingle = {
   //     niemand ihn misst.
   //   - kein Slot, der belegt sein kann — der Ausweg hängt nicht mehr an
   //     derselben Engstelle wie die Lane, die ihn braucht.
-  //   - beide Seiten CTX_FULL. Vorher erbte der Sibling nur provider/model,
-  //     nicht das Kontextfenster: der Prompt wurde gegen Regolos 262k bemessen
-  //     und lief auf Verdigados 120k in eine stille Kürzung.
+  //   - jede Seite trägt ihr EIGENES Kontextfenster. Früher erbte der Sibling
+  //     nur provider/model: der Prompt wurde gegen Regolos 262k bemessen und
+  //     lief auf Verdigados 120k in eine stille Kürzung.
+  //
+  // Dieser dritte Punkt stand hier bis zum 25.08.2026 als „beide Seiten
+  // CTX_FULL" und war damit eine Beruhigung, die sich selbst überholt hat: seit
+  // dem gemessenen Kontextfenster des Cortecs-Endpunkts (128k, siehe
+  // GEMMA_31B_ON_CORTECS) sind die beiden Seiten NICHT mehr gleich gross. Der
+  // Mechanismus ist deshalb nicht kosmetisch, sondern tragend — jede
+  // Konfiguration zieht ihr Fenster aus ihrem eigenen Host-Deskriptor.
+  //
+  // WORAUF ZU ACHTEN IST, wenn jemand die Ausweichrichtung ändert:
+  // `ResolvedModelTuple.sibling` führt nur provider/model, kein Fenster — bei
+  // einem Ausweich bleibt also die Zahl des PRIMÄRS stehen. Von der
+  // Antwortlane aus ist das harmlos (Cortecs 128k → Regolo 262k, es wird
+  // grösser). Andersherum ist es die stille Kürzung von oben: wer `gemma-regolo`
+  // auflöst (262k) und von dort auf Cortecs ausweicht, hat gegen 262k bemessen
+  // und landet auf 128k. Diese Kennung ist backend-only und wird heute von
+  // nichts von selbst gewählt — wer das ändert, misst vorher.
+  //
   // `streamWithFallback` ist single-step by design — der eigene Fallback des
   // Ausweichs (`gemma-regolo`) greift auf DIESEM Weg also nicht.
   fallback: GEMMA_31B_ON_CORTECS.laneId,
