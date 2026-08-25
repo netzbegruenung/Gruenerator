@@ -14,28 +14,13 @@ import { mcpBrandColor } from '@gruenerator/shared/utils';
 import { cn, useIsMobile, useMeasuredCornerReservation } from '@gruenerator/ui';
 import { ArrowUp, Mic, Plug, Square, X } from 'lucide-react';
 import { memo, useEffect, useRef, useState, useCallback, type ClipboardEvent } from 'react';
-import { type IconType } from 'react-icons';
 import { RiVoiceAiFill } from 'react-icons/ri';
-import {
-  SiGithub,
-  SiNotion,
-  SiGoogledrive,
-  SiHubspot,
-  SiBrevo,
-  SiZapier,
-  SiTodoist,
-  SiMiro,
-  SiStatista,
-  SiGooglemaps,
-  SiTrivago,
-  SiJira,
-  SiConfluence,
-} from 'react-icons/si';
 
 import { useMentionablesQuery } from '../../hooks/useMentionablesQuery';
 import { handleAttachmentAddError } from '../../lib/attachmentErrorHandler';
 import { getCaretCoords } from '../../lib/caretPosition';
 import { showsSearchDepth } from '../../lib/composerControls';
+import { connectorBrandIcon } from '../../lib/connectorBrand';
 import {
   registerDocumentSlug,
   buildDocumentMentionAttachment,
@@ -73,6 +58,7 @@ import { SearchDepthToggle } from '../SearchDepthToggle';
 import { CanvaMentionPopover } from './CanvaMentionPopover';
 import { useChatDensity } from './chatDensityContext';
 import { ComposerMentionPills } from './ComposerMentionPills';
+import { ComposerToken } from './ComposerToken';
 import { ConnectMentionPopover } from './ConnectMentionPopover';
 import { FileMentionPopover } from './FileMentionPopover';
 import { MentionPopover } from './MentionPopover';
@@ -81,29 +67,6 @@ import { PlusMenu, type ComposerPreset } from './PlusMenu';
 import { VorlagenMentionPopover } from './VorlagenMentionPopover';
 import { WebMentionPopover } from './WebMentionPopover';
 import { WolkeMentionPopover } from './WolkeMentionPopover';
-
-// Real vendor logo for the pinned-connector chip, keyword-matched on the
-// connector name/host (mirrors apps/web McpSection). No match → generic Plug.
-const CONNECTOR_BRAND_ICONS: ReadonlyArray<readonly [RegExp, IconType]> = [
-  [/github/i, SiGithub],
-  [/notion/i, SiNotion],
-  [/google\s*drive|drive\.google/i, SiGoogledrive],
-  [/google\s*maps|mapstools|maps\.google/i, SiGooglemaps],
-  [/hubspot/i, SiHubspot],
-  [/brevo/i, SiBrevo],
-  [/zapier/i, SiZapier],
-  [/todoist/i, SiTodoist],
-  [/miro/i, SiMiro],
-  [/statista/i, SiStatista],
-  [/trivago/i, SiTrivago],
-  [/jira/i, SiJira],
-  [/confluence/i, SiConfluence],
-];
-
-function connectorBrandIcon(label: string): IconType | null {
-  for (const [re, Icon] of CONNECTOR_BRAND_ICONS) if (re.test(label)) return Icon;
-  return null;
-}
 
 interface GrueneratorComposerProps {
   isRunning?: boolean;
@@ -897,28 +860,17 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     />
   ) : null;
 
-  // Sticky connector chip (web-only for now): a compact INLINE pill at the start
-  // of the input line (ChatGPT-style), with the connector's real brand logo and
-  // a neutral surface. The × unpins. Rendered inside the input row below.
-  const pinnedConnectorBrand = pinnedConnector ? mcpBrandColor(pinnedConnector.label) : '';
-  const PinnedConnectorIcon = pinnedConnector
-    ? (connectorBrandIcon(pinnedConnector.label) ?? Plug)
-    : Plug;
+  // Sticky connector chip (web-only for now): a compact INLINE token at the
+  // start of the input line (ChatGPT-style), with the connector's real brand
+  // logo. The × unpins. Rendered inside the input row below.
   const pinnedConnectorChip = pinnedConnector ? (
-    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-black/[0.05] py-1 pl-2 pr-1.5 text-[13px] font-medium dark:bg-white/10">
-      <PinnedConnectorIcon className="h-3.5 w-3.5" style={{ color: pinnedConnectorBrand }} />
-      <span className="max-w-40 truncate" style={{ color: pinnedConnectorBrand }}>
-        {pinnedConnector.label}
-      </span>
-      <button
-        type="button"
-        aria-label={`${pinnedConnector.label} lösen`}
-        onClick={() => setPinnedConnector(null)}
-        className="flex h-4 w-4 items-center justify-center rounded-full text-foreground-muted hover:bg-black/10 dark:hover:bg-white/10"
-      >
-        <X className="h-3 w-3" />
-      </button>
-    </span>
+    <ComposerToken
+      icon={connectorBrandIcon(pinnedConnector.label) ?? Plug}
+      brandColor={mcpBrandColor(pinnedConnector.label)}
+      label={pinnedConnector.label}
+      removeLabel={`${pinnedConnector.label} lösen`}
+      onRemove={() => setPinnedConnector(null)}
+    />
   ) : null;
 
   const modelPickerNode = showModelPicker ? <ModelPicker /> : null;
