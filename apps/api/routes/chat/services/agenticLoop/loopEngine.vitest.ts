@@ -974,6 +974,9 @@ describe('runAgenticLoop — split validation retry (validateAnswer)', () => {
     const out = await runAgenticLoop(baseParams({ onText, validateAnswer: validateJson }), deps);
     expect(out.text).toBe(VALID);
     expect(out.replacedStreamed).toBeUndefined();
+    // Der Tausch muss aus dem Ergebnis ablesbar bleiben: er ist die stärkste
+    // Änderung an dem, was ein Mensch liest, und sonst im Betrieb spurlos.
+    expect(out.replacement).toBe('validation_retry');
     // The invalid pass never reached the client — only the retry did.
     const streamed = onText.mock.calls.map((c) => c[0]).join('');
     expect(streamed).toBe(VALID);
@@ -987,6 +990,7 @@ describe('runAgenticLoop — split validation retry (validateAnswer)', () => {
     const out = await runAgenticLoop(baseParams({ onText, validateAnswer: validateJson }), deps);
     expect(out.text).toBe(VALID);
     expect(out.replacedStreamed).toBe(true);
+    expect(out.replacement).toBe('validation_retry_streamed');
     // The invalid pass was on the wire; the retry itself stays silent.
     const streamed = onText.mock.calls.map((c) => c[0]).join('');
     expect(streamed).toBe(LONG_INVALID);
@@ -998,6 +1002,7 @@ describe('runAgenticLoop — split validation retry (validateAnswer)', () => {
     const out = await runAgenticLoop(baseParams({ onText, validateAnswer: validateJson }), deps);
     expect(out.text).toBe(SHORT_INVALID);
     expect(out.replacedStreamed).toBeUndefined();
+    expect(out.replacement).toBeUndefined();
     expect(calls()).toBe(2);
     // First answer flushes after the failed retry — nothing is lost.
     expect(onText.mock.calls.map((c) => c[0]).join('')).toBe(SHORT_INVALID);
