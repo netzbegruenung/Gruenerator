@@ -41,6 +41,16 @@ function uniqueCollection(): string {
   return `test_collection_${collectionCounter++}`;
 }
 
+// The legacy path's vectorSearch also uses client.query (plain dense query),
+// so "no client.query call" no longer proves the server-side path was skipped.
+// Server-side RRF calls are identified by their shape: prefetch + fusion query.
+function serverSideRrfCalls(client: ReturnType<typeof fakeClient>) {
+  return client.query.mock.calls.filter(([, args]) => {
+    const options = args as { prefetch?: unknown; query?: unknown } | undefined;
+    return options?.prefetch != null && !Array.isArray(options.query);
+  });
+}
+
 describe('withBm25Vector', () => {
   it('attaches a named sparse vector derived from chunk_text', () => {
     const point = { id: 1, vector: [0.1, 0.2], payload: { chunk_text: 'Klimaschutz Programm' } };
@@ -160,7 +170,7 @@ describe('hybridSearch server-side path', () => {
     );
 
     expect(response.metadata.fusionMethod).not.toBe('rrf-server');
-    expect(client.query).not.toHaveBeenCalled();
+    expect(serverSideRrfCalls(client)).toHaveLength(0);
   });
 
   it('falls back to the legacy path for unmigrated collections', async () => {
@@ -175,6 +185,6 @@ describe('hybridSearch server-side path', () => {
     );
 
     expect(response.metadata.fusionMethod).not.toBe('rrf-server');
-    expect(client.query).not.toHaveBeenCalled();
+    expect(serverSideRrfCalls(client)).toHaveLength(0);
   });
 });
