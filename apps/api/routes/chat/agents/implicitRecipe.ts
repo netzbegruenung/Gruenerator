@@ -20,9 +20,11 @@
 import {
   DISABLED_LV_AGENT_IDS,
   SKILLS,
+  isSkillOfferedIn,
   matchesRecipeAudience,
   type Skill,
 } from '@gruenerator/shared/agents';
+import { type InstanceId } from '@gruenerator/shared/instances';
 
 import { NOUN_TRIGGER_MAX_LENGTH } from '../../../agents/langgraph/ChatGraph/nodes/analyzedMessage.js';
 import {
@@ -30,6 +32,7 @@ import {
   isNegatedArtifactRequest,
   stripQuotedSpans,
 } from '../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
+import { CURRENT_INSTANCE } from '../../../config/instance.js';
 
 /**
  * Writing verbs (not the artifact CREATION_VERB_CORE: that set answers "is
@@ -83,7 +86,8 @@ export type ImplicitRecipeMention = (typeof RECIPE_WORDS)[number][0];
  */
 export function deriveImplicitRecipeMention(
   text: string,
-  userLocale: string | null
+  userLocale: string | null,
+  instanceId: InstanceId = CURRENT_INSTANCE
 ): ImplicitRecipeMention | null {
   const t = stripQuotedSpans(text ?? '');
   if (t.trim().length === 0) return null;
@@ -114,6 +118,10 @@ export function deriveImplicitRecipeMention(
     if (!skill) continue;
     if (!matchesRecipeAudience(skill.audience, userLocale)) continue;
     if (DISABLED_LV_AGENT_IDS.has(skill.identifier)) continue;
+    // Was die Instanz nicht anbietet, darf auch nicht implizit zünden: sonst
+    // schreibt der Turn nach Vorgaben eines Rezepts, das im Menü fehlt und das
+    // niemand wieder abwählen kann.
+    if (!isSkillOfferedIn(skill, instanceId)) continue;
     hits.push(mention);
   }
 

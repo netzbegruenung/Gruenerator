@@ -3,5 +3,6 @@
 // imports are an error. The bundler-resolved web app tolerates both.
 export * from './types.js';
 export * from './rolesConfig.js';
+export * from './instanceRoleOffer.js';
 export * from './grueneMdBs.js';
 export * from './rolePromptGeneration.js';

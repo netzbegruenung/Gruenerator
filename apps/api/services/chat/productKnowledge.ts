@@ -12,6 +12,7 @@
 
 import { getVisibleSystemAgentsForLocale } from '@gruenerator/shared/agents';
 
+import { CURRENT_INSTANCE } from '../../config/instance.js';
 import { getMcpExposedCollections } from '../../config/systemCollectionsConfig.js';
 import { localizePlaceholders } from '../localization/index.js';
 import { type Locale } from '../localization/types.js';
@@ -93,7 +94,7 @@ const agentLinesByLocale = new Map<Locale, string>();
 function formatAgentLines(locale: Locale): string {
   const cached = agentLinesByLocale.get(locale);
   if (cached) return cached;
-  const lines = getVisibleSystemAgentsForLocale(locale)
+  const lines = getVisibleSystemAgentsForLocale(locale, CURRENT_INSTANCE)
     .map((a) => {
       const desc = a.description.length > 100 ? `${a.description.slice(0, 97)}…` : a.description;
       return `- ${a.title}: ${desc}`;

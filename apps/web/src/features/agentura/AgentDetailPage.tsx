@@ -16,6 +16,7 @@ import {
 } from 'react-icons/pi';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
+import { CURRENT_INSTANCE } from '../../config/instance';
 import { useUserAgents } from '../agents/api';
 import { PhosphorIcon } from '../agents/icons/PhosphorIcon';
 
@@ -58,7 +59,10 @@ function AgentDetailPage() {
 
   const related = useMemo(() => {
     if (!agent) return [];
-    const pool: Agent[] = [...getVisibleSystemAgentsForLocale(userLocale), ...userAgents];
+    const pool: Agent[] = [
+      ...getVisibleSystemAgentsForLocale(userLocale, CURRENT_INSTANCE),
+      ...userAgents,
+    ];
     return relatedAgents(agent, pool);
   }, [agent, userAgents, userLocale]);
 

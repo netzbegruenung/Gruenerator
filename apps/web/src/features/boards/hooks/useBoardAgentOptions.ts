@@ -1,6 +1,7 @@
 import { getVisibleSystemAgentsForLocale, type Agent } from '@gruenerator/shared/agents';
 import { useMemo } from 'react';
 
+import { CURRENT_INSTANCE } from '../../../config/instance';
 import { useSharedUserAgents, useUserAgents } from '../../agents/api';
 
 import { useAuthStore } from '@/stores/authStore';
@@ -38,7 +39,7 @@ export function useBoardAgentOptions(query = ''): BoardAgentOption[] {
     for (const { agent } of sharedUserAgents) {
       if (!byIdentifier.has(agent.identifier)) byIdentifier.set(agent.identifier, toOption(agent));
     }
-    for (const agent of getVisibleSystemAgentsForLocale(userLocale)) {
+    for (const agent of getVisibleSystemAgentsForLocale(userLocale, CURRENT_INSTANCE)) {
       if (!byIdentifier.has(agent.identifier)) byIdentifier.set(agent.identifier, toOption(agent));
     }
 
