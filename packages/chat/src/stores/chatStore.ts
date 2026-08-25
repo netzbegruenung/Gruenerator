@@ -276,15 +276,21 @@ export const useAgentStore = create<AgentState>()(
       },
 
       setCurrentThread: (threadId) => {
-        if (useAgentStore.getState().currentThreadId === threadId) return;
+        const prevThreadId = useAgentStore.getState().currentThreadId;
+        if (prevThreadId === threadId) return;
+        // Draft → minted thread (first send of a new chat): the backend just
+        // created the thread THIS conversation runs in — that is a continuation,
+        // not a switch. Skill and pinned connector must survive it, or a
+        // connector pinned on the Startseite dies the moment the first answer
+        // streams and every follow-up loses its scope.
+        const isDraftMint = prevThreadId === null && threadId !== null;
         set({
           currentThreadId: threadId,
           currentThreadTitle: null,
           compactionState: { ...DEFAULT_COMPACTION_STATE },
           messageCount: 0,
           needsCompaction: false,
-          activeSkillMention: null,
-          pinnedConnector: null,
+          ...(isDraftMint ? {} : { activeSkillMention: null, pinnedConnector: null }),
         });
         // The Sharepic-Modus (docked artifact panel) is thread-scoped: a
         // variant from the old thread must not stay pinned — nor be sent as
