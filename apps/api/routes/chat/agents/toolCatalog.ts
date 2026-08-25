@@ -826,8 +826,8 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
     }
 
     // PDF form tools. `hasReachableForm` carries the `isFillablePdf` verdict
-    // for BOTH halves — from the DB for earlier turns, via `pdfIsFillable`
-    // (streamContext, #2835) for this one. The scope note lives at the
+    // for BOTH halves — from the DB for earlier turns, via `pdfFormCandidates`
+    // (attachmentProcessing, #2835) for this one. The scope note lives at the
     // predicate, not here, so the two cannot drift.
     //
     // `hasFileData` is the load-bearing half. It used to be `mimeType` alone,

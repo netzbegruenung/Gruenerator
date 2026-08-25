@@ -121,13 +121,6 @@ export interface ProcessedAttachmentMeta {
    *  fillable PDFs, so `fill_pdf_form` still has the document on follow-up
    *  turns. Consumers MUST filter by mimeType — see getThreadTabularFiles. */
   fileData?: string;
-  /** Verdict of the AcroForm probe, set for PDFs only: does this document carry
-   *  form fields? `streamContext` filters `pdfFormAttachments` on it, so the
-   *  PDF form tools only mount when a form is actually attached (#2835).
-   *  Deliberately independent of the size cap that additionally gates
-   *  `fileData` persistence — an oversized form is still fillable THIS turn,
-   *  its bytes are right here in the request. */
-  pdfIsFillable?: boolean;
   /** Qdrant document id, set by `enrichContext` once it vectorized this file in
    *  THIS turn. Its only job is to stop the post-response persistence from
    *  embedding the same bytes a second time under a second id — see
@@ -145,14 +138,30 @@ export async function processAttachments(
   attachmentContext: string;
   imageAttachments: ImageAttachment[];
   processedMeta: ProcessedAttachmentMeta[];
+  /** Dieses Turns Kandidaten für die PDF-Formularwerkzeuge (`streamContext` →
+   *  `pdfFormAttachments`): nur PDFs, deren AcroForm-Prüfung Felder gefunden
+   *  hat. Am Ort des Urteils gebaut — gleiches Objekt wie die Prüfung —, damit
+   *  keine zweite Liste per Name oder Position gepaart werden muss (beides über
+   *  Namenskollisionen bzw. das client-gesendete `isImage`-Flag angreifbar,
+   *  Review auf #2862). Bewusst OHNE den Grössendeckel der Persistenz: ein
+   *  übergrosses Formular ist in DIESEM Turn ausfüllbar, die Bytes liegen im
+   *  Request. NICHT nach Redis persistieren (Multi-MB base64) — siehe
+   *  pipelineStateStore. */
+  pdfFormCandidates: Array<{ name: string; data: string }>;
 }> {
   if (!attachments || attachments.length === 0) {
-    return { attachmentContext: '', imageAttachments: [], processedMeta: [] };
+    return {
+      attachmentContext: '',
+      imageAttachments: [],
+      processedMeta: [],
+      pdfFormCandidates: [],
+    };
   }
 
   const imageAttachments: ImageAttachment[] = [];
   const documentTexts: string[] = [];
   const processedMeta: ProcessedAttachmentMeta[] = [];
+  const pdfFormCandidates: Array<{ name: string; data: string }> = [];
 
   for (const attachment of attachments) {
     if (IMAGE_MIME_TYPES.has(attachment.type)) {
@@ -178,14 +187,17 @@ export async function processAttachments(
       const rawBytes = Math.floor((attachment.data.length * 3) / 4);
       const isTabular = isTabularAttachment(attachment.name, attachment.type);
       // The AcroForm probe runs for EVERY PDF, not only the persistable ones:
-      // its verdict travels as `pdfIsFillable` so streamContext can filter this
-      // turn's form-tool candidates without a second parse (#2835). Storage
-      // (see MAX_PDF_BYTES_PERSISTED) additionally applies the size cap, so
-      // fill_pdf_form can reach the document on later turns.
+      // a positive verdict makes this attachment a form-tool candidate for THIS
+      // turn (#2835). Storage (see MAX_PDF_BYTES_PERSISTED) additionally
+      // applies the size cap, so fill_pdf_form can reach the document on later
+      // turns.
       const pdfIsFillable =
         !isTabular &&
         attachment.type === 'application/pdf' &&
         (await isFillablePdf(Buffer.from(attachment.data, 'base64')));
+      if (pdfIsFillable) {
+        pdfFormCandidates.push({ name: attachment.name, data: attachment.data });
+      }
       const keepPdf = pdfIsFillable && rawBytes <= MAX_PDF_BYTES_PERSISTED;
       const persistedData =
         (isTabular && rawBytes <= MAX_TABULAR_BYTES_PERSISTED) || keepPdf
@@ -232,7 +244,6 @@ export async function processAttachments(
             extractedText: text,
             ...(pageCount != null && { pageCount }),
             ...(persistedData != null && { fileData: persistedData }),
-            ...(attachment.type === 'application/pdf' && { pdfIsFillable }),
           });
           log.info(`[${requestId}] Extracted ${result.text.length} chars from: ${attachment.name}`);
         } else {
@@ -249,7 +260,6 @@ export async function processAttachments(
             extractedText: null,
             ...(pageCount != null && { pageCount }),
             ...(persistedData != null && { fileData: persistedData }),
-            ...(attachment.type === 'application/pdf' && { pdfIsFillable }),
           });
         }
       } catch (error) {
@@ -262,7 +272,6 @@ export async function processAttachments(
           isImage: false,
           extractedText: null,
           ...(persistedData != null && { fileData: persistedData }),
-          ...(attachment.type === 'application/pdf' && { pdfIsFillable }),
         });
       }
     }
@@ -272,6 +281,7 @@ export async function processAttachments(
     attachmentContext: documentTexts.join('\n\n---\n\n'),
     imageAttachments,
     processedMeta,
+    pdfFormCandidates,
   };
 }
 

@@ -58,7 +58,6 @@ import {
   filterEmptyAssistantMessages,
   sanitizeUIFileParts,
 } from './messageHelpers.js';
-import { selectPdfFormAttachments } from './pdfFormAvailability.js';
 import { type createSSEStream, PROGRESS_MESSAGES } from './sseHelpers.js';
 import { canAccessThread } from './threadAccessService.js';
 import {
@@ -611,6 +610,7 @@ export async function buildStreamContext({
     attachmentContext: derivedAttachmentContext,
     imageAttachments,
     processedMeta,
+    pdfFormCandidates,
   } = await processAttachments(effectiveAttachments, requestId);
 
   // Merge any client-injected context (e.g. docs editor markdown + selection)
@@ -654,11 +654,13 @@ export async function buildStreamContext({
     docAttachments.some((a) => isTabularAttachment(a.name, a.type)) ||
     previousAttachments.some((a) => isTabularAttachment(a.name, a.mimeType));
 
-  // Raw bytes of this turn's FILLABLE PDFs, for the PDF form tools. Filtered on
-  // the AcroForm verdict attachmentProcessing already computed (`pdfIsFillable`)
-  // — no second probe here, and a non-form PDF no longer mounts
-  // read_pdf_form/fill_pdf_form on its upload turn (#2835).
-  const pdfFormAttachments = selectPdfFormAttachments(docAttachments, processedMeta);
+  // Raw bytes of this turn's FILLABLE PDFs, for the PDF form tools — built by
+  // attachmentProcessing at the site of its AcroForm probe (#2835), so a
+  // non-form PDF never mounts read_pdf_form/fill_pdf_form on its upload turn.
+  // Deliberately NOT derived from `docAttachments` here: any pairing against a
+  // second list (by name or position) is attackable via name collisions or the
+  // client-sent `isImage` flag.
+  const pdfFormAttachments = pdfFormCandidates;
 
   // Large prose attachments from earlier turns were embedded into Qdrant — route
   // their document ids through the existing document-chat retrieval fan-out so
