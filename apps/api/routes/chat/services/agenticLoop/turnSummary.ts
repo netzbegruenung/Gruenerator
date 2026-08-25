@@ -8,6 +8,7 @@
  */
 import { readMcpResult, type PersistedStep } from './types.js';
 
+import type { AnswerReplacement } from './loopEngine.js';
 import type { SearchIntent } from '../../../../agents/langgraph/ChatGraph/types.js';
 
 export function logTurnSummary(input: {
@@ -21,6 +22,13 @@ export function logTurnSummary(input: {
   sourceCount: number;
   carriedCount: number;
   answerChars: number;
+  /**
+   * Set when the answer the user reads is NOT the first synth pass. Has to be
+   * threaded in from `loopResult`: `answerChars` counts the FINAL text, so a
+   * swap and an ordinary turn produce the same number — that is exactly how a
+   * replaced answer stayed invisible on test and production.
+   */
+  answerReplaced: AnswerReplacement | null;
   mcpMountMs: number;
   onInfo: (message: string) => void;
 }): void {
@@ -58,7 +66,7 @@ export function logTurnSummary(input: {
     } intent=${input.intent} steps=${input.steps.length} sources=${input.sourceCount}${
       input.carriedCount > 0 ? `(carried=${input.carriedCount})` : ''
     } chars=${input.answerChars}${
-      input.mcpMountMs > 0 ? ` mcpMountMs=${input.mcpMountMs}` : ''
-    }${failedTools}${mcpContent}`
+      input.answerReplaced ? ` replaced=${input.answerReplaced}` : ''
+    }${input.mcpMountMs > 0 ? ` mcpMountMs=${input.mcpMountMs}` : ''}${failedTools}${mcpContent}`
   );
 }

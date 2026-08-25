@@ -56,7 +56,7 @@ import {
   shouldForceFirstToolCall,
 } from './forceFirstToolCall.js';
 import { createTurnClocks, resolveBudget } from './loopBudget.js';
-import { runAgenticLoop, type LoopMode } from './loopEngine.js';
+import { runAgenticLoop, type AnswerReplacement, type LoopMode } from './loopEngine.js';
 import { createAfterGather } from './loopGuarantees.js';
 import { MAX_SOURCES } from './loopGuards.js';
 import { materialDominatesTurn, resolveLoopMode } from './loopMode.js';
@@ -171,6 +171,9 @@ export async function streamAgenticResponse(
   // Time the (un-budgeted) MCP tool-mount so a slow connector shows up in the
   // end-of-turn line instead of looking like an unexplained multi-second hang.
   let mcpMountMs = 0;
+  // Außerhalb des try, weil die Zusammenfassung unten läuft — auch nach einem
+  // Abbruch. `loopResult` selbst lebt nur im try.
+  let answerReplaced: AnswerReplacement | null = null;
 
   // Computed BEFORE the model is resolved: the same number decides the lane
   // (precise + reasoning on) and, further down, whether the writer gives up the
@@ -535,6 +538,7 @@ export async function streamAgenticResponse(
       validateAnswer: createAnswerValidator(),
     });
     emitter.flush();
+    answerReplaced = loopResult.replacement ?? null;
 
     if (loopResult.replacedStreamed) {
       // The validation retry replaced an answer that was already on the wire.
@@ -643,6 +647,7 @@ export async function streamAgenticResponse(
     sourceCount: sourceRegistry.size,
     carriedCount: sourceRegistry.carriedSize,
     answerChars: emitter.text.length,
+    answerReplaced,
     mcpMountMs,
     onInfo: (m) => log.info(m),
   });

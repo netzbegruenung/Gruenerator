@@ -17,12 +17,28 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 
+// Die Zusammenfassungszeile IST hier der Prüfgegenstand (siehe den letzten
+// Block): sie geht über den Logger, also muss er greifbar sein.
+// `vi.hoisted`, weil `vi.mock` über die Konstante gehoben wird.
+const { infoLines } = vi.hoisted(() => ({ infoLines: [] as string[] }));
+vi.mock('../../../../utils/logger.js', () => ({
+  createLogger: () => ({
+    info: (m: string): void => {
+      infoLines.push(m);
+    },
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  }),
+}));
+
 import { streamAgenticResponse, type AgenticRespondDeps } from './agenticRespondService.js';
 import { assembleToolCatalog, wrapAssembledTools, type CatalogDeps } from './catalogAssembly.js';
 import { createAnswerValidator } from './synthVerdicts.js';
 import {
   SYNTH_CUTOFF_RETRY_SUFFIX,
   SYNTH_INVALID_JSON_RETRY_SUFFIX,
+  type AnswerReplacement,
   type LoopEngineParams,
 } from './loopEngine.js';
 import { TOOL_TIMEOUT_OVERRIDES_MS, type PersistedStep } from './types.js';
@@ -77,7 +93,7 @@ function fakeDeps(opts: {
   provider?: string;
   modelName?: string;
   onLoop?: (p: LoopEngineParams) => void;
-  loopResult?: { text: string; replacedStreamed?: boolean };
+  loopResult?: { text: string; replacedStreamed?: boolean; replacement?: AnswerReplacement };
   assemble?: AgenticRespondDeps['assembleToolCatalog'];
 }): AgenticRespondDeps {
   return {
@@ -187,6 +203,37 @@ describe('streamAgenticResponse — Verdikt und Wiederholung', () => {
     );
     expect(outcome.fullText).toContain('keine passende Antwort');
     expect(sent.some((e) => e.event === 'response_start')).toBe(true);
+  });
+});
+
+describe('streamAgenticResponse — der Ersatz in der Zusammenfassungszeile', () => {
+  it('trägt das Verdikt des Loops bis in die eine Zeile, die den Zug beschreibt', async () => {
+    // Die Falle: `logTurnSummary` kennt nur `answerChars`, und die ist beim
+    // Ersatz dieselbe Sorte Zahl wie sonst. Ohne das durchgereichte Verdikt
+    // schriebe man eine Zeile, die den Tausch gar nicht sehen KANN.
+    infoLines.length = 0;
+    const { sse } = fakeSse();
+    await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse },
+      fakeDeps({
+        provider: 'greenpt',
+        loopResult: { text: 'Die korrigierte Antwort.', replacement: 'validation_retry' },
+      })
+    );
+    const summary = infoLines.find((m) => m.startsWith('[Agentic] model='));
+    expect(summary).toContain('replaced=validation_retry');
+  });
+
+  it('schweigt über einen Ersatz, den es nicht gab', async () => {
+    infoLines.length = 0;
+    const { sse } = fakeSse();
+    await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse },
+      fakeDeps({ provider: 'greenpt' })
+    );
+    const summary = infoLines.find((m) => m.startsWith('[Agentic] model='));
+    expect(summary).toBeDefined();
+    expect(summary).not.toContain('replaced=');
   });
 });
 
