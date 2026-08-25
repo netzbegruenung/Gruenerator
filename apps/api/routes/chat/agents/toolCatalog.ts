@@ -825,8 +825,9 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
       tools.notebooks = makeNotebooksTool(personalCtx);
     }
 
-    // PDF form tools. `hasReachableForm` is strict for earlier turns and
-    // deliberately permissive for this one — the scope note lives at the
+    // PDF form tools. `hasReachableForm` carries the `isFillablePdf` verdict
+    // for BOTH halves — from the DB for earlier turns, via `pdfIsFillable`
+    // (streamContext, #2835) for this one. The scope note lives at the
     // predicate, not here, so the two cannot drift.
     //
     // `hasFileData` is the load-bearing half. It used to be `mimeType` alone,

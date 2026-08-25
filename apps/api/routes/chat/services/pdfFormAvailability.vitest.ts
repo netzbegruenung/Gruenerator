@@ -5,8 +5,9 @@
  */
 import { describe, it, expect } from 'vitest';
 
-import { hasReachableForm } from './pdfFormAvailability.js';
+import { hasReachableForm, selectPdfFormAttachments } from './pdfFormAvailability.js';
 
+import type { ProcessedAttachmentMeta } from './attachmentProcessingService.js';
 import type { ThreadAttachment } from '../../../agents/langgraph/ChatGraph/types.js';
 
 const attachment = (over: Partial<ThreadAttachment> = {}) =>
@@ -34,16 +35,14 @@ describe('hasReachableForm', () => {
     expect(hasReachableForm({ threadAttachments: [attachment({ hasFileData: true })] })).toBe(true);
   });
 
-  it('sagt ja zu JEDEM PDF dieses Turns, auch einem ungeprüften', () => {
+  it('sagt ja zu einem PDF dieses Turns — die Liste ist bereits gefiltert', () => {
     // Auf dem allerersten Turn („hier ist mein Formular") steht in der DB noch
-    // nichts — dafür gibt es `pdfFormAttachments` überhaupt. Die Liste ist
-    // ungefiltert (streamContext), diese Hälfte also bewusst nicht streng: die
-    // Bytes liegen vor, `read_pdf_form` prüft selbst und meldet `fieldCount: 0`.
-    // Festgehalten, damit die Ungleichheit der beiden Hälften eine Zusicherung
-    // hat und nicht nur einen Kommentar.
+    // nichts — dafür gibt es `pdfFormAttachments` überhaupt. Seit #2835 baut
+    // `streamContext` die Liste über `selectPdfFormAttachments`, also nur aus
+    // PDFs mit bestandener Upload-Prüfung; das Prädikat darf ihr vertrauen.
     expect(
       hasReachableForm({
-        pdfFormAttachments: [{ name: 'Irgendein.pdf', data: 'AAAA' }],
+        pdfFormAttachments: [{ name: 'Formular.pdf', data: 'AAAA' }],
         threadAttachments: [],
       })
     ).toBe(true);
@@ -75,5 +74,52 @@ describe('hasReachableForm', () => {
         threadAttachments: [attachment(), attachment({ id: 'a2', hasFileData: true })],
       })
     ).toBe(true);
+  });
+});
+
+const meta = (over: Partial<ProcessedAttachmentMeta> = {}): ProcessedAttachmentMeta => ({
+  name: 'Datei.pdf',
+  mimeType: 'application/pdf',
+  sizeBytes: 100,
+  isImage: false,
+  extractedText: null,
+  ...over,
+});
+
+describe('selectPdfFormAttachments', () => {
+  const form = { name: 'Antrag.pdf', type: 'application/pdf', data: 'Zm9ybQ==' };
+  const brochure = { name: 'Datenschutz.pdf', type: 'application/pdf', data: 'ZG9j' };
+
+  it('behält das Formular und wirft das Nicht-Formular-PDF raus (#2835)', () => {
+    const picked = selectPdfFormAttachments(
+      [form, brochure],
+      [
+        meta({ name: 'Antrag.pdf', pdfIsFillable: true }),
+        meta({ name: 'Datenschutz.pdf', pdfIsFillable: false }),
+      ]
+    );
+    expect(picked).toEqual([{ name: 'Antrag.pdf', data: 'Zm9ybQ==' }]);
+  });
+
+  it('behält ein übergrosses Formular, dessen Bytes NICHT persistiert wurden', () => {
+    // `pdfIsFillable` ist vom Grössendeckel der Persistenz entkoppelt: in
+    // DIESEM Turn liegen die Bytes im Request, das Ausfüllen muss gehen —
+    // erst auf Folge-Turns fehlt das PDF mangels `file_data`.
+    const oversized = meta({ name: 'Antrag.pdf', pdfIsFillable: true });
+    expect(oversized.fileData).toBeUndefined();
+    const picked = selectPdfFormAttachments([form], [oversized]);
+    expect(picked).toHaveLength(1);
+  });
+
+  it('lässt ein PDF ohne Urteil nicht durch (fail-closed wie die Prüfung selbst)', () => {
+    expect(selectPdfFormAttachments([form], [meta({ name: 'Antrag.pdf' })])).toEqual([]);
+  });
+
+  it('lässt sich von einem gleichnamigen Nicht-PDF nicht täuschen', () => {
+    const picked = selectPdfFormAttachments(
+      [{ name: 'Antrag.pdf', type: 'text/plain', data: 'dHh0' }],
+      [meta({ name: 'Antrag.pdf', pdfIsFillable: true })]
+    );
+    expect(picked).toEqual([]);
   });
 });
