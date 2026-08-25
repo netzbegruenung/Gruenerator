@@ -49,7 +49,7 @@ describe('FeedbackWidget', () => {
     const dialog = await screen.findByRole('dialog');
     expect(dialog).toHaveTextContent('Feedback an die Entwicklung');
     expect(dialog).toHaveTextContent(/kein Chat/);
-    expect(dialog).toHaveTextContent(/an die Entwicklung des Grünerators/);
-    expect(dialog).toHaveTextContent(/keine Antwort/);
+    expect(dialog).toHaveTextContent(/per E-Mail an die Entwicklung/);
+    expect(dialog).toHaveTextContent(/Antwort kommt nicht hier/);
   });
 });
