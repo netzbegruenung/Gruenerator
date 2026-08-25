@@ -42,6 +42,20 @@ import {
 /**
  * Real vendor logo for a connector, keyword-matched on its name/host.
  *
+ * The only such list. The composer chip and the Konnektoren settings directory
+ * (`apps/web/.../McpSection.tsx`, reaching it through the
+ * `@gruenerator/chat/connectors` subpath) each kept their own; the copies
+ * drifted to 13 and 15 entries with 10 in common, so the same service drew a
+ * logo on one surface and a generic plug on the other. This is the union.
+ *
+ * It lives here rather than beside `mcpBrandColor` in `@gruenerator/shared`
+ * because Metro bundles an entire react-icons pack for one named import
+ * (~10 MB of source — `packages/shared/src/icons/index.ts` inlines icons via
+ * GenIcon for exactly that reason). `packages/chat` already keeps its web-only
+ * modules out of the native entry (`src/index.native.ts`), so `react-icons/si`
+ * costs the mobile bundle nothing here. Do not re-export it from a barrel the
+ * native entry touches.
+ *
  * Slack, Outlook/Microsoft, Salesforce and Canva are deliberately absent:
  * simple-icons dropped them over trademark policy, so react-icons has no
  * export to import. They fall back to the generic plug like any unknown
