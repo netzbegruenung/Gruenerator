@@ -6,6 +6,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { AiProviderError } from '../../providers/providerErrors.js';
+import { GEMMA_31B_PRIMARY } from '../gemmaHosts.js';
 
 const executeProvider = vi.fn();
 
@@ -96,23 +97,25 @@ describe('aiText', () => {
     executeProvider.mockResolvedValueOnce(answered('Vom Fallback'));
 
     await expect(aiText({ lane: 'antrag', prompt: 'x' })).resolves.toBe('Vom Fallback');
-    // `antrag` writes a finished text, so Gemma 4 on Regolo is primary; the
-    // generic chain (litellm → regolo → mistral) then leads with litellm.
-    expect(callAt(0).provider).toBe('regolo');
+    // `antrag` writes a finished text, so Gemma 4 is primary — auf welchem
+    // Host, entscheidet services/ai/gemmaHosts.ts; die generische Kette
+    // (litellm → regolo → mistral) führt danach mit litellm.
+    expect(callAt(0).provider).toBe(GEMMA_31B_PRIMARY.provider);
     expect(callAt(1).provider).toBe('litellm');
   });
 
   it('lets each fallback answer on its own default model', async () => {
     // `providerFallback.getFallbackModelForProvider` is the rule: the primary's
-    // model belongs to the primary. Posting `gemma4-31b` at LiteLLM would make
-    // every fallback attempt fail on an unknown model, i.e. a failover chain
-    // that can never catch anything.
+    // model belongs to the primary. Posting the Gemma-Kennung at LiteLLM would
+    // make every fallback attempt fail on an unknown model, i.e. a failover
+    // chain that can never catch anything. Das ist nicht bloss theoretisch:
+    // die beiden Gemma-Hosts schreiben denselben Modellnamen verschieden.
     executeProvider.mockResolvedValueOnce({ content: '', success: true });
     executeProvider.mockResolvedValueOnce(answered('Vom Fallback'));
 
     await aiText({ lane: 'antrag', prompt: 'x' });
 
-    expect(callAt(0).data.options.model).toBe('gemma4-31b');
+    expect(callAt(0).data.options.model).toBe(GEMMA_31B_PRIMARY.model);
     expect(callAt(1).data.options).not.toHaveProperty('model');
   });
 
